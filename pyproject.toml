@@ -9,52 +9,58 @@ dynamic = ["version"]
 
 [tool.pip-tools]
 
-[tool.isort]
-atomic = true
-combine_as_imports = true
-indent = 4
-sections = ['FUTURE', 'STDLIB', 'DJANGO', 'THIRDPARTY', 'FIRSTPARTY', 'LOCALFOLDER']
-known_django = [
-    'django', 'rest_framework', 'graphene', 'graphql', 'graphene_django', 'modelcluster', 'modeltrans', 'wagtail'
-]
-line_length = 80
-multi_line_output = 5
-skip = "migrations"
-wrap_length = 80
-
 [tool.pep8]
 max-line-length = "120"
 ignore = "E309"
 
 [tool.ruff]
 line-length = 130
+exclude = [
+    "node_modules",
+    "*/migrations",
+    "Attic",
+    ".venv",
+]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "D203", "D212",
+    "D1", "CPY", "Q000", "ANN204", "ERA", "ANN201", "ANN0", "PGH003", "TD0", "FIX002", "DJ001", "S101",
+    "ARG001", "UP031", "G002", "BLE001", "SIM108", "SIM103", "SLF001", "C408", "RET504",
+    "TRY003", "EM101", "FIX001", "UP035", "ARG002", "ARG004", "RUF012", "FBT002", "PLR2004",
+    "FBT001", "TID252", "RSE102", "PIE790", "D202", "PLR1722", "SIM118", "SIM114",
+    "T201", "C401", "PD011", "RUF005", "PYI021", "PD901", "TRY002", "TRY400"
+]
+
+[tool.ruff.lint.per-file-ignores]
+"kausal_common/typings/*" = ["D"]
+"kausal_common/typings/django/*" = ["ALL"]
+"**/migrations/*" = ["I001", "I002", "E501"]
 
 [tool.ruff.lint.isort]
 split-on-trailing-comma = true
 combine-as-imports = true
 required-imports = ["from __future__ import annotations"]
+extra-standard-library = ["typing_extensions"]
+section-order = ["future", "standard-library", "django", "third-party", "kausal-common", "django-project", "first-party", "local-folder"]
 
-[tool."pylint.MASTER"]
-load-plugins = "pylint_django"
-django-settings-module = "paths.settings"
+[tool.ruff.lint.isort.sections]
+# sections = ['FUTURE', 'STDLIB', 'DJANGO', 'THIRDPARTY', 'FIRSTPARTY', 'LOCALFOLDER']
+django = [
+    'django', 'rest_framework', 'graphene', 'graphql', 'graphene_django', 'modelcluster', 'modeltrans', 'wagtail', 'reversion',
+    'django_stubs_ext', 'pydantic'
+]
+kausal-common = [
+    'kausal_common'
+]
+django-project = [
+    'paths'
+]
 
-[tool."pylint.FORMAT"]
-max-line-length = "120"
-
-[tool."pylint.MESSAGES CONTROL"]
-disable = """
-consider-using-f-string,raise-missing-from,
-too-few-public-methods,no-member,no-self-use,no-self-argument,
-missing-class-docstring,missing-module-docstring,missing-function-docstring,
-invalid-name,too-many-instance-attributes,redefined-builtin,
-protected-access,unused-argument,logging-fstring-interpolation,
-logging-not-lazy,consider-using-f-string"""
-
-[tool."pylint.TYPECHECK"]
-ignored-modules = "orjson"
-
-[tool.pydocstyle]
-ignore = "D100,D104,D105,D200,D203,D400"
+[tool.ruff.format]
+quote-style = "single"
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "paths.tests.settings"
@@ -70,25 +76,48 @@ plugins = [
 mypy_path = "$MYPY_CONFIG_FILE_DIR/kausal_common/typings"
 exclude = [
     '^Attic/',
-    '^typings/',
-    '^kausal_common/typings/',
+    '/migrations/',
     '^local_settings\.py',
+    '^\.*env*'
 ]
 check_untyped_defs = true
 sqlite_cache = true
+enable_incomplete_feature = ['NewGenericSyntax']
+cache_fine_grained = true
+explicit_package_bases = true
+strict_optional = true
 
 
 [[tool.mypy.overrides]]
 module = [
     "colored.*", "dvc_pandas.*", "factory.*", "pint.*", "pint_pandas.*", "oauth2_provider.*", "modelcluster.*",
     "modeltrans.*", "wagtail.*", "networkx.*", "plotext.*", "graphene_django.*", "grapple.*", "generic_chooser.*",
-    "nanoid.*", "social_core.*", "social_django.*", "plotly.*", "rest_framework_nested.*", "environs.*",
-    "wagtail_color_panel.*", "polars.polars.*",
+    "nanoid.*", "social_core.*", "social_django.*", "plotly.*", "rest_framework_nested.*", "environ.*",
+    "wagtail_color_panel.*", "polars.polars.*", "gunicorn.*", "uwsgi.*", "uwsgidecorators.*", "psutil.*",
+    "gunicorn.*", "environ.*", "dvc.*", "appdirs.*", "wagtail_localize.*", "laces.*", "taggit.*", "permissionedforms.*",
+    "diffsync.*",
 ]
 ignore_missing_imports = true
 
+[tool.mypy-baseline]
+baseline_path = ".mypy-baseline.txt"
+preserve_position = true
+
+[tool.pydantic-mypy]
+init_typed = true
+
 [tool.pyright]
 stubPath = "./kausal_common/typings"
+exclude = [
+    'Attic/',
+    '**/__pycache__',
+    'local_settings.py',
+    '**/migrations',
+    '**/node_modules',
+    '.*',
+]
+deprecateTypingAliases = true
+reportAttributeAccessIssue = "warning"
 
 [tool.django-stubs]
 django_settings_module = "paths.settings"

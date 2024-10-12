@@ -22,7 +22,7 @@ DATA_SHEET_NAME = 'Data'
 PARAM_SHEET_NAME = 'Parameters'
 
 
-def _convert_to_camel_case(input_string: str):
+def _convert_to_camel_case(input_string: str) -> str:
     # Split the input string into words
     words = re.split(r'[-\s]+', input_string)
 
@@ -35,7 +35,7 @@ def _convert_to_camel_case(input_string: str):
     return camel_case_string
 
 
-def _dim_to_col(dim: Dimension):
+def _dim_to_col(dim: Dimension) -> str:
     return _convert_to_camel_case(str(dim.label))
 
 FIXED_COLUMNS = [
@@ -48,7 +48,10 @@ FIXED_COLUMNS = [
 ]
 
 
-def _output_node(wb: Workbook, sheet: Worksheet, node: Node, dim_ids: list[str], actions: list[ActionNode]):
+def _output_node(wb: Workbook, sheet: Worksheet, node: Node, dim_ids: list[str], actions: list[ActionNode], aseq: bool) -> None:  # noqa: PLR0913
+    logger.info('Outputting node %s' % node.id)
+    if len(node.output_metrics) > 1:
+        logger.warning('Multimetric node %s' % node.id)
     df = node.get_output_pl()
     if df.dim_ids:
         df = df.with_columns([pl.col(dim_id).cast(pl.String) for dim_id in df.dim_ids])
@@ -63,7 +66,7 @@ def _output_node(wb: Workbook, sheet: Worksheet, node: Node, dim_ids: list[str],
         'Unit': pl.lit(str(node.unit)),
         'Value': pl.col(VALUE_COLUMN),
         'BaselineValue': pl.col('BaselineValue'),
-        'Forecast': pl.col(FORECAST_COLUMN)
+        'Forecast': pl.col(FORECAST_COLUMN),
     }
     cols = [col_map[col_id].alias(col_id) for col_id in FIXED_COLUMNS]
     for dim_id in dim_ids:
@@ -72,9 +75,14 @@ def _output_node(wb: Workbook, sheet: Worksheet, node: Node, dim_ids: list[str],
         else:
             cols.append(pl.lit(None).alias(dim_id))
 
-    for act in actions:
-        adf = act.compute_impact(node)
-        act_col = 'Impact_%s' % act.id
+    arange = range(len(actions))
+    for i in arange:
+        if aseq:
+            for j in arange:
+                actions[j].enabled_param.set(j <= i)
+
+        adf = actions[i].compute_impact(node)
+        act_col = 'Impact_%s' % actions[i].id
         adf = adf.filter(pl.col(IMPACT_COLUMN) == IMPACT_GROUP).drop(IMPACT_COLUMN).rename({VALUE_COLUMN: act_col})
         df = df.paths.join_over_index(adf, how='left', index_from='left')
         cols.append(pl.col(act_col))
@@ -87,9 +95,9 @@ def _output_node(wb: Workbook, sheet: Worksheet, node: Node, dim_ids: list[str],
     end_row = sheet.max_row
 
     start_col = get_column_letter(1)
-    end_col = get_column_letter(len(row))
-    range = absolute_coordinate('%s%s:%s%s' % (start_col, start_row, end_col, end_row))
-    ref = '%s!%s' % (quote_sheetname(sheet.title), range)
+    end_col = get_column_letter(len(row)) # type: ignore
+    cell_range = absolute_coordinate('%s%s:%s%s' % (start_col, start_row, end_col, end_row))
+    ref = '%s!%s' % (quote_sheetname(sheet.title), cell_range)
     defn = DefinedName(node.id, attr_text=ref)
     wb.defined_names[node.id] = defn
 
@@ -119,7 +127,11 @@ def _add_param_sheet(context: Context, wb: Workbook):
     ps.column_dimensions['A'].width = max_name_length
 
 
-def create_result_excel(context: Context, existing_wb: Path | str | None = None, node_ids: list[str] | None = None):
+def create_result_excel(
+        context: Context,
+        existing_wb: Path | str | None = None,
+        node_ids: list[str] | None = None,
+        action_seq: list[str] | None = None):
     """
     Create or update an Excel workbook with simulation results.
 
@@ -149,6 +161,60 @@ def create_result_excel(context: Context, existing_wb: Path | str | None = None,
         - If node_ids is provided, only the specified nodes will be included in the output.
           Otherwise, all outcome nodes from the context will be used.
     """
+
+    # node_ids = [
+    #     "population",
+    #     "net_emissions",
+    #     "aggregated_cost",
+    #     "discounted_cost",
+    #     "vehicle_kilometres",
+    #     "freight_transport_need",
+    #     "total_building_heat_energy_use",
+    #     "total_electricity_consumption",
+    #     "collected_waste",
+    #     "a11_reduce_all_motorised_transport",
+    #     "a12_modal_switch_from_cars_to_other_modes",
+    #     "transport_efficiency",
+    #     "transport_energy_carrier_shares",
+    #     "freight_transport_energy_carrier_shares",
+    #     "average_truck_utilisation",
+    #     "electrification_year_of_transport",
+    #     "old_building_renovation_rate",
+    #     "new_building_shares",
+    #     "efficient_appliances_rate",
+    #     "building_heating_type_share",
+    #     "heating_fuel_share",
+    #     "electricity_shares",
+    #     "waste_recycling_shares"
+    # ]
+
+    if str(context.instance.name)[:13] == 'NetZeroCities':
+        action_seq = [
+            'a11_reduce_all_motorised_transport',
+            'a12_modal_switch_from_cars_to_other_modes',
+            'a13_car_pooling',
+            'a141_electrification_of_passenger_cars',
+            'a142_electrification_of_buses',
+            'a21_optimised_logistics',
+            'a211_improve_utilisation_of_trucks',
+            'a212_route_optimisation',
+            'a22_truck_fleet_electrification',
+            'a31_renovation_improvements',
+            'a311_renovation_rate_improvement',
+            'a312_renovation_shares_improvement',
+            'a32_new_building_improvements',
+            'a33_do_efficient_appliances',
+            # 'a331_increase_appliance_renovation',
+            'a332_increase_aggressive_renovations',
+            'a34_decarbonising_heat_generation',
+            'a341_heating_technology_improvement',
+            'a342_heating_energy_improvement',
+            'a343_change_heating_fossil_share',
+            'a344_top_performance_improvement',
+            'a41_replace_fossil_electricity',
+            'a51_increase_waste_recycling',
+            'a61_reduced_co2_emissions_in_other_sectors'
+        ]
 
     if node_ids is None:
         node_ids = [node.id for node in context.get_outcome_nodes()]
@@ -201,10 +267,18 @@ def create_result_excel(context: Context, existing_wb: Path | str | None = None,
 
     dims = [context.dimensions[dim_id] for dim_id in all_dims]
     cols = FIXED_COLUMNS + [_dim_to_col(dim) for dim in dims]
-    actions = context.get_actions()[1:]
+
+    if action_seq:
+        actions = [context.get_action(a) for a in action_seq]
+        aseq = True
+    else:
+        actions = context.get_actions()[1:]
+        aseq = False
+
     for act in actions:
         cols.append('Impact_%s' % act.id)
     ds.append(cols)
+
     for idx, col in enumerate(cols):
         letter = get_column_letter(idx + 1)
         ref = '%s!%s' % (quote_sheetname(ds.title), '$%s:$%s' % (letter, letter))
@@ -218,7 +292,7 @@ def create_result_excel(context: Context, existing_wb: Path | str | None = None,
     dim_ids = [dim.id for dim in dims]
     for node_id in node_ids:
         node = context.nodes[node_id]
-        _output_node(wb, ds, node, dim_ids=dim_ids, actions=actions)
+        _output_node(wb, ds, node, dim_ids=dim_ids, actions=actions, aseq=aseq)
     ds.freeze_panes = ds['B2']
 
     ds.column_dimensions['A'].width = 20

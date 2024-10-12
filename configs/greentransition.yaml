@@ -779,7 +779,7 @@ nodes:
   type: simple.FixedMultiplierNode
   quantity: effect
   unit: pcs
-  color: '#300505'
+  # color: '#300505'
   input_nodes:
   - charging_stations
   output_nodes:
@@ -893,7 +893,7 @@ nodes:
   name: Poliittinen vaatimus yrityksille latauspisteiden rakentamiseen
   name_en: Policies demand private companies to build EV charging infra
   description: If the policies demand private companies to build electric vehicle charging stations, the charging infrastructure expands. Some policies would also compel companies to build charging stations in multifamily homes etc., where individual residents cannot influence the existence of charging points compared to single family homes. (Costs are not included here.)
-  quantity: currency
+  quantity: effect
   type: simple.AdditiveNode
   unit: pcs
   historical_values: [[2010, 100], [2023, 100]]

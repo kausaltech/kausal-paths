@@ -1,56 +1,64 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import Generic, Iterable, Type, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar, cast
 
-from django.db import models
 from django.core.exceptions import FieldDoesNotExist
+from django.db.models import Model, QuerySet
+from django.forms import BaseModelForm
+from wagtail.admin.forms.models import WagtailAdminModelForm
 from wagtail.snippets.views.chooser import ChooseResultsView, ChooseView, SnippetChooserViewSet
-from wagtail.snippets.views.snippets import SnippetViewSet, EditView, CreateView
-from wagtail.admin.panels import Panel
-from admin_site.forms import PathsAdminModelForm
+from wagtail.snippets.views.snippets import CreateView, EditView, SnippetViewSet
+
 from paths.admin_context import get_admin_instance
+from paths.types import PathsAdminRequest, PathsModel
 
-from paths.types import PathsAdminRequest
+from admin_site.forms import PathsAdminModelForm
+from users.models import User
+
+if TYPE_CHECKING:
+    from django.http import HttpRequest
+    from wagtail.admin.panels.group import ObjectList
+
+M = TypeVar('M', bound=Model)
+QS = TypeVar('QS', bound=QuerySet)
+MF = TypeVar('MF', bound=BaseModelForm)
 
 
-M = TypeVar('M', bound=models.Model)
+def admin_req(request: HttpRequest) -> PathsAdminRequest:
+    assert request.user is not None
+    assert request.user.is_authenticated
+    return cast(PathsAdminRequest, request)
 
 
-class PathsEditView(EditView, Generic[M]):
-    request: PathsAdminRequest
-    model: Type[M]
-
+class PathsEditView(EditView[M]):
     def get_form_kwargs(self):
         return {
             **super().get_form_kwargs(),
-            'admin_instance': get_admin_instance()
+            'admin_instance': get_admin_instance(),
         }
 
 
 class PathsCreateView(CreateView, Generic[M]):
-    request: PathsAdminRequest
-    model: Type[M]
-
     def get_form_kwargs(self):
         return {
             **super().get_form_kwargs(),
-            'admin_instance': get_admin_instance()
+            'admin_instance': get_admin_instance(),
         }
 
 
 class PathsChooseViewMixin(Generic[M]):
-    request: PathsAdminRequest
     model: type[M]
+    request: HttpRequest
 
     def get_object_list(self):
-        qs = super().get_object_list()  # type: ignore
+        qs: QuerySet[M] = super().get_object_list()  # type: ignore
         try:
             field = self.model._meta.get_field('instance')
         except FieldDoesNotExist:
             field = None
         if field is not None:
-            qs = qs.filter(instance=self.request.admin_instance)
+            qs = qs.filter(instance=admin_req(self.request).admin_instance)
         return qs
 
 
@@ -72,34 +80,41 @@ class PathsChooserViewSet(SnippetChooserViewSet, Generic[M]):
         super().__init__(*args, **kwargs)
 
 
-class PathsViewSet(SnippetViewSet, Generic[M]):
-    model: Type[M]
-    request: PathsAdminRequest
+class PathsModelForm[M: Model](WagtailAdminModelForm[M, User]):
+    pass
+
+
+class PathsViewSet[M: Model | PathsModel](SnippetViewSet[M, PathsModelForm[M]]):
     add_view_class = PathsCreateView
     edit_view_class = PathsEditView
     add_to_admin_menu = True
     chooser_viewset_class = PathsChooserViewSet
 
-    icon: cached_property[str] | str
-    search_fields: Iterable[str]
-    menu_order: int
-    _edit_handler: cached_property[Panel]
+    @cached_property
+    def url_prefix(self) -> str:
+        return f"{self.app_label}/{self.model_name}"
 
-    def get_queryset(self, request: PathsAdminRequest) -> models.QuerySet[M]:
-        base_qs = super().get_queryset(request)
-        if base_qs is None:
-            qs = self.model.objects.get_queryset()  # type: ignore[attr-defined]
-        else:
-            qs = base_qs
-        #if issubclass(self.model, PlanRelatedModel):
-        #    qs = self.model.filter_by_plan(request.get_active_admin_plan(), qs)
+    @cached_property
+    def url_namespace(self) -> str:
+        return f"{self.app_label}_{self.model_name}"
+
+    @property
+    def permission_policy(self):
+        if issubclass(self.model, PathsModel):
+            return self.model.permission_policy()
+        return super().permission_policy
+
+    def get_queryset(self, request: HttpRequest) -> QuerySet[M, M]:
+        qs = cast(QuerySet[M, M], super().get_queryset(request))
+        if issubclass(self.model, PathsModel):
+            pass
         return qs
 
-    def get_edit_handler(self) -> Panel:
+    def get_edit_handler(self) -> ObjectList | None:
         return super().get_edit_handler()
 
     def get_form_class(self, for_update: bool = False):
-        if not self._edit_handler.base_form_class:
+        if self._edit_handler and not self._edit_handler.base_form_class:
             self._edit_handler.base_form_class = PathsAdminModelForm
         return super().get_form_class(for_update)
 

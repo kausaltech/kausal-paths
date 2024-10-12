@@ -1,25 +1,25 @@
 from __future__ import annotations
 
-from typing import Literal, TypeAlias, TYPE_CHECKING, Union
-
-import pandas as pd
+from typing import TYPE_CHECKING, Literal
 
 import polars as pl
 from polars import type_aliases as pl_types
-import common.polars as ppl
-from nodes.units import Unit
-from nodes.constants import YEAR_COLUMN, FORECAST_COLUMN
 
+import common.polars as ppl
+from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
 
 if TYPE_CHECKING:
+    import pandas as pd
+
     from nodes.dimensions import Dimension
     from nodes.node import NodeMetric
+    from nodes.units import Unit
 
 
-Dimensions: TypeAlias = dict[str, 'Dimension']
-Metrics: TypeAlias = dict[str, 'NodeMetric']
+type Dimensions = dict[str, 'Dimension']
+type Metrics = dict[str, 'NodeMetric']
 
-DF: TypeAlias = Union[ppl.PathsDataFrame, pl.DataFrame]
+type DF = ppl.PathsDataFrame | pl.DataFrame
 
 
 @pl.api.register_dataframe_namespace('paths')
@@ -34,14 +34,14 @@ class PathsExt:
     def to_pandas(self, meta: ppl.DataFrameMeta | None = None) -> pd.DataFrame:
         return self._df.to_pandas(meta=meta)
 
-    def to_wide(self, meta: ppl.DataFrameMeta | None = None, only_category_names: bool = False) -> ppl.PathsDataFrame:
+    def to_wide(self, meta: ppl.DataFrameMeta | None = None, only_category_names: bool = False) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912
         """Project the DataFrame wide (dimension categories become columns) and group by year."""
 
         df = self._df
 
         if meta is None:
             meta = df.get_meta()
-        dim_ids = list(sorted(meta.dim_ids))
+        dim_ids = sorted(meta.dim_ids)
         metric_cols = list(meta.units.keys())
         if not metric_cols:
             raise Exception("No metric columns in DF")
@@ -56,9 +56,8 @@ class PathsExt:
         for col in dim_ids + metric_cols:
             if col not in df.columns:
                 raise Exception("Column %s from metadata is not present in DF" % col)
-            if col in dim_ids:
-                if df.schema[col] == pl.Categorical:
-                    dim_casts.append(pl.col(col).cast(pl.Utf8))
+            if col in dim_ids and df.schema[col] == pl.Categorical:
+                dim_casts.append(pl.col(col).cast(pl.Utf8))
         if dim_casts:
             df = df.with_columns(dim_casts)
 
@@ -66,22 +65,20 @@ class PathsExt:
         if not dim_ids:
             return df
 
-        def format_col(dim: str):
+        def format_col(dim: str) -> pl.Expr:
             if only_category_names:
                 return pl.col(dim)
-            else:
-                return pl.format('{}:{}', pl.lit(dim), pl.col(dim))
+            return pl.format('{}:{}', pl.lit(dim), pl.col(dim))
 
-        def format_metric(metric_col: str, col: str):
+        def format_metric(metric_col: str, col: str) -> str:
             if only_category_names:
                 return '%s' % col
-            else:
-                return '%s@%s' % (metric_col, col)
+            return '%s@%s' % (metric_col, col)
 
         df = df.with_columns([
             pl.concat_list([
                 format_col(dim) for dim in dim_ids
-            ]).list.join('/').alias('_dims')
+            ]).list.join('/').alias('_dims'),
         ])
         mdf = None
         units = {}
@@ -89,7 +86,7 @@ class PathsExt:
         if FORECAST_COLUMN in df.columns:
             index_cols.append(FORECAST_COLUMN)
         for metric_col in metric_cols:
-            tdf = df.pivot(index=index_cols, columns='_dims', values=metric_col)
+            tdf = df.pivot(on='_dims', index=index_cols, values=metric_col)  # noqa: PD010
             cols = [col for col in tdf.columns if col not in index_cols]
             metric_unit = meta.units.get(metric_col)
             if metric_unit is not None:
@@ -112,10 +109,10 @@ class PathsExt:
         mdf = mdf.sort(YEAR_COLUMN)
         return ppl.PathsDataFrame._from_pydf(
             mdf._df,
-            meta=ppl.DataFrameMeta(units=units, primary_keys=[YEAR_COLUMN])
+            meta=ppl.DataFrameMeta(units=units, primary_keys=[YEAR_COLUMN]),
         )
 
-    def to_narrow(self, assign_dimension: str | None = None, assign_metric: str | None = None) -> ppl.PathsDataFrame:
+    def to_narrow(self, assign_dimension: str | None = None, assign_metric: str | None = None) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912
         df: ppl.PathsDataFrame | pl.DataFrame = self._df
         assert isinstance(df, ppl.PathsDataFrame)
         id_cols = [YEAR_COLUMN]
@@ -163,7 +160,7 @@ class PathsExt:
         meta.primary_keys = primary_keys
 
         tdf = df.melt(id_vars=id_cols).with_columns([
-            pl.col('variable').str.split('@').alias('_tmp')
+            pl.col('variable').str.split('@').alias('_tmp'),
         ]).with_columns([
             pl.col('_tmp').list.first().alias('Metric'),
             pl.col('_tmp').list.last().str.split('/').alias('_dims'),
@@ -173,7 +170,7 @@ class PathsExt:
         dim_ids = [x.split(':')[0] for x in first]
         dim_cols = [pl.col('_dims').list.get(idx).str.split(':').list.get(1).alias(col) for idx, col in enumerate(dim_ids)]
         df = df.with_columns(dim_cols)
-        df = df.pivot(values='value', index=[*id_cols, *dim_ids], columns='Metric')
+        df = df.pivot(on='Metric', values='value', index=[*id_cols, *dim_ids])  # noqa: PD010
         df = df.with_columns([pl.col(dim).cast(pl.Categorical) for dim in dim_ids])
         return ppl.to_ppdf(df, meta=meta)
 
@@ -196,14 +193,16 @@ class PathsExt:
         assert isinstance(last_hist_year, int)
         years = pl.DataFrame(data=range(last_hist_year + 1, end_year + 1), schema=[YEAR_COLUMN])
         if len(years):
-            df = df.join(years, on=YEAR_COLUMN, how='outer_coalesce').sort(YEAR_COLUMN)
+            df = df.join(years, on=YEAR_COLUMN, how='outer', coalesce=True).sort(YEAR_COLUMN)
             df = df.with_columns([
-                pl.when(pl.col(YEAR_COLUMN) > last_hist_year).then(pl.lit(True)).otherwise(pl.col(FORECAST_COLUMN)).alias(FORECAST_COLUMN)
+                pl.when(pl.col(YEAR_COLUMN) > last_hist_year).then(pl.lit(value=True))\
+                    .otherwise(pl.col(FORECAST_COLUMN)).alias(FORECAST_COLUMN),
             ])
         return ppl.to_ppdf(df, meta=meta)
 
     def nafill_pad(self) -> ppl.PathsDataFrame:
-        """Fill N/A values by propagating the last valid observation forward.
+        """
+        Fill N/A values by propagating the last valid observation forward.
 
         Requires a DF in wide format (indexed by year).
         """
@@ -233,17 +232,25 @@ class PathsExt:
         for dim in dims:
             remaining_keys.remove(dim)
 
+        known_cols = set(meta.primary_keys) | set(meta.metric_cols) | {FORECAST_COLUMN, YEAR_COLUMN}
+        sum_cols = list(meta.metric_cols)
+        for col, dt in df.schema.items():
+            if col in known_cols:
+                continue
+            if dt.is_numeric():
+                sum_cols.append(col)
+
         zdf = df.group_by(remaining_keys).agg([
-            *[pl.sum(col).alias(col) for col in meta.metric_cols],
+            *[pl.sum(col).alias(col) for col in sum_cols],
             *fc,
-        ]).sort(YEAR_COLUMN)
+        ]).sort(remaining_keys)
         return ppl.to_ppdf(zdf, meta=meta)
 
-    def join_over_index(
+    def join_over_index(  # noqa: C901, PLR0912
         self,
         other: ppl.PathsDataFrame,
         how: Literal['left', 'outer'] = 'left',  # FIXME Should also have option 'inner'
-        index_from: Literal['left', 'right', 'union'] = 'left'
+        index_from: Literal['left', 'right', 'union'] = 'left',
     ):
         sdf = self._df
         sm = sdf.get_meta()
@@ -254,22 +261,21 @@ class PathsExt:
             if len(other) == 1:  # A single value copied to all rows
                 #df = sdf.with_columns(other).paths._df
                 raise Exception("invalid access")
-            else:
-                raise ValueError("No shared primary keys between joined DFs")
-        else:
-            for col in join_on:
-                sdt = sdf[col].dtype
-                if sdt != other[col].dtype:
-                    other = other.with_columns([pl.col(col).cast(sdt)])
-            pl_how: pl_types.JoinStrategy = how
-            if how == 'outer':
-                pl_how = 'outer_coalesce'
-            df = sdf.join(other, on=join_on, how=pl_how)
+            raise ValueError("No shared primary keys between joined DFs")
+
+        for col in join_on:
+            sdt = sdf[col].dtype
+            if sdt != other[col].dtype:
+                other = other.with_columns([pl.col(col).cast(sdt)])
+        pl_how: pl_types.JoinStrategy = how
+        if how == 'outer':
+            pl_how = 'outer_coalesce'
+        df = sdf.join(other, on=join_on, how=pl_how)
         fc_right = '%s_right' % FORECAST_COLUMN
         meta = sm.copy()
         if FORECAST_COLUMN in df.columns and fc_right in df.columns:
             df = df.with_columns([
-                pl.col(FORECAST_COLUMN).fill_null(False) | pl.col(fc_right).fill_null(False)
+                pl.col(FORECAST_COLUMN).fill_null(value=False) | pl.col(fc_right).fill_null(value=False),
             ])
             df = df.drop(fc_right)
         for col in om.metric_cols:
@@ -316,10 +322,10 @@ class PathsExt:
 
     def cast_index_to_str(self) -> ppl.PathsDataFrame:
         df = self._df
-        cast_exprs = []
+        cast_exprs: list[pl.Expr] = []
         for col in df.dim_ids:
             if df.schema[col] != pl.Utf8:
-                cast_exprs.append(pl.col(col).cast(pl.Utf8))
+                cast_exprs.append(pl.col(col).cast(pl.Utf8))  # noqa: PERF401
         if cast_exprs:
             df = df.with_columns(cast_exprs)
         return df
@@ -346,20 +352,20 @@ class PathsExt:
         right_val = pl.col(val_col + '_right')
         pl_how: pl_types.JoinStrategy = how
         if how == 'outer':
-            left_fc = left_fc.fill_null(False)
-            right_fc = right_fc.fill_null(False)
+            left_fc = left_fc.fill_null(value=False)
+            right_fc = right_fc.fill_null(value=False)
 
             left_val = left_val.fill_null(0)
             right_val = right_val.fill_null(0)
             pl_how = 'outer_coalesce'
         elif how == 'left':
-            right_fc = right_fc.fill_null(False)
-            right_val = right_val.fill_null(False)
+            right_fc = right_fc.fill_null(value=False)
+            right_val = right_val.fill_null(value=False)
 
         df = ppl.to_ppdf(df.join(odf, on=[YEAR_COLUMN, *meta.dim_ids], how=pl_how), meta=meta)
         df = df.with_columns([
             left_val + right_val,
-            left_fc | right_fc
+            left_fc | right_fc,
         ])
         df = df.select(cols)
         return df
@@ -421,7 +427,7 @@ class PathsExt:
         return df
 
     def print_year(self, year: int | list[int]):
-        if not isinstance(year, (list, tuple)):
+        if not isinstance(year, list | tuple):
             year = [year]
         df = self._df.filter(pl.col(YEAR_COLUMN).is_in(year))
         print(df)

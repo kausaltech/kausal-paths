@@ -742,7 +742,6 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: kEUR/a
-  output_nodes: [building_costs]
   input_datasets:
   - id: budget/action_costs
     forecast_from: 2024
@@ -750,6 +749,7 @@ nodes:
   output_dimensions: [account]
   output_nodes:
   - id: total_action_costs
+  - id: building_costs
 - id: building_emission_costs
   name: building emission costs
   type: simple.MultiplicativeNode
@@ -780,7 +780,6 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: kEUR/a
-  output_nodes: [other_stationary_costs]
   input_datasets:
   - id: budget/action_costs
     forecast_from: 2024
@@ -788,6 +787,7 @@ nodes:
   output_dimensions: [account]
   output_nodes:
   - id: total_action_costs
+  - id: other_stationary_costs
 - id: other_stationary_emission_costs
   name: other_stationary emission costs
   type: simple.MultiplicativeNode
@@ -818,7 +818,6 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: kEUR/a
-  output_nodes: [transport_costs]
   input_datasets:
   - id: budget/action_costs
     forecast_from: 2024
@@ -826,6 +825,7 @@ nodes:
   output_dimensions: [account]
   output_nodes:
   - id: total_action_costs
+  - id: transport_costs
 - id: transport_emission_costs
   name: transport emission costs
   type: simple.MultiplicativeNode
@@ -856,7 +856,6 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: kEUR/a
-  output_nodes: [waste_costs]
   input_datasets:
   - id: budget/action_costs
     forecast_from: 2024
@@ -864,6 +863,7 @@ nodes:
   output_dimensions: [account]
   output_nodes:
   - id: total_action_costs
+  - id: waste_costs
 - id: waste_emission_costs
   name: waste emission costs
   type: simple.MultiplicativeNode

@@ -1,12 +1,12 @@
 id: lappeenranta-syke
 default_language: fi
 supported_languages: [en]
-frameworks: [syke, health_air_pollution]  # FIXME Create a new, multi-dimensional syke framework based on GPC dataset structure and yaml creator.
+frameworks: [syke, health]  # FIXME Create a new, multi-dimensional syke framework based on GPC dataset structure and yaml creator.
 site_url: https://lappeenranta-syke.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   dvc_remote: kausal-s3
-  commit: 9f66f14a074b048d36017f00f8c692e7bdffd97b
+  commit: 6b12b72fec0c688b3886d45ea63cc94891b2f2ab
 theme_identifier: lpr-ilmasto
 name: Lappeenrannan ilmasto-ohjelma 2030
 name_en: Lappeenranta Climate Action Plan 2030
@@ -195,27 +195,21 @@ dimensions:
   - id: local_heating
     label: Local heating
 
-- id: energietrager
-  label: Energieträger
+- id: age
+  label: age
   categories:
-  - id: erdgas
-    label: Erdgas
-  - id: fern_und_nahwarme
-    label: Fern- und Nahwärme
-  - id: heizol
-    label: Heizöl
-  - id: kerosin
-    label: Kerosin
-  - id: kohle
-    label: Kohle
-  - id: kraftstoffe
-    label: Kraftstoffe
-  - id: nicht_definiert
-    label: Nicht definiert
-  - id: sonstiges
-    label: Sonstiges
-  - id: strom
-    label: Strom
+  - id: '20_49'
+    label: 20-49
+    aliases: ['2049']
+  - id: '50_64'
+    label: 50-64
+    aliases: ['5064']
+  - id: '65_79'
+    label: 65-79
+    aliases: ['6579']
+  - id: '80_99'
+    label: 80-99
+    aliases: ['8099']
 
 emission_sectors:
 
@@ -248,7 +242,7 @@ nodes:
 - id: road_transport_emissions2
   name_fi: Tieliikenteen CO2-päästöt
   name_en: CO2 emissions from road transport
-  description_fi: Välisolmu päämallin ja ilmansaastemoduulin välissä
+  description_fi: Välisolmu Syke-päämallin ja terveysvaikutusmoduulin välissä
   description_en: Intermediate node between the main model and the air pollution module
   type: simple.AdditiveNode
   quantity: emissions
@@ -262,7 +256,7 @@ nodes:
 - id: district_heating_emissions2
   name_fi: Kaukolämmön CO2-päästöt
   name_en: CO2 emissions from district heating
-  description_fi: Välisolmu päämallin ja ilmansaastemoduulin välillä
+  description_fi: Välisolmu Syke-päämallin ja terveysvaikutusmoduulin välillä
   description_en: Intermediate node between the main model and the air pollution module
   type: simple.AdditiveNode
   quantity: emissions
@@ -271,40 +265,6 @@ nodes:
   output_nodes:
   - id: fossil_plant_air_pollution_emissions
     tags: [non_additive]
-    to_dimensions: []
-
-- id: amount_of_active_mobility
-  name: Aktiivisen liikkumisen määrä
-  type: simple.AdditiveNode
-  quantity: exposure
-  unit: min/person/d
-  historical_values: [[2010, 10.0], [2023, 10.0]]
-
-- id: health_factor_of_active_mobility
-  name: Aktiivisen liikkumisen terveyskerroin
-  description: WHO:n HEAT-mallia käytettiin tuottamaan Lappeenrannalle räätälöity
-    arvio terveysvaikutusten suuruudesta aktiivisen liikkumisen suhteen. Kerroin ilmoitetaan
-    aktiiviseen liikkumiseen käytettynä aikana aikuisväestössä. Kävalun osalta tarkastellaan
-    20 - 79 -vuotiaita, pyöräilyn osalta 20 - 64 -vuotiaita.  # FIXME CHEXK AGES
-  type: gpc.DatasetNode
-  quantity: exposure_response
-  unit: incident/a/(min/d/person)
-  input_dimensions: [response, transport_mode]
-  output_dimensions: [response, transport_mode]
-  input_datasets: [hia/heat/lappeenranta_heat]
-  params:
-    sector: health_factor_of_active_mobility
-
-- id: health_effect_of_active_mobility
-  name: Aktiivisen liikkumisen terveysvaikutus
-  type: simple.MultiplicativeNode
-  quantity: health_effect
-  unit: cases/a
-  input_dimensions: [response, transport_mode]
-  output_dimensions: [response, transport_mode]
-  input_nodes:
-  - id: health_factor_of_active_mobility
-  - id: amount_of_active_mobility
     to_dimensions: []
 
 - id: carbon_factor_of_active_mobility
@@ -328,7 +288,8 @@ nodes:
   input_nodes:
   - id: carbon_factor_of_active_mobility
   - id: amount_of_active_mobility
-    to_dimensions: []
+    to_dimensions:
+    - id: transport_mode
 
 - id: discount_rate
   name: Diskonttokorko
@@ -339,43 +300,6 @@ nodes:
   params:
     sector: discount_rate
 
-- id: value_of_statistical_life
-  name: Kuolemanriskin tilastollinen hinta
-  type: gpc.DatasetNode
-  quantity: unit_price
-  unit: EUR/case
-  input_datasets: [hia/heat/lappeenranta_heat]
-  params:
-    sector: value_of_statistical_life
-
-- id: active_mobility_costs
-  name: Aktiivisen liikkumisen terveyskustannukset
-  type: simple.MultiplicativeNode
-  quantity: consumption
-  unit: MEUR/a
-  input_dimensions: [transport_mode, response]
-  output_dimensions: [transport_mode, response]
-  input_nodes:
-  - id: health_effect_of_active_mobility
-  - id: value_of_statistical_life
-    to_dimensions: []
-    tags: [arithmetic_inverse]
-
-- id: discounted_active_mobility_costs
-  name: Diskontatut aktiivisen liikkumisen terveyskustannukset
-  type: costs.ExponentialNode
-  quantity: consumption
-  unit: MEUR/a
-  input_dimensions: [transport_mode, response]
-  output_dimensions: [transport_mode, response]
-  input_nodes:
-  - id: active_mobility_costs
-  params:
-  - id: annual_change
-    ref: discount_rate
-  - id: is_decreasing_rate
-    value: true
-
 - id: co2_unit_price
   name: Hiilidioksidin hinta
   type: gpc.DatasetNode
@@ -384,6 +308,81 @@ nodes:
   input_datasets: [hia/heat/lappeenranta_heat]
   params:
     sector: co2_unit_price
+
+# ----------------------- HEAT Active mobility ------------------
+
+- id: population_group_sizes
+  name: Väestöryhmien koko
+  type: gpc.DatasetNode
+  quantity: population
+  unit: inh
+  input_dimensions: [age]
+  output_dimensions: [age]
+  input_datasets:
+  - id: hia/heat/lappeenranta_active_mobility
+  params:
+    sector: Population groups
+
+- id: population_group_shares
+  name: Väestöryhmien suhteet
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [age]
+  output_dimensions: [age]
+  input_nodes:
+  - id: population_group_sizes
+  params:
+    share_dimension: age
+    use_input_node_unit_when_adding: true
+
+- id: active_mover_fraction
+  name: Aktiivisten liikkujien osuus
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode, age]
+  output_dimensions: [transport_mode, age]
+  input_datasets:
+  - id: hia/heat/lappeenranta_active_mobility
+  params:
+    sector: Fraction of movers
+
+- id: active_mover_distance
+  name: Aktiivisten liikkujien matkat
+  type: gpc.DatasetNode
+  quantity: mileage
+  unit: km/person/d
+  input_dimensions: [transport_mode, age]
+  output_dimensions: [transport_mode, age]
+  input_datasets:
+  - id: hia/heat/lappeenranta_active_mobility
+  params:
+    sector: Moving distance
+
+- id: active_mobility2
+  name: Aktiivisen liikkumisen määrä ryhmissä
+  description: Tämä solmu kuvaa kyseisen väestöryhmän osuutta liikkumisesta. Summaamalla
+    osaväestöt yhteen saadaan koko väestön keskimääräinen liikkuminen.
+  type: simple.MultiplicativeNode
+  quantity: mileage
+  unit: km/person/d
+  input_dimensions: [transport_mode, age]
+  output_dimensions: [transport_mode, age]
+  input_nodes:
+  - id: active_mover_fraction
+  - id: active_mover_distance
+    tags: [non_additive]
+  - id: population_group_shares
+    to_dimensions:
+    - id: age
+  output_nodes:
+  - id: active_mobility
+    from_dimensions:
+    - id: age
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
 
 actions:
 - id: convert_cars_to_evs

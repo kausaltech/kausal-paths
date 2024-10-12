@@ -1,7 +1,11 @@
-from typing import Any
-from django.core.management.base import BaseCommand
-from django.conf import settings
+from __future__ import annotations
+
 from pathlib import Path
+from typing import Any
+
+from django.conf import settings
+from django.core.management.base import BaseCommand
+
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 from rich import print
@@ -57,7 +61,7 @@ class Command(BaseCommand):
 
     def query_fwc_ids(self, client: Client, fw_id: str):
         return self.execute_operation(
-            client, 'GetFrameworkConfigIDs', vals=dict(frameworkId=fw_id)
+            client, 'GetFrameworkConfigIDs', vals=dict(frameworkId=fw_id),
         )
 
     def query_framework_config(self, client: Client, fw_id: str, fwc_id: str):
@@ -65,7 +69,7 @@ class Command(BaseCommand):
             client, 'GetFrameworkConfig', vals=dict(
                 frameworkId=fw_id,
                 fwcId=fwc_id,
-            )
+            ),
         )
 
     def remove_framework_config(self, client: Client, id_or_uuid: str):
@@ -92,7 +96,7 @@ class Command(BaseCommand):
             raise Exception("Failed to create FrameworkConfig")
         fwc = resp['frameworkConfig']
         self.stdout.write(
-            self.style.SUCCESS("Created new FrameworkConfig with ID %s, UUID %s" % (fwc['id'], fwc['uuid']))
+            self.style.SUCCESS("Created new FrameworkConfig with ID %s, UUID %s" % (fwc['id'], fwc['uuid'])),
         )
         framework_config_id = fwc['id']
         assert resp['frameworkConfig']['uuid'] == data['uuid']
@@ -105,15 +109,15 @@ class Command(BaseCommand):
                 "dataPoints": [
                     {
                         "year": dp['year'],
-                        "value": dp['value']
+                        "value": dp['value'],
                     } for dp in measure['dataPoints']
-                ]
+                ],
             }
             measures.append(measure_input)
 
         variables = {
             "frameworkConfigId": framework_config_id,
-            "measures": measures
+            "measures": measures,
         }
 
         result = client.execute(update_measures_mutation, variable_values=variables)
@@ -121,12 +125,12 @@ class Command(BaseCommand):
         if not resp['ok']:
             raise Exception("Failed to update measure data points")
         self.stdout.write(self.style.SUCCESS(
-            f"Created {len(result['updateMeasureDataPoints']['createdDataPoints'])} data points."
+            f"Created {len(result['updateMeasureDataPoints']['createdDataPoints'])} data points.",
         ))
 
     def import_framework_config(self, src_client: Client, target_client: Client, fw_id: str, existing_data: dict, fwc: dict):
         self.stdout.write(self.style.MIGRATE_HEADING(
-            "Importing framework config for %s (UUID %s)" % (fwc['organizationName'], fwc['uuid'])
+            "Importing framework config for %s (UUID %s)" % (fwc['organizationName'], fwc['uuid']),
         ))
 
         data = self.query_framework_config(src_client, fw_id, fwc['id'])
@@ -136,7 +140,7 @@ class Command(BaseCommand):
         fwc_uuid = fwc['uuid']
         if fwc_uuid in existing_uuids:
             self.stdout.write(
-                self.style.WARNING('Config already exists locally, removing')
+                self.style.WARNING('Config already exists locally, removing'),
             )
             self.remove_framework_config(target_client, fwc_uuid)
         self.stdout.write("Creating framework config locally")

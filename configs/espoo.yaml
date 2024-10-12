@@ -309,17 +309,25 @@ nodes:
     laskennassa kehittyvän Espoon kaupungin pitkän väestöennusteen perusvaihtoehdon
     mukaisesti ja olevan 362690 vuonna 2035. Tässä työkalussa käytetään Tilastokeskuksen
     väestöennustetta, joka on 345000 vuodelle 2035. Toteutunut väestönkehitys (1990,
-    2000-2022) on saatu Tilastokeskuksen tilastoista. <a 
+    2000-2022) on saatu Tilastokeskuksen tilastoista. <a
     href="https://stat.hel.fi/pxweb/fi/Aluesarjat/Aluesarjat__vrm__ennak__umkun/Hginseutu_VA_VN02_Vaestonmuutos_ennakko.px/">Lähde</a>
   input_datasets:
   - id: statfi/StatFin/vrm/vaerak/statfin_vaerak_pxt_11re
     filters:
     - column: Alue
       value: Espoo
+    - dimension: Sukupuoli
+      flatten: true
+    - dimension: Ikä
+      flatten: true
   - id: statfi/StatFin/vrm/vaenn/statfin_vaenn_pxt_139f
     filters:
     - column: Alue
       value: Espoo
+    - dimension: Sukupuoli
+      flatten: true
+    - dimension: Ikä
+      flatten: true
 
 - id: all_hsy_emissions
   type: finland.hsy.HsyNode
@@ -886,7 +894,7 @@ pages:
     avoimella lisenssillä CC-BY 4.0.</p> '
   lead_paragraph_en: '<p>Espoo emission scenarios visualise the development of Espoo’s
     greenhouse gas emissions. You can look at where emissions in the City of Espoo
-    come from and how they are predicted to change by 2030. Options available: 
+    come from and how they are predicted to change by 2030. Options available:
     <ul><li><b>Finland 2035 scenario</b>, which assumes that the climate policy measures and
     decisions taken at national level will affect Espoo’s emissions development;</li><li>the
     <b>Carbon-neutral Espoo 2030 scenario (HNE2030)</b>, which assumes that the city’s
@@ -1026,6 +1034,16 @@ actions:
   description: Huomaa, että tämä toimenpide ei mallissa liity kansallisen sähköntuotannon
     päästökertoimeen, vaikka todellisuudessa ne toki liittyvät. Lämmityssähköä tarkastellaan
     erikseen, koska lämmityskaudella sähköntuotannon tavat poikkeavat vuoden keskiarvosta.
+  description_en: Note that in this model, this action is not related to the
+    emission factor of national electricity production, although in reality
+    they are of course connected. Heating electricity is examined separately
+    because during the heating season, the methods of electricity production
+    differ from the annual average.
+  description_sv: Observera att denna åtgärd i modellen inte är relaterad till
+    utsläppsfaktorn för nationell elproduktion, även om de naturligtvis är
+    kopplade i verkligheten. Uppvärmningsel undersöks separat eftersom
+    elproduktionsmetoderna under uppvärmningssäsongen skiljer sig från
+    årsgenomsnittet.
   group: electricity
   type: simple.TrajectoryAction
   quantity: emission_factor
@@ -1095,6 +1113,8 @@ actions:
 
 - id: heating_efficiency_improvements_new
   name: Ominaislämmönkulutuksen paraneminen uudessa rakennuskannassa
+  name_en: Improvement of specific heat consumption in new building stock
+  name_sv: Förbättring av specifik värmeförbrukning i nytt byggnadsbestånd
   description: Lämmitysenergia ominaiskulutuksen uudisrakennuksissa oletetaan paranevan
     kaikissa lämmitysmuodoissa. Uudisrakennusten ominaislämmönkulutus arvioidaan Sitowisen
     laskelmissa olevan Suomi2035- ja HNE2030-skenaarioissa <ul><li>Pientalot 115 kWh/m<sup>2</sup>/a
@@ -1130,6 +1150,8 @@ actions:
 
 - id: heating_efficiency_improvements_old
   name: Ominaislämmönkulutuksen tehostuminen vanhassa rakennuskannassa
+  name_en: Enhancement of specific heat consumption in old building stock
+  name_sv: Effektivisering av specifik värmeförbrukning i gammalt byggnadsbestånd
   description: <p>HNE2030-skenaariossa kaukolämmön tuotannon ja kulutuksen oletetaan
     Fortumin arvion mukaisesti pysyvän nykytasolla, eli noin 2100 GWh vuodessa. Tämä
     tapahtuu rakennusten energiatehokkuutta parantamalla. Kulutus on 2100 ja 2420
@@ -1417,6 +1439,22 @@ actions:
     on huomattava päästövähennysvaikutus. Lisäksi kokonaisuuden toimia on kohdennettu
     kaavoituksen keinoin pääosin uudisrakentamiseen, jossa potentiaalia on olemassa
     olevaan rakennuskantaan nähden vähemmän.
+  description_en: The actions primarily concern the city's own buildings and
+    those of Espoon Asunnot (Espoo Housing). The measures thus cover only a small
+    part of the building stock, and their cost impact is not significant.
+    Improving energy efficiency in conjunction with renovations does not
+    necessarily increase costs. Energy efficiency actions have a significant
+    emission reduction effect. In addition, the overall measures have been
+    targeted mainly at new construction through zoning measures, where there is
+    less potential compared to the existing building stock.
+  description_sv: Åtgärderna gäller främst stadens egna byggnader och Espoon Asunnots (Esbos
+    bostäder) byggnader. Åtgärderna täcker alltså bara en liten del av
+    byggnadsbeståndet, och deras kostnadseffekt är inte betydande. Förbättring
+    av energieffektiviteten i samband med renoveringar ökar inte nödvändigtvis
+    kostnaderna. Energieffektivitetsåtgärder har en betydande utsläppsminskande
+    effekt. Dessutom har de övergripande åtgärderna främst inriktats på
+    nybyggnation genom planläggningsåtgärder, där potentialen är mindre jämfört
+    med det befintliga byggnadsbeståndet.
   type: simple.CumulativeAdditiveAction
   quantity: energy
   group: buildings
@@ -1588,6 +1626,8 @@ actions:
   name_en: Change in car traffic emission factor
   name_sv: Förändring av biltrafikens emissionsfaktor
   description: Tarkemmin määrittelemätön globaali trendi päästökertoimessa.
+  description_en: An unspecified global trend in the emission factor.
+  description_sv: En ospecificerad global trend i utsläppsfaktorn.
   type: simple.AdditiveAction
   quantity: emission_factor
   unit: g/kWh
@@ -1608,6 +1648,8 @@ actions:
   name_en: Change in van traffic emission factor
   name_sv: Förändring av paketbiltrafikens emissionsfaktor
   description: Tarkemmin määrittelemätön globaali trendi päästökertoimessa.
+  description_en: An unspecified global trend in the emission factor.
+  description_sv: En ospecificerad global trend i utsläppsfaktorn.
   type: simple.AdditiveAction
   quantity: emission_factor
   unit: g/kWh
@@ -1627,6 +1669,8 @@ actions:
   name_en: Change in lorry traffic emission factor
   name_sv: Förändring av lastbiltrafikens emissionsfaktor
   description: Tarkemmin määrittelemätön globaali trendi päästökertoimessa.
+  description_en: An unspecified global trend in the emission factor.
+  description_sv: En ospecificerad global trend i utsläppsfaktorn.
   type: simple.AdditiveAction
   quantity: emission_factor
   unit: g/kWh
@@ -1646,6 +1690,8 @@ actions:
   name_en: Change in bus traffic emission factor
   name_sv: Förändring av busstrafikens emissionsfaktor
   description: Tarkemmin määrittelemätön globaali trendi päästökertoimessa.
+  description_en: An unspecified global trend in the emission factor.
+  description_sv: En ospecificerad global trend i utsläppsfaktorn.
   type: simple.AdditiveAction
   quantity: emission_factor
   unit: g/kWh

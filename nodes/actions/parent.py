@@ -1,13 +1,20 @@
-import pandas as pd
-import polars as pl
-import networkx as nx
+from __future__ import annotations
 
-from common import polars as ppl
+from typing import TYPE_CHECKING
+
+import networkx as nx
+import polars as pl
+
 from nodes.constants import IMPACT_COLUMN, IMPACT_GROUP
 from nodes.exceptions import NodeError
-from params import Parameter
+
 from .action import ActionNode
-from ..node import Node
+
+if TYPE_CHECKING:
+    from common import polars as ppl
+    from params import Parameter
+
+    from ..node import Node
 
 
 def first_common_descendant(G, sources, target):
@@ -63,7 +70,10 @@ class ParentActionNode(ActionNode):
 
     def compute_effect(self) -> ppl.PathsDataFrame:
         for root_node in self.context.get_root_nodes():
-            if root_node.unit.is_compatible_with(self.unit):
+            if isinstance(root_node, ParentActionNode):
+                continue
+            rnu = root_node.unit.is_compatible_with(self.unit)
+            if rnu and (root_node.id != self.id):  # FIXME Quickfix done. But this can produce unintended results
                 break
         else:
             raise NodeError(self, "Unable to find unit-compatible root node")

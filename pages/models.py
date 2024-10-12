@@ -1,30 +1,41 @@
+from __future__ import annotations
+
 from functools import cached_property
-from typing import Sequence, cast
+from typing import TYPE_CHECKING, ClassVar, Self, cast
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from graphene_django.converter import convert_choices_to_named_enum_with_descriptions
 from modelcluster.fields import ParentalKey
 from wagtail import blocks
 from wagtail.admin.forms import WagtailAdminPageForm
 from wagtail.admin.panels import (
-    FieldPanel, MultiFieldPanel, Panel,
+    FieldPanel,
+    MultiFieldPanel,
+    Panel,
 )
 from wagtail.fields import RichTextField, StreamField
-from wagtail.models import Page, PageManager, Site
+from wagtail.models import Page, Site
+from wagtail.query import PageQuerySet
 
-from graphene_django.converter import convert_choices_to_named_enum_with_descriptions
-from grapple.models import (
-    GraphQLBoolean, GraphQLField, GraphQLStreamfield,
-    GraphQLString
-)
+from grapple.models import GraphQLBoolean, GraphQLField, GraphQLStreamfield, GraphQLString
+
+from kausal_common.models.types import PageModelManager
+
 from nodes.blocks import OutcomeBlock
-
 from nodes.models import InstanceConfig, NodeConfig
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from django.db.models.expressions import Combinable
+    from django.db.models.fields import AutoField
+    from modelcluster.fields import PK
 
 
 class PathsAdminPageForm(WagtailAdminPageForm):
-    instance: 'PathsPage'
+    instance: PathsPage
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -33,7 +44,7 @@ class PathsAdminPageForm(WagtailAdminPageForm):
             process_form(self)
 
     @cached_property
-    def admin_instance(self):
+    def admin_instance(self) -> InstanceConfig:
         if self.instance is not None and self.instance.id is not None:
             pp = self.instance
         else:
@@ -44,29 +55,39 @@ class PathsAdminPageForm(WagtailAdminPageForm):
                 break
         else:
             raise Exception("No sites found for page: %s" % self.instance)
-        return site.instance
+
+        return cast(InstanceConfig, site.instance)  # pyright: ignore
 
 
-class PathsPageManager(PageManager):
-    def get_by_natural_key(self, *slugs):
+class PathsPageManager[PageT: PathsPage](PageModelManager[PageT, PageQuerySet[PageT]]):
+    model: type[PageT]
+
+    def get_queryset(self) -> PageQuerySet[PageT]:
+        return super().get_queryset()
+
+    def get_by_natural_key(self, *slugs: str) -> PageT:
         next_level = Page.get_root_nodes()
         page = None
-        while slugs:
-            slug, *slugs = slugs
+        rest = list(slugs)
+        while rest:
+            slug, *rest = rest
             page = next_level.get(slug=slug)
             next_level = page.get_children()
         assert page
-        page = page.specific
-        assert isinstance(page, PathsPage)
+        page = cast(PageT, page.specific)
+        assert isinstance(page, self.model)
         return page
 
 
 class PathsPage(Page):
     i18n = models.JSONField(blank=True, null=True)
-    show_in_footer = models.BooleanField(default=False, verbose_name=_('show in footer'),
-                                         help_text=_('Should the page be shown in the footer?'),)
+    show_in_footer = models.BooleanField[bool, bool](
+        default=False,
+        verbose_name=_('show in footer'),
+        help_text=_('Should the page be shown in the footer?'),
+    )
 
-    content_panels = [
+    content_panels: Sequence[Panel] = [
         FieldPanel('title', classname="full title"),
     ]
     common_settings_panels = [
@@ -78,33 +99,31 @@ class PathsPage(Page):
     settings_panels = [
         MultiFieldPanel([
             FieldPanel('slug'),
-            *common_settings_panels
+            *common_settings_panels,
         ], _('Common page configuration')),
     ]
-    promote_panels: list[Panel] = []
+    promote_panels: Sequence[Panel] = []
 
     graphql_fields = [
         GraphQLBoolean('show_in_menus', required=True),
         GraphQLBoolean('show_in_footer', required=True),
-        GraphQLString('title', required=True)
+        GraphQLString('title', required=True),
     ]
 
     base_form_class = PathsAdminPageForm
 
-    # type annotations
-    id: int | None
-
-    objects = PathsPageManager()
+    objects: ClassVar[PathsPageManager[Self]] = PathsPageManager()  # pyright: ignore
+    id: AutoField[Combinable | int | str | None, int]
 
     class Meta:
         abstract = True
 
     @classmethod
-    def get_subclasses(cls):
-        """Get implementations of this abstract base class"""
+    def get_subclasses(cls) -> Sequence[type[Self]]:
+        """Get implementations of this abstract base class."""
         content_types = ContentType.objects.filter(app_label=cls._meta.app_label)
         model_classes = [ct.model_class() for ct in content_types]
-        return [model for model in model_classes if (model is not None and issubclass(model, cls) and model is not cls)]
+        return tuple(model for model in model_classes if (model is not None and issubclass(model, cls) and model is not cls))
 
     def get_url_parts(self, request=None):
         # Find the root page for this sub-page
@@ -117,8 +136,8 @@ class PathsPage(Page):
         return (site.pk, instance.site_url, self.url_path)
 
     def natural_key(self):
-        page = self
-        key = ()
+        page: Page | None = self
+        key: tuple[str, ...] = ()
         while page:
             key = (page.slug,) + key
             page = page.get_parent()
@@ -132,8 +151,9 @@ class InstanceRootPage(PathsPage):
         'outcome': {'min_num': 1, 'max_num': 1},
     }, use_json_field=True)
 
-    content_panels = PathsPage.content_panels + [
-        FieldPanel('body')
+    content_panels = [
+        *PathsPage.content_panels,
+        FieldPanel('body'),
     ]
 
     parent_page_types: Sequence[type[Page] | str] = []
@@ -145,21 +165,33 @@ class StaticPage(PathsPage):
         ('outcome', OutcomeBlock()),
     ], blank=True, null=True, use_json_field=True)
 
-    content_panels = PathsPage.content_panels + [
-        FieldPanel('body')
+    content_panels = [
+        *PathsPage.content_panels,
+        FieldPanel('body'),
     ]
 
     graphql_fields = PathsPage.graphql_fields + [
-        GraphQLStreamfield('body')
+        GraphQLStreamfield('body'),
     ]
 
 
+class OutcomePageQuerySet(PageQuerySet['OutcomePage']):
+    pass
+
+class OutcomePageManager(PathsPageManager['OutcomePage']):
+    pass
+
+
 class OutcomePage(PathsPage):
-    outcome_node = ParentalKey(NodeConfig, on_delete=models.PROTECT, related_name='pages')
+    outcome_node: PK[NodeConfig] = ParentalKey(NodeConfig, on_delete=models.PROTECT, related_name='pages')
     lead_title = models.CharField(blank=True, max_length=100, verbose_name=_('Lead title'))
     lead_paragraph = RichTextField(blank=True, verbose_name=_('Lead paragraph'))
 
-    content_panels = PathsPage.content_panels + [
+    objects: ClassVar[OutcomePageManager] = OutcomePageManager()  # pyright: ignore
+    _default_manager: ClassVar[OutcomePageManager]  # pyright: ignore
+
+    content_panels = [
+        *PathsPage.content_panels,
         FieldPanel('outcome_node'),
         FieldPanel('lead_title'),
         FieldPanel('lead_paragraph'),
@@ -171,12 +203,12 @@ class OutcomePage(PathsPage):
         GraphQLString('lead_paragraph'),
     ]
 
-    class Meta:
+    class Meta:  # pyright: ignore
         verbose_name = _('Outcome page')
         verbose_name_plural = _('Outcome pages')
 
     @classmethod
-    def process_form(cls, form: PathsAdminPageForm):
+    def process_form(cls, form: PathsAdminPageForm) -> None:
         f = form.fields.get('outcome_node')
         if f is not None:
             f.queryset = f.queryset.filter(instance=form.admin_instance)
@@ -188,7 +220,7 @@ class ActionListPage(PathsPage):
         IMPACT = "impact", _("Impact")
         CUM_IMPACT = "cum_impact", _("Cumulative impact")
 
-    lead_title = models.CharField(blank=True, max_length=100, verbose_name=_('Lead title'))
+    lead_title = models.CharField[str, str](verbose_name=_('Lead title'), blank=True, max_length=100)
     lead_paragraph = RichTextField(blank=True, verbose_name=_('Lead paragraph'))
     # standard, impact, cumulative impact??
     default_sort_order = models.CharField(max_length=40, choices=ActionSortOrder.choices, default=ActionSortOrder.STANDARD)
@@ -196,7 +228,8 @@ class ActionListPage(PathsPage):
     show_action_comparison = models.BooleanField(default=True, verbose_name=_('Show action comparison'))
     show_only_municipal_actions = models.BooleanField(default=False, verbose_name=_('Show only municipal actions'))
 
-    content_panels = PathsPage.content_panels + [
+    content_panels = [
+        *PathsPage.content_panels,
         FieldPanel('lead_title'),
         FieldPanel('lead_paragraph'),
         FieldPanel('default_sort_order'),
@@ -218,7 +251,7 @@ class ActionListPage(PathsPage):
 
     parent_page_type = [InstanceRootPage]
 
-    class Meta:
+    class Meta:  # pyright: ignore
         verbose_name = _('Action list page')
         verbose_name_plural = _('Action list pages')
 
@@ -232,15 +265,21 @@ class InstanceSiteContentManager(models.Manager):
 class InstanceSiteContent(models.Model):
     instance = models.OneToOneField(InstanceConfig, on_delete=models.CASCADE, related_name="site_content")
 
-    intro_content = StreamField([
-        ('title', blocks.RichTextBlock(label=_('Title'), features=['h2', 'h3', 'h4', 'bold', 'italic'])),
-        ('paragraph', blocks.RichTextBlock(label=_("Introductory content to show in the UI"), features=['h2', 'h3', 'h4', 'bold', 'italic', 'embed'])),
+    intro_content = StreamField(
+        [
+            ('title', blocks.RichTextBlock(label=_('Title'), features=['h2', 'h3', 'h4', 'bold', 'italic'])),
+            (
+                'paragraph',
+                blocks.RichTextBlock(
+                    label=_('Introductory content to show in the UI'), features=['h2', 'h3', 'h4', 'bold', 'italic', 'embed'],
+                ),
+            ),
         ],
-        block_counts={
-            'title': {'max_num': 1},
-            'paragraph': {'max_num': 1}
-        },
-        use_json_field=True, blank=True, verbose_name=_('Introductory content'))
+        block_counts={'title': {'max_num': 1}, 'paragraph': {'max_num': 1}},
+        use_json_field=True,
+        blank=True,
+        verbose_name=_('Introductory content'),
+    )
 
     graphql_fields = [GraphQLStreamfield('intro_content')]
 
@@ -250,8 +289,8 @@ class InstanceSiteContent(models.Model):
         verbose_name = _('Site content')
         verbose_name_plural = _('Site contents')
 
-    def natural_key(self):
-        return self.instance.natural_key()
-
     def __str__(self) -> str:
         return "Site contents for %s" % self.instance.name
+
+    def natural_key(self):
+        return self.instance.natural_key()

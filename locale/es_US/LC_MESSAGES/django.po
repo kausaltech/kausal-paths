@@ -1,0 +1,1183 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-09-26 08:45+0300\n"
+"PO-Revision-Date: 2024-10-10 10:20+0000\n"
+"Last-Translator: Matias Wargelin <matias.wargelin@kausal.tech>\n"
+"Language-Team: Spanish (American) <https://weblate.kausal.tech/projects/"
+"paths/django/es_US/>\n"
+"Language: es_US\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Weblate 5.4.2\n"
+
+#: admin_site/api.py
+msgid "Invalid email address"
+msgstr "Dirección de correo electrónico no válida"
+
+#: admin_site/api.py
+msgid "No user found with this email address. Ask your administrator to create an account for you."
+msgstr ""
+"No se ha encontrado ningún usuario con esta dirección de correo electrónico. "
+"Pida a su administrador que le cree una cuenta."
+
+#: admin_site/api.py
+msgid "This user does not have access to admin."
+msgstr "Este usuario no tiene acceso a admin."
+
+#: admin_site/perms.py nodes/roles.py
+msgid "General admin"
+msgstr "Administración general"
+
+#: admin_site/templates/wagtailadmin/home.html
+msgid "Welcome to Paths admin"
+msgstr "Bienvenido a Paths admin"
+
+#: admin_site/templates/wagtailadmin/login.html
+msgid "Sign in to Kausal Paths admin"
+msgstr "Iniciar sesión en Kausal Paths admin"
+
+#: admin_site/templates/wagtailadmin/login.html
+msgid "Our apologies, the server is temporarily experiencing difficulties."
+msgstr ""
+"Nuestras disculpas, el servidor está experimentando dificultades "
+"temporalmente."
+
+#: admin_site/wagtail_hooks.py
+msgid "Choose instance"
+msgstr "Elegir instancia"
+
+#: datasets/models.py
+msgid "dataset"
+msgstr "conjunto de datos"
+
+#: datasets/models.py
+msgid "datasets"
+msgstr "conjuntos de datos"
+
+#: datasets/models.py
+msgid "label"
+msgstr "etiqueta"
+
+#: datasets/models.py
+msgid "data source reference"
+msgstr "referencia de la fuente de datos"
+
+#: datasets/models.py
+msgid "data source references"
+msgstr "referencias de fuentes de datos"
+
+#: datasets/models.py
+msgid "Review comment"
+msgstr "Comentario"
+
+#: datasets/models.py
+msgid "Sticky comment"
+msgstr "Comentario pegajoso"
+
+#: datasets/models.py
+msgid "Resolved"
+msgstr "Resuelto"
+
+#: datasets/models.py
+msgid "Unresolved"
+msgstr "Sin resolver"
+
+#: datasets/models.py
+msgid "resolved at"
+msgstr "resuelto en"
+
+#: datasets/models.py
+msgid "comment"
+msgstr "comentario"
+
+#: datasets/models.py
+msgid "comments"
+msgstr "comentarios"
+
+#: datasets/wagtail_hooks.py
+msgid "Data dimensions"
+msgstr "Dimensiones de los datos"
+
+#: datasets/wagtail_hooks.py nodes/models.py
+msgid "Data sources"
+msgstr "Fuentes de datos"
+
+#: frameworks/models.py
+msgid "Name"
+msgstr "Nombre"
+
+#: frameworks/models.py
+msgid "High"
+msgstr "Alta"
+
+#: frameworks/models.py
+msgid "Medium"
+msgstr "Medio"
+
+#: frameworks/models.py
+msgid "Low"
+msgstr "Bajo"
+
+#: frameworks/roles.py
+msgid "Framework admins"
+msgstr "Administradores del marco"
+
+#: frameworks/schema.py
+msgid "Public URL for instance dashboard"
+msgstr "URL pública del panel de control"
+
+#: frameworks/schema.py
+msgid "URL for downloading a results file"
+msgstr "URL para descargar un archivo de resultados"
+
+#: frameworks/schema.py
+msgid "Identifier for the model instance. Needs to be unique."
+msgstr "Identificador de la instancia del modelo. Debe ser único."
+
+#: frameworks/schema.py
+msgid "Name for the framework configuration instance. Typically the name of the organization."
+msgstr ""
+"Nombre de la instancia de configuración del marco. Normalmente el nombre de "
+"la organización."
+
+#: frameworks/schema.py
+msgid "UUID for the new framework config. If not set, will be generated automatically."
+msgstr ""
+"UUID para el nuevo framework config. Si no se establece, se generará "
+"automáticamente."
+
+#: frameworks/schema.py
+msgid "Name of the organization. If not set, it will be determined through the user's credentials, if possible."
+msgstr ""
+"Nombre de la organización. Si no se establece, se determinará a través de "
+"las credenciales del usuario, si es posible."
+
+#: frameworks/schema.py
+msgid "The created framework config instance."
+msgstr "La instancia de framework config creada."
+
+#: frameworks/schema.py
+msgid "ID of the organization-specific framework instance"
+msgstr "ID de la instancia de marco específica de la organización"
+
+#: frameworks/schema.py
+msgid "ID of the measure template within a framework"
+msgstr "ID del modelo de medida dentro de un marco"
+
+#: frameworks/schema.py
+msgid "Value for the data point (set to null to remove)"
+msgstr "Valor del punto de datos (se establece en null para eliminarlo)"
+
+#: frameworks/schema.py
+msgid "Year of the data point. If not given, defaults to the baseline year for the framework instance"
+msgstr ""
+"Año del punto de datos. Si no se indica, por defecto es el año de referencia "
+"para la instancia marco."
+
+#: frameworks/schema.py
+msgid "Internal notes for the measure instance"
+msgstr "Notas internas para la instancia de medida"
+
+#: frameworks/schema.py
+msgid "ID (or UUID) of the measure template within a framework"
+msgstr "ID (o UUID) del modelo de medida dentro de un marco"
+
+#: kausal_common/models/modification_tracking.py
+msgid "Created at"
+msgstr "Creado en"
+
+#: kausal_common/models/modification_tracking.py
+msgid "Last modified by"
+msgstr "Última modificación"
+
+#: kausal_common/models/modification_tracking.py
+msgid "Last modified at"
+msgstr "Última modificación en"
+
+#: kausal_common/models/ordered.py
+msgid "order"
+msgstr "pedir"
+
+#: kausal_common/models/uuid.py
+msgid "UUID"
+msgstr "UUID"
+
+#: nodes/actions/action.py
+msgid "Is implemented"
+msgstr "Es implementada"
+
+#: nodes/actions/action.py
+msgid "Is the action included in the scenario"
+msgstr "¿Está la acción incluida en el escenario"
+
+#: nodes/actions/energy_saving.py
+msgid "Number of LED bulbs changed per year (baseline)"
+msgstr "Número de bombillas LED cambiadas al año (referencia)"
+
+#: nodes/actions/energy_saving.py
+msgid "Number of additional LED bulbs changed per year"
+msgstr "Número de bombillas LED adicionales cambiadas al año"
+
+#: nodes/actions/energy_saving.py
+msgid "Yearly increase in total number of luminaires"
+msgstr "Aumento anual del número total de luminarias"
+
+#: nodes/actions/energy_saving.py
+msgid "Yearly maintenance cost of traditional luminaires"
+msgstr "Coste anual de mantenimiento de las luminarias tradicionales"
+
+#: nodes/actions/energy_saving.py
+msgid "Yearly maintenance cost of LED luminaires"
+msgstr "Coste anual de mantenimiento de las luminarias LED"
+
+#: nodes/actions/energy_saving.py
+msgid "Traditional luminaire power consumption"
+msgstr "Consumo eléctrico de las luminarias tradicionales"
+
+#: nodes/actions/energy_saving.py
+msgid "LED luminaire power consumption"
+msgstr "Consumo de energía de las luminarias LED"
+
+#: nodes/actions/energy_saving.py
+msgid "Traditional luminaire yearly active time"
+msgstr "Tiempo activo anual de la luminaria tradicional"
+
+#: nodes/actions/energy_saving.py
+msgid "LED luminaire yearly active time"
+msgstr "Tiempo de actividad anual de la luminaria LED"
+
+#: nodes/actions/energy_saving.py
+msgid "Investment cost of one LED retrofit"
+msgstr "Coste de inversión de una retroadaptación LED"
+
+#: nodes/actions/energy_saving.py
+msgid "Investment lifetime (a)"
+msgstr "Duración de la inversión (a)"
+
+#: nodes/actions/energy_saving.py
+msgid "Investment cost (SEK/m2)"
+msgstr "Coste de inversión (SEK/m2)"
+
+#: nodes/actions/energy_saving.py
+msgid "Maintenance cost (SEK/m2/a)"
+msgstr "Coste de mantenimiento (SEK/m2/a)"
+
+#: nodes/actions/energy_saving.py
+msgid "Heat saving (kWh/m2/a)"
+msgstr "Ahorro de calor (kWh/m2/a)"
+
+#: nodes/actions/energy_saving.py
+msgid "Electricity saving (kWh/m2/a)"
+msgstr "Ahorro de electricidad (kWh/m2/a)"
+
+#: nodes/actions/energy_saving.py
+#, python-format
+msgid "Renovation potential (% of floor area)"
+msgstr "Potencial de renovación (% of superficie)"
+
+#: nodes/actions/energy_saving.py
+msgid "Investment cost (USD/square foot)"
+msgstr "Coste de inversión (USD/pie cuadrado)"
+
+#: nodes/actions/energy_saving.py
+msgid "Maintenance cost (USD/square foot/a)"
+msgstr "Coste de mantenimiento (USD/pie cuadrado/a)"
+
+#: nodes/actions/energy_saving.py
+msgid "Natural gas saving (thm/square foot/a)"
+msgstr "Ahorro de gas natural (tm/pie cuadrado/a)"
+
+#: nodes/actions/energy_saving.py
+msgid "Electricity saving (kWh/square foot/a)"
+msgstr "Ahorro de electricidad (kWh/pie cuadrado/a)"
+
+#: nodes/actions/gpc.py
+msgid "This is S Curve Action. It calculates non-linear effect with two parameters, max_impact and max_year.The parameters come from Dataset. In addition, there must be one input node for background data. Function for S-curve = A/(1+exp(-k*(x-x0)). A is the maximum value, k is the steepness of the curve (always 0.5), and x0 is the midpoint."
+msgstr ""
+"Esta es la Acción Curva S. Calcula el efecto no lineal con dos parámetros, "
+"max_impact y max_year, que proceden de Dataset. Además, debe haber un nodo "
+"de entrada para los datos de fondo. Función para la curva S = A/"
+"(1+exp(-k*(x-x0)). A es el valor máximo, k es la inclinación de la curva ("
+"siempre 0,5) y x0 es el punto medio."
+
+#: nodes/actions/linear.py
+msgid ""
+"\n"
+"    Receive goal input from a dataset or node and cause a linear effect.\n"
+"\n"
+"    The output will be a time series with the difference to the\n"
+"    last historical value of the input node.\n"
+"\n"
+"    The goal input can also be relative (for e.g. percentage\n"
+"    reductions), in which case the input will be treated as\n"
+"    a multiplier.\n"
+"    "
+msgstr ""
+"\n"
+"    Recibir la entrada de meta de un conjunto de datos o nodo y provocar un "
+"efecto lineal.\n"
+"\n"
+"    La salida será una serie temporal con la diferencia respecto al\n"
+"    último valor histórico del nodo de entrada.\n"
+"\n"
+"    La entrada objetivo también puede ser relativa (por ejemplo, porcentajes "
+"de reducción).\n"
+"    porcentaje), en cuyo caso la entrada se tratará como un multiplicador.\n"
+"    un multiplicador.\n"
+"    "
+
+#: nodes/actions/linear.py
+msgid ""
+"\n"
+"    Receive goal input from a dataset or node and cause an effect.\n"
+"\n"
+"    The output will be a time series with the difference to the\n"
+"    predicted baseline value of the input node.\n"
+"\n"
+"    The goal input can also be relative (for e.g. percentage\n"
+"    reductions), in which case the input will be treated as\n"
+"    a multiplier.\n"
+"    "
+msgstr ""
+"\n"
+"    Recibir entrada de objetivo de un conjunto de datos o nodo y causar un "
+"efecto.\n"
+"\n"
+"    La salida será una serie temporal con la diferencia respecto al\n"
+"    valor base predicho del nodo de entrada.\n"
+"\n"
+"    La entrada del objetivo también puede ser relativa (por ejemplo, "
+"porcentajes de reducción), en cuyo caso la entrada será relativa.\n"
+"    porcentaje), en cuyo caso la entrada se tratará como un multiplicador.\n"
+"    multiplicador.\n"
+"    "
+
+#: nodes/actions/simple.py
+msgid "Simple action that produces an additive change to a value."
+msgstr "Acción simple que produce un cambio aditivo en un valor."
+
+#: nodes/actions/simple.py
+msgid "Additive action where the effect is cumulative and remains in the future."
+msgstr "Acción aditiva cuyo efecto es acumulativo y permanece en el futuro."
+
+#: nodes/actions/simple.py
+msgid ""
+"Cumulative additive action where a yearly target is set and the effect is linear.\n"
+"    This can be modified with these parameters:\n"
+"    target_year_level is the value to be reached at the target year.\n"
+"    action_delay is the year when the implementation of the action starts.\n"
+"    multiplier scales the size of the impact (useful between scenarios).\n"
+"    "
+msgstr ""
+"Acción aditiva acumulativa en la que se fija un objetivo anual y el efecto "
+"es lineal.\n"
+"    Esto puede modificarse con estos parámetros:\n"
+"    nivel_año_objetivo es el valor que debe alcanzarse en el año objetivo.\n"
+"    retraso_acción es el año en que comienza la aplicación de la acción.\n"
+"    multiplicador escala el tamaño del impacto (útil entre escenarios).\n"
+"    "
+
+#: nodes/actions/simple.py
+msgid "Simple emission reduction impact"
+msgstr "Impacto simple de la reducción de emisiones"
+
+#: nodes/actions/simple.py
+msgid ""
+"\n"
+"    TrajectoryAction uses select_category() to select a category from a dimension\n"
+"    and then possibly do some relative or absolute conversions.\n"
+"    "
+msgstr ""
+"\n"
+"    TrajectoryAction utiliza select_category() para seleccionar una "
+"categoría de una dimensión\n"
+"    y luego posiblemente hacer algunas conversiones relativas o absolutas.\n"
+"    "
+
+#: nodes/blocks.py nodes/models.py
+msgid "Node"
+msgstr "Nodo"
+
+#: nodes/blocks.py
+msgid "Outcome node"
+msgstr "Nodo de resultados"
+
+#: nodes/buildings.py
+msgid "Floor area node takes in actions and calculates the floor area impacted."
+msgstr ""
+"El nodo de superficie toma las acciones y calcula la superficie afectada."
+
+#: nodes/choosers.py
+msgid "Choose a node"
+msgstr "Elija un nodo"
+
+#: nodes/choosers.py
+msgid "Choose another node"
+msgstr "Elija otro nodo"
+
+#: nodes/costs.py
+msgid ""
+" This is Exponential Node.\n"
+"    Takes in either input nodes as AdditiveNode, or builds a dataframe from current_value.\n"
+"    Builds an exponential multiplier based on annual_change and multiplies the VALUE_COLUMN.\n"
+"    Optionally, touches also historical values.\n"
+"    Parameter is_decreasing_rate is used to give discount rates instead.\n"
+"    "
+msgstr ""
+" Es un Nodo Exponencial.\n"
+"    Toma nodos de entrada como AdditiveNode, o construye un marco de datos a "
+"partir de current_value.\n"
+"    Construye un multiplicador exponencial basado en annual_change y "
+"multiplica el VALUE_COLUMN.\n"
+"    Opcionalmente, toca también valores históricos.\n"
+"    El parámetro is_decreasing_rate se utiliza para dar tasas de descuento "
+"en su lugar.\n"
+"    "
+
+#: nodes/costs.py
+msgid ""
+"\n"
+"    This is Dilution Node. It has exactly four input nodes which are marked by tags: 1) existing is the current, non-diluted variable. 2) Incoming is the variable which diluted the existing one with its different values. 3) Removing is the fraction that is removed from the existing stock each year. 4) Incoming is the ratio compared with the existing stock that is inserted into the system. (Often the removed and incoming values are the same, and then the stock size remains constant.)\n"
+"    "
+msgstr ""
+"\n"
+"    Este es el Nodo de Dilución. Tiene exactamente cuatro nodos de entrada "
+"que están marcados por etiquetas: 1) existente es la variable actual, no "
+"diluida. 2) Entrante es la variable que diluye la existente con sus "
+"diferentes valores. 3) Retirada es la fracción que se retira de la existente "
+"cada año. 4) Entrante es la proporción respecto al stock existente que se "
+"introduce en el sistema. (A menudo, los valores retirados y entrantes son "
+"los mismos, por lo que el tamaño de las existencias permanece constante).\n"
+"    "
+
+#: nodes/formula.py
+msgid "This is a Formula Node. It uses a specified formula to calculate the output."
+msgstr ""
+"Se trata de un Nodo de Fórmula. Utiliza una fórmula especificada para "
+"calcular la salida."
+
+#: nodes/gpc.py
+msgid "This is a DatasetNode. It takes in a specifically formatted dataset and converts the relevant part into a node output."
+msgstr ""
+"Se trata de un DatasetNode. Recibe un conjunto de datos con un formato "
+"específico y convierte la parte relevante en un nodo de salida."
+
+#: nodes/health.py
+msgid ""
+"Calculate attributable fraction when the ERF function is relative risk.\n"
+"    AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result\n"
+"    is smaller than 0, we should use r instead. It can be converted from the result:\n"
+"    r/(r+1)=s <=> r=s/(1-s)\n"
+"    "
+msgstr ""
+"Calcular la fracción atribuible cuando la función FER es el riesgo relativo."
+"\n"
+"    AF=r/(r+1) si r >= 0; AF=r si r<0. Por lo tanto, si el resultado\n"
+"    es menor que 0, debemos utilizar r en su lugar. Se puede convertir a "
+"partir del resultado\n"
+"    r/(r+1)=s <=> r=s/(1-s)\n"
+"    "
+
+#: nodes/instance.py
+msgid "Custom"
+msgstr "A medida"
+
+#: nodes/metric.py
+msgid "Sectors"
+msgstr "Sectores"
+
+#: nodes/models.py
+msgid "name"
+msgstr "nombre"
+
+#: nodes/models.py pages/models.py
+msgid "Lead title"
+msgstr "Título principal"
+
+#: nodes/models.py pages/models.py
+msgid "Lead paragraph"
+msgstr "Párrafo principal"
+
+#: nodes/models.py
+msgid "Site URL"
+msgstr "URL del sitio"
+
+#: nodes/models.py
+msgid "Instance"
+msgstr "Instancia"
+
+#: nodes/models.py
+msgid "Instances"
+msgstr "Instancias"
+
+#: nodes/models.py
+msgid "Actions"
+msgstr "Acciones"
+
+#: nodes/models.py
+msgid "Instance hostname"
+msgstr "Nombre de host de la instancia"
+
+#: nodes/models.py
+msgid "Instance hostnames"
+msgstr "Nombres de host de instancia"
+
+#: nodes/models.py
+msgid "Instance token"
+msgstr "Ficha de instancia"
+
+#: nodes/models.py
+msgid "Instance tokens"
+msgstr "Fichas de instancia"
+
+#: nodes/models.py
+msgid "instance"
+msgstr "instancia"
+
+#: nodes/models.py
+msgid "edition"
+msgstr "edición"
+
+#: nodes/models.py
+msgid "authority"
+msgstr "autoridad"
+
+#: nodes/models.py
+msgid "The organization responsible for the data source"
+msgstr "La organización responsable de la fuente de datos"
+
+#: nodes/models.py
+msgid "description"
+msgstr "descripción"
+
+#: nodes/models.py
+msgid "URL"
+msgstr "URL"
+
+#: nodes/models.py
+msgid "Data source"
+msgstr "Fuente de datos"
+
+#: nodes/models.py
+msgid "Order"
+msgstr "Pida"
+
+#: nodes/models.py
+msgid "Goal"
+msgstr "Objetivo"
+
+#: nodes/models.py
+msgid "Short description"
+msgstr "Breve descripción"
+
+#: nodes/models.py
+msgid "Description"
+msgstr "Descripción"
+
+#: nodes/models.py
+msgid "Nodes"
+msgstr "Nodos"
+
+#: nodes/node.py
+msgid "NOTE! Add text about the node class."
+msgstr "NOTA: Añade texto sobre la clase de nodo."
+
+#: nodes/node.py
+msgid "The node has the following input nodes:"
+msgstr "El nodo tiene los siguientes nodos de entrada:"
+
+#: nodes/node.py
+msgid "The node does not have input nodes."
+msgstr "El nodo no tiene nodos de entrada."
+
+#: nodes/node.py
+msgid "    - Input node values are not added but operated despite matching units.\n"
+msgstr ""
+"    - Los valores de los nodos de entrada no se suman, sino que se operan a "
+"pesar de las unidades coincidentes.\n"
+
+#: nodes/node.py
+msgid "    - Extend the last historical values to the remaining missing years.\n"
+msgstr "    - Amplíe los últimos valores históricos a los años que faltan.\n"
+
+#: nodes/node.py
+msgid "    - Truncate the forecast values.\n"
+msgstr "    - Trunca los valores previstos.\n"
+
+#: nodes/node.py
+msgid "    - Take the arithmetic inverse of the values (-x).\n"
+msgstr "    - Toma la inversa aritmética de los valores (-x).\n"
+
+#: nodes/node.py
+msgid "    - Take the geometric inverse of the values (1/x).\n"
+msgstr "    - Tomar la inversa geométrica de los valores (1/x).\n"
+
+#: nodes/node.py
+msgid "    - Take the complement of the dimensionless values (1-x).\n"
+msgstr "    - Tomar el complemento de los valores adimensionales (1-x).\n"
+
+#: nodes/node.py
+msgid "    - Take the difference across time (i.e. annual changes)\n"
+msgstr ""
+"    - Tomar la diferencia a lo largo del tiempo (es decir, los cambios "
+"anuales)\n"
+
+#: nodes/node.py
+msgid "    - Take the cumulative sum across time.\n"
+msgstr "    - Toma la suma acumulada a lo largo del tiempo.\n"
+
+#: nodes/node.py
+msgid "    - Take the cumulative product of the dimensionless values across time.\n"
+msgstr ""
+"    - Tomar el producto acumulativo de los valores adimensionales a lo largo "
+"del tiempo.\n"
+
+#: nodes/node.py
+msgid "    - Take the cumulative product of the dimensionless complement values across time.\n"
+msgstr ""
+"    - Tomar el producto acumulativo de los valores adimensionales del "
+"complemento a lo largo del tiempo.\n"
+
+#: nodes/node.py
+msgid "    - Take the ratio of the values compared with the last historical value.\n"
+msgstr ""
+"    - Toma la relación de los valores comparados con el último valor "
+"histórico.\n"
+
+#: nodes/node.py
+msgid "    - This is used as the baseline.\n"
+msgstr "    - Se utiliza como referencia.\n"
+
+#: nodes/node.py
+msgid "    - This is used for the incoming stock.\n"
+msgstr "    - Se utiliza para el stock entrante.\n"
+
+#: nodes/node.py
+msgid "    - This is the rate of stock removal.\n"
+msgstr "    - Es la tasa de retirada de existencias.\n"
+
+#: nodes/node.py
+msgid "    - This is the rate of new stock coming in.\n"
+msgstr "    - Es el ritmo de entrada de nuevas existencias.\n"
+
+#: nodes/node.py
+msgid "    - The node is used as the historical starting point.\n"
+msgstr "    - El nodo se utiliza como punto de partida histórico.\n"
+
+#: nodes/node.py
+msgid "    - The node is used as the goal for the action.\n"
+msgstr "    - El nodo se utiliza como objetivo de la acción.\n"
+
+#: nodes/node.py
+msgid "    - Negative result values are replaced with 0.\n"
+msgstr "    - Los valores de resultado negativos se sustituyen por 0.\n"
+
+#: nodes/node.py
+msgid "    - Positive result values are replaced with 0.\n"
+msgstr "    - Los valores de resultado positivos se sustituyen por 0.\n"
+
+#: nodes/node.py
+#, python-format
+msgid "    - The tag \"%s\" is given.\n"
+msgstr "    - Se da la etiqueta \"%s\".\n"
+
+#: nodes/node.py
+#, python-format
+msgid "    - From dimension %s, %s categories %s.\n"
+msgstr "    - De dimensión %s, %s categorías %s.\n"
+
+#: nodes/node.py
+#, python-format
+msgid "    - Sum over dimension %s .\n"
+msgstr "    - Suma sobre la dimensión %s.\n"
+
+#: nodes/node.py
+#, python-format
+msgid "    - Add values to the category %s in a new dimension %s.\n"
+msgstr "    - Añada valores a la categoría %s en una nueva dimensión %s.\n"
+
+#: nodes/simple.py
+msgid ""
+"This is an Additive Node. It performs a simple addition of inputs.\n"
+"Missing values are assumed to be zero."
+msgstr ""
+"Se trata de un Nodo Aditivo. Realiza una simple suma de entradas.\n"
+"Se supone que los valores perdidos son cero."
+
+#: nodes/simple.py
+msgid "This is a Subtractive Node. It takes the first input node and subtracts all other input nodes from it."
+msgstr ""
+"Se trata de un Nodo Sustractivo. Toma el primer nodo de entrada y le resta "
+"todos los demás nodos de entrada."
+
+#: nodes/simple.py
+msgid "This is a Sector Emissions Node. It is like Additive Node but for subsector emissions"
+msgstr ""
+"Se trata de un Nodo de Emisiones Sectoriales. Es como el Nodo Aditivo pero "
+"para emisiones subsectoriales"
+
+#: nodes/simple.py
+msgid ""
+"This is a Multiplicative Node. It multiplies nodes together with potentially adding other input nodes.\n"
+"\n"
+"    Multiplication and addition is determined based on the input node units.\n"
+"    "
+msgstr ""
+"Es un Nodo Multiplicativo. Multiplica nodos junto con la adición potencial "
+"de otros nodos de entrada.\n"
+"\n"
+"    La multiplicación y la suma se determinan en función de las unidades de "
+"los nodos de entrada.\n"
+"    "
+
+#: nodes/simple.py
+msgid ""
+"This is a Divisive Node. It divides two nodes together with potentially adding other input nodes.\n"
+"\n"
+"    Division and addition is determined based on the input node units.\n"
+"    "
+msgstr ""
+"Se trata de un Nodo Divisor. Divide dos nodos juntos con la adición "
+"potencial de otros nodos de entrada.\n"
+"\n"
+"    La división y la adición se determinan en función de las unidades del "
+"nodo de entrada.\n"
+"    "
+
+#: nodes/simple.py
+msgid "This is an Emission Factor Activity Node. It multiplies an activity by an emission factor."
+msgstr ""
+"Se trata de un nodo de actividad de factor de emisión. Multiplica una "
+"actividad por un factor de emisión."
+
+#: nodes/simple.py
+msgid "This is Activity Node. It adds activity amounts together."
+msgstr "Este es el Nodo de Actividad. Suma las cantidades de actividad."
+
+#: nodes/simple.py
+msgid "This is a Fixed Multiplier Node. It multiplies a single input node with a parameter."
+msgstr ""
+"Este es un Nodo Multiplicador Fijo. Multiplica un único nodo de entrada con "
+"un parámetro."
+
+#: nodes/simple.py
+msgid ""
+"First add other input nodes, then multiply the output.\n"
+"\n"
+"    Multiplication and addition is determined based on the input node units.\n"
+"    "
+msgstr ""
+"Primero añade otros nodos de entrada y luego multiplica la salida.\n"
+"\n"
+"    La multiplicación y la suma se determinan en función de las unidades de "
+"los nodos de entrada.\n"
+"    "
+
+#: nodes/simple.py
+msgid ""
+"First does what MultiplicativeNode does, then calculates 1 - result.\n"
+"    Can only be used for dimensionless content (i.e., fractions and percentages)\n"
+"    "
+msgstr ""
+"Primero hace lo que hace MultiplicativeNode, luego calcula 1 - resultado.\n"
+"    Sólo puede utilizarse para contenido adimensional (es decir, fracciones "
+"y porcentajes).\n"
+"    "
+
+#: nodes/simple.py
+msgid ""
+"First does what MultiplicativeNode does, then calculates 1 + result.\n"
+"    Can only be used for dimensionless content (i.e., fractions and percentages)\n"
+"    "
+msgstr ""
+"Primero hace lo que hace MultiplicativeNode, luego calcula 1 + resultado.\n"
+"    Sólo puede utilizarse para contenido adimensional (es decir, fracciones "
+"y porcentajes).\n"
+"    "
+
+#: nodes/simple.py
+msgid ""
+"\n"
+"    First like AdditiveNode, then multiply with a node with \"non_additive\".\n"
+"    The relative node is assumed to be the relative difference R = V / N - 1,\n"
+"    where V is the expected output value and N is the comparison value from\n"
+"    the other input nodes. So, the output value V = (R + 1)N.\n"
+"    If there is no \"non-additive\" node, it will behave like AdditiveNode except\n"
+"    it never creates a temporary dimension Sectors.\n"
+"    "
+msgstr ""
+"\n"
+"    Primero como AdditiveNode, luego se multiplica con un nodo con "
+"\"non_additive\".\n"
+"    Se supone que el nodo relativo es la diferencia relativa R = V / N - 1,\n"
+"    donde V es el valor de salida esperado y N es el valor de comparación "
+"de\n"
+"    los otros nodos de entrada. Por tanto, el valor de salida V = (R + 1)N.\n"
+"    Si no hay ningún nodo \"no aditivo\", se comportará como AdditiveNode "
+"excepto en que\n"
+"    nunca crea una dimensión temporal Sectores.\n"
+"    "
+
+#: nodes/simple.py
+msgid ""
+"\n"
+"    TrajectoryNode uses select_category() to select a category from a dimension.\n"
+"    "
+msgstr ""
+"\n"
+"    TrajectoryNode utiliza select_category() para seleccionar una categoría "
+"de una dimensión.\n"
+"    "
+
+#: nodes/simple.py
+msgid "This is a Fill New Category Node. It behaves like Additive Node, but in the end of computation it creates a new category such that the values along that dimension sum up to 1. The input nodes must have a dimensionless unit. The new category in an existing dimension is given as parameter \"new_category\" in format \"dimension:category\""
+msgstr ""
+"Este es un Nodo de Rellenar Nueva Categoría. Se comporta como el Nodo "
+"Aditivo, pero al final del cálculo crea una nueva categoría tal que los "
+"valores a lo largo de esa dimensión suman 1. Los nodos de entrada deben "
+"tener una unidad adimensional. La nueva categoría en una dimensión existente "
+"se da como parámetro \"nueva_categoría\" en formato \"dimensión:categoría\"."
+
+#: nodes/units.py
+msgid "capita"
+msgstr "cápita"
+
+#: nodes/units.py
+msgctxt "capita short"
+msgid "cap"
+msgstr "tapa"
+
+#: nodes/units.py
+msgctxt "kilotonne short"
+msgid "kt"
+msgstr "kt"
+
+#: pages/models.py
+msgid "show in footer"
+msgstr "mostrar en el pie de página"
+
+#: pages/models.py
+msgid "Should the page be shown in the footer?"
+msgstr "¿Debe aparecer la página en el pie de página?"
+
+#: pages/models.py
+msgid "Common page configuration"
+msgstr "Configuración de páginas comunes"
+
+#: pages/models.py
+msgid "Paragraph"
+msgstr "Párrafo"
+
+#: pages/models.py
+msgid "Outcome page"
+msgstr "Página de resultados"
+
+#: pages/models.py
+msgid "Outcome pages"
+msgstr "Páginas de resultados"
+
+#: pages/models.py
+msgid "Standard"
+msgstr "Estándar"
+
+#: pages/models.py
+msgid "Impact"
+msgstr "Impacto"
+
+#: pages/models.py
+msgid "Cumulative impact"
+msgstr "Impacto acumulado"
+
+#: pages/models.py
+msgid "Show cumulative impact"
+msgstr "Mostrar el impacto acumulativo"
+
+#: pages/models.py
+msgid "Show action comparison"
+msgstr "Mostrar comparación de acciones"
+
+#: pages/models.py
+msgid "Show only municipal actions"
+msgstr "Mostrar sólo acciones municipales"
+
+#: pages/models.py
+msgid "Action list page"
+msgstr "Página de la lista de acciones"
+
+#: pages/models.py
+msgid "Action list pages"
+msgstr "Páginas de listas de acciones"
+
+#: pages/models.py
+msgid "Title"
+msgstr "Título"
+
+#: pages/models.py
+msgid "Introductory content to show in the UI"
+msgstr "Contenido introductorio para mostrar en la interfaz de usuario"
+
+#: pages/models.py
+msgid "Introductory content"
+msgstr "Contenido introductorio"
+
+#: pages/models.py
+msgid "Site content"
+msgstr "Contenido del sitio"
+
+#: pages/models.py
+msgid "Site contents"
+msgstr "Contenido del sitio"
+
+#: pages/sitecontent.py
+msgid "Site Content"
+msgstr "Contenido del sitio"
+
+#: params/global_params.py
+msgid "Municipality name"
+msgstr "Nombre del municipio"
+
+#: params/global_params.py
+msgid "Discount rate"
+msgstr "Tasa de descuento"
+
+#: params/global_params.py
+msgid "Population growth rate"
+msgstr "Tasa de crecimiento demográfico"
+
+#: params/global_params.py
+msgid "Avoided electricity capacity price"
+msgstr "Precio de la capacidad eléctrica evitada"
+
+#: params/global_params.py
+msgid "Health impacts per kWh"
+msgstr "Impacto en la salud por kWh"
+
+#: params/global_params.py
+msgid "Heat CO2 emission factor"
+msgstr "Factor de emisión de CO2 por calor"
+
+#: params/global_params.py
+msgid "Electricity CO2 emission factor"
+msgstr "Factor de emisión de CO2 de la electricidad"
+
+#: params/global_params.py
+msgid "Renovation rate baseline"
+msgstr "Tasa de renovación de referencia"
+
+#: params/global_params.py
+msgid "Include energy taxes in calculations?"
+msgstr "¿Incluir los impuestos sobre la energía en los cálculos?"
+
+#: params/global_params.py
+msgid "Include CO2 cost variable in calculations?"
+msgstr "¿Incluir la variable del coste del CO2 en los cálculos?"
+
+#: params/global_params.py
+msgid "Include health impact variable in calculations?"
+msgstr "¿Incluir la variable de impacto sanitario en los cálculos?"
+
+#: params/global_params.py
+msgid "Include avoided electricity capacity variable in calculations?"
+msgstr "¿Incluir en los cálculos la variable de la capacidad eléctrica evitada?"
+
+#: params/global_params.py
+msgid "Price of CO2"
+msgstr "Precio del CO2"
+
+#: params/global_params.py
+msgid "Price of CO2 annual change"
+msgstr "Precio de la variación anual de CO2"
+
+#: params/global_params.py
+msgid "Price of electricity"
+msgstr "Precio de la electricidad"
+
+#: params/global_params.py
+msgid "Price of electricity annual change"
+msgstr "Variación anual del precio de la electricidad"
+
+#: params/global_params.py
+msgid "Price of Heat"
+msgstr "Precio del calor"
+
+#: params/global_params.py
+msgid "Price of heat annual change"
+msgstr "Variación anual del precio del calor"
+
+#: params/global_params.py
+msgid "Invest all on the first year (in contrast to continuous investing)?"
+msgstr "¿Invertir todo el primer año (a diferencia de la inversión continua)?"
+
+#: params/global_params.py
+msgid "Placeholder for updated_building_code_residential"
+msgstr "Marcador de posición para updated_building_code_residential"
+
+#: params/global_params.py
+msgid "Action impact based on baseline"
+msgstr "Impacto de la acción sobre la base de referencia"
+
+#: params/global_params.py
+msgid "Compute action impact based on the baseline scenario instead of the default one"
+msgstr ""
+"Calcular el impacto de la acción basándose en el escenario de referencia en "
+"lugar del escenario por defecto."
+
+#: params/global_params.py
+msgid "Scanario name"
+msgstr "Nombre Scanario"
+
+#: params/global_params.py
+msgid "Weight for emission impacts in value profiles"
+msgstr "Ponderación del impacto de las emisiones en los perfiles de valor"
+
+#: params/global_params.py
+msgid "Weight for economic impacts in value profiles"
+msgstr "Ponderación de las repercusiones económicas en los perfiles de valor"
+
+#: params/global_params.py
+msgid "Weight for prosperity impacts (e.g. jobs) in value profiles"
+msgstr ""
+"Ponderación de los efectos de prosperidad (por ejemplo, empleo) en los "
+"perfiles de valor"
+
+#: params/global_params.py
+msgid "Weight for purity impacts (e.g. lack of pollution) in value profiles"
+msgstr ""
+"Ponderación de los impactos de pureza (por ejemplo, ausencia de "
+"contaminación) en los perfiles de valor"
+
+#: params/global_params.py
+msgid "Weight for health impacts in value profiles"
+msgstr "Ponderación de las repercusiones sanitarias en los perfiles de valor"
+
+#: params/global_params.py
+msgid "Weight for equity impacts in value profiles"
+msgstr ""
+"Ponderación de los efectos de la renta variable en los perfiles de valor"
+
+#: params/global_params.py
+msgid "Weight for biodiversity impacts in value profiles"
+msgstr "Ponderación del impacto de la biodiversidad en los perfiles de valor"
+
+#: params/global_params.py
+msgid "Weight for actions to be legal in value profiles"
+msgstr "Ponderación para que las acciones sean legales en los perfiles de valor"
+
+#: params/global_params.py
+msgid "Threshold for sum of weighted impacts in value profiles"
+msgstr "Umbral para la suma de impactos ponderados en perfiles de valor"
+
+#: params/global_params.py
+msgid "Effect of electric vehicles on car kilometers"
+msgstr "Efecto de los vehículos eléctricos en los kilómetros recorridos"
+
+#: params/global_params.py
+msgid "List of selected municipalities"
+msgstr "Lista de municipios seleccionados"
+
+#: params/global_params.py
+msgid "List of selected nodes"
+msgstr "Lista de nodos seleccionados"
+
+#: params/global_params.py
+msgid "Selected computational framework"
+msgstr "Marco computacional seleccionado"
+
+#: params/global_params.py
+msgid "Annual weather normalization for energy consumption"
+msgstr "Normalización meteorológica anual para el consumo de energía"
+
+#: params/global_params.py
+msgid "Normalization for matching statistical data"
+msgstr "Normalización para cotejar datos estadísticos"
+
+#: params/global_params.py
+msgid "Is the last historical value extended into the future?"
+msgstr "¿El último valor histórico se prolonga en el futuro?"
+
+#: params/global_params.py
+msgid "On node graphs, show scenario impacts instead of outputs?"
+msgstr ""
+"En los gráficos de nodos, ¿se muestran los impactos de los escenarios en "
+"lugar de los resultados?"
+
+#: paths/authentication.py
+msgid "Invalid token."
+msgstr "Token inválido."
+
+#: paths/schema.py paths/utils.py
+msgid "Invalid unit"
+msgstr "Unidad no válida"
+
+#: paths/settings.py
+msgid "English"
+msgstr "Inglés"
+
+#: paths/settings.py
+msgid "Finnish"
+msgstr "En finés"
+
+#: paths/settings.py
+msgid "Swedish"
+msgstr "Sueco"
+
+#: paths/settings.py
+msgid "German"
+msgstr "Alemán"
+
+#: paths/settings.py
+msgid "German (Switzerland)"
+msgstr "Alemán (Suiza)"
+
+#: paths/settings.py
+msgid "Czech"
+msgstr "Checa"
+
+#: paths/settings.py
+msgid "Danish"
+msgstr "Danés"
+
+#: paths/settings.py
+msgid "Polish"
+msgstr "Polaco"
+
+#: paths/settings.py
+msgid "Latvian"
+msgstr "Letón"
+
+#: paths/settings.py
+msgid "Spanish (United States)"
+msgstr "Español (Estados Unidos)"
+
+#: paths/utils.py
+msgid "identifier"
+msgstr "identificador"
+
+#: paths/utils.py
+msgid "unit"
+msgstr "unidad"
+
+#: paths/utils.py
+msgid "uuid"
+msgstr "uuid"
+
+#: paths/utils.py
+msgid "created at"
+msgstr "creado en"
+
+#: paths/utils.py
+msgid "updated at"
+msgstr "actualizado en"
+
+#: users/models.py
+msgid "email address"
+msgstr "dirección de correo electrónico"

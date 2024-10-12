@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
-from pint import DimensionalityError
 import polars as pl
+from pint import DimensionalityError
 
 from common import polars as ppl
 from frameworks.models import MeasureDataPoint
@@ -29,55 +29,55 @@ class FrameworkMeasureDVCDataset(DVCDataset):
         data['framework_config_updated'] = str(fwc.last_modified_at)
         return data
 
-    def _override_with_measure_datapoints(self, context: Context, df: ppl.PathsDataFrame):
-        from nodes.models import InstanceConfig
+    def _override_with_measure_datapoints(self, context: Context, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         from django.db.models import TextField
         from django.db.models.functions import Cast
+
+        from nodes.models import InstanceConfig
 
         ic = InstanceConfig.objects.filter(identifier=context.instance.id).first()
         if ic is None:
             return df
-        fwc = ic.framework_configs.first()
-        if fwc is None:
+        if not ic.has_framework_config():
             return df
+        fwc = ic.framework_config
 
-        uuid_counts = df.group_by('UUID').agg(
-            pl.count('UUID').alias('count')
-        )
-        uuids_more_than_one = uuid_counts.filter(pl.col('count') > 1)['UUID']
-        uuids_just_one = uuid_counts.filter(pl.col('count') == 1)['UUID']
-        uuids = uuid_counts['UUID']
+        df = df.with_columns(pl.when(pl.col('UUID') == 'ADD UUID HERE')
+                               .then(pl.lit(None))
+                               .otherwise(pl.col('UUID'))
+                               .alias('UUID'))
+
+        uuids = df['UUID'].unique().to_list()
         measures = fwc.measures.filter(measure_template__uuid__in=uuids).select_related('template')
         dps = (
             MeasureDataPoint.objects.filter(measure__in=measures)
             .annotate(uuid=Cast('measure__measure_template__uuid', output_field=TextField()))
-            .values_list('uuid', 'year', 'value', 'measure__measure_template__unit')
+            .values_list('uuid', 'year', 'value', 'default_value', 'measure__measure_template__unit')
         )
         schema = (
             ('UUID', pl.String),
             ('MeasureYear', pl.Int64),
             ('MeasureValue', pl.Float64),
-            ('MeasureUnit', pl.String)
+            ('MeasureDefaultValue', pl.Float64),
+            ('MeasureUnit', pl.String),
         )
-        df_cols = df.columns
-        meta = df.get_meta()
         dpdf = pl.DataFrame(data=list(dps), schema=schema, orient='row')
-        max_measure_year = cast(int, dpdf['MeasureYear'].max())
+
+        meta = df.get_meta()
+        df_cols = df.columns
+        df_cols.remove('UUID')
+
+        baseline_year = cast(int, dpdf['MeasureYear'].max())
+        df = df.with_columns(
+            pl.when(pl.col('Year').lt(100))
+            .then(pl.col('Year') + baseline_year)
+            .otherwise(pl.col('Year')).alias('Year'),
+        )
+
+        # Duplicates may occur when baseline year overlaps with existing data points.
+        df = ppl.to_ppdf(df.unique(subset = meta.primary_keys, keep = 'last', maintain_order = True), meta = meta)
 
         jdf = df.join(dpdf, on=['UUID'], how='left')
-        jdf = jdf.with_columns(
-            pl.when(
-                pl.col('UUID').is_in(uuids_just_one).or_(pl.col('Year') >= 2024)
-            )
-            .then(pl.col('Year'))
-            .otherwise(pl.col('MeasureYear'))
-            .alias('MeasureYear')
-        )
-        jdf = jdf.filter(
-            pl.col('UUID').is_null().and_((pl.col('Year') == max_measure_year).or_(pl.col('Year') >= 2024)) |
-            ~(pl.col('UUID').is_in(uuids_more_than_one).and_(pl.col('Year') != pl.col('MeasureYear')))
-        )
-
         # Convert units
         diff_unit = jdf.filter(pl.col('MeasureUnit') != pl.col('Unit')).select(['MeasureUnit', 'Unit']).unique()
         conversions = []
@@ -86,18 +86,19 @@ class FrameworkMeasureDVCDataset(DVCDataset):
             ds_unit = context.unit_registry(ds_unit_s)
             cf = context.unit_registry._get_conversion_factor(m_unit._units, ds_unit._units)
             if isinstance(cf, DimensionalityError):
-                raise
+                raise cf
             conversions.append((m_unit_s, ds_unit_s, float(cf)))
         if conversions and ENABLE_UNIT_CONVERSION:
             conv_df = pl.DataFrame(data=conversions, schema=('MeasureUnit', 'Unit', 'ConversionFactor'), orient='row')
             jdf = jdf.join(conv_df, on=['MeasureUnit', 'Unit'], how='left')
             jdf = jdf.with_columns([
+                pl.col('MeasureDefaultValue') * pl.col('ConversionFactor').fill_null(1.0),
                 pl.col('MeasureValue') * pl.col('ConversionFactor').fill_null(1.0),
-                pl.col('Unit').alias('MeasureUnit')
+                pl.col('Unit').alias('MeasureUnit'),
             ])
 
         jdf = jdf.with_columns([
-            pl.coalesce(['MeasureValue', 'Value']).alias('Value'),
+            pl.coalesce(['MeasureValue', 'MeasureDefaultValue', 'Value']).alias('Value'),
             pl.coalesce(['MeasureUnit', 'Unit']).alias('Unit'),
         ])
         df = ppl.to_ppdf(jdf.select(df_cols), meta=meta)

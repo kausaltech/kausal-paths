@@ -30,7 +30,8 @@ class Population(Node):
         muni_name = self.get_global_parameter_value('municipality_name')
 
         df_hist = self.get_historical_input().lazy()
-        if 'Alue' in df_hist.columns:
+        hist_cols = df_hist.collect_schema().names()
+        if 'Alue' in hist_cols:
             df_hist = df_hist.filter(pl.col('Alue') == muni_name)
         df_hist = df_hist.group_by('Vuosi').agg(pl.col(self.TOTAL_POPULATION_COLUMN).sum().alias(VALUE_COLUMN))
         df_hist = df_hist.with_columns([

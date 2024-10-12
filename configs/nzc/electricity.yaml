@@ -1,0 +1,856 @@
+nodes:
+
+# -------------------- Electricity consumption ---------------------
+
+- id: total_electricity_consumption_uncorr
+  name: Total electricity consumption, uncorrected
+  description: Consumption is not corrected for the actual consumption statistics.
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+
+- id: total_electricity_consumption
+  name: Total electricity consumption
+  description: These consumption values are corrected for actual consumption statistics,
+    if the global parameter <i>Statistical correction</i> is turned on (default).
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: total_electricity_consumption_uncorr
+    tags: [non_additive]
+
+- id: total_electricity_production
+  name: Total electricity production by shares
+  description: These production values are corrected for actual consumption statistics,
+    if the global parameter <i>Statistical correction</i> is turned on.
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier, fuel_type]
+  output_dimensions: [energy_carrier, fuel_type]
+  input_nodes:
+  - id: total_electricity_consumption
+    tags: [non_additive]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+  - id: electricity_shares
+    to_dimensions:
+    - id: energy_carrier
+    - id: fuel_type
+
+- id: total_electricity_emissions
+  name: Total electricity emissions including air pollutants
+  type: simple.MultiplicativeNode
+  quantity: mass
+  unit: kt/a
+  input_dimensions: [pollutant, energy_carrier, sector]
+  output_dimensions: [pollutant, energy_carrier, sector]
+  input_nodes:
+  - id: total_electricity_consumption
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
+  - id: effective_electricity_emission_factor
+    to_dimensions:
+    - id: pollutant
+    - id: energy_carrier
+
+- id: electricity_emissions
+  name: Electricity emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [pollutant, energy_carrier, sector]
+  output_dimensions: [pollutant, energy_carrier, sector]
+  input_nodes:
+  - id: total_electricity_emissions
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
+    to_dimensions:
+    - id: pollutant
+    - id: energy_carrier
+    - id: sector
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: pollutant
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: ghg
+      categories: [co2e]
+    - id: scope
+      categories: [scope2]
+    - id: sector
+
+- id: statistical_electricity_consumption
+  name: Statistical electricity consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+  input_nodes:
+  - id: population
+    tags: [ratio_to_last_historical_value, non_additive]
+    to_dimensions: []
+  params:
+    sector: Total electricity demand within city boundaries
+
+- id: electricity_consumption_ratio
+  name: Electricity consumption ratio between statistics and modelled
+  type: simple.MultiplicativeNode
+  quantity: ratio
+  unit: dimensionless
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: statistical_electricity_consumption
+    to_dimensions:
+    - id: energy_carrier
+  - id: total_electricity_consumption_uncorr
+    tags: [geometric_inverse]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+
+- id: electricity_correction
+  name: Electricity statistics correction
+  type: gpc.CorrectionNode2
+  quantity: ratio
+  unit: dimensionless
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: electricity_consumption_ratio
+    tags: [inventory_only, extend_values]
+  params:
+  - id: do_correction
+    ref: statistical_correction
+  output_nodes:
+  - id: total_electricity_consumption
+    to_dimensions:
+    - id: energy_carrier
+
+- id: electricity_production_emission_factor
+  name: Electricity production emission factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [pollutant, energy_carrier]
+  output_dimensions: [pollutant, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Emission factors from electricity generation
+
+- id: electricity_production_unit_price
+  name: Electricity production unit_price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Spot price electricity
+
+- id: consumer_electricity_unit_price
+  name: Consumer electricity unit_price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Retail price of electricity
+
+- id: electricity_consumption_cost
+  name: Electricity consumption cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [energy_carrier, stakeholder, cost_type]
+  output_dimensions: [energy_carrier, stakeholder, cost_type]
+  input_nodes:
+  - id: consumer_electricity_unit_price
+    to_dimensions:
+    - id: energy_carrier
+  - id: total_electricity_consumption
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: stakeholder
+      categories: [citizens]  # FIXME Actually affects other stakeholders as well
+    - id: cost_type
+      categories: [opex]
+  output_nodes:
+  - id: electricity_cost
+
+# -------------------- Consumer electricity use --------------------
+
+- id: efficient_appliances_renovation_rate_historical  # Same data as old_building_renovation_rate_historical
+  name: Lighting & appliances renovation rate historical
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%/a'
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Share of building stock renovated each year
+
+- id: efficient_appliances_renovation_rate_goal
+  name: Lighting & appliances renovation rate goal
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%/a'
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: 3.3 Efficient lighting & appliances
+
+- id: efficient_appliances_rate
+  name: Lighting & appliances renovation rate
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%/a'
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: efficient_appliances_renovation_rate_historical
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+
+- id: consumer_electricity_intensity_baseline
+  name: Electricity use intensity for lighting & appliances, baseline
+  type: gpc.DatasetNode
+  quantity: energy_factor
+  unit: kWh/m**2/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Average electricity use for lighting & appliances
+
+- id: efficiency_programme_shares_historical
+  name: Efficiency programme shares historical
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Current share of type of efficiency programme
+
+- id: efficiency_programme_shares_goal
+  name: Efficiency programme shares goal
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Assumed share of type of efficiency programme for lever
+
+- id: efficiency_programme_shares
+  name: Electricity efficiency programme intensity shares
+  type: simple.FillNewCategoryNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_nodes:
+  - id: efficiency_programme_shares_historical
+  params:
+    new_category: 'efficiency_programme:no_improvements'
+
+- id: electricity_need_reduction
+  name: Electricity need reduction after improvements
+  description: Relative changes in electricity use intensity.
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  output_nodes:
+  - id: consumer_electricity_intensity
+    tags: [complement]
+    to_dimensions:
+    - id: efficiency_programme
+    - id: energy_carrier
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Efficiency improvements for each renovation
+
+- id: consumer_electricity_intensity
+  name: Electricity use intensity for lighting & appliances
+  type: simple.MultiplicativeNode
+  quantity: energy_factor
+  unit: kWh/m**2/a
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_nodes:
+  - id: consumer_electricity_intensity_baseline
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: electricity_non_renovated_old_buildings
+  name: Electricity-non-renovated old buildings
+  description: Old buildings that have not (yet) gone through electricity renovation
+  type: simple.MultiplicativeNode
+  quantity: fraction
+  unit: km**2
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: efficient_appliances_rate
+    tags: [complement_cumulative_product]
+    to_dimensions:
+    - id: energy_carrier
+  - id: building_stock
+    tags: [non_additive]
+    from_dimensions:
+    - id: building_energy_class
+      categories: [old_no_renovations, minor_renovation, major_renovation]
+      flatten: true
+    to_dimensions: []
+
+- id: electricity_renovated_buildings
+  name: Electricity-renovated buildings
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: km**2
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_nodes:
+  - id: electricity_non_renovated_old_buildings
+    tags: [arithmetic_inverse]
+    to_dimensions:
+    - id: energy_carrier
+  - id: building_stock
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: efficiency_programme_shares
+  params:
+    formula: efficiency_programme_shares * (electricity_non_renovated_old_buildings + building_stock)
+
+- id: building_stock_by_electricity_renovation
+  name: Building stock by electricity renovation
+  type: simple.AdditiveNode
+  quantity: floor_area
+  unit: km**2
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_nodes:
+  - id: electricity_non_renovated_old_buildings
+    to_dimensions:
+    - id: energy_carrier
+    - id: efficiency_programme
+      categories: [no_improvements]
+  - id: electricity_renovated_buildings
+
+- id: consumer_electricity_use
+  name: Electricity use for lighting & appliances
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_nodes:
+  - id: building_stock_by_electricity_renovation
+  - id: consumer_electricity_intensity
+  output_nodes:
+  - id: total_electricity_consumption_uncorr
+    from_dimensions:
+    - id: efficiency_programme
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [electricity]
+    - id: energy_carrier
+
+# ----------- Electricity production ----------------
+
+- id: effective_electricity_emission_factor
+  name: Effective electricity emission factor
+  description: The effective electricity emission factor depends on amounts and emission factors of all electricity production modes.
+  type: simple.MultiplicativeNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [energy_carrier, pollutant]
+  output_dimensions: [energy_carrier, pollutant]
+  input_nodes:
+  - id: electricity_production_emission_factor
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+    - id: pollutant
+  - id: electricity_shares
+    tags: [ratio_to_last_historical_value]
+    from_dimensions:
+    - id: fuel_type
+      categories: [fossil]
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+
+- id: new_electricity_production_capacity
+  name: New electricity production capacity
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a**2
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_nodes:
+  - id: total_electricity_production
+    tags: [difference, non_additive, make_nonnegative]
+    from_dimensions:
+    - id: fuel_type
+      categories: [non_fossil]
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+  - id: new_electricity_production_shares
+    from_dimensions:
+    - id: fuel_type
+      categories: [fossil]
+      exclude: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: fuel_type
+
+- id: existing_electricity_production
+  name: Existing electricity production
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: total_electricity_production
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+  - id: new_renewable_electricity_production
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+
+- id: electricity_production_cost
+  name: Electricity production cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, cost_type, energy_carrier]
+  output_dimensions: [stakeholder, cost_type, energy_carrier]
+  input_nodes:
+  - id: electricity_production_unit_price
+    to_dimensions:
+    - id: energy_carrier
+  - id: existing_electricity_production
+    to_dimensions:
+    - id: energy_carrier
+  - id: existing_electricity_cost_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+  output_nodes:
+  - id: electricity_cost
+
+- id: new_renewable_electricity_production
+  name: New renewable electricity production
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_nodes:
+  - id: new_electricity_production_capacity
+    tags: [cumulative]
+    to_dimensions:
+    - id: fuel_type
+    - id: energy_carrier
+
+# -------------- Electricity production costs ---------------
+
+- id: operating_unit_price_for_renewables
+  name: Operating cost for renewables
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: [cost_type, fuel_type, energy_carrier]
+  output_dimensions: [cost_type, fuel_type, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Operating cost for renewables
+
+- id: renewable_electricity_operating_cost
+  name: Renewable electricity operating cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, cost_type, fuel_type, energy_carrier]
+  output_dimensions: [stakeholder, cost_type, fuel_type, energy_carrier]
+  input_nodes:
+  - id: operating_unit_price_for_renewables
+    to_dimensions:
+    - id: cost_type
+    - id: fuel_type
+    - id: energy_carrier
+  - id: new_renewable_electricity_production
+    to_dimensions:
+    - id: fuel_type
+    - id: energy_carrier
+  - id: renewable_electricity_shares
+    from_dimensions:
+    - id: cost_type
+      categories: [opex]
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: fuel_type
+  output_nodes:
+  - id: electricity_cost
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+
+- id: electricity_air_pollution_cost
+  name: Electricity air pollution cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [pollutant, energy_carrier, cost_type, stakeholder]
+  output_dimensions: [pollutant, energy_carrier, cost_type, stakeholder]
+  input_nodes:
+  - id: total_electricity_emissions
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: pollutant
+  - id: air_pollution_unit_price
+    from_dimensions:
+    - id: area_distance
+      categories: [outside]
+      flatten: true
+    to_dimensions:
+    - id: pollutant
+    - id: cost_type
+  - id: co_benefit_cost_shares
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+  output_nodes:
+  - id: electricity_cost
+    from_dimensions:
+    - id: pollutant
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+    - id: energy_carrier
+
+- id: effective_electricity_production_hours
+  name: Effective electricity production hours
+  type: gpc.DatasetNode
+  quantity: ratio
+  unit: h/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Assumed uptime of wind/solar
+
+- id: job_demand_of_renewables
+  name: Job demand of renewables
+  description: Are these jobs permanent or do they relate to the building phase of PV? Now we assume that they are permanent and accumulate.
+  type: gpc.DatasetNode
+  quantity: demand_factor
+  unit: jobs/MW
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Jobs created per MW
+
+- id: jobs_created_by_renewables
+  name: Jobs created by renewables
+  description: Cumulative number of existing jobs due to renewables
+  type: simple.MultiplicativeNode
+  quantity: employment
+  unit: jobs
+  # is_outcome: true
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_nodes:
+  - id: new_renewable_electricity_production
+    to_dimensions:
+    - id: energy_carrier
+    - id: fuel_type
+  - id: job_demand_of_renewables
+    to_dimensions:
+    - id: energy_carrier
+  - id: effective_electricity_production_hours
+    tags: [geometric_inverse]
+    to_dimensions:
+    - id: energy_carrier
+  output_nodes:
+  - id: total_jobs_created
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
+- id: new_electricity_production_shares
+  name: New electricity production shares
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Distribution of type of new renewables
+
+- id: electricity_production_shares_historical
+  name_en: Electricity production shares historical
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Share of total electricity demand produced by fossil/renewables
+
+# - id: solar_electricity_produced_by_solar_pvs  # TODO Could we use these?
+#   name: Solar electricity produced by solar PVs
+#   type: gpc.DatasetNode
+#   quantity: energy_factor
+#   unit: kWh/kW/a
+#   input_dimensions: [energy_carrier]
+#   output_dimensions: [energy_carrier]
+#   input_datasets: [nzc/defaults]
+#   params:
+#     sector: Solar electricity produced by solar PVs
+
+# - id: solar_electricity_produced_by_solar_pv_area
+#   name: Solar electricity produced by solar PV area
+#   type: gpc.DatasetNode
+#   quantity: energy_factor
+#   unit: kWh/m**2/a
+#   input_dimensions: [energy_carrier]
+#   output_dimensions: [energy_carrier]
+#   input_datasets: [nzc/defaults]
+#   params:
+#     sector: Yearly average of solar electricity generated by 1 m2 solar PV
+
+# - id: renewable_uptime
+#   name: Renewable uptime
+#   description: Assumed uptime of wind and solar electricity production
+#   type: gpc.DatasetNode
+#   quantity: ratio
+#   unit: h/a
+#   input_dimensions: [energy_carrier]
+#   output_dimensions: [energy_carrier]
+#   input_datasets:
+#   - id: nzc/defaults
+#   params:
+#     sector: Assumed uptime of wind/solar
+
+- id: electricity_production_shares
+  name_en: Electricity production shares
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_nodes:
+  - id: electricity_production_shares_historical
+
+- id: renewable_electricity_upfront_price
+  name: Renewable electricity upfront price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: [fuel_type, energy_carrier, cost_type]
+  output_dimensions: [fuel_type, energy_carrier, cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: 'PV: Upfront investment cost'
+
+- id: renewable_electricity_shares
+  name: Renewable electricity cost shares
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [fuel_type, stakeholder, cost_type]
+  output_dimensions: [fuel_type, stakeholder, cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: solar panel costs
+  output_nodes:
+  - id: renewable_electricity_investment_cost
+    to_dimensions:
+    - id: fuel_type
+    - id: stakeholder
+    - id: cost_type
+
+- id: renewable_electricity_investment_cost
+  name: Renewable electricity investment cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [fuel_type, energy_carrier, cost_type, stakeholder]
+  output_dimensions: [fuel_type, energy_carrier, cost_type, stakeholder]
+  input_nodes:
+  - id: new_electricity_production_capacity
+    to_dimensions:
+    - id: fuel_type
+    - id: energy_carrier
+  - id: renewable_electricity_upfront_price
+    to_dimensions:
+    - id: fuel_type
+    - id: energy_carrier
+    - id: cost_type
+  - id: multiplier_node  # TODO
+    to_dimensions: []
+
+- id: multiplier_node  # TODO Improve
+  name: Multiplier node
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: a
+  historical_values: [[2018, 1], [2023, 1]]
+
+- id: electricity_cost
+  name: Electricity cost
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [energy_carrier, cost_type, stakeholder]
+  output_dimensions: [energy_carrier, cost_type, stakeholder]
+  input_nodes:
+  - id: renewable_electricity_investment_cost
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+  output_nodes:
+  - id: total_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+
+- id: existing_electricity_cost_shares
+  name: Existing electricity cost shares
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: fossil/current electricity supply
+
+- id: fossil_electricity_goal
+  name: Fossil electricity reduction goal
+  description: Share of current fossil production replaced by renewables (or nuclear)
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Share of current fossil production replaced by renewables (or nuclear)
+
+- id: fossil_electricity_shares_goal
+  name: Fossil electricity shares goal
+  type: simple.MultiplicativeNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_nodes:
+  - id: electricity_production_shares_historical
+    tags: [non_additive]
+  - id: fossil_electricity_goal
+    tags: [non_additive, complement]
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+    to_dimensions:
+    - id: fuel_type
+      categories: [fossil]
+    - id: energy_carrier
+
+- id: electricity_shares_goal  # TODO Why does the graph not make sense?!?
+  name: Electricity shares goal
+  type: simple.FillNewCategoryNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_nodes:
+  - id: electricity_production_shares_historical
+    from_dimensions:
+    - id: fuel_type
+      categories: [other]
+  - id: fossil_electricity_shares_goal
+  params:
+    new_category: 'fuel_type:non_fossil'
+    drop_nans: true
+
+- id: electricity_shares
+  name: Electricity shares
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_nodes:
+  - id: electricity_production_shares_historical
+

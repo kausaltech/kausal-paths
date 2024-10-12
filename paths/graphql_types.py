@@ -1,23 +1,30 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import graphene
-from babel import Locale
 from django.utils.translation import get_language
 from graphene_django.converter import convert_django_field, get_django_field_description
 
-from kausal_common.graphene import GQLInfo
-from nodes.units import Unit, unit_registry
+from babel import Locale
+
 from paths.utils import UnitField
+
+from nodes.units import Unit, unit_registry
+
+if TYPE_CHECKING:
+    from kausal_common.graphene import GQLInfo
+
 
 locale_cache: dict[str, Locale] = {}
 
 
-def format_unit(unit: Unit, long: bool = False, html: bool = False) -> str:
+def format_unit(unit: Unit, long: bool = False, html: bool = False) -> str:  # noqa: C901
     if dict(unit._units) == dict(percent=1):
         return '%'
 
     full_lang = get_language()
-    locale = locale_cache.get(full_lang, None)
+    locale = locale_cache.get(full_lang)
     if not locale:
         locale = Locale.parse(full_lang, sep='-')
         locale_cache[full_lang] = locale
@@ -28,20 +35,19 @@ def format_unit(unit: Unit, long: bool = False, html: bool = False) -> str:
         formatter = unit_registry.pretty_formatter  # type: ignore
     #fmt = 'Zh' if html else 'Zp'
     f = formatter.format_unit(
-        unit, uspec='Z', sort_func=None, use_plural=not long, length='long' if long else 'short', locale=locale
+        unit, uspec='Z', sort_func=None, use_plural=not long, length='long' if long else 'short', locale=locale,
     )
     if not long:
         if f == 't/a/cap':
             if lang == 'de':
                 return 't/a/Einw.'
-            elif lang == 'en':
+            if lang == 'en':
                 return 't/a/inh.'
-    else:
-        if f == 't/a/cap':
-            if lang == 'de':
-                return 't CO₂e/Jahr/Einw.'
-            elif lang == 'en':
-                return 't CO₂e/year/inh.'
+    elif f == 't/a/cap':
+        if lang == 'de':
+            return 't CO₂e/Jahr/Einw.'
+        if lang == 'en':
+            return 't CO₂e/year/inh.'
 
     return f
 
@@ -49,10 +55,9 @@ def format_unit(unit: Unit, long: bool = False, html: bool = False) -> str:
 def resolve_unit(root: Unit | str, info: GQLInfo) -> Unit:
     if isinstance(root, Unit):
         return root
-    elif isinstance(root, str):
+    if isinstance(root, str):
         return unit_registry.parse_units(root)
-    else:
-        raise ValueError("Invalid type for unit: %s (expecting 'str' or 'Unit')" % type(root))
+    raise ValueError("Invalid type for unit: %s (expecting 'str' or 'Unit')" % type(root))
 
 
 class UnitType(graphene.ObjectType):
@@ -62,20 +67,20 @@ class UnitType(graphene.ObjectType):
     html_long = graphene.String(required=True)
 
     @staticmethod
-    def resolve_short(root: Unit, info):
+    def resolve_short(root: Unit, info) -> str:
         val = format_unit(root, html=False)
         return val
 
     @staticmethod
-    def resolve_long(root: Unit, info):
+    def resolve_long(root: Unit, info) -> str:
         return format_unit(root, long=True, html=False)
 
     @staticmethod
-    def resolve_html_short(root: Unit, info):
+    def resolve_html_short(root: Unit, info) -> str:
         return format_unit(root, long=False, html=True)
 
     @staticmethod
-    def resolve_html_long(root: Unit, info):
+    def resolve_html_long(root: Unit, info) -> str:
         return format_unit(root, long=True, html=True)
 
 

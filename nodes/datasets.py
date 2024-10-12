@@ -1,23 +1,24 @@
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass, field
 import io
 import json
 import uuid
-from typing import TYPE_CHECKING, Any, List, Literal, Optional, Tuple, cast, overload
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, List, Optional, Tuple, cast
+
 import orjson
 import re
 
 import pandas as pd
-import polars as pl
-import numpy as np
 import pint_pandas
-from dvc_pandas import Dataset as DVCPandasDataset
+import polars as pl
+
+import numpy as np
+import common.polars as ppl
+from nodes.units import Unit
 
 from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN, UNCERTAINTY_COLUMN, SAMPLE_SIZE
-from nodes.units import Unit
-from common import polars as ppl
 
 if TYPE_CHECKING:
     from .context import Context
@@ -30,12 +31,14 @@ pd.set_option('io.parquet.engine', 'pyarrow')
 class Dataset:
     id: str
     tags: list[str]
+    interpolate: bool = field(init=False)
     df: Optional[ppl.PathsDataFrame] = field(init=False)
     hash: Optional[bytes] = field(init=False)
 
     def __post_init__(self):
         self.df = None
         self.hash = None
+        self.interpolate = False
         if getattr(self, 'unit', None) is None:
             self.unit = None
 
@@ -48,14 +51,38 @@ class Dataset:
     def calculate_hash(self, context: Context) -> bytes:
         if self.hash is not None:
             return self.hash
-        d = {'id': self.id}
+        d = {'id': self.id, 'interpolate': self.interpolate}
         d.update(self.hash_data(context))
-        h = hashlib.md5(orjson.dumps(d)).digest()
+        h = hashlib.md5(orjson.dumps(d, option=orjson.OPT_SORT_KEYS), usedforsecurity=False).digest()
         self.hash = h
         return h
 
+    def _linear_interpolate(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        years = df[YEAR_COLUMN].unique().sort()
+        min_year = years.min()
+        assert isinstance(min_year, int)
+        max_year = years.max()
+        assert isinstance(max_year, int)
+        df = df.paths.to_wide()
+        years_df = pl.DataFrame(data=range(min_year, max_year + 1), schema=[YEAR_COLUMN])
+        meta = df.get_meta()
+        zdf = years_df.join(df, on=YEAR_COLUMN, how='left').sort(YEAR_COLUMN)
+        df = ppl.to_ppdf(zdf, meta=meta)
+        cols = [pl.col(col).interpolate() for col in df.metric_cols]
+        if FORECAST_COLUMN in df.columns:
+            cols.append(pl.col(FORECAST_COLUMN).fill_null(strategy='forward'))
+        df = df.with_columns(cols)
+        df = df.paths.to_narrow()
+        return df
+
+    def post_process(self, df: ppl.PathsDataFrame):
+        if self.interpolate:
+            df = self._linear_interpolate(df)
+        return df
+
     def get_copy(self, context: Context) -> ppl.PathsDataFrame:
-        return self.load(context).copy()
+        df = self.load(context)
+        return df.copy()
 
     def get_unit(self, context: Context) -> Unit:
         raise NotImplementedError()
@@ -167,15 +194,12 @@ class DVCDataset(Dataset):
     forecast_from: Optional[int] = None
     unit: Optional[Unit] = None
 
-    dvc_dataset: Optional[DVCPandasDataset] = field(init=False)
-
     def __post_init__(self):
         super().__post_init__()
         if self.unit is not None:
             assert isinstance(self.unit, Unit)
-        self.dvc_dataset = None
 
-    def _process_output(self, df: ppl.PathsDataFrame, ds_hash: str | None, context: Context) -> ppl.PathsDataFrame:
+    def _process_output(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         if self.max_year:
             df = df.filter(pl.col(YEAR_COLUMN) <= self.max_year)
         if self.min_year:
@@ -193,22 +217,19 @@ class DVCDataset(Dataset):
                 else:
                     df = df.set_unit(col, self.unit)
 
-        if ds_hash:
-            context.cache.set(ds_hash, df)
         return df
 
     def load(self, context: Context) -> ppl.PathsDataFrame:
-        if self.df is not None:
-            return self.df
-
         obj = None
+        cache_key: str | None
         if not context.skip_cache:
             ds_hash = self.calculate_hash(context).hex()
-            res = context.cache.get(ds_hash)
+            cache_key = 'ds:%s:%s' % (self.id, ds_hash)
+            res = context.cache.get(cache_key)
             if res.is_hit:
                 obj = res.obj
         else:
-            ds_hash = None
+            cache_key = None
 
         if obj is not None:
             self.df = obj
@@ -219,9 +240,9 @@ class DVCDataset(Dataset):
         else:
             ds_id = self.id
 
-        self.dvc_dataset = context.load_dvc_dataset(ds_id)
-        df = ppl.from_pandas(self.dvc_dataset.df.copy())
-
+        dvc_ds = context.load_dvc_dataset(ds_id)
+        assert dvc_ds.df is not None
+        df = ppl.from_dvc_dataset(dvc_ds)
         if self.filters:
             for d in self.filters:
                 if 'column' in d:
@@ -237,8 +258,8 @@ class DVCDataset(Dataset):
                         df = df.drop(col)
                 elif 'dimension' in d:
                     dim_id = d['dimension']
-                    dim = context.dimensions[dim_id]  # FIXME Use makeid to understand dataset columns and items.
                     if 'groups' in d:
+                        dim = context.dimensions[dim_id]
                         grp_ids = d['groups']
                         grp_s = dim.ids_to_groups(dim.series_to_ids_pl(df[dim_id]))
                         df = df.filter(grp_s.is_in(grp_ids))
@@ -247,8 +268,10 @@ class DVCDataset(Dataset):
                         df = df.filter(pl.col(dim_id).is_in(cat_ids))
                     elif 'assign_category' in d:
                         cat_id = d['assign_category']
-                        assert dim_id not in df.dim_ids
-                        assert cat_id in dim.cat_map
+                        if dim_id in context.dimensions:
+                            dim = context.dimensions[dim_id]
+                            assert dim_id not in df.dim_ids
+                            assert cat_id in dim.cat_map
                         df = df.with_columns(pl.lit(cat_id).alias(dim_id)).add_to_index(dim_id)
                     flatten = d.get('flatten', False)
                     if flatten:
@@ -261,8 +284,8 @@ class DVCDataset(Dataset):
                 available = ', '.join(cols)  # type: ignore
                 raise Exception(
                     "Column '%s' not found in dataset '%s'. Available columns: %s" % (
-                        self.column, self.id, available
-                    )
+                        self.column, self.id, available,
+                    ),
                 )
             df = df.with_columns(pl.col(self.column).alias(VALUE_COLUMN))
             cols = [YEAR_COLUMN, VALUE_COLUMN, *df.dim_ids]
@@ -283,12 +306,19 @@ class DVCDataset(Dataset):
 
         df = df.select(cols)
         ppl._validate_ppdf(df)
-        ret = self._process_output(df, ds_hash, context)
-        for col in df.columns:
-            if col in [FORECAST_COLUMN, 'Unit', 'UUID'] + df.primary_keys:
-                continue
-            ret = self.interpret(ret, col, SAMPLE_SIZE)
-        return ret
+
+        df = self._process_output(df)
+        df = self.post_process(df)
+        if cache_key:
+            context.cache.set(cache_key, df, no_expiry=True)
+
+        return df
+        # ret = self._process_output(df, ds_hash, context)  # FIXME Find out if this is used for probabilities.
+        # for col in df.columns:
+        #     if col in [FORECAST_COLUMN, 'Unit', 'UUID'] + df.primary_keys:
+        #         continue
+        #     ret = self.interpret(ret, col, SAMPLE_SIZE)
+        # return ret
 
     def get_unit(self, context: Context) -> Unit:
         if self.unit:
@@ -304,8 +334,8 @@ class DVCDataset(Dataset):
 
     def hash_data(self, context: Context) -> dict[str, Any]:
         extra_fields = [
-            'input_dataset', 'column', 'filters', 'forecast_from',
-            'max_year', 'min_year', 'dropna'
+            'input_dataset', 'column', 'filters', 'dropna',
+            'forecast_from', 'max_year', 'min_year', 'interpolate',
         ]
         d = {}
         for f in extra_fields:
@@ -324,6 +354,7 @@ class FixedDataset(Dataset):
     unit: Unit
     historical: Optional[List[Tuple[int, float]]]
     forecast: Optional[List[Tuple[int, float]]]
+    use_interpolation: bool = False
 
     def _fixed_multi_values_to_df(self, data):
         series = []
@@ -338,6 +369,9 @@ class FixedDataset(Dataset):
 
     def __post_init__(self):
         super().__post_init__()
+
+        if self.use_interpolation:
+            self.interpolate = True
 
         if self.historical:
             hdf = pd.DataFrame(self.historical, columns=[YEAR_COLUMN, VALUE_COLUMN])
@@ -371,9 +405,11 @@ class FixedDataset(Dataset):
         for col in df.columns:
             if col == FORECAST_COLUMN or col in df.primary_keys:
                 continue
+            # df[col] = df[col].astype(float).astype(pt)  # FIXME Find out what happens in the outcommented parts.
             df = self.interpret(df, col, SAMPLE_SIZE)
             df = df.set_unit(col, self.unit)
-        self.df = df
+        self.df = self.post_process(df)
+        # self.df = self.post_process(ppl.from_pandas(df))
 
     def load(self, context: Context) -> ppl.PathsDataFrame:
         assert self.df is not None
@@ -397,14 +433,14 @@ class JSONDataset(Dataset):
 
     def __post_init__(self):
         super().__post_init__()
-        df, units = JSONDataset.deserialize_df(self.data, return_units=True)
-        self.df = ppl.from_pandas(df)
-        if len(units) == 1:
-            self.unit = list(units.values())[0]
+        self.df = JSONDataset.deserialize_df(self.data)
+        meta = self.df.get_meta()
+        if len(meta.units) == 1:
+            self.unit = next(iter(meta.units.values()))
 
     def load(self, context: Context) -> ppl.PathsDataFrame:
         assert self.df is not None
-        return self.df
+        return self.post_process(self.df)
 
     def hash_data(self, context: Context) -> dict[str, Any]:
         df = self.df.to_pandas()
@@ -413,33 +449,22 @@ class JSONDataset(Dataset):
     def get_unit(self, context: Context) -> Unit:
         return cast(Unit, self.unit)
 
-    @overload
     @classmethod
-    def deserialize_df(cls, value: dict, return_units: Literal[False] = False) -> pd.DataFrame: ...
-
-    @overload
-    @classmethod
-    def deserialize_df(cls, value: dict, return_units: Literal[True]) -> Tuple[pd.DataFrame, dict[str, Unit]]: ...
-
-    @classmethod
-    def deserialize_df(cls, value: dict, return_units: bool = False):
+    def deserialize_df(cls, value: dict) -> ppl.PathsDataFrame:
         sio = io.StringIO(json.dumps(value))
         df = pd.read_json(sio, orient='table')
-        units = {}
         for f in value['schema']['fields']:
             unit = f.get('unit')
             col = f['name']
             if unit is not None:
                 pt = pint_pandas.PintType(unit)
                 df[col] = df[col].astype(float).astype(pt)
-                units[col] = unit
-        if return_units:
-            return (df, units)
-        return df
+        return ppl.from_pandas(df)
 
     @classmethod
-    def serialize_df(cls, df: pd.DataFrame, add_uuids: bool = False) -> dict:
+    def serialize_df(cls, pdf: ppl.PathsDataFrame, add_uuids: bool = False) -> dict:
         units = {}
+        df = pdf.to_pandas()
         df = df.copy()
         for col in df.columns:
             if hasattr(df[col], 'pint'):

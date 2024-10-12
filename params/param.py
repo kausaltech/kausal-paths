@@ -1,19 +1,23 @@
 from __future__ import annotations
-from contextlib import contextmanager
-from dataclasses import InitVar, asdict, dataclass, field
 
 import json
-import pandas as pd
+from contextlib import contextmanager
+from dataclasses import InitVar, asdict, dataclass, field
+from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar, cast
+
 from pydantic import BaseModel
-from common.i18n import I18nString
-from typing import Any, Generic, Optional, TYPE_CHECKING, Self, Type, TypeVar, cast
+
+from common.polars import from_pandas
 from nodes.datasets import JSONDataset
-from nodes.units import Unit, Quantity
+from nodes.units import Quantity, Unit
 
 if TYPE_CHECKING:
-    from nodes.node import Node, NodeMetric
+    import pandas as pd
+
+    from common.i18n import I18nString
     from nodes.context import Context
     from nodes.dimensions import Dimension
+    from nodes.node import Node, NodeMetric
     from nodes.scenario import Scenario
 
 
@@ -31,13 +35,13 @@ V = TypeVar('V')
 @dataclass
 class Parameter(Generic[V]):
     local_id: str  # not globally unique but locally, relative to the parameter's node (if it has one)
-    context: Optional[Context] = field(repr=False, hash=False, default=None)
+    context: Context | None = field(repr=False, hash=False, default=None)
     "The context to which this parameter is bound"
 
-    label: Optional[I18nString] = None
-    description: Optional[I18nString] = None
+    label: I18nString | None = None
+    description: I18nString | None = None
 
-    node: Optional[Node] = None
+    node: Node | None = None
     "Set if this parameter is bound to a specific node"
 
     subscription_nodes: list[Node] = field(default_factory=list)
@@ -108,7 +112,7 @@ class Parameter(Generic[V]):
             return h
         if isinstance(self.value, str):
             v = self.value.encode('unicode_escape').decode('ascii')
-        elif isinstance(self.value, (bool, int, float)):
+        elif isinstance(self.value, bool | int | float):
             v = str(self.value)
         else:
             v = json.dumps({'value': self.serialize_value()}, ensure_ascii=True)
@@ -126,9 +130,10 @@ class Parameter(Generic[V]):
             return self.local_id
         return f'{self.node.id}.{self.local_id}'
 
-    def set_node(self, node: 'Node'):
+    def set_node(self, node: Node):
         if self.node is not None:
-            raise Exception(f"Node for parameter {self.global_id} already set")
+            msg = f"Node for parameter {self.global_id} already set"
+            raise Exception(msg)
         self.node = node
 
     def has_unit(self) -> bool:
@@ -138,13 +143,15 @@ class Parameter(Generic[V]):
 
     def get_unit(self) -> Unit:
         if not self.has_unit():
-            raise Exception(f"Parameter {self.global_id} does not have units")
+            msg = f"Parameter {self.global_id} does not have units"
+            raise Exception(msg)
         return self.unit  # type: ignore
 
 
 @dataclass
 class ReferenceParameter(Parameter):
-    """Parameter that is a reference to another parameter.
+    """
+    Parameter that is a reference to another parameter.
 
     This parameter cannot be changed.
     """
@@ -160,11 +167,12 @@ class ReferenceParameter(Parameter):
         self.target.subscription_params.append(self)
 
     @property
-    def unit(self) -> Any:
-        return getattr(self._target, 'unit')
+    def unit(self) -> Unit | None:
+        assert isinstance(self._target, ParameterWithUnit)
+        return self._target.unit
 
     @property
-    def value(self) -> Any:
+    def value(self) -> Any:  # noqa: ANN401
         return self._target.value
 
     def has_unit(self) -> bool:
@@ -173,7 +181,7 @@ class ReferenceParameter(Parameter):
     def get_unit(self) -> Unit:
         return self._target.get_unit()
 
-    def clean(self, value: Any) -> Any:
+    def clean(self, value: Any) -> Any:  # noqa: ANN401
         raise NotImplementedError()
 
 
@@ -182,26 +190,24 @@ class ParameterWithUnit:
     unit: Unit | None = None
     unit_str: InitVar[str | None] = None
 
-    def _init_unit(self, unit_str: str | None = None):
-        if hasattr(self, 'unit_str'):
-            if unit_str is None:
-                unit_str = self.unit_str  # type: ignore
+    def _init_unit(self, unit_str: str | None = None) -> None:
+        if hasattr(self, 'unit_str') and unit_str is None:
+            unit_str = self.unit_str  # type: ignore
 
         if unit_str is not None:
             from nodes.context import unit_registry
             self.unit = unit_registry.parse_units(unit_str)
 
-        if self.unit is not None:
-            if not isinstance(self.unit, Unit):
-                raise Exception("str given for unit for parameter %s" % self.local_id)  # type: ignore
+        if self.unit is not None and not isinstance(self.unit, Unit):
+            raise Exception("str given for unit for parameter %s" % self.local_id)  # type: ignore
 
 
 @dataclass
 class NumberParameter(ParameterWithUnit, Parameter[float]):
-    value: Optional[float] = None
-    min_value: Optional[float] = None
-    max_value: Optional[float] = None
-    step: Optional[float] = None
+    value: float | None = None
+    min_value: float | None = None
+    max_value: float | None = None
+    step: float | None = None
 
     def __post_init__(self, unit_str: str | None = None):
         self._init_unit(unit_str)
@@ -222,12 +228,12 @@ class NumberParameter(ParameterWithUnit, Parameter[float]):
             value = value.m
 
         # Avoid converting, e.g., bool to float
-        if not isinstance(value, (int, float, str)):
+        if not isinstance(value, int | float | str):
             raise ValidationError(self)
         try:
             value = float(value)
         except ValueError:
-            raise ValidationError(self)
+            raise ValidationError(self) from None
 
         if self.min_value is not None:
             self.min_value = float(self.min_value)
@@ -240,13 +246,13 @@ class NumberParameter(ParameterWithUnit, Parameter[float]):
 
         return value
 
-    def set(self, value):
+    def set(self, value: Quantity | float) -> None:  # type: ignore[override]
         if isinstance(value, Quantity):
             unit = value.units
             value = value.m
         else:
             unit = None
-        super().set(value)
+        super().set(value) # type: ignore
         if unit is not None:
             self.unit = cast(Unit, unit)
 
@@ -254,6 +260,7 @@ class NumberParameter(ParameterWithUnit, Parameter[float]):
 @dataclass
 class DatasetParameter(Parameter):
     """Multi-dimensional time-series."""
+
     dimensions: list[Dimension] = field(default_factory=list)
     metrics: list[NodeMetric] = field(default_factory=list)
     value: pd.DataFrame | None = None
@@ -267,11 +274,11 @@ class DatasetParameter(Parameter):
         assert self.value is not None
         return self.value.equals(value)
 
-    def serialize_value(self) -> Any:
+    def serialize_value(self) -> dict[str, Any]:
         assert self.value is not None
-        return JSONDataset.serialize_df(self.value)
+        return JSONDataset.serialize_df(from_pandas(self.value))
 
-    def clean(self, value: Any) -> Any:
+    def clean(self, value: dict) -> Any:
         if not isinstance(value, dict):
             raise ValidationError(self, "Must get a dict as value")
 
@@ -285,7 +292,7 @@ class PercentageParameter(NumberParameter):
 
 @dataclass
 class BoolParameter(Parameter[bool]):
-    value: Optional[bool] = None
+    value: bool | None = None
 
     def clean(self, value: bool):
         # Avoid converting non-bool to bool
@@ -296,7 +303,7 @@ class BoolParameter(Parameter[bool]):
 
 @dataclass
 class StringParameter(Parameter[str]):
-    value: Optional[str] = None
+    value: str | None = None
 
     def clean(self, value: str):
         if not isinstance(value, str):
@@ -304,10 +311,10 @@ class StringParameter(Parameter[str]):
         return value
 
 
-param_type_registry: set[Type[Parameter]] = set()
+param_type_registry: set[type[Parameter]] = set()
 
 
-def register_parameter_type(cls: Type[Parameter]):
+def register_parameter_type(cls: type[Parameter]):
     if cls in param_type_registry:
         raise Exception("Parameter class %s already registered", str(cls))
     param_type_registry.add(cls)

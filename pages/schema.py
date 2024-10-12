@@ -1,25 +1,31 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 import graphene
+
 from grapple.types.pages import Page as GrapplePageType
+
+from paths.graphql_helpers import ensure_instance
 
 from nodes.models import InstanceConfig
 from nodes.schema import NodeType
 from pages.page_interface import PageInterface
-from paths.graphql_helpers import GQLInstanceInfo, ensure_instance
 
+from .models import OutcomePage, Page, PathsPage
 from .perms import PagePermissionPolicy
-from .models import OutcomePage, PathsPage, Page
 
+if TYPE_CHECKING:
+    from paths.graphql_helpers import GQLInstanceInfo
+
+    from nodes.node import Node
 
 policy = PagePermissionPolicy()
-
 
 class PathsPageType(GrapplePageType):
     show_in_footer = graphene.Boolean()
 
-    class Meta:
+    class Meta:  # pyright: ignore
         model = PathsPage
         interfaces = (PageInterface,)
         name = 'PathsPage'
@@ -30,10 +36,10 @@ class OutcomePageType(PathsPageType):
 
     @staticmethod
     @ensure_instance
-    def resolve_outcome_node(root: OutcomePage, info: GQLInstanceInfo):
+    def resolve_outcome_node(root: OutcomePage, info: GQLInstanceInfo) -> Node:
         return info.context.instance.context.get_node(root.outcome_node.identifier)
 
-    class Meta:
+    class Meta:  # pyright: ignore
         model = OutcomePage
         interfaces = (PageInterface,)
         name = 'OutcomePage'
@@ -64,7 +70,6 @@ class Query:
         path = root_page.url_path.rstrip('/') + path
         qs = qs.filter(url_path=path)
         return qs.first()
-
 
 def monkeypatch_grapple():
     from grapple.registry import registry

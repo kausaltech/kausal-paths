@@ -1,13 +1,18 @@
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
 import graphene
 from graphql.error import GraphQLError
 
-from paths.graphql_helpers import GQLInfo, GQLInstanceInfo, ensure_instance
+from paths.graphql_helpers import ensure_instance
 
-from . import (
-    BoolParameter, NumberParameter, Parameter, PercentageParameter, StringParameter,
-    ValidationError
-)
+from . import BoolParameter, NumberParameter, Parameter, PercentageParameter, StringParameter, ValidationError
+
+if TYPE_CHECKING:
+    from kausal_common.graphene import GQLInfo
+
+    from paths.graphql_helpers import GQLInstanceInfo
 
 
 class ResolveDefaultValueMixin:
@@ -41,7 +46,7 @@ class ParameterInterface(graphene.Interface):
         return root.local_id
 
     @classmethod
-    def resolve_type(cls, parameter: Parameter, info):
+    def resolve_type(cls, instance: Parameter, info: GQLInfo) -> type[graphene.ObjectType]:  # noqa: ARG003
         type_map = {
             BoolParameter: BoolParameterType,
             NumberParameter: NumberParameterType,
@@ -50,7 +55,7 @@ class ParameterInterface(graphene.Interface):
         }
         # Try to find the parameter type by going through the superclasses
         # of the parameter instance.
-        for param_type in type(parameter).mro():
+        for param_type in type(instance).mro():
             if param_type in type_map:
                 return type_map[param_type]
         return UnknownParameterType

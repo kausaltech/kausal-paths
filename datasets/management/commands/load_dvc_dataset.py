@@ -1,18 +1,22 @@
-import pint_pandas
-import polars as pl
-import pandas as pd
+from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+from django.core.management.base import BaseCommand
+from django.db import transaction
+
+import polars as pl
 from rich import print
 
-from django.core.management.base import BaseCommand, CommandError
-from django.db import transaction
-from common.i18n import TranslatedString, get_modeltrans_attrs_from_str
-from datasets.models import Dataset, DatasetDimension, Dimension, DatasetMetric
 from common import polars as ppl
+from common.i18n import TranslatedString
+from datasets.models import Dataset, DatasetDimension, DatasetMetric, Dimension
+from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
 from nodes.datasets import JSONDataset
 from nodes.models import InstanceConfig
-from nodes.node import Context
-from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
+
+if TYPE_CHECKING:
+    from nodes.context import Context
 
 
 class Command(BaseCommand):
@@ -25,9 +29,10 @@ class Command(BaseCommand):
 
     def sync_dataset(self, ic: InstanceConfig, ctx: Context, ds_id: str, force: bool = False):
         ds = ctx.load_dvc_dataset(ds_id)
+        df = ppl.from_dvc_dataset(ds)
         metadata = ds.metadata or {}
         metrics_meta = {m.get('id', None): m for m in metadata.get('metrics', [])}
-        df = ppl.from_pandas(ds.df)
+        assert df is not None
         dims: list[Dimension] = []
         metrics = []
         meta = df.get_meta()
@@ -105,9 +110,8 @@ class Command(BaseCommand):
         for col, dt in df.schema.items():
             if dt == pl.Categorical:
                 df = df.with_columns(pl.col(col).cast(pl.Utf8))
-        pdf = df.to_pandas()
 
-        obj.table = JSONDataset.serialize_df(pdf, add_uuids=True)
+        obj.table = JSONDataset.serialize_df(df, add_uuids=True)
         obj.years = obj.generate_years_from_data()
         obj.save()
 

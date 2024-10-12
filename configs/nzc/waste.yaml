@@ -1,0 +1,399 @@
+dimensions:
+
+- id: waste_type
+  label: Waste type
+  categories:
+  - id: paper
+    label: Paper and cardboard
+  - id: metal
+    label: Metal
+  - id: plastics
+    label: Plastics
+  - id: glass
+    label: Glass
+  - id: organic_waste
+    label: Organic waste
+  - id: other_waste
+    label: Other waste (e.g. textiles, rubble, wood)
+  - id: mixed_waste
+    label: Mixed waste
+  - id: aluminium
+    label: Aluminiium
+
+- id: waste_treatment
+  label: Waste treatment
+  categories:
+  # - id: other
+  #   label: Other waste management
+  - id: incinerated
+    label: Incinerated (e.g. energy recovery)
+  - id: recycled
+    label: Recycled
+  - id: decay
+    label: Organic decay (waste)
+  - id: sorting
+    label: Sorting
+  - id: plastic_sorting
+    label: Plastic sorting
+  - id: landfill
+    label: Landfill
+    aliases: [other, Other waste management]
+  - id: landfill_gas
+    label: Landfill gas
+  - id: composting
+    label: Composting
+
+nodes:
+
+# ----------------- Waste -------------------
+
+- id: collected_waste
+  name: Collected waste
+  type: gpc.DatasetNode
+  quantity: mass
+  unit: t/a
+  input_dimensions: [waste_type]
+  output_dimensions: [waste_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Total collected waste within city boundaries by type
+
+- id: waste_recycling_shares_frozen
+  name: Waste recycling shares frozen scenario
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [waste_treatment, waste_type]
+  output_dimensions: [waste_treatment, waste_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Share recycling/incineration/landfill
+
+- id: waste_recycling_future_baseline_shares
+  name: Waste recycling future baseline shares
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [waste_treatment, waste_type]
+  output_dimensions: [waste_treatment, waste_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Share recycling/incineration/landfill baseline
+
+- id: waste_recycling_shares_baseline
+  name: Waste recycling shares baseline
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [waste_treatment, waste_type]
+  output_dimensions: [waste_treatment, waste_type]
+  input_nodes:
+  - id: waste_recycling_shares_frozen
+
+- id: waste_recycling_shares_goal
+  name: Waste recycling shares goal
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [waste_treatment, waste_type]
+  output_dimensions: [waste_treatment, waste_type]
+  input_datasets:
+  - id: nzc/defaults
+    filters:
+    - column: Parameter
+      value: Decarbonisation scenario
+  params:
+    sector: 5.1. Increased recycling of waste
+
+- id: waste_recycling_shares
+  name: Waste recycling shares
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [waste_treatment, waste_type]
+  output_dimensions: [waste_treatment, waste_type]
+  input_nodes:
+  - id: waste_recycling_shares_baseline
+
+- id: waste_management_amount
+  name: Waste management amount
+  type: simple.MultiplicativeNode
+  quantity: mass
+  unit: t/a
+  input_dimensions: [waste_type, waste_treatment]
+  output_dimensions: [waste_type, waste_treatment]
+  input_nodes:
+  - id: collected_waste
+    tags: [non_additive]
+    to_dimensions:
+    - id: waste_type
+  - id: waste_recycling_shares
+
+- id: waste_emission_factor
+  name: Waste emission factor
+  description: OK. But has mixed waste also, although does not come from the same place as the others.
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/t
+  input_dimensions: [waste_type, waste_treatment, pollutant]
+  output_dimensions: [waste_type, waste_treatment, pollutant]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: waste emission factor
+  output_nodes:
+  - id: waste_emissions
+
+- id: waste_emissions
+  name: Waste emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  color: '#B07AA1'
+  input_dimensions: [waste_type, waste_treatment, pollutant]
+  output_dimensions: [waste_type, waste_treatment, pollutant]
+  input_nodes:
+  - id: waste_management_amount
+    tags: [non_additive]
+    to_dimensions:
+    - id: waste_type
+    - id: waste_treatment
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
+      flatten: true
+    - id: waste_treatment
+      flatten: true
+    - id: waste_type
+      flatten: true
+    to_dimensions:
+    - id: scope
+      categories: [scope3]
+    - id: ghg
+      categories: [co2e]
+    - id: sector
+      categories: [waste]
+
+- id: waste_air_pollution_emission_factor
+  name: Waste air pollution emission factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: kg/t
+  input_dimensions: [pollutant, waste_treatment, energy_carrier]
+  output_dimensions: [pollutant, waste_treatment, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Emission factors from waste management
+  output_nodes:
+  - id: waste_incineration_air_pollution_emissions
+    from_dimensions:
+    - id: pollutant
+      categories: [nox, pm25_combustion, pm10_combustion]
+    to_dimensions:
+    - id: pollutant
+    - id: waste_treatment
+    - id: energy_carrier
+  - id: waste_emission_factor
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
+    - id: energy_carrier
+      flatten: true
+    - id: waste_treatment
+      categories: [incinerated]
+    to_dimensions:
+    - id: pollutant
+    - id: waste_treatment
+    - id: waste_type
+      categories: [other_waste]
+
+- id: waste_incineration_air_pollution_emissions
+  name: Waste incineration air pollution emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [pollutant, waste_treatment, waste_type, energy_carrier]
+  output_dimensions: [pollutant, waste_treatment, waste_type, energy_carrier]
+  input_nodes:
+  - id: waste_management_amount
+    tags: [non_additive]
+    from_dimensions:
+    - id: waste_type
+      categories: [glass]
+      exclude: true
+    to_dimensions:
+    - id: waste_type
+    - id: waste_treatment
+
+# ------------- Waste costs --------------
+
+- id: recycled_waste_unit_price
+  name: Recycled waste unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/t
+  input_dimensions: [waste_type, cost_type, energy_carrier]
+  output_dimensions: [waste_type, cost_type, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Prices of sorted waste
+  output_nodes:
+  - id: recycled_waste_sales_income
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: waste_type
+    - id: cost_type
+
+- id: recycled_waste_sales_income
+  name: Recycled waste sales income
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [waste_type, cost_type, waste_treatment]
+  output_dimensions: [waste_type, cost_type, waste_treatment]
+  input_nodes:
+  - id: waste_management_amount
+    to_dimensions:
+    - id: waste_type
+    - id: waste_treatment
+  output_nodes:
+  - id: waste_management_cost
+    tags: [arithmetic_inverse]
+
+- id: waste_treatment_unit_price
+  name: Waste treatment unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/t
+  input_dimensions: [waste_treatment, cost_type, energy_carrier]
+  output_dimensions: [waste_treatment, cost_type, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Waste management costs
+  output_nodes:
+  - id: waste_treatment_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: waste_treatment
+    - id: cost_type
+
+- id: waste_treatment_cost
+  name: Waste treatment cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [waste_type, cost_type, waste_treatment]
+  output_dimensions: [waste_type, cost_type, waste_treatment]
+  input_nodes:
+  - id: waste_management_amount
+    to_dimensions:
+    - id: waste_type
+    - id: waste_treatment
+  output_nodes:
+  - id: waste_management_cost
+
+- id: waste_management_cost
+  name: Waste management cost
+  description: TODO Add nodes for waste incineration income
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [waste_type, cost_type, waste_treatment]
+  output_dimensions: [waste_type, cost_type, waste_treatment]
+
+- id: waste_management_cost_shares
+  name: Waste management cost shares
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: waste recycling
+
+- id: waste_management_cost_by_stakeholder
+  name: Waste management cost by stakeholder
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, waste_treatment, stakeholder]
+  output_dimensions: [cost_type, waste_treatment, stakeholder]
+  input_nodes:
+  - id: waste_management_cost
+    tags: [non_additive]
+    from_dimensions:
+    - id: waste_type
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: waste_treatment
+  - id: waste_management_cost_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+
+- id: waste_air_pollution_cost
+  name: Waste air pollution cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, cost_type, waste_treatment]
+  output_dimensions: [stakeholder, cost_type, waste_treatment]
+  input_nodes:
+  - id: waste_incineration_air_pollution_emissions
+    from_dimensions:
+    - id: waste_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: pollutant
+      flatten: true
+    to_dimensions:
+    - id: waste_treatment
+  - id: air_pollution_unit_price
+    from_dimensions:
+    - id: pollutant
+      flatten: true
+    - id: area_distance
+      categories: [outside]
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+  - id: co_benefit_cost_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+
+- id: waste_cost
+  name: Waste cost
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
+  input_nodes:
+  - id: waste_air_pollution_cost
+    from_dimensions:
+    - id: waste_treatment
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+  - id: waste_management_cost_by_stakeholder
+    from_dimensions:
+    - id: waste_treatment
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+  output_nodes:
+  - id: total_cost
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder

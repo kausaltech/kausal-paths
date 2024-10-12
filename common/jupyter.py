@@ -1,44 +1,53 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import os
 from collections import namedtuple
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 import polars as pl
 
 from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
 
 if TYPE_CHECKING:
-    from nodes.node import Node
     from nodes.context import Context
+    from nodes.node import Node
 
 
 _django_initialized = False
 plotly_theme: str = 'ggplot2'
 
+script_path = Path(__file__)
+project_root = Path(__file__).parent.parent
 
-def _init_django():
-    global _django_initialized
+
+def _init_django() -> None:
+    global _django_initialized  # noqa: PLW0603
     if _django_initialized:
         return
-    import os
+
     import django
+
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "paths.settings")
     django.setup()
     _django_initialized = True
 
 
-def _enable_autoreload():
-    from IPython import get_ipython
+def _enable_autoreload() -> None:
+    from IPython import get_ipython  # type: ignore
+
     ip = get_ipython()
-    if 'IPython.extensions.autoreload' in ip.extension_manager.loaded:  # noqa
+    assert ip is not None
+    if 'IPython.extensions.autoreload' in ip.extension_manager.loaded:  # type: ignore
         return
-    ip.magic(r'%load_ext autoreload')  # noqa
-    ip.magic(r'%autoreload 2')  # noqa
+    ip.magic(r'%load_ext autoreload')
+    ip.magic(r'%autoreload 2')
+    ip.magic(r'%matplotlib ipympl')
 
 
-def _get_context(instance_id: str):
+def get_context(instance_id: str):
+    from common import polars_ext  # noqa: F401
     from nodes.instance import InstanceLoader
-    from common import polars_ext  # noqa
 
     _enable_autoreload()
     _init_django()
@@ -47,7 +56,7 @@ def _get_context(instance_id: str):
     from rich import traceback
     traceback.install(show_locals=False)
 
-    config_fn = 'configs/%s.yaml' % instance_id
+    config_fn = Path(project_root) / 'configs' / ('%s.yaml' % instance_id)
     loader = InstanceLoader.from_yaml(config_fn)
     context = loader.context
     context.cache.clear()
@@ -59,14 +68,14 @@ class NotebookNodes(dict[str, 'Node']):
 
 
 def get_nodes(instance_id: str):
-    context = _get_context(instance_id)
+    context = get_context(instance_id)
     out = NotebookNodes(context.nodes)
     out.context = context
     return out
 
 
 def get_datasets(instance_id: str):
-    context = _get_context(instance_id)
+    context = get_context(instance_id)
     context.generate_baseline_values()
     name = '%sDatasets' % (instance_id.capitalize())
     datasets = {key.replace('/', '_').replace('-', '_'): val for key, val in context.dvc_datasets.items()}
@@ -114,3 +123,4 @@ def plot_node(node: Node):
             annotation_position='top left',
         )
         return fig
+    return None

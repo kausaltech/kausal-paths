@@ -58,3 +58,11 @@ django-stubs-ext
 celery
 django-celery-results
 openpyxl
+opentelemetry-sdk
+opentelemetry-instrumentation-django
+opentelemetry-exporter-otlp-proto-http
+opentelemetry-instrumentation-threading
+#strawberry-graphql
+#strawberry-graphql-django
+diffsync
+django-pydantic-field

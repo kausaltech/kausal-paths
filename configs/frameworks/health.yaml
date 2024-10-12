@@ -1,3 +1,15 @@
+# INSTRUCTIONS
+
+# REQUIRED NODES:
+# - road_transport_emissions (for near-breathing-zone CO2 emissions)
+#   no dimensions
+# - district_heating_emissions (for high-stack CO2 emissions)
+#   no dimensions
+# - population
+#   no dimensions
+# - discount_rate
+#   no dimensions
+
 nodes:
 
 # -------------- Emissions --------------
@@ -5,6 +17,7 @@ nodes:
 - id: transport_emission_factor
   name_fi: Liikennepäästöjen päästökerroin
   name_en: Air pollution emission factor
+  description_fi: Lähtötiedot on saatu NetZeroCities-hankkeen laskenta-excelin oletusarvoista.
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/vkm
@@ -33,10 +46,8 @@ nodes:
   input_nodes:
   - id: transport_emission_factor
   params:
-  - id: use_input_node_unit_when_adding
-    value: true
-  - id: reference_category
-    value: 'pollutant:co2'
+    use_input_node_unit_when_adding: true
+    reference_category: 'pollutant:co2'
 
 - id: transport_air_pollution_emissions
   name_fi: Liikenteen ilmansaastepäästöt
@@ -57,6 +68,7 @@ nodes:
 - id: fossil_plant_emission_factor
   name_fi: Fossiilivoimalan ilmansaasteiden päästökerroin
   name_en: Air pollution emission factor
+  description_fi: Lähtötiedot on saatu NetZeroCities-hankkeen laskenta-excelin oletusarvoista.
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/kWh
@@ -66,7 +78,7 @@ nodes:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    gpc_sector: heat emission factor
+    sector: heat emission factor
 
 - id: fossil_plant_emission_ratio
   name_fi: Fossiilivoimalan päästöjen keskinäinen suhde
@@ -108,7 +120,7 @@ nodes:
 - id: intake_fraction
   name_fi: Ilmansaasteiden saantiosuus
   name_en: Intake fraction of air pollution
-  description_fi: Se osuus ilmansaastepäästöstä, joka lopulta päätyy jonkun hengittämäksi.
+  description_fi: 'Se osuus ilmansaastepäästöstä, joka lopulta päätyy jonkun hengittämäksi. Tiedot on saatu artikkelista Sebastien Humbert, Julian D. Marshall, Shanna Shaked, Joseph V. Spadaro, Yurika Nishioka, Philipp Preiss, Thomas E. McKone, Arpad Horvath, and Olivier Jolliet. Intake Fraction for Particulate Matter: Recommendations for Life Cycle Impact Assessment (2011). Environmental Science and Technology, 45, 4808-4816.'
   description_en: The fraction of air pollution emissions that is eventually inhaled by someone.
   type: gpc.DatasetNode
   quantity: fraction
@@ -121,7 +133,7 @@ nodes:
     - column: Population density
       value: average
   params:
-    gpc_sector: Air pollution
+    sector: Air pollution
 
 - id: breathing_rate
   name_fi: Hengitystilavuus
@@ -199,10 +211,88 @@ nodes:
   input_dimensions: [pollutant]
   output_dimensions: [pollutant]
 
+# -------------- HEAT Active mobility ---------
+
+- id: active_mobility_speed
+  name_fi: Aktiivisen liikkumisen keskinopeus
+  name_en: Average speed of active mobility
+  description_fi: Aktiivisen liikkumisen keskinopeus saadaan artikkelista Kelly ym. 2014. Myös Heli Lehtomäki ym. 2021. Liikenteen terveysvaikutukset Suomessa ja suurimmissa kaupungeissa. Suomen ympäristökeskuksen raportteja 16 / 2021
+  type: gpc.DatasetNode
+  quantity: speed
+  unit: km/h
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [hia/heat/lappeenranta_active_mobility]  # TODO Use a generic dataset instead
+  params:
+    sector: Average speed
+
+- id: active_mobility
+  name_fi: Aktiivisen liikkumisen matka
+  name_en: Distance of active mobility
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: km/person/d
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+
+- id: amount_of_active_mobility
+  name_fi: Aktiivisen liikkumisen kesto
+  name_en: Duration of active mobility
+  type: simple.MultiplicativeNode
+  quantity: exposure
+  unit: min/person/d
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: active_mobility
+    to_dimensions:
+    - id: transport_mode
+  - id: active_mobility_speed
+    tags: [geometric_inverse]
+    to_dimensions:
+    - id: transport_mode
+
+- id: health_factor_of_active_mobility
+  name_fi: Aktiivisen liikkumisen terveyskerroin
+  name_en: Active mobility health factor
+  description_fi: WHO:n HEAT-mallia käytettiin tuottamaan Lappeenrannalle räätälöity
+    arvio terveysvaikutusten suuruudesta aktiivisen liikkumisen suhteen. Kerroin ilmoitetaan
+    aktiiviseen liikkumiseen käytettynä aikana aikuisväestössä. Kävalyn osalta tarkastellaan
+    20 - 79 -vuotiaita, pyöräilyn osalta 20 - 64 -vuotiaita.
+  type: gpc.DatasetNode
+  quantity: exposure_response
+  unit: incident/a/(min/d/person)
+  input_dimensions: [response, transport_mode]
+  output_dimensions: [response, transport_mode]
+  input_datasets: [hia/heat/lappeenranta_heat]
+  params:
+    sector: health_factor_of_active_mobility
+
+- id: health_effect_of_active_mobility
+  name_fi: Aktiivisen liikkumisen ehkäisemät tapaukset
+  name_en: Cases prevented by active mobility
+  type: simple.MultiplicativeNode
+  quantity: health_effect
+  unit: cases/a
+  input_dimensions: [response, transport_mode]
+  output_dimensions: [response, transport_mode]
+  input_nodes:
+  - id: health_factor_of_active_mobility
+    tags: [arithmetic_inverse]
+  - id: amount_of_active_mobility
+    to_dimensions:
+    - id: transport_mode
+  output_nodes:
+  - id: total_exposure_related_cases
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+
 # -------------- Health effects ---------------
 
 - id: planetary_health
   name_fi: Raakile luonnon monimuotoisuudesta ja planetaarisesta terveydestä
+  name_en: A draft of biodiversity and planetary health
   description_fi: 'https://thl.fi/thl/tietoa-meista/vaikuttamistavoitteet/planetaarinen-terveys-ja-hyvinvointi https://www.biwe.fi/ https://www.allergia.fi/jarjesto/tutkimus-1/'
   type: simple.AdditiveNode
   quantity: utility
@@ -228,7 +318,7 @@ nodes:
     - column: Population
       value: default
   params:
-    gpc_sector: Environmental health
+    sector: Environmental health
 
 - id: air_pollution_attributable_fraction
   name_fi: Ilmansaasteiden syyosuus
@@ -237,7 +327,7 @@ nodes:
   description_en: The fraction of disease burden that can be attributed to air pollution exposure.
   type: health.AttributableFractionRR
   quantity: exposure_response
-  unit: dimensionless  # FIXME Allow for different units in dataset and node.
+  unit: dimensionless  # TODO Allow for different units in dataset and node.
   input_dimensions: [response, pollutant]
   output_dimensions: [response, pollutant]
   input_datasets:
@@ -250,12 +340,12 @@ nodes:
     to_dimensions:
     - id: pollutant
   params:
-    gpc_sector: Air pollution
+    sector: Air pollution
 
 - id: total_number_of_cases
   name_fi: Kokonaistapausmäärä
   name_en: Total number of cases
-  description_fi: Kokonaistapausmäärä kohdeväestössä
+  description_fi: Kokonaistapausmäärä kohdeväestössä saadaan kertomalla taustailmaantuvuut väestömäärällä.
   description_en: Total number of cases in the target population
   type: simple.MultiplicativeNode
   quantity: health_effect
@@ -273,7 +363,7 @@ nodes:
 - id: attributable_cases
   name_fi: Ilmansaasteisiin kohdentuvat tapaukset
   name_en: Cases attributable to air pollution
-  description_fi: Pienhiukkasiin ja typenoksideihin kohdentuvat tapaukset
+  description_fi: Se osa kokonaistapausmäärästä, joka kohdentyy pienhiukkasiin ja typenoksideihin.
   description_en: Cases attributable to PM2.5 and NOx
   type: simple.MultiplicativeNode
   quantity: health_effect
@@ -283,34 +373,47 @@ nodes:
   output_dimensions: [response, pollutant]
   input_nodes:
   - id: air_pollution_attributable_fraction
-#    to_dimensions:
-#    - id: pollutant
   - id: total_number_of_cases
     tags: [non_additive]
     to_dimensions:
     - id: response
+  output_nodes:
+  - id: total_exposure_related_cases
+    from_dimensions:
+    - id: pollutant
+      flatten: true
+
+- id: total_exposure_related_cases
+  name_fi: Altisteisiin kohdentuva tapausmäärä yhteensä
+  name_en: Number of cases attributable to exposure
+  description_fi: Yhteismäärään lasketaan sekä ilmansaasteiden että aktiivisen liikkumisen tapausmäärät. Positiivisen luvut ovat tautitapauksia, negatiiviset luvut ehkäistyjä tapauksia.
+  type: simple.AdditiveNode
+  quantity: health_effect
+  unit: case/a
+  input_dimensions: [response]
+  output_dimensions: [response]
 
 - id: premature_deaths
   name_fi: Ennenaikaiset kuolemat
   name_en: Premature deaths
-  description_fi: Pienhiukkasten ja typenoksidien aiheuttamat ennenaikaiset kuolemat.
+  description_fi: Pienhiukkasten, typenoksidien ja liikenneonnettomuuksien aiheuttamat sekä aktiivisen liikkumisen ehkäisemät ennenaikaiset kuolemat.
   description_en: Premature deaths caused by PM2.5 and NOx.
   type: simple.AdditiveNode
   quantity: health_effect
   unit: case/a
   is_outcome: true
-  input_dimensions: [pollutant, response]
-  output_dimensions: [pollutant, response]
+  input_dimensions: [response]
+  output_dimensions: [response]
   input_nodes:
-  - id: attributable_cases
+  - id: total_exposure_related_cases
     from_dimensions:
     - id: response
-      categories: [mortality]
+      categories: [mortality, physical_activity, air_pollution, crash_risk]
 
 - id: case_burden
   name_fi: Tautitaakka per tapaus
   name_en: Disease burden by case
-  description_fi: Yhden tapauksen aiheuttama tautitaakka.
+  description_fi: Yhden tapauksen aiheuttama tautitaakka eri vasteille.
   description_en: Disease burden caused by a single case.
   type: gpc.DatasetNode
   quantity: case_burden
@@ -318,25 +421,66 @@ nodes:
   input_dimensions: [response]
   output_dimensions: [response]
   input_datasets:
-  - id: hia/exposure_response/air_pollution_erf
+  - id: hia/heat/lappeenranta_active_mobility
     forecast_from: 2023
   params:
-    gpc_sector: Air pollution
+    sector: Case burden
 
-- id: disease_burden_of_air_pollution
-  name_fi: Ilmansaasteiden tautitaakka
+- id: disease_burden_attributed_to_exposure
+  name_fi: Altisteisiin kohdentuva tautitaakka
   name_en: Disease burden caused by air pollution
-  description_fi: Ilmansaasteiden aiheuttama tautitaakka kohdeväestössä.
-  description_en: Disease burden attributable to air pollution in the target population.
+  description_fi: ALtisteisiin kohdentuva tautitaakka kohdeväestössä. Fyysisen aktiivisuuden, ilmansaasteiden ja liikenneonnettomuuksien tapaukset tarkoittavat näihin altisteisiin kohdentuvia ennenaikaisia kuolemia. Kuolleisuus ja menetetyt työpäivät puolestaan tarkoittavat ilmansaasteiden aiheuttamia tapauksia, vaikkei sitä tässä kohdassa esikseen sanota.
+  description_en: Disease burden attributable to exsposure in the target population.
   type: simple.MultiplicativeNode
   quantity: health_effect
   unit: DALY/a
-  input_dimensions: [response, pollutant]
-  output_dimensions: [response, pollutant]
+  input_dimensions: [response]
+  output_dimensions: [response]
   is_outcome: true
   input_nodes:
   - id: case_burden
     tags: [non_additive]
     to_dimensions:
     - id: response
-  - id: attributable_cases
+  - id: total_exposure_related_cases
+
+# --------------- Health costs ----------------
+
+- id: value_of_statistical_life
+  name_fi: Kuolemanriskin tilastollinen hinta
+  name_en: Value of statistical life
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/case
+  input_datasets: [hia/heat/lappeenranta_heat]
+  params:
+    sector: value_of_statistical_life
+
+- id: health_costs_attributed_to_exposure
+  name_fi: Altistumiseen kohdentuvat terveyskustannukset
+  name_en: Health costs attributable to exposure
+  type: simple.MultiplicativeNode
+  quantity: consumption
+  unit: MEUR/a
+  input_dimensions: [response]
+  output_dimensions: [response]
+  input_nodes:
+  - id: premature_deaths
+  - id: value_of_statistical_life
+    to_dimensions: []
+
+- id: discounted_health_costs
+  name_fi: Diskontatut terveyskustannukset
+  name_en: Discounted health costs
+  type: costs.ExponentialNode
+  quantity: consumption
+  unit: MEUR/a
+  input_dimensions: [response]
+  output_dimensions: [response]
+  input_nodes:
+  - id: health_costs_attributed_to_exposure
+  params:
+  - id: annual_change
+    ref: discount_rate
+  - id: is_decreasing_rate
+    value: true

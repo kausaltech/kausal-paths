@@ -1,8 +1,14 @@
-import pandas as pd
-import polars as pl
+from __future__ import annotations
+
+import os
 import sys
 
+import dvc_pandas
+import pandas as pd
+import polars as pl
 from dotenv import load_dotenv
+from dvc_pandas import DatasetMeta
+
 load_dotenv()
 
 incsvpath = sys.argv[1]
@@ -36,10 +42,15 @@ for c in df.columns:
     else:
         context.append(c)
 
-dims = [c for c in context if c not in ['Quantity', 'Unit']]
+dims = [c for c in context if c not in ['Quantity', 'Unit', 'UUID', 'Is_action']]
+
+if 'UUID' in df.columns:
+    groups = dims + ['UUID']
+else:
+    groups = dims
 
 # Check input dataset for duplicated dimension sets.
-duplicates = df.group_by(dims).agg(pl.len()).filter(pl.col('len') > 1)
+duplicates = df.group_by(groups).agg(pl.len()).filter(pl.col('len') > 1)
 if len(duplicates) > 0:
     print('There are duplicate values. Remove them and try again.')
     print(duplicates)
@@ -78,7 +89,7 @@ dfmain = df.head(1).select(context).with_columns([(pl.lit(0.0).alias('Value').ca
                                                   (pl.lit(0).alias('Year').cast(pl.Int64))]).clear()
 
 df = df.with_row_index(name = 'Index')
-for i in range(len(df)):  # FIXME This loop is becoming increasingly slow as the length of the df increases: 2s/row 
+for i in range(len(df)):
     print('Row %i of %i' % ((i + 1), len(df)))
     for y in values:
         mcols = list(context)
@@ -90,11 +101,18 @@ for i in range(len(df)):  # FIXME This loop is becoming increasingly slow as the
             dfmain = pl.concat([dfmain, mframe], rechunk=False)
 dfmain = dfmain.rechunk()   # This helped speed a bit.
 
+if 'Is_action' in dfmain.columns:
+    dfmain = dfmain.with_columns([pl.when(
+        (pl.col('Is_action')) &
+        (pl.col('Year').eq(0))
+    ).then(pl.lit(None)).otherwise(pl.col('UUID')).alias('UUID')])
+    dfmain = dfmain.drop('Is_action')
+
 if outcsvpath.upper() not in ['N', 'NONE']:
     dfmain.write_csv(outcsvpath)
 
 if outdvcpath.upper() not in ['N', 'NONE']:
-    from dvc_pandas import Dataset, Repository
+    from dvc_pandas import Dataset, DatasetMeta, Repository
 
     indexcols = list(dims)
     indexcols.extend(['Year'])
@@ -105,6 +123,14 @@ if outdvcpath.upper() not in ['N', 'NONE']:
     valuecols = list(set(dfmain.columns) - set(indexcols))
     pdframe = pd.DataFrame(dfmain.select(valuecols), index = pdindex, columns = valuecols)
 
-    ds = Dataset(pdframe, identifier = outdvcpath)
-    repo = Repository(repo_url = 'git@github.com:kausaltech/dvctest.git', dvc_remote = 'kausal-s3')
+    pl_df = pl.from_pandas(pdframe.reset_index())
+    meta = DatasetMeta(identifier=outdvcpath, index_columns=indexcols)
+    ds = Dataset(pl_df, meta=meta)
+    creds = dvc_pandas.RepositoryCredentials(
+        git_username=os.getenv('DVC_PANDAS_GIT_USERNAME'),
+        git_token=os.getenv('DVC_PANDAS_GIT_TOKEN'),
+        git_ssh_public_key_file=os.getenv('DVC_SSH_PUBLIC_KEY_FILE'),
+        git_ssh_private_key_file=os.getenv('DVC_SSH_PRIVATE_KEY_FILE'),
+    )
+    repo = Repository(repo_url='https://github.com/kausaltech/dvctest.git', dvc_remote='kausal-s3', repo_credentials=creds)
     repo.push_dataset(ds)

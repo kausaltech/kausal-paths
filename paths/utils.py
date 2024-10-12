@@ -1,13 +1,19 @@
+from __future__ import annotations
+
 import uuid
 
 from django import forms
-from django.db import models
-from django.contrib.postgres.fields import ArrayField
 from django.conf import settings
+from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
+from django.db import models
 from django.utils.translation import gettext, gettext_lazy as _
+
 from pint.errors import UndefinedUnitError
+
+from kausal_common.models.ordered import OrderedModel as OrderedModel  # noqa: PLC0414
+from kausal_common.models.types import copy_signature
 
 
 class IdentifierValidator(RegexValidator):
@@ -40,7 +46,8 @@ class ChoiceArrayField(ArrayField):
     and a MultipleChoiceField for its formfield.
     """
 
-    def formfield(self, **kwargs):
+    @copy_signature(ArrayField.formfield)
+    def formfield(self, **kwargs) -> forms.Field:
         defaults = {
             'form_class': forms.MultipleChoiceField,
             'choices': self.base_field.choices,
@@ -48,8 +55,7 @@ class ChoiceArrayField(ArrayField):
         defaults.update(kwargs)
         # Skip our parent's formfield implementation completely as we don't
         # care for it.
-        # pylint:disable=bad-super-call
-        return super(ArrayField, self).formfield(**defaults)
+        return super(ArrayField, self).formfield(**defaults)  # type: ignore[arg-type]
 
 
 def validate_unit(s: str):
@@ -62,9 +68,9 @@ def validate_unit(s: str):
             unit_str = e.unit_names
         else:
             unit_str = ', '.join(e.unit_names)
-        raise ValidationError('%s: %s' % (gettext("Invalid unit"), unit_str))
+        raise ValidationError('%s: %s' % (gettext("Invalid unit"), unit_str)) from None
     except (ValueError, TypeError):
-        raise ValidationError(gettext("Invalid unit"))
+        raise ValidationError(gettext("Invalid unit")) from None
     return unit
 
 
@@ -88,7 +94,7 @@ class UUIDIdentifierField(models.UUIDField):
             editable=False,
             verbose_name=_('uuid'),
             unique=True,
-            default=uuid.uuid4
+            default=uuid.uuid4,
         )
         for key, val in defaults.items():
             if key not in kwargs:
@@ -106,55 +112,9 @@ class UserModifiableModel(models.Model):
         abstract = True
 
 
-class OrderedModel(models.Model):
-    order = models.PositiveIntegerField(default=0, editable=True, verbose_name=_('order'))
-    sort_order_field = 'order'
-
-    def __init__(self, *args, order_on_create=None, **kwargs):
-        """
-        Specify `order_on_create` to set the order to that value when saving if the instance is being created. If it is
-        None, the order will instead be set to <maximum existing order> + 1.
-        """
-        super().__init__(*args, **kwargs)
-        self.order_on_create = order_on_create
-
-    @property
-    def sort_order(self):
-        return self.order
-
-    def get_sort_order_max(self):
-        """
-        Method used to get the max sort_order when a new instance is created.
-        If you order depends on a FK (eg. order of books for a specific author),
-        you can override this method to filter on the FK.
-        ```
-        def get_sort_order_max(self):
-            qs = self.__class__.objects.filter(author=self.author)
-            return qs.aggregate(Max(self.sort_order_field))['sort_order__max'] or 0
-        ```
-        """
-        qs = self.__class__.objects.all()
-        if hasattr(self, 'filter_siblings'):
-            qs = self.filter_siblings(qs)  # type: ignore
-
-        return qs.aggregate(models.Max(self.sort_order_field))['%s__max' % self.sort_order_field] or 0
-
-    def save(self, *args, **kwargs):
-        if self.pk is None:
-            if getattr(self, 'order_on_create', None) is not None:
-                self.order = self.order_on_create
-            else:
-                self.order = self.get_sort_order_max() + 1
-        super().save(*args, **kwargs)
-
-    class Meta:
-        abstract = True
-
-
 def get_supported_languages():
-    for x in settings.LANGUAGES:
-        yield x
+    yield from settings.LANGUAGES
 
 
-def get_default_language():
+def get_default_language() -> str:
     return settings.LANGUAGES[0][0]

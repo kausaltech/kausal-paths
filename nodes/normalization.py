@@ -5,11 +5,11 @@ from dataclasses import dataclass
 
 import polars as pl
 
-from common.polars import PathsDataFrame
-
 from .constants import KNOWN_QUANTITIES, VALUE_COLUMN, YEAR_COLUMN
 
 if typing.TYPE_CHECKING:
+    from common.polars import PathsDataFrame
+
     from .context import Context
     from .node import Node, NodeMetric
     from .units import Unit
@@ -28,7 +28,7 @@ class Normalization:
     default: bool = False
 
     @classmethod
-    def from_config(cls, context: Context, config: dict[str, typing.Any]):
+    def from_config(cls, context: Context, config: dict[str, typing.Any]) -> typing.Self:
         node_id = config['normalizer_node']
         node = context.nodes[node_id]
         quantities = config['quantities']
@@ -61,8 +61,8 @@ class Normalization:
         )
         return df
 
-    def normalize_output(self, metric: NodeMetric, df: PathsDataFrame) -> typing.Tuple[Node | None, PathsDataFrame]:
-        def nop():
+    def normalize_output(self, metric: NodeMetric, df: PathsDataFrame) -> tuple[Node | None, PathsDataFrame]:
+        def nop() -> tuple[None, PathsDataFrame]:
             return (None, df)
 
         for q in self.quantities:
@@ -71,12 +71,12 @@ class Normalization:
         else:
             return nop()
 
-        normalized_unit: Unit = metric.unit / self.normalizer_node.unit
+        normalized_unit: Unit = typing.cast('Unit', metric.unit / self.normalizer_node.unit)
         if not normalized_unit.is_compatible_with(q.unit):
-            metric.node.warning("Metric unit %s is incompatible with normalization" % normalized_unit)
+            self.normalizer_node.warning("Metric unit %s is incompatible with normalization" % normalized_unit)
             return nop()
         if YEAR_COLUMN not in df.primary_keys:
-            metric.node.warning("Year column not in dataframe")
+            self.normalizer_node.warning("Year column not in dataframe")
             return nop()
 
         ndf = self.normalizer_node.get_output_pl()

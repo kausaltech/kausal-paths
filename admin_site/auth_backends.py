@@ -1,9 +1,16 @@
+from __future__ import annotations
+
+import uuid
 from typing import Any
+
+import sentry_sdk
+from loguru import logger
 from social_core.backends.azuread_tenant import AzureADTenantOAuth2
 from social_core.backends.oauth import BaseOAuth2
-import uuid
 
-# from .models import Client
+from paths.const import FRAMEWORK_ADMIN_ROLE, INSTANCE_ADMIN_ROLE
+
+from frameworks.roles import FrameworkRoleDef
 
 
 class AzureADAuth(AzureADTenantOAuth2):
@@ -61,8 +68,8 @@ NZC_PORTAL_NAMESPACE_UUID = uuid.UUID('71fa1a75-2694-41ff-85ee-ebfc22ff33b3')
 class NZCPortalOAuth2(BaseOAuth2):
     name = 'nzcportal'
     AUTHORIZATION_URL = 'https://netzerocities.app/sso/authorize'
-    ACCESS_TOKEN_URL = 'https://netzerocities.app/sso/token'
-    ACCESS_TOKEN_METHOD = 'POST'
+    ACCESS_TOKEN_URL = 'https://netzerocities.app/sso/token'  # noqa: S105
+    ACCESS_TOKEN_METHOD = 'POST'  # noqa: S105
     STATE_PARAMETER = 'state'
     REDIRECT_STATE = False
     DEFAULT_SCOPE = ['basic']
@@ -72,26 +79,49 @@ class NZCPortalOAuth2(BaseOAuth2):
         ('expires_in', 'expires'),
     ]
 
-    def canonize_email(self, resp_email: str):
+    TYPE_TO_ROLE = {
+        'cityAdmin': INSTANCE_ADMIN_ROLE,
+        'cityEditor': INSTANCE_ADMIN_ROLE,
+        'consortiumUser': FRAMEWORK_ADMIN_ROLE,
+        'cityUser': INSTANCE_ADMIN_ROLE,
+    }
+
+    def canonize_email(self, resp_email: str) -> str:
         return resp_email.strip().lower()
 
-    def get_user_details(self, response: dict[str, Any]):
+    def _get_user_details(self, response: dict[str, Any]) -> dict[str, Any]:
+        # FIXME: Remove later
+        logger.debug("User details: %s" % response)
+
+        user_type = response.get('userType')
+        role_id = self.TYPE_TO_ROLE.get(user_type or '')
+        if role_id is None:
+            sentry_sdk.capture_message('Unknown role: %s' % user_type)
+        role = FrameworkRoleDef(
+            framework_id='nzc',
+            role_id=role_id,
+            org_slug=response.get('userCity'),
+            org_id=response.get('cityUID'),
+        )
+        logger.debug("Determined role: %s" % repr(role))
         return {
             'email': self.canonize_email(response['Mail']),
             'first_name': response.get('FirstName'),
             'last_name': response.get('LastName'),
-            'user_type': response.get('userType'),
-            'user_city': response.get('cityUser'),
-            'admin_city': response.get('cityAdmin'),
-            'consortium_user': response.get('consortiumUser'),
+            'framework_roles': [role],
         }
+
+    def get_user_details(self, response: dict[str, Any]) -> dict[str, Any]:
+        with sentry_sdk.new_scope():
+            sentry_sdk.set_context('sso-response', response)
+            return self._get_user_details(response)
 
     def user_data(self, access_token: str, *args, **kwargs):
         url = 'https://netzerocities.app/sso/user'
         headers = {'Authorization': f'Bearer {access_token}'}
         return self.get_json(url, headers=headers)
 
-    def get_user_id(self, details, response):
+    def get_user_id(self, details, response: dict):
         email = self.canonize_email(response['Mail'])
         uid = uuid.uuid5(NZC_PORTAL_NAMESPACE_UUID, email)
         return uid

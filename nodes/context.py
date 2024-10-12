@@ -1,43 +1,49 @@
 from __future__ import annotations
-from contextlib import ExitStack, contextmanager
 
 import inspect
 import os
-import sentry_sdk
-from types import FrameType
-from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, overload
+from contextlib import ExitStack, contextmanager
+from typing import TYPE_CHECKING, Any, Literal, overload
 
-import dvc_pandas
 import networkx as nx
 import rich
+from opentelemetry import trace
 from rich.tree import Tree
 
-from common import base32_crockford
-from common import polars as pl  # noqa
-from common import polars_ext  # noqa
-from common.cache import Cache
 from kausal_common.debugging.perf import PerfCounter
-from params import Parameter
+
+from common import (
+    base32_crockford,
+    polars as pl,  # noqa: F401
+    polars_ext,  # noqa: F401
+)
+from common.cache import Cache
 from params.discover import discover_parameter_types
-from params.storage import SettingStorage
 
 from .datasets import Dataset, DVCDataset, FixedDataset
 from .perf import PerfContext
 from .units import Unit, unit_registry
 
 if TYPE_CHECKING:
+    from types import FrameType
+
+    import dvc_pandas
+
+    from params import Parameter
+    from params.storage import SettingStorage
+
     from .actions.action import ImpactOverview, ActionNode
-    from .normalization import Normalization
     from .instance import Instance
     from .node import Dimension, Node
+    from .normalization import Normalization
     from .scenario import CustomScenario, Scenario
     from .units import CachingUnitRegistry
 
 
 class Context:
     nodes: dict[str, Node]
-    datasets: Dict[str, Dataset]
-    dvc_datasets: Dict[str, dvc_pandas.Dataset]
+    datasets: dict[str, Dataset]
+    dvc_datasets: dict[str, dvc_pandas.Dataset]
 
     # global_parameters contains parameters that are not specific to a node.
     # Node-specific parameters are managed by the node.
@@ -70,16 +76,24 @@ class Context:
     node_graph: nx.DiGraph
     baseline_values_generated: bool = False
     obj_id: str
+    tracer: trace.Tracer
 
     def __init__(
         self, instance: Instance, dataset_repo: dvc_pandas.Repository, target_year: int,
-        model_end_year: int | None = None, dataset_repo_default_path: str | None = None
+        model_end_year: int | None = None, dataset_repo_default_path: str | None = None,
     ):
         from nodes.actions import ActionNode
 
+        self.obj_id = base32_crockford.gen_obj_id(id(self))
+        self.tracer = trace.get_tracer(
+            'nodes.context', attributes=dict(
+                context_id=self.obj_id,
+                instance_id=instance.id,
+            ),
+        )
+
         # Avoid circular import
         self.Action = ActionNode
-
         self.perf_context = PerfContext(supports_cache=True)
         self.nodes = {}
         self.datasets = {}
@@ -102,16 +116,16 @@ class Context:
         self.options = {}
         self.normalizations = {}
         self.instance = instance
-        self.obj_id = base32_crockford.gen_obj_id(id(self))
-        self.log = self.instance.log.bind(context=self.obj_id)
+        self.log = self.instance.log.bind(context=self.obj_id, markup=True)
         self.log.debug('Context initialized')
         self.cache = Cache(
             ureg=self.unit_registry, redis_url=os.getenv('REDIS_URL'),
-            base_logger=self.log
+            base_logger=self.log,
         )
 
     def finalize_nodes(self):
-        """Finalize the node graph.
+        """
+        Finalize the node graph.
 
         Called when nodes and their connections have been configured.
         """
@@ -136,13 +150,14 @@ class Context:
             raise Exception("Unknown parameter: %s" % parameter_id)
         return param_type
 
-    def load_dvc_dataset(self, id: str) -> dvc_pandas.Dataset:
-        ds = self.dvc_datasets.get(id)
+    def load_dvc_dataset(self, ds_id: str) -> dvc_pandas.Dataset:
+        ds = self.dvc_datasets.get(ds_id)
         if ds is None:
-            if not self.dataset_repo.has_dataset(id):
-                raise Exception('Dataset %s not found in DVC repo' % id)
-            ds = self.dataset_repo.load_dataset(id, skip_pull_if_exists=True)
-            self.dvc_datasets[id] = ds
+            if not self.dataset_repo.has_dataset(ds_id):
+                raise Exception('Dataset %s not found in DVC repo' % ds_id)
+            with self.tracer.start_as_current_span('load dataset: %s' % ds_id):
+                ds = self.dataset_repo.load_dataset(ds_id)
+            self.dvc_datasets[ds_id] = ds
         return ds
 
     def load_all_dvc_datasets(self):
@@ -152,12 +167,14 @@ class Context:
                 if not isinstance(ds, DVCDataset):
                     continue
                 all_datasets.add(ds.id)
-        self.dataset_repo.load_datasets(list(all_datasets))
 
-    def add_dataset(self, config: dict):
-        assert config['id'] not in self.datasets
-        ds = DVCDataset(**config)
-        self.datasets[ds.id] = ds
+        with self.tracer.start_as_current_span('load all datasets'):
+            try:
+                self.dataset_repo.load_datasets(list(all_datasets))
+            except Exception:
+                self.log.error("Unable to load DVC datasets: %s" % ', '.join(all_datasets))
+                raise
+        self.log.debug("All DVC datasets loaded")
 
     def add_node(self, node: Node):
         if node.id in self.nodes:
@@ -212,47 +229,49 @@ class Context:
         return None
 
     @overload
-    def get_parameter(self, id: str, *, required: Literal[True] = True) -> Parameter: ...
+    def get_parameter(self, param_id: str, *, required: Literal[True] = True) -> Parameter: ...
 
     @overload
-    def get_parameter(self, id: str, *, required: Literal[False]) -> Optional[Parameter]: ...
+    def get_parameter(self, param_id: str, *, required: Literal[False]) -> Parameter | None: ...
 
     @overload
-    def get_parameter(self, id: str, *, required: bool) -> Optional[Parameter]: ...
+    def get_parameter(self, param_id: str, *, required: bool) -> Parameter | None: ...
 
-    def get_parameter(self, id: str, *, required: bool = True) -> Optional[Parameter]:
+    def get_parameter(self, param_id: str, *, required: bool = True) -> Parameter | None:
         if self.check_mode:
             frame = inspect.currentframe()
             if frame is not None:
                 node = self._get_caller_node(frame)
-                if node is not None and id not in node.global_parameters:
+                if node is not None and param_id not in node.global_parameters:
                     raise Exception(
                         "Attempting to access global parameter '%s', but it's "
-                        "not listed in global_parameters of node %s" % (id, node.id)
+                        "not listed in global_parameters of node %s" % (param_id, node.id),
                     )
 
         param = None
         try:
-            node_id, param_name = id.split('.', 1)
+            node_id, param_name = param_id.split('.', 1)
         except ValueError:
-            param = self.global_parameters.get(id)
+            param = self.global_parameters.get(param_id)
         else:
             if node_id in self.nodes:
                 param = self.nodes[node_id].get_parameter(param_name, required=required)
         if param is None and required:
-            raise Exception(f"Parameter {id} not found")
+            msg = f"Parameter {param_id} not found"
+            raise Exception(msg)
         return param
 
-    def get_parameter_value(self, id: str, *, required: bool = True) -> Any:
-        param = self.get_parameter(id, required=required)
+    def get_parameter_value(self, param_id: str, *, required: bool = True) -> Any:  # noqa: ANN401
+        param = self.get_parameter(param_id, required=required)
         if param is None:
             return None
         return param.value
 
-    def set_parameter_value(self, id: str, value: Any):
-        param = self.global_parameters.get(id)
+    def set_parameter_value(self, param_id: str, value: Any):  # noqa: ANN401
+        param = self.global_parameters.get(param_id)
         if param is None:
-            raise Exception(f"Parameter {id} not found")
+            msg = f"Parameter {param_id} not found"
+            raise Exception(msg)
         param.set(value)
 
     def add_scenario(self, scenario: Scenario):
@@ -311,7 +330,7 @@ class Context:
         old_scenario = self.active_scenario
 
         scenario = self.scenarios['baseline']
-        with sentry_sdk.start_span(op='compute', description='Baseline'):
+        with self.tracer.start_as_current_span('baseline'):
             self.activate_scenario(scenario)
             self.log.info('Generating baseline values')
             pc = PerfCounter('generate baseline values')
@@ -402,6 +421,16 @@ class Context:
             tree = make_node_tree(node, tree)
             rich.print(tree)
 
+    def summarize_graph(self):
+        for node in self.nodes.values():
+            if node.unit is not None:
+                unit_str = 'unit=%s  quantity=%s' % (str(node.unit), str(node.quantity))
+            else:
+                unit_str = ''
+            print('id="%s"  nr_inputs=%s  nr_outputs=%s  type=%s%s' % (
+                node.id, len(node.input_nodes), len(node.output_nodes), type(node).__name__, unit_str,
+            ))
+
     def describe_unit(self, unit: Unit):
         formats = dict(
             short='~P',
@@ -421,8 +450,41 @@ class Context:
     @contextmanager
     def run(self):
         with ExitStack() as stack:
+            span_ctx = self.tracer.start_as_current_span("context run", attributes=dict(
+                instance_id=self.instance.id,
+                context_id=self.obj_id,
+            ))
+            stack.enter_context(span_ctx)
             stack.enter_context(self.cache)
             stack.enter_context(self.perf_context)
             if self.dataset_repo is not None:
                 stack.enter_context(self.dataset_repo.lock.lock)
             yield
+
+    def clean(self):
+        for param in self.get_all_parameters():
+            param.context = None
+            param.node = None
+        for node in self.nodes.values():
+            node.context = None  # type: ignore
+            node.edges = []
+            node.output_metrics = {}
+            if node.db_obj is not None:
+                node.db_obj._node = None
+            node.db_obj = None
+            node.parameters = {}
+        self.nodes = {}
+        self.global_parameters = {}
+        for scenario in self.scenarios.values():
+            scenario.context = None  # type: ignore
+        self.custom_scenario = None  # type: ignore
+        self.setting_storage = None
+        self.active_scenario = None  # type: ignore
+        self.normalizations = {}
+        self.active_normalization = None
+        self.default_normalization = None
+        self.scenarios = {}
+        self.datasets = {}
+        self.dvc_datasets = {}
+        self.instance = None  # type: ignore
+
