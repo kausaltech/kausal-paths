@@ -38,6 +38,9 @@ action_groups:
 - id: energy
   name: Kestävä energia
   name_en: Sustainable energy
+- id: other
+  name: Muut toimet
+  name_en: Other actions
 
 dimensions:
 - id: tram_phase
@@ -1319,6 +1322,7 @@ actions:
     Kühlung benötigt wird. Es ist jedoch nicht bekannt, inwieweit die Objekte angeschlossen
     werden und wie sich deren Verbrauch ändern würde. Daher wurde für die Maßnahme
     noch keine Emissionsminderung geschätzt.</p>
+  group: energy
   output_nodes:
   - district_heating_emission_factor
   forecast_values: [[2022, -23], [2023, -23]]
@@ -1330,6 +1334,7 @@ actions:
   name_de: Erhöhung des Anteils erneuerbarer Energien an der Fernwärmeerzeugung
   type: simple.CumulativeAdditiveAction
   quantity: energy
+  group: energy
   output_nodes:
   - district_heating_emission_factor
   forecast_values: [[2024, -8], [2025, -16], [2026, -4], [2027, -4], [2028, -7], [
@@ -1390,6 +1395,7 @@ actions:
     Das ungenutzte Potenzial auf den Dächern der Gebäude liegt laut der 2016 durchgeführten
     kommunalen Studie zu erneuerbaren Energien bei 800-900 GWh (ohne Berücksichtigung
     aller Restriktionen).
+  group: energy
   output_nodes:
   - renewable_electricity_consumption_reduction
   forecast_values: [[2022, 0], [2030, -850]]
@@ -1487,6 +1493,7 @@ actions:
   name_de: Umstellung auf kohlenstoffarme nationale Stromerzeugung
   decision_level: nation
   quantity: emission_factor
+  group: energy
   output_nodes:
   - electricity_production_emission_factor
   type: simple.LinearCumulativeAdditiveAction
@@ -1517,6 +1524,7 @@ actions:
     otetaan käyttöön vuoteen 2025 mennessä.
   description_de: Bis 2025 wird die Straßenbeleuchtung der Stadt auf LEDs umgestellt
     und eine intelligente Lichtsteuerung eingeführt.
+  group: energy
   forecast_values: [[2021, 0], [2025, -4.2]]   # 7000 light bulbs * (250 W - 50 W)/bulb * 3000 h/a # Tampereen taustamuistio, https://www.quora.com/How-much-power-does-a-regular-street-light-consume?share=1
   output_nodes:
   - other_electricity_consumption
@@ -1589,6 +1597,7 @@ actions:
   type: simple.AdditiveAction
   quantity: emission_factor
   unit: g/vkm
+  group: transportation
   input_datasets:
   - id: tampere/scenarios/emission_factors/bau
     column: Bus street difference to constant fuel share
@@ -1605,6 +1614,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: number
   unit: pcs
+  group: other
   forecast_values: [[2022, 0], [2023, 0], [2024, 0], [2025, 0], [2026, 0], [2027,
       0], [2028, 0], [2029, 0], [2030, 0]]
   output_nodes:
