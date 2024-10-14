@@ -197,3 +197,8 @@ class ExtendHistoricalValues(BoolParameter):
 class ShowScenarioImpacts(BoolParameter):
     name = _('On node graphs, show scenario impacts instead of outputs?')
     id = 'show_scenario_impacts'
+
+
+class BaselineYear(NumberParameter):
+    name = _('Baseline year of the model')
+    id = 'baseline_year'
