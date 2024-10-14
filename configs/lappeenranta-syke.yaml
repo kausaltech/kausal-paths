@@ -249,7 +249,7 @@ nodes:
   unit: kt/a
   input_nodes: [road_transport_emissions]
   output_nodes:
-  - id: transport_air_pollution_emissions
+  - id: transport_air_pollution_emissions2
     tags: [non_additive]
     to_dimensions: []
 

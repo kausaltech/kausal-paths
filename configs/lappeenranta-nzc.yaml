@@ -1,12 +1,12 @@
 id: lappeenranta-nzc
 default_language: fi
 supported_languages: [en]
-# frameworks: [health]
+frameworks: [health]
 site_url: https://lappeenranta-nzc.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   dvc_remote: kausal-s3
-  commit: 3bb3b8b1408c89d5811bc92f1e4fd4406700c5d2
+  commit: 2699aa39c8ad9603c05593e7ae337c21a442f131
 theme_identifier: lpr-ilmasto
 name: Lappeenrannan missiokaupungin ilmasto-ohjelma 2030
 name_en: Lappeenranta Mission City Climate Action Plan 2030
@@ -14,31 +14,44 @@ owner: Lappeenrannan kaupunki
 owner_en: City of Lappeenranta
 emission_unit: kt/a
 target_year: 2030
-model_end_year: 2030
-reference_year: 2005
-minimum_historical_year: 2010
+model_end_year: 2045
+minimum_historical_year: 2018
+maximum_historical_year: 2022
+emission_unit: kt/a
+emission_forecast_from: 2023
+emission_dimensions: [scope, ghg, sector]
+features:
+  baseline_visible_in_graphs: true
+  show_significant_digits: 4
+  maximum_fraction_digits: 0
+  hide_node_details: true
 
 params:
 - id: municipality_name
   value: Lappeenranta
 - id: discount_rate
-  label: Diskonttokorko
-  value: 4.0
-  min_value: 0.0
-  max_value: 6.0
+  label: Discount rate
+  value: 3.5
+  min_value: 0
+  max_value: 5
   unit: '%'
   is_visible: true
+  is_customizable: false
+- id: show_scenario_impacts
+  label: Show scenario impacts instead of node outputs?
+  value: false
+  is_visible: false
   is_customizable: true
-- id: extend_historical_values
+- id: statistical_correction
+  label: Statistical correction
   value: true
-- id: selected_framework
-  value: Hinku-laskenta päästöhyvityksillä
-  # Currently available options:
-  # Hinku-laskenta ilman päästöhyvityksiä
-  # Hinku-laskenta päästöhyvityksillä
-  # Kaikki ALas-päästöt
-  # Taakanjakosektorin kaikki ALas-päästöt
-  # Päästökaupan alaiset ALas-päästöt
+  is_visible: true
+  is_customizable: true
+- id: baseline_year
+  label: Baseline year of the model
+  value: 2020
+  is_visible: true
+  is_customizable: false
 
 action_groups:
 - id: transport
@@ -59,6 +72,28 @@ action_groups:
   name: 6. Scope 3
 - id: reforestation
   name: 7. Reforestation
+
+impact_overviews:
+
+- graph_type: cost_benefit
+  cost_node: discounted_investment
+  impact_node: discounted_benefits
+  cost_unit: MEUR
+  impact_unit: MEUR
+  indicator_unit: MEUR
+  stakeholder_dimension: stakeholder
+  outcome_dimension: cost_type
+  label: Cost-benefit
+
+# - graph_type: cost_effectiveness
+#   cost_node: discounted_total_cost
+#   impact_node: aggregated_net_emissions
+#   invert_cost: true
+#   invert_impact: true
+#   indicator_unit: EUR/t
+#   cost_unit: MEUR
+#   impact_unit: kt
+#   label: Cost efficiency
 
 dimensions:
 
@@ -133,6 +168,7 @@ dimensions:
   - id: co2
     label_fi: CO2
     label_en: CO2
+    aliases: [co2e]
   - id: pm25
     label_fi: PM2.5
     label_en: PM2.5
@@ -147,6 +183,7 @@ dimensions:
     label_en: PM10
   - id: pm10_combustion
     label: PM10 combustion
+    # aliases: [pm10]
   - id: dioxin
     label_fi: Dioksiini
     label_en: Dioxin
@@ -197,20 +234,25 @@ dimensions:
   - id: pm10_wear_tear
     label: PM10 wear & tear
 
-- id: transport_pollutant
-  label: Transport pollutant
+- id: sector
+  label: Sector
+  help_text: Sectors as categorised in the Mission City Climate City Contracts (CCC).
   categories:
-  - id: co2
-    label: CO2
-  - id: nox
-    label: NOx
-  - id: pm25
-    label: PM2.5
-  - id: pm10
-    label: PM10
+  - id: transport
+    label: Transport
+  - id: buildings
+    label: Buildings & Heating
+  - id: electricity
+    label: Electricity  # TODO If you start using different electricity sectors, you may want to rename this Other electricity
+  - id: waste
+    label: Waste
+  - id: other
+    label: Other (incl. IPPU & AFOLU)
 
 - id: scope
   label: Scope
+  help_text: '1: Local emissions. 2: Grid emissions (electricity, district heating).
+    3: Indirect emissions.'
   categories:
   - id: scope1
     label: Scope 1
@@ -263,12 +305,18 @@ dimensions:
     label: Forest management
   - id: bus_costs
     label: Bus costs
+  - id: homecharging_infrastructure
+    label: Home-charging infrastructure
+  - id: public_and_workplace_infrastructure
+    label: Public & workplace infrastructure
   - id: charging_infrastructure_costs
     label: Charging infrastructure costs
   - id: vehicle_costs
     label: Vehicle costs
   - id: infrastructure_costs
     label: Infrastructure costs
+  - id: network
+    label: Network
   - id: fuel
     label: Fuel costs
   - id: tires
@@ -283,6 +331,8 @@ dimensions:
     label: Agriculture (AFOLU)
   - id: other_sources
     label: Other sources
+  - id: grid_stability
+    label: Storage, grid stability etc.
 
 - id: aggregated_cost_type
   label: Aggregated cost type
@@ -304,17 +354,8 @@ dimensions:
     aliases: [co2]
 
 - id: transport_mode
-  label: Liikkumismuoto
+  label: Transport mode
   categories:
-  - id: walking
-    label: Kävely
-  - id: cycling
-    label: Pyöräily
-  - id: ebike
-    label: Sähköpyörä
-  - id: citybike
-    aliases: [bikeshare]
-    label: Kaupunkipyörä
   - id: cars
     label: Cars
   - id: buses
@@ -324,6 +365,10 @@ dimensions:
     aliases: [Metro/tram, metro/tram, metro_tram]
   - id: public_transport
     label: Public transport
+  - id: walking
+    label: Walking
+  - id: cycling
+    label: Cycling
   - id: light_trucks
     label: Light duty trucks <3.5 tonne
   - id: heavy_trucks
@@ -332,6 +377,10 @@ dimensions:
     label: Trucks
   - id: other_motorized
     label: Other motorized transport
+  - id: bikeshare
+    label: Bikeshare
+  - id: ebike
+    label: E-bike
 
 - id: energy_carrier
   label: Energy carrier
@@ -357,12 +406,14 @@ dimensions:
   - id: non_fossil
     label: Non-fossil
     aliases: [nonfossil, non-fossil]
+  - id: mixed
+    label: Mixed fossil and non-fossil
   - id: other
     label: Other (e.g. nuclear)
   - id: local_pv
     label: Local photovoltaics
   - id: centralised_pv
-    label: Centralised photovoltaics
+    label: Centralised photovoltaics and wind
   - id: pv
     label: Photovoltaics
   - id: flexibility
@@ -371,78 +422,6 @@ dimensions:
     label: Direct electricity
   - id: heat_pump
     label: Heat pump
-
-- id: waste_type
-  label: Waste type
-  categories:
-  - id: paper
-    label: Paper and cardboard
-  - id: metal
-    label: Metal
-  - id: plastics
-    label: Plastics
-  - id: glass
-    label: Glass
-  - id: organic_waste
-    label: Organic waste
-  - id: other_waste
-    label: Other waste (e.g. textiles, rubble, wood)
-  - id: mixed_waste
-    label: Mixed waste
-  - id: aluminium
-    label: Aluminiium
-
-- id: waste_treatment
-  label: Waste treatment
-  categories:
-  # - id: other
-  #   label: Other waste management
-  - id: incinerated
-    label: Incinerated (e.g. energy recovery)
-  - id: recycled
-    label: Recycled
-  - id: decay
-    label: Organic decay (waste)
-  - id: sorting
-    label: Sorting
-  - id: plastic_sorting
-    label: Plastic sorting
-  - id: landfill
-    label: Landfill
-    aliases: [other, Other waste management]
-  - id: landfill_gas
-    label: Landfill gas
-  - id: composting
-    label: Composting
-
-- id: building_energy_class
-  label: Building energy class
-  categories:
-  - id: new_standard
-    label: New, standard
-  - id: new_top_performance
-    label: New, top performance
-  - id: old_no_renovations
-    label: Old, no renovation
-  - id: minor_renovation
-    aliases: [minor_renovations]
-    label: Old, minor heating renovation
-  - id: major_renovation
-    aliases: [major_renovations]
-    label: Old, extensive heating renovation
-  - id: no_improvement  # FIXME Remove redundant
-    label: No improvement
-  - id: minor_improvements
-    label: Minor improvements
-  - id: aggressive_improvements
-    label: Aggressive improvements
-  - id: moderate_improvements
-    label: Moderate improvements
-  - id: nzeb
-    label: Net zero emission buildings
-  - id: moderate_renovation
-    aliases: [moderate_renovations]
-    label: Moderate renovation
 
 - id: efficiency_programme
   label: Energy efficiency programme
@@ -458,14 +437,6 @@ dimensions:
     label: Moderate improvements
   - id: nzeb
     label: Net zero emission buildings
-
-- id: heating_type
-  label: Heating type
-  categories:
-  - id: district_heating
-    label: District heating
-  - id: local_heating
-    label: Local heating
 
 - id: city_area
   label: City area
@@ -495,32 +466,6 @@ dimensions:
   - id: average
     label: Average
 
-- id: diet
-  label: Diet
-  categories:
-  - id: current_average
-    label: Current average
-  - id: flexitarian
-    label: Flexitarian
-  - id: pescetarian
-    label: Pescetarian
-  - id: vegetarian
-    label: Vegetarian
-  - id: vegan
-    label: Vegan
-
-- id: material
-  label: Material
-  categories:
-  - id: concrete
-    label: Concrete
-  - id: steel
-    label: Steel
-  - id: plastics
-    label: Plastics
-  - id: aluminium
-    label: Aluminium
-
 - id: stakeholder
   label: Stakeholder
   categories:
@@ -537,10 +482,6 @@ dimensions:
     label: Transport operators
   - id: utilities
     label: Utilities
-  - id: homecharging_infrastructure
-    label: Home-charging infrastructure
-  - id: public_and_workplace_infrastructure
-    label: Public & workplace infrastructure
 
 - id: parameter
   label: Parameter
@@ -575,8 +516,8 @@ dimensions:
     label: Italy
   - id: lt
     label: Latvia
-  - id: 'no'
-    label: Norway
+  # - id: 'no'
+  #   label: Norway
   - id: pl
     label: Poland
   - id: ro
@@ -595,15 +536,18 @@ dimensions:
   categories:
   - id: '20_49'
     label: 20-49
+    aliases: ['2049']
   - id: '50_64'
     label: 50-64
+    aliases: ['5064']
   - id: '65_79'
     label: 65-79
+    aliases: ['6579']
   - id: '80_99'
     label: 80-99
+    aliases: ['8099']
 
 emission_sectors:
-
 - id: net_emissions
   name_fi: Kokonaispäästöt (scope 1+2)
   name_en: Net emissions (scope 1+2)
@@ -619,16 +563,203 @@ emission_sectors:
   target_year_goal: 72.7
 
 nodes:
-- id: population
-  type: finland.Population
-  name_fi: Väestö
-  name_en: Population
-  description_fi: Kohdeväestön koko
-  description_en: Size of the target population
 
-# - id: all_alas_emissions
-#   type: finland.syke.AlasNode
-#   name: SYKE:n ALaS-päästöinventaario
+- id: technical_root_node
+  name: Technical root node
+  description: This node is used as the outcome node of ParentActionNodes so that
+    they don't pick a random root node from the model.
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: m**3
+  historical_values: [[2018, 0.0], [2023, 0.0]]
+
+- id: population
+  name: Population
+  type: gpc.DatasetNode
+  quantity: population
+  unit: cap
+  input_datasets: [nzc/defaults]
+  input_nodes:
+  - id: population_growth
+    tags: [arithmetic_inverse, complement_cumulative_product, non_additive]
+  params:
+    sector: Population
+
+- id: population_growth
+  name: Population growth
+  type: gpc.DatasetNode
+  quantity: rate
+  unit: '%/a'
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Expected annual population growth (up until 2030)
+
+# - id: aggregated_net_emissions
+#   name: Aggregated net emissions
+#   type: simple.AdditiveNode
+#   quantity: emissions
+#   unit: kt/a
+#   # is_outcome: true
+#   input_nodes:
+#   - id: net_emissions
+#     from_dimensions:
+#     - id: ghg
+#       flatten: true
+#     - id: scope
+#       flatten: true
+
+# ------------- Jobs -----------------
+
+- id: total_jobs_created
+  name: Total jobs created
+  type: simple.AdditiveNode
+  quantity: employment
+  unit: jobs
+
+# ------------- Costs ----------------
+
+- id: co2_unit_price
+  name: CO2 unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/t
+  input_dimensions: [cost_type, ghg]
+  output_dimensions: [cost_type, ghg]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Value of CO2 reduction
+
+- id: co2_emissions_cost
+  name: CO2 emissions cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_nodes:
+  - id: co2_unit_price
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+      categories: [city]
+  - id: net_emissions
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions: []
+  output_nodes:
+  - id: total_cost
+
+- id: total_cost
+  name: Total cost
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+
+- id: aggregated_cost_types
+  name: Aggregated cost types
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [cost_type, aggregated_cost_type]
+  output_dimensions: [cost_type, aggregated_cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Aggregated cost types
+
+- id: aggregated_cost
+  name: Aggregated cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [aggregated_cost_type, stakeholder, cost_type]
+  output_dimensions: [aggregated_cost_type, stakeholder, cost_type]
+  input_nodes:
+  - id: total_cost
+    tags: [non_additive]
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+  - id: aggregated_cost_types
+    to_dimensions:
+    - id: cost_type
+    - id: aggregated_cost_type
+
+- id: discounted_cost
+  name: Discounted cost
+  type: costs.ExponentialNode
+  quantity: currency
+  unit: MEUR/a
+  is_outcome: true
+  input_dimensions: [stakeholder, cost_type, aggregated_cost_type]
+  output_dimensions: [stakeholder, cost_type, aggregated_cost_type]
+  input_nodes: [aggregated_cost]
+  params:
+  - id: annual_change
+    ref: discount_rate
+  - id: is_decreasing_rate
+    value: true
+
+- id: discounted_total_cost
+  name: Discounted total cost
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_nodes:
+  - id: discounted_cost
+    from_dimensions:
+    - id: stakeholder
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: aggregated_cost_type
+      flatten: true
+
+- id: discounted_investment
+  name: Discounted investment
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_nodes:
+  - id: discounted_cost
+    from_dimensions:
+    - id: aggregated_cost_type
+#      categories: [capex]
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+
+- id: discounted_benefits  # TODO Remove this if the single-node CBA visualisation gets accepted.
+  name: Discounted benefits
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_nodes:
+  - id: discounted_cost
+    from_dimensions:
+    - id: aggregated_cost_type
+      categories: [capex]
+      exclude: true
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+
+# ------------ Lappeenranta-specific nodes -----------
 
 - id: road_transport_emissions2
   name_fi: Tieliikenteen CO2-päästöt
@@ -638,10 +769,30 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-#  input_nodes: [road_transport_emissions]
+  input_nodes:
+  - id: transport_emissions
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: energy_carrier
+      categories: [petrol_diesel]
+      flatten: true
+    - id: transport_mode
+      flatten: true
+    - id: ghg
+      flatten: true
+  - id: freight_transport_emissions
+    from_dimensions:
+    - id: transport_mode
+      categories: [light_trucks]
+      flatten: true
+    - id: pollutant
+      flatten: true
+    - id: energy_carrier
+      flatten: true
   historical_values: [[2020, 0]]
   output_nodes:
-  - id: transport_air_pollution_emissions
+  - id: transport_air_pollution_emissions2
     tags: [non_additive]
     to_dimensions: []
 
@@ -660,12 +811,37 @@ nodes:
     tags: [non_additive]
     to_dimensions: []
 
-- id: amount_of_active_mobility
-  name: Aktiivisen liikkumisen määrä
+- id: active_mobility_conversion
+  name: Aktiivisen liikkumisen muunnos
   type: simple.AdditiveNode
   quantity: exposure
-  unit: min/person/d
-  historical_values: [[2010, 10.0], [2023, 10.0]]
+  unit: 1/passenger
+  historical_values: [[2010, 1.0], [2023, 1.0]]
+
+- id: amount_of_active_mobility
+  name: Aktiivisen liikkumisen määrä
+  type: simple.MultiplicativeNode
+  quantity: exposure
+  unit: min/cap/d
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: passenger_kilometres
+  - id: average_walking_speed
+    tags: [geometric_inverse]
+    to_dimensions: []
+  - id: population
+    tags: [geometric_inverse]
+    to_dimensions: []
+  - id: active_mobility_conversion
+    to_dimensions: []
+
+- id: average_walking_speed
+  name: Average walking speed
+  type: simple.AdditiveNode
+  quantity: speed
+  unit: km/h
+  historical_values: [[2020, 4.0]]
 
 - id: health_factor_of_active_mobility
   name: Aktiivisen liikkumisen terveyskerroin
@@ -692,7 +868,8 @@ nodes:
   input_nodes:
   - id: health_factor_of_active_mobility
   - id: amount_of_active_mobility
-    to_dimensions: []
+    to_dimensions:
+    - id: transport_mode
 
 - id: carbon_factor_of_active_mobility
   name: Aktiivisen liikkumisen päästökerroin
@@ -715,7 +892,8 @@ nodes:
   input_nodes:
   - id: carbon_factor_of_active_mobility
   - id: amount_of_active_mobility
-    to_dimensions: []
+    to_dimensions:
+    - id: transport_mode
 
 - id: discount_rate
   name: Diskonttokorko
@@ -763,14 +941,14 @@ nodes:
   - id: is_decreasing_rate
     value: true
 
-- id: co2_unit_price
-  name: Hiilidioksidin hinta
-  type: gpc.DatasetNode
-  quantity: unit_price
-  unit: EUR/t
-  input_datasets: [hia/heat/lappeenranta_heat]
-  params:
-    sector: co2_unit_price
+# - id: co2_unit_price
+#   name: Hiilidioksidin hinta
+#   type: gpc.DatasetNode
+#   quantity: unit_price
+#   unit: EUR/t
+#   input_datasets: [hia/heat/lappeenranta_heat]
+#   params:
+#     sector: co2_unit_price
 
 # ----------------------- Active mobility ------------------
 
@@ -782,7 +960,7 @@ nodes:
   input_dimensions: [age]
   output_dimensions: [age]
   input_datasets:
-  - id: hia/exposure/lappeenranta_active_mobility
+  - id: hia/heat/lappeenranta_active_mobility
   params:
     sector: Population groups
 
@@ -791,10 +969,10 @@ nodes:
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
-  input_dimensions: [age]
-  output_dimensions: [age]
+  input_dimensions: [age, transport_mode]
+  output_dimensions: [age, transport_mode]
   input_datasets:
-  - id: hia/exposure/lappeenranta_active_mobility
+  - id: hia/heat/lappeenranta_active_mobility
   params:
     sector: Fraction of movers
 
@@ -802,30 +980,497 @@ nodes:
   name: Active mover distance
   type: gpc.DatasetNode
   quantity: mileage
-  unit: inh
-  input_dimensions: [age]
-  output_dimensions: [age]
+  unit: km/cap/d
+  input_dimensions: [age, transport_mode]
+  output_dimensions: [age, transport_mode]
   input_datasets:
-  - id: hia/exposure/lappeenranta_active_mobility
+  - id: hia/heat/lappeenranta_active_mobility
   params:
     sector: Moving distance
 
-actions:
-- id: convert_cars_to_evs
-  name_fi: Muuta autokanta sähköiseksi
-  name_en: Electrify car fleed
-  description_fi: Kannustetaan sähköautojen käyttöön. Täyssähköautoja ja ladattavia
-    hybridejä oli Etelä-Karjalassa 700 ja 1680 vuonna 2022. Niiden määrän arvioidaan
-    nousevan lukemaan 4180 ja 5280 vuonna 2030.
-  description_en: Nudging people to buy electric cars. The numbers of full EVs and
-    loadable hybrids were 700 and 1680, respectively, in 2022. The projected numbers
-    are 4180 and 5280 in 2030.
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: emissions
+- id: active_mobility2
+  name: Aktiivisen liikkumisen määrä ryhmissä
+  description: Tämä solmu kuvaa kyseisen väestöryhmän osuutta liikkumisesta. Summaamalla
+    osaväestöt yhteen saadaan koko väestön keskimääräinen liikkuminen.
+  type: simple.MultiplicativeNode
+  quantity: mileage
+  unit: km/person/d
+  input_dimensions: [transport_mode, age]
+  output_dimensions: [transport_mode, age]
+  input_nodes:
+  - id: active_mover_fraction
+  - id: active_mover_distance
+    tags: [non_additive]
+  # - id: population_group_shares
+  #   to_dimensions:
+  #   - id: age
+  output_nodes:
+  - id: active_mobility
+    from_dimensions:
+    - id: age
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+
+actions:  # TODO It would be nice to have multiplier parameter in the DatasetAction class.
+
+# --------------- TRANSPORT -------------
+
+- id: a11_reduce_all_motorised_transport
+  name: 1.1 Reduce all motorised transport
+  type: gpc.DatasetAction2  # TODO Allow historical values in LinearCumulativeAdditiveAction.
+  quantity: fraction
+  unit: '%'
   group: transport
-  unit: kt/a
-  forecast_values: [[2022, 0.0], [2030, -78.4]]  # 123.3 - 44.9
-#  output_nodes: [road_transport_emissions]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Transportation need reduction by 2030 from urban planning, digital meetings
+      and other transport-reducing initiatives
+  output_nodes:
+  - id: motorised_transport_change
+    to_dimensions: []
+    tags: [non_additive, extend_values]
+
+- id: a12_modal_switch_from_cars_to_other_modes
+  name: 1.2 Modal switch from cars to other modes
+  type: gpc.DatasetAction2
+  quantity: fraction
+  unit: '%'
+  group: transport
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Reduced Pkm cars + motorcycles by 2030
+  output_nodes:
+  - id: passenger_kilometres_switched
+    to_dimensions: []
+
+- id: a13_car_pooling
+  name: 1.3 Car pooling
+  description: How many % increase there is in the average number of people in a car.
+  type: gpc.DatasetAction2
+  quantity: fraction
+  unit: '%'
+  group: transport
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  output_nodes:
+  - id: relative_transport_efficiency
+    to_dimensions:
+    - id: transport_mode
+  params:
+    sector: 1.3 Car pooling
+
+- id: a141_electrification_of_passenger_cars
+  name: 1.4.1 Electrification of passenger cars
+  type: gpc.SCurveAction
+  quantity: fraction
+  unit: '%'
+  group: transport
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Electrification of transport fleet
+  input_nodes:
+  - id: fully_electric_vehicle_share
+    from_dimensions:
+    - id: transport_mode
+      categories: [cars]
+  output_nodes:
+  - id: fully_electric_car_share
+
+- id: a142_electrification_of_buses
+  name: 1.4.2 Electrification of buses
+  description: Fraction of buses that is replaced with electric buses each year.
+  type: gpc.DatasetAction2
+  quantity: fraction
+  unit: '%/a'
+  group: transport
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Expected procurement schedule for buses
+  output_nodes:
+  - id: fully_electric_bus_share
+    tags: [cumulative]
+
+# ----------------- Freight transport -----------------
+
+- id: a21_optimised_logistics
+  name: 2.1 Optimised logistics
+  type: parent.ParentActionNode
+  quantity: mass
+  unit: m**3
+  group: freight_transport
+
+- id: a211_improve_utilisation_of_trucks
+  name: 2.1.1 Improve utilisation of trucks
+  type: linear.DatasetReduceAction
+  quantity: fraction
+  unit: '%'
+  group: freight_transport
+  parent: a21_optimised_logistics
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: average_truck_utilisation_goal
+    tags: [goal]
+  - id: average_truck_utilisation_historical
+    tags: [historical]
+  output_nodes:
+  - id: average_truck_utilisation
+
+- id: a212_route_optimisation
+  name: 2.1.2 Route optimisation
+  type: gpc.DatasetAction2
+  quantity: fraction
+  unit: '%'
+  group: freight_transport
+  parent: a21_optimised_logistics
+  input_datasets:
+  - id: nzc/defaults
+  output_nodes:
+  - id: freight_transport_vehicle_kilometres
+    tags: [complement, non_additive]
+    to_dimensions: []
+  params:
+    sector: Reduction of total distance travelled through route optimisation
+
+- id: a22_truck_fleet_electrification
+  name: 2.2 Truck fleet electrification
+  type: gpc.SCurveAction
+  quantity: fraction
+  unit: '%'
+  group: freight_transport
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Electrification of transport fleet
+  input_nodes:
+  - id: fully_electric_vehicle_share
+    from_dimensions:
+    - id: transport_mode
+      categories: [light_trucks, heavy_trucks]
+  output_nodes:
+  - id: fully_electric_truck_share
+
+  # ----------- BUILDINGS ---------------
+
+- id: a31_renovation_improvements
+  name: 3.1 Improve old building renovations
+  type: parent.ParentActionNode
+  quantity: fraction
+  unit: m**3
+  group: buildings
+
+- id: a311_renovation_rate_improvement
+  name: 3.1.1 Renovation rate improvement
+  type: linear.DatasetReduceAction
+  quantity: fraction
+  unit: '%/a'
+  group: buildings
+  parent: a31_renovation_improvements
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_nodes:
+  - id: old_building_renovation_rate_historical
+    tags: [historical]
+    to_dimensions:
+    - id: building_energy_class
+  - id: old_building_renovation_rate_goal
+    tags: [goal]
+    to_dimensions:
+    - id: building_energy_class
+  output_nodes:
+  - id: old_building_renovation_rate
+
+- id: a312_renovation_shares_improvement
+  name: 3.1.2 Renovation shares improvement
+  type: linear.DatasetReduceAction
+  quantity: fraction
+  unit: '%'
+  group: buildings
+  parent: a31_renovation_improvements
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_nodes:
+  - id: renovation_intensity_shares_historical
+    tags: [historical, inventory_only]
+    to_dimensions:
+    - id: building_energy_class
+  - id: renovation_intensity_shares_goal
+    tags: [goal]
+    to_dimensions:
+    - id: building_energy_class
+  output_nodes:
+  - id: renovation_intensity_shares
+
+- id: a32_new_building_improvements
+  name: 3.2 New building shares improvement
+  type: linear.DatasetReduceAction
+  quantity: fraction
+  unit: '%'
+  group: buildings
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_nodes:
+  - id: new_building_shares_historical
+    tags: [historical]
+  - id: new_building_shares_goal
+    tags: [goal]
+  output_nodes:
+  - id: new_building_shares
+
+- id: a33_do_efficient_appliances
+  name: 3.3 Do efficient lighting & appliances renovation
+  type: parent.ParentActionNode
+  quantity: fraction
+  unit: m**3
+  group: buildings
+
+- id: a331_increase_appliance_renovation
+  name: 3.3.1 Increase appliance renovation
+  type: linear.DatasetReduceAction
+  quantity: rate
+  unit: '%/a'
+  group: buildings
+  parent: a33_do_efficient_appliances
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: efficient_appliances_renovation_rate_historical
+    tags: [historical]
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: efficient_appliances_renovation_rate_goal
+    tags: [goal]
+  output_nodes:
+  - id: efficient_appliances_rate
+    to_dimensions:
+    - id: energy_carrier
+
+- id: a332_increase_aggressive_renovations
+  name: 3.3.2 Increase aggressive appliance renovation
+  type: linear.DatasetReduceAction
+  quantity: fraction
+  unit: '%'
+  group: buildings
+  parent: a33_do_efficient_appliances
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_nodes:
+  - id: efficiency_programme_shares_historical
+    tags: [historical]
+  - id: efficiency_programme_shares_goal
+    tags: [goal]
+  output_nodes:
+  - id: efficiency_programme_shares
+
+- id: a34_decarbonising_heat_generation
+  name: 3.4 Decarbonising heating generation
+  type: parent.ParentActionNode
+  quantity: fraction
+  unit: m**3
+  group: buildings
+  # indicator_nodes:
+  # - id: building_heat_mix
+
+- id: a341_heating_technology_improvement  # TODO Add 20 a lifetime
+  name: 3.4.1 Increase district heating
+  description: Switch from local to district heating.
+  type: linear.DatasetReduceAction
+  quantity: fraction
+  unit: '%'
+  group: buildings
+  parent: a34_decarbonising_heat_generation
+  input_dimensions: [heating_type]
+  output_dimensions: [heating_type]
+  input_nodes:
+  - id: building_heating_type_share_historical
+    tags: [historical, inventory_only]
+  - id: building_heating_type_share_goal
+    tags: [goal]
+    to_dimensions:
+    - id: heating_type
+  output_nodes:
+  - id: building_heating_type_share
+    to_dimensions:
+    - id: heating_type
+
+- id: a342_heating_energy_improvement
+  name: 3.4.2 Increase low-emission heating
+  description: Improve the fuel shares of heating.
+  type: linear.DatasetReduceAction
+  quantity: fraction
+  unit: '%'
+  group: buildings
+  parent: a34_decarbonising_heat_generation
+  input_dimensions: [energy_carrier, heating_type, fuel_type]
+  output_dimensions: [energy_carrier, heating_type, fuel_type]
+  input_nodes:
+  - id: heating_fuel_share_historical
+    tags: [historical]
+  - id: heating_fuel_share_goal
+    tags: [goal]
+  output_nodes:
+  - id: heating_fuel_share
+
+- id: a343_change_heating_fossil_share
+  name: 3.4.3 Reduce fossil waste in heating  # Example city has 0 % waste, so there is no impact
+  type: linear.DatasetReduceAction
+  quantity: fraction
+  unit: '%'
+  group: buildings
+  parent: a34_decarbonising_heat_generation
+  input_dimensions: [energy_carrier, fuel_type, heating_type]
+  output_dimensions: [energy_carrier, fuel_type, heating_type]
+  input_nodes:
+  - id: heating_fossil_share_historical
+    tags: [historical]
+  - id: heating_fossil_share_goal
+    tags: [goal]
+    to_dimensions:
+    - id: fuel_type
+    - id: energy_carrier
+    - id: heating_type
+  output_nodes:
+  - id: heating_waste_fossil_share
+
+- id: a344_top_performance_improvement
+  name: 3.4.4 Top performance standard improvement compared with the regular new buildings
+  type: gpc.DatasetAction2
+  quantity: fraction
+  unit: '%'
+  group: buildings
+  parent: a34_decarbonising_heat_generation
+  input_datasets: [nzc/defaults]
+  params:
+    sector: 3.4.4 Top performance standard improvement compared with the regular new buildings
+  output_nodes:
+  - id: energy_use_intensity_change_new
+    to_dimensions:
+    - id: building_energy_class
+      categories: [new_top_performance]
+
+# -------------- ELECTRICITY ----------------
+
+- id: a41_replace_fossil_electricity  # TODO streamline this by using relative goal
+  name: 4.1 Replace fossil electricity
+  type: linear.DatasetReduceAction
+  quantity: fraction
+  unit: '%'
+  group: electricity
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_nodes:
+  - id: electricity_production_shares_historical
+    tags: [historical]
+  - id: electricity_shares_goal
+    tags: [goal, forecast_only]
+  output_nodes:
+  - id: electricity_shares
+
+# ------------- WASTE -------------------------
+
+- id: waste_recycling_trend
+  name: Waste recycling trend
+  type: linear.DatasetDifferenceAction
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [waste_treatment, waste_type]
+  output_dimensions: [waste_treatment, waste_type]
+  input_nodes:
+  - id: waste_recycling_shares_frozen
+    tags: [baseline]
+  - id: waste_recycling_future_baseline_shares
+    tags: [goal]
+    to_dimensions:
+    - id: waste_treatment
+    - id: waste_type
+  output_nodes:
+  - id: waste_recycling_shares_baseline
+
+- id: a51_increase_waste_recycling
+  name: 5.1 Increase waste recycling
+  type: linear.DatasetDifferenceAction
+  quantity: fraction
+  unit: '%'
+  group: waste
+  input_dimensions: [waste_treatment, waste_type]
+  output_dimensions: [waste_treatment, waste_type]
+  input_nodes:
+  - id: waste_recycling_shares_baseline
+    tags: [baseline]
+  - id: waste_recycling_shares_goal
+    tags: [goal]
+    to_dimensions:
+    - id: waste_treatment
+    - id: waste_type
+  output_nodes:
+  - id: waste_recycling_shares
+
+# ---------------- OTHER SECTORS -------------
+
+- id: a61_reduced_co2_emissions_in_other_sectors
+  name: 6.1 Reduced CO2 emissions in other sectors
+  type: gpc.DatasetAction2
+  quantity: fraction
+  unit: '%'
+  group: scope_3
+  output_nodes:
+  - id: emissions_from_other_sectors
+    tags: [non_additive, complement]
+    to_dimensions: []
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Reduced CO2e emissions committed by Industry, Agriculture, etc. in Other
+      sector
+
+# --------------- Scope 3 ---------------
+
+# - id: improve_building_material_composition
+#   name: 6.1 Improve building material composition
+#   type: linear.DatasetReduceAction
+#   quantity: mass
+#   unit: t/m**2
+#   input_dimensions: [material]
+#   output_dimensions: [material]
+#   group: scope_3
+#   input_nodes:
+#   - id: building_material_composition_historical
+#     tags: [historical]
+#   - id: building_material_composition_goal
+#     tags: [goal]
+#   output_nodes:
+#   - id: building_materials_used_by_material
+#     to_dimensions:
+#     - id: material
+
+# --------------- AFOLU -----------------
+
+# - id: tree_planting
+#   name: 7.1 Tree planting
+#   type: gpc.DatasetAction2
+#   quantity: number
+#   unit: pcs
+#   group: reforestation
+#   input_dimensions: [area_distance]
+#   output_dimensions: [area_distance]
+#   input_datasets: [nzc/defaults]
+#   params:
+#     sector: Number of planted trees until 2030
+#   output_nodes:
+#   - id: number_of_new_trees
 
 pages:
 - id: home
@@ -845,10 +1490,29 @@ pages:
 scenarios:
 - id: baseline
   name: Nykykehitys
-  name_en: Baseline
+  name_en: Baseline scenario
+  params:
+  - id: show_scenario_impacts
+    value: false
+  - id: waste_recycling_trend.enabled
+    value: true
 
 - id: default
   default: true
   name: Lappeenrannan ilmasto-ohjelma
   name_en: Lappeenranta Climate Action Plan
   all_actions_enabled: true
+
+include:
+- file: nzc/transport.yaml
+  node_group: Transport
+- file: nzc/freight_transport.yaml
+  node_group: Freight transport
+- file: nzc/buildings.yaml
+  node_group: Buildings
+- file: nzc/electricity.yaml
+  node_group: Electricity
+- file: nzc/waste.yaml
+  node_group: Waste
+- file: nzc/other.yaml
+  node_group: Other
