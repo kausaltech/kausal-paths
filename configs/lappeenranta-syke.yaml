@@ -39,6 +39,11 @@ params:
   # Kaikki ALas-päästöt
   # Taakanjakosektorin kaikki ALas-päästöt
   # Päästökaupan alaiset ALas-päästöt
+- id: baseline_year
+  label: Baseline year of the model
+  value: 2022
+  is_visible: true
+  is_customizable: false
 
 action_groups:
 - id: transport

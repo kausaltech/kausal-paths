@@ -17,7 +17,6 @@ target_year: 2030
 model_end_year: 2045
 minimum_historical_year: 2018
 maximum_historical_year: 2022
-emission_unit: kt/a
 emission_forecast_from: 2023
 emission_dimensions: [scope, ghg, sector]
 features:
@@ -49,7 +48,7 @@ params:
   is_customizable: true
 - id: baseline_year
   label: Baseline year of the model
-  value: 2020
+  value: 2022
   is_visible: true
   is_customizable: false
 
@@ -811,15 +810,16 @@ nodes:
     tags: [non_additive]
     to_dimensions: []
 
-- id: active_mobility_conversion
+- id: active_mobility_conversion  # TODO Fix units in dataset
   name: Aktiivisen liikkumisen muunnos
   type: simple.AdditiveNode
   quantity: exposure
-  unit: 1/passenger
+  unit: passenger
   historical_values: [[2010, 1.0], [2023, 1.0]]
 
 - id: amount_of_active_mobility
   name: Aktiivisen liikkumisen määrä
+  description: TODO Epäuskottavan suueia arvoja
   type: simple.MultiplicativeNode
   quantity: exposure
   unit: min/cap/d
@@ -829,14 +829,17 @@ nodes:
   - id: passenger_kilometres
   - id: average_walking_speed
     tags: [geometric_inverse]
-    to_dimensions: []
+    to_dimensions:
+    - id: transport_mode
+      categories: [walking]
   - id: population
     tags: [geometric_inverse]
     to_dimensions: []
   - id: active_mobility_conversion
+    tags: [geometric_inverse]
     to_dimensions: []
 
-- id: average_walking_speed
+- id: average_walking_speed  # TODO Put to dataset
   name: Average walking speed
   type: simple.AdditiveNode
   quantity: speed
