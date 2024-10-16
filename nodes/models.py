@@ -354,6 +354,7 @@ class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
         """Return root page in activated language, fall back to default language."""
         root: Page = self.root_page
         language = get_language()
+        language = convert_language_code(language, 'wagtail')
         try:
             locale = Locale.objects.get(language_code=language)
             root = root.get_translation(locale)  # type: ignore
