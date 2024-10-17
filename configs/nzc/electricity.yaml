@@ -654,7 +654,7 @@ nodes:
     sector: Distribution of type of new renewables
 
 - id: electricity_production_shares_historical
-  name_en: Electricity production shares historical
+  name: Electricity production shares historical
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -701,7 +701,7 @@ nodes:
 #     sector: Assumed uptime of wind/solar
 
 - id: electricity_production_shares
-  name_en: Electricity production shares
+  name: Electricity production shares
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
