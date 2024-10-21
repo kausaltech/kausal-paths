@@ -32,7 +32,7 @@ class UserExtra(BaseModel):
 
     def set_framework_role(self, role: FrameworkRoleDef):
         self.framework_roles = list(filter(
-            lambda role: role.framework_id == role.framework_id,
+            lambda role: role.framework_id != role.framework_id,
             self.framework_roles,
         ))
         self.framework_roles.append(role)

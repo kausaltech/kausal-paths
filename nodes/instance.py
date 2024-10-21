@@ -63,6 +63,7 @@ class InstanceFeatures:
     show_significant_digits: int | None = 3
     maximum_fraction_digits: int | None = None
     hide_node_details: bool = False
+    show_refresh_prompt: bool = False
 
 
 @dataclass
