@@ -42,6 +42,11 @@ DATABASES = {
 }
 ```
 
+Set `DJANGO_SETTINGS_MODULE` (Unix Bash shell):
+```shell
+export DJANGO_SETTINGS_MODULE=paths.settings
+```
+
 Run migrations:
 
 ```shell
