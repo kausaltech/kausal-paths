@@ -313,6 +313,9 @@ class DVCDataset(Dataset):
                     if flatten:
                         df = df.paths.sum_over_dims(dim_id)
 
+        # If UUID is needed for framework measures, FrameworkMeasureDVCDataset are used instead.
+        df = df.drop('UUID', strict=False)
+
         cols = df.columns
 
         if self.column:
@@ -326,8 +329,22 @@ class DVCDataset(Dataset):
             df = df.with_columns(pl.col(self.column).alias(VALUE_COLUMN))
             cols = [YEAR_COLUMN, VALUE_COLUMN, *df.dim_ids]
 
-        if YEAR_COLUMN in cols and YEAR_COLUMN not in df.primary_keys:
-            df = df.add_to_index(YEAR_COLUMN)
+        if YEAR_COLUMN in cols:
+            if YEAR_COLUMN not in df.primary_keys:
+                df = df.add_to_index(YEAR_COLUMN)
+            if len(df.filter(pl.col(YEAR_COLUMN).lt(100))) > 0:
+                baseline_year = context.get_parameter_value('baseline_year', required=True)
+                df = df.with_columns(
+                    pl.when(pl.col(YEAR_COLUMN).lt(100))
+                    .then(pl.col(YEAR_COLUMN) + baseline_year)
+                    .otherwise(pl.col(YEAR_COLUMN)).alias(YEAR_COLUMN),
+                )
+                df = df.with_columns(pl.col(YEAR_COLUMN).cast(int).alias(YEAR_COLUMN))
+
+                # Duplicates may occur when baseline year overlaps with existing data points.
+                meta = df.get_meta()
+                df = ppl.to_ppdf(df.unique(subset = meta.primary_keys, keep = 'last',
+                                           maintain_order = True), meta = meta)
 
         if FORECAST_COLUMN in df.columns:
             cols.append(FORECAST_COLUMN)

@@ -14,7 +14,7 @@ nodes:
 
 # -------------- Emissions --------------
 
-- id: transport_emission_factor
+- id: transport_emission_factor2
   name_fi: Liikennepäästöjen päästökerroin
   name_en: Air pollution emission factor
   description_fi: Lähtötiedot on saatu NetZeroCities-hankkeen laskenta-excelin oletusarvoista.
@@ -44,12 +44,12 @@ nodes:
   input_dimensions: [pollutant]
   output_dimensions: [pollutant]
   input_nodes:
-  - id: transport_emission_factor
+  - id: transport_emission_factor2
   params:
     use_input_node_unit_when_adding: true
     reference_category: 'pollutant:co2'
 
-- id: transport_air_pollution_emissions
+- id: transport_air_pollution_emissions2
   name_fi: Liikenteen ilmansaastepäästöt
   name_en: Air pollution emissions from transport
   description_fi: Liikenteen ilmansaastepäästöt laskettuna CO2-päästöstä ja muut päästöt suhteutettuna siihen päästökertoimien suhteessa.
@@ -78,7 +78,7 @@ nodes:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    sector: heat emission factor
+    sector: Emission factors from heat production
 
 - id: fossil_plant_emission_ratio
   name_fi: Fossiilivoimalan päästöjen keskinäinen suhde
@@ -157,7 +157,7 @@ nodes:
   input_dimensions: [pollutant]
   output_dimensions: [pollutant]
   input_nodes:
-  - id: transport_air_pollution_emissions
+  - id: transport_air_pollution_emissions2
   - id: intake_fraction
     from_dimensions:
     - id: emission_height
