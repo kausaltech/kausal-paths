@@ -18,6 +18,7 @@ target_year: 2035
 reference_year: 2010
 minimum_historical_year: 2010
 maximum_historical_year: 2023
+sample_size: 10
 
 action_groups:
 - id: forestry
@@ -411,7 +412,7 @@ nodes:
   quantity: currency
   unit: EUR/a
   output_dimensions: [iteration]
-  historical_values: [[2010, '[0, -80]']]
+  historical_values: [[2010, '0 - 80']]
   input_dataset_processors: [LinearInterpolation]
 
 - id: tech1

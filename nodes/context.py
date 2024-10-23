@@ -60,6 +60,7 @@ class Context:
     model_end_year: int
     dataset_repo: dvc_pandas.Repository
     dataset_repo_default_path: str | None
+    sample_size: int
 
     unit_registry: CachingUnitRegistry
     active_scenario: Scenario
@@ -71,7 +72,7 @@ class Context:
     check_mode: bool = False
     instance: Instance
     impact_overviews: list[ImpactOverview]
-    setting_storage: Optional[SettingStorage]
+    setting_storage: SettingStorage | None
     perf_context: PerfContext[Node]
     node_graph: nx.DiGraph
     baseline_values_generated: bool = False
@@ -81,6 +82,7 @@ class Context:
     def __init__(
         self, instance: Instance, dataset_repo: dvc_pandas.Repository, target_year: int,
         model_end_year: int | None = None, dataset_repo_default_path: str | None = None,
+        sample_size: int = 0,
     ):
         from nodes.actions import ActionNode
 
@@ -105,6 +107,7 @@ class Context:
         self.unit_registry = unit_registry
         self.dataset_repo = dataset_repo
         self.dataset_repo_default_path = dataset_repo_default_path
+        self.sample_size = sample_size
         self.supported_parameter_types = discover_parameter_types()
         # will be set later
         self.instance = None  # type: ignore
