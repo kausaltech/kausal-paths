@@ -85,8 +85,10 @@ if 'Scope' in df.columns:
     df = df.with_columns(pl.Series(name = 'Scope', values = labels))
 
 # ---------------------------------------------------------------------------------------
-dfmain = df.head(1).select(context).with_columns([(pl.lit(0.0).alias('Value').cast(pl.Float64)),
+dfmain = df.head(1).select(context).with_columns([(pl.lit('0.0').alias('Value').cast(pl.String)),
                                                   (pl.lit(0).alias('Year').cast(pl.Int64))]).clear()
+# This is needed for probabilistic strings.
+df = df.with_columns([pl.col(col).cast(pl.String) for col in values])
 
 df = df.with_row_index(name = 'Index')
 for i in range(len(df)):
@@ -107,6 +109,14 @@ if 'Is_action' in dfmain.columns:
         (pl.col('Year').eq(0))
     ).then(pl.lit(None)).otherwise(pl.col('UUID')).alias('UUID')])
     dfmain = dfmain.drop('Is_action')
+
+try:
+    df_test = dfmain.with_columns(pl.col('Value').cast(pl.Float64))
+    dfmain = df_test
+    print('Values are stored as Float64.')
+except pl.exceptions.InvalidOperationError as e:
+    print('Value column contains probabilistic values and is stored as String.')
+    print(f'Conversion details: {e}')
 
 if outcsvpath.upper() not in ['N', 'NONE']:
     dfmain.write_csv(outcsvpath)
