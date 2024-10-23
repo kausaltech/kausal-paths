@@ -39,6 +39,11 @@ params:
   # Kaikki ALas-päästöt
   # Taakanjakosektorin kaikki ALas-päästöt
   # Päästökaupan alaiset ALas-päästöt
+- id: baseline_year
+  label: Baseline year of the model
+  value: 2022
+  is_visible: true
+  is_customizable: false
 
 action_groups:
 - id: transport
@@ -249,7 +254,7 @@ nodes:
   unit: kt/a
   input_nodes: [road_transport_emissions]
   output_nodes:
-  - id: transport_air_pollution_emissions
+  - id: transport_air_pollution_emissions2
     tags: [non_additive]
     to_dimensions: []
 

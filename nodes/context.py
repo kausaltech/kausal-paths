@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from params import Parameter
     from params.storage import SettingStorage
 
-    from .actions.action import ActionEfficiencyPair, ActionNode
+    from .actions.action import ImpactOverview, ActionNode
     from .instance import Instance
     from .node import Dimension, Node
     from .normalization import Normalization
@@ -60,6 +60,7 @@ class Context:
     model_end_year: int
     dataset_repo: dvc_pandas.Repository
     dataset_repo_default_path: str | None
+    sample_size: int
 
     unit_registry: CachingUnitRegistry
     active_scenario: Scenario
@@ -70,7 +71,7 @@ class Context:
     skip_cache: bool = False
     check_mode: bool = False
     instance: Instance
-    action_efficiency_pairs: list[ActionEfficiencyPair]
+    impact_overviews: list[ImpactOverview]
     setting_storage: SettingStorage | None
     perf_context: PerfContext[Node]
     node_graph: nx.DiGraph
@@ -81,6 +82,7 @@ class Context:
     def __init__(
         self, instance: Instance, dataset_repo: dvc_pandas.Repository, target_year: int,
         model_end_year: int | None = None, dataset_repo_default_path: str | None = None,
+        sample_size: int = 0,
     ):
         from nodes.actions import ActionNode
 
@@ -105,13 +107,14 @@ class Context:
         self.unit_registry = unit_registry
         self.dataset_repo = dataset_repo
         self.dataset_repo_default_path = dataset_repo_default_path
+        self.sample_size = sample_size
         self.supported_parameter_types = discover_parameter_types()
         # will be set later
         self.instance = None  # type: ignore
         self.active_scenario = None  # type: ignore
         self.custom_scenario = None  # type: ignore
         self.active_normalization = None
-        self.action_efficiency_pairs = []
+        self.impact_overviews = []
         self.dimensions = {}
         self.options = {}
         self.normalizations = {}
