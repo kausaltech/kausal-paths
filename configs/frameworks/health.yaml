@@ -78,7 +78,7 @@ nodes:
   - id: nzc/defaults
     forecast_from: 2023
   params:
-    sector: heat emission factor
+    sector: Emission factors from heat production
 
 - id: fossil_plant_emission_ratio
   name_fi: Fossiilivoimalan päästöjen keskinäinen suhde

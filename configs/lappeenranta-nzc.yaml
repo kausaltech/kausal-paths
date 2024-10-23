@@ -6,7 +6,8 @@ site_url: https://lappeenranta-nzc.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   dvc_remote: kausal-s3
-  commit: 2699aa39c8ad9603c05593e7ae337c21a442f131
+  # commit: 772bb24d5a5a01ab2aa8b69bb33efec594f0ac8a # Lappeenranta-specific dataset
+  commit: 772bb24d5a5a01ab2aa8b69bb33efec594f0ac8a # Lappeenranta-specific probabilistic dataset
 theme_identifier: lpr-ilmasto
 name: Lappeenrannan missiokaupungin ilmasto-ohjelma 2030
 name_en: Lappeenranta Mission City Climate Action Plan 2030
@@ -15,7 +16,7 @@ owner_en: City of Lappeenranta
 emission_unit: kt/a
 target_year: 2030
 model_end_year: 2045
-minimum_historical_year: 2018
+minimum_historical_year: 2023
 maximum_historical_year: 2022
 emission_forecast_from: 2023
 emission_dimensions: [scope, ghg, sector]
@@ -48,7 +49,7 @@ params:
   is_customizable: true
 - id: baseline_year
   label: Baseline year of the model
-  value: 2022
+  value: 2023
   is_visible: true
   is_customizable: false
 
@@ -1358,7 +1359,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   parent: a34_decarbonising_heat_generation
   input_datasets: [nzc/defaults]
   params:
-    sector: 3.4.4 Top performance standard improvement compared with the regular new buildings
+    sector: 3.4.4 Top performance standard improvement compared with the regular new
+      buildings
   output_nodes:
   - id: energy_use_intensity_change_new
     to_dimensions:
