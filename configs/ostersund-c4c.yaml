@@ -28,7 +28,16 @@ action_efficiency_pairs:
   indicator_unit: kSEK/t
   cost_unit: kSEK
   impact_unit: t
-  label: Cost effectiveness
+  label: Cost efficiency
+- graph_type: return_of_investment
+  cost_node: investment_costs
+  impact_node: investment_returns
+  invert_cost: false
+  invert_impact: true
+  indicator_unit: '%'
+  cost_unit: kSEK
+  impact_unit: kSEK
+  label: Return on investment
 
 dimensions:
 - id: scope
@@ -1356,6 +1365,78 @@ nodes:
       flatten: true
     to_dimensions:
     - id: ghg
+
+# -------------- Manually added nodes ---------------
+
+- id: investment_costs
+  name: Investment costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kSEK/a
+  input_nodes:
+  - id: i1_residential_price
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: owner
+      flatten: true
+  - id: ii11_onroad_transport_fuel_price
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: owner
+      flatten: true
+  - id: ii31_waterborne_fuel_price
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: owner
+      flatten: true
+  - id: ii51_offroad_transport_fuel_price
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: owner
+      flatten: true
+
+- id: investment_returns
+  name: Investment returns
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kSEK/a
+  input_nodes:
+  - id: i1_residential_price
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: owner
+      flatten: true
+  - id: ii11_onroad_transport_fuel_price
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: owner
+      flatten: true
+  - id: ii31_waterborne_fuel_price
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: owner
+      flatten: true
+  - id: ii51_offroad_transport_fuel_price
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: owner
+      flatten: true
 
 actions:
 - id: replace_city_fleet_with_electric_vehicles

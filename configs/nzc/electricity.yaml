@@ -68,22 +68,20 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [pollutant, energy_carrier, sector]
-  output_dimensions: [pollutant, energy_carrier, sector]
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
   input_nodes:
   - id: total_electricity_emissions
     from_dimensions:
     - id: pollutant
       categories: [co2]
+      flatten: true
     to_dimensions:
-    - id: pollutant
     - id: energy_carrier
     - id: sector
   output_nodes:
   - id: net_emissions
     from_dimensions:
-    - id: pollutant
-      flatten: true
     - id: energy_carrier
       flatten: true
     to_dimensions:
