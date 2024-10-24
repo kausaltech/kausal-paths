@@ -149,7 +149,7 @@ class PathsHTMLFormatter(HTMLFormatter):
             unit = prepare_units_for_babel(unit, html=True)
         if not unit:  # this is the case for dimensionless units
             return ''
-        numerator, denominator = prepare_compount_unit(
+        numerator, denominator = prepare_compount_unit(  # FIXME It is possible to have units without nominator like 1/a.
             unit,
             uspec,
             sort_func=sort_func,
