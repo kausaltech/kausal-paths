@@ -463,8 +463,12 @@ class DimensionalMetric:
         df = action_efficiency.df
         if col=='Cost':
             dimensions = root.cost_node.output_dimensions.items()
+            if root.invert_cost:
+                df = df.with_columns((pl.col(col) * pl.lit(-1.0)).alias(col))
         elif col=='Impact':
             dimensions = root.impact_node.output_dimensions.items()
+            if root.invert_impact:
+                df = df.with_columns((pl.col(col) * pl.lit(-1.0)).alias(col))
 
         dims: list[MetricDimension] = []
 
