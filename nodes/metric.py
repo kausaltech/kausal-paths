@@ -513,7 +513,7 @@ class DimensionalMetric:
         goals: list[MetricDimensionGoal] = []
 
         dm = DimensionalMetric(  # Normalization or grouping is not possible at the moment.
-            id=action.id,
+            id=action.id + '_' + col.lower(),
             name=str(action.name),
             dimensions=dims,
             values=vals,
