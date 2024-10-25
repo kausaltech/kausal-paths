@@ -5,7 +5,7 @@ import io
 import json
 import uuid
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, List, Optional, Tuple, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import orjson
 import pandas as pd
@@ -29,8 +29,8 @@ class Dataset:
     id: str
     tags: list[str]
     interpolate: bool = field(init=False)
-    df: Optional[ppl.PathsDataFrame] = field(init=False)
-    hash: Optional[bytes] = field(init=False)
+    df: ppl.PathsDataFrame | None = field(init=False)
+    hash: bytes | None = field(init=False)
 
     def __post_init__(self):
         self.df = None
@@ -216,18 +216,18 @@ class DVCDataset(Dataset):
 
                 # Duplicates may occur when baseline year overlaps with existing data points.
                 meta = df.get_meta()
-                df = ppl.to_ppdf(df.unique(subset = meta.primary_keys, keep = 'last',
-                                           maintain_order = True), meta = meta)
+                df = ppl.to_ppdf(df.unique(subset=meta.primary_keys, keep='last',
+                                           maintain_order=True), meta=meta)
 
         if FORECAST_COLUMN in df.columns:
             cols.append(FORECAST_COLUMN)
         elif self.forecast_from is not None:
-            df = df.with_columns([
+            df = df.with_columns(
                 pl.when(pl.col(YEAR_COLUMN) >= self.forecast_from)
                     .then(pl.lit(True))
                     .otherwise(pl.lit(False))
                 .alias(FORECAST_COLUMN)
-            ])
+            )
             cols.append(FORECAST_COLUMN)
 
         df = df.select(cols)
@@ -249,8 +249,7 @@ class DVCDataset(Dataset):
             if VALUE_COLUMN not in meta.units:
                 raise Exception("Dataset %s does not have a unit" % self.id)
             return meta.units[VALUE_COLUMN]
-        else:
-            raise Exception("Dataset %s does not have the value column" % self.id)
+        raise Exception("Dataset %s does not have the value column" % self.id)
 
     def hash_data(self, context: Context) -> dict[str, Any]:
         extra_fields = [
@@ -272,11 +271,11 @@ class FixedDataset(Dataset):
 
     # Use `dimensionless` for `unit` if the quantities should be dimensionless.
     unit: Unit
-    historical: Optional[List[Tuple[int, float]]]
-    forecast: Optional[List[Tuple[int, float]]]
+    historical: list[tuple[int, float]] | None
+    forecast: list[tuple[int, float]] | None
     use_interpolation: bool = False
 
-    def _fixed_multi_values_to_df(self, data):
+    def _fixed_multi_values_to_df(self, data) -> pd.DataFrame:
         series = []
         for d in data:
             vals = d['values']
@@ -308,6 +307,7 @@ class FixedDataset(Dataset):
         else:
             fdf = None
 
+        df: pd.DataFrame | None
         if hdf is not None and fdf is not None:
             df = pd.concat([hdf, fdf])
         elif hdf is not None:
@@ -315,7 +315,7 @@ class FixedDataset(Dataset):
         else:
             df = fdf
 
-        assert df is not None
+        assert df is not None, "Both historical and forecast data are None"
         df = df.set_index(YEAR_COLUMN)
 
         # Ensure value column has right units
@@ -349,7 +349,7 @@ class JSONDataset(Dataset):
 
     def __post_init__(self):
         super().__post_init__()
-        self.df = JSONDataset.deserialize_df(self.data)
+        self.df = JSONDataset.deserialize_df(self.data) # type: ignore
         meta = self.df.get_meta()
         if len(meta.units) == 1:
             self.unit = next(iter(meta.units.values()))
