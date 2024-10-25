@@ -74,7 +74,11 @@ class DatasetNode(AdditiveNode):
         df = df.with_columns(df['Quantity'].replace(qlookup).replace(self.quantitylookup))
         df = df.filter(pl.col('Quantity') == self.quantity)
 
-        df = df.drop(['Sector', 'Quantity'])
+        dropcols = ['Sector', 'Quantity']
+        if 'UUID' in df.columns:
+            dropcols += ['UUID']
+        df = df.drop(dropcols)
+
         return df
 
     # -----------------------------------------------------------------------------------
@@ -97,7 +101,7 @@ class DatasetNode(AdditiveNode):
 
     # -----------------------------------------------------------------------------------
     def convert_names_to_ids(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        exset = set([YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN, 'Unit', 'UUID'])
+        exset = {YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN, 'Unit'}
 
         # Convert index level names from labels to IDs.
         collookup = {}

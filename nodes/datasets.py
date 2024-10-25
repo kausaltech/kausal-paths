@@ -186,9 +186,6 @@ class DVCDataset(Dataset):
                     if flatten:
                         df = df.paths.sum_over_dims(dim_id)
 
-        # If UUID is needed for framework measures, FrameworkMeasureDVCDataset are used instead.
-        df = df.drop('UUID', strict=False)
-
         cols = df.columns
 
         if self.column:
@@ -206,9 +203,12 @@ class DVCDataset(Dataset):
             if YEAR_COLUMN not in df.primary_keys:
                 df = df.add_to_index(YEAR_COLUMN)
             if len(df.filter(pl.col(YEAR_COLUMN).lt(100))) > 0:
-                baseline_year = context.get_parameter_value('baseline_year', required=True)
+                baseline_year = context.instance.maximum_historical_year
+                if baseline_year is None:
+                    raise Exception(
+                        'The maximum_historical_year from instance is not given. It is needed by dataset %s to define the baseline for relative data.' % self.id)  # noqa: E501
                 df = df.with_columns(
-                    pl.when(pl.col(YEAR_COLUMN).lt(100))
+                    pl.when(pl.col(YEAR_COLUMN) < 100)
                     .then(pl.col(YEAR_COLUMN) + baseline_year)
                     .otherwise(pl.col(YEAR_COLUMN)).alias(YEAR_COLUMN),
                 )

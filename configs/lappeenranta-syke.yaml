@@ -17,6 +17,7 @@ target_year: 2030
 model_end_year: 2030
 reference_year: 2005
 minimum_historical_year: 2010
+maximum_historical_year: 2022
 
 params:
 - id: municipality_name
@@ -39,11 +40,6 @@ params:
   # Kaikki ALas-päästöt
   # Taakanjakosektorin kaikki ALas-päästöt
   # Päästökaupan alaiset ALas-päästöt
-- id: baseline_year
-  label: Baseline year of the model
-  value: 2022
-  is_visible: true
-  is_customizable: false
 
 action_groups:
 - id: transport
