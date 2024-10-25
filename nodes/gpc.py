@@ -1,20 +1,24 @@
-import polars as pl
-from common import polars as ppl
-from params import StringParameter, BoolParameter
-from nodes.calc import extend_last_historical_value_pl
-from nodes.constants import VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN
-from nodes.simple import AdditiveNode
-from nodes.exceptions import NodeError
+from __future__ import annotations
+
 from django.utils.translation import gettext_lazy as _
+
+import polars as pl
+
+from common import polars as ppl
+from nodes.calc import extend_last_historical_value_pl
+from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.exceptions import NodeError
+from nodes.simple import AdditiveNode
+from params import BoolParameter, StringParameter
 
 
 class DatasetNode(AdditiveNode):
-    explanation = _("""This is a DatasetNode. It takes in a specifically formatted dataset and converts the relevant part into a node output.""")
+    explanation = _("""This is a DatasetNode. It takes in a specifically formatted dataset and converts the relevant part into a node output.""")  # noqa: E501
 
     allowed_parameters = AdditiveNode.allowed_parameters + [
-        StringParameter('gpc_sector', description = 'GPC Sector', is_customizable = False),   # FIXME To be removed, replaced by 'sector' below.
-        StringParameter('sector', description = 'Sector', is_customizable = False),
-        StringParameter('rename_dimensions', description = 'Rename incompatible dimensions', is_customizable = False)
+        StringParameter('gpc_sector', description='GPC Sector', is_customizable=False),   # FIXME To be removed, replaced by 'sector' below.  # noqa: E501
+        StringParameter('sector', description='Sector', is_customizable=False),
+        StringParameter('rename_dimensions', description='Rename incompatible dimensions', is_customizable=False),
     ]
 
     quantitylookup = {
@@ -51,7 +55,7 @@ class DatasetNode(AdditiveNode):
         'ý':'y',
         'ź':'z', 'ż':'z', 'ž':'z',
         'æ':'ae',
-        'ß':'ss'
+        'ß':'ss',
     })
 
     # -----------------------------------------------------------------------------------
@@ -151,7 +155,7 @@ class DatasetNode(AdditiveNode):
 
         # Add missing years and interpolate missing values.
         df = df.paths.to_wide()
-        yearrange = range(df[YEAR_COLUMN].min(), (df[YEAR_COLUMN].max() + 1))
+        yearrange = range(df[YEAR_COLUMN].min(), (df[YEAR_COLUMN].max() + 1)) # type: ignore
         nullcount = df.null_count().sum_horizontal()[0]
 
         if (len(df[YEAR_COLUMN].unique()) < len(yearrange)) | (nullcount > 0) :
@@ -160,7 +164,7 @@ class DatasetNode(AdditiveNode):
             yeardf._primary_keys = [YEAR_COLUMN]
 
             df = df.paths.join_over_index(yeardf, how = 'outer')
-            for col in list(set(df.columns) - set([YEAR_COLUMN, FORECAST_COLUMN])):
+            for col in list(set(df.columns) - {YEAR_COLUMN, FORECAST_COLUMN}):
                 df = df.with_columns(pl.col(col).interpolate())
 
             df = df.with_columns(pl.col(FORECAST_COLUMN).fill_null(strategy = 'backward'))
@@ -199,7 +203,7 @@ class DatasetNode(AdditiveNode):
 
         df = self.apply_multiplier(df, required = False, units = True)
         df = self.add_and_multiply_input_nodes(df)
-        df = df.ensure_unit(VALUE_COLUMN, self.unit)
+        df = df.ensure_unit(VALUE_COLUMN, self.unit) # type: ignore
         return df
 
 
@@ -231,7 +235,7 @@ class DetailedDatasetNode(DatasetNode):
 
 class CorrectionNode(DatasetNode):  # FIXME Separate correction into another node?
     allowed_parameters = DatasetNode.allowed_parameters + [
-        BoolParameter('do_correction', description = 'Should the values be corrected?')
+        BoolParameter('do_correction', description = 'Should the values be corrected?'),
     ]
     def compute(self):
         df = super().compute()
@@ -245,16 +249,16 @@ class CorrectionNode(DatasetNode):  # FIXME Separate correction into another nod
         inventory_only = self.get_parameter_value('inventory_only', required=False)
         if inventory_only is not None:
             if inventory_only:
-                df = df.filter(pl.col(FORECAST_COLUMN) == False)  # noqa
+                df = df.filter(~pl.col(FORECAST_COLUMN))
             else:
                 df = extend_last_historical_value_pl(df, self.get_end_year())
 
         return df
-    
+
 
 class CorrectionNode2(AdditiveNode):
     allowed_parameters = AdditiveNode.allowed_parameters + [
-        BoolParameter('do_correction', description = 'Should the values be corrected?')
+        BoolParameter('do_correction', description = 'Should the values be corrected?'),
     ]
     def compute(self):
         df = AdditiveNode.compute(self)
@@ -268,7 +272,7 @@ class CorrectionNode2(AdditiveNode):
         inventory_only = self.get_parameter_value('inventory_only', required=False)
         if inventory_only is not None:
             if inventory_only:
-                df = df.filter(pl.col(FORECAST_COLUMN) == False)  # noqa
+                df = df.filter(~pl.col(FORECAST_COLUMN))
             else:
                 df = extend_last_historical_value_pl(df, self.get_end_year())
 
