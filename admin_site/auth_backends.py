@@ -8,7 +8,7 @@ from loguru import logger
 from social_core.backends.azuread_tenant import AzureADTenantOAuth2
 from social_core.backends.oauth import BaseOAuth2
 
-from paths.const import FRAMEWORK_ADMIN_ROLE, INSTANCE_ADMIN_ROLE
+from paths.const import INSTANCE_ADMIN_ROLE
 
 from frameworks.roles import FrameworkRoleDef
 
@@ -82,7 +82,8 @@ class NZCPortalOAuth2(BaseOAuth2):
     TYPE_TO_ROLE = {
         'cityAdmin': INSTANCE_ADMIN_ROLE,
         'cityEditor': INSTANCE_ADMIN_ROLE,
-        'consortiumUser': FRAMEWORK_ADMIN_ROLE,
+        # Disable the consortiumUser role for now
+        # 'consortiumUser': FRAMEWORK_ADMIN_ROLE,
         'cityUser': INSTANCE_ADMIN_ROLE,
     }
 
