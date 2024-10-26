@@ -476,7 +476,7 @@ class DimensionalMetric:
 
         dims: list[MetricDimension] = []
 
-        for dim_id, dim in dimensions.items():
+        for dim_id, dim in dimensions:
             if dim_id == 'iteration':
                 continue
             df_cats = set(df[dim_id].unique())
