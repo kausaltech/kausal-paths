@@ -6,7 +6,7 @@ import json
 import re
 import uuid
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, List, Optional, Tuple, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import orjson
@@ -313,9 +313,6 @@ class DVCDataset(Dataset):
                     if flatten:
                         df = df.paths.sum_over_dims(dim_id)
 
-        # If UUID is needed for framework measures, FrameworkMeasureDVCDataset are used instead.
-        df = df.drop('UUID', strict=False)
-
         cols = df.columns
 
         if self.column:
@@ -333,9 +330,12 @@ class DVCDataset(Dataset):
             if YEAR_COLUMN not in df.primary_keys:
                 df = df.add_to_index(YEAR_COLUMN)
             if len(df.filter(pl.col(YEAR_COLUMN).lt(100))) > 0:
-                baseline_year = context.get_parameter_value('baseline_year', required=True)
+                baseline_year = context.instance.maximum_historical_year
+                if baseline_year is None:
+                    raise Exception(
+                        'The maximum_historical_year from instance is not given. It is needed by dataset %s to define the baseline for relative data.' % self.id)  # noqa: E501
                 df = df.with_columns(
-                    pl.when(pl.col(YEAR_COLUMN).lt(100))
+                    pl.when(pl.col(YEAR_COLUMN) < 100)
                     .then(pl.col(YEAR_COLUMN) + baseline_year)
                     .otherwise(pl.col(YEAR_COLUMN)).alias(YEAR_COLUMN),
                 )
@@ -343,8 +343,8 @@ class DVCDataset(Dataset):
 
                 # Duplicates may occur when baseline year overlaps with existing data points.
                 meta = df.get_meta()
-                df = ppl.to_ppdf(df.unique(subset = meta.primary_keys, keep = 'last',
-                                           maintain_order = True), meta = meta)
+                df = ppl.to_ppdf(df.unique(subset=meta.primary_keys, keep='last',
+                                           maintain_order=True), meta=meta)
 
         if FORECAST_COLUMN in df.columns:
             cols.append(FORECAST_COLUMN)
@@ -377,8 +377,7 @@ class DVCDataset(Dataset):
             if VALUE_COLUMN not in meta.units:
                 raise Exception("Dataset %s does not have a unit" % self.id)
             return meta.units[VALUE_COLUMN]
-        else:
-            raise Exception("Dataset %s does not have the value column" % self.id)
+        raise Exception("Dataset %s does not have the value column" % self.id)
 
     def hash_data(self, context: Context) -> dict[str, Any]:
         extra_fields = [
@@ -441,6 +440,7 @@ class FixedDataset(Dataset):
         else:
             fdfi = False
 
+        df: pd.DataFrame | None
         if hdfi and fdfi:
             dfp = pd.concat([hdf, fdf])
         elif hdfi:
@@ -448,7 +448,7 @@ class FixedDataset(Dataset):
         else:
             dfp = fdf
 
-        assert dfp is not None
+        assert dfp is not None, "Both historical and forecast data are None"
         dfp = dfp.set_index(YEAR_COLUMN)
 
         # Ensure value column has right units

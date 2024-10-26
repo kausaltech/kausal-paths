@@ -16,7 +16,7 @@ owner_en: City of Lappeenranta
 emission_unit: kt/a
 target_year: 2030
 model_end_year: 2045
-minimum_historical_year: 2023
+minimum_historical_year: 2020
 maximum_historical_year: 2022
 emission_forecast_from: 2023
 emission_dimensions: [scope, ghg, sector]
@@ -47,11 +47,6 @@ params:
   value: true
   is_visible: true
   is_customizable: true
-- id: baseline_year
-  label: Baseline year of the model
-  value: 2023
-  is_visible: true
-  is_customizable: false
 
 action_groups:
 - id: transport

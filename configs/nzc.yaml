@@ -584,7 +584,7 @@ nodes:
     - id: stakeholder
     - id: cost_type
 
-- id: discounted_benefits  # TODO Remove this is the single-node CBA visualisation gets accepted.
+- id: discounted_benefits  # TODO Remove this if the single-node CBA visualisation gets accepted.
   name: Discounted benefits
   type: simple.AdditiveNode
   quantity: currency

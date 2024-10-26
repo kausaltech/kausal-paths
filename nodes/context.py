@@ -158,6 +158,8 @@ class Context:
         if ds is None:
             if not self.dataset_repo.has_dataset(ds_id):
                 raise Exception('Dataset %s not found in DVC repo' % ds_id)
+            if not self.dataset_repo.is_dataset_cached(ds_id):
+                self.load_all_dvc_datasets()
             with self.tracer.start_as_current_span('load dataset: %s' % ds_id):
                 ds = self.dataset_repo.load_dataset(ds_id)
             self.dvc_datasets[ds_id] = ds

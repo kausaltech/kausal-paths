@@ -2,9 +2,11 @@ emission_sectors:
 - id: consumer_electricity_emissions
   name: Kulutussähkön päästöt
   part_of: net_emissions
+  color: '#7fc97f'
 - id: building_heating_emissions
   name: Rakennusten lämmityksen päästöt
   part_of: net_emissions
+  color: '#beaed4'
 - id: electric_heating_emissions
   name: Rakennusten sähkölämmityksen päästöt
   part_of: building_heating_emissions
@@ -29,6 +31,7 @@ emission_sectors:
 - id: transport_emissions
   name: Liikenteen päästöt
   part_of: net_emissions
+  color: '#fdc086'
 - id: road_transport_emissions
   name: Tieliikenteen päästöt
   part_of: transport_emissions
@@ -62,12 +65,15 @@ emission_sectors:
 - id: industry_emissions
   name: Teollisuuden polttoaineenkulutuksen päästöt
   part_of: net_emissions
+  color: '#ffff99'
 - id: machinery_emissions
   name: Työkoneiden päästöt
   part_of: net_emissions
+  color: '#386cb0'
 - id: agriculture_emissions
   name: Maatalouden päästöt
   part_of: net_emissions
+  color: '#f0027f'
 - id: agricultural_field_emissions
   name: Peltoviljelyn päästöt
   part_of: agriculture_emissions
@@ -77,6 +83,7 @@ emission_sectors:
 - id: waste_treatment_emissions
   name: Jätteiden käsittelyn päästöt
   part_of: net_emissions
+  color: '#bf5b17'
 - id: waste_landfill_emissions
   name: Kaatopaikkojen päästöt
   part_of: waste_treatment_emissions
@@ -92,6 +99,7 @@ emission_sectors:
 - id: f_gases_emissions
   name: F-kaasujen päästöt
   part_of: net_emissions
+  color: '#666666'
 
 nodes:
 - id: consumer_electricity_residence_emissions
@@ -758,6 +766,7 @@ nodes:
 - id: wind_power_compensation
   name: Tuulivoimakompensaatio
   output_nodes: [net_emissions]
+  color: '#7570b3'
   params:
     sector: Kompensaatiot|Kompensaatiot|Tuulivoima|Tuulivoima|Tuulivoima+HINKU
   input_nodes: [all_alas_emissions]
