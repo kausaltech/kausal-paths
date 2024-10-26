@@ -24,7 +24,7 @@ from yaml import safe_load as yaml_load
 
 from common import base32_crockford
 from common.i18n import I18nBaseModel, TranslatedString, gettext_lazy as _, set_default_language
-from nodes.actions.action import ActionEfficiencyPair, ActionGroup, ActionNode
+from nodes.actions.action import ImpactOverview, ActionGroup, ActionNode
 from nodes.constants import DecisionLevel
 from nodes.exceptions import NodeError
 from nodes.node import Edge, Node, NodeMetric
@@ -313,6 +313,7 @@ class InstanceLoader:
     yaml_file_path: Path | None = None
     config: CommentedMap | dict
     fw_config: FrameworkConfig | None = None
+    context: Context
     _input_nodes: dict[str, list[dict | str]]
     _output_nodes: dict[str, list[dict | str]]
     _subactions: dict[str, list[str]]
@@ -778,29 +779,28 @@ class InstanceLoader:
             param.set(param_val)
             context.add_global_parameter(param)
 
-    def setup_action_efficiency_pairs(self):
-        # TODO add an ID so that there can be several impact overviews for different decision makers.
-        conf = self.config.get('action_efficiency_pairs', [])
-        for aepc in conf:
-            label = self.make_trans_string(aepc, 'label', pop=False)
-            aep = ActionEfficiencyPair.from_config(
+    def setup_impact_overviews(self):  # TODO add an ID so that there can be several impact overviews for different decision makers.
+        conf = self.config.get('impact_overviews', [])
+        for ioc in conf:
+            label = self.make_trans_string(ioc, 'label', pop=False)
+            io = ImpactOverview.from_config(
                 context=self.context,
-                graph_type=aepc['graph_type'],
-                cost_node_id=aepc['cost_node'],
-                impact_node_id=aepc['impact_node'],
-                cost_unit=aepc['cost_unit'],
-                impact_unit=aepc['impact_unit'],
-                indicator_unit=aepc.get('indicator_unit', None),
-                plot_limit_for_indicator=aepc.get('plot_limit_for_indicator', None),
-                invert_cost=aepc.get('invert_cost', False),
-                invert_impact=aepc.get('invert_impact', False),
-                indicator_cutpoint=aepc.get('indicator_cutpoint', None),
-                cost_cutpoint=aepc.get('cost_cutpoint', None),  # TODO Make these parameters.
-                stakeholder_dimension=aepc.get('stakeholder_dimension', None),
-                outcome_dimension=aepc.get('outcome_dimension', None),
+                graph_type=ioc['graph_type'],
+                cost_node_id=ioc['cost_node'],
+                impact_node_id=ioc.get('impact_node', None),
+                cost_unit=ioc['cost_unit'],
+                impact_unit=ioc.get('impact_unit', None),
+                indicator_unit=ioc.get('indicator_unit', None),
+                plot_limit_for_indicator=ioc.get('plot_limit_for_indicator', None),
+                invert_cost=ioc.get('invert_cost', False),
+                invert_impact=ioc.get('invert_impact', False),
+                indicator_cutpoint=ioc.get('indicator_cutpoint', None),
+                cost_cutpoint=ioc.get('cost_cutpoint', None),  # TODO Make these parameters.
+                stakeholder_dimension=ioc.get('stakeholder_dimension', None),
+                outcome_dimension=ioc.get('outcome_dimension', None),
                 label=label,
             )
-            self.context.action_efficiency_pairs.append(aep)
+            self.context.impact_overviews.append(io)
 
     def setup_normalizations(self):
         ncs = self.config.get('normalizations', [])
@@ -916,9 +916,11 @@ class InstanceLoader:
 
         target_year = self.config['target_year']
         model_end_year = self.config.get('model_end_year', target_year)
+        sample_size = self.config.get('sample_size', 0)
         self.context = Context(
             instance=self.instance, dataset_repo=dataset_repo, target_year=target_year,
             model_end_year=model_end_year, dataset_repo_default_path=dataset_repo_default_path,
+            sample_size=sample_size,
         )
         self.instance.set_context(self.context)
 
@@ -933,7 +935,7 @@ class InstanceLoader:
         self.setup_nodes()
         self.setup_actions()
         self.setup_edges()
-        self.setup_action_efficiency_pairs()
+        self.setup_impact_overviews()
         self.setup_scenarios()
         self.setup_normalizations()
 

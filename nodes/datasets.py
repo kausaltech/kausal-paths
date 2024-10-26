@@ -3,21 +3,26 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import re
 import uuid
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, cast
 
+import numpy as np
 import orjson
 import pandas as pd
 import pint_pandas
 import polars as pl
+from numpy.random import default_rng  # TODO Could call Generator to give hints about rng attributes but requires code change
 
-from common import polars as ppl
+import common.polars as ppl
 from nodes.units import Unit
 
-from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from .constants import FORECAST_COLUMN, UNCERTAINTY_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from .context import Context
 
 # Use the pyarrow parquet engine because it's faster to start.
@@ -31,11 +36,13 @@ class Dataset:
     interpolate: bool = field(init=False)
     df: ppl.PathsDataFrame | None = field(init=False)
     hash: bytes | None = field(init=False)
+    rng: Callable = field(init=False)
 
     def __post_init__(self):
         self.df = None
         self.hash = None
         self.interpolate = False
+        self.rng = default_rng() # type: ignore
         if getattr(self, 'unit', None) is None:
             self.unit = None
 
@@ -83,6 +90,126 @@ class Dataset:
 
     def get_unit(self, context: Context) -> Unit:
         raise NotImplementedError()
+
+    def interpret(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
+        size = context.sample_size
+        cols = []
+        for col in df.columns:
+            if (col not in [FORECAST_COLUMN, 'Unit', 'UUID'] + df.primary_keys and
+                isinstance(df[col].dtype, pl.String)):
+                cols += [col]
+        if size == 0 or len(cols) == 0:
+            # TODO Whether too use uncertainties depends on the node
+            # df = df.with_columns(pl.lit('median').cast(pl.Categorical).alias(UNCERTAINTY_COLUMN))
+            return df
+
+        meta = df.get_meta()
+        meta.primary_keys += [UNCERTAINTY_COLUMN]
+        df = df.with_columns(pl.arange(0, len(df)).alias('row_index'))
+
+        out = None
+        for col in cols:
+            dfc = pl.DataFrame()
+            for i in range(len(df)):
+                dist_string = df[col][i]
+                s = self.get_sample(dist_string, size)
+                median_value = np.median(s)
+                dfi = pl.DataFrame({
+                    'row_index': [i] * (size + 1),
+                    UNCERTAINTY_COLUMN: ['median'] + [str(num) for num in range(size)],
+                    col: [median_value] + list(s),
+                })
+                dfi = dfi.with_columns(pl.col('row_index').cast(pl.Int64))
+                dfc = pl.concat([dfc, dfi])
+            if out is None:
+                out = dfc
+            else:
+                out = out.join(dfc, how='inner', on=['row_index', UNCERTAINTY_COLUMN])
+
+        df = df.drop(cols)
+        df = df.join(out, how='inner', on='row_index').drop('row_index') # type: ignore
+        df = ppl.to_ppdf(df, meta=meta)
+        df = df.with_columns(pl.col(UNCERTAINTY_COLUMN).cast(pl.Categorical))
+        return df
+
+    def loguniform(self, match, size) -> list:
+        low = np.log(float(match.group(1)))
+        high = np.log(float(match.group(2)))
+        return np.exp(self.rng.uniform(low, high, size)).tolist() # type: ignore
+    def uniform(self, match, size) -> list:
+        low = float(match.group(1))
+        high = float(match.group(2))
+        return self.rng.uniform(low, high, size).tolist() # type: ignore
+    def lognormal_plusminus(self, match, size) -> list:
+        mean_lognormal = float(match.group(1))
+        std_lognormal = float(match.group(2))
+        sigma = np.sqrt(np.log(1 + (std_lognormal ** 2) / (mean_lognormal ** 2)))
+        mu = np.log(mean_lognormal) - (sigma ** 2) / 2
+        return self.rng.lognormal(mu, sigma, size).tolist() # type: ignore
+    def normal_plusminus(self, match, size) -> list:
+        loc = float(match.group(1))
+        scale = float(match.group(2))
+        return self.rng.normal(loc, scale, size).tolist() # type: ignore
+    def normal_interval(self, match, size) -> list:
+        loc = float(match.group(1))
+        lower = float(match.group(2))
+        upper = float(match.group(3))
+        scale = (upper - lower) / 2 / 1.959963984540054
+        return self.rng.normal(loc, scale, size).tolist() # type: ignore
+    def beta(self, match, size) -> list:
+        a = float(match.group(1))
+        b = float(match.group(2))
+        return self.rng.beta(a, b, size).tolist() # type: ignore
+    def poisson(self, match, size) -> list:
+        lam = float(match.group(1))
+        s = self.rng.poisson(lam, size).tolist() # type: ignore
+        return [float(v) for v in s]
+    def exponential(self, match, size) -> list:
+        mean = float(match.group(1))
+        return self.rng.exponential(scale=mean, size=size).tolist() # type: ignore
+    def problist(self, match, size) -> list:
+        s = match.group(1)
+        s = [float(x) for x in s.split(',')]
+        return self.rng.choice(s, size, replace=True).tolist() # type: ignore
+    def scalar(self, match, size) -> list:
+        value = float(match.group(1))
+        return [value] * size
+
+    def get_sample(self, dist_string: str, size: int) -> list:
+        expressions = {
+            'Loguniform': r'([-+]?\d*\.?\d+)-([-+]?\d*\.?\d+)\(log\)',  # low - high (log)
+            'Uniform': r'([-+]?\d*\.?\d+)-([-+]?\d*\.?\d+)',  # low - high
+            'Lognormal_plusminus': r'([-+]?\d*\.?\d+)(?:\+-|±)([-+]?\d*\.?\d+)\(log\)',  # mean +- sd (log)
+            'Normal_plusminus': r'([-+]?\d*\.?\d+)(?:\+-|±)([-+]?\d*\.?\d+)',  # mean + sd
+            'Normal_interval': r'([-+]?\d*\.?\d+)\(([-+]?\d*\.?\d+),([-+]?\d*\.?\d+)\)',  # mean (lower - upper) for 95 % CI
+            'Beta': r'(?i)beta\(([-+]?\d*\.?\d+),([-+]?\d*\.?\d+)\)',  # Beta(a, b)
+            'Poisson': r'(?i)poisson\(([-+]?\d*\.?\d+)\)',  # Poisson(lambda)
+            'Exponential': r'(?i)exponential\(([-+]?\d*\.?\d+)\)',  # Exponential(mean)
+            'Problist': r'\[(\-?\d+(\.\d+)?(,\-?\d+(\.\d+)?)*)\]',  # [x1, x2, ... , xn]
+            'Scalar': r'([-+]?\d*\.?\d+)',  # value
+        }
+        functions = {
+            'Loguniform': self.loguniform,
+            'Uniform': self.uniform,
+            'Lognormal_plusminus': self.lognormal_plusminus,
+            'Normal_plusminus': self.normal_plusminus,
+            'Normal_interval': self.normal_interval,
+            'Beta': self.beta,
+            'Poisson': self.poisson,
+            'Exponential': self.exponential,
+            'Problist': self.problist,
+            'Scalar': self.scalar,
+        }
+
+        dist_string = dist_string.replace(' ', '')
+        for key, regex in expressions.items():  # noqa: B007
+            match = re.search(regex, dist_string)
+            if match:
+                break
+        else:
+            raise LookupError(self, f"String '{dist_string}' does not match any distribution.")
+        s = functions[key](match, size)
+        return s
 
 
 @dataclass
@@ -235,6 +362,7 @@ class DVCDataset(Dataset):
 
         df = self._process_output(df)
         df = self.post_process(df)
+        df = self.interpret(df, context)
         if cache_key:
             context.cache.set(cache_key, df, no_expiry=True)
 
@@ -289,14 +417,18 @@ class FixedDataset(Dataset):
     def __post_init__(self):
         super().__post_init__()
 
+        fdf = None
+        hdf = None
+
         if self.use_interpolation:
             self.interpolate = True
 
         if self.historical:
             hdf = pd.DataFrame(self.historical, columns=[YEAR_COLUMN, VALUE_COLUMN])
             hdf[FORECAST_COLUMN] = False
+            hdfi = True
         else:
-            hdf = None
+            hdfi = False
 
         if self.forecast:
             if isinstance(self.forecast[0], dict):
@@ -304,31 +436,36 @@ class FixedDataset(Dataset):
             else:
                 fdf = pd.DataFrame(self.forecast, columns=[YEAR_COLUMN, VALUE_COLUMN])
             fdf[FORECAST_COLUMN] = True
+            fdfi = True
         else:
-            fdf = None
+            fdfi = False
 
         df: pd.DataFrame | None
-        if hdf is not None and fdf is not None:
-            df = pd.concat([hdf, fdf])
-        elif hdf is not None:
-            df = hdf
+        if hdfi and fdfi:
+            dfp = pd.concat([hdf, fdf])
+        elif hdfi:
+            dfp = hdf
         else:
-            df = fdf
+            dfp = fdf
 
-        assert df is not None, "Both historical and forecast data are None"
-        df = df.set_index(YEAR_COLUMN)
+        assert dfp is not None, "Both historical and forecast data are None"
+        dfp = dfp.set_index(YEAR_COLUMN)
 
         # Ensure value column has right units
-        pt = pint_pandas.PintType(self.unit)
+        df = ppl.from_pandas(dfp)
         for col in df.columns:
-            if col == FORECAST_COLUMN:
+            if col == FORECAST_COLUMN or col in df.primary_keys:
                 continue
-            df[col] = df[col].astype(float).astype(pt)
-
-        self.df = self.post_process(ppl.from_pandas(df))
+            # df[col] = df[col].astype(float).astype(pt)  # FIXME Find out what happens in the outcommented parts.
+            df = df.set_unit(col, self.unit)
+        self.df = self.post_process(df)
+        # self.df = self.post_process(ppl.from_pandas(df))
 
     def load(self, context: Context) -> ppl.PathsDataFrame:
-        assert self.df is not None
+        df = self.df
+        assert df is not None
+        df = self.interpret(df, context)
+        self.df = df
         return self.df
 
     def hash_data(self, context: Context) -> dict[str, Any]:
