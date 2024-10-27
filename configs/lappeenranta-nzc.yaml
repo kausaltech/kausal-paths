@@ -7,7 +7,8 @@ dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   dvc_remote: kausal-s3
   # commit: 772bb24d5a5a01ab2aa8b69bb33efec594f0ac8a # Lappeenranta-specific dataset
-  commit: 772bb24d5a5a01ab2aa8b69bb33efec594f0ac8a # Lappeenranta-specific probabilistic dataset
+  # commit: 4a9b9c0159a17b49c94bb72c265204fe76f3fc57 # Lappeenranta-specific probabilistic dataset
+  commit: 772bb24d5a5a01ab2aa8b69bb33efec594f0ac8a
 theme_identifier: lpr-ilmasto
 name: Lappeenrannan missiokaupungin ilmasto-ohjelma 2030
 name_en: Lappeenranta Mission City Climate Action Plan 2030
@@ -23,8 +24,8 @@ emission_dimensions: [scope, ghg, sector]
 features:
   baseline_visible_in_graphs: true
   show_significant_digits: 4
-  maximum_fraction_digits: 0
-  hide_node_details: true
+  maximum_fraction_digits: 2
+  hide_node_details: false
 
 params:
 - id: municipality_name
@@ -127,11 +128,13 @@ dimensions:
   - id: physical_activity
     label: Fyysinen aktiivisuus
   - id: air_pollution
-    label: Ilmansaasteet
+    label: Ilmansaastealtistus liikenteessä
   - id: crash_risk
     label: Liikenneonnettomuus
   - id: carbon_emissions
     label: Hiilidioksidipäästöt
+  - id: nzp_response
+    label: NZP-vaste
 
 - id: emission_height
   label_fi: Päästökorkeus
@@ -178,37 +181,6 @@ dimensions:
     label_en: PM10
   - id: pm10_combustion
     label: PM10 combustion
-    # aliases: [pm10]
-  - id: dioxin
-    label_fi: Dioksiini
-    label_en: Dioxin
-  - id: omega3
-    label_fi: Omega-3
-    label_en: Omega 3
-  - id: vitamin_d
-    label_fi: D-vitamiini
-    label_en: Vitamin D
-  - id: campylobacter
-    label_fi: Kampylobakteeri
-    label_en: Campylobacter
-  - id: rotavirus
-    label_fi: Rotavirus
-    label_en: Rotavirus
-  - id: norovirus
-    label_fi: Norovirus
-    label_en: Norovirus
-  - id: sapovirus
-    label_fi: Sapovirus
-    label_en: Sapovirus
-  - id: cryptosporidium
-    label_fi: Cryptosporidium
-    label_en: Cryptosporidium
-  - id: e_coli
-    label_fi: E. coli
-    label_en: E. coli
-  - id: giardia
-    label_fi: Giardia
-    label_en: Giardia
   - id: walking
     label_fi: Kävely
     label_en: Walking
@@ -569,7 +541,8 @@ nodes:
   historical_values: [[2018, 0.0], [2023, 0.0]]
 
 - id: population
-  name: Population
+  name_fi: Väestön koko Lappeenrannassa
+  name_en: Population size in Lappeenranta
   type: gpc.DatasetNode
   quantity: population
   unit: cap
@@ -581,7 +554,8 @@ nodes:
     sector: Population
 
 - id: population_growth
-  name: Population growth
+  name_fi: Väestön kasvunopeus
+  name_en: Population growth
   type: gpc.DatasetNode
   quantity: rate
   unit: '%/a'
@@ -606,7 +580,8 @@ nodes:
 # ------------- Jobs -----------------
 
 - id: total_jobs_created
-  name: Total jobs created
+  name_fi: Syntyneiden työpaikkojen määrä
+  name_En: Total jobs created
   type: simple.AdditiveNode
   quantity: employment
   unit: jobs
@@ -614,6 +589,7 @@ nodes:
 # ------------- Costs ----------------
 
 - id: co2_unit_price
+  name_fi: Hiilidioksidin yksikköhinta
   name: CO2 unit price
   type: gpc.DatasetNode
   quantity: unit_price
@@ -625,7 +601,8 @@ nodes:
     sector: Value of CO2 reduction
 
 - id: co2_emissions_cost
-  name: CO2 emissions cost
+  name_fi: CO2-päästön kustannus
+  name_en: CO2 emissions cost
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -653,7 +630,8 @@ nodes:
   - id: total_cost
 
 - id: total_cost
-  name: Total cost
+  name_fi: Kokonaiskustannus
+  name_en: Total cost
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
@@ -661,7 +639,8 @@ nodes:
   output_dimensions: [stakeholder, cost_type]
 
 - id: aggregated_cost_types
-  name: Aggregated cost types
+  name_fi: Yhdistetyt kustannuslajit
+  name_en: Aggregated cost types
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -672,7 +651,8 @@ nodes:
     sector: Aggregated cost types
 
 - id: aggregated_cost
-  name: Aggregated cost
+  name_fi: Yhdistetyt kustannukset
+  name_en: Aggregated cost
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -690,7 +670,8 @@ nodes:
     - id: aggregated_cost_type
 
 - id: discounted_cost
-  name: Discounted cost
+  name_fi: Diskontatut kustannukset
+  name_en: Discounted cost
   type: costs.ExponentialNode
   quantity: currency
   unit: MEUR/a
@@ -705,7 +686,8 @@ nodes:
     value: true
 
 - id: discounted_total_cost
-  name: Discounted total cost
+  name_fi: Diskontatut kokonaisukustannukset
+  name_en: Discounted total cost
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
@@ -720,7 +702,8 @@ nodes:
       flatten: true
 
 - id: discounted_investment
-  name: Discounted investment
+  name_fi: Diskontatut sijoitukset
+  name_en: Discounted investment
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
@@ -737,7 +720,8 @@ nodes:
     - id: cost_type
 
 - id: discounted_benefits  # TODO Remove this if the single-node CBA visualisation gets accepted.
-  name: Discounted benefits
+  name_fi: Diskontatut hyödyt
+  name_en: Discounted benefits
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
@@ -756,11 +740,11 @@ nodes:
 
 # ------------ Lappeenranta-specific nodes -----------
 
-- id: road_transport_emissions2
+- id: road_transport_emissions_intermediate
   name_fi: Tieliikenteen CO2-päästöt
   name_en: CO2 emissions from road transport
-  description_fi: Välisolmu päämallin ja ilmansaastemoduulin välissä
-  description_en: Intermediate node between the main model and the air pollution module
+  description_fi: Päämallin ja terveysmoduulin välissä oleva välisolmu, jossa summataan pois terveysmallissa tarpeettomat ulottuvuudet.
+  description_en: Intermediate node between the main model and the health module. Unnecessary dimensions are summed up here.
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -791,15 +775,27 @@ nodes:
     tags: [non_additive]
     to_dimensions: []
 
-- id: district_heating_emissions2
+- id: district_heating_emissions_intermediate
   name_fi: Kaukolämmön CO2-päästöt
   name_en: CO2 emissions from district heating
-  description_fi: Välisolmu päämallin ja ilmansaastemoduulin välillä
-  description_en: Intermediate node between the main model and the air pollution module
+  description_fi: Päämallin ja terveysmoduulin välissä oleva välisolmu, jossa summataan pois terveysmallissa tarpeettomat ulottuvuudet.
+  description_en: Intermediate node between the main model and the health module. Unnecessary dimensions are summed up here.
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-#  input_nodes: [district_heating_emissions]
+  input_nodes:
+  - id: building_heating_emissions
+    from_dimensions:
+    - id: heating_type
+      categories: [district_heating]
+      flatten: true
+    - id: fuel_type
+      flatten: true
+    - id: pollutant
+      categories: [co2]
+      flatten: true
+    - id: scope
+      flatten: true
   historical_values: [[2020, 0]]
   output_nodes:
   - id: fossil_plant_air_pollution_emissions
@@ -813,19 +809,17 @@ nodes:
   unit: passenger
   historical_values: [[2010, 1.0], [2023, 1.0]]
 
-- id: amount_of_active_mobility
-  name: Aktiivisen liikkumisen määrä
-  description: TODO Epäuskottavan suueia arvoja
+- id: amount_of_active_mobility_by_nzc
+  name: Aktiivisen liikkumisen määrä NZP:n mukaan
+  description_fi: Aktiivisen liikkumisen tiedot, jotka perustuvat NetZeroPlanner-mallilla tuotettuun dataan. Katso myös solmu Aktiivisen liikkumisen määrä HLT:n mukaan.
   type: simple.MultiplicativeNode
   quantity: exposure
-  unit: min/cap/d
+  unit: km/cap/d
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_nodes:
   - id: passenger_kilometres
-  - id: average_walking_speed
-    tags: [geometric_inverse]
-    to_dimensions:
+    from_dimensions:
     - id: transport_mode
       categories: [walking]
   - id: population
@@ -834,43 +828,10 @@ nodes:
   - id: active_mobility_conversion
     tags: [geometric_inverse]
     to_dimensions: []
+  output_nodes:
+  - id: active_mobility_combined
 
-- id: average_walking_speed  # TODO Put to dataset
-  name: Average walking speed
-  type: simple.AdditiveNode
-  quantity: speed
-  unit: km/h
-  historical_values: [[2020, 4.0]]
-
-- id: health_factor_of_active_mobility
-  name: Aktiivisen liikkumisen terveyskerroin
-  description: WHO:n HEAT-mallia käytettiin tuottamaan Lappeenrannalle räätälöity
-    arvio terveysvaikutusten suuruudesta aktiivisen liikkumisen suhteen. Kerroin ilmoitetaan
-    aktiiviseen liikkumiseen käytettynä aikana aikuisväestössä. Kävalun osalta tarkastellaan
-    20 - 79 -vuotiaita, pyöräilyn osalta 20 - 64 -vuotiaita.  # FIXME CHEXK AGES
-  type: gpc.DatasetNode
-  quantity: exposure_response
-  unit: incident/a/(min/d/person)
-  input_dimensions: [response, transport_mode]
-  output_dimensions: [response, transport_mode]
-  input_datasets: [hia/heat/lappeenranta_heat]
-  params:
-    sector: health_factor_of_active_mobility
-
-- id: health_effect_of_active_mobility
-  name: Aktiivisen liikkumisen terveysvaikutus
-  type: simple.MultiplicativeNode
-  quantity: health_effect
-  unit: cases/a
-  input_dimensions: [response, transport_mode]
-  output_dimensions: [response, transport_mode]
-  input_nodes:
-  - id: health_factor_of_active_mobility
-  - id: amount_of_active_mobility
-    to_dimensions:
-    - id: transport_mode
-
-- id: carbon_factor_of_active_mobility
+- id: carbon_factor_of_active_mobility  # TODO Find out where this came for and what these emissions are
   name: Aktiivisen liikkumisen päästökerroin
   type: gpc.DatasetNode
   quantity: emission_factor
@@ -881,73 +842,18 @@ nodes:
   params:
     sector: carbon_factor_of_active_mobility
 
-- id: emissions_of_active_mobility
-  name: Aktiivisen liikkumisen päästöt
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [transport_mode, response]
-  output_dimensions: [transport_mode, response]
-  input_nodes:
-  - id: carbon_factor_of_active_mobility
-  - id: amount_of_active_mobility
-    to_dimensions:
-    - id: transport_mode
-
-- id: discount_rate
-  name: Diskonttokorko
-  type: gpc.DatasetNode
-  quantity: rate
-  unit: '%/a'
-  input_datasets: [hia/heat/lappeenranta_heat]
-  params:
-    sector: discount_rate
-
-- id: value_of_statistical_life
-  name: Kuolemanriskin tilastollinen hinta
-  type: gpc.DatasetNode
-  quantity: unit_price
-  unit: EUR/case
-  input_datasets: [hia/heat/lappeenranta_heat]
-  params:
-    sector: value_of_statistical_life
-
-- id: active_mobility_costs
-  name: Aktiivisen liikkumisen terveyskustannukset
-  type: simple.MultiplicativeNode
-  quantity: consumption
-  unit: MEUR/a
-  input_dimensions: [transport_mode, response]
-  output_dimensions: [transport_mode, response]
-  input_nodes:
-  - id: health_effect_of_active_mobility
-  - id: value_of_statistical_life
-    to_dimensions: []
-    tags: [arithmetic_inverse]
-
-- id: discounted_active_mobility_costs
-  name: Diskontatut aktiivisen liikkumisen terveyskustannukset
-  type: costs.ExponentialNode
-  quantity: consumption
-  unit: MEUR/a
-  input_dimensions: [transport_mode, response]
-  output_dimensions: [transport_mode, response]
-  input_nodes:
-  - id: active_mobility_costs
-  params:
-  - id: annual_change
-    ref: discount_rate
-  - id: is_decreasing_rate
-    value: true
-
-# - id: co2_unit_price
-#   name: Hiilidioksidin hinta
-#   type: gpc.DatasetNode
-#   quantity: unit_price
-#   unit: EUR/t
-#   input_datasets: [hia/heat/lappeenranta_heat]
-#   params:
-#     sector: co2_unit_price
+# - id: emissions_of_active_mobility
+#   name: Aktiivisen liikkumisen päästöt
+#   type: simple.MultiplicativeNode
+#   quantity: emissions
+#   unit: kt/a
+#   input_dimensions: [transport_mode, response]
+#   output_dimensions: [transport_mode, response]
+#   input_nodes:
+#   - id: carbon_factor_of_active_mobility
+#   - id: amount_of_active_mobility
+#     to_dimensions:
+#     - id: transport_mode
 
 # ----------------------- Active mobility ------------------
 
@@ -963,8 +869,22 @@ nodes:
   params:
     sector: Population groups
 
+- id: population_group_shares
+  name: Väestöryhmien suhteet
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [age]
+  output_dimensions: [age]
+  input_nodes:
+  - id: population_group_sizes
+  params:
+    share_dimension: age
+    use_input_node_unit_when_adding: true
+
 - id: active_mover_fraction
-  name: Active mover fraction
+  name_fi: Aktiivisten liikkujien osuus ikäryhmästä
+  name_en: Active mover fraction in each age group
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -976,10 +896,12 @@ nodes:
     sector: Fraction of movers
 
 - id: active_mover_distance
-  name: Active mover distance
+  name_fi: Aktiivisen liikkumisen määrä HLT:n mukaan
+  name_en: Active mover distance
+  description_fi: Aktiivisen liikkumisen määränä käytetään aktiivisten liikkujien keskimääräistä suomalaista arvoa, joka on saatu Henkilöliikennetutkimuksesta 2016. Laskenta on Lehtomäen työryhmän (2021) mukainen.<h3>Viitteet</h3>Heli Lehtomäki ym. 2021. Liikenteen terveysvaikutukset Suomessa ja suurimmissa kaupungeissa. Suomen ympäristökeskuksen raportteja 16 / 2021.
   type: gpc.DatasetNode
   quantity: mileage
-  unit: km/cap/d
+  unit: km/person/d
   input_dimensions: [age, transport_mode]
   output_dimensions: [age, transport_mode]
   input_datasets:
@@ -987,9 +909,10 @@ nodes:
   params:
     sector: Moving distance
 
-- id: active_mobility2
-  name: Aktiivisen liikkumisen määrä ryhmissä
-  description: Tämä solmu kuvaa kyseisen väestöryhmän osuutta liikkumisesta. Summaamalla
+- id: active_mobility_by_hlt
+  name_fi: Aktiivisen liikkumisen määrä ikäryhmissä
+  name_en: Average active mobility in age groups
+  description_fi: Tämä solmu kuvaa kyseisen väestöryhmän osuutta koko väestön liikkumisesta. Summaamalla
     osaväestöt yhteen saadaan koko väestön keskimääräinen liikkuminen.
   type: simple.MultiplicativeNode
   quantity: mileage
@@ -1000,16 +923,84 @@ nodes:
   - id: active_mover_fraction
   - id: active_mover_distance
     tags: [non_additive]
-  # - id: population_group_shares
-  #   to_dimensions:
-  #   - id: age
+  - id: population_group_shares
+    to_dimensions:
+    - id: age
   output_nodes:
-  - id: active_mobility
+  - id: active_mobility_combined
     from_dimensions:
     - id: age
       flatten: true
     to_dimensions:
     - id: transport_mode
+
+- id: active_mobility_combined
+  name_fi: Aktiivisen liikkumisen yhdistelmä
+  name_en: Combined active mobility
+  description_fi: 'Tässä on yhdistetty kaksi tietolähdettä: toisaalta NetZeroCities-raportointi ja toisaalta Henkilöliikennetutkimus 2016. Tästä eteenpäin käytetään näiden lähteiden keskiarvoa.'
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: km/person/d
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+
+- id: active_mobility_average
+  name_fi: Aktiivisen liikkumisen keskiarvo
+  name_en: Average active mobility
+  description_fi: 'Tässä on yhdistetty kaksi tietolähdettä: toisaalta NetZeroCities-raportointi ja toisaalta Henkilöliikennetutkimus 2016. Tämä on näiden lähteiden keskiarvoa. Tämä solmu toimii myös välisolmuna terveysvaikutusmalliin.'
+  type: simple.FixedMultiplierNode
+  quantity: mileage
+  unit: km/person/d
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes: [active_mobility_combined]
+  output_nodes:
+  - id: active_mobility_distance
+  params:
+  - id: multiplier
+    value: 0.5
+    unit: dimensionless
+
+# ------------- Effects from the other parts of the NZC model ---------
+
+- id: other_health_effects_from_nzc
+  name_fi: Muita terveysvaikutuksia NZC-mallista
+  name_en: Other health effects from the NZC model
+  description_fi: Lappeenrannan mallin pohjana oleva NetZeroPlanner laskee myös joitakin terveyskustnnuksia liikenteelle. Nämä ovat osittain päällekkäisiä THL:n mallin kanssa (pienhiukkaskuolemat) ja osittain WHO/HEATin kanssa (liikenneonnettomuudet). On siis syytä olla tarkkana näiden kanssa. Ne on kuitenkin toistaiseksi nostettu tänne vertailua varten.
+  description_en: Other health impacts from the NetZeroPlanner model.
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, transport_mode]
+  output_dimensions: [cost_type, transport_mode]
+  input_nodes:
+  - id: transport_noise_cost
+    from_dimensions:
+    - id: stakeholder
+      flatten: true
+  - id: transport_accident_cost
+    from_dimensions:
+    - id: stakeholder
+      flatten: true
+  - id: transport_air_pollution_costs
+    from_dimensions:
+    - id: stakeholder
+      flatten: true
+    - id: pollutant
+      flatten: true
+  - id: walking_cycling_co_benefit
+    from_dimensions:
+    - id: stakeholder
+      flatten: true
+  output_nodes:
+  - id: health_costs_attributed_to_exposure
+    to_dimensions:
+    - id: cost_type
+    - id: response
+      categories: [nzp_response]
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
 
 actions:  # TODO It would be nice to have multiplier parameter in the DatasetAction class.
 

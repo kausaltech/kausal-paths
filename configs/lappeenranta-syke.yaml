@@ -71,36 +71,6 @@ dimensions:
     label_en: PM10
   - id: pm10_combustion
     label: PM10 combustion
-  - id: dioxin
-    label_fi: Dioksiini
-    label_en: Dioxin
-  - id: omega3
-    label_fi: Omega-3
-    label_en: Omega 3
-  - id: vitamin_d
-    label_fi: D-vitamiini
-    label_en: Vitamin D
-  - id: campylobacter
-    label_fi: Kampylobakteeri
-    label_en: Campylobacter
-  - id: rotavirus
-    label_fi: Rotavirus
-    label_en: Rotavirus
-  - id: norovirus
-    label_fi: Norovirus
-    label_en: Norovirus
-  - id: sapovirus
-    label_fi: Sapovirus
-    label_en: Sapovirus
-  - id: cryptosporidium
-    label_fi: Cryptosporidium
-    label_en: Cryptosporidium
-  - id: e_coli
-    label_fi: E. coli
-    label_en: E. coli
-  - id: giardia
-    label_fi: Giardia
-    label_en: Giardia
   - id: walking
     label_fi: Kävely
     label_en: Walking
@@ -212,6 +182,35 @@ dimensions:
     label: 80-99
     aliases: ['8099']
 
+- id: cost_type
+  label: Cost Type
+  categories:
+  - id: energy_costs
+    label: Energy Costs
+  - id: investment_costs
+    label: Investment Costs
+  - id: capex
+    label: CAPEX (capital expenditure)
+  - id: capex_levelised
+    label: CAPEX (levelised)
+  - id: opex
+    label: OPEX (operational expenditure)
+    aliases: [operation_cost, Operation Cost]
+  - id: maintenance_costs
+    label: Maintenance Costs
+    aliases: [maintenance]
+  - id: sales
+    label: Sales income
+  - id: air_pollution
+    label: Air pollution
+    aliases: [air_quality]
+  - id: noise
+    label: Noise
+  - id: accidents
+    label: Accidents
+  - id: health
+    label: Health
+
 emission_sectors:
 
 - id: net_emissions
@@ -240,7 +239,7 @@ nodes:
   type: finland.syke.AlasNode
   name: SYKE:n ALaS-päästöinventaario
 
-- id: road_transport_emissions2
+- id: road_transport_emissions_intermediate
   name_fi: Tieliikenteen CO2-päästöt
   name_en: CO2 emissions from road transport
   description_fi: Välisolmu Syke-päämallin ja terveysvaikutusmoduulin välissä
@@ -254,7 +253,7 @@ nodes:
     tags: [non_additive]
     to_dimensions: []
 
-- id: district_heating_emissions2
+- id: district_heating_emissions_intermediate
   name_fi: Kaukolämmön CO2-päästöt
   name_en: CO2 emissions from district heating
   description_fi: Välisolmu Syke-päämallin ja terveysvaikutusmoduulin välillä
@@ -288,18 +287,9 @@ nodes:
   output_dimensions: [transport_mode, response]
   input_nodes:
   - id: carbon_factor_of_active_mobility
-  - id: amount_of_active_mobility
+  - id: active_mobility_duration
     to_dimensions:
     - id: transport_mode
-
-- id: discount_rate
-  name: Diskonttokorko
-  type: gpc.DatasetNode
-  quantity: rate
-  unit: '%/a'
-  input_datasets: [hia/heat/lappeenranta_heat]
-  params:
-    sector: discount_rate
 
 - id: co2_unit_price
   name: Hiilidioksidin hinta
@@ -361,7 +351,7 @@ nodes:
   params:
     sector: Moving distance
 
-- id: active_mobility2
+- id: active_mobility
   name: Aktiivisen liikkumisen määrä ryhmissä
   description: Tämä solmu kuvaa kyseisen väestöryhmän osuutta liikkumisesta. Summaamalla
     osaväestöt yhteen saadaan koko väestön keskimääräinen liikkuminen.
@@ -378,7 +368,7 @@ nodes:
     to_dimensions:
     - id: age
   output_nodes:
-  - id: active_mobility
+  - id: active_mobility_distance
     from_dimensions:
     - id: age
       flatten: true

@@ -1380,6 +1380,7 @@ nodes:
 
 - id: electrification_year_of_transport
   name: Electrification year of passenger cars
+  description: This node is needed as output for NetZeroPlanner. It is used in the Climate City Contract tables.
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless

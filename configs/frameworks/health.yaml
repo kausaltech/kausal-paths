@@ -211,7 +211,7 @@ nodes:
   input_dimensions: [pollutant]
   output_dimensions: [pollutant]
 
-# -------------- HEAT Active mobility ---------
+# -------------- WHO/HEAT Active mobility ---------
 
 - id: active_mobility_speed
   name_fi: Aktiivisen liikkumisen keskinopeus
@@ -226,25 +226,29 @@ nodes:
   params:
     sector: Average speed
 
-- id: active_mobility
+- id: active_mobility_distance
   name_fi: Aktiivisen liikkumisen matka
   name_en: Distance of active mobility
+  description_fi: Keskimääräinen matka, jonka väestö liikkuu aktiivilla kulkumuodoilla (kävely ja pyöräily).
+  description_en: Average distance the population moves by active modes (walking and cycling).
   type: simple.AdditiveNode
   quantity: mileage
   unit: km/person/d
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
 
-- id: amount_of_active_mobility
+- id: active_mobility_duration
   name_fi: Aktiivisen liikkumisen kesto
   name_en: Duration of active mobility
+  description_fi: Keskimääräinen kesto, jonka väestö liikkuu aktiivilla kulkumuodoilla (kävely ja pyöräily).
+  description_en: Average duration when the population moves by active modes (walking and cycling).
   type: simple.MultiplicativeNode
   quantity: exposure
   unit: min/person/d
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_nodes:
-  - id: active_mobility
+  - id: active_mobility_distance
     to_dimensions:
     - id: transport_mode
   - id: active_mobility_speed
@@ -257,7 +261,7 @@ nodes:
   name_en: Active mobility health factor
   description_fi: WHO:n HEAT-mallia käytettiin tuottamaan Lappeenrannalle räätälöity
     arvio terveysvaikutusten suuruudesta aktiivisen liikkumisen suhteen. Kerroin ilmoitetaan
-    aktiiviseen liikkumiseen käytettynä aikana aikuisväestössä. Kävalyn osalta tarkastellaan
+    aktiiviseen liikkumiseen käytettynä aikana Lappeenrannan kokoisessa aikuisväestössä. Kävalyn osalta tarkastellaan
     20 - 79 -vuotiaita, pyöräilyn osalta 20 - 64 -vuotiaita.
   type: gpc.DatasetNode
   quantity: exposure_response
@@ -269,8 +273,10 @@ nodes:
     sector: health_factor_of_active_mobility
 
 - id: health_effect_of_active_mobility
-  name_fi: Aktiivisen liikkumisen ehkäisemät tapaukset
-  name_en: Cases prevented by active mobility
+  name_fi: Aktiivisen liikkumisen terveysvaikutukset
+  name_en: Active mobility health effects
+  description_fi: Terveysvaikutukset lasketaan altisteisiin kohdentuvina tapauksina.
+  description_en: Health effects are measured as number of cases that are attributable to active mobility.
   type: simple.MultiplicativeNode
   quantity: health_effect
   unit: cases/a
@@ -278,8 +284,8 @@ nodes:
   output_dimensions: [response, transport_mode]
   input_nodes:
   - id: health_factor_of_active_mobility
-    tags: [arithmetic_inverse]
-  - id: amount_of_active_mobility
+    tags: [non_additive, arithmetic_inverse]
+  - id: active_mobility_duration
     to_dimensions:
     - id: transport_mode
   output_nodes:
@@ -364,7 +370,7 @@ nodes:
   name_fi: Ilmansaasteisiin kohdentuvat tapaukset
   name_en: Cases attributable to air pollution
   description_fi: Se osa kokonaistapausmäärästä, joka kohdentyy pienhiukkasiin ja typenoksideihin.
-  description_en: Cases attributable to PM2.5 and NOx
+  description_en: Cases attributable to PM2.5 and NOx.
   type: simple.MultiplicativeNode
   quantity: health_effect
   unit: case/a
@@ -449,6 +455,7 @@ nodes:
 - id: value_of_statistical_life
   name_fi: Kuolemanriskin tilastollinen hinta
   name_en: Value of statistical life
+  description_fi: Terveysvaikutukset muutetaan rahaksi käyttämällä WHO:n HEAT-mallista saatua hintaa kuolemanriskille.
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/case
@@ -459,26 +466,32 @@ nodes:
 - id: health_costs_attributed_to_exposure
   name_fi: Altistumiseen kohdentuvat terveyskustannukset
   name_en: Health costs attributable to exposure
+  description_fi: Samat terveysvaikutukset kuin diskontatussa terveyskustennuskuvassa, mutta tässä vaikutuksia ei diskontata.
   type: simple.MultiplicativeNode
   quantity: consumption
   unit: MEUR/a
-  input_dimensions: [response]
-  output_dimensions: [response]
+  input_dimensions: [response, cost_type]
+  output_dimensions: [response, cost_type]
   input_nodes:
   - id: premature_deaths
+    to_dimensions:
+    - id: cost_type
+      categories: [health]
+    - id: response
   - id: value_of_statistical_life
     to_dimensions: []
+  output_nodes:
+  - id: discounted_health_costs
 
 - id: discounted_health_costs
   name_fi: Diskontatut terveyskustannukset
   name_en: Discounted health costs
+  description_fi: Terveysvaikutuksia on arvioitu usealla eri tavalla. Fyysinen aktiivisuus pohjautuu toisaalta henkilöliikennetutkimukseen (pienempi arvio) ja toisaalta NetZeroPlanner-mallin arvioon (suurempi vaikutus). "Kuolleisuus" tarkoittaa tässä nimenomaan kaikkia ilmansaastealtistuksesta johtuvia kuolemantapauksia. NZP-vaste puolestaan sisältää liikenneonnettomuuksiin, meluun ja aktiiviseen liikkumiseen liittyviä terveysvaikutuksia; nämä ovat osittain päällekkäisiä muille vaikutuksille.<br>Diskonttaamalla on arvostettu lähiaikoina syntyviä terveysvaikutuksia enemmän kuin kaukana tulevaisuudessa tapahtuvia.
   type: costs.ExponentialNode
   quantity: consumption
   unit: MEUR/a
-  input_dimensions: [response]
-  output_dimensions: [response]
-  input_nodes:
-  - id: health_costs_attributed_to_exposure
+  input_dimensions: [response, cost_type]
+  output_dimensions: [response, cost_type]
   params:
   - id: annual_change
     ref: discount_rate
