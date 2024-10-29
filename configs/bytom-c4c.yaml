@@ -1,0 +1,550 @@
+id: bytom-c4c
+default_language: en
+supported_languages: []
+site_url: https://bytom-c4c.paths.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: fb2fee7956fee928ade74c65a0813709d8217f14
+  dvc_remote: kausal-s3
+name: Bytom Greenhouse Gas Inventory
+owner: City of Bytom
+theme_identifier: eu-climate-4-cast
+target_year: 2050
+model_end_year: 2050
+minimum_historical_year: 2010
+maximum_historical_year: 2023
+emission_unit: t/a
+emission_forecast_from: 2024
+emission_dimensions: ['ghg']
+features:
+  baseline_visible_in_graphs: true
+
+dimensions:
+- id: energy_carrier
+  label: Energy Carrier
+  categories:
+  - id: district_heat
+    label: 'District Heat'
+  - id: electricity
+    label: 'Electricity'
+  - id: natural_gas
+    label: 'Natural Gas'
+
+- id: heating
+  label: Heating
+  categories:
+  - id: central_heating_msc
+    label: 'Central Heating (MSC)'
+  - id: cooker_heating_and_others
+    label: 'Cooker Heating and Others'
+  - id: electric_heating
+    label: 'Electric Heating'
+  - id: gas_heating
+    label: 'Gas Heating'
+
+- id: owner
+  label: Owner
+  categories:
+  - id: citizens
+    label: 'Citizens'
+  - id: communal_district_heating_company
+    label: 'Communal District Heating Company'
+  - id: municipal
+    label: 'Municipal'
+  - id: private
+    label: 'Private'
+
+- id: scope
+  label: Scope
+  categories:
+  - id: scope1
+    label: 'Scope 1'
+  - id: scope2
+    label: 'Scope 2'
+  - id: scope3
+    label: 'Scope 3'
+
+- id: source
+  label: Source
+  categories:
+  - id: households
+    label: 'Households'
+  - id: other_consumers
+    label: 'Other Consumers'
+
+- id: ghg
+  label: GHG
+  categories:
+  - id: ch4
+    label: 'CH4'
+  - id: co2
+    label: 'CO2'
+
+emission_sectors:
+- id: net_emissions
+  name: Net Emissions
+  is_outcome: true
+
+
+nodes:
+- id: i11_residential_fuel_consumption
+  name: I.1.1 Residential Fuel Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: m³/a
+  input_dimensions: ['energy_carrier', 'owner', 'scope']
+  output_dimensions: ['energy_carrier', 'owner', 'scope']
+  params:
+    gpc_sector: I.1.1
+  input_datasets:
+  - id: gpc/bytom
+  output_nodes:
+  - id: i11_residential_fuel_consumption_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: owner
+    - id: scope
+
+- id: i11_residential_fuel_consumption_emissions
+  name: I.1.1 Residential Fuel Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['owner', 'energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['owner', 'energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: i1_residential_total_emissions
+    to_dimensions:
+    - id: owner
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+- id: i11_residential_fuel_emission_factor
+  name: I.1.1 Residential Fuel Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: kg/m³
+  input_dimensions: ['energy_carrier', 'owner', 'scope', 'ghg']
+  output_dimensions: ['energy_carrier', 'owner', 'scope', 'ghg']
+  params:
+    gpc_sector: I.1.1
+  input_datasets:
+  - id: gpc/bytom
+  output_nodes:
+  - id: i11_residential_fuel_consumption_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: owner
+    - id: scope
+    - id: ghg
+
+- id: i12_residential_grid_energy_consumption
+  name: I.1.2 Residential Grid Energy Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: ['energy_carrier', 'owner', 'scope']
+  output_dimensions: ['energy_carrier', 'owner', 'scope']
+  params:
+    gpc_sector: I.1.2
+  input_datasets:
+  - id: gpc/bytom
+  output_nodes:
+  - id: i12_residential_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: owner
+    - id: scope
+
+- id: i12_residential_grid_energy_consumption_emissions
+  name: I.1.2 Residential Grid Energy Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['owner', 'energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['owner', 'energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: i1_residential_total_emissions
+    to_dimensions:
+    - id: owner
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+- id: i12_residential_grid_energy_emission_factor
+  name: I.1.2 Residential Grid Energy Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: kg/MWh
+  input_dimensions: ['energy_carrier', 'owner', 'scope', 'ghg']
+  output_dimensions: ['energy_carrier', 'owner', 'scope', 'ghg']
+  params:
+    gpc_sector: I.1.2
+  input_datasets:
+  - id: gpc/bytom
+  output_nodes:
+  - id: i12_residential_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: owner
+    - id: scope
+    - id: ghg
+
+- id: i22_commercial_and_institutional_grid_energy_consumption
+  name: I.2.2 Commercial & Institutional Grid Energy Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: ['energy_carrier', 'scope']
+  output_dimensions: ['energy_carrier', 'scope']
+  params:
+    gpc_sector: I.2.2
+  input_datasets:
+  - id: gpc/bytom
+  output_nodes:
+  - id: i22_commercial_and_institutional_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+
+- id: i22_commercial_and_institutional_grid_energy_consumption_emissions
+  name: I.2.2 Commercial & Institutional Grid Energy Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: i2_commercial_and_institutional_total_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+- id: i22_commercial_and_institutional_grid_energy_emission_factor
+  name: I.2.2 Commercial & Institutional Grid Energy Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: kg/MWh
+  input_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['energy_carrier', 'scope', 'ghg']
+  params:
+    gpc_sector: I.2.2
+  input_datasets:
+  - id: gpc/bytom
+  output_nodes:
+  - id: i22_commercial_and_institutional_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+- id: i31_manufacturing_fuel_emissions
+  name: I.3.1 Manufacturing Fuel Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['owner', 'scope', 'ghg']
+  output_dimensions: ['owner', 'scope', 'ghg']
+  params:
+    gpc_sector: I.3.1
+  input_datasets:
+  - id: gpc/bytom
+  output_nodes:
+  - id: i3_manufacturing_total_emissions
+    to_dimensions:
+    - id: owner
+    - id: scope
+    - id: ghg
+
+- id: i43_energy_t_and_d_loss_emission_factor
+  name: I.4.3 Energy T & D Loss Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: kg/count/a
+  input_dimensions: ['heating', 'scope', 'ghg']
+  output_dimensions: ['heating', 'scope', 'ghg']
+  params:
+    gpc_sector: I.4.3
+  input_datasets:
+  - id: gpc/bytom
+  output_nodes:
+  - id: i43_energy_t_and_d_loss_number_emissions
+    tags: [non_additive]
+    to_dimensions:
+    - id: heating
+    - id: scope
+    - id: ghg
+
+- id: i43_energy_t_and_d_loss_number
+  name: I.4.3 Energy T & D Loss Number
+  type: gpc.DatasetNode
+  quantity: number
+  unit: count
+  input_dimensions: ['heating', 'scope']
+  output_dimensions: ['heating', 'scope']
+  params:
+    gpc_sector: I.4.3
+  input_datasets:
+  - id: gpc/bytom
+  output_nodes:
+  - id: i43_energy_t_and_d_loss_number_emissions
+    to_dimensions:
+    - id: heating
+    - id: scope
+
+- id: i43_energy_t_and_d_loss_number_emissions
+  name: I.4.3 Energy T & D Loss Number Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg', 'heating']
+  output_dimensions: ['scope', 'ghg', 'heating']
+  output_nodes:
+  - id: i4_energy_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: heating
+
+- id: iii21_biological_waste_treated_in_city_emission_factor
+  name: III.2.1 Biological Waste Treated in City Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: kg/Mg
+  input_dimensions: ['owner', 'scope', 'ghg']
+  output_dimensions: ['owner', 'scope', 'ghg']
+  params:
+    gpc_sector: III.2.1
+  input_datasets:
+  - id: gpc/bytom
+  output_nodes:
+  - id: iii21_biological_waste_treated_in_city_mass_emissions
+    to_dimensions:
+    - id: owner
+    - id: scope
+    - id: ghg
+
+- id: iii21_biological_waste_treated_in_city_mass
+  name: III.2.1 Biological Waste Treated in City Mass
+  type: gpc.DatasetNode
+  quantity: mass
+  unit: Mg/a
+  input_dimensions: ['owner', 'scope']
+  output_dimensions: ['owner', 'scope']
+  params:
+    gpc_sector: III.2.1
+  input_datasets:
+  - id: gpc/bytom
+  output_nodes:
+  - id: iii21_biological_waste_treated_in_city_mass_emissions
+    tags: [non_additive]
+    to_dimensions:
+    - id: owner
+    - id: scope
+
+- id: iii21_biological_waste_treated_in_city_mass_emissions
+  name: III.2.1 Biological Waste Treated in City Mass Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['owner', 'scope', 'ghg']
+  output_dimensions: ['owner', 'scope', 'ghg']
+  output_nodes:
+  - id: iii2_biological_waste_total_emissions
+    to_dimensions:
+    - id: owner
+    - id: scope
+    - id: ghg
+
+- id: iii4_wastewater_emission_factor
+  name: III.4 Wastewater Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: kg/m³
+  input_dimensions: ['source', 'ghg']
+  output_dimensions: ['source', 'ghg']
+  params:
+    gpc_sector: III.4
+  input_datasets:
+  - id: gpc/bytom
+  output_nodes:
+  - id: iii4_wastewater_volume_emissions
+    to_dimensions:
+    - id: source
+    - id: ghg
+
+- id: iii4_wastewater_volume
+  name: III.4 Wastewater Volume
+  type: gpc.DatasetNode
+  quantity: volume
+  unit: m³/a
+  input_dimensions: ['source']
+  output_dimensions: ['source']
+  params:
+    gpc_sector: III.4
+  input_datasets:
+  - id: gpc/bytom
+  output_nodes:
+  - id: iii4_wastewater_volume_emissions
+    to_dimensions:
+    - id: source
+
+- id: iii4_wastewater_volume_emissions
+  name: III.4 Wastewater Volume Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['source', 'ghg']
+  output_dimensions: ['source', 'ghg']
+  output_nodes:
+  - id: iii4_wastewater_total_emissions
+    to_dimensions:
+    - id: source
+    - id: ghg
+
+- id: i1_residential_total_emissions
+  name: I.1 Residential Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['energy_carrier', 'scope', 'ghg', 'owner']
+  output_dimensions: ['energy_carrier', 'scope', 'ghg', 'owner']
+  output_nodes:
+  - id: i_stationary_total_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: owner
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: i2_commercial_and_institutional_total_emissions
+  name: I.2 Commercial & Institutional Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: i_stationary_total_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: i3_manufacturing_total_emissions
+  name: I.3 Manufacturing Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['owner', 'scope', 'ghg']
+  output_dimensions: ['owner', 'scope', 'ghg']
+  output_nodes:
+  - id: i_stationary_total_emissions
+    from_dimensions:
+    - id: owner
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: i4_energy_total_emissions
+  name: I.4 Energy Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg', 'heating']
+  output_dimensions: ['scope', 'ghg', 'heating']
+  output_nodes:
+  - id: i_stationary_total_emissions
+    from_dimensions:
+    - id: heating
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: i_stationary_total_emissions
+  name: I Stationary Total Emissions
+  type: simple.AdditiveNode
+  color: '#4e79a7'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: ghg
+
+- id: iii2_biological_waste_total_emissions
+  name: III.2 Biological Waste Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['owner', 'scope', 'ghg']
+  output_dimensions: ['owner', 'scope', 'ghg']
+  output_nodes:
+  - id: iii_waste_total_emissions
+    from_dimensions:
+    - id: owner
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: ghg
+
+- id: iii4_wastewater_total_emissions
+  name: III.4 Wastewater Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['source', 'ghg']
+  output_dimensions: ['source', 'ghg']
+  output_nodes:
+  - id: iii_waste_total_emissions
+    from_dimensions:
+    - id: source
+      flatten: true
+    to_dimensions:
+    - id: ghg
+
+- id: iii_waste_total_emissions
+  name: III Waste Total Emissions
+  type: simple.AdditiveNode
+  color: '#59A14F'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg']
+  output_dimensions: ['ghg']
+  output_nodes:
+  - id: net_emissions
+    to_dimensions:
+    - id: ghg
+
+pages:
+- id: home
+  name: Bytom Greenhouse Gas Inventory
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Bytom Climate-4-CAST Decision Support Tool
+  lead_paragraph: Greenhouse gas inventory (2010-2023) and forecast (2024-2050) for the City of Bytom.
+
+scenarios:
+- id: baseline
+  name: Business as Usual
+
+- id: default
+  default: true
+  name: Climate Action Plan
+  all_actions_enabled: true
