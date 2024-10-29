@@ -1,0 +1,371 @@
+id: forestry-fi
+default_language: en
+supported_languages: [fi]
+site_url: https://forestry-fi.paths.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: c9ff1e1361e59a914075d5209ae1ff2f78010e54
+  dvc_remote: kausal-s3
+name_en: Multi-stakkeholder forestry policy options
+name_fi: Metsäpolitiikan monet vaihtoehdot
+owner: Kausal Oy
+owner_en: Kausal Ltd
+theme_identifier: default
+emission_unit: kt/a
+model_end_year: 2050
+target_year: 2035
+reference_year: 1990
+minimum_historical_year: 2000
+maximum_historical_year: 2023
+sample_size: 10
+
+action_groups:
+- id: forestry
+  name_fi: Metsäteollisuus
+  name: Forest industry
+  color: '#50c878'
+
+impact_overviews:
+- graph_type: cost_efficiency
+  cost_node: action_costs
+  impact_node: value_profile
+  invert_cost: false
+  invert_impact: false
+  indicator_unit: kEUR/Ut
+  cost_unit: MEUR
+  impact_unit: Ut
+  label_fi: Kokonaishyödyn marginaalikustannus
+  label: Marginal cost in total utility
+- graph_type: cost_benefit
+  cost_node: action_costs
+  impact_node: total_economic_benefit
+  invert_cost: false
+  invert_impact: false
+  indicator_unit: MEUR
+  cost_unit: MEUR
+  impact_unit: MEUR
+  label_fi: Kustannus-hyötyarvio kokonaisvaikutuksista
+  label: Cost-benefit analysis of total impacts
+- graph_type: value_of_information
+  cost_node: total_economic_benefit
+  cost_unit: EUR
+  label: Tiedonarvoanalyysi
+
+params:
+- id: municipality_name
+  value: Tampere
+  label: Municipality name
+- id: emissions_weight
+  label: Weight for emissions impacts in utilities
+  is_customizable: true
+  value: -0.05
+  min_value: -100
+  max_value: 0
+  unit: Ut/kt
+- id: economic_weight
+  label: Weight for cost impacts in utilities
+  is_customizable: true
+  value: 1
+  min_value: -100
+  max_value: 10
+  unit: Ut/MEUR
+
+dimensions:
+
+- id: iteration
+  label_en: Iteration
+  label_fi: Iteraatio
+  categories:
+  - id: '0'
+    label: '0'
+  - id: median
+    label: Median
+
+- id: activity
+  label_fi: Toiminto
+  label: Activity
+  categories:
+  - id: renewabe_energy_production
+    label: Uusiutuva energiantuotanto
+  - id: fossil_replacing_industry
+    label: Fossiilisia korvaava teollisuus
+  - id: hydrogen_production
+    label: Ei-fossiilisen vedyn valmistus
+  - id: ccs
+    label: Hilidioksidin talteenotto ja varastointi
+  - id: battery_industry
+    label: Akkuteollisuus
+  - id: nature_conservation
+    label: ympäristönsuojelu
+  - id: water_activities
+    label: Vesiasiat
+
+- id: stakeholder
+  label_fi: Sidosryhmä
+  label: Stakeholder
+  categories:
+  - id: municipality
+    label_fi: Kunta
+    label: Municipality
+  - id: citizen
+    label_fi: Kansalainen
+    label: Citizen
+  - id: ici
+    label_fi: Yrityselämä
+    label: Industry and commerce
+  - id: forest_owner
+    label: Forest owner
+  - id: mankind
+    label_fi: Ihmiskunta
+    label: Mankind
+
+- id: hypothesis
+  label_fi: Hypoteesi
+  label: Hypothesis
+  categories:
+  - id: hypothesis_0
+    label: Null hypothesis
+    color: '#22ee22'
+  - id: hypothesis_1
+    label: Hypothesis 1
+    color: '#ee2222'
+  - id: hypothesis_2
+    label: Hypothesis 2
+  - id: hypothesis_3
+    label: Hypothesis 3
+  - id: hypothesis_4
+    label: Hypothesis 4
+  - id: hypothesis_5
+    label: Hypothesis 5
+  - id: hypothesis_6
+    label: Hypothesis 6
+  - id: hypothesis_7
+    label: Hypothesis 7
+  - id: hypothesis_8
+    label: Hypothesis 8
+  - id: hypothesis_9
+    label: Hypothesis 9
+  - id: hypothesis_10
+    label: Hypothesis 10
+  - id: equal_weight
+    label: Equal weight
+
+emission_sectors:
+- id: net_emissions
+  name_fi: Kokonaispäästöt
+  name_en: Net emissions
+  description: Suomen kasvihuonekaasujen nettokokonaispäästöt, eli scope 1+2 ja hiilinielut.
+    <h3>Hypoteesit</h3> <ul><li>Hakkuiden lisääminen lisää kasvihuonekaasupäästöjä.
+    (1)</li> <li>Hakkuiden lisääminen ei vaikuta kasvihuonekaasupäästöihin. (2)</li>
+    <li>Löysempi kasvihuonekaasupäästötavoite ei aiheuta haittaa. (3)</li> <li>Suomen
+    toimien vaikutukset kasvihuonekaasupäästöihin ovat vähäiset. (4)</li></ul> <h3>Viitteet</h3>
+    <ul><li>HS.ymp.2 Krist Savo</li> <li>(1) HS.ymp.1 Vihr Uusimaa</li> <li>HS.ymp.2
+    Vihr Uusimaa</li> <li>(2) HS.ymp.1 Perus Uusimaa</li> <li>HS.ymp.2 Perus Uusimaa</li>
+    <li>(3) HS.ymp.1 Perus Savo</li> <li>HS.ymp.1 Rkp Uusimaa</li> <li>(4) HS.ymp.2
+    Rkp Uusimaa</li> <li>HS.ymp.2 Vihr Savo</li> <li>HS.ymp.2 Kok Savo</li> <li>HS.ymp.2
+    Vas Savo</li> <li>(4) HS.ymp.1 Liik Savo</li> <li>HS.ymp.1 Liik Uusimaa</li> <li>HS.ymp.2
+    Kok Uusimaa</li> <li>HS.ymp.1 Sdp Savo</li> <li>HS.ymp.1 Sdp Uusimaa</li> <li>HS.ymp.2
+    Sdp Uusimaa</li> <li>HS.ymp.1 Kesk Savo</li> <li>HS.ymp.2 Kesk Savo</li></ul>
+  is_outcome: true
+  input_dataset_processors: [LinearInterpolation]
+
+nodes:
+- id: population
+  type: finland.population.Population
+  name_fi: Väestö
+  name_en: Population
+  description: Population size of the imaginary city.
+
+- id: action_costs
+  name_fi: Toimenpiteiden toteuttamisen suorat kustannukset
+  name_en: Direct implementation costs of actions
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+
+# ---------------------------- Suomen metsänielukeskustelu
+
+- id: pulp_production_capacity
+  name_fi: Sellun valmistuskapasiteetti Suomessa
+  name_en: Pulp production capacity in Finland
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: Mt/a
+  historical_values: [[2000, 29], [2023, 69.2]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: pulp_production
+  name_fi: Sellun valmistusmäärä Suomessa
+  name_en: Pulp production in Finland
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: Mt/a
+  input_dataset_processors: [LinearInterpolation]
+  input_nodes: [pulp_production_capacity]
+  output_nodes: [forest_cuts_in_finland]
+
+- id: forest_cuts_in_finland
+  name_fi: Metsänhakkuut Suomessa
+  name_en: Forest cutting in Finland
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: Mt/a
+
+- id: pulp_price
+  name_fi: Sellun hinta
+  name_en: Price of pulp
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/t
+  historical_values: [[2000, 1000], [2023, 900]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: pulp_sales
+  name_fi: Sellun myyntivoitto
+  name_en: Pulp sales
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_nodes: [pulp_production, pulp_price]
+  output_nodes: [total_economic_benefit]
+
+- id: amount_of_wood_in_forests
+  name_fi: Suomen metsien hiilivarasto
+  name_en: Carbon storage in Finnisih forests
+  type: costs.InternalGrowthNode
+  quantity: mass
+  unit: Mt
+  input_nodes: [forest_cuts_in_finland]
+  historical_values: [[2000, -3000], [2023, -3200]]
+  input_dataset_processors: [LinearInterpolation]
+  params:
+  - id: annual_change
+    value: 4.1875  # Year 2021: 134 Mt growth, 3200 Mt Wood storage in forests.
+    unit: '%'
+
+- id: pulp_industry_emissions
+  name_fi: Selluteollisuuden päästöt
+  name_en: Pulp industry emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: Mt/a
+  input_nodes: [pulp_production]
+
+- id: forest_industry_emissions
+  name_fi: Metsien päästöt
+  name_en: Forest_emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: Mt/a
+  input_nodes: [pulp_industry_emissions,
+    carbon_capture_and_storage]
+  output_nodes: [net_emissions]
+
+- id: carbon_capture_and_storage
+  name_fi: Hiilidioksidin talteenotto
+  name_en: Carbon capture and storage
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: Mt/a
+  historical_values: [[2000, 0], [2023, 0]]
+
+- id: carbon_capture_price
+  name_fi: Hiilidioksidin talteenoton hinta
+  name_en: Carbon capture price
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/t
+  historical_values: [[2000, 400], [2023, 200]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: carbon_capture_cost
+  name_fi: Hiilidioksidin talteenoton kustannus
+  name_en: Carbon capture cost
+  type: simple.MultiplicativeNode
+  quantity: unit_price
+  unit: MEUR/a
+  input_nodes: [carbon_capture_and_storage, carbon_capture_price]
+  output_nodes: [pulp_sales, action_costs]
+
+- id: total_economic_benefit
+  name_fi: Taloudellinen kokonaishyöty
+  name_en: Total economic benefit
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+
+- id: utility_emissions
+  name_fi: Päästöjen utiliteetti
+  name_en: Utility of emissions
+  type: simple.FixedMultiplierNode
+  quantity: utility
+  unit: Ut/a
+  input_nodes: [net_emissions]
+  output_nodes: [value_profile]
+  params:
+  - id: multiplier
+    ref: emissions_weight
+
+- id: utility_economy
+  name_fi: Taloushyödyn utiliteetti
+  name_en: Utility of economic outcome
+  type: simple.FixedMultiplierNode
+  quantity: utility
+  unit: Ut/a
+  input_nodes: [total_economic_benefit]
+  output_nodes: [value_profile]
+  params:
+  - id: multiplier
+    ref: economic_weight
+
+- id: value_profile
+  name_fi: Kokonaisutiliteetti
+  name_en: Total utility
+  type: simple.AdditiveNode
+  quantity: utility
+  unit: Ut/a
+  is_outcome: true
+
+actions:
+
+- id: test_action
+  name_en: Test action for value of information
+  description: This action may improve or worsen situation, depending on uncertain circumstances.
+  type: simple.AdditiveAction
+  quantity: currency
+  unit: EUR/a
+  group: forestry
+  historical_values: [[2010, 0], [2023, 0]]
+  input_dataset_processors: [LinearInterpolation]
+  forecast_values: [[2024, 100], [2035, 100]]
+
+pages:
+- id: home
+  name_fi: Vihreän siirtymän prioriteetit
+  name_en: Green transition priotities
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Vihreän siirtymän prioriteetit
+  lead_title_en: Green transition priorities
+  lead_paragraph: add
+
+scenarios:
+- id: baseline
+  name_fi: Tätä menoa
+  name_en: Business as usual
+
+- id: default
+  default: true
+  name_fi: Aktiivinen
+  name_en: Active
+  all_actions_enabled: true
+
+- id: energy_company
+  name_fi: Energiayhtiön arvot
+  name_en: Values of the energy company
+  all_actions_enabled: true
+  params:
+  - id: economic_weight
+    value: 1
+    unit: 1/EUR
