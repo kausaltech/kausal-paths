@@ -69,7 +69,7 @@ action_groups:
 - id: reforestation
   name: 7. Reforestation
 
-impact_overviews:
+action_efficiency_pairs:
 
 - graph_type: cost_benefit
   cost_node: discounted_investment
@@ -81,15 +81,25 @@ impact_overviews:
   outcome_dimension: cost_type
   label: Cost-benefit
 
-# - graph_type: cost_effectiveness
-#   cost_node: discounted_total_cost
-#   impact_node: aggregated_net_emissions
-#   invert_cost: true
-#   invert_impact: true
-#   indicator_unit: EUR/t
-#   cost_unit: MEUR
-#   impact_unit: kt
-#   label: Cost efficiency
+- graph_type: cost_effectiveness
+  cost_node: discounted_total_cost
+  impact_node: aggregated_net_emissions
+  invert_cost: false
+  invert_impact: true
+  indicator_unit: EUR/t
+  cost_unit: MEUR
+  impact_unit: kt
+  label: Cost efficiency
+
+- graph_type: return_of_investment
+  cost_node: discounted_aggregated_investment
+  impact_node: discounted_aggregated_benefits
+  invert_cost: false
+  invert_impact: true
+  indicator_unit: dimensionless
+  cost_unit: MEUR
+  impact_unit: MEUR
+  label: Return on investment for the city
 
 dimensions:
 
@@ -594,19 +604,21 @@ nodes:
   params:
     sector: Expected annual population growth (up until 2030)
 
-# - id: aggregated_net_emissions
-#   name: Aggregated net emissions
-#   type: simple.AdditiveNode
-#   quantity: emissions
-#   unit: kt/a
-#   # is_outcome: true
-#   input_nodes:
-#   - id: net_emissions
-#     from_dimensions:
-#     - id: ghg
-#       flatten: true
-#     - id: scope
-#       flatten: true
+- id: aggregated_net_emissions
+  name: Aggregated net emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  # is_outcome: true
+  input_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: sector
+      flatten: true
 
 # ------------- Jobs -----------------
 
@@ -744,7 +756,7 @@ nodes:
   - id: discounted_cost
     from_dimensions:
     - id: aggregated_cost_type
-#      categories: [capex]
+      categories: [capex]
       flatten: true
     to_dimensions:
     - id: stakeholder
@@ -768,6 +780,34 @@ nodes:
     to_dimensions:
     - id: stakeholder
     - id: cost_type
+
+- id: discounted_aggregated_investment
+  name: discounted aggregated investment
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_nodes:
+  - id: discounted_investment
+    from_dimensions:
+    - id: stakeholder
+      categories: [city]
+      flatten: true
+    - id: cost_type
+      flatten: true
+
+- id: discounted_aggregated_benefits
+  name: discounted aggregated benefits
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_nodes:
+  - id: discounted_benefits
+    from_dimensions:
+    - id: stakeholder
+      categories: [city]
+      flatten: true
+    - id: cost_type
+      flatten: true
 
 # ------------ Lappeenranta-specific nodes -----------
 
