@@ -1,0 +1,1234 @@
+id: dut-transport-nzc
+default_language: fi
+supported_languages: [en]
+frameworks: [health]
+site_url: https://dut-transport-nzc.paths.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  dvc_remote: kausal-s3
+  # commit: 772bb24d5a5a01ab2aa8b69bb33efec594f0ac8a # Lappeenranta-specific dataset
+  # commit: 4a9b9c0159a17b49c94bb72c265204fe76f3fc57 # Lappeenranta-specific probabilistic dataset
+  commit: 772bb24d5a5a01ab2aa8b69bb33efec594f0ac8a
+theme_identifier: default
+name: 'DUT: Liikennetoimenpiteitä terveys- ja ilmastohyötyjen edistämiseksi'
+name_en: 'DUT: Transport actions to promote health and climate benefits'
+owner: Kausal Oy
+owner_en: Kausal Ltd
+emission_unit: kt/a
+target_year: 2030
+model_end_year: 2045
+minimum_historical_year: 2020
+maximum_historical_year: 2022
+emission_forecast_from: 2023
+emission_dimensions: [scope, ghg, sector]
+features:
+  baseline_visible_in_graphs: true
+  show_significant_digits: 4
+  maximum_fraction_digits: 2
+  hide_node_details: false
+
+params:
+- id: municipality_name
+  value: Finland
+- id: discount_rate
+  label: Discount rate
+  value: 3.5
+  min_value: 0
+  max_value: 5
+  unit: '%'
+  is_visible: true
+  is_customizable: false
+- id: show_scenario_impacts
+  label: Show scenario impacts instead of node outputs?
+  value: false
+  is_visible: false
+  is_customizable: true
+- id: statistical_correction
+  label: Statistical correction
+  value: true
+  is_visible: true
+  is_customizable: true
+
+action_groups:
+- id: transport
+  name: 1. Transport
+  color: '#93c572'
+- id: freight_transport
+  name: 2. Freight transport
+- id: buildings
+  name: 3. Buildings
+  color: '#32cd32'
+- id: electricity
+  name: 4. Electricity
+  color: '#29ab87'
+- id: waste
+  name: 5. Waste
+  color: '#50c878'
+- id: scope_3
+  name: 6. Scope 3
+- id: reforestation
+  name: 7. Reforestation
+
+impact_overviews:
+
+- graph_type: cost_benefit
+  cost_node: discounted_investment
+  impact_node: discounted_benefits
+  cost_unit: MEUR
+  impact_unit: MEUR
+  indicator_unit: MEUR
+  stakeholder_dimension: stakeholder
+  outcome_dimension: cost_type
+  label: Cost-benefit
+
+# - graph_type: cost_effectiveness
+#   cost_node: discounted_total_cost
+#   impact_node: aggregated_net_emissions
+#   invert_cost: true
+#   invert_impact: true
+#   indicator_unit: EUR/t
+#   cost_unit: MEUR
+#   impact_unit: kt
+#   label: Cost efficiency
+
+dimensions:
+
+- id: response
+  label_fi: Terveysvaikutus
+  label_en: Response
+  aliases: [outcome]
+  categories:
+  - id: mortality
+    label_fi: Kuolleisuus
+    label_en: Mortality
+  - id: work_days_lost
+    label_fi: Menetetyt työpäivät
+    label_en: Work days lost
+  - id: chronic_bronchitis
+    label_fi: Keuhkoahtaumatauti
+    label_en: Chronic bronchitis
+  - id: cancer
+    label_fi: Syöpä
+    label_en: Cancer
+  - id: tolerable_weekly_intake
+    label_fi: Siedettävä viikkosaanti
+    label_en: Tolerable weekly intake
+  - id: chd_mortality
+    label_fi: Sepelvaltimotautikuolleisuus
+    label_en: Coronary heart disease mortality
+  - id: breast_cancer
+    label_fi: Rintasyöpä
+    label_en: Breast cancer
+  - id: deficiency  # FIXME Add causative agent to response
+    label_fi: Puutos
+    label_en: Deficiency
+  - id: infection  # FIXME Add causative agent to response
+    label_fi: Infektio
+    label_en: Infection
+  - id: physical_activity
+    label: Fyysinen aktiivisuus
+  - id: air_pollution
+    label: Ilmansaastealtistus liikenteessä
+  - id: crash_risk
+    label: Liikenneonnettomuus
+  - id: carbon_emissions
+    label: Hiilidioksidipäästöt
+  - id: nzp_response
+    label: NZP-vaste
+
+- id: emission_height
+  label_fi: Päästökorkeus
+  label_en: Emission height
+  categories:
+  - id: high
+    label_fi: Korkea
+    label_en: High
+  - id: low
+    label_fi: Matala
+    label_en: Low
+  - id: ground
+    label_fi: Maan taso
+    label_en: Ground
+  - id: average
+    label_fi: Keskimääräinen
+    label_en: Average
+
+- id: pollutant
+  label_fi: Saaste
+  label_en: Pollutant
+  categories:
+  - id: co2
+    label_fi: CO2
+    label_en: CO2
+    aliases: [co2e]
+  - id: pm25
+    label_fi: PM2.5
+    label_en: PM2.5
+    aliases: [pm2_5]
+  - id: pm25_combustion
+    label: PM2.5 combustion
+  - id: nox
+    label_fi: NOx
+    label_en: NOx
+  - id: pm10
+    label_fi: PM10
+    label_en: PM10
+  - id: pm10_combustion
+    label: PM10 combustion
+  - id: walking
+    label_fi: Kävely
+    label_en: Walking
+  - id: cycling
+    label_fi: Pyöräily
+    label_en: Cycling
+  - id: pm1025
+    label_fi: PM10-PM2.5
+    label_en: PM10-PM2.5
+  - id: so2
+    label_fi: SO2
+    label_en: SO2
+  - id: nh3
+    label_fi: NH3
+    label_en: NH3
+  - id: pm25_wear_tear
+    label: PM2.5 wear & tear
+  - id: pm10_wear_tear
+    label: PM10 wear & tear
+
+- id: sector
+  label: Sector
+  help_text: Sectors as categorised in the Mission City Climate City Contracts (CCC).
+  categories:
+  - id: transport
+    label: Transport
+  - id: buildings
+    label: Buildings & Heating
+  - id: electricity
+    label: Electricity  # TODO If you start using different electricity sectors, you may want to rename this Other electricity
+  - id: waste
+    label: Waste
+  - id: other
+    label: Other (incl. IPPU & AFOLU)
+
+- id: scope
+  label: Scope
+  help_text: '1: Local emissions. 2: Grid emissions (electricity, district heating).
+    3: Indirect emissions.'
+  categories:
+  - id: scope1
+    label: Scope 1
+    aliases: [scope_1]
+  - id: scope2
+    label: Scope 2
+    aliases: [scope_2]
+  - id: scope3
+    label: Scope 3
+    aliases: [scope_3]
+
+- id: cost_type
+  label: Cost Type
+  categories:
+  - id: energy_costs
+    label: Energy Costs
+  - id: investment_costs
+    label: Investment Costs
+  - id: capex
+    label: CAPEX (capital expenditure)
+  - id: capex_levelised
+    label: CAPEX (levelised)
+  - id: opex
+    label: OPEX (operational expenditure)
+    aliases: [operation_cost, Operation Cost]
+  - id: maintenance_costs
+    label: Maintenance Costs
+    aliases: [maintenance]
+  - id: sales
+    label: Sales income
+  - id: air_pollution
+    label: Air pollution
+    aliases: [air_quality]
+  - id: noise
+    label: Noise
+  - id: accidents
+    label: Accidents
+  - id: health
+    label: Health
+  - id: co2_cost
+    label: CO2 Cost
+  - id: aesthetics
+    label: Aesthetics and amenity
+  - id: shading
+    label: Shading
+  - id: water_regulation
+    label: Water regulation
+    aliases: [water_regulations]
+  - id: forest_management
+    label: Forest management
+  - id: bus_costs
+    label: Bus costs
+  - id: homecharging_infrastructure
+    label: Home-charging infrastructure
+  - id: public_and_workplace_infrastructure
+    label: Public & workplace infrastructure
+  - id: charging_infrastructure_costs
+    label: Charging infrastructure costs
+  - id: vehicle_costs
+    label: Vehicle costs
+  - id: infrastructure_costs
+    label: Infrastructure costs
+  - id: network
+    label: Network
+  - id: fuel
+    label: Fuel costs
+  - id: tires
+    label: Tire costs
+  - id: depreciation
+    label: Depreciation costs
+  - id: labour_costs
+    label: Labour costs
+  - id: industry_ippu
+    label: Industry (IPPU)
+  - id: agriculture_afolu
+    label: Agriculture (AFOLU)
+  - id: other_sources
+    label: Other sources
+  - id: grid_stability
+    label: Storage, grid stability etc.
+
+- id: aggregated_cost_type
+  label: Aggregated cost type
+  categories:
+  - id: capex
+    label: CAPEX
+  - id: opex
+    label: OPEX
+  - id: co_benefits
+    label: Co-benefits
+  - id: co2_cost
+    label: CO2 cost
+
+- id: ghg
+  label: Greenhouse gas
+  categories:
+  - id: co2e
+    label: CO2e
+    aliases: [co2]
+
+- id: transport_mode
+  label: Transport mode
+  categories:
+  - id: cars
+    label: Cars
+  - id: buses
+    label: Buses
+  - id: trains
+    label: Trains
+    aliases: [Metro/tram, metro/tram, metro_tram]
+  - id: public_transport
+    label: Public transport
+  - id: walking
+    label: Walking
+  - id: cycling
+    label: Cycling
+  - id: light_trucks
+    label: Light duty trucks <3.5 tonne
+  - id: heavy_trucks
+    label: Heavy duty trucks >3.5 tonne
+  - id: trucks
+    label: Trucks
+  - id: other_motorized
+    label: Other motorized transport
+  - id: bikeshare
+    label: Bikeshare
+  - id: ebike
+    label: E-bike
+
+- id: energy_carrier
+  label: Energy carrier
+  categories:
+  - id: petrol_diesel
+    label: Petrol and diesel
+  - id: electricity
+    label: Electricity
+  - id: fossil
+    label: Fossil (oil, coal, gas)
+  - id: heat_pump
+    label: Electric heat pumps / geothermal
+  - id: bioenergy
+    label: Bio (biogas, biomass) and solar heaters
+  - id: waste
+    label: Waste (fossil & non-fossil waste)
+
+- id: building_energy_class
+  label: Building energy class
+  categories:
+  - id: new_standard
+    label: New, standard
+  - id: new_top_performance
+    label: New, top performance
+  - id: old_no_renovations
+    label: Old, no renovation
+  - id: minor_renovation
+    aliases: [minor_renovations]
+    label: Old, minor heating renovation
+  - id: major_renovation
+    aliases: [major_renovations]
+    label: Old, extensive heating renovation
+  - id: no_improvement  # TODO Remove redundant
+    label: No improvement
+  - id: minor_improvements
+    label: Minor improvements
+  - id: aggressive_improvements
+    label: Aggressive improvements
+  - id: moderate_improvements
+    label: Moderate improvements
+  - id: nzeb
+    label: Net zero emission buildings
+  - id: moderate_renovation
+    aliases: [moderate_renovations]
+    label: Moderate renovation
+
+- id: heating_type
+  label: Heating type
+  categories:
+  - id: district_heating
+    label: District heating
+  - id: local_heating
+    label: Local heating
+
+- id: fuel_type
+  label: Fuel type
+  categories:
+  - id: fossil
+    label: Fossil
+  - id: non_fossil
+    label: Non-fossil
+    aliases: [nonfossil, non-fossil]
+  - id: mixed
+    label: Mixed fossil and non-fossil
+  - id: other
+    label: Other (e.g. nuclear)
+  - id: local_pv
+    label: Local photovoltaics
+  - id: centralised_pv
+    label: Centralised photovoltaics and wind
+  - id: pv
+    label: Photovoltaics
+  - id: flexibility
+    label: Flexibility
+  - id: direct_electricity
+    label: Direct electricity
+  - id: heat_pump
+    label: Heat pump
+
+- id: efficiency_programme
+  label: Energy efficiency programme
+  categories:
+  - id: no_improvements
+    label: No improvements
+    aliases: [no_improvement]
+  - id: minor_improvements
+    label: Minor improvements
+  - id: aggressive_improvements
+    label: Aggressive improvements
+  - id: moderate_improvements
+    label: Moderate improvements
+  - id: nzeb
+    label: Net zero emission buildings
+
+- id: city_area
+  label: City area
+  categories:
+  - id: grey
+    label: Grey area
+  - id: green
+    label: Green area
+  - id: grey_inside
+    label: Grey area inside city
+  - id: green_inside
+    label: Green area inside city
+  - id: green_outside
+    label: Green area outside city
+  - id: grey_outside
+    label: Grey area outside city
+
+- id: area_distance
+  label: Area distance
+  categories:
+  - id: metropolitan
+    label: Metropolitan
+  - id: inside
+    label: Inside city
+  - id: outside
+    label: Outside city
+  - id: average
+    label: Average
+
+- id: stakeholder
+  label: Stakeholder
+  categories:
+  - id: citizens
+    label: Citizens
+  - id: property_owners
+    label: Property owners
+  - id: city
+    label: City
+    aliases: [cities, Cities]
+  - id: healthcare_providers
+    label: Healthcare providers
+  - id: transport_operators
+    label: Transport operators
+  - id: utilities
+    label: Utilities
+
+- id: parameter
+  label: Parameter
+  categories:
+  - id: max_impact
+    label: Maximum impact
+  - id: max_year
+    label: Year to reach maximum impact
+  - id: baseline_scenario
+    label: Baseline scenario
+  - id: decarbonisation_scenario
+    label: Decarbonisation scenario
+  - id: frozen_scenario
+    label: Frozen scenario
+
+- id: country
+  label: Country
+  categories:
+  - id: at
+    label: Austria
+  - id: be
+    label: Belgium
+  - id: cz
+    label: Czeck Republic
+  - id: dk
+    label: Denmark
+  - id: fr
+    label: France
+  - id: de
+    label: Germany
+  - id: it
+    label: Italy
+  - id: lt
+    label: Latvia
+  # - id: 'no'
+  #   label: Norway
+  - id: pl
+    label: Poland
+  - id: ro
+    label: Romania
+  - id: sk
+    label: Slovakia
+  - id: es
+    label: Spain
+  - id: se
+    label: Sweden
+  - id: average
+    label: Average
+
+- id: age
+  label: age
+  categories:
+  - id: '20_49'
+    label: 20-49
+    aliases: ['2049']
+  - id: '50_64'
+    label: 50-64
+    aliases: ['5064']
+  - id: '65_79'
+    label: 65-79
+    aliases: ['6579']
+  - id: '80_99'
+    label: 80-99
+    aliases: ['8099']
+
+emission_sectors:
+- id: net_emissions
+  name_fi: Kokonaispäästöt (scope 1+2)
+  name_en: Net emissions (scope 1+2)
+  description_fi: 'Päästötavoitteena on olla hiilineutraali vuonna 2030. Päästöistä
+    vähennetään vähintään 80 % verrattuna vuoden 2020 tilanteeseen (363,7 kt) ja korkeintaan
+    20 % (72,7 kt) kompensoidaan. (Lähde: Lappeenrannan Climate City Contract)'
+  description_en: 'The emissions goal is to be carbon neutral in 2030. At least 80%
+    of emissions will be reduced compared to the situation in 2020 (363.7 kt) and
+    a maximum of 20% (72.7 kt) will be compensated. (Source: Lappeenranta Climate
+    City Contract)'
+  type: simple.AdditiveNode
+  is_outcome: true
+  target_year_goal: 72.7
+
+nodes:
+
+- id: technical_root_node
+  name: Technical root node
+  description: This node is used as the outcome node of ParentActionNodes so that
+    they don't pick a random root node from the model.
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: m**3
+  historical_values: [[2018, 0.0], [2023, 0.0]]
+
+- id: population
+  name_fi: Väestön koko Lappeenrannassa
+  name_en: Population size in Lappeenranta
+  type: gpc.DatasetNode
+  quantity: population
+  unit: cap
+  input_datasets: [nzc/defaults]
+  input_nodes:
+  - id: population_growth
+    tags: [arithmetic_inverse, complement_cumulative_product, non_additive]
+  params:
+    sector: Population
+
+- id: population_growth
+  name_fi: Väestön kasvunopeus
+  name_en: Population growth
+  type: gpc.DatasetNode
+  quantity: rate
+  unit: '%/a'
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Expected annual population growth (up until 2030)
+
+# - id: aggregated_net_emissions
+#   name: Aggregated net emissions
+#   type: simple.AdditiveNode
+#   quantity: emissions
+#   unit: kt/a
+#   # is_outcome: true
+#   input_nodes:
+#   - id: net_emissions
+#     from_dimensions:
+#     - id: ghg
+#       flatten: true
+#     - id: scope
+#       flatten: true
+
+# ------------- Jobs -----------------
+
+- id: total_jobs_created
+  name_fi: Syntyneiden työpaikkojen määrä
+  name_En: Total jobs created
+  type: simple.AdditiveNode
+  quantity: employment
+  unit: jobs
+
+# ------------- Costs ----------------
+
+- id: co2_unit_price
+  name_fi: Hiilidioksidin yksikköhinta
+  name: CO2 unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/t
+  input_dimensions: [cost_type, ghg]
+  output_dimensions: [cost_type, ghg]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Value of CO2 reduction
+
+- id: co2_emissions_cost
+  name_fi: CO2-päästön kustannus
+  name_en: CO2 emissions cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_nodes:
+  - id: co2_unit_price
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+      categories: [city]
+  - id: net_emissions
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions: []
+  output_nodes:
+  - id: total_cost
+
+- id: total_cost
+  name_fi: Kokonaiskustannus
+  name_en: Total cost
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+
+- id: aggregated_cost_types
+  name_fi: Yhdistetyt kustannuslajit
+  name_en: Aggregated cost types
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [cost_type, aggregated_cost_type]
+  output_dimensions: [cost_type, aggregated_cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Aggregated cost types
+
+- id: aggregated_cost
+  name_fi: Yhdistetyt kustannukset
+  name_en: Aggregated cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [aggregated_cost_type, stakeholder, cost_type]
+  output_dimensions: [aggregated_cost_type, stakeholder, cost_type]
+  input_nodes:
+  - id: total_cost
+    tags: [non_additive]
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+  - id: aggregated_cost_types
+    to_dimensions:
+    - id: cost_type
+    - id: aggregated_cost_type
+
+- id: discounted_cost
+  name_fi: Diskontatut kustannukset
+  name_en: Discounted cost
+  type: costs.ExponentialNode
+  quantity: currency
+  unit: MEUR/a
+  is_outcome: true
+  input_dimensions: [stakeholder, cost_type, aggregated_cost_type]
+  output_dimensions: [stakeholder, cost_type, aggregated_cost_type]
+  input_nodes: [aggregated_cost]
+  params:
+  - id: annual_change
+    ref: discount_rate
+  - id: is_decreasing_rate
+    value: true
+
+- id: discounted_total_cost
+  name_fi: Diskontatut kokonaisukustannukset
+  name_en: Discounted total cost
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_nodes:
+  - id: discounted_cost
+    from_dimensions:
+    - id: stakeholder
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: aggregated_cost_type
+      flatten: true
+
+- id: discounted_investment
+  name_fi: Diskontatut sijoitukset
+  name_en: Discounted investment
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_nodes:
+  - id: discounted_cost
+    from_dimensions:
+    - id: aggregated_cost_type
+#      categories: [capex]
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+
+- id: discounted_benefits  # TODO Remove this if the single-node CBA visualisation gets accepted.
+  name_fi: Diskontatut hyödyt
+  name_en: Discounted benefits
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_nodes:
+  - id: discounted_cost
+    from_dimensions:
+    - id: aggregated_cost_type
+      categories: [capex]
+      exclude: true
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+
+# ------------ Lappeenranta-specific nodes -----------
+
+- id: road_transport_emissions_intermediate
+  name_fi: Tieliikenteen CO2-päästöt
+  name_en: CO2 emissions from road transport
+  description_fi: Päämallin ja terveysmoduulin välissä oleva välisolmu, jossa summataan pois terveysmallissa tarpeettomat ulottuvuudet.
+  description_en: Intermediate node between the main model and the health module. Unnecessary dimensions are summed up here.
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: transport_emissions
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: energy_carrier
+      categories: [petrol_diesel]
+      flatten: true
+    - id: transport_mode
+      flatten: true
+    - id: ghg
+      flatten: true
+  - id: freight_transport_emissions
+    from_dimensions:
+    - id: transport_mode
+      categories: [light_trucks]
+      flatten: true
+    - id: pollutant
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+  historical_values: [[2020, 0]]
+  output_nodes:
+  - id: transport_air_pollution_emissions2
+    tags: [non_additive]
+    to_dimensions: []
+
+- id: active_mobility_conversion  # TODO Fix units in dataset
+  name: Aktiivisen liikkumisen muunnos
+  type: simple.AdditiveNode
+  quantity: exposure
+  unit: passenger
+  historical_values: [[2010, 1.0], [2023, 1.0]]
+
+- id: amount_of_active_mobility_by_nzc
+  name: Aktiivisen liikkumisen määrä NZP:n mukaan
+  description_fi: Aktiivisen liikkumisen tiedot, jotka perustuvat NetZeroPlanner-mallilla tuotettuun dataan. Katso myös solmu Aktiivisen liikkumisen määrä HLT:n mukaan.
+  type: simple.MultiplicativeNode
+  quantity: exposure
+  unit: km/cap/d
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: passenger_kilometres
+    from_dimensions:
+    - id: transport_mode
+      categories: [walking]
+  - id: population
+    tags: [geometric_inverse]
+    to_dimensions: []
+  - id: active_mobility_conversion
+    tags: [geometric_inverse]
+    to_dimensions: []
+  output_nodes:
+  - id: active_mobility_combined
+
+- id: carbon_factor_of_active_mobility  # TODO Find out where this came for and what these emissions are
+  name: Aktiivisen liikkumisen päästökerroin
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/a/(min/d/person)
+  input_dimensions: [response, transport_mode]
+  output_dimensions: [response, transport_mode]
+  input_datasets: [hia/heat/lappeenranta_heat]
+  params:
+    sector: carbon_factor_of_active_mobility
+
+# - id: emissions_of_active_mobility
+#   name: Aktiivisen liikkumisen päästöt
+#   type: simple.MultiplicativeNode
+#   quantity: emissions
+#   unit: kt/a
+#   input_dimensions: [transport_mode, response]
+#   output_dimensions: [transport_mode, response]
+#   input_nodes:
+#   - id: carbon_factor_of_active_mobility
+#   - id: amount_of_active_mobility
+#     to_dimensions:
+#     - id: transport_mode
+
+# ----------------------- Active mobility ------------------
+
+- id: population_group_sizes
+  name: Population group sizes
+  type: gpc.DatasetNode
+  quantity: population
+  unit: inh
+  input_dimensions: [age]
+  output_dimensions: [age]
+  input_datasets:
+  - id: hia/heat/lappeenranta_active_mobility
+  params:
+    sector: Population groups
+
+- id: population_group_shares
+  name: Väestöryhmien suhteet
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [age]
+  output_dimensions: [age]
+  input_nodes:
+  - id: population_group_sizes
+  params:
+    share_dimension: age
+    use_input_node_unit_when_adding: true
+
+- id: active_mover_fraction
+  name_fi: Aktiivisten liikkujien osuus ikäryhmästä
+  name_en: Active mover fraction in each age group
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [age, transport_mode]
+  output_dimensions: [age, transport_mode]
+  input_datasets:
+  - id: hia/heat/lappeenranta_active_mobility
+  params:
+    sector: Fraction of movers
+
+- id: active_mover_distance
+  name_fi: Aktiivisen liikkumisen määrä HLT:n mukaan
+  name_en: Active mover distance
+  description_fi: Aktiivisen liikkumisen määränä käytetään aktiivisten liikkujien keskimääräistä suomalaista arvoa, joka on saatu Henkilöliikennetutkimuksesta 2016. Laskenta on Lehtomäen työryhmän (2021) mukainen.<h3>Viitteet</h3>Heli Lehtomäki ym. 2021. Liikenteen terveysvaikutukset Suomessa ja suurimmissa kaupungeissa. Suomen ympäristökeskuksen raportteja 16 / 2021.
+  type: gpc.DatasetNode
+  quantity: mileage
+  unit: km/person/d
+  input_dimensions: [age, transport_mode]
+  output_dimensions: [age, transport_mode]
+  input_datasets:
+  - id: hia/heat/lappeenranta_active_mobility
+  params:
+    sector: Moving distance
+
+- id: active_mobility_by_hlt
+  name_fi: Aktiivisen liikkumisen määrä ikäryhmissä
+  name_en: Average active mobility in age groups
+  description_fi: Tämä solmu kuvaa kyseisen väestöryhmän osuutta koko väestön liikkumisesta. Summaamalla
+    osaväestöt yhteen saadaan koko väestön keskimääräinen liikkuminen.
+  type: simple.MultiplicativeNode
+  quantity: mileage
+  unit: km/person/d
+  input_dimensions: [transport_mode, age]
+  output_dimensions: [transport_mode, age]
+  input_nodes:
+  - id: active_mover_fraction
+  - id: active_mover_distance
+    tags: [non_additive]
+  - id: population_group_shares
+    to_dimensions:
+    - id: age
+  output_nodes:
+  - id: active_mobility_combined
+    from_dimensions:
+    - id: age
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+
+- id: active_mobility_combined
+  name_fi: Aktiivisen liikkumisen yhdistelmä
+  name_en: Combined active mobility
+  description_fi: 'Tässä on yhdistetty kaksi tietolähdettä: toisaalta NetZeroCities-raportointi ja toisaalta Henkilöliikennetutkimus 2016. Tästä eteenpäin käytetään näiden lähteiden keskiarvoa.'
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: km/person/d
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+
+- id: active_mobility_average
+  name_fi: Aktiivisen liikkumisen keskiarvo
+  name_en: Average active mobility
+  description_fi: 'Tässä on yhdistetty kaksi tietolähdettä: toisaalta NetZeroCities-raportointi ja toisaalta Henkilöliikennetutkimus 2016. Tämä on näiden lähteiden keskiarvoa. Tämä solmu toimii myös välisolmuna terveysvaikutusmalliin.'
+  type: simple.FixedMultiplierNode
+  quantity: mileage
+  unit: km/person/d
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes: [active_mobility_combined]
+  output_nodes:
+  - id: active_mobility_distance
+  params:
+  - id: multiplier
+    value: 0.5
+    unit: dimensionless
+
+# ------------- Effects from the other parts of the NZC model ---------
+
+- id: other_health_effects_from_nzc
+  name_fi: Muita terveysvaikutuksia NZC-mallista
+  name_en: Other health effects from the NZC model
+  description_fi: Lappeenrannan mallin pohjana oleva NetZeroPlanner laskee myös joitakin terveyskustnnuksia liikenteelle. Nämä ovat osittain päällekkäisiä THL:n mallin kanssa (pienhiukkaskuolemat) ja osittain WHO/HEATin kanssa (liikenneonnettomuudet). On siis syytä olla tarkkana näiden kanssa. Ne on kuitenkin toistaiseksi nostettu tänne vertailua varten.
+  description_en: Other health impacts from the NetZeroPlanner model.
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, transport_mode]
+  output_dimensions: [cost_type, transport_mode]
+  input_nodes:
+  - id: transport_noise_cost
+    from_dimensions:
+    - id: stakeholder
+      flatten: true
+  - id: transport_accident_cost
+    from_dimensions:
+    - id: stakeholder
+      flatten: true
+  - id: transport_air_pollution_costs
+    from_dimensions:
+    - id: stakeholder
+      flatten: true
+    - id: pollutant
+      flatten: true
+  - id: walking_cycling_co_benefit
+    from_dimensions:
+    - id: stakeholder
+      flatten: true
+  output_nodes:
+  - id: health_costs_attributed_to_exposure
+    to_dimensions:
+    - id: cost_type
+    - id: response
+      categories: [nzp_response]
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+
+- id: fossil_plant_emissions
+  name: Fossil plant emissions (placeholder)
+  description: This model does not consider fossil plant emissions. This node is just for matching the necessary interfaces between modules.
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  historical_values: [[2010, 0.0]]
+  output_nodes:
+  - id: fossil_plant_air_pollution_emissions
+    tags: [non_additive]
+    to_dimensions: []
+
+actions:  # TODO It would be nice to have multiplier parameter in the DatasetAction class.
+
+# --------------- TRANSPORT -------------
+
+- id: a11_reduce_all_motorised_transport
+  name_en: 1.1 Reduce all motorised transport
+  name_fi: 1.1 Vähennä kaikkea moottoroitua liikennettä
+  type: gpc.DatasetAction2  # TODO Salli historialliset arvot LinearCumulativeAdditiveAction-luokassa.
+  quantity: fraction
+  unit: '%'
+  group: transport
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Transportation need reduction by 2030 from urban planning, digital meetings
+      and other transport-reducing initiatives
+  output_nodes:
+  - id: motorised_transport_change
+    to_dimensions: []
+    tags: [non_additive, extend_values]
+
+- id: a12_modal_switch_from_cars_to_other_modes
+  name_en: 1.2 Modal switch from cars to other modes
+  name_fi: 1.2 Kulkumuotosiirtymä autoista muihin kulkumuotoihin
+  type: gpc.DatasetAction2
+  quantity: fraction
+  unit: '%'
+  group: transport
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Reduced Pkm cars + motorcycles by 2030
+  output_nodes:
+  - id: passenger_kilometres_switched
+    to_dimensions: []
+
+- id: a13_car_pooling
+  name_en: 1.3 Car pooling
+  name_fi: 1.3 Kimppakyydit
+  description_en: How many % increase there is in the average number of people in a car.
+  description_fi: Kuinka monta % keskimääräinen henkilömäärä autossa kasvaa.
+  type: gpc.DatasetAction2
+  quantity: fraction
+  unit: '%'
+  group: transport
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  output_nodes:
+  - id: relative_transport_efficiency
+    to_dimensions:
+    - id: transport_mode
+  params:
+    sector: 1.3 Car pooling
+
+- id: a141_electrification_of_passenger_cars
+  name_en: 1.4.1 Electrification of passenger cars
+  name_fi: 1.4.1 Henkilöautojen sähköistäminen
+  type: gpc.SCurveAction
+  quantity: fraction
+  unit: '%'
+  group: transport
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Electrification of transport fleet
+  input_nodes:
+  - id: fully_electric_vehicle_share
+    from_dimensions:
+    - id: transport_mode
+      categories: [cars]
+  output_nodes:
+  - id: fully_electric_car_share
+
+- id: a142_electrification_of_buses
+  name_en: 1.4.2 Electrification of buses
+  name_fi: 1.4.2 Linja-autojen sähköistäminen
+  description_en: Fraction of buses that is replaced with electric buses each year.
+  description_fi: Osuus linja-autoista, jotka korvataan sähköbusseilla vuosittain.
+  type: gpc.DatasetAction2
+  quantity: fraction
+  unit: '%/a'
+  group: transport
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Expected procurement schedule for buses
+  output_nodes:
+  - id: fully_electric_bus_share
+    tags: [cumulative]
+
+# ----------------- Freight transport -----------------
+
+- id: a21_optimised_logistics
+  name_en: 2.1 Optimised logistics
+  name_fi: 2.1 Optimoidut logistiikkaratkaisut
+  type: parent.ParentActionNode
+  quantity: mass
+  unit: m**3
+  group: freight_transport
+
+- id: a211_improve_utilisation_of_trucks
+  name_en: 2.1.1 Improve utilisation of trucks
+  name_fi: 2.1.1 Paranna kuorma-autojen käyttöastetta
+  type: linear.DatasetReduceAction
+  quantity: fraction
+  unit: '%'
+  group: freight_transport
+  parent: a21_optimised_logistics
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: average_truck_utilisation_goal
+    tags: [goal]
+  - id: average_truck_utilisation_historical
+    tags: [historical]
+  output_nodes:
+  - id: average_truck_utilisation
+
+- id: a212_route_optimisation
+  name_en: 2.1.2 Route optimisation
+  name_fi: 2.1.2 Reittioptimointi
+  type: gpc.DatasetAction2
+  quantity: fraction
+  unit: '%'
+  group: freight_transport
+  parent: a21_optimised_logistics
+  input_datasets:
+  - id: nzc/defaults
+  output_nodes:
+  - id: freight_transport_vehicle_kilometres
+    tags: [complement, non_additive]
+    to_dimensions: []
+  params:
+    sector: Reduction of total distance travelled through route optimisation
+
+- id: a22_truck_fleet_electrification
+  name_en: 2.2 Truck fleet electrification
+  name_fi: 2.2 Kuorma-autokannan sähköistäminen
+  type: gpc.SCurveAction
+  quantity: fraction
+  unit: '%'
+  group: freight_transport
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Electrification of transport fleet
+  input_nodes:
+  - id: fully_electric_vehicle_share
+    from_dimensions:
+    - id: transport_mode
+      categories: [light_trucks, heavy_trucks]
+  output_nodes:
+  - id: fully_electric_truck_share
+
+# -------------- ELECTRICITY ----------------
+
+- id: a41_replace_fossil_electricity  # TODO virtaviivaista tämä käyttämällä suhteellista tavoitetta
+  name_en: 4.1 Replace fossil electricity
+  name_fi: 4.1 Korvaa fossiilinen sähkö
+  type: linear.DatasetReduceAction
+  quantity: fraction
+  unit: '%'
+  group: electricity
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_nodes:
+  - id: electricity_production_shares_historical
+    tags: [historical]
+  - id: electricity_shares_goal
+    tags: [goal, forecast_only]
+  output_nodes:
+  - id: electricity_shares
+
+pages:
+- id: home
+  name: DUT-liikenne- ja -päästöskenaario
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: DUT-liikenneskenaario
+  lead_title_en: DUT transport scenario
+  lead_paragraph: DUT-hankkeessa kartoitetaan liikennetoimenpiteitä, joilla olisi myös terveydellisiä hyötyjä. Hanke on osa EU:n Driving Urban Transitions (DUT) -ohjelmaa, ja sitä sponsoroivat Suomessa työ- ja elinkeinoministeriö sekä ympäristöministeriö. Hanketta koordinoi VTT ja mukana ovat Kausal Oy ja UKK-instituutti.
+
+scenarios:
+- id: baseline
+  name: Nykykehitys
+  name_en: Baseline scenario
+  params:
+  - id: show_scenario_impacts
+    value: false
+  - id: statistical_correction
+    value: false
+
+- id: default
+  default: true
+  name: Aktiivinen toimenpideohjelma
+  name_en: Action Plan
+  all_actions_enabled: true
+  params:
+  - id: statistical_correction
+    value: false
+
+include:
+- file: nzc/transport.yaml
+  node_group: Transport
+- file: nzc/freight_transport.yaml
+  node_group: Freight transport
+- file: nzc/electricity.yaml
+  node_group: Electricity
