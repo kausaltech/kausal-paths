@@ -1,0 +1,261 @@
+id: norderstedt-c4c
+default_language: en
+supported_languages: []
+site_url: https://norderstedt-c4c.paths.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: 438ff921efa717e81e53df758b604405f9f0ba8e
+  dvc_remote: kausal-s3
+name: Norderstedt Greenhouse Gas Inventory
+owner: City of Norderstedt
+theme_identifier: eu-climate-4-cast
+target_year: 2040
+model_end_year: 2040
+minimum_historical_year: 2020
+maximum_historical_year: 2023
+emission_unit: t/a
+emission_forecast_from: 2024
+emission_dimensions: ['scope', 'ghg']
+features:
+  baseline_visible_in_graphs: true
+
+dimensions:
+- id: scope
+  label: Scope
+  categories:
+  - id: scope1
+    label: 'Scope 1'
+  - id: scope2
+    label: 'Scope 2'
+
+- id: ghg
+  label: GHG
+  categories:
+  - id: co2
+    label: 'CO2'
+
+- id: energy_carrier
+  label: Energy Carrier
+  categories:
+  - id: electricity
+    label: 'Electricity'
+
+- id: cost_type
+  label: Cost Type
+  categories:
+  - id: operations
+    label: 'Operations'
+
+emission_sectors:
+- id: net_emissions
+  name: Net Emissions
+  is_outcome: true
+
+
+nodes:
+- id: net_price
+  name: Net Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['scope', 'energy_carrier', 'cost_type']
+  output_dimensions: ['scope', 'energy_carrier', 'cost_type']
+  is_outcome: true
+
+- id: i22_commercial_and_institutional_grid_energy_consumption
+  name: I.2.2 Commercial & Institutional Grid Energy Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: ['scope', 'energy_carrier']
+  output_dimensions: ['scope', 'energy_carrier']
+  params:
+    gpc_sector: I.2.2
+  input_datasets:
+  - id: gpc/norderstedt
+    forecast_from: 2024
+  output_nodes:
+  - id: i22_commercial_and_institutional_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+  - id: i22_commercial_and_institutional_grid_energy_consumption_price
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+
+- id: i22_commercial_and_institutional_grid_energy_consumption_emissions
+  name: I.2.2 Commercial & Institutional Grid Energy Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_nodes:
+  - id: i2_commercial_and_institutional_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
+
+- id: i22_commercial_and_institutional_grid_energy_consumption_price
+  name: I.2.2 Commercial & Institutional Grid Energy Consumption Price
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['scope', 'energy_carrier', 'cost_type']
+  output_dimensions: ['scope', 'energy_carrier', 'cost_type']
+  output_nodes:
+  - id: i2_commercial_and_institutional_total_price
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: cost_type
+
+- id: i22_commercial_and_institutional_grid_energy_emission_factor
+  name: I.2.2 Commercial & Institutional Grid Energy Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier']
+  params:
+    gpc_sector: I.2.2
+  input_datasets:
+  - id: gpc/norderstedt
+    forecast_from: 2024
+  output_nodes:
+  - id: i22_commercial_and_institutional_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
+
+- id: i22_commercial_and_institutional_grid_energy_unit_price
+  name: I.2.2 Commercial & Institutional Grid Energy Unit Price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/kWh
+  input_dimensions: ['scope', 'energy_carrier', 'cost_type']
+  output_dimensions: ['scope', 'energy_carrier', 'cost_type']
+  params:
+    gpc_sector: I.2.2
+  input_datasets:
+  - id: gpc/norderstedt
+    forecast_from: 2024
+  output_nodes:
+  - id: i22_commercial_and_institutional_grid_energy_consumption_price
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: cost_type
+
+- id: v2_land_emissions
+  name: V.2 Land Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  params:
+    gpc_sector: V.2
+  input_datasets:
+  - id: gpc/norderstedt
+    forecast_from: 2024
+  output_nodes:
+  - id: v_afolu_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: i2_commercial_and_institutional_total_emissions
+  name: I.2 Commercial & Institutional Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_nodes:
+  - id: i_stationary_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
+
+- id: i_stationary_total_emissions
+  name: I Stationary Total Emissions
+  type: simple.AdditiveNode
+  color: '#4e79a7'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: v_afolu_total_emissions
+  name: V AFOLU Total Emissions
+  type: simple.AdditiveNode
+  color: '#b07aa1'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: net_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: i2_commercial_and_institutional_total_price
+  name: I.2 Commercial & Institutional Total Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['scope', 'energy_carrier', 'cost_type']
+  output_dimensions: ['scope', 'energy_carrier', 'cost_type']
+  output_nodes:
+  - id: i_stationary_total_price
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: cost_type
+
+- id: i_stationary_total_price
+  name: I Stationary Total Price
+  type: simple.AdditiveNode
+  color: '#4e79a7'
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['scope', 'energy_carrier', 'cost_type']
+  output_dimensions: ['scope', 'energy_carrier', 'cost_type']
+  output_nodes:
+  - id: net_price
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: cost_type
+
+pages:
+- id: home
+  name: Norderstedt Greenhouse Gas Inventory
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Norderstedt Climate-4-CAST Decision Support Tool
+  lead_paragraph: Greenhouse gas inventory (2020-2023) and forecast (2024-2040) for the City of Norderstedt.
+
+scenarios:
+- id: baseline
+  name: Business as Usual
+
+- id: default
+  default: true
+  name: Climate Action Plan
+  all_actions_enabled: true
