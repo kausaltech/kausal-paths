@@ -29,7 +29,8 @@ dimensions:
 
 nodes:
 - id: transport_emissions
-  name: Transport emissions
+  name_en: Transport emissions
+  name_fi: Liikenteen päästöt
   type: simple.EmissionFactorActivity
   quantity: emissions
   unit: kt/a
@@ -73,7 +74,8 @@ nodes:
     - id: scope
 
 # - id: transport_electricity_emissions
-#   name: Transport electricity emissions
+#   name_en: Transport electricity emissions
+#   name_fi: Liikenteen sähköpäästöt
 #   type: simple.AdditiveNode
 #   quantity: emissions
 #   unit: kt/a
@@ -93,11 +95,15 @@ nodes:
   #     flatten: true
 
 - id: baseline_year_fleet_emission_factor_pre
-  name: Baseline year car and bus fleet emission factor before splitting
-  description: 'Emission factor is a weighted average of existing and
+  name_en: Baseline year car and bus fleet emission factor before splitting
+  name_fi: Perusvuoden henkilöautojen ja bussien päästökerroin ennen jakamista
+  description_en: 'Emission factor is a weighted average of existing and
     new car and bus fleet, where 0.5 * X % is renewed annually (X = share of fleet that is less than 2 years old). Cars are calculated by<br>=L174*(1-M$172)+M164*M$172<br>while buses are calculated by
     =IF(($L242*(1-SUM($L$241:N$241))+N233*SUM($L$241:N$241))>M242,M242,($L242*(1-SUM($L$241:N$241))+N233*SUM($L$241:N$241)))<br>
     There are a few key differences: 1) the existing fleet in the formula is that of year 2018, while with cars it is the previous year; 2) the percentage change is the total from 2018, while with cars it is from the previous year; 3) bus emission factor cannot increase, which would happen if the baseline emission factor (given by the user) would be larger than the new bus emission factor. There differences 1 & 2 are coherent, but it also results in a situation where the cohorts between 2019 and the previous year (inclusive) suddenly disappear and are replaced by current year fleet. However, this is not a problem because new bus fleet does not improve and the emission factors are the same for evary year. Difference 3 is handled (TO BE DISCUSSED!) by replacing the new emission factor with the baseline year value if it is smaller, so that at the actual calculation there is no need to consideer this any more.</p>'
+  description_fi: 'Päästökerroin on painotettu keskiarvo nykyisestä ja uudesta henkilöauto- ja bussikannasta, josta 0,5 * X % uusiutuu vuosittain (X = alle 2 vuotta vanhan kaluston osuus). Henkilöautot lasketaan kaavalla<br>=L174*(1-M$172)+M164*M$172<br>kun taas bussit lasketaan kaavalla
+    =IF(($L242*(1-SUM($L$241:N$241))+N233*SUM($L$241:N$241))>M242,M242,($L242*(1-SUM($L$241:N$241))+N233*SUM($L$241:N$241)))<br>
+    Näissä on muutamia keskeisiä eroja: 1) kaavassa oleva nykyinen kalusto on vuoden 2018, kun taas henkilöautoilla se on edellisen vuoden; 2) prosentuaalinen muutos on kokonaismuutos vuodesta 2018, kun taas henkilöautoilla se on edellisestä vuodesta; 3) bussien päästökerroin ei voi kasvaa, mikä tapahtuisi, jos käyttäjän antama perusvuoden päästökerroin olisi suurempi kuin uuden bussin päästökerroin. Erot 1 & 2 ovat yhdenmukaisia, mutta se johtaa myös tilanteeseen, jossa vuosien 2019 ja edellisen vuoden (mukaan lukien) kohortit yhtäkkiä katoavat ja ne korvataan nykyisen vuoden kalustolla. Tämä ei kuitenkaan ole ongelma, koska uusi bussikalusto ei parane ja päästökertoimet ovat samat joka vuosi. Ero 3 käsitellään (KESKUSTELTAVA!) korvaamalla uusi päästökerroin perusvuoden arvolla, jos se on pienempi, joten varsinaisessa laskennassa tätä ei tarvitse enää huomioida.</p>'
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/vkm
@@ -109,8 +115,9 @@ nodes:
     sector: Transport Emission factors
 
 - id: new_fleet_emission_factor_pre
-  name: New fleet emission factor before splitting
-  description: '<p>Emission factors for new cars following the EURO 6 standard. (EU: Cars and Light Trucks. 
+  name_en: New fleet emission factor before splitting
+  name_fi: Uuden kaluston päästökerroin ennen jakamista
+  description_en: '<p>Emission factors for new cars following the EURO 6 standard. (EU: Cars and Light Trucks. 
     https://www.dieselnet.com/standards/eu/ld.php)<br>
     This node is needed in vehicle fleet upgrade. The idea is that there are several cohorts i of vehicles, each faving its own emission factor. The first cohort comes from node baseline_year_fleet_emission_factor and it contains all cars that were in the fleet in the baseline. Each year after that, a new cohort of cars enter the fleet, each having the emission factor that was for that year in node new_fleet_emission_factor. Each cohort has a proportion of P<sub>i</sub> among the fleet. The average emission factor is therefore<br>
     E<sub>t</sub> = sum<sub>i</sub>(E<sub>i,t</sub> * P<sub>i,t</sub>) <br>where i is class and t is timepoint. This is complicated by gradual removal of vehicle classes from the fleet such that<br>
@@ -121,6 +128,17 @@ nodes:
     cars in the fleet. (Not realistic but that is how NZC excel works)</p>
     Finally, we assume that E is constant for each vehicle as long as it is in the fleet. 
     This is handled by looking at each E<sub>i,t</sub> cohort until the last time point.'
+  description_fi: '<p>Uusien autojen päästökertoimet noudattavat EURO 6 -standardia. (EU: Henkilöautot ja kevyet kuorma-autot. 
+    https://www.dieselnet.com/standards/eu/ld.php)<br>
+    Tämä solmu tarvitaan ajoneuvokannan päivityksessä. Ajatuksena on, että on useita ajoneuvoluokkia i, joilla kullakin on oma päästökertoimensa. Ensimmäinen luokka tulee solmusta baseline_year_fleet_emission_factor, ja se sisältää kaikki perusvuoden kannassa olleet autot. Joka vuosi sen jälkeen kantaan tulee uusi autoluokka, jolla kullakin on solmun new_fleet_emission_factor kyseisen vuoden päästökerroin. Kullakin luokalla on osuus P<sub>i</sub> kannasta. Keskimääräinen päästökerroin on siten<br>
+    E<sub>t</sub> = sum<sub>i</sub>(E<sub>i,t</sub> * P<sub>i,t</sub>) <br>missä i on luokka ja t on ajankohta. Tätä mutkistaa ajoneuvojen asteittainen poistuminen kannasta siten, että<br>
+    N<sub>i,t</sub> = N<sub>i,t0</sub> * product(s<sub>i,0</sub>, ..., s<sub>i,t</sub>), <br>missä s<sub>i,t</sub> ovat selviytymisasteet, N<sub>i,t</sub> on luokan autojen määrä ajankohtana t, t0 on luokan tuloajankohta ja osuus P<sub>i,t</sub> = N<sub>i,t</sub>/sum<sub>i</sub>(N<sub>i,t</sub>).
+    On huomattava, että jokaisena ajankohtana on olemassa olevat luokat ja uusi luokka, joka tulee kyseisenä vuonna.</p>
+    <p>Tässä käyttötapauksessa ontärkeää erottaa nämä luokat toisistaan, koska päästökerroin pienenee ajan myötä.
+    Laskennan logiikka on, että kun ajoneuvo on tullut kantaan, sillä on sama selviytymistodennäköisyys kuin kaikilla muilla
+    autoilla kannassa. (Ei realistista, mutta näin NZC-excel toimii)</p>
+    Lopuksi oletamme, että E on vakio kullekin ajoneuvolle niin kauan kuin se on kannassa. 
+    Tämä käsitellään tarkastelemalla kutakin E<sub>i,t</sub>-luokkaa viimeiseen ajankohtaan asti.'
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/vkm
@@ -131,8 +149,10 @@ nodes:
     sector: new fleet emission factor
 
 - id: transport_pollutant_split
-  name: Transport pollutant split
-  description: Particulate pollutants (PM2.5 and PM10) are entered as totals by the user. However, calculations are based on a split between combustion pollutants (from tailpipe) and wear & tear (dust from breaks and tyres). This node has the fractions of these subcategories. Note! The NZC excel treats combustion and non-combustion fractions differently. Non-combustion value is taken from the user multiplied by its split fraction and assumed to stay constant across time. Combustion value for new cars comes from an EU report and is assumed to improve over time. The difference is substantial, as the default for current PM10 is 30 mg/vkm, while the new fleet assumes 8 mg/vkm. Here, we use the lower value, which is consistent with the calculation logic.
+  name_en: Transport pollutant split
+  name_fi: Liikenteen päästöjen jakautuminen
+  description_en: Particulate pollutants (PM2.5 and PM10) are entered as totals by the user. However, calculations are based on a split between combustion pollutants (from tailpipe) and wear & tear (dust from breaks and tyres). This node has the fractions of these subcategories. Note! The NZC excel treats combustion and non-combustion fractions differently. Non-combustion value is taken from the user multiplied by its split fraction and assumed to stay constant across time. Combustion value for new cars comes from an EU report and is assumed to improve over time. The difference is substantial, as the default for current PM10 is 30 mg/vkm, while the new fleet assumes 8 mg/vkm. Here, we use the lower value, which is consistent with the calculation logic.
+  description_fi: Käyttäjä syöttää hiukkaspäästöt (PM2.5 ja PM10) kokonaismäärinä. Laskelmat perustuvat kuitenkin jakoon palamispäästöjen (pakoputkesta) ja kulumisen (jarruista ja renkaista irtoava pöly) välillä. Tämä solmu sisältää näiden alakategorioiden osuudet. Huomaa! NZC-excel käsittelee palamisperäisiä ja ei-palamisperäisiä osuuksia eri tavoin. Ei-palamisperäinen arvo otetaan käyttäjältä kerrottuna sen jakauman osuudella ja sen oletetaan pysyvän vakiona ajan myötä. Palamisperäinen arvo uusille autoille tulee EU:n raportista, ja sen oletetaan paranevan ajan myötä. Ero on merkittävä, sillä nykyisen PM10:n oletusarvo on 30 mg/vkm, kun taas uuden kaluston oletetaan olevan 8 mg/vkm. Tässä käytämme alempaa arvoa, mikä on yhdenmukaista laskennan logiikan kanssa.
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -143,7 +163,8 @@ nodes:
     sector: transport pollutant split
 
 - id: baseline_year_fleet_emission_factor
-  name: Baseline year fleet emission factor
+  name_en: Baseline year fleet emission factor
+  name_fi: Perusvuoden kaluston päästökerroin
   type: simple.MultiplicativeNode
   quantity: emission_factor
   unit: g/vkm
@@ -162,7 +183,8 @@ nodes:
     - id: energy_carrier
 
 - id: new_fleet_emission_factor
-  name: New fleet emission factor
+  name_en: New fleet emission factor
+  name_fi: Uuden kaluston päästökerroin
   type: simple.MultiplicativeNode
   quantity: emission_factor
   unit: g/vkm
@@ -181,9 +203,11 @@ nodes:
     - id: energy_carrier
 
 - id: old_fleet_removal
-  name: Old fleet removal
+  name_en: Old fleet removal
+  name_fi: Vanhan kaluston poistuminen
   type: gpc.DatasetNode
-  description: The fraction of current car and bus fleet that is removed each year from the fleet.
+  description_en: The fraction of current car and bus fleet that is removed each year from the fleet.
+  description_fi: Osuus nykyisestä henkilöauto- ja bussikannasta, joka poistuu vuosittain kannasta.
   quantity: fraction
   unit: '%/a'
   input_dimensions: [transport_mode]
@@ -197,8 +221,10 @@ nodes:
     unit: 1/a
 
 - id: fleet_emission_factor
-  name: Fleet emission factor
-  description: Emission factor for the current car and bus fleet. (Assuming there are no diesel trains)
+  name_en: Fleet emission factor
+  name_fi: Kaluston päästökerroin
+  description_en: Emission factor for the current car and bus fleet. (Assuming there are no diesel trains)
+  description_fi: Nykyisen henkilöauto- ja bussikannan päästökerroin. (Olettaen, että dieseljunia ei ole)
   type: costs.DilutionNode
   quantity: emission_factor
   unit: g/vkm
@@ -221,7 +247,8 @@ nodes:
     - id: transport_mode
 
 - id: electric_vehicle_emission_factor
-  name: Electric vehicle emission factor
+  name_en: Electric vehicle emission factor
+  name_fi: Sähköajoneuvojen päästökerroin
   type: simple.MultiplicativeNode
   quantity: emission_factor
   unit: g/vkm
@@ -238,7 +265,8 @@ nodes:
     - id: transport_mode
 
 - id: transport_emission_factor  # TODO Add wear&tear from electric vehicles
-  name: Transport emission factor
+  name_en: Transport emission factor
+  name_fi: Liikenteen päästökerroin
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/vkm
@@ -253,7 +281,8 @@ nodes:
   - id: fleet_emission_factor
 
 - id: transport_air_pollution_emissions
-  name: Transport air pollution emissions
+  name_en: Transport air pollution emissions
+  name_fi: Liikenteen ilmansaastepäästöt
   type: simple.MultiplicativeNode # EmissionFactorActivity
   quantity: emissions
   unit: t/a
@@ -274,7 +303,8 @@ nodes:
     - id: energy_carrier
 
 - id: vehicle_kilometres
-  name: Vehicle kilometres
+  name_en: Vehicle kilometres
+  name_fi: Ajoneuvokilometrit
   type: simple.MultiplicativeNode
   quantity: mileage
   unit: Mvkm/a
@@ -291,7 +321,8 @@ nodes:
   - id: transport_energy_carrier_shares
 
 - id: fully_electric_vehicle_share
-  name: Fully electric vehicle share historic
+  name_en: Fully electric vehicle share historic
+  name_fi: Täyssähköajoneuvojen osuus historiallisesti
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -303,12 +334,14 @@ nodes:
     sector: Share of fleet fully electric (not including hybrids)
 
 - id: fully_electric_car_share
-  name: Fully electric car share
-  description: Share of car fleet fully electric (not including hybrids)
+  name_en: Fully electric car share
+  name_fi: Täyssähköautojen osuus
+  description_en: Share of car fleet fully electric (not including hybrids)
+  description_fi: Täyssähköautojen osuus henkilöautokannasta (ei sisällä hybridejä)
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
-  input_dimensions: [transport_mode, energy_carrier]
+  input_dimensions: [transport_mode, energy_carrier]    
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/defaults
@@ -316,8 +349,10 @@ nodes:
     sector: Share of fleet fully electric (not including hybrids)
 
 - id: fully_electric_bus_share
-  name: Fully electric bus share
-  description: Share of bus fleet fully electric (not including hybrids)
+  name_en: Fully electric bus share
+  name_fi: Täyssähköbussien osuus
+  description_en: Share of bus fleet fully electric (not including hybrids)
+  description_fi: Täyssähköbussien osuus bussikannasta (ei sisällä hybridejä)
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -329,7 +364,8 @@ nodes:
     sector: Share of bus fleet as fully electric buses (not including hybrids)
 
 - id: number_of_buses_historical
-  name: Number of buses historical
+  name_en: Number of buses historical
+  name_fi: Bussien määrä historiallisesti
   type: gpc.DatasetNode
   quantity: number
   unit: v
@@ -341,7 +377,8 @@ nodes:
     sector: Number of buses in city bus fleet
 
 - id: vehicle_kilometres_per_bus
-  name: Vehicle kilometres per bus
+  name_en: Vehicle kilometres per bus
+  name_fi: Ajoneuvokilometrit bussia kohti
   type: simple.MultiplicativeNode
   quantity: mileage
   unit: vkm/v/a
@@ -358,7 +395,8 @@ nodes:
     tags: [inventory_only, geometric_inverse]
 
 - id: number_of_buses
-  name: Number of buses
+  name_en: Number of buses
+  name_fi: Bussien määrä
   type: simple.MultiplicativeNode
   quantity: number
   unit: vehicles
@@ -375,8 +413,10 @@ nodes:
     - id: transport_mode
 
 - id: fully_electric_train_share
-  name: Fully electric train share
-  description: Share of train fleet fully electric
+  name_en: Fully electric train share
+  name_fi: Täyssähköjunien osuus
+  description_en: Share of train fleet fully electric
+  description_fi: Täyssähköjunien osuus junakannasta
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
@@ -384,8 +424,10 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
 
 - id: transport_energy_carrier_shares
-  name: Transport energy carrier shares
-  description: Share of fleet fully electric (not including hybrids)
+  name_en: Transport energy carrier shares
+  name_fi: Liikenteen energiankantajaosuudet
+  description_en: Share of fleet fully electric (not including hybrids)
+  description_fi: Täyssähköisen kaluston osuus (ei sisällä hybridejä)
   type: simple.FillNewCategoryNode
   quantity: fraction
   unit: '%'
@@ -410,7 +452,8 @@ nodes:
     new_category: 'energy_carrier:petrol_diesel'
 
 - id: transport_electricity_consumption
-  name: Transport electricity consumption
+  name_en: Transport electricity consumption
+  name_fi: Liikenteen sähkönkulutus
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
@@ -436,7 +479,8 @@ nodes:
     - id: energy_carrier
 
 - id: transport_efficiency
-  name: Transport efficiency
+  name_en: Transport efficiency
+  name_fi: Liikenteen tehokkuus
   type: gpc.DatasetNode
   quantity: occupancy_factor
   unit: passenger/vehicle
@@ -447,7 +491,8 @@ nodes:
     sector: Number of passengers per vehicle
 
 - id: passenger_kilometres_data
-  name: Passenger kilometres data
+  name_en: Passenger kilometres data
+  name_fi: Henkilökilometrien data
   type: gpc.DatasetNode
   quantity: mileage
   unit: Mpkm/a
@@ -463,7 +508,8 @@ nodes:
     sector: Transport need
 
 - id: passenger_kilometres_reduced
-  name: Passenger kilometres reduced
+  name_en: Passenger kilometres reduced
+  name_fi: Vähennetyt henkilökilometrit
   type: simple.MultiplicativeNode
   quantity: mileage
   unit: Mpkm/a
@@ -476,7 +522,8 @@ nodes:
     tags: [arithmetic_inverse]
 
 - id: passenger_kilometres_after_reducing
-  name: Passenger kilometres after reducing
+  name_en: Passenger kilometres after reducing
+  name_fi: Henkilökilometrit vähentämisen jälkeen
   type: simple.AdditiveNode
   quantity: mileage
   unit: Mpkm/a
@@ -487,7 +534,8 @@ nodes:
   - id: passenger_kilometres_reduced
 
 - id: relative_transport_mode_switches
-  name: Relative transport mode switches
+  name_en: Relative transport mode switches
+  name_fi: Suhteelliset liikennemuotosiirtymät
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -498,7 +546,8 @@ nodes:
     sector: Share of car + motorcycle km reduced shifted towards other modes
 
 - id: passenger_kilometres_switched
-  name: Passenger kilometres switched
+  name_en: Passenger kilometres switched
+  name_fi: Siirretyt henkilökilometrit
   type: simple.MultiplicativeNode
   quantity: mileage
   unit: Mpkm/a
@@ -517,7 +566,8 @@ nodes:
     - id: transport_mode
 
 - id: passenger_kilometres
-  name: Passenger kilometres
+  name_en: Passenger kilometres
+  name_fi: Henkilökilometrit
   type: simple.AdditiveNode
   quantity: mileage
   unit: Mpkm/a
@@ -528,7 +578,8 @@ nodes:
   - id: passenger_kilometres_switched
 
 - id: motorised_transport_index
-  name: Motorised transport index
+  name_en: Motorised transport index
+  name_fi: Moottoroidun liikenteen indeksi
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -539,8 +590,10 @@ nodes:
     sector: motorised transport index
 
 - id: motorised_transport_change
-  name: Motorised transport change
-  description: Positive values are reductions in motorised transport.
+  name_en: Motorised transport change
+  name_fi: Moottoroidun liikenteen muutos
+  description_en: Positive values are reductions in motorised transport.
+  description_fi: Positiiviset arvot ovat vähennyksiä moottoroidussa liikenteessä.
   type: simple.MultiplicativeNode
   quantity: fraction
   unit: '%'
@@ -555,7 +608,8 @@ nodes:
 # ---------------- Transport costs ---------------
 
 - id: car_driving_unit_price
-  name: Car driving unit price
+  name_en: Car driving unit price
+  name_fi: Auton ajamisen yksikköhinta
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/vkm
@@ -566,7 +620,8 @@ nodes:
     sector: Cost of driving a car per kilometre (excluding fuel)
 
 - id: car_driving_costs
-  name: Car driving costs (excluding fuel)
+  name_en: Car driving costs (excluding fuel)
+  name_fi: Auton ajamisen kustannukset (ilman polttoainetta)
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -600,7 +655,8 @@ nodes:
       categories: [citizens]
 
 - id: charging_infrastructure_unit_price
-  name: Charging infrastructure unit price
+  name_en: Charging infrastructure unit price
+  name_fi: Latausinfrastruktuurin yksikköhinta
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/v
@@ -611,7 +667,8 @@ nodes:
     sector: Charging infrastructure costs
 
 - id: charging_infrastructure_shares
-  name: Charging infrastructure shares
+  name_en: Charging infrastructure shares
+  name_fi: Latausinfrastruktuurin osuudet
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -622,7 +679,8 @@ nodes:
     sector: ev charging infrastructure
 
 - id: total_number_of_cars
-  name: Total number of cars
+  name_en: Total number of cars
+  name_fi: Autojen kokonaismäärä
   type: gpc.DatasetNode
   quantity: number
   unit: vehicle
@@ -633,7 +691,8 @@ nodes:
     sector: Total number of cars + motorcycles in city
 
 - id: vehicle_kilometres_per_car
-  name: Vehicle kilometres per car
+  name_en: Vehicle kilometres per car
+  name_fi: Ajoneuvokilometrit autoa kohti
   type: simple.MultiplicativeNode
   quantity: mileage
   unit: vkm/v/a
@@ -649,7 +708,8 @@ nodes:
       flatten: true
 
 - id: number_of_new_evs
-  name: Number of new EVs
+  name_en: Number of new EVs
+  name_fi: Uusien sähköautojen määrä
   type: simple.MultiplicativeNode
   quantity: number
   unit: v/a
@@ -667,7 +727,8 @@ nodes:
     - id: transport_mode
 
 - id: charging_infrastructure_costs
-  name: Charging infrastructure costs, cars
+  name_en: Charging infrastructure costs, cars
+  name_fi: Latausinfrastruktuurin kustannukset, autot
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -699,7 +760,8 @@ nodes:
       flatten: true
 
 - id: charging_infrastructure_costs_buses
-  name: Charging infrastructure costs, buses
+  name_en: Charging infrastructure costs, buses
+  name_fi: Latausinfrastruktuurin kustannukset, bussit
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -726,7 +788,8 @@ nodes:
       flatten: true
 
 - id: total_cost_of_ownership_historical
-  name: Total cost of ownership historical
+  name_en: Total cost of ownership historical
+  name_fi: Omistamisen kokonaiskustannukset historiallisesti
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/vkm
@@ -737,7 +800,8 @@ nodes:
     sector: Total cost of ownership
 
 - id: total_cost_of_ownership_shares
-  name: Total cost of ownership shares
+  name_en: Total cost of ownership shares
+  name_fi: Omistamisen kokonaiskustannusten osuudet
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -748,7 +812,8 @@ nodes:
     sector: Total cost of ownership shares
 
 - id: total_cost_of_ownership
-  name: Total cost of ownership
+  name_en: Total cost of ownership
+  name_fi: Omistamisen kokonaiskustannukset
   type: simple.MultiplicativeNode
   quantity: unit_price
   unit: EUR/vkm
@@ -766,7 +831,8 @@ nodes:
     - id: cost_type
 
 - id: transport_ownership_costs
-  name: Transport ownership costs
+  name_en: Transport ownership costs
+  name_fi: Liikenteen omistamisen kustannukset
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -793,7 +859,8 @@ nodes:
       categories: [transport_operators]
 
 - id: electric_vehicles_additional_unit_price_historical
-  name: Electric vehicles additional unit price historical
+  name_en: Electric vehicles additional unit price historical
+  name_fi: Sähköajoneuvojen lisäyksikköhinta historiallisesti
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/v
@@ -804,7 +871,8 @@ nodes:
     sector: Additional costs for electric vehicles
 
 - id: electric_vehicles_unit_price_rate
-  name: Electric vehicles additional unit price rate
+  name_en: Electric vehicles additional unit price rate
+  name_fi: Sähköajoneuvojen lisäyksikköhinnan muutos
   type: gpc.DatasetNode
   quantity: rate
   unit: '%/a'
@@ -815,7 +883,8 @@ nodes:
     sector: Additional costs for electric vehicles rate
 
 - id: electric_vehicles_additional_unit_price
-  name: Electric vehicles additional unit price
+  name_en: Electric vehicles additional unit price
+  name_fi: Sähköajoneuvojen lisäyksikköhinta
   type: simple.MultiplicativeNode
   quantity: unit_price
   unit: EUR/v
@@ -828,7 +897,8 @@ nodes:
     tags: [arithmetic_inverse, complement_cumulative_product]
 
 - id: additional_cost_of_buying_electric_vehicles
-  name: Additional cost of buying electric vehicles
+  name_en: Additional cost of buying electric vehicles
+  name_fi: Sähköajoneuvojen ostamisen lisäkustannukset
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -860,7 +930,8 @@ nodes:
     - id: cost_type
 
 - id: additional_cost_of_buying_electric_buses
-  name: Additional cost of buying electric buses
+  name_en: Additional cost of buying electric buses
+  name_fi: Sähköbussien ostamisen lisäkustannukset
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -888,7 +959,8 @@ nodes:
     - id: cost_type
 
 - id: electricity_efficiency_for_electric_vehicles
-  name: Electricity efficiency for electric vehicles
+  name_en: Electricity efficiency for electric vehicles
+  name_fi: Sähköajoneuvojen sähkönkulutuksen tehokkuus
   type: gpc.DatasetNode
   quantity: energy_factor
   unit: kWh/vkm
@@ -899,7 +971,8 @@ nodes:
     sector: Electricity consumption average vehicle
 
 - id: up_front_cost_shares_of_evs
-  name: Up-front cost shares of EVs
+  name_en: Up-front cost shares of EVs
+  name_fi: Sähköautojen etukäteiskustannusten osuudet
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -910,12 +983,18 @@ nodes:
     sector: up-front costs for EVs
 
 - id: air_pollution_unit_price
-  name: Air pollution unit price
-  description: 'Unit prices for air pollutants, noise, accidents, and CO2 come from a single source
+  name_en: Air pollution unit price
+  name_fi: Ilmansaasteiden yksikköhinta
+  description_en: 'Unit prices for air pollutants, noise, accidents, and CO2 come from a single source
     (Essen et al., 2019). Datasets can be created from 1.1 Reduce transport need G129:G134 (CO2 and air pollutants),
     G169:G179 (noise), G204:G209 (accidents). The values are constant across time.
     <h2>References</h2><ul><li>Essen et. al. (2019). Handbook on the external costs of transport. 
     For European Commission Directorate-General for Mobility and Transport</li></ul>'
+  description_fi: 'Yksikköhinnat ilmansaasteille, melulle, onnettomuuksille ja CO2:lle tulevat yhdestä lähteestä
+    (Essen et al., 2019). Datasetin voi luoda kohdista 1.1 Liikennetarpeen vähentäminen G129:G134 (CO2 ja ilmansaasteet),
+    G169:G179 (melu), G204:G209 (onnettomuudet). Arvot ovat vakioita ajan suhteen.
+    <h2>Lähteet</h2><ul><li>Essen et. al. (2019). Handbook on the external costs of transport. 
+    Euroopan komission liikenne- ja liikkuvuusasioiden pääosastolle</li></ul>'
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/t
@@ -926,8 +1005,10 @@ nodes:
     sector: Air pollution unit price
 
 - id: transport_air_pollution_costs
-  name: Transport air pollution costs
-  description: TODO Air pollution costs also include CO2 even if it is calculated elsewhere. This results in double counting. CO2 should be removed from here.
+  name_en: Transport air pollution costs
+  name_fi: Liikenteen ilmansaastekustannukset
+  description_en: TODO Air pollution costs also include CO2 even if it is calculated elsewhere. This results in double counting. CO2 should be removed from here.
+  description_fi: TODO Ilmansaastekustannuksiin sisältyy myös CO2, vaikka se lasketaan muualla. Tämä johtaa kaksinkertaiseen laskentaan. CO2 pitäisi poistaa täältä.
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -964,7 +1045,8 @@ nodes:
     - id: transport_mode
 
 - id: transport_noise_unit_price
-  name: Transport noise unit price
+  name_en: Transport noise unit price
+  name_fi: Liikenteen melun yksikköhinta
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/pkm
@@ -975,7 +1057,8 @@ nodes:
     sector: Noise
 
 - id: transport_noise_unit_price_per_vkm
-  name: Transport noise unit price per vehicle km
+  name_en: Transport noise unit price per vehicle km
+  name_fi: Liikenteen melun yksikköhinta ajoneuvokilometriä kohti
   type: simple.MultiplicativeNode
   quantity: unit_price
   unit: EUR/vkm
@@ -989,7 +1072,8 @@ nodes:
     - id: transport_mode
 
 - id: co_benefit_cost_shares
-  name: Co-benefit cost shares
+  name_en: Co-benefit cost shares
+  name_fi: Rinnakkaishyötyjen kustannusosuudet
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -1000,7 +1084,8 @@ nodes:
     sector: distribution of co-benefits
 
 - id: transport_noise_cost
-  name: Transport noise cost
+  name_en: Transport noise cost
+  name_fi: Liikenteen melukustannukset
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -1029,7 +1114,8 @@ nodes:
     - id: cost_type
 
 - id: transport_accident_unit_price
-  name: Transport accident unit price
+  name_en: Transport accident unit price
+  name_fi: Liikenteen onnettomuuksien yksikköhinta
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/pkm
@@ -1040,7 +1126,8 @@ nodes:
     sector: Traffic accidents
 
 - id: transport_accident_unit_price_per_vkm
-  name: Transport accident unit price per vehicle km
+  name_en: Transport accident unit price per vehicle km
+  name_fi: Liikenteen onnettomuuksien yksikköhinta ajoneuvokilometriä kohti
   type: simple.MultiplicativeNode
   quantity: unit_price
   unit: EUR/vkm
@@ -1054,7 +1141,8 @@ nodes:
     - id: transport_mode
 
 - id: transport_accident_cost
-  name: Transport accident cost
+  name_en: Transport accident cost
+  name_fi: Liikenteen onnettomuuskustannukset
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -1083,11 +1171,17 @@ nodes:
     - id: cost_type
 
 - id: public_transport_operation_unit_price
-  name: Public transport operation unit price
-  description: Operational costs of buses and trains come from Sveriges kommuner och landsting (2017)
+  name_en: Public transport operation unit price
+  name_fi: Joukkoliikenteen liikennöinnin yksikköhinta
+  description_en: Operational costs of buses and trains come from Sveriges kommuner och landsting (2017)
     and values are at 1.1 Reduce transport need G236:G241. The values are constant across time.
     <h2>References</h2><ul><li>Essen et. al. (2019). Handbook on the external costs of transport. 
     For European Commission Directorate-General for Mobility and Transport</li>
+    <li>Sveriges kommuner och landsting (2017). Kollektivtrafikens kostnadsutveckling – en överblick. https://webbutik.skl.se/sv/artiklar/kollektivtrafikens-kostnadsutveckling-en-overblick.html</li></ul>'
+  description_fi: Bussien ja junien liikennöintikustannukset ovat peräisin Sveriges kommuner och landstin (2017)
+    ja arvot löytyvät kohdasta 1.1 Liikennetarpeen vähentäminen G236:G241. Arvot ovat vakioita ajan suhteen.
+    <h2>Lähteet</h2><ul><li>Essen et. al. (2019). Handbook on the external costs of transport. 
+    Euroopan komission liikenne- ja liikkuvuusasioiden pääosastolle</li>
     <li>Sveriges kommuner och landsting (2017). Kollektivtrafikens kostnadsutveckling – en överblick. https://webbutik.skl.se/sv/artiklar/kollektivtrafikens-kostnadsutveckling-en-overblick.html</li></ul>'
   # type: gpc.DatasetNode
   type: simple.AdditiveNode
@@ -1101,8 +1195,10 @@ nodes:
   #   sector: public transport operation unit price
 
 - id: public_transport_operation_cost_shares
-  name: Public transport operation cost shares
-  description: See transport_air_pollution_cost_shares
+  name_en: Public transport operation cost shares
+  name_fi: Joukkoliikenteen liikennöinnin kustannusosuudet
+  description_en: See transport_air_pollution_cost_shares
+  description_fi: Katso transport_air_pollution_cost_shares
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -1114,8 +1210,10 @@ nodes:
     sector: public transport operation costs
 
 - id: public_transport_operation_cost
-  name: Public transport operation cost (excluding fuel)
-  description: Operation cost to all stakeholders.
+  name_en: Public transport operation cost (excluding fuel)
+  name_fi: Joukkoliikenteen liikennöintikustannukset (ilman polttoainetta)
+  description_en: Operation cost to all stakeholders.
+  description_fi: Liikennöintikustannukset kaikille sidosryhmille.
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -1152,10 +1250,15 @@ nodes:
     - id: cost_type
 
 - id: transport_energy_factor_ice_petrol_diesel
-  name: Transport energy factor - ICE petrol/diesel
-  description: Values come from European Commission (2019) and are found from 1.1 Reduce transport need G266.
+  name_en: Transport energy factor - ICE petrol/diesel
+  name_fi: Liikenteen energiakerroin - polttomoottoriautot bensiini/diesel
+  description_en: Values come from European Commission (2019) and are found from 1.1 Reduce transport need G266.
     <h2>References</h2>
     European commission (2019) - Reducing CO2 emissions from passenger cars.
+    https://ec.europa.eu/clima/policies/transport/vehicles/cars_en
+  description_fi: Arvot ovat peräisin Euroopan komissiolta (2019) ja löytyvät kohdasta 1.1 Liikennetarpeen vähentäminen G266.
+    <h2>Lähteet</h2>
+    Euroopan komissio (2019) - Henkilöautojen CO2-päästöjen vähentäminen.
     https://ec.europa.eu/clima/policies/transport/vehicles/cars_en
   type: gpc.DatasetNode
   quantity: emission_factor
@@ -1165,7 +1268,8 @@ nodes:
     sector: transport energy factor ice petrol diesel
 
 - id: bus_mileage
-  name: Bus mileage (fuel use)
+  name_en: Bus mileage (fuel use)
+  name_fi: Bussien ajosuorite (polttoaineen kulutus)
   type: gpc.DatasetNode
   quantity: energy_factor
   unit: l/vkm
@@ -1183,9 +1287,12 @@ nodes:
     sector: Average fuel consumption of buses, based on current fleet
 
 - id: fuel_unit_price
-  name: Fuel unit price
-  description: The values come from Eurostat (2019) - Electricity prices for household consumers
+  name_en: Fuel unit price
+  name_fi: Polttoaineen yksikköhinta
+  description_en: The values come from Eurostat (2019) - Electricity prices for household consumers
     and are found from MIA D430.
+  description_fi: Arvot ovat peräisin Eurostatista (2019) - Sähkön hinnat kotitalouskuluttajille
+    ja löytyvät MIA D430:sta.
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/l
@@ -1196,7 +1303,8 @@ nodes:
     sector: fuel unit price
 
 - id: vehicle_mileage
-  name: Vehicle mileage (fuel use)
+  name_en: Vehicle mileage (fuel use)
+  name_fi: Ajoneuvojen ajosuorite (polttoaineen kulutus)
   type: simple.MultiplicativeNode
   quantity: currency
   unit: l/vkm
@@ -1221,7 +1329,8 @@ nodes:
       categories: [citizens]
 
 - id: transport_fuel_cost
-  name: Transport fuel cost
+  name_en: Transport fuel cost
+  name_fi: Liikenteen polttoainekustannukset
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -1251,7 +1360,8 @@ nodes:
     - id: cost_type
 
 - id: walking_cycling_unit_price1
-  name: Walking & cycling unit price, co-benefits
+  name_en: Walking & cycling unit price, co-benefits
+  name_fi: Kävelyn ja pyöräilyn yksikköhinta, rinnakkaishyödyt
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/pkm
@@ -1262,7 +1372,8 @@ nodes:
     sector: Average value of increased walking/cycling
 
 - id: walking_cycling_unit_price2
-  name: Walking & cycling unit price, capex
+  name_en: Walking & cycling unit price, capex
+  name_fi: Kävelyn ja pyöräilyn yksikköhinta, investoinnit
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/pkm
@@ -1273,7 +1384,8 @@ nodes:
     sector: Total Average cost of cycling/walking
 
 - id: walking_cycling_unit_price
-  name: Walking & cycling unit price
+  name_en: Walking & cycling unit price
+  name_fi: Kävelyn ja pyöräilyn yksikköhinta
   type: simple.AdditiveNode
   quantity: unit_price
   unit: EUR/pkm
@@ -1287,7 +1399,8 @@ nodes:
     - id: cost_type
 
 - id: walking_cycling_co_benefit
-  name: Walking & cycling co-benefit
+  name_en: Walking & cycling co-benefit
+  name_fi: Kävelyn ja pyöräilyn rinnakkaishyödyt
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -1309,7 +1422,8 @@ nodes:
   output_nodes: [transport_cost]
 
 - id: walking_cycling_cost_shares
-  name: Walking & cycling cost shares, capex
+  name_en: Walking & cycling cost shares, capex
+  name_fi: Kävelyn ja pyöräilyn kustannusosuudet, investoinnit
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -1320,7 +1434,8 @@ nodes:
     sector: investment costs in walking & cycling
 
 - id: walking_cycling_cost
-  name: Walking & cycling cost
+  name_en: Walking & cycling cost
+  name_fi: Kävelyn ja pyöräilyn kustannukset
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -1338,7 +1453,8 @@ nodes:
   output_nodes: [transport_cost]
 
 - id: transport_cost
-  name: Transport cost
+  name_en: Transport cost
+  name_fi: Liikenteen kustannukset
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
@@ -1354,7 +1470,8 @@ nodes:
     - id: stakeholder
 
 - id: transport_mode_fraction
-  name: Transport mode fraction
+  name_en: Transport mode fraction
+  name_fi: Liikennemuotojen osuus
   type: simple.MixNode
   quantity: mix
   unit: '%'
@@ -1365,7 +1482,8 @@ nodes:
     tags: activity
 
 - id: relative_transport_efficiency
-  name: Relative transport efficiency
+  name_en: Relative transport efficiency
+  name_fi: Suhteellinen liikenteen tehokkuus
   type: gpc.DatasetNode
   quantity: ratio
   unit: '%'
@@ -1379,8 +1497,10 @@ nodes:
     sector: relative transport efficiency
 
 - id: electrification_year_of_transport
-  name: Electrification year of passenger cars
-  description: This node is needed as output for NetZeroPlanner. It is used in the Climate City Contract tables.
+  name_en: Electrification year of passenger cars
+  name_fi: Henkilöautojen sähköistämisvuosi
+  description_en: This node is needed as output for NetZeroPlanner. It is used in the Climate City Contract tables.
+  description_fi: Tämä solmu tarvitaan NetZeroPlannerin tuloksena. Sitä käytetään Climate City Contract -taulukoissa.
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless

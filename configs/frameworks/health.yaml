@@ -93,10 +93,8 @@ nodes:
   input_nodes:
   - id: fossil_plant_emission_factor
   params:
-  - id: use_input_node_unit_when_adding
-    value: true
-  - id: reference_category
-    value: 'pollutant:co2'
+    use_input_node_unit_when_adding: true
+    reference_category: 'pollutant:co2'
 
 - id: fossil_plant_air_pollution_emissions
   name_fi: Fossiilivoimalan ilmansaastepäästöt
@@ -261,7 +259,7 @@ nodes:
   name_en: Active mobility health factor
   description_fi: WHO:n HEAT-mallia käytettiin tuottamaan Lappeenrannalle räätälöity
     arvio terveysvaikutusten suuruudesta aktiivisen liikkumisen suhteen. Kerroin ilmoitetaan
-    aktiiviseen liikkumiseen käytettynä aikana Lappeenrannan kokoisessa aikuisväestössä. Kävalyn osalta tarkastellaan
+    aktiiviseen liikkumiseen käytettynä aikana Lappeenrannan kokoisessa aikuisväestössä. Kävelyn osalta tarkastellaan
     20 - 79 -vuotiaita, pyöräilyn osalta 20 - 64 -vuotiaita.
   type: gpc.DatasetNode
   quantity: exposure_response
@@ -435,8 +433,8 @@ nodes:
 - id: disease_burden_attributed_to_exposure
   name_fi: Altisteisiin kohdentuva tautitaakka
   name_en: Disease burden caused by air pollution
-  description_fi: ALtisteisiin kohdentuva tautitaakka kohdeväestössä. Fyysisen aktiivisuuden, ilmansaasteiden ja liikenneonnettomuuksien tapaukset tarkoittavat näihin altisteisiin kohdentuvia ennenaikaisia kuolemia. Kuolleisuus ja menetetyt työpäivät puolestaan tarkoittavat ilmansaasteiden aiheuttamia tapauksia, vaikkei sitä tässä kohdassa esikseen sanota.
-  description_en: Disease burden attributable to exsposure in the target population.
+  description_fi: Altisteisiin kohdentuva tautitaakka kohdeväestössä. Fyysisen aktiivisuuden, ilmansaasteiden ja liikenneonnettomuuksien tapaukset tarkoittavat näihin altisteisiin kohdentuvia ennenaikaisia kuolemia. Kuolleisuus ja menetetyt työpäivät puolestaan tarkoittavat ilmansaasteiden aiheuttamia tapauksia, vaikkei sitä tässä kohdassa erikseen sanota.
+  description_en: Disease burden attributable to exposure in the target population.
   type: simple.MultiplicativeNode
   quantity: health_effect
   unit: DALY/a
@@ -466,7 +464,7 @@ nodes:
 - id: health_costs_attributed_to_exposure
   name_fi: Altistumiseen kohdentuvat terveyskustannukset
   name_en: Health costs attributable to exposure
-  description_fi: Samat terveysvaikutukset kuin diskontatussa terveyskustennuskuvassa, mutta tässä vaikutuksia ei diskontata.
+  description_fi: Samat terveysvaikutukset kuin diskontatussa terveyskustannuskuvassa, mutta tässä vaikutuksia ei diskontata.
   type: simple.MultiplicativeNode
   quantity: consumption
   unit: MEUR/a

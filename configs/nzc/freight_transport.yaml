@@ -1,7 +1,8 @@
 nodes:
 
 - id: fully_electric_truck_share
-  name: Fully electric truck share
+  name_en: Fully electric truck share
+  name_fi: Täyssähkökuorma-autojen osuus
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -17,8 +18,10 @@ nodes:
     sector: Share of fleet fully electric (not including hybrids)
 
 - id: freight_transport_energy_carrier_shares
-  name: Freight transport energy carrier shares
-  description: Share of freight fleet fully electric (not including hybrids)
+  name_en: Freight transport energy carrier shares
+  name_fi: Rahtiliikenteen energiankantajien osuudet
+  description_en: Share of freight fleet fully electric (not including hybrids)
+  description_fi: Täyssähköisten rahtiajoneuvojen osuus (ei sisällä hybridejä)
   type: simple.FillNewCategoryNode
   quantity: fraction
   unit: '%'
@@ -40,7 +43,8 @@ nodes:
 # ---------------- Freight transport -------------
 
 - id: freight_transport_need
-  name: Freight transport need
+  name_en: Freight transport need
+  name_fi: Rahtiliikenteen tarve
   type: gpc.DatasetNode
   quantity: freight_mileage
   unit: Mtkm/a
@@ -56,7 +60,8 @@ nodes:
     value: Total transportation need within city - Road freight transport
 
 - id: average_truck_utilisation_historical
-  name: Average truck utilisation historical
+  name_en: Average truck utilisation historical
+  name_fi: Kuorma-autojen keskimääräinen käyttöaste historiallisesti
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -67,7 +72,8 @@ nodes:
     sector: Average utilisation
 
 - id: average_truck_utilisation
-  name: Average truck utilisation
+  name_en: Average truck utilisation
+  name_fi: Kuorma-autojen keskimääräinen käyttöaste
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -78,7 +84,8 @@ nodes:
     sector: Average utilisation
 
 - id: average_truck_utilisation_goal
-  name: Average truck utilisation goal
+  name_en: Average truck utilisation goal
+  name_fi: Kuorma-autojen keskimääräisen käyttöasteen tavoite
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -90,7 +97,8 @@ nodes:
     sector: Utilisation of trucks in decarbonisation scenario
 
 - id: truck_max_load_weight
-  name: Truck max load weight
+  name_en: Truck max load weight
+  name_fi: Kuorma-autojen maksimikuormapaino
   type: gpc.DatasetNode
   quantity: mass
   unit: tkm/vkm
@@ -101,7 +109,8 @@ nodes:
     sector: Max load weight
 
 - id: conversion_from_tonnes_to_vehicle_kilometres
-  name: Conversion from tonnes to vehicle kilometres
+  name_en: Conversion from tonnes to vehicle kilometres
+  name_fi: Muunto tonneista ajoneuvokilometreihin
   type: simple.MultiplicativeNode
   quantity: mass
   unit: tkm/vkm
@@ -114,7 +123,8 @@ nodes:
     tags: [inventory_only, extend_values]
 
 - id: freight_transport_vehicle_kilometres
-  name: Freight transport vehicle kilometres
+  name_en: Freight transport vehicle kilometres
+  name_fi: Rahtiliikenteen ajoneuvokilometrit
   type: simple.MultiplicativeNode
   quantity: freight_mileage
   unit: Mvkm/a
@@ -151,7 +161,8 @@ nodes:
     - id: energy_carrier
 
 - id: number_of_trucks_registered_within_city
-  name: Number of trucks registered within city
+  name_en: Number of trucks registered within city
+  name_fi: Kaupungissa rekisteröityjen kuorma-autojen määrä
   type: gpc.DatasetNode
   quantity: number
   unit: vehicles
@@ -162,7 +173,8 @@ nodes:
     sector: Number of trucks registered within city
 
 - id: truck_mileage
-  name: Truck mileage
+  name_en: Truck mileage
+  name_fi: Kuorma-autojen ajosuorite
   type: simple.MultiplicativeNode
   quantity: mileage
   unit: vkm/v/a
@@ -178,7 +190,8 @@ nodes:
     tags: [geometric_inverse, inventory_only]
 
 - id: number_of_electric_trucks
-  name: Number of electric trucks
+  name_en: Number of electric trucks
+  name_fi: Sähkökuorma-autojen määrä
   type: simple.MultiplicativeNode
   quantity: number
   unit: vehicles
@@ -198,7 +211,8 @@ nodes:
     - id: energy_carrier
 
 - id: baseline_year_truck_emission_factor
-  name: Baseline year truck emission factor
+  name_en: Baseline year truck emission factor
+  name_fi: Perusvuoden kuorma-autojen päästökerroin
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/vkm
@@ -209,7 +223,8 @@ nodes:
     sector: Baseline year truck emission factor
 
 - id: new_truck_emission_factor
-  name: New truck emission factor
+  name_en: New truck emission factor
+  name_fi: Uusien kuorma-autojen päästökerroin
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/vkm
@@ -220,7 +235,8 @@ nodes:
     sector: New truck emission factor
 
 - id: truck_emission_factor
-  name: Truck emission factor
+  name_en: Truck emission factor
+  name_fi: Kuorma-autojen päästökerroin
   type: costs.DilutionNode
   quantity: emission_factor
   unit: g/vkm
@@ -237,7 +253,8 @@ nodes:
     - id: transport_mode
 
 - id: freight_transport_emissions
-  name: Freight transport emissions
+  name_en: Freight transport emissions
+  name_fi: Rahtiliikenteen päästöt
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
@@ -273,7 +290,8 @@ nodes:
       categories: [transport]
 
 - id: freight_transport_air_pollution_emissions
-  name: Freight transport air pollution emissions
+  name_en: Freight transport air pollution emissions
+  name_fi: Rahtiliikenteen ilmansaastepäästöt
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
@@ -298,7 +316,8 @@ nodes:
     - id: pollutant
 
 - id: truck_fuel_consumption
-  name: Truck fuel consumption
+  name_en: Truck fuel consumption
+  name_fi: Kuorma-autojen polttoaineenkulutus
   type: gpc.DatasetNode
   quantity: energy_factor
   unit: cl/vkm
@@ -309,7 +328,8 @@ nodes:
     sector: Fleet average consumption
   
 - id: freight_transport_fuel_consumption
-  name: freight transport fuel consumption
+  name_en: freight transport fuel consumption
+  name_fi: Rahtiliikenteen polttoaineenkulutus
   type: simple.MultiplicativeNode
   quantity: energy
   unit: Ml/a
@@ -324,7 +344,8 @@ nodes:
     - id: transport_mode
 
 - id: freight_transport_electricity_consumption
-  name: Freight transport electricity consumption
+  name_en: Freight transport electricity consumption
+  name_fi: Rahtiliikenteen sähkönkulutus
   type: simple.MultiplicativeNode
   quantity: energy
   unit: MWh/a
@@ -345,7 +366,8 @@ nodes:
 # ---------------- Freight transport costs -------
 
 - id: freight_transport_air_pollution_costs
-  name: Freight transport air pollution costs
+  name_en: Freight transport air pollution costs
+  name_fi: Rahtiliikenteen ilmansaastekustannukset
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -382,7 +404,8 @@ nodes:
     - id: transport_mode
 
 - id: new_electric_trucks_additional_costs
-  name: Additional costs of new electric trucks and charging stations
+  name_en: Additional costs of new electric trucks and charging stations
+  name_fi: Uusien sähkökuorma-autojen ja latauspisteiden lisäkustannukset
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -411,7 +434,8 @@ nodes:
       categories: [transport_operators]
 
 - id: freight_transport_noise_unit_price
-  name: Freight transport noise unit price
+  name_en: Freight transport noise unit price
+  name_fi: Rahtiliikenteen meluhaitan yksikköhinta
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/tkm
@@ -422,7 +446,8 @@ nodes:
     sector: Freight transport Noise
 
 - id: freight_transport_noise_cost
-  name: Freight transport noise cost
+  name_en: Freight transport noise cost
+  name_fi: Rahtiliikenteen melukustannus
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -454,7 +479,8 @@ nodes:
     - id: cost_type
 
 - id: freight_transport_accident_unit_price
-  name: Freight transport accident unit price
+  name_en: Freight transport accident unit price
+  name_fi: Rahtiliikenteen onnettomuuksien yksikköhinta
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/tkm
@@ -465,7 +491,8 @@ nodes:
     sector: Freight transport Traffic accidents
 
 - id: freight_transport_accident_cost
-  name: Freight transport accident cost
+  name_en: Freight transport accident cost
+  name_fi: Rahtiliikenteen onnettomuuskustannukset
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -497,7 +524,8 @@ nodes:
     - id: cost_type
 
 - id: freight_transport_ownership_costs
-  name: Freight transport ownership costs
+  name_en: Freight transport ownership costs
+  name_fi: Rahtiliikenteen omistuskustannukset
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -514,7 +542,8 @@ nodes:
     - id: energy_carrier
 
 - id: freight_ownership_labour_cost_fraction
-  name: Freight ownership labour cost fraction
+  name_en: Freight ownership labour cost fraction
+  name_fi: Rahdin omistusoikeuden työvoimakustannusosuus
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -525,8 +554,10 @@ nodes:
     sector: Freight labour cost fraction
 
 - id: freight_ownership_cost_without_labour
-  name: Freight ownership cost without labour
-  description: Labour costs are dropped here because those are assumed to stay constant despite changes in vehicle kilometres. Therefore, they are not included in total costs where the impacts are calculated.
+  name_en: Freight ownership cost without labour
+  name_fi: Rahdin omistuskustannus ilman työvoimaa
+  description_en: Labour costs are dropped here because those are assumed to stay constant despite changes in vehicle kilometres. Therefore, they are not included in total costs where the impacts are calculated.
+  description_fi: Työvoimakustannukset jätetään tässä pois, koska niiden oletetaan pysyvän vakiona ajoneuvokilometrien muutoksista huolimatta. Siksi niitä ei sisällytetä kokonaiskustannuksiin, joissa vaikutukset lasketaan.
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -558,8 +589,10 @@ nodes:
     - id: cost_type
 
 - id: fuel_consumption_increase_per_load_increase
-  name: Fuel consumption increase per load increase
-  description: Fuel consumption change of 1% utilisation change
+  name_en: Fuel consumption increase per load increase
+  name_fi: Polttoaineenkulutuksen kasvu kuorman kasvaessa
+  description_en: Fuel consumption change of 1% utilisation change
+  description_fi: Polttoaineenkulutuksen muutos 1 %:n käyttöasteen muutoksella
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -570,7 +603,8 @@ nodes:
     sector: 'Fuel consumption change of 1% utilisation change '
 
 - id: fuel_consumption_increase_due_to_load
-  name: Fuel consumption increase due to load
+  name_en: Fuel consumption increase due to load
+  name_fi: Polttoaineenkulutuksen kasvu kuorman vuoksi
   type: simple.MultiplicativeNode
   quantity: fraction
   unit: '%'
@@ -583,7 +617,8 @@ nodes:
     tags: [non_additive]
 
 - id: freight_transport_fuel_cost
-  name: Freight transport fuel cost
+  name_en: Freight transport fuel cost
+  name_fi: Rahtiliikenteen polttoainekustannukset
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -609,7 +644,8 @@ nodes:
       categories: [transport_operators]
 
 - id: freight_transport_electricity_cost
-  name: Freight transport electricity cost
+  name_en: Freight transport electricity cost
+  name_fi: Rahtiliikenteen sähkökustannukset
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -645,7 +681,8 @@ nodes:
     - id: cost_type
 
 - id: freight_transport_cost
-  name: Freight transport cost
+  name_en: Freight transport cost
+  name_fi: Rahtiliikenteen kustannukset
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
@@ -659,4 +696,3 @@ nodes:
     to_dimensions:
     - id: cost_type
     - id: stakeholder
-

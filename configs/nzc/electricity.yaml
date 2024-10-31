@@ -3,8 +3,10 @@ nodes:
 # -------------------- Electricity consumption ---------------------
 
 - id: total_electricity_consumption_uncorr
-  name: Total electricity consumption, uncorrected
-  description: Consumption is not corrected for the actual consumption statistics.
+  name_en: Total electricity consumption, uncorrected
+  name_fi: Sähkön kokonaiskulutus, korjaamaton
+  description_en: Consumption is not corrected for the actual consumption statistics.
+  description_fi: Kulutusta ei ole korjattu todellisten kulutustilastojen mukaan.
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
@@ -12,9 +14,12 @@ nodes:
   output_dimensions: [sector, energy_carrier]
 
 - id: total_electricity_consumption
-  name: Total electricity consumption
-  description: These consumption values are corrected for actual consumption statistics,
-    if the global parameter <i>Statistical correction</i> is turned on (default).
+  name_en: Total electricity consumption
+  name_fi: Sähkön kokonaiskulutus
+  description_en: These consumption values are corrected for actual consumption statistics,
+    if the global parameter <i>Statistical correction</i> is turned on.
+  description_fi: Nämä kulutusarvot on korjattu todellisten kulutustilastojen mukaan,
+    jos globaali parametri <i>Tilastollinen korjaus</i> on käytössä.
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
@@ -25,9 +30,12 @@ nodes:
     tags: [non_additive]
 
 - id: total_electricity_production
-  name: Total electricity production by shares
-  description: These production values are corrected for actual consumption statistics,
+  name_en: Total electricity production by shares
+  name_fi: Sähköntuotannon kokonaismäärä osuuksittain
+  description_en: These production values are corrected for actual consumption statistics,
     if the global parameter <i>Statistical correction</i> is turned on.
+  description_fi: Nämä tuotantoarvot on korjattu todellisten kulutustilastojen mukaan,
+    jos globaali parametri <i>Tilastollinen korjaus</i> on käytössä.
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
@@ -47,7 +55,8 @@ nodes:
     - id: fuel_type
 
 - id: total_electricity_emissions
-  name: Total electricity emissions including air pollutants
+  name_en: Total electricity emissions including air pollutants
+  name_fi: Sähköntuotannon kokonaispäästöt, mukaan lukien ilmansaasteet
   type: simple.MultiplicativeNode
   quantity: mass
   unit: kt/a
@@ -64,7 +73,8 @@ nodes:
     - id: energy_carrier
 
 - id: electricity_emissions
-  name: Electricity emissions
+  name_en: Electricity emissions
+  name_fi: Sähköntuotannon päästöt
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -92,7 +102,8 @@ nodes:
     - id: sector
 
 - id: statistical_electricity_consumption
-  name: Statistical electricity consumption
+  name_en: Statistical electricity consumption
+  name_fi: Tilastollinen sähkönkulutus
   type: gpc.DatasetNode
   quantity: energy
   unit: GWh/a
@@ -108,7 +119,8 @@ nodes:
     sector: Total electricity demand within city boundaries
 
 - id: electricity_consumption_ratio
-  name: Electricity consumption ratio between statistics and modelled
+  name_en: Electricity consumption ratio between statistics and modelled
+  name_fi: Sähkönkulutuksen suhde tilastojen ja mallinnetun välillä
   type: simple.MultiplicativeNode
   quantity: ratio
   unit: dimensionless
@@ -127,7 +139,8 @@ nodes:
     - id: energy_carrier
 
 - id: electricity_correction
-  name: Electricity statistics correction
+  name_en: Electricity statistics correction
+  name_fi: Sähkötilastojen korjaus
   type: gpc.CorrectionNode2
   quantity: ratio
   unit: dimensionless
@@ -145,7 +158,8 @@ nodes:
     - id: energy_carrier
 
 - id: electricity_production_emission_factor
-  name: Electricity production emission factor
+  name_en: Electricity production emission factor
+  name_fi: Sähköntuotannon päästökerroin
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/kWh
@@ -156,7 +170,8 @@ nodes:
     sector: Emission factors from electricity generation
 
 - id: electricity_production_unit_price
-  name: Electricity production unit_price
+  name_en: Electricity production unit_price
+  name_fi: Sähköntuotannon yksikköhinta
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/MWh
@@ -167,7 +182,8 @@ nodes:
     sector: Spot price electricity
 
 - id: consumer_electricity_unit_price
-  name: Consumer electricity unit_price
+  name_en: Consumer electricity unit_price
+  name_fi: Kuluttajan sähkön yksikköhinta
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/kWh
@@ -178,7 +194,8 @@ nodes:
     sector: Retail price of electricity
 
 - id: electricity_consumption_cost
-  name: Electricity consumption cost
+  name_en: Electricity consumption cost
+  name_fi: Sähkön kulutuksen kustannukset
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -204,8 +221,10 @@ nodes:
 # ----------- Electricity production ----------------
 
 - id: effective_electricity_emission_factor
-  name: Effective electricity emission factor
-  description: The effective electricity emission factor depends on amounts and emission factors of all electricity production modes.
+  name_en: Effective electricity emission factor
+  name_fi: Sähköntuotannon efektiivinen päästökerroin
+  description_en: The effective electricity emission factor depends on amounts and emission factors of all electricity production modes.
+  description_fi: Sähköntuotannon efektiivinen päästökerroin riippuu kaikkien sähköntuotantomuotojen määristä ja päästökertoimista.
   type: simple.MultiplicativeNode
   quantity: emission_factor
   unit: g/kWh
@@ -227,7 +246,8 @@ nodes:
     - id: energy_carrier
 
 - id: new_electricity_production_capacity
-  name: New electricity production capacity
+  name_en: New electricity production capacity
+  name_fi: Uusi sähköntuotantokapasiteetti
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a**2
@@ -252,7 +272,8 @@ nodes:
     - id: fuel_type
 
 - id: existing_electricity_production
-  name: Existing electricity production
+  name_en: Existing electricity production
+  name_fi: Olemassa oleva sähköntuotanto
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
@@ -274,7 +295,8 @@ nodes:
     - id: energy_carrier
 
 - id: electricity_production_cost
-  name: Electricity production cost
+  name_en: Electricity production cost
+  name_fi: Sähköntuotannon kustannukset
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -295,7 +317,8 @@ nodes:
   - id: electricity_cost
 
 - id: new_renewable_electricity_production
-  name: New renewable electricity production
+  name_en: New renewable electricity production
+  name_fi: Uusi uusiutuva sähköntuotanto
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
@@ -311,7 +334,8 @@ nodes:
 # -------------- Electricity production costs ---------------
 
 - id: operating_unit_price_for_renewables
-  name: Operating cost for renewables
+  name_en: Operating cost for renewables
+  name_fi: Uusiutuvien käyttökustannukset
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/MWh
@@ -322,7 +346,8 @@ nodes:
     sector: Operating cost for renewables
 
 - id: renewable_electricity_operating_cost
-  name: Renewable electricity operating cost
+  name_en: Renewable electricity operating cost
+  name_fi: Uusiutuvan sähkön käyttökustannukset
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -353,7 +378,8 @@ nodes:
       flatten: true
 
 - id: electricity_air_pollution_cost
-  name: Electricity air pollution cost
+  name_en: Electricity air pollution cost
+  name_fi: Sähköntuotannon ilmansaasteiden kustannukset
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -390,7 +416,8 @@ nodes:
     - id: energy_carrier
 
 - id: effective_electricity_production_hours
-  name: Effective electricity production hours
+  name_en: Effective electricity production hours
+  name_fi: Sähköntuotannon todelliset tunnit
   type: gpc.DatasetNode
   quantity: ratio
   unit: h/a
@@ -401,8 +428,10 @@ nodes:
     sector: Assumed uptime of wind/solar
 
 - id: job_demand_of_renewables
-  name: Job demand of renewables
-  description: Are these jobs permanent or do they relate to the building phase of PV? Now we assume that they are permanent and accumulate.
+  name_en: Job demand of renewables
+  name_fi: Uusiutuvien työvoiman tarve
+  description_en: Are these jobs permanent or do they relate to the building phase of PV? Now we assume that they are permanent and accumulate.
+  description_fi: Ovatko nämä työpaikat pysyviä vai liittyvätkö ne aurinkopaneelien rakennusvaiheeseen? Nyt oletamme, että ne ovat pysyviä ja kertyvät.
   type: gpc.DatasetNode
   quantity: demand_factor
   unit: jobs/MW
@@ -413,8 +442,10 @@ nodes:
     sector: Jobs created per MW
 
 - id: jobs_created_by_renewables
-  name: Jobs created by renewables
-  description: Cumulative number of existing jobs due to renewables
+  name_en: Jobs created by renewables
+  name_fi: Uusiutuvien luomat työpaikat
+  description_en: Cumulative number of existing jobs due to renewables
+  description_fi: Uusiutuvien energialähteiden ansiosta olevien työpaikkojen kertyvä määrä
   type: simple.MultiplicativeNode
   quantity: employment
   unit: jobs
@@ -442,7 +473,8 @@ nodes:
       flatten: true
 
 - id: new_electricity_production_shares
-  name: New electricity production shares
+  name_en: New electricity production shares
+  name_fi: Uuden sähköntuotannon osuudet
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -453,7 +485,8 @@ nodes:
     sector: Distribution of type of new renewables
 
 - id: electricity_production_shares_historical
-  name: Electricity production shares historical
+  name_en: Electricity production shares historical
+  name_fi: Sähköntuotannon historialliset osuudet
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -465,7 +498,8 @@ nodes:
     sector: Share of total electricity demand produced by fossil/renewables
 
 # - id: solar_electricity_produced_by_solar_pvs  # TODO Could we use these?
-#   name: Solar electricity produced by solar PVs
+#   name_en: Solar electricity produced by solar PVs
+#   name_fi: Aurinkopaneelien tuottama aurinkosähkö
 #   type: gpc.DatasetNode
 #   quantity: energy_factor
 #   unit: kWh/kW/a
@@ -476,7 +510,8 @@ nodes:
 #     sector: Solar electricity produced by solar PVs
 
 # - id: solar_electricity_produced_by_solar_pv_area
-#   name: Solar electricity produced by solar PV area
+#   name_en: Solar electricity produced by solar PV area
+#   name_fi: Aurinkopaneelien pinta-alan tuottama aurinkosähkö
 #   type: gpc.DatasetNode
 #   quantity: energy_factor
 #   unit: kWh/m**2/a
@@ -487,8 +522,10 @@ nodes:
 #     sector: Yearly average of solar electricity generated by 1 m2 solar PV
 
 # - id: renewable_uptime
-#   name: Renewable uptime
-#   description: Assumed uptime of wind and solar electricity production
+#   name_en: Renewable uptime
+#   name_fi: Uusiutuvien käyttöaika
+#   description_en: Assumed uptime of wind and solar electricity production
+#   description_fi: Oletettu tuuli- ja aurinkosähkön tuotannon käyttöaika
 #   type: gpc.DatasetNode
 #   quantity: ratio
 #   unit: h/a
@@ -500,7 +537,8 @@ nodes:
 #     sector: Assumed uptime of wind/solar
 
 - id: electricity_production_shares
-  name: Electricity production shares
+  name_en: Electricity production shares
+  name_fi: Sähköntuotannon osuudet
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
@@ -510,7 +548,8 @@ nodes:
   - id: electricity_production_shares_historical
 
 - id: renewable_electricity_upfront_price
-  name: Renewable electricity upfront price
+  name_en: Renewable electricity upfront price
+  name_fi: Uusiutuvan sähkön etukäteishinta
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/MWh
@@ -521,7 +560,8 @@ nodes:
     sector: 'PV: Upfront investment cost'
 
 - id: renewable_electricity_shares
-  name: Renewable electricity cost shares
+  name_en: Renewable electricity cost shares
+  name_fi: Uusiutuvan sähkön kustannusosuudet
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -538,7 +578,8 @@ nodes:
     - id: cost_type
 
 - id: renewable_electricity_investment_cost
-  name: Renewable electricity investment cost
+  name_en: Renewable electricity investment cost
+  name_fi: Uusiutuvan sähkön investointikustannukset
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -558,14 +599,16 @@ nodes:
     to_dimensions: []
 
 - id: multiplier_node  # TODO Improve
-  name: Multiplier node
+  name_en: Multiplier node
+  name_fi: Kerroinsolmu
   type: simple.AdditiveNode
   quantity: fraction
   unit: a
   historical_values: [[2018, 1], [2023, 1]]
 
 - id: electricity_cost
-  name: Electricity cost
+  name_en: Electricity cost
+  name_fi: Sähkön kustannukset
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
@@ -583,7 +626,8 @@ nodes:
       flatten: true
 
 - id: existing_electricity_cost_shares
-  name: Existing electricity cost shares
+  name_en: Existing electricity cost shares
+  name_fi: Nykyisen sähkön kustannusosuudet
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -594,8 +638,10 @@ nodes:
     sector: fossil/current electricity supply
 
 - id: fossil_electricity_goal
-  name: Fossil electricity reduction goal
-  description: Share of current fossil production replaced by renewables (or nuclear)
+  name_en: Fossil electricity reduction goal
+  name_fi: Fossiilisen sähkön vähennystavoite
+  description_en: Share of current fossil production replaced by renewables (or nuclear)
+  description_fi: Osuus nykyisestä fossiilisesta tuotannosta, joka korvataan uusiutuvilla energialähteillä (tai ydinvoimalla)
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -607,7 +653,8 @@ nodes:
     sector: Share of current fossil production replaced by renewables (or nuclear)
 
 - id: fossil_electricity_shares_goal
-  name: Fossil electricity shares goal
+  name_en: Fossil electricity shares goal
+  name_fi: Fossiilisen sähkön osuuksien tavoite
   type: simple.MultiplicativeNode
   quantity: fraction
   unit: '%'
@@ -627,7 +674,8 @@ nodes:
     - id: energy_carrier
 
 - id: electricity_shares_goal  # TODO Why does the graph not make sense?!?
-  name: Electricity shares goal
+  name_en: Electricity shares goal
+  name_fi: Sähkön osuuksien tavoite
   type: simple.FillNewCategoryNode
   quantity: fraction
   unit: '%'
@@ -644,7 +692,8 @@ nodes:
     drop_nans: true
 
 - id: electricity_shares
-  name: Electricity shares
+  name_en: Electricity shares
+  name_fi: Sähkön osuudet
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
@@ -652,4 +701,4 @@ nodes:
   output_dimensions: [fuel_type, energy_carrier]
   input_nodes:
   - id: electricity_production_shares_historical
-
+  

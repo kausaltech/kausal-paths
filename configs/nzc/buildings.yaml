@@ -54,8 +54,10 @@ nodes:
 # 3.4 heat generation: (coming from model inputs) 19 25 248 259
 
 - id: building_emissions
-  name: Building emissions
-  description: 'This module (all nodes upstream) is based on the excel sheets 3.0 - 3.4 Building & heat levers.'
+  name_en: Building emissions
+  name_fi: Rakennusten päästöt
+  description_en: 'This module (all nodes upstream) is based on the excel sheets 3.0 - 3.4 Building & heat levers.'
+  description_fi: 'Tämä moduuli (kaikki ylävirtasolmut) perustuu excel-taulukoihin 3.0 - 3.4 Rakennusten ja lämmityksen vipuvaikutukset.'
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -73,10 +75,10 @@ nodes:
 # ----------------- Building stock ----------------------
 
 - id: existing_building_stock
-  name: Existing building stock
-  description: 'Data sources:<ul><li>Model inputs & assumptions, F250. Size of building stock. 
-    </li><li>Model inputs & assumptions, F519. Rate of demolition and new construction.</li><li>Model inputs & assumptions, F257. Retrofitted area %.</li></ul>
-    Calculations: The logic is that the floor area per inhabitant stays constant. Amount of construction is a fixed fraction of existing building stock and the difference between building stock increase and construction is assumed to be demolished. So, logically, construction must be greater than or equal to population growth.'
+  name_en: Existing building stock
+  name_fi: Nykyinen rakennuskanta
+  description_en: 'Calculations: The logic is that the floor area per inhabitant stays constant. Amount of construction is a fixed fraction of existing building stock and the difference between building stock increase and construction is assumed to be demolished. So, logically, construction must be greater than or equal to population growth.'
+  description_fi: 'Laskelmat: Logiikka on, että kerrosala asukasta kohden pysyy vakiona. Rakentamisen määrä on kiinteä osuus nykyisestä rakennuskannasta, ja rakennuskannan kasvun ja rakentamisen välinen erotus oletetaan purettavaksi. Loogisesti rakentamisen on siis oltava suurempi tai yhtä suuri kuin väestönkasvu.'
   type: gpc.DatasetNode
   quantity: floor_area
   unit: ksqm
@@ -88,7 +90,8 @@ nodes:
     sector: Total floor area (residental & non-residential)
 
 - id: projected_building_stock
-  name: Projected building stock
+  name_en: Projected building stock
+  name_fi: Ennustettu rakennuskanta
   type: simple.MultiplicativeNode
   quantity: floor_area
   unit: km**2
@@ -102,7 +105,8 @@ nodes:
     to_dimensions: []
 
 - id: new_building_shares_historical
-  name: New building shares historical
+  name_en: New building shares historical
+  name_fi: Uudisrakentamisen osuudet historiallisesti
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -115,7 +119,8 @@ nodes:
     inventory_only: true
 
 - id: new_building_shares_goal
-  name: New building shares goal
+  name_en: New building shares goal
+  name_fi: Uudisrakentamisen osuuksien tavoite
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -126,7 +131,8 @@ nodes:
     sector: Share of new buildings built with high energy efficiency standards
 
 - id: new_building_shares
-  name: New building shares
+  name_en: New building shares
+  name_fi: Uudisrakentamisen osuudet
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -137,7 +143,8 @@ nodes:
     sector: Share of new buildings built # new building shares # 
 
 - id: demolition_rate
-  name: Demolition rate
+  name_en: Demolition rate
+  name_fi: Purkuaste
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%/a'
@@ -150,7 +157,8 @@ nodes:
     value: Demolition rate existing buildings
 
 - id: demolished_building_stock
-  name: Demolished building stock
+  name_en: Demolished building stock
+  name_fi: Purettu rakennuskanta
   type: simple.MultiplicativeNode
   quantity: floor_area
   unit: km**2/a
@@ -162,7 +170,8 @@ nodes:
   - id: demolition_rate
 
 - id: new_building_stock_total
-  name: New building stock total
+  name_en: New building stock total
+  name_fi: Uudisrakennuskannan kokonaismäärä
   type: simple.AdditiveNode
   quantity: floor_area
   unit: km**2/a
@@ -180,7 +189,8 @@ nodes:
     to_dimensions: []
 
 - id: new_building_stock
-  name: New building stock
+  name_en: New building stock
+  name_fi: Uudisrakennuskanta
   type: simple.MultiplicativeNode
   quantity: floor_area
   unit: km**2/a
@@ -193,8 +203,10 @@ nodes:
   - id: new_building_shares
 
 - id: building_stock
-  name: Building stock
-  description: Existing building stock minus demolition plus new construction.
+  name_en: Building stock
+  name_fi: Rakennuskanta
+  description_en: Existing building stock minus demolition plus new construction.
+  description_fi: Nykyinen rakennuskanta vähennettynä purkamisella plus uudisrakentaminen.
   type: simple.AdditiveNode
   quantity: floor_area
   unit: km**2
@@ -213,7 +225,8 @@ nodes:
     - id: building_energy_class
 
 - id: old_building_renovation_rate_historical
-  name: Old building renovation rate historical
+  name_en: Old building renovation rate historical
+  name_fi: Vanhojen rakennusten peruskorjausaste historiallisesti
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%/a'
@@ -225,7 +238,8 @@ nodes:
     sector: Share of building stock renovated each year  # This is also rate for appliance efficiency renovations
 
 - id: old_building_renovation_rate_goal
-  name: Old building renovation rate goal
+  name_en: Old building renovation rate goal
+  name_fi: Vanhojen rakennusten peruskorjausasteen tavoite
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%/a'
@@ -237,8 +251,10 @@ nodes:
     sector: Renovation rate - decarbonisation scenario
 
 - id: old_building_renovation_rate
-  name: Old building renovation rate
-  description: Shifts building stock from non-renovated to minor or agressively renovated stock. The effect is cumulative, i.e. the renovated stock stays permanently in the new category and thus the stock accumulates to renovated categories.
+  name_en: Old building renovation rate
+  name_fi: Vanhojen rakennusten peruskorjausaste
+  description_en: Shifts building stock from non-renovated to minor or agressively renovated stock. The effect is cumulative, i.e. the renovated stock stays permanently in the new category and thus the stock accumulates to renovated categories.
+  description_fi: Siirtää rakennuskantaa ei-peruskorjatuista vähäisesti tai aggressiivisesti peruskorjattuun kantaan. Vaikutus on kumulatiivinen, eli peruskorjattu kanta pysyy pysyvästi uudessa luokassa ja siten kanta kertyy peruskorjattuihin luokkiin.
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%/a'
@@ -250,7 +266,8 @@ nodes:
     - id: building_energy_class
 
 - id: renovation_intensity_shares_historical
-  name: Renovation intensity shares historical
+  name_en: Renovation intensity shares historical
+  name_fi: Peruskorjausten intensiteetin osuudet historiallisesti
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -262,7 +279,8 @@ nodes:
     sector: Renovations Actual share of market in baseline scenario
 
 - id: renovation_intensity_shares_goal
-  name: Renovation intensity shares goal
+  name_en: Renovation intensity shares goal
+  name_fi: Peruskorjausten intensiteetin osuuksien tavoite
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -274,7 +292,8 @@ nodes:
     sector: Assumed share of type of renovation in lever
 
 - id: renovation_intensity_shares
-  name: Renovation intensity shares
+  name_en: Renovation intensity shares
+  name_fi: Peruskorjausten intensiteetin osuudet
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
@@ -284,7 +303,8 @@ nodes:
   - id: renovation_intensity_shares_historical
 
 - id: renovated_building_stock
-  name: Renovated building stock
+  name_en: Renovated building stock
+  name_fi: Peruskorjattu rakennuskanta
   type: simple.MultiplicativeNode
   quantity: floor_area
   unit: km**2/a
@@ -309,7 +329,8 @@ nodes:
 
 # TODO Rename shares better
 - id: total_building_heat_energy_use  # TODO Calculate non-electric heating floor area and use  that for EUI.
-  name: Total building heat energy use
+  name_en: Total building heat energy use
+  name_fi: Rakennusten lämmitysenergian kokonaiskäyttö
   type: gpc.DatasetNode
   quantity: energy
   unit: GWh/a
@@ -319,7 +340,8 @@ nodes:
     sector: Total heating demand (space heating + domestic hot water + heat for cooking)
 
 - id: energy_use_intensity_data
-  name: Energy use intensity data for heating
+  name_en: Energy use intensity data for heating
+  name_fi: Energiankäytön intensiteettitiedot lämmitykselle
   type: gpc.DatasetNode
   quantity: energy_factor
   unit: kWh/m**2/a
@@ -331,8 +353,10 @@ nodes:
     sector: energy use intensity
 
 - id: energy_use_intensity_ratio
-  name: Energy use intensity ratio for heating
-  description: Relative energy use intensity by building energy class. Old, no renovations gets value 1.
+  name_en: Energy use intensity ratio for heating
+  name_fi: Energiankäytön intensiteetin suhde lämmitykselle
+  description_en: Relative energy use intensity by building energy class. Old, no renovations gets value 1.
+  description_fi: Suhteellinen energiankäytön intensiteetti rakennusten energialuokan mukaan. Vanha, ei peruskorjauksia saa arvon 1.
   type: simple.AdditiveNode
   quantity: energy_factor
   unit: dimensionless
@@ -344,7 +368,8 @@ nodes:
     reference_category: 'building_energy_class:old_no_renovations'
 
 - id: energy_use_intensity_relative_old
-  name: Relative energy use intensity of existing building classes
+  name_en: Relative energy use intensity of existing building classes
+  name_fi: Nykyisten rakennusluokkien suhteellinen energiankäytön intensiteetti
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -356,7 +381,8 @@ nodes:
     sector: Energy efficiency improvements from building renovations
 
 - id: energy_use_intensity_old
-  name: Energy use intensity of existing buildings
+  name_en: Energy use intensity of existing buildings
+  name_fi: Nykyisten rakennusten energiankäytön intensiteetti
   type: simple.MultiplicativeNode
   quantity: energy_factor
   unit: kWh/m**2/a
@@ -392,7 +418,8 @@ nodes:
     to_dimensions: []
 
 - id: energy_use_intensity_change_new
-  name: Energy use intensity change for new buildings
+  name_en: Energy use intensity change for new buildings
+  name_fi: Energiankäytön intensiteetin muutos uudisrakennuksille
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -404,7 +431,8 @@ nodes:
     sector: Improvement in energy efficiency relative to minimum requirement
 
 - id: energy_use_intensity_new
-  name: Energy use intensity for heating of new buildings
+  name_en: Energy use intensity for heating of new buildings
+  name_fi: Energiankäytön intensiteetti uudisrakennusten lämmitykselle
   type: simple.MultiplicativeNode
   quantity: energy_factor
   unit: kWh/m**2/a
@@ -417,7 +445,8 @@ nodes:
     tags: [complement]
 
 - id: energy_use_intensity
-  name: Energy use intensity excluding electricity
+  name_en: Energy use intensity excluding electricity
+  name_fi: Energiankäytön intensiteetti ilman sähköä
   type: simple.AdditiveNode
   quantity: energy_factor
   unit: kWh/m**2/a
@@ -428,7 +457,8 @@ nodes:
   - id: energy_use_intensity_old
 
 # - id: electric_heating_type_shares
-#   name: Electric heating type shares
+#   name_en: Electric heating type shares
+#   name_fi: Sähkölämmitystyyppien osuudet
 #   type: gpc.DatasetNode
 #   quantity: fraction
 #   unit: '%'
@@ -440,7 +470,8 @@ nodes:
 #     sector: Share of heating electricity
 
 - id: building_heating_type_share_historical
-  name: Building heating type share historical
+  name_en: Building heating type share historical
+  name_fi: Rakennusten lämmitystyyppien osuudet historiallisesti
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -452,7 +483,8 @@ nodes:
     sector: Heating technologies
 
 - id: building_heating_type_share_goal
-  name: District heating share goal
+  name_en: District heating share goal
+  name_fi: Kaukolämmön osuuden tavoite
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -465,7 +497,8 @@ nodes:
     sector: Heating technologies in 2030
 
 - id: building_heating_type_share
-  name: Building heating type shares of local vs. district
+  name_en: Building heating type shares of local vs. district
+  name_fi: Rakennusten lämmitystyyppien osuudet paikallisesta vs. kaukolämmöstä
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
@@ -476,7 +509,8 @@ nodes:
   - id: building_heating_type_share_historical
 
 - id: heating_fuel_share_historical
-  name: Heating fuel share historical
+  name_en: Heating fuel share historical
+  name_fi: Lämmityspolttoaineiden osuudet historiallisesti
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -488,7 +522,8 @@ nodes:
     sector: Share of heating fuel
 
 - id: heating_fuel_share_goal
-  name: Heating fuel share goal
+  name_en: Heating fuel share goal
+  name_fi: Lämmityspolttoaineiden osuuksien tavoite
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -500,7 +535,8 @@ nodes:
     sector: Share of heating in 2030
 
 - id: heating_fuel_share
-  name: Heating energy carrier shares  # TODO update ids to match names
+  name_en: Heating energy carrier shares  # TODO update ids to match names
+  name_fi: Lämmitysenergian kantajien osuudet
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
@@ -510,7 +546,8 @@ nodes:
   - id: heating_fuel_share_historical
 
 - id: heating_fossil_share_historical
-  name: Heating fossil shares historical
+  name_en: Heating fossil shares historical
+  name_fi: Lämmityksen fossiilisten osuudet historiallisesti
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -522,7 +559,8 @@ nodes:
     sector: Share of waste used in district heating that is fossil / non-fossil
 
 - id: heating_fossil_share_goal
-  name: Heating fossil shares goal
+  name_en: Heating fossil shares goal
+  name_fi: Lämmityksen fossiilisten osuuksien tavoite
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -534,8 +572,10 @@ nodes:
     sector: Share of waste in 2030 used in district heating that is fossil / non-fossil
 
 - id: heating_waste_fossil_share
-  name: Heating fossil shares
-  description: This node applies to fossil shares of waste used in district heating.
+  name_en: Heating fossil shares
+  name_fi: Lämmityksen fossiiliset osuudet
+  description_en: This node applies to fossil shares of waste used in district heating.
+  description_fi: Tämä solmu koskee kaukolämmössä käytetyn jätteen fossiilisia osuuksia.
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
@@ -545,7 +585,8 @@ nodes:
   - id: heating_fossil_share_historical
 
 - id: building_heating_shares_pre
-  name: Building heating shares unadjusted
+  name_en: Building heating shares unadjusted
+  name_fi: Rakennusten lämmityksen osuudet korjaamattomina
   type: simple.MultiplicativeNode
   quantity: fraction
   unit: '%'
@@ -564,7 +605,8 @@ nodes:
     - id: fuel_type
 
 - id: waste_energy_fraction
-  name: Waste energy fraction of total building energy
+  name_en: Waste energy fraction of total building energy
+  name_fi: Jäteenergian osuus rakennusten kokonaisenergiasta
   type: simple.MultiplicativeNode
   quantity: fraction
   unit: '%'
@@ -589,7 +631,8 @@ nodes:
     - id: fuel_type
 
 - id: building_heating_shares
-  name: Building heating shares
+  name_en: Building heating shares
+  name_fi: Rakennusten lämmityksen osuudet
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
@@ -604,7 +647,8 @@ nodes:
   - id: waste_energy_fraction
 
 - id: scope_of_energy_carriers
-  name: Scope of energy carriers
+  name_en: Scope of energy carriers
+  name_fi: Energiankantajien laajuus
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -616,8 +660,10 @@ nodes:
     sector: Scope of energy carriers
 
 - id: building_heat_energy_use
-  name: Building heat energy use
-  description: Building heat energy consumed for building heating, hot water, and cooking. Note that for heat pumps, this is the amount of heat produced, not the amount of electricity consumed.
+  name_en: Building heat energy use
+  name_fi: Rakennusten lämmitysenergian käyttö
+  description_en: Building heat energy consumed for building heating, hot water, and cooking. Note that for heat pumps, this is the amount of heat produced, not the amount of electricity consumed.
+  description_fi: Rakennusten lämmitykseen, lämpimään veteen ja ruoanlaittoon kulutettu lämmitysenergia. Huomaa, että lämpöpumppujen osalta tämä on tuotetun lämmön määrä, ei kulutetun sähkön määrä.
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
@@ -642,7 +688,8 @@ nodes:
     - id: energy_carrier
 
 - id: efficiency_of_heat_pumps
-  name: Efficiency of heat pumps
+  name_en: Efficiency of heat pumps
+  name_fi: Lämpöpumppujen hyötysuhde
   type: gpc.DatasetNode
   quantity: energy_factor
   unit: MWh/MWh
@@ -654,8 +701,10 @@ nodes:
     sector: Efficiency of heat pumps
 
 - id: building_heat_electricity_use
-  name: Building heat electricity use
-  description: Electricity used to produce heat with heat pumps and direct electricity.
+  name_en: Building heat electricity use
+  name_fi: Rakennusten lämmityssähkön käyttö
+  description_en: Electricity used to produce heat with heat pumps and direct electricity.
+  description_fi: Sähkö, jota käytetään lämmön tuottamiseen lämpöpumpuilla ja suoralla sähköllä.
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
@@ -701,8 +750,10 @@ nodes:
       categories: [electricity]  # TODO You may want to change the categorisation some day
 
 - id: average_heating_emission_factor
-  name: Average heating emission factor
-  description: Emission factor for building heating. Averaged over all heating types currently in use.
+  name_en: Average heating emission factor
+  name_fi: Keskimääräinen lämmityksen päästökerroin
+  description_en: Emission factor for building heating. Averaged over all heating types currently in use.
+  description_fi: Rakennusten lämmityksen päästökerroin. Keskiarvo kaikista käytössä olevista lämmitystyypeistä.
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/kWh
@@ -714,7 +765,8 @@ nodes:
     sector: Emission factors from heat production
 
 - id: building_heat_fossil_energy
-  name: Building heat fossil energy
+  name_en: Building heat fossil energy
+  name_fi: Rakennusten lämmityksen fossiilinen energia
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
@@ -736,7 +788,8 @@ nodes:
     - id: fuel_type
 
 - id: building_heat_fossil_ratio
-  name: Building heat fossil ratio
+  name_en: Building heat fossil ratio
+  name_fi: Rakennusten lämmityksen fossiilinen suhde
   type: simple.MultiplicativeNode
   quantity: fraction
   unit: dimensionless
@@ -762,8 +815,10 @@ nodes:
     tags: [inventory_only]
 
 - id: heating_emission_factor
-  name: Heating emission factor
-  description: Emission factor for building heating. This applies only to fossil fuel types, as non-fossil fuels are assumed to have zero emissions.
+  name_en: Heating emission factor
+  name_fi: Lämmityksen päästökerroin
+  description_en: Emission factor for building heating. This applies only to fossil fuel types, as non-fossil fuels are assumed to have zero emissions.
+  description_fi: Rakennusten lämmityksen päästökerroin. Tämä koskee vain fossiilisia polttoainetyyppejä, sillä ei-fossiilisten polttoaineiden päästöjen oletetaan olevan nolla.
   type: simple.MultiplicativeNode
   quantity: emission_factor
   unit: g/kWh
@@ -785,8 +840,10 @@ nodes:
     - id: fuel_type
 
 - id: building_heating_emissions
-  name: Building heating emissions
-  description: Building heating emissions exclude emissions from electricity, which are calculated elsewhere.
+  name_en: Building heating emissions
+  name_fi: Rakennusten lämmityksen päästöt
+  description_en: Building heating emissions exclude emissions from electricity, which are calculated elsewhere.
+  description_fi: Rakennusten lämmityksen päästöihin eivät sisälly sähkön päästöt, jotka lasketaan muualla.
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
@@ -828,7 +885,8 @@ nodes:
     - id: scope
 
 - id: new_building_current_unit_price
-  name: Building current unit price
+  name_en: Building current unit price
+  name_fi: Rakennusten nykyinen yksikköhinta
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/m**2
@@ -840,7 +898,8 @@ nodes:
     sector: Building costs - new buildings
 
 - id: new_building_unit_price
-  name: New building unit price
+  name_en: New building unit price
+  name_fi: Uudisrakennusten yksikköhinta
   type: costs.ExponentialNode
   quantity: unit_price
   unit: EUR/m**2
@@ -854,7 +913,8 @@ nodes:
     unit: '%'
 
 - id: new_building_cost_shares
-  name: Building current cost shares
+  name_en: Building current cost shares
+  name_fi: Rakennusten nykyiset kustannusosuudet
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -866,7 +926,8 @@ nodes:
     sector: investment costs in new buildings
 
 - id: new_building_cost
-  name: New building cost
+  name_en: New building cost
+  name_fi: Uudisrakennusten kustannukset
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -887,7 +948,8 @@ nodes:
 # -------------------- Consumer electricity use --------------------
 
 - id: efficient_appliances_renovation_rate_historical  # Same data as old_building_renovation_rate_historical
-  name: Lighting & appliances renovation rate historical
+  name_en: Lighting & appliances renovation rate historical
+  name_fi: Valaistuksen ja laitteiden peruskorjausaste historiallisesti
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%/a'
@@ -899,7 +961,8 @@ nodes:
     sector: Share of building stock renovated each year
 
 - id: efficient_appliances_renovation_rate_goal
-  name: Lighting & appliances renovation rate goal
+  name_en: Lighting & appliances renovation rate goal
+  name_fi: Valaistuksen ja laitteiden peruskorjausasteen tavoite
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%/a'
@@ -911,7 +974,8 @@ nodes:
     sector: 3.3 Efficient lighting & appliances
 
 - id: efficient_appliances_rate
-  name: Lighting & appliances renovation rate
+  name_en: Lighting & appliances renovation rate
+  name_fi: Valaistuksen ja laitteiden peruskorjausaste
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%/a'
@@ -927,7 +991,8 @@ nodes:
       categories: [electricity]
 
 - id: consumer_electricity_intensity_baseline
-  name: Electricity use intensity for lighting & appliances, baseline
+  name_en: Electricity use intensity for lighting & appliances, baseline
+  name_fi: Valaistuksen ja laitteiden sähkönkäytön intensiteetti, lähtötaso
   type: gpc.DatasetNode
   quantity: energy_factor
   unit: kWh/m**2/a
@@ -939,7 +1004,8 @@ nodes:
     sector: Average electricity use for lighting & appliances
 
 - id: efficiency_programme_shares_historical
-  name: Efficiency programme shares historical
+  name_en: Efficiency programme shares historical
+  name_fi: Tehokkuusohjelmien osuudet historiallisesti
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -951,7 +1017,8 @@ nodes:
     sector: Current share of type of efficiency programme
 
 - id: efficiency_programme_shares_goal
-  name: Efficiency programme shares goal
+  name_en: Efficiency programme shares goal
+  name_fi: Tehokkuusohjelmien osuuksien tavoite
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -962,7 +1029,8 @@ nodes:
     sector: Assumed share of type of efficiency programme for lever
 
 - id: efficiency_programme_shares
-  name: Electricity efficiency programme intensity shares
+  name_en: Electricity efficiency programme intensity shares
+  name_fi: Sähkön tehokkuusohjelmien intensiteetin osuudet
   type: simple.FillNewCategoryNode
   quantity: fraction
   unit: '%'
@@ -974,8 +1042,10 @@ nodes:
     new_category: 'efficiency_programme:no_improvements'
 
 - id: electricity_need_reduction
-  name: Electricity need reduction after improvements
-  description: Relative changes in electricity use intensity.
+  name_en: Electricity need reduction after improvements
+  name_fi: Sähkön tarpeen väheneminen parannusten jälkeen
+  description_en: Relative changes in electricity use intensity.
+  description_fi: Suhteelliset muutokset sähkönkäytön intensiteetissä.
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -992,7 +1062,8 @@ nodes:
     sector: Efficiency improvements for each renovation
 
 - id: consumer_electricity_intensity
-  name: Electricity use intensity for lighting & appliances
+  name_en: Electricity use intensity for lighting & appliances
+  name_fi: Sähkönkäytön intensiteetti valaistukselle ja laitteille
   type: simple.MultiplicativeNode
   quantity: energy_factor
   unit: kWh/m**2/a
@@ -1005,8 +1076,10 @@ nodes:
     - id: energy_carrier
 
 - id: electricity_non_renovated_old_buildings
-  name: Electricity-non-renovated old buildings
-  description: Old buildings that have not (yet) gone through electricity renovation
+  name_en: Electricity-non-renovated old buildings
+  name_fi: Sähköperuskorjaamattomat vanhat rakennukset
+  description_en: Old buildings that have not (yet) gone through electricity renovation
+  description_fi: Vanhat rakennukset, joita ei ole (vielä) sähköremontoitu
   type: simple.MultiplicativeNode
   quantity: fraction
   unit: km**2
@@ -1026,7 +1099,8 @@ nodes:
     to_dimensions: []
 
 - id: electricity_renovated_buildings
-  name: Electricity-renovated buildings
+  name_en: Electricity-renovated buildings
+  name_fi: Sähköperuskorjatut rakennukset
   type: formula.FormulaNode
   quantity: fraction
   unit: km**2
@@ -1049,7 +1123,8 @@ nodes:
     formula: efficiency_programme_shares * (electricity_non_renovated_old_buildings + building_stock)
 
 - id: building_stock_by_electricity_renovation
-  name: Building stock by electricity renovation
+  name_en: Building stock by electricity renovation
+  name_fi: Rakennuskanta sähköperuskorjauksen mukaan
   type: simple.AdditiveNode
   quantity: floor_area
   unit: km**2
@@ -1064,7 +1139,8 @@ nodes:
   - id: electricity_renovated_buildings
 
 - id: consumer_electricity_use
-  name: Electricity use for lighting & appliances
+  name_en: Electricity use for lighting & appliances
+  name_fi: Sähkönkäyttö valaistukseen ja laitteisiin
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
@@ -1086,7 +1162,8 @@ nodes:
 # --------------- Emissions ------------
 
 - id: building_air_pollutant_emissions
-  name: Building air pollutant emissions
+  name_en: Building air pollutant emissions
+  name_fi: Rakennusten ilmansaastepäästöt
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -1107,7 +1184,8 @@ nodes:
 # --------------- Costs ----------------
 
 - id: jobs_per_renovation_investment
-  name: Jobs per renovation investment
+  name_en: Jobs per renovation investment
+  name_fi: Työpaikkoja peruskorjausinvestointia kohden
   type: gpc.DatasetNode
   quantity: unit_price
   unit: jobs/(MEUR/a)
@@ -1116,7 +1194,8 @@ nodes:
     sector: Jobs created by investment in renovation
 
 - id: jobs_created_by_renovations
-  name: Jobs created by renovations
+  name_en: Jobs created by renovations
+  name_fi: Peruskorjausten luomat työpaikat
   type: simple.MultiplicativeNode
   quantity: employment
   unit: jobs
@@ -1134,7 +1213,8 @@ nodes:
   - id: total_jobs_created
 
 - id: air_pollutant_distance_index
-  name: Air pollutant distance index
+  name_en: Air pollutant distance index
+  name_fi: Ilmansaasteiden etäisyysindeksi
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -1146,7 +1226,8 @@ nodes:
     sector: Air pollutant distance index
 
 - id: building_air_pollution_cost
-  name: Building air pollution cost
+  name_en: Building air pollution cost
+  name_fi: Rakennusten ilmansaastekustannukset
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -1184,7 +1265,8 @@ nodes:
     - id: cost_type
 
 - id: efficiency_programme_unit_price
-  name: Efficiency programme unit price
+  name_en: Efficiency programme unit price
+  name_fi: Tehokkuusohjelman yksikköhinta
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/m**2
@@ -1200,7 +1282,8 @@ nodes:
     sector: Cost of efficiency programme per m2
 
 - id: old_building_renovation_unit_price
-  name: Old building renovation unit price
+  name_en: Old building renovation unit price
+  name_fi: Vanhan rakennuksen peruskorjauksen yksikköhinta
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/m**2
@@ -1212,7 +1295,8 @@ nodes:
     sector: Cost of energy renovations
 
 - id: old_building_cost_shares
-  name: Old building cost shares
+  name_en: Old building cost shares
+  name_fi: Vanhojen rakennusten kustannusosuudet
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -1224,7 +1308,8 @@ nodes:
     sector: building renovation investments
 
 - id: old_building_renovation_costs
-  name: Old building renovation costs
+  name_en: Old building renovation costs
+  name_fi: Vanhojen rakennusten peruskorjauskustannukset
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -1253,7 +1338,8 @@ nodes:
       flatten: true
 
 - id: efficiency_programme_cost
-  name: Efficiency programme cost
+  name_en: Efficiency programme cost
+  name_fi: Tehokkuusohjelman kustannus
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -1278,8 +1364,10 @@ nodes:
     - id: cost_type
 
 - id: heating_re_investment_fraction
-  name: Heating re-investment fraction
-  description: Share of current fossil production that would need to be re-invested in by 2030, if current production were to continue. (However, the calculations account for re-investments also after 2030, so the user can use their own timeline here as long as they interpret the results accordingly.)
+  name_en: Heating re-investment fraction
+  name_fi: Lämmityksen uudelleensijoitusosuus
+  description_en: Share of current fossil production that would need to be re-invested in by 2030, if current production were to continue. (However, the calculations account for re-investments also after 2030, so the user can use their own timeline here as long as they interpret the results accordingly.)
+  description_fi: Osuus nykyisestä fossiilisesta tuotannosta, joka pitäisi investoida uudelleen vuoteen 2030 mennessä, jos nykyinen tuotanto jatkuisi. (Laskelmat ottavat kuitenkin huomioon myös vuoden 2030 jälkeiset uudelleensijoitukset, joten käyttäjä voi käyttää omaa aikajanaansa, kunhan tulkitsee tuloksia sen mukaisesti.)
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -1290,8 +1378,10 @@ nodes:
     sector: Share of current fossil production that would need to be re-invested in by 2030, if current production where to continue
 
 - id: new_heating_capacity_needed
-  name: New heating capacity needed (differential investments)
-  description: This the amount that is needed to invest or de-vest on heat production due to changes in production types compared with a situation where the production types remain constant. The investments needed in the constant situation are ignored here and only the difference is estimated.
+  name_en: New heating capacity needed (differential investments)
+  name_fi: Tarvittava uusi lämmityskapasiteetti (erotusinvestoinnit)
+  description_en: This the amount that is needed to invest or de-vest on heat production due to changes in production types compared with a situation where the production types remain constant. The investments needed in the constant situation are ignored here and only the difference is estimated.
+  description_fi: Tämä on määrä, joka tarvitaan investointeihin tai divestointeihin lämmöntuotannossa johtuen tuotantotyyppien muutoksista verrattuna tilanteeseen, jossa tuotantotyypit pysyvät vakiona. Vakiotilanteessa tarvittavat investoinnit jätetään tässä huomiotta ja arvioidaan vain erotus.
   type: simple.MultiplicativeNode
   quantity: currency
   unit: GWh/a**2
@@ -1316,7 +1406,8 @@ nodes:
     - id: energy_carrier
 
 - id: heating_cost_stakeholder_shares
-  name: Heating cost stakeholder shares
+  name_en: Heating cost stakeholder shares
+  name_fi: Lämmityskustannusten sidosryhmäosuudet
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -1327,7 +1418,8 @@ nodes:
     sector: heating costs
 
 - id: new_heating_capacity_cost
-  name: New heating capacity cost
+  name_en: New heating capacity cost
+  name_fi: Uuden lämmityskapasiteetin kustannus
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -1359,7 +1451,8 @@ nodes:
       flatten: true
 
 - id: consumer_heating_unit_price  # TODO Prices should be separated by energy_carrier but no data available.
-  name: Consumer heating unit price
+  name_en: Consumer heating unit price
+  name_fi: Kuluttajan lämmityksen yksikköhinta
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/MWh
@@ -1368,7 +1461,8 @@ nodes:
     sector: Retail price of heating
 
 - id: consumer_heating_cost
-  name: Consumer heating cost (excluding electricity)
+  name_en: Consumer heating cost (excluding electricity)
+  name_fi: Kuluttajan lämmityskustannus (ilman sähköä)
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -1405,7 +1499,8 @@ nodes:
       flatten: true
 
 - id: heat_production_unit_price
-  name: Heat production unit price
+  name_en: Heat production unit price
+  name_fi: Lämmöntuotannon yksikköhinta
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/MWh
@@ -1416,7 +1511,8 @@ nodes:
     sector: (Un-levelised) costs of Decarbonised heating
 
 - id: heat_production_cost
-  name: Heat production cost
+  name_en: Heat production cost
+  name_fi: Lämmöntuotannon kustannus
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -1459,7 +1555,8 @@ nodes:
     - id: cost_type
 
 - id: heat_production_capital_unit_price
-  name: Heat production capital unit price
+  name_en: Heat production capital unit price
+  name_fi: Lämmöntuotannon pääoman yksikköhinta
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/MWh  # TODO Should this be EUR/(MWh/a)?
@@ -1470,7 +1567,8 @@ nodes:
     sector: Un-levelized capital cost of heating
 
 - id: heat_production_capital_cost
-  name: Heat production capital cost
+  name_en: Heat production capital cost
+  name_fi: Lämmöntuotannon pääomakustannus
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -1510,7 +1608,8 @@ nodes:
     - id: cost_type
 
 - id: heat_production_network_unit_price
-  name: Heat production network unit price
+  name_en: Heat production network unit price
+  name_fi: Lämmöntuotantoverkon yksikköhinta
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/MWh
@@ -1521,7 +1620,8 @@ nodes:
     sector: Un-levelized capital cost of heating network
 
 - id: new_heating_network_cost
-  name: New heating network cost
+  name_en: New heating network cost
+  name_fi: Uuden lämmitysverkon kustannus
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -1560,7 +1660,8 @@ nodes:
 # ---------------- Summary ---------------------
 
 - id: building_cost
-  name: Building cost
+  name_en: Building cost
+  name_fi: Rakennusten kustannus
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
@@ -1582,4 +1683,3 @@ nodes:
     - id: cost_type
   output_nodes:
   - total_cost
-

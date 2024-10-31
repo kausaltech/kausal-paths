@@ -51,23 +51,30 @@ params:
 
 action_groups:
 - id: transport
-  name: 1. Transport
+  name_en: 1. Transport
+  name: 1. Liikenne
   color: '#93c572'
 - id: freight_transport
-  name: 2. Freight transport
+  name_en: 2. Freight transport
+  name: 2. Tavaraliikenne
 - id: buildings
-  name: 3. Buildings
+  name_en: 3. Buildings
+  name: 3. Rakennukset
   color: '#32cd32'
 - id: electricity
-  name: 4. Electricity
+  name_en: 4. Electricity
+  name: Sähkö
   color: '#29ab87'
 - id: waste
-  name: 5. Waste
+  name_en: 5. Waste
+  name: 5. Jätteet
   color: '#50c878'
 - id: scope_3
+  name_en: 6. Scope 3
   name: 6. Scope 3
 - id: reforestation
-  name: 7. Reforestation
+  name_en: 7. Reforestation
+  name: 7. Uudelleenmetsitys
 
 impact_overviews:
 
@@ -152,12 +159,6 @@ dimensions:
   - id: average
     label_fi: Keskimääräinen
     label_en: Average
-
-- id: statistical_correction
-  label: Statistical correction
-  value: true
-  is_visible: true
-  is_customizable: true
 
 - id: pollutant
   label_fi: Saaste
@@ -1007,8 +1008,9 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 # --------------- TRANSPORT -------------
 
 - id: a11_reduce_all_motorised_transport
-  name: 1.1 Reduce all motorised transport
-  type: gpc.DatasetAction2  # TODO Allow historical values in LinearCumulativeAdditiveAction.
+  name_en: 1.1 Reduce all motorised transport
+  name_fi: 1.1 Vähennä kaikkea moottoroitua liikennettä
+  type: gpc.DatasetAction2  # TODO Salli historialliset arvot LinearCumulativeAdditiveAction-luokassa.
   quantity: fraction
   unit: '%'
   group: transport
@@ -1022,7 +1024,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
     tags: [non_additive, extend_values]
 
 - id: a12_modal_switch_from_cars_to_other_modes
-  name: 1.2 Modal switch from cars to other modes
+  name_en: 1.2 Modal switch from cars to other modes
+  name_fi: 1.2 Kulkumuotosiirtymä autoista muihin kulkumuotoihin
   type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'
@@ -1035,8 +1038,10 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
     to_dimensions: []
 
 - id: a13_car_pooling
-  name: 1.3 Car pooling
-  description: How many % increase there is in the average number of people in a car.
+  name_en: 1.3 Car pooling
+  name_fi: 1.3 Kimppakyydit
+  description_en: How many % increase there is in the average number of people in a car.
+  description_fi: Kuinka monta % keskimääräinen henkilömäärä autossa kasvaa.
   type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'
@@ -1052,7 +1057,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
     sector: 1.3 Car pooling
 
 - id: a141_electrification_of_passenger_cars
-  name: 1.4.1 Electrification of passenger cars
+  name_en: 1.4.1 Electrification of passenger cars
+  name_fi: 1.4.1 Henkilöautojen sähköistäminen
   type: gpc.SCurveAction
   quantity: fraction
   unit: '%'
@@ -1072,8 +1078,10 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   - id: fully_electric_car_share
 
 - id: a142_electrification_of_buses
-  name: 1.4.2 Electrification of buses
-  description: Fraction of buses that is replaced with electric buses each year.
+  name_en: 1.4.2 Electrification of buses
+  name_fi: 1.4.2 Linja-autojen sähköistäminen
+  description_en: Fraction of buses that is replaced with electric buses each year.
+  description_fi: Osuus linja-autoista, jotka korvataan sähköbusseilla vuosittain.
   type: gpc.DatasetAction2
   quantity: fraction
   unit: '%/a'
@@ -1091,14 +1099,16 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 # ----------------- Freight transport -----------------
 
 - id: a21_optimised_logistics
-  name: 2.1 Optimised logistics
+  name_en: 2.1 Optimised logistics
+  name_fi: 2.1 Optimoidut logistiikkaratkaisut
   type: parent.ParentActionNode
   quantity: mass
   unit: m**3
   group: freight_transport
 
 - id: a211_improve_utilisation_of_trucks
-  name: 2.1.1 Improve utilisation of trucks
+  name_en: 2.1.1 Improve utilisation of trucks
+  name_fi: 2.1.1 Paranna kuorma-autojen käyttöastetta
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
@@ -1115,7 +1125,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   - id: average_truck_utilisation
 
 - id: a212_route_optimisation
-  name: 2.1.2 Route optimisation
+  name_en: 2.1.2 Route optimisation
+  name_fi: 2.1.2 Reittioptimointi
   type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'
@@ -1131,7 +1142,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
     sector: Reduction of total distance travelled through route optimisation
 
 - id: a22_truck_fleet_electrification
-  name: 2.2 Truck fleet electrification
+  name_en: 2.2 Truck fleet electrification
+  name_fi: 2.2 Kuorma-autokannan sähköistäminen
   type: gpc.SCurveAction
   quantity: fraction
   unit: '%'
@@ -1153,14 +1165,16 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   # ----------- BUILDINGS ---------------
 
 - id: a31_renovation_improvements
-  name: 3.1 Improve old building renovations
+  name_en: 3.1 Improve old building renovations
+  name_fi: 3.1 Paranna vanhojen rakennusten korjauksia
   type: parent.ParentActionNode
   quantity: fraction
   unit: m**3
   group: buildings
 
 - id: a311_renovation_rate_improvement
-  name: 3.1.1 Renovation rate improvement
+  name_en: 3.1.1 Renovation rate improvement
+  name_fi: 3.1.1 Peruskorjausasteen parantaminen
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%/a'
@@ -1181,7 +1195,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   - id: old_building_renovation_rate
 
 - id: a312_renovation_shares_improvement
-  name: 3.1.2 Renovation shares improvement
+  name_en: 3.1.2 Renovation shares improvement
+  name_fi: 3.1.2 Korjausosuuksien parantaminen
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
@@ -1202,7 +1217,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   - id: renovation_intensity_shares
 
 - id: a32_new_building_improvements
-  name: 3.2 New building shares improvement
+  name_en: 3.2 New building shares improvement
+  name_fi: 3.2 Uusien rakennusten osuuksien parantaminen
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
@@ -1218,14 +1234,16 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   - id: new_building_shares
 
 - id: a33_do_efficient_appliances
-  name: 3.3 Do efficient lighting & appliances renovation
+  name_en: 3.3 Do efficient lighting & appliances renovation
+  name_fi: 3.3 Tee tehokas valaistus- ja laitekorjaus
   type: parent.ParentActionNode
   quantity: fraction
   unit: m**3
   group: buildings
 
 - id: a331_increase_appliance_renovation
-  name: 3.3.1 Increase appliance renovation
+  name_en: 3.3.1 Increase appliance renovation
+  name_fi: 3.3.1 Lisää laitteiden uusimista
   type: linear.DatasetReduceAction
   quantity: rate
   unit: '%/a'
@@ -1250,7 +1268,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
     - id: energy_carrier
 
 - id: a332_increase_aggressive_renovations
-  name: 3.3.2 Increase aggressive appliance renovation
+  name_en: 3.3.2 Increase aggressive appliance renovation
+  name_fi: 3.3.2 Lisää aggressiivisia laitekorjauksia
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
@@ -1267,7 +1286,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   - id: efficiency_programme_shares
 
 - id: a34_decarbonising_heat_generation
-  name: 3.4 Decarbonising heating generation
+  name_en: 3.4 Decarbonising heating generation
+  name_fi: 3.4 Lämmöntuotannon vähähiilistäminen
   type: parent.ParentActionNode
   quantity: fraction
   unit: m**3
@@ -1276,8 +1296,10 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   # - id: building_heat_mix
 
 - id: a341_heating_technology_improvement  # TODO Add 20 a lifetime
-  name: 3.4.1 Increase district heating
-  description: Switch from local to district heating.
+  name_en: 3.4.1 Increase district heating
+  name_fi: 3.4.1 Lisää kaukolämpöä
+  description_en: Switch from local to district heating.
+  description_fi: Vaihda paikallisesta lämmityksestä kaukolämpöön.
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
@@ -1298,8 +1320,10 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
     - id: heating_type
 
 - id: a342_heating_energy_improvement
-  name: 3.4.2 Increase low-emission heating
-  description: Improve the fuel shares of heating.
+  name_en: 3.4.2 Increase low-emission heating
+  name_fi: 3.4.2 Lisää vähäpäästöistä lämmitystä
+  description_en: Improve the fuel shares of heating.
+  description_fi: Paranna lämmityksen polttoaineosuuksia.
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
@@ -1316,7 +1340,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   - id: heating_fuel_share
 
 - id: a343_change_heating_fossil_share
-  name: 3.4.3 Reduce fossil waste in heating  # Example city has 0 % waste, so there is no impact
+  name_en: 3.4.3 Reduce fossil waste in heating  # Example city has 0 % waste, so there is no impact
+  name_fi: 3.4.3 Vähennä fossiilista jätettä lämmityksessä  # Esimerkkikaupungissa on 0 % jätettä, joten vaikutusta ei ole
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
@@ -1337,7 +1362,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   - id: heating_waste_fossil_share
 
 - id: a344_top_performance_improvement
-  name: 3.4.4 Top performance standard improvement compared with the regular new buildings
+  name_en: 3.4.4 Top performance standard improvement compared with the regular new buildings
+  name_fi: 3.4.4 Huippusuorituskyvyn parannus verrattuna tavallisiin uusiin rakennuksiin
   type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'
@@ -1355,8 +1381,9 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 
 # -------------- ELECTRICITY ----------------
 
-- id: a41_replace_fossil_electricity  # TODO streamline this by using relative goal
-  name: 4.1 Replace fossil electricity
+- id: a41_replace_fossil_electricity  # TODO virtaviivaista tämä käyttämällä suhteellista tavoitetta
+  name_en: 4.1 Replace fossil electricity
+  name_fi: 4.1 Korvaa fossiilinen sähkö
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
@@ -1374,7 +1401,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 # ------------- WASTE -------------------------
 
 - id: waste_recycling_trend
-  name: Waste recycling trend
+  name_en: Waste recycling trend
+  name_fi: Jätteiden kierrätyksen trendi
   type: linear.DatasetDifferenceAction
   quantity: fraction
   unit: '%'
@@ -1392,7 +1420,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   - id: waste_recycling_shares_baseline
 
 - id: a51_increase_waste_recycling
-  name: 5.1 Increase waste recycling
+  name_en: 5.1 Increase waste recycling
+  name_fi: 5.1 Lisää jätteiden kierrätystä
   type: linear.DatasetDifferenceAction
   quantity: fraction
   unit: '%'
@@ -1413,7 +1442,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 # ---------------- OTHER SECTORS -------------
 
 - id: a61_reduced_co2_emissions_in_other_sectors
-  name: 6.1 Reduced CO2 emissions in other sectors
+  name_en: 6.1 Reduced CO2 emissions in other sectors
+  name_fi: 6.1 Vähennetyt CO2-päästöt muilla sektoreilla
   type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'
@@ -1430,7 +1460,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 # --------------- Scope 3 ---------------
 
 # - id: improve_building_material_composition
-#   name: 6.1 Improve building material composition
+#   name_en: 6.1 Improve building material composition
+#   name_fi: 6.1 Paranna rakennusmateriaalien koostumusta
 #   type: linear.DatasetReduceAction
 #   quantity: mass
 #   unit: t/m**2
@@ -1450,7 +1481,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 # --------------- AFOLU -----------------
 
 # - id: tree_planting
-#   name: 7.1 Tree planting
+#   name_en: 7.1 Tree planting
+#   name_fi: 7.1 Puiden istutus
 #   type: gpc.DatasetAction2
 #   quantity: number
 #   unit: pcs

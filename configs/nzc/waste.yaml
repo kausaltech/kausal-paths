@@ -48,7 +48,8 @@ nodes:
 # ----------------- Waste -------------------
 
 - id: collected_waste
-  name: Collected waste
+  name_en: Collected waste
+  name_fi: Kerätty jäte
   type: gpc.DatasetNode
   quantity: mass
   unit: t/a
@@ -59,7 +60,8 @@ nodes:
     sector: Total collected waste within city boundaries by type
 
 - id: waste_recycling_shares_frozen
-  name: Waste recycling shares frozen scenario
+  name_en: Waste recycling shares frozen scenario
+  name_fi: Jätteiden kierrätysosuudet jäädytetty skenaario
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -70,7 +72,8 @@ nodes:
     sector: Share recycling/incineration/landfill
 
 - id: waste_recycling_future_baseline_shares
-  name: Waste recycling future baseline shares
+  name_en: Waste recycling future baseline shares
+  name_fi: Jätteiden kierrätyksen tulevaisuuden perusosuudet
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -81,7 +84,8 @@ nodes:
     sector: Share recycling/incineration/landfill baseline
 
 - id: waste_recycling_shares_baseline
-  name: Waste recycling shares baseline
+  name_en: Waste recycling shares baseline
+  name_fi: Jätteiden kierrätysosuudet perustaso
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
@@ -91,7 +95,8 @@ nodes:
   - id: waste_recycling_shares_frozen
 
 - id: waste_recycling_shares_goal
-  name: Waste recycling shares goal
+  name_en: Waste recycling shares goal
+  name_fi: Jätteiden kierrätysosuuksien tavoite
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -106,7 +111,8 @@ nodes:
     sector: 5.1. Increased recycling of waste
 
 - id: waste_recycling_shares
-  name: Waste recycling shares
+  name_en: Waste recycling shares
+  name_fi: Jätteiden kierrätysosuudet
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
@@ -116,7 +122,8 @@ nodes:
   - id: waste_recycling_shares_baseline
 
 - id: waste_management_amount
-  name: Waste management amount
+  name_en: Waste management amount
+  name_fi: Jätehuollon määrä
   type: simple.MultiplicativeNode
   quantity: mass
   unit: t/a
@@ -130,8 +137,10 @@ nodes:
   - id: waste_recycling_shares
 
 - id: waste_emission_factor
-  name: Waste emission factor
-  description: OK. But has mixed waste also, although does not come from the same place as the others.
+  name_en: Waste emission factor
+  name_fi: Jätteiden päästökerroin
+  description_en: OK. But has mixed waste also, although does not come from the same place as the others.
+  description_fi: OK. Mutta sisältää myös sekajätteen, vaikka se ei tule samasta paikasta kuin muut.
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: t/t
@@ -144,7 +153,8 @@ nodes:
   - id: waste_emissions
 
 - id: waste_emissions
-  name: Waste emissions
+  name_en: Waste emissions
+  name_fi: Jätepäästöt
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
@@ -176,7 +186,8 @@ nodes:
       categories: [waste]
 
 - id: waste_air_pollution_emission_factor
-  name: Waste air pollution emission factor
+  name_en: Waste air pollution emission factor
+  name_fi: Jätteiden ilmansaastepäästökerroin
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: kg/t
@@ -209,7 +220,8 @@ nodes:
       categories: [other_waste]
 
 - id: waste_incineration_air_pollution_emissions
-  name: Waste incineration air pollution emissions
+  name_en: Waste incineration air pollution emissions
+  name_fi: Jätteenpolton ilmansaastepäästöt
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
@@ -229,7 +241,8 @@ nodes:
 # ------------- Waste costs --------------
 
 - id: recycled_waste_unit_price
-  name: Recycled waste unit price
+  name_en: Recycled waste unit price
+  name_fi: Kierrätetyn jätteen yksikköhinta
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/t
@@ -248,7 +261,8 @@ nodes:
     - id: cost_type
 
 - id: recycled_waste_sales_income
-  name: Recycled waste sales income
+  name_en: Recycled waste sales income
+  name_fi: Kierrätetyn jätteen myyntitulot
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -264,7 +278,8 @@ nodes:
     tags: [arithmetic_inverse]
 
 - id: waste_treatment_unit_price
-  name: Waste treatment unit price
+  name_en: Waste treatment unit price
+  name_fi: Jätteenkäsittelyn yksikköhinta
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/t
@@ -283,7 +298,8 @@ nodes:
     - id: cost_type
 
 - id: waste_treatment_cost
-  name: Waste treatment cost
+  name_en: Waste treatment cost
+  name_fi: Jätteenkäsittelyn kustannukset
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -298,8 +314,10 @@ nodes:
   - id: waste_management_cost
 
 - id: waste_management_cost
-  name: Waste management cost
-  description: TODO Add nodes for waste incineration income
+  name_en: Waste management cost
+  name_fi: Jätehuollon kustannukset
+  description_en: TODO Add nodes for waste incineration income
+  description_fi: TODO Lisää solmut jätteenpolton tuloille
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
@@ -307,7 +325,8 @@ nodes:
   output_dimensions: [waste_type, cost_type, waste_treatment]
 
 - id: waste_management_cost_shares
-  name: Waste management cost shares
+  name_en: Waste management cost shares
+  name_fi: Jätehuollon kustannusosuudet
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -318,7 +337,8 @@ nodes:
     sector: waste recycling
 
 - id: waste_management_cost_by_stakeholder
-  name: Waste management cost by stakeholder
+  name_en: Waste management cost by stakeholder
+  name_fi: Jätehuollon kustannukset sidosryhmittäin
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -339,7 +359,8 @@ nodes:
     - id: cost_type
 
 - id: waste_air_pollution_cost
-  name: Waste air pollution cost
+  name_en: Waste air pollution cost
+  name_fi: Jätteiden ilmansaastekustannukset
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -371,7 +392,8 @@ nodes:
     - id: cost_type
 
 - id: waste_cost
-  name: Waste cost
+  name_en: Waste cost
+  name_fi: Jätekustannukset
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a

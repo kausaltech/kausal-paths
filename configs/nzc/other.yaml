@@ -37,7 +37,8 @@ nodes:
 # --------------- Other emissions ----------
 
 - id: emissions_from_other_sectors
-  name: Emissions from other sectors
+  name_en: Emissions from other sectors
+  name_fi: Päästöt muilta sektoreilta
   type: gpc.DatasetNode
   quantity: emissions
   unit: kt/a
@@ -61,7 +62,8 @@ nodes:
 # --------------- Scope 3 ------------------
 
 - id: building_material_shares
-  name: Building material shares
+  name_en: Building material shares
+  name_fi: Rakennusmateriaalien osuudet
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -72,7 +74,8 @@ nodes:
     sector: Materials as share of total mass
 
 - id: building_materials_used_in_new_buildings
-  name: Building material used in new buildings
+  name_en: Building material used in new buildings
+  name_fi: Uudisrakennuksissa käytetyt rakennusmateriaalit
   type: gpc.DatasetNode
   quantity: mass
   unit: t/m**2
@@ -81,7 +84,8 @@ nodes:
     sector: Tonnes material used in for new buildings (2010)
 
 - id: building_materials_used_by_material
-  name: Building materials used by material
+  name_en: Building materials used by material
+  name_fi: Käytetyt rakennusmateriaalit materiaaleittain
   type: simple.MultiplicativeNode
   quantity: mass
   unit: t/m**2
@@ -96,7 +100,8 @@ nodes:
     - id: material
 
 - id: building_construction_material_use
-  name: Building construction material use
+  name_en: Building construction material use
+  name_fi: Rakennusmateriaalien käyttö rakentamisessa
   type: simple.MultiplicativeNode
   quantity: mass
   unit: kt/a
@@ -111,7 +116,8 @@ nodes:
     - id: material
 
 - id: tonnes_material_used_for_renovations
-  name: Tonnes material used for renovations
+  name_en: Tonnes material used for renovations
+  name_fi: Tonnia materiaalia käytetty peruskorjauksiin
   type: gpc.DatasetNode
   quantity: mass
   unit: t/m**2
@@ -123,7 +129,8 @@ nodes:
     value: Tonnes material used for renovations
 
 - id: building_renovation_material_use
-  name: Building renovation material use
+  name_en: Building renovation material use
+  name_fi: Rakennusmateriaalien käyttö peruskorjauksissa
   type: simple.MultiplicativeNode
   quantity: mass
   unit: kt/a
@@ -144,7 +151,8 @@ nodes:
     - id: material
 
 - id: building_material_use
-  name: Building material use
+  name_en: Building material use
+  name_fi: Rakennusmateriaalien käyttö
   type: simple.AdditiveNode
   quantity: mass
   unit: kt/a
@@ -155,7 +163,8 @@ nodes:
   - id: building_renovation_material_use
 
 # - id: building_material_composition
-#   name: Building material composition
+#   name_en: Building material composition
+#   name_fi: Rakennusmateriaalien koostumus
 #   type: gpc.DatasetNode
 #   quantity: mass
 #   unit: t/m**2
@@ -167,7 +176,8 @@ nodes:
 #     sector: New materials composition due to materials efficiency
 
 # - id: building_material_emission_factor
-#   name: Building material emission factor
+#   name_en: Building material emission factor
+#   name_fi: Rakennusmateriaalien päästökerroin
 #   type: gpc.DatasetNode
 #   quantity: emission_factor
 #   unit: t/t
@@ -178,7 +188,8 @@ nodes:
 #     sector: Emissions from production
 
 - id: building_material_unit_price
-  name: Building material unit price
+  name_en: Building material unit price
+  name_fi: Rakennusmateriaalien yksikköhinta
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/t
@@ -189,7 +200,8 @@ nodes:
     sector: Production costs per tonne
 
 - id: building_material_cost
-  name: Building material cost
+  name_en: Building material cost
+  name_fi: Rakennusmateriaalikustannukset
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -221,7 +233,8 @@ nodes:
 # ------------- Food -------------------
 
 # - id: food_consumption_per_person
-#   name: Food consumption per person
+#   name_en: Food consumption per person
+#   name_fi: Ruoankulutus henkeä kohti
 #   type: gpc.DatasetNode
 #   quantity: energy
 #   unit: kcal/cap/d
@@ -232,7 +245,8 @@ nodes:
 # ----------- AFOLU --------------
 
 # - id: distribution_between_trees_in_grey_and_green_area
-#   name: Distribution between trees in grey and green area
+#   name_en: Distribution between trees in grey and green area
+#   name_fi: Puiden jakautuminen harmaan ja vihreän alueen välillä
 #   type: gpc.DatasetNode
 #   quantity: fraction
 #   unit: dimensionless
@@ -243,7 +257,8 @@ nodes:
 #     sector: Distribution between trees in grey and green area
 
 # - id: number_of_new_trees
-#   name: Number of new trees
+#   name_en: Number of new trees
+#   name_fi: Uusien puiden määrä
 #   type: gpc.DatasetNode
 #   quantity: number
 #   unit: pcs
@@ -255,7 +270,8 @@ nodes:
 #     inventory_only: true
 
 # - id: tree_planting_unit_price
-#   name: Tree planting unit price
+#   name_en: Tree planting unit price
+#   name_fi: Puiden istutuksen yksikköhinta
 #   type: gpc.DatasetNode
 #   quantity: unit_price
 #   unit: EUR/pcs
@@ -266,7 +282,8 @@ nodes:
 #     sector: Cost of planting trees  by area distance
 
 # - id: tree_planting_cost
-#   name: Tree planting cost
+#   name_en: Tree planting cost
+#   name_fi: Puiden istutuskustannukset
 #   type: simple.MultiplicativeNode
 #   quantity: currency
 #   unit: MEUR/a
@@ -289,7 +306,8 @@ nodes:
 #       categories: [city]
 
 # - id: population_density_outside_city_compared_to_inside_city
-#   name: Population density outside city compared to inside city
+#   name_en: Population density outside city compared to inside city
+#   name_fi: Väestöntiheys kaupungin ulkopuolella verrattuna kaupungin sisäpuolelle
 #   type: gpc.DatasetNode
 #   quantity: fraction
 #   unit: '%'
@@ -301,7 +319,8 @@ nodes:
 #     sector: Population density outside city compared to inside city
 
 # - id: annual_co2_capture_by_trees
-#   name: Annual CO2 capture by trees
+#   name_en: Annual CO2 capture by trees
+#   name_fi: Puiden vuotuinen hiilidioksidin sitominen
 #   type: gpc.DatasetNode
 #   quantity: emission_factor
 #   unit: t/pcs/a
@@ -312,7 +331,8 @@ nodes:
 #     value: Annual CO2 capture per tree
 
 # - id: co2_reduction_by_trees
-#   name: CO2 reduction by trees
+#   name_en: CO2 reduction by trees
+#   name_fi: Puiden aikaansaama hiilidioksidin vähennys
 #   type: simple.MultiplicativeNode
 #   quantity: emissions
 #   unit: kt/a
@@ -335,7 +355,8 @@ nodes:
 #       categories: [co2e]
 
 # - id: forestation_emissions
-#   name: Forestation emissions
+#   name_en: Forestation emissions
+#   name_fi: Metsityksen päästöt
 #   type: simple.AdditiveNode
 #   quantity: emissions
 #   unit: kt/a
@@ -351,7 +372,8 @@ nodes:
 #       categories: [agriculture_afolu]
   
 # - id: forestation_co2_cost
-#   name: Forestation CO2 cost
+#   name_en: Forestation CO2 cost
+#   name_fi: Metsityksen hiilidioksidikustannukset
 #   type: simple.MultiplicativeNode
 #   quantity: currency
 #   unit: MEUR/a
@@ -379,7 +401,8 @@ nodes:
 #       categories: [city]
 
 # - id: forestation_cost
-#   name: Forestation cost
+#   name_en: Forestation cost
+#   name_fi: Metsityskustannukset
 #   type: simple.AdditiveNode
 #   quantity: currency
 #   unit: MEUR/a
@@ -392,7 +415,8 @@ nodes:
 #     - id: stakeholder
 
 # - id: tree_benefit_unit_price
-#   name: Tree benefit unit price
+#   name_en: Tree benefit unit price
+#   name_fi: Puiden hyötyjen yksikköhinta
 #   type: gpc.DatasetNode
 #   quantity: unit_price
 #   unit: MEUR/pcs/a
@@ -404,7 +428,8 @@ nodes:
 #     value: 'Benefits from planting trees '
 
 # - id: tree_benefit_stakeholders
-#   name: Tree benefit stakeholders
+#   name_en: Tree benefit stakeholders
+#   name_fi: Puiden hyötyjen sidosryhmät
 #   type: gpc.DatasetNode
 #   quantity: fraction
 #   unit: '%'
@@ -415,7 +440,8 @@ nodes:
 #     sector: forest costs and savings
 
 # - id: tree_co_benefits
-#   name: Monetary co-benefits
+#   name_en: Monetary co-benefits
+#   name_fi: Rahalliset rinnakkaishyödyt
 #   type: simple.MultiplicativeNode
 #   quantity: currency
 #   unit: MEUR/a
