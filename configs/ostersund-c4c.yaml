@@ -29,15 +29,16 @@ action_efficiency_pairs:
   cost_unit: kSEK
   impact_unit: t
   label: Cost efficiency
-- graph_type: return_of_investment
-  cost_node: investment_costs
-  impact_node: investment_returns
-  invert_cost: false
-  invert_impact: true
-  indicator_unit: '%'
-  cost_unit: kSEK
-  impact_unit: kSEK
-  label: Return on investment
+
+# - graph_type: return_of_investment
+#   cost_node: investment_costs
+#   impact_node: investment_returns
+#   invert_cost: false
+#   invert_impact: true
+#   indicator_unit: '%'
+#   cost_unit: kSEK
+#   impact_unit: kSEK
+#   label: Return on investment
 
 dimensions:
 - id: scope
@@ -778,6 +779,22 @@ nodes:
   unit: kt/a
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
+  goals:
+  - label: GHG Budget (Paris Agreement)
+    values: [{'year': 2019, 'value': 165.0033694},
+             {'year': 2020, 'value': 155.8607025},
+             {'year': 2021, 'value': 146.7180356},
+             {'year': 2022, 'value': 137.5753687},
+             {'year': 2023, 'value': 128.4327018},
+             {'year': 2024, 'value': 119.2900349},
+             {'year': 2025, 'value': 110.1473679},
+             {'year': 2026, 'value': 101.0047010},
+             {'year': 2027, 'value': 91.8620341},
+             {'year': 2028, 'value': 82.7193672},
+             {'year': 2029, 'value': 73.5767003},
+             {'year': 2030, 'value': 64.4340334}]
+    default: true
+    is_main_goal: true
 
 - id: i11_residential_fuel_emissions_territorial
   name: I.1.1 Residential Fuel Emissions
