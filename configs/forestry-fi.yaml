@@ -6,9 +6,9 @@ dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: c9ff1e1361e59a914075d5209ae1ff2f78010e54
   dvc_remote: kausal-s3
-name_en: Multi-stakkeholder forestry policy options
+name_en: Multi-stakeholder forestry policy options
 name_fi: Metsäpolitiikan monet vaihtoehdot
-owner: Kausal Oy
+owner_fi: Kausal Oy
 owner_en: Kausal Ltd
 theme_identifier: default
 emission_unit: kt/a
@@ -28,7 +28,7 @@ action_groups:
 impact_overviews:
 - graph_type: cost_efficiency
   cost_node: action_costs
-  impact_node: value_profile
+  impact_node: total_cost
   invert_cost: false
   invert_impact: false
   indicator_unit: kEUR/Ut
@@ -69,6 +69,11 @@ params:
   min_value: -100
   max_value: 10
   unit: Ut/MEUR
+- id: statistical_correction
+  label: Is biofuel climate neutral?
+  is_customizable: true
+  is_visible: true
+  value: false
 
 dimensions:
 
@@ -182,27 +187,41 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: kEUR/a
+  historical_values: [[2010, 0]]
+  output_nodes: [total_cost]
 
 # ---------------------------- Suomen metsänielukeskustelu
 
-- id: pulp_production_capacity
-  name_fi: Sellun valmistuskapasiteetti Suomessa
-  name_en: Pulp production capacity in Finland
+- id: forestry_production
+  name_fi: Metsätaloustuotteiden valmistusmäärä Suomessa
+  name_en: Forestry production in Finland
   type: simple.AdditiveNode
   quantity: mass
   unit: Mt/a
   historical_values: [[2000, 29], [2023, 69.2]]
   input_dataset_processors: [LinearInterpolation]
+  output_nodes: [forest_cuts_in_finland]
 
-- id: pulp_production
-  name_fi: Sellun valmistusmäärä Suomessa
-  name_en: Pulp production in Finland
+- id: biofuel_production
+  name_fi: Bioenergian valmistusmäärä Suomessa
+  name_en: Biofuel production in Finland
   type: simple.AdditiveNode
   quantity: mass
   unit: Mt/a
+  historical_values: [[2000, 29], [2023, 69.2]]
   input_dataset_processors: [LinearInterpolation]
-  input_nodes: [pulp_production_capacity]
   output_nodes: [forest_cuts_in_finland]
+
+- id: emission_change_from_peat_reduction
+  name_fi: Päästömuutos turpeen korvaamisesta
+  name_en: Emission change from peat reduction
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: Mt/a
+  input_nodes:
+  - id: biofuel_production
+    tags: [arithmetic_inverse]
+  output_nodes: [net_emissions]
 
 - id: forest_cuts_in_finland
   name_fi: Metsänhakkuut Suomessa
@@ -211,133 +230,150 @@ nodes:
   quantity: mass
   unit: Mt/a
 
-- id: pulp_price
-  name_fi: Sellun hinta
-  name_en: Price of pulp
+- id: forestry_product_unit_price
+  name_fi: Metsätaloustuotteiden keskihinta
+  name_en: Average forestry product unit price
   type: simple.AdditiveNode
   quantity: unit_price
   unit: EUR/t
   historical_values: [[2000, 1000], [2023, 900]]
   input_dataset_processors: [LinearInterpolation]
 
-- id: pulp_sales
-  name_fi: Sellun myyntivoitto
-  name_en: Pulp sales
+- id: forestry_product_sales
+  name_fi: Metsätaloustuotteiden myyntivoitto
+  name_en: Forestry product sales
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_nodes: [pulp_production, pulp_price]
+  input_nodes: [forestry_production, forestry_product_unit_price]
   output_nodes: [total_economic_benefit]
 
+- id: biofuel_unit_price
+  name_fi: Bioenergian hinta
+  name_en: Biofuel unit price
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/t
+  historical_values: [[2000, 1000], [2023, 900]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: bioenergy_sales
+  name_fi: Bioenergian myyntivoitto
+  name_en: Biofuel sales
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_nodes: [biofuel_production, biofuel_unit_price]
+  output_nodes: [total_economic_benefit]
+
+- id: forest_growth
+  name_en: Forest growth
+  name_fi: Forest growth
+  type: simple.AdditiveNode
+  quantity: mass  # FIXME fraction
+  unit: Mt/a
+  historical_values: [[2000, 0]]
+
 - id: amount_of_wood_in_forests
-  name_fi: Suomen metsien hiilivarasto
-  name_en: Carbon storage in Finnisih forests
+  name_fi: Suomen metsien koko
+  name_en: Forest stock in Finnisih forests
   type: costs.InternalGrowthNode
   quantity: mass
   unit: Mt
-  input_nodes: [forest_cuts_in_finland]
-  historical_values: [[2000, -3000], [2023, -3200]]
+  input_nodes: [forest_cuts_in_finland, forest_growth]
+  historical_values: [[2000, 3000], [2023, 3200]]
   input_dataset_processors: [LinearInterpolation]
   params:
   - id: annual_change
     value: 4.1875  # Year 2021: 134 Mt growth, 3200 Mt Wood storage in forests.
     unit: '%'
 
-- id: pulp_industry_emissions
-  name_fi: Selluteollisuuden päästöt
-  name_en: Pulp industry emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: Mt/a
-  input_nodes: [pulp_production]
-
-- id: forest_industry_emissions
-  name_fi: Metsien päästöt
-  name_en: Forest_emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: Mt/a
-  input_nodes: [pulp_industry_emissions,
-    carbon_capture_and_storage]
-  output_nodes: [net_emissions]
-
-- id: carbon_capture_and_storage
-  name_fi: Hiilidioksidin talteenotto
-  name_en: Carbon capture and storage
+- id: carbon_sinks_in_forests
+  name_en: Carbon sinks in forests
+  name_fi: Carbon sinks in forests
   type: simple.AdditiveNode
   quantity: mass
   unit: Mt/a
-  historical_values: [[2000, 0], [2023, 0]]
+  input_nodes:
+  - id: amount_of_wood_in_forests
+    tags: [difference]
+  output_nodes:
+  - id: net_emissions
 
-- id: carbon_capture_price
-  name_fi: Hiilidioksidin talteenoton hinta
-  name_en: Carbon capture price
+- id: forest_industry_emissions
+  name_fi: Metsäteollisuuden päästöt
+  name_en: Forest industry emissions
   type: simple.AdditiveNode
-  quantity: unit_price
-  unit: EUR/t
-  historical_values: [[2000, 400], [2023, 200]]
-  input_dataset_processors: [LinearInterpolation]
-
-- id: carbon_capture_cost
-  name_fi: Hiilidioksidin talteenoton kustannus
-  name_en: Carbon capture cost
-  type: simple.MultiplicativeNode
-  quantity: unit_price
-  unit: MEUR/a
-  input_nodes: [carbon_capture_and_storage, carbon_capture_price]
-  output_nodes: [pulp_sales, action_costs]
+  quantity: emissions
+  unit: Mt/a
+  input_nodes: [forestry_production]
+  output_nodes: [net_emissions]
 
 - id: total_economic_benefit
   name_fi: Taloudellinen kokonaishyöty
   name_en: Total economic benefit
   type: simple.AdditiveNode
   quantity: currency
-  unit: kEUR/a
+  unit: MEUR/a
+  output_nodes: [total_cost]
 
-- id: utility_emissions
-  name_fi: Päästöjen utiliteetti
-  name_en: Utility of emissions
-  type: simple.FixedMultiplierNode
-  quantity: utility
-  unit: Ut/a
-  input_nodes: [net_emissions]
-  output_nodes: [value_profile]
+- id: co2_market_price
+  name_en: CO2 market price
+  name_fi: Hiilidioksidin markkinahinta
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/t
+  historical_values: [[1990, 100]]
+
+- id: emission_cost
+  name_fi: Päästöjen kustannus
+  name_en: Emission cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_nodes:
+  - id: net_emissions
+  - id: co2_market_price
+  output_nodes: [total_cost]
   params:
   - id: multiplier
     ref: emissions_weight
 
-- id: utility_economy
-  name_fi: Taloushyödyn utiliteetti
-  name_en: Utility of economic outcome
-  type: simple.FixedMultiplierNode
-  quantity: utility
-  unit: Ut/a
-  input_nodes: [total_economic_benefit]
-  output_nodes: [value_profile]
-  params:
-  - id: multiplier
-    ref: economic_weight
-
-- id: value_profile
-  name_fi: Kokonaisutiliteetti
-  name_en: Total utility
+- id: total_cost
+  name_fi: Kokonaiskustannus
+  name_en: Total cost
   type: simple.AdditiveNode
-  quantity: utility
-  unit: Ut/a
+  quantity: currency
+  unit: MEUR/a
   is_outcome: true
 
 actions:
 
-- id: test_action
-  name_en: Test action for value of information
-  description: This action may improve or worsen situation, depending on uncertain circumstances.
+- id: district_heating_with_biofuels
+  name_en: District heating with biofuels
+  name_fi: Kaukolämmitys bioenergialla
   type: simple.AdditiveAction
-  quantity: currency
-  unit: EUR/a
+  quantity: mass
+  unit: kt/a
   group: forestry
   historical_values: [[2010, 0], [2023, 0]]
   input_dataset_processors: [LinearInterpolation]
   forecast_values: [[2024, 100], [2035, 100]]
+  output_nodes:
+  - id: biofuel_production
+
+- id: reduce_forestry_production
+  name_en: Reduce forestry production
+  name_fi: Vähennä metsäteollisuustuotantoa
+  type: simple.AdditiveAction
+  quantity: mass
+  unit: kt/a
+  group: forestry
+  historical_values: [[2010, 0], [2023, 0]]
+  input_dataset_processors: [LinearInterpolation]
+  forecast_values: [[2024, -100], [2035, -100]]
+  output_nodes:
+  - id: forestry_production
 
 pages:
 - id: home
