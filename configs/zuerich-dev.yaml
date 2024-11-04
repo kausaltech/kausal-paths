@@ -298,17 +298,6 @@ emission_sectors:
     - year: 2040
       value: 6.0
     is_main_goal: true
-  - normalized_by: population
-    label_de: Alle Emissionen
-    label_en: Total emissions
-    disabled: true
-    disable_reason: Werden später ergänzt
-    values:
-    - year: 2022
-      value: 10.3
-    - year: 2040
-      value: 6.5
-    is_main_goal: true
   is_outcome: true
 
 - id: negative_emissions
@@ -349,16 +338,6 @@ emission_sectors:
   category: food_consumption
   part_of: net_emissions
   color: '#002914'
-  input_dataset_processors: [LinearInterpolation]
-
-- id: textile_consumption_emissions
-  name_en: Textile consumption emissions
-  name_de: Treibhausgasemissionen Textilien
-  short_name_de: Textilien
-  short_name_en: Textile consumption
-  category: textile_consumption
-  part_of: net_emissions
-  color: '#EB5E00'
   input_dataset_processors: [LinearInterpolation]
 
 - id: other_consumption_emissions
