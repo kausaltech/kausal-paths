@@ -1077,45 +1077,6 @@ actions:
 #   output_nodes:
 #   - id: i22_streetlights
 
-- id: naistenlahti3
-  name: Naistenlahti 3 -biovoimalaitos
-  name_en: Naistenlahti 3 bio thermal plant
-  type: simple.CumulativeAdditiveAction
-  quantity: emission_factor
-  group: energy
-  description: Naistenlahti 3 -voimalaitos pystyy käyttämään myös biopolttoainetta,
-    ja polttoainevalinta onkin keskeinen päästöjä vähentävä tekijä.
-  description_en: The Naistenlahti 3 power plant is also able to use biofuel, and
-    the choice of fuel is a key factor in reducing emissions.
-  long_description_en: <h2>Centralized renewable energy</h2><p>The action includes
-    investments by Tampereen Sähkölaitos (the local energy company) that will reduce
-    the district heating emission factor. As the emission factor for electricity generation
-    is determined nationally, the measures do not directly affect electricity emissions.</p><p>Currently,
-    the clearest measure is the investment in the Naistenlahti 3 power plant. This,
-    too, can only be roughly distinguished from other plans to reduce the district
-    heating emission factor. The final emission reduction from the district heating
-    emission factor is due to measures that have not yet been further defined and
-    have therefore been calculated as a lump sum. However, the emission reduction
-    will materialize if Tampereen Sähkölaitos achieves emission reductions in line
-    with its strategy. The magnitude is calculated in this total emission forecast
-    slightly differently than if only the energy production of Tampereen Sähkölaitos
-    is considered.</p><p>As a result, the emission reduction in district heating caused
-    by Naistenlahti 3 is approx. 82 kt CO2e. In addition, approximately 99 kt of CO2e
-    will be generated from other investments in reducing the emissions of Tampereen
-    Sähkölaitos by 2030. This is only a rough estimate based on the company's own
-    forecast of the district heating emission factor. The real impact of Naistenlahti
-    3 in reducing fossil emissions depends on the contribution of peat to combustion
-    and the overall impact of adding wood fuel elsewhere.</p><p>The action also includes
-    the connection of the City of Tampere's properties to district cooling as required.
-    Connecting to district cooling reduces the building's electricity consumption,
-    as cooling is not required with heat pumps. However, it is not known to what extent
-    the properties will be connected and what the change in their consumption would
-    be. Therefore, no emission reduction has yet been estimated for the action.</p>
-  output_nodes:
-  - district_heating_emission_factor
-  forecast_values: [[2022, -23], [2023, -23]]
-  unit: g/kWh
-
 - id: other_renewable_district_heating
   name: Kaukolämmön tuotannossa lisätään uusiutuvaa energiaa
   name_en: Increase share of renewables in district heat production
@@ -1296,79 +1257,6 @@ actions:
   output_nodes:
   - other_electricity_consumption
 
-- id: tram_phase_1
-  name: Ratikan rakennusvaihe 1 (2019-2022)
-  name_en: Tram construction phase 1 (2019-2022)
-  type: simple.AdditiveAction
-  unit: Mvkm/a
-  quantity: mileage
-  group: transportation
-  description: Raitiotien ensimmäinen rakennusvaihe. Lisätietoa myös lähijunaliikenteestä.
-  description_en: The first construction phase of the tramway. Also learn more about
-    local train traffic.
-  input_datasets:
-  - id: tampere/scenarios/mode_changes_after_tram
-    column: vehicle_mileage
-    forecast_from: 2023
-    filters:
-    - dimension: tram_phase
-      categories: [phase1]
-      flatten: true
-  output_dimensions: [vehicle]
-  output_nodes:
-  - id: tram_kilometers
-    from_dimensions:
-    - id: vehicle
-      categories: [tram]
-      flatten: true
-  - id: car_kilometers_streets
-    from_dimensions:
-    - id: vehicle
-      categories: [car]
-      flatten: true
-  - id: bus_kilometers_streets
-    from_dimensions:
-    - id: vehicle
-      categories: [bus]
-      flatten: true
-
-- id: tram_phase_2
-  name: Ratikan rakennusvaihe 2 (2023-2025)
-  name_en: Tram construction phase 2 (2023-2025)
-  type: simple.AdditiveAction
-  unit: Mvkm/a
-  quantity: mileage
-  group: transportation
-  description: Raitiotien toinen rakennusvaihe. Ensimmäinen rakennusvaihe on toteutettava,
-    jotta tämä olisi mielekäs.
-  description_en: The second construction phase of the tramway. The first phase of
-    construction needs to be implemented for this action to make sense.
-  input_datasets:
-  - id: tampere/scenarios/mode_changes_after_tram
-    column: vehicle_mileage
-    forecast_from: 2023
-    filters:
-    - dimension: tram_phase
-      categories: [phase2]
-      flatten: true
-  output_dimensions: [vehicle]
-  output_nodes:
-  - id: tram_kilometers
-    from_dimensions:
-    - id: vehicle
-      categories: [tram]
-      flatten: true
-  - id: car_kilometers_streets
-    from_dimensions:
-    - id: vehicle
-      categories: [car]
-      flatten: true
-  - id: bus_kilometers_streets
-    from_dimensions:
-    - id: vehicle
-      categories: [bus]
-      flatten: true
-
 - id: tram_phase_3
   name: Ratikan rakennusvaihe 3 (2028-2030)
   name_en: Tram construction phase 3 (2028-2030)
@@ -1489,11 +1377,7 @@ scenarios:
   name: Nykykehitys
   name_en: Baseline
   params:
-  - id: naistenlahti3.enabled
-    value: true
   - id: cleaner_electricity_production.enabled
-    value: true
-  - id: tram_phase_1.enabled
     value: true
 
 - id: default
