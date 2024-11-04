@@ -290,6 +290,28 @@ nodes:
     - id: energietrager
     - id: scope
 
+# TODO: Should we use these local emission factors instead of national emission
+# factors as defined in node i42_energy_grid_energy_emission_factor?
+- id: i42_local_energy_grid_energy_emission_factor
+  name: I.4.2 Lokaler Emissionsfaktor Strom
+  name_en: I.4.2 Emission Factor Local Electricity Production
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/MWh
+  input_dimensions: [ghg, energietrager, scope]
+  output_dimensions: [ghg, energietrager, scope]
+  params:
+    gpc_sector: I.4.2
+  input_datasets:
+  - id: gpc/potsdam
+    forecast_from: 2023
+  # output_nodes:
+  # - id: i42_energy_grid_energy_consumption_emissions
+  #   to_dimensions:
+  #   - id: ghg
+  #   - id: energietrager
+  #   - id: scope
+
 - id: ii11_onroad_transport_fuel_consumption
   name: II.1.1 Brennstoffverbrauch Verkehr
   name_en: II.1.1 Fuel Consumption Traffic
