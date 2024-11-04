@@ -133,8 +133,8 @@ nodes:
     to_dimensions: []
 
 - id: i11_residential_fuel_consumption
-  name: I.1.1 Endenergieverbrauch Wärmesektor
-  name_en: I.1.1 Final Energy Heating Sector
+  name: Endenergieverbrauch Wärmesektor
+  name_en: Final Energy Heating Sector
   type: gpc.DatasetNode
   quantity: energy
   unit: MWh/a
@@ -152,7 +152,7 @@ nodes:
     - id: scope
 
 - id: i11_residential_fuel_consumption_emissions
-  name: I.1.1 Emissionen aus Brennstoffverbrauch Wohngebäude
+  name: Emissionen aus Brennstoffverbrauch Wohngebäude
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
@@ -166,8 +166,8 @@ nodes:
     - id: ghg
 
 - id: i11_residential_fuel_emission_factor
-  name: I.1.1 Emissionsfaktor Wärmeenergie
-  name_en: I.1.1 Emission Factor Heating Energy
+  name: Emissionsfaktor Wärmeenergie
+  name_en: Emission Factor Heating Energy
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: t/MWh
@@ -186,7 +186,7 @@ nodes:
     - id: scope
 
 - id: i12_residential_grid_energy_consumption
-  name: I.1.2 Netzenergieverbrauch Wohngebäude
+  name: Netzenergieverbrauch Wohngebäude
   type: gpc.DatasetNode
   quantity: energy
   unit: MWh/a
@@ -204,7 +204,7 @@ nodes:
     - id: scope
 
 - id: i12_residential_grid_energy_consumption_emissions
-  name: I.1.2 Emissionen aus Netzenergieverbrauch Wohngebäude
+  name: Emissionen aus Netzenergieverbrauch Wohngebäude
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
@@ -218,7 +218,7 @@ nodes:
     - id: ghg
 
 - id: i12_residential_grid_energy_emission_factor
-  name: I.1.2 Emissionsfaktor Netzenergieverbrauch Wohngebäude
+  name: Emissionsfaktor Netzenergieverbrauch Wohngebäude
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: t/MWh
@@ -237,8 +237,8 @@ nodes:
     - id: scope
 
 - id: i42_energy_grid_energy_consumption
-  name: I.4.2 Stromverbrauch (ohne Heizstrom)
-  name_en: I.4.2 Electricity Consumption (without heating)
+  name: Stromverbrauch (ohne Heizstrom)
+  name_en: Electricity Consumption (without heating)
   type: gpc.DatasetNode
   quantity: energy
   unit: MWh/a
@@ -256,8 +256,8 @@ nodes:
     - id: scope
 
 - id: i42_energy_grid_energy_consumption_emissions
-  name: I.4.2 Emissionen aus Stromverbrauch (ohne Heizstrom)
-  name_en: I.4.2 Emissions from Electricity Consumption (without heating)
+  name: Emissionen aus Stromverbrauch (ohne Heizstrom)
+  name_en: Emissions from Electricity Consumption (without heating)
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
@@ -271,8 +271,8 @@ nodes:
     - id: ghg
 
 - id: i42_energy_grid_energy_emission_factor
-  name: I.4.2 Emissionsfaktor Strom
-  name_en: I.4.2 Emission Factor Electricity
+  name: Emissionsfaktor Strom
+  name_en: Emission Factor Electricity
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: t/MWh
@@ -293,8 +293,8 @@ nodes:
 # TODO: Should we use these local emission factors instead of national emission
 # factors as defined in node i42_energy_grid_energy_emission_factor?
 - id: i42_local_energy_grid_energy_emission_factor
-  name: I.4.2 Lokaler Emissionsfaktor Strom
-  name_en: I.4.2 Emission Factor Local Electricity Production
+  name: Lokaler Emissionsfaktor Strom
+  name_en: Emission Factor Local Electricity Production
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: t/MWh
@@ -313,8 +313,8 @@ nodes:
   #   - id: scope
 
 - id: ii11_onroad_transport_fuel_consumption
-  name: II.1.1 Brennstoffverbrauch Verkehr
-  name_en: II.1.1 Fuel Consumption Traffic
+  name: Brennstoffverbrauch Verkehr
+  name_en: Fuel Consumption Traffic
   type: gpc.DatasetNode
   quantity: energy
   unit: MWh/a
@@ -332,7 +332,7 @@ nodes:
     - id: scope
 
 - id: ii11_onroad_transport_fuel_consumption_emissions
-  name: II.1.1 Emissionen aus Brennstoffverbrauch Straßenverkehr
+  name: Emissionen aus Brennstoffverbrauch Straßenverkehr
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
@@ -346,8 +346,8 @@ nodes:
     - id: ghg
 
 - id: ii11_onroad_transport_fuel_emission_factor
-  name: II.1.1 Emissionsfaktor Brennstoffverbrauch Verkehr
-  name_en: II.1.1 Emission Factor Fuels Traffic
+  name: Emissionsfaktor Brennstoffverbrauch Verkehr
+  name_en: Emission Factor Fuels Traffic
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: t/MWh
@@ -366,8 +366,8 @@ nodes:
     - id: scope
 
 - id: ii12_onroad_transport_grid_energy_consumption
-  name: II.1.2 Stromverbrauch ÖPNV
-  name_en: II.1.2 Electricty Consumption Public Transport
+  name: Stromverbrauch ÖPNV
+  name_en: Electricty Consumption Public Transport
   type: gpc.DatasetNode
   quantity: energy
   unit: MWh/a
@@ -385,7 +385,7 @@ nodes:
     - id: scope
 
 - id: ii12_onroad_transport_grid_energy_consumption_emissions
-  name: II.1.2 Emissionen aus Netzenergieverbrauch Straßenverkehr
+  name: Emissionen aus Netzenergieverbrauch Straßenverkehr
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
@@ -399,8 +399,8 @@ nodes:
     - id: ghg
 
 - id: ii12_onroad_transport_grid_energy_emission_factor
-  name: II.1.2 Emissionsfaktor Stromverbrauch ÖPNV
-  name_en: II.1.2 Emission Factor Electricity Public Transport
+  name: Emissionsfaktor Stromverbrauch ÖPNV
+  name_en: Emission Factor Electricity Public Transport
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: t/MWh
@@ -419,8 +419,8 @@ nodes:
     - id: scope
 
 - id: i11_residential_fuel_total_emissions
-  name: I.1.1 Emissionen aus Wärmeenergie (inkl. alle Energieträger)
-  name_en: I.1.1 Emissions from Heating Energy (i.p. incl. ALL; district too)
+  name: Emissionen aus Wärmeenergie (inkl. alle Energieträger)
+  name_en: Emissions from Heating Energy (i.p. incl. ALL; district too)
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -434,7 +434,7 @@ nodes:
     - id: ghg
 
 - id: i12_residential_grid_energy_total_emissions
-  name: I.1.2 Gesamtemissionen Netzenergieverbrauch Wohngebäude
+  name: Gesamtemissionen Netzenergieverbrauch Wohngebäude
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -448,7 +448,7 @@ nodes:
     - id: ghg
 
 - id: i1_residential_total_emissions
-  name: I.1 Gesamtemissionen Wohngebäude
+  name: Gesamtemissionen Wohngebäude
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -462,7 +462,7 @@ nodes:
     - id: ghg
 
 - id: i42_energy_grid_energy_total_emissions
-  name: I.4.2 Gesamtemissionen Netzenergieverbrauch Energiesektor
+  name: Gesamtemissionen Netzenergieverbrauch Energiesektor
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -476,8 +476,8 @@ nodes:
     - id: ghg
 
 - id: i4_energy_total_emissions
-  name: I.4 Gesamtemissionen Stromsektor
-  name_en: I.4 Emissions Electricity Sector
+  name: Gesamtemissionen Stromsektor
+  name_en: Emissions Electricity Sector
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -492,8 +492,8 @@ nodes:
     - id: ghg
 
 - id: i_stationary_total_emissions
-  name: I Gesamtemissionen Wärmesektor
-  name_en: I Emissions Heating Sector
+  name: Gesamtemissionen Wärmesektor
+  name_en: Emissions Heating Sector
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -508,8 +508,8 @@ nodes:
     - id: ghg
 
 - id: ii11_onroad_transport_fuel_total_emissions
-  name: II.1.1 Emissionen aus Brennstoffverbrauch Verkehr
-  name_en: II.1.1 Emissions from Fuel Consumption Traffic
+  name: Emissionen aus Brennstoffverbrauch Verkehr
+  name_en: Emissions from Fuel Consumption Traffic
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -523,8 +523,8 @@ nodes:
     - id: ghg
 
 - id: ii12_onroad_transport_grid_energy_total_emissions
-  name: II.1.2 Emissionen aus Stromverbrauch ÖPNV
-  name_en: II.1.2 Emissions from Electricity Public Transport
+  name: Emissionen aus Stromverbrauch ÖPNV
+  name_en: Emissions from Electricity Public Transport
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -538,7 +538,7 @@ nodes:
     - id: ghg
 
 - id: ii1_onroad_transport_total_emissions
-  name: II.1 Gesamtemissionen Straßenverkehr
+  name: Gesamtemissionen Straßenverkehr
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -552,8 +552,8 @@ nodes:
     - id: ghg
 
 - id: ii_transportation_total_emissions
-  name: II Gesamtemissionen Verkehrssektor
-  name_en: II Emissions Traffic Sector
+  name: Gesamtemissionen Verkehrssektor
+  name_en: Emissions Traffic Sector
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -628,7 +628,7 @@ nodes:
 actions:
 
 - id: i11_residential_fuel_consumption_action
-  name: I.1.1 Aktion Endenergieverbrauch Wärme
+  name: Aktion Endenergieverbrauch Wärme
   type: gpc.DatasetAction
   quantity: energy
   unit: MWh/a
@@ -642,7 +642,7 @@ actions:
   output_nodes: [i11_residential_fuel_consumption]
 
 - id: i11_residential_fuel_emission_factor_action
-  name: I.1.1 Aktion Emissionsfaktor Wärmeenergie
+  name: Aktion Emissionsfaktor Wärmeenergie
   type: gpc.DatasetAction
   quantity: emission_factor
   unit: t/MWh
@@ -656,7 +656,7 @@ actions:
   output_nodes: [i11_residential_fuel_emission_factor]
 
 - id: i12_residential_grid_energy_consumption_action
-  name: I.1.2 Aktion Netzenergieverbrauch Wohngebäude
+  name: Aktion Netzenergieverbrauch Wohngebäude
   type: gpc.DatasetAction
   quantity: energy
   unit: MWh/a
@@ -671,7 +671,7 @@ actions:
   - id: i12_residential_grid_energy_consumption
 
 - id: i12_residential_grid_energy_emission_factor_action
-  name: I.1.2 Aktion Emissionsfaktor Netzenergieverbrauch Wohngebäude
+  name: Aktion Emissionsfaktor Netzenergieverbrauch Wohngebäude
   type: gpc.DatasetAction
   quantity: emission_factor
   unit: t/MWh
@@ -685,7 +685,7 @@ actions:
   output_nodes: [i12_residential_grid_energy_emission_factor]
 
 - id: i42_energy_grid_energy_consumption_action
-  name: I.4.2 Aktion Stromverbrauch (ohne Heizstrom)
+  name: Aktion Stromverbrauch (ohne Heizstrom)
   type: gpc.DatasetAction
   quantity: energy
   unit: MWh/a
@@ -699,7 +699,7 @@ actions:
   output_nodes: [i42_energy_grid_energy_consumption]
 
 - id: i42_energy_grid_energy_emission_factor_action
-  name: I.4.2 Aktion Emissionsfaktor Strom
+  name: Aktion Emissionsfaktor Strom
   type: gpc.DatasetAction
   quantity: emission_factor
   unit: t/MWh
@@ -713,7 +713,7 @@ actions:
   output_nodes: [i42_energy_grid_energy_emission_factor]
 
 - id: ii11_onroad_transport_fuel_consumption_action
-  name: II.1.1 Aktion Brennstoffverbrauch Verkehr
+  name: Aktion Brennstoffverbrauch Verkehr
   type: gpc.DatasetAction
   quantity: energy
   unit: MWh/a
@@ -727,7 +727,7 @@ actions:
   output_nodes: [ii11_onroad_transport_fuel_consumption]
 
 - id: ii11_onroad_transport_fuel_emission_factor_action
-  name: II.1.1 Aktion Emissionsfaktor Brennstoffverbrauch Verkehr
+  name: Aktion Emissionsfaktor Brennstoffverbrauch Verkehr
   type: gpc.DatasetAction
   quantity: emission_factor
   unit: t/MWh
@@ -741,7 +741,7 @@ actions:
   output_nodes: [ii11_onroad_transport_fuel_emission_factor]
 
 - id: ii12_onroad_transport_grid_energy_consumption_action
-  name: II.1.2 Aktion Stromverbrauch ÖPNV
+  name: Aktion Stromverbrauch ÖPNV
   type: gpc.DatasetAction
   quantity: energy
   unit: MWh/a
@@ -755,7 +755,7 @@ actions:
   output_nodes: [ii12_onroad_transport_grid_energy_consumption]
 
 - id: ii12_onroad_transport_grid_energy_emission_factor_action
-  name: II.1.2 Aktion Emissionsfaktor Stromverbrauch ÖPNV
+  name: Aktion Emissionsfaktor Stromverbrauch ÖPNV
   type: gpc.DatasetAction
   quantity: emission_factor
   unit: t/MWh
@@ -775,7 +775,7 @@ pages:
   type: emission
   outcome_node: net_emissions
   lead_title: Potsdam Zielwerte Masterplan
-  lead_paragraph: GPC BASIC+ Treibhausgasinventar (1995-2022) und Prognose (2023-2050)
+  lead_paragraph: Treibhausgasinventar (1995-2022) und Prognose (2023-2050)
     für die Stadt Potsdam.
 
 scenarios:
