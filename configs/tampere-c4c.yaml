@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://tampere-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: c95c2df71ef6ff92cf626cfcaa3eb6efbe083002
+  commit: 3897c314dce2a1fba5d4b57fac2eddbdf17a465c
   dvc_remote: kausal-s3
 name: C4C Hiilineutraali Tampere 2030
 name_en: C4C Carbon-neutral Tampere 2030
@@ -62,6 +62,43 @@ dimensions:
   - id: bus
     label: Bussi
     label_en: Bus
+
+- id: vehicle_type
+  label: Vehicle type
+  label_en: Vehicle type
+  categories:
+  - id: buses
+    label: Bussi
+    label_en: Buses
+  - id: local_trains
+    label: Paikallisjuna
+    label_en: Local Trains
+  - id: motorcycles
+    label: Moottoripyörä
+    label_en: Motorcycles
+  - id: passenger_cars
+    label: Henkilöauto
+    label_en: Passenger cars
+  - id: trams
+    label: Ratikka
+    label_en: Trams
+  - id: trucks
+    label: Kuorma-auto
+    label_en: Trucks
+  - id: vans
+    label: Pakettiauto
+    label_en: Vans
+
+- id: road_type
+  label: Road type
+  label_en: Road type
+  categories:
+  - id: streets
+    label: Katuajo
+    label_en: Streets
+  - id: roads
+    label: Maantieajo
+    label_en: Roads
 
 - id: energy_consumption
   label: Energiankulutus
@@ -126,6 +163,17 @@ dimensions:
   - id: co2e
     label: CO2e
 
+- id: scope
+  label: Scope
+  label_en: Scope
+  categories:
+  - id: scope1
+    label: Scope 1
+    label_en: Scope 1
+  - id: scope2
+    label: Scope 2
+    label_en: Scope 2
+
 emission_sectors:
 - id: net_emissions
   name: Kokonaispäästöt (scope 2)
@@ -133,9 +181,6 @@ emission_sectors:
   is_outcome: true
   target_year_goal: 260
 
-  #
-  # Transportation
-  #
 - id: transportation_emissions
   name: Liikenteen päästöt
   name_en: Transportation emissions
@@ -148,22 +193,6 @@ emission_sectors:
   part_of: net_emissions
   color: '#668EC9'
   target_year_goal: 115
-
-- id: van_emissions
-  name: Pakettiautojen päästöt
-  name_en: Van emissions
-  column: Vans
-  part_of: transportation_emissions
-- id: truck_emissions
-  name: Kuorma-autot
-  name_en: Trucks and lorries
-  column: Trucks and lorries
-  part_of: transportation_emissions
-- id: motorbike_emissions
-  name: Moottoripyörät yms.
-  name_en: Motorbikes etc.
-  column: Motorbikes
-  part_of: transportation_emissions
 
   #
   # Heating
@@ -517,266 +546,560 @@ nodes:
   output_nodes:
   - net_emissions
 
-  #
-  # Transport nodes
-  #
+# ----- TRANSPORTATION --------------------------------------------------------
 
-- id: local_train_kilometers
-  name: Paikallisjunasuorite
-  name_en: Local train kilometers
-  type: simple.Activity
+# ----- Buses
+
+- id: bus_kilometers
+  name: Bussisuorite
+  name_en: Bus kilometers
+  type: gpc.DatasetNode
   quantity: mileage
   unit: Mvkm/a
-  input_datasets:
-  - id: tampere/scenarios/activity/bau
-    column: Local train
-    min_year: 2016
-    dropna: true
-    unit: Mvkm/a
-  output_nodes:
-  - local_train_emissions
-
-- id: tram_kilometers
-  name: Ratikkasuorite
-  name_en: Tram kilometers
-  type: simple.Activity
-  quantity: mileage
-  unit: Mvkm/a
-  historical_values: [[2010, 0], [2020, 0]]
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - tram_emissions
-
-- id: car_kilometers_streets
-  name: Henkilöautosuorite (katuajo)
-  name_en: Car kilometers (streets)
-  type: simple.Activity
-  quantity: mileage
-  unit: Mvkm/a
-  input_datasets:
-  - id: tampere/scenarios/activity/bau
-    column: Private car street
-    min_year: 2016
-    dropna: true
-    unit: Mvkm/a
-  output_nodes:
-  - car_emissions_streets
-
-- id: car_kilometers_roads
-  name: Henkilöautosuorite (maantieajo)
-  name_en: Car kilometers (roads)
-  type: simple.Activity
-  quantity: mileage
-  unit: Mvkm/a
-  input_datasets:
-  - id: tampere/scenarios/activity/bau
-    column: Private car road
-    min_year: 2016
-    dropna: true
-    unit: Mvkm/a
-  output_nodes:
-  - car_emissions_roads
-
-- id: bus_kilometers_streets
-  name: Bussisuorite (katuajo)
-  name_en: Bus kilometers (streets)
-  type: simple.Activity
-  quantity: mileage
-  unit: Mvkm/a
-  input_datasets:
-  - id: tampere/scenarios/activity/bau
-    column: Bus street
-    min_year: 2016
-    dropna: true
-    unit: Mvkm/a
-  output_nodes:
-  - bus_emissions_streets
-
-- id: bus_kilometers_roads
-  name: Bussisuorite (maantieajo)
-  name_en: Bus kilometers (roads)
-  type: simple.Activity
-  quantity: mileage
-  unit: Mvkm/a
-  input_datasets:
-  - id: tampere/scenarios/activity/bau
-    column: Bus road
-    min_year: 2016
-    dropna: true
-    unit: Mvkm/a
-  output_nodes:
-  - bus_emissions_roads
-
-- id: local_train_emission_factor
-  name: Paikallisjunan päästökerroin
-  name_en: Local train emission factor
-  quantity: emission_factor
-  unit: g/vkm
-  type: simple.FixedMultiplierNode
+  input_dimensions: [road_type, vehicle_type, scope]
+  output_dimensions: [road_type, vehicle_type, scope]
   params:
-  - id: multiplier
-    value: 6.5  # Derived from explicit emission factors of trains and electricity
-    unit: kWh/vkm
-  input_nodes:
-  - electricity_production_emission_factor
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/tampere
+    filters:
+    - column: Vehicle Type
+      value: Buses
+      drop_col: false
+    forecast_from: 2022
   output_nodes:
-  - local_train_emissions
+  - id: bus_emissions
+    to_dimensions:
+    - id: road_type
+    - id: vehicle_type
+    - id: scope
 
-- id: tram_emission_factor
-  name: Ratikan päästökerroin
-  name_en: Tram emission factor
+- id: bus_emission_factors
+  name: Bussin päästökerroin
+  name_en: Bus emission factors
+  type: gpc.DatasetNode
   quantity: emission_factor
-  type: simple.FixedMultiplierNode
   unit: g/vkm
+  input_dimensions: [road_type, vehicle_type, ghg, scope]
+  output_dimensions: [road_type, vehicle_type, ghg, scope]
   params:
-  - id: multiplier
-    value: 2.56  # Derived from explicit emission factors of trams and electricity
-    unit: kWh/vkm
-  input_nodes:
-  - electricity_production_emission_factor
-  output_nodes:
-  - tram_emissions
-
-- id: car_emission_factor_streets
-  name: Henkilöautoilun päästökerroin (katuajo)
-  name_en: Car emission factor (streets)
-  quantity: emission_factor
-  type: simple.AdditiveNode
-  unit: g/vkm
+    gpc_sector: II.1.1
   input_datasets:
-  - id: tampere/scenarios/emission_factors/bau
-    column: Private car street
-    dropna: true
-    unit: g/vkm
+  - id: gpc/tampere
+    filters:
+    - column: Vehicle Type
+      value: Buses
+      drop_col: false
+    forecast_from: 2022
   output_nodes:
-  - car_emissions_streets
-
-- id: car_emission_factor_roads
-  name: Henkilöautoilun päästökerroin (maantieajo)
-  name_en: Car emission factor (roads)
-  quantity: emission_factor
-  type: simple.AdditiveNode
-  unit: g/vkm
-  input_datasets:
-  - id: tampere/scenarios/emission_factors/bau
-    column: Private car road
-    dropna: true
-    unit: g/vkm
-  output_nodes:
-  - car_emissions_roads
-
-- id: bus_emission_factor_streets
-  name: Bussin päästökerroin (katuajo)
-  name_en: Bus emission factor (streets)
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/vkm
-  input_datasets:
-  - id: tampere/scenarios/emission_factors/bau
-    column: Bus street constant fuel share
-    dropna: true
-    unit: g/vkm
-  output_nodes:
-  - bus_emissions_streets
-
-- id: bus_emission_factor_roads
-  name: Bussin päästökerroin (maantieajo)
-  name_en: Bus emission factor (roads)
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/vkm
-  input_datasets:
-  - id: tampere/scenarios/emission_factors/bau
-    column: Bus road
-    dropna: true
-    unit: g/vkm
-  output_nodes:
-  - bus_emissions_roads
-
-- id: local_train_emissions
-  name: Lähijunien päästöt
-  name_en: Local train emissions
-  type: simple.EmissionFactorActivity
-  unit: kt/a
-  quantity: emissions
-  output_nodes:
-  - transportation_emissions
-
-- id: tram_emissions
-  name: Ratikkaliikenteen päästöt
-  name_en: Tram emissions
-  type: simple.EmissionFactorActivity
-  unit: kt/a
-  quantity: emissions
-  output_nodes:
-  - transportation_emissions
-
-- id: car_emissions_roads
-  name: Henkilöautoliikenteen päästöt (maantieajo)
-  name_en: Private car emissions (roads)
-  type: simple.EmissionFactorActivity
-  quantity: emissions
-  unit: kt/a
-  output_nodes:
-  - car_emissions
-
-- id: car_emissions_streets
-  name: Henkilöautoliikenteen päästöt (katuajo)
-  name_en: Private car emissions (streets)
-  type: simple.EmissionFactorActivity
-  quantity: emissions
-  unit: kt/a
-  output_nodes:
-  - car_emissions
-
-- id: car_emissions
-  name: Henkilöautoliikenteen päästöt
-  name_en: Private car emissions
-  type: simple.SectorEmissions
-  unit: kt/a
-  params:
-    fill_gaps_using_input_dataset: true
-  input_datasets:
-  - id: tampere/scenarios/emissions/bau
-    column: Private cars
-    forecast_from: 2023
-    unit: kt/a
-  output_nodes:
-  - transportation_emissions
-
-- id: bus_emissions_roads
-  name: Bussiliikenteen päästöt (maantieajo)
-  name_en: Bus emissions (roads)
-  type: simple.EmissionFactorActivity
-  quantity: emissions
-  unit: kt/a
-  output_nodes:
-  - bus_emissions
-
-- id: bus_emissions_streets
-  name: Bussiliikenteen päästöt (katuajo)
-  name_en: Bus emissions (streets)
-  type: simple.EmissionFactorActivity
-  quantity: emissions
-  unit: kt/a
-  output_nodes:
-  - bus_emissions
+  - id: bus_emissions
 
 - id: bus_emissions
   name: Bussiliikenteen päästöt
   name_en: Bus emissions
-  type: simple.SectorEmissions
-  unit: kt/a
+  type: simple.MultiplicativeNode
   quantity: emissions
-  params:
-    fill_gaps_using_input_dataset: true
-  input_datasets:
-  - id: tampere/scenarios/emissions/bau
-    column: Buses
-    forecast_from: 2023
-    unit: kt/a
+  unit: kt/a
+  input_dimensions: [road_type, vehicle_type, ghg, scope]
+  output_dimensions: [road_type, vehicle_type, ghg, scope]
   output_nodes:
-  - transportation_emissions
+  - id: bus_emissions_total
+
+- id: bus_emissions_total
+  name: Bussiliikenteen kokonaispäästöt
+  name_en: Total bus emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [road_type, vehicle_type, ghg, scope]
+  output_dimensions: [road_type, vehicle_type, ghg, scope]
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/tampere
+    filters:
+    - column: Vehicle Type
+      value: Buses
+      drop_col: false
+    forecast_from: 2022
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: road_type
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+
+# ----- Local Trains
+
+- id: local_train_kilometers
+  name: Paikallisjunasuorite
+  name_en: Local train kilometers
+  type: gpc.DatasetNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_dimensions: [energy_carrier, vehicle_type, scope]
+  output_dimensions: [energy_carrier, vehicle_type, scope]
+  params:
+    gpc_sector: II.2.2
+  input_datasets:
+  - id: gpc/tampere
+    filters:
+    - column: Vehicle Type
+      value: Local Trains
+      drop_col: false
+    forecast_from: 2022
+  output_nodes:
+  - id: local_train_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+    - id: scope
+
+- id: local_train_emission_factors
+  name: Paikallisjunan päästökerroin
+  name_en: Local train emission factors
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_dimensions: [energy_carrier, vehicle_type, ghg, scope]
+  output_dimensions: [energy_carrier, vehicle_type, ghg, scope]
+  params:
+    gpc_sector: II.2.2
+  input_datasets:
+  - id: gpc/tampere
+    filters:
+    - column: Vehicle Type
+      value: Local Trains
+      drop_col: false
+    forecast_from: 2022
+  output_nodes:
+  - id: local_train_emissions
+
+- id: local_train_emissions
+  name: Paikallisjunaliikenteen päästöt
+  name_en: Local train emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, vehicle_type, ghg, scope]
+  output_dimensions: [energy_carrier, vehicle_type, ghg, scope]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+
+# ----- Motorcycles
+
+- id: motorcycle_kilometers
+  name: Moottoripyöräsuorite
+  name_en: Motorcycle kilometers
+  type: gpc.DatasetNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_dimensions: [vehicle_type, scope]
+  output_dimensions: [vehicle_type, scope]
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/tampere
+    filters:
+    - column: Vehicle Type
+      value: Motorcycles
+      drop_col: false
+    forecast_from: 2022
+  output_nodes:
+  - id: motorcycle_emissions
+    to_dimensions:
+    - id: vehicle_type
+    - id: scope
+
+- id: motorcycle_emission_factors
+  name: Moottoripyörien päästökerroin
+  name_en: Motorcycle emission factors
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_dimensions: [vehicle_type, ghg, scope]
+  output_dimensions: [vehicle_type, ghg, scope]
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/tampere
+    filters:
+    - column: Vehicle Type
+      value: Motorcycles
+      drop_col: false
+    forecast_from: 2022
+  output_nodes:
+  - id: motorcycle_emissions
+
+- id: motorcycle_emissions
+  name: Moottoripyöräliikenteen päästöt
+  name_en: Motorcycle emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [vehicle_type, ghg, scope]
+  output_dimensions: [vehicle_type, ghg, scope]
+  output_nodes:
+  - id: motorcycle_emissions_total
+
+- id: motorcycle_emissions_total
+  name: Moottoripyöräliikenteen kokonaispäästöt
+  name_en: Total motorcycle emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [vehicle_type, ghg, scope]
+  output_dimensions: [vehicle_type, ghg, scope]
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/tampere
+    filters:
+    - column: Vehicle Type
+      value: Motorcycles
+      drop_col: false
+    forecast_from: 2022
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+
+# ----- Passenger Cars
+
+- id: car_kilometers
+  name: Henkilöautosuorite
+  name_en: Passenger car kilometers
+  type: gpc.DatasetNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_dimensions: [road_type, vehicle_type, scope]
+  output_dimensions: [road_type, vehicle_type, scope]
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/tampere
+    filters:
+    - column: Vehicle Type
+      value: Passenger Cars
+      drop_col: false
+    forecast_from: 2022
+  output_nodes:
+  - id: car_emissions
+    to_dimensions:
+    - id: road_type
+    - id: vehicle_type
+    - id: scope
+
+- id: car_emission_factors
+  name: Henkilöautoilun päästökerroin
+  name_en: Passenger car emission factors
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_dimensions: [road_type, vehicle_type, ghg, scope]
+  output_dimensions: [road_type, vehicle_type, ghg, scope]
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/tampere
+    filters:
+    - column: Vehicle Type
+      value: Passenger Cars
+      drop_col: false
+    forecast_from: 2022
+  output_nodes:
+  - id: car_emissions
+
+- id: car_emissions
+  name: Henkilöautoliikenteen päästöt
+  name_en: Passenger car emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [road_type, vehicle_type, ghg, scope]
+  output_dimensions: [road_type, vehicle_type, ghg, scope]
+  output_nodes:
+  - id: car_emissions_total
+
+- id: car_emissions_total
+  name: Henkilöautoliikenteen kokonaispäästöt
+  name_en: Total passenger car emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [road_type, vehicle_type, ghg, scope]
+  output_dimensions: [road_type, vehicle_type, ghg, scope]
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/tampere
+    filters:
+    - column: Vehicle Type
+      value: Passenger Cars
+      drop_col: false
+    forecast_from: 2022
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: road_type
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+
+# ----- Trams
+
+- id: tram_kilometers
+  name: Ratikkasuorite
+  name_en: Tram kilometers
+  type: gpc.DatasetNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_dimensions: [energy_carrier, vehicle_type, scope]
+  output_dimensions: [energy_carrier, vehicle_type, scope]
+  params:
+    gpc_sector: II.2.2
+  input_datasets:
+  - id: gpc/tampere
+    filters:
+    - column: Vehicle Type
+      value: Trams
+      drop_col: false
+    forecast_from: 2022
+  output_nodes:
+  - id: tram_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+    - id: scope
+
+- id: tram_emission_factors
+  name: Ratikan päästökerroin
+  name_en: Tram emission factors
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_dimensions: [energy_carrier, vehicle_type, ghg, scope]
+  output_dimensions: [energy_carrier, vehicle_type, ghg, scope]
+  params:
+    gpc_sector: II.2.2
+  input_datasets:
+  - id: gpc/tampere
+    filters:
+    - column: Vehicle Type
+      value: Trams
+      drop_col: false
+    forecast_from: 2022
+  output_nodes:
+  - id: tram_emissions
+
+- id: tram_emissions
+  name: Ratikkaliikenteen päästöt
+  name_en: Tram emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, vehicle_type, ghg, scope]
+  output_dimensions: [energy_carrier, vehicle_type, ghg, scope]
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+
+# ----- Trucks
+
+- id: truck_kilometers
+  name: Kuorma-autosuorite
+  name_en: Truck kilometers
+  type: gpc.DatasetNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_dimensions: [vehicle_type, scope]
+  output_dimensions: [vehicle_type, scope]
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/tampere
+    filters:
+    - column: Vehicle Type
+      value: Trucks
+      drop_col: false
+    forecast_from: 2022
+  output_nodes:
+  - id: truck_emissions
+    to_dimensions:
+    - id: vehicle_type
+    - id: scope
+
+- id: truck_emission_factors
+  name: Kuorma-autojen päästökerroin
+  name_en: Truck emission factors
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_dimensions: [vehicle_type, ghg, scope]
+  output_dimensions: [vehicle_type, ghg, scope]
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/tampere
+    filters:
+    - column: Vehicle Type
+      value: Trucks
+      drop_col: false
+    forecast_from: 2022
+  output_nodes:
+  - id: truck_emissions
+
+- id: truck_emissions
+  name: Kuorma-autoliikenteen päästöt
+  name_en: Truck emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [vehicle_type, ghg, scope]
+  output_dimensions: [vehicle_type, ghg, scope]
+  output_nodes:
+  - id: truck_emissions_total
+
+- id: truck_emissions_total
+  name: Kuorma-autoliikenteen kokonaispäästöt
+  name_en: Total truck emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [vehicle_type, ghg, scope]
+  output_dimensions: [vehicle_type, ghg, scope]
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/tampere
+    filters:
+    - column: Vehicle Type
+      value: Trucks
+      drop_col: false
+    forecast_from: 2022
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+
+# ----- Vans
+
+- id: van_kilometers
+  name: Pakettiautosuorite
+  name_en: Van kilometers
+  type: gpc.DatasetNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_dimensions: [vehicle_type, scope]
+  output_dimensions: [vehicle_type, scope]
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/tampere
+    filters:
+    - column: Vehicle Type
+      value: Vans
+      drop_col: false
+    forecast_from: 2022
+  output_nodes:
+  - id: van_emissions
+    to_dimensions:
+    - id: vehicle_type
+    - id: scope
+
+- id: van_emission_factors
+  name: Pakettiautojen päästökerroin
+  name_en: Van emission factors
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_dimensions: [vehicle_type, ghg, scope]
+  output_dimensions: [vehicle_type, ghg, scope]
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/tampere
+    filters:
+    - column: Vehicle Type
+      value: Vans
+      drop_col: false
+    forecast_from: 2022
+  output_nodes:
+  - id: van_emissions
+
+- id: van_emissions
+  name: Pakettiautoliikenteen päästöt
+  name_en: Van emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [vehicle_type, ghg, scope]
+  output_dimensions: [vehicle_type, ghg, scope]
+  output_nodes:
+  - id: van_emissions_total
+
+- id: van_emissions_total
+  name: Pakettiautoliikenteen kokonaispäästöt
+  name_en: Total van emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [vehicle_type, ghg, scope]
+  output_dimensions: [vehicle_type, ghg, scope]
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/tampere
+    filters:
+    - column: Vehicle Type
+      value: Vans
+      drop_col: false
+    forecast_from: 2022
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
 
   #
   # City machinery
@@ -1257,42 +1580,42 @@ actions:
   output_nodes:
   - other_electricity_consumption
 
-- id: tram_phase_3
-  name: Ratikan rakennusvaihe 3 (2028-2030)
-  name_en: Tram construction phase 3 (2028-2030)
-  type: simple.AdditiveAction
-  unit: Mvkm/a
-  quantity: mileage
-  group: transportation
-  description: Raitiotien kolmas rakennusvaihe. Ensimmäinen ja toinen rakennusvaihe
-    on toteutettava, jotta tämä olisi mielekäs.
-  description_en: The third construction phase of the tramway. The first and second
-    construction phases need to be implemented for this action to make sense.
-  input_datasets:
-  - id: tampere/scenarios/mode_changes_after_tram
-    column: vehicle_mileage
-    forecast_from: 2023
-    filters:
-    - dimension: tram_phase
-      categories: [phase3]
-      flatten: true
-  output_dimensions: [vehicle]
-  output_nodes:
-  - id: tram_kilometers
-    from_dimensions:
-    - id: vehicle
-      categories: [tram]
-      flatten: true
-  - id: car_kilometers_streets
-    from_dimensions:
-    - id: vehicle
-      categories: [car]
-      flatten: true
-  - id: bus_kilometers_streets
-    from_dimensions:
-    - id: vehicle
-      categories: [bus]
-      flatten: true
+# - id: tram_phase_3
+#   name: Ratikan rakennusvaihe 3 (2028-2030)
+#   name_en: Tram construction phase 3 (2028-2030)
+#   type: simple.AdditiveAction
+#   unit: Mvkm/a
+#   quantity: mileage
+#   group: transportation
+#   description: Raitiotien kolmas rakennusvaihe. Ensimmäinen ja toinen rakennusvaihe
+#     on toteutettava, jotta tämä olisi mielekäs.
+#   description_en: The third construction phase of the tramway. The first and second
+#     construction phases need to be implemented for this action to make sense.
+#   input_datasets:
+#   - id: tampere/scenarios/mode_changes_after_tram
+#     column: vehicle_mileage
+#     forecast_from: 2023
+#     filters:
+#     - dimension: tram_phase
+#       categories: [phase3]
+#       flatten: true
+#   output_dimensions: [vehicle]
+#   output_nodes:
+#   - id: tram_kilometers
+#     from_dimensions:
+#     - id: vehicle
+#       categories: [tram]
+#       flatten: true
+#   - id: car_kilometers_streets
+#     from_dimensions:
+#     - id: vehicle
+#       categories: [car]
+#       flatten: true
+#   - id: bus_kilometers_streets
+#     from_dimensions:
+#     - id: vehicle
+#       categories: [bus]
+#       flatten: true
 
 - id: renewable_diesel_in_city_machinery
   name: Uusiutuvan dieselin käyttö kaupungin työkoneissa
@@ -1332,21 +1655,21 @@ actions:
         source_amount: 0
         dest_amounts: [1]
 
-- id: energy_conversion_in_buses
-  name: Bussiliikenteen käyttövoimamuutos
-  name_en: Energy conversion in buses
-  type: simple.AdditiveAction
-  quantity: emission_factor
-  unit: g/vkm
-  group: transportation
-  input_datasets:
-  - id: tampere/scenarios/emission_factors/bau
-    column: Bus street difference to constant fuel share
-    forecast_from: 2023
-    dropna: true
-    unit: g/vkm
-  output_nodes:
-  - bus_emission_factor_streets
+# - id: energy_conversion_in_buses
+#   name: Bussiliikenteen käyttövoimamuutos
+#   name_en: Energy conversion in buses
+#   type: simple.AdditiveAction
+#   quantity: emission_factor
+#   unit: g/vkm
+#   group: transportation
+#   input_datasets:
+#   - id: tampere/scenarios/emission_factors/bau
+#     column: Bus street difference to constant fuel share
+#     forecast_from: 2023
+#     dropna: true
+#     unit: g/vkm
+#   output_nodes:
+#   - bus_emission_factor_streets
 
 
 pages:
