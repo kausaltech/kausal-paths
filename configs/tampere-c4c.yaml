@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://tampere-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 3897c314dce2a1fba5d4b57fac2eddbdf17a465c
+  commit: ce008059acd9378e8bbc3c0f05370a94d0a7d866
   dvc_remote: kausal-s3
 name: C4C Hiilineutraali Tampere 2030
 name_en: C4C Carbon-neutral Tampere 2030
@@ -259,18 +259,6 @@ emission_sectors:
   part_of: net_emissions
   color: '#397368'
 
-- id: solid_waste_treatment_emissions
-  name: Kiinteän jätteen käsittelyn päästöt
-  name_en: Solid waste treatment
-  column: Solid waste treatment
-  part_of: waste_treatment_emissions
-
-- id: waste_water_treatment_emissions
-  name: Jäteveden puhdistuksen päästöt
-  name_en: Waste water treatment
-  column: Waste water treatment
-  part_of: waste_treatment_emissions
-
 - id: agriculture_emissions
   name_en: Agriculture
   name: Maatalouden päästöt
@@ -280,24 +268,6 @@ emission_sectors:
     the CO2 Report on animal digestion, manure treatment and arable farming.
   part_of: net_emissions
   color: '#ABC872'
-
-- id: cattle_digestion_emissions
-  name: Eläinten ruoansulatus
-  name_en: Cattle digestion
-  part_of: agriculture_emissions
-  column: Cattle digestion
-
-- id: manure_treatment_emissions
-  name_en: Manure treatment
-  name: Lannankäsittely
-  part_of: agriculture_emissions
-  column: Manure treatment
-
-- id: field_crops_emissions
-  name_en: Field crops
-  name: Peltoviljelyn päästöt
-  part_of: agriculture_emissions
-  column: Field crops
 
   #
   # Electricity emissions
@@ -314,6 +284,117 @@ nodes:
 - id: population
   type: finland.Population
   name: Väestö
+
+# ----- WASTE -----------------------------------------------------------------
+
+- id: solid_waste_treatment_emissions
+  name: Kiinteän jätteen käsittelyn päästöt
+  name_en: Solid waste treatment
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [ghg, scope]
+  output_dimensions: [ghg, scope]
+  params:
+    gpc_sector: III.1.1
+  input_datasets:
+  - id: gpc/tampere
+    forecast_from: 2022
+  output_nodes:
+  - id: waste_treatment_emissions
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+
+- id: waste_water_treatment_emissions
+  name: Jäteveden puhdistuksen päästöt
+  name_en: Waste water treatment
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [ghg, scope]
+  output_dimensions: [ghg, scope]
+  params:
+    gpc_sector: III.4.1
+  input_datasets:
+  - id: gpc/tampere
+    forecast_from: 2022
+  output_nodes:
+  - id: waste_treatment_emissions
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+
+# ----- AFOLU -----------------------------------------------------------------
+
+- id: cattle_digestion_emissions
+  name: Eläinten ruoansulatus
+  name_en: Cattle digestion
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [ghg, scope]
+  output_dimensions: [ghg, scope]
+  params:
+    gpc_sector: V.1
+  input_datasets:
+  - id: gpc/tampere
+    forecast_from: 2022
+  output_nodes:
+  - id: agriculture_emissions
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+
+- id: field_crops_emissions
+  name_en: Field crops
+  name: Peltoviljelyn päästöt
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [ghg, scope]
+  output_dimensions: [ghg, scope]
+  params:
+    gpc_sector: V.2
+  input_datasets:
+  - id: gpc/tampere
+    forecast_from: 2022
+  output_nodes:
+  - id: agriculture_emissions
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+
+- id: manure_treatment_emissions
+  name_en: Manure treatment
+  name: Lannankäsittely
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [ghg, scope]
+  output_dimensions: [ghg, scope]
+  params:
+    gpc_sector: V.3
+  input_datasets:
+  - id: gpc/tampere
+    forecast_from: 2022
+  output_nodes:
+  - id: agriculture_emissions
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+
+# -----
 
 - id: district_heating_emissions
   name: Kaukolämmön päästöt
@@ -1161,9 +1242,8 @@ nodes:
     multiplier: -1
   unit: GWh/a
 
-  #
-  # LED Streetlight Detailed Action Module
-  #
+# ----- LED STREETLIGHT DETAILED ACTION MODULE --------------------------------
+
 - id: baseline_streetlights
   name: Baseline Streetlights
   type: gpc.DetailedDatasetNode
@@ -1367,9 +1447,7 @@ nodes:
       flatten: true
   - id: maintenance_costs
 
-#
-# ------- ACTIONS --------
-#
+# ----- ACTIONS ---------------------------------------------------------------
 
 actions:
 # - id: i22_streetlight_replacement_action
