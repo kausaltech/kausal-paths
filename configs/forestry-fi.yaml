@@ -4,7 +4,7 @@ supported_languages: [fi]
 site_url: https://forestry-fi.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: e3ed69d53000724775ec6346d2003db1ee6f5ab8
+  commit: 89ae9bd230d1f567f25e05359fee55f6f8ac3cf1
   dvc_remote: kausal-s3
 name_en: Multi-stakeholder forestry policy options
 name_fi: Metsäpolitiikan monet vaihtoehdot
@@ -174,18 +174,202 @@ dimensions:
   - id: equal_weight
     label: Equal weight
 
-emission_sectors:
+- id: region
+  label: Region
+  categories:
+  - id: international_aviation
+    label: International aviation,
+  - id: international_shipping
+    label: International shipping,
+  - id: oceania
+    label: Oceania,
+  - id: asia_excl_china_and_india
+    label: Asia (excl. China and India),
+  - id: china
+    label: China,
+  - id: india
+    label: India,
+  - id: africa
+    label: Africa,
+  - id: south_america
+    label: South America,
+  - id: north_america_excl_usa
+    label: North America (excl. USA),
+  - id: united_states
+    label: United States,
+  - id: european_union_27
+    label: European Union (27),
+  - id: europe_excl_eu27
+    label: Europe (excl. EU-27)
+
+- id: emission_class
+  label: Emission class
+  categories:
+  - id: 1_energiasektori
+    label_en: 1 Energy sector
+    label_fi: 1 Energiasektori
+  - id: 2_teollisuusprosessit_ja_tuotteiden_kaytto
+    label_en: 2 Industrial processes and product use (IPPU)
+    label_fi: 2 Teollisuusprosessit ja tuotteiden käyttö (IPPU)
+  - id: 3_maatalous
+    label_en: 3 Agriculture
+    label_fi: 3 Maatalous
+  - id: 4_maankaytto_maankayton_muutokset_ja_metsatalous_lulucf
+    label_en: 4 Land use, land use change and forestry (LULUCF)
+    label_fi: '4 Maankäyttö, maankäytön muutokset ja metsätalous (LULUCF)'
+  - id: 5_jatteiden_kasittely
+    label_en: 5 Waste management
+    label_fi: 5 Jätteiden käsittely
+  - id: epasuorat_co2_paastot
+    label_en: Indirect CO2 emissions
+    label_fi: Epäsuorat CO2 päästöt
+
+nodes:
+
 - id: net_emissions
   name_fi: Kokonaispäästöt
   name_en: Net emissions
-  is_outcome: true
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  # is_outcome: true
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
+  output_nodes:
+  - id: historical_emissions_in_finland
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: emission_class
+      categories: [1_energiasektori]
+  # goals:
+  # - label: Total emission goal 2035
+  #   default: true
+  #   is_main_goal: true
+  #   linear_interpolation: true
+  #   values:
+  #   - year: 2022
+  #     value: 37100000000
+  #   - year: 2050
+  #     value: 0.0
 
-nodes:
-- id: population  # TODO Pois?
+# ---------------------------- Global level nodes -----------
+
+- id: global_emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [region]
+  output_dimensions: [region]
+  is_outcome: true
+  goals:
+  - label: Total emission goal 2050
+    default: true
+    is_main_goal: true
+    linear_interpolation: true
+    values:
+    - year: 2022
+      value: 37100000000
+    - year: 2050
+      value: 0.0
+  name: Annual CO₂ emissions by world region
+  description: Annual total emissions of carbon dioxide (CO₂) from fossil fuels and
+    industry, excluding land-use change, measured in tonnes. This data is based on
+    territorial emissions, which do not account for emissions embedded in traded goods.
+    Emissions from international aviation and shipping are not included in any country
+    or region's emissions. They are only included in the global total emissions.<br>
+    <h3>Processing</h3>Data on global emissions has been converted from tonnes of
+    carbon to tonnes of carbon dioxide (CO₂) using a conversion factor of 3.664. Emissions
+    from the Kuwaiti oil fires in 1991 have been included as part of Kuwait's emissions
+    for that year. Country's share of the global population is calculated using our
+    population dataset, based on <a href="https://ourworldindata.org/population-sources">different
+    sources</a>. Each country's share of global CO₂ emissions from flaring has been
+    calculated using global CO₂ emissions from flaring provided in the Global Carbon
+    Budget dataset. Last Updated 2024-06-20, Citation Global Carbon Budget (2023)
+    – with major processing by Our World in Data. “Annual CO₂ emissions – GCB” <a
+    href="https://api.ourworldindata.org/v1/indicators/944146.metadata.json">dataset</a>.
+    Global Carbon Project, “Global Carbon Budget” [original data].<br> Citation <a
+    href="https://ourworldindata.org/grapher/annual-co-emissions-by-region">Global
+    Carbon Budget (2023)</a>
+  input_datasets:
+  - id: ourworldindata/annual-co2-emissions-by-region
+    filters:
+    - column: Region
+      drop_col: false
+      values: [International aviation, International shipping, Oceania, Asia (excl.
+          China and India), China, India, Africa, South America, North America (excl.
+          USA), United States, European Union (27), Europe (excl. EU-27)]
+    - column: Code
+      drop_col: true
+  params:
+    sector: CO2 emissions
+
+- id: global_responsibility_ratio
+  name: Global responsibility ratio
+  description: This is the ratio of emission reductions that we are prepared to implement.
+    We also think that all developed countries are morally obliged to reach the same
+    reduction; we cannot demand more from others than what we do ourselves.
+  type: simple.AdditiveNode
+  quantity: ratio
+  unit: dimensionless
+  input_nodes:
+  - id: net_emissions
+    tags: [ratio_to_last_historical_value]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+
+# -------------------------- Generic nodes ----------------
+
+- id: population
   type: finland.population.Population
   name_fi: Väestö
   name_en: Population
   description: Population size of the imaginary city.
+
+- id: historical_emissions_in_finland
+  name: Historical emissions in Finland
+  description: 'Source: <a href="https://pxdata.stat.fi/PxWeb/pxweb/fi/StatFin/StatFin__khki/statfin_khki_pxt_138v.px/">Tilastokeskus 2024</a>'
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: Mt/a
+  input_dimensions: [emission_class]
+  output_dimensions: [emission_class]
+  input_datasets:
+  - id: statfi/ghg_emissions_fi
+    filters:
+    - column: GHG
+      value: Kaasut yhteensä
+    - column: Emission class
+      values: [
+        1 Energiasektori,
+        2 Teollisuusprosessit ja tuotteiden käyttö,
+        3 Maatalous,
+        '4 Maankäyttö, maankäytön muutokset ja metsätalous (LULUCF)',
+        5 Jätteiden käsittely,
+        Epäsuorat CO2 päästöt]
+      drop_col: false
+  params:
+    sector: Päästö, tuhatta tonnia CO2-ekv. (GWP=AR5)
+  output_nodes:
+  - id: global_emissions
+    from_dimensions:
+    - id: emission_class
+      flatten: true
+    to_dimensions:
+    - id: region
+      categories: [european_union_27]
+  goals:
+  - label: Total emission goal 2035
+    default: true
+    is_main_goal: true
+    linear_interpolation: true
+    values:
+    - year: 2023
+      value: 40.6
+    - year: 2035
+      value: 0.0
 
 # ---------------------------- Suomen metsänielukeskustelu
 
@@ -319,23 +503,41 @@ nodes:
   params:
     sector: Forest growth
 
-- id: amount_of_wood_in_forests
-  name_fi: Suomen metsien koko
-  name_en: Forest stock in Finnish forests
+- id: historical_amount_of_wood_in_forests
+  name_fi: Suomen metsien historiallinen koko
+  name_en: Historical forest stock in Finnish forests
   type: gpc.DatasetNode # costs.InternalGrowthNode
   quantity: mass
   unit: Mt
-  input_nodes:
-  - id: forest_cuts_in_finland
-    tags: [cumulative]
-  # id: forest_growth
-  input_datasets: [sunnydale/forestry_fi]
+  input_datasets:
+  - id: sunnydale/forestry_fi
+    filters:
+    - column: Year
+      value: 2023
+      drop_col: false
   params:
-  - id: sector
-    value: Historical forest stock in Finland
-  # - id: annual_change
-  #   value: 4.1875  # Year 2021: 134 Mt growth, 3200 Mt Wood storage in forests.
-  #   unit: '%'
+    sector: Historical forest stock in Finland
+
+- id: amount_of_wood_in_forests
+  name_fi: Suomen metsien koko
+  name_en: Forest stock in Finnish forests
+  type: costs.IterationNode
+  quantity: mass
+  unit: Mt
+  input_nodes:
+  - id: historical_amount_of_wood_in_forests
+    tags: [base]
+  - id: forest_cuts_in_finland
+    tags: [arithmetic_inverse]
+  - id: forest_growth_rate
+    tags: [rate]
+
+- id: forest_growth_rate
+  name_en: Forest growth rate
+  type: simple.AdditiveNode
+  quantity: rate
+  unit: '%'
+  historical_values: [[1990, 2.0 ]] # 4.1875]] # Year 2021: 134 Mt growth, 3200 Mt Wood storage in forests.
 
 - id: carbon_sinks_in_forests
   name_en: Carbon sinks in forests
@@ -347,7 +549,7 @@ nodes:
   output_dimensions: [cost_type]
   input_nodes:
   - id: amount_of_wood_in_forests
-    tags: [difference]
+    tags: [difference, arithmetic_inverse]
     to_dimensions:
     - id: cost_type
       categories: [non_fossil_emissions]
@@ -428,6 +630,32 @@ nodes:
   output_dimensions: [cost_type]
   is_outcome: true
 
+# ------------------ Nodes for impact overviews ---------------
+
+- id: total_cost_costs
+  name: Total cost costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  is_visible: false
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
+  input_nodes:
+  - id: total_cost
+    tags: [make_nonnegative]
+
+- id: total_cost_benefits
+  name: Total cost benefits
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  is_visible: false
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
+  input_nodes:
+  - id: total_cost
+    tags: [make_nonpositive]
+
 actions:
 
 - id: district_heating_with_biofuels
@@ -455,7 +683,7 @@ actions:
     sector: Reduce forestry production
   output_nodes:
   - id: forestry_production
-    tags: [arithmetic_inverse, complement, non_additive]
+    tags: [complement, non_additive]
 
 pages:
 - id: home
