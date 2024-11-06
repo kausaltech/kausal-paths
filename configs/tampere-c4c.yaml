@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://tampere-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 31b793aa533b5902bb476f7479a23f3f9a98bb93
+  commit: e6faa6d201218b87f3073678b22f7d778bfbc55a
   dvc_remote: kausal-s3
 name: C4C Hiilineutraali Tampere 2030
 name_en: C4C Carbon-neutral Tampere 2030
@@ -188,7 +188,6 @@ dimensions:
     label: Maakaasu
     label_en: Natural gas
 
-
 - id: ghg
   label: GHG
   categories:
@@ -208,8 +207,8 @@ dimensions:
 
 emission_sectors:
 - id: net_emissions
-  name: Kokonaispäästöt (scope 2)
-  name_en: Net emissions (scope 2)
+  name: Kokonaispäästöt
+  name_en: Net emissions
   is_outcome: true
   target_year_goal: 260
 
@@ -250,30 +249,7 @@ emission_sectors:
     heating and geothermal emissions.
   part_of: building_heating_emissions
 
-#
-# Other emission sources
-#
-
-- id: industry_and_machinery_emissions
-  name: Teollisuuden ja työkoneiden päästöt
-  name_en: Industry and machinery emissions
-  description: Teollisuuden ja työkoneiden päästöennuste on tehty ekstrapoloimalla
-    lineaarisesti vuosien 2010-2018 aikaista päästökehitystä.
-  description_en: The emission forecast for industry and machinery has been made by
-    linearly extrapolating the emission development during 2010-2018.
-  part_of: net_emissions
-  color: '#E8B455'
-
-- id: industry_emissions
-  name: Teollisuuden ja yksityisten työkoneiden päästöt
-  name_en: Industry and private machinery emissions
-  description: Teollisuuden ja työkoneiden päästöennuste on kuvattu tarkemmin solmussa
-    Teollisuuden ja työkoneiden päästöt.
-  description_en: The emission forecast for industry and machinery is described in
-    more detail in the node Industry and machinery emissions.
-  part_of: industry_and_machinery_emissions
-  column: Industry without city machinery
-  color: '#E8B455'
+# ----- Waste
 
 - id: waste_treatment_emissions
   name: Jätehuollon päästöt
@@ -283,6 +259,8 @@ emission_sectors:
     wastewater.
   part_of: net_emissions
   color: '#397368'
+
+# ----- Agriculture
 
 - id: agriculture_emissions
   name_en: Agriculture
@@ -294,22 +272,7 @@ emission_sectors:
   part_of: net_emissions
   color: '#ABC872'
 
-  #
-  # Electricity emissions
-  #
-
-- id: industrial_electricity_consumption_emissions
-  name_en: Industrial electricity consumption
-  name: Teollisuuden sähkön kulutuksen päästöt
-  part_of: electricity_consumption_emissions
-  column: Power consumption industry
-
 nodes:
-
-- id: population
-  type: finland.Population
-  name: Väestö
-
 # ----- WASTE -----------------------------------------------------------------
 
 - id: solid_waste_treatment_emissions
@@ -769,105 +732,154 @@ nodes:
     - id: scope
       flatten: true
 
-#
-# ----------- Electricity use ------------
-#
-- id: other_electricity_consumption_per_capita
-  name: Sähkönkulutus asukasta kohti
-  name_en: Electricity consumption per capita
-  type: simple.AdditiveNode
-  unit: kWh/person/a
+# ----- ELECTRICITY -----------------------------------------------------------
+
+- id: industrial_electricity_consumption
+  name: Teollisuuden sähkönkulutus
+  name_en: Industrial electricity consumption
+  type: gpc.DatasetNode
   quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier, scope]
+  output_dimensions: [energy_carrier, scope]
+  params:
+    gpc_sector: I.3.2
   input_datasets:
-  - id: tampere/scenarios/activity/bau
-    column: Other electricity consumption per capita
-    unit: kWh/cap/a
+  - id: gpc/tampere
+    forecast_from: 2022
   output_nodes:
-  - other_electricity_consumption
+  - id: industrial_electricity_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+
+- id: industrial_electricity_emission_factors
+  name: Teollisuuden sähkönkulutuksen päästökerroin
+  name_en: Industrial electricity emission factors
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/GWh
+  input_dimensions: [energy_carrier, ghg, scope]
+  output_dimensions: [energy_carrier, ghg, scope]
+  params:
+    gpc_sector: I.3.2
+  input_datasets:
+  - id: gpc/tampere
+    forecast_from: 2022
+  output_nodes:
+  - id: industrial_electricity_emissions
+
+- id: industrial_electricity_emissions
+  name: Teollisuuden sähkönkulutuksen päästöt
+  name_en: Industrial electricity emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, ghg, scope]
+  output_dimensions: [energy_carrier, ghg, scope]
+  output_nodes:
+  - id: electricity_consumption_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
 
 - id: other_electricity_consumption
   name: Muu sähkönkulutus
   name_en: Other electricity consumption
-  type: simple.PerCapitaActivity
-  unit: GWh/a
+  type: gpc.DatasetNode
   quantity: energy
-  input_nodes:
-  - population
+  unit: GWh/a
+  input_dimensions: [energy_carrier, scope]
+  output_dimensions: [energy_carrier, scope]
+  params:
+    gpc_sector: I.6.2
+  input_datasets:
+  - id: gpc/tampere
+    forecast_from: 2022
   output_nodes:
-  - other_electricity_consumption_emissions
+  - id: other_electricity_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
 
-- id: other_electricity_consumption_emissions
+- id: other_electricity_emission_factors
+  name: Muun sähkönkulutuksen päästökerroin
+  name_en: Other electricity emission factors
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/GWh
+  input_dimensions: [energy_carrier, ghg, scope]
+  output_dimensions: [energy_carrier, ghg, scope]
+  params:
+    gpc_sector: I.6.2
+  input_datasets:
+  - id: gpc/tampere
+    forecast_from: 2022
+  output_nodes:
+  - id: other_electricity_emissions
+
+- id: other_electricity_emissions
   name: Muun sähkönkulutuksen päästöt
-  name_en: Other electricity consumption emissions
+  name_en: Other electricity emissions
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  params:
-    replace_output_using_input_dataset: true
-  input_datasets:
-  - id: tampere/scenarios/emissions/bau
-    column: Other power consumption
-    forecast_from: 2023
-    max_year: 2022
-    unit: kt/a
-  input_nodes:
-  - other_electricity_consumption_emission_factor
+  input_dimensions: [energy_carrier, ghg, scope]
+  output_dimensions: [energy_carrier, ghg, scope]
   output_nodes:
-  - electricity_consumption_emissions
+  - id: other_electricity_emissions_total
 
-- id: electricity_production_emission_factor
-  name: Sähköntuotannon päästökerroin
-  name_en: Electricity production emission factor
-  type: simple.AdditiveNode
-  unit: g/kWh
-  quantity: emission_factor
+- id: other_electricity_emissions_total
+  name: Muun sähkönkulutuksen kokonaispäästöt
+  name_en: Total other electricity emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, ghg, scope]
+  output_dimensions: [energy_carrier, ghg, scope]
+  params:
+    gpc_sector: I.6.2
   input_datasets:
-  - id: tampere/scenarios/emission_factors/bau
-    column: Other power consumption
-    max_year: 2022
-    unit: g/kWh
-
-- id: electric_heating_emission_factor
-  name: Lämmityssähkön päästökerroin
-  name_en: Heating electricity emission factor
-  type: simple.FixedMultiplierNode
-  unit: g/kWh
-  quantity: emission_factor
-  description: Oletetaan 8 % suurempi päästökerroin lämmityssähkölle.
-  description_en: We assume an 8 % higher emission factor for heating electricity.
-  input_nodes:
-  - electricity_production_emission_factor
-  params:
-  - id: multiplier
-    value: 1.08
-
-- id: other_electricity_consumption_emission_factor
-  name: Kulutussähkön päästökerroin
-  name_en: Electricity consumption emission factor
-  type: simple.FixedMultiplierNode
-  unit: g/kWh
-  quantity: emission_factor
-  description: Oletetaan 5 % suurempi päästökerroin muulle sähkön käytölle.
-  description_en: We assume an 5 % higher emission factor for other electricity consumption.
-  input_nodes:
-  - electricity_production_emission_factor
-  params:
-  - id: multiplier
-    value: .95
+  - id: gpc/tampere
+    forecast_from: 2022
+  output_nodes:
+  - id: electricity_consumption_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
 
 - id: electricity_consumption_emissions
   name: Sähkön kulutuksen päästöt
   name_en: Electricity consumption emissions
-  type: simple.SectorEmissions
-  unit: kt/a
-  color: '#F4D240'
   description: Sähkön päästölaskenta perustuu kahteen komponenttiin. Sähkön kulutus
     ja sähkön päästökerroin. Tässä on muu sähkönkulutus kuin lämmitys.
   description_en: The calculation of electricity emissions is based on two components.
     Electricity consumption and the emission factor for electricity. This is electricity
     consumption other than heating.
+  color: '#F4D240'
+  type: simple.SectorEmissions
+  unit: kt/a
   output_nodes:
-  - net_emissions
+  - id: net_emissions
+
+# - id: renewable_electricity_consumption_reduction
+#   name: Uusiutuvalla sähköntuotannolla aikaansaatu ostoenergian säästö
+#   name_en: Decrease in purchased energy due to renewable electricity production
+#   quantity: energy
+#   type: simple.FixedMultiplierNode
+#   output_nodes:
+#   - other_electricity_consumption
+#   params:
+#     multiplier: -1
+#   unit: GWh/a
 
 # ----- TRANSPORTATION --------------------------------------------------------
 
@@ -1424,65 +1436,81 @@ nodes:
     - id: scope
       flatten: true
 
-#
-# City machinery
-#
-- id: city_machinery_emissions
-  name: Kaupungin työkoneiden päästöt
-  name_en: City machinery emissions
-  type: simple.MultiplicativeNode
+# ----- INDUSTRY & MACHINERY --------------------------------------------------
+
+- id: industry_and_machinery_emissions
+  name: Teollisuuden ja työkoneiden päästöt
+  name_en: Industry and machinery emissions
+  description: Teollisuuden ja työkoneiden päästöennuste on tehty ekstrapoloimalla
+    lineaarisesti vuosien 2010-2018 aikaista päästökehitystä.
+  description_en: The emission forecast for industry and machinery has been made by
+    linearly extrapolating the emission development during 2010-2018.
+  color: '#E8B455'
+  type: gpc.DatasetNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [fuel]
-  output_dimensions: [fuel]
+  input_dimensions: [ghg, scope]
+  output_dimensions: [ghg, scope]
+  params:
+    gpc_sector: I.3.1
+  input_datasets:
+  - id: gpc/tampere
+    forecast_from: 2022
   output_nodes:
-  - id: industry_and_machinery_emissions
+  - id: net_emissions
     from_dimensions:
-    - id: fuel
+    - id: ghg
+      flatten: true
+    - id: scope
       flatten: true
 
-- id: city_machinery_fuel_consumption
-  name: Kaupungin työkoneiden polttoaineenkulutus
-  name_en: City machinery fuel consumption
-  type: simple.Activity
-  quantity: fuel_consumption
-  unit: l/a
-  input_datasets:
-  - id: tampere/scenarios/city_machinery
-    column: activity
-    unit: l/a
-    forecast_from: 2023
-  input_dimensions: [fuel]
-  output_dimensions: [fuel]
-  output_nodes:
-  - city_machinery_emissions
+# ----- City Machinery
 
-- id: city_machinery_emission_factor
-  name: Dieselin päästökerroin
-  name_en: Diesel emission factor
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/l
-  input_datasets:
-  - id: tampere/scenarios/city_machinery
-    column: emission_factor
-    unit: g/l
-    forecast_from: 2023
-  input_dimensions: [fuel]
-  output_dimensions: [fuel]
-  output_nodes:
-  - city_machinery_emissions
+# - id: city_machinery_emissions
+#   name: Kaupungin työkoneiden päästöt
+#   name_en: City machinery emissions
+#   type: simple.MultiplicativeNode
+#   quantity: emissions
+#   unit: kt/a
+#   input_dimensions: [fuel]
+#   output_dimensions: [fuel]
+#   output_nodes:
+#   - id: industry_and_machinery_emissions
+#     from_dimensions:
+#     - id: fuel
+#       flatten: true
 
-- id: renewable_electricity_consumption_reduction
-  name: Uusiutuvalla sähköntuotannolla aikaansaatu ostoenergian säästö
-  name_en: Decrease in purchased energy due to renewable electricity production
-  quantity: energy
-  type: simple.FixedMultiplierNode
-  output_nodes:
-  - other_electricity_consumption
-  params:
-    multiplier: -1
-  unit: GWh/a
+# - id: city_machinery_fuel_consumption
+#   name: Kaupungin työkoneiden polttoaineenkulutus
+#   name_en: City machinery fuel consumption
+#   type: simple.Activity
+#   quantity: fuel_consumption
+#   unit: l/a
+#   input_datasets:
+#   - id: tampere/scenarios/city_machinery
+#     column: activity
+#     unit: l/a
+#     forecast_from: 2023
+#   input_dimensions: [fuel]
+#   output_dimensions: [fuel]
+#   output_nodes:
+#   - city_machinery_emissions
+
+# - id: city_machinery_emission_factor
+#   name: Dieselin päästökerroin
+#   name_en: Diesel emission factor
+#   type: simple.AdditiveNode
+#   quantity: emission_factor
+#   unit: g/l
+#   input_datasets:
+#   - id: tampere/scenarios/city_machinery
+#     column: emission_factor
+#     unit: g/l
+#     forecast_from: 2023
+#   input_dimensions: [fuel]
+#   output_dimensions: [fuel]
+#   output_nodes:
+#   - city_machinery_emissions
 
 # ----- LED STREETLIGHT DETAILED ACTION MODULE --------------------------------
 
@@ -1691,7 +1719,7 @@ nodes:
 
 # ----- ACTIONS ---------------------------------------------------------------
 
-actions:
+# actions:
 # - id: i22_streetlight_replacement_action
 #   name: I.2.2 Streetlight Replacement Action
 #   type: gpc.StockReplacementAction
@@ -1766,34 +1794,34 @@ actions:
 #       categories: [direct_electric_heating]
 #       flatten: true
 
-- id: distributed_renewable_energy
-  name: Hajautettu uusiutuva energia
-  name_en: Distributed renewable energy production
-  unit: GWh/a
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: energy
-  group: energy
-  description: Rakennusten katoille asennetaan aurinkosähkötuotantoa. 2016 tehdyn
-    uusiutuvan energian kuntakatselmuksen mukaan käyttämätön kokonaispotentiaali rakennusten
-    katoilla on 800-900 GWh (ei huomioi kaikkia rajoitteita).
-  description_en: Photovoltaic production will be installed on the roofs of the buildings.
-    According to the 2016 municipal review of renewable energy, the unused potential
-    on the roofs of buildings is 800-900 GWh (does not take into account all restrictions).
-  output_nodes:
-  - renewable_electricity_consumption_reduction
-  forecast_values: [[2022, 0], [2030, -850]]
-  params:
-  - id: target_year_level
-    values:
-      default: 17
-    min_value: 0
-    max_value: 850
-    step: 1
-    unit: GWh/a
-    description: Aurinkosähköjärjestelmien vuosituotanto vuonna 2030
-    description_en: PV energy production in 2030
-    is_visible: true
-    is_customizable: false
+# - id: distributed_renewable_energy
+#   name: Hajautettu uusiutuva energia
+#   name_en: Distributed renewable energy production
+#   unit: GWh/a
+#   type: simple.LinearCumulativeAdditiveAction
+#   quantity: energy
+#   group: energy
+#   description: Rakennusten katoille asennetaan aurinkosähkötuotantoa. 2016 tehdyn
+#     uusiutuvan energian kuntakatselmuksen mukaan käyttämätön kokonaispotentiaali rakennusten
+#     katoilla on 800-900 GWh (ei huomioi kaikkia rajoitteita).
+#   description_en: Photovoltaic production will be installed on the roofs of the buildings.
+#     According to the 2016 municipal review of renewable energy, the unused potential
+#     on the roofs of buildings is 800-900 GWh (does not take into account all restrictions).
+#   output_nodes:
+#   - renewable_electricity_consumption_reduction
+#   forecast_values: [[2022, 0], [2030, -850]]
+#   params:
+#   - id: target_year_level
+#     values:
+#       default: 17
+#     min_value: 0
+#     max_value: 850
+#     step: 1
+#     unit: GWh/a
+#     description: Aurinkosähköjärjestelmien vuosituotanto vuonna 2030
+#     description_en: PV energy production in 2030
+#     is_visible: true
+#     is_customizable: false
 
 # - id: oil_heated_private_buildings_to_geothermal
 #   name: Öljylämmityksestä luopuminen yksityisessä rakennuskannassa
@@ -1861,44 +1889,44 @@ actions:
 #       categories: [geothermal_heating_electricity]
 #       flatten: true
 
-- id: cleaner_electricity_production
-  name: Kansallinen sähköntuotanto puhdistuu
-  name_en: Shift to low-carbon in national electricity production
-  decision_level: nation
-  quantity: emission_factor
-  output_nodes:
-  - electricity_production_emission_factor
-  type: simple.LinearCumulativeAdditiveAction
-  historical_values: [[2021, 0], [2022, -5]]
-  forecast_values: [[2023, -10], [2030, -42]]
-  forecast_from: 2023
-  unit: g/kWh
-  group: energy
-  params:
-  - id: target_year_level
-    values:
-      default: -42
-    min_value: -80
-    max_value: 0
-    step: 1
-    unit: g/kWh
-    description: Sähköntuotannon päästökertoimen muutos
-    description_en: Change in electricity production emission factor
+# - id: cleaner_electricity_production
+#   name: Kansallinen sähköntuotanto puhdistuu
+#   name_en: Shift to low-carbon in national electricity production
+#   decision_level: nation
+#   quantity: emission_factor
+#   output_nodes:
+#   - electricity_production_emission_factor
+#   type: simple.LinearCumulativeAdditiveAction
+#   historical_values: [[2021, 0], [2022, -5]]
+#   forecast_values: [[2023, -10], [2030, -42]]
+#   forecast_from: 2023
+#   unit: g/kWh
+#   group: energy
+#   params:
+#   - id: target_year_level
+#     values:
+#       default: -42
+#     min_value: -80
+#     max_value: 0
+#     step: 1
+#     unit: g/kWh
+#     description: Sähköntuotannon päästökertoimen muutos
+#     description_en: Change in electricity production emission factor
 
-- id: converting_street_lighting_to_led
-  name: Katuvalaistuksen vaihtaminen LED-valaisimiksi
-  name_en: Converting street lighting to LED lamps
-  type: simple.LinearCumulativeAdditiveAction
-  unit: GWh/a
-  quantity: energy
-  group: energy
-  description: Kaupungin katuvalaistus muutetaan ledeiksi ja valojen älykäs ohjaus
-    otetaan käyttöön vuoteen 2025 mennessä.
-  description_en: The city’s street lighting will be transformed into LEDs and intelligent
-    light control will be deployed by 2025.
-  forecast_values: [[2021, 0], [2025, -4.2]]   # 7000 light bulbs * (250 W - 50 W)/bulb * 3000 h/a # Tampereen taustamuistio, https://www.quora.com/How-much-power-does-a-regular-street-light-consume?share=1
-  output_nodes:
-  - other_electricity_consumption
+# - id: converting_street_lighting_to_led
+#   name: Katuvalaistuksen vaihtaminen LED-valaisimiksi
+#   name_en: Converting street lighting to LED lamps
+#   type: simple.LinearCumulativeAdditiveAction
+#   unit: GWh/a
+#   quantity: energy
+#   group: energy
+#   description: Kaupungin katuvalaistus muutetaan ledeiksi ja valojen älykäs ohjaus
+#     otetaan käyttöön vuoteen 2025 mennessä.
+#   description_en: The city’s street lighting will be transformed into LEDs and intelligent
+#     light control will be deployed by 2025.
+#   forecast_values: [[2021, 0], [2025, -4.2]]   # 7000 light bulbs * (250 W - 50 W)/bulb * 3000 h/a # Tampereen taustamuistio, https://www.quora.com/How-much-power-does-a-regular-street-light-consume?share=1
+#   output_nodes:
+#   - other_electricity_consumption
 
 # - id: tram_phase_3
 #   name: Ratikan rakennusvaihe 3 (2028-2030)
@@ -1937,43 +1965,43 @@ actions:
 #       categories: [bus]
 #       flatten: true
 
-- id: renewable_diesel_in_city_machinery
-  name: Uusiutuvan dieselin käyttö kaupungin työkoneissa
-  name_en: Renewable diesel in city machinery
-  type: shift.ShiftAction
-  unit: l/a
-  quantity: fuel_consumption
-  group: transportation
-  description: Kaupungin omat työkoneet siirtyvät lineaarisesti käyttämään uusiutuvaa
-    dieseliä niin, että vuonna 2030 käytetään ainoastaan sitä.
-  description_en: The city’s own work machinery will move gradually to use renewable
-    diesel so that in 2030 only it will be used.
-  output_nodes:
-  - city_machinery_fuel_consumption
-  params:
-  - id: shift
-    unit: l/a
-    is_customizable: false
-    value:
-    - source:
-        categories:
-          fuel: diesel_fossil
-      dests:
-      - categories:
-          fuel: diesel_renewable
-      amounts:
-      - year: 2023
-        source_amount: 0
-        dest_amounts: [1]
-      - year: 2024
-        source_amount: -64619.1
-        dest_amounts: [1]
-      - year: 2030
-        source_amount: -64619.1
-        dest_amounts: [1]
-      - year: 2031
-        source_amount: 0
-        dest_amounts: [1]
+# - id: renewable_diesel_in_city_machinery
+#   name: Uusiutuvan dieselin käyttö kaupungin työkoneissa
+#   name_en: Renewable diesel in city machinery
+#   type: shift.ShiftAction
+#   unit: l/a
+#   quantity: fuel_consumption
+#   group: transportation
+#   description: Kaupungin omat työkoneet siirtyvät lineaarisesti käyttämään uusiutuvaa
+#     dieseliä niin, että vuonna 2030 käytetään ainoastaan sitä.
+#   description_en: The city’s own work machinery will move gradually to use renewable
+#     diesel so that in 2030 only it will be used.
+#   output_nodes:
+#   - city_machinery_fuel_consumption
+#   params:
+#   - id: shift
+#     unit: l/a
+#     is_customizable: false
+#     value:
+#     - source:
+#         categories:
+#           fuel: diesel_fossil
+#       dests:
+#       - categories:
+#           fuel: diesel_renewable
+#       amounts:
+#       - year: 2023
+#         source_amount: 0
+#         dest_amounts: [1]
+#       - year: 2024
+#         source_amount: -64619.1
+#         dest_amounts: [1]
+#       - year: 2030
+#         source_amount: -64619.1
+#         dest_amounts: [1]
+#       - year: 2031
+#         source_amount: 0
+#         dest_amounts: [1]
 
 # - id: energy_conversion_in_buses
 #   name: Bussiliikenteen käyttövoimamuutos
@@ -2019,9 +2047,9 @@ scenarios:
 - id: baseline
   name: Nykykehitys
   name_en: Baseline
-  params:
-  - id: cleaner_electricity_production.enabled
-    value: true
+# params:
+# - id: cleaner_electricity_production.enabled
+#   value: true
 
 - id: default
   default: true
