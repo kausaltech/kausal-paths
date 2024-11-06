@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://tampere-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ce008059acd9378e8bbc3c0f05370a94d0a7d866
+  commit: 31b793aa533b5902bb476f7479a23f3f9a98bb93
   dvc_remote: kausal-s3
 name: C4C Hiilineutraali Tampere 2030
 name_en: C4C Carbon-neutral Tampere 2030
@@ -152,10 +152,42 @@ dimensions:
     label: Maintenance
 
 - id: energy_carrier
-  label: Energy Carrier
+  label: Energian kantaja
+  label_en: Energy carrier
   categories:
+  - id: district_heat
+    label: Kaukolämpö
+    label_en: District heat
   - id: electricity
-    label: Electricity
+    label: Sähkö
+    label_en: Electricity
+  - id: fuel_oil
+    label: Polttoöljy
+    label_en: Fuel oil
+  - id: natural_gas
+    label: Maakaasu
+    label_en: Natural gas
+
+- id: heating
+  label: Lämmitys
+  label_en: Heating
+  categories:
+  - id: direct_electric_heat
+    label: Suorasähkölämpö
+    label_en: Direct electric heat
+  - id: district_heat
+    label: Kaukolämpö
+    label_en: District heat
+  - id: fuel_oil
+    label: Polttoöljy
+    label_en: Fuel oil
+  - id: geothermal
+    label: Maalämpö
+    label_en: Geothermal
+  - id: natural_gas
+    label: Maakaasu
+    label_en: Natural gas
+
 
 - id: ghg
   label: GHG
@@ -181,6 +213,8 @@ emission_sectors:
   is_outcome: true
   target_year_goal: 260
 
+# ----- Transportation
+
 - id: transportation_emissions
   name: Liikenteen päästöt
   name_en: Transportation emissions
@@ -194,9 +228,8 @@ emission_sectors:
   color: '#668EC9'
   target_year_goal: 115
 
-  #
-  # Heating
-  #
+# ----- Building Heating
+
 - id: building_heating_emissions
   name: Rakennusten lämmityksen päästöt
   name_en: Building heating emissions
@@ -207,14 +240,6 @@ emission_sectors:
   name: Erillislämmityksen päästöt
   name_en: Separate heating emissions
   part_of: building_heating_emissions
-- id: gas_heating_emissions
-  part_of: separate_heating_emissions
-  name: Kaasulämmityksen päästöt
-  name_en: Gas heating emissions
-  description: Kaasulämmityksen päästöt saadaan kertomalla maakaasun kulutus päästökertoimella.
-  description_en: Emissions from gas heating are calculated by multiplying the consumption
-    of natural gas by the emission factor.
-  column: Gas heating
 
 - id: electric_heating_emissions
   name: Sähkölämmityksen päästöt
@@ -225,9 +250,9 @@ emission_sectors:
     heating and geothermal emissions.
   part_of: building_heating_emissions
 
-    #
-    # Other emission sources
-    #
+#
+# Other emission sources
+#
 
 - id: industry_and_machinery_emissions
   name: Teollisuuden ja työkoneiden päästöt
@@ -353,8 +378,8 @@ nodes:
       flatten: true
 
 - id: field_crops_emissions
-  name_en: Field crops
   name: Peltoviljelyn päästöt
+  name_en: Field crops
   type: gpc.DatasetNode
   quantity: emissions
   unit: kt/a
@@ -374,8 +399,8 @@ nodes:
       flatten: true
 
 - id: manure_treatment_emissions
-  name_en: Manure treatment
   name: Lannankäsittely
+  name_en: Manure treatment
   type: gpc.DatasetNode
   quantity: emissions
   unit: kt/a
@@ -394,142 +419,359 @@ nodes:
     - id: scope
       flatten: true
 
-# -----
+# ----- BUILDING HEATING ------------------------------------------------------
+
+- id: heating_fuel_emission_factors
+  name: Lämmityspolttoaineen päästökerroin
+  name_en: Heating fuel emission factors
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/GWh
+  input_dimensions: [heating, energy_carrier, ghg, scope]
+  output_dimensions: [heating, energy_carrier, ghg, scope]
+  params:
+    gpc_sector: I.1.1
+  input_datasets:
+  - id: gpc/tampere
+    forecast_from: 2022
+  output_nodes:
+  - id: gas_heating_emissions
+  - id: oil_heating_emissions
+
+- id: other_heating_emission_factors
+  name: Lämmityspäästökerroin
+  name_en: Heating emission factors
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/GWh
+  input_dimensions: [heating, energy_carrier, ghg, scope]
+  output_dimensions: [heating, energy_carrier, ghg, scope]
+  params:
+    gpc_sector: I.1.2
+  input_datasets:
+  - id: gpc/tampere
+    forecast_from: 2022
+  output_nodes:
+  - id: direct_electric_heating_emissions
+  - id: district_heating_emissions
+  - id: geothermal_heating_emissions
+
+# ----- District Heating
+
+- id: district_heating_energy_consumption
+  name: Kaukolämmön energiankulutus
+  name_en: District heating energy consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [heating, energy_carrier, scope]
+  output_dimensions: [heating, energy_carrier, scope]
+  params:
+    gpc_sector: I.1.2
+  input_datasets:
+  - id: gpc/tampere
+    filters:
+    - column: Heating
+      value: District Heat
+      drop_col: false
+    forecast_from: 2022
+  output_nodes:
+  - id: district_heating_emissions
+    to_dimensions:
+    - id: heating
+    - id: energy_carrier
+    - id: scope
 
 - id: district_heating_emissions
   name: Kaukolämmön päästöt
   name_en: District heating emissions
-  type: simple.EmissionFactorActivity
-  unit: kt/a
+  type: simple.MultiplicativeNode
   quantity: emissions
+  unit: kt/a
+  input_dimensions: [heating, energy_carrier, ghg, scope]
+  output_dimensions: [heating, energy_carrier, ghg, scope]
   output_nodes:
-  - building_heating_emissions
+  - id: district_heating_emissions_total
 
-- id: district_heating_consumption
-  name: Kaukolämmön kulutus
-  name_en: District heat consumption
-  unit: GWh/a
+- id: district_heating_emissions_total
+  name: Kaukolämmön kokonaispäästöt
+  name_en: Total district heating emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [heating, energy_carrier, ghg, scope]
+  output_dimensions: [heating, energy_carrier, ghg, scope]
+  params:
+    gpc_sector: I.1.2
+  input_datasets:
+  - id: gpc/tampere
+    filters:
+    - column: Heating
+      value: District Heat
+      drop_col: false
+    forecast_from: 2022
+  output_nodes:
+  - id: building_heating_emissions
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+
+# ----- Separate Heating
+
+- id: gas_heating_energy_consumption
+  name: Kaasulämmityksen energiankulutus
+  name_en: Gas heating energy consumption
+  type: gpc.DatasetNode
   quantity: energy
-  type: simple.Activity
+  unit: GWh/a
+  input_dimensions: [heating, energy_carrier, scope]
+  output_dimensions: [heating, energy_carrier, scope]
+  params:
+    gpc_sector: I.1.1
   input_datasets:
-  - id: tampere/scenarios/activity/bau
-    column: District heating
-    dropna: true
-    unit: GWh/a
+  - id: gpc/tampere
+    filters:
+    - column: Heating
+      value: Natural Gas
+      drop_col: false
+    forecast_from: 2022
   output_nodes:
-  - district_heating_emissions
+  - id: gas_heating_emissions
+    to_dimensions:
+    - id: heating
+    - id: energy_carrier
+    - id: scope
 
-- id: district_heating_emission_factor
-  name: Kaukolämmön päästökerroin
-  name_en: District heating emission factor
-  type: simple.AdditiveNode
-  unit: g/kWh
-  quantity: emission_factor
-  input_datasets:
-  - id: tampere/scenarios/emission_factors/bau
-    column: District heating utility method
-    dropna: true
-    unit: g/kWh
+- id: gas_heating_emissions
+  name: Kaasulämmityksen päästöt
+  name_en: Gas heating emissions
+  description: Kaasulämmityksen päästöt saadaan kertomalla maakaasun kulutus päästökertoimella.
+  description_en: Emissions from gas heating are calculated by multiplying the consumption
+    of natural gas by the emission factor.
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [heating, energy_carrier, ghg, scope]
+  output_dimensions: [heating, energy_carrier, ghg, scope]
   output_nodes:
-  - district_heating_emissions
+  - id: separate_heating_emissions
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+
+- id: oil_heating_energy_consumption
+  name: Öljylämmityksen energiankulutus
+  name_en: Oil heating energy consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [heating, energy_carrier, scope]
+  output_dimensions: [heating, energy_carrier, scope]
+  params:
+    gpc_sector: I.1.1
+  input_datasets:
+  - id: gpc/tampere
+    filters:
+    - column: Heating
+      value: Fuel Oil
+      drop_col: false
+    forecast_from: 2022
+  output_nodes:
+  - id: oil_heating_emissions
+    to_dimensions:
+    - id: heating
+    - id: energy_carrier
+    - id: scope
 
 - id: oil_heating_emissions
-  type: simple.EmissionFactorActivity
-  unit: kt/a
-  quantity: emissions
   name: Öljylämmityksen päästöt
   name_en: Oil heating emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [heating, energy_carrier, ghg, scope]
+  output_dimensions: [heating, energy_carrier, ghg, scope]
+  output_nodes:
+  - id: oil_heating_emissions_total
+
+- id: oil_heating_emissions_total
+  name: Öljylämmityksen kokonaispäästöt
+  name_en: Total oil heating emissions
   description: Öljylämmityksen päästöt lasketaan kertomalla lämmitysöljyn kulutus
     päästökertoimella.
   description_en: Emissions from oil heating are calculated by multiplying the consumption
     of heating oil by the emission factor.
-  output_nodes:
-  - separate_heating_emissions
-
-- id: oil_heating_energy_use
-  unit: GWh/a
-  quantity: energy
-  type: simple.Activity
-  name: Öljylämmityksen energiankulutus
-  name_en: Oil heating energy consumption
-  input_datasets:
-  - id: tampere/scenarios/activity/bau
-    column: Total oil heating
-    dropna: true
-    unit: GWh/a
-  output_nodes:
-  - oil_heating_emissions
-
-- id: oil_heating_emission_factor
-  type: simple.AdditiveNode
-  unit: g/kWh
-  quantity: emission_factor
-  name: Lämmitysöljyn päästökerroin
-  name_en: Heating oil emission factor
-  input_datasets:
-  - id: tampere/scenarios/emission_factors/bau
-    column: Oil heating
-    dropna: true
-    unit: g/kWh
-  output_nodes:
-  - oil_heating_emissions
-
-    #
-    # ----------- geothermal --------------
-    #
-- id: geothermal_heating_emissions
-  type: simple.EmissionFactorActivity
-  unit: kt/a
+  type: gpc.DatasetNode
   quantity: emissions
-  name: Maalämmön päästöt
-  name_en: Geothermal heating emissions
-  input_nodes:
-  - electric_heating_emission_factor
+  unit: kt/a
+  input_dimensions: [heating, energy_carrier, ghg, scope]
+  output_dimensions: [heating, energy_carrier, ghg, scope]
+  params:
+    gpc_sector: I.1.1
+  input_datasets:
+  - id: gpc/tampere
+    filters:
+    - column: Heating
+      value: Fuel Oil
+      drop_col: false
+    forecast_from: 2022
   output_nodes:
-  - electric_heating_emissions
+  - id: separate_heating_emissions
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
 
-- id: geothermal_heating_electricity_use
-  unit: GWh/a
-  quantity: energy
-  type: simple.Activity
+# ----- Electric Heating
+
+- id: geothermal_heating_electricity_consumption
   name: Maalämmön sähkönkulutus
   name_en: Geothermal heating electricity consumption
-  input_datasets:
-  - id: tampere/scenarios/activity/bau
-    column: Geothermal heating residential
-    dropna: true
-    unit: GWh/a
-  output_nodes:
-  - geothermal_heating_emissions
-
-- id: direct_electric_heating_emissions
-  type: simple.EmissionFactorActivity
-  unit: kt/a
-  quantity: emissions
-  name: Suorasähkölämmityksen päästöt
-  name_en: Direct electric heating emissions
-  input_nodes:
-  - electric_heating_emission_factor
-  output_nodes:
-  - electric_heating_emissions
-
-- id: direct_electric_heating_electricity_use
+  type: gpc.DatasetNode
   quantity: energy
-  type: simple.Activity
   unit: GWh/a
+  input_dimensions: [heating, energy_carrier, scope]
+  output_dimensions: [heating, energy_carrier, scope]
+  params:
+    gpc_sector: I.1.2
+  input_datasets:
+  - id: gpc/tampere
+    filters:
+    - column: Heating
+      value: Geothermal
+      drop_col: false
+    forecast_from: 2022
+  output_nodes:
+  - id: geothermal_heating_emissions
+    to_dimensions:
+    - id: heating
+    - id: energy_carrier
+    - id: scope
+
+- id: geothermal_heating_emissions
+  name: Maalämmön päästöt
+  name_en: Geothermal heating emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [heating, energy_carrier, ghg, scope]
+  output_dimensions: [heating, energy_carrier, ghg, scope]
+  output_nodes:
+  - id: geothermal_heating_emissions_total
+
+- id: geothermal_heating_emissions_total
+  name: Maalämmön kokonaispäästöt
+  name_en: Total geothermal heating emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [heating, energy_carrier, ghg, scope]
+  output_dimensions: [heating, energy_carrier, ghg, scope]
+  params:
+    gpc_sector: I.1.2
+  input_datasets:
+  - id: gpc/tampere
+    filters:
+    - column: Heating
+      value: Geothermal
+      drop_col: false
+    forecast_from: 2022
+  output_nodes:
+  - id: electric_heating_emissions
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+
+- id: direct_electric_heating_electricity_consumption
   name: Suorasähkölämmityksen sähkönkulutus
   name_en: Direct electric heating electricity consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [heating, energy_carrier, scope]
+  output_dimensions: [heating, energy_carrier, scope]
+  params:
+    gpc_sector: I.1.2
   input_datasets:
-  - id: tampere/scenarios/activity/bau
-    column: Electric heating total
-    dropna: true
-    unit: GWh/a
+  - id: gpc/tampere
+    filters:
+    - column: Heating
+      value: Direct Electric Heat
+      drop_col: false
+    forecast_from: 2022
   output_nodes:
-  - direct_electric_heating_emissions
+  - id: direct_electric_heating_emissions
+    to_dimensions:
+    - id: heating
+    - id: energy_carrier
+    - id: scope
 
-    #
-    # ----------- Electricity use ------------
-    #
+- id: direct_electric_heating_emissions
+  name: Suorasähkölämmityksen päästöt
+  name_en: Direct electric heating emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [heating, energy_carrier, ghg, scope]
+  output_dimensions: [heating, energy_carrier, ghg, scope]
+  output_nodes:
+  - id: direct_electric_heating_emissions_total
+
+- id: direct_electric_heating_emissions_total
+  name: Suorasähkölämmityksen kokonaispäästöt
+  name_en: Total direct electric heating emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [heating, energy_carrier, ghg, scope]
+  output_dimensions: [heating, energy_carrier, ghg, scope]
+  params:
+    gpc_sector: I.1.2
+  input_datasets:
+  - id: gpc/tampere
+    filters:
+    - column: Heating
+      value: Direct Electric Heat
+      drop_col: false
+    forecast_from: 2022
+  output_nodes:
+  - id: electric_heating_emissions
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+
+#
+# ----------- Electricity use ------------
+#
 - id: other_electricity_consumption_per_capita
   name: Sähkönkulutus asukasta kohti
   name_en: Electricity consumption per capita
@@ -1182,9 +1424,9 @@ nodes:
     - id: scope
       flatten: true
 
-  #
-  # City machinery
-  #
+#
+# City machinery
+#
 - id: city_machinery_emissions
   name: Kaupungin työkoneiden päästöt
   name_en: City machinery emissions
@@ -1478,51 +1720,51 @@ actions:
 #   output_nodes:
 #   - id: i22_streetlights
 
-- id: other_renewable_district_heating
-  name: Kaukolämmön tuotannossa lisätään uusiutuvaa energiaa
-  name_en: Increase share of renewables in district heat production
-  type: simple.CumulativeAdditiveAction
-  quantity: energy
-  group: energy
-  output_nodes:
-  - district_heating_emission_factor
-  forecast_values: [[2024, -8], [2025, -16], [2026, -4], [2027, -4], [2028, -7], [
-      2029, -14], [2030, -6]]
-  unit: g/kWh
+# - id: other_renewable_district_heating
+#   name: Kaukolämmön tuotannossa lisätään uusiutuvaa energiaa
+#   name_en: Increase share of renewables in district heat production
+#   type: simple.CumulativeAdditiveAction
+#   quantity: energy
+#   group: energy
+#   output_nodes:
+#   - district_heating_emission_factor
+#   forecast_values: [[2024, -8], [2025, -16], [2026, -4], [2027, -4], [2028, -7], [
+#       2029, -14], [2030, -6]]
+#   unit: g/kWh
 
-- id: private_building_energy_renovation
-  name: Korjausrakentaminen yksityisissä kiinteistöissä
-  name_en: Energy renovation of privately owned buildings
-  unit: GWh/a
-  type: simple.AdditiveAction
-  quantity: energy
-  group: buildings
-  description: Keskeisimmät kohderyhmät energianeuvonnalle ovat yli 20 vuotta vanhat
-    kerrostalot sekä öljy- ja sähkölämmitteiset pientalot.
-  description_en: The most important target groups for energy advice are apartment
-    buildings that are more than 20 years old and detached houses that are heated
-    by oil and electricity.
-  input_datasets:
-  - id: tampere/scenarios/energy_renovation_changes
-    forecast_from: 2023
-    column: energy
-  output_dimensions: [energy_consumption]
-  output_nodes:
-  - id: district_heating_consumption
-    from_dimensions:
-    - id: energy_consumption
-      categories: [district_heating]
-      flatten: true
-  - id: other_electricity_consumption
-    from_dimensions:
-    - id: energy_consumption
-      categories: [other_electricity]
-      flatten: true
-  - id: direct_electric_heating_electricity_use
-    from_dimensions:
-    - id: energy_consumption
-      categories: [direct_electric_heating]
-      flatten: true
+# - id: private_building_energy_renovation
+#   name: Korjausrakentaminen yksityisissä kiinteistöissä
+#   name_en: Energy renovation of privately owned buildings
+#   unit: GWh/a
+#   type: simple.AdditiveAction
+#   quantity: energy
+#   group: buildings
+#   description: Keskeisimmät kohderyhmät energianeuvonnalle ovat yli 20 vuotta vanhat
+#     kerrostalot sekä öljy- ja sähkölämmitteiset pientalot.
+#   description_en: The most important target groups for energy advice are apartment
+#     buildings that are more than 20 years old and detached houses that are heated
+#     by oil and electricity.
+#   input_datasets:
+#   - id: tampere/scenarios/energy_renovation_changes
+#     forecast_from: 2023
+#     column: energy
+#   output_dimensions: [energy_consumption]
+#   output_nodes:
+#   - id: district_heating_consumption
+#     from_dimensions:
+#     - id: energy_consumption
+#       categories: [district_heating]
+#       flatten: true
+#   - id: other_electricity_consumption
+#     from_dimensions:
+#     - id: energy_consumption
+#       categories: [other_electricity]
+#       flatten: true
+#   - id: direct_electric_heating_electricity_use
+#     from_dimensions:
+#     - id: energy_consumption
+#       categories: [direct_electric_heating]
+#       flatten: true
 
 - id: distributed_renewable_energy
   name: Hajautettu uusiutuva energia
@@ -1553,71 +1795,71 @@ actions:
     is_visible: true
     is_customizable: false
 
-- id: oil_heated_private_buildings_to_geothermal
-  name: Öljylämmityksestä luopuminen yksityisessä rakennuskannassa
-  name_en: Private oil heated buildings to geothermal
-  type: simple.AdditiveAction
-  unit: GWh/a
-  quantity: energy
-  group: buildings
-  description: Yksityiset kiinteistöt vaihtavat öljylämmityksen maalämpöön. 95 % tarvittavasta
-    lämmöstä tuotetaan COP 3:lla, loput on suorasähköä. Perustuu Juho Rinta-Rahkon
-    arvioon Tampereen korjausrakentamisen ja energianeuvonnan potentiaalista. Öljylämmitystä
-    jää jäljelle palvelurakennuksiin ja teollisuusrakennuksiin.
-  description_en: Private properties change from oil heating to geothermal energy.
-    95% of the required heat is produced at COP 3 level, the rest is direct electricity.
-    This is based on Juho Rinta-Rahko's assessment of the potential of renovation
-    and energy consulting in Tampere. Some oil heating will remain in service buildings
-    and industrial buildings.
-  input_datasets:
-  - id: tampere/scenarios/private_oil_heating_change
-    forecast_from: 2023
-    column: energy
-  output_dimensions: [energy_consumption]
-  output_nodes:
-  - id: oil_heating_energy_use
-    from_dimensions:
-    - id: energy_consumption
-      categories: [oil_heating]
-      flatten: true
-  - id: geothermal_heating_electricity_use
-    from_dimensions:
-    - id: energy_consumption
-      categories: [geothermal_heating_electricity]
-      flatten: true
+# - id: oil_heated_private_buildings_to_geothermal
+#   name: Öljylämmityksestä luopuminen yksityisessä rakennuskannassa
+#   name_en: Private oil heated buildings to geothermal
+#   type: simple.AdditiveAction
+#   unit: GWh/a
+#   quantity: energy
+#   group: buildings
+#   description: Yksityiset kiinteistöt vaihtavat öljylämmityksen maalämpöön. 95 % tarvittavasta
+#     lämmöstä tuotetaan COP 3:lla, loput on suorasähköä. Perustuu Juho Rinta-Rahkon
+#     arvioon Tampereen korjausrakentamisen ja energianeuvonnan potentiaalista. Öljylämmitystä
+#     jää jäljelle palvelurakennuksiin ja teollisuusrakennuksiin.
+#   description_en: Private properties change from oil heating to geothermal energy.
+#     95% of the required heat is produced at COP 3 level, the rest is direct electricity.
+#     This is based on Juho Rinta-Rahko's assessment of the potential of renovation
+#     and energy consulting in Tampere. Some oil heating will remain in service buildings
+#     and industrial buildings.
+#   input_datasets:
+#   - id: tampere/scenarios/private_oil_heating_change
+#     forecast_from: 2023
+#     column: energy
+#   output_dimensions: [energy_consumption]
+#   output_nodes:
+#   - id: oil_heating_energy_use
+#     from_dimensions:
+#     - id: energy_consumption
+#       categories: [oil_heating]
+#       flatten: true
+#   - id: geothermal_heating_electricity_use
+#     from_dimensions:
+#     - id: energy_consumption
+#       categories: [geothermal_heating_electricity]
+#       flatten: true
 
-- id: oil_heated_municipal_buildings_to_heat_pump
-  name: Öljylämmityksestä luopuminen kaupungin rakennuskannassa
-  name_en: Oil-heated municipal buildings to heat pumps
-  type: simple.AdditiveAction
-  quantity: energy
-  unit: GWh/a
-  group: buildings
-  description: Kaupungin kiinteistöt kuluttavat lähtötilanteessa öljyä 367 378 l/v
-    eli n. 3 674 MWh eli 3,67 GWh. Öljyä korvataan näillä näkymin VILPeillä, joiden
-    COP on noin 2,5, kun ne tuottavat kaiken tarvittavan lämmön. Bioöljyä on ajateltu
-    pidettävän varalla, mutta sen osuus energiankulutuksesta on merkityksetön.
-  description_en: The city's properties currently consume 367 378 l / y of oil, or
-    about 3 674 MWh, or 3.67 GWh. With these prospects, oil will be replaced by water-air
-    heat pumps with a COP of about 2.5 when they produce all the heat they need. Bio-oil
-    has been thought to be held in reserve, but its share of energy consumption is
-    insignificant.
-  input_datasets:
-  - id: tampere/scenarios/public_oil_heating_change
-    forecast_from: 2023
-    column: energy
-  output_dimensions: [energy_consumption]
-  output_nodes:
-  - id: oil_heating_energy_use
-    from_dimensions:
-    - id: energy_consumption
-      categories: [oil_heating]
-      flatten: true
-  - id: direct_electric_heating_electricity_use  # FIXME Should this raher be geothermal?
-    from_dimensions:
-    - id: energy_consumption
-      categories: [geothermal_heating_electricity]
-      flatten: true
+# - id: oil_heated_municipal_buildings_to_heat_pump
+#   name: Öljylämmityksestä luopuminen kaupungin rakennuskannassa
+#   name_en: Oil-heated municipal buildings to heat pumps
+#   type: simple.AdditiveAction
+#   quantity: energy
+#   unit: GWh/a
+#   group: buildings
+#   description: Kaupungin kiinteistöt kuluttavat lähtötilanteessa öljyä 367 378 l/v
+#     eli n. 3 674 MWh eli 3,67 GWh. Öljyä korvataan näillä näkymin VILPeillä, joiden
+#     COP on noin 2,5, kun ne tuottavat kaiken tarvittavan lämmön. Bioöljyä on ajateltu
+#     pidettävän varalla, mutta sen osuus energiankulutuksesta on merkityksetön.
+#   description_en: The city's properties currently consume 367 378 l / y of oil, or
+#     about 3 674 MWh, or 3.67 GWh. With these prospects, oil will be replaced by water-air
+#     heat pumps with a COP of about 2.5 when they produce all the heat they need. Bio-oil
+#     has been thought to be held in reserve, but its share of energy consumption is
+#     insignificant.
+#   input_datasets:
+#   - id: tampere/scenarios/public_oil_heating_change
+#     forecast_from: 2023
+#     column: energy
+#   output_dimensions: [energy_consumption]
+#   output_nodes:
+#   - id: oil_heating_energy_use
+#     from_dimensions:
+#     - id: energy_consumption
+#       categories: [oil_heating]
+#       flatten: true
+#   - id: direct_electric_heating_electricity_use  # FIXME Should this raher be geothermal?
+#     from_dimensions:
+#     - id: energy_consumption
+#       categories: [geothermal_heating_electricity]
+#       flatten: true
 
 - id: cleaner_electricity_production
   name: Kansallinen sähköntuotanto puhdistuu
