@@ -101,7 +101,9 @@ else:
 
             mframe = df.filter(pl.col('Index') == i).select(mcols).with_columns(pl.lit(y).cast(pl.Int64))
             mframe.columns = dfmain.columns
-            if mframe['Value'][0] is not None:
+            # Ignore empty cells and possible empty values from statfi.
+            if mframe['Value'][0] is not None and mframe['Value'][0] not in ['.', '-']:
+                mframe = mframe.with_columns(pl.col('Value').cast(pl.Float64))
                 dfmain = pl.concat([dfmain, mframe], rechunk=False)
     dfmain = dfmain.rechunk()   # This helped speed a bit.
 

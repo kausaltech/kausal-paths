@@ -1,17 +1,20 @@
+from __future__ import annotations
+
 import functools
 
-import pandas as pd
-import polars as pl
-from nodes.units import Unit, unit_registry
+from django.utils.translation import gettext_lazy as _
 
-from nodes.node import NodeMetric, Node, NodeError
-from nodes.calc import extend_last_historical_value_pl
+import polars as pl
+
 import common.polars as ppl
-from params.param import NumberParameter, StringParameter, BoolParameter
-from params.utils import sep_unit, sep_unit_pt
+from nodes.calc import extend_last_historical_value_pl
+from nodes.node import Node, NodeError, NodeMetric
+from nodes.units import unit_registry
+from params.param import BoolParameter, NumberParameter
+from params.utils import sep_unit
+
 from .constants import DEFAULT_METRIC, FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from .simple import AdditiveNode, SimpleNode
-from django.utils.translation import gettext_lazy as _
 
 
 class SelectiveNode(AdditiveNode):
@@ -57,12 +60,12 @@ class SelectiveNode(AdditiveNode):
 
 
 class ExponentialNode(AdditiveNode):
-    explanation = _(''' This is Exponential Node.
+    explanation = _(""" This is Exponential Node.
     Takes in either input nodes as AdditiveNode, or builds a dataframe from current_value.
     Builds an exponential multiplier based on annual_change and multiplies the VALUE_COLUMN.
     Optionally, touches also historical values.
     Parameter is_decreasing_rate is used to give discount rates instead.
-    ''')
+    """)
     allowed_parameters = AdditiveNode.allowed_parameters + [
         NumberParameter(
             local_id='current_value',
@@ -75,13 +78,13 @@ class ExponentialNode(AdditiveNode):
         BoolParameter(
             local_id='is_decreasing_rate',
             is_customizable=True,
-            value=False
+            value=False,
         ),
         BoolParameter(
             local_id='touch_historical_values',
             is_customizable=True,
-            value=False
-        )
+            value=False,
+        ),
     ]
 
     def compute(self):
@@ -103,7 +106,7 @@ class ExponentialNode(AdditiveNode):
             df = df.with_columns([
                 pl.when(pl.col(YEAR_COLUMN) > pl.lit(current_year))
                 .then(pl.lit(True)).otherwise(pl.lit(False)).alias(FORECAST_COLUMN),
-                pl.lit(current_value).alias(VALUE_COLUMN)
+                pl.lit(current_value).alias(VALUE_COLUMN),
             ])
             meta = ppl.DataFrameMeta(units={VALUE_COLUMN: unit}, primary_keys=[YEAR_COLUMN])
             df = ppl.to_ppdf(df, meta=meta)
@@ -125,7 +128,7 @@ class ExponentialNode(AdditiveNode):
 
         if self.get_parameter_value('is_decreasing_rate', required=False):
             base_value = 1 / base_value
-        
+
         df = df.with_columns(
             (pl.col(YEAR_COLUMN) - pl.lit(current_year)).alias('power')
         )
@@ -143,11 +146,12 @@ class ExponentialNode(AdditiveNode):
     
 
 class InternalGrowthNode(ExponentialNode):
-    '''
+    explanation = _("""
     Calculates internal growth of e.g. a forest, accounting for forest cuts. Takes in additive and
     non-additive nodes and a dataset.
     Parameter annual_change is used where the rate node(s) have null values.
-    '''
+    """)
+
 #    output_metrics = {  # FIXME Causes an unknown error but not critical yet.
 #        DEFAULT_METRIC: NodeMetric('Mt/a', 'mass', column_id=VALUE_COLUMN),
 #        'Reductions': NodeMetric('Mt/a', 'mass', column_id='Reductions'),
@@ -205,31 +209,31 @@ class EnergyCostNode(AdditiveNode):
             local_id='added_value_tax',
             label='Added value tax (%)',
             unit_str='%',
-            is_customizable=False
+            is_customizable=False,
         ),
         NumberParameter(
             local_id='network_price',
             label='Network price (SEK/kWh)',
             unit_str='SEK/kWh',
-            is_customizable=False
+            is_customizable=False,
         ),
         NumberParameter(
             local_id='handling_fee',
             label='Handling fee (SEK/kWh)',
             unit_str='SEK/kWh',
-            is_customizable=False
+            is_customizable=False,
         ),
         NumberParameter(
             local_id='certificate',
             label='Certificate (SEK/kWh)',
             unit_str='SEK/kWh',
-            is_customizable=False
+            is_customizable=False,
         ),
         NumberParameter(
             local_id='energy_tax',
             label='Energy tax (SEK/kWh)',
             unit_str='SEK/kWh',
-            is_customizable=False
+            is_customizable=False,
         ),
     ]
 
@@ -281,9 +285,9 @@ class EnergyCostNode(AdditiveNode):
 
 
 class DilutionNode(SimpleNode):
-    explanation = _('''
+    explanation = _("""
     This is Dilution Node. It has exactly four input nodes which are marked by tags: 1) existing is the current, non-diluted variable. 2) Incoming is the variable which diluted the existing one with its different values. 3) Removing is the fraction that is removed from the existing stock each year. 4) Incoming is the ratio compared with the existing stock that is inserted into the system. (Often the removed and incoming values are the same, and then the stock size remains constant.)
-    ''')
+    """)  # noqa: E501
 
     def compute(self)-> ppl.PathsDataFrame:
         dfs = {}
@@ -305,4 +309,41 @@ class DilutionNode(SimpleNode):
 
             df = df.paths.concat_vertical(ydf.drop('incoming', 'removing', 'inserting'))
 
+        return df
+
+
+class IterationNode(AdditiveNode): #, DatasetNode):
+    explanation = _("""
+        This is IterationNode. It calculates one year at a time based on previous year's value and inputs and outputs. In addition, it must have a feedback loop (otherwise it makes no sense to use this node class), which is given as a growth rate per year from the previous year's value.
+        """)  # noqa: E501
+
+    def compute(self) -> ppl.PathsDataFrame:
+        # df = DatasetNode.compute(self)
+        rate_obj = self.get_input_node(tag='rate', required=True)
+        rate = rate_obj.get_output_pl(target_node=self)
+        rate = rate.ensure_unit(VALUE_COLUMN, 'dimensionless')
+        rate = rate.with_columns(pl.col(VALUE_COLUMN) + pl.lit(1.0).alias(VALUE_COLUMN))
+
+        obj = self.get_input_node(tag='base', required=True)
+        df = obj.get_output_pl(target_node=self)
+
+        inputs = [n for n in self.input_nodes if n.id not in [rate_obj.id, obj.id]]
+        print(inputs)
+        if inputs:
+            changes = self.add_nodes_pl(None, inputs, unit=self.unit * unit_registry('1/a'))
+            df = df.paths.join_over_index(changes)
+            df = df.rename({VALUE_COLUMN + '_right': 'changes'})
+        else:
+            df = df.with_columns(pl.lit(0.0).alias('changes'))
+        df = df.paths.join_over_index(rate, how='left', index_from='union')
+        df = df.rename({VALUE_COLUMN + '_right': 'rate'})
+        df = df.paths.to_wide()
+
+        for i in range(1, len(df)):
+            df = df.with_columns(
+                pl.when(pl.col(VALUE_COLUMN).cum_count() == i + 1)
+                .then((df[VALUE_COLUMN][i - 1] + df['changes'][i]) * df['rate'][i])
+                .otherwise(pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
+
+        df = df.drop(['rate', 'changes'])
         return df
