@@ -161,7 +161,7 @@ class DVCDataset(Dataset):
                     drop = d.get('drop_col', True)
                     if vals:
                         df = df.filter(pl.col(col).is_in(vals))
-                    else:
+                    if val:  # Column dropping is possible without value filtering
                         df = df.filter(pl.col(col) == val)
                     if drop:
                         df = df.drop(col)

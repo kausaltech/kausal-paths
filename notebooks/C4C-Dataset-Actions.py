@@ -85,21 +85,25 @@ if 'Scope' in df.columns:
     df = df.with_columns(pl.Series(name = 'Scope', values = labels))
 
 # ---------------------------------------------------------------------------------------
-dfmain = df.head(1).select(context).with_columns([(pl.lit(0.0).alias('Value').cast(pl.Float64)),
-                                                  (pl.lit(0).alias('Year').cast(pl.Int64))]).clear()
+if 'Value' in df.columns and 'Year' in df.columns:  # If dataset is already in long format
+    dfmain = df
+    dims = [d for d in dims if d not in ['Year', 'Value']]
+else:
+    dfmain = df.head(1).select(context).with_columns([(pl.lit(0.0).alias('Value').cast(pl.Float64)),
+                                                    (pl.lit(0).alias('Year').cast(pl.Int64))]).clear()
 
-df = df.with_row_index(name = 'Index')
-for i in range(len(df)):
-    print('Row %i of %i' % ((i + 1), len(df)))
-    for y in values:
-        mcols = list(context)
-        mcols.extend([y])
+    df = df.with_row_index(name = 'Index')
+    for i in range(len(df)):
+        print('Row %i of %i' % ((i + 1), len(df)))
+        for y in values:
+            mcols = list(context)
+            mcols.extend([y])
 
-        mframe = df.filter(pl.col('Index') == i).select(mcols).with_columns(pl.lit(y).cast(pl.Int64))
-        mframe.columns = dfmain.columns
-        if mframe['Value'][0] is not None:
-            dfmain = pl.concat([dfmain, mframe], rechunk=False)
-dfmain = dfmain.rechunk()   # This helped speed a bit.
+            mframe = df.filter(pl.col('Index') == i).select(mcols).with_columns(pl.lit(y).cast(pl.Int64))
+            mframe.columns = dfmain.columns
+            if mframe['Value'][0] is not None:
+                dfmain = pl.concat([dfmain, mframe], rechunk=False)
+    dfmain = dfmain.rechunk()   # This helped speed a bit.
 
 if 'Is_action' in dfmain.columns:
     dfmain = dfmain.with_columns([pl.when(
