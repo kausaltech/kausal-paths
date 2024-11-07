@@ -337,35 +337,35 @@ emission_sectors:
 #   color: '#A174DE'
 #   input_dataset_processors: [LinearInterpolation]
 
-- id: food_consumption_emissions
-  name_en: Food consumption emissions
-  name_de: Treibhausgasemissionen Ernährung
-  short_name_de: Ernährung
-  short_name_en: Food consumption
-  category: food_consumption
-  part_of: net_emissions
-  color: '#002914'
-  input_dataset_processors: [LinearInterpolation]
+# - id: food_consumption_emissions
+#   name_en: Food consumption emissions
+#   name_de: Treibhausgasemissionen Ernährung
+#   short_name_de: Ernährung
+#   short_name_en: Food consumption
+#   category: food_consumption
+#   part_of: net_emissions
+#   color: '#002914'
+#   input_dataset_processors: [LinearInterpolation]
 
-- id: textile_consumption_emissions
-  name_en: Textile consumption emissions
-  name_de: Treibhausgasemissionen Textilien
-  short_name_de: Textilien
-  short_name_en: Textile consumption
-  category: textile_consumption
-  part_of: net_emissions
-  color: '#EB5E00'
-  input_dataset_processors: [LinearInterpolation]
+# - id: textile_consumption_emissions
+#   name_en: Textile consumption emissions
+#   name_de: Treibhausgasemissionen Textilien
+#   short_name_de: Textilien
+#   short_name_en: Textile consumption
+#   category: textile_consumption
+#   part_of: net_emissions
+#   color: '#EB5E00'
+#   input_dataset_processors: [LinearInterpolation]
 
-- id: other_consumption_emissions
-  name_en: Other consumption emissions
-  name_de: Treibhausgasemissionen Übriger Konsum
-  short_name_de: Übriger Konsum
-  short_name_en: Other consumption
-  category: other_consumption
-  part_of: net_emissions
-  color: '#A174DE'
-  input_dataset_processors: [LinearInterpolation]
+# - id: other_consumption_emissions
+#   name_en: Other consumption emissions
+#   name_de: Treibhausgasemissionen Übriger Konsum
+#   short_name_de: Übriger Konsum
+#   short_name_en: Other consumption
+#   category: other_consumption
+#   part_of: net_emissions
+#   color: '#A174DE'
+#   input_dataset_processors: [LinearInterpolation]
 
 nodes:
 - id: population
