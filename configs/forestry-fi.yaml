@@ -4,7 +4,7 @@ supported_languages: [fi]
 site_url: https://forestry-fi.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 89ae9bd230d1f567f25e05359fee55f6f8ac3cf1
+  commit: b79a45826fd7f91a462da3ea19488175bd1cdc4e
   dvc_remote: kausal-s3
 name_en: Multi-stakeholder forestry policy options
 name_fi: Metsäpolitiikan monet vaihtoehdot
@@ -26,31 +26,33 @@ action_groups:
   name: Forest industry
   color: '#50c878'
 
-impact_overviews:
-- graph_type: cost_efficiency
-  cost_node: action_costs
-  impact_node: total_cost
-  invert_cost: false
-  invert_impact: false
-  indicator_unit: kEUR/Ut
-  cost_unit: MEUR
-  impact_unit: Ut
-  label_fi: Kokonaishyödyn marginaalikustannus
-  label: Marginal cost in total utility
+action_efficiency_pairs:
+# - graph_type: cost_efficiency
+#   cost_node: action_costs
+#   impact_node: total_cost
+#   invert_cost: false
+#   invert_impact: false
+#   indicator_unit: kEUR/Ut
+#   cost_unit: MEUR
+#   impact_unit: Ut
+#   label_fi: Kokonaishyödyn marginaalikustannus
+#   label: Marginal cost in total utility
 - graph_type: cost_benefit
-  cost_node: action_costs
-  impact_node: total_economic_benefit
+  cost_node: total_cost_costs
+  impact_node: total_cost_benefits
   invert_cost: false
-  invert_impact: false
-  indicator_unit: MEUR
-  cost_unit: MEUR
-  impact_unit: MEUR
+  invert_impact: true
+  indicator_unit: GEUR
+  cost_unit: GEUR
+  impact_unit: GEUR
   label_fi: Kustannus-hyötyarvio kokonaisvaikutuksista
-  label: Cost-benefit analysis of total impacts
-- graph_type: value_of_information
-  cost_node: total_economic_benefit
-  cost_unit: EUR
-  label: Tiedonarvoanalyysi
+  label_en: Cost-benefit analysis of total impacts
+  stakeholder_dimension: stakeholder
+  outcome_dimension: cost_type
+# - graph_type: value_of_information
+#   cost_node: total_economic_cost
+#   cost_unit: EUR
+#   label: Tiedonarvoanalyysi
 
 params:
 - id: municipality_name
@@ -115,10 +117,13 @@ dimensions:
     label_en: Economic
   - id: fossil_emissions
     label_fi: Fossiilinen päästö
-    label_en: Ei-fossiilinen päästö
+    label_en: Fossil emissions
   - id: non_fossil_emissions
     label_fi: Ei-fossiilinen päästö
     label_en: Non-fossil emissions
+  - id: biodiversity
+    label_fi: Biodiversiteetti
+    label_en: Biodiversity
 
 - id: stakeholder
   label_fi: Sidosryhmä
@@ -130,14 +135,16 @@ dimensions:
   - id: citizen
     label_fi: Kansalainen
     label: Citizen
-  - id: ici
+  - id: industry
     label_fi: Yrityselämä
     label: Industry and commerce
+    aliases: [industry]
   - id: forest_owner
     label: Forest owner
   - id: mankind
-    label_fi: Aktivisti
-    label: Activist
+    label_fi: society
+    label_en: Society
+    aliases: [Activist, Mankind]
 
 - id: hypothesis
   label_fi: Hypoteesi
@@ -150,6 +157,10 @@ dimensions:
     label: Biodiversity ignored
   - id: biodiversity_included
     label: Biodiversity included
+  - id: biofuels_are_carbon_neutral
+    label: Biofuels are carbon neutral
+  - id: biofuels_are_emission_sources
+    label: Biofuels are emission sources
   - id: hypothesis_1
     label: Hypothesis 1
     color: '#ee2222'
@@ -202,6 +213,14 @@ dimensions:
   - id: europe_excl_eu27
     label: Europe (excl. EU-27)
 
+- id: energy_carrier
+  label: Energy carrier
+  categories:
+  - id: biofuel
+    label: Biofuel
+  - id: peat
+    label: Peat
+
 - id: emission_class
   label: Emission class
   categories:
@@ -211,24 +230,70 @@ dimensions:
   - id: 2_teollisuusprosessit_ja_tuotteiden_kaytto
     label_en: 2 Industrial processes and product use (IPPU)
     label_fi: 2 Teollisuusprosessit ja tuotteiden käyttö (IPPU)
+    aliases: [Teollisuuden ja työkoneiden päästöt, teollisuuden_ja_tyokoneiden_paastot]
   - id: 3_maatalous
     label_en: 3 Agriculture
     label_fi: 3 Maatalous
-  - id: 4_maankaytto_maankayton_muutokset_ja_metsatalous_lulucf
+    aliases: [Maatalouden päästöt, maatalouden_paastot]
+  - id: 4_lulucf
     label_en: 4 Land use, land use change and forestry (LULUCF)
-    label_fi: '4 Maankäyttö, maankäytön muutokset ja metsätalous (LULUCF)'
+    label_fi: 4 Maankäyttö, maankäytön muutokset ja metsätalous (LULUCF)
+    aliases: [4_maankaytto_maankayton_muutokset_ja_metsatalous_lulucf]
   - id: 5_jatteiden_kasittely
     label_en: 5 Waste management
     label_fi: 5 Jätteiden käsittely
+    aliases: [Jätteiden käsittelyn päästöt, jatteiden_kasittelyn_paastot]
   - id: epasuorat_co2_paastot
     label_en: Indirect CO2 emissions
     label_fi: Epäsuorat CO2 päästöt
+  - id: rakennusten_lammityksen_paastot
+    label_en: Building heating emissions
+    label_fi: Rakennusten lämmityksen päästöt
+  - id: liikenteen_paastot
+    label_en: Transport emissions
+    label_fi: Liikenteen päästöt
+  - id: kulutussahkon_paastot
+    label_en: Consumer electricity emissions
+    label_fi: Kulutussähkön päästöt
 
 nodes:
+
+- id: sunnydale_emissions
+  name_fi: Sunnydalen kokonaispäästöt
+  name_en: Sunnydale net emissions
+  description: Net emissions of the municipality Sunnydale
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  # is_outcome: true
+  input_dimensions: [emission_class, cost_type]
+  output_dimensions: [emission_class, cost_type]
+  input_datasets: [sunnydale/forestry_fi]
+  params:
+    sector: Sunnydale net emissions
+  # output_nodes:
+  # - id: net_emissions
+  #   from_dimensions:
+  #   - id: cost_type
+  #     flatten: true
+  #   to_dimensions:
+  #   - id: emission_class
+  #     categories: [1_energiasektori]
+  # goals:
+  # - label: Total emission goal 2035
+  #   default: true
+  #   is_main_goal: true
+  #   linear_interpolation: true
+  #   values:
+  #   - year: 2022
+  #     value: 37100000000
+  #   - year: 2050
+  #     value: 0.0
 
 - id: net_emissions
   name_fi: Kokonaispäästöt
   name_en: Net emissions
+  description: Net emissions of the municipality Sunnydale
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -253,7 +318,6 @@ nodes:
   #     value: 37100000000
   #   - year: 2050
   #     value: 0.0
-
 # ---------------------------- Global level nodes -----------
 
 - id: global_emissions
@@ -273,7 +337,7 @@ nodes:
       value: 37100000000
     - year: 2050
       value: 0.0
-  name: Annual CO₂ emissions by world region
+  name: CO₂ emissions by world region
   description: Annual total emissions of carbon dioxide (CO₂) from fossil fuels and
     industry, excluding land-use change, measured in tonnes. This data is based on
     territorial emissions, which do not account for emissions embedded in traded goods.
@@ -305,20 +369,20 @@ nodes:
   params:
     sector: CO2 emissions
 
-- id: global_responsibility_ratio
-  name: Global responsibility ratio
-  description: This is the ratio of emission reductions that we are prepared to implement.
-    We also think that all developed countries are morally obliged to reach the same
-    reduction; we cannot demand more from others than what we do ourselves.
-  type: simple.AdditiveNode
-  quantity: ratio
-  unit: dimensionless
-  input_nodes:
-  - id: net_emissions
-    tags: [ratio_to_last_historical_value]
-    from_dimensions:
-    - id: cost_type
-      flatten: true
+# - id: global_responsibility_ratio
+#   name: Global responsibility ratio
+#   description: This is the ratio of emission reductions that we are prepared to implement.
+#     We also think that all developed countries are morally obliged to reach the same
+#     reduction; we cannot demand more from others than what we do ourselves.
+#   type: simple.AdditiveNode
+#   quantity: ratio
+#   unit: dimensionless
+#   input_nodes:
+#   - id: net_emissions
+#     tags: [ratio_to_last_historical_value]
+#     from_dimensions:
+#     - id: cost_type
+#       flatten: true
 
 # -------------------------- Generic nodes ----------------
 
@@ -330,7 +394,8 @@ nodes:
 
 - id: historical_emissions_in_finland
   name: Historical emissions in Finland
-  description: 'Source: <a href="https://pxdata.stat.fi/PxWeb/pxweb/fi/StatFin/StatFin__khki/statfin_khki_pxt_138v.px/">Tilastokeskus 2024</a>'
+  description: 'Source: <a href="https://pxdata.stat.fi/PxWeb/pxweb/fi/StatFin/StatFin__khki/statfin_khki_pxt_138v.px/">Tilastokeskus
+    2024</a>'
   type: gpc.DatasetNode
   quantity: emissions
   unit: Mt/a
@@ -342,13 +407,9 @@ nodes:
     - column: GHG
       value: Kaasut yhteensä
     - column: Emission class
-      values: [
-        1 Energiasektori,
-        2 Teollisuusprosessit ja tuotteiden käyttö,
-        3 Maatalous,
-        '4 Maankäyttö, maankäytön muutokset ja metsätalous (LULUCF)',
-        5 Jätteiden käsittely,
-        Epäsuorat CO2 päästöt]
+      values: [1 Energiasektori, 2 Teollisuusprosessit ja tuotteiden käyttö, 3 Maatalous,
+        '4 Maankäyttö, maankäytön muutokset ja metsätalous (LULUCF)', 5 Jätteiden
+          käsittely, Epäsuorat CO2 päästöt]
       drop_col: false
   params:
     sector: Päästö, tuhatta tonnia CO2-ekv. (GWP=AR5)
@@ -378,75 +439,112 @@ nodes:
   name_en: Forestry production in Finland
   type: gpc.DatasetNode
   quantity: mass
-  unit: Mt/a
+  unit: Mm3_solid/a
   input_datasets: [sunnydale/forestry_fi]
   params:
     sector: Forestry production in Finland
   output_nodes: [forest_cuts_in_finland]
 
 - id: biofuel_production
-  name_fi: Bioenergian valmistusmäärä Suomessa
-  name_en: Biofuel production in Finland
-  type: gpc.DatasetNode
+  name_fi: Bioenergian valmistusmäärä Sunnydalessa
+  name_en: Biofuel production for Sunnydale
+  type: simple.FixedMultiplierNode
   quantity: mass
-  unit: Mt/a
-  input_datasets: [sunnydale/forestry_fi]
+  unit: Mm3_solid/a
   params:
-    sector: Biofuel production in Finland
+  - id: multiplier
+    value: 0.402 #  10000 kWh = 6 * 0.67 m3_solid => 0.402 m3_solid/MWh 
+    unit: m3_solid/MWh # https://www.bioenergianeuvoja.fi/biopolttoaineet/polttopuu/puu/
   output_nodes: [forest_cuts_in_finland]
 
+- id: district_heating_emission_factor
+  name_en: District heating emission factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [energy_carrier, hypothesis]
+  output_dimensions: [energy_carrier, hypothesis]
+  input_datasets: [sunnydale/forestry_fi]
+  params:
+    sector: District heating emission factor
+
 - id: biofuel_emissions
-  name_fi: Bioenergian päästöt
-  name_en: Biofuel emissions
-  type: simple.FixedMultiplierNode
+  name_fi: Bioenergian päästöt Sunnydalessa
+  name_en: Biofuel emissions in Sunnydale
+  type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [cost_type]
   output_dimensions: [cost_type]
   input_nodes:
-  - id: biofuel_production
+  - id: district_heating_with_biofuels
+    from_dimensions:
+    - id: stakeholder
+      flatten: true
     to_dimensions:
     - id: cost_type
       categories: [non_fossil_emissions]
+  - id: district_heating_emission_factor
+    from_dimensions:
+    - id: energy_carrier
+      categories: [biofuel]
+      flatten: true
+    - id: hypothesis
+      categories: [biofuels_are_carbon_neutral]
+      flatten: true
+    to_dimensions: []
   output_nodes:
   - id: net_emissions
-  params:
-  - id: multiplier
-    value: 1
-    unit: ton/ton
+  # params:
+  # - id: multiplier
+  #   value: 0.1
+  #   unit: ton/m3_solid
 
 - id: emission_change_from_peat_reduction
   name_fi: Päästömuutos turpeen korvaamisesta
   name_en: Emission change from peat reduction
-  type: simple.AdditiveNode
+  type: simple.MultiplicativeNode
   quantity: emissions
-  unit: Mt/a
-  input_dimensions: [cost_type]
-  output_dimensions: [cost_type]
+  unit: kt/a
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
   input_nodes:
-  - id: biofuel_production
+  - id: district_heating_with_biofuels
     tags: [arithmetic_inverse]
     to_dimensions:
     - id: cost_type
-      categories: [non_fossil_emissions]
+      categories: [fossil_emissions]
+    - id: stakeholder
+  - id: district_heating_emission_factor
+    from_dimensions:
+    - id: hypothesis
+      categories: [biofuels_are_carbon_neutral]
+      flatten: true
+    - id: energy_carrier
+      categories: [peat]
+      flatten: true
+    to_dimensions: []
   output_nodes:
   - id: net_emissions
+    from_dimensions:
+    - id: stakeholder
+      flatten: true
 
 - id: forest_cuts_in_finland
   name_fi: Metsänhakkuut Suomessa
   name_en: Forest cutting in Finland
   type: simple.AdditiveNode
   quantity: mass
-  unit: Mt/a
+  unit: Mm3_solid/a
 
 - id: forestry_product_unit_price
   name_fi: Metsätaloustuotteiden keskihinta
   name_en: Average forestry product unit price
   type: gpc.DatasetNode
   quantity: unit_price
-  unit: EUR/t
-  input_dimensions: [cost_type, hypothesis]
-  output_dimensions: [cost_type, hypothesis]
+  unit: EUR/m3_solid
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
   input_datasets: [sunnydale/forestry_fi]
   params:
     sector: Average forestry product unit price
@@ -457,23 +555,24 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [cost_type, hypothesis]
-  output_dimensions: [cost_type, hypothesis]
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
   input_nodes:
   - id: forestry_production
     to_dimensions: []
   - id: forestry_product_unit_price
   output_nodes:
-  - id: total_economic_benefit
+  - id: total_economic_cost
+    tags: [arithmetic_inverse]
 
 - id: biofuel_unit_price
   name_fi: Bioenergian hinta
   name_en: Biofuel unit price
   type: gpc.DatasetNode
   quantity: unit_price
-  unit: EUR/t
-  input_dimensions: [cost_type, hypothesis]
-  output_dimensions: [cost_type, hypothesis]
+  unit: EUR/m3_solid
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
   input_datasets: [sunnydale/forestry_fi]
   params:
     sector: Average biofuel unit price
@@ -484,31 +583,33 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [cost_type, hypothesis]
-  output_dimensions: [cost_type, hypothesis]
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
   input_nodes:
   - id: biofuel_production
     to_dimensions: []
   - id: biofuel_unit_price
   output_nodes:
-  - id: total_economic_benefit
+  - id: total_economic_cost
+    tags: [arithmetic_inverse]
 
-- id: forest_growth
-  name_en: Forest growth
-  name_fi: Forest growth
+- id: forest_growth_rate
+  name_en: Forest growth rate
+  name_fi: Metsän kasvunopeus
   type: gpc.DatasetNode
   quantity: rate
   unit: '%/a'
   input_datasets: [sunnydale/forestry_fi]
   params:
-    sector: Forest growth
+  - id: sector
+    value: Forest growth
 
 - id: historical_amount_of_wood_in_forests
   name_fi: Suomen metsien historiallinen koko
   name_en: Historical forest stock in Finnish forests
   type: gpc.DatasetNode # costs.InternalGrowthNode
   quantity: mass
-  unit: Mt
+  unit: Mm3_solid
   input_datasets:
   - id: sunnydale/forestry_fi
     filters:
@@ -523,7 +624,7 @@ nodes:
   name_en: Forest stock in Finnish forests
   type: costs.IterationNode
   quantity: mass
-  unit: Mt
+  unit: Mm3_solid
   input_nodes:
   - id: historical_amount_of_wood_in_forests
     tags: [base]
@@ -532,19 +633,12 @@ nodes:
   - id: forest_growth_rate
     tags: [rate]
 
-- id: forest_growth_rate
-  name_en: Forest growth rate
-  type: simple.AdditiveNode
-  quantity: rate
-  unit: '%'
-  historical_values: [[1990, 2.0 ]] # 4.1875]] # Year 2021: 134 Mt growth, 3200 Mt Wood storage in forests.
-
 - id: carbon_sinks_in_forests
   name_en: Carbon sinks in forests
   name_fi: Metsien hiilinelut
-  type: simple.AdditiveNode
+  type: simple.FixedMultiplierNode
   quantity: emissions
-  unit: Mt/a
+  unit: kt/a
   input_dimensions: [cost_type]
   output_dimensions: [cost_type]
   input_nodes:
@@ -555,13 +649,15 @@ nodes:
       categories: [non_fossil_emissions]
   output_nodes:
   - id: net_emissions
-  # params:
-  #   use_input_node_unit_when_adding: true
+  params:
+  - id: multiplier
+    value: 0.1
+    unit: ton/m3_solid
 
 - id: forest_industry_emissions
   name_fi: Metsäteollisuuden päästöt
   name_en: Forest industry emissions
-  type: simple.AdditiveNode
+  type: simple.FixedMultiplierNode
   quantity: emissions
   unit: Mt/a
   input_dimensions: [cost_type]
@@ -572,23 +668,25 @@ nodes:
     - id: cost_type
       categories: [non_fossil_emissions]
   output_nodes: [net_emissions]
+  params:
+  - id: multiplier
+    value: 0.1
+    unit: ton/m3_solid
 
-- id: total_economic_benefit
-  name_fi: Taloudellinen kokonaishyöty
-  name_en: Total economic benefit
+- id: total_economic_cost
+  name_fi: Taloudellinen kokonaiskustannus
+  name_en: Total economic cost
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [cost_type, hypothesis]
-  output_dimensions: [cost_type, hypothesis]
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
   output_nodes:
   - id: total_cost
-    from_dimensions:
-    - id: hypothesis
-      categories: [biodiversity_ignored]
-      flatten: true
-    to_dimensions:
-    - id: cost_type
+    # from_dimensions:
+    # - id: stakeholder
+    #   categories: [industry]
+    #   flatten: true
 
 - id: co2_market_price
   name_en: CO2 market price
@@ -596,6 +694,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/t
+  input_dimensions: [stakeholder]
+  output_dimensions: [stakeholder]
   input_datasets: [sunnydale/forestry_fi]
   params:
     sector: CO2 market price
@@ -606,16 +706,17 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [cost_type]
-  output_dimensions: [cost_type]
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
   input_nodes:
   - id: net_emissions
-  - id: co2_market_price
-    to_dimensions: []
-  output_nodes:
-  - id: total_cost
     to_dimensions:
     - id: cost_type
+  - id: co2_market_price
+    to_dimensions:
+    - id: stakeholder
+  output_nodes:
+  - id: total_cost
   params:
   - id: multiplier
     ref: emissions_weight
@@ -626,11 +727,26 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [cost_type]
-  output_dimensions: [cost_type]
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
   is_outcome: true
 
 # ------------------ Nodes for impact overviews ---------------
+
+- id: total_societal_cost
+  name: Total societal cost
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  is_visible: false
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
+  input_nodes:
+  - id: total_cost
+    # tags: [make_nonnegative]
+    from_dimensions:
+    - id: stakeholder
+      categories: [mankind]
 
 - id: total_cost_costs
   name: Total cost costs
@@ -638,8 +754,8 @@ nodes:
   quantity: currency
   unit: MEUR/a
   is_visible: false
-  input_dimensions: [cost_type]
-  output_dimensions: [cost_type]
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
   input_nodes:
   - id: total_cost
     tags: [make_nonnegative]
@@ -650,8 +766,8 @@ nodes:
   quantity: currency
   unit: MEUR/a
   is_visible: false
-  input_dimensions: [cost_type]
-  output_dimensions: [cost_type]
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
   input_nodes:
   - id: total_cost
     tags: [make_nonpositive]
@@ -662,14 +778,19 @@ actions:
   name_en: District heating with biofuels
   name_fi: Kaukolämmitys bioenergialla
   type: gpc.DatasetAction
-  quantity: mass
-  unit: kt/a
+  quantity: energy
+  unit: GWh/a
   group: forestry
+  input_dimensions: [stakeholder]
+  output_dimensions: [stakeholder]
   input_datasets: [sunnydale/forestry_fi]
   params:
     sector: District heating with biofuels in Sunnydale
   output_nodes:
   - id: biofuel_production
+    from_dimensions:
+    - id: stakeholder
+      flatten: true
 
 - id: reduce_forestry_production
   name_en: Reduce forestry production
@@ -688,13 +809,22 @@ actions:
 pages:
 - id: home
   name_fi: Vihreän siirtymän prioriteetit
-  name_en: Green transition priotities
+  name_en: Green transition priorities
   path: /
   type: emission
-  outcome_node: net_emissions
+  outcome_node: global_emissions
   lead_title: Vihreän siirtymän prioriteetit
   lead_title_en: Green transition priorities
-  lead_paragraph: add
+  lead_paragraph: 'This website is for demonstrating how scientific knowledge, preferences
+    and values, and various decision options can be described in a single coherent
+    system. The purpose is to understand all different viewpoints but at the same
+    time make sure that biases and omissions are recognised and dealt with before
+    decisions are made.<br> The main conclusions from the exercise are:<ul><li>Biodiversity
+    is not properly included in the price of forest products. Total societal benefits
+    are significantly smaller than the benefits to forest companies.</li><li>How biofuel
+    emissions should be calculated is partly scientific, partly political question.
+    The choice has major implications on district heating investments: biofuels are
+    appealing only if you assume them climate-neutral.</li></ul>'
 
 scenarios:
 - id: baseline
