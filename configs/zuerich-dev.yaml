@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich-dev.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 00e59399314ad8c173e0dc88bd1283c815aaf359
+  commit: e8ad55bddef22b4eb49d52eab790540ad8622c69
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero Cockpit
@@ -183,6 +183,34 @@ dimensions:
     label_de: F-Gase (Mobilität)
     label_en: F-Gase (Mobilität)
 
+  - id: goods
+    label_de: Güter (Bekleidung, IKT, Freizeitgüter und Übriges)
+    label_en: Goods (clothing, ICT, leisure goods and other)
+  - id: services
+    label_de: Dienstleistungen (Gesundheit, Bildung und Übriges)
+    label_en: Services (health, education and other)
+  - id: restaurants
+    label_de: Gastronomie
+    label_en: Restaurants
+  - id: beverages
+    label_de: Getränke inkl. Alkohol und Kaffee
+    label_en: Beverages incl. alcohol and coffee
+  - id: meat_poultry_fish_seafood
+    label_de: Fleisch, Geflügel, Fisch und Meeresfrüchte
+    label_en: Meat, poultry, fish and seafood
+  - id: dairy_eggs
+    label_de: Milchprodukte und Eier
+    label_en: Dairy products and eggs
+  - id: desserts
+    label_de: Süssspeisen
+    label_en: Desserts
+  - id: convenience_products_other
+    label_de: Convenienceprodukte und sonstige Lebensmittel
+    label_en: Convenience products and other foods
+  - id: plant_based_foods
+    label_de: Gemüse und weitere pflanzenbasierte Nahrungsmittel
+    label_en: Vegetables and other plant-based foods
+
 - id: greenhouse_gases
   label: Treibhausgase
   label_en: Greenhouse gases
@@ -313,14 +341,6 @@ emission_sectors:
 #   color: '#0F05A0'
 #   order: 10
 
-# - id: ippu_emissions
-#   name_en: Industrial and commercial process emissions
-#   name_de: Industrie- und Gewerbeprozesse
-#   part_of: net_emissions
-#   category: ippu
-#   color: '#8DAFBC'
-#   input_dataset_processors: [LinearInterpolation]
-
 # - id: indirect_emissions
 #   name_en: Indirect emissions
 #   name_de: Indirekte Emissionen
@@ -333,19 +353,8 @@ emission_sectors:
   name_de: Treibhausgasemissionen Ernährung
   short_name_de: Ernährung
   short_name_en: Food consumption
-  category: food_consumption
   part_of: net_emissions
   color: '#926901'
-  input_dataset_processors: [LinearInterpolation]
-
-- id: other_consumption_emissions
-  name_en: Other consumption emissions
-  name_de: Treibhausgasemissionen Konsum
-  short_name_de: Konsum
-  short_name_en: Other consumption
-  category: other_consumption
-  part_of: net_emissions
-  color: '#003C40'
   input_dataset_processors: [LinearInterpolation]
 
 nodes:
@@ -563,6 +572,90 @@ nodes:
   input_datasets:
   - id: zuerich/livestock_emission_factors
   input_dataset_processors: [LinearInterpolation]
+
+# ----- Food & Other Consumption Emissions -----
+
+- id: consumption_emissions_per_capita
+  name_de: Food and other consumption emissions per capita
+  name_en: Food and other consumption emissions per capita
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/cap/a
+  input_dimensions: [emission_sectors, emission_scope]
+  output_dimensions: [emission_sectors, emission_scope]
+  input_datasets:
+  - id: zuerich/food_and_other_consumption_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+- id: restaurant_emissions
+  name_de: Treibhausgasemissionen Gastronomie
+  name_en: Restaurant emissions
+  short_name_de: Gastronomie
+  short_name_en: Restaurants
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sectors, emission_scope]
+  output_dimensions: [emission_sectors, emission_scope]
+  input_nodes:
+  - id: population
+    to_dimensions: []
+  - id: consumption_emissions_per_capita
+    from_dimensions:
+    - id: emission_sectors
+      categories: [restaurants]
+  output_nodes:
+  - id: food_consumption_emissions
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+
+- id: food_purchase_emissions
+  name_de: Treibhausgasemissionen Lebensmittel-Einkauf
+  name_en: Food purchase emissions
+  short_name_de: Lebensmittel-Einkauf
+  short_name_en: Food purchases
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sectors, emission_scope]
+  output_dimensions: [emission_sectors, emission_scope]
+  input_nodes:
+  - id: population
+    to_dimensions: []
+  - id: consumption_emissions_per_capita
+    from_dimensions:
+    - id: emission_sectors
+      categories: [beverages, meat_poultry_fish_seafood, dairy_eggs, desserts, convenience_products_other, plant_based_foods]
+  output_nodes:
+  - id: food_consumption_emissions
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+
+- id: other_consumption_emissions
+  name_de: Treibhausgasemissionen Konsum
+  name_en: Other consumption emissions
+  short_name_de: Konsum
+  short_name_en: Other consumption
+  color: '#003C40'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sectors, emission_scope]
+  output_dimensions: [emission_sectors, emission_scope]
+  input_nodes:
+  - id: population
+    to_dimensions: []
+  - id: consumption_emissions_per_capita
+    from_dimensions:
+    - id: emission_sectors
+      categories: [goods, services]
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
 
 # ----- 2kW Society Indicators -----
 
