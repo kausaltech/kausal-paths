@@ -321,14 +321,15 @@ class IterationNode(AdditiveNode): #, DatasetNode):
         # df = DatasetNode.compute(self)
         rate_obj = self.get_input_node(tag='rate', required=True)
         rate = rate_obj.get_output_pl(target_node=self)
-        rate = rate.ensure_unit(VALUE_COLUMN, 'dimensionless')
+        rate = rate.ensure_unit(VALUE_COLUMN, '1/a')
+        rate = rate.set_unit(VALUE_COLUMN, 'dimensionless', force=True)
         rate = rate.with_columns(pl.col(VALUE_COLUMN) + pl.lit(1.0).alias(VALUE_COLUMN))
 
-        obj = self.get_input_node(tag='base', required=True)
-        df = obj.get_output_pl(target_node=self)
+        base_obj = self.get_input_node(tag='base', required=True)
+        df = base_obj.get_output_pl(target_node=self)
 
-        inputs = [n for n in self.input_nodes if n.id not in [rate_obj.id, obj.id]]
-        print(inputs)
+        inputs = [n for n in self.input_nodes if n.id not in [rate_obj.id, base_obj.id]]
+
         if inputs:
             changes = self.add_nodes_pl(None, inputs, unit=self.unit * unit_registry('1/a'))
             df = df.paths.join_over_index(changes)

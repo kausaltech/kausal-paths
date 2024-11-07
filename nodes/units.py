@@ -1,35 +1,36 @@
 from __future__ import annotations
 
+import os
+import re
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
-import re
 from typing import TYPE_CHECKING, Any, Iterable, Optional, Tuple, TypeAlias, Unpack, cast
-import os
-from loguru import logger
+
 import pint
-from pint.facets.plain import PlainUnit
-from pint.babel_names import _babel_units
 import pint_pandas
+import platformdirs
+from loguru import logger
 from pint import UnitRegistry, facets
-from pint.delegates.formatter.html import HTMLFormatter
-from pint.delegates.formatter.plain import PrettyFormatter
+from pint.babel_names import _babel_units
 from pint.delegates.formatter._compound_unit_helpers import (
     BabelKwds,
     SortFunc,
     prepare_compount_unit,
 )
 from pint.delegates.formatter._format_helpers import formatter
-import platformdirs
-
+from pint.delegates.formatter.html import HTMLFormatter
+from pint.delegates.formatter.plain import PrettyFormatter
 
 if TYPE_CHECKING:
     from django.utils.functional import _StrPromise as StrPromise  # pyright: ignore
+
+    from pint.facets.plain import PlainUnit
 
 
 #Unit = PlainUnit
 #Quantity = PlainQuantity
 
-def split_specifier(name: str) -> Tuple[str, str | None]:
+def split_specifier(name: str) -> tuple[str, str | None]:
     m = re.match(r'(.+)\[(\w+)\]', name)
     if not m:
         m = re.match(r'(.+)__(\w+)', name)
@@ -64,8 +65,8 @@ class CachingUnitRegistry(  # type: ignore[misc]
     unit_cache: dict[str, Unit] | None = None
     Unit: TypeAlias = Unit
     Quantity: TypeAlias = Quantity
-    html_formatter: 'PathsHTMLFormatter'
-    pretty_formatter: 'PathsPrettyFormatter'
+    html_formatter: PathsHTMLFormatter
+    pretty_formatter: PathsPrettyFormatter
 
     def parse_units(self, input_string: str, as_delta: Optional[bool] = None, case_sensitive: Optional[bool] = None) -> Unit:
         if self.unit_cache is None:
@@ -174,7 +175,7 @@ class PathsPrettyFormatter(PrettyFormatter):
         unit: PlainUnit | Iterable[tuple[str, Any]],
         uspec: str = "",
         sort_func: SortFunc | None = None,
-        **babel_kwds: Unpack[BabelKwds]
+        **babel_kwds: Unpack[BabelKwds],
     ) -> str:
         if isinstance(unit, Unit):
             unit = prepare_units_for_babel(unit, html=False)
@@ -217,7 +218,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     # usage.
     del unit_registry._units['kt']
     del unit_registry._units['ton']  # The default is 2000 pounds and we don't want to accidentally use that.
-    DEFINITIONS = '''
+    DEFINITIONS = """
     kt = kilotonne
     ton = tonne
     # Mega-kilometers is often used for mileage
@@ -242,6 +243,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     job = [employment] = fte = full_time_equivalent
     million_square_meters = 1e6 * meter ** 2 = Msqm
     thousand_square_meters = 1e3 * meter ** 2 = ksqm
+    solid_cubic_meter = 1 m**3 = m3_solid
     Mpkm = 1e6 * pkm
     CO2e = [co2e]
     kt_co2e = kilotonne * CO2e
@@ -260,7 +262,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     l_methanol = 15.6 MJ
     kg_wood = 18.0 MJ
     kg_peat = 12.8 MJ
-    '''
+    """  # noqa: N806
 
     for line in DEFINITIONS.strip().splitlines():
         line = line.strip()
@@ -279,11 +281,13 @@ pint_pandas.PintType.ureg = unit_registry  # type: ignore
 
 
 def add_unit_translations():
-    """Add translations for some commonly used units.
+    """
+    Add translations for some commonly used units.
 
-    Called from Django's App.ready() handler."""
-    from pint.babel_names import _babel_units
+    Called from Django's App.ready() handler.
+    """
     from babel import Locale as Loc
+    from pint.babel_names import _babel_units
     try:
         from django.conf import settings
     except Exception:
@@ -291,7 +295,7 @@ def add_unit_translations():
     from django.utils import translation
     from django.utils.translation import gettext_lazy as _, pgettext_lazy
 
-    def set_one(u: str, long: str | StrPromise, short: str | StrPromise | None = None):
+    def set_one(u: str, long: str | StrPromise, short: str | StrPromise | None = None) -> None:
         bu = 'kausal-%s' % u
         if u not in _babel_units:
             _babel_units[u] = bu
