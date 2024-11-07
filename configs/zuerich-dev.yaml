@@ -287,8 +287,6 @@ emission_sectors:
   - normalized_by: population
     label_de: Indirekte Emissionen
     label_en: Indirect emissions
-    disabled: true
-    disable_reason: Werden später ergänzt
     dimensions:
       emission_scope:
         groups: [indirect]
@@ -304,7 +302,7 @@ emission_sectors:
   name_de: Negative Emissionen
   name_en: Negative emissions
   part_of: net_emissions
-  color: '#8ECF69'
+  color: '#88CFFF'
   order: -1
 
 # - id: direct_emissions
@@ -337,17 +335,17 @@ emission_sectors:
   short_name_en: Food consumption
   category: food_consumption
   part_of: net_emissions
-  color: '#002914'
+  color: '#926901'
   input_dataset_processors: [LinearInterpolation]
 
 - id: other_consumption_emissions
   name_en: Other consumption emissions
-  name_de: Treibhausgasemissionen Übriger Konsum
-  short_name_de: Übriger Konsum
+  name_de: Treibhausgasemissionen Konsum
+  short_name_de: Konsum
   short_name_en: Other consumption
   category: other_consumption
   part_of: net_emissions
-  color: '#A174DE'
+  color: '#003C40'
   input_dataset_processors: [LinearInterpolation]
 
 nodes:
@@ -485,7 +483,7 @@ nodes:
   name_en: Agriculture and forestry emissions
   short_name_de: Land- und Forstwirtschaft
   short_name_en: Agriculture and forestry
-  color: '#F1D900'
+  color: '#C67900'
   type: simple.SectorEmissions
   unit: kt/a
   input_dimensions: [emission_scope]
@@ -1766,11 +1764,11 @@ scenarios:
   all_actions_enabled: true
 
 include:
-  - file: zuerich/buildings.yaml
+  - file: zuerich-dev/buildings-dev.yaml
     node_group: Buildings
   - file: zuerich-dev/aviation-dev.yaml
     node_group: Aviation
-  - file: zuerich/waste.yaml
+  - file: zuerich-dev/waste-dev.yaml
     node_group: Waste
   - file: zuerich-dev/mobility-dev.yaml
     node_group: Mobility

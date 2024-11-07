@@ -328,7 +328,7 @@ nodes:
   quantity: emissions
   unit: kt/a
   type: simple.SectorEmissions
-  color: '#0505A0'
+  color: '#313900'
   input_dimensions: [emission_scope]
   output_dimensions: [emission_scope]
   output_nodes: [net_emissions]
