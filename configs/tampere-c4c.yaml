@@ -1739,6 +1739,7 @@ nodes:
 - id: stationary_price
   name: Stationary Price
   type: simple.AdditiveNode
+  color: '#4e79a7'
   quantity: currency
   unit: EUR/a
   input_dimensions: [cost_type, owner]
@@ -1759,6 +1760,7 @@ actions:
     action: Change Streetlights to LED
   input_datasets:
   - id: gpc/tampere_simple_actions
+    forecast_from: 2025
   output_metrics:
   - id: i62_energy
     unit: GWh/a
@@ -1798,6 +1800,7 @@ actions:
     action: Build Renewable Electricity Production (PV)
   input_datasets:
   - id: gpc/tampere_simple_actions
+    forecast_from: 2025
   output_metrics:
   - id: i62_energy
     unit: GWh/a
@@ -1837,6 +1840,7 @@ actions:
     action: Replace Oil Heating with Water-to-Air Heat Pumps and Geothermal Heating
   input_datasets:
   - id: gpc/tampere_simple_actions
+    forecast_from: 2025
   output_metrics:
   - id: i11_energy
     unit: kWh/a
@@ -1879,6 +1883,7 @@ actions:
     action: Energy Efficiency Renovations in Buildings
   input_datasets:
   - id: gpc/tampere_simple_actions
+    forecast_from: 2025
   output_metrics:
   - id: i12_energy
     unit: GWh/a
@@ -1936,6 +1941,7 @@ actions:
     action: Energy Efficiency of New Construction
   input_datasets:
   - id: gpc/tampere_simple_actions
+    forecast_from: 2025
   output_metrics:
   - id: i12_energy
     unit: GWh/a
