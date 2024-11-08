@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://tampere-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: e6faa6d201218b87f3073678b22f7d778bfbc55a
+  commit: 1a8120ca1818582e32f5814adc3a6bce6576da2b
   dvc_remote: kausal-s3
 name: C4C Hiilineutraali Tampere 2030
 name_en: C4C Carbon-neutral Tampere 2030
@@ -193,6 +193,14 @@ dimensions:
   categories:
   - id: co2e
     label: CO2e
+
+- id: owner
+  label: Owner
+  categories:
+  - id: municipal
+    label: Municipal
+  - id: private
+    label: Private
 
 - id: scope
   label: Scope
@@ -1717,9 +1725,264 @@ nodes:
       flatten: true
   - id: maintenance_costs
 
+# ----- ECONOMY ---------------------------------------------------------------
+
+- id: net_price
+  name: Net Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [cost_type, owner]
+  output_dimensions: [cost_type, owner]
+  is_outcome: true
+
+- id: stationary_price
+  name: Stationary Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [cost_type, owner]
+  output_dimensions: [cost_type, owner]
+  output_nodes:
+  - id: net_price
+
 # ----- ACTIONS ---------------------------------------------------------------
 
-# actions:
+actions:
+- id: change_streetlights_to_led
+  name: Change Streetlights to LED
+  type: gpc.DatasetActionMFM
+  color: '#4e79a7'
+  input_dimensions: ['cost_type', 'owner', 'energy_carrier', 'scope']
+  output_dimensions: ['cost_type', 'owner', 'energy_carrier', 'scope']
+  params:
+    action: Change Streetlights to LED
+  input_datasets:
+  - id: gpc/tampere_simple_actions
+  output_metrics:
+  - id: i62_energy
+    unit: GWh/a
+    quantity: energy
+  - id: i_currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: other_electricity_consumption
+    metrics: [i62_energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+  - id: stationary_price
+    metrics: [i_currency]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+
+- id: build_renewable_electricity_production
+  name: Build Renewable Electricity Production (PV)
+  type: gpc.DatasetActionMFM
+  color: '#4e79a7'
+  input_dimensions: ['cost_type', 'owner', 'energy_carrier', 'scope']
+  output_dimensions: ['cost_type', 'owner', 'energy_carrier', 'scope']
+  params:
+    action: Build Renewable Electricity Production (PV)
+  input_datasets:
+  - id: gpc/tampere_simple_actions
+  output_metrics:
+  - id: i62_energy
+    unit: GWh/a
+    quantity: energy
+  - id: i_currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: other_electricity_consumption
+    metrics: [i62_energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+  - id: stationary_price
+    metrics: [i_currency]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+
+- id: replace_oil_heating
+  name: Replace Oil Heating with Water-to-Air Heat Pumps and Geothermal Heating
+  type: gpc.DatasetActionMFM
+  color: '#4e79a7'
+  input_dimensions: ['cost_type', 'owner', 'heating', 'energy_carrier', 'scope']
+  output_dimensions: ['cost_type', 'owner', 'heating', 'energy_carrier', 'scope']
+  params:
+    action: Replace Oil Heating with Water-to-Air Heat Pumps and Geothermal Heating
+  input_datasets:
+  - id: gpc/tampere_simple_actions
+  output_metrics:
+  - id: i11_energy
+    unit: kWh/a
+    quantity: energy
+  - id: i_currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: oil_heating_energy_consumption
+    metrics: [i11_energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    to_dimensions:
+    - id: heating
+    - id: energy_carrier
+    - id: scope
+  - id: stationary_price
+    metrics: [i_currency]
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+
+- id: energy_efficiency_renovations_in_buildings
+  name: Energy Efficiency Renovations in Buildings
+  type: gpc.DatasetActionMFM
+  color: '#4e79a7'
+  input_dimensions: ['cost_type', 'owner', 'heating', 'energy_carrier', 'scope']
+  output_dimensions: ['cost_type', 'owner', 'heating', 'energy_carrier', 'scope']
+  params:
+    action: Energy Efficiency Renovations in Buildings
+  input_datasets:
+  - id: gpc/tampere_simple_actions
+  output_metrics:
+  - id: i12_energy
+    unit: GWh/a
+    quantity: energy
+  - id: i62_energy
+    unit: GWh/a
+    quantity: energy
+  - id: i_currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: district_heating_energy_consumption
+    metrics: [i12_energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    to_dimensions:
+    - id: heating
+    - id: energy_carrier
+    - id: scope
+  - id: other_electricity_consumption
+    metrics: [i62_energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+  - id: stationary_price
+    metrics: [i_currency]
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+
+- id: energy_efficiency_of_new_construction
+  name: Energy Efficiency of New Construction
+  type: gpc.DatasetActionMFM
+  color: '#4e79a7'
+  input_dimensions: ['cost_type', 'owner', 'heating', 'energy_carrier', 'scope']
+  output_dimensions: ['cost_type', 'owner', 'heating', 'energy_carrier', 'scope']
+  params:
+    action: Energy Efficiency of New Construction
+  input_datasets:
+  - id: gpc/tampere_simple_actions
+  output_metrics:
+  - id: i12_energy
+    unit: GWh/a
+    quantity: energy
+  - id: i62_energy
+    unit: GWh/a
+    quantity: energy
+  - id: i_currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: district_heating_energy_consumption
+    metrics: [i12_energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    to_dimensions:
+    - id: heating
+    - id: energy_carrier
+    - id: scope
+  - id: other_electricity_consumption
+    metrics: [i62_energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+  - id: stationary_price
+    metrics: [i_currency]
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+
 # - id: i22_streetlight_replacement_action
 #   name: I.2.2 Streetlight Replacement Action
 #   type: gpc.StockReplacementAction
