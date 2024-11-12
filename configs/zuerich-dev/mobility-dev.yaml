@@ -139,6 +139,10 @@ dimensions:
     label: Mikromobilität
     label_en: Micromobility
     id_match: ^micromobility.*
+  - id: off_non_road
+    label: Off-/Non-Road
+    label_en: Off-/Non-Road
+    id_match: ^off_non_road.*
 
   categories:
   - id: car_other
@@ -181,6 +185,9 @@ dimensions:
   - id: motorbike_other
     label: Motorräder
     label_en: Motorbikes
+  - id: motorbike_petrol
+    label: Motorräder / Benzin
+    label_en: Motorbikes / Petrol
   - id: motorbike_petrol_2stroke
     label: Motorräder / Benzin (2-Takt-Motor)
     label_en: Motorbikes / Petrol 2-stroke engine
@@ -190,10 +197,16 @@ dimensions:
   - id: motorbike_batteryelectric
     label: Motorräder / Elektrisch
     label_en: Motorbikes / Battery-Electric
+  - id: motorbike_natural_gas_biogas
+    label: Motorräder / Erdgas/Biogas
+    label_en: Motorbikes / Natural gas/biogas
 
   - id: buses_other
     label: Linienbusse
     label_en: Regular buses
+  - id: buses_petrol
+    label: Linienbusse / Benzin
+    label_en: Regular buses / Petrol
   - id: buses_fuel_cell
     label: Linienbusse / Brennstoffzelle
     label_en: Regular buses / Fuel cell
@@ -230,6 +243,9 @@ dimensions:
     label: Reisebusse / Erdgas/Biogas
     label_en: Coaches / Natural gas/biogas
 
+  - id: lorry_petrol
+    label: Lastwagen / Benzin
+    label_en: Lorries / Petrol
   - id: lorry_fuel_cell
     label: Lastwagen / Brennstoffzelle
     label_en: Lorries / Fuel cell
@@ -318,6 +334,19 @@ dimensions:
   - id: micromobility_escooter
     label: E-Scoter
     label_en: E-scooter
+
+  - id: off_non_road_petrol
+    label: Off-/Non-Road / Benzin
+    label_en: Off-/Non-Road / Petrol
+  - id: off_non_road_diesel
+    label: Off-/Non-Road / Diesel
+    label_en: Off-/Non-Road / Diesel
+  - id: off_non_road_natural_gas_biogas
+    label: Off-/Non-Road / Erdgas/Biogas
+    label_en: Off-/Non-Road / Natural gas/biogas
+  - id: off_non_road_battery_electric
+    label: Off-/Non-Road / Elektrisch
+    label_en: Off-/Non-Road / Battery-Electric
 
 nodes:
 - id: transportation_emissions
@@ -928,6 +957,53 @@ nodes:
     - id: vehicle_type
       flatten: true
     - id: greenhouse_gases
+      flatten: true
+
+# ----- New Vehicle Emissions -----
+
+- id: new_vehicle_counts
+  name_de: New vehicle counts
+  name_en: New vehicle counts
+  type: simple.AdditiveNode
+  quantity: number
+  unit: count/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: zuerich/new_vehicle_counts
+  input_dataset_processors: [LinearInterpolation]
+
+- id: new_vehicle_emission_factors
+  name_de: New vehicle emission factors
+  name_en: New vehicle emission factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: kg/count
+  input_dimensions: [vehicle_type, emission_scope]
+  output_dimensions: [vehicle_type, emission_scope]
+  input_datasets:
+  - id: zuerich/new_vehicle_emission_factors
+  input_dataset_processors: [LinearInterpolation]
+
+- id: new_vehicle_emissions
+  name_de: New vehicle emissions
+  name_en: New vehicle emissions
+  short_name_de: Neue Fahrzeuge
+  short_name_en: New vehicles
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  input_dimensions: [vehicle_type, emission_scope]
+  output_dimensions: [vehicle_type, emission_scope]
+  unit: kt/a
+  input_nodes:
+  - id: new_vehicle_counts
+    to_dimensions:
+    - id: vehicle_type
+  - id: new_vehicle_emission_factors
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: vehicle_type
       flatten: true
 
 # ----- Transportation Primary Energy Consumption -----
