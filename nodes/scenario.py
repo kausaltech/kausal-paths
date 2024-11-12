@@ -1,19 +1,17 @@
 from __future__ import annotations
-from contextlib import contextmanager
 
 import logging
-from dataclasses import dataclass, field, InitVar
-from typing import TYPE_CHECKING, Any, Iterable, List, Mapping, Optional
-
-import sentry_sdk
-
-from common.i18n import TranslatedString
-from nodes.node import Node
+from contextlib import contextmanager
+from typing import TYPE_CHECKING, Any, Generator
 
 if TYPE_CHECKING:
-    from .context import Context
-    from params.storage import SettingStorage
+    from collections.abc import Iterable
+
+    from common.i18n import TranslatedString
     from params import Parameter
+    from params.storage import SettingStorage
+
+    from .context import Context
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +26,11 @@ class Scenario:
     param_values: dict[str, Any]
 
     def __init__(
-        self, context: Context, id: str, name: TranslatedString, default: bool = False,
+        self,
+        context: Context,
+        id: str,
+        name: TranslatedString,
+        default: bool = False,
         all_actions_enabled: bool = False,
     ):
         self.id = id
@@ -44,24 +46,33 @@ class Scenario:
             yield param, val
 
     @contextmanager
-    def override(self):
+    def override(self, set_active: bool = False) -> Generator[None, None, None]:
         old_vals: dict[str, Any] = {}
+
+        old_scenario = self.context.active_scenario
+
         for param, _ in self.get_param_values():
             old_vals[param.global_id] = param.value
 
         self.activate()
+        if set_active:
+            self.context.active_scenario = self
+
         yield
+
+        if set_active:
+            self.context.active_scenario = old_scenario
 
         for param_id, val in old_vals.items():
             param = self.context.get_parameter(param_id)
             param.set(val)
 
     def activate(self):
-        """Resets each parameter in the context to its setting for this scenario if it has one."""
+        """Reset each parameter in the context to its setting for this scenario if it has one."""
         for param, val in self.get_param_values():
             param.reset_to_scenario_setting(self, val)
 
-    def add_parameter(self, param: Parameter, value: Any):
+    def add_parameter(self, param: Parameter, value: Any):  # noqa: ANN401
         assert param.global_id not in self.param_values
         self.param_values[param.global_id] = value
 
@@ -76,16 +87,18 @@ class Scenario:
 
     def __repr__(self) -> str:
         instance = self.context.instance if self.context is not None else None
-        return "Scenario(id=%s, name='%s', instance=%s)" % (self.id, str(self.name), instance.id if instance is not None else None)
+        return "Scenario(id=%s, name='%s', instance=%s)" % (
+            self.id,
+            str(self.name),
+            instance.id if instance is not None else None,
+        )
 
 
 class CustomScenario(Scenario):
     base_scenario: Scenario
     storage: SettingStorage
 
-    def __init__(
-        self, *args, base_scenario: Scenario, **kwargs
-    ):
+    def __init__(self, *args, base_scenario: Scenario, **kwargs):
         super().__init__(*args, **kwargs)
         self.base_scenario = base_scenario
 
@@ -108,7 +121,7 @@ class CustomScenario(Scenario):
             else:
                 try:
                     val = param.clean(val)
-                except Exception as e:
+                except Exception:
                     self.context.log.error('parameter %s has invalid value: %s', param_id, val)
                     is_valid = False
             if not is_valid:

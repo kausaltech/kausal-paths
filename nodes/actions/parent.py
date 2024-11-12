@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import networkx as nx
 import polars as pl
 
 from nodes.constants import IMPACT_COLUMN, IMPACT_GROUP
@@ -19,6 +18,7 @@ if TYPE_CHECKING:
 
 def first_common_descendant(G, sources, target):
     # Thank you, ChatGPT
+    import networkx as nx
 
     common_nodes = None
 

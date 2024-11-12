@@ -1,17 +1,22 @@
+from django.utils.translation import gettext_lazy as _
+
 import pandas as pd
 import polars as pl
-from params import StringParameter
-from nodes.constants import VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN
+
+from common import polars as ppl
 from nodes.actions import ActionNode
+from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.exceptions import NodeError
 from nodes.gpc import DatasetNode
 from nodes.units import unit_registry
-from common import polars as ppl
-from nodes.exceptions import NodeError
-from django.utils.translation import gettext_lazy as _
+from params import StringParameter
 
 
 class DatasetAction(ActionNode, DatasetNode):
-    allowed_parameters = ActionNode.allowed_parameters + DatasetNode.allowed_parameters
+    allowed_parameters = [
+        *ActionNode.allowed_parameters,
+        *DatasetNode.allowed_parameters,
+    ]
     no_effect_value = 0.0
 
     def compute_effect(self) -> ppl.PathsDataFrame:

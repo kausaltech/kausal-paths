@@ -2,26 +2,37 @@ from __future__ import annotations
 
 import typing
 from dataclasses import dataclass
-from typing import ClassVar, Iterable, Iterator, Optional
+from typing import ClassVar, cast
 
 import pandas as pd
 import polars as pl
 
-from common import polars as ppl
-from common.i18n import TranslatedString, gettext_lazy as _
 from kausal_common.debugging.perf import PerfCounter
 
-from nodes.node import Node, NodeError
+from common import polars as ppl
+from common.i18n import TranslatedString, gettext_lazy as _
 from nodes.constants import (
-    FORECAST_COLUMN, IMPACT_COLUMN, IMPACT_GROUP, SCENARIO_ACTION_GROUP,
-    VALUE_COLUMN, WITHOUT_ACTION_GROUP, YEAR_COLUMN, UNCERTAINTY_COLUMN, STACKABLE_QUANTITIES, DecisionLevel
+    FORECAST_COLUMN,
+    IMPACT_COLUMN,
+    IMPACT_GROUP,
+    SCENARIO_ACTION_GROUP,
+    STACKABLE_QUANTITIES,
+    UNCERTAINTY_COLUMN,
+    VALUE_COLUMN,
+    WITHOUT_ACTION_GROUP,
+    YEAR_COLUMN,
+    DecisionLevel,
 )
+from nodes.node import Node, NodeError
 from nodes.units import Quantity, Unit
 from params import BoolParameter, NumberParameter
-from params.param import Parameter
 
 if typing.TYPE_CHECKING:
+    from collections.abc import Iterable, Iterator, Sequence
+
     from nodes.context import Context
+    from params.param import Parameter
+
     from .parent import ParentActionNode
 
 
@@ -47,8 +58,10 @@ class EnabledParam(BoolParameter):
 
 
 ENABLED_PARAM = EnabledParam(
-    local_id=ENABLED_PARAM_ID, label=_("Is implemented"), description=_("Is the action included in the scenario"),
-    is_customizable=True
+    local_id=ENABLED_PARAM_ID,
+    label=_('Is implemented'),
+    description=_('Is the action included in the scenario'),
+    is_customizable=True,
 )
 
 
@@ -56,16 +69,16 @@ class ActionNode(Node):
     global_parameters = ['action_impact_from_baseline']
     decision_level: DecisionLevel = DecisionLevel.MUNICIPALITY
     group: ActionGroup | None = None
-    parent_action: 'ParentActionNode' | None = None
+    parent_action: ParentActionNode | None = None
 
     # The value to use for "no effect" years.
     # For additive actions, it probably is 0, and for multiplicative
     # actions, 1.0.
-    no_effect_value: Optional[float] = None
+    no_effect_value: float | None = None
     enabled_param: BoolParameter
-    allowed_parameters: ClassVar[list[Parameter]] = [
+    allowed_parameters: ClassVar[Sequence[Parameter]] = [
         ENABLED_PARAM,
-        NumberParameter(local_id='multiplier', label='Multiplies the output', is_customizable=True)
+        NumberParameter(local_id='multiplier', label='Multiplies the output', is_customizable=True),
     ]
 
     def __init_subclass__(cls) -> None:
@@ -74,7 +87,7 @@ class ActionNode(Node):
             if p.local_id == ENABLED_PARAM_ID:
                 break
         else:
-            # No 'enabled' parameter in allowed_parameters – add it here.
+            # No 'enabled' parameter in allowed_parameters - add it here.
             cls.allowed_parameters = [
                 ENABLED_PARAM,
                 *cls.allowed_parameters,
@@ -123,17 +136,19 @@ class ActionNode(Node):
                 df = df.multiply_quantity(VALUE_COLUMN, multiplier)
             else:
                 df = df.with_columns((pl.col(VALUE_COLUMN) * pl.lit(multiplier)).alias(VALUE_COLUMN))
-            df = df.ensure_unit(VALUE_COLUMN, self.unit)
+            df = df.ensure_unit(VALUE_COLUMN, self.single_metric_unit)
         return df
 
     def compute_effect(self) -> pd.DataFrame | ppl.PathsDataFrame:
-        raise Exception("Implement in subclass")
+        raise Exception('Implement in subclass')
 
     def compute(self) -> pd.DataFrame | ppl.PathsDataFrame:
         return self.compute_effect()
 
     def compute_impact(self, target_node: Node) -> ppl.PathsDataFrame:
-        from_baseline: bool | None = self.get_global_parameter_value('action_impact_from_baseline', required=False)
+        from_baseline: bool | None = cast(
+            bool, self.get_global_parameter_value('action_impact_from_baseline', required=False) or False,
+        )
 
         was_enabled = self.is_enabled()
         if from_baseline:
@@ -151,11 +166,11 @@ class ActionNode(Node):
             # Calculate impact by disabling the action, computing
             # the results, and then do the same after the action
             # is enabled.
-            with self.enabled_param.override(False):
+            with self.enabled_param.override(value=False):
                 # Determine the impact of this action in the target node
-                ddf = target_node.get_output_pl()
+                ddf = target_node.get_output_pl(extra_span_desc='action disabled')
             if self.is_enabled():
-                edf = target_node.get_output_pl()
+                edf = target_node.get_output_pl(extra_span_desc='action enabled')
             else:
                 edf = ddf
 
@@ -191,8 +206,16 @@ class ActionNode(Node):
             df = df.set_unit(col, unit)
         common_cols = [YEAR_COLUMN, *df.dim_ids, FORECAST_COLUMN]
         edf = df.select([*common_cols, pl.lit(SCENARIO_ACTION_GROUP).alias(IMPACT_COLUMN), *mcols])
-        ddf = df.select([*common_cols, pl.lit(WITHOUT_ACTION_GROUP).alias(IMPACT_COLUMN), *[pl.col('%s:WithoutAction' % m).alias(m) for m in mcols]])
-        idf = df.select([*common_cols, pl.lit(IMPACT_GROUP).alias(IMPACT_COLUMN), *[pl.col('%s:Impact' % m).alias(m) for m in mcols]])
+        ddf = df.select(
+            [
+                *common_cols,
+                pl.lit(WITHOUT_ACTION_GROUP).alias(IMPACT_COLUMN),
+                *[pl.col('%s:WithoutAction' % m).alias(m) for m in mcols],
+            ],
+        )
+        idf = df.select(
+            [*common_cols, pl.lit(IMPACT_GROUP).alias(IMPACT_COLUMN), *[pl.col('%s:Impact' % m).alias(m) for m in mcols]],
+        )
 
         meta = edf.get_meta()
         zdf = pl.concat([edf, ddf, idf], how='vertical')
@@ -221,36 +244,39 @@ class ActionNode(Node):
         with self.context.perf_context.exec_node(cost_node):
             cost_df = self.compute_impact(cost_node)
             cost_m = cost_node.get_default_output_metric()
-            cost_df = (
-                cost_df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
-            )
+            cost_df = cost_df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
             cost_df = cost_df.select([*cost_df.primary_keys, FORECAST_COLUMN, pl.col(cost_m.column_id).alias('Cost')])
         pc.display('cost impact of %s on %s computed' % (self.id, cost_node.id))
 
         with self.context.perf_context.exec_node(impact_node):
             impact_df = self.compute_impact(impact_node)
             impact_m = impact_node.get_default_output_metric()
-            impact_df = (
-                impact_df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
-            )
+            impact_df = impact_df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
             # Replace impact values that are very close to zero with null
-            zero_to_nan = pl.when(pl.col(impact_m.column_id).abs() < pl.lit(1e-9)).then(pl.lit(None)).otherwise(pl.col(impact_m.column_id))
-            impact_df = (
-                impact_df.select([*impact_df.primary_keys, FORECAST_COLUMN, zero_to_nan.alias('Impact')])
-                .set_unit('Impact', impact_df.get_unit(impact_m.column_id))
+            zero_to_nan = (
+                pl.when(pl.col(impact_m.column_id).abs() < pl.lit(1e-9)).then(pl.lit(None)).otherwise(pl.col(impact_m.column_id))
+            )
+            impact_df = impact_df.select([*impact_df.primary_keys, FORECAST_COLUMN, zero_to_nan.alias('Impact')]).set_unit(
+                'Impact', impact_df.get_unit(impact_m.column_id),
             )
         pc.display('impact of %s on %s computed' % (self.id, impact_node.id))
 
         if not set(impact_df.dim_ids) == match_dims_i:
-            raise NodeError(self, 'Impact node %s dimensions %s do not match with expected for this impact overview: %s.' % (impact_node.id, impact_df.dim_ids, match_dims_i))
+            raise NodeError(
+                self,
+                'Impact node %s dimensions %s do not match with expected for this impact overview: %s.'
+                % (impact_node.id, impact_df.dim_ids, match_dims_i),
+            )
 
         if not set(cost_df.dim_ids) == set(match_dims_c):
-            raise NodeError(self, 'Cost node %s dimensions %s do not match with expected for this impact overview: %s.' % (cost_node.id, cost_df.dim_ids, match_dims_c))
+            raise NodeError(
+                self,
+                'Cost node %s dimensions %s do not match with expected for this impact overview: %s.'
+                % (cost_node.id, cost_df.dim_ids, match_dims_c),
+            )
 
         df = cost_df.paths.join_over_index(impact_df, how='outer', index_from='union')
-        df = df.with_columns([
-            pl.col('Cost').fill_null(0.0),
-            pl.col('Impact').fill_null(0.0)])
+        df = df.with_columns([pl.col('Cost').fill_null(0.0), pl.col('Impact').fill_null(0.0)])
 
         return df
 
@@ -260,6 +286,7 @@ class ActionEfficiency(typing.NamedTuple):
     df: ppl.PathsDataFrame
     efficiency_divisor: float  # FIXME AEP depreciated
     unit_adjustment_multiplier: float
+
 
 @dataclass
 class ActionEfficiencyPair:
@@ -283,7 +310,7 @@ class ActionEfficiencyPair:
     @classmethod
     def from_config(
         cls,
-        context: 'Context',
+        context: Context,
         graph_type: str,
         cost_node_id: str,
         impact_node_id: str,
@@ -297,7 +324,7 @@ class ActionEfficiencyPair:
         cost_cutpoint: float | None = None,
         stakeholder_dimension: str | None = None,
         outcome_dimension: str | None = None,
-        label: TranslatedString | str | None = None
+        label: TranslatedString | str | None = None,
     ) -> ActionEfficiencyPair:
         cost_node = context.get_node(cost_node_id)
         impact_node = context.get_node(impact_node_id)
@@ -320,7 +347,8 @@ class ActionEfficiencyPair:
             cost_cutpoint=cost_cutpoint,
             stakeholder_dimension=stakeholder_dimension,
             outcome_dimension=outcome_dimension,
-            label=label)
+            label=label,
+        )
         aep.validate()
         return aep
 
@@ -375,37 +403,33 @@ class ActionEfficiencyPair:
         }
 
         if not (self.cost_node.quantity in STACKABLE_QUANTITIES and self.impact_node.quantity in STACKABLE_QUANTITIES):
-            raise Exception("Cost and impact nodes must have stackable quantities")
+            raise Exception('Cost and impact nodes must have stackable quantities')
         if self.cost_node.unit is None or self.impact_node.unit is None:
-            raise Exception("Cost or impact node does not have a unit")
+            raise Exception('Cost or impact node does not have a unit')
         if self.graph_type == 'cost_effectiveness':
             div_unit = self.cost_node.unit / self.impact_node.unit
             if not self.indicator_unit.is_compatible_with(div_unit):
-                raise Exception("Indicator unit %s is not compatible with %s" % (self.indicator_unit, div_unit))
+                raise Exception('Indicator unit %s is not compatible with %s' % (self.indicator_unit, div_unit))
             if self.stakeholder_dimension is not None:
-                raise Exception("Stakeholder dimension is not allowed for a cost-effectiveness graph")
+                raise Exception('Stakeholder dimension is not allowed for a cost-effectiveness graph')
         if self.graph_type == 'cost_benefit':
             if not self.cost_unit == self.impact_unit:
-                raise Exception("Units must be the same for cost %s and impact %s" % (self.cost_unit, self.impact_unit))
+                raise Exception('Units must be the same for cost %s and impact %s' % (self.cost_unit, self.impact_unit))
         if self.graph_type == 'return_of_investment':
             if not self.indicator_unit.dimensionless:
-                raise Exception("The indicator unit %s must be dimensionless" % (self.indicator_unit))
+                raise Exception('The indicator unit %s must be dimensionless' % (self.indicator_unit))
             if not self.cost_unit == self.impact_unit:
-                raise Exception("Units must be the same for cost %s and impact %s" % (self.cost_unit, self.impact_unit))
+                raise Exception('Units must be the same for cost %s and impact %s' % (self.cost_unit, self.impact_unit))
             if self.stakeholder_dimension is not None:
-                raise Exception("Stakeholder dimension is not allowed for a return-of-investment graph")
+                raise Exception('Stakeholder dimension is not allowed for a return-of-investment graph')
             if self.outcome_dimension is not None:
-                raise Exception("Outcome indicator is not allowed in a return-of-investment graph")
+                raise Exception('Outcome indicator is not allowed in a return-of-investment graph')
 
-    def calculate_iter(
-        self, context: 'Context', actions: Iterable[ActionNode] | None = None
-    ) -> Iterator[ActionEfficiency]:
+    def calculate_iter(self, context: Context, actions: Iterable[ActionNode] | None = None) -> Iterator[ActionEfficiency]:
         if actions is None:
             actions = list(context.get_actions())
 
-        pc = PerfCounter(
-            "Action efficiency %s / %s" % (self.cost_node.id, self.impact_node.id),
-            level=PerfCounter.Level.DEBUG)
+        pc = PerfCounter('Action efficiency %s / %s' % (self.cost_node.id, self.impact_node.id), level=PerfCounter.Level.DEBUG)
         pc.display('starting')
         for action in actions:
             if not action.is_connected_to(self.cost_node) or not action.is_connected_to(self.impact_node):
@@ -417,21 +441,20 @@ class ActionEfficiencyPair:
             # cea             c_out
             # roi
             # voi i_out                   c_iter
-            match_dims_c = match_dims_i = [] # For cost and impact nodes, respectively
-            if self.graph_type=='cost_effectiveness':
+            match_dims_c = match_dims_i = []  # For cost and impact nodes, respectively
+            if self.graph_type == 'cost_effectiveness':
                 match_dims_c += [self.outcome_dimension]
-            if self.graph_type=='cost_benefit':
+            if self.graph_type == 'cost_benefit':
                 match_dims_c += [self.outcome_dimension, self.stakeholder_dimension]
                 match_dims_i += [self.outcome_dimension, self.stakeholder_dimension]
-            if self.graph_type=='value_of_information':
+            if self.graph_type == 'value_of_information':
                 match_dims_i += [self.outcome_dimension]
                 match_dims_c += [UNCERTAINTY_COLUMN]
             match_dims_i = set(match_dims_i) - set([None])
             match_dims_c = set(match_dims_c) - set([None])
 
             with context.perf_context.exec_node(action):
-                df = action.compute_indicator(
-                    self.cost_node, self.impact_node, match_dims_i, match_dims_c)
+                df = action.compute_indicator(self.cost_node, self.impact_node, match_dims_i, match_dims_c)
             if not len(df):
                 # No impact for this action, skip it
                 continue
@@ -455,12 +478,12 @@ class ActionEfficiencyPair:
                 action=action,
                 df=df,
                 efficiency_divisor=1 / unit_adjustment_multiplier,  # FIXME depreciated
-                unit_adjustment_multiplier=unit_adjustment_multiplier
+                unit_adjustment_multiplier=unit_adjustment_multiplier,
             )
             yield ae
 
-        pc.display("done")
+        pc.display('done')
 
-    def calculate(self, context: 'Context', actions: Iterable[ActionNode] | None = None) -> list[ActionEfficiency]:
+    def calculate(self, context: Context, actions: Iterable[ActionNode] | None = None) -> list[ActionEfficiency]:
         out = list(self.calculate_iter(context, actions))
         return out

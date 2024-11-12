@@ -3,9 +3,9 @@ from __future__ import annotations
 import typing
 from contextvars import ContextVar
 
-from paths.types import PathsAdminRequest
-
 if typing.TYPE_CHECKING:
+    from paths.types import PathsAdminRequest
+
     from nodes.models import InstanceConfig
 
 

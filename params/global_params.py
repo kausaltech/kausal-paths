@@ -1,5 +1,8 @@
-from .param import BoolParameter, NumberParameter, StringParameter
+from __future__ import annotations
+
 from common.i18n import gettext_lazy as _
+
+from .param import BoolParameter, NumberParameter, StringParameter
 
 
 class MunicipalityName(StringParameter):
@@ -197,3 +200,13 @@ class ExtendHistoricalValues(BoolParameter):
 class ShowScenarioImpacts(BoolParameter):
     name = _('On node graphs, show scenario impacts instead of outputs?')
     id = 'show_scenario_impacts'
+
+
+class MeasureDataOverride(BoolParameter):
+    name = _('Override input node values with framework measure data')
+    id = 'measure_data_override'
+
+
+class MeasureDataBaselineYearOnly(BoolParameter):
+    name = _('Use only baseline year from measure data')
+    id = 'measure_data_baseline_year_only'

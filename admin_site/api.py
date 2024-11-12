@@ -1,8 +1,7 @@
-from django.utils.translation import gettext as _
+from __future__ import annotations
 
-from rest_framework.decorators import (
-    api_view, throttle_classes, schema, authentication_classes, permission_classes
-)
+from django.utils.translation import gettext as _
+from rest_framework.decorators import api_view, authentication_classes, permission_classes, schema, throttle_classes
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle

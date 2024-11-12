@@ -9,3 +9,6 @@ pip
 textual
 inotify
 ondivi
+django-debug-toolbar
+basedpyright
+line-profiler

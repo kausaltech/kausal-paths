@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from django.contrib.postgres.fields import ArrayField
 from django.db import models, transaction
@@ -12,10 +12,7 @@ from modeltrans.fields import TranslationField
 from modeltrans.manager import MultilingualQuerySet
 from wagtail.admin.panels import FieldPanel, InlinePanel
 
-import pandas as pd
-import pint_pandas
 import polars as pl
-from dvc_pandas import Dataset as DVCDataset, DatasetMeta as DVCDatasetMeta, Repository
 
 from kausal_common.models.types import FK, M2M, MLModelManager
 
@@ -31,6 +28,8 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from wagtail.admin.panels.base import Panel
+
+    import pandas  # noqa: ICN001
 
     from kausal_common.models.types import RevMany
 
@@ -94,11 +93,14 @@ class Dataset(ClusterableModel, UserModifiableModel):
         df = pl.DataFrame(data)
         return list(df[YEAR_COLUMN].unique().sort())
 
-    def generate_empty_df(self) -> pd.DataFrame:
+    def generate_empty_df(self) -> pandas.DataFrame:
+        import pandas as pd
+        from pint_pandas import PintType
+
         dtypes = {}
         metric_cols = []
         for m in self.metrics.all():
-            dtypes[m.identifier] = pint_pandas.PintType(m.unit)
+            dtypes[m.identifier] = PintType(m.unit)
             metric_cols.append(m.identifier)
 
         ctx = self.instance.get_instance().context
@@ -123,6 +125,8 @@ class Dataset(ClusterableModel, UserModifiableModel):
         return data
 
     def generate_rows_for_missing_years(self) -> dict:
+        import pandas as pd
+
         df = self.generate_empty_df()
         existing = self.table
         if existing:
@@ -192,6 +196,8 @@ class Dataset(ClusterableModel, UserModifiableModel):
         repo_url: str | None = None,
     ):
         """Store the dataset to DVC."""
+        from dvc_pandas import Dataset as DVCDataset, DatasetMeta as DVCDatasetMeta, Repository
+
         ctx = self.instance.get_instance().context
 
         # Resolve DVC path
@@ -275,7 +281,7 @@ class DatasetMetric(OrderedModel):
 
     i18n = TranslationField(fields=('label',))
 
-    objects: ClassVar[DatasetMetricManager] = DatasetMetricManager()
+    objects: ClassVar[DatasetMetricManager] = DatasetMetricManager()  # pyright: ignore
 
     class Meta:
         unique_together = (('dataset', 'identifier'),)
@@ -303,8 +309,11 @@ class CellMetadata(UserModifiableModel):
 
     objects = CellMetadataManager()
 
-    class Meta:
-        abstract = True
+    if TYPE_CHECKING:
+        Meta: Any
+    else:
+        class Meta:
+            abstract = True
 
     def natural_key(self):
         return self.dataset.natural_key() + (self.cell_path,)
@@ -387,7 +396,7 @@ class Dimension(ClusterableModel, UserModifiableModel):
 
     categories: RevMany[DimensionCategory]
 
-    objects: ClassVar[DimensionManager] = DimensionManager()
+    objects: ClassVar[DimensionManager] = DimensionManager()  # pyright: ignore
 
     class Meta:
         unique_together = (('instance', 'identifier'),)
@@ -485,7 +494,7 @@ class DatasetDimension(OrderedModel):
         through='DatasetDimensionSelectedCategory',
     )
 
-    objects: ClassVar[DatasetDimensionManager] = DatasetDimensionManager()
+    objects: ClassVar[DatasetDimensionManager] = DatasetDimensionManager()  # pyright: ignore
 
     class Meta:
         unique_together = (('dataset', 'dimension'),)
@@ -538,7 +547,7 @@ class DimensionCategory(UserModifiableModel, OrderedModel):
 
     i18n = TranslationField(fields=('label',), default_language_field='dimension__instance__primary_language')
 
-    objects: ClassVar[DimensionCategoryManager] = DimensionCategoryManager()
+    objects: ClassVar[DimensionCategoryManager] = DimensionCategoryManager()  # pyright: ignore
 
     class Meta:
         ordering = ('dimension', 'order')

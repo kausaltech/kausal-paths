@@ -1,3 +1,4 @@
+# ruff: noqa: ANN401
 from __future__ import annotations
 
 import re
@@ -5,10 +6,9 @@ import typing
 from dataclasses import dataclass
 from functools import reduce
 from typing import Any, cast
+from typing_extensions import deprecated
 
-import pandas as pd
 import polars as pl
-from pint_pandas import PintType
 from polars._utils.parse import parse_into_list_of_expressions
 
 from nodes.constants import FORECAST_COLUMN, TIME_INTERVAL, VALUE_COLUMN, YEAR_COLUMN
@@ -18,6 +18,7 @@ if typing.TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterable, Sequence
 
     import numpy as np
+    import pandas as pd
     from dvc_pandas.dataset import Dataset as DVCDataset
     from polars.polars import PyDataFrame, PyExpr
     from polars.type_aliases import ColumnNameOrSelector, IntoExpr, IntoExprColumn
@@ -31,7 +32,7 @@ class DataFrameMeta:
     primary_keys: list[str]
 
     @classmethod
-    def get_dim_ids(cls, pks: list[str]):
+    def get_dim_ids(cls, pks: list[str]) -> list[str]:
         if YEAR_COLUMN in pks:
             pks.remove(YEAR_COLUMN)
         return pks
@@ -50,7 +51,7 @@ class DataFrameMeta:
 
 class PathsDataFrame(pl.DataFrame):
     _units: dict[str, Unit]
-    _primary_keys: typing.List[str]
+    _primary_keys: list[str]
     paths: PathsExt
 
     @classmethod
@@ -69,7 +70,7 @@ class PathsDataFrame(pl.DataFrame):
             if col in df.columns:
                 df._primary_keys.append(col)
 
-        _validate_ppdf(df)
+        validate_ppdf(df)
 
         return df
 
@@ -95,7 +96,7 @@ class PathsDataFrame(pl.DataFrame):
         df = super().filter(*predicates, **constraints)
         return to_ppdf(df, meta=meta)
 
-    def rename(self, mapping: dict[str, str] | Callable[[str], str]) -> PathsDataFrame:
+    def rename(self, mapping: dict[str, str] | Callable[[str], str], *, strict: bool = True) -> PathsDataFrame:
         meta = self.get_meta()
         units = dict(meta.units)
         primary_keys = list(meta.primary_keys)
@@ -135,17 +136,16 @@ class PathsDataFrame(pl.DataFrame):
             if output_col in units:
                 meta.units[output_col] = units[output_col]
                 continue
-            else:
-                if len(root_cols) == 1 and root_cols[0] in meta.units:
-                    meta.units[output_col] = meta.units[root_cols[0]]
+            if len(root_cols) == 1 and root_cols[0] in meta.units:
+                meta.units[output_col] = meta.units[root_cols[0]]
         return meta
 
     def select(  # type: ignore[override]
-        self, *exprs: IntoExpr | Iterable[IntoExpr], units: dict[str, Unit] | None = None, **named_exprs: IntoExpr
+        self, *exprs: IntoExpr | Iterable[IntoExpr], units: dict[str, Unit] | None = None, **named_exprs: IntoExpr,
     ) -> PathsDataFrame:
         structify = False
         pyexprs = parse_into_list_of_expressions(
-            *exprs, **named_exprs, __structify=structify
+            *exprs, **named_exprs, __structify=structify,
         )
         df = super().select(*exprs, **named_exprs)
         meta = self._pyexprs_to_meta(pyexprs, units or {})
@@ -154,9 +154,8 @@ class PathsDataFrame(pl.DataFrame):
     def select_metrics(self, metric_cols: list[str] | str, rename: list[str] | str | None = None) -> PathsDataFrame:
         if isinstance(metric_cols, str):
             metric_cols = [metric_cols]
-        if rename is not None:
-            if isinstance(rename, str):
-                rename = [rename]
+        if rename is not None and isinstance(rename, str):
+            rename = [rename]
         for col in metric_cols:
             if col not in self._units:
                 raise Exception('No unit for column %s' % col)
@@ -165,7 +164,7 @@ class PathsDataFrame(pl.DataFrame):
             cols.append(FORECAST_COLUMN)
         df = self.select(cols)
         if rename is not None:
-            df = df.rename({src: dest for src, dest in zip(metric_cols, rename)})
+            df = df.rename(dict(zip(metric_cols, rename, strict=True)))
         return df
 
     def with_columns(  # type: ignore[override]
@@ -176,13 +175,14 @@ class PathsDataFrame(pl.DataFrame):
     ) -> PathsDataFrame:
         structify = False
         pyexprs = parse_into_list_of_expressions(
-            *exprs, **named_exprs, __structify=structify
+            *exprs, **named_exprs, __structify=structify,
         )
         df = super().with_columns(*exprs, **named_exprs)
         meta = self._pyexprs_to_meta(pyexprs, units or {})
         return PathsDataFrame._from_pydf(df._df, meta=meta)
 
-    def with_column(self, column: pl.Series | pl.Expr, unit: Unit | None = None, is_primary_key: bool = False) -> PathsDataFrame:
+    @deprecated("Use with_columns() instead")
+    def with_column(self, column: pl.Series | pl.Expr, unit: Unit | None = None, is_primary_key: bool = False) -> PathsDataFrame:  # pyright: ignore
         raise NotImplementedError("Use with_columns() instead")
 
     def drop_nulls(self, subset: ColumnNameOrSelector | Collection[ColumnNameOrSelector] | None = None) -> PathsDataFrame:
@@ -198,7 +198,14 @@ class PathsDataFrame(pl.DataFrame):
         multithreaded: bool = True,
         maintain_order: bool = False,
     ) -> PathsDataFrame:
-        df = super().sort(by, *more_by, descending=descending, nulls_last=nulls_last, multithreaded=multithreaded, maintain_order=maintain_order)
+        df = super().sort(
+            by,
+            *more_by,
+            descending=descending,
+            nulls_last=nulls_last,
+            multithreaded=multithreaded,
+            maintain_order=maintain_order,
+        )
         return PathsDataFrame._from_pydf(df._df, meta=self.get_meta())
 
     def get_meta(self) -> DataFrameMeta:
@@ -230,7 +237,7 @@ class PathsDataFrame(pl.DataFrame):
         return PathsDataFrame._from_pydf(self._df, meta=meta)
 
     def multiply_cols(self, cols: list[str], out_col: str, out_unit: Unit | None = None) -> PathsDataFrame:
-        res_unit = reduce(lambda x, y: x * y, [self._units[col] for col in cols])
+        res_unit = cast(Unit, reduce(lambda x, y: x * y, [self._units[col] for col in cols]))  # pyright: ignore
         s = reduce(lambda x, y: x * y, [self[col] for col in cols])
         df = self.with_columns([s.alias(out_col)])
         df._units[out_col] = res_unit
@@ -247,7 +254,7 @@ class PathsDataFrame(pl.DataFrame):
         return df
 
     def divide_cols(self, cols: list[str], out_col: str, out_unit: Unit | None = None) -> PathsDataFrame:
-        res_unit = cast(Unit, reduce(lambda x, y: x / y, [self._units[col] for col in cols]))
+        res_unit = cast(Unit, reduce(lambda x, y: x / y, [self._units[col] for col in cols]))  # pyright: ignore
         s = reduce(lambda x, y: x / y, [self[col] for col in cols])
         df = self.with_columns([s.alias(out_col)])
         df._units[out_col] = res_unit
@@ -275,7 +282,8 @@ class PathsDataFrame(pl.DataFrame):
             else:
                 s = s + self.ensure_unit(col, res_unit)[col]
 
-        assert s is not None and res_unit is not None
+        assert s is not None
+        assert res_unit is not None
         df = self.with_columns([s.alias(out_col)])
         df._units[out_col] = res_unit
         if out_unit:
@@ -283,13 +291,12 @@ class PathsDataFrame(pl.DataFrame):
         return df
 
     def subtract_cols(self, cols: list[str], out_col: str, out_unit: Unit | None = None) -> PathsDataFrame:
-        res_unit = None
-        for col in cols:
-            if res_unit is None:
-                res_unit = self._units[col]
-                s = self[col]
-            else:
-                s = s - self.ensure_unit(col, res_unit)[col]
+        assert len(cols) > 0
+        first_col = cols[0]
+        res_unit = self._units[first_col]
+        s = self[first_col]
+        for col in cols[1:]:
+            s = s - self.ensure_unit(col, res_unit)[col]
 
         assert res_unit is not None
         df = self.with_columns([s.alias(out_col)])
@@ -336,7 +343,7 @@ class PathsDataFrame(pl.DataFrame):
     def diff(self, col: str, n: int = 1) -> PathsDataFrame:
         meta = self.get_meta()
         unit = unit_registry(TIME_INTERVAL)
-        meta.units[col] /= unit
+        meta.units[col] = cast(Unit, meta.units[col] / unit)
 
         df = self.paths.to_wide()
         for df_col in df.columns:
@@ -376,7 +383,11 @@ class PathsDataFrame(pl.DataFrame):
         df = self.with_columns([pl.Series(name=col, values=vls)], units={col: unit})
         return df
 
-    def to_pandas(self, *args: Any, date_as_object: bool = False, meta: DataFrameMeta | None = None, **kwargs: Any) -> pd.DataFrame:
+    def to_pandas(
+        self, *args: Any, date_as_object: bool = False, meta: DataFrameMeta | None = None, **kwargs: Any,
+    ) -> pd.DataFrame:
+        from pint_pandas import PintType
+
         if meta is None:
             meta = self.get_meta()
         df = super().to_pandas(*args, date_as_object=date_as_object, **kwargs)
@@ -397,14 +408,14 @@ class PathsDataFrame(pl.DataFrame):
         df = self.paths.to_wide()
 
         if year is None:
-            last_hist_year = df.filter(pl.col(FORECAST_COLUMN).eq(False))[YEAR_COLUMN].max()
+            last_hist_year = df.filter(pl.col(FORECAST_COLUMN).eq(other=False))[YEAR_COLUMN].max()
         else:
             last_hist_year = year
         df = df.filter(pl.col(YEAR_COLUMN).eq(last_hist_year))
         df = df.paths.to_narrow()
         return to_ppdf(df, meta=meta)
 
-    def __str__(self) -> str:
+    def __str__(self) -> str:  # noqa: C901
         meta = self.get_meta()
         df = self.copy()
         renames = {}
@@ -454,12 +465,12 @@ class PathsDataFrame(pl.DataFrame):
 
         table = Table()
         for col in self.columns:
-            col = col.replace('@', '\n').replace(':', ':\n')
-            table.add_column(col)
+            col_newlines = col.replace('@', '\n').replace(':', ':\n')
+            table.add_column(col_newlines)
         for row in self.iter_rows():
             vals = []
             for val in row:
-                if isinstance(val, (float, int)):
+                if isinstance(val, float | int):
                     vals.append(str(val))
                 else:
                     vals.append(val)
@@ -476,8 +487,9 @@ class PathsDataFrame(pl.DataFrame):
             baseline_year: int | None = None,
             baseline_year_level: Quantity | None = None,
             keep_dimension: bool | None = None) -> PathsDataFrame:
-        '''
-        Basic functionality is to select one category of a dimension and further process that.
+        """
+        Select one category of a dimension and further process that.
+
         The purpose is to choose a hypothesis of scenario among several ones.
         * Give the dimension name (often in the node class).
         * Give the category name (often in a string parameter).
@@ -485,7 +497,7 @@ class PathsDataFrame(pl.DataFrame):
         * Give the output as such.
         * Or, give the output as a ratio relative to the baseline year value.
         * Or, give the output as a difference to the baseline year level.
-        '''
+        """
         if category_number is not None:
             assert category is None
             category = sorted(self[dimension].unique())[category_number]  # FIXME Improve ordering method
@@ -497,9 +509,9 @@ class PathsDataFrame(pl.DataFrame):
             df = df.filter(pl.col(YEAR_COLUMN).ge(baseline_year))
             if baseline_year_level is None:  # Assume a relative change
                 level = df.filter(pl.col(YEAR_COLUMN).eq(baseline_year))[VALUE_COLUMN][0]
-                df = df.with_columns((
-                    pl.col(VALUE_COLUMN) / pl.lit(level) - pl.lit(1)
-                ))
+                df = df.with_columns(
+                    pl.col(VALUE_COLUMN) / pl.lit(level) - pl.lit(1),
+                )
                 df = df.clear_unit(VALUE_COLUMN)
                 df = df.set_unit(VALUE_COLUMN, 'dimensionless')
             else:
@@ -508,9 +520,9 @@ class PathsDataFrame(pl.DataFrame):
                 df = df.with_columns(pl.col(VALUE_COLUMN) - pl.lit(baseline_year_level.m))
         return df
 
-def _validate_ppdf(df: PathsDataFrame):
-    units = list(df._units.keys())
-    pks = list(df._primary_keys)
+def validate_ppdf(df: PathsDataFrame):
+    units = list(df._units.keys())  # pyright: ignore[reportPrivateUsage]
+    pks = list(df._primary_keys)  # pyright: ignore[reportPrivateUsage]
     for col in units + pks:
         if col not in df.columns:
             raise Exception('Column %s in metadata not found in DF columns' % col)
@@ -518,14 +530,17 @@ def _validate_ppdf(df: PathsDataFrame):
 
 def to_ppdf(df: pl.DataFrame | PathsDataFrame, meta: DataFrameMeta | None = None) -> PathsDataFrame:
     if isinstance(df, PathsDataFrame) and meta is None:
-        _validate_ppdf(df)
+        validate_ppdf(df)
         return df
-    pdf = PathsDataFrame._from_pydf(df._df, meta=meta)
-    _validate_ppdf(pdf)
+    pdf = PathsDataFrame._from_pydf(df._df, meta=meta)  # pyright: ignore[reportPrivateUsage]
+    validate_ppdf(pdf)
     return pdf
 
 
-def from_pandas(df: 'pd.DataFrame') -> PathsDataFrame:
+def from_pandas(df: pd.DataFrame) -> PathsDataFrame:
+    import pandas as pd
+    from pint_pandas import PintType
+
     dtypes = df.dtypes
     units: dict[str, Unit] = {}
     primary_keys: list[str] = []
@@ -544,8 +559,8 @@ def from_pandas(df: 'pd.DataFrame') -> PathsDataFrame:
     #for col in primary_keys:
     #    if not isinstance(col, str):
     #        raise Exception("Column name is not a string (it is %s)" % type(col))
-    pldf._units = units
-    pldf._primary_keys = primary_keys
+    pldf._units = units  # pyright: ignore[reportPrivateUsage]
+    pldf._primary_keys = primary_keys  # pyright: ignore[reportPrivateUsage]
     return pldf
 
 
@@ -556,7 +571,7 @@ def from_dvc_dataset(ds: DVCDataset):
         for col, unit in ds.units.items():
             units[col] = unit_registry.parse_units(unit)
     primary_keys = ds.index_columns or []
-    pldf = PathsDataFrame._from_pydf(ds.df._df, meta=DataFrameMeta(units, primary_keys))
+    pldf = PathsDataFrame._from_pydf(ds.df._df, meta=DataFrameMeta(units, primary_keys))  # pyright: ignore[reportPrivateUsage]
     return pldf
 
 

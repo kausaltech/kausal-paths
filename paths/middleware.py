@@ -12,7 +12,7 @@ from wagtail.users.models import UserProfile
 from kausal_common.logging.http import start_request
 
 from paths.admin_context import set_admin_instance
-from paths.cache import PathsObjectCache
+from paths.context import PathsObjectCache
 from paths.types import PathsAdminRequest, PathsRequest
 
 from nodes.models import InstanceConfig
@@ -30,7 +30,7 @@ class RequestMiddleware(MiddlewareMixin):
 
     def __call__(self, request: HttpRequest):
         request = cast(PathsRequest, request)
-        request.cache = PathsObjectCache()
+        request.cache = PathsObjectCache(request.user)
         with start_request(request):
             return self.get_response(request)  # pyright: ignore
 

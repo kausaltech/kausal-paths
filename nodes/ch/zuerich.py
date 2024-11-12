@@ -995,6 +995,8 @@ class TransportEmissions2kW(Node):
 
 
 class NonroadMachineryEmissions(Node):
+    quantity = 'emissions'
+
     def compute(self) -> ppl.PathsDataFrame:
         nodes = list(self.input_nodes)
         efn = self.get_input_node(tag='emission_factor')

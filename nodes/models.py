@@ -27,15 +27,17 @@ from wagtail.models import Locale, Page, RevisionMixin
 from wagtail.models.sites import Site
 from wagtail.search import index
 
+import sentry_sdk
 from loguru import logger
 from wagtail_color_panel.fields import ColorField  # type: ignore
 
 from kausal_common.i18n.helpers import convert_language_code
+from kausal_common.models.permission_policy import ModelPermissionPolicy
+from kausal_common.models.permissions import PermissionedQuerySet
 from kausal_common.models.types import FK, MLModelManager, RevMany, RevOne, copy_signature
 from kausal_common.models.uuid import UUIDIdentifiedModel
 
-from paths.permissions import BaseObjectAction, ObjectSpecificAction, PathsPermissionPolicy
-from paths.types import PathsModel, PathsQuerySet, UserOrAnon
+from paths.types import PathsModel, UserOrAnon
 from paths.utils import (
     ChoiceArrayField,
     IdentifierField,
@@ -56,11 +58,13 @@ if TYPE_CHECKING:
 
     from loguru import Logger
 
+    from kausal_common.models.permission_policy import BaseObjectAction, ObjectSpecificAction
+
     from datasets.models import Dataset as DatasetModel, Dimension as DimensionModel
     from frameworks.models import FrameworkConfig
     from nodes.node import Node
     from pages.config import OutcomePage as OutcomePageConfig
-    from pages.models import ActionListPage
+    from pages.models import ActionListPage, InstanceSiteContent
     from users.models import User
 
 
@@ -72,14 +76,15 @@ def get_instance_identifier_from_wildcard_domain(
 ) -> tuple[str, str] | tuple[None, None]:
     # Get instance identifier from hostname for development and testing
     parts = hostname.lower().split('.', maxsplit=1)
-    req_wildcards = getattr(request, 'wildcard_domains', None) or []
-    wildcard_domains = (settings.HOSTNAME_INSTANCE_DOMAINS or []) + req_wildcards
+    req_wildcards: list[str] = getattr(request, 'wildcard_domains', None) or []
+    settings_wildcards: list[str] = cast(list[str], settings.HOSTNAME_INSTANCE_DOMAINS) or []
+    wildcard_domains: list[str] = [*settings_wildcards, *req_wildcards]
     if len(parts) == 2 and parts[1].lower() in wildcard_domains:
         return (parts[0], parts[1])
     return (None, None)
 
 
-class InstanceConfigQuerySet(MultilingualQuerySet['InstanceConfig'], PathsQuerySet['InstanceConfig']):
+class InstanceConfigQuerySet(MultilingualQuerySet['InstanceConfig'], PermissionedQuerySet['InstanceConfig']):  # type: ignore[override]
     def for_hostname(self, hostname: str, request: HttpRequest | None = None):
         hostname = hostname.lower()
         hostnames = InstanceHostname.objects.filter(hostname=hostname)
@@ -96,20 +101,24 @@ class InstanceConfigQuerySet(MultilingualQuerySet['InstanceConfig'], PathsQueryS
 
 
 _InstanceConfigManager = models.Manager.from_queryset(InstanceConfigQuerySet)
-class InstanceConfigManager(MLModelManager['InstanceConfig', InstanceConfigQuerySet], _InstanceConfigManager):  # pyright: ignore
+class InstanceConfigManager(MLModelManager['InstanceConfig', InstanceConfigQuerySet], _InstanceConfigManager):  # pyright: ignore[reportIncompatibleMethodOverride]
     def get_by_natural_key(self, identifier: str) -> InstanceConfig:
         return self.get(identifier=identifier)
 del _InstanceConfigManager
 
 
-class InstanceConfigPermissionPolicy(PathsPermissionPolicy['InstanceConfig', InstanceConfigQuerySet]):
+class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', InstanceConfigQuerySet]):
     def __init__(self):
-        from .roles import instance_admin_role
+        from .roles import instance_admin_role, instance_viewer_role
         self.admin_role = instance_admin_role
+        self.viewer_role = instance_viewer_role
         super().__init__(InstanceConfig)
 
     def is_admin(self, user: User, obj: InstanceConfig) -> bool:
         return user.has_instance_role(self.admin_role, obj)
+
+    def is_viewer(self, user: User, obj: InstanceConfig) -> bool:
+        return user.has_instance_role(self.viewer_role, obj)
 
     def is_framework_admin(self, user: User, obj: InstanceConfig) -> bool:
         from frameworks.roles import framework_admin_role
@@ -117,11 +126,12 @@ class InstanceConfigPermissionPolicy(PathsPermissionPolicy['InstanceConfig', Ins
             return False
         return user.has_instance_role(framework_admin_role, obj.framework_config.framework)
 
-    def construct_perm_q(self, user: User, action: BaseObjectAction) -> models.Q | None:
+    def construct_perm_q(self, user: User, action: ObjectSpecificAction) -> models.Q | None:
         is_admin = Q(admin_group__in=user.cgroups)
+        is_viewer = Q(viewer_group__in=user.cgroups)
         is_fw_admin = Q(framework_config__framework__admin_group__in=user.cgroups)
         if action == 'view':
-            return is_admin | is_fw_admin | Q(framework_config__isnull=True)
+            return is_viewer | is_admin | is_fw_admin | Q(framework_config__isnull=True)
         return is_admin | is_fw_admin
 
     def construct_perm_q_anon(self, action: BaseObjectAction) -> Q | None:
@@ -136,8 +146,11 @@ class InstanceConfigPermissionPolicy(PathsPermissionPolicy['InstanceConfig', Ins
     def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: InstanceConfig) -> bool:
         if action == 'delete':
             return self.is_framework_admin(user, obj)
-        if action == 'view' and self.anon_has_perm('view', obj):
-            return True
+        if action == 'view':
+            if self.anon_has_perm('view', obj):
+                return True
+            if self.is_viewer(user, obj):
+                return True
         return self.is_admin(user, obj) or self.is_framework_admin(user, obj)
 
     def anon_has_perm(self, action: ObjectSpecificAction, obj: InstanceConfig) -> bool:
@@ -179,7 +192,9 @@ class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
     identifier = IdentifierField(max_length=100, unique=True, validators=[InstanceIdentifierValidator()])
     name = models.CharField(max_length=150, verbose_name=_('name'))
     lead_title = models.CharField(blank=True, max_length=100, verbose_name=_('Lead title'))
-    lead_paragraph = RichTextField(null=True, blank=True, verbose_name=_('Lead paragraph'))
+    lead_title_i18n: str
+    lead_paragraph = RichTextField[str | None, str | None](null=True, blank=True, verbose_name=_('Lead paragraph'))
+    lead_paragraph_i18n: str | None
     site_url = models.URLField(verbose_name=_('Site URL'), null=True)
     site = models.OneToOneField(Site, null=True, on_delete=models.PROTECT, editable=False, related_name='instance')
 
@@ -190,12 +205,17 @@ class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
     modified_at = models.DateTimeField(auto_now=True)
     cache_invalidated_at = models.DateTimeField(default=timezone.now)
 
-    primary_language = models.CharField(max_length=8, choices=get_supported_languages(), default=get_default_language)
+    primary_language = models.CharField(max_length=8, choices=get_supported_languages, default=get_default_language)  # type: ignore[arg-type]
     other_languages = ChoiceArrayField(
-        models.CharField(max_length=8, choices=get_supported_languages(), default=get_default_language),
+        models.CharField(max_length=8, choices=get_supported_languages, default=get_default_language),  # type: ignore[arg-type]
         default=list,
     )
 
+    viewer_group: FK[Group | None] = models.ForeignKey(
+        Group, on_delete=models.PROTECT, editable=False, related_name='viewer_instances',
+        null=True,
+    )
+    viewer_group_id: int | None
     admin_group: FK[Group | None] = models.ForeignKey(
         Group, on_delete=models.PROTECT, editable=False, related_name='admin_instances',
         null=True,
@@ -220,6 +240,7 @@ class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
     datasets: RevMany[DatasetModel]
     framework_config: RevOne[InstanceConfig, FrameworkConfig]
     framework_config_id: int | None
+    site_content: RevOne[InstanceConfig, InstanceSiteContent]
 
     search_fields = [
         index.SearchField('identifier'),
@@ -287,8 +308,11 @@ class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
         return instance
 
     def _initialize_instance(self, node_refs: bool = False) -> Instance:
-        instance = self._create_from_config()
-        self.update_instance_from_configs(instance, node_refs=node_refs)
+        with sentry_sdk.start_span(name='create-instance-from-config: %s' % self.identifier, op='function'):
+            instance = self._create_from_config()
+
+        with sentry_sdk.start_span(name='update-instance-from-configs: %s' % self.identifier, op='function'):
+            self.update_instance_from_configs(instance, node_refs=node_refs)
         instance.modified_at = timezone.now()
         if settings.ENABLE_PERF_TRACING:
             instance.context.perf_context.enabled = True
@@ -467,6 +491,10 @@ class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
         return home_page
 
     def create_default_content(self):
+        pp = self.permission_policy()
+        pp.admin_role.create_or_update_instance_group(self)
+        pp.viewer_role.create_or_update_instance_group(self)
+
         root_page = self._create_default_pages()
         if self.site is None and self.site_url is not None:
             o = urlparse(self.site_url)
@@ -485,13 +513,10 @@ class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
             self.save()
             site.delete()
             rp.get_descendants(inclusive=True).delete()
-        if self.admin_group is not None:
-            g_id = self.admin_group_id
-            has_others = InstanceConfig.objects.filter(admin_group=g_id).exclude(pk=self.pk).exists()
-            if not has_others:
-                self.admin_group = None
-                super().save(update_fields=['admin_group'])
-                Group.objects.get(id=g_id).delete()
+
+        pp = self.permission_policy()
+        pp.admin_role.delete_instance_group(self)
+        pp.viewer_role.delete_instance_group(self)
         self.nodes.all().delete()
         super().delete(**kwargs)
 
@@ -504,11 +529,6 @@ class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
             pass
 
         super().save(*args, **kwargs)
-
-        if self.admin_group is None:
-            from .roles import InstanceAdminRole
-            role = InstanceAdminRole()
-            role.create_or_update_instance_group(self)
 
     def invalidate_cache(self):
         self.cache_invalidated_at = timezone.now()
@@ -649,14 +669,14 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed, UUIDIdentifiedM
         null=True, blank=True, verbose_name=_('Order'),
     )
     is_visible = models.BooleanField(default=True)
-    goal = RichTextField(
+    goal = RichTextField[str | None, str | None](
         null=True, blank=True, verbose_name=_('Goal'), editor='very-limited',
         max_length=1000,
     ) # pyright: ignore
-    short_description = RichTextField(
+    short_description = RichTextField[str | None, str | None](
         null=True, blank=True, verbose_name=_('Short description'), editor='limited',
     ) # pyright: ignore
-    description = RichTextField(
+    description = RichTextField[str | None, str | None](
         null=True, blank=True, verbose_name=_('Description'),
     ) # -> StreamField
     body = StreamField([
