@@ -1,28 +1,21 @@
 from __future__ import annotations
 
-import base64
-import hashlib
-import inspect
-import io
-import json
-import os
 import typing
-from functools import wraps
-from pathlib import Path
-from time import perf_counter_ns
+from contextlib import AbstractContextManager, nullcontext
 from typing import Any, ClassVar, Literal, Self, cast, overload
 
 from django.utils.translation import gettext_lazy as _
 
-import networkx as nx
 import numpy as np
 import pandas as pd
 import pint_pandas
 import polars as pl
 from rich import print as pprint
 
+from paths.const import MODEL_CALC_OP
+
 from common import polars as ppl
-from common.i18n import I18nString, TranslatedString, get_modeltrans_attrs_from_str
+from common.i18n import I18nString, I18nStringInstance, TranslatedString, get_modeltrans_attrs_from_str
 from common.types import Identifier, MixedCaseIdentifier, validate_identifier
 from common.utils import hash_unit
 from nodes.calc import extend_last_historical_value_pl
@@ -40,13 +33,15 @@ from params.param import ParameterWithUnit
 
 from .datasets import Dataset, JSONDataset
 from .edges import Edge
-from .exceptions import NodeComputationError, NodeError, NodeHashingError
+from .exceptions import NodeComputationError, NodeError, NodeMissingDefaultUnitError
 from .units import Quantity, Unit, unit_registry
 
 if typing.TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
+    from pathlib import Path
 
     import loguru
+    from sentry_sdk.tracing import Span
 
     from common.cache import CacheResult
     from params import Parameter
@@ -54,11 +49,8 @@ if typing.TYPE_CHECKING:
     from .context import Context
     from .dimensions import Dimension
     from .models import NodeConfig
+    from .node_cache import NodeHasher
     from .scenario import Scenario
-
-
-class_fname_cache: dict[type, str] = {}
-DEBUG_CACHE_MISSES: bool = os.environ.get('DEBUG_CACHE_MISSES', '0') == '1'
 
 
 class NodeMetric:
@@ -69,11 +61,15 @@ class NodeMetric:
     label: I18nString | None
     default_unit: str | Unit
 
-    #__slots__ = ('id', 'unit', 'quantity', 'default_unit', 'label', 'column_id')
+    # __slots__ = ('id', 'unit', 'quantity', 'default_unit', 'label', 'column_id')
 
     def __init__(
-        self, unit: str | Unit, quantity: str, id: str | None = None,  # noqa: A002
-        label: I18nString | None = None, column_id: str | None = None,
+        self,
+        unit: str | Unit,
+        quantity: str,
+        id: str | None = None,
+        label: I18nString | None = None,
+        column_id: str | None = None,
     ):
         if id is not None:
             self.id = validate_identifier(id, mixed=True)
@@ -91,8 +87,11 @@ class NodeMetric:
     @classmethod
     def from_config(cls, config: dict) -> Self:
         return cls(
-            unit=config['unit'], quantity=config['quantity'], id=config['id'],
-            label=None, column_id=None,
+            unit=config['unit'],
+            quantity=config['quantity'],
+            id=config['id'],
+            label=None,
+            column_id=None,
         )
 
     def copy(self) -> NodeMetric:
@@ -118,9 +117,15 @@ class NodeMetric:
                     node_str = ' from node %s' % input_node.id
                 else:
                     node_str = ''
-                raise NodeError(node, 'Series with type %s%s is not compatible with %s' % (
-                    s_u, node_str, self.unit,
-                ))
+                raise NodeError(
+                    node,
+                    'Series with type %s%s is not compatible with %s'
+                    % (
+                        s_u,
+                        node_str,
+                        self.unit,
+                    ),
+                )
             # Units match exactly
             if s_u == self.unit:
                 return s
@@ -142,26 +147,26 @@ class NodeMetric:
 
 class Node:
     id: Identifier
-    "Identifier of the Node instance."
+    'Identifier of the Node instance.'
 
     database_id: int | None
-    "The database row that corresponds to this Node instance."
+    'The database row that corresponds to this Node instance.'
 
     db_obj: NodeConfig | None
-    "The Django object for this Node Instance"
+    'The Django object for this Node Instance'
 
-    name: I18nString
-    "Human-readable label for the Node instance."
+    name: I18nStringInstance
+    'Human-readable label for the Node instance.'
 
-    short_name: I18nString | None
-    "Shortened label for the node"
+    short_name: I18nStringInstance | None
+    'Shortened label for the node'
 
     # Description for the Node instance
     #
     # This gets mapped to NodeType.short_description in the GraphQL schema and
     # wrapped in a <p> tag.
-    description: I18nString | None
-    "Long description for the node"
+    description: I18nStringInstance | None
+    'Long description for the node'
 
     # if the node has an established visualisation color
     color: str | None
@@ -203,7 +208,7 @@ class Node:
     "References to the dimensions that this node's input must contain (typically set in a class)."
 
     explanation: I18nString = _('NOTE! Add text about the node class.')
-    "Textual explanation about what the node computes (typicallly set in a class)."
+    'Textual explanation about what the node computes (typicallly set in a class).'
 
     # set if this node has a specific goal for the simulation target year
     goals: NodeGoals | None
@@ -221,23 +226,16 @@ class Node:
     parameters: dict[str, Parameter]
 
     # All allowed parameters for this class
-    allowed_parameters: ClassVar[list[Parameter]]
+    allowed_parameters: ClassVar[Sequence[Parameter]]
 
     # Output for the node in the baseline scenario
-    baseline_values: ppl.PathsDataFrame | None
-
-    # When was this node last changed
-    modified_at: int | None = None
-    last_hash: bytes | None = None
-    last_hash_time: int | None = None
-    param_hash: bytes | None = None
-    mtime_hash: bytes | None = None
-    dim_hash: bytes | None = None
-    metrics_hash: bytes | None = None
+    _baseline_values: ppl.PathsDataFrame | None
 
     # Cache last historical year
     _last_historical_year: int | None
     context: Context
+
+    hasher: NodeHasher
 
     logger: loguru.Logger
     debug: bool = False
@@ -253,8 +251,17 @@ class Node:
         """Customization and validation that is run after the node graph is fully configured."""  # noqa: D401
         pass
 
+    @property
+    def single_metric_unit(self) -> Unit:
+        if self.unit is None:
+            raise NodeMissingDefaultUnitError(self)
+        return self.unit
+
     def _init_metrics(  # noqa: C901, PLR0912
-        self, unit: Unit | None, quantity: str | None, output_metrics: dict[str, NodeMetric] | None = None,
+        self,
+        unit: Unit | None,
+        quantity: str | None,
+        output_metrics: dict[str, NodeMetric] | None = None,
     ) -> None:
         if output_metrics is not None:
             self.output_metrics = {metric_id: metric.copy() for metric_id, metric in output_metrics.items()}
@@ -267,7 +274,7 @@ class Node:
 
             if len(self.output_metrics) == 1:
                 # Single-metric node
-                metric = list(self.output_metrics.values())[0]
+                metric = next(iter(self.output_metrics.values()))
                 self.unit = metric.unit
                 self.quantity = metric.quantity
                 if not metric.column_id:
@@ -281,21 +288,24 @@ class Node:
         else:
             quantity = quantity or getattr(self, 'quantity', None)
             if quantity is None:
-                raise NodeError(self, "Must provide quantity")
+                raise NodeError(self, 'Must provide quantity')
             ensure_known_quantity(quantity)
             self.quantity = quantity
             self.unit = unit
             if unit is None:
-                raise NodeError(self, "Attempting to initialize node without a unit")
+                raise NodeError(self, 'Attempting to initialize node without a unit')
             # Create the default metric automatically for now
             self.output_metrics[DEFAULT_METRIC] = NodeMetric(
-                unit, self.quantity, id=DEFAULT_METRIC, column_id=VALUE_COLUMN,
+                unit,
+                self.quantity,
+                id=DEFAULT_METRIC,
+                column_id=VALUE_COLUMN,
             )
 
         metric_cols = set()
         for metric in self.output_metrics.values():
             if metric.column_id in metric_cols:
-                raise NodeError(self, "Duplicate metric column IDs: %s" % metric.column_id)
+                raise NodeError(self, 'Duplicate metric column IDs: %s' % metric.column_id)
             metric_cols.add(metric.column_id)
 
     def _init_dimensions(
@@ -308,16 +318,16 @@ class Node:
 
         for dim_id, dim in dims.items():
             if not dim.is_internal:
-                raise NodeError(self, "Dimensions defined in class can only be internal ones")
+                raise NodeError(self, 'Dimensions defined in class can only be internal ones')
             if dim_id in self.context.dimensions:
-                raise NodeError(self, "Internal dimension is also a global one")
+                raise NodeError(self, 'Internal dimension is also a global one')
 
         if arg_dims and class_dim_ids:
             if set(arg_dims) != set(class_dim_ids):
                 raise NodeError(
                     self,
-                    "Invalid dimensions supplied: %s; expecting: %s" %
-                     (', '.join(arg_dims), ', '.join(class_dim_ids)))
+                    'Invalid dimensions supplied: %s; expecting: %s' % (', '.join(arg_dims), ', '.join(class_dim_ids)),
+                )
         elif class_dim_ids:
             arg_dims = class_dim_ids
 
@@ -327,21 +337,37 @@ class Node:
         for dim_id in arg_dims:
             d = self.context.dimensions.get(dim_id)
             if not d:
-                raise NodeError(self, "Dimension %s not found" % dim_id)
+                raise NodeError(self, 'Dimension %s not found' % dim_id)
             dims[dim_id] = d
         return dims
 
-    def __init__(  # noqa: PLR0913
-        self, id: str, context: Context, name: I18nString, short_name: I18nString | None = None,  # noqa: A002
-        unit: Unit | None = None, quantity: str | None = None, minimum_year: int | None = None,
-        description: I18nString | None = None, color: str | None = None, order: int | None = None,
+    def __init__(  # noqa: PLR0913, PLR0915
+        self,
+        id: str,
+        context: Context,
+        name: I18nStringInstance,
+        short_name: I18nStringInstance | None = None,
+        unit: Unit | None = None,
+        quantity: str | None = None,
+        minimum_year: int | None = None,
+        description: I18nStringInstance | None = None,
+        color: str | None = None,
+        order: int | None = None,
         node_group: str | None = None,
-        is_visible: bool = True, is_outcome: bool = False, target_year_goal: float | None = None, goals: dict | None = None,
-        allow_nulls: bool = False, input_datasets: list[Dataset] | None = None,
-        output_dimension_ids: list[str] | None = None, input_dimension_ids: list[str] | None = None,
+        is_visible: bool = True,
+        is_outcome: bool = False,
+        target_year_goal: float | None = None,
+        goals: dict | None = None,
+        allow_nulls: bool = False,
+        input_datasets: list[Dataset] | None = None,
+        output_dimension_ids: list[str] | None = None,
+        input_dimension_ids: list[str] | None = None,
         output_metrics: dict[str, NodeMetric] | None = None,
-        yaml_fn: Path | None = None, yaml_lc: tuple[int, int] | None = None,
+        yaml_fn: Path | None = None,
+        yaml_lc: tuple[int, int] | None = None,
     ):
+        from .node_cache import NodeHasher
+
         self.id = validate_identifier(id)
         self.context = context
 
@@ -356,7 +382,7 @@ class Node:
         self.yaml_lc = yaml_lc
         self.node_group = node_group
         if self.name is None:
-            raise NodeError(self, "Node has no name")
+            raise NodeError(self, 'Node has no name')
         self.short_name = short_name
         self.description = description
         self.color = color
@@ -379,7 +405,7 @@ class Node:
 
         self.input_dataset_instances = input_datasets
         self.edges = []
-        self.baseline_values = None
+        self._baseline_values = None
         self.parameters = {}
         self.tags = set()
 
@@ -395,36 +421,38 @@ class Node:
         if not hasattr(self, 'output_dimensions'):
             self.output_dimensions = {}
         self.output_dimensions = self._init_dimensions(
-            self.output_dimensions, output_dimension_ids, self.output_dimension_ids,
+            self.output_dimensions,
+            output_dimension_ids,
+            self.output_dimension_ids,
         )
 
         if not hasattr(self, 'input_dimensions'):
             self.input_dimensions = {}
         self.input_dimensions = self._init_dimensions(
-            self.input_dimensions, input_dimension_ids, self.input_dimension_ids,
+            self.input_dimensions,
+            input_dimension_ids,
+            self.input_dimension_ids,
         )
+
+        self.hasher = NodeHasher(self)
 
         # Call the subclass post-init method if it is defined
         if hasattr(self, '__post_init__'):
             self.__post_init__()
 
+        super().__init__()
+
     def add_parameter(self, param: Parameter):
         if param.local_id in self.parameters:
-            msg = f"Local parameter {param.local_id} already defined for node {self.id}"
+            msg = f'Local parameter {param.local_id} already defined for node {self.id}'
             raise Exception(msg)
         self.parameters[param.local_id] = param
         param.set_node(self)
 
-    def _mark_modified(self) -> None:
-        self.modified_at = perf_counter_ns()
-        for node in self.output_nodes:
-            node._mark_modified()
-
     def notify_parameter_change(self, param: Parameter):
         """Notify the node that an input parameter changed."""
-        self.param_hash = None
         # Propagate change notification to downstream nodes
-        self._mark_modified()
+        self.hasher.mark_modified()
 
     def get_parameters(self):
         yield from self.parameters.values()
@@ -443,9 +471,8 @@ class Node:
         if local_id in self.parameters:
             return self.parameters[local_id]
         if required:
-            raise NodeError(self, f"Local parameter {local_id} not found for node {self.id}")
+            raise NodeError(self, f'Local parameter {local_id} not found for node {self.id}')
         return None
-
 
     @overload
     def get_parameter_value(self, id: str, *, required: Literal[True] = True, units: Literal[True]) -> Quantity: ...
@@ -454,12 +481,12 @@ class Node:
     def get_parameter_value(self, id: str, *, required: Literal[False], units: Literal[True]) -> Quantity | None: ...
 
     @overload
-    def get_parameter_value(self, id: str, *, required: Literal[True] = True, units: Literal[False] = False) -> Any: ...
+    def get_parameter_value(self, id: str, *, required: Literal[False], units: Literal[False] = ...) -> object | None: ...
 
     @overload
-    def get_parameter_value(self, id: str, *, required: Literal[False], units: Literal[False] = ...) -> Any | None: ...
+    def get_parameter_value(self, id: str, *, required: bool = True, units: Literal[False] = False) -> object: ...
 
-    def get_parameter_value(self, id: str, *, required: bool = True, units: bool = False) -> Any:
+    def get_parameter_value(self, id: str, *, required: bool = True, units: bool = False) -> object | None:
         param = self.get_parameter(id, required=required)
         if param is None:
             return None
@@ -469,38 +496,79 @@ class Node:
         return param.value
 
     @overload
+    def get_typed_parameter_value[T](self, param_id: str, param_type: type[T], *, required: Literal[True] = True) -> T: ...
+
+    @overload
+    def get_typed_parameter_value[T](
+        self,
+        param_id: str,
+        param_type: type[T],
+        *,
+        required: Literal[False] = False,
+    ) -> T | None: ...
+
+    @overload
+    def get_typed_parameter_value[T](
+        self,
+        param_id: str,
+        param_type: type[T],
+        *,
+        required: bool = True,
+    ) -> T | None: ...
+
+    def get_typed_parameter_value[T](self, param_id: str, param_type: type[T], *, required: bool = True) -> T | None:
+        val = self.get_parameter_value(param_id, required=required)
+        if val is not None:
+            if type(val) is not param_type:
+                raise NodeError(
+                    self,
+                    "Parameter '%s' is of invalid type (required %s, got %s)" % (param_id, param_type, type(val)),
+                )
+            assert isinstance(val, param_type)
+        return val
+
+    @overload
+    def get_parameter_value_str(self, param_id: str, *, required: Literal[True] = True) -> str: ...
+
+    @overload
+    def get_parameter_value_str(self, param_id: str, *, required: Literal[False]) -> str | None: ...
+
+    def get_parameter_value_str(self, param_id: str, *, required: bool = True) -> str | None:
+        return self.get_typed_parameter_value(param_id, str, required=required)
+
+    @overload
     def get_global_parameter_value(self, id: str, *, required: Literal[True] = True, units: Literal[True]) -> Quantity: ...
 
     @overload
     def get_global_parameter_value(self, id: str, *, required: Literal[False], units: Literal[True]) -> Quantity | None: ...
 
     @overload
-    def get_global_parameter_value(self, id: str, *, required: Literal[True] = True, units: Literal[False] = False) -> Any: ...
+    def get_global_parameter_value(self, id: str, *, required: Literal[True] = True, units: Literal[False] = False) -> object: ...
 
     @overload
-    def get_global_parameter_value(self, id: str, *, required: Literal[False], units: Literal[False] = ...) -> Any | None: ...
+    def get_global_parameter_value(self, id: str, *, required: Literal[False], units: Literal[False] = ...) -> object | None: ...
 
-    def get_global_parameter_value(self, id: str, *, required: bool = True, units: bool = False) -> Any:
+    def get_global_parameter_value(self, id: str, *, required: bool = True, units: bool = False) -> object | None:
         if id not in self.global_parameters:
             if not required:
                 return None
-            raise NodeError(self, f"Attempting to access global parameter {id} which is not declared in the node definition")
+            raise NodeError(self, f'Attempting to access global parameter {id} which is not declared in the node definition')
         if units:
             param = self.context.get_parameter(id, required=required)
             if param is None:
                 return None
             if not hasattr(param, 'unit'):
-                raise NodeError(self, f"Parameter {id} does not support units")
+                raise NodeError(self, f'Parameter {id} does not support units')
             assert isinstance(param, ParameterWithUnit)
             assert param.unit is not None
             return param.value * param.unit
         return self.context.get_parameter_value(id, required=required)
 
-    def set_parameter_value(self, local_id: str, value: Any, force: bool = False):
+    def set_parameter_value(self, local_id: str, value: object | None, force: bool = False):
         # if force:  # FIXME if force, create this parameter
         #     self.parameters[local_id] = Parameter()
         if local_id not in self.parameters:
-            raise NodeError(self, f"Local parameter {local_id} not found for node {self.id}")
+            raise NodeError(self, f'Local parameter {local_id} not found for node {self.id}')
         self.parameters[local_id].set(value)
 
     def get_input_datasets_pl(self, tag: str | None = None, exclude_tags: list[str] | None = None) -> list[ppl.PathsDataFrame]:
@@ -519,7 +587,7 @@ class Node:
 
             df = ds.get_copy(self.context)
             if df.paths.index_has_duplicates():
-                raise NodeError(self, "Input dataset has duplicate index rows")
+                raise NodeError(self, 'Input dataset has duplicate index rows')
             assert isinstance(df, ppl.PathsDataFrame)
             dfs.append(df)
 
@@ -550,7 +618,6 @@ class Node:
         df = datasets[0]
         assert isinstance(df, ppl.PathsDataFrame)
         return df
-
 
     @overload
     def get_input_dataset(self, required: Literal[True] = True) -> pd.DataFrame: ...
@@ -625,118 +692,8 @@ class Node:
         if DEFAULT_METRIC in self.output_metrics:
             return self.output_metrics[DEFAULT_METRIC]
         if len(self.output_metrics) > 1:
-            raise NodeError(self, "Node outputs multiple output metrics, but none of them is set as default")
+            raise NodeError(self, 'Node outputs multiple output metrics, but none of them is set as default')
         return next(iter(self.output_metrics.values()))
-
-    def _get_cached_hash(self) -> bytes | None:
-        if self.modified_at is None or self.last_hash is None or self.last_hash_time is None:
-            return None
-        if self.modified_at <= self.last_hash_time:
-            return self.last_hash
-        return None
-
-    @staticmethod
-    def _wrap_hashing_error(func):
-        @wraps(func)
-        def report_error(*args, **kwargs):
-            try:
-                return func(*args, **kwargs)
-            except Exception as e:
-                node = args[0]
-                if isinstance(e, NodeHashingError):
-                    e.add_node(node)
-                    raise
-                raise NodeHashingError(args[0], "Unable to hash node") from e
-        return report_error
-
-    @_wrap_hashing_error
-    def calculate_hash(self, cache: dict | None = None) -> bytes:
-        cached_hash = self._get_cached_hash()
-        if cached_hash is not None:
-            return cached_hash
-
-        h = hashlib.md5(usedforsecurity=False)
-        if cache is None:
-            cache = {}
-
-        cache_parts = []
-
-        def hash_part(typ: str, part: str, val: str | bytes) -> None:
-            try:
-                if isinstance(val, str):
-                    cache_parts.append((typ, part, val))
-                    val = val.encode('ascii', 'backslashreplace')
-                else:
-                    cache_parts.append((typ, part, base64.b64encode(val).decode('ascii')))
-            except Exception:
-                self.logger.error("Unable to hash node: %s %s (value %s)" % (typ, part, val))
-                raise
-            h.update(val)
-
-        hash_part('id', '', self.id)
-        if self.metrics_hash is None:
-            metrics_hash = b''
-            for m in self.output_metrics.values():
-                metrics_hash += m.calculate_hash()
-            self.metrics_hash = metrics_hash
-        hash_part('metrics', '', self.metrics_hash)
-
-        if self.output_dimensions:
-            dim_hash = b''
-            for dim in self.output_dimensions.values():
-                dim_hash += dim.calculate_hash()
-            self.dim_hash = dim_hash
-            hash_part('dimensions', '', self.dim_hash)
-
-        for node in self.input_nodes:
-            hash_part('input node', node.id, node.calculate_hash(cache=cache))
-
-        if True or self.param_hash is None:
-            param_hash = ''
-            for _, param in sorted(self.parameters.items(), key=lambda x: x[0]):
-                ph = param.calculate_hash()
-                param_hash += ph
-                hash_part('param', param.local_id, ph)
-            for param_id in self.global_parameters:
-                gp = self.context.get_parameter(param_id, required=False)
-                if gp is not None:
-                    ph = gp.calculate_hash()
-                    param_hash += ph
-                    hash_part('global param', gp.global_id, ph)
-            self.param_hash = hashlib.md5(param_hash.encode('ascii'), usedforsecurity=False).digest()
-
-        for ds in self.input_dataset_instances:
-            hash_part('dataset', ds.id, ds.calculate_hash(self.context))
-
-        if self.mtime_hash is None:
-            mtime_hash = b''
-
-            for klass in type(self).mro():
-                if klass is object:
-                    continue
-                if klass in cache:
-                    mod_mtime = cache[klass]
-                else:
-                    fn = class_fname_cache.get(klass)
-                    if fn is None:
-                        fn = inspect.getfile(klass)
-                        class_fname_cache[klass] = fn
-
-                    try:
-                        mod_mtime = Path(fn).stat().st_mtime_ns
-                    except TypeError:
-                        continue
-                    cache[klass] = mod_mtime
-                mtime_hash += str(mod_mtime).encode('ascii')
-            self.mtime_hash = mtime_hash
-        hash_part('mtime', '', self.mtime_hash)
-
-        ret = h.digest()
-        self.last_hash = ret
-        self.last_hash_time = perf_counter_ns()
-        self.prev_hash_parts = getattr(self, 'last_hash_parts', None)
-        self.last_hash_parts = cache_parts
-        return ret
 
     def _get_output_for_node(self, df: ppl.PathsDataFrame, edge: Edge) -> ppl.PathsDataFrame:
         """
@@ -794,9 +751,9 @@ class Node:
             if target_node.quantity in self.output_metrics:
                 col_name = target_node.quantity
             # FIXME Add functionality that the target node is a simple one-metric node (to be further adjusted by to_dimensions)
-#            elif len(df.get_meta().metric_cols) == 1:
-#                print('pitäisi toimia', self.id)
-#                return df
+            #            elif len(df.get_meta().metric_cols) == 1:
+            #                print('pitäisi toimia', self.id)
+            #                return df
             else:
                 raise NodeError(self, "Quantity '%s' for node %s not found metrics" % (target_node.quantity, target_node))
 
@@ -814,32 +771,32 @@ class Node:
             if edge.output_node == target_node:
                 break
         else:
-            raise NodeError(self, "No connection to target node %s" % target_node.id)
+            raise NodeError(self, 'No connection to target node %s' % target_node.id)
 
         df = self._get_output_for_node(df, edge)
 
         # Slice a dimension if the parameter is given.
-        params = self.get_parameter_value('slice_category_at_edge', required=False)
+        params = self.get_parameter_value_str('slice_category_at_edge', required=False)
         if params:
-            params = params.split(',')
-            assert len(params) == 1
-            params = params[0].split(':')
+            param_arr = params.split(',')
+            assert len(param_arr) == 1
+            param_arr = param_arr[0].split(':')
             df = df.filter(pl.col(params[0]).eq(params[1]))
 
         if edge.from_dimensions:
             meta = df.get_meta()
             if not meta.dim_ids:
-                raise NodeError(self, "No dimensions in node output")
+                raise NodeError(self, 'No dimensions in node output')
             for dim_id, edge_dim in edge.from_dimensions.items():
                 cat_ids = [cat.id for cat in edge_dim.categories]
                 if dim_id not in meta.dim_ids:
-                    raise NodeError(self, "Dimension %s not in output df" % dim_id)
+                    raise NodeError(self, 'Dimension %s not in output df' % dim_id)
                 filter_expr = pl.col(dim_id).is_in(cat_ids)
                 if edge_dim.exclude:
                     filter_expr = ~filter_expr
                 df = df.filter(filter_expr)
                 if len(df) == 0:
-                    raise NodeError(self, "No rows left after filtering by %s" % dim_id)
+                    raise NodeError(self, 'No rows left after filtering by %s' % dim_id)
                 if edge_dim.flatten:
                     meta = df.get_meta()
                     df = df.paths.sum_over_dims([dim_id])
@@ -853,9 +810,9 @@ class Node:
                 if not nr_cats:
                     continue
                 if nr_cats > 1:
-                    raise NodeError(self, "to_dimensions can have only one category for now")
+                    raise NodeError(self, 'to_dimensions can have only one category for now')
                 if dim_id in df.columns:
-                    raise NodeError(self, "attempting to assign a category to an existing dimension")
+                    raise NodeError(self, 'attempting to assign a category to an existing dimension')
                 cat = edge_dim.categories[0]
                 new_cols.append((dim_id, cat.id))
 
@@ -868,8 +825,12 @@ class Node:
 
             if set(df.dim_ids) != output_dimensions:
                 raise NodeError(
-                    self, "Dimensions (%s) do not match in output for %s (expecting %s)" % (
-                        set(df.dim_ids), target_node, output_dimensions,
+                    self,
+                    'Dimensions (%s) do not match in output for %s (expecting %s)'
+                    % (
+                        set(df.dim_ids),
+                        target_node,
+                        output_dimensions,
                     ),
                 )
         else:
@@ -887,8 +848,12 @@ class Node:
             out_dims = ', '.join(meta.dim_ids)
             target_in_dims = ', '.join(output_dimensions)
             raise NodeError(
-                self, "Dimensions of output [%s] do not match the input dimensions of %s [%s]" % (
-                    out_dims, target_node.id, target_in_dims,
+                self,
+                'Dimensions of output [%s] do not match the input dimensions of %s [%s]'
+                % (
+                    out_dims,
+                    target_node.id,
+                    target_in_dims,
                 ),
             )
 
@@ -904,23 +869,18 @@ class Node:
             raise NodeError(self, "Invalid dtype for 'Year': %s" % df.schema[YEAR_COLUMN])
 
         ldf = df.lazy()
-        dupe_rows = (
-            ldf.group_by(meta.primary_keys)
-            .agg(pl.count())
-            .filter(pl.col('count') > 1)
-            .sort(YEAR_COLUMN)
-        )
+        dupe_rows = ldf.group_by(meta.primary_keys).agg(pl.count()).filter(pl.col('count') > 1).sort(YEAR_COLUMN)
         has_dupes = bool(len(dupe_rows.limit(1).collect()))
         if has_dupes:
             print(dupe_rows.collect())
             print(df)
-            raise NodeError(self, "Node output has duplicate index rows")
+            raise NodeError(self, 'Node output has duplicate index rows')
 
         if FORECAST_COLUMN in df.columns:
             if df[FORECAST_COLUMN].dtype != pl.Boolean:
-                raise NodeError(self, "Forecast column is not a boolean")
+                raise NodeError(self, 'Forecast column is not a boolean')
         else:
-            raise NodeError(self, "Forecast column missing")
+            raise NodeError(self, 'Forecast column missing')
 
         for metric in self.output_metrics.values():
             if metric.column_id not in df.columns:
@@ -967,161 +927,174 @@ class Node:
         dim_ids = set(meta.dim_ids)
         node_dims = set(self.output_dimensions.keys())
         if dim_ids != node_dims and not getattr(self, 'allow_unknown_dimensions', None):
-            raise NodeError(self, "Output has unknown dimensions: %s (expecting %s)" % (', '.join(dim_ids), ', '.join(node_dims)))
+            raise NodeError(self, 'Output has unknown dimensions: %s (expecting %s)' % (', '.join(dim_ids), ', '.join(node_dims)))
 
     def get_output(self, target_node: Node | None = None, metric: str | None = None) -> pd.DataFrame:
         df = self.get_output_pl(target_node, metric)
         return df.to_pandas()
 
-    def get_output_pl(self, target_node: Node | None = None, metric: str | None = None) -> ppl.PathsDataFrame:
+    def _process_edge_output(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912
+        for edge in self.edges:
+            if edge.output_node == target_node:
+                break
+        else:
+            raise NodeError(self, 'No connection to target node %s' % target_node.id)
+
+        for tag in edge.tags:
+            match tag:
+                case 'extend_values':
+                    df = extend_last_historical_value_pl(df, self.get_end_year())
+                case 'inventory_only':
+                    df = df.with_columns(  # TODO A non-elegant way to ensure there is at least one historical row.
+                        pl.when(pl.col(FORECAST_COLUMN) & (pl.count() == 1))
+                        .then(pl.lit(value=False))
+                        .otherwise(pl.col(FORECAST_COLUMN))
+                        .alias(FORECAST_COLUMN),
+                    )
+                    df = df.filter(pl.col(FORECAST_COLUMN) == pl.lit(value=False))
+                case 'forecast_only':
+                    df = df.filter(pl.col(FORECAST_COLUMN))
+                case 'arithmetic_inverse':
+                    df = df.multiply_quantity(VALUE_COLUMN, unit_registry('-1 * dimensionless'))
+                case 'geometric_inverse':
+                    df = df.divide_quantity(VALUE_COLUMN, unit_registry('1 * dimensionless'))
+                case 'complement':
+                    if not df.get_unit(VALUE_COLUMN).is_compatible_with('dimensionless'):
+                        raise NodeError(
+                            self, 'The unit of node %s must be compatible with dimensionless for taking complement' % self.id,
+                        )
+                    if self.quantity not in ['fraction', 'probability']:
+                        raise NodeError(
+                            self, 'The quantity of node %s must be fraction or probability for taking complement' % self.id,
+                        )
+                    df = df.ensure_unit(VALUE_COLUMN, unit='dimensionless')  # TODO CHECK
+                    df = df.with_columns((pl.lit(1.0) - pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
+                case 'difference':
+                    df = df.diff(VALUE_COLUMN)
+                case 'cumulative':
+                    df = df.cumulate(VALUE_COLUMN)
+                case 'cumulative_product':
+                    df = df.cumprod(VALUE_COLUMN)
+                case 'complement_cumulative_product':
+                    df = df.cumprod(VALUE_COLUMN, complement=True)
+                case 'ratio_to_last_historical_value':
+                    year = cast(int, df.filter(~df[FORECAST_COLUMN])[YEAR_COLUMN].max())
+                    df = self._scale_by_reference_year(df, year)
+                case 'make_nonnegative':
+                    df = df.with_columns(pl.max_horizontal(VALUE_COLUMN, 0.0))
+                case 'make_nonpositive':
+                    df = df.with_columns(pl.min_horizontal(VALUE_COLUMN, 0.0))
+                case 'empty_to_zero':
+                    df = df.with_columns(
+                        pl.when(pl.col(VALUE_COLUMN).is_nan())
+                        .then(pl.lit(0.0))
+                        .otherwise(pl.col(VALUE_COLUMN))
+                        .alias(VALUE_COLUMN),
+                    )
+                case _:
+                    pass
+
+        return df
+
+    def get_output_pl(
+        self, target_node: Node | None = None, metric: str | None = None, extra_span_desc: str | None = None,
+    ) -> ppl.PathsDataFrame:
         perf_cm = self.context.perf_context
-        span_ctx = self.context.tracer.start_as_current_span('%s:get' % self.id, attributes=dict(node_id=self.id))
+        span_ctx: AbstractContextManager[None | Span]
+        if self.hasher.is_run_cached():
+            span_ctx = nullcontext()
+        else:
+            if extra_span_desc:
+                span_name = '%s:get (%s)' % (self.id, extra_span_desc)
+            else:
+                span_name = '%s:get' % self.id
+            span_ctx = self.context.start_span(
+                span_name, op=MODEL_CALC_OP, attributes=dict(node_id=self.id, node_class=self.__class__.__name__),
+            )
         with span_ctx as span, perf_cm.exec_node(self) as node_run:
             try:
-                res, cache_res = self._get_output_pl(target_node=target_node, metric=metric)
+                df, cache_res = self._get_output_pl(target_node=target_node, metric=metric)
             except Exception as e:
                 if isinstance(e, NodeComputationError):
                     e.add_node(self)
                     raise
                 if target_node:
                     raise NodeComputationError(self, "Error getting output for node '%s'" % target_node.id) from e
-                raise NodeComputationError(self, "Error getting output") from e
-            if cache_res is None or not cache_res.is_hit:
-                span.set_attribute('cache', 'miss')
-            else:
-                span.set_attribute('cache', cache_res.kind.name)
+                raise NodeComputationError(self, 'Error getting output') from e
+            if span is not None:
+                if cache_res is None or not cache_res.is_hit:
+                    span.set_data('cache', 'miss')
+                else:
+                    span.set_data('cache', cache_res.kind.name)
             if node_run is not None and cache_res is not None:
                 node_run.mark_cache(cache_res)
 
         if target_node is not None:
-            for edge in self.edges:
-                if edge.output_node == target_node:
-                    break
-            else:
-                raise NodeError(self, "No connection to target node %s" % target_node.id)
+            df = self._process_edge_output(df, target_node)
 
-            for tag in edge.tags:
-                if tag == 'extend_values':
-                    res = extend_last_historical_value_pl(res, self.get_end_year())
-                elif tag == 'inventory_only':
-                    res = res.with_columns(  # TODO A non-elegant way to ensure there is at least one historical row.
-                        pl.when(pl.col(FORECAST_COLUMN) & (pl.count() == 1))
-                        .then(False)
-                        .otherwise(pl.col(FORECAST_COLUMN))
-                        .alias(FORECAST_COLUMN)
-                    )
-                    res = res.filter(pl.col(FORECAST_COLUMN) == False)  # noqa
-                elif tag == 'forecast_only':
-                    res = res.filter(pl.col(FORECAST_COLUMN))
-                elif tag == 'arithmetic_inverse':
-                    res = res.multiply_quantity(VALUE_COLUMN, unit_registry('-1 * dimensionless'))
-                elif tag == 'geometric_inverse':
-                    res = res.divide_quantity(VALUE_COLUMN, unit_registry('1 * dimensionless'))
-                elif tag == 'complement':
-                    if not res.get_unit(VALUE_COLUMN).is_compatible_with('dimensionless'):
-                        raise NodeError(self, 'The unit of node %s must be compatible with dimensionless for taking complement' % self.id)
-                    if self.quantity not in ['fraction', 'probability']:
-                        raise NodeError(self, 'The quantity of node %s must be fraction or probability for taking complement' % self.id)
-                    res = res.ensure_unit(VALUE_COLUMN, unit='dimensionless')  # TODO CHECK
-                    res = res.with_columns((pl.lit(1.0) - pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
-                elif tag == 'difference':
-                    res = res.diff(VALUE_COLUMN)
-                elif tag == 'cumulative':
-                    res = res.cumulate(VALUE_COLUMN)
-                elif tag == 'cumulative_product':
-                    res = res.cumprod(VALUE_COLUMN)
-                elif tag == 'complement_cumulative_product':
-                    res = res.cumprod(VALUE_COLUMN, complement=True)
-                elif tag == 'ratio_to_last_historical_value':
-                    year = cast(int, res.filter(~res[FORECAST_COLUMN])[YEAR_COLUMN].max())
-                    res = self._scale_by_reference_year(res, year)
-                elif tag == 'make_nonnegative':
-                    res = res.with_columns(pl.max_horizontal(VALUE_COLUMN, 0.0))
-                elif tag == 'make_nonpositive':
-                    res = res.with_columns(pl.min_horizontal(VALUE_COLUMN, 0.0))
-                elif tag == 'empty_to_zero':
-                    res = res.with_columns(
-                        pl.when(pl.col(VALUE_COLUMN).is_nan())
-                        .then(pl.lit(0.0))
-                        .otherwise(pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
+        return df
 
-        return res
-
-    def _get_output_pl(
-        self, target_node: Node | None = None, metric: str | None = None,
+    def _get_output_pl(  # noqa: C901
+        self,
+        target_node: Node | None = None,
+        metric: str | None = None,
     ) -> tuple[ppl.PathsDataFrame, CacheResult[ppl.PathsDataFrame] | None]:
         use_cache = not (self.disable_cache or self.context.skip_cache)
         cache_res = None
-        out = None
         if use_cache:
-            cache_key = 'node:%s:%s' % (self.id, self.calculate_hash().hex())
-            cache_res = self.context.cache.get(cache_key)
-            if not cache_res.is_hit and DEBUG_CACHE_MISSES:
-                self.logger.debug("Cache miss for node %s" % self.id)
-            out = cache_res.obj
-        else:
-            cache_key = ''
+            cache_res = self.hasher.get_cached_output()
 
-        if DEBUG_CACHE_MISSES and out is None and self.prev_hash_parts:
-            print(self.id)
-            if len(self.prev_hash_parts) != len(self.last_hash_parts):
-                pprint('Length mismatch!!')
-                pprint(self.prev_hash_parts)
-                pprint(self.last_hash_parts)
-                pprint('\n\n')
-            for old, new in zip(self.prev_hash_parts, self.last_hash_parts, strict=False):
-                if old[0] == 'input node' and new[0] == 'input node' and old[1] == new[1]:
-                    continue
-                if old != new:
-                    pprint('\told: %s\n\tnew: %s' % (old, new))
-
-        if out is None:
+        if cache_res is None or not cache_res.is_hit:
             try:
-                out = self.compute()
+                df = self.compute()
             except Exception as e:
-                self.context.log.error('Exception when computing node %s' % str(self))
-                raise e
-            if out is None:
-                raise NodeError(self, "Node returned no output")
+                self.context.log.error('Exception when computing node %s: %s' % (str(self), str(e)))
+                raise
+            if df is None:
+                raise NodeError(self, 'Node returned no output')
 
-            if isinstance(out, pd.DataFrame):
-                out = ppl.from_pandas(out)
+            if isinstance(df, pd.DataFrame):
+                df = ppl.from_pandas(df)
 
-            self.validate_output(out)
+            self.validate_output(df)
+            if cache_res is not None:
+                self.hasher.cache_output(cache_res, df)
+        else:
+            assert cache_res.obj is not None
+            df = cache_res.obj
 
-        assert isinstance(out, ppl.PathsDataFrame)
+        assert isinstance(df, ppl.PathsDataFrame)
 
-        if cache_res and not cache_res.is_hit:
-            self.context.cache.set(cache_key, out.copy())
-
-        meta = out.get_meta()
+        meta = df.get_meta()
 
         if self.minimum_year is not None:
-            out = out.filter(pl.col(YEAR_COLUMN) >= self.minimum_year)
+            df = df.filter(pl.col(YEAR_COLUMN) >= self.minimum_year)
 
         # If a node has multiple outputs, we can specify only one series
         # to include.
         if metric is not None:
-            assert metric in out.columns  # If target_node has metric, self MUST have that also.
+            assert metric in df.columns  # If target_node has metric, self MUST have that also.
             cols = meta.primary_keys.copy()
             cols.append(metric)
-            if FORECAST_COLUMN in out.columns:
+            if FORECAST_COLUMN in df.columns:
                 cols.append(FORECAST_COLUMN)
-            out = out.select(cols)
-            out = out.rename({metric: VALUE_COLUMN})
-            return (out, cache_res)  # FIXME I'd like to comment this out because if metric, to_dimensions is ignored.
+            df = df.select(cols)
+            df = df.rename({metric: VALUE_COLUMN})
+            return (df, cache_res)  # FIXME I'd like to comment this out because if metric, to_dimensions is ignored.
 
         if target_node is not None:
-            out = self._get_output_for_target(out, target_node)
+            df = self._get_output_for_target(df, target_node)
 
-        return (out, cache_res)
+        return (df, cache_res)
 
     def print_output(self, only_years: list[int] | None = None, filters: list[str] | None = None):
         from .debug import print_node_output
+
         print_node_output(self, only_years=only_years, filters=filters)
 
     def plot_output(self, filters: list[str] | None = None):
         from .debug import plot_node_output
+
         plot_node_output(self, filters=filters)
 
     def print_pint_df(self, df: pd.DataFrame | pd.Series):
@@ -1140,11 +1113,11 @@ class Node:
             out[col] = df[col]
         pprint(out)
 
-    def print(self, obj: Any):
+    def print(self, obj: Any):  # noqa: ANN401
         if isinstance(obj, pd.DataFrame | pd.Series):
             self.print_pint_df(obj)
             return
-        #if isinstance(obj, ppl.PathsDataFrame):
+        # if isinstance(obj, ppl.PathsDataFrame):
         #    obj.print()
         #    return
         pprint(obj)
@@ -1183,9 +1156,14 @@ class Node:
 
     def convert_to_unit(self, s: pd.Series, unit: Unit) -> pd.Series:
         if not s.pint.units.is_compatible_with(unit):
-            raise NodeError(self, 'Series with type %s is not compatible with %s' % (
-                s.pint.units, unit,
-            ))
+            raise NodeError(
+                self,
+                'Series with type %s is not compatible with %s'
+                % (
+                    s.pint.units,
+                    unit,
+                ),
+            )
         return s.astype(pint_pandas.PintType(unit))
 
     def ensure_output_unit(self, s: pd.Series, input_node: Node | None = None):
@@ -1195,10 +1173,12 @@ class Node:
         metric = self.output_metrics.get(DEFAULT_METRIC)
         if metric is None:
             assert len(self.output_metrics) == 1
-            metric = list(self.output_metrics.values())[0]
+            metric = next(iter(self.output_metrics.values()))
         return metric.ensure_output_unit(self, s, input_node)
 
     def get_downstream_nodes(self, to_node: Node | None = None, max_depth: int | None = None) -> list[Node]:
+        import networkx as nx
+
         res = nx.bfs_successors(self.context.node_graph, self.id, depth_limit=max_depth)
         nodes: list[Node] = []
         for __, children in res:
@@ -1207,7 +1187,7 @@ class Node:
         return nodes
 
     def get_upstream_nodes(self, filter_func: Callable[[Node], bool] | None = None) -> list[Node]:
-        from nodes.actions import ActionNode
+        from nodes.actions.action import ActionNode
         from nodes.actions.parent import ParentActionNode
 
         result = []
@@ -1232,7 +1212,8 @@ class Node:
         pass
 
     def get_icon(self) -> str | None:
-        from nodes.actions import ActionNode
+        from nodes.actions.action import ActionNode
+
         if isinstance(self, ActionNode):
             return '⚒'
 
@@ -1252,37 +1233,58 @@ class Node:
     def __repr__(self):
         return self.__str__()
 
-    def add_input_node(self, node: Node, tags: list[str] = []):
+    def add_input_node(self, node: Node, tags: list[str] | None = None):
+        if tags is None:
+            tags = []
         if node in self.input_nodes:
-            msg = f"Node {node} already added to input nodes for {self.id}"
+            msg = f'Node {node} already added to input nodes for {self.id}'
             raise Exception(msg)
         self.edges.append(Edge(input_node=node, output_node=self, tags=tags))
 
-    def add_output_node(self, node: Node, tags: list[str] = []):
+    def add_output_node(self, node: Node, tags: list[str] | None = None):
+        if tags is None:
+            tags = []
         if node in self.output_nodes:
-            msg = f"Node {node} already added to input nodes for {self.id}"
+            msg = f'Node {node} already added to input nodes for {self.id}'
             raise Exception(msg)
         self.edges.append(Edge(output_node=node, input_node=self, tags=tags))
 
     def add_edge(self, edge: Edge):
         if edge.input_node == self:
             if edge.output_node in self.output_nodes:
-                raise NodeError(self, f"Node {edge.output_node} already added to output nodes")
+                raise NodeError(self, f'Node {edge.output_node} already added to output nodes')
         elif edge.output_node == self:
             if edge.input_node in self.input_nodes:
-                raise NodeError(self, f"Node {edge.input_node} already added to input nodes")
+                raise NodeError(self, f'Node {edge.input_node} already added to input nodes')
         else:
-            raise NodeError(self, f"Attempting to add edge: {edge.input_node} -> {edge.output_node}")
+            raise NodeError(self, f'Attempting to add edge: {edge.input_node} -> {edge.output_node}')
         self.edges.append(edge)
 
     def is_connected_to(self, other: Node):
+        import networkx as nx
+
         return nx.has_path(self.context.node_graph, self.id, other.id)
 
+    def get_baseline_values(self) -> ppl.PathsDataFrame:
+        if self._baseline_values is not None:
+            return self._baseline_values
+        if self.context.active_scenario.id != 'baseline':
+            baseline = self.context.scenarios['baseline']
+            with baseline.override():
+                df = self.get_output_pl()
+        else:
+            df = self.get_output_pl()
+        self._baseline_values = df
+        return df
+
+    def baseline_values_calculated(self) -> bool:
+        return self._baseline_values is not None
+
     def generate_baseline_values(self):
-        if self.baseline_values is not None:
+        if self._baseline_values is not None:
             self.logger.error('Baseline values already calculated')
         assert self.context.active_scenario.id == 'baseline'
-        self.baseline_values = self.get_output_pl()
+        self._baseline_values = self.get_output_pl()
 
     def serialize_input_data(self):
         if len(self.input_dataset_instances) != 1:
@@ -1297,41 +1299,6 @@ class Node:
         out = JSONDataset.serialize_df(df)
         return out
 
-    def validate_input_data(self, data: dict):
-        return self._make_input_dataset(data)
-
-    def _make_input_dataset(self, data: dict):
-        sio = io.StringIO(json.dumps(data))
-        old = self.serialize_input_data()
-        old_pks = sorted(data['schema']['primaryKey'])
-        new_pks = sorted(old['schema']['primaryKey'])
-        if old_pks != new_pks:
-            self.logger.warning('Primary keys do not match (%s vs. %s) in node %s input_data; disregarding' % (self.id, old_pks, new_pks))
-            return None
-        old['data'] = data['data']
-        _ = pd.read_json(sio, orient='table')
-        return old
-
-    def replace_input_data(self, data: dict):
-        if len(self.input_dataset_instances) != 1:
-            raise NodeError(
-                self, "Can't replace data for node with %d input datasets" % len(self.input_dataset_instances))
-
-        d = self._make_input_dataset(data)
-        if d is None:
-            return
-        old_ds = self.input_dataset_instances[0]
-        try:
-            unit = old_ds.get_unit(self.context)
-        except Exception:
-            # FIXME: Make this more robust
-            unit = self.unit  # type: ignore
-        self.input_dataset_instances[0] = JSONDataset(
-            id=old_ds.id, data=d, unit=unit, tags=[],
-        )
-
-        self._last_historical_year = None
-
     def as_node_config_attributes(self):
         """Return a dict that can be used to set corresponding fields of NodeConfig."""
         attributes: dict[str, str | dict[str, str]] = {
@@ -1341,7 +1308,7 @@ class Node:
         i18n = {}
         default_lang = self.context.instance.default_language
 
-        def set_from_translated_str(s: str | TranslatedString | None, field_name: str):
+        def set_from_translated_str(s: str | TranslatedString | None, field_name: str) -> None:
             if s is None:
                 return
 
@@ -1365,15 +1332,21 @@ class Node:
         self.context.warning('%s %s' % (str(self), msg))
 
     def add_nodes_pl(
-        self, df: ppl.PathsDataFrame | None, nodes: list[Node], metric: str | None = None, keep_nodes: bool = False,
-        node_multipliers: list[float] | None = None, unit: Unit | None = None,
+        self,
+        df: ppl.PathsDataFrame | None,
+        nodes: list[Node],
+        metric: str | None = None,
+        keep_nodes: bool = False,
+        node_multipliers: list[float] | None = None,
+        unit: Unit | None = None,
+        start_from_year: int | None = None,
     ) -> ppl.PathsDataFrame:
         if len(nodes) == 0:
             if df is None:
-                raise NodeError(self, "No input dataset and no input nodes")
+                raise NodeError(self, 'No input dataset and no input nodes')
             return df
         if self.debug:
-            print('%s: input dataset:' % self.id)
+            print('%s: input dataset:' % str(self.id))
             if df is not None:
                 print(self.print(df))
             else:
@@ -1382,6 +1355,8 @@ class Node:
         node_outputs: list[tuple[Node, ppl.PathsDataFrame]] = []
         for node in nodes:
             node_df = node.get_output_pl(self, metric=metric)
+            if start_from_year is not None:
+                node_df = node_df.filter(pl.col(YEAR_COLUMN) >= start_from_year)
             if node_df.paths.index_has_duplicates():
                 raise NodeError(self, "Input from node '%s' has duplicate index rows" % node.id)
             if keep_nodes:
@@ -1401,9 +1376,9 @@ class Node:
 
         cols = df.columns
         if VALUE_COLUMN not in cols:
-            raise NodeError(self, "Value column missing in data")
+            raise NodeError(self, 'Value column missing in data')
         if FORECAST_COLUMN not in cols:
-            raise NodeError(self, "Forecast column missing in data")
+            raise NodeError(self, 'Forecast column missing in data')
 
         if unit is None:
             unit = self.unit
@@ -1417,16 +1392,15 @@ class Node:
                 self.print(node_df)
 
             if VALUE_COLUMN not in node_df.columns:
-                raise NodeError(self, "Value column missing in output of %s" % node.id)
+                raise NodeError(self, 'Value column missing in output of %s' % node.id)
 
             if node_multipliers:
                 mult = node_multipliers.pop(0)
-                node_df = node_df.with_columns(pl.col(VALUE_COLUMN) * mult)
+                node_df = node_df.with_columns(pl.col(VALUE_COLUMN) * mult)  # noqa: PLW2901
 
             ndf_meta = node_df.get_meta()
             if set(ndf_meta.dim_ids) != set(meta.dim_ids):
-                raise NodeError(self, "Dimensions do not match with %s (%s vs. %s)" % (node.id,
-                    ndf_meta.dim_ids, meta.dim_ids))
+                raise NodeError(self, 'Dimensions do not match with %s (%s vs. %s)' % (node.id, ndf_meta.dim_ids, meta.dim_ids))
             df = df.paths.add_with_dims(node_df, how='outer')
 
         df = df.select([YEAR_COLUMN, *meta.dim_ids, VALUE_COLUMN, FORECAST_COLUMN])
@@ -1434,6 +1408,7 @@ class Node:
 
     def check(self):
         from nodes.metric import DimensionalMetric
+
         df = self.get_output_pl()
         for m in self.output_metrics.values():
             nulls = df.filter(pl.col(m.column_id).is_null())
@@ -1443,8 +1418,8 @@ class Node:
             if len(nans):
                 raise NodeError(self, 'Output has NaNs in column %s' % m.column_id)
 
-        if self.baseline_values is not None:
-            bdf = self.baseline_values
+        if self._baseline_values is not None:
+            bdf = self._baseline_values
             for m in self.output_metrics.values():
                 nulls = bdf.filter(pl.col(m.column_id).is_null() | pl.col(m.column_id).is_nan())
                 if len(nulls):
@@ -1454,107 +1429,110 @@ class Node:
         if dm is not None:
             for v in dm.values:
                 if v is float('nan'):
-                    raise NodeError(self, "Output metric has NaNs")
+                    raise NodeError(self, 'Output metric has NaNs')
 
     def _scale_by_reference_year(self, df: ppl.PathsDataFrame, year: int | None = None) -> ppl.PathsDataFrame:
-        if year:
-            if len(df.dim_ids) == 0:
-                reference = df.filter(pl.col(YEAR_COLUMN).eq(year))[VALUE_COLUMN][0]
-                df = df.with_columns((
-                    pl.col(VALUE_COLUMN) / pl.lit(reference)
-                ).alias(VALUE_COLUMN))
-            else:
-                meta = df.get_meta()
-                reference = df.filter(pl.col(YEAR_COLUMN).eq(year))
-                df = df.join(reference, on=df.dim_ids)
-                df = df.with_columns((pl.col(VALUE_COLUMN) / pl.col(VALUE_COLUMN + '_right')).alias(VALUE_COLUMN))
-                df = df.drop([VALUE_COLUMN + '_right', FORECAST_COLUMN + '_right', YEAR_COLUMN + '_right'])
-                df = ppl.to_ppdf(df, meta=meta)
+        if not year:
+            return df
+        if len(df.dim_ids) == 0:
+            reference = df.filter(pl.col(YEAR_COLUMN).eq(year))[VALUE_COLUMN][0]
+            df = df.with_columns((pl.col(VALUE_COLUMN) / pl.lit(reference)).alias(VALUE_COLUMN))
+        else:
+            meta = df.get_meta()
+            reference = df.filter(pl.col(YEAR_COLUMN).eq(year))
+            zdf = df.join(reference, on=df.dim_ids)
+            zdf = zdf.with_columns((pl.col(VALUE_COLUMN) / pl.col(VALUE_COLUMN + '_right')).alias(VALUE_COLUMN))
+            zdf = zdf.drop([VALUE_COLUMN + '_right', FORECAST_COLUMN + '_right', YEAR_COLUMN + '_right'])
+            df = ppl.to_ppdf(zdf, meta=meta)
 
-            df = df.clear_unit(VALUE_COLUMN)
-            df = df.set_unit(VALUE_COLUMN, 'dimensionless')
+        df = df.clear_unit(VALUE_COLUMN)
+        df = df.set_unit(VALUE_COLUMN, 'dimensionless')
         return df
 
     def get_explanation(self):  # FIXME Add warning if categories drop out in merge.
         operation_nodes = [n.name for n in self.input_nodes]  # FIXME separate operation and additive
-        text = self.explanation + '\n'
+        text = str(self.explanation) + '\n'
         if 'formula' in self.parameters.keys():
-            text += 'The formula is:\n' + self.get_parameter_value('formula', required=False) + '\n'
+            text += 'The formula is:\n%s\n' % self.get_parameter_value_str('formula', required=False)
         if len(operation_nodes) > 0:
             text += _('The node has the following input nodes:') + '\n' + str(operation_nodes)
         else:
             text += _('The node does not have input nodes.')
-        edge_text0 = edge_text = 'The input nodes are processed in the following way before using as input for calculations in this node:\n'
+        edge_text0 = edge_text = (
+            'The input nodes are processed in the following way before using as input for calculations in this node:\n'
+        )
         for node in self.input_nodes:
             for edge in node.edges:
-                if edge.output_node == self:
-                    if len(edge.tags) > 0:
-                        edge_text += '    Node ' + str(node.name) + ':\n'
-                        for tag in edge.tags:
-                            if tag == 'non_additive':
-                                edge_text += _('    - Input node values are not added but operated despite matching units.\n')
-                            elif tag == 'extend_values':
-                                edge_text += _('    - Extend the last historical values to the remaining missing years.\n')
-                            elif tag == 'inventory_only':
-                                edge_text += _('    - Truncate the forecast values.\n')
-                            elif tag == 'arithmetic_inverse':
-                                edge_text += _('    - Take the arithmetic inverse of the values (-x).\n')
-                            elif tag == 'geometric_inverse':
-                                edge_text += _('    - Take the geometric inverse of the values (1/x).\n')
-                            elif tag == 'complement':
-                                edge_text += _('    - Take the complement of the dimensionless values (1-x).\n')
-                            elif tag == 'difference':
-                                edge_text += _('    - Take the difference across time (i.e. annual changes)\n')
-                            elif tag == 'cumulative':
-                                edge_text += _('    - Take the cumulative sum across time.\n')
-                            elif tag == 'cumulative_product':
-                                edge_text += _('    - Take the cumulative product of the dimensionless values across time.\n')
-                            elif tag == 'complement_cumulative_product':
-                                edge_text += _('    - Take the cumulative product of the dimensionless complement values across time.\n')
-                            elif tag == 'ratio_to_last_historical_value':
-                                edge_text += _('    - Take the ratio of the values compared with the last historical value.\n')
-                            elif tag == 'existing':
-                                edge_text += _('    - This is used as the baseline.\n')
-                            elif tag == 'incoming':
-                                edge_text += _('    - This is used for the incoming stock.\n')
-                            elif tag == 'removing':
-                                edge_text += _('    - This is the rate of stock removal.\n')
-                            elif tag == 'inserting':
-                                edge_text += _('    - This is the rate of new stock coming in.\n')
-                            elif tag == 'historical':
-                                edge_text += _('    - The node is used as the historical starting point.\n')
-                            elif tag == 'goal':
-                                edge_text += _('    - The node is used as the goal for the action.\n')
-                            elif tag == 'make_nonnegative':
-                                edge_text += _('    - Negative result values are replaced with 0.\n')
-                            elif tag == 'make_nonpositive':
-                                edge_text += _('    - Positive result values are replaced with 0.\n')
-                            elif tag == 'empty_to_zero':
-                                edge_text += _('    - Convert NaNs to zeros.\n')
+                if edge.output_node != self:
+                    continue
+                if len(edge.tags) == 0:
+                    continue
+                edge_text += '    Node ' + str(node.name) + ':\n'
+                for tag in edge.tags:
+                    if tag == 'non_additive':
+                        edge_text += _('    - Input node values are not added but operated despite matching units.\n')
+                    elif tag == 'extend_values':
+                        edge_text += _('    - Extend the last historical values to the remaining missing years.\n')
+                    elif tag == 'inventory_only':
+                        edge_text += _('    - Truncate the forecast values.\n')
+                    elif tag == 'arithmetic_inverse':
+                        edge_text += _('    - Take the arithmetic inverse of the values (-x).\n')
+                    elif tag == 'geometric_inverse':
+                        edge_text += _('    - Take the geometric inverse of the values (1/x).\n')
+                    elif tag == 'complement':
+                        edge_text += _('    - Take the complement of the dimensionless values (1-x).\n')
+                    elif tag == 'difference':
+                        edge_text += _('    - Take the difference across time (i.e. annual changes)\n')
+                    elif tag == 'cumulative':
+                        edge_text += _('    - Take the cumulative sum across time.\n')
+                    elif tag == 'cumulative_product':
+                        edge_text += _('    - Take the cumulative product of the dimensionless values across time.\n')
+                    elif tag == 'complement_cumulative_product':
+                        edge_text += _('    - Take the cumulative product of the dimensionless complement values across time.\n')
+                    elif tag == 'ratio_to_last_historical_value':
+                        edge_text += _('    - Take the ratio of the values compared with the last historical value.\n')
+                    elif tag == 'existing':
+                        edge_text += _('    - This is used as the baseline.\n')
+                    elif tag == 'incoming':
+                        edge_text += _('    - This is used for the incoming stock.\n')
+                    elif tag == 'removing':
+                        edge_text += _('    - This is the rate of stock removal.\n')
+                    elif tag == 'inserting':
+                        edge_text += _('    - This is the rate of new stock coming in.\n')
+                    elif tag == 'historical':
+                        edge_text += _('    - The node is used as the historical starting point.\n')
+                    elif tag == 'goal':
+                        edge_text += _('    - The node is used as the goal for the action.\n')
+                    elif tag == 'make_nonnegative':
+                        edge_text += _('    - Negative result values are replaced with 0.\n')
+                    elif tag == 'make_nonpositive':
+                        edge_text += _('    - Positive result values are replaced with 0.\n')
+                    elif tag == 'empty_to_zero':
+                        edge_text += _('    - Convert NaNs to zeros.\n')
+                    else:
+                        edge_text += _('    - The tag "%s" is given.\n') % tag
+
+                from_dims = edge.from_dimensions
+                if from_dims is not None:
+                    for dim in from_dims:
+                        cats = str([cat.label for cat in from_dims[dim].categories])
+                        dimlabel = self.context.dimensions[dim].label
+                        if len(from_dims[dim].categories) > 0:
+                            if from_dims[dim].exclude:
+                                do = 'exclude'
                             else:
-                                edge_text += _('    - The tag "%s" is given.\n') % tag
+                                do = 'include'
+                            edge_text += _('    - From dimension %s, %s categories %s.\n') % (dimlabel, do, cats)
+                        if from_dims[dim].flatten:
+                            edge_text += _('    - Sum over dimension %s .\n') % dimlabel
 
-                        dims = edge.from_dimensions
-                        if dims is not None:
-                            for dim in dims:
-                                cats = str([cat.label for cat in dims[dim].categories])
-                                dimlabel = self.context.dimensions[dim].label
-                                if len(dims[dim].categories) > 0:
-                                    if dims[dim].exclude:
-                                        do = 'exclude'
-                                    else:
-                                        do = 'include'
-                                    edge_text += _('    - From dimension %s, %s categories %s.\n') % (dimlabel, do, cats)
-                                if dims[dim].flatten:
-                                    edge_text += _('    - Sum over dimension %s .\n') % dimlabel
-
-                        dims = edge.to_dimensions
-                        if dims is not None:
-                            for dim in dims:
-                                cats = str([cat.label for cat in dims[dim].categories])
-                                dimlabel = self.context.dimensions[dim].label
-                                if len(dims[dim].categories) > 0:
-                                    edge_text += _('    - Add values to the category %s in a new dimension %s.\n' % (cats, dim))
+                to_dims = edge.to_dimensions
+                if to_dims is not None:
+                    for dim in to_dims:
+                        cats = str([cat.label for cat in to_dims[dim].categories])
+                        dimlabel = self.context.dimensions[dim].label
+                        if len(to_dims[dim].categories) > 0:
+                            edge_text += _('    - Add values to the category %s in a new dimension %s.\n' % (cats, dim))
 
         # print(self.input_datasets)  # FIXME Why does this not work?
         # if self.input_datasets:

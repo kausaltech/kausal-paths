@@ -1,8 +1,11 @@
-"""paths URL Configuration
+"""
+paths URL Configuration.
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/3.1/topics/http/urls/
-Examples:
+
+Examples
+--------
 Function views
     1. Add an import:  from my_app import views
     2. Add a URL to urlpatterns:  path('', views.home, name='home')
@@ -12,30 +15,42 @@ Class-based views
 Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
+
 """
-from types import ModuleType
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.conf.urls.static import static
-from django.urls import path, include, re_path
+from django.urls import include, path, re_path
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import TemplateView
 from django.views.static import serve as serve_static
-
 from wagtail import urls as wagtail_urls
 from wagtail.documents import urls as wagtaildocs_urls
+
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 from social_django import urls as social_urls
 
-from .api_router import router as api_router
-from .graphql_views import PathsGraphQLView
+#from strawberry.django.views import GraphQLView
+from kausal_common.deployment.health_check_view import health_view
+
 from admin_site import urls as admin_urls
 from datasets.api import all_routers as datasets_routers
-from nodes.api import all_routers as nodes_routers
 from frameworks.urls import urlpatterns as framework_urls
-from kausal_common.deployment.health_check_view import health_view
+from nodes.api import all_routers as nodes_routers
 from users.views import change_admin_instance
 
+from .api_router import router as api_router
+from .graphql_views import PathsGraphQLView
+
+#from .v2_schema import schema as v2_schema
+
+if TYPE_CHECKING:
+    from types import ModuleType
+
+#from .schema import federation_schema
 
 
 kpe_urls: ModuleType | None
@@ -57,7 +72,7 @@ urlpatterns = [
     re_path(
         r'^admin/change-admin-instance/(?:(?P<instance_id>\d+)/)?$',
         change_admin_instance,
-        name='change-admin-instance'
+        name='change-admin-instance',
     ),
     path('admin/', include(admin_urls)),
     path('documents/', include(wagtaildocs_urls)),
@@ -79,8 +94,28 @@ urlpatterns = [
     path('', include(framework_urls)),
 ]
 
+if settings.DEBUG:
+    #from kausal_common.debugging.memory import memory_trace
+
+    #from debugging.views import memory_tracker
+
+    #urlpatterns.append(path('debug/memory/', csrf_exempt(memory_trace)))
+    #urlpatterns.append(path('debug/memory-tracker/', csrf_exempt(memory_tracker)))
+    pass
+
 if kpe_urls is not None:
     urlpatterns.append(path('', include(kpe_urls)))
+
+##
+#    #path('v1/graphql-subschema/', csrf_exempt(PathsGraphQLView.as_view(schema=federation_schema, graphiql=True)), name='graphql-subschema'),
+#    path('v2/graphql/', csrf_exempt(GraphQLView.as_view(schema=v2_schema)), name='graphql_v2'),
+
+
+if settings.ENABLE_DEBUG_TOOLBAR:
+    import debug_toolbar  # type: ignore[import-untyped]
+
+    urlpatterns += [path('__debug__/', include(debug_toolbar.urls))]
+
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 if settings.DEBUG and settings.STATIC_URL == '/static/':

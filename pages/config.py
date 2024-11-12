@@ -1,4 +1,6 @@
-from pydantic import BaseModel, Field
+from __future__ import annotations
+
+from pydantic import Field
 
 from common.i18n import I18nBaseModel, I18nStringInstance
 

@@ -59,7 +59,7 @@ class PathsAdminPageForm(WagtailAdminPageForm):
         return cast(InstanceConfig, site.instance)  # pyright: ignore
 
 
-class PathsPageManager[PageT: PathsPage](PageModelManager[PageT, PageQuerySet[PageT]]):
+class PathsPageManager[PageT: PathsPage](PageModelManager[PageT, PageQuerySet[PageT]]):  # pyright: ignore
     model: type[PageT]
 
     def get_queryset(self) -> PageQuerySet[PageT]:
@@ -266,7 +266,7 @@ class InstanceSiteContent(models.Model):
     instance = models.OneToOneField(InstanceConfig, on_delete=models.CASCADE, related_name="site_content")
 
     intro_content = StreamField(
-        [
+        block_types=[
             ('title', blocks.RichTextBlock(label=_('Title'), features=['h2', 'h3', 'h4', 'bold', 'italic'])),
             (
                 'paragraph',

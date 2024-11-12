@@ -20,6 +20,7 @@ from treebeard.mp_tree import MP_Node, MP_NodeManager, MP_NodeQuerySet
 
 from kausal_common.models.modification_tracking import UserModifiableModel
 from kausal_common.models.ordered import OrderedModel
+from kausal_common.models.permission_policy import ModelPermissionPolicy, ModelReadOnlyPolicy, ParentInheritedPolicy
 from kausal_common.models.types import FK, M2M, QS, ModelManager, OneToOne, RevManyQS, copy_signature
 from kausal_common.models.uuid import UUIDIdentifiedModel
 from kausal_common.users import UserOrAnon, user_or_none
@@ -33,8 +34,9 @@ if TYPE_CHECKING:
     from kausal_common.models.types import RevMany
 
     from nodes.models import InstanceConfig
+    from users.models import User
 
-    from .permissions import FrameworkConfigPermissionPolicy, FrameworkPermissionPolicy
+    from .permissions import FrameworkConfigPermissionPolicy, FrameworkPermissionPolicy, SectionPermissionPolicy
 
 
 class FrameworkQuerySet(PathsQuerySet['Framework']):
@@ -86,10 +88,11 @@ class Framework(PathsModel, UUIDIdentifiedModel):
 
     objects: ClassVar[FrameworkManager] = FrameworkManager()  # pyright: ignore
 
+    id: int
     root_section_id: int | None
     admin_group_id: int | None
     dimensions: RevMany[FrameworkDimension]
-    sections: RevMany[Section]
+    sections: RevManyQS[Section, SectionQuerySet]
     configs: RevManyQS[FrameworkConfig, FrameworkConfigQuerySet]
 
     def __str__(self):
@@ -156,7 +159,7 @@ class Framework(PathsModel, UUIDIdentifiedModel):
         self.save(update_fields=['root_section'])
         return root_section
 
-    def measure_templates(self) -> QS[MeasureTemplate]:
+    def measure_templates(self) -> MeasureTemplateQuerySet:
         return MeasureTemplate.objects.get_queryset().filter(section__framework=self)
 
 class FrameworkDimension(UUIDIdentifiedModel, OrderedModel):
@@ -214,7 +217,7 @@ class FrameworkDimensionCategory(UUIDIdentifiedModel, OrderedModel):
         return qs.filter(dimension=self.dimension)
 
 
-class SectionQuerySet(MP_NodeQuerySet['Section']):
+class SectionQuerySet(MP_NodeQuerySet['Section'], PathsQuerySet['Section']):
     def _parents(self) -> SectionQuerySet:
         model = cast(type[Section], self.model)
         qs = cast(SectionQuerySet, model._default_manager.get_queryset())
@@ -237,7 +240,7 @@ class SectionManager(MP_NodeManager['Section']):
         return SectionQuerySet(Section).order_by('path')
 
 
-class Section(MP_Node[SectionQuerySet], UUIDIdentifiedModel):
+class Section(PathsModel, MP_Node[SectionQuerySet], UUIDIdentifiedModel):
     """
     Represents a section within a framework.
 
@@ -259,7 +262,7 @@ class Section(MP_Node[SectionQuerySet], UUIDIdentifiedModel):
     objects: ClassVar[SectionManager] = SectionManager()  # pyright: ignore
     _default_manager: ClassVar[SectionManager]
 
-    class Meta:  # pyright: ignore
+    class Meta:
         constraints = [
             models.UniqueConstraint(name='section_identifier', fields=['framework', 'identifier'], nulls_distinct=True),
         ]
@@ -271,6 +274,11 @@ class Section(MP_Node[SectionQuerySet], UUIDIdentifiedModel):
         yield self.name
         yield "framework", self.framework.identifier
         yield "uuid", self.uuid
+
+    @classmethod
+    def permission_policy(cls) -> SectionPermissionPolicy:
+        from .permissions import SectionPermissionPolicy
+        return SectionPermissionPolicy()
 
     def print_tree(self, indent: int = 0):
         """Print the subsections and measures in each section as an indented hierarchical tree."""
@@ -304,7 +312,17 @@ class MeasurePriority(models.TextChoices):
     LOW = "low", _("Low")
 
 
-class MeasureTemplate(OrderedModel, UUIDIdentifiedModel):
+class MeasureTemplateQuerySet(PathsQuerySet['MeasureTemplate']):
+    pass
+
+
+_MeasureTemplateManager = models.Manager.from_queryset(MeasureTemplateQuerySet)
+class MeasureTemplateManager(ModelManager['MeasureTemplate', MeasureTemplateQuerySet], _MeasureTemplateManager):  # pyright: ignore
+    """Model manager for MeasureTemplate."""
+del _MeasureTemplateManager
+
+
+class MeasureTemplate(PathsModel, OrderedModel, UUIDIdentifiedModel):
     """
     Represents a template for measures within a framework.
 
@@ -335,10 +353,13 @@ class MeasureTemplate(OrderedModel, UUIDIdentifiedModel):
     default_data_points: RevMany[MeasureTemplateDefaultDataPoint]
     measures: RevMany[Measure]
 
-    objects: ClassVar[models.Manager[MeasureTemplate]]
     public_fields: ClassVar = [
         "uuid", "name", "unit", "priority", "min_value", "max_value", "time_series_max", "default_value_source",
     ]
+
+    objects: ClassVar[MeasureTemplateManager] = MeasureTemplateManager()  # pyright: ignore
+
+    section_id: int
 
     class Meta:  # pyright: ignore
         ordering = ["section", "order"]
@@ -346,6 +367,10 @@ class MeasureTemplate(OrderedModel, UUIDIdentifiedModel):
     @property
     def framework(self) -> Framework:
         return self.section.framework
+
+    @classmethod
+    def permission_policy(cls) -> ModelReadOnlyPolicy[Self, MeasureTemplateQuerySet]:
+        return ModelReadOnlyPolicy(cls)
 
     def __str__(self):
         return f"{self.section.name} - {self.name}"
@@ -389,7 +414,18 @@ class MeasureTemplateDimension(OrderedModel):
         return qs.filter(template=self.template)
 
 
-class MeasureTemplateDefaultDataPoint(models.Model):
+class MeasureTemplateDefaultDataPointQuerySet(PathsQuerySet['MeasureTemplateDefaultDataPoint']):
+    pass
+
+_MeasureTemplateDefaultDataPointManager = models.Manager.from_queryset(MeasureTemplateDefaultDataPointQuerySet)
+class MeasureTemplateDefaultDataPointManager(  # pyright: ignore
+    ModelManager['MeasureTemplateDefaultDataPoint', MeasureTemplateDefaultDataPointQuerySet],
+    _MeasureTemplateDefaultDataPointManager,
+):
+    """Model manager for MeasureTemplateDefaultDataPoint."""
+del _MeasureTemplateDefaultDataPointManager
+
+class MeasureTemplateDefaultDataPoint(PathsModel):
     """
     Represents a default (fallback) value for a measure template.
 
@@ -407,8 +443,16 @@ class MeasureTemplateDefaultDataPoint(models.Model):
 
     public_fields: ClassVar = ['year', 'value']
 
+    objects: ClassVar[MeasureTemplateDefaultDataPointManager] = MeasureTemplateDefaultDataPointManager()  # pyright: ignore
+
+    template_id: int
+
     class Meta:
         ordering = ["template", "year"]
+
+    @classmethod
+    def permission_policy(cls) -> ModelPermissionPolicy[Self, QS[Self]]:
+        return ModelReadOnlyPolicy(cls)
 
     def __str__(self):
         return f"{self.template.name} - {self.year}"
@@ -478,7 +522,7 @@ class FrameworkConfig(PathsModel, UserModifiableModel, UUIDIdentifiedModel):
 
     @classmethod
     @transaction.atomic
-    def create_instance(  # noqa: PLR0913
+    def create_instance(
         cls, framework: Framework, instance_identifier: str, org_name: str, baseline_year: int, uuid: str | None = None,
         user: UserOrAnon | None = None,
     ) -> FrameworkConfig:
@@ -527,7 +571,7 @@ class FrameworkConfig(PathsModel, UserModifiableModel, UUIDIdentifiedModel):
         mt_qs = fw.measure_templates()
         m_qs = self.measures.filter(measure_template__in=mt_qs)
         m_by_uuid: dict[uuid.UUID, Measure] = {
-            m.mt_uuid: m for m in m_qs.annotate(mt_uuid=F('measure_template__uuid'))  # pyright: ignore
+            m.mt_uuid: m for m in m_qs.annotate(mt_uuid=F('measure_template__uuid'))  # type: ignore[attr-defined]
         }
         year = self.baseline_year
         mdp_qs = (
@@ -591,7 +635,16 @@ class FrameworkConfig(PathsModel, UserModifiableModel, UUIDIdentifiedModel):
         self.instance_config.invalidate_cache()
 
 
-class Measure(models.Model):
+class MeasureQuerySet(PathsQuerySet['Measure']):
+    pass
+
+_MeasureManager = models.Manager.from_queryset(MeasureQuerySet)
+class MeasureManager(ModelManager['Measure', MeasureQuerySet], _MeasureManager):  # pyright: ignore
+    """Model manager for Measure."""
+del _MeasureManager
+
+
+class Measure(PathsModel):
     """
     Represents the concrete measure for an organization-specific Instance.
 
@@ -612,10 +665,20 @@ class Measure(models.Model):
         'framework_config', 'measure_template', 'unit', 'data_points', 'internal_notes',
     ]
 
+    objects: ClassVar[MeasureManager] = MeasureManager()  # pyright: ignore
+
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=['framework_config', 'measure_template'], name='unique_instance_measure'),
         ]
+
+    @classmethod
+    def user_can_create(cls, user: User, fwc: FrameworkConfig) -> bool:
+        return fwc.permission_policy().user_can_create(user, fwc.framework)
+
+    @classmethod
+    def permission_policy(cls) -> ParentInheritedPolicy[Self, FrameworkConfig, MeasureQuerySet]:
+        return ParentInheritedPolicy(cls, FrameworkConfig, 'framework_config')
 
     def __str__(self):
         return f"{self.framework_config.framework.name} - {self.measure_template.name}"

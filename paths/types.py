@@ -1,25 +1,26 @@
 from __future__ import annotations
 
-import abc
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Any
 
-from django.db import models
-from django.db.models.query import QuerySet
 from django.http import HttpRequest
-from graphql import GraphQLError
 
-from paths.permissions import PathsPermissionPolicy
+from kausal_common.models.permissions import PermissionedModel, PermissionedQuerySet
 
 if TYPE_CHECKING:
+    from collections import OrderedDict
+    from typing import type_check_only
+
     from django.contrib.auth.models import AnonymousUser
     from wagtail.models import Site
 
-    from kausal_common.graphene import GQLInfo
+    from kausal_common.graphene import GQLContext as CommonGQLContext, GQLInfo as CommonGQLInfo
 
-    from paths.cache import PathsObjectCache
-    from paths.permissions import ObjectSpecificAction, PathsPermissionPolicy
+    from paths.context import PathsObjectCache
+    from paths.graphql_helpers import GraphQLPerfNode
 
+    from nodes.instance import Instance
     from nodes.models import InstanceConfig
+    from nodes.perf import PerfContext
     from users.models import User
 
 
@@ -27,14 +28,14 @@ type UserOrAnon = 'User | AnonymousUser'
 
 
 class PathsRequest(HttpRequest):
-    user: UserOrAnon
+    user: UserOrAnon  # type: ignore[override]
     cache: PathsObjectCache
     correlation_id: str
     """Randomly generated ID for correlation."""
 
 
 class PathsAuthenticatedRequest(PathsRequest):
-    user: 'User'
+    user: User  # type: ignore[override]
 
 
 class PathsAdminRequest(PathsAuthenticatedRequest):
@@ -46,33 +47,37 @@ class PathsAPIRequest(PathsAuthenticatedRequest):
     wildcard_domains: list[str] | None
 
 
-class PathsModel(models.Model):  # noqa: DJ008
+class PathsModel(PermissionedModel):
     if TYPE_CHECKING:
         Meta: Any
     else:
         class Meta:
             abstract = True
 
-    @classmethod
-    @abc.abstractmethod
-    def permission_policy(cls) -> PathsPermissionPolicy[Self, Any]: ...
 
-    def gql_action_allowed(self, info: GQLInfo, action: ObjectSpecificAction) -> bool:
-        return self.permission_policy().gql_action_allowed(info, action, self)
-
-    def ensure_gql_action_allowed(self, info: GQLInfo, action: ObjectSpecificAction) -> None:
-        if not self.gql_action_allowed(info, action):
-            raise GraphQLError("Permission denied for action '%s'" % action, nodes=info.field_nodes)
+class PathsQuerySet[M: PathsModel](PermissionedQuerySet[M]):
+    pass
 
 
-class PathsQuerySet[M: PathsModel](QuerySet[M]):
-    @property
-    def _pp(self) -> PathsPermissionPolicy[M, Self]:
-        return self.model.permission_policy()
+if TYPE_CHECKING:
+    @type_check_only
+    class PathsGQLContext(CommonGQLContext):  # pyright: ignore[reportGeneralTypeIssues]
+        graphql_operation_name: str | None
+        graphql_perf: PerfContext[GraphQLPerfNode]
+        oauth2_error: OrderedDict[str, str]
+        cache: PathsObjectCache
+        _referer: str | None
 
-    def viewable_by(self, user: UserOrAnon) -> Self:
-        return self._pp.filter_by_perm(self, user, 'view')
-    def deletable_by(self, user: UserOrAnon) -> Self:
-        return self._pp.filter_by_perm(self, user, 'delete')
-    def modifiable_by(self, user: UserOrAnon) -> Self:
-        return self._pp.filter_by_perm(self, user, 'change')
+
+    @type_check_only
+    class PathsGQLInfo(CommonGQLInfo):  # pyright: ignore[reportGeneralTypeIssues]
+        context: PathsGQLContext  # pyright: ignore[reportIncompatibleVariableOverride]
+
+    @type_check_only
+    class GQLInstanceContext(PathsGQLContext):  # pyright: ignore
+        instance: Instance
+        wildcard_domains: list[str]
+
+    @type_check_only
+    class GQLInstanceInfo(PathsGQLInfo):  # pyright: ignore
+        context: GQLInstanceContext  # type: ignore[assignment]

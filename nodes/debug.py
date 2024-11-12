@@ -1,9 +1,15 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import polars as pl
 
-import common.polars as ppl
 from nodes.constants import BASELINE_VALUE_COLUMN, DEFAULT_METRIC, STACKABLE_QUANTITIES, YEAR_COLUMN
 
-from .node import Node
+if TYPE_CHECKING:
+    import common.polars as ppl
+
+    from .node import Node
 
 
 def _apply_filters(df: ppl.PathsDataFrame, filters: list[str]) -> ppl.PathsDataFrame:
@@ -54,11 +60,11 @@ def _get_output_with_baseline(node: Node, filters: list[str] | None):
             df = df.with_columns(pl.sum_horizontal(df.metric_cols).alias('Total'))
         return df
 
-    if node.baseline_values is not None:
+    if node._baseline_values is not None:
         m = node.output_metrics[DEFAULT_METRIC]
         df = (
-            df.with_columns(node.baseline_values[m.column_id].alias(BASELINE_VALUE_COLUMN))
-            .set_unit(BASELINE_VALUE_COLUMN, node.baseline_values.get_unit(m.column_id))
+            df.with_columns(node._baseline_values[m.column_id].alias(BASELINE_VALUE_COLUMN))
+            .set_unit(BASELINE_VALUE_COLUMN, node._baseline_values.get_unit(m.column_id))
         )
 
         if norm:

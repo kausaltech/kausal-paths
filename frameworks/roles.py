@@ -19,14 +19,14 @@ if TYPE_CHECKING:
     from users.models import User
 
 
-
 class FrameworkAdminRole(AdminRole['Framework']):
     id = FRAMEWORK_ADMIN_ROLE
     name = _("Framework admins")
     group_name = "Framework admins"
 
     model_perms = InstanceAdminRole.model_perms + [
-        ('frameworks', ('measuretemplate',), ALL_MODEL_PERMS),
+        ('frameworks', ('measuretemplate', 'frameworkconfig'), ALL_MODEL_PERMS),
+        ('frameworks', ('framework',), ('view', 'change')),
     ]
     page_perms = InstanceAdminRole.page_perms
 
@@ -54,6 +54,7 @@ class FrameworkAdminRole(AdminRole['Framework']):
 
 framework_admin_role = FrameworkAdminRole()
 register_role(framework_admin_role)
+
 
 class FrameworkRoleDef(BaseModel):
     framework_id: str

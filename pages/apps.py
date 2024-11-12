@@ -25,10 +25,6 @@ class PagesConfig(AppConfig):
     name = 'pages'
 
     def ready(self):
-        from pages.schema import monkeypatch_grapple
-
-        monkeypatch_grapple()
-
         global _wagtail_preferred_language_choices_func
 
         # Monkey-patch Wagtail's _get_language_choices to transform language codes to lower case. See the comment above

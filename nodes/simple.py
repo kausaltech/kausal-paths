@@ -1,63 +1,71 @@
+from __future__ import annotations
+
 import functools
+from typing import TYPE_CHECKING, Any, ClassVar
+
+from django.utils.translation import gettext_lazy as _
+
+import polars as pl
+
+from common import polars as ppl
+from common.i18n import TranslatedString
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
 from nodes.units import Quantity
-from params.param import Parameter, BoolParameter, NumberParameter, StringParameter
-from typing import List, ClassVar, Sequence
-from django.utils.translation import gettext_lazy as _
-import polars as pl
-import pandas as pd
+from params.param import BoolParameter, NumberParameter, Parameter, StringParameter
 
-from common.i18n import TranslatedString
-from common import polars as ppl
 from .constants import FORECAST_COLUMN, MIX_QUANTITY, VALUE_COLUMN, YEAR_COLUMN
-from .node import Node, NodeMetric
 from .exceptions import NodeError
+from .node import Node, NodeMetric
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    import pandas as pd
 
 EMISSION_UNIT = 'kg'
 
 
 class SimpleNode(Node):
-    allowed_parameters: ClassVar[List[Parameter]] = [
+    allowed_parameters: ClassVar[Sequence[Parameter[Any]]] = [
         BoolParameter(
             local_id='fill_gaps_using_input_dataset',
             label=TranslatedString(en="Fill in gaps in computation using input dataset"),
-            is_customizable=False
+            is_customizable=False,
         ),
         BoolParameter(
             local_id='replace_output_using_input_dataset',
             label=TranslatedString(en="Replace output using input dataset"),
-            is_customizable=False
+            is_customizable=False,
         ),
         BoolParameter(
             local_id='drop_nulls',
             description='At the end of compute() do you want to drop nulls?',
-            is_customizable=False
+            is_customizable=False,
         ),
         StringParameter(
             local_id='reference_category',
             description='Category to which all others are compared',
-            is_customizable=False
+            is_customizable=False,
         ),
         NumberParameter(
             local_id='reference_year',
             description='Year to which all others are compared',
-            is_customizable=False
+            is_customizable=False,
         ),
         StringParameter(
             local_id='share_dimension',
             description='Dimension over which values are converted to shares',
-            is_customizable=False
+            is_customizable=False,
         ),
         NumberParameter(  # FIXME Make sure that the treatment is systematic in all node classes.
             local_id='multiplier',
             description='Multiplier to implement after operation and before additions',
-            is_customizable=False
+            is_customizable=False,
         ),
         StringParameter(
             local_id='slice_category_at_edge',
             description='A category is sliced at edge before offering as input to another node',
-            is_customizable=False
+            is_customizable=False,
         ),
     ]
 
@@ -103,17 +111,17 @@ class SimpleNode(Node):
             right = '%s_right' % metric_col  # FIXME Not clear that the right column has same metric name as left
             df = df.ensure_unit(right, meta.units[metric_col])
             df = df.with_columns([
-                pl.col(metric_col).fill_null(pl.col(right))
+                pl.col(metric_col).fill_null(pl.col(right)),
             ])
         return df
 
-    def maybe_drop_nulls(self, df):
+    def maybe_drop_nulls(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         if self.get_parameter_value('drop_nulls', required=False):
             df = df.drop_nulls()
         return df
 
-    def scale_by_reference_category(self, df: ppl.DataFrameMeta) -> ppl.DataFrameMeta:
-        param = self.get_parameter_value('reference_category', required=False)
+    def scale_by_reference_category(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        param = self.get_parameter_value_str('reference_category', required=False)
         if param:
             col, cat = param.split(':')
             reference = df.filter(pl.col(col).eq(cat)).drop(col)
@@ -135,7 +143,7 @@ class SimpleNode(Node):
             dim = self.get_parameter_value('share_dimension', required = False)
         if dim:
             df = df.paths.calculate_shares(VALUE_COLUMN, VALUE_COLUMN, [dim])
-        
+
         return df
 
     # See also sister function in ActionNode
@@ -153,7 +161,8 @@ class SimpleNode(Node):
 class AdditiveNode(SimpleNode):
     explanation = _("""This is an Additive Node. It performs a simple addition of inputs.
 Missing values are assumed to be zero.""")
-    allowed_parameters: ClassVar[list[Parameter]] = SimpleNode.allowed_parameters + [
+    allowed_parameters = [
+        *SimpleNode.allowed_parameters,
         BoolParameter(local_id='drop_nans', is_customizable=False),
         StringParameter(local_id='metric', is_customizable=False),
         BoolParameter(
@@ -164,11 +173,11 @@ Missing values are assumed to be zero.""")
         BoolParameter(
             local_id='use_input_node_unit_when_adding',
             description='Use input node unit when doing add_nodes_pl()',
-            is_customizable=False
-        )
+            is_customizable=False,
+        ),
     ]
 
-    def add_nodes(self, ndf: pd.DataFrame | None, nodes: List[Node], metric: str | None = None) -> pd.DataFrame:
+    def add_nodes(self, ndf: pd.DataFrame | None, nodes: list[Node], metric: str | None = None) -> pd.DataFrame:
         if ndf is not None:
             df = ppl.from_pandas(ndf)
         else:
@@ -176,42 +185,47 @@ Missing values are assumed to be zero.""")
         out = self.add_nodes_pl(df, nodes, metric)
         return out.to_pandas()
 
-    def compute(self):
-        df = self.get_input_dataset_pl(required=False)
-        metric = self.get_parameter_value('metric', required=False)
-        assert self.unit is not None
-        if df is not None:
-            if VALUE_COLUMN not in df.columns:
-                if len(df.metric_cols) == 1:
-                    df = df.rename({df.metric_cols[0]: VALUE_COLUMN})
-                elif metric is not None:
-                    if metric in df.columns:
-                        df = df.rename({metric: VALUE_COLUMN})
-                        cols = [YEAR_COLUMN, *df.dim_ids, VALUE_COLUMN]
-                        if FORECAST_COLUMN in df.columns:
-                            cols.append(FORECAST_COLUMN)
-                        df = df.select(cols)
-                    else:
-                        raise NodeError(self, "Metric is not found in metric columns")
+    def _process_input_dataset_df(self, df: ppl.PathsDataFrame, metric: str | None) -> ppl.PathsDataFrame:
+        if VALUE_COLUMN not in df.columns:
+            if len(df.metric_cols) == 1:
+                df = df.rename({df.metric_cols[0]: VALUE_COLUMN})
+            elif metric is not None:
+                if metric in df.columns:
+                    df = df.rename({metric: VALUE_COLUMN})
+                    cols = [YEAR_COLUMN, *df.dim_ids, VALUE_COLUMN]
+                    if FORECAST_COLUMN in df.columns:
+                        cols.append(FORECAST_COLUMN)
+                    df = df.select(cols)
                 else:
-                    compatible_cols = [
-                        col for col, unit in df.get_meta().units.items()
-                        if self.is_compatible_unit(unit, self.unit)
-                    ]
-                    if len(compatible_cols) == 1:
-                        df = df.rename({compatible_cols[0]: VALUE_COLUMN})
-                        cols = [YEAR_COLUMN, *df.dim_ids, VALUE_COLUMN]
-                        if FORECAST_COLUMN in df.columns:
-                            cols.append(FORECAST_COLUMN)
-                        df = df.select(cols)
-                    else:
-                        raise NodeError(self, "Input dataset has multiple metric columns, but no Value column")
-            df = df.ensure_unit(VALUE_COLUMN, self.unit)
-
-            if self.get_parameter_value('inventory_only', required=False):
-                df = df.with_columns([pl.lit(False).alias(FORECAST_COLUMN)])
+                    raise NodeError(self, "Metric is not found in metric columns")
             else:
-                df = extend_last_historical_value_pl(df, self.get_end_year())
+                compatible_cols = [
+                    col for col, unit in df.get_meta().units.items()
+                    if self.is_compatible_unit(unit, self.unit)
+                ]
+                if len(compatible_cols) == 1:
+                    df = df.rename({compatible_cols[0]: VALUE_COLUMN})
+                    cols = [YEAR_COLUMN, *df.dim_ids, VALUE_COLUMN]
+                    if FORECAST_COLUMN in df.columns:
+                        cols.append(FORECAST_COLUMN)
+                    df = df.select(cols)
+                else:
+                    raise NodeError(self, "Input dataset has multiple metric columns, but no Value column")
+
+        df = df.ensure_unit(VALUE_COLUMN, self.single_metric_unit)
+
+        if self.get_parameter_value('inventory_only', required=False):
+            df = df.with_columns([pl.lit(value=False).alias(FORECAST_COLUMN)])
+        else:
+            df = extend_last_historical_value_pl(df, self.get_end_year())
+        return df
+
+    def compute(self) -> ppl.PathsDataFrame:
+        idf = self.get_input_dataset_pl(required=False)
+        metric = self.get_parameter_value_str('metric', required=False)
+        assert self.unit is not None
+        if idf is not None:
+            idf = self._process_input_dataset_df(idf, metric)
 
         na_nodes = self.get_input_nodes(tag='non_additive')
         input_nodes = [node for node in self.input_nodes if node not in na_nodes]
@@ -224,7 +238,7 @@ Missing values are assumed to be zero.""")
             df = self.add_nodes_pl(None, input_nodes, metric, unit=unit)
             df = self.fill_gaps_using_input_dataset_pl(df)
         else:
-            df = self.add_nodes_pl(df, input_nodes, metric, unit=unit)
+            df = self.add_nodes_pl(idf, input_nodes, metric, unit=unit)
         df = self.maybe_drop_nulls(df)  # FIXME Check where this should be done.
         if self.get_parameter_value('drop_nans', required=False):  # FIXME: Implement this in the same way as drop_nulls
             df = df.filter(~pl.col(VALUE_COLUMN).is_nan())
@@ -236,9 +250,13 @@ Missing values are assumed to be zero.""")
 
 
 class SubtractiveNode(Node):
-    explanation = _("This is a Subtractive Node. It takes the first input node and subtracts all other input nodes from it.")  # FIXME Is this needed? Edge process arithmetic_inverse could be used instead.
+    explanation = _(
+        'This is a Subtractive Node. It takes the first input node and subtracts all other input nodes from it.',
+    )  # FIXME Is this needed? Edge process arithmetic_inverse could be used instead.
     allowed_parameters = [
-        BoolParameter(local_id='only_historical', description='Perform subtraction on only historical data', is_customizable=False)
+        BoolParameter(
+            local_id='only_historical', description='Perform subtraction on only historical data', is_customizable=False,
+        ),
     ]
 
     def compute(self):
@@ -257,8 +275,9 @@ class SectorEmissions(AdditiveNode):
     # FIXME Is this needed?
     quantity = 'emissions'
 
-    allowed_parameters = AdditiveNode.allowed_parameters + [
-        StringParameter(local_id='category', description='Category id for the emission sector dimension', is_customizable=False)
+    allowed_parameters = [
+        *AdditiveNode.allowed_parameters,
+        StringParameter(local_id='category', description='Category id for the emission sector dimension', is_customizable=False),
     ]
 
     def compute(self):
@@ -294,7 +313,8 @@ class MultiplicativeNode(SimpleNode):
     Multiplication and addition is determined based on the input node units.
     """)
 
-    allowed_parameters = SimpleNode.allowed_parameters + [
+    allowed_parameters = [
+        *SimpleNode.allowed_parameters,
         BoolParameter(
             local_id='only_historical',
             description='Process only historical rows',
@@ -304,7 +324,7 @@ class MultiplicativeNode(SimpleNode):
             local_id='extend_rows',
             description='Extend last row to future years',
             is_customizable=False,
-        )
+        ),
     ]
     operation_label = 'multiplication'
 
@@ -320,7 +340,7 @@ class MultiplicativeNode(SimpleNode):
         assert self.unit is not None
 
         df = None
-        for n, ndf in zip(nodes, outputs):
+        for n, ndf in zip(nodes, outputs, strict=False):
             if df is None:
                 # First output in the list
                 df = ndf
@@ -350,7 +370,7 @@ class MultiplicativeNode(SimpleNode):
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
 
-    def _compute(self, input_df: ppl.PathsDataFrame | None = None):
+    def _compute(self, input_df: ppl.PathsDataFrame | None = None) -> ppl.PathsDataFrame:
         additive_nodes: list[Node] = []
         operation_nodes: list[Node] = []
         assert self.unit is not None
@@ -366,14 +386,16 @@ class MultiplicativeNode(SimpleNode):
                 operation_nodes.append(node)
 
         if len(operation_nodes) < 2 and input_df is None:
-            raise NodeError(self, "Must receive at least two inputs to operate %s on. Now received %s." 
+            raise NodeError(self, "Must receive at least two inputs to operate %s on. Now received %s."
                             % (self.operation_label, [node.id for node in operation_nodes]))
 
-        outputs = [n.get_output_pl(target_node=self) for n in operation_nodes]
-
-        if self.debug:
-            for idx, (n, df) in enumerate(zip(operation_nodes, outputs)):
-                print('%s: %s input from node %d (%s):' % (self.operation_label, self.id, idx, n.id))
+        outputs: list[ppl.PathsDataFrame] = []
+        for idx, n in enumerate(operation_nodes):
+            ndf = n.get_output_pl(target_node=self)
+            if self.debug:
+                print('%s: %s input from node %d (%s):' % (self.operation_label, self.id, idx, str(n)))
+                print(ndf)
+            outputs.append(ndf)
 
         if outputs:
             df = self.perform_operation(operation_nodes, outputs)
@@ -401,7 +423,7 @@ class MultiplicativeNode(SimpleNode):
         if replace_output:
             df = self.replace_output_using_input_dataset_pl(df)
         if self.debug:
-            print('%s: Output:' % self.id)
+            print('%s: Output:' % str(self))
             self.print(df)
 
         return df
@@ -429,11 +451,12 @@ class EmissionFactorActivity(MultiplicativeNode):  # FIXME Does not work with Ta
     # FIXME Do we need a separate node class?
     quantity = 'emissions'
     default_unit = '%s/a' % EMISSION_UNIT
-    allowed_parameters = MultiplicativeNode.allowed_parameters + [
-        BoolParameter(local_id='convert_missing_values_to_zero')
+    allowed_parameters = [
+        *MultiplicativeNode.allowed_parameters,
+        BoolParameter(local_id='convert_missing_values_to_zero'),
     ]
 
-    def _get_dataset_emissions(self):
+    def _get_dataset_emissions(self) -> None | ppl.PathsDataFrame:
         edfs = self.get_input_datasets_pl(tag='emissions')
         ds_list = self.get_input_datasets_pl(exclude_tags=['emissions'])
         if not ds_list:
@@ -469,7 +492,7 @@ class EmissionFactorActivity(MultiplicativeNode):  # FIXME Does not work with Ta
         df = df.rename({'Emissions': m.column_id}).ensure_unit(m.column_id, m.unit)
 
         for edf in edfs:
-            edf = edf.rename({edf.metric_cols[0]: '_Right'}).ensure_unit('_Right', m.unit)
+            edf = edf.rename({edf.metric_cols[0]: '_Right'}).ensure_unit('_Right', m.unit)  # noqa: PLW2901
             df = df.paths.join_over_index(edf, how='outer', index_from='union')
             df = df.with_columns((pl.col(m.column_id).fill_null(0.0) + pl.col('_Right').fill_null(0.0)).alias(m.column_id)).drop('_Right')
 
@@ -497,9 +520,10 @@ class Activity(AdditiveNode):
 class FixedMultiplierNode(SimpleNode):  # FIXME Convert to a generic parameter instead.
     explanation = _("""This is a Fixed Multiplier Node. It multiplies a single input node with a parameter.""")
     allowed_parameters = [
+        *SimpleNode.allowed_parameters,
         NumberParameter(local_id='multiplier'),
         StringParameter(local_id='global_multiplier'),
-    ] + SimpleNode.allowed_parameters
+    ]
 
     def compute(self) -> ppl.PathsDataFrame:
         if len(self.input_nodes) != 1:
@@ -533,8 +557,9 @@ class FixedMultiplierNode(SimpleNode):  # FIXME Convert to a generic parameter i
 
 class FixedMultiplierNode2(AdditiveNode):  # FIXME Merge functionalities with MultiplicativeNode
     allowed_parameters = [
+        *AdditiveNode.allowed_parameters,
         NumberParameter(local_id='multiplier'),
-    ] + AdditiveNode.allowed_parameters
+    ]
 
     def compute(self) -> ppl.PathsDataFrame:  # FIXME Should we instead just use AdditiveNode first?
         if len(self.input_nodes) == 0:
@@ -554,7 +579,7 @@ class FixedMultiplierNode2(AdditiveNode):  # FIXME Merge functionalities with Mu
 
 class MixNode(AdditiveNode):
     output_metrics = {
-        MIX_QUANTITY: NodeMetric(unit='%', quantity=MIX_QUANTITY)
+        MIX_QUANTITY: NodeMetric(unit='%', quantity=MIX_QUANTITY),
     }
     default_unit = '%'
     allowed_parameters = [
@@ -639,7 +664,7 @@ class MultiplyLastNode(MultiplicativeNode):  # FIXME Tailored class for a bit wi
         df = df.ensure_unit(col, 'dimensionless')
         df = df.with_columns([
             pl.col(col).fill_null(pl.lit(0)),
-            (1 - pl.col(col)).alias('ratio')
+            (1 - pl.col(col)).alias('ratio'),
             ])
         df = df.multiply_cols([VALUE_COLUMN, 'ratio'], VALUE_COLUMN).drop([col, 'ratio'])
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
@@ -672,7 +697,7 @@ class MultiplyLastNode2(MultiplicativeNode):  # FIXME Tailored class for a bit w
         df = outputs.pop(0)
         m = node.get_default_output_metric()
         df = df.rename({m.column_id: '_Left'})
-        for n, ndf in zip(nodes, outputs):
+        for n, ndf in zip(nodes, outputs, strict=False):
             m = n.get_default_output_metric()
             ndf = ndf.rename({m.column_id: '_Right'})
             df = df.paths.join_over_index(ndf, how='left', index_from='union')
@@ -711,9 +736,9 @@ class MultiplyLastNode2(MultiplicativeNode):  # FIXME Tailored class for a bit w
 
 
 class ImprovementNode(MultiplicativeNode):
-    explanation = _('''First does what MultiplicativeNode does, then calculates 1 - result.
+    explanation = _("""First does what MultiplicativeNode does, then calculates 1 - result.
     Can only be used for dimensionless content (i.e., fractions and percentages)
-    ''')
+    """)
 
     def compute(self):
         if len(self.input_nodes) == 1:
@@ -730,9 +755,9 @@ class ImprovementNode(MultiplicativeNode):
 
 
 class ImprovementNode2(MultiplicativeNode):
-    explanation = _('''First does what MultiplicativeNode does, then calculates 1 + result.
+    explanation = _("""First does what MultiplicativeNode does, then calculates 1 + result.
     Can only be used for dimensionless content (i.e., fractions and percentages)
-    ''')
+    """)
 
     def compute(self):
         if len(self.input_nodes) == 1:
@@ -749,14 +774,14 @@ class ImprovementNode2(MultiplicativeNode):
 
 
 class RelativeNode(AdditiveNode):
-    explanation = _('''
+    explanation = _("""
     First like AdditiveNode, then multiply with a node with "non_additive".
     The relative node is assumed to be the relative difference R = V / N - 1,
     where V is the expected output value and N is the comparison value from
     the other input nodes. So, the output value V = (R + 1)N.
     If there is no "non-additive" node, it will behave like AdditiveNode except
     it never creates a temporary dimension Sectors.
-    ''')
+    """)
 
     def compute(self) -> ppl.PathsDataFrame:
         n = self.get_input_node(tag='non_additive', required=False)
@@ -768,20 +793,21 @@ class RelativeNode(AdditiveNode):
             df = df.paths.join_over_index(dfn, how='outer', index_from='union')
             rn = VALUE_COLUMN + '_right'
             df = df.with_columns([pl.col(rn).fill_null(0)])
-            df = df.with_columns((pl.col(rn) + pl.lit(1)))
+            df = df.with_columns(pl.col(rn) + pl.lit(1))
             df = df.multiply_cols([VALUE_COLUMN, rn], VALUE_COLUMN).drop(rn)
             df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
 
 class TrajectoryNode(SimpleNode):
-    explanation = _('''
+    explanation = _("""
     TrajectoryNode uses select_category() to select a category from a dimension.
-    ''')
-    allowed_parameters = SimpleNode.allowed_parameters + [
+    """)
+    allowed_parameters = [
+        *SimpleNode.allowed_parameters,
         StringParameter(local_id='dimension'),
         StringParameter(local_id='category'),
         NumberParameter(local_id='category_number'),
-        BoolParameter(local_id='keep_dimension')
+        BoolParameter(local_id='keep_dimension'),
     ]
     def compute(self):
         df = self.get_input_dataset_pl()
@@ -800,8 +826,9 @@ class TrajectoryNode(SimpleNode):
 
 class FillNewCategoryNode(AdditiveNode):
     explanation = _('This is a Fill New Category Node. It behaves like Additive Node, but in the end of computation it creates a new category such that the values along that dimension sum up to 1. The input nodes must have a dimensionless unit. The new category in an existing dimension is given as parameter "new_category" in format "dimension:category"')
-    allowed_parameters = AdditiveNode.allowed_parameters + [
-        StringParameter(local_id='new_category')
+    allowed_parameters = [
+        *AdditiveNode.allowed_parameters,
+        StringParameter(local_id='new_category'),
     ]
 
     def compute(self):

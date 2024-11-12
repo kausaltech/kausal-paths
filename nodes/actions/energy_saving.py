@@ -1,21 +1,27 @@
+from __future__ import annotations
+
 import typing
 
-import pandas as pd
+import numba as nb
 import numpy as np
+import pandas as pd
 import pint_pandas
 import polars as pl
-
-from numba import njit, int32, types as nbt
-import numba as nb
+from numba import int32, njit, types as nbt
 from pint_pandas import PintType
 
 from common.i18n import gettext_lazy as _
-from nodes.metric import NodeMetric
-from nodes.constants import ENERGY_QUANTITY, CURRENCY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, UNIT_PRICE_QUANTITY, YEAR_COLUMN, DEFAULT_METRIC
 from nodes.calc import nafill_all_forecast_years
-from params import Parameter, NumberParameter, StringParameter
-from params.utils import sep_unit_pt
-from common import polars as ppl
+from nodes.constants import (
+    CURRENCY_QUANTITY,
+    DEFAULT_METRIC,
+    ENERGY_QUANTITY,
+    FORECAST_COLUMN,
+    VALUE_COLUMN,
+    YEAR_COLUMN,
+)
+from nodes.node import NodeMetric
+from params import NumberParameter, Parameter, StringParameter
 
 from .action import ActionNode
 
@@ -563,7 +569,7 @@ class CfFloorAreaAction(BuildingEnergySavingAction):
             is_customizable=False
         )
     ]
-    
+
     def compute_effect(self) -> pd.DataFrame:
 
         df = self.get_input_dataset_pl(tag='floor', required=True)

@@ -42,3 +42,9 @@ def assign_roles(
                 instance_admin_role.assign_user(ic, user)
             else:
                 logger.info("Framework config for org UID '%s' does not yet exist" % (role.org_id))
+
+
+def update_role_permissions(*, user: User | None, **kwargs):
+    if user is None:
+        return
+    user.perms.refresh_role_permissions()

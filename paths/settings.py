@@ -1,4 +1,5 @@
 """Django settings for Kausal Paths."""
+
 from __future__ import annotations
 
 import sys
@@ -131,28 +132,22 @@ INSTALLED_APPS = [
     'wagtailfontawesomesvg',
     'wagtail_color_panel',
     'generic_chooser',
-
     'taggit',
     'modelcluster',
     'grapple',
     'graphene_django',
-
     'social_django',
-
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
     'drf_spectacular',
     'corsheaders',
     'rest_framework',
     'rest_framework.authtoken',
-
     'django_extensions',
-
     'modeltrans',
     'pages',
     'nodes',
@@ -241,37 +236,29 @@ SOCIAL_AUTH_AZURE_AD_SECRET = env.str('AZURE_AD_CLIENT_SECRET')
 
 SOCIAL_AUTH_PIPELINE = (
     'kausal_common.auth.pipeline.log_login_attempt',
-
     # Get the information we can about the user and return it in a simple
     # format to create the user instance later. On some cases the details are
     # already part of the auth response from the provider, but sometimes this
     # could hit a provider API.
     'social_core.pipeline.social_auth.social_details',
-
     # Get the social uid from whichever service we're authing thru. The uid is
     # the unique identifier of the given user in the provider.
     'social_core.pipeline.social_auth.social_uid',
-
     # Generate username from UUID
     'kausal_common.auth.pipeline.get_username',
-
     # Checks if the current social-account is already associated in the site.
     'social_core.pipeline.social_auth.social_user',
-
     # Finds user by email address
     'kausal_common.auth.pipeline.find_user_by_email',
-
     # Get or create the user and update user data
     'kausal_common.auth.pipeline.create_or_update_user',
-
     # Create the record that associated the social account with this user.
     'social_core.pipeline.social_auth.associate_user',
-
     # Populate the extra_data field in the social record with the values
     # specified by settings (and the default ones like access_token, etc).
     'social_core.pipeline.social_auth.load_extra_data',
-
     'admin_site.auth_pipeline.assign_roles',
+    'admin_site.auth_pipeline.update_role_permissions',
     # Update avatar photo from MS Graph
     # 'kausal_common.auth.pipeline.update_avatar',
 )
@@ -281,6 +268,7 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     # Match localhost with optional port
     r'^https?://([a-z0-9-_]+\.)+localhost(:\d+)?$',
     r'^https://([a-z0-9-_]+\.)*kausal\.tech$',
+    r'^https://([a-z0-9-_]+\.)*kausal\.dev$',
 ]
 CORS_ALLOW_HEADERS = list(default_cors_headers) + [
     'sentry-trace',
@@ -368,8 +356,8 @@ LANGUAGES = (
 # For languages that Django has no translations for, we need to manually specify what the language is called in that
 # language. We use this for displaying the list of available languages in the user settings.
 LOCAL_LANGUAGE_NAMES = {
-    'de-CH': "Deutsch (Schweiz)",
-    'es-US': "Español (Estados Unidos)",
+    'de-CH': 'Deutsch (Schweiz)',
+    'es-US': 'Español (Estados Unidos)',
 }
 MODELTRANS_AVAILABLE_LANGUAGES = [x[0].lower() for x in LANGUAGES]
 MODELTRANS_FALLBACK = {
@@ -398,17 +386,17 @@ WAGTAILSEARCH_BACKENDS = {
 }
 
 WAGTAILADMIN_RICH_TEXT_EDITORS = {
-    'default': {"WIDGET": "wagtail.admin.rich_text.DraftailRichTextArea"},
+    'default': {'WIDGET': 'wagtail.admin.rich_text.DraftailRichTextArea'},
     'limited': {
-        "WIDGET": "wagtail.admin.rich_text.DraftailRichTextArea",
-        "OPTIONS": {
-            "features": ["bold", "italic", "ol", "ul", "link"],
+        'WIDGET': 'wagtail.admin.rich_text.DraftailRichTextArea',
+        'OPTIONS': {
+            'features': ['bold', 'italic', 'ol', 'ul', 'link'],
         },
     },
     'very-limited': {
-        "WIDGET": "wagtail.admin.rich_text.DraftailRichTextArea",
-        "OPTIONS": {
-            "features": ["bold", "italic"],
+        'WIDGET': 'wagtail.admin.rich_text.DraftailRichTextArea',
+        'OPTIONS': {
+            'features': ['bold', 'italic'],
         },
     },
 }
@@ -428,7 +416,7 @@ common_bundle_dir = Path(BASE_DIR, 'kausal_common/client/dist')
 if common_bundle_dir.exists():
     STATICFILES_DIRS.append(str(common_bundle_dir))
 
-MEDIA_FILES_S3_ENDPOINT= env('MEDIA_FILES_S3_ENDPOINT')
+MEDIA_FILES_S3_ENDPOINT = env('MEDIA_FILES_S3_ENDPOINT')
 MEDIA_FILES_S3_BUCKET = env('MEDIA_FILES_S3_BUCKET')
 MEDIA_FILES_S3_ACCESS_KEY_ID = env('MEDIA_FILES_S3_ACCESS_KEY_ID')
 MEDIA_FILES_S3_SECRET_ACCESS_KEY = env('MEDIA_FILES_S3_SECRET_ACCESS_KEY')
@@ -483,15 +471,17 @@ GITHUB_APP_PRIVATE_KEY = env('GITHUB_APP_PRIVATE_KEY')
 if find_spec('kausal_paths_extensions') is not None:
     INSTALLED_APPS.append('kausal_paths_extensions')
     from kausal_paths_extensions import register_settings
+
     register_settings(locals())
 
 
 # local_settings.py can be used to override environment-specific settings
 # like database and email that differ between development and production.
-local_settings = Path(BASE_DIR) / Path("local_settings.py")
+local_settings = Path(BASE_DIR) / Path('local_settings.py')
 if local_settings.exists():
     import types
-    module_name = "%s.local_settings" % ROOT_URLCONF.split('.')[0]
+
+    module_name = '%s.local_settings' % ROOT_URLCONF.split('.')[0]
     module = types.ModuleType(module_name)
     module.__file__ = str(local_settings)
     sys.modules[module_name] = module
@@ -520,20 +510,28 @@ if not locals().get('SECRET_KEY', ''):
 if DEBUG:
     from rich import traceback
     from rich.console import Console
+
     traceback.install(show_locals=True)
 
     traceback_console = Console(stderr=True)
 
     def excepthook(args: ExceptHookArgs):
         assert args.exc_value is not None
-        traceback_console.print(traceback.Traceback.from_exception(
-            args.exc_type, args.exc_value, args.exc_traceback, show_locals=True,
-        ))
+        traceback_console.print(
+            traceback.Traceback.from_exception(
+                args.exc_type,
+                args.exc_value,
+                args.exc_traceback,
+                show_locals=True,
+            )
+        )
 
     import threading
+
     threading.excepthook = excepthook
 
     from paths.watchfiles_reloader import replace_reloader
+
     replace_reloader()
 
 
@@ -542,11 +540,14 @@ LOG_SQL_QUERIES = DEBUG and env('LOG_SQL_QUERIES')
 ENABLE_DEBUG_TOOLBAR = DEBUG and env('ENABLE_DEBUG_TOOLBAR')
 ENABLE_PERF_TRACING: bool = env('ENABLE_PERF_TRACING')
 
+if ENABLE_DEBUG_TOOLBAR:
+    INSTALLED_APPS += ['debug_toolbar']
+    MIDDLEWARE.insert(0, 'debug_toolbar.middleware.DebugToolbarMiddleware')
 
 if env('CONFIGURE_LOGGING'):
     from kausal_common.logging.init import LogFormat, init_logging_django
 
-    is_kube = env.bool('KUBERNETES_MODE') or env.bool('KUBERNETES_LOGGING', False) # type: ignore
+    is_kube = env.bool('KUBERNETES_MODE') or env.bool('KUBERNETES_LOGGING', False)  # type: ignore
     log_format: LogFormat | None
     if not is_kube and DEBUG:
         # If logfmt hasn't been explicitly selected and DEBUG is on, fall back to autodetection.
@@ -555,9 +556,10 @@ if env('CONFIGURE_LOGGING'):
         log_format = 'logfmt'
     LOGGING = init_logging_django(log_format, log_sql_queries=LOG_SQL_QUERIES)
 
-if SENTRY_DSN:
+if True:
     from kausal_common.sentry.init import init_sentry
-    init_sentry(SENTRY_DSN, DEPLOYMENT_TYPE, enable_perf_tracing=ENABLE_PERF_TRACING)
+
+    init_sentry(SENTRY_DSN, DEPLOYMENT_TYPE)
 
 DATABASES['default']['CONN_MAX_AGE'] = env('DATABASE_CONN_MAX_AGE')
 CORS_ALLOW_HEADERS.append(INSTANCE_HOSTNAME_HEADER)

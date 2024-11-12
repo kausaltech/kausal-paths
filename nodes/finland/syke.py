@@ -1,14 +1,21 @@
+from __future__ import annotations
+
 import numpy as np
 import pandas as pd
-from params import StringParameter, BoolParameter
-from nodes.node import Node
+
+from nodes.calc import extend_last_historical_value
 from nodes.constants import (
-    VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY
+    EMISSION_FACTOR_QUANTITY,
+    EMISSION_QUANTITY,
+    ENERGY_QUANTITY,
+    FORECAST_COLUMN,
+    VALUE_COLUMN,
+    YEAR_COLUMN,
 )
 from nodes.dimensions import Dimension
 from nodes.exceptions import NodeError
-from nodes.node import NodeMetric
-from nodes.calc import extend_last_historical_value
+from nodes.node import Node, NodeMetric
+from params import BoolParameter, StringParameter
 
 
 class AlasNode(Node):
@@ -17,19 +24,21 @@ class AlasNode(Node):
     ]
     global_parameters = ['municipality_name', 'selected_framework']
     allowed_parameters = [
-        StringParameter(local_id='region', label='Region to be included', is_customizable=False)
+        StringParameter(local_id='region', label='Region to be included', is_customizable=False),
     ]
     output_metrics = {
         EMISSION_QUANTITY: NodeMetric(unit='kt/a', quantity=EMISSION_QUANTITY),
         ENERGY_QUANTITY: NodeMetric(unit='GWh/a', quantity=ENERGY_QUANTITY),
-        EMISSION_FACTOR_QUANTITY: NodeMetric(unit='g/kWh', quantity=EMISSION_FACTOR_QUANTITY)
+        EMISSION_FACTOR_QUANTITY: NodeMetric(unit='g/kWh', quantity=EMISSION_FACTOR_QUANTITY),
     }
     output_dimensions = {
-        'Sector': Dimension(id='syke_sector', label=dict(en='SYKE emission sector'), is_internal=True)
+        'Sector': Dimension(id='syke_sector', label=dict(en='SYKE emission sector'), is_internal=True),
     }
 
     def compute(self) -> pd.DataFrame:
         df = self.get_input_dataset()
+        if isinstance(df.index, pd.MultiIndex):
+            df = df.reset_index()
 
         muni_name = self.get_global_parameter_value('municipality_name')
         region_name = self.get_parameter_value('region', required=False)
@@ -50,7 +59,7 @@ class AlasNode(Node):
                 'Hinku-laskenta päästöhyvityksillä',
                 'Kaikki ALas-päästöt',
                 'Taakanjakosektorin kaikki ALas-päästöt',
-                'Päästökaupan alaiset ALas-päästöt'
+                'Päästökaupan alaiset ALas-päästöt',
             ]
 
             if fw in frameworks[0:2]:
@@ -106,14 +115,14 @@ class AlasEmissions(Node):
     unit = 'kt/a'
     quantity = EMISSION_QUANTITY
     allowed_input_classes = [
-        AlasNode
+        AlasNode,
     ]
     global_parameters = ['extend_historical_values']
     allowed_parameters = [
         StringParameter(
             local_id='sector',
             label='Sector path in ALaS',
-            is_customizable=False
+            is_customizable=False,
         ),
         BoolParameter(
             local_id='required',

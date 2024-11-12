@@ -1,32 +1,49 @@
 from __future__ import annotations
-from collections import Counter
 
 import functools
+from collections import Counter
 from dataclasses import dataclass, field
-from typing import List, Optional, TypedDict
+from enum import Enum
+from typing import TYPE_CHECKING, TypedDict, cast
 
 import numpy as np
 import pandas as pd
-import pint
 import polars as pl
-from colormath.color_objects import sRGBColor, LabColor  # type: ignore
-from colormath.color_conversions import convert_color  # type: ignore
+
+from paths.const import MODEL_CALC_OP
 
 from common import polars as ppl
 from common.i18n import gettext as _
-from .node import Node
-from .actions import ActionNode, ActionEfficiency, ActionEfficiencyPair
+
+from .actions.action import ActionEfficiency, ActionEfficiencyPair, ActionNode
 from .actions.shift import ShiftAction
 from .constants import (
-    BASELINE_VALUE_COLUMN, FLOW_ID_COLUMN, FLOW_ROLE_COLUMN, FLOW_ROLE_SOURCE,
-    FLOW_ROLE_TARGET, FORECAST_COLUMN, NODE_COLUMN, STACKABLE_QUANTITIES,
-    VALUE_COLUMN, YEAR_COLUMN,
+    BASELINE_VALUE_COLUMN,
+    FLOW_ID_COLUMN,
+    FLOW_ROLE_COLUMN,
+    FLOW_ROLE_SOURCE,
+    FLOW_ROLE_TARGET,
+    FORECAST_COLUMN,
+    NODE_COLUMN,
+    SCENARIO_COLUMN,
+    STACKABLE_QUANTITIES,
+    VALUE_COLUMN,
+    YEAR_COLUMN,
 )
 from .exceptions import NodeError
-from .goals import NodeGoalsEntry
-from .node import NodeMetric
 from .simple import AdditiveNode, RelativeNode
-from .units import Unit
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    import pint
+
+    from nodes.dimensions import Dimension
+    from nodes.scenario import Scenario
+
+    from .goals import NodeGoalsEntry
+    from .node import Node, NodeMetric
+    from .units import Unit
 
 
 @dataclass
@@ -47,8 +64,8 @@ class Metric:
     id: str
     name: str
     df: ppl.PathsDataFrame
-    node: Optional[Node] = None
-    unit: Optional[pint.Unit] = None
+    node: Node | None = None
+    unit: pint.Unit | None = None
 
     split_values: SplitValues | None = field(init=False)
 
@@ -56,7 +73,7 @@ class Metric:
         self.split_values = None
 
     @staticmethod
-    def from_node(node: Node, goal_id: str | None = None):
+    def from_node(node: Node, goal_id: str | None = None) -> None | Metric:  # noqa: C901, PLR0912
         try:
             m = node.get_default_output_metric()
         except Exception:
@@ -86,8 +103,8 @@ class Metric:
             df = df.paths.sum_over_dims()
 
         meta = df.get_meta()
-        if node.baseline_values is not None:
-            bdf = node.baseline_values
+        if 'baseline' in node.context.scenarios:
+            bdf = node.get_baseline_values()
             if node.context.active_normalization:
                 _, bdf = node.context.active_normalization.normalize_output(m, bdf)
 
@@ -99,7 +116,7 @@ class Metric:
                 bdf = bdf.paths.sum_over_dims()
             bdf = bdf.select([
                 YEAR_COLUMN,
-                pl.col(m.column_id).alias(BASELINE_VALUE_COLUMN)
+                pl.col(m.column_id).alias(BASELINE_VALUE_COLUMN),
             ])
             tdf = df.join(bdf, on=YEAR_COLUMN, how='left').sort(YEAR_COLUMN)
             meta.units[BASELINE_VALUE_COLUMN] = bdf_meta.units[m.column_id]
@@ -149,24 +166,24 @@ class Metric:
             historical=hist,
             forecast=forecast,
             cumulative_forecast_value=cum_fc,
-            baseline=baseline
+            baseline=baseline,
         )
         self.split_values = out
         return out
 
-    def get_historical_values(self) -> List[YearlyValue]:
+    def get_historical_values(self) -> list[YearlyValue]:
         vals = self.split_df()
         if not vals:
             return []
         return vals['historical']
 
-    def get_forecast_values(self) -> List[YearlyValue]:
+    def get_forecast_values(self) -> list[YearlyValue]:
         vals = self.split_df()
         if not vals:
             return []
         return vals['forecast']
 
-    def get_baseline_forecast_values(self) -> List[YearlyValue]:
+    def get_baseline_forecast_values(self) -> list[YearlyValue]:
         vals = self.split_df()
         if not vals:
             return []
@@ -179,7 +196,7 @@ class Metric:
         return vals['cumulative_forecast_value']
 
     @property
-    def yearly_cumulative_unit(self) -> Optional[pint.Unit]:
+    def yearly_cumulative_unit(self) -> pint.Unit | None:
         if not self.unit:
             return None
         # Check if the unit as a time divisor
@@ -209,6 +226,14 @@ class MetricCategoryGroup:
     order: int | None
 
 
+LabColorVals = tuple[float, float, float]
+
+class DimensionKind(Enum):
+    COMMON = 'common'
+    NODE = 'node'
+    SCENARIO = 'scenario'
+
+
 @dataclass
 class MetricDimension:
     id: str
@@ -217,20 +242,24 @@ class MetricDimension:
     categories: list[MetricCategory]
     groups: list[MetricCategoryGroup] = field(default_factory=list)
     help_text: str | None = None
+    kind: DimensionKind = DimensionKind.COMMON
 
-    def get_original_cat_ids(self):
+    def get_original_cat_ids(self) -> list[str]:
         return [cat.original_id for cat in self.categories]
 
     def ensure_unique_colors(self):
+        from colormath.color_conversions import convert_color  # type: ignore
+        from colormath.color_objects import LabColor, sRGBColor  # type: ignore
+
         color_counts = Counter(cat.color.lower() for cat in self.categories if cat.color is not None)
         color_map: dict[str, list[str]] = {}
-        LAB_Kn = 18
+        LAB_Kn = 18  # noqa: N806
         for color, count in color_counts.items():
             if count == 1:
                 continue
             rgb = sRGBColor.new_from_rgb_hex(color)
             lab: LabColor = convert_color(rgb, LabColor)
-            vals = lab.get_value_tuple()
+            vals = cast(LabColorVals, lab.get_value_tuple())
             start = list(vals)
             start[0] -= LAB_Kn * 1
             end = list(vals)
@@ -240,10 +269,8 @@ class MetricDimension:
             step = 1.0 / (count - 1)
             colors_out = []
             for i in range(count):
-                c = []
                 t = step * i
-                for j in range(3):
-                    c.append(start[j] + t * (end[j] - start[j]))
+                c = cast(LabColorVals, tuple(start[j] + t * (end[j] - start[j]) for j in range(3)))
                 out = LabColor(*c)
                 out_rgb: sRGBColor = convert_color(out, sRGBColor)
                 out_rgb.rgb_r = out_rgb.clamped_rgb_r
@@ -286,11 +313,265 @@ class DimensionalMetric:
     forecast_from: int | None
     goals: list[MetricDimensionGoal]
     normalized_by: Node | None
+    scenarios: tuple[str, ...] = ()
+
+    _index_names: list[list[str]] = field(default_factory=list, init=False)
 
     @classmethod
-    def from_node(cls, node: Node, metric: NodeMetric | None = None) -> DimensionalMetric | None:
-        def make_id(*args: str):
-            return ':'.join([node.id, *args])
+    def _make_id(cls, node: Node, *args: str) -> str:
+        return ':'.join([node.id, *args])
+
+    @classmethod
+    def _create_input_nodes_dimension(cls, node: Node, input_nodes: list[Node]) -> MetricDimension:
+        cats = [MetricCategory(
+            id=cls._make_id(node, 'node', n.id),
+            original_id=n.id,
+            label=str(n.short_name or n.name),
+            color=n.color,
+            order=n.order,
+        ) for n in input_nodes]
+        mdim = MetricDimension(
+            id=cls._make_id(node, 'node', NODE_COLUMN), label=_('Sectors'), categories=cats,
+            original_id=NODE_COLUMN,
+            kind=DimensionKind.NODE,
+        )
+        mdim.ensure_unique_colors()
+        return mdim
+
+    @classmethod
+    def _compute_values(
+        cls, node: Node, extra_scenarios: Sequence[Scenario] = (),
+    ) -> tuple[ppl.PathsDataFrame, list[MetricDimension]]:
+        def include_as_input(node: Node) -> bool:
+            if isinstance(node, ActionNode):
+                return False
+            return all(not dim.is_internal for dim in node.output_dimensions.values())
+
+        extra_dims: list[MetricDimension] = []
+        current_scenario_id = node.context.active_scenario.id
+        scenario_dim: MetricDimension | None = None
+        if extra_scenarios:
+            cats: list[MetricCategory] = []
+            seen_scenarios = set[str]()
+            for scenario in [node.context.active_scenario, *extra_scenarios]:
+                if scenario.id in seen_scenarios:
+                    continue
+                seen_scenarios.add(scenario.id)
+                cats.append(MetricCategory(
+                    id=cls._make_id(node, 'scenario', scenario.id),
+                    original_id=scenario.id,
+                    label=str(scenario.name),
+                    color=None,
+                    order=None,
+                ))
+            scenario_dim = MetricDimension(
+                id=cls._make_id(node, 'scenario', SCENARIO_COLUMN), label=_('Scenarios'), categories=cats,
+                original_id=SCENARIO_COLUMN, kind=DimensionKind.SCENARIO,
+            )
+            extra_dims.append(scenario_dim)
+
+        # Add a functionality to show scenario impacts for nodes rather than outputs.
+        # tst = node.context.get_parameter_value('show_scenario_impacts', required=False)
+        # baseline = node.context.get_scenario('baseline')
+
+        # Use inputs nodes as categories for the dimension "Sectors" in some cases.
+        input_nodes = [input_node for input_node in node.input_nodes if include_as_input(input_node)]
+        if (
+            not isinstance(node, AdditiveNode)
+            or len(input_nodes) <= 1
+            or node.input_dataset_instances
+            or isinstance(node, RelativeNode)
+            or len(input_nodes) != len(node.input_nodes)
+        ):
+            # Inputs nodes can't reasonably be summed up, so we just use the output
+            def get_output_without_input_nodes() -> ppl.PathsDataFrame:
+                return node.get_output_pl()
+            get_output_func = get_output_without_input_nodes
+        else:
+            # Get output with input node IDs as categories (in a column `NODE_COLUMN`)
+            def get_output_with_input_nodes() -> ppl.PathsDataFrame:
+                return node.add_nodes_pl(df=None, nodes=input_nodes, keep_nodes=True)
+            get_output_func = get_output_with_input_nodes
+            extra_dims.append(cls._create_input_nodes_dimension(node, input_nodes))
+
+        # Get output in currently active scenario
+        df = get_output_func()
+        if scenario_dim:
+            # Compute output in other scenarios
+            def add_scenario_column(df: ppl.PathsDataFrame, scenario_id: str) -> ppl.PathsDataFrame:
+                return df.with_columns(pl.lit(scenario_id).alias(SCENARIO_COLUMN)).add_to_index(SCENARIO_COLUMN)
+
+            df = add_scenario_column(df, current_scenario_id)
+            scenario_dfs: list[ppl.PathsDataFrame] = [df]
+            meta = df.get_meta()
+            for scenario_cat in scenario_dim.categories:
+                scenario = node.context.get_scenario(scenario_cat.original_id)
+                if scenario.id == current_scenario_id:
+                    continue
+                with scenario.override():
+                    sdf = add_scenario_column(get_output_func(), scenario.id)
+                scenario_dfs.append(sdf)
+                assert sdf.get_meta() == meta
+            df = ppl.to_ppdf(pl.concat(scenario_dfs), meta=meta)
+
+        return df, extra_dims
+
+        # if tst:
+        #     with baseline.override():
+        #         ddf = node.add_nodes_pl(None, node.input_nodes, keep_nodes=True)
+        #     df = df.paths.join_over_index(ddf)
+        #     df = df.with_columns((pl.col(VALUE_COLUMN) - pl.col(VALUE_COLUMN + '_right')).alias(VALUE_COLUMN))
+        #     df.drop(VALUE_COLUMN + '_right')
+
+        # if tst:
+        #     with baseline.override():
+        #         ddf = node.get_output_pl()
+        #     df = df.paths.join_over_index(ddf)
+        #     df = df.with_columns((pl.col(VALUE_COLUMN) - pl.col(VALUE_COLUMN + '_right')).alias(VALUE_COLUMN))
+        #     df.drop(VALUE_COLUMN + '_right')
+
+    @classmethod
+    def _make_goal_values(cls, goal: NodeGoalsEntry) -> list[MetricYearlyGoal]:
+        return [MetricYearlyGoal(
+            year=y.year, value=y.value, is_interpolated=y.is_interpolated,
+        ) for y in goal.get_values()]
+
+    @classmethod
+    def _make_data_dimension(
+        cls, node: Node, dim_id: str, dim: Dimension, df: ppl.PathsDataFrame,
+    ) -> tuple[MetricDimension, list[MetricDimensionGoal]]:
+        def make_id(*args: str) -> str:
+            return cls._make_id(node, *args)
+
+        ordered_groups: list[MetricCategoryGroup] = []
+        group_id_map: dict[str, str] = {}
+        if dim.groups:
+            # If the dimension has groups, add a column with group IDs
+            df = df.with_columns(dim.ids_to_groups(pl.col(dim_id).alias('_Groups')))
+
+            # Unique group IDs in the output data
+            df_groups = set(df['_Groups'].unique())
+
+            for grp in dim.groups:
+                if grp.id not in df_groups:
+                    continue
+                grp_id = make_id(dim.id, 'group', grp.id)
+                group_id_map[grp.id] = grp_id
+                ordered_groups.append(MetricCategoryGroup(
+                    id=grp_id, label=str(grp.label), color=grp.color, order=grp.order,
+                    original_id=grp.id,
+                ))
+            assert len(ordered_groups) == len(df_groups)
+
+        # Unique category IDs in the output data
+        df_cats = set(df[dim_id].unique())
+
+        # Ordered list of categories that are present in the output data
+        ordered_cats: list[MetricCategory] = []
+        goals: list[MetricDimensionGoal] = []
+        for cat in dim.categories:
+            if cat.id not in df_cats:
+                continue
+            cat_id = make_id(dim.id, 'cat', cat.id)
+            ordered_cats.append(MetricCategory(
+                id=cat_id, label=str(cat.label), color=cat.color, order=cat.order,
+                original_id=cat.id, group=group_id_map[cat.group] if cat.group else None,
+            ))
+            if node.goals:
+                # Check if there are goals for this specific dimension category
+                ng = node.goals.get_exact_match(dim.id, categories=[cat.id])
+                if ng:
+                    goals.append(
+                        MetricDimensionGoal(categories=[cat_id], groups=[], values=cls._make_goal_values(ng)),
+                    )
+
+        assert len(df_cats) == len(ordered_cats)
+
+        mdim = MetricDimension(
+            id=make_id('dim', dim.id),
+            label=str(dim.label),
+            help_text=str(dim.help_text),
+            categories=ordered_cats,
+            original_id=dim.id,
+            groups=ordered_groups,
+        )
+        return mdim, goals
+
+    @classmethod
+    def _from_node_metric(cls, node: Node, m: NodeMetric, extra_scenarios: Sequence[Scenario]) -> DimensionalMetric:
+        def make_id(*args: str) -> str:
+            return cls._make_id(node, *args)
+
+        dims: list[MetricDimension] = []
+
+        with node.context.start_span('Compute metric values', op=MODEL_CALC_OP):
+            df, dims = cls._compute_values(node, extra_scenarios)
+
+        if node.context.active_normalization:
+            normalizer, df = node.context.active_normalization.normalize_output(m, df)
+        else:
+            normalizer = None
+
+        goals: list[MetricDimensionGoal] = []
+        if node.goals:
+            for goal in node.goals.root:
+                cat_ids: list[str] = []
+                group_ids: list[str] = []
+                for dim_id, goal_dim in goal.dimensions.items():
+                    dim = node.output_dimensions[dim_id]
+                    for grp_id in goal_dim.groups:
+                        cat_ids += [make_id(dim.id, 'cat', cat.id) for cat in dim.get_cats_for_group(grp_id)]
+                        group_ids.append(make_id(dim.id, 'group', grp_id))
+                    for cat_id in goal_dim.categories:
+                        cat_ids.append(make_id(dim.id, 'cat', cat_id))
+                goals.append(MetricDimensionGoal(
+                    categories=cat_ids, values=cls._make_goal_values(goal), groups=group_ids,
+                ))
+
+        for dim_id, dim in node.output_dimensions.items():
+            data_dim, cat_goals = cls._make_data_dimension(node, dim_id, dim, df)
+            dims.append(data_dim)
+            goals.extend(cat_goals)
+
+        forecast_from = df.filter(pl.col(FORECAST_COLUMN).eq(other=True))[YEAR_COLUMN].min()
+        if forecast_from is not None:
+            assert isinstance(forecast_from, int)
+
+        if df.paths.index_has_duplicates():
+            raise NodeError(node, "DataFrame index has duplicates")
+
+        years = df.select(YEAR_COLUMN).unique().sort(by=YEAR_COLUMN)
+        idx_names = [dim.original_id for dim in dims] + [YEAR_COLUMN]
+        idx_dfs = [pl.LazyFrame(dim.get_original_cat_ids(), schema=[dim.original_id], orient='row') for dim in dims] + [
+            pl.LazyFrame(years, schema=['Year']),
+        ]
+        idf_lazy = idx_dfs[0]
+        for d in idx_dfs[1:]:
+            idf_lazy = idf_lazy.join(d, how='cross')
+        idx_df = idf_lazy.collect()
+        idx_df = idx_df.select(idx_names)
+
+        idx_exprs = [pl.col(n).cast(pl.Utf8) if n != YEAR_COLUMN else pl.col(n) for n in idx_names]
+        df = df.select([*idx_exprs, VALUE_COLUMN, FORECAST_COLUMN]).sort(by=idx_exprs)
+        jdf = idx_df.join(df, how='left', on=idx_exprs, validate='1:1')
+        vals: list[float] = jdf[m.column_id].fill_null(0).to_list()
+        stackable = m.quantity in STACKABLE_QUANTITIES
+        if isinstance(node, ActionNode) and m.quantity in ('mix',):
+            stackable = False
+
+        dm = DimensionalMetric(
+            id=node.id, name=str(node.name), dimensions=dims,
+            values=vals, years=years[YEAR_COLUMN].to_list(), unit=df.get_unit(m.column_id),
+            forecast_from=forecast_from, normalized_by=normalizer,
+            stackable=stackable, goals=goals,
+        )
+        return dm
+
+
+    @classmethod
+    def from_node(
+        cls, node: Node, metric: NodeMetric | None = None, extra_scenarios: Sequence[Scenario] = (),
+    ) -> DimensionalMetric | None:
 
         if metric is None:
             try:
@@ -301,157 +582,8 @@ class DimensionalMetric:
             # FIXME: Get goals only for the chosen metric
             m = metric
 
-        dims: list[MetricDimension] = []
-
-        def include_as_input(node: Node):
-            if isinstance(node, ActionNode):
-                return False
-            for dim in node.output_dimensions.values():
-                if dim.is_internal:
-                    return False
-            return True
-
-        # Add a functionality to show scenario impacts for nodes rather than outputs.
-        tst = node.context.get_parameter_value('show_scenario_impacts', required=False)
-        baseline = node.context.get_scenario('baseline')
-
-        # Use inputs nodes as categories for the dimension "Sectors" in some cases.
-        input_nodes = [node for node in node.input_nodes if include_as_input(node)]
-        if (
-            isinstance(node, AdditiveNode) and len(input_nodes) > 1
-            and not node.input_dataset_instances and not isinstance(node, RelativeNode)
-        ):
-            df = node.add_nodes_pl(None, node.input_nodes, keep_nodes=True)
-
-            if tst:
-                with baseline.override():
-                    ddf = node.add_nodes_pl(None, node.input_nodes, keep_nodes=True)
-                df = df.paths.join_over_index(ddf)
-                df = df.with_columns((pl.col(VALUE_COLUMN) - pl.col(VALUE_COLUMN + '_right')).alias(VALUE_COLUMN))
-                df.drop(VALUE_COLUMN + '_right')
-
-            cats = [MetricCategory(
-                id=make_id('node', n.id),
-                original_id=n.id,
-                label=str(n.short_name or n.name),
-                color=n.color,
-                order=n.order
-            ) for n in node.input_nodes]
-            mdim = MetricDimension(
-                id=make_id('node', NODE_COLUMN), label=_('Sectors'), categories=cats,
-                original_id=NODE_COLUMN,
-            )
-            mdim.ensure_unique_colors()
-            dims.append(mdim)
-        else:
-            df = node.get_output_pl()
-
-            if tst:
-                with baseline.override():
-                    ddf = node.get_output_pl()
-                df = df.paths.join_over_index(ddf)
-                df = df.with_columns((pl.col(VALUE_COLUMN) - pl.col(VALUE_COLUMN + '_right')).alias(VALUE_COLUMN))
-                df.drop(VALUE_COLUMN + '_right')
-
-        if node.context.active_normalization:
-            normalizer, df = node.context.active_normalization.normalize_output(m, df)
-        else:
-            normalizer = None
-
-        def make_goal_values(goal: NodeGoalsEntry):
-            return [MetricYearlyGoal(
-                year=y.year, value=y.value, is_interpolated=y.is_interpolated
-            ) for y in goal.get_values()]
-
-        goals: list[MetricDimensionGoal] = []
-        if node.goals:
-            for goal in node.goals.root:
-                cat_ids: list[str] = []
-                group_ids = []
-                for dim_id, goal_dim in goal.dimensions.items():
-                    dim = node.output_dimensions[dim_id]
-                    for grp_id in goal_dim.groups:
-                        cat_ids += [make_id(dim.id, 'cat', cat.id) for cat in dim.get_cats_for_group(grp_id)]
-                        group_ids.append(make_id(dim.id, 'group', grp_id))
-                    for cat_id in goal_dim.categories:
-                        cat_ids.append(make_id(dim.id, 'cat', cat_id))
-                goals.append(MetricDimensionGoal(
-                    categories=cat_ids, values=make_goal_values(goal), groups=group_ids
-                ))
-
-        for dim_id, dim in node.output_dimensions.items():
-            df_cats = set(df[dim_id].unique())
-
-            ordered_groups = []
-            group_id_map = {}
-            if dim.groups:
-                df = df.with_columns(dim.ids_to_groups(pl.col(dim_id).alias('_Groups')))
-                df_groups = set(df['_Groups'].unique())
-
-                for grp in dim.groups:
-                    if grp.id not in df_groups:
-                        continue
-                    grp_id = make_id(dim.id, 'group', grp.id)
-                    group_id_map[grp.id] = grp_id
-                    ordered_groups.append(MetricCategoryGroup(
-                        id=grp_id, label=str(grp.label), color=grp.color, order=grp.order,
-                        original_id=grp.id,
-                    ))
-                assert len(ordered_groups) == len(df_groups)
-
-            ordered_cats = []
-            for cat in dim.categories:
-                if cat.id not in df_cats:
-                    continue
-                cat_id = make_id(dim.id, 'cat', cat.id)
-                ordered_cats.append(MetricCategory(
-                    id=cat_id, label=str(cat.label), color=cat.color, order=cat.order,
-                    original_id=cat.id, group=group_id_map[cat.group] if cat.group else None
-                ))
-                if node.goals:
-                    ng = node.goals.get_exact_match(dim.id, categories=[cat.id])
-                    if ng:
-                        goals.append(
-                            MetricDimensionGoal(categories=[cat_id], groups=[], values=make_goal_values(ng))
-                        )
-
-            assert len(df_cats) == len(ordered_cats)
-
-            mdim = MetricDimension(
-                id=make_id('dim', dim.id),
-                label=str(dim.label),
-                help_text=str(dim.help_text),
-                categories=ordered_cats,
-                original_id=dim.id,
-                groups=ordered_groups,
-            )
-            dims.append(mdim)
-
-        forecast_from = df.filter(pl.col(FORECAST_COLUMN).eq(True))[YEAR_COLUMN].min()
-        if forecast_from is not None:
-            assert isinstance(forecast_from, int)
-
-        if df.paths.index_has_duplicates():
-            raise NodeError(node, "DataFrame index has duplicates")
-
-        just_cats = [dim.get_original_cat_ids() for dim in dims]
-        years = list(df[YEAR_COLUMN].unique().sort())
-        idx_names = [dim.original_id for dim in dims] + [YEAR_COLUMN]
-        idx_vals = pd.MultiIndex.from_product(just_cats + [years]).to_list()
-        idx_df = pl.DataFrame(idx_vals, orient='row', schema={col: df.schema[col] for col in idx_names})
-
-        jdf = idx_df.join(df, how='left', on=idx_names)
-        vals: list[float] = jdf[m.column_id].fill_null(0).to_list()
-        stackable = m.quantity in STACKABLE_QUANTITIES
-        if isinstance(node, ActionNode) and m.quantity in ('mix',):
-            stackable = False
-        dm = DimensionalMetric(
-            id=node.id, name=str(node.name), dimensions=dims,
-            values=vals, years=years, unit=df.get_unit(m.column_id),
-            forecast_from=forecast_from, normalized_by=normalizer,
-            stackable=stackable, goals=goals,
-        )
-        return dm
+        with node.context.start_span('Dimension metric for: %s' % node.id, op=MODEL_CALC_OP):
+            return cls._from_node_metric(node, m, extra_scenarios)
 
     @classmethod
     def from_action_efficiency(
@@ -469,6 +601,8 @@ class DimensionalMetric:
             dimensions = root.impact_node.output_dimensions.items()
             if root.invert_impact:
                 df = df.with_columns((pl.col(col) * pl.lit(-1.0)).alias(col))
+        else:
+            raise ValueError("Unknown column %s" % col)
 
         dims: list[MetricDimension] = []
 

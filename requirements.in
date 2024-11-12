@@ -62,7 +62,11 @@ opentelemetry-sdk
 opentelemetry-instrumentation-django
 opentelemetry-exporter-otlp-proto-http
 opentelemetry-instrumentation-threading
+opentelemetry-instrumentation-psycopg
+opentelemetry-instrumentation-redis
 #strawberry-graphql
 #strawberry-graphql-django
 diffsync
 django-pydantic-field
+graphene-pydantic
+
