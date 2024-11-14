@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://riga-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 8740dbd8bb4230ca35db31788a9a2441ec94fbed
+  commit: e0add1dddbc3e83a37f475170267abc9fea46bf5
   dvc_remote: kausal-s3
 name: Riga Greenhouse Gas Inventory
 owner: City of Riga
@@ -15,7 +15,7 @@ minimum_historical_year: 2015
 maximum_historical_year: 2022
 emission_unit: t/a
 emission_forecast_from: 2023
-emission_dimensions: ['scope', 'ghg']
+emission_dimensions: ['ghg']
 features:
   baseline_visible_in_graphs: false
 
@@ -37,6 +37,8 @@ dimensions:
     label: 'Diesel'
   - id: electricity
     label: 'Electricity'
+  - id: gasoline
+    label: 'Gasoline'
   - id: hydrogen
     label: 'Hydrogen'
   - id: natural_gas
@@ -51,6 +53,8 @@ dimensions:
   categories:
   - id: buses
     label: 'Buses'
+  - id: local_trains
+    label: 'Local Trains'
   - id: other
     label: 'Other'
 
@@ -89,6 +93,11 @@ dimensions:
     label: 'Rīgas Siltums Cogeneration Stations'
   - id: rigas_siltums_total
     label: 'Rīgas Siltums Total'
+
+  - id: central_statistics_bureau
+    label: 'Central Statistics Bureau'
+  - id: rea
+    label: 'REA'
 
 - id: owner
   label: Owner
@@ -335,6 +344,45 @@ nodes:
     - id: scope
     - id: energy_carrier
 
+- id: i41_energy_fuel_emissions
+  name: I.4.1 Energy Fuel Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg', 'owner', 'source']
+  output_dimensions: ['scope', 'ghg', 'owner', 'source']
+  params:
+    gpc_sector: I.4.1
+  input_datasets:
+  - id: gpc/riga
+  output_nodes:
+  - id: i4_energy_total_emissions
+    from_dimensions:
+    - id: owner
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: source
+
+- id: i42_energy_grid_energy_emissions
+  name: I.4.2 Energy Grid Energy Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg', 'source']
+  output_dimensions: ['scope', 'ghg', 'source']
+  params:
+    gpc_sector: I.4.2
+  input_datasets:
+  - id: gpc/riga
+  output_nodes:
+  - id: i4_energy_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: source
+
 - id: i52_ag_forestry_and_fishing_grid_energy_consumption
   name: I.5.2 Ag, Forestry, & Fishing Grid Energy Consumption
   type: gpc.DatasetNode
@@ -383,6 +431,61 @@ nodes:
     to_dimensions:
     - id: scope
     - id: energy_carrier
+
+- id: ii11_onroad_transport_fuel_combustion
+  name: II.1.1 On-Road Transport Fuel Combustion
+  type: gpc.DatasetNode
+  quantity: fuel_consumption
+  unit: MWh/a
+  input_dimensions: ['scope', 'owner', 'energy_carrier', 'vehicle_type']
+  output_dimensions: ['scope', 'owner', 'energy_carrier', 'vehicle_type']
+  minimum_year: 2020
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/riga
+  output_nodes:
+  - id: ii11_onroad_transport_fuel_combustion_emissions
+    to_dimensions:
+    - id: scope
+    - id: owner
+    - id: energy_carrier
+    - id: vehicle_type
+
+- id: ii11_onroad_transport_fuel_combustion_emissions
+  name: II.1.1 On-Road Transport Fuel Combustion Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg', 'energy_carrier', 'owner', 'vehicle_type']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier', 'owner', 'vehicle_type']
+  output_nodes:
+  - id: ii1_onroad_transport_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
+    - id: owner
+    - id: vehicle_type
+
+- id: ii11_onroad_transport_fuel_emission_factor
+  name: II.1.1 On-Road Transport Fuel Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/MWh
+  input_dimensions: ['scope', 'energy_carrier', 'ghg']
+  output_dimensions: ['scope', 'energy_carrier', 'ghg']
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/riga
+    forecast_from: 2023
+  output_nodes:
+  - id: ii11_onroad_transport_fuel_combustion_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: ghg
 
 - id: ii12_onroad_transport_grid_energy_consumption
   name: II.1.2 On-Road Transport Grid Energy Consumption
@@ -438,6 +541,59 @@ nodes:
     - id: scope
     - id: energy_carrier
     - id: ghg
+
+- id: ii22_railway_grid_energy_consumption
+  name: II.2.2 Railway Grid Energy Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: ['scope', 'vehicle_type', 'owner', 'energy_carrier']
+  output_dimensions: ['scope', 'vehicle_type', 'owner', 'energy_carrier']
+  params:
+    gpc_sector: II.2.2
+  input_datasets:
+  - id: gpc/riga
+  output_nodes:
+  - id: ii22_railway_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: vehicle_type
+    - id: owner
+    - id: energy_carrier
+
+- id: ii22_railway_grid_energy_consumption_emissions
+  name: II.2.2 Railway Grid Energy Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['vehicle_type', 'scope', 'ghg', 'energy_carrier', 'owner']
+  output_dimensions: ['vehicle_type', 'scope', 'ghg', 'energy_carrier', 'owner']
+  output_nodes:
+  - id: ii2_railway_total_emissions
+    to_dimensions:
+    - id: vehicle_type
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
+    - id: owner
+
+- id: ii22_railway_grid_energy_emission_factor
+  name: II.2.2 Railway Grid Energy Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/MWh
+  input_dimensions: ['scope', 'ghg', 'energy_carrier']
+  output_dimensions: ['scope', 'ghg', 'energy_carrier']
+  params:
+    gpc_sector: II.2.2
+  input_datasets:
+  - id: gpc/riga
+  output_nodes:
+  - id: ii22_railway_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: energy_carrier
 
 - id: ii31_waterborne_fuel_combustion
   name: II.3.1 Waterborne Fuel Combustion
@@ -513,9 +669,48 @@ nodes:
   output_dimensions: ['owner', 'scope', 'ghg']
   output_nodes:
   - id: i_stationary_total_emissions
-    to_dimensions:
+    from_dimensions:
     - id: owner
+      flatten: true
     - id: scope
+      flatten: true
+    to_dimensions:
+    - id: ghg
+
+- id: i4_energy_total_emissions
+  name: I.4 Energy Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'source', 'scope']
+  output_dimensions: ['ghg', 'source', 'scope']
+  output_nodes:
+  - id: i_stationary_total_emissions
+    from_dimensions:
+    - id: source
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: ghg
+
+- id: i_stationary_emissions
+  name: I Stationary Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'source']
+  output_dimensions: ['ghg', 'source']
+  params:
+    gpc_sector: I
+  input_datasets:
+  - id: gpc/riga
+  output_nodes:
+  - id: i_stationary_total_emissions
+    from_dimensions:
+    - id: source
+      flatten: true
+    to_dimensions:
     - id: ghg
 
 - id: i_stationary_total_emissions
@@ -524,15 +719,11 @@ nodes:
   color: '#4e79a7'
   quantity: emissions
   unit: t/a
-  input_dimensions: ['owner', 'scope', 'ghg']
-  output_dimensions: ['owner', 'scope', 'ghg']
+  input_dimensions: ['ghg']
+  output_dimensions: ['ghg']
   output_nodes:
   - id: net_emissions
-    from_dimensions:
-    - id: owner
-      flatten: true
     to_dimensions:
-    - id: scope
     - id: ghg
 
 - id: ii1_onroad_transport_total_emissions
@@ -545,14 +736,37 @@ nodes:
   output_nodes:
   - id: ii_transportation_total_emissions
     from_dimensions:
+    - id: scope
+      flatten: true
     - id: vehicle_type
       flatten: true
     - id: owner
       flatten: true
-    to_dimensions:
-    - id: scope
-    - id: ghg
     - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: ghg
+
+- id: ii2_railway_total_emissions
+  name: II.2 Railway Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['vehicle_type', 'scope', 'ghg', 'energy_carrier', 'owner']
+  output_dimensions: ['vehicle_type', 'scope', 'ghg', 'energy_carrier', 'owner']
+  output_nodes:
+  - id: ii_transportation_total_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: owner
+      flatten: true
+    to_dimensions:
+    - id: ghg
 
 - id: ii3_waterborne_total_emissions
   name: II.3 Waterborne Total Emissions
@@ -563,10 +777,32 @@ nodes:
   output_dimensions: ['scope', 'ghg', 'energy_carrier']
   output_nodes:
   - id: ii_transportation_total_emissions
-    to_dimensions:
+    from_dimensions:
     - id: scope
-    - id: ghg
+      flatten: true
     - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: ghg
+
+- id: ii_transportation_emissions
+  name: II Transportation Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'source']
+  output_dimensions: ['ghg', 'source']
+  params:
+    gpc_sector: II
+  input_datasets:
+  - id: gpc/riga
+  output_nodes:
+  - id: ii_transportation_total_emissions
+    from_dimensions:
+    - id: source
+      flatten: true
+    to_dimensions:
+    - id: ghg
 
 - id: ii_transportation_total_emissions
   name: II Transportation Total Emissions
@@ -574,15 +810,77 @@ nodes:
   color: '#e15759'
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energy_carrier', 'scope', 'ghg']
-  output_dimensions: ['energy_carrier', 'scope', 'ghg']
+  input_dimensions: ['ghg']
+  output_dimensions: ['ghg']
+  output_nodes:
+  - id: net_emissions
+    to_dimensions:
+    - id: ghg
+
+- id: iii_waste_emissions
+  name: III Waste Emissions
+  type: gpc.DatasetNode
+  color: '#59A14F'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'owner', 'source']
+  output_dimensions: ['ghg', 'owner', 'source']
+  params:
+    gpc_sector: III
+  input_datasets:
+  - id: gpc/riga
   output_nodes:
   - id: net_emissions
     from_dimensions:
-    - id: energy_carrier
+    - id: owner
+      flatten: true
+    - id: source
       flatten: true
     to_dimensions:
-    - id: scope
+    - id: ghg
+
+- id: iv_ippu_emissions
+  name: IV IPPU Emissions
+  type: gpc.DatasetNode
+  color: '#F28E2B'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'owner', 'source']
+  output_dimensions: ['ghg', 'owner', 'source']
+  params:
+    gpc_sector: IV
+  input_datasets:
+  - id: gpc/riga
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: owner
+      flatten: true
+    - id: source
+      flatten: true
+    to_dimensions:
+    - id: ghg
+
+- id: v_afolu_emissions
+  name: V AFOLU Emissions
+  type: gpc.DatasetNode
+  color: '#B07AA1'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'owner', 'source']
+  output_dimensions: ['ghg', 'owner', 'source']
+  params:
+    gpc_sector: V
+  input_datasets:
+  - id: gpc/riga
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: owner
+      flatten: true
+    - id: source
+      flatten: true
+    to_dimensions:
     - id: ghg
 
 - id: i1_residential_total_price
@@ -661,61 +959,6 @@ nodes:
     to_dimensions:
     - id: energy_carrier
     - id: scope
-
-- id: ii11_onroad_transport_fuel_combustion
-  name: II.1.1 On-Road Transport Fuel Combustion
-  type: gpc.DatasetNode
-  quantity: fuel_consumption
-  unit: MWh/a
-  input_dimensions: ['scope', 'owner', 'energy_carrier', 'vehicle_type']
-  output_dimensions: ['scope', 'owner', 'energy_carrier', 'vehicle_type']
-  minimum_year: 2020
-  params:
-    gpc_sector: II.1.1
-  input_datasets:
-  - id: gpc/riga
-  output_nodes:
-  - id: ii11_onroad_transport_fuel_combustion_emissions
-    to_dimensions:
-    - id: scope
-    - id: owner
-    - id: energy_carrier
-    - id: vehicle_type
-
-- id: ii11_onroad_transport_fuel_combustion_emissions
-  name: II.1.1 On-Road Transport Fuel Combustion Emissions
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['scope', 'ghg', 'energy_carrier', 'owner', 'vehicle_type']
-  output_dimensions: ['scope', 'ghg', 'energy_carrier', 'owner', 'vehicle_type']
-  output_nodes:
-  - id: ii1_onroad_transport_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-    - id: energy_carrier
-    - id: owner
-    - id: vehicle_type
-
-- id: ii11_onroad_transport_fuel_emission_factor
-  name: II.1.1 On-Road Transport Fuel Emission Factor
-  type: gpc.DatasetNode
-  quantity: emission_factor
-  unit: t/MWh
-  input_dimensions: ['scope', 'energy_carrier', 'ghg']
-  output_dimensions: ['scope', 'energy_carrier', 'ghg']
-  params:
-    gpc_sector: II.1.1
-  input_datasets:
-  - id: gpc/riga
-    forecast_from: 2023
-  output_nodes:
-  - id: ii11_onroad_transport_fuel_combustion_emissions
-    to_dimensions:
-    - id: scope
-    - id: energy_carrier
-    - id: ghg
 
 pages:
 - id: home
