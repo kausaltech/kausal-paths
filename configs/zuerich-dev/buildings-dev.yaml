@@ -677,3 +677,103 @@ nodes:
       categories: [fgases_buildings]
       flatten: true
   input_dataset_processors: [LinearInterpolation]
+
+# ----- New & Renovated Building Emissions -----
+
+- id: new_building_energy_reference_areas
+  name_de: New building energy reference areas
+  name_en: New building energy reference areas
+  type: simple.AdditiveNode
+  quantity: floor_area
+  unit: m**2/a
+  input_dimensions: [building_use]
+  output_dimensions: [building_use]
+  input_datasets:
+  - id: zuerich/new_building_energy_reference_areas
+  input_dataset_processors: [LinearInterpolation]
+
+- id: new_building_emission_factors
+  name_de: New building emission factors
+  name_en: New building emission factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: kg/m**2
+  input_dimensions: [building_use]
+  output_dimensions: [building_use]
+  input_datasets:
+  - id: zuerich/new_building_emission_factors
+  input_dataset_processors: [LinearInterpolation]
+
+- id: new_building_emissions
+  name_de: Treibhausgasemissionen Neubau
+  name_en: New building emissions
+  short_name_de: Neubau
+  short_name_en: New buildings
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  input_dimensions: [building_use, emission_scope]
+  output_dimensions: [building_use, emission_scope]
+  unit: kt/a
+  input_nodes:
+  - id: new_building_energy_reference_areas
+    to_dimensions:
+    - id: building_use
+  - id: new_building_emission_factors
+    to_dimensions:
+    - id: building_use
+    - id: emission_scope
+      categories: [scope3]
+  output_nodes:
+  - id: building_emissions
+    from_dimensions:
+    - id: building_use
+      flatten: true
+
+- id: building_renovation_energy_reference_areas
+  name_de: Building renovation energy reference areas
+  name_en: Building renovation energy reference areas
+  type: simple.AdditiveNode
+  quantity: floor_area
+  unit: m**2/a
+  input_dimensions: [building_use]
+  output_dimensions: [building_use]
+  input_datasets:
+  - id: zuerich/building_renovation_energy_reference_areas
+  input_dataset_processors: [LinearInterpolation]
+
+- id: building_renovation_emission_factors
+  name_de: Building renovation emission factors
+  name_en: Building renovation emission factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: kg/m**2
+  input_dimensions: [building_use]
+  output_dimensions: [building_use]
+  input_datasets:
+  - id: zuerich/building_renovation_emission_factors
+  input_dataset_processors: [LinearInterpolation]
+
+- id: building_renovation_emissions
+  name_de: Treibhausgasemissionen Umbau
+  name_en: Building renovation emissions
+  short_name_de: Umbau
+  short_name_en: Building renovation
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  input_dimensions: [building_use, emission_scope]
+  output_dimensions: [building_use, emission_scope]
+  unit: kt/a
+  input_nodes:
+  - id: building_renovation_energy_reference_areas
+    to_dimensions:
+    - id: building_use
+  - id: building_renovation_emission_factors
+    to_dimensions:
+    - id: building_use
+    - id: emission_scope
+      categories: [scope3]
+  output_nodes:
+  - id: building_emissions
+    from_dimensions:
+    - id: building_use
+      flatten: true
