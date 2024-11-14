@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich-dev.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: c7b10fd25da61b82c00f4ebd739eb4698175d905
+  commit: 1ed11f6f94b127866cdf8737bb38ee787117aa66
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero Cockpit
@@ -182,6 +182,9 @@ dimensions:
   - id: fgases_transportation
     label_de: F-Gase (Mobilität)
     label_en: F-Gase (Mobilität)
+  - id: infrastructure
+    label_de: Tiefbau-Infrastruktur
+    label_en: Infrastructure
 
   - id: goods
     label_de: Güter (Bekleidung, IKT, Freizeitgüter und Übriges)

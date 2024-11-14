@@ -380,6 +380,40 @@ nodes:
       flatten: true
   input_dataset_processors: [LinearInterpolation]
 
+# ----- Infrastructure Emissions -----
+
+- id: transportation_infrastructure_emissions_per_capita
+  name_de: Transportation infrastructure emissions per capita
+  name_en: Transportation infrastructure emissions per capita
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kg/cap/a
+  input_dimensions: [emission_sectors, emission_scope]
+  output_dimensions: [emission_sectors, emission_scope]
+  input_datasets:
+  - id: zuerich/transportation_infrastructure_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+- id: transportation_infrastructure_emissions
+  name_de: Treibhausgasemissionen Tiefbau-Infrastruktur
+  name_en: Infrastructure emissions
+  short_name_de: Tiefbau-Infrastruktur
+  short_name_en: Infrastructure
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  input_dimensions: [emission_sectors, emission_scope]
+  output_dimensions: [emission_sectors, emission_scope]
+  unit: kt/a
+  input_nodes:
+  - id: transportation_infrastructure_emissions_per_capita
+  - id: population
+    to_dimensions: []
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+
 # ----- Vehicle Kilometers Inside the City -----
 
 - id: vehicle_mileage_historical
