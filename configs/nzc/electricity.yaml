@@ -612,6 +612,7 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
+  color: '#377eb8'
   input_dimensions: [energy_carrier, cost_type, stakeholder]
   output_dimensions: [energy_carrier, cost_type, stakeholder]
   input_nodes:

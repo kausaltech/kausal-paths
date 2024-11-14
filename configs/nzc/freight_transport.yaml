@@ -686,6 +686,7 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
+  color: '#4daf4a'
   input_dimensions: [stakeholder, transport_mode, cost_type]
   output_dimensions: [stakeholder, transport_mode, cost_type]
   output_nodes:

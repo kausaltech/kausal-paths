@@ -8,7 +8,7 @@ dataset_repo:
   dvc_remote: kausal-s3
   # commit: 772bb24d5a5a01ab2aa8b69bb33efec594f0ac8a # Lappeenranta-specific dataset
   # commit: 4a9b9c0159a17b49c94bb72c265204fe76f3fc57 # Lappeenranta-specific probabilistic dataset
-  commit: 772bb24d5a5a01ab2aa8b69bb33efec594f0ac8a
+  commit: d6a1bb92c8c9c40d026131e1ba80b49f2e59fe0b # Lappeenranta with fixed freight ton-km
 theme_identifier: lpr-ilmasto
 name: Lappeenrannan missiokaupungin ilmasto-ohjelma 2030
 name_en: Lappeenranta Mission City Climate Action Plan 2030
@@ -17,7 +17,7 @@ owner_en: City of Lappeenranta
 emission_unit: kt/a
 target_year: 2030
 model_end_year: 2045
-minimum_historical_year: 2020
+minimum_historical_year: 2022
 maximum_historical_year: 2022
 emission_forecast_from: 2023
 emission_dimensions: [scope, ghg, sector]
@@ -108,9 +108,11 @@ dimensions:
   - id: mortality
     label_fi: Kaiken ilmassaastealtistuksen aiheuttama kuolleisuus
     label_en: Mortality
+    color: '#a6cee3'
   - id: work_days_lost
     label_fi: Menetetyt työpäivät
     label_en: Work days lost
+    color: '#1f78b4'
   - id: chronic_bronchitis
     label_fi: Keuhkoahtaumatauti
     label_en: Chronic bronchitis
@@ -134,14 +136,18 @@ dimensions:
     label_en: Infection
   - id: physical_activity
     label: Fyysinen aktiivisuus
+    color: '#b2df8a'
   - id: air_pollution
     label: Ilmansaastealtistus liikenteessä
+    color: '#33a02c'
   - id: crash_risk
     label: Liikenneonnettomuus
+    color: '#fb9a99'
   - id: carbon_emissions
     label: Hiilidioksidipäästöt
   - id: nzp_response
     label: NZP-vaste
+    color: '#e31a1c'
 
 - id: emission_height
   label_fi: Päästökorkeus
@@ -209,8 +215,10 @@ dimensions:
 - id: sector
   label_en: Sector
   label_fi: Sektori
-  help_text_en: Sectors as categorised in the Mission City Climate City Contracts (CCC).
-  help_text_fi: Luokitteluna on käytetty Missio-kaupunkien Climate City Contractia (CCC).
+  help_text_en: Sectors as categorised in the Mission City Climate City Contracts
+    (CCC).
+  help_text_fi: Luokitteluna on käytetty Missio-kaupunkien Climate City Contractia
+    (CCC).
   categories:
   - id: transport
     label_en: Transport
@@ -389,8 +397,8 @@ dimensions:
     label_en: Public transport
     label_fi: Joukkoliikenne
   - id: walking
-    label_en: Walking
-    label_fi: Kävely
+    label_en: Walking and cycling
+    label_fi: Kävely ja pyöräily
   - id: cycling
     label_en: Cycling
     label_fi: Pyöräily
@@ -856,8 +864,10 @@ nodes:
 - id: road_transport_emissions_intermediate
   name_fi: Tieliikenteen CO2-päästöt
   name_en: CO2 emissions from road transport
-  description_fi: Päämallin ja terveysmoduulin välissä oleva välisolmu, jossa summataan pois terveysmallissa tarpeettomat ulottuvuudet.
-  description_en: Intermediate node between the main model and the health module. Unnecessary dimensions are summed up here.
+  description_fi: Päämallin ja terveysmoduulin välissä oleva välisolmu, jossa summataan
+    pois terveysmallissa tarpeettomat ulottuvuudet.
+  description_en: Intermediate node between the main model and the health module.
+    Unnecessary dimensions are summed up here.
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -891,8 +901,10 @@ nodes:
 - id: district_heating_emissions_intermediate
   name_fi: Kaukolämmön CO2-päästöt
   name_en: CO2 emissions from district heating
-  description_fi: Päämallin ja terveysmoduulin välissä oleva välisolmu, jossa summataan pois terveysmallissa tarpeettomat ulottuvuudet.
-  description_en: Intermediate node between the main model and the health module. Unnecessary dimensions are summed up here.
+  description_fi: Päämallin ja terveysmoduulin välissä oleva välisolmu, jossa summataan
+    pois terveysmallissa tarpeettomat ulottuvuudet.
+  description_en: Intermediate node between the main model and the health module.
+    Unnecessary dimensions are summed up here.
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -915,16 +927,19 @@ nodes:
     tags: [non_additive]
     to_dimensions: []
 
-- id: active_mobility_conversion  # TODO Fix units in dataset
+- id: active_mobility_conversion  # TODO Should passenger and inhabitant be in the same dimension?
   name: Aktiivisen liikkumisen muunnos
+  description: Tämä tekninen solmu on vain yksiköiden johdonmukaisuuden varmistamiseksi.
   type: simple.AdditiveNode
   quantity: exposure
   unit: passenger
   historical_values: [[2010, 1.0], [2023, 1.0]]
+  input_dataset_processors: [LinearInterpolation]
 
 - id: amount_of_active_mobility_by_nzc
   name: Aktiivisen liikkumisen määrä NZP:n mukaan
-  description_fi: Aktiivisen liikkumisen tiedot, jotka perustuvat NetZeroPlanner-mallilla tuotettuun dataan. Katso myös solmu Aktiivisen liikkumisen määrä HLT:n mukaan.
+  description_fi: Aktiivisen liikkumisen tiedot, jotka perustuvat NetZeroPlanner-mallilla
+    tuotettuun dataan. Katso myös solmu Aktiivisen liikkumisen määrä HLT:n mukaan.
   type: simple.MultiplicativeNode
   quantity: exposure
   unit: km/cap/d
@@ -1011,7 +1026,11 @@ nodes:
 - id: active_mover_distance
   name_fi: Aktiivisen liikkumisen määrä HLT:n mukaan
   name_en: Active mover distance
-  description_fi: Aktiivisen liikkumisen määränä käytetään aktiivisten liikkujien keskimääräistä suomalaista arvoa, joka on saatu Henkilöliikennetutkimuksesta 2016. Laskenta on Lehtomäen työryhmän (2021) mukainen.<h3>Viitteet</h3>Heli Lehtomäki ym. 2021. Liikenteen terveysvaikutukset Suomessa ja suurimmissa kaupungeissa. Suomen ympäristökeskuksen raportteja 16 / 2021.
+  description_fi: Aktiivisen liikkumisen määränä käytetään aktiivisten liikkujien
+    keskimääräistä suomalaista arvoa, joka on saatu Henkilöliikennetutkimuksesta 2016.
+    Laskenta on Lehtomäen työryhmän (2021) mukainen.<h3>Viitteet</h3>Heli Lehtomäki
+    ym. 2021. Liikenteen terveysvaikutukset Suomessa ja suurimmissa kaupungeissa.
+    Suomen ympäristökeskuksen raportteja 16 / 2021.
   type: gpc.DatasetNode
   quantity: mileage
   unit: km/person/d
@@ -1025,8 +1044,8 @@ nodes:
 - id: active_mobility_by_hlt
   name_fi: Aktiivisen liikkumisen määrä ikäryhmissä
   name_en: Average active mobility in age groups
-  description_fi: Tämä solmu kuvaa kyseisen väestöryhmän osuutta koko väestön liikkumisesta. Summaamalla
-    osaväestöt yhteen saadaan koko väestön keskimääräinen liikkuminen.
+  description_fi: Tämä solmu kuvaa kyseisen väestöryhmän osuutta koko väestön liikkumisesta.
+    Summaamalla osaväestöt yhteen saadaan koko väestön keskimääräinen liikkuminen.
   type: simple.MultiplicativeNode
   quantity: mileage
   unit: km/person/d
@@ -1050,7 +1069,9 @@ nodes:
 - id: active_mobility_combined
   name_fi: Aktiivisen liikkumisen yhdistelmä
   name_en: Combined active mobility
-  description_fi: 'Tässä on yhdistetty kaksi tietolähdettä: toisaalta NetZeroCities-raportointi ja toisaalta Henkilöliikennetutkimus 2016. Tästä eteenpäin käytetään näiden lähteiden keskiarvoa.'
+  description_fi: 'Tässä on yhdistetty kaksi tietolähdettä: toisaalta NetZeroCities-raportointi
+    ja toisaalta Henkilöliikennetutkimus 2016. Tästä eteenpäin käytetään näiden lähteiden
+    keskiarvoa.'
   type: simple.AdditiveNode
   quantity: mileage
   unit: km/person/d
@@ -1060,7 +1081,9 @@ nodes:
 - id: active_mobility_average
   name_fi: Aktiivisen liikkumisen keskiarvo
   name_en: Average active mobility
-  description_fi: 'Tässä on yhdistetty kaksi tietolähdettä: toisaalta NetZeroCities-raportointi ja toisaalta Henkilöliikennetutkimus 2016. Tämä on näiden lähteiden keskiarvoa. Tämä solmu toimii myös välisolmuna terveysvaikutusmalliin.'
+  description_fi: 'Tässä on yhdistetty kaksi tietolähdettä: toisaalta NetZeroCities-raportointi
+    ja toisaalta Henkilöliikennetutkimus 2016. Tämä on näiden lähteiden keskiarvoa.
+    Tämä solmu toimii myös välisolmuna terveysvaikutusmalliin.'
   type: simple.FixedMultiplierNode
   quantity: mileage
   unit: km/person/d
@@ -1079,7 +1102,11 @@ nodes:
 - id: other_health_effects_from_nzc
   name_fi: Muita terveysvaikutuksia NZC-mallista
   name_en: Other health effects from the NZC model
-  description_fi: Lappeenrannan mallin pohjana oleva NetZeroPlanner laskee myös joitakin terveyskustnnuksia liikenteelle. Nämä ovat osittain päällekkäisiä THL:n mallin kanssa (pienhiukkaskuolemat) ja osittain WHO/HEATin kanssa (liikenneonnettomuudet). On siis syytä olla tarkkana näiden kanssa. Ne on kuitenkin toistaiseksi nostettu tänne vertailua varten.
+  description_fi: Lappeenrannan mallin pohjana oleva NetZeroPlanner laskee myös joitakin
+    terveyskustnnuksia liikenteelle. Nämä ovat osittain päällekkäisiä THL:n mallin
+    kanssa (pienhiukkaskuolemat) ja osittain WHO/HEATin kanssa (liikenneonnettomuudet).
+    On siis syytä olla tarkkana näiden kanssa. Ne on kuitenkin toistaiseksi nostettu
+    tänne vertailua varten.
   description_en: Other health impacts from the NetZeroPlanner model.
   type: simple.AdditiveNode
   quantity: currency
@@ -1152,7 +1179,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 - id: a13_car_pooling
   name_en: 1.3 Car pooling
   name_fi: 1.3 Kimppakyydit
-  description_en: How many % increase there is in the average number of people in a car.
+  description_en: How many % increase there is in the average number of people in
+    a car.
   description_fi: Kuinka monta % keskimääräinen henkilömäärä autossa kasvaa.
   type: gpc.DatasetAction2
   quantity: fraction
@@ -1474,7 +1502,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   - id: heating_waste_fossil_share
 
 - id: a344_top_performance_improvement
-  name_en: 3.4.4 Top performance standard improvement compared with the regular new buildings
+  name_en: 3.4.4 Top performance standard improvement compared with the regular new
+    buildings
   name_fi: 3.4.4 Huippusuorituskyvyn parannus verrattuna tavallisiin uusiin rakennuksiin
   type: gpc.DatasetAction2
   quantity: fraction

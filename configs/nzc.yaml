@@ -477,6 +477,7 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
+  color: '#984ea3'
   input_dimensions: [stakeholder, cost_type]
   output_dimensions: [stakeholder, cost_type]
   input_nodes:
