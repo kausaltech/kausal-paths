@@ -357,7 +357,7 @@ emission_sectors:
   short_name_de: Ernährung
   short_name_en: Food consumption
   part_of: net_emissions
-  color: '#926901'
+  color: '#FFCC00'
   input_dataset_processors: [LinearInterpolation]
 
 nodes:
@@ -412,7 +412,7 @@ nodes:
 - id: non_road_machinery_emissions
   name_de: Treibhausgasemissionen Baumaschinen und Spezialfahrzeuge
   name_en: Fuel consumption of building machines and special vehicles
-  short_name_de: Non-Road Maschinen
+  short_name_de: Baumaschinen und Spezialfahrzeuge
   short_name_en: Non-road machinery
   type: ch.zuerich.NonroadMachineryEmissions
   quantity: emissions
@@ -641,7 +641,7 @@ nodes:
   name_en: Other consumption emissions
   short_name_de: Konsum
   short_name_en: Other consumption
-  color: '#003C40'
+  color: '#2AC7C7'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a

@@ -357,7 +357,7 @@ nodes:
   quantity: emissions
   unit: kt/a
   type: simple.SectorEmissions
-  color: '#313900'
+  color: '#687400'
   input_dimensions: [emission_scope]
   output_dimensions: [emission_scope]
   output_nodes: [net_emissions]
@@ -889,10 +889,10 @@ nodes:
   - id: transportation_emissions_outside_city
 
 - id: non_motorized_emissions_outside_city
-  name_de: Treibhausgasemissionen Langsamverkehr
-  name_en: Slow transport emissions
-  short_name_de: Langsamverkehr
-  short_name_en: Slow transport
+  name_de: Treibhausgasemissionen Fuss- und Veloverkehr
+  name_en: Walking and cycling emissions
+  short_name_de: Fuss- und Veloverkehr
+  short_name_en: Walking and cycling
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
@@ -978,7 +978,7 @@ nodes:
 - id: transportation_emissions_outside_city
   name_en: Emissions from transportation outside the city
   name_de: Treibhausgasemissionen Mobilität der Stadtbevölkerung ausserhalb des Stadtgebiets
-  short_name_de: Mobilität ausserhalb des Stadtgebiets
+  short_name_de: Mobilität der Stadtbevölkerung ausserhalb des Stadtgebiets
   short_name_en: Transportation outside city
   quantity: emissions
   unit: kt/a
@@ -1020,9 +1020,9 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
 
 - id: new_vehicle_emissions
-  name_de: New vehicle emissions
+  name_de: Treibhausgasemissionen Neufahrzeuge
   name_en: New vehicle emissions
-  short_name_de: Neue Fahrzeuge
+  short_name_de: Neufahrzeuge
   short_name_en: New vehicles
   type: simple.MultiplicativeNode
   quantity: emissions

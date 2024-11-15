@@ -53,9 +53,9 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
 
 - id: aviation_emissions
-  name_de: Treibhausgasemissionen Flugverkehr
+  name_de: Treibhausgasemissionen Flugzeug
   name_en: Aviation emissions
-  short_name_de: Flugverkehr
+  short_name_de: Flugzeug
   short_name_en: Aviation
   type: simple.MultiplicativeNode
   quantity: emissions

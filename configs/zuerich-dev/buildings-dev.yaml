@@ -652,7 +652,7 @@ nodes:
   name_de: Treibhausgasemissionen Gebäude
   short_name_de: Gebäude
   short_name_en: Buildings
-  color: '#512480'
+  color: '#7B4FB7'
   unit: kt/a
   quantity: emissions
   type: simple.SectorEmissions
