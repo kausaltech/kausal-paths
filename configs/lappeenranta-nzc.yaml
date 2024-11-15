@@ -1178,7 +1178,7 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 
 - id: a13_car_pooling
   name_en: 1.3 Car pooling
-  name_fi: 1.3 Kimppakyydit
+  name_fi: 1.3 Henkilöautojen matkustajamäärän lisääminen
   description_en: How many % increase there is in the average number of people in
     a car.
   description_fi: Kuinka monta % keskimääräinen henkilömäärä autossa kasvaa.
@@ -1358,7 +1358,7 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 
 - id: a32_new_building_improvements
   name_en: 3.2 New building shares improvement
-  name_fi: 3.2 Uusien rakennusten osuuksien parantaminen
+  name_fi: 3.2 Energiatehokkaiden rakennusten osuuden lisääminen uudisrakentamisessa
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
