@@ -249,7 +249,7 @@ class PathsExt:
     def join_over_index(  # noqa: C901, PLR0912
         self,
         other: ppl.PathsDataFrame,
-        how: Literal['left', 'outer'] = 'left',  # FIXME Should also have option 'inner'
+        how: Literal['left', 'outer', 'inner'] = 'left',
         index_from: Literal['left', 'right', 'union'] = 'left',
     ):
         sdf = self._df

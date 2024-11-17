@@ -1,13 +1,16 @@
+from __future__ import annotations
+
+from django.utils.translation import gettext_lazy as _
+
 import pandas as pd
 import polars as pl
-from params import StringParameter
-from nodes.constants import VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN
+
+from common import polars as ppl
 from nodes.actions import ActionNode
+from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.gpc import DatasetNode
 from nodes.units import unit_registry
-from common import polars as ppl
-from nodes.exceptions import NodeError
-from django.utils.translation import gettext_lazy as _
+from params import StringParameter
 
 
 class DatasetAction(ActionNode, DatasetNode):
@@ -83,7 +86,7 @@ class DatasetActionMFM(ActionNode):
     def compute_effect(self) -> pd.DataFrame:
         # Perform initial filtering of GPC dataset.
         df = self.get_input_dataset()
-        df = df[df['Value'].notnull()]
+        df = df[df['Value'].notna()]
         df = df[df.index.get_level_values('Action') == self.get_parameter_value('action')]
 
         # Drop filter levels and empty dimension levels.
@@ -130,7 +133,7 @@ class DatasetActionMFM(ActionNode):
         # Create a DF for each sector/quantity pair...
         dfi = dfi[['sector', 'quantity']].drop_duplicates()
         qdfs = []
-        for pair in list(zip(dfi['sector'], dfi['quantity'])):
+        for pair in list(zip(dfi['sector'], dfi['quantity'], strict=False)):
             qdf = df[(df.index.get_level_values('sector') == pair[0]) &
                      (df.index.get_level_values('quantity') == pair[1])].copy()
             qdf.index = qdf.index.droplevel(['sector', 'quantity'])
@@ -143,7 +146,7 @@ class DatasetActionMFM(ActionNode):
             qdf = qdf.paths.to_wide()
 
             qdf = yeardf.paths.join_over_index(qdf)
-            for col in list(set(qdf.columns) - set(['Year'])):
+            for col in list(set(qdf.columns) - {'Year'}):
                 qdf = qdf.with_columns(pl.col(col).interpolate())
 
             qdf = qdf.paths.to_narrow()
@@ -263,7 +266,7 @@ class StockReplacementAction(ActionNode):
         # Perform initial filtering of dataset. ---------------------------------------------------
         df = self.get_input_dataset()
 
-        df = df[df[VALUE_COLUMN].notnull()]
+        df = df[df[VALUE_COLUMN].notna()]
         df = df[(df.index.get_level_values('Sector') == self.get_parameter_value('sector')) &
                 (df.index.get_level_values('Action') == self.get_parameter_value('action'))]
 
@@ -402,7 +405,14 @@ class StockReplacementAction(ActionNode):
         return base
 
 class SCurveAction(DatasetAction):
-    explanation = _("This is S Curve Action. It calculates non-linear effect with two parameters, max_impact and max_year.The parameters come from Dataset. In addition, there must be one input node for background data. Function for S-curve = A/(1+exp(-k*(x-x0)). A is the maximum value, k is the steepness of the curve (always 0.5), and x0 is the midpoint.")
+    explanation = _(
+        """
+        This is S Curve Action. It calculates non-linear effect with two parameters,
+        max_impact and max_year.The parameters come from Dataset. In addition, there
+        must be one input node for background data. Function for
+        S-curve = A/(1+exp(-k*(x-x0)). A is the maximum value, k is the steepness
+        of the curve (always 0.5), and x0 is the midpoint.
+        """)
     allowed_parameters = DatasetAction2.allowed_parameters
 
     no_effect_value = 0.0
@@ -432,7 +442,7 @@ class SCurveAction(DatasetAction):
         return df
 
     def compute_effect(self) -> ppl.PathsDataFrame:
-        base_year = 2018.0  # FIXME Use the actual baseline year
+        baseline_year = self.context.instance.maximum_historical_year  # FIXME Is thisactually  a correct wy of doing this?
 
         df = self.get_input_node().get_output_pl(target_node=self)
 
@@ -442,35 +452,25 @@ class SCurveAction(DatasetAction):
         params = self.convert_names_to_ids(params)
         params = self.implement_unit_col(params)
         params = self.apply_multiplier(params, required=False, units=True)
-        row = params[YEAR_COLUMN].unique()
-        if len(row) != 1:
-            raise NodeError(self, 'All parameter values must be at the same year.')
-        row = row[0]
-
-        impact = params.filter(pl.col('parameter').eq('max_impact')).drop('parameter')
-        df = df.paths.join_over_index(impact).rename({VALUE_COLUMN + '_right': 'A'})
-        df = self.extend_value_to_whole_column(df, 'A', row)
-        df = df.ensure_unit('A', df.get_unit(VALUE_COLUMN))
-
-        year = params.filter(pl.col('parameter').eq('max_year')).drop('parameter')
-        df = df.paths.join_over_index(year).rename({VALUE_COLUMN + '_right': 'maxyear'})
-        df = self.extend_value_to_whole_column(df, 'maxyear', row)
+        params = params.paths.join_over_index(df, how='inner')
+        ymax = params.filter(pl.col('parameter') == 'max_year')[VALUE_COLUMN][0]
+        params = params.ensure_unit(VALUE_COLUMN, df.get_unit(VALUE_COLUMN))
+        amax = params.filter(pl.col('parameter') == 'max_impact')[VALUE_COLUMN][0]
 
         df = df.with_columns((
-            pl.col(YEAR_COLUMN) - (pl.lit(base_year) +
-            (pl.col('maxyear') - pl.lit(base_year)) / 2)).alias('x'))
-        df = df.with_columns((pl.col('A') / (
+            pl.col(YEAR_COLUMN) - (pl.lit(baseline_year) +
+            (pl.lit(ymax) - pl.lit(baseline_year)) / 2)).alias('x'))
+        df = df.with_columns((pl.lit(amax) / (
             pl.lit(1.0) + (pl.lit(-0.5) * pl.col('x')).exp())
             ).alias('out'))
-        df = df.set_unit('out', df.get_unit('A'))
-        df = df.sum_cols([VALUE_COLUMN, 'out'], 'out')
-        df = df.with_columns(
-            pl.min_horizontal(['out', 'A']).alias('out')
-        )
+        df = df.set_unit('out', df.get_unit(VALUE_COLUMN))
+        df = df.with_columns((
+            pl.when(pl.col(FORECAST_COLUMN))
+            .then(pl.col('out'))
+            .otherwise(pl.col(VALUE_COLUMN))).alias('out'))
         df = df.subtract_cols(['out', VALUE_COLUMN], VALUE_COLUMN)
-        df = df.drop(['maxyear', 'A', 'x', 'out'])
+        df = df.drop(['x', 'out'])
 
         if not self.is_enabled():
             df = df.with_columns(pl.lit(self.no_effect_value).alias(VALUE_COLUMN))
-        df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
