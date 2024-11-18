@@ -150,7 +150,9 @@ class DatasetActionMFM(ActionNode):
             qdf = qdf.to_pandas()
 
             # ...rename value column.
-            qdf = qdf.rename(columns = {'Value': '%s_%s' % (pair[0], self.qlookup[pair[1]])})
+            if len(dfi) > 1:
+                qdf = qdf.rename(columns = {'Value': '%s_%s' % (pair[0], self.qlookup[pair[1]])})
+
             qdfs.append(qdf)
 
         # Join sector/quantity DFs into a single multi-metric DF.
