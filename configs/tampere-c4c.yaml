@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://tampere-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 1a8120ca1818582e32f5814adc3a6bce6576da2b
+  commit: c1a17d73f01aaf4125441ea1fad697bf3f834001
   dvc_remote: kausal-s3
 name: C4C Hiilineutraali Tampere 2030
 name_en: C4C Carbon-neutral Tampere 2030
@@ -161,6 +161,8 @@ dimensions:
     label: Energy
   - id: maintenance
     label: Maintenance
+  - id: operations
+    label: Operations
 
 - id: energy_carrier
   label: Energian kantaja
@@ -958,6 +960,9 @@ nodes:
   output_dimensions: [road_type, vehicle_type, ghg, scope]
   output_nodes:
   - id: bus_emissions_total
+    from_dimensions:
+    - id: road_type
+      flatten: true
 
 - id: bus_emissions_total
   name: Bussiliikenteen kokonaispäästöt
@@ -965,8 +970,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [road_type, vehicle_type, ghg, scope]
-  output_dimensions: [road_type, vehicle_type, ghg, scope]
+  input_dimensions: [vehicle_type, ghg, scope]
+  output_dimensions: [vehicle_type, ghg, scope]
   params:
     gpc_sector: II.1.1
   input_datasets:
@@ -979,8 +984,6 @@ nodes:
   output_nodes:
   - id: transportation_emissions
     from_dimensions:
-    - id: road_type
-      flatten: true
     - id: vehicle_type
       flatten: true
     - id: ghg
@@ -1773,6 +1776,20 @@ nodes:
   output_nodes:
   - id: net_price
 
+- id: transportation_price
+  name: Transportation Price
+  type: simple.AdditiveNode
+  color: '#e15759'
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [cost_type, owner, vehicle_type]
+  output_dimensions: [cost_type, owner, vehicle_type]
+  output_nodes:
+  - id: net_price
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
 # ----- ACTIONS ---------------------------------------------------------------
 
 actions:
@@ -2014,6 +2031,48 @@ actions:
     to_dimensions:
     - id: cost_type
     - id: owner
+
+- id: electrify_public_transportation
+  name: Electrify Public Transportation
+  type: gpc.DatasetActionMFM
+  color: '#e15759'
+  input_dimensions: ['cost_type', 'owner', 'vehicle_type', 'ghg', 'scope']
+  output_dimensions: ['cost_type', 'owner', 'vehicle_type', 'ghg', 'scope']
+  params:
+    action: Electrify Public Transportation
+  input_datasets:
+  - id: gpc/tampere_simple_actions
+    forecast_from: 2025
+  output_metrics:
+  - id: ii11_emissions
+    unit: t/a
+    quantity: emissions
+  - id: ii_currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: bus_emissions_total
+    metrics: [ii11_emissions]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: ghg
+    - id: scope
+  - id: transportation_price
+    metrics: [ii_currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+    - id: vehicle_type
 
 # - id: i22_streetlight_replacement_action
 #   name: I.2.2 Streetlight Replacement Action
