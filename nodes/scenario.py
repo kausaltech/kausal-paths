@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import logging
 from contextlib import contextmanager
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Generator
 
 if TYPE_CHECKING:
@@ -13,32 +13,16 @@ if TYPE_CHECKING:
 
     from .context import Context
 
-logger = logging.getLogger(__name__)
-
-
+@dataclass
 class Scenario:
+    context: Context
     id: str
     name: TranslatedString
-    context: Context
 
     default: bool = False
     all_actions_enabled: bool = False
-    param_values: dict[str, Any]
-
-    def __init__(
-        self,
-        context: Context,
-        id: str,
-        name: TranslatedString,
-        default: bool = False,
-        all_actions_enabled: bool = False,
-    ):
-        self.id = id
-        self.context = context
-        self.name = name
-        self.default = default
-        self.all_actions_enabled = all_actions_enabled
-        self.param_values = {}
+    param_values: dict[str, Any] = field(default_factory=dict)
+    actual_historical_years: list[int] | None = None
 
     def get_param_values(self) -> Iterable[tuple[Parameter, Any]]:
         for param_id, val in self.param_values.items():

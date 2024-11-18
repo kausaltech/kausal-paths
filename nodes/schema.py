@@ -691,9 +691,10 @@ class ActionNodeType(graphene.ObjectType):
 
 class ScenarioType(graphene.ObjectType):
     id = graphene.ID()
-    name = graphene.String()
-    is_active = graphene.Boolean()
-    is_default = graphene.Boolean()
+    name = graphene.String(required=True)
+    is_active = graphene.Boolean(required=True)
+    is_default = graphene.Boolean(required=True)
+    actual_historical_years = graphene.List(graphene.NonNull(graphene.Int), required=False)
 
     @staticmethod
     def resolve_is_active(root: Scenario, info: GQLInstanceInfo) -> bool:
@@ -826,7 +827,7 @@ class Query(graphene.ObjectType):
     impact_overviews = graphene.List(graphene.NonNull(ActionEfficiencyPairType), required=True)
     scenarios = graphene.List(graphene.NonNull(ScenarioType), required=True)
     scenario = graphene.Field(ScenarioType, id=graphene.ID(required=True))
-    active_scenario = graphene.Field(ScenarioType)
+    active_scenario = graphene.Field(ScenarioType, required=True)
     available_normalizations = graphene.List(graphene.NonNull(NormalizationType), required=True)
     active_normalization = graphene.Field(NormalizationType, required=False)
 
