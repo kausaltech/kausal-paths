@@ -540,19 +540,27 @@ class PathsGraphQLView(GraphQLView):
 
                 console = Console()
 
-                def print_error(err: GraphQLError, orig: Exception | None) -> None:
+                def print_error(err: GraphQLError | Exception) -> None:
                     if getattr(err, '_was_printed', False):
                         return
-                    if not orig:
-                        return
+                    if isinstance(err, GraphQLError):
+                        orig = err.original_error
+                        if orig is None:
+                            return
+                        err = orig
+
                     tb = Traceback.from_exception(
-                        type(orig),
-                        orig,
-                        traceback=orig.__traceback__,
+                        type(err),
+                        err,
+                        traceback=err.__traceback__,
                     )
                     console.print(tb)
             else:
-                def print_error(err: GraphQLError, orig: Exception | None) -> None:
+                def print_error(err: GraphQLError | Exception) -> None:
+                    if isinstance(err, GraphQLError):
+                        orig = getattr(err, 'original_error', None)
+                    else:
+                        orig = err
                     if orig is not None:
                         level = 'ERROR'
                         orig_str = ' (resulting from: %s)' % str(orig)
@@ -566,7 +574,10 @@ class PathsGraphQLView(GraphQLView):
             server_error_count = 0
             invalid_query_count = 0
             for error in result.errors:
-                orig_error = getattr(error, 'original_error', None)
+                if isinstance(error, GraphQLError):
+                    orig_error = getattr(error, 'original_error', None)
+                else:
+                    orig_error = error
                 if orig_error:
                     server_error_count += 1
                     if server_error_count >= 5:
@@ -579,8 +590,8 @@ class PathsGraphQLView(GraphQLView):
                         if invalid_query_count == 5:
                             logger.warning('Too many invalid query errors, skipping the rest')
                         continue
-                print_error(error, orig=orig_error)
-                if not orig_error:
+                print_error(error)
+                if isinstance(error, GraphQLError) and error.original_error is None:
                     # It's an invalid query
                     logger.warning('GraphQL query error: {error.message} {error.locations}', error=error)
                     continue
