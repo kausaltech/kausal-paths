@@ -106,7 +106,7 @@ dimensions:
   aliases: [outcome]
   categories:
   - id: mortality
-    label_fi: Kaiken ilmassaastealtistuksen aiheuttama kuolleisuus
+    label_fi: Kaikki ilmansaastekuolleisuus
     label_en: Mortality
     color: '#a6cee3'
   - id: work_days_lost
