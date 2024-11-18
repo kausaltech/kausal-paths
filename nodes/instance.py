@@ -336,7 +336,8 @@ class InstanceLoader:
 
     @staticmethod
     def wrap_with_span[**P, R, SC: InstanceLoader](
-        name: str, op: str,
+        name: str,
+        op: str,
     ) -> Callable[[InstanceLoaderFuncT[P, R, SC]], InstanceLoaderFuncT[P, R, SC]]:
         def wrap_with_span_outer(fn: InstanceLoaderFuncT[P, R, SC]) -> InstanceLoaderFuncT[P, R, SC]:
             @wraps(fn)
@@ -827,6 +828,23 @@ class InstanceLoader:
         with start_span(name='finalize-nodes', op='function'):
             self.context.finalize_nodes()
 
+    def setup_progress_tracking_scenario(self):
+        from frameworks.models import MeasureDataPoint
+
+        pt_scenario = self.context.scenarios.get('progress_tracking')
+        if pt_scenario is None:
+            return
+        fwc = self.fw_config
+        if fwc is None:
+            return
+        years = (
+            MeasureDataPoint.objects.filter(measure__framework_config=fwc)
+            .order_by()
+            .values_list('year', flat=True)
+            .distinct('year')
+        )
+        pt_scenario.actual_historical_years = list(years)
+
     def setup_scenarios(self):
         from nodes.scenario import CustomScenario, Scenario
 
@@ -835,7 +853,8 @@ class InstanceLoader:
         for sc in self.config['scenarios']:
             name = self.make_trans_string(sc, 'name', pop=True)
             params_config = sc.pop('params', [])
-            scenario = Scenario(self.context, **sc, name=name)
+            actual_historical_years = sc.pop('actual_historical_years', None)
+            scenario = Scenario(context=self.context, name=name, actual_historical_years=actual_historical_years, **sc)
 
             for pc in params_config:
                 param = self.context.get_parameter(pc['id'])
@@ -867,6 +886,9 @@ class InstanceLoader:
                 base_scenario=default_scenario,
             ),
         )
+
+        if self.fw_config is not None:
+            self.setup_progress_tracking_scenario()
 
     def setup_global_parameters(self):
         context = self.context
