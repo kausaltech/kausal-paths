@@ -10,6 +10,17 @@ dimensions:
     label: Interkontinental
     label_en: Intercontinental
 
+- id: flight_effect
+  label: Effekte
+  label_en: Effect
+  categories:
+  - id: co2_effect
+    label: CO2-Effekte
+    label_en: CO2 effect
+  - id: non_co2_effect
+    label: Nicht-CO2-Effekte
+    label_en: Non-CO2 effect
+
 nodes:
 - id: aviation_mileage_per_inhabitant
   name_de: Aviation mileage per inhabitant
@@ -45,8 +56,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/pkm
-  input_dimensions: [flight_type]
-  output_dimensions: [flight_type]
+  input_dimensions: [flight_effect, flight_type]
+  output_dimensions: [flight_effect, flight_type]
   input_datasets:
   - id: zuerich/aviation_emission_factors
     forecast_from: 2024
@@ -59,8 +70,8 @@ nodes:
   short_name_en: Aviation
   type: simple.MultiplicativeNode
   quantity: emissions
-  input_dimensions: [flight_type, vehicle_type, greenhouse_gases, emission_scope]
-  output_dimensions: [flight_type, vehicle_type, greenhouse_gases, emission_scope]
+  input_dimensions: [flight_effect, flight_type, vehicle_type, greenhouse_gases, emission_scope]
+  output_dimensions: [flight_effect, flight_type, vehicle_type, greenhouse_gases, emission_scope]
   unit: kt/a
   input_nodes:
   - id: aviation_mileage
@@ -72,6 +83,7 @@ nodes:
   - id: aviation_emission_factors
     tags: [non_additive]
     to_dimensions:
+    - id: flight_effect
     - id: flight_type
     - id: vehicle_type
       categories: [aviation]
@@ -82,6 +94,8 @@ nodes:
   output_nodes:
   - id: transportation_emissions_outside_city
     from_dimensions:
+    - id: flight_effect
+      flatten: true
     - id: flight_type
       flatten: true
 

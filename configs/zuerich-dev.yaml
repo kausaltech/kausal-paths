@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich-dev.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 1ed11f6f94b127866cdf8737bb38ee787117aa66
+  commit: dd53740df8e24e0311fd782f8aa7074717476554
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero Cockpit

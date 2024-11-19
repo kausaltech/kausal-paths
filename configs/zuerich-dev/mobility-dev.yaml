@@ -1448,6 +1448,8 @@ nodes:
       flatten: true
   - id: aviation_emissions
     from_dimensions:
+    - id: flight_effect
+      flatten: true
     - id: flight_type
       flatten: true
     - id: vehicle_type
