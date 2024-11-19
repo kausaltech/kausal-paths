@@ -13,6 +13,7 @@ from functools import cached_property, wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Concatenate, Literal, Self, cast, overload
 
+from django.db.models.aggregates import Max, Min
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 import orjson
@@ -1037,17 +1038,22 @@ class InstanceLoader:
         if fwc is None:
             owner = self.make_trans_string(self.config, 'owner', required=True)
             name = self.make_trans_string(self.config, 'name', required=True)
-            max_hist_year = self.config.get('maximum_historical_year')
+            max_hist_year: int | None = self.config.get('maximum_historical_year')
             min_hist_year: int = self.config['minimum_historical_year']
             site_url = self.config.get('site_url')
             reference_year = self.config.get('reference_year')
         else:
+            from frameworks.models import MeasureDataPoint
             owner = self.simple_trans_string(fwc.organization_name)
             name = self.simple_trans_string(fwc.instance_config.get_name())
-            max_hist_year = fwc.baseline_year
-            min_hist_year = fwc.baseline_year
+            mdp_data = MeasureDataPoint.objects.filter(measure__framework_config=fwc).aggregate(
+                min_year=Min('year'),
+                max_year=Max('year'),
+            )
+            max_hist_year = mdp_data['max_year'] or fwc.baseline_year
+            min_hist_year = mdp_data['min_year'] or fwc.baseline_year
             site_url = fwc.get_view_url()
-            reference_year = max_hist_year
+            reference_year = fwc.baseline_year
         self.instance = Instance(
             id=instance_id,
             name=name,

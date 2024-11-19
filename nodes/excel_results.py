@@ -169,7 +169,7 @@ class InstanceResultExcel(I18nBaseModel):
             wb.defined_names[range_name] = defn
             max_name_length = max(len(name), max_name_length)
 
-        add_param_value('Baseline year', context.instance.maximum_historical_year, 'BaselineYear')
+        add_param_value('Baseline year', context.instance.reference_year, 'BaselineYear')
         add_param_value('Target year', context.target_year)
         add_param_value('Model end year', context.model_end_year)
         ps.column_dimensions['A'].width = max_name_length

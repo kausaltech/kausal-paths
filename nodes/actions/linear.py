@@ -223,15 +223,15 @@ class DatasetReduceAction(ActionNode):
         if n is None:
             df = self.get_input_dataset_pl(tag='historical')
             if FORECAST_COLUMN not in df.columns:
-                df = df.with_columns(pl.lit(False).alias(FORECAST_COLUMN))
+                df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
             assert len(df.metric_cols) == 1
             df = df.rename({df.metric_cols[0]: VALUE_COLUMN})
         else:
             df = n.get_output_pl(target_node=self)
             df = df.filter(~pl.col(FORECAST_COLUMN))  # FIXME FOR DIFF
 
-        max_year = df[YEAR_COLUMN].max()
-        df = df.filter(pl.col(YEAR_COLUMN) == max_year)
+        max_hist_year = df[YEAR_COLUMN].max()
+        df = df.filter(pl.col(YEAR_COLUMN) == max_hist_year)
 
         gdf = self.get_input_dataset_pl(tag='goal', required=False)
         if gdf is None:
@@ -277,6 +277,7 @@ class DatasetReduceAction(ActionNode):
         gdf = gdf.paths.to_wide()
 
         meta = df.get_meta()
+        gdf = gdf.filter(pl.col(YEAR_COLUMN) > max_hist_year)
         df = ppl.to_ppdf(pl.concat([df, gdf], how='diagonal'), meta=meta)
         df = df.paths.make_forecast_rows(end_year=self.get_end_year())
         df = df.with_columns([pl.col(m).interpolate() for m in df.metric_cols])
