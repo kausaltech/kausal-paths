@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://bytom-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 408f42a6400e7f21b2b3454f3bd76ba90edc22c9
+  commit: a27843536817d7841e0b1a8ba546c62f13c25696
   dvc_remote: kausal-s3
 name: Bytom Greenhouse Gas Inventory
 owner: City of Bytom
@@ -85,15 +85,14 @@ emission_sectors:
   name: Net Emissions
   is_outcome: true
 
-
 nodes:
 - id: net_price
   name: Net Price
   type: simple.AdditiveNode
   quantity: currency
   unit: PLN/a
-  input_dimensions: ['heating', 'scope']
-  output_dimensions: ['heating', 'scope']
+  input_dimensions: ['scope']
+  output_dimensions: ['scope']
   is_outcome: true
 
 - id: i11_residential_fuel_consumption
@@ -267,6 +266,151 @@ nodes:
     - id: scope
     - id: ghg
 
+- id: i42_energy_grid_energy_consumption
+  name: I.4.2 Energy Grid Energy Consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: ['energy_carrier', 'scope']
+  output_dimensions: ['energy_carrier', 'scope']
+  output_nodes:
+  - id: i42_energy_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+  - id: i42_energy_grid_energy_consumption_price
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+
+- id: i42_energy_grid_energy_consumption_emissions
+  name: I.4.2 Energy Grid Energy Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: i4_energy_total_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: i42_energy_grid_energy_consumption_price
+  name: I.4.2 Energy Grid Energy Consumption Price
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: PLN/a
+  input_dimensions: ['energy_carrier', 'scope']
+  output_dimensions: ['energy_carrier', 'scope']
+  output_nodes:
+  - id: i42_energy_grid_energy_total_price
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+
+- id: i42_energy_grid_energy_emission_factor
+  name: I.4.2 Energy Grid Energy Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: kg/kWh
+  input_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['energy_carrier', 'scope', 'ghg']
+  params:
+    gpc_sector: I.4.2
+  input_datasets:
+  - id: gpc/bytom
+  output_nodes:
+  - id: i42_energy_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+- id: i42_energy_grid_energy_energy_factor
+  name: I.4.2 Energy Grid Energy Energy Factor
+  type: gpc.DatasetNode
+  quantity: energy_factor
+  unit: kWh/count/a
+  input_dimensions: ['energy_carrier', 'scope']
+  output_dimensions: ['energy_carrier', 'scope']
+  params:
+    gpc_sector: I.4.2
+  input_datasets:
+  - id: gpc/bytom
+  output_nodes:
+  - id: i42_energy_grid_energy_consumption
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+
+- id: i42_energy_grid_energy_number
+  name: I.4.2 Energy Grid Energy Number
+  type: gpc.DatasetNode
+  quantity: number
+  unit: count
+  input_dimensions: ['scope']
+  output_dimensions: ['scope']
+  params:
+    gpc_sector: I.4.2
+  input_datasets:
+  - id: gpc/bytom
+  output_nodes:
+  - id: i42_energy_grid_energy_consumption
+    to_dimensions:
+    - id: scope
+
+- id: i42_energy_grid_energy_price
+  name: I.4.2 Energy Grid Energy Price
+  type: gpc.DatasetNode
+  quantity: currency
+  unit: PLN/a
+  input_dimensions: ['scope']
+  output_dimensions: ['scope']
+  params:
+    gpc_sector: I.4.2
+  input_datasets:
+  - id: gpc/bytom
+  output_nodes:
+  - id: i42_energy_grid_energy_total_price
+    to_dimensions:
+    - id: scope
+
+- id: i42_energy_grid_energy_total_price
+  name: I.4.2 Energy Grid Energy Total Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: PLN/a
+  input_dimensions: ['scope']
+  output_dimensions: ['scope']
+  output_nodes:
+  - id: i4_energy_total_price
+    to_dimensions:
+    - id: scope
+
+- id: i42_energy_grid_energy_unit_price
+  name: I.4.2 Energy Grid Energy Unit Price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: PLN/kWh
+  input_dimensions: ['energy_carrier', 'scope']
+  output_dimensions: ['energy_carrier', 'scope']
+  params:
+    gpc_sector: I.4.2
+  input_datasets:
+  - id: gpc/bytom
+  output_nodes:
+  - id: i42_energy_grid_energy_consumption_price
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+
 - id: i43_energy_t_and_d_loss_emission_factor
   name: I.4.3 Energy T & D Loss Emission Factor
   type: gpc.DatasetNode
@@ -312,10 +456,12 @@ nodes:
   output_dimensions: ['scope', 'ghg', 'heating']
   output_nodes:
   - id: i4_energy_total_emissions
+    from_dimensions:
+    - id: heating
+      flatten: true
     to_dimensions:
     - id: scope
     - id: ghg
-    - id: heating
 
 - id: i43_energy_t_and_d_loss_price
   name: I.4.3 Energy T & D Loss Price
@@ -326,8 +472,10 @@ nodes:
   output_dimensions: ['heating', 'scope']
   output_nodes:
   - id: i4_energy_total_price
-    to_dimensions:
+    from_dimensions:
     - id: heating
+      flatten: true
+    to_dimensions:
     - id: scope
 
 - id: iii21_biological_waste_treated_in_city_emission_factor
@@ -481,13 +629,10 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['scope', 'ghg', 'heating']
-  output_dimensions: ['scope', 'ghg', 'heating']
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
   output_nodes:
   - id: i_stationary_total_emissions
-    from_dimensions:
-    - id: heating
-      flatten: true
     to_dimensions:
     - id: scope
     - id: ghg
@@ -497,12 +642,11 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: PLN/a
-  input_dimensions: ['heating', 'scope']
-  output_dimensions: ['heating', 'scope']
+  input_dimensions: ['scope']
+  output_dimensions: ['scope']
   output_nodes:
   - id: i_stationary_total_price
     to_dimensions:
-    - id: heating
     - id: scope
 
 - id: i_stationary_total_emissions
@@ -527,12 +671,11 @@ nodes:
   color: '#4e79a7'
   quantity: currency
   unit: PLN/a
-  input_dimensions: ['heating', 'scope']
-  output_dimensions: ['heating', 'scope']
+  input_dimensions: ['scope']
+  output_dimensions: ['scope']
   output_nodes:
   - id: net_price
     to_dimensions:
-    - id: heating
     - id: scope
 
 - id: iii2_biological_waste_total_emissions
