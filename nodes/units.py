@@ -227,6 +227,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     CAD = nan EUR
     USD = nan EUR
     SEK = 0.1 EUR
+    PLN = 0.2 EUR
     pcs = [number] = pieces = number
     capita = [population] = cap = inh = inhabitant = person
     MMBtu = 1e6 Btu

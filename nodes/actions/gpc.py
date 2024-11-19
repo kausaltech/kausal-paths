@@ -40,6 +40,7 @@ class DatasetActionMFM(ActionNode):
                'Energy Consumption': 'energy',
                'Fuel Consumption': 'fuel_consumption',
                'Mileage': 'mileage',
+               'Number': 'number',
                'Price': 'currency',
                'Unit Price': 'unit_price',
                'Waste Disposal': 'mass'}

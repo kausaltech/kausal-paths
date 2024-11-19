@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://bytom-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: fb2fee7956fee928ade74c65a0813709d8217f14
+  commit: 408f42a6400e7f21b2b3454f3bd76ba90edc22c9
   dvc_remote: kausal-s3
 name: Bytom Greenhouse Gas Inventory
 owner: City of Bytom
@@ -35,8 +35,8 @@ dimensions:
   categories:
   - id: central_heating_msc
     label: 'Central Heating (MSC)'
-  - id: cooker_heating_and_others
-    label: 'Cooker Heating and Others'
+  - id: coal_stove_heating
+    label: 'Coal Stove Heating'
   - id: electric_heating
     label: 'Electric Heating'
   - id: gas_heating
@@ -87,6 +87,15 @@ emission_sectors:
 
 
 nodes:
+- id: net_price
+  name: Net Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: PLN/a
+  input_dimensions: ['heating', 'scope']
+  output_dimensions: ['heating', 'scope']
+  is_outcome: true
+
 - id: i11_residential_fuel_consumption
   name: I.1.1 Residential Fuel Consumption
   type: gpc.DatasetNode
@@ -308,6 +317,19 @@ nodes:
     - id: ghg
     - id: heating
 
+- id: i43_energy_t_and_d_loss_price
+  name: I.4.3 Energy T & D Loss Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: PLN/a
+  input_dimensions: ['heating', 'scope']
+  output_dimensions: ['heating', 'scope']
+  output_nodes:
+  - id: i4_energy_total_price
+    to_dimensions:
+    - id: heating
+    - id: scope
+
 - id: iii21_biological_waste_treated_in_city_emission_factor
   name: III.2.1 Biological Waste Treated in City Emission Factor
   type: gpc.DatasetNode
@@ -470,6 +492,19 @@ nodes:
     - id: scope
     - id: ghg
 
+- id: i4_energy_total_price
+  name: I.4 Energy Total Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: PLN/a
+  input_dimensions: ['heating', 'scope']
+  output_dimensions: ['heating', 'scope']
+  output_nodes:
+  - id: i_stationary_total_price
+    to_dimensions:
+    - id: heating
+    - id: scope
+
 - id: i_stationary_total_emissions
   name: I Stationary Total Emissions
   type: simple.AdditiveNode
@@ -485,6 +520,20 @@ nodes:
       flatten: true
     to_dimensions:
     - id: ghg
+
+- id: i_stationary_total_price
+  name: I Stationary Total Price
+  type: simple.AdditiveNode
+  color: '#4e79a7'
+  quantity: currency
+  unit: PLN/a
+  input_dimensions: ['heating', 'scope']
+  output_dimensions: ['heating', 'scope']
+  output_nodes:
+  - id: net_price
+    to_dimensions:
+    - id: heating
+    - id: scope
 
 - id: iii2_biological_waste_total_emissions
   name: III.2 Biological Waste Total Emissions
@@ -530,6 +579,38 @@ nodes:
   - id: net_emissions
     to_dimensions:
     - id: ghg
+
+actions:
+- id: replace_coal_stove_heating_in_buildings_belonging_to_the_municipality_100
+  name: Replace Coal Stove Heating in Buildings Belonging to the Municipality (100%)
+  type: gpc.DatasetActionMFM
+  color: '#4e79a7'
+  input_dimensions: ['scope', 'heating']
+  output_dimensions: ['scope', 'heating']
+  params:
+    action: Replace Coal Stove Heating in Buildings Belonging to the Municipality (100%)
+  input_datasets:
+  - id: gpc/bytom_simple_actions
+    forecast_from: 2024
+  output_metrics:
+  - id: i43_number
+    unit: count/a
+    quantity: number
+  - id: i43_currency
+    unit: PLN/a
+    quantity: currency
+  output_nodes:
+  - id: i43_energy_t_and_d_loss_number
+    metrics: [i43_number]
+    tags: [cumulative]
+    to_dimensions:
+    - id: scope
+    - id: heating
+  - id: i43_energy_t_and_d_loss_price
+    metrics: [i43_currency]
+    to_dimensions:
+    - id: scope
+    - id: heating
 
 pages:
 - id: home
