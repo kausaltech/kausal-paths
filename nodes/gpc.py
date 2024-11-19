@@ -19,7 +19,7 @@ class DatasetNode(AdditiveNode):
         """This is a DatasetNode. It takes in a specifically formatted dataset and converts the relevant part into a node output.""",  # noqa: E501
     )
 
-    global_parameters = ['measure_data_override']
+    global_parameters = ['measure_data_override', 'measure_data_baseline_year_only']
 
     allowed_parameters = [
         *AdditiveNode.allowed_parameters,
@@ -239,7 +239,12 @@ class DatasetNode(AdditiveNode):
     def compute(self) -> ppl.PathsDataFrame:
         df = self.get_gpc_dataset()
         if self.get_global_parameter_value('measure_data_baseline_year_only', required=False):
-            df = df.filter(pl.col(FORECAST_COLUMN) | (pl.col(YEAR_COLUMN) == self.context.instance.reference_year))
+            filt = (pl.col(YEAR_COLUMN) == self.context.instance.reference_year) | (
+                pl.col(YEAR_COLUMN) > self.context.instance.maximum_historical_year
+            )
+            if FORECAST_COLUMN in df.columns:
+                filt |= pl.col(FORECAST_COLUMN)
+            df = df.filter(filt)
         df = self.drop_unnecessary_levels(df, droplist=['Description'])
         df = self.rename_dimensions(df)
         df = self.convert_names_to_ids(df)

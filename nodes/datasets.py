@@ -189,10 +189,10 @@ class DVCDataset(Dataset):
             if YEAR_COLUMN not in df.primary_keys:
                 df = df.add_to_index(YEAR_COLUMN)
             if len(df.filter(pl.col(YEAR_COLUMN).lt(100))) > 0:
-                baseline_year = context.instance.maximum_historical_year
+                baseline_year = context.instance.reference_year
                 if baseline_year is None:
                     raise Exception(
-                        'The maximum_historical_year from instance is not given. ' +
+                        'The reference_year from instance is not given. ' +
                         'It is needed by dataset %s to define the baseline for relative data.'
                         % self.id,
                     )
