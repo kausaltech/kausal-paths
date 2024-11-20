@@ -82,7 +82,6 @@ class NZCPortalOAuth2(BaseOAuth2):
     TYPE_TO_ROLE = {
         'cityAdmin': INSTANCE_ADMIN_ROLE,
         'cityEditor': INSTANCE_ADMIN_ROLE,
-        # Disable the consortiumUser role for now
         'consortiumUser': FRAMEWORK_VIEWER_ROLE,
         'cityUser': INSTANCE_VIEWER_ROLE,
     }

@@ -847,7 +847,7 @@ class InstanceLoader:
         pt_scenario.actual_historical_years = list(years)
 
     def setup_scenarios(self):
-        from nodes.scenario import CustomScenario, Scenario
+        from nodes.scenario import CustomScenario, Scenario, ScenarioKind
 
         default_scenario = None
 
@@ -855,7 +855,18 @@ class InstanceLoader:
             name = self.make_trans_string(sc, 'name', pop=True)
             params_config = sc.pop('params', [])
             actual_historical_years = sc.pop('actual_historical_years', None)
-            scenario = Scenario(context=self.context, name=name, actual_historical_years=actual_historical_years, **sc)
+            default = sc.pop('default', False)
+            scenario_id: str = sc.pop('id')
+            kind: ScenarioKind | None = None
+            if default:
+                kind = ScenarioKind.DEFAULT
+            elif scenario_id == 'progress_tracking':
+                kind = ScenarioKind.PROGRESS_TRACKING
+            elif scenario_id == 'baseline':
+                kind = ScenarioKind.BASELINE
+            scenario = Scenario(
+                context=self.context, id=scenario_id, name=name, actual_historical_years=actual_historical_years, kind=kind, **sc
+            )
 
             for pc in params_config:
                 param = self.context.get_parameter(pc['id'])
@@ -1044,7 +1055,7 @@ class InstanceLoader:
             reference_year = self.config.get('reference_year')
         else:
             from frameworks.models import MeasureDataPoint
-            owner = self.simple_trans_string(fwc.organization_name)
+            owner = self.simple_trans_string(fwc.organization_name or '')
             name = self.simple_trans_string(fwc.instance_config.get_name())
             mdp_data = MeasureDataPoint.objects.filter(measure__framework_config=fwc).aggregate(
                 min_year=Min('year'),
@@ -1072,7 +1083,7 @@ class InstanceLoader:
             **{attr: self.config.get(attr) for attr in instance_attrs},  # type: ignore
             # FIXME: The YAML file seems to specify what's supposed to be in InstanceConfig.lead_title (and other
             # attributes), but not under `instance` but under `pages` for a "page" whose `id' is `home`. It's a mess.
-            **self._build_instance_args_from_home_page(),
+            **self._build_instance_args_from_home_page(),  # type: ignore[arg-type]
         )
 
         target_year = self.config['target_year']

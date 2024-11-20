@@ -1,28 +1,44 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import KW_ONLY, dataclass, field
+from enum import Enum
 from typing import TYPE_CHECKING, Any, Generator
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from common.i18n import TranslatedString
+    from common.i18n import I18nString
     from params import Parameter
     from params.storage import SettingStorage
 
     from .context import Context
 
+
+class ScenarioKind(Enum):
+    DEFAULT = 'default'
+    BASELINE = 'baseline'
+    CUSTOM = 'custom'
+    PROGRESS_TRACKING = 'progress_tracking'
+
+
 @dataclass
 class Scenario:
     context: Context
     id: str
-    name: TranslatedString
+    name: I18nString
 
-    default: bool = False
+    _: KW_ONLY
+
+    kind: ScenarioKind | None = None
     all_actions_enabled: bool = False
+    is_selectable: bool = True
     param_values: dict[str, Any] = field(default_factory=dict)
     actual_historical_years: list[int] | None = None
+
+    @property
+    def default(self) -> bool:
+        return self.kind == ScenarioKind.DEFAULT
 
     def get_param_values(self) -> Iterable[tuple[Parameter, Any]]:
         for param_id, val in self.param_values.items():
@@ -78,13 +94,13 @@ class Scenario:
         )
 
 
+@dataclass
 class CustomScenario(Scenario):
-    base_scenario: Scenario
-    storage: SettingStorage
+    _: KW_ONLY
 
-    def __init__(self, *args, base_scenario: Scenario, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.base_scenario = base_scenario
+    base_scenario: Scenario
+    kind: ScenarioKind | None = ScenarioKind.CUSTOM
+    storage: SettingStorage = field(init=False)
 
     def set_storage(self, storage: SettingStorage):
         self.storage = storage
@@ -104,7 +120,7 @@ class CustomScenario(Scenario):
                 is_valid = False
             else:
                 try:
-                    val = param.clean(val)
+                    cleaned_val = param.clean(val)
                 except Exception:
                     self.context.log.error('parameter %s has invalid value: %s', param_id, val)
                     is_valid = False
@@ -112,7 +128,7 @@ class CustomScenario(Scenario):
                 self.storage.reset_param(param_id)
                 continue
             assert param is not None
-            yield param, val
+            yield param, cleaned_val
 
     def activate(self):
         self.base_scenario.activate()

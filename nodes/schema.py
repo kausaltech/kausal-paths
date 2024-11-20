@@ -18,7 +18,7 @@ from kausal_common.graphene.utils import create_from_dataclass
 from paths.graphql_helpers import ensure_instance, pass_context
 
 from nodes.node import Node
-from nodes.scenario import Scenario
+from nodes.scenario import Scenario, ScenarioKind as ScenarioKindEnum
 
 from .actions.action import ActionEfficiencyPair, ActionGroup, ActionNode
 from .actions.parent import ParentActionNode
@@ -688,12 +688,16 @@ class ActionNodeType(graphene.ObjectType):
             return None
         return nc.indicator_node.get_node(visible_for_user=info.context.user)
 
+ScenarioKind = graphene.Enum.from_enum(ScenarioKindEnum)
+
 
 class ScenarioType(graphene.ObjectType):
     id = graphene.ID()
     name = graphene.String(required=True)
+    kind = ScenarioKind(required=False)
     is_active = graphene.Boolean(required=True)
     is_default = graphene.Boolean(required=True)
+    is_selectable = graphene.Boolean(required=True)
     actual_historical_years = graphene.List(graphene.NonNull(graphene.Int), required=False)
 
     @staticmethod
