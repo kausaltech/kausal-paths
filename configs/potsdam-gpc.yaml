@@ -628,7 +628,7 @@ nodes:
 actions:
 
 - id: i11_residential_fuel_consumption_action
-  name: Aktion Endenergieverbrauch Wärme
+  name: Maßnahme Endenergieverbrauch Wärme
   type: gpc.DatasetAction
   quantity: energy
   unit: MWh/a
@@ -642,7 +642,7 @@ actions:
   output_nodes: [i11_residential_fuel_consumption]
 
 - id: i11_residential_fuel_emission_factor_action
-  name: Aktion Emissionsfaktor Wärmeenergie
+  name: Maßnahme Emissionsfaktor Wärmeenergie
   type: gpc.DatasetAction
   quantity: emission_factor
   unit: t/MWh
@@ -656,7 +656,7 @@ actions:
   output_nodes: [i11_residential_fuel_emission_factor]
 
 - id: i12_residential_grid_energy_consumption_action
-  name: Aktion Netzenergieverbrauch Wohngebäude
+  name: Maßnahme Netzenergieverbrauch Wohngebäude
   type: gpc.DatasetAction
   quantity: energy
   unit: MWh/a
@@ -671,7 +671,7 @@ actions:
   - id: i12_residential_grid_energy_consumption
 
 - id: i12_residential_grid_energy_emission_factor_action
-  name: Aktion Emissionsfaktor Netzenergieverbrauch Wohngebäude
+  name: Maßnahme Emissionsfaktor Netzenergieverbrauch Wohngebäude
   type: gpc.DatasetAction
   quantity: emission_factor
   unit: t/MWh
@@ -685,7 +685,7 @@ actions:
   output_nodes: [i12_residential_grid_energy_emission_factor]
 
 - id: i42_energy_grid_energy_consumption_action
-  name: Aktion Stromverbrauch (ohne Heizstrom)
+  name: Maßnahme Stromverbrauch (ohne Heizstrom)
   type: gpc.DatasetAction
   quantity: energy
   unit: MWh/a
@@ -699,7 +699,7 @@ actions:
   output_nodes: [i42_energy_grid_energy_consumption]
 
 - id: i42_energy_grid_energy_emission_factor_action
-  name: Aktion Emissionsfaktor Strom
+  name: Maßnahme Emissionsfaktor Strom
   type: gpc.DatasetAction
   quantity: emission_factor
   unit: t/MWh
@@ -713,7 +713,7 @@ actions:
   output_nodes: [i42_energy_grid_energy_emission_factor]
 
 - id: ii11_onroad_transport_fuel_consumption_action
-  name: Aktion Brennstoffverbrauch Verkehr
+  name: Maßnahme Brennstoffverbrauch Verkehr
   type: gpc.DatasetAction
   quantity: energy
   unit: MWh/a
@@ -727,7 +727,7 @@ actions:
   output_nodes: [ii11_onroad_transport_fuel_consumption]
 
 - id: ii11_onroad_transport_fuel_emission_factor_action
-  name: Aktion Emissionsfaktor Brennstoffverbrauch Verkehr
+  name: Maßnahme Emissionsfaktor Brennstoffverbrauch Verkehr
   type: gpc.DatasetAction
   quantity: emission_factor
   unit: t/MWh
@@ -741,7 +741,7 @@ actions:
   output_nodes: [ii11_onroad_transport_fuel_emission_factor]
 
 - id: ii12_onroad_transport_grid_energy_consumption_action
-  name: Aktion Stromverbrauch ÖPNV
+  name: Maßnahme Stromverbrauch ÖPNV
   type: gpc.DatasetAction
   quantity: energy
   unit: MWh/a
@@ -755,7 +755,7 @@ actions:
   output_nodes: [ii12_onroad_transport_grid_energy_consumption]
 
 - id: ii12_onroad_transport_grid_energy_emission_factor_action
-  name: Aktion Emissionsfaktor Stromverbrauch ÖPNV
+  name: Maßnahme Emissionsfaktor Stromverbrauch ÖPNV
   type: gpc.DatasetAction
   quantity: emission_factor
   unit: t/MWh
