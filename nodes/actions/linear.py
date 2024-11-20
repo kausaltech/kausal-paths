@@ -1,23 +1,29 @@
 from dataclasses import dataclass
-from typing import ClassVar, Iterable, Any, List
+from typing import Any, ClassVar, Iterable, List
 
-from pydantic import BaseModel, RootModel, Field, validator
+from django.utils.translation import gettext_lazy as _
+from pydantic import BaseModel, Field, RootModel, validator
+
 import pandas as pd
 import polars as pl
 
+from common import polars as ppl
 from nodes.constants import (
-    FLOW_ROLE_COLUMN, FLOW_ROLE_TARGET, FLOW_ID_COLUMN, FORECAST_COLUMN, NODE_COLUMN,
-    VALUE_COLUMN, YEAR_COLUMN
+    FLOW_ID_COLUMN,
+    FLOW_ROLE_COLUMN,
+    FLOW_ROLE_TARGET,
+    FORECAST_COLUMN,
+    NODE_COLUMN,
+    VALUE_COLUMN,
+    YEAR_COLUMN,
 )
 from nodes.exceptions import NodeError
 from nodes.node import Node
 from nodes.units import Unit
-from params.param import BoolParameter, NumberParameter, ValidationError
-from common import polars as ppl
 from params import Parameter, ParameterWithUnit
+from params.param import BoolParameter, NumberParameter, ValidationError
 
 from .action import ActionNode
-from django.utils.translation import gettext_lazy as _
 
 
 class ReduceAmount(BaseModel):
@@ -201,6 +207,11 @@ class ReduceAction(ActionNode):
         df = ppl.to_ppdf(sdf, meta=meta)
         return df
 
+    def has_multinode_output(self) -> bool:
+        po = self.get_parameter('reduce')
+        value = po.get()
+        assert isinstance(value, ReduceParameterValue)
+        return len(value.root) > 1
 
 class DatasetReduceAction(ActionNode):
     explanation = _("""
@@ -233,10 +244,12 @@ class DatasetReduceAction(ActionNode):
         max_hist_year = df[YEAR_COLUMN].max()
         df = df.filter(pl.col(YEAR_COLUMN) == max_hist_year)
 
-        gdf = self.get_input_dataset_pl(tag='goal', required=False)
-        if gdf is None:
-            gn = self.get_input_node(tag='goal', required=True)
-            gdf = gn.get_output_pl(target_node=self)
+        goal_input_df = self.get_input_dataset_pl(tag='goal', required=False)
+        if goal_input_df is None:
+            goal_input_node = self.get_input_node(tag='goal', required=True)
+            goal_input_df = goal_input_node.get_output_pl(target_node=self)
+        assert goal_input_df is not None
+        gdf = goal_input_df
 
         gdf = gdf.paths.cast_index_to_str()
         df = df.paths.cast_index_to_str()
@@ -322,7 +335,7 @@ class DatasetDifferenceAction(ActionNode):  # FIXME Merge with DatasetReduceActi
         if n is None:
             df = self.get_input_dataset_pl(tag='baseline')
             if FORECAST_COLUMN not in df.columns:
-                df = df.with_columns(pl.lit(False).alias(FORECAST_COLUMN))
+                df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
             assert len(df.metric_cols) == 1
             df = df.rename({df.metric_cols[0]: VALUE_COLUMN})
         else:

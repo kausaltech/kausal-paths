@@ -1,22 +1,35 @@
-from dataclasses import dataclass
-from typing import ClassVar, Iterable, Any, List
+from __future__ import annotations
 
-from pydantic import BaseModel, RootModel, model_validator, Field
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, ClassVar
+
+from pydantic import BaseModel, Field, RootModel, model_validator
+
 import pandas as pd
 import polars as pl
 
+from common import polars as ppl
 from nodes.constants import (
-    FLOW_ROLE_COLUMN, FLOW_ROLE_SOURCE, FLOW_ROLE_TARGET, FLOW_ID_COLUMN, FORECAST_COLUMN, NODE_COLUMN,
-    VALUE_COLUMN, YEAR_COLUMN
+    FLOW_ID_COLUMN,
+    FLOW_ROLE_COLUMN,
+    FLOW_ROLE_SOURCE,
+    FLOW_ROLE_TARGET,
+    FORECAST_COLUMN,
+    NODE_COLUMN,
+    VALUE_COLUMN,
+    YEAR_COLUMN,
 )
 from nodes.exceptions import NodeError
-from nodes.node import Node
-from nodes.units import Unit
-from params.param import ValidationError
-from common import polars as ppl
 from params import Parameter, ParameterWithUnit
+from params.param import ValidationError
 
 from .action import ActionNode
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from nodes.node import Node
+    from nodes.units import Unit
 
 
 class ShiftTarget(BaseModel):
@@ -45,7 +58,7 @@ class ShiftEntry(BaseModel):
     @model_validator(mode='after')
     def dimensions_must_match(self):
         existing_dims: set = set()
-        def validate_target(target: ShiftTarget):
+        def validate_target(target: ShiftTarget) -> None:
             dims = set(target.categories.keys())
             if not existing_dims:
                 existing_dims.update(dims)
@@ -64,7 +77,7 @@ class ShiftEntry(BaseModel):
         dims: dict[str, set[str]] = {dim: set() for dim in list(self.source.categories.keys())}
         nodes: set[str] = set()
 
-        def get_node_id(node: str | int | None):
+        def get_node_id(node: str | int | None) -> str:
             if isinstance(node, str):
                 return node
             if node is None:
@@ -94,7 +107,7 @@ class ShiftEntry(BaseModel):
 
 
 class ShiftParameterValue(RootModel):
-    root: List[ShiftEntry]
+    root: list[ShiftEntry]
 
 
 @dataclass
@@ -121,11 +134,12 @@ class ShiftParameter(ParameterWithUnit, Parameter):
 
 
 class ShiftAction(ActionNode):
-    allowed_parameters: ClassVar[list[Parameter]] = ActionNode.allowed_parameters + [
+    allowed_parameters: ClassVar[list[Parameter]] = [
+        *ActionNode.allowed_parameters,
         ShiftParameter(local_id='shift')
     ]
 
-    def _compute_one(self, flow_id: str, param: ShiftEntry, unit: Unit):
+    def _compute_one(self, flow_id: str, param: ShiftEntry, unit: Unit) -> ppl.PathsDataFrame:
         amounts = sorted(param.amounts, key=lambda x: x.year)
         data = [[a.year, a.source_amount, *a.dest_amounts] for a in param.amounts]
         if len(data) == 1:
@@ -155,7 +169,7 @@ class ShiftAction(ActionNode):
 
         targets = [('Source', param.source), *[('Dest%d' % idx, param.dests[idx]) for idx in range(len(param.dests))]]
 
-        all_dims = set(list(param.source.categories.keys()))
+        all_dims = set(param.source.categories.keys())
         for dest in param.dests:
             all_dims.update(list(dest.categories.keys()))
 
@@ -164,8 +178,7 @@ class ShiftAction(ActionNode):
                 for node in self.output_nodes:
                     if node.id == node_id:
                         return node
-                else:
-                    raise NodeError(self, "Node %s not listed in output_nodes" % node_id)
+                raise NodeError(self, "Node %s not listed in output_nodes" % node_id)
 
             if node_id is None:
                 nr = 0
@@ -173,7 +186,7 @@ class ShiftAction(ActionNode):
                 nr = node_id
             return self.output_nodes[nr]
 
-        def make_target_df(df: pl.LazyFrame, target: ShiftTarget, valuecol: str):
+        def make_target_df(df: pl.LazyFrame, target: ShiftTarget, valuecol: str) -> pl.LazyFrame:
             target_dims = set(target.categories.keys())
             null_dims = all_dims - target_dims
             node = get_node(target.node)
@@ -207,7 +220,7 @@ class ShiftAction(ActionNode):
         df = pl.concat(dfs).sort(YEAR_COLUMN)
         #df = df.groupby([NODE_COLUMN, *all_dims, YEAR_COLUMN]).agg(pl.sum(VALUE_COLUMN)).sort(YEAR_COLUMN)
         df = df.with_columns([
-            pl.lit(True).alias(FORECAST_COLUMN),
+            pl.lit(value=True).alias(FORECAST_COLUMN),
             pl.lit(flow_id).alias(FLOW_ID_COLUMN),
         ])
         zdf = df.collect()
