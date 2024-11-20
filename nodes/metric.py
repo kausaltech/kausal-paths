@@ -572,6 +572,7 @@ class DimensionalMetric:
     def from_node(
         cls, node: Node, metric: NodeMetric | None = None, extra_scenarios: Sequence[Scenario] = (),
     ) -> DimensionalMetric | None:
+        from nodes.actions.linear import ReduceAction
 
         if metric is None:
             try:
@@ -581,6 +582,11 @@ class DimensionalMetric:
         else:
             # FIXME: Get goals only for the chosen metric
             m = metric
+
+        if isinstance(node, ReduceAction) and node.has_multinode_output():
+            return None
+        if isinstance(node, ShiftAction):
+            return None
 
         with node.context.start_span('Dimension metric for: %s' % node.id, op=MODEL_CALC_OP):
             return cls._from_node_metric(node, m, extra_scenarios)
