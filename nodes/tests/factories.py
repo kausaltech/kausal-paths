@@ -14,7 +14,7 @@ from nodes.datasets import FixedDataset
 from nodes.instance import Instance
 from nodes.models import InstanceConfig, NodeConfig
 from nodes.node import Node
-from nodes.scenario import CustomScenario, Scenario
+from nodes.scenario import CustomScenario, Scenario, ScenarioKind
 from nodes.simple import SimpleNode
 
 
@@ -36,7 +36,9 @@ class ContextFactory(Factory[Context]):
     @staticmethod
     def post(obj: Context, create: bool, extracted, **kwargs) -> None:
         obj.instance.set_context(obj)
-        default_scenario = ScenarioFactory.create(id='default', context=obj, default=True, all_actions_enabled=True)
+        default_scenario = ScenarioFactory.create(
+            id='default', kind=ScenarioKind.DEFAULT, context=obj, all_actions_enabled=True
+        )
         obj.add_scenario(default_scenario)
         obj.activate_scenario(obj.get_default_scenario())
 
@@ -148,7 +150,7 @@ class ScenarioFactory(Factory):
 
     id = Sequence(lambda i: f'scenario{i}')
     name = TranslatedString('scenario')
-    default = False
+    kind: ScenarioKind | None = None
     all_actions_enabled = False
     context = SubFactory(ContextFactory)
 
