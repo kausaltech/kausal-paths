@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://athens.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 69d66effb823f19178323d735c56130d5c37c979
+  commit: 06bd461f15a1966ec9f16b9635454bb55149a7a2
   dvc_remote: kausal-s3
 name: Athens Greenhouse Gas Inventory
 owner: City of Athens
@@ -25,10 +25,8 @@ dimensions:
   categories:
   - id: aviation
     label: 'Aviation'
-  - id: metro_line_1
-    label: 'Metro Line 1'
-  - id: metro_lines_2_and_3
-    label: 'Metro Lines 2 & 3'
+  - id: metro_lines_1_2_and_3
+    label: 'Metro Lines 1, 2 & 3'
   - id: municipal_heavyduty_trucks
     label: 'Municipal Heavy-Duty Trucks'
   - id: municipal_vehicle_fleet
@@ -924,7 +922,7 @@ nodes:
 - id: ii23_railway_outside_city_t_and_d_loss
   name: II.2.3 Railway Outside City, T & D Loss
   type: gpc.DatasetNode
-  quantity: fuel_consumption
+  quantity: energy
   unit: TJ/a
   input_dimensions: ['transport_mode', 'transport_activity', 'energy_carrier', 'scope']
   output_dimensions: ['transport_mode', 'transport_activity', 'energy_carrier', 'scope']
