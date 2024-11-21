@@ -322,10 +322,8 @@ emission_sectors:
       emission_scope:
         groups: [indirect]
     values:
-    - year: 2022
-      value: 7.9
     - year: 2040
-      value: 6.0
+      value: 6.7
     is_main_goal: true
   is_outcome: true
 
@@ -597,7 +595,7 @@ nodes:
   short_name_en: Restaurants
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [emission_sectors, emission_scope]
   output_dimensions: [emission_sectors, emission_scope]
   input_nodes:
@@ -620,7 +618,7 @@ nodes:
   short_name_en: Food purchases
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [emission_sectors, emission_scope]
   output_dimensions: [emission_sectors, emission_scope]
   input_nodes:
