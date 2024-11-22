@@ -32,7 +32,7 @@ action_efficiency_pairs:
   indicator_unit: EUR/t
   cost_unit: EUR
   impact_unit: t
-  label: Cost efficiency
+  label: Kustannusvaikuttavuus
 
 action_groups:
 - id: transportation
@@ -1757,7 +1757,8 @@ nodes:
       flatten: true
 
 - id: net_price
-  name: Net Price
+  name: Kokonaiskustannus
+  name_en: Net cost
   type: simple.AdditiveNode
   quantity: currency
   unit: EUR/a
@@ -1765,10 +1766,11 @@ nodes:
   output_dimensions: [cost_type, owner]
   is_outcome: true
 
-- id: stationary_price
-  name: Stationary Price
+- id: building_heating_price
+  name: Rakennusten lämmityksen kustannukset
+  name_en: Building heating cost
   type: simple.AdditiveNode
-  color: '#4e79a7'
+  color: '#AD3963'
   quantity: currency
   unit: EUR/a
   input_dimensions: [cost_type, owner]
@@ -1777,9 +1779,10 @@ nodes:
   - id: net_price
 
 - id: transportation_price
-  name: Transportation Price
+  name: Liikenteen kustannukset
+  name_en: Transportation cost
   type: simple.AdditiveNode
-  color: '#e15759'
+  color: '#668EC9'
   quantity: currency
   unit: EUR/a
   input_dimensions: [cost_type, owner, vehicle_type]
@@ -1790,11 +1793,24 @@ nodes:
     - id: vehicle_type
       flatten: true
 
+- id: electricity_consumption_price
+  name: Sähkön kulutuksen kustannukset
+  name_en: Electricity consumption cost
+  type: simple.AdditiveNode
+  color: '#F4D240'
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [cost_type, owner]
+  output_dimensions: [cost_type, owner]
+  output_nodes:
+  - id: net_price
+
 # ----- ACTIONS ---------------------------------------------------------------
 
 actions:
 - id: change_streetlights_to_led
-  name: Change Streetlights to LED
+  name: Katuvalaistuksen vaihtaminen LED-valaisimiksi
+  name_en: Replacing street lighting with LEDs
   type: gpc.DatasetActionMFM
   color: '#4e79a7'
   input_dimensions: ['cost_type', 'owner', 'energy_carrier', 'scope']
@@ -1822,7 +1838,7 @@ actions:
     to_dimensions:
     - id: energy_carrier
     - id: scope
-  - id: stationary_price
+  - id: electricity_consumption_price
     metrics: [i_currency]
     from_dimensions:
     - id: energy_carrier
@@ -1834,7 +1850,8 @@ actions:
     - id: owner
 
 - id: build_renewable_electricity_production
-  name: Build Renewable Electricity Production (PV)
+  name: Hajautettu uusiutuva energia (aurinkosähkö)
+  name_en: Building renewable electricity production (PV)
   type: gpc.DatasetActionMFM
   color: '#4e79a7'
   input_dimensions: ['cost_type', 'owner', 'energy_carrier', 'scope']
@@ -1862,7 +1879,7 @@ actions:
     to_dimensions:
     - id: energy_carrier
     - id: scope
-  - id: stationary_price
+  - id: electricity_consumption_price
     metrics: [i_currency]
     from_dimensions:
     - id: energy_carrier
@@ -1874,7 +1891,8 @@ actions:
     - id: owner
 
 - id: replace_oil_heating
-  name: Replace Oil Heating with Water-to-Air Heat Pumps and Geothermal Heating
+  name: Öljylämmityksestä siirtyminen vesi-ilmalämpöpumppuihin kaupungin rakennuskannassa
+  name_en: Replacing oil heating with water-to-air heat pumps in city's building stock
   type: gpc.DatasetActionMFM
   color: '#4e79a7'
   input_dimensions: ['cost_type', 'owner', 'heating', 'energy_carrier', 'scope']
@@ -1903,7 +1921,7 @@ actions:
     - id: heating
     - id: energy_carrier
     - id: scope
-  - id: stationary_price
+  - id: building_heating_price
     metrics: [i_currency]
     from_dimensions:
     - id: heating
@@ -1917,7 +1935,8 @@ actions:
     - id: owner
 
 - id: energy_efficiency_renovations_in_buildings
-  name: Energy Efficiency Renovations in Buildings
+  name: Korjausrakentaminen kaupungin kiinteistössä
+  name_en: Energy efficiency renovations in city's building stock
   type: gpc.DatasetActionMFM
   color: '#4e79a7'
   input_dimensions: ['cost_type', 'owner', 'heating', 'energy_carrier', 'scope']
@@ -1961,7 +1980,7 @@ actions:
     to_dimensions:
     - id: energy_carrier
     - id: scope
-  - id: stationary_price
+  - id: building_heating_price
     metrics: [i_currency]
     from_dimensions:
     - id: heating
@@ -1975,7 +1994,8 @@ actions:
     - id: owner
 
 - id: energy_efficiency_of_new_construction
-  name: Energy Efficiency of New Construction
+  name: Uusien rakennusten energiatehokkuustoimet
+  name_en: Energy efficiency measures for new construction projects
   type: gpc.DatasetActionMFM
   color: '#4e79a7'
   input_dimensions: ['cost_type', 'owner', 'heating', 'energy_carrier', 'scope']
@@ -2019,7 +2039,7 @@ actions:
     to_dimensions:
     - id: energy_carrier
     - id: scope
-  - id: stationary_price
+  - id: building_heating_price
     metrics: [i_currency]
     from_dimensions:
     - id: heating
@@ -2033,7 +2053,8 @@ actions:
     - id: owner
 
 - id: electrify_public_transportation
-  name: Electrify Public Transportation
+  name: Bussiliikenteen käyttövoimamuutos
+  name_en: Change in the propulsion of bus fleet
   type: gpc.DatasetActionMFM
   color: '#e15759'
   input_dimensions: ['cost_type', 'owner', 'vehicle_type', 'ghg', 'scope']
@@ -2372,7 +2393,6 @@ actions:
 #     unit: g/vkm
 #   output_nodes:
 #   - bus_emission_factor_streets
-
 
 pages:
 - id: home
