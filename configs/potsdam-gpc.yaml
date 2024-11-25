@@ -108,8 +108,6 @@ emission_sectors:
     values:
     - year: 2030
       value: 551
-    - year: 2050
-      value: 234
 
 nodes:
 - id: weather_correction
@@ -670,19 +668,19 @@ actions:
   output_nodes:
   - id: i12_residential_grid_energy_consumption
 
-- id: i12_residential_grid_energy_emission_factor_action
-  name: Maßnahme Emissionsfaktor Netzenergieverbrauch Wohngebäude
-  type: gpc.DatasetAction
-  quantity: emission_factor
-  unit: t/MWh
-  group: stationary
-  input_datasets:
-  - id: gpc/potsdam_master_plan_actions
-    forecast_from: 2022
-  output_dimensions: [energietrager, ghg, scope]
-  params:
-    gpc_sector: I.1.2
-  output_nodes: [i12_residential_grid_energy_emission_factor]
+# - id: i12_residential_grid_energy_emission_factor_action
+#   name: Maßnahme Emissionsfaktor Netzenergieverbrauch Wohngebäude
+#   type: gpc.DatasetAction
+#   quantity: emission_factor
+#   unit: t/MWh
+#   group: stationary
+#   input_datasets:
+#   - id: gpc/potsdam_master_plan_actions
+#     forecast_from: 2022
+#   output_dimensions: [energietrager, ghg, scope]
+#   params:
+#     gpc_sector: I.1.2
+#   output_nodes: [i12_residential_grid_energy_emission_factor]
 
 - id: i42_energy_grid_energy_consumption_action
   name: Maßnahme Stromverbrauch (ohne Heizstrom)
@@ -770,13 +768,12 @@ actions:
 
 pages:
 - id: home
-  name: Potsdam BASIC+ Treibhausgasinventar
+  name: Klimaschutz-Monitor Potsdam Treibhausgasinventar
   path: /
   type: emission
   outcome_node: net_emissions
-  lead_title: Potsdam Zielwerte Masterplan
-  lead_paragraph: Treibhausgasinventar (1995-2022) und Prognose (2023-2050)
-    für die Stadt Potsdam.
+  lead_title: Potsdam Zielwerte Klimaschutz
+  lead_paragraph: Die Treibhausgasemissionen in Potsdam sinken kontinuierlich, pro Kopf relativ deutlich. In der Vergangenheit konnten die Minderungsziele weitgehend erreicht werden. Die hier abgebildeten Ziele des Masterplan 100% Klimaschutz sind jedoch noch ambitionierter als die bisherigen. Der Ausschlag nach unten im Jahr 2020 dürfte auf die Maßnahmen zur Covid19-Pandemie zurückzuführen sein.
 
 scenarios:
 - id: baseline
