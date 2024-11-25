@@ -94,14 +94,16 @@ class NZCPortalOAuth2(BaseOAuth2):
         logger.debug("User details: %s" % response)
 
         user_type = response.get('userType')
+        org_slug = response.get('userCity')
+        org_id = response.get('cityUID')
         role_id = self.TYPE_TO_ROLE.get(user_type or '')
         if role_id is None:
             sentry_sdk.capture_message('Unknown role: %s' % user_type)
         role = FrameworkRoleDef(
             framework_id='nzc',
             role_id=role_id,
-            org_slug=response.get('userCity'),
-            org_id=response.get('cityUID'),
+            org_slug=org_slug,
+            org_id=org_id,
         )
         logger.debug("Determined role: %s" % repr(role))
         return {

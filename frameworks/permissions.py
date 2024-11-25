@@ -57,22 +57,30 @@ class FrameworkConfigPermissionPolicy(
         return isinstance(context, fw_pp.model)
 
     def __init__(self):
+        from nodes.models import InstanceConfig
         from nodes.roles import instance_admin_role, instance_viewer_role
 
-        from .models import FrameworkConfig
-        from .roles import framework_admin_role
+        from .models import Framework, FrameworkConfig
+        from .roles import framework_admin_role, framework_viewer_role
 
         self.framework_admin_role = framework_admin_role
+        self.framework_viewer_role = framework_viewer_role
         self.realm_admin_role = instance_admin_role
         self.realm_viewer_role = instance_viewer_role
+        self.ic_pp = InstanceConfig.permission_policy()
+        self.fw_pp = Framework.permission_policy()
         super().__init__(FrameworkConfig)
 
     def construct_perm_q(self, user: User, action: BaseObjectAction) -> Q | None:
-        fw_admin_q = Q(framework__admin_group__in=user.cgroups)
+        fw_admin_q = self.framework_admin_role.role_q(user, prefix='framework')
+        fw_viewer_q = self.framework_viewer_role.role_q(user, prefix='framework')
         if action == 'delete':
             return fw_admin_q
-        instance_admin_q = Q(instance_config__admin_group__in=user.cgroups)
-        return fw_admin_q | instance_admin_q
+        realm_admin_q = self.realm_admin_role.role_q(user, prefix='instance_config')
+        realm_viewer_q = self.realm_viewer_role.role_q(user, prefix='instance_config')
+        if action == 'view':
+            return fw_admin_q | fw_viewer_q | realm_admin_q | realm_viewer_q
+        return fw_admin_q | realm_admin_q
 
     def construct_perm_q_anon(self, action: BaseObjectAction) -> Q | None:
         return None
@@ -88,10 +96,11 @@ class FrameworkConfigPermissionPolicy(
         if action == 'delete':
             return False
         ic = obj.instance_config
+        is_fw_viewer = user.has_instance_role(self.framework_viewer_role, fw)
         is_realm_admin = user.has_instance_role(self.realm_admin_role, ic)
         is_realm_viewer = user.has_instance_role(self.realm_viewer_role, ic)
         if action == 'view':
-            return is_realm_viewer or is_realm_admin
+            return is_realm_viewer or is_realm_admin or is_fw_viewer
         return is_realm_admin
 
     def get_create_defaults(self, user: User, context: Framework) -> dict[str, str | None]:

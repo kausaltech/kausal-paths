@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, TypedDict, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Self, TypedDict, cast
 from urllib.parse import urlparse
 
 from django.conf import settings
@@ -32,12 +32,12 @@ from loguru import logger
 from wagtail_color_panel.fields import ColorField  # type: ignore
 
 from kausal_common.i18n.helpers import convert_language_code
-from kausal_common.models.permission_policy import ModelPermissionPolicy
+from kausal_common.models.permission_policy import ModelPermissionPolicy, ParentInheritedPolicy
 from kausal_common.models.permissions import PermissionedQuerySet
 from kausal_common.models.types import FK, MLModelManager, RevMany, RevOne, copy_signature
 from kausal_common.models.uuid import UUIDIdentifiedModel
 
-from paths.types import PathsModel, UserOrAnon
+from paths.types import PathsModel, PathsQuerySet, UserOrAnon
 from paths.utils import (
     ChoiceArrayField,
     IdentifierField,
@@ -109,9 +109,14 @@ del _InstanceConfigManager
 
 class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', InstanceConfigQuerySet]):
     def __init__(self):
+        from frameworks.roles import framework_admin_role, framework_viewer_role
+
         from .roles import instance_admin_role, instance_viewer_role
+
         self.admin_role = instance_admin_role
         self.viewer_role = instance_viewer_role
+        self.fw_admin_role = framework_admin_role
+        self.fw_viewer_role = framework_viewer_role
         super().__init__(InstanceConfig)
 
     def is_admin(self, user: User, obj: InstanceConfig) -> bool:
@@ -121,17 +126,22 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Ins
         return user.has_instance_role(self.viewer_role, obj)
 
     def is_framework_admin(self, user: User, obj: InstanceConfig) -> bool:
-        from frameworks.roles import framework_admin_role
         if not obj.has_framework_config():
             return False
-        return user.has_instance_role(framework_admin_role, obj.framework_config.framework)
+        return user.has_instance_role(self.fw_admin_role, obj.framework_config.framework)
+
+    def is_framework_viewer(self, user: User, obj: InstanceConfig) -> bool:
+        if not obj.has_framework_config():
+            return False
+        return user.has_instance_role(self.fw_viewer_role, obj.framework_config.framework)
 
     def construct_perm_q(self, user: User, action: ObjectSpecificAction) -> models.Q | None:
-        is_admin = Q(admin_group__in=user.cgroups)
-        is_viewer = Q(viewer_group__in=user.cgroups)
-        is_fw_admin = Q(framework_config__framework__admin_group__in=user.cgroups)
+        is_admin = self.admin_role.role_q(user)
+        is_viewer = self.viewer_role.role_q(user)
+        is_fw_admin = self.fw_admin_role.role_q(user, prefix='framework_config__framework')
+        is_fw_viewer = self.fw_viewer_role.role_q(user, prefix='framework_config__framework')
         if action == 'view':
-            return is_viewer | is_admin | is_fw_admin | Q(framework_config__isnull=True)
+            return is_viewer | is_admin | is_fw_admin | is_fw_viewer | Q(framework_config__isnull=True)
         return is_admin | is_fw_admin
 
     def construct_perm_q_anon(self, action: BaseObjectAction) -> Q | None:
@@ -150,6 +160,8 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Ins
             if self.anon_has_perm('view', obj):
                 return True
             if self.is_viewer(user, obj):
+                return True
+            if self.is_framework_viewer(user, obj):
                 return True
         return self.is_admin(user, obj) or self.is_framework_admin(user, obj)
 
@@ -186,7 +198,7 @@ instance_context: ContextVar[Instance | None] = ContextVar('instance_context', d
 """Global instance context for e.g. GraphQL queries."""
 
 
-class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
+class InstanceConfig(PathsModel, UUIDIdentifiedModel, models.Model):  # , RevisionMixin)
     """Metadata for one Paths computational model instance."""
 
     identifier = IdentifierField(max_length=100, unique=True, validators=[InstanceIdentifierValidator()])
@@ -250,6 +262,44 @@ class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
     class Meta:  # pyright: ignore
         verbose_name = _('Instance')
         verbose_name_plural = _('Instances')
+
+    def __str__(self) -> str:
+        return self.get_name()
+
+    def save(self, *args, **kwargs):
+        if self.uuid is None:
+            self.uuid = uuid.uuid4()
+
+        if self.site is not None:
+            # TODO: Update Site and root page attributes
+            pass
+
+        super().save(*args, **kwargs)
+
+    @transaction.atomic
+    @copy_signature(models.Model.delete)
+    def delete(self, **kwargs):
+        site = self.site
+        if site is not None:
+            rp = site.root_page
+            self.site = None
+            self.save()
+            site.delete()
+            rp.get_descendants(inclusive=True).delete()
+
+        pp = self.permission_policy()
+        pp.admin_role.delete_instance_group(self)
+        pp.viewer_role.delete_instance_group(self)
+        self.nodes.all().delete()
+        super().delete(**kwargs)
+
+    def natural_key(self):
+        return (self.identifier,)
+
+    def __rich_repr__(self):
+        yield self.identifier
+        yield 'id', self.pk
+        yield 'name', self.name
 
     @classmethod
     def permission_policy(cls) -> InstanceConfigPermissionPolicy:
@@ -503,33 +553,6 @@ class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
             self.site = site
             self.save(update_fields=['site'])
 
-    @transaction.atomic
-    @copy_signature(models.Model.delete)
-    def delete(self, **kwargs):
-        site = self.site
-        if site is not None:
-            rp = site.root_page
-            self.site = None
-            self.save()
-            site.delete()
-            rp.get_descendants(inclusive=True).delete()
-
-        pp = self.permission_policy()
-        pp.admin_role.delete_instance_group(self)
-        pp.viewer_role.delete_instance_group(self)
-        self.nodes.all().delete()
-        super().delete(**kwargs)
-
-    def save(self, *args, **kwargs):
-        if self.uuid is None:
-            self.uuid = uuid.uuid4()
-
-        if self.site is not None:
-            # TODO: Update Site and root page attributes
-            pass
-
-        super().save(*args, **kwargs)
-
     def invalidate_cache(self):
         self.cache_invalidated_at = timezone.now()
         self.log.info("Invalidating cache")
@@ -538,12 +561,6 @@ class InstanceConfig(PathsModel, UUIDIdentifiedModel):  # , RevisionMixin)
     @cached_property
     def log(self) -> Logger:
         return logger.bind(instance=self.identifier, markup=True)
-
-    def natural_key(self):
-        return (self.identifier,)
-
-    def __str__(self) -> str:
-        return self.get_name()
 
 
 class InstanceHostnameManager(models.Manager):
@@ -645,7 +662,7 @@ class DataSource(UserModifiableModel):
         return (str(self.uuid),)
 
 
-class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig']):
+class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['NodeConfig']):  # type: ignore[override]
     pass
 
 
@@ -659,7 +676,7 @@ class NodeConfigManager(MLModelManager['NodeConfig', NodeConfigQuerySet], _NodeC
 
 del _NodeConfigManager
 
-class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed, UUIDIdentifiedModel):
+class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUIDIdentifiedModel):
     instance: FK[InstanceConfig] = models.ForeignKey(
         InstanceConfig, on_delete=models.CASCADE, related_name='nodes', editable=False,
     )
@@ -722,6 +739,10 @@ class NodeConfig(RevisionMixin, ClusterableModel, index.Indexed, UUIDIdentifiedM
         verbose_name = _('Node')
         verbose_name_plural = _('Nodes')
         unique_together = (('instance', 'identifier'),)
+
+    @classmethod
+    def permission_policy(cls) -> ParentInheritedPolicy[Self, InstanceConfig, NodeConfigQuerySet]:
+        return ParentInheritedPolicy(cls, InstanceConfig, 'instance', disallowed_actions=('add', 'delete'))
 
     def get_node(self, visible_for_user: UserOrAnon | None = None) -> Node | None:
         if hasattr(self, '_node'):

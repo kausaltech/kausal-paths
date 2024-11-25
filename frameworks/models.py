@@ -31,6 +31,8 @@ from paths.utils import IdentifierField, UnitField
 from nodes.instance import Instance, InstanceLoader
 
 if TYPE_CHECKING:
+    from rich.repr import RichReprResult
+
     from kausal_common.models.types import RevMany
 
     from nodes.models import InstanceConfig
@@ -81,6 +83,10 @@ class Framework(PathsModel, UUIDIdentifiedModel):
     result_excel_node_ids = ArrayField(base_field=models.CharField(max_length=200), null=True, blank=True)
     admin_group: OneToOne[Group | None] = models.OneToOneField(
         Group, on_delete=models.PROTECT, editable=False, related_name='admin_for_framework',
+        null=True,
+    )
+    viewer_group: OneToOne[Group | None] = models.OneToOneField(
+        Group, on_delete=models.PROTECT, editable=False, related_name='viewer_for_framework',
         null=True,
     )
 
@@ -425,7 +431,8 @@ class MeasureTemplateDefaultDataPointManager(  # pyright: ignore
     """Model manager for MeasureTemplateDefaultDataPoint."""
 del _MeasureTemplateDefaultDataPointManager
 
-class MeasureTemplateDefaultDataPoint(PathsModel):
+
+class MeasureTemplateDefaultDataPoint(PathsModel, models.Model):
     """
     Represents a default (fallback) value for a measure template.
 
@@ -450,12 +457,12 @@ class MeasureTemplateDefaultDataPoint(PathsModel):
     class Meta:
         ordering = ["template", "year"]
 
+    def __str__(self):
+        return f"{self.template.name} - {self.year}"
+
     @classmethod
     def permission_policy(cls) -> ModelPermissionPolicy[Self, QS[Self]]:
         return ModelReadOnlyPolicy(cls)
-
-    def __str__(self):
-        return f"{self.template.name} - {self.year}"
 
     def __rich_repr__(self):
         yield "template", self.template.name
@@ -484,7 +491,7 @@ class FrameworkConfigManager(ModelManager['FrameworkConfig', FrameworkConfigQuer
 del _FrameworkConfigManager
 
 
-class FrameworkConfig(PathsModel, UserModifiableModel, UUIDIdentifiedModel):
+class FrameworkConfig(PathsModel, UserModifiableModel, UUIDIdentifiedModel, models.Model):
     """
     Represents a configuration of a Framework for a specific instance.
 
@@ -514,6 +521,15 @@ class FrameworkConfig(PathsModel, UserModifiableModel, UUIDIdentifiedModel):
         constraints = [
             models.UniqueConstraint(fields=['framework', 'instance_config'], name='unique_framework_instance'),
         ]
+
+    def __str__(self):
+        return f"{self.framework.name}: {self.instance_config.name}"
+
+    def __rich_repr__(self) -> RichReprResult:
+        yield "id", self.pk
+        yield "framework", self.framework.identifier
+        yield "instance", self.instance_config.identifier
+        yield "nr_measures", len(self.measures.all())
 
     @classmethod
     def permission_policy(cls) -> FrameworkConfigPermissionPolicy:
@@ -624,9 +640,6 @@ class FrameworkConfig(PathsModel, UserModifiableModel, UUIDIdentifiedModel):
             return None
         return 'https://%s.%s' % (self.instance_config.identifier, fw.public_base_fqdn)
 
-    def __str__(self):
-        return f"{self.framework.identifier}: {self.instance_config.name}"
-
     def notify_change(self, user: UserOrAnon | None = None, save: bool = False):
         self.last_modified_by = user_or_none(user)
         self.last_modified_at = timezone.now()
@@ -644,7 +657,7 @@ class MeasureManager(ModelManager['Measure', MeasureQuerySet], _MeasureManager):
 del _MeasureManager
 
 
-class Measure(PathsModel):
+class Measure(PathsModel, models.Model):
     """
     Represents the concrete measure for an organization-specific Instance.
 
@@ -672,23 +685,26 @@ class Measure(PathsModel):
             models.UniqueConstraint(fields=['framework_config', 'measure_template'], name='unique_instance_measure'),
         ]
 
-    @classmethod
-    def user_can_create(cls, user: User, fwc: FrameworkConfig) -> bool:
-        return fwc.permission_policy().user_can_create(user, fwc.framework)
+    def __str__(self):
+        return f"{self.framework_config.framework.name} - {self.measure_template.name}"
+
+    def __rich_repr__(self) -> RichReprResult:
+        yield "framework", self.framework_config.framework.name
+        yield "instance", self.framework_config.instance_config.name
+        yield "template", self.measure_template.name
+        yield "nr_data_points", len(self.data_points.all())
 
     @classmethod
     def permission_policy(cls) -> ParentInheritedPolicy[Self, FrameworkConfig, MeasureQuerySet]:
         return ParentInheritedPolicy(cls, FrameworkConfig, 'framework_config')
 
-    def __str__(self):
-        return f"{self.framework_config.framework.name} - {self.measure_template.name}"
+    @classmethod
+    def user_can_create(cls, user: User, fwc: FrameworkConfig) -> bool:
+        return fwc.permission_policy().user_can_create(user, fwc.framework)
 
-    def __rich_repr__(self):
-        yield "framework", self.framework_config.framework.name
-        yield "instance", self.framework_config.organization_name
-        yield "template", self.measure_template.name
 
-class MeasureDataPoint(models.Model):
+
+class MeasureDataPoint(PathsModel, models.Model):
     """
     Represents a specific data point for a Measure.
 
@@ -717,3 +733,7 @@ class MeasureDataPoint(models.Model):
         yield "year", self.year
         yield "value", self.value
         yield "measure", self.measure
+
+    @classmethod
+    def permission_policy(cls) -> ParentInheritedPolicy[Self, Measure, MeasureQuerySet]:
+        return ParentInheritedPolicy(cls, Measure, 'measure')
