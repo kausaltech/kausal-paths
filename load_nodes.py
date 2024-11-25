@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Literal, overload
 
 import polars as pl
 import rich.traceback
+import sentry_sdk
 from dotenv import load_dotenv
 from rich import print
 from rich.console import Console
@@ -276,7 +277,11 @@ if args.check:
 
 
 if args.update_instance:
-    instance_obj = update_instance()
+    try:
+        instance_obj = update_instance()
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        raise
 
 for param_arg in args.param or []:
     param_id, val = param_arg.split('=')
