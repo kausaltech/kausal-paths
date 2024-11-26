@@ -225,8 +225,12 @@ class DatasetNode(AdditiveNode):
             mult = na_nodes[0].get_output_pl(target_node=self)
             if start_from_year is not None:
                 # force multiplier to 1 below max year
+                mult = mult.ensure_unit(VALUE_COLUMN, 'dimensionless')
                 mult = mult.with_columns(
-                    pl.when(pl.col(YEAR_COLUMN) <= start_from_year).then(pl.lit(1.0)).otherwise(pl.col(VALUE_COLUMN)),
+                    pl.when(pl.col(YEAR_COLUMN) <= start_from_year)
+                    .then(pl.lit(1.0))
+                    .otherwise(pl.col(VALUE_COLUMN))
+                    .alias(VALUE_COLUMN),
                 )
             df = df.paths.join_over_index(mult, how='outer', index_from='union')
 
