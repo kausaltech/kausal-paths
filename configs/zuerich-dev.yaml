@@ -331,7 +331,7 @@ emission_sectors:
   name_de: Negative Emissionen
   name_en: Negative emissions
   part_of: net_emissions
-  color: '#88CFFF'
+  color: '#40B2FF'
   order: -1
 
 # - id: direct_emissions
@@ -355,7 +355,7 @@ emission_sectors:
   short_name_de: Ernährung
   short_name_en: Food consumption
   part_of: net_emissions
-  color: '#FFCC00'
+  color: '#C08600'
   input_dataset_processors: [LinearInterpolation]
 
 nodes:
@@ -639,7 +639,7 @@ nodes:
   name_en: Other consumption emissions
   short_name_de: Konsum
   short_name_en: Other consumption
-  color: '#2AC7C7'
+  color: '#007C78'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
