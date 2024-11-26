@@ -136,7 +136,6 @@ INSTALLED_APPS = [
     'modelcluster',
     'grapple',
     'graphene_django',
-    'oauth2_provider',
 
     'social_django',
     'django.contrib.admin',
