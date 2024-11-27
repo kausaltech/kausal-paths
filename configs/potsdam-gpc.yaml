@@ -6,7 +6,7 @@ dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 80c9fd99d5bc81dd42ff34d0e4b988d06addfc69
   dvc_remote: kausal-s3
-name: Potsdam BASIC+ Treibhausgasinventar
+name: Klimaschutz-Monitor-Potsdam Treibhausgasinventar
 owner: Stadt Potsdam
 theme_identifier: de-potsdam
 target_year: 2050
@@ -27,14 +27,14 @@ params:
 
 action_groups:
 - id: stationary
-  name: Stationär
+  name: Wärme
   color: '#989898'
+- id: electricity
+  name: Strom
+  color: '#007C78'
 - id: transport
   name: Verkehr
   color: '#0505A0'
-- id: waste
-  name: Abfall
-  color: '#007C78'
 - id: afolu
   name: AFOLU
   color: '#cccccc'
@@ -626,7 +626,8 @@ nodes:
 actions:
 
 - id: i11_residential_fuel_consumption_action
-  name: Maßnahme Endenergieverbrauch Wärme
+  name: Reduktion im Verbrauch von Wärmeenergieträgern (außer Fernwärme)
+  description: Durch den prognostizierten starken Zuzug in die Landeshauptstadt wird auch der Bedarf nach Wärmeenergie steigen. Durch Maßnahmen zur Gebäudesanierung und hohen energetischen Standards im Neubau sollte jedoch eine deutliche Reduktion pro Quadratmeter erfolgen. In Summe sollte der Verbrauch von dezentralen Wärmeenergieträgern (ohne Fernwärme) bis zum Jahr 2045 um ca. 30% im Vergleich zum Jahr 2020 reduziert werden. Der Fernwärmeverbrauch sollte durch Ausbau und Verdichtung hingegen leicht steigen (siehe Maßnahme 1.3).
   type: gpc.DatasetAction
   quantity: energy
   unit: MWh/a
@@ -640,7 +641,8 @@ actions:
   output_nodes: [i11_residential_fuel_consumption]
 
 - id: i11_residential_fuel_emission_factor_action
-  name: Maßnahme Emissionsfaktor Wärmeenergie
+  name: Umsetzung drastische CO2-Reduktion von Wärmeenergieträgern ( außer Fernwärme)
+  description: Die Verringerung des Wärmenergieverbrauchs ist eine Seite der Medaille. Die andere ist die deutliche Reduzierung der Treibhausgasemissionen je eingesetzter Kilowattstunde. Kern der Potsdamer Strategie ist die langfristige Abkehr von fossilen Brennstoffen, insbesondere vom Erdgas. Die Substitution sollte v.a. durch Wärmepumpen, Fernwärme, kleine Nahwärmenetze und – in geringeren Mengen – grünen Gasen und Wasserstoff erfolgen.
   type: gpc.DatasetAction
   quantity: emission_factor
   unit: t/MWh
@@ -654,7 +656,8 @@ actions:
   output_nodes: [i11_residential_fuel_emission_factor]
 
 - id: i12_residential_grid_energy_consumption_action
-  name: Maßnahme Netzenergieverbrauch Wohngebäude
+  name: Ausbau der Fernwärme
+  description: Der Ausbau der Fernwärme ist ein wichtiger Baustein in der Potsdamer Klimaschutzstrategie. Hier lassen sich zentral emissionsarme Technologien effizienter umsetzen, etwa die Tiefe Geothermie. Die Abnahmestellen sollten daher deutlich steigen und die Erzeugung – trotz verringerter Verbräuche pro m² - insgesamt steigen.
   type: gpc.DatasetAction
   quantity: energy
   unit: MWh/a
@@ -668,36 +671,9 @@ actions:
   output_nodes:
   - id: i12_residential_grid_energy_consumption
 
-# - id: i12_residential_grid_energy_emission_factor_action
-#   name: Maßnahme Emissionsfaktor Netzenergieverbrauch Wohngebäude
-#   type: gpc.DatasetAction
-#   quantity: emission_factor
-#   unit: t/MWh
-#   group: stationary
-#   input_datasets:
-#   - id: gpc/potsdam_master_plan_actions
-#     forecast_from: 2022
-#   output_dimensions: [energietrager, ghg, scope]
-#   params:
-#     gpc_sector: I.1.2
-#   output_nodes: [i12_residential_grid_energy_emission_factor]
-
-- id: i42_energy_grid_energy_consumption_action
-  name: Maßnahme Stromverbrauch (ohne Heizstrom)
-  type: gpc.DatasetAction
-  quantity: energy
-  unit: MWh/a
-  group: stationary
-  input_datasets:
-  - id: gpc/potsdam_master_plan_actions
-    forecast_from: 2022
-  output_dimensions: [energietrager, scope]
-  params:
-    gpc_sector: I.4.2
-  output_nodes: [i42_energy_grid_energy_consumption]
-
-- id: i42_energy_grid_energy_emission_factor_action
-  name: Maßnahme Emissionsfaktor Strom
+- id: i12_residential_grid_energy_emission_factor_action
+  name: Umsetzung drastische CO2-Reduktion in der Fernwärmeerzeugung
+  description: 'Der Emissionsfaktor der Potsdamer Fernwärme liegt derzeit bei ca. 155g/kWh und soll bis zum Jahr 2025 auf ca. 50g/kWh sinken. Zum Vergleich: Erdgas in der Wärmenutzung erzeugt ca. 250g/kWh, Biogas 110g/kWh und Solarthermie 25g/kWh (jeweils einschließlich CO2-Äquivalenten und Vorkettenemissionen). Das Ziel für die Fernwärme soll erreicht werden, indem Umweltwärme und Power-to-Heat stark ausgebaut und Kraft-Wärme-Kopplungsanlagen zunehmend mit emissionsärmeren Brennstoffen, etwa Wasserstoff, betrieben werden.'
   type: gpc.DatasetAction
   quantity: emission_factor
   unit: t/MWh
@@ -707,11 +683,44 @@ actions:
     forecast_from: 2022
   output_dimensions: [energietrager, ghg, scope]
   params:
+    gpc_sector: I.1.2
+  output_nodes: [i12_residential_grid_energy_emission_factor]
+
+- id: i42_energy_grid_energy_consumption_action
+  name: Reduktion des Stromverbrauch in Haushalten und Gewerbe (ohne Heiz- und Mobilitätsstrom)
+  description: Der Stromverbrauch in diesem Bereich sollte deutlich reduziert werden, von heute ca. 525.000 MWh auf ca. 375.000 MWh bzw. pro Einwohner von 2.800 kWh auf 1.700 kWh pro Jahr. Dafür sind eine Vielzahl kleinteiliger Maßnahmen nötig, z.B. Klimaneutralitätskonzepte für große Unternehmen und Institutionen der Stadt (SPSG, Landesliegenschaften, Medienbranche u.a.); das Ausrollen von Smart- Metering; Energieeffizienznetzwerke der Wirtschaft; Energieberatung und Kampagnen; Anreize für effiziente Haushaltsgeräte sowie permanente Öffentlichkeitsarbeit.
+  type: gpc.DatasetAction
+  quantity: energy
+  unit: MWh/a
+  group: electricity
+  input_datasets:
+  - id: gpc/potsdam_master_plan_actions
+    forecast_from: 2022
+  output_dimensions: [energietrager, scope]
+  params:
+    gpc_sector: I.4.2
+  output_nodes: [i42_energy_grid_energy_consumption]
+
+- id: i42_energy_grid_energy_emission_factor_action
+  name: Ausbau erneuerbarer Energien in der Stromerzeugung
+  description: Strom wird künftig als Energieträger noch wichtiger als er es heute bereits ist. Auch Wärmeenergie und Mobilität sollen zum Teil darüber gedeckt werden. Umso wichtiger ist es die Erzeugung soweit möglich auf Erneuerbare Energie umzustellen.<br>
+    Potsdam als städtischer Raum kann v.a. Dachflächen für die Photovoltaik nutzen. Das Potential liegt bei ca. 170 Gigawattstunden pro Jahr. Bisher werden lediglich ca. 20 GWh erzeugt. In den ländlichen Ortsteilen sind auch große Freiflächenanlagen möglich. 2017 wurde das Potential auf ca. 140 GWh geschätzt. Durch die Weiterentwicklung der Technik dürfte es heute noch etwas höher liegen. Derzeit sind Anlagen u.a. in Satzkorn in Planung.<br>
+    Durch das Wind-an-Land-Gesetz von 2023 gibt es mittlerweile auch theoretisch die Möglichkeit der Windenergienutzung in Potsdam. Die planerischen Hürden sind hier sehr hoch, werden jedoch ebenfalls geprüft.
+  type: gpc.DatasetAction
+  quantity: emission_factor
+  unit: t/MWh
+  group: electricity
+  input_datasets:
+  - id: gpc/potsdam_master_plan_actions
+    forecast_from: 2022
+  output_dimensions: [energietrager, ghg, scope]
+  params:
     gpc_sector: I.4.2
   output_nodes: [i42_energy_grid_energy_emission_factor]
 
 - id: ii11_onroad_transport_fuel_consumption_action
-  name: Maßnahme Brennstoffverbrauch Verkehr
+  name: Reduzierung Gesamtenergieverbrauchs im BInnenverkehr
+  description: Die Umstellung der Mobilität auf elektrische Antriebe und fossilfreie Brennstoffe sind nur die halbe Miete zur Erreichung der Klimaschutzziele. Der Energieeinsatz sollte bis 2045 etwa halbiert werden im Vergleich zu 2020. Zum Teil wird dies durch die höhere Effizienz von Elektromotoren erreicht werden können. Einen wesentlichen Teil sollte jedoch die deutliche Erhöhung des Umweltverbundes (Fuß, Rad, ÖPNV) haben, da hier Energie ganz eingespart oder pro Kopf effizienter eingesetzt wird.
   type: gpc.DatasetAction
   quantity: energy
   unit: MWh/a
@@ -725,7 +734,8 @@ actions:
   output_nodes: [ii11_onroad_transport_fuel_consumption]
 
 - id: ii11_onroad_transport_fuel_emission_factor_action
-  name: Maßnahme Emissionsfaktor Brennstoffverbrauch Verkehr
+  name: Zunahme der Anteile emissionsarmer Brennstoffe und der Elektromobilität
+  description: Insbesondere die verbleibenden Anteile des Motorisierten Individualverkehrs (MIV) sollten durch Elektromobilität und – in geringerem Umfang – durch synthetische Treibstoffe und effiziente Erdgasnutzung gedeckt werden.
   type: gpc.DatasetAction
   quantity: emission_factor
   unit: t/MWh
@@ -739,7 +749,8 @@ actions:
   output_nodes: [ii11_onroad_transport_fuel_emission_factor]
 
 - id: ii12_onroad_transport_grid_energy_consumption_action
-  name: Maßnahme Stromverbrauch ÖPNV
+  name: Erhöhung des Anteils des stromgebundenen ÖPNV und der Elektromobilität
+  description: Das Straßenbahnnetz soll ausgebaut und eine hohe Auslastung erreicht werden. Auch der MIV soll zunehmend elektrifiziert werden.
   type: gpc.DatasetAction
   quantity: energy
   unit: MWh/a
@@ -753,7 +764,8 @@ actions:
   output_nodes: [ii12_onroad_transport_grid_energy_consumption]
 
 - id: ii12_onroad_transport_grid_energy_emission_factor_action
-  name: Maßnahme Emissionsfaktor Stromverbrauch ÖPNV
+  name: Strom aus erneuerbaren Energien für ÖPNV und Elektromobilität
+  description: Wie unter Maßnahme 2.2 beschrieben, sollte auch der Strombedarf der Mobilität soweit möglich aus lokalen Erneuerbaren Quellen gedeckt werden.
   type: gpc.DatasetAction
   quantity: emission_factor
   unit: t/MWh
