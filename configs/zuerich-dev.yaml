@@ -331,7 +331,7 @@ emission_sectors:
   name_de: Negative Emissionen
   name_en: Negative emissions
   part_of: net_emissions
-  color: '#40B2FF'
+  color: '#4DB8FF'
   order: -1
 
 # - id: direct_emissions
