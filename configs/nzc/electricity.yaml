@@ -106,26 +106,24 @@ nodes:
     children:
     - kind: node
       label: Total electricity consumption
-      node:
-        id: total_electricity_consumption
-        desired_outcome: decreasing
-        dimensions:
-        - id: sector
-          flatten: true
-        - id: energy_carrier
-          flatten: true
+      node_id: total_electricity_consumption
+      desired_outcome: decreasing
+      dimensions:
+      - id: sector
+        flatten: true
+      - id: energy_carrier
+        flatten: true
     - kind: node
       label: Fossil fuel usage in district heating
-      node:
-        id: building_heat_fossil_ratio
-        desired_outcome: decreasing
-        dimensions:
-        - id: fuel_type
-          categories: [fossil]
-          flatten: true
-        - id: heating_type
-          categories: [district]
-          flatten: true
+      node_id: building_heat_fossil_ratio
+      desired_outcome: decreasing
+      dimensions:
+      - id: fuel_type
+        categories: [fossil]
+        flatten: true
+      - id: heating_type
+        categories: [district_heating]
+        flatten: true
 
 - id: statistical_electricity_consumption
   name_en: Statistical electricity consumption
@@ -728,4 +726,3 @@ nodes:
   output_dimensions: [fuel_type, energy_carrier]
   input_nodes:
   - id: electricity_production_shares_historical
-  

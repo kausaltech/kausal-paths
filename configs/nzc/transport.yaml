@@ -78,97 +78,89 @@ nodes:
     children:
     - kind: node
       label: Car transport need
-      node:
-        id: passenger_kilometres
-        desired_outcome: decreasing
-        dimensions:
-        - id: transport_mode
-          categories: [cars]
-          flatten: true
+      node_id: passenger_kilometres
+      desired_outcome: decreasing
+      dimensions:
+      - id: transport_mode
+        categories: [cars]
+        flatten: true
     - kind: node
       label: Electrification of passenger vehicles
-      node:
-        id: fully_electric_car_share
-        desired_outcome: increasing
-        dimensions:
-        - id: energy_carrier
-          categories: [electricity]
-          flatten: true
-        - id: transport_mode
-          categories: [cars]
-          flatten: true
+      node_id: fully_electric_car_share
+      desired_outcome: increasing
+      dimensions:
+      - id: energy_carrier
+        categories: [electricity]
+        flatten: true
+      - id: transport_mode
+        categories: [cars]
+        flatten: true
   - kind: group
     label: Drivers of bus emissions
     children:
     - kind: node
       label: Bus transport need
-      node:
-        id: passenger_kilometres
-        desired_outcome: decreasing
-        dimensions:
-        - id: transport_mode
-          categories: [buses]
-          flatten: true
+      node_id: passenger_kilometres
+      desired_outcome: decreasing
+      dimensions:
+      - id: transport_mode
+        categories: [buses]
+        flatten: true
     - kind: node
       label: Electrification of buses
-      node:
-        id: fully_electric_bus_share
-        desired_outcome: increasing
-        dimensions:
-        - id: energy_carrier
-          categories: [electricity]
-          flatten: true
-        - id: transport_mode
-          categories: [buses]
-          flatten: true
+      node_id: fully_electric_bus_share
+      desired_outcome: increasing
+      dimensions:
+      - id: energy_carrier
+        categories: [electricity]
+        flatten: true
+      - id: transport_mode
+        categories: [buses]
+        flatten: true
   - kind: group
     label: Drivers of light truck emissions
     children:
     - kind: node
       label: Light truck freight transport need
-      node:
-        id: freight_transport_need
-        desired_outcome: decreasing
-        dimensions:
-        - id: transport_mode
-          categories: [light_trucks]
-          flatten: true
+      node_id: freight_transport_need
+      desired_outcome: decreasing
+      dimensions:
+      - id: transport_mode
+        categories: [light_trucks]
+        flatten: true
     - kind: node
       label: Electrification of light trucks
-      node:
-        id: freight_transport_energy_carrier_shares
-        desired_outcome: increasing
-        dimensions:
-        - id: energy_carrier
-          categories: [electricity]
-          flatten: true
-        - id: transport_mode
-          categories: [light_trucks]
-          flatten: true
+      node_id: freight_transport_energy_carrier_shares
+      desired_outcome: increasing
+      dimensions:
+      - id: energy_carrier
+        categories: [electricity]
+        flatten: true
+      - id: transport_mode
+        categories: [light_trucks]
+        flatten: true
   - kind: group
     label: Drivers of heavy truck emissions
     children:
     - kind: node
       label: Heavy truck freight transport need
-      node:
-        id: freight_transport_need
-        desired_outcome: decreasing
-        dimensions:
-        - id: transport_mode
-          categories: [heavy_trucks]
-          flatten: true
+      node_id: freight_transport_need
+      desired_outcome: decreasing
+      dimensions:
+      - id: transport_mode
+        categories: [heavy_trucks]
+        flatten: true
     - kind: node
       label: Electrification of heavy trucks
-      node:
-        id: freight_transport_energy_carrier_shares
-        desired_outcome: increasing
-        dimensions:
-        - id: energy_carrier
-          categories: [electricity]
-          flatten: true
-        - id: transport_mode
-          categories: [heavy_trucks]
-          flatten: true
+      node_id: freight_transport_energy_carrier_shares
+      desired_outcome: increasing
+      dimensions:
+      - id: energy_carrier
+        categories: [electricity]
+        flatten: true
+      - id: transport_mode
+        categories: [heavy_trucks]
+        flatten: true
 
 # - id: transport_electricity_emissions
 #   name_en: Transport electricity emissions
@@ -214,7 +206,7 @@ nodes:
 - id: new_fleet_emission_factor_pre
   name_en: New fleet emission factor before splitting
   name_fi: Uuden kaluston päästökerroin ennen jakamista
-  description_en: '<p>Emission factors for new cars following the EURO 6 standard. (EU: Cars and Light Trucks. 
+  description_en: '<p>Emission factors for new cars following the EURO 6 standard. (EU: Cars and Light Trucks.
     https://www.dieselnet.com/standards/eu/ld.php)<br>
     This node is needed in vehicle fleet upgrade. The idea is that there are several cohorts i of vehicles, each faving its own emission factor. The first cohort comes from node baseline_year_fleet_emission_factor and it contains all cars that were in the fleet in the baseline. Each year after that, a new cohort of cars enter the fleet, each having the emission factor that was for that year in node new_fleet_emission_factor. Each cohort has a proportion of P<sub>i</sub> among the fleet. The average emission factor is therefore<br>
     E<sub>t</sub> = sum<sub>i</sub>(E<sub>i,t</sub> * P<sub>i,t</sub>) <br>where i is class and t is timepoint. This is complicated by gradual removal of vehicle classes from the fleet such that<br>
@@ -223,9 +215,9 @@ nodes:
     <p>In this use case, it is important to separate these cohorts because the emission factor is decreasing in time.
     The computation logic is that after a vehicle has entered the fleet, it has the same survival probability as all other
     cars in the fleet. (Not realistic but that is how NZC excel works)</p>
-    Finally, we assume that E is constant for each vehicle as long as it is in the fleet. 
+    Finally, we assume that E is constant for each vehicle as long as it is in the fleet.
     This is handled by looking at each E<sub>i,t</sub> cohort until the last time point.'
-  description_fi: '<p>Uusien autojen päästökertoimet noudattavat EURO 6 -standardia. (EU: Henkilöautot ja kevyet kuorma-autot. 
+  description_fi: '<p>Uusien autojen päästökertoimet noudattavat EURO 6 -standardia. (EU: Henkilöautot ja kevyet kuorma-autot.
     https://www.dieselnet.com/standards/eu/ld.php)<br>
     Tämä solmu tarvitaan ajoneuvokannan päivityksessä. Ajatuksena on, että on useita ajoneuvoluokkia i, joilla kullakin on oma päästökertoimensa. Ensimmäinen luokka tulee solmusta baseline_year_fleet_emission_factor, ja se sisältää kaikki perusvuoden kannassa olleet autot. Joka vuosi sen jälkeen kantaan tulee uusi autoluokka, jolla kullakin on solmun new_fleet_emission_factor kyseisen vuoden päästökerroin. Kullakin luokalla on osuus P<sub>i</sub> kannasta. Keskimääräinen päästökerroin on siten<br>
     E<sub>t</sub> = sum<sub>i</sub>(E<sub>i,t</sub> * P<sub>i,t</sub>) <br>missä i on luokka ja t on ajankohta. Tätä mutkistaa ajoneuvojen asteittainen poistuminen kannasta siten, että<br>
@@ -234,7 +226,7 @@ nodes:
     <p>Tässä käyttötapauksessa ontärkeää erottaa nämä luokat toisistaan, koska päästökerroin pienenee ajan myötä.
     Laskennan logiikka on, että kun ajoneuvo on tullut kantaan, sillä on sama selviytymistodennäköisyys kuin kaikilla muilla
     autoilla kannassa. (Ei realistista, mutta näin NZC-excel toimii)</p>
-    Lopuksi oletamme, että E on vakio kullekin ajoneuvolle niin kauan kuin se on kannassa. 
+    Lopuksi oletamme, että E on vakio kullekin ajoneuvolle niin kauan kuin se on kannassa.
     Tämä käsitellään tarkastelemalla kutakin E<sub>i,t</sub>-luokkaa viimeiseen ajankohtaan asti.'
   type: gpc.DatasetNode
   quantity: emission_factor
@@ -438,7 +430,7 @@ nodes:
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
-  input_dimensions: [transport_mode, energy_carrier]    
+  input_dimensions: [transport_mode, energy_carrier]
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/defaults
@@ -1085,12 +1077,12 @@ nodes:
   description_en: 'Unit prices for air pollutants, noise, accidents, and CO2 come from a single source
     (Essen et al., 2019). Datasets can be created from 1.1 Reduce transport need G129:G134 (CO2 and air pollutants),
     G169:G179 (noise), G204:G209 (accidents). The values are constant across time.
-    <h2>References</h2><ul><li>Essen et. al. (2019). Handbook on the external costs of transport. 
+    <h2>References</h2><ul><li>Essen et. al. (2019). Handbook on the external costs of transport.
     For European Commission Directorate-General for Mobility and Transport</li></ul>'
   description_fi: 'Yksikköhinnat ilmansaasteille, melulle, onnettomuuksille ja CO2:lle tulevat yhdestä lähteestä
     (Essen et al., 2019). Datasetin voi luoda kohdista 1.1 Liikennetarpeen vähentäminen G129:G134 (CO2 ja ilmansaasteet),
     G169:G179 (melu), G204:G209 (onnettomuudet). Arvot ovat vakioita ajan suhteen.
-    <h2>Lähteet</h2><ul><li>Essen et. al. (2019). Handbook on the external costs of transport. 
+    <h2>Lähteet</h2><ul><li>Essen et. al. (2019). Handbook on the external costs of transport.
     Euroopan komission liikenne- ja liikkuvuusasioiden pääosastolle</li></ul>'
   type: gpc.DatasetNode
   quantity: unit_price
@@ -1272,12 +1264,12 @@ nodes:
   name_fi: Joukkoliikenteen liikennöinnin yksikköhinta
   description_en: Operational costs of buses and trains come from Sveriges kommuner och landsting (2017)
     and values are at 1.1 Reduce transport need G236:G241. The values are constant across time.
-    <h2>References</h2><ul><li>Essen et. al. (2019). Handbook on the external costs of transport. 
+    <h2>References</h2><ul><li>Essen et. al. (2019). Handbook on the external costs of transport.
     For European Commission Directorate-General for Mobility and Transport</li>
     <li>Sveriges kommuner och landsting (2017). Kollektivtrafikens kostnadsutveckling – en överblick. https://webbutik.skl.se/sv/artiklar/kollektivtrafikens-kostnadsutveckling-en-overblick.html</li></ul>'
   description_fi: Bussien ja junien liikennöintikustannukset ovat peräisin Sveriges kommuner och landstin (2017)
     ja arvot löytyvät kohdasta 1.1 Liikennetarpeen vähentäminen G236:G241. Arvot ovat vakioita ajan suhteen.
-    <h2>Lähteet</h2><ul><li>Essen et. al. (2019). Handbook on the external costs of transport. 
+    <h2>Lähteet</h2><ul><li>Essen et. al. (2019). Handbook on the external costs of transport.
     Euroopan komission liikenne- ja liikkuvuusasioiden pääosastolle</li>
     <li>Sveriges kommuner och landsting (2017). Kollektivtrafikens kostnadsutveckling – en överblick. https://webbutik.skl.se/sv/artiklar/kollektivtrafikens-kostnadsutveckling-en-overblick.html</li></ul>'
   # type: gpc.DatasetNode

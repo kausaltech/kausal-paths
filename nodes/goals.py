@@ -1,17 +1,23 @@
 from __future__ import annotations
+
 import typing
 from dataclasses import dataclass
 
-from pydantic import BaseModel, RootModel, Field, PrivateAttr, model_validator
+from pydantic import BaseModel, Field, PrivateAttr, RootModel, model_validator
+
 import polars as pl
+
 from common import polars as ppl
-from common.i18n import I18nBaseModel, I18nString, I18nStringInstance, TranslatedString
+from common.i18n import I18nBaseModel, I18nStringInstance
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
 
 if typing.TYPE_CHECKING:
-    from .node import Node
+    from collections.abc import Sequence
+
     from common.polars import PathsDataFrame
+
+    from .node import Node
 
 
 class GoalValue(BaseModel):
@@ -45,16 +51,16 @@ class NodeGoalsEntry(I18nBaseModel):
     disabled: bool = False
     disable_reason: I18nStringInstance | None = None
 
-    _node: 'Node' = PrivateAttr()
+    _node: Node = PrivateAttr()
 
     def __init__(self, **data) -> None:
         super().__init__(**data)
         self._node = None  # type:ignore
 
-    def set_node(self, node: 'Node'):
+    def set_node(self, node: Node):
         self._node = node
 
-    def get_node(self) -> 'Node':
+    def get_node(self) -> Node:
         return self._node
 
     def dim_to_path(self) -> str:
@@ -116,7 +122,7 @@ class NodeGoalsEntry(I18nBaseModel):
         return goal_norm, unit
 
 
-    def _get_values_df(self):
+    def _get_values_df(self) -> ppl.PathsDataFrame:
         context = self._node.context
         goal_norm, unit = self.get_normalization_info()
         m = self._node.get_default_output_metric()
@@ -125,7 +131,7 @@ class NodeGoalsEntry(I18nBaseModel):
         if goal_norm:
             df = goal_norm.denormalize_output(m, df)
 
-        df = df.with_columns([pl.lit(False).alias('IsInterpolated')])
+        df = df.with_columns([pl.lit(value=False).alias('IsInterpolated')])
 
         if self.linear_interpolation and len(df) > 1:
             years = range(df[YEAR_COLUMN].min(), df[YEAR_COLUMN].max() + 1)  # type: ignore
@@ -136,7 +142,7 @@ class NodeGoalsEntry(I18nBaseModel):
             df = df.paths.join_over_index(ydf, how='outer', index_from='left')
             df = df.with_columns([
                 pl.col(VALUE_COLUMN).interpolate(),
-                pl.col('IsInterpolated').fill_null(True)
+                pl.col('IsInterpolated').fill_null(value=True)
             ])
 
         if context.active_normalization:
@@ -179,14 +185,14 @@ class NodeGoalsEntry(I18nBaseModel):
 
 
 class NodeGoals(RootModel):
-    root: typing.List[NodeGoalsEntry]
-    _node: 'Node' = PrivateAttr()
+    root: list[NodeGoalsEntry]
+    _node: Node = PrivateAttr()
 
     def __init__(self, **data) -> None:
         super().__init__(**data)
         self._node = None  # type:ignore
 
-    def set_node(self, node: 'Node'):
+    def set_node(self, node: Node):
         self._node = node
         for ge in self.root:
             ge.set_node(node)
@@ -209,7 +215,9 @@ class NodeGoals(RootModel):
             return None
         return vals[0]
 
-    def get_exact_match(self, dimension_id: str, groups: list[str] = [], categories: list[str] = []) -> NodeGoalsEntry | None:
+    def get_exact_match(
+        self, dimension_id: str, groups: Sequence[str] = (), categories: Sequence[str] = ()
+    ) -> NodeGoalsEntry | None:
         for e in self.root:
             dim = e.dimensions.get(dimension_id)
             if not dim:
@@ -217,9 +225,8 @@ class NodeGoals(RootModel):
             if groups:
                 if set(dim.groups) == set(groups):
                     break
-            elif categories:
-                if set(dim.categories) == set(categories):
-                    break
+            elif categories and set(dim.categories) == set(categories):
+                break
         else:
             return None
         return e

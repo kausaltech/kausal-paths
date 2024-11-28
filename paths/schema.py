@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import graphene
+import strawberry as sb
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext as _
 from graphql import DirectiveLocation
@@ -13,6 +14,7 @@ from graphql.type.scalars import GraphQLID, GraphQLString
 
 from grapple.registry import registry as grapple_registry
 
+from kausal_common.graphene.strawberry_schema import CombinedSchema
 from kausal_common.graphene.version_query import Query as ServerVersionQuery
 
 from paths.graphql_types import UnitType
@@ -92,9 +94,25 @@ class InstanceSelectionType(graphene.InputObjectType):
     hostname = graphene.String(required=False)
 
 
-schema = graphene.Schema(
-    query=Query,
-    mutation=Mutations,
-    directives=list(specified_directives) + [LocaleDirective(), InstanceDirective()],
-    types=params_types + list(grapple_registry.models.values()),
-)
+@sb.type
+class StrawberryQuery:
+    id: str
+
+
+def generate_schema() -> CombinedSchema:
+    from kausal_common.strawberry.registry import strawberry_types
+
+    # We generate the Strawberry schema just to be able to utilize the
+    # resolved GraphQL types directly in the Graphene schema.
+    sb_schema = sb.Schema(query=StrawberryQuery, types=strawberry_types)
+
+    schema = CombinedSchema(
+        sb_schema=sb_schema,
+        query=Query,
+        mutation=Mutations,
+        directives=list(specified_directives) + [LocaleDirective(), InstanceDirective()],
+        types=params_types + list(grapple_registry.models.values()),
+    )
+    return schema
+
+schema = generate_schema()

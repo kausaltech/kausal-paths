@@ -82,6 +82,8 @@ class AdminMiddleware:
         translation.activate(lang)
 
     def __call__(self, request: PathsAdminRequest):
+        from paths.context import RealmContext, realm_context
+
         ic = self.get_admin_instance(request)
         if ic is None:
             return self.get_response(request)
@@ -89,7 +91,6 @@ class AdminMiddleware:
         user = request.user
         assert isinstance(user, User)
         self.activate_language(ic, user)
-        set_admin_instance(ic, request=request)
 
         request._wagtail_site = ic.site
 
@@ -99,4 +100,7 @@ class AdminMiddleware:
                 ic.invalidate_cache()
             transaction.on_commit(invalidate_cache)
 
-        return self.get_response(request)
+        set_admin_instance(ic, request=request)
+        ctx = RealmContext(realm=ic, user=request.user)
+        with realm_context.activate(ctx):
+            return self.get_response(request)

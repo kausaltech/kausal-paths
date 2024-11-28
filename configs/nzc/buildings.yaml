@@ -77,44 +77,41 @@ nodes:
     children:
     - kind: node
       label: Heating demand
-      node:
-        id: building_heat_energy_use
-        desired_outcome: decreasing
-        dimensions:
-        - id: heating_type
-          flatten: true
-        - id: building_energy_class
-          flatten: true
-        - id: energy_carrier
-          flatten: true
-        - id: fuel_type
-          flatten: true
-        - id: scope
-          flatten: true
+      node_id: building_heat_energy_use
+      desired_outcome: decreasing
+      dimensions:
+      - id: heating_type
+        flatten: true
+      - id: building_energy_class
+        flatten: true
+      - id: energy_carrier
+        flatten: true
+      - id: fuel_type
+        flatten: true
+      - id: scope
+        flatten: true
     - kind: node
       label: Fossil fuel usage in district heating
-      node:
-        id: building_heat_fossil_ratio
-        desired_outcome: decreasing
-        dimensions:
-        - id: fuel_type
-          categories: [fossil]
-          flatten: true
-        - id: heating_type
-          categories: [district]
-          flatten: true
+      node_id: building_heat_fossil_ratio
+      desired_outcome: decreasing
+      dimensions:
+      - id: fuel_type
+        categories: [fossil]
+        flatten: true
+      - id: heating_type
+        categories: [district_heating]
+        flatten: true
     - kind: node
       label: Fossil fuel usage
-      node:
-        id: electricity_shares
-        desired_outcome: decreasing
-        dimensions:
-        - id: fuel_type
-          categories: [fossil]
-          flatten: true
-        - id: energy_carrier
-          categories: [electricity]
-          flatten: true
+      node_id: electricity_shares
+      desired_outcome: decreasing
+      dimensions:
+      - id: fuel_type
+        categories: [fossil]
+        flatten: true
+      - id: energy_carrier
+        categories: [electricity]
+        flatten: true
 
 # ----------------- Building stock ----------------------
 
@@ -184,7 +181,7 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets: [nzc/defaults]
   params:
-    sector: Share of new buildings built
+    sector: Share of new buildings built # new building shares #
 
 - id: demolition_rate
   name_en: Demolition rate
@@ -1566,7 +1563,7 @@ nodes:
   - id: heat_production_unit_price
     from_dimensions:
     - id: cost_type
-      categories: [opex]      
+      categories: [opex]
     to_dimensions:
     - id: heating_type
     - id: cost_type

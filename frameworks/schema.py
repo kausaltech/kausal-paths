@@ -42,8 +42,6 @@ if TYPE_CHECKING:
     from nodes.instance import Instance
     from nodes.units import Unit
 
-    from .object_cache import CFramework, CMeasureTemplate, CSection
-
 
 class MeasureTemplateDefaultDataPointType(DjangoNode):
     class Meta(DjangoNodeMeta):
@@ -64,8 +62,8 @@ class MeasureTemplateType(DjangoNode):
         return resolve_unit(root.unit, info)
 
     @staticmethod
-    def resolve_default_data_points(root: CMeasureTemplate, info: GQLInfo) -> list[MeasureTemplateDefaultDataPoint]:
-        return root.fw_cache.measure_template_default_data_points.by_measure_template(root.pk)
+    def resolve_default_data_points(root: MeasureTemplate, info: GQLInfo) -> list[MeasureTemplateDefaultDataPoint]:
+        return root.cache.measure_template_default_data_points.by_measure_template(root.pk)
 
     @staticmethod
     def resolve_measure(root: MeasureTemplate, info: GQLInfo, framework_config_id: str) -> Measure | None:
@@ -73,7 +71,14 @@ class MeasureTemplateType(DjangoNode):
             fwc_id = int(framework_config_id)
         except Exception:
             raise GraphQLError("Invalid ID", nodes=info.field_nodes) from None
-        return root.measures.filter(framework_config=fwc_id).first()
+        fwc = root.cache.framework_configs.get(fwc_id)
+        if fwc is None:
+            return None
+        fwc.cache.measure_datapoints.full_populate()
+        measures = fwc.cache.measures.by_measure_template(root.pk)
+        if len(measures) == 0:
+            return None
+        return measures[0]
 
 
 class SectionType(DjangoNode):
@@ -87,20 +92,24 @@ class SectionType(DjangoNode):
     measure_templates = graphene.List(graphene.NonNull(MeasureTemplateType), required=True)
 
     @staticmethod
-    def resolve_measure_templates(root: CSection, info: GQLInfo) -> list[CMeasureTemplate]:
-        return root.fw_cache.measure_templates.by_section(root.pk)
+    def resolve_measure_templates(root: Section, info: GQLInfo) -> list[MeasureTemplate]:
+        return root.cache.fw_cache.measure_templates.by_section(root.pk)
 
     @staticmethod
     def resolve_parent(root: Section, info: GQLInfo) -> Section | None:
-        return root.get_parent()
+        return root.cache.get_parent()
 
     @staticmethod
-    def resolve_children(root: Section, info: GQLInfo) -> SectionQuerySet:
-        return root.get_children()
+    def resolve_children(root: Section, info: GQLInfo) -> Iterable[Section]:
+        def is_child(obj: Section) -> bool:
+            return obj.cache.parent_id == root.pk
+        objs = root.cache.fw_cache.sections.get_list(is_child)
+        objs = sorted(objs, key=lambda s: s.path)
+        return objs
 
     @staticmethod
-    def resolve_descendants(root: CSection, info: GQLInfo) -> Iterable[CSection]:
-        def is_descendant(obj: CSection) -> bool:
+    def resolve_descendants(root: Section, info: GQLInfo) -> Iterable[Section]:
+        def is_descendant(obj: Section) -> bool:
             if obj.pk is root.pk:
                 return False
             if not obj.path.startswith(root.path):
@@ -108,7 +117,7 @@ class SectionType(DjangoNode):
             if obj.depth < root.depth:
                 return False
             return True
-        objs = root.fw_cache.sections.get_list(is_descendant)
+        objs = root.cache.fw_cache.sections.get_list(is_descendant)
         objs = sorted(objs, key=lambda s: s.path)
         return objs
 
@@ -125,24 +134,24 @@ class FrameworkType(DjangoNode):
     config = graphene.Field(lambda: FrameworkConfigType, id=graphene.ID(required=True), required=False)
 
     @staticmethod
-    def resolve_sections(root: CFramework, info: GQLInfo) -> list[CSection]:
+    def resolve_sections(root: Framework, info: GQLInfo) -> list[Section]:
         return root.cache.sections.get_list()
 
     @staticmethod
-    def resolve_section(root: CFramework, info: GQLInfo, identifier: str) -> CSection | None:
+    def resolve_section(root: Framework, info: GQLInfo, identifier: str) -> Section | None:
         return root.cache.sections.first(query_pk_or_uuid_or_identifier(identifier))
 
     @staticmethod
-    def resolve_measure_template(root: Framework, info: GQLInfo, id: str) -> MeasureTemplate | None:  # noqa: A002
+    def resolve_measure_template(root: Framework, info: GQLInfo, id: str) -> MeasureTemplate | None:
         return MeasureTemplate.objects.filter(section__framework=root, id=id).first()
 
     @staticmethod
-    def resolve_configs(root: Framework, info: GQLInfo) -> FrameworkConfigQuerySet:
-        return root.configs.get_queryset().viewable_by(info.context.user)
+    def resolve_configs(root: Framework, info: GQLInfo) -> list[FrameworkConfig]:
+        return root.cache.framework_configs.get_list()
 
     @staticmethod
-    def resolve_config(root: Framework, info: GQLInfo, id: str) -> FrameworkConfig | None:  # noqa: A002
-        fwc = root.configs.get_queryset().filter(get_fwc_q(id)).first()
+    def resolve_config(root: Framework, info: GQLInfo, id: str) -> FrameworkConfig | None:
+        fwc = root.cache.framework_configs.first(get_fwc_q(id))
         if fwc is None:
             return None
         fwc.ensure_gql_action_allowed(info, 'view')
@@ -155,6 +164,10 @@ class MeasureType(DjangoNode):
     class Meta:
         model = Measure
         fields = public_fields(Measure)
+
+    @staticmethod
+    def resolve_data_points(root: Measure, info: GQLInfo) -> list[MeasureDataPoint]:
+        return root.cache.measure_datapoints.by_measure(root.pk)
 
 
 class FrameworkConfigType(DjangoNode):
@@ -175,10 +188,12 @@ class FrameworkConfigType(DjangoNode):
 
     @staticmethod
     def resolve_view_url(root: FrameworkConfig, info: GQLInfo) -> str | None:
-        fw = root.framework
+        fw = root.cache.fw_cache.framework
         if not fw.public_base_fqdn:
             return None
-        return 'https://%s.%s' % (root.instance_config.identifier, fw.public_base_fqdn)
+        ic = root.cache.fw_cache.instance_configs.get(root.instance_config_id)
+        assert ic is not None
+        return 'https://%s.%s' % (ic.identifier, fw.public_base_fqdn)
 
     @staticmethod
     def resolve_results_download_url(root: FrameworkConfig, info: GQLInfo) -> str:
@@ -234,10 +249,10 @@ class Query(graphene.ObjectType):
     frameworks = graphene.List(graphene.NonNull(FrameworkType))
     framework = graphene.Field(FrameworkType, identifier=graphene.ID(required=True))
 
-    def resolve_frameworks(self, info: GQLInfo):
+    def resolve_frameworks(self, info: GQLInfo) -> list[Framework]:
         return info.context.cache.frameworks.get_list()
 
-    def resolve_framework(self, info: GQLInfo, identifier: str):
+    def resolve_framework(self, info: GQLInfo, identifier: str) -> Framework | None:
         fw = Framework.objects.get_queryset().filter(query_pk_or_uuid_or_identifier(identifier)).first()
         if fw is None:
             return None
@@ -301,7 +316,7 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
         return framework
 
     @classmethod
-    def _create_fwc(  # noqa: PLR0913
+    def _create_fwc(
         cls,
         info: GQLInfo,
         framework: Framework,
@@ -349,7 +364,7 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
         return CreateFrameworkConfigMutation(ok=True, framework_config=fc)
 
     @staticmethod
-    def mutate(  # noqa: PLR0913
+    def mutate(
         root, info: GQLInfo, framework_id: str, instance_identifier: str, name: str, baseline_year: int, uuid: str | None = None,
     ) -> CreateFrameworkConfigMutation:
         config = FrameworkConfigInput(
@@ -381,7 +396,7 @@ class UpdateFrameworkConfigMutation(graphene.Mutation):
     @staticmethod
     @transaction.atomic
     def mutate(
-        root, info: GQLInfo, id: str, organization_name: str | None = None, organization_slug: str | None = None,  # noqa: A002
+        root, info: GQLInfo, id: str, organization_name: str | None = None, organization_slug: str | None = None,
         organization_identifier: str | None = None, baseline_year: int | None = None,
     ) -> UpdateFrameworkConfigMutation:
         fwc = get_fwc(info, id)
@@ -425,7 +440,7 @@ class DeleteFrameworkConfigMutation(graphene.Mutation):
 
     @staticmethod
     @transaction.atomic
-    def mutate(root, info: GQLInfo, id: str) -> DeleteFrameworkConfigMutation:  # noqa: A002
+    def mutate(root, info: GQLInfo, id: str) -> DeleteFrameworkConfigMutation:
         fwc = get_fwc(info, id)
         fwc.ensure_gql_action_allowed(info, 'delete')
         fwc.instance_config.delete()
@@ -448,7 +463,7 @@ class UpdateMeasureDataPoint(graphene.Mutation):
 
     @transaction.atomic
     @staticmethod
-    def mutate(  # noqa: PLR0913
+    def mutate(
         root,
         info: GQLInfo,
         framework_instance_id: str,
