@@ -37,7 +37,7 @@ from kausal_common.models.permissions import PermissionedQuerySet
 from kausal_common.models.types import FK, MLModelManager, RevMany, RevOne, copy_signature
 from kausal_common.models.uuid import UUIDIdentifiedModel
 
-from paths.types import PathsModel, PathsQuerySet, UserOrAnon
+from paths.types import CacheablePathsModel, PathsModel, PathsQuerySet, UserOrAnon
 from paths.utils import (
     ChoiceArrayField,
     IdentifierField,
@@ -198,7 +198,7 @@ instance_context: ContextVar[Instance | None] = ContextVar('instance_context', d
 """Global instance context for e.g. GraphQL queries."""
 
 
-class InstanceConfig(PathsModel, UUIDIdentifiedModel, models.Model):  # , RevisionMixin)
+class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Model):  # , RevisionMixin)
     """Metadata for one Paths computational model instance."""
 
     identifier = IdentifierField(max_length=100, unique=True, validators=[InstanceIdentifierValidator()])

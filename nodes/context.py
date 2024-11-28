@@ -393,13 +393,13 @@ class Context:
         self.dataset_repo.set_target_commit(commit_id)
         self.instance.update_dataset_repo_commit(commit_id)
 
-    def print_graph(self, include_datasets: bool = False):
+    def print_graph(self, include_datasets: bool = False) -> None:  # noqa: C901
         import inspect
 
         visited_nodes: set[Node] = set()
         node_class_cache: dict[type, str] = {}
 
-        def make_node_tree(node: Node, tree: Tree | None = None) -> Tree:
+        def make_node_tree(node: Node, tree: Tree | None = None) -> Tree:  # noqa: C901, PLR0912
             node_color = 'yellow'
             if isinstance(node, self.Action):
                 node_color = 'green'

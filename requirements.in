@@ -37,6 +37,7 @@ watchfiles
 django-oauth-toolkit
 pycryptodome
 pydantic
+pydantic-extra-types
 polars
 drf-nested-routers
 drf-spectacular
@@ -46,8 +47,8 @@ tzdata  # needed for pytz
 colormath
 wagtail-font-awesome-svg
 wagtail-generic-chooser
-https://github.com/torchbox-forks/wagtail-color-panel/archive/6ed313955482b5893353898006c1300a22821446.zip
-wagtail-color-panel
+https://github.com/torchbox-forks/wagtail-color-panel/archive/refs/tags/v1.6.1+tbx.zip
+#wagtail-color-panel
 loguru
 gql[requests]
 logfmter
@@ -64,8 +65,8 @@ opentelemetry-exporter-otlp-proto-http
 opentelemetry-instrumentation-threading
 opentelemetry-instrumentation-psycopg
 opentelemetry-instrumentation-redis
-#strawberry-graphql
-#strawberry-graphql-django
+strawberry-graphql
+strawberry-graphql-django
 diffsync
 django-pydantic-field
 graphene-pydantic

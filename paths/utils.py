@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing_extensions import TypeVar
 import uuid
 from typing import TYPE_CHECKING, Any
 
@@ -23,7 +24,10 @@ class InstanceIdentifierValidator(RegexValidator):
     regex = r'^[a-z0-9-]+$'
 
 
-class IdentifierField(models.CharField[str, str]):
+_ST = TypeVar('_ST', bound=Any | None, default=str)
+_GT = TypeVar('_GT', bound=Any | None, default=str)
+
+class IdentifierField(models.CharField[_ST, _GT]):
     def __init__(self, *args, **kwargs):
         validator_kwargs = {}
         if 'regex' in kwargs:

@@ -44,6 +44,7 @@ if typing.TYPE_CHECKING:
     from sentry_sdk.tracing import Span
 
     from common.cache import CacheResult
+    from nodes.visualizations import NodeVisualizations
     from params import Parameter
 
     from .context import Context
@@ -212,6 +213,8 @@ class Node:
 
     # set if this node has a specific goal for the simulation target year
     goals: NodeGoals | None
+
+    visualizations: NodeVisualizations | None = None
 
     input_datasets: list[str]
 
@@ -688,14 +691,22 @@ class Node:
         self._last_historical_year = year
         return year
 
-    def get_default_output_metric(self) -> NodeMetric:
+    @overload
+    def get_default_output_metric(self, required: Literal[True] = True) -> NodeMetric: ...
+
+    @overload
+    def get_default_output_metric(self, required: Literal[False]) -> NodeMetric | None: ...
+
+    def get_default_output_metric(self, required: bool = True) -> NodeMetric | None:
         if DEFAULT_METRIC in self.output_metrics:
             return self.output_metrics[DEFAULT_METRIC]
         if len(self.output_metrics) > 1:
-            raise NodeError(self, 'Node outputs multiple output metrics, but none of them is set as default')
+            if required:
+                raise NodeError(self, 'Node outputs multiple output metrics, but none of them is set as default')
+            return None
         return next(iter(self.output_metrics.values()))
 
-    def _get_output_for_node(self, df: ppl.PathsDataFrame, edge: Edge) -> ppl.PathsDataFrame:
+    def _get_output_for_node(self, df: ppl.PathsDataFrame, edge: Edge) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912
         """
         Filter and select the dataframe.
 
@@ -766,7 +777,7 @@ class Node:
 
         return df
 
-    def _get_output_for_target(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
+    def _get_output_for_target(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912, PLR0915
         for edge in self.edges:
             if edge.output_node == target_node:
                 break
@@ -1331,7 +1342,7 @@ class Node:
     def warning(self, msg: str):
         self.context.warning('%s %s' % (str(self), msg))
 
-    def add_nodes_pl(
+    def add_nodes_pl(  # noqa: C901, PLR0912, PLR0915
         self,
         df: ppl.PathsDataFrame | None,
         nodes: list[Node],
@@ -1449,7 +1460,7 @@ class Node:
         df = df.set_unit(VALUE_COLUMN, 'dimensionless')
         return df
 
-    def get_explanation(self):  # FIXME Add warning if categories drop out in merge.
+    def get_explanation(self):  # FIXME Add warning if categories drop out in merge.  # noqa: C901, PLR0912, PLR0915
         operation_nodes = [n.name for n in self.input_nodes]  # FIXME separate operation and additive
         text = str(self.explanation) + '\n'
         if 'formula' in self.parameters.keys():
@@ -1532,7 +1543,7 @@ class Node:
                         cats = str([cat.label for cat in to_dims[dim].categories])
                         dimlabel = self.context.dimensions[dim].label
                         if len(to_dims[dim].categories) > 0:
-                            edge_text += _('    - Add values to the category %s in a new dimension %s.\n' % (cats, dim))
+                            edge_text += _('    - Add values to the category %s in a new dimension %s.\n' % (cats, dim))  # noqa: INT003
 
         # print(self.input_datasets)  # FIXME Why does this not work?
         # if self.input_datasets:

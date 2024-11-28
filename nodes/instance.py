@@ -334,6 +334,7 @@ class InstanceLoader:
     _output_nodes: dict[str, list[dict | str]]
     _subactions: dict[str, list[str]]
     _scenario_values: dict[str, list[tuple[Parameter, Any]]]
+    _node_visualizations: dict[str, list[dict]]
 
     @staticmethod
     def wrap_with_span[**P, R, SC: InstanceLoader](
@@ -420,7 +421,7 @@ class InstanceLoader:
         }
         return TranslatedString(**langs, default_language=self.default_language)
 
-    def _make_node_datasets(self, config: dict, node_class: type[Node], unit: Unit | None) -> list[Dataset]:
+    def _make_node_datasets(self, config: dict, node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912
         from nodes.datasets import DVCDataset, FixedDataset
         from nodes.units import Unit
 
@@ -482,7 +483,7 @@ class InstanceLoader:
             datasets.append(fds)
         return datasets
 
-    def _make_node_params(self, config: dict, node: Node) -> None:
+    def _make_node_params(self, config: dict, node: Node) -> None:  # noqa: C901, PLR0912
         from params.param import Parameter, ReferenceParameter
 
         params = config.get('params', [])
@@ -560,6 +561,15 @@ class InstanceLoader:
                 sv = self._scenario_values.setdefault(scenario_id, list())
                 sv.append((param, param.clean(value)))
 
+    def _make_node_visualizations(self, node: Node, config: list[dict]) -> None:
+        from nodes.visualizations import NodeVisualizations
+
+        ctx = NodeVisualizations.ValidationContext(context=self.context, node=None)
+        try:
+            node.visualizations = NodeVisualizations.model_validate(config, context=ctx)
+        except Exception as e:
+            raise NodeError(node, 'Error validating visualizations') from e
+
     def make_node(self, node_class: type[Node], config: dict, yaml_lc: LineCol | None = None) -> Node:  # noqa: C901, PLR0912
         from nodes.node import NodeMetric
         from nodes.units import Unit
@@ -633,6 +643,10 @@ class InstanceLoader:
                 if not isinstance(tag, str):
                     raise NodeError(node, "'tags' must be a list of strings")
             node.tags.update(tags)
+
+        viz_config = config.get('visualizations')
+        if viz_config:
+            self._node_visualizations[node.id] = viz_config
 
         return node
 
@@ -846,7 +860,7 @@ class InstanceLoader:
         )
         pt_scenario.actual_historical_years = list(years)
 
-    def setup_scenarios(self):
+    def setup_scenarios(self):  # noqa: C901
         from nodes.scenario import CustomScenario, Scenario, ScenarioKind
 
         default_scenario = None
@@ -1003,6 +1017,11 @@ class InstanceLoader:
         with set_default_language(self.default_language):
             self._init_instance()
 
+    def setup_node_visualizations(self):
+        for node_id, viz_config in self._node_visualizations.items():
+            node = self.context.get_node(node_id)
+            self._make_node_visualizations(node, viz_config)
+
     def _init_instance(self) -> None:  # noqa: PLR0915
         import dvc_pandas
 
@@ -1103,6 +1122,7 @@ class InstanceLoader:
         self._output_nodes = {}
         self._subactions = {}
         self._scenario_values = {}
+        self._node_visualizations = {}
         self.setup_dimensions()
         self.generate_nodes_from_emission_sectors()
         self.setup_global_parameters()
@@ -1112,6 +1132,7 @@ class InstanceLoader:
         self.setup_action_efficiency_pairs()
         self.setup_scenarios()
         self.setup_normalizations()
+        self.setup_node_visualizations()
 
         for scenario in self.context.scenarios.values():
             if scenario.default:

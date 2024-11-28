@@ -25,7 +25,7 @@ from kausal_common.models.types import FK, M2M, QS, ModelManager, OneToOne, RevM
 from kausal_common.models.uuid import UUIDIdentifiedModel
 from kausal_common.users import UserOrAnon, user_or_none
 
-from paths.types import PathsModel, PathsQuerySet
+from paths.types import CacheablePathsModel, PathsModel, PathsQuerySet
 from paths.utils import IdentifierField, UnitField
 
 from nodes.instance import Instance, InstanceLoader
@@ -38,6 +38,14 @@ if TYPE_CHECKING:
     from nodes.models import InstanceConfig
     from users.models import User
 
+    from .object_cache import (
+        FrameworkConfigCacheData,  # noqa: F401
+        FrameworkSpecificCache,  # noqa: F401
+        MeasureCache,  # noqa: F401
+        MeasureDataPointCache,  # noqa: F401
+        MeasureTemplateDefaultDataPointCache,  # noqa: F401
+        SectionCacheData,  # noqa: F401
+    )
     from .permissions import FrameworkConfigPermissionPolicy, FrameworkPermissionPolicy, SectionPermissionPolicy
 
 
@@ -50,7 +58,7 @@ class FrameworkManager(ModelManager['Framework', FrameworkQuerySet], _FrameworkM
     """Model manager for Framework."""
 del _FrameworkManager
 
-class Framework(PathsModel, UUIDIdentifiedModel):
+class Framework(CacheablePathsModel['FrameworkSpecificCache'], UUIDIdentifiedModel):
     """
     Represents a framework for Paths models.
 
@@ -223,7 +231,7 @@ class FrameworkDimensionCategory(UUIDIdentifiedModel, OrderedModel):
         return qs.filter(dimension=self.dimension)
 
 
-class SectionQuerySet(MP_NodeQuerySet['Section'], PathsQuerySet['Section']):
+class SectionQuerySet(MP_NodeQuerySet['Section'], PathsQuerySet['Section']):  # type: ignore[override]
     def _parents(self) -> SectionQuerySet:
         model = cast(type[Section], self.model)
         qs = cast(SectionQuerySet, model._default_manager.get_queryset())
@@ -246,7 +254,7 @@ class SectionManager(MP_NodeManager['Section']):
         return SectionQuerySet(Section).order_by('path')
 
 
-class Section(PathsModel, MP_Node[SectionQuerySet], UUIDIdentifiedModel):
+class Section(CacheablePathsModel['SectionCacheData'], MP_Node[SectionQuerySet], UUIDIdentifiedModel):
     """
     Represents a section within a framework.
 
@@ -255,7 +263,7 @@ class Section(PathsModel, MP_Node[SectionQuerySet], UUIDIdentifiedModel):
     """
 
     framework: FK[Framework] = models.ForeignKey(Framework, on_delete=models.CASCADE, related_name="sections")
-    identifier = IdentifierField(null=True, blank=True)
+    identifier = IdentifierField[str | None, str | None](null=True, blank=True)
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     # validation_rules?
@@ -328,7 +336,7 @@ class MeasureTemplateManager(ModelManager['MeasureTemplate', MeasureTemplateQuer
 del _MeasureTemplateManager
 
 
-class MeasureTemplate(PathsModel, OrderedModel, UUIDIdentifiedModel):
+class MeasureTemplate(CacheablePathsModel['FrameworkSpecificCache'], OrderedModel, UUIDIdentifiedModel):
     """
     Represents a template for measures within a framework.
 
@@ -432,7 +440,7 @@ class MeasureTemplateDefaultDataPointManager(  # pyright: ignore
 del _MeasureTemplateDefaultDataPointManager
 
 
-class MeasureTemplateDefaultDataPoint(PathsModel, models.Model):
+class MeasureTemplateDefaultDataPoint(CacheablePathsModel['MeasureTemplateDefaultDataPointCache'], models.Model):
     """
     Represents a default (fallback) value for a measure template.
 
@@ -491,7 +499,7 @@ class FrameworkConfigManager(ModelManager['FrameworkConfig', FrameworkConfigQuer
 del _FrameworkConfigManager
 
 
-class FrameworkConfig(PathsModel, UserModifiableModel, UUIDIdentifiedModel, models.Model):
+class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModifiableModel, UUIDIdentifiedModel, models.Model):
     """
     Represents a configuration of a Framework for a specific instance.
 
@@ -513,6 +521,7 @@ class FrameworkConfig(PathsModel, UserModifiableModel, UUIDIdentifiedModel, mode
 
     objects: ClassVar[FrameworkConfigManager] = FrameworkConfigManager()  # pyright: ignore
 
+    instance_config_id: int
     measures: RevMany[Measure]
 
     public_fields: ClassVar = ['framework', 'organization_name', 'baseline_year', 'uuid', 'instance_config']
@@ -595,7 +604,7 @@ class FrameworkConfig(PathsModel, UserModifiableModel, UUIDIdentifiedModel, mode
             .annotate(mt_uuid=F('measure__measure_template__uuid'))
         )
         mdp_by_uuid: dict[uuid.UUID, MeasureDataPoint] = {
-            mdp.mt_uuid: mdp for mdp in mdp_qs  # pyright: ignore
+            mdp.mt_uuid: mdp for mdp in mdp_qs  # type: ignore[attr-defined]
         }
         for mt in mt_qs:
             m = m_by_uuid.get(mt.uuid)
@@ -640,6 +649,11 @@ class FrameworkConfig(PathsModel, UserModifiableModel, UUIDIdentifiedModel, mode
             return None
         return 'https://%s.%s' % (self.instance_config.identifier, fw.public_base_fqdn)
 
+    @property
+    def data_points(self) -> MeasureDataPointQuerySet:
+        qs = MeasureDataPoint.objects.get_queryset()
+        return qs.filter(measure__framework_config=self)
+
     def notify_change(self, user: UserOrAnon | None = None, save: bool = False):
         self.last_modified_by = user_or_none(user)
         self.last_modified_at = timezone.now()
@@ -657,7 +671,7 @@ class MeasureManager(ModelManager['Measure', MeasureQuerySet], _MeasureManager):
 del _MeasureManager
 
 
-class Measure(PathsModel, models.Model):
+class Measure(CacheablePathsModel['FrameworkConfigCacheData'], models.Model):
     """
     Represents the concrete measure for an organization-specific Instance.
 
@@ -679,6 +693,8 @@ class Measure(PathsModel, models.Model):
     ]
 
     objects: ClassVar[MeasureManager] = MeasureManager()  # pyright: ignore
+
+    framework_config_id: int
 
     class Meta:
         constraints = [
@@ -703,8 +719,17 @@ class Measure(PathsModel, models.Model):
         return fwc.permission_policy().user_can_create(user, fwc.framework)
 
 
+class MeasureDataPointQuerySet(PathsQuerySet['MeasureDataPoint']):
+    pass
 
-class MeasureDataPoint(PathsModel, models.Model):
+
+_MeasureDataPointManager = models.Manager.from_queryset(MeasureDataPointQuerySet)
+class MeasureDataPointManager(ModelManager['MeasureDataPoint', MeasureDataPointQuerySet], _MeasureDataPointManager):  # pyright: ignore
+    """Model manager for MeasureDataPoint."""
+del _MeasureDataPointManager
+
+
+class MeasureDataPoint(CacheablePathsModel[None], models.Model):
     """
     Represents a specific data point for a Measure.
 
@@ -719,6 +744,11 @@ class MeasureDataPoint(PathsModel, models.Model):
     default_value = models.FloatField(null=True)
 
     public_fields: ClassVar = ['id', 'year', 'value', 'default_value']
+
+    objects: ClassVar[MeasureDataPointManager] = MeasureDataPointManager()  # pyright: ignore
+    _default_manager: ClassVar[MeasureDataPointManager]
+
+    measure_id: int
 
     class Meta(TypedModelMeta):
         ordering = ["measure", "year"]

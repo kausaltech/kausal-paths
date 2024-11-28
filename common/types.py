@@ -22,5 +22,4 @@ def validate_identifier(s: str, mixed: Literal[False] = ...) -> Identifier: ...
 def validate_identifier(s: str, mixed: bool = False):
     if mixed:
         return MixedCaseIdentifierAdapter.validate_python(s)
-    else:
-        return IdentifierAdapter.validate_python(s)
+    return IdentifierAdapter.validate_python(s)
