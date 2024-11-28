@@ -4,9 +4,9 @@ import hashlib
 import re
 import typing
 from collections import OrderedDict
-from typing import overload
+from typing import Self, overload
 
-from pydantic import BaseModel, Field, PrivateAttr, validator
+from pydantic import BaseModel, Field, PrivateAttr, field_validator, model_validator
 
 import polars as pl
 
@@ -24,8 +24,9 @@ class DimensionCategoryGroup(BaseModel):
     order: int | None = None
     id_match: str | None = None
 
-    @validator('id_match')
-    def validate_id_match(cls, v):
+    @field_validator('id_match')
+    @classmethod
+    def validate_id_match(cls, v) -> str | None:
         if v is None:
             return v
         if not len(v):
@@ -173,13 +174,14 @@ class Dimension(I18nBaseModel):
         self._hash = h.digest()
         return self._hash
 
-    @validator('categories', each_item=True)
-    def validate_category_groups(cls, v, values):
-        if v.group is not None:
-            for g in values['groups']:
-                if g.id == v.group:
+    @model_validator(mode='after')
+    def validate_category_groups(self) -> Self:
+        for cat in self.categories:
+            if cat.group is None:
+                continue
+            for g in self.groups:
+                if g.id == cat.group:
                     break
             else:
-                raise KeyError('group %s not found' % v.group)
-        return v
-
+                raise KeyError('group %s not found' % cat.group)
+        return self
