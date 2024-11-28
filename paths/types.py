@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Self
 
+from django.core.exceptions import FieldDoesNotExist
+from django.db.models import ForeignKey
 from django.http import HttpRequest
 
+from kausal_common.models.object_cache import CacheableModel
 from kausal_common.models.permissions import PermissionedModel, PermissionedQuerySet
 
 if TYPE_CHECKING:
@@ -56,7 +59,18 @@ class PathsModel(PermissionedModel):
 
 
 class PathsQuerySet[M: PathsModel](PermissionedQuerySet[M]):
-    pass
+    def within_realm(self, realm: InstanceConfig) -> Self:
+        from nodes.models import InstanceConfig
+
+        try:
+            field = self.model._meta.get_field('instance')
+        except FieldDoesNotExist:
+            field = None
+        if field is None:
+            return self
+        if isinstance(field, ForeignKey) and field.related_model is InstanceConfig:
+            return self.filter(instance=realm)
+        return self
 
 
 if TYPE_CHECKING:
@@ -81,3 +95,8 @@ if TYPE_CHECKING:
     @type_check_only
     class GQLInstanceInfo(PathsGQLInfo):  # pyright: ignore
         context: GQLInstanceContext  # type: ignore[assignment]
+
+
+class CacheablePathsModel[CacheT](CacheableModel[CacheT], PathsModel):
+    class Meta:
+        abstract = True

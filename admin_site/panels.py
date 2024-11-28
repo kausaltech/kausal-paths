@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence, cast
+from typing import TYPE_CHECKING, Any, Sequence, Unpack, cast
+
 from django.conf import settings
 from django.db.models import Model
 from modeltrans.fields import TranslatedVirtualField
@@ -8,10 +9,10 @@ from modeltrans.translator import get_i18n_field
 from modeltrans.utils import build_localized_fieldname
 from wagtail.admin.panels import FieldPanel, FieldRowPanel, MultiFieldPanel, Panel
 
-from paths.types import PathsAdminRequest
-
-
 if TYPE_CHECKING:
+    from wagtail.admin.panels.field_panel import WidgetOverrideType
+    from wagtail.admin.panels.group import PanelGroupInitArgs
+
     from nodes.models import InstanceConfig
 
 
@@ -64,18 +65,19 @@ class TranslatedLanguagePanel(FieldPanel):
 
     class BoundPanel(FieldPanel.BoundPanel):
         panel: TranslatedLanguagePanel
-        request: PathsAdminRequest
 
         def is_shown(self):
-            instance = self.request.admin_instance
+            from paths.context import realm_context
+            instance = realm_context.get().realm
             ret = super().is_shown()
             if not ret:
                 return False
-            return self.panel.language in (instance.other_languages or [])
+            is_other_lang = self.panel.language in (instance.other_languages or [])
+            return is_other_lang
 
 
-class TranslatedFieldRowPanel(FieldRowPanel):
-    def __init__(self, field_name: str, widget: Any = None, **kwargs):
+class TranslatedFieldRowPanel[M: Model, P: Any](FieldRowPanel[M, P]):
+    def __init__(self, field_name: str, widget: WidgetOverrideType | None = None, **kwargs: Unpack[PanelGroupInitArgs]):
         self.field_name = field_name
         self.widget = widget
         primary_panel = FieldPanel(field_name, widget=widget, **kwargs)

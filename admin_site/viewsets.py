@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Generic, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, cast
+from typing_extensions import TypeVar
 
 from django.core.exceptions import FieldDoesNotExist
 from django.db.models import Model, QuerySet
@@ -10,7 +11,6 @@ from wagtail.admin.forms.models import WagtailAdminModelForm
 from wagtail.snippets.views.chooser import ChooseResultsView, ChooseView, SnippetChooserViewSet
 from wagtail.snippets.views.snippets import CreateView, EditView, SnippetViewSet
 
-from paths.admin_context import get_admin_instance
 from paths.types import PathsAdminRequest, PathsModel
 
 from admin_site.forms import PathsAdminModelForm
@@ -20,9 +20,10 @@ if TYPE_CHECKING:
     from django.http import HttpRequest
     from wagtail.admin.panels.group import ObjectList
 
-M = TypeVar('M', bound=Model)
-QS = TypeVar('QS', bound=QuerySet)
-MF = TypeVar('MF', bound=BaseModelForm)
+    from nodes.models import InstanceConfig
+
+_ModelT = TypeVar('_ModelT', bound=Model, default=Model, covariant=True)  # noqa: PLC0105
+_QS = TypeVar('_QS', bound=QuerySet[Any, Any], default=QuerySet[_ModelT, _ModelT])
 
 
 def admin_req(request: HttpRequest) -> PathsAdminRequest:
@@ -31,28 +32,44 @@ def admin_req(request: HttpRequest) -> PathsAdminRequest:
     return cast(PathsAdminRequest, request)
 
 
-class PathsEditView(EditView[M]):
+class PathsModelForm[M: Model](WagtailAdminModelForm[M, User]):
+    pass
+
+_FormT = TypeVar('_FormT', bound=BaseModelForm[Any], default=PathsModelForm[_ModelT])
+
+
+class AdminInstanceMixin:
+    @property
+    def admin_instance(self) -> InstanceConfig:
+        from paths.context import realm_context
+        return realm_context.get().realm
+
+
+class PathsEditView(EditView[_ModelT, _FormT], AdminInstanceMixin):
+    def get_editing_sessions(self):
+        return None
+
     def get_form_kwargs(self):
         return {
             **super().get_form_kwargs(),
-            'admin_instance': get_admin_instance(),
+            'admin_instance': self.admin_instance,
         }
 
 
-class PathsCreateView(CreateView, Generic[M]):
+class PathsCreateView(CreateView[_ModelT, _FormT], AdminInstanceMixin):
     def get_form_kwargs(self):
         return {
             **super().get_form_kwargs(),
-            'admin_instance': get_admin_instance(),
+            'admin_instance': self.admin_instance,
         }
 
 
-class PathsChooseViewMixin(Generic[M]):
-    model: type[M]
+class PathsChooseViewMixin(Generic[_ModelT], AdminInstanceMixin):
+    model: type[_ModelT]
     request: HttpRequest
 
     def get_object_list(self):
-        qs: QuerySet[M] = super().get_object_list()  # type: ignore
+        qs: QuerySet[_ModelT] = super().get_object_list()  # type: ignore
         try:
             field = self.model._meta.get_field('instance')
         except FieldDoesNotExist:
@@ -62,15 +79,15 @@ class PathsChooseViewMixin(Generic[M]):
         return qs
 
 
-class PathsChooseView(PathsChooseViewMixin[M], ChooseView):
+class PathsChooseView(PathsChooseViewMixin[_ModelT], ChooseView):
     pass
 
 
-class PathsChooseResultsView(PathsChooseViewMixin[M], ChooseResultsView):
+class PathsChooseResultsView(PathsChooseViewMixin[_ModelT], ChooseResultsView):
     pass
 
 
-class PathsChooserViewSet(SnippetChooserViewSet, Generic[M]):
+class PathsChooserViewSet(SnippetChooserViewSet, Generic[_ModelT]):
     choose_results_view_class = PathsChooseResultsView
     choose_view_class = PathsChooseView
     parent_viewset: PathsViewSet
@@ -80,15 +97,16 @@ class PathsChooserViewSet(SnippetChooserViewSet, Generic[M]):
         super().__init__(*args, **kwargs)
 
 
-class PathsModelForm[M: Model](WagtailAdminModelForm[M, User]):
-    pass
-
-
-class PathsViewSet[M: Model | PathsModel](SnippetViewSet[M, PathsModelForm[M]]):
-    add_view_class = PathsCreateView
-    edit_view_class = PathsEditView
+class PathsViewSet(Generic[_ModelT, _QS, _FormT], SnippetViewSet[_ModelT, _FormT]):
+    add_view_class: ClassVar = PathsCreateView[_ModelT, _FormT]
+    edit_view_class: ClassVar = PathsEditView[_ModelT, _FormT]
     add_to_admin_menu = True
     chooser_viewset_class = PathsChooserViewSet
+
+    @property
+    def admin_instance(self) -> InstanceConfig:
+        from paths.context import realm_context
+        return realm_context.get().realm
 
     @cached_property
     def url_prefix(self) -> str:
@@ -104,11 +122,17 @@ class PathsViewSet[M: Model | PathsModel](SnippetViewSet[M, PathsModelForm[M]]):
             return self.model.permission_policy()
         return super().permission_policy
 
-    def get_queryset(self, request: HttpRequest) -> QuerySet[M, M]:
-        qs = cast(QuerySet[M, M], super().get_queryset(request))
-        if issubclass(self.model, PathsModel):
-            pass
-        return qs
+    def get_queryset(self, request: HttpRequest) -> _QS:
+        from kausal_common.models.permissions import PermissionedQuerySet
+
+        from paths.types import PathsQuerySet
+
+        qs = self.model._default_manager.get_queryset()
+        if isinstance(qs, PermissionedQuerySet):
+            qs = qs.viewable_by(admin_req(request).user)
+        if isinstance(qs, PathsQuerySet):
+            qs = qs.within_realm(self.admin_instance)
+        return cast(_QS, qs)
 
     def get_edit_handler(self) -> ObjectList | None:
         return super().get_edit_handler()
