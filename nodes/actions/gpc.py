@@ -14,7 +14,10 @@ from params import StringParameter
 
 
 class DatasetAction(ActionNode, DatasetNode):
-    allowed_parameters = ActionNode.allowed_parameters + DatasetNode.allowed_parameters
+    allowed_parameters = [
+        *ActionNode.allowed_parameters,
+        *DatasetNode.allowed_parameters,
+    ]
     no_effect_value = 0.0
 
     def compute_effect(self) -> ppl.PathsDataFrame:
@@ -445,7 +448,7 @@ class SCurveAction(DatasetAction):
         return df
 
     def compute_effect(self) -> ppl.PathsDataFrame:
-        baseline_year = self.context.instance.maximum_historical_year  # FIXME Is thisactually  a correct wy of doing this?
+        baseline_year = self.context.instance.reference_year
 
         df = self.get_input_node().get_output_pl(target_node=self)
 
