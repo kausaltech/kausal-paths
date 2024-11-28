@@ -1,17 +1,15 @@
-from django.db import models
+from __future__ import annotations
+
 from wagtail import hooks
 from wagtail.admin.panels import FieldPanel, ObjectList, TabbedInterface
 from wagtail.snippets.models import register_snippet
-from wagtail_color_panel.edit_handlers import NativeColorPanel
 
 from admin_site.panels import TranslatedFieldPanel, TranslatedFieldRowPanel
 from admin_site.viewsets import PathsViewSet
-
-from nodes.models import NodeConfig
-from paths.types import PathsAdminRequest
+from nodes.models import NodeConfig, NodeConfigQuerySet
 
 
-class NodeViewSet(PathsViewSet):
+class NodeViewSet(PathsViewSet[NodeConfig, NodeConfigQuerySet]):
     model = NodeConfig
     icon = 'kausal-node'
     add_to_admin_menu = True
@@ -21,7 +19,7 @@ class NodeViewSet(PathsViewSet):
     basic_panels = [
         FieldPanel("identifier", read_only=True),
         TranslatedFieldRowPanel("name"),
-        NativeColorPanel("color"),
+        FieldPanel("color"),
         FieldPanel("is_visible"),
         FieldPanel("indicator_node"),
         TranslatedFieldRowPanel("goal"),
@@ -34,10 +32,10 @@ class NodeViewSet(PathsViewSet):
         FieldPanel("body"),
     ]
 
-    def get_queryset(self, request: PathsAdminRequest) -> models.QuerySet[NodeConfig]:
-        qs = super().get_queryset(request)
-        qs = qs.filter(instance=request.admin_instance)
-        return qs
+    #def get_queryset(self, request: HttpRequest) -> NodeConfigQuerySet:
+    #    qs = super().get_queryset(request)
+    #    qs = qs.filter(instance=self.admin_instance)
+    #    return qs
 
     def get_edit_handler(self):
         edit_handler = TabbedInterface([
