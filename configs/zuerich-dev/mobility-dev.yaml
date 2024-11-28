@@ -1015,6 +1015,7 @@ nodes:
   unit: kg/count
   input_dimensions: [vehicle_type, emission_scope]
   output_dimensions: [vehicle_type, emission_scope]
+  allow_nulls: true
   input_datasets:
   - id: zuerich/new_vehicle_emission_factors
   input_dataset_processors: [LinearInterpolation]
@@ -1448,6 +1449,8 @@ nodes:
       flatten: true
   - id: aviation_emissions
     from_dimensions:
+    - id: flight_effect
+      flatten: true
     - id: flight_type
       flatten: true
     - id: vehicle_type

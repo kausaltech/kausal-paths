@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich-dev.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 1ed11f6f94b127866cdf8737bb38ee787117aa66
+  commit: dd53740df8e24e0311fd782f8aa7074717476554
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero Cockpit
@@ -322,10 +322,8 @@ emission_sectors:
       emission_scope:
         groups: [indirect]
     values:
-    - year: 2022
-      value: 7.9
     - year: 2040
-      value: 6.0
+      value: 6.7
     is_main_goal: true
   is_outcome: true
 
@@ -333,7 +331,7 @@ emission_sectors:
   name_de: Negative Emissionen
   name_en: Negative emissions
   part_of: net_emissions
-  color: '#88CFFF'
+  color: '#4DB8FF'
   order: -1
 
 # - id: direct_emissions
@@ -357,7 +355,7 @@ emission_sectors:
   short_name_de: Ernährung
   short_name_en: Food consumption
   part_of: net_emissions
-  color: '#FFCC00'
+  color: '#C08600'
   input_dataset_processors: [LinearInterpolation]
 
 nodes:
@@ -597,7 +595,7 @@ nodes:
   short_name_en: Restaurants
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [emission_sectors, emission_scope]
   output_dimensions: [emission_sectors, emission_scope]
   input_nodes:
@@ -620,7 +618,7 @@ nodes:
   short_name_en: Food purchases
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [emission_sectors, emission_scope]
   output_dimensions: [emission_sectors, emission_scope]
   input_nodes:
@@ -641,7 +639,7 @@ nodes:
   name_en: Other consumption emissions
   short_name_de: Konsum
   short_name_en: Other consumption
-  color: '#2AC7C7'
+  color: '#007C78'
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a

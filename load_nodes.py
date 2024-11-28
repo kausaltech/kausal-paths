@@ -1,44 +1,43 @@
 #!/usr/bin/env python3
 # ruff: noqa: E402
+from __future__ import annotations
 
-import os
+from contextlib import ExitStack
 
-import django
+from kausal_common.development.django import init_django
 
-from kausal_common.telemetry import init_django_telemetry, init_telemetry
-
-
-def init_django():
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "paths.settings")
-    init_django_telemetry()
-    django.setup()
-
-
-# Some imports already need Django to be initialized
 init_django()
 
 import argparse
 import cProfile
-from math import log10
 import math
 import os
-from pathlib import Path
+import random
 import time
+from math import log10
+from pathlib import Path
+from typing import TYPE_CHECKING, Literal, overload
 
-from opentelemetry import trace
+import polars as pl
+import rich.traceback
+import sentry_sdk
 from dotenv import load_dotenv
-from kausal_common.logging.init import init_logging
+from rich import print
+from rich.console import Console
+from rich.table import Table
+from sentry_sdk import start_span, start_transaction
+
+from kausal_common.debugging.perf import PerfCounter
+
 from nodes.actions.action import ActionNode
 from nodes.constants import IMPACT_COLUMN, IMPACT_GROUP, YEAR_COLUMN
+from nodes.excel_results import InstanceResultExcel
 from nodes.instance import InstanceLoader
-from kausal_common.debugging.perf import PerfCounter
-from rich import print
-import rich.traceback
-from rich.table import Table
-from rich.console import Console
-import polars as pl
 
-from nodes.units import Quantity
+if TYPE_CHECKING:
+    from nodes.models import InstanceConfig
+    from nodes.units import Quantity
+
 
 load_dotenv()
 
@@ -46,6 +45,7 @@ console = Console()
 
 if True:
     from kausal_common.logging.warnings import register_warning_handler
+
     rich.traceback.install(max_frames=10)
     register_warning_handler()
 
@@ -85,26 +85,50 @@ if (args.instance and args.config) or (not args.instance and not args.config):
 if args.disable_ext_cache:
     os.environ['REDIS_URL'] = ''
 
-if args.instance:
-    tracer = trace.get_tracer('load-nodes')
+_instance_obj: InstanceConfig | None = None
 
-    with tracer.start_as_current_span('django-init', attributes={'instance_id': args.instance}) as span:
-        from nodes.models import InstanceConfig
-        instance_obj: InstanceConfig = InstanceConfig.objects.get(identifier=args.instance)
+
+@overload
+def get_ic(instance_id: str, /, *, required: Literal[True] = True) -> InstanceConfig: ...
+
+
+@overload
+def get_ic(instance_id: str, /, *, required: bool = False) -> InstanceConfig | None: ...
+
+
+def get_ic(instance_id: str, /, *, required: bool = False) -> InstanceConfig | None:
+    from nodes.models import InstanceConfig
+
+    global _instance_obj  # noqa: PLW0603
+
+    if _instance_obj is not None:
+        return _instance_obj
+    ic = InstanceConfig.objects.filter(identifier=instance_id).first()
+    if required and ic is None:
+        raise Exception("InstanceConfig with identifier '%s' not found" % args.instance)
+    _instance_obj = ic
+    return ic
+
+
+stack = ExitStack()
+root_span = stack.enter_context(start_transaction(name='load-nodes', op='function'))
+
+if args.instance:
+    with start_span(name='django-init', op='init') as span:
+        span.set_data('instance_id', args.instance)
+        instance_obj = get_ic(args.instance, required=True)
         instance = instance_obj.get_instance()
         context = instance.context
-
 else:
-    tracer = trace.get_tracer('load-nodes')
-    init_telemetry()
-    init_logging()
-    with tracer.start_as_current_span('yaml-init', attributes={'config_id': args.config}) as span:
+    with start_span(name='yaml-init', op='init') as span:
+        span.set_data('config_id', args.config)
         loader = InstanceLoader.from_yaml(args.config)
         context = loader.context
         instance = loader.instance
 
 if args.pull_datasets:
-    context.pull_datasets()
+    with start_span(name='pull-datasets', op='init') as span:
+        context.pull_datasets()
 
 if args.check:
     context.check_mode = True
@@ -113,24 +137,66 @@ if args.show_perf:
     context.perf_context.enabled = True
 
 
-if args.cache_benchmark:
+def cache_benchmark():
     from kausal_common.debugging.perf import PerfCounter
 
-    pc = PerfCounter()
-    context.skip_cache = True
-    nodes = context.get_outcome_nodes()
+    from common.cache import CacheKind
+
+    pc = PerfCounter('benchmark init')
+    nodes = list(context.nodes.values())
     test_dfs = []
-    for n in nodes:
+    rand_state = random.getstate()
+    random.seed(0)
+    pc.display('computing node output')
+    for n in random.sample(nodes, k=10):
         df = n.get_output_pl()
         test_dfs.append(df)
+        pc.display('%s done' % n.id)
+    pc.display('node output computation done')
+
     cache = context.cache
-    old_client = cache.client
-    cache.client = None
-    pc.display('begin')
-    for i in range(1000):
-        key = 'key-%d' % i
-        cache.set(key, test_dfs[i % len(test_dfs)])
-    pc.display('end', show_time_to_last=True)
+    cache.set_lru_size(256 * 1024 * 1024)
+    cache.clear()
+    pc.finish()
+
+    allowed_kinds = set(cache.allowed_kinds)
+
+    for kind in (CacheKind.RUN, CacheKind.LOCAL, CacheKind.EXT):
+        nr_rounds = 10000
+        pc = PerfCounter('%s Cache' % kind.name)
+        cache.set_allowed_cache_kinds({kind})
+        with context.run():
+            pc.display('Measuring cache misses for %d keys' % nr_rounds)
+            for i in range(nr_rounds):
+                key = 'key-%d' % i
+                res = cache.get(key)
+                assert not res.is_hit
+            pc.display('Miss benchmark done', show_time_to_last=True)
+
+            pc.display('Setting %d keys' % nr_rounds)
+            for i in range(nr_rounds):
+                key = 'key-%d' % i
+                cache.set(key, test_dfs[i % len(test_dfs)], expiry=30)
+            pc.display('Set done', show_time_to_last=True)
+            assert cache.run is not None
+            cache.run.flush()
+            pc.display('Flush done', show_time_to_last=True)
+
+            pc.display('Reading %d keys' % nr_rounds)
+            for i in range(nr_rounds):
+                key = 'key-%d' % i
+                res = cache.get(key, expiry=30)
+                assert res.is_hit
+            pc.display('Read done', show_time_to_last=True)
+        cache.clear()
+        pc.display('Run finished', show_time_to_last=True)
+
+    random.setstate(rand_state)
+    cache.set_allowed_cache_kinds(allowed_kinds)
+
+
+if args.cache_benchmark:
+    cache_benchmark()
     exit()
 
 profile: cProfile.Profile | None
@@ -152,9 +218,10 @@ if args.scenario:
 if args.list_params:
     context.print_all_parameters()
 
-context.load_all_dvc_datasets()
+#with root_span.start_child(name='load-dvc-datasets', op='function'):
+#    context.load_all_dvc_datasets()
 
-for node_id in (args.debug_nodes or []):
+for node_id in args.debug_nodes or []:
     node = context.get_node(node_id)
     node.debug = True
 
@@ -170,30 +237,19 @@ if args.baseline:
         profile.disable()
         profile.dump_stats('baseline_profile.out')
 
-if args.check or args.update_instance or args.update_nodes:
-    if args.check:
-        context.check_mode = True
-        old_cache_prefix = context.cache.prefix
-        context.cache.prefix = old_cache_prefix + '-' + str(time.time())
-        for node_id, node in context.nodes.items():
-            print('Checking %s' % node_id)
-            try:
-                node.check()
-            except Exception as e:
-                print(e)
 
-        context.cache.prefix = old_cache_prefix
-
-    from nodes.models import InstanceConfig
+def update_instance():
     from django.db import transaction
 
-    ins_obj = InstanceConfig.objects.filter(identifier=instance.id).first()
-    if ins_obj is None:
-        print("Creating instance %s" % instance.id)
+    from nodes.models import InstanceConfig
+
+    ic = get_ic(instance.id, required=False)
+    if ic is None:
+        print('Creating instance %s' % instance.id)
         instance_obj = InstanceConfig.create_for_instance(instance)
         # TODO: Create InstanceHostname somewhere?
     else:
-        instance_obj = ins_obj
+        instance_obj = ic
 
     with transaction.atomic():
         if args.update_instance:
@@ -203,8 +259,31 @@ if args.check or args.update_instance or args.update_nodes:
         instance_obj.sync_dimensions(update_existing=True, delete_stale=args.delete_stale_nodes)
         instance_obj.refresh_from_db()
         instance_obj.create_default_content()
+    return instance_obj
 
-for param_arg in (args.param or []):
+
+if args.check:
+    context.check_mode = True
+    old_cache_prefix = context.cache.prefix
+    context.cache.prefix = old_cache_prefix + '-' + str(time.time())
+    for node_id, node in context.nodes.items():
+        print('Checking %s' % node_id)
+        try:
+            node.check()
+        except Exception as e:
+            print(e)
+
+    context.cache.prefix = old_cache_prefix
+
+
+if args.update_instance:
+    try:
+        instance_obj = update_instance()
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        raise
+
+for param_arg in args.param or []:
     param_id, val = param_arg.split('=')
     context.set_parameter_value(param_id, val)
 
@@ -214,12 +293,10 @@ if args.normalize:
 
 all_filters = []
 for line in args.filter or []:
-    for f in line.split(','):
-        all_filters.append(f)
+    all_filters += line.split(',')
 
 
-if args.generate_result_excel:
-    from nodes.excel_results import create_result_excel
+def generate_result_excel():
     excel_path = Path(args.generate_result_excel)
     existing_wb: Path | None
     if excel_path.exists():
@@ -228,26 +305,41 @@ if args.generate_result_excel:
     else:
         context.log.info("Excel workbook '%s' does not exist; creating new" % excel_path)
         existing_wb = None
-    out = create_result_excel(context, existing_wb=existing_wb)
-    with open(excel_path, 'wb') as f:
+
+    ic = get_ic(instance.id)
+    with context.run():
+        if not instance.result_excels:
+            if ic is None:
+                raise Exception("Instance '%s' not found" % instance.id)
+            out = InstanceResultExcel.create_for_instance(instance_obj, existing_wb=existing_wb)
+        else:
+            out = instance.result_excels[0].create_result_excel(instance, existing_wb=existing_wb)
+    with excel_path.open('wb') as f:
         f.write(out.getvalue())
 
 
-for node_id in (args.node or []):
-    node = context.get_node(node_id)
-    with context.run():
-        node.print_output(filters=all_filters or None)
-        #node.plot_output(filters=all_filters or None)
+if args.generate_result_excel:
+    with start_span(name='generate-result-excel', op='function'):
+        generate_result_excel()
 
+for node_id in args.node or []:
+    with start_span(name='print-node-output: %s' % node_id, op='function'):
+        with start_span(name='get-node', op='function'):
+            node = context.get_node(node_id)
+        with start_span(name='run-node', op='function'):
+            with context.run():
+                with start_span(name='print-output', op='function'):
+                    node.print_output(filters=all_filters or None)
+                # node.plot_output(filters=all_filters or None)
 
     if isinstance(node, ActionNode):
         output_nodes = node.output_nodes
         for n in output_nodes:
-            print("Impact of %s on OUTPUT node %s" % (node, n))
+            print('Impact of %s on OUTPUT node %s' % (node, n))
             node.print_impact(n)
 
         for n in context.get_outcome_nodes():
-            print("Impact of action %s on OUTCOME node %s" % (node, n))
+            print('Impact of action %s on OUTCOME node %s' % (node, n))
             node.print_impact(n)
 
         """
@@ -274,14 +366,15 @@ def round_quantity(e: Quantity):
 
 
 if args.print_action_efficiencies:
+
     def print_action_efficiencies():
-        pc = PerfCounter("Action efficiencies")
+        pc = PerfCounter('Action efficiencies')
         for aep in context.action_efficiency_pairs:
             title = '%s / %s' % (aep.cost_node.id, aep.impact_node.id)
             pc.display('%s starting' % title)
             table = Table(title=title)
-            table.add_column("Action")
-            table.add_column("Cumulative efficiency")
+            table.add_column('Action')
+            table.add_column('Cumulative efficiency')
             if args.node:
                 actions = [context.get_action(node_id) for node_id in args.node]
             else:
@@ -303,17 +396,17 @@ if args.print_action_efficiencies:
             console.print(table)
 
     def print_impacts():
-        pc = PerfCounter("Action impacts")
+        pc = PerfCounter('Action impacts')
         for outcome_node in context.get_outcome_nodes():
             title = outcome_node.id
             pc.display('%s starting' % title)
             table = Table(title=title)
             years = []
-            table.add_column("Action")
-            table.add_column("Impact %s" % context.target_year)
+            table.add_column('Action')
+            table.add_column('Impact %s' % context.target_year)
             years.append(context.target_year)
             if context.model_end_year != context.target_year:
-                table.add_column("Impact %s" % context.model_end_year)
+                table.add_column('Impact %s' % context.model_end_year)
                 years.append(context.model_end_year)
             m = outcome_node.get_default_output_metric()
             rows = []
@@ -352,7 +445,6 @@ if args.print_action_efficiencies:
         profile.disable()
         profile.dump_stats('action_efficiencies_profile.out')
 
-
 if False:
     loader.context.dataset_repo.pull_datasets()
     loader.context.print_all_parameters()
@@ -360,3 +452,4 @@ if False:
     # for sector in page.get_sectors():
     #    print(sector)
 
+stack.close()

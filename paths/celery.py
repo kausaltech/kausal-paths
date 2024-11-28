@@ -19,5 +19,5 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 app.autodiscover_tasks()
 
 app.conf.result_backend_transport_options = {
-    'global_keyprefix': 'paths-'
+    'global_keyprefix': 'paths-',
 }

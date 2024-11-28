@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import cast
+
 from django.utils.translation import gettext_lazy as _
 
 import polars as pl
@@ -13,10 +15,19 @@ from params import BoolParameter, StringParameter
 
 
 class DatasetNode(AdditiveNode):
-    explanation = _("""This is a DatasetNode. It takes in a specifically formatted dataset and converts the relevant part into a node output.""")  # noqa: E501
+    explanation = _(
+        """This is a DatasetNode. It takes in a specifically formatted dataset and converts the relevant part into a node output.""",  # noqa: E501
+    )
 
-    allowed_parameters = AdditiveNode.allowed_parameters + [
-        StringParameter('gpc_sector', description='GPC Sector', is_customizable=False),   # FIXME To be removed, replaced by 'sector' below.  # noqa: E501
+    global_parameters = ['measure_data_override', 'measure_data_baseline_year_only']
+
+    allowed_parameters = [
+        *AdditiveNode.allowed_parameters,
+        StringParameter(
+            'gpc_sector',
+            description='GPC Sector',
+            is_customizable=False,
+        ),  # FIXME To be removed, replaced by 'sector' below.
         StringParameter('sector', description='Sector', is_customizable=False),
         StringParameter('rename_dimensions', description='Rename incompatible dimensions', is_customizable=False),
     ]
@@ -30,33 +41,61 @@ class DatasetNode(AdditiveNode):
         'case_cost': 'unit_price',
         'unit_cost': 'unit_price',
         'share': 'fraction',
-        'freight_quantity': 'freight_mileage'
+        'freight_quantity': 'freight_mileage',
     }
 
     # Supported languages: Czech, Danish, English, Finnish, German, Latvian, Polish, Swedish
-    characterlookup = str.maketrans({
-        '.':'', ',':'', ':':'', '-':'', '(':'', ')':'',
-        ' ':'_', '/':'_',
-        '&':'and',
-        'ä':'a', 'å':'a', 'ą':'a', 'á':'a', 'ā':'a',
-        'ć':'c', 'č':'c',
-        'ď':'d',
-        'ę':'e', 'é':'e', 'ě':'e', 'ē':'e',
-        'ģ':'g',
-        'í':'i', 'ī':'i',
-        'ķ':'k',
-        'ł':'l', 'ļ':'l',
-        'ń':'n', 'ň':'n', 'ņ':'n',
-        'ö':'o', 'ø':'o', 'ó':'o',
-        'ř':'r',
-        'ś':'s', 'š':'s',
-        'ť':'t',
-        'ü':'u', 'ú':'u', 'ů':'u', 'ū':'u',
-        'ý':'y',
-        'ź':'z', 'ż':'z', 'ž':'z',
-        'æ':'ae',
-        'ß':'ss',
-    })
+    characterlookup = str.maketrans(
+        {
+            '.': '',
+            ',': '',
+            ':': '',
+            '-': '',
+            '(': '',
+            ')': '',
+            ' ': '_',
+            '/': '_',
+            '&': 'and',
+            'ä': 'a',
+            'å': 'a',
+            'ą': 'a',
+            'á': 'a',
+            'ā': 'a',
+            'ć': 'c',
+            'č': 'c',
+            'ď': 'd',
+            'ę': 'e',
+            'é': 'e',
+            'ě': 'e',
+            'ē': 'e',
+            'ģ': 'g',
+            'í': 'i',
+            'ī': 'i',
+            'ķ': 'k',
+            'ł': 'l',
+            'ļ': 'l',
+            'ń': 'n',
+            'ň': 'n',
+            'ņ': 'n',
+            'ö': 'o',
+            'ø': 'o',
+            'ó': 'o',
+            'ř': 'r',
+            'ś': 's',
+            'š': 's',
+            'ť': 't',
+            'ü': 'u',
+            'ú': 'u',
+            'ů': 'u',
+            'ū': 'u',
+            'ý': 'y',
+            'ź': 'z',
+            'ż': 'z',
+            'ž': 'z',
+            'æ': 'ae',
+            'ß': 'ss',
+        },
+    )
 
     # -----------------------------------------------------------------------------------
     def get_gpc_dataset(self) -> ppl.PathsDataFrame:
@@ -65,11 +104,9 @@ class DatasetNode(AdditiveNode):
             sector = self.get_parameter_value('sector', required=False)
         if not sector:
             raise NodeError(self, 'You must give either gpc_sector or sector parameter.')
-
         # Perform initial filtering of GPC dataset.
         df = self.get_input_dataset_pl()
-        df = df.filter((pl.col(VALUE_COLUMN).is_not_null()) &
-                       (pl.col('Sector') == sector))
+        df = df.filter((pl.col(VALUE_COLUMN).is_not_null()) & (pl.col('Sector') == sector))
 
         qlookup = {}
         for quantity in df['Quantity'].unique():
@@ -93,7 +130,7 @@ class DatasetNode(AdditiveNode):
 
     # -----------------------------------------------------------------------------------
     def rename_dimensions(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        renames = self.get_parameter_value('rename_dimensions', required=False)
+        renames = self.get_parameter_value_str('rename_dimensions', required=False)
         if renames:
             dlookup = {}
             for rename in renames.split(','):
@@ -151,23 +188,23 @@ class DatasetNode(AdditiveNode):
     def add_missing_years(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         # Add forecast column if needed.
         if FORECAST_COLUMN not in df.columns:
-            df = df.with_columns(pl.lit(False).alias(FORECAST_COLUMN))
+            df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
 
         # Add missing years and interpolate missing values.
         df = df.paths.to_wide()
-        yearrange = range(df[YEAR_COLUMN].min(), (df[YEAR_COLUMN].max() + 1)) # type: ignore
+        yearrange = range(df[YEAR_COLUMN].min(), (df[YEAR_COLUMN].max() + 1))  # type: ignore
         nullcount = df.null_count().sum_horizontal()[0]
 
-        if (len(df[YEAR_COLUMN].unique()) < len(yearrange)) | (nullcount > 0) :
+        if (len(df[YEAR_COLUMN].unique()) < len(yearrange)) | (nullcount > 0):
             yeardf = ppl.PathsDataFrame({YEAR_COLUMN: yearrange})
             yeardf._units = {}
             yeardf._primary_keys = [YEAR_COLUMN]
 
-            df = df.paths.join_over_index(yeardf, how = 'outer')
+            df = df.paths.join_over_index(yeardf, how='outer')
             for col in list(set(df.columns) - {YEAR_COLUMN, FORECAST_COLUMN}):
                 df = df.with_columns(pl.col(col).interpolate())
 
-            df = df.with_columns(pl.col(FORECAST_COLUMN).fill_null(strategy = 'backward'))
+            df = df.with_columns(pl.col(FORECAST_COLUMN).fill_null(strategy='backward'))
 
         df = df.paths.to_narrow()
         return df
@@ -175,41 +212,63 @@ class DatasetNode(AdditiveNode):
     # -----------------------------------------------------------------------------------
     def add_and_multiply_input_nodes(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         # Add and multiply input nodes as tagged.
-        na_nodes = self.get_input_nodes(tag = 'non_additive')
+        na_nodes = self.get_input_nodes(tag='non_additive')
         input_nodes = [node for node in self.input_nodes if node not in na_nodes]
 
-        df = self.add_nodes_pl(df, input_nodes)
-
+        measure_data_override = self.get_global_parameter_value('measure_data_override', required=False)
+        start_from_year: int | None = None
+        if measure_data_override:
+            start_from_year = cast(int, df.filter(~pl.col(FORECAST_COLUMN))[YEAR_COLUMN].max()) + 1
+        df = self.add_nodes_pl(df, input_nodes, start_from_year=start_from_year)
         if len(na_nodes) > 0:  # FIXME Instead, develop a generic single dimensionless multiplier
-            assert len(na_nodes) == 1 # Only one multiplier allowed.
-            mult = na_nodes[0].get_output_pl(target_node = self)
-            df = df.paths.join_over_index(mult, how = 'outer', index_from='union')
+            assert len(na_nodes) == 1  # Only one multiplier allowed.
+            mult = na_nodes[0].get_output_pl(target_node=self)
+            if start_from_year is not None:
+                # force multiplier to 1 below max year
+                mult = mult.ensure_unit(VALUE_COLUMN, 'dimensionless')
+                mult = mult.with_columns(
+                    pl.when(pl.col(YEAR_COLUMN) <= start_from_year)
+                    .then(pl.lit(1.0))
+                    .otherwise(pl.col(VALUE_COLUMN))
+                    .alias(VALUE_COLUMN),
+                )
+            df = df.paths.join_over_index(mult, how='outer', index_from='union')
 
-            df = (df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)  # FIXME Does not treat missing categories well
-                  .drop(VALUE_COLUMN + '_right'))
+            df = df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN).drop(
+                VALUE_COLUMN + '_right',
+            )  # FIXME Does not treat missing categories well
         return df
 
     # -----------------------------------------------------------------------------------
     def compute(self) -> ppl.PathsDataFrame:
         df = self.get_gpc_dataset()
+        if self.get_global_parameter_value('measure_data_baseline_year_only', required=False):
+            filt = (pl.col(YEAR_COLUMN) == self.context.instance.reference_year) | (
+                pl.col(YEAR_COLUMN) > self.context.instance.maximum_historical_year
+            )
+            if FORECAST_COLUMN in df.columns:
+                filt |= pl.col(FORECAST_COLUMN)
+            df = df.filter(filt)
         df = self.drop_unnecessary_levels(df, droplist=['Description'])
         df = self.rename_dimensions(df)
         df = self.convert_names_to_ids(df)
         df = self.implement_unit_col(df)
         df = self.add_missing_years(df)
 
-        if not self.get_parameter_value('inventory_only', required = False):
-            df = extend_last_historical_value_pl(df, end_year = self.get_end_year())
+        if not self.get_parameter_value('inventory_only', required=False):
+            df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
 
-        df = self.apply_multiplier(df, required = False, units = True)
+        df = self.apply_multiplier(df, required=False, units=True)
         df = self.add_and_multiply_input_nodes(df)
-        df = df.ensure_unit(VALUE_COLUMN, self.unit) # type: ignore
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)  # type: ignore
         return df
 
 
 class DetailedDatasetNode(DatasetNode):
-    allowed_parameters = DatasetNode.allowed_parameters + [
-        StringParameter('action', description = 'Detailed action module', is_customizable = False)]
+    allowed_parameters = [
+        *DatasetNode.allowed_parameters,
+        StringParameter('action', description='Detailed action module', is_customizable=False),
+    ]
 
     def compute(self) -> ppl.PathsDataFrame:
         # Perform initial filtering of GPC dataset.
@@ -218,10 +277,12 @@ class DetailedDatasetNode(DatasetNode):
         sector = self.get_parameter_value('sector')
         nodename = str(self.name).replace('%s ' % sector, '')
 
-        df = df.filter((pl.col(VALUE_COLUMN).is_not_null()) &
-                       (pl.col('Sector') == sector) &
-                       (pl.col('Action') == self.get_parameter_value('action')) &
-                       (pl.col('Node Name') == nodename))
+        df = df.filter(
+            (pl.col(VALUE_COLUMN).is_not_null())
+            & (pl.col('Sector') == sector)
+            & (pl.col('Action') == self.get_parameter_value('action'))
+            & (pl.col('Node Name') == nodename),
+        )
 
         df = self.drop_unnecessary_levels(df, droplist=['Sector', 'Action', 'Node Name'])
         df = self.convert_names_to_ids(df)
@@ -234,9 +295,11 @@ class DetailedDatasetNode(DatasetNode):
 
 
 class CorrectionNode(DatasetNode):  # FIXME Separate correction into another node?
-    allowed_parameters = DatasetNode.allowed_parameters + [
-        BoolParameter('do_correction', description = 'Should the values be corrected?'),
+    allowed_parameters = [
+        *DatasetNode.allowed_parameters,
+        BoolParameter('do_correction', description='Should the values be corrected?'),
     ]
+
     def compute(self):
         df = super().compute()
 
@@ -257,9 +320,11 @@ class CorrectionNode(DatasetNode):  # FIXME Separate correction into another nod
 
 
 class CorrectionNode2(AdditiveNode):
-    allowed_parameters = AdditiveNode.allowed_parameters + [
-        BoolParameter('do_correction', description = 'Should the values be corrected?'),
+    allowed_parameters = [
+        *AdditiveNode.allowed_parameters,
+        BoolParameter('do_correction', description='Should the values be corrected?'),
     ]
+
     def compute(self):
         df = AdditiveNode.compute(self)
 

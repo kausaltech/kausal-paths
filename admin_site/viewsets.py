@@ -126,5 +126,5 @@ class PathsViewSet[M: Model | PathsModel](SnippetViewSet[M, PathsModelForm[M]]):
             url_prefix=self.get_chooser_admin_base_path(),
             icon=self.icon,
             per_page=self.chooser_per_page,
-            parent_viewset=self
+            parent_viewset=self,
         )

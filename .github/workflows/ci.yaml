@@ -48,6 +48,7 @@ jobs:
       s3_bucket: ${{ vars.BUILD_S3_BUCKET }}
 
   deploy:
+    #needs: [build, test, ui-e2e-test]
     needs: [build]
     uses: kausaltech/github-actions/.github/workflows/deploy.yaml@main
     secrets:

@@ -3,14 +3,17 @@ from __future__ import annotations
 import inspect
 import os
 from contextlib import ExitStack, contextmanager
+from dataclasses import dataclass
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, overload
 
-import networkx as nx
 import rich
-from opentelemetry import trace
 from rich.tree import Tree
+from sentry_sdk import start_span
 
 from kausal_common.debugging.perf import PerfCounter
+
+from paths.const import MODEL_CACHE_OP, MODEL_CALC_OP
 
 from common import (
     base32_crockford,
@@ -25,19 +28,28 @@ from .perf import PerfContext
 from .units import Unit, unit_registry
 
 if TYPE_CHECKING:
+    from datetime import datetime
     from types import FrameType
 
     import dvc_pandas
+    import networkx  # noqa: ICN001
 
     from params import Parameter
     from params.storage import SettingStorage
 
     from .actions.action import ActionEfficiencyPair, ActionNode
+    from .dimensions import Dimension
     from .instance import Instance
-    from .node import Dimension, Node
+    from .node import Node
     from .normalization import Normalization
     from .scenario import CustomScenario, Scenario
     from .units import CachingUnitRegistry
+
+
+@dataclass
+class FrameworkConfigData:
+    last_modified_at: datetime
+    id: int
 
 
 class Context:
@@ -73,25 +85,21 @@ class Context:
     action_efficiency_pairs: list[ActionEfficiencyPair]
     setting_storage: SettingStorage | None
     perf_context: PerfContext[Node]
-    node_graph: nx.DiGraph
+    node_graph: networkx.DiGraph
     baseline_values_generated: bool = False
     obj_id: str
-    tracer: trace.Tracer
 
     def __init__(
-        self, instance: Instance, dataset_repo: dvc_pandas.Repository, target_year: int,
-        model_end_year: int | None = None, dataset_repo_default_path: str | None = None,
+        self,
+        instance: Instance,
+        dataset_repo: dvc_pandas.Repository,
+        target_year: int,
+        model_end_year: int | None = None,
+        dataset_repo_default_path: str | None = None,
     ):
-        from nodes.actions import ActionNode
+        from nodes.actions.action import ActionNode
 
         self.obj_id = base32_crockford.gen_obj_id(id(self))
-        self.tracer = trace.get_tracer(
-            'nodes.context', attributes=dict(
-                context_id=self.obj_id,
-                instance_id=instance.id,
-            ),
-        )
-
         # Avoid circular import
         self.Action = ActionNode
         self.perf_context = PerfContext(supports_cache=True)
@@ -119,9 +127,20 @@ class Context:
         self.log = self.instance.log.bind(context=self.obj_id, markup=True)
         self.log.debug('Context initialized')
         self.cache = Cache(
-            ureg=self.unit_registry, redis_url=os.getenv('REDIS_URL'),
+            ureg=self.unit_registry,
+            redis_url=os.getenv('REDIS_URL'),
             base_logger=self.log,
         )
+        super().__init__()
+
+    @contextmanager
+    def start_span(self, name: str, op: str | None = None, attributes: dict[str, Any] | None = None):
+        _rich_traceback_omit = True
+        with start_span(name=name, op=op) as span:
+            if attributes is not None:
+                for key, val in attributes.items():
+                    span.set_data(key, val)
+            yield span
 
     def finalize_nodes(self):
         """
@@ -129,6 +148,7 @@ class Context:
 
         Called when nodes and their connections have been configured.
         """
+        import networkx as nx
 
         g = nx.DiGraph()
         g.add_nodes_from([n.id for n in self.nodes.values()])
@@ -137,17 +157,21 @@ class Context:
                 g.add_edge(node.id, output.id)
 
         if not nx.is_directed_acyclic_graph(g):
-            raise Exception("Node graph is not directed (there are loops between nodes)")
+            raise Exception('Node graph is not directed (there are loops between nodes)')
 
         for node in self.nodes.values():
             node.finalize_init()
 
         self.node_graph = g
 
+        if self.instance.result_excels:
+            for excel_res in self.instance.result_excels:
+                excel_res.validate_for_instance(self.instance)
+
     def get_parameter_type(self, parameter_id: str) -> type:
         param_type = self.supported_parameter_types.get(parameter_id)
         if param_type is None:
-            raise Exception("Unknown parameter: %s" % parameter_id)
+            raise Exception('Unknown parameter: %s' % parameter_id)
         return param_type
 
     def load_dvc_dataset(self, ds_id: str) -> dvc_pandas.Dataset:
@@ -156,8 +180,9 @@ class Context:
             if not self.dataset_repo.has_dataset(ds_id):
                 raise Exception('Dataset %s not found in DVC repo' % ds_id)
             if not self.dataset_repo.is_dataset_cached(ds_id):
+                self.log.info("Dataset '%s' not found in DVC cache; loading all datasets" % ds_id)
                 self.load_all_dvc_datasets()
-            with self.tracer.start_as_current_span('load dataset: %s' % ds_id):
+            with self.start_span('load dataset: %s' % ds_id, op='model.load'):
                 ds = self.dataset_repo.load_dataset(ds_id)
             self.dvc_datasets[ds_id] = ds
         return ds
@@ -170,13 +195,13 @@ class Context:
                     continue
                 all_datasets.add(ds.id)
 
-        with self.tracer.start_as_current_span('load all datasets'):
+        with self.start_span('load all datasets', op='model.load'):
             try:
                 self.dataset_repo.load_datasets(list(all_datasets))
             except Exception:
-                self.log.error("Unable to load DVC datasets: %s" % ', '.join(all_datasets))
+                self.log.error('Unable to load DVC datasets: %s' % ', '.join(all_datasets))
                 raise
-        self.log.debug("All DVC datasets loaded")
+        self.log.debug('All DVC datasets loaded')
 
     def add_node(self, node: Node):
         if node.id in self.nodes:
@@ -194,15 +219,16 @@ class Context:
             raise KeyError("Node '%s' not found" % id)
         return self.nodes[id]
 
-    def get_action(self, id: str) -> 'ActionNode':
+    def get_action(self, id: str) -> ActionNode:
         node = self.nodes[id]
         if not isinstance(node, self.Action):
-            raise TypeError("Node %s is not an action node" % id)
+            raise TypeError('Node %s is not an action node' % id)
         return node
 
     def add_global_parameter(self, parameter: Parameter):
         if parameter.local_id in self.global_parameters:
-            raise Exception(f"Global parameter {parameter.local_id} already defined")
+            msg = f'Global parameter {parameter.local_id} already defined'
+            raise Exception(msg)
         self.global_parameters[parameter.local_id] = parameter
 
     def add_normalization(self, id: str, norm: Normalization):
@@ -226,8 +252,7 @@ class Context:
                 continue
             if isinstance(cs, Node):
                 return cs
-            else:
-                break
+            break
         return None
 
     @overload
@@ -241,13 +266,14 @@ class Context:
 
     def get_parameter(self, param_id: str, *, required: bool = True) -> Parameter | None:
         if self.check_mode:
+            from nodes.exceptions import NodeError
             frame = inspect.currentframe()
             if frame is not None:
                 node = self._get_caller_node(frame)
                 if node is not None and param_id not in node.global_parameters:
-                    raise Exception(
-                        "Attempting to access global parameter '%s', but it's "
-                        "not listed in global_parameters of node %s" % (param_id, node.id),
+                    raise NodeError(
+                        node,
+                        "Attempting to access global parameter '%s', but it's not listed in global_parameters" % param_id,
                     )
 
         param = None
@@ -259,7 +285,7 @@ class Context:
             if node_id in self.nodes:
                 param = self.nodes[node_id].get_parameter(param_name, required=required)
         if param is None and required:
-            msg = f"Parameter {param_id} not found"
+            msg = f'Parameter {param_id} not found'
             raise Exception(msg)
         return param
 
@@ -272,7 +298,7 @@ class Context:
     def set_parameter_value(self, param_id: str, value: Any):  # noqa: ANN401
         param = self.global_parameters.get(param_id)
         if param is None:
-            msg = f"Parameter {param_id} not found"
+            msg = f'Parameter {param_id} not found'
             raise Exception(msg)
         param.set(value)
 
@@ -290,7 +316,7 @@ class Context:
     def get_scenario(self, id: str) -> Scenario:
         return self.scenarios[id]
 
-    def set_option(self, id: Literal['normalizer'], val: Any):
+    def set_option(self, id: Literal['normalizer'], val: Any):  # noqa: ANN401
         if id == 'normalizer':
             if val is None:
                 self.active_normalization = None
@@ -299,9 +325,9 @@ class Context:
                     raise TypeError('Expecting str')
                 self.active_normalization = self.normalizations[val]
         else:
-            raise KeyError("Unknown option: %s" % id)
+            raise KeyError('Unknown option: %s' % id)
 
-    def get_option(self, id: Literal['normalizer']) -> Any:
+    def get_option(self, id: Literal['normalizer']) -> Any:  # noqa: ANN401
         pass
 
     def get_root_nodes(self) -> list[Node]:
@@ -321,7 +347,11 @@ class Context:
         for scenario in self.scenarios.values():
             if scenario.default:
                 return scenario
-        raise Exception("No default scenario found")
+        raise Exception('No default scenario found')
+
+    def prefetch_node_cache(self, nodes: list[Node]):
+        from nodes.node_cache import NodeHasher
+        NodeHasher.prefetch_nodes(context=self, nodes=nodes)
 
     def generate_baseline_values(self):
         if self.baseline_values_generated:
@@ -329,17 +359,18 @@ class Context:
         if 'baseline' not in self.scenarios:
             return
         assert self.active_scenario
-        old_scenario = self.active_scenario
 
-        scenario = self.scenarios['baseline']
-        with self.tracer.start_as_current_span('baseline'):
-            self.activate_scenario(scenario)
+        baseline = self.scenarios['baseline']
+        pc = PerfCounter('generate baseline values')
+        with self.start_span('Generate baseline values', op=MODEL_CALC_OP), baseline.override(set_active=True):
             self.log.info('Generating baseline values')
-            pc = PerfCounter('generate baseline values')
-            for node in self.nodes.values():
-                node.generate_baseline_values()
-            self.log.info('Baseline values generated in %.1f ms' % pc.measure())
-            self.activate_scenario(old_scenario)
+            nodes = list(self.nodes.values())
+            with self.start_span('Prefetch node cache', op=MODEL_CACHE_OP):
+                self.prefetch_node_cache(nodes)
+            with self.start_span('Compute baseline values', op=MODEL_CALC_OP):
+                for node in nodes:
+                    _ = node.get_baseline_values()
+        self.log.info('Baseline values generated in %.1f ms' % pc.measure())
         self.baseline_values_generated = True
 
     def get_all_parameters(self):
@@ -389,7 +420,7 @@ class Context:
                 node_class_str = f'[link={link}][grey50]{node_module}.[grey70]{node_class.__name__}[/link]'
                 node_class_cache[node_class] = node_class_str
 
-            metrics = ', '.join([f"{m.quantity} [#a63fa4]{m.unit}[orchid]" for m in node.output_metrics.values()])
+            metrics = ', '.join([f'{m.quantity} [#a63fa4]{m.unit}[orchid]' for m in node.output_metrics.values()])
             unit_quantity = f'({metrics})'
             if node.yaml_lc is not None:
                 url = 'file://%s#%d' % (node.yaml_fn, node.yaml_lc[0])
@@ -429,9 +460,16 @@ class Context:
                 unit_str = 'unit=%s  quantity=%s' % (str(node.unit), str(node.quantity))
             else:
                 unit_str = ''
-            print('id="%s"  nr_inputs=%s  nr_outputs=%s  type=%s%s' % (
-                node.id, len(node.input_nodes), len(node.output_nodes), type(node).__name__, unit_str,
-            ))
+            print(
+                'id="%s"  nr_inputs=%s  nr_outputs=%s  type=%s%s'
+                % (
+                    node.id,
+                    len(node.input_nodes),
+                    len(node.output_nodes),
+                    type(node).__name__,
+                    unit_str,
+                ),
+            )
 
     def describe_unit(self, unit: Unit):
         formats = dict(
@@ -442,25 +480,41 @@ class Context:
         )
         return {k: unit.format_babel(v) for k, v in formats.items()}  # type: ignore
 
-    def get_actions(self) -> list['ActionNode']:
+    def get_actions(self) -> list[ActionNode]:
         from nodes.actions.action import ActionNode
+
         return [n for n in self.nodes.values() if isinstance(n, ActionNode)]
 
-    def warning(self, msg: Any, *args):
+    def warning(self, msg: Any, *args):  # noqa: ANN401
         self.instance.warning(msg, *args)
+
+    @cached_property
+    def framework_config_data(self) -> FrameworkConfigData | None:
+        from frameworks.models import FrameworkConfig
+
+        fwc = (
+            FrameworkConfig.objects.filter(instance_config__identifier=self.instance.id)
+            .values_list('last_modified_at', 'id')
+            .first()
+        )
+        if fwc is None:
+            return None
+        return FrameworkConfigData(last_modified_at=fwc[0], id=fwc[1])
 
     @contextmanager
     def run(self):
         with ExitStack() as stack:
-            span_ctx = self.tracer.start_as_current_span("context run", attributes=dict(
-                instance_id=self.instance.id,
-                context_id=self.obj_id,
-            ))
+            span_ctx = self.start_span(
+                'context run',
+                op='model.calculate',
+                attributes=dict(
+                    instance_id=self.instance.id,
+                    context_id=self.obj_id,
+                ),
+            )
             stack.enter_context(span_ctx)
             stack.enter_context(self.cache)
             stack.enter_context(self.perf_context)
-            if self.dataset_repo is not None:
-                stack.enter_context(self.dataset_repo.lock.lock)
             yield
 
     def clean(self):
@@ -489,4 +543,3 @@ class Context:
         self.datasets = {}
         self.dvc_datasets = {}
         self.instance = None  # type: ignore
-

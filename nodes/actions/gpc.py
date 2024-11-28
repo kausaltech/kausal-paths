@@ -43,6 +43,7 @@ class DatasetActionMFM(ActionNode):
                'Energy Consumption': 'energy',
                'Fuel Consumption': 'fuel_consumption',
                'Mileage': 'mileage',
+               'Number': 'number',
                'Price': 'currency',
                'Unit Price': 'unit_price',
                'Waste Disposal': 'mass'}
@@ -153,7 +154,9 @@ class DatasetActionMFM(ActionNode):
             qdf = qdf.to_pandas()
 
             # ...rename value column.
-            qdf = qdf.rename(columns = {'Value': '%s_%s' % (pair[0], self.qlookup[pair[1]])})
+            if len(dfi) > 1:
+                qdf = qdf.rename(columns = {'Value': '%s_%s' % (pair[0], self.qlookup[pair[1]])})
+
             qdfs.append(qdf)
 
         # Join sector/quantity DFs into a single multi-metric DF.

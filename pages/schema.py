@@ -71,6 +71,7 @@ class Query:
         qs = qs.filter(url_path=path)
         return qs.first()
 
+
 def monkeypatch_grapple():
     from grapple.registry import registry
     # Monkeypatch resolvers to ensure we don't traverse outside
@@ -78,3 +79,6 @@ def monkeypatch_grapple():
     # Replace Grapple-generated PageTypes with our own
     registry.pages[OutcomePage] = OutcomePageType
     #registry.pages[ActionListPage] = ActionListPageType
+
+
+monkeypatch_grapple()

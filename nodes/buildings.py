@@ -1,15 +1,22 @@
-from nodes.calc import convert_to_co2e
-from params.param import NumberParameter, StringParameter
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from django.utils.translation import gettext_lazy as _
+
 import polars as pl
 
 from common import polars as ppl
-from .constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN, TIME_INTERVAL
-from .node import Node
+from nodes.calc import convert_to_co2e
+from nodes.simple import AdditiveNode, MultiplicativeNode, SimpleNode
+from params.param import NumberParameter, StringParameter
+
+from .constants import FORECAST_COLUMN, TIME_INTERVAL, VALUE_COLUMN, YEAR_COLUMN
 from .exceptions import NodeError
-from nodes.actions.energy_saving import CfFloorAreaAction
-from nodes.simple import MultiplicativeNode, AdditiveNode, SimpleNode
 from .units import unit_registry
-from django.utils.translation import gettext_lazy as _
+
+if TYPE_CHECKING:
+    from .node import Node
 
 
 class FloorAreaNode(MultiplicativeNode):  # FIXME Rebuild this with modern tools
@@ -30,8 +37,10 @@ class FloorAreaNode(MultiplicativeNode):  # FIXME Rebuild this with modern tools
         return df
 
     def compute(self):
-        nodes: list(Node) = []
-        actions: list(CfFloorAreaAction) = []
+        from nodes.actions.energy_saving import CfFloorAreaAction
+
+        nodes: list[Node] = []
+        actions: list[CfFloorAreaAction] = []
         for node in self.get_input_nodes():
             if isinstance(node, CfFloorAreaAction):
                 actions += [node]
@@ -113,8 +122,10 @@ class CfNode(FloorAreaNode):
     input_dimension_ids = ['building_energy_class', 'emission_sectors']
 
     def compute(self):
-        nodes: list(Node) = []
-        actions: list(CfFloorAreaAction) = []
+        from nodes.actions.energy_saving import CfFloorAreaAction
+
+        nodes: list[Node] = []
+        actions: list[CfFloorAreaAction] = []
         for node in self.get_input_nodes():
             if isinstance(node, CfFloorAreaAction):
                 actions += [node]

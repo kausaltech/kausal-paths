@@ -1,42 +1,44 @@
 from __future__ import annotations
+
 from contextlib import contextmanager
-
-import logging
-from dataclasses import dataclass, field, InitVar
-from typing import TYPE_CHECKING, Any, Iterable, List, Mapping, Optional
-
-import sentry_sdk
-
-from common.i18n import TranslatedString
-from nodes.node import Node
+from dataclasses import KW_ONLY, dataclass, field
+from enum import Enum
+from typing import TYPE_CHECKING, Any, Generator
 
 if TYPE_CHECKING:
-    from .context import Context
-    from params.storage import SettingStorage
+    from collections.abc import Iterable
+
+    from common.i18n import I18nString
     from params import Parameter
+    from params.storage import SettingStorage
 
-logger = logging.getLogger(__name__)
+    from .context import Context
 
 
+class ScenarioKind(Enum):
+    DEFAULT = 'default'
+    BASELINE = 'baseline'
+    CUSTOM = 'custom'
+    PROGRESS_TRACKING = 'progress_tracking'
+
+
+@dataclass
 class Scenario:
-    id: str
-    name: TranslatedString
     context: Context
+    id: str
+    name: I18nString
 
-    default: bool = False
+    _: KW_ONLY
+
+    kind: ScenarioKind | None = None
     all_actions_enabled: bool = False
-    param_values: dict[str, Any]
+    is_selectable: bool = True
+    param_values: dict[str, Any] = field(default_factory=dict)
+    actual_historical_years: list[int] | None = None
 
-    def __init__(
-        self, context: Context, id: str, name: TranslatedString, default: bool = False,
-        all_actions_enabled: bool = False,
-    ):
-        self.id = id
-        self.context = context
-        self.name = name
-        self.default = default
-        self.all_actions_enabled = all_actions_enabled
-        self.param_values = {}
+    @property
+    def default(self) -> bool:
+        return self.kind == ScenarioKind.DEFAULT
 
     def get_param_values(self) -> Iterable[tuple[Parameter, Any]]:
         for param_id, val in self.param_values.items():
@@ -44,24 +46,33 @@ class Scenario:
             yield param, val
 
     @contextmanager
-    def override(self):
+    def override(self, set_active: bool = False) -> Generator[None, None, None]:
         old_vals: dict[str, Any] = {}
+
+        old_scenario = self.context.active_scenario
+
         for param, _ in self.get_param_values():
             old_vals[param.global_id] = param.value
 
         self.activate()
+        if set_active:
+            self.context.active_scenario = self
+
         yield
+
+        if set_active:
+            self.context.active_scenario = old_scenario
 
         for param_id, val in old_vals.items():
             param = self.context.get_parameter(param_id)
             param.set(val)
 
     def activate(self):
-        """Resets each parameter in the context to its setting for this scenario if it has one."""
+        """Reset each parameter in the context to its setting for this scenario if it has one."""
         for param, val in self.get_param_values():
             param.reset_to_scenario_setting(self, val)
 
-    def add_parameter(self, param: Parameter, value: Any):
+    def add_parameter(self, param: Parameter, value: Any):  # noqa: ANN401
         assert param.global_id not in self.param_values
         self.param_values[param.global_id] = value
 
@@ -76,18 +87,20 @@ class Scenario:
 
     def __repr__(self) -> str:
         instance = self.context.instance if self.context is not None else None
-        return "Scenario(id=%s, name='%s', instance=%s)" % (self.id, str(self.name), instance.id if instance is not None else None)
+        return "Scenario(id=%s, name='%s', instance=%s)" % (
+            self.id,
+            str(self.name),
+            instance.id if instance is not None else None,
+        )
 
 
+@dataclass
 class CustomScenario(Scenario):
-    base_scenario: Scenario
-    storage: SettingStorage
+    _: KW_ONLY
 
-    def __init__(
-        self, *args, base_scenario: Scenario, **kwargs
-    ):
-        super().__init__(*args, **kwargs)
-        self.base_scenario = base_scenario
+    base_scenario: Scenario
+    kind: ScenarioKind | None = ScenarioKind.CUSTOM
+    storage: SettingStorage = field(init=False)
 
     def set_storage(self, storage: SettingStorage):
         self.storage = storage
@@ -107,15 +120,15 @@ class CustomScenario(Scenario):
                 is_valid = False
             else:
                 try:
-                    val = param.clean(val)
-                except Exception as e:
+                    cleaned_val = param.clean(val)
+                except Exception:
                     self.context.log.error('parameter %s has invalid value: %s', param_id, val)
                     is_valid = False
             if not is_valid:
                 self.storage.reset_param(param_id)
                 continue
             assert param is not None
-            yield param, val
+            yield param, cleaned_val
 
     def activate(self):
         self.base_scenario.activate()

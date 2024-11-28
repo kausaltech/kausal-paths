@@ -17,7 +17,10 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('framework_id', type=str, help="Identifier of the framework")
         parser.add_argument('source_api_url', type=str, help='Source API URL')
+        parser.add_argument('--source_token_file', type=Path, help='File with an authentication token for the source API')
         parser.add_argument('--target_api_url', type=str, default='http://127.0.0.1:8000', help='Target API URL')
+        parser.add_argument('--target_token_file', type=Path, help='File with an authentication token for the target API')
+
 
     def handle(self, *args, **options):
         source_api_url = options['source_api_url']

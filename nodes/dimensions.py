@@ -6,8 +6,9 @@ import typing
 from collections import OrderedDict
 from typing import overload
 
-import polars as pl
 from pydantic import BaseModel, Field, PrivateAttr, validator
+
+import polars as pl
 
 from common.i18n import I18nBaseModel, I18nStringInstance, TranslatedString
 from common.types import Identifier  # noqa: TCH001

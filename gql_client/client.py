@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import os
 from pathlib import Path
-from gql.transport.aiohttp import AIOHTTPTransport
+
 from gql import Client, gql
+from gql.transport.aiohttp import AIOHTTPTransport
 
 
 def get_client(base_url: str | None = None):

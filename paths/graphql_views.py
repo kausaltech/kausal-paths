@@ -29,6 +29,7 @@ from rich.console import Console
 from rich.syntax import Syntax
 
 from kausal_common.auth.tokens import authenticate_api_request
+from kausal_common.deployment import env_bool
 from kausal_common.testing.graphql import capture_query
 
 from paths.const import INSTANCE_HOSTNAME_HEADER, INSTANCE_IDENTIFIER_HEADER, WILDCARD_DOMAINS_HEADER
@@ -37,6 +38,7 @@ from nodes.models import Instance, InstanceConfig, InstanceConfigQuerySet
 from nodes.perf import PerfContext
 from params.storage import SessionStorage
 
+from .context import PathsObjectCache
 from .graphql_helpers import GraphQLPerfNode
 
 if TYPE_CHECKING:
@@ -45,9 +47,9 @@ if TYPE_CHECKING:
     from graphql.pyutils import AwaitableOrValue, Path
     from graphql.type import GraphQLObjectType
 
-    from sentry_sdk.tracing import Transaction
+    from paths.types import GQLInstanceContext
 
-    from .graphql_helpers import GQLContext, GQLInstanceContext
+    from .types import PathsGQLContext
 
 SUPPORTED_LANGUAGES = {x[0] for x in settings.LANGUAGES}
 
@@ -60,7 +62,7 @@ def _arg_value(arg, variable_vals) -> Any:  # noqa: ANN401
 
 logger = logger.bind(markup=True)
 
-GRAPHQL_CAPTURE_QUERIES = os.getenv('GRAPHQL_CAPTURE_QUERIES', '0') == '1'
+GRAPHQL_CAPTURE_QUERIES = env_bool('GRAPHQL_CAPTURE_QUERIES', default=False)
 
 
 class PathsExecutionContext(ExecutionContext):
@@ -69,19 +71,15 @@ class PathsExecutionContext(ExecutionContext):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-
     def handle_field_error(
-        self, error: GraphQLError, return_type: GraphQLOutputType,
+        self,
+        error: GraphQLError,
+        return_type: GraphQLOutputType,
     ) -> None:
-        if settings.DEBUG and error.original_error is not None:
-            from rich import traceback
-            exc = error
-            tb = traceback.Traceback.from_exception(
-                type(exc), exc, traceback=exc.__traceback__,
-            )
-            console = Console()
-            console.print(tb)
-            raise error.original_error
+        if settings.DEBUG and error.original_error is not None and not getattr(error, '_was_printed', False):
+            exc = error.original_error
+            logger.opt(exception=exc).error("GraphQL field error at {path}", path=error.path)
+            setattr(error, '_was_printed', True)  # noqa: B010
         return super().handle_field_error(error, return_type)
 
     def process_locale_directive(self, ic: InstanceConfig, directive: DirectiveNode) -> str | None:
@@ -89,7 +87,7 @@ class PathsExecutionContext(ExecutionContext):
             if arg.name.value == 'lang':
                 lang = _arg_value(arg, self.variable_values)
                 if lang not in ic.supported_languages:
-                    raise GraphQLError("unsupported language: %s" % lang, directive)
+                    raise GraphQLError('unsupported language: %s' % lang, directive)
                 return lang
         return None
 
@@ -109,7 +107,10 @@ class PathsExecutionContext(ExecutionContext):
         return cast(AbstractContextManager, translation.override(lang))
 
     def get_instance_by_identifier(
-        self, queryset: InstanceConfigQuerySet, identifier: str, directive: DirectiveNode | None = None,
+        self,
+        queryset: InstanceConfigQuerySet,
+        identifier: str,
+        directive: DirectiveNode | None = None,
     ) -> InstanceConfig:
         try:
             if identifier.isnumeric():
@@ -117,18 +118,21 @@ class PathsExecutionContext(ExecutionContext):
             else:
                 instance = queryset.get(identifier=identifier)
         except InstanceConfig.DoesNotExist:
-            raise GraphQLError("Instance with identifier %s not found" % identifier, directive) from None
+            raise GraphQLError('Instance with identifier %s not found' % identifier, directive) from None
         return instance
 
     def get_instance_by_hostname(
-        self, queryset: InstanceConfigQuerySet, hostname: str, directive: DirectiveNode | None = None,
+        self,
+        queryset: InstanceConfigQuerySet,
+        hostname: str,
+        directive: DirectiveNode | None = None,
     ) -> InstanceConfig:
         request = self.context_value
         try:
             instance = queryset.for_hostname(hostname, request).get()
         except InstanceConfig.DoesNotExist:
-            logger.warning(f"No instance found for hostname {hostname} (wildcard domains: {request.wildcard_domains})")  # noqa: G004
-            raise GraphQLError("Instance matching hostname %s not found" % hostname, directive) from None
+            logger.warning(f'No instance found for hostname {hostname} (wildcard domains: {request.wildcard_domains})')
+            raise GraphQLError('Instance matching hostname %s not found' % hostname, directive) from None
         return instance
 
     def process_instance_directive(self, directive: DirectiveNode) -> InstanceConfig:
@@ -141,9 +145,9 @@ class PathsExecutionContext(ExecutionContext):
             return self.get_instance_by_identifier(qs, identifier, directive)
         if hostname:
             return self.get_instance_by_hostname(qs, hostname, directive)
-        raise GraphQLError("Invalid instance directive", directive)
+        raise GraphQLError('Invalid instance directive', directive)
 
-    def process_instance_headers(self, context: GQLContext) -> InstanceConfig | None:
+    def process_instance_headers(self, context: PathsGQLContext) -> InstanceConfig | None:
         identifier = context.headers.get(settings.INSTANCE_IDENTIFIER_HEADER)
         hostname = context.headers.get(settings.INSTANCE_HOSTNAME_HEADER)
 
@@ -168,7 +172,7 @@ class PathsExecutionContext(ExecutionContext):
             return None
 
         if instance_config.is_protected and not self.context_value.user.is_active:
-            raise GraphQLError("Instance is protected", extensions=dict(code='instance_protected'))
+            raise GraphQLError('Instance is protected', extensions=dict(code='instance_protected'))
 
         return instance_config
 
@@ -250,18 +254,14 @@ class PathsExecutionContext(ExecutionContext):
             span_cm = self.context_value.graphql_perf.exec_node(node)
         else:
             span_cm = nullcontext()
-        #if field_def and not isinstance(field_def.type, GraphQLScalarType):
-        #    print(path.as_list(), field_def_type)
-
         with span_cm:
-            #print('-> %s' % str_path)
+            _rich_traceback_omit = True
             ret = super().execute_fields(parent_type, source_value, path, fields)
-            #print('<- %s' % str_path)
         return ret
 
     def execute_operation(self, operation: OperationDefinitionNode, root_value: Any) -> AwaitableOrValue[Any] | None:  # noqa: ANN401
         op_name = operation.name.value if operation.name else '<unnamed>'
-        with sentry_sdk.start_span(op='graphql_execute', description='Query %s' % op_name):
+        with sentry_sdk.start_span(op='graphql.execute', description='Query %s' % op_name):
             if operation.operation != OperationType.QUERY or self.context_value.user.is_authenticated:
                 self.context_value.graphene_no_cache = True  # type: ignore[attr-defined]
             with self.instance_context(operation):
@@ -270,12 +270,12 @@ class PathsExecutionContext(ExecutionContext):
 
 
 class PathsGraphQLView(GraphQLView):
-    graphiql_version = "3.0.9"
-    graphiql_sri = "sha256-i8HFOsDB6KaRVstG2LSibODRlHNNA1XLKLnDl7TIAZY="
-    graphiql_css_sri = "sha256-wTzfn13a+pLMB5rMeysPPR1hO7x0SwSeQI+cnw7VdbE="
-    graphiql_plugin_explorer_version = "1.0.2"
-    graphiql_plugin_explorer_sri = "sha256-CD435QHT45IKYOYnuCGRrwVgCRJNzoKjMuisdNtso4s="
-    graphiql_plugin_explorer_css_sri = "sha256-G6RZ0ey9eHIvQt0w+zQYVh4Rq1nNneislHMWMykzbLs="
+    graphiql_version = '3.0.9'
+    graphiql_sri = 'sha256-i8HFOsDB6KaRVstG2LSibODRlHNNA1XLKLnDl7TIAZY='
+    graphiql_css_sri = 'sha256-wTzfn13a+pLMB5rMeysPPR1hO7x0SwSeQI+cnw7VdbE='
+    graphiql_plugin_explorer_version = '1.0.2'
+    graphiql_plugin_explorer_sri = 'sha256-CD435QHT45IKYOYnuCGRrwVgCRJNzoKjMuisdNtso4s='
+    graphiql_plugin_explorer_css_sri = 'sha256-G6RZ0ey9eHIvQt0w+zQYVh4Rq1nNneislHMWMykzbLs='
 
     execution_context_class = PathsExecutionContext
 
@@ -290,12 +290,13 @@ class PathsGraphQLView(GraphQLView):
 
     def json_encode(self, request: GQLInstanceContext, d, pretty=False) -> str:
         errors = []
+
         def serialize_unknown(obj) -> str:
-            err = TypeError("Unable to serialize value %s with type %s" % (obj, type(obj)))
+            err = TypeError('Unable to serialize value %s with type %s' % (obj, type(obj)))
             errors.append(err)
             return ' '.join(['__INVALID__' * 10])
 
-        if not (self.pretty or pretty) and not request.GET.get("pretty"):
+        if not (self.pretty or pretty) and not request.GET.get('pretty'):
             opts = None
         else:
             opts = orjson.OPT_INDENT_2
@@ -307,7 +308,10 @@ class PathsGraphQLView(GraphQLView):
             raise errors[0]
         op_name = getattr(request, 'graphql_operation_name', None)
         self.log_reg(
-            'DEBUG', op_name, 'Response was {} bytes', len(ret),
+            'DEBUG',
+            op_name,
+            'Response was {} bytes',
+            len(ret),
         )
         return ret.decode('utf8')
 
@@ -319,16 +323,20 @@ class PathsGraphQLView(GraphQLView):
         return InstanceConfig.objects.filter(identifier=identifier).first()
 
     def get_cache_key(
-        self, request: GQLInstanceContext, query: str | None, variables: dict | None,
+        self,
+        request: GQLInstanceContext,
+        query: str | None,
+        variables: dict | None,
         operation_name: str | None,
     ):
         def log_reason(reason: str) -> None:
             self.log_reg('DEBUG', operation_name, 'request not cached: [red]{}[/]', reason, depth=1)
+
         if not query:
             return None
 
         if os.getenv('DISABLE_GRAPHQL_CACHE', '') == '1':
-            log_reason("cache disabled by env variable")
+            log_reason('cache disabled by env variable')
             return None
 
         if request.user.is_authenticated:
@@ -366,29 +374,37 @@ class PathsGraphQLView(GraphQLView):
         return cache.set(key, result, timeout=30 * 60)
 
     def get_response(self, request: HttpRequest, data, show_graphiql=False) -> tuple[str | None, int]:  # pyright: ignore
-        operation_name = request.GET.get("operationName") or data.get("operationName")
-        if operation_name == "null":
+        operation_name = request.GET.get('operationName') or data.get('operationName')
+        if operation_name == 'null':
             operation_name = None
         request = cast('GQLInstanceContext', request)
         perf: PerfContext = PerfContext(
-            supports_cache=False, min_ms=10, description=operation_name,
+            supports_cache=False,
+            min_ms=10,
+            description=operation_name,
         )
         perf.enabled = settings.ENABLE_PERF_TRACING
         request.graphql_perf = perf
 
         auth_error = authenticate_api_request(request, 'graphql')
         if auth_error:
-            logger.warning("Authentication failed: %s (%s)" % (auth_error.get('error'), auth_error.get('error_description')))
+            logger.warning('Authentication failed: %s (%s)' % (auth_error.get('error'), auth_error.get('error_description')))
             resp = dict(
-                errors=[dict(
-                    message='Authentication failed',
-                    extensions=dict(
-                        code=auth_error.get('error'),
-                        description=auth_error.get('error_description'),
+                errors=[
+                    dict(
+                        message='Authentication failed',
+                        extensions=dict(
+                            code=auth_error.get('error'),
+                            description=auth_error.get('error_description'),
+                        ),
                     ),
-                )],
+                ],
             )
             return self.json_encode(request, resp), 401
+
+        # If the user changed, re-initialize the cache just to be on the safe side.
+        if request.cache.user != request.user:
+            request.cache = PathsObjectCache(user=request.user)
 
         user_log_context: dict[str, Any]
         if isinstance(request.user, User):
@@ -406,57 +422,76 @@ class PathsGraphQLView(GraphQLView):
             if GRAPHQL_CAPTURE_QUERIES and data and ret[0]:
                 headers = [INSTANCE_IDENTIFIER_HEADER, INSTANCE_HOSTNAME_HEADER, WILDCARD_DOMAINS_HEADER]
                 now = time.time()
-                logger.info("Capturing GraphQL query and response")
+                logger.info('Capturing GraphQL query and response')
                 capture_query(request, headers, data, ret[0], ret[1], (now - start) * 1000)
 
         return ret
 
+    def _print_req_headers(self, request: HttpRequest) -> None:
+        from rich import print
+
+        keys = ['sentry-trace', 'baggage', 'tracecontext', 'tracestate']
+        print({k: request.headers.get(k) for k in keys if request.headers.get(k)})
+        span = sentry_sdk.get_current_span()
+        if span:
+            print(span.get_trace_context())
+
     def execute_graphql_request(
-        self, request: GQLInstanceContext, data: dict, query: str | None, variables: dict | None,
-        operation_name: str | None, *args, **kwargs,
+        self,
+        request: GQLInstanceContext,
+        data: dict,
+        query: str | None,
+        variables: dict | None,
+        operation_name: str | None,
+        *args,
+        **kwargs,
     ):
         """Set up context for the request execution."""
+
+        # self._print_req_headers(request)
 
         request._referer = self.request.META.get('HTTP_REFERER')
         request.graphql_operation_name = operation_name
         wildcard_domains = request.headers.get(settings.WILDCARD_DOMAINS_HEADER)
         request.wildcard_domains = [d.lower() for d in wildcard_domains.split(',')] if wildcard_domains else []
 
-        transaction: Transaction | None = sentry_sdk.Hub.current.scope.transaction
         if query is not None:
             query = query.strip()
         if settings.LOG_GRAPHQL_QUERIES and query:
             console = Console()
-            syntax = Syntax(query, "graphql")
+            syntax = Syntax(query, 'graphql')
             console.print(syntax)
             if variables:
                 console.print('Variables:', variables)
 
-        with sentry_sdk.push_scope() as scope:  # type: ignore
+        with sentry_sdk.push_scope() as scope:
             scope.set_context('graphql_variables', variables or {})
             scope.set_tag('graphql_operation_name', operation_name)
             scope.set_tag('referer', request._referer)
 
-            if transaction is not None:
-                span = transaction.start_child(op='graphql query', description=operation_name)
+            with (
+                sentry_sdk.start_span(op='graphql.request', description=operation_name) as span,
+                request.graphql_perf.exec_node(GraphQLPerfNode('execute %s' % operation_name)),
+            ):
                 span.set_data('graphql_variables', variables)
                 span.set_tag('graphql_operation_name', operation_name)
                 span.set_tag('referer', request._referer)
-            else:
-                # No tracing activated, use an inert Span
-                span = sentry_sdk.start_span()
-
-            with span, request.graphql_perf.exec_node(GraphQLPerfNode('execute %s' % operation_name)):
                 return self._execute_graphql_request(request, data, query, variables, operation_name, *args, **kwargs)
 
     def _execute_graphql_request(  # noqa: C901, PLR0912, PLR0915
-        self, request: GQLInstanceContext, data: dict, query: str | None, variables: dict | None,
-        operation_name: str | None, *args, **kwargs,
+        self,
+        request: GQLInstanceContext,
+        data: dict,
+        query: str | None,
+        variables: dict | None,
+        operation_name: str | None,
+        *args,
+        **kwargs,
     ) -> ExecutionResult | None:
         def log(level: str, msg: str, *args, depth: int = 0, **kwargs) -> None:
             self.log_reg(level, operation_name, msg, *args, depth=depth + 1, **kwargs)
 
-        def enter(id: str):  # noqa: A002, ANN202
+        def enter(id: str):  # noqa: ANN202
             return request.graphql_perf.exec_node(GraphQLPerfNode(id))
 
         span = sentry_sdk.get_current_span()
@@ -486,8 +521,15 @@ class PathsGraphQLView(GraphQLView):
             return result
 
         with enter('resolve query'):
+            _rich_traceback_guard = True
             result = super().execute_graphql_request(
-                request, data, query, variables, operation_name, *args, **kwargs,
+                request,
+                data,
+                query,
+                variables,
+                operation_name,
+                *args,
+                **kwargs,
             )
         if result is None:
             return None
@@ -495,19 +537,30 @@ class PathsGraphQLView(GraphQLView):
         if result.errors:
             if settings.DEBUG or os.getenv('PYTEST_CURRENT_TEST', None):
                 from rich.traceback import Traceback
+
                 console = Console()
 
-                def print_error(err: GraphQLError, orig: Exception | None) -> None:
-                    oe = getattr(err, 'original_error', err)
-                    if oe:
-                        if settings.DEBUG:
-                            raise oe
-                        tb = Traceback.from_exception(
-                            type(oe), oe, traceback=oe.__traceback__,
-                        )
-                        console.print(tb)
+                def print_error(err: GraphQLError | Exception) -> None:
+                    if getattr(err, '_was_printed', False):
+                        return
+                    if isinstance(err, GraphQLError):
+                        orig = err.original_error
+                        if orig is None:
+                            return
+                        err = orig
+
+                    tb = Traceback.from_exception(
+                        type(err),
+                        err,
+                        traceback=err.__traceback__,
+                    )
+                    console.print(tb)
             else:
-                def print_error(err: GraphQLError, orig: Exception | None) -> None:
+                def print_error(err: GraphQLError | Exception) -> None:
+                    if isinstance(err, GraphQLError):
+                        orig = getattr(err, 'original_error', None)
+                    else:
+                        orig = err
                     if orig is not None:
                         level = 'ERROR'
                         orig_str = ' (resulting from: %s)' % str(orig)
@@ -516,26 +569,40 @@ class PathsGraphQLView(GraphQLView):
                         orig_str = ''
                     log(level, 'Query error: %s%s' % (str(err), orig_str))
 
-            log('WARNING', "Query resulted in %d errors" % len(result.errors))
+            log('WARNING', 'Query resulted in %d errors' % len(result.errors))
 
-            server_errors = []
+            server_error_count = 0
+            invalid_query_count = 0
             for error in result.errors:
-                err = getattr(error, 'original_error', None)
-                print_error(error, orig=err)
-                if not err:
+                if isinstance(error, GraphQLError):
+                    orig_error = getattr(error, 'original_error', None)
+                else:
+                    orig_error = error
+                if orig_error:
+                    server_error_count += 1
+                    if server_error_count >= 5:
+                        if server_error_count == 5:
+                            logger.warning('Too many server errors, skipping the rest')
+                        continue
+                else:
+                    invalid_query_count += 1
+                    if invalid_query_count >= 5:
+                        if invalid_query_count == 5:
+                            logger.warning('Too many invalid query errors, skipping the rest')
+                        continue
+                print_error(error)
+                if isinstance(error, GraphQLError) and error.original_error is None:
                     # It's an invalid query
+                    logger.warning('GraphQL query error: {error.message} {error.locations}', error=error)
                     continue
-                server_errors.append(error)
-                sentry_sdk.capture_exception(err)
-
-            if settings.DEBUG and server_errors:
-                raise server_errors[0]
+                sentry_sdk.capture_exception(orig_error)
 
         # Check for the reasons why the result might not be cached
         if cache_key:
             def log_reason(msg, *args, okay=False, **kwargs) -> None:
                 level = 'DEBUG' if okay else 'WARNING'
                 log(level, 'not caching response: %s' % msg, *args, **kwargs)
+
             if result.errors:
                 log_reason('query processing errors')
                 cache_key = None

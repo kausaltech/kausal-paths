@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable, Optional, Tuple, TypeAlias, Unpack, cast
 
 import pint
-import pint_pandas
 import platformdirs
 from loguru import logger
 from pint import UnitRegistry, facets
@@ -22,6 +21,8 @@ from pint.delegates.formatter.html import HTMLFormatter
 from pint.delegates.formatter.plain import PrettyFormatter
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from django.utils.functional import _StrPromise as StrPromise  # pyright: ignore
 
     from pint.facets.plain import PlainUnit
@@ -37,7 +38,7 @@ def split_specifier(name: str) -> tuple[str, str | None]:
     if m:
         name, specifier = m.groups()
     else:
-        name, specifier = name, None
+        specifier = None
     return (name, specifier)
 
 
@@ -68,7 +69,7 @@ class CachingUnitRegistry(  # type: ignore[misc]
     html_formatter: PathsHTMLFormatter
     pretty_formatter: PathsPrettyFormatter
 
-    def parse_units(self, input_string: str, as_delta: Optional[bool] = None, case_sensitive: Optional[bool] = None) -> Unit:
+    def parse_units(self, input_string: str, as_delta: bool | None = None, case_sensitive: bool | None = None) -> Unit:
         if self.unit_cache is None:
             self.unit_cache = dict()
         cached_unit = self.unit_cache.get(input_string)
@@ -163,7 +164,7 @@ class PathsHTMLFormatter(HTMLFormatter):
             as_ratio=True,
             single_denominator=True,
             product_fmt=r"·",
-            division_fmt=r"{}∕{}",
+            division_fmt=r"{}∕{}",  # noqa: RUF001
             power_fmt=r"{}<sup>{}</sup>",
             parentheses_fmt=r"({})",
         )
@@ -227,6 +228,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     CAD = nan EUR
     USD = nan EUR
     SEK = 0.1 EUR
+    PLN = 0.2 EUR
     pcs = [number] = pieces = number
     capita = [population] = cap = inh = inhabitant = person
     MMBtu = 1e6 Btu
@@ -265,20 +267,21 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     """  # noqa: N806
 
     for line in DEFINITIONS.strip().splitlines():
-        line = line.strip()
-        if line.startswith('#'):
+        s = line.strip()
+        if s.startswith('#'):
             continue
-        unit_registry.define(line)
+        unit_registry.define(s)
 
-    unit_registry.load_definitions(os.path.join(os.path.dirname(__file__), 'health_impact_units.txt'))
+    health_units_path = Path(__file__).parent / 'health_impact_units.txt'
+    unit_registry.load_definitions(str(health_units_path))
 
 
 define_custom_units(unit_registry)
 unit_registry.formatter.default_format = '~P'
+#pint.set_application_registry(unit_registry)
 app_registry = pint.get_application_registry()
 app_registry._registry = unit_registry  # pyright: ignore
-pint_pandas.PintType.ureg = unit_registry  # type: ignore
-
+#pint_pandas.PintType.ureg = unit_registry  # type: ignore
 
 def add_unit_translations():
     """

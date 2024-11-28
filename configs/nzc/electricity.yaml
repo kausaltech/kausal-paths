@@ -100,6 +100,32 @@ nodes:
     - id: scope
       categories: [scope2]
     - id: sector
+  visualizations:
+  - kind: group
+    label: Drivers of building emissions
+    children:
+    - kind: node
+      label: Total electricity consumption
+      node:
+        id: total_electricity_consumption
+        desired_outcome: decreasing
+        dimensions:
+        - id: sector
+          flatten: true
+        - id: energy_carrier
+          flatten: true
+    - kind: node
+      label: Fossil fuel usage in district heating
+      node:
+        id: building_heat_fossil_ratio
+        desired_outcome: decreasing
+        dimensions:
+        - id: fuel_type
+          categories: [fossil]
+          flatten: true
+        - id: heating_type
+          categories: [district]
+          flatten: true
 
 - id: statistical_electricity_consumption
   name_en: Statistical electricity consumption

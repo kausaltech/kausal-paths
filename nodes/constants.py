@@ -1,10 +1,14 @@
+from __future__ import annotations
+
 from enum import Enum
+
+BASELINE_SCENARIO = 'baseline'
 
 FORECAST_COLUMN = 'Forecast'
 YEAR_COLUMN = 'Year'
 VALUE_COLUMN = 'Value'
 NODE_COLUMN = 'Node'
-
+SCENARIO_COLUMN = 'ScenarioName'
 
 # Impact constants
 IMPACT_COLUMN = 'Impact'
@@ -97,13 +101,12 @@ class DecisionLevel(Enum):
 def get_quantity_icon(quantity: str) -> str | None:
     if quantity == EMISSION_QUANTITY:
         return '💨'
-    elif quantity == ENERGY_QUANTITY:
+    if quantity == ENERGY_QUANTITY:
         return '⚡'
-    elif quantity == MILEAGE_QUANTITY:
+    if quantity == MILEAGE_QUANTITY:
         return '🚗'
-    elif quantity in (EMISSION_FACTOR_QUANTITY, 'energy_factor'):
+    if quantity in (EMISSION_FACTOR_QUANTITY, 'energy_factor'):
         return '✖'
-    elif quantity == POPULATION_QUANTITY:
+    if quantity == POPULATION_QUANTITY:
         return '👪'
     return None
-

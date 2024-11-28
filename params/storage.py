@@ -1,9 +1,12 @@
+# ruff: noqa: A002, ANN401
 from __future__ import annotations
 
 import hashlib
 import json
 import typing
-from typing import Any, Optional
+from typing import Any
+
+from pydantic import BaseModel, Field, ValidationError
 
 from loguru import logger
 
@@ -15,19 +18,19 @@ if typing.TYPE_CHECKING:
 
 class SettingStorage:
     def reset(self):
-        """Resets all customized settings to their default values."""
+        """Reset all customized settings to their default values."""
         raise NotImplementedError()
 
     def set_param(self, id: str, val: Any):
-        """Sets a parameter value."""
+        """Set a parameter value."""
         raise NotImplementedError()
 
     def reset_param(self, id: str):
-        """Resets a parameter to its default value."""
+        """Reset a parameter to its default value."""
         raise NotImplementedError()
 
     def set_option(self, id: str, val: Any):
-        """Sets a global option."""
+        """Set a global option."""
         raise NotImplementedError()
 
     def reset_option(self, id: str):
@@ -35,99 +38,114 @@ class SettingStorage:
         raise NotImplementedError()
 
     def get_customized_param_values(self) -> dict[str, Any]:
-        """Returns ids of all currently customized parameters with their values."""
+        """Return ids of all currently customized parameters with their values."""
         raise NotImplementedError()
 
     def set_active_scenario(self, id: str | None):
         """Mark the supplied scenario as active."""
         raise NotImplementedError()
 
-    def get_active_scenario(self) -> Optional[str]:
-        """Returns the scenario currently marked as active."""
+    def get_active_scenario(self) -> str | None:
+        """Return the scenario currently marked as active."""
         raise NotImplementedError()
+
+class InstanceData(BaseModel):
+    params: dict[str, Any] = Field(default_factory=dict)
+    options: dict[str, Any] = Field(default_factory=dict)
+    active_scenario: str | None = None
 
 
 class SessionStorage(SettingStorage):
     session: SessionBase
     instance: Instance
+    data: InstanceData
 
     def __init__(self, instance: Instance, session: SessionBase):
         self.session = session
         self.instance = instance
+        self.data = self.get_instance_settings(session, instance.id)
         self.log = logger.bind(session=session.session_key)
 
     def reset(self):
         self.session[self.instance.id] = {}
 
-    @property
-    def _instance_settings(self):
-        return self.session.setdefault(self.instance.id, {})
-
-    @property
-    def _instance_params(self) -> dict[str, Any]:
-        return self._instance_settings.setdefault('params', {})
-
-    @property
-    def _instance_options(self) -> dict[str, Any]:
-        return self._instance_settings.setdefault('options', {})
-
-    def get_instance_settings(self, instance_id: str) -> dict | None:
-        settings = self.session.get(instance_id, None)
+    @classmethod
+    def get_instance_settings(cls, session: SessionBase, instance_id: str) -> InstanceData:
+        settings = session.get(instance_id, None)
+        log = logger.bind(session=session.session_key)
         if settings is None:
-            return None
-        if not isinstance(settings, dict):
-            self.log.error('invalid settings type: %s' % type(settings))
-            self.session[instance_id] = {}
-            self.session.modified = True
-            return None
-        return settings
+            return InstanceData()
+        try:
+            return InstanceData.model_validate(settings)
+        except ValidationError as e:
+            log.error('invalid settings: %s' % e)
+            data = InstanceData()
+            session[instance_id] = data.model_dump()
+            return data
+
+    def mark_modified(self):
+        self.session[self.instance.id] = self.data.model_dump()
+
+    def set_instance_option(self, id: str, val: Any):
+        if self.data.options.get(id) == val:
+            return
+        self.data.options[id] = val
+        self.mark_modified()
 
     def set_param(self, id: str, val: Any):
-        self._instance_params[id] = val
-        self.session.modified = True
+        if self.data.params.get(id) == val:
+            return
+        self.data.params[id] = val
+        self.mark_modified()
 
     def reset_param(self, id: str):
-        if id in self._instance_params:
-            del self._instance_params[id]
-            self.session.modified = True
+        if id not in self.data.params:
+            return
+        del self.data.params[id]
+        self.mark_modified()
 
     def set_option(self, id: str, val: Any):
-        self._instance_options[id] = val
-        self.session.modified = True
+        if id in self.data.options and self.data.options[id] == val:
+            return
+        self.data.options[id] = val
+        self.mark_modified()
 
     def has_option(self, id: str) -> bool:
-        return id in self._instance_options
+        return id in self.data.options
 
     def get_option(self, id: str) -> Any:
-        return self._instance_options.get(id)
+        return self.data.options.get(id)
 
     def reset_option(self, id: str):
-        if id in self._instance_options:
-            del self._instance_options[id]
-            self.session.modified = True
+        if id not in self.data.options:
+            return
+        del self.data.options[id]
+        self.mark_modified()
 
     def get_customized_param_values(self) -> dict[str, Any]:
-        return self._instance_params.copy()
+        return self.data.params.copy()
 
-    def set_active_scenario(self, id: Optional[str]):
-        self._instance_settings['active_scenario'] = id
-        self.session.modified = True
+    def set_active_scenario(self, id: str | None):
+        if self.data.active_scenario == id:
+            return
+        self.data.active_scenario = id
+        self.mark_modified()
 
-    def get_active_scenario(self) -> Optional[str]:
-        return self._instance_settings.get('active_scenario')
+    def get_active_scenario(self) -> str | None:
+        return self.data.active_scenario
 
     @classmethod
     def get_cache_key(cls, session: SessionBase, instance_id: str) -> str | None:
-        ip = session.get(instance_id, None)
-        if not ip or not isinstance(ip, dict):
-            return ''
-        active_scenario = ip.get('active_scenario')
-        if active_scenario and active_scenario != 'default':
+        data = cls.get_instance_settings(session, instance_id)
+        if data.active_scenario and data.active_scenario != 'default':
             return None
 
-        opts = ip.get('options', None)
+        opts = data.options
         if not opts:
             return ''
 
-        s = hashlib.md5(json.dumps(opts, sort_keys=True, ensure_ascii=True).encode('ascii')).hexdigest()
+        s = hashlib.md5(
+            json.dumps(opts, sort_keys=True, ensure_ascii=True).encode('ascii'),
+            usedforsecurity=False,
+        ).hexdigest()
         return s

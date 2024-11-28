@@ -14,7 +14,7 @@ from graphql import GraphQLError
 
 from kausal_common.graphene import DjangoNode, DjangoNodeMeta
 from kausal_common.models.general import public_fields
-from kausal_common.models.uuid import UUID_PATTERN, query_pk_or_uuid
+from kausal_common.models.uuid import UUID_PATTERN, query_pk_or_uuid, query_pk_or_uuid_or_identifier
 
 from paths.graphql_types import resolve_unit
 
@@ -32,14 +32,17 @@ from .models import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from django.db.models.query import QuerySet
 
-    from kausal_common.graphene import GQLInfo
-    from kausal_common.models.types import QS
+    from paths.types import PathsGQLInfo as GQLInfo
 
     from frameworks.models import SectionQuerySet
     from nodes.instance import Instance
     from nodes.units import Unit
+
+    from .object_cache import CFramework, CMeasureTemplate, CSection
 
 
 class MeasureTemplateDefaultDataPointType(DjangoNode):
@@ -61,8 +64,8 @@ class MeasureTemplateType(DjangoNode):
         return resolve_unit(root.unit, info)
 
     @staticmethod
-    def resolve_default_data_points(root: MeasureTemplate, info: GQLInfo) -> QS[MeasureTemplateDefaultDataPoint]:
-        return root.default_data_points.all()
+    def resolve_default_data_points(root: CMeasureTemplate, info: GQLInfo) -> list[MeasureTemplateDefaultDataPoint]:
+        return root.fw_cache.measure_template_default_data_points.by_measure_template(root.pk)
 
     @staticmethod
     def resolve_measure(root: MeasureTemplate, info: GQLInfo, framework_config_id: str) -> Measure | None:
@@ -84,8 +87,8 @@ class SectionType(DjangoNode):
     measure_templates = graphene.List(graphene.NonNull(MeasureTemplateType), required=True)
 
     @staticmethod
-    def resolve_measure_templates(root: Section, info: GQLInfo) -> QS[MeasureTemplate]:
-        return root.measure_templates.all()
+    def resolve_measure_templates(root: CSection, info: GQLInfo) -> list[CMeasureTemplate]:
+        return root.fw_cache.measure_templates.by_section(root.pk)
 
     @staticmethod
     def resolve_parent(root: Section, info: GQLInfo) -> Section | None:
@@ -96,8 +99,18 @@ class SectionType(DjangoNode):
         return root.get_children()
 
     @staticmethod
-    def resolve_descendants(root: Section, info: GQLInfo) -> SectionQuerySet:
-        return root.get_descendants()
+    def resolve_descendants(root: CSection, info: GQLInfo) -> Iterable[CSection]:
+        def is_descendant(obj: CSection) -> bool:
+            if obj.pk is root.pk:
+                return False
+            if not obj.path.startswith(root.path):
+                return False
+            if obj.depth < root.depth:
+                return False
+            return True
+        objs = root.fw_cache.sections.get_list(is_descendant)
+        objs = sorted(objs, key=lambda s: s.path)
+        return objs
 
 
 class FrameworkType(DjangoNode):
@@ -112,12 +125,12 @@ class FrameworkType(DjangoNode):
     config = graphene.Field(lambda: FrameworkConfigType, id=graphene.ID(required=True), required=False)
 
     @staticmethod
-    def resolve_sections(root: Framework, info: GQLInfo) -> QuerySet[Section, Section]:
-        return root.sections.all()
+    def resolve_sections(root: CFramework, info: GQLInfo) -> list[CSection]:
+        return root.cache.sections.get_list()
 
     @staticmethod
-    def resolve_section(root: Framework, info: GQLInfo, identifier: str) -> Section | None:
-        return root.sections.filter(identifier=identifier).first()
+    def resolve_section(root: CFramework, info: GQLInfo, identifier: str) -> CSection | None:
+        return root.cache.sections.first(query_pk_or_uuid_or_identifier(identifier))
 
     @staticmethod
     def resolve_measure_template(root: Framework, info: GQLInfo, id: str) -> MeasureTemplate | None:  # noqa: A002
@@ -149,6 +162,8 @@ class FrameworkConfigType(DjangoNode):
     view_url = graphene.String(description=_("Public URL for instance dashboard"), required=False)
     results_download_url = graphene.String(description=_("URL for downloading a results file"))
     instance = graphene.Field('nodes.schema.InstanceType', required=False)
+    organization_slug = graphene.String(required=False)
+    organization_identifier = graphene.String(required=False)
 
     class Meta(DjangoNodeMeta):
         model = FrameworkConfig
@@ -175,22 +190,23 @@ class FrameworkConfigType(DjangoNode):
     def resolve_instance(root: FrameworkConfig, info: GQLInfo) -> Instance:
         return root.instance_config.get_instance(node_refs=True)
 
+    @staticmethod
+    def resolve_organization_slug(root: FrameworkConfig, info: GQLInfo) -> str | None:
+        if info.context.user.is_superuser:
+            return root.organization_slug
+        return None
+
+    @staticmethod
+    def resolve_organization_identifier(root: FrameworkConfig, info: GQLInfo) -> str | None:
+        if info.context.user.is_superuser:
+            return root.organization_identifier
+        return None
+
 
 class MeasureDataPointType(DjangoNode):
     class Meta(DjangoNodeMeta):
         model = MeasureDataPoint
         fields = public_fields(MeasureDataPoint)
-
-
-class Query(graphene.ObjectType):
-    frameworks = graphene.List(graphene.NonNull(FrameworkType))
-    framework = graphene.Field(FrameworkType, identifier=graphene.ID(required=True))
-
-    def resolve_frameworks(self, info: GQLInfo):
-        return Framework.objects.all()
-
-    def resolve_framework(self, info: GQLInfo, identifier: str):
-        return Framework.objects.get(identifier=identifier)
 
 
 def get_fwc_q(fwc_id: str) -> Q:
@@ -212,6 +228,20 @@ def get_fwc(info: GQLInfo, fwc_id: str, qs: FrameworkConfigQuerySet | None = Non
     if fwc is None:
         raise GraphQLError("Framework config '%s' not found" % fwc_id, nodes=info.field_nodes)
     return fwc
+
+
+class Query(graphene.ObjectType):
+    frameworks = graphene.List(graphene.NonNull(FrameworkType))
+    framework = graphene.Field(FrameworkType, identifier=graphene.ID(required=True))
+
+    def resolve_frameworks(self, info: GQLInfo):
+        return info.context.cache.frameworks.get_list()
+
+    def resolve_framework(self, info: GQLInfo, identifier: str):
+        fw = Framework.objects.get_queryset().filter(query_pk_or_uuid_or_identifier(identifier)).first()
+        if fw is None:
+            return None
+        return info.context.cache.for_framework(fw)
 
 
 class FrameworkConfigInput(graphene.InputObjectType):
@@ -335,6 +365,8 @@ class UpdateFrameworkConfigMutation(graphene.Mutation):
     class Arguments:
         id = graphene.ID(required=True)
         organization_name = graphene.String(required=False)
+        organization_slug = graphene.String(required=False)
+        organization_identifier = graphene.String(required=False)
         baseline_year = graphene.Int(
             required=False,
             description=(
@@ -349,13 +381,22 @@ class UpdateFrameworkConfigMutation(graphene.Mutation):
     @staticmethod
     @transaction.atomic
     def mutate(
-        root, info: GQLInfo, id: str, organization_name: str | None = None, baseline_year: int | None = None,  # noqa: A002
+        root, info: GQLInfo, id: str, organization_name: str | None = None, organization_slug: str | None = None,  # noqa: A002
+        organization_identifier: str | None = None, baseline_year: int | None = None,
     ) -> UpdateFrameworkConfigMutation:
         fwc = get_fwc(info, id)
         fwc.ensure_gql_action_allowed(info, 'change')
 
         if organization_name is not None:
             fwc.organization_name = organization_name
+
+        if organization_slug is not None or organization_identifier is not None:
+            if not info.context.user.is_superuser:
+                raise GraphQLError("Only superusers can set organization slug or identifier", nodes=info.field_nodes)
+            if organization_slug is not None:
+                fwc.organization_slug = organization_slug
+            if organization_identifier is not None:
+                fwc.organization_identifier = organization_identifier
 
         if baseline_year is not None:
             old_baseline_year = fwc.baseline_year

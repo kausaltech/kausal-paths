@@ -2,35 +2,40 @@ from __future__ import annotations
 
 import json
 from typing import TYPE_CHECKING
-import pytest
+
 from graphene_django.utils.testing import graphql_query
 
-if not TYPE_CHECKING:
+import pytest
+
+from nodes.scenario import ScenarioKind
+
+if TYPE_CHECKING:
+    from nodes.context import Context
+    from nodes.instance import Instance
+else:
     from factory import Factory, SubFactory
     # These classes need to support the generics syntax
     for kls in (Factory, SubFactory):
         if not hasattr(kls, '__class_getitem__'):
             kls.__class_getitem__ = classmethod(lambda cls, *args, **kwargs: cls)  # type: ignore
-else:
-    from nodes.instance import Instance
-    from nodes.context import Context
 
 
 from pytest_factoryboy import register
 
+from datasets.tests.factories import DatasetFactory
 from nodes.tests.factories import (
-    AdditiveActionFactory, ActionNodeFactory, ContextFactory, CustomScenarioFactory, InstanceConfigFactory, InstanceFactory,
-    NodeFactory, ScenarioFactory, SimpleNodeFactory
+    ActionNodeFactory,
+    AdditiveActionFactory,
+    ContextFactory,
+    CustomScenarioFactory,
+    InstanceConfigFactory,
+    InstanceFactory,
+    NodeFactory,
+    ScenarioFactory,
+    SimpleNodeFactory,
 )
-from params.tests.factories import (
-    BoolParameterFactory, ParameterFactory, NumberParameterFactory, StringParameterFactory
-)
-from datasets.tests.factories import (
-    DatasetFactory
-)
-from users.tests.factories import (
-    UserFactory
-)
+from params.tests.factories import BoolParameterFactory, NumberParameterFactory, ParameterFactory, StringParameterFactory
+from users.tests.factories import UserFactory
 
 
 @pytest.fixture(autouse=True)
@@ -100,7 +105,7 @@ def default_scenario(instance: Instance, context):
 def baseline_scenario(instance: Instance):
     """Adds baseline scenario but doesn't notify any nodes of its creation."""
     context = instance.context
-    scenario = ScenarioFactory.create(id='baseline', all_actions_enabled=True, context=context)
+    scenario = ScenarioFactory.create(id='baseline', all_actions_enabled=True, context=context, kind=ScenarioKind.BASELINE)
     context.add_scenario(scenario)
     return scenario
 

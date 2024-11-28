@@ -8,7 +8,7 @@ from loguru import logger
 from social_core.backends.azuread_tenant import AzureADTenantOAuth2
 from social_core.backends.oauth import BaseOAuth2
 
-from paths.const import INSTANCE_ADMIN_ROLE
+from paths.const import FRAMEWORK_VIEWER_ROLE, INSTANCE_ADMIN_ROLE, INSTANCE_VIEWER_ROLE
 
 from frameworks.roles import FrameworkRoleDef
 
@@ -82,9 +82,8 @@ class NZCPortalOAuth2(BaseOAuth2):
     TYPE_TO_ROLE = {
         'cityAdmin': INSTANCE_ADMIN_ROLE,
         'cityEditor': INSTANCE_ADMIN_ROLE,
-        # Disable the consortiumUser role for now
-        # 'consortiumUser': FRAMEWORK_ADMIN_ROLE,
-        'cityUser': INSTANCE_ADMIN_ROLE,
+        'consortiumUser': FRAMEWORK_VIEWER_ROLE,
+        'cityUser': INSTANCE_VIEWER_ROLE,
     }
 
     def canonize_email(self, resp_email: str) -> str:
@@ -95,14 +94,16 @@ class NZCPortalOAuth2(BaseOAuth2):
         logger.debug("User details: %s" % response)
 
         user_type = response.get('userType')
+        org_slug = response.get('userCity')
+        org_id = response.get('cityUID')
         role_id = self.TYPE_TO_ROLE.get(user_type or '')
         if role_id is None:
             sentry_sdk.capture_message('Unknown role: %s' % user_type)
         role = FrameworkRoleDef(
             framework_id='nzc',
             role_id=role_id,
-            org_slug=response.get('userCity'),
-            org_id=response.get('cityUID'),
+            org_slug=org_slug,
+            org_id=org_id,
         )
         logger.debug("Determined role: %s" % repr(role))
         return {

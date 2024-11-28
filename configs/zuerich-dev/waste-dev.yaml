@@ -50,8 +50,9 @@ nodes:
   name_de: Treibhausgasemissionen Klärschlammverwertungsanlage
   name_en: Sewage sludge processing emissions
   short_name_de: Klärschlammverwertungsanlage
+  short_name_en: Sewage sludge processing
   type: ch.zuerich.SewageSludgeProcessingEmissions
-  unit: kt/a
+  unit: t/a
   quantity: emissions
   output_dimensions: [emission_scope]
   input_datasets: [zuerich/sewage_sludge_processing]
@@ -61,14 +62,36 @@ nodes:
     to_dimensions: []
     tags: [ccs_share]
   output_nodes:
-  - id: waste_treatment_emissions
+  - id: sewage_sludge_processing_emissions_waste
     from_dimensions:
     - id: emission_scope
       groups: [direct, indirect]
-  - id: negative_emissions
+  - id: sewage_sludge_processing_emissions_negative
     from_dimensions:
     - id: emission_scope
       groups: [negative]
+
+- id: sewage_sludge_processing_emissions_waste
+  name_de: Treibhausgasemissionen Klärschlammverwertungsanlage
+  name_en: Sewage sludge processing emissions
+  short_name_de: Klärschlammverwertungsanlage
+  short_name_en: Sewage sludge processing
+  unit: kt/a
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  output_nodes: [waste_treatment_emissions]
+  type: simple.SectorEmissions
+
+- id: sewage_sludge_processing_emissions_negative
+  name_de: Treibhausgasemissionen Klärschlammverwertungsanlage
+  name_en: Sewage sludge processing emissions
+  short_name_de: Klärschlammverwertungsanlage
+  short_name_en: Sewage sludge processing
+  unit: kt/a
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  output_nodes: [negative_emissions]
+  type: simple.SectorEmissions
 
 - id: solid_waste_treatment_emissions_pre_ccs
   name_en: Solid waste incineration emissions (pre-CCS)
@@ -90,7 +113,7 @@ nodes:
   short_name_de: Kehrichtverwertungsanlage
   short_name_en: Solid waste incineration
   type: buildings.CCSNode
-  unit: kt/a
+  unit: t/a
   quantity: emissions
   input_dimensions: [waste_incineration_plants]
   output_dimensions: [waste_incineration_plants, emission_scope]
@@ -106,21 +129,47 @@ nodes:
     - id: waste_incineration_plants
       categories: [hagenholz]
   output_nodes:
-  - id: waste_treatment_emissions
+  - id: solid_waste_treatment_emissions_waste
     from_dimensions:
     - id: emission_scope
       groups: [direct, indirect]
-    - id: waste_incineration_plants
-      flatten: true
-  - id: negative_emissions
+  - id: solid_waste_treatment_emissions_negative
     from_dimensions:
     - id: emission_scope
       groups: [negative]
-    - id: waste_incineration_plants
-      flatten: true
   params:
     capture_efficiency: 90
     storage_efficiency: 94.4
+
+- id: solid_waste_treatment_emissions_waste
+  name_en: Solid waste incineration emissions
+  name_de: Treibhausgasemissionen Kehrichtverwertungsanlage
+  short_name_de: Kehrichtverwertungsanlage
+  short_name_en: Solid waste incineration
+  unit: kt/a
+  input_dimensions: [waste_incineration_plants, emission_scope]
+  output_dimensions: [waste_incineration_plants, emission_scope]
+  output_nodes:
+  - id: waste_treatment_emissions
+    from_dimensions:
+    - id: waste_incineration_plants
+      flatten: true
+  type: simple.SectorEmissions
+
+- id: solid_waste_treatment_emissions_negative
+  name_en: Solid waste incineration emissions
+  name_de: Treibhausgasemissionen Kehrichtverwertungsanlage
+  short_name_de: Kehrichtverwertungsanlage
+  short_name_en: Solid waste incineration
+  unit: kt/a
+  input_dimensions: [waste_incineration_plants, emission_scope]
+  output_dimensions: [waste_incineration_plants, emission_scope]
+  output_nodes:
+  - id: negative_emissions
+    from_dimensions:
+    - id: waste_incineration_plants
+      flatten: true
+  type: simple.SectorEmissions
 
 - id: wastewater_treatment_emissions
   name_en: Wastewater treatment emissions

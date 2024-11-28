@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar, cast
 from pydantic import BaseModel
 
 from common.polars import from_pandas
-from nodes.datasets import JSONDataset
 from nodes.units import Quantity, Unit
 
 if TYPE_CHECKING:
@@ -275,6 +274,7 @@ class DatasetParameter(Parameter):
         return self.value.equals(value)
 
     def serialize_value(self) -> dict[str, Any]:
+        from nodes.datasets import JSONDataset
         assert self.value is not None
         return JSONDataset.serialize_df(from_pandas(self.value))
 

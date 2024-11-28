@@ -21,6 +21,57 @@ features:
   maximum_fraction_digits: 0
   hide_node_details: true
   show_refresh_prompt: true
+result_excels:
+  - base_excel_url: 'https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx'
+    name: Climate City Contract Tables
+    node_ids:
+      - population
+      - net_emissions
+      - aggregated_cost
+      - discounted_cost
+      - vehicle_kilometres
+      - freight_transport_need
+      - total_building_heat_energy_use
+      - total_electricity_consumption
+      - collected_waste
+      - a11_reduce_all_motorised_transport
+      - a12_modal_switch_from_cars_to_other_modes
+      - transport_efficiency
+      - transport_energy_carrier_shares
+      - freight_transport_energy_carrier_shares
+      - average_truck_utilisation
+      - electrification_year_of_transport
+      - old_building_renovation_rate
+      - new_building_shares
+      - efficient_appliances_rate
+      - building_heating_type_share
+      - heating_fuel_share
+      - electricity_shares
+      - waste_recycling_shares
+    action_ids:
+      - a11_reduce_all_motorised_transport
+      - a12_modal_switch_from_cars_to_other_modes
+      - a13_car_pooling
+      - a141_electrification_of_passenger_cars
+      - a142_electrification_of_buses
+      - a21_optimised_logistics
+      - a211_improve_utilisation_of_trucks
+      - a212_route_optimisation
+      - a22_truck_fleet_electrification
+      - a31_renovation_improvements
+      - a311_renovation_rate_improvement
+      - a312_renovation_shares_improvement
+      - a32_new_building_improvements
+      - a33_do_efficient_appliances
+      - a332_increase_aggressive_renovations
+      - a34_decarbonising_heat_generation
+      - a341_heating_technology_improvement
+      - a342_heating_energy_improvement
+      - a343_change_heating_fossil_share
+      - a344_top_performance_improvement
+      - a41_replace_fossil_electricity
+      - a51_increase_waste_recycling
+      - a61_reduced_co2_emissions_in_other_sectors
 
 params:
 - id: municipality_name
@@ -43,6 +94,14 @@ params:
   value: true
   is_visible: true
   is_customizable: true
+- id: measure_data_override
+  value: false
+  is_visible: false
+  is_customizable: false
+- id: measure_data_baseline_year_only
+  value: true
+  is_visible: false
+  is_customizable: false
 
 action_groups:
 - id: transport
@@ -1138,15 +1197,15 @@ pages:
   type: emission
   outcome_node: net_emissions
   lead_title: Climate Budgeting Tool
-  lead_paragraph: Climate budgeting is about including climate emissions systematically
+  lead_paragraph: |
+    Climate budgeting is about including climate emissions systematically
     in the city's planning and budgeting. In the first phase, the Global Protocol
     for Community-Scale (GPC) BASIC-level emissions are considered, and actions reducing
-    these emissions are considered. C40 Network's website describes <a 
-    href="https://www.c40knowledgehub.org/s/article/Climate-budgets-why-your-city-needs-one?language=en_US">why
-    this work is critically important</a>. Oslo has been a <a href="https://www.klimaoslo.no/collection/oslos-climate-budget-2023/">pioneer
-    city</a> in this area. They have also made a practical <a 
-    href="https://www.c40knowledgehub.org/s/article/Manual-for-climate-budgets-as-a-governance-tool?language=en_US">manual
-    for cities</a> to guide through the climate budgeting process.
+    these emissions are considered. C40 Network's website describes
+    <a href="https://www.c40knowledgehub.org/s/article/Climate-budgets-why-your-city-needs-one?language=en_US">why this work is critically important</a>.
+    Oslo has been a <a href="https://www.klimaoslo.no/collection/oslos-climate-budget-2023/">pioneer city</a> in this area.
+    They have also made a practical <a href="https://www.c40knowledgehub.org/s/article/Manual-for-climate-budgets-as-a-governance-tool?language=en_US">manual for cities</a>
+    to guide through the climate budgeting process.
 
 scenarios:
 - id: baseline
@@ -1161,6 +1220,16 @@ scenarios:
   default: true
   name: Decarbonisation scenario
   all_actions_enabled: true
+
+- id: progress_tracking
+  name: Progress tracking
+  all_actions_enabled: true
+  is_selectable: false
+  params:
+  - id: measure_data_override
+    value: true
+  - id: measure_data_baseline_year_only
+    value: false
 
 include:
 - file: nzc/transport.yaml

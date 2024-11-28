@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from typing import TYPE_CHECKING, Any
 
 from django import forms
 from django.conf import settings
@@ -9,8 +10,6 @@ from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
 from django.utils.translation import gettext, gettext_lazy as _
-
-from pint.errors import UndefinedUnitError
 
 from kausal_common.models.ordered import OrderedModel as OrderedModel  # noqa: PLC0414
 from kausal_common.models.types import copy_signature
@@ -24,7 +23,7 @@ class InstanceIdentifierValidator(RegexValidator):
     regex = r'^[a-z0-9-]+$'
 
 
-class IdentifierField(models.CharField):
+class IdentifierField(models.CharField[str, str]):
     def __init__(self, *args, **kwargs):
         validator_kwargs = {}
         if 'regex' in kwargs:
@@ -59,6 +58,8 @@ class ChoiceArrayField(ArrayField):
 
 
 def validate_unit(s: str):
+    from pint.errors import UndefinedUnitError
+
     from nodes.context import unit_registry
 
     try:
@@ -102,14 +103,17 @@ class UUIDIdentifierField(models.UUIDField):
         super().__init__(*args, **kwargs)
 
 
-class UserModifiableModel(models.Model):
+class UserModifiableModel(models.Model):  # noqa: DJ008
     created_at = models.DateTimeField(verbose_name=_('created at'), editable=False, auto_now_add=True)
     created_by = models.ForeignKey('users.User', null=True, on_delete=models.SET_NULL, editable=False, related_name='+')
     updated_at = models.DateTimeField(verbose_name=_('updated at'), editable=False, auto_now=True)
     updated_by = models.ForeignKey('users.User', null=True, on_delete=models.SET_NULL, editable=False, related_name='+')
 
-    class Meta:
-        abstract = True
+    if TYPE_CHECKING:
+        Meta: Any
+    else:
+        class Meta:
+            abstract = True
 
 
 def get_supported_languages():

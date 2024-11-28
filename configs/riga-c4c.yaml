@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://riga-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: e0add1dddbc3e83a37f475170267abc9fea46bf5
+  commit: 9177ef84aa1d6cb0b49218a98f5ea800729328f1
   dvc_remote: kausal-s3
 name: Riga Greenhouse Gas Inventory
 owner: City of Riga
@@ -119,8 +119,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: EUR/a
-  input_dimensions: ['energy_carrier', 'scope']
-  output_dimensions: ['energy_carrier', 'scope']
+  input_dimensions: []
+  output_dimensions: []
   is_outcome: true
 
 - id: i12_residential_grid_energy_consumption
@@ -461,10 +461,13 @@ nodes:
   output_dimensions: ['scope', 'ghg', 'energy_carrier', 'owner', 'vehicle_type']
   output_nodes:
   - id: ii1_onroad_transport_total_emissions
-    to_dimensions:
+    from_dimensions:
     - id: scope
-    - id: ghg
+      flatten: true
     - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: ghg
     - id: owner
     - id: vehicle_type
 
@@ -516,12 +519,15 @@ nodes:
   output_dimensions: ['scope', 'ghg', 'vehicle_type', 'owner', 'energy_carrier']
   output_nodes:
   - id: ii1_onroad_transport_total_emissions
-    to_dimensions:
+    from_dimensions:
     - id: scope
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
     - id: ghg
     - id: vehicle_type
     - id: owner
-    - id: energy_carrier
 
 - id: ii12_onroad_transport_grid_energy_emission_factor
   name: II.1.2 On-Road Transport Grid Energy Emission Factor
@@ -731,18 +737,14 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['scope', 'ghg', 'vehicle_type', 'owner', 'energy_carrier']
-  output_dimensions: ['scope', 'ghg', 'vehicle_type', 'owner', 'energy_carrier']
+  input_dimensions: ['vehicle_type', 'owner', 'ghg']
+  output_dimensions: ['vehicle_type', 'owner', 'ghg']
   output_nodes:
   - id: ii_transportation_total_emissions
     from_dimensions:
-    - id: scope
-      flatten: true
     - id: vehicle_type
       flatten: true
     - id: owner
-      flatten: true
-    - id: energy_carrier
       flatten: true
     to_dimensions:
     - id: ghg
@@ -950,15 +952,152 @@ nodes:
 - id: i_stationary_total_price
   name: I Stationary Total Price
   type: simple.AdditiveNode
+  color: '#4e79a7'
   quantity: currency
   unit: EUR/a
   input_dimensions: ['energy_carrier', 'scope']
   output_dimensions: ['energy_carrier', 'scope']
   output_nodes:
   - id: net_price
-    to_dimensions:
+    from_dimensions:
     - id: energy_carrier
+      flatten: true
     - id: scope
+      flatten: true
+    to_dimensions: []
+
+- id: ii1_onroad_transport_price
+  name: II.1 On-Road Transport Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['owner']
+  output_dimensions: ['owner']
+  output_nodes:
+  - id: ii_transportation_total_price
+    to_dimensions:
+    - id: owner
+
+- id: ii_transportation_total_price
+  name: II Transportation Total Price
+  type: simple.AdditiveNode
+  color: '#e15759'
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['owner']
+  output_dimensions: ['owner']
+  output_nodes:
+  - id: net_price
+    from_dimensions:
+    - id: owner
+      flatten: true
+    to_dimensions: []
+
+actions:
+- id: data_records_system_for_the_municipal_vehicle_fleet_and_improvements_in_the_efficiency_of_vehicle_use
+  name: Data Records System for the Municipal Vehicle Fleet and Improvements in the Efficiency of Vehicle Use
+  type: gpc.DatasetActionMFM
+  color: '#e15759'
+  input_dimensions: ['owner', 'vehicle_type', 'ghg']
+  output_dimensions: ['owner', 'vehicle_type', 'ghg']
+  params:
+    action: Data Records System for the Municipal Vehicle Fleet and Improvements in the Efficiency of Vehicle Use
+  input_datasets:
+  - id: gpc/riga_simple_actions
+    forecast_from: 2025
+  output_metrics:
+  - id: ii1_emissions
+    unit: t/a
+    quantity: emissions
+  - id: ii1_currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: ii1_onroad_transport_total_emissions
+    metrics: [ii1_emissions]
+    to_dimensions:
+    - id: owner
+    - id: vehicle_type
+    - id: ghg
+  - id: ii1_onroad_transport_price
+    metrics: [ii1_currency]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: owner
+
+- id: promotion_of_the_use_of_public_transport_for_work_among_employees_of_the_municipal_government
+  name: Promotion of the Use of Public Transport for Work Among Employees of the Municipal Government
+  type: gpc.DatasetActionMFM
+  color: '#e15759'
+  input_dimensions: ['owner', 'vehicle_type', 'ghg']
+  output_dimensions: ['owner', 'vehicle_type', 'ghg']
+  params:
+    action: Promotion of the Use of Public Transport for Work Among Employees of the Municipal Government
+  input_datasets:
+  - id: gpc/riga_simple_actions
+    forecast_from: 2025
+  output_metrics:
+  - id: ii1_emissions
+    unit: t/a
+    quantity: emissions
+  - id: ii1_currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: ii1_onroad_transport_total_emissions
+    metrics: [ii1_emissions]
+    to_dimensions:
+    - id: owner
+    - id: vehicle_type
+    - id: ghg
+  - id: ii1_onroad_transport_price
+    metrics: [ii1_currency]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: owner
+
+- id: transition_to_zero_emission_vehicles_in_companies_and_municipal_institutions
+  name: Transition to Zero-Emission Vehicles in Companies and Municipal Institutions
+  type: gpc.DatasetActionMFM
+  color: '#e15759'
+  input_dimensions: ['owner', 'vehicle_type', 'ghg']
+  output_dimensions: ['owner', 'vehicle_type', 'ghg']
+  params:
+    action: Transition to Zero-Emission Vehicles in Companies and Municipal Institutions
+  input_datasets:
+  - id: gpc/riga_simple_actions
+    forecast_from: 2025
+  output_metrics:
+  - id: ii1_emissions
+    unit: t/a
+    quantity: emissions
+  - id: ii1_currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: ii1_onroad_transport_total_emissions
+    metrics: [ii1_emissions]
+    to_dimensions:
+    - id: owner
+    - id: vehicle_type
+    - id: ghg
+  - id: ii1_onroad_transport_price
+    metrics: [ii1_currency]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: owner
 
 pages:
 - id: home
@@ -971,7 +1110,7 @@ pages:
 
 scenarios:
 - id: baseline
-  name: Baseline
+  name: Business as Usual
 
 - id: default
   name: SECAP
