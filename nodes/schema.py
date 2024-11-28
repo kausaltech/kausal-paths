@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import graphene
 import strawberry as sb
@@ -19,6 +19,7 @@ from kausal_common.graphene.utils import create_from_dataclass
 from kausal_common.strawberry.registry import register_strawberry_type
 
 from paths.graphql_helpers import ensure_instance, pass_context
+from paths.graphql_types import SBUnit
 
 from nodes.node import Node
 from nodes.scenario import Scenario, ScenarioKind as ScenarioKindEnum
@@ -28,7 +29,18 @@ from .actions.action import ActionEfficiencyPair, ActionGroup, ActionNode
 from .actions.parent import ParentActionNode
 from .constants import FORECAST_COLUMN, IMPACT_COLUMN, IMPACT_GROUP, YEAR_COLUMN, DecisionLevel
 from .instance import Instance, InstanceFeatures
-from .metric import DimensionalFlow, DimensionalMetric, DimensionKind, Metric
+from .metric import (
+    DimensionalFlow,
+    DimensionalMetric,
+    DimensionKind,
+    Metric,
+    MetricCategory,
+    MetricCategoryGroup,
+    MetricDimension,
+    MetricDimensionGoal,
+    MetricYearlyGoal,
+    NormalizerNode,
+)
 from .models import InstanceConfig
 
 if TYPE_CHECKING:
@@ -39,7 +51,7 @@ if TYPE_CHECKING:
 
     from kausal_common.graphene import GQLInfo
 
-    from paths.types import GQLInstanceInfo
+    from paths.types import GQLInstanceContext, GQLInstanceInfo
 
     from common import polars as ppl
     from nodes.context import Context
@@ -260,60 +272,73 @@ class ForecastMetricType(graphene.ObjectType):
         return root.get_cumulative_forecast_value()
 
 
+@register_strawberry_type
+@sb.experimental.pydantic.type(model=MetricCategory, fields=['label', 'color', 'order', 'group'])
 class MetricDimensionCategoryType(graphene.ObjectType):
-    id = graphene.ID(required=True)
-    original_id = graphene.ID(required=False)
-    label = graphene.String(required=True)
-    color = graphene.String(required=False)
-    order = graphene.Int(required=False)
-    group = graphene.String(required=False)
+    id: sb.ID
+    original_id: sb.ID | None
 
-
+@register_strawberry_type
+@sb.experimental.pydantic.type(model=MetricCategoryGroup, fields=['label', 'color', 'order'])
 class MetricDimensionCategoryGroupType(graphene.ObjectType):
-    id = graphene.ID(required=True)
-    original_id = graphene.ID(required=True)
-    label = graphene.String(required=True)
-    color = graphene.String(required=False)
-    order = graphene.Int(required=False)
+    id: sb.ID
+    original_id: sb.ID
 
 
 DimensionType = graphene.Enum.from_enum(DimensionKind)
 
 
-class MetricDimensionType(graphene.ObjectType):
-    id = graphene.ID(required=True)
-    original_id = graphene.ID(required=False)
-    label = graphene.String(required=True)
-    help_text = graphene.String(required=False)
-    categories = graphene.List(graphene.NonNull(MetricDimensionCategoryType), required=True)
-    groups = graphene.List(graphene.NonNull(MetricDimensionCategoryGroupType), required=True)
-    kind = graphene.Field(DimensionType, required=True)
+@register_strawberry_type
+@sb.experimental.pydantic.type(model=MetricDimension, fields=[
+    'label', 'help_text', 'categories', 'groups', 'kind',
+])
+class MetricDimensionType:
+    id: sb.ID
+    original_id: sb.ID | None
 
 
-class MetricYearlyGoalType(graphene.ObjectType):
-    year = graphene.Int(required=True)
-    value = graphene.Float(required=True)
-    is_interpolated = graphene.Boolean(required=True)
+@register_strawberry_type
+@sb.experimental.pydantic.type(model=MetricYearlyGoal, all_fields=True)
+class MetricYearlyGoalType:
+    pass
 
 
-class DimensionalMetricGoalEntry(graphene.ObjectType):
-    categories = graphene.List(graphene.NonNull(graphene.String), required=True)
-    values = graphene.List(graphene.NonNull(MetricYearlyGoalType), required=True)
-    groups = graphene.List(graphene.NonNull(graphene.String), required=True)
+@register_strawberry_type
+@sb.experimental.pydantic.type(model=MetricDimensionGoal, all_fields=True)
+class DimensionalMetricGoalEntry:
+    pass
 
 
-class DimensionalMetricType(graphene.ObjectType[DimensionalMetric]):
-    id = graphene.ID(required=True)
-    name = graphene.String(required=True)
-    dimensions = graphene.List(graphene.NonNull(MetricDimensionType), required=True)
-    values = graphene.List(graphene.Float, required=True)
-    years = graphene.List(graphene.NonNull(graphene.Int), required=True)
-    unit = graphene.Field('paths.schema.UnitType', required=True)
-    stackable = graphene.Boolean(required=True)
-    forecast_from = graphene.Int(required=False)
-    goals = graphene.List(graphene.NonNull(DimensionalMetricGoalEntry), required=True)
-    normalized_by = graphene.Field('nodes.schema.NodeType', required=False)
-    kind = graphene.Field
+@register_strawberry_type
+@sb.experimental.pydantic.type(model=NormalizerNode, all_fields=True)
+class NormalizerNodeType:
+    pass
+
+
+@register_strawberry_type
+@sb.experimental.pydantic.type(model=DimensionalMetric, fields=[
+    'name', 'dimensions', 'values', 'years', 'stackable', 'forecast_from',
+    'goals', 'normalized_by'
+])
+class DimensionalMetricType:
+    id: sb.ID
+    # id = graphene.ID(required=True)
+    # name = graphene.String(required=True)
+    # dimensions = graphene.List(graphene.NonNull(MetricDimensionType), required=True)
+    # values = graphene.List(graphene.Float, required=True)
+    # years = graphene.List(graphene.NonNull(graphene.Int), required=True)
+    # unit = graphene.Field('paths.schema.UnitType', required=True)
+    # stackable = graphene.Boolean(required=True)
+    # forecast_from = graphene.Int(required=False)
+    # goals = graphene.List(graphene.NonNull(DimensionalMetricGoalEntry), required=True)
+    # normalized_by = graphene.Field('nodes.schema.NodeType', required=False)
+    # _unit: sb.Private[UnitType]
+
+    @sb.field
+    def unit(self) -> SBUnit:
+        ut = SBUnit(unit=self._unit)  # type: ignore
+        #ut.unit = self._unit
+        return ut
 
 
 ActionDecisionLevel = graphene.Enum.from_enum(DecisionLevel)
@@ -350,6 +375,7 @@ class NodeGoal(graphene.ObjectType[YearlyValueProtocol]):
 @register_strawberry_type
 @sb.experimental.pydantic.interface(model=viz.VisualizationEntry)
 class VisualizationEntry:
+    id: sb.ID
     label: str | None
 
 
@@ -368,6 +394,17 @@ class VisualizationNodeOutput(VisualizationEntry):
     desired_outcome: viz.DesiredOutcome
     dimensions: list[VisualizationNodeDimension]
     scenarios: list[str] | None = None
+
+    @sb.field
+    def metric_dim(self, info: sb.Info) -> DimensionalMetricType | None:
+        e = cast(viz.VisualizationNodeOutput, self)
+        req: GQLInstanceContext = info.context
+        dm = e.get_metric_data(req.instance.context.nodes[self.node_id])
+        if dm is None:
+            return None
+        out = DimensionalMetricType.from_pydantic(dm)
+        out._unit = dm._unit
+        return out
 
 
 @register_strawberry_type

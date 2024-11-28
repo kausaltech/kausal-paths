@@ -1,6 +1,7 @@
 # ruff: noqa: ANN401
 from __future__ import annotations
 
+from dataclasses import KW_ONLY, dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Annotated, ClassVar, Literal, Self
 
@@ -11,6 +12,7 @@ import polars as pl
 
 from paths.pydantic import (
     DimensionCategoryIdentifier,
+    InvalidContextError,
     NodeIdentifier,
     NodeOutputDimensionIdentifier,
     NodeOutputMetricIdentifier,
@@ -18,7 +20,6 @@ from paths.pydantic import (
     UniqueList,
     ValidationContext,
     require_node_context,
-    require_validation_context,
 )
 
 from common.i18n import I18nBaseModel, I18nStringInstance
@@ -28,6 +29,13 @@ if TYPE_CHECKING:
     from common.polars import PathsDataFrame
     from nodes.metric import DimensionalMetric
     from nodes.node import Node
+
+
+@dataclass(slots=True)
+class VisualizationValidationContext(ValidationContext):
+    _: KW_ONLY
+    root_node: Node
+    id_counter: int = field(default=0)
 
 
 class VisualizationNodeDimension(BaseModel):
@@ -67,9 +75,31 @@ class VisualizationKind(str, Enum):
     group = 'group'
 
 
+def require_validation_context(info: ValidationInfo) -> VisualizationValidationContext:
+    if not isinstance(info.context, VisualizationValidationContext):
+        raise InvalidContextError('Context is required')
+    return info.context
+
+
+AUTO_ID = 'auto'
+
+
 class VisualizationEntry(I18nBaseModel):
+    id: str = Field(default=AUTO_ID)
     kind: VisualizationKind
     label: I18nStringInstance | None = None
+
+    def make_id(self, ctx: VisualizationValidationContext) -> str:
+        s = f'{ctx.root_node.id}:{ctx.id_counter}'
+        ctx.id_counter += 1
+        return s
+
+    @model_validator(mode='after')
+    def set_id(self, info: ValidationInfo) -> Self:
+        if self.id == AUTO_ID:
+            ctx = require_validation_context(info)
+            self.id = self.make_id(ctx)
+        return self
 
 
 class VisualizationNodeOutput(VisualizationEntry):
@@ -102,12 +132,12 @@ class VisualizationNodeOutput(VisualizationEntry):
                 raise ValueError(f'Must provider output metric id for {node.id}')
         return val
 
-    def get_metric(self, node: Node) -> DimensionalMetric:
+    def get_metric_data(self, node: Node) -> DimensionalMetric | None:
         from nodes.metric import DimensionalMetric
         assert node.id == self.node_id
         metric = DimensionalMetric.from_visualization(node, self)
         if metric is None:
-            raise ValueError(f'Unable to generate metric output for {node.id}')
+            return None
         return metric
 
     def get_output(self, node: Node) -> PathsDataFrame:
@@ -139,5 +169,5 @@ type VisualizationEntryType = Annotated[VisualizationGroup | VisualizationNodeOu
 
 
 class NodeVisualizations(RootModel):
-    ValidationContext: ClassVar = ValidationContext
+    ValidationContext: ClassVar = VisualizationValidationContext
     root: list[VisualizationEntryType] = Field(default_factory=list)

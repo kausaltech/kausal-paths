@@ -564,7 +564,7 @@ class InstanceLoader:
     def _make_node_visualizations(self, node: Node, config: list[dict]) -> None:
         from nodes.visualizations import NodeVisualizations
 
-        ctx = NodeVisualizations.ValidationContext(context=self.context, node=None)
+        ctx = NodeVisualizations.ValidationContext(context=self.context, node=None, root_node=node)
         try:
             node.visualizations = NodeVisualizations.model_validate(config, context=ctx)
         except Exception as e:

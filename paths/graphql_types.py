@@ -3,10 +3,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import graphene
+import strawberry as sb
 from django.utils.translation import get_language
 from graphene_django.converter import convert_django_field, get_django_field_description
 
 from babel import Locale
+
+from kausal_common.strawberry.registry import register_strawberry_type
 
 from paths.utils import UnitField
 
@@ -84,6 +87,30 @@ class UnitType(graphene.ObjectType):
         return format_unit(root, long=True, html=True)
 
 
+@register_strawberry_type
+@sb.type
+class SBUnit:
+    unit: sb.Private[Unit]
+
+    @sb.field
+    def short(self) -> str:
+        return format_unit(self.unit, html=False)
+
+    @sb.field
+    def long(self) -> str:
+        return format_unit(self.unit, long=True, html=False)
+
+    @sb.field
+    def html_short(self) -> str:
+        return format_unit(self.unit, long=False, html=True)
+
+    @sb.field
+    def html_long(self) -> str:
+        return format_unit(self.unit, long=True, html=True)
+
+
 @convert_django_field.register(UnitField)  # pyright: ignore
 def convert_unit_field(field, registry=None):
-    return graphene.Field(UnitType, description=get_django_field_description(field), required=not field.null)
+    return graphene.Field(
+        UnitType, description=get_django_field_description(field), required=not field.null,
+    )
