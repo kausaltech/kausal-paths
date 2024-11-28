@@ -263,15 +263,24 @@ def validate_translated_string(cls: type[BaseModel], field_name: str, obj: dict)
     return ts
 
 
+def is_i18n_field(type_: type[Any] | TypeAliasType | types.UnionType | None) -> bool:
+    if type_ is TranslatedString:
+        return True
+    if isinstance(type_, TypeAliasType):
+        type_ = type_.__value__
+    if isinstance(type_, types.UnionType):
+        for arg in typing.get_args(type_):
+            if is_i18n_field(arg):
+                return True
+    return False
+
+
 class I18nBaseModel(BaseModel, abc.ABC):
     @model_validator(mode='before')
     @classmethod
     def validate_translated_fields(cls, val: dict) -> dict[str, Any]:
         val = val.copy()
         for fn, f in cls.model_fields.items():
-            t = f.annotation
-            if isinstance(t, TypeAliasType):
-                t = t.__value__
-            if isinstance(t, types.UnionType) and TranslatedString in typing.get_args(t):
-                val[fn] = validate_translated_string(cls, fn, val)  # type: ignore
+            if is_i18n_field(f.annotation):
+                val[fn] = validate_translated_string(cls, fn, val)
         return val
