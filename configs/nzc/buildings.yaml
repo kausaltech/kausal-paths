@@ -159,7 +159,7 @@ nodes:
   input_datasets:
   - id: nzc/defaults
   params:
-    sector: 'Energy efficiency of new buildings, Share'
+    sector: Share of new buildings built
     inventory_only: true
 
 - id: new_building_shares_goal
@@ -184,7 +184,7 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets: [nzc/defaults]
   params:
-    sector: Share of new buildings built # new building shares # 
+    sector: Share of new buildings built
 
 - id: demolition_rate
   name_en: Demolition rate
