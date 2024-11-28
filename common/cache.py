@@ -303,9 +303,6 @@ class CacheRun:
                 lru_discarded=self.cache.local.discarded // 1024,
             )
 
-    def __del__(self):
-        self.cache.log.debug('Run destroyed')
-
     def get(self, key: str) -> object | None:
         obj = self.store.get(key)
         if obj is None:
