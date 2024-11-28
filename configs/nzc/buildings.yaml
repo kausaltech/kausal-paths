@@ -79,6 +79,7 @@ nodes:
       label: Heating demand
       node_id: building_heat_energy_use
       desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
       dimensions:
       - id: heating_type
         flatten: true
@@ -94,6 +95,7 @@ nodes:
       label: Fossil fuel usage in district heating
       node_id: building_heat_fossil_ratio
       desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
       dimensions:
       - id: fuel_type
         categories: [fossil]
@@ -181,7 +183,7 @@ nodes:
   output_dimensions: [building_energy_class]
   input_datasets: [nzc/defaults]
   params:
-    sector: Share of new buildings built # new building shares #
+    sector: Share of new buildings built
 
 - id: demolition_rate
   name_en: Demolition rate

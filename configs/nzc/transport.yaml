@@ -80,6 +80,7 @@ nodes:
       label: Car transport need
       node_id: passenger_kilometres
       desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
       dimensions:
       - id: transport_mode
         categories: [cars]
@@ -88,6 +89,7 @@ nodes:
       label: Electrification of passenger vehicles
       node_id: fully_electric_car_share
       desired_outcome: increasing
+      scenarios: [default, progress_tracking]
       dimensions:
       - id: energy_carrier
         categories: [electricity]
@@ -102,6 +104,7 @@ nodes:
       label: Bus transport need
       node_id: passenger_kilometres
       desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
       dimensions:
       - id: transport_mode
         categories: [buses]
@@ -110,6 +113,7 @@ nodes:
       label: Electrification of buses
       node_id: fully_electric_bus_share
       desired_outcome: increasing
+      scenarios: [default, progress_tracking]
       dimensions:
       - id: energy_carrier
         categories: [electricity]
@@ -124,6 +128,7 @@ nodes:
       label: Light truck freight transport need
       node_id: freight_transport_need
       desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
       dimensions:
       - id: transport_mode
         categories: [light_trucks]
@@ -132,6 +137,7 @@ nodes:
       label: Electrification of light trucks
       node_id: freight_transport_energy_carrier_shares
       desired_outcome: increasing
+      scenarios: [default, progress_tracking]
       dimensions:
       - id: energy_carrier
         categories: [electricity]
@@ -146,6 +152,7 @@ nodes:
       label: Heavy truck freight transport need
       node_id: freight_transport_need
       desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
       dimensions:
       - id: transport_mode
         categories: [heavy_trucks]
@@ -154,6 +161,7 @@ nodes:
       label: Electrification of heavy trucks
       node_id: freight_transport_energy_carrier_shares
       desired_outcome: increasing
+      scenarios: [default, progress_tracking]
       dimensions:
       - id: energy_carrier
         categories: [electricity]

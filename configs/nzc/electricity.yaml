@@ -108,6 +108,7 @@ nodes:
       label: Total electricity consumption
       node_id: total_electricity_consumption
       desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
       dimensions:
       - id: sector
         flatten: true
@@ -117,6 +118,7 @@ nodes:
       label: Fossil fuel usage in district heating
       node_id: building_heat_fossil_ratio
       desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
       dimensions:
       - id: fuel_type
         categories: [fossil]
