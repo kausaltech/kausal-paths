@@ -17,6 +17,7 @@ owner_en: City of Lappeenranta
 emission_unit: kt/a
 target_year: 2030
 model_end_year: 2045
+reference_year: 2022
 minimum_historical_year: 2022
 maximum_historical_year: 2022
 emission_forecast_from: 2023
