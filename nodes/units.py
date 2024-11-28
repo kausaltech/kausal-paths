@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import os
 import re
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterable, Optional, Tuple, TypeAlias, Unpack, cast
+from typing import TYPE_CHECKING, Any, Unpack, cast
 
 import pint
 import platformdirs
@@ -45,6 +46,8 @@ def split_specifier(name: str) -> tuple[str, str | None]:
 class Unit(pint.registry.Unit):
     pass
 
+type PathsUnit = Unit
+
 
 class Quantity(pint.registry.Quantity):
     pass
@@ -64,12 +67,12 @@ class CachingUnitRegistry(  # type: ignore[misc]
     facets.GenericPlainRegistry[Quantity, Unit],
 ):
     unit_cache: dict[str, Unit] | None = None
-    Unit: TypeAlias = Unit
-    Quantity: TypeAlias = Quantity
     html_formatter: PathsHTMLFormatter
     pretty_formatter: PathsPrettyFormatter
+    Unit = Unit
+    Quantity = Quantity
 
-    def parse_units(self, input_string: str, as_delta: bool | None = None, case_sensitive: bool | None = None) -> Unit:
+    def parse_units(self, input_string: str, as_delta: bool | None = None, case_sensitive: bool | None = None) -> PathsUnit:
         if self.unit_cache is None:
             self.unit_cache = dict()
         cached_unit = self.unit_cache.get(input_string)
@@ -140,7 +143,7 @@ def prepare_units_for_babel(unit: Unit, html: bool = False):
 
 
 class PathsHTMLFormatter(HTMLFormatter):
-    def format_unit(  # type: ignore
+    def format_unit(
         self,
         unit: PlainUnit | Iterable[tuple[str, Any]],
         uspec: str = "",
@@ -212,7 +215,7 @@ def format_paths_long(unit, registry, **options):
 @register_unit_format("~Z")
 def format_paths_short(unit, registry, **options):
     return _format_paths_html(unit, registry, short=True, **options)
-"""
+"""  # noqa: RUF001
 
 def define_custom_units(unit_registry: CachingUnitRegistry):
     # By default, kt is knots, but here kilotonne is the most common
@@ -225,6 +228,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     # Mega-kilometers is often used for mileage
     Mkm = gigameters
     EUR = [currency]
+    MEUR = megaEUR
     CAD = nan EUR
     USD = nan EUR
     SEK = 0.1 EUR
@@ -324,6 +328,8 @@ def add_unit_translations():
     #set_one('cap', pgettext_lazy('capita short', 'cap'))
     kt_str = pgettext_lazy('kilotonne short', 'kt')
     set_one('kt', kt_str, kt_str)
+
+    set_one('MEUR', long=_('million €'), short='M€')
 
     loc = Loc('de')
     loc._data['unit_patterns']['duration-year']['short'] = dict(one='a')
