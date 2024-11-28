@@ -7,6 +7,8 @@ from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Unpack, cast
 
+from pydantic_core import core_schema
+
 import pint
 import platformdirs
 from loguru import logger
@@ -25,6 +27,8 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from django.utils.functional import _StrPromise as StrPromise  # pyright: ignore
+    from pydantic import GetCoreSchemaHandler
+    from pydantic_core import CoreSchema
 
     from pint.facets.plain import PlainUnit
 
@@ -44,7 +48,12 @@ def split_specifier(name: str) -> tuple[str, str | None]:
 
 
 class Unit(pint.registry.Unit):
-    pass
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source_type: Any, handler: GetCoreSchemaHandler  # noqa: ANN401
+    ) -> CoreSchema:
+        return core_schema.no_info_after_validator_function(cls, handler(str))
+
 
 type PathsUnit = Unit
 

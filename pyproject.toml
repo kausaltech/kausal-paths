@@ -26,6 +26,7 @@ plugins = [
   "mypy_django_plugin.main",
   "numpy.typing.mypy_plugin",
   "pydantic.mypy",
+  "strawberry.ext.mypy_plugin"
 ]
 mypy_path = "$MYPY_CONFIG_FILE_DIR/kausal_common/typings"
 exclude = ['^Attic/', '/migrations/', '^local_settings\.py', '^\.*env*']
