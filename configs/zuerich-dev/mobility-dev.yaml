@@ -380,7 +380,7 @@ nodes:
       flatten: true
   input_dataset_processors: [LinearInterpolation]
 
-# ----- Infrastructure Emissions -----
+# ----- Infrastructure & Supply Chain Emissions -----
 
 - id: transportation_infrastructure_emissions_per_capita
   name_de: Transportation infrastructure emissions per capita
@@ -413,6 +413,35 @@ nodes:
     from_dimensions:
     - id: emission_sectors
       flatten: true
+
+- id: transportation_supply_chain_emissions_per_capita
+  name_de: Transportation energy supply chain emissions per capita
+  name_en: Transportation energy supply chain emissions per capita
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/cap/a
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  input_datasets:
+  - id: zuerich/transportation_energy_supply_chain_emissions
+  input_dataset_processors: [LinearInterpolation]
+
+- id: transportation_supply_chain_emissions
+  name_de: Treibhausgasemissionen Energie-Vorketten
+  name_en: Energy supply chain emissions
+  short_name_de: Energie-Vorketten
+  short_name_en: Energy supply chain
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  unit: kt/a
+  input_nodes:
+  - id: transportation_supply_chain_emissions_per_capita
+  - id: population
+    to_dimensions: []
+  output_nodes:
+  - id: transportation_emissions
 
 # ----- Vehicle Kilometers Inside the City -----
 
