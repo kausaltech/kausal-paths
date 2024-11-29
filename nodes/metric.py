@@ -535,13 +535,13 @@ class DimensionalMetric(BaseModel):
                     if cat.id not in dim.cats_by_original_id:
                         return None
 
-                cat_ids += [make_id(dim.id, 'cat', cat.id) for cat in node_dim_cats]
-                group_ids.append(make_id(dim.id, 'group', grp_id))
+                cat_ids += [make_id(dim.original_id, 'cat', cat.id) for cat in node_dim_cats]
+                group_ids.append(make_id(dim.original_id, 'group', grp_id))
 
             for cat_id in goal_dim.categories:
                 if cat_id not in dim.cats_by_original_id:
                     return None
-                cat_ids.append(make_id(dim.id, 'cat', cat_id))
+                cat_ids.append(make_id(dim.original_id, 'cat', cat_id))
 
         return MetricDimensionGoal(
             categories=cat_ids,
