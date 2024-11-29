@@ -762,7 +762,11 @@ nodes:
   short_name_de: Motorisierter Individualverkehr (MIV)
   short_name_en: Individual motor transport
   type: ch.zuerich.TransportEmissions
-  input_nodes: [transport_emission_factor]
+  input_nodes:
+  - id: transport_emission_factor
+    from_dimensions:
+    - id: emission_scope
+      groups: [direct]
   output_nodes:
   - id: transportation_emissions_inside_city
     from_dimensions:
@@ -777,7 +781,11 @@ nodes:
   short_name_de: Öffentlicher Verkehr (ÖV)
   short_name_en: Public transportation
   type: ch.zuerich.TransportEmissions
-  input_nodes: [transport_emission_factor]
+  input_nodes:
+  - id: transport_emission_factor
+    from_dimensions:
+    - id: emission_scope
+      groups: [direct]
   output_nodes:
   - id: transportation_emissions_inside_city
     from_dimensions:
@@ -792,7 +800,11 @@ nodes:
   short_name_de: Güterverkehr
   short_name_en: Goods transport
   type: ch.zuerich.TransportEmissions
-  input_nodes: [transport_emission_factor]
+  input_nodes:
+  - id: transport_emission_factor
+    from_dimensions:
+    - id: emission_scope
+      groups: [direct]
   output_nodes:
   - id: transportation_emissions_inside_city
     from_dimensions:
@@ -807,7 +819,11 @@ nodes:
   short_name_de: Übriger Verkehr
   short_name_en: Other transportation
   type: ch.zuerich.TransportEmissions
-  input_nodes: [transport_emission_factor]
+  input_nodes:
+  - id: transport_emission_factor
+    from_dimensions:
+    - id: emission_scope
+      groups: [direct]
   output_nodes:
   - id: transportation_emissions_inside_city
     from_dimensions:

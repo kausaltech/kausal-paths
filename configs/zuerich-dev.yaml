@@ -390,7 +390,7 @@ nodes:
   quantity: fuel_consumption
   unit: kg/a
   input_dimensions: [non_road_machinery, energy_carrier]
-  output_dimensions: [energy_carrier, non_road_machinery]
+  output_dimensions: [non_road_machinery, energy_carrier]
   input_datasets:
   - id: zuerich/non_road_machinery_fuel_consumption
   input_dataset_processors: [LinearInterpolation]
@@ -415,17 +415,22 @@ nodes:
   type: ch.zuerich.NonroadMachineryEmissions
   quantity: emissions
   unit: kt/a
-  input_dimensions: [non_road_machinery, energy_carrier]
-  output_dimensions: [non_road_machinery, energy_carrier]
+  input_dimensions: [non_road_machinery, energy_carrier, emission_scope]
+  output_dimensions: [non_road_machinery, energy_carrier, emission_scope]
   input_nodes:
   - id: non_road_machinery_fuel_consumption
     tags: [fuel]
+    to_dimensions:
+    - id: non_road_machinery
+    - id: energy_carrier
   - id: non_road_machinery_emission_factors
     tags: [emission_factor]
     to_dimensions:
     - id: energy_carrier
     - id: non_road_machinery
     - id: greenhouse_gases
+    - id: emission_scope
+      categories: [scope1]
   output_nodes:
   - id: transportation_emissions_inside_city
     from_dimensions:
@@ -433,9 +438,6 @@ nodes:
       flatten: true
     - id: energy_carrier
       flatten: true
-    to_dimensions:
-    - id: emission_scope
-      categories: [scope1]
 
 - id: non_road_machinery_end_energy_consumption
   name_de: Baumaschinen und Spezialfahrzeuge End Energy Consumption
@@ -471,11 +473,6 @@ nodes:
   input_nodes:
   - id: non_road_machinery_emissions
     tags: [emissions]
-    to_dimensions:
-    - id: emission_scope
-      categories: [scope1]
-    - id: energy_carrier
-    - id: non_road_machinery
   - id: non_road_machinery_end_energy_consumption
     tags: [consumption]
     to_dimensions:
@@ -1525,7 +1522,7 @@ actions:
   unit: kt/a
   output_nodes:
   - id: non_road_machinery_emissions
-  output_dimensions: [non_road_machinery, energy_carrier]
+  output_dimensions: [non_road_machinery, energy_carrier, emission_scope]
   params:
   - id: reduce
     unit: kt/a
@@ -1535,6 +1532,7 @@ actions:
         categories:
           non_road_machinery: civil_construction_machinery
           energy_carrier: diesel
+          emission_scope: scope1
       amounts:
       - year: 2029
         amount: 0
@@ -1549,6 +1547,7 @@ actions:
         categories:
           non_road_machinery: industrial_vehicles
           energy_carrier: diesel
+          emission_scope: scope1
       amounts:
       - year: 2029
         amount: 0
@@ -1562,6 +1561,7 @@ actions:
         categories:
           non_road_machinery: industrial_vehicles
           energy_carrier: petrol
+          emission_scope: scope1
       amounts:
       - year: 2029
         amount: 0
@@ -1576,6 +1576,7 @@ actions:
         categories:
           non_road_machinery: building_construction_machinery
           energy_carrier: diesel
+          emission_scope: scope1
       amounts:
       - year: 2029
         amount: 0
@@ -1589,6 +1590,7 @@ actions:
         categories:
           non_road_machinery: forestry_vehicles
           energy_carrier: diesel
+          emission_scope: scope1
       amounts:
       - year: 2029
         amount: 0
@@ -1602,6 +1604,7 @@ actions:
         categories:
           non_road_machinery: agricultural_vehicles
           energy_carrier: diesel
+          emission_scope: scope1
       amounts:
       - year: 2029
         amount: 0
