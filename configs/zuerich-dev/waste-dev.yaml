@@ -30,7 +30,7 @@ nodes:
   input_datasets:
   - id: zuerich/waste_incineration
     column: share_of_ccs
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: waste_incineration_plants
       value: hagenholz
@@ -41,7 +41,7 @@ nodes:
   name_de: Anteil abgeschiedenes CO2 bei der Klärschlammverwertungsanlage
   name_en: Share of CO2 captured with CCS in sewage sludge processing
   type: simple.AdditiveNode
-  historical_values: [[2015, 0], [2022, 0]]
+  historical_values: [[2015, 0], [2023, 0]]
   input_dataset_processors: [LinearInterpolation]
   unit: '%'
   quantity: ratio
@@ -200,6 +200,10 @@ nodes:
   input_dimensions: [greenhouse_gases]
   input_datasets:
   - id: zuerich/biogas_processing_emissions
+    filters:
+    - column: greenhouse_gases
+      value: co2_biogen
+      drop_col: false
   input_dataset_processors: [LinearInterpolation]
 
 - id: biogas_processing_ccs_share
@@ -209,7 +213,7 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   unit: '%'
   quantity: ratio
-  historical_values: [[2010, 0], [2025, 0]]
+  historical_values: [[2010, 0], [2023, 0]]
 
 - id: biogas_processing_emissions
   name_en: Biogas processing emissions
@@ -233,7 +237,7 @@ nodes:
     - id: emission_scope
       categories: [negative_emissions]
   params:
-    capture_efficiency: 85
+    capture_efficiency: 94
     storage_efficiency: 100
 
 - id: waste_treatment_emissions

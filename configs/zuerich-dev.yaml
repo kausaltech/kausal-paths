@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich-dev.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: dd53740df8e24e0311fd782f8aa7074717476554
+  commit: 8fdbda29ac879c7cacaf5418d599dc8bece897ef
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero Cockpit
@@ -1644,7 +1644,7 @@ actions:
     - target:
         node: waste_incineration_ccs_share
       amounts:
-      - year: 2023
+      - year: 2024
         amount: 0
       - year: 2034
         amount: 0
@@ -1670,13 +1670,13 @@ actions:
     - target:
         node: sewage_sludge_processing_ccs_share
       amounts:
-      - year: 2023
+      - year: 2024
+        amount: 0
+      - year: 2028
         amount: 0
       - year: 2029
-        amount: 0
+        amount: 85.5
       - year: 2030
-        amount: 91
-      - year: 2031
         amount: 0
 
 - id: ccs_biogas_processing
@@ -1688,7 +1688,7 @@ actions:
   parent: install_waste_treatment_ccs
   unit: '%'
   output_nodes: [biogas_processing_ccs_share]
-  forecast_values: [[2030, 100]]
+  forecast_values: [[2029, 100]]
 
 - id: cleaner_electricity_production
   group: other
