@@ -150,7 +150,7 @@ nodes:
     - id: scope
 
 - id: i11_residential_fuel_consumption_emissions
-  name: Emissionen aus Brennstoffverbrauch Wohngebäude
+  name: Emissionen aus Wärmeenergie (ohne Fernwärme)
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
@@ -202,7 +202,7 @@ nodes:
     - id: scope
 
 - id: i12_residential_grid_energy_consumption_emissions
-  name: Emissionen aus Netzenergieverbrauch Wohngebäude
+  name: Emissionen aus Fernwärme
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
@@ -330,7 +330,7 @@ nodes:
     - id: scope
 
 - id: ii11_onroad_transport_fuel_consumption_emissions
-  name: Emissionen aus Brennstoffverbrauch Straßenverkehr
+  name: Emissionen aus Brennstoffverbrauch Verkehr
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
@@ -383,7 +383,7 @@ nodes:
     - id: scope
 
 - id: ii12_onroad_transport_grid_energy_consumption_emissions
-  name: Emissionen aus Netzenergieverbrauch Straßenverkehr
+  name: Emissionen aus Stromverbrauch ÖPNV
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
@@ -417,7 +417,7 @@ nodes:
     - id: scope
 
 - id: i11_residential_fuel_total_emissions
-  name: Emissionen aus Wärmeenergie (inkl. alle Energieträger)
+  name: Emissionen aus Wärmeenergie (ohne Fernwärme)
   name_en: Emissions from Heating Energy (i.p. incl. ALL; district too)
   type: simple.AdditiveNode
   quantity: emissions
@@ -432,7 +432,7 @@ nodes:
     - id: ghg
 
 - id: i12_residential_grid_energy_total_emissions
-  name: Gesamtemissionen Netzenergieverbrauch Wohngebäude
+  name: Emissionen aus Fernwärme
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -446,7 +446,7 @@ nodes:
     - id: ghg
 
 - id: i1_residential_total_emissions
-  name: Gesamtemissionen Wohngebäude
+  name: Gesamtemissionen Wärmesektor
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -460,7 +460,7 @@ nodes:
     - id: ghg
 
 - id: i42_energy_grid_energy_total_emissions
-  name: Gesamtemissionen Netzenergieverbrauch Energiesektor
+  name: Gesamtemissionen Stromsektor
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -536,7 +536,7 @@ nodes:
     - id: ghg
 
 - id: ii1_onroad_transport_total_emissions
-  name: Gesamtemissionen Straßenverkehr
+  name: Gesamtemissionen Verkehrssektor
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
