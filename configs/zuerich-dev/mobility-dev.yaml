@@ -140,7 +140,7 @@ dimensions:
     label_en: Micromobility
     id_match: ^micromobility.*
   - id: off_non_road
-    label: Off-/Non-Road
+    label: Baumaschinen und Spezialfahrzeuge
     label_en: Off-/Non-Road
     id_match: ^off_non_road.*
 
@@ -336,16 +336,16 @@ dimensions:
     label_en: E-scooter
 
   - id: off_non_road_petrol
-    label: Off-/Non-Road / Benzin
+    label: Baumaschinen und Spezialfahrzeuge / Benzin
     label_en: Off-/Non-Road / Petrol
   - id: off_non_road_diesel
-    label: Off-/Non-Road / Diesel
+    label: Baumaschinen und Spezialfahrzeuge / Diesel
     label_en: Off-/Non-Road / Diesel
   - id: off_non_road_natural_gas_biogas
-    label: Off-/Non-Road / Erdgas/Biogas
+    label: Baumaschinen und Spezialfahrzeuge / Erdgas/Biogas
     label_en: Off-/Non-Road / Natural gas/biogas
   - id: off_non_road_battery_electric
-    label: Off-/Non-Road / Elektrisch
+    label: Baumaschinen und Spezialfahrzeuge / Elektrisch
     label_en: Off-/Non-Road / Battery-Electric
 
 nodes:
