@@ -18,7 +18,7 @@ nodes:
   input_datasets:
   - id: zuerich/waste_incineration
     column: amount_of_waste
-    forecast_from: 2023
+    forecast_from: 2024
   unit: t/a
   quantity: mass
   output_dimensions: [waste_incineration_plants]
@@ -105,7 +105,10 @@ nodes:
     to_dimensions:
     - id: waste_incineration_plants
     tags: [amount]
-  input_datasets: [zuerich/waste_incineration, zuerich/waste_incineration_emission_factors]
+  input_datasets:
+  - id: zuerich/waste_incineration
+    forecast_from: 2024
+  - id: zuerich/waste_incineration_emission_factors
 
 - id: solid_waste_treatment_emissions
   name_en: Solid waste incineration emissions
