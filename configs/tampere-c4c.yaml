@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://tampere-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: c1a17d73f01aaf4125441ea1fad697bf3f834001
+  commit: b16407261d4506e31f08289b06c6c78715a567eb
   dvc_remote: kausal-s3
 name: C4C Hiilineutraali Tampere 2030
 name_en: C4C Carbon-neutral Tampere 2030
@@ -466,6 +466,35 @@ nodes:
     - id: energy_carrier
     - id: scope
 
+- id: district_heating_energy_consumption_price
+  name: Kaukolämmön energiankulutuksen kustannukset
+  name_en: District heating energy consumption cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [heating, energy_carrier, scope, owner, cost_type]
+  output_dimensions: [heating, energy_carrier, scope, owner, cost_type]
+  input_nodes:
+  - id: district_heating_energy_consumption
+    to_dimensions:
+    - id: heating
+    - id: energy_carrier
+    - id: scope
+  - id: energy_unit_prices
+    to_dimensions:
+    - id: energy_carrier
+    - id: owner
+    - id: cost_type
+  output_nodes:
+  - id: building_heating_price
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+
 - id: district_heating_emissions
   name: Kaukolämmön päästöt
   name_en: District heating emissions
@@ -579,6 +608,35 @@ nodes:
     - id: energy_carrier
     - id: scope
 
+- id: oil_heating_energy_consumption_price
+  name: Öljylämmityksen energiankulutuksen kustannukset
+  name_en: Oil heating energy consumption cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [heating, energy_carrier, scope, owner, cost_type]
+  output_dimensions: [heating, energy_carrier, scope, owner, cost_type]
+  input_nodes:
+  - id: oil_heating_energy_consumption
+    to_dimensions:
+    - id: heating
+    - id: energy_carrier
+    - id: scope
+  - id: energy_unit_prices
+    to_dimensions:
+    - id: energy_carrier
+    - id: owner
+    - id: cost_type
+  output_nodes:
+  - id: building_heating_price
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+
 - id: oil_heating_emissions
   name: Öljylämmityksen päästöt
   name_en: Oil heating emissions
@@ -649,6 +707,35 @@ nodes:
     - id: energy_carrier
     - id: scope
 
+- id: geothermal_heating_electricity_consumption_price
+  name: Maalämmön sähkönkulutuksen kustannukset
+  name_en: Geothermal heating electricity consumption cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [heating, energy_carrier, scope, owner, cost_type]
+  output_dimensions: [heating, energy_carrier, scope, owner, cost_type]
+  input_nodes:
+  - id: geothermal_heating_electricity_consumption
+    to_dimensions:
+    - id: heating
+    - id: energy_carrier
+    - id: scope
+  - id: energy_unit_prices
+    to_dimensions:
+    - id: energy_carrier
+    - id: owner
+    - id: cost_type
+  output_nodes:
+  - id: building_heating_price
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+
 - id: geothermal_heating_emissions
   name: Maalämmön päästöt
   name_en: Geothermal heating emissions
@@ -713,6 +800,35 @@ nodes:
     - id: energy_carrier
     - id: scope
 
+- id: direct_electric_heating_electricity_consumption_price
+  name: Suorasähkölämmityksen sähkönkulutuksen kustannukset
+  name_en: Direct electric heating electricity consumption cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [heating, energy_carrier, scope, owner, cost_type]
+  output_dimensions: [heating, energy_carrier, scope, owner, cost_type]
+  input_nodes:
+  - id: direct_electric_heating_electricity_consumption
+    to_dimensions:
+    - id: heating
+    - id: energy_carrier
+    - id: scope
+  - id: energy_unit_prices
+    to_dimensions:
+    - id: energy_carrier
+    - id: owner
+    - id: cost_type
+  output_nodes:
+  - id: building_heating_price
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+
 - id: direct_electric_heating_emissions
   name: Suorasähkölämmityksen päästöt
   name_en: Direct electric heating emissions
@@ -774,6 +890,32 @@ nodes:
     - id: energy_carrier
     - id: scope
 
+- id: industrial_electricity_consumption_price
+  name: Teollisuuden sähkönkulutuksen kustannukset
+  name_en: Industrial electricity consumption cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [energy_carrier, scope, owner, cost_type]
+  output_dimensions: [energy_carrier, scope, owner, cost_type]
+  input_nodes:
+  - id: industrial_electricity_consumption
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+  - id: energy_unit_prices
+    to_dimensions:
+    - id: energy_carrier
+    - id: owner
+    - id: cost_type
+  output_nodes:
+  - id: electricity_consumption_price
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+
 - id: industrial_electricity_emission_factors
   name: Teollisuuden sähkönkulutuksen päästökerroin
   name_en: Industrial electricity emission factors
@@ -826,6 +968,32 @@ nodes:
     to_dimensions:
     - id: energy_carrier
     - id: scope
+
+- id: other_electricity_consumption_price
+  name: Muun sähkönkulutuksen kustannukset
+  name_en: Other electricity consumption cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [energy_carrier, scope, owner, cost_type]
+  output_dimensions: [energy_carrier, scope, owner, cost_type]
+  input_nodes:
+  - id: other_electricity_consumption
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+  - id: energy_unit_prices
+    to_dimensions:
+    - id: energy_carrier
+    - id: owner
+    - id: cost_type
+  output_nodes:
+  - id: electricity_consumption_price
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
 
 - id: other_electricity_emission_factors
   name: Muun sähkönkulutuksen päästökerroin
@@ -1740,6 +1908,20 @@ nodes:
   - id: maintenance_costs
 
 # ----- ECONOMY ---------------------------------------------------------------
+
+- id: energy_unit_prices
+  name: Energy unit prices
+  name_en: Energy unit prices
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/kWh
+  input_dimensions: [energy_carrier, owner, cost_type]
+  output_dimensions: [energy_carrier, owner, cost_type]
+  params:
+    gpc_sector: I
+  input_datasets:
+  - id: gpc/tampere
+    forecast_from: 2025
 
 - id: aggregate_net_price
   name: Aggregate Net Price
