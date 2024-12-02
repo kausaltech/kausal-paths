@@ -102,7 +102,7 @@ nodes:
     - id: sector
   visualizations:
   - kind: group
-    label: Drivers of building emissions
+    label: Drivers of electricity emissions
     children:
     - kind: node
       label: Total electricity consumption
@@ -115,16 +115,15 @@ nodes:
       - id: energy_carrier
         flatten: true
     - kind: node
-      label: Fossil fuel usage in district heating
-      node_id: building_heat_fossil_ratio
+      label: Fossil fuel usage in electricity production
+      node_id: electricity_shares
       desired_outcome: decreasing
       scenarios: [default, progress_tracking]
       dimensions:
       - id: fuel_type
         categories: [fossil]
         flatten: true
-      - id: heating_type
-        categories: [district_heating]
+      - id: energy_carrier
         flatten: true
 
 - id: statistical_electricity_consumption

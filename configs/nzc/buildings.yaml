@@ -103,17 +103,6 @@ nodes:
       - id: heating_type
         categories: [district_heating]
         flatten: true
-    - kind: node
-      label: Fossil fuel usage
-      node_id: electricity_shares
-      desired_outcome: decreasing
-      dimensions:
-      - id: fuel_type
-        categories: [fossil]
-        flatten: true
-      - id: energy_carrier
-        categories: [electricity]
-        flatten: true
 
 # ----------------- Building stock ----------------------
 
@@ -840,7 +829,7 @@ nodes:
   output_dimensions: [heating_type, fuel_type]
   input_nodes:
   - id: building_heat_energy_use
-    tags: [geometric_inverse, inventory_only]
+    tags: [geometric_inverse]
     from_dimensions:
     - id: building_energy_class
       flatten: true
@@ -855,7 +844,6 @@ nodes:
     to_dimensions:
     - id: heating_type
   - id: building_heat_fossil_energy
-    tags: [inventory_only]
 
 - id: heating_emission_factor
   name_en: Heating emission factor
@@ -874,7 +862,7 @@ nodes:
     - id: pollutant
     - id: heating_type
   - id: building_heat_fossil_ratio
-    tags: [geometric_inverse, empty_to_zero, extend_values]
+    tags: [inventory_only, geometric_inverse, empty_to_zero, extend_values]
     from_dimensions:
     - id: fuel_type
       categories: [fossil]

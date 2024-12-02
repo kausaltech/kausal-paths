@@ -121,54 +121,6 @@ nodes:
       - id: transport_mode
         categories: [buses]
         flatten: true
-  - kind: group
-    label: Drivers of light truck emissions
-    children:
-    - kind: node
-      label: Light truck freight transport need
-      node_id: freight_transport_need
-      desired_outcome: decreasing
-      scenarios: [default, progress_tracking]
-      dimensions:
-      - id: transport_mode
-        categories: [light_trucks]
-        flatten: true
-    - kind: node
-      label: Electrification of light trucks
-      node_id: freight_transport_energy_carrier_shares
-      desired_outcome: increasing
-      scenarios: [default, progress_tracking]
-      dimensions:
-      - id: energy_carrier
-        categories: [electricity]
-        flatten: true
-      - id: transport_mode
-        categories: [light_trucks]
-        flatten: true
-  - kind: group
-    label: Drivers of heavy truck emissions
-    children:
-    - kind: node
-      label: Heavy truck freight transport need
-      node_id: freight_transport_need
-      desired_outcome: decreasing
-      scenarios: [default, progress_tracking]
-      dimensions:
-      - id: transport_mode
-        categories: [heavy_trucks]
-        flatten: true
-    - kind: node
-      label: Electrification of heavy trucks
-      node_id: freight_transport_energy_carrier_shares
-      desired_outcome: increasing
-      scenarios: [default, progress_tracking]
-      dimensions:
-      - id: energy_carrier
-        categories: [electricity]
-        flatten: true
-      - id: transport_mode
-        categories: [heavy_trucks]
-        flatten: true
 
 # - id: transport_electricity_emissions
 #   name_en: Transport electricity emissions
