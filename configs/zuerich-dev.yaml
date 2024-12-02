@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich-dev.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 8c27a596d2e1a167d192a3b4618071aa12844422
+  commit: e4f3710b082e4f0e57c15b1f74b200ca5db6f015
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero Cockpit
@@ -18,7 +18,7 @@ model_end_year: 2040
 minimum_historical_year: 2010
 maximum_historical_year: 2020
 emission_unit: kt/a
-emission_forecast_from: 2023
+emission_forecast_from: 2024
 emission_dimensions: [emission_scope]
 emission_dataset: zuerich/emissions
 emission_sector_dimension: emission_sectors
@@ -368,7 +368,7 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: zuerich/population
-    forecast_from: 2023
+    forecast_from: 2024
 
 - id: number_of_jobs
   name_de: Beschäftigungsentwicklung (Vollzeitäquivalente)
@@ -1208,8 +1208,8 @@ actions:
     - target:
         node: residential_building_area_per_resident
       amounts:
-      - year: 2023
-        amount: 0
+      - year: 2024
+        amount: -0.04
       - year: 2028
         amount: -0.2
       - year: 2030
@@ -1221,8 +1221,8 @@ actions:
     - target:
         node: nonresidential_building_area_per_job
       amounts:
-      - year: 2023
-        amount: 0
+      - year: 2024
+        amount: -0.0214285714
       - year: 2030
         amount: -0.15
       - year: 2035
