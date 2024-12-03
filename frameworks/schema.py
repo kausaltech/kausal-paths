@@ -189,6 +189,10 @@ class FrameworkConfigType(DjangoNode):
         fields = public_fields(FrameworkConfig)
 
     @staticmethod
+    def resolve_framework(root: FrameworkConfig, info: GQLInfo) -> Framework:
+        return root.cache.fw_cache.framework
+
+    @staticmethod
     def resolve_measures(root: FrameworkConfig, info: GQLInfo) -> list[Measure]:
         root.cache.fw_cache.measure_templates.full_populate()
         return root.cache.measures.get_list()
@@ -243,13 +247,15 @@ def get_fwc_q(fwc_id: str) -> Q:
     return q
 
 
-def get_fwc(info: GQLInfo, fwc_id: str, qs: FrameworkConfigQuerySet | None = None) -> FrameworkConfig:
-    if qs is None:
-        qs = FrameworkConfig.objects.get_queryset()
-    fwc = qs.filter(get_fwc_q(fwc_id)).first()
+def get_fwc(info: GQLInfo, fwc_id: str) -> FrameworkConfig:
+    fwc = FrameworkConfig.objects.get_queryset().filter(get_fwc_q(fwc_id)).first()
     if fwc is None:
         raise GraphQLError("Framework config '%s' not found" % fwc_id, nodes=info.field_nodes)
-    return fwc
+    fw = info.context.cache.for_framework(fwc.framework)
+    fwc_cached = fw.cache.framework_configs.get(fwc.pk) if fw is not None else None
+    if fwc_cached is None:
+        raise GraphQLError("Framework config '%s' not accessible" % fwc_id, nodes=info.field_nodes)
+    return fwc_cached
 
 
 class Query(graphene.ObjectType):
@@ -317,7 +323,7 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
             q = Q(id=int(framework_id))
         else:
             q = Q(identifier=framework_id)
-        framework = Framework.objects.filter(q).first()
+        framework = info.context.cache.frameworks.first(q)
         if framework is None:
             raise GraphQLError("Framework '%s' not found" % framework_id, info.field_nodes)
         return framework
@@ -352,7 +358,9 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
             uuid=uuid,
             user=info.context.user,
         )
-        return fc
+        fc_cached = framework.cache.framework_configs.get(fc.pk)
+        assert fc_cached is not None
+        return fc_cached
 
     @classmethod
     def create_framework_config(cls, info: GQLInfo, config_input: FrameworkConfigInput) -> CreateFrameworkConfigMutation:
