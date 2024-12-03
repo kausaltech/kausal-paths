@@ -52,6 +52,17 @@ class DataFrameMeta:
     def serialize(self) -> dict[str, Any]:
         return dict(units={key: str(val) for key, val in self.units.items()}, primary_keys=self.primary_keys)
 
+    def is_equal(self, other: DataFrameMeta, ignore_order: bool = False) -> bool:
+        if self.units != other.units:
+            return False
+        if self.primary_keys != other.primary_keys:
+            if ignore_order:
+                if set(self.primary_keys) != set(other.primary_keys):
+                    return False
+            else:
+                return False
+        return True
+
 
 class PathsDataFrame(pl.DataFrame):
     _units: dict[str, Unit]

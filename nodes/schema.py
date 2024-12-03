@@ -5,13 +5,13 @@ import logging
 from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import graphene
-import sentry_sdk
 import strawberry as sb
 from graphql.error import GraphQLError
 from pydantic import BaseModel
 from wagtail.rich_text import expand_db_html
 
 import polars as pl
+import sentry_sdk
 from grapple.types.rich_text import RichText
 from grapple.types.streamfield import StreamFieldInterface
 from markdown_it import MarkdownIt
@@ -80,6 +80,7 @@ class InstanceHostnameType(graphene.ObjectType):
 
     class Meta:
         name = 'InstanceHostname'
+
 
 class ActionGroupType(graphene.ObjectType):
     id = graphene.ID(required=True)
@@ -279,6 +280,7 @@ class MetricDimensionCategoryType(graphene.ObjectType):
     id: sb.ID
     original_id: sb.ID | None
 
+
 @register_strawberry_type
 @sb.experimental.pydantic.type(model=MetricCategoryGroup, fields=['label', 'color', 'order'])
 class MetricDimensionCategoryGroupType(graphene.ObjectType):
@@ -290,9 +292,16 @@ DimensionType = graphene.Enum.from_enum(DimensionKind)
 
 
 @register_strawberry_type
-@sb.experimental.pydantic.type(model=MetricDimension, fields=[
-    'label', 'help_text', 'categories', 'groups', 'kind',
-])
+@sb.experimental.pydantic.type(
+    model=MetricDimension,
+    fields=[
+        'label',
+        'help_text',
+        'categories',
+        'groups',
+        'kind',
+    ],
+)
 class MetricDimensionType:
     id: sb.ID
     original_id: sb.ID | None
@@ -317,10 +326,10 @@ class NormalizerNodeType:
 
 
 @register_strawberry_type
-@sb.experimental.pydantic.type(model=DimensionalMetric, fields=[
-    'name', 'dimensions', 'values', 'years', 'stackable', 'forecast_from',
-    'goals', 'normalized_by'
-])
+@sb.experimental.pydantic.type(
+    model=DimensionalMetric,
+    fields=['name', 'dimensions', 'values', 'years', 'stackable', 'forecast_from', 'goals', 'normalized_by'],
+)
 class DimensionalMetricType:
     id: sb.ID
     # id = graphene.ID(required=True)
@@ -338,7 +347,7 @@ class DimensionalMetricType:
     @sb.field
     def unit(self) -> SBUnit:
         ut = SBUnit(unit=self._unit)  # type: ignore
-        #ut.unit = self._unit
+        # ut.unit = self._unit
         return ut
 
 
@@ -414,6 +423,9 @@ class VisualizationGroup(VisualizationEntry):
     children: list[VisualizationEntry]
 
 
+ScenarioKind = graphene.Enum.from_enum(ScenarioKindEnum)
+
+
 class NodeInterface(graphene.Interface):
     id = graphene.ID(required=True)
     name = graphene.String(required=True)
@@ -467,6 +479,7 @@ class NodeInterface(graphene.Interface):
     metric_dim = graphene.Field(
         DimensionalMetricType,
         with_scenarios=graphene.List(graphene.NonNull(graphene.String), required=False),
+        include_scenario_kinds=graphene.List(graphene.NonNull(ScenarioKind), required=False),
     )
 
     # TODO: input_datasets, baseline_values, context
@@ -544,7 +557,10 @@ class NodeInterface(graphene.Interface):
 
     @staticmethod
     def resolve_metric_dim(
-        root: Node, info: GQLInstanceInfo, with_scenarios: list[str] | None = None
+        root: Node,
+        info: GQLInstanceInfo,
+        with_scenarios: list[str] | None = None,
+        include_scenario_kinds: list[ScenarioKindEnum] | None = None,
     ) -> None | DimensionalMetric:
         context = info.context.instance.context
         extra_scenarios: list[Scenario] = []
@@ -555,6 +571,14 @@ class NodeInterface(graphene.Interface):
                 continue
                 raise GraphQLError('Scenario %s not found' % scenario_id, info.field_nodes)
             extra_scenarios.append(context.get_scenario(scenario_id))
+
+        for kind in include_scenario_kinds or []:
+            for scenario in context.scenarios.values():
+                if scenario.kind == kind and scenario.id not in extra_scenarios:
+                    extra_scenarios.append(scenario)
+        if include_scenario_kinds and context.active_scenario.id not in extra_scenarios:
+            extra_scenarios.append(context.active_scenario)
+
         try:
             ret = DimensionalMetric.from_node(root, extra_scenarios=extra_scenarios)
         except Exception:
@@ -802,9 +826,6 @@ class ActionNodeType(graphene.ObjectType):
         if nc.indicator_node is None:
             return None
         return nc.indicator_node.get_node(visible_for_user=info.context.user)
-
-
-ScenarioKind = graphene.Enum.from_enum(ScenarioKindEnum)
 
 
 class ScenarioType(graphene.ObjectType):

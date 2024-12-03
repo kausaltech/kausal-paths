@@ -710,13 +710,16 @@ class DimensionalMetric(BaseModel):
         first_df = scenario_dfs[0]
         meta = first_df.get_meta()
         for sdf in scenario_dfs[1:]:
-            if sdf.get_meta() != meta:
+            if not sdf.get_meta().is_equal(meta, ignore_order=True):
                 with sentry_sdk.push_scope() as scope:
-                    scope.set_context('first_meta', first_df.serialize_meta())
-                    scope.set_context('other_meta', sdf.serialize_meta())
+                    scope.set_context('scenario_dfs', dict(
+                        first=first_df.serialize_meta(),
+                        other=sdf.serialize_meta()
+                    ))
                     sentry_sdk.capture_message('Scenario dataframes have different metadata', level='error')
                 raise ValueError('Scenario dataframes have different metadata')
-        return ppl.to_ppdf(pl.concat(scenario_dfs), meta=meta)
+            first_df = first_df.paths.join_over_index(sdf)
+        return first_df
 
     @classmethod
     def from_node(
