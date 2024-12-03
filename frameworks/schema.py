@@ -143,7 +143,7 @@ class FrameworkType(DjangoNode):
 
     @staticmethod
     def resolve_measure_template(root: Framework, info: GQLInfo, id: str) -> MeasureTemplate | None:
-        return MeasureTemplate.objects.filter(section__framework=root, id=id).first()
+        return root.cache.measure_templates.first(query_pk_or_uuid(id))
 
     @staticmethod
     def resolve_configs(root: Framework, info: GQLInfo) -> list[FrameworkConfig]:
@@ -166,6 +166,12 @@ class MeasureType(DjangoNode):
         fields = public_fields(Measure)
 
     @staticmethod
+    def resolve_measure_template(root: Measure, info: GQLInfo) -> MeasureTemplate:
+        mt = root.cache.fw_cache.measure_templates.get(root.measure_template_id)
+        assert mt is not None
+        return mt
+
+    @staticmethod
     def resolve_data_points(root: Measure, info: GQLInfo) -> list[MeasureDataPoint]:
         return root.cache.measure_datapoints.by_measure(root.pk)
 
@@ -183,8 +189,9 @@ class FrameworkConfigType(DjangoNode):
         fields = public_fields(FrameworkConfig)
 
     @staticmethod
-    def resolve_measures(root: FrameworkConfig, info: GQLInfo) -> QuerySet[Measure, Measure]:
-        return root.measures.get_queryset()
+    def resolve_measures(root: FrameworkConfig, info: GQLInfo) -> list[Measure]:
+        root.cache.fw_cache.measure_templates.full_populate()
+        return root.cache.measures.get_list()
 
     @staticmethod
     def resolve_view_url(root: FrameworkConfig, info: GQLInfo) -> str | None:
