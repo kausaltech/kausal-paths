@@ -15,7 +15,7 @@ frameworks: [hsy]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 6a66a2dea3904d334c4e855def01a1f8b24c28c9
+  commit: 9ce43f6683f9050378c2c989815abd1510e369ac
   dvc_remote: kausal-s3
 name: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -29,7 +29,7 @@ model_end_year: 2035
 target_year: 2030
 reference_year: 1990
 minimum_historical_year: 2000
-maximum_historical_year: 2022
+maximum_historical_year: 2023
 features:
   baseline_visible_in_graphs: true
   show_accumulated_effects: true
@@ -309,7 +309,7 @@ nodes:
     laskennassa kehittyvän Espoon kaupungin pitkän väestöennusteen perusvaihtoehdon
     mukaisesti ja olevan 362690 vuonna 2035. Tässä työkalussa käytetään Tilastokeskuksen
     väestöennustetta, joka on 345000 vuodelle 2035. Toteutunut väestönkehitys (1990,
-    2000-2022) on saatu Tilastokeskuksen tilastoista. <a
+    2000-2022) on saatu Tilastokeskuksen tilastoista. <a 
     href="https://stat.hel.fi/pxweb/fi/Aluesarjat/Aluesarjat__vrm__ennak__umkun/Hginseutu_VA_VN02_Vaestonmuutos_ennakko.px/">Lähde</a>
   input_datasets:
   - id: statfi/StatFin/vrm/vaerak/statfin_vaerak_pxt_11re
@@ -533,7 +533,7 @@ nodes:
   input_datasets:
   - id: espoo/addition_to_traffic_emission_factor
     column: emission_factor
-    forecast_from: 2023
+    forecast_from: 2024
   output_dimensions: [vehicle]
   output_nodes:
   - id: car_traffic_emission_factor
@@ -874,9 +874,9 @@ pages:
   lead_title_sv: Esbo utsläppsscenarier
   lead_paragraph: '<p>Espoon päästöskenaariot visualisoi Espoon kasvihuonekaasupäästöjen
     kehityksen. Voit tarkastella, mistä Espoon kaupungin alueen päästöt syntyvät ja
-    kuinka niiden ennustetaan muuttuvan vuoteen 2030 mennessä. Valittavana on:
-    <ul><li><b>Suomi 2035-skenaario</b>, jossa oletetaan, että kansallisella tasolla
-    toteutettavat ilmastopolitiikan toimet ja linjaukset vaikuttavat Espoon päästökehitykseen;</li>
+    kuinka niiden ennustetaan muuttuvan vuoteen 2030 mennessä. Valittavana on: <ul><li><b>Suomi
+    2035-skenaario</b>, jossa oletetaan, että kansallisella tasolla toteutettavat
+    ilmastopolitiikan toimet ja linjaukset vaikuttavat Espoon päästökehitykseen;</li>
     <li><b>Hiilineutraali Espoo 2030-skenaario (HNE2030)</b>, jossa oletetaan, että
     kaupungin päästökehitykseen vaikuttavat kansallisten toimien lisäksi myös kaupungin
     ja sen yhteistyökumppaneiden, kuten Fortumin ja HSY:n, toteuttamat ilmastotoimet;
@@ -885,49 +885,49 @@ pages:
     <p>Espoon tavoitteena on olla hiilineutraali vuonna 2030. Ilmastotyönsä tueksi
     kaupunki kokoaa Hiilineutraali Espoo 2030 -tiekarttaa, joka kuvaa kaupungin oman
     sekä kumppaneiden ja asukkaiden kanssa tehtävän yhteistyön hiilineutraalisuustavoitteen
-    saavuttamiseksi.</p> <p>Laskentojen pohjana on hyödynnetty
-    HSY:n tuottamia päästölaskentatietoja ja niiden taustalla käytettyjä energiankulutuksen
-    tietoja. Kaupungin päästökehitys on kunkin skenaarion osalta arvioitu vuosille
-    2025, 2030 ja 2035. Lisäksi välivuosien päästöt on arvioitu pääasiassa interpoloimalla.</p>
-    <p>Työn aikana laadittu skenaariotyökalun sisältämät luvut, arviot ja laskukaavat,
-    laskentaperusteet, aikasarjat, lähtöarvot ja viitetiedot ovat vapaasti käytettävissä
-    avoimella lisenssillä CC-BY 4.0.</p> '
+    saavuttamiseksi.</p> <p>Laskentojen pohjana on hyödynnetty HSY:n tuottamia päästölaskentatietoja
+    ja niiden taustalla käytettyjä energiankulutuksen tietoja. Kaupungin päästökehitys
+    on kunkin skenaarion osalta arvioitu vuosille 2025, 2030 ja 2035. Lisäksi välivuosien
+    päästöt on arvioitu pääasiassa interpoloimalla.</p> <p>Työn aikana laadittu skenaariotyökalun
+    sisältämät luvut, arviot ja laskukaavat, laskentaperusteet, aikasarjat, lähtöarvot
+    ja viitetiedot ovat vapaasti käytettävissä avoimella lisenssillä CC-BY 4.0.</p> '
   lead_paragraph_en: '<p>Espoo emission scenarios visualise the development of Espoo’s
     greenhouse gas emissions. You can look at where emissions in the City of Espoo
-    come from and how they are predicted to change by 2030. Options available:
-    <ul><li><b>Finland 2035 scenario</b>, which assumes that the climate policy measures and
-    decisions taken at national level will affect Espoo’s emissions development;</li><li>the
+    come from and how they are predicted to change by 2030. Options available: <ul><li><b>Finland
+    2035 scenario</b>, which assumes that the climate policy measures and decisions
+    taken at national level will affect Espoo’s emissions development;</li><li>the
     <b>Carbon-neutral Espoo 2030 scenario (HNE2030)</b>, which assumes that the city’s
     emissions development will be affected not only by national measures but also
     by climate measures taken by the city and its partners, such as Fortum and HSY;
-    and</li><li>the <b>pessimistic scenario</b>, which assumes that no new emission reduction
-    measures will be planned or taken by the city.</li></ul></p> <p>Espoo’s goal is to be carbon-neutral
-    by 2030. In support of its climate work, the city is putting together the Carbon-neutral
-    Espoo 2030 roadmap, which describes the city’s own measures and cooperation with
-    partners and residents to achieve the goal of carbon neutrality.</p> <p>The calculations
-    are based on the emission calculation data produced by HSY and the energy consumption
-    data used in the background. The city’s emissions development has been estimated
-    for 2025, 2030 and 2035 for each scenario. In addition, emissions in the intervening
-    years have mainly been estimated by interpolation.</p> <p>A scenario tool was
-    developed during the work, and its figures, estimates, calculation formulas, calculation
-    bases, time series, baseline values and reference data are freely available for
-    use with open licence CC-BY 4.0.</p> '
+    and</li><li>the <b>pessimistic scenario</b>, which assumes that no new emission
+    reduction measures will be planned or taken by the city.</li></ul></p> <p>Espoo’s
+    goal is to be carbon-neutral by 2030. In support of its climate work, the city
+    is putting together the Carbon-neutral Espoo 2030 roadmap, which describes the
+    city’s own measures and cooperation with partners and residents to achieve the
+    goal of carbon neutrality.</p> <p>The calculations are based on the emission calculation
+    data produced by HSY and the energy consumption data used in the background. The
+    city’s emissions development has been estimated for 2025, 2030 and 2035 for each
+    scenario. In addition, emissions in the intervening years have mainly been estimated
+    by interpolation.</p> <p>A scenario tool was developed during the work, and its
+    figures, estimates, calculation formulas, calculation bases, time series, baseline
+    values and reference data are freely available for use with open licence CC-BY
+    4.0.</p> '
   lead_paragraph_sv: '<p>Esbos utsläppsscenarier visualiserar utvecklingen av växthusgasutsläppen
     i Esbo. Du kan granska hur utsläppen i Esbo stads område uppstår och hur de förutspås
     förändras fram till 2030. Du kan välja mellan: <ul><li><b>scenariot Finland 2035</b>,
     där man antar att de klimatpolitiska åtgärderna och linjedragningarna som genomförs
-    på nationell nivå påverkar utsläppsutvecklingen i Esbo;</li><li><b>Kolneutralt Esbo 2030
-    (HNE2030)</b>, där man antar att stadens utsläppsutveckling påverkar inte bara
-    nationella åtgärder utan också staden och dess samarbetspartners, såsom Fortums
-    och HRM:s klimatåtgärder;</li><li>samt <b>det pessimistiska scenariot</b> ett scenario
-    där man antar att nya utsläppsminskningsåtgärder inte planeras eller genomförs
-    i staden.</li></ul></p> <p>Esbo har som mål att vara kolneutralt 2030. För att stöda sitt
-    klimatarbete sammanställer staden färdplanen Kolneutralt Esbo 2030, som beskriver
-    stadens egna och partnernas samarbete samt samarbetet med invånarna, för att uppnå
-    målet om kolneutralitet.</p> <p>Som grund för beräkningarna har
-    man utnyttjat de utsläppsberäkningar som HRM producerat och i deras bakgrund uppgifter
-    om energiförbrukningen som använts i bakgrunden. Stadens utsläppsutveckling har
-    för varje scenario uppskattas för 2025, 2030 och 2035. Dessutom har utsläppen
+    på nationell nivå påverkar utsläppsutvecklingen i Esbo;</li><li><b>Kolneutralt
+    Esbo 2030 (HNE2030)</b>, där man antar att stadens utsläppsutveckling påverkar
+    inte bara nationella åtgärder utan också staden och dess samarbetspartners, såsom
+    Fortums och HRM:s klimatåtgärder;</li><li>samt <b>det pessimistiska scenariot</b>
+    ett scenario där man antar att nya utsläppsminskningsåtgärder inte planeras eller
+    genomförs i staden.</li></ul></p> <p>Esbo har som mål att vara kolneutralt 2030.
+    För att stöda sitt klimatarbete sammanställer staden färdplanen Kolneutralt Esbo
+    2030, som beskriver stadens egna och partnernas samarbete samt samarbetet med
+    invånarna, för att uppnå målet om kolneutralitet.</p> <p>Som grund för beräkningarna
+    har man utnyttjat de utsläppsberäkningar som HRM producerat och i deras bakgrund
+    uppgifter om energiförbrukningen som använts i bakgrunden. Stadens utsläppsutveckling
+    har för varje scenario uppskattas för 2025, 2030 och 2035. Dessutom har utsläppen
     under mellanåren bedömts i huvudsak genom interpolation.</p> <p>Siffrorna, uppskattningarna
     och beräkningsformlerna, beräkningsgrunderna, tidsserierna, utgångsvärdena och
     referensuppgifterna i scenarioverktyget som utarbetats under arbetets gång är
@@ -967,7 +967,7 @@ actions:
   input_datasets:
   - id: espoo/energy_sector_trajectories
     column: electricity_emission_factor
-    forecast_from: 2023
+    forecast_from: 2024
   params:
   - id: dimension
     value: scenario
@@ -1009,7 +1009,7 @@ actions:
   input_datasets:
   - id: espoo/energy_sector_trajectories
     column: electricity_consumption
-    forecast_from: 2023
+    forecast_from: 2024
   output_nodes:
   - consumer_electricity_residence_energy
   params:
@@ -1034,16 +1034,14 @@ actions:
   description: Huomaa, että tämä toimenpide ei mallissa liity kansallisen sähköntuotannon
     päästökertoimeen, vaikka todellisuudessa ne toki liittyvät. Lämmityssähköä tarkastellaan
     erikseen, koska lämmityskaudella sähköntuotannon tavat poikkeavat vuoden keskiarvosta.
-  description_en: Note that in this model, this action is not related to the
-    emission factor of national electricity production, although in reality
-    they are of course connected. Heating electricity is examined separately
-    because during the heating season, the methods of electricity production
-    differ from the annual average.
-  description_sv: Observera att denna åtgärd i modellen inte är relaterad till
-    utsläppsfaktorn för nationell elproduktion, även om de naturligtvis är
-    kopplade i verkligheten. Uppvärmningsel undersöks separat eftersom
-    elproduktionsmetoderna under uppvärmningssäsongen skiljer sig från
-    årsgenomsnittet.
+  description_en: Note that in this model, this action is not related to the emission
+    factor of national electricity production, although in reality they are of course
+    connected. Heating electricity is examined separately because during the heating
+    season, the methods of electricity production differ from the annual average.
+  description_sv: Observera att denna åtgärd i modellen inte är relaterad till utsläppsfaktorn
+    för nationell elproduktion, även om de naturligtvis är kopplade i verkligheten.
+    Uppvärmningsel undersöks separat eftersom elproduktionsmetoderna under uppvärmningssäsongen
+    skiljer sig från årsgenomsnittet.
   group: electricity
   type: simple.TrajectoryAction
   quantity: emission_factor
@@ -1051,7 +1049,7 @@ actions:
   input_datasets:
   - id: espoo/electric_heating_emission_factor_trajectories
     column: emission_factor
-    forecast_from: 2023
+    forecast_from: 2024
   output_nodes:
   - id: electric_heating_emission_factor
   params:
@@ -1067,7 +1065,7 @@ actions:
     unit: g/kWh
     is_visible: false
 
-- id: replace_fossil_fuels_in_district_heating  # FIXME CHECK EMISSIONS
+- id: replace_fossil_fuels_in_district_heating
   name: Fortum korvaa fossiiliset energialähteet kaukolämmöntuotannossa
   name_en: Fortum replaces fossil fuels in district heat production
   name_sv: Fortum ersätter fossila energikällor inom fjärrvärmeproduktionen
@@ -1097,7 +1095,7 @@ actions:
   input_datasets:
   - id: espoo/energy_sector_trajectories
     column: district_heat_emission_factor
-    forecast_from: 2023
+    forecast_from: 2024
   output_nodes:
   - district_heating_emission_factor
   params:
@@ -1106,9 +1104,9 @@ actions:
   - id: category
     ref: scenario_name
   - id: baseline_year
-    value: 2022
+    value: 2024
   - id: baseline_year_level
-    value: 169.4
+    value: 119.265308402915
     unit: t/GWh
 
 - id: heating_efficiency_improvements_new
@@ -1135,7 +1133,7 @@ actions:
   quantity: consumption_factor
   unit: kWh/m**2/a
   group: buildings
-  forecast_values: [[2023, 0], [2035, 0]]
+  forecast_values: [[2024, 0], [2035, 0]]
   output_nodes:
   - id: building_heat_per_floor_area_new
     to_dimensions:
@@ -1209,7 +1207,7 @@ actions:
 #  input_datasets:
 #  - id: espoo/building_energy_use_intensity_trajectories
 #    column: energy_use_intensity
-#    forecast_from: 2023
+#    forecast_from: 2024
 #  params:
 #  - id: baseline_year
 #    value: 2022
@@ -1249,7 +1247,7 @@ actions:
   output_nodes:
   - oil_heating_emission_factor
   type: simple.LinearCumulativeAdditiveAction
-  forecast_values: [[2023, 0], [2028, -31.9]]
+  forecast_values: [[2024, 0], [2028, -31.9]]
   unit: g/kWh
   group: buildings
 
@@ -1308,7 +1306,7 @@ actions:
           building_use: residence
           building_heat_source: district_heat
       amounts:
-      - year: 2023
+      - year: 2024
         source_amount: -50000
         dest_amounts: [50, 50]
       - year: 2025
@@ -1363,7 +1361,7 @@ actions:
           building_use: services
           building_heat_source: district_heat
       amounts:
-      - year: 2023
+      - year: 2024
         source_amount: -11000
         dest_amounts: [50, 50]
       - year: 2025
@@ -1418,7 +1416,7 @@ actions:
           building_use: industry
           building_heat_source: district_heat
       amounts:
-      - year: 2023
+      - year: 2024
         source_amount: -10000
         dest_amounts: [50, 50]
       - year: 2025
@@ -1439,22 +1437,20 @@ actions:
     on huomattava päästövähennysvaikutus. Lisäksi kokonaisuuden toimia on kohdennettu
     kaavoituksen keinoin pääosin uudisrakentamiseen, jossa potentiaalia on olemassa
     olevaan rakennuskantaan nähden vähemmän.
-  description_en: The actions primarily concern the city's own buildings and
-    those of Espoon Asunnot (Espoo Housing). The measures thus cover only a small
-    part of the building stock, and their cost impact is not significant.
-    Improving energy efficiency in conjunction with renovations does not
-    necessarily increase costs. Energy efficiency actions have a significant
-    emission reduction effect. In addition, the overall measures have been
-    targeted mainly at new construction through zoning measures, where there is
-    less potential compared to the existing building stock.
-  description_sv: Åtgärderna gäller främst stadens egna byggnader och Espoon Asunnots (Esbos
-    bostäder) byggnader. Åtgärderna täcker alltså bara en liten del av
-    byggnadsbeståndet, och deras kostnadseffekt är inte betydande. Förbättring
-    av energieffektiviteten i samband med renoveringar ökar inte nödvändigtvis
-    kostnaderna. Energieffektivitetsåtgärder har en betydande utsläppsminskande
-    effekt. Dessutom har de övergripande åtgärderna främst inriktats på
-    nybyggnation genom planläggningsåtgärder, där potentialen är mindre jämfört
-    med det befintliga byggnadsbeståndet.
+  description_en: The actions primarily concern the city's own buildings and those
+    of Espoon Asunnot (Espoo Housing). The measures thus cover only a small part of
+    the building stock, and their cost impact is not significant. Improving energy
+    efficiency in conjunction with renovations does not necessarily increase costs.
+    Energy efficiency actions have a significant emission reduction effect. In addition,
+    the overall measures have been targeted mainly at new construction through zoning
+    measures, where there is less potential compared to the existing building stock.
+  description_sv: Åtgärderna gäller främst stadens egna byggnader och Espoon Asunnots
+    (Esbos bostäder) byggnader. Åtgärderna täcker alltså bara en liten del av byggnadsbeståndet,
+    och deras kostnadseffekt är inte betydande. Förbättring av energieffektiviteten
+    i samband med renoveringar ökar inte nödvändigtvis kostnaderna. Energieffektivitetsåtgärder
+    har en betydande utsläppsminskande effekt. Dessutom har de övergripande åtgärderna
+    främst inriktats på nybyggnation genom planläggningsåtgärder, där potentialen
+    är mindre jämfört med det befintliga byggnadsbeståndet.
   type: simple.CumulativeAdditiveAction
   quantity: energy
   group: buildings
@@ -1465,7 +1461,7 @@ actions:
       categories: [district_heat]
     - id: building_use
       categories: [services]
-  forecast_values: [[2023, -8], [2025, -16], [2026, -4], [2027, -4], [2028, -7], [
+  forecast_values: [[2024, -8], [2025, -16], [2026, -4], [2027, -4], [2028, -7], [
       2029, -14], [2030, -6]]
   unit: GWh/a
 
@@ -1502,7 +1498,7 @@ actions:
   group: waste_agriculture
   input_datasets:
   - id: espoo/waste_treatment_goals
-    forecast_from: 2023
+    forecast_from: 2024
     column: ratio
   input_dataset_processors: [LinearInterpolation]
   params:
@@ -1532,7 +1528,7 @@ actions:
   quantity: emissions
   unit: kt/a
   group: waste_agriculture
-  forecast_values: [[2023, 0], [2035, 0]]
+  forecast_values: [[2024, 0], [2035, 0]]
   output_nodes:
   - agricultural_field_emissions
   params:
@@ -1571,7 +1567,7 @@ actions:
   quantity: emissions
   unit: kt/a
   group: industry
-  forecast_values: [[2023, 0], [2035, 0]]
+  forecast_values: [[2024, 0], [2035, 0]]
   output_nodes:
   - industry_fuel_emissions
   params:
@@ -1607,7 +1603,7 @@ actions:
   quantity: emissions
   unit: kt/a
   group: industry
-  forecast_values: [[2023, 0], [2035, 0]]
+  forecast_values: [[2024, 0], [2035, 0]]
   output_nodes:
   - machinery_emissions
   params:
@@ -1632,11 +1628,11 @@ actions:
   quantity: emission_factor
   unit: g/kWh
   group: transportation
-  # No change in 2021->2022 in any vehicle emission factor; therefore, expected 2022 change moved to 2023.
+  # No change in 2021->2022 in any vehicle emission factor; therefore, expected 2022 change moved to 2024.
   input_datasets:
   - id: espoo/traffic_emission_factor_goals
     column: emission_factor
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: vehicle
       value: passenger_cars
@@ -1657,7 +1653,7 @@ actions:
   input_datasets:
   - id: espoo/traffic_emission_factor_goals
     column: emission_factor
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: vehicle
       value: vans
@@ -1678,7 +1674,7 @@ actions:
   input_datasets:
   - id: espoo/traffic_emission_factor_goals
     column: emission_factor
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: vehicle
       value: trucks
@@ -1699,7 +1695,7 @@ actions:
   input_datasets:
   - id: espoo/traffic_emission_factor_goals
     column: emission_factor
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: vehicle
       value: buses
@@ -1728,9 +1724,9 @@ actions:
   quantity: energy
   unit: GWh/a
   group: transportation
-  forecast_values: [[2023, -16.518], [2024, -16.518], [2025, -16.518], [2026, -16.518],
-    [2027, -16.518], [2028, -16.518], [2029, -16.518], [2030, -16.518], [2031, -34.599],
-    [2032, -34.599], [2033, -34.599], [2034, -34.599], [2035, -34.599]]
+  forecast_values: [[2024, -16.518], [2025, -16.518], [2026, -16.518], [2027, -16.518],
+    [2028, -16.518], [2029, -16.518], [2030, -34.599], [2031, -34.599], [2032, -34.599],
+    [2033, -34.599], [2034, -34.599], [2035, -34.599]]
   output_nodes:
   - car_energy
 
@@ -1754,7 +1750,7 @@ actions:
   quantity: energy
   unit: GWh/a
   group: transportation
-  forecast_values: [[2023, 0], [2035, 0]]
+  forecast_values: [[2024, 0], [2035, 0]]
   output_nodes:
   - bus_energy
 
@@ -1778,7 +1774,7 @@ actions:
   quantity: energy
   unit: GWh/a
   group: transportation
-  forecast_values: [[2023, 0], [2030, -6.886607633], [2035, -11.12452002]]
+  forecast_values: [[2024, 0], [2030, -6.886607633], [2035, -11.12452002]]
   output_nodes:
   - van_energy
 
@@ -1802,7 +1798,7 @@ actions:
   quantity: energy
   unit: GWh/a
   group: transportation
-  forecast_values: [[2023, 0], [2030, 4.403433483], [2035, 4.743698797]]
+  forecast_values: [[2024, 0], [2030, 4.403433483], [2035, 4.743698797]]
   output_nodes:
   - truck_energy
 
@@ -1825,7 +1821,7 @@ actions:
   quantity: emission_factor
   unit: g/kWh
   group: transportation_additional
-  forecast_values: [[2023, 0], [2035, 0]]
+  forecast_values: [[2024, 0], [2035, 0]]
   output_nodes:
   - car_traffic_emission_factor
   params:
@@ -1855,7 +1851,7 @@ actions:
   quantity: emission_factor
   unit: g/kWh
   group: transportation_additional
-  forecast_values: [[2023, 0], [2035, 0]]
+  forecast_values: [[2024, 0], [2035, 0]]
   output_nodes:
   - car_traffic_emission_factor
   params:
@@ -1885,7 +1881,7 @@ actions:
   quantity: emission_factor
   unit: g/kWh
   group: transportation_additional
-  forecast_values: [[2023, 0], [2035, 0]]
+  forecast_values: [[2024, 0], [2035, 0]]
   output_nodes:
   - van_traffic_emission_factor
   params:
@@ -1915,7 +1911,7 @@ actions:
   quantity: emission_factor
   unit: g/kWh
   group: transportation_additional
-  forecast_values: [[2023, 0], [2035, 0]]
+  forecast_values: [[2024, 0], [2035, 0]]
   output_nodes:
   - car_traffic_emission_factor
   params:
@@ -1942,7 +1938,7 @@ actions:
   quantity: energy
   unit: GWh/a
   group: transportation_additional
-  forecast_values: [[2023, 0], [2035, 0]]
+  forecast_values: [[2024, 0], [2035, 0]]
   output_nodes:
   - car_energy
   params:
@@ -1969,7 +1965,7 @@ actions:
   quantity: energy
   unit: GWh/a
   group: transportation_additional
-  forecast_values: [[2023, 0], [2035, 0]]
+  forecast_values: [[2024, 0], [2035, 0]]
   output_nodes:
   - car_energy
   params:
@@ -1996,7 +1992,7 @@ actions:
   quantity: energy
   unit: GWh/a
   group: transportation_additional
-  forecast_values: [[2023, 0], [2035, 0]]
+  forecast_values: [[2024, 0], [2035, 0]]
   output_nodes:
   - car_energy
   params:
@@ -2023,7 +2019,7 @@ actions:
   quantity: energy
   unit: GWh/a
   group: transportation_additional
-  forecast_values: [[2023, 0], [2035, 0]]
+  forecast_values: [[2024, 0], [2035, 0]]
   output_nodes:
   - car_energy
   params:
@@ -2050,7 +2046,7 @@ actions:
   quantity: energy
   unit: GWh/a
   group: transportation_additional
-  forecast_values: [[2023, 0], [2035, 0]]
+  forecast_values: [[2024, 0], [2035, 0]]
   output_nodes:
   - car_energy
   params:
@@ -2193,7 +2189,7 @@ scenarios:
   - id: cleaner_electricity_production.enabled
     value: true
   - id: replace_fossil_fuels_in_district_heating.enabled
-    value: true
+    value: true  # FIXME It is illogical that action needs to be enabled to get zero effect.
   - id: electric_heating_emission_factor_action.enabled
     value: true
 
