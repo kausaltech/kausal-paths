@@ -834,14 +834,9 @@ class InstanceLoader:
     @wrap_with_span('setup-edges', 'function')
     def setup_edges(self) -> None:
         # Setup edges
-        with start_span(name='setup-edges', op='function'):
-            self._setup_edges()
-
-        with start_span(name='setup-subactions', op='function'):
-            self._setup_subactions()
-
-        with start_span(name='finalize-nodes', op='function'):
-            self.context.finalize_nodes()
+        self._setup_edges()
+        self._setup_subactions()
+        self.context.finalize_nodes()
 
     def setup_progress_tracking_scenario(self):
         from frameworks.models import MeasureDataPoint
