@@ -17,6 +17,7 @@ owner_en: Kausal Ltd
 emission_unit: kt/a
 target_year: 2030
 model_end_year: 2045
+reference_year: 2020
 minimum_historical_year: 2020
 maximum_historical_year: 2022
 emission_forecast_from: 2023
@@ -48,6 +49,14 @@ params:
   value: true
   is_visible: true
   is_customizable: true
+- id: measure_data_override
+  value: false
+  is_visible: false
+  is_customizable: false
+- id: measure_data_baseline_year_only
+  value: false
+  is_visible: false
+  is_customizable: false
 
 action_groups:
 - id: transport
@@ -1263,6 +1272,16 @@ scenarios:
   all_actions_enabled: true
   params:
   - id: statistical_correction
+    value: false
+
+- id: progress_tracking
+  name: Progress tracking
+  all_actions_enabled: true
+  is_selectable: false
+  params:
+  - id: measure_data_override
+    value: true
+  - id: measure_data_baseline_year_only
     value: false
 
 include:

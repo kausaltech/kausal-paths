@@ -49,6 +49,14 @@ params:
   value: true
   is_visible: true
   is_customizable: true
+- id: measure_data_override
+  value: false
+  is_visible: false
+  is_customizable: false
+- id: measure_data_baseline_year_only
+  value: false
+  is_visible: false
+  is_customizable: false
 
 action_groups:
 - id: transport
@@ -1667,6 +1675,16 @@ scenarios:
   name: Lappeenrannan ilmasto-ohjelma
   name_en: Lappeenranta Climate Action Plan
   all_actions_enabled: true
+
+- id: progress_tracking
+  name: Progress tracking
+  all_actions_enabled: true
+  is_selectable: false
+  params:
+  - id: measure_data_override
+    value: true
+  - id: measure_data_baseline_year_only
+    value: false
 
 include:
 - file: nzc/transport.yaml
