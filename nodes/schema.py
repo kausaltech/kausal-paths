@@ -5,6 +5,7 @@ import logging
 from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import graphene
+import sentry_sdk
 import strawberry as sb
 from graphql.error import GraphQLError
 from pydantic import BaseModel
@@ -549,6 +550,9 @@ class NodeInterface(graphene.Interface):
         extra_scenarios: list[Scenario] = []
         for scenario_id in with_scenarios or []:
             if scenario_id not in context.scenarios:
+                # FIXME: workaround; remove later
+                sentry_sdk.capture_message('Scenario %s not found' % scenario_id, level='error')
+                continue
                 raise GraphQLError('Scenario %s not found' % scenario_id, info.field_nodes)
             extra_scenarios.append(context.get_scenario(scenario_id))
         try:
