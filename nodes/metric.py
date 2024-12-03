@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, PrivateAttr
 import numpy as np
 import pandas as pd
 import polars as pl
+import sentry_sdk
 
 from paths.const import MODEL_CALC_OP
 
@@ -447,11 +448,7 @@ class DimensionalMetric(BaseModel):
             sdf = add_scenario_column(sdf, scenario.id)
             scenario_dfs.append(sdf)
 
-        meta = scenario_dfs[0].get_meta()
-        for sdf in scenario_dfs[1:]:
-            assert sdf.get_meta() == meta
-        df = ppl.to_ppdf(pl.concat(scenario_dfs), meta=meta)
-
+        df = cls._join_scenario_dfs(scenario_dfs)
         return df, new_dims
 
     @classmethod
@@ -486,7 +483,6 @@ class DimensionalMetric(BaseModel):
             input_nodes = None
 
         df, extra_dims = cls._get_df(node, scenarios=scenarios, input_nodes=input_nodes)
-
         return df, extra_dims
 
         # if tst:
@@ -710,6 +706,19 @@ class DimensionalMetric(BaseModel):
         return dm
 
     @classmethod
+    def _join_scenario_dfs(cls, scenario_dfs: list[ppl.PathsDataFrame]) -> ppl.PathsDataFrame:
+        first_df = scenario_dfs[0]
+        meta = first_df.get_meta()
+        for sdf in scenario_dfs[1:]:
+            if sdf.get_meta() != meta:
+                with sentry_sdk.push_scope() as scope:
+                    scope.set_context('first_meta', first_df.serialize_meta())
+                    scope.set_context('other_meta', sdf.serialize_meta())
+                    sentry_sdk.capture_message('Scenario dataframes have different metadata', level='error')
+                raise ValueError('Scenario dataframes have different metadata')
+        return ppl.to_ppdf(pl.concat(scenario_dfs), meta=meta)
+
+    @classmethod
     def from_node(
         cls,
         node: Node,
@@ -732,7 +741,15 @@ class DimensionalMetric(BaseModel):
         if isinstance(node, ShiftAction):
             return None
 
-        with node.context.start_span('Dimension metric for: %s' % node.id, op=MODEL_CALC_OP):
+        with sentry_sdk.push_scope() as scope, node.context.start_span('Dimension metric for: %s' % node.id, op=MODEL_CALC_OP):
+            scope.set_tag('node_id', node.id)
+            scope.set_context('metric_dim', dict(
+                metric_id=m.id,
+                node_id=node.id,
+                instance_id=node.context.instance.id,
+                active_scenario=node.context.active_scenario.id,
+                extra_scenarios=[s.id for s in extra_scenarios],
+            ))
             return cls._from_node_metric(node, m, extra_scenarios)
 
     @classmethod
@@ -762,10 +779,10 @@ class DimensionalMetric(BaseModel):
                 sdf = add_scenario_column(sdf, scenario.id)
                 scenario_dfs.append(sdf)
 
-            meta = scenario_dfs[0].get_meta()
-            for sdf in scenario_dfs[1:]:
-                assert sdf.get_meta() == meta
-            df = ppl.to_ppdf(pl.concat(scenario_dfs), meta=meta)
+            try:
+                df = cls._join_scenario_dfs(scenario_dfs)
+            except Exception:
+                return None
             dims.append(scenario_dim)
         else:
             df = visualization.get_output(node)

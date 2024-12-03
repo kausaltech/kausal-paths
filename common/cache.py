@@ -497,6 +497,9 @@ class Cache(AbstractContextManager):
             return False
         return self.run.has(key)
 
+    def is_local_cached(self, key: str) -> bool:
+        return self.local.has(key)
+
     def store_multiple(self, objs: list[tuple[str, int | None, bytes | object]]) -> int:
         if self.ext_cache and CacheKind.EXT in self.allowed_kinds:
             batch = self.ext_cache.start_batch()

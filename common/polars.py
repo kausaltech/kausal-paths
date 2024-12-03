@@ -49,6 +49,10 @@ class DataFrameMeta:
     def copy(self) -> DataFrameMeta:
         return DataFrameMeta(units=self.units.copy(), primary_keys=self.primary_keys.copy())
 
+    def serialize(self) -> dict[str, Any]:
+        return dict(units={key: str(val) for key, val in self.units.items()}, primary_keys=self.primary_keys)
+
+
 class PathsDataFrame(pl.DataFrame):
     _units: dict[str, Unit]
     _primary_keys: list[str]
@@ -88,6 +92,13 @@ class PathsDataFrame(pl.DataFrame):
 
     def replace_meta(self, meta: DataFrameMeta):
         return self._from_pydf(self._df, meta=meta)
+
+    def serialize_meta(self) -> dict[str, Any]:
+        meta = self.get_meta().serialize()
+        meta['columns'] = list(self.columns)
+        meta['dtypes'] = [str(dt) for dt in self.dtypes]
+        meta['height'] = self.height
+        return meta
 
     def filter(self, *predicates: (
         IntoExprColumn | Iterable[IntoExprColumn] | bool | list[bool] | np.ndarray[Any, Any]
