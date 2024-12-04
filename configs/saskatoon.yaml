@@ -7,7 +7,7 @@ dataset_repo:
   commit: 4e95c54bfee389b43c64a8813e37c7efd84619d4
   dvc_remote: kausal-s3
   default_path: saskatoon
-name: Saskatoon Greenhouse Gas Inventory
+name: Saskatoon's GHG Emission Inventories
 owner_en: City of Saskatoon
 theme_identifier: ca-saskatoon
 target_year: 2050
