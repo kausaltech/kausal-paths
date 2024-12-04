@@ -43,6 +43,7 @@ from .metric import (
     NormalizerNode,
 )
 from .models import InstanceConfig
+from .units import Unit
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -58,7 +59,6 @@ if TYPE_CHECKING:
     from nodes.context import Context
     from nodes.goals import GoalActualValue, NodeGoalsEntry
     from nodes.normalization import Normalization
-    from nodes.units import Unit
     from pages.models import ActionListPage
     from params.param import Parameter
 
@@ -342,12 +342,16 @@ class DimensionalMetricType:
     # forecast_from = graphene.Int(required=False)
     # goals = graphene.List(graphene.NonNull(DimensionalMetricGoalEntry), required=True)
     # normalized_by = graphene.Field('nodes.schema.NodeType', required=False)
-    # _unit: sb.Private[UnitType]
+    # real_unit: sb.Private[Unit]
 
     @sb.field
     def unit(self) -> SBUnit:
-        ut = SBUnit(unit=self._unit)  # type: ignore
-        # ut.unit = self._unit
+        unit: Unit
+        if isinstance(self.unit, Unit):
+            unit = self.unit
+        else:
+            unit = getattr(self, 'real_unit')  # noqa: B009
+        ut = SBUnit(unit=unit)
         return ut
 
 
@@ -412,8 +416,8 @@ class VisualizationNodeOutput(VisualizationEntry):
         dm = e.get_metric_data(req.instance.context.nodes[self.node_id])
         if dm is None:
             return None
-        out = DimensionalMetricType.from_pydantic(dm)
-        out._unit = dm._unit
+        out: DimensionalMetricType = DimensionalMetricType.from_pydantic(dm)
+        setattr(out, 'real_unit', dm.unit)  # noqa: B010
         return out
 
 

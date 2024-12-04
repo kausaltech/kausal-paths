@@ -34,7 +34,7 @@ class CacheablePathsModel[CacheT](CacheableModel[CacheT], PathsModel):
 
 
 class HasParent(Protocol):
-    def __init__(self, parent: Any, /): ...  # noqa: ANN401
+    def __init__(self, parent: Any, /): ...
 
 
 @dataclass
@@ -53,6 +53,9 @@ class PathsObjectCache:
             cache = klass(obj)
             caches[obj.pk] = cache
         return cache
+
+    def for_framework_id(self, fw_id: int) -> Framework | None:
+        return self.frameworks.get(fw_id)
 
     def for_framework(self, fw: Framework) -> Framework | None:
         return self.frameworks.get(fw.pk)

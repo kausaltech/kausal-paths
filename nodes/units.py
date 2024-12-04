@@ -50,9 +50,31 @@ def split_specifier(name: str) -> tuple[str, str | None]:
 class Unit(pint.registry.Unit):
     @classmethod
     def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: GetCoreSchemaHandler  # noqa: ANN401
+        cls, source: type[Any], handler: GetCoreSchemaHandler
     ) -> CoreSchema:
-        return core_schema.no_info_after_validator_function(cls, handler(str))
+        assert source is Unit
+        return core_schema.no_info_after_validator_function(
+            cls._validate,
+            core_schema.union_schema([
+                core_schema.is_instance_schema(Unit),
+                core_schema.str_schema(),
+            ]),
+            serialization=core_schema.plain_serializer_function_ser_schema(
+                cls._serialize,
+                info_arg=False,
+                return_schema=core_schema.str_schema(),
+            ),
+        )
+
+    @staticmethod
+    def _validate(value: str | Unit) -> Unit:
+        if isinstance(value, Unit):
+            return value
+        return unit_registry.parse_units(value)
+
+    @staticmethod
+    def _serialize(value: Unit) -> str:
+        return str(value)
 
 
 type PathsUnit = Unit

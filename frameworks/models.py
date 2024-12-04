@@ -522,6 +522,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
     objects: ClassVar[FrameworkConfigManager] = FrameworkConfigManager()  # pyright: ignore
 
     instance_config_id: int
+    framework_id: int
     measures: RevMany[Measure]
 
     public_fields: ClassVar = ['framework', 'organization_name', 'baseline_year', 'uuid', 'instance_config']
