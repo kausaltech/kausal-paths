@@ -525,7 +525,8 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
     framework_id: int
     measures: RevMany[Measure]
 
-    public_fields: ClassVar = ['framework', 'organization_name', 'baseline_year', 'uuid', 'instance_config']
+    public_fields: ClassVar = ['framework', 'organization_name', 'baseline_year', 'target_year',
+                               'uuid', 'instance_config']
 
     class Meta:  # pyright: ignore
         constraints = [
@@ -549,8 +550,8 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
     @classmethod
     @transaction.atomic
     def create_instance(
-        cls, framework: Framework, instance_identifier: str, org_name: str, baseline_year: int, uuid: str | None = None,
-        user: UserOrAnon | None = None,
+        cls, framework: Framework, instance_identifier: str, org_name: str, baseline_year: int, target_year: int,
+        uuid: str | None = None, user: UserOrAnon | None = None,
     ) -> FrameworkConfig:
         from nodes.models import InstanceConfig
 
@@ -568,6 +569,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             instance_config=ic,
             organization_name=org_name,
             baseline_year=baseline_year,
+            target_year=target_year,
             uuid=uuid,
             created_by=user_or_none(user),  # type: ignore[misc]
             **extra,

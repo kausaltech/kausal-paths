@@ -1067,6 +1067,7 @@ class InstanceLoader:
             min_hist_year: int = self.config['minimum_historical_year']
             site_url = self.config.get('site_url')
             reference_year = self.config.get('reference_year')
+            target_year = self.config['target_year']
         else:
             from frameworks.models import MeasureDataPoint
             owner = self.simple_trans_string(fwc.organization_name or '')
@@ -1079,6 +1080,7 @@ class InstanceLoader:
             min_hist_year = mdp_data['min_year'] or fwc.baseline_year
             site_url = fwc.get_view_url()
             reference_year = fwc.baseline_year
+            target_year = fwc.target_year
         self.instance = Instance(
             id=instance_id,
             name=name,
@@ -1100,7 +1102,6 @@ class InstanceLoader:
             **self._build_instance_args_from_home_page(),  # type: ignore[arg-type]
         )
 
-        target_year = self.config['target_year']
         model_end_year = self.config.get('model_end_year', target_year)
         with start_span(name='create-context', op='function'):
             self.context = Context(
