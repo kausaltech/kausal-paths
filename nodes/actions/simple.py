@@ -7,6 +7,7 @@ import polars as pl
 
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
 from nodes.node import NodeError
+from nodes.simple import SimpleNode
 from params import BoolParameter, NumberParameter, PercentageParameter, StringParameter
 from params.param import Parameter
 
@@ -27,6 +28,17 @@ class AdditiveAction(ActionNode):
                                      .otherwise(self.no_effect_value).alias(m.column_id))
             df = df.ensure_unit(m.column_id, m.unit)
 
+        return df
+
+
+class AdditiveAction2(AdditiveAction, SimpleNode):  # FIXME Merge with AdditiveAction
+    allowed_parameters = AdditiveAction.allowed_parameters + SimpleNode.allowed_parameters
+
+    def compute_effect(self):
+        df = super().compute_effect()
+        multiplier = self.get_parameter_value('multiplier', required=False, units=True)
+        if multiplier is not None:
+            df = df.multiply_quantity(VALUE_COLUMN, multiplier)
         return df
 
 

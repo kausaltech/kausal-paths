@@ -15,7 +15,8 @@ frameworks: [hsy]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 9ce43f6683f9050378c2c989815abd1510e369ac
+  commit: b3f4a0441449c12d5b1c3bb1eaf3b687a95815c3
+  # commit: 8caa222ae2b5aa14be248435eb8eb47bd401a010
   dvc_remote: kausal-s3
 name: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -36,6 +37,10 @@ features:
   show_significant_digits: 3
 
 action_groups:
+- id: additions_2024
+  name: Vuoden 2024 lisätoimet
+  name_en: Additional actions in 2024
+  name_sv: Tillägg 2024
 - id: transportation
   name: Liikenne
   name_en: Traffic
@@ -219,11 +224,11 @@ dimensions:
   label_en: Scenario
   label_sv: Skenario
   categories:
-  - id: baseline
+  - id: suomi2035  # TODO: Rename?
     label: Suomi 2035
     label_en: Finland 2035
     label_sv: Finland 2035
-  - id: default
+  - id: hne2030
     label: Hiilineutraali Espoo 2030
     label_en: Carbon-neutral Espoo 2030
     label_sv: Kolneutralt Esbo 2030
@@ -270,6 +275,115 @@ dimensions:
     label_en: Agriculture
     label_sv: Jordbruk
 
+- id: cost_type
+  label: Cost Type
+  categories:
+  - id: investment
+    label: Investment
+  - id: energy
+    label: Energy
+  - id: maintenance
+    label: Maintenance
+  - id: operations
+    label: Operations
+
+- id: energy_carrier
+  label: Energialaji
+  label_en: Energy carrier
+  categories:
+  - id: district_heat
+    label: Kaukolämpö
+    label_en: District heat
+  - id: electricity
+    label: Sähkö
+    label_en: Electricity
+  - id: green_electricity
+    label: Vihreä sähkö
+    label_en: Green electricity
+  - id: fuel_oil
+    label: Polttoöljy
+    label_en: Fuel oil
+  - id: natural_gas
+    label: Maakaasu
+    label_en: Natural gas
+  - id: gasoline_diesel
+    label: Bensiini tai diesel
+    label_en: Gasoline or diesel
+    label_sv: Bensin eller diesel
+  - id: hybrid
+    label: Hybridi
+    label_en: Hybrid
+    label_sv: Hybrid
+  - id: other
+    label: Muu
+    label_en: Other
+    label_sv: Annan
+
+- id: owner
+  label: Owner
+  categories:
+  - id: municipal
+    label: Municipal
+  - id: private
+    label: Private
+  - id: fortum
+    label: Fortum
+  - id: espoon_kaupunki
+    label: Espoon kaupunki
+  - id: espoon_asunnot
+    label: Espoon asunnot
+  - id: microsoftin_datakeskus
+    label: Microsoftin datakeskus
+
+- id: scope
+  label: Scope
+  label_en: Scope
+  categories:
+  - id: scope1
+    label: Scope 1
+    label_en: Scope 1
+  - id: scope2
+    label: Scope 2
+    label_en: Scope 2
+
+- id: vehicle_type
+  label: Vehicle type
+  label_en: Vehicle type
+  categories:
+  - id: cars
+    label: Autot
+    label_en: Cars
+    label_sv: Bilar
+  - id: buses
+    label: Bussi
+    label_en: Buses
+    label_sv: Bussar
+  - id: buses_hsl
+    label: Bussi, HSL
+    label_en: Buses, HSL
+    label_sv: Bussar, HRT
+  - id: local_trains
+    label: Paikallisjuna
+    label_en: Local Trains
+    label_sv: Lokaltåg
+  - id: motorcycles
+    label: Moottoripyörä
+    label_en: Motorcycles
+    label_sv: Motorcyklar
+  - id: passenger_cars # TODO: rename to cars?
+    label: Henkilöauto
+    label_en: Passenger cars
+    label_sv: Personbilar
+  - id: trams
+    label: Ratikka
+    label_en: Trams
+  - id: trucks
+    label: Kuorma-auto
+    label_en: Trucks
+  - id: vans
+    label: Pakettiauto
+    label_en: Vans
+
 emission_sectors:
 - id: net_emissions
   name: Kokonaispäästöt (scope 2)
@@ -300,6 +414,254 @@ emission_sectors:
   color: '#014B30'
 
 nodes:
+
+# Additive actions and related nodes
+
+- id: truck_factor
+  name: Kuorma-autojen kerroin
+  name_en: Truck factor
+  name_sv: Lastbilsfaktor
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: gpc/espoo
+  params:
+    sector: Kuorma-autoliikenteen kerroin
+
+- id: truck_emission_change
+  name: Kuorma-autojen päästöjen muutos
+  name_en: Change of truck emissions
+  name_sv: Förändring av lastbilsutsläpp
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: truck_factor
+    tags: [non_additive]
+  - id: environmental_zone_for_trucks
+    to_dimensions:
+    - id: vehicle_type
+      categories: [trucks]
+  output_nodes:
+  - id: truck_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+- id: amount_of_passenger_cars
+  name: Henkilöautojen määrä
+  name_en: Amount of passenger cars
+  name_sv: Antal personbilar
+  type: gpc.DatasetNode
+  quantity: number
+  unit: vehicles
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets: [gpc/espoo]
+  params:
+    sector: Henkilöautojen määrä yhteensä
+
+- id: amount_of_electric_passenger_cars
+  name: Sähköhenkilöautojen määrä
+  type: gpc.DatasetNode
+  quantity: number
+  unit: vehicles
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets: [gpc/espoo]
+  params:
+    sector: Sähköhenkilöautojen määrä
+
+- id: amount_of_passenger_cars_by_type
+  name: Henkilöautojen määrä tyypeittäin
+  name_en: Amount of passenger cars by type
+  name_sv: Antal personbilar per typ
+  type: simple.AdditiveNode
+  quantity: number
+  unit: vehicles
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: amount_of_passenger_cars
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+      categories: [other]
+  - id: amount_of_electric_passenger_cars
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+      categories: [other]
+
+- id: large_electricity_consumers
+  name: Suurten toimijoiden vihreän sähkön kulutus
+  name_en: Green electricity consumption of large energy consumers
+  name_sv: Grön el till stora energiförbrukare
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [owner, energy_carrier]
+  output_dimensions: [owner, energy_carrier]
+  input_datasets: [gpc/espoo]
+  params:
+    sector: Suurten toimijoiden sähkönkulutus
+
+- id: total_electricity_consumption
+  name: Sähkön kokonaiskulutus Suomessa
+  name_en: Total electricity consumption in Finland
+  name_sv: Total elförbrukning i Finland
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: TWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets: [gpc/espoo]
+  params:
+    sector: Sähkön kysyntäennuste (TWh)
+
+- id: electricity_emission_factor
+  name: Sähkön päästökerroin
+  name_en: Electricity emission factor
+  name_sv: Elförbrukningsfaktor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: kg/MWh
+  input_dimensions: [scenario]
+  output_dimensions: [scenario]
+  input_datasets: [gpc/espoo]
+  params:
+    sector: Sähkön päästökerroin, t CO2-ekv/GWh
+
+- id: non_green_electricity_consumption
+  name: Ei-vihreän sähkön kulutus
+  name_en: Non-green electricity consumption
+  name_sv: Ej grön el
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: total_electricity_consumption
+  - id: large_electricity_consumers
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: owner
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: green_consumer_electricity
+    tags: [arithmetic_inverse]
+
+- id: residual_emission_factor_ratio
+  name: Jäännöspäästökertoimen suhde
+  name_en: Residual emission factor ratio
+  name_sv: Restutsläppsfaktorns andel
+  description: Jäännöspäästökertoimen suhde kokonaispäästökertoimeen. Katso tarkempi kuvaus jäännöspäästökertoimen sivulta.
+  description_en: Residual emission factor ratio to total emission factor. See more detailed
+    explanation from the residual emission factor page.
+  description_sv: Restutsläppsfaktorns andel till total utsläppsfaktor. Se mer detaljerad
+    förklaring på restutsläppsfaktorns sida.
+  type: simple.MultiplicativeNode
+  quantity: emission_factor
+  unit: dimensionless
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: total_electricity_consumption
+    to_dimensions:
+    - id: energy_carrier
+  - id: non_green_electricity_consumption
+    tags: [geometric_inverse]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: residual_emission_factor
+  name: Jäännöspäästökerroin
+  name_en: Residual emission factor
+  name_sv: Restutsläppsfaktor
+  description: Jäännöspäästökerroin koskee sitä osaa sähkönkulutuksesta, joka ei
+    ole vihreää. Kokonaispäästökertoimesta on siis otettu pois päästöttämän vihreän sähkön osuus,
+    jolloin jäljelle jäävä kerroin on hieman suurempi.
+  description_en: Residual emission factor accounts for the share of electricity consumption
+    that is not green. The residual emission factor is therefore slightly higher than
+    the total emission factor.
+  description_sv: Restutsläppsfaktor räknar för den andelen elförbrukning som inte är grön.
+    Restutsläppsfaktorn är därför något högre än den totala utsläppsfaktorn.
+  type: simple.MultiplicativeNode
+  quantity: emission_factor
+  unit: kg/MWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: residual_emission_factor_ratio
+    to_dimensions:
+    - id: energy_carrier
+  - id: electricity_emission_factor
+    tags: [non_additive]
+    from_dimensions:
+    - id: scenario
+      categories: [hne2030]  
+      flatten: true # FIXME
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity] # FIXME
+
+- id: consumption_of_green_electricity
+  name: Vihreän sähkön kulutus
+  name_en: Consumption of green electricity
+  name_sv: Grön el konsumtion
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+
+- id: green_consumer_electricity
+  name: Vihreän kulutussähkön kulutus
+  name_en: Green consumer electricity consumption
+  name_sv: Grön konsumtionsel
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: consumer_electricity_energy
+    tags: [non_additive]
+    to_dimensions: []
+
+- id: green_electricity_emission_savings
+  name: Vihreän sähkön päästösäästö
+  name_en: Green electricity emission savings
+  name_sv: Grön el utsläppsbesparing
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: residual_emission_factor
+  - id: green_consumer_electricity
+  output_nodes:
+  - id: consumer_electricity_emissions
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+
 - id: population
   type: finland.population.Population
   name: Väestö
@@ -934,7 +1296,341 @@ pages:
     fritt tillgängliga med öppen licens CC-BY 4.0.</p>'
 
 actions:
-#
+
+# New actions decided on 2024-02-01.
+# Electriciy
+
+- id: change_electricity_production  # FIXME: Remove this action.
+  name: Muutos sähköntuotannossa
+  name_en: Change in electricity production
+  name_sv: Förändring i säköntuotann
+  description: Sähkön kansallisen päästökertoimen kehitystä on skenaariolaskennassa
+    arvioitu energia-alan vähähiilisyystiekartan tietojen perusteella. Vähähiilisyystiekartan
+    taustaselvityksen on tehnyt <a 
+    href="https://energia.fi/files/5064/Taustaraportti_-_Finnish_Energy_Low_carbon_roadmap.pdf">AFRY</a>.
+  description_en: The development of the national emission factor for electricity
+    is estimated based on the data from the Finnish Energy Low Carbon Roadmap. The
+    background report was prepared by <a 
+    href="https://energia.fi/files/5064/Taustaraportti_-_Finnish_Energy_Low_carbon_roadmap.pdf">AFRY</a>.
+  description_sv: Utvecklingen av den nationella utsläppsfaktorn för el är uppskattad
+    baserat på data från den finska energivägen för låg koldioxid av <a 
+    href="https://energia.fi/files/5064/Taustaraportti_-_Finnish_Energy_Low_carbon_roadmap.pdf">AFRY</a>).
+  type: gpc.DatasetActionMFM
+  group: additions_2024
+  input_dimensions: [cost_type, energy_carrier, owner, scope]
+  output_dimensions: [cost_type, energy_carrier, owner, scope]
+  params:
+    action: Build Renewable Electricity Production (PV)
+  input_datasets:
+  - id: gpc/tampere_simple_actions  # FIXME: This is not the correct dataset.
+    forecast_from: 2025
+  output_metrics:
+  - id: i62_energy
+    unit: GWh/a
+    quantity: energy
+  - id: i_currency
+    unit: EUR/a
+    quantity: currency
+
+- id: use_certified_electricity
+  name: Suurten toimijoiden sertifioidun vihreän sähkön hyödyntäminen
+  name_en: Use of certified green electricity by large companies
+  name_sv: Användning av sertifiserad grön el av stora företag
+  description: Suuret toimijat Espoossa käyttävät toiminnassaan sertifioitua vihreää
+    sähköä. Suurten toimijoiden vihreän sähkön käytön on arvioitu vaikuttavan sähkön
+    "jäännöskertoimeen" (eli muiden käyttämän sähkön päästökertoimen), kun sähkön
+    hankintaennusteesta vuosina 2025, 2030 ja 2035 poistetaan Espoon suurten toimijoiden
+    käyttämä sertifioitu vihreä sähkö.
+  description_en: Large companies in Espoo use certified green electricity in their
+    operations. The use of green electricity by large companies is estimated to affect
+    the "residual factor" (i.e. the emission factor of the electricity consumed by
+    others), when the electricity consumption forecast for 2025, 2030 and 2035 is
+    adjusted by removing the certified green electricity used by large companies in
+    Espoo.
+  description_sv: Stora företag i Esbo använder sertifiserad grön el i sina verksamheter.
+    Användningen av grön el av stora företag är uppskattad påverka "restfaktorn" (dvs.
+    utsläppsfaktorn för den el som används av andra), när elförbrukningen förutsägs
+    för 2025, 2030 och 2035 justeras genom att ta bort den sertifiserade gröna elen
+    som stora företag i Esbo använder.
+  type: gpc.DatasetAction
+  quantity: energy
+  unit: GWh/a
+  group: additions_2024
+  input_dimensions: [energy_carrier, owner]
+  output_dimensions: [energy_carrier, owner]
+  input_datasets: [gpc/espoo]
+  output_nodes:
+  - id: consumption_of_green_electricity
+    from_dimensions:
+    - id: owner
+      flatten: true
+  params:
+    sector: Suurten toimijoiden sähkönkulutus
+
+- id: use_certified_electricity_by_residents
+  name: Asukkaiden innostaminen sertifioidun vihreän sähkön ostoon
+  name_en: Encourage residents to buy certified green electricity
+  name_sv: Uppmuntra invånare att köpa sertifiserad grön el
+  description: Vihreän sähkön osuus kulutussähköstä. Asukkaita innostetaan ostamaan sertifioitua vihreää sähköä. Asukkaiden
+    vihreän sähkön käytön on arvioitu vaikuttavan sähkön "jäännöskertoimeen", kun
+    sähkön hankintaennusteesta vuosina 2025, 2030 ja 2035 poistetaan espoolaisten
+    käyttämä sertifioitu vihreä sähkö.
+  description_en: Fraction of green electricity in total electricity consumption. Residents
+    are encouraged to buy certified green electricity. The use of green electricity
+    by residents is estimated to affect the "residual factor" (i.e. the emission factor
+    of the electricity consumed by others), when the electricity consumption forecast
+    for 2025, 2030 and 2035 is adjusted by removing the certified green electricity used
+    by residents in Espoo.
+  description_sv: Andel grön el i total elproduktion. Invånare uppmuntras att köpa sertifiserad
+    grön el. Användningen av grön el av invånare är uppskattad påverka "restfaktorn"
+    (dvs. utsläppsfaktorn för den el som används av andra), när elförbrukningen förutsägs
+    för 2025, 2030 och 2035 justeras genom att ta bort den sertifiserade gröna elen
+    som invånare i Esbo använder.
+  type: simple.AdditiveAction2
+  quantity: fraction
+  unit: dimensionless
+  group: additions_2024
+  forecast_values: [[2025, 1], [2035, 1]]
+  input_dataset_processors: [LinearInterpolation]
+  params:
+  - id: multiplier
+    is_customizable: true
+    is_visible: true
+    description: Asukkaiden käyttämän vihreän sähkön osuus
+    unit: dimensionless
+    values:
+      default: 0.2
+    min_value: 0
+    max_value: 1
+    step: 0.05
+  output_nodes:
+  - id: green_consumer_electricity
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+
+- id: increase_solar_electricity_production
+  name: Aurinkosähkön tuotannon lisääminen
+  name_en: Increase solar electricity production
+  name_sv: Öka solelproduktionen i Esbo
+  description: Lisätään aurinkosähkön tuotantoa Espoon kaupungin alueella.
+  description_en: Increase solar electricity production in Espoo’s area.
+  description_sv: Öka solelproduktionen i Esbo.
+  type: gpc.DatasetActionMFM
+  group: additions_2024
+  input_dimensions: [cost_type, energy_carrier, owner, scope]
+  output_dimensions: [cost_type, energy_carrier, owner, scope]
+  params:
+    action: Build Renewable Electricity Production (PV)
+  input_datasets:
+  - id: gpc/tampere_simple_actions  # FIXME: This is not the correct dataset.
+    forecast_from: 2025
+  output_metrics:
+  - id: i62_energy
+    unit: GWh/a
+    quantity: energy
+  - id: i_currency
+    unit: EUR/a
+    quantity: currency
+
+# Transport
+
+- id: reduce_speed_limit_on_espoo_roads
+  name: Nopeusrajoitusten alentaminen Espoon 120 ja 100 km/h maanteillä
+  name_en: Reduce speed limit on Espoo’s 120 and 100 km/h roads
+  name_sv: Minska hastighetsgränsen på Esbo 120 och 100 km/h vägar
+  description: Alennetaan Espoon alueella sijaitsevien niiden maanteiden, joilla nopeusrajoitus
+    on 120 km/h (tiepituus noin 9 km), nopeusrajoitus 100 km/h:ssa ja niiden maanteiden,
+    joilla nopeusrajoitus on 100 km/h (noin 25 km), nopeusrajoitus 80 km/h:ssa. Nopeusrajoitusten
+    alentaminen vaikuttaa henkilöautojen ja pakettiautojen nopeuksiin ja päästöihin.
+    Vaikutusta pitkamatkaisen linja-autoliikenteen nopeuksiin ja päästöihin ei huomioida,
+    koska vaikutusten arvioidaan olevan pieniä.
+  description_en: Reduce the speed limit on Espoo’s 120 and 100 km/h roads. The speed
+    limit reduction affects the speed of passenger cars and delivery vans. The effect
+    on long-distance bus traffic speed and emissions is not taken into account, as
+    the effects are estimated to be small.
+  description_sv: Minska hastighetsgränsen på Esbo 120 och 100 km/h vägar. Minskningen
+    av hastighetsgränsen påverkar hastigheten för personbilar och leveransbilar. Påverkan
+    på långdistansbussarnas hastighet och utsläpp räknas inte in, eftersom effekterna
+    anses vara små.
+  type: gpc.DatasetActionMFM
+  group: additions_2024
+  input_dimensions: [cost_type, energy_carrier, owner, scope]
+  output_dimensions: [cost_type, energy_carrier, owner, scope]
+  params:
+    action: Build Renewable Electricity Production (PV)
+  input_datasets:
+  - id: gpc/tampere_simple_actions  # FIXME: This is not the correct dataset.
+    forecast_from: 2025
+  output_metrics:
+  - id: i62_energy
+    unit: GWh/a
+    quantity: energy
+  - id: i_currency
+    unit: EUR/a
+    quantity: currency
+
+- id: change_in_fuel_distribution_mandate
+  name: Moottoripolttoaineiden jakeluvelvoitteen muutoksen vaikutus hiilidioksidiekvivalenttipäästöihin
+  name_en: Change in fuel distribution mandate affects CO2e emissions
+  name_sv: Ändring i biobränslen påverkar koldioxidekvivalentut utsläpp
+  description: Muutetaan nykyisen jakeluvelvoitteen mukaiset polttoaineiden bio-osuudet
+    hallitusohjelman mukaisiksi osuuksiksi. Vuodesta 2028 alkaen hallitusohjelmassa
+    ei ole määritetty bio-osuutta ja tässä oletetaan, että bio-osuus on vuodesta 2028
+    alkaen sama kuin vuonna 2027.
+  description_en: Change the fuel distribution mandate for bio-content in fuels to
+    the ones set in the government programme. From 2028 onwards, the government programme
+    does not specify the bio-content and it is assumed that the bio-content is the
+    same as in 2027 from 2028 onwards.
+  description_sv: Ändring i biobränslen för bioinnehåll i bränslen till de som finns
+    i regeringsprogrammet. Från och med 2028 antas att bioinnehållet är detsamma som
+    2027.
+  type: gpc.DatasetActionMFM
+  group: additions_2024
+  input_dimensions: [cost_type, energy_carrier, owner, scope]
+  output_dimensions: [cost_type, energy_carrier, owner, scope]
+  params:
+    action: Build Renewable Electricity Production (PV)
+  input_datasets:
+  - id: gpc/tampere_simple_actions  # FIXME: This is not the correct dataset.
+    forecast_from: 2025
+  output_metrics:
+  - id: i62_energy
+    unit: GWh/a
+    quantity: energy
+  - id: i_currency
+    unit: EUR/a
+    quantity: currency
+
+- id: increase_electric_passenger_cars  # TODO Take from dataset
+  name: Sähköhenkilöautojen määrän nopeampi kasvu
+  name_en: Faster increase in the number of electric passenger cars
+  name_sv: Snabbare ökning av antalet elektriska personbilar
+  description: Oletetaan, että sähköhenkilöautojen määrä kasvaa Espoossa selvästi
+    ennusteita nopeammin. Lähtökohdaksi otettiin Sähköautojen latausinfran kehittyminen
+    Espoossa -selvityksen skenaariosta 4 ladattavien henkilöautojen ja muiden henkilöautojen
+    määrät ja osuudet vuosina 2025 ja 2030.
+  description_en: It is assumed that the number of electric passenger cars will increase
+    in Espoo faster than the forecasts. The starting point was the development of
+    electric vehicle charging in Espoo -report, scenario 4, the number of electric
+    passenger cars and the share of other passenger cars in 2025 and 2030.
+  description_sv: Antas att antalet elektriska personbilar kommer att öka i Esbo snabbare
+    än prognoserna. Startpunkten var utvecklingen av elbilbensinladdning i Esbo -rapporten,
+    scenario 4, antalet elektriska personbilar och andelen andra personbilar år 2025
+    och 2030.
+  type: simple.AdditiveAction2
+  quantity: number
+  unit: vehicles
+  group: additions_2024
+  # input_dimensions: [vehicle_type, energy_carrier]
+  # output_dimensions: [vehicle_type, energy_carrier]
+  forecast_values: [[2025, 0], [2030, 50000], [2035, 95000]]  # FIXME
+  input_dataset_processors: [LinearInterpolation]
+  params:
+  - id: multiplier
+    is_customizable: true
+    is_visible: true
+    description: Sähköhenkilöautojen määrän kasvu tavoitteen suhteen
+    unit: dimensionless
+    values:
+      default: 1.0
+    min_value: 0
+    max_value: 1
+    step: 0.05
+
+- id: environmental_zone_for_trucks
+  name: Ympäristövyöhykkeen asettaminen kuorma-autoille Espoon kaduilla
+  name_en: Set environmental zone for trucks on Espoo’s roads
+  name_sv: Sätta miljözon för lastbilar på Esbo vägar
+  description: Kielletään fossiilista polttoainetta käyttävien kuorma-autojen liikennöinti
+    osalla Espoon kaduista. Dieselkuorma-autot siirtyisivät käyttämään uusiutuvaa
+    dieseliä, jolloin CO2-ekv-päästöt vähenisivät 100 % (pakoputkipäästöt). Kaasukuorma-autot
+    siirtyisivät käyttämään biokaasua, jolloin CO2-ekv-päästöt vähenisivät 100 % (pakoputkipäästöt)
+  description_en: Ban fossil fuel-powered trucks from using part of Espoo’s roads.
+    Diesel trucks would switch to renewable diesel, reducing CO2e emissions by 100%
+    (exhaust emissions). Gas trucks would switch to biogas, reducing CO2e emissions
+    by 100% (exhaust emissions).
+  description_sv: Förbjuda dieselbilar att köra på en del av Esbo vägar. Dieselbilar
+    skulle byta till biogas, vilket skulle minska utsläppen av koldioxidekvivalent
+    med 100% (avgasutsläpp).
+  type: simple.AdditiveAction2
+  quantity: fraction
+  unit: dimensionless
+  group: additions_2024
+  forecast_values: [[2026, 1], [2035, 1]]
+  input_dataset_processors: [LinearInterpolation]
+  params:
+  - id: multiplier
+    is_customizable: true
+    is_visible: true
+    description: Ympäristövyöhykkeen osuus kuorma-autojen käytöstä
+    unit: dimensionless
+    values:
+      default: 0.6
+    min_value: 0
+    max_value: 1
+    step: 0.05
+
+- id: matinkyla_leppavaara_light_rail
+  name: Matinkylä-Leppävaara-pikaraitiotie
+  name_en: Matinkylä-Leppävaara light rail
+  name_sv: Matinkylä-Leppävaara-snabbspårväg
+  description: Matinkylä-Leppävaara-pikaraitiotien hiilidioksidiekvivalenttipäästöjen
+    suuruusluokkaa voidaan arvioida Helsingin ja Espoon välin rakenteilla olevan Raide-Jokeri-pikaraitiotien
+    hankearvioinnin avulla. Raide-Jokeri kasvattaa joukkoliikenteellä tehtävien matkojen
+    määrää vuonna 2030 noin 4 900 ja vuonna 2050 noin 6 200 matkalla vuorokaudessa.
+    Kulkutapamuutokset ja siirtyminen dieselbussista raitiovaunuun alentaa liikenteen
+    hiilidioksidipäästöjä vuoden 2030 ennusteissa 4 000 tonnia vuodessa. (Lähde Raide-Jokerin
+    hankearviointi 17.1.2019). Raide-Jokeri on arviolta noin kaksi kertaa pidempi
+    kuin Matinkylä-Leppävaara-pikaraitiotie, josta voidaan arvioida, että Matinkylä-Leppävaara-pikaraitiotien
+    hiilidioksidiekvivalenttipäästöjen vähenemän suuruusluokka olisi maksimissaan
+    noin 2 000 tonnia vuodessa.
+  description_en: 'The magnitude of carbon dioxide equivalent emissions from the Matinkylä-Leppävaara
+    light rail can be estimated using the project assessment of the Raide-Jokeri light
+    rail under construction between Helsinki and Espoo. Raide-Jokeri will increase
+    the number of public transport journeys by approximately 4,900 per day in 2030
+    and by approximately 6,200 per day in 2050. The modal shifts and transition from
+    diesel buses to trams will reduce transport carbon dioxide emissions by 4,000
+    tonnes per year in the 2030 forecasts. (Source: Raide-Jokeri project assessment
+    17.1.2019). Raide-Jokeri is estimated to be about twice as long as the Matinkylä-Leppävaara
+    light rail, from which it can be estimated that the magnitude of the reduction
+    in carbon dioxide equivalent emissions from the Matinkylä-Leppävaara light rail
+    would be a maximum of about 2,000 tonnes per year.'
+  description_sv: 'Storleksordningen på koldioxidekvivalentutsläppen från Matinkylä-Leppävaara-snabbspårvägen
+    kan uppskattas med hjälp av projektbedömningen av Raide-Jokeri-snabbspårvägen
+    som är under konstruktion mellan Helsingfors och Esbo. Raide-Jokeri kommer att
+    öka antalet kollektivtrafikresor med cirka 4 900 per dag år 2030 och med cirka
+    6 200 per dag år 2050. Förändringarna i transportsätt och övergången från dieselbussar
+    till spårvagnar kommer att minska transporternas koldioxidutsläpp med 4 000 ton
+    per år i 2030 års prognoser. (Källa: Raide-Jokeris projektbedömning 17.1.2019).
+    Raide-Jokeri uppskattas vara ungefär dubbelt så lång som Matinkylä-Leppävaara-snabbspårvägen,
+    från vilket man kan uppskatta att storleksordningen på minskningen av koldioxidekvivalentutsläppen
+    från Matinkylä-Leppävaara-snabbspårvägen skulle vara maximalt cirka 2 000 ton
+    per år.'
+  type: simple.LinearCumulativeAdditiveAction
+  group: additions_2024
+  quantity: emissions
+  unit: kt/a
+  forecast_values: [[2025, 0], [2035, 0]]
+  input_dataset_processors: [LinearInterpolation]
+  params:
+  - id: action_delay  # TODO Should postpone also the target year.
+    description: Montako vuotta on toimenpiteen käynnistämiseen
+    values:
+      default: 0
+    min_value: 0
+    max_value: 9
+    step: 1
+  - id: target_year_level
+    description: Arvio pikaraitiotien päästövaikutuksesta
+    values:
+      default: -2
+    min_value: -2
+    max_value: 0
+    step: 0.1
+  output_nodes: [car_emissions]
+
+# OLD ACTIONS
 # ELECTRICITY
 #
 - id: cleaner_electricity_production
@@ -1509,6 +2205,7 @@ actions:
     min_value: 0
     max_value: 2
     step: 5
+    is_visible: false
 
 - id: reduce_agriculture_emissions
   name: Maatalouden päästöt pienenevät
@@ -1896,15 +2593,15 @@ actions:
   name_en: Increasing the fuel distribution obligation
   name_sv: Höjning av distributionsskyldigheten
   description: Jakeluvelvoitteen noston arvioidaan vähentävän tieliikenteen päästöjä
-    0.7 %. Kun tämä vaikutus kohdennetaan pelkästään henkilöautojen päästökertoimeen,
+    3.4 %. Kun tämä vaikutus kohdennetaan pelkästään henkilöautojen päästökertoimeen,
     saadaan päästökertoimen vähenemäksi 234 g/kWh * 3.4 % * (1261 GWh/a / 735 GWh/a)
     = 13.658 g/kWh.
   description_en: 'Increasing the distribution obligation is estimated to reduce emissions
-    from road transport by 0.7%. By focusing this effect on the emission factor for
+    from road transport by 3.4%. By focusing this effect on the emission factor for
     cars only, the reduction in the emission factor can be calculated as follows:
     234 g/kWh * 3.4% * (1261 GWh/a / 735 GWh/a) = 13.658 g/kWh.'
   description_sv: Höjningen av distributionsskyldigheten bedöms minska utsläppen från
-    vägtrafiken med 0.7 procent. När denna effekt riktas enbart till utsläppskoefficienten
+    vägtrafiken med 3.4 procent. När denna effekt riktas enbart till utsläppskoefficienten
     för personbilar, minskas utsläppskoefficienten 234 g/kWh * 3.4 % * (1261 GWh/a
     / 735 GWh/a) = 13.658 g/kWh.
   type: simple.LinearCumulativeAdditiveAction
