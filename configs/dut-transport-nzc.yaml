@@ -59,24 +59,22 @@ params:
   is_customizable: false
 
 action_groups:
-- id: transport
-  name: 1. Transport
+- id: promoting_active_mobility
+  name: Aktiivisen liikkumisen edistäminen
+  name_en: Promoting active mobility
   color: '#93c572'
-- id: freight_transport
-  name: 2. Freight transport
-- id: buildings
-  name: 3. Buildings
-  color: '#32cd32'
-- id: electricity
-  name: 4. Electricity
-  color: '#29ab87'
-- id: waste
-  name: 5. Waste
-  color: '#50c878'
-- id: scope_3
-  name: 6. Scope 3
-- id: reforestation
-  name: 7. Reforestation
+- id: promoting_systemic_public_transport
+  name: Joukkoliikennejärjestelmän edistäminen
+  name_en: Promoting systemic public transport
+  color: '#93c572'
+- id: limiting_cars
+  name: Autoliikenteen rajoittaminen
+  name_en: Limiting passenger cars
+  color: '#93c572'
+- id: electrification
+  name: Sähköistäminen
+  name_en: Electrification
+  color: '#93c572'
 
 action_efficiency_pairs:
 
@@ -1072,12 +1070,12 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 # --------------- TRANSPORT -------------
 
 - id: a11_reduce_all_motorised_transport
-  name_en: 1.1 Reduce all motorised transport
-  name_fi: 1.1 Vähennä kaikkea moottoroitua liikennettä
+  name_en: Reduce all motorised transport
+  name_fi: Vähennä kaikkea moottoroitua liikennettä
   type: gpc.DatasetAction2  # TODO Salli historialliset arvot LinearCumulativeAdditiveAction-luokassa.
   quantity: fraction
   unit: '%'
-  group: transport
+  group: limiting_cars
   input_datasets: [nzc/defaults]
   params:
     sector: Transportation need reduction by 2030 from urban planning, digital meetings
@@ -1088,12 +1086,12 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
     tags: [non_additive, extend_values]
 
 - id: a12_modal_switch_from_cars_to_other_modes
-  name_en: 1.2 Modal switch from cars to other modes
-  name_fi: 1.2 Kulkumuotosiirtymä autoista muihin kulkumuotoihin
+  name_en: Modal switch from cars to other modes
+  name_fi: Kulkumuotosiirtymä autoista muihin kulkumuotoihin
   type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'
-  group: transport
+  group: limiting_cars
   input_datasets: [nzc/defaults]
   params:
     sector: Reduced Pkm cars + motorcycles by 2030
@@ -1102,14 +1100,14 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
     to_dimensions: []
 
 - id: a13_car_pooling
-  name_en: 1.3 Car pooling
-  name_fi: 1.3 Kimppakyydit
+  name_en: Car pooling
+  name_fi: Kimppakyydit
   description_en: How many % increase there is in the average number of people in a car.
   description_fi: Kuinka monta % keskimääräinen henkilömäärä autossa kasvaa.
   type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'
-  group: transport
+  group: limiting_cars
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_datasets: [nzc/defaults]
@@ -1121,12 +1119,12 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
     sector: 1.3 Car pooling
 
 - id: a141_electrification_of_passenger_cars
-  name_en: 1.4.1 Electrification of passenger cars
-  name_fi: 1.4.1 Henkilöautojen sähköistäminen
+  name_en: Electrification of passenger cars
+  name_fi: Henkilöautojen sähköistäminen
   type: gpc.SCurveAction
   quantity: fraction
   unit: '%'
-  group: transport
+  group: electrification
   input_dimensions: [transport_mode, energy_carrier]
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
@@ -1142,14 +1140,14 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   - id: fully_electric_car_share
 
 - id: a142_electrification_of_buses
-  name_en: 1.4.2 Electrification of buses
-  name_fi: 1.4.2 Linja-autojen sähköistäminen
+  name_en: Electrification of buses
+  name_fi: Linja-autojen sähköistäminen
   description_en: Fraction of buses that is replaced with electric buses each year.
   description_fi: Osuus linja-autoista, jotka korvataan sähköbusseilla vuosittain.
   type: gpc.DatasetAction2
   quantity: fraction
   unit: '%/a'
-  group: transport
+  group: electrification
   input_dimensions: [transport_mode, energy_carrier]
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
@@ -1162,56 +1160,13 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 
 # ----------------- Freight transport -----------------
 
-- id: a21_optimised_logistics
-  name_en: 2.1 Optimised logistics
-  name_fi: 2.1 Optimoidut logistiikkaratkaisut
-  type: parent.ParentActionNode
-  quantity: mass
-  unit: m**3
-  group: freight_transport
-
-- id: a211_improve_utilisation_of_trucks
-  name_en: 2.1.1 Improve utilisation of trucks
-  name_fi: 2.1.1 Paranna kuorma-autojen käyttöastetta
-  type: linear.DatasetReduceAction
-  quantity: fraction
-  unit: '%'
-  group: freight_transport
-  parent: a21_optimised_logistics
-  input_dimensions: [transport_mode]
-  output_dimensions: [transport_mode]
-  input_nodes:
-  - id: average_truck_utilisation_goal
-    tags: [goal]
-  - id: average_truck_utilisation_historical
-    tags: [historical]
-  output_nodes:
-  - id: average_truck_utilisation
-
-- id: a212_route_optimisation
-  name_en: 2.1.2 Route optimisation
-  name_fi: 2.1.2 Reittioptimointi
-  type: gpc.DatasetAction2
-  quantity: fraction
-  unit: '%'
-  group: freight_transport
-  parent: a21_optimised_logistics
-  input_datasets:
-  - id: nzc/defaults
-  output_nodes:
-  - id: freight_transport_vehicle_kilometres
-    tags: [complement, non_additive]
-    to_dimensions: []
-  params:
-    sector: Reduction of total distance travelled through route optimisation
-
 - id: a22_truck_fleet_electrification
-  name_en: 2.2 Truck fleet electrification
-  name_fi: 2.2 Kuorma-autokannan sähköistäminen
+  name_en: Truck fleet electrification
+  name_fi: Kuorma-autokannan sähköistäminen
   type: gpc.SCurveAction
   quantity: fraction
   unit: '%'
-  group: freight_transport
+  group: electrification
   input_dimensions: [transport_mode, energy_carrier]
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
@@ -1229,12 +1184,12 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 # -------------- ELECTRICITY ----------------
 
 - id: a41_replace_fossil_electricity  # TODO virtaviivaista tämä käyttämällä suhteellista tavoitetta
-  name_en: 4.1 Replace fossil electricity
-  name_fi: 4.1 Korvaa fossiilinen sähkö
+  name_en: Replace fossil electricity
+  name_fi: Korvaa fossiilinen sähkö
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
-  group: electricity
+  group: electrification
   input_dimensions: [fuel_type, energy_carrier]
   output_dimensions: [fuel_type, energy_carrier]
   input_nodes:
@@ -1244,6 +1199,134 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
     tags: [goal, forecast_only]
   output_nodes:
   - id: electricity_shares
+
+# ------------------ New DUT actions ------------------
+
+# group: promoting_active_mobility
+
+- id: new_seamless_cycling_infrastructure
+  name: Uusi yhdenmukainen pyörätiejärjestelmä
+  name_en: New seamless cycling infrastructure
+  type: gpc.DatasetAction2
+  quantity: fraction
+  unit: '%'
+  group: promoting_active_mobility
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Reduction of total distance travelled through route optimisation
+
+- id: walking_infrastructure_improvement
+  name: Kävelyreittiverkoston parantaminen
+  name_en: Walking infrastructure improvement
+  type: gpc.DatasetAction2
+  quantity: fraction
+  unit: '%'
+  group: promoting_active_mobility
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Reduction of total distance travelled through route optimisation
+
+- id: bike_parking
+  name: Pyöräparkkien parantaminen
+  name_en: Bike parking
+  type: gpc.DatasetAction2
+  quantity: fraction
+  unit: '%'
+  group: promoting_active_mobility
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Reduction of total distance travelled through route optimisation
+
+- id: city_bikes
+  name: Kaupunkipyörät
+  name_en: City bikes
+  type: gpc.DatasetAction2
+  quantity: fraction
+  unit: '%'
+  group: promoting_active_mobility
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Reduction of total distance travelled through route optimisation
+
+# group: promoting_systemic_public_transport
+
+- id: park_and_ride
+  name: Liityntäpysäköintipalvelut
+  name_en: Park & ride and Bike & ride facilities
+  type: gpc.DatasetAction2
+  quantity: fraction
+  unit: '%'
+  group: promoting_systemic_public_transport
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Reduction of total distance travelled through route optimisation
+
+- id: last_mile_services
+  name: Viimeisen kilometrin palvelut osana liikennettä
+  name_en: Last mile services and public transport integration
+  type: gpc.DatasetAction2
+  quantity: fraction
+  unit: '%'
+  group: promoting_systemic_public_transport
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Reduction of total distance travelled through route optimisation
+
+- id: trunk_line_network_development
+  name: Runkoliikenneverkon kehittäminen
+  name_en: Public transport trunk line network development
+  type: gpc.DatasetAction2
+  quantity: fraction
+  unit: '%'
+  group: promoting_systemic_public_transport
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Reduction of total distance travelled through route optimisation
+
+# group: limiting_cars
+
+- id: congestion_pricing
+  name: Ruuhkamaksut
+  name_en: Congestion pricing
+  type: gpc.DatasetAction2
+  quantity: fraction
+  unit: '%'
+  group: limiting_cars
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Reduction of total distance travelled through route optimisation
+
+- id: parking_fees
+  name: Parkkikustannukset
+  name_en: Parking fees
+  type: gpc.DatasetAction2
+  quantity: fraction
+  unit: '%'
+  group: limiting_cars
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Reduction of total distance travelled through route optimisation
+
+- id: low_emission_zones
+  name: Päästötön keskusta
+  name_en: Low emission zones
+  type: gpc.DatasetAction2
+  quantity: fraction
+  unit: '%'
+  group: limiting_cars
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Reduction of total distance travelled through route optimisation
 
 pages:
 - id: home
