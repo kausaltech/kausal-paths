@@ -3,296 +3,308 @@
 # This file is distributed under the same license as the PACKAGE package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-12-05 10:55+0200\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
+"PO-Revision-Date: 2024-12-09 16:20+0000\n"
+"Last-Translator: DeepL <noreply-mt-deepl@weblate.org>\n"
+"Language-Team: Greek <https://weblate.kausal.tech/projects/paths/django/el/>"
+"\n"
+"Language: el\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Weblate 5.4.2\n"
+
 #: admin_site/api.py
 msgid "Invalid email address"
-msgstr ""
+msgstr "Μη έγκυρη διεύθυνση email"
 
 #: admin_site/api.py
 msgid "No user found with this email address. Ask your administrator to create an account for you."
 msgstr ""
+"Δεν βρέθηκε χρήστης με αυτή τη διεύθυνση ηλεκτρονικού ταχυδρομείου. Ζητήστε "
+"από το διαχειριστή σας να δημιουργήσει ένα λογαριασμό για εσάς."
 
 #: admin_site/api.py
 msgid "This user does not have access to admin."
-msgstr ""
+msgstr "Αυτός ο χρήστης δεν έχει πρόσβαση στο admin."
 
 #: admin_site/perms.py nodes/roles.py
 msgid "General admin"
-msgstr ""
+msgstr "Γενικός διαχειριστής"
 
 #: admin_site/templates/wagtailadmin/home.html
 msgid "Welcome to Paths admin"
-msgstr ""
+msgstr "Καλώς ήρθατε στο Paths"
 
 #: admin_site/templates/wagtailadmin/login.html
 msgid "Sign in to Kausal Paths admin"
-msgstr ""
+msgstr "Συνδεθείτε στο Kausal Paths admin"
 
 #: admin_site/templates/wagtailadmin/login.html
 msgid "Our apologies, the server is temporarily experiencing difficulties."
-msgstr ""
+msgstr "Ζητούμε συγγνώμη, ο διακομιστής αντιμετωπίζει προσωρινά δυσκολίες."
 
 #: admin_site/wagtail_hooks.py
 msgid "Choose instance"
-msgstr ""
+msgstr "Επιλέξτε παράδειγμα"
 
 #: datasets/models.py
 msgid "dataset"
-msgstr ""
+msgstr "σύνολο δεδομένων"
 
 #: datasets/models.py
 msgid "datasets"
-msgstr ""
+msgstr "σύνολα δεδομένων"
 
 #: datasets/models.py
 msgid "label"
-msgstr ""
+msgstr "ετικέτα"
 
 #: datasets/models.py
 msgid "data source reference"
-msgstr ""
+msgstr "αναφορά πηγής δεδομένων"
 
 #: datasets/models.py
 msgid "data source references"
-msgstr ""
+msgstr "αναφορές στην πηγή δεδομένων"
 
 #: datasets/models.py
 msgid "Review comment"
-msgstr ""
+msgstr "Σχόλιο αναθεώρησης"
 
 #: datasets/models.py
 msgid "Sticky comment"
-msgstr ""
+msgstr "Κολλώδες σχόλιο"
 
 #: datasets/models.py
 msgid "Resolved"
-msgstr ""
+msgstr "Επιλυμένο"
 
 #: datasets/models.py
 msgid "Unresolved"
-msgstr ""
+msgstr "Ανεπίλυτο"
 
 #: datasets/models.py
 msgid "resolved at"
-msgstr ""
+msgstr "επιλύεται σε"
 
 #: datasets/models.py
 msgid "comment"
-msgstr ""
+msgstr "σχόλιο"
 
 #: datasets/models.py
 msgid "comments"
-msgstr ""
+msgstr "σχόλια"
 
 #: datasets/wagtail_hooks.py
 msgid "Data dimensions"
-msgstr ""
+msgstr "Διαστάσεις δεδομένων"
 
 #: datasets/wagtail_hooks.py nodes/models.py
 msgid "Data sources"
-msgstr ""
+msgstr "Πηγές δεδομένων"
 
 #: frameworks/models.py
 msgid "Name"
-msgstr ""
+msgstr "Όνομα"
 
 #: frameworks/models.py
 msgid "High"
-msgstr ""
+msgstr "Υψηλή"
 
 #: frameworks/models.py
 msgid "Medium"
-msgstr ""
+msgstr "Μεσαίο"
 
 #: frameworks/models.py
 msgid "Low"
-msgstr ""
+msgstr "Χαμηλή"
 
 #: frameworks/roles.py
 msgid "Framework admins"
-msgstr ""
+msgstr "Διαχειριστές πλαισίων"
 
 #: frameworks/roles.py
 msgid "Framework viewers"
-msgstr ""
+msgstr "Θεατές πλαισίου"
 
 #: frameworks/schema.py
 msgid "Public URL for instance dashboard"
-msgstr ""
+msgstr "Δημόσια διεύθυνση URL για το ταμπλό παραδείγματος"
 
 #: frameworks/schema.py
 msgid "URL for downloading a results file"
-msgstr ""
+msgstr "URL για τη λήψη ενός αρχείου αποτελεσμάτων"
 
 #: frameworks/schema.py
 msgid "Identifier for the model instance. Needs to be unique."
-msgstr ""
+msgstr "Αναγνωριστικό για την περίπτωση μοντέλου. Πρέπει να είναι μοναδικό."
 
 #: frameworks/schema.py
 msgid "Name for the framework configuration instance. Typically the name of the organization."
 msgstr ""
+"Όνομα για την περίπτωση διαμόρφωσης του πλαισίου. Συνήθως το όνομα του "
+"οργανισμού."
 
 #: frameworks/schema.py
 msgid "UUID for the new framework config. If not set, will be generated automatically."
 msgstr ""
+"UUID για τη νέα διαμόρφωση πλαισίου. Εάν δεν έχει οριστεί, θα δημιουργηθεί "
+"αυτόματα."
 
 #: frameworks/schema.py
 msgid "Name of the organization. If not set, it will be determined through the user's credentials, if possible."
 msgstr ""
+"Όνομα του οργανισμού. Εάν δεν έχει οριστεί, θα προσδιοριστεί μέσω των "
+"διαπιστευτηρίων του χρήστη, εάν είναι δυνατόν."
 
 #: frameworks/schema.py
 msgid "The created framework config instance."
-msgstr ""
+msgstr "Η δημιουργημένη περίπτωση παραμέτρων πλαισίου."
 
 #: frameworks/schema.py
 msgid "ID of the organization-specific framework instance"
-msgstr ""
+msgstr "Αναγνωριστικό της συγκεκριμένης περίπτωσης πλαισίου για τον οργανισμό"
 
 #: frameworks/schema.py
 msgid "ID of the measure template within a framework"
-msgstr ""
+msgstr "Αναγνωριστικό του προτύπου μέτρου εντός ενός πλαισίου"
 
 #: frameworks/schema.py
 msgid "Value for the data point (set to null to remove)"
-msgstr ""
+msgstr "Τιμή για το σημείο δεδομένων (μηδενίζεται για να αφαιρεθεί)"
 
 #: frameworks/schema.py
 msgid "Year of the data point. If not given, defaults to the baseline year for the framework instance"
 msgstr ""
+"Έτος του σημείου δεδομένων. Εάν δεν δοθεί, προεπιλογή είναι το έτος αναφοράς "
+"για την περίπτωση του πλαισίου."
 
 #: frameworks/schema.py
 msgid "Internal notes for the measure instance"
-msgstr ""
+msgstr "Εσωτερικές σημειώσεις για την περίπτωση του μέτρου"
 
 #: frameworks/schema.py
 msgid "ID (or UUID) of the measure template within a framework"
-msgstr ""
+msgstr "ID (ή UUID) του προτύπου μέτρου σε ένα πλαίσιο"
 
 #: kausal_common/models/modification_tracking.py
 msgid "Created at"
-msgstr ""
+msgstr "Δημιουργήθηκε στο"
 
 #: kausal_common/models/modification_tracking.py
 msgid "Last modified by"
-msgstr ""
+msgstr "Τελευταία τροποποίηση από"
 
 #: kausal_common/models/modification_tracking.py
 msgid "Last modified at"
-msgstr ""
+msgstr "Τελευταία τροποποίηση στις"
 
 #: kausal_common/models/ordered.py
 msgid "order"
-msgstr ""
+msgstr "παραγγελία"
 
 #: kausal_common/models/uuid.py
 msgid "UUID"
-msgstr ""
+msgstr "UUID"
 
 #: kausal_common/users/models.py users/models.py
 msgid "email address"
-msgstr ""
+msgstr "διεύθυνση ηλεκτρονικού ταχυδρομείου"
 
 #: nodes/actions/action.py
 msgid "Is implemented"
-msgstr ""
+msgstr "Εφαρμόζεται"
 
 #: nodes/actions/action.py
 msgid "Is the action included in the scenario"
-msgstr ""
+msgstr "Περιλαμβάνεται η δράση στο σενάριο"
 
 #: nodes/actions/energy_saving.py
 msgid "Number of LED bulbs changed per year (baseline)"
-msgstr ""
+msgstr "Αριθμός λαμπτήρων LED που αλλάζονται ετησίως (βασική τιμή)"
 
 #: nodes/actions/energy_saving.py
 msgid "Number of additional LED bulbs changed per year"
-msgstr ""
+msgstr "Αριθμός πρόσθετων λαμπτήρων LED που αλλάζονται ετησίως"
 
 #: nodes/actions/energy_saving.py
 msgid "Yearly increase in total number of luminaires"
-msgstr ""
+msgstr "Ετήσια αύξηση του συνολικού αριθμού φωτιστικών σωμάτων"
 
 #: nodes/actions/energy_saving.py
 msgid "Yearly maintenance cost of traditional luminaires"
-msgstr ""
+msgstr "Ετήσιο κόστος συντήρησης παραδοσιακών φωτιστικών σωμάτων"
 
 #: nodes/actions/energy_saving.py
 msgid "Yearly maintenance cost of LED luminaires"
-msgstr ""
+msgstr "Ετήσιο κόστος συντήρησης των φωτιστικών LED"
 
 #: nodes/actions/energy_saving.py
 msgid "Traditional luminaire power consumption"
-msgstr ""
+msgstr "Κατανάλωση ισχύος παραδοσιακών φωτιστικών σωμάτων"
 
 #: nodes/actions/energy_saving.py
 msgid "LED luminaire power consumption"
-msgstr ""
+msgstr "Κατανάλωση ισχύος φωτιστικού LED"
 
 #: nodes/actions/energy_saving.py
 msgid "Traditional luminaire yearly active time"
-msgstr ""
+msgstr "Παραδοσιακό φωτιστικό ετήσιος ενεργός χρόνος"
 
 #: nodes/actions/energy_saving.py
 msgid "LED luminaire yearly active time"
-msgstr ""
+msgstr "Ετήσιος ενεργός χρόνος φωτιστικού LED"
 
 #: nodes/actions/energy_saving.py
 msgid "Investment cost of one LED retrofit"
-msgstr ""
+msgstr "Κόστος επένδυσης μιας αναβάθμισης LED"
 
 #: nodes/actions/energy_saving.py
 msgid "Investment lifetime (a)"
-msgstr ""
+msgstr "Διάρκεια ζωής της επένδυσης (α)"
 
 #: nodes/actions/energy_saving.py
 msgid "Investment cost (SEK/m2)"
-msgstr ""
+msgstr "Κόστος επένδυσης (SEK/m2)"
 
 #: nodes/actions/energy_saving.py
 msgid "Maintenance cost (SEK/m2/a)"
-msgstr ""
+msgstr "Κόστος συντήρησης (SEK/m2/a)"
 
 #: nodes/actions/energy_saving.py
 msgid "Heat saving (kWh/m2/a)"
-msgstr ""
+msgstr "Εξοικονόμηση θερμότητας (kWh/m2/a)"
 
 #: nodes/actions/energy_saving.py
 msgid "Electricity saving (kWh/m2/a)"
-msgstr ""
+msgstr "Εξοικονόμηση ηλεκτρικής ενέργειας (kWh/m2/a)"
 
 #: nodes/actions/energy_saving.py
 #, python-format
 msgid "Renovation potential (% of floor area)"
-msgstr ""
+msgstr "Δυνατότητες ανακαίνισης (% of floor area)"
 
 #: nodes/actions/energy_saving.py
 msgid "Investment cost (USD/square foot)"
-msgstr ""
+msgstr "Κόστος επένδυσης (USD/τετραγωνικό πόδι)"
 
 #: nodes/actions/energy_saving.py
 msgid "Maintenance cost (USD/square foot/a)"
-msgstr ""
+msgstr "Κόστος συντήρησης (USD/τετραγωνικό πόδι/έτος)"
 
 #: nodes/actions/energy_saving.py
 msgid "Natural gas saving (thm/square foot/a)"
-msgstr ""
+msgstr "Εξοικονόμηση φυσικού αερίου (thm/τετραγωνικό πόδι/έτος)"
 
 #: nodes/actions/energy_saving.py
 msgid "Electricity saving (kWh/square foot/a)"
-msgstr ""
+msgstr "Εξοικονόμηση ηλεκτρικής ενέργειας (kWh/τετραγωνικό πόδι/έτος)"
 
 #: nodes/actions/gpc.py
 msgid ""
@@ -304,6 +316,17 @@ msgid ""
 "        of the curve (always 0.5), and x0 is the midpoint.\n"
 "        "
 msgstr ""
+"\n"
+"        Αυτή είναι η δράση της καμπύλης S. Υπολογίζει μη γραμμικό αποτέλεσμα "
+"με δύο παραμέτρους,\n"
+"        max_impact και max_year.Οι παράμετροι προέρχονται από το Dataset. "
+"Επιπλέον, υπάρχουν\n"
+"        πρέπει να υπάρχει ένας κόμβος εισόδου για τα δεδομένα υποβάθρου. "
+"Λειτουργία για\n"
+"        S-curve = A/(1+exp(-k*(x-x0)). A είναι η μέγιστη τιμή, k είναι η "
+"απότομη κλίση\n"
+"        της καμπύλης (πάντα 0,5) και x0 είναι το μέσο σημείο.\n"
+"        "
 
 #: nodes/actions/linear.py
 msgid ""
@@ -318,6 +341,17 @@ msgid ""
 "    a multiplier.\n"
 "    "
 msgstr ""
+"\n"
+"    Λαμβάνετε είσοδο στόχου από ένα σύνολο δεδομένων ή έναν κόμβο και "
+"προκαλείτε ένα γραμμικό αποτέλεσμα.\n"
+"\n"
+"    Η έξοδος θα είναι μια χρονοσειρά με τη διαφορά προς το\n"
+"    τελευταίας ιστορικής τιμής του κόμβου εισόδου.\n"
+"\n"
+"    Η είσοδος στόχου μπορεί επίσης να είναι σχετική (π.χ. ποσοστό\n"
+"    μειώσεις), οπότε η είσοδος θα αντιμετωπίζεται ως\n"
+"    πολλαπλασιαστή.\n"
+"    "
 
 #: nodes/actions/linear.py
 msgid ""
@@ -332,14 +366,26 @@ msgid ""
 "    a multiplier.\n"
 "    "
 msgstr ""
+"\n"
+"    Λαμβάνει είσοδο στόχου από ένα σύνολο δεδομένων ή έναν κόμβο και "
+"προκαλεί ένα αποτέλεσμα.\n"
+"\n"
+"    Η έξοδος θα είναι μια χρονοσειρά με τη διαφορά από την\n"
+"    προβλεπόμενη βασική τιμή του κόμβου εισόδου.\n"
+"\n"
+"    Η είσοδος στόχου μπορεί επίσης να είναι σχετική (π.χ. ποσοστό\n"
+"    μειώσεις), οπότε η είσοδος θα αντιμετωπίζεται ως\n"
+"    πολλαπλασιαστή.\n"
+"    "
 
 #: nodes/actions/simple.py
 msgid "Simple action that produces an additive change to a value."
-msgstr ""
+msgstr "Απλή ενέργεια που παράγει μια προσθετική αλλαγή σε μια τιμή."
 
 #: nodes/actions/simple.py
 msgid "Additive action where the effect is cumulative and remains in the future."
 msgstr ""
+"Προσθετική δράση όπου το αποτέλεσμα είναι σωρευτικό και παραμένει στο μέλλον."
 
 #: nodes/actions/simple.py
 msgid ""
@@ -350,10 +396,18 @@ msgid ""
 "    multiplier scales the size of the impact (useful between scenarios).\n"
 "    "
 msgstr ""
+"Σωρευτική προσθετική δράση όπου τίθεται ετήσιος στόχος και το αποτέλεσμα "
+"είναι γραμμικό.\n"
+"    Αυτό μπορεί να τροποποιηθεί με αυτές τις παραμέτρους:\n"
+"    είναι η τιμή που πρέπει να επιτευχθεί στο έτος-στόχο.\n"
+"    action_delay είναι το έτος κατά το οποίο αρχίζει η εφαρμογή της δράσης.\n"
+"    multiplier κλιμακώνει το μέγεθος της επίπτωσης (χρήσιμο μεταξύ σεναρίων)."
+"\n"
+"    "
 
 #: nodes/actions/simple.py
 msgid "Simple emission reduction impact"
-msgstr ""
+msgstr "Απλός αντίκτυπος της μείωσης των εκπομπών"
 
 #: nodes/actions/simple.py
 msgid ""
@@ -362,26 +416,34 @@ msgid ""
 "    and then possibly do some relative or absolute conversions.\n"
 "    "
 msgstr ""
+"\n"
+"    Η TrajectoryAction χρησιμοποιεί την select_category() για να επιλέξει "
+"μια κατηγορία από μια διάσταση\n"
+"    και στη συνέχεια ενδεχομένως να κάνει κάποιες σχετικές ή απόλυτες "
+"μετατροπές.\n"
+"    "
 
 #: nodes/blocks.py nodes/models.py
 msgid "Node"
-msgstr ""
+msgstr "Κόμβος"
 
 #: nodes/blocks.py
 msgid "Outcome node"
-msgstr ""
+msgstr "Κόμβος αποτελεσμάτων"
 
 #: nodes/buildings.py
 msgid "Floor area node takes in actions and calculates the floor area impacted."
 msgstr ""
+"Ο κόμβος εμβαδού δαπέδου λαμβάνει δράσεις και υπολογίζει το εμβαδόν δαπέδου "
+"που επηρεάζεται."
 
 #: nodes/choosers.py
 msgid "Choose a node"
-msgstr ""
+msgstr "Επιλέξτε έναν κόμβο"
 
 #: nodes/choosers.py
 msgid "Choose another node"
-msgstr ""
+msgstr "Επιλέξτε έναν άλλο κόμβο"
 
 #: nodes/costs.py
 msgid ""
@@ -392,6 +454,15 @@ msgid ""
 "    Parameter is_decreasing_rate is used to give discount rates instead.\n"
 "    "
 msgstr ""
+" Αυτός είναι ο Εκθετικός Κόμβος.\n"
+"    Λαμβάνει είτε κόμβους εισόδου ως AdditiveNode, είτε δημιουργεί ένα "
+"πλαίσιο δεδομένων από την τρέχουσα τιμή.\n"
+"    Κατασκευάζει έναν εκθετικό πολλαπλασιαστή με βάση την annual_change και "
+"πολλαπλασιάζει την VALUE_COLUMN.\n"
+"    Προαιρετικά, αγγίζει επίσης τις ιστορικές τιμές.\n"
+"    Η παράμετρος is_decreasing_rate χρησιμοποιείται για να δώσει επιτόκια "
+"προεξόφλησης αντί για αυτό.\n"
+"    "
 
 #: nodes/costs.py
 msgid ""
@@ -401,6 +472,13 @@ msgid ""
 "    Parameter annual_change is used where the rate node(s) have null values.\n"
 "    "
 msgstr ""
+"\n"
+"    Υπολογίζει την εσωτερική ανάπτυξη π.χ. ενός δάσους, λαμβάνοντας υπόψη "
+"τις υλοτομίες. Λαμβάνει προσθετικά και\n"
+"    μη προσθετικούς κόμβους και ένα σύνολο δεδομένων.\n"
+"    Η παράμετρος annual_change χρησιμοποιείται όταν οι κόμβοι ρυθμού έχουν "
+"μηδενικές τιμές.\n"
+"    "
 
 #: nodes/costs.py
 msgid ""
@@ -408,6 +486,16 @@ msgid ""
 "    This is Dilution Node. It has exactly four input nodes which are marked by tags: 1) existing is the current, non-diluted variable. 2) Incoming is the variable which diluted the existing one with its different values. 3) Removing is the fraction that is removed from the existing stock each year. 4) Incoming is the ratio compared with the existing stock that is inserted into the system. (Often the removed and incoming values are the same, and then the stock size remains constant.)\n"
 "    "
 msgstr ""
+"\n"
+"    Αυτός είναι ο κόμβος αραίωσης. Έχει ακριβώς τέσσερις κόμβους εισόδου οι "
+"οποίοι επισημαίνονται με ετικέτες: 1) Η υπάρχουσα είναι η τρέχουσα, μη "
+"αραιωμένη μεταβλητή. 2) εισερχόμενη είναι η μεταβλητή που αραίωσε την "
+"υπάρχουσα με τις διαφορετικές τιμές της. 3) Removing είναι το κλάσμα που "
+"αφαιρείται από το υπάρχον απόθεμα κάθε χρόνο. 4) Εισερχόμενη είναι η "
+"αναλογία σε σύγκριση με το υπάρχον απόθεμα που εισάγεται στο σύστημα. (Συχνά "
+"οι αφαιρούμενες και οι εισερχόμενες τιμές είναι ίδιες και τότε το μέγεθος "
+"του αποθέματος παραμένει σταθερό).\n"
+"    "
 
 #: nodes/costs.py
 msgid ""
@@ -415,14 +503,25 @@ msgid ""
 "        This is IterationNode. It calculates one year at a time based on previous year's value and inputs and outputs. In addition, it must have a feedback loop (otherwise it makes no sense to use this node class), which is given as a growth rate per year from the previous year's value.\n"
 "        "
 msgstr ""
+"\n"
+"        Αυτό είναι το IterationNode. Υπολογίζει ένα έτος κάθε φορά με βάση "
+"την τιμή του προηγούμενου έτους και τις εισόδους και εξόδους. Επιπλέον, "
+"πρέπει να διαθέτει βρόχο ανατροφοδότησης (διαφορετικά δεν έχει νόημα η χρήση "
+"αυτής της κλάσης κόμβου), ο οποίος δίνεται ως ρυθμός αύξησης ανά έτος από "
+"την τιμή του προηγούμενου έτους.\n"
+"        "
 
 #: nodes/formula.py
 msgid "This is a Formula Node. It uses a specified formula to calculate the output."
 msgstr ""
+"Αυτός είναι ένας κόμβος τύπου. Χρησιμοποιεί έναν καθορισμένο τύπο για τον "
+"υπολογισμό της εξόδου."
 
 #: nodes/gpc.py
 msgid "This is a DatasetNode. It takes in a specifically formatted dataset and converts the relevant part into a node output."
 msgstr ""
+"Αυτός είναι ένας κόμβος DatasetNode. Λαμβάνει ένα ειδικά διαμορφωμένο σύνολο "
+"δεδομένων και μετατρέπει το σχετικό μέρος σε έξοδο κόμβου."
 
 #: nodes/health.py
 msgid ""
@@ -432,240 +531,261 @@ msgid ""
 "    r/(r+1)=s <=> r=s/(1-s)\n"
 "    "
 msgstr ""
+"Υπολογίστε το αποδιδόμενο κλάσμα όταν η συνάρτηση ERF είναι ο σχετικός "
+"κίνδυνος.\n"
+"    AF=r/(r+1) εάν r >= 0- AF=r εάν r<0. Επομένως, εάν το αποτέλεσμα\n"
+"    είναι μικρότερο του 0, θα πρέπει να χρησιμοποιήσουμε το r αντί αυτού. "
+"Μπορεί να μετατραπεί από το αποτέλεσμα:\n"
+"    r/(r+1)=s <=> r=s/(1-s)\n"
+"    "
 
 #: nodes/instance.py
 msgid "Custom"
-msgstr ""
+msgstr "Προσαρμοσμένο"
 
 #: nodes/metric_gen.py
 msgid "Sectors"
-msgstr ""
+msgstr "Τομείς"
 
 #: nodes/metric_gen.py
 msgid "Scenarios"
-msgstr ""
+msgstr "Σενάρια"
 
 #: nodes/models.py
 msgid "name"
-msgstr ""
+msgstr "όνομα"
 
 #: nodes/models.py pages/models.py
 msgid "Lead title"
-msgstr ""
+msgstr "Επικεφαλής τίτλος"
 
 #: nodes/models.py pages/models.py
 msgid "Lead paragraph"
-msgstr ""
+msgstr "Επικεφαλής παράγραφος"
 
 #: nodes/models.py
 msgid "Site URL"
-msgstr ""
+msgstr "URL ιστότοπου"
 
 #: nodes/models.py
 msgid "Instance"
-msgstr ""
+msgstr "Παράδειγμα"
 
 #: nodes/models.py
 msgid "Instances"
-msgstr ""
+msgstr "Περιπτώσεις"
 
 #: nodes/models.py
 msgid "Actions"
-msgstr ""
+msgstr "Δράσεις"
 
 #: nodes/models.py
 msgid "Instance hostname"
-msgstr ""
+msgstr "Όνομα κεντρικού υπολογιστή"
 
 #: nodes/models.py
 msgid "Instance hostnames"
-msgstr ""
+msgstr "Ονόματα κεντρικών υπολογιστών"
 
 #: nodes/models.py
 msgid "Instance token"
-msgstr ""
+msgstr "Token της περίπτωσης"
 
 #: nodes/models.py
 msgid "Instance tokens"
-msgstr ""
+msgstr "Ενδείξεις παραδειγμάτων"
 
 #: nodes/models.py
 msgid "instance"
-msgstr ""
+msgstr "παράδειγμα"
 
 #: nodes/models.py
 msgid "edition"
-msgstr ""
+msgstr "έκδοση"
 
 #: nodes/models.py
 msgid "authority"
-msgstr ""
+msgstr "αρχή"
 
 #: nodes/models.py
 msgid "The organization responsible for the data source"
-msgstr ""
+msgstr "Ο οργανισμός που είναι υπεύθυνος για την πηγή δεδομένων"
 
 #: nodes/models.py
 msgid "description"
-msgstr ""
+msgstr "περιγραφή"
 
 #: nodes/models.py
 msgid "URL"
-msgstr ""
+msgstr "URL"
 
 #: nodes/models.py
 msgid "Data source"
-msgstr ""
+msgstr "Πηγή δεδομένων"
 
 #: nodes/models.py
 msgid "Order"
-msgstr ""
+msgstr "Παραγγελία"
 
 #: nodes/models.py
 msgid "Goal"
-msgstr ""
+msgstr "Στόχος"
 
 #: nodes/models.py
 msgid "Short description"
-msgstr ""
+msgstr "Σύντομη περιγραφή"
 
 #: nodes/models.py
 msgid "Description"
-msgstr ""
+msgstr "Περιγραφή"
 
 #: nodes/models.py
 msgid "Nodes"
-msgstr ""
+msgstr "Κόμβοι"
 
 #: nodes/node.py
 msgid "NOTE! Add text about the node class."
-msgstr ""
+msgstr "ΣΗΜΕΙΩΣΗ! Προσθέστε κείμενο σχετικά με την κλάση κόμβου."
 
 #: nodes/node.py
 msgid "The node has the following input nodes:"
-msgstr ""
+msgstr "Ο κόμβος έχει τους ακόλουθους κόμβους εισόδου:"
 
 #: nodes/node.py
 msgid "The node does not have input nodes."
-msgstr ""
+msgstr "Ο κόμβος δεν έχει κόμβους εισόδου."
 
 #: nodes/node.py
 msgid "    - Input node values are not added but operated despite matching units.\n"
 msgstr ""
+"    - Οι τιμές των κόμβων εισόδου δεν προστίθενται αλλά λειτουργούν παρά τις "
+"μονάδες αντιστοίχισης.\n"
 
 #: nodes/node.py
 msgid "    - Extend the last historical values to the remaining missing years.\n"
 msgstr ""
+"    - Επεκτείνετε τις τελευταίες ιστορικές τιμές στα υπόλοιπα έτη που "
+"λείπουν.\n"
 
 #: nodes/node.py
 msgid "    - Truncate the forecast values.\n"
-msgstr ""
+msgstr "    - Αποκοπή των τιμών πρόβλεψης.\n"
 
 #: nodes/node.py
 msgid "    - Take the arithmetic inverse of the values (-x).\n"
-msgstr ""
+msgstr "    - Πάρτε το αριθμητικό αντίστροφο των τιμών (-x).\n"
 
 #: nodes/node.py
 msgid "    - Take the geometric inverse of the values (1/x).\n"
-msgstr ""
+msgstr "    - Πάρτε το γεωμετρικό αντίστροφο των τιμών (1/x).\n"
 
 #: nodes/node.py
 msgid "    - Take the complement of the dimensionless values (1-x).\n"
-msgstr ""
+msgstr "    - Πάρτε το συμπλήρωμα των χωρίς διάσταση τιμών (1-x).\n"
 
 #: nodes/node.py
 msgid "    - Take the difference across time (i.e. annual changes)\n"
-msgstr ""
+msgstr "    - Πάρτε τη διαφορά στο χρόνο (δηλ. ετήσιες μεταβολές)\n"
 
 #: nodes/node.py
 msgid "    - Take the cumulative sum across time.\n"
-msgstr ""
+msgstr "    - Πάρτε το αθροιστικό άθροισμα σε όλη τη διάρκεια του χρόνου.\n"
 
 #: nodes/node.py
 msgid "    - Take the cumulative product of the dimensionless values across time.\n"
 msgstr ""
+"    - Πάρτε το αθροιστικό γινόμενο των διαστάσεων χωρίς διάσταση στο χρόνο.\n"
 
 #: nodes/node.py
 msgid "    - Take the cumulative product of the dimensionless complement values across time.\n"
 msgstr ""
+"    - Πάρτε το αθροιστικό γινόμενο των τιμών του συμπληρώματος χωρίς "
+"διάσταση σε όλη τη διάρκεια του χρόνου.\n"
 
 #: nodes/node.py
 msgid "    - Take the ratio of the values compared with the last historical value.\n"
 msgstr ""
+"    - Πάρτε τον λόγο των τιμών σε σύγκριση με την τελευταία ιστορική τιμή.\n"
 
 #: nodes/node.py
 msgid "    - This is used as the baseline.\n"
-msgstr ""
+msgstr "    - Αυτό χρησιμοποιείται ως βασική γραμμή.\n"
 
 #: nodes/node.py
 msgid "    - This is used for the incoming stock.\n"
-msgstr ""
+msgstr "    - Χρησιμοποιείται για το εισερχόμενο απόθεμα.\n"
 
 #: nodes/node.py
 msgid "    - This is the rate of stock removal.\n"
-msgstr ""
+msgstr "    - Αυτός είναι ο ρυθμός απομάκρυνσης αποθεμάτων.\n"
 
 #: nodes/node.py
 msgid "    - This is the rate of new stock coming in.\n"
-msgstr ""
+msgstr "    - Αυτός είναι ο ρυθμός εισόδου νέων αποθεμάτων.\n"
 
 #: nodes/node.py
 msgid "    - The node is used as the historical starting point.\n"
-msgstr ""
+msgstr "    - Ο κόμβος χρησιμοποιείται ως ιστορικό σημείο εκκίνησης.\n"
 
 #: nodes/node.py
 msgid "    - The node is used as the goal for the action.\n"
-msgstr ""
+msgstr "    - Ο κόμβος χρησιμοποιείται ως στόχος για την ενέργεια.\n"
 
 #: nodes/node.py
 msgid "    - Negative result values are replaced with 0.\n"
-msgstr ""
+msgstr "    - Οι αρνητικές τιμές των αποτελεσμάτων αντικαθίστανται με 0.\n"
 
 #: nodes/node.py
 msgid "    - Positive result values are replaced with 0.\n"
-msgstr ""
+msgstr "    - Οι θετικές τιμές των αποτελεσμάτων αντικαθίστανται με 0.\n"
 
 #: nodes/node.py
 msgid "    - Convert NaNs to zeros.\n"
-msgstr ""
+msgstr "    - Μετατροπή των NaN σε μηδενικά.\n"
 
 #: nodes/node.py
 #, python-format
 msgid "    - The tag \"%s\" is given.\n"
-msgstr ""
+msgstr "    - Δίνεται η ετικέτα \"%s\".\n"
 
 #: nodes/node.py
 #, python-format
 msgid "    - From dimension %s, %s categories %s.\n"
-msgstr ""
+msgstr "    - Από τη διάσταση %s, %s κατηγορίες %s.\n"
 
 #: nodes/node.py
 #, python-format
 msgid "    - Sum over dimension %s .\n"
-msgstr ""
+msgstr "    - Άθροισμα στη διάσταση %s.\n"
 
 #: nodes/node.py
 #, python-format
 msgid "    - Add values to the category %s in a new dimension %s.\n"
-msgstr ""
+msgstr "    - Προσθέστε τιμές στην κατηγορία %s σε μια νέα διάσταση %s.\n"
 
 #: nodes/roles.py
 msgid "Viewer"
-msgstr ""
+msgstr "Πρόγραμμα προβολής"
 
 #: nodes/simple.py
 msgid ""
 "This is an Additive Node. It performs a simple addition of inputs.\n"
 "Missing values are assumed to be zero."
 msgstr ""
+"Αυτός είναι ένας προσθετικός κόμβος. Εκτελεί μια απλή πρόσθεση εισόδων.\n"
+"Οι τιμές που λείπουν θεωρούνται μηδενικές."
 
 #: nodes/simple.py
 msgid "This is a Subtractive Node. It takes the first input node and subtracts all other input nodes from it."
 msgstr ""
+"Αυτός είναι ένας Υπολειμματικός Κόμβος. Λαμβάνει τον πρώτο κόμβο εισόδου και "
+"αφαιρεί από αυτόν όλους τους άλλους κόμβους εισόδου."
 
 #: nodes/simple.py
 msgid "This is a Sector Emissions Node. It is like Additive Node but for subsector emissions"
 msgstr ""
+"Πρόκειται για έναν κόμβο εκπομπών τομέα. Είναι όπως ο κόμβος προσθετικών "
+"εκπομπών, αλλά για τις εκπομπές των υποτομέων."
 
 #: nodes/simple.py
 msgid ""
@@ -674,6 +794,12 @@ msgid ""
 "    Multiplication and addition is determined based on the input node units.\n"
 "    "
 msgstr ""
+"Αυτός είναι ένας πολλαπλασιαστικός κόμβος. Πολλαπλασιάζει κόμβους μαζί με "
+"πιθανή προσθήκη άλλων κόμβων εισόδου.\n"
+"\n"
+"    Ο πολλαπλασιασμός και η πρόσθεση καθορίζονται με βάση τις μονάδες των "
+"κόμβων εισόδου.\n"
+"    "
 
 #: nodes/simple.py
 msgid ""
@@ -682,18 +808,29 @@ msgid ""
 "    Division and addition is determined based on the input node units.\n"
 "    "
 msgstr ""
+"Αυτός είναι ένας διχαστικός κόμβος. Διαιρεί δύο κόμβους μαζί με πιθανή "
+"προσθήκη άλλων κόμβων εισόδου.\n"
+"\n"
+"    Η διαίρεση και η πρόσθεση καθορίζονται με βάση τις μονάδες των κόμβων "
+"εισόδου.\n"
+"    "
 
 #: nodes/simple.py
 msgid "This is an Emission Factor Activity Node. It multiplies an activity by an emission factor."
 msgstr ""
+"Πρόκειται για έναν κόμβο δραστηριότητας συντελεστή εκπομπών. Πολλαπλασιάζει "
+"μια δραστηριότητα με έναν συντελεστή εκπομπών."
 
 #: nodes/simple.py
 msgid "This is Activity Node. It adds activity amounts together."
 msgstr ""
+"Αυτός είναι ο κόμβος δραστηριότητας. Προσθέτει τα ποσά δραστηριότητας μαζί."
 
 #: nodes/simple.py
 msgid "This is a Fixed Multiplier Node. It multiplies a single input node with a parameter."
 msgstr ""
+"Πρόκειται για έναν κόμβο σταθερού πολλαπλασιαστή. Πολλαπλασιάζει έναν κόμβο "
+"εισόδου με μια παράμετρο."
 
 #: nodes/simple.py
 msgid ""
@@ -702,6 +839,12 @@ msgid ""
 "    Multiplication and addition is determined based on the input node units.\n"
 "    "
 msgstr ""
+"Πρώτα προσθέστε άλλους κόμβους εισόδου και, στη συνέχεια, πολλαπλασιάστε την "
+"έξοδο.\n"
+"\n"
+"    Ο πολλαπλασιασμός και η πρόσθεση καθορίζονται με βάση τις μονάδες των "
+"κόμβων εισόδου.\n"
+"    "
 
 #: nodes/simple.py
 msgid ""
@@ -709,6 +852,11 @@ msgid ""
 "    Can only be used for dimensionless content (i.e., fractions and percentages)\n"
 "    "
 msgstr ""
+"Πρώτα κάνει ό,τι κάνει το MultiplicativeNode και μετά υπολογίζει το 1 - "
+"αποτέλεσμα.\n"
+"    Μπορεί να χρησιμοποιηθεί μόνο για περιεχόμενο χωρίς διαστάσεις (δηλ. "
+"κλάσματα και ποσοστά).\n"
+"    "
 
 #: nodes/simple.py
 msgid ""
@@ -716,6 +864,11 @@ msgid ""
 "    Can only be used for dimensionless content (i.e., fractions and percentages)\n"
 "    "
 msgstr ""
+"Πρώτα κάνει ό,τι κάνει ο MultiplicativeNode και μετά υπολογίζει 1 + "
+"αποτέλεσμα.\n"
+"    Μπορεί να χρησιμοποιηθεί μόνο για περιεχόμενο χωρίς διαστάσεις (δηλ. "
+"κλάσματα και ποσοστά).\n"
+"    "
 
 #: nodes/simple.py
 msgid ""
@@ -728,6 +881,16 @@ msgid ""
 "    it never creates a temporary dimension Sectors.\n"
 "    "
 msgstr ""
+"\n"
+"    Πρώτα όπως ο AdditiveNode, στη συνέχεια πολλαπλασιάστε με έναν κόμβο με "
+"\"non_additive\".\n"
+"    Ο σχετικός κόμβος θεωρείται ότι είναι η σχετική διαφορά R = V / N - 1,\n"
+"    όπου V είναι η αναμενόμενη τιμή εξόδου και N είναι η τιμή σύγκρισης από\n"
+"    από τους άλλους κόμβους εισόδου. Έτσι, η τιμή εξόδου V = (R + 1)N.\n"
+"    Εάν δεν υπάρχει \"μη προσθετικός\" κόμβος, θα συμπεριφέρεται όπως ο "
+"AdditiveNode, εκτός από τον\n"
+"    δεν δημιουργεί ποτέ μια προσωρινή διάσταση Sectors.\n"
+"    "
 
 #: nodes/simple.py
 msgid ""
@@ -735,345 +898,369 @@ msgid ""
 "    TrajectoryNode uses select_category() to select a category from a dimension.\n"
 "    "
 msgstr ""
+"\n"
+"    Το TrajectoryNode χρησιμοποιεί την select_category() για να επιλέξει μια "
+"κατηγορία από μια διάσταση.\n"
+"    "
 
 #: nodes/simple.py
 msgid "This is a Fill New Category Node. It behaves like Additive Node, but in the end of computation it creates a new category such that the values along that dimension sum up to 1. The input nodes must have a dimensionless unit. The new category in an existing dimension is given as parameter \"new_category\" in format \"dimension:category\""
 msgstr ""
+"Αυτό είναι ένα Συμπλήρωση νέου κόμβου κατηγορίας. Συμπεριφέρεται όπως ο "
+"Additive Node, αλλά στο τέλος του υπολογισμού δημιουργεί μια νέα κατηγορία "
+"έτσι ώστε οι τιμές κατά μήκος της διάστασης να αθροίζουν στο 1. Οι κόμβοι "
+"εισόδου πρέπει να έχουν μια μονάδα χωρίς διάσταση. Η νέα κατηγορία σε μια "
+"υπάρχουσα διάσταση δίνεται ως παράμετρος \"new_category\" με τη μορφή "
+"\"dimension:category\"."
 
 #: nodes/units.py
 msgid "capita"
-msgstr ""
+msgstr "κατά κεφαλήν"
 
 #: nodes/units.py
 msgctxt "capita short"
 msgid "cap"
-msgstr ""
+msgstr "καπάκι"
 
 #: nodes/units.py
 msgctxt "kilotonne short"
 msgid "kt"
-msgstr ""
+msgstr "kt"
 
 #: nodes/units.py
 msgid "million €"
-msgstr ""
+msgstr "εκατομμύρια €"
 
 #: pages/models.py
 msgid "show in footer"
-msgstr ""
+msgstr "εμφάνιση στο υποσέλιδο"
 
 #: pages/models.py
 msgid "Should the page be shown in the footer?"
-msgstr ""
+msgstr "Θα πρέπει να εμφανίζεται η σελίδα στο υποσέλιδο;"
 
 #: pages/models.py
 msgid "Common page configuration"
-msgstr ""
+msgstr "Διαμόρφωση κοινής σελίδας"
 
 #: pages/models.py
 msgid "Paragraph"
-msgstr ""
+msgstr "Παράγραφος"
 
 #: pages/models.py
 msgid "Outcome page"
-msgstr ""
+msgstr "Σελίδα αποτελεσμάτων"
 
 #: pages/models.py
 msgid "Outcome pages"
-msgstr ""
+msgstr "Σελίδες αποτελεσμάτων"
 
 #: pages/models.py
 msgid "Standard"
-msgstr ""
+msgstr "Πρότυπο"
 
 #: pages/models.py
 msgid "Impact"
-msgstr ""
+msgstr "Επιπτώσεις"
 
 #: pages/models.py
 msgid "Cumulative impact"
-msgstr ""
+msgstr "Αθροιστικός αντίκτυπος"
 
 #: pages/models.py
 msgid "Show cumulative impact"
-msgstr ""
+msgstr "Εμφάνιση σωρευτικών επιπτώσεων"
 
 #: pages/models.py
 msgid "Show action comparison"
-msgstr ""
+msgstr "Εμφάνιση σύγκρισης δράσης"
 
 #: pages/models.py
 msgid "Show only municipal actions"
-msgstr ""
+msgstr "Εμφάνιση μόνο δημοτικών δράσεων"
 
 #: pages/models.py
 msgid "Action list page"
-msgstr ""
+msgstr "Σελίδα λίστας ενεργειών"
 
 #: pages/models.py
 msgid "Action list pages"
-msgstr ""
+msgstr "Σελίδες λίστας ενεργειών"
 
 #: pages/models.py
 msgid "Title"
-msgstr ""
+msgstr "Τίτλος"
 
 #: pages/models.py
 msgid "Introductory content to show in the UI"
-msgstr ""
+msgstr "Εισαγωγικό περιεχόμενο για εμφάνιση στο UI"
 
 #: pages/models.py
 msgid "Introductory content"
-msgstr ""
+msgstr "Εισαγωγικό περιεχόμενο"
 
 #: pages/models.py
 msgid "Site content"
-msgstr ""
+msgstr "Περιεχόμενο της ιστοσελίδας"
 
 #: pages/models.py
 msgid "Site contents"
-msgstr ""
+msgstr "Περιεχόμενο της ιστοσελίδας"
 
 #: pages/sitecontent.py
 msgid "Site Content"
-msgstr ""
+msgstr "Περιεχόμενο της ιστοσελίδας"
 
 #: params/global_params.py
 msgid "Municipality name"
-msgstr ""
+msgstr "Όνομα δήμου"
 
 #: params/global_params.py
 msgid "Discount rate"
-msgstr ""
+msgstr "Επιτόκιο προεξόφλησης"
 
 #: params/global_params.py
 msgid "Population growth rate"
-msgstr ""
+msgstr "Ρυθμός αύξησης του πληθυσμού"
 
 #: params/global_params.py
 msgid "Avoided electricity capacity price"
-msgstr ""
+msgstr "Αποφεύγουμενη τιμή δυναμικότητας ηλεκτρικής ενέργειας"
 
 #: params/global_params.py
 msgid "Health impacts per kWh"
-msgstr ""
+msgstr "Επιπτώσεις στην υγεία ανά kWh"
 
 #: params/global_params.py
 msgid "Heat CO2 emission factor"
-msgstr ""
+msgstr "Συντελεστής εκπομπής θερμότητας CO2"
 
 #: params/global_params.py
 msgid "Electricity CO2 emission factor"
-msgstr ""
+msgstr "Συντελεστής εκπομπών CO2 ηλεκτρικής ενέργειας"
 
 #: params/global_params.py
 msgid "Renovation rate baseline"
-msgstr ""
+msgstr "Βασική τιμή ποσοστού ανακαίνισης"
 
 #: params/global_params.py
 msgid "Include energy taxes in calculations?"
-msgstr ""
+msgstr "Συμπεριλάβετε τους ενεργειακούς φόρους στους υπολογισμούς;"
 
 #: params/global_params.py
 msgid "Include CO2 cost variable in calculations?"
-msgstr ""
+msgstr "Συμπεριλάβετε μεταβλητή κόστους CO2 στους υπολογισμούς;"
 
 #: params/global_params.py
 msgid "Include health impact variable in calculations?"
-msgstr ""
+msgstr "Συμπεριλάβετε μεταβλητή επιπτώσεων στην υγεία στους υπολογισμούς;"
 
 #: params/global_params.py
 msgid "Include avoided electricity capacity variable in calculations?"
 msgstr ""
+"Συμπεριλάβετε στους υπολογισμούς τη μεταβλητή της αποφευχθείσας "
+"δυναμικότητας ηλεκτρικής ενέργειας;"
 
 #: params/global_params.py
 msgid "Price of CO2"
-msgstr ""
+msgstr "Τιμή του CO2"
 
 #: params/global_params.py
 msgid "Price of CO2 annual change"
-msgstr ""
+msgstr "Τιμή της ετήσιας μεταβολής του CO2"
 
 #: params/global_params.py
 msgid "Price of electricity"
-msgstr ""
+msgstr "Τιμή της ηλεκτρικής ενέργειας"
 
 #: params/global_params.py
 msgid "Price of electricity annual change"
-msgstr ""
+msgstr "Ετήσια μεταβολή της τιμής της ηλεκτρικής ενέργειας"
 
 #: params/global_params.py
 msgid "Price of Heat"
-msgstr ""
+msgstr "Τιμή της θερμότητας"
 
 #: params/global_params.py
 msgid "Price of heat annual change"
-msgstr ""
+msgstr "Ετήσια μεταβολή της τιμής της θερμότητας"
 
 #: params/global_params.py
 msgid "Invest all on the first year (in contrast to continuous investing)?"
 msgstr ""
+"Να επενδύσετε όλα τα κεφάλαια κατά το πρώτο έτος (σε αντίθεση με τη συνεχή "
+"επένδυση);"
 
 #: params/global_params.py
 msgid "Placeholder for updated_building_code_residential"
-msgstr ""
+msgstr "Καταχωρητής για updated_building_code_residential"
 
 #: params/global_params.py
 msgid "Action impact based on baseline"
-msgstr ""
+msgstr "Επίδραση της δράσης με βάση το βασικό επίπεδο"
 
 #: params/global_params.py
 msgid "Compute action impact based on the baseline scenario instead of the default one"
 msgstr ""
+"Υπολογισμός των επιπτώσεων της δράσης με βάση το βασικό σενάριο αντί του "
+"προεπιλεγμένου σεναρίου"
 
 #: params/global_params.py
 msgid "Scanario name"
-msgstr ""
+msgstr "Όνομα Scanario"
 
 #: params/global_params.py
 msgid "Weight for emission impacts in value profiles"
-msgstr ""
+msgstr "Βαρύτητα για τις επιπτώσεις των εκπομπών στα προφίλ αξίας"
 
 #: params/global_params.py
 msgid "Weight for economic impacts in value profiles"
-msgstr ""
+msgstr "Βαρύτητα των οικονομικών επιπτώσεων στα προφίλ αξίας"
 
 #: params/global_params.py
 msgid "Weight for prosperity impacts (e.g. jobs) in value profiles"
 msgstr ""
+"Βαρύτητα για τις επιπτώσεις στην ευημερία (π.χ. θέσεις εργασίας) στα προφίλ "
+"αξίας"
 
 #: params/global_params.py
 msgid "Weight for purity impacts (e.g. lack of pollution) in value profiles"
 msgstr ""
+"Βαρύτητα για τις επιπτώσεις της καθαρότητας (π.χ. έλλειψη ρύπανσης) στα "
+"προφίλ αξίας"
 
 #: params/global_params.py
 msgid "Weight for health impacts in value profiles"
-msgstr ""
+msgstr "Βάρος για τις επιπτώσεις στην υγεία στα προφίλ αξίας"
 
 #: params/global_params.py
 msgid "Weight for equity impacts in value profiles"
-msgstr ""
+msgstr "Βαρύτητα για τις επιπτώσεις των ιδίων κεφαλαίων στα προφίλ αξίας"
 
 #: params/global_params.py
 msgid "Weight for biodiversity impacts in value profiles"
-msgstr ""
+msgstr "Βαρύτητα των επιπτώσεων στη βιοποικιλότητα στα προφίλ αξίας"
 
 #: params/global_params.py
 msgid "Weight for actions to be legal in value profiles"
-msgstr ""
+msgstr "Βάρος για τις ενέργειες που πρέπει να είναι νόμιμες στα προφίλ αξίας"
 
 #: params/global_params.py
 msgid "Threshold for sum of weighted impacts in value profiles"
 msgstr ""
+"Κατώτατο όριο για το άθροισμα των σταθμισμένων επιπτώσεων στα προφίλ αξίας"
 
 #: params/global_params.py
 msgid "Effect of electric vehicles on car kilometers"
-msgstr ""
+msgstr "Επίδραση των ηλεκτρικών οχημάτων στα χιλιόμετρα των αυτοκινήτων"
 
 #: params/global_params.py
 msgid "List of selected municipalities"
-msgstr ""
+msgstr "Κατάλογος επιλεγμένων δήμων"
 
 #: params/global_params.py
 msgid "List of selected nodes"
-msgstr ""
+msgstr "Λίστα επιλεγμένων κόμβων"
 
 #: params/global_params.py
 msgid "Selected computational framework"
-msgstr ""
+msgstr "Επιλεγμένο υπολογιστικό πλαίσιο"
 
 #: params/global_params.py
 msgid "Annual weather normalization for energy consumption"
 msgstr ""
+"Ετήσια κανονικοποίηση των καιρικών συνθηκών για την κατανάλωση ενέργειας"
 
 #: params/global_params.py
 msgid "Normalization for matching statistical data"
-msgstr ""
+msgstr "Κανονικοποίηση για την αντιστοίχιση στατιστικών δεδομένων"
 
 #: params/global_params.py
 msgid "Is the last historical value extended into the future?"
-msgstr ""
+msgstr "Η τελευταία ιστορική αξία επεκτείνεται στο μέλλον;"
 
 #: params/global_params.py
 msgid "On node graphs, show scenario impacts instead of outputs?"
 msgstr ""
+"Στα γραφήματα κόμβων, να εμφανίζονται οι επιπτώσεις του σεναρίου αντί για "
+"τις εκροές;"
 
 #: params/global_params.py
 msgid "Override input node values with framework measure data"
-msgstr ""
+msgstr "Αντικατάσταση τιμών κόμβου εισόδου με δεδομένα μέτρησης πλαισίου"
 
 #: params/global_params.py
 msgid "Use only baseline year from measure data"
-msgstr ""
+msgstr "Χρησιμοποιήστε μόνο το έτος βάσης από τα δεδομένα του μέτρου"
 
 #: paths/authentication.py
 msgid "Invalid token."
-msgstr ""
+msgstr "Μη έγκυρο token."
 
 #: paths/schema.py paths/utils.py
 msgid "Invalid unit"
-msgstr ""
+msgstr "Μη έγκυρη μονάδα"
 
 #: paths/settings.py
 msgid "English"
-msgstr ""
+msgstr "Αγγλικά"
 
 #: paths/settings.py
 msgid "Finnish"
-msgstr ""
+msgstr "Φινλανδική"
 
 #: paths/settings.py
 msgid "Swedish"
-msgstr ""
+msgstr "Σουηδικά"
 
 #: paths/settings.py
 msgid "German"
-msgstr ""
+msgstr "Γερμανικά"
 
 #: paths/settings.py
 msgid "German (Switzerland)"
-msgstr ""
+msgstr "Γερμανικά (Ελβετία)"
 
 #: paths/settings.py
 msgid "Czech"
-msgstr ""
+msgstr "Τσεχική"
 
 #: paths/settings.py
 msgid "Danish"
-msgstr ""
+msgstr "Δανικά"
 
 #: paths/settings.py
 msgid "Polish"
-msgstr ""
+msgstr "Πολωνικά"
 
 #: paths/settings.py
 msgid "Latvian"
-msgstr ""
+msgstr "Λετονία"
 
 #: paths/settings.py
 msgid "Spanish (United States)"
-msgstr ""
+msgstr "Ισπανικά (Ηνωμένες Πολιτείες)"
 
 #: paths/settings.py
 msgid "Greek"
-msgstr ""
+msgstr "Ελληνική"
 
 #: paths/utils.py
 msgid "identifier"
-msgstr ""
+msgstr "αναγνωριστικό"
 
 #: paths/utils.py
 msgid "unit"
-msgstr ""
+msgstr "μονάδα"
 
 #: paths/utils.py
 msgid "uuid"
-msgstr ""
+msgstr "uuid"
 
 #: paths/utils.py
 msgid "created at"
-msgstr ""
+msgstr "δημιουργήθηκε στο"
 
 #: paths/utils.py
 msgid "updated at"
-msgstr ""
+msgstr "ενημερώνεται στο"
