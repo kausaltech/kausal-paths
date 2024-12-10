@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich-dev.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 39aff24face232f4a4bed89676b14a9ac8ab38fe
+  commit: 94670ea54cbc5bddec237a4e60549caf5f3c0e10
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero Cockpit
@@ -1019,7 +1019,7 @@ actions:
   unit: '%'
   type: simple.CumulativeAdditiveAction
   output_nodes: [district_heat_ccs_share]
-  forecast_values: [[2023, 0], [2035, 80]]
+  forecast_values: [[2024, 0], [2035, 80]]
 
 - id: district_heat_production_mix_change
   name_en: District heat production mix change
@@ -1056,8 +1056,6 @@ actions:
     value:
     - target: {}
       amounts:
-      - year: 2023
-        amount: 0
       - year: 2024
         amount: 25
       - year: 2027
@@ -1249,7 +1247,7 @@ actions:
         categories:
           building_use: residential
       amounts:
-      - year: 2023
+      - year: 2024
         amount: 0
       - year: 2040
         amount: 0
@@ -1257,7 +1255,7 @@ actions:
         categories:
           building_use: nonresidential
       amounts:
-      - year: 2023
+      - year: 2024
         amount: 0
       - year: 2040
         amount: 0
@@ -1693,69 +1691,69 @@ actions:
   output_nodes: [biogas_processing_ccs_share]
   forecast_values: [[2029, 100]]
 
-- id: cleaner_electricity_production
-  group: other
-  decision_level: nation
-  name_en: Cleaner electricity production
-  name_de: Dekarbonisierung Stromversorgung
-  type: shift.ShiftAction
-  quantity: mix
-  description_en: Electricity production shift to cleaner methods.
-  description_de: Dieses Massnahmenpaket beinhaltet alle Massnahmen, welche dazu führen,
-    dass der Strombedarf in der Stadt Zürich vollständig durch erneuerbare Energieträger
-    gedeckt wird.
-  output_nodes:
-  - id: electricity_production_mix
-    to_dimensions:
-    - id: electricity_source
-  unit: '%'
-  params:
-  - id: shift
-    unit: '%'
-    is_customizable: false
-    value:
-    - source:
-        categories:
-          electricity_source: import
-      dests:
-      - categories:
-          electricity_source: solar
-      - categories:
-          electricity_source: wind
-      - categories:
-          electricity_source: biogas
-      - categories:
-          electricity_source: waste
-      amounts:
-      - year: 2023
-        source_amount: -2
-        dest_amounts: [50, 50, 10, 5]
-      - year: 2030
-        source_amount: -1.65
-        dest_amounts: [50, 50, 10, 5]
-      - year: 2040
-        source_amount: 0
-        dest_amounts: [50, 50, 10, 5]
-    - source:
-        categories:
-          electricity_source: hydro
-      dests:
-      - categories:
-          electricity_source: solar
-      - categories:
-          electricity_source: wind
-      - categories:
-          electricity_source: biogas
-      amounts:
-      - year: 2023
-        source_amount: -2
-        dest_amounts: [70, 30, 50]
-      - year: 2030
-        source_amount: -1.7
-        dest_amounts: [70, 30, 50]
-      - year: 2035
-        source_amount: 0
-        dest_amounts: [70, 30, 50]
+# - id: cleaner_electricity_production
+#   group: other
+#   decision_level: nation
+#   name_en: Cleaner electricity production
+#   name_de: Dekarbonisierung Stromversorgung
+#   type: shift.ShiftAction
+#   quantity: mix
+#   description_en: Electricity production shift to cleaner methods.
+#   description_de: Dieses Massnahmenpaket beinhaltet alle Massnahmen, welche dazu führen,
+#     dass der Strombedarf in der Stadt Zürich vollständig durch erneuerbare Energieträger
+#     gedeckt wird.
+#   output_nodes:
+#   - id: electricity_production_mix
+#     to_dimensions:
+#     - id: electricity_source
+#   unit: '%'
+#   params:
+#   - id: shift
+#     unit: '%'
+#     is_customizable: false
+#     value:
+#     - source:
+#         categories:
+#           electricity_source: import
+#       dests:
+#       - categories:
+#           electricity_source: solar
+#       - categories:
+#           electricity_source: wind
+#       - categories:
+#           electricity_source: biogas
+#       - categories:
+#           electricity_source: waste
+#       amounts:
+#       - year: 2023
+#         source_amount: -2
+#         dest_amounts: [50, 50, 10, 5]
+#       - year: 2030
+#         source_amount: -1.65
+#         dest_amounts: [50, 50, 10, 5]
+#       - year: 2040
+#         source_amount: 0
+#         dest_amounts: [50, 50, 10, 5]
+#     - source:
+#         categories:
+#           electricity_source: hydro
+#       dests:
+#       - categories:
+#           electricity_source: solar
+#       - categories:
+#           electricity_source: wind
+#       - categories:
+#           electricity_source: biogas
+#       amounts:
+#       - year: 2023
+#         source_amount: -2
+#         dest_amounts: [70, 30, 50]
+#       - year: 2030
+#         source_amount: -1.7
+#         dest_amounts: [70, 30, 50]
+#       - year: 2035
+#         source_amount: 0
+#         dest_amounts: [70, 30, 50]
 
 - id: import_biogas_emission_accounting_agreement
   group: other
