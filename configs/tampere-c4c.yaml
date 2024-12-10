@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://tampere-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: b16407261d4506e31f08289b06c6c78715a567eb
+  commit: d8e6c3c607e244585260a625c2e3787f719dee87
   dvc_remote: kausal-s3
 name: C4C Hiilineutraali Tampere 2030
 name_en: C4C Carbon-neutral Tampere 2030
@@ -2276,6 +2276,61 @@ actions:
     - id: cost_type
     - id: owner
     - id: vehicle_type
+
+- id: shift_to_low_carbon_in_national_electricity_production
+  name: Kansallinen sähköntuotanto puhdistuu
+  name_en: Shift to low-carbon in national electricity production
+  type: gpc.DatasetActionMFM
+  color: '#4e79a7'
+  unit: t/GWh
+  quantity: emission_factor
+  input_dimensions: ['energy_carrier', 'ghg', 'heating']
+  output_dimensions: ['energy_carrier', 'ghg', 'heating']
+  params:
+  - id: action
+    value: Shift to Low-Carbon in National Electricity Production
+  - id: target_value
+    values:
+      default: 0
+    min_value: -20
+    max_value: 0
+    step: 1
+    unit: t/GWh
+    description: Sähköntuotannon päästökertoimen muutos
+    description_en: Change in electricity production emission factor
+  - id: target_metric
+    value: Value
+  input_datasets:
+  - id: gpc/tampere_simple_actions
+    forecast_from: 2023
+  output_nodes:
+  - id: other_heating_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+    - id: heating
+    - id: scope
+      categories: ['scope2']
+  - id: industrial_electricity_emission_factors
+    from_dimensions:
+    - id: heating
+      categories: ['direct_electric_heat']
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+    - id: scope
+      categories: ['scope2']
+  - id: other_electricity_emission_factors
+    from_dimensions:
+    - id: heating
+      categories: ['direct_electric_heat']
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+    - id: scope
+      categories: ['scope2']
 
 # - id: i22_streetlight_replacement_action
 #   name: I.2.2 Streetlight Replacement Action
