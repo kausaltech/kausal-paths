@@ -32,6 +32,7 @@ action_efficiency_pairs:
   indicator_unit: EUR/t
   cost_unit: EUR
   impact_unit: t
+  plot_limit_for_indicator: 50000
   label: Kustannusvaikuttavuus
 
 action_groups:
