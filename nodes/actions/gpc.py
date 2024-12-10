@@ -10,7 +10,7 @@ from nodes.actions import ActionNode
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.gpc import DatasetNode
 from nodes.units import unit_registry
-from params import StringParameter
+from params import NumberParameter, StringParameter
 
 
 class DatasetAction(ActionNode, DatasetNode):
@@ -34,141 +34,95 @@ class DatasetAction(ActionNode, DatasetNode):
 class DatasetAction2(DatasetAction):
     pass
 
-class DatasetActionMFM(ActionNode):
-    allowed_parameters = [StringParameter('action', description = 'Action name', is_customizable = False)]
+class DatasetActionMFM(ActionNode, DatasetNode):
+    allowed_parameters = [StringParameter('action', description='Action name in GPC dataset', is_customizable=False),
+                          NumberParameter('target_value', description='Target action impact value', is_customizable=True),
+                          StringParameter('target_metric', description='Target action metric id', is_customizable=False)]
 
     allow_null_categories = True
-
     no_effect_value = 0.0
 
-    qlookup = {'Emission Factor': 'emission_factor',
-               'Emissions': 'emissions',
-               'Energy Consumption': 'energy',
-               'Fuel Consumption': 'fuel_consumption',
-               'Mileage': 'mileage',
-               'Number': 'number',
-               'Price': 'currency',
-               'Unit Price': 'unit_price',
-               'Waste Disposal': 'mass'}
-
-    # -----------------------------------------------------------------------------------
-    def makeid(self, label: str):
-        # Supported languages: Czech, Danish, English, Finnish, German, Latvian, Polish, Swedish
-        idlookup = {'': ['.', ',', ':', '-', '(', ')'],
-                    '_': [' ', '/'],
-                    'and': ['&'],
-                    'a': ['ä', 'å', 'ą', 'á', 'ā'],
-                    'c': ['ć', 'č'],
-                    'd': ['ď'],
-                    'e': ['ę', 'é', 'ě', 'ē'],
-                    'g': ['ģ'],
-                    'i': ['í', 'ī'],
-                    'k': ['ķ'],
-                    'l': ['ł', 'ļ'],
-                    'n': ['ń', 'ň', 'ņ'],
-                    'o': ['ö', 'ø', 'ó'],
-                    'r': ['ř'],
-                    's': ['ś', 'š'],
-                    't': ['ť'],
-                    'u': ['ü', 'ú', 'ů', 'ū'],
-                    'y': ['ý'],
-                    'z': ['ź', 'ż', 'ž'],
-                    'ae': ['æ'],
-                    'ss': ['ß']}
-
-        idtext = label.lower()
-        if idtext[:5] == 'scope':
-            idtext = idtext.replace(' ', '')
-
-        for tochar in idlookup:
-            for fromchar in idlookup[tochar]:
-                idtext = idtext.replace(fromchar, tochar)
-
-        return idtext
-
-    # -----------------------------------------------------------------------------------
-    def compute_effect(self) -> pd.DataFrame:
+    def compute_effect(self) -> ppl.PathsDataFrame:
         # Perform initial filtering of GPC dataset.
-        df = self.get_input_dataset()
-        df = df[df['Value'].notna()]
-        df = df[df.index.get_level_values('Action') == self.get_parameter_value('action')]
+        df = self.get_input_dataset_pl()
+        df = df.filter((pl.col(VALUE_COLUMN).is_not_null()) &
+                       (pl.col('Action') == self.get_parameter_value('action')))
 
-        # Drop filter levels and empty dimension levels.
-        droplist = ['Action']
-        for col in df.index.names:
-            vals = df.index.get_level_values(col).unique().to_list()
-            if vals == ['.']:
-                droplist.append(col)
-        df.index = df.index.droplevel(droplist)
+        # Drop filter level and empty dimension levels, convert names to IDs.
+        df = self.drop_unnecessary_levels(df, droplist=['Action'])
+        df = self.convert_names_to_ids(df)
+        df = df.with_columns(df['quantity'].replace(self.quantitylookup))
 
-        # Convert index level names from labels to IDs.
-        df.index = df.index.set_names([self.makeid(i) for i in df.index.names])
-        df.index = df.index.set_names({'year': 'Year'})
-
-        # Convert levels within each index level from labels to IDs.
-        dfi = df.index.to_frame(index = False)
-        for col in list(set(df.index.names) - set(['quantity', 'Year'])):
-            for cat in dfi[col].unique():
-                dfi[col] = dfi[col].replace(cat, self.makeid(cat))
-
-        df.index = pd.MultiIndex.from_frame(dfi)
-
-        # Create DF with all years and forecast true/false values.
-        yeardf = pd.DataFrame({'Year': range(dfi['Year'].min(), dfi['Year'].max() + 1)})
-        yeardf = yeardf.set_index(['Year'])
-
-        if 'Forecast' in df.columns:
-            fc = df.reset_index()
-            fc = pd.DataFrame(fc.groupby('Year')['Forecast'].max())
-            fc = yeardf.join(fc)
-            fc = fc['Forecast'].ffill()
-
-            df = df.drop(columns = ['Forecast'])
-        else:
-            fc = yeardf.copy()
-            fc['Forecast'] = False
-
-        yeardf = ppl.from_pandas(yeardf)
-
-        # Set value to 'no effect' if action is not enabled.
+        # Set value to 'no effect' if action is not enabled, get target parameters.
         if not self.is_enabled():
-            df['Value'] = self.no_effect_value
+            df = df.with_columns(pl.lit(self.no_effect_value).alias(VALUE_COLUMN))
 
-        # Create a DF for each sector/quantity pair...
-        dfi = dfi[['sector', 'quantity']].drop_duplicates()
-        qdfs = []
-        for pair in list(zip(dfi['sector'], dfi['quantity'], strict=False)):
-            qdf = df[(df.index.get_level_values('sector') == pair[0]) &
-                     (df.index.get_level_values('quantity') == pair[1])].copy()
-            qdf.index = qdf.index.droplevel(['sector', 'quantity'])
+        tvalue = self.get_parameter_value('target_value', required=False)
+        tmetric = self.get_parameter_value('target_metric', required=False)
 
-            qdf['Value'] = qdf['Value'].astype('pint[' + qdf['Unit'].unique()[0] + ']')
-            qdf = qdf.drop(columns = ['Unit'])
+        # Create DF with all years.
+        yearrange = range(df[YEAR_COLUMN].min(), (df[YEAR_COLUMN].max() + 1))
+        yeardf = ppl.PathsDataFrame({YEAR_COLUMN: yearrange})
+        yeardf._units = {}
+        yeardf._primary_keys = [YEAR_COLUMN]
 
-            # ...add missing years and interpolate missing values.
-            qdf = ppl.from_pandas(qdf)
-            qdf = qdf.paths.to_wide()
+        # Aggregate and interpolate, or add, forecast.
+        if FORECAST_COLUMN in df.columns:
+            fcdf = ppl.PathsDataFrame(df.group_by(YEAR_COLUMN).agg(pl.col(FORECAST_COLUMN).max()))
+            fcdf._units = {}
+            fcdf._primary_keys = [YEAR_COLUMN]
 
-            qdf = yeardf.paths.join_over_index(qdf)
-            for col in list(set(qdf.columns) - {'Year'}):
-                qdf = qdf.with_columns(pl.col(col).interpolate())
+            fcdf = fcdf.paths.join_over_index(yeardf, how='outer')
+            fcdf = fcdf.with_columns(pl.col(FORECAST_COLUMN).fill_null(strategy='backward'))
 
-            qdf = qdf.paths.to_narrow()
-            qdf = qdf.to_pandas()
+            df = df.drop(FORECAST_COLUMN)
+        else:
+            fcdf = yeardf.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
 
-            # ...rename value column.
-            if len(dfi) > 1:
-                qdf = qdf.rename(columns = {'Value': '%s_%s' % (pair[0], self.qlookup[pair[1]])})
+        # For each metric...
+        mdfs = []
+        mlist = df.select(['sector', 'quantity']).unique().rows()
+        for m in mlist:
+            # ...perform initial filtering.
+            mdf = df.filter((pl.col('sector') == m[0]) & (pl.col('quantity') == m[1]))
+            mdf = mdf.drop(['sector', 'quantity'])
 
-            qdfs.append(qdf)
+            # ...define the metric ID, implement metric-specific units.
+            if len(mlist) == 1:
+                mid = 'Value'
+            else:
+                mid = '%s_%s' % m
 
-        # Join sector/quantity DFs into a single multi-metric DF.
-        jdf = qdfs[0]
-        for qdf in qdfs[1:]:
-            jdf = jdf.join(qdf, how = 'outer')
+            mdf = self.implement_unit_col(mdf)
 
-        jdf = jdf.join(fc)
+            # ...add missing years, substitute target value, and interpolate missing values.
+            mdf = mdf.paths.to_wide()
+            mdf = mdf.paths.join_over_index(yeardf, how='outer')
+
+            for col in list(set(mdf.columns) - {YEAR_COLUMN}):
+                if self.is_enabled() and isinstance(tvalue, float) and tmetric == mid:
+                    mdf = mdf.with_columns(pl.when(pl.col(YEAR_COLUMN) == yearrange[-1])
+                                             .then(pl.lit(tvalue))
+                                             .otherwise(pl.col(col)).alias(col))
+
+                mdf = mdf.with_columns(pl.col(col).interpolate())
+
+            # ...perform final formatting.
+            mdf = mdf.paths.to_narrow()
+            mdf = mdf.rename({'Value': mid})
+            mdfs.append(mdf)
+
+        # Join metric DFs into a single multi-metric DF.
+        jdf = mdfs[0]
+        for mdf in mdfs[1:]:
+            jdf = jdf.paths.join_over_index(mdf, how='outer')
+
+        # Add forecast.
+        jdf = jdf.paths.join_over_index(fcdf, how='left')
         return(jdf)
+
+    def compute(self) -> ppl.PathsDataFrame:
+        return self.compute_effect()
 
 class StockReplacementAction(ActionNode):
     allowed_parameters = [StringParameter('sector', description = 'Sector', is_customizable = False),

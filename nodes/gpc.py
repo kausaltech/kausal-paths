@@ -154,7 +154,7 @@ class DatasetNode(AdditiveNode):
         if 'scope' in df.columns:
             catlookup = {}
             for cat in df['scope'].unique():
-                catlookup[cat] = cat.lower().replace(' ', '')
+                catlookup[cat] = cat.lower().replace(' ', '').replace('.', '')
             df = df.with_columns(df['scope'].replace(catlookup))
             exset.add('scope')
 
