@@ -8,6 +8,7 @@ import polars as pl
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
 from nodes.node import NodeError
 from nodes.simple import SimpleNode
+from nodes.gpc import DatasetNode
 from params import BoolParameter, NumberParameter, PercentageParameter, StringParameter
 from params.param import Parameter
 
@@ -171,6 +172,37 @@ class TrajectoryAction(ActionNode):
             cat_no = None
 
         df = df.select_category(dim_id, cat_id, cat_no, year, level, keep)
+        assert self.unit is not None
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
+        return df
+
+
+class GpcTrajectoryAction(TrajectoryAction, DatasetNode):
+    explanation = _("""
+    GpcTrajectoryAction is a trajectory action that uses the DatasetNode to fetch the dataset.
+    """)
+    allowed_parameters = TrajectoryAction.allowed_parameters + DatasetNode.allowed_parameters
+
+    def compute_effect(self):
+        df = DatasetNode.compute(self)
+        dim_id = self.get_parameter_value('dimension', required=True)
+        cat_id = self.get_parameter_value('category', required=False)
+        cat_no = self.get_parameter_value('category_number', units=False, required=False)
+        if cat_no is not None:
+            cat_no = int(cat_no)
+        year = self.get_parameter_value('baseline_year', units=False, required=False)
+        if year is not None:
+            year = int(year)
+        level = self.get_parameter_value('baseline_year_level', units=True, required=False)
+        keep = self.get_parameter_value('keep_dimension', required=False)
+        if not self.is_enabled():
+            cat_id = 'baseline'  # FIXME Generalize this
+            cat_no = None
+
+        print(df)
+        print(dim_id, cat_id, cat_no, year, level, keep)
+        df = df.select_category(dim_id, cat_id, cat_no, year, level, keep)
+        print(df)
         assert self.unit is not None
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df

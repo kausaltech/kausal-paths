@@ -7,28 +7,26 @@ import pandas as pd
 import pint_pandas
 import polars as pl
 
+import common.polars as ppl
 from nodes.calc import extend_last_historical_value, extend_last_historical_value_pl
 from nodes.constants import CONSUMPTION_FACTOR_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
 from nodes.node import Node, NodeMetric
 from nodes.simple import AdditiveNode, DivisiveNode, SimpleNode
 
-if TYPE_CHECKING:
-    from common import polars as ppl
-
-INDUSTRY_USES = '''
+INDUSTRY_USES = """
 Teollisuuden ja kaivannaistoiminnan rakennukset
 Varastorakennukset
 Muut rakennukset
-'''.strip().splitlines()
+""".strip().splitlines()
 
-RESIDENTIAL_USES = '''
+RESIDENTIAL_USES = """
 Omakoti- ja paritalot
 Rivitalot
 Kerrostalot
-'''.strip().splitlines()
+""".strip().splitlines()
 
-SERVICE_USES = '''
+SERVICE_USES = """
 Asuntolarakennukset ja erityisryhmien asuinrakennukset
 Liikerakennukset
 Toimistorakennukset
@@ -39,7 +37,7 @@ Opetusrakennukset
 Energiahuoltorakennukset
 Yhdyskuntatekniikan rakennukset
 Pelastustoimen rakennukset
-'''.strip().splitlines()
+""".strip().splitlines()
 
 BUILDING_USE_MAP = {}
 for use in RESIDENTIAL_USES:
@@ -58,6 +56,7 @@ HEAT_SOURCE_MAP = {
     'Puu, turve': 'Muu',
     'Sähkö': 'Sähkölämmitys',
     'Öljy, kaasu': 'Öljylämmitys',
+    'Yhteensä': 'Muu',
 }
 
 
@@ -89,7 +88,8 @@ class BuildingStock(AdditiveNode):
             df = df.loc[df.Alue == muni]
         df = df.loc[
             (df.Tiedot == 'Kerrosala (m2)') &
-            (df['Rakennuksen käyttötarkoitus'] != 'Asuinrakennukset yhteensä')
+            (df['Rakennuksen käyttötarkoitus'] != 'Asuinrakennukset yhteensä') &
+            (df['Rakennuksen käyttötarkoitus'] != 'Rakennukset yhteensä')
         ]
 
         hs_dim = self.output_dimensions['building_heat_source']
@@ -103,7 +103,7 @@ class BuildingStock(AdditiveNode):
 
         df[YEAR_COLUMN] = df['Vuosi'].astype(int)
         m = self.output_metrics[FLOOR_AREA]
-        s = df.groupby(['building_heat_source', 'building_use', YEAR_COLUMN])['value'].sum()
+        s = df.groupby(['building_heat_source', 'building_use', YEAR_COLUMN])['Value'].sum()
         s = m.ensure_output_unit(self, s)
         df = pd.DataFrame(data=s.values, index=s.index, columns=[VALUE_COLUMN])
         df[VALUE_COLUMN] = df[VALUE_COLUMN].astype(s.dtype)
@@ -115,10 +115,12 @@ class BuildingStock(AdditiveNode):
 
 
 class FutureBuildingStock(SimpleNode):
-    """Calculate the new floor area of future buildings based on the 10-year average
+    """
+    Calculate the new floor area of future buildings based on the 10-year average
     per respective new population; calculate this separately for different building types
     (unless floor area decreases) and assume the same ratio will hold in the future.
     """
+
     output_metrics = {
         FLOOR_AREA: NodeMetric(unit='m**2', quantity='floor_area')
     }
