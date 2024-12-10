@@ -42,6 +42,11 @@ class SimpleNode(Node):
             description='At the end of compute() do you want to drop nulls?',
             is_customizable=False,
         ),
+        BoolParameter(
+            local_id='drop_nans',
+            description='At the end of compute() do you want to drop nans?',
+            is_customizable=False,
+        ),
         StringParameter(
             local_id='reference_category',
             description='Category to which all others are compared',
@@ -118,6 +123,12 @@ class SimpleNode(Node):
     def maybe_drop_nulls(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         if self.get_parameter_value('drop_nulls', required=False):
             df = df.drop_nulls()
+        return df
+
+    def maybe_drop_nans(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        if self.get_parameter_value('drop_nans', required=False):
+            df = df.filter(~pl.col(VALUE_COLUMN).is_nan())
+            df = df.filter(~pl.col(VALUE_COLUMN).is_infinite())
         return df
 
     def scale_by_reference_category(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
@@ -422,6 +433,7 @@ class MultiplicativeNode(SimpleNode):
         replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
         if replace_output:
             df = self.replace_output_using_input_dataset_pl(df)
+        df = self.maybe_drop_nans(df)
         if self.debug:
             print('%s: Output:' % str(self))
             self.print(df)

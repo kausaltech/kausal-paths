@@ -9,7 +9,7 @@ name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
 theme_identifier: eu-netzerocities
 target_year: 2030
-model_end_year: 2045
+model_end_year: 2050
 minimum_historical_year: 2018
 maximum_historical_year: 2020
 emission_unit: kt/a
