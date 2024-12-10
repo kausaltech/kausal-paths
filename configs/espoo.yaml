@@ -15,7 +15,7 @@ frameworks: [hsy]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: bf9c52e1f0e4130599bd4a3b62fc244846c84c7e
+  commit: cf0f6194140ec571e77289923d667e9c3593e744
   # commit: 8caa222ae2b5aa14be248435eb8eb47bd401a010
   dvc_remote: kausal-s3
 name: Hiilineutraali Espoo 2030
@@ -1696,7 +1696,7 @@ actions:
   - id: gpc/espoo
     forecast_from: 2025
 
-- id: biofuel_fraction_demand  # FIXME: Calculation is not correct.
+- id: biofuel_fraction_demand
   name: Moottoripolttoaineiden jakeluvelvoite
   name_en: Biofuel fraction demand
   name_sv: Ändring i biobränslen påverkar koldioxidekvivalentut utsläpp
@@ -1712,13 +1712,18 @@ actions:
   description_sv: Ändring i biobränslen för bioinnehåll i bränslen till de som finns
     i regeringsprogrammet. Från och med 2028 antas att bioinnehållet är detsamma som
     2027.
-  type: gpc.DatasetAction
+  type: simple.GpcTrajectoryAction
   quantity: fraction
   unit: '%'
+  decision_level: nation
   group: additions_2024
-  input_datasets: [gpc/espoo]
+  input_datasets:
+  - id: gpc/espoo
+    forecast_from: 2024
   params:
     sector: Jakeluvelvoite
+    dimension: scenario
+    category: baseline
 
 - id: increase_electric_passenger_cars # TODO A slider would be nice.
   name: Sähköhenkilöautojen määrän nopeampi kasvu
@@ -3015,6 +3020,9 @@ scenarios:
   - id: change_bus_traffic_emission_factor.enabled
     value: true
 
+  - id: biofuel_fraction_demand.category
+    value: baseline
+
   - id: replace_fossil_fuels_in_district_heating.enabled
     value: true
   - id: reduce_oil_heating_residence.enabled
@@ -3066,6 +3074,9 @@ scenarios:
   - id: replace_fossil_fuels_in_district_heating.enabled
     value: true
 
+  - id: biofuel_fraction_demand.category
+    value: default
+
   - id: reduce_waste_treatment_emissions.enabled
     value: true
   - id: reduce_waste_treatment_emissions.category_number
@@ -3105,6 +3116,9 @@ scenarios:
     value: true  # FIXME It is illogical that action needs to be enabled to get zero effect.
   - id: electric_heating_emission_factor_action.enabled
     value: true
+
+  - id: biofuel_fraction_demand.category
+    value: default
 
 #######################
 # DATA SOURCES
