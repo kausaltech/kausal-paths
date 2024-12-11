@@ -402,6 +402,10 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_nodes:
   - id: electricity_efficiency_for_electric_vehicles
+  - id: fuel_consumption_increase_due_to_load
+    tags: [arithmetic_inverse, complement]
+    to_dimensions:
+    - id: transport_mode
   output_nodes:
   - id: total_electricity_consumption_uncorr
     from_dimensions:
@@ -691,43 +695,6 @@ nodes:
     - id: cost_type
     - id: stakeholder
       categories: [transport_operators]
-
-- id: freight_transport_electricity_cost
-  name_en: Freight transport electricity cost
-  name_fi: Rahtiliikenteen sähkökustannukset
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [transport_mode, energy_carrier, cost_type]
-  output_dimensions: [transport_mode, energy_carrier, cost_type]
-  input_nodes:
-  - id: freight_transport_vehicle_kilometres
-    to_dimensions:
-    - id: transport_mode
-    - id: energy_carrier
-  - id: electricity_efficiency_for_electric_vehicles
-    to_dimensions:
-    - id: transport_mode
-    - id: energy_carrier
-  - id: consumer_electricity_unit_price
-    to_dimensions:
-    - id: energy_carrier
-    - id: cost_type
-      categories: [opex]
-  - id: fuel_consumption_increase_due_to_load
-    tags: [arithmetic_inverse, complement]
-    to_dimensions:
-    - id: transport_mode
-  output_nodes:
-  - id: freight_transport_cost
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: stakeholder
-      categories: [transport_operators]
-    - id: transport_mode
-    - id: cost_type
 
 - id: freight_transport_cost
   name_en: Freight transport cost
