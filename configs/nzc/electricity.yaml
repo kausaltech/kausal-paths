@@ -269,6 +269,8 @@ nodes:
       flatten: true
     to_dimensions:
     - id: energy_carrier
+  params:
+    replace_nans: 0.0
 
 - id: new_electricity_production_capacity
   name_en: New electricity production capacity
