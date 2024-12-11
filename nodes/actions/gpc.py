@@ -368,7 +368,8 @@ class SCurveAction(DatasetAction):
     explanation = _(
         """
         This is S Curve Action. It calculates non-linear effect with two parameters,
-        max_impact and max_year.The parameters come from Dataset. In addition, there
+        max_impact = A and max_year (year when most of the impact has occurred).
+        The parameters come from Dataset. In addition, there
         must be one input node for background data. Function for
         S-curve = A/(1+exp(-k*(x-x0)). A is the maximum value, k is the steepness
         of the curve (always 0.5), and x0 is the midpoint.
@@ -376,30 +377,6 @@ class SCurveAction(DatasetAction):
     allowed_parameters = DatasetAction2.allowed_parameters
 
     no_effect_value = 0.0
-
-    def create_empty_df_pl(self) -> ppl.PathsDataFrame:
-        min_year = self.context.instance.minimum_historical_year
-        max_year = self.get_end_year()
-        df = pl.DataFrame(
-            data={YEAR_COLUMN: range(min_year, max_year + 1)},
-            schema={YEAR_COLUMN: pl.Int64})
-        expr = [pl.lit(False).alias(FORECAST_COLUMN), pl.lit(0.0).alias(VALUE_COLUMN)]
-        df = df.with_columns(expr)
-        meta = ppl.DataFrameMeta(
-            units={VALUE_COLUMN: unit_registry('dimensionless')},
-            primary_keys=[YEAR_COLUMN])
-        df = ppl.to_ppdf(df, meta=meta)
-
-        return df
-
-    # Extend the value on the selected row (based on year column) to the whole selected column
-    def extend_value_to_whole_column(self, df: ppl.PathsDataFrame, col: str, row) -> ppl.PathsDataFrame:
-        df = df.paths.to_wide()
-        cols = [co for co in df.columns if col + '@' in co]
-        expr = [pl.col(col).where(pl.col(YEAR_COLUMN).eq(row)).first() for col in cols]
-        df = df.with_columns(expr)
-        df = df.paths.to_narrow()
-        return df
 
     def compute_effect(self) -> ppl.PathsDataFrame:
         baseline_year = self.context.instance.reference_year
@@ -413,14 +390,21 @@ class SCurveAction(DatasetAction):
         params = self.implement_unit_col(params)
         params = self.apply_multiplier(params, required=False, units=True)
         params = params.paths.join_over_index(df, how='inner')
-        ymax = params.filter(pl.col('parameter') == 'max_year')[VALUE_COLUMN][0]
+
+        drops = [FORECAST_COLUMN, VALUE_COLUMN + '_right', YEAR_COLUMN, 'parameter']
+        ymax = params.filter(pl.col('parameter') == 'max_year').drop(drops)
+        ymax = ymax.rename({VALUE_COLUMN: 'ymax'})
+        df = df.paths.join_over_index(ymax, how='inner')
+
         params = params.ensure_unit(VALUE_COLUMN, df.get_unit(VALUE_COLUMN))
-        amax = params.filter(pl.col('parameter') == 'max_impact')[VALUE_COLUMN][0]
+        amax = params.filter(pl.col('parameter') == 'max_impact').drop(drops)
+        amax = amax.rename({VALUE_COLUMN: 'amax'})
+        df = df.paths.join_over_index(amax, how='inner')
 
         df = df.with_columns((
             pl.col(YEAR_COLUMN) - (pl.lit(baseline_year) +
-            (pl.lit(ymax) - pl.lit(baseline_year)) / 2)).alias('x'))
-        df = df.with_columns((pl.lit(amax) / (
+            (pl.col('ymax') - pl.lit(baseline_year)) / 2)).alias('x'))
+        df = df.with_columns((pl.col('amax') / (
             pl.lit(1.0) + (pl.lit(-0.5) * pl.col('x')).exp())
             ).alias('out'))
         df = df.set_unit('out', df.get_unit(VALUE_COLUMN))
@@ -429,7 +413,7 @@ class SCurveAction(DatasetAction):
             .then(pl.col('out'))
             .otherwise(pl.col(VALUE_COLUMN))).alias('out'))
         df = df.subtract_cols(['out', VALUE_COLUMN], VALUE_COLUMN)
-        df = df.drop(['x', 'out'])
+        df = df.drop(['x', 'out', 'amax', 'ymax'])
 
         if not self.is_enabled():
             df = df.with_columns(pl.lit(self.no_effect_value).alias(VALUE_COLUMN))

@@ -785,8 +785,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   quantity: fraction
   unit: '%'
   group: transport
-  input_dimensions: [transport_mode, energy_carrier]
-  output_dimensions: [transport_mode, energy_carrier]
+  input_dimensions: [energy_carrier, transport_mode]
+  output_dimensions: [energy_carrier, transport_mode]
   input_datasets:
   - id: nzc/defaults
   params:
@@ -806,8 +806,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   quantity: fraction
   unit: '%/a'
   group: transport
-  input_dimensions: [transport_mode, energy_carrier]
-  output_dimensions: [transport_mode, energy_carrier]
+  input_dimensions: [energy_carrier, transport_mode]
+  output_dimensions: [energy_carrier, transport_mode]
   input_datasets:
   - id: nzc/defaults
   params:
@@ -864,8 +864,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   quantity: fraction
   unit: '%'
   group: freight_transport
-  input_dimensions: [transport_mode, energy_carrier]
-  output_dimensions: [transport_mode, energy_carrier]
+  input_dimensions: [energy_carrier, transport_mode]
+  output_dimensions: [energy_carrier, transport_mode]
   input_datasets:
   - id: nzc/defaults
   params:
