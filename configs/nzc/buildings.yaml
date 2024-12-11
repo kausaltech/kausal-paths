@@ -845,7 +845,7 @@ nodes:
     - id: heating_type
   - id: building_heat_fossil_energy
   params:
-    drop_nans: true
+    replace_nans: 0.0
 
 - id: heating_emission_factor
   name_en: Heating emission factor
