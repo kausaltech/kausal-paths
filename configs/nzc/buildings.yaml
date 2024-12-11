@@ -864,13 +864,15 @@ nodes:
     - id: pollutant
     - id: heating_type
   - id: building_heat_fossil_ratio
-    tags: [inventory_only, geometric_inverse, empty_to_zero, extend_values]
+    tags: [inventory_only, geometric_inverse, extend_values]
     from_dimensions:
     - id: fuel_type
       categories: [fossil]
     to_dimensions:
     - id: heating_type
     - id: fuel_type
+  params:
+    replace_nans: 0.0
 
 - id: building_heating_emissions
   name_en: Building heating emissions
