@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from django.utils.translation import gettext_lazy as _
 
-import pandas as pd
 import polars as pl
 
 from common import polars as ppl
@@ -34,11 +33,12 @@ class DatasetAction(ActionNode, DatasetNode):
 class DatasetAction2(DatasetAction):
     pass
 
-class DatasetActionMFM(ActionNode, DatasetNode):
-    allowed_parameters = [StringParameter('action', description='Action name in GPC dataset', is_customizable=False),
-                          NumberParameter('target_value', description='Target action impact value', is_customizable=True),
-                          StringParameter('target_metric', description='Target action metric id', is_customizable=False)]
-
+class DatasetActionMFM(DatasetAction):
+    allowed_parameters = [
+        StringParameter('action', description='Action name in GPC dataset', is_customizable=False),
+        NumberParameter('target_value', description='Target action impact value', is_customizable=True),
+        StringParameter('target_metric', description='Target action metric id', is_customizable=False)
+    ]
     allow_null_categories = True
     no_effect_value = 0.0
 
@@ -124,75 +124,33 @@ class DatasetActionMFM(ActionNode, DatasetNode):
     def compute(self) -> ppl.PathsDataFrame:
         return self.compute_effect()
 
-class StockReplacementAction(ActionNode):
-    allowed_parameters = [StringParameter('sector', description = 'Sector', is_customizable = False),
-                          StringParameter('action', description = 'Detailed action module', is_customizable = False)]
+class StockReplacementAction(DatasetAction):
+    allowed_parameters = [
+        StringParameter('sector', description='GPC sector', is_customizable=False),
+        StringParameter('action', description='Detailed action module', is_customizable=False),
+        NumberParameter('investment_value', description='Maximum annual investment', is_customizable=True),
+        StringParameter('investment_units', description='Investment units', is_customizable=False)
+    ]
+    allow_null_categories = True
 
-    def makeid(self, label: str):
-        # Supported languages: Czech, Danish, English, Finnish, German, Latvian, Polish, Swedish
-        idlookup = {'': ['.', ',', ':', '-', '(', ')'],
-                    '_': [' ', '/'],
-                    'and': ['&'],
-                    'a': ['ä', 'å', 'ą', 'á', 'ā'],
-                    'c': ['ć', 'č'],
-                    'd': ['ď'],
-                    'e': ['ę', 'é', 'ě', 'ē'],
-                    'g': ['ģ'],
-                    'i': ['í', 'ī'],
-                    'k': ['ķ'],
-                    'l': ['ł', 'ļ'],
-                    'n': ['ń', 'ň', 'ņ'],
-                    'o': ['ö', 'ø', 'ó'],
-                    'r': ['ř'],
-                    's': ['ś', 'š'],
-                    't': ['ť'],
-                    'u': ['ü', 'ú', 'ů', 'ū'],
-                    'y': ['ý'],
-                    'z': ['ź', 'ż', 'ž'],
-                    'ae': ['æ'],
-                    'ss': ['ß']}
+    # ---------------------------------------------------------------------------------------------
+    def drop_unnecessary_levels(self, df: ppl.PathsDataFrame, droplist: list) -> ppl.PathsDataFrame:
+        drops = [d for d in droplist if d in df.columns]
 
-        idtext = label.lower()
-        if idtext[:5] == 'scope':
-            idtext = idtext.replace(' ', '')
+        for col in list(set(df.columns) - set(drops)):
+            vals = df[col].unique().to_list()
+            if vals in [['.'], [None], ['']]:
+                drops.append(col)
 
-        for tochar in idlookup:
-            for fromchar in idlookup[tochar]:
-                idtext = idtext.replace(fromchar, tochar)
-
-        return idtext
-
-    def convert_labels_to_ids(self, df: pd.DataFrame) -> pd.DataFrame:
-        # Convert index level names from labels to IDs.
-        dims = []
-        for i in df.index.names:
-            if i == YEAR_COLUMN:
-                dims.append(i)
-            else:
-                dims.append(self.makeid(i))
-        df.index = df.index.set_names(dims)
-
-        # Convert levels within each index level from labels to IDs.
-        dfi = df.index.to_frame(index = False)
-        for col in list(set(dims) - {YEAR_COLUMN}):
-            for cat in dfi[col].unique():
-                dfi[col] = dfi[col].replace(cat, self.makeid(cat))
-
-        df.index = pd.MultiIndex.from_frame(dfi)
+        df = df.drop(drops)
         return df
 
-    def drop_unnecessary_levels(self, df: pd.DataFrame, droplist: list) -> pd.DataFrame:
-        # Drop filter levels and empty dimension levels.
-        for col in df.index.names:
-            vals = df.index.get_level_values(col).unique().to_list()
-            if vals == ['']:
-                droplist.append(col)
-        df.index = df.index.droplevel(droplist)
-        return df
-
+    # ---------------------------------------------------------------------------------------------
     def stock_delta(self, stock, cat, delta, delta_type, repcat):
         deltalookup = {'base': 0, 'new': 1, 'rep': 1}
 
+        # If the delta is positive, and baseline or new, add entirely new 'cat > cat' stock units;
+        # if replacement, add new 'repcat > cat' stock units.
         if delta > 0:
             if delta_type != 'rep':
                 stock['%s > %s' % (cat, cat)][-1] += delta
@@ -202,6 +160,9 @@ class StockReplacementAction(ActionNode):
                     stock[stockkey] = [0.0] * len(stock['%s > %s' % (cat, cat)])
                 stock[stockkey][-1] += delta
 
+        # If the delta is negative, find all relevant stock unit keys, and subtract proportionally
+        # from each. For baseline deltas, relevant keys begin with cat; for new and replacement
+        # deltas, relevant keys end with cat.
         elif delta < 0:
             keylist = []
             total = 0.0
@@ -214,76 +175,92 @@ class StockReplacementAction(ActionNode):
 
         return stock
 
+    # ---------------------------------------------------------------------------------------------
     def category_filter(self, df, year, cat):
-        df = df.loc[df.index.get_level_values(YEAR_COLUMN) == year]
+        fdf = df.filter(pl.col(YEAR_COLUMN) == year)
         for subcat in cat.split('/'):
             subcat = subcat.split(':')
-            df = df.loc[df.index.get_level_values(subcat[0]) == subcat[1]]
+            fdf = fdf.filter(pl.col(subcat[0]) == subcat[1])
 
-        return df[VALUE_COLUMN].item()
+        return fdf.select(VALUE_COLUMN).item()
 
-    def compute(self) -> ppl.PathsDataFrame:
-        # Perform initial filtering of dataset. ---------------------------------------------------
-        df = self.get_input_dataset()
+    # ---------------------------------------------------------------------------------------------
+    def sync_dimensions(self, df, refdf):
+        for dim in refdf._primary_keys:
+            if dim not in df._primary_keys:
+                df = df.with_columns(pl.lit('').alias(dim))
+                df._primary_keys.append(dim)
 
-        df = df[df[VALUE_COLUMN].notna()]
-        df = df[(df.index.get_level_values('Sector') == self.get_parameter_value('sector')) &
-                (df.index.get_level_values('Action') == self.get_parameter_value('action'))]
+        return df
 
-        df.index = df.index.droplevel(['Sector', 'Action'])
-        df = self.convert_labels_to_ids(df)
+    def compute_effect(self) -> ppl.PathsDataFrame:
+        # Perform initial filtering & processing of dataset. --------------------------------------
+        df = self.get_input_dataset_pl()
+        sector = str(self.get_parameter_value('sector'))
 
-        # -----------------------------------------------------------------------------------------
-        yearlist = df.index.get_level_values(YEAR_COLUMN).unique().to_list()
+        df = df.filter((pl.col(VALUE_COLUMN).is_not_null()) &
+                       (pl.col('Sector') == sector) &
+                       (pl.col('Action') == self.get_parameter_value('action')))
+
+        df = self.drop_unnecessary_levels(df, droplist=['Sector', 'Action'])
+        df = self.convert_names_to_ids(df)
+
+        yearlist = df[YEAR_COLUMN].unique().to_list()
         yearlist.sort()
 
-        investment = df[df.index.get_level_values('node_name') == 'annual_investment']
-        investment = self.drop_unnecessary_levels(investment, ['node_name'])
+        # Create parameter DFs, list of stock (multi)categories. ----------------------------------
+        p = {}
+        for parameter in ['investment', 'target', 'replacement_unit_cost', 'replacement_scheme']:
+            p[parameter] = df.filter(pl.col('node_name').str.contains(parameter))
+            p[parameter] = self.drop_unnecessary_levels(p[parameter], droplist=['node_name'])
 
-        repcost = df[df.index.get_level_values('node_name') == 'replacement_unit_costs']
-        repcost = self.drop_unnecessary_levels(repcost, ['node_name'])
-
-        repscheme = df[df.index.get_level_values('node_name').str.endswith('replacement_scheme')]
-        repscheme = self.drop_unnecessary_levels(repscheme, ['node_name'])
-
-        target = df[df.index.get_level_values('node_name').str.startswith('target')]
-        target = self.drop_unnecessary_levels(target, ['node_name'])
-
-        catindex = target.index.droplevel(YEAR_COLUMN)
         catlist = []
-        for catcombo in catindex.unique().to_list():
-            if catindex.nlevels == 1:
-                catcombo = [catcombo]
-
-            cattext = ""
+        catcols = list(set(p['target']._primary_keys) - {YEAR_COLUMN})
+        for catcombo in p['target'].select(catcols).unique().rows():
+            cattext = ''
             for i in range(len(catcombo)):
-                cattext += '%s:%s/' % (catindex.names[i], catcombo[i])
-            catlist.append(cattext.lower().replace(' ', '_').strip('/'))
+                cattext += '%s:%s/' % (catcols[i], catcombo[i])
+
+            catlist.append(cattext.strip('/'))
         catlist.sort()
 
-        # -----------------------------------------------------------------------------------------
-        base_node = self.get_input_node(tag = 'baseline')
-        base = base_node.get_output_pl(target_node = self).rename({VALUE_COLUMN:'Value_Base'})
+        # Adjust investment DF per investment parameters, action status. --------------------------
+        if self.is_enabled():
+            investval = self.get_parameter_value('investment_value', required=False)
 
-        new_node = self.get_input_node(tag = 'new')
-        new = new_node.get_output_pl(target_node = self).rename({VALUE_COLUMN:'Value_New'})
-        new = new.paths.join_over_index(new.cumulate('Value_New').rename({'Value_New':'Value_Cum'}))
+            if isinstance(investval, float):
+                investunits = self.get_parameter_value('investment_units', required=True)
+                p['investment'] = p['investment'].with_columns(
+                    pl.when(pl.col(FORECAST_COLUMN)).then(pl.lit(investval)).otherwise(pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN),
+                    pl.when(pl.col(FORECAST_COLUMN)).then(pl.lit(investunits)).otherwise(pl.col('Unit')).alias('Unit')
+                )
+        else:
+            p['investment'] = p['investment'].with_columns(pl.lit(0.0).alias(VALUE_COLUMN))
 
-        base = base.paths.join_over_index(base.diff('Value_Base').rename({'Value_Base':'Value_Diff'}))
+        # Create baseline (non-action) stock DF. --------------------------------------------------
+        base = self.get_input_node(tag='baseline').get_output_pl(target_node=self).rename({VALUE_COLUMN: 'Value_Base'})
+        base = base.paths.join_over_index(base.diff('Value_Base').rename({'Value_Base': 'Value_Diff'}))
+
+        new = self.get_input_node(tag='new').get_output_pl(target_node=self).rename({VALUE_COLUMN: 'Value_New'})
+        new = new.paths.join_over_index(new.cumulate('Value_New').rename({'Value_New': 'Value_Cum'}))
+
         base = base.paths.join_over_index(new)
         basew = base.paths.to_wide().fill_null(0)
 
-        # -----------------------------------------------------------------------------------------
+        # Initialize stock dictionary with first-year baseline values. ----------------------------
         stock = {}
         for cat in catlist:
             key = '%s > %s' % (cat, cat)
             stock[key] = [basew.filter(pl.col(YEAR_COLUMN) == yearlist[0]).select('Value_Base@%s' % cat).item()]
 
+        # For each year... ------------------------------------------------------------------------
         for i in range(len(yearlist)):
             stats = {}
             targets = []
             scheme = {}
             for cat in catlist:
+                # ...for each (multi)category, find and apply the baseline delta, then the new
+                # delta. This calculates the non-action change in stock.
                 base_delta = basew.filter(pl.col(YEAR_COLUMN) == yearlist[i]).select('Value_Diff@%s' % cat).item()
                 stock = self.stock_delta(stock, cat, base_delta, 'base', '.')
 
@@ -291,10 +268,12 @@ class StockReplacementAction(ActionNode):
                 stock = self.stock_delta(stock, cat, new_delta, 'new', '.')
 
                 stats[cat] = [0.0]
-                targets.append([self.category_filter(target, yearlist[i], cat), cat])
-                scheme[cat] = self.category_filter(repscheme, yearlist[i], cat)
+                targets.append([self.category_filter(p['target'], yearlist[i], cat), cat])
+                scheme[cat] = self.category_filter(p['replacement_scheme'], yearlist[i], cat)
 
             # -------------------------------------------------------------------------------------
+            # ...for each (multi)category, track the number of ending stock units, and the
+            # percentage of the total stock.
             total = 0.0
             for key in list(stock.keys()):
                 cat = key.split(' > ')[1]
@@ -304,57 +283,79 @@ class StockReplacementAction(ActionNode):
             for cat in catlist:
                 stats[cat].append((stats[cat][0] * 100) / total)
 
+            # ...the (multi)category with the highest target percentage serves as the target.
             targets.sort()
             targets.reverse()
             targetcat = targets[0][1]
 
             # -------------------------------------------------------------------------------------
-            iinvestment = investment.loc[investment.index.get_level_values(YEAR_COLUMN) == yearlist[i]][VALUE_COLUMN].item()
-            irepcost = repcost.loc[repcost.index.get_level_values(YEAR_COLUMN) == yearlist[i]][VALUE_COLUMN].item()
+            # ...find the annual investment and replacement cost.
+            iinvestment = p['investment'].filter(pl.col(YEAR_COLUMN) == yearlist[i]).select(VALUE_COLUMN).item()
+            irepcost = p['replacement_unit_cost'].filter(pl.col(YEAR_COLUMN) == yearlist[i]).select(VALUE_COLUMN).item()
 
-            repneed = ((targets[0][0] - stats[targetcat][1]) * total) / scheme[targetcat]
+            # ...find the number of replacements needed to reach the target, and the number of
+            # replacements funded. Use the minimum of these two numbers.
+            repneed = (((targets[0][0] - stats[targetcat][1]) / 100) * total) / scheme[targetcat]
             repfunded = iinvestment / irepcost
 
             repcount = min([repneed, repfunded])
             reppool = []
             for cat in catlist:
+                # If the replacement scheme removes units in this (multi)category, remove units
+                # from the stock. Track number of units removed per category in the 'reppool'.
                 if scheme[cat] < 0:
                     reppool.append([(scheme[cat] * repcount) * -1, cat])
                     stock = self.stock_delta(stock, cat, (scheme[cat] * repcount), 'rep', '.')
 
+            # -------------------------------------------------------------------------------------
             for cat in catlist:
+                # If the replacement scheme adds units in this (multi)category...
                 if scheme[cat] > 0:
                     catcount = scheme[cat] * repcount
                     while catcount > 0:
+                        # ...if the number of units to add is less than or equal to the first
+                        # category in the reppool...
                         if catcount <= reppool[0][0]:
                             stock = self.stock_delta(stock, cat, catcount, 'rep', reppool[0][1])
-                            catcount = 0
                             if catcount < reppool[0][0]:
                                 reppool[0][0] -= catcount
                             else:
                                 del reppool[0]
+                            catcount = 0
+                        # ...else the number of units to add is greater than the first category in
+                        # the reppool. In this case, loop to the next category.
                         else:
                             stock = self.stock_delta(stock, cat, reppool[0][0], 'rep', reppool[0][1])
                             catcount -= reppool[0][0]
                             del reppool[0]
 
+            # -------------------------------------------------------------------------------------
+            # ...write the actual value invested to the investment DF.
+            p['investment'] = p['investment'].with_columns(pl.when(pl.col(YEAR_COLUMN) == yearlist[i])
+                                                             .then(pl.lit(repcount * irepcost))
+                                                             .otherwise(pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
+
             if yearlist[i] < yearlist[-1]:
                 for key in list(stock.keys()):
                     stock[key].append(stock[key][-1])
 
-        # -----------------------------------------------------------------------------------------
+        # Prepare final DF for return. ------------------------------------------------------------
         base = base.with_columns(pl.col('Value_Cum').fill_null(0).alias('Value_Cum'))
-        base = base.sum_cols(['Value_Base', 'Value_Cum'], 'Value')
+        base = base.sum_cols(['Value_Base', 'Value_Cum'], VALUE_COLUMN)
         base = base.drop(['Value_Base', 'Value_Diff', 'Value_New', 'Value_Cum'])
         base = base.paths.to_wide()
 
+        # For each (multi)category...
         for cat in catlist:
+            # ...sum the ending stock units annually.
             catstock = [0.0] * len(yearlist)
             for key in list(stock.keys()):
                 if key.split(' > ')[1] == cat:
                     for i in range(len(yearlist)):
                         catstock[i] += stock[key][i]
 
+            # ...if the action is enabled, subtract the non-action stock units from the calculated
+            # stock units, to find the action's impact.
             catcol = 'Value@%s' % cat
             if self.is_enabled():
                 base = base.with_columns((pl.Series(catstock) - pl.col(catcol)).alias(catcol))
@@ -362,6 +363,17 @@ class StockReplacementAction(ActionNode):
                 base = base.with_columns(pl.lit(0.0).alias(catcol))
 
         base = base.paths.to_narrow()
+
+        # Add currency metric for investment costs. -----------------------------------------------
+        sector = sector.lower().replace('.', '')
+        base = base.rename({VALUE_COLUMN: '%s_number' % sector})
+        base = self.sync_dimensions(base, p['investment'])
+
+        p['investment'] = self.sync_dimensions(p['investment'], base)
+        p['investment']._units[VALUE_COLUMN] = unit_registry(p['investment']['Unit'].to_list()[0]).units
+        p['investment'] = p['investment'].drop('Unit').rename({VALUE_COLUMN: '%s_currency' % sector})
+
+        base = base.paths.join_over_index(p['investment'], how='outer')
         return base
 
 class SCurveAction(DatasetAction):
