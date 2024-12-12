@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://tampere-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: d8e6c3c607e244585260a625c2e3787f719dee87
+  commit: d1c8276674101a61c31fbe1b898ec810f33beef1
   dvc_remote: kausal-s3
 name: C4C Hiilineutraali Tampere 2030
 name_en: C4C Carbon-neutral Tampere 2030
@@ -1898,15 +1898,23 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: EUR/a
-  input_dimensions: [streetlight_type, cost_type]
-  output_dimensions: [streetlight_type, cost_type]
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
   input_nodes:
   - id: new_streetlight_costs
+    from_dimensions:
+    - id: streetlight_type
+      flatten: true
   - id: energy_costs
     from_dimensions:
     - id: energy_carrier
       flatten: true
+    - id: streetlight_type
+      flatten: true
   - id: maintenance_costs
+    from_dimensions:
+    - id: streetlight_type
+      flatten: true
 
 # ----- ECONOMY ---------------------------------------------------------------
 
@@ -2333,33 +2341,58 @@ actions:
     - id: scope
       categories: ['scope2']
 
-# - id: i22_streetlight_replacement_action
-#   name: I.2.2 Streetlight Replacement Action
-#   type: gpc.StockReplacementAction
-#   quantity: number
-#   unit: count/a
-#   input_dimensions: [streetlight_type] #, cost_type]
-#   output_dimensions: [streetlight_type] #, cost_type]
-#   params:
-#     sector: I.2.2
-#     action: LED Streetlights
-#   input_datasets:
-#   - id: gpc/tampere_detailed_actions
-#     forecast_from: 2021
-#   input_nodes:
-#   - id: i22_baseline_streetlights
-#     tags: [baseline]
-#   - id: i22_annual_new_streetlights
-#     tags: [new]
-#   # output_metrics:
-#   # - id: currency
-#   #   unit: [unit]
-#   #   quantity: currency
-#   # - id: number
-#   #   unit: [unit]
-#   #   quantity: number
-#   output_nodes:
-#   - id: i22_streetlights
+- id: streetlight_replacement_action
+  name: Streetlight Replacement Detailed Action
+  type: gpc.StockReplacementAction
+  quantity: number
+  unit: count
+  input_dimensions: [streetlight_type, cost_type]
+  output_dimensions: [streetlight_type, cost_type]
+  params:
+  - id: sector
+    value: I.2.2
+  - id: action
+    value: LED Streetlights
+  - id: investment_value
+    values:
+      default: 961800
+    min_value: 0
+    max_value: 3000000
+    step: 10000
+    unit: EUR/a
+    description: Maximum annual investment
+  - id: investment_units
+    value: EUR/a
+  input_datasets:
+  - id: gpc/tampere_detailed_actions
+    forecast_from: 2021
+  input_nodes:
+  - id: baseline_streetlights
+    tags: [baseline]
+    to_dimensions:
+    - id: streetlight_type
+  - id: annual_new_streetlights
+    tags: [new]
+    to_dimensions:
+    - id: streetlight_type
+  output_metrics:
+  - id: i22_number
+    unit: count
+    quantity: number
+  - id: i22_currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: streetlights
+    metrics: [i22_number]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+  - id: streetlight_total_costs
+    metrics: [i22_currency]
+    from_dimensions:
+    - id: streetlight_type
+      flatten: true
 
 # - id: other_renewable_district_heating
 #   name: Kaukolämmön tuotannossa lisätään uusiutuvaa energiaa
