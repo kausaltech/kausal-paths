@@ -487,7 +487,7 @@ def metric_from_visualization(node: Node, visualization: VisualizationNodeOutput
     unit = df.get_unit(df.metric_cols[0])
     data = _generate_output_data(node, dims, df)
     dm = DimensionalMetric(
-        id=node.id,
+        id='%s:%s' % (node.id, visualization.id),
         name=str(node.name),
         dimensions=dims,
         values=data.values,
