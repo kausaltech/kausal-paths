@@ -173,6 +173,13 @@ class StockReplacementAction(DatasetAction):
             for key in keylist:
                 stock[key][-1] += delta * (stock[key][-1] / total)
 
+                # Warn about negative stock units, but assume this occurs only due to floating-
+                # point errors, and correct to zero.
+                if stock[key][-1] < 0.0:
+                    print("Warning: Negative stock units with key '%s' in module year %i: %0.10f" %
+                          (key, len(stock[key]), stock[key][-1]))
+                    stock[key][-1] = 0.0
+
         return stock
 
     # ---------------------------------------------------------------------------------------------
@@ -294,8 +301,9 @@ class StockReplacementAction(DatasetAction):
             irepcost = p['replacement_unit_cost'].filter(pl.col(YEAR_COLUMN) == yearlist[i]).select(VALUE_COLUMN).item()
 
             # ...find the number of replacements needed to reach the target, and the number of
-            # replacements funded. Use the minimum of these two numbers.
-            repneed = (((targets[0][0] - stats[targetcat][1]) / 100) * total) / scheme[targetcat]
+            # replacements funded. Use the minimum of these two numbers. If target is overshot, do
+            # not allow negative replacements needed.
+            repneed = max(0.0, (((targets[0][0] - stats[targetcat][1]) / 100) * total) / scheme[targetcat])
             repfunded = iinvestment / irepcost
 
             repcount = min([repneed, repfunded])
