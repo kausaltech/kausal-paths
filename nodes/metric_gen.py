@@ -56,6 +56,7 @@ if TYPE_CHECKING:
 def _make_id(node: Node, *args: str) -> str:
     return ':'.join([node.id, *args])
 
+
 def _create_input_nodes_dimension(node: Node, input_nodes: list[Node]) -> MetricDimension:
     cats = [
         MetricCategory(
@@ -105,6 +106,7 @@ def _create_scenario_dim(node: Node, scenarios: Sequence[Scenario]) -> MetricDim
     )
     return scenario_dim
 
+
 def _get_df(
     node: Node, scenarios: Sequence[Scenario], input_nodes: list[Node] | None = None
 ) -> tuple[ppl.PathsDataFrame, list[MetricDimension]]:
@@ -120,6 +122,7 @@ def _get_df(
         get_output_func = get_output_without_input_nodes
     else:
         new_dims.append(_create_input_nodes_dimension(node, input_nodes))
+
         # Get output with input node IDs as categories (in a column `NODE_COLUMN`)
         def get_output_with_input_nodes() -> ppl.PathsDataFrame:
             return node.add_nodes_pl(df=None, nodes=input_nodes, keep_nodes=True)
@@ -144,6 +147,7 @@ def _get_df(
 
     df = _join_scenario_dfs(scenario_dfs)
     return df, new_dims
+
 
 def _compute_values(
     node: Node,
@@ -191,6 +195,7 @@ def _compute_values(
     #     df = df.with_columns((pl.col(VALUE_COLUMN) - pl.col(VALUE_COLUMN + '_right')).alias(VALUE_COLUMN))
     #     df.drop(VALUE_COLUMN + '_right')
 
+
 def _make_goal_values(goal: NodeGoalsEntry) -> list[MetricYearlyGoal]:
     return [
         MetricYearlyGoal(
@@ -200,6 +205,7 @@ def _make_goal_values(goal: NodeGoalsEntry) -> list[MetricYearlyGoal]:
         )
         for y in goal.get_values()
     ]
+
 
 def _make_goal(node: Node, dims: list[MetricDimension], goal: NodeGoalsEntry) -> MetricDimensionGoal | None:
     def make_id(*args: str) -> str:
@@ -248,6 +254,7 @@ def _get_goals(node: Node, dims: list[MetricDimension]) -> list[MetricDimensionG
             continue
         goals.append(out)
     return goals
+
 
 def _make_data_dimension(
     node: Node,
@@ -315,6 +322,7 @@ def _make_data_dimension(
     )
     return mdim
 
+
 def _generate_output_data(node: Node, dims: list[MetricDimension], df: ppl.PathsDataFrame) -> MetricData:
     if df.paths.index_has_duplicates():
         raise NodeError(node, 'DataFrame index has duplicates')
@@ -347,6 +355,7 @@ def _generate_output_data(node: Node, dims: list[MetricDimension], df: ppl.Paths
         values=vals,
         forecast_from=forecast_from,
     )
+
 
 def _from_node_metric(node: Node, m: NodeMetric, scenarios: Sequence[Scenario]) -> DimensionalMetric:
     def make_id(*args: str) -> str:
@@ -392,6 +401,7 @@ def _from_node_metric(node: Node, m: NodeMetric, scenarios: Sequence[Scenario]) 
     )
     return dm
 
+
 def _join_scenario_dfs(scenario_dfs: list[ppl.PathsDataFrame]) -> ppl.PathsDataFrame:
     first_df = scenario_dfs[0]
     meta = first_df.get_meta()
@@ -399,10 +409,7 @@ def _join_scenario_dfs(scenario_dfs: list[ppl.PathsDataFrame]) -> ppl.PathsDataF
     for sdf in scenario_dfs[1:]:
         if not sdf.get_meta().is_equal(meta, ignore_order=True):
             with sentry_sdk.push_scope() as scope:
-                scope.set_context('scenario_dfs', dict(
-                    first=first_df.serialize_meta(),
-                    other=sdf.serialize_meta()
-                ))
+                scope.set_context('scenario_dfs', dict(first=first_df.serialize_meta(), other=sdf.serialize_meta()))
                 sentry_sdk.capture_message('Scenario dataframes have different metadata', level='error')
             raise ValueError('Scenario dataframes have different metadata')
         sdfs.append(sdf.select(first_df.columns))
@@ -434,14 +441,18 @@ def metric_from_node(
 
     with sentry_sdk.push_scope() as scope, node.context.start_span('Dimension metric for: %s' % node.id, op=MODEL_CALC_OP):
         scope.set_tag('node_id', node.id)
-        scope.set_context('metric_dim', dict(
-            metric_id=m.id,
-            node_id=node.id,
-            instance_id=node.context.instance.id,
-            active_scenario=node.context.active_scenario.id,
-            extra_scenarios=[s.id for s in extra_scenarios],
-        ))
+        scope.set_context(
+            'metric_dim',
+            dict(
+                metric_id=m.id,
+                node_id=node.id,
+                instance_id=node.context.instance.id,
+                active_scenario=node.context.active_scenario.id,
+                extra_scenarios=[s.id for s in extra_scenarios],
+            ),
+        )
         return _from_node_metric(node, m, extra_scenarios)
+
 
 def metric_from_visualization(node: Node, visualization: VisualizationNodeOutput) -> DimensionalMetric | None:
     dims: list[MetricDimension] = []

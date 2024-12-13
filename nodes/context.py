@@ -422,12 +422,15 @@ class Context:
 
             metrics = ', '.join([f'{m.quantity} [#a63fa4]{m.unit}[orchid]' for m in node.output_metrics.values()])
             unit_quantity = f'({metrics})'
-            if node.yaml_lc is not None:
-                url = 'file://%s#%d' % (node.yaml_fn, node.yaml_lc[0])
+            node_id = node.id
+            if node.config_location is not None:
+                url = 'file://%s#%d' % (node.config_location['file_path'], node.config_location['line'])
                 node_name = f'[link={url}]{node.name}[/link]'
+                node_id = f'[link={url}]{node_id}[/link]'
             else:
                 node_name = str(node.name)
-            node_str = f'{node_icon}[{node_color}]{node.id} [light_sea_green]{node_name} [orchid]{unit_quantity} {node_class_str}'
+            node_str = f'{node_icon}[{node_color}]{node_id}[/] [light_sea_green]{node_name}[/]'
+            node_str += f' [orchid]{unit_quantity}[/] {node_class_str}'
             if include_datasets:
                 for ds in node.input_dataset_instances:
                     if isinstance(ds, FixedDataset):
@@ -485,7 +488,7 @@ class Context:
 
         return [n for n in self.nodes.values() if isinstance(n, ActionNode)]
 
-    def warning(self, msg: Any, *args):  # noqa: ANN401
+    def warning(self, msg: Any, *args) -> None:
         self.instance.warning(msg, *args)
 
     @cached_property

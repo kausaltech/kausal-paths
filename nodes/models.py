@@ -51,8 +51,6 @@ from paths.utils import (
 from common.i18n import get_modeltrans_attrs_from_str
 from pages.blocks import CardListBlock
 
-from .instance import Instance, InstanceLoader
-
 if TYPE_CHECKING:
     from django.http import HttpRequest
 
@@ -66,6 +64,8 @@ if TYPE_CHECKING:
     from pages.config import OutcomePage as OutcomePageConfig
     from pages.models import ActionListPage, InstanceSiteContent
     from users.models import User
+
+    from .instance import Instance
 
 
 instance_cache_lock = threading.Lock()
@@ -173,7 +173,7 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Ins
             return True
         return False
 
-    def user_can_create(self, user: User, context: Any) -> bool:  # noqa: ANN401
+    def user_can_create(self, user: User, context: Any) -> bool:
         return False
 
 
@@ -217,7 +217,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     modified_at = models.DateTimeField(auto_now=True)
     cache_invalidated_at = models.DateTimeField(default=timezone.now)
 
-    primary_language = models.CharField(max_length=8, choices=get_supported_languages, default=get_default_language)  # type: ignore[arg-type]
+    primary_language = models.CharField[str, str](max_length=8, choices=get_supported_languages, default=get_default_language)  # type: ignore[arg-type]
     other_languages = ChoiceArrayField(
         models.CharField(max_length=8, choices=get_supported_languages, default=get_default_language),  # type: ignore[arg-type]
         default=list,
@@ -348,6 +348,8 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
             self.other_languages = list(other_langs)
 
     def _create_from_config(self) -> Instance:
+        from .instance_loader import InstanceLoader
+
         if self.has_framework_config():
             fwc = self.framework_config
             instance = fwc.create_model_instance(self)
@@ -368,15 +370,24 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
             instance.context.perf_context.enabled = True
         return instance
 
+    def set_instance_scope(self, scope: sentry_sdk.Scope | None = None) -> None:
+        if scope is None:
+            scope = sentry_sdk.get_current_scope()
+        scope.set_tag('instance_id', self.identifier)
+        scope.set_tag('instance_uuid', str(self.uuid))
+
     @contextmanager
     def enter_instance_context(self):
         if self.identifier in _pytest_instances:
             instance = _pytest_instances[self.identifier]
         else:
             instance = self._initialize_instance(node_refs=True)
+
         token = instance_context.set(instance)
         try:
-            yield instance
+            with sentry_sdk.push_scope() as scope:
+                self.set_instance_scope(scope)
+                yield instance
         finally:
             instance_context.reset(token)
 

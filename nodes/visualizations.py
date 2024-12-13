@@ -27,6 +27,7 @@ from nodes.constants import VALUE_COLUMN
 
 if TYPE_CHECKING:
     from common.polars import PathsDataFrame
+    from nodes.context import Context
     from nodes.metric import DimensionalMetric
     from nodes.node import Node
 
@@ -171,3 +172,23 @@ type VisualizationEntryType = Annotated[VisualizationGroup | VisualizationNodeOu
 class NodeVisualizations(RootModel):
     ValidationContext: ClassVar = VisualizationValidationContext
     root: list[VisualizationEntryType] = Field(default_factory=list)
+
+    def _plot_recursive(self, context: Context, viz: VisualizationEntryType, charts: list) -> None:
+        from nodes.metric import DimensionalMetric
+
+        if isinstance(viz, VisualizationNodeOutput):
+            metric = DimensionalMetric.from_visualization(context.nodes[viz.node_id], viz)
+            assert metric is not None
+            charts.append(metric.plot())
+            return
+        if isinstance(viz, VisualizationGroup):
+            for child in viz.children:
+                self._plot_recursive(context, child, charts)
+
+    def plot(self, context: Context):
+        import altair as alt  # noqa: TC002
+
+        charts: list[alt.Chart] = []
+        for viz in self.root:
+            self._plot_recursive(context, viz, charts)
+        return charts

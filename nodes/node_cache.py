@@ -12,6 +12,9 @@ from pprint import pprint
 from time import time_ns
 from typing import TYPE_CHECKING, Any, Concatenate, cast
 
+import sentry_sdk
+import xxhash
+
 from nodes.datasets import DVCDataset
 from nodes.exceptions import NodeHashingError
 
@@ -58,7 +61,7 @@ class NodeHasher:
     @staticmethod
     def _wrap_hashing_error[**P, R](func: NodeHasherFuncT[P, R]) -> NodeHasherFuncT[P, R]:
         @wraps(func)
-        def report_error(*args, **kwargs) -> Any:  # noqa: ANN401
+        def report_error(*args, **kwargs) -> Any:
             _rich_traceback_omit = True
             try:
                 return func(*args, **kwargs)
@@ -71,9 +74,9 @@ class NodeHasher:
         return cast(NodeHasherFuncT[P, R], report_error)
 
     def _get_cached_hash(self) -> bytes | None:
-        if self.modified_at is None or self.last_hash is None or self.last_hash_time is None:
+        if self.last_hash is None or self.last_hash_time is None:
             return None
-        if self.modified_at <= self.last_hash_time:
+        if self.modified_at is None or self.modified_at <= self.last_hash_time:
             return self.last_hash
         return None
 
@@ -116,14 +119,27 @@ class NodeHasher:
         if cached_hash is None:
             return False
         key = self._get_cache_key(self.node, cached_hash)
-        return self.node.context.cache.is_run_cached(key=key)
+        cache = self.node.context.cache
+        return cache.is_run_cached(key=key)
 
-    def _calculate_hash(self, state: HashingState) -> bytes:  # noqa: C901
+    def is_local_cached(self) -> bool:
+        cached_hash = self._get_cached_hash()
+        if cached_hash is None:
+            return False
+        key = self._get_cache_key(self.node, cached_hash)
+        cache = self.node.context.cache
+        return cache.is_local_cached(key=key)
+
+    def is_cached(self, run: bool = True, local: bool = False) -> bool:
+        # FIXME
+        return self.is_run_cached()
+
+    def _calculate_hash(self, state: HashingState) -> bytes:  # noqa: C901, PLR0912, PLR0915
         cached_hash = self._get_cached_hash()
         if cached_hash is not None:
             return cached_hash
 
-        h = hashlib.md5(usedforsecurity=False)
+        h = xxhash.xxh64()
         cache_parts = []
 
         def hash_part(typ: str, part: str, val: str | bytes) -> None:
@@ -146,12 +162,15 @@ class NodeHasher:
             self.metrics_hash = metrics_hash
         hash_part('metrics', '', self.metrics_hash)
 
-        if self.node.output_dimensions:
-            dim_hash = b''
-            for dim in self.node.output_dimensions.values():
-                dim_hash += dim.calculate_hash()
-            self.dim_hash = dim_hash
-            hash_part('dimensions', '', self.dim_hash)
+        if self.dim_hash is None:
+            if self.node.output_dimensions:
+                dim_hash = b''
+                for dim in self.node.output_dimensions.values():
+                    dim_hash += dim.calculate_hash()
+                self.dim_hash = dim_hash
+            else:
+                self.dim_hash = b''
+        hash_part('dimensions', '', cast(bytes, self.dim_hash))
 
         for node in self.node.input_nodes:
             hash_part('input node', node.id, node.hasher.calculate_hash(state=state))
@@ -187,6 +206,8 @@ class NodeHasher:
 
     def mark_modified(self) -> None:
         self.modified_at = time_ns()
+        if self.param_hash is None:
+            return
         self.param_hash = None
         for node in self.node.output_nodes:
             node.hasher.mark_modified()
@@ -198,9 +219,12 @@ class NodeHasher:
     @classmethod
     def prefetch_nodes(cls, context: Context, nodes: list[Node]) -> None:
         state = HashingState()
-        for node in nodes:
-            node.hasher.calculate_hash(state=state)
-        cls._prefetch_from_state(context=context, state=state)
+        node_count = len(nodes)
+        with sentry_sdk.start_span(op='model.hash', description='Hashing %d nodes' % node_count):
+            for node in nodes:
+                node.hasher.calculate_hash(state=state)
+        with sentry_sdk.start_span(op='model.prefetch', description='Prefetching %d nodes' % node_count):
+            cls._prefetch_from_state(context=context, state=state)
 
     @classmethod
     def _prefetch_from_state(cls, context: Context, state: HashingState) -> None:

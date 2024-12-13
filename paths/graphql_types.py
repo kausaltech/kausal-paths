@@ -63,50 +63,24 @@ def resolve_unit(root: Unit | str, info: GQLInfo) -> Unit:
     raise ValueError("Invalid type for unit: %s (expecting 'str' or 'Unit')" % type(root))
 
 
-class UnitType(graphene.ObjectType):
-    short = graphene.String(required=True)
-    long = graphene.String(required=True)
-    html_short = graphene.String(required=True)
-    html_long = graphene.String(required=True)
-
-    @staticmethod
-    def resolve_short(root: Unit, info) -> str:
-        val = format_unit(root, html=False)
-        return val
-
-    @staticmethod
-    def resolve_long(root: Unit, info) -> str:
-        return format_unit(root, long=True, html=False)
-
-    @staticmethod
-    def resolve_html_short(root: Unit, info) -> str:
-        return format_unit(root, long=False, html=True)
-
-    @staticmethod
-    def resolve_html_long(root: Unit, info) -> str:
-        return format_unit(root, long=True, html=True)
-
-
 @register_strawberry_type
-@sb.type
-class SBUnit:
-    unit: sb.Private[Unit]
+@sb.type(name='UnitType')
+class UnitType:
+    @sb.field
+    def short(self, parent: sb.Parent[Unit]) -> str:
+        return format_unit(parent, html=False)
 
     @sb.field
-    def short(self) -> str:
-        return format_unit(self.unit, html=False)
+    def long(self, parent: sb.Parent[Unit]) -> str:
+        return format_unit(parent, long=True, html=False)
 
     @sb.field
-    def long(self) -> str:
-        return format_unit(self.unit, long=True, html=False)
+    def html_short(self, parent: sb.Parent[Unit]) -> str:
+        return format_unit(parent, long=False, html=True)
 
     @sb.field
-    def html_short(self) -> str:
-        return format_unit(self.unit, long=False, html=True)
-
-    @sb.field
-    def html_long(self) -> str:
-        return format_unit(self.unit, long=True, html=True)
+    def html_long(self, parent: sb.Parent[Unit]) -> str:
+        return format_unit(parent, long=True, html=True)
 
 
 @convert_django_field.register(UnitField)  # pyright: ignore
