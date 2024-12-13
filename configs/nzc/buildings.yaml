@@ -103,6 +103,18 @@ nodes:
       - id: heating_type
         categories: [district_heating]
         flatten: true
+    - kind: node
+      label: Fossil fuel usage in local heating
+      node_id: building_heat_fossil_ratio
+      desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: fuel_type
+        categories: [fossil]
+        flatten: true
+      - id: heating_type
+        categories: [local_heating]
+        flatten: true
 
 # ----------------- Building stock ----------------------
 
@@ -824,7 +836,7 @@ nodes:
   name_fi: Rakennusten lämmityksen fossiilinen suhde
   type: simple.MultiplicativeNode
   quantity: fraction
-  unit: dimensionless
+  unit: '%'
   input_dimensions: [heating_type, fuel_type]
   output_dimensions: [heating_type, fuel_type]
   input_nodes:
