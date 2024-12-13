@@ -165,8 +165,7 @@ class InstanceConfigCache(ModelObjectCache[InstanceConfig, InstanceConfigQuerySe
         return InstanceConfig
 
     def add_obj(self, obj: InstanceConfig) -> None:
-        from nodes.object_cache import InstanceConfigCacheData
-        obj.cache = InstanceConfigCacheData()
+        obj.cache = None
         super().add_obj(obj)
 
 

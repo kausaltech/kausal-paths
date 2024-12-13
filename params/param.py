@@ -67,7 +67,7 @@ class Parameter(Generic[V]):
         fields = asdict(self)
         return type(self)(**fields)
 
-    def notify_change(self):
+    def notify_change(self) -> None:
         self._hash = None
         if self.node:
             self.node.notify_parameter_change(self)
@@ -171,7 +171,7 @@ class ReferenceParameter(Parameter):
         return self._target.unit
 
     @property
-    def value(self) -> Any:  # noqa: ANN401
+    def value(self) -> Any:
         return self._target.value
 
     def has_unit(self) -> bool:
@@ -180,7 +180,7 @@ class ReferenceParameter(Parameter):
     def get_unit(self) -> Unit:
         return self._target.get_unit()
 
-    def clean(self, value: Any) -> Any:  # noqa: ANN401
+    def clean(self, value: Any) -> Any:
         raise NotImplementedError()
 
 

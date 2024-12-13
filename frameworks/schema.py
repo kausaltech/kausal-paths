@@ -4,10 +4,10 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 from uuid import UUID, uuid4
 
 import graphene
+import strawberry as sb
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import CharField, Q
-from django.db.models.query import QuerySet
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from graphql import GraphQLError
@@ -15,6 +15,7 @@ from graphql import GraphQLError
 from kausal_common.graphene import DjangoNode, DjangoNodeMeta
 from kausal_common.models.general import public_fields
 from kausal_common.models.uuid import UUID_PATTERN, query_pk_or_uuid, query_pk_or_uuid_or_identifier
+from kausal_common.strawberry.registry import register_strawberry_type
 
 from paths.graphql_types import resolve_unit
 
@@ -23,25 +24,25 @@ from nodes.models import InstanceConfig
 from .models import (
     Framework,
     FrameworkConfig,
-    FrameworkConfigQuerySet,
+    FrameworkDefaults,
     Measure,
     MeasureDataPoint,
     MeasureTemplate,
     MeasureTemplateDefaultDataPoint,
+    MinMaxDefaultInt as MinMaxDefaultIntModel,
     Section,
 )
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from django.db.models.query import QuerySet
-
     from paths.types import PathsGQLInfo as GQLInfo
 
-    from frameworks.models import SectionQuerySet
     from nodes.instance import Instance
     from nodes.units import Unit
 
+
+strawberry = sb
 
 class MeasureTemplateDefaultDataPointType(DjangoNode):
     class Meta(DjangoNodeMeta):
@@ -122,6 +123,21 @@ class SectionType(DjangoNode):
         return objs
 
 
+@register_strawberry_type
+@sb.experimental.pydantic.type(model=MinMaxDefaultIntModel)
+class MinMaxDefaultIntType:
+    min: strawberry.auto
+    max: strawberry.auto
+    default: strawberry.auto
+
+
+@register_strawberry_type
+@sb.experimental.pydantic.type(model=FrameworkDefaults, fields=['target_year', 'baseline_year'])
+class FrameworkDefaultsType:
+    target_year: strawberry.auto
+    baseline_year: strawberry.auto
+
+
 class FrameworkType(DjangoNode):
     class Meta(DjangoNodeMeta):
         model = Framework
@@ -132,6 +148,7 @@ class FrameworkType(DjangoNode):
     measure_template = graphene.Field(MeasureTemplateType, id=graphene.ID(required=True))
     configs = graphene.List(graphene.NonNull(lambda: FrameworkConfigType), required=True)
     config = graphene.Field(lambda: FrameworkConfigType, id=graphene.ID(required=True), required=False)
+    defaults = graphene.Field(FrameworkDefaultsType, required=True)
 
     @staticmethod
     def resolve_sections(root: Framework, info: GQLInfo) -> list[Section]:
@@ -228,6 +245,12 @@ class FrameworkConfigType(DjangoNode):
             return root.organization_identifier
         return None
 
+    @staticmethod
+    def resolve_target_year(root: FrameworkConfig, info: GQLInfo) -> int | None:
+        if root.target_year is not None:
+            return root.target_year
+        return root.cache.fw_cache.framework.defaults.target_year.default
+
 
 class MeasureDataPointType(DjangoNode):
     class Meta(DjangoNodeMeta):
@@ -272,6 +295,7 @@ class Query(graphene.ObjectType):
         return info.context.cache.for_framework(fw)
 
 
+
 class FrameworkConfigInput(graphene.InputObjectType):
     framework_id = graphene.ID(required=True)
     instance_identifier = graphene.ID(required=True, description=_("Identifier for the model instance. Needs to be unique."))
@@ -280,6 +304,10 @@ class FrameworkConfigInput(graphene.InputObjectType):
         description=_('Name for the framework configuration instance. Typically the name of the organization.'),
     )
     baseline_year = graphene.Int(required=True)
+    target_year = graphene.Int(
+        required=False,
+        description="Target year for model.",
+    )
     uuid = graphene.UUID(
         required=False, description=_('UUID for the new framework config. If not set, will be generated automatically.'),
         default_value=None,
@@ -347,6 +375,9 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
         if InstanceConfig.objects.filter(identifier=instance_identifier).exists():
             raise GraphQLError("Instance with identifier '%s' already exists" % instance_identifier, nodes=info.field_nodes)
 
+        if framework.configs.filter(organization_name__lower=name.lower()).exists():
+            raise GraphQLError("Framework config with organization name '%s' already exists" % name, nodes=info.field_nodes)
+
         if not uuid:
             uuid = str(uuid4())
 
@@ -404,6 +435,10 @@ class UpdateFrameworkConfigMutation(graphene.Mutation):
                 "have exactly one data point which points to the previous baseline year."
             ),
         )
+        target_year = graphene.Int(
+            required=False,
+            description="New target year for model.",
+        )
 
     ok = graphene.Boolean()
     framework_config = graphene.Field(FrameworkConfigType)
@@ -412,7 +447,7 @@ class UpdateFrameworkConfigMutation(graphene.Mutation):
     @transaction.atomic
     def mutate(
         root, info: GQLInfo, id: str, organization_name: str | None = None, organization_slug: str | None = None,
-        organization_identifier: str | None = None, baseline_year: int | None = None,
+        organization_identifier: str | None = None, baseline_year: int | None = None, target_year: int | None = 0,
     ) -> UpdateFrameworkConfigMutation:
         fwc = get_fwc(info, id)
         fwc.ensure_gql_action_allowed(info, 'change')
@@ -440,6 +475,12 @@ class UpdateFrameworkConfigMutation(graphene.Mutation):
                     datapoint = datapoints[0]
                     datapoint.year = baseline_year
                     datapoint.save()
+
+        # We use 0 to indicate that the target year was not supplied. `None` will
+        # be interpreted as clearing the target year and using the default for the
+        # framework.
+        if target_year != 0:
+            fwc.target_year = target_year
 
         fwc.notify_change(user=info.context.user)
         fwc.save()
@@ -679,6 +720,7 @@ class CreateNZCFrameworkConfigMutation(graphene.Mutation):
         ))
         fwc.create_measure_defaults(defaults)
         return ret
+
 
 class Mutations(graphene.ObjectType):
     create_framework_config = CreateFrameworkConfigMutation.Field()

@@ -54,6 +54,7 @@ POPULATION_QUANTITY = 'population'
 MIX_QUANTITY = 'mix'
 GROUPED_MIX_QUANTITY = 'grouped_mix'
 UTILITY_QUANTITY = 'utility'
+FRACTION_QUANTITY = 'fraction'
 
 ACTIVITY_QUANTITIES = {
     EMISSION_QUANTITY, ENERGY_QUANTITY, MILEAGE_QUANTITY, VEHICLE_MILEAGE_QUANTITY,
@@ -98,15 +99,23 @@ class DecisionLevel(Enum):
     EU = 3
 
 
+QUANTITY_ICONS = {
+    EMISSION_QUANTITY: '💨',
+    ENERGY_QUANTITY: '⚡',
+    MILEAGE_QUANTITY: '🚗',
+    VEHICLE_MILEAGE_QUANTITY: '🚗',
+    PASSENGER_MILEAGE_QUANTITY: '🚗',
+    FREIGHT_MILEAGE_QUANTITY: '🚗',
+    EMISSION_FACTOR_QUANTITY: '✖',
+    ENERGY_FACTOR_QUANTITY: '✖',
+    CONSUMPTION_FACTOR_QUANTITY: '✖',
+    POPULATION_QUANTITY: '👪',
+    MIX_QUANTITY: '💯',
+    GROUPED_MIX_QUANTITY: '💯',
+    CURRENCY_QUANTITY: '💰',
+    FRACTION_QUANTITY: '➗',
+}
+
+
 def get_quantity_icon(quantity: str) -> str | None:
-    if quantity == EMISSION_QUANTITY:
-        return '💨'
-    if quantity == ENERGY_QUANTITY:
-        return '⚡'
-    if quantity == MILEAGE_QUANTITY:
-        return '🚗'
-    if quantity in (EMISSION_FACTOR_QUANTITY, 'energy_factor'):
-        return '✖'
-    if quantity == POPULATION_QUANTITY:
-        return '👪'
-    return None
+    return QUANTITY_ICONS.get(quantity)

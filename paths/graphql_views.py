@@ -17,6 +17,7 @@ from graphql import (
     ExecutionResult,
     GraphQLOutputType,
     OperationType,
+    get_argument_values,
 )
 from graphql.error import GraphQLError
 from graphql.execution import ExecutionContext
@@ -24,6 +25,7 @@ from graphql.language.ast import VariableNode
 
 import orjson
 import sentry_sdk
+import sentry_sdk.spotlight
 from loguru import logger
 from rich.console import Console
 from rich.syntax import Syntax
@@ -34,7 +36,7 @@ from kausal_common.testing.graphql import capture_query
 
 from paths.const import INSTANCE_HOSTNAME_HEADER, INSTANCE_IDENTIFIER_HEADER, WILDCARD_DOMAINS_HEADER
 
-from nodes.models import Instance, InstanceConfig, InstanceConfigQuerySet
+from nodes.models import InstanceConfig, InstanceConfigQuerySet
 from nodes.perf import PerfContext
 from params.storage import SessionStorage
 
@@ -47,14 +49,18 @@ if TYPE_CHECKING:
     from graphql.pyutils import AwaitableOrValue, Path
     from graphql.type import GraphQLObjectType
 
+    from sentry_sdk.tracing import Transaction
+
     from paths.types import GQLInstanceContext
+
+    from nodes.instance import Instance
 
     from .types import PathsGQLContext
 
 SUPPORTED_LANGUAGES = {x[0] for x in settings.LANGUAGES}
 
 
-def _arg_value(arg, variable_vals) -> Any:  # noqa: ANN401
+def _arg_value(arg, variable_vals) -> Any:
     if isinstance(arg.value, VariableNode):
         return variable_vals.get(arg.value.name.value)
     return arg.value.value
@@ -78,31 +84,22 @@ class PathsExecutionContext(ExecutionContext):
     ) -> None:
         if settings.DEBUG and error.original_error is not None and not getattr(error, '_was_printed', False):
             exc = error.original_error
-            logger.opt(exception=exc).error("GraphQL field error at {path}", path=error.path)
+            logger.opt(exception=exc).error('GraphQL field error at {path}', path=error.path)
             setattr(error, '_was_printed', True)  # noqa: B010
         return super().handle_field_error(error, return_type)
 
-    def process_locale_directive(self, ic: InstanceConfig, directive: DirectiveNode) -> str | None:
-        for arg in directive.arguments:
-            if arg.name.value == 'lang':
-                lang = _arg_value(arg, self.variable_values)
-                if lang not in ic.supported_languages:
-                    raise GraphQLError('unsupported language: %s' % lang, directive)
-                return lang
-        return None
+    def process_locale_directive(self, ic: InstanceConfig, directive: DirectiveNode) -> str:
+        from paths.schema import LocaleDirective
 
-    def activate_language(self, instance: InstanceConfig, operation: OperationDefinitionNode):
-        # First see if the locale directive is there. If not, fall back to
-        # figuring out the locale from the request.
-        lang = None
-        for directive in operation.directives or []:
-            if directive.name.value == 'locale':
-                lang = self.process_locale_directive(instance, directive)
-                break
-
+        lang = get_argument_values(LocaleDirective, directive, self.variable_values).get('lang')
         if lang is None:
-            lang = instance.primary_language
+            raise GraphQLError('Locale directive missing lang argument', directive)
 
+        if lang not in ic.supported_languages:
+            raise GraphQLError('unsupported language: %s' % lang, directive)
+        return lang
+
+    def activate_language(self, lang: str):
         self.context_value.graphql_query_language = lang
         return cast(AbstractContextManager, translation.override(lang))
 
@@ -147,6 +144,30 @@ class PathsExecutionContext(ExecutionContext):
             return self.get_instance_by_hostname(qs, hostname, directive)
         raise GraphQLError('Invalid instance directive', directive)
 
+    def process_context_directive(self, directive: DirectiveNode) -> tuple[InstanceConfig | None, str | None]:
+        from .schema import context_directive
+        directive_ast = self.schema.get_directive(context_directive.python_name)
+        assert directive_ast is not None
+        ctx = get_argument_values(directive_ast, directive, self.variable_values).get('input')
+        if ctx is None:
+            return None, None
+        # FIXME: Filter by user permissions
+        qs = InstanceConfig.objects.get_queryset()
+        identifier = ctx.get('identifier')
+        hostname = ctx.get('hostname')
+        if identifier:
+            ic = self.get_instance_by_identifier(qs, identifier)
+        elif hostname:
+            ic = self.get_instance_by_hostname(qs, hostname)
+        else:
+            return None, None
+        locale = ctx.get('locale')
+        if not locale:
+            locale = ic.primary_language
+        elif locale not in ic.supported_languages:
+            raise GraphQLError('unsupported language: %s' % locale, directive)
+        return ic, locale
+
     def process_instance_headers(self, context: PathsGQLContext) -> InstanceConfig | None:
         identifier = context.headers.get(settings.INSTANCE_IDENTIFIER_HEADER)
         hostname = context.headers.get(settings.INSTANCE_HOSTNAME_HEADER)
@@ -158,11 +179,17 @@ class PathsExecutionContext(ExecutionContext):
             return self.get_instance_by_hostname(qs, hostname)
         return None
 
-    def determine_instance(self, operation: OperationDefinitionNode):
+    def determine_instance_and_locale(self, operation: OperationDefinitionNode) -> tuple[InstanceConfig, str] | None:
         instance_config: InstanceConfig | None = None
+        locale: str | None = None
 
         for directive in operation.directives or []:
-            if directive.name.value == 'instance':
+            directive_name = directive.name.value
+            if directive_name == 'context':
+                instance_config, locale = self.process_context_directive(directive)
+                if instance_config is not None:
+                    break
+            elif directive_name == 'instance':
                 instance_config = self.process_instance_directive(directive)
                 break
         else:
@@ -174,7 +201,16 @@ class PathsExecutionContext(ExecutionContext):
         if instance_config.is_protected and not self.context_value.user.is_active:
             raise GraphQLError('Instance is protected', extensions=dict(code='instance_protected'))
 
-        return instance_config
+        if locale is None:
+            for directive in operation.directives or []:
+                directive_name = directive.name.value
+                if directive_name != 'locale':
+                    continue
+                locale = self.process_locale_directive(instance_config, directive)
+                break
+            else:
+                locale = instance_config.primary_language
+        return instance_config, locale
 
     def activate_instance(self, instance: Instance):
         context = instance.context
@@ -215,26 +251,22 @@ class PathsExecutionContext(ExecutionContext):
         request = self.context_value
         perf = request.graphql_perf
 
-        ic = self.determine_instance(operation)
-        if ic is None:
+        instance_ctx = self.determine_instance_and_locale(operation)
+        if instance_ctx is None:
             yield
             return
 
+        ic, locale = instance_ctx
+
         with ExitStack() as stack:
             with perf.exec_node(GraphQLPerfNode('prepare instance "%s"' % ic.identifier)):
-                stack.enter_context(self.activate_language(ic, operation))
+                stack.enter_context(self.activate_language(locale))
                 with perf.exec_node(GraphQLPerfNode('get instance "%s"' % ic.identifier)):
                     instance = stack.enter_context(ic.enter_instance_context())
                     self.context_value.instance = instance
                 context = instance.context
                 stack.enter_context(instance.lock)
                 stack.enter_context(context.run())
-                if not context.baseline_values_generated:
-                    with (
-                        sentry_sdk.start_span(op='calc', description='Generate baseline'),
-                        request.graphql_perf.exec_node(GraphQLPerfNode('generate baseline')),
-                    ):
-                        context.generate_baseline_values()
                 self.activate_instance(instance)
             yield
         instance.clean()
@@ -242,7 +274,7 @@ class PathsExecutionContext(ExecutionContext):
     def execute_fields(
         self,
         parent_type: GraphQLObjectType,
-        source_value: Any,  # noqa: ANN401
+        source_value: Any,
         path: Path | None,
         fields: dict[str, list[FieldNode]],
     ) -> AwaitableOrValue[dict[str, Any]]:
@@ -259,7 +291,7 @@ class PathsExecutionContext(ExecutionContext):
             ret = super().execute_fields(parent_type, source_value, path, fields)
         return ret
 
-    def execute_operation(self, operation: OperationDefinitionNode, root_value: Any) -> AwaitableOrValue[Any] | None:  # noqa: ANN401
+    def execute_operation(self, operation: OperationDefinitionNode, root_value: Any) -> AwaitableOrValue[Any] | None:
         op_name = operation.name.value if operation.name else '<unnamed>'
         with sentry_sdk.start_span(op='graphql.execute', description='Query %s' % op_name):
             if operation.operation != OperationType.QUERY or self.context_value.user.is_authenticated:
@@ -304,6 +336,7 @@ class PathsGraphQLView(GraphQLView):
         ret = orjson.dumps(d, option=opts, default=serialize_unknown)
         if errors:
             from rich import print_json
+
             print_json(ret.decode('utf8'))
             raise errors[0]
         op_name = getattr(request, 'graphql_operation_name', None)
@@ -321,6 +354,15 @@ class PathsGraphQLView(GraphQLView):
         if not identifier:
             return None
         return InstanceConfig.objects.filter(identifier=identifier).first()
+
+    def set_instance_scope(self, request: GQLInstanceContext, ic: InstanceConfig) -> None:
+        scope = sentry_sdk.get_current_scope()
+        scope.set_tag('instance_id', ic.identifier)
+        scope.set_tag('instance_uuid', str(ic.uuid))
+        if ic.has_framework_config():
+            fw = request.cache.for_framework_id(ic.framework_config.framework_id)
+            if fw is not None:
+                scope.set_tag('framework_id', fw.identifier)
 
     def get_cache_key(
         self,
@@ -347,6 +389,8 @@ class PathsGraphQLView(GraphQLView):
         if ic is None:
             log_reason('no instance config')
             return None
+
+        self.set_instance_scope(request, ic)
 
         session_key = SessionStorage.get_cache_key(request.session, ic.identifier)
         if session_key is None:
@@ -436,6 +480,39 @@ class PathsGraphQLView(GraphQLView):
         if span:
             print(span.get_trace_context())
 
+    def graphql_span_name(self, query: str | None, operation_name: str | None) -> str:
+        return f'http.graphql.{operation_name or 'request'}'
+
+    def configure_root_transaction(
+        self, request: GQLInstanceContext, query: str | None, variables: dict | None, operation_name: str | None
+    ) -> None:
+        scope = sentry_sdk.get_current_scope()
+        transaction: Transaction | None = scope.transaction
+        if not transaction:
+            return
+        possible_types = ('query', 'mutation', 'subscription')
+        transaction_type = None
+        if query:
+            for t in possible_types:
+                if not query.startswith(t):
+                    continue
+                transaction_type = t
+                break
+
+        name = operation_name or '<unnamed>'
+        if transaction_type:
+            name = f'{transaction_type} {name}'
+
+        transaction.op = f'http.graphql.{transaction_type or 'request'}'
+        transaction.name = name
+
+        if sentry_sdk.spotlight:
+            transaction.set_data('graphql.document', query)
+            transaction.set_data('graphql.variables', orjson.dumps(variables or {}).decode('utf8'))
+
+        if request._referer:
+            transaction.set_tag('referer', request._referer)
+
     def execute_graphql_request(
         self,
         request: GQLInstanceContext,
@@ -464,19 +541,13 @@ class PathsGraphQLView(GraphQLView):
             if variables:
                 console.print('Variables:', variables)
 
-        with sentry_sdk.push_scope() as scope:
-            scope.set_context('graphql_variables', variables or {})
-            scope.set_tag('graphql_operation_name', operation_name)
-            scope.set_tag('referer', request._referer)
+        self.configure_root_transaction(request, query, variables, operation_name)
 
-            with (
-                sentry_sdk.start_span(op='graphql.request', description=operation_name) as span,
-                request.graphql_perf.exec_node(GraphQLPerfNode('execute %s' % operation_name)),
-            ):
-                span.set_data('graphql_variables', variables)
-                span.set_tag('graphql_operation_name', operation_name)
-                span.set_tag('referer', request._referer)
-                return self._execute_graphql_request(request, data, query, variables, operation_name, *args, **kwargs)
+        with (
+            sentry_sdk.start_span(op='graphql', name=operation_name),
+            request.graphql_perf.exec_node(GraphQLPerfNode('execute %s' % operation_name)),
+        ):
+            return self._execute_graphql_request(request, data, query, variables, operation_name, *args, **kwargs)
 
     def _execute_graphql_request(  # noqa: C901, PLR0912, PLR0915
         self,

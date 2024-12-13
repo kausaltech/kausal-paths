@@ -10,3 +10,6 @@ plotly
 jedi-language-server
 pyright
 ipympl
+strawberry-graphql[cli]
+altair
+great_tables

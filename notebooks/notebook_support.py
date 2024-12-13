@@ -1,62 +1,64 @@
 from __future__ import annotations
 
 import os
+import sys
 from collections import namedtuple
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import polars as pl
 
-from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
-
 if TYPE_CHECKING:
     from nodes.context import Context
+    from nodes.models import InstanceConfig
     from nodes.node import Node
 
 
-_django_initialized = False
-plotly_theme: str = 'ggplot2'
+def initialize_notebook_env():
+    from IPython import get_ipython  # pyright: ignore
 
-script_path = Path(__file__)
-project_root = Path(__file__).parent.parent
-
-
-def _init_django() -> None:
-    global _django_initialized  # noqa: PLW0603
-    if _django_initialized:
-        return
-
-    import django
-
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "paths.settings")
-    django.setup()
-    _django_initialized = True
-
-
-def _enable_autoreload() -> None:
-    from IPython import get_ipython  # type: ignore
+    path = Path(__file__).parent.parent
+    if not (path / Path('manage.py')).exists():
+        raise Exception("Unable to find project root")
+    if str(path) not in sys.path:
+        sys.path.append(str(path))
 
     ip = get_ipython()
     assert ip is not None
-    if 'IPython.extensions.autoreload' in ip.extension_manager.loaded:  # type: ignore
-        return
-    ip.magic(r'%load_ext autoreload')
-    ip.magic(r'%autoreload 2')
+    assert ip.extension_manager is not None
+    if 'IPython.extensions.autoreload' not in ip.extension_manager.loaded:
+        ip.magic(r'%reload_ext autoreload')
+        ip.magic(r'%autoreload 2')
     ip.magic(r'%matplotlib ipympl')
+
+    os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "1"
+
+    from kausal_common.development.django import init_django
+    init_django()
+
+
+plotly_theme: str = 'ggplot2'
+
+
+def _get_instance_from_db(instance_id: str) -> None | InstanceConfig:
+    from nodes.models import InstanceConfig
+
+    ic = InstanceConfig.objects.filter(identifier=instance_id).first()
+    if ic is None:
+        return None
+    return ic
 
 
 def get_context(instance_id: str):
     from common import polars_ext  # noqa: F401
-    from nodes.instance import InstanceLoader
+    from nodes.instance_loader import InstanceLoader
 
-    _enable_autoreload()
-    _init_django()
+    ic = _get_instance_from_db(instance_id)
+    if ic is not None:
+        return ic.get_instance().context
 
-    # Disable locals when running in notebook
-    from rich import traceback
-    traceback.install(show_locals=False)
-
-    config_fn = Path(project_root) / 'configs' / ('%s.yaml' % instance_id)
+    project_root = Path(__file__).parent.parent
+    config_fn = (Path(project_root) / 'configs' / ('%s.yaml' % instance_id)).resolve()
     loader = InstanceLoader.from_yaml(config_fn)
     context = loader.context
     context.cache.clear()
@@ -77,15 +79,16 @@ def get_nodes(instance_id: str):
 def get_datasets(instance_id: str):
     context = get_context(instance_id)
     context.generate_baseline_values()
-    name = '%sDatasets' % (instance_id.capitalize())
     datasets = {key.replace('/', '_').replace('-', '_'): val for key, val in context.dvc_datasets.items()}
-    kls = namedtuple(name, list(datasets))  # type: ignore
+    kls = namedtuple('Datasets', list(datasets))  # type: ignore[misc]  # noqa: PYI024
     obj = kls(**datasets)
     return obj
 
 
 def plot_node(node: Node):
     from plotly import express as px
+
+    from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
 
     df = node.get_output_pl()
     for metric in node.output_metrics.values():

@@ -44,6 +44,7 @@ if typing.TYPE_CHECKING:
     from sentry_sdk.tracing import Span
 
     from common.cache import CacheResult
+    from nodes.instance_loader import ConfigLocation
     from nodes.visualizations import NodeVisualizations
     from params import Parameter
 
@@ -243,10 +244,9 @@ class Node:
     logger: loguru.Logger
     debug: bool = False
     disable_cache: bool = False
-    yaml_fn: Path | None
-    """YAML filename"""
-    yaml_lc: tuple[int, int] | None
-    """YAML line and column information"""
+
+    config_location: ConfigLocation | None = None
+    """Location of the node configuration in a YAML file"""
 
     def __post_init__(self): ...
 
@@ -366,8 +366,7 @@ class Node:
         output_dimension_ids: list[str] | None = None,
         input_dimension_ids: list[str] | None = None,
         output_metrics: dict[str, NodeMetric] | None = None,
-        yaml_fn: Path | None = None,
-        yaml_lc: tuple[int, int] | None = None,
+        config_location: ConfigLocation | None = None,
     ):
         from .node_cache import NodeHasher
 
@@ -381,8 +380,7 @@ class Node:
         self.database_id = None
         self.db_obj = None
         self.name = name
-        self.yaml_fn = yaml_fn
-        self.yaml_lc = yaml_lc
+        self.config_location = config_location
         self.node_group = node_group
         if self.name is None:
             raise NodeError(self, 'Node has no name')
@@ -926,7 +924,7 @@ class Node:
                 # Skip validation for internal dimensions
                 continue
 
-            cats = set(df[dim_id].unique())
+            cats = set(df[dim_id].cast(pl.Utf8).unique())
             if getattr(self, 'allow_null_categories', None):
                 cats -= {''}
 
@@ -1012,7 +1010,7 @@ class Node:
     ) -> ppl.PathsDataFrame:
         perf_cm = self.context.perf_context
         span_ctx: AbstractContextManager[None | Span]
-        if self.hasher.is_run_cached():
+        if self.hasher.is_cached(run=True, local=True):
             span_ctx = nullcontext()
         else:
             if extra_span_desc:

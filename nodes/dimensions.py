@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-import hashlib
 import re
 import typing
 from collections import OrderedDict
-from typing import Self, overload
+from typing import Any, Self, overload
 
 from pydantic import BaseModel, Field, PrivateAttr, field_validator, model_validator
 
 import polars as pl
+import xxhash
 
 from common.i18n import I18nBaseModel, I18nStringInstance, TranslatedString
-from common.types import Identifier  # noqa: TCH001
+from common.types import Identifier  # noqa: TC001
 
 if typing.TYPE_CHECKING:
     import pandas as pd
@@ -62,13 +62,16 @@ class Dimension(I18nBaseModel):
     groups: list[DimensionCategoryGroup] = Field(default_factory=list)
     categories: list[DimensionCategory] = Field(default_factory=list)
     is_internal: bool = False
+    mtime_hash: str | None = None
+
     _hash: bytes | None = PrivateAttr(default=None)
-    _cat_map: OrderedDict[str, DimensionCategory] = PrivateAttr(default_factory=dict)
-    _group_map: OrderedDict[str, DimensionCategoryGroup] = PrivateAttr(default_factory=dict)
+    _cat_map: OrderedDict[str, DimensionCategory] = PrivateAttr()
+    _group_map: OrderedDict[str, DimensionCategoryGroup] = PrivateAttr()
     _pl_dt: pl.Enum = PrivateAttr()
 
-    def __init__(self, **data) -> None:
-        super().__init__(**data)
+    def model_post_init(self, validation_context: Any) -> None:
+        super().model_post_init(validation_context)
+
         cat_map = OrderedDict([(str(cat.id), cat) for cat in self.categories])
         self._cat_map = cat_map
         group_map = OrderedDict([(str(g.id), g) for g in self.groups])
@@ -165,12 +168,16 @@ class Dimension(I18nBaseModel):
     def calculate_hash(self) -> bytes:
         if self._hash is not None:
             return self._hash
-        h = hashlib.md5(usedforsecurity=False)
-        h.update(self.json(exclude={
+        if self.mtime_hash is not None:
+            self._hash = self.mtime_hash.encode('ascii')
+            return self._hash
+        data = self.model_dump_json(exclude={
             'label': True,
             'categories': {'__all__': {'label'}},
             'groups': {'__all__': {'label'}},
-        }).encode('utf8'))
+        })
+        h = xxhash.xxh64()
+        h.update(data.encode('utf8'))
         self._hash = h.digest()
         return self._hash
 

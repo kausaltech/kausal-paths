@@ -32,7 +32,7 @@ from kausal_common.debugging.perf import PerfCounter
 from nodes.actions.action import ActionNode
 from nodes.constants import IMPACT_COLUMN, IMPACT_GROUP, YEAR_COLUMN
 from nodes.excel_results import InstanceResultExcel
-from nodes.instance import InstanceLoader
+from nodes.instance_loader import InstanceLoader
 
 if TYPE_CHECKING:
     from nodes.models import InstanceConfig
@@ -122,7 +122,8 @@ if args.instance:
 else:
     with start_span(name='yaml-init', op='init') as span:
         span.set_data('config_id', args.config)
-        loader = InstanceLoader.from_yaml(args.config)
+        yaml_path = Path(args.config).resolve()
+        loader = InstanceLoader.from_yaml(yaml_path)
         context = loader.context
         instance = loader.instance
 

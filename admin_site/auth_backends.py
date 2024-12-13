@@ -83,6 +83,7 @@ class NZCPortalOAuth2(BaseOAuth2):
         'cityAdmin': INSTANCE_ADMIN_ROLE,
         'cityEditor': INSTANCE_ADMIN_ROLE,
         'consortiumUser': FRAMEWORK_VIEWER_ROLE,
+        'cityAdvisor': INSTANCE_ADMIN_ROLE,
         'cityUser': INSTANCE_VIEWER_ROLE,
     }
 

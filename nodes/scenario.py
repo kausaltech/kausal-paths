@@ -3,10 +3,10 @@ from __future__ import annotations
 from contextlib import contextmanager
 from dataclasses import KW_ONLY, dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Generator
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Generator, Iterable
 
     from common.i18n import I18nString
     from params import Parameter
@@ -69,10 +69,11 @@ class Scenario:
 
     def activate(self):
         """Reset each parameter in the context to its setting for this scenario if it has one."""
+
         for param, val in self.get_param_values():
             param.reset_to_scenario_setting(self, val)
 
-    def add_parameter(self, param: Parameter, value: Any):  # noqa: ANN401
+    def add_parameter(self, param: Parameter, value: Any):
         assert param.global_id not in self.param_values
         self.param_values[param.global_id] = value
 

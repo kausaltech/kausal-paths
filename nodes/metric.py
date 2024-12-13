@@ -5,12 +5,13 @@ from collections import Counter
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Literal, TypedDict, cast
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 
 from pydantic import BaseModel, Field
 
 import numpy as np
 import polars as pl
+import sentry_sdk
 
 from common import polars as ppl
 
@@ -382,12 +383,14 @@ class DimensionalMetric(BaseModel):
         extra_scenarios: Sequence[Scenario] = (),
     ) -> DimensionalMetric | None:
         from .metric_gen import metric_from_node
-        return metric_from_node(node, metric, extra_scenarios)
+        with sentry_sdk.start_span(name='Metric from node %s' % node.id, op='model.metric'):
+            return metric_from_node(node, metric, extra_scenarios)
 
     @classmethod
     def from_visualization(cls, node: Node, visualization: VisualizationNodeOutput) -> DimensionalMetric | None:
         from .metric_gen import metric_from_visualization
-        return metric_from_visualization(node, visualization)
+        with sentry_sdk.start_span(name='Metric from node %s visualization' % node.id, op='model.metric'):
+            return metric_from_visualization(node, visualization)
 
     @classmethod
     def from_action_efficiency(
@@ -395,6 +398,46 @@ class DimensionalMetric(BaseModel):
     ) -> DimensionalMetric:
         from .metric_gen import from_action_efficiency
         return from_action_efficiency(action_efficiency, root, col)
+
+    def get_dimension(self, dim_id: str) -> MetricDimension:
+        for dim in self.dimensions:
+            if dim_id in (dim.id, dim.original_id):
+                return dim
+        raise ValueError(f'Dimension {dim_id} not found')
+
+    def plot(self, dim_id: str | None = None):
+        import altair as alt
+
+        df = self.to_df(drop_single_cat_dims=True).with_columns(pl.col('Year').cast(pl.Utf8))
+        x = alt.X(field='Year', type='temporal')
+        y = alt.Y('Value:Q', title=str(self.unit))
+        kwargs: dict[str, Any] = {}
+        dims = list(self.dimensions)
+        width = 300
+        for dim in self.dimensions:
+            if dim.kind == DimensionKind.SCENARIO:
+                kwargs['column'] = dim.original_id
+                dims.remove(dim)
+                width *= len(dim.categories)
+        if not dim_id and len(dims) > 1:
+            dim_id = dims[0].id
+        if dim_id:
+            dim = self.get_dimension(dim_id)
+            scale = alt.Scale(domain=dim.get_original_cat_ids(), range=[cat.color or '' for cat in dim.categories])
+            color = alt.Color(field=dim.original_id, type='nominal', scale=scale)
+            other_dims = [d for d in df.dim_ids if d not in(dim.original_id, YEAR_COLUMN)]
+            if other_dims:
+                df = df.paths.sum_over_dims(other_dims)
+            kwargs['color'] = color
+        else:
+            color = None
+        chart = alt.Chart(df).mark_bar().encode(
+            x=x, y=y, **kwargs
+        ).properties(
+            title=self.name,
+            width=width,
+        )
+        return chart.interactive()
 
 
 @dataclass
