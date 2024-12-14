@@ -106,17 +106,13 @@ nodes:
     children:
     - kind: node
       label: Total electricity consumption
-      node_id: total_electricity_consumption
+      node_id: statistical_electricity_consumption
       desired_outcome: decreasing
       scenarios: [default, progress_tracking]
-      dimensions:
-      - id: sector
-        flatten: true
-      - id: energy_carrier
-        flatten: true
+      dimensions: []
     - kind: node
       label: Fossil fuel usage in electricity production
-      node_id: electricity_shares
+      node_id: electricity_production_shares_historical
       desired_outcome: decreasing
       scenarios: [default, progress_tracking]
       dimensions:

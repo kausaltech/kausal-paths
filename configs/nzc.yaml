@@ -1215,16 +1215,25 @@ scenarios:
     value: false
   - id: waste_recycling_trend.enabled
     value: true
+  - id: measure_data_override
+    value: false
+  - id: measure_data_baseline_year_only
+    value: true
 
 - id: default
   default: true
   name: Decarbonisation scenario
   all_actions_enabled: true
+  params:
+  - id: measure_data_override
+    value: false
+  - id: measure_data_baseline_year_only
+    value: true
 
 - id: progress_tracking
   name: Progress tracking
   all_actions_enabled: true
-  is_selectable: false
+  is_selectable: true
   params:
   - id: measure_data_override
     value: true

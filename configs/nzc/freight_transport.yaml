@@ -303,12 +303,11 @@ nodes:
         flatten: true
     - kind: node
       label: Electrification of light trucks
-      node_id: freight_transport_energy_carrier_shares
+      node_id: fully_electric_truck_share
       desired_outcome: increasing
       scenarios: [default, progress_tracking]
       dimensions:
       - id: energy_carrier
-        categories: [electricity]
         flatten: true
       - id: transport_mode
         categories: [light_trucks]
@@ -327,12 +326,11 @@ nodes:
         flatten: true
     - kind: node
       label: Electrification of heavy trucks
-      node_id: freight_transport_energy_carrier_shares
+      node_id: fully_electric_truck_share
       desired_outcome: increasing
       scenarios: [default, progress_tracking]
       dimensions:
       - id: energy_carrier
-        categories: [electricity]
         flatten: true
       - id: transport_mode
         categories: [heavy_trucks]

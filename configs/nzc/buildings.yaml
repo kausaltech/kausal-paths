@@ -77,27 +77,19 @@ nodes:
     children:
     - kind: node
       label: Heating demand
-      node_id: building_heat_energy_use
+      node_id: total_building_heat_energy_use
       desired_outcome: decreasing
       scenarios: [default, progress_tracking]
-      dimensions:
-      - id: heating_type
-        flatten: true
-      - id: building_energy_class
-        flatten: true
-      - id: energy_carrier
-        flatten: true
-      - id: fuel_type
-        flatten: true
-      - id: scope
-        flatten: true
+      dimensions: []
     - kind: node
       label: Fossil fuel usage in district heating
-      node_id: building_heat_fossil_ratio
+      node_id: heating_fuel_share_historical
       desired_outcome: decreasing
       scenarios: [default, progress_tracking]
       dimensions:
       - id: fuel_type
+        flatten: true
+      - id: energy_carrier
         categories: [fossil]
         flatten: true
       - id: heating_type
@@ -105,11 +97,13 @@ nodes:
         flatten: true
     - kind: node
       label: Fossil fuel usage in local heating
-      node_id: building_heat_fossil_ratio
+      node_id: heating_fuel_share_historical
       desired_outcome: decreasing
       scenarios: [default, progress_tracking]
       dimensions:
       - id: fuel_type
+        flatten: true
+      - id: energy_carrier
         categories: [fossil]
         flatten: true
       - id: heating_type
