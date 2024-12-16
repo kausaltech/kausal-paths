@@ -50,9 +50,9 @@ class SectionPermissionPolicy(ModelReadOnlyPolicy['Section', 'SectionQuerySet'])
 
 
 class FrameworkConfigPermissionPolicy(
-    ModelPermissionPolicy['FrameworkConfig', 'FrameworkConfigQuerySet', 'Framework'],
+    ModelPermissionPolicy['FrameworkConfig', 'Framework', 'FrameworkConfigQuerySet'],
 ):
-    def is_create_context_valid(self, context: Any) -> TypeGuard[Framework]:  # noqa: ANN401
+    def is_create_context_valid(self, context: Any) -> TypeGuard[Framework]:
         fw_pp = FrameworkPermissionPolicy()
         return isinstance(context, fw_pp.model)
 

@@ -364,6 +364,7 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
         instance_identifier: str,
         name: str,
         baseline_year: int,
+        target_year: int | None = None,
         uuid: str | None = None,
     ) -> FrameworkConfig:
         id_field = cast(CharField, InstanceConfig._meta.get_field('identifier'))
@@ -386,6 +387,7 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
             instance_identifier=instance_identifier,
             org_name=name,
             baseline_year=baseline_year,
+            target_year=target_year,
             uuid=uuid,
             user=info.context.user,
         )
@@ -405,6 +407,7 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
             instance_identifier=str(config_input.instance_identifier),
             name=cast(str, config_input.name),
             baseline_year=cast(int, config_input.baseline_year),
+            target_year=cast(int | None, config_input.target_year),
             uuid=cast(str | None, config_input.uuid),
         )
         return CreateFrameworkConfigMutation(ok=True, framework_config=fc)
