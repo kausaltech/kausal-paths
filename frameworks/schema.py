@@ -375,7 +375,7 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
         if InstanceConfig.objects.filter(identifier=instance_identifier).exists():
             raise GraphQLError("Instance with identifier '%s' already exists" % instance_identifier, nodes=info.field_nodes)
 
-        if framework.configs.filter(organization_name__lower=name.lower()).exists():
+        if framework.configs.filter(organization_name__iexact=name).exists():
             raise GraphQLError("Framework config with organization name '%s' already exists" % name, nodes=info.field_nodes)
 
         if not uuid:
