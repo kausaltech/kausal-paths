@@ -15,7 +15,7 @@ frameworks: [hsy]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: cf0f6194140ec571e77289923d667e9c3593e744
+  commit: 277a8fca28cd640dbc1525194406d58a37a4cca0
   # commit: 8caa222ae2b5aa14be248435eb8eb47bd401a010
   dvc_remote: kausal-s3
 name: Hiilineutraali Espoo 2030
@@ -725,6 +725,10 @@ nodes:
     to_dimensions:
     - id: vehicle_type
       categories: [buses]
+  - id: motorcycle_energy_hsy
+    to_dimensions:
+    - id: vehicle_type
+      categories: [motorcycles]
 
 - id: traffic_emission_factors
   name: Liikenteen päästökertoimet
@@ -752,6 +756,10 @@ nodes:
     to_dimensions:
     - id: vehicle_type
       categories: [buses]
+  - id: motorcycle_traffic_emission_factor
+    to_dimensions:
+    - id: vehicle_type
+      categories: [motorcycles]
 
 - id: road_traffic_emissions
   name: Tieliikenteen päästöt
@@ -949,6 +957,15 @@ nodes:
   input_nodes: [all_hsy_emissions]
   type: finland.hsy.HsyEnergyConsumption
   unit: GWh/a
+- id: motorcycle_energy_hsy
+  name: Moottoripyörien energiankulutus
+  name_en: Energy consumption of motorcycles
+  name_sv: Motorcykeltrafikens energiförbrukning
+  params:
+    sector: Liikenne|Tieliikenne|Moottoripyörät|Asuminen
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEnergyConsumption
+  unit: GWh/a
 
 - id: car_energy
   name: Henkilöautojen energiankulutus
@@ -1073,6 +1090,15 @@ nodes:
   input_nodes: [all_hsy_emissions]
   params:
     sector: Liikenne|Tieliikenne|Linja-autot|Palvelut
+- id: motorcycle_traffic_emission_factor
+  name: Moottoripyöräliikenteen päästökerroin
+  name_en: Motorcycle traffic emission factor
+  name_sv: Utsläppskoefficienten för motorcykeltrafiken
+  type: finland.hsy.HsyEmissionFactor
+  unit: g/kWh
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Liikenne|Tieliikenne|Moottoripyörät|Asuminen
 
 - id: car_emissions
   name: Henkilöautojen päästöt
@@ -1304,6 +1330,41 @@ nodes:
   - consumer_electricity_residence_energy
   - consumer_electricity_industry_energy
   - consumer_electricity_services_energy
+
+- id: consumer_electricity_residence_energy_historical
+  name: Kulutussähkön sähkönkulutus (Asuminen), historiallinen
+  name_en: Consumption electricity consumption (Housing), historical
+  name_sv: Förbrukning elförbrukning (bostäder), historisk
+  type: finland.hsy.HsyEnergyConsumption
+  quantity: energy
+  unit: GWh/a
+  params:
+    sector: Sähkö|Kulutussähkö|Kulutussähkö|Asuminen
+  input_nodes: [all_hsy_emissions]
+
+- id: consumer_electricity_residence_energy_goal
+  name: Kulutussähkön kulutus (Asuminen), tavoite
+  name_en: Consumer electricity, goal (Housing)
+  name_sv: Förbrukning elförbrukning, mål (bostäder)
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets: [gpc/espoo]
+  params:
+    sector: Muutos kulutussähkön käytössä (Asuminen)
+
+- id: electricity_production_emission_factor_goal
+  name: Sähköntuotannon päästökerroin, tavoite
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/GWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets: [gpc/espoo]
+  params:
+    sector: Kansallinen sähköntuotanto puhdistuu
 
 - id: waste_landfill_emissions
   name: Kaatopaikkojen päästöt
@@ -1546,7 +1607,11 @@ actions:
   name: Tunnistetut suuret toimijat käyttävät sertifioitua puhdasta sähköä Espoossa
   name_en: Use of certified green electricity by large companies
   name_sv: Användning av sertifiserad grön el av stora företag
-  description: Suuret toimijat Espoossa käyttävät toiminnassaan sertifioitua puhdasta sähköä. Laskennassa huomioidut toimijat ovat Espoon kaupunki, Espoon Asunnot Oy sekä Microsoftin Hepokorvenkallion datakeskus. Suurten toimijoiden puhtaan sähkön käytön vaikutus on huomioitu myös ”jäännöskertoimessa” sähkön päästökertoimessa, jolla on laskettu muu sähkönkulutuksen päästöarvio.
+  description: Suuret toimijat Espoossa käyttävät toiminnassaan sertifioitua puhdasta
+    sähköä. Laskennassa huomioidut toimijat ovat Espoon kaupunki, Espoon Asunnot Oy
+    sekä Microsoftin Hepokorvenkallion datakeskus. Suurten toimijoiden puhtaan sähkön
+    käytön vaikutus on huomioitu myös ”jäännöskertoimessa” sähkön päästökertoimessa,
+    jolla on laskettu muu sähkönkulutuksen päästöarvio.
   description_en: Large companies in Espoo use certified green electricity in their
     operations. The use of green electricity by large companies is estimated to affect
     the "residual factor" (i.e. the emission factor of the electricity consumed by
@@ -1598,7 +1663,11 @@ actions:
   name: Jakeluvelvoitteen muutos
   name_en: Biofuel fraction demand
   name_sv: Ändring i biobränslen påverkar koldioxidekvivalentut utsläpp
-  description: Jakeluvelvoitteen muutoksen arvioidaan lisäävän tieliikenteen päästöjä. Jakeluvelvoite on kansallinen toimi, joka ei ole Espoon päätettävissä. Nykyinen jakeluvelvoitteen muutos lisää Espoon alueen päästöjä. Vuodesta 2028 alkaen hallitusohjelmassa ei ole määritetty polttoaineiden bio-osuutta ja laskennassa oletetaan, että bio-osuus on vuodesta 2028 alkaen sama kuin vuonna 2027.
+  description: Jakeluvelvoitteen muutoksen arvioidaan lisäävän tieliikenteen päästöjä.
+    Jakeluvelvoite on kansallinen toimi, joka ei ole Espoon päätettävissä. Nykyinen
+    jakeluvelvoitteen muutos lisää Espoon alueen päästöjä. Vuodesta 2028 alkaen hallitusohjelmassa
+    ei ole määritetty polttoaineiden bio-osuutta ja laskennassa oletetaan, että bio-osuus
+    on vuodesta 2028 alkaen sama kuin vuonna 2027.
   description_en: Change the fuel distribution mandate for bio-content in fuels to
     the ones set in the government programme. From 2028 onwards, the government programme
     does not specify the bio-content and it is assumed that the bio-content is the
@@ -1623,7 +1692,12 @@ actions:
   name: Edistämme sähköautoilua
   name_en: Faster increase in the number of electric passenger cars
   name_sv: Snabbare ökning av antalet elektriska personbilar
-  description: Sähköhenkilöautojen määrän odotetaan kasvavan nopeasti. Lähtökohdaksi otettiin Sähköautojen latausinfran kehittyminen Espoossa -selvityksen skenaariosta neljä ladattavien henkilöautojen ja muiden henkilöautojen määrät ja osuudet. Täyssähköhenkilöautojen määrän arvioidaan olevan vuonna 2030 70 000 ja vuonna 2035 115 000. Ladattavien hybridihenkilöautojen määrän arvioidaan olevan vuona 2030 14 600 ja vuonna 2035 10 000.
+  description: Sähköhenkilöautojen määrän odotetaan kasvavan nopeasti. Lähtökohdaksi
+    otettiin Sähköautojen latausinfran kehittyminen Espoossa -selvityksen skenaariosta
+    neljä ladattavien henkilöautojen ja muiden henkilöautojen määrät ja osuudet. Täyssähköhenkilöautojen
+    määrän arvioidaan olevan vuonna 2030 70 000 ja vuonna 2035 115 000. Ladattavien
+    hybridihenkilöautojen määrän arvioidaan olevan vuona 2030 14 600 ja vuonna 2035
+    10 000.
   description_en: It is assumed that the number of electric passenger cars will increase
     in Espoo faster than the forecasts. The starting point was the development of
     electric vehicle charging in Espoo -report, scenario 4, the number of electric
@@ -1650,7 +1724,9 @@ actions:
   name: Jakeluliikenteen ja kuorma-autojen sähköistymisen nopean kasvun edistäminen
   name_en: Accelerated electrification of freight trucks and heavy vehicles
   name_sv: Snabb ökning av elektriska kuorma-auton och lättlastbilars användning
-  description: Edistetään voimakkaasti fossiilisia polttoaineita käyttävien kuorma-autojen ja jakeluliikenteen siirtymää kohti kestäviä käyttövoimia kuten sähköä, biopolttoaineita ja biokaasua.
+  description: Edistetään voimakkaasti fossiilisia polttoaineita käyttävien kuorma-autojen
+    ja jakeluliikenteen siirtymää kohti kestäviä käyttövoimia kuten sähköä, biopolttoaineita
+    ja biokaasua.
   description_en: Accelerate the electrification of freight trucks and heavy vehicles.
   description_sv: Snabb ökning av elektriska kuorma-auton och lättlastbilars användning.
   type: simple.AdditiveAction2
@@ -1674,7 +1750,7 @@ actions:
 # OLD ACTIONS
 # ELECTRICITY
 #
-- id: cleaner_electricity_production  # TODO Ei täysin vastaa excelin lukuja. Voiko parantaa?
+- id: cleaner_electricity_production
   name: Kansallinen sähköntuotanto puhdistuu
   name_en: Shift to low-carbon in national electricity production
   name_sv: Den nationella elproduktionen blir ren
@@ -1691,27 +1767,57 @@ actions:
     hållas på samma nivå som 2021. I scenarierna Finland 2035 och HNE 2035 antas utsläppskoefficienten
     för el utvecklas enligt bedömningen av koldioxidsnålhetsscenariot i vägkartan
     för koldioxidsnålhet för energiindustrin.
+  type: linear.DatasetReduceAction
   decision_level: nation
   quantity: emission_factor
+  unit: t/GWh
   group: electricity
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: electricity_production_emission_factor_historic
+    tags: [historical]
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: electricity_production_emission_factor_goal
+    tags: [goal]
+    to_dimensions:
+    - id: energy_carrier
+      flatten: true
   output_nodes:
   - id: electricity_production_emission_factor
-    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+
+- id: cleaner_heating_electricity_production
+  name: Kansallinen lämmityssähkön sähköntuotanto puhdistuu
+  name_en: Shift to low-carbon in national electricity production
+  name_sv: Den nationella elproduktionen blir ren
+  type: linear.DatasetReduceAction
+  decision_level: nation
+  quantity: emission_factor
+  unit: t/GWh
+  group: electricity
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: electric_heating_emission_factor_historic
+    tags: [historical]
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: electricity_production_emission_factor_goal
+    tags: [goal]
+    to_dimensions:
+    - id: energy_carrier
+      flatten: true
+  output_nodes:
   - id: electric_heating_emission_factor
-    tags: [non_additive]
-  type: simple.TrajectoryAction
-  unit: '%'
-  input_datasets:
-  - id: espoo/energy_sector_trajectories
-    column: electricity_emission_factor
-    forecast_from: 2024
-  params:
-  - id: dimension
-    value: scenario
-  - id: category
-    ref: scenario_name
-  - id: baseline_year
-    value: 2022
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
 
 - id: change_consumer_electricity
   name: Muutos kulutussähkön käytössä
@@ -1739,30 +1845,26 @@ actions:
     med 3,4 procent per år under 2021–2035, enligt Carunas bedömning. Alla förändringar
     i konsumtionselen riktas till elförbrukningen i boendet, eftersom informationen
     om indelningen mellan boende, industri och service inte är tillgänglig.
-  type: simple.TrajectoryAction
+  type: linear.DatasetReduceAction
   quantity: energy
   unit: GWh/a
   group: electricity
-  input_datasets:
-  - id: espoo/energy_sector_trajectories
-    column: electricity_consumption
-    forecast_from: 2024
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: consumer_electricity_residence_energy_historical
+    tags: [historical]
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: consumer_electricity_residence_energy_goal
+    tags: [goal]
   output_nodes:
-  - consumer_electricity_residence_energy
-  params:
-  - id: enabled
-    is_customizable: false
-  - id: dimension
-    value: scenario
-  - id: category
-    ref: scenario_name
-  - id: baseline_year
-    value: 2022
-    is_visible: false
-  - id: baseline_year_level
-    value: 1712.3
-    unit: GWh/a
-    is_visible: false
+  - id: consumer_electricity_residence_energy
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+
 
 - id: electric_heating_emission_factor_action
   name: Lämmityssähkön päästökerrointa muuttavat toimet  # FIXME Baseline is wrong
@@ -1787,8 +1889,8 @@ actions:
   - id: espoo/electric_heating_emission_factor_trajectories
     column: emission_factor
     forecast_from: 2024
-  output_nodes:
-  - id: electric_heating_emission_factor
+  # output_nodes:
+  # - id: electric_heating_emission_factor
   params:
   - id: dimension
     value: scenario
@@ -2355,28 +2457,6 @@ actions:
 # Road traffic
 #
 
-- id: change_car_traffic_emission_factor
-  name: Muutos henkilöautoliikenteen päästökertoimessa
-  name_en: Change in car traffic emission factor
-  name_sv: Förändring av biltrafikens emissionsfaktor
-  description: Tarkemmin määrittelemätön globaali trendi päästökertoimessa.
-  description_en: An unspecified global trend in the emission factor.
-  description_sv: En ospecificerad global trend i utsläppsfaktorn.
-  type: simple.AdditiveAction
-  quantity: emission_factor
-  unit: g/kWh
-  group: transportation
-  # No change in 2021->2022 in any vehicle emission factor; therefore, expected 2022 change moved to 2024.
-  input_datasets:
-  - id: espoo/traffic_emission_factor_goals
-    column: emission_factor
-    forecast_from: 2024
-    filters:
-    - column: vehicle
-      value: passenger_cars
-  output_nodes:
-  - car_traffic_emission_factor
-
 - id: change_van_traffic_emission_factor
   name: Muutos pakettiautoliikenteen päästökertoimessa
   name_en: Change in van traffic emission factor
@@ -2799,8 +2879,8 @@ scenarios:
   - id: road_transportation_emission_trade.enabled
     value: true
 
-  - id: change_car_traffic_emission_factor.enabled
-    value: true
+  # - id: change_car_traffic_emission_factor.enabled
+  #   value: true
   - id: change_van_traffic_emission_factor.enabled
     value: true
   - id: change_truck_traffic_emission_factor.enabled
@@ -2882,8 +2962,8 @@ scenarios:
   params:
   - id: scenario_name
     value: pessimistic
-  - id: change_car_traffic_emission_factor.enabled
-    value: true
+  # - id: change_car_traffic_emission_factor.enabled
+  #   value: true
   - id: change_van_traffic_emission_factor.enabled
     value: true
   - id: change_truck_traffic_emission_factor.enabled
