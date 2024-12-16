@@ -79,7 +79,7 @@ class MinMaxDefaultInt(BaseModel):
 
 
 class FrameworkDefaults(BaseModel):
-    target_year: MinMaxDefaultInt = MinMaxDefaultInt(min=2025, default=2030, max=2050)
+    target_year: MinMaxDefaultInt = MinMaxDefaultInt(min=2030, default=2030, max=2050)
     baseline_year: MinMaxDefaultInt = MinMaxDefaultInt(min=2018, default=None, max=2023)
 
 
