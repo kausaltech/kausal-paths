@@ -476,7 +476,7 @@ nodes:
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
   - id: gpc/espoo
-    forecast_from: 2025
+    forecast_from: 2024
   params:
     sector: Sähköhenkilöautojen määrä
 
@@ -517,6 +517,22 @@ nodes:
   input_nodes:
   - id: amount_of_other_passenger_cars
   - id: amount_of_electric_passenger_cars
+
+- id: passenger_car_shares_by_type  # FIXME Reduces historical energy consumption and thus emission factor in a wrong way
+  name: Henkilöautojen osuudet tyypeittäin
+  name_en: Shares of passenger cars by type
+  name_sv: Andel av personbilar per typ
+  type: simple.MultiplicativeNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  input_nodes:
+  - id: passenger_cars_by_type
+  - id: amount_of_passenger_cars
+    tags: [geometric_inverse]
+    to_dimensions:
+    - id: vehicle_type
 
 # ELECTRICITY
 
@@ -943,11 +959,11 @@ nodes:
   unit: GWh/a
   input_nodes:
   - car_energy_hsy
-  input_datasets:
-  - id: espoo/traffic_energy_forecast
-    filters:
-    - column: vehicle
-      value: passenger_cars
+  # input_datasets:
+  # - id: espoo/traffic_energy_forecast
+  #   filters:
+  #   - column: vehicle
+  #     value: passenger_cars
 - id: van_energy
   name: Pakettiautojen energiankulutus
   name_en: Energy consumption of vans
@@ -1017,8 +1033,7 @@ nodes:
   - id: car_energy
     tags: [non_additive]
     to_dimensions: []
-  - id: passenger_cars_by_type
-    tags: [ratio_to_last_historical_value]
+  - id: passenger_car_shares_by_type
   - id: fraction_of_electricity_in_car_energy
     tags: [complement]
 
@@ -1124,27 +1139,27 @@ nodes:
     column: emission_factor
     forecast_from: 2024
   output_dimensions: [vehicle]
-  output_nodes:
-  - id: car_traffic_emission_factor
-    from_dimensions:
-    - id: vehicle
-      categories: [passenger_cars]
-      flatten: true
-  - id: truck_traffic_emission_factor
-    from_dimensions:
-    - id: vehicle
-      categories: [trucks]
-      flatten: true
-  - id: van_traffic_emission_factor
-    from_dimensions:
-    - id: vehicle
-      categories: [vans]
-      flatten: true
-  - id: bus_traffic_emission_factor
-    from_dimensions:
-    - id: vehicle
-      categories: [buses]
-      flatten: true
+  # output_nodes:
+  # - id: car_traffic_emission_factor
+  #   from_dimensions:
+  #   - id: vehicle
+  #     categories: [passenger_cars]
+  #     flatten: true
+  # - id: truck_traffic_emission_factor
+  #   from_dimensions:
+  #   - id: vehicle
+  #     categories: [trucks]
+  #     flatten: true
+  # - id: van_traffic_emission_factor
+  #   from_dimensions:
+  #   - id: vehicle
+  #     categories: [vans]
+  #     flatten: true
+  # - id: bus_traffic_emission_factor
+  #   from_dimensions:
+  #   - id: vehicle
+  #     categories: [buses]
+  #     flatten: true
 # Sectors  HSY updated  2022  Difference kt/a  Energiankulutus GWh/a  Lisäys päästökertoimeen  t/GWh = g/kWh
 # Henkilöautojen päästöt  172.42  171.997034311959  0.4249  774.035488065814  0.5489
 # Pakettiautojen päästöt  26.44  26.3409471013722  0.0987  127.015500854571  0.7769
