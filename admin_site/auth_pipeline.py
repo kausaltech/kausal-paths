@@ -41,7 +41,9 @@ def assign_roles(
         elif role.role_id == FRAMEWORK_VIEWER_ROLE:
             framework_viewer_role.assign_user(fw_obj, user)
         elif role.role_id in (INSTANCE_ADMIN_ROLE, INSTANCE_VIEWER_ROLE):
-            fwc = FrameworkConfig.objects.filter(framework=fw_obj, organization_identifier=role.org_id).first()
+            fwc = FrameworkConfig.objects.filter(
+                framework=fw_obj, organization_identifier=role.org_id
+            ).exclude(organization_identifier__isnull=True).first()
             if fwc is not None:
                 ic = fwc.instance_config
                 if role.role_id == INSTANCE_ADMIN_ROLE:
