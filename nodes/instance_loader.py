@@ -100,6 +100,13 @@ class InstanceYAMLMeta(BaseModel):
             h.update(bytes(str(p.modified_at), encoding='ascii'))
         return h.hexdigest()
 
+    def refresh(self) -> Self:
+        new_meta = self.model_copy()
+        for p in (new_meta.entrypoint, *new_meta.dependencies):
+            p.modified_at = p.path.stat().st_mtime_ns
+        new_meta.mtime_hash = new_meta.calculate_mtime_hash()
+        return new_meta
+
     @cached_property
     def latest_modified_at(self) -> int:
         return max(p.modified_at for p in (self.entrypoint, *self.dependencies))
@@ -166,9 +173,15 @@ class InstanceYAMLConfig:
         config_path = entrypoint.path.parent
         frameworks = data.get('frameworks', [])
 
-        self._init_group(data['nodes'])
-        self._init_group(data['emission_sectors'])
-        self._init_group(data['actions'])
+        nodes = data.get('nodes', [])
+        emission_sectors = data.get('emission_sectors', [])
+        actions = data.get('actions', [])
+
+        dimensions = data.get('dimensions', [])
+
+        self._init_group(nodes)
+        self._init_group(emission_sectors)
+        self._init_group(actions)
 
         for framework in frameworks:
             framework_fn = config_path.joinpath('frameworks', framework).with_suffix('.yaml').resolve()
@@ -177,11 +190,11 @@ class InstanceYAMLConfig:
             with framework_fn.open('r') as fw_f:
                 fw_data = yaml.load(fw_f)
             meta.add_dependency(framework_fn)
-            self._merge_framework_config(data['nodes'], fw_data.get('nodes', []), 'Node', config_path=framework_fn)
+            self._merge_framework_config(nodes, fw_data.get('nodes', []), 'Node', config_path=framework_fn)
             self._merge_framework_config(
-                data['emission_sectors'], fw_data.get('emission_sectors', []), 'Emission sector', config_path=framework_fn
+                emission_sectors, fw_data.get('emission_sectors', []), 'Emission sector', config_path=framework_fn
             )
-            self._merge_framework_config(data['actions'], fw_data.get('actions', []), 'Action', config_path=framework_fn)
+            self._merge_framework_config(actions, fw_data.get('actions', []), 'Action', config_path=framework_fn)
             # Some nodes, emission sectors and actions must exist in main yaml.
 
         includes = data.get('include', [])
@@ -193,9 +206,9 @@ class InstanceYAMLConfig:
             with ifn.open('r') as f:
                 idata = yaml.load(f)
             meta.add_dependency(ifn)
-            self._merge_include_config(data['nodes'], idata.get('nodes', []), 'Node', apply_group=apply_group, config_path=ifn)
+            self._merge_include_config(nodes, idata.get('nodes', []), 'Node', apply_group=apply_group, config_path=ifn)
             self._merge_include_config(
-                data['dimensions'], idata.get('dimensions', []), 'Dimension', apply_group=apply_group, config_path=None
+                dimensions, idata.get('dimensions', []), 'Dimension', apply_group=apply_group, config_path=None
             )
 
         # Serialize and deserialize to get rid of Ruamel extras
@@ -207,8 +220,9 @@ class InstanceYAMLConfig:
     @classmethod
     def from_meta(cls, meta: InstanceYAMLMeta) -> Self | None:
         conf = cls(meta=meta)
-        if conf._get_config_mtime_hash() != meta.mtime_hash:
-            logger.info('Stale YAML cache for %s' % meta.entrypoint)
+        disk_meta = meta.refresh()
+        if conf.meta.mtime_hash != disk_meta.mtime_hash:
+            logger.info('Stale YAML cache for %s' % str(meta.entrypoint.path))
             return None
         return conf
 
@@ -944,7 +958,7 @@ class InstanceLoader:
             span.set_data('cache_hit', yaml_conf is not None)
 
         if yaml_conf is None:
-            logger.info('No cached instance found for %s, loading from YAML' % relative_fn)
+            logger.info('Cached instance not found or stale for %s, loading from YAML' % relative_fn)
             yaml_conf = InstanceYAMLConfig.from_entrypoint(yaml_fn)
             with start_span(name='load-from-yaml: %s' % relative_fn, op='function') as span:
                 yaml_conf.load()
