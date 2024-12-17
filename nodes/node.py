@@ -38,7 +38,6 @@ from .units import Quantity, Unit, unit_registry
 
 if typing.TYPE_CHECKING:
     from collections.abc import Callable, Sequence
-    from pathlib import Path
 
     import loguru
     from sentry_sdk.tracing import Span
@@ -56,6 +55,27 @@ if typing.TYPE_CHECKING:
 
 
 class NodeMetric:
+    """
+    Represents a metric for a node in the calculation graph.
+
+    NodeMetric defines the measurement characteristics of a node's output, including
+    its unit of measurement, physical quantity type, and identification information.
+
+    Attributes:
+        id (MixedCaseIdentifier): Unique identifier for the metric
+        column_id (str): Column name in the node's output DataFrame
+        unit (Unit): Unit of measurement for the metric (e.g. 'MWh/a')
+        quantity (str): Type of quantity being measured (e.g. 'energy')
+        label (I18nString | None): Optional internationalized label for the metric
+        default_unit (str | Unit): Unit of measurement passed as a string.
+            If it is a string, it is parsed at a later point in initialization
+            using the context's unit registry.
+
+    Methods:
+        calculate_hash: Generates a unique hash for the metric configuration
+
+    """
+
     id: MixedCaseIdentifier  # FIXME: Convert to Identifier
     column_id: str
     unit: Unit
@@ -88,6 +108,7 @@ class NodeMetric:
 
     @classmethod
     def from_config(cls, config: dict) -> Self:
+        """Create a NodeMetric instance from a configuration dictionary."""
         return cls(
             unit=config['unit'],
             quantity=config['quantity'],
@@ -97,10 +118,13 @@ class NodeMetric:
         )
 
     def copy(self) -> NodeMetric:
+        """Create a deep copy of the NodeMetric instance."""
         unit = getattr(self, 'unit', self.default_unit)
         return NodeMetric(unit=unit, quantity=self.quantity, id=self.id, label=self.label, column_id=self.column_id)
 
     def populate_unit(self, context: Context):
+        """Initialize the unit attribute using the context's unit registry."""
+
         unit = self.default_unit
         if isinstance(unit, Unit):
             self.unit = unit
@@ -148,6 +172,16 @@ class NodeMetric:
 
 
 class Node:
+    """
+    Represents a node in the calculation graph.
+
+    Nodes are the fundamental building blocks of the calculation model, representing
+    data transformations, calculations, or data sources. Each node can have multiple
+    inputs and outputs, and maintains its own metrics and parameters.
+
+    The inputs can be datasets, other nodes, or parameters.
+    """
+
     id: Identifier
     'Identifier of the Node instance.'
 
@@ -172,30 +206,42 @@ class Node:
 
     # if the node has an established visualisation color
     color: str | None
+    'Color for the node in visualizations'
+
     # order comes from NodeConfig
     order: int | None = None
+    'Order of the node in visualizations'
+
     is_visible: bool = True
-    # if this node should have its own outcome page
+    'If the node should be visible in visualizations'
+
     is_outcome: bool = False
+    'If the node is classified as a key outcome for the model'
+
     # optional grouping information for nodes
     node_group: str | None = None
+    'Grouping information for the node (e.g. "transport" or "buildings")'
 
-    # output unit (from pint)
     unit: Unit | None
-    # default unit for a node class (defined as a class variable)
+    """Unit of measurement for the node's output. Applies only to single-metric nodes."""
+
     default_unit: ClassVar[str]
-    # output quantity (like 'energy' or 'emissions')
+    'Default unit for the node class (defined as a class variable)'
+
     quantity: str | None
-    # minimum year for node -- all output before this year is filtered out
+    """Physical quantity of the node's output (e.g. "energy" or "emissions")"""
+
     minimum_year: int | None
-    # allow null values in the output
+    'Minimum allowed year for the node. All output before this year is filtered out.'
+
     allow_nulls: bool
+    'If the node allows null values in the output'
 
-    # optional tags to differentiate between multiple input/output nodes
     tags: set[str]
+    'Tags to differentiate between multiple input/output nodes'
 
-    # output units and quantities (for multi-metric nodes)
     output_metrics: dict[str, NodeMetric] = {}
+    """Units and quantities for the node's output (for single-metric and multi-metric nodes)"""
 
     output_dimensions: dict[str, Dimension]
     "The dimensions that this node's output will contain."
@@ -214,36 +260,53 @@ class Node:
 
     # set if this node has a specific goal for the simulation target year
     goals: NodeGoals | None
+    "Set if there are official, future goals for the node's output."
 
     visualizations: NodeVisualizations | None = None
+    """
+    Specific visualizations for the node.
+
+    These are considered to illustrate especially well the upstream causalities
+    affecting the node's output.
+    """
 
     input_datasets: list[str]
-
+    "List of input dataset identifiers for the node."
     input_dataset_instances: list[Dataset]
+    "List of input dataset instances for the node."
 
     edges: list[Edge]
+    "List of edges that connect this node to other nodes, both input and output."
 
-    # Global input parameters the node needs
     global_parameters: list[str] = []
+    "List of identifiers for global parameters that affect the node's output."
 
-    # Parameters with their values
     parameters: dict[str, Parameter]
+    "Parameters with their values."
 
-    # All allowed parameters for this class
     allowed_parameters: ClassVar[Sequence[Parameter]]
+    "All allowed parameters for this node class."
 
-    # Output for the node in the baseline scenario
     _baseline_values: ppl.PathsDataFrame | None
+    "Cached output for the node in the baseline scenario."
 
-    # Cache last historical year
     _last_historical_year: int | None
+    "Cached last historical year for in the node's output."
+
     context: Context
+    "Computation context."
 
     hasher: NodeHasher
+    "Cache helper for the node."
 
     logger: loguru.Logger
+    "Logger for the node."
+
     debug: bool = False
+    "If debug mode is enabled for the node. Will print extra debug information."
+
     disable_cache: bool = False
+    "If caching should be disabled for this node. Used for debugging."
 
     config_location: ConfigLocation | None = None
     """Location of the node configuration in a YAML file"""
@@ -1122,7 +1185,7 @@ class Node:
             out[col] = df[col]
         pprint(out)
 
-    def print(self, obj: Any):  # noqa: ANN401
+    def print(self, obj: Any):
         if isinstance(obj, pd.DataFrame | pd.Series):
             self.print_pint_df(obj)
             return

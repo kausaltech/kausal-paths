@@ -28,6 +28,7 @@ from .perf import PerfContext
 from .units import Unit, unit_registry
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from datetime import datetime
     from types import FrameType
 
@@ -53,41 +54,119 @@ class FrameworkConfigData:
 
 
 class Context:
-    nodes: dict[str, Node]
-    datasets: dict[str, Dataset]
-    dvc_datasets: dict[str, dvc_pandas.Dataset]
+    """
+    The main calculation execution context managing nodes, parameters, and scenarios.
 
-    # global_parameters contains parameters that are not specific to a node.
-    # Node-specific parameters are managed by the node.
+    Context manages the entire calculation graph, including nodes, their connections,
+    global parameters, scenarios, and datasets. It provides methods for graph
+    manipulation, calculation execution, and result management.
+
+    It is initialized by a computation model `Instance`.
+    """
+
+    nodes: dict[str, Node]
+    """All nodes in the context keyed by the node identifier."""
+
+    datasets: dict[str, Dataset]
+    """All datasets in the context keyed by the dataset identifier."""
+
+    dvc_datasets: dict[str, dvc_pandas.Dataset]
+    """All the loaded dvc-pandas datasets keyed by the dataset identifier."""
+
     global_parameters: dict[str, Parameter]
+    """Global parameters not specific to any individual node."""
+
     scenarios: dict[str, Scenario]
+    """All scenarios in the context keyed by the scenario identifier."""
+
     custom_scenario: CustomScenario
+    """The custom scenario for the context."""
+
     options: dict[str, Any]
+    """Options for the context."""
+
     normalizations: dict[str, Normalization]
+    """Available normalizations keyed by the normalization identifier.
+
+    A common normalization would be "per capita", where the normalizer
+    node is the population node.
+    """
 
     dimensions: dict[str, Dimension]
     """Global dimensions available for nodes."""
 
     target_year: int
+    """The target year for the most important goals in the computation model."""
+
     model_end_year: int
+    """The end year for the model. This is the last year for which data is computed."""
+
     dataset_repo: dvc_pandas.Repository
+    """The dvc-pandas dataset repository for the computation model."""
+
     dataset_repo_default_path: str | None
 
     unit_registry: CachingUnitRegistry
+    """The pint unit registry used for unit parsing, conversion, and formatting."""
+
     active_scenario: Scenario
+    """The active scenario for the context."""
+
     active_normalization: Normalization | None
-    default_normalization: Normalization | None = None
+    """The currently active normalization."""
+
+    default_normalization: Normalization | None
+    """The default normalization for the context.
+
+    Will be `None` if no normalization is the default.
+    """
+
     supported_parameter_types: dict[str, type]
+    """All supported parameter types.
+
+    Dictionary values will be subclasses of `Parameter`.
+    """
+
     cache: Cache
+    """Cache for computation results and datasets."""
+
     skip_cache: bool = False
+    """Can be set to disable caching for the context. Commonly used for debugging."""
+
     check_mode: bool = False
+    """If set, extra checks will be performed during computation runs."""
+
     instance: Instance
+    """The computation model instance."""
+
     action_efficiency_pairs: list[ActionEfficiencyPair]
+    """List of action efficiency pairs available for the computation model."""
+
     setting_storage: SettingStorage | None
+    """
+    The setting storage for the context.
+
+    This is used to store customized parameter values, the active scenario,
+    the active normalization, and other settings.
+
+    Will commonly be SessionStorage when in HTTP request context.
+    """
+
     perf_context: PerfContext[Node]
+    """Performance context for the context."""
+
     node_graph: networkx.DiGraph
+    """Directed NetworkX graph for the nodes and edges in the model."""
+
     baseline_values_generated: bool = False
+    """If the baseline values have been generated."""
+
     obj_id: str
+    """
+    The identifier for the context.
+
+    It is generated randomly and used mostly for logging.
+    """
 
     def __init__(
         self,
@@ -175,19 +254,35 @@ class Context:
         return param_type
 
     def load_dvc_dataset(self, ds_id: str) -> dvc_pandas.Dataset:
+        """
+        Load a DVC dataset into the context.
+
+        If the dataset hasn't yet been loaded, it will be read from the DVC
+        repository.
+        """
+
         ds = self.dvc_datasets.get(ds_id)
-        if ds is None:
-            if not self.dataset_repo.has_dataset(ds_id):
-                raise Exception('Dataset %s not found in DVC repo' % ds_id)
-            if not self.dataset_repo.is_dataset_cached(ds_id):
-                self.log.info("Dataset '%s' not found in DVC cache; loading all datasets" % ds_id)
-                self.load_all_dvc_datasets()
-            with self.start_span('load dataset: %s' % ds_id, op='model.load'):
-                ds = self.dataset_repo.load_dataset(ds_id)
-            self.dvc_datasets[ds_id] = ds
+        if ds is not None:
+            return ds
+
+        if not self.dataset_repo.has_dataset(ds_id):
+            raise Exception('Dataset %s not found in DVC repo' % ds_id)
+        if not self.dataset_repo.is_dataset_cached(ds_id):
+            self.log.info("Dataset '%s' not found in DVC cache; loading all datasets" % ds_id)
+            self.load_all_dvc_datasets()
+        with self.start_span('load dataset: %s' % ds_id, op='model.load'):
+            ds = self.dataset_repo.load_dataset(ds_id)
+        self.dvc_datasets[ds_id] = ds
         return ds
 
     def load_all_dvc_datasets(self):
+        """
+        Load all the DVC datasets that are needed by the nodes.
+
+        Individual DVC operations can be slow, so loading all the datasets at once
+        is generally faster.
+        """
+
         all_datasets = set()
         for node in self.nodes.values():
             for ds in node.input_dataset_instances:
@@ -204,6 +299,12 @@ class Context:
         self.log.debug('All DVC datasets loaded')
 
     def add_node(self, node: Node):
+        """
+        Add a node to the context.
+
+        Called only during the initialization phase.
+        """
+
         if node.id in self.nodes:
             raise Exception('Node %s already defined' % (node.id))
         self.nodes[node.id] = node
@@ -215,17 +316,38 @@ class Context:
             param.subscription_nodes.append(node)
 
     def get_node(self, id: str) -> Node:
+        """
+        Get a node from the context.
+
+        Raises:
+            KeyError: If the node is not found.
+
+        """
         if id not in self.nodes:
             raise KeyError("Node '%s' not found" % id)
         return self.nodes[id]
 
     def get_action(self, id: str) -> ActionNode:
+        """
+        Get an action node from the context.
+
+        Raises:
+            TypeError: If the node is not an action node.
+            KeyError: If the node is not found.
+
+        """
+
         node = self.nodes[id]
         if not isinstance(node, self.Action):
             raise TypeError('Node %s is not an action node' % id)
         return node
 
     def add_global_parameter(self, parameter: Parameter):
+        """
+        Add a global parameter to the context.
+
+        Called only during the initialization phase.
+        """
         if parameter.local_id in self.global_parameters:
             msg = f'Global parameter {parameter.local_id} already defined'
             raise Exception(msg)
@@ -289,13 +411,13 @@ class Context:
             raise Exception(msg)
         return param
 
-    def get_parameter_value(self, param_id: str, *, required: bool = True) -> Any:  # noqa: ANN401
+    def get_parameter_value(self, param_id: str, *, required: bool = True) -> Any:
         param = self.get_parameter(param_id, required=required)
         if param is None:
             return None
         return param.value
 
-    def set_parameter_value(self, param_id: str, value: Any):  # noqa: ANN401
+    def set_parameter_value(self, param_id: str, value: Any):
         param = self.global_parameters.get(param_id)
         if param is None:
             msg = f'Parameter {param_id} not found'
@@ -316,7 +438,7 @@ class Context:
     def get_scenario(self, id: str) -> Scenario:
         return self.scenarios[id]
 
-    def set_option(self, id: Literal['normalizer'], val: Any):  # noqa: ANN401
+    def set_option(self, id: Literal['normalizer'], val: Any):
         if id == 'normalizer':
             if val is None:
                 self.active_normalization = None
@@ -327,33 +449,68 @@ class Context:
         else:
             raise KeyError('Unknown option: %s' % id)
 
-    def get_option(self, id: Literal['normalizer']) -> Any:  # noqa: ANN401
-        pass
-
     def get_root_nodes(self) -> list[Node]:
+        """
+        Get a list of all the root nodes.
+
+        Root nodes are the ones that are not acting as inputs to any other nodes.
+        """
+
         all_nodes = self.nodes.values()
         root_nodes = list(filter(lambda node: not node.output_nodes, all_nodes))
         return root_nodes
 
     def get_outcome_nodes(self) -> list[Node]:
+        """
+        Get a list of all the outcome nodes.
+
+        Outcome nodes are chosen manually in the model configuration.
+        They are meant to be the nodes that are the most important outcomes
+        in the model.
+        """
         return [node for node in self.nodes.values() if node.is_outcome]
 
     def activate_scenario(self, scenario: Scenario):
-        # Set the new parameters
+        """
+        Activate a scenario.
+
+        Sets the parameter values included in the scenario and marks the scenario as active.
+        """
         scenario.activate()
         self.active_scenario = scenario
 
     def get_default_scenario(self) -> Scenario:
+        """
+        Get the default scenario.
+
+        The default scenario is the "main" one in the model configuration.
+
+        Raises:
+            Exception: If no default scenario is found.
+
+        """
         for scenario in self.scenarios.values():
             if scenario.default:
                 return scenario
         raise Exception('No default scenario found')
 
     def prefetch_node_cache(self, nodes: list[Node]):
+        """
+        Prefetch the node cache for a list of nodes.
+
+        This is used to speed up the cache access for a model run by
+        attempting to prefetch the cached outputs from the external cache
+        (Redis) with one request.
+        """
         from nodes.node_cache import NodeHasher
         NodeHasher.prefetch_nodes(context=self, nodes=nodes)
 
     def generate_baseline_values(self):
+        """
+        Generate the baseline values for the model.
+
+        Baseline values are the values that are used for the model run.
+        """
         if self.baseline_values_generated:
             return
         if 'baseline' not in self.scenarios:
@@ -373,8 +530,9 @@ class Context:
         self.log.info('Baseline values generated in %.1f ms' % pc.measure())
         self.baseline_values_generated = True
 
-    def get_all_parameters(self):
-        """Return global and node-specific parameters."""
+    def get_all_parameters(self) -> Generator[Parameter, None, None]:
+        """Return all the parameters (global and node-specific)."""
+
         for param in self.global_parameters.values():
             yield param
         for node in self.nodes.values():
@@ -382,18 +540,24 @@ class Context:
                 yield param
 
     def print_all_parameters(self):
-        """Print global and node-specific parameters."""
+        """Print all the parameters (global and node-specific) together with their values."""
+
         for param in self.get_all_parameters():
             print('%s: %s' % (param.global_id, param.value))
 
     def pull_datasets(self):
+        """
+        Pull the datasets from the DVC repository.
+
+        This is used to update the datasets to the latest version.
+        """
         self.dataset_repo.set_target_commit(None)
         self.dataset_repo.pull_datasets()
         commit_id = self.dataset_repo.commit_id
         self.dataset_repo.set_target_commit(commit_id)
         self.instance.update_dataset_repo_commit(commit_id)
 
-    def print_graph(self, include_datasets: bool = False) -> None:  # noqa: C901
+    def print_graph(self, include_datasets: bool = False) -> None:  # noqa: C901, PLR0915
         import inspect
 
         visited_nodes: set[Node] = set()
@@ -458,6 +622,8 @@ class Context:
             rich.print(tree)
 
     def summarize_graph(self):
+        """Summarize the graph by printing the nodes with their properties."""
+
         for node in self.nodes.values():
             if node.unit is not None:
                 unit_str = 'unit=%s  quantity=%s' % (str(node.unit), str(node.quantity))
@@ -474,16 +640,17 @@ class Context:
                 ),
             )
 
-    def describe_unit(self, unit: Unit):
+    def describe_unit(self, unit: Unit) -> dict[str, str]:
         formats = dict(
             short='~P',
             long='P',
             html_short='~H',
             html_long='H',
         )
-        return {k: unit.format_babel(v) for k, v in formats.items()}  # type: ignore
+        return {k: self.unit_registry.formatter.format_unit_babel(unit) for k, v in formats.items()}
 
     def get_actions(self) -> list[ActionNode]:
+        """Get a list of all the action nodes in the context."""
         from nodes.actions.action import ActionNode
 
         return [n for n in self.nodes.values() if isinstance(n, ActionNode)]
