@@ -14,7 +14,7 @@ owner_de: Stadt Zürich
 theme_identifier: zurich
 target_year: 2040
 model_end_year: 2040
-# reference_year: 1990
+reference_year: 1990
 minimum_historical_year: 2010
 maximum_historical_year: 2020
 emission_unit: kt/a
