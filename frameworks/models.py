@@ -385,6 +385,7 @@ class MeasureTemplate(CacheablePathsModel['FrameworkSpecificCache'], OrderedMode
     min_value = models.FloatField(null=True, blank=True)
     max_value = models.FloatField(null=True, blank=True)
     time_series_max = models.FloatField(null=True, blank=True)
+    year_bound = models.BooleanField(default=False)
 
     default_value_source = models.TextField(blank=True)
 
@@ -397,6 +398,7 @@ class MeasureTemplate(CacheablePathsModel['FrameworkSpecificCache'], OrderedMode
 
     public_fields: ClassVar = [
         "uuid", "name", "unit", "priority", "min_value", "max_value", "time_series_max", "default_value_source",
+        "year_bound",
     ]
 
     objects: ClassVar[MeasureTemplateManager] = MeasureTemplateManager()  # pyright: ignore

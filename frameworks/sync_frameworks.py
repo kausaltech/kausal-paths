@@ -87,6 +87,7 @@ class MeasureTemplateModel(DjangoDiffModel[MeasureTemplate]):
         'time_series_max',
         'default_value_source',
         'default_data_points',
+        'year_bound',
         'section',
     )
     _parent_key = 'section'
