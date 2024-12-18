@@ -115,7 +115,7 @@ class Context:
     active_normalization: Normalization | None
     """The currently active normalization."""
 
-    default_normalization: Normalization | None
+    default_normalization: Normalization | None = None
     """The default normalization for the context.
 
     Will be `None` if no normalization is the default.
