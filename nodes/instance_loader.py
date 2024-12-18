@@ -819,7 +819,9 @@ class InstanceLoader:
         if fwc is None:
             return
         years = (
-            MeasureDataPoint.objects.filter(measure__framework_config=fwc)
+            MeasureDataPoint.objects
+            .filter(measure__framework_config=fwc)
+            .filter(value__isnull=False)
             .order_by()
             .values_list('year', flat=True)
             .distinct('year')

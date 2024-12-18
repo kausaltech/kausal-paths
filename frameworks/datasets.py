@@ -46,7 +46,7 @@ class FrameworkMeasureDVCDataset(DVCDataset):
             Measure.objects.filter(framework_config=fwd.id).filter(measure_template__uuid__in=uuids).select_related('template')
         )
         dps = (
-            MeasureDataPoint.objects.filter(measure__in=measures)
+            MeasureDataPoint.objects.filter(measure__in=measures).exclude(value__isnull=True)
             .annotate(uuid=Cast('measure__measure_template__uuid', output_field=TextField()))
             .values_list('uuid', 'year', 'value', 'default_value', 'measure__measure_template__unit')
         )
