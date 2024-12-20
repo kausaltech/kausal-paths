@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Any, ClassVar, Iterable, List
+from typing import TYPE_CHECKING, Any, ClassVar, Iterable, List
 
 from django.utils.translation import gettext_lazy as _
 from pydantic import BaseModel, Field, RootModel, validator
@@ -18,12 +20,14 @@ from nodes.constants import (
     YEAR_COLUMN,
 )
 from nodes.exceptions import NodeError
-from nodes.node import Node
-from nodes.units import Unit
 from params import Parameter, ParameterWithUnit
 from params.param import BoolParameter, NumberParameter, ValidationError
 
 from .action import ActionNode
+
+if TYPE_CHECKING:
+    from nodes.node import Node
+    from nodes.units import Unit
 
 
 class ReduceAmount(BaseModel):
@@ -304,7 +308,7 @@ class DatasetReduceAction(ActionNode):
         df = df.paths.to_narrow()
         for m in self.output_metrics.values():
             if m.column_id not in df.metric_cols:
-                raise NodeError(self, "Metric column '%s' not found in output")
+                raise NodeError(self, "Metric column '%s' not found in output" % m.column_id)
             if not self.is_enabled():
                 # Replace non-null columns with 0 when action is not enabled
                 df = df.with_columns(

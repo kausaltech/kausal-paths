@@ -143,17 +143,18 @@ class EmissionReductionAction(ActionNode):
 
 
 class TrajectoryAction(ActionNode):
-    explanation = _('''
+    explanation = _("""
     TrajectoryAction uses select_category() to select a category from a dimension
     and then possibly do some relative or absolute conversions.
-    ''')
-    allowed_parameters = ActionNode.allowed_parameters + [
+    """)
+    allowed_parameters = [
+        *ActionNode.allowed_parameters,
         StringParameter(local_id='dimension'),
         StringParameter(local_id='category'),
         NumberParameter(local_id='category_number'),
         NumberParameter(local_id='baseline_year'),
         NumberParameter(local_id='baseline_year_level'),
-        BoolParameter(local_id='keep_dimension')
+        BoolParameter(local_id='keep_dimension'),
     ]
     def compute_effect(self):
         df = self.get_input_dataset_pl()
@@ -199,10 +200,7 @@ class GpcTrajectoryAction(TrajectoryAction, DatasetNode):
             cat_id = 'baseline'  # FIXME Generalize this
             cat_no = None
 
-        print(df)
-        print(dim_id, cat_id, cat_no, year, level, keep)
         df = df.select_category(dim_id, cat_id, cat_no, year, level, keep)
-        print(df)
         assert self.unit is not None
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df

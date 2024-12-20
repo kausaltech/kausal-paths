@@ -64,7 +64,7 @@ class FrameworkMeasureDVCDataset(DVCDataset):
         df_cols.remove('UUID')
 
         baseline_year = context.instance.reference_year
-        df = df.with_columns(
+        df = df.with_columns(  # FIXME Does this not already happen in load()? So this is redundant.
             pl.when(pl.col('Year').lt(100)).then(pl.col('Year') + baseline_year).otherwise(pl.col('Year')).alias('Year'),
         )
         # Duplicates may occur when baseline year overlaps with existing data points.

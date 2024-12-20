@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import ClassVar
+
 from django.utils.translation import gettext_lazy as _
 
 import polars as pl
@@ -7,9 +9,10 @@ import polars as pl
 from common import polars as ppl
 from nodes.actions import ActionNode
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.exceptions import NodeError
 from nodes.gpc import DatasetNode
 from nodes.units import unit_registry
-from params import NumberParameter, StringParameter
+from params import NumberParameter, Parameter, StringParameter, BoolParameter
 
 
 class DatasetAction(ActionNode, DatasetNode):
@@ -437,4 +440,149 @@ class SCurveAction(DatasetAction):
 
         if not self.is_enabled():
             df = df.with_columns(pl.lit(self.no_effect_value).alias(VALUE_COLUMN))
+        return df
+
+
+class DatasetDifferenceAction2(DatasetAction):
+    explanation = _("""
+    Receive goal input from a dataset or node and cause an effect.
+
+    The output will be a time series with the difference to the
+    predicted baseline value of the input node.
+
+    The goal input can also be relative (for e.g. percentage
+    reductions), in which case the input will be treated as
+    a multiplier.
+    """)
+
+    allowed_parameters: ClassVar[list[Parameter]] = [
+        *DatasetAction.allowed_parameters,
+        BoolParameter(local_id='relative_goal'),
+    ]
+
+    def filter_categories(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        filter_categories = self.get_parameter_value('filter_categories', required=False)
+        keep_dimension = self.get_parameter_value('keep_dimension', required=False)
+        if filter_categories:
+            dim = filter_categories.split(':')[0]
+            cats = filter_categories.split(':')[1].split(',')
+            if dim in df.dim_ids:
+                df = df.filter(pl.col(dim).is_in(cats))
+                if keep_dimension is not True:
+                    df = df.drop(dim)
+        return df
+
+    def get_input_object(self, tag: str) -> ppl.PathsDataFrame:
+        """
+        Get the input object either from a node or a dataset.
+
+        The priority is:
+        * node
+        * gpc dataset, if sector is given
+        * dataset.
+        """
+
+        n = self.get_input_node(tag=tag, required=False)
+        if n is None:
+            if self.get_parameter_value('sector', required=False):
+                df = self.get_gpc_dataset(tag=tag)
+                df = self.drop_unnecessary_levels(df, droplist=['Description'])
+                df = self.rename_dimensions(df)
+                df = self.convert_names_to_ids(df)
+                df = self.implement_unit_col(df)
+                df = self.add_missing_years(df)
+            else:
+                df = self.get_input_dataset_pl(tag=tag, required=False)
+        else:
+            df = n.get_output_pl(target_node=self)
+        df = self.filter_categories(df)
+        assert df is not None
+        return df
+
+    def compute_effect(self) -> ppl.PathsDataFrame:
+        df = self.get_input_object(tag='baseline')
+        if FORECAST_COLUMN not in df.columns:
+            df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
+
+        assert len(df.metric_cols) == 1
+        df = df.rename({df.metric_cols[0]: VALUE_COLUMN})
+
+        df = df.filter(~pl.col(FORECAST_COLUMN))  # FIXME FOR DIFF
+
+        max_hist_year = df[YEAR_COLUMN].max()
+        df = df.filter(pl.col(YEAR_COLUMN) == max_hist_year)
+
+        gdf = self.get_input_object(tag='goal')
+
+        gdf = gdf.paths.cast_index_to_str()
+        df = df.paths.cast_index_to_str()
+
+        if not set(gdf.dim_ids).issubset(set(self.input_dimensions.keys())):
+            raise NodeError(self, "Dimension mismatch to input nodes")
+
+        # Filter historical data with only the categories that are
+        # specified in the goal dataset.
+
+        # if len(gdf.dim_ids) > 0:
+        #     exprs = [pl.col(dim_id).is_in(gdf[dim_id].unique()) for dim_id in gdf.dim_ids]
+        #     print(exprs)
+        #     df = df.filter(pl.all_horizontal(exprs))
+
+        is_mult = self.get_parameter_value('relative_goal', required=False)
+        if is_mult:
+            # If the goal series is relative (i.e. a multiplier), transform
+            # it into absolute values by multiplying with the last historical values.
+            inverse_complement = False  # FIXME Make parameter. For a complement multiplier, the no-effect value is 0 rather than 1.
+            if inverse_complement:
+                gdf = gdf.with_columns((pl.lit(1.0) - pl.lit(-1.0) * pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
+            gdf = gdf.rename({VALUE_COLUMN: 'Multiplier'})
+            hdf = df.drop(YEAR_COLUMN)
+            metric_cols = [m.column_id for m in self.output_metrics.values()]
+            hdf = hdf.rename({m: 'Historical%s' % m for m in metric_cols})
+            print(hdf)
+            print(gdf)
+            gdf = gdf.paths.join_over_index(hdf, how='outer', index_from='union')
+            gdf = gdf.filter(~pl.all_horizontal([pl.col('Historical%s' % col).is_null() for col in metric_cols]))
+            for m in self.output_metrics.values():
+                col = m.column_id
+                gdf = gdf.multiply_cols(['Multiplier', 'Historical%s' % col], col, out_unit=m.unit)
+                gdf = gdf.with_columns(pl.col(col).fill_nan(None))
+            gdf = gdf.select_metrics(metric_cols)
+
+        bdf = df.paths.to_wide().filter(~pl.col(FORECAST_COLUMN))
+        gdf = gdf.paths.to_wide()
+
+        meta = bdf.get_meta()
+        gdf = gdf.filter(pl.col(YEAR_COLUMN) > max_hist_year)
+        df = ppl.to_ppdf(pl.concat([bdf, gdf], how='diagonal'), meta=meta)
+        df = df.paths.make_forecast_rows(end_year=self.get_end_year())
+        df = df.with_columns([pl.col(m).interpolate() for m in df.metric_cols])
+
+        # Change the time series to be a difference to the last historical
+        # year.
+        exprs = [pl.col(m) - pl.first(m) for m in df.metric_cols]
+        df = df.select([YEAR_COLUMN, FORECAST_COLUMN, *exprs])
+
+        # df = df.filter(pl.col(FORECAST_COLUMN))
+        # end_year = self.get_end_year()
+        # df = df.filter(pl.col(YEAR_COLUMN).lt(end_year + 1))
+        df = df.paths.to_narrow()
+
+        # Change the time series to be a difference to the baseline
+        # gdf = gdf.paths.to_narrow()
+
+        # df = df.paths.join_over_index(gdf)
+        # df = df.subtract_cols([VALUE_COLUMN + '_right', VALUE_COLUMN], VALUE_COLUMN)
+        # df = df.drop(VALUE_COLUMN + '_right')
+
+        for m in self.output_metrics.values():
+            if m.column_id not in df.metric_cols:
+                raise NodeError(self, "Metric column '%s' not found in output")
+            if not self.is_enabled():
+                # Replace non-null columns with 0 when action is not enabled
+                df = df.with_columns(
+                    pl.when(pl.col(m.column_id).is_null()).then(None).otherwise(0.0).alias(m.column_id)
+                )
+            df = df.ensure_unit(m.column_id, m.unit)
+
         return df
