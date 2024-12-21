@@ -7,6 +7,20 @@
 # Maatalous on riittävän lähellä
 # FIXME Kaukolämpö ei tästmää, pitäisi korjata muta mistä kohdasta? Päästökertoimesta varmaan
 # Öljylämmitys: ei täsmää 2022 alkaen mutta ei kovin kaukana
+# TODO
+# Teollisuus ja työkoneet 2022: excel 5, malli 12.1.
+# Poikkeamat 2025 ja 2030 ja 2035 HNE2030-skenaariossa excel vs malli:
+# Kulutussähkö         108, 90.5  |  32.1, 27.6  | 14.7, 13.9 
+# Rakennusten lämmitys 154, 159   |  37  , 40.9  | 19  , 19.4
+# Liikenne             260, 254   | 124  , 143   | 66.7, 96.9
+# Poikkeamat 2025 ja 2030 ja 2035 pessimistisessä skenaariossa excel vs malli:
+# Kulutussähkö         146, 94.7  | 155  , 72.3  | 164 , 28.4 
+# Rakennusten lämmitys 371, 349   | 396  , 367   | 425 , 381
+# Liikenne             254, 227   | 208  , 227   | 190 , 204
+# Kulutussähkön toimenpiteet:
+# Suuret toimijat        0,   0   | -46.6,-41.7  |-13.4,-13.4
+# Liikenteessä excel laskee raide- ja laivaliikenteen osaksi tieliikennettä ja jyvittää ne eri ajoneuvoluokille.
+# LIikenne sisältää laivaliikenteen 8 kt/a, joka ei vähene.
 
 id: espoo
 default_language: fi
@@ -15,7 +29,7 @@ frameworks: [hsy]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 521927b41f4d3cc85dd7346bcdfc3b375a8e98b8
+  commit: aebba1bba37608aba3f795c98e390cd4134c3a42
   # commit: 8caa222ae2b5aa14be248435eb8eb47bd401a010
   dvc_remote: kausal-s3
 name: Hiilineutraali Espoo 2030
@@ -375,6 +389,10 @@ dimensions:
     label: Bussi, HSL
     label_en: Buses, HSL
     label_sv: Bussar, HRT
+  - id: buses_other
+    label: Bussi, muu
+    label_en: Buses, other
+    label_sv: Bussar, andra
   - id: local_trains
     label: Paikallisjuna
     label_en: Local Trains
@@ -541,6 +559,13 @@ nodes:
   name: Vihreän sähkön tuottama kompensaatio
   name_en: Green electricity consumption
   name_sv: Grön el konsumtion
+  description: Ensin vihreä sähkö vähennetään kokonaissähkäönkulutuksesta, ja sitten
+    sovelletaan jäännöspäästökerrointa. Oletus siis on, että ostamalla vihreää sähköä
+    omat päästöt alenevat saman verran kuin jos päästökerroin menisi nollaan tilanteesta,
+    jossa vihreä sähkö olisi ostettu pois markkinoilta. Tässä siis oletetaan, että
+    vihreän sähkön ostaminen generoi nykyisenkaltaista sähköntuotantoa siinä määrin,
+    että muiden ostajien päästökerroin ei nousekaan, vaikka vihreä sähkö on ostettu
+    pois markkinoilta.
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
@@ -685,25 +710,32 @@ nodes:
   output_dimensions: [vehicle_type]
   input_nodes:
   - id: car_fuel_by_energy_carrier
+    tags: [inventory_only]
     from_dimensions:
     - id: energy_carrier
       flatten: true
   - id: van_energy
+    tags: [inventory_only]
     to_dimensions:
     - id: vehicle_type
       categories: [vans]
   - id: truck_energy
+    tags: [inventory_only]
     to_dimensions:
     - id: vehicle_type
       categories: [trucks]
   - id: bus_energy
+    tags: [inventory_only]
     to_dimensions:
     - id: vehicle_type
       categories: [buses]
   - id: motorcycle_energy_hsy
+    tags: [inventory_only]
     to_dimensions:
     - id: vehicle_type
       categories: [motorcycles]
+  - id: road_transport_energy_forecast
+    tags: [forecast_only]
 
 - id: traffic_emission_factors
   name: Liikenteen päästökertoimet
@@ -944,7 +976,8 @@ nodes:
   name: Henkilöautojen polttoaineenkulutus energialuokittain
   name_en: Fuel consumption of cars by energy carrier
   name_sv: Personbilarnas energiförbrukning
-  description: Sisältää vain polttoaineet. Sähkön osuus energiasta ja päästöistä jätetään huomiotta.
+  description: Sisältää vain polttoaineet. Sähkön osuus energiasta ja päästöistä jätetään
+    huomiotta.
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
@@ -1140,6 +1173,93 @@ nodes:
 # Kuorma-autojen päästöt  82.22  71.2923419123624  10.9233  354.818804216936  30.7857
 # Linja-autojen päästöt   4.85  3.85473468256427  0.9925  73.053958703957  13.5853
 # https://www.avoindata.fi/data/fi/dataset/liikenteen-paastot-paakaupunkiseudulla
+
+- id: transport_emission_factor_baseline
+  name: Liikenteen päästökertoimen perustaso
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: gpc/espoo
+    forecast_from: 2024
+  params:
+    sector: Tieliikenteen päästökertoimen ennuste
+
+- id: road_transport_energy_forecast
+  name: Tieliikenteen energiaennuste
+  description: 'Henkilöautot: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot) oletetaan,
+    että henkilöautoliikenteen energiankulutus lisääntyy 8 % ja 22 % vuosiin 2030
+    ja 2035 mennessä vuoteen 2021 verrattuna. Sen sijaan HNE2030-skenaariossa oletetaan
+    kasvuksi vain 4 % ja 11 % vastaavasti eli perusuraan verrattuna -4 % ja -11 %.
+    Bussit: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot) oletetaan,
+    että linja-autoliikenteen energiankulutus lisääntyy 1 % ja 1 % vuosiin 2030 ja
+    2035 mennessä vuoteen 2021 verrattuna. Myös HNE2030-skenaariossa oletetaan kasvuksi
+    1 % ja 1 % vastaavasti.
+    Pakettiautot: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot) oletetaan,
+    että pakettiautoliikenteen energiankulutus lisääntyy 20 % ja 32 % vuosiin 2030
+    ja 2035 mennessä vuoteen 2021 verrattuna. Sen sijaan HNE2030-skenaariossa oletetaan
+    kasvuksi vain 13 % ja 22 % vastaavasti.
+    Kuorma-autot: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot) oletetaan,
+    että kuorma-autoliikenteen energiankulutus lisääntyy 44 % ja 47 % vuosiin 2030
+    ja 2035 mennessä vuoteen 2021 verrattuna. Sen sijaan HNE2030-skenaariossa oletetaan
+    kasvuksi jopa 45 % ja 49 % vastaavasti.'
+  description_en: 'Passenger cars: The baseline forecast (both the pessimistic and Finland 2035 scenarios)
+    assumes that the energy consumption of car traffic will increase by 8% and 22%
+    by 2030 and 2035 respectively compared to 2021. By contrast, the Carbon-neutral
+    Espoo 2030 scenario assumes the growth to be only 4% and 11% respectively, i.e.
+    –4% and –11% compared to the baseline.
+    Buses: The baseline forecast (both the pessimistic and Finland 2035 scenarios)
+    assumes that the energy consumption of car traffic will increase by 1% and 1%
+    by 2030 and 2035 respectively compared to 2021. The Carbon-neutral Espoo 2030
+    scenario also assumes the growth to be 1% and 1% respectively.
+    Vans: The baseline forecast (both the pessimistic and Finland 2035 scenarios)
+    assumes that the energy consumption of van traffic will increase by 20% and 32%
+    by 2030 and 2035 respectively compared to 2021. By contrast, the Carbon-neutral
+    Espoo 2030 scenario assumes the growth to be only 13% and 22% respectively.
+    Trucks: The baseline forecast (both the pessimistic and Finland 2035 scenarios)
+    assumes that the energy consumption of lorry traffic will increase by 44% and
+    47% by 2030 and 2035 respectively compared to 2021. By contrast, the Carbon-neutral
+    Espoo 2030 scenario assumes the growth to be as much as 45% and 49% respectively.'
+  description_sv: 'Personbilar: I grundprognosen (både pessimistiska och scenariot Finland 2035)
+    antas att personbilstrafikens energiförbrukning ökar med 8 procent och med 22
+    procent fram till 2030 och 2035 jämfört med 2021. Däremot antas ökningen i scenariot
+    HNE2030 vara endast 4 procent och 11 procent på motsvarande sätt dvs. -4 procent
+    och -11 procent jämfört med grundscenariot.
+    Bussar: I grundprognosen (både pessimistiska och scenariot Finland 2035)
+    antas att personbilstrafikens energiförbrukning ökar med 1 procent och med 1 procent
+    fram till 2030 och 2035 jämfört med 2021. Även i scenariot HNE2030 antas ökningen
+    vara 1 procent respektive 1 procent.
+    Paketbilar: I grundprognosen (både pessimistiska och scenariot Finland 2035)
+    antas att paketbilstrafikens energiförbrukning ökar med 20 procent och 32 procent
+    fram till 2030 och 2035 jämfört med 2021. Däremot antas ökningen i scenariot HNE2030
+    vara endast 13 procent och 22 procent på motsvarande sätt.
+    Lastbilar: I grundprognosen (både pessimistiska och scenariot Finland 2035)
+    antas att lastbilstrafikens energiförbrukning ökar med 44 procent och 47 procent
+    fram till 2030 och 2035 jämfört med 2021. Däremot antas ökningen i scenariot HNE2030
+    vara upp till 45 procent och 49 procent på motsvarande sätt.'
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: gpc/espoo
+    forecast_from: 2024
+  params:
+    sector: Tieliikenteen suorite-ennuste
+
+- id: transport_emissions2
+  name: Liikenteen päästöt2
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: transport_emission_factor_baseline
+  - id: road_transport_energy_forecast
 
 #
 # OTHER SECTORS
@@ -2322,45 +2442,45 @@ actions:
   name: Teolllisuuden ja työkoneiden päästöt pienenevät
   name_en: Industry and machinery emissions are reduced
   name_sv: Utsläppen från industri och arbetsmaskinerna minskar
-  description: <p><b>Teollisuus:</b> Pessimistisessä skenaariossa asukaskohtaisten päästöjen oletetaan pysyvän
-    vuoden 2020 tasolla. Laskennassa on hyödynnetty vuotta 2020 vuoden 2021 sijaan,
-    sillä HSY:n vuoden 2021 tiedoissa havaittiin mahdollista epäjohdonmukaisuutta.
-    Suomi 2035 -skenaariossa päästöjen oletetaan laskevan 53 prosenttia vuoteen 2035
-    mennessä. HNE2030-skenaariossa päästöjen oletetaan laskevan 53 prosenttia vuoteen
-    2035 mennessä. Muutokset on laskettu viimeisen viiden vuoden päästöjen keskiarvosta,
-    sillä vuosittaiset vaihtelut sektorin sisällä ovat olleet suuria.</p>
-    <p><b>Työkoneet:</b> Pessimistisessä skenaariossa asukaskohtaisten päästöjen oletetaan pysyvän
-    vuoden 2020 tasolla. Suomi 2035 -skenaariossa päästöjen oletetaan laskevan 20
-    prosenttia vuoteen 2035 mennessä. HNE2030-skenaariossa työkoneiden päästöjen oletetaan
-    laskevan 50 prosenttia vuoteen 2035 mennessä. Muutokset on laskettu viimeisen
-    viiden vuoden päästöjen keskiarvosta, sillä vuosittaiset vaihtelut sektorin sisällä
-    ovat olleet suuria.</p>
-  description_en: <p><b>Industry:</b> In the pessimistic scenario, emissions per capita are expected to
-    remain at the 2020 level. The year 2020 was used in the calculation instead of
-    2021, because HSY’s data for 2021 was observed to be possibly inconsistent. In
-    the Finland 2035 scenario, emissions are expected to decrease by 53% by 2035.
+  description: <p><b>Teollisuus:</b> Pessimistisessä skenaariossa asukaskohtaisten
+    päästöjen oletetaan pysyvän vuoden 2020 tasolla. Laskennassa on hyödynnetty vuotta
+    2020 vuoden 2021 sijaan, sillä HSY:n vuoden 2021 tiedoissa havaittiin mahdollista
+    epäjohdonmukaisuutta. Suomi 2035 -skenaariossa päästöjen oletetaan laskevan 53
+    prosenttia vuoteen 2035 mennessä. HNE2030-skenaariossa päästöjen oletetaan laskevan
+    53 prosenttia vuoteen 2035 mennessä. Muutokset on laskettu viimeisen viiden vuoden
+    päästöjen keskiarvosta, sillä vuosittaiset vaihtelut sektorin sisällä ovat olleet
+    suuria.</p> <p><b>Työkoneet:</b> Pessimistisessä skenaariossa asukaskohtaisten
+    päästöjen oletetaan pysyvän vuoden 2020 tasolla. Suomi 2035 -skenaariossa päästöjen
+    oletetaan laskevan 20 prosenttia vuoteen 2035 mennessä. HNE2030-skenaariossa työkoneiden
+    päästöjen oletetaan laskevan 50 prosenttia vuoteen 2035 mennessä. Muutokset on
+    laskettu viimeisen viiden vuoden päästöjen keskiarvosta, sillä vuosittaiset vaihtelut
+    sektorin sisällä ovat olleet suuria.</p>
+  description_en: <p><b>Industry:</b> In the pessimistic scenario, emissions per capita
+    are expected to remain at the 2020 level. The year 2020 was used in the calculation
+    instead of 2021, because HSY’s data for 2021 was observed to be possibly inconsistent.
+    In the Finland 2035 scenario, emissions are expected to decrease by 53% by 2035.
     In the Carbon-neutral Espoo 2030 scenario, emissions are expected to decrease
     by 53% by 2035. The changes have been calculated from the average emissions over
     the last five years, since the annual variations within the sector have been significant.</p>
-    <p><b>Machinery:</b> In the pessimistic scenario, emissions per capita are expected to
-    remain at the 2020 level. In the Finland 2035 scenario, emissions are expected
+    <p><b>Machinery:</b> In the pessimistic scenario, emissions per capita are expected
+    to remain at the 2020 level. In the Finland 2035 scenario, emissions are expected
     to decrease by 20% by 2035. In the Carbon-neutral Espoo 2030 scenario, machinery
     emissions are expected to decrease by 50% by 2035. The changes have been calculated
     from the average emissions over the last five years, since the annual variations
     within the sector have been significant.</p>
-  description_sv: <p><b>Industri:</b> I det pessimistiska scenariot antas utsläppen per invånare hållas
-    på samma nivå som 2020. I beräkningen har man utnyttjat 2020 i stället för 2021,
-    eftersom HRM:s uppgifter för 2021 eventuellt var inkonsekventa. I scenariot Finland
-    2035 antas utsläppen minska med 53 procent fram till 2035. I scenariot HNE2030
-    antas utsläppen minska med 53 procent fram till 2035. Förändringarna har beräknats
-    utifrån medelvärdet av utsläppen under de senaste fem åren, eftersom de årliga
-    variationerna inom sektorn har varit stora.</p>
-    <p><b>Maskiner:</b> I det pessimistiska scenariot antas utsläppen per invånare hållas
-    på samma nivå som 2020. I scenariot Finland 2035 antas utsläppen minska med 20
-    procent fram till 2035. I scenariot HNE2030 antas utsläppen från arbetsmaskiner
-    minska med 50 procent fram till 2035. Förändringarna har beräknats utifrån medelvärdet
-    av utsläppen under de senaste fem åren, eftersom de årliga variationerna inom
-    sektorn har varit stora.
+  description_sv: <p><b>Industri:</b> I det pessimistiska scenariot antas utsläppen
+    per invånare hållas på samma nivå som 2020. I beräkningen har man utnyttjat 2020
+    i stället för 2021, eftersom HRM:s uppgifter för 2021 eventuellt var inkonsekventa.
+    I scenariot Finland 2035 antas utsläppen minska med 53 procent fram till 2035.
+    I scenariot HNE2030 antas utsläppen minska med 53 procent fram till 2035. Förändringarna
+    har beräknats utifrån medelvärdet av utsläppen under de senaste fem åren, eftersom
+    de årliga variationerna inom sektorn har varit stora.</p> <p><b>Maskiner:</b>
+    I det pessimistiska scenariot antas utsläppen per invånare hållas på samma nivå
+    som 2020. I scenariot Finland 2035 antas utsläppen minska med 20 procent fram
+    till 2035. I scenariot HNE2030 antas utsläppen från arbetsmaskiner minska med
+    50 procent fram till 2035. Förändringarna har beräknats utifrån medelvärdet av
+    utsläppen under de senaste fem åren, eftersom de årliga variationerna inom sektorn
+    har varit stora.
   type: gpc.DatasetDifferenceAction2
   quantity: ratio
   unit: kt/a
@@ -2386,172 +2506,6 @@ actions:
 #
 # Road traffic
 #
-
-- id: change_van_traffic_emission_factor
-  name: Muutos pakettiautoliikenteen päästökertoimessa
-  name_en: Change in van traffic emission factor
-  name_sv: Förändring av paketbiltrafikens emissionsfaktor
-  description: Tarkemmin määrittelemätön globaali trendi päästökertoimessa.
-  description_en: An unspecified global trend in the emission factor.
-  description_sv: En ospecificerad global trend i utsläppsfaktorn.
-  type: simple.AdditiveAction
-  quantity: emission_factor
-  unit: g/kWh
-  group: transportation
-  input_datasets:
-  - id: espoo/traffic_emission_factor_goals
-    column: emission_factor
-    forecast_from: 2024
-    filters:
-    - column: vehicle
-      value: vans
-  output_nodes:
-  - van_traffic_emission_factor
-
-- id: change_truck_traffic_emission_factor
-  name: Muutos kuorma-autoliikenteen päästökertoimessa
-  name_en: Change in lorry traffic emission factor
-  name_sv: Förändring av lastbiltrafikens emissionsfaktor
-  description: Tarkemmin määrittelemätön globaali trendi päästökertoimessa.
-  description_en: An unspecified global trend in the emission factor.
-  description_sv: En ospecificerad global trend i utsläppsfaktorn.
-  type: simple.AdditiveAction
-  quantity: emission_factor
-  unit: g/kWh
-  group: transportation
-  input_datasets:
-  - id: espoo/traffic_emission_factor_goals
-    column: emission_factor
-    forecast_from: 2024
-    filters:
-    - column: vehicle
-      value: trucks
-  output_nodes:
-  - truck_traffic_emission_factor
-
-- id: change_bus_traffic_emission_factor
-  name: Muutos linja-autoliikenteen päästökertoimessa
-  name_en: Change in bus traffic emission factor
-  name_sv: Förändring av busstrafikens emissionsfaktor
-  description: Tarkemmin määrittelemätön globaali trendi päästökertoimessa.
-  description_en: An unspecified global trend in the emission factor.
-  description_sv: En ospecificerad global trend i utsläppsfaktorn.
-  type: simple.AdditiveAction
-  quantity: emission_factor
-  unit: g/kWh
-  group: transportation
-  input_datasets:
-  - id: espoo/traffic_emission_factor_goals
-    column: emission_factor
-    forecast_from: 2024
-    filters:
-    - column: vehicle
-      value: buses
-  output_nodes:
-  - bus_traffic_emission_factor
-
-- id: change_car_traffic_energy  # FIXME Use goals dataset instead
-  name: Muutos henkilöautoliikenteen energiankulutuksessa
-  name_en: Change in energy consumption of car traffic
-  name_sv: Ändring i personbilstrafikens energiförbrukning
-  description: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot) oletetaan,
-    että henkilöautoliikenteen energiankulutus lisääntyy 8 % ja 22 % vuosiin 2030
-    ja 2035 mennessä vuoteen 2021 verrattuna. Sen sijaan HNE2030-skenaariossa oletetaan
-    kasvuksi vain 4 % ja 11 % vastaavasti eli perusuraan verrattuna -4 % ja -11 %.
-  description_en: The baseline forecast (both the pessimistic and Finland 2035 scenarios)
-    assumes that the energy consumption of car traffic will increase by 8% and 22%
-    by 2030 and 2035 respectively compared to 2021. By contrast, the Carbon-neutral
-    Espoo 2030 scenario assumes the growth to be only 4% and 11% respectively, i.e.
-    –4% and –11% compared to the baseline.
-  description_sv: I grundprognosen (både pessimistiska och scenariot Finland 2035)
-    antas att personbilstrafikens energiförbrukning ökar med 8 procent och med 22
-    procent fram till 2030 och 2035 jämfört med 2021. Däremot antas ökningen i scenariot
-    HNE2030 vara endast 4 procent och 11 procent på motsvarande sätt dvs. -4 procent
-    och -11 procent jämfört med grundscenariot.
-  type: simple.CumulativeAdditiveAction
-  quantity: energy
-  unit: GWh/a
-  group: transportation
-  forecast_values: [[2024, -16.518], [2025, -16.518], [2026, -16.518], [2027, -16.518],
-    [2028, -16.518], [2029, -16.518], [2030, -34.599], [2031, -34.599], [2032, -34.599],
-    [2033, -34.599], [2034, -34.599], [2035, -34.599]]
-  output_nodes:
-  - id: car_energy
-    to_dimensions:
-    - id: vehicle_type
-      categories: [cars]
-
-- id: change_bus_traffic_energy
-  name: Muutos bussiliikenteen energiankulutuksessa
-  name_en: Change in energy consumption of bus traffic
-  name_sv: Ändring i busstrafikens energiförbrukning
-  description: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot) oletetaan,
-    että linja-autoliikenteen energiankulutus lisääntyy 1 % ja 1 % vuosiin 2030 ja
-    2035 mennessä vuoteen 2021 verrattuna. Myös HNE2030-skenaariossa oletetaan kasvuksi
-    1 % ja 1 % vastaavasti.
-  description_en: The baseline forecast (both the pessimistic and Finland 2035 scenarios)
-    assumes that the energy consumption of car traffic will increase by 1% and 1%
-    by 2030 and 2035 respectively compared to 2021. The Carbon-neutral Espoo 2030
-    scenario also assumes the growth to be 1% and 1% respectively.
-  description_sv: I grundprognosen (både pessimistiska och scenariot Finland 2035)
-    antas att personbilstrafikens energiförbrukning ökar med 1 procent och med 1 procent
-    fram till 2030 och 2035 jämfört med 2021. Även i scenariot HNE2030 antas ökningen
-    vara 1 procent respektive 1 procent.
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: energy
-  unit: GWh/a
-  group: transportation
-  forecast_values: [[2024, 0], [2035, 0]]
-  output_nodes:
-  - bus_energy
-
-- id: change_van_traffic_energy  # FIXME Use goals dataset
-  name: Muutos pakettiautoliikenteen energiankulutuksessa
-  name_en: Change in energy consumption of van traffic
-  name_sv: Ändring i paketbilstrafikens energiförbrukning
-  description: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot) oletetaan,
-    että pakettiautoliikenteen energiankulutus lisääntyy 20 % ja 32 % vuosiin 2030
-    ja 2035 mennessä vuoteen 2021 verrattuna. Sen sijaan HNE2030-skenaariossa oletetaan
-    kasvuksi vain 13 % ja 22 % vastaavasti.
-  description_en: The baseline forecast (both the pessimistic and Finland 2035 scenarios)
-    assumes that the energy consumption of van traffic will increase by 20% and 32%
-    by 2030 and 2035 respectively compared to 2021. By contrast, the Carbon-neutral
-    Espoo 2030 scenario assumes the growth to be only 13% and 22% respectively.
-  description_sv: I grundprognosen (både pessimistiska och scenariot Finland 2035)
-    antas att paketbilstrafikens energiförbrukning ökar med 20 procent och 32 procent
-    fram till 2030 och 2035 jämfört med 2021. Däremot antas ökningen i scenariot HNE2030
-    vara endast 13 procent och 22 procent på motsvarande sätt.
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: energy
-  unit: GWh/a
-  group: transportation
-  forecast_values: [[2024, 0], [2030, -6.886607633], [2035, -11.12452002]]
-  output_nodes:
-  - van_energy
-
-- id: change_truck_traffic_energy  # FIXME Use goals dataset
-  name: Muutos kuorma-autoliikenteen energiankulutuksessa
-  name_en: Change in energy consumption of lorry traffic
-  name_sv: Ändring i lastbilstrafikens energiförbrukning
-  description: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot) oletetaan,
-    että kuorma-autoliikenteen energiankulutus lisääntyy 44 % ja 47 % vuosiin 2030
-    ja 2035 mennessä vuoteen 2021 verrattuna. Sen sijaan HNE2030-skenaariossa oletetaan
-    kasvuksi jopa 45 % ja 49 % vastaavasti.
-  description_en: The baseline forecast (both the pessimistic and Finland 2035 scenarios)
-    assumes that the energy consumption of lorry traffic will increase by 44% and
-    47% by 2030 and 2035 respectively compared to 2021. By contrast, the Carbon-neutral
-    Espoo 2030 scenario assumes the growth to be as much as 45% and 49% respectively.
-  description_sv: I grundprognosen (både pessimistiska och scenariot Finland 2035)
-    antas att lastbilstrafikens energiförbrukning ökar med 44 procent och 47 procent
-    fram till 2030 och 2035 jämfört med 2021. Däremot antas ökningen i scenariot HNE2030
-    vara upp till 45 procent och 49 procent på motsvarande sätt.
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: energy
-  unit: GWh/a
-  group: transportation
-  forecast_values: [[2024, 0], [2030, 4.403433483], [2035, 4.743698797]]
-  output_nodes:
-  - truck_energy
 
 - id: replace_fossil_fuels_in_cars
   name: Fossiilisten polttoaineiden korvaaminen
@@ -2825,15 +2779,6 @@ scenarios:
   - id: road_transportation_emission_trade.enabled
     value: true
 
-  # - id: change_car_traffic_emission_factor.enabled
-  #   value: true
-  - id: change_van_traffic_emission_factor.enabled
-    value: true
-  - id: change_truck_traffic_emission_factor.enabled
-    value: true
-  - id: change_bus_traffic_emission_factor.enabled
-    value: true
-
   - id: biofuel_fraction_demand.category
     value: baseline
 
@@ -2906,12 +2851,6 @@ scenarios:
   params:
   - id: scenario_name
     value: pessimistic
-  - id: change_van_traffic_emission_factor.enabled
-    value: true
-  - id: change_truck_traffic_emission_factor.enabled
-    value: true
-  - id: change_bus_traffic_emission_factor.enabled
-    value: true
   - id: reduce_waste_treatment_emissions.enabled
     value: false
   - id: reduce_waste_treatment_emissions.filter_categories
