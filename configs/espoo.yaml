@@ -1,27 +1,3 @@
-# Liikenteen kokonaispäästöt historiassa oK, tulevaisuudessa eivät täsmää HNE2030 eikä myöskään kun lisätoimet otetaan pois. Ei ole ilmeistä kohtaa korjata joten jätetään.
-# Kulutussähkön päästöt tulevaisuudessa ovat lähellä mutta eivät identtiset, +3 kt isommat. Antaa olla nyt
-# Sähkölämmityksen pessimistinen skenaario perustuu energiankulutuksen 5 %/a kasvuun, tähän korjaustiedosto
-# Sähkölämmityksen päästökerroin noudattaa nyt kulutussähkön trendiä tulevaisuudessa.
-# Jätteiden käsittelyn päästöt ovat identtiset OK.
-# Teaollisuus ja työkoneet poikkeaa historiassa 2017- sekä tulevaisuudessa. Mutta erot eivät ole kovin isoja ja johtunevat perustason muutoksesta vuoden 2022 datan myötä.
-# Maatalous on riittävän lähellä
-# FIXME Kaukolämpö ei tästmää, pitäisi korjata muta mistä kohdasta? Päästökertoimesta varmaan
-# Öljylämmitys: ei täsmää 2022 alkaen mutta ei kovin kaukana
-# TODO
-# Teollisuus ja työkoneet 2022: excel 5, malli 12.1.
-# Poikkeamat 2025 ja 2030 ja 2035 HNE2030-skenaariossa excel vs malli:
-# Kulutussähkö         108, 90.5  |  32.1, 27.6  | 14.7, 13.9 
-# Rakennusten lämmitys 154, 159   |  37  , 40.9  | 19  , 19.4
-# Liikenne             260, 254   | 124  , 143   | 66.7, 96.9
-# Poikkeamat 2025 ja 2030 ja 2035 pessimistisessä skenaariossa excel vs malli:
-# Kulutussähkö         146, 94.7  | 155  , 72.3  | 164 , 28.4 
-# Rakennusten lämmitys 371, 349   | 396  , 367   | 425 , 381
-# Liikenne             254, 227   | 208  , 227   | 190 , 204
-# Kulutussähkön toimenpiteet:
-# Suuret toimijat        0,   0   | -46.6,-41.7  |-13.4,-13.4
-# Liikenteessä excel laskee raide- ja laivaliikenteen osaksi tieliikennettä ja jyvittää ne eri ajoneuvoluokille.
-# LIikenne sisältää laivaliikenteen 8 kt/a, joka ei vähene.
-
 id: espoo
 default_language: fi
 supported_languages: [sv, en]
@@ -370,7 +346,7 @@ dimensions:
   categories:
   - id: cars
     aliases: [passenger_cars]
-    label: Autot
+    label: Henkilöautot
     label_en: Cars
     label_sv: Bilar
   - id: electric_vehicles
@@ -378,37 +354,37 @@ dimensions:
     label_en: Electric vehicles
     label_sv: Elbilar
   - id: hybrid_vehicles
-    label: Hybridi
+    label: Hybridit
     label_en: Hybrid vehicles
     label_sv: Hybrider
   - id: buses
-    label: Bussi
+    label: Bussit
     label_en: Buses
     label_sv: Bussar
   - id: buses_hsl
-    label: Bussi, HSL
+    label: Bussit, HSL
     label_en: Buses, HSL
     label_sv: Bussar, HRT
   - id: buses_other
-    label: Bussi, muu
+    label: Bussit, muu
     label_en: Buses, other
     label_sv: Bussar, andra
   - id: local_trains
-    label: Paikallisjuna
+    label: Paikallisjunat
     label_en: Local Trains
     label_sv: Lokaltåg
   - id: motorcycles
-    label: Moottoripyörä
+    label: Moottoripyörät
     label_en: Motorcycles
     label_sv: Motorcyklar
   - id: trams
-    label: Ratikka
+    label: Ratikat
     label_en: Trams
   - id: trucks
-    label: Kuorma-auto
+    label: Kuorma-autot
     label_en: Trucks
   - id: vans
-    label: Pakettiauto
+    label: Pakettiautot
     label_en: Vans
   - id: undefined
     label: Ei määritelty
@@ -444,9 +420,10 @@ emission_sectors:
   color: '#014B30'
 
 - id: road_transport_emissions
-  name: Tieliikenteen päästöt
-  name_en: Road traffic emissions
-  name_sv: Vägtrafikens utsläpp
+  name: Tieliikenteen päästöt, tilasto
+  name_en: Road traffic emissions, statistics
+  name_sv: Vägtrafikens utsläpp, statistik
+  description: Tämä on HSY-yhteensopivuutta varten. Se ei ole osa mallia.
 
 nodes:
 
@@ -498,34 +475,6 @@ nodes:
     forecast_from: 2024
   params:
     sector: Henkilöautojen määrä
-
-# - id: passenger_cars_by_type
-#   name: Henkilöautojen määrä tyypeittäin
-#   name_en: Amount of passenger cars by type
-#   name_sv: Antal personbilar per typ
-#   type: simple.AdditiveNode
-#   quantity: number
-#   unit: vehicles
-#   input_dimensions: [energy_carrier, vehicle_type]
-#   output_dimensions: [energy_carrier, vehicle_type]
-#   input_nodes:
-#   - id: amount_of_electric_passenger_cars
-
-# - id: passenger_car_shares_by_type  # FIXME Reduces historical energy consumption and thus emission factor in a wrong way
-#   name: Henkilöautojen osuudet tyypeittäin
-#   name_en: Shares of passenger cars by type
-#   name_sv: Andel av personbilar per typ
-#   type: simple.MultiplicativeNode
-#   quantity: fraction
-#   unit: '%'
-#   input_dimensions: [energy_carrier, vehicle_type]
-#   output_dimensions: [energy_carrier, vehicle_type]
-#   input_nodes:
-#   - id: passenger_cars_by_type
-#   - id: amount_of_passenger_cars
-#     tags: [geometric_inverse]
-#     to_dimensions:
-#     - id: vehicle_type
 
 # ELECTRICITY
 
@@ -654,10 +603,6 @@ nodes:
     - id: energy_carrier
   - id: electricity_production_emission_factor
     tags: [non_additive]
-    # from_dimensions:
-    # - id: scenario
-    #   categories: [hne2030]  
-    #   flatten: true # FIXME
     to_dimensions:
     - id: energy_carrier
       categories: [electricity] # FIXME
@@ -710,21 +655,26 @@ nodes:
   output_dimensions: [vehicle_type]
   input_nodes:
   - id: car_fuel_by_energy_carrier
-    tags: [inventory_only]
+    tags: [forecast_only]
     from_dimensions:
     - id: energy_carrier
       flatten: true
-  - id: van_energy
+  - id: car_energy_hsy
+    tags: [inventory_only]
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cars]
+  - id: van_energy_hsy
     tags: [inventory_only]
     to_dimensions:
     - id: vehicle_type
       categories: [vans]
-  - id: truck_energy
+  - id: truck_energy_hsy
     tags: [inventory_only]
     to_dimensions:
     - id: vehicle_type
       categories: [trucks]
-  - id: bus_energy
+  - id: bus_energy_hsy
     tags: [inventory_only]
     to_dimensions:
     - id: vehicle_type
@@ -736,6 +686,10 @@ nodes:
       categories: [motorcycles]
   - id: road_transport_energy_forecast
     tags: [forecast_only]
+    from_dimensions:
+    - id: vehicle_type
+      categories: [cars]
+      exclude: true
 
 - id: traffic_emission_factors
   name: Liikenteen päästökertoimet
@@ -748,25 +702,32 @@ nodes:
   output_dimensions: [vehicle_type]
   input_nodes:
   - id: car_traffic_emission_factor
+    tags: [inventory_only]
     to_dimensions:
     - id: vehicle_type
       categories: [cars]
   - id: van_traffic_emission_factor
+    tags: [inventory_only]
     to_dimensions:
     - id: vehicle_type
       categories: [vans]
   - id: truck_traffic_emission_factor
+    tags: [inventory_only]
     to_dimensions:
     - id: vehicle_type
       categories: [trucks]
-  - id: bus_traffic_emission_factor
+  - id: bus_traffic_emission_factor # TODO Update the deviation of other buses from other scenarios
+    tags: [inventory_only]
     to_dimensions:
     - id: vehicle_type
       categories: [buses]
   - id: motorcycle_traffic_emission_factor
+    tags: [inventory_only]
     to_dimensions:
     - id: vehicle_type
       categories: [motorcycles]
+  - id: road_traffic_emission_factor_forecast
+    tags: [forecast_only]
 
 - id: road_traffic_emissions
   name: Tieliikenteen päästöt
@@ -984,8 +945,11 @@ nodes:
   input_dimensions: [energy_carrier, vehicle_type]
   output_dimensions: [energy_carrier, vehicle_type]
   input_nodes:
-  - id: car_energy
+  - id: road_transport_energy_forecast
     tags: [non_additive]
+    from_dimensions:
+    - id: vehicle_type
+      categories: [cars]
     to_dimensions:
     - id: vehicle_type
   - id: total_car_amount
@@ -997,20 +961,6 @@ nodes:
     tags: [complement]
 
 
-- id: road_traffic_energy_forecast
-  name: Tieliikenteen energiankulutusennuste
-  name_en: Energy consumption forcast for roads
-  name_sv: Bilarnas energiförbrukningprognos
-  type: gpc.DatasetNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
-  input_datasets:
-  - id: gpc/espoo
-  params:
-    sector: traffic_energy_forecast
-
 - id: van_energy
   name: Pakettiautojen energiankulutus
   name_en: Energy consumption of vans
@@ -1020,11 +970,6 @@ nodes:
   unit: GWh/a
   input_nodes:
   - van_energy_hsy
-  input_datasets:
-  - id: espoo/traffic_energy_forecast
-    filters:
-    - column: vehicle
-      value: vans
 - id: truck_energy
   name: Kuorma-autojen energiankulutus
   name_en: Energy consumption of lorries
@@ -1034,11 +979,6 @@ nodes:
   unit: GWh/a
   input_nodes:
   - truck_energy_hsy
-  input_datasets:
-  - id: espoo/traffic_energy_forecast
-    filters:
-    - column: vehicle
-      value: trucks
 - id: bus_energy
   name: Linja-autojen energiankulutus
   name_en: Energy consumption of buses
@@ -1048,11 +988,6 @@ nodes:
   unit: GWh/a
   input_nodes:
   - bus_energy_hsy
-  input_datasets:
-  - id: espoo/traffic_energy_forecast
-    filters:
-    - column: vehicle
-      value: buses
 
 - id: fraction_of_electricity_in_car_energy
   name: Sähkön osuus henkilöautojen energiankulutuksessa
@@ -1066,24 +1001,6 @@ nodes:
   input_datasets: [gpc/espoo]
   params:
     sector: Sähkön osuus energiasta
-
-# - id: car_energy_by_type
-#   name: Henkilöautojen polttoaineenkulutus tyypin mukaan # TODO Electricity emissions should be calculated separately
-#   name_en: Fuel consumption of cars by type
-#   name_sv: Bränslefförbrukning av personbilar efter typ
-#   type: simple.MultiplicativeNode
-#   quantity: energy
-#   unit: GWh/a
-#   input_dimensions: [energy_carrier, vehicle_type]
-#   output_dimensions: [energy_carrier, vehicle_type]
-#   input_nodes:
-#   - id: car_energy
-#     tags: [non_additive]
-#     to_dimensions:
-#     - vehicle_type
-#   - id: passenger_car_shares_by_type
-#   - id: fraction_of_electricity_in_car_energy
-#     tags: [complement]
 
 - id: car_traffic_emission_factor
   name: Henkilöautoliikenteen päästökerroin
@@ -1137,7 +1054,9 @@ nodes:
   description: HSY teki uudelleenlaskentaa pääkaupunkiseudun päästöihin kesällä 2023.
     Tämä vaikutti erityisesti liikenteen päästökertoimiin, koska alentunut sekoitevelvoite
     huomioitiin tarkemmin. Suurentuminen aiempaan päästökertoimeen on kuvattu tässä.
-    Laskennan pohjana on edelleen yksityiskohtainen HSY-data, joka on saatu 26.6.2023.
+    Laskennan pohjana on nyt yksityiskohtainen HSY-data, joka on saatu syksyllä 2024.
+    Tämä solmu korjaa virhettä 26.6.2023 saadussa datassa ja on on olemassa vain
+    historiallisista dokumentointityistä. Sitä ei käytetä mallissa.
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/kWh
@@ -1146,36 +1065,9 @@ nodes:
     column: emission_factor
     forecast_from: 2024
   output_dimensions: [vehicle]
-  # output_nodes:
-  # - id: car_traffic_emission_factor
-  #   from_dimensions:
-  #   - id: vehicle
-  #     categories: [passenger_cars]
-  #     flatten: true
-  # - id: truck_traffic_emission_factor
-  #   from_dimensions:
-  #   - id: vehicle
-  #     categories: [trucks]
-  #     flatten: true
-  # - id: van_traffic_emission_factor
-  #   from_dimensions:
-  #   - id: vehicle
-  #     categories: [vans]
-  #     flatten: true
-  # - id: bus_traffic_emission_factor
-  #   from_dimensions:
-  #   - id: vehicle
-  #     categories: [buses]
-  #     flatten: true
-# Sectors  HSY updated  2022  Difference kt/a  Energiankulutus GWh/a  Lisäys päästökertoimeen  t/GWh = g/kWh
-# Henkilöautojen päästöt  172.42  171.997034311959  0.4249  774.035488065814  0.5489
-# Pakettiautojen päästöt  26.44  26.3409471013722  0.0987  127.015500854571  0.7769
-# Kuorma-autojen päästöt  82.22  71.2923419123624  10.9233  354.818804216936  30.7857
-# Linja-autojen päästöt   4.85  3.85473468256427  0.9925  73.053958703957  13.5853
-# https://www.avoindata.fi/data/fi/dataset/liikenteen-paastot-paakaupunkiseudulla
 
-- id: transport_emission_factor_baseline
-  name: Liikenteen päästökertoimen perustaso
+- id: road_traffic_emission_factor_forecast
+  name: Tieliikenteen päästökerroinennuste
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/kWh
@@ -1249,17 +1141,6 @@ nodes:
     forecast_from: 2024
   params:
     sector: Tieliikenteen suorite-ennuste
-
-- id: transport_emissions2
-  name: Liikenteen päästöt2
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
-  input_nodes:
-  - id: transport_emission_factor_baseline
-  - id: road_transport_energy_forecast
 
 #
 # OTHER SECTORS
@@ -1391,6 +1272,28 @@ nodes:
   name: Kulutussähkön kulutus yhteensä
   name_en: consumer electricity, total
   name_sv: Förbrukning elförbrukning, total
+  description: Pessimistisessä skenaariossa asukaskohtaisen sähkönkulutuksen on oletettu
+    kehittyvän vuosina 2017-2021 toteutuneen trendin mukaisesti. Suomi 2035 -skenaariossa
+    asukaskohtaisen sähkönkulutuksen oletetaan pysyvän vuoden 2021 tasolla. HNE2030-skenaariossa
+    kokonaissähkönkulutuksen (sisältäen kulutussähkön ja sähkölämmityksen) oletetaan
+    kasvavan 3,4 % vuodessa vuosina 2021-2035 Carunan arvion perusteella. Kaikki kulutussähkön
+    muutos kohdennetaan asumisen sähkönkulutukseen, koska tietoa jaottelusta asumisen,
+    teollisuuden ja palveluiden välillä ei ole käytettävissä.
+  description_en: In the pessimistic scenario, electricity consumption per capita
+    is expected to develop according to the trend realised in 2017–2021. In the Finland
+    2035 scenario, electricity consumption per capita is expected to remain at the
+    2021 level. In the Carbon-neutral Espoo 2030 scenario, total electricity consumption
+    (including household electricity and electric heating) is expected to grow by
+    3.4% per year in 2021–2035 based on Caruna’s estimate. All changes in household
+    electricity are focused on the electricity consumption of housing, because information
+    on the division between housing, industry and services is not available.
+  description_sv: I det pessimistiska scenariot har elförbrukningen per invånare antagits
+    utvecklas enligt den realiserade trenden 2017–2021. I scenariot Finland 2035 antas
+    elförbrukningen per invånare hållas på samma nivå som 2021. I scenariot HNE2030
+    antas den totala elförbrukningen (inklusive konsumtionsel och eluppvärmning) öka
+    med 3,4 procent per år under 2021–2035, enligt Carunas bedömning. Alla förändringar
+    i konsumtionselen riktas till elförbrukningen i boendet, eftersom informationen
+    om indelningen mellan boende, industri och service inte är tillgänglig.
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
@@ -1915,32 +1818,10 @@ actions:
   name: Muutos kulutussähkön käytössä
   name_en: Change in household energy consumption
   name_sv: Förändring i användningen av konsumtionsel
-  description: Pessimistisessä skenaariossa asukaskohtaisen sähkönkulutuksen on oletettu
-    kehittyvän vuosina 2017-2021 toteutuneen trendin mukaisesti. Suomi 2035 -skenaariossa
-    asukaskohtaisen sähkönkulutuksen oletetaan pysyvän vuoden 2021 tasolla. HNE2030-skenaariossa
-    kokonaissähkönkulutuksen (sisältäen kulutussähkön ja sähkölämmityksen) oletetaan
-    kasvavan 3,4 % vuodessa vuosina 2021-2035 Carunan arvion perusteella. Kaikki kulutussähkön
-    muutos kohdennetaan asumisen sähkönkulutukseen, koska tietoa jaottelusta asumisen,
-    teollisuuden ja palveluiden välillä ei ole käytettävissä.
-  description_en: In the pessimistic scenario, electricity consumption per capita
-    is expected to develop according to the trend realised in 2017–2021. In the Finland
-    2035 scenario, electricity consumption per capita is expected to remain at the
-    2021 level. In the Carbon-neutral Espoo 2030 scenario, total electricity consumption
-    (including household electricity and electric heating) is expected to grow by
-    3.4% per year in 2021–2035 based on Caruna’s estimate. All changes in household
-    electricity are focused on the electricity consumption of housing, because information
-    on the division between housing, industry and services is not available.
-  description_sv: I det pessimistiska scenariot har elförbrukningen per invånare antagits
-    utvecklas enligt den realiserade trenden 2017–2021. I scenariot Finland 2035 antas
-    elförbrukningen per invånare hållas på samma nivå som 2021. I scenariot HNE2030
-    antas den totala elförbrukningen (inklusive konsumtionsel och eluppvärmning) öka
-    med 3,4 procent per år under 2021–2035, enligt Carunas bedömning. Alla förändringar
-    i konsumtionselen riktas till elförbrukningen i boendet, eftersom informationen
-    om indelningen mellan boende, industri och service inte är tillgänglig.
   type: linear.DatasetReduceAction
   quantity: energy
   unit: GWh/a
-  group: electricity
+  # group: electricity
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_nodes:
@@ -2088,33 +1969,6 @@ actions:
     min_value: -70
     max_value: 0
     is_visible: false
-
-#- id: electric_heating_efficiency_improvements_old  # FIXME Double check this before adding.
-#  name: Ominaislämmönkulutuksen tehostuminen vanhassa sähkölämmitteisessä rakennuskannassa
-#  description: Energiankulutuksen oletetaan lisääntyvän pessimistisessä skenaariossa.
-#  type: simple.TrajectoryAction
-#  quantity: consumption_factor
-#  unit: kWh/m**2/a
-#  group: buildings
-#  input_datasets:
-#  - id: espoo/building_energy_use_intensity_trajectories
-#    column: energy_use_intensity
-#    forecast_from: 2024
-#  params:
-#  - id: baseline_year
-#    value: 2022
-#  - id: baseline_year_level
-#    value: 109.5867954
-#    unit: kWh/a/m**2
-#  - id: scenario
-#    ref: scenario_name
-#  output_nodes:
-#  - id: building_heat_per_floor_area
-#    to_dimensions:
-#    - id: building_heat_source
-#      categories: [direct_electric]
-#    - id: building_use
-#      categories: [residence]  # FIXME Should apply to all building uses
 
 - id: heating_oil_bioshare
   name: Lämmitysöljyn sekoitusvelvoite
@@ -2528,7 +2382,10 @@ actions:
   group: transportation
   forecast_values: [[2024, 0], [2035, 0]]
   output_nodes:
-  - car_traffic_emission_factor
+  - id: road_traffic_emission_factor_forecast
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cars]
   params:
   - id: target_year_level
     is_visible: false
@@ -2558,7 +2415,10 @@ actions:
   group: transportation
   forecast_values: [[2024, 0], [2035, 0]]
   output_nodes:
-  - car_traffic_emission_factor
+  - id: road_traffic_emission_factor_forecast
+    to_dimensions:
+    - id: vehicle_type
+      categories: [cars]
   params:
   - id: target_year_level
     is_visible: false
@@ -2588,7 +2448,10 @@ actions:
   group: transportation
   forecast_values: [[2024, 0], [2035, 0]]
   output_nodes:
-  - van_traffic_emission_factor
+  - id: road_traffic_emission_factor_forecast
+    to_dimensions:
+    - id: vehicle_type
+      categories: [vans]
   params:
   - id: target_year_level
     is_visible: false
@@ -2615,7 +2478,7 @@ actions:
   group: transportation
   forecast_values: [[2024, 0], [2035, 0]]
   output_nodes:
-  - id: car_energy
+  - id: road_transport_energy_forecast
     to_dimensions:
     - id: vehicle_type
       categories: [cars]
@@ -2645,7 +2508,7 @@ actions:
   group: transportation
   forecast_values: [[2024, 0], [2035, 0]]
   output_nodes:
-  - id: car_energy
+  - id: road_transport_energy_forecast
     to_dimensions:
     - id: vehicle_type
       categories: [cars]
@@ -2675,7 +2538,7 @@ actions:
   group: transportation
   forecast_values: [[2024, 0], [2035, 0]]
   output_nodes:
-  - id: car_energy
+  - id: road_transport_energy_forecast
     to_dimensions:
     - id: vehicle_type
       categories: [cars]
@@ -2705,7 +2568,7 @@ actions:
   group: transportation
   forecast_values: [[2024, 0], [2035, 0]]
   output_nodes:
-  - id: car_energy
+  - id: road_transport_energy_forecast
     to_dimensions:
     - id: vehicle_type
       categories: [cars]
@@ -2735,7 +2598,7 @@ actions:
   group: transportation
   forecast_values: [[2024, 0], [2035, 0]]
   output_nodes:
-  - id: car_energy
+  - id: road_transport_energy_forecast
     to_dimensions:
     - id: vehicle_type
       categories: [cars]
@@ -2864,6 +2727,56 @@ scenarios:
 
   - id: biofuel_fraction_demand.category
     value: default
+
+- id: default_old
+  name: HNE2030 ennen 2024 lisätoimenpiteitä
+  all_actions_enabled: true
+  is_selectable: false
+  params:
+  - id: scenario_name
+    value: default
+  - id: reduce_machinery_emissions.filter_categories
+    value: scenario:default
+  - id: reduce_machinery_emissions.enabled
+    value: true
+  - id: replace_fossil_fuels_in_cars.enabled
+    value: true
+  - id: upgrade_car_fleet.enabled
+    value: true
+  - id: emission_limits_for_cars_and_vans.enabled
+    value: true
+  - id: improve_personal_traffic_efficiency.enabled
+    value: true
+  - id: increase_remote_work.enabled
+    value: true
+  - id: improve_transport_services.enabled
+    value: true
+  - id: trip_aggregation.enabled
+    value: true
+  - id: road_transportation_emission_trade.enabled
+    value: true
+  - id: replace_fossil_fuels_in_district_heating.enabled
+    value: true
+  - id: biofuel_fraction_demand.category
+    value: default
+  - id: reduce_waste_treatment_emissions.enabled
+    value: true
+  - id: reduce_waste_treatment_emissions.filter_categories
+    value: scenario:default
+  - id: change_consumer_electricity.enabled
+    value: true
+  - id: cleaner_electricity_production.enabled
+    value: true
+  - id: use_certified_electricity.enabled
+    value: false
+  - id: increase_solar_electricity_production.enabled
+    value: false
+  - id: biofuel_fraction_demand.enabled
+    value: false
+  - id: increase_electric_passenger_cars.enabled
+    value: false
+  - id: environmental_zone_for_trucks.enabled
+    value: false
 
 #######################
 # DATA SOURCES
