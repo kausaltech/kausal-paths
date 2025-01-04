@@ -13,7 +13,7 @@ SCENARIO_COLUMN = 'ScenarioName'
 # Impact constants
 IMPACT_COLUMN = 'Impact'
 # Probability iterations for Monte Carlo
-UNCERTAINTY_COLUMN = 'Iteration'
+UNCERTAINTY_COLUMN = 'iteration'
 
 # Action as it is in the active scenario
 SCENARIO_ACTION_GROUP = 'Scenario'

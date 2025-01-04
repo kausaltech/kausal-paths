@@ -1087,6 +1087,7 @@ class InstanceLoader:
         )
 
         model_end_year = self.config.get('model_end_year', target_year)
+        sample_size = self.config.get('sample_size', 0)
         with start_span(name='create-context', op='function'):
             self.context = Context(
                 instance=self.instance,
@@ -1094,6 +1095,7 @@ class InstanceLoader:
                 target_year=target_year,
                 model_end_year=model_end_year,
                 dataset_repo_default_path=dataset_repo_default_path,
+                sample_size=sample_size,
             )
         self.instance.set_context(self.context)
 

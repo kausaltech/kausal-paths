@@ -18,6 +18,7 @@ target_year: 2035
 reference_year: 2010
 minimum_historical_year: 2010
 maximum_historical_year: 2023
+sample_size: 10
 
 action_groups:
 - id: forestry
@@ -51,6 +52,9 @@ action_groups:
   name: Joukkoliikenne
   name_en: Public transit
   color: '#93c572'
+- id: draft
+  name: Luonnostoimenpiteet
+  name_en: Draft actions
 
 action_efficiency_pairs:
 - graph_type: cost_effectiveness
@@ -154,6 +158,13 @@ params:
   unit: vkm/a/pcs
 
 dimensions:
+- id: iteration
+  label: Iteration
+  categories:
+  - id: '0'
+    label: '0'
+  - id: median
+    label: Median
 - id: building_heat_source
   label: Lämmitystapa
   label_en: Heating method
@@ -375,6 +386,52 @@ emission_sectors:
   input_dataset_processors: [LinearInterpolation]
 
 nodes:
+# - id: uncertain_node
+#   name: Uncertain node
+#   description: An uncertain node that has a non-linear effect on the effects of the test action. This node may get values 0 or -80 EUR/a.
+#   type: simple.AdditiveNode
+#   quantity: currency
+#   unit: EUR/a
+#   output_dimensions: [iteration]
+#   historical_values: [[2010, '0 - 80']]
+#   input_dataset_processors: [LinearInterpolation]
+
+# - id: tech1
+#   name: Technical node 1
+#   description: This is just a technical node that allows a certain action affect an uncertain node.
+#   type: simple.AdditiveNode
+#   quantity: currency
+#   unit: dimensionless
+#   output_dimensions: [iteration]
+#   historical_values: [[2010, '[1]']]
+#   input_dataset_processors: [LinearInterpolation]
+
+# - id: tech2
+#   name: Technical node 2
+#   description: This is just a technical node that allows a certain action affect an uncertain node.
+#   type: simple.MultiplicativeNode
+#   quantity: currency
+#   unit: EUR/a
+#   input_dimensions: [iteration]
+#   output_dimensions: [iteration]
+#   input_nodes:
+#   - id: tech1
+#     tags: [non_additive]
+#   - id: uncertain_node
+
+# - id: uncertain_outcome
+#   name: Uncertain outcome
+#   description: This node takes the absolute value of the technical node 2. This is the reason for non-linearity in the outcome.
+#   type: simple.AdditiveNode
+#   quantity: currency
+#   unit: EUR/a
+#   input_dimensions: [iteration]
+#   output_dimensions: [iteration]
+#   is_outcome: true
+#   input_nodes:
+#   - id: tech2
+#     tags: [absolute]
+    
 - id: population
   type: finland.population.Population
   name: Väestö
@@ -1509,6 +1566,21 @@ pages:
 actions:
 
 # ------------ Finnish environmental policy --------------
+
+- id: test_action
+  name: Test action for value of information
+  description: This action may improve or worsen situation, depending on uncertain circumstances.
+  type: simple.AdditiveAction
+  quantity: currency
+  unit: EUR/a
+  group: draft
+  historical_values: [[2010, 0], [2023, 0]]
+  input_dataset_processors: [LinearInterpolation]
+  forecast_values: [[2024, 100], [2035, 100]]
+  # output_nodes: 
+  # - id: tech2
+  #   tags: [non_additive]
+  #   to_dimensions: []
 
 - id: forest_grazing_support
   name: Metsälaidunnuksen tuki

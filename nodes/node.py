@@ -23,6 +23,7 @@ from nodes.constants import (
     DEFAULT_METRIC,
     FORECAST_COLUMN,
     NODE_COLUMN,
+    UNCERTAINTY_COLUMN,
     VALUE_COLUMN,
     YEAR_COLUMN,
     ensure_known_quantity,
@@ -383,9 +384,9 @@ class Node:
         dims = class_dims.copy()
 
         for dim_id, dim in dims.items():
-            if not dim.is_internal:
+            if not dim.is_internal and dim_id is not UNCERTAINTY_COLUMN:
                 raise NodeError(self, 'Dimensions defined in class can only be internal ones')
-            if dim_id in self.context.dimensions:
+            if dim_id in self.context.dimensions and dim_id is not UNCERTAINTY_COLUMN:
                 raise NodeError(self, 'Internal dimension is also a global one')
 
         if arg_dims and class_dim_ids:
@@ -983,8 +984,8 @@ class Node:
             if dt not in (pl.Utf8, pl.Categorical):
                 raise NodeError(self, "Dimension column '%s' is of wrong type (%s)" % (dim_id, dt))
 
-            if dim.is_internal:
-                # Skip validation for internal dimensions
+            if dim.is_internal or dim_id == UNCERTAINTY_COLUMN:
+                # Skip validation for internal dimensions and uncertainty column
                 continue
 
             cats = set(df[dim_id].cast(pl.Utf8).unique())
@@ -1030,6 +1031,8 @@ class Node:
                     df = df.multiply_quantity(VALUE_COLUMN, unit_registry('-1 * dimensionless'))
                 case 'geometric_inverse':
                     df = df.divide_quantity(VALUE_COLUMN, unit_registry('1 * dimensionless'))
+                case 'absolute':
+                    df = df.with_columns(pl.col(VALUE_COLUMN).abs().alias(VALUE_COLUMN))
                 case 'complement':
                     if not df.get_unit(VALUE_COLUMN).is_compatible_with('dimensionless'):
                         raise NodeError(

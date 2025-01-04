@@ -88,7 +88,7 @@ if 'Scope' in df.columns:
 if 'Value' in df.columns and 'Year' in df.columns:  # If dataset is already in long format
     dfmain = df
     dims = [d for d in dims if d not in ['Year', 'Value']]
-else:
+else:  # TODO update this for probabilistic data, see branch feature/probability
     dfmain = df.head(1).select(context).with_columns([(pl.lit(0.0).alias('Value').cast(pl.Float64)),
                                                     (pl.lit(0).alias('Year').cast(pl.Int64))]).clear()
 
