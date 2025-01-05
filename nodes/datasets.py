@@ -61,6 +61,10 @@ class Dataset(ABC):
         self.hash = h
         return h
 
+    def get_cache_key(self, context: Context) -> str:
+        ds_hash = self.calculate_hash(context).hex()
+        return 'ds:%s:%s' % (self.id, ds_hash)
+
     def _linear_interpolate(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         years = df[YEAR_COLUMN].unique().sort()
         min_year = years.min()
@@ -177,17 +181,20 @@ class Dataset(ABC):
         return [value] * size
 
     def get_sample(self, dist_string: str, size: int) -> list:
+        pos = r'(\d*.?\d+)'
+        real = r'(\-?\d*.?\d+)'
+        real2 = r'\-?\d*.?\d+'
         expressions = {
-            'Loguniform': r'([-+]?\d*\.?\d+)-([-+]?\d*\.?\d+)\(log\)',  # low - high (log)
-            'Uniform': r'([-+]?\d*\.?\d+)-([-+]?\d*\.?\d+)',  # low - high
-            'Lognormal_plusminus': r'([-+]?\d*\.?\d+)(?:\+-|±)([-+]?\d*\.?\d+)\(log\)',  # mean +- sd (log)
-            'Normal_plusminus': r'([-+]?\d*\.?\d+)(?:\+-|±)([-+]?\d*\.?\d+)',  # mean + sd
-            'Normal_interval': r'([-+]?\d*\.?\d+)\(([-+]?\d*\.?\d+),([-+]?\d*\.?\d+)\)',  # mean (lower - upper) for 95 % CI
-            'Beta': r'(?i)beta\(([-+]?\d*\.?\d+),([-+]?\d*\.?\d+)\)',  # Beta(a, b)
-            'Poisson': r'(?i)poisson\(([-+]?\d*\.?\d+)\)',  # Poisson(lambda)
-            'Exponential': r'(?i)exponential\(([-+]?\d*\.?\d+)\)',  # Exponential(mean)
-            'Problist': r'\[(\-?\d+(\.\d+)?(,\-?\d+(\.\d+)?)*)\]',  # [x1, x2, ... , xn]
-            'Scalar': r'([-+]?\d*\.?\d+)',  # value
+            'Loguniform': r'%s-%s\(log\)' % (pos, pos),  # low - high (log)
+            'Uniform': r'%s-%s' % (real, real),  # low - high
+            'Lognormal_plusminus': r'%s(?:\+-|±)%s\(log\)' % (pos, pos),  # mean +- sd (log)
+            'Normal_plusminus': r'%s(?:\+-|±)%s' % (real, pos),  # mean +- sd
+            'Normal_interval': r'%s\(%s,%s\)' % (real, real, real),  # mean (lower - upper) for 95 % CI
+            'Beta': r'(?i)beta\(%s,%s\)' % (pos, pos),  # Beta(a, b)
+            'Poisson': r'(?i)poisson\(%s\)' % pos,  # Poisson(lambda)
+            'Exponential': r'(?i)exponential\(%s\)' % pos,  # Exponential(mean)
+            'Problist': r'\[(%s(,%s)*)\]' % (real2, real2),  # [x1, x2, ... , xn]
+            'Scalar': real,  # value
         }
         functions = {
             'Loguniform': self.loguniform,
@@ -359,10 +366,6 @@ class DVCDataset(Dataset):
         df = self._process_output(df)
         return df
 
-    def get_cache_key(self, context: Context) -> str:
-        ds_hash = self.calculate_hash(context).hex()
-        return 'ds:%s:%s' % (self.id, ds_hash)
-
     def load(self, context: Context) -> ppl.PathsDataFrame:
         obj = None
         cache_key: str | None
@@ -452,54 +455,6 @@ class FixedDataset(Dataset):
         import pandas as pd
 
         self.pd = pd
-        from pint_pandas import PintType
-
-        self.PintType = PintType
-
-        if self.use_interpolation:
-            self.interpolate = True
-
-        if self.historical:
-            hdf = self.pd.DataFrame(self.historical, columns=[YEAR_COLUMN, VALUE_COLUMN])
-            hdf[FORECAST_COLUMN] = False
-        else:
-            hdf = None
-
-        if self.forecast:
-            if isinstance(self.forecast[0], dict):
-                fdf = self._fixed_multi_values_to_df(self.forecast)
-            else:
-                fdf = self.pd.DataFrame(self.forecast, columns=[YEAR_COLUMN, VALUE_COLUMN])
-            fdf[FORECAST_COLUMN] = True
-        else:
-            fdf = None
-
-        df: PandasDataFrame | None
-        if hdf is not None and fdf is not None:
-            df = self.pd.concat([hdf, fdf])
-        elif hdf is not None:
-            df = hdf
-        else:
-            assert fdf is not None
-            df = fdf
-
-        assert df is not None, 'Both historical and forecast data are None'
-        df = df.set_index(YEAR_COLUMN)
-
-        # Ensure value column has right units
-        pt = self.PintType(self.unit)
-        for col in df.columns:
-            if col == FORECAST_COLUMN:
-                continue
-            df[col] = df[col].astype(float).astype(pt)
-
-        self.df = self.post_process(None, ppl.from_pandas(df))
-
-    def __post_init2__(self):
-        super().__post_init__()
-        import pandas as pd
-
-        self.pd = pd
 
         if self.use_interpolation:
             self.interpolate = True
@@ -528,20 +483,42 @@ class FixedDataset(Dataset):
         # Ensure value column has right units
         pdf = ppl.to_ppdf(df)
         pdf = pdf.set_unit(VALUE_COLUMN, self.unit)
+        pdf = pdf.add_to_index(YEAR_COLUMN)
 
         self.df = pdf
 
     def load(self, context: Context) -> ppl.PathsDataFrame:
+        # FIXME Cache does not work properly now but does not cause error.
+        obj = None
+        cache_key: str | None
+        if not context.skip_cache:
+            cache_key = self.get_cache_key(context)
+            res = context.cache.get(cache_key)
+            if res.is_hit:
+                obj = res.obj
+        else:
+            cache_key = None
+
+        if obj is not None:
+            self.df = obj
+            return obj
+
         df = self.df
         assert df is not None
-        df = self.interpret(df, context) # TODO Should this instead be in hash_data before hashing?
+        df = self.interpret(df, context)
         self.df = df
+        if cache_key:
+            context.cache.set(cache_key, df, expiry=0)
+            print(cache_key, 'onnistui')
         return self.df
 
     def hash_data(self, context: Context) -> dict[str, Any]:
         assert self.df is not None
         df = self.df.to_pandas()
-        return dict(hash=int(self.pd.util.hash_pandas_object(df).sum()))
+        return dict(
+            hash=int(self.pd.util.hash_pandas_object(df).sum()),
+            sample_size=context.sample_size
+        )
 
     def get_unit(self, context: Context) -> Unit:
         assert self.unit is not None

@@ -237,7 +237,8 @@ class ActionNode(Node):
         if not scenario.has_parameter(self.enabled_param):
             scenario.add_parameter(self.enabled_param, scenario.all_actions_enabled)
 
-    def compute_indicator(self, cost_node: Node, impact_node: Node, match_dims_i, match_dims_c) -> ppl.PathsDataFrame:
+    def compute_indicator(self, cost_node: Node, impact_node: Node,
+                          match_dims_i: list, match_dims_c: list) -> ppl.PathsDataFrame:
         pc = PerfCounter('Impact %s [%s / %s]' % (self.id, cost_node.id, impact_node.id), level=PerfCounter.Level.DEBUG)
 
         pc.display('starting')
@@ -261,7 +262,7 @@ class ActionNode(Node):
             )
         pc.display('impact of %s on %s computed' % (self.id, impact_node.id))
 
-        if not set(impact_df.dim_ids) == match_dims_i:
+        if not set(impact_df.dim_ids) == set(match_dims_i):
             raise NodeError(
                 self,
                 'Impact node %s dimensions %s do not match with expected for this impact overview: %s.'
@@ -280,8 +281,8 @@ class ActionNode(Node):
 
         return df
 
-    def compute_indicator2(self, cost_node: Node, impact_node: Node, match_dims_i, match_dims_c,
-                          graph_type) -> ppl.PathsDataFrame:
+    def compute_indicator2(self, cost_node: Node, impact_node: Node, match_dims_i: list,
+                           match_dims_c: list, graph_type: str) -> ppl.PathsDataFrame:
         pc = PerfCounter('Impact %s [%s / %s]' % (self.id, cost_node.id, impact_node.id), level=PerfCounter.Level.DEBUG)
 
         pc.display('starting')
@@ -523,8 +524,8 @@ class ActionEfficiencyPair:
             if self.graph_type == 'value_of_information':
                 match_dims_i.extend([self.outcome_dimension])
                 match_dims_c.extend([UNCERTAINTY_COLUMN])
-            match_dims_i = set(match_dims_i) - {None}
-            match_dims_c = set(match_dims_c) - {None}
+            match_dims_i = list(set(match_dims_i) - {None})
+            match_dims_c = list(set(match_dims_c) - {None})
 
             with context.perf_context.exec_node(action):
                 df = action.compute_indicator(self.cost_node, self.impact_node, match_dims_i, match_dims_c)

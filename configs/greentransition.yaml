@@ -56,28 +56,28 @@ action_groups:
   name: Luonnostoimenpiteet
   name_en: Draft actions
 
-action_efficiency_pairs:
-- graph_type: cost_effectiveness
-  cost_node: action_costs
-  impact_node: value_profile
-  invert_cost: false
-  invert_impact: false
-  indicator_unit: kEUR/Ut
-  cost_unit: MEUR
-  impact_unit: Ut
-#  plot_limit_efficiency: 10
-  label: Kokonaishyödyn marginaalikustannus
-  label_en: Marginal cost in total utility
-- graph_type: cost_benefit
-  cost_node: action_costs
-  impact_node: euro_utilities
-  invert_cost: false
-  invert_impact: false
-  indicator_unit: MEUR
-  cost_unit: MEUR
-  impact_unit: MEUR
-  label: Kustannus-hyötyarvio kokonaisvaikutuksista
-  label_en: Cost-benefit analysis of total impacts
+# action_efficiency_pairs:  # FIXME Find the causes of nans.
+# - graph_type: cost_effectiveness
+#   cost_node: action_costs
+#   impact_node: value_profile
+#   invert_cost: false
+#   invert_impact: false
+#   indicator_unit: kEUR/Ut
+#   cost_unit: MEUR
+#   impact_unit: Ut
+# #  plot_limit_efficiency: 10
+#   label: Kokonaishyödyn marginaalikustannus
+#   label_en: Marginal cost in total utility
+# - graph_type: cost_benefit
+#   cost_node: action_costs
+#   impact_node: euro_utilities
+#   invert_cost: false
+#   invert_impact: false
+#   indicator_unit: MEUR
+#   cost_unit: MEUR
+#   impact_unit: MEUR
+#   label: Kustannus-hyötyarvio kokonaisvaikutuksista
+#   label_en: Cost-benefit analysis of total impacts
 
 params:
 - id: municipality_name
@@ -386,51 +386,62 @@ emission_sectors:
   input_dataset_processors: [LinearInterpolation]
 
 nodes:
-# - id: uncertain_node
-#   name: Uncertain node
-#   description: An uncertain node that has a non-linear effect on the effects of the test action. This node may get values 0 or -80 EUR/a.
-#   type: simple.AdditiveNode
-#   quantity: currency
-#   unit: EUR/a
-#   output_dimensions: [iteration]
-#   historical_values: [[2010, '0 - 80']]
-#   input_dataset_processors: [LinearInterpolation]
+- id: uncertain_node
+  name: Uncertain node
+  description: An uncertain node that has a non-linear effect on the effects of the test action. This node may get values 0 or -80 EUR/a.
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  output_dimensions: [iteration]
+  historical_values: [
+    [2010, '0 - 80'], # uniform
+    [2011, '[1, 2]'], # problist
+    [2012, '1-2'], # uniform
+    [2013, '1-100 (log)'], # loguniform
+    [2014, '0+-2'], # normal +- sd
+    [2015, '3 (2.7-3.3)'], # normal (95 % CI))
+    [2016, '3+-10(log)'], # lognormal (mean +- df)
+    [2017, 'Beta(1,4)'], 
+    [2018, 'Poisson(4)'], 
+    [2019, 'Exponential(6)']]
+  input_dataset_processors: [LinearInterpolation]
 
-# - id: tech1
-#   name: Technical node 1
-#   description: This is just a technical node that allows a certain action affect an uncertain node.
-#   type: simple.AdditiveNode
-#   quantity: currency
-#   unit: dimensionless
-#   output_dimensions: [iteration]
-#   historical_values: [[2010, '[1]']]
-#   input_dataset_processors: [LinearInterpolation]
+- id: tech1
+  name: Technical node 1
+  description: This is just a technical node that allows a certain action affect an uncertain node.
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: dimensionless
+  output_dimensions: [iteration]
+  historical_values: [[2010, '[1, 2, 3]']]
+  input_dataset_processors: [LinearInterpolation]
 
-# - id: tech2
-#   name: Technical node 2
-#   description: This is just a technical node that allows a certain action affect an uncertain node.
-#   type: simple.MultiplicativeNode
-#   quantity: currency
-#   unit: EUR/a
-#   input_dimensions: [iteration]
-#   output_dimensions: [iteration]
-#   input_nodes:
-#   - id: tech1
-#     tags: [non_additive]
-#   - id: uncertain_node
+- id: tech2
+  name: Technical node 2
+  description: This is just a technical node that allows a certain action affect an uncertain node.
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [iteration]
+  output_dimensions: [iteration]
+  input_nodes:
+  - id: tech1
+    tags: [non_additive]
+  - id: uncertain_node
+    tags: [non_additive]
 
-# - id: uncertain_outcome
-#   name: Uncertain outcome
-#   description: This node takes the absolute value of the technical node 2. This is the reason for non-linearity in the outcome.
-#   type: simple.AdditiveNode
-#   quantity: currency
-#   unit: EUR/a
-#   input_dimensions: [iteration]
-#   output_dimensions: [iteration]
-#   is_outcome: true
-#   input_nodes:
-#   - id: tech2
-#     tags: [absolute]
+- id: uncertain_outcome
+  name: Uncertain outcome
+  description: This node takes the absolute value of the technical node 2. This is the reason for non-linearity in the outcome.
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [iteration]
+  output_dimensions: [iteration]
+  is_outcome: true
+  input_nodes:
+  - id: tech2
+    tags: [absolute]
     
 - id: population
   type: finland.population.Population
