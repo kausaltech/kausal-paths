@@ -9,7 +9,7 @@ name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
 theme_identifier: eu-netzerocities
 target_year: 2030
-model_end_year: 2045
+model_end_year: 2060
 minimum_historical_year: 2018
 maximum_historical_year: 2020
 emission_unit: kt/a
@@ -1130,7 +1130,7 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   - id: waste_recycling_shares_baseline
     tags: [baseline]
   - id: waste_recycling_shares_goal
-    tags: [goal]
+    tags: [goal, forecast_only]
     to_dimensions:
     - id: waste_treatment
     - id: waste_type
