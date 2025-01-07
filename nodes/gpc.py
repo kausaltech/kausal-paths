@@ -261,6 +261,10 @@ class DatasetNode(AdditiveNode):
         df = self.apply_multiplier(df, required=False, units=True)
         df = self.add_and_multiply_input_nodes(df)
         df = df.ensure_unit(VALUE_COLUMN, self.unit)  # type: ignore
+        # out = df.filter(pl.col(YEAR_COLUMN) <= 2020)
+        # out = out.select([UNCERTAINTY_COLUMN, VALUE_COLUMN])
+        # # out = out.pivot(columns=YEAR_COLUMN, values=VALUE_COLUMN)
+        # out.write_csv('/Users/jouni/devel/kausal-paths/notebooks/iterations.csv', separator='\t')
         return df
 
 

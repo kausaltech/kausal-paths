@@ -5,7 +5,7 @@ frameworks: [syke]
 site_url: https://greentransition.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: cf2d4c91a73d252f2f3462faf641bdfe0ef46155
+  commit: 523085a72574287f919301ce0766b1fa7b4d0f3e
   dvc_remote: kausal-s3
 name: Vihreän siirtymän arvot ja valinnat
 name_en: Green transition values and priorities
@@ -13,12 +13,12 @@ owner: Kausal Oy
 owner_en: Kausal Ltd
 theme_identifier: default
 emission_unit: kt/a
-model_end_year: 2035
+model_end_year: 2040
 target_year: 2035
 reference_year: 2010
 minimum_historical_year: 2010
 maximum_historical_year: 2023
-sample_size: 15
+sample_size: 100
 
 action_groups:
 - id: forestry
@@ -509,7 +509,11 @@ nodes:
   output_dimensions: [iteration]
   input_datasets: [gpc/greentransition]
   params:
-    sector: Alternative forest use unit price
+  - id: sector
+    value: Alternative forest use unit price
+  # - id: multiplier
+  #   value: 0.3
+  #   unit: dimensionless
   output_nodes:
   - id: alternative_forest_use_benefit
 - id: wood_unit_price
@@ -574,7 +578,11 @@ nodes:
   output_dimensions: [iteration]
   input_datasets: [gpc/greentransition]
   params:
-    sector: Carbon unit price
+  - id: sector
+    value: Carbon unit price
+  # - id: multiplier
+  #   value: 0.1
+  #   unit: dimensionless
   output_nodes:
   - id: carbon_cost
 - id: carbon_cost
@@ -594,6 +602,16 @@ nodes:
   is_outcome: true
   input_dimensions: [iteration]
   output_dimensions: [iteration]
+# - id: total_forest_cost_expectation
+#   name: Total forest cost expectation
+#   type: simple.AdditiveNode
+#   quantity: currency
+#   unit: kEUR/a
+#   input_dimensions: [iteration]
+#   output_dimensions: [iteration]
+#   input_nodes:
+#   - id: total_forest_cost
+#     tags: [expectation]
 
 # ------------------ Etelä-Suomen biodiversiteetti --------------
 
