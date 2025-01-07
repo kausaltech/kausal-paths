@@ -8,7 +8,7 @@ import polars as pl
 
 from common import polars as ppl
 from nodes.calc import extend_last_historical_value_pl
-from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN, UNCERTAINTY_COLUMN
 from nodes.exceptions import NodeError
 from nodes.simple import AdditiveNode
 from params import BoolParameter, StringParameter
@@ -142,7 +142,7 @@ class DatasetNode(AdditiveNode):
 
     # -----------------------------------------------------------------------------------
     def convert_names_to_ids(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        exset = {YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN, 'Unit'}
+        exset = {YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN, UNCERTAINTY_COLUMN, 'Unit'}
 
         # Convert index level names from labels to IDs.
         collookup = {}

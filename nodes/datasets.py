@@ -99,7 +99,8 @@ class Dataset(ABC):
         size = context.sample_size
         cols = []
         for col in df.columns:
-            if (col not in [FORECAST_COLUMN, 'Unit', 'UUID'] + df.primary_keys and
+            # FIXME Invent a generic way to ignore sampling when content is not probabilities
+            if (col not in [FORECAST_COLUMN, 'Unit', 'UUID', 'muni'] + df.primary_keys and
                 isinstance(df[col].dtype, pl.String)):
                 cols += [col]
         if size == 0 or len(cols) == 0:
@@ -484,6 +485,7 @@ class FixedDataset(Dataset):
         pdf = ppl.to_ppdf(df)
         pdf = pdf.set_unit(VALUE_COLUMN, self.unit)
         pdf = pdf.add_to_index(YEAR_COLUMN)
+        pdf = self.post_process(None, pdf)
 
         self.df = pdf
 
@@ -505,11 +507,10 @@ class FixedDataset(Dataset):
 
         df = self.df
         assert df is not None
-        df = self.interpret(df, context)
+        df = self.interpret(df, context) # FIXME If all are scalars, do not create interpret dimension.
         self.df = df
         if cache_key:
             context.cache.set(cache_key, df, expiry=0)
-            print(cache_key, 'onnistui')
         return self.df
 
     def hash_data(self, context: Context) -> dict[str, Any]:

@@ -5,7 +5,7 @@ frameworks: [syke]
 site_url: https://greentransition.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: c9ff1e1361e59a914075d5209ae1ff2f78010e54
+  commit: cf2d4c91a73d252f2f3462faf641bdfe0ef46155
   dvc_remote: kausal-s3
 name: Vihreän siirtymän arvot ja valinnat
 name_en: Green transition values and priorities
@@ -18,7 +18,7 @@ target_year: 2035
 reference_year: 2010
 minimum_historical_year: 2010
 maximum_historical_year: 2023
-sample_size: 10
+sample_size: 15
 
 action_groups:
 - id: forestry
@@ -56,7 +56,14 @@ action_groups:
   name: Luonnostoimenpiteet
   name_en: Draft actions
 
-# action_efficiency_pairs:  # FIXME Find the causes of nans.
+action_efficiency_pairs:  # FIXME Find the causes of nans.
+- graph_type: cost_benefit
+  cost_node: uncertain_node
+  impact_node: uncertain_node
+  cost_unit: MEUR/a
+  impact_unit: MEUR/a
+  label: testi
+
 # - graph_type: cost_effectiveness
 #   cost_node: action_costs
 #   impact_node: value_profile
@@ -388,7 +395,8 @@ emission_sectors:
 nodes:
 - id: uncertain_node
   name: Uncertain node
-  description: An uncertain node that has a non-linear effect on the effects of the test action. This node may get values 0 or -80 EUR/a.
+  description: An uncertain node that has a non-linear effect on the effects of the
+    test action. This node may get values 0 or -80 EUR/a.
   type: simple.AdditiveNode
   quantity: currency
   unit: EUR/a
@@ -401,14 +409,15 @@ nodes:
     [2014, '0+-2'], # normal +- sd
     [2015, '3 (2.7-3.3)'], # normal (95 % CI))
     [2016, '3+-10(log)'], # lognormal (mean +- df)
-    [2017, 'Beta(1,4)'], 
-    [2018, 'Poisson(4)'], 
+    [2017, 'Beta(1,4)'],
+    [2018, 'Poisson(4)'],
     [2019, 'Exponential(6)']]
   input_dataset_processors: [LinearInterpolation]
 
 - id: tech1
   name: Technical node 1
-  description: This is just a technical node that allows a certain action affect an uncertain node.
+  description: This is just a technical node that allows a certain action affect an
+    uncertain node.
   type: simple.AdditiveNode
   quantity: currency
   unit: dimensionless
@@ -418,7 +427,8 @@ nodes:
 
 - id: tech2
   name: Technical node 2
-  description: This is just a technical node that allows a certain action affect an uncertain node.
+  description: This is just a technical node that allows a certain action affect an
+    uncertain node.
   type: simple.MultiplicativeNode
   quantity: currency
   unit: EUR/a
@@ -432,7 +442,8 @@ nodes:
 
 - id: uncertain_outcome
   name: Uncertain outcome
-  description: This node takes the absolute value of the technical node 2. This is the reason for non-linearity in the outcome.
+  description: This node takes the absolute value of the technical node 2. This is
+    the reason for non-linearity in the outcome.
   type: simple.AdditiveNode
   quantity: currency
   unit: EUR/a
@@ -442,7 +453,6 @@ nodes:
   input_nodes:
   - id: tech2
     tags: [absolute]
-    
 - id: population
   type: finland.population.Population
   name: Väestö
@@ -455,6 +465,135 @@ nodes:
   params:
   - id: region
     value: Suomi
+
+- id: forest_amount_historical
+  name: Forest amount, historical
+  type: gpc.DatasetNode
+  quantity: volume
+  unit: m**3
+  input_dimensions: [iteration]
+  output_dimensions: [iteration]
+  input_datasets: [gpc/greentransition]
+  params:
+    sector: Forest amount
+  output_nodes:
+  - id: forest_amount
+- id: forest_growth
+  name: Forest growth
+  type: gpc.DatasetNode
+  quantity: volume
+  unit: m**3/a
+  input_dimensions: [iteration]
+  output_dimensions: [iteration]
+  input_datasets: [gpc/greentransition]
+  params:
+    sector: Forest growth
+  output_nodes:
+  - id: forest_amount
+    tags: [cumulative]
+- id: forest_amount
+  name: Forest amount
+  type: simple.AdditiveNode
+  quantity: volume
+  unit: m**3
+  input_dimensions: [iteration]
+  output_dimensions: [iteration]
+  output_nodes:
+  - id: alternative_forest_use_benefit
+- id: alternative_forest_use_unit_price
+  name: Alternative forest use unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/m**3/a
+  input_dimensions: [iteration]
+  output_dimensions: [iteration]
+  input_datasets: [gpc/greentransition]
+  params:
+    sector: Alternative forest use unit price
+  output_nodes:
+  - id: alternative_forest_use_benefit
+- id: wood_unit_price
+  name: Wood unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/m**3
+  input_dimensions: [iteration]
+  output_dimensions: [iteration]
+  input_datasets: [gpc/greentransition]
+  params:
+    sector: Wood unit price
+  output_nodes:
+  - id: forest_sales_income
+- id: alternative_forest_use_benefit
+  name: Alternative forest use benefit
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: kEUR/a
+  input_dimensions: [iteration]
+  output_dimensions: [iteration]
+  output_nodes:
+  - id: total_forest_cost
+    tags: [arithmetic_inverse]
+- id: forest_sales_income
+  name: Forest sales income
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: kEUR/a
+  input_dimensions: [iteration]
+  output_dimensions: [iteration]
+  output_nodes:
+  - id: total_forest_cost
+    tags: [arithmetic_inverse]
+- id: forest_carbon_emissions
+  name: Forest carbon emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [iteration]
+  output_dimensions: [iteration]
+  output_nodes:
+  - id: carbon_cost
+- id: wood_emission_factor
+  name: Wood emission factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/m**3
+  input_dimensions: [iteration]
+  output_dimensions: [iteration]
+  input_datasets: [gpc/greentransition]
+  params:
+    sector: Wood emission factor
+  output_nodes:
+  - id: forest_carbon_emissions
+- id: carbon_unit_price
+  name: Carbon unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/t
+  input_dimensions: [iteration]
+  output_dimensions: [iteration]
+  input_datasets: [gpc/greentransition]
+  params:
+    sector: Carbon unit price
+  output_nodes:
+  - id: carbon_cost
+- id: carbon_cost
+  name: Carbon cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: kEUR/a
+  input_dimensions: [iteration]
+  output_dimensions: [iteration]
+  output_nodes:
+  - id: total_forest_cost
+- id: total_forest_cost
+  name: Total forest cost
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+  is_outcome: true
+  input_dimensions: [iteration]
+  output_dimensions: [iteration]
 
 # ------------------ Etelä-Suomen biodiversiteetti --------------
 
@@ -489,7 +628,15 @@ nodes:
 
 - id: number_of_endangered_species
   name: Uhanalaisten lajien määrä
-  description: 'Punaisen kirjan mukainen uhanalaisuusluokitus. Valitettavasti vain vuoden 2019 tulokset ovat ladattavissa avoimena datana, joten aikasarjoja ei ole mahdollista piirtää suoraan datan perusteella. Kuitenkin yksittäinenkin aikapiste kertoo nykytilanteesta. Ehkä hyödyllisin analyysi olisi laskea uhanalaisten lajien määrät elinympäristöittäin. Tähän kuvaustekstiin voisi ilmoittaa samat tiedot prosenttiosuuksina kaikista elinympäristön lajeista. <h3>Viitteet</h3> Ympäristöministeriö & Suomen ympäristökeskus (2019). Suomen lajien uhanalaisuus – Punainen kirja 2019: tiedostolataus (versio 2). Ladattu osoitteesta https://punainenkirja.laji.fi/publications 2024-06-16.'
+  description: 'Punaisen kirjan mukainen uhanalaisuusluokitus. Valitettavasti vain
+    vuoden 2019 tulokset ovat ladattavissa avoimena datana, joten aikasarjoja ei ole
+    mahdollista piirtää suoraan datan perusteella. Kuitenkin yksittäinenkin aikapiste
+    kertoo nykytilanteesta. Ehkä hyödyllisin analyysi olisi laskea uhanalaisten lajien
+    määrät elinympäristöittäin. Tähän kuvaustekstiin voisi ilmoittaa samat tiedot
+    prosenttiosuuksina kaikista elinympäristön lajeista. <h3>Viitteet</h3> Ympäristöministeriö
+    & Suomen ympäristökeskus (2019). Suomen lajien uhanalaisuus – Punainen kirja 2019:
+    tiedostolataus (versio 2). Ladattu osoitteesta https://punainenkirja.laji.fi/publications
+    2024-06-16.'
   type: values.AssociationNode
   quantity: number
   unit: pcs
@@ -501,7 +648,9 @@ nodes:
 
 - id: forest_protection_unit_cost
   name: Metsien suojelun yksikköhinta
-  description: Metsien suojelun kustannuksiin sisältyvät suorat tuet tai lunastushinnat maanomistajalle sekä vaihtoehtoiskustannukset eli maankäytön muutoksesta syntyvä sadon väheneminen.
+  description: Metsien suojelun kustannuksiin sisältyvät suorat tuet tai lunastushinnat
+    maanomistajalle sekä vaihtoehtoiskustannukset eli maankäytön muutoksesta syntyvä
+    sadon väheneminen.
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/ha/a
@@ -646,8 +795,7 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: Mt/a
-  input_nodes: [pulp_industry_emissions, high_price_wood_industry_emissions,
-    carbon_capture_and_storage]
+  input_nodes: [pulp_industry_emissions, high_price_wood_industry_emissions, carbon_capture_and_storage]
   # output_nodes: [agriculture_emissions]
   # output_nodes: [net_emissions]
 
@@ -758,7 +906,9 @@ nodes:
 - id: charging_stations
   name: Latauspisteiden lukumäärä
   name_en: Number of charging stations
-  description: Law requires municipalities B & C to build necessary infrastructure. There must be at least 300 charging stations. Municipality A & Local governmental area D increases stations by setting policies. 
+  description: Law requires municipalities B & C to build necessary infrastructure.
+    There must be at least 300 charging stations. Municipality A & Local governmental
+    area D increases stations by setting policies.
   quantity: fraction
   type: values.AdditiveNode
   unit: pcs
@@ -798,7 +948,8 @@ nodes:
 - id: need
   name: Tarve sähköautojen latauspisteille
   name_en: The need for EV charging
-  description: Local communities have expressed their need for charging points and the number of EV charging points fills that need.
+  description: Local communities have expressed their need for charging points and
+    the number of EV charging points fills that need.
   quantity: fraction
   type: values.AssociationNode
   unit: pcs # Jouni does this make sense
@@ -809,8 +960,9 @@ nodes:
 
 - id: tourism
   name: Turismin määrä
-  name_en: Number of tourists 
-  description: Tourism is an important business sector in local governmental area D therefore the charging points matter whether tourists come to the area or not.
+  name_en: Number of tourists
+  description: Tourism is an important business sector in local governmental area
+    D therefore the charging points matter whether tourists come to the area or not.
   quantity: number
   type: values.AssociationNode
   unit: pcs
@@ -821,8 +973,9 @@ nodes:
 
 - id: local_business
   name: Paikallisten yritysten liikevaihto
-  name_en: Turnover of local businesses. 
-  description: The number of tourists has an impact on how successful local businesses are.
+  name_en: Turnover of local businesses.
+  description: The number of tourists has an impact on how successful local businesses
+    are.
   quantity: currency
   type: values.AssociationNode
   unit: kEUR/a
@@ -834,7 +987,8 @@ nodes:
 - id: number_of_evs
   name: Sähköautojen määrä
   name_en: Number of EVs
-  description: More charging stations improves intention to purchase EVs as worry about charging availability decreases.
+  description: More charging stations improves intention to purchase EVs as worry
+    about charging availability decreases.
   quantity: number
   type: values.AssociationNode
   unit: pcs
@@ -858,7 +1012,9 @@ nodes:
 - id: air_quality
   name: Ilmanlaatu (PM2.5)
   name_en: Air quality (PM2.5)
-  description: Air quality improves if car driven trips decrease because of sustainable transportation. Air pollution decreases if people switch from combustion vehicles to EVs.
+  description: Air quality improves if car driven trips decrease because of sustainable
+    transportation. Air pollution decreases if people switch from combustion vehicles
+    to EVs.
   quantity: mass_concentration
   type: simple.AdditiveNode
   unit: ug/m**3
@@ -868,7 +1024,8 @@ nodes:
 - id: charging_supply
   name: Latauspisteiden sähkönkulutus
   name_en: Energy supply for EV charging
-  description: Amount of electricity supplied for the EV charging stations. More people have EV’s because there is supply for charging in public places.
+  description: Amount of electricity supplied for the EV charging stations. More people
+    have EV’s because there is supply for charging in public places.
   quantity: energy
   type: simple.FixedMultiplierNode
   unit: GWh/a
@@ -884,7 +1041,8 @@ nodes:
 - id: charging_station_jobs
   name: Latauspisteiden rakentamistyön arvo
   name_en: Value of jobs for building and maintaining EV charging infrastructure
-  description: Municipality B thinks that if municipalities build EV charging stations it creates jobs nationally.
+  description: Municipality B thinks that if municipalities build EV charging stations
+    it creates jobs nationally.
   quantity: currency
   type: simple.FixedMultiplierNode
   unit: kEUR/a
@@ -898,7 +1056,11 @@ nodes:
 - id: policies_demand
   name: Poliittinen vaatimus yrityksille latauspisteiden rakentamiseen
   name_en: Policies demand private companies to build EV charging infra
-  description: If the policies demand private companies to build electric vehicle charging stations, the charging infrastructure expands. Some policies would also compel companies to build charging stations in multifamily homes etc., where individual residents cannot influence the existence of charging points compared to single family homes. (Costs are not included here.)
+  description: If the policies demand private companies to build electric vehicle
+    charging stations, the charging infrastructure expands. Some policies would also
+    compel companies to build charging stations in multifamily homes etc., where individual
+    residents cannot influence the existence of charging points compared to single
+    family homes. (Costs are not included here.)
   quantity: effect
   type: simple.AdditiveNode
   unit: pcs
@@ -923,7 +1085,8 @@ nodes:
 - id: help_sustainable_transition
   name: Vihreän siirtymän edistäminen
   name_en: Help sustainable transition
-  description: Help people to transition to sustainable living. WHAT IS ACTUALLY MEASURED HERE? The name implies that this is an action.
+  description: Help people to transition to sustainable living. WHAT IS ACTUALLY MEASURED
+    HERE? The name implies that this is an action.
   quantity: number
   type: values.AssociationNode
   unit: pcs
@@ -933,7 +1096,9 @@ nodes:
 - id: duty_of_municipality
   name: Kunnan velvollisuus latausinfran tuottamiseen
   name_en: Duty of municipality to offer infrastructure
-  description: Law requires municipalities to build necessary infrastructure. There must be at least a certain amount of charging stations. The graph shows the year when the goal is reached.
+  description: Law requires municipalities to build necessary infrastructure. There
+    must be at least a certain amount of charging stations. The graph shows the year
+    when the goal is reached.
   quantity: fraction
   type: values.LogicalNode
   unit: dimensionless
@@ -948,7 +1113,9 @@ nodes:
 - id: energy_company_profit
   name: Sähköyhtiön tuotot latauspisteistä
   name_en: Energy company’s profit
-  description: The profit of a company that offers energy to the EV charging stations. The municipally-owned energy company earns revenue from charging points. (Costs are not included here.)
+  description: The profit of a company that offers energy to the EV charging stations.
+    The municipally-owned energy company earns revenue from charging points. (Costs
+    are not included here.)
   quantity: currency
   type: simple.FixedMultiplierNode
   unit: kEUR/a
@@ -1066,7 +1233,8 @@ nodes:
 - id: vehicle_need
   name: Henkilöajoneuvomatkojen tarve kaupungissa
   name_en: Need for personalisalized trips vehicle inside the city
-  Description: The potential need for car-like trips, as opposed to short trips by walking and without a need for a vehicle.
+  Description: The potential need for car-like trips, as opposed to short trips by
+    walking and without a need for a vehicle.
   quantity: vehicle_mileage
   type: simple.FixedMultiplierNode
   unit: Mvkm/a
@@ -1116,7 +1284,8 @@ nodes:
 - id: car_km
   name: Autokilometrien määrä kaupungissa
   name_en: Car kilometers driven with trips inside the city
-  Description: Micro mobility systems allow people to use sustainable transportation methods inside the city. Safe bicycle parking encourages people to switch to cycling.
+  Description: Micro mobility systems allow people to use sustainable transportation
+    methods inside the city. Safe bicycle parking encourages people to switch to cycling.
   quantity: vehicle_mileage
   type: simple.AdditiveNode
   unit: Mvkm/a
@@ -1189,7 +1358,10 @@ nodes:
 - id: accessibility
   name: Liikenteen saavutettavuus
   name_en: Accessibility of transportation
-  Description: More people can access the city center. This is important for people who don't own a car. It is also an important factor when tourists consider coming to the town (especially in municipality C, while in municipality D tourists find EV charging stations more important).
+  Description: More people can access the city center. This is important for people
+    who don't own a car. It is also an important factor when tourists consider coming
+    to the town (especially in municipality C, while in municipality D tourists find
+    EV charging stations more important).
   quantity: fraction
   type: values.AssociationNode
   unit: pcs
@@ -1238,7 +1410,8 @@ nodes:
 - id: health_benefits
   name: Terveyshyödyt
   name_en: Health benefits
-  description:  As people walk and cycle more their health improves. Decreasing air pollution has a positive effect on people's lives.
+  description: As people walk and cycle more their health improves. Decreasing air
+    pollution has a positive effect on people's lives.
   quantity: disease_burden
   type: simple.AdditiveNode
   unit: DALY/a
@@ -1259,7 +1432,8 @@ nodes:
 - id: transportation_emissions
   name: Liikenteen päästöt
   name_en: Transportation emissions
-  Description:  If people use sustainable forms of transportation, the municipality's transportation emissions decrease.
+  Description: If people use sustainable forms of transportation, the municipality's
+    transportation emissions decrease.
   quantity: emissions
   type: simple.AdditiveNode
   unit: kt/a
@@ -1296,7 +1470,8 @@ nodes:
 - id: sustainable_transportation
   name: Kestävän liikkumisen määrä
   name_en: Sustainable transportation activity
-  Description: More people would change their behavior to sustainable methods whether it is walking, cycling or public transportation.
+  Description: More people would change their behavior to sustainable methods whether
+    it is walking, cycling or public transportation.
   quantity: vehicle_mileage
   type: values.AssociationNode
   unit: Mvkm/a
@@ -1314,13 +1489,15 @@ nodes:
     - year: 2030
       value: 300
 
-- id:  cost_mm_stations
+- id: cost_mm_stations
   name: Kaupunkipyöräjärjestelmän kustannukset
   name_en: Cost of shared micro mobility system
-  description: How much shared micro mobility systems would impact a municipality's economic situation. Municipality D thinks offering would require investing in walking/cycling paths.
+  description: How much shared micro mobility systems would impact a municipality's
+    economic situation. Municipality D thinks offering would require investing in
+    walking/cycling paths.
   quantity: currency
   type: simple.FixedMultiplierNode
-  unit: kEUR/a 
+  unit: kEUR/a
   input_nodes:
   - id: city_mm_stations
   output_nodes:
@@ -1542,8 +1719,43 @@ nodes:
   quantity: utility
   unit: Ut/a
   is_outcome: true
-  description: '<h3>Micro mobility</h3><h4>Value profile of municipality A: Micro mobility</h4>One of the goals of this action is to shift modes away from the single occupancy vehicles. Shared micro mobility systems make the city more accessible to those without cars. Municipality hired a consultant who found out that shared micro mobility is one of the best practices and their internal transportation planner is an expert in the subject. <h4>Value profile of municipality B: Micro mobility</h4> High-quality and sustainable transportation options drive the municipality´s actions which means raising the service level of the municipality. This also reduces emissions from transportation. Health benefits and reduced car trips are seen as co-benefits for this action. <h4>Value profile of municipality C: Micro mobility</h4> Shared micro mobility systems change behavior to sustainable mobility and reduce car driven trips. Reduced emissions are not seen as a major factor for this action in municipality C.<h4>Value profile of local government area D: Micro mobility</h4> Electrifying short trips do not reduce transportation emissions as much as electrifying longer trips. Costs are too high and it is difficult to get third parties to get involved. System does not attract tourists to the area. 
-    <h3>Charging stations</h3><h4>Value profile of municipality A: EV charging infrastructure</h4> Municipality A thinks that building charging infrastructure may not be the use of the funds or the most effective but it is monitored to see if they should change their opinion in years to come. Municipality does not own gas stations therefore why would municipality own charging points. Setting policies allows private companies to meet the demand in the market. Improving air quality and reducing greenhouse gas emissions are both equally important priorities for the municipality. <h4>Value profile of municipality B</h4>EU and national law require municipalities to offer EV charging infrastructure. Also financial benefits for municipalities. Charging points reduce emissions when people swift from petrol cars to EVs. Municipality sees charging infrastructure as basic service. <h4>Energy company´s value profile</h4>The municipally-owned energy company earns revenue from charging points. <h4>Value profile of municipality C</h4> EU and national law require municipalities to offer EV charging infrastructure.The municipality C does not believe that the charging infrastructure for electric cars would significantly reduce emissions.<h4>Value profile of local government area D: EV charging infrastructure</h4> Demand for the public charging points came from local NGOs and the state government funded the first charging point. Local government supports third parties to build charging infrastructure via policies and state government funding makes building charging infrastructure profitable for third parties. Tourism is an important line of business for the area and if the area does not have EV charging points they will choose another area to visit.'
+  description: '<h3>Micro mobility</h3><h4>Value profile of municipality A: Micro
+    mobility</h4>One of the goals of this action is to shift modes away from the single
+    occupancy vehicles. Shared micro mobility systems make the city more accessible
+    to those without cars. Municipality hired a consultant who found out that shared
+    micro mobility is one of the best practices and their internal transportation
+    planner is an expert in the subject. <h4>Value profile of municipality B: Micro
+    mobility</h4> High-quality and sustainable transportation options drive the municipality´s
+    actions which means raising the service level of the municipality. This also reduces
+    emissions from transportation. Health benefits and reduced car trips are seen
+    as co-benefits for this action. <h4>Value profile of municipality C: Micro mobility</h4>
+    Shared micro mobility systems change behavior to sustainable mobility and reduce
+    car driven trips. Reduced emissions are not seen as a major factor for this action
+    in municipality C.<h4>Value profile of local government area D: Micro mobility</h4>
+    Electrifying short trips do not reduce transportation emissions as much as electrifying
+    longer trips. Costs are too high and it is difficult to get third parties to get
+    involved. System does not attract tourists to the area. <h3>Charging stations</h3><h4>Value
+    profile of municipality A: EV charging infrastructure</h4> Municipality A thinks
+    that building charging infrastructure may not be the use of the funds or the most
+    effective but it is monitored to see if they should change their opinion in years
+    to come. Municipality does not own gas stations therefore why would municipality
+    own charging points. Setting policies allows private companies to meet the demand
+    in the market. Improving air quality and reducing greenhouse gas emissions are
+    both equally important priorities for the municipality. <h4>Value profile of municipality
+    B</h4>EU and national law require municipalities to offer EV charging infrastructure.
+    Also financial benefits for municipalities. Charging points reduce emissions when
+    people swift from petrol cars to EVs. Municipality sees charging infrastructure
+    as basic service. <h4>Energy company´s value profile</h4>The municipally-owned
+    energy company earns revenue from charging points. <h4>Value profile of municipality
+    C</h4> EU and national law require municipalities to offer EV charging infrastructure.The
+    municipality C does not believe that the charging infrastructure for electric
+    cars would significantly reduce emissions.<h4>Value profile of local government
+    area D: EV charging infrastructure</h4> Demand for the public charging points
+    came from local NGOs and the state government funded the first charging point.
+    Local government supports third parties to build charging infrastructure via policies
+    and state government funding makes building charging infrastructure profitable
+    for third parties. Tourism is an important line of business for the area and if
+    the area does not have EV charging points they will choose another area to visit.'
 
 - id: euro_utilities
   name: Total utility in euros
@@ -1566,7 +1778,7 @@ pages:
   lead_title: Vihreän siirtymän prioriteetit
   lead_title_en: Green transition priorities
   lead_paragraph: Tällä sivustolla tarkastellaan vihreän siirtymän priorisointia lupamenettelyssä.
-    Aineisto perustuu lausuntopalvelussa esitettyihiin näkemyksiin <a
+    Aineisto perustuu lausuntopalvelussa esitettyihiin näkemyksiin <a 
     href="https://www.lausuntopalvelu.fi/FI/Proposal/ShowAllProposalAnswers?proposalId=2e8c6721-4711-43d8-987b-deca2144eb4a">hallituksen
     esitykseen</a> eduskunnalle eräiden vihreän siirtymän hankkeiden väliaikaisesta
     etusijamenettelystä aluehallintovirastojen lupakäsittelyssä vuosina 2023—2025
@@ -1580,22 +1792,46 @@ actions:
 
 - id: test_action
   name: Test action for value of information
-  description: This action may improve or worsen situation, depending on uncertain circumstances.
+  description: This action may improve or worsen situation, depending on uncertain
+    circumstances.
   type: simple.AdditiveAction
-  quantity: currency
-  unit: EUR/a
+  quantity: ratio
+  unit: dimensionless
   group: draft
   historical_values: [[2010, 0], [2023, 0]]
+  forecast_values: [[2024, 1], [2035, 1]]
   input_dataset_processors: [LinearInterpolation]
-  forecast_values: [[2024, 100], [2035, 100]]
-  # output_nodes: 
-  # - id: tech2
-  #   tags: [non_additive]
-  #   to_dimensions: []
+  output_nodes:
+  - id: tech2
+    tags: [non_additive]
+    to_dimensions: []
+
+- id: sell_forest
+  name: Sell forest
+  type: gpc.DatasetAction
+  quantity: volume
+  unit: m**3/a
+  group: draft
+  input_dimensions: [iteration]
+  output_dimensions: [iteration]
+  input_datasets:
+  - id: gpc/greentransition
+    forecast_from: 2025
+  params:
+    sector: Sell forest
+  output_nodes:
+  - id: forest_amount
+    tags: [arithmetic_inverse, cumulative]
+  - id: forest_sales_income
+  - id: forest_carbon_emissions
 
 - id: forest_grazing_support
   name: Metsälaidunnuksen tuki
-  description: Tähän pitäisi kerätä tietoa siitä, kuinka paljon tukea metsälaidunnukselle annetaan nykyään, ja mikä on tilanne hallituksen säästötoimien jälkeen. Samoin pitäisi kuvata sitä, miten paljon laidunnus lisääntyy tukimäärän suurentuessa (€/ha). Yhteys tuskin on lineaarinen, vaan jokin määrä laidunnusta tapahtuu ilman tukiakin, mutta liian pieni hehtaarituki ei lisää laidunnusta lainkaan.
+  description: Tähän pitäisi kerätä tietoa siitä, kuinka paljon tukea metsälaidunnukselle
+    annetaan nykyään, ja mikä on tilanne hallituksen säästötoimien jälkeen. Samoin
+    pitäisi kuvata sitä, miten paljon laidunnus lisääntyy tukimäärän suurentuessa
+    (€/ha). Yhteys tuskin on lineaarinen, vaan jokin määrä laidunnusta tapahtuu ilman
+    tukiakin, mutta liian pieni hehtaarituki ei lisää laidunnusta lainkaan.
   type: simple.CumulativeAdditiveAction
   quantity: area
   unit: ha
@@ -1605,7 +1841,10 @@ actions:
 
 - id: ambition_of_forest_protection
   name: Metsiensuojelun kunnianhimon määrä
-  description: Kunnianhimon määrää mitataan tässä suojeltujen hehtaarien määrällä. Osa suojelusta tapahtuu ilman valtion toimiakin, ja se ei näy tässä toimenpiteessä vaan trendinä solmussa Suojellun metsäluonnon pinta-ala Etelä-Suomessa. Tähän tarvittaisiin tieto kustannustehokkuudesta eli paljonko hehtaarin suojelu maksaa.
+  description: Kunnianhimon määrää mitataan tässä suojeltujen hehtaarien määrällä.
+    Osa suojelusta tapahtuu ilman valtion toimiakin, ja se ei näy tässä toimenpiteessä
+    vaan trendinä solmussa Suojellun metsäluonnon pinta-ala Etelä-Suomessa. Tähän
+    tarvittaisiin tieto kustannustehokkuudesta eli paljonko hehtaarin suojelu maksaa.
   type: simple.CumulativeAdditiveAction
   quantity: area
   unit: ha
@@ -1634,7 +1873,7 @@ actions:
 
 # ---------------- Municipality tranport policies --------------
 
-- id:  ev_charging_infrastructure
+- id: ev_charging_infrastructure
   name: Kaupunki rakentaa latauspisteitä
   name_en: The city builds EV charging infrastructure
   description: The law may require cities to build the necessary infrastructure.
@@ -1646,10 +1885,11 @@ actions:
   output_nodes:
   - id: charging_stations
 
-- id:  ev_charging_policy
+- id: ev_charging_policy
   name: Kaupunki tukee politiikalla yritysten latauspisteiden rakentamista
   name_en: Set policies to support EV charging
-  description: The municipality may decide to set policies to support EV charging infrastructure
+  description: The municipality may decide to set policies to support EV charging
+    infrastructure
   quantity: number
   type: simple.LinearCumulativeAdditiveAction
   unit: pcs
@@ -1657,8 +1897,8 @@ actions:
   group: traffic_energy_transition
   output_nodes:
   - id: policies_demand
- 
-- id:  biodiesel
+
+- id: biodiesel
   name: Biodieselasemien rakentaminen
   name_en: Build biodiesel stations
   description: Why has municipality decided to build biodiesel stations
@@ -1670,7 +1910,7 @@ actions:
   output_nodes:
   - biodiesel_stations
 
-- id:  micromobility_sharing_system
+- id: micromobility_sharing_system
   name: Kaupunkipyöräjärjestelmän perustaminen
   name_en: Offer shared micro mobility system
   description: Why does municipality offer shared micro mobility system
@@ -1682,7 +1922,7 @@ actions:
   output_nodes:
   - city_mm_stations
 
-- id:  safe_bike_parking
+- id: safe_bike_parking
   name: Turvallisten pyöräparkkien rakentaminen
   name_en: Build safe parking space for bicycles
   description: Why would a municipality build safe parking space for bicycles?
@@ -1697,7 +1937,9 @@ actions:
 - id: sponsor_money
   name: Kaupunkipyöräjärjestelmän rakentaminen yritysten voimin
   name_en: Companies to sponsor micro mobility stations
-  description: Depending if Municipality B gets monetary sponsorship they could offer city bikes. Without external sponsorship money they cannot. Municipality D would not offer a micro mobility system without third party involvement. 
+  description: Depending if Municipality B gets monetary sponsorship they could offer
+    city bikes. Without external sponsorship money they cannot. Municipality D would
+    not offer a micro mobility system without third party involvement.
   quantity: number
   type: simple.CumulativeAdditiveAction
   unit: pcs
