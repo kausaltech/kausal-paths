@@ -88,9 +88,13 @@ if 'Scope' in df.columns:
 if 'Value' in df.columns and 'Year' in df.columns:  # If dataset is already in long format
     dfmain = df
     dims = [d for d in dims if d not in ['Year', 'Value']]
-else:
-    dfmain = df.head(1).select(context).with_columns([(pl.lit(0.0).alias('Value').cast(pl.Float64)),
-                                                    (pl.lit(0).alias('Year').cast(pl.Int64))]).clear()
+else:  # TODO update this for probabilistic data, see branch feature/probability
+    dfmain = df.head(1).select(context).with_columns([
+        (pl.lit('0.0').alias('Value').cast(pl.String)),
+        (pl.lit(0).alias('Year').cast(pl.Int64))
+    ]).clear()
+    # This is needed for probabilistic strings.
+    df = df.with_columns([pl.col(col).cast(pl.String) for col in values])
 
     df = df.with_row_index(name = 'Index')
     for i in range(len(df)):
@@ -103,7 +107,7 @@ else:
             mframe.columns = dfmain.columns
             # Ignore empty cells and possible empty values from statfi.
             if mframe['Value'][0] is not None and mframe['Value'][0] not in ['.', '-']:
-                mframe = mframe.with_columns(pl.col('Value').cast(pl.Float64))
+                # mframe = mframe.with_columns(pl.col('Value').cast(pl.Float64))
                 dfmain = pl.concat([dfmain, mframe], rechunk=False)
     dfmain = dfmain.rechunk()   # This helped speed a bit.
 
@@ -113,6 +117,14 @@ if 'Is_action' in dfmain.columns:
         (pl.col('Year').eq(0))
     ).then(pl.lit(None)).otherwise(pl.col('UUID')).alias('UUID')])
     dfmain = dfmain.drop('Is_action')
+
+try:
+    df_test = dfmain.with_columns(pl.col('Value').cast(pl.Float64))
+    dfmain = df_test
+    print('Values are stored as Float64.')
+except pl.exceptions.InvalidOperationError as e:
+    print('Value column contains probabilistic values and is stored as String.')
+    print(f'Conversion details: {e}')
 
 if outcsvpath.upper() not in ['N', 'NONE']:
     dfmain.write_csv(outcsvpath)

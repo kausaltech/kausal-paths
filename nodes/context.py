@@ -105,6 +105,7 @@ class Context:
     """The dvc-pandas dataset repository for the computation model."""
 
     dataset_repo_default_path: str | None
+    sample_size: int
 
     unit_registry: CachingUnitRegistry
     """The pint unit registry used for unit parsing, conversion, and formatting."""
@@ -175,6 +176,7 @@ class Context:
         target_year: int,
         model_end_year: int | None = None,
         dataset_repo_default_path: str | None = None,
+        sample_size: int = 0,
     ):
         from nodes.actions.action import ActionNode
 
@@ -192,6 +194,7 @@ class Context:
         self.unit_registry = unit_registry
         self.dataset_repo = dataset_repo
         self.dataset_repo_default_path = dataset_repo_default_path
+        self.sample_size = sample_size
         self.supported_parameter_types = discover_parameter_types()
         # will be set later
         self.instance = None  # type: ignore
@@ -550,6 +553,10 @@ class Context:
         Pull the datasets from the DVC repository.
 
         This is used to update the datasets to the latest version.
+
+        Returns:
+            str: The commit ID of the updated datasets.
+
         """
         self.dataset_repo.set_target_commit(None)
         self.dataset_repo.pull_datasets()

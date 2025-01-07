@@ -23,6 +23,7 @@ from nodes.constants import (
     DEFAULT_METRIC,
     FORECAST_COLUMN,
     NODE_COLUMN,
+    UNCERTAINTY_COLUMN,
     VALUE_COLUMN,
     YEAR_COLUMN,
     ensure_known_quantity,
@@ -383,9 +384,9 @@ class Node:
         dims = class_dims.copy()
 
         for dim_id, dim in dims.items():
-            if not dim.is_internal:
+            if not dim.is_internal and dim_id is not UNCERTAINTY_COLUMN:
                 raise NodeError(self, 'Dimensions defined in class can only be internal ones')
-            if dim_id in self.context.dimensions:
+            if dim_id in self.context.dimensions and dim_id is not UNCERTAINTY_COLUMN:
                 raise NodeError(self, 'Internal dimension is also a global one')
 
         if arg_dims and class_dim_ids:
@@ -983,8 +984,8 @@ class Node:
             if dt not in (pl.Utf8, pl.Categorical):
                 raise NodeError(self, "Dimension column '%s' is of wrong type (%s)" % (dim_id, dt))
 
-            if dim.is_internal:
-                # Skip validation for internal dimensions
+            if dim.is_internal or dim_id == UNCERTAINTY_COLUMN:
+                # Skip validation for internal dimensions and uncertainty column
                 continue
 
             cats = set(df[dim_id].cast(pl.Utf8).unique())
@@ -1030,6 +1031,8 @@ class Node:
                     df = df.multiply_quantity(VALUE_COLUMN, unit_registry('-1 * dimensionless'))
                 case 'geometric_inverse':
                     df = df.divide_quantity(VALUE_COLUMN, unit_registry('1 * dimensionless'))
+                case 'absolute':
+                    df = df.with_columns(pl.col(VALUE_COLUMN).abs().alias(VALUE_COLUMN))
                 case 'complement':
                     if not df.get_unit(VALUE_COLUMN).is_compatible_with('dimensionless'):
                         raise NodeError(
@@ -1063,6 +1066,16 @@ class Node:
                         .otherwise(pl.col(VALUE_COLUMN))
                         .alias(VALUE_COLUMN),
                     )
+                case 'expectation':
+                    if UNCERTAINTY_COLUMN in df.columns:
+                        meta = df.get_meta()
+                        cols = list(set(df.primary_keys) - {UNCERTAINTY_COLUMN})
+                        dfp = df.group_by(cols, maintain_order=True).agg([
+                            pl.col(VALUE_COLUMN).mean().alias(VALUE_COLUMN),
+                            pl.col(FORECAST_COLUMN).any().alias(FORECAST_COLUMN)
+                        ])
+                        dfp = dfp.with_columns(pl.lit('expectation').alias(UNCERTAINTY_COLUMN))
+                        df = ppl.to_ppdf(dfp, meta)
                 case _:
                     pass
 
@@ -1581,6 +1594,8 @@ class Node:
                         edge_text += _('    - Positive result values are replaced with 0.\n')
                     elif tag == 'empty_to_zero':
                         edge_text += _('    - Convert NaNs to zeros.\n')
+                    elif tag == 'expectation':
+                        edge_text += _('    - Take the expected value over the uncertainty dimension.\n')
                     else:
                         edge_text += _('    - The tag "%s" is given.\n') % tag
 

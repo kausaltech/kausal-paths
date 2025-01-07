@@ -152,5 +152,6 @@ class AlasEmissions(Node):
         df[FORECAST_COLUMN] = False
 
         if self.get_global_parameter_value('extend_historical_values', required=False):
+            df.index = df.index.astype(dtype='int64') # TODO Could update this function to polars
             df = extend_last_historical_value(df, self.get_end_year())
         return df

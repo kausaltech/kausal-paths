@@ -19,6 +19,7 @@ from .constants import (
     STACKABLE_QUANTITIES,
     VALUE_COLUMN,
     YEAR_COLUMN,
+    UNCERTAINTY_COLUMN,
 )
 from .exceptions import NodeError
 from .simple import AdditiveNode, RelativeNode
@@ -364,6 +365,9 @@ def _from_node_metric(node: Node, m: NodeMetric, scenarios: Sequence[Scenario]) 
     dims: list[MetricDimension] = []
     with node.context.start_span('Compute metric values', op=MODEL_CALC_OP):
         df, dims = _compute_values(node, scenarios)
+
+    if UNCERTAINTY_COLUMN in df.columns: # TODO Is this for graphs only or could there be side effects?
+        df = df.filter(pl.col(UNCERTAINTY_COLUMN) == 'median')
 
     if node.context.active_normalization:
         normalizer, df = node.context.active_normalization.normalize_output(m, df)
