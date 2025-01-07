@@ -3,7 +3,7 @@ default_language: en
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 6ac907500079dd84ffdf79e1e3aec67b8dd43cb5
+  commit: be7dcb8ce57f03eff60803f38867a8eab02ffbdb
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
