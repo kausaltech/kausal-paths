@@ -237,46 +237,84 @@ class ActionNode(Node):
         if not scenario.has_parameter(self.enabled_param):
             scenario.add_parameter(self.enabled_param, scenario.all_actions_enabled)
 
-    def compute_indicator(self, cost_node: Node, impact_node: Node, match_dims_i, match_dims_c) -> ppl.PathsDataFrame:
+    # compute_indicator and compute_indicator2 are merged here from feature/probability2
+    def compute_indicator(self, cost_node: Node, impact_node: Node, match_dims_i: list,
+                           match_dims_c: list, graph_type: str) -> ppl.PathsDataFrame:
         pc = PerfCounter('Impact %s [%s / %s]' % (self.id, cost_node.id, impact_node.id), level=PerfCounter.Level.DEBUG)
 
         pc.display('starting')
         with self.context.perf_context.exec_node(cost_node):
             cost_df = self.compute_impact(cost_node)
             cost_m = cost_node.get_default_output_metric()
-            cost_df = cost_df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
+            cost_df = (
+                cost_df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
+            )
             cost_df = cost_df.select([*cost_df.primary_keys, FORECAST_COLUMN, pl.col(cost_m.column_id).alias('Cost')])
         pc.display('cost impact of %s on %s computed' % (self.id, cost_node.id))
 
-        with self.context.perf_context.exec_node(impact_node):
-            impact_df = self.compute_impact(impact_node)
-            impact_m = impact_node.get_default_output_metric()
-            impact_df = impact_df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
-            # Replace impact values that are very close to zero with null
-            zero_to_nan = (
-                pl.when(pl.col(impact_m.column_id).abs() < pl.lit(1e-9)).then(pl.lit(None)).otherwise(pl.col(impact_m.column_id))
-            )
-            impact_df = impact_df.select([*impact_df.primary_keys, FORECAST_COLUMN, zero_to_nan.alias('Impact')]).set_unit(
-                'Impact', impact_df.get_unit(impact_m.column_id),
-            )
-        pc.display('impact of %s on %s computed' % (self.id, impact_node.id))
+        if graph_type == 'value_of_information':
+            match_dims_c += [UNCERTAINTY_COLUMN]
+            meta = cost_df.get_meta()
+            df = cost_df.filter(pl.col(UNCERTAINTY_COLUMN).ne('median'))
+            last_forecast_year = df.filter(pl.col(FORECAST_COLUMN)).select(YEAR_COLUMN).max()
+            dfp = df.group_by(pl.col(UNCERTAINTY_COLUMN)).agg(pl.sum('Cost'))
+            print(dfp)
+            dfp = dfp.with_columns([
+                pl.when(pl.col('Cost') > 0.0).then(pl.col('Cost'))
+                .otherwise(pl.lit(0.0)).alias('under_knowledge')
+            ])
 
-        if not set(impact_df.dim_ids) == match_dims_i:
-            raise NodeError(
-                self,
-                'Impact node %s dimensions %s do not match with expected for this impact overview: %s.'
-                % (impact_node.id, impact_df.dim_ids, match_dims_i),
-            )
+            dfp = dfp.select(pl.all().mean())
+            dfp = pl.concat([dfp, last_forecast_year], how='horizontal')
+            dfp = dfp.with_columns([
+                (pl.col('under_knowledge') - pl.col('Cost')).alias('Cost'),
+                pl.lit(value=True).alias(FORECAST_COLUMN),
+                pl.lit(0.0).alias('Impact'),  # Impact is not used with value of information
+                pl.lit('expectation').alias(UNCERTAINTY_COLUMN)
+            ])
+            dfp = dfp.select([YEAR_COLUMN, FORECAST_COLUMN, UNCERTAINTY_COLUMN, 'Cost', 'Impact']) # TODO Do we need this?
+            meta.units['Impact'] = meta.units['Cost']
+            df = ppl.to_ppdf(df=dfp, meta=meta)
+            # df = df.add_to_index(UNCERTAINTY_COLUMN)
+            print(df)
+
+        else:
+
+            with self.context.perf_context.exec_node(impact_node):
+                impact_df = self.compute_impact(impact_node)
+                impact_m = impact_node.get_default_output_metric()
+                impact_df = (
+                    impact_df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
+                )
+                # Replace impact values that are very close to zero with null
+                zero_to_nan = (
+                    pl.when(pl.col(impact_m.column_id).abs() < pl.lit(1e-9))
+                    .then(pl.lit(None))
+                    .otherwise(pl.col(impact_m.column_id))
+                )
+                impact_df = (
+                    impact_df.select([*impact_df.primary_keys, FORECAST_COLUMN, zero_to_nan.alias('Impact')])
+                    .set_unit('Impact', impact_df.get_unit(impact_m.column_id))
+                )
+            pc.display('impact of %s on %s computed' % (self.id, impact_node.id))
+
+            df = cost_df.paths.join_over_index(impact_df, how='outer', index_from='union')
+            df = df.with_columns([
+                pl.col('Cost').fill_null(0.0),
+                pl.col('Impact').fill_null(0.0)
+            ])
+
+            if not set(impact_df.dim_ids) == set(match_dims_i):
+                raise NodeError(
+                    self, """With impact ovarview %s, impact node %s dimensions %s
+                    do not match with expected: %s.""" %
+                    (graph_type, impact_node.id, impact_df.dim_ids, match_dims_i))
 
         if not set(cost_df.dim_ids) == set(match_dims_c):
             raise NodeError(
-                self,
-                'Cost node %s dimensions %s do not match with expected for this impact overview: %s.'
-                % (cost_node.id, cost_df.dim_ids, match_dims_c),
-            )
-
-        df = cost_df.paths.join_over_index(impact_df, how='outer', index_from='union')
-        df = df.with_columns([pl.col('Cost').fill_null(0.0), pl.col('Impact').fill_null(0.0)])
+                self, """With impact overview %s, cost node %s dimensions %s
+                do not match with expected: %s.""" %
+                (graph_type, cost_node.id, cost_df.dim_ids, match_dims_c))
 
         return df
 
@@ -450,11 +488,13 @@ class ActionEfficiencyPair:
             if self.graph_type == 'value_of_information':
                 match_dims_i += [self.outcome_dimension]
                 match_dims_c += [UNCERTAINTY_COLUMN]
-            match_dims_i = set(match_dims_i) - set([None])
-            match_dims_c = set(match_dims_c) - set([None])
+            match_dims_i = list(set(match_dims_i) - {None})
+            match_dims_c = list(set(match_dims_c) - {None})
 
             with context.perf_context.exec_node(action):
-                df = action.compute_indicator(self.cost_node, self.impact_node, match_dims_i, match_dims_c)
+                df = action.compute_indicator(
+                    self.cost_node, self.impact_node, match_dims_i, match_dims_c, self.graph_type
+                )
             if not len(df):
                 # No impact for this action, skip it
                 continue

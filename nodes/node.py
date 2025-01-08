@@ -23,6 +23,7 @@ from nodes.constants import (
     DEFAULT_METRIC,
     FORECAST_COLUMN,
     NODE_COLUMN,
+    UNCERTAINTY_COLUMN,
     VALUE_COLUMN,
     YEAR_COLUMN,
     ensure_known_quantity,
@@ -1063,6 +1064,16 @@ class Node:
                         .otherwise(pl.col(VALUE_COLUMN))
                         .alias(VALUE_COLUMN),
                     )
+                case 'expectation':
+                    if UNCERTAINTY_COLUMN in df.columns:
+                        meta = df.get_meta()
+                        cols = [col for col in df.primary_keys if col != UNCERTAINTY_COLUMN]
+                        dfp = df.group_by(cols, maintain_order=True).agg([
+                            pl.col(VALUE_COLUMN).mean().alias(VALUE_COLUMN),
+                            pl.col(FORECAST_COLUMN).any().alias(FORECAST_COLUMN)
+                        ])
+                        dfp = dfp.with_columns(pl.lit('expectation').alias(UNCERTAINTY_COLUMN))
+                        df = ppl.to_ppdf(dfp, meta)
                 case _:
                     pass
 
@@ -1581,6 +1592,8 @@ class Node:
                         edge_text += _('    - Positive result values are replaced with 0.\n')
                     elif tag == 'empty_to_zero':
                         edge_text += _('    - Convert NaNs to zeros.\n')
+                    elif tag == 'expectation':
+                        edge_text += _('    - Take the expected value over the uncertainty dimension.\n')
                     else:
                         edge_text += _('    - The tag "%s" is given.\n') % tag
 
