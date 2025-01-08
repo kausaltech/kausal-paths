@@ -47,11 +47,11 @@ class BuildingEnergy(AdditiveNode):
 
         df = df.paths.add_df(odf, how='left')
 
-        tedf = (
-            self.get_input_node(tag='transport_electricity').get_output_pl(target_node=self)
-        )
-        tedf = tedf.with_columns(pl.col(tedf.metric_cols[0]) * -1)
-        df = df.paths.add_df(tedf, how='left')
+        # tedf = (
+        #     self.get_input_node(tag='transport_electricity').get_output_pl(target_node=self)
+        # )
+        # tedf = tedf.with_columns(pl.col(tedf.metric_cols[0]) * -1)
+        # df = df.paths.add_df(tedf, how='left')
         return df
 
 
