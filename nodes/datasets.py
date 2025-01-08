@@ -188,7 +188,7 @@ class DVCDataset(Dataset):
         if YEAR_COLUMN in cols:
             if YEAR_COLUMN not in df.primary_keys:
                 df = df.add_to_index(YEAR_COLUMN)
-            if len(df.filter(pl.col(YEAR_COLUMN).lt(100))) > 0:
+            if len(df.filter(pl.col(YEAR_COLUMN) < 200)) > 0:
                 baseline_year = context.instance.reference_year
                 if baseline_year is None:
                     raise Exception(
@@ -197,8 +197,15 @@ class DVCDataset(Dataset):
                         % self.id,
                     )
                 df = df.with_columns(
-                    pl.when(pl.col(YEAR_COLUMN) < 100)
-                    .then(pl.col(YEAR_COLUMN) + baseline_year)
+                    pl.when(pl.col(YEAR_COLUMN) < 90)
+                    .then(pl.col(YEAR_COLUMN) + pl.lit(baseline_year))
+                    .otherwise(pl.col(YEAR_COLUMN))
+                    .alias(YEAR_COLUMN),
+                )
+                target_year = context.instance.target_year
+                df = df.with_columns(
+                    pl.when((pl.col(YEAR_COLUMN) >= 90) & (pl.col(YEAR_COLUMN) < 200))
+                    .then(pl.col(YEAR_COLUMN) + pl.lit(target_year) - pl.lit(100))
                     .otherwise(pl.col(YEAR_COLUMN))
                     .alias(YEAR_COLUMN),
                 )

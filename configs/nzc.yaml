@@ -22,56 +22,57 @@ features:
   hide_node_details: true
   show_refresh_prompt: true
 result_excels:
-  - base_excel_url: 'https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx'
-    name: Climate City Contract Tables
-    node_ids:
-      - population
-      - net_emissions
-      - aggregated_cost
-      - discounted_cost
-      - vehicle_kilometres
-      - freight_transport_need
-      - total_building_heat_energy_use
-      - total_electricity_consumption
-      - collected_waste
-      - a11_reduce_all_motorised_transport
-      - a12_modal_switch_from_cars_to_other_modes
-      - transport_efficiency
-      - transport_energy_carrier_shares
-      - freight_transport_energy_carrier_shares
-      - average_truck_utilisation
-      - electrification_year_of_transport
-      - old_building_renovation_rate
-      - new_building_shares
-      - efficient_appliances_rate
-      - building_heating_type_share
-      - heating_fuel_share
-      - electricity_shares
-      - waste_recycling_shares
-    action_ids:
-      - a11_reduce_all_motorised_transport
-      - a12_modal_switch_from_cars_to_other_modes
-      - a13_car_pooling
-      - a141_electrification_of_passenger_cars
-      - a142_electrification_of_buses
-      - a21_optimised_logistics
-      - a211_improve_utilisation_of_trucks
-      - a212_route_optimisation
-      - a22_truck_fleet_electrification
-      - a31_renovation_improvements
-      - a311_renovation_rate_improvement
-      - a312_renovation_shares_improvement
-      - a32_new_building_improvements
-      - a33_do_efficient_appliances
-      - a332_increase_aggressive_renovations
-      - a34_decarbonising_heat_generation
-      - a341_heating_technology_improvement
-      - a342_heating_energy_improvement
-      - a343_change_heating_fossil_share
-      - a344_top_performance_improvement
-      - a41_replace_fossil_electricity
-      - a51_increase_waste_recycling
-      - a61_reduced_co2_emissions_in_other_sectors
+- base_excel_url: 
+    https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
+  name: Climate City Contract Tables
+  node_ids:
+  - population
+  - net_emissions
+  - aggregated_cost
+  - discounted_cost
+  - vehicle_kilometres
+  - freight_transport_need
+  - total_building_heat_energy_use
+  - total_electricity_consumption
+  - collected_waste
+  - a11_reduce_all_motorised_transport
+  - a12_modal_switch_from_cars_to_other_modes
+  - transport_efficiency
+  - transport_energy_carrier_shares
+  - freight_transport_energy_carrier_shares
+  - average_truck_utilisation
+  - electrification_year_of_transport
+  - old_building_renovation_rate
+  - new_building_shares
+  - efficient_appliances_rate
+  - building_heating_type_share
+  - heating_fuel_share
+  - electricity_shares
+  - waste_recycling_shares
+  action_ids:
+  - a11_reduce_all_motorised_transport
+  - a12_modal_switch_from_cars_to_other_modes
+  - a13_car_pooling
+  - a141_electrification_of_passenger_cars
+  - a142_electrification_of_buses
+  - a21_optimised_logistics
+  - a211_improve_utilisation_of_trucks
+  - a212_route_optimisation
+  - a22_truck_fleet_electrification
+  - a31_renovation_improvements
+  - a311_renovation_rate_improvement
+  - a312_renovation_shares_improvement
+  - a32_new_building_improvements
+  - a33_do_efficient_appliances
+  - a332_increase_aggressive_renovations
+  - a34_decarbonising_heat_generation
+  - a341_heating_technology_improvement
+  - a342_heating_energy_improvement
+  - a343_change_heating_fossil_share
+  - a344_top_performance_improvement
+  - a41_replace_fossil_electricity
+  - a51_increase_waste_recycling
+  - a61_reduced_co2_emissions_in_other_sectors
 
 params:
 - id: municipality_name
@@ -785,8 +786,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   quantity: fraction
   unit: '%'
   group: transport
-  input_dimensions: [transport_mode, energy_carrier]
-  output_dimensions: [transport_mode, energy_carrier]
+  input_dimensions: [energy_carrier, transport_mode]
+  output_dimensions: [energy_carrier, transport_mode]
   input_datasets:
   - id: nzc/defaults
   params:
@@ -806,8 +807,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   quantity: fraction
   unit: '%/a'
   group: transport
-  input_dimensions: [transport_mode, energy_carrier]
-  output_dimensions: [transport_mode, energy_carrier]
+  input_dimensions: [energy_carrier, transport_mode]
+  output_dimensions: [energy_carrier, transport_mode]
   input_datasets:
   - id: nzc/defaults
   params:
@@ -864,8 +865,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   quantity: fraction
   unit: '%'
   group: freight_transport
-  input_dimensions: [transport_mode, energy_carrier]
-  output_dimensions: [transport_mode, energy_carrier]
+  input_dimensions: [energy_carrier, transport_mode]
+  output_dimensions: [energy_carrier, transport_mode]
   input_datasets:
   - id: nzc/defaults
   params:
@@ -1073,7 +1074,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   parent: a34_decarbonising_heat_generation
   input_datasets: [nzc/defaults]
   params:
-    sector: 3.4.4 Top performance standard improvement compared with the regular new buildings
+    sector: 3.4.4 Top performance standard improvement compared with the regular new
+      buildings
   output_nodes:
   - id: energy_use_intensity_change_new
     to_dimensions:
@@ -1215,11 +1217,20 @@ scenarios:
     value: false
   - id: waste_recycling_trend.enabled
     value: true
+  - id: measure_data_override
+    value: false
+  - id: measure_data_baseline_year_only
+    value: true
 
 - id: default
   default: true
   name: Decarbonisation scenario
   all_actions_enabled: true
+  params:
+  - id: measure_data_override
+    value: false
+  - id: measure_data_baseline_year_only
+    value: true
 
 - id: progress_tracking
   name: Progress tracking

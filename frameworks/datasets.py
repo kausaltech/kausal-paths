@@ -46,7 +46,7 @@ class FrameworkMeasureDVCDataset(DVCDataset):
             Measure.objects.filter(framework_config=fwd.id).filter(measure_template__uuid__in=uuids).select_related('template')
         )
         dps = (
-            MeasureDataPoint.objects.filter(measure__in=measures)
+            MeasureDataPoint.objects.filter(measure__in=measures).exclude(value__isnull=True)
             .annotate(uuid=Cast('measure__measure_template__uuid', output_field=TextField()))
             .values_list('uuid', 'year', 'value', 'default_value', 'measure__measure_template__unit')
         )
@@ -64,7 +64,7 @@ class FrameworkMeasureDVCDataset(DVCDataset):
         df_cols.remove('UUID')
 
         baseline_year = context.instance.reference_year
-        df = df.with_columns(
+        df = df.with_columns(  # FIXME Does this not already happen in load()? So this is redundant.
             pl.when(pl.col('Year').lt(100)).then(pl.col('Year') + baseline_year).otherwise(pl.col('Year')).alias('Year'),
         )
         # Duplicates may occur when baseline year overlaps with existing data points.

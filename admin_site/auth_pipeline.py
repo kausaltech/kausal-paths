@@ -41,7 +41,9 @@ def assign_roles(
         elif role.role_id == FRAMEWORK_VIEWER_ROLE:
             framework_viewer_role.assign_user(fw_obj, user)
         elif role.role_id in (INSTANCE_ADMIN_ROLE, INSTANCE_VIEWER_ROLE):
-            fwc = FrameworkConfig.objects.filter(framework=fw_obj, organization_identifier=role.org_id).first()
+            fwc = FrameworkConfig.objects.filter(
+                framework=fw_obj, organization_identifier=role.org_id
+            ).exclude(organization_identifier__isnull=True).first()
             if fwc is not None:
                 ic = fwc.instance_config
                 if role.role_id == INSTANCE_ADMIN_ROLE:
@@ -50,6 +52,10 @@ def assign_roles(
                     instance_viewer_role.assign_user(ic, user)
             else:
                 logger.info("Framework config for org UID '%s' does not yet exist" % (role.org_id))
+            if user.perms.has_instance_role(framework_viewer_role, fw_obj):
+                framework_viewer_role.unassign_user(fw_obj, user)
+            if user.perms.has_instance_role(framework_admin_role, fw_obj):
+                framework_admin_role.unassign_user(fw_obj, user)
         else:
             logger.error("Unknown role '%s'" % role.role_id)
 

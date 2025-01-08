@@ -1,0 +1,281 @@
+id: aarhus-c4c
+default_language: en
+supported_languages: []
+site_url: https://aarhus-c4c.paths.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: 2f9ad7e00b595276cc35c668c21dc4e52d1668ea
+  dvc_remote: kausal-s3
+name: Aarhus Greenhouse Gas Inventory
+owner: City of Aarhus
+theme_identifier: eu-climate-4-cast
+target_year: 2030
+model_end_year: 2030
+minimum_historical_year: 2015
+maximum_historical_year: 2024
+emission_unit: t/a
+emission_forecast_from: 2025
+emission_dimensions: ['energy_carrier', 'cost_type', 'owner', 'ghg', 'scope']
+features:
+  baseline_visible_in_graphs: true
+
+dimensions:
+- id: energy_source
+  label: Energy Source
+  categories:
+  - id: industri
+    label: 'Industri'
+  - id: kollektiv_elforsyning_
+    label: 'Kollektiv elforsyning'
+
+- id: owner
+  label: Owner
+  categories:
+  - id: municipal
+    label: 'Municipal'
+  - id: private
+    label: 'Private'
+
+- id: vehicle_type
+  label: Vehicle Type
+  categories:
+  - id: passenger_cars
+    label: 'Passenger Cars'
+
+- id: scope
+  label: Scope
+  categories:
+  - id: scope1
+    label: 'Scope 1'
+  - id: scope2
+    label: 'Scope 2'
+
+- id: cost_type
+  label: Cost Type
+  categories:
+  - id: climate_change
+    label: 'Climate Change'
+  - id: energy_costs
+    label: 'Energy Costs'
+
+- id: ghg
+  label: GHG
+  categories:
+  - id: co2e
+    label: 'CO2e'
+
+- id: heating
+  label: Heating
+  categories:
+  - id: direct_electric_heat
+    label: 'Direct Electric Heat'
+  - id: fuel_oil
+    label: 'Fuel Oil'
+
+- id: road_type
+  label: Road Type
+  categories:
+  - id: roads
+    label: 'Roads'
+
+- id: energy_carrier
+  label: Energy Carrier
+  categories:
+  - id: electricity
+    label: 'Electricity'
+  - id: fuel_oil
+    label: 'Fuel Oil'
+  - id: gasoline
+    label: 'Gasoline'
+
+emission_sectors:
+- id: net_emissions
+  name: Net Emissions
+  is_outcome: true
+
+
+nodes:
+- id: i32_manufacturing_grid_energy_emissions
+  name: I.3.2 Manufacturing Grid Energy Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['energy_source', 'owner', 'scope', 'cost_type', 'ghg', 'heating', 'energy_carrier']
+  output_dimensions: ['energy_source', 'owner', 'scope', 'cost_type', 'ghg', 'heating', 'energy_carrier']
+  params:
+    gpc_sector: I.3.2
+  input_datasets:
+  - id: gpc/aarhus
+    forecast_from: 2025
+  output_nodes:
+  - id: i3_manufacturing_total_emissions
+    to_dimensions:
+    - id: energy_source
+    - id: owner
+    - id: scope
+    - id: cost_type
+    - id: ghg
+    - id: heating
+    - id: energy_carrier
+
+- id: i41_energy_fuel_emissions
+  name: I.4.1 Energy Fuel Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['energy_source', 'owner', 'scope', 'cost_type', 'ghg', 'heating', 'energy_carrier']
+  output_dimensions: ['energy_source', 'owner', 'scope', 'cost_type', 'ghg', 'heating', 'energy_carrier']
+  params:
+    gpc_sector: I.4.1
+  input_datasets:
+  - id: gpc/aarhus
+    forecast_from: 2025
+  output_nodes:
+  - id: i4_energy_total_emissions
+    to_dimensions:
+    - id: energy_source
+    - id: owner
+    - id: scope
+    - id: cost_type
+    - id: ghg
+    - id: heating
+    - id: energy_carrier
+
+- id: ii11_onroad_transport_fuel_emissions
+  name: II.1.1 On-Road Transport Fuel Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['owner', 'vehicle_type', 'scope', 'cost_type', 'ghg', 'road_type', 'energy_carrier']
+  output_dimensions: ['owner', 'vehicle_type', 'scope', 'cost_type', 'ghg', 'road_type', 'energy_carrier']
+  params:
+    gpc_sector: II.1.1
+  input_datasets:
+  - id: gpc/aarhus
+    forecast_from: 2025
+  output_nodes:
+  - id: ii1_onroad_transport_total_emissions
+    to_dimensions:
+    - id: owner
+    - id: vehicle_type
+    - id: scope
+    - id: cost_type
+    - id: ghg
+    - id: road_type
+    - id: energy_carrier
+
+- id: i3_manufacturing_total_emissions
+  name: I.3 Manufacturing Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['energy_source', 'owner', 'scope', 'cost_type', 'ghg', 'heating', 'energy_carrier']
+  output_dimensions: ['energy_source', 'owner', 'scope', 'cost_type', 'ghg', 'heating', 'energy_carrier']
+  output_nodes:
+  - id: i_stationary_total_emissions
+    to_dimensions:
+    - id: energy_source
+    - id: owner
+    - id: scope
+    - id: cost_type
+    - id: ghg
+    - id: heating
+    - id: energy_carrier
+
+- id: i4_energy_total_emissions
+  name: I.4 Energy Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['energy_source', 'owner', 'scope', 'cost_type', 'ghg', 'heating', 'energy_carrier']
+  output_dimensions: ['energy_source', 'owner', 'scope', 'cost_type', 'ghg', 'heating', 'energy_carrier']
+  output_nodes:
+  - id: i_stationary_total_emissions
+    to_dimensions:
+    - id: energy_source
+    - id: owner
+    - id: scope
+    - id: cost_type
+    - id: ghg
+    - id: heating
+    - id: energy_carrier
+
+- id: i_stationary_total_emissions
+  name: I Stationary Total Emissions
+  type: simple.AdditiveNode
+  color: '#4e79a7'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['energy_carrier', 'cost_type', 'energy_source', 'owner', 'ghg', 'heating', 'scope']
+  output_dimensions: ['energy_carrier', 'cost_type', 'energy_source', 'owner', 'ghg', 'heating', 'scope']
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: energy_source
+      flatten: true
+    - id: heating
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: cost_type
+    - id: owner
+    - id: ghg
+    - id: scope
+
+- id: ii1_onroad_transport_total_emissions
+  name: II.1 On-Road Transport Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['owner', 'vehicle_type', 'scope', 'cost_type', 'ghg', 'road_type', 'energy_carrier']
+  output_dimensions: ['owner', 'vehicle_type', 'scope', 'cost_type', 'ghg', 'road_type', 'energy_carrier']
+  output_nodes:
+  - id: ii_transportation_total_emissions
+    to_dimensions:
+    - id: owner
+    - id: vehicle_type
+    - id: scope
+    - id: cost_type
+    - id: ghg
+    - id: road_type
+    - id: energy_carrier
+
+- id: ii_transportation_total_emissions
+  name: II Transportation Total Emissions
+  type: simple.AdditiveNode
+  color: '#e15759'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['owner', 'vehicle_type', 'scope', 'cost_type', 'ghg', 'road_type', 'energy_carrier']
+  output_dimensions: ['owner', 'vehicle_type', 'scope', 'cost_type', 'ghg', 'road_type', 'energy_carrier']
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: road_type
+      flatten: true
+    to_dimensions:
+    - id: owner
+    - id: scope
+    - id: cost_type
+    - id: ghg
+    - id: energy_carrier
+
+pages:
+- id: home
+  name: Aarhus Greenhouse Gas Inventory
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Aarhus Climate-4-CAST Decision Support Tool
+  lead_paragraph: Greenhouse gas inventory (2015-2024) and forecast (2025-2030) for the City of Aarhus.
+
+scenarios:
+- id: baseline
+  name: Business as Usual
+
+- id: default
+  default: true
+  name: Climate Action Plan
+  all_actions_enabled: true

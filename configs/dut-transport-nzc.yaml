@@ -8,7 +8,7 @@ dataset_repo:
   dvc_remote: kausal-s3
   # commit: 772bb24d5a5a01ab2aa8b69bb33efec594f0ac8a # Lappeenranta-specific dataset
   # commit: 4a9b9c0159a17b49c94bb72c265204fe76f3fc57 # Lappeenranta-specific probabilistic dataset
-  commit: 772bb24d5a5a01ab2aa8b69bb33efec594f0ac8a
+  commit: d6a1bb92c8c9c40d026131e1ba80b49f2e59fe0b # Lappeenranta with fixed freight ton-km
 theme_identifier: default
 name: 'DUT: Liikennetoimenpiteitä terveys- ja ilmastohyötyjen edistämiseksi'
 name_en: 'DUT: Transport actions to promote health and climate benefits'
@@ -17,8 +17,8 @@ owner_en: Kausal Ltd
 emission_unit: kt/a
 target_year: 2030
 model_end_year: 2045
-reference_year: 2020
-minimum_historical_year: 2020
+reference_year: 2022
+minimum_historical_year: 2022
 maximum_historical_year: 2022
 emission_forecast_from: 2023
 emission_dimensions: [scope, ghg, sector]
@@ -116,11 +116,13 @@ dimensions:
   aliases: [outcome]
   categories:
   - id: mortality
-    label_fi: Kuolleisuus
+    label_fi: Kaikki ilmansaastekuolleisuus
     label_en: Mortality
+    color: '#a6cee3'
   - id: work_days_lost
     label_fi: Menetetyt työpäivät
     label_en: Work days lost
+    color: '#1f78b4'
   - id: chronic_bronchitis
     label_fi: Keuhkoahtaumatauti
     label_en: Chronic bronchitis
@@ -144,14 +146,18 @@ dimensions:
     label_en: Infection
   - id: physical_activity
     label: Fyysinen aktiivisuus
+    color: '#b2df8a'
   - id: air_pollution
     label: Ilmansaastealtistus liikenteessä
+    color: '#33a02c'
   - id: crash_risk
     label: Liikenneonnettomuus
+    color: '#fb9a99'
   - id: carbon_emissions
     label: Hiilidioksidipäästöt
   - id: nzp_response
     label: NZP-vaste
+    color: '#e31a1c'
 
 - id: emission_height
   label_fi: Päästökorkeus
@@ -183,7 +189,8 @@ dimensions:
     label_en: PM2.5
     aliases: [pm2_5]
   - id: pm25_combustion
-    label: PM2.5 combustion
+    label_en: PM2.5 combustion
+    label_fi: Polttoperäinen PM2.5
   - id: nox
     label_fi: NOx
     label_en: NOx
@@ -191,7 +198,8 @@ dimensions:
     label_fi: PM10
     label_en: PM10
   - id: pm10_combustion
-    label: PM10 combustion
+    label_en: PM10 combustion
+    label_fi: Polttoperäinen PM10
   - id: walking
     label_fi: Kävely
     label_en: Walking
@@ -208,24 +216,35 @@ dimensions:
     label_fi: NH3
     label_en: NH3
   - id: pm25_wear_tear
-    label: PM2.5 wear & tear
+    label_en: PM2.5 wear & tear
+    label_fi: Kulumis- ja pölyperäinen PM2.5
   - id: pm10_wear_tear
-    label: PM10 wear & tear
+    label_en: PM10 wear & tear
+    label_fi: Kulumis- ja pölyperäinen PM10
 
 - id: sector
-  label: Sector
-  help_text: Sectors as categorised in the Mission City Climate City Contracts (CCC).
+  label_en: Sector
+  label_fi: Sektori
+  help_text_en: Sectors as categorised in the Mission City Climate City Contracts
+    (CCC).
+  help_text_fi: Luokitteluna on käytetty Missio-kaupunkien Climate City Contractia
+    (CCC).
   categories:
   - id: transport
-    label: Transport
+    label_en: Transport
+    label_fi: Liikenne
   - id: buildings
-    label: Buildings & Heating
+    label_en: Buildings & Heating
+    label_fi: Rakennukset ja lämmitys
   - id: electricity
-    label: Electricity  # TODO If you start using different electricity sectors, you may want to rename this Other electricity
+    label_en: Electricity
+    label_fi: Sähkö
   - id: waste
-    label: Waste
+    label_en: Waste
+    label_fi: Jätteet
   - id: other
-    label: Other (incl. IPPU & AFOLU)
+    label_en: Other (incl. IPPU & AFOLU)
+    label_fi: Muut (sis. IPPU, AFOLU)
 
 - id: scope
   label: Scope
@@ -243,138 +262,197 @@ dimensions:
     aliases: [scope_3]
 
 - id: cost_type
-  label: Cost Type
+  label_en: Cost Type
+  label_fi: Kustannustyyppi
   categories:
   - id: energy_costs
-    label: Energy Costs
+    label_en: Energy Costs
+    label_fi: Energiakustannukset
   - id: investment_costs
-    label: Investment Costs
+    label_en: Investment Costs
+    label_fi: Investointikustannukset
   - id: capex
-    label: CAPEX (capital expenditure)
+    label_en: CAPEX (capital expenditure)
+    label_fi: CAPEX (pääomamenot)
   - id: capex_levelised
-    label: CAPEX (levelised)
+    label_en: CAPEX (levelised)
+    label_fi: CAPEX (tasoitettu)
   - id: opex
-    label: OPEX (operational expenditure)
+    label_en: OPEX (operational expenditure)
+    label_fi: OPEX (toimintamenot)
     aliases: [operation_cost, Operation Cost]
   - id: maintenance_costs
-    label: Maintenance Costs
+    label_en: Maintenance Costs
+    label_fi: Huoltokustannukset
     aliases: [maintenance]
   - id: sales
-    label: Sales income
+    label_en: Sales income
+    label_fi: Myyntitulot
   - id: air_pollution
-    label: Air pollution
+    label_en: Air pollution
+    label_fi: Ilmansaasteet
     aliases: [air_quality]
   - id: noise
-    label: Noise
+    label_en: Noise
+    label_fi: Melu
   - id: accidents
-    label: Accidents
+    label_en: Accidents
+    label_fi: Onnettomuudet
   - id: health
-    label: Health
+    label_en: Health
+    label_fi: Terveys
   - id: co2_cost
-    label: CO2 Cost
+    label_en: CO2 Cost
+    label_fi: CO2-kustannus
   - id: aesthetics
-    label: Aesthetics and amenity
+    label_en: Aesthetics and amenity
+    label_fi: Estetiikka ja mukavuus
   - id: shading
-    label: Shading
+    label_en: Shading
+    label_fi: Varjostus
   - id: water_regulation
-    label: Water regulation
+    label_en: Water regulation
+    label_fi: Vedensäätely
     aliases: [water_regulations]
   - id: forest_management
-    label: Forest management
+    label_en: Forest management
+    label_fi: Metsänhoito
   - id: bus_costs
-    label: Bus costs
+    label_en: Bus costs
+    label_fi: Bussikustannukset
   - id: homecharging_infrastructure
-    label: Home-charging infrastructure
+    label_en: Home-charging infrastructure
+    label_fi: Kotilatausinfrastruktuuri
   - id: public_and_workplace_infrastructure
-    label: Public & workplace infrastructure
+    label_en: Public & workplace infrastructure
+    label_fi: Julkinen ja työpaikkainfrastruktuuri
   - id: charging_infrastructure_costs
-    label: Charging infrastructure costs
+    label_en: Charging infrastructure costs
+    label_fi: Latausinfrastruktuurin kustannukset
   - id: vehicle_costs
-    label: Vehicle costs
+    label_en: Vehicle costs
+    label_fi: Ajoneuvokustannukset
   - id: infrastructure_costs
-    label: Infrastructure costs
+    label_en: Infrastructure costs
+    label_fi: Infrastruktuurikustannukset
   - id: network
-    label: Network
+    label_en: Network
+    label_fi: Verkko
   - id: fuel
-    label: Fuel costs
+    label_en: Fuel costs
+    label_fi: Polttoainekustannukset
   - id: tires
-    label: Tire costs
+    label_en: Tire costs
+    label_fi: Rengaskustannukset
   - id: depreciation
-    label: Depreciation costs
+    label_en: Depreciation costs
+    label_fi: Poistokustannukset
   - id: labour_costs
-    label: Labour costs
+    label_en: Labour costs
+    label_fi: Työvoimakustannukset
   - id: industry_ippu
-    label: Industry (IPPU)
+    label_en: Industry (IPPU)
+    label_fi: Teollisuus (IPPU)
   - id: agriculture_afolu
-    label: Agriculture (AFOLU)
+    label_en: Agriculture (AFOLU)
+    label_fi: Maatalous (AFOLU)
   - id: other_sources
-    label: Other sources
+    label_en: Other sources
+    label_fi: Muut lähteet
   - id: grid_stability
-    label: Storage, grid stability etc.
+    label_en: Storage, grid stability etc.
+    label_fi: Varastointi, verkon vakaus jne.
 
 - id: aggregated_cost_type
-  label: Aggregated cost type
+  label_en: Aggregated cost type
+  label_fi: Koottu kustannustyyppi
   categories:
   - id: capex
-    label: CAPEX
+    label_en: CAPEX
+    label_fi: CAPEX
   - id: opex
-    label: OPEX
+    label_en: OPEX
+    label_fi: OPEX
   - id: co_benefits
-    label: Co-benefits
+    label_en: Co-benefits
+    label_fi: Rinnakkaishyödyt
   - id: co2_cost
-    label: CO2 cost
+    label_en: CO2 cost
+    label_fi: CO2-kustannus
 
 - id: ghg
-  label: Greenhouse gas
+  label_en: Greenhouse gas
+  label_fi: Kasvihuonekaasu
   categories:
   - id: co2e
-    label: CO2e
+    label_en: CO2e
+    label_fi: CO2e
     aliases: [co2]
 
 - id: transport_mode
-  label: Transport mode
+  label_en: Transport mode
+  label_fi: Kuljetusmuoto
   categories:
   - id: cars
-    label: Cars
+    label_en: Cars
+    label_fi: Autot
   - id: buses
-    label: Buses
+    label_en: Buses
+    label_fi: Bussit
   - id: trains
-    label: Trains
+    label_en: Trains
+    label_fi: Junat
     aliases: [Metro/tram, metro/tram, metro_tram]
   - id: public_transport
-    label: Public transport
+    label_en: Public transport
+    label_fi: Joukkoliikenne
   - id: walking
-    label: Walking
+    label_en: Walking and cycling
+    label_fi: Kävely ja pyöräily
   - id: cycling
-    label: Cycling
+    label_en: Cycling
+    label_fi: Pyöräily
   - id: light_trucks
-    label: Light duty trucks <3.5 tonne
+    label_en: Light duty trucks <3.5 tonne
+    label_fi: Kevyet kuorma-autot <3,5 tonnia
   - id: heavy_trucks
-    label: Heavy duty trucks >3.5 tonne
+    label_en: Heavy duty trucks >3.5 tonne
+    label_fi: Raskaat kuorma-autot >3,5 tonnia
   - id: trucks
-    label: Trucks
+    label_en: Trucks
+    label_fi: Kuorma-autot
   - id: other_motorized
-    label: Other motorized transport
+    label_en: Other motorized transport
+    label_fi: Muu moottoroitu liikenne
   - id: bikeshare
-    label: Bikeshare
+    label_en: Bikeshare
+    label_fi: Kaupunkipyörät
   - id: ebike
-    label: E-bike
+    label_en: E-bike
+    label_fi: Sähköpyörä
 
 - id: energy_carrier
-  label: Energy carrier
+  label_en: Energy carrier
+  label_fi: Energiamuoto
   categories:
   - id: petrol_diesel
-    label: Petrol and diesel
+    label_en: Petrol and diesel
+    label_fi: Bensiini ja diesel
   - id: electricity
-    label: Electricity
+    label_en: Electricity
+    label_fi: Sähkö
   - id: fossil
-    label: Fossil (oil, coal, gas)
+    label_en: Fossil (oil, coal, gas)
+    label_fi: Fossiiliset (öljy, hiili, kaasu)
   - id: heat_pump
-    label: Electric heat pumps / geothermal
+    label_en: Electric heat pumps / geothermal
+    label_fi: Sähkölämpöpumput / maalämpö
   - id: bioenergy
-    label: Bio (biogas, biomass) and solar heaters
+    label_en: Bio (biogas, biomass) and solar heaters
+    label_fi: Bio (biokaasu, biomassa) ja aurinkolämmittimet
   - id: waste
-    label: Waste (fossil & non-fossil waste)
+    label_en: Waste (fossil & non-fossil waste)
+    label_fi: Jäte (fossiilinen ja ei-fossiilinen jäte)
 
 - id: building_energy_class
   label: Building energy class
@@ -414,103 +492,145 @@ dimensions:
     label: Local heating
 
 - id: fuel_type
-  label: Fuel type
+  label_en: Fuel type
+  label_fi: Polttoainetyyppi
   categories:
   - id: fossil
-    label: Fossil
+    label_en: Fossil
+    label_fi: Fossiilinen
   - id: non_fossil
-    label: Non-fossil
+    label_en: Non-fossil
+    label_fi: Ei-fossiilinen
     aliases: [nonfossil, non-fossil]
   - id: mixed
-    label: Mixed fossil and non-fossil
+    label_en: Mixed fossil and non-fossil
+    label_fi: Sekoitettu fossiilinen ja ei-fossiilinen
   - id: other
-    label: Other (e.g. nuclear)
+    label_en: Other (e.g. nuclear)
+    label_fi: Muu (esim. ydinvoima)
   - id: local_pv
-    label: Local photovoltaics
+    label_en: Local photovoltaics
+    label_fi: Paikalliset aurinkopaneelit
   - id: centralised_pv
-    label: Centralised photovoltaics and wind
+    label_en: Centralised photovoltaics and wind
+    label_fi: Keskitetyt aurinkopaneelit ja tuulivoima
   - id: pv
-    label: Photovoltaics
+    label_en: Photovoltaics
+    label_fi: Aurinkopaneelit
   - id: flexibility
-    label: Flexibility
+    label_en: Flexibility
+    label_fi: Joustavuus
   - id: direct_electricity
-    label: Direct electricity
+    label_en: Direct electricity
+    label_fi: Suora sähkö
   - id: heat_pump
-    label: Heat pump
+    label_en: Heat pump
+    label_fi: Lämpöpumppu
 
 - id: efficiency_programme
-  label: Energy efficiency programme
+  label_en: Energy efficiency programme
+  label_fi: Energiatehokkuusohjelma
   categories:
   - id: no_improvements
-    label: No improvements
+    label_en: No improvements
+    label_fi: Ei parannuksia
     aliases: [no_improvement]
   - id: minor_improvements
-    label: Minor improvements
+    label_en: Minor improvements
+    label_fi: Pieniä parannuksia
   - id: aggressive_improvements
-    label: Aggressive improvements
+    label_en: Aggressive improvements
+    label_fi: Aggressiivisia parannuksia
   - id: moderate_improvements
-    label: Moderate improvements
+    label_en: Moderate improvements
+    label_fi: Kohtalaisia parannuksia
   - id: nzeb
-    label: Net zero emission buildings
+    label_en: Net zero emission buildings
+    label_fi: Nollapäästörakennukset
 
 - id: city_area
-  label: City area
+  label_en: City area
+  label_fi: Kaupunkialue
   categories:
   - id: grey
-    label: Grey area
+    label_en: Grey area
+    label_fi: Harmaa alue
   - id: green
-    label: Green area
+    label_en: Green area
+    label_fi: Vihreä alue
   - id: grey_inside
-    label: Grey area inside city
+    label_en: Grey area inside city
+    label_fi: Harmaa alue kaupungin sisällä
   - id: green_inside
-    label: Green area inside city
+    label_en: Green area inside city
+    label_fi: Vihreä alue kaupungin sisällä
   - id: green_outside
-    label: Green area outside city
+    label_en: Green area outside city
+    label_fi: Vihreä alue kaupungin ulkopuolella
   - id: grey_outside
-    label: Grey area outside city
+    label_en: Grey area outside city
+    label_fi: Harmaa alue kaupungin ulkopuolella
 
 - id: area_distance
-  label: Area distance
+  label_en: Area distance
+  label_fi: Alueen etäisyys
   categories:
   - id: metropolitan
-    label: Metropolitan
+    label_en: Metropolitan
+    label_fi: Suurkaupunki
   - id: inside
-    label: Inside city
+    label_en: Inside city
+    label_fi: Kaupungin sisällä
   - id: outside
-    label: Outside city
+    label_en: Outside city
+    label_fi: Kaupungin ulkopuolella
   - id: average
-    label: Average
+    label_en: Average
+    label_fi: Keskimääräinen
 
 - id: stakeholder
-  label: Stakeholder
+  label_en: Stakeholder
+  label_fi: Sidosryhmä
   categories:
   - id: citizens
-    label: Citizens
+    label_en: Citizens
+    label_fi: Kansalaiset
   - id: property_owners
-    label: Property owners
+    label_en: Property owners
+    label_fi: Kiinteistönomistajat
   - id: city
-    label: City
+    label_en: City
+    label_fi: Kaupunki
     aliases: [cities, Cities]
   - id: healthcare_providers
-    label: Healthcare providers
+    label_en: Healthcare providers
+    label_fi: Terveydenhuollon tarjoajat
   - id: transport_operators
-    label: Transport operators
+    label_en: Transport operators
+    label_fi: Liikenneoperaattorit
   - id: utilities
-    label: Utilities
+    label_en: Utilities
+    label_fi: Julkiset palvelut
 
 - id: parameter
-  label: Parameter
+  label_en: Parameter
+  label_fi: Parametri
   categories:
   - id: max_impact
-    label: Maximum impact
+    label_en: Maximum impact
+    label_fi: Suurin vaikutus
   - id: max_year
-    label: Year to reach maximum impact
+    label_en: Year to reach maximum impact
+    label_fi: Vuosi, jolloin suurin vaikutus saavutetaan
   - id: baseline_scenario
-    label: Baseline scenario
+    label_en: Baseline scenario
+    label_fi: Perusskenaario
   - id: decarbonisation_scenario
-    label: Decarbonisation scenario
+    label_en: Decarbonisation scenario
+    label_fi: Hiilestä irtautumisen skenaario
   - id: frozen_scenario
-    label: Frozen scenario
+    label_en: Frozen scenario
+    label_fi: Jäädytetty skenaario
 
 - id: country
   label: Country
@@ -821,8 +941,10 @@ nodes:
 - id: road_transport_emissions_intermediate
   name_fi: Tieliikenteen CO2-päästöt
   name_en: CO2 emissions from road transport
-  description_fi: Päämallin ja terveysmoduulin välissä oleva välisolmu, jossa summataan pois terveysmallissa tarpeettomat ulottuvuudet.
-  description_en: Intermediate node between the main model and the health module. Unnecessary dimensions are summed up here.
+  description_fi: Päämallin ja terveysmoduulin välissä oleva välisolmu, jossa summataan
+    pois terveysmallissa tarpeettomat ulottuvuudet.
+  description_en: Intermediate node between the main model and the health module.
+    Unnecessary dimensions are summed up here.
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -862,7 +984,8 @@ nodes:
 
 - id: amount_of_active_mobility_by_nzc
   name: Aktiivisen liikkumisen määrä NZP:n mukaan
-  description_fi: Aktiivisen liikkumisen tiedot, jotka perustuvat NetZeroPlanner-mallilla tuotettuun dataan. Katso myös solmu Aktiivisen liikkumisen määrä HLT:n mukaan.
+  description_fi: Aktiivisen liikkumisen tiedot, jotka perustuvat NetZeroPlanner-mallilla
+    tuotettuun dataan. Katso myös solmu Aktiivisen liikkumisen määrä HLT:n mukaan.
   type: simple.MultiplicativeNode
   quantity: exposure
   unit: km/cap/d
@@ -949,7 +1072,11 @@ nodes:
 - id: active_mover_distance
   name_fi: Aktiivisen liikkumisen määrä HLT:n mukaan
   name_en: Active mover distance
-  description_fi: Aktiivisen liikkumisen määränä käytetään aktiivisten liikkujien keskimääräistä suomalaista arvoa, joka on saatu Henkilöliikennetutkimuksesta 2016. Laskenta on Lehtomäen työryhmän (2021) mukainen.<h3>Viitteet</h3>Heli Lehtomäki ym. 2021. Liikenteen terveysvaikutukset Suomessa ja suurimmissa kaupungeissa. Suomen ympäristökeskuksen raportteja 16 / 2021.
+  description_fi: Aktiivisen liikkumisen määränä käytetään aktiivisten liikkujien
+    keskimääräistä suomalaista arvoa, joka on saatu Henkilöliikennetutkimuksesta 2016.
+    Laskenta on Lehtomäen työryhmän (2021) mukainen.<h3>Viitteet</h3>Heli Lehtomäki
+    ym. 2021. Liikenteen terveysvaikutukset Suomessa ja suurimmissa kaupungeissa.
+    Suomen ympäristökeskuksen raportteja 16 / 2021.
   type: gpc.DatasetNode
   quantity: mileage
   unit: km/person/d
@@ -963,8 +1090,8 @@ nodes:
 - id: active_mobility_by_hlt
   name_fi: Aktiivisen liikkumisen määrä ikäryhmissä
   name_en: Average active mobility in age groups
-  description_fi: Tämä solmu kuvaa kyseisen väestöryhmän osuutta koko väestön liikkumisesta. Summaamalla
-    osaväestöt yhteen saadaan koko väestön keskimääräinen liikkuminen.
+  description_fi: Tämä solmu kuvaa kyseisen väestöryhmän osuutta koko väestön liikkumisesta.
+    Summaamalla osaväestöt yhteen saadaan koko väestön keskimääräinen liikkuminen.
   type: simple.MultiplicativeNode
   quantity: mileage
   unit: km/person/d
@@ -988,7 +1115,9 @@ nodes:
 - id: active_mobility_combined
   name_fi: Aktiivisen liikkumisen yhdistelmä
   name_en: Combined active mobility
-  description_fi: 'Tässä on yhdistetty kaksi tietolähdettä: toisaalta NetZeroCities-raportointi ja toisaalta Henkilöliikennetutkimus 2016. Tästä eteenpäin käytetään näiden lähteiden keskiarvoa.'
+  description_fi: 'Tässä on yhdistetty kaksi tietolähdettä: toisaalta NetZeroCities-raportointi
+    ja toisaalta Henkilöliikennetutkimus 2016. Tästä eteenpäin käytetään näiden lähteiden
+    keskiarvoa.'
   type: simple.AdditiveNode
   quantity: mileage
   unit: km/person/d
@@ -998,7 +1127,9 @@ nodes:
 - id: active_mobility_average
   name_fi: Aktiivisen liikkumisen keskiarvo
   name_en: Average active mobility
-  description_fi: 'Tässä on yhdistetty kaksi tietolähdettä: toisaalta NetZeroCities-raportointi ja toisaalta Henkilöliikennetutkimus 2016. Tämä on näiden lähteiden keskiarvoa. Tämä solmu toimii myös välisolmuna terveysvaikutusmalliin.'
+  description_fi: 'Tässä on yhdistetty kaksi tietolähdettä: toisaalta NetZeroCities-raportointi
+    ja toisaalta Henkilöliikennetutkimus 2016. Tämä on näiden lähteiden keskiarvoa.
+    Tämä solmu toimii myös välisolmuna terveysvaikutusmalliin.'
   type: simple.FixedMultiplierNode
   quantity: mileage
   unit: km/person/d
@@ -1017,7 +1148,11 @@ nodes:
 - id: other_health_effects_from_nzc
   name_fi: Muita terveysvaikutuksia NZC-mallista
   name_en: Other health effects from the NZC model
-  description_fi: Lappeenrannan mallin pohjana oleva NetZeroPlanner laskee myös joitakin terveyskustnnuksia liikenteelle. Nämä ovat osittain päällekkäisiä THL:n mallin kanssa (pienhiukkaskuolemat) ja osittain WHO/HEATin kanssa (liikenneonnettomuudet). On siis syytä olla tarkkana näiden kanssa. Ne on kuitenkin toistaiseksi nostettu tänne vertailua varten.
+  description_fi: Lappeenrannan mallin pohjana oleva NetZeroPlanner laskee myös joitakin
+    terveyskustnnuksia liikenteelle. Nämä ovat osittain päällekkäisiä THL:n mallin
+    kanssa (pienhiukkaskuolemat) ja osittain WHO/HEATin kanssa (liikenneonnettomuudet).
+    On siis syytä olla tarkkana näiden kanssa. Ne on kuitenkin toistaiseksi nostettu
+    tänne vertailua varten.
   description_en: Other health impacts from the NetZeroPlanner model.
   type: simple.AdditiveNode
   quantity: currency
@@ -1055,7 +1190,8 @@ nodes:
 
 - id: fossil_plant_emissions
   name: Fossil plant emissions (placeholder)
-  description: This model does not consider fossil plant emissions. This node is just for matching the necessary interfaces between modules.
+  description: This model does not consider fossil plant emissions. This node is just
+    for matching the necessary interfaces between modules.
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -1102,7 +1238,8 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 - id: a13_car_pooling
   name_en: Car pooling
   name_fi: Kimppakyydit
-  description_en: How many % increase there is in the average number of people in a car.
+  description_en: How many % increase there is in the average number of people in
+    a car.
   description_fi: Kuinka monta % keskimääräinen henkilömäärä autossa kasvaa.
   type: gpc.DatasetAction2
   quantity: fraction
@@ -1336,7 +1473,10 @@ pages:
   outcome_node: net_emissions
   lead_title: DUT-liikenneskenaario
   lead_title_en: DUT transport scenario
-  lead_paragraph: DUT-hankkeessa kartoitetaan liikennetoimenpiteitä, joilla olisi myös terveydellisiä hyötyjä. Hanke on osa EU:n Driving Urban Transitions (DUT) -ohjelmaa, ja sitä sponsoroivat Suomessa työ- ja elinkeinoministeriö sekä ympäristöministeriö. Hanketta koordinoi VTT ja mukana ovat Kausal Oy ja UKK-instituutti.
+  lead_paragraph: DUT-hankkeessa kartoitetaan liikennetoimenpiteitä, joilla olisi
+    myös terveydellisiä hyötyjä. Hanke on osa EU:n Driving Urban Transitions (DUT)
+    -ohjelmaa, ja sitä sponsoroivat Suomessa työ- ja elinkeinoministeriö sekä ympäristöministeriö.
+    Hanketta koordinoi VTT ja mukana ovat Kausal Oy ja UKK-instituutti.
 
 scenarios:
 - id: baseline

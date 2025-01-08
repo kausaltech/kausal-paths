@@ -98,14 +98,14 @@ class DatasetNode(AdditiveNode):
     )
 
     # -----------------------------------------------------------------------------------
-    def get_gpc_dataset(self) -> ppl.PathsDataFrame:
+    def get_gpc_dataset(self, tag: str | None = None) -> ppl.PathsDataFrame:
         sector = self.get_parameter_value('gpc_sector', required=False)
         if not sector:
             sector = self.get_parameter_value('sector', required=False)
         if not sector:
             raise NodeError(self, 'You must give either gpc_sector or sector parameter.')
         # Perform initial filtering of GPC dataset.
-        df = self.get_input_dataset_pl()
+        df = self.get_input_dataset_pl(tag=tag)
         df = df.filter((pl.col(VALUE_COLUMN).is_not_null()) & (pl.col('Sector') == sector))
 
         qlookup = {}

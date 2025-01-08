@@ -6,7 +6,6 @@ ipdb
 plotext
 pre-commit
 pip
-textual
 inotify
 ondivi
 django-debug-toolbar

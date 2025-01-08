@@ -14,7 +14,9 @@ from django.db.models.functions import Length, Substr
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django_stubs_ext.db.models import TypedModelMeta
+from pydantic import BaseModel
 
+from django_pydantic_field import SchemaField
 from loguru import logger
 from treebeard.mp_tree import MP_Node, MP_NodeManager, MP_NodeQuerySet
 
@@ -28,13 +30,12 @@ from kausal_common.users import UserOrAnon, user_or_none
 from paths.types import CacheablePathsModel, PathsModel, PathsQuerySet
 from paths.utils import IdentifierField, UnitField
 
-from nodes.instance import Instance, InstanceLoader
-
 if TYPE_CHECKING:
     from rich.repr import RichReprResult
 
     from kausal_common.models.types import RevMany
 
+    from nodes.instance import Instance
     from nodes.models import InstanceConfig
     from users.models import User
 
@@ -57,6 +58,30 @@ _FrameworkManager = models.Manager.from_queryset(FrameworkQuerySet)
 class FrameworkManager(ModelManager['Framework', FrameworkQuerySet], _FrameworkManager):  # pyright: ignore
     """Model manager for Framework."""
 del _FrameworkManager
+
+
+class MinMaxDefaultInt(BaseModel):
+    min: int | None = None
+    """Minimum accepted value."""
+
+    max: int | None = None
+    """Maximum accepted value."""
+
+    default: int | None = None
+    """Default value."""
+
+    def validate_value(self, value: int) -> int:
+        if self.min is not None and value < self.min:
+            raise ValueError(f"Value must be at least {self.min}")
+        if self.max is not None and value > self.max:
+            raise ValueError(f"Value must be at most {self.max}")
+        return value
+
+
+class FrameworkDefaults(BaseModel):
+    target_year: MinMaxDefaultInt = MinMaxDefaultInt(min=2030, default=2030, max=2050)
+    baseline_year: MinMaxDefaultInt = MinMaxDefaultInt(min=2018, default=None, max=2023)
+
 
 class Framework(CacheablePathsModel['FrameworkSpecificCache'], UUIDIdentifiedModel):
     """
@@ -89,6 +114,9 @@ class Framework(CacheablePathsModel['FrameworkSpecificCache'], UUIDIdentifiedMod
     )
     result_excel_url = models.URLField(max_length=250, null=True, blank=True)
     result_excel_node_ids = ArrayField(base_field=models.CharField(max_length=200), null=True, blank=True)
+
+    defaults = SchemaField(schema=FrameworkDefaults, default=FrameworkDefaults)
+
     admin_group: OneToOne[Group | None] = models.OneToOneField(
         Group, on_delete=models.PROTECT, editable=False, related_name='admin_for_framework',
         null=True,
@@ -357,6 +385,7 @@ class MeasureTemplate(CacheablePathsModel['FrameworkSpecificCache'], OrderedMode
     min_value = models.FloatField(null=True, blank=True)
     max_value = models.FloatField(null=True, blank=True)
     time_series_max = models.FloatField(null=True, blank=True)
+    year_bound = models.BooleanField(default=False)
 
     default_value_source = models.TextField(blank=True)
 
@@ -369,6 +398,7 @@ class MeasureTemplate(CacheablePathsModel['FrameworkSpecificCache'], OrderedMode
 
     public_fields: ClassVar = [
         "uuid", "name", "unit", "priority", "min_value", "max_value", "time_series_max", "default_value_source",
+        "year_bound",
     ]
 
     objects: ClassVar[MeasureTemplateManager] = MeasureTemplateManager()  # pyright: ignore
@@ -516,6 +546,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
     organization_identifier = models.CharField(max_length=200, blank=True, null=True)
     organization_slug = models.CharField(max_length=200, blank=True, null=True)
     baseline_year = models.IntegerField()
+    target_year = models.IntegerField(null=True)
     categories: M2M[FrameworkDimensionCategory, Any] = models.ManyToManyField(FrameworkDimensionCategory)
     token = models.CharField(max_length=50, default=create_random_token)
 
@@ -525,7 +556,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
     framework_id: int
     measures: RevMany[Measure]
 
-    public_fields: ClassVar = ['framework', 'organization_name', 'baseline_year', 'uuid', 'instance_config']
+    public_fields: ClassVar = ['framework', 'organization_name', 'baseline_year', 'target_year', 'uuid', 'instance_config']
 
     class Meta:  # pyright: ignore
         constraints = [
@@ -550,7 +581,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
     @transaction.atomic
     def create_instance(
         cls, framework: Framework, instance_identifier: str, org_name: str, baseline_year: int, uuid: str | None = None,
-        user: UserOrAnon | None = None,
+        target_year: int | None = None, user: UserOrAnon | None = None,
     ) -> FrameworkConfig:
         from nodes.models import InstanceConfig
 
@@ -568,6 +599,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             instance_config=ic,
             organization_name=org_name,
             baseline_year=baseline_year,
+            target_year=target_year,
             uuid=uuid,
             created_by=user_or_none(user),  # type: ignore[misc]
             **extra,
@@ -639,6 +671,8 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             MeasureDataPoint.objects.bulk_update(update_mdps, fields=['default_value'])
 
     def create_model_instance(self, ic: InstanceConfig) -> Instance:
+        from nodes.instance_loader import InstanceLoader
+
         fw = self.framework
         config_fn = Path(settings.BASE_DIR, 'configs', '%s.yaml' % fw.identifier)
         loader = InstanceLoader.from_yaml(config_fn, fw_config=self)
@@ -766,5 +800,5 @@ class MeasureDataPoint(CacheablePathsModel[None], models.Model):
         yield "measure", self.measure
 
     @classmethod
-    def permission_policy(cls) -> ParentInheritedPolicy[Self, Measure, MeasureQuerySet]:
+    def permission_policy(cls) -> ParentInheritedPolicy[Self, Measure, MeasureDataPointQuerySet]:
         return ParentInheritedPolicy(cls, Measure, 'measure')

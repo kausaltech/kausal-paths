@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import graphene
 import strawberry as sb
@@ -29,48 +29,46 @@ from users.schema import Mutations as UsersMutations, Query as UsersQuery
 if TYPE_CHECKING:
     from kausal_common.graphene import GQLInfo
 
+    from paths.types import GQLInstanceContext
+
     from nodes.units import Unit
 
 
 CO2E = 'CO<sub>2</sub>e'
 
 
-class LocaleDirective(GraphQLDirective):
-    def __init__(self):
-        super().__init__(
-            name='locale',
-            description='Select locale in which to return data',
-            args={
-                'lang': GraphQLArgument(
-                    type_=GraphQLNonNull(GraphQLString),
-                    description='Selected language',
-                ),
-            },
-            locations=[DirectiveLocation.QUERY, DirectiveLocation.MUTATION],
-        )
+LocaleDirective = GraphQLDirective(
+    name='locale',
+    description='Select locale in which to return data',
+    args={
+        'lang': GraphQLArgument(
+            type_=GraphQLNonNull(GraphQLString),
+            description='Selected language',
+        ),
+    },
+    locations=[DirectiveLocation.QUERY, DirectiveLocation.MUTATION],
+)
 
 
-class InstanceDirective(GraphQLDirective):
-    def __init__(self):
-        super().__init__(
-            name='instance',
-            description='Select the Paths instance for the request',
-            args={
-                'hostname': GraphQLArgument(
-                    type_=GraphQLString,
-                    description='Hostname',
-                ),
-                'identifier': GraphQLArgument(
-                    type_=GraphQLID,
-                    description='Instance identifier',
-                ),
-                'token': GraphQLArgument(
-                    type_=GraphQLString,
-                    description='Token for accessing the instance',
-                ),
-            },
-            locations=[DirectiveLocation.QUERY, DirectiveLocation.MUTATION],
-        )
+InstanceDirective = GraphQLDirective(
+    name='instance',
+    description='Select the Paths instance for the request',
+    args={
+        'hostname': GraphQLArgument(
+            type_=GraphQLString,
+            description='Hostname',
+        ),
+        'identifier': GraphQLArgument(
+            type_=GraphQLID,
+            description='Instance identifier',
+        ),
+        'token': GraphQLArgument(
+            type_=GraphQLString,
+            description='Token for accessing the instance',
+        ),
+    },
+    locations=[DirectiveLocation.QUERY, DirectiveLocation.MUTATION],
+)
 
 
 class Query(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, ServerVersionQuery, UsersQuery):
@@ -81,7 +79,7 @@ class Query(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, ServerVersionQ
         try:
             unit = validate_unit(value)
         except ValidationError:
-            raise GraphQLError(_("Invalid unit"), info.field_nodes) from None
+            raise GraphQLError(_('Invalid unit'), info.field_nodes) from None
         return unit
 
 
@@ -89,30 +87,60 @@ class Mutations(ParamsMutations, NodesMutations, FrameworksMutations, UsersMutat
     pass
 
 
-class InstanceSelectionType(graphene.InputObjectType):
-    identifier = graphene.ID(required=False)
-    hostname = graphene.String(required=False)
+type SBInfo = sb.Info['GQLInstanceContext']
+
+@sb.input(name='InstanceContext')
+class InstanceContextInput:
+    hostname: str | None
+    identifier: sb.ID | None
+    locale: str | None
 
 
-@sb.type
-class StrawberryQuery:
-    id: str
+@sb.directive(
+    locations=[DirectiveLocation.QUERY, DirectiveLocation.MUTATION],
+    name='context',
+    description='Paths instance context, including the selected locale',
+)
+def context_directive(info: SBInfo, input: InstanceContextInput):
+    return
 
 
-def generate_schema() -> CombinedSchema:
+@sb.type(name='NodeType')
+class SBNode:
+    id: sb.ID
+
+
+@sb.type(name='Query')
+class SBQuery:
+    @sb.field
+    def node(self, info: SBInfo, id: str) -> SBNode:
+        context = info.context.instance.context
+        node = context.get_node(id)
+        return SBNode(id=cast(sb.ID, node.id))
+
+
+def generate_strawberry_schema() -> sb.Schema:
     from kausal_common.strawberry.registry import strawberry_types
 
+    sb_schema = sb.Schema(
+        query=SBQuery, types=strawberry_types, directives=[context_directive]
+    )
+    return sb_schema
+
+
+def generate_schema() -> tuple[sb.Schema, CombinedSchema]:
     # We generate the Strawberry schema just to be able to utilize the
     # resolved GraphQL types directly in the Graphene schema.
-    sb_schema = sb.Schema(query=StrawberryQuery, types=strawberry_types)
+    sb_schema = generate_strawberry_schema()
 
     schema = CombinedSchema(
         sb_schema=sb_schema,
         query=Query,
         mutation=Mutations,
-        directives=list(specified_directives) + [LocaleDirective(), InstanceDirective()],
+        directives=list(specified_directives) + [LocaleDirective, InstanceDirective],
         types=params_types + list(grapple_registry.models.values()),
     )
-    return schema
+    return sb_schema, schema
 
-schema = generate_schema()
+
+sb_schema, schema = generate_schema()

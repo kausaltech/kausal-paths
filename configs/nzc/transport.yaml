@@ -617,14 +617,21 @@ nodes:
 - id: passenger_kilometres
   name_en: Passenger kilometres
   name_fi: Henkilökilometrit
-  type: simple.AdditiveNode
+  type: gpc.DatasetNode
   quantity: mileage
   unit: Mpkm/a
+  input_datasets:
+  - id: nzc/defaults
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_nodes:
-  - id: passenger_kilometres_after_reducing
+  - id: population
+    tags: [ratio_to_last_historical_value, non_additive]
+    to_dimensions: []
+  - id: passenger_kilometres_reduced
   - id: passenger_kilometres_switched
+  params:
+    sector: Transport need
 
 - id: motorised_transport_index
   name_en: Motorised transport index

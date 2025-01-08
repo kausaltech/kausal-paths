@@ -77,31 +77,37 @@ nodes:
     children:
     - kind: node
       label: Heating demand
-      node_id: building_heat_energy_use
+      node_id: statistical_heat_energy_use
       desired_outcome: decreasing
       scenarios: [default, progress_tracking]
-      dimensions:
-      - id: heating_type
-        flatten: true
-      - id: building_energy_class
-        flatten: true
-      - id: energy_carrier
-        flatten: true
-      - id: fuel_type
-        flatten: true
-      - id: scope
-        flatten: true
+      dimensions: []
     - kind: node
       label: Fossil fuel usage in district heating
-      node_id: building_heat_fossil_ratio
+      node_id: heating_fuel_share
       desired_outcome: decreasing
       scenarios: [default, progress_tracking]
       dimensions:
       - id: fuel_type
+        flatten: true
+      - id: energy_carrier
         categories: [fossil]
         flatten: true
       - id: heating_type
         categories: [district_heating]
+        flatten: true
+    - kind: node
+      label: Fossil fuel usage in local heating
+      node_id: heating_fuel_share
+      desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: fuel_type
+        flatten: true
+      - id: energy_carrier
+        categories: [fossil]
+        flatten: true
+      - id: heating_type
+        categories: [local_heating]
         flatten: true
 
 # ----------------- Building stock ----------------------
@@ -287,15 +293,15 @@ nodes:
   name_fi: Vanhojen rakennusten peruskorjausaste
   description_en: Shifts building stock from non-renovated to minor or agressively renovated stock. The effect is cumulative, i.e. the renovated stock stays permanently in the new category and thus the stock accumulates to renovated categories.
   description_fi: Siirtää rakennuskantaa ei-peruskorjatuista vähäisesti tai aggressiivisesti peruskorjattuun kantaan. Vaikutus on kumulatiivinen, eli peruskorjattu kanta pysyy pysyvästi uudessa luokassa ja siten kanta kertyy peruskorjattuihin luokkiin.
-  type: simple.AdditiveNode
+  type: gpc.DatasetNode
   quantity: fraction
   unit: '%/a'
   input_dimensions: [building_energy_class]
   output_dimensions: [building_energy_class]
-  input_nodes:
-  - id: old_building_renovation_rate_historical
-    to_dimensions:
-    - id: building_energy_class
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Share of building stock renovated each year
 
 - id: renovation_intensity_shares_historical
   name_en: Renovation intensity shares historical
@@ -370,6 +376,41 @@ nodes:
   - id: nzc/defaults
   params:
     sector: Total heating demand (space heating + domestic hot water + heat for cooking)
+
+- id: heat_energy_use_difference
+  name_en: Heat energy use difference
+  name_fi: Lämmitysenergian käyttöero
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_nodes:
+  - id: total_building_heat_energy_use
+    tags: [arithmetic_inverse]
+  - id: building_heat_energy_use
+    from_dimensions:
+    - id: heating_type
+      flatten: true
+    - id: building_energy_class
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: fuel_type
+      flatten: true
+    - id: scope
+      flatten: true
+
+- id: statistical_heat_energy_use
+  name_en: Statistical heat energy use
+  name_fi: Tilastollinen lämmitysenergian käyttö
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Total heating demand (space heating + domestic hot water + heat for cooking)
+  input_nodes:
+  - id: heat_energy_use_difference
 
 - id: energy_use_intensity_data
   name_en: Energy use intensity data for heating
@@ -569,13 +610,15 @@ nodes:
 - id: heating_fuel_share
   name_en: Heating energy carrier shares  # TODO update ids to match names
   name_fi: Lämmitysenergian kantajien osuudet
-  type: simple.AdditiveNode
+  type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
-  input_dimensions: [heating_type, fuel_type, energy_carrier]
-  output_dimensions: [heating_type, fuel_type, energy_carrier]
-  input_nodes:
-  - id: heating_fuel_share_historical
+  input_dimensions: [energy_carrier, heating_type, fuel_type]
+  output_dimensions: [energy_carrier, heating_type, fuel_type]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Share of heating fuel
 
 - id: heating_fossil_share_historical
   name_en: Heating fossil shares historical
@@ -824,7 +867,7 @@ nodes:
   name_fi: Rakennusten lämmityksen fossiilinen suhde
   type: simple.MultiplicativeNode
   quantity: fraction
-  unit: dimensionless
+  unit: '%'
   input_dimensions: [heating_type, fuel_type]
   output_dimensions: [heating_type, fuel_type]
   input_nodes:
@@ -844,6 +887,8 @@ nodes:
     to_dimensions:
     - id: heating_type
   - id: building_heat_fossil_energy
+  params:
+    replace_nans: 0.0
 
 - id: heating_emission_factor
   name_en: Heating emission factor
@@ -862,13 +907,15 @@ nodes:
     - id: pollutant
     - id: heating_type
   - id: building_heat_fossil_ratio
-    tags: [inventory_only, geometric_inverse, empty_to_zero, extend_values]
+    tags: [inventory_only, geometric_inverse, extend_values]
     from_dimensions:
     - id: fuel_type
       categories: [fossil]
     to_dimensions:
     - id: heating_type
     - id: fuel_type
+  params:
+    replace_nans: 0.0
 
 - id: building_heating_emissions
   name_en: Building heating emissions

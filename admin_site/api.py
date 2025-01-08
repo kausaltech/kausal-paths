@@ -28,7 +28,7 @@ def check_login_method(request):
     if not email:
         msg = _("Invalid email address")
         raise ValidationError(dict(detail=msg, code="invalid_email"))
-    user = User.objects.filter(email=email).first()
+    user = User.objects.filter(email__iexact=email).first()
     if user is None:
         msg = _("No user found with this email address. Ask your administrator to create an account for you.")
         raise ValidationError(dict(detail=msg, code="no_user"))

@@ -258,8 +258,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     ton = tonne
     # Mega-kilometers is often used for mileage
     Mkm = gigameters
-    EUR = [currency]
-    MEUR = megaEUR
+    EUR = [currency] = €
     CAD = nan EUR
     USD = nan EUR
     SEK = 0.1 EUR
@@ -360,7 +359,9 @@ def add_unit_translations():
     kt_str = pgettext_lazy('kilotonne short', 'kt')
     set_one('kt', kt_str, kt_str)
 
-    set_one('MEUR', long=_('million €'), short='M€')
+    set_one('EUR', long=_('euros'), short='€')
+    set_one('megaEUR', long=_('million euros'), short='M€')
+    set_one('gigawatt_hour', long=_('gigawatt hours'), short='GWh')
 
     loc = Loc('de')
     loc._data['unit_patterns']['duration-year']['short'] = dict(one='a')
