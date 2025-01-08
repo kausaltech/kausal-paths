@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich-dev.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: fa190238f9b3d3ba71ccd099f1cef6dca6621780
+  commit: 7aaea7f4cc00554ba6e83faf12a69fad7321390d
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero Cockpit
@@ -1867,7 +1867,7 @@ include:
     node_group: Waste
   - file: zuerich-dev/mobility-dev.yaml
     node_group: Mobility
-  - file: zuerich/electricity.yaml
+  - file: zuerich-dev/electricity-dev.yaml
     node_group: Electricity
   - file: zuerich/energy.yaml
     node_group: Energy

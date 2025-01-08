@@ -1,0 +1,135 @@
+dimensions:
+- id: electricity_source
+  label: Verfahren zur Stromerzeugung
+  label_de: Electricity generation method
+  categories:
+  - id: hydro
+    label: Wasserkraft
+    label_en: Hydropower
+  - id: nuclear
+    label: Kernenergie
+    label_en: Nuclear power
+  - id: natural_gas
+    label: Erdgas
+    label_en: Natural gas
+  - id: solar
+    label: Sonnenenergie
+    label_en: Solar
+  - id: biogas
+    label: Biogas
+    label_en: Biogas
+  - id: waste
+    label: Abfälle
+    label_en: Waste incineration
+  - id: wind
+    label: Windenergie
+    label_en: Wind
+  - id: wood
+    label: Biomasse
+    label_en: Wood
+  - id: fuel_oil
+    label: Heizöl
+    label_en: Heating oil
+  - id: import
+    label: Unbekannte Qualität (Strommix Europa)
+    label_en: European import
+    aliases:
+    - UCTE-Mix / ENTSO-E Mix
+    - Nicht deklariert (UCTE)
+    - Nicht deklariert (UCTE-Mix)
+  - id: subsidized
+    label: Geförderter Strom
+    label_en: Subsidized electricity
+
+nodes:
+- id: electricity_consumption
+  name_de: Endenergieverbrauch Strom
+  name_en: Electricity consumption
+  short_name_de: Strom
+  short_name_en: Electricity
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+
+- id: electricity_production_mix
+  type: ch.zuerich.ElectricityProductionMix
+  name_de: Stromverbrauchsmix
+  name_en: Electricity consumption mix
+  quantity: mix
+  unit: '%'
+  input_dimensions: [electricity_source]
+  output_dimensions: [electricity_source]
+  input_datasets:
+  - id: zuerich/general_electricity_production_mix
+    tags: [general_mix]
+  - id: zuerich/subsidized_electricity_production_mix
+    tags: [subsidized_mix]
+  - id: zuerich/external_electricity_production_mix
+    tags: [external_mix]
+  - id: zuerich/externally_supplied_electricity
+    tags: [external_supply]
+  input_nodes:
+  - id: building_end_energy_consumption_historical
+    tags: [consumption]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+    to_dimensions: []
+
+- id: electricity_emission_factor
+  name_de: Treibhausgasfaktoren Strom
+  name_en: Emission factor of electricity production
+  type: ch.zuerich.EnergyProductionEmissionFactor
+  quantity: emission_factor
+  unit: g/kWh
+  input_nodes:
+  - id: electricity_production_mix
+    tags: mix
+  input_datasets:
+  - zuerich/electricity_consumption_emission_factor
+  input_dimensions: [electricity_source]
+  output_dimensions: [emission_scope]
+
+- id: european_electricity_renewable
+  name_en: Renewable European-import component of electricity production mix
+  name_de: Renewable European-import component of electricity production mix
+  type: simple.FixedMultiplierNode
+  quantity: fraction
+  input_dimensions: [electricity_source]
+  output_dimensions: [electricity_source]
+  unit: '%'
+  params:
+  - id: multiplier
+    value: 0.247
+  input_nodes:
+  - id: electricity_production_mix
+
+- id: electricity_mix_renewable
+  name_de: Renewable component of electricity production mix
+  name_en: Renewable component of electricity production mix
+  type: simple.AdditiveNode
+  quantity: fraction
+  input_dimensions: [electricity_source]
+  output_dimensions: [electricity_source]
+  unit: '%'
+  input_nodes:
+  - id: electricity_production_mix
+    from_dimensions:
+    - id: electricity_source
+      categories: [hydro, solar, biogas, wind, wood]
+  - id: european_electricity_renewable
+    from_dimensions:
+    - id: electricity_source
+      categories: [import]
+
+- id: electricity_production_energy_factor
+  name_de: Primärenergiefaktoren Stromerzeugung
+  name_en: Electricity primary energy factor by carrier
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: kWh/kWh
+  output_dimensions: [electricity_source, renewable_energy]
+  input_dimensions: [electricity_source, renewable_energy]
+  input_datasets:
+  - id: zuerich/electricity_primary_energy_factors
