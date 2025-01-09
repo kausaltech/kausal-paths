@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich-dev.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 7aaea7f4cc00554ba6e83faf12a69fad7321390d
+  commit: c74aa23db154fb6794943b7196e21d17262542f8
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero Cockpit
@@ -852,150 +852,24 @@ actions:
   - id: building_heat_mix
   output_dimensions: [emission_scope]
 
-- id: fossil_fuel_heater_to_district_heat
-  name_en: Replacement of fossil fuel heaters with district heat
-  name_de: Heizungsersatz durch Anschluss an thermische Netze
-  type: shift.ShiftAction
-  parent: heater_replacement_and_district_heat
+- id: building_heat_mix_change
+  name_en: Building heat mix change
+  name_de: Building heat mix change
   group: buildings
-  quantity: mix
-  output_nodes:
-  - building_heat_mix
-  unit: '%'
-  params:
-  - id: shift
-    unit: '%'
-    is_customizable: false
-    value:
-    - source:
-        categories:
-          heating_system: fuel_oil
-      dests:
-      - categories:
-          heating_system: district_heat
-      amounts:
-      - {year: 2023, source_amount: -0.525, dest_amounts: [100]}
-      - {year: 2025, source_amount: -0.525, dest_amounts: [100]}
-      - {year: 2026, source_amount: -0.503, dest_amounts: [100]}
-      - {year: 2030, source_amount: -0.503, dest_amounts: [100]}
-      - {year: 2031, source_amount: -0.461, dest_amounts: [100]}
-      - {year: 2035, source_amount: -0.461, dest_amounts: [100]}
-      - {year: 2036, source_amount: -0.394, dest_amounts: [100]}
-      - {year: 2040, source_amount: -0.394, dest_amounts: [100]}
-
-    - source:
-        categories:
-          heating_system: natural_gas
-      dests:
-      - categories:
-          heating_system: district_heat
-      amounts:
-      - {year: 2023, source_amount: -1.259, dest_amounts: [100]}
-      - {year: 2025, source_amount: -1.259, dest_amounts: [100]}
-      - {year: 2026, source_amount: -1.297, dest_amounts: [100]}
-      - {year: 2030, source_amount: -1.297, dest_amounts: [100]}
-      - {year: 2031, source_amount: -1.14, dest_amounts: [100]}
-      - {year: 2035, source_amount: -1.14, dest_amounts: [100]}
-      - {year: 2036, source_amount: -1.206, dest_amounts: [100]}
-      - {year: 2040, source_amount: -1.206, dest_amounts: [100]}
-
-- id: fossil_fuel_heater_to_heat_pumps
-  name_en: Replacement of fossil fuel heaters with heat pumps
-  name_de: Heizungsersatz durch Wärmepumpen
-  type: shift.ShiftAction
   parent: heater_replacement_and_district_heat
-  group: buildings
+  type: linear.DatasetReduceAction
   quantity: mix
+  input_dimensions: [heating_system]
+  output_dimensions: [heating_system]
+  input_nodes:
+  - id: building_heat_mix_historical
+    tags: [historical]
+  input_datasets:
+  - id: zuerich/building_heat_mix_goals
+    tags: [goal]
   output_nodes:
-  - building_heat_mix
+  - id: building_heat_mix
   unit: '%'
-  params:
-  - id: shift
-    unit: '%'
-    is_customizable: false
-    value:
-    - source:
-        categories:
-          heating_system: fuel_oil
-      dests:
-      - categories:
-          heating_system: heat_pumps
-      amounts:
-      - {year: 2023, source_amount: -0.553, dest_amounts: [100]}
-      - {year: 2025, source_amount: -0.553, dest_amounts: [100]}
-      - {year: 2026, source_amount: -0.539, dest_amounts: [100]}
-      - {year: 2030, source_amount: -0.539, dest_amounts: [100]}
-      - {year: 2031, source_amount: -0.576, dest_amounts: [100]}
-      - {year: 2035, source_amount: -0.576, dest_amounts: [100]}
-      - {year: 2036, source_amount: -0.407, dest_amounts: [100]}
-      - {year: 2040, source_amount: -0.407, dest_amounts: [100]}
-
-    - source:
-        categories:
-          heating_system: natural_gas
-      dests:
-      - categories:
-          heating_system: heat_pumps
-      amounts:
-      - {year: 2023, source_amount: -1.18, dest_amounts: [100]}
-      - {year: 2025, source_amount: -1.18, dest_amounts: [100]}
-      - {year: 2026, source_amount: -1.261, dest_amounts: [100]}
-      - {year: 2030, source_amount: -1.261, dest_amounts: [100]}
-      - {year: 2031, source_amount: -1.224, dest_amounts: [100]}
-      - {year: 2035, source_amount: -1.224, dest_amounts: [100]}
-      - {year: 2036, source_amount: -1.193, dest_amounts: [100]}
-      - {year: 2040, source_amount: -1.193, dest_amounts: [100]}
-
-- id: fossil_fuel_heater_to_other
-  name_en: Replacement of fossil fuel heaters with other heaters
-  name_de: Heizungsersatz durch übrige Systeme
-  type: shift.ShiftAction
-  parent: heater_replacement_and_district_heat
-  group: buildings
-  quantity: mix
-  output_nodes:
-  - building_heat_mix
-  unit: '%'
-  params:
-  - id: shift
-    unit: '%'
-    is_customizable: false
-    value:
-    - source:
-        categories:
-          heating_system: fuel_oil
-      dests:
-      - categories:
-          heating_system: wood
-      - categories:
-          heating_system: solar_collectors
-      amounts:
-      - {year: 2023, source_amount: -0.072, dest_amounts: [60.8, 39.2]}
-      - {year: 2025, source_amount: -0.072, dest_amounts: [60.8, 39.2]}
-      - {year: 2026, source_amount: -0.058, dest_amounts: [60.8, 39.2]}
-      - {year: 2030, source_amount: -0.058, dest_amounts: [60.8, 39.2]}
-      - {year: 2031, source_amount: -0.063, dest_amounts: [60.8, 39.2]}
-      - {year: 2035, source_amount: -0.063, dest_amounts: [60.8, 39.2]}
-      - {year: 2036, source_amount: -0.12, dest_amounts: [60.8, 39.2]}
-      - {year: 2040, source_amount: -0.12, dest_amounts: [60.8, 39.2]}
-
-    - source:
-        categories:
-          heating_system: natural_gas
-      dests:
-      - categories:
-          heating_system: wood
-      - categories:
-          heating_system: solar_collectors
-      amounts:
-      - {year: 2023, source_amount: -0.001, dest_amounts: [58.7, 41.3]}
-      - {year: 2025, source_amount: -0.001, dest_amounts: [58.7, 41.3]}
-      - {year: 2026, source_amount: -0.042, dest_amounts: [58.7, 41.3]}
-      - {year: 2030, source_amount: -0.042, dest_amounts: [58.7, 41.3]}
-      - {year: 2031, source_amount: -0.036, dest_amounts: [58.7, 41.3]}
-      - {year: 2035, source_amount: -0.036, dest_amounts: [58.7, 41.3]}
-      - {year: 2036, source_amount: 0, dest_amounts: [58.7, 41.3]}
-      - {year: 2040, source_amount: 0, dest_amounts: [58.7, 41.3]}
 
 - id: district_heat_decarbonisation
   name_de: Dekarbonisierung der thermischen Netze
