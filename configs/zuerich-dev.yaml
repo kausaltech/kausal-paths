@@ -972,11 +972,13 @@ actions:
     value:
     - target: {}
       amounts:
-      - year: 2023
-        amount: 10
-      - year: 2032
-        amount: 10
+      - year: 2024
+        amount: 8
       - year: 2033
+        amount: 8
+      - year: 2034
+        amount: 4
+      - year: 2035
         amount: 0
 
 #

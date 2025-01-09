@@ -267,7 +267,10 @@ nodes:
   name_de: Share of other building fuel use from the gas grid
   quantity: fraction
   unit: '%'
-  historical_values: [[2010, 0]]
+  historical_values: [[2010, 0], [2011, 0], [2012, 0], [2013, 0],
+                      [2014, 0], [2015, 0], [2016, 0], [2017, 0],
+                      [2018, 0], [2019, 0], [2020, 0], [2021, 0],
+                      [2022, 8], [2023, 16]]
 
 - id: building_other_fuel_use
   name_en: Other building fuel use
