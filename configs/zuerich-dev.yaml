@@ -1028,34 +1028,18 @@ actions:
         categories:
           building_use: residential
       amounts:
-      # - year: 2023
-      #   amount: -0.4
-      # - year: 2030
-      #   amount: -0.7
-      # - year: 2040
-      #   amount: 0
-      - year: 2023
-        amount: -1.62
-      - year: 2039
-        amount: -1.62
+      - year: 2024
+        amount: -1.344844
       - year: 2040
-        amount: 0
+        amount: -1.344844
     - target:
         categories:
           building_use: nonresidential
       amounts:
-      # - year: 2023
-      #   amount: -2
-      # - year: 2030
-      #   amount: -1
-      # - year: 2040
-      #   amount: 0
-      - year: 2023
-        amount: -1.65
-      - year: 2039
-        amount: -1.65
+      - year: 2024
+        amount: -1.350181
       - year: 2040
-        amount: 0
+        amount: -1.350181
 
 - id: more_efficient_building_use
   name_en: More efficient building use
