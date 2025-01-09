@@ -362,6 +362,8 @@ def add_unit_translations():
     set_one('EUR', long=_('euros'), short='€')
     set_one('megaEUR', long=_('million euros'), short='M€')
     set_one('gigawatt_hour', long=_('gigawatt hours'), short='GWh')
+    set_one('incident', long=_('number of cases'), short=_('#'))
+    set_one('passenger', long=_('trip'), short=_('trip'))
 
     loc = Loc('de')
     loc._data['unit_patterns']['duration-year']['short'] = dict(one='a')

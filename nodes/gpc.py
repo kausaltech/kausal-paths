@@ -260,6 +260,7 @@ class DatasetNode(AdditiveNode):
 
         df = self.apply_multiplier(df, required=False, units=True)
         df = self.add_and_multiply_input_nodes(df)
+        df = self.maybe_drop_nulls(df)
         df = df.ensure_unit(VALUE_COLUMN, self.unit)  # type: ignore
         return df
 
