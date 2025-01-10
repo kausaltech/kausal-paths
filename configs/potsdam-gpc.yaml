@@ -135,7 +135,7 @@ nodes:
   name_en: Final Energy Heating Sector
   type: gpc.DatasetNode
   quantity: energy
-  unit: MWh/a
+  unit: GWh/a
   input_dimensions: [energietrager, scope]
   output_dimensions: [energietrager, scope]
   params:
