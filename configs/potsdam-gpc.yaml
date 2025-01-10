@@ -9,7 +9,7 @@ dataset_repo:
 name: Klimaschutz-Monitor-Potsdam Treibhausgasinventar
 owner: Stadt Potsdam
 theme_identifier: de-potsdam
-target_year: 2050
+target_year: 2045
 model_end_year: 2050
 minimum_historical_year: 1995
 maximum_historical_year: 2022
