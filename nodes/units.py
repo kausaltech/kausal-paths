@@ -362,6 +362,7 @@ def add_unit_translations():
     set_one('EUR', long=_('euros'), short='€')
     set_one('megaEUR', long=_('million euros'), short='M€')
     set_one('gigawatt_hour', long=_('gigawatt hours'), short='GWh')
+    set_one('megawatt_hour', long=_('megawatt hour'), short=_('MWh'))
     set_one('incident', long=_('number of cases'), short=_('#'))
     set_one('passenger', long=_('trip'), short=_('trip'))
 

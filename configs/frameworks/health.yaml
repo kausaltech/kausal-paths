@@ -270,7 +270,7 @@ nodes:
   params:
     sector: health_factor_of_active_mobility
 
-- id: health_effect_of_active_mobility
+- id: health_effect_of_active_mobility # FIXME Make sure health effects fdo not disappear and this works with Lappeenranta
   name_fi: Aktiivisen liikkumisen terveysvaikutukset
   name_en: Active mobility health effects
   description_fi: Terveysvaikutukset lasketaan altisteisiin kohdentuvina tapauksina.
@@ -283,6 +283,9 @@ nodes:
   input_nodes:
   - id: health_factor_of_active_mobility
     tags: [non_additive, arithmetic_inverse]
+    to_dimensions:
+    - id: response
+    - id: transport_mode
   - id: active_mobility_duration
     to_dimensions:
     - id: transport_mode
@@ -291,6 +294,10 @@ nodes:
     from_dimensions:
     - id: transport_mode
       flatten: true
+    to_dimensions:
+    - id: iteration
+      categories: [heat]
+    - id: response
 
 # -------------- Health effects ---------------
 
@@ -367,7 +374,7 @@ nodes:
 - id: attributable_cases
   name_fi: Ilmansaasteisiin kohdentuvat tapaukset
   name_en: Cases attributable to air pollution
-  description_fi: Se osa kokonaistapausmäärästä, joka kohdentyy pienhiukkasiin ja typenoksideihin.
+  description_fi: Se osa kokonaistapausmäärästä, joka kohdentyy pienhiukkasiin ja typenoksideihin. Arvio perustuu Terveyden ja hyvinvoinnin laitoksen tautitaakkamalliin.
   description_en: Cases attributable to PM2.5 and NOx.
   type: simple.MultiplicativeNode
   quantity: health_effect
@@ -386,6 +393,10 @@ nodes:
     from_dimensions:
     - id: pollutant
       flatten: true
+    to_dimensions:
+    - id: response
+    - id: iteration
+      categories: [thl]
 
 - id: total_exposure_related_cases
   name_fi: Altisteisiin kohdentuva tapausmäärä yhteensä
@@ -394,8 +405,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: health_effect
   unit: case/a
-  input_dimensions: [response]
-  output_dimensions: [response]
+  input_dimensions: [response, iteration]
+  output_dimensions: [response, iteration]
 
 - id: premature_deaths
   name_fi: Ennenaikaiset kuolemat
@@ -406,8 +417,8 @@ nodes:
   quantity: health_effect
   unit: case/a
   is_outcome: true
-  input_dimensions: [response]
-  output_dimensions: [response]
+  input_dimensions: [response, iteration]
+  output_dimensions: [response, iteration]
   input_nodes:
   - id: total_exposure_related_cases
     from_dimensions:
@@ -438,8 +449,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: health_effect
   unit: DALY/a
-  input_dimensions: [response]
-  output_dimensions: [response]
+  input_dimensions: [response, iteration]
+  output_dimensions: [response, iteration]
   is_outcome: true
   input_nodes:
   - id: case_burden
@@ -461,6 +472,17 @@ nodes:
   params:
     sector: value_of_statistical_life
 
+- id: responses_vs_cost_types # FIXME Use health-related dataset
+  name: Responses vs cost types
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [response, cost_type]
+  output_dimensions: [response, cost_type]
+  input_datasets: [gpc/dut_transport_nzc]
+  params:
+    sector: Responses vs cost types
+
 - id: health_costs_attributed_to_exposure
   name_fi: Altistumiseen kohdentuvat terveyskustannukset
   name_en: Health costs attributable to exposure
@@ -473,9 +495,10 @@ nodes:
   input_nodes:
   - id: premature_deaths
     to_dimensions:
-    - id: cost_type
-      categories: [health]
+    # - id: cost_type
+    #   categories: [health]
     - id: response
+  - id: responses_vs_cost_types
   - id: value_of_statistical_life
     to_dimensions: []
   output_nodes:
@@ -488,8 +511,8 @@ nodes:
   type: costs.ExponentialNode
   quantity: consumption
   unit: MEUR/a
-  input_dimensions: [response, cost_type]
-  output_dimensions: [response, cost_type]
+  input_dimensions: [response, cost_type, iteration]
+  output_dimensions: [response, cost_type, iteration]
   params:
   - id: annual_change
     ref: discount_rate

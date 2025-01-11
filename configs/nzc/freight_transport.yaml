@@ -341,7 +341,7 @@ nodes:
   name_fi: Rahtiliikenteen ilmansaastepäästöt
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   color: '#ff4f57'
 #  color: '#0047b6'
   input_dimensions: [pollutant, energy_carrier, transport_mode]
