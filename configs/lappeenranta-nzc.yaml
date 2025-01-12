@@ -1,7 +1,6 @@
 id: lappeenranta-nzc
 default_language: fi
 supported_languages: [en]
-frameworks: [health]
 site_url: https://lappeenranta-nzc.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
@@ -1687,6 +1686,9 @@ scenarios:
     value: false
 
 include:
+- file: modules/health.yaml
+  node_group: health
+  allow_override: true
 - file: nzc/transport.yaml
   node_group: Transport
 - file: nzc/freight_transport.yaml

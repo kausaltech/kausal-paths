@@ -236,7 +236,7 @@ class DatasetNode(AdditiveNode):
 
             df = df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN).drop(
                 VALUE_COLUMN + '_right',
-            )  # FIXME Does not treat missing categories well
+            )  # FIXME Does not treat missing categories well. Use df multiplication instead.
         return df
 
     # -----------------------------------------------------------------------------------
@@ -260,6 +260,7 @@ class DatasetNode(AdditiveNode):
 
         df = self.apply_multiplier(df, required=False, units=True)
         df = self.add_and_multiply_input_nodes(df)
+        df = self.maybe_drop_nulls(df)
         df = df.ensure_unit(VALUE_COLUMN, self.unit)  # type: ignore
         return df
 

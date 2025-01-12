@@ -13,7 +13,7 @@ SCENARIO_COLUMN = 'ScenarioName'
 # Impact constants
 IMPACT_COLUMN = 'Impact'
 # Probability iterations for Monte Carlo
-UNCERTAINTY_COLUMN = 'Iteration'
+UNCERTAINTY_COLUMN = 'iteration'
 
 # Action as it is in the active scenario
 SCENARIO_ACTION_GROUP = 'Scenario'
@@ -59,12 +59,12 @@ FRACTION_QUANTITY = 'fraction'
 ACTIVITY_QUANTITIES = {
     EMISSION_QUANTITY, ENERGY_QUANTITY, MILEAGE_QUANTITY, VEHICLE_MILEAGE_QUANTITY,
     PASSENGER_MILEAGE_QUANTITY, FREIGHT_MILEAGE_QUANTITY, UTILITY_QUANTITY, 'fuel_consumption', 'consumption',
-    'mass', 'volume', 'employment',
+    'mass', 'volume', 'employment', 'activity',
 }
 
 ACTIVITY_FACTOR_QUANTITIES = {
     ENERGY_FACTOR_QUANTITY, CONSUMPTION_FACTOR_QUANTITY, 'energy_per_area', 'occupancy_factor', 'fuel_factor',
-    'demand_factor',
+    'demand_factor', 'time_factor', 'factor',
 }
 
 UNIT_PRICE_QUANTITIES = {

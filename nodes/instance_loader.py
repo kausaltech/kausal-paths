@@ -129,9 +129,11 @@ class InstanceYAMLConfig:
         entity_type: str,
         apply_group: str | None,
         config_path: Path | None,
+        allow_override: bool = False,
     ) -> None:
         self._merge_config(
-            existing, newconf, allow_override=False, entity_type=entity_type, apply_group=apply_group, config_path=config_path
+            existing, newconf, entity_type=entity_type, apply_group=apply_group,
+            config_path=config_path, allow_override=allow_override
         )
 
     def _merge_config(
@@ -199,6 +201,7 @@ class InstanceYAMLConfig:
 
         includes = data.get('include', [])
         for iconf in includes:
+            allow_override = iconf.get('allow_override', False)
             apply_group = iconf.get('node_group', None)
             ifn = (config_path / Path(iconf['file'])).resolve()
             if not ifn.exists():
@@ -206,9 +209,13 @@ class InstanceYAMLConfig:
             with ifn.open('r') as f:
                 idata = yaml.load(f)
             meta.add_dependency(ifn)
-            self._merge_include_config(nodes, idata.get('nodes', []), 'Node', apply_group=apply_group, config_path=ifn)
             self._merge_include_config(
-                dimensions, idata.get('dimensions', []), 'Dimension', apply_group=apply_group, config_path=None
+                nodes, idata.get('nodes', []), 'Node', apply_group=apply_group, config_path=ifn,
+                allow_override=allow_override
+            )
+            self._merge_include_config(
+                dimensions, idata.get('dimensions', []), 'Dimension', apply_group=apply_group,
+                config_path=None, allow_override=allow_override
             )
 
         # Serialize and deserialize to get rid of Ruamel extras

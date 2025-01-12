@@ -28,6 +28,8 @@ class DatasetAction(ActionNode, DatasetNode):
         if not self.is_enabled():
             df = df.with_columns(pl.lit(self.no_effect_value).alias(VALUE_COLUMN))
 
+        assert self.unit is not None
+        df = df.ensure_unit(VALUE_COLUMN, self.unit) # TODO Use get_unit() instead
         return df
 
     def compute(self) -> ppl.PathsDataFrame:
