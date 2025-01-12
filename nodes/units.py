@@ -365,6 +365,9 @@ def add_unit_translations():
     set_one('megawatt_hour', long=_('megawatt hour'), short=_('MWh'))
     set_one('incident', long=_('number of cases'), short=_('#'))
     set_one('passenger', long=_('trip'), short=_('trip'))
+    set_one('minute', long=_('minute'), short=_('min'))
+    set_one('per_100000py', long=_('cases per 100,000 person-years'), short=_('#/100000 py'))
+    set_one('personal_activity', long=_('minutes per day per person'), short=_('min/d/cap'))
 
     loc = Loc('de')
     loc._data['unit_patterns']['duration-year']['short'] = dict(one='a')

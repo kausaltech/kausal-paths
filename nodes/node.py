@@ -1015,6 +1015,8 @@ class Node:
 
         for tag in edge.tags:
             match tag:
+                case 'truncate_beyond_end':
+                    df = df.filter(pl.col(YEAR_COLUMN).le(self.get_end_year()))
                 case 'extend_values':
                     df = extend_last_historical_value_pl(df, self.get_end_year())
                 case 'inventory_only':
@@ -1554,6 +1556,8 @@ class Node:
                 for tag in edge.tags:
                     if tag == 'non_additive':
                         edge_text += _('    - Input node values are not added but operated despite matching units.\n')
+                    elif tag == 'truncate_beyond_end':
+                        edge_text += _('    - Truncate values beyond the model end year. There may be some from data')
                     elif tag == 'extend_values':
                         edge_text += _('    - Extend the last historical values to the remaining missing years.\n')
                     elif tag == 'inventory_only':
