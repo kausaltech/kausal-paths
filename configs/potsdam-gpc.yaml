@@ -170,7 +170,7 @@ nodes:
   quantity: emission_factor
   unit: t/MWh
   input_dimensions: [ghg, energietrager, scope]
-  output_dimensions: [ghg, energietrager, scope]
+  output_dimensions: [energietrager, ghg, scope]
   params:
     gpc_sector: I.1.1
   input_datasets:
