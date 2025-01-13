@@ -9,7 +9,7 @@ dataset_repo:
 name: Klimaschutz-Monitor-Potsdam Treibhausgasinventar
 owner: Stadt Potsdam
 theme_identifier: de-potsdam
-target_year: 2050
+target_year: 2045
 model_end_year: 2050
 minimum_historical_year: 1995
 maximum_historical_year: 2022
@@ -135,7 +135,7 @@ nodes:
   name_en: Final Energy Heating Sector
   type: gpc.DatasetNode
   quantity: energy
-  unit: MWh/a
+  unit: GWh/a
   input_dimensions: [energietrager, scope]
   output_dimensions: [energietrager, scope]
   params:
@@ -170,7 +170,7 @@ nodes:
   quantity: emission_factor
   unit: t/MWh
   input_dimensions: [ghg, energietrager, scope]
-  output_dimensions: [ghg, energietrager, scope]
+  output_dimensions: [energietrager, ghg, scope]
   params:
     gpc_sector: I.1.1
   input_datasets:
