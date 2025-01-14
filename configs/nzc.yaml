@@ -639,7 +639,7 @@ nodes:
   - id: discounted_cost
     from_dimensions:
     - id: aggregated_cost_type
-#      categories: [capex]
+      categories: [capex]
       flatten: true
     to_dimensions:
     - id: stakeholder

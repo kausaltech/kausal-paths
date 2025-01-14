@@ -1,11 +1,11 @@
 id: dut-transport-nzc
 default_language: fi
 supported_languages: [en]
-site_url: https://dut-transport-nzc.paths.kausal.tech # FIXME Make Lappeenranta use the updated dvc repo
-dataset_repo: # FIXME CHECK THAT THE EXPECTATION IS CALCULATED CORRECTLY. It is not, because categories don't match.
-  url: https://github.com/kausaltech/dvctest.git # FIXME NZP: Move walking and cycling benefits from terveys to physical activity; and air pollution in traffic to air pollution everywhere.
-  dvc_remote: kausal-s3 # FIXME Check the visualizations
-  commit: a5af246406d7e2a4e3fac7c1ef06f2c3d966f713 # FIXME Check that there is no double counting in active transport
+site_url: https://dut-transport-nzc.paths.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  dvc_remote: kausal-s3
+  commit: 7e1fe405c1682fb4760f4377cae2a237f5f638b5
 theme_identifier: default
 name: 'DUT: Liikennetoimenpiteitä terveys- ja ilmastohyötyjen edistämiseksi'
 name_en: 'DUT: Transport actions to promote health and climate benefits'
@@ -81,39 +81,75 @@ action_groups:
   name_en: Electrification (from NetZeroPlanner)
   color: '#93c572'
 
-action_efficiency_pairs:
+# action_efficiency_pairs:
 
-- graph_type: cost_benefit
-  cost_node: discounted_investment
-  impact_node: discounted_benefits
-  cost_unit: MEUR
-  impact_unit: MEUR
-  indicator_unit: MEUR
-  stakeholder_dimension: stakeholder
-  outcome_dimension: cost_type
-  label: Cost-benefit
-
-- graph_type: cost_effectiveness
-  cost_node: discounted_total_cost
-  impact_node: aggregated_net_emissions
-  invert_cost: false
-  invert_impact: true
-  indicator_unit: EUR/t
-  cost_unit: MEUR
-  impact_unit: kt
-  label: Cost efficiency
-
-- graph_type: return_of_investment
-  cost_node: discounted_aggregated_investment
-  impact_node: discounted_aggregated_benefits
-  invert_cost: false
-  invert_impact: true
-  indicator_unit: dimensionless
-  cost_unit: MEUR
-  impact_unit: MEUR
-  label: Return on investment for the city
+# - graph_type: cost_benefit
+#   cost_node: discounted_investment
+#   impact_node: discounted_health_benefits
+#   cost_unit: MEUR
+#   impact_unit: MEUR
+#   indicator_unit: MEUR
+#   stakeholder_dimension: stakeholder
+#   outcome_dimension: cost_type
+#   label: Cost-benefit
 
 dimensions:
+
+- id: response
+  label_fi: Terveysvaikutus
+  label_en: Response
+  aliases: [outcome]
+  categories:
+  - id: mortality
+    label_fi: Kaikki ilmansaastealtistus
+    label_en: All air pollution exposure
+    color: '#a6cee3'
+  - id: work_days_lost
+    label_fi: Menetetyt työpäivät
+    label_en: Work days lost
+    color: '#1f78b4'
+  - id: chronic_bronchitis
+    label_fi: Keuhkoahtaumatauti
+    label_en: Chronic bronchitis
+  - id: cancer
+    label_fi: Syöpä
+    label_en: Cancer
+  - id: tolerable_weekly_intake
+    label_fi: Siedettävä viikkosaanti
+    label_en: Tolerable weekly intake
+  - id: chd_mortality
+    label_fi: Sepelvaltimotautikuolleisuus
+    label_en: Coronary heart disease mortality
+  - id: breast_cancer
+    label_fi: Rintasyöpä
+    label_en: Breast cancer
+  - id: deficiency  # TODO Add causative agent to response
+    label_fi: Puutos
+    label_en: Deficiency
+  - id: infection  # TODO Add causative agent to response
+    label_fi: Infektio
+    label_en: Infection
+  - id: physical_activity
+    label: Fyysinen aktiivisuus
+    label_en: Physical activity
+    color: '#b2df8a'
+  - id: air_pollution
+    label: Ilmansaastealtistus liikenteessä
+    label_en: Air pollution exposure in traffic
+    color: '#33a02c'
+  - id: crash_risk
+    label: Liikenneonnettomuus
+    label_en: Traffic accidents
+    color: '#fb9a99'
+  - id: noise
+    label_en: Noise
+    label_fi: Melu
+  - id: carbon_emissions
+    label: Hiilidioksidipäästöt
+    label_en: CO2 emissions
+  - id: nzp_response
+    label: NZP-vaste
+    color: '#e31a1c'
 
 - id: pollutant
   label_fi: Saaste
@@ -240,11 +276,8 @@ dimensions:
   - id: accidents
     label_en: Accidents
     label_fi: Onnettomuudet
-  - id: health
-    label_en: Health
-    label_fi: Terveys
   - id: physical_activity
-    # aliases: [health]
+    aliases: [health]
     label_en: Health by physical activity
     label_fi: Terveys fyysisestä aktiivisuudesta
   - id: work_days_lost
@@ -737,22 +770,6 @@ nodes:
   params:
     sector: Population
 
-- id: aggregated_net_emissions
-  name: Aggregated net emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  # is_outcome: true
-  input_nodes:
-  - id: net_emissions
-    from_dimensions:
-    - id: ghg
-      flatten: true
-    - id: scope
-      flatten: true
-    - id: sector
-      flatten: true
-
 - id: average_trip_length
   name_en: Average trip length
   name_fi: Keskimääräinen matkan pituus
@@ -876,25 +893,6 @@ nodes:
     sector: Total electricity demand within city boundaries
     drop_nulls: true
 
-- id: statistical_electricity_consumption
-  name_en: Statistical electricity consumption
-  name_fi: Tilastollinen sähkönkulutus
-  type: gpc.DatasetNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  input_datasets:
-  - id: nzc/defaults
-  input_nodes:
-  - id: population
-    tags: [ratio_to_last_historical_value, non_additive]
-    to_dimensions: []
-  - id: difference_in_electricity_consumption
-  params:
-    sector: Total electricity demand within city boundaries
-    drop_nulls: true # TODO Simplify the model by dropping the nulls in a more clever way.
-
 # ------------- Jobs -----------------
 
 - id: total_jobs_created
@@ -1017,7 +1015,7 @@ nodes:
     - id: iteration
       categories: [nzp]
 
-- id: total_cost # FIXME Terveysvaikutuksia katoaa matkalle
+- id: total_cost
   name_fi: Kokonaiskustannus
   name_en: Total cost
   type: simple.AdditiveNode
@@ -1053,7 +1051,7 @@ nodes:
   name_en: Aggregated cost
   type: simple.MultiplicativeNode
   quantity: currency
-  unit: MEUR/a
+  unit: GEUR/a
   input_dimensions: [aggregated_cost_type, stakeholder, cost_type, iteration]
   output_dimensions: [aggregated_cost_type, stakeholder, cost_type, iteration]
   input_nodes:
@@ -1088,22 +1086,6 @@ nodes:
   - id: is_decreasing_rate
     value: true
 
-- id: discounted_total_cost
-  name_fi: Diskontatut kokonaisukustannukset
-  name_en: Discounted total cost
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MEUR/a
-  input_nodes:
-  - id: discounted_cost
-    from_dimensions:
-    - id: stakeholder
-      flatten: true
-    - id: cost_type
-      flatten: true
-    - id: aggregated_cost_type
-      flatten: true
-
 - id: discounted_investment
   name_fi: Diskontatut sijoitukset
   name_en: Discounted investment
@@ -1122,12 +1104,13 @@ nodes:
     - id: stakeholder
     - id: cost_type
 
-- id: discounted_benefits  # TODO Remove this if the single-node CBA visualisation gets accepted.
+- id: discounted_benefits
   name_fi: Diskontatut hyödyt
   name_en: Discounted benefits
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
+  is_outcome: true
   input_dimensions: [stakeholder, cost_type]
   output_dimensions: [stakeholder, cost_type]
   input_nodes:
@@ -1141,32 +1124,18 @@ nodes:
     - id: stakeholder
     - id: cost_type
 
-- id: discounted_aggregated_investment
-  name: discounted aggregated investment
+- id: discounted_health_benefits
+  name: Discounted health benefits
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
   input_nodes:
-  - id: discounted_investment
+  - id: discounted_cost
     from_dimensions:
-    - id: stakeholder
-      categories: [city]
-      flatten: true
-    - id: cost_type
-      flatten: true
-
-- id: discounted_aggregated_benefits
-  name: discounted aggregated benefits
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MEUR/a
-  input_nodes:
-  - id: discounted_benefits
-    from_dimensions:
-    - id: stakeholder
-      categories: [city]
-      flatten: true
-    - id: cost_type
+    - id: aggregated_cost_type
+      categories: [co_benefits]
       flatten: true
 
 # ------------ Lappeenranta-specific nodes -----------
@@ -1214,13 +1183,14 @@ nodes:
   quantity: exposure
   unit: passenger
   historical_values: [[2010, 1.0], [2023, 1.0]]
+  input_dataset_processors: [LinearInterpolation]
 
 - id: amount_of_active_mobility_by_nzc
   name: Aktiivisen liikkumisen määrä NZP:n mukaan
   description_fi: Aktiivisen liikkumisen tiedot, jotka perustuvat NetZeroPlanner-mallilla
     tuotettuun dataan. Katso myös solmu Aktiivisen liikkumisen määrä HLT:n mukaan.
   type: simple.MultiplicativeNode
-  quantity: exposure
+  quantity: mileage
   unit: km/cap/d
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
@@ -1228,7 +1198,7 @@ nodes:
   - id: passenger_kilometres
     from_dimensions:
     - id: transport_mode
-      categories: [walking]
+      categories: [walking, cycling]
   - id: population
     tags: [geometric_inverse]
     to_dimensions: []
@@ -1248,19 +1218,6 @@ nodes:
   input_datasets: [hia/heat/lappeenranta_heat]
   params:
     sector: carbon_factor_of_active_mobility
-
-# - id: emissions_of_active_mobility
-#   name: Aktiivisen liikkumisen päästöt
-#   type: simple.MultiplicativeNode
-#   quantity: emissions
-#   unit: kt/a
-#   input_dimensions: [transport_mode, response]
-#   output_dimensions: [transport_mode, response]
-#   input_nodes:
-#   - id: carbon_factor_of_active_mobility
-#   - id: amount_of_active_mobility
-#     to_dimensions:
-#     - id: transport_mode
 
 # ----------------------- Active mobility ------------------
 
@@ -1407,50 +1364,28 @@ nodes:
     max_value: 1
     unit: dimensionless
 
-# ------------- Effects from the other parts of the NZC model ---------
-
-- id: other_health_effects_from_nzc
-  name_fi: Muita terveysvaikutuksia NZC-mallista
-  name_en: Other health effects from the NZC model
-  description_fi: Lappeenrannan mallin pohjana oleva NetZeroPlanner laskee myös joitakin
-    terveyskustnnuksia liikenteelle. Nämä ovat osittain päällekkäisiä THL:n mallin
-    kanssa (pienhiukkaskuolemat) ja osittain WHO/HEATin kanssa (liikenneonnettomuudet).
-    On siis syytä olla tarkkana näiden kanssa. Ne on kuitenkin toistaiseksi nostettu
-    tänne vertailua varten.
-  description_en: Other health impacts from the NetZeroPlanner model.
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [cost_type, transport_mode]
-  output_dimensions: [cost_type, transport_mode]
+- id: active_mobility_duration
+  name_fi: Aktiivisen liikkumisen kesto
+  name_en: Duration of active mobility
+  description_fi: Keskimääräinen kesto, jonka väestö liikkuu aktiivilla kulkumuodoilla
+    (kävely ja pyöräily).
+  description_en: Average duration when the population moves by active modes (walking
+    and cycling).
+  type: simple.MultiplicativeNode
+  quantity: exposure
+  unit: min/person/d
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
   input_nodes:
-  - id: transport_noise_cost
-    from_dimensions:
-    - id: stakeholder
-      flatten: true
-  - id: transport_accident_cost
-    from_dimensions:
-    - id: stakeholder
-      flatten: true
-  - id: transport_air_pollution_costs
-    from_dimensions:
-    - id: stakeholder
-      flatten: true
-    - id: pollutant
-      flatten: true
-  - id: walking_cycling_co_benefit
-    from_dimensions:
-    - id: stakeholder
-      flatten: true
-  # output_nodes:
-  # - id: health_costs_attributed_to_exposure
-  #   to_dimensions:
-  #   - id: cost_type
-  #   - id: response
-  #     categories: [nzp_response]
-  #   from_dimensions:
-  #   - id: transport_mode
-  #     flatten: true
+  - id: amount_of_active_mobility_by_nzc
+    to_dimensions:
+    - id: transport_mode
+  - id: active_mobility_speed
+    tags: [geometric_inverse]
+    to_dimensions:
+    - id: transport_mode
+
+# ------------- Effects from the other parts of the NZC model ---------
 
 - id: fossil_plant_emissions
   name: Fossil plant emissions (placeholder)
@@ -1480,6 +1415,7 @@ nodes:
 
 - id: modal_shift_amount_due_to_actions
   name: Kulkutapamuutoksen matkamäärät toimenpideiden ansiosta
+  name_en: Modal shifts as number of trips attributable to the actions
   description: Matkamäärä, joka siirtyy busseihin ja raideliikenteeseen toimenpiteiden
     ansiosta.
   type: simple.MultiplicativeNode
@@ -1496,6 +1432,7 @@ nodes:
 
 - id: modal_shift_effect_on_car_trips
   name: Kulkutapatoimenpiteiden vaikutus automatkoihin
+  name_en: The effect of Modal shifts on car trips
   type: simple.AdditiveNode
   quantity: activity
   unit: trips/cap/d
@@ -1540,8 +1477,29 @@ nodes:
   output_nodes:
   - id: passenger_trips
 
+- id: car_traffic_reduced_by_park_and_ride
+  name: Car traffic reduced by park and ride
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: trips/cap/d
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: active_transport_increase
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: transport_mode
+      categories: [buses, trains]
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+      categories: [cars]
+  output_nodes:
+  - id: passenger_trips
+
 - id: passenger_trips
   name: Matkamäärä
+  name_en: Passenger trips
   type: simple.AdditiveNode
   quantity: activity
   unit: trips/cap/d
@@ -1562,13 +1520,40 @@ nodes:
   - id: fleet_emission_factor
     tags: [non_additive]
 
+- id: sink_node
+  name: Sink node
+  type: values.AssociationNode
+  quantity: emissions
+  unit: MEUR/a
+  historical_values: [[2010, 0]]
+  input_nodes:
+  - id: active_mobility_distance
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+  - id: premature_deaths
+    from_dimensions:
+    - id: response
+      flatten: true
+    - id: iteration
+      flatten: true
+  - id: disease_burden_attributed_to_exposure
+    from_dimensions:
+    - id: response
+      flatten: true
+    - id: iteration
+      flatten: true
+  output_nodes:
+  - id: discounted_investment
+    to_dimensions:
+    - id: stakeholder
+      categories: [citizens]
+    - id: cost_type
+      categories: [capex]
+
 actions:
 
 # ------------------ New DUT actions ------------------
-
-# - id: trip_amount
-#   name: Trip amount
-#   type: 
 
 # group: promoting_active_mobility
 
@@ -1618,8 +1603,8 @@ actions:
     sector: Walking & cycling change due to infra improvement
 
 - id: bike_parking
-  name: Pyöräparkkien parantaminen
-  name_en: Bike parking
+  name: Pyöräparkit rautatieasemilla
+  name_en: Bike parking at railway stations
   description: Pyöräpysäköinnin parantamisella, erityisesti juna-asemien ja muiden
     joukkoliikenteen asemien yhteydessä, voidaan lisätä pyöräilyn osuutta kotoa asemalle
     siirryttäessä. Hollannissa pyöräilyn kulkutapaosuus kotoa juna-asemalle on saatu
@@ -1669,7 +1654,9 @@ actions:
     target="_blank">Teixeira 2021</a>, <a 
     href="https://www.traficom.fi/sites/default/files/media/file/Kest%C3%A4v%C3%A4n_liikkumisen_toimien_kulkutapavaikutukset_Traficom_13_2020.pdf"
     target="_blank">Auvinen et al., 2020</a>
-  description_en: <a href="https://www.tandfonline.com/doi/full/10.1080/01441647.2020.1841328"
+  description_en: Assuming the availability of city bikes increases cycling by 20%
+    overall. The estimate is not based on research, which is why the user can change
+    the estimate using the slider. <a href="https://www.tandfonline.com/doi/full/10.1080/01441647.2020.1841328"
     target="_blank">Teixeira 2021</a>, <a 
     href="https://www.traficom.fi/sites/default/files/media/file/Kest%C3%A4v%C3%A4n_liikkumisen_toimien_kulkutapavaikutukset_Traficom_13_2020.pdf"
     target="_blank">Auvinen et al., 2020</a>
@@ -1705,6 +1692,10 @@ actions:
     valitsemalla osuudella, ja vastaava matkamäärä vähennetään automatkoista. Junille
     ja busseille käytetään samaa osuutta, ja sämä on syytä huomioida arviossa. Oletusarvona
     on 15 % lisäys.
+  description_en: It is assumed that park-and-ride facilities increase bus and train
+    trips by a user-selected percentage, and a corresponding number of trips are reduced
+    from car trips. The same percentage is used for trains and buses, and this should
+    be taken into account in the estimate. The default value is a 15% increase.
   type: gpc.DatasetAction
   quantity: fraction
   unit: '%'
@@ -1739,6 +1730,14 @@ actions:
     vuosina (0,74). <a 
     href="https://www.traficom.fi/sites/default/files/media/file/Kest%C3%A4v%C3%A4n_liikkumisen_toimien_kulkutapavaikutukset_Traficom_13_2020.pdf"
     target="_blank">Auvinen et al., 2020</a>
+  description_en: The model assumes that the trunk route network of public transport
+    reduces travel times and thus increases its competitiveness compared to private
+    cars. A 15% reduction in travel time is assumed when taking into account waiting
+    time. Studies show that the cross-elasticity is quite high, even 0.818 between
+    the travel time of private cars and the use of public transport. However, the
+    effect is initially higher (1.319) and levels off in later years (0.74). <a 
+    href="https://www.traficom.fi/sites/default/files/media/file/Kest%C3%A4v%C3%A4n_liikkumisen_toimien_kulkutapavaikutukset_Traficom_13_2020.pdf"
+    target="_blank">Auvinen et al., 2020</a>
   type: gpc.DatasetAction
   quantity: ratio
   unit: '%'
@@ -1766,7 +1765,7 @@ actions:
 
 - id: congestion_pricing
   name: Ruuhkamaksut
-  name_en: Congestion pricing
+  name_en: Congestion charging
   description: Mallissa oletetaan, että ruuhkamaksut lisäävät autoilun kustannuksia
     keskimäärin 20 % (ruuhka-aikoina enemmän, mutta eri aikoja ei tarkastella erikseen).
     Julkisen liikenteen osalta ristijousto on melko suuri (keskimäärin 0,248) ja aktiivisten
@@ -1774,6 +1773,15 @@ actions:
     matkoista olisi erillistä dataa, koka aktiivinen liikkuminen painottuu niihin.
     <a href="https://www.tandfonline.com/doi/abs/10.1080/01441647.2021.1898488" target="_blank">Hosford
     2021</a>, <a 
+    href="https://www.traficom.fi/sites/default/files/media/file/Kest%C3%A4v%C3%A4n_liikkumisen_toimien_kulkutapavaikutukset_Traficom_13_2020.pdf"
+    target="_blank">Auvinen et al., 2020</a>
+  description_en: The model assumes that congestion charges increase the cost of driving
+    by an average of 20% (more during peak hours, but different times are not considered
+    separately). For public transport, the cross-elasticity is quite high (on average
+    0.248) and moderate for active modes of travel (0.105). The model could be refined
+    if separate data on short trips were available, as active mobility is focused
+    on them. <a href="https://www.tandfonline.com/doi/abs/10.1080/01441647.2021.1898488"
+    target="_blank">Hosford 2021</a>, <a 
     href="https://www.traficom.fi/sites/default/files/media/file/Kest%C3%A4v%C3%A4n_liikkumisen_toimien_kulkutapavaikutukset_Traficom_13_2020.pdf"
     target="_blank">Auvinen et al., 2020</a>
   type: gpc.DatasetAction
@@ -1805,6 +1813,11 @@ actions:
   name_en: Parking fees
   description: Mallissa oletetaan samat kustannusmuutokset ja ristijoustot kuin ruuhkamaksuissa.
     <a 
+    href="https://urban-mobility-observatory.transport.ec.europa.eu/document/download/4ae9e061-dfc9-4f92-afe2-30d70de76580_en?filename=parking_and_sump.pdf"
+    target="_blank">Parking and SUMP Topic Guide</a>, <a href="https://park4sump.eu/resources-tools/publications"
+    target="_blank">Park4SUMP</a>
+  description_en: The model assumes the same cost changes and cross-elasticities as
+    in congestion charges. <a 
     href="https://urban-mobility-observatory.transport.ec.europa.eu/document/download/4ae9e061-dfc9-4f92-afe2-30d70de76580_en?filename=parking_and_sump.pdf"
     target="_blank">Parking and SUMP Topic Guide</a>, <a href="https://park4sump.eu/resources-tools/publications"
     target="_blank">Park4SUMP</a>
@@ -1842,6 +1855,13 @@ actions:
     href="https://cleancitiescampaign.org/wp-content/uploads/2022/10/12009C_Quantifying-the-impact-of-low-and-zeroemission-zones-Evidence-Review_final.pdf"
     target="_blank">Williamson et al., 2022</a>, <a href="https://doi.org/10.1016/j.jpubeco.2023.105014"
     target="_blank">Sarmiento et al., 2023</a>
+  description_en: The model assumes that 40 - 80% of nitrogen oxide emissions can
+    be removed by requiring low-emission or zero-emission vehicles in the city center.
+    For fine particulate matter, the change is 20 - 40%. The measure is not assumed
+    to have any other effects than a reduction in the emission factor. <a 
+    href="https://cleancitiescampaign.org/wp-content/uploads/2022/10/12009C_Quantifying-the-impact-of-low-and-zeroemission-zones-Evidence-Review_final.pdf"
+    target="_blank">Williamson et al., 2022</a>, <a href="https://doi.org/10.1016/j.jpubeco.2023.105014"
+    target="_blank">Sarmiento et al., 2023</a>
   type: gpc.DatasetAction
   quantity: fraction
   unit: '%'
@@ -1867,36 +1887,75 @@ actions:
 - id: a11_reduce_all_motorised_transport
   name_en: Reduce all motorised transport
   name_fi: Vähennä kaikkea moottoroitua liikennettä
-  type: gpc.DatasetAction  # TODO Salli historialliset arvot LinearCumulativeAdditiveAction-luokassa.
-  quantity: fraction
-  unit: '%'
-  group: nzp_limiting_cars
-  input_datasets: [nzc/defaults]
-  params:
-    sector: Transportation need reduction by 2030 from urban planning, digital meetings
-      and other transport-reducing initiatives
-  output_nodes:
-  - id: motorised_transport_change
-    to_dimensions: []
-    tags: [non_additive, extend_values]
-
-- id: a12_modal_switch_from_cars_to_other_modes
-  name_en: Modal switch from cars to other modes
-  name_fi: Kulkumuotosiirtymä autoista muihin kulkumuotoihin
+  description: 'Mallissa oletetaan yleinen moottoroidun liikenteen tarpeen vähenemä
+    monenlaisista syistä johtuen: kaupunkisuunnittelu, etätyöskentely ja muut toimet,
+    jotka eivät esiinny muualla mallissa.'
+  description_en: 'The model assumes a general reduction in the need for motorized
+    traffic due to various reasons: urban planning, remote work, and other measures
+    that do not appear elsewhere in the model.'
   type: gpc.DatasetAction
   quantity: fraction
   unit: '%'
   group: nzp_limiting_cars
-  input_datasets: [nzc/defaults]
+  output_nodes:
+  - id: motorised_transport_change
+    tags: [non_additive, extend_values]
+    to_dimensions: []
+  input_datasets:
+  - id: gpc/dut_transport_nzc
+    filters:
+    - column: Transport mode
+      value: bussi
   params:
-    sector: Reduced Pkm cars + motorcycles by 2030
+  - id: sector
+    value: Nominal data used as a basis for slider input
+  - id: multiplier
+    label: Muiden toimenpiteiden tuoma vähennys
+    is_customizable: true
+    is_visible: true
+    unit: '%'
+    value: 15
+    min_value: 0
+    max_value: 40
+    step: 5
+
+- id: a12_modal_switch_from_cars_to_other_modes
+  name_en: Modal switch from cars to other modes
+  name_fi: Kulkumuotosiirtymä autoista muihin kulkumuotoihin
+  description: Mallissa siirretään käyttäjän valitseman prosentin verran automatkoja
+    muihin matkatyyppeihin. Jakauma noudattaa NetZeroPlannerin oletusarvoa eli 60
+    % juniin, 30 % kävelyyn ja 10 % busseihin.
+  description_en: In the model, a user-selected percentage of car trips are shifted
+    to other transport modes. The distribution follows the default value of the NetZeroPlanner,
+    which is 60% to trains, 30% to walking, and 10% to buses.
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: '%'
+  group: nzp_limiting_cars
   output_nodes:
   - id: passenger_kilometres_switched
     to_dimensions: []
+  input_datasets:
+  - id: gpc/dut_transport_nzc
+    filters:
+    - column: Transport mode
+      value: bussi
+  params:
+  - id: sector
+    value: Nominal data used as a basis for slider input
+  - id: multiplier
+    label: Muiden toimenpiteiden tuoma vähennys
+    is_customizable: true
+    is_visible: true
+    unit: '%'
+    value: 20
+    min_value: 0
+    max_value: 40
+    step: 5
 
 - id: a13_car_pooling
-  name_en: Car pooling
-  name_fi: Kimppakyydit
+  name_en: Car occupancy incrased
+  name_fi: Autojen matkustajamäärän lisäys
   description: Kuinka monta prosenttia on lisäystä keskimääräiseen auton matkustajamäärään.
   description_en: How many % increase there is in the average number of people in
     a car.
@@ -1905,20 +1964,39 @@ actions:
   quantity: fraction
   unit: '%'
   group: nzp_limiting_cars
-  input_dimensions: [transport_mode]
-  output_dimensions: [transport_mode]
-  input_datasets: [nzc/defaults]
   output_nodes:
   - id: relative_transport_efficiency
     tags: [truncate_beyond_end]
     to_dimensions:
     - id: transport_mode
+      categories: [cars]
+  input_datasets:
+  - id: gpc/dut_transport_nzc
+    filters:
+    - column: Transport mode
+      value: bussi
   params:
-    sector: 1.3 Car pooling
+  - id: sector
+    value: Nominal data used as a basis for slider input
+  - id: multiplier
+    label: Muiden toimenpiteiden tuoma vähennys
+    is_customizable: true
+    is_visible: true
+    unit: '%'
+    value: 20
+    min_value: 0
+    max_value: 40
+    step: 5
 
 - id: a141_electrification_of_passenger_cars
   name_en: Electrification of passenger cars
   name_fi: Henkilöautojen sähköistäminen
+  description: Mallissa oletetaan, että sähköistyvän autokannan osuus lisääntyy S-käyrän
+    muotoisesti kohti kypsää tilannetta, joka on NetZeroPlannerin oletusarvon mukainen
+    35 %.
+  description_en: The model assumes that the share of the electric vehicle fleet increases
+    in an S-curve shape towards a mature situation, which is 35% according to the
+    default value of the NetZeroPlanner.
   type: gpc.SCurveAction
   quantity: fraction
   unit: '%'
@@ -1965,6 +2043,12 @@ actions:
 - id: a22_truck_fleet_electrification
   name_en: Truck fleet electrification
   name_fi: Kuorma-autokannan sähköistäminen
+  description: Mallissa oletetaan, että sähköistyvän kuorma-autokannan osuus lisääntyy
+    S-käyrän muotoisesti kohti kypsää tilannetta, joka on NetZeroPlannerin oletusarvon
+    mukainen 100 % pakettiautoille ja 60 % kuorma-autoille.
+  description_en: The model assumes that the share of the electric truck fleet increases
+    in an S-curve shape towards a mature situation, which is 100% for vans and 60%
+    for trucks according to the default value of the NetZeroPlanner.
   type: gpc.SCurveAction
   quantity: fraction
   unit: '%'
@@ -1988,6 +2072,14 @@ actions:
 - id: a41_replace_fossil_electricity  # TODO virtaviivaista tämä käyttämällä suhteellista tavoitetta
   name_en: Replace fossil electricity
   name_fi: Korvaa fossiilinen sähkö
+  description: Sähköntuotannon puhdistuminen vähentää epäsuoria (scope 2) päästöjä
+    sähköisen autokannan osalta. Mallissa oletetaan NetZeroPlanner-mallin oletusarvon
+    mukainen 35 prosenttiyksikön siirtymä fossiilesta sähköntuotannosta päästöttömään
+    tuotantoon.
+  description_en: The decarbonization of electricity production reduces indirect (scope
+    2) emissions for the electric vehicle fleet. The model assumes a 35 percentage
+    point shift from fossil-based electricity production to emission-free production,
+    as per the default value of the NetZeroPlanner model.
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'

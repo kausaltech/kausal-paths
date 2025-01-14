@@ -40,10 +40,10 @@ dimensions:
   - id: breast_cancer
     label_fi: Rintasyöpä
     label_en: Breast cancer
-  - id: deficiency  # FIXME Add causative agent to response
+  - id: deficiency  # TODO Add causative agent to response
     label_fi: Puutos
     label_en: Deficiency
-  - id: infection  # FIXME Add causative agent to response
+  - id: infection  # TODO Add causative agent to response
     label_fi: Infektio
     label_en: Infection
   - id: physical_activity
@@ -421,7 +421,7 @@ nodes:
     tags: [non_additive]
     to_dimensions: []
 
-- id: health_effect_of_active_mobility # FIXME Make sure health effects fdo not disappear and this works with Lappeenranta
+- id: health_effect_of_active_mobility # FIXME Make sure health effects do not disappear and this works with Lappeenranta
   name_fi: Aktiivisen liikkumisen terveysvaikutukset
   name_en: Active mobility health effects
   description_fi: Terveysvaikutukset lasketaan altisteisiin kohdentuvina tapauksina.
@@ -654,6 +654,7 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: consumption
   unit: MEUR/a
+  is_outcome: true
   input_dimensions: [response, cost_type, iteration]
   output_dimensions: [response, cost_type, iteration]
   input_nodes:

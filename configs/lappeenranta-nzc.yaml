@@ -84,7 +84,7 @@ action_groups:
   name_en: 7. Reforestation
   name: 7. Uudelleenmetsitys
 
-# impact_overviews:
+# action_efficiency_pairs:
 
 # - graph_type: cost_benefit
 #   cost_node: discounted_investment
@@ -136,10 +136,10 @@ dimensions:
   - id: breast_cancer
     label_fi: Rintasyöpä
     label_en: Breast cancer
-  - id: deficiency  # FIXME Add causative agent to response
+  - id: deficiency  # TODO Add causative agent to response
     label_fi: Puutos
     label_en: Deficiency
-  - id: infection  # FIXME Add causative agent to response
+  - id: infection  # TODO Add causative agent to response
     label_fi: Infektio
     label_en: Infection
   - id: physical_activity
@@ -1107,48 +1107,48 @@ nodes:
 
 # ------------- Effects from the other parts of the NZC model ---------
 
-- id: other_health_effects_from_nzc
-  name_fi: Muita terveysvaikutuksia NZC-mallista
-  name_en: Other health effects from the NZC model
-  description_fi: Lappeenrannan mallin pohjana oleva NetZeroPlanner laskee myös joitakin
-    terveyskustnnuksia liikenteelle. Nämä ovat osittain päällekkäisiä THL:n mallin
-    kanssa (pienhiukkaskuolemat) ja osittain WHO/HEATin kanssa (liikenneonnettomuudet).
-    On siis syytä olla tarkkana näiden kanssa. Ne on kuitenkin toistaiseksi nostettu
-    tänne vertailua varten.
-  description_en: Other health impacts from the NetZeroPlanner model.
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [cost_type, transport_mode]
-  output_dimensions: [cost_type, transport_mode]
-  input_nodes:
-  - id: transport_noise_cost
-    from_dimensions:
-    - id: stakeholder
-      flatten: true
-  - id: transport_accident_cost
-    from_dimensions:
-    - id: stakeholder
-      flatten: true
-  - id: transport_air_pollution_costs
-    from_dimensions:
-    - id: stakeholder
-      flatten: true
-    - id: pollutant
-      flatten: true
-  - id: walking_cycling_co_benefit
-    from_dimensions:
-    - id: stakeholder
-      flatten: true
-  output_nodes:
-  - id: health_costs_attributed_to_exposure
-    to_dimensions:
-    - id: cost_type
-    - id: response
-      categories: [nzp_response]
-    from_dimensions:
-    - id: transport_mode
-      flatten: true
+# - id: other_health_effects_from_nzc # FIXME Check if this is needed by Lappeenranta
+#   name_fi: Muita terveysvaikutuksia NZC-mallista
+#   name_en: Other health effects from the NZC model
+#   description_fi: Lappeenrannan mallin pohjana oleva NetZeroPlanner laskee myös joitakin
+#     terveyskustnnuksia liikenteelle. Nämä ovat osittain päällekkäisiä THL:n mallin
+#     kanssa (pienhiukkaskuolemat) ja osittain WHO/HEATin kanssa (liikenneonnettomuudet).
+#     On siis syytä olla tarkkana näiden kanssa. Ne on kuitenkin toistaiseksi nostettu
+#     tänne vertailua varten.
+#   description_en: Other health impacts from the NetZeroPlanner model.
+#   type: simple.AdditiveNode
+#   quantity: currency
+#   unit: MEUR/a
+#   input_dimensions: [cost_type, transport_mode]
+#   output_dimensions: [cost_type, transport_mode]
+#   input_nodes:
+#   - id: transport_noise_cost
+#     from_dimensions:
+#     - id: stakeholder
+#       flatten: true
+#   - id: transport_accident_cost
+#     from_dimensions:
+#     - id: stakeholder
+#       flatten: true
+#   - id: transport_air_pollution_costs
+#     from_dimensions:
+#     - id: stakeholder
+#       flatten: true
+#     - id: pollutant
+#       flatten: true
+#   - id: walking_cycling_co_benefit
+#     from_dimensions:
+#     - id: stakeholder
+#       flatten: true
+#   output_nodes:
+#   - id: health_costs_attributed_to_exposure
+#     to_dimensions:
+#     - id: cost_type
+#     - id: response
+#       categories: [nzp_response]
+#     from_dimensions:
+#     - id: transport_mode
+#       flatten: true
 
 actions:  # TODO It would be nice to have multiplier parameter in the DatasetAction class.
 

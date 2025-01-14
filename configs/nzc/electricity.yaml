@@ -104,12 +104,12 @@ nodes:
   - kind: group
     label: Drivers of electricity emissions
     children:
-    - kind: node
-      label: Total electricity consumption
-      node_id: statistical_electricity_consumption
-      desired_outcome: decreasing
-      scenarios: [default, progress_tracking]
-      dimensions: []
+    # - kind: node # FIXME Check if this is needed by NZP
+    #   label: Total electricity consumption
+    #   node_id: statistical_electricity_consumption
+    #   desired_outcome: decreasing
+    #   scenarios: [default, progress_tracking]
+    #   dimensions: []
     - kind: node
       label: Fossil fuel usage in electricity production
       node_id: electricity_shares
@@ -139,41 +139,42 @@ nodes:
   params:
     sector: Total electricity demand within city boundaries
 
-- id: difference_in_electricity_consumption
-  name_en: Difference in electricity consumption
-  name_fi: Sähkönkulutuksen erot
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  input_nodes:
-  - id: total_electricity_consumption
-    from_dimensions:
-    - id: sector
-      flatten: true
-    to_dimensions:
-    - id: energy_carrier
-  - id: historical_electricity_consumption
-    tags: [arithmetic_inverse]
+# - id: difference_in_electricity_consumption
+#   name_en: Difference in electricity consumption
+#   name_fi: Sähkönkulutuksen erot
+#   type: simple.AdditiveNode
+#   quantity: energy
+#   unit: GWh/a
+#   input_dimensions: [energy_carrier]
+#   output_dimensions: [energy_carrier]
+#   input_nodes:
+#   - id: total_electricity_consumption
+#     from_dimensions:
+#     - id: sector
+#       flatten: true
+#     to_dimensions:
+#     - id: energy_carrier
+#   - id: historical_electricity_consumption
+#     tags: [arithmetic_inverse]
 
-- id: statistical_electricity_consumption
-  name_en: Statistical electricity consumption
-  name_fi: Tilastollinen sähkönkulutus
-  type: gpc.DatasetNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  input_datasets:
-  - id: nzc/defaults
-  input_nodes:
-  - id: population
-    tags: [ratio_to_last_historical_value, non_additive]
-    to_dimensions: []
-  - id: difference_in_electricity_consumption
-  params:
-    sector: Total electricity demand within city boundaries
+# - id: statistical_electricity_consumption # TODO Does this actually make sense? How can we use a difference with another node?
+#   name_en: Statistical electricity consumption
+#   name_fi: Tilastollinen sähkönkulutus
+#   type: gpc.DatasetNode
+#   quantity: energy
+#   unit: GWh/a
+#   is_visible: false
+#   input_dimensions: [energy_carrier]
+#   output_dimensions: [energy_carrier]
+#   input_datasets:
+#   - id: nzc/defaults
+#   input_nodes:
+#   - id: population
+#     tags: [ratio_to_last_historical_value, non_additive]
+#     to_dimensions: []
+#   - id: difference_in_electricity_consumption
+#   params:
+#     sector: Total electricity demand within city boundaries
 
 - id: electricity_consumption_ratio
   name_en: Electricity consumption ratio between statistics and modelled
