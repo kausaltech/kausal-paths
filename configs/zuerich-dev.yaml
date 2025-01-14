@@ -332,7 +332,7 @@ emission_sectors:
   name_en: Negative emissions
   part_of: net_emissions
   color: '#4DB8FF'
-  order: 7
+  order: -1
 
 - id: food_consumption_emissions
   name_en: Food consumption emissions
