@@ -104,7 +104,6 @@ nodes:
   output_dimensions: [waste_treatment, waste_type]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2030
     filters:
     - column: Parameter
       value: Decarbonisation scenario
