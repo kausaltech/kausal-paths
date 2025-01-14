@@ -233,6 +233,7 @@ nodes:
   input_datasets: [nzc/defaults]
   params:
     sector: New truck emission factor
+    crop_to_model_range: true
 
 - id: truck_emission_factor
   name_en: Truck emission factor

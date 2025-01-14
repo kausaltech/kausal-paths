@@ -30,6 +30,11 @@ class DatasetNode(AdditiveNode):
         ),  # FIXME To be removed, replaced by 'sector' below.
         StringParameter('sector', description='Sector', is_customizable=False),
         StringParameter('rename_dimensions', description='Rename incompatible dimensions', is_customizable=False),
+        BoolParameter(
+            'crop_to_model_range',
+            description='Should dataset be cropped to reject years outside the model range?',
+            is_customizable=False
+        ),
     ]
 
     quantitylookup = {
@@ -210,6 +215,16 @@ class DatasetNode(AdditiveNode):
         return df
 
     # -----------------------------------------------------------------------------------
+    def crop_to_model_range(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        if self.get_parameter_value('crop_to_model_range', required=False):
+            baseline_year = self.context.instance.reference_year
+            end_year = self.context.model_end_year
+            df = df.filter(
+                (pl.col(YEAR_COLUMN).ge(baseline_year)) &
+                (pl.col(YEAR_COLUMN).le(end_year))
+            )
+        return df
+    # -----------------------------------------------------------------------------------
     def add_and_multiply_input_nodes(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         # Add and multiply input nodes as tagged.
         na_nodes = self.get_input_nodes(tag='non_additive')
@@ -254,6 +269,7 @@ class DatasetNode(AdditiveNode):
         df = self.convert_names_to_ids(df)
         df = self.implement_unit_col(df)
         df = self.add_missing_years(df)
+        df = self.crop_to_model_range(df)
 
         if not self.get_parameter_value('inventory_only', required=False):
             df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
