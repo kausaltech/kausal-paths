@@ -1987,6 +1987,8 @@ actions:
     min_value: 0
     max_value: 40
     step: 5
+  - id: crop_to_model_range
+    value: true
 
 - id: a141_electrification_of_passenger_cars
   name_en: Electrification of passenger cars
