@@ -14,7 +14,7 @@ owner_de: Stadt Zürich
 theme_identifier: zurich
 target_year: 2040
 model_end_year: 2040
-reference_year: 1990
+# reference_year: 1990
 minimum_historical_year: 2010
 maximum_historical_year: 2020
 emission_unit: kt/a
@@ -332,22 +332,7 @@ emission_sectors:
   name_en: Negative emissions
   part_of: net_emissions
   color: '#4DB8FF'
-  order: -1
-
-# - id: direct_emissions
-#   name_en: Direct emissions
-#   name_de: Direkte Emissionen
-#   target_year_goal: 0
-#   part_of: net_emissions
-#   color: '#0F05A0'
-#   order: 10
-
-# - id: indirect_emissions
-#   name_en: Indirect emissions
-#   name_de: Indirekte Emissionen
-#   part_of: net_emissions
-#   color: '#6496FF'
-#   order: 11
+  order: 7
 
 - id: food_consumption_emissions
   name_en: Food consumption emissions
@@ -357,6 +342,7 @@ emission_sectors:
   part_of: net_emissions
   color: '#C08600'
   input_dataset_processors: [LinearInterpolation]
+  order: 4
 
 nodes:
 - id: population
@@ -497,6 +483,7 @@ nodes:
   output_dimensions: [emission_scope]
   output_nodes:
   - id: net_emissions
+  order: 6
 
 - id: agricultural_land_emissions
   name_de: Treibhausgasemissionen Landwirtschaftliche Nutzflächen
@@ -654,6 +641,7 @@ nodes:
     from_dimensions:
     - id: emission_sectors
       flatten: true
+  order: 5
 
 # ----- 2kW Society Indicators -----
 

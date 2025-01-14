@@ -662,6 +662,7 @@ nodes:
   input_dimensions: [emission_scope]
   output_dimensions: [emission_scope]
   output_nodes: [net_emissions]
+  order: 1
 
 - id: building_fgas_emissions
   name_en: F-gas emissions from buildings
