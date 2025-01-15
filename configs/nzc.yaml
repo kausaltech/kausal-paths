@@ -30,6 +30,7 @@ result_excels:
   - net_emissions
   - aggregated_cost
   - discounted_cost
+  - passenger_kilometres_data
   - vehicle_kilometres
   - freight_transport_need
   - total_building_heat_energy_use

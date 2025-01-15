@@ -361,6 +361,7 @@ nodes:
   input_dimensions: [emission_scope]
   output_dimensions: [emission_scope]
   output_nodes: [net_emissions]
+  order: 2
 
 - id: transportation_fgas_emissions
   name_en: F-gas emissions from mobility

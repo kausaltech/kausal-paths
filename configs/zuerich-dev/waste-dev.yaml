@@ -254,3 +254,4 @@ nodes:
   output_nodes: [net_emissions]
   type: simple.SectorEmissions
   color: '#960055'
+  order: 3
