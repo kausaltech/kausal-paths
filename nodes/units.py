@@ -360,6 +360,7 @@ def add_unit_translations():
     set_one('kt', kt_str, kt_str)
 
     set_one('EUR', long=_('euros'), short='€')
+    set_one('kiloEUR', long=_('thousand euros'), short='k€')
     set_one('megaEUR', long=_('million euros'), short='M€')
     set_one('gigawatt_hour', long=_('gigawatt hours'), short='GWh')
     set_one('megawatt_hour', long=_('megawatt hour'), short=_('MWh'))

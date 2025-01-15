@@ -1208,17 +1208,6 @@ nodes:
   output_nodes:
   - id: active_mobility_combined
 
-- id: carbon_factor_of_active_mobility  # TODO Find out where this came for and what these emissions are
-  name: Aktiivisen liikkumisen päästökerroin
-  type: gpc.DatasetNode
-  quantity: emission_factor
-  unit: t/a/(min/d/person)
-  input_dimensions: [response, transport_mode]
-  output_dimensions: [response, transport_mode]
-  input_datasets: [hia/heat/lappeenranta_heat]
-  params:
-    sector: carbon_factor_of_active_mobility
-
 # ----------------------- Active mobility ------------------
 
 - id: population_group_sizes

@@ -1530,18 +1530,6 @@ nodes:
     - id: cost_type
     - id: stakeholder
 
-# - id: transport_mode_fraction # FIXME Check if this is needed by NZP
-#   name_en: Transport mode fraction
-#   name_fi: Liikennemuotojen osuus
-#   type: simple.MixNode
-#   quantity: mix
-#   unit: '%'
-#   input_dimensions: [transport_mode]
-#   output_dimensions: [transport_mode]
-#   input_nodes:
-#   - id: passenger_kilometres_data
-#     tags: activity
-
 - id: relative_transport_efficiency
   name_en: Relative transport efficiency
   name_fi: Suhteellinen liikenteen tehokkuus

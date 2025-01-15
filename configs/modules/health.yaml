@@ -421,7 +421,7 @@ nodes:
     tags: [non_additive]
     to_dimensions: []
 
-- id: health_effect_of_active_mobility # FIXME Make sure health effects do not disappear and this works with Lappeenranta
+- id: health_effect_of_active_mobility
   name_fi: Aktiivisen liikkumisen terveysvaikutukset
   name_en: Active mobility health effects
   description_fi: Terveysvaikutukset lasketaan altisteisiin kohdentuvina tapauksina.
@@ -452,15 +452,10 @@ nodes:
 
 # -------------- Health effects ---------------
 
-- id: planetary_health
-  name_fi: Raakile luonnon monimuotoisuudesta ja planetaarisesta terveydestä
-  name_en: A draft of biodiversity and planetary health
-  description_fi: 'https://thl.fi/thl/tietoa-meista/vaikuttamistavoitteet/planetaarinen-terveys-ja-hyvinvointi https://www.biwe.fi/ https://www.allergia.fi/jarjesto/tutkimus-1/'
-  type: simple.AdditiveNode
-  quantity: utility
-  unit: Ut/a
-  historical_values: [[2010, 100], [2023, 100]]
-  input_dataset_processors: [LinearInterpolation]
+# Planetary health
+# https://thl.fi/thl/tietoa-meista/vaikuttamistavoitteet/planetaarinen-terveys-ja-hyvinvointi
+# https://www.biwe.fi/
+# https://www.allergia.fi/jarjesto/tutkimus-1/
 
 - id: incidence
   name_fi: Ilmaantuvuus
@@ -612,30 +607,21 @@ nodes:
 
 # --------------- Health costs ----------------
 
-- id: value_of_statistical_life
-  name_fi: Kuolemanriskin tilastollinen hinta
-  name_en: Value of statistical life
-  description_fi: Terveysvaikutukset muutetaan rahaksi käyttämällä WHO:n HEAT-mallista saatua hintaa kuolemanriskille.
-  type: gpc.DatasetNode
-  quantity: unit_price
-  unit: EUR/case
-  input_datasets: [hia/heat/lappeenranta_heat]
-  params:
-    sector: value_of_statistical_life
-
 - id: health_outcome_unit_price
   name_fi: Terveysvaikutusten yksikkökustannukset
   name_en: Health outcome unit price
+  description_fi: 'Käytössä on kaksi lopputulemaa: kuolema (ilmansaastealtistukselle, onnettomuuksille ja fyysiselle aktiivisuudelle), jota mitataan tilastollisella kuolemalla (value of satistical life) sekä menetetyn työpäivän hinta.'
+  description_en: 'There are basically two different endpoints: increased risk of death (for air pollution exposures, accidents, and physical activity) and work day lost. Value of statistical life is used as the measure for death endpoints.'
   type: gpc.DatasetNode
   quantity: unit_price
-  unit: EUR/case
+  unit: kEUR/case
   input_dimensions: [response]
   output_dimensions: [response]
   input_datasets: [gpc/dut_transport_nzc]
   params:
     sector: Health outcome unit price
 
-- id: responses_vs_cost_types # FIXME Use health-related dataset
+- id: responses_vs_cost_types
   name_fi: Vasteet vs kustannuslajit
   name_en: Responses vs cost types
   type: gpc.DatasetNode
@@ -650,7 +636,8 @@ nodes:
 - id: health_costs_attributed_to_exposure
   name_fi: Altistumiseen kohdentuvat terveyskustannukset
   name_en: Health costs attributable to exposure
-  description_fi: Samat terveysvaikutukset kuin diskontatussa terveyskustannuskuvassa, mutta tässä vaikutuksia ei diskontata.
+  description_fi: Samat terveysvaikutukset kuin diskontatussa terveyskustannuskuvassa, mutta tässä vaikutuksia ei diskontata. Lisäksi on mahdollista tarkastella tuloksia sen perusteella, minkä mallin mukaisesti niitä on laskettu (katso Iteration). Jos kaksi mallia laskee samaa asiaa, tuloksissa voi olla kaksoislaskentaa tässä solmussa; diskontatuista terveyskustannuksista kaksoislaskenta on poistettu.
+  description_en: The same health impacts as in the discounted health cost figure, but here the impacts are not discounted. In addition, it is possible to examine the results based on which model they have been calculated from (see Iteration). If two models calculate the same thing, there may be double counting in the results in this node; double counting has been removed from the discounted health costs.
   type: simple.MultiplicativeNode
   quantity: consumption
   unit: MEUR/a
@@ -671,28 +658,20 @@ nodes:
     - id: response
   output_nodes:
   - id: discounted_health_costs
-
-  # input_dimensions: [response, cost_type, iteration]
-  # output_dimensions: [response, cost_type, iteration]
-  # input_nodes:
-  # - id: premature_deaths
-  #   to_dimensions:
-  #   - id: cost_type
-  #     categories: [health]
-  #   - id: response
-  #   - id: iteration
-  # - id: value_of_statistical_life
-  #   to_dimensions: []
+    tags: [expectation]
+    from_dimensions:
+    - id: response
+      flatten: true
 
 - id: discounted_health_costs
   name_fi: Diskontatut terveyskustannukset
   name_en: Discounted health costs
-  description_fi: Terveysvaikutuksia on arvioitu usealla eri tavalla. Fyysinen aktiivisuus pohjautuu toisaalta henkilöliikennetutkimukseen (pienempi arvio) ja toisaalta NetZeroPlanner-mallin arvioon (suurempi vaikutus). "Kuolleisuus" tarkoittaa tässä nimenomaan kaikkia ilmansaastealtistuksesta johtuvia kuolemantapauksia. NZP-vaste puolestaan sisältää liikenneonnettomuuksiin, meluun ja aktiiviseen liikkumiseen liittyviä terveysvaikutuksia; nämä ovat osittain päällekkäisiä muille vaikutuksille.<br>Diskonttaamalla on arvostettu lähiaikoina syntyviä terveysvaikutuksia enemmän kuin kaukana tulevaisuudessa tapahtuvia.
+  description_fi: Terveysvaikutuksia on arvioitu usealla eri tavalla. Fyysinen aktiivisuus pohjautuu toisaalta henkilöliikennetutkimukseen (pienempi arvio) ja toisaalta NetZeroPlanner-mallin arvioon (suurempi vaikutus). <br>Diskonttaamalla on arvostettu lähiaikoina syntyviä terveysvaikutuksia enemmän kuin kaukana tulevaisuudessa tapahtuvia.
   type: costs.ExponentialNode
   quantity: consumption
   unit: MEUR/a
-  input_dimensions: [response, cost_type, iteration]
-  output_dimensions: [response, cost_type, iteration]
+  input_dimensions: [cost_type, iteration]
+  output_dimensions: [cost_type, iteration]
   params:
   - id: annual_change
     ref: discount_rate
