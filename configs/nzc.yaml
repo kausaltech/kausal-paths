@@ -3,13 +3,13 @@ default_language: en
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 6ac907500079dd84ffdf79e1e3aec67b8dd43cb5
+  commit: be7dcb8ce57f03eff60803f38867a8eab02ffbdb
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
 theme_identifier: eu-netzerocities
 target_year: 2030
-model_end_year: 2050
+model_end_year: 2060
 minimum_historical_year: 2018
 maximum_historical_year: 2020
 emission_unit: kt/a
@@ -30,6 +30,7 @@ result_excels:
   - net_emissions
   - aggregated_cost
   - discounted_cost
+  - passenger_kilometres_data
   - vehicle_kilometres
   - freight_transport_need
   - total_building_heat_energy_use
@@ -1132,7 +1133,7 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
   - id: waste_recycling_shares_baseline
     tags: [baseline]
   - id: waste_recycling_shares_goal
-    tags: [goal]
+    tags: [goal, forecast_only]
     to_dimensions:
     - id: waste_treatment
     - id: waste_type

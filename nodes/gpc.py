@@ -218,7 +218,9 @@ class DatasetNode(AdditiveNode):
         measure_data_override = self.get_global_parameter_value('measure_data_override', required=False)
         start_from_year: int | None = None
         if measure_data_override:
-            start_from_year = cast(int, df.filter(~pl.col(FORECAST_COLUMN))[YEAR_COLUMN].max()) + 1
+            historical_years = df.filter(~pl.col(FORECAST_COLUMN))
+            if len(historical_years) > 0:
+                start_from_year = cast(int, historical_years[YEAR_COLUMN].max()) + 1
         df = self.add_nodes_pl(df, input_nodes, start_from_year=start_from_year)
         if len(na_nodes) > 0:  # FIXME Instead, develop a generic single dimensionless multiplier
             assert len(na_nodes) == 1  # Only one multiplier allowed.
