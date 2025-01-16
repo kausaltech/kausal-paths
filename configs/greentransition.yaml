@@ -56,35 +56,48 @@ action_groups:
   name: Luonnostoimenpiteet
   name_en: Draft actions
 
-# action_efficiency_pairs:  # FIXME Find the causes of nans.
-# - graph_type: cost_benefit
-#   cost_node: uncertain_node
-#   impact_node: uncertain_node
-#   cost_unit: MEUR/a
-#   impact_unit: MEUR/a
-#   label: testi
+action_efficiency_pairs:
 
-# - graph_type: cost_effectiveness
-#   cost_node: action_costs
-#   impact_node: value_profile
-#   invert_cost: false
-#   invert_impact: false
-#   indicator_unit: kEUR/Ut
-#   cost_unit: MEUR
-#   impact_unit: Ut
-# #  plot_limit_efficiency: 10
-#   label: Kokonaishyödyn marginaalikustannus
-#   label_en: Marginal cost in total utility
-# - graph_type: cost_benefit
-#   cost_node: action_costs
-#   impact_node: euro_utilities
-#   invert_cost: false
-#   invert_impact: false
-#   indicator_unit: MEUR
-#   cost_unit: MEUR
-#   impact_unit: MEUR
-#   label: Kustannus-hyötyarvio kokonaisvaikutuksista
-#   label_en: Cost-benefit analysis of total impacts
+- graph_type: value_of_information
+  cost_node: total_forest_cost
+  impact_node: total_forest_cost
+  cost_unit: kEUR
+  impact_unit: kEUR  # FIXME Make it possible to operate without impact node
+  indicator_unit: kEUR
+  # outcome_dimension: iteration
+  label: Value of forest information
+
+- graph_type: cost_benefit
+  cost_node: total_forest_cost
+  impact_node: total_forest_cost
+  cost_unit: kEUR
+  impact_unit: kEUR  # FIXME Make it possible to operate without impact node
+  indicator_unit: kEUR
+  outcome_dimension: iteration
+  label: Costs and benefits of the forest
+
+- graph_type: cost_effectiveness
+  cost_node: action_costs
+  impact_node: value_profile
+  invert_cost: false
+  invert_impact: false
+  indicator_unit: kEUR/Ut
+  cost_unit: MEUR
+  impact_unit: Ut
+  plot_limit_efficiency: 0.00003 # FIXME Is not used
+  label: Kokonaishyödyn marginaalikustannus
+  label_en: Marginal cost in total utility
+
+- graph_type: cost_benefit
+  cost_node: action_costs
+  impact_node: euro_utilities
+  invert_cost: false
+  invert_impact: false
+  indicator_unit: MEUR
+  cost_unit: MEUR
+  impact_unit: MEUR
+  label: Kustannus-hyötyarvio kokonaisvaikutuksista
+  label_en: Cost-benefit analysis of total impacts
 
 params:
 - id: municipality_name
@@ -168,10 +181,12 @@ dimensions:
 - id: iteration
   label: Iteration
   categories:
-  - id: '0'
-    label: '0'
   - id: median
     label: Median
+  - id: expectation
+    label: Expectation
+  - id: '0'
+    label: '0'
   - id: '1'
     label: '1'
   - id: '2'
@@ -803,16 +818,16 @@ nodes:
   is_outcome: true
   input_dimensions: [iteration]
   output_dimensions: [iteration]
-# - id: total_forest_cost_expectation
-#   name: Total forest cost expectation
-#   type: simple.AdditiveNode
-#   quantity: currency
-#   unit: kEUR/a
-#   input_dimensions: [iteration]
-#   output_dimensions: [iteration]
-#   input_nodes:
-#   - id: total_forest_cost
-#     tags: [expectation]
+- id: total_forest_cost_expectation
+  name: Total forest cost expectation
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+  input_dimensions: [iteration]
+  output_dimensions: [iteration]
+  input_nodes:
+  - id: total_forest_cost
+    tags: [expectation]
 
 # ------------------ Etelä-Suomen biodiversiteetti --------------
 

@@ -139,41 +139,25 @@ nodes:
   params:
     sector: Total electricity demand within city boundaries
 
-- id: difference_in_electricity_consumption
-  name_en: Difference in electricity consumption
-  name_fi: Sähkönkulutuksen erot
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  input_nodes:
-  - id: total_electricity_consumption
-    from_dimensions:
-    - id: sector
-      flatten: true
-    to_dimensions:
-    - id: energy_carrier
-  - id: historical_electricity_consumption
-    tags: [arithmetic_inverse]
-
 - id: statistical_electricity_consumption
   name_en: Statistical electricity consumption
   name_fi: Tilastollinen sähkönkulutus
-  type: gpc.DatasetNode
+  type: simple.ChooseInputNode
   quantity: energy
   unit: GWh/a
+  is_visible: false
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
-  input_datasets:
-  - id: nzc/defaults
   input_nodes:
-  - id: population
-    tags: [ratio_to_last_historical_value, non_additive]
-    to_dimensions: []
-  - id: difference_in_electricity_consumption
+  - id: historical_electricity_consumption
+    tags: [progress_tracking]
+  - id: total_electricity_consumption
+    tags: [decarbonisation_scenario] 
+    from_dimensions:
+    - id: sector
+      flatten: true
   params:
-    sector: Total electricity demand within city boundaries
+    node_tag: decarbonisation_scenario
 
 - id: electricity_consumption_ratio
   name_en: Electricity consumption ratio between statistics and modelled
@@ -198,7 +182,7 @@ nodes:
 - id: electricity_correction
   name_en: Electricity statistics correction
   name_fi: Sähkötilastojen korjaus
-  type: gpc.CorrectionNode2
+  type: gpc.CorrectionNode2 # TODO Use the total historical average rather than the last historical point
   quantity: ratio
   unit: dimensionless
   input_dimensions: [energy_carrier]

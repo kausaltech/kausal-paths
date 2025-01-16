@@ -1,7 +1,7 @@
 id: lappeenranta-syke
 default_language: fi
 supported_languages: [en]
-frameworks: [syke, health]  # FIXME Create a new, multi-dimensional syke framework based on GPC dataset structure and yaml creator.
+frameworks: [syke]  # FIXME Create a new, multi-dimensional syke framework based on GPC dataset structure and yaml creator.
 site_url: https://lappeenranta-syke.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
@@ -417,3 +417,8 @@ scenarios:
   name: Lappeenrannan ilmasto-ohjelma
   name_en: Lappeenranta Climate Action Plan
   all_actions_enabled: true
+
+include:
+- file: modules/health.yaml
+  node_group: health
+  allow_override: true

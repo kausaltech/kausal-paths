@@ -17,9 +17,11 @@ METh = MET * h
 
 #### Units
 
-per_100000py = 1e-5 * case / personyear
+per_100000py = 1e-5 * case / personyear = incidence_unit
 personyear = cap * year = py
 quality_adjusted_lifeyear = -1 * DALY = QALY
+
+personal_activity = 1 * minute / day / cap
 
 #ppm = mg / kg  # parts per million
 ppb = ug / kg  # parts per billion

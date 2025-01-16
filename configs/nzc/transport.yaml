@@ -196,6 +196,7 @@ nodes:
   input_datasets: [nzc/defaults]
   params:
     sector: new fleet emission factor
+    crop_to_model_range: true
 
 - id: transport_pollutant_split
   name_en: Transport pollutant split
@@ -222,6 +223,9 @@ nodes:
   input_nodes:
   - id: baseline_year_fleet_emission_factor_pre
     tags: [non_additive]
+    from_dimensions:
+    - id: transport_mode
+      categories: [cars, buses]
     to_dimensions:
     - id: transport_pollutant
     - id: transport_mode
@@ -241,7 +245,7 @@ nodes:
   output_dimensions: [pollutant, transport_pollutant, transport_mode, energy_carrier]
   input_nodes:
   - id: new_fleet_emission_factor_pre
-    tags: [non_additive]
+    tags: [truncate_before_start, non_additive]
     to_dimensions:
     - id: transport_pollutant
     - id: transport_mode
@@ -1525,18 +1529,6 @@ nodes:
     to_dimensions:
     - id: cost_type
     - id: stakeholder
-
-- id: transport_mode_fraction
-  name_en: Transport mode fraction
-  name_fi: Liikennemuotojen osuus
-  type: simple.MixNode
-  quantity: mix
-  unit: '%'
-  input_dimensions: [transport_mode]
-  output_dimensions: [transport_mode]
-  input_nodes:
-  - id: passenger_kilometres_data
-    tags: activity
 
 - id: relative_transport_efficiency
   name_en: Relative transport efficiency

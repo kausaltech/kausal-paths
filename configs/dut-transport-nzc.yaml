@@ -1,14 +1,11 @@
 id: dut-transport-nzc
 default_language: fi
 supported_languages: [en]
-frameworks: [health]
 site_url: https://dut-transport-nzc.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   dvc_remote: kausal-s3
-  # commit: 772bb24d5a5a01ab2aa8b69bb33efec594f0ac8a # Lappeenranta-specific dataset
-  # commit: 4a9b9c0159a17b49c94bb72c265204fe76f3fc57 # Lappeenranta-specific probabilistic dataset
-  commit: d6a1bb92c8c9c40d026131e1ba80b49f2e59fe0b # Lappeenranta with fixed freight ton-km
+  commit: 7e1fe405c1682fb4760f4377cae2a237f5f638b5
 theme_identifier: default
 name: 'DUT: Liikennetoimenpiteitä terveys- ja ilmastohyötyjen edistämiseksi'
 name_en: 'DUT: Transport actions to promote health and climate benefits'
@@ -75,38 +72,26 @@ action_groups:
   name: Sähköistäminen
   name_en: Electrification
   color: '#93c572'
+- id: nzp_limiting_cars
+  name: Autoliikenteen rajoittaminen (NetZeroPlanner-työkalusta)
+  name_en: Limiting passenger cars (from NetZeroPlanner)
+  color: '#93c572'
+- id: nzp_electrification
+  name: Sähköistäminen (NetZeroPlanner-työkalusta)
+  name_en: Electrification (from NetZeroPlanner)
+  color: '#93c572'
 
-action_efficiency_pairs:
+# action_efficiency_pairs:
 
-- graph_type: cost_benefit
-  cost_node: discounted_investment
-  impact_node: discounted_benefits
-  cost_unit: MEUR
-  impact_unit: MEUR
-  indicator_unit: MEUR
-  stakeholder_dimension: stakeholder
-  outcome_dimension: cost_type
-  label: Cost-benefit
-
-- graph_type: cost_effectiveness
-  cost_node: discounted_total_cost
-  impact_node: aggregated_net_emissions
-  invert_cost: false
-  invert_impact: true
-  indicator_unit: EUR/t
-  cost_unit: MEUR
-  impact_unit: kt
-  label: Cost efficiency
-
-- graph_type: return_of_investment
-  cost_node: discounted_aggregated_investment
-  impact_node: discounted_aggregated_benefits
-  invert_cost: false
-  invert_impact: true
-  indicator_unit: dimensionless
-  cost_unit: MEUR
-  impact_unit: MEUR
-  label: Return on investment for the city
+# - graph_type: cost_benefit
+#   cost_node: discounted_investment
+#   impact_node: discounted_health_benefits
+#   cost_unit: MEUR
+#   impact_unit: MEUR
+#   indicator_unit: MEUR
+#   stakeholder_dimension: stakeholder
+#   outcome_dimension: cost_type
+#   label: Cost-benefit
 
 dimensions:
 
@@ -116,8 +101,8 @@ dimensions:
   aliases: [outcome]
   categories:
   - id: mortality
-    label_fi: Kaikki ilmansaastekuolleisuus
-    label_en: Mortality
+    label_fi: Kaikki ilmansaastealtistus
+    label_en: All air pollution exposure
     color: '#a6cee3'
   - id: work_days_lost
     label_fi: Menetetyt työpäivät
@@ -138,43 +123,33 @@ dimensions:
   - id: breast_cancer
     label_fi: Rintasyöpä
     label_en: Breast cancer
-  - id: deficiency  # FIXME Add causative agent to response
+  - id: deficiency  # TODO Add causative agent to response
     label_fi: Puutos
     label_en: Deficiency
-  - id: infection  # FIXME Add causative agent to response
+  - id: infection  # TODO Add causative agent to response
     label_fi: Infektio
     label_en: Infection
   - id: physical_activity
     label: Fyysinen aktiivisuus
+    label_en: Physical activity
     color: '#b2df8a'
   - id: air_pollution
     label: Ilmansaastealtistus liikenteessä
+    label_en: Air pollution exposure in traffic
     color: '#33a02c'
   - id: crash_risk
     label: Liikenneonnettomuus
+    label_en: Traffic accidents
     color: '#fb9a99'
+  - id: noise
+    label_en: Noise
+    label_fi: Melu
   - id: carbon_emissions
     label: Hiilidioksidipäästöt
+    label_en: CO2 emissions
   - id: nzp_response
     label: NZP-vaste
     color: '#e31a1c'
-
-- id: emission_height
-  label_fi: Päästökorkeus
-  label_en: Emission height
-  categories:
-  - id: high
-    label_fi: Korkea
-    label_en: High
-  - id: low
-    label_fi: Matala
-    label_en: Low
-  - id: ground
-    label_fi: Maan taso
-    label_en: Ground
-  - id: average
-    label_fi: Keskimääräinen
-    label_en: Average
 
 - id: pollutant
   label_fi: Saaste
@@ -289,18 +264,25 @@ dimensions:
     label_en: Sales income
     label_fi: Myyntitulot
   - id: air_pollution
-    label_en: Air pollution
-    label_fi: Ilmansaasteet
+    label_en: Air pollution in traffic
+    label_fi: Ilmansaasteet liikenteessä
     aliases: [air_quality]
+  - id: air_pollution_everywhere
+    label_en: Air pollution everywhere
+    label_fi: Kaikki ilmansaastekuolleisuus
   - id: noise
     label_en: Noise
     label_fi: Melu
   - id: accidents
     label_en: Accidents
     label_fi: Onnettomuudet
-  - id: health
-    label_en: Health
-    label_fi: Terveys
+  - id: physical_activity
+    aliases: [health]
+    label_en: Health by physical activity
+    label_fi: Terveys fyysisestä aktiivisuudesta
+  - id: work_days_lost
+    label_fi: Menetetyt työpäivät
+    label_en: Work days lost
   - id: co2_cost
     label_en: CO2 Cost
     label_fi: CO2-kustannus
@@ -394,22 +376,26 @@ dimensions:
   label_fi: Kuljetusmuoto
   categories:
   - id: cars
+    aliases: [henkiloauto]
     label_en: Cars
     label_fi: Autot
   - id: buses
+    aliases: [bussi]
     label_en: Buses
     label_fi: Bussit
   - id: trains
     label_en: Trains
     label_fi: Junat
-    aliases: [Metro/tram, metro/tram, metro_tram]
+    aliases: [Metro/tram, metro/tram, metro_tram, raide]
   - id: public_transport
     label_en: Public transport
     label_fi: Joukkoliikenne
   - id: walking
-    label_en: Walking and cycling
-    label_fi: Kävely ja pyöräily
+    aliases: [jalankulku]
+    label_en: Walking
+    label_fi: Kävely
   - id: cycling
+    aliases: [pyoraliikenne]
     label_en: Cycling
     label_fi: Pyöräily
   - id: light_trucks
@@ -430,6 +416,14 @@ dimensions:
   - id: ebike
     label_en: E-bike
     label_fi: Sähköpyörä
+  - id: other
+    aliases: [muu]
+    label_fi: Muu
+    label_en: Other
+  - id: total
+    aliases: [yhteensä]
+    label_fi: Yhteensä
+    label_en: Total
 
 - id: energy_carrier
   label_en: Energy carrier
@@ -621,7 +615,7 @@ dimensions:
     label_fi: Suurin vaikutus
   - id: max_year
     label_en: Year to reach maximum impact
-    label_fi: Vuosi, jolloin suurin vaikutus saavutetaan
+    label_fi: Vuosi, jolloin suurin vaikutus
   - id: baseline_scenario
     label_en: Baseline scenario
     label_fi: Perusskenaario
@@ -682,6 +676,58 @@ dimensions:
     label: 80-99
     aliases: ['8099']
 
+- id: subgroup
+  label: Population subgroup
+  categories:
+  - id: toddlers
+    label: Toddlers (always with an adult)
+  - id: children
+    label: Children (can walk and cycle alone)
+  - id: adults_without_car
+    label: Adults without own car
+  - id: adults_with_car
+    label: Adults with a car in their control
+  - id: people_that_need_support
+    label: People that need support in moving
+  - id: unclassified
+    label: Unclassified
+
+- id: trip_length
+  label: Trip length
+  categories:
+  - id: short
+    label: Short (<2 km, easy to walk)
+  - id: medium
+    label: Medium (< 6 km, easy to cycle)
+  - id: long
+    label: Long (> 6 km)
+  - id: unclassified
+    label: Unclassified
+
+- id: service_level
+  label: Transport service level (fabrics)
+  categories:
+  - id: walking_city
+    label: Walking city
+  - id: public_transport_city
+    label: Public transport city
+  - id: car_city
+    label: Car city
+  - id: unclassified
+    label: Unclassified
+
+- id: activity_period
+  label: Activity period
+  categories:
+  - id: rush_hours
+    label: Rush hourd (07-09, 14-18)
+  - id: silent_hours
+    label: Silent hours (21-06)
+  - id: average_hours
+    label: Average hours (all others)
+  - id: unclassified
+    label: Unclassified
+
 emission_sectors:
 - id: net_emissions
   name_fi: Kokonaispäästöt (scope 1+2)
@@ -709,43 +755,143 @@ nodes:
   historical_values: [[2018, 0.0], [2023, 0.0]]
 
 - id: population
-  name_fi: Väestön koko Lappeenrannassa
-  name_en: Population size in Lappeenranta
+  name_fi: Väestön koko Suomessa
+  name_en: Population size in Finland
+  description: Data Tilastokeskuksen <a 
+    href='https://pxdata.stat.fi/PxWeb/pxweb/fi/StatFin/StatFin__vaerak/'>väestöennusteesta</a>.
+  description_en: Data from Statiscitcs Finland <a href='https://pxdata.stat.fi/PxWeb/pxweb/fi/StatFin/StatFin__vaerak/'>population
+    forecast</a>.
   type: gpc.DatasetNode
   quantity: population
   unit: cap
-  input_datasets: [nzc/defaults]
-  input_nodes:
-  - id: population_growth
-    tags: [arithmetic_inverse, complement_cumulative_product, non_additive]
+  input_datasets:
+  - id: gpc/dut_transport_nzc
+    forecast_from: 2025
   params:
     sector: Population
 
-- id: population_growth
-  name_fi: Väestön kasvunopeus
-  name_en: Population growth
+- id: average_trip_length
+  name_en: Average trip length
+  name_fi: Keskimääräinen matkan pituus
   type: gpc.DatasetNode
-  quantity: rate
-  unit: '%/a'
-  input_datasets: [nzc/defaults]
+  quantity: factor
+  unit: pkm/trip
+  input_datasets:
+  - id: gpc/dut_transport_nzc
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
   params:
-    sector: Expected annual population growth (up until 2030)
+    sector: Average trip length by type
 
-- id: aggregated_net_emissions
-  name: Aggregated net emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  # is_outcome: true
+- id: passenger_trips_data
+  name_en: Passenger trips data
+  name_fi: Matkaluvun data
+  type: gpc.DatasetNode
+  quantity: activity
+  unit: trips/cap/d
+  input_datasets:
+  - id: gpc/dut_transport_nzc
+    forecast_from: 2025
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  params:
+    sector: Average Finnish trips by type
+
+- id: passenger_kilometres_data
+  name_en: Passenger kilometres data
+  name_fi: Matkakilometrien data
+  type: simple.MultiplicativeNode
+  quantity: activity
+  unit: Mpkm/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
   input_nodes:
-  - id: net_emissions
+  - id: passenger_trips
+  - id: population
+    to_dimensions: []
+  - id: average_trip_length
+
+- id: passenger_kilometres
+  name_en: Passenger kilometres
+  name_fi: Henkilökilometrit
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: Mpkm/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: passenger_kilometres_data
+  - id: passenger_kilometres_reduced
+  - id: passenger_kilometres_switched
+
+- id: cycling_unit_price
+  name_en: Cycling unit price
+  name_fi: Pyöräilyn yksikköhinta
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/pkm
+  input_dimensions: [transport_mode, cost_type]
+  output_dimensions: [transport_mode, cost_type]
+  input_nodes:
+  - id: walking_cycling_unit_price1
     from_dimensions:
-    - id: ghg
+    - id: transport_mode
+      categories: [walking] # In NZP, also contains cycling
       flatten: true
-    - id: scope
+    to_dimensions:
+    - id: transport_mode
+      categories: [cycling]
+    - id: cost_type
+  - id: walking_cycling_unit_price2
+    from_dimensions:
+    - id: transport_mode
+      categories: [walking] # In NZP, also contains cycling
       flatten: true
-    - id: sector
-      flatten: true
+    to_dimensions:
+    - id: transport_mode
+      categories: [cycling]
+    - id: cost_type
+  output_nodes:
+  - id: walking_cycling_unit_price
+
+# ------------- Freight transport ----------
+
+- id: freight_transport_need
+  name_en: Freight transport need
+  name_fi: Rahtiliikenteen tarve
+  type: gpc.DatasetNode
+  quantity: freight_mileage
+  unit: Mtkm/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  input_nodes:
+  - id: population
+    tags: [ratio_to_last_historical_value, non_additive]
+    to_dimensions: []
+  params:
+    sector: Total transportation need within city - Road freight transport
+    drop_nulls: true
+
+# ------------- Electricity ----------
+
+- id: historical_electricity_consumption # TODO Use inner join for multiplication; then drop_nulls is not needed.
+  name_en: Historical electricity consumption
+  name_fi: historiallinen sähkönkulutus
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+  input_nodes:
+  - id: population
+    tags: [ratio_to_last_historical_value, non_additive]
+    to_dimensions: []
+  params:
+    sector: Total electricity demand within city boundaries
+    drop_nulls: true
 
 # ------------- Jobs -----------------
 
@@ -798,6 +944,76 @@ nodes:
     to_dimensions: []
   output_nodes:
   - id: total_cost
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+    - id: iteration
+      categories: [nzp]
+
+- id: transport_cost
+  name_en: Transport cost
+  name_fi: Liikenteen kustannukset
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  color: '#ffff33'
+  input_dimensions: [stakeholder, transport_mode, cost_type]
+  output_dimensions: [stakeholder, transport_mode, cost_type]
+  output_nodes:
+  - id: total_cost
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+    - id: iteration
+      categories: [nzp]
+
+- id: freight_transport_cost
+  name_en: Freight transport cost
+  name_fi: Rahtiliikenteen kustannukset
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  color: '#4daf4a'
+  input_dimensions: [stakeholder, transport_mode, cost_type]
+  output_dimensions: [stakeholder, transport_mode, cost_type]
+  output_nodes:
+  - id: total_cost
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+    - id: iteration
+      categories: [nzp]
+
+- id: electricity_cost
+  name_en: Electricity cost
+  name_fi: Sähkön kustannukset
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  color: '#377eb8'
+  input_dimensions: [energy_carrier, cost_type, stakeholder]
+  output_dimensions: [energy_carrier, cost_type, stakeholder]
+  input_nodes:
+  - id: renewable_electricity_investment_cost
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+  output_nodes:
+  - id: total_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+    - id: iteration
+      categories: [nzp]
 
 - id: total_cost
   name_fi: Kokonaiskustannus
@@ -805,8 +1021,18 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [stakeholder, cost_type]
-  output_dimensions: [stakeholder, cost_type]
+  input_dimensions: [stakeholder, cost_type, iteration]
+  output_dimensions: [stakeholder, cost_type, iteration]
+  input_nodes:
+  - id: health_costs_attributed_to_exposure
+    from_dimensions:
+    - id: response
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: iteration
+    - id: stakeholder
+      categories: [citizens]
 
 - id: aggregated_cost_types
   name_fi: Yhdistetyt kustannuslajit
@@ -816,7 +1042,7 @@ nodes:
   unit: dimensionless
   input_dimensions: [cost_type, aggregated_cost_type]
   output_dimensions: [cost_type, aggregated_cost_type]
-  input_datasets: [nzc/defaults]
+  input_datasets: [gpc/dut_transport_nzc]
   params:
     sector: Aggregated cost types
 
@@ -825,15 +1051,16 @@ nodes:
   name_en: Aggregated cost
   type: simple.MultiplicativeNode
   quantity: currency
-  unit: MEUR/a
-  input_dimensions: [aggregated_cost_type, stakeholder, cost_type]
-  output_dimensions: [aggregated_cost_type, stakeholder, cost_type]
+  unit: GEUR/a
+  input_dimensions: [aggregated_cost_type, stakeholder, cost_type, iteration]
+  output_dimensions: [aggregated_cost_type, stakeholder, cost_type, iteration]
   input_nodes:
   - id: total_cost
-    tags: [non_additive]
+    tags: [non_additive, expectation]
     to_dimensions:
     - id: cost_type
     - id: stakeholder
+    - id: iteration
   - id: aggregated_cost_types
     to_dimensions:
     - id: cost_type
@@ -848,53 +1075,56 @@ nodes:
   is_outcome: true
   input_dimensions: [stakeholder, cost_type, aggregated_cost_type]
   output_dimensions: [stakeholder, cost_type, aggregated_cost_type]
-  input_nodes: [aggregated_cost]
+  input_nodes:
+  - id: aggregated_cost
+    from_dimensions:
+    - id: iteration
+      flatten: true
   params:
   - id: annual_change
     ref: discount_rate
   - id: is_decreasing_rate
     value: true
 
-- id: discounted_total_cost
-  name_fi: Diskontatut kokonaisukustannukset
-  name_en: Discounted total cost
+- id: discounted_health_benefits
+  name: Discounted health benefits
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
-  input_nodes:
-  - id: discounted_cost
-    from_dimensions:
-    - id: stakeholder
-      flatten: true
-    - id: cost_type
-      flatten: true
-    - id: aggregated_cost_type
-      flatten: true
-
-- id: discounted_investment
-  name_fi: Diskontatut sijoitukset
-  name_en: Discounted investment
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [stakeholder, cost_type]
-  output_dimensions: [stakeholder, cost_type]
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
   input_nodes:
   - id: discounted_cost
     from_dimensions:
     - id: aggregated_cost_type
-      categories: [capex]
+      categories: [co_benefits]
       flatten: true
-    to_dimensions:
-    - id: stakeholder
-    - id: cost_type
 
-- id: discounted_benefits  # TODO Remove this if the single-node CBA visualisation gets accepted.
+# - id: discounted_investment
+#   name_fi: Diskontatut sijoitukset
+#   name_en: Discounted investment
+#   type: simple.AdditiveNode
+#   quantity: currency
+#   unit: MEUR/a
+#   input_dimensions: [stakeholder, cost_type]
+#   output_dimensions: [stakeholder, cost_type]
+#   input_nodes:
+#   - id: discounted_cost
+#     from_dimensions:
+#     - id: aggregated_cost_type
+#       categories: [capex]
+#       flatten: true
+#     to_dimensions:
+#     - id: stakeholder
+#     - id: cost_type
+
+- id: discounted_benefits
   name_fi: Diskontatut hyödyt
   name_en: Discounted benefits
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
+  is_outcome: true
   input_dimensions: [stakeholder, cost_type]
   output_dimensions: [stakeholder, cost_type]
   input_nodes:
@@ -907,34 +1137,6 @@ nodes:
     to_dimensions:
     - id: stakeholder
     - id: cost_type
-
-- id: discounted_aggregated_investment
-  name: discounted aggregated investment
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MEUR/a
-  input_nodes:
-  - id: discounted_investment
-    from_dimensions:
-    - id: stakeholder
-      categories: [city]
-      flatten: true
-    - id: cost_type
-      flatten: true
-
-- id: discounted_aggregated_benefits
-  name: discounted aggregated benefits
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MEUR/a
-  input_nodes:
-  - id: discounted_benefits
-    from_dimensions:
-    - id: stakeholder
-      categories: [city]
-      flatten: true
-    - id: cost_type
-      flatten: true
 
 # ------------ Lappeenranta-specific nodes -----------
 
@@ -981,13 +1183,14 @@ nodes:
   quantity: exposure
   unit: passenger
   historical_values: [[2010, 1.0], [2023, 1.0]]
+  input_dataset_processors: [LinearInterpolation]
 
 - id: amount_of_active_mobility_by_nzc
   name: Aktiivisen liikkumisen määrä NZP:n mukaan
   description_fi: Aktiivisen liikkumisen tiedot, jotka perustuvat NetZeroPlanner-mallilla
     tuotettuun dataan. Katso myös solmu Aktiivisen liikkumisen määrä HLT:n mukaan.
   type: simple.MultiplicativeNode
-  quantity: exposure
+  quantity: mileage
   unit: km/cap/d
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
@@ -995,7 +1198,7 @@ nodes:
   - id: passenger_kilometres
     from_dimensions:
     - id: transport_mode
-      categories: [walking]
+      categories: [walking, cycling]
   - id: population
     tags: [geometric_inverse]
     to_dimensions: []
@@ -1004,30 +1207,6 @@ nodes:
     to_dimensions: []
   output_nodes:
   - id: active_mobility_combined
-
-- id: carbon_factor_of_active_mobility  # TODO Find out where this came for and what these emissions are
-  name: Aktiivisen liikkumisen päästökerroin
-  type: gpc.DatasetNode
-  quantity: emission_factor
-  unit: t/a/(min/d/person)
-  input_dimensions: [response, transport_mode]
-  output_dimensions: [response, transport_mode]
-  input_datasets: [hia/heat/lappeenranta_heat]
-  params:
-    sector: carbon_factor_of_active_mobility
-
-# - id: emissions_of_active_mobility
-#   name: Aktiivisen liikkumisen päästöt
-#   type: simple.MultiplicativeNode
-#   quantity: emissions
-#   unit: kt/a
-#   input_dimensions: [transport_mode, response]
-#   output_dimensions: [transport_mode, response]
-#   input_nodes:
-#   - id: carbon_factor_of_active_mobility
-#   - id: amount_of_active_mobility
-#     to_dimensions:
-#     - id: transport_mode
 
 # ----------------------- Active mobility ------------------
 
@@ -1112,6 +1291,33 @@ nodes:
     to_dimensions:
     - id: transport_mode
 
+- id: active_trip_amount
+  name_fi: Aktiivisten matkojen määrä
+  name_en: Active trip amount
+  type: simple.MultiplicativeNode
+  quantity: mileage
+  unit: trips/cap/d
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: active_mobility_by_hlt
+    from_dimensions:
+    - id: age
+      flatten: true
+  - id: average_trip_length
+    tags: [geometric_inverse]
+    to_dimensions:
+    - id: transport_mode
+  - id: trip_multiplier
+    to_dimensions: []
+
+- id: trip_multiplier
+  name: Trip multiplier
+  type: simple.AdditiveNode
+  quantity: ratio
+  unit: pkm/km
+  historical_values: [[2020, 1]]
+
 - id: active_mobility_combined
   name_fi: Aktiivisen liikkumisen yhdistelmä
   name_en: Combined active mobility
@@ -1140,53 +1346,35 @@ nodes:
   - id: active_mobility_distance
   params:
   - id: multiplier
+    is_customizable: true
+    is_visible: true
     value: 0.5
+    min_value: 0
+    max_value: 1
     unit: dimensionless
 
-# ------------- Effects from the other parts of the NZC model ---------
-
-- id: other_health_effects_from_nzc
-  name_fi: Muita terveysvaikutuksia NZC-mallista
-  name_en: Other health effects from the NZC model
-  description_fi: Lappeenrannan mallin pohjana oleva NetZeroPlanner laskee myös joitakin
-    terveyskustnnuksia liikenteelle. Nämä ovat osittain päällekkäisiä THL:n mallin
-    kanssa (pienhiukkaskuolemat) ja osittain WHO/HEATin kanssa (liikenneonnettomuudet).
-    On siis syytä olla tarkkana näiden kanssa. Ne on kuitenkin toistaiseksi nostettu
-    tänne vertailua varten.
-  description_en: Other health impacts from the NetZeroPlanner model.
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [cost_type, transport_mode]
-  output_dimensions: [cost_type, transport_mode]
+- id: active_mobility_duration
+  name_fi: Aktiivisen liikkumisen kesto
+  name_en: Duration of active mobility
+  description_fi: Keskimääräinen kesto, jonka väestö liikkuu aktiivilla kulkumuodoilla
+    (kävely ja pyöräily).
+  description_en: Average duration when the population moves by active modes (walking
+    and cycling).
+  type: simple.MultiplicativeNode
+  quantity: exposure
+  unit: min/person/d
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
   input_nodes:
-  - id: transport_noise_cost
-    from_dimensions:
-    - id: stakeholder
-      flatten: true
-  - id: transport_accident_cost
-    from_dimensions:
-    - id: stakeholder
-      flatten: true
-  - id: transport_air_pollution_costs
-    from_dimensions:
-    - id: stakeholder
-      flatten: true
-    - id: pollutant
-      flatten: true
-  - id: walking_cycling_co_benefit
-    from_dimensions:
-    - id: stakeholder
-      flatten: true
-  output_nodes:
-  - id: health_costs_attributed_to_exposure
+  - id: amount_of_active_mobility_by_nzc
     to_dimensions:
-    - id: cost_type
-    - id: response
-      categories: [nzp_response]
-    from_dimensions:
     - id: transport_mode
-      flatten: true
+  - id: active_mobility_speed
+    tags: [geometric_inverse]
+    to_dimensions:
+    - id: transport_mode
+
+# ------------- Effects from the other parts of the NZC model ---------
 
 - id: fossil_plant_emissions
   name: Fossil plant emissions (placeholder)
@@ -1201,67 +1389,621 @@ nodes:
     tags: [non_additive]
     to_dimensions: []
 
-actions:  # TODO It would be nice to have multiplier parameter in the DatasetAction class.
+# -------------- Action-related nodes --------------
 
-# --------------- TRANSPORT -------------
-
-- id: a11_reduce_all_motorised_transport
-  name_en: Reduce all motorised transport
-  name_fi: Vähennä kaikkea moottoroitua liikennettä
-  type: gpc.DatasetAction2  # TODO Salli historialliset arvot LinearCumulativeAdditiveAction-luokassa.
+- id: modal_shift_fraction_due_to_actions
+  name: Kulkutapamuutoksen osuus toimenpiteiden ansiosta
+  name_en: Modal shift due to actions
+  description: Matkamäärien osuus, joka siirtyy autoista muihin kulkumuotoihin toimenpiteiden
+    ansiosta.
+  type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
-  group: limiting_cars
-  input_datasets: [nzc/defaults]
-  params:
-    sector: Transportation need reduction by 2030 from urban planning, digital meetings
-      and other transport-reducing initiatives
-  output_nodes:
-  - id: motorised_transport_change
-    to_dimensions: []
-    tags: [non_additive, extend_values]
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
 
-- id: a12_modal_switch_from_cars_to_other_modes
-  name_en: Modal switch from cars to other modes
-  name_fi: Kulkumuotosiirtymä autoista muihin kulkumuotoihin
-  type: gpc.DatasetAction2
+- id: modal_shift_amount_due_to_actions
+  name: Kulkutapamuutoksen matkamäärät toimenpideiden ansiosta
+  name_en: Modal shifts as number of trips attributable to the actions
+  description: Matkamäärä, joka siirtyy busseihin ja raideliikenteeseen toimenpiteiden
+    ansiosta.
+  type: simple.MultiplicativeNode
+  quantity: activity
+  unit: trips/cap/d
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: passenger_trips_data
+    tags: [non_additive]
+  - id: modal_shift_fraction_due_to_actions
+  output_nodes:
+  - id: passenger_trips
+
+- id: modal_shift_effect_on_car_trips
+  name: Kulkutapatoimenpiteiden vaikutus automatkoihin
+  name_en: The effect of Modal shifts on car trips
+  type: simple.AdditiveNode
+  quantity: activity
+  unit: trips/cap/d
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: modal_shift_amount_due_to_actions
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+      categories: [cars]
+  output_nodes:
+  - id: passenger_trips
+
+- id: relative_active_transport_increase
+  name: Suhteellinen aktiivisen liikkumisen muutos
+  name_en: Relative active transport increase
+  description: Suhteellinen aktiivisen liikkumisen muutos joidenkin toimenpiteiden
+    ansiosta.
+  type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
-  group: limiting_cars
-  input_datasets: [nzc/defaults]
-  params:
-    sector: Reduced Pkm cars + motorcycles by 2030
-  output_nodes:
-  - id: passenger_kilometres_switched
-    to_dimensions: []
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
 
-- id: a13_car_pooling
-  name_en: Car pooling
-  name_fi: Kimppakyydit
-  description_en: How many % increase there is in the average number of people in
-    a car.
-  description_fi: Kuinka monta % keskimääräinen henkilömäärä autossa kasvaa.
-  type: gpc.DatasetAction2
+- id: active_transport_increase
+  name: Aktiivisen liikkumisen muutos
+  name_en: Active transport increase
+  description: Aktiivisen liikkumisen muutos joidenkin toimenpiteiden ansiosta.
+  type: simple.MultiplicativeNode
   quantity: fraction
+  unit: trips/cap/d
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: relative_active_transport_increase
+  - id: passenger_trips_data
+    tags: [non_additive]
+  output_nodes:
+  - id: passenger_trips
+
+- id: car_traffic_reduced_by_park_and_ride
+  name: Car traffic reduced by park and ride
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: trips/cap/d
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: active_transport_increase
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: transport_mode
+      categories: [buses, trains]
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+      categories: [cars]
+  output_nodes:
+  - id: passenger_trips
+
+- id: passenger_trips
+  name: Matkamäärä
+  name_en: Passenger trips
+  type: simple.AdditiveNode
+  quantity: activity
+  unit: trips/cap/d
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: passenger_trips_data
+
+- id: transport_emission_factor  # TODO Add wear&tear from electric vehicles
+  name_en: Transport emission factor
+  name_fi: Liikenteen päästökerroin
+  type: simple.MultiplicativeNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_dimensions: [pollutant, transport_mode, energy_carrier]
+  output_dimensions: [pollutant, transport_mode, energy_carrier]
+  input_nodes:
+  - id: fleet_emission_factor
+    tags: [non_additive]
+
+- id: sink_node # FIXME Delete this when you can actually choose the outcome node in the action network.
+  name: Sink node
+  type: values.AssociationNode
+  quantity: emissions
+  unit: MEUR/a
+  historical_values: [[2010, 0]]
+  input_nodes:
+  - id: active_mobility_distance
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+  - id: premature_deaths
+    from_dimensions:
+    - id: response
+      flatten: true
+    - id: iteration
+      flatten: true
+  - id: disease_burden_attributed_to_exposure
+    from_dimensions:
+    - id: response
+      flatten: true
+    - id: iteration
+      flatten: true
+  - id: statistical_electricity_consumption
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  - id: discounted_health_costs
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: iteration
+      flatten: true
+  output_nodes:
+  - id: transport_cost
+    to_dimensions:
+    - id: stakeholder
+      categories: [citizens]
+    - id: cost_type
+      categories: [capex]
+    - id: transport_mode
+      categories: [cars]
+
+actions:
+
+# ------------------ New DUT actions ------------------
+
+# group: promoting_active_mobility
+
+- id: new_seamless_cycling_infrastructure
+  name: Uusi yhdenmukainen kävely- ja pyörätiejärjestelmä
+  name_en: New seamless walking and cycling infrastructure
+  description: Suomen kävelyn ja pyöräilyn pääväyliä voidaan parantaa rakentamalla
+    uusia reittejä tai tekemällä merkittäviä parannuksia olemassa oleviin reitteihin.
+    Laadunparantamiskeinoja ovat yhtenäiset väylät, eri liikennemuotojen erottelu,
+    valaistus ja päällysteiden parantaminen. Näiden muutosten vaikutuksia mitataan
+    liikennelaskennoilla ja kyselyillä ennen toteutusta ja sen jälkeen. Pyöräilyn
+    määrä uusilla tai parannetuilla reiteillä on kasvanut 8-140%, suurelta osin reittimuutosten
+    vuoksi. Kun pyöräilyn määriä mitataan laajemmilla alueilla, kasvuprosentit ovat
+    tyypillisesti 0-30%. Kulkutapasiirtymät autosta tai joukkoliikenteestä pyöräilyyn
+    ovat olleet pieniä tai joskus jopa olemattomia, vaihdellen 2-8% autosta pyöräilyyn
+    ja 6-24% joukkoliikenteestä pyöräilyyn, kun taas kävelystä pyöräilyyn on havaittu
+    myös 4-8% siirtymä. Mallissa oletetaan vain aktiivisen liikkumisen lisaystä, ei
+    siirtymiä liikkumismuotojen välillä. <a href="https://pubmed.ncbi.nlm.nih.gov/31655609/"
+    target="_blank">Mölenberg 2019</a>, <a 
+    href="https://www.traficom.fi/sites/default/files/media/file/Kest%C3%A4v%C3%A4n_liikkumisen_toimien_kulkutapavaikutukset_Traficom_13_2020.pdf"
+    target="_blank">Auvinen et al., 2020</a>
+  description_en: The main walking and cycling routes can be improved through new
+    construction or significant upgrades to existing routes, including quality enhancements,
+    separation of different modes of transport, lighting, and pavement improvements.
+    The impact of these changes is measured through traffic counts and surveys before
+    and after implementation, with cycling volumes on new or improved routes increasing
+    by 8-140%, largely due to route changes. When cycling volumes are measured across
+    larger areas, the growth rates are typically between 0-30%. Modal shifts from
+    car or public transport to cycling have been small or sometimes non-existent,
+    ranging from 2-8% for car to cycling and 6-24% for public transport to cycling,
+    while a 4-8% shift from walking to cycling has also been observed. <a href="https://pubmed.ncbi.nlm.nih.gov/31655609/"
+    target="_blank">Mölenberg 2019</a>, <a 
+    href="https://www.traficom.fi/sites/default/files/media/file/Kest%C3%A4v%C3%A4n_liikkumisen_toimien_kulkutapavaikutukset_Traficom_13_2020.pdf"
+    target="_blank">Auvinen et al., 2020</a>
+  type: gpc.DatasetAction
+  quantity: ratio
+  unit: '%'
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  group: promoting_active_mobility
+  input_datasets:
+  - id: gpc/dut_transport_nzc
+    forecast_from: 2025
+  output_nodes:
+  - id: relative_active_transport_increase
+  params:
+    sector: Walking & cycling change due to infra improvement
+
+- id: bike_parking
+  name: Pyöräparkit rautatieasemilla
+  name_en: Bike parking at railway stations
+  description: Pyöräpysäköinnin parantamisella, erityisesti juna-asemien ja muiden
+    joukkoliikenteen asemien yhteydessä, voidaan lisätä pyöräilyn osuutta kotoa asemalle
+    siirryttäessä. Hollannissa pyöräilyn kulkutapaosuus kotoa juna-asemalle on saatu
+    29 prosenttiin panostamalla pyöräpysäköintiin, kun taas Yhdysvalloissa osuus on
+    4 prosenttia, parhaimmilla asemilla jopa 12 prosenttia. Tutkimustietoa on saatavilla
+    sekä pyöräilyn edelläkävijämaista, kuten Hollannista, että vähemmän pyöräilevistä
+    maista, kuten Yhdysvalloista, joten tietoa voidaan suhteuttaa ja soveltaa Suomen
+    oloihin. Pyöräpysäköintitoimenpiteiden vaikuttavuuden edellytyksenä on, että pyöräväylät
+    esimerkiksi asuinalueelta juna-asemalle ovat kunnossa. Mallissa oletetaan, että
+    12 % asemalle tehdyistä matkoista siirtyy autosta polkupyörälle. <a 
+    href="https://www.traficom.fi/sites/default/files/media/file/Kest%C3%A4v%C3%A4n_liikkumisen_toimien_kulkutapavaikutukset_Traficom_13_2020.pdf"
+    target="_blank">Auvinen et al., 2020</a>, <a href="https://www.tandfonline.com/doi/full/10.1080/01441647.2023.2222911"
+    target="_blank">Kosmidis 2024</a>
+  description_en: Improving bicycle parking, particularly at train stations and other
+    public transport stations, can increase the share of cycling when transitioning
+    from home to the station. In the Netherlands, the share of cycling from home to
+    train stations has reached 29 percent by investing in bicycle parking, while in
+    the United States, the share is 4 percent, with the best stations reaching up
+    to 12 percent. Research data is available from both leading cycling countries,
+    such as the Netherlands, and countries with less cycling, such as the United States,
+    so the information can be related and applied to Finnish conditions. The effectiveness
+    of bicycle parking measures is conditional on the bicycle routes, for example,
+    from residential areas to train stations, being in good condition. <a 
+    href="https://www.traficom.fi/sites/default/files/media/file/Kest%C3%A4v%C3%A4n_liikkumisen_toimien_kulkutapavaikutukset_Traficom_13_2020.pdf"
+    target="_blank">Auvinen et al., 2020</a>, <a href="https://www.tandfonline.com/doi/full/10.1080/01441647.2023.2222911"
+    target="_blank">Kosmidis 2024</a>
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: '%'
+  group: promoting_active_mobility
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets:
+  - id: gpc/dut_transport_nzc
+  output_nodes:
+  - id: modal_shift_fraction_due_to_actions
+    forecast_from: 2025
+  params:
+    sector: Bike share of trips to station due to parking at railway stations
+
+- id: city_bikes
+  name: Kaupunkipyörät
+  name_en: City bikes
+  description_fi: Oletetaan, että kaupunkipyörien tarjolla olo lisää pyöräilyä kaiken
+    kaikkiaan 20 %. Arvio ei perustu tutkimukseen, ja siksi käyttäjä voikin muuttaa
+    arviota liukukytkimestä. <a href="https://www.tandfonline.com/doi/full/10.1080/01441647.2020.1841328"
+    target="_blank">Teixeira 2021</a>, <a 
+    href="https://www.traficom.fi/sites/default/files/media/file/Kest%C3%A4v%C3%A4n_liikkumisen_toimien_kulkutapavaikutukset_Traficom_13_2020.pdf"
+    target="_blank">Auvinen et al., 2020</a>
+  description_en: Assuming the availability of city bikes increases cycling by 20%
+    overall. The estimate is not based on research, which is why the user can change
+    the estimate using the slider. <a href="https://www.tandfonline.com/doi/full/10.1080/01441647.2020.1841328"
+    target="_blank">Teixeira 2021</a>, <a 
+    href="https://www.traficom.fi/sites/default/files/media/file/Kest%C3%A4v%C3%A4n_liikkumisen_toimien_kulkutapavaikutukset_Traficom_13_2020.pdf"
+    target="_blank">Auvinen et al., 2020</a>
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: '%'
+  group: promoting_active_mobility
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets:
+  - id: gpc/dut_transport_nzc
+  output_nodes:
+  - id: relative_active_transport_increase
+  params:
+  - id: sector
+    value: Fraction of city bikes on top of other cycling
+  - id: multiplier
+    label: Kaupunkipyörien tuoma pyörämatkalisä
+    is_customizable: true
+    is_visible: true
+    unit: '%'
+    value: 15
+    min_value: 0
+    max_value: 40
+    step: 5
+
+# group: promoting_systemic_public_transport
+
+- id: park_and_ride
+  name: Liityntäpysäköintipalvelut
+  name_en: Park & ride and Bike & ride facilities
+  description: Oletetaan, että liityntäpysäköinti lisää bussi- ja junamatkoja käyttäjän
+    valitsemalla osuudella, ja vastaava matkamäärä vähennetään automatkoista. Junille
+    ja busseille käytetään samaa osuutta, ja sämä on syytä huomioida arviossa. Oletusarvona
+    on 15 % lisäys.
+  description_en: It is assumed that park-and-ride facilities increase bus and train
+    trips by a user-selected percentage, and a corresponding number of trips are reduced
+    from car trips. The same percentage is used for trains and buses, and this should
+    be taken into account in the estimate. The default value is a 15% increase.
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: '%'
+  group: promoting_systemic_public_transport
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets:
+  - id: gpc/dut_transport_nzc
+  output_nodes:
+  - id: relative_active_transport_increase
+  params:
+  - id: sector
+    value: Nominal data used as a basis for slider input
+  - id: multiplier
+    label: Kaupunkipyörien tuoma pyörämatkalisä
+    is_customizable: true
+    is_visible: true
+    unit: '%'
+    value: 15
+    min_value: 0
+    max_value: 40
+    step: 5
+
+- id: trunk_line_network_development
+  name: Runkoliikenneverkon kehittäminen
+  name_en: Public transport trunk line network development
+  description: Mallissa oletetaan, että joukkoliikenteen runkoliikenneverkko lyhentää
+    joukkoliikenteen matka-aikoja ja sitä kaytta lisää sen kilpailukykyä henkilöautoihin
+    nähden. Oletetaan 15 % matka-ajan lyheneminen, kun huomioidaan odotusaika. Tutkimusten
+    mukaan ristijousto on varsin suuri, jopa 0,818 henkilöauton matka-ajan ja joukkoliikenteen
+    käytön välillä. Vaikutus on tosin aluksi suurempi (1,319) ja tasoittuu myöhempinä
+    vuosina (0,74). <a 
+    href="https://www.traficom.fi/sites/default/files/media/file/Kest%C3%A4v%C3%A4n_liikkumisen_toimien_kulkutapavaikutukset_Traficom_13_2020.pdf"
+    target="_blank">Auvinen et al., 2020</a>
+  description_en: The model assumes that the trunk route network of public transport
+    reduces travel times and thus increases its competitiveness compared to private
+    cars. A 15% reduction in travel time is assumed when taking into account waiting
+    time. Studies show that the cross-elasticity is quite high, even 0.818 between
+    the travel time of private cars and the use of public transport. However, the
+    effect is initially higher (1.319) and levels off in later years (0.74). <a 
+    href="https://www.traficom.fi/sites/default/files/media/file/Kest%C3%A4v%C3%A4n_liikkumisen_toimien_kulkutapavaikutukset_Traficom_13_2020.pdf"
+    target="_blank">Auvinen et al., 2020</a>
+  type: gpc.DatasetAction
+  quantity: ratio
+  unit: '%'
+  group: promoting_systemic_public_transport
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets:
+  - id: gpc/dut_transport_nzc
+  output_nodes:
+  - id: modal_shift_fraction_due_to_actions
+  params:
+  - id: sector
+    value: Cross elasticity between private car travel time and public transport use
+  - id: multiplier
+    label: Joukkoliikenteen matka-ajan lyhenemä toimenpiteen ansiosta
+    is_customizable: true
+    is_visible: true
+    unit: '%'
+    value: 15
+    min_value: 0
+    max_value: 30
+    step: 5
+
+# group: limiting_cars
+
+- id: congestion_pricing
+  name: Ruuhkamaksut
+  name_en: Congestion charging
+  description: Mallissa oletetaan, että ruuhkamaksut lisäävät autoilun kustannuksia
+    keskimäärin 20 % (ruuhka-aikoina enemmän, mutta eri aikoja ei tarkastella erikseen).
+    Julkisen liikenteen osalta ristijousto on melko suuri (keskimäärin 0,248) ja aktiivisten
+    kulkutapojenkin suhteen kohtalainen (0,105). Mallia voisi tarkentaa, jos lyhyistä
+    matkoista olisi erillistä dataa, koka aktiivinen liikkuminen painottuu niihin.
+    <a href="https://www.tandfonline.com/doi/abs/10.1080/01441647.2021.1898488" target="_blank">Hosford
+    2021</a>, <a 
+    href="https://www.traficom.fi/sites/default/files/media/file/Kest%C3%A4v%C3%A4n_liikkumisen_toimien_kulkutapavaikutukset_Traficom_13_2020.pdf"
+    target="_blank">Auvinen et al., 2020</a>
+  description_en: The model assumes that congestion charges increase the cost of driving
+    by an average of 20% (more during peak hours, but different times are not considered
+    separately). For public transport, the cross-elasticity is quite high (on average
+    0.248) and moderate for active modes of travel (0.105). The model could be refined
+    if separate data on short trips were available, as active mobility is focused
+    on them. <a href="https://www.tandfonline.com/doi/abs/10.1080/01441647.2021.1898488"
+    target="_blank">Hosford 2021</a>, <a 
+    href="https://www.traficom.fi/sites/default/files/media/file/Kest%C3%A4v%C3%A4n_liikkumisen_toimien_kulkutapavaikutukset_Traficom_13_2020.pdf"
+    target="_blank">Auvinen et al., 2020</a>
+  type: gpc.DatasetAction
+  quantity: ratio
   unit: '%'
   group: limiting_cars
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
-  input_datasets: [nzc/defaults]
+  input_datasets:
+  - id: gpc/dut_transport_nzc
+  output_nodes:
+  - id: modal_shift_fraction_due_to_actions
+  params:
+  - id: sector
+    value: Cross elasticity between private car travel cost and public and active
+      travel
+  - id: multiplier
+    label: Henkilöautoilun kustannuslisä toimenpiteen ansiosta
+    is_customizable: true
+    is_visible: true
+    unit: '%'
+    value: 20
+    min_value: 0
+    max_value: 30
+    step: 5
+
+- id: parking_fees
+  name: Parkkikustannukset
+  name_en: Parking fees
+  description: Mallissa oletetaan samat kustannusmuutokset ja ristijoustot kuin ruuhkamaksuissa.
+    <a 
+    href="https://urban-mobility-observatory.transport.ec.europa.eu/document/download/4ae9e061-dfc9-4f92-afe2-30d70de76580_en?filename=parking_and_sump.pdf"
+    target="_blank">Parking and SUMP Topic Guide</a>, <a href="https://park4sump.eu/resources-tools/publications"
+    target="_blank">Park4SUMP</a>
+  description_en: The model assumes the same cost changes and cross-elasticities as
+    in congestion charges. <a 
+    href="https://urban-mobility-observatory.transport.ec.europa.eu/document/download/4ae9e061-dfc9-4f92-afe2-30d70de76580_en?filename=parking_and_sump.pdf"
+    target="_blank">Parking and SUMP Topic Guide</a>, <a href="https://park4sump.eu/resources-tools/publications"
+    target="_blank">Park4SUMP</a>
+  type: gpc.DatasetAction
+  quantity: ratio
+  unit: '%'
+  group: limiting_cars
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets:
+  - id: gpc/dut_transport_nzc
+  output_nodes:
+  - id: modal_shift_fraction_due_to_actions
+  params:
+  - id: sector
+    value: Cross elasticity between private car travel cost and public and active
+      travel
+  - id: multiplier
+    label: Henkilöautoilun kustannuslisä toimenpiteen ansiosta
+    is_customizable: true
+    is_visible: true
+    unit: '%'
+    value: 20
+    min_value: 0
+    max_value: 30
+    step: 5
+
+- id: low_emission_zones
+  name: Päästötön keskusta
+  name_en: Low emission zones
+  description: Mallissa oletetaan, että 40 - 80 % typenoksidipäästöistä voidaan poistaa
+    vaatimalla vähäpäästöisiä tai päästöttömiä ajoneuvoja keskustassa. Pienhiukkasten
+    osalta muutos on 20 - 40 %. Toimenpiteellä ei oleteta muita vaikutuksia kuin päästökertoimen
+    pieneneminen. <a 
+    href="https://cleancitiescampaign.org/wp-content/uploads/2022/10/12009C_Quantifying-the-impact-of-low-and-zeroemission-zones-Evidence-Review_final.pdf"
+    target="_blank">Williamson et al., 2022</a>, <a href="https://doi.org/10.1016/j.jpubeco.2023.105014"
+    target="_blank">Sarmiento et al., 2023</a>
+  description_en: The model assumes that 40 - 80% of nitrogen oxide emissions can
+    be removed by requiring low-emission or zero-emission vehicles in the city center.
+    For fine particulate matter, the change is 20 - 40%. The measure is not assumed
+    to have any other effects than a reduction in the emission factor. <a 
+    href="https://cleancitiescampaign.org/wp-content/uploads/2022/10/12009C_Quantifying-the-impact-of-low-and-zeroemission-zones-Evidence-Review_final.pdf"
+    target="_blank">Williamson et al., 2022</a>, <a href="https://doi.org/10.1016/j.jpubeco.2023.105014"
+    target="_blank">Sarmiento et al., 2023</a>
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: '%'
+  group: limiting_cars
+  input_dimensions: [pollutant]
+  output_dimensions: [pollutant]
+  input_datasets:
+  - id: gpc/dut_transport_nzc
+  output_nodes:
+  - id: transport_emission_factor
+    tags: [complement]
+    to_dimensions:
+    - id: pollutant
+  - id: freight_transport_air_pollution_emissions
+    tags: [complement]
+    to_dimensions:
+    - id: pollutant
+  params:
+    sector: Reduction of emission factors due to low-emission zones
+
+# --------------- NZC TRANSPORT -------------
+
+- id: a11_reduce_all_motorised_transport
+  name_en: Reduce all motorised transport
+  name_fi: Vähennä kaikkea moottoroitua liikennettä
+  description: 'Mallissa oletetaan yleinen moottoroidun liikenteen tarpeen vähenemä
+    monenlaisista syistä johtuen: kaupunkisuunnittelu, etätyöskentely ja muut toimet,
+    jotka eivät esiinny muualla mallissa.'
+  description_en: 'The model assumes a general reduction in the need for motorized
+    traffic due to various reasons: urban planning, remote work, and other measures
+    that do not appear elsewhere in the model.'
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: '%'
+  group: nzp_limiting_cars
+  output_nodes:
+  - id: motorised_transport_change
+    tags: [non_additive, extend_values]
+    to_dimensions: []
+  input_datasets:
+  - id: gpc/dut_transport_nzc
+    filters:
+    - column: Transport mode
+      value: bussi
+  params:
+  - id: sector
+    value: Nominal data used as a basis for slider input
+  - id: multiplier
+    label: Muiden toimenpiteiden tuoma vähennys
+    is_customizable: true
+    is_visible: true
+    unit: '%'
+    value: 15
+    min_value: 0
+    max_value: 40
+    step: 5
+
+- id: a12_modal_switch_from_cars_to_other_modes
+  name_en: Modal switch from cars to other modes
+  name_fi: Kulkumuotosiirtymä autoista muihin kulkumuotoihin
+  description: Mallissa siirretään käyttäjän valitseman prosentin verran automatkoja
+    muihin matkatyyppeihin. Jakauma noudattaa NetZeroPlannerin oletusarvoa eli 60
+    % juniin, 30 % kävelyyn ja 10 % busseihin.
+  description_en: In the model, a user-selected percentage of car trips are shifted
+    to other transport modes. The distribution follows the default value of the NetZeroPlanner,
+    which is 60% to trains, 30% to walking, and 10% to buses.
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: '%'
+  group: nzp_limiting_cars
+  output_nodes:
+  - id: passenger_kilometres_switched
+    to_dimensions: []
+  input_datasets:
+  - id: gpc/dut_transport_nzc
+    filters:
+    - column: Transport mode
+      value: bussi
+  params:
+  - id: sector
+    value: Nominal data used as a basis for slider input
+  - id: multiplier
+    label: Muiden toimenpiteiden tuoma vähennys
+    is_customizable: true
+    is_visible: true
+    unit: '%'
+    value: 20
+    min_value: 0
+    max_value: 40
+    step: 5
+
+- id: a13_car_pooling
+  name_en: Car occupancy increased
+  name_fi: Autojen matkustajamäärän lisäys
+  description: Kuinka monta prosenttia on lisäystä keskimääräiseen auton matkustajamäärään.
+  description_en: How many % increase there is in the average number of people in
+    a car.
+  description_fi: Kuinka monta % keskimääräinen henkilömäärä autossa kasvaa.
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: '%'
+  group: nzp_limiting_cars
   output_nodes:
   - id: relative_transport_efficiency
+    tags: [truncate_beyond_end]
     to_dimensions:
     - id: transport_mode
+      categories: [cars]
+  input_datasets:
+  - id: gpc/dut_transport_nzc
+    filters:
+    - column: Transport mode
+      value: bussi
   params:
-    sector: 1.3 Car pooling
+  - id: sector
+    value: Nominal data used as a basis for slider input
+  - id: multiplier
+    label: Muiden toimenpiteiden tuoma vähennys
+    is_customizable: true
+    is_visible: true
+    unit: '%'
+    value: 20
+    min_value: 0
+    max_value: 40
+    step: 5
+  - id: crop_to_model_range
+    value: true
 
 - id: a141_electrification_of_passenger_cars
   name_en: Electrification of passenger cars
   name_fi: Henkilöautojen sähköistäminen
+  description: Mallissa oletetaan, että sähköistyvän autokannan osuus lisääntyy S-käyrän
+    muotoisesti kohti kypsää tilannetta, joka on NetZeroPlannerin oletusarvon mukainen
+    35 %.
+  description_en: The model assumes that the share of the electric vehicle fleet increases
+    in an S-curve shape towards a mature situation, which is 35% according to the
+    default value of the NetZeroPlanner.
   type: gpc.SCurveAction
   quantity: fraction
   unit: '%'
-  group: electrification
+  group: nzp_electrification
   input_dimensions: [transport_mode, energy_carrier]
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
@@ -1279,12 +2021,16 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 - id: a142_electrification_of_buses
   name_en: Electrification of buses
   name_fi: Linja-autojen sähköistäminen
+  description: Osuus busseista, joka korvataan sähköbusseilla kunakin vuonna.
   description_en: Fraction of buses that is replaced with electric buses each year.
+    <a 
+    href="https://climate.ec.europa.eu/system/files/2020-09/2020_study_main_report_en.pdf"
+    target="_blank">European Commission</a>
   description_fi: Osuus linja-autoista, jotka korvataan sähköbusseilla vuosittain.
-  type: gpc.DatasetAction2
+  type: gpc.DatasetAction
   quantity: fraction
   unit: '%/a'
-  group: electrification
+  group: nzp_electrification
   input_dimensions: [transport_mode, energy_carrier]
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
@@ -1300,10 +2046,16 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 - id: a22_truck_fleet_electrification
   name_en: Truck fleet electrification
   name_fi: Kuorma-autokannan sähköistäminen
+  description: Mallissa oletetaan, että sähköistyvän kuorma-autokannan osuus lisääntyy
+    S-käyrän muotoisesti kohti kypsää tilannetta, joka on NetZeroPlannerin oletusarvon
+    mukainen 100 % pakettiautoille ja 60 % kuorma-autoille.
+  description_en: The model assumes that the share of the electric truck fleet increases
+    in an S-curve shape towards a mature situation, which is 100% for vans and 60%
+    for trucks according to the default value of the NetZeroPlanner.
   type: gpc.SCurveAction
   quantity: fraction
   unit: '%'
-  group: electrification
+  group: nzp_electrification
   input_dimensions: [transport_mode, energy_carrier]
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
@@ -1323,10 +2075,18 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
 - id: a41_replace_fossil_electricity  # TODO virtaviivaista tämä käyttämällä suhteellista tavoitetta
   name_en: Replace fossil electricity
   name_fi: Korvaa fossiilinen sähkö
+  description: Sähköntuotannon puhdistuminen vähentää epäsuoria (scope 2) päästöjä
+    sähköisen autokannan osalta. Mallissa oletetaan NetZeroPlanner-mallin oletusarvon
+    mukainen 35 prosenttiyksikön siirtymä fossiilesta sähköntuotannosta päästöttömään
+    tuotantoon.
+  description_en: The decarbonization of electricity production reduces indirect (scope
+    2) emissions for the electric vehicle fleet. The model assumes a 35 percentage
+    point shift from fossil-based electricity production to emission-free production,
+    as per the default value of the NetZeroPlanner model.
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
-  group: electrification
+  group: nzp_electrification
   input_dimensions: [fuel_type, energy_carrier]
   output_dimensions: [fuel_type, energy_carrier]
   input_nodes:
@@ -1336,134 +2096,6 @@ actions:  # TODO It would be nice to have multiplier parameter in the DatasetAct
     tags: [goal, forecast_only]
   output_nodes:
   - id: electricity_shares
-
-# ------------------ New DUT actions ------------------
-
-# group: promoting_active_mobility
-
-- id: new_seamless_cycling_infrastructure
-  name: Uusi yhdenmukainen pyörätiejärjestelmä
-  name_en: New seamless cycling infrastructure
-  type: gpc.DatasetAction2
-  quantity: fraction
-  unit: '%'
-  group: promoting_active_mobility
-  input_datasets:
-  - id: nzc/defaults
-  params:
-    sector: Reduction of total distance travelled through route optimisation
-
-- id: walking_infrastructure_improvement
-  name: Kävelyreittiverkoston parantaminen
-  name_en: Walking infrastructure improvement
-  type: gpc.DatasetAction2
-  quantity: fraction
-  unit: '%'
-  group: promoting_active_mobility
-  input_datasets:
-  - id: nzc/defaults
-  params:
-    sector: Reduction of total distance travelled through route optimisation
-
-- id: bike_parking
-  name: Pyöräparkkien parantaminen
-  name_en: Bike parking
-  type: gpc.DatasetAction2
-  quantity: fraction
-  unit: '%'
-  group: promoting_active_mobility
-  input_datasets:
-  - id: nzc/defaults
-  params:
-    sector: Reduction of total distance travelled through route optimisation
-
-- id: city_bikes
-  name: Kaupunkipyörät
-  name_en: City bikes
-  type: gpc.DatasetAction2
-  quantity: fraction
-  unit: '%'
-  group: promoting_active_mobility
-  input_datasets:
-  - id: nzc/defaults
-  params:
-    sector: Reduction of total distance travelled through route optimisation
-
-# group: promoting_systemic_public_transport
-
-- id: park_and_ride
-  name: Liityntäpysäköintipalvelut
-  name_en: Park & ride and Bike & ride facilities
-  type: gpc.DatasetAction2
-  quantity: fraction
-  unit: '%'
-  group: promoting_systemic_public_transport
-  input_datasets:
-  - id: nzc/defaults
-  params:
-    sector: Reduction of total distance travelled through route optimisation
-
-- id: last_mile_services
-  name: Viimeisen kilometrin palvelut osana liikennettä
-  name_en: Last mile services and public transport integration
-  type: gpc.DatasetAction2
-  quantity: fraction
-  unit: '%'
-  group: promoting_systemic_public_transport
-  input_datasets:
-  - id: nzc/defaults
-  params:
-    sector: Reduction of total distance travelled through route optimisation
-
-- id: trunk_line_network_development
-  name: Runkoliikenneverkon kehittäminen
-  name_en: Public transport trunk line network development
-  type: gpc.DatasetAction2
-  quantity: fraction
-  unit: '%'
-  group: promoting_systemic_public_transport
-  input_datasets:
-  - id: nzc/defaults
-  params:
-    sector: Reduction of total distance travelled through route optimisation
-
-# group: limiting_cars
-
-- id: congestion_pricing
-  name: Ruuhkamaksut
-  name_en: Congestion pricing
-  type: gpc.DatasetAction2
-  quantity: fraction
-  unit: '%'
-  group: limiting_cars
-  input_datasets:
-  - id: nzc/defaults
-  params:
-    sector: Reduction of total distance travelled through route optimisation
-
-- id: parking_fees
-  name: Parkkikustannukset
-  name_en: Parking fees
-  type: gpc.DatasetAction2
-  quantity: fraction
-  unit: '%'
-  group: limiting_cars
-  input_datasets:
-  - id: nzc/defaults
-  params:
-    sector: Reduction of total distance travelled through route optimisation
-
-- id: low_emission_zones
-  name: Päästötön keskusta
-  name_en: Low emission zones
-  type: gpc.DatasetAction2
-  quantity: fraction
-  unit: '%'
-  group: limiting_cars
-  input_datasets:
-  - id: nzc/defaults
-  params:
-    sector: Reduction of total distance travelled through route optimisation
 
 pages:
 - id: home
@@ -1483,6 +2115,8 @@ scenarios:
   name: Nykykehitys
   name_en: Baseline scenario
   params:
+  - id: measure_data_override
+    value: false
   - id: show_scenario_impacts
     value: false
   - id: statistical_correction
@@ -1494,6 +2128,8 @@ scenarios:
   name_en: Action Plan
   all_actions_enabled: true
   params:
+  - id: measure_data_override
+    value: false
   - id: statistical_correction
     value: false
 
@@ -1508,9 +2144,15 @@ scenarios:
     value: false
 
 include:
+- file: modules/health.yaml
+  node_group: health
+  allow_override: true
 - file: nzc/transport.yaml
   node_group: Transport
+  allow_override: true
 - file: nzc/freight_transport.yaml
   node_group: Freight transport
+  allow_override: true
 - file: nzc/electricity.yaml
   node_group: Electricity
+  allow_override: true

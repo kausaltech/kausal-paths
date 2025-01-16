@@ -10,6 +10,144 @@
 # - discount_rate
 #   no dimensions
 
+dimensions:
+
+- id: response
+  label_fi: Terveysvaikutus
+  label_en: Response
+  aliases: [outcome]
+  categories:
+  - id: mortality
+    label_fi: Kaikki ilmansaastekuolleisuus
+    label_en: Mortality
+    color: '#a6cee3'
+  - id: work_days_lost
+    label_fi: Menetetyt työpäivät
+    label_en: Work days lost
+    color: '#1f78b4'
+  - id: chronic_bronchitis
+    label_fi: Keuhkoahtaumatauti
+    label_en: Chronic bronchitis
+  - id: cancer
+    label_fi: Syöpä
+    label_en: Cancer
+  - id: tolerable_weekly_intake
+    label_fi: Siedettävä viikkosaanti
+    label_en: Tolerable weekly intake
+  - id: chd_mortality
+    label_fi: Sepelvaltimotautikuolleisuus
+    label_en: Coronary heart disease mortality
+  - id: breast_cancer
+    label_fi: Rintasyöpä
+    label_en: Breast cancer
+  - id: deficiency  # TODO Add causative agent to response
+    label_fi: Puutos
+    label_en: Deficiency
+  - id: infection  # TODO Add causative agent to response
+    label_fi: Infektio
+    label_en: Infection
+  - id: physical_activity
+    label: Fyysinen aktiivisuus
+    color: '#b2df8a'
+  - id: air_pollution
+    label: Ilmansaastealtistus liikenteessä
+    color: '#33a02c'
+  - id: crash_risk
+    label: Liikenneonnettomuus
+    color: '#fb9a99'
+  - id: noise
+    label_en: Noise
+    label_fi: Melu
+  - id: carbon_emissions
+    label: Hiilidioksidipäästöt
+  - id: nzp_response
+    label: NZP-vaste
+    color: '#e31a1c'
+
+- id: emission_height
+  label_fi: Päästökorkeus
+  label_en: Emission height
+  categories:
+  - id: high
+    label_fi: Korkea
+    label_en: High
+  - id: low
+    label_fi: Matala
+    label_en: Low
+  - id: ground
+    label_fi: Maan taso
+    label_en: Ground
+  - id: average
+    label_fi: Keskimääräinen
+    label_en: Average
+
+- id: pollutant
+  label_fi: Saaste
+  label_en: Pollutant
+  categories:
+  - id: co2
+    label_fi: CO2
+    label_en: CO2
+    aliases: [co2e]
+  - id: pm25
+    label_fi: PM2.5
+    label_en: PM2.5
+    aliases: [pm2_5]
+  - id: pm25_combustion
+    label_en: PM2.5 combustion
+    label_fi: Polttoperäinen PM2.5
+  - id: nox
+    label_fi: NOx
+    label_en: NOx
+  - id: pm10
+    label_fi: PM10
+    label_en: PM10
+  - id: pm10_combustion
+    label_en: PM10 combustion
+    label_fi: Polttoperäinen PM10
+  - id: walking
+    label_fi: Kävely
+    label_en: Walking
+  - id: cycling
+    label_fi: Pyöräily
+    label_en: Cycling
+  - id: pm1025
+    label_fi: PM10-PM2.5
+    label_en: PM10-PM2.5
+  - id: so2
+    label_fi: SO2
+    label_en: SO2
+  - id: nh3
+    label_fi: NH3
+    label_en: NH3
+  - id: pm25_wear_tear
+    label_en: PM2.5 wear & tear
+    label_fi: Kulumis- ja pölyperäinen PM2.5
+  - id: pm10_wear_tear
+    label_en: PM10 wear & tear
+    label_fi: Kulumis- ja pölyperäinen PM10
+
+- id: iteration
+  label_en: Modeling basis
+  label_fi: Malliperusta
+  categories:
+  - id: median
+    label: Median
+  - id: expectation
+    label: Expectation
+  - id: '0'
+    label: '0'
+  - id: '1'
+    label: '1'
+  - id: '2'
+    label: '2'
+  - id: thl
+    label: THL model
+  - id: heat
+    label: HEAT model
+  - id: nzp
+    label: NetZeroPlanner model
+
 nodes:
 
 # -------------- Emissions --------------
@@ -254,21 +392,35 @@ nodes:
     to_dimensions:
     - id: transport_mode
 
-- id: health_factor_of_active_mobility
+- id: health_unit_factor_of_active_mobility
   name_fi: Aktiivisen liikkumisen terveyskerroin
   name_en: Active mobility health factor
-  description_fi: WHO:n HEAT-mallia käytettiin tuottamaan Lappeenrannalle räätälöity
-    arvio terveysvaikutusten suuruudesta aktiivisen liikkumisen suhteen. Kerroin ilmoitetaan
-    aktiiviseen liikkumiseen käytettynä aikana Lappeenrannan kokoisessa aikuisväestössä. Kävelyn osalta tarkastellaan
-    20 - 79 -vuotiaita, pyöräilyn osalta 20 - 64 -vuotiaita.
+  description_fi: WHO:n HEAT-mallia käytettiin tuottamaan Suomelle räätälöity arvio
+    terveysvaikutusten suuruudesta aktiivisen liikkumisen suhteen. Kerroin ilmoitetaan
+    aktiiviseen liikkumiseen käytettynä aikana Suomen kokoisessa aikuisväestössä.
+    Kävelyn ja pyöräilyn osalta tarkastellaan 20 - 79 -vuotiaita.
   type: gpc.DatasetNode
   quantity: exposure_response
-  unit: incident/a/(min/d/person)
+  unit: incidence_unit/personal_activity # cases/100000 person-years / (min/d/cap)
   input_dimensions: [response, transport_mode]
   output_dimensions: [response, transport_mode]
-  input_datasets: [hia/heat/lappeenranta_heat]
+  input_datasets: [gpc/dut_transport_nzc]
   params:
-    sector: health_factor_of_active_mobility
+    sector: HEAT health factor
+
+- id: health_factor_of_active_mobility
+  name_fi: Aktiivisen liikkumisen terveyskerroin väestössä
+  name_en: Active mobility health factor in target population
+  type: simple.MultiplicativeNode
+  quantity: exposure_response
+  unit: cases/a/personal_activity
+  input_dimensions: [response, transport_mode]
+  output_dimensions: [response, transport_mode]
+  input_nodes:
+  - id: health_unit_factor_of_active_mobility
+  - id: population
+    tags: [non_additive]
+    to_dimensions: []
 
 - id: health_effect_of_active_mobility
   name_fi: Aktiivisen liikkumisen terveysvaikutukset
@@ -283,6 +435,9 @@ nodes:
   input_nodes:
   - id: health_factor_of_active_mobility
     tags: [non_additive, arithmetic_inverse]
+    to_dimensions:
+    - id: response
+    - id: transport_mode
   - id: active_mobility_duration
     to_dimensions:
     - id: transport_mode
@@ -291,18 +446,17 @@ nodes:
     from_dimensions:
     - id: transport_mode
       flatten: true
+    to_dimensions:
+    - id: iteration
+      categories: [heat]
+    - id: response
 
 # -------------- Health effects ---------------
 
-- id: planetary_health
-  name_fi: Raakile luonnon monimuotoisuudesta ja planetaarisesta terveydestä
-  name_en: A draft of biodiversity and planetary health
-  description_fi: 'https://thl.fi/thl/tietoa-meista/vaikuttamistavoitteet/planetaarinen-terveys-ja-hyvinvointi https://www.biwe.fi/ https://www.allergia.fi/jarjesto/tutkimus-1/'
-  type: simple.AdditiveNode
-  quantity: utility
-  unit: Ut/a
-  historical_values: [[2010, 100], [2023, 100]]
-  input_dataset_processors: [LinearInterpolation]
+# Planetary health
+# https://thl.fi/thl/tietoa-meista/vaikuttamistavoitteet/planetaarinen-terveys-ja-hyvinvointi
+# https://www.biwe.fi/
+# https://www.allergia.fi/jarjesto/tutkimus-1/
 
 - id: incidence
   name_fi: Ilmaantuvuus
@@ -367,7 +521,7 @@ nodes:
 - id: attributable_cases
   name_fi: Ilmansaasteisiin kohdentuvat tapaukset
   name_en: Cases attributable to air pollution
-  description_fi: Se osa kokonaistapausmäärästä, joka kohdentyy pienhiukkasiin ja typenoksideihin.
+  description_fi: Se osa kokonaistapausmäärästä, joka kohdentyy pienhiukkasiin ja typenoksideihin. Arvio perustuu Terveyden ja hyvinvoinnin laitoksen tautitaakkamalliin.
   description_en: Cases attributable to PM2.5 and NOx.
   type: simple.MultiplicativeNode
   quantity: health_effect
@@ -386,6 +540,10 @@ nodes:
     from_dimensions:
     - id: pollutant
       flatten: true
+    to_dimensions:
+    - id: response
+    - id: iteration
+      categories: [thl]
 
 - id: total_exposure_related_cases
   name_fi: Altisteisiin kohdentuva tapausmäärä yhteensä
@@ -394,8 +552,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: health_effect
   unit: case/a
-  input_dimensions: [response]
-  output_dimensions: [response]
+  input_dimensions: [response, iteration]
+  output_dimensions: [response, iteration]
 
 - id: premature_deaths
   name_fi: Ennenaikaiset kuolemat
@@ -406,8 +564,8 @@ nodes:
   quantity: health_effect
   unit: case/a
   is_outcome: true
-  input_dimensions: [response]
-  output_dimensions: [response]
+  input_dimensions: [response, iteration]
+  output_dimensions: [response, iteration]
   input_nodes:
   - id: total_exposure_related_cases
     from_dimensions:
@@ -438,8 +596,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: health_effect
   unit: DALY/a
-  input_dimensions: [response]
-  output_dimensions: [response]
+  input_dimensions: [response, iteration]
+  output_dimensions: [response, iteration]
   is_outcome: true
   input_nodes:
   - id: case_burden
@@ -450,46 +608,71 @@ nodes:
 
 # --------------- Health costs ----------------
 
-- id: value_of_statistical_life
-  name_fi: Kuolemanriskin tilastollinen hinta
-  name_en: Value of statistical life
-  description_fi: Terveysvaikutukset muutetaan rahaksi käyttämällä WHO:n HEAT-mallista saatua hintaa kuolemanriskille.
+- id: health_outcome_unit_price
+  name_fi: Terveysvaikutusten yksikkökustannukset
+  name_en: Health outcome unit price
+  description_fi: 'Käytössä on kaksi lopputulemaa: kuolema (ilmansaastealtistukselle, onnettomuuksille ja fyysiselle aktiivisuudelle), jota mitataan tilastollisella kuolemalla (value of satistical life) sekä menetetyn työpäivän hinta.'
+  description_en: 'There are basically two different endpoints: increased risk of death (for air pollution exposures, accidents, and physical activity) and work day lost. Value of statistical life is used as the measure for death endpoints.'
   type: gpc.DatasetNode
   quantity: unit_price
-  unit: EUR/case
-  input_datasets: [hia/heat/lappeenranta_heat]
+  unit: kEUR/case
+  input_dimensions: [response]
+  output_dimensions: [response]
+  input_datasets: [gpc/dut_transport_nzc]
   params:
-    sector: value_of_statistical_life
+    sector: Health outcome unit price
+
+- id: responses_vs_cost_types
+  name_fi: Vasteet vs kustannuslajit
+  name_en: Responses vs cost types
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [response, cost_type]
+  output_dimensions: [response, cost_type]
+  input_datasets: [gpc/dut_transport_nzc]
+  params:
+    sector: Responses vs cost types
 
 - id: health_costs_attributed_to_exposure
   name_fi: Altistumiseen kohdentuvat terveyskustannukset
   name_en: Health costs attributable to exposure
-  description_fi: Samat terveysvaikutukset kuin diskontatussa terveyskustannuskuvassa, mutta tässä vaikutuksia ei diskontata.
+  description_fi: Samat terveysvaikutukset kuin diskontatussa terveyskustannuskuvassa, mutta tässä vaikutuksia ei diskontata. Lisäksi on mahdollista tarkastella tuloksia sen perusteella, minkä mallin mukaisesti niitä on laskettu (katso Malliperusta). Jos kaksi mallia laskee samaa asiaa, tuloksissa voi olla kaksoislaskentaa tässä solmussa; diskontatuista terveyskustannuksista kaksoislaskenta on poistettu.
+  description_en: The same health impacts as in the discounted health cost figure, but here the impacts are not discounted. In addition, it is possible to examine the results based on which model they have been calculated from (see Modeling basis). If two models calculate the same thing, there may be double counting in the results in this node; double counting has been removed from the discounted health costs.
   type: simple.MultiplicativeNode
   quantity: consumption
   unit: MEUR/a
-  input_dimensions: [response, cost_type]
-  output_dimensions: [response, cost_type]
+  is_outcome: true
+  input_dimensions: [response, cost_type, iteration]
+  output_dimensions: [response, cost_type, iteration]
   input_nodes:
-  - id: premature_deaths
+  - id: total_exposure_related_cases
     to_dimensions:
-    - id: cost_type
-      categories: [health]
     - id: response
-  - id: value_of_statistical_life
-    to_dimensions: []
+    - id: iteration
+  - id: responses_vs_cost_types
+    to_dimensions:
+    - id: response
+    - id: cost_type
+  - id: health_outcome_unit_price
+    to_dimensions:
+    - id: response
   output_nodes:
   - id: discounted_health_costs
+    tags: [expectation]
+    from_dimensions:
+    - id: response
+      flatten: true
 
 - id: discounted_health_costs
   name_fi: Diskontatut terveyskustannukset
   name_en: Discounted health costs
-  description_fi: Terveysvaikutuksia on arvioitu usealla eri tavalla. Fyysinen aktiivisuus pohjautuu toisaalta henkilöliikennetutkimukseen (pienempi arvio) ja toisaalta NetZeroPlanner-mallin arvioon (suurempi vaikutus). "Kuolleisuus" tarkoittaa tässä nimenomaan kaikkia ilmansaastealtistuksesta johtuvia kuolemantapauksia. NZP-vaste puolestaan sisältää liikenneonnettomuuksiin, meluun ja aktiiviseen liikkumiseen liittyviä terveysvaikutuksia; nämä ovat osittain päällekkäisiä muille vaikutuksille.<br>Diskonttaamalla on arvostettu lähiaikoina syntyviä terveysvaikutuksia enemmän kuin kaukana tulevaisuudessa tapahtuvia.
+  description_fi: Terveysvaikutuksia on arvioitu usealla eri tavalla. Fyysinen aktiivisuus pohjautuu toisaalta henkilöliikennetutkimukseen (pienempi arvio) ja toisaalta NetZeroPlanner-mallin arvioon (suurempi vaikutus). <br>Diskonttaamalla on arvostettu lähiaikoina syntyviä terveysvaikutuksia enemmän kuin kaukana tulevaisuudessa tapahtuvia.
   type: costs.ExponentialNode
   quantity: consumption
   unit: MEUR/a
-  input_dimensions: [response, cost_type]
-  output_dimensions: [response, cost_type]
+  input_dimensions: [cost_type, iteration]
+  output_dimensions: [cost_type, iteration]
   params:
   - id: annual_change
     ref: discount_rate

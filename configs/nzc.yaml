@@ -426,6 +426,8 @@ dimensions:
     label: Decarbonisation scenario
   - id: frozen_scenario
     label: Frozen scenario
+  - id: progress_tracking
+    label: Progress tracking scenario
 
 - id: country
   label: Country
@@ -640,7 +642,7 @@ nodes:
   - id: discounted_cost
     from_dimensions:
     - id: aggregated_cost_type
-#      categories: [capex]
+      categories: [capex]
       flatten: true
     to_dimensions:
     - id: stakeholder
@@ -1222,6 +1224,8 @@ scenarios:
     value: false
   - id: measure_data_baseline_year_only
     value: true
+  - id: statistical_electricity_consumption.node_tag
+    value: decarbonisation_scenario
 
 - id: default
   default: true
@@ -1232,6 +1236,8 @@ scenarios:
     value: false
   - id: measure_data_baseline_year_only
     value: true
+  - id: statistical_electricity_consumption.node_tag
+    value: decarbonisation_scenario
 
 - id: progress_tracking
   name: Progress tracking
@@ -1242,6 +1248,8 @@ scenarios:
     value: true
   - id: measure_data_baseline_year_only
     value: false
+  - id: statistical_electricity_consumption.node_tag
+    value: progress_tracking
 
 include:
 - file: nzc/transport.yaml

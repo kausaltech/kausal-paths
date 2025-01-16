@@ -23,6 +23,7 @@ from nodes.constants import (
     DEFAULT_METRIC,
     FORECAST_COLUMN,
     NODE_COLUMN,
+    UNCERTAINTY_COLUMN,
     VALUE_COLUMN,
     YEAR_COLUMN,
     ensure_known_quantity,
@@ -1014,6 +1015,11 @@ class Node:
 
         for tag in edge.tags:
             match tag:
+                case 'truncate_beyond_end':
+                    df = df.filter(pl.col(YEAR_COLUMN).le(self.get_end_year()))
+                case 'truncate_before_start':
+                    baseline_year = self.context.instance.reference_year
+                    df = df.filter(pl.col(YEAR_COLUMN).ge(baseline_year))
                 case 'extend_values':
                     df = extend_last_historical_value_pl(df, self.get_end_year())
                 case 'inventory_only':
@@ -1063,6 +1069,16 @@ class Node:
                         .otherwise(pl.col(VALUE_COLUMN))
                         .alias(VALUE_COLUMN),
                     )
+                case 'expectation':
+                    if UNCERTAINTY_COLUMN in df.columns:
+                        meta = df.get_meta()
+                        cols = [col for col in df.primary_keys if col != UNCERTAINTY_COLUMN]
+                        dfp = df.group_by(cols, maintain_order=True).agg([
+                            pl.col(VALUE_COLUMN).mean().alias(VALUE_COLUMN),
+                            pl.col(FORECAST_COLUMN).any().alias(FORECAST_COLUMN)
+                        ])
+                        dfp = dfp.with_columns(pl.lit('expectation').alias(UNCERTAINTY_COLUMN))
+                        df = ppl.to_ppdf(dfp, meta)
                 case _:
                     pass
 
@@ -1543,6 +1559,10 @@ class Node:
                 for tag in edge.tags:
                     if tag == 'non_additive':
                         edge_text += _('    - Input node values are not added but operated despite matching units.\n')
+                    elif tag == 'truncate_beyond_end':
+                        edge_text += _('    - Truncate values beyond the model end year. There may be some from data')
+                    elif tag == 'truncate_before_start':
+                        edge_text += _('    - Truncate values before the reference year. There may be some from data')
                     elif tag == 'extend_values':
                         edge_text += _('    - Extend the last historical values to the remaining missing years.\n')
                     elif tag == 'inventory_only':
@@ -1581,6 +1601,8 @@ class Node:
                         edge_text += _('    - Positive result values are replaced with 0.\n')
                     elif tag == 'empty_to_zero':
                         edge_text += _('    - Convert NaNs to zeros.\n')
+                    elif tag == 'expectation':
+                        edge_text += _('    - Take the expected value over the uncertainty dimension.\n')
                     else:
                         edge_text += _('    - The tag "%s" is given.\n') % tag
 
