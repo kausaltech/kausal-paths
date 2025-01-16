@@ -128,7 +128,8 @@ dimensions:
     label_fi: Kulumis- ja pölyperäinen PM10
 
 - id: iteration
-  label: Iteration
+  label_en: Modeling basis
+  label_fi: Malliperusta
   categories:
   - id: median
     label: Median
@@ -636,8 +637,8 @@ nodes:
 - id: health_costs_attributed_to_exposure
   name_fi: Altistumiseen kohdentuvat terveyskustannukset
   name_en: Health costs attributable to exposure
-  description_fi: Samat terveysvaikutukset kuin diskontatussa terveyskustannuskuvassa, mutta tässä vaikutuksia ei diskontata. Lisäksi on mahdollista tarkastella tuloksia sen perusteella, minkä mallin mukaisesti niitä on laskettu (katso Iteration). Jos kaksi mallia laskee samaa asiaa, tuloksissa voi olla kaksoislaskentaa tässä solmussa; diskontatuista terveyskustannuksista kaksoislaskenta on poistettu.
-  description_en: The same health impacts as in the discounted health cost figure, but here the impacts are not discounted. In addition, it is possible to examine the results based on which model they have been calculated from (see Iteration). If two models calculate the same thing, there may be double counting in the results in this node; double counting has been removed from the discounted health costs.
+  description_fi: Samat terveysvaikutukset kuin diskontatussa terveyskustannuskuvassa, mutta tässä vaikutuksia ei diskontata. Lisäksi on mahdollista tarkastella tuloksia sen perusteella, minkä mallin mukaisesti niitä on laskettu (katso Malliperusta). Jos kaksi mallia laskee samaa asiaa, tuloksissa voi olla kaksoislaskentaa tässä solmussa; diskontatuista terveyskustannuksista kaksoislaskenta on poistettu.
+  description_en: The same health impacts as in the discounted health cost figure, but here the impacts are not discounted. In addition, it is possible to examine the results based on which model they have been calculated from (see Modeling basis). If two models calculate the same thing, there may be double counting in the results in this node; double counting has been removed from the discounted health costs.
   type: simple.MultiplicativeNode
   quantity: consumption
   unit: MEUR/a
