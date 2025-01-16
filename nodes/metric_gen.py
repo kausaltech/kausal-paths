@@ -478,6 +478,13 @@ def metric_from_visualization(node: Node, visualization: VisualizationNodeOutput
             else:
                 sdf = visualization.get_output(node)
             sdf = add_scenario_column(sdf, scenario.id)
+            truncate = scenario.param_values.get('measure_data_override', False)
+            if truncate:
+                sdf = sdf.with_columns(
+                    pl.when(pl.col(FORECAST_COLUMN))
+                    .then(pl.lit(None))
+                    .otherwise(pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN)
+                )
             scenario_dfs.append(sdf)
 
         try:

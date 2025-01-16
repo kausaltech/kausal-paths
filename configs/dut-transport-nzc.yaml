@@ -1086,23 +1086,37 @@ nodes:
   - id: is_decreasing_rate
     value: true
 
-- id: discounted_investment
-  name_fi: Diskontatut sijoitukset
-  name_en: Discounted investment
+- id: discounted_health_benefits
+  name: Discounted health benefits
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [stakeholder, cost_type]
-  output_dimensions: [stakeholder, cost_type]
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
   input_nodes:
   - id: discounted_cost
     from_dimensions:
     - id: aggregated_cost_type
-      categories: [capex]
+      categories: [co_benefits]
       flatten: true
-    to_dimensions:
-    - id: stakeholder
-    - id: cost_type
+
+# - id: discounted_investment
+#   name_fi: Diskontatut sijoitukset
+#   name_en: Discounted investment
+#   type: simple.AdditiveNode
+#   quantity: currency
+#   unit: MEUR/a
+#   input_dimensions: [stakeholder, cost_type]
+#   output_dimensions: [stakeholder, cost_type]
+#   input_nodes:
+#   - id: discounted_cost
+#     from_dimensions:
+#     - id: aggregated_cost_type
+#       categories: [capex]
+#       flatten: true
+#     to_dimensions:
+#     - id: stakeholder
+#     - id: cost_type
 
 - id: discounted_benefits
   name_fi: Diskontatut hyödyt
@@ -1123,20 +1137,6 @@ nodes:
     to_dimensions:
     - id: stakeholder
     - id: cost_type
-
-- id: discounted_health_benefits
-  name: Discounted health benefits
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [cost_type, stakeholder]
-  output_dimensions: [cost_type, stakeholder]
-  input_nodes:
-  - id: discounted_cost
-    from_dimensions:
-    - id: aggregated_cost_type
-      categories: [co_benefits]
-      flatten: true
 
 # ------------ Lappeenranta-specific nodes -----------
 
@@ -1509,7 +1509,7 @@ nodes:
   - id: fleet_emission_factor
     tags: [non_additive]
 
-- id: sink_node
+- id: sink_node # FIXME Delete this when you can actually choose the outcome node in the action network.
   name: Sink node
   type: values.AssociationNode
   quantity: emissions
@@ -1532,13 +1532,25 @@ nodes:
       flatten: true
     - id: iteration
       flatten: true
+  - id: statistical_electricity_consumption
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  - id: discounted_health_costs
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: iteration
+      flatten: true
   output_nodes:
-  - id: discounted_investment
+  - id: transport_cost
     to_dimensions:
     - id: stakeholder
       categories: [citizens]
     - id: cost_type
       categories: [capex]
+    - id: transport_mode
+      categories: [cars]
 
 actions:
 
@@ -1943,7 +1955,7 @@ actions:
     step: 5
 
 - id: a13_car_pooling
-  name_en: Car occupancy incrased
+  name_en: Car occupancy increased
   name_fi: Autojen matkustajamäärän lisäys
   description: Kuinka monta prosenttia on lisäystä keskimääräiseen auton matkustajamäärään.
   description_en: How many % increase there is in the average number of people in

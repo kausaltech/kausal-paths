@@ -821,9 +821,9 @@ class RelativeNode(AdditiveNode):
         return df
 
 class TrajectoryNode(SimpleNode):
-    explanation = _("""
-    TrajectoryNode uses select_category() to select a category from a dimension.
-    """)
+    explanation = _(
+        """TrajectoryNode uses select_category() to select a category from a dimension."""
+    )
     allowed_parameters = [
         *SimpleNode.allowed_parameters,
         StringParameter(local_id='dimension'),
@@ -847,7 +847,12 @@ class TrajectoryNode(SimpleNode):
 
 
 class FillNewCategoryNode(AdditiveNode):
-    explanation = _('This is a Fill New Category Node. It behaves like Additive Node, but in the end of computation it creates a new category such that the values along that dimension sum up to 1. The input nodes must have a dimensionless unit. The new category in an existing dimension is given as parameter "new_category" in format "dimension:category"')
+    explanation = _(
+        """This is a Fill New Category Node. It behaves like Additive Node, but in the end of computation
+        it creates a new category such that the values along that dimension sum up to 1. The input nodes
+        must have a dimensionless unit. The new category in an existing dimension is given as parameter
+        'new_category' in format 'dimension:category
+        """)
     allowed_parameters = [
         *AdditiveNode.allowed_parameters,
         StringParameter(local_id='new_category'),
@@ -872,4 +877,21 @@ class FillNewCategoryNode(AdditiveNode):
             for col in df.metric_cols:
                 df = df.filter(~pl.col(col).is_null())
             df = df.paths.to_narrow()
+        return df
+
+
+class ChooseInputNode(AdditiveNode):
+    explanation = _(
+        """
+        This is a ChooseInputNode. It can have several input nodes, and it selects the one that has the same
+        tag as given in the parameter node_tag. The idea of the node is that you can change the parameter value
+        in the scenario and thus have different nodes used in different contexts.
+        """)
+    allowed_parameters = [
+        *AdditiveNode.allowed_parameters,
+        StringParameter(local_id='node_tag', label='Tag to use as selecting the input node')
+    ]
+    def compute(self) -> ppl.PathsDataFrame:
+        node_tag = self.get_parameter_value_str('node_tag', required=True)
+        df = self.get_input_node(tag=node_tag).get_output_pl(target_node=self)
         return df

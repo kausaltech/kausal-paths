@@ -237,7 +237,7 @@ class DatasetNode(AdditiveNode):
             if len(historical_years) > 0:
                 start_from_year = cast(int, historical_years[YEAR_COLUMN].max()) + 1
         df = self.add_nodes_pl(df, input_nodes, start_from_year=start_from_year)
-        if len(na_nodes) > 0:  # FIXME Instead, develop a generic single dimensionless multiplier
+        if len(na_nodes) > 0 and not measure_data_override:
             assert len(na_nodes) == 1  # Only one multiplier allowed.
             mult = na_nodes[0].get_output_pl(target_node=self)
             if start_from_year is not None:

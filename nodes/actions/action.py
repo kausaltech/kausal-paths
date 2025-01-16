@@ -258,7 +258,7 @@ class ActionNode(Node):
             df = cost_df.filter(pl.col(UNCERTAINTY_COLUMN).ne('median'))
             last_forecast_year = df.filter(pl.col(FORECAST_COLUMN)).select(YEAR_COLUMN).max()
             dfp = df.group_by(pl.col(UNCERTAINTY_COLUMN)).agg(pl.sum('Cost'))
-            print(dfp)
+
             dfp = dfp.with_columns([
                 pl.when(pl.col('Cost') > 0.0).then(pl.col('Cost'))
                 .otherwise(pl.lit(0.0)).alias('under_knowledge')
@@ -306,7 +306,7 @@ class ActionNode(Node):
 
             if not set(impact_df.dim_ids) == set(match_dims_i):
                 raise NodeError(
-                    self, """With impact ovarview %s, impact node %s dimensions %s
+                    self, """With impact overview %s, impact node %s dimensions %s
                     do not match with expected: %s.""" %
                     (graph_type, impact_node.id, impact_df.dim_ids, match_dims_i))
 
