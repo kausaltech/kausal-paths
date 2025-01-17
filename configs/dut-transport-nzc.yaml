@@ -2131,8 +2131,6 @@ scenarios:
   name: Nykykehitys
   name_en: Baseline scenario
   params:
-  - id: measure_data_override
-    value: false
   - id: show_scenario_impacts
     value: false
   - id: statistical_correction
@@ -2144,19 +2142,7 @@ scenarios:
   name_en: Action Plan
   all_actions_enabled: true
   params:
-  - id: measure_data_override
-    value: false
   - id: statistical_correction
-    value: false
-
-- id: progress_tracking
-  name: Progress tracking
-  all_actions_enabled: true
-  is_selectable: false
-  params:
-  - id: measure_data_override
-    value: true
-  - id: measure_data_baseline_year_only
     value: false
 
 include:

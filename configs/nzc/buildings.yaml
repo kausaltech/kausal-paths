@@ -71,44 +71,6 @@ nodes:
       categories: [buildings]
     - id: ghg
     - id: scope
-  visualizations:
-  - kind: group
-    label: Drivers of building emissions
-    children:
-    - kind: node
-      label: Heating demand
-      node_id: statistical_heat_energy_use
-      desired_outcome: decreasing
-      scenarios: [default, progress_tracking]
-      dimensions: []
-    - kind: node
-      label: Fossil fuel usage in district heating
-      node_id: heating_fuel_share
-      desired_outcome: decreasing
-      scenarios: [default, progress_tracking]
-      dimensions:
-      - id: fuel_type
-        flatten: true
-      - id: energy_carrier
-        categories: [fossil]
-        flatten: true
-      - id: heating_type
-        categories: [district_heating]
-        flatten: true
-    - kind: node
-      label: Fossil fuel usage in local heating
-      node_id: heating_fuel_share
-      desired_outcome: decreasing
-      scenarios: [default, progress_tracking]
-      dimensions:
-      - id: fuel_type
-        flatten: true
-      - id: energy_carrier
-        categories: [fossil]
-        flatten: true
-      - id: heating_type
-        categories: [local_heating]
-        flatten: true
 
 # ----------------- Building stock ----------------------
 

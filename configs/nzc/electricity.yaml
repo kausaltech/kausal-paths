@@ -100,27 +100,6 @@ nodes:
     - id: scope
       categories: [scope2]
     - id: sector
-  visualizations:
-  - kind: group
-    label: Drivers of electricity emissions
-    children:
-    - kind: node
-      label: Total electricity consumption
-      node_id: statistical_electricity_consumption
-      desired_outcome: decreasing
-      scenarios: [default, progress_tracking]
-      dimensions: []
-    - kind: node
-      label: Fossil fuel usage in electricity production
-      node_id: electricity_shares
-      desired_outcome: decreasing
-      scenarios: [default, progress_tracking]
-      dimensions:
-      - id: fuel_type
-        categories: [fossil]
-        flatten: true
-      - id: energy_carrier
-        flatten: true
 
 - id: historical_electricity_consumption
   name_en: Historical electricity consumption
