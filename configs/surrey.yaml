@@ -6,7 +6,7 @@ dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 98e2ae8125ded39d2e1b494f8929e33032ee7236
   dvc_remote: kausal-s3
-name: Surrey Greenhouse Gas Inventory
+name: Measured and Modeled Greenhouse Gas Emissions
 owner: City of Surrey
 theme_identifier: ca-surrey
 target_year: 2050
