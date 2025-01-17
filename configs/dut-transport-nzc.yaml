@@ -81,17 +81,18 @@ action_groups:
   name_en: Electrification (from NetZeroPlanner)
   color: '#93c572'
 
-# action_efficiency_pairs:
+action_efficiency_pairs:
 
-# - graph_type: cost_benefit
-#   cost_node: discounted_investment
-#   impact_node: discounted_health_benefits
-#   cost_unit: MEUR
-#   impact_unit: MEUR
-#   indicator_unit: MEUR
-#   stakeholder_dimension: stakeholder
-#   outcome_dimension: cost_type
-#   label: Cost-benefit
+- graph_type: cost_benefit
+  cost_node: discounted_health_benefits
+  impact_node: discounted_health_benefits
+  cost_unit: MEUR
+  impact_unit: MEUR
+  indicator_unit: MEUR
+  stakeholder_dimension: stakeholder
+  outcome_dimension: cost_type
+  label_fi: Terveyshyödyt
+  label_en: Health benefits
 
 dimensions:
 
@@ -1087,10 +1088,12 @@ nodes:
     value: true
 
 - id: discounted_health_benefits
-  name: Discounted health benefits
+  name_fi: Diskontatut terveyshyödyt
+  name_en: Discounted health benefits
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
+  is_outcome: true
   input_dimensions: [cost_type, stakeholder]
   output_dimensions: [cost_type, stakeholder]
   input_nodes:
@@ -1467,7 +1470,8 @@ nodes:
   - id: passenger_trips
 
 - id: car_traffic_reduced_by_park_and_ride
-  name: Car traffic reduced by park and ride
+  name_fi: Autoliikenne vähenee liityntäpysähköinnillä
+  name_en: Car traffic reduced by park and ride
   type: simple.AdditiveNode
   quantity: fraction
   unit: trips/cap/d
@@ -2103,12 +2107,24 @@ pages:
   path: /
   type: emission
   outcome_node: net_emissions
-  lead_title: DUT-liikenneskenaario
-  lead_title_en: DUT transport scenario
-  lead_paragraph: DUT-hankkeessa kartoitetaan liikennetoimenpiteitä, joilla olisi
+  lead_title: DUT-liikenne- ja terveysskenaario (TESTIVERSIO)
+  lead_title_en: DUT transport and health scenario (TEST VERSION)
+  lead_paragraph_fi: DUT-hankkeessa kartoitetaan liikennetoimenpiteitä, joilla olisi
     myös terveydellisiä hyötyjä. Hanke on osa EU:n Driving Urban Transitions (DUT)
     -ohjelmaa, ja sitä sponsoroivat Suomessa työ- ja elinkeinoministeriö sekä ympäristöministeriö.
-    Hanketta koordinoi VTT ja mukana ovat Kausal Oy ja UKK-instituutti.
+    Hanketta koordinoi VTT ja mukana ovat Kausal Oy ja UKK-instituutti.<p>
+    Hankkeessa tuotettiin tämä testiversio mallista. Huomaa, että siinä on vielä virheitä ja
+    puutteita, ja tuloksiin tulee suhtautua varauksella. Mallia kuitenkin kehitetään
+    eteenpäin uusien hankkeiden voimin. Siksi olemme kiinnostuneet kaikista korjaus- ja
+    parannusehdotuksista. Voit lähettää palautetta osoitteeseen support[at]kausal.tech.
+  lead_paragraph_en: The DUT project maps traffic measures that would also have health benefits.
+    The project is part of the EU's Driving Urban Transitions (DUT) program, and it is sponsored
+    in Finland by the Ministry of Economic Affairs and Employment and the Ministry of the Environment.
+    The project is coordinated by VTT, with Kausal Oy and UKK Institute as partners.<p>This test
+    version of the model was produced in the project. Note that it still contains errors and
+    deficiencies, and the results should be treated with caution. However, the model is being
+    developed further through new projects. Therefore, we are interested in all correction and
+    improvement suggestions. You can send feedback to support[at]kausal.tech.
 
 scenarios:
 - id: baseline
