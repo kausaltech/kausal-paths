@@ -35,6 +35,15 @@ action_efficiency_pairs:
   plot_limit_for_indicator: 50000
   label: Kustannusvaikuttavuus
 
+- graph_type: cost_benefit
+  cost_node: cost_benefit_analysis
+  impact_node: cost_benefit_analysis
+  cost_unit: kEUR
+  impact_unit: kEUR
+  indicator_unit: kEUR
+  outcome_dimension: cost_benefit
+  label: Cost-benefit
+
 action_groups:
 - id: transportation
   name: Kestävä liikennejärjestelmä
@@ -226,6 +235,17 @@ dimensions:
   - id: scope2
     label: Scope 2
     label_en: Scope 2
+
+- id: cost_benefit
+  label: Cost-benefit
+  label_en: Cost-benefit
+  categories:
+  - id: cost
+    label: Cost
+    label_en: Cost
+  - id: benefit
+    label: Benefit
+    label_en: Benefit
 
 emission_sectors:
 - id: net_emissions
@@ -1931,21 +1951,8 @@ nodes:
   input_datasets:
   - id: gpc/tampere
     forecast_from: 2025
-
-- id: aggregate_net_price
-  name: Aggregate Net Price
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: EUR/a
-  input_dimensions: []
-  output_dimensions: []
-  input_nodes:
-  - id: net_price
-    from_dimensions:
-    - id: cost_type
-      flatten: true
-    - id: owner
-      flatten: true
+  output_nodes:
+  - id: energy_cost_reductions
 
 - id: net_price
   name: Kokonaiskustannus
@@ -1996,6 +2003,152 @@ nodes:
   output_nodes:
   - id: net_price
 
+# ----- COSTS & BENEFITS ------------------------------------------------------
+
+- id: total_costs
+  name: Total costs
+  name_en: Total costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [cost_type, owner]
+  output_dimensions: [cost_type, owner]
+  output_nodes:
+  - id: aggregate_total_costs
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    to_dimensions: []
+
+- id: aggregate_total_costs
+  name: Aggregate total costs
+  name_en: Aggregate total costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: []
+  output_dimensions: []
+  output_nodes:
+  - id: aggregate_net_price
+  - id: cost_benefit_analysis
+    to_dimensions:
+    - id: cost_benefit
+      categories: [cost]
+
+- id: total_benefits
+  name: Total benefits
+  name_en: Total benefits
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [cost_type, owner]
+  output_dimensions: [cost_type, owner]
+  output_nodes:
+  - id: aggregate_total_benefits
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    to_dimensions: []
+
+- id: aggregate_total_benefits
+  name: Aggregate total benefits
+  name_en: Aggregate total benefits
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: []
+  output_dimensions: []
+  output_nodes:
+  - id: aggregate_net_price
+  - id: cost_benefit_analysis
+    to_dimensions:
+    - id: cost_benefit
+      categories: [benefit]
+
+- id: aggregate_net_price
+  name: Aggregate Net Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: []
+  output_dimensions: []
+
+- id: cost_benefit_analysis
+  name: Cost-benefit analysis
+  name_en: Cost-benefit analysis
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+  input_dimensions: [cost_benefit]
+  output_dimensions: [cost_benefit]
+
+- id: electricity_consumption_reductions
+  name: Electricity consumption reductions
+  name_en: Electricity consumption reductions
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  output_nodes:
+  - id: energy_consumption_reductions
+
+- id: district_heat_consumption_reductions
+  name: District heat consumption reductions
+  name_en: District heat consumption reductions
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  output_nodes:
+  - id: energy_consumption_reductions
+
+- id: fuel_oil_consumption_reductions
+  name: Fuel oil consumption reductions
+  name_en: Fuel oil consumption reductions
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  output_nodes:
+  - id: energy_consumption_reductions
+
+- id: energy_consumption_reductions
+  name: Energy consumption reductions
+  name_en: Energy consumption reductions
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  output_nodes:
+  - id: energy_cost_reductions
+    to_dimensions:
+    - id: energy_carrier
+
+- id: energy_cost_reductions
+  name: Energy cost reductions
+  name_en: Energy cost reductions
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [energy_carrier, owner, cost_type]
+  output_dimensions: [energy_carrier, owner, cost_type]
+  output_nodes:
+  - id: total_benefits
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: owner
+    - id: cost_type
+
 # ----- ACTIONS ---------------------------------------------------------------
 
 actions:
@@ -2029,9 +2182,44 @@ actions:
     to_dimensions:
     - id: energy_carrier
     - id: scope
+  - id: electricity_consumption_reductions
+    metrics: [i62_energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
   - id: electricity_consumption_price
     metrics: [i_currency]
     from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+  - id: total_costs
+    metrics: [i_currency]
+    from_dimensions:
+    - id: cost_type
+      categories: ['investment']
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+  - id: total_benefits
+    metrics: [i_currency]
+    from_dimensions:
+    - id: cost_type
+      categories: ['maintenance']
     - id: energy_carrier
       flatten: true
     - id: scope
@@ -2070,7 +2258,28 @@ actions:
     to_dimensions:
     - id: energy_carrier
     - id: scope
+  - id: electricity_consumption_reductions
+    metrics: [i62_energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
   - id: electricity_consumption_price
+    metrics: [i_currency]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+  - id: total_costs
     metrics: [i_currency]
     from_dimensions:
     - id: energy_carrier
@@ -2112,7 +2321,32 @@ actions:
     - id: heating
     - id: energy_carrier
     - id: scope
+  - id: fuel_oil_consumption_reductions
+    metrics: [i11_energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
   - id: building_heating_price
+    metrics: [i_currency]
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+  - id: total_costs
     metrics: [i_currency]
     from_dimensions:
     - id: heating
@@ -2159,6 +2393,19 @@ actions:
     - id: heating
     - id: energy_carrier
     - id: scope
+  - id: district_heat_consumption_reductions
+    metrics: [i12_energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
   - id: other_electricity_consumption
     metrics: [i62_energy]
     from_dimensions:
@@ -2171,7 +2418,32 @@ actions:
     to_dimensions:
     - id: energy_carrier
     - id: scope
+  - id: electricity_consumption_reductions
+    metrics: [i62_energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
   - id: building_heating_price
+    metrics: [i_currency]
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+  - id: total_costs
     metrics: [i_currency]
     from_dimensions:
     - id: heating
@@ -2218,6 +2490,19 @@ actions:
     - id: heating
     - id: energy_carrier
     - id: scope
+  - id: district_heat_consumption_reductions
+    metrics: [i12_energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
   - id: other_electricity_consumption
     metrics: [i62_energy]
     from_dimensions:
@@ -2230,7 +2515,32 @@ actions:
     to_dimensions:
     - id: energy_carrier
     - id: scope
+  - id: electricity_consumption_reductions
+    metrics: [i62_energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
   - id: building_heating_price
+    metrics: [i_currency]
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+  - id: total_costs
     metrics: [i_currency]
     from_dimensions:
     - id: heating
@@ -2285,6 +2595,18 @@ actions:
     - id: cost_type
     - id: owner
     - id: vehicle_type
+  - id: total_benefits
+    metrics: [ii_currency]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
 
 - id: shift_to_low_carbon_in_national_electricity_production
   name: Kansallinen sähköntuotanto puhdistuu
