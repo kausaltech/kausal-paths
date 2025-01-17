@@ -30,6 +30,11 @@ class DatasetNode(AdditiveNode):
         ),  # FIXME To be removed, replaced by 'sector' below.
         StringParameter('sector', description='Sector', is_customizable=False),
         StringParameter('rename_dimensions', description='Rename incompatible dimensions', is_customizable=False),
+        BoolParameter(
+            'crop_to_model_range',
+            description='Should dataset be cropped to reject years outside the model range?',
+            is_customizable=False
+        ),
     ]
 
     quantitylookup = {
@@ -210,6 +215,16 @@ class DatasetNode(AdditiveNode):
         return df
 
     # -----------------------------------------------------------------------------------
+    def crop_to_model_range(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        if self.get_parameter_value('crop_to_model_range', required=False):
+            baseline_year = self.context.instance.reference_year
+            end_year = self.context.model_end_year
+            df = df.filter(
+                (pl.col(YEAR_COLUMN).ge(baseline_year)) &
+                (pl.col(YEAR_COLUMN).le(end_year))
+            )
+        return df
+    # -----------------------------------------------------------------------------------
     def add_and_multiply_input_nodes(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         # Add and multiply input nodes as tagged.
         na_nodes = self.get_input_nodes(tag='non_additive')
@@ -222,7 +237,7 @@ class DatasetNode(AdditiveNode):
             if len(historical_years) > 0:
                 start_from_year = cast(int, historical_years[YEAR_COLUMN].max()) + 1
         df = self.add_nodes_pl(df, input_nodes, start_from_year=start_from_year)
-        if len(na_nodes) > 0:  # FIXME Instead, develop a generic single dimensionless multiplier
+        if len(na_nodes) > 0 and not measure_data_override:
             assert len(na_nodes) == 1  # Only one multiplier allowed.
             mult = na_nodes[0].get_output_pl(target_node=self)
             if start_from_year is not None:
@@ -238,7 +253,7 @@ class DatasetNode(AdditiveNode):
 
             df = df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN).drop(
                 VALUE_COLUMN + '_right',
-            )  # FIXME Does not treat missing categories well
+            )  # FIXME Does not treat missing categories well. Use df multiplication instead.
         return df
 
     # -----------------------------------------------------------------------------------
@@ -256,12 +271,14 @@ class DatasetNode(AdditiveNode):
         df = self.convert_names_to_ids(df)
         df = self.implement_unit_col(df)
         df = self.add_missing_years(df)
+        df = self.crop_to_model_range(df)
 
         if not self.get_parameter_value('inventory_only', required=False):
             df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
 
         df = self.apply_multiplier(df, required=False, units=True)
         df = self.add_and_multiply_input_nodes(df)
+        df = self.maybe_drop_nulls(df)
         df = df.ensure_unit(VALUE_COLUMN, self.unit)  # type: ignore
         # out = df.filter(pl.col(YEAR_COLUMN) <= 2020)
         # out = out.select([UNCERTAINTY_COLUMN, VALUE_COLUMN])

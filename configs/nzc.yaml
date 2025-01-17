@@ -426,6 +426,8 @@ dimensions:
     label: Decarbonisation scenario
   - id: frozen_scenario
     label: Frozen scenario
+  - id: progress_tracking
+    label: Progress tracking scenario
 
 - id: country
   label: Country
@@ -640,7 +642,7 @@ nodes:
   - id: discounted_cost
     from_dimensions:
     - id: aggregated_cost_type
-#      categories: [capex]
+      categories: [capex]
       flatten: true
     to_dimensions:
     - id: stakeholder
@@ -732,7 +734,294 @@ nodes:
 #     - id: stakeholder
 #       flatten: true
 
-actions:  # TODO It would be nice to have multiplier parameter in the DatasetAction class.
+# ---------------- NODES WITH VISUALIZATIONS ---------------
+
+- id: building_emissions
+  name_en: Building emissions
+  name_fi: Rakennusten päästöt
+  description_en: 'This module (all nodes upstream) is based on the excel sheets 3.0 - 3.4 Building & heat levers.'
+  description_fi: 'Tämä moduuli (kaikki ylävirtasolmut) perustuu excel-taulukoihin 3.0 - 3.4 Rakennusten ja lämmityksen vipuvaikutukset.'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [ghg, scope]
+  output_dimensions: [ghg, scope]
+  color: '#4E79A7'
+  output_nodes:
+  - id: net_emissions
+    to_dimensions:
+    - id: sector
+      categories: [buildings]
+    - id: ghg
+    - id: scope
+  visualizations:
+  - kind: group
+    label: Drivers of building emissions
+    children:
+    - kind: node
+      label: Heating demand
+      node_id: statistical_heat_energy_use
+      desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
+      dimensions: []
+    - kind: node
+      label: Fossil fuel usage in district heating
+      node_id: heating_fuel_share
+      desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: fuel_type
+        flatten: true
+      - id: energy_carrier
+        categories: [fossil]
+        flatten: true
+      - id: heating_type
+        categories: [district_heating]
+        flatten: true
+    - kind: node
+      label: Fossil fuel usage in local heating
+      node_id: heating_fuel_share
+      desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: fuel_type
+        flatten: true
+      - id: energy_carrier
+        categories: [fossil]
+        flatten: true
+      - id: heating_type
+        categories: [local_heating]
+        flatten: true
+
+- id: electricity_emissions
+  name_en: Electricity emissions
+  name_fi: Sähköntuotannon päästöt
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: total_electricity_emissions
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: ghg
+      categories: [co2e]
+    - id: scope
+      categories: [scope2]
+    - id: sector
+  visualizations:
+  - kind: group
+    label: Drivers of electricity emissions
+    children:
+    - kind: node
+      label: Total electricity consumption
+      node_id: statistical_electricity_consumption
+      desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
+      dimensions: []
+    - kind: node
+      label: Fossil fuel usage in electricity production
+      node_id: electricity_shares
+      desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: fuel_type
+        categories: [fossil]
+        flatten: true
+      - id: energy_carrier
+        flatten: true
+
+- id: freight_transport_emissions
+  name_en: Freight transport emissions
+  name_fi: Rahtiliikenteen päästöt
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  color: '#F28E2B'
+  input_dimensions: [transport_mode, pollutant, energy_carrier]
+  output_dimensions: [transport_mode, pollutant, energy_carrier]
+  input_nodes:
+  - id: truck_emission_factor
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
+    to_dimensions:
+    - id: energy_carrier
+      categories: [petrol_diesel]
+    - id: transport_mode
+    - id: pollutant
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: pollutant
+      categories: [co2]
+      flatten: true
+    to_dimensions:
+    - id: ghg
+      categories: [co2e]
+    - id: scope
+      categories: [scope1]
+    - id: sector
+      categories: [transport]
+  visualizations:
+  - kind: group
+    label: Drivers of light truck emissions
+    children:
+    - kind: node
+      label: Light truck freight transport need
+      node_id: freight_transport_need
+      desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: transport_mode
+        categories: [light_trucks]
+        flatten: true
+    - kind: node
+      label: Electrification of light trucks
+      node_id: fully_electric_truck_share
+      desired_outcome: increasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: energy_carrier
+        flatten: true
+      - id: transport_mode
+        categories: [light_trucks]
+        flatten: true
+  - kind: group
+    label: Drivers of heavy truck emissions
+    children:
+    - kind: node
+      label: Heavy truck freight transport need
+      node_id: freight_transport_need
+      desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: transport_mode
+        categories: [heavy_trucks]
+        flatten: true
+    - kind: node
+      label: Electrification of heavy trucks
+      node_id: fully_electric_truck_share
+      desired_outcome: increasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: energy_carrier
+        flatten: true
+      - id: transport_mode
+        categories: [heavy_trucks]
+        flatten: true
+
+- id: transport_emissions
+  name_en: Transport emissions
+  name_fi: Liikenteen päästöt
+  type: simple.EmissionFactorActivity
+  quantity: emissions
+  unit: kt/a
+  color: '#E15759'
+  input_dimensions: [transport_mode, ghg, scope, energy_carrier]
+  output_dimensions: [transport_mode, ghg, scope, energy_carrier]
+  input_nodes:
+  - id: vehicle_kilometres
+    to_dimensions:
+    - id: ghg
+      categories: [co2e]
+    - id: scope
+      categories: [scope1]
+    - id: transport_mode
+    - id: energy_carrier
+  - id: transport_emission_factor
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+    - id: ghg
+      categories: [co2e]
+    - id: scope
+      categories: [scope1]
+    - id: energy_carrier
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity]
+      exclude: true
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [transport]
+    - id: ghg
+    - id: scope
+  visualizations:
+  - kind: group
+    label: Drivers of car emissions
+    children:
+    - kind: node
+      label: Car transport need
+      node_id: passenger_kilometres
+      desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: transport_mode
+        categories: [cars]
+        flatten: true
+    - kind: node
+      label: Electrification of passenger vehicles
+      node_id: fully_electric_car_share
+      desired_outcome: increasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: energy_carrier
+        categories: [electricity]
+        flatten: true
+      - id: transport_mode
+        categories: [cars]
+        flatten: true
+  - kind: group
+    label: Drivers of bus emissions
+    children:
+    - kind: node
+      label: Bus transport need
+      node_id: passenger_kilometres
+      desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: transport_mode
+        categories: [buses]
+        flatten: true
+    - kind: node
+      label: Electrification of buses
+      node_id: fully_electric_bus_share
+      desired_outcome: increasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: energy_carrier
+        categories: [electricity]
+        flatten: true
+      - id: transport_mode
+        categories: [buses]
+        flatten: true
+
+actions:
 
 # --------------- TRANSPORT -------------
 
@@ -1222,6 +1511,8 @@ scenarios:
     value: false
   - id: measure_data_baseline_year_only
     value: true
+  - id: statistical_electricity_consumption.node_tag
+    value: decarbonisation_scenario
 
 - id: default
   default: true
@@ -1232,6 +1523,8 @@ scenarios:
     value: false
   - id: measure_data_baseline_year_only
     value: true
+  - id: statistical_electricity_consumption.node_tag
+    value: decarbonisation_scenario
 
 - id: progress_tracking
   name: Progress tracking
@@ -1242,16 +1535,22 @@ scenarios:
     value: true
   - id: measure_data_baseline_year_only
     value: false
+  - id: statistical_electricity_consumption.node_tag
+    value: progress_tracking
 
 include:
 - file: nzc/transport.yaml
   node_group: Transport
+  allow_override: true
 - file: nzc/freight_transport.yaml
   node_group: Freight transport
+  allow_override: true
 - file: nzc/buildings.yaml
   node_group: Buildings
+  allow_override: true
 - file: nzc/electricity.yaml
   node_group: Electricity
+  allow_override: true
 - file: nzc/waste.yaml
   node_group: Waste
 - file: nzc/other.yaml

@@ -1,14 +1,11 @@
 id: lappeenranta-nzc
 default_language: fi
 supported_languages: [en]
-frameworks: [health]
 site_url: https://lappeenranta-nzc.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   dvc_remote: kausal-s3
-  # commit: 772bb24d5a5a01ab2aa8b69bb33efec594f0ac8a # Lappeenranta-specific dataset
-  # commit: 4a9b9c0159a17b49c94bb72c265204fe76f3fc57 # Lappeenranta-specific probabilistic dataset
-  commit: d6a1bb92c8c9c40d026131e1ba80b49f2e59fe0b # Lappeenranta with fixed freight ton-km
+  commit: 892daa0d78ff8da19b981aea687e2d8221831721
 theme_identifier: lpr-ilmasto
 name: Lappeenrannan missiokaupungin ilmasto-ohjelma 2030
 name_en: Lappeenranta Mission City Climate Action Plan 2030
@@ -85,7 +82,7 @@ action_groups:
   name_en: 7. Reforestation
   name: 7. Uudelleenmetsitys
 
-# impact_overviews:
+# action_efficiency_pairs:
 
 # - graph_type: cost_benefit
 #   cost_node: discounted_investment
@@ -137,10 +134,10 @@ dimensions:
   - id: breast_cancer
     label_fi: Rintasyöpä
     label_en: Breast cancer
-  - id: deficiency  # FIXME Add causative agent to response
+  - id: deficiency  # TODO Add causative agent to response
     label_fi: Puutos
     label_en: Deficiency
-  - id: infection  # FIXME Add causative agent to response
+  - id: infection  # TODO Add causative agent to response
     label_fi: Infektio
     label_en: Infection
   - id: physical_activity
@@ -157,6 +154,9 @@ dimensions:
   - id: nzp_response
     label: NZP-vaste
     color: '#e31a1c'
+  - id: noise
+    label_en: Noise
+    label_fi: Melu
 
 - id: emission_height
   label_fi: Päästökorkeus
@@ -361,6 +361,15 @@ dimensions:
   - id: grid_stability
     label_en: Storage, grid stability etc.
     label_fi: Varastointi, verkon vakaus jne.
+  - id: air_pollution_everywhere
+    label: Air pollution everywhere
+  - id: work_days_lost
+    label_fi: Menetetyt työpäivät
+    label_en: Work days lost
+    color: '#1f78b4'
+  - id: physical_activity
+    label: Fyysinen aktiivisuus
+    color: '#b2df8a'
 
 - id: aggregated_cost_type
   label_en: Aggregated cost type
@@ -968,30 +977,6 @@ nodes:
   output_nodes:
   - id: active_mobility_combined
 
-- id: carbon_factor_of_active_mobility  # TODO Find out where this came for and what these emissions are
-  name: Aktiivisen liikkumisen päästökerroin
-  type: gpc.DatasetNode
-  quantity: emission_factor
-  unit: t/a/(min/d/person)
-  input_dimensions: [response, transport_mode]
-  output_dimensions: [response, transport_mode]
-  input_datasets: [hia/heat/lappeenranta_heat]
-  params:
-    sector: carbon_factor_of_active_mobility
-
-# - id: emissions_of_active_mobility
-#   name: Aktiivisen liikkumisen päästöt
-#   type: simple.MultiplicativeNode
-#   quantity: emissions
-#   unit: kt/a
-#   input_dimensions: [transport_mode, response]
-#   output_dimensions: [transport_mode, response]
-#   input_nodes:
-#   - id: carbon_factor_of_active_mobility
-#   - id: amount_of_active_mobility
-#     to_dimensions:
-#     - id: transport_mode
-
 # ----------------------- Active mobility ------------------
 
 - id: population_group_sizes
@@ -1143,15 +1128,17 @@ nodes:
       flatten: true
   output_nodes:
   - id: health_costs_attributed_to_exposure
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
     to_dimensions:
     - id: cost_type
     - id: response
       categories: [nzp_response]
-    from_dimensions:
-    - id: transport_mode
-      flatten: true
+    - id: iteration
+      categories: [nzp]
 
-actions:  # TODO It would be nice to have multiplier parameter in the DatasetAction class.
+actions:
 
 # --------------- TRANSPORT -------------
 
@@ -1687,6 +1674,9 @@ scenarios:
     value: false
 
 include:
+- file: modules/health.yaml
+  node_group: health
+  allow_override: true
 - file: nzc/transport.yaml
   node_group: Transport
 - file: nzc/freight_transport.yaml
