@@ -57,14 +57,13 @@ def _convert_to_camel_case(input_string: str) -> str:
 def _dim_to_col(dim: Dimension) -> str:
     return _convert_to_camel_case(str(dim.label))
 
+format = 'wide'
 
 FIXED_COLUMNS = [
     'Node',
-    'Year',
+    'Quantity',
     'Unit',
-    'Value',
-    'BaselineValue',
-    'Forecast',
+    'Forecast_from',
 ]
 
 
@@ -96,60 +95,85 @@ class InstanceResultExcel(I18nBaseModel):
         node: Node,
         dim_ids: list[str],
         actions: list[ActionNode],
+        cols: list[str],
         aseq: bool,
     ) -> None:
         logger.info('Outputting node %s' % node.id)
-        if len(node.output_metrics) > 1:
-            logger.warning('Multimetric node %s' % node.id)
         df = node.get_output_pl()
         if df.dim_ids:
             df = df.with_columns([pl.col(dim_id).cast(pl.String) for dim_id in df.dim_ids])
-        df = df.sort(by=[YEAR_COLUMN, *df.dim_ids])
+
+        # Get baseline values
         bdf = node.get_baseline_values()
         assert bdf is not None
-        bdf = bdf.with_columns(pl.col(VALUE_COLUMN).alias('BaselineValue')).drop(VALUE_COLUMN)
-        df = df.paths.join_over_index(bdf, how='left', index_from='left')
+
+        # Create the basic structure
         col_map = {
             'Node': pl.lit(node.id),
-            'Year': pl.col(YEAR_COLUMN),
+            'Quantity': pl.lit(node.quantity),
             'Unit': pl.lit(str(node.unit)),
-            'Value': pl.col(VALUE_COLUMN),
-            'BaselineValue': pl.col('BaselineValue'),
-            'Forecast': pl.col(FORECAST_COLUMN),
+            'Forecast_from': pl.col('Forecast_from'),
         }
-        cols = [col_map[col_id].alias(col_id) for col_id in FIXED_COLUMNS]
+
+        # Add dimension columns
         for dim_id in dim_ids:
             if dim_id in df.dim_ids:
-                cols.append(pl.col(dim_id))
+                col_map[dim_id] = pl.col(dim_id)
             else:
-                cols.append(pl.lit(None).alias(dim_id))
+                col_map[dim_id] = pl.lit(None).alias(dim_id)
 
-        arange = range(len(actions))
-        for i in arange:
-            if aseq:
-                for j in arange:
-                    actions[j].enabled_param.set(j <= i)
+        # Add a dummy grouping column as at least one is required
+        df = df.with_columns(pl.lit(1).alias('_dummy_group'))
+        grouping_cols = df.dim_ids if df.dim_ids else ['_dummy_group']
 
-            with context.start_span('compute impact: %s' % actions[i].id, op='function'):
-                adf = actions[i].compute_impact(node)
-            act_col = 'Impact_%s' % actions[i].id
-            adf = adf.filter(pl.col(IMPACT_COLUMN) == IMPACT_GROUP).drop(IMPACT_COLUMN).rename({VALUE_COLUMN: act_col})
-            df = df.paths.join_over_index(adf, how='left', index_from='left')
-            cols.append(pl.col(act_col))
+        # Create forecast_from values
+        forecast_from_df = (df
+            .filter(pl.col(FORECAST_COLUMN))
+            .group_by(grouping_cols)
+            .agg(
+                pl.col(YEAR_COLUMN).min().alias('Forecast_from')
+            )
+        )
 
-        start_row = sheet.max_row + 1
+        df = (df
+            .join(
+                forecast_from_df,
+                on=grouping_cols,
+                how='left'
+            )
+            .drop('_dummy_group')  # Remove the dummy column after join
+        )
 
+        # # Add Forecast_from to our column map
+        # col_map['Forecast_from'] = pl.col('Forecast_from')
+
+        df = (df  # noqa: PD010
+            .select([
+                *[col_map[col_id].alias(col_id) for col_id in col_map.keys()],
+                pl.col(YEAR_COLUMN),
+                pl.col(VALUE_COLUMN),
+                pl.col(FORECAST_COLUMN)
+            ])
+            .pivot(
+                values=VALUE_COLUMN,
+                index=[*col_map.keys()],  # Now includes Forecast_from
+                columns=YEAR_COLUMN,
+                aggregate_function='first'
+            )
+        )
+        df = df.with_columns([
+            pl.col(col).cast(pl.String, strict=False).fill_null(".")
+            for col in df.columns
+            if col in dim_ids
+        ])
+        for col in cols:
+            if str(col) not in df.columns:
+                df = df.with_columns(pl.lit(None).alias(str(col)))
         df = df.select(cols)
+
+        # Write to sheet
         for row in df.iter_rows():
             sheet.append(row)
-        end_row = sheet.max_row
-
-        start_col = get_column_letter(1)
-        end_col = get_column_letter(len(row))  # type: ignore
-        cell_range = absolute_coordinate('%s%s:%s%s' % (start_col, start_row, end_col, end_row))
-        ref = '%s!%s' % (quote_sheetname(sheet.title), cell_range)
-        defn = DefinedName(node.id, attr_text=ref)
-        wb.defined_names[node.id] = defn
 
     def _add_param_sheet(self, context: Context, wb: Workbook) -> None:
         ps: Worksheet = wb.create_sheet(PARAM_SHEET_NAME)
@@ -317,7 +341,10 @@ class InstanceResultExcel(I18nBaseModel):
         ds: Worksheet = wb.create_sheet(DATA_SHEET_NAME)
 
         dims = [context.dimensions[dim_id] for dim_id in all_dims]
-        cols = FIXED_COLUMNS + [_dim_to_col(dim) for dim in dims]
+        if format == 'wide':
+            cols = FIXED_COLUMNS + [dim_id for dim_id in all_dims]  # noqa: C416
+        else:
+            cols = FIXED_COLUMNS + [_dim_to_col(dim) for dim in dims]
 
         if self.action_ids is not None:
             actions = [context.get_action(a) for a in self.action_ids]
@@ -326,8 +353,17 @@ class InstanceResultExcel(I18nBaseModel):
             actions = context.get_actions()[1:]
             aseq = False
 
-        for act in actions:
-            cols.append('Impact_%s' % act.id)
+        if format == 'wide':
+            all_years: set[int] = set()
+            for node in nodes:
+                df = node.get_output_pl()
+                all_years.update(df[YEAR_COLUMN].unique())
+
+            cols = cols + [str(year) for year in sorted(all_years)]
+        else:
+            for act in actions:
+                cols.append('Impact_%s' % act.id)
+
         ds.append(cols)
 
         for idx, col in enumerate(cols):
@@ -343,7 +379,8 @@ class InstanceResultExcel(I18nBaseModel):
         dim_ids = [dim.id for dim in dims]
         for node in nodes:
             with context.start_span('output for node: %s' % node.id, op='function'):
-                self._output_node(context, wb, ds, node, dim_ids=dim_ids, actions=actions, aseq=aseq)
+                self._output_node(context, wb, ds, node, dim_ids=dim_ids, cols=cols,
+                                  actions=actions, aseq=aseq)
         ds.freeze_panes = ds['B2']
 
         ds.column_dimensions['A'].width = 20
