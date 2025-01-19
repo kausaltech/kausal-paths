@@ -393,6 +393,81 @@ class DimensionalMetric(BaseModel):
             return metric_from_visualization(node, visualization)
 
     @classmethod
+    def from_action_impact(
+        cls, action_impact: ActionImpact, root: ImpactOverview, col: str,
+    ) -> DimensionalMetric:
+        action = action_impact.action
+        def make_id(*args: str) -> str:
+            return ':'.join([action.id, *args])
+        df = action_impact.df
+        if col=='Cost':
+            dimensions = root.cost_node.output_dimensions.items()
+            if root.invert_cost:
+                df = df.with_columns((pl.col(col) * pl.lit(-1.0)).alias(col))
+        elif col=='Impact':
+            dimensions = root.impact_node.output_dimensions.items()
+            if root.invert_impact:
+                df = df.with_columns((pl.col(col) * pl.lit(-1.0)).alias(col))
+
+        dims: list[MetricDimension] = []
+
+        for dim_id, dim in dimensions:
+            if dim_id == 'iteration':
+                continue
+            df_cats = set(df[dim_id].unique())
+            ordered_cats = []
+            for cat in dim.categories:
+                if cat.id not in df_cats:
+                    continue
+                cat_id = make_id(dim.id, 'cat', cat.id)
+                ordered_cats.append(MetricCategory(
+                    id=cat_id, label=str(cat.label), color=cat.color, order=cat.order,
+                    original_id=cat.id,
+                ))
+
+            assert len(df_cats) == len(ordered_cats)
+
+            mdim = MetricDimension(
+                id=make_id('dim', dim.id),
+                label=str(dim.label),
+                help_text=str(dim.help_text),
+                categories=ordered_cats,
+                original_id=dim.id,
+            )
+            dims.append(mdim)
+
+        forecast_from = df.filter(pl.col(FORECAST_COLUMN).eq(other=True))[YEAR_COLUMN].min()
+        if forecast_from is not None:
+            assert isinstance(forecast_from, int)
+
+        if df.paths.index_has_duplicates():
+            raise Exception("DataFrame index has duplicates")
+
+        just_cats = [dim.get_original_cat_ids() for dim in dims]
+        years = list(df[YEAR_COLUMN].unique().sort())
+        idx_names = [dim.original_id for dim in dims] + [YEAR_COLUMN]
+        idx_vals = pd.MultiIndex.from_product(just_cats + [years]).to_list()
+        idx_df = pl.DataFrame(idx_vals, orient='row', schema={col: df.schema[col] for col in idx_names})
+
+        jdf = idx_df.join(df, how='left', on=idx_names)
+        vals: list[float] = jdf[col].fill_null(0).to_list()
+        goals: list[MetricDimensionGoal] = []
+
+        dm = DimensionalMetric(  # Normalization or grouping is not possible at the moment.
+            id=action.id + '_' + col.lower(),
+            name=str(action.name),
+            dimensions=dims,
+            values=vals,
+            years=years,
+            unit=df.get_unit(col),
+            forecast_from = forecast_from,
+            stackable=True,  # Stackability checked already.
+            goals=goals,
+            normalized_by=None,
+        )
+        return dm
+
+    @classmethod
     def from_action_efficiency(
         cls, action_efficiency: ActionEfficiency, root: ActionEfficiencyPair, col: str
     ) -> DimensionalMetric:

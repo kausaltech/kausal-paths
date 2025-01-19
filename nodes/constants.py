@@ -59,7 +59,7 @@ FRACTION_QUANTITY = 'fraction'
 ACTIVITY_QUANTITIES = {
     EMISSION_QUANTITY, ENERGY_QUANTITY, MILEAGE_QUANTITY, VEHICLE_MILEAGE_QUANTITY,
     PASSENGER_MILEAGE_QUANTITY, FREIGHT_MILEAGE_QUANTITY, UTILITY_QUANTITY, 'fuel_consumption', 'consumption',
-    'mass', 'volume', 'employment', 'activity',
+    'mass', 'volume', 'area', 'employment', 'activity',
 }
 
 ACTIVITY_FACTOR_QUANTITIES = {

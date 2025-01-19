@@ -237,7 +237,6 @@ class ActionNode(Node):
         if not scenario.has_parameter(self.enabled_param):
             scenario.add_parameter(self.enabled_param, scenario.all_actions_enabled)
 
-    # compute_indicator and compute_indicator2 are merged here from feature/probability2
     def compute_indicator(self, cost_node: Node, impact_node: Node, match_dims_i: list,
                            match_dims_c: list, graph_type: str) -> ppl.PathsDataFrame:
         pc = PerfCounter('Impact %s [%s / %s]' % (self.id, cost_node.id, impact_node.id), level=PerfCounter.Level.DEBUG)
@@ -275,8 +274,6 @@ class ActionNode(Node):
             dfp = dfp.select([YEAR_COLUMN, FORECAST_COLUMN, UNCERTAINTY_COLUMN, 'Cost', 'Impact']) # TODO Do we need this?
             meta.units['Impact'] = meta.units['Cost']
             df = ppl.to_ppdf(df=dfp, meta=meta)
-            # df = df.add_to_index(UNCERTAINTY_COLUMN)
-            print(df)
 
         else:
 
@@ -346,7 +343,7 @@ class ActionEfficiencyPair:
     label: TranslatedString | str | None
 
     @classmethod
-    def from_config(
+    def from_config(  # noqa: PLR0913
         cls,
         context: Context,
         graph_type: str,
@@ -366,7 +363,7 @@ class ActionEfficiencyPair:
     ) -> ActionEfficiencyPair:
         cost_node = context.get_node(cost_node_id)
         impact_node = context.get_node(impact_node_id)
-        indicator_unit_obj = context.unit_registry.parse_units(indicator_unit)
+        indicator_unit_obj = context.unit_registry.parse_units(indicator_unit or '')
         cost_unit_obj = context.unit_registry.parse_units(cost_unit)
         impact_unit_obj = context.unit_registry.parse_units(impact_unit)
         aep = ActionEfficiencyPair(
@@ -390,12 +387,12 @@ class ActionEfficiencyPair:
         aep.validate()
         return aep
 
-    def validate(self):
+    def validate(self):  # noqa: C901
         # Ensure that quantities, units and dimensions are compatible
         # TODO Currently, the function assumes that there are no extra dimensions. This should be updated
         # so that the dimensions that are not stakeholder or outcome dimensions are summed up.
         # If the quantity is not stackable, the need to sum up gives an error.
-        impact_overview_settings = {
+        impact_overview_settings = {  # noqa: F841
             # TODO Validate based on this dict, not based on a stack of if clauses.
             # Applies to calculate_iter() as well.
             'impact': {
@@ -450,8 +447,7 @@ class ActionEfficiencyPair:
                 raise Exception('Indicator unit %s is not compatible with %s' % (self.indicator_unit, div_unit))
             if self.stakeholder_dimension is not None:
                 raise Exception('Stakeholder dimension is not allowed for a cost-effectiveness graph')
-        if self.graph_type == 'cost_benefit':
-            if not self.cost_unit == self.impact_unit:
+        if self.graph_type == 'cost_benefit' and self.cost_unit != self.impact_unit:
                 raise Exception('Units must be the same for cost %s and impact %s' % (self.cost_unit, self.impact_unit))
         if self.graph_type == 'return_of_investment':
             if not self.indicator_unit.dimensionless:
@@ -483,11 +479,11 @@ class ActionEfficiencyPair:
             if self.graph_type == 'cost_effectiveness':
                 match_dims_c += [self.outcome_dimension]
             if self.graph_type == 'cost_benefit':
-                match_dims_c += [self.outcome_dimension, self.stakeholder_dimension]
-                match_dims_i += [self.outcome_dimension, self.stakeholder_dimension]
+                match_dims_c.extend([self.outcome_dimension, self.stakeholder_dimension])
+                match_dims_i.extend([self.outcome_dimension, self.stakeholder_dimension])
             if self.graph_type == 'value_of_information':
-                match_dims_i += [self.outcome_dimension]
-                match_dims_c += [UNCERTAINTY_COLUMN]
+                match_dims_i.extend([self.outcome_dimension])
+                match_dims_c.extend([UNCERTAINTY_COLUMN])
             match_dims_i = list(set(match_dims_i) - {None})
             match_dims_c = list(set(match_dims_c) - {None})
 
@@ -512,7 +508,7 @@ class ActionEfficiencyPair:
                 assert self.cost_unit == self.impact_unit
                 unit_adjustment_multiplier = 1 * self.cost_unit / self.indicator_unit
 
-            unit_adjustment_multiplier = unit_adjustment_multiplier.to('dimensionless')
+            unit_adjustment_multiplier = unit_adjustment_multiplier.to('dimensionless') # type: ignore
 
             ae = ActionEfficiency(
                 action=action,

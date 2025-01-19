@@ -12,7 +12,7 @@ from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
 from nodes.gpc import DatasetNode
 from nodes.units import unit_registry
-from params import NumberParameter, Parameter, StringParameter, BoolParameter
+from params import BoolParameter, NumberParameter, Parameter, StringParameter
 
 
 class DatasetAction(ActionNode, DatasetNode):
@@ -66,7 +66,11 @@ class DatasetActionMFM(DatasetAction):
         tmetric = self.get_parameter_value('target_metric', required=False)
 
         # Create DF with all years.
-        yearrange = range(df[YEAR_COLUMN].min(), (df[YEAR_COLUMN].max() + 1))
+        ymin = df[YEAR_COLUMN].min()
+        assert isinstance(ymin, int)
+        ymax = df[YEAR_COLUMN].max()
+        assert isinstance(ymax, int)
+        yearrange = range(ymin, ymax + 1)
         yeardf = ppl.PathsDataFrame({YEAR_COLUMN: yearrange})
         yeardf._units = {}
         yeardf._primary_keys = [YEAR_COLUMN]
@@ -191,8 +195,8 @@ class StockReplacementAction(DatasetAction):
     def category_filter(self, df, year, cat):
         fdf = df.filter(pl.col(YEAR_COLUMN) == year)
         for subcat in cat.split('/'):
-            subcat = subcat.split(':')
-            fdf = fdf.filter(pl.col(subcat[0]) == subcat[1])
+            subc = subcat.split(':')
+            fdf = fdf.filter(pl.col(subc[0]) == subc[1])
 
         return fdf.select(VALUE_COLUMN).item()
 
@@ -466,6 +470,7 @@ class DatasetDifferenceAction2(DatasetAction):
         filter_categories = self.get_parameter_value('filter_categories', required=False)
         keep_dimension = self.get_parameter_value('keep_dimension', required=False)
         if filter_categories:
+            assert isinstance(filter_categories, str), "filter_categories must be a string"
             dim = filter_categories.split(':')[0]
             cats = filter_categories.split(':')[1].split(',')
             if dim in df.dim_ids:
@@ -485,6 +490,7 @@ class DatasetDifferenceAction2(DatasetAction):
         """
 
         n = self.get_input_node(tag=tag, required=False)
+        df: ppl.PathsDataFrame | None
         if n is None:
             if self.get_parameter_value('sector', required=False):
                 df = self.get_gpc_dataset(tag=tag)
@@ -497,8 +503,8 @@ class DatasetDifferenceAction2(DatasetAction):
                 df = self.get_input_dataset_pl(tag=tag, required=False)
         else:
             df = n.get_output_pl(target_node=self)
-        df = self.filter_categories(df)
         assert df is not None
+        df = self.filter_categories(df)
         return df
 
     def compute_effect(self) -> ppl.PathsDataFrame:
@@ -534,7 +540,8 @@ class DatasetDifferenceAction2(DatasetAction):
         if is_mult:
             # If the goal series is relative (i.e. a multiplier), transform
             # it into absolute values by multiplying with the last historical values.
-            inverse_complement = False  # FIXME Make parameter. For a complement multiplier, the no-effect value is 0 rather than 1.
+            # FIXME Make parameter. For a complement multiplier, the no-effect value is 0 rather than 1.
+            inverse_complement = False
             if inverse_complement:
                 gdf = gdf.with_columns((pl.lit(1.0) - pl.lit(-1.0) * pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
             gdf = gdf.rename({VALUE_COLUMN: 'Multiplier'})

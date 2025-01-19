@@ -1728,7 +1728,7 @@ actions:
   quantity: fraction
   unit: dimensionless
   group: transportation
-  forecast_values: [[2026, 1], [2035, 1]]
+  forecast_values: [[2026, 1.0], [2035, 1.0]]
   input_dataset_processors: [LinearInterpolation]
   params:
   - id: multiplier
@@ -1906,7 +1906,7 @@ actions:
   quantity: consumption_factor
   unit: kWh/m**2/a
   group: buildings
-  forecast_values: [[2024, 0], [2035, 0]]
+  forecast_values: [[2024, 0.0], [2035, 0.0]]
   output_nodes:
   - id: building_heat_per_floor_area_new
     to_dimensions:
@@ -1955,7 +1955,7 @@ actions:
   quantity: consumption_factor
   unit: kWh/m**2/a
   group: buildings
-  forecast_values: [[2024, 0], [2035, 0]]
+  forecast_values: [[2024, 0.0], [2035, 0.0]]
   output_nodes:
   - id: building_heat_per_floor_area
     to_dimensions:
@@ -1993,7 +1993,7 @@ actions:
   output_nodes:
   - oil_heating_emission_factor
   type: simple.LinearCumulativeAdditiveAction
-  forecast_values: [[2024, 0], [2028, -31.9]]
+  forecast_values: [[2024, 0.0], [2028, -31.9]]
   unit: g/kWh
   group: buildings
 
@@ -2053,14 +2053,14 @@ actions:
           building_heat_source: district_heat
       amounts:
       - year: 2024
-        source_amount: -50000
-        dest_amounts: [50, 50]
+        source_amount: -50000.0
+        dest_amounts: [50.0, 50.0]
       - year: 2025
         source_amount: -210000
-        dest_amounts: [50, 50]
+        dest_amounts: [50.0, 50.0]
       - year: 2030
         source_amount: -50000
-        dest_amounts: [50, 50]
+        dest_amounts: [50.0, 50.0]
 
 - id: reduce_oil_heating_services
   name: Öljylämmityksen vähentäminen (Palvelut)
@@ -2108,14 +2108,14 @@ actions:
           building_heat_source: district_heat
       amounts:
       - year: 2024
-        source_amount: -11000
-        dest_amounts: [50, 50]
+        source_amount: -11000.0
+        dest_amounts: [50.0, 50.0]
       - year: 2025
         source_amount: -39000
-        dest_amounts: [50, 50]
+        dest_amounts: [50.0, 50.0]
       - year: 2030
         source_amount: -10000
-        dest_amounts: [50, 50]
+        dest_amounts: [50.0, 50.0]
 
 - id: reduce_oil_heating_industry
   name: Öljylämmityksen vähentäminen (Teollisuus)
@@ -2163,14 +2163,14 @@ actions:
           building_heat_source: district_heat
       amounts:
       - year: 2024
-        source_amount: -10000
-        dest_amounts: [50, 50]
+        source_amount: -10000.0
+        dest_amounts: [50.0, 50.0]
       - year: 2025
-        source_amount: -31000
-        dest_amounts: [50, 50]
+        source_amount: -31000.0
+        dest_amounts: [50.0, 50.0]
       - year: 2030
-        source_amount: -10000
-        dest_amounts: [50, 50]
+        source_amount: -10000.0
+        dest_amounts: [50.0, 50.0]
 
 - id: city_building_heat_optimization  # FIXME Use goals dataset instead
   name: Kaupungin kiinteistöjen lämmityksen optimointi
@@ -2207,7 +2207,7 @@ actions:
       categories: [district_heat]
     - id: building_use
       categories: [services]
-  forecast_values: [[2024, -8], [2025, -16], [2026, -4], [2027, -4], [2028, -7], [
+  forecast_values: [[2024, -8.0], [2025, -16], [2026, -4], [2027, -4], [2028, -7], [
       2029, -14], [2030, -6]]
   unit: GWh/a
 
@@ -2282,7 +2282,7 @@ actions:
   quantity: emissions
   unit: kt/a
   group: waste_agriculture
-  forecast_values: [[2024, 0], [2035, 0]]
+  forecast_values: [[2024, 0.0], [2035, 0.0]]
   output_nodes:
   - agricultural_field_emissions
   params:
@@ -2380,7 +2380,7 @@ actions:
   quantity: emission_factor
   unit: g/kWh
   group: transportation
-  forecast_values: [[2024, 0], [2035, 0]]
+  forecast_values: [[2024, 0.0], [2035, 0.0]]
   output_nodes:
   - id: road_traffic_emission_factor_forecast
     to_dimensions:
@@ -2413,7 +2413,7 @@ actions:
   quantity: emission_factor
   unit: g/kWh
   group: transportation
-  forecast_values: [[2024, 0], [2035, 0]]
+  forecast_values: [[2024, 0.0], [2035, 0.0]]
   output_nodes:
   - id: road_traffic_emission_factor_forecast
     to_dimensions:
@@ -2446,7 +2446,7 @@ actions:
   quantity: emission_factor
   unit: g/kWh
   group: transportation
-  forecast_values: [[2024, 0], [2035, 0]]
+  forecast_values: [[2024, 0.0], [2035, 0.0]]
   output_nodes:
   - id: road_traffic_emission_factor_forecast
     to_dimensions:
@@ -2476,7 +2476,7 @@ actions:
   quantity: energy
   unit: GWh/a
   group: transportation
-  forecast_values: [[2024, 0], [2035, 0]]
+  forecast_values: [[2024, 0.0], [2035, 0.0]]
   output_nodes:
   - id: road_transport_energy_forecast
     to_dimensions:
@@ -2506,7 +2506,7 @@ actions:
   quantity: energy
   unit: GWh/a
   group: transportation
-  forecast_values: [[2024, 0], [2035, 0]]
+  forecast_values: [[2024, 0.0], [2035, 0.0]]
   output_nodes:
   - id: road_transport_energy_forecast
     to_dimensions:
@@ -2536,7 +2536,7 @@ actions:
   quantity: energy
   unit: GWh/a
   group: transportation
-  forecast_values: [[2024, 0], [2035, 0]]
+  forecast_values: [[2024, 0.0], [2035, 0.0]]
   output_nodes:
   - id: road_transport_energy_forecast
     to_dimensions:
@@ -2566,7 +2566,7 @@ actions:
   quantity: energy
   unit: GWh/a
   group: transportation
-  forecast_values: [[2024, 0], [2035, 0]]
+  forecast_values: [[2024, 0.0], [2035, 0.0]]
   output_nodes:
   - id: road_transport_energy_forecast
     to_dimensions:
@@ -2596,7 +2596,7 @@ actions:
   quantity: energy
   unit: GWh/a
   group: transportation
-  forecast_values: [[2024, 0], [2035, 0]]
+  forecast_values: [[2024, 0.0], [2035, 0.0]]
   output_nodes:
   - id: road_transport_energy_forecast
     to_dimensions:
