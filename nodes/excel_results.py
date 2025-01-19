@@ -36,6 +36,22 @@ if TYPE_CHECKING:
 DATA_SHEET_NAME = 'Data'
 PARAM_SHEET_NAME = 'Parameters'
 
+FIXED_COLUMNS_LONG = [
+    'Node',
+    'Year',
+    'Unit',
+    'Value',
+    'BaselineValue',
+    'Forecast',
+]
+
+FIXED_COLUMNS_WIDE = [
+    'Node',
+    'Quantity',
+    'Unit',
+    'Forecast_from',
+]
+
 
 class ExportNotSupportedError(Exception):
     pass
@@ -57,21 +73,13 @@ def _convert_to_camel_case(input_string: str) -> str:
 def _dim_to_col(dim: Dimension) -> str:
     return _convert_to_camel_case(str(dim.label))
 
-format = 'wide'
-
-FIXED_COLUMNS = [
-    'Node',
-    'Quantity',
-    'Unit',
-    'Forecast_from',
-]
-
 
 class InstanceResultExcel(I18nBaseModel):
     name: I18nStringInstance
     base_excel_url: str | None
     node_ids: list[str] | None = None
     action_ids: list[str] | None = None
+    format: str = 'long'
 
     _created_sheet_names: ClassVar = (DATA_SHEET_NAME, PARAM_SHEET_NAME)
 
@@ -87,7 +95,7 @@ class InstanceResultExcel(I18nBaseModel):
                 if action_id not in actions:
                     raise KeyError("Action '%s' not found")
 
-    def _output_node(
+    def _output_node_long(
         self,
         context: Context,
         wb: Workbook,
@@ -95,8 +103,67 @@ class InstanceResultExcel(I18nBaseModel):
         node: Node,
         dim_ids: list[str],
         actions: list[ActionNode],
-        cols: list[str],
         aseq: bool,
+    ) -> None:
+        logger.info('Outputting node %s' % node.id)
+        if len(node.output_metrics) > 1:
+            logger.warning('Multimetric node %s' % node.id)
+        df = node.get_output_pl()
+        if df.dim_ids:
+            df = df.with_columns([pl.col(dim_id).cast(pl.String) for dim_id in df.dim_ids])
+        df = df.sort(by=[YEAR_COLUMN, *df.dim_ids])
+        bdf = node.get_baseline_values()
+        assert bdf is not None
+        bdf = bdf.with_columns(pl.col(VALUE_COLUMN).alias('BaselineValue')).drop(VALUE_COLUMN)
+        df = df.paths.join_over_index(bdf, how='left', index_from='left')
+        col_map = {
+            'Node': pl.lit(node.id),
+            'Year': pl.col(YEAR_COLUMN),
+            'Unit': pl.lit(str(node.unit)),
+            'Value': pl.col(VALUE_COLUMN),
+            'BaselineValue': pl.col('BaselineValue'),
+            'Forecast': pl.col(FORECAST_COLUMN),
+        }
+        cols = [col_map[col_id].alias(col_id) for col_id in FIXED_COLUMNS_LONG]
+        for dim_id in dim_ids:
+            if dim_id in df.dim_ids:
+                cols.append(pl.col(dim_id))
+            else:
+                cols.append(pl.lit(None).alias(dim_id))
+
+        arange = range(len(actions))
+        for i in arange:
+            if aseq:
+                for j in arange:
+                    actions[j].enabled_param.set(j <= i)
+
+            with context.start_span('compute impact: %s' % actions[i].id, op='function'):
+                adf = actions[i].compute_impact(node)
+            act_col = 'Impact_%s' % actions[i].id
+            adf = adf.filter(pl.col(IMPACT_COLUMN) == IMPACT_GROUP).drop(IMPACT_COLUMN).rename({VALUE_COLUMN: act_col})
+            df = df.paths.join_over_index(adf, how='left', index_from='left')
+            cols.append(pl.col(act_col))
+
+        start_row = sheet.max_row + 1
+
+        df = df.select(cols)
+        for row in df.iter_rows():
+            sheet.append(row)
+        end_row = sheet.max_row
+
+        start_col = get_column_letter(1)
+        end_col = get_column_letter(len(row))  # type: ignore
+        cell_range = absolute_coordinate('%s%s:%s%s' % (start_col, start_row, end_col, end_row))
+        ref = '%s!%s' % (quote_sheetname(sheet.title), cell_range)
+        defn = DefinedName(node.id, attr_text=ref)
+        wb.defined_names[node.id] = defn
+
+    def _output_node_wide(
+        self,
+        sheet: Worksheet,
+        node: Node,
+        dim_ids: list[str],
+        cols: list[str],
     ) -> None:
         logger.info('Outputting node %s' % node.id)
         df = node.get_output_pl()
@@ -143,9 +210,6 @@ class InstanceResultExcel(I18nBaseModel):
             )
             .drop('_dummy_group')  # Remove the dummy column after join
         )
-
-        # # Add Forecast_from to our column map
-        # col_map['Forecast_from'] = pl.col('Forecast_from')
 
         df = (df  # noqa: PD010
             .select([
@@ -341,10 +405,10 @@ class InstanceResultExcel(I18nBaseModel):
         ds: Worksheet = wb.create_sheet(DATA_SHEET_NAME)
 
         dims = [context.dimensions[dim_id] for dim_id in all_dims]
-        if format == 'wide':
-            cols = FIXED_COLUMNS + [dim_id for dim_id in all_dims]  # noqa: C416
+        if self.format == 'wide':
+            cols = FIXED_COLUMNS_WIDE + [dim_id for dim_id in all_dims]  # noqa: C416
         else:
-            cols = FIXED_COLUMNS + [_dim_to_col(dim) for dim in dims]
+            cols = FIXED_COLUMNS_LONG + [_dim_to_col(dim) for dim in dims]
 
         if self.action_ids is not None:
             actions = [context.get_action(a) for a in self.action_ids]
@@ -353,7 +417,7 @@ class InstanceResultExcel(I18nBaseModel):
             actions = context.get_actions()[1:]
             aseq = False
 
-        if format == 'wide':
+        if self.format == 'wide':
             all_years: set[int] = set()
             for node in nodes:
                 df = node.get_output_pl()
@@ -379,7 +443,10 @@ class InstanceResultExcel(I18nBaseModel):
         dim_ids = [dim.id for dim in dims]
         for node in nodes:
             with context.start_span('output for node: %s' % node.id, op='function'):
-                self._output_node(context, wb, ds, node, dim_ids=dim_ids, cols=cols,
+                if self.format == 'wide':
+                    self._output_node_wide(sheet=ds, node=node, dim_ids=dim_ids, cols=cols)
+                else:
+                    self._output_node_long(context, wb, ds, node, dim_ids=dim_ids,
                                   actions=actions, aseq=aseq)
         ds.freeze_panes = ds['B2']
 
@@ -397,6 +464,7 @@ class InstanceResultExcel(I18nBaseModel):
     @classmethod
     def create_for_instance(
         cls, ic: InstanceConfig, existing_wb: Path | str | None = None, context: Context | None = None,
+        format: str | None = None,
     ) -> BytesIO:
         if context is None:
             instance = ic.get_instance()
@@ -418,6 +486,7 @@ class InstanceResultExcel(I18nBaseModel):
                 name=fw.name,
                 base_excel_url=fw.result_excel_url,
                 node_ids=fw.result_excel_node_ids,
+                format=format,
             )
 
         with context.start_span('create result excel', op='function'), PerfCounter.time_it() as pc:
