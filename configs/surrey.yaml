@@ -903,14 +903,14 @@ nodes:
 
 
 actions:
-- id: zeroemission_vehicles_zevs
-  name: Zero-emission vehicles (ZEVs)
-  description: Adopt policies and regulations facilitating a transition to ZEVs.
+- id: bc_hydro_renewable_electricity
+  name: BC Hydro renewable electricity
+  description: Decarbonize the BC Hydro electrical grid with renewable energy.
   type: gpc.DatasetActionMFM
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   params:
-    action: Zero-Emission Vehicles (ZEVs)
+    action: BC Hydro Renewable Electricity
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -958,69 +958,14 @@ actions:
     to_dimensions:
     - id: ghg
 
-- id: land_use_and_15minute_neighborhoods_t
-  name: Land use & 15-minute neighborhoods (T)
-  description: Adopt 50x50 and develop 15-minute neighborhoods (T).
+- id: building_retrofits
+  name: Building retrofits
+  description: Rapidly implement fuel-switching retrofits to existing buildings.
   type: gpc.DatasetActionMFM
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   params:
-    action: Land Use & 15-Minute Neighborhoods (T)
-  input_datasets:
-  - id: gpc/surrey_simple_actions
-  output_metrics:
-  - id: i1_emissions
-    unit: t/a
-    quantity: emissions
-  - id: i2_emissions
-    unit: t/a
-    quantity: emissions
-  - id: i6_emissions
-    unit: t/a
-    quantity: emissions
-  - id: ii1_emissions
-    unit: t/a
-    quantity: emissions
-  - id: ii2_emissions
-    unit: t/a
-    quantity: emissions
-  - id: iii1_emissions
-    unit: t/a
-    quantity: emissions
-  output_nodes:
-  - id: i1_residential_emissions
-    metrics: [i1_emissions]
-    to_dimensions:
-    - id: ghg
-  - id: i2_commercial_and_institutional_emissions
-    metrics: [i2_emissions]
-    to_dimensions:
-    - id: ghg
-  - id: i6_nonspecified_emissions
-    metrics: [i6_emissions]
-    to_dimensions:
-    - id: ghg
-  - id: ii1_onroad_transport_emissions
-    metrics: [ii1_emissions]
-    to_dimensions:
-    - id: ghg
-  - id: ii2_railway_emissions
-    metrics: [ii2_emissions]
-    to_dimensions:
-    - id: ghg
-  - id: iii1_solid_waste_emissions
-    metrics: [iii1_emissions]
-    to_dimensions:
-    - id: ghg
-
-- id: land_use_and_15minute_neighborhoods_b
-  name: Land use & 15-minute neighborhoods (B)
-  description: Adopt 50x50 and develop 15-minute neighborhoods (B).
-  type: gpc.DatasetActionMFM
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
-  params:
-    action: Land Use & 15-Minute Neighborhoods (B)
+    action: Building Retrofits
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -1178,14 +1123,124 @@ actions:
     to_dimensions:
     - id: ghg
 
-- id: roadway_management
-  name: Roadway management
-  description: Manage roadways for transportation emissions reductions.
+- id: clean_transportation_fuels
+  name: Clean transportation fuels
+  description: Transition to renewable fuels for transportation.
   type: gpc.DatasetActionMFM
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   params:
-    action: Roadway Management
+    action: Clean Transportation Fuels
+  input_datasets:
+  - id: gpc/surrey_simple_actions
+  output_metrics:
+  - id: i1_emissions
+    unit: t/a
+    quantity: emissions
+  - id: i2_emissions
+    unit: t/a
+    quantity: emissions
+  - id: i6_emissions
+    unit: t/a
+    quantity: emissions
+  - id: ii1_emissions
+    unit: t/a
+    quantity: emissions
+  - id: ii2_emissions
+    unit: t/a
+    quantity: emissions
+  - id: iii1_emissions
+    unit: t/a
+    quantity: emissions
+  output_nodes:
+  - id: i1_residential_emissions
+    metrics: [i1_emissions]
+    to_dimensions:
+    - id: ghg
+  - id: i2_commercial_and_institutional_emissions
+    metrics: [i2_emissions]
+    to_dimensions:
+    - id: ghg
+  - id: i6_nonspecified_emissions
+    metrics: [i6_emissions]
+    to_dimensions:
+    - id: ghg
+  - id: ii1_onroad_transport_emissions
+    metrics: [ii1_emissions]
+    to_dimensions:
+    - id: ghg
+  - id: ii2_railway_emissions
+    metrics: [ii2_emissions]
+    to_dimensions:
+    - id: ghg
+  - id: iii1_solid_waste_emissions
+    metrics: [iii1_emissions]
+    to_dimensions:
+    - id: ghg
+
+- id: land_use_and_15minute_neighborhoods_b
+  name: Land use & 15-minute neighborhoods (B)
+  description: Adopt 50x50 and develop 15-minute neighborhoods (B).
+  type: gpc.DatasetActionMFM
+  input_dimensions: ['ghg']
+  output_dimensions: ['ghg']
+  params:
+    action: Land Use & 15-Minute Neighborhoods (B)
+  input_datasets:
+  - id: gpc/surrey_simple_actions
+  output_metrics:
+  - id: i1_emissions
+    unit: t/a
+    quantity: emissions
+  - id: i2_emissions
+    unit: t/a
+    quantity: emissions
+  - id: i6_emissions
+    unit: t/a
+    quantity: emissions
+  - id: ii1_emissions
+    unit: t/a
+    quantity: emissions
+  - id: ii2_emissions
+    unit: t/a
+    quantity: emissions
+  - id: iii1_emissions
+    unit: t/a
+    quantity: emissions
+  output_nodes:
+  - id: i1_residential_emissions
+    metrics: [i1_emissions]
+    to_dimensions:
+    - id: ghg
+  - id: i2_commercial_and_institutional_emissions
+    metrics: [i2_emissions]
+    to_dimensions:
+    - id: ghg
+  - id: i6_nonspecified_emissions
+    metrics: [i6_emissions]
+    to_dimensions:
+    - id: ghg
+  - id: ii1_onroad_transport_emissions
+    metrics: [ii1_emissions]
+    to_dimensions:
+    - id: ghg
+  - id: ii2_railway_emissions
+    metrics: [ii2_emissions]
+    to_dimensions:
+    - id: ghg
+  - id: iii1_solid_waste_emissions
+    metrics: [iii1_emissions]
+    to_dimensions:
+    - id: ghg
+
+- id: land_use_and_15minute_neighborhoods_t
+  name: Land use & 15-minute neighborhoods (T)
+  description: Adopt 50x50 and develop 15-minute neighborhoods (T).
+  type: gpc.DatasetActionMFM
+  input_dimensions: ['ghg']
+  output_dimensions: ['ghg']
+  params:
+    action: Land Use & 15-Minute Neighborhoods (T)
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -1288,61 +1343,6 @@ actions:
     to_dimensions:
     - id: ghg
 
-- id: clean_transportation_fuels
-  name: Clean transportation fuels
-  description: Transition to renewable fuels for transportation.
-  type: gpc.DatasetActionMFM
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
-  params:
-    action: Clean Transportation Fuels
-  input_datasets:
-  - id: gpc/surrey_simple_actions
-  output_metrics:
-  - id: i1_emissions
-    unit: t/a
-    quantity: emissions
-  - id: i2_emissions
-    unit: t/a
-    quantity: emissions
-  - id: i6_emissions
-    unit: t/a
-    quantity: emissions
-  - id: ii1_emissions
-    unit: t/a
-    quantity: emissions
-  - id: ii2_emissions
-    unit: t/a
-    quantity: emissions
-  - id: iii1_emissions
-    unit: t/a
-    quantity: emissions
-  output_nodes:
-  - id: i1_residential_emissions
-    metrics: [i1_emissions]
-    to_dimensions:
-    - id: ghg
-  - id: i2_commercial_and_institutional_emissions
-    metrics: [i2_emissions]
-    to_dimensions:
-    - id: ghg
-  - id: i6_nonspecified_emissions
-    metrics: [i6_emissions]
-    to_dimensions:
-    - id: ghg
-  - id: ii1_onroad_transport_emissions
-    metrics: [ii1_emissions]
-    to_dimensions:
-    - id: ghg
-  - id: ii2_railway_emissions
-    metrics: [ii2_emissions]
-    to_dimensions:
-    - id: ghg
-  - id: iii1_solid_waste_emissions
-    metrics: [iii1_emissions]
-    to_dimensions:
-    - id: ghg
-
 - id: new_construction
   name: New construction
   description: Building new zero-GHG residential and ICI buildings.
@@ -1351,61 +1351,6 @@ actions:
   output_dimensions: ['ghg']
   params:
     action: New Construction
-  input_datasets:
-  - id: gpc/surrey_simple_actions
-  output_metrics:
-  - id: i1_emissions
-    unit: t/a
-    quantity: emissions
-  - id: i2_emissions
-    unit: t/a
-    quantity: emissions
-  - id: i6_emissions
-    unit: t/a
-    quantity: emissions
-  - id: ii1_emissions
-    unit: t/a
-    quantity: emissions
-  - id: ii2_emissions
-    unit: t/a
-    quantity: emissions
-  - id: iii1_emissions
-    unit: t/a
-    quantity: emissions
-  output_nodes:
-  - id: i1_residential_emissions
-    metrics: [i1_emissions]
-    to_dimensions:
-    - id: ghg
-  - id: i2_commercial_and_institutional_emissions
-    metrics: [i2_emissions]
-    to_dimensions:
-    - id: ghg
-  - id: i6_nonspecified_emissions
-    metrics: [i6_emissions]
-    to_dimensions:
-    - id: ghg
-  - id: ii1_onroad_transport_emissions
-    metrics: [ii1_emissions]
-    to_dimensions:
-    - id: ghg
-  - id: ii2_railway_emissions
-    metrics: [ii2_emissions]
-    to_dimensions:
-    - id: ghg
-  - id: iii1_solid_waste_emissions
-    metrics: [iii1_emissions]
-    to_dimensions:
-    - id: ghg
-
-- id: building_retrofits
-  name: Building retrofits
-  description: Rapidly implement fuel-switching retrofits to existing buildings.
-  type: gpc.DatasetActionMFM
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
-  params:
-    action: Building Retrofits
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -1508,14 +1453,14 @@ actions:
     to_dimensions:
     - id: ghg
 
-- id: bc_hydro_renewable_electricity
-  name: BC Hydro renewable electricity
-  description: Decarbonize the BC Hydro electrical grid with renewable energy.
+- id: roadway_management
+  name: Roadway management
+  description: Manage roadways for transportation emissions reductions.
   type: gpc.DatasetActionMFM
   input_dimensions: ['ghg']
   output_dimensions: ['ghg']
   params:
-    action: BC Hydro Renewable Electricity
+    action: Roadway Management
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
@@ -1571,6 +1516,61 @@ actions:
   output_dimensions: ['ghg']
   params:
     action: Waste Reduction & Diversion
+  input_datasets:
+  - id: gpc/surrey_simple_actions
+  output_metrics:
+  - id: i1_emissions
+    unit: t/a
+    quantity: emissions
+  - id: i2_emissions
+    unit: t/a
+    quantity: emissions
+  - id: i6_emissions
+    unit: t/a
+    quantity: emissions
+  - id: ii1_emissions
+    unit: t/a
+    quantity: emissions
+  - id: ii2_emissions
+    unit: t/a
+    quantity: emissions
+  - id: iii1_emissions
+    unit: t/a
+    quantity: emissions
+  output_nodes:
+  - id: i1_residential_emissions
+    metrics: [i1_emissions]
+    to_dimensions:
+    - id: ghg
+  - id: i2_commercial_and_institutional_emissions
+    metrics: [i2_emissions]
+    to_dimensions:
+    - id: ghg
+  - id: i6_nonspecified_emissions
+    metrics: [i6_emissions]
+    to_dimensions:
+    - id: ghg
+  - id: ii1_onroad_transport_emissions
+    metrics: [ii1_emissions]
+    to_dimensions:
+    - id: ghg
+  - id: ii2_railway_emissions
+    metrics: [ii2_emissions]
+    to_dimensions:
+    - id: ghg
+  - id: iii1_solid_waste_emissions
+    metrics: [iii1_emissions]
+    to_dimensions:
+    - id: ghg
+
+- id: zeroemission_vehicles_zevs
+  name: Zero-emission vehicles (ZEVs)
+  description: Adopt policies and regulations facilitating a transition to ZEVs.
+  type: gpc.DatasetActionMFM
+  input_dimensions: ['ghg']
+  output_dimensions: ['ghg']
+  params:
+    action: Zero-Emission Vehicles (ZEVs)
   input_datasets:
   - id: gpc/surrey_simple_actions
   output_metrics:
