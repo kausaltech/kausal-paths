@@ -34,6 +34,7 @@ action_groups:
 #   indicator_unit: EUR/t
 #   cost_unit: EUR
 #   impact_unit: t
+#   plot_limit_for_indicator: 1000
 #   label: Marginal Abatement Cost
 
 dimensions:

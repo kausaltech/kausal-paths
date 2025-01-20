@@ -63,7 +63,8 @@ action_efficiency_pairs:
   indicator_unit: kEUR/t
   cost_unit: MEUR
   impact_unit: t
-  label: Cost effectiveness
+  plot_limit_for_indicator: 5000
+  label: Cost efficiency
 - graph_type: return_of_investment
   cost_node: total_discounted_action_costs
   impact_node: total_discounted_economic_costs
@@ -72,7 +73,7 @@ action_efficiency_pairs:
   indicator_unit: '%'
   cost_unit: MEUR
   impact_unit: MEUR
-  label: Return of investment
+  label: Return on investment
 - graph_type: cost_benefit
   cost_node: test_investments_for_the_city
   impact_node: discounted_costs

@@ -589,7 +589,6 @@ class FixedMultiplierNode2(AdditiveNode):  # FIXME Merge functionalities with Mu
         nodes = self.input_nodes
         node = nodes.pop()
         df = node.get_output_pl(self)
-        print(df)
         unit = df.get_unit(VALUE_COLUMN)
         df = self.add_nodes_pl(df, nodes, unit=unit)
 

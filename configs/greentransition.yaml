@@ -84,7 +84,7 @@ action_efficiency_pairs:
   indicator_unit: kEUR/Ut
   cost_unit: MEUR
   impact_unit: Ut
-  plot_limit_efficiency: 0.00003 # FIXME Is not used
+  plot_limit_for_indicator: 500
   label: Kokonaishyödyn marginaalikustannus
   label_en: Marginal cost in total utility
 

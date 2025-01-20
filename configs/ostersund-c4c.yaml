@@ -28,6 +28,7 @@ action_efficiency_pairs:
   indicator_unit: kSEK/t
   cost_unit: kSEK
   impact_unit: t
+  plot_limit_for_indicator: 100
   label: Cost efficiency
 
 # - graph_type: return_of_investment

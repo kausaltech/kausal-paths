@@ -27,6 +27,7 @@ action_efficiency_pairs:
   indicator_unit: EUR/t
   cost_unit: MEUR
   impact_unit: kt
+  plot_limit_for_indicator: 1000
   label: Cost effectiveness
 - graph_type: return_of_investment
   cost_node: discounted_investment_costs

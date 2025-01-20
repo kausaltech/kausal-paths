@@ -370,6 +370,7 @@ def add_unit_translations():
     set_one('per_100000py', long=_('cases per 100,000 person-years'), short=_('#/100000 py'))
     set_one('personal_activity', long=_('minutes per day per person'), short=_('min/d/cap'))
     set_one('gigaEUR', long=_('billion euros'), short=_('B€'))
+    set_one('megasolid_cubic_meter', long='million solid m³', short='M m³ (solid)')
 
     loc = Loc('de')
     loc._data['unit_patterns']['duration-year']['short'] = dict(one='a')

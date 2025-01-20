@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 from pydantic import BaseModel, Field
 
 import numpy as np
+import pandas as pd
 import polars as pl
 import sentry_sdk
 
@@ -39,7 +40,7 @@ if TYPE_CHECKING:
     from nodes.scenario import Scenario
     from nodes.visualizations import VisualizationNodeOutput
 
-    from .actions.action import ActionEfficiency, ActionEfficiencyPair, ActionNode
+    from .actions.action import ActionEfficiency, ActionEfficiencyPair, ActionImpact, ActionNode, ImpactOverview
     from .node import Node, NodeMetric
 
 
@@ -394,7 +395,9 @@ class DimensionalMetric(BaseModel):
 
     @classmethod
     def from_action_impact(
-        cls, action_impact: ActionImpact, root: ImpactOverview, col: str,
+        cls, action_impact: ActionImpact,
+        root: ImpactOverview,
+        col: str,
     ) -> DimensionalMetric:
         action = action_impact.action
         def make_id(*args: str) -> str:

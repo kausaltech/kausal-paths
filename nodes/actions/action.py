@@ -323,6 +323,10 @@ class ActionEfficiency(typing.NamedTuple):
     unit_adjustment_multiplier: float
 
 
+class ActionImpact(ActionEfficiency):
+    pass
+
+
 @dataclass
 class ActionEfficiencyPair:
     graph_type: str
@@ -523,3 +527,8 @@ class ActionEfficiencyPair:
     def calculate(self, context: Context, actions: Iterable[ActionNode] | None = None) -> list[ActionEfficiency]:
         out = list(self.calculate_iter(context, actions))
         return out
+
+
+@dataclass
+class ImpactOverview(ActionEfficiencyPair):
+    pass

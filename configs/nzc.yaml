@@ -145,6 +145,7 @@ action_efficiency_pairs:
 #   indicator_unit: EUR/t
 #   cost_unit: MEUR
 #   impact_unit: kt
+#   plot_limit_for_indicator: 1000
 #   label: Cost efficiency
 
 dimensions:

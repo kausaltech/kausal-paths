@@ -8,7 +8,7 @@ import polars as pl
 
 from common import polars as ppl
 from nodes.calc import extend_last_historical_value_pl
-from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN, UNCERTAINTY_COLUMN
+from nodes.constants import FORECAST_COLUMN, UNCERTAINTY_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
 from nodes.simple import AdditiveNode
 from params import BoolParameter, StringParameter
