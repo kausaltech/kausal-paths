@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://tampere-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: cf2e2a465e62bf319545509bc8aaf11d2490585d
+  commit: b7cedbfa0f0f24959f14a5b59382e880ff5fae5f
   dvc_remote: kausal-s3
 name: C4C Hiilineutraali Tampere 2030
 name_en: C4C Carbon-neutral Tampere 2030
@@ -2304,7 +2304,7 @@ actions:
     forecast_from: 2025
   output_metrics:
   - id: i11_energy
-    unit: kWh/a
+    unit: GWh/a
     quantity: energy
   - id: i_currency
     unit: EUR/a
