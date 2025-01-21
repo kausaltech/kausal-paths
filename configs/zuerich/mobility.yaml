@@ -1044,7 +1044,7 @@ nodes:
       categories: [electricity]
 
 - id: public_transport_electricity_production_mix
-  type: ch.zuerich.ElectricityProductionMix
+  type: ch.zuerich.ElectricityProductionMixLegacy
   quantity: mix
   unit: '%'
   name_en: Public transport electricity production mix

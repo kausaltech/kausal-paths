@@ -52,7 +52,7 @@ nodes:
   unit: GWh/a
 
 - id: electricity_production_mix
-  type: ch.zuerich.ElectricityProductionMix
+  type: ch.zuerich.ElectricityProductionMixLegacy
   name_de: Strommix (Verbrauchermix)
   name_en: Electricity consumer mix
   quantity: mix

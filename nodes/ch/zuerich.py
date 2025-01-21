@@ -318,6 +318,67 @@ class ElectricityProductionMix(MixNode):
         return mix_df
 
 
+class ElectricityProductionMixLegacy(MixNode):
+    def compute(self) -> ppl.PathsDataFrame:
+        dfs = self.get_input_datasets_pl()
+        gen_mix_df, sub_mix_df, ext_energy_df = dfs
+
+        energy_node = self.get_input_node(tag='consumption')
+        energy_m = energy_node.get_default_output_metric()
+        df = energy_node.get_output_pl(target_node=self)
+        energy_unit = df.get_unit(energy_m.column_id)
+
+        df = df.filter(~pl.col(FORECAST_COLUMN))
+
+        df = df.rename({energy_m.column_id: 'TotalEnergy'}).ensure_unit('TotalEnergy', energy_unit)
+        # Account the externally supplied energy separately
+        ext_energy_df = ext_energy_df.rename({'energy': 'ExtEnergy'})
+        df = df.paths.join_over_index(ext_energy_df)
+        df = df.ensure_unit('ExtEnergy', energy_unit).with_columns([pl.col('ExtEnergy').fill_null(0)])
+        # TotalEnergy -> amount of electricity consumed without the externally accounted electricity
+        df = df.with_columns([(pl.col('TotalEnergy') - pl.col('ExtEnergy')).alias('TotalEnergy')])
+
+        gdf = gen_mix_df.paths.join_over_index(df.select([YEAR_COLUMN, 'TotalEnergy']))
+        gdf = gdf.multiply_cols(['share', 'TotalEnergy'], 'TotalEnergy', energy_unit)
+
+        assert len(gdf.dim_ids) == 1
+        es_dim = gdf.dim_ids[0]
+
+        sdf = gdf.filter(pl.col(es_dim).eq('subsidized')).drop(es_dim).rename(dict(TotalEnergy='SubsidizedEnergy'))
+        sdf = sub_mix_df.paths.join_over_index(sdf.select([YEAR_COLUMN, 'SubsidizedEnergy']))
+        sdf = sdf.multiply_cols(['share', 'SubsidizedEnergy'], 'SubsidizedEnergy', energy_unit)
+
+        gdf = gdf.filter(~pl.col(es_dim).eq('subsidized'))
+        gdf = gdf.paths.join_over_index(sdf.select([YEAR_COLUMN, es_dim, 'SubsidizedEnergy']))
+        gdf = gdf.with_columns([pl.col('TotalEnergy') + pl.col('SubsidizedEnergy').fill_null(0)])
+
+        idf = (df
+            .select([YEAR_COLUMN, 'ExtEnergy', pl.lit('import').alias(es_dim)])
+            .replace_meta(ppl.DataFrameMeta(units={'ExtEnergy': energy_unit}, primary_keys=[YEAR_COLUMN, es_dim]))
+        )
+
+        gdf = gdf.paths.join_over_index(idf)
+        gdf = gdf.select([YEAR_COLUMN, es_dim, pl.col('TotalEnergy') + pl.col('ExtEnergy').fill_null(0)])
+        sum_df = gdf.group_by([YEAR_COLUMN]).agg(pl.sum('TotalEnergy').alias('YearSum')).sort(YEAR_COLUMN)
+        sum_df = ppl.to_ppdf(sum_df, meta=ppl.DataFrameMeta(units={'YearSum': energy_unit}, primary_keys=[YEAR_COLUMN]))
+        gdf = gdf.paths.join_over_index(sum_df)
+
+        m = self.get_default_output_metric()
+        gdf = gdf.divide_cols(['TotalEnergy', 'YearSum'], m.column_id, m.unit)
+        dim_id = list(self.output_dimensions.keys())[0]
+        df = gdf.select([YEAR_COLUMN, pl.col(es_dim).alias(dim_id), m.column_id])
+
+        df = df.filter(pl.col(m.column_id).is_not_null() & pl.col(m.column_id).is_not_nan())
+
+        df = extend_last_historical_value_pl(df, self.get_end_year())
+
+        input_nodes = list(self.input_nodes)
+        input_nodes.remove(energy_node)
+        df = self.add_mix_normalized(df, input_nodes)
+
+        return df
+
+
 class GasGridMixin(Node):
     def use_gas_grid(self, df: ppl.PathsDataFrame):
         df = df.paths.to_wide(only_category_names=True)
