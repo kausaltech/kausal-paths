@@ -21,8 +21,9 @@ features:
   maximum_fraction_digits: 0
   hide_node_details: true
   show_refresh_prompt: true
+  requires_authentication: true
 result_excels:
-- base_excel_url: 
+- base_excel_url:
     https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
   name: Climate City Contract Tables
   node_ids:
