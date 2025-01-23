@@ -904,6 +904,7 @@ class ActionEfficiencyPairType(graphene.ObjectType):
 class InstanceBasicConfiguration(graphene.ObjectType):
     identifier = graphene.String(required=True)
     is_protected = graphene.Boolean(required=True)
+    requires_authentication = graphene.Boolean(required=True)
     default_language = graphene.String(required=True)
     theme_identifier = graphene.String(required=True)
     supported_languages = graphene.List(graphene.NonNull(graphene.String), required=True)
@@ -917,6 +918,11 @@ class InstanceBasicConfiguration(graphene.ObjectType):
     def resolve_is_protected(root: Instance, info: GQLInfo) -> bool:
         ic: InstanceConfig = root._config  # type: ignore
         return ic.is_protected
+
+    @staticmethod
+    def resolve_requires_authentication(root: Instance, info: GQLInfo) -> bool:
+        ic: InstanceConfig = root._config  # type: ignore
+        return ic.get_instance().features.requires_authentication
 
     @staticmethod
     def resolve_hostname(root: Instance, info: GQLInfo) -> InstanceHostname:

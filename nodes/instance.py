@@ -53,6 +53,7 @@ class InstanceFeatures:
     maximum_fraction_digits: int | None = None
     hide_node_details: bool = False
     show_refresh_prompt: bool = False
+    requires_authentication: bool = False
 
 
 @dataclass
