@@ -1,4 +1,4 @@
 {% extends "wagtailadmin/home.html" %}
 {% load i18n %}
 
-{% block branding_welcome %}{% trans "Welcome to Paths admin" %}{% endblock %}
+{% block branding_welcome %}{% blocktranslate with first_name=user.first_name last_name=user.last_name %}Welcome to Paths admin, {{ first_name }} {{ last_name }}{% endblocktranslate %}{% endblock %}
