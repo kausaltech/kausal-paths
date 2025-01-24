@@ -3,26 +3,25 @@
 # This file is distributed under the same license as the PACKAGE package.
 # Claude <EMAIL@ADDRESS>, YEAR.
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-04-17 16:50+0300\n"
-"PO-Revision-Date: 2023-03-06 13:25+0200\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
+"PO-Revision-Date: 2025-01-24 08:59+0000\n"
+"Last-Translator: Bernhard Bliem <bernhard.bliem@kausal.tech>\n"
+"Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>"
+"\n"
 "Language: de\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Weblate 5.4.2\n"
 
 #: admin_site/api.py:25 admin_site/api.py:30
-#, fuzzy
-#| msgid "email address"
 msgid "Invalid email address"
-msgstr "E-Mail Adresse"
+msgstr "Ungültige E-Mail-Adresse"
 
 #: admin_site/api.py:34
 msgid ""
@@ -85,16 +84,12 @@ msgid "Sticky comment"
 msgstr "Wichtiger Kommentar"
 
 #: datasets/models.py:230
-#, fuzzy
-#| msgid "resolved at"
 msgid "Resolved"
-msgstr "gelöst am"
+msgstr "Gelöst"
 
 #: datasets/models.py:231
-#, fuzzy
-#| msgid "resolved at"
 msgid "Unresolved"
-msgstr "gelöst am"
+msgstr "Ungelöst"
 
 #: datasets/models.py:248
 msgid "resolved at"
@@ -109,10 +104,8 @@ msgid "comments"
 msgstr "Kommentare"
 
 #: datasets/wagtail_hooks.py:12
-#, fuzzy
-#| msgid "Dimensions"
 msgid "Data dimensions"
-msgstr "Dimensionen"
+msgstr "Dimensionen der Daten"
 
 #: datasets/wagtail_hooks.py:26 nodes/models.py:479
 msgid "Data sources"
@@ -216,10 +209,8 @@ msgid "Investment lifetime (a)"
 msgstr "Lebensdauer der Investition (a)"
 
 #: nodes/actions/energy_saving.py:290
-#, fuzzy
-#| msgid "Maintenance cost (SEK/m2/a)"
 msgid "Investment cost (SEK/m2)"
-msgstr "Betriebskosten (SEK/m2/a)"
+msgstr "Investitionskosten (SEK/m2)"
 
 #: nodes/actions/energy_saving.py:296
 msgid "Maintenance cost (SEK/m2/a)"
@@ -238,48 +229,36 @@ msgid "Renovation potential (% of floor area)"
 msgstr "Renovierungspotential (% der Grundfläche)"
 
 #: nodes/actions/energy_saving.py:448
-#, fuzzy
-#| msgid "Maintenance cost (SEK/m2/a)"
 msgid "Investment cost (USD/square foot)"
-msgstr "Betriebskosten (SEK/m2/a)"
+msgstr "Investitionskosten (USD/Quadratfuß)"
 
 #: nodes/actions/energy_saving.py:454
-#, fuzzy
-#| msgid "Maintenance cost (SEK/m2/a)"
 msgid "Maintenance cost (USD/square foot/a)"
-msgstr "Betriebskosten (SEK/m2/a)"
+msgstr "Unterhaltskosten (USD/Quadratfuß/a)"
 
 #: nodes/actions/energy_saving.py:460
 msgid "Natural gas saving (thm/square foot/a)"
 msgstr "Erdgaseinsparung (thm/Quadratfuß/a)"
 
 #: nodes/actions/energy_saving.py:466
-#, fuzzy
-#| msgid "Electricity saving (kWh/m2/a)"
 msgid "Electricity saving (kWh/square foot/a)"
-msgstr "Stromeinsparung (kWh/m2/a)"
+msgstr "Stromeinsparung (kWh/Quadratfuß/a)"
 
 #: nodes/blocks.py:8 nodes/models.py:537
 msgid "Node"
 msgstr "Knoten"
 
 #: nodes/blocks.py:25
-#, fuzzy
-#| msgid "Outcome page"
 msgid "Outcome node"
-msgstr "Ergebnisseite"
+msgstr "Ergebnisknoten"
 
 #: nodes/choosers.py:33 nodes/choosers.py:39
-#, fuzzy
-#| msgid "Cost node"
 msgid "Choose a node"
-msgstr "Kostenknoten"
+msgstr "Wähle einen Knoten"
 
 #: nodes/choosers.py:40
-#, fuzzy
-#| msgid "Choose instance"
 msgid "Choose another node"
-msgstr "Wähle Instanz"
+msgstr "Wähle einen anderen Knoten"
 
 #: nodes/instance.py:587
 msgid "Custom"
@@ -330,16 +309,12 @@ msgid "Instance hostnames"
 msgstr "Instanz-Hostnamen"
 
 #: nodes/models.py:446
-#, fuzzy
-#| msgid "Instance"
 msgid "Instance token"
-msgstr "Instanz"
+msgstr "Instanz-Token"
 
 #: nodes/models.py:447
-#, fuzzy
-#| msgid "Instances"
 msgid "Instance tokens"
-msgstr "Instanzen"
+msgstr "Instanz-Tokens"
 
 #: nodes/models.py:457
 msgid "instance"
@@ -430,10 +405,8 @@ msgid "Common page configuration"
 msgstr "Allgemeine Seitenkonfiguration"
 
 #: pages/models.py:120
-#, fuzzy
-#| msgid "Lead paragraph"
 msgid "Paragraph"
-msgstr "Leitabsatz"
+msgstr "Absatz"
 
 #: pages/models.py:150
 msgid "Outcome page"
@@ -504,10 +477,8 @@ msgid "Renovation rate baseline"
 msgstr "Renovierungsrate Basis"
 
 #: params/global_params.py:41
-#, fuzzy
-#| msgid "Include CO2 cost variable in calculations?"
 msgid "Include energy taxes in calculations?"
-msgstr "CO2-Kostenvariable in Berechnungen einbeziehen?"
+msgstr "Energiesteuern in die Berechnungen einbeziehen?"
 
 #: params/global_params.py:46
 msgid "Include CO2 cost variable in calculations?"
@@ -554,10 +525,8 @@ msgid "Placeholder for updated_building_code_residential"
 msgstr "Platzhalter für aktualisierte_Bauordnung_Wohngebäude"
 
 #: params/global_params.py:101
-#, fuzzy
-#| msgid "Renovation rate baseline"
 msgid "Action impact based on baseline"
-msgstr "Renovierungsrate Basis"
+msgstr "Auswirkungen der Maßnahme auf der Grundlage der Basislinie"
 
 #: params/global_params.py:102
 msgid ""
