@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Self, cast
 
@@ -30,7 +32,11 @@ from kausal_common.users import UserOrAnon, user_or_none
 from paths.types import CacheablePathsModel, PathsModel, PathsQuerySet
 from paths.utils import IdentifierField, UnitField
 
+from nodes.gpc import DatasetNode
+
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from rich.repr import RichReprResult
 
     from kausal_common.models.types import RevMany
@@ -48,6 +54,12 @@ if TYPE_CHECKING:
         SectionCacheData,  # noqa: F401
     )
     from .permissions import FrameworkConfigPermissionPolicy, FrameworkPermissionPolicy, SectionPermissionPolicy
+
+
+@dataclass
+class NodeDimensionSelection:
+    node_id: str
+    dimensions: dict[str, str] | None
 
 
 class FrameworkQuerySet(PathsQuerySet['Framework']):
@@ -696,6 +708,50 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             self.save(update_fields=['last_modified_by', 'last_modified_at'])
         self.instance_config.invalidate_cache()
 
+    def _dimension_name_to_dataset_column_label(self, name: str) -> str:
+        return name.replace('_', ' ').capitalize()
+
+    def _get_measure_template_uuids(self, node: DatasetNode) -> list[tuple[str, dict[str, str] | None]]:
+        df = node.get_filtered_dataset_df(tag=None)
+        if df is None:
+            return []
+        uuids = {x for x in df.get_column('UUID').to_list() if x is not None}
+        dimensions = node.output_dimensions.values()
+        column_names = ['UUID'] + [
+            self._dimension_name_to_dataset_column_label(dim.id) for dim in dimensions
+        ]
+        if len(uuids) and len(node.output_dimensions) > 0:
+            combinations = set()
+            for row in df.select(column_names).iter_rows():
+                if row[0] is None:
+                    continue
+                combinations.add(row)
+            dim_combinations = [c[1:] for c in combinations]
+            if len(dim_combinations) != len(set(dim_combinations)):
+                logger.error(f'For node {node.id} unique MeasureTemplate uuids could not be found.')
+                return []
+            result = []
+            for _uuid, *categories in combinations:
+                dims = {}
+                for i, dimension in enumerate(dimensions):
+                    dims[dimension.id] = categories[i]
+                result.append((_uuid, dims))
+            return result
+        assert len(uuids) < 2
+        return [(u, None) for u in uuids]
+
+
+    @cached_property
+    def measure_template_uuid_to_node_dimension_selection(self) -> Mapping[str, NodeDimensionSelection]:
+        measure_template_uuid_to_node_selection = dict()
+        instance = self.instance_config.get_instance()
+        for node_id, node in instance.context.nodes.items():
+            if not isinstance(node, DatasetNode):
+                continue
+            measure_template_uuids = self._get_measure_template_uuids(node)
+            for _uuid, dimensions in measure_template_uuids:
+                measure_template_uuid_to_node_selection[_uuid] = NodeDimensionSelection(node_id=node_id, dimensions=dimensions)
+        return measure_template_uuid_to_node_selection
 
 class MeasureQuerySet(PathsQuerySet['Measure']):
     pass

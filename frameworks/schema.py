@@ -12,6 +12,8 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from graphql import GraphQLError
 
+import polars as pl
+
 from kausal_common.graphene import DjangoNode, DjangoNodeMeta
 from kausal_common.models.general import public_fields
 from kausal_common.models.uuid import UUID_PATTERN, query_pk_or_uuid, query_pk_or_uuid_or_identifier
@@ -19,6 +21,7 @@ from kausal_common.strawberry.registry import register_strawberry_type
 
 from paths.graphql_types import resolve_unit
 
+from nodes.constants import YEAR_COLUMN
 from nodes.models import InstanceConfig
 
 from .models import (
@@ -175,8 +178,14 @@ class FrameworkType(DjangoNode):
         return fwc
 
 
+class PlaceHolderDataPoint(graphene.ObjectType):
+    value = graphene.Float()
+    year = graphene.Int()
+
+
 class MeasureType(DjangoNode):
     measure_template = graphene.Field(MeasureTemplateType, required=True)
+    placeholder_data_points = graphene.List(PlaceHolderDataPoint)
 
     class Meta:
         model = Measure
@@ -192,6 +201,33 @@ class MeasureType(DjangoNode):
     def resolve_data_points(root: Measure, info: GQLInfo) -> list[MeasureDataPoint]:
         return root.cache.measure_datapoints.by_measure(root.pk)
 
+    @staticmethod
+    def resolve_placeholder_data_points(root: Measure, info: GQLInfo) -> list[PlaceHolderDataPoint]:
+        measure_template_uuid = str(root.measure_template.uuid)
+        fwc = root.cache.framework_config
+        if hasattr(root.cache, 'instance'):
+            instance = root.cache.instance
+        else:
+            instance = fwc.instance_config.get_instance()
+            root.cache.instance = instance
+        context = instance.context
+        node_dimension_selection = fwc.measure_template_uuid_to_node_dimension_selection.get(measure_template_uuid)
+        if node_dimension_selection is None:
+            return []
+        node_id = node_dimension_selection.node_id
+        node = context.get_node(node_id)
+        with context.get_default_scenario().override():
+            df = node.get_output_pl()
+        df = df.filter(pl.col(YEAR_COLUMN) > fwc.baseline_year)
+        dimensions = node_dimension_selection.dimensions
+        if dimensions:
+            df = df.filter(**dimensions)
+        result = []
+        for d in df.select(pl.col('Year'), pl.col('Value')).to_dicts():
+            year = d['Year']
+            value = d['Value']
+            result.append(PlaceHolderDataPoint(year=year, value=value))
+        return result
 
 class FrameworkConfigType(DjangoNode):
     measures = graphene.List(graphene.NonNull(MeasureType), required=True)
