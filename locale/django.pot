@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-12-05 10:55+0200\n"
+"POT-Creation-Date: 2025-01-24 10:00+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -34,7 +34,8 @@ msgid "General admin"
 msgstr ""
 
 #: admin_site/templates/wagtailadmin/home.html
-msgid "Welcome to Paths admin"
+#, python-format
+msgid "Welcome to Paths admin, %(first_name)s %(last_name)s"
 msgstr ""
 
 #: admin_site/templates/wagtailadmin/login.html
@@ -298,20 +299,21 @@ msgstr ""
 msgid ""
 "\n"
 "        This is S Curve Action. It calculates non-linear effect with two parameters,\n"
-"        max_impact and max_year.The parameters come from Dataset. In addition, there\n"
+"        max_impact = A and max_year (year when most of the impact has occurred).\n"
+"        The parameters come from Dataset. In addition, there\n"
 "        must be one input node for background data. Function for\n"
 "        S-curve = A/(1+exp(-k*(x-x0)). A is the maximum value, k is the steepness\n"
 "        of the curve (always 0.5), and x0 is the midpoint.\n"
 "        "
 msgstr ""
 
-#: nodes/actions/linear.py
+#: nodes/actions/gpc.py nodes/actions/linear.py
 msgid ""
 "\n"
-"    Receive goal input from a dataset or node and cause a linear effect.\n"
+"    Receive goal input from a dataset or node and cause an effect.\n"
 "\n"
 "    The output will be a time series with the difference to the\n"
-"    last historical value of the input node.\n"
+"    predicted baseline value of the input node.\n"
 "\n"
 "    The goal input can also be relative (for e.g. percentage\n"
 "    reductions), in which case the input will be treated as\n"
@@ -322,10 +324,10 @@ msgstr ""
 #: nodes/actions/linear.py
 msgid ""
 "\n"
-"    Receive goal input from a dataset or node and cause an effect.\n"
+"    Receive goal input from a dataset or node and cause a linear effect.\n"
 "\n"
 "    The output will be a time series with the difference to the\n"
-"    predicted baseline value of the input node.\n"
+"    last historical value of the input node.\n"
 "\n"
 "    The goal input can also be relative (for e.g. percentage\n"
 "    reductions), in which case the input will be treated as\n"
@@ -360,6 +362,13 @@ msgid ""
 "\n"
 "    TrajectoryAction uses select_category() to select a category from a dimension\n"
 "    and then possibly do some relative or absolute conversions.\n"
+"    "
+msgstr ""
+
+#: nodes/actions/simple.py
+msgid ""
+"\n"
+"    GpcTrajectoryAction is a trajectory action that uses the DatasetNode to fetch the dataset.\n"
 "    "
 msgstr ""
 
@@ -433,7 +442,7 @@ msgid ""
 "    "
 msgstr ""
 
-#: nodes/instance.py
+#: nodes/instance_loader.py
 msgid "Custom"
 msgstr ""
 
@@ -554,6 +563,14 @@ msgid "    - Input node values are not added but operated despite matching units
 msgstr ""
 
 #: nodes/node.py
+msgid "    - Truncate values beyond the model end year. There may be some from data"
+msgstr ""
+
+#: nodes/node.py
+msgid "    - Truncate values before the reference year. There may be some from data"
+msgstr ""
+
+#: nodes/node.py
 msgid "    - Extend the last historical values to the remaining missing years.\n"
 msgstr ""
 
@@ -627,6 +644,10 @@ msgstr ""
 
 #: nodes/node.py
 msgid "    - Convert NaNs to zeros.\n"
+msgstr ""
+
+#: nodes/node.py
+msgid "    - Take the expected value over the uncertainty dimension.\n"
 msgstr ""
 
 #: nodes/node.py
@@ -730,14 +751,25 @@ msgid ""
 msgstr ""
 
 #: nodes/simple.py
-msgid ""
-"\n"
-"    TrajectoryNode uses select_category() to select a category from a dimension.\n"
-"    "
+msgid "TrajectoryNode uses select_category() to select a category from a dimension."
 msgstr ""
 
 #: nodes/simple.py
-msgid "This is a Fill New Category Node. It behaves like Additive Node, but in the end of computation it creates a new category such that the values along that dimension sum up to 1. The input nodes must have a dimensionless unit. The new category in an existing dimension is given as parameter \"new_category\" in format \"dimension:category\""
+msgid ""
+"This is a Fill New Category Node. It behaves like Additive Node, but in the end of computation\n"
+"        it creates a new category such that the values along that dimension sum up to 1. The input nodes\n"
+"        must have a dimensionless unit. The new category in an existing dimension is given as parameter\n"
+"        'new_category' in format 'dimension:category\n"
+"        "
+msgstr ""
+
+#: nodes/simple.py
+msgid ""
+"\n"
+"        This is a ChooseInputNode. It can have several input nodes, and it selects the one that has the same\n"
+"        tag as given in the parameter node_tag. The idea of the node is that you can change the parameter value\n"
+"        in the scenario and thus have different nodes used in different contexts.\n"
+"        "
 msgstr ""
 
 #: nodes/units.py
@@ -755,7 +787,71 @@ msgid "kt"
 msgstr ""
 
 #: nodes/units.py
-msgid "million €"
+msgid "euros"
+msgstr ""
+
+#: nodes/units.py
+msgid "thousand euros"
+msgstr ""
+
+#: nodes/units.py
+msgid "million euros"
+msgstr ""
+
+#: nodes/units.py
+msgid "gigawatt hours"
+msgstr ""
+
+#: nodes/units.py
+msgid "megawatt hour"
+msgstr ""
+
+#: nodes/units.py
+msgid "MWh"
+msgstr ""
+
+#: nodes/units.py
+msgid "number of cases"
+msgstr ""
+
+#: nodes/units.py
+msgid "#"
+msgstr ""
+
+#: nodes/units.py
+msgid "trip"
+msgstr ""
+
+#: nodes/units.py
+msgid "minute"
+msgstr ""
+
+#: nodes/units.py
+msgid "min"
+msgstr ""
+
+#: nodes/units.py
+msgid "cases per 100,000 person-years"
+msgstr ""
+
+#: nodes/units.py
+msgid "#/100000 py"
+msgstr ""
+
+#: nodes/units.py
+msgid "minutes per day per person"
+msgstr ""
+
+#: nodes/units.py
+msgid "min/d/cap"
+msgstr ""
+
+#: nodes/units.py
+msgid "billion euros"
+msgstr ""
+
+#: nodes/units.py
+msgid "B€"
 msgstr ""
 
 #: pages/models.py
