@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-04-17 16:50+0300\n"
+"POT-Creation-Date: 2025-01-24 10:00+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Claude <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,684 +18,1241 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: admin_site/api.py:25 admin_site/api.py:30
+#: admin_site/api.py
 #, fuzzy
 #| msgid "email address"
 msgid "Invalid email address"
 msgstr "e-mailová adresa"
 
-#: admin_site/api.py:34
-msgid ""
-"No user found with this email address. Ask your administrator to create an "
-"account for you."
-msgstr ""
-"Nebyl nalezen žádný uživatel s touto e-mailovou adresou. Požádejte svého "
-"administrátora o vytvoření účtu."
+#: admin_site/api.py
+msgid "No user found with this email address. Ask your administrator to create an account for you."
+msgstr "Nebyl nalezen žádný uživatel s touto e-mailovou adresou. Požádejte svého administrátora o vytvoření účtu."
 
-#: admin_site/api.py:38
+#: admin_site/api.py
 msgid "This user does not have access to admin."
 msgstr "Tento uživatel nemá přístup do administrace."
 
-#: admin_site/perms.py:124
+#: admin_site/perms.py nodes/roles.py
 msgid "General admin"
 msgstr "Obecný administrátor"
 
-#: admin_site/templates/wagtailadmin/home.html:4
-msgid "Welcome to Paths admin"
-msgstr "Vítejte v administraci Paths"
+#: admin_site/templates/wagtailadmin/home.html
+#, python-format
+msgid "Welcome to Paths admin, %(first_name)s %(last_name)s"
+msgstr ""
 
-#: admin_site/templates/wagtailadmin/login.html:11
+#: admin_site/templates/wagtailadmin/login.html
 msgid "Sign in to Kausal Paths admin"
 msgstr "Přihlásit se do administrace Kausal Paths"
 
-#: admin_site/templates/wagtailadmin/login.html:20
+#: admin_site/templates/wagtailadmin/login.html
 msgid "Our apologies, the server is temporarily experiencing difficulties."
 msgstr "Omlouváme se, server má dočasné potíže."
 
-#: admin_site/wagtail_hooks.py:71
+#: admin_site/wagtail_hooks.py
 msgid "Choose instance"
 msgstr "Vyberte instanci"
 
-#: datasets/models.py:53
+#: datasets/models.py
 msgid "dataset"
 msgstr "datová sada"
 
-#: datasets/models.py:54
+#: datasets/models.py
 msgid "datasets"
 msgstr "datové sady"
 
-#: datasets/models.py:184 datasets/models.py:271
+#: datasets/models.py
 msgid "label"
 msgstr "štítek"
 
-#: datasets/models.py:220
+#: datasets/models.py
 msgid "data source reference"
 msgstr "reference datového zdroje"
 
-#: datasets/models.py:221
+#: datasets/models.py
 msgid "data source references"
 msgstr "reference datových zdrojů"
 
-#: datasets/models.py:226
+#: datasets/models.py
 msgid "Review comment"
 msgstr "Komentář k revizi"
 
-#: datasets/models.py:227
+#: datasets/models.py
 msgid "Sticky comment"
 msgstr "Trvalý komentář"
 
-#: datasets/models.py:230
+#: datasets/models.py
 #, fuzzy
 #| msgid "resolved at"
 msgid "Resolved"
 msgstr "vyřešeno v"
 
-#: datasets/models.py:231
+#: datasets/models.py
 #, fuzzy
 #| msgid "resolved at"
 msgid "Unresolved"
 msgstr "vyřešeno v"
 
-#: datasets/models.py:248
+#: datasets/models.py
 msgid "resolved at"
 msgstr "vyřešeno v"
 
-#: datasets/models.py:259
+#: datasets/models.py
 msgid "comment"
 msgstr "komentář"
 
-#: datasets/models.py:260
+#: datasets/models.py
 msgid "comments"
 msgstr "komentáře"
 
-#: datasets/wagtail_hooks.py:12
+#: datasets/wagtail_hooks.py
 #, fuzzy
 #| msgid "Dimensions"
 msgid "Data dimensions"
 msgstr "Rozměry"
 
-#: datasets/wagtail_hooks.py:26 nodes/models.py:479
+#: datasets/wagtail_hooks.py nodes/models.py
 msgid "Data sources"
 msgstr "Datové zdroje"
 
-#: mysite/home/templates/home/welcome_page.html:6
-msgid "Visit the Wagtail website"
-msgstr "Navštivte webové stránky Wagtail"
-
-#: mysite/home/templates/home/welcome_page.html:15
-msgid "View the release notes"
-msgstr "Zobrazit poznámky k vydání"
-
-#: mysite/home/templates/home/welcome_page.html:27
-msgid "Welcome to your new Wagtail site!"
-msgstr "Vítejte na vašem novém webu Wagtail!"
-
-#: mysite/home/templates/home/welcome_page.html:28
-msgid ""
-"Please feel free to <a href=\"https://github.com/wagtail/wagtail/wiki/Slack"
-"\">join our community on Slack</a>, or get started with one of the links "
-"below."
+#: frameworks/models.py
+msgid "Name"
 msgstr ""
-"Neváhejte se <a href=\"https://github.com/wagtail/wagtail/wiki/Slack"
-"\">připojit k naší komunitě na Slacku</a> nebo začněte s jedním z níže "
-"uvedených odkazů."
 
-#: mysite/home/templates/home/welcome_page.html:35
-msgid "Wagtail Documentation"
-msgstr "Dokumentace Wagtail"
+#: frameworks/models.py
+msgid "High"
+msgstr ""
 
-#: mysite/home/templates/home/welcome_page.html:36
-msgid "Topics, references, & how-tos"
-msgstr "Témata, reference a návody"
+#: frameworks/models.py
+msgid "Medium"
+msgstr ""
 
-#: mysite/home/templates/home/welcome_page.html:42
-msgid "Tutorial"
-msgstr "Tutoriál"
+#: frameworks/models.py
+msgid "Low"
+msgstr ""
 
-#: mysite/home/templates/home/welcome_page.html:43
-msgid "Build your first Wagtail site"
-msgstr "Vytvořte svůj první web Wagtail"
+#: frameworks/roles.py
+msgid "Framework admins"
+msgstr ""
 
-#: mysite/home/templates/home/welcome_page.html:49
-msgid "Admin Interface"
-msgstr "Administrační rozhraní"
+#: frameworks/roles.py
+msgid "Framework viewers"
+msgstr ""
 
-#: mysite/home/templates/home/welcome_page.html:50
-msgid "Create your superuser first!"
-msgstr "Nejprve vytvořte svého superuživatele!"
+#: frameworks/schema.py
+msgid "Public URL for instance dashboard"
+msgstr ""
 
-#: nodes/actions/action.py:50
+#: frameworks/schema.py
+msgid "URL for downloading a results file"
+msgstr ""
+
+#: frameworks/schema.py
+msgid "Identifier for the model instance. Needs to be unique."
+msgstr ""
+
+#: frameworks/schema.py
+msgid "Name for the framework configuration instance. Typically the name of the organization."
+msgstr ""
+
+#: frameworks/schema.py
+msgid "UUID for the new framework config. If not set, will be generated automatically."
+msgstr ""
+
+#: frameworks/schema.py
+msgid "Name of the organization. If not set, it will be determined through the user's credentials, if possible."
+msgstr ""
+
+#: frameworks/schema.py
+msgid "The created framework config instance."
+msgstr ""
+
+#: frameworks/schema.py
+msgid "ID of the organization-specific framework instance"
+msgstr ""
+
+#: frameworks/schema.py
+msgid "ID of the measure template within a framework"
+msgstr ""
+
+#: frameworks/schema.py
+msgid "Value for the data point (set to null to remove)"
+msgstr ""
+
+#: frameworks/schema.py
+msgid "Year of the data point. If not given, defaults to the baseline year for the framework instance"
+msgstr ""
+
+#: frameworks/schema.py
+msgid "Internal notes for the measure instance"
+msgstr ""
+
+#: frameworks/schema.py
+msgid "ID (or UUID) of the measure template within a framework"
+msgstr ""
+
+#: kausal_common/models/modification_tracking.py
+#, fuzzy
+#| msgid "created at"
+msgid "Created at"
+msgstr "vytvořeno v"
+
+#: kausal_common/models/modification_tracking.py
+msgid "Last modified by"
+msgstr ""
+
+#: kausal_common/models/modification_tracking.py
+msgid "Last modified at"
+msgstr ""
+
+#: kausal_common/models/ordered.py
+msgid "order"
+msgstr "pořadí"
+
+#: kausal_common/models/uuid.py
+msgid "UUID"
+msgstr "UUID"
+
+#: kausal_common/users/models.py users/models.py
+msgid "email address"
+msgstr "e-mailová adresa"
+
+#: nodes/actions/action.py
 msgid "Is implemented"
 msgstr "Je implementováno"
 
-#: nodes/actions/action.py:50
+#: nodes/actions/action.py
 msgid "Is the action included in the scenario"
 msgstr "Je akce zahrnuta ve scénáři"
 
-#: nodes/actions/energy_saving.py:51
+#: nodes/actions/energy_saving.py
 msgid "Number of LED bulbs changed per year (baseline)"
 msgstr "Počet LED žárovek vyměněných za rok (výchozí)"
 
-#: nodes/actions/energy_saving.py:57
+#: nodes/actions/energy_saving.py
 msgid "Number of additional LED bulbs changed per year"
 msgstr "Počet dalších LED žárovek vyměněných za rok"
 
-#: nodes/actions/energy_saving.py:62
+#: nodes/actions/energy_saving.py
 msgid "Yearly increase in total number of luminaires"
 msgstr "Roční nárůst celkového počtu svítidel"
 
-#: nodes/actions/energy_saving.py:67
+#: nodes/actions/energy_saving.py
 msgid "Yearly maintenance cost of traditional luminaires"
 msgstr "Roční náklady na údržbu tradičních svítidel"
 
-#: nodes/actions/energy_saving.py:73 nodes/actions/energy_saving.py:103
+#: nodes/actions/energy_saving.py
 msgid "Yearly maintenance cost of LED luminaires"
 msgstr "Roční náklady na údržbu LED svítidel"
 
-#: nodes/actions/energy_saving.py:79
+#: nodes/actions/energy_saving.py
 msgid "Traditional luminaire power consumption"
 msgstr "Spotřeba energie tradičních svítidel"
 
-#: nodes/actions/energy_saving.py:85
+#: nodes/actions/energy_saving.py
 msgid "LED luminaire power consumption"
 msgstr "Spotřeba energie LED svítidel"
 
-#: nodes/actions/energy_saving.py:91
+#: nodes/actions/energy_saving.py
 msgid "Traditional luminaire yearly active time"
 msgstr "Roční aktivní doba tradičních svítidel"
 
-#: nodes/actions/energy_saving.py:97
+#: nodes/actions/energy_saving.py
 msgid "LED luminaire yearly active time"
 msgstr "Roční aktivní doba LED svítidel"
 
-#: nodes/actions/energy_saving.py:109
+#: nodes/actions/energy_saving.py
 msgid "Investment cost of one LED retrofit"
 msgstr "Investiční náklady na jednu modernizaci LED"
 
-#: nodes/actions/energy_saving.py:284 nodes/actions/energy_saving.py:442
+#: nodes/actions/energy_saving.py
 msgid "Investment lifetime (a)"
 msgstr "Životnost investice (a)"
 
-#: nodes/actions/energy_saving.py:290
+#: nodes/actions/energy_saving.py
 msgid "Investment cost (SEK/m2)"
 msgstr "Investiční náklady (SEK/m2)"
 
-#: nodes/actions/energy_saving.py:296
+#: nodes/actions/energy_saving.py
 msgid "Maintenance cost (SEK/m2/a)"
 msgstr "Náklady na údržbu (SEK/m2/a)"
 
-#: nodes/actions/energy_saving.py:302
+#: nodes/actions/energy_saving.py
 msgid "Heat saving (kWh/m2/a)"
 msgstr "Úspora tepla (kWh/m2/a)"
 
-#: nodes/actions/energy_saving.py:308
+#: nodes/actions/energy_saving.py
 msgid "Electricity saving (kWh/m2/a)"
 msgstr "Úspora elektřiny (kWh/m2/a)"
 
-#: nodes/actions/energy_saving.py:314 nodes/actions/energy_saving.py:472
+#: nodes/actions/energy_saving.py
+#, fuzzy, python-format
+#| msgid "Renovation potential (% of floor area)"
 msgid "Renovation potential (% of floor area)"
 msgstr "Potenciál renovace (% podlahové plochy)"
 
-#: nodes/actions/energy_saving.py:448
+#: nodes/actions/energy_saving.py
 #, fuzzy
 #| msgid "Investment cost (SEK/m2)"
 msgid "Investment cost (USD/square foot)"
 msgstr "Investiční náklady (SEK/m2)"
 
-#: nodes/actions/energy_saving.py:454
+#: nodes/actions/energy_saving.py
 #, fuzzy
 #| msgid "Maintenance cost (SEK/m2/a)"
 msgid "Maintenance cost (USD/square foot/a)"
 msgstr "Náklady na údržbu (SEK/m2/a)"
 
-#: nodes/actions/energy_saving.py:460
+#: nodes/actions/energy_saving.py
 msgid "Natural gas saving (thm/square foot/a)"
 msgstr "Úspora zemního plynu (thm/čtvereční stopa/a)"
 
-#: nodes/actions/energy_saving.py:466
+#: nodes/actions/energy_saving.py
 #, fuzzy
 #| msgid "Electricity saving (kWh/m2/a)"
 msgid "Electricity saving (kWh/square foot/a)"
 msgstr "Úspora elektřiny (kWh/m2/a)"
 
-#: nodes/blocks.py:8 nodes/models.py:537
+#: nodes/actions/gpc.py
+msgid ""
+"\n"
+"        This is S Curve Action. It calculates non-linear effect with two parameters,\n"
+"        max_impact = A and max_year (year when most of the impact has occurred).\n"
+"        The parameters come from Dataset. In addition, there\n"
+"        must be one input node for background data. Function for\n"
+"        S-curve = A/(1+exp(-k*(x-x0)). A is the maximum value, k is the steepness\n"
+"        of the curve (always 0.5), and x0 is the midpoint.\n"
+"        "
+msgstr ""
+
+#: nodes/actions/gpc.py nodes/actions/linear.py
+msgid ""
+"\n"
+"    Receive goal input from a dataset or node and cause an effect.\n"
+"\n"
+"    The output will be a time series with the difference to the\n"
+"    predicted baseline value of the input node.\n"
+"\n"
+"    The goal input can also be relative (for e.g. percentage\n"
+"    reductions), in which case the input will be treated as\n"
+"    a multiplier.\n"
+"    "
+msgstr ""
+
+#: nodes/actions/linear.py
+msgid ""
+"\n"
+"    Receive goal input from a dataset or node and cause a linear effect.\n"
+"\n"
+"    The output will be a time series with the difference to the\n"
+"    last historical value of the input node.\n"
+"\n"
+"    The goal input can also be relative (for e.g. percentage\n"
+"    reductions), in which case the input will be treated as\n"
+"    a multiplier.\n"
+"    "
+msgstr ""
+
+#: nodes/actions/simple.py
+msgid "Simple action that produces an additive change to a value."
+msgstr ""
+
+#: nodes/actions/simple.py
+msgid "Additive action where the effect is cumulative and remains in the future."
+msgstr ""
+
+#: nodes/actions/simple.py
+msgid ""
+"Cumulative additive action where a yearly target is set and the effect is linear.\n"
+"    This can be modified with these parameters:\n"
+"    target_year_level is the value to be reached at the target year.\n"
+"    action_delay is the year when the implementation of the action starts.\n"
+"    multiplier scales the size of the impact (useful between scenarios).\n"
+"    "
+msgstr ""
+
+#: nodes/actions/simple.py
+msgid "Simple emission reduction impact"
+msgstr ""
+
+#: nodes/actions/simple.py
+msgid ""
+"\n"
+"    TrajectoryAction uses select_category() to select a category from a dimension\n"
+"    and then possibly do some relative or absolute conversions.\n"
+"    "
+msgstr ""
+
+#: nodes/actions/simple.py
+msgid ""
+"\n"
+"    GpcTrajectoryAction is a trajectory action that uses the DatasetNode to fetch the dataset.\n"
+"    "
+msgstr ""
+
+#: nodes/blocks.py nodes/models.py
 msgid "Node"
 msgstr "Uzel"
 
-#: nodes/blocks.py:25
+#: nodes/blocks.py
 #, fuzzy
 #| msgid "Outcome page"
 msgid "Outcome node"
 msgstr "Stránka s výsledky"
 
-#: nodes/choosers.py:33 nodes/choosers.py:39
+#: nodes/buildings.py
+msgid "Floor area node takes in actions and calculates the floor area impacted."
+msgstr ""
+
+#: nodes/choosers.py
 #, fuzzy
 #| msgid "Cost node"
 msgid "Choose a node"
 msgstr "Uzel nákladů"
 
-#: nodes/choosers.py:40
+#: nodes/choosers.py
 #, fuzzy
 #| msgid "Choose instance"
 msgid "Choose another node"
 msgstr "Vyberte instanci"
 
-#: nodes/instance.py:587
+#: nodes/costs.py
+msgid ""
+" This is Exponential Node.\n"
+"    Takes in either input nodes as AdditiveNode, or builds a dataframe from current_value.\n"
+"    Builds an exponential multiplier based on annual_change and multiplies the VALUE_COLUMN.\n"
+"    Optionally, touches also historical values.\n"
+"    Parameter is_decreasing_rate is used to give discount rates instead.\n"
+"    "
+msgstr ""
+
+#: nodes/costs.py
+msgid ""
+"\n"
+"    Calculates internal growth of e.g. a forest, accounting for forest cuts. Takes in additive and\n"
+"    non-additive nodes and a dataset.\n"
+"    Parameter annual_change is used where the rate node(s) have null values.\n"
+"    "
+msgstr ""
+
+#: nodes/costs.py
+msgid ""
+"\n"
+"    This is Dilution Node. It has exactly four input nodes which are marked by tags: 1) existing is the current, non-diluted variable. 2) Incoming is the variable which diluted the existing one with its different values. 3) Removing is the fraction that is removed from the existing stock each year. 4) Incoming is the ratio compared with the existing stock that is inserted into the system. (Often the removed and incoming values are the same, and then the stock size remains constant.)\n"
+"    "
+msgstr ""
+
+#: nodes/costs.py
+msgid ""
+"\n"
+"        This is IterationNode. It calculates one year at a time based on previous year's value and inputs and outputs. In addition, it must have a feedback loop (otherwise it makes no sense to use this node class), which is given as a growth rate per year from the previous year's value.\n"
+"        "
+msgstr ""
+
+#: nodes/formula.py
+msgid "This is a Formula Node. It uses a specified formula to calculate the output."
+msgstr ""
+
+#: nodes/gpc.py
+msgid "This is a DatasetNode. It takes in a specifically formatted dataset and converts the relevant part into a node output."
+msgstr ""
+
+#: nodes/health.py
+msgid ""
+"Calculate attributable fraction when the ERF function is relative risk.\n"
+"    AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result\n"
+"    is smaller than 0, we should use r instead. It can be converted from the result:\n"
+"    r/(r+1)=s <=> r=s/(1-s)\n"
+"    "
+msgstr ""
+
+#: nodes/instance_loader.py
 msgid "Custom"
 msgstr "Vlastní"
 
-#: nodes/metric.py:321
+#: nodes/metric_gen.py
 msgid "Sectors"
 msgstr "Sektory"
 
-#: nodes/models.py:101 nodes/models.py:487
-msgid "UUID"
-msgstr "UUID"
+#: nodes/metric_gen.py
+#, fuzzy
+#| msgid "Scanario name"
+msgid "Scenarios"
+msgstr "Název scénáře"
 
-#: nodes/models.py:102 nodes/models.py:460
+#: nodes/models.py
 msgid "name"
 msgstr "název"
 
-#: nodes/models.py:103 pages/models.py:134 pages/models.py:166
+#: nodes/models.py pages/models.py
 msgid "Lead title"
 msgstr "Hlavní nadpis"
 
-#: nodes/models.py:104 pages/models.py:135 pages/models.py:167
+#: nodes/models.py pages/models.py
 msgid "Lead paragraph"
 msgstr "Úvodní odstavec"
 
-#: nodes/models.py:105
+#: nodes/models.py
 msgid "Site URL"
 msgstr "URL webu"
 
-#: nodes/models.py:145
+#: nodes/models.py
 msgid "Instance"
 msgstr "Instance"
 
-#: nodes/models.py:146
+#: nodes/models.py
 msgid "Instances"
 msgstr "Instance"
 
-#: nodes/models.py:347
+#: nodes/models.py
 msgid "Actions"
 msgstr "Akce"
 
-#: nodes/models.py:430
+#: nodes/models.py
 msgid "Instance hostname"
 msgstr "Název hostitele instance"
 
-#: nodes/models.py:431
+#: nodes/models.py
 msgid "Instance hostnames"
 msgstr "Názvy hostitelů instancí"
 
-#: nodes/models.py:446
+#: nodes/models.py
 msgid "Instance token"
 msgstr "Token instance"
 
-#: nodes/models.py:447
+#: nodes/models.py
 msgid "Instance tokens"
 msgstr "Tokeny instancí"
 
-#: nodes/models.py:457
+#: nodes/models.py
 #, fuzzy
 #| msgid "Instance"
 msgid "instance"
 msgstr "Instance"
 
-#: nodes/models.py:461
+#: nodes/models.py
 #, fuzzy
 #| msgid "Description"
 msgid "edition"
 msgstr "Popis"
 
-#: nodes/models.py:464
+#: nodes/models.py
 msgid "authority"
 msgstr "autorita"
 
-#: nodes/models.py:464
+#: nodes/models.py
 msgid "The organization responsible for the data source"
 msgstr "Organizace odpovědná za datový zdroj"
 
-#: nodes/models.py:467
+#: nodes/models.py
 #, fuzzy
 #| msgid "Description"
 msgid "description"
 msgstr "Popis"
 
-#: nodes/models.py:468
+#: nodes/models.py
 msgid "URL"
 msgstr "URL"
 
-#: nodes/models.py:478
+#: nodes/models.py
 msgid "Data source"
 msgstr "Datový zdroj"
 
-#: nodes/models.py:490
+#: nodes/models.py
 msgid "Order"
 msgstr "Pořadí"
 
-#: nodes/models.py:494
+#: nodes/models.py
 msgid "Goal"
 msgstr "Cíl"
 
-#: nodes/models.py:498
+#: nodes/models.py
 msgid "Short description"
 msgstr "Krátký popis"
 
-#: nodes/models.py:501
+#: nodes/models.py
 msgid "Description"
 msgstr "Popis"
 
-#: nodes/models.py:538
+#: nodes/models.py
 msgid "Nodes"
 msgstr "Uzly"
 
-#: nodes/processors.py:81
-msgid "Multiplier"
-msgstr "Násobitel"
+#: nodes/node.py
+msgid "NOTE! Add text about the node class."
+msgstr ""
 
-#: nodes/units.py:182
+#: nodes/node.py
+msgid "The node has the following input nodes:"
+msgstr ""
+
+#: nodes/node.py
+#, fuzzy
+#| msgid "This user does not have access to admin."
+msgid "The node does not have input nodes."
+msgstr "Tento uživatel nemá přístup do administrace."
+
+#: nodes/node.py
+msgid "    - Input node values are not added but operated despite matching units.\n"
+msgstr ""
+
+#: nodes/node.py
+msgid "    - Truncate values beyond the model end year. There may be some from data"
+msgstr ""
+
+#: nodes/node.py
+msgid "    - Truncate values before the reference year. There may be some from data"
+msgstr ""
+
+#: nodes/node.py
+msgid "    - Extend the last historical values to the remaining missing years.\n"
+msgstr ""
+
+#: nodes/node.py
+msgid "    - Truncate the forecast values.\n"
+msgstr ""
+
+#: nodes/node.py
+msgid "    - Take the arithmetic inverse of the values (-x).\n"
+msgstr ""
+
+#: nodes/node.py
+msgid "    - Take the geometric inverse of the values (1/x).\n"
+msgstr ""
+
+#: nodes/node.py
+msgid "    - Take the complement of the dimensionless values (1-x).\n"
+msgstr ""
+
+#: nodes/node.py
+msgid "    - Take the difference across time (i.e. annual changes)\n"
+msgstr ""
+
+#: nodes/node.py
+msgid "    - Take the cumulative sum across time.\n"
+msgstr ""
+
+#: nodes/node.py
+msgid "    - Take the cumulative product of the dimensionless values across time.\n"
+msgstr ""
+
+#: nodes/node.py
+msgid "    - Take the cumulative product of the dimensionless complement values across time.\n"
+msgstr ""
+
+#: nodes/node.py
+msgid "    - Take the ratio of the values compared with the last historical value.\n"
+msgstr ""
+
+#: nodes/node.py
+msgid "    - This is used as the baseline.\n"
+msgstr ""
+
+#: nodes/node.py
+msgid "    - This is used for the incoming stock.\n"
+msgstr ""
+
+#: nodes/node.py
+msgid "    - This is the rate of stock removal.\n"
+msgstr ""
+
+#: nodes/node.py
+msgid "    - This is the rate of new stock coming in.\n"
+msgstr ""
+
+#: nodes/node.py
+msgid "    - The node is used as the historical starting point.\n"
+msgstr ""
+
+#: nodes/node.py
+msgid "    - The node is used as the goal for the action.\n"
+msgstr ""
+
+#: nodes/node.py
+msgid "    - Negative result values are replaced with 0.\n"
+msgstr ""
+
+#: nodes/node.py
+msgid "    - Positive result values are replaced with 0.\n"
+msgstr ""
+
+#: nodes/node.py
+msgid "    - Convert NaNs to zeros.\n"
+msgstr ""
+
+#: nodes/node.py
+msgid "    - Take the expected value over the uncertainty dimension.\n"
+msgstr ""
+
+#: nodes/node.py
+#, python-format
+msgid "    - The tag \"%s\" is given.\n"
+msgstr ""
+
+#: nodes/node.py
+#, python-format
+msgid "    - From dimension %s, %s categories %s.\n"
+msgstr ""
+
+#: nodes/node.py
+#, python-format
+msgid "    - Sum over dimension %s .\n"
+msgstr ""
+
+#: nodes/node.py
+#, python-format
+msgid "    - Add values to the category %s in a new dimension %s.\n"
+msgstr ""
+
+#: nodes/roles.py
+msgid "Viewer"
+msgstr ""
+
+#: nodes/simple.py
+msgid ""
+"This is an Additive Node. It performs a simple addition of inputs.\n"
+"Missing values are assumed to be zero."
+msgstr ""
+
+#: nodes/simple.py
+msgid "This is a Subtractive Node. It takes the first input node and subtracts all other input nodes from it."
+msgstr ""
+
+#: nodes/simple.py
+msgid "This is a Sector Emissions Node. It is like Additive Node but for subsector emissions"
+msgstr ""
+
+#: nodes/simple.py
+msgid ""
+"This is a Multiplicative Node. It multiplies nodes together with potentially adding other input nodes.\n"
+"\n"
+"    Multiplication and addition is determined based on the input node units.\n"
+"    "
+msgstr ""
+
+#: nodes/simple.py
+msgid ""
+"This is a Divisive Node. It divides two nodes together with potentially adding other input nodes.\n"
+"\n"
+"    Division and addition is determined based on the input node units.\n"
+"    "
+msgstr ""
+
+#: nodes/simple.py
+msgid "This is an Emission Factor Activity Node. It multiplies an activity by an emission factor."
+msgstr ""
+
+#: nodes/simple.py
+msgid "This is Activity Node. It adds activity amounts together."
+msgstr ""
+
+#: nodes/simple.py
+msgid "This is a Fixed Multiplier Node. It multiplies a single input node with a parameter."
+msgstr ""
+
+#: nodes/simple.py
+msgid ""
+"First add other input nodes, then multiply the output.\n"
+"\n"
+"    Multiplication and addition is determined based on the input node units.\n"
+"    "
+msgstr ""
+
+#: nodes/simple.py
+msgid ""
+"First does what MultiplicativeNode does, then calculates 1 - result.\n"
+"    Can only be used for dimensionless content (i.e., fractions and percentages)\n"
+"    "
+msgstr ""
+
+#: nodes/simple.py
+msgid ""
+"First does what MultiplicativeNode does, then calculates 1 + result.\n"
+"    Can only be used for dimensionless content (i.e., fractions and percentages)\n"
+"    "
+msgstr ""
+
+#: nodes/simple.py
+msgid ""
+"\n"
+"    First like AdditiveNode, then multiply with a node with \"non_additive\".\n"
+"    The relative node is assumed to be the relative difference R = V / N - 1,\n"
+"    where V is the expected output value and N is the comparison value from\n"
+"    the other input nodes. So, the output value V = (R + 1)N.\n"
+"    If there is no \"non-additive\" node, it will behave like AdditiveNode except\n"
+"    it never creates a temporary dimension Sectors.\n"
+"    "
+msgstr ""
+
+#: nodes/simple.py
+msgid "TrajectoryNode uses select_category() to select a category from a dimension."
+msgstr ""
+
+#: nodes/simple.py
+msgid ""
+"This is a Fill New Category Node. It behaves like Additive Node, but in the end of computation\n"
+"        it creates a new category such that the values along that dimension sum up to 1. The input nodes\n"
+"        must have a dimensionless unit. The new category in an existing dimension is given as parameter\n"
+"        'new_category' in format 'dimension:category\n"
+"        "
+msgstr ""
+
+#: nodes/simple.py
+msgid ""
+"\n"
+"        This is a ChooseInputNode. It can have several input nodes, and it selects the one that has the same\n"
+"        tag as given in the parameter node_tag. The idea of the node is that you can change the parameter value\n"
+"        in the scenario and thus have different nodes used in different contexts.\n"
+"        "
+msgstr ""
+
+#: nodes/units.py
 msgid "capita"
 msgstr "obyvatel"
 
-#: nodes/units.py:183
+#: nodes/units.py
 msgctxt "capita short"
 msgid "cap"
 msgstr "obyv."
 
-#: nodes/units.py:184
+#: nodes/units.py
 msgctxt "kilotonne short"
 msgid "kt"
 msgstr "kt"
 
-#: nodes/units.py:185
-msgctxt "year short"
-msgid "yr."
-msgstr "r."
+#: nodes/units.py
+msgid "euros"
+msgstr ""
 
-#: nodes/units.py:186
-msgctxt "percent"
-msgid "percent"
-msgstr "procento"
+#: nodes/units.py
+msgid "thousand euros"
+msgstr ""
 
-#: pages/models.py:52
+#: nodes/units.py
+msgid "million euros"
+msgstr ""
+
+#: nodes/units.py
+msgid "gigawatt hours"
+msgstr ""
+
+#: nodes/units.py
+msgid "megawatt hour"
+msgstr ""
+
+#: nodes/units.py
+msgid "MWh"
+msgstr ""
+
+#: nodes/units.py
+msgid "number of cases"
+msgstr ""
+
+#: nodes/units.py
+msgid "#"
+msgstr ""
+
+#: nodes/units.py
+msgid "trip"
+msgstr ""
+
+#: nodes/units.py
+msgid "minute"
+msgstr ""
+
+#: nodes/units.py
+msgid "min"
+msgstr ""
+
+#: nodes/units.py
+msgid "cases per 100,000 person-years"
+msgstr ""
+
+#: nodes/units.py
+msgid "#/100000 py"
+msgstr ""
+
+#: nodes/units.py
+msgid "minutes per day per person"
+msgstr ""
+
+#: nodes/units.py
+msgid "min/d/cap"
+msgstr ""
+
+#: nodes/units.py
+msgid "billion euros"
+msgstr ""
+
+#: nodes/units.py
+msgid "B€"
+msgstr ""
+
+#: pages/models.py
 msgid "show in footer"
 msgstr "zobrazit v zápatí"
 
-#: pages/models.py:53
+#: pages/models.py
 msgid "Should the page be shown in the footer?"
 msgstr "Má se stránka zobrazovat v zápatí?"
 
-#: pages/models.py:68
+#: pages/models.py
 msgid "Common page configuration"
 msgstr "Společná konfigurace stránky"
 
-#: pages/models.py:120
-#| msgid "Lead paragraph"
+#: pages/models.py
 msgid "Paragraph"
 msgstr "Úvodní odstavec"
 
-#: pages/models.py:150
+#: pages/models.py
 msgid "Outcome page"
 msgstr "Stránka s výsledky"
 
-#: pages/models.py:151
+#: pages/models.py
 msgid "Outcome pages"
 msgstr "Stránky s výsledky"
 
-#: pages/models.py:162
+#: pages/models.py
 msgid "Standard"
 msgstr "Standardní"
 
-#: pages/models.py:163
+#: pages/models.py
 msgid "Impact"
 msgstr "Dopad"
 
-#: pages/models.py:164
+#: pages/models.py
 msgid "Cumulative impact"
 msgstr "Kumulativní dopad"
 
-#: pages/models.py:170
+#: pages/models.py
 msgid "Show cumulative impact"
 msgstr "Zobrazit kumulativní dopad"
 
-#: pages/models.py:171
+#: pages/models.py
 msgid "Show action comparison"
 msgstr "Zobrazit porovnání akcí"
 
-#: pages/models.py:172
+#: pages/models.py
 msgid "Show only municipal actions"
 msgstr "Zobrazit pouze obecní akce"
 
-#: pages/models.py:197
+#: pages/models.py
 msgid "Action list page"
 msgstr "Stránka se seznamem akcí"
 
-#: pages/models.py:198
+#: pages/models.py
 msgid "Action list pages"
 msgstr "Stránky se seznamy akcí"
 
-#: params/global_params.py:6
+#: pages/models.py
+msgid "Title"
+msgstr ""
+
+#: pages/models.py
+msgid "Introductory content to show in the UI"
+msgstr ""
+
+#: pages/models.py
+msgid "Introductory content"
+msgstr ""
+
+#: pages/models.py
+msgid "Site content"
+msgstr ""
+
+#: pages/models.py
+msgid "Site contents"
+msgstr ""
+
+#: pages/sitecontent.py
+msgid "Site Content"
+msgstr ""
+
+#: params/global_params.py
 msgid "Municipality name"
 msgstr "Název obce"
 
-#: params/global_params.py:11
+#: params/global_params.py
 msgid "Discount rate"
 msgstr "Diskontní sazba"
 
-#: params/global_params.py:16
+#: params/global_params.py
+msgid "Population growth rate"
+msgstr ""
+
+#: params/global_params.py
 msgid "Avoided electricity capacity price"
 msgstr "Cena ušetřené kapacity elektřiny"
 
-#: params/global_params.py:21
+#: params/global_params.py
 msgid "Health impacts per kWh"
 msgstr "Dopady na zdraví na kWh"
 
-#: params/global_params.py:26
+#: params/global_params.py
 msgid "Heat CO2 emission factor"
 msgstr "Emisní faktor CO2 pro teplo"
 
-#: params/global_params.py:31
+#: params/global_params.py
 msgid "Electricity CO2 emission factor"
 msgstr "Emisní faktor CO2 pro elektřinu"
 
-#: params/global_params.py:36
+#: params/global_params.py
 msgid "Renovation rate baseline"
 msgstr "Výchozí míra renovace"
 
-#: params/global_params.py:41
+#: params/global_params.py
 msgid "Include energy taxes in calculations?"
 msgstr "Zahrnout energetické daně do výpočtů?"
 
-#: params/global_params.py:46
+#: params/global_params.py
 msgid "Include CO2 cost variable in calculations?"
 msgstr "Zahrnout proměnnou nákladů na CO2 do výpočtů?"
 
-#: params/global_params.py:51
+#: params/global_params.py
 msgid "Include health impact variable in calculations?"
 msgstr "Zahrnout proměnnou dopadu na zdraví do výpočtů?"
 
-#: params/global_params.py:56
+#: params/global_params.py
 msgid "Include avoided electricity capacity variable in calculations?"
 msgstr "Zahrnout proměnnou ušetřené kapacity elektřiny do výpočtů?"
 
-#: params/global_params.py:61
+#: params/global_params.py
 msgid "Price of CO2"
 msgstr "Cena CO2"
 
-#: params/global_params.py:66
+#: params/global_params.py
 msgid "Price of CO2 annual change"
 msgstr "Roční změna ceny CO2"
 
-#: params/global_params.py:71
+#: params/global_params.py
 msgid "Price of electricity"
 msgstr "Cena elektřiny"
 
-#: params/global_params.py:76
+#: params/global_params.py
 msgid "Price of electricity annual change"
 msgstr "Roční změna ceny elektřiny"
 
-#: params/global_params.py:81
+#: params/global_params.py
 msgid "Price of Heat"
 msgstr "Cena tepla"
 
-#: params/global_params.py:86
+#: params/global_params.py
 msgid "Price of heat annual change"
 msgstr "Roční změna ceny tepla"
 
-#: params/global_params.py:91
+#: params/global_params.py
 msgid "Invest all on the first year (in contrast to continuous investing)?"
 msgstr "Investovat vše v prvním roce (na rozdíl od průběžného investování)?"
 
-#: params/global_params.py:96
+#: params/global_params.py
 msgid "Placeholder for updated_building_code_residential"
 msgstr "Zástupný symbol pro aktualizovaný_stavební_kód_obytný"
 
-#: params/global_params.py:101
+#: params/global_params.py
 #, fuzzy
 #| msgid "Renovation rate baseline"
 msgid "Action impact based on baseline"
 msgstr "Výchozí míra renovace"
 
-#: params/global_params.py:102
-msgid ""
-"Compute action impact based on the baseline scenario instead of the default "
-"one"
-msgstr ""
-"Vypočítat dopad akce na základě výchozího scénáře namísto výchozího "
-"scénáře"
+#: params/global_params.py
+msgid "Compute action impact based on the baseline scenario instead of the default one"
+msgstr "Vypočítat dopad akce na základě výchozího scénáře namísto výchozího scénáře"
 
-#: params/global_params.py:108
+#: params/global_params.py
 msgid "Scanario name"
 msgstr "Název scénáře"
 
-#: params/global_params.py:113
+#: params/global_params.py
 msgid "Weight for emission impacts in value profiles"
 msgstr "Váha dopadů emisí v profilech hodnot"
 
-#: params/global_params.py:118
+#: params/global_params.py
 msgid "Weight for economic impacts in value profiles"
 msgstr "Váha ekonomických dopadů v profilech hodnot"
 
-#: params/global_params.py:123
+#: params/global_params.py
 msgid "Weight for prosperity impacts (e.g. jobs) in value profiles"
 msgstr "Váha dopadů prosperity (např. pracovních míst) v profilech hodnot"
 
-#: params/global_params.py:128
+#: params/global_params.py
 msgid "Weight for purity impacts (e.g. lack of pollution) in value profiles"
 msgstr "Váha dopadů čistoty (např. absence znečištění) v profilech hodnot"
 
-#: params/global_params.py:133
+#: params/global_params.py
 msgid "Weight for health impacts in value profiles"
 msgstr "Váha dopadů na zdraví v profilech hodnot"
 
-#: params/global_params.py:138
+#: params/global_params.py
 msgid "Weight for equity impacts in value profiles"
 msgstr "Váha dopadů spravedlnosti v profilech hodnot"
 
-#: params/global_params.py:143
+#: params/global_params.py
 msgid "Weight for biodiversity impacts in value profiles"
 msgstr "Váha dopadů na biodiverzitu v profilech hodnot"
 
-#: params/global_params.py:148
+#: params/global_params.py
 msgid "Weight for actions to be legal in value profiles"
 msgstr "Váha akcí, které mají být v profilech hodnot legální"
 
-#: params/global_params.py:153
+#: params/global_params.py
 msgid "Threshold for sum of weighted impacts in value profiles"
 msgstr "Prahová hodnota pro součet vážených dopadů v profilech hodnot"
 
-#: params/global_params.py:158
+#: params/global_params.py
 msgid "Effect of electric vehicles on car kilometers"
 msgstr "Vliv elektrických vozidel na kilometry ujeté auty"
 
-#: params/global_params.py:163
+#: params/global_params.py
 msgid "List of selected municipalities"
 msgstr "Seznam vybraných obcí"
 
-#: params/global_params.py:168
+#: params/global_params.py
 msgid "List of selected nodes"
 msgstr "Seznam vybraných uzlů"
 
-#: params/global_params.py:173
+#: params/global_params.py
 msgid "Selected computational framework"
 msgstr "Vybraný výpočetní rámec"
 
-#: params/global_params.py:178
+#: params/global_params.py
 msgid "Annual weather normalization for energy consumption"
 msgstr "Roční normalizace počasí pro spotřebu energie"
 
-#: params/global_params.py:183
+#: params/global_params.py
+msgid "Normalization for matching statistical data"
+msgstr ""
+
+#: params/global_params.py
 msgid "Is the last historical value extended into the future?"
 msgstr "Je poslední historická hodnota rozšířena do budoucnosti?"
 
-#: paths/authentication.py:21
+#: params/global_params.py
+msgid "On node graphs, show scenario impacts instead of outputs?"
+msgstr ""
+
+#: params/global_params.py
+msgid "Override input node values with framework measure data"
+msgstr ""
+
+#: params/global_params.py
+msgid "Use only baseline year from measure data"
+msgstr ""
+
+#: paths/authentication.py
 msgid "Invalid token."
 msgstr "Neplatný token."
 
-#: paths/schema.py:80 paths/utils.py:61 paths/utils.py:63
+#: paths/schema.py paths/utils.py
 msgid "Invalid unit"
 msgstr "Neplatná jednotka"
 
-#: paths/settings.py:316
+#: paths/settings.py
 msgid "English"
 msgstr "Angličtina"
 
-#: paths/settings.py:317
+#: paths/settings.py
 msgid "Finnish"
 msgstr "Finština"
 
-#: paths/settings.py:318
+#: paths/settings.py
 msgid "Swedish"
 msgstr "Švédština"
 
-#: paths/settings.py:319
+#: paths/settings.py
 msgid "German"
 msgstr "Němčina"
 
-#: paths/settings.py:320
+#: paths/settings.py
 msgid "German (Switzerland)"
 msgstr "Němčina (Švýcarsko)"
 
-#: paths/settings.py:321
+#: paths/settings.py
 msgid "Czech"
 msgstr "Čeština"
 
-#: paths/settings.py:322
+#: paths/settings.py
 msgid "Danish"
 msgstr "Dánština"
 
-#: paths/settings.py:323
+#: paths/settings.py
 msgid "Polish"
 msgstr "Polština"
 
-#: paths/utils.py:27
+#: paths/settings.py
+msgid "Latvian"
+msgstr ""
+
+#: paths/settings.py
+msgid "Spanish (United States)"
+msgstr ""
+
+#: paths/settings.py
+msgid "Greek"
+msgstr ""
+
+#: paths/utils.py
 msgid "identifier"
 msgstr "identifikátor"
 
-#: paths/utils.py:71
+#: paths/utils.py
 msgid "unit"
 msgstr "jednotka"
 
-#: paths/utils.py:85
+#: paths/utils.py
 msgid "uuid"
 msgstr "uuid"
 
-#: paths/utils.py:96
+#: paths/utils.py
 msgid "created at"
 msgstr "vytvořeno v"
 
-#: paths/utils.py:98
+#: paths/utils.py
 msgid "updated at"
 msgstr "aktualizováno v"
 
-#: paths/utils.py:106
-msgid "order"
-msgstr "pořadí"
+#~ msgid "Welcome to Paths admin"
+#~ msgstr "Vítejte v administraci Paths"
 
-#: users/models.py:11
-msgid "email address"
-msgstr "e-mailová adresa"
+#~ msgid "Visit the Wagtail website"
+#~ msgstr "Navštivte webové stránky Wagtail"
+
+#~ msgid "View the release notes"
+#~ msgstr "Zobrazit poznámky k vydání"
+
+#~ msgid "Welcome to your new Wagtail site!"
+#~ msgstr "Vítejte na vašem novém webu Wagtail!"
+
+#~ msgid "Please feel free to <a href=\"https://github.com/wagtail/wagtail/wiki/Slack\">join our community on Slack</a>, or get started with one of the links below."
+#~ msgstr "Neváhejte se <a href=\"https://github.com/wagtail/wagtail/wiki/Slack\">připojit k naší komunitě na Slacku</a> nebo začněte s jedním z níže uvedených odkazů."
+
+#~ msgid "Wagtail Documentation"
+#~ msgstr "Dokumentace Wagtail"
+
+#~ msgid "Topics, references, & how-tos"
+#~ msgstr "Témata, reference a návody"
+
+#~ msgid "Tutorial"
+#~ msgstr "Tutoriál"
+
+#~ msgid "Build your first Wagtail site"
+#~ msgstr "Vytvořte svůj první web Wagtail"
+
+#~ msgid "Admin Interface"
+#~ msgstr "Administrační rozhraní"
+
+#~ msgid "Create your superuser first!"
+#~ msgstr "Nejprve vytvořte svého superuživatele!"
+
+#~ msgid "Multiplier"
+#~ msgstr "Násobitel"
+
+#~ msgctxt "year short"
+#~ msgid "yr."
+#~ msgstr "r."
+
+#~ msgctxt "percent"
+#~ msgid "percent"
+#~ msgstr "procento"
 
 #~ msgid "Discount node name"
 #~ msgstr "Název uzlu slevy"
