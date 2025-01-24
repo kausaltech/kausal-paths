@@ -9,6 +9,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import CharField, Q
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from graphql import GraphQLError
 
@@ -218,7 +219,7 @@ class MeasureType(DjangoNode):
         node = context.get_node(node_id)
         with context.get_default_scenario().override():
             df = node.get_output_pl()
-        df = df.filter(pl.col(YEAR_COLUMN) > fwc.baseline_year)
+        df = df.filter((pl.col(YEAR_COLUMN) > fwc.baseline_year) & (pl.col(YEAR_COLUMN) <= timezone.now().year))
         dimensions = node_dimension_selection.dimensions
         if dimensions:
             df = df.filter(**dimensions)
