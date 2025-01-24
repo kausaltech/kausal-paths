@@ -730,6 +730,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             if len(dim_combinations) != len(set(dim_combinations)):
                 logger.error(f'For node {node.id} unique MeasureTemplate uuids could not be found.')
                 return []
+
             result: list[tuple[str, dict[str, str] | None]] = []
             for _uuid, *categories in combinations:
                 dims = {}
@@ -746,7 +747,8 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         measure_template_uuid_to_node_selection = dict()
         instance = self.instance_config.get_instance()
         for node_id, node in instance.context.nodes.items():
-            if not isinstance(node, DatasetNode):
+            # Intentionally test for concrete type, filter out subclasses
+            if type(node) is not DatasetNode:
                 continue
             measure_template_uuids = self._get_measure_template_uuids(node)
             for _uuid, dimensions in measure_template_uuids:

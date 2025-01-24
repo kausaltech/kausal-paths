@@ -61,7 +61,6 @@ class FrameworkMeasureDVCDataset(DVCDataset):
 
         meta = df.get_meta()
         df_cols = df.columns
-        #df_cols.remove('UUID')
 
         baseline_year = context.instance.reference_year
         df = df.with_columns(  # FIXME Does this not already happen in load()? So this is redundant.
