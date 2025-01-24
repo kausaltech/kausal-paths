@@ -10,7 +10,8 @@ msgstr ""
 "POT-Creation-Date: 2025-01-24 12:59+0100\n"
 "PO-Revision-Date: 2025-01-24 10:20+0000\n"
 "Last-Translator: Bernhard Bliem <bernhard.bliem@kausal.tech>\n"
-"Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>\n"
+"Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/"
+">\n"
 "Language: de\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -23,8 +24,12 @@ msgid "Invalid email address"
 msgstr "Ungültige E-Mail-Adresse"
 
 #: admin_site/api.py
-msgid "No user found with this email address. Ask your administrator to create an account for you."
-msgstr "Kein Benutzer mit dieser E-Mail-Adresse gefunden. Bitten Sie Ihren Administrator, ein Konto für Sie zu erstellen."
+msgid ""
+"No user found with this email address. Ask your administrator to create an "
+"account for you."
+msgstr ""
+"Kein Benutzer mit dieser E-Mail-Adresse gefunden. Bitten Sie Ihren "
+"Administrator, ein Konto für Sie zu erstellen."
 
 #: admin_site/api.py
 msgid "This user does not have access to admin."
@@ -125,11 +130,11 @@ msgstr "Niedrig"
 
 #: frameworks/roles.py
 msgid "Framework admins"
-msgstr "Framework-Admins"
+msgstr "Rahmen-Admins"
 
 #: frameworks/roles.py
 msgid "Framework viewers"
-msgstr "Framework-Betrachter"
+msgstr "Rahmen-Betrachter"
 
 #: frameworks/schema.py
 msgid "Public URL for instance dashboard"
@@ -144,37 +149,50 @@ msgid "Identifier for the model instance. Needs to be unique."
 msgstr "Kennung für die Modellinstanz. Muss eindeutig sein."
 
 #: frameworks/schema.py
-msgid "Name for the framework configuration instance. Typically the name of the organization."
-msgstr "Name für die Framework-Konfigurationsinstanz. Üblicherweise der Name der Organisation."
+msgid ""
+"Name for the framework configuration instance. Typically the name of the "
+"organization."
+msgstr ""
+"Name für die Rahmenkonfigurationsinstanz. Üblicherweise der Name der "
+"Organisation."
 
 #: frameworks/schema.py
-msgid "UUID for the new framework config. If not set, will be generated automatically."
+msgid ""
+"UUID for the new framework config. If not set, will be generated "
+"automatically."
 msgstr ""
+"UUID für die neue Rahmenkonfiguration. Wenn nicht gesetzt, wird sie "
+"automatisch generiert."
 
 #: frameworks/schema.py
-msgid "Name of the organization. If not set, it will be determined through the user's credentials, if possible."
+msgid ""
+"Name of the organization. If not set, it will be determined through the "
+"user's credentials, if possible."
 msgstr ""
+"Name der Organisation. Wenn er nicht festgelegt ist, wird er, wenn möglich, "
+"über die Anmeldedaten des Benutzers ermittelt."
 
 #: frameworks/schema.py
 #, fuzzy
-#| msgid "The created framework config instance."
 msgid "The created framework config instance"
 msgstr "Die erstellte Framework-Konfigurationsinstanz."
 
 #: frameworks/schema.py
 msgid "ID of the organization-specific framework instance"
-msgstr ""
+msgstr "ID der organisationsspezifischen Rahmeninstanz"
 
 #: frameworks/schema.py
 msgid "ID of the measure template within a framework"
-msgstr ""
+msgstr "ID der Maßnahmenvorlage innerhalb eines Rahmens"
 
 #: frameworks/schema.py
 msgid "Value for the data point (set to null to remove)"
-msgstr ""
+msgstr "Wert für den Datenpunkt (zum Entfernen auf null setzen)"
 
 #: frameworks/schema.py
-msgid "Year of the data point. If not given, defaults to the baseline year for the framework instance."
+msgid ""
+"Year of the data point. If not given, defaults to the baseline year for the "
+"framework instance."
 msgstr ""
 
 #: frameworks/schema.py
@@ -301,11 +319,14 @@ msgstr "Stromeinsparung (kWh/Quadratfuß/a)"
 #: nodes/actions/gpc.py
 msgid ""
 "\n"
-"        This is S Curve Action. It calculates non-linear effect with two parameters,\n"
-"        max_impact = A and max_year (year when most of the impact has occurred).\n"
+"        This is S Curve Action. It calculates non-linear effect with two "
+"parameters,\n"
+"        max_impact = A and max_year (year when most of the impact has "
+"occurred).\n"
 "        The parameters come from Dataset. In addition, there\n"
 "        must be one input node for background data. Function for\n"
-"        S-curve = A/(1+exp(-k*(x-x0)). A is the maximum value, k is the steepness\n"
+"        S-curve = A/(1+exp(-k*(x-x0)). A is the maximum value, k is the "
+"steepness\n"
 "        of the curve (always 0.5), and x0 is the midpoint.\n"
 "        "
 msgstr ""
@@ -343,12 +364,14 @@ msgid "Simple action that produces an additive change to a value."
 msgstr ""
 
 #: nodes/actions/simple.py
-msgid "Additive action where the effect is cumulative and remains in the future."
+msgid ""
+"Additive action where the effect is cumulative and remains in the future."
 msgstr ""
 
 #: nodes/actions/simple.py
 msgid ""
-"Cumulative additive action where a yearly target is set and the effect is linear.\n"
+"Cumulative additive action where a yearly target is set and the effect is "
+"linear.\n"
 "    This can be modified with these parameters:\n"
 "    target_year_level is the value to be reached at the target year.\n"
 "    action_delay is the year when the implementation of the action starts.\n"
@@ -363,7 +386,8 @@ msgstr ""
 #: nodes/actions/simple.py
 msgid ""
 "\n"
-"    TrajectoryAction uses select_category() to select a category from a dimension\n"
+"    TrajectoryAction uses select_category() to select a category from a "
+"dimension\n"
 "    and then possibly do some relative or absolute conversions.\n"
 "    "
 msgstr ""
@@ -371,7 +395,8 @@ msgstr ""
 #: nodes/actions/simple.py
 msgid ""
 "\n"
-"    GpcTrajectoryAction is a trajectory action that uses the DatasetNode to fetch the dataset.\n"
+"    GpcTrajectoryAction is a trajectory action that uses the DatasetNode to "
+"fetch the dataset.\n"
 "    "
 msgstr ""
 
@@ -384,7 +409,8 @@ msgid "Outcome node"
 msgstr "Ergebnisknoten"
 
 #: nodes/buildings.py
-msgid "Floor area node takes in actions and calculates the floor area impacted."
+msgid ""
+"Floor area node takes in actions and calculates the floor area impacted."
 msgstr ""
 
 #: nodes/choosers.py
@@ -398,8 +424,10 @@ msgstr "Wähle einen anderen Knoten"
 #: nodes/costs.py
 msgid ""
 " This is Exponential Node.\n"
-"    Takes in either input nodes as AdditiveNode, or builds a dataframe from current_value.\n"
-"    Builds an exponential multiplier based on annual_change and multiplies the VALUE_COLUMN.\n"
+"    Takes in either input nodes as AdditiveNode, or builds a dataframe from "
+"current_value.\n"
+"    Builds an exponential multiplier based on annual_change and multiplies "
+"the VALUE_COLUMN.\n"
 "    Optionally, touches also historical values.\n"
 "    Parameter is_decreasing_rate is used to give discount rates instead.\n"
 "    "
@@ -408,39 +436,54 @@ msgstr ""
 #: nodes/costs.py
 msgid ""
 "\n"
-"    Calculates internal growth of e.g. a forest, accounting for forest cuts. Takes in additive and\n"
+"    Calculates internal growth of e.g. a forest, accounting for forest cuts. "
+"Takes in additive and\n"
 "    non-additive nodes and a dataset.\n"
-"    Parameter annual_change is used where the rate node(s) have null values.\n"
+"    Parameter annual_change is used where the rate node(s) have null "
+"values.\n"
 "    "
 msgstr ""
 
 #: nodes/costs.py
 msgid ""
 "\n"
-"    This is Dilution Node. It has exactly four input nodes which are marked by tags: 1) existing is the current, non-diluted variable. 2) Incoming is the variable which diluted the existing one with its different values. 3) Removing is the fraction that is removed from the existing stock each year. 4) Incoming is the ratio compared with the existing stock that is inserted into the system. (Often the removed and incoming values are the same, and then the stock size remains constant.)\n"
+"    This is Dilution Node. It has exactly four input nodes which are marked "
+"by tags: 1) existing is the current, non-diluted variable. 2) Incoming is "
+"the variable which diluted the existing one with its different values. 3) "
+"Removing is the fraction that is removed from the existing stock each year. "
+"4) Incoming is the ratio compared with the existing stock that is inserted "
+"into the system. (Often the removed and incoming values are the same, and "
+"then the stock size remains constant.)\n"
 "    "
 msgstr ""
 
 #: nodes/costs.py
 msgid ""
 "\n"
-"        This is IterationNode. It calculates one year at a time based on previous year's value and inputs and outputs. In addition, it must have a feedback loop (otherwise it makes no sense to use this node class), which is given as a growth rate per year from the previous year's value.\n"
+"        This is IterationNode. It calculates one year at a time based on "
+"previous year's value and inputs and outputs. In addition, it must have a "
+"feedback loop (otherwise it makes no sense to use this node class), which is "
+"given as a growth rate per year from the previous year's value.\n"
 "        "
 msgstr ""
 
 #: nodes/formula.py
-msgid "This is a Formula Node. It uses a specified formula to calculate the output."
+msgid ""
+"This is a Formula Node. It uses a specified formula to calculate the output."
 msgstr ""
 
 #: nodes/gpc.py
-msgid "This is a DatasetNode. It takes in a specifically formatted dataset and converts the relevant part into a node output."
+msgid ""
+"This is a DatasetNode. It takes in a specifically formatted dataset and "
+"converts the relevant part into a node output."
 msgstr ""
 
 #: nodes/health.py
 msgid ""
 "Calculate attributable fraction when the ERF function is relative risk.\n"
 "    AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result\n"
-"    is smaller than 0, we should use r instead. It can be converted from the result:\n"
+"    is smaller than 0, we should use r instead. It can be converted from the "
+"result:\n"
 "    r/(r+1)=s <=> r=s/(1-s)\n"
 "    "
 msgstr ""
@@ -455,7 +498,6 @@ msgstr "Sektoren"
 
 #: nodes/metric_gen.py
 #, fuzzy
-#| msgid "Scanario name"
 msgid "Scenarios"
 msgstr "Szenarioname"
 
@@ -561,24 +603,27 @@ msgstr ""
 
 #: nodes/node.py
 #, fuzzy
-#| msgid "This user does not have access to admin."
 msgid "The node does not have input nodes."
 msgstr "Dieser Benutzer hat keinen Zugriff auf den Admin-Bereich."
 
 #: nodes/node.py
-msgid "    - Input node values are not added but operated despite matching units.\n"
+msgid ""
+"    - Input node values are not added but operated despite matching units.\n"
 msgstr ""
 
 #: nodes/node.py
-msgid "    - Truncate values beyond the model end year. There may be some from data"
+msgid ""
+"    - Truncate values beyond the model end year. There may be some from data"
 msgstr ""
 
 #: nodes/node.py
-msgid "    - Truncate values before the reference year. There may be some from data"
+msgid ""
+"    - Truncate values before the reference year. There may be some from data"
 msgstr ""
 
 #: nodes/node.py
-msgid "    - Extend the last historical values to the remaining missing years.\n"
+msgid ""
+"    - Extend the last historical values to the remaining missing years.\n"
 msgstr ""
 
 #: nodes/node.py
@@ -606,15 +651,19 @@ msgid "    - Take the cumulative sum across time.\n"
 msgstr ""
 
 #: nodes/node.py
-msgid "    - Take the cumulative product of the dimensionless values across time.\n"
+msgid ""
+"    - Take the cumulative product of the dimensionless values across time.\n"
 msgstr ""
 
 #: nodes/node.py
-msgid "    - Take the cumulative product of the dimensionless complement values across time.\n"
+msgid ""
+"    - Take the cumulative product of the dimensionless complement values "
+"across time.\n"
 msgstr ""
 
 #: nodes/node.py
-msgid "    - Take the ratio of the values compared with the last historical value.\n"
+msgid ""
+"    - Take the ratio of the values compared with the last historical value.\n"
 msgstr ""
 
 #: nodes/node.py
@@ -688,31 +737,40 @@ msgid ""
 msgstr ""
 
 #: nodes/simple.py
-msgid "This is a Subtractive Node. It takes the first input node and subtracts all other input nodes from it."
-msgstr ""
-
-#: nodes/simple.py
-msgid "This is a Sector Emissions Node. It is like Additive Node but for subsector emissions"
+msgid ""
+"This is a Subtractive Node. It takes the first input node and subtracts all "
+"other input nodes from it."
 msgstr ""
 
 #: nodes/simple.py
 msgid ""
-"This is a Multiplicative Node. It multiplies nodes together with potentially adding other input nodes.\n"
+"This is a Sector Emissions Node. It is like Additive Node but for subsector "
+"emissions"
+msgstr ""
+
+#: nodes/simple.py
+msgid ""
+"This is a Multiplicative Node. It multiplies nodes together with potentially "
+"adding other input nodes.\n"
 "\n"
-"    Multiplication and addition is determined based on the input node units.\n"
+"    Multiplication and addition is determined based on the input node "
+"units.\n"
 "    "
 msgstr ""
 
 #: nodes/simple.py
 msgid ""
-"This is a Divisive Node. It divides two nodes together with potentially adding other input nodes.\n"
+"This is a Divisive Node. It divides two nodes together with potentially "
+"adding other input nodes.\n"
 "\n"
 "    Division and addition is determined based on the input node units.\n"
 "    "
 msgstr ""
 
 #: nodes/simple.py
-msgid "This is an Emission Factor Activity Node. It multiplies an activity by an emission factor."
+msgid ""
+"This is an Emission Factor Activity Node. It multiplies an activity by an "
+"emission factor."
 msgstr ""
 
 #: nodes/simple.py
@@ -720,52 +778,64 @@ msgid "This is Activity Node. It adds activity amounts together."
 msgstr ""
 
 #: nodes/simple.py
-msgid "This is a Fixed Multiplier Node. It multiplies a single input node with a parameter."
+msgid ""
+"This is a Fixed Multiplier Node. It multiplies a single input node with a "
+"parameter."
 msgstr ""
 
 #: nodes/simple.py
 msgid ""
 "First add other input nodes, then multiply the output.\n"
 "\n"
-"    Multiplication and addition is determined based on the input node units.\n"
+"    Multiplication and addition is determined based on the input node "
+"units.\n"
 "    "
 msgstr ""
 
 #: nodes/simple.py
 msgid ""
 "First does what MultiplicativeNode does, then calculates 1 - result.\n"
-"    Can only be used for dimensionless content (i.e., fractions and percentages)\n"
+"    Can only be used for dimensionless content (i.e., fractions and "
+"percentages)\n"
 "    "
 msgstr ""
 
 #: nodes/simple.py
 msgid ""
 "First does what MultiplicativeNode does, then calculates 1 + result.\n"
-"    Can only be used for dimensionless content (i.e., fractions and percentages)\n"
+"    Can only be used for dimensionless content (i.e., fractions and "
+"percentages)\n"
 "    "
 msgstr ""
 
 #: nodes/simple.py
 msgid ""
 "\n"
-"    First like AdditiveNode, then multiply with a node with \"non_additive\".\n"
-"    The relative node is assumed to be the relative difference R = V / N - 1,\n"
+"    First like AdditiveNode, then multiply with a node with "
+"\"non_additive\".\n"
+"    The relative node is assumed to be the relative difference R = V / N - "
+"1,\n"
 "    where V is the expected output value and N is the comparison value from\n"
 "    the other input nodes. So, the output value V = (R + 1)N.\n"
-"    If there is no \"non-additive\" node, it will behave like AdditiveNode except\n"
+"    If there is no \"non-additive\" node, it will behave like AdditiveNode "
+"except\n"
 "    it never creates a temporary dimension Sectors.\n"
 "    "
 msgstr ""
 
 #: nodes/simple.py
-msgid "TrajectoryNode uses select_category() to select a category from a dimension."
+msgid ""
+"TrajectoryNode uses select_category() to select a category from a dimension."
 msgstr ""
 
 #: nodes/simple.py
 msgid ""
-"This is a Fill New Category Node. It behaves like Additive Node, but in the end of computation\n"
-"        it creates a new category such that the values along that dimension sum up to 1. The input nodes\n"
-"        must have a dimensionless unit. The new category in an existing dimension is given as parameter\n"
+"This is a Fill New Category Node. It behaves like Additive Node, but in the "
+"end of computation\n"
+"        it creates a new category such that the values along that dimension "
+"sum up to 1. The input nodes\n"
+"        must have a dimensionless unit. The new category in an existing "
+"dimension is given as parameter\n"
 "        'new_category' in format 'dimension:category\n"
 "        "
 msgstr ""
@@ -773,9 +843,12 @@ msgstr ""
 #: nodes/simple.py
 msgid ""
 "\n"
-"        This is a ChooseInputNode. It can have several input nodes, and it selects the one that has the same\n"
-"        tag as given in the parameter node_tag. The idea of the node is that you can change the parameter value\n"
-"        in the scenario and thus have different nodes used in different contexts.\n"
+"        This is a ChooseInputNode. It can have several input nodes, and it "
+"selects the one that has the same\n"
+"        tag as given in the parameter node_tag. The idea of the node is that "
+"you can change the parameter value\n"
+"        in the scenario and thus have different nodes used in different "
+"contexts.\n"
 "        "
 msgstr ""
 
@@ -1015,7 +1088,9 @@ msgstr "Wärmepreis jährliche Veränderung"
 
 #: params/global_params.py
 msgid "Invest all on the first year (in contrast to continuous investing)?"
-msgstr "Alles im ersten Jahr investieren (im Gegensatz zu kontinuierlichen Investitionen)?"
+msgstr ""
+"Alles im ersten Jahr investieren (im Gegensatz zu kontinuierlichen "
+"Investitionen)?"
 
 #: params/global_params.py
 msgid "Placeholder for updated_building_code_residential"
@@ -1026,8 +1101,12 @@ msgid "Action impact based on baseline"
 msgstr "Auswirkungen der Maßnahme auf der Grundlage der Basislinie"
 
 #: params/global_params.py
-msgid "Compute action impact based on the baseline scenario instead of the default one"
-msgstr "Maßnahmenauswirkung basierend auf dem Basisszenario anstelle des Standardszenarios berechnen"
+msgid ""
+"Compute action impact based on the baseline scenario instead of the default "
+"one"
+msgstr ""
+"Maßnahmenauswirkung basierend auf dem Basisszenario anstelle des "
+"Standardszenarios berechnen"
 
 #: params/global_params.py
 msgid "Scanario name"
@@ -1043,11 +1122,14 @@ msgstr "Gewichtung für wirtschaftliche Auswirkungen in Wertprofilen"
 
 #: params/global_params.py
 msgid "Weight for prosperity impacts (e.g. jobs) in value profiles"
-msgstr "Gewichtung für Wohlstandsauswirkungen (z.B. Arbeitsplätze) in Wertprofilen"
+msgstr ""
+"Gewichtung für Wohlstandsauswirkungen (z.B. Arbeitsplätze) in Wertprofilen"
 
 #: params/global_params.py
 msgid "Weight for purity impacts (e.g. lack of pollution) in value profiles"
-msgstr "Gewichtung für Reinheitsauswirkungen (z.B. fehlende Verschmutzung) in Wertprofilen"
+msgstr ""
+"Gewichtung für Reinheitsauswirkungen (z.B. fehlende Verschmutzung) in "
+"Wertprofilen"
 
 #: params/global_params.py
 msgid "Weight for health impacts in value profiles"
@@ -1067,7 +1149,8 @@ msgstr "Gewichtung für die Legalität von Maßnahmen in Wertprofilen"
 
 #: params/global_params.py
 msgid "Threshold for sum of weighted impacts in value profiles"
-msgstr "Schwellenwert für die Summe der gewichteten Auswirkungen in Wertprofilen"
+msgstr ""
+"Schwellenwert für die Summe der gewichteten Auswirkungen in Wertprofilen"
 
 #: params/global_params.py
 msgid "Effect of electric vehicles on car kilometers"
@@ -1083,7 +1166,7 @@ msgstr "Liste der ausgewählten Knoten"
 
 #: params/global_params.py
 msgid "Selected computational framework"
-msgstr "Ausgewähltes Berechnungsframework"
+msgstr "Ausgewählter Berechnungsrahmen"
 
 #: params/global_params.py
 msgid "Annual weather normalization for energy consumption"
@@ -1181,6 +1264,18 @@ msgstr "erstellt am"
 msgid "updated at"
 msgstr "aktualisiert am"
 
+#: frameworks/schema.py
+msgid "The created framework config instance."
+msgstr "Die erstellte Rahmenkonfigurationsinstanz."
+
+#: frameworks/schema.py
+msgid ""
+"Year of the data point. If not given, defaults to the baseline year for the "
+"framework instance"
+msgstr ""
+"Jahr des Datenpunkts. Wenn nicht angegeben, wird standardmäßig das Basisjahr "
+"für die Rahmeninstanz verwendet."
+
 #~ msgid "Welcome to Paths admin"
 #~ msgstr "Willkommen bei Paths Admin"
 
@@ -1193,8 +1288,14 @@ msgstr "aktualisiert am"
 #~ msgid "Welcome to your new Wagtail site!"
 #~ msgstr "Willkommen auf Ihrer neuen Wagtail-Website!"
 
-#~ msgid "Please feel free to <a href=\"https://github.com/wagtail/wagtail/wiki/Slack\">join our community on Slack</a>, or get started with one of the links below."
-#~ msgstr "Fühlen Sie sich frei, <a href=\"https://github.com/wagtail/wagtail/wiki/Slack\">unserer Community auf Slack beizutreten</a> oder mit einem der folgenden Links zu beginnen."
+#~ msgid ""
+#~ "Please feel free to <a href=\"https://github.com/wagtail/wagtail/wiki/"
+#~ "Slack\">join our community on Slack</a>, or get started with one of the "
+#~ "links below."
+#~ msgstr ""
+#~ "Fühlen Sie sich frei, <a href=\"https://github.com/wagtail/wagtail/wiki/"
+#~ "Slack\">unserer Community auf Slack beizutreten</a> oder mit einem der "
+#~ "folgenden Links zu beginnen."
 
 #~ msgid "Wagtail Documentation"
 #~ msgstr "Wagtail-Dokumentation"
@@ -1229,7 +1330,6 @@ msgstr "aktualisiert am"
 #~ msgstr "Kostenknoten"
 
 #, fuzzy
-#~| msgid "Discount rate"
 #~ msgid "Discount node name"
 #~ msgstr "Diskontrate"
 
