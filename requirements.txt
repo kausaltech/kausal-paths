@@ -146,6 +146,7 @@ distro==1.9.0
 django==5.1.4
     # via
     #   -r requirements.in
+    #   django-anymail
     #   django-celery-results
     #   django-cors-headers
     #   django-extensions
@@ -169,6 +170,8 @@ django==5.1.4
     #   strawberry-graphql-django
     #   wagtail
     #   wagtail-localize
+django-anymail==12.0
+    # via -r requirements.in
 django-celery-results==2.5.1
     # via -r requirements.in
 django-cors-headers==4.6.0
@@ -653,6 +656,7 @@ referencing==0.35.1
     #   jsonschema-specifications
 requests==2.32.3
     # via
+    #   django-anymail
     #   django-oauth-toolkit
     #   dvc
     #   dvc-studio-client
@@ -685,6 +689,8 @@ ruamel-yaml==0.18.6
     #   dvc
     #   dvc-pandas
     #   gto
+ruamel-yaml-clib==0.2.12
+    # via ruamel-yaml
 s3cmd==2.4.0
     # via -r requirements.in
 s3fs==2024.10.0
@@ -763,6 +769,7 @@ typer==0.15.1
     # via gto
 typing-extensions==4.12.2
     # via
+    #   anyio
     #   asyncssh
     #   django-pydantic-field
     #   django-stubs-ext
@@ -773,6 +780,7 @@ typing-extensions==4.12.2
     #   jwcrypto
     #   opentelemetry-sdk
     #   pint
+    #   psycopg
     #   psycopg-pool
     #   pydantic
     #   pydantic-core
@@ -793,6 +801,7 @@ uritemplate==4.1.1
 urllib3==2.2.3
     # via
     #   botocore
+    #   django-anymail
     #   dulwich
     #   pygithub
     #   requests

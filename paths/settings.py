@@ -14,6 +14,7 @@ from django.utils.translation import gettext_lazy as _
 import environ
 from corsheaders.defaults import default_headers as default_cors_headers
 
+from kausal_common import ENV_SCHEMA as COMMON_ENV_SCHEMA, register_settings as register_common_settings
 from kausal_common.deployment import set_secret_file_vars
 from kausal_common.sentry.init import init_sentry
 
@@ -40,8 +41,6 @@ env = environ.FileAwareEnv(
     STATIC_URL=(str, '/static/'),
     SENTRY_DSN=(str, ''),
     COOKIE_PREFIX=(str, PROJECT_NAME),
-    SERVER_EMAIL=(str, 'noreply@kausal.tech'),
-    DEFAULT_FROM_EMAIL=(str, 'noreply@kausal.tech'),
     INTERNAL_IPS=(list, []),
     HOSTNAME_INSTANCE_DOMAINS=(list, ['localhost']),
     CONFIGURE_LOGGING=(bool, True),
@@ -62,6 +61,7 @@ env = environ.FileAwareEnv(
     GITHUB_APP_ID=(str, ''),
     GITHUB_APP_PRIVATE_KEY=(str, ''),
     MOUNTED_SECRET_PATHS=(list, []),
+    **COMMON_ENV_SCHEMA,
 )
 
 BASE_DIR = root()
@@ -469,6 +469,10 @@ WATCH_DEFAULT_API_BASE_URL = env('WATCH_DEFAULT_API_BASE_URL')
 # Information needed to authentiacte as a GitHub App
 GITHUB_APP_ID = env('GITHUB_APP_ID')
 GITHUB_APP_PRIVATE_KEY = env('GITHUB_APP_PRIVATE_KEY')
+
+register_common_settings(locals())
+# Put type hints for stuff registered in register_common_settings here because mypy doesn't figure it out
+# ...
 
 if find_spec('kausal_paths_extensions') is not None:
     INSTALLED_APPS.append('kausal_paths_extensions')
