@@ -8,9 +8,10 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2025-01-24 10:00+0100\n"
-"PO-Revision-Date: 2025-01-24 08:59+0000\n"
+"PO-Revision-Date: 2025-01-24 10:20+0000\n"
 "Last-Translator: Bernhard Bliem <bernhard.bliem@kausal.tech>\n"
-"Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>\n"
+"Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>"
+"\n"
 "Language: de\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -37,7 +38,7 @@ msgstr "Allgemeiner Admin"
 #: admin_site/templates/wagtailadmin/home.html
 #, python-format
 msgid "Welcome to Paths admin, %(first_name)s %(last_name)s"
-msgstr ""
+msgstr "Willkommen bei Paths Admin, %(first_name)s %(last_name)s"
 
 #: admin_site/templates/wagtailadmin/login.html
 msgid "Sign in to Kausal Paths admin"
@@ -109,43 +110,45 @@ msgstr "Datenquellen"
 
 #: frameworks/models.py
 msgid "Name"
-msgstr ""
+msgstr "Name"
 
 #: frameworks/models.py
 msgid "High"
-msgstr ""
+msgstr "Hoch"
 
 #: frameworks/models.py
 msgid "Medium"
-msgstr ""
+msgstr "Mittel"
 
 #: frameworks/models.py
 msgid "Low"
-msgstr ""
+msgstr "Niedrig"
 
 #: frameworks/roles.py
 msgid "Framework admins"
-msgstr ""
+msgstr "Framework-Admins"
 
 #: frameworks/roles.py
 msgid "Framework viewers"
-msgstr ""
+msgstr "Framework-Betrachter"
 
 #: frameworks/schema.py
 msgid "Public URL for instance dashboard"
-msgstr ""
+msgstr "Öffentliche URL für Instanz-Dashboard"
 
 #: frameworks/schema.py
 msgid "URL for downloading a results file"
-msgstr ""
+msgstr "URL zum Herunterladen einer Ergebnisdatei"
 
 #: frameworks/schema.py
 msgid "Identifier for the model instance. Needs to be unique."
-msgstr ""
+msgstr "Kennung für die Modellinstanz. Muss eindeutig sein."
 
 #: frameworks/schema.py
 msgid "Name for the framework configuration instance. Typically the name of the organization."
 msgstr ""
+"Name für die Framework-Konfigurationsinstanz. Üblicherweise der Name der "
+"Organisation."
 
 #: frameworks/schema.py
 msgid "UUID for the new framework config. If not set, will be generated automatically."
@@ -157,7 +160,7 @@ msgstr ""
 
 #: frameworks/schema.py
 msgid "The created framework config instance."
-msgstr ""
+msgstr "Die erstellte Framework-Konfigurationsinstanz."
 
 #: frameworks/schema.py
 msgid "ID of the organization-specific framework instance"
@@ -184,18 +187,16 @@ msgid "ID (or UUID) of the measure template within a framework"
 msgstr ""
 
 #: kausal_common/models/modification_tracking.py
-#, fuzzy
-#| msgid "created at"
 msgid "Created at"
-msgstr "erstellt am"
+msgstr "Erstellt am"
 
 #: kausal_common/models/modification_tracking.py
 msgid "Last modified by"
-msgstr ""
+msgstr "Zuletzt geändert von"
 
 #: kausal_common/models/modification_tracking.py
 msgid "Last modified at"
-msgstr ""
+msgstr "Zuletzt geändert am"
 
 #: kausal_common/models/ordered.py
 msgid "order"
