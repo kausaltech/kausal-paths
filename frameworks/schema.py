@@ -343,7 +343,7 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
         )
 
     ok = graphene.Boolean(required=True)
-    framework_config = graphene.Field(FrameworkConfigType, description=_("The created framework config instance."))
+    framework_config = graphene.Field(FrameworkConfigType, description=_("The created framework config instance"))
 
     @classmethod
     def _get_fw(cls, info: GQLInfo, framework_id: str) -> Framework:
@@ -512,7 +512,9 @@ class UpdateMeasureDataPoint(graphene.Mutation):
         measure_template_id = graphene.ID(required=True, description=_("ID of the measure template within a framework"))
         value = graphene.Float(required=False, description=_("Value for the data point (set to null to remove)"))
         year = graphene.Int(
-            description=_("Year of the data point. If not given, defaults to the baseline year for the framework instance"),
+            description=_(
+                "Year of the data point. If not given, defaults to the baseline year for the framework instance."
+            ),
             required=False,
         )
         internal_notes = graphene.String(description=_("Internal notes for the measure instance"), required=False)
@@ -565,7 +567,7 @@ class UpdateMeasureDataPoint(graphene.Mutation):
 class MeasureDataPointInput(graphene.InputObjectType):
     value = graphene.Float(required=False, description=_("Value for the data point (set to null to remove)"))
     year = graphene.Int(
-        description=_("Year of the data point. If not given, defaults to the baseline year for the framework instance"),
+        description=_("Year of the data point. If not given, defaults to the baseline year for the framework instance."),
         required=False,
     )
 
@@ -695,7 +697,7 @@ class CreateNZCFrameworkConfigMutation(graphene.Mutation):
         nzc_data = NZCCityEssentialData(required=True)
 
     ok = graphene.Boolean(required=True)
-    framework_config = graphene.Field(FrameworkConfigType, description=_("The created framework config instance."))
+    framework_config = graphene.Field(FrameworkConfigType, description=_("The created framework config instance"))
 
     @staticmethod
     def mutate(

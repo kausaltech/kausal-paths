@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-24 10:00+0100\n"
+"POT-Creation-Date: 2025-01-24 12:59+0100\n"
 "PO-Revision-Date: 2024-12-09 16:20+0000\n"
 "Last-Translator: DeepL <noreply-mt-deepl@weblate.org>\n"
 "Language-Team: Greek <https://weblate.kausal.tech/projects/paths/django/el/>\n"
@@ -156,7 +156,9 @@ msgid "Name of the organization. If not set, it will be determined through the u
 msgstr "Όνομα του οργανισμού. Εάν δεν έχει οριστεί, θα προσδιοριστεί μέσω των διαπιστευτηρίων του χρήστη, εάν είναι δυνατόν."
 
 #: frameworks/schema.py
-msgid "The created framework config instance."
+#, fuzzy
+#| msgid "The created framework config instance."
+msgid "The created framework config instance"
 msgstr "Η δημιουργημένη περίπτωση παραμέτρων πλαισίου."
 
 #: frameworks/schema.py
@@ -172,7 +174,9 @@ msgid "Value for the data point (set to null to remove)"
 msgstr "Τιμή για το σημείο δεδομένων (μηδενίζεται για να αφαιρεθεί)"
 
 #: frameworks/schema.py
-msgid "Year of the data point. If not given, defaults to the baseline year for the framework instance"
+#, fuzzy
+#| msgid "Year of the data point. If not given, defaults to the baseline year for the framework instance"
+msgid "Year of the data point. If not given, defaults to the baseline year for the framework instance."
 msgstr "Έτος του σημείου δεδομένων. Εάν δεν δοθεί, προεπιλογή είναι το έτος αναφοράς για την περίπτωση του πλαισίου."
 
 #: frameworks/schema.py
@@ -1284,6 +1288,9 @@ msgstr "δημιουργήθηκε στο"
 #: paths/utils.py
 msgid "updated at"
 msgstr "ενημερώνεται στο"
+
+#~ msgid "Year of the data point. If not given, defaults to the baseline year for the framework instance"
+#~ msgstr "Έτος του σημείου δεδομένων. Εάν δεν δοθεί, προεπιλογή είναι το έτος αναφοράς για την περίπτωση του πλαισίου."
 
 #~ msgid "Welcome to Paths admin"
 #~ msgstr "Καλώς ήρθατε στο Paths"

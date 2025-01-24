@@ -7,11 +7,10 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-24 10:00+0100\n"
+"POT-Creation-Date: 2025-01-24 12:59+0100\n"
 "PO-Revision-Date: 2025-01-24 10:20+0000\n"
 "Last-Translator: Bernhard Bliem <bernhard.bliem@kausal.tech>\n"
-"Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>"
-"\n"
+"Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>\n"
 "Language: de\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -146,9 +145,7 @@ msgstr "Kennung für die Modellinstanz. Muss eindeutig sein."
 
 #: frameworks/schema.py
 msgid "Name for the framework configuration instance. Typically the name of the organization."
-msgstr ""
-"Name für die Framework-Konfigurationsinstanz. Üblicherweise der Name der "
-"Organisation."
+msgstr "Name für die Framework-Konfigurationsinstanz. Üblicherweise der Name der Organisation."
 
 #: frameworks/schema.py
 msgid "UUID for the new framework config. If not set, will be generated automatically."
@@ -159,7 +156,9 @@ msgid "Name of the organization. If not set, it will be determined through the u
 msgstr ""
 
 #: frameworks/schema.py
-msgid "The created framework config instance."
+#, fuzzy
+#| msgid "The created framework config instance."
+msgid "The created framework config instance"
 msgstr "Die erstellte Framework-Konfigurationsinstanz."
 
 #: frameworks/schema.py
@@ -175,7 +174,7 @@ msgid "Value for the data point (set to null to remove)"
 msgstr ""
 
 #: frameworks/schema.py
-msgid "Year of the data point. If not given, defaults to the baseline year for the framework instance"
+msgid "Year of the data point. If not given, defaults to the baseline year for the framework instance."
 msgstr ""
 
 #: frameworks/schema.py

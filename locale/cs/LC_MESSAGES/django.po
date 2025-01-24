@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-24 10:00+0100\n"
+"POT-Creation-Date: 2025-01-24 12:59+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Claude <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -164,7 +164,7 @@ msgid "Name of the organization. If not set, it will be determined through the u
 msgstr ""
 
 #: frameworks/schema.py
-msgid "The created framework config instance."
+msgid "The created framework config instance"
 msgstr ""
 
 #: frameworks/schema.py
@@ -180,7 +180,7 @@ msgid "Value for the data point (set to null to remove)"
 msgstr ""
 
 #: frameworks/schema.py
-msgid "Year of the data point. If not given, defaults to the baseline year for the framework instance"
+msgid "Year of the data point. If not given, defaults to the baseline year for the framework instance."
 msgstr ""
 
 #: frameworks/schema.py

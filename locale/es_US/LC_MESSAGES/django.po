@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-24 10:00+0100\n"
+"POT-Creation-Date: 2025-01-24 12:59+0100\n"
 "PO-Revision-Date: 2024-10-10 10:20+0000\n"
 "Last-Translator: Matias Wargelin <matias.wargelin@kausal.tech>\n"
 "Language-Team: Spanish (American) <https://weblate.kausal.tech/projects/paths/django/es_US/>\n"
@@ -158,7 +158,9 @@ msgid "Name of the organization. If not set, it will be determined through the u
 msgstr "Nombre de la organización. Si no se establece, se determinará a través de las credenciales del usuario, si es posible."
 
 #: frameworks/schema.py
-msgid "The created framework config instance."
+#, fuzzy
+#| msgid "The created framework config instance."
+msgid "The created framework config instance"
 msgstr "La instancia de framework config creada."
 
 #: frameworks/schema.py
@@ -174,7 +176,9 @@ msgid "Value for the data point (set to null to remove)"
 msgstr "Valor del punto de datos (se establece en null para eliminarlo)"
 
 #: frameworks/schema.py
-msgid "Year of the data point. If not given, defaults to the baseline year for the framework instance"
+#, fuzzy
+#| msgid "Year of the data point. If not given, defaults to the baseline year for the framework instance"
+msgid "Year of the data point. If not given, defaults to the baseline year for the framework instance."
 msgstr "Año del punto de datos. Si no se indica, por defecto es el año de referencia para la instancia marco."
 
 #: frameworks/schema.py
@@ -1264,6 +1268,9 @@ msgstr "creado en"
 #: paths/utils.py
 msgid "updated at"
 msgstr "actualizado en"
+
+#~ msgid "Year of the data point. If not given, defaults to the baseline year for the framework instance"
+#~ msgstr "Año del punto de datos. Si no se indica, por defecto es el año de referencia para la instancia marco."
 
 #~ msgid "Welcome to Paths admin"
 #~ msgstr "Bienvenido a Paths admin"
