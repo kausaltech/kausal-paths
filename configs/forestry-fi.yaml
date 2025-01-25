@@ -318,6 +318,53 @@ nodes:
   #     value: 37100000000
   #   - year: 2050
   #     value: 0.0
+
+- id: keep_forest_industry_alive
+  name: Forest industry must be kept alive
+  type: values.ThresholdNode
+  input_nodes:
+  - id: forestry_product_sales
+    from_dimensions:
+    - id: stakeholder
+      categories: [industry]
+      flatten: true
+    - id: cost_type
+      categories: [economic]
+      flatten: true
+  params:
+  - id: threshold
+    value: 900
+    unit: MEUR/a
+  - id: use_input_node_unit_when_adding
+    value: true
+
+- id: get_rid_of_peat
+  name: Get rid of peat production
+  type: values.ThresholdNode
+  input_nodes:
+  - id: emission_change_from_peat_reduction
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: stakeholder
+      flatten: true
+  params:
+  - id: threshold
+    value: 200
+    unit: kt/a
+  - id: use_input_node_unit_when_adding
+    value: true
+
+- id: success_by_climate_aware_industrialist
+  name: Success as defined by climate-aware industrialist
+  type: values.LogicalNode
+  input_nodes:
+  - id: keep_forest_industry_alive
+    tags: [and]
+  - id: get_rid_of_peat
+    tags: [and]
+
 # ---------------------------- Global level nodes -----------
 
 - id: global_emissions

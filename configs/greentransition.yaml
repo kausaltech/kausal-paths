@@ -1333,16 +1333,15 @@ nodes:
   description: Law requires municipalities to build necessary infrastructure. There
     must be at least a certain amount of charging stations. The graph shows the year
     when the goal is reached.
-  quantity: fraction
-  type: values.LogicalNode
-  unit: dimensionless
+  type: values.ThresholdNode
   params:
-  - id: threshold1
+  - id: threshold
     value: 430
     unit: pcs
+  - id: use_input_node_unit_when_adding
+    value: true
   input_nodes:
   - id: charging_stations
-    tags: [threshold1]
 
 - id: energy_company_profit
   name: Sähköyhtiön tuotot latauspisteistä

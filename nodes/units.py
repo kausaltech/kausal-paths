@@ -268,7 +268,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     MMBtu = 1e6 Btu
     standard_cubic_feet = 0.01 therm = scf
     diesel_gallon_equivalent = 0.1385 MMBtu = DGE
-    vehicle = [vehicle] = v
+    vehicle = [vehicle] = v = car
     passenger = [passenger] = p = pass = trip
     vkm = vehicle * kilometer
     pkm = passenger * kilometer

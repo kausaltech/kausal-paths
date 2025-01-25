@@ -1,32 +1,39 @@
-from nodes.calc import extend_last_historical_value_pl, nafill_all_forecast_years
-from params.param import Parameter, BoolParameter, NumberParameter, ParameterWithUnit, StringParameter
-from typing import List, ClassVar, Tuple
-import polars as pl
-import pandas as pd
-import pint
-import functools
+from __future__ import annotations
 
-from common.i18n import TranslatedString
-from common import polars as ppl
-from .constants import VALUE_COLUMN, IMPACT_COLUMN, IMPACT_GROUP
-from .node import Node
-from .simple import SimpleNode, AdditiveNode, MultiplicativeNode
-from .actions.simple import AdditiveAction
+import functools
+from typing import TYPE_CHECKING
+
+from django.utils.translation import gettext_lazy as _
+
+import polars as pl
+
+from nodes.calc import extend_last_historical_value_pl
+from nodes.units import Unit
+from params.param import NumberParameter
+
 from .actions.action import ActionNode
-from .units import Quantity
+from .constants import VALUE_COLUMN
 from .exceptions import NodeError
+from .simple import AdditiveNode, MultiplicativeNode, SimpleNode
+
+if TYPE_CHECKING:
+    from common import polars as ppl
+
+    from .node import Node
 
 
 class UtilityNode(AdditiveNode):
-    '''
+    """
     Utility nodes take in outcome nodes and value weight parameters.
+
     They produce a dataframe showing the value-weighted sums of outcomes.
     Cost-effectiveness can be implemented if a decision criterion is known, e.g. 50 €/t.
     Then, emissions and cost are put to an equal scale by multiplying
     cost by 0.02 1/EUR and emissions by 1 1/t, resulting in a scale
     where cost-effective scenarios show value < 0 when cumulated over the time span.
     Therefore, in this case, the threshold parameter should get value 0.
-    '''
+    """
+
     allowed_parameters = AdditiveNode.allowed_parameters + [
         NumberParameter(
             local_id='impact_threshold',
@@ -93,7 +100,7 @@ class UtilityNode(AdditiveNode):
         dfs = [x for x in dfs if x is not None]
         df = functools.reduce(lambda df1, df2: join_and_sum(df1, df2), [df for df in dfs])
         return df
-    
+
     def compute(self) -> ppl.PathsDataFrame:
         nodes: list[Node] = []
 
@@ -125,7 +132,7 @@ class UtilityNode(AdditiveNode):
 
 
 class AssociationNode(SimpleNode):  # FIXME Use AdditiveNode for compatible units
-    '''
+    explanation = _("""
     Association nodes connect to their upstream nodes in a loose way:
     Their values follow the relative changes of the input nodes but
     their quantities and units are not dependent on those of the input nodes.
@@ -133,7 +140,8 @@ class AssociationNode(SimpleNode):  # FIXME Use AdditiveNode for compatible unit
     Fractions 1..3 can be used to tell how much the input node should adjust
     the output node. The default relation is "increase", if "decrease" is used,
     that must be explicitly said in the tags.
-    '''
+    """)
+
     allowed_parameters = MultiplicativeNode.allowed_parameters + [
         NumberParameter(local_id='fraction1', label='Fraction for node 1', is_customizable=False),
         NumberParameter(local_id='fraction2', label='Fraction for node 2', is_customizable=False),
@@ -157,6 +165,8 @@ class AssociationNode(SimpleNode):  # FIXME Use AdditiveNode for compatible unit
                 with default.override():
                     mean_in = node.get_output_pl(target_node=self)[m].mean()
                 mean_out = df[VALUE_COLUMN].mean()
+                assert isinstance(mean_in, float)
+                assert isinstance(mean_out, float)
 
                 if abs(mean_in) > 0.01:  # Relative adjustment makes no sense when too close to zero.
                     multiplier = fraction * mean_out / mean_in
@@ -168,58 +178,113 @@ class AssociationNode(SimpleNode):  # FIXME Use AdditiveNode for compatible unit
                 dfn = node.get_output_pl(target_node=self)
                 df = df.paths.join_over_index(dfn, how='outer', index_from='union')
                 df = df.with_columns(pl.col(m + '_right').fill_null(0))
-                df = df.with_columns((
+                df = df.with_columns(
                     pl.col(m) + pl.lit(multiplier) * pl.col(m + '_right').alias(m)
-                    )).drop(m + '_right')
+                    ).drop(m + '_right')
 
         df = self.maybe_drop_nulls(df)
         return df
 
 
-class LogicalNode(MultiplicativeNode):
-    '''
-    LogicalNode takes in logical values (either 0 or 1) and gives an output 0 or 1
-    based on the Boolean operators (and, or) given as tags. The operator of an edge is used
-    between this and the previous input node; therefore, the boolean of the first node is ignored.
-    Note! The ordering of input nodes is the ordering of the logical operators.
-    If the input is not logical, a threshold can be used to check whether the value is equal or above
-    the threshold; this becomes the logical value. There are three threshold parameters available:
-    threshold1, threshold2, and threshold3. If there is a threshold tag, the respective parameter
-    must be found.
-    Tag "not" can be used to invert the logical values.
-    '''
-    allowed_parameters = MultiplicativeNode.allowed_parameters + [
-        NumberParameter(local_id='threshold1', label='Threshold for trigger 1', is_customizable=False),
-        NumberParameter(local_id='threshold2', label='Threshold for trigger 2', is_customizable=False),
-        NumberParameter(local_id='threshold3', label='Threshold for trigger 3', is_customizable=False)
+class LogicalNode(SimpleNode):
+    explanation = _(
+        """
+        This is a LogicalNode.
+
+        It will take in logical inputs (with values 1 (True)
+        or False (0)). Then it will operate Boolean AND or OR operators
+        depending on the tags used. The 'and' tag is critical; otherwise 'or' is assumed.
+        AND operations are performed first, then the OR operations. If you want more complex
+        structures, use several subsequent nodes.
+        """
+    )
+    allowed_parameters = [
+        *SimpleNode.allowed_parameters,
     ]
+    quantity = 'fraction'
+    unit = Unit('dimensionless')
+
+    def _validate_input(self, df: ppl.PathsDataFrame) -> None:
+        if not df[VALUE_COLUMN].is_in([0, 1]).all():
+            raise ValueError("Input values must be either 0 or 1")
+
+    def _process_nodes(self, df: ppl.PathsDataFrame | None, nodes: list[Node],
+                       boolean_and: bool) -> ppl.PathsDataFrame | None:
+        if nodes:
+            for n in nodes:
+                df2 = n.get_output_pl(target_node=self)
+                self._validate_input(df2)
+                if df is None:
+                    df = df2
+                elif boolean_and:
+                    df = df.paths.join_over_index(df2, how='inner', index_from='union')
+                    assert df is not None
+                    df = df.with_columns([
+                        pl.col(VALUE_COLUMN) * pl.col(VALUE_COLUMN + '_right')
+                    ]).drop(VALUE_COLUMN + '_right')
+                else:
+                    df = df.paths.join_over_index(df2, how='outer', index_from='union')
+                    assert df is not None
+                    df = df.with_columns(
+                        pl.max_horizontal(
+                            pl.col([VALUE_COLUMN, VALUE_COLUMN + '_right']).fill_null(0.0)
+                    )).drop(VALUE_COLUMN + '_right')
+
+        return df
 
     def compute(self) -> ppl.PathsDataFrame:
-        df = None
-        for edge in self.edges:
-            if edge.output_node is self:
-                node = edge.input_node
-                dfn = node.get_output_pl(target_node=self)
-                m = VALUE_COLUMN  # FIXME use default metric instead
+        if not self.input_nodes:
+            raise ValueError("LogicalNode requires at least one input node")
+        and_nodes: list[Node] = []
+        or_nodes: list[Node] = []
+        df: ppl.PathsDataFrame | None = None
+        for n in self.input_nodes:
+            tags: list[str] | None = None
+            for edge in n.edges:
+                if edge.output_node == self:
+                    tags = edge.tags
+                    break
+            if 'and' in (tags or []):
+                and_nodes.append(n)
+            else:
+                or_nodes.append(n)
 
-                for thr in ['threshold1', 'threshold2', 'threshold3']:
-                    if thr in edge.tags:
-                        threshold = self.get_parameter_value(thr, units=True, required=True)
-                        dfn = dfn.ensure_unit(m, threshold.units)
-                        dfn = dfn.with_columns((pl.col(m) >= pl.lit(threshold.m)).alias(m))
-                dfn = dfn.clear_unit(m).set_unit(m, 'dimensionless')
-                if 'not' in edge.tags:
-                    dfn = dfn.with_columns(pl.col(m).not_().alias(m))
-                if df is None:
-                    df = dfn
-                else:
-                    df = df.paths.join_over_index(dfn, how='outer', index_from='union')
-                    if 'and' in edge.tags:
-                        df = df.with_columns(pl.all_horizontal(m, m + '_right').alias(m))
-                    elif 'or' in edge.tags:
-                        df = df.with_columns(pl.any_horizontal(m, m + '_right').alias(m))
-                    else:
-                        raise NodeError(self, 'You must give a boolean tag (and, or) for all input nodes except the first')
-                    df = df.drop(m + '_right')
-        df = df.with_columns((pl.col(m) * pl.lit(1)).alias(m))
+        df = self._process_nodes(df, nodes=and_nodes, boolean_and=True)
+        df = self._process_nodes(df, nodes=or_nodes, boolean_and=False)
+        assert df is not None
+
+        return df
+
+
+class ThresholdNode(AdditiveNode):
+    explanation = _(
+        """
+        ThresholdNode computes the preliminary result like a regular AdditiveNode.
+        Then it gives True (1) if the result if the preliminary result is grater
+        than or equal to the threshold, otherwise False (0).
+        """
+    )
+    allowed_parameters = [
+        *AdditiveNode.allowed_parameters,
+        NumberParameter(
+            local_id='threshold',
+            label='Gives 1 (True) if the preliminary output is >= threshold',
+            is_customizable=True
+        ),
+    ]
+    quantity = 'fraction'
+    unit = Unit('dimensionless')
+
+    def compute(self) -> ppl.PathsDataFrame:
+        df = AdditiveNode.compute(self)
+        threshold = self.get_parameter_value('threshold', units=True, required=True)
+        u = str(threshold.units)
+        df = df.ensure_unit(VALUE_COLUMN, u)
+        df = df.with_columns([
+            pl.when(pl.col(VALUE_COLUMN) >= pl.lit(threshold.m))
+            .then(1.0)
+            .otherwise(0.0).alias(VALUE_COLUMN)
+        ])
+        df = df.clear_unit(VALUE_COLUMN).set_unit(VALUE_COLUMN, 'dimensionless')
+
         return df
