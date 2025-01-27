@@ -324,7 +324,8 @@ def _make_data_dimension(
     return mdim
 
 
-def _generate_output_data(node: Node, dims: list[MetricDimension], df: ppl.PathsDataFrame) -> MetricData:
+def _generate_output_data(node: Node, dims: list[MetricDimension], df: ppl.PathsDataFrame,
+                          dropped_not_filled: bool = False) -> MetricData:
     if df.paths.index_has_duplicates():
         raise NodeError(node, 'DataFrame index has duplicates')
 
@@ -350,7 +351,11 @@ def _generate_output_data(node: Node, dims: list[MetricDimension], df: ppl.Paths
     jdf = idx_df.join(df, how='left', on=idx_exprs, validate='1:1')
     assert len(df.metric_cols) == 1
     metric_col = df.metric_cols[0]
-    vals: list[float] = jdf[metric_col].fill_null(0).to_list()
+    vals: list[float]
+    if dropped_not_filled:
+        vals = jdf[metric_col].drop_nulls().to_list()
+    else:
+        vals = jdf[metric_col].fill_null(0).to_list()
     return MetricData(
         years=years,
         values=vals,
@@ -507,7 +512,7 @@ def metric_from_visualization(node: Node, visualization: VisualizationNodeOutput
         dims.append(data_dim)
 
     unit = df.get_unit(df.metric_cols[0])
-    data = _generate_output_data(node, dims, df)
+    data = _generate_output_data(node, dims, df, dropped_not_filled=True)
     dm = DimensionalMetric(
         id='%s:%s' % (node.id, visualization.id),
         name=str(node.name),

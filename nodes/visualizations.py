@@ -145,7 +145,7 @@ class VisualizationNodeOutput(VisualizationEntry):
         df = node.get_output_pl()
         if self.output_metric_id is not None:
             m = node.output_metrics[self.output_metric_id]
-            df = df.select_metrics(m.id, rename=VALUE_COLUMN)
+            df = df.select_metrics(m.id, rename=VALUE_COLUMN)  # FIXME Shouldn't this be after the if statement?
         else:
             m = node.get_default_output_metric()
 
