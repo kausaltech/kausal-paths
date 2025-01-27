@@ -12,7 +12,8 @@ repos:
 
       - id: check-submodules
         name: Check submodules
-        entry: ./.hooks/check-submodules
-        language: script
         stages: [pre-push]
         types: [directory]
+        language: script
+        require_serial: true
+        entry: kausal_common/development/git-hooks/check-submodules.sh
