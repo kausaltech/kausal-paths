@@ -1,0 +1,200 @@
+dimensions:
+- id: diet
+  label: Diet
+  categories:
+  - id: current_average
+    label: Current average
+  - id: flexitarian
+    label: Flexitarian
+  - id: pescetarian
+    label: Pescetarian
+  - id: vegetarian
+    label: Vegetarian
+  - id: vegan
+    label: Vegan
+
+- id: material
+  label: Material
+  categories:
+  - id: concrete
+    label: Concrete
+  - id: steel
+    label: Steel
+  - id: plastics
+    label: Plastics
+  - id: aluminium
+    label: Aluminium
+
+nodes:
+
+# --------------- Other emissions ----------
+
+- id: emissions_from_other_sectors
+  name_en: Emissions from other sectors
+  name_fi: Päästöt muilta sektoreilta
+  type: gpc.DatasetNode
+  color: '#76B7B2'
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [scope, cost_type, ghg]
+  output_dimensions: [scope, cost_type, ghg]
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: sector
+      categories: [other]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Emissions from other sectors
+
+# --------------- Scope 3 ------------------
+
+- id: building_material_shares
+  name_en: Building material shares
+  name_fi: Rakennusmateriaalien osuudet
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [material]
+  output_dimensions: [material]
+  input_datasets: [gpc/athens_nzc]
+  params:
+    sector: Materials as share of total mass
+
+- id: building_materials_used_in_new_buildings
+  name_en: Building material used in new buildings
+  name_fi: Uudisrakennuksissa käytetyt rakennusmateriaalit
+  type: gpc.DatasetNode
+  quantity: mass
+  unit: t/m**2
+  input_datasets: [gpc/athens_nzc]
+  params:
+    sector: Tonnes material used in for new buildings (2010)
+
+- id: building_materials_used_by_material
+  name_en: Building materials used by material
+  name_fi: Käytetyt rakennusmateriaalit materiaaleittain
+  type: simple.MultiplicativeNode
+  quantity: mass
+  unit: t/m**2
+  input_dimensions: [material]
+  output_dimensions: [material]
+  input_nodes:
+  - id: building_materials_used_in_new_buildings
+    tags: [non_additive]
+    to_dimensions: []
+  - id: building_material_shares
+    to_dimensions:
+    - id: material
+
+- id: building_construction_material_use
+  name_en: Building construction material use
+  name_fi: Rakennusmateriaalien käyttö rakentamisessa
+  type: simple.MultiplicativeNode
+  quantity: mass
+  unit: kt/a
+  input_dimensions: [building_energy_class, material]
+  output_dimensions: [building_energy_class, material]
+  input_nodes:
+  - id: new_building_stock
+    to_dimensions:
+    - id: building_energy_class
+  - id: building_materials_used_by_material
+    to_dimensions:
+    - id: material
+
+- id: tonnes_material_used_for_renovations
+  name_en: Tonnes material used for renovations
+  name_fi: Tonnia materiaalia käytetty peruskorjauksiin
+  type: gpc.DatasetNode
+  quantity: mass
+  unit: t/m**2
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets: [gpc/athens_nzc]
+  params:
+  - id: sector
+    value: Tonnes material used for renovations
+
+- id: building_renovation_material_use
+  name_en: Building renovation material use
+  name_fi: Rakennusmateriaalien käyttö peruskorjauksissa
+  type: simple.MultiplicativeNode
+  quantity: mass
+  unit: kt/a
+  input_dimensions: [building_energy_class, material]
+  output_dimensions: [building_energy_class, material]
+  input_nodes:
+  - id: renovated_building_stock
+    from_dimensions:
+    - id: building_energy_class
+      categories: [minor_renovation, major_renovation]
+    to_dimensions:
+    - id: building_energy_class
+  - id: tonnes_material_used_for_renovations
+    to_dimensions:
+    - id: building_energy_class
+  - id: building_material_shares
+    to_dimensions:
+    - id: material
+
+- id: building_material_use
+  name_en: Building material use
+  name_fi: Rakennusmateriaalien käyttö
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: kt/a
+  input_dimensions: [building_energy_class, material]
+  output_dimensions: [building_energy_class, material]
+  input_nodes:
+  - id: building_construction_material_use
+  - id: building_renovation_material_use
+
+- id: building_material_unit_price
+  name_en: Building material unit price
+  name_fi: Rakennusmateriaalien yksikköhinta
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/t
+  input_dimensions: [material]
+  output_dimensions: [material]
+  input_datasets: [gpc/athens_nzc]
+  params:
+    sector: Production costs per tonne
+
+- id: building_material_cost
+  name_en: Building material cost
+  name_fi: Rakennusmateriaalikustannukset
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [material, stakeholder, cost_type]
+  output_dimensions: [material, stakeholder, cost_type]
+  input_nodes:
+  - id: building_material_use
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    to_dimensions:
+    - id: material
+  - id: building_material_unit_price
+    to_dimensions:
+    - id: material
+  - id: new_building_cost_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+  output_nodes:
+  - id: building_cost
+    from_dimensions:
+    - id: material
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder

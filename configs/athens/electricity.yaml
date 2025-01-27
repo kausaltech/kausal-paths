@@ -1,0 +1,691 @@
+nodes:
+
+# -------------------- Electricity consumption ---------------------
+
+- id: total_electricity_consumption_uncorr
+  name_en: Total electricity consumption, uncorrected
+  name_fi: Sähkön kokonaiskulutus, korjaamaton
+  description_en: Consumption is not corrected for the actual consumption statistics.
+  description_fi: Kulutusta ei ole korjattu todellisten kulutustilastojen mukaan.
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+
+- id: total_electricity_consumption
+  name_en: Total electricity consumption
+  name_fi: Sähkön kokonaiskulutus
+  description_en: These consumption values are corrected for actual consumption statistics,
+    if the global parameter <i>Statistical correction</i> is turned on.
+  description_fi: Nämä kulutusarvot on korjattu todellisten kulutustilastojen mukaan,
+    jos globaali parametri <i>Tilastollinen korjaus</i> on käytössä.
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: total_electricity_consumption_uncorr
+    tags: [non_additive]
+
+- id: total_electricity_production
+  name_en: Total electricity production by shares
+  name_fi: Sähköntuotannon kokonaismäärä osuuksittain
+  description_en: These production values are corrected for actual consumption statistics,
+    if the global parameter <i>Statistical correction</i> is turned on.
+  description_fi: Nämä tuotantoarvot on korjattu todellisten kulutustilastojen mukaan,
+    jos globaali parametri <i>Tilastollinen korjaus</i> on käytössä.
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier, fuel_type]
+  output_dimensions: [energy_carrier, fuel_type]
+  input_nodes:
+  - id: total_electricity_consumption
+    tags: [non_additive]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+  - id: electricity_shares
+    to_dimensions:
+    - id: energy_carrier
+    - id: fuel_type
+
+- id: total_electricity_emissions
+  name_en: Total electricity emissions including air pollutants
+  name_fi: Sähköntuotannon kokonaispäästöt, mukaan lukien ilmansaasteet
+  type: simple.MultiplicativeNode
+  quantity: mass
+  unit: kt/a
+  input_dimensions: [pollutant, energy_carrier, sector]
+  output_dimensions: [pollutant, energy_carrier, sector]
+  input_nodes:
+  - id: total_electricity_consumption
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
+  - id: effective_electricity_emission_factor
+    to_dimensions:
+    - id: pollutant
+    - id: energy_carrier
+
+- id: electricity_emissions
+  name_en: Electricity emissions
+  name_fi: Sähköntuotannon päästöt
+  type: simple.AdditiveNode
+  color: '#B07AA1'
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: total_electricity_emissions
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: ghg
+      categories: [co2e]
+    - id: scope
+      categories: [scope2]
+    - id: sector
+
+- id: historical_electricity_consumption
+  name_en: Historical electricity consumption
+  name_fi: historiallinen sähkönkulutus
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: gpc/athens_nzc
+  input_nodes:
+  - id: population
+    tags: [ratio_to_last_historical_value, non_additive]
+    to_dimensions: []
+  params:
+    sector: Total electricity demand within city boundaries
+
+- id: statistical_electricity_consumption
+  name_en: Statistical electricity consumption
+  name_fi: Tilastollinen sähkönkulutus
+  type: simple.ChooseInputNode
+  quantity: energy
+  unit: GWh/a
+  is_visible: false
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: historical_electricity_consumption
+    tags: [progress_tracking]
+  - id: total_electricity_consumption
+    tags: [decarbonisation_scenario] 
+    from_dimensions:
+    - id: sector
+      flatten: true
+  params:
+    node_tag: decarbonisation_scenario
+
+- id: electricity_consumption_ratio
+  name_en: Electricity consumption ratio between statistics and modelled
+  name_fi: Sähkönkulutuksen suhde tilastojen ja mallinnetun välillä
+  type: simple.MultiplicativeNode
+  quantity: ratio
+  unit: dimensionless
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: historical_electricity_consumption
+    to_dimensions:
+    - id: energy_carrier
+  - id: total_electricity_consumption_uncorr
+    tags: [geometric_inverse]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+
+- id: electricity_correction
+  name_en: Electricity statistics correction
+  name_fi: Sähkötilastojen korjaus
+  type: gpc.CorrectionNode2 # TODO Use the total historical average rather than the last historical point
+  quantity: ratio
+  unit: dimensionless
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: electricity_consumption_ratio
+    tags: [inventory_only, extend_values]
+  params:
+  - id: do_correction
+    ref: statistical_correction
+  output_nodes:
+  - id: total_electricity_consumption
+    to_dimensions:
+    - id: energy_carrier
+
+- id: electricity_production_emission_factor
+  name_en: Electricity production emission factor
+  name_fi: Sähköntuotannon päästökerroin
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [pollutant, energy_carrier]
+  output_dimensions: [pollutant, energy_carrier]
+  input_datasets: [gpc/athens_nzc]
+  params:
+    sector: Emission factors from electricity generation
+
+- id: electricity_production_unit_price
+  name_en: Electricity production unit_price
+  name_fi: Sähköntuotannon yksikköhinta
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets: [gpc/athens_nzc]
+  params:
+    sector: Spot price electricity
+
+- id: consumer_electricity_unit_price
+  name_en: Consumer electricity unit_price
+  name_fi: Kuluttajan sähkön yksikköhinta
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets: [gpc/athens_nzc]
+  params:
+    sector: Retail price of electricity
+
+- id: electricity_consumption_cost
+  name_en: Electricity consumption cost
+  name_fi: Sähkön kulutuksen kustannukset
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [energy_carrier, stakeholder, cost_type]
+  output_dimensions: [energy_carrier, stakeholder, cost_type]
+  input_nodes:
+  - id: consumer_electricity_unit_price
+    to_dimensions:
+    - id: energy_carrier
+  - id: total_electricity_consumption
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: stakeholder
+      categories: [citizens]  # FIXME Actually affects other stakeholders as well
+    - id: cost_type
+      categories: [opex]
+  output_nodes:
+  - id: electricity_cost
+
+# ----------- Electricity production ----------------
+
+- id: effective_electricity_emission_factor
+  name_en: Effective electricity emission factor
+  name_fi: Sähköntuotannon efektiivinen päästökerroin
+  description_en: The effective electricity emission factor depends on amounts and emission factors of all electricity production modes.
+  description_fi: Sähköntuotannon efektiivinen päästökerroin riippuu kaikkien sähköntuotantomuotojen määristä ja päästökertoimista.
+  type: simple.MultiplicativeNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [energy_carrier, pollutant]
+  output_dimensions: [energy_carrier, pollutant]
+  input_nodes:
+  - id: electricity_production_emission_factor
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+    - id: pollutant
+  - id: electricity_shares
+    tags: [ratio_to_last_historical_value]
+    from_dimensions:
+    - id: fuel_type
+      categories: [fossil]
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+  params:
+    replace_nans: 0.0
+
+- id: new_electricity_production_capacity
+  name_en: New electricity production capacity
+  name_fi: Uusi sähköntuotantokapasiteetti
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a**2
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_nodes:
+  - id: total_electricity_production
+    tags: [difference, non_additive, make_nonnegative]
+    from_dimensions:
+    - id: fuel_type
+      categories: [non_fossil]
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+  - id: new_electricity_production_shares
+    from_dimensions:
+    - id: fuel_type
+      categories: [fossil]
+      exclude: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: fuel_type
+
+- id: existing_electricity_production
+  name_en: Existing electricity production
+  name_fi: Olemassa oleva sähköntuotanto
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: total_electricity_production
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+  - id: new_renewable_electricity_production
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+
+- id: electricity_production_cost
+  name_en: Electricity production cost
+  name_fi: Sähköntuotannon kustannukset
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, cost_type, energy_carrier]
+  output_dimensions: [stakeholder, cost_type, energy_carrier]
+  input_nodes:
+  - id: electricity_production_unit_price
+    to_dimensions:
+    - id: energy_carrier
+  - id: existing_electricity_production
+    to_dimensions:
+    - id: energy_carrier
+  - id: existing_electricity_cost_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+  output_nodes:
+  - id: electricity_cost
+
+- id: new_renewable_electricity_production
+  name_en: New renewable electricity production
+  name_fi: Uusi uusiutuva sähköntuotanto
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_nodes:
+  - id: new_electricity_production_capacity
+    tags: [cumulative]
+    to_dimensions:
+    - id: fuel_type
+    - id: energy_carrier
+
+# -------------- Electricity production costs ---------------
+
+- id: operating_unit_price_for_renewables
+  name_en: Operating cost for renewables
+  name_fi: Uusiutuvien käyttökustannukset
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: [cost_type, fuel_type, energy_carrier]
+  output_dimensions: [cost_type, fuel_type, energy_carrier]
+  input_datasets: [gpc/athens_nzc]
+  params:
+    sector: Operating cost for renewables
+
+- id: renewable_electricity_operating_cost
+  name_en: Renewable electricity operating cost
+  name_fi: Uusiutuvan sähkön käyttökustannukset
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, cost_type, fuel_type, energy_carrier]
+  output_dimensions: [stakeholder, cost_type, fuel_type, energy_carrier]
+  input_nodes:
+  - id: operating_unit_price_for_renewables
+    to_dimensions:
+    - id: cost_type
+    - id: fuel_type
+    - id: energy_carrier
+  - id: new_renewable_electricity_production
+    to_dimensions:
+    - id: fuel_type
+    - id: energy_carrier
+  - id: renewable_electricity_shares
+    from_dimensions:
+    - id: cost_type
+      categories: [opex]
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: fuel_type
+  output_nodes:
+  - id: electricity_cost
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+
+- id: electricity_air_pollution_cost
+  name_en: Electricity air pollution cost
+  name_fi: Sähköntuotannon ilmansaasteiden kustannukset
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [pollutant, energy_carrier, cost_type, stakeholder]
+  output_dimensions: [pollutant, energy_carrier, cost_type, stakeholder]
+  input_nodes:
+  - id: total_electricity_emissions
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: pollutant
+  - id: air_pollution_unit_price
+    from_dimensions:
+    - id: area_distance
+      categories: [outside]
+      flatten: true
+    to_dimensions:
+    - id: pollutant
+    - id: cost_type
+  - id: co_benefit_cost_shares
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+  output_nodes:
+  - id: electricity_cost
+    from_dimensions:
+    - id: pollutant
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+    - id: energy_carrier
+
+- id: effective_electricity_production_hours
+  name_en: Effective electricity production hours
+  name_fi: Sähköntuotannon todelliset tunnit
+  type: gpc.DatasetNode
+  quantity: ratio
+  unit: h/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets: [gpc/athens_nzc]
+  params:
+    sector: Assumed uptime of wind/solar
+
+- id: job_demand_of_renewables
+  name_en: Job demand of renewables
+  name_fi: Uusiutuvien työvoiman tarve
+  description_en: Are these jobs permanent or do they relate to the building phase of PV? Now we assume that they are permanent and accumulate.
+  description_fi: Ovatko nämä työpaikat pysyviä vai liittyvätkö ne aurinkopaneelien rakennusvaiheeseen? Nyt oletamme, että ne ovat pysyviä ja kertyvät.
+  type: gpc.DatasetNode
+  quantity: demand_factor
+  unit: jobs/MW
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets: [gpc/athens_nzc]
+  params:
+    sector: Jobs created per MW
+
+- id: jobs_created_by_renewables
+  name_en: Jobs created by renewables
+  name_fi: Uusiutuvien luomat työpaikat
+  description_en: Cumulative number of existing jobs due to renewables
+  description_fi: Uusiutuvien energialähteiden ansiosta olevien työpaikkojen kertyvä määrä
+  type: simple.MultiplicativeNode
+  quantity: employment
+  unit: jobs
+  # is_outcome: true
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_nodes:
+  - id: new_renewable_electricity_production
+    to_dimensions:
+    - id: energy_carrier
+    - id: fuel_type
+  - id: job_demand_of_renewables
+    to_dimensions:
+    - id: energy_carrier
+  - id: effective_electricity_production_hours
+    tags: [geometric_inverse]
+    to_dimensions:
+    - id: energy_carrier
+  output_nodes:
+  - id: total_jobs_created
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
+- id: new_electricity_production_shares
+  name_en: New electricity production shares
+  name_fi: Uuden sähköntuotannon osuudet
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_datasets: [gpc/athens_nzc]
+  params:
+    sector: Distribution of type of new renewables
+
+- id: electricity_production_shares_historical
+  name_en: Electricity production shares historical
+  name_fi: Sähköntuotannon historialliset osuudet
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Share of total electricity demand produced by fossil/renewables
+
+- id: electricity_production_shares
+  name_en: Electricity production shares
+  name_fi: Sähköntuotannon osuudet
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_nodes:
+  - id: electricity_production_shares_historical
+
+- id: renewable_electricity_upfront_price
+  name_en: Renewable electricity upfront price
+  name_fi: Uusiutuvan sähkön etukäteishinta
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: [fuel_type, energy_carrier, cost_type]
+  output_dimensions: [fuel_type, energy_carrier, cost_type]
+  input_datasets: [gpc/athens_nzc]
+  params:
+    sector: 'PV: Upfront investment cost'
+
+- id: renewable_electricity_shares
+  name_en: Renewable electricity cost shares
+  name_fi: Uusiutuvan sähkön kustannusosuudet
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [fuel_type, stakeholder, cost_type]
+  output_dimensions: [fuel_type, stakeholder, cost_type]
+  input_datasets: [gpc/athens_nzc]
+  params:
+    sector: solar panel costs
+  output_nodes:
+  - id: renewable_electricity_investment_cost
+    to_dimensions:
+    - id: fuel_type
+    - id: stakeholder
+    - id: cost_type
+
+- id: renewable_electricity_investment_cost
+  name_en: Renewable electricity investment cost
+  name_fi: Uusiutuvan sähkön investointikustannukset
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [fuel_type, energy_carrier, cost_type, stakeholder]
+  output_dimensions: [fuel_type, energy_carrier, cost_type, stakeholder]
+  input_nodes:
+  - id: new_electricity_production_capacity
+    to_dimensions:
+    - id: fuel_type
+    - id: energy_carrier
+  - id: renewable_electricity_upfront_price
+    to_dimensions:
+    - id: fuel_type
+    - id: energy_carrier
+    - id: cost_type
+  - id: multiplier_node  # TODO
+    to_dimensions: []
+
+- id: multiplier_node  # TODO Improve
+  name_en: Multiplier node
+  name_fi: Kerroinsolmu
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: a
+  historical_values: [[2018, 1], [2023, 1]]
+
+- id: electricity_cost
+  name_en: Electricity cost
+  name_fi: Sähkön kustannukset
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  color: '#377eb8'
+  input_dimensions: [energy_carrier, cost_type, stakeholder]
+  output_dimensions: [energy_carrier, cost_type, stakeholder]
+  input_nodes:
+  - id: renewable_electricity_investment_cost
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+  output_nodes:
+  - id: total_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+
+- id: existing_electricity_cost_shares
+  name_en: Existing electricity cost shares
+  name_fi: Nykyisen sähkön kustannusosuudet
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_datasets: [gpc/athens_nzc]
+  params:
+    sector: fossil/current electricity supply
+
+- id: fossil_electricity_goal
+  name_en: Fossil electricity reduction goal
+  name_fi: Fossiilisen sähkön vähennystavoite
+  description_en: Share of current fossil production replaced by renewables (or nuclear)
+  description_fi: Osuus nykyisestä fossiilisesta tuotannosta, joka korvataan uusiutuvilla energialähteillä (tai ydinvoimalla)
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Share of current fossil production replaced by renewables (or nuclear)
+
+- id: fossil_electricity_shares_goal
+  name_en: Fossil electricity shares goal
+  name_fi: Fossiilisen sähkön osuuksien tavoite
+  type: simple.MultiplicativeNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_nodes:
+  - id: electricity_production_shares_historical
+    tags: [non_additive]
+  - id: fossil_electricity_goal
+    tags: [non_additive, complement]
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+    to_dimensions:
+    - id: fuel_type
+      categories: [fossil]
+    - id: energy_carrier
+
+- id: electricity_shares_goal  # TODO Why does the graph not make sense?!?
+  name_en: Electricity shares goal
+  name_fi: Sähkön osuuksien tavoite
+  type: simple.FillNewCategoryNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_nodes:
+  - id: electricity_production_shares_historical
+    from_dimensions:
+    - id: fuel_type
+      categories: [other]
+  - id: fossil_electricity_shares_goal
+  params:
+    new_category: 'fuel_type:non_fossil'
+    drop_nans: true
+
+- id: electricity_shares
+  name_en: Electricity shares
+  name_fi: Sähkön osuudet
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Share of total electricity demand produced by fossil/renewables
+

@@ -1,0 +1,1519 @@
+dimensions:
+- id: industry___activity
+  label: Industry / Activity
+  categories:
+  - id: construction
+    label: 'Construction'
+  - id: food_industry
+    label: 'Food Industry'
+  - id: gardening
+    label: 'Gardening'
+  - id: industry
+    label: 'Industry'
+
+- id: building___infrastructure_type
+  label: Building / Infrastructure Type
+  categories:
+  - id: commercial_buildings
+    label: 'Commercial Buildings'
+  - id: municipal_buildings_
+    label: 'Municipal Buildings '
+  - id: municipal_buildings_sports_halls_and_other_infra
+    label: 'Municipal Buildings, Sports Halls, & Other Infra'
+  - id: public_buildings
+    label: 'Public Buildings'
+  - id: street_lighting
+    label: 'Street Lighting'
+
+- id: transport_activity
+  label: Transport Activity
+  categories:
+  - id: inboundary_travel
+    label: 'Inboundary Travel'
+  - id: inboundary_travel_t_and_d_losses
+    label: 'Inboundary Travel (T & D Losses)'
+  - id: outboundary_travel
+    label: 'Outboundary Travel'
+  - id: outboundary_travel_t_and_d_losses
+    label: 'Outboundary Travel (T & D Losses)'
+
+- id: afolu_activity
+  label: AFOLU Activity
+  categories:
+  - id: goats_livestock
+    label: 'Goats (Livestock)'
+  - id: goats_manure
+    label: 'Goats (Manure)'
+  - id: managed_soils
+    label: 'Managed Soils'
+  - id: urea_fertilization
+    label: 'Urea Fertilization'
+
+nodes:
+- id: grid_energy_emission_factor
+  name: Grid Energy Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/MWh
+  input_dimensions: ['ghg', 'energy_carrier']
+  output_dimensions: ['ghg', 'energy_carrier']
+  params:
+    gpc_sector: I.1.2
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+    filters:
+    - column: Scope
+      value: 'Scope 2'
+      drop_col: true
+  output_nodes:
+  - id: i12_residential_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+  - id: i13_residential_t_and_d_loss_consumption_emissions
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+  - id: i22_commercial_and_institutional_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+  - id: i23_commercial_and_institutional_t_and_d_loss_consumption_emissions
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+  - id: i32_manufacturing_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+  - id: i33_manufacturing_t_and_d_loss_consumption_emissions
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+  - id: i52_ag_forestry_and_fishing_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+  - id: i53_ag_forestry_and_fishing_t_and_d_loss_consumption_emissions
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+  - id: ii12_onroad_transport_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+  - id: ii22_railway_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+
+
+- id: i11_residential_fuel_combustion
+  name: I.1.1 Residential Fuel Combustion
+  type: gpc.DatasetNode
+  quantity: fuel_consumption
+  unit: TJ/a
+  input_dimensions: ['energy_carrier', 'scope']
+  output_dimensions: ['energy_carrier', 'scope']
+  params:
+    gpc_sector: I.1.1
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: i11_residential_fuel_combustion_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+
+- id: i11_residential_fuel_combustion_emissions
+  name: I.1.1 Residential Fuel Combustion Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: i1_residential_total_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+- id: i11_residential_fuel_emission_factor
+  name: I.1.1 Residential Fuel Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/TJ
+  input_dimensions: ['ghg', 'energy_carrier', 'scope']
+  output_dimensions: ['ghg', 'energy_carrier', 'scope']
+  params:
+    gpc_sector: I.1.1
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: i11_residential_fuel_combustion_emissions
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+    - id: scope
+
+
+- id: i12_residential_grid_energy_consumption
+  name: I.1.2 Residential Grid Energy Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: ['energy_carrier', 'scope']
+  output_dimensions: ['energy_carrier', 'scope']
+  params:
+    gpc_sector: I.1.2
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: i12_residential_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+
+- id: i12_residential_grid_energy_consumption_emissions
+  name: I.1.2 Residential Grid Energy Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: i1_residential_total_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+
+- id: i13_residential_t_and_d_loss_consumption
+  name: I.1.3 Residential T & D Loss Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: ['energy_carrier', 'scope']
+  output_dimensions: ['energy_carrier', 'scope']
+  params:
+    gpc_sector: I.1.3
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: i13_residential_t_and_d_loss_consumption_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+
+- id: i13_residential_t_and_d_loss_consumption_emissions
+  name: I.1.3 Residential T & D Loss Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: i1_residential_total_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+
+- id: i21_commercial_and_institutional_fuel_combustion
+  name: I.2.1 Commercial & Institutional Fuel Combustion
+  type: gpc.DatasetNode
+  quantity: fuel_consumption
+  unit: TJ/a
+  input_dimensions: ['building___infrastructure_type', 'energy_carrier', 'scope']
+  output_dimensions: ['building___infrastructure_type', 'energy_carrier', 'scope']
+  params:
+    gpc_sector: I.2.1
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: i21_commercial_and_institutional_fuel_combustion_emissions
+    to_dimensions:
+    - id: building___infrastructure_type
+    - id: energy_carrier
+    - id: scope
+
+- id: i21_commercial_and_institutional_fuel_combustion_emissions
+  name: I.2.1 Commercial & Institutional Fuel Combustion Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['building___infrastructure_type', 'energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['building___infrastructure_type', 'energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: i2_commercial_and_institutional_total_emissions
+    to_dimensions:
+    - id: building___infrastructure_type
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+- id: i21_commercial_and_institutional_fuel_emission_factor
+  name: I.2.1 Commercial & Institutional Fuel Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/TJ
+  input_dimensions: ['ghg', 'energy_carrier', 'scope']
+  output_dimensions: ['ghg', 'energy_carrier', 'scope']
+  params:
+    gpc_sector: I.2.1
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: i21_commercial_and_institutional_fuel_combustion_emissions
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+    - id: scope
+
+
+- id: i22_commercial_and_institutional_grid_energy_consumption
+  name: I.2.2 Commercial & Institutional Grid Energy Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: ['building___infrastructure_type', 'energy_carrier', 'scope']
+  output_dimensions: ['building___infrastructure_type', 'energy_carrier', 'scope']
+  params:
+    gpc_sector: I.2.2
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: i22_commercial_and_institutional_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: building___infrastructure_type
+    - id: energy_carrier
+    - id: scope
+
+- id: i22_commercial_and_institutional_grid_energy_consumption_emissions
+  name: I.2.2 Commercial & Institutional Grid Energy Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['building___infrastructure_type', 'energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['building___infrastructure_type', 'energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: i2_commercial_and_institutional_total_emissions
+    to_dimensions:
+    - id: building___infrastructure_type
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+
+- id: i23_commercial_and_institutional_t_and_d_loss_consumption
+  name: I.2.3 Commercial & Institutional T & D Loss Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: ['building___infrastructure_type', 'energy_carrier', 'scope']
+  output_dimensions: ['building___infrastructure_type', 'energy_carrier', 'scope']
+  params:
+    gpc_sector: I.2.3
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: i23_commercial_and_institutional_t_and_d_loss_consumption_emissions
+    to_dimensions:
+    - id: building___infrastructure_type
+    - id: energy_carrier
+    - id: scope
+
+- id: i23_commercial_and_institutional_t_and_d_loss_consumption_emissions
+  name: I.2.3 Commercial & Institutional T & D Loss Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['building___infrastructure_type', 'energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['building___infrastructure_type', 'energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: i2_commercial_and_institutional_total_emissions
+    to_dimensions:
+    - id: building___infrastructure_type
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+
+- id: i31_manufacturing_fuel_combustion
+  name: I.3.1 Manufacturing Fuel Combustion
+  type: gpc.DatasetNode
+  quantity: fuel_consumption
+  unit: TJ/a
+  input_dimensions: ['industry___activity', 'energy_carrier', 'scope']
+  output_dimensions: ['industry___activity', 'energy_carrier', 'scope']
+  params:
+    gpc_sector: I.3.1
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: i31_manufacturing_fuel_combustion_emissions
+    to_dimensions:
+    - id: industry___activity
+    - id: energy_carrier
+    - id: scope
+
+- id: i31_manufacturing_fuel_combustion_emissions
+  name: I.3.1 Manufacturing Fuel Combustion Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['industry___activity', 'energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['industry___activity', 'energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: i3_manufacturing_total_emissions
+    to_dimensions:
+    - id: industry___activity
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+- id: i31_manufacturing_fuel_emission_factor
+  name: I.3.1 Manufacturing Fuel Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/TJ
+  input_dimensions: ['ghg', 'energy_carrier', 'scope']
+  output_dimensions: ['ghg', 'energy_carrier', 'scope']
+  params:
+    gpc_sector: I.3.1
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: i31_manufacturing_fuel_combustion_emissions
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+    - id: scope
+
+
+- id: i32_manufacturing_grid_energy_consumption
+  name: I.3.2 Manufacturing Grid Energy Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: ['industry___activity', 'energy_carrier', 'scope']
+  output_dimensions: ['industry___activity', 'energy_carrier', 'scope']
+  params:
+    gpc_sector: I.3.2
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: i32_manufacturing_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: industry___activity
+    - id: energy_carrier
+    - id: scope
+
+- id: i32_manufacturing_grid_energy_consumption_emissions
+  name: I.3.2 Manufacturing Grid Energy Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['industry___activity', 'energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['industry___activity', 'energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: i3_manufacturing_total_emissions
+    to_dimensions:
+    - id: industry___activity
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+
+- id: i33_manufacturing_t_and_d_loss_consumption
+  name: I.3.3 Manufacturing T & D Loss Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: ['industry___activity', 'energy_carrier', 'scope']
+  output_dimensions: ['industry___activity', 'energy_carrier', 'scope']
+  params:
+    gpc_sector: I.3.3
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: i33_manufacturing_t_and_d_loss_consumption_emissions
+    to_dimensions:
+    - id: industry___activity
+    - id: energy_carrier
+    - id: scope
+
+- id: i33_manufacturing_t_and_d_loss_consumption_emissions
+  name: I.3.3 Manufacturing T & D Loss Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['industry___activity', 'energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['industry___activity', 'energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: i3_manufacturing_total_emissions
+    to_dimensions:
+    - id: industry___activity
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+
+- id: i52_ag_forestry_and_fishing_grid_energy_consumption
+  name: I.5.2 Ag, Forestry, & Fishing Grid Energy Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: ['industry___activity', 'energy_carrier', 'scope']
+  output_dimensions: ['industry___activity', 'energy_carrier', 'scope']
+  params:
+    gpc_sector: I.5.2
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: i52_ag_forestry_and_fishing_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: industry___activity
+    - id: energy_carrier
+    - id: scope
+
+- id: i52_ag_forestry_and_fishing_grid_energy_consumption_emissions
+  name: I.5.2 Ag, Forestry, & Fishing Grid Energy Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['industry___activity', 'energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['industry___activity', 'energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: i5_ag_forestry_and_fishing_total_emissions
+    to_dimensions:
+    - id: industry___activity
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+
+- id: i53_ag_forestry_and_fishing_t_and_d_loss_consumption
+  name: I.5.3 Ag, Forestry, & Fishing T & D Loss Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: ['industry___activity', 'energy_carrier', 'scope']
+  output_dimensions: ['industry___activity', 'energy_carrier', 'scope']
+  params:
+    gpc_sector: I.5.3
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: i53_ag_forestry_and_fishing_t_and_d_loss_consumption_emissions
+    to_dimensions:
+    - id: industry___activity
+    - id: energy_carrier
+    - id: scope
+
+- id: i53_ag_forestry_and_fishing_t_and_d_loss_consumption_emissions
+  name: I.5.3 Ag, Forestry, & Fishing T & D Loss Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['industry___activity', 'energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['industry___activity', 'energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: i5_ag_forestry_and_fishing_total_emissions
+    to_dimensions:
+    - id: industry___activity
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+
+- id: i81_fugitive_oil_and_natural_gas_combustion
+  name: I.8.1 Fugitive Oil & Natural Gas Combustion
+  type: gpc.DatasetNode
+  quantity: fuel_consumption
+  unit: m³/a
+  input_dimensions: ['energy_carrier', 'scope']
+  output_dimensions: ['energy_carrier', 'scope']
+  params:
+    gpc_sector: I.8.1
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: i81_fugitive_oil_and_natural_gas_combustion_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+
+- id: i81_fugitive_oil_and_natural_gas_combustion_emissions
+  name: I.8.1 Fugitive Oil & Natural Gas Combustion Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: i8_fugitive_oil_and_natural_gas_total_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+- id: i81_fugitive_oil_and_natural_gas_emission_factor
+  name: I.8.1 Fugitive Oil & Natural Gas Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/m³
+  input_dimensions: ['ghg', 'energy_carrier', 'scope']
+  output_dimensions: ['ghg', 'energy_carrier', 'scope']
+  params:
+    gpc_sector: I.8.1
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: i81_fugitive_oil_and_natural_gas_combustion_emissions
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+    - id: scope
+
+
+- id: ii11_onroad_transport_fuel_combustion
+  name: II.1.1 On-Road Transport Fuel Combustion
+  type: gpc.DatasetNode
+  quantity: fuel_consumption
+  unit: TJ/a
+  input_dimensions: ['transport_mode', 'transport_activity', 'energy_carrier', 'scope']
+  output_dimensions: ['transport_mode', 'transport_activity', 'energy_carrier', 'scope']
+  params:
+    gpc_sector: II.1.1
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: ii11_onroad_transport_fuel_combustion_emissions
+    to_dimensions:
+    - id: transport_mode
+    - id: transport_activity
+    - id: energy_carrier
+    - id: scope
+
+- id: ii11_onroad_transport_fuel_combustion_emissions
+  name: II.1.1 On-Road Transport Fuel Combustion Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['transport_mode', 'transport_activity', 'energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['transport_mode', 'transport_activity', 'energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: ii1_onroad_transport_total_emissions
+    to_dimensions:
+    - id: transport_mode
+    - id: transport_activity
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+- id: ii11_onroad_transport_fuel_emission_factor
+  name: II.1.1 On-Road Transport Fuel Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/TJ
+  input_dimensions: ['ghg', 'energy_carrier', 'scope']
+  output_dimensions: ['ghg', 'energy_carrier', 'scope']
+  params:
+    gpc_sector: II.1.1
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: ii11_onroad_transport_fuel_combustion_emissions
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+    - id: scope
+
+
+- id: ii12_onroad_transport_grid_energy_consumption
+  name: II.1.2 On-Road Transport Grid Energy Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: ['transport_mode', 'transport_activity', 'energy_carrier', 'scope']
+  output_dimensions: ['transport_mode', 'transport_activity', 'energy_carrier', 'scope']
+  params:
+    gpc_sector: II.1.2
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: ii12_onroad_transport_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: transport_mode
+    - id: transport_activity
+    - id: energy_carrier
+    - id: scope
+
+- id: ii12_onroad_transport_grid_energy_consumption_emissions
+  name: II.1.2 On-Road Transport Grid Energy Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['transport_mode', 'transport_activity', 'energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['transport_mode', 'transport_activity', 'energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: ii1_onroad_transport_total_emissions
+    to_dimensions:
+    - id: transport_mode
+    - id: transport_activity
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+
+- id: ii13_onroad_transport_outside_city_t_and_d_loss
+  name: II.1.3 On-Road Transport Outside City, T & D Loss
+  type: gpc.DatasetNode
+  quantity: fuel_consumption
+  unit: TJ/a
+  input_dimensions: ['transport_mode', 'transport_activity', 'energy_carrier', 'scope']
+  output_dimensions: ['transport_mode', 'transport_activity', 'energy_carrier', 'scope']
+  params:
+    gpc_sector: II.1.3
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: ii13_onroad_transport_outside_city_t_and_d_loss_emissions
+    to_dimensions:
+    - id: transport_mode
+    - id: transport_activity
+    - id: energy_carrier
+    - id: scope
+
+- id: ii13_onroad_transport_outside_city_t_and_d_loss_emissions
+  name: II.1.3 On-Road Transport Outside City, T & D Loss Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['transport_mode', 'transport_activity', 'energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['transport_mode', 'transport_activity', 'energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: ii1_onroad_transport_total_emissions
+    to_dimensions:
+    - id: transport_mode
+    - id: transport_activity
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+- id: ii13_onroad_transport_outside_city_t_and_d_loss_emission_factor
+  name: II.1.3 On-Road Transport Outside City, T & D Loss Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/TJ
+  input_dimensions: ['ghg', 'energy_carrier', 'scope']
+  output_dimensions: ['ghg', 'energy_carrier', 'scope']
+  params:
+    gpc_sector: II.1.3
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: ii13_onroad_transport_outside_city_t_and_d_loss_emissions
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+    - id: scope
+
+
+- id: ii21_railway_fuel_combustion
+  name: II.2.1 Railway Fuel Combustion
+  type: gpc.DatasetNode
+  quantity: fuel_consumption
+  unit: TJ/a
+  input_dimensions: ['transport_mode', 'transport_activity', 'energy_carrier', 'scope']
+  output_dimensions: ['transport_mode', 'transport_activity', 'energy_carrier', 'scope']
+  params:
+    gpc_sector: II.2.1
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: ii21_railway_fuel_combustion_emissions
+    to_dimensions:
+    - id: transport_mode
+    - id: transport_activity
+    - id: energy_carrier
+    - id: scope
+
+- id: ii21_railway_fuel_combustion_emissions
+  name: II.2.1 Railway Fuel Combustion Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['transport_mode', 'transport_activity', 'energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['transport_mode', 'transport_activity', 'energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: ii2_railway_total_emissions
+    to_dimensions:
+    - id: transport_mode
+    - id: transport_activity
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+- id: ii21_railway_fuel_emission_factor
+  name: II.2.1 Railway Fuel Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/TJ
+  input_dimensions: ['ghg', 'energy_carrier', 'scope']
+  output_dimensions: ['ghg', 'energy_carrier', 'scope']
+  params:
+    gpc_sector: II.2.1
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: ii21_railway_fuel_combustion_emissions
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+    - id: scope
+
+
+- id: ii22_railway_grid_energy_consumption
+  name: II.2.2 Railway Grid Energy Consumption
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: ['transport_mode', 'transport_activity', 'energy_carrier', 'scope']
+  output_dimensions: ['transport_mode', 'transport_activity', 'energy_carrier', 'scope']
+  params:
+    gpc_sector: II.2.2
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: ii22_railway_grid_energy_consumption_emissions
+    to_dimensions:
+    - id: transport_mode
+    - id: transport_activity
+    - id: energy_carrier
+    - id: scope
+
+- id: ii22_railway_grid_energy_consumption_emissions
+  name: II.2.2 Railway Grid Energy Consumption Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['transport_mode', 'transport_activity', 'energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['transport_mode', 'transport_activity', 'energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: ii2_railway_total_emissions
+    to_dimensions:
+    - id: transport_mode
+    - id: transport_activity
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+
+- id: ii23_railway_outside_city_t_and_d_loss
+  name: II.2.3 Railway Outside City, T & D Loss
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: TJ/a
+  input_dimensions: ['transport_mode', 'transport_activity', 'energy_carrier', 'scope']
+  output_dimensions: ['transport_mode', 'transport_activity', 'energy_carrier', 'scope']
+  params:
+    gpc_sector: II.2.3
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: ii23_railway_outside_city_t_and_d_loss_emissions
+    to_dimensions:
+    - id: transport_mode
+    - id: transport_activity
+    - id: energy_carrier
+    - id: scope
+
+- id: ii23_railway_outside_city_t_and_d_loss_emissions
+  name: II.2.3 Railway Outside City, T & D Loss Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['transport_mode', 'transport_activity', 'energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['transport_mode', 'transport_activity', 'energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: ii2_railway_total_emissions
+    to_dimensions:
+    - id: transport_mode
+    - id: transport_activity
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+- id: ii23_railway_outside_city_t_and_d_loss_emission_factor
+  name: II.2.3 Railway Outside City, T & D Loss Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/TJ
+  input_dimensions: ['ghg', 'energy_carrier', 'scope']
+  output_dimensions: ['ghg', 'energy_carrier', 'scope']
+  params:
+    gpc_sector: II.2.3
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: ii23_railway_outside_city_t_and_d_loss_emissions
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+    - id: scope
+
+
+- id: ii43_aviation_outside_city
+  name: II.4.3 Aviation Outside City
+  type: gpc.DatasetNode
+  quantity: fuel_consumption
+  unit: TJ/a
+  input_dimensions: ['transport_mode', 'energy_carrier', 'scope']
+  output_dimensions: ['transport_mode', 'energy_carrier', 'scope']
+  params:
+    gpc_sector: II.4.3
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: ii43_aviation_outside_city_emissions
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+    - id: scope
+
+- id: ii43_aviation_outside_city_emissions
+  name: II.4.3 Aviation Outside City Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['transport_mode', 'energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['transport_mode', 'energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: ii4_aviation_total_emissions
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+- id: ii43_aviation_outside_city_emission_factor
+  name: II.4.3 Aviation Outside City Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/TJ
+  input_dimensions: ['ghg', 'energy_carrier', 'scope']
+  output_dimensions: ['ghg', 'energy_carrier', 'scope']
+  params:
+    gpc_sector: II.4.3
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: ii43_aviation_outside_city_emissions
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+    - id: scope
+
+
+- id: iii12_solid_waste_disposed_outside_city_emission_factor
+  name: III.1.2 Solid Waste Disposed outside City Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/t
+  input_dimensions: ['ghg', 'scope']
+  output_dimensions: ['ghg', 'scope']
+  params:
+    gpc_sector: III.1.2
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: iii12_solid_waste_disposed_outside_city_mass_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+
+- id: iii12_solid_waste_disposed_outside_city_mass
+  name: III.1.2 Solid Waste Disposed outside City Mass
+  type: gpc.DatasetNode
+  quantity: mass
+  unit: t/a
+  input_dimensions: ['scope']
+  output_dimensions: ['scope']
+  params:
+    gpc_sector: III.1.2
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: iii12_solid_waste_disposed_outside_city_mass_emissions
+    tags: [non_additive]
+    to_dimensions:
+    - id: scope
+
+- id: iii12_solid_waste_disposed_outside_city_mass_emissions
+  name: III.1.2 Solid Waste Disposed outside City Mass Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: iii1_solid_waste_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+
+- id: iii22_biological_waste_treated_outside_city_emission_factor
+  name: III.2.2 Biological Waste Treated outside City Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/t
+  input_dimensions: ['ghg', 'scope']
+  output_dimensions: ['ghg', 'scope']
+  params:
+    gpc_sector: III.2.2
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: iii22_biological_waste_treated_outside_city_mass_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+
+- id: iii22_biological_waste_treated_outside_city_mass
+  name: III.2.2 Biological Waste Treated outside City Mass
+  type: gpc.DatasetNode
+  quantity: mass
+  unit: t/a
+  input_dimensions: ['scope']
+  output_dimensions: ['scope']
+  params:
+    gpc_sector: III.2.2
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: iii22_biological_waste_treated_outside_city_mass_emissions
+    tags: [non_additive]
+    to_dimensions:
+    - id: scope
+
+- id: iii22_biological_waste_treated_outside_city_mass_emissions
+  name: III.2.2 Biological Waste Treated outside City Mass Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: iii2_biological_waste_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+
+- id: iii32_incineration_treated_outside_city_emission_factor
+  name: III.3.2 Incineration Treated outside City Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/t
+  input_dimensions: ['ghg', 'waste_type', 'scope']
+  output_dimensions: ['ghg', 'waste_type', 'scope']
+  params:
+    gpc_sector: III.3.2
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: iii32_incineration_treated_outside_city_mass_emissions
+    to_dimensions:
+    - id: ghg
+    - id: waste_type
+    - id: scope
+
+- id: iii32_incineration_treated_outside_city_mass
+  name: III.3.2 Incineration Treated outside City Mass
+  type: gpc.DatasetNode
+  quantity: mass
+  unit: t/a
+  input_dimensions: ['waste_type', 'scope']
+  output_dimensions: ['waste_type', 'scope']
+  params:
+    gpc_sector: III.3.2
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: iii32_incineration_treated_outside_city_mass_emissions
+    tags: [non_additive]
+    to_dimensions:
+    - id: waste_type
+    - id: scope
+
+- id: iii32_incineration_treated_outside_city_mass_emissions
+  name: III.3.2 Incineration Treated outside City Mass Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['waste_type', 'scope', 'ghg']
+  output_dimensions: ['waste_type', 'scope', 'ghg']
+  output_nodes:
+  - id: iii3_incineration_total_emissions
+    to_dimensions:
+    - id: waste_type
+    - id: scope
+    - id: ghg
+
+
+- id: iii42_wastewater_treated_outside_city_emission_factor
+  name: III.4.2 Wastewater Treated outside City Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/t
+  input_dimensions: ['ghg', 'scope']
+  output_dimensions: ['ghg', 'scope']
+  params:
+    gpc_sector: III.4.2
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: iii42_wastewater_treated_outside_city_mass_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+
+- id: iii42_wastewater_treated_outside_city_mass
+  name: III.4.2 Wastewater Treated outside City Mass
+  type: gpc.DatasetNode
+  quantity: mass
+  unit: t/a
+  input_dimensions: ['scope']
+  output_dimensions: ['scope']
+  params:
+    gpc_sector: III.4.2
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: iii42_wastewater_treated_outside_city_mass_emissions
+    tags: [non_additive]
+    to_dimensions:
+    - id: scope
+
+- id: iii42_wastewater_treated_outside_city_mass_emissions
+  name: III.4.2 Wastewater Treated outside City Mass Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: iii4_wastewater_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+
+- id: v1_livestock_emission_factor
+  name: V.1 Livestock Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/cap/a
+  input_dimensions: ['ghg', 'afolu_activity', 'scope']
+  output_dimensions: ['ghg', 'afolu_activity', 'scope']
+  params:
+    gpc_sector: V.1
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: v1_livestock_number_emissions
+    to_dimensions:
+    - id: ghg
+    - id: afolu_activity
+    - id: scope
+
+- id: v1_livestock_number
+  name: V.1 Livestock Number
+  type: gpc.DatasetNode
+  quantity: number
+  unit: cap
+  input_dimensions: ['afolu_activity', 'scope']
+  output_dimensions: ['afolu_activity', 'scope']
+  params:
+    gpc_sector: V.1
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: v1_livestock_number_emissions
+    to_dimensions:
+    - id: afolu_activity
+    - id: scope
+
+- id: v1_livestock_number_emissions
+  name: V.1 Livestock Number Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['afolu_activity', 'scope', 'ghg']
+  output_dimensions: ['afolu_activity', 'scope', 'ghg']
+  output_nodes:
+  - id: v_afolu_total_emissions
+    to_dimensions:
+    - id: afolu_activity
+    - id: scope
+    - id: ghg
+
+
+- id: v3_aggregate_sources_emission_factor
+  name: V.3 Aggregate Sources Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: t/t
+  input_dimensions: ['ghg', 'afolu_activity', 'scope']
+  output_dimensions: ['ghg', 'afolu_activity', 'scope']
+  params:
+    gpc_sector: V.3
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: v3_aggregate_sources_mass_emissions
+    to_dimensions:
+    - id: ghg
+    - id: afolu_activity
+    - id: scope
+
+- id: v3_aggregate_sources_mass
+  name: V.3 Aggregate Sources Mass
+  type: gpc.DatasetNode
+  quantity: mass
+  unit: t/a
+  input_dimensions: ['afolu_activity', 'scope']
+  output_dimensions: ['afolu_activity', 'scope']
+  params:
+    gpc_sector: V.3
+    inventory_only: true
+  input_datasets:
+  - id: gpc/athens
+  output_nodes:
+  - id: v3_aggregate_sources_mass_emissions
+    tags: [non_additive]
+    to_dimensions:
+    - id: afolu_activity
+    - id: scope
+
+- id: v3_aggregate_sources_mass_emissions
+  name: V.3 Aggregate Sources Mass Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['afolu_activity', 'scope', 'ghg']
+  output_dimensions: ['afolu_activity', 'scope', 'ghg']
+  output_nodes:
+  - id: v_afolu_total_emissions
+    to_dimensions:
+    - id: afolu_activity
+    - id: scope
+    - id: ghg
+
+
+- id: i1_residential_total_emissions
+  name: I.1 Residential Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: i_stationary_total_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+- id: i2_commercial_and_institutional_total_emissions
+  name: I.2 Commercial & Institutional Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['building___infrastructure_type', 'energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['building___infrastructure_type', 'energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: i_stationary_total_emissions
+    from_dimensions:
+    - id: building___infrastructure_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+- id: i3_manufacturing_total_emissions
+  name: I.3 Manufacturing Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['industry___activity', 'energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['industry___activity', 'energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: i_stationary_total_emissions
+    from_dimensions:
+    - id: industry___activity
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+- id: i5_ag_forestry_and_fishing_total_emissions
+  name: I.5 Ag, Forestry, & Fishing Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['industry___activity', 'energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['industry___activity', 'energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: i_stationary_total_emissions
+    from_dimensions:
+    - id: industry___activity
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+- id: i8_fugitive_oil_and_natural_gas_total_emissions
+  name: I.8 Fugitive Oil & Natural Gas Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: i_stationary_total_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+- id: i_stationary_total_emissions
+  name: I Stationary Total Emissions
+  type: simple.AdditiveNode
+  color: '#4e79a7'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: net_emissions_inventory
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: ii1_onroad_transport_total_emissions
+  name: II.1 On-Road Transport Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['energy_carrier', 'scope', 'transport_mode', 'transport_activity', 'ghg']
+  output_dimensions: ['energy_carrier', 'scope', 'transport_mode', 'transport_activity', 'ghg']
+  output_nodes:
+  - id: ii_transportation_total_emissions
+    from_dimensions:
+    - id: transport_activity
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+    - id: transport_mode
+    - id: ghg
+
+- id: ii2_railway_total_emissions
+  name: II.2 Railway Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['energy_carrier', 'scope', 'transport_mode', 'transport_activity', 'ghg']
+  output_dimensions: ['energy_carrier', 'scope', 'transport_mode', 'transport_activity', 'ghg']
+  output_nodes:
+  - id: ii_transportation_total_emissions
+    from_dimensions:
+    - id: transport_activity
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+    - id: transport_mode
+    - id: ghg
+
+- id: ii4_aviation_total_emissions
+  name: II.4 Aviation Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['transport_mode', 'energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['transport_mode', 'energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: ii_transportation_total_emissions
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+- id: ii_transportation_total_emissions
+  name: II Transportation Total Emissions
+  type: simple.AdditiveNode
+  color: '#e15759'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['transport_mode', 'energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['transport_mode', 'energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: net_emissions_inventory
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii1_solid_waste_total_emissions
+  name: III.1 Solid Waste Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: iii_waste_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii2_biological_waste_total_emissions
+  name: III.2 Biological Waste Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: iii_waste_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii3_incineration_total_emissions
+  name: III.3 Incineration Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['waste_type', 'scope', 'ghg']
+  output_dimensions: ['waste_type', 'scope', 'ghg']
+  output_nodes:
+  - id: iii_waste_total_emissions
+    from_dimensions:
+    - id: waste_type
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii4_wastewater_total_emissions
+  name: III.4 Wastewater Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: iii_waste_total_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: iii_waste_total_emissions
+  name: III Waste Total Emissions
+  type: simple.AdditiveNode
+  color: '#59A14F'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  output_nodes:
+  - id: net_emissions_inventory
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: v_afolu_total_emissions
+  name: V AFOLU Total Emissions
+  type: simple.AdditiveNode
+  color: '#EDC948'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['afolu_activity', 'scope', 'ghg']
+  output_dimensions: ['afolu_activity', 'scope', 'ghg']
+  output_nodes:
+  - id: net_emissions_inventory
+    from_dimensions:
+    - id: afolu_activity
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+
+- id: net_emissions_inventory
+  name: Net Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['scope', 'ghg']
+  output_dimensions: ['scope', 'ghg']
+  is_outcome: true

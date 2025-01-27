@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import ClassVar, cast
 
 from django.utils.translation import gettext_lazy as _
 
@@ -408,9 +408,11 @@ class SCurveAction(DatasetAction):
     no_effect_value = 0.0
 
     def compute_effect(self) -> ppl.PathsDataFrame:
-        baseline_year = self.context.instance.reference_year
-
         df = self.get_input_node().get_output_pl(target_node=self)
+
+        baseline_year = self.context.instance.reference_year
+        if not baseline_year:
+            baseline_year = cast(int, df.filter(~pl.col(FORECAST_COLUMN))[YEAR_COLUMN].max())
 
         params = self.get_gpc_dataset()
         params = self.drop_unnecessary_levels(params, droplist=['Description'])

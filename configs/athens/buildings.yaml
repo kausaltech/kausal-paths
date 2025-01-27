@@ -1,0 +1,1713 @@
+# Required nodes from outside the framework:
+# net_emissions
+# electricity_production_emission_factor
+# Required dimensions from outside the framework:
+# building_energy_class
+# heating_type
+# ghg
+# scope
+# Required parameters from outside the framework:
+
+dimensions:
+
+- id: building_energy_class
+  label: Building energy class
+  categories:
+  - id: new_standard
+    label: New, standard
+  - id: new_top_performance
+    label: New, top performance
+  - id: old_no_renovations
+    label: Old, no renovation
+  - id: minor_renovation
+    aliases: [minor_renovations]
+    label: Old, minor heating renovation
+  - id: major_renovation
+    aliases: [major_renovations]
+    label: Old, extensive heating renovation
+  - id: no_improvement  # TODO Remove redundant
+    label: No improvement
+  - id: minor_improvements
+    label: Minor improvements
+  - id: aggressive_improvements
+    label: Aggressive improvements
+  - id: moderate_improvements
+    label: Moderate improvements
+  - id: nzeb
+    label: Net zero emission buildings
+  - id: moderate_renovation
+    aliases: [moderate_renovations]
+    label: Moderate renovation
+
+- id: heating_type
+  label: Heating type
+  categories:
+  - id: district_heating
+    label: District heating
+  - id: local_heating
+    label: Local heating
+
+nodes:
+
+# * = data is in the city request dataset
+# Model inputs: 176* 519 257* 254* 532 544 545 272* 273* 278 290 296..299* 302..305* 319..322* 586
+# 3.4 heat generation: (coming from model inputs) 19 25 248 259
+
+- id: building_emissions
+  name_en: Building emissions
+  name_fi: Rakennusten päästöt
+  description_en: 'This module (all nodes upstream) is based on the excel sheets 3.0 - 3.4 Building & heat levers.'
+  description_fi: 'Tämä moduuli (kaikki ylävirtasolmut) perustuu excel-taulukoihin 3.0 - 3.4 Rakennusten ja lämmityksen vipuvaikutukset.'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [ghg, scope]
+  output_dimensions: [ghg, scope]
+  color: '#4E79A7'
+  output_nodes:
+  - id: net_emissions
+    to_dimensions:
+    - id: sector
+      categories: [buildings]
+    - id: ghg
+    - id: scope
+
+# ----------------- Building stock ----------------------
+
+- id: existing_building_stock
+  name_en: Existing building stock
+  name_fi: Nykyinen rakennuskanta
+  description_en: 'Calculations: The logic is that the floor area per inhabitant stays constant. Amount of construction is a fixed fraction of existing building stock and the difference between building stock increase and construction is assumed to be demolished. So, logically, construction must be greater than or equal to population growth.'
+  description_fi: 'Laskelmat: Logiikka on, että kerrosala asukasta kohden pysyy vakiona. Rakentamisen määrä on kiinteä osuus nykyisestä rakennuskannasta, ja rakennuskannan kasvun ja rakentamisen välinen erotus oletetaan purettavaksi. Loogisesti rakentamisen on siis oltava suurempi tai yhtä suuri kuin väestönkasvu.'
+  type: gpc.DatasetNode
+  quantity: floor_area
+  unit: ksqm
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Total floor area (residental & non-residential)
+
+- id: projected_building_stock
+  name_en: Projected building stock
+  name_fi: Ennustettu rakennuskanta
+  type: simple.MultiplicativeNode
+  quantity: floor_area
+  unit: km**2
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_nodes:
+  - id: existing_building_stock
+    tags: [non_additive]
+  - id: population
+    tags: [ratio_to_last_historical_value]
+    to_dimensions: []
+
+- id: new_building_shares_historical
+  name_en: New building shares historical
+  name_fi: Uudisrakentamisen osuudet historiallisesti
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Share of new buildings built
+    inventory_only: true
+
+- id: new_building_shares_goal
+  name_en: New building shares goal
+  name_fi: Uudisrakentamisen osuuksien tavoite
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets: [gpc/athens_nzc]
+  params:
+    sector: Share of new buildings built with high energy efficiency standards
+
+- id: new_building_shares
+  name_en: New building shares
+  name_fi: Uudisrakentamisen osuudet
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets: [gpc/athens_nzc]
+  params:
+    sector: Share of new buildings built
+
+- id: demolition_rate
+  name_en: Demolition rate
+  name_fi: Purkuaste
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%/a'
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+  - id: sector
+    value: Demolition rate existing buildings
+
+- id: demolished_building_stock
+  name_en: Demolished building stock
+  name_fi: Purettu rakennuskanta
+  type: simple.MultiplicativeNode
+  quantity: floor_area
+  unit: km**2/a
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_nodes:
+  - id: projected_building_stock
+    tags: [non_additive]
+  - id: demolition_rate
+
+- id: new_building_stock_total
+  name_en: New building stock total
+  name_fi: Uudisrakennuskannan kokonaismäärä
+  type: simple.AdditiveNode
+  quantity: floor_area
+  unit: km**2/a
+  input_nodes:
+  - id: projected_building_stock
+    tags: [difference]
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    to_dimensions: []
+  - id: demolished_building_stock
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    to_dimensions: []
+
+- id: new_building_stock
+  name_en: New building stock
+  name_fi: Uudisrakennuskanta
+  type: simple.MultiplicativeNode
+  quantity: floor_area
+  unit: km**2/a
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_nodes:
+  - id: new_building_stock_total
+    tags: [non_additive]
+    to_dimensions: []
+  - id: new_building_shares
+
+- id: building_stock
+  name_en: Building stock
+  name_fi: Rakennuskanta
+  description_en: Existing building stock minus demolition plus new construction.
+  description_fi: Nykyinen rakennuskanta vähennettynä purkamisella plus uudisrakentaminen.
+  type: simple.AdditiveNode
+  quantity: floor_area
+  unit: km**2
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_nodes:
+  - id: existing_building_stock
+    tags: [extend_values]
+  - id: new_building_stock
+    tags: [cumulative]
+  - id: demolished_building_stock
+    tags: [arithmetic_inverse, cumulative]
+  - id: renovated_building_stock
+    tags: [extend_values, cumulative]
+    to_dimensions:
+    - id: building_energy_class
+
+- id: old_building_renovation_rate_historical
+  name_en: Old building renovation rate historical
+  name_fi: Vanhojen rakennusten peruskorjausaste historiallisesti
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%/a'
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Share of building stock renovated each year  # This is also rate for appliance efficiency renovations
+
+- id: old_building_renovation_rate_goal
+  name_en: Old building renovation rate goal
+  name_fi: Vanhojen rakennusten peruskorjausasteen tavoite
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%/a'
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Renovation rate - decarbonisation scenario
+
+- id: old_building_renovation_rate
+  name_en: Old building renovation rate
+  name_fi: Vanhojen rakennusten peruskorjausaste
+  description_en: Shifts building stock from non-renovated to minor or agressively renovated stock. The effect is cumulative, i.e. the renovated stock stays permanently in the new category and thus the stock accumulates to renovated categories.
+  description_fi: Siirtää rakennuskantaa ei-peruskorjatuista vähäisesti tai aggressiivisesti peruskorjattuun kantaan. Vaikutus on kumulatiivinen, eli peruskorjattu kanta pysyy pysyvästi uudessa luokassa ja siten kanta kertyy peruskorjattuihin luokkiin.
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%/a'
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Share of building stock renovated each year
+
+- id: renovation_intensity_shares_historical
+  name_en: Renovation intensity shares historical
+  name_fi: Peruskorjausten intensiteetin osuudet historiallisesti
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Renovations Actual share of market in baseline scenario
+
+- id: renovation_intensity_shares_goal
+  name_en: Renovation intensity shares goal
+  name_fi: Peruskorjausten intensiteetin osuuksien tavoite
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Assumed share of type of renovation in lever
+
+- id: renovation_intensity_shares
+  name_en: Renovation intensity shares
+  name_fi: Peruskorjausten intensiteetin osuudet
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_nodes:
+  - id: renovation_intensity_shares_historical
+
+- id: renovated_building_stock
+  name_en: Renovated building stock
+  name_fi: Peruskorjattu rakennuskanta
+  type: simple.MultiplicativeNode
+  quantity: floor_area
+  unit: km**2/a
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_nodes:
+  - id: existing_building_stock
+    tags: [non_additive]
+    from_dimensions:
+    - id: building_energy_class
+      categories: [old_no_renovations]
+      flatten: true
+    to_dimensions: []
+  - id: old_building_renovation_rate
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    to_dimensions: []
+  - id: renovation_intensity_shares
+
+# --------------------- Heating ---------------------
+
+# TODO Rename shares better
+- id: total_building_heat_energy_use  # TODO Calculate non-electric heating floor area and use  that for EUI.
+  name_en: Total building heat energy use
+  name_fi: Rakennusten lämmitysenergian kokonaiskäyttö
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Total heating demand (space heating + domestic hot water + heat for cooking)
+
+- id: heat_energy_use_difference
+  name_en: Heat energy use difference
+  name_fi: Lämmitysenergian käyttöero
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_nodes:
+  - id: total_building_heat_energy_use
+    tags: [arithmetic_inverse]
+  - id: building_heat_energy_use
+    from_dimensions:
+    - id: heating_type
+      flatten: true
+    - id: building_energy_class
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: fuel_type
+      flatten: true
+    - id: scope
+      flatten: true
+
+- id: statistical_heat_energy_use
+  name_en: Statistical heat energy use
+  name_fi: Tilastollinen lämmitysenergian käyttö
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Total heating demand (space heating + domestic hot water + heat for cooking)
+  input_nodes:
+  - id: heat_energy_use_difference
+
+- id: energy_use_intensity_data
+  name_en: Energy use intensity data for heating
+  name_fi: Energiankäytön intensiteettitiedot lämmitykselle
+  type: gpc.DatasetNode
+  quantity: energy_factor
+  unit: kWh/m**2/a
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: energy use intensity
+
+- id: energy_use_intensity_ratio
+  name_en: Energy use intensity ratio for heating
+  name_fi: Energiankäytön intensiteetin suhde lämmitykselle
+  description_en: Relative energy use intensity by building energy class. Old, no renovations gets value 1.
+  description_fi: Suhteellinen energiankäytön intensiteetti rakennusten energialuokan mukaan. Vanha, ei peruskorjauksia saa arvon 1.
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: dimensionless
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_nodes: [energy_use_intensity_data]
+  params:
+    use_input_node_unit_when_adding: true
+    reference_category: 'building_energy_class:old_no_renovations'
+
+- id: energy_use_intensity_relative_old
+  name_en: Relative energy use intensity of existing building classes
+  name_fi: Nykyisten rakennusluokkien suhteellinen energiankäytön intensiteetti
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Energy efficiency improvements from building renovations
+
+- id: energy_use_intensity_old
+  name_en: Energy use intensity of existing buildings
+  name_fi: Nykyisten rakennusten energiankäytön intensiteetti
+  type: simple.MultiplicativeNode
+  quantity: energy_factor
+  unit: kWh/m**2/a
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_nodes:
+  - id: total_building_heat_energy_use
+    to_dimensions: []
+  - id: existing_building_stock
+    tags: [geometric_inverse]
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    to_dimensions: []
+  - id: energy_use_intensity_ratio
+    tags: [non_additive]
+    from_dimensions:
+    - id: building_energy_class
+      categories: [old_no_renovations]
+      flatten: true
+    to_dimensions: []
+  - id: energy_use_intensity_relative_old
+    tags: [complement]
+  - id: building_heating_shares_pre
+    tags: [geometric_inverse, inventory_only, extend_values]
+    from_dimensions:
+    - id: heating_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: fuel_type
+      flatten: true
+    to_dimensions: []
+
+- id: energy_use_intensity_change_new
+  name_en: Energy use intensity change for new buildings
+  name_fi: Energiankäytön intensiteetin muutos uudisrakennuksille
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Improvement in energy efficiency relative to minimum requirement
+
+- id: energy_use_intensity_new
+  name_en: Energy use intensity for heating of new buildings
+  name_fi: Energiankäytön intensiteetti uudisrakennusten lämmitykselle
+  type: simple.MultiplicativeNode
+  quantity: energy_factor
+  unit: kWh/m**2/a
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_nodes:
+  - id: energy_use_intensity_data
+    tags: [non_additive]
+  - id: energy_use_intensity_change_new
+    tags: [complement]
+
+- id: energy_use_intensity
+  name_en: Energy use intensity excluding electricity
+  name_fi: Energiankäytön intensiteetti ilman sähköä
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: kWh/m**2/a
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_nodes:
+  - id: energy_use_intensity_new
+  - id: energy_use_intensity_old
+
+- id: building_heating_type_share_historical
+  name_en: Building heating type share historical
+  name_fi: Rakennusten lämmitystyyppien osuudet historiallisesti
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [heating_type]
+  output_dimensions: [heating_type]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Heating technologies
+
+- id: building_heating_type_share_goal
+  name_en: District heating share goal
+  name_fi: Kaukolämmön osuuden tavoite
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  group: buildings
+  input_dimensions: [heating_type]
+  output_dimensions: [heating_type]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Heating technologies in 2030
+
+- id: building_heating_type_share
+  name_en: Building heating type shares of local vs. district
+  name_fi: Rakennusten lämmitystyyppien osuudet paikallisesta vs. kaukolämmöstä
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  group: buildings
+  input_dimensions: [heating_type]
+  output_dimensions: [heating_type]
+  input_nodes:
+  - id: building_heating_type_share_historical
+
+- id: heating_fuel_share_historical
+  name_en: Heating fuel share historical
+  name_fi: Lämmityspolttoaineiden osuudet historiallisesti
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [energy_carrier, heating_type, fuel_type]
+  output_dimensions: [energy_carrier, heating_type, fuel_type]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Share of heating fuel
+
+- id: heating_fuel_share_goal
+  name_en: Heating fuel share goal
+  name_fi: Lämmityspolttoaineiden osuuksien tavoite
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [heating_type, fuel_type, energy_carrier]
+  output_dimensions: [heating_type, fuel_type, energy_carrier]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Share of heating in 2030
+
+- id: heating_fuel_share
+  name_en: Heating energy carrier shares  # TODO update ids to match names
+  name_fi: Lämmitysenergian kantajien osuudet
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [energy_carrier, heating_type, fuel_type]
+  output_dimensions: [energy_carrier, heating_type, fuel_type]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Share of heating fuel
+
+- id: heating_fossil_share_historical
+  name_en: Heating fossil shares historical
+  name_fi: Lämmityksen fossiilisten osuudet historiallisesti
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [fuel_type, heating_type, energy_carrier]
+  output_dimensions: [fuel_type, heating_type, energy_carrier]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Share of waste used in district heating that is fossil / non-fossil
+
+- id: heating_fossil_share_goal
+  name_en: Heating fossil shares goal
+  name_fi: Lämmityksen fossiilisten osuuksien tavoite
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [fuel_type, heating_type, energy_carrier]
+  output_dimensions: [fuel_type, heating_type, energy_carrier]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Share of waste in 2030 used in district heating that is fossil / non-fossil
+
+- id: heating_waste_fossil_share
+  name_en: Heating fossil shares
+  name_fi: Lämmityksen fossiiliset osuudet
+  description_en: This node applies to fossil shares of waste used in district heating.
+  description_fi: Tämä solmu koskee kaukolämmössä käytetyn jätteen fossiilisia osuuksia.
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [fuel_type, heating_type, energy_carrier]
+  output_dimensions: [fuel_type, heating_type, energy_carrier]
+  input_nodes:
+  - id: heating_fossil_share_historical
+
+- id: building_heating_shares_pre
+  name_en: Building heating shares unadjusted
+  name_fi: Rakennusten lämmityksen osuudet korjaamattomina
+  type: simple.MultiplicativeNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [heating_type, energy_carrier, fuel_type]
+  output_dimensions: [heating_type, energy_carrier, fuel_type]
+  input_nodes:
+  - id: building_heating_type_share
+    tags: [non_additive]
+    to_dimensions:
+    - id: heating_type
+  - id: heating_fuel_share
+    tags: [non_additive]
+    to_dimensions:
+    - id: heating_type
+    - id: energy_carrier
+    - id: fuel_type
+
+- id: waste_energy_fraction
+  name_en: Waste energy fraction of total building energy
+  name_fi: Jäteenergian osuus rakennusten kokonaisenergiasta
+  type: simple.MultiplicativeNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [heating_type, energy_carrier, fuel_type]
+  output_dimensions: [heating_type, energy_carrier, fuel_type]
+  input_nodes:
+  - id: building_heating_shares_pre
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [waste]
+    - id: fuel_type
+      flatten: true
+    to_dimensions:
+    - id: heating_type
+    - id: energy_carrier
+  - id: heating_waste_fossil_share
+    tags: [non_additive]
+    to_dimensions:
+    - id: heating_type
+    - id: energy_carrier
+    - id: fuel_type
+
+- id: building_heating_shares
+  name_en: Building heating shares
+  name_fi: Rakennusten lämmityksen osuudet
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [heating_type, energy_carrier, fuel_type]
+  output_dimensions: [heating_type, energy_carrier, fuel_type]
+  input_nodes:
+  - id: building_heating_shares_pre
+    from_dimensions:
+    - id: fuel_type
+      categories: [mixed]
+      exclude: true
+  - id: waste_energy_fraction
+
+- id: scope_of_energy_carriers
+  name_en: Scope of energy carriers
+  name_fi: Energiankantajien laajuus
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [scope, heating_type, energy_carrier]
+  output_dimensions: [scope, heating_type, energy_carrier]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Scope of energy carriers
+
+- id: building_heat_energy_use
+  name_en: Building heat energy use
+  name_fi: Rakennusten lämmitysenergian käyttö
+  description_en: Building heat energy consumed for building heating, hot water, and cooking. Note that for heat pumps, this is the amount of heat produced, not the amount of electricity consumed.
+  description_fi: Rakennusten lämmitykseen, lämpimään veteen ja ruoanlaittoon kulutettu lämmitysenergia. Huomaa, että lämpöpumppujen osalta tämä on tuotetun lämmön määrä, ei kulutetun sähkön määrä.
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [heating_type, building_energy_class, energy_carrier, fuel_type, scope]
+  output_dimensions: [heating_type, building_energy_class, energy_carrier, fuel_type, scope]
+  input_nodes:
+  - id: building_stock
+    to_dimensions:
+    - id: building_energy_class
+  - id: energy_use_intensity
+    to_dimensions:
+    - id: building_energy_class
+  - id: building_heating_shares
+    to_dimensions:
+    - id: heating_type
+    - id: energy_carrier
+    - id: fuel_type
+  - id: scope_of_energy_carriers
+    to_dimensions:
+    - id: scope
+    - id: heating_type
+    - id: energy_carrier
+
+- id: efficiency_of_heat_pumps
+  name_en: Efficiency of heat pumps
+  name_fi: Lämpöpumppujen hyötysuhde
+  type: gpc.DatasetNode
+  quantity: energy_factor
+  unit: MWh/MWh
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Efficiency of heat pumps
+
+- id: building_heat_electricity_use
+  name_en: Building heat electricity use
+  name_fi: Rakennusten lämmityssähkön käyttö
+  description_en: Electricity used to produce heat with heat pumps and direct electricity.
+  description_fi: Sähkö, jota käytetään lämmön tuottamiseen lämpöpumpuilla ja suoralla sähköllä.
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [fuel_type, heating_type, building_energy_class, energy_carrier, scope]
+  output_dimensions: [fuel_type, heating_type, building_energy_class, energy_carrier, scope]
+  input_nodes:
+  - id: building_heat_energy_use
+    tags: [non_additive]
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity]
+    to_dimensions:
+    - id: building_energy_class
+    - id: heating_type
+    - id: energy_carrier
+    - id: scope
+  - id: building_heating_shares_pre
+    to_dimensions:
+    - id: heating_type
+    - id: energy_carrier
+    - id: fuel_type
+  - id: efficiency_of_heat_pumps
+    tags: [geometric_inverse]
+    to_dimensions:
+    - id: fuel_type
+    - id: energy_carrier
+  output_nodes:
+  - id: total_electricity_consumption_uncorr
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+    - id: heating_type
+      flatten: true
+    - id: building_energy_class
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
+      categories: [electricity]  # TODO You may want to change the categorisation some day
+
+- id: average_heating_emission_factor
+  name_en: Average heating emission factor
+  name_fi: Keskimääräinen lämmityksen päästökerroin
+  description_en: Emission factor for building heating. Averaged over all heating types currently in use.
+  description_fi: Rakennusten lämmityksen päästökerroin. Keskiarvo kaikista käytössä olevista lämmitystyypeistä.
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [pollutant, heating_type]
+  output_dimensions: [pollutant, heating_type]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Emission factors from heat production
+
+- id: building_heat_fossil_energy
+  name_en: Building heat fossil energy
+  name_fi: Rakennusten lämmityksen fossiilinen energia
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [heating_type, fuel_type]
+  output_dimensions: [heating_type, fuel_type]
+  input_nodes:
+  - id: building_heat_energy_use
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity]
+      exclude: true
+      flatten: true
+    to_dimensions:
+    - id: heating_type
+    - id: fuel_type
+
+- id: building_heat_fossil_ratio
+  name_en: Building heat fossil ratio
+  name_fi: Rakennusten lämmityksen fossiilinen suhde
+  type: simple.MultiplicativeNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [heating_type, fuel_type]
+  output_dimensions: [heating_type, fuel_type]
+  input_nodes:
+  - id: building_heat_energy_use
+    tags: [geometric_inverse]
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity]
+      exclude: true
+      flatten: true
+    - id: fuel_type
+      flatten: true
+    to_dimensions:
+    - id: heating_type
+  - id: building_heat_fossil_energy
+  params:
+    replace_nans: 0.0
+
+- id: heating_emission_factor
+  name_en: Heating emission factor
+  name_fi: Lämmityksen päästökerroin
+  description_en: Emission factor for building heating. This applies only to fossil fuel types, as non-fossil fuels are assumed to have zero emissions.
+  description_fi: Rakennusten lämmityksen päästökerroin. Tämä koskee vain fossiilisia polttoainetyyppejä, sillä ei-fossiilisten polttoaineiden päästöjen oletetaan olevan nolla.
+  type: simple.MultiplicativeNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [pollutant, heating_type, fuel_type]
+  output_dimensions: [pollutant, heating_type, fuel_type]
+  input_nodes:
+  - id: average_heating_emission_factor
+    tags: [non_additive]
+    to_dimensions:
+    - id: pollutant
+    - id: heating_type
+  - id: building_heat_fossil_ratio
+    tags: [inventory_only, geometric_inverse, extend_values]
+    from_dimensions:
+    - id: fuel_type
+      categories: [fossil]
+    to_dimensions:
+    - id: heating_type
+    - id: fuel_type
+  params:
+    replace_nans: 0.0
+
+- id: building_heating_emissions
+  name_en: Building heating emissions
+  name_fi: Rakennusten lämmityksen päästöt
+  description_en: Building heating emissions exclude emissions from electricity, which are calculated elsewhere.
+  description_fi: Rakennusten lämmityksen päästöihin eivät sisälly sähkön päästöt, jotka lasketaan muualla.
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [heating_type, fuel_type, pollutant, scope]
+  output_dimensions: [heating_type, fuel_type, pollutant, scope]
+  input_nodes:
+  - id: building_heat_energy_use
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity]
+      exclude: true
+      flatten: true
+    # - id: fuel_type
+    #   flatten: true
+    to_dimensions:
+    - id: heating_type
+    - id: scope
+    - id: fuel_type
+  - id: heating_emission_factor
+    to_dimensions:
+    - id: pollutant
+    - id: heating_type
+    - id: fuel_type
+  output_nodes:
+  - id: building_emissions
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
+      flatten: true
+    - id: heating_type
+      flatten: true
+    - id: fuel_type
+      flatten: true
+    to_dimensions:
+    - id: ghg
+      categories: [co2e]
+    - id: scope
+
+- id: new_building_current_unit_price
+  name_en: Building current unit price
+  name_fi: Rakennusten nykyinen yksikköhinta
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/m**2
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Building costs - new buildings
+
+- id: new_building_unit_price
+  name_en: New building unit price
+  name_fi: Uudisrakennusten yksikköhinta
+  type: costs.ExponentialNode
+  quantity: unit_price
+  unit: EUR/m**2
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_nodes:
+  - id: new_building_current_unit_price
+  params:
+  - id: annual_change
+    value: -1.024671139
+    unit: '%'
+
+- id: new_building_cost_shares
+  name_en: Building current cost shares
+  name_fi: Rakennusten nykyiset kustannusosuudet
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: investment costs in new buildings
+
+- id: new_building_cost
+  name_en: New building cost
+  name_fi: Uudisrakennusten kustannukset
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [building_energy_class, stakeholder, cost_type]
+  output_dimensions: [building_energy_class, stakeholder, cost_type]
+  input_nodes:
+  - id: new_building_stock
+    to_dimensions:
+    - id: building_energy_class
+  - id: new_building_unit_price
+    to_dimensions:
+    - id: building_energy_class
+  - id: new_building_cost_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+
+# -------------------- Consumer electricity use --------------------
+
+- id: efficient_appliances_renovation_rate_historical  # Same data as old_building_renovation_rate_historical
+  name_en: Lighting & appliances renovation rate historical
+  name_fi: Valaistuksen ja laitteiden peruskorjausaste historiallisesti
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%/a'
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Share of building stock renovated each year
+
+- id: efficient_appliances_renovation_rate_goal
+  name_en: Lighting & appliances renovation rate goal
+  name_fi: Valaistuksen ja laitteiden peruskorjausasteen tavoite
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%/a'
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: 3.3 Efficient lighting & appliances
+
+- id: efficient_appliances_rate
+  name_en: Lighting & appliances renovation rate
+  name_fi: Valaistuksen ja laitteiden peruskorjausaste
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%/a'
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: efficient_appliances_renovation_rate_historical
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+
+- id: consumer_electricity_intensity_baseline
+  name_en: Electricity use intensity for lighting & appliances, baseline
+  name_fi: Valaistuksen ja laitteiden sähkönkäytön intensiteetti, lähtötaso
+  type: gpc.DatasetNode
+  quantity: energy_factor
+  unit: kWh/m**2/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Average electricity use for lighting & appliances
+
+- id: efficiency_programme_shares_historical
+  name_en: Efficiency programme shares historical
+  name_fi: Tehokkuusohjelmien osuudet historiallisesti
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Current share of type of efficiency programme
+
+- id: efficiency_programme_shares_goal
+  name_en: Efficiency programme shares goal
+  name_fi: Tehokkuusohjelmien osuuksien tavoite
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_datasets: [gpc/athens_nzc]
+  params:
+    sector: Assumed share of type of efficiency programme for lever
+
+- id: efficiency_programme_shares
+  name_en: Electricity efficiency programme intensity shares
+  name_fi: Sähkön tehokkuusohjelmien intensiteetin osuudet
+  type: simple.FillNewCategoryNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_nodes:
+  - id: efficiency_programme_shares_historical
+  params:
+    new_category: 'efficiency_programme:no_improvements'
+
+- id: electricity_need_reduction
+  name_en: Electricity need reduction after improvements
+  name_fi: Sähkön tarpeen väheneminen parannusten jälkeen
+  description_en: Relative changes in electricity use intensity.
+  description_fi: Suhteelliset muutokset sähkönkäytön intensiteetissä.
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  output_nodes:
+  - id: consumer_electricity_intensity
+    tags: [complement]
+    to_dimensions:
+    - id: efficiency_programme
+    - id: energy_carrier
+  input_datasets: [gpc/athens_nzc]
+  params:
+    sector: Efficiency improvements for each renovation
+
+- id: consumer_electricity_intensity
+  name_en: Electricity use intensity for lighting & appliances
+  name_fi: Sähkönkäytön intensiteetti valaistukselle ja laitteille
+  type: simple.MultiplicativeNode
+  quantity: energy_factor
+  unit: kWh/m**2/a
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_nodes:
+  - id: consumer_electricity_intensity_baseline
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: electricity_non_renovated_old_buildings
+  name_en: Electricity-non-renovated old buildings
+  name_fi: Sähköperuskorjaamattomat vanhat rakennukset
+  description_en: Old buildings that have not (yet) gone through electricity renovation
+  description_fi: Vanhat rakennukset, joita ei ole (vielä) sähköremontoitu
+  type: simple.MultiplicativeNode
+  quantity: fraction
+  unit: km**2
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: efficient_appliances_rate
+    tags: [complement_cumulative_product]
+    to_dimensions:
+    - id: energy_carrier
+  - id: building_stock
+    tags: [non_additive]
+    from_dimensions:
+    - id: building_energy_class
+      categories: [old_no_renovations, minor_renovation, major_renovation]
+      flatten: true
+    to_dimensions: []
+
+- id: electricity_renovated_buildings
+  name_en: Electricity-renovated buildings
+  name_fi: Sähköperuskorjatut rakennukset
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: km**2
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_nodes:
+  - id: electricity_non_renovated_old_buildings
+    tags: [arithmetic_inverse]
+    to_dimensions:
+    - id: energy_carrier
+  - id: building_stock
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: efficiency_programme_shares
+  params:
+    formula: efficiency_programme_shares * (electricity_non_renovated_old_buildings + building_stock)
+
+- id: building_stock_by_electricity_renovation
+  name_en: Building stock by electricity renovation
+  name_fi: Rakennuskanta sähköperuskorjauksen mukaan
+  type: simple.AdditiveNode
+  quantity: floor_area
+  unit: km**2
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_nodes:
+  - id: electricity_non_renovated_old_buildings
+    to_dimensions:
+    - id: energy_carrier
+    - id: efficiency_programme
+      categories: [no_improvements]
+  - id: electricity_renovated_buildings
+
+- id: consumer_electricity_use
+  name_en: Electricity use for lighting & appliances
+  name_fi: Sähkönkäyttö valaistukseen ja laitteisiin
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [efficiency_programme, energy_carrier]
+  output_dimensions: [efficiency_programme, energy_carrier]
+  input_nodes:
+  - id: building_stock_by_electricity_renovation
+  - id: consumer_electricity_intensity
+  output_nodes:
+  - id: total_electricity_consumption_uncorr
+    from_dimensions:
+    - id: efficiency_programme
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [electricity]
+    - id: energy_carrier
+
+# --------------- Emissions ------------
+
+- id: building_air_pollutant_emissions
+  name_en: Building air pollutant emissions
+  name_fi: Rakennusten ilmansaastepäästöt
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [pollutant]
+  output_dimensions: [pollutant]
+  input_nodes:
+  - id: building_heating_emissions
+    from_dimensions:
+    - id: heating_type
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: fuel_type
+      flatten: true
+    - id: pollutant
+      categories: [nox, pm25_combustion, pm10_combustion]
+
+# --------------- Costs ----------------
+
+- id: jobs_per_renovation_investment
+  name_en: Jobs per renovation investment
+  name_fi: Työpaikkoja peruskorjausinvestointia kohden
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: jobs/(MEUR/a)
+  input_datasets: [gpc/athens_nzc]
+  params:
+    sector: Jobs created by investment in renovation
+
+- id: jobs_created_by_renovations
+  name_en: Jobs created by renovations
+  name_fi: Peruskorjausten luomat työpaikat
+  type: simple.MultiplicativeNode
+  quantity: employment
+  unit: jobs
+  input_nodes:
+  - id: old_building_renovation_costs
+    from_dimensions:
+    - id: stakeholder
+      flatten: true
+    - id: building_energy_class
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: jobs_per_renovation_investment
+  output_nodes:
+  - id: total_jobs_created
+
+- id: air_pollutant_distance_index
+  name_en: Air pollutant distance index
+  name_fi: Ilmansaasteiden etäisyysindeksi
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [pollutant, heating_type, area_distance]
+  output_dimensions: [pollutant, heating_type, area_distance]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Air pollutant distance index
+
+- id: building_air_pollution_cost
+  name_en: Building air pollution cost
+  name_fi: Rakennusten ilmansaastekustannukset
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [pollutant, heating_type, area_distance, cost_type, stakeholder]
+  output_dimensions: [pollutant, heating_type, area_distance, cost_type, stakeholder]
+  input_nodes:
+  - id: building_air_pollutant_emissions
+    to_dimensions:
+    - id: pollutant
+  - id: air_pollutant_distance_index
+    to_dimensions:
+    - id: pollutant
+    - id: heating_type
+    - id: area_distance
+  - id: air_pollution_unit_price
+    to_dimensions:
+    - id: pollutant
+    - id: cost_type
+    - id: area_distance
+  - id: co_benefit_cost_shares
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+  output_nodes:
+  - id: building_cost
+    from_dimensions:
+    - id: pollutant
+      flatten: true
+    - id: area_distance
+      flatten: true
+    - id: heating_type
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+
+- id: efficiency_programme_unit_price
+  name_en: Efficiency programme unit price
+  name_fi: Tehokkuusohjelman yksikköhinta
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/m**2
+  input_dimensions: [efficiency_programme, energy_carrier, cost_type]
+  output_dimensions: [efficiency_programme, energy_carrier, cost_type]
+  input_datasets:
+  - id: gpc/athens_nzc
+    filters:
+    - column: Energy carrier
+      value: electricity
+      drop_col: false
+  params:
+    sector: Cost of efficiency programme per m2
+
+- id: old_building_renovation_unit_price
+  name_en: Old building renovation unit price
+  name_fi: Vanhan rakennuksen peruskorjauksen yksikköhinta
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/m**2
+  input_dimensions: [building_energy_class, cost_type]
+  output_dimensions: [building_energy_class, cost_type]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: Cost of energy renovations
+
+- id: old_building_cost_shares
+  name_en: Old building cost shares
+  name_fi: Vanhojen rakennusten kustannusosuudet
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_datasets:
+  - id: gpc/athens_nzc
+  params:
+    sector: building renovation investments
+
+- id: old_building_renovation_costs
+  name_en: Old building renovation costs
+  name_fi: Vanhojen rakennusten peruskorjauskustannukset
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [building_energy_class, cost_type, stakeholder]
+  output_dimensions: [building_energy_class, cost_type, stakeholder]
+  input_nodes:
+  - id: old_building_renovation_unit_price
+    to_dimensions:
+    - id: building_energy_class
+    - id: cost_type
+  - id: old_building_cost_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+  - id: renovated_building_stock
+    from_dimensions:
+    - id: building_energy_class
+      categories: [old_no_renovations]
+      exclude: true
+    to_dimensions:
+    - id: building_energy_class
+  output_nodes:
+  - id: building_cost
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+
+- id: efficiency_programme_cost
+  name_en: Efficiency programme cost
+  name_fi: Tehokkuusohjelman kustannus
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [efficiency_programme, energy_carrier, stakeholder, cost_type]
+  output_dimensions: [efficiency_programme, energy_carrier, stakeholder, cost_type]
+  input_nodes:
+  - id: building_stock_by_electricity_renovation
+    tags: [difference]
+    to_dimensions:
+    - id: energy_carrier
+    - id: efficiency_programme
+  - id: efficiency_programme_unit_price
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: efficiency_programme
+  - id: old_building_cost_shares  # CHECK
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+
+- id: heating_re_investment_fraction
+  name_en: Heating re-investment fraction
+  name_fi: Lämmityksen uudelleensijoitusosuus
+  description_en: Share of current fossil production that would need to be re-invested in by 2030, if current production were to continue. (However, the calculations account for re-investments also after 2030, so the user can use their own timeline here as long as they interpret the results accordingly.)
+  description_fi: Osuus nykyisestä fossiilisesta tuotannosta, joka pitäisi investoida uudelleen vuoteen 2030 mennessä, jos nykyinen tuotanto jatkuisi. (Laskelmat ottavat kuitenkin huomioon myös vuoden 2030 jälkeiset uudelleensijoitukset, joten käyttäjä voi käyttää omaa aikajanaansa, kunhan tulkitsee tuloksia sen mukaisesti.)
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [heating_type, energy_carrier]
+  output_dimensions: [heating_type, energy_carrier]
+  input_datasets: [gpc/athens_nzc]
+  params:
+    sector: Share of current fossil production that would need to be re-invested in by 2030, if current production where to continue
+
+- id: new_heating_capacity_needed
+  name_en: New heating capacity needed (differential investments)
+  name_fi: Tarvittava uusi lämmityskapasiteetti (erotusinvestoinnit)
+  description_en: This the amount that is needed to invest or de-vest on heat production due to changes in production types compared with a situation where the production types remain constant. The investments needed in the constant situation are ignored here and only the difference is estimated.
+  description_fi: Tämä on määrä, joka tarvitaan investointeihin tai divestointeihin lämmöntuotannossa johtuen tuotantotyyppien muutoksista verrattuna tilanteeseen, jossa tuotantotyypit pysyvät vakiona. Vakiotilanteessa tarvittavat investoinnit jätetään tässä huomiotta ja arvioidaan vain erotus.
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: GWh/a**2
+  input_dimensions: [heating_type, energy_carrier]
+  output_dimensions: [heating_type, energy_carrier]
+  input_nodes:
+  - id: building_heat_energy_use
+    tags: [non_additive, difference]
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: building_energy_class
+      flatten: true
+    - id: fuel_type
+      flatten: true
+    to_dimensions:
+    - id: heating_type
+    - id: energy_carrier
+  - id: heating_re_investment_fraction
+    to_dimensions:
+    - id: heating_type
+    - id: energy_carrier
+
+- id: heating_cost_stakeholder_shares
+  name_en: Heating cost stakeholder shares
+  name_fi: Lämmityskustannusten sidosryhmäosuudet
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [stakeholder, cost_type, heating_type]
+  output_dimensions: [stakeholder, cost_type, heating_type]
+  input_datasets: [gpc/athens_nzc]
+  params:
+    sector: heating costs
+
+- id: new_heating_capacity_cost
+  name_en: New heating capacity cost
+  name_fi: Uuden lämmityskapasiteetin kustannus
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [energy_carrier, cost_type, heating_type, stakeholder]
+  output_dimensions: [energy_carrier, cost_type, heating_type, stakeholder]
+  input_nodes:
+  - id: new_heating_capacity_needed
+    to_dimensions:
+    - id: heating_type
+    - id: energy_carrier
+  - id: heat_production_capital_unit_price
+    to_dimensions:
+    - id: cost_type
+    - id: heating_type
+    - id: energy_carrier
+  - id: heating_cost_stakeholder_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+    - id: heating_type
+  - id: multiplier_node  # TODO
+    to_dimensions: []
+  output_nodes:
+  - id: building_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: heating_type
+      flatten: true
+
+- id: consumer_heating_unit_price  # TODO Prices should be separated by energy_carrier but no data available.
+  name_en: Consumer heating unit price
+  name_fi: Kuluttajan lämmityksen yksikköhinta
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_datasets: [gpc/athens_nzc]
+  params:
+    sector: Retail price of heating
+
+- id: consumer_heating_cost
+  name_en: Consumer heating cost (excluding electricity)
+  name_fi: Kuluttajan lämmityskustannus (ilman sähköä)
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [energy_carrier, stakeholder, cost_type, heating_type]
+  output_dimensions: [energy_carrier, stakeholder, cost_type, heating_type]
+  input_nodes:
+  - id: consumer_heating_unit_price
+    to_dimensions: []
+  - id: building_heat_energy_use
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: building_energy_class
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity]
+      exclude: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: heating_type
+  - id: heating_cost_stakeholder_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+    - id: heating_type
+  output_nodes:
+  - id: building_cost
+    from_dimensions:
+    - id: heating_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
+- id: heat_production_unit_price
+  name_en: Heat production unit price
+  name_fi: Lämmöntuotannon yksikköhinta
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: [energy_carrier, heating_type, cost_type]
+  output_dimensions: [energy_carrier, heating_type, cost_type]
+  input_datasets: [gpc/athens_nzc]
+  params:
+    sector: (Un-levelised) costs of Decarbonised heating
+
+- id: heat_production_cost
+  name_en: Heat production cost
+  name_fi: Lämmöntuotannon kustannus
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, energy_carrier, heating_type, cost_type]
+  output_dimensions: [stakeholder, energy_carrier, heating_type, cost_type]
+  input_nodes:
+  - id: heat_production_unit_price
+    from_dimensions:
+    - id: cost_type
+      categories: [opex]
+    to_dimensions:
+    - id: heating_type
+    - id: cost_type
+    - id: energy_carrier
+  - id: building_heat_energy_use
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: fuel_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: heating_type
+  - id: heating_cost_stakeholder_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: heating_type
+    - id: cost_type
+  output_nodes:
+  - id: building_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: heating_type
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+
+- id: heat_production_capital_unit_price
+  name_en: Heat production capital unit price
+  name_fi: Lämmöntuotannon pääoman yksikköhinta
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/MWh  # TODO Should this be EUR/(MWh/a)?
+  input_dimensions: [energy_carrier, heating_type, cost_type]
+  output_dimensions: [energy_carrier, heating_type, cost_type]
+  input_datasets: [gpc/athens_nzc]
+  params:
+    sector: Un-levelized capital cost of heating
+
+- id: heat_production_capital_cost
+  name_en: Heat production capital cost
+  name_fi: Lämmöntuotannon pääomakustannus
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, energy_carrier, heating_type, cost_type]
+  output_dimensions: [stakeholder, energy_carrier, heating_type, cost_type]
+  input_nodes:
+  - id: heat_production_capital_unit_price
+    to_dimensions:
+    - id: heating_type
+    - id: cost_type
+    - id: energy_carrier
+  - id: building_heat_energy_use
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: fuel_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: heating_type
+  - id: heating_cost_stakeholder_shares
+    to_dimensions:
+    - id: stakeholder
+    - id: heating_type
+    - id: cost_type
+  output_nodes:
+  - id: building_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: heating_type
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+
+- id: heat_production_network_unit_price
+  name_en: Heat production network unit price
+  name_fi: Lämmöntuotantoverkon yksikköhinta
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: [heating_type, cost_type]
+  output_dimensions: [heating_type, cost_type]
+  input_datasets: [gpc/athens_nzc]
+  params:
+    sector: Un-levelized capital cost of heating network
+
+- id: new_heating_network_cost
+  name_en: New heating network cost
+  name_fi: Uuden lämmitysverkon kustannus
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, heating_type, cost_type]
+  output_dimensions: [stakeholder, heating_type, cost_type]
+  input_nodes:
+  - id: new_heating_capacity_needed
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: heating_type
+  - id: heat_production_network_unit_price
+    to_dimensions:
+    - id: heating_type
+    - id: cost_type
+  - id: heating_cost_stakeholder_shares
+    from_dimensions:
+    - id: cost_type
+      categories: [capex]
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: heating_type
+  - id: multiplier_node  # TODO
+    to_dimensions: []
+  output_nodes:
+  - id: building_cost
+    from_dimensions:
+    - id: heating_type
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+
+# ---------------- Summary ---------------------
+
+- id: building_cost
+  name_en: Building cost
+  name_fi: Rakennusten kustannus
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  color: '#e41a1c'
+  input_dimensions: [stakeholder, cost_type]
+  output_dimensions: [stakeholder, cost_type]
+  input_nodes:
+  - id: new_building_cost
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+  - id: efficiency_programme_cost
+    from_dimensions:
+    - id: efficiency_programme
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+  output_nodes:
+  - total_cost
