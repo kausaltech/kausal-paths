@@ -3,20 +3,21 @@
 # This file is distributed under the same license as the PACKAGE package.
 # Claude <EMAIL@ADDRESS>, YEAR.
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2025-01-24 12:59+0100\n"
-"PO-Revision-Date: 2024-04-17 14:45+0000\n"
-"Last-Translator: Claude <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
+"PO-Revision-Date: 2025-01-27 09:20+0000\n"
+"Last-Translator: Matias Wargelin <matias.wargelin@kausal.tech>\n"
+"Language-Team: Swedish <https://weblate.kausal.tech/projects/paths/django/sv/"
+">\n"
 "Language: sv\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Weblate 5.4.2\n"
 
 #: admin_site/api.py
 #, fuzzy
@@ -39,7 +40,7 @@ msgstr "Allmän admin"
 #: admin_site/templates/wagtailadmin/home.html
 #, python-format
 msgid "Welcome to Paths admin, %(first_name)s %(last_name)s"
-msgstr ""
+msgstr "Välkommen till Paths admin, %(first_name)s %(last_name)s"
 
 #: admin_site/templates/wagtailadmin/login.html
 msgid "Sign in to Kausal Paths admin"
