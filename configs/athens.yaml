@@ -4,13 +4,13 @@ supported_languages: [el]
 site_url: https://athens.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: f0339a36bbf1989c44bd44d7427cc85f6fa3f548
+  commit: 77872ba76751d5e390079b1d2d6858c1e1eb7ee6
   dvc_remote: kausal-s3
 name: Athens Greenhouse Gas Inventory
 owner: City of Athens
 theme_identifier: gr-arsinoe
 target_year: 2030
-model_end_year: 2060
+model_end_year: 2030
 minimum_historical_year: 2014
 maximum_historical_year: 2021
 emission_unit: kt/a
