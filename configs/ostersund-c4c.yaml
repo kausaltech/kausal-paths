@@ -21,6 +21,14 @@ features:
   show_significant_digits: 3
   maximum_fraction_digits: 0
 
+action_groups:
+- id: stationary
+  name: Stationary
+  color: '#4E79A7'
+- id: transportation
+  name: Transportation
+  color: '#E15759'
+
 action_efficiency_pairs:
 - graph_type: cost_effectiveness
   cost_node: aggregate_net_price
@@ -1558,11 +1566,169 @@ nodes:
       flatten: true
 
 actions:
+# Zeros II.5.1 alkylate gasoline consumption from 2025.
+- id: electrify_light_work_machines
+  name: Electrify Light Work Machines
+  type: gpc.DatasetActionMFM
+  group: transportation
+  input_dimensions: ['scope', 'energy_carrier', 'owner']
+  output_dimensions: ['scope', 'energy_carrier', 'owner']
+  params:
+    action: Electrify Light Work Machines
+  input_datasets:
+  - id: gpc/ostersund_simple_actions
+    forecast_from: 2024
+  output_metrics:
+  - id: ii51_fuel_consumption
+    unit: l/a
+    quantity: fuel_consumption
+  - id: ii51_currency
+    unit: kSEK/a
+    quantity: currency
+  output_nodes:
+  - id: ii51_offroad_transport_fuel_combustion
+    metrics: [ii51_fuel_consumption]
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: owner
+  - id: ii51_offroad_transport_fuel_price
+    metrics: [ii51_currency]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: owner
+
+# Zeros II rental car emissions from 2025.
+- id: fossil_free_car_rental_agreement
+  name: Fossil-Free Car Rental Agreement
+  type: gpc.DatasetActionMFM
+  group: transportation
+  unit: kt/a
+  quantity: emissions
+  input_dimensions: ['business_travel_type', 'owner', 'ghg']
+  output_dimensions: ['business_travel_type', 'owner', 'ghg']
+  params:
+    action: Fossil-Free Car Rental Agreement
+  input_datasets:
+  - id: gpc/ostersund_simple_actions
+    forecast_from: 2024
+  output_nodes:
+  - id: ii_transportation_emissions
+    to_dimensions:
+    - id: business_travel_type
+    - id: owner
+    - id: ghg
+
+# Zeros II.4.1 aviation gasoline emissions from 2025.
+- id: offset_flight_emissions_with_green_aviation_fuel
+  name: Offset Flight Emissions with Green Aviation Fuel
+  type: gpc.DatasetActionMFM
+  group: transportation
+  input_dimensions: ['scope', 'energy_carrier', 'ghg', 'owner']
+  output_dimensions: ['scope', 'energy_carrier', 'ghg', 'owner']
+  params:
+    action: Offset Flight Emissions with Green Aviation Fuel
+  input_datasets:
+  - id: gpc/ostersund_simple_actions
+    forecast_from: 2024
+  output_metrics:
+  - id: ii41_emissions
+    unit: kt/a
+    quantity: emissions
+  - id: ii41_currency
+    unit: kSEK/a
+    quantity: currency
+  output_nodes:
+  - id: ii41_aviation_fuel_emissions
+    metrics: [ii41_emissions]
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: ghg
+    - id: owner
+  - id: ii41_aviation_fuel_price
+    metrics: [ii41_currency]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: owner
+
+# Zeros II private car emissions from 2025.
+- id: phase_out_private_cars_in_service
+  name: Phase out Private Cars in Service
+  type: gpc.DatasetActionMFM
+  group: transportation
+  unit: kt/a
+  quantity: emissions
+  input_dimensions: ['business_travel_type', 'owner', 'ghg']
+  output_dimensions: ['business_travel_type', 'owner', 'ghg']
+  params:
+    action: Phase out Private Cars in Service
+  input_datasets:
+  - id: gpc/ostersund_simple_actions
+    forecast_from: 2024
+  output_nodes:
+  - id: ii_transportation_emissions
+    to_dimensions:
+    - id: business_travel_type
+    - id: owner
+    - id: ghg
+
+# Zeros II.5.3 diesel emissions from 2025.
+- id: procure_renewable_energy_in_direct_machine_services
+  name: Procure 100% Renewable Energy in Direct Machine Services
+  type: gpc.DatasetActionMFM
+  group: transportation
+  unit: kt/a
+  quantity: emissions
+  input_dimensions: ['scope', 'energy_carrier', 'ghg', 'owner']
+  output_dimensions: ['scope', 'energy_carrier', 'ghg', 'owner']
+  params:
+    action: Procure 100% Renewable Energy in Direct Machine Services
+  input_datasets:
+  - id: gpc/ostersund_simple_actions
+    forecast_from: 2024
+  output_nodes:
+  - id: ii53_offroad_transport_indirect_combustion_emissions
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: ghg
+    - id: owner
+
+# Zeros II.1.3 emissions from 2025.
+- id: procure_renewable_energy_in_direct_transport_services
+  name: Procure 100% Renewable Energy in Direct Transport Services
+  type: gpc.DatasetActionMFM
+  group: transportation
+  unit: kt/a
+  quantity: emissions
+  input_dimensions: ['scope', 'ghg', 'owner']
+  output_dimensions: ['scope', 'ghg', 'owner']
+  params:
+    action: Procure 100% Renewable Energy in Direct Transport Services
+  input_datasets:
+  - id: gpc/ostersund_simple_actions
+    forecast_from: 2024
+  output_nodes:
+  - id: ii13_onroad_transport_indirect_emissions
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: owner
+
 # Zeros II.1.1 fuel consumption from 2025.
 - id: replace_city_fleet_with_electric_vehicles
   name: Replace City Fleet with Electric Vehicles
   type: gpc.DatasetActionMFM
-  color: '#e15759'
+  group: transportation
   input_dimensions: ['scope', 'energy_carrier', 'owner']
   output_dimensions: ['scope', 'energy_carrier', 'owner']
   params:
@@ -1597,7 +1763,7 @@ actions:
 - id: replace_diesel_with_hvo100_in_ms_thomee
   name: Replace Diesel with HVO100 in M/S Thomée
   type: gpc.DatasetActionMFM
-  color: '#e15759'
+  group: transportation
   input_dimensions: ['scope', 'energy_carrier', 'owner']
   output_dimensions: ['scope', 'energy_carrier', 'owner']
   params:
@@ -1628,46 +1794,11 @@ actions:
     - id: scope
     - id: owner
 
-# Zeros II.5.1 alkylate gasoline consumption from 2025.
-- id: electrify_light_work_machines
-  name: Electrify Light Work Machines
-  type: gpc.DatasetActionMFM
-  color: '#e15759'
-  input_dimensions: ['scope', 'energy_carrier', 'owner']
-  output_dimensions: ['scope', 'energy_carrier', 'owner']
-  params:
-    action: Electrify Light Work Machines
-  input_datasets:
-  - id: gpc/ostersund_simple_actions
-    forecast_from: 2024
-  output_metrics:
-  - id: ii51_fuel_consumption
-    unit: l/a
-    quantity: fuel_consumption
-  - id: ii51_currency
-    unit: kSEK/a
-    quantity: currency
-  output_nodes:
-  - id: ii51_offroad_transport_fuel_combustion
-    metrics: [ii51_fuel_consumption]
-    to_dimensions:
-    - id: scope
-    - id: energy_carrier
-    - id: owner
-  - id: ii51_offroad_transport_fuel_price
-    metrics: [ii51_currency]
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: scope
-    - id: owner
-
 # Zeros I.1 fuel consumption from 2026.
 - id: replace_fuel_oil_heating_with_geothermal
   name: Replace Fuel Oil Heating with Geothermal
   type: gpc.DatasetActionMFM
-  color: '#4e79a7'
+  group: stationary
   input_dimensions: ['scope', 'energy_carrier', 'owner']
   output_dimensions: ['scope', 'energy_carrier', 'owner']
   params:
@@ -1698,96 +1829,11 @@ actions:
     - id: scope
     - id: owner
 
-# Zeros II rental car emissions from 2025.
-- id: fossil_free_car_rental_agreement
-  name: Fossil-Free Car Rental Agreement
-  type: gpc.DatasetActionMFM
-  color: '#e15759'
-  unit: kt/a
-  quantity: emissions
-  input_dimensions: ['business_travel_type', 'owner', 'ghg']
-  output_dimensions: ['business_travel_type', 'owner', 'ghg']
-  params:
-    action: Fossil-Free Car Rental Agreement
-  input_datasets:
-  - id: gpc/ostersund_simple_actions
-    forecast_from: 2024
-  output_nodes:
-  - id: ii_transportation_emissions
-    to_dimensions:
-    - id: business_travel_type
-    - id: owner
-    - id: ghg
-
-# Zeros II.5.3 diesel emissions from 2025.
-- id: procure_renewable_energy_in_direct_machine_services
-  name: Procure 100% Renewable Energy in Direct Machine Services
-  type: gpc.DatasetActionMFM
-  color: '#e15759'
-  unit: kt/a
-  quantity: emissions
-  input_dimensions: ['scope', 'energy_carrier', 'ghg', 'owner']
-  output_dimensions: ['scope', 'energy_carrier', 'ghg', 'owner']
-  params:
-    action: Procure 100% Renewable Energy in Direct Machine Services
-  input_datasets:
-  - id: gpc/ostersund_simple_actions
-    forecast_from: 2024
-  output_nodes:
-  - id: ii53_offroad_transport_indirect_combustion_emissions
-    to_dimensions:
-    - id: scope
-    - id: energy_carrier
-    - id: ghg
-    - id: owner
-
-# Zeros II.1.3 emissions from 2025.
-- id: procure_renewable_energy_in_direct_transport_services
-  name: Procure 100% Renewable Energy in Direct Transport Services
-  type: gpc.DatasetActionMFM
-  color: '#e15759'
-  unit: kt/a
-  quantity: emissions
-  input_dimensions: ['scope', 'ghg', 'owner']
-  output_dimensions: ['scope', 'ghg', 'owner']
-  params:
-    action: Procure 100% Renewable Energy in Direct Transport Services
-  input_datasets:
-  - id: gpc/ostersund_simple_actions
-    forecast_from: 2024
-  output_nodes:
-  - id: ii13_onroad_transport_indirect_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-    - id: owner
-
-# Zeros II private car emissions from 2025.
-- id: phase_out_private_cars_in_service
-  name: Phase out Private Cars in Service
-  type: gpc.DatasetActionMFM
-  color: '#e15759'
-  unit: kt/a
-  quantity: emissions
-  input_dimensions: ['business_travel_type', 'owner', 'ghg']
-  output_dimensions: ['business_travel_type', 'owner', 'ghg']
-  params:
-    action: Phase out Private Cars in Service
-  input_datasets:
-  - id: gpc/ostersund_simple_actions
-    forecast_from: 2024
-  output_nodes:
-  - id: ii_transportation_emissions
-    to_dimensions:
-    - id: business_travel_type
-    - id: owner
-    - id: ghg
-
 # Zeros I.4.2 district heat emissions from 2025.
 - id: zero_emission_factor_for_district_heating
   name: Zero-Emission Factor for District Heating
   type: gpc.DatasetActionMFM
-  color: '#4e79a7'
+  group: stationary
   unit: t/a
   quantity: emissions
   input_dimensions: ['energy_carrier', 'owner', 'ghg', 'scope']
@@ -1804,44 +1850,6 @@ actions:
     - id: owner
     - id: ghg
     - id: scope
-
-# Zeros II.4.1 aviation gasoline emissions from 2025.
-- id: offset_flight_emissions_with_green_aviation_fuel
-  name: Offset Flight Emissions with Green Aviation Fuel
-  type: gpc.DatasetActionMFM
-  color: '#e15759'
-  input_dimensions: ['scope', 'energy_carrier', 'ghg', 'owner']
-  output_dimensions: ['scope', 'energy_carrier', 'ghg', 'owner']
-  params:
-    action: Offset Flight Emissions with Green Aviation Fuel
-  input_datasets:
-  - id: gpc/ostersund_simple_actions
-    forecast_from: 2024
-  output_metrics:
-  - id: ii41_emissions
-    unit: kt/a
-    quantity: emissions
-  - id: ii41_currency
-    unit: kSEK/a
-    quantity: currency
-  output_nodes:
-  - id: ii41_aviation_fuel_emissions
-    metrics: [ii41_emissions]
-    to_dimensions:
-    - id: scope
-    - id: energy_carrier
-    - id: ghg
-    - id: owner
-  - id: ii41_aviation_fuel_price
-    metrics: [ii41_currency]
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    - id: ghg
-      flatten: true
-    to_dimensions:
-    - id: scope
-    - id: owner
 
 pages:
 - id: home
