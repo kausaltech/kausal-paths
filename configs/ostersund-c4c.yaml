@@ -41,15 +41,24 @@ action_efficiency_pairs:
   plot_limit_for_indicator: 100
   label: Cost efficiency
 
-# - graph_type: return_of_investment
-#   cost_node: investment_costs
-#   impact_node: investment_returns
-#   invert_cost: false
-#   invert_impact: true
-#   indicator_unit: '%'
-#   cost_unit: kSEK
-#   impact_unit: kSEK
-#   label: Return on investment
+- graph_type: cost_benefit
+  cost_node: cost_benefit_analysis
+  impact_node: cost_benefit_analysis
+  cost_unit: MSEK
+  impact_unit: MSEK
+  indicator_unit: MSEK
+  outcome_dimension: cost_benefit
+  label: Cost-benefit
+
+- graph_type: return_of_investment
+  cost_node: total_costs
+  impact_node: total_benefits
+  invert_cost: false
+  invert_impact: true
+  indicator_unit: '%'
+  cost_unit: kSEK
+  impact_unit: kSEK
+  label: Return on investment
 
 dimensions:
 - id: scope
@@ -165,6 +174,14 @@ dimensions:
     label: 'Trucks'
   - id: vans
     label: 'Vans'
+
+- id: cost_benefit
+  label: Cost-Benefit
+  categories:
+  - id: cost
+    label: Cost
+  - id: benefit
+    label: Benefit
 
 emission_sectors:
 - id: net_emissions
@@ -1463,7 +1480,7 @@ nodes:
     to_dimensions:
     - id: ghg
 
-# -------------- Manually added nodes ---------------
+# ----- Aggregates, Costs, & Benefits -----
 
 - id: aggregate_net_emissions
   name: Aggregate Net Emissions
@@ -1495,8 +1512,8 @@ nodes:
     - id: scope
       flatten: true
 
-- id: investment_costs
-  name: Investment costs
+- id: total_costs
+  name: Total Costs
   type: simple.AdditiveNode
   quantity: currency
   unit: kSEK/a
@@ -1522,6 +1539,13 @@ nodes:
       flatten: true
     - id: owner
       flatten: true
+  - id: ii41_aviation_fuel_price
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: owner
+      flatten: true
   - id: ii51_offroad_transport_fuel_price
     tags: [make_nonnegative]
     from_dimensions:
@@ -1529,9 +1553,14 @@ nodes:
       flatten: true
     - id: owner
       flatten: true
+  output_nodes:
+  - id: cost_benefit_analysis
+    to_dimensions:
+    - id: cost_benefit
+      categories: [cost]
 
-- id: investment_returns
-  name: Investment returns
+- id: total_benefits
+  name: Total Benefits
   type: simple.AdditiveNode
   quantity: currency
   unit: kSEK/a
@@ -1557,6 +1586,13 @@ nodes:
       flatten: true
     - id: owner
       flatten: true
+  - id: ii41_aviation_fuel_price
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: owner
+      flatten: true
   - id: ii51_offroad_transport_fuel_price
     tags: [make_nonpositive]
     from_dimensions:
@@ -1564,6 +1600,20 @@ nodes:
       flatten: true
     - id: owner
       flatten: true
+  output_nodes:
+  - id: cost_benefit_analysis
+    to_dimensions:
+    - id: cost_benefit
+      categories: [benefit]
+
+- id: cost_benefit_analysis
+  name: Cost-benefit analysis
+  name_en: Cost-benefit analysis
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+  input_dimensions: [cost_benefit]
+  output_dimensions: [cost_benefit]
 
 actions:
 # Zeros II.5.1 alkylate gasoline consumption from 2025.
