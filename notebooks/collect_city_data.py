@@ -24,10 +24,8 @@ def read_config(yaml_file):
     config = yaml.safe_load(Path(yaml_file).open('r'))  # noqa: SIM115
     return config
 
-async def fetch_node_data(session, instance_id, node_id):
+async def fetch_node_data(session, url, instance_id, node_id):
     print(f"Processing data for {instance_id}, node {node_id}")
-    # url = "http://localhost:8000/v1/graphql/"
-    url = "https://api.paths.kausal.dev/v1/graphql/"
 
     session_token = os.getenv('AUTHJS_SESSION_TOKEN')
     csrf_token = os.getenv('AUTHJS_CSRF_TOKEN')
@@ -60,13 +58,14 @@ async def fetch_node_data(session, instance_id, node_id):
     }
     """
 
+    base_url = '/'.join(url.split('/')[:-2])  # Get base URL without /v1/graphql/
     headers = {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:134.0) Gecko/20100101 Firefox/134.0',
         'Accept': 'application/json, multipart/mixed',
         'Accept-Language': 'en-US,en;q=0.5',
         'content-type': 'application/json',
-        'Origin': 'https://api.paths.kausal.dev',
-        'Referer': 'https://api.paths.kausal.dev/v1/graphql/',
+        'Origin': base_url,
+        'Referer': url,
         'Connection': 'keep-alive',
         'Cookie': f'csrftoken={csrf_token_django}; authjs.session-token={session_token}; authjs.csrf-token={csrf_token}',
         'X-CSRFToken': f'{csrf_token}'
@@ -92,10 +91,10 @@ async def fetch_node_data(session, instance_id, node_id):
             return None
         return await response.json()
 
-async def fetch_all_instances(instances, node_ids):
+async def fetch_all_instances(url, instances, node_ids):
     async with aiohttp.ClientSession() as session:
         tasks = [
-            fetch_node_data(session, instance, node_id)
+            fetch_node_data(session, url, instance, node_id)
             for instance in instances
             for node_id in node_ids
         ]
@@ -152,8 +151,18 @@ def create_dataframe(data, processor):
     return df
 
 def emission_targets(df, reference_year, target_year):
-    df = (df.filter(pl.col('year').is_in([reference_year, target_year]))
-          .group_by(pl.col(['year', 'unit'])).agg(pl.col('value').sum()))
+    df = (
+        df.filter(pl.col('year').is_in([reference_year, target_year]))
+        .group_by(pl.col(['year', 'unit'])).agg(pl.col('value').sum())
+        .sort(by=['unit', 'year'])
+        .group_by('unit')
+        .agg([
+            pl.col('year').first().alias('newest_year'),
+            pl.col('value').first().alias('newest_value'),
+            pl.col('year').last().alias('target_year'),
+            pl.col('value').last().alias('target_value')
+        ])
+    )
     return df
 
 def no_processing(df, reference_year, target_year):
@@ -165,14 +174,23 @@ postprocess_data = {
 }
 
 async def main():
+    """
+    Collect data from several Kausal Paths instances.
+
+    Typical command:
+    python ./notebooks/collect_city_data.py
+        --input ../netzeroplanner-framework-config/emission_potential.yaml
+        --output notebooks/emission_data.csv.
+    """
     args = parse_args()
     config = read_config(args.input)
     processor = config.get('processor', 'none')
     instances = config['instances']
     node_ids = config['node_ids']
+    url = config['url']
     output_file = args.output
 
-    results = await fetch_all_instances(instances, node_ids)
+    results = await fetch_all_instances(url, instances, node_ids)
     dfs = []  # List to store DataFrames from each instance
 
     for (instance, node_id), data in results.items():
