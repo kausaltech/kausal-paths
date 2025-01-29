@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://ostersund-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 9afe7f0e65a199a018c0654e68ba2f913774e06e
+  commit: bdd9d00742777f1d8b2dfdc407ac07062db7194c
   dvc_remote: kausal-s3
 name: Östersund Greenhouse Gas Inventory
 owner: City of Östersund
@@ -18,6 +18,8 @@ emission_forecast_from: 2024
 emission_dimensions: ['owner', 'ghg']
 features:
   baseline_visible_in_graphs: true
+  show_significant_digits: 3
+  maximum_fraction_digits: 0
 
 action_efficiency_pairs:
 - graph_type: cost_effectiveness
@@ -49,6 +51,8 @@ dimensions:
     label: 'Scope 1'
   - id: scope2
     label: 'Scope 2'
+  - id: scope3
+    label: 'Scope 3'
 
 - id: product_type
   label: Product Type
@@ -103,8 +107,6 @@ dimensions:
 - id: business_travel_type
   label: Business Travel Type
   categories:
-  - id: other
-    label: 'Other'
   - id: private_car
     label: 'Private Car'
   - id: rental_car
@@ -162,21 +164,6 @@ emission_sectors:
   is_outcome: true
 
 nodes:
-- id: aggregate_net_emissions
-  name: Aggregate Net Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: []
-  output_dimensions: []
-  input_nodes:
-  - id: net_emissions
-    from_dimensions:
-    - id: owner
-      flatten: true
-    - id: ghg
-      flatten: true
-
 - id: net_price
   name: Net Price
   type: simple.AdditiveNode
@@ -185,21 +172,6 @@ nodes:
   input_dimensions: ['owner', 'scope']
   output_dimensions: ['owner', 'scope']
   is_outcome: true
-
-- id: aggregate_net_price
-  name: Aggregate Net Price
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: kSEK/a
-  input_dimensions: []
-  output_dimensions: []
-  input_nodes:
-  - id: net_price
-    from_dimensions:
-    - id: owner
-      flatten: true
-    - id: scope
-      flatten: true
 
 - id: i1_residential_combustion
   name: I.1 Residential Combustion
@@ -355,9 +327,11 @@ nodes:
   output_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
   output_nodes:
   - id: ii1_onroad_transport_total_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
     to_dimensions:
     - id: owner
-    - id: energy_carrier
     - id: ghg
     - id: scope
 
@@ -397,6 +371,25 @@ nodes:
   - id: ii1_onroad_transport_total_price
     to_dimensions:
     - id: owner
+    - id: scope
+
+- id: ii13_onroad_transport_indirect_emissions
+  name: II.1.3 On-Road Transport Indirect Emissions
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['owner', 'ghg', 'scope']
+  output_dimensions: ['owner', 'ghg', 'scope']
+  params:
+    gpc_sector: II.1.3
+  input_datasets:
+  - id: gpc/ostersund
+    forecast_from: 2024
+  output_nodes:
+  - id: ii1_onroad_transport_total_emissions
+    to_dimensions:
+    - id: owner
+    - id: ghg
     - id: scope
 
 - id: ii31_waterborne_fuel_combustion
@@ -576,6 +569,60 @@ nodes:
     - id: owner
     - id: scope
 
+- id: ii53_offroad_transport_indirect_combustion
+  name: II.5.3 Off-Road Transport Indirect Combustion
+  type: gpc.DatasetNode
+  quantity: fuel_consumption
+  unit: l/a
+  input_dimensions: ['energy_carrier', 'owner', 'scope']
+  output_dimensions: ['energy_carrier', 'owner', 'scope']
+  params:
+    gpc_sector: II.5.3
+  input_datasets:
+  - id: gpc/ostersund
+    forecast_from: 2024
+  output_nodes:
+  - id: ii53_offroad_transport_indirect_combustion_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: owner
+    - id: scope
+
+- id: ii53_offroad_transport_indirect_combustion_emissions
+  name: II.5.3 Off-Road Transport Indirect Combustion Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['energy_carrier', 'owner', 'ghg', 'scope']
+  output_dimensions: ['energy_carrier', 'owner', 'ghg', 'scope']
+  output_nodes:
+  - id: ii5_offroad_transport_total_emissions
+    to_dimensions:
+    - id: owner
+    - id: energy_carrier
+    - id: ghg
+    - id: scope
+
+- id: ii53_offroad_transport_indirect_emission_factor
+  name: II.5.3 Off-Road Transport Indirect Emission Factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: kg/l
+  input_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
+  output_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
+  params:
+    gpc_sector: II.5.3
+  input_datasets:
+  - id: gpc/ostersund
+    forecast_from: 2024
+  output_nodes:
+  - id: ii53_offroad_transport_indirect_combustion_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+    - id: owner
+    - id: scope
+
 - id: ii_transportation_emissions
   name: II Transportation Emissions
   type: gpc.DatasetNode
@@ -636,13 +683,11 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
-  output_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
+  input_dimensions: ['owner', 'ghg', 'scope']
+  output_dimensions: ['owner', 'ghg', 'scope']
   output_nodes:
   - id: ii_transportation_total_emissions
     from_dimensions:
-    - id: energy_carrier
-      flatten: true
     - id: scope
       flatten: true
     to_dimensions:
@@ -1412,6 +1457,36 @@ nodes:
 
 # -------------- Manually added nodes ---------------
 
+- id: aggregate_net_emissions
+  name: Aggregate Net Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: []
+  output_dimensions: []
+  input_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: owner
+      flatten: true
+    - id: ghg
+      flatten: true
+
+- id: aggregate_net_price
+  name: Aggregate Net Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kSEK/a
+  input_dimensions: []
+  output_dimensions: []
+  input_nodes:
+  - id: net_price
+    from_dimensions:
+    - id: owner
+      flatten: true
+    - id: scope
+      flatten: true
+
 - id: investment_costs
   name: Investment costs
   type: simple.AdditiveNode
@@ -1644,45 +1719,46 @@ actions:
     - id: owner
     - id: ghg
 
-# Zeros II other & II.5.1 diesel emissions from 2025.
+# Zeros II.5.3 diesel emissions from 2025.
 - id: procure_renewable_energy_in_direct_machine_services
   name: Procure 100% Renewable Energy in Direct Machine Services
   type: gpc.DatasetActionMFM
   color: '#e15759'
-  input_dimensions: ['scope', 'energy_carrier', 'ghg', 'owner', 'business_travel_type']
-  output_dimensions: ['scope', 'energy_carrier', 'ghg', 'owner', 'business_travel_type']
+  unit: kt/a
+  quantity: emissions
+  input_dimensions: ['scope', 'energy_carrier', 'ghg', 'owner']
+  output_dimensions: ['scope', 'energy_carrier', 'ghg', 'owner']
   params:
     action: Procure 100% Renewable Energy in Direct Machine Services
   input_datasets:
   - id: gpc/ostersund_simple_actions
     forecast_from: 2024
-  output_metrics:
-  - id: ii_emissions
-    unit: t/a
-    quantity: emissions
-  - id: ii51_emissions
-    unit: t/a
-    quantity: emissions
   output_nodes:
-  - id: ii_transportation_emissions
-    metrics: [ii_emissions]
-    from_dimensions:
-    - id: scope
-      flatten: true
-    - id: energy_carrier
-      flatten: true
+  - id: ii53_offroad_transport_indirect_combustion_emissions
     to_dimensions:
+    - id: scope
+    - id: energy_carrier
     - id: ghg
     - id: owner
-    - id: business_travel_type
-  - id: ii5_offroad_transport_total_emissions
-    metrics: [ii51_emissions]
-    from_dimensions:
-    - id: business_travel_type
-      flatten: true
+
+# Zeros II.1.3 emissions from 2025.
+- id: procure_renewable_energy_in_direct_transport_services
+  name: Procure 100% Renewable Energy in Direct Transport Services
+  type: gpc.DatasetActionMFM
+  color: '#e15759'
+  unit: kt/a
+  quantity: emissions
+  input_dimensions: ['scope', 'ghg', 'owner']
+  output_dimensions: ['scope', 'ghg', 'owner']
+  params:
+    action: Procure 100% Renewable Energy in Direct Transport Services
+  input_datasets:
+  - id: gpc/ostersund_simple_actions
+    forecast_from: 2024
+  output_nodes:
+  - id: ii13_onroad_transport_indirect_emissions
     to_dimensions:
     - id: scope
-    - id: energy_carrier
     - id: ghg
     - id: owner
 
