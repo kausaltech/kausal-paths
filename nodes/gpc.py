@@ -190,6 +190,16 @@ class DatasetNode(AdditiveNode):
         return df
 
     # -----------------------------------------------------------------------------------
+    def select_variant(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        vcols = df.select(pl.col(r'^v_.*$')).columns
+        for col in vcols:
+            self.global_parameters.append(col[2:])
+            val = '%i' % round(cast(float, self.get_global_parameter_value(col[2:], required=True)))
+            df = df.filter(pl.col(col) == val).drop(col)
+
+        return df
+
+    # -----------------------------------------------------------------------------------
     def add_missing_years(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         # Add forecast column if needed.
         if FORECAST_COLUMN not in df.columns:
@@ -259,6 +269,7 @@ class DatasetNode(AdditiveNode):
     # -----------------------------------------------------------------------------------
     def compute(self) -> ppl.PathsDataFrame:
         df = self.get_gpc_dataset()
+
         if self.get_global_parameter_value('measure_data_baseline_year_only', required=False):
             filt = (pl.col(YEAR_COLUMN) == self.context.instance.reference_year) | (
                 pl.col(YEAR_COLUMN) > self.context.instance.maximum_historical_year
@@ -266,9 +277,11 @@ class DatasetNode(AdditiveNode):
             if FORECAST_COLUMN in df.columns:
                 filt |= pl.col(FORECAST_COLUMN)
             df = df.filter(filt)
+
         df = self.drop_unnecessary_levels(df, droplist=['Description'])
         df = self.rename_dimensions(df)
         df = self.convert_names_to_ids(df)
+        df = self.select_variant(df)
         df = self.implement_unit_col(df)
         df = self.add_missing_years(df)
         df = self.crop_to_model_range(df)
