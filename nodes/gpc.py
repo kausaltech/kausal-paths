@@ -103,7 +103,7 @@ class DatasetNode(AdditiveNode):
     )
 
     # -----------------------------------------------------------------------------------
-    def get_gpc_dataset(self, tag: str | None = None) -> ppl.PathsDataFrame:
+    def get_filtered_dataset_df(self, tag: str | None = None) -> ppl.PathsDataFrame:
         sector = self.get_parameter_value('gpc_sector', required=False)
         if not sector:
             sector = self.get_parameter_value('sector', required=False)
@@ -119,12 +119,14 @@ class DatasetNode(AdditiveNode):
 
         df = df.with_columns(df['Quantity'].replace(qlookup).replace(self.quantitylookup))
         df = df.filter(pl.col('Quantity') == self.quantity)
+        return df
 
+    def get_gpc_dataset(self, tag: str | None = None) -> ppl.PathsDataFrame:
+        df = self.get_filtered_dataset_df(tag=tag)
         dropcols = ['Sector', 'Quantity']
         if 'UUID' in df.columns:
             dropcols += ['UUID']
         df = df.drop(dropcols)
-
         return df
 
     # -----------------------------------------------------------------------------------
