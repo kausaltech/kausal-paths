@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://ostersund-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: bdd9d00742777f1d8b2dfdc407ac07062db7194c
+  commit: f878caaa419c22cc1d95bc884d0c1b1e1cc90c67
   dvc_remote: kausal-s3
 name: Östersund Greenhouse Gas Inventory
 owner: City of Östersund
@@ -59,6 +59,14 @@ action_efficiency_pairs:
   cost_unit: kSEK
   impact_unit: kSEK
   label: Return on investment
+
+params:
+- id: electrification_scenario
+  label: 'Transportation Electrification Scenario (1: Low, 2: Medium, 3: High) '
+  is_customizable: true
+  value: 2
+  min_value: 1
+  max_value: 3
 
 dimensions:
 - id: scope
@@ -1054,8 +1062,8 @@ nodes:
   type: gpc.DatasetNode
   quantity: mileage
   unit: km/a
-  input_dimensions: ['scope', 'owner', 'energy_carrier', 'vehicle_type']
-  output_dimensions: ['scope', 'owner', 'energy_carrier', 'vehicle_type']
+  input_dimensions: ['energy_carrier', 'scope', 'owner', 'vehicle_type']
+  output_dimensions: ['energy_carrier', 'scope', 'owner', 'vehicle_type']
   params:
     gpc_sector: II.1.1
   input_datasets:
@@ -1064,10 +1072,25 @@ nodes:
   output_nodes:
   - id: ii11_onroad_transport_fuel_mileage_emissions_territorial
     to_dimensions:
+    - id: energy_carrier
     - id: scope
     - id: owner
-    - id: energy_carrier
     - id: vehicle_type
+  - id: ii11_onroad_transport_fuel_mileage_mix_territorial
+    tags: [activity]
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+    - id: owner
+    - id: vehicle_type
+
+- id: ii11_onroad_transport_fuel_mileage_mix_territorial
+  name: II.1.1 On-Road Transport Fuel Mileage Mix
+  type: simple.MixNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: ['energy_carrier', 'scope', 'owner', 'vehicle_type']
+  output_dimensions: ['energy_carrier', 'scope', 'owner', 'vehicle_type']
 
 - id: ii11_onroad_transport_fuel_mileage_emissions_territorial
   name: II.1.1 On-Road Transport Fuel Mileage Emissions
