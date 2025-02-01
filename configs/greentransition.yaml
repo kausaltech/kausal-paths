@@ -180,6 +180,7 @@ params:
 dimensions:
 - id: iteration
   label: Iteration
+  represents_possible_worlds: true
   categories:
   - id: median
     label: Median

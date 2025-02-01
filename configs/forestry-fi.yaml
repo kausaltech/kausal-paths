@@ -83,6 +83,7 @@ dimensions:
 - id: iteration
   label_en: Iteration
   label_fi: Iteraatio
+  represents_possible_worlds: true
   categories:
   - id: '0'
     label: '0'
@@ -669,7 +670,7 @@ nodes:
 - id: amount_of_wood_in_forests
   name_fi: Suomen metsien koko
   name_en: Forest stock in Finnish forests
-  type: costs.IterationNode
+  type: costs.IterativeNode
   quantity: mass
   unit: Mm3_solid
   input_nodes:

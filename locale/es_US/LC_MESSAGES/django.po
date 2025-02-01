@@ -469,7 +469,7 @@ msgstr ""
 #: nodes/costs.py
 msgid ""
 "\n"
-"        This is IterationNode. It calculates one year at a time based on previous year's value and inputs and outputs. In addition, it must have a feedback loop (otherwise it makes no sense to use this node class), which is given as a growth rate per year from the previous year's value.\n"
+"        This is IterativeNode. It calculates one year at a time based on previous year's value and inputs and outputs. In addition, it must have a feedback loop (otherwise it makes no sense to use this node class), which is given as a growth rate per year from the previous year's value.\n"
 "        "
 msgstr ""
 

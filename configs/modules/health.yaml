@@ -130,6 +130,7 @@ dimensions:
 - id: iteration
   label_en: Modeling basis
   label_fi: Malliperusta
+  represents_possible_worlds: true # TODO A new attribute that is not implemented yet.
   categories:
   - id: median
     label: Median

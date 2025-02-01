@@ -312,9 +312,9 @@ class DilutionNode(SimpleNode):
         return df
 
 
-class IterationNode(AdditiveNode): #, DatasetNode):
+class IterativeNode(AdditiveNode): #, DatasetNode):
     explanation = _("""
-        This is IterationNode. It calculates one year at a time based on previous year's value and inputs and outputs. In addition, it must have a feedback loop (otherwise it makes no sense to use this node class), which is given as a growth rate per year from the previous year's value.
+        This is IterativeNode. It calculates one year at a time based on previous year's value and inputs and outputs. In addition, it must have a feedback loop (otherwise it makes no sense to use this node class), which is given as a growth rate per year from the previous year's value.
         """)  # noqa: E501
 
     def compute(self) -> ppl.PathsDataFrame:
