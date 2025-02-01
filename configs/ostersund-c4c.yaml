@@ -1065,7 +1065,19 @@ nodes:
   input_dimensions: ['energy_carrier', 'scope', 'owner', 'vehicle_type']
   output_dimensions: ['energy_carrier', 'scope', 'owner', 'vehicle_type']
   params:
-    gpc_sector: II.1.1
+  - id: gpc_sector
+    value: II.1.1
+  - id: variant_name
+    value: electrification_scenario
+  - id: variant_number
+    label: 'Transportation Electrification Scenario (1: Low, 2: Medium, 3: High)'
+    value: 1
+    min_value: 1
+    max_value: 3
+    step: 1
+    is_customizable: true
+    is_visible: true
+
   input_datasets:
   - id: gpc/ostersund_territorial
     forecast_from: 2024
@@ -1936,8 +1948,14 @@ pages:
 scenarios:
 - id: baseline
   name: Business as Usual
+  params:
+  - id: ii11_onroad_transport_fuel_mileage_territorial.variant_number
+    value: 1
 
 - id: default
   default: true
   name: Climate Action Plan
   all_actions_enabled: true
+  params:
+  - id: ii11_onroad_transport_fuel_mileage_territorial.variant_number
+    value: 3

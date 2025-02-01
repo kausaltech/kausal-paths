@@ -11,7 +11,7 @@ from nodes.calc import extend_last_historical_value_pl
 from nodes.constants import FORECAST_COLUMN, UNCERTAINTY_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
 from nodes.simple import AdditiveNode
-from params import BoolParameter, StringParameter
+from params import BoolParameter, NumberParameter, StringParameter
 
 
 class DatasetNode(AdditiveNode):
@@ -34,6 +34,16 @@ class DatasetNode(AdditiveNode):
             'crop_to_model_range',
             description='Should dataset be cropped to reject years outside the model range?',
             is_customizable=False
+        ),
+        StringParameter(
+            local_id='variant_name',
+            description='Variant name in data',
+            is_customizable=False,
+        ),
+        NumberParameter(
+            local_id='variant_number',
+            description='Variant number',
+            is_customizable=True,
         ),
     ]
 
@@ -191,6 +201,18 @@ class DatasetNode(AdditiveNode):
 
     # -----------------------------------------------------------------------------------
     def select_variant(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        vname = self.get_parameter_value_str('variant_name', required=False)
+        if vname:
+            cols = df.select(pl.col(r'^v_.*$')).columns
+            assert len(cols) == 1, 'There must be exactly one variant column'
+            assert cols[0] == 'v_' + vname
+            val = '%i' % round(cast(float, self.get_parameter_value('variant_number', required=True, units=False)))
+            df = df.filter(pl.col(cols[0]) == val).drop(cols[0])
+
+        return df
+
+    # -----------------------------------------------------------------------------------
+    def select_variant2(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         vcols = df.select(pl.col(r'^v_.*$')).columns
         for col in vcols:
             self.global_parameters.append(col[2:])
@@ -293,10 +315,6 @@ class DatasetNode(AdditiveNode):
         df = self.add_and_multiply_input_nodes(df)
         df = self.maybe_drop_nulls(df)
         df = df.ensure_unit(VALUE_COLUMN, self.unit)  # type: ignore
-        # out = df.filter(pl.col(YEAR_COLUMN) <= 2020)
-        # out = out.select([UNCERTAINTY_COLUMN, VALUE_COLUMN])
-        # # out = out.pivot(columns=YEAR_COLUMN, values=VALUE_COLUMN)
-        # out.write_csv('/Users/jouni/devel/kausal-paths/notebooks/iterations.csv', separator='\t')
         return df
 
 
