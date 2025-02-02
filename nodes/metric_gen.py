@@ -17,9 +17,9 @@ from .constants import (
     NODE_COLUMN,
     SCENARIO_COLUMN,
     STACKABLE_QUANTITIES,
+    UNCERTAINTY_COLUMN,
     VALUE_COLUMN,
     YEAR_COLUMN,
-    UNCERTAINTY_COLUMN,
 )
 from .exceptions import NodeError
 from .simple import AdditiveNode, RelativeNode
@@ -371,7 +371,8 @@ def _from_node_metric(node: Node, m: NodeMetric, scenarios: Sequence[Scenario]) 
     with node.context.start_span('Compute metric values', op=MODEL_CALC_OP):
         df, dims = _compute_values(node, scenarios)
 
-    if UNCERTAINTY_COLUMN in df.columns: # TODO Is this for graphs only or could there be side effects?
+    if (UNCERTAINTY_COLUMN in df.columns and
+        not df.filter(pl.col(UNCERTAINTY_COLUMN) == 'median').is_empty()):
         df = df.filter(pl.col(UNCERTAINTY_COLUMN) == 'median')
 
     if node.context.active_normalization:
