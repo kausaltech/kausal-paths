@@ -32,6 +32,52 @@ normalizations:
 features:
   baseline_visible_in_graphs: true
 
+result_excels:
+- base_excel_url: 
+    https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
+  name: Climate City Contract Tables
+  node_ids:
+  - afolu_emissions
+  - waste_water_treatment_emissions
+  - refridgerant_emissions
+  - aviation_emissions
+  - railways_emissions
+  - off_road_transportation
+  - leakage_from_oil_and_gas_wells_emissions
+  - emission_factor_fuels
+  - population
+  - global_warming_potential_100a
+  - free_rides_per_person
+  - modal_share_of_active_transportation
+  - public_transportation_change
+  - public_transportation_trips_per_person
+  - diversion_rate
+  - waste_emission_factor
+  - participation_smart_grid
+  - smart_grid_improvement
+  - smart_grid_benefits
+  - transmission_loss_change
+  - transmission_loss_work_benefits
+  - building_square_footage
+  - building_electricity_use_historical
+  - building_natural_gas_use_historical
+  - building_natural_gas_eui
+  - building_electricity_eui
+  - electricity_emission_factor
+  - emission_factor_natural_gas
+  - stationary_fuel_consumption
+  - emission_factor_fuel
+  - stationary_wood_consumption
+  - emission_factor_wood
+  - electricity_loss_fraction
+  - miles_per_gallon
+  - vehicle_miles_per_vehicle
+  - registered_electric_vehicles
+  - electric_vehicle_efficiency
+  - vehicle_charging_shares
+  - amount_of_waste_per_person
+  format: wide
+
 action_groups:
 - id: buildings
   name: Buildings
