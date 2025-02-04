@@ -11,7 +11,7 @@ from nodes.calc import extend_last_historical_value_pl
 from nodes.constants import FORECAST_COLUMN, UNCERTAINTY_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
 from nodes.simple import AdditiveNode
-from params import BoolParameter, StringParameter
+from params import BoolParameter, NumberParameter, StringParameter
 
 
 class DatasetNode(AdditiveNode):
@@ -24,16 +24,34 @@ class DatasetNode(AdditiveNode):
     allowed_parameters = [
         *AdditiveNode.allowed_parameters,
         StringParameter(
-            'gpc_sector',
-            description='GPC Sector',
+            local_id='gpc_sector',
+            description='GPC sector',
             is_customizable=False,
-        ),  # FIXME To be removed, replaced by 'sector' below.
-        StringParameter('sector', description='Sector', is_customizable=False),
-        StringParameter('rename_dimensions', description='Rename incompatible dimensions', is_customizable=False),
+        ),
+        StringParameter(
+            local_id='sector',
+            description='Sector',
+            is_customizable=False,
+        ),
+        StringParameter(
+            local_id='rename_dimensions',
+            description='Rename dimensions per list of from:to pairs provided.',
+            is_customizable=False,
+        ),
         BoolParameter(
-            'crop_to_model_range',
-            description='Should dataset be cropped to reject years outside the model range?',
-            is_customizable=False
+            local_id='crop_to_model_range',
+            description='Crop dataset from reference year to end year, inclusive.',
+            is_customizable=False,
+        ),
+        StringParameter(
+            local_id='variant_id',
+            description='Variant ID in dataset',
+            is_customizable=False,
+        ),
+        NumberParameter(
+            local_id='variant_number',
+            description='Variant index number',
+            is_customizable=True,
         ),
     ]
 
@@ -190,6 +208,23 @@ class DatasetNode(AdditiveNode):
         return df
 
     # -----------------------------------------------------------------------------------
+    def select_variant(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        vcols = df.select(pl.col(r'^v_.*$')).columns
+        for col in vcols:
+            # Check whether varient ID matches the one variant ID controlled locally.
+            if col[2:] == self.get_parameter_value('variant_id', required=False):
+                val = '%i' % round(cast(float, self.get_parameter_value('variant_number', required=True)))
+
+            # If not, use the corresponding global parameter.
+            else:
+                self.global_parameters.append(col[2:])
+                val = '%i' % round(cast(float, self.get_global_parameter_value(col[2:], required=True)))
+
+            df = df.filter(pl.col(col) == val).drop(col)
+
+        return df
+
+    # -----------------------------------------------------------------------------------
     def add_missing_years(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         # Add forecast column if needed.
         if FORECAST_COLUMN not in df.columns:
@@ -259,6 +294,7 @@ class DatasetNode(AdditiveNode):
     # -----------------------------------------------------------------------------------
     def compute(self) -> ppl.PathsDataFrame:
         df = self.get_gpc_dataset()
+
         if self.get_global_parameter_value('measure_data_baseline_year_only', required=False):
             filt = (pl.col(YEAR_COLUMN) == self.context.instance.reference_year) | (
                 pl.col(YEAR_COLUMN) > self.context.instance.maximum_historical_year
@@ -266,9 +302,11 @@ class DatasetNode(AdditiveNode):
             if FORECAST_COLUMN in df.columns:
                 filt |= pl.col(FORECAST_COLUMN)
             df = df.filter(filt)
+
         df = self.drop_unnecessary_levels(df, droplist=['Description'])
         df = self.rename_dimensions(df)
         df = self.convert_names_to_ids(df)
+        df = self.select_variant(df)
         df = self.implement_unit_col(df)
         df = self.add_missing_years(df)
         df = self.crop_to_model_range(df)
@@ -280,10 +318,6 @@ class DatasetNode(AdditiveNode):
         df = self.add_and_multiply_input_nodes(df)
         df = self.maybe_drop_nulls(df)
         df = df.ensure_unit(VALUE_COLUMN, self.unit)  # type: ignore
-        # out = df.filter(pl.col(YEAR_COLUMN) <= 2020)
-        # out = out.select([UNCERTAINTY_COLUMN, VALUE_COLUMN])
-        # # out = out.pivot(columns=YEAR_COLUMN, values=VALUE_COLUMN)
-        # out.write_csv('/Users/jouni/devel/kausal-paths/notebooks/iterations.csv', separator='\t')
         return df
 
 

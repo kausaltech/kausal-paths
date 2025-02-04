@@ -210,3 +210,8 @@ class MeasureDataOverride(BoolParameter):
 class MeasureDataBaselineYearOnly(BoolParameter):
     name = _('Use only baseline year from measure data')
     id = 'measure_data_baseline_year_only'
+
+
+class ElectrificationScenario(NumberParameter):
+    name = _('Transportation electrification scenario')
+    id = 'electrification_scenario'
