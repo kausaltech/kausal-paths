@@ -62,11 +62,13 @@ action_efficiency_pairs:
 
 params:
 - id: electrification_scenario
-  label: 'Transportation Electrification Scenario (1: Low, 2: Medium, 3: High) '
+  label: 'Territorial Transportation Electrification Scenario (1: Low, 2: Medium, 3: High) '
   is_customizable: true
+  is_visible: true
   value: 2
   min_value: 1
   max_value: 3
+  step: 1
 
 dimensions:
 - id: scope
@@ -1067,16 +1069,10 @@ nodes:
   params:
   - id: gpc_sector
     value: II.1.1
-  - id: variant_name
+  - id: variant_id
     value: electrification_scenario
   - id: variant_number
-    label: 'Transportation Electrification Scenario (1: Low, 2: Medium, 3: High)'
-    value: 1
-    min_value: 1
-    max_value: 3
-    step: 1
-    is_customizable: true
-    is_visible: true
+    ref: electrification_scenario
 
   input_datasets:
   - id: gpc/ostersund_territorial
@@ -1948,14 +1944,8 @@ pages:
 scenarios:
 - id: baseline
   name: Business as Usual
-  params:
-  - id: ii11_onroad_transport_fuel_mileage_territorial.variant_number
-    value: 1
 
 - id: default
   default: true
   name: Climate Action Plan
   all_actions_enabled: true
-  params:
-  - id: ii11_onroad_transport_fuel_mileage_territorial.variant_number
-    value: 3

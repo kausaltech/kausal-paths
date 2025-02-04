@@ -24,25 +24,33 @@ class DatasetNode(AdditiveNode):
     allowed_parameters = [
         *AdditiveNode.allowed_parameters,
         StringParameter(
-            'gpc_sector',
-            description='GPC Sector',
+            local_id='gpc_sector',
+            description='GPC sector',
             is_customizable=False,
-        ),  # FIXME To be removed, replaced by 'sector' below.
-        StringParameter('sector', description='Sector', is_customizable=False),
-        StringParameter('rename_dimensions', description='Rename incompatible dimensions', is_customizable=False),
-        BoolParameter(
-            'crop_to_model_range',
-            description='Should dataset be cropped to reject years outside the model range?',
-            is_customizable=False
         ),
         StringParameter(
-            local_id='variant_name',
-            description='Variant name in data',
+            local_id='sector',
+            description='Sector',
+            is_customizable=False,
+        ),
+        StringParameter(
+            local_id='rename_dimensions',
+            description='Rename dimensions per list of from:to pairs provided.',
+            is_customizable=False,
+        ),
+        BoolParameter(
+            local_id='crop_to_model_range',
+            description='Crop dataset from reference year to end year, inclusive.',
+            is_customizable=False,
+        ),
+        StringParameter(
+            local_id='variant_id',
+            description='Variant ID in dataset',
             is_customizable=False,
         ),
         NumberParameter(
             local_id='variant_number',
-            description='Variant number',
+            description='Variant index number',
             is_customizable=True,
         ),
     ]
@@ -201,22 +209,17 @@ class DatasetNode(AdditiveNode):
 
     # -----------------------------------------------------------------------------------
     def select_variant(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        vname = self.get_parameter_value_str('variant_name', required=False)
-        if vname:
-            cols = df.select(pl.col(r'^v_.*$')).columns
-            assert len(cols) == 1, 'There must be exactly one variant column'
-            assert cols[0] == 'v_' + vname
-            val = '%i' % round(cast(float, self.get_parameter_value('variant_number', required=True, units=False)))
-            df = df.filter(pl.col(cols[0]) == val).drop(cols[0])
-
-        return df
-
-    # -----------------------------------------------------------------------------------
-    def select_variant2(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         vcols = df.select(pl.col(r'^v_.*$')).columns
         for col in vcols:
-            self.global_parameters.append(col[2:])
-            val = '%i' % round(cast(float, self.get_global_parameter_value(col[2:], required=True)))
+            # Check whether varient ID matches the one variant ID controlled locally.
+            if col[2:] == self.get_parameter_value('variant_id', required=False):
+                val = '%i' % round(cast(float, self.get_parameter_value('variant_number', required=True)))
+
+            # If not, use the corresponding global parameter.
+            else:
+                self.global_parameters.append(col[2:])
+                val = '%i' % round(cast(float, self.get_global_parameter_value(col[2:], required=True)))
+
             df = df.filter(pl.col(col) == val).drop(col)
 
         return df
