@@ -25,6 +25,7 @@ from nodes.models import InstanceConfig, InstanceConfigQuerySet
 
 if TYPE_CHECKING:
     from kausal_common.users import UserOrAnon
+
     from nodes.instance import Instance
 
 

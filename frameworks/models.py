@@ -730,7 +730,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             if len(dim_combinations) != len(set(dim_combinations)):
                 logger.error(f'For node {node.id} unique MeasureTemplate uuids could not be found.')
                 return []
-            result = []
+            result: list[tuple[str, dict[str, str] | None]] = []
             for _uuid, *categories in combinations:
                 dims = {}
                 for i, dimension in enumerate(dimensions):
