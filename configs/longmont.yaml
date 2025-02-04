@@ -37,6 +37,14 @@ result_excels:
     https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
   name: Climate City Contract Tables
   node_ids:
+  - afolu_emissions
+  - waste_water_treatment_emissions
+  - refridgerant_emissions
+  - aviation_emissions
+  - railways_emissions
+  - off_road_transportation
+  - leakage_from_oil_and_gas_wells_emissions
+  - emission_factor_fuels
   - population
   - global_warming_potential_100a
   - free_rides_per_person
