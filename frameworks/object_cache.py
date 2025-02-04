@@ -26,6 +26,8 @@ from nodes.models import InstanceConfig, InstanceConfigQuerySet
 if TYPE_CHECKING:
     from kausal_common.users import UserOrAnon
 
+    from nodes.instance import Instance
+
 
 @dataclass
 class SectionCacheData:
@@ -140,6 +142,7 @@ class MeasureCache(ModelObjectCache[Measure, MeasureQuerySet, FrameworkConfig]):
 class FrameworkConfigCacheData:
     fw_cache: FrameworkSpecificCache
     framework_config: FrameworkConfig
+    instance: Instance = field(init=False)
     user: UserOrAnon | None
     measures: MeasureCache = field(init=False)
     measure_datapoints: MeasureDataPointCache = field(init=False)
