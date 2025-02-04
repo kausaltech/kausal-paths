@@ -72,7 +72,7 @@ class SimpleNode(Node):
             description='A category is sliced at edge before offering as input to another node',
             is_customizable=False,
         ),
-        StringParameter(
+        StringParameter( # FIXME Is this the same functionality as variant?
             local_id='filter_categories',
             description='Categories to filter in format dimension:category,category2',
             is_customizable=False,

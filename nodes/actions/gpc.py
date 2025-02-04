@@ -410,9 +410,12 @@ class SCurveAction(DatasetAction):
     def compute_effect(self) -> ppl.PathsDataFrame:
         df = self.get_input_node().get_output_pl(target_node=self)
 
-        baseline_year = self.context.instance.reference_year
-        if not baseline_year:
-            baseline_year = cast(int, df.filter(~pl.col(FORECAST_COLUMN))[YEAR_COLUMN].max())
+        last_obs = df.filter(~pl.col(FORECAST_COLUMN)).paths.to_wide()
+        meta = last_obs.get_meta()
+        last_obs = ppl.to_ppdf(last_obs.tail(1), meta=meta).paths.to_narrow()
+        assert len(last_obs) >0
+        last_obs = last_obs.rename({YEAR_COLUMN: 'xnow', VALUE_COLUMN: 'ynow'}).drop(FORECAST_COLUMN)
+        df = df.paths.join_over_index(last_obs)
 
         params = self.get_gpc_dataset()
         params = self.drop_unnecessary_levels(params, droplist=['Description'])
@@ -420,31 +423,46 @@ class SCurveAction(DatasetAction):
         params = self.convert_names_to_ids(params)
         params = self.implement_unit_col(params)
         params = self.apply_multiplier(params, required=False, units=True)
+        # params = self.add_and_multiply_input_nodes(params) # FIXME Does not insert measures because this does not work
         params = params.paths.join_over_index(df, how='inner')
 
-        drops = [FORECAST_COLUMN, VALUE_COLUMN + '_right', YEAR_COLUMN, 'parameter']
-        ymax = params.filter(pl.col('parameter') == 'max_year').drop(drops)
+        drops = [FORECAST_COLUMN, VALUE_COLUMN + '_right', YEAR_COLUMN, 'parameter', 'xnow', 'ynow']
+        xmax = params.filter(pl.col('parameter') == 'max_year').drop(drops)
+        xmax = xmax.rename({VALUE_COLUMN: 'xmax'})
+        df = df.paths.join_over_index(xmax, how='inner')
+
+        params = params.ensure_unit(VALUE_COLUMN, df.get_unit(VALUE_COLUMN))
+        ymax = params.filter(pl.col('parameter') == 'max_impact').drop(drops)
         ymax = ymax.rename({VALUE_COLUMN: 'ymax'})
         df = df.paths.join_over_index(ymax, how='inner')
 
-        params = params.ensure_unit(VALUE_COLUMN, df.get_unit(VALUE_COLUMN))
-        amax = params.filter(pl.col('parameter') == 'max_impact').drop(drops)
-        amax = amax.rename({VALUE_COLUMN: 'amax'})
-        df = df.paths.join_over_index(amax, how='inner')
+        df = df.with_columns((
+            pl.col(YEAR_COLUMN) - (pl.col('xnow') +
+            (pl.col('xmax') - pl.col('xnow')) / 2)
+        ).alias('x'))
+        df = df.with_columns(pl.lit(0.5).alias('slope'))
+
+        # S curve: y = A / (1 + exp(-b * x))
+        # Shift the S curve so that it fits the observation y_now by using delay e:
+        # y_now = A / (1 + exp(-b * (x_now - e)))
+        # e = ln((A / y_now - 1) / b
+        df = df.with_columns(
+            ((pl.col('ymax') / pl.col('ynow') - 1).log() / pl.col('slope')).alias('delay')
+        )
 
         df = df.with_columns((
-            pl.col(YEAR_COLUMN) - (pl.lit(baseline_year) +
-            (pl.col('ymax') - pl.lit(baseline_year)) / 2)).alias('x'))
-        df = df.with_columns((pl.col('amax') / (
-            pl.lit(1.0) + (pl.lit(-0.5) * pl.col('x')).exp())
-            ).alias('out'))
+                (pl.col('ymax') - pl.col('ynow'))
+                / (pl.lit(1.0) + (-pl.col('slope') * (pl.col('x') - pl.col('delay'))).exp())
+                + pl.col('ynow'))
+            .alias('out'))
+
         df = df.set_unit('out', df.get_unit(VALUE_COLUMN))
         df = df.with_columns((
             pl.when(pl.col(FORECAST_COLUMN))
             .then(pl.col('out'))
             .otherwise(pl.col(VALUE_COLUMN))).alias('out'))
         df = df.subtract_cols(['out', VALUE_COLUMN], VALUE_COLUMN)
-        df = df.drop(['x', 'out', 'amax', 'ymax'])
+        df = df.drop(['x', 'out', 'ymax', 'xmax', 'ynow', 'xnow', 'delay'])
 
         if not self.is_enabled():
             df = df.with_columns(pl.lit(self.no_effect_value).alias(VALUE_COLUMN))
