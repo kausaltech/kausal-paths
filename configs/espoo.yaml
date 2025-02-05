@@ -121,7 +121,7 @@ dimensions:
     label_en: Other buildings
     label_sv: Övriga byggnader
 
-- id: vehicle
+- id: vehicle # FIXME Remove redundant
   label: Ajoneuvo
   label_en: Vehicle
   label_sv: Fordon
@@ -240,7 +240,7 @@ dimensions:
     label: Sähkölämmitys
     label_en: Electric heating
     label_sv: Elvärme
-  - id: consumer_electricity
+  - id: non_heating_electricity
     label: Kulutussähkö
     label_en: Consumer electricity
     label_sv: Konsumtionel
@@ -361,6 +361,7 @@ dimensions:
     label: Bussit
     label_en: Buses
     label_sv: Bussar
+    aliases: [Linja-autot]
   - id: buses_hsl
     label: Bussit, HSL
     label_en: Buses, HSL
@@ -370,7 +371,8 @@ dimensions:
     label_en: Buses, other
     label_sv: Bussar, andra
   - id: local_trains
-    label: Paikallisjunat
+    label: Lähijunat
+    aliases: [Paikallisjunat]
     label_en: Local Trains
     label_sv: Lokaltåg
   - id: motorcycles
@@ -378,8 +380,13 @@ dimensions:
     label_en: Motorcycles
     label_sv: Motorcyklar
   - id: trams
-    label: Ratikat
+    label_fi: Raitiovaunut
+    aliases: [Ratikat]
     label_en: Trams
+  - id: metros
+    label_fi: Metrot
+    aliases: [Metro]
+    label_en: Metro
   - id: trucks
     label: Kuorma-autot
     label_en: Trucks
@@ -390,8 +397,93 @@ dimensions:
     label: Ei määritelty
     label_en: Undefined
     label_sv: Ej definierad
+  - id: leasure_boats
+    label: Huviveneet
+    label_en: Pleasure boats
+    label_sv: Fritidsbåtar
+  - id: professional_boats
+    label: Ammattiveneet
+    label_en: Professional boats
+    label_sv: Yrkesbåtar
+  - id: passenger_ships
+    label: Matkustajalaivat
+    label_en: Passenger ships
+    label_sv: Passagerarfartyg
+  - id: cargo_ships
+    label: Rahtilaivat
+    label_en: Cargo ships
+    label_sv: Fraktfartyg
+
+- id: economic_sector
+  label_fi: Taloussektori
+  label_en: Economic sector
+  categories:
+  - id: services
+    label_en: Services
+    label_fi: Palvelut
+  - id: industry
+    label_en: Industry
+    label_fi: Teollisuus
+  - id: residential
+    label_en: Residential
+    label_fi: Asuminen
+  - id: agriculture
+    label_en: Agriculture
+    label_fi: Maatalous
+  - id: field_farming
+    label_fi: Peltoviljely
+    aliases: [Pellot]
+    label_en: Field farming
+    label_sv: Fält
+  - id: cattle_farming
+    label_fi: Kotieläintalous
+    aliases: [Kotieläimet]
+    label_en: Cattle farming
+    label_sv: Husdjur
+
+- id: waste_treatment
+  label_fi: Jätteenkäsittely
+  label_en: Waste treatment
+  categories:
+  - id: landfills
+    label_fi: Kaatopaikka
+    label_en: Landfills
+    label_sv: Deponi
+  - id: biowaste_composting
+    label_fi: Biojätteen kompostointi
+    label_en: Biowaste composting
+    label_sv: Kompostering av bioavfall
+  - id: waste_water_treatment
+    label_fi: Jäteveden käsittely
+    label_en: Wastewater treatment
+    label_sv: Rening av avloppsvatten
+  - id: sludge_composting
+    label_fi: Jätevesilietteen kompostointi
+    label_en: Sewage sludge composting
+    label_sv: Kompostering av avloppsslam
+
+- id: ippu
+  label_fi: Teollisuus ja työkoneet
+  label_en: Industrial processes and product use
+  label_sv: Industri och maskiner
+  categories:
+  - id: machinery
+    label_fi: Työkoneet
+    label_en: work machines
+    label_sv: Arbetsmaskiner
+  - id: industry_fuel_emissions
+    label_fi: Teollisuuden polttoaineet
+    aliases: [Polttoaineet]
+    label_en: Industrial fuels
+    label_sv: Industriella bränsle
+  - id: industrial_processes
+    label: Teollisuusprosessit
+    aliases: [Prosessit]
+    label_en: Industrial processes
+    label_sv: Industriella processer
 
 emission_sectors:
+
 - id: net_emissions
   name: Kokonaispäästöt (scope 1+2)
   name_en: Net emissions (scope 1+2)
@@ -405,12 +497,6 @@ emission_sectors:
   name_sv: Utsläpp från uppvärmning av byggnader
   part_of: net_emissions
   color: '#ff4f57'
-
-- id: consumer_electricity_emissions
-  name: Kulutussähkön historialliset päästöt
-  name_en: Household electricity emissions
-  name_sv: Utsläpp av konsumtionsel
-  color: '#0047b6'
 
 - id: transport_emissions
   name: Liikenteen päästöt
@@ -521,11 +607,14 @@ nodes:
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   output_nodes:
-  - id: consumer_electricity_energy
+  - id: non_heating_electricity_energy
     tags: [arithmetic_inverse]
     from_dimensions:
     - id: energy_carrier
       flatten: true
+    to_dimensions:
+    - id: economic_sector
+      categories: [residential]
 
 - id: non_green_electricity_consumption
   name: Ei-vihreän sähkön kulutus
@@ -620,7 +709,7 @@ nodes:
   - id: electricity_production_emission_factor
     to_dimensions: []
   output_nodes:
-  - id: consumer_electricity_emissions2
+  - id: non_heating_electricity_emissions2
     from_dimensions:
     - id: energy_carrier
       flatten: true
@@ -628,7 +717,7 @@ nodes:
     - id: energy_carrier
       categories: [electricity]
 
-- id: consumer_electricity_emissions2
+- id: non_heating_electricity_emissions2
   name: Kulutussähkön päästöt
   type: simple.MultiplicativeNode
   quantity: emissions
@@ -636,10 +725,16 @@ nodes:
   color: '#0047b6'
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
-  input_nodes:  # FIXME Kyteke kokonaispäästöihin
+  input_nodes:  # FIXME Kytke kokonaispäästöihin
   - id: residual_emission_factor
-  - id: consumer_electricity_energy
-    to_dimensions: []
+    # to_dimensions: []
+  - id: non_heating_electricity_energy
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -659,31 +754,13 @@ nodes:
     from_dimensions:
     - id: energy_carrier
       flatten: true
-  - id: car_energy_hsy
+  - id: road_transport_energy_consumption
     tags: [inventory_only]
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
     to_dimensions:
     - id: vehicle_type
-      categories: [cars]
-  - id: van_energy_hsy
-    tags: [inventory_only]
-    to_dimensions:
-    - id: vehicle_type
-      categories: [vans]
-  - id: truck_energy_hsy
-    tags: [inventory_only]
-    to_dimensions:
-    - id: vehicle_type
-      categories: [trucks]
-  - id: bus_energy_hsy
-    tags: [inventory_only]
-    to_dimensions:
-    - id: vehicle_type
-      categories: [buses]
-  - id: motorcycle_energy_hsy
-    tags: [inventory_only]
-    to_dimensions:
-    - id: vehicle_type
-      categories: [motorcycles]
   - id: road_transport_energy_forecast
     tags: [forecast_only]
     from_dimensions:
@@ -695,39 +772,17 @@ nodes:
   name: Liikenteen päästökertoimet
   name_en: Traffic emission factors
   name_sv: Utsläppsfaktorer för trafik
-  type: simple.AdditiveNode
+  type: finland.hsy.HsyEmissionFactor
   quantity: emission_factor
   unit: g/kWh
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
-  input_nodes:
-  - id: car_traffic_emission_factor
-    tags: [inventory_only]
-    to_dimensions:
-    - id: vehicle_type
-      categories: [cars]
-  - id: van_traffic_emission_factor
-    tags: [inventory_only]
-    to_dimensions:
-    - id: vehicle_type
-      categories: [vans]
-  - id: truck_traffic_emission_factor
-    tags: [inventory_only]
-    to_dimensions:
-    - id: vehicle_type
-      categories: [trucks]
-  - id: bus_traffic_emission_factor # TODO Update the deviation of other buses from other scenarios
-    tags: [inventory_only]
-    to_dimensions:
-    - id: vehicle_type
-      categories: [buses]
-  - id: motorcycle_traffic_emission_factor
-    tags: [inventory_only]
-    to_dimensions:
-    - id: vehicle_type
-      categories: [motorcycles]
-  - id: road_traffic_emission_factor_forecast
-    tags: [forecast_only]
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Liikenne|Tieliikenne|_vehicle_type_|_economic_sector_
+  # TODO Update the deviation of other buses from other scenarios
+  # - id: road_traffic_emission_factor_forecast
+  #   tags: [forecast_only]
 
 - id: road_traffic_emissions
   name: Tieliikenteen päästöt
@@ -741,6 +796,9 @@ nodes:
   input_nodes:
   - id: road_traffic_energy_consumption
   - id: traffic_emission_factors
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
   output_nodes:
   - id: transport_emissions
     from_dimensions:
@@ -805,11 +863,11 @@ nodes:
   input_nodes:
   - id: biofuel_energy_change
   - id: biofuel_fraction_z
-  output_nodes:
-  - id: road_traffic_emissions
-    to_dimensions:
-    - id: vehicle_type
-      categories: [undefined]
+  # output_nodes:
+  # - id: road_traffic_emissions
+  #   to_dimensions:
+  #   - id: vehicle_type
+  #     categories: [undefined]
 
 # OLD NODES
 
@@ -856,52 +914,24 @@ nodes:
 #
 # TRANSPORT
 #
-
-- id: car_energy_hsy
-  name: Henkilöautojen energiankulutus, HSY-data
-  name_en: Energy consumption of cars, HSY data
-  name_sv: Personbilarnas energiförbrukning, HRM-data
-  params:
-    sector: Liikenne|Tieliikenne|Henkilöautot|Asuminen
-  input_nodes: [all_hsy_emissions]
+- id: road_transport_energy_consumption
+  name: Tieliikenteen energiankulutus
+  name_en: Road traffic energy consumption
+  name_sv: Vägtrafikens energiförbrukning
   type: finland.hsy.HsyEnergyConsumption
   unit: GWh/a
-- id: van_energy_hsy
-  name: Pakettiautojen energiankulutus, HSY-data
-  name_en: Energy consumption of vans, HSY data
-  name_sv: Paketbilarnas energiförbrukning, HRM-data
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
   params:
-    sector: Liikenne|Tieliikenne|Pakettiautot|Palvelut
+    sector: Liikenne|Tieliikenne|_vehicle_type_|_economic_sector_
   input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEnergyConsumption
-  unit: GWh/a
-- id: truck_energy_hsy
-  name: Kuorma-autojen energiankulutus, HSY-data
-  name_en: Energy consumption of lorries, HSY data
-  name_sv: Lastbilarnas energiförbrukning, HRM-data
-  params:
-    sector: Liikenne|Tieliikenne|Kuorma-autot|Teollisuus
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEnergyConsumption
-  unit: GWh/a
-- id: bus_energy_hsy
-  name: Linja-autojen energiankulutus, HSY-data
-  name_en: Energy consumption of buses, HSY data
-  name_sv: Bussarnas energiförbrukning, HRM-data
-  params:
-    sector: Liikenne|Tieliikenne|Linja-autot|Palvelut
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEnergyConsumption
-  unit: GWh/a
-- id: motorcycle_energy_hsy
-  name: Moottoripyörien energiankulutus
-  name_en: Energy consumption of motorcycles
-  name_sv: Motorcykeltrafikens energiförbrukning
-  params:
-    sector: Liikenne|Tieliikenne|Moottoripyörät|Asuminen
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEnergyConsumption
-  unit: GWh/a
+  # output_nodes:
+  # - id: road_traffic_emissions
+  #   from_dimensions:
+  #   - id: economic_sector
+  #     flatten: true
+  #   to_dimensions:
+  #   - id: vehicle_type
 
 - id: car_energy
   name: Henkilöautojen energiankulutus
@@ -913,10 +943,12 @@ nodes:
   input_dimensions: [vehicle_type]
   output_dimensions: [vehicle_type]
   input_nodes:
-  - id: car_energy_hsy
-    to_dimensions:
+  - id: road_transport_energy_consumption
+    from_dimensions:
     - id: vehicle_type
       categories: [cars]
+    - id: economic_sector
+      flatten: true
 
 - id: total_car_amount
   name: Henkilöautojen kokonaismäärä
@@ -960,35 +992,6 @@ nodes:
   - id: fraction_of_electricity_in_car_energy
     tags: [complement]
 
-
-- id: van_energy
-  name: Pakettiautojen energiankulutus
-  name_en: Energy consumption of vans
-  name_sv: Paketbilarnas energiförbrukning
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  input_nodes:
-  - van_energy_hsy
-- id: truck_energy
-  name: Kuorma-autojen energiankulutus
-  name_en: Energy consumption of lorries
-  name_sv: Lastbilarnas energiförbrukning
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  input_nodes:
-  - truck_energy_hsy
-- id: bus_energy
-  name: Linja-autojen energiankulutus
-  name_en: Energy consumption of buses
-  name_sv: Bussarnas energiförbrukning
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  input_nodes:
-  - bus_energy_hsy
-
 - id: fraction_of_electricity_in_car_energy
   name: Sähkön osuus henkilöautojen energiankulutuksessa
   name_en: Fraction of electricity in car energy consumption
@@ -1001,52 +1004,6 @@ nodes:
   input_datasets: [gpc/espoo]
   params:
     sector: Sähkön osuus energiasta
-
-- id: car_traffic_emission_factor
-  name: Henkilöautoliikenteen päästökerroin
-  name_en: Car traffic emission factor
-  name_sv: Utsläppskoefficienten för personbilstrafiken
-  type: finland.hsy.HsyEmissionFactor
-  unit: g/kWh
-  input_nodes: [all_hsy_emissions]
-  params:
-    sector: Liikenne|Tieliikenne|Henkilöautot|Asuminen
-- id: van_traffic_emission_factor
-  name: Pakettiautoliikenteen päästökerroin
-  name_en: Van traffic emission factor
-  name_sv: Utsläppskoefficienten för paketbilstrafiken
-  type: finland.hsy.HsyEmissionFactor
-  unit: g/kWh
-  input_nodes: [all_hsy_emissions]
-  params:
-    sector: Liikenne|Tieliikenne|Pakettiautot|Palvelut
-- id: truck_traffic_emission_factor
-  name: Kuorma-autoliikenteen päästökerroin
-  name_en: Truck traffic emission factor
-  name_sv: Utsläppskoefficienten för lastbilstrafiken
-  type: finland.hsy.HsyEmissionFactor
-  unit: g/kWh
-  input_nodes: [all_hsy_emissions]
-  params:
-    sector: Liikenne|Tieliikenne|Kuorma-autot|Teollisuus
-- id: bus_traffic_emission_factor
-  name: Bussiliikenteen päästökerroin
-  name_en: Bus traffic emission factor
-  name_sv: Utsläppskoefficienten för busstrafiken
-  type: finland.hsy.HsyEmissionFactor
-  unit: g/kWh
-  input_nodes: [all_hsy_emissions]
-  params:
-    sector: Liikenne|Tieliikenne|Linja-autot|Palvelut
-- id: motorcycle_traffic_emission_factor
-  name: Moottoripyöräliikenteen päästökerroin
-  name_en: Motorcycle traffic emission factor
-  name_sv: Utsläppskoefficienten för motorcykeltrafiken
-  type: finland.hsy.HsyEmissionFactor
-  unit: g/kWh
-  input_nodes: [all_hsy_emissions]
-  params:
-    sector: Liikenne|Tieliikenne|Moottoripyörät|Asuminen
 
 - id: addition_to_traffic_emission_factors
   name: Lisäys liikenteen päästökertoimiin
@@ -1268,7 +1225,7 @@ nodes:
   input_nodes:
   - id: electric_heating_emission_factor_historic
 
-- id: consumer_electricity_energy
+- id: non_heating_electricity_energy2
   name: Kulutussähkön kulutus yhteensä
   name_en: consumer electricity, total
   name_sv: Förbrukning elförbrukning, total
@@ -1298,11 +1255,12 @@ nodes:
   quantity: energy
   unit: GWh/a
   input_nodes:
-  - consumer_electricity_residence_energy
-  - consumer_electricity_industry_energy
-  - consumer_electricity_services_energy
+  - id: non_heating_electricity_energy
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
 
-- id: consumer_electricity_residence_energy_historical
+- id: non_heating_electricity_residence_energy_historical
   name: Kulutussähkön sähkönkulutus (Asuminen), historiallinen
   name_en: Consumption electricity consumption (Housing), historical
   name_sv: Förbrukning elförbrukning (bostäder), historisk
@@ -1313,7 +1271,7 @@ nodes:
     sector: Sähkö|Kulutussähkö|Kulutussähkö|Asuminen
   input_nodes: [all_hsy_emissions]
 
-- id: consumer_electricity_residence_energy_goal
+- id: non_heating_electricity_residence_energy_goal
   name: Kulutussähkön kulutus (Asuminen), tavoite
   name_en: Consumer electricity, goal (Housing)
   name_sv: Förbrukning elförbrukning, mål (bostäder)
@@ -1337,43 +1295,6 @@ nodes:
   params:
     sector: Kansallinen sähköntuotanto puhdistuu
 
-- id: waste_landfill_emissions
-  name: Kaatopaikkojen päästöt
-  name_en: Landfill emissions
-  name_sv: Deponiutsläpp
-  type: simple.RelativeNode
-  quantity: emissions
-  unit: kt/a
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes: [waste_treatment_emissions]
-- id: biowaste_composting_emissions
-  name: Biojätteen kompostoinnin päästöt
-  name_en: Biowaste composting emissions
-  name_sv: Komposteringsutsläpp av bioavfall
-  type: simple.RelativeNode
-  quantity: emissions
-  unit: kt/a
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes: [waste_treatment_emissions]
-- id: waste_water_treatment_emissions
-  name: Jäteveden käsittelyn päästöt
-  name_en: Wastewater treatment emissions
-  name_sv: Utsläpp från rening av avloppsvatten
-  type: simple.RelativeNode
-  quantity: emissions
-  unit: kt/a
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes: [waste_treatment_emissions]
-- id: sludge_composting_emissions
-  name: Jätevesilietteen kompostoinnin päästöt
-  name_en: Emissions from sewage sludge composting
-  name_sv: Utsläpp från kompostering av avloppsslam
-  type: simple.RelativeNode
-  quantity: emissions
-  unit: kt/a
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes: [waste_treatment_emissions]
-
 - id: waste_treatment_emissions_historical
   name: Jätteiden käsittelyn päästöt, historiallinen
   name_en: Waste treatment emissions, historical
@@ -1382,10 +1303,12 @@ nodes:
   quantity: emissions
   unit: kt/a
   input_nodes:
-  - id: waste_landfill_emissions
-  - id: biowaste_composting_emissions
-  - id: waste_water_treatment_emissions
-  - id: sludge_composting_emissions
+  - id: waste_treatment_emissions
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
+    - id: waste_treatment
+      flatten: true
 
 - id: industry_and_machinery_historical_emissions
   name: Teollisuus ja työkoneet, historiallinen
@@ -1397,129 +1320,18 @@ nodes:
   input_dimensions: [main_emission_sector]
   output_dimensions: [main_emission_sector]
   input_nodes:
-  - id: machinery_emissions
-    to_dimensions:
-    - id: main_emission_sector
-      categories: [machinery]
-  - id: industry_fuel_emissions
-    to_dimensions:
-    - id: main_emission_sector
-      categories: [industry]
-  - id: industrial_processes_emissions
+  - id: industry_machinery_emissions
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
+    - id: ippu
+      flatten: true
     to_dimensions:
     - id: main_emission_sector
       categories: [industry]
 
 ####### Detailed waste emissions with altered names
-
-- id: waste_landfill_residence_emissions  # These nodes are here from the framework as the names have changed.
-  name: Kaatopaikkojen historialliset päästöt (Asuminen)
-  name_en: Landfill historical emissions (Housing)
-  name_sv: Deponiutsläpp historisk (bostäder)
-  output_nodes: [waste_landfill_emissions]
-  params:
-    sector: Jätteiden käsittely|Kaatopaikka|Kaatopaikka|Asuminen
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
-- id: waste_landfill_services_emissions
-  name: Kaatopaikkojen historialliset päästöt (Palvelut)
-  name_en: Landfill historical emissions (Services)
-  name_sv: Deponiutsläpp historisk (tjänster)
-  output_nodes: [waste_landfill_emissions]
-  params:
-    sector: Jätteiden käsittely|Kaatopaikka|Kaatopaikka|Palvelut
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
-- id: waste_landfill_industry_emissions
-  name: Kaatopaikkojen historialliset päästöt (Teollisuus)
-  name_en: Landfill historical emissions (Industry)
-  name_sv: Deponiutsläpp historisk (industri)
-  output_nodes: [waste_landfill_emissions]
-  params:
-    sector: Jätteiden käsittely|Kaatopaikka|Kaatopaikka|Teollisuus
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
-- id: biowaste_composting_residence_emissions
-  name: Biojätteen kompostoinnin historialliset päästöt (Asuminen)
-  name_en: Biowaste composting historical emissions (Housing)
-  name_sv: Bioavfallskomposteringsutsläpp historisk (bostäder)
-  output_nodes: [biowaste_composting_emissions]
-  params:
-    sector: Jätteiden käsittely|Biojätteen kompostointi|Biojätteen kompostointi|Asuminen
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
-- id: biowaste_composting_services_emissions
-  name: Biojätteen kompostoinnin historialliset päästöt (Palvelut)
-  name_en: Biowaste composting historical emissions (Services)
-  name_sv: Bioavfallskomposteringsutsläpp historisk (tjänster)
-  output_nodes: [biowaste_composting_emissions]
-  params:
-    sector: Jätteiden käsittely|Biojätteen kompostointi|Biojätteen kompostointi|Palvelut
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
-- id: biowaste_composting_industry_emissions
-  name: Biojätteen kompostoinnin historialliset päästöt (Teollisuus)
-  name_en: Biowaste composting historical emissions (Industry)
-  name_sv: Bioavfallskomposteringsutsläpp historisk (industri)
-  output_nodes: [biowaste_composting_emissions]
-  params:
-    sector: Jätteiden käsittely|Biojätteen kompostointi|Biojätteen kompostointi|Teollisuus
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
-- id: waste_water_treatment_residence_emissions
-  name: Jäteveden käsittelyn historialliset päästöt (Asuminen)
-  name_en: Wastewater treatment historical emissions (Housing)
-  name_sv: Utsläpp av avloppsvattenrening historisk (bostäder)
-  output_nodes: [waste_water_treatment_emissions]
-  params:
-    sector: Jätteiden käsittely|Jäteveden käsittely|Jäteveden käsittely|Asuminen
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
-- id: waste_water_treatment_services_emissions
-  name: Jäteveden käsittelyn historialliset päästöt (Palvelut)
-  name_en: Wastewater treatment historical emissions (Services)
-  name_sv: Utsläpp av avloppsvattenrening historisk (tjänster)
-  output_nodes: [waste_water_treatment_emissions]
-  params:
-    sector: Jätteiden käsittely|Jäteveden käsittely|Jäteveden käsittely|Palvelut
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
-- id: waste_water_treatment_industry_emissions
-  name: Jäteveden käsittelyn historialliset päästöt (Teollisuus)
-  name_en: Wastewater treatment historical emissions (Industry)
-  name_sv: Utsläpp av avloppsvattenrening historisk (industri)
-  output_nodes: [waste_water_treatment_emissions]
-  params:
-    sector: Jätteiden käsittely|Jäteveden käsittely|Jäteveden käsittely|Teollisuus
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
-- id: sludge_composting_residence_emissions
-  name: Jätevesilietteen kompostoinnin historialliset päästöt (Asuminen)
-  name_en: Emissions from sewage sludge composting historical (Housing)
-  name_sv: Utsläpp från kompostering av avloppsslam historisk (bostäder)
-  output_nodes: [sludge_composting_emissions]
-  params:
-    sector: Jätteiden käsittely|Jätevesilietteen kompostointi|Jätevesilietteen kompostointi|Asuminen
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
-- id: sludge_composting_services_emissions
-  name: Jätevesilietteen kompostoinnin historialliset päästöt (Palvelut)
-  name_en: Emissions from sewage sludge composting historical (Services)
-  name_sv: Utsläpp från kompostering av avloppsslam historisk (tjänster)
-  output_nodes: [sludge_composting_emissions]
-  params:
-    sector: Jätteiden käsittely|Jätevesilietteen kompostointi|Jätevesilietteen kompostointi|Palvelut
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
-- id: sludge_composting_industry_emissions
-  name: Jätevesilietteen kompostoinnin historialliset päästöt (Teollisuus)
-  name_en: Emissions from sewage sludge composting historical (Industry)
-  name_sv: Utsläpp från kompostering av avloppsslam historisk (industri)
-  output_nodes: [sludge_composting_emissions]
-  params:
-    sector: Jätteiden käsittely|Jätevesilietteen kompostointi|Jätevesilietteen kompostointi|Teollisuus
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
+# These nodes are here from the framework as the names have changed.
 
 pages:
 - id: home  # The page is not shown
@@ -1814,7 +1626,7 @@ actions:
     - id: energy_carrier
       flatten: true
 
-- id: change_consumer_electricity
+- id: change_non_heating_electricity
   name: Muutos kulutussähkön käytössä
   name_en: Change in household energy consumption
   name_sv: Förändring i användningen av konsumtionsel
@@ -1825,18 +1637,18 @@ actions:
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_nodes:
-  - id: consumer_electricity_residence_energy_historical
+  - id: non_heating_electricity_residence_energy_historical
     tags: [historical]
     to_dimensions:
     - id: energy_carrier
       categories: [electricity]
-  - id: consumer_electricity_residence_energy_goal
+  - id: non_heating_electricity_residence_energy_goal
     tags: [goal]
-  output_nodes:
-  - id: consumer_electricity_residence_energy
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
+  # output_nodes:
+  # - id: non_heating_electricity_residence_energy
+  #   from_dimensions:
+  #   - id: energy_carrier
+  #     flatten: true
 
 - id: replace_fossil_fuels_in_district_heating
   name: Fortum korvaa fossiiliset energialähteet kaukolämmöntuotannossa
@@ -2258,11 +2070,11 @@ actions:
     to_dimensions:
     - id: main_emission_sector
       categories: [waste_treatment]
-  output_nodes:
-  - id: waste_treatment_emissions
-    from_dimensions:
-    - id: main_emission_sector
-      flatten: true
+  # output_nodes:
+  # - id: waste_treatment_emissions
+  #   from_dimensions:
+  #   - id: main_emission_sector
+  #     flatten: true
 
 - id: reduce_agriculture_emissions
   name: Maatalouden päästöt pienenevät
@@ -2283,8 +2095,8 @@ actions:
   unit: kt/a
   group: waste_agriculture
   forecast_values: [[2024, 0.0], [2035, 0.0]]
-  output_nodes:
-  - agricultural_field_emissions
+  # output_nodes:
+  # - agricultural_field_emissions
   params:
   - id: target_year_level
     value: -0.1079092776
@@ -2348,11 +2160,11 @@ actions:
   input_nodes:
   - id: industry_and_machinery_historical_emissions
     tags: [baseline]
-  output_nodes:
-  - id: industry_machinery_emissions
-    from_dimensions:
-    - id: main_emission_sector
-      flatten: true
+  # output_nodes:
+  # - id: industry_machinery_emissions
+  #   from_dimensions:
+  #   - id: main_emission_sector
+  #     flatten: true
   params:
     sector: Teollisuus ja työkoneet
     filter_categories: scenario:default
@@ -2658,7 +2470,7 @@ scenarios:
     value: true
   - id: reduce_waste_treatment_emissions.filter_categories
     value: scenario:baseline
-  - id: change_consumer_electricity.enabled
+  - id: change_non_heating_electricity.enabled
     value: true
 
 - id: default
@@ -2701,7 +2513,7 @@ scenarios:
     value: true
   - id: reduce_waste_treatment_emissions.filter_categories
     value: scenario:default
-  - id: change_consumer_electricity.enabled
+  - id: change_non_heating_electricity.enabled
     value: true
   - id: cleaner_electricity_production.enabled
     value: true
@@ -2718,7 +2530,7 @@ scenarios:
     value: false
   - id: reduce_waste_treatment_emissions.filter_categories
     value: scenario:pessimistic
-  - id: change_consumer_electricity.enabled
+  - id: change_non_heating_electricity.enabled
     value: true
   - id: cleaner_electricity_production.enabled
     value: true
@@ -2763,7 +2575,7 @@ scenarios:
     value: true
   - id: reduce_waste_treatment_emissions.filter_categories
     value: scenario:default
-  - id: change_consumer_electricity.enabled
+  - id: change_non_heating_electricity.enabled
     value: true
   - id: cleaner_electricity_production.enabled
     value: true
