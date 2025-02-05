@@ -720,27 +720,25 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         column_names = ['UUID'] + [
             self._dimension_name_to_dataset_column_label(dim.id) for dim in dimensions
         ]
-        if len(uuids) and len(node.output_dimensions) > 0:
-            combinations = set()
-            for row in df.select(column_names).iter_rows():
-                if row[0] is None:
-                    continue
-                combinations.add(row)
-            dim_combinations = [c[1:] for c in combinations]
-            if len(dim_combinations) != len(set(dim_combinations)):
-                logger.error(f'For node {node.id} unique MeasureTemplate uuids could not be found.')
-                return []
+        if len(uuids) < 2 or len(node.output_dimensions) == 0:
+            return [(u, None) for u in uuids]
 
-            result: list[tuple[str, dict[str, str] | None]] = []
-            for _uuid, *categories in combinations:
-                dims = {}
-                for i, dimension in enumerate(dimensions):
-                    dims[dimension.id] = categories[i]
-                result.append((_uuid, dims))
-            return result
-        assert len(uuids) < 2
-        return [(u, None) for u in uuids]
-
+        combinations = set()
+        for row in df.select(column_names).iter_rows():
+            if row[0] is None:
+                continue
+            combinations.add(row)
+        dim_combinations = [c[1:] for c in combinations]
+        if len(dim_combinations) != len(set(dim_combinations)):
+            logger.error(f'For node {node.id} unique MeasureTemplate uuids could not be found.')
+            return []
+        result: list[tuple[str, dict[str, str] | None]] = []
+        for _uuid, *categories in combinations:
+            dims = {}
+            for i, dimension in enumerate(dimensions):
+                dims[dimension.id] = categories[i]
+            result.append((_uuid, dims))
+        return result
 
     @cached_property
     def measure_template_uuid_to_node_dimension_selection(self) -> Mapping[str, NodeDimensionSelection]:
