@@ -44,6 +44,16 @@ action_efficiency_pairs:
   outcome_dimension: cost_benefit
   label: Cost-benefit
 
+- graph_type: return_of_investment
+  cost_node: aggregate_total_costs
+  impact_node: aggregate_total_benefits
+  invert_cost: false
+  invert_impact: true
+  indicator_unit: '%'
+  cost_unit: EUR
+  impact_unit: EUR
+  label: Return on investment
+
 action_groups:
 - id: transportation
   name: Kestävä liikennejärjestelmä
