@@ -233,6 +233,7 @@ Missing values are assumed to be zero.""")
                 else:
                     raise NodeError(self, "Input dataset has multiple metric columns, but no Value column")
 
+        df = self.apply_multiplier(df, required=False, units=True)
         df = df.ensure_unit(VALUE_COLUMN, self.single_metric_unit)
 
         if self.get_parameter_value('inventory_only', required=False):
