@@ -240,6 +240,22 @@ nodes:
 
 # ----------- Electricity production ----------------
 
+- id: fossil_electricity_share
+  name: Fossil electricity share
+  type: simple.RelativeYearScaledNode
+  quantity: ratio
+  unit: dimensionless
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: electricity_shares
+    from_dimensions:
+    - id: fuel_type
+      categories: [fossil]
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+
 - id: effective_electricity_emission_factor
   name_en: Effective electricity emission factor
   name_fi: Sähköntuotannon efektiivinen päästökerroin
@@ -256,12 +272,7 @@ nodes:
     to_dimensions:
     - id: energy_carrier
     - id: pollutant
-  - id: electricity_shares
-    tags: [ratio_to_last_historical_value]
-    from_dimensions:
-    - id: fuel_type
-      categories: [fossil]
-      flatten: true
+  - id: fossil_electricity_share
     to_dimensions:
     - id: energy_carrier
   params:
