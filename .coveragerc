@@ -1,0 +1,30 @@
+[run]
+source = .
+
+omit =
+    */tests/*
+    */migrations/*
+    */management/commands/*
+    manage.py
+    local_settings.py
+    conftest.py
+    run_tests.py
+    */settings.py
+    */wsgi.py
+    */asgi.py
+    */__init__.py
+
+[report]
+show_missing = True
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if self.debug:
+    if __name__ == .__main__.:
+    raise NotImplementedError
+    pass
+    except ImportError:
+    def setUp
+    def test_
+
+ignore_errors = True

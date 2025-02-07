@@ -18,6 +18,7 @@ pint-pandas
 colored
 factory-boy
 pytest-django
+pytest-cov
 pytest-factoryboy
 pytest-html
 orjson
