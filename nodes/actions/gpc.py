@@ -410,11 +410,12 @@ class SCurveAction(DatasetAction):
     def compute_effect(self) -> ppl.PathsDataFrame:
         df = self.get_input_node().get_output_pl(target_node=self)
 
-        last_obs = df.filter(~pl.col(FORECAST_COLUMN)).paths.to_wide()
+        last_obs_year = self.context.instance.reference_year # TODO We may want to make this adjustable
+        last_obs = df.filter(pl.col(YEAR_COLUMN) == last_obs_year).paths.to_wide()
         meta = last_obs.get_meta()
         last_obs = ppl.to_ppdf(last_obs.tail(1), meta=meta).paths.to_narrow()
         assert len(last_obs) >0
-        last_obs = last_obs.rename({YEAR_COLUMN: 'xnow', VALUE_COLUMN: 'ynow'}).drop(FORECAST_COLUMN)
+        last_obs = last_obs.rename({YEAR_COLUMN: 'yearnow', VALUE_COLUMN: 'ynow'}).drop(FORECAST_COLUMN)
         df = df.paths.join_over_index(last_obs)
 
         params = self.get_gpc_dataset()
@@ -426,10 +427,10 @@ class SCurveAction(DatasetAction):
         # params = self.add_and_multiply_input_nodes(params) # FIXME Does not insert measures because this does not work
         params = params.paths.join_over_index(df, how='inner')
 
-        drops = [FORECAST_COLUMN, VALUE_COLUMN + '_right', YEAR_COLUMN, 'parameter', 'xnow', 'ynow']
-        xmax = params.filter(pl.col('parameter') == 'max_year').drop(drops)
-        xmax = xmax.rename({VALUE_COLUMN: 'xmax'})
-        df = df.paths.join_over_index(xmax, how='inner')
+        drops = [FORECAST_COLUMN, VALUE_COLUMN + '_right', YEAR_COLUMN, 'parameter', 'ynow', 'yearnow']
+        yearmax = params.filter(pl.col('parameter') == 'max_year').drop(drops)
+        yearmax = yearmax.rename({VALUE_COLUMN: 'yearmax'})
+        df = df.paths.join_over_index(yearmax, how='inner')
 
         params = params.ensure_unit(VALUE_COLUMN, df.get_unit(VALUE_COLUMN))
         ymax = params.filter(pl.col('parameter') == 'max_impact').drop(drops)
@@ -437,18 +438,30 @@ class SCurveAction(DatasetAction):
         df = df.paths.join_over_index(ymax, how='inner')
 
         df = df.with_columns((
-            pl.col(YEAR_COLUMN) - (pl.col('xnow') +
-            (pl.col('xmax') - pl.col('xnow')) / 2)
+            pl.col(YEAR_COLUMN) - (pl.col('yearnow') +
+            (pl.col('yearmax') - pl.col('yearnow')) / 2)
         ).alias('x'))
         df = df.with_columns(pl.lit(0.5).alias('slope'))
+
+        matching_values = df.filter(pl.col('yearnow') == pl.col(YEAR_COLUMN)).select('x').unique()
+        assert len(matching_values) == 1, "Multiple different values found where yearnow equals YEAR_COLUMN"
+        value = matching_values.item()
+        df = df.with_columns(pl.lit(value).alias('xnow'))
 
         # S curve: y = A / (1 + exp(-b * x))
         # Shift the S curve so that it fits the observation y_now by using delay e:
         # y_now = A / (1 + exp(-b * (x_now - e)))
-        # e = ln((A / y_now - 1) / b
-        df = df.with_columns(
-            ((pl.col('ymax') / pl.col('ynow') - 1).log() / pl.col('slope')).alias('delay')
-        )
+        # e = ln((A / y_now - 1) / b + x_now
+        # Only use delay when deviates from zero
+        # A better way is to get rid of yearmax altogether and find th position of the curve from observations.
+        # Or alternatively make slope non-constant.
+        if 0.02 < df.select('ynow').max().item() < 0.98:
+            df = df.with_columns(
+                ((pl.col('ymax') / pl.col('ynow') - 1).log() / pl.col('slope')
+                + pl.col('xnow')).alias('delay')
+            )
+        else:
+            df = df.with_columns(pl.lit(0.0).alias('delay'))
 
         df = df.with_columns((
                 (pl.col('ymax') - pl.col('ynow'))
@@ -462,7 +475,7 @@ class SCurveAction(DatasetAction):
             .then(pl.col('out'))
             .otherwise(pl.col(VALUE_COLUMN))).alias('out'))
         df = df.subtract_cols(['out', VALUE_COLUMN], VALUE_COLUMN)
-        df = df.drop(['x', 'out', 'ymax', 'xmax', 'ynow', 'xnow', 'delay'])
+        df = df.drop(['x', 'out', 'ymax', 'yearmax', 'ynow', 'xnow', 'delay'])
 
         if not self.is_enabled():
             df = df.with_columns(pl.lit(self.no_effect_value).alias(VALUE_COLUMN))
