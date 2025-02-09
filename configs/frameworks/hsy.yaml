@@ -23,17 +23,17 @@ nodes:
   name_en: Emissions from industry and machinery
   name_sv: Utsläpp från industri och maskiner
   type: finland.hsy.HsyEmissions
-  input_dimensions: [ippu, economic_sector]
-  output_dimensions: [ippu, economic_sector]
+  input_dimensions: [emission_sector, economic_sector]
+  output_dimensions: [emission_sector, economic_sector]
   input_nodes: [all_hsy_emissions]
   params:
-    sector: Teollisuus ja työkoneet|*|_ippu_|_economic_sector_
+    sector: Teollisuus ja työkoneet|*|_emission_sector_|_economic_sector_
   output_nodes:
   - id: net_emissions
     from_dimensions:
     - id: economic_sector
       flatten: true
-    - id: ippu
+    - id: emission_sector
       flatten: true
 
 - id: agriculture_emissions
@@ -79,6 +79,7 @@ nodes:
   input_nodes: [district_heating_emission_factor]
   type: simple.EmissionFactorActivity
   unit: kt/a
+
 - id: oil_heating_emissions
   name: Öljylämmityksen päästöt
   name_en: Oil heating emissions
@@ -87,22 +88,34 @@ nodes:
   input_nodes: [oil_heating_emission_factor]
   type: simple.EmissionFactorActivity
   unit: kt/a
+
 - id: direct_electric_heating_emissions
   name: Sähkölämmityksen päästöt
   name_en: Emissions from electric heating
   name_sv: Utsläpp från elvärme
-  output_nodes: [building_heating_emissions]
-  input_nodes: [electric_heating_emission_factor]
   type: simple.EmissionFactorActivity
   unit: kt/a
+  input_nodes:
+  - id: electric_heating_emission_factor
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  output_nodes:
+  - id: building_heating_emissions
+
 - id: geothermal_heating_emissions
   name: Maalämmön päästöt
   name_en: Geothermal emissions
   name_sv: Geotermiska utsläpp
-  output_nodes: [building_heating_emissions]
-  input_nodes: [electric_heating_emission_factor]
   type: simple.EmissionFactorActivity
   unit: kt/a
+  input_nodes:
+  - id: electric_heating_emission_factor
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  output_nodes:
+  - id: building_heating_emissions
 
 - id: non_heating_electricity_energy
   name: Kulutussähkön sähkönkulutus
@@ -110,22 +123,23 @@ nodes:
   name_sv: Förbrukning elförbrukning
   type: finland.hsy.HsyEnergyConsumption
   unit: GWh/a
-  input_dimensions: [economic_sector]
-  output_dimensions: [economic_sector]
+  input_dimensions: [economic_sector, energy_carrier]
+  output_dimensions: [economic_sector, energy_carrier]
   input_nodes: [all_hsy_emissions]
   params:
-    sector: Sähkö|Kulutussähkö|Kulutussähkö|_economic_sector_
+    sector: Sähkö|Kulutussähkö|_energy_carrier_|_economic_sector_
   color: '#0047b6'
 
 - id: electricity_emissions
   name: Kulutussähkön päästöt
   name_en: Consumption electricity emissions
   name_sv: Konsumtion elutsläpp
-  input_dimensions: [economic_sector]
-  output_dimensions: [economic_sector]
+  input_dimensions: [economic_sector, energy_carrier]
+  output_dimensions: [economic_sector, energy_carrier]
   input_nodes:
   - id: electricity_production_emission_factor
-    to_dimensions: []
+    to_dimensions:
+    - id: energy_carrier
   - id: non_heating_electricity_energy
   # output_nodes: [electricity_emissions]
   type: simple.EmissionFactorActivity
@@ -187,8 +201,18 @@ nodes:
   output_dimensions: [vehicle_type, economic_sector]
   input_nodes:
   - id: electricity_production_emission_factor
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
     to_dimensions: []
   - id: rail_transport_energy
+  output_nodes:
+  - id: transport_emissions
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
+    - id: vehicle_type
+      flatten: true
 
 - id: water_transport_emissions
   name_fi: Laivaliikenteen päästöt
@@ -217,6 +241,7 @@ nodes:
   input_nodes: [all_hsy_emissions]
   params:
     sector: Lämmitys|Kaukolämpö|Kaukolämpö|Asuminen
+
 - id: oil_heating_emission_factor
   name: Öljylämmityksen päästökerroin
   name_en: Oil heating emission factor
@@ -226,24 +251,30 @@ nodes:
   input_nodes: [all_hsy_emissions]
   params:
     sector: Lämmitys|Öljylämmitys|Öljylämmitys|Asuminen
+
 - id: electricity_production_emission_factor
   name: Kansallisen sähköntuotannon päästökerroin
   name_en: National electricity production emission factor
   name_sv: Emissionskoefficient för nationell elproduktion
   type: finland.hsy.HsyEmissionFactor
   unit: g/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
   input_nodes: [all_hsy_emissions]
   params:
-    sector: Sähkö|Kulutussähkö|Kulutussähkö|Asuminen
+    sector: Sähkö|Kulutussähkö|_energy_carrier_|*
+
 - id: electric_heating_emission_factor
   name: Lämmityssähkön päästökerroin
   name_en: Electric heating emission factor
   name_sv: Emissionskoefficient för värmeel
   type: finland.hsy.HsyEmissionFactor
   unit: g/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
   input_nodes: [all_hsy_emissions]
   params:
-    sector: Lämmitys|Sähkölämmitys|Sähkölämmitys|Asuminen
+    sector: Lämmitys|Sähkölämmitys|_energy_carrier_|*
 
 - id: all_hsy_emissions
   type: finland.hsy.HsyNode

@@ -5,7 +5,7 @@ frameworks: [hsy]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: aebba1bba37608aba3f795c98e390cd4134c3a42
+  commit: 6b61065b0cbdecb7c9d3235a6634faa13393f05e
   # commit: 8caa222ae2b5aa14be248435eb8eb47bd401a010
   dvc_remote: kausal-s3
 name: Hiilineutraali Espoo 2030
@@ -223,7 +223,7 @@ dimensions:
     label_en: Pessimistic
     label_sv: Pessimistisk
 
-- id: main_emission_sector
+- id: emission_sector
   label: Päästösektori
   label_en: Main emission sector
   label_sv: Utsläppsektor
@@ -268,6 +268,12 @@ dimensions:
     label: Teollisuus
     label_en: Industry
     label_sv: Industri
+    aliases: [Prosessit]
+  - id: industry_fuels
+    label_fi: Teollisuuden polttoaineet
+    label_en: Industrial fuels
+    label_sv: Industriella bränsle
+    aliases: [Polttoaineet]
 
 - id: cost_type
   label: Cost Type
@@ -291,6 +297,7 @@ dimensions:
   - id: electricity
     label: Sähkö
     label_en: Electricity
+    aliases: [Kulutussähkö, Sähkölämmitys]
   - id: green_electricity
     label: Vihreä sähkö
     label_en: Green electricity
@@ -462,26 +469,6 @@ dimensions:
     label_en: Sewage sludge composting
     label_sv: Kompostering av avloppsslam
 
-- id: ippu
-  label_fi: Teollisuus ja työkoneet
-  label_en: Industrial processes and product use
-  label_sv: Industri och maskiner
-  categories:
-  - id: machinery
-    label_fi: Työkoneet
-    label_en: work machines
-    label_sv: Arbetsmaskiner
-  - id: industry_fuel_emissions
-    label_fi: Teollisuuden polttoaineet
-    aliases: [Polttoaineet]
-    label_en: Industrial fuels
-    label_sv: Industriella bränsle
-  - id: industrial_processes
-    label: Teollisuusprosessit
-    aliases: [Prosessit]
-    label_en: Industrial processes
-    label_sv: Industriella processer
-
 emission_sectors:
 
 - id: net_emissions
@@ -609,12 +596,10 @@ nodes:
   output_nodes:
   - id: non_heating_electricity_energy
     tags: [arithmetic_inverse]
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
     to_dimensions:
     - id: economic_sector
       categories: [residential]
+    - id: energy_carrier
 
 - id: non_green_electricity_consumption
   name: Ei-vihreän sähkön kulutus
@@ -694,9 +679,8 @@ nodes:
     tags: [non_additive]
     to_dimensions:
     - id: energy_carrier
-      categories: [electricity] # FIXME
 
-- id: solar_electricity_emissions
+- id: solar_electricity_emissions # TODO It would be better to calculate actual emissions rather than reductions
   name: Aurinkosähkön päästöt
   type: simple.MultiplicativeNode
   quantity: emissions
@@ -705,17 +689,15 @@ nodes:
   output_dimensions: [energy_carrier]
   input_nodes:
   - id: increase_solar_electricity_production
-    tags: [arithmetic_inverse]
   - id: electricity_production_emission_factor
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
     to_dimensions: []
   output_nodes:
   - id: non_heating_electricity_emissions2
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: energy_carrier
-      categories: [electricity]
 
 - id: non_heating_electricity_emissions2
   name: Kulutussähkön päästöt
@@ -727,14 +709,12 @@ nodes:
   output_dimensions: [energy_carrier]
   input_nodes:  # FIXME Kytke kokonaispäästöihin
   - id: residual_emission_factor
-    # to_dimensions: []
   - id: non_heating_electricity_energy
     from_dimensions:
     - id: economic_sector
       flatten: true
     to_dimensions:
     - id: energy_carrier
-      categories: [electricity]
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -1012,8 +992,8 @@ nodes:
     Tämä vaikutti erityisesti liikenteen päästökertoimiin, koska alentunut sekoitevelvoite
     huomioitiin tarkemmin. Suurentuminen aiempaan päästökertoimeen on kuvattu tässä.
     Laskennan pohjana on nyt yksityiskohtainen HSY-data, joka on saatu syksyllä 2024.
-    Tämä solmu korjaa virhettä 26.6.2023 saadussa datassa ja on on olemassa vain
-    historiallisista dokumentointityistä. Sitä ei käytetä mallissa.
+    Tämä solmu korjaa virhettä 26.6.2023 saadussa datassa ja on on olemassa vain historiallisista
+    dokumentointisyistä. Sitä ei käytetä mallissa.
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/kWh
@@ -1036,58 +1016,56 @@ nodes:
   params:
     sector: Tieliikenteen päästökertoimen ennuste
 
-- id: road_transport_energy_forecast
+- id: road_transport_energy_forecast # TODO Improve formatting
   name: Tieliikenteen energiaennuste
-  description: 'Henkilöautot: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot) oletetaan,
-    että henkilöautoliikenteen energiankulutus lisääntyy 8 % ja 22 % vuosiin 2030
-    ja 2035 mennessä vuoteen 2021 verrattuna. Sen sijaan HNE2030-skenaariossa oletetaan
-    kasvuksi vain 4 % ja 11 % vastaavasti eli perusuraan verrattuna -4 % ja -11 %.
-    Bussit: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot) oletetaan,
-    että linja-autoliikenteen energiankulutus lisääntyy 1 % ja 1 % vuosiin 2030 ja
-    2035 mennessä vuoteen 2021 verrattuna. Myös HNE2030-skenaariossa oletetaan kasvuksi
-    1 % ja 1 % vastaavasti.
-    Pakettiautot: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot) oletetaan,
-    että pakettiautoliikenteen energiankulutus lisääntyy 20 % ja 32 % vuosiin 2030
-    ja 2035 mennessä vuoteen 2021 verrattuna. Sen sijaan HNE2030-skenaariossa oletetaan
-    kasvuksi vain 13 % ja 22 % vastaavasti.
-    Kuorma-autot: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot) oletetaan,
-    että kuorma-autoliikenteen energiankulutus lisääntyy 44 % ja 47 % vuosiin 2030
-    ja 2035 mennessä vuoteen 2021 verrattuna. Sen sijaan HNE2030-skenaariossa oletetaan
-    kasvuksi jopa 45 % ja 49 % vastaavasti.'
-  description_en: 'Passenger cars: The baseline forecast (both the pessimistic and Finland 2035 scenarios)
-    assumes that the energy consumption of car traffic will increase by 8% and 22%
-    by 2030 and 2035 respectively compared to 2021. By contrast, the Carbon-neutral
-    Espoo 2030 scenario assumes the growth to be only 4% and 11% respectively, i.e.
-    –4% and –11% compared to the baseline.
-    Buses: The baseline forecast (both the pessimistic and Finland 2035 scenarios)
-    assumes that the energy consumption of car traffic will increase by 1% and 1%
-    by 2030 and 2035 respectively compared to 2021. The Carbon-neutral Espoo 2030
-    scenario also assumes the growth to be 1% and 1% respectively.
-    Vans: The baseline forecast (both the pessimistic and Finland 2035 scenarios)
-    assumes that the energy consumption of van traffic will increase by 20% and 32%
-    by 2030 and 2035 respectively compared to 2021. By contrast, the Carbon-neutral
-    Espoo 2030 scenario assumes the growth to be only 13% and 22% respectively.
-    Trucks: The baseline forecast (both the pessimistic and Finland 2035 scenarios)
-    assumes that the energy consumption of lorry traffic will increase by 44% and
-    47% by 2030 and 2035 respectively compared to 2021. By contrast, the Carbon-neutral
-    Espoo 2030 scenario assumes the growth to be as much as 45% and 49% respectively.'
-  description_sv: 'Personbilar: I grundprognosen (både pessimistiska och scenariot Finland 2035)
-    antas att personbilstrafikens energiförbrukning ökar med 8 procent och med 22
+  description: 'Henkilöautot: Perusennusteessa (sekä pessimistinen että Suomi 2035
+    -skenaariot) oletetaan, että henkilöautoliikenteen energiankulutus lisääntyy 8
+    % ja 22 % vuosiin 2030 ja 2035 mennessä vuoteen 2021 verrattuna. Sen sijaan HNE2030-skenaariossa
+    oletetaan kasvuksi vain 4 % ja 11 % vastaavasti eli perusuraan verrattuna -4 %
+    ja -11 %. Bussit: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot)
+    oletetaan, että linja-autoliikenteen energiankulutus lisääntyy 1 % ja 1 % vuosiin
+    2030 ja 2035 mennessä vuoteen 2021 verrattuna. Myös HNE2030-skenaariossa oletetaan
+    kasvuksi 1 % ja 1 % vastaavasti. Pakettiautot: Perusennusteessa (sekä pessimistinen
+    että Suomi 2035 -skenaariot) oletetaan, että pakettiautoliikenteen energiankulutus
+    lisääntyy 20 % ja 32 % vuosiin 2030 ja 2035 mennessä vuoteen 2021 verrattuna.
+    Sen sijaan HNE2030-skenaariossa oletetaan kasvuksi vain 13 % ja 22 % vastaavasti.
+    Kuorma-autot: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot)
+    oletetaan, että kuorma-autoliikenteen energiankulutus lisääntyy 44 % ja 47 % vuosiin
+    2030 ja 2035 mennessä vuoteen 2021 verrattuna. Sen sijaan HNE2030-skenaariossa
+    oletetaan kasvuksi jopa 45 % ja 49 % vastaavasti.'
+  description_en: 'Passenger cars: The baseline forecast (both the pessimistic and
+    Finland 2035 scenarios) assumes that the energy consumption of car traffic will
+    increase by 8% and 22% by 2030 and 2035 respectively compared to 2021. By contrast,
+    the Carbon-neutral Espoo 2030 scenario assumes the growth to be only 4% and 11%
+    respectively, i.e. –4% and –11% compared to the baseline. Buses: The baseline
+    forecast (both the pessimistic and Finland 2035 scenarios) assumes that the energy
+    consumption of car traffic will increase by 1% and 1% by 2030 and 2035 respectively
+    compared to 2021. The Carbon-neutral Espoo 2030 scenario also assumes the growth
+    to be 1% and 1% respectively. Vans: The baseline forecast (both the pessimistic
+    and Finland 2035 scenarios) assumes that the energy consumption of van traffic
+    will increase by 20% and 32% by 2030 and 2035 respectively compared to 2021. By
+    contrast, the Carbon-neutral Espoo 2030 scenario assumes the growth to be only
+    13% and 22% respectively. Trucks: The baseline forecast (both the pessimistic
+    and Finland 2035 scenarios) assumes that the energy consumption of lorry traffic
+    will increase by 44% and 47% by 2030 and 2035 respectively compared to 2021. By
+    contrast, the Carbon-neutral Espoo 2030 scenario assumes the growth to be as much
+    as 45% and 49% respectively.'
+  description_sv: 'Personbilar: I grundprognosen (både pessimistiska och scenariot
+    Finland 2035) antas att personbilstrafikens energiförbrukning ökar med 8 procent
+    och med 22 procent fram till 2030 och 2035 jämfört med 2021. Däremot antas ökningen
+    i scenariot HNE2030 vara endast 4 procent och 11 procent på motsvarande sätt dvs.
+    -4 procent och -11 procent jämfört med grundscenariot. Bussar: I grundprognosen
+    (både pessimistiska och scenariot Finland 2035) antas att personbilstrafikens
+    energiförbrukning ökar med 1 procent och med 1 procent fram till 2030 och 2035
+    jämfört med 2021. Även i scenariot HNE2030 antas ökningen vara 1 procent respektive
+    1 procent. Paketbilar: I grundprognosen (både pessimistiska och scenariot Finland
+    2035) antas att paketbilstrafikens energiförbrukning ökar med 20 procent och 32
     procent fram till 2030 och 2035 jämfört med 2021. Däremot antas ökningen i scenariot
-    HNE2030 vara endast 4 procent och 11 procent på motsvarande sätt dvs. -4 procent
-    och -11 procent jämfört med grundscenariot.
-    Bussar: I grundprognosen (både pessimistiska och scenariot Finland 2035)
-    antas att personbilstrafikens energiförbrukning ökar med 1 procent och med 1 procent
-    fram till 2030 och 2035 jämfört med 2021. Även i scenariot HNE2030 antas ökningen
-    vara 1 procent respektive 1 procent.
-    Paketbilar: I grundprognosen (både pessimistiska och scenariot Finland 2035)
-    antas att paketbilstrafikens energiförbrukning ökar med 20 procent och 32 procent
-    fram till 2030 och 2035 jämfört med 2021. Däremot antas ökningen i scenariot HNE2030
-    vara endast 13 procent och 22 procent på motsvarande sätt.
-    Lastbilar: I grundprognosen (både pessimistiska och scenariot Finland 2035)
-    antas att lastbilstrafikens energiförbrukning ökar med 44 procent och 47 procent
-    fram till 2030 och 2035 jämfört med 2021. Däremot antas ökningen i scenariot HNE2030
-    vara upp till 45 procent och 49 procent på motsvarande sätt.'
+    HNE2030 vara endast 13 procent och 22 procent på motsvarande sätt. Lastbilar:
+    I grundprognosen (både pessimistiska och scenariot Finland 2035) antas att lastbilstrafikens
+    energiförbrukning ökar med 44 procent och 47 procent fram till 2030 och 2035 jämfört
+    med 2021. Däremot antas ökningen i scenariot HNE2030 vara upp till 45 procent
+    och 49 procent på motsvarande sätt.'
   type: gpc.DatasetNode
   quantity: energy
   unit: GWh/a
@@ -1142,6 +1120,7 @@ nodes:
   unit: kWh/m**2/a
   input_datasets:
   - espoo/new_building_heating_per_area
+  input_dimensions: [building_use]
   output_dimensions: [building_use]
   output_nodes:
   - id: building_heat_consumption_new
@@ -1193,17 +1172,11 @@ nodes:
   name_sv: Emissionskoefficient för nationell elproduktion, historisk
   type: finland.hsy.HsyEmissionFactor
   unit: g/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
   input_nodes: [all_hsy_emissions]
   params:
-    sector: Sähkö|Kulutussähkö|Kulutussähkö|Asuminen
-
-- id: electricity_production_emission_factor
-  name: Sähköntuotannon päästökerroin
-  type: simple.RelativeNode
-  quantity: emission_factor
-  unit: t/GWh
-  input_nodes:
-  - id: electricity_production_emission_factor_historic
+    sector: Sähkö|Kulutussähkö|_energy_carrier_|*
 
 - id: electric_heating_emission_factor_historic
   name: Lämmityssähkön päästökerroin, historiallinen
@@ -1211,9 +1184,11 @@ nodes:
   name_sv: Emissionskoefficient för värmeel, historisk
   type: finland.hsy.HsyEmissionFactor
   unit: g/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
   input_nodes: [all_hsy_emissions]
   params:
-    sector: Lämmitys|Sähkölämmitys|Sähkölämmitys|Asuminen
+    sector: Lämmitys|Sähkölämmitys|_energy_carrier_|*
 
 - id: electric_heating_emission_factor
   name: Lämmityssähkön päästökerroin
@@ -1222,6 +1197,8 @@ nodes:
   type: simple.RelativeNode
   quantity: emission_factor
   unit: t/GWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
   input_nodes:
   - id: electric_heating_emission_factor_historic
 
@@ -1254,22 +1231,29 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
   input_nodes:
   - id: non_heating_electricity_energy
     from_dimensions:
     - id: economic_sector
       flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      # categories: [electricity]
 
-- id: non_heating_electricity_residence_energy_historical
+- id: non_heating_electricity_energy_historical
   name: Kulutussähkön sähkönkulutus (Asuminen), historiallinen
   name_en: Consumption electricity consumption (Housing), historical
   name_sv: Förbrukning elförbrukning (bostäder), historisk
   type: finland.hsy.HsyEnergyConsumption
   quantity: energy
   unit: GWh/a
-  params:
-    sector: Sähkö|Kulutussähkö|Kulutussähkö|Asuminen
+  input_dimensions: [economic_sector, energy_carrier]
+  output_dimensions: [economic_sector, energy_carrier]
   input_nodes: [all_hsy_emissions]
+  params:
+    sector: Sähkö|Kulutussähkö|_energy_carrier_|_economic_sector_
 
 - id: non_heating_electricity_residence_energy_goal
   name: Kulutussähkön kulutus (Asuminen), tavoite
@@ -1299,36 +1283,27 @@ nodes:
   name: Jätteiden käsittelyn päästöt, historiallinen
   name_en: Waste treatment emissions, historical
   name_sv: Utsläpp från avfallshantering, historisk
-  type: simple.AdditiveNode
+  type: finland.hsy.HsyEmissions
   quantity: emissions
   unit: kt/a
-  input_nodes:
-  - id: waste_treatment_emissions
-    from_dimensions:
-    - id: economic_sector
-      flatten: true
-    - id: waste_treatment
-      flatten: true
+  input_dimensions: [waste_treatment, economic_sector]
+  output_dimensions: [waste_treatment, economic_sector]
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Jätteiden käsittely|*|_waste_treatment_|_economic_sector_
 
 - id: industry_and_machinery_historical_emissions
   name: Teollisuus ja työkoneet, historiallinen
   name_en: Industry and machinery, historical
   name_sv: Industri och maskiner, historisk
-  type: simple.AdditiveNode
+  type: finland.hsy.HsyEmissions
   quantity: emissions
   unit: kt/a
-  input_dimensions: [main_emission_sector]
-  output_dimensions: [main_emission_sector]
-  input_nodes:
-  - id: industry_machinery_emissions
-    from_dimensions:
-    - id: economic_sector
-      flatten: true
-    - id: ippu
-      flatten: true
-    to_dimensions:
-    - id: main_emission_sector
-      categories: [industry]
+  input_dimensions: [emission_sector, economic_sector]
+  output_dimensions: [emission_sector, economic_sector]
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Teollisuus ja työkoneet|*|_emission_sector_|_economic_sector_
 
 ####### Detailed waste emissions with altered names
 # These nodes are here from the framework as the names have changed.
@@ -1586,17 +1561,12 @@ actions:
     tags: [historical]
     to_dimensions:
     - id: energy_carrier
-      categories: [electricity]
   - id: electricity_production_emission_factor_goal
     tags: [goal]
     to_dimensions:
     - id: energy_carrier
-      flatten: true
   output_nodes:
   - id: electricity_production_emission_factor
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
 
 - id: cleaner_heating_electricity_production
   name: Kansallinen lämmityssähkön sähköntuotanto puhdistuu
@@ -1614,17 +1584,12 @@ actions:
     tags: [historical]
     to_dimensions:
     - id: energy_carrier
-      categories: [electricity]
   - id: electricity_production_emission_factor_goal
     tags: [goal]
     to_dimensions:
     - id: energy_carrier
-      flatten: true
   output_nodes:
   - id: electric_heating_emission_factor
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
 
 - id: change_non_heating_electricity
   name: Muutos kulutussähkön käytössä
@@ -1634,21 +1599,22 @@ actions:
   quantity: energy
   unit: GWh/a
   # group: electricity
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
+  input_dimensions: [economic_sector, energy_carrier]
+  output_dimensions: [economic_sector, energy_carrier]
   input_nodes:
-  - id: non_heating_electricity_residence_energy_historical
+  - id: non_heating_electricity_energy_historical
     tags: [historical]
     to_dimensions:
     - id: energy_carrier
-      categories: [electricity]
+    - id: economic_sector
   - id: non_heating_electricity_residence_energy_goal
     tags: [goal]
-  # output_nodes:
-  # - id: non_heating_electricity_residence_energy
-  #   from_dimensions:
-  #   - id: energy_carrier
-  #     flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: economic_sector
+      categories: [residential]
+  output_nodes:
+  - id: non_heating_electricity_energy
 
 - id: replace_fossil_fuels_in_district_heating
   name: Fortum korvaa fossiiliset energialähteet kaukolämmöntuotannossa
@@ -2011,17 +1977,20 @@ actions:
     är mindre jämfört med det befintliga byggnadsbeståndet.
   type: simple.CumulativeAdditiveAction
   quantity: energy
+  unit: GWh/a
   group: buildings
+  # input_dimensions: [building_use, building_heat_source, owner]
   output_nodes:
   - id: building_heat_consumption_existing
-    to_dimensions:
+    to_dimensions: # FIXME
     - id: building_heat_source
       categories: [district_heat]
     - id: building_use
       categories: [services]
-  forecast_values: [[2024, -8.0], [2025, -16], [2026, -4], [2027, -4], [2028, -7], [
-      2029, -14], [2030, -6]]
-  unit: GWh/a
+  forecast_values: [[2024, -8.0], [2025, -16], [2026, -4], [2027, -4], [2028, -7],
+    [2029, -14], [2030, -6]]
+  # params:
+  #   sector: Kaupungin oman rakennuskannan energiankulutuksen vähennys
 
 #
 # OTHER SECTORS
@@ -2054,8 +2023,8 @@ actions:
   quantity: ratio
   unit: kt/a
   group: waste_agriculture
-  input_dimensions: [main_emission_sector]
-  output_dimensions: [main_emission_sector]
+  input_dimensions: [waste_treatment, emission_sector, economic_sector]
+  output_dimensions: [waste_treatment, emission_sector, economic_sector]
   input_datasets:
   - id: gpc/espoo
     tags: [goal]
@@ -2068,13 +2037,15 @@ actions:
   - id: waste_treatment_emissions_historical
     tags: [baseline]
     to_dimensions:
-    - id: main_emission_sector
+    - id: emission_sector
       categories: [waste_treatment]
-  # output_nodes:
-  # - id: waste_treatment_emissions
-  #   from_dimensions:
-  #   - id: main_emission_sector
-  #     flatten: true
+    - id: economic_sector
+    - id: waste_treatment
+  output_nodes:
+  - id: waste_treatment_emissions
+    from_dimensions:
+    - id: emission_sector
+      flatten: true
 
 - id: reduce_agriculture_emissions
   name: Maatalouden päästöt pienenevät
@@ -2095,8 +2066,11 @@ actions:
   unit: kt/a
   group: waste_agriculture
   forecast_values: [[2024, 0.0], [2035, 0.0]]
-  # output_nodes:
-  # - agricultural_field_emissions
+  output_nodes:
+  - id: agriculture_emissions
+    to_dimensions:
+    - id: economic_sector
+      categories: [field_farming]
   params:
   - id: target_year_level
     value: -0.1079092776
@@ -2151,8 +2125,8 @@ actions:
   quantity: ratio
   unit: kt/a
   group: industry
-  input_dimensions: [main_emission_sector]
-  output_dimensions: [main_emission_sector]
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
   input_datasets:
   - id: gpc/espoo
     tags: [goal]
@@ -2160,11 +2134,15 @@ actions:
   input_nodes:
   - id: industry_and_machinery_historical_emissions
     tags: [baseline]
-  # output_nodes:
-  # - id: industry_machinery_emissions
-  #   from_dimensions:
-  #   - id: main_emission_sector
-  #     flatten: true
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
+  output_nodes:
+  - id: industry_machinery_emissions
+    to_dimensions:
+    - id: economic_sector
+      categories: [industry] # FIXME
+    - id: emission_sector
   params:
     sector: Teollisuus ja työkoneet
     filter_categories: scenario:default
