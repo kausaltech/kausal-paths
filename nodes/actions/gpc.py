@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import ClassVar, cast
+from typing import ClassVar
 
 from django.utils.translation import gettext_lazy as _
 
+import numpy as np
 import polars as pl
 
 from common import polars as ppl
@@ -397,26 +398,103 @@ class SCurveAction(DatasetAction):
     explanation = _(
         """
         This is S Curve Action. It calculates non-linear effect with two parameters,
-        max_impact = A and max_year (year when most of the impact has occurred).
+        max_impact = A and max_year (year when 98 per cent of the impact has occurred).
         The parameters come from Dataset. In addition, there
         must be one input node for background data. Function for
-        S-curve = A/(1+exp(-k*(x-x0)). A is the maximum value, k is the steepness
-        of the curve (always 0.5), and x0 is the midpoint.
+        S-curve y = A/(1+exp(-k*(x-x0)). A is the maximum value, k is the steepness
+        of the curve, and x0 is the midpoint year.
+        Newton-Raphson method is used to numerically estimate slope and medeian year.
         """)
     allowed_parameters = DatasetAction2.allowed_parameters
 
     no_effect_value = 0.0
 
+    def newton_raphson_estimator(self, y1, y2, x1, x2, a, max_iter=100, tol=1e-6):
+        # Compute terms dependent on observations
+        z1 = np.log(y1 / (a - y1))
+        z2 = np.log(y2 / (a - y2))
+
+        # Initial guesses (adjust based on domain knowledge)
+        k = 0.1
+        x0 = (x1 + x2) / 2  # Midpoint between x1 and x2
+
+        for __ in range(max_iter):
+            # Residual vector F
+            f = np.array([
+                k * (x1 - x0) - z1,
+                k * (x2 - x0) - z2
+            ])
+
+            # Jacobian matrix J
+            j = np.array([
+                [x1 - x0, -k],
+                [x2 - x0, -k]
+            ])
+
+            # Check for singularity
+            det = np.linalg.det(j)
+            if np.abs(det) < 1e-10:
+                print('y1, y2, x1, x2, a:', y1, y2, x1, x2, a)
+                raise ValueError("Jacobian is singular; adjust initial guesses.")
+
+            # Newton-Raphson update
+            delta = np.linalg.solve(j, -f)
+            k_new = k + delta[0]
+            x0_new = x0 + delta[1]
+
+            # Check convergence
+            if np.abs(k_new - k) < tol and np.abs(x0_new - x0) < tol:
+                return k_new, x0_new
+
+            k, x0 = k_new, x0_new
+
+        print("Warning: Did not converge within max iterations.")
+        return k, x0
+
+    def apply_scurve_parameters(self, df: ppl.PathsDataFrame, params: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        index_columns = [col for col in params.primary_keys if col in df.primary_keys and col != YEAR_COLUMN]
+        assert len(index_columns) > 0, f'There must be at least one primary key in node {self.id} for SCurveAction.'
+        out = df.copy()
+        out = out.with_columns([
+            pl.lit(None).alias('slope'),
+            pl.lit(None).alias('x0'),
+            pl.lit(None).alias('ymax')
+        ])
+        indices = params.select(index_columns).unique()
+        for row in indices.rows():
+            filter_dict = {col: row[indices.columns.index(col)] for col in index_columns}
+
+            filtered_df = df
+            filtered_param = params
+            for col, value in filter_dict.items():
+                filtered_df = filtered_df.filter(pl.col(col) == value)
+                filtered_param = filtered_param.filter(pl.col(col) == value)
+
+            if len(filtered_df) == 0:
+                continue
+            x2 = filtered_param.filter(pl.col('parameter') == 'max_year').select(VALUE_COLUMN).item()
+            filtered_param = filtered_param.ensure_unit(VALUE_COLUMN, df.get_unit(VALUE_COLUMN))
+            a = filtered_param.filter(pl.col('parameter') == 'max_impact').select(VALUE_COLUMN).item()
+            dfnow = filtered_df.filter(~pl.col(FORECAST_COLUMN))
+            x1 = dfnow.select(YEAR_COLUMN).max().item()
+            y1 = filtered_df.filter(pl.col(YEAR_COLUMN) == x1).select(VALUE_COLUMN).item()
+            y1 = min(max(y1 / a, 0.02), 0.98) * a
+            y2 = 0.98 * a
+            slope, x0 = self.newton_raphson_estimator(y1, y2, x1, x2, a)
+
+            # Update the main DataFrame with the estimated values for the matching rows
+            mask = pl.lit(True)  # noqa: FBT003
+            for col, value in filter_dict.items():
+                mask &= pl.col(col) == value
+            out = out.with_columns(pl.when(mask).then(slope).otherwise(pl.col('slope')).alias('slope'))
+            out = out.with_columns(pl.when(mask).then(x0).otherwise(pl.col('x0')).alias('x0'))
+            out = out.with_columns(pl.when(mask).then(a).otherwise(pl.col('ymax')).alias('ymax'))
+
+        return out
+
     def compute_effect(self) -> ppl.PathsDataFrame:
         df = self.get_input_node().get_output_pl(target_node=self)
-
-        last_obs_year = self.context.instance.reference_year # TODO We may want to make this adjustable
-        last_obs = df.filter(pl.col(YEAR_COLUMN) == last_obs_year).paths.to_wide()
-        meta = last_obs.get_meta()
-        last_obs = ppl.to_ppdf(last_obs.tail(1), meta=meta).paths.to_narrow()
-        assert len(last_obs) >0
-        last_obs = last_obs.rename({YEAR_COLUMN: 'yearnow', VALUE_COLUMN: 'ynow'}).drop(FORECAST_COLUMN)
-        df = df.paths.join_over_index(last_obs)
+        df = df.ensure_unit(VALUE_COLUMN, 'dimensionless')
 
         params = self.get_gpc_dataset()
         params = self.drop_unnecessary_levels(params, droplist=['Description'])
@@ -424,49 +502,13 @@ class SCurveAction(DatasetAction):
         params = self.convert_names_to_ids(params)
         params = self.implement_unit_col(params)
         params = self.apply_multiplier(params, required=False, units=True)
-        # params = self.add_and_multiply_input_nodes(params) # FIXME Does not insert measures because this does not work
-        params = params.paths.join_over_index(df, how='inner')
 
-        drops = [FORECAST_COLUMN, VALUE_COLUMN + '_right', YEAR_COLUMN, 'parameter', 'ynow', 'yearnow']
-        yearmax = params.filter(pl.col('parameter') == 'max_year').drop(drops)
-        yearmax = yearmax.rename({VALUE_COLUMN: 'yearmax'})
-        df = df.paths.join_over_index(yearmax, how='inner')
-
-        params = params.ensure_unit(VALUE_COLUMN, df.get_unit(VALUE_COLUMN))
-        ymax = params.filter(pl.col('parameter') == 'max_impact').drop(drops)
-        ymax = ymax.rename({VALUE_COLUMN: 'ymax'})
-        df = df.paths.join_over_index(ymax, how='inner')
+        df = self.apply_scurve_parameters(df, params)
 
         df = df.with_columns((
-            pl.col(YEAR_COLUMN) - (pl.col('yearnow') +
-            (pl.col('yearmax') - pl.col('yearnow')) / 2)
-        ).alias('x'))
-        df = df.with_columns(pl.lit(0.5).alias('slope'))
-
-        matching_values = df.filter(pl.col('yearnow') == pl.col(YEAR_COLUMN)).select('x').unique()
-        assert len(matching_values) == 1, "Multiple different values found where yearnow equals YEAR_COLUMN"
-        value = matching_values.item()
-        df = df.with_columns(pl.lit(value).alias('xnow'))
-
-        # S curve: y = A / (1 + exp(-b * x))
-        # Shift the S curve so that it fits the observation y_now by using delay e:
-        # y_now = A / (1 + exp(-b * (x_now - e)))
-        # e = ln((A / y_now - 1) / b + x_now
-        # Only use delay when deviates from zero
-        # A better way is to get rid of yearmax altogether and find th position of the curve from observations.
-        # Or alternatively make slope non-constant.
-        if 0.02 < df.select('ynow').max().item() < 0.98:
-            df = df.with_columns(
-                ((pl.col('ymax') / pl.col('ynow') - 1).log() / pl.col('slope')
-                + pl.col('xnow')).alias('delay')
-            )
-        else:
-            df = df.with_columns(pl.lit(0.0).alias('delay'))
-
-        df = df.with_columns((
-                (pl.col('ymax') - pl.col('ynow'))
-                / (pl.lit(1.0) + (-pl.col('slope') * (pl.col('x') - pl.col('delay'))).exp())
-                + pl.col('ynow'))
+                (pl.col('ymax'))
+                / (pl.lit(1.0) + (-pl.col('slope') * (pl.col(YEAR_COLUMN) - pl.col('x0'))).exp())
+                )
             .alias('out'))
 
         df = df.set_unit('out', df.get_unit(VALUE_COLUMN))
@@ -475,7 +517,9 @@ class SCurveAction(DatasetAction):
             .then(pl.col('out'))
             .otherwise(pl.col(VALUE_COLUMN))).alias('out'))
         df = df.subtract_cols(['out', VALUE_COLUMN], VALUE_COLUMN)
-        df = df.drop(['x', 'out', 'ymax', 'yearmax', 'ynow', 'xnow', 'delay'])
+        assert self.unit is not None, 'Node {self.id} must have unit defined.'
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
+        df = df.drop(['out', 'ymax', 'slope', 'x0'])
 
         if not self.is_enabled():
             df = df.with_columns(pl.lit(self.no_effect_value).alias(VALUE_COLUMN))
