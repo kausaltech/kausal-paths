@@ -111,10 +111,6 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: nzc/defaults
-  input_nodes:
-  - id: population
-    tags: [ratio_to_last_historical_value, non_additive]
-    to_dimensions: []
   params:
     sector: Total electricity demand within city boundaries
 
