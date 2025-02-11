@@ -1003,7 +1003,7 @@ nodes:
     children:
     - kind: node
       label: Bus transport need
-      node_id: passenger_kilometres
+      node_id: passenger_kilometres_observed
       desired_outcome: decreasing
       scenarios: [default, progress_tracking]
       dimensions:
