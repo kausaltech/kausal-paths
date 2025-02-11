@@ -313,8 +313,11 @@ class DatasetNode(AdditiveNode):
         df = self.add_missing_years(df)
         df = self.crop_to_model_range(df)
 
-        if not self.get_parameter_value('inventory_only', required=False):
-            df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
+        df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
+        # First extend, then truncate because there may be measure observations beyond
+        # the last historical year in the dataset.
+        if self.get_parameter_value('inventory_only', required=False):
+            df = df.filter(~pl.col(FORECAST_COLUMN))
 
         df = self.apply_multiplier(df, required=False, units=True)
         df = self.add_and_multiply_input_nodes(df)

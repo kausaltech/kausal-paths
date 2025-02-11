@@ -511,6 +511,23 @@ nodes:
   params:
     sector: Transport need
 
+- id: passenger_kilometres_observed
+  name_en: Passenger kilometres observed
+  name_fi: Havaitut henkilökilometrit
+  type: gpc.DatasetNode
+  quantity: mileage
+  unit: Mpkm/a
+  input_datasets:
+  - id: nzc/defaults
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  params:
+    sector: Transport need
+    inventory_only: true
+  input_nodes:
+  - id: passenger_kilometres
+    tags: [forecast_only]
+
 - id: passenger_kilometres_reduced
   name_en: Passenger kilometres reduced
   name_fi: Vähennetyt henkilökilometrit

@@ -114,7 +114,7 @@ nodes:
   params:
     sector: Total electricity demand within city boundaries
 
-- id: statistical_electricity_consumption
+- id: statistical_electricity_consumption # FIXME Use the same approach as passenger_kilometres_observed
   name_en: Statistical electricity consumption
   name_fi: Tilastollinen sähkönkulutus
   type: simple.ChooseInputNode

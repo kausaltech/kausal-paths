@@ -979,7 +979,7 @@ nodes:
     children:
     - kind: node
       label: Car transport need
-      node_id: passenger_kilometres
+      node_id: passenger_kilometres_observed
       desired_outcome: decreasing
       scenarios: [default, progress_tracking]
       dimensions:
