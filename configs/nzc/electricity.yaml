@@ -133,8 +133,12 @@ nodes:
       flatten: true
     to_dimensions:
     - id: energy_carrier
+  output_nodes:
+  - id: total_electricity_consumption
+    to_dimensions:
+    - id: energy_carrier
 
-- id: electricity_correction
+- id: electricity_correction # Inactivated for now; you cannot turn correction off.
   name_en: Electricity statistics correction
   name_fi: Sähkötilastojen korjaus
   type: gpc.CorrectionNode2 # TODO Use the total historical average rather than the last historical point
@@ -148,10 +152,6 @@ nodes:
   params:
   - id: do_correction
     ref: statistical_correction
-  output_nodes:
-  - id: total_electricity_consumption
-    to_dimensions:
-    - id: energy_carrier
 
 - id: electricity_production_emission_factor
   name_en: Electricity production emission factor
