@@ -96,9 +96,15 @@ class TranslatedString:
     def set_modeltrans_field(self, obj: Model, field_name: str, default_language: str):
         field_val, i18n = get_modeltrans_attrs_from_str(self, field_name, default_lang=default_language)
         setattr(obj, field_name, field_val)
+
         if not obj.i18n:  # type: ignore
             obj.i18n = {}  # type: ignore
-        i18n = {convert_language_code(key, 'modeltrans'): value for key, value in i18n.items()}
+
+        i18n_mt = {}
+        for key, value in i18n.items():
+            key = key.split('_', 1)
+            i18n_mt['%s_%s' % (key[0], convert_language_code(key[1], 'modeltrans'))] = value
+
         obj.i18n.update(i18n)  # type: ignore
 
     def __str__(self):
