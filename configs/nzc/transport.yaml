@@ -504,29 +504,24 @@ nodes:
   - id: nzc/defaults
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
+  params:
+    sector: Transport need
+
+# A separate node is needed so that the observations get implemened correctly.
+- id: passenger_kilometres_data_scaled
+  name_en: Passenger kilometres data skaled
+  name_fi: Henkilökilometrien data skaalattuna
+  type: simple.MultiplicativeNode
+  quantity: mileage
+  unit: Mpkm/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
   input_nodes:
   - id: population
     tags: [ratio_to_last_historical_value, non_additive]
     to_dimensions: []
-  params:
-    sector: Transport need
-
-- id: passenger_kilometres_observed
-  name_en: Passenger kilometres observed
-  name_fi: Havaitut henkilökilometrit
-  type: gpc.DatasetNode
-  quantity: mileage
-  unit: Mpkm/a
-  input_datasets:
-  - id: nzc/defaults
-  input_dimensions: [transport_mode]
-  output_dimensions: [transport_mode]
-  params:
-    sector: Transport need
-    inventory_only: true
-  input_nodes:
-  - id: passenger_kilometres
-    tags: [forecast_only]
+  - id: passenger_kilometres_data
+    tags: [non_additive]
 
 - id: passenger_kilometres_reduced
   name_en: Passenger kilometres reduced
@@ -537,7 +532,7 @@ nodes:
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_nodes:
-  - id: passenger_kilometres_data
+  - id: passenger_kilometres_data_scaled
     tags: [non_additive]
   - id: motorised_transport_change
     tags: [arithmetic_inverse]
@@ -551,7 +546,7 @@ nodes:
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_nodes:
-  - id: passenger_kilometres_data
+  - id: passenger_kilometres_data_scaled
   - id: passenger_kilometres_reduced
 
 - id: relative_transport_mode_switches
@@ -597,9 +592,6 @@ nodes:
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_nodes:
-  - id: population
-    tags: [ratio_to_last_historical_value, non_additive]
-    to_dimensions: []
   - id: passenger_kilometres_reduced
   - id: passenger_kilometres_switched
   params:

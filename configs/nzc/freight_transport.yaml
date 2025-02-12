@@ -51,13 +51,25 @@ nodes:
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_datasets: [nzc/defaults]
+  params:
+    sector: Total transportation need within city - Road freight transport
+
+ # A separate node is needed so that the progress tracker scenario gets implemented in the main model correctly.
+- id: freight_transport_need_scaled
+  name_en: Freight transport need scaled
+  name_fi: Rahtiliikenteen tarve skaalattuna
+  type: simple.MultiplicativeNode
+  quantity: freight_mileage
+  unit: Mtkm/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
   input_nodes:
   - id: population
     tags: [ratio_to_last_historical_value, non_additive]
     to_dimensions: []
-  params:
-  - id: sector
-    value: Total transportation need within city - Road freight transport
+  - id: freight_transport_need
+    tags: [non_additive]
 
 - id: average_truck_utilisation_historical
   name_en: Average truck utilisation historical
@@ -131,7 +143,7 @@ nodes:
   input_dimensions: [transport_mode, energy_carrier]
   output_dimensions: [transport_mode, energy_carrier]
   input_nodes:
-  - id: freight_transport_need
+  - id: freight_transport_need_scaled
     tags: [non_additive]
     to_dimensions:
     - id: transport_mode

@@ -762,7 +762,7 @@ nodes:
     children:
     - kind: node
       label: Heating demand
-      node_id: statistical_heat_energy_use
+      node_id: building_heat_energy_use_observed
       desired_outcome: decreasing
       scenarios: [default, progress_tracking]
       dimensions: []
@@ -794,6 +794,31 @@ nodes:
       - id: heating_type
         categories: [local_heating]
         flatten: true
+
+- id: building_heat_energy_use_observed
+  name_en: Building heat energy use observed
+  name_fi: Havaittu rakennusten lämmitysenergia
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Total heating demand (space heating + domestic hot water + heat for cooking)
+    inventory_only: true
+  input_nodes:
+  - id: building_heat_energy_use
+    tags: [forecast_only]
+    from_dimensions:
+    - id: heating_type
+      flatten: true
+    - id: building_energy_class
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: fuel_type
+      flatten: true
+    - id: scope
+      flatten: true
 
 - id: electricity_emissions
   name_en: Electricity emissions
@@ -829,7 +854,7 @@ nodes:
     children:
     - kind: node
       label: Total electricity consumption
-      node_id: statistical_electricity_consumption
+      node_id: electricity_consumption_observed
       desired_outcome: decreasing
       scenarios: [default, progress_tracking]
       dimensions: []
@@ -844,6 +869,26 @@ nodes:
         flatten: true
       - id: energy_carrier
         flatten: true
+
+- id: electricity_consumption_observed
+  name_en: Electricity consumption observed
+  name_fi: Havaittu sähkönkulutus
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  is_visible: false
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets: [nzc/defaults]
+  input_nodes:
+  - id: total_electricity_consumption
+    tags: [forecast_only] 
+    from_dimensions:
+    - id: sector
+      flatten: true
+  params:
+    sector: Total electricity demand within city boundaries # Same as historical_electricity_consumption
+    inventory_only: true
 
 - id: freight_transport_emissions
   name_en: Freight transport emissions
@@ -887,7 +932,7 @@ nodes:
     children:
     - kind: node
       label: Light truck freight transport need
-      node_id: freight_transport_need
+      node_id: freight_transport_need_observed
       desired_outcome: decreasing
       scenarios: [default, progress_tracking]
       dimensions:
@@ -910,7 +955,7 @@ nodes:
     children:
     - kind: node
       label: Heavy truck freight transport need
-      node_id: freight_transport_need
+      node_id: freight_transport_need_observed
       desired_outcome: decreasing
       scenarios: [default, progress_tracking]
       dimensions:
@@ -928,6 +973,22 @@ nodes:
       - id: transport_mode
         categories: [heavy_trucks]
         flatten: true
+
+- id: freight_transport_need_observed
+  name_en: Freight transport need observed
+  name_fi: Havaittu rahtiliikenteen tarve
+  type: gpc.DatasetNode
+  quantity: freight_mileage
+  unit: Mtkm/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Total transportation need within city - Road freight transport # Same as freight_transport_need
+    inventory_only: true
+  input_nodes:
+  - id: freight_transport_need_scaled
+    tags: [forecast_only]
 
 - id: transport_emissions
   name_en: Transport emissions
@@ -1022,6 +1083,23 @@ nodes:
       - id: transport_mode
         categories: [buses]
         flatten: true
+
+- id: passenger_kilometres_observed
+  name_en: Passenger kilometres observed
+  name_fi: Havaitut henkilökilometrit
+  type: gpc.DatasetNode
+  quantity: mileage
+  unit: Mpkm/a
+  input_datasets:
+  - id: nzc/defaults
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  params:
+    sector: Transport need # Same as in passenger_kilometres_data
+    inventory_only: true
+  input_nodes:
+  - id: passenger_kilometres
+    tags: [forecast_only]
 
 actions:
 
@@ -1513,8 +1591,6 @@ scenarios:
     value: false
   - id: measure_data_baseline_year_only
     value: true
-  - id: statistical_electricity_consumption.node_tag
-    value: decarbonisation_scenario
 
 - id: default
   default: true
@@ -1525,8 +1601,6 @@ scenarios:
     value: false
   - id: measure_data_baseline_year_only
     value: true
-  - id: statistical_electricity_consumption.node_tag
-    value: decarbonisation_scenario
 
 - id: progress_tracking
   name: Progress tracking
@@ -1537,8 +1611,6 @@ scenarios:
     value: true
   - id: measure_data_baseline_year_only
     value: false
-  - id: statistical_electricity_consumption.node_tag
-    value: progress_tracking
 
 include:
 - file: nzc/transport.yaml
