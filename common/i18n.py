@@ -102,10 +102,10 @@ class TranslatedString:
 
         i18n_mt = {}
         for key, value in i18n.items():
-            key = key.split('_', 1)
-            i18n_mt['%s_%s' % (key[0], convert_language_code(key[1], 'modeltrans'))] = value
+            field, code = key.split('_', 1)
+            i18n_mt['%s_%s' % (field, convert_language_code(code, 'modeltrans'))] = value
 
-        obj.i18n.update(i18n)  # type: ignore
+        obj.i18n.update(i18n_mt)  # type: ignore
 
     def __str__(self):
         try:
