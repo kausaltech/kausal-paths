@@ -1605,7 +1605,7 @@ scenarios:
 - id: progress_tracking
   name: Progress tracking
   all_actions_enabled: true
-  is_selectable: false
+  is_selectable: true
   params:
   - id: measure_data_override
     value: true
