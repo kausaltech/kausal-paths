@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://koeln-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a9bef53321dca0a21876901c8b5d7e11f2e98a2e
+  commit: f2cbd95c8ad992dc957ebd669d01537b29a148fe
   dvc_remote: kausal-s3
   # Data from https://docs.google.com/spreadsheets/d/1qUIUgAE1Sqbt6qIClxEypuWRi0GpQQUc/edit?gid=1907288926#gid=1907288926
 name: Demonstration BASIC+ Treibhausgasinventar
@@ -51,6 +51,48 @@ dimensions:
     label: Sonstiges
   - id: strom
     label: Strom
+  - id: licht_und_kraft
+    label: Licht und Kraft
+  - id: warme
+    label: Wärme
+  - id: mobilitat
+    label: Mobilität
+  - id: private_haushalte
+    label: Private Haushalte
+  - id: ghd
+    label: GHD
+  - id: industrie
+    label: Industrie
+  - id: kommunale_einrichtungen
+    label: Kommunale Einrichtungen
+  - id: biogas
+    label: Biogas
+  - id: biomasse
+    label: Biomasse
+  - id: fernwarme
+    label: Fernwärme
+  - id: flussiggas
+    label: Flüssiggas
+  - id: heizstrom
+    label: Heizstrom
+  - id: nahwarme
+    label: Nahwärme
+  - id: solarthermie
+    label: Solarthermie
+  - id: sonstige_erneuerbare
+    label: Sonstige Erneuerbare
+  - id: sonstige_konventionelle
+    label: Sonstige Konventionelle
+  - id: warmepumpe
+    label: Wärmepumpe
+  - id: p2g__methan
+    label: P2G - Methan
+  - id: p2g__wasserstoff
+    label: P2G - Wasserstoff
+  - id: photovoltaik
+    label: Photovoltaik
+  - id: windenergie
+    label: Windenergie
 
 - id: eigentum
   label: Eigentum
@@ -102,13 +144,9 @@ nodes:
   color: '#00A969'
   input_dimensions: [energietrager, eigentum, scope]
   output_dimensions: [energietrager, eigentum, scope]
-  input_datasets:
-  - id: gpc/koeln
-    filters:
-    - column: Sector name
-      value: Private Haushalte
+  input_datasets: [gpc/koeln]
   params:
-    gpc_sector: I.1
+    sector: Private Haushalte
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -125,13 +163,9 @@ nodes:
   color: '#9D0000'
   input_dimensions: [energietrager, eigentum, scope]
   output_dimensions: [energietrager, eigentum, scope]
-  input_datasets:
-  - id: gpc/koeln
-    filters:
-    - column: Sector name
-      value: Gewerbe+ Sonstiges
+  input_datasets: [gpc/koeln]
   params:
-    gpc_sector: I.2
+    sector: Gewerbe+ Sonstiges
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -148,13 +182,9 @@ nodes:
   color: '#005B99'
   input_dimensions: [energietrager, scope]
   output_dimensions: [energietrager, scope]
-  input_datasets:
-  - id: gpc/koeln
-    filters:
-    - column: Sector name
-      value: Industrie
+  input_datasets: [gpc/koeln]
   params:
-    gpc_sector: I.3
+    sector: Industrie
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -169,13 +199,9 @@ nodes:
   color: '#29ab87'
   input_dimensions: [energietrager, eigentum, scope]
   output_dimensions: [energietrager, eigentum, scope]
-  input_datasets:
-  - id: gpc/koeln
-    filters:
-    - column: Sector name
-      value: Städtische Gebäude
+  input_datasets: [gpc/koeln]
   params:
-    gpc_sector: I.2
+    sector: Städtische Gebäude
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -195,18 +221,297 @@ nodes:
   color: '#AD8F00'
   input_dimensions: [energietrager, scope]
   output_dimensions: [energietrager, scope]
-  input_datasets:
-  - id: gpc/koeln
-    filters:
-    - column: Sector name
-      value: Verkehr
+  input_datasets: [gpc/koeln]
   params:
-    gpc_sector: II.1
+    sector: Verkehr
   output_nodes:
   - id: net_emissions
     from_dimensions:
     - id: energietrager
       flatten: true
+
+# ------------ New data nodes ----------------
+
+- id: endenergie_anwendung
+  name: Endenergie Anwendung
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energietrager]
+  output_dimensions: [energietrager]
+  input_datasets:
+  - id: gpc/koeln
+    filters:
+    - column: Scenario
+      value: Trend
+  params:
+    sector: Endenergie Anwendung
+
+- id: treibhausgase_lokaler_strommix
+  name: Treibhausgase, Lokaler Strommix
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energietrager]
+  output_dimensions: [energietrager]
+  input_datasets:
+  - id: gpc/koeln
+    filters:
+    - column: Scenario
+      value: Trend
+  params:
+    sector: Treibhausgase, Lokaler Strommix
+
+- id: emissionfaktor
+  name: Emissionfaktor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [energietrager]
+  output_dimensions: [energietrager]
+  input_datasets:
+  - id: gpc/koeln
+    filters:
+    - column: Scenario
+      value: Trend
+  params:
+    sector: Emissionfaktor
+
+- id: emissionen
+  name: Emissionen Endenergie
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energietrager]
+  output_dimensions: [energietrager]
+  input_nodes:
+  - id: endenergie_anwendung
+  - id: emissionfaktor
+
+- id: endenergie_verbrauchssektoren
+  name: Endenergie Verbrauchssektoren
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energietrager]
+  output_dimensions: [energietrager]
+  input_datasets:
+  - id: gpc/koeln
+    filters:
+    - column: Scenario
+      value: Trend
+  params:
+    sector: Endenergie Verbrauchssektoren
+
+- id: emissionen_verbrauchsektoren_data
+  name: Emissionen Verbrauchsektoren data
+  type: gpc.DatasetNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energietrager]
+  output_dimensions: [energietrager]
+  input_datasets:
+  - id: gpc/koeln
+    filters:
+    - column: Scenario
+      value: Trend
+  params:
+    sector: Emissionen Verbrauchsektoren
+
+- id: emissionfaktor_verbrauchssektoren
+  name: Emissionfaktor Verbrauchssektoren
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [energietrager]
+  output_dimensions: [energietrager]
+  input_datasets:
+  - id: gpc/koeln
+    filters:
+    - column: Scenario
+      value: Trend
+  params:
+    sector: Emissionfaktor Verbrauchssektoren
+
+- id: emissionen_verbrauchsektoren
+  name: Emissionen Endenergie
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energietrager]
+  output_dimensions: [energietrager]
+  input_nodes:
+  - id: endenergie_verbrauchssektoren
+  - id: emissionfaktor_verbrauchssektoren
+
+- id: warmeentwicklung
+  name: Wärmeentwicklung
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [energietrager]
+  output_dimensions: [energietrager]
+  input_datasets:
+  - id: gpc/koeln
+    filters:
+    - column: Scenario
+      value: Trend
+  params:
+    sector: Wärmeentwicklung
+
+- id: warmeanwendung
+  name: Wärmeanwendung
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energietrager]
+  output_dimensions: [energietrager]
+  input_nodes:
+  - id: endenergie_anwendung
+    tags: [non_additive]
+    from_dimensions:
+    - id: energietrager
+      categories: [warme]
+      flatten: true
+    to_dimensions: []
+  - id: warmeentwicklung
+
+- id: erneuerbare_energiepotenziale
+  name: Erneuerbare Energiepotenziale
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: MW
+  input_dimensions: [energietrager]
+  output_dimensions: [energietrager]
+  input_datasets:
+  - id: gpc/koeln
+    filters:
+    - column: Scenario
+      value: Trend
+  params:
+    sector: Erneuerbare Energiepotenziale
+
+- id: erneuerbare_energieerzeugung_data
+  name: Erneuerbare Energieerzeugung data
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energietrager]
+  output_dimensions: [energietrager]
+  input_datasets:
+  - id: gpc/koeln
+    filters:
+    - column: Scenario
+      value: Trend
+  params:
+    sector: Erneuerbare Energieerzeugung
+
+- id: erneuerbare_energiefaktor
+  name: Erneuerbare Energiefaktor
+  type: gpc.DatasetNode
+  quantity: ratio
+  unit: h/a
+  input_dimensions: [energietrager]
+  output_dimensions: [energietrager]
+  input_datasets:
+  - id: gpc/koeln
+    filters:
+    - column: Scenario
+      value: Trend
+  params:
+    sector: Erneuerbare Energiefaktor
+
+- id: erneuerbare_energieerzeugung
+  name: Erneuerbare Energieerzeugung
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energietrager]
+  output_dimensions: [energietrager]
+  input_nodes:
+  - id: erneuerbare_energiepotenziale
+    tags: [non_additive]
+  - id: erneuerbare_energiefaktor
+
+actions:
+
+- id: massnahmen_endenergie
+  name: Massnahmen Endenergie
+  type: gpc.DatasetAction
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energietrager]
+  output_dimensions: [energietrager]
+  input_datasets: [gpc/koeln]
+  params:
+    sector: Massnahmen Endenergie
+  output_nodes:
+  - id: endenergie_anwendung
+
+- id: massnahmen_emissionfaktor
+  name: Massnahmen Emissionfaktor
+  type: gpc.DatasetAction
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [energietrager]
+  output_dimensions: [energietrager]
+  input_datasets: [gpc/koeln]
+  params:
+    sector: Massnahmen Emissionfaktor
+  output_nodes:
+  - id: emissionfaktor
+
+- id: massnahmen_endenergie_verbrauchssektoren
+  name: Massnahmen Endenergie Verbrauchssektoren
+  type: gpc.DatasetAction
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energietrager]
+  output_dimensions: [energietrager]
+  input_datasets: [gpc/koeln]
+  params:
+    sector: Massnahmen Endenergie Verbrauchssektoren
+  output_nodes:
+  - id: endenergie_verbrauchssektoren
+
+- id: massnahmen_emissionfaktor_verbrauchssektoren
+  name: Massnahmen Emissionfaktor Verbrauchssektoren
+  type: gpc.DatasetAction
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [energietrager]
+  output_dimensions: [energietrager]
+  input_datasets: [gpc/koeln]
+  params:
+    sector: Massnahmen Emissionfaktor Verbrauchssektoren
+  output_nodes:
+  - id: emissionfaktor_verbrauchssektoren
+
+- id: massnahmen_warmeentwicklung
+  name: Massnahmen Wärmeentwicklung
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [energietrager]
+  output_dimensions: [energietrager]
+  input_datasets: [gpc/koeln]
+  params:
+    sector: Massnahmen Wärmeentwicklung
+  output_nodes:
+  - id: warmeentwicklung
+
+- id: massnahmen_erneuerbare_energiepotenziale
+  name: Massnahmen Erneuerbare Energiepotenziale
+  type: gpc.DatasetAction
+  quantity: energy
+  unit: MW
+  input_dimensions: [energietrager]
+  output_dimensions: [energietrager]
+  input_datasets: [gpc/koeln]
+  params:
+    sector: Massnahmen Erneuerbare Energiepotenziale
+  output_nodes:
+  - id: erneuerbare_energiepotenziale
 
 pages:
 - id: home
