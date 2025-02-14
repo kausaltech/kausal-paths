@@ -1552,10 +1552,6 @@ nodes:
       flatten: true
     - id: iteration
       flatten: true
-  - id: statistical_electricity_consumption
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
   - id: discounted_health_costs
     from_dimensions:
     - id: cost_type
