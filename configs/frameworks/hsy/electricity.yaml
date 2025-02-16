@@ -2,13 +2,13 @@ nodes:
 
 - id: all_hsy_emissions
   type: finland.hsy.HsyNode
-  name: HSY:n päästöinventaario
+  name_fi: HSY:n päästöinventaario
   name_en: HSY emission inventory
   name_sv: HRM:s utsläppsinventering
   input_datasets: ['hsy/pks_khk_paastot']
 
 - id: net_emissions
-  name: Kokonaispäästöt (scope 1+2)
+  name_fi: Kokonaispäästöt (scope 1+2)
   name_en: Net emissions (scope 1+2)
   name_sv: Totala utsläpp (scope 1+2)
   type: simple.AdditiveNode
@@ -16,48 +16,94 @@ nodes:
   unit: kt/a
   is_outcome: true
 
+- id: electricity_emission_inventory
+  name_en: Electricity emission inventory
+  type: finland.hsy.HsyEmissions
+  unit: kt/a
+  input_dimensions: [economic_sector, energy_carrier]
+  output_dimensions: [economic_sector, energy_carrier]
+  input_nodes: [all_hsy_emissions]
+  output_nodes:
+  - id: greenhouse_gas_inventory
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  params:
+    sector: Sähkö|*|_energy_carrier_|_economic_sector_
+
+- id: non_heating_electricity_emissions
+  name_fi: Kulutussähkön päästöt
+  name_en: Consumption electricity emissions
+  name_sv: Konsumtion elutsläpp
+  type: simple.EmissionFactorActivity
+  unit: kt/a
+  color: '#0047b6'
+  input_dimensions: [economic_sector, energy_carrier]
+  output_dimensions: [economic_sector, energy_carrier]
+  input_nodes:
+  - id: residual_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: non_heating_electricity_energy
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: economic_sector
+      flatten: true
+
+- id: total_electricity_consumption
+  name_fi: Sähkön kokonaiskulutus Suomessa
+  name_en: Total electricity consumption in Finland
+  name_sv: Total elförbrukning i Finland
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: TWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets: [gpc/espoo] # TODO Use HSY data instead
+  params:
+    sector: Sähkön kysyntäennuste (TWh)
+
+- id: residual_emission_factor
+  name_fi: Jäännöspäästökerroin
+  name_en: Residual emission factor
+  name_sv: Restutsläppsfaktor
+  description: Jäännöspäästökerroin koskee sitä osaa sähkönkulutuksesta, joka ei ole
+    vihreää. Kokonaispäästökertoimesta on siis otettu pois päästöttämän vihreän sähkön
+    osuus, jolloin jäljelle jäävä kerroin on hieman suurempi.
+  description_en: Residual emission factor accounts for the share of electricity consumption
+    that is not green. The residual emission factor is therefore slightly higher than
+    the total emission factor.
+  description_sv: Restutsläppsfaktor räknar för den andelen elförbrukning som inte
+    är grön. Restutsläppsfaktorn är därför något högre än den totala utsläppsfaktorn.
+  type: simple.MultiplicativeNode
+  quantity: emission_factor
+  unit: kg/MWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: electricity_production_emission_factor
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+
 - id: non_heating_electricity_energy
-  name: Kulutussähkön sähkönkulutus
+  name_fi: Kulutussähkön sähkönkulutus
   name_en: Consumption electricity consumption
   name_sv: Förbrukning elförbrukning
   type: finland.hsy.HsyEnergyConsumption
   unit: GWh/a
+  color: '#0047b6'
   input_dimensions: [economic_sector, energy_carrier]
   output_dimensions: [economic_sector, energy_carrier]
   input_nodes: [all_hsy_emissions]
   params:
     sector: Sähkö|Kulutussähkö|_energy_carrier_|_economic_sector_
-  color: '#0047b6'
-
-- id: electricity_emissions
-  name: Kulutussähkön päästöt
-  name_en: Consumption electricity emissions
-  name_sv: Konsumtion elutsläpp
-  input_dimensions: [economic_sector, energy_carrier]
-  output_dimensions: [economic_sector, energy_carrier]
-  input_nodes:
-  - id: electricity_production_emission_factor
-    to_dimensions:
-    - id: energy_carrier
-  - id: non_heating_electricity_energy
-  # output_nodes: [electricity_emissions]
-  type: simple.EmissionFactorActivity
-  unit: kt/a
-
-- id: non_heating_electricity_emissions_historical
-  name: Kulutussähkön historialliset päästöt
-  name_en: Historical consumption electricity emissions
-  name_sv: Utsläpp av konsumtionsel
-  description_fi: Tiedot ovat HSY:n tilastoista. Mallissa ei käytetä tätä tietoa, vaan sitä, joka on laskettu energiankulutuksesta ja päästökertoimesta.
-  type: finland.hsy.HsyEmissions
-  input_dimensions: [economic_sector]
-  output_dimensions: [economic_sector]
-  input_nodes: [all_hsy_emissions]
-  params:
-    sector: Sähkö|Kulutussähkö|Kulutussähkö|_economic_sector_
 
 - id: electricity_production_emission_factor
-  name: Kansallisen sähköntuotannon päästökerroin
+  name_fi: Kansallisen sähköntuotannon päästökerroin
   name_en: National electricity production emission factor
   name_sv: Emissionskoefficient för nationell elproduktion
   type: finland.hsy.HsyEmissionFactor
@@ -68,3 +114,14 @@ nodes:
   params:
     sector: Sähkö|Kulutussähkö|_energy_carrier_|*
 
+- id: electric_heating_emission_factor
+  name_fi: Lämmityssähkön päästökerroin
+  name_en: Electric heating emission factor
+  name_sv: Emissionskoefficient för värmeel
+  type: finland.hsy.HsyEmissionFactor
+  unit: g/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Lämmitys|Sähkölämmitys|_energy_carrier_|*

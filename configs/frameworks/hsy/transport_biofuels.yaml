@@ -1,0 +1,65 @@
+nodes:
+
+- id: biofuel_fraction_x
+  name_fi: Jakeluvelvoite, muuttuja x
+  name_en: Biofuel fraction, variable x
+  name_sv: Biofuelsandel, variabel x
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_datasets: [gpc/espoo]
+  params:
+    sector: Jakeluvelvoite x
+
+- id: biofuel_fraction_y
+  name_fi: Jakeluvelvoite, muuttuja y
+  name_en: Biofuel fraction, variable y
+  name_sv: Biofuelsandel, variabel y
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_datasets: [gpc/espoo]
+  params:
+    sector: Jakeluvelvoite y
+
+- id: biofuel_fraction_z
+  name_fi: Jakeluvelvoite, muuttuja z
+  name_en: Biofuel fraction, variable z
+  name_sv: Biofuelsandel, variabel z
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: kg/kWh
+  input_datasets: [gpc/espoo]
+  params:
+    sector: Jakeluvelvoite z
+
+- id: biofuel_energy_change
+  name_fi: Biopolttonesteiden energiankulutusmuutos
+  name_en: Biofuel energy consumption change
+  name_sv: Biopolttonesteens energiförbrukningsändring
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_nodes:
+  - id: biofuel_fraction_demand
+    tags: [complement]
+  - id: biofuel_fraction_x
+    tags: [non_additive]
+  - id: biofuel_fraction_y
+    tags: [arithmetic_inverse]
+
+- id: biofual_emission_change
+  name_fi: Biopolttonesteiden päästöjen muutos
+  name_en: Biofuel emissions change
+  name_sv: Biopolttonesteens utsläppens ändring
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: biofuel_energy_change
+  - id: biofuel_fraction_z
+  output_nodes:
+  - id: road_traffic_emissions
+    to_dimensions:
+    - id: vehicle_type
+      categories: [undefined]

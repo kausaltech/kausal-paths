@@ -1,0 +1,101 @@
+nodes:
+
+- id: green_electricity_consumption
+  name_fi: Vihreän sähkön tuottama kompensaatio
+  name_en: Green electricity consumption
+  name_sv: Grön el konsumtion
+  description: Ensin vihreä sähkö vähennetään kokonaissähkäönkulutuksesta, ja sitten
+    sovelletaan jäännöspäästökerrointa. Oletus siis on, että ostamalla vihreää sähköä
+    omat päästöt alenevat saman verran kuin jos päästökerroin menisi nollaan tilanteesta,
+    jossa vihreä sähkö olisi ostettu pois markkinoilta. Tässä siis oletetaan, että
+    vihreän sähkön ostaminen generoi nykyisenkaltaista sähköntuotantoa siinä määrin,
+    että muiden ostajien päästökerroin ei nousekaan, vaikka vihreä sähkö on ostettu
+    pois markkinoilta.
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  output_nodes:
+  - id: non_heating_electricity_energy
+    tags: [arithmetic_inverse]
+    to_dimensions:
+    - id: economic_sector
+      categories: [residential]
+    - id: energy_carrier
+
+- id: non_green_electricity_consumption
+  name_fi: Ei-vihreän sähkön kulutus
+  name_en: Non-green electricity consumption
+  name_sv: Ej grön el
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: total_electricity_consumption
+  - id: green_electricity_consumption
+    tags: [arithmetic_inverse]
+
+- id: indifference_ratio
+  name_fi: Samaisuussuhde
+  type: simple.AdditiveNode
+  quantity: ratio
+  unit: dimensionless
+  historical_values: [[2000, 1.0], [2024, 1.0], [2025, 0.0]]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: residual_emission_factor_ratio
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+
+- id: residual_emission_factor_ratio
+  name_fi: Jäännöspäästökertoimen suhde
+  name_en: Residual emission factor ratio
+  name_sv: Restutsläppsfaktorns andel
+  description: Jäännöspäästökertoimen suhde kokonaispäästökertoimeen. Katso tarkempi
+    kuvaus jäännöspäästökertoimen sivulta.
+  description_en: Residual emission factor ratio to total emission factor. See more
+    detailed explanation from the residual emission factor page.
+  description_sv: Restutsläppsfaktorns andel till total utsläppsfaktor. Se mer detaljerad
+    förklaring på restutsläppsfaktorns sida.
+  type: simple.MultiplicativeNode
+  quantity: emission_factor
+  unit: dimensionless
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: total_electricity_consumption
+    to_dimensions:
+    - id: energy_carrier
+  - id: non_green_electricity_consumption
+    tags: [geometric_inverse]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions: []
+  output_nodes:
+  - id: residual_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+
+# - id: solar_electricity_emissions # TODO It would be better to calculate actual emissions rather than reductions
+#   name_fi: Aurinkosähkön päästöt
+#   type: simple.MultiplicativeNode
+#   quantity: emissions
+#   unit: kt/a
+#   input_dimensions: [energy_carrier]
+#   output_dimensions: [energy_carrier]
+#   input_nodes:
+#   - id: increase_solar_electricity_production
+#   - id: electricity_production_emission_factor
+#     tags: [arithmetic_inverse]
+#     from_dimensions:
+#     - id: energy_carrier
+#       categories: [electricity]
+#       flatten: true
+#     to_dimensions: []
+#   output_nodes:
+#   - id: non_heating_electricity_emissions2

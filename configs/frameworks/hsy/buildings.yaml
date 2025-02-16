@@ -65,13 +65,13 @@ nodes:
 
 - id: all_hsy_emissions
   type: finland.hsy.HsyNode
-  name: HSY:n päästöinventaario
+  name_fi: HSY:n päästöinventaario
   name_en: HSY emission inventory
   name_sv: HRM:s utsläppsinventering
   input_datasets: ['hsy/pks_khk_paastot']
 
 - id: net_emissions
-  name: Kokonaispäästöt (scope 1+2)
+  name_fi: Kokonaispäästöt (scope 1+2)
   name_en: Net emissions (scope 1+2)
   name_sv: Totala utsläpp (scope 1+2)
   type: simple.AdditiveNode
@@ -79,17 +79,57 @@ nodes:
   unit: kt/a
   is_outcome: true
 
+# Unique categories in HSY
+# ['Lämmitys' 'Sähkö' 'Liikenne' 'Teollisuus ja työkoneet'
+#  'Jätteiden käsittely' 'Maatalous']
+# ['Kaukolämpö' 'Öljylämmitys' 'Sähkölämmitys' 'Maalämpö' 'Kulutussähkö'
+#  'Tieliikenne' 'Raideliikenne' 'Laivaliikenne' 'Työkoneet' 'Polttoaineet'
+#  'Prosessit' 'Kaatopaikka' 'Biojätteen kompostointi' 'Jäteveden käsittely'
+#  'Jätevesilietteen kompostointi' 'Pellot' 'Kotieläimet']
+# ['Kaukolämpö' 'Öljylämmitys' 'Sähkölämmitys' 'Maalämpö' 'Kulutussähkö'
+#  'Henkilöautot' 'Moottoripyörät' 'Pakettiautot' 'Kuorma-autot'
+#  'Linja-autot' 'Lähijunat' 'Metrot' 'Raitiovaunut' 'Huviveneet'
+#  'Ammattiveneet' 'Matkustajalaivat' 'Rahtilaivat' 'Työkoneet'
+#  'Polttoaineet' 'Prosessit' 'Kaatopaikka' 'Biojätteen kompostointi'
+#  'Jäteveden käsittely' 'Jätevesilietteen kompostointi' 'Pellot'
+#  'Kotieläimet']
+# ['Asuminen' 'Palvelut' 'Teollisuus' 'Maatalous']
+
+- id: building_emission_inventory
+  name_en: Building emission inventory
+  type: finland.hsy.HsyEmissions
+  unit: kt/a
+  input_dimensions: [building_heat_source, economic_sector]
+  output_dimensions: [building_heat_source, economic_sector]
+  input_nodes: [all_hsy_emissions]
+  output_nodes:
+  - id: greenhouse_gas_inventory
+    from_dimensions:
+    - id: building_heat_source
+      flatten: true
+  params:
+    sector: Lämmitys|*|_building_heat_source_|_economic_sector_
+
+- id: greenhouse_gas_inventory
+  name_en: Greenhouse gas inventory
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [economic_sector]
+  output_dimensions: [economic_sector]
+
 - id: building_heating_emissions
-  name: Rakennusten lämmityksen päästöt
+  name_fi: Rakennusten lämmityksen päästöt
   name_en: Building heating emissions
   name_sv: Byggnadsvärmeutsläpp
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
   output_nodes: [net_emissions]
+  color: '#ff4f57'
 
 - id: district_heating_emissions
-  name: Kaukolämmön päästöt
+  name_fi: Kaukolämmön päästöt
   name_en: District heat emissions
   name_sv: Fjärrvärmeutsläpp
   output_nodes: [building_heating_emissions]
@@ -98,7 +138,7 @@ nodes:
   unit: kt/a
 
 - id: oil_heating_emissions
-  name: Öljylämmityksen päästöt
+  name_fi: Öljylämmityksen päästöt
   name_en: Oil heating emissions
   name_sv: Oljeuppvärmningsutsläpp
   output_nodes: [building_heating_emissions]
@@ -107,7 +147,7 @@ nodes:
   unit: kt/a
 
 - id: direct_electric_heating_emissions
-  name: Sähkölämmityksen päästöt
+  name_fi: Sähkölämmityksen päästöt
   name_en: Emissions from electric heating
   name_sv: Utsläpp från elvärme
   type: simple.EmissionFactorActivity
@@ -121,7 +161,7 @@ nodes:
   - id: building_heating_emissions
 
 - id: geothermal_heating_emissions
-  name: Maalämmön päästöt
+  name_fi: Maalämmön päästöt
   name_en: Geothermal emissions
   name_sv: Geotermiska utsläpp
   type: simple.EmissionFactorActivity
@@ -135,7 +175,7 @@ nodes:
   - id: building_heating_emissions
 
 - id: district_heating_emission_factor
-  name: Kaukolämmön päästökerroin
+  name_fi: Kaukolämmön päästökerroin
   name_en: District heating emission factor
   name_sv: Fjärrvärmeutsläppskoefficient
   type: finland.hsy.HsyEmissionFactor
@@ -145,7 +185,7 @@ nodes:
     sector: Lämmitys|Kaukolämpö|Kaukolämpö|Asuminen
 
 - id: oil_heating_emission_factor
-  name: Öljylämmityksen päästökerroin
+  name_fi: Öljylämmityksen päästökerroin
   name_en: Oil heating emission factor
   name_sv: Emissionsfaktor för oljeuppvärmning
   type: finland.hsy.HsyEmissionFactor
@@ -155,7 +195,7 @@ nodes:
     sector: Lämmitys|Öljylämmitys|Öljylämmitys|Asuminen
 
 - id: electric_heating_emission_factor
-  name: Lämmityssähkön päästökerroin
+  name_fi: Lämmityssähkön päästökerroin
   name_en: Electric heating emission factor
   name_sv: Emissionskoefficient för värmeel
   type: finland.hsy.HsyEmissionFactor
@@ -168,13 +208,13 @@ nodes:
 
 - id: building_floor_area_existing
   type: finland.aluesarjat.BuildingStock
-  name: Nykyisen rakennuskannan kerrosala
+  name_fi: Nykyisen rakennuskannan kerrosala
   name_en: Floor area of existing building stock
   name_sv: Våningsytan i det nuvarande byggnadsbeståndet
 
 - id: building_floor_area_new
   type: finland.aluesarjat.FutureBuildingStock
-  name: Uuden rakennuskannan kerrosala
+  name_fi: Uuden rakennuskannan kerrosala
   name_en: Floor area of new building stock
   name_sv: Våningsytan i det nya byggnadsbeståndet
   input_nodes:
@@ -184,7 +224,7 @@ nodes:
     tags: [existing_floor_area]
 
 - id: building_floor_area_total
-  name: Rakennusala kokonaisuudessaan
+  name_fi: Rakennusala kokonaisuudessaan
   type: simple.AdditiveNode
   quantity: floor_area
   unit: m**2
@@ -196,29 +236,40 @@ nodes:
 
 - id: building_heat_statistics
   type: finland.hsy.HsyBuildingHeatConsumption
-  name: Rakennuskannan lämmönkulutustilasto
+  name_fi: Rakennuskannan lämmönkulutustilasto
   name_en: Heat consumption statistics of building stock
   name_sv: Värmeförbrukningenstatistik av byggnadsbeståndet
   tags: [historical_heat]
   input_nodes: [all_hsy_emissions]
 
 - id: building_heat_per_floor_area_new
-  name: Ominaislämmönkulutus uudessa rakennuskannassa
+  name_fi: Ominaislämmönkulutus uudessa rakennuskannassa
   type: simple.AdditiveNode
   quantity: consumption_factor
   unit: kWh/m**2/a
   input_datasets:
-  - espoo/new_building_heating_per_area
+  - espoo/new_building_heating_per_area # TODO General HSY data would be better
   output_dimensions: [building_use]
   output_nodes:
   - id: building_heat_consumption_new
     to_dimensions:
     - id: building_use
+
+- id: building_heat_consumption_new
+  name_fi: Uuden rakennuskannan lämmönkulutus
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [building_use, building_heat_source]
+  output_dimensions: [building_use, building_heat_source]
+  input_nodes:
+  - id: building_floor_area_new
+    to_dimensions:
+    - id: building_use
     - id: building_heat_source
-      categories: [district_heat]  # FIXME Should apply to all building_heat_sources but then gives error
 
 - id: building_heat_per_floor_area
-  name: Rakennusten lämmitys per ala
+  name_fi: Rakennusten lämmitys per ala
   name_en: Building heating per floor area
   name_sv: Värmeförbrukningen per våningsytan
   type: finland.aluesarjat.BuildingHeatPerArea
@@ -231,7 +282,7 @@ nodes:
   - building_floor_area_existing
 
 - id: building_heat_consumption_existing
-  name: Nykyisen rakennuskannan lämmönkulutus
+  name_fi: Nykyisen rakennuskannan lämmönkulutus
   name_en: Heat consumption of existing buildings
   name_sv: Värmeförbrukning i det nuvarande byggnadsbeståndet
   type: finland.hsy.MultiplicativeWithDataBackup
@@ -246,7 +297,7 @@ nodes:
     tags: [data_node]
 
 - id: building_heat_consumption
-  name: Koko rakennuskannan lämmönkulutus
+  name_fi: Koko rakennuskannan lämmönkulutus
   name_en: Total building heat consumption
   name_sv: Total värmeförbrukning i det byggnadsbeståndet
   type: simple.AdditiveNode

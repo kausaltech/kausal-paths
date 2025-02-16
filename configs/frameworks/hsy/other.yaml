@@ -37,6 +37,10 @@ dimensions:
     label: Maatalous
     label_en: Agriculture
     label_sv: Jordbruk
+  - id: fields
+    label_fi: Pellot
+  - id: cattle_farming
+    label_fi: Kotieläimet
   - id: machinery
     label: Työkoneet
     label_en: Machinery
@@ -77,13 +81,13 @@ nodes:
 
 - id: all_hsy_emissions
   type: finland.hsy.HsyNode
-  name: HSY:n päästöinventaario
+  name_fi: HSY:n päästöinventaario
   name_en: HSY emission inventory
   name_sv: HRM:s utsläppsinventering
   input_datasets: ['hsy/pks_khk_paastot']
 
 - id: net_emissions
-  name: Kokonaispäästöt (scope 1+2)
+  name_fi: Kokonaispäästöt (scope 1+2)
   name_en: Net emissions (scope 1+2)
   name_sv: Totala utsläpp (scope 1+2)
   type: simple.AdditiveNode
@@ -91,8 +95,53 @@ nodes:
   unit: kt/a
   is_outcome: true
 
+- id: industry_emission_inventory
+  name_en: Industry emission inventory
+  type: finland.hsy.HsyEmissions
+  unit: kt/a
+  input_dimensions: [emission_sector, economic_sector]
+  output_dimensions: [emission_sector, economic_sector]
+  input_nodes: [all_hsy_emissions]
+  output_nodes:
+  - id: greenhouse_gas_inventory
+    from_dimensions:
+    - id: emission_sector
+      flatten: true
+  params:
+    sector: Teollisuus ja työkoneet|*|_emission_sector_|_economic_sector_
+
+- id: waste_emission_inventory
+  name_en: Waste emission inventory
+  type: finland.hsy.HsyEmissions
+  unit: kt/a
+  input_dimensions: [waste_treatment, economic_sector]
+  output_dimensions: [waste_treatment, economic_sector]
+  input_nodes: [all_hsy_emissions]
+  output_nodes:
+  - id: greenhouse_gas_inventory
+    from_dimensions:
+    - id: waste_treatment
+      flatten: true
+  params:
+    sector: Jätteiden käsittely|*|_waste_treatment_|_economic_sector_
+
+- id: agriculture_emission_inventory
+  name_en: Agriculture emission inventory
+  type: finland.hsy.HsyEmissions
+  unit: kt/a
+  input_dimensions: [emission_sector, economic_sector]
+  output_dimensions: [emission_sector, economic_sector]
+  input_nodes: [all_hsy_emissions]
+  output_nodes:
+  - id: greenhouse_gas_inventory
+    from_dimensions:
+    - id: emission_sector
+      flatten: true
+  params:
+    sector: Maatalous|*|_emission_sector_|_economic_sector_
+
 - id: industry_machinery_emissions
-  name: Teollisuuden ja työkoneiden päästöt
+  name_fi: Teollisuuden ja työkoneiden päästöt
   name_en: Emissions from industry and machinery
   name_sv: Utsläpp från industri och maskiner
   type: finland.hsy.HsyEmissions
@@ -110,7 +159,7 @@ nodes:
       flatten: true
 
 - id: agriculture_emissions
-  name: Maatalouden päästöt
+  name_fi: Maatalouden päästöt
   name_en: Emissions from agriculture
   name_sv: Utsläpp från jordbruket
   type: finland.hsy.HsyEmissions
@@ -126,7 +175,7 @@ nodes:
       flatten: true
 
 - id: waste_treatment_emissions
-  name: Jätteenkäsittelyn päästöt
+  name_fi: Jätteenkäsittelyn päästöt
   name_en: Waste treatment emissions
   name_sv: Avfallsbehandlingsutsläpp
   type: finland.hsy.HsyEmissions

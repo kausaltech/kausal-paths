@@ -83,13 +83,13 @@ nodes:
 
 - id: all_hsy_emissions
   type: finland.hsy.HsyNode
-  name: HSY:n päästöinventaario
+  name_fi: HSY:n päästöinventaario
   name_en: HSY emission inventory
   name_sv: HRM:s utsläppsinventering
   input_datasets: ['hsy/pks_khk_paastot']
 
 - id: net_emissions
-  name: Kokonaispäästöt (scope 1+2)
+  name_fi: Kokonaispäästöt (scope 1+2)
   name_en: Net emissions (scope 1+2)
   name_sv: Totala utsläpp (scope 1+2)
   type: simple.AdditiveNode
@@ -97,48 +97,202 @@ nodes:
   unit: kt/a
   is_outcome: true
 
+- id: transport_emission_inventory
+  name_en: Transport emission inventory
+  type: finland.hsy.HsyEmissions
+  unit: kt/a
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  input_nodes: [all_hsy_emissions]
+  output_nodes:
+  - id: greenhouse_gas_inventory
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  params:
+    sector: Liikenne|*|_vehicle_type_|_economic_sector_
+
 - id: transport_emissions
-  name: Liikenteen päästöt
+  name_fi: Liikenteen päästöt
   name_en: Traffic emissions
   name_sv: Trafikutsläpp
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
+  color: '#014B30'
   output_nodes: [net_emissions]
 
-- id: road_transport_emissions
-  name: Tieliikenteen päästöt, tilasto
-  name_en: Road traffic emissions, statistics
-  name_sv: Vägtrafikens utsläpp, statistik
-  description: Tämä on HSY-yhteensopivuutta varten. Se ei ole osa mallia.
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
+# Road transport
 
-- id: car_emissions
-  name: Henkilöautot päästöt
-  name_en: Passenger car emissions
-  name_sv: Personbilars utsläpp
-  output_nodes: [road_transport_emissions]
+- id: road_transport_energy_forecast # TODO Improve formatting
+  name_fi: Tieliikenteen energiaennuste
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  input_datasets:
+  - id: gpc/espoo # TODO Find HSY data instead
+    forecast_from: 2024
   params:
-    sector: Liikenne|Tieliikenne|Henkilöautot|Asuminen
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
+    sector: Tieliikenteen suorite-ennuste
 
-- id: road_transport_emissions_historical
-  name: Tieliikenteen historialliset päästöt
-  name_en: Historical road traffic emissions
-  name_sv: Historiska vägtrafikutsläpp
-  description_fi: Tiedot ovat HSY:n tilastoista. Mallissa ei käytetä tätä tietoa, vaan sitä, joka on laskettu energiankulutuksesta ja päästökertoimesta.
-  type: finland.hsy.HsyEmissions
+- id: road_traffic_emission_factors
+  name_fi: Tieliikenteen päästökertoimet
+  name_en: Road traffic emission factors
+  name_sv: Utsläppsfaktorer för vägtrafik
+  type: finland.hsy.HsyEmissionFactor
+  quantity: emission_factor
+  unit: g/kWh
   input_dimensions: [vehicle_type, economic_sector]
   output_dimensions: [vehicle_type, economic_sector]
   input_nodes: [all_hsy_emissions]
   params:
     sector: Liikenne|Tieliikenne|_vehicle_type_|_economic_sector_
 
+- id: road_transport_energy_consumption_historical
+  name_fi: Tieliikenteen historiallinen energiankulutus
+  name_en: Road transport historical energy consumption
+  name_sv: Vägtrafikens historisk energiförbrukning
+  type: finland.hsy.HsyEnergyConsumption
+  unit: GWh/a
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  params:
+    sector: Liikenne|Tieliikenne|_vehicle_type_|_economic_sector_
+  input_nodes: [all_hsy_emissions]
+  # output_nodes:
+  # - id: road_traffic_emissions
+  #   from_dimensions:
+  #   - id: economic_sector
+  #     flatten: true
+  #   to_dimensions:
+  #   - id: vehicle_type
+
+- id: road_transport_energy_consumption
+  name_fi: Tieliikenteen energiankulutus
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: car_fuel_by_energy_carrier
+    tags: [forecast_only]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  - id: road_transport_energy_consumption_historical
+    tags: [inventory_only]
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+  - id: road_transport_energy_forecast
+    tags: [forecast_only]
+    from_dimensions:
+    - id: vehicle_type
+      categories: [cars]
+      exclude: true
+    - id: economic_sector
+      flatten: true
+
+- id: road_traffic_emissions
+  name_fi: Tieliikenteen päästöt
+  name_en: Road traffic emissions
+  name_sv: Vägtrafikens utsläpp
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: road_transport_energy_consumption
+  - id: road_traffic_emission_factors
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
+  output_nodes:
+  - id: transport_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+- id: total_car_amount
+  name_fi: Henkilöautojen kokonaismäärä
+  name_en: Total car amount
+  name_sv: Total personbilarnas mängd
+  type: simple.AdditiveNode
+  quantity: number
+  unit: vehicles
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: passenger_cars_by_type
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+
+- id: passenger_cars_by_type
+  name_fi: Henkilöautojen määrä
+  type: gpc.DatasetNode
+  quantity: number
+  unit: vehicles
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  input_datasets:
+  - id: gpc/espoo # TODO Use HSY data instead
+    forecast_from: 2024
+  params:
+    sector: Henkilöautojen määrä
+
+- id: car_fuel_by_energy_carrier
+  name_fi: Henkilöautojen polttoaineenkulutus energialuokittain
+  name_en: Fuel consumption of cars by energy carrier
+  name_sv: Personbilarnas energiförbrukning
+  description: Sisältää vain polttoaineet. Sähkön osuus energiasta ja päästöistä jätetään
+    huomiotta.
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  input_nodes:
+  - id: road_transport_energy_forecast
+    tags: [non_additive]
+    from_dimensions:
+    - id: vehicle_type
+      categories: [cars]
+    - id: economic_sector
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+  - id: total_car_amount
+    tags: [geometric_inverse]
+    to_dimensions:
+    - id: vehicle_type
+  - id: passenger_cars_by_type
+  - id: fraction_of_electricity_in_car_energy
+    tags: [complement]
+
+- id: fraction_of_electricity_in_car_energy
+  name_fi: Sähkön osuus henkilöautojen energiankulutuksessa
+  name_en: Fraction of electricity in car energy consumption
+  name_sv: Andel av elenergi i personbilarnas energiförbrukning
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  input_datasets: [gpc/espoo]
+  params:
+    sector: Sähkön osuus energiasta
+
+# Non-road transport
+
 - id: rail_transport_energy
-  name: Raideliikenteen sähkönkulutus
+  name_fi: Raideliikenteen sähkönkulutus
   name_en: Electricity consumption of rail transport
   name_sv: Elförbrukning av järnvägtrafik
   type: finland.hsy.HsyEnergyConsumption
@@ -150,7 +304,7 @@ nodes:
   input_nodes: [all_hsy_emissions]
 
 - id: rail_transport_emissions
-  name: Raideliikenteen päästöt
+  name_fi: Raideliikenteen päästöt
   name_en: Emissions of rail transport
   name_sv: Utsläpp från järnvägtrafik
   type: simple.EmissionFactorActivity
