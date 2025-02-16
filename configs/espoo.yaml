@@ -1,12 +1,10 @@
 id: espoo
 default_language: fi
 supported_languages: [sv, en]
-frameworks: [hsy]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 6b61065b0cbdecb7c9d3235a6634faa13393f05e
-  # commit: 8caa222ae2b5aa14be248435eb8eb47bd401a010
   dvc_remote: kausal-s3
 name: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -25,6 +23,20 @@ features:
   baseline_visible_in_graphs: true
   show_accumulated_effects: true
   show_significant_digits: 3
+
+include:
+- file: frameworks/hsy/buildings.yaml
+  node_group: Buildings
+  allow_override: true
+- file: frameworks/hsy/electricity.yaml
+  node_group: Electricity
+  allow_override: true
+- file: frameworks/hsy/other.yaml
+  node_group: Other
+  allow_override: true
+- file: frameworks/hsy/transport.yaml
+  node_group: Transport
+  allow_override: true
 
 action_groups:
 - id: transportation
@@ -60,151 +72,6 @@ params:
 
 dimensions:
 
-- id: building_heat_source
-  label: Lämmitystapa
-  label_en: Heating method
-  label_sv: Uppvärmningssätt
-  categories:
-  - id: district_heat
-    label: Kaukolämpö
-    label_en: District heating
-    label_sv: Fjärrvärme
-  - id: oil
-    label: Öljylämmitys
-    label_en: Oil heating
-    label_sv: Oljeuppvärmning
-  - id: direct_electric
-    label: Sähkölämmitys
-    label_en: Electric heating
-    label_sv: Eluppvärmning
-  - id: geothermal
-    label: Maalämpö
-    label_en: Geothermal heat
-    label_sv: Jordvärme
-  - id: other
-    label: Muu tai tuntematon
-    label_en: Other or unknown
-    label_sv: Annan eller okänd
-    aliases: [Muu]
-
-- id: building_use
-  label: Rakennuksen käyttötarkoitus
-  label_en: Purpose of use of the building
-  label_sv: Byggnadens användningsändamål
-  categories:
-  - id: residence
-    label: Asuminen
-    label_en: Housing
-    label_sv: Boende
-  - id: services
-    label: Palvelut
-    label_en: Services
-    label_sv: Tjänster
-  - id: industry
-    label: Teollisuus
-    label_en: Industry
-    label_sv: Industrin
-  - id: single_family_houses
-    label: Pientalot
-    label_en: Single-family houses
-    label_sv: Småhus
-  - id: attached_houses
-    label: Rivitalot
-    label_en: Terraced houses
-    label_sv: Radhus
-  - id: apartment_buildings
-    label: Asuinkerrostalot
-    label_en: Blocks of flats
-    label_sv: Flervåningsbostadshus
-  - id: other_buildings
-    label: Muut rakennukset
-    label_en: Other buildings
-    label_sv: Övriga byggnader
-
-- id: vehicle # FIXME Remove redundant
-  label: Ajoneuvo
-  label_en: Vehicle
-  label_sv: Fordon
-  categories:
-  - id: passenger_cars
-    label: Henkilöautot
-    label_en: Cars
-    label_sv: Personbilar
-  - id: motorcycles
-    label: Moottoripyörät
-    label_en: Motorcycles
-    label_sv: Motorcyklar
-  - id: vans
-    label: Pakettiautot
-    label_en: Vans
-    label_sv: Paketbilar
-  - id: trucks
-    label: Kuorma-autot
-    label_en: Lorries
-    label_sv: Lastbilar
-  - id: buses
-    label: Linja-autot
-    label_en: Buses
-    label_sv: Bussar
-  - id: buses_hsl
-    label: Linja-autot, HSL
-    label_en: Buses, HSL
-    label_sv: Bussar, HRT
-  - id: buses_other
-    label: Linja-autot, muut
-    label_en: Bussar, övriga
-    label_sv: Buses, other
-  - id: local_trains
-    label: Lähijunat
-    label_en: Local trains
-    label_sv: Lokaltåg
-  - id: metro
-    label: Metrot
-    label_en: Metros
-    label_sv: Metro
-  - id: trams
-    label: Raitiovaunut
-    label_en: Trams
-    label_sv: Spårvagnar
-  - id: leasure_boats
-    label: Huviveneet
-    label_en: Pleasure boats
-    label_sv: Fritidsbåtar
-  - id: professional_boats
-    label: Ammattiveneet
-    label_en: Professional boats
-    label_sv: Yrkesbåtar
-  - id: passenger_ships
-    label: Matkustajalaivat
-    label_en: Passenger ships
-    label_sv: Passagerarfartyg
-  - id: cargo_ships
-    label: Rahtilaivat
-    label_en: Cargo ships
-    label_sv: Fraktfartyg
-
-- id: transportation_class
-  label: Liikennemuoto
-  label_en: Mode of transport
-  label_sv: Trafikform
-  categories:
-  - id: road_transportation
-    label: Tieliikenne
-    label_en: Road transport
-    label_sv: Vägtrafik
-  - id: rail_tranportation
-    label: Raideliikenne
-    label_en: Rail transport
-    label_sv: Spårtrafik
-  - id: waterborne_navigation
-    label: Laivaliikenne
-    label_en: Boat traffic
-    label_sv: Fartygstrafik
-  - id: aviation
-    label: Lentoliikenne
-    label_en: Air traffic
-    label_sv: Flygtrafik
-
 - id: scenario
   label: Skenaario
   label_en: Scenario
@@ -222,70 +89,6 @@ dimensions:
     label: Pessimistinen
     label_en: Pessimistic
     label_sv: Pessimistisk
-
-- id: emission_sector
-  label: Päästösektori
-  label_en: Main emission sector
-  label_sv: Utsläppsektor
-  categories:
-  - id: district_heating
-    label: Kaukolämpö
-    label_en: District heating
-    label_sv: Fjärrvärme
-  - id: oil_heating
-    label: Öljylämmitys
-    label_en: Oil heating
-    label_sv: Oljevärme
-  - id: electric_heating
-    label: Sähkölämmitys
-    label_en: Electric heating
-    label_sv: Elvärme
-  - id: non_heating_electricity
-    label: Kulutussähkö
-    label_en: Consumer electricity
-    label_sv: Konsumtionel
-  - id: transportation
-    label: Liikenne
-    label_en: Transportation
-    label_sv: Trafik
-  - id: industry_and_machinery
-    label: Teollisuus ja työkoneet
-    label_en: Industry and machinery
-    label_sv: Industri och maskiner
-  - id: waste_treatment
-    label: Jätteiden käsittely
-    label_en: Waste treatment
-    label_sv: Avfall
-  - id: agriculture
-    label: Maatalous
-    label_en: Agriculture
-    label_sv: Jordbruk
-  - id: machinery
-    label: Työkoneet
-    label_en: Machinery
-    label_sv: Maskiner
-  - id: industry
-    label: Teollisuus
-    label_en: Industry
-    label_sv: Industri
-    aliases: [Prosessit]
-  - id: industry_fuels
-    label_fi: Teollisuuden polttoaineet
-    label_en: Industrial fuels
-    label_sv: Industriella bränsle
-    aliases: [Polttoaineet]
-
-- id: cost_type
-  label: Cost Type
-  categories:
-  - id: investment
-    label: Investment
-  - id: energy
-    label: Energy
-  - id: maintenance
-    label: Maintenance
-  - id: operations
-    label: Operations
 
 - id: energy_carrier
   label: Energialaji
@@ -336,91 +139,6 @@ dimensions:
   - id: microsoftin_datakeskus
     label: Microsoftin datakeskus
 
-- id: scope
-  label: Scope
-  label_en: Scope
-  categories:
-  - id: scope1
-    label: Scope 1
-    label_en: Scope 1
-  - id: scope2
-    label: Scope 2
-    label_en: Scope 2
-
-- id: vehicle_type
-  label: Vehicle type
-  label_en: Vehicle type
-  categories:
-  - id: cars
-    aliases: [passenger_cars]
-    label: Henkilöautot
-    label_en: Cars
-    label_sv: Bilar
-  - id: electric_vehicles
-    label: Sähköautot
-    label_en: Electric vehicles
-    label_sv: Elbilar
-  - id: hybrid_vehicles
-    label: Hybridit
-    label_en: Hybrid vehicles
-    label_sv: Hybrider
-  - id: buses
-    label: Bussit
-    label_en: Buses
-    label_sv: Bussar
-    aliases: [Linja-autot]
-  - id: buses_hsl
-    label: Bussit, HSL
-    label_en: Buses, HSL
-    label_sv: Bussar, HRT
-  - id: buses_other
-    label: Bussit, muu
-    label_en: Buses, other
-    label_sv: Bussar, andra
-  - id: local_trains
-    label: Lähijunat
-    aliases: [Paikallisjunat]
-    label_en: Local Trains
-    label_sv: Lokaltåg
-  - id: motorcycles
-    label: Moottoripyörät
-    label_en: Motorcycles
-    label_sv: Motorcyklar
-  - id: trams
-    label_fi: Raitiovaunut
-    aliases: [Ratikat]
-    label_en: Trams
-  - id: metros
-    label_fi: Metrot
-    aliases: [Metro]
-    label_en: Metro
-  - id: trucks
-    label: Kuorma-autot
-    label_en: Trucks
-  - id: vans
-    label: Pakettiautot
-    label_en: Vans
-  - id: undefined
-    label: Ei määritelty
-    label_en: Undefined
-    label_sv: Ej definierad
-  - id: leasure_boats
-    label: Huviveneet
-    label_en: Pleasure boats
-    label_sv: Fritidsbåtar
-  - id: professional_boats
-    label: Ammattiveneet
-    label_en: Professional boats
-    label_sv: Yrkesbåtar
-  - id: passenger_ships
-    label: Matkustajalaivat
-    label_en: Passenger ships
-    label_sv: Passagerarfartyg
-  - id: cargo_ships
-    label: Rahtilaivat
-    label_en: Cargo ships
-    label_sv: Fraktfartyg
-
 - id: economic_sector
   label_fi: Taloussektori
   label_en: Economic sector
@@ -448,59 +166,7 @@ dimensions:
     label_en: Cattle farming
     label_sv: Husdjur
 
-- id: waste_treatment
-  label_fi: Jätteenkäsittely
-  label_en: Waste treatment
-  categories:
-  - id: landfills
-    label_fi: Kaatopaikka
-    label_en: Landfills
-    label_sv: Deponi
-  - id: biowaste_composting
-    label_fi: Biojätteen kompostointi
-    label_en: Biowaste composting
-    label_sv: Kompostering av bioavfall
-  - id: waste_water_treatment
-    label_fi: Jäteveden käsittely
-    label_en: Wastewater treatment
-    label_sv: Rening av avloppsvatten
-  - id: sludge_composting
-    label_fi: Jätevesilietteen kompostointi
-    label_en: Sewage sludge composting
-    label_sv: Kompostering av avloppsslam
-
-emission_sectors:
-
-- id: net_emissions
-  name: Kokonaispäästöt (scope 1+2)
-  name_en: Net emissions (scope 1+2)
-  name_sv: Totala utsläpp (scope 1+2)
-  is_outcome: true
-  target_year_goal: 212
-
-- id: building_heating_emissions
-  name: Rakennusten lämmityksen päästöt
-  name_en: Building heating emissions
-  name_sv: Utsläpp från uppvärmning av byggnader
-  part_of: net_emissions
-  color: '#ff4f57'
-
-- id: transport_emissions
-  name: Liikenteen päästöt
-  name_en: Emissions from traffic
-  name_sv: Utsläpp från trafiken
-  part_of: net_emissions
-  color: '#014B30'
-
-- id: road_transport_emissions
-  name: Tieliikenteen päästöt, tilasto
-  name_en: Road traffic emissions, statistics
-  name_sv: Vägtrafikens utsläpp, statistik
-  description: Tämä on HSY-yhteensopivuutta varten. Se ei ole osa mallia.
-
 nodes:
-
-# Additive actions and related nodes
 
 - id: truck_factor
   name: Kuorma-autojen kerroin
@@ -985,24 +651,6 @@ nodes:
   params:
     sector: Sähkön osuus energiasta
 
-- id: addition_to_traffic_emission_factors
-  name: Lisäys liikenteen päästökertoimiin
-  name_en: Addition to traffic emission factors
-  description: HSY teki uudelleenlaskentaa pääkaupunkiseudun päästöihin kesällä 2023.
-    Tämä vaikutti erityisesti liikenteen päästökertoimiin, koska alentunut sekoitevelvoite
-    huomioitiin tarkemmin. Suurentuminen aiempaan päästökertoimeen on kuvattu tässä.
-    Laskennan pohjana on nyt yksityiskohtainen HSY-data, joka on saatu syksyllä 2024.
-    Tämä solmu korjaa virhettä 26.6.2023 saadussa datassa ja on on olemassa vain historiallisista
-    dokumentointisyistä. Sitä ei käytetä mallissa.
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/kWh
-  input_datasets:
-  - id: espoo/addition_to_traffic_emission_factor
-    column: emission_factor
-    forecast_from: 2024
-  output_dimensions: [vehicle]
-
 - id: road_traffic_emission_factor_forecast
   name: Tieliikenteen päästökerroinennuste
   type: gpc.DatasetNode
@@ -1304,9 +952,6 @@ nodes:
   input_nodes: [all_hsy_emissions]
   params:
     sector: Teollisuus ja työkoneet|*|_emission_sector_|_economic_sector_
-
-####### Detailed waste emissions with altered names
-# These nodes are here from the framework as the names have changed.
 
 pages:
 - id: home  # The page is not shown
@@ -1839,6 +1484,46 @@ actions:
       - year: 2030
         source_amount: -50000
         dest_amounts: [50.0, 50.0]
+    #   amounts: # Addition from March 2023. Still relevant?
+    #   - year: 2022
+    #     source_amount: 0
+    #     dest_amounts: [50, 50]
+    #   - year: 2023
+    #     source_amount: -130828
+    #     dest_amounts: [50, 50]
+    #   - year: 2029
+    #     source_amount: -130828
+    #     dest_amounts: [50, 50]
+    #   - year: 2030
+    #     source_amount: -9640
+    #     dest_amounts: [50, 50]
+    #   - year: 2034
+    #     source_amount: -9640
+    #     dest_amounts: [50, 50]
+    # - source:
+    #     categories:
+    #       building_heat_source: oil
+    #       building_use: services
+    #   dests:
+    #   - categories:
+    #       building_use: services
+    #       building_heat_source: district_heat
+    #   amounts:
+    #   - year: 2022
+    #     source_amount: 0
+    #     dest_amounts: [100]
+    #   - year: 2023
+    #     source_amount: -28635.7
+    #     dest_amounts: [100]
+    #   - year: 2029
+    #     source_amount: -28635.7
+    #     dest_amounts: [100]
+    #   - year: 2030
+    #     source_amount: -2110
+    #     dest_amounts: [100]
+    #   - year: 2034
+    #     source_amount: -2110
+    #     dest_amounts: [100]
 
 - id: reduce_oil_heating_services
   name: Öljylämmityksen vähentäminen (Palvelut)

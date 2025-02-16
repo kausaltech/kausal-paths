@@ -1,0 +1,288 @@
+dimensions:
+
+- id: building_heat_source
+  label: Lämmitystapa
+  label_en: Heating method
+  label_sv: Uppvärmningssätt
+  categories:
+  - id: district_heat
+    label: Kaukolämpö
+    label_en: District heating
+    label_sv: Fjärrvärme
+  - id: oil
+    label: Öljylämmitys
+    label_en: Oil heating
+    label_sv: Oljeuppvärmning
+  - id: direct_electric
+    label: Sähkölämmitys
+    label_en: Electric heating
+    label_sv: Eluppvärmning
+  - id: geothermal
+    label: Maalämpö
+    label_en: Geothermal heat
+    label_sv: Jordvärme
+  - id: other
+    label: Muu tai tuntematon
+    label_en: Other or unknown
+    label_sv: Annan eller okänd
+    aliases: [Muu]
+
+- id: building_use
+  label: Rakennuksen käyttötarkoitus
+  label_en: Purpose of use of the building
+  label_sv: Byggnadens användningsändamål
+  categories:
+  - id: residence
+    label: Asuminen
+    label_en: Housing
+    label_sv: Boende
+  - id: services
+    label: Palvelut
+    label_en: Services
+    label_sv: Tjänster
+  - id: industry
+    label: Teollisuus
+    label_en: Industry
+    label_sv: Industrin
+  - id: single_family_houses
+    label: Pientalot
+    label_en: Single-family houses
+    label_sv: Småhus
+  - id: attached_houses
+    label: Rivitalot
+    label_en: Terraced houses
+    label_sv: Radhus
+  - id: apartment_buildings
+    label: Asuinkerrostalot
+    label_en: Blocks of flats
+    label_sv: Flervåningsbostadshus
+  - id: other_buildings
+    label: Muut rakennukset
+    label_en: Other buildings
+    label_sv: Övriga byggnader
+
+nodes:
+
+- id: all_hsy_emissions
+  type: finland.hsy.HsyNode
+  name: HSY:n päästöinventaario
+  name_en: HSY emission inventory
+  name_sv: HRM:s utsläppsinventering
+  input_datasets: ['hsy/pks_khk_paastot']
+
+- id: net_emissions
+  name: Kokonaispäästöt (scope 1+2)
+  name_en: Net emissions (scope 1+2)
+  name_sv: Totala utsläpp (scope 1+2)
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  is_outcome: true
+
+- id: building_heating_emissions
+  name: Rakennusten lämmityksen päästöt
+  name_en: Building heating emissions
+  name_sv: Byggnadsvärmeutsläpp
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  output_nodes: [net_emissions]
+
+- id: district_heating_emissions
+  name: Kaukolämmön päästöt
+  name_en: District heat emissions
+  name_sv: Fjärrvärmeutsläpp
+  output_nodes: [building_heating_emissions]
+  input_nodes: [district_heating_emission_factor]
+  type: simple.EmissionFactorActivity
+  unit: kt/a
+
+- id: oil_heating_emissions
+  name: Öljylämmityksen päästöt
+  name_en: Oil heating emissions
+  name_sv: Oljeuppvärmningsutsläpp
+  output_nodes: [building_heating_emissions]
+  input_nodes: [oil_heating_emission_factor]
+  type: simple.EmissionFactorActivity
+  unit: kt/a
+
+- id: direct_electric_heating_emissions
+  name: Sähkölämmityksen päästöt
+  name_en: Emissions from electric heating
+  name_sv: Utsläpp från elvärme
+  type: simple.EmissionFactorActivity
+  unit: kt/a
+  input_nodes:
+  - id: electric_heating_emission_factor
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  output_nodes:
+  - id: building_heating_emissions
+
+- id: geothermal_heating_emissions
+  name: Maalämmön päästöt
+  name_en: Geothermal emissions
+  name_sv: Geotermiska utsläpp
+  type: simple.EmissionFactorActivity
+  unit: kt/a
+  input_nodes:
+  - id: electric_heating_emission_factor
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  output_nodes:
+  - id: building_heating_emissions
+
+- id: district_heating_emission_factor
+  name: Kaukolämmön päästökerroin
+  name_en: District heating emission factor
+  name_sv: Fjärrvärmeutsläppskoefficient
+  type: finland.hsy.HsyEmissionFactor
+  unit: g/kWh
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Lämmitys|Kaukolämpö|Kaukolämpö|Asuminen
+
+- id: oil_heating_emission_factor
+  name: Öljylämmityksen päästökerroin
+  name_en: Oil heating emission factor
+  name_sv: Emissionsfaktor för oljeuppvärmning
+  type: finland.hsy.HsyEmissionFactor
+  unit: g/kWh
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Lämmitys|Öljylämmitys|Öljylämmitys|Asuminen
+
+- id: electric_heating_emission_factor
+  name: Lämmityssähkön päästökerroin
+  name_en: Electric heating emission factor
+  name_sv: Emissionskoefficient för värmeel
+  type: finland.hsy.HsyEmissionFactor
+  unit: g/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Lämmitys|Sähkölämmitys|_energy_carrier_|*
+
+- id: building_floor_area_existing
+  type: finland.aluesarjat.BuildingStock
+  name: Nykyisen rakennuskannan kerrosala
+  name_en: Floor area of existing building stock
+  name_sv: Våningsytan i det nuvarande byggnadsbeståndet
+
+- id: building_floor_area_new
+  type: finland.aluesarjat.FutureBuildingStock
+  name: Uuden rakennuskannan kerrosala
+  name_en: Floor area of new building stock
+  name_sv: Våningsytan i det nya byggnadsbeståndet
+  input_nodes:
+  - id: population
+    to_dimensions: []
+  - id: building_floor_area_existing
+    tags: [existing_floor_area]
+
+- id: building_floor_area_total
+  name: Rakennusala kokonaisuudessaan
+  type: simple.AdditiveNode
+  quantity: floor_area
+  unit: m**2
+  input_dimensions: [building_use, building_heat_source]
+  output_dimensions: [building_use, building_heat_source]
+  input_nodes:
+  - building_floor_area_existing
+  - building_floor_area_new
+
+- id: building_heat_statistics
+  type: finland.hsy.HsyBuildingHeatConsumption
+  name: Rakennuskannan lämmönkulutustilasto
+  name_en: Heat consumption statistics of building stock
+  name_sv: Värmeförbrukningenstatistik av byggnadsbeståndet
+  tags: [historical_heat]
+  input_nodes: [all_hsy_emissions]
+
+- id: building_heat_per_floor_area_new
+  name: Ominaislämmönkulutus uudessa rakennuskannassa
+  type: simple.AdditiveNode
+  quantity: consumption_factor
+  unit: kWh/m**2/a
+  input_datasets:
+  - espoo/new_building_heating_per_area
+  output_dimensions: [building_use]
+  output_nodes:
+  - id: building_heat_consumption_new
+    to_dimensions:
+    - id: building_use
+    - id: building_heat_source
+      categories: [district_heat]  # FIXME Should apply to all building_heat_sources but then gives error
+
+- id: building_heat_per_floor_area
+  name: Rakennusten lämmitys per ala
+  name_en: Building heating per floor area
+  name_sv: Värmeförbrukningen per våningsytan
+  type: finland.aluesarjat.BuildingHeatPerArea
+  quantity: consumption_factor
+  unit: kWh/a/m**2
+  input_dimensions: [building_use, building_heat_source]
+  output_dimensions: [building_use, building_heat_source]
+  input_nodes: 
+  - building_heat_statistics
+  - building_floor_area_existing
+
+- id: building_heat_consumption_existing
+  name: Nykyisen rakennuskannan lämmönkulutus
+  name_en: Heat consumption of existing buildings
+  name_sv: Värmeförbrukning i det nuvarande byggnadsbeståndet
+  type: finland.hsy.MultiplicativeWithDataBackup
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [building_heat_source, building_use]
+  output_dimensions: [building_heat_source, building_use]
+  input_nodes: 
+  - building_heat_per_floor_area
+  - building_floor_area_existing
+  - id: building_heat_statistics
+    tags: [data_node]
+
+- id: building_heat_consumption
+  name: Koko rakennuskannan lämmönkulutus
+  name_en: Total building heat consumption
+  name_sv: Total värmeförbrukning i det byggnadsbeståndet
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [building_heat_source, building_use]
+  output_dimensions: [building_heat_source, building_use]
+  input_nodes: 
+  - building_heat_consumption_existing
+  - building_heat_consumption_new
+  output_nodes:
+  - id: district_heating_emissions
+    from_dimensions:
+    - id: building_heat_source
+      categories: [district_heat]
+      flatten: true
+    - id: building_use
+      flatten: true
+  - id: oil_heating_emissions
+    from_dimensions:
+    - id: building_heat_source
+      categories: [oil]
+      flatten: true
+    - id: building_use
+      flatten: true
+  - id: geothermal_heating_emissions
+    from_dimensions:
+    - id: building_heat_source
+      categories: [geothermal]
+      flatten: true
+    - id: building_use
+      flatten: true
+  - id: direct_electric_heating_emissions
+    from_dimensions:
+    - id: building_heat_source
+      categories: [direct_electric]
+      flatten: true
+    - id: building_use
+      flatten: true

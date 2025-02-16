@@ -1,0 +1,192 @@
+dimensions:
+
+- id: vehicle_type
+  label_fi: Ajoneuvotyyppi
+  label_en: Vehicle type
+  label_sv: Fordontyp
+  categories:
+  - id: cars
+    aliases: [passenger_cars]
+    label: Henkilöautot
+    label_en: Cars
+    label_sv: Personbilar
+  - id: electric_vehicles
+    label: Sähköautot
+    label_en: Electric vehicles
+    label_sv: Elbilar
+  - id: hybrid_vehicles
+    label: Hybridit
+    label_en: Hybrid vehicles
+    label_sv: Hybrider
+  - id: buses
+    label: Bussit
+    label_en: Buses
+    label_sv: Bussar
+    aliases: [Linja-autot]
+  - id: buses_hsl
+    label: Bussit, HSL
+    label_en: Buses, HSL
+    label_sv: Bussar, HRT
+  - id: buses_other
+    label: Bussit, muu
+    label_en: Buses, other
+    label_sv: Bussar, andra
+  - id: local_trains
+    label: Lähijunat
+    aliases: [Paikallisjunat]
+    label_en: Local Trains
+    label_sv: Lokaltåg
+  - id: motorcycles
+    label: Moottoripyörät
+    label_en: Motorcycles
+    label_sv: Motorcyklar
+  - id: trams
+    label_fi: Raitiovaunut
+    aliases: [Ratikat]
+    label_en: Trams
+    label_sv: Spårvagnar
+  - id: metros
+    label_fi: Metrot
+    aliases: [Metro, metro]
+    label_en: Metro
+  - id: trucks
+    label: Kuorma-autot
+    label_en: Trucks
+    label_sv: Lastbilar
+    aliases: [Lorries]
+  - id: vans
+    label: Pakettiautot
+    label_en: Vans
+    label_sv: Paketbilar
+  - id: undefined
+    label: Ei määritelty
+    label_en: Undefined
+    label_sv: Ej definierad
+  - id: leasure_boats
+    label: Huviveneet
+    label_en: Pleasure boats
+    label_sv: Fritidsbåtar
+  - id: professional_boats
+    label: Ammattiveneet
+    label_en: Professional boats
+    label_sv: Yrkesbåtar
+  - id: passenger_ships
+    label: Matkustajalaivat
+    label_en: Passenger ships
+    label_sv: Passagerarfartyg
+  - id: cargo_ships
+    label: Rahtilaivat
+    label_en: Cargo ships
+    label_sv: Fraktfartyg
+
+nodes:
+
+- id: all_hsy_emissions
+  type: finland.hsy.HsyNode
+  name: HSY:n päästöinventaario
+  name_en: HSY emission inventory
+  name_sv: HRM:s utsläppsinventering
+  input_datasets: ['hsy/pks_khk_paastot']
+
+- id: net_emissions
+  name: Kokonaispäästöt (scope 1+2)
+  name_en: Net emissions (scope 1+2)
+  name_sv: Totala utsläpp (scope 1+2)
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  is_outcome: true
+
+- id: transport_emissions
+  name: Liikenteen päästöt
+  name_en: Traffic emissions
+  name_sv: Trafikutsläpp
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  output_nodes: [net_emissions]
+
+- id: road_transport_emissions
+  name: Tieliikenteen päästöt, tilasto
+  name_en: Road traffic emissions, statistics
+  name_sv: Vägtrafikens utsläpp, statistik
+  description: Tämä on HSY-yhteensopivuutta varten. Se ei ole osa mallia.
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+
+- id: car_emissions
+  name: Henkilöautot päästöt
+  name_en: Passenger car emissions
+  name_sv: Personbilars utsläpp
+  output_nodes: [road_transport_emissions]
+  params:
+    sector: Liikenne|Tieliikenne|Henkilöautot|Asuminen
+  input_nodes: [all_hsy_emissions]
+  type: finland.hsy.HsyEmissions
+
+- id: road_transport_emissions_historical
+  name: Tieliikenteen historialliset päästöt
+  name_en: Historical road traffic emissions
+  name_sv: Historiska vägtrafikutsläpp
+  description_fi: Tiedot ovat HSY:n tilastoista. Mallissa ei käytetä tätä tietoa, vaan sitä, joka on laskettu energiankulutuksesta ja päästökertoimesta.
+  type: finland.hsy.HsyEmissions
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Liikenne|Tieliikenne|_vehicle_type_|_economic_sector_
+
+- id: rail_transport_energy
+  name: Raideliikenteen sähkönkulutus
+  name_en: Electricity consumption of rail transport
+  name_sv: Elförbrukning av järnvägtrafik
+  type: finland.hsy.HsyEnergyConsumption
+  unit: GWh/a
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  params:
+    sector: Liikenne|Raideliikenne|_vehicle_type_|_economic_sector_
+  input_nodes: [all_hsy_emissions]
+
+- id: rail_transport_emissions
+  name: Raideliikenteen päästöt
+  name_en: Emissions of rail transport
+  name_sv: Utsläpp från järnvägtrafik
+  type: simple.EmissionFactorActivity
+  unit: kt/a
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  input_nodes:
+  - id: electricity_production_emission_factor
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions: []
+  - id: rail_transport_energy
+  output_nodes:
+  - id: transport_emissions
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+
+- id: water_transport_emissions
+  name_fi: Laivaliikenteen päästöt
+  name_en: Shipping emissions
+  name_sv: Fraktutsläpp
+  type: finland.hsy.HsyEmissions
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Liikenne|Laivaliikenne|_vehicle_type_|_economic_sector_
+  output_nodes:
+  - id: transport_emissions
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+

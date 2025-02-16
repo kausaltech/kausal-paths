@@ -1,0 +1,70 @@
+nodes:
+
+- id: all_hsy_emissions
+  type: finland.hsy.HsyNode
+  name: HSY:n päästöinventaario
+  name_en: HSY emission inventory
+  name_sv: HRM:s utsläppsinventering
+  input_datasets: ['hsy/pks_khk_paastot']
+
+- id: net_emissions
+  name: Kokonaispäästöt (scope 1+2)
+  name_en: Net emissions (scope 1+2)
+  name_sv: Totala utsläpp (scope 1+2)
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  is_outcome: true
+
+- id: non_heating_electricity_energy
+  name: Kulutussähkön sähkönkulutus
+  name_en: Consumption electricity consumption
+  name_sv: Förbrukning elförbrukning
+  type: finland.hsy.HsyEnergyConsumption
+  unit: GWh/a
+  input_dimensions: [economic_sector, energy_carrier]
+  output_dimensions: [economic_sector, energy_carrier]
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Sähkö|Kulutussähkö|_energy_carrier_|_economic_sector_
+  color: '#0047b6'
+
+- id: electricity_emissions
+  name: Kulutussähkön päästöt
+  name_en: Consumption electricity emissions
+  name_sv: Konsumtion elutsläpp
+  input_dimensions: [economic_sector, energy_carrier]
+  output_dimensions: [economic_sector, energy_carrier]
+  input_nodes:
+  - id: electricity_production_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: non_heating_electricity_energy
+  # output_nodes: [electricity_emissions]
+  type: simple.EmissionFactorActivity
+  unit: kt/a
+
+- id: non_heating_electricity_emissions_historical
+  name: Kulutussähkön historialliset päästöt
+  name_en: Historical consumption electricity emissions
+  name_sv: Utsläpp av konsumtionsel
+  description_fi: Tiedot ovat HSY:n tilastoista. Mallissa ei käytetä tätä tietoa, vaan sitä, joka on laskettu energiankulutuksesta ja päästökertoimesta.
+  type: finland.hsy.HsyEmissions
+  input_dimensions: [economic_sector]
+  output_dimensions: [economic_sector]
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Sähkö|Kulutussähkö|Kulutussähkö|_economic_sector_
+
+- id: electricity_production_emission_factor
+  name: Kansallisen sähköntuotannon päästökerroin
+  name_en: National electricity production emission factor
+  name_sv: Emissionskoefficient för nationell elproduktion
+  type: finland.hsy.HsyEmissionFactor
+  unit: g/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Sähkö|Kulutussähkö|_energy_carrier_|*
+
