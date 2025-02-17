@@ -478,9 +478,18 @@ class SCurveAction(DatasetAction):
             dfnow = filtered_df.filter(~pl.col(FORECAST_COLUMN))
             x1 = dfnow.select(YEAR_COLUMN).max().item()
             y1 = filtered_df.filter(pl.col(YEAR_COLUMN) == x1).select(VALUE_COLUMN).item()
-            y1 = min(max(y1 / a, 0.02), 0.98) * a
-            y2 = 0.98 * a
-            slope, x0 = self.newton_raphson_estimator(y1, y2, x1, x2, a)
+            if y1 < a:
+                y1 = min(max(y1 / a, 0.02), 0.98) * a
+                y2 = 0.98 * a
+                slope, x0 = self.newton_raphson_estimator(y1, y2, x1, x2, a)
+            elif y1 == a:
+                slope, x0 = (100.0, 100.0)
+            else:
+                anew = y1
+                y2new = min(max(a / anew, 0.02), 0.98) * anew
+                y1new = 0.98 * anew
+                slope, x0 = self.newton_raphson_estimator(y1new, y2new, x1, x2, anew)
+                a = anew
 
             # Update the main DataFrame with the estimated values for the matching rows
             mask = pl.lit(True)  # noqa: FBT003
