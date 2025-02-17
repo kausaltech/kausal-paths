@@ -1,69 +1,74 @@
 dimensions:
 
 - id: emission_sector
-  label: Päästösektori
-  label_en: Main emission sector
-  label_sv: Utsläppsektor
+  label_fi: Päästösektori
+  label_en: Emission sector
+  label_sv: Utsläppssektor
   categories:
   - id: district_heating
-    label: Kaukolämpö
+    label_fi: Kaukolämpö
     label_en: District heating
     label_sv: Fjärrvärme
   - id: oil_heating
-    label: Öljylämmitys
+    label_fi: Öljylämmitys
     label_en: Oil heating
-    label_sv: Oljevärme
+    label_sv: Oljeuppvärmning
   - id: electric_heating
-    label: Sähkölämmitys
+    label_fi: Sähkölämmitys
     label_en: Electric heating
-    label_sv: Elvärme
+    label_sv: Eluppvärmning
   - id: non_heating_electricity
-    label: Kulutussähkö
-    label_en: Consumer electricity
-    label_sv: Konsumtionel
+    label_fi: Kulutussähkö
+    label_en: Consumption electricity
+    label_sv: Konsumtionsel
   - id: transportation
-    label: Liikenne
+    label_fi: Liikenne
     label_en: Transportation
     label_sv: Trafik
   - id: industry_and_machinery
-    label: Teollisuus ja työkoneet
+    label_fi: Teollisuus ja työkoneet
     label_en: Industry and machinery
-    label_sv: Industri och maskiner
+    label_sv: Industri och arbetsmaskiner
   - id: waste_treatment
-    label: Jätteiden käsittely
+    label_fi: Jätteiden käsittely
     label_en: Waste treatment
-    label_sv: Avfall
+    label_sv: Avfallsbehandling
   - id: agriculture
-    label: Maatalous
+    label_fi: Maatalous
     label_en: Agriculture
     label_sv: Jordbruk
   - id: fields
     label_fi: Pellot
+    label_en: Fields
+    label_sv: Åkrar
   - id: cattle_farming
     label_fi: Kotieläimet
+    label_en: Livestock
+    label_sv: Boskap
   - id: machinery
-    label: Työkoneet
+    label_fi: Työkoneet
     label_en: Machinery
-    label_sv: Maskiner
+    label_sv: Arbetsmaskiner
   - id: industry
-    label: Teollisuus
+    label_fi: Teollisuus
     label_en: Industry
     label_sv: Industri
     aliases: [Prosessit]
   - id: industry_fuels
     label_fi: Teollisuuden polttoaineet
     label_en: Industrial fuels
-    label_sv: Industriella bränsle
+    label_sv: Industriella bränslen
     aliases: [Polttoaineet]
 
 - id: waste_treatment
   label_fi: Jätteenkäsittely
   label_en: Waste treatment
+  label_sv: Avfallsbehandling
   categories:
   - id: landfills
     label_fi: Kaatopaikka
     label_en: Landfills
-    label_sv: Deponi
+    label_sv: Deponier
   - id: biowaste_composting
     label_fi: Biojätteen kompostointi
     label_en: Biowaste composting
@@ -71,13 +76,15 @@ dimensions:
   - id: waste_water_treatment
     label_fi: Jäteveden käsittely
     label_en: Wastewater treatment
-    label_sv: Rening av avloppsvatten
+    label_sv: Avloppsvattenbehandling
   - id: sludge_composting
     label_fi: Jätevesilietteen kompostointi
     label_en: Sewage sludge composting
     label_sv: Kompostering av avloppsslam
 
 nodes:
+
+# ------- Common nodes -------
 
 - id: all_hsy_emissions
   type: finland.hsy.HsyNode
@@ -95,8 +102,12 @@ nodes:
   unit: kt/a
   is_outcome: true
 
+# ------- Block nodes -------
+
 - id: industry_emission_inventory
+  name_fi: Teollisuuden päästöinventaario
   name_en: Industry emission inventory
+  name_sv: Industrins utsläppsinventering
   type: finland.hsy.HsyEmissions
   unit: kt/a
   input_dimensions: [emission_sector, economic_sector]
@@ -111,7 +122,9 @@ nodes:
     sector: Teollisuus ja työkoneet|*|_emission_sector_|_economic_sector_
 
 - id: waste_emission_inventory
-  name_en: Waste emission inventory
+  name_fi: Jätteiden käsittelyn päästöinventaario
+  name_en: Waste treatment emission inventory
+  name_sv: Utsläppsinventering för avfallsbehandling
   type: finland.hsy.HsyEmissions
   unit: kt/a
   input_dimensions: [waste_treatment, economic_sector]
@@ -126,7 +139,9 @@ nodes:
     sector: Jätteiden käsittely|*|_waste_treatment_|_economic_sector_
 
 - id: agriculture_emission_inventory
+  name_fi: Maatalouden päästöinventaario
   name_en: Agriculture emission inventory
+  name_sv: Jordbrukets utsläppsinventering  
   type: finland.hsy.HsyEmissions
   unit: kt/a
   input_dimensions: [emission_sector, economic_sector]
@@ -143,7 +158,7 @@ nodes:
 - id: industry_machinery_emissions
   name_fi: Teollisuuden ja työkoneiden päästöt
   name_en: Emissions from industry and machinery
-  name_sv: Utsläpp från industri och maskiner
+  name_sv: Utsläpp från industri och arbetsmaskiner
   type: finland.hsy.HsyEmissions
   input_dimensions: [emission_sector, economic_sector]
   output_dimensions: [emission_sector, economic_sector]
@@ -175,9 +190,9 @@ nodes:
       flatten: true
 
 - id: waste_treatment_emissions
-  name_fi: Jätteenkäsittelyn päästöt
+  name_fi: Jätteiden käsittelyn päästöt
   name_en: Waste treatment emissions
-  name_sv: Avfallsbehandlingsutsläpp
+  name_sv: Utsläpp från avfallsbehandling
   type: finland.hsy.HsyEmissions
   unit: kt/a
   input_dimensions: [waste_treatment, economic_sector]
@@ -192,4 +207,3 @@ nodes:
       flatten: true
   params:
     sector: Jätteiden käsittely|*|_waste_treatment_|_economic_sector_
-

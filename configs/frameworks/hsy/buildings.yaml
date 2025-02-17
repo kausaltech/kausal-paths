@@ -1,67 +1,69 @@
 dimensions:
 
 - id: building_heat_source
-  label: Lämmitystapa
+  label_fi: Lämmitystapa
   label_en: Heating method
   label_sv: Uppvärmningssätt
   categories:
   - id: district_heat
-    label: Kaukolämpö
+    label_fi: Kaukolämpö
     label_en: District heating
     label_sv: Fjärrvärme
   - id: oil
-    label: Öljylämmitys
+    label_fi: Öljylämmitys
     label_en: Oil heating
     label_sv: Oljeuppvärmning
   - id: direct_electric
-    label: Sähkölämmitys
+    label_fi: Sähkölämmitys
     label_en: Electric heating
     label_sv: Eluppvärmning
   - id: geothermal
-    label: Maalämpö
+    label_fi: Maalämpö
     label_en: Geothermal heat
     label_sv: Jordvärme
   - id: other
-    label: Muu tai tuntematon
+    label_fi: Muu tai tuntematon
     label_en: Other or unknown
     label_sv: Annan eller okänd
     aliases: [Muu]
 
 - id: building_use
-  label: Rakennuksen käyttötarkoitus
+  label_fi: Rakennuksen käyttötarkoitus
   label_en: Purpose of use of the building
   label_sv: Byggnadens användningsändamål
   categories:
   - id: residence
-    label: Asuminen
+    label_fi: Asuminen
     label_en: Housing
     label_sv: Boende
   - id: services
-    label: Palvelut
+    label_fi: Palvelut
     label_en: Services
     label_sv: Tjänster
   - id: industry
-    label: Teollisuus
+    label_fi: Teollisuus
     label_en: Industry
-    label_sv: Industrin
+    label_sv: Industri
   - id: single_family_houses
-    label: Pientalot
+    label_fi: Pientalot
     label_en: Single-family houses
     label_sv: Småhus
   - id: attached_houses
-    label: Rivitalot
+    label_fi: Rivitalot
     label_en: Terraced houses
     label_sv: Radhus
   - id: apartment_buildings
-    label: Asuinkerrostalot
+    label_fi: Asuinkerrostalot
     label_en: Blocks of flats
     label_sv: Flervåningsbostadshus
   - id: other_buildings
-    label: Muut rakennukset
+    label_fi: Muut rakennukset
     label_en: Other buildings
     label_sv: Övriga byggnader
 
 nodes:
+
+# ------- Common nodes -------
 
 - id: all_hsy_emissions
   type: finland.hsy.HsyNode
@@ -95,6 +97,8 @@ nodes:
 #  'Kotieläimet']
 # ['Asuminen' 'Palvelut' 'Teollisuus' 'Maatalous']
 
+# ------- Block nodes ---------------
+
 - id: building_emission_inventory
   name_en: Building emission inventory
   type: finland.hsy.HsyEmissions
@@ -121,7 +125,7 @@ nodes:
 - id: building_heating_emissions
   name_fi: Rakennusten lämmityksen päästöt
   name_en: Building heating emissions
-  name_sv: Byggnadsvärmeutsläpp
+  name_sv: Utsläpp från byggnadsuppvärmning
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -130,7 +134,7 @@ nodes:
 
 - id: district_heating_emissions
   name_fi: Kaukolämmön päästöt
-  name_en: District heat emissions
+  name_en: District heating emissions
   name_sv: Fjärrvärmeutsläpp
   output_nodes: [building_heating_emissions]
   input_nodes: [district_heating_emission_factor]
@@ -140,16 +144,16 @@ nodes:
 - id: oil_heating_emissions
   name_fi: Öljylämmityksen päästöt
   name_en: Oil heating emissions
-  name_sv: Oljeuppvärmningsutsläpp
+  name_sv: Utsläpp från oljeuppvärmning
   output_nodes: [building_heating_emissions]
   input_nodes: [oil_heating_emission_factor]
   type: simple.EmissionFactorActivity
   unit: kt/a
 
 - id: direct_electric_heating_emissions
-  name_fi: Sähkölämmityksen päästöt
-  name_en: Emissions from electric heating
-  name_sv: Utsläpp från elvärme
+  name_fi: Sähkölämmityksen päästöt 
+  name_en: Electric heating emissions
+  name_sv: Utsläpp från eluppvärmning
   type: simple.EmissionFactorActivity
   unit: kt/a
   input_nodes:
@@ -162,8 +166,8 @@ nodes:
 
 - id: geothermal_heating_emissions
   name_fi: Maalämmön päästöt
-  name_en: Geothermal emissions
-  name_sv: Geotermiska utsläpp
+  name_en: Geothermal heating emissions  
+  name_sv: Utsläpp från geotermisk uppvärmning
   type: simple.EmissionFactorActivity
   unit: kt/a
   input_nodes:
@@ -177,7 +181,7 @@ nodes:
 - id: district_heating_emission_factor
   name_fi: Kaukolämmön päästökerroin
   name_en: District heating emission factor
-  name_sv: Fjärrvärmeutsläppskoefficient
+  name_sv: Emissionsfaktor för fjärrvärme
   type: finland.hsy.HsyEmissionFactor
   unit: g/kWh
   input_nodes: [all_hsy_emissions]
@@ -197,7 +201,7 @@ nodes:
 - id: electric_heating_emission_factor
   name_fi: Lämmityssähkön päästökerroin
   name_en: Electric heating emission factor
-  name_sv: Emissionskoefficient för värmeel
+  name_sv: Emissionsfaktor för eluppvärmning
   type: finland.hsy.HsyEmissionFactor
   unit: g/kWh
   input_dimensions: [energy_carrier]
@@ -210,13 +214,13 @@ nodes:
   type: finland.aluesarjat.BuildingStock
   name_fi: Nykyisen rakennuskannan kerrosala
   name_en: Floor area of existing building stock
-  name_sv: Våningsytan i det nuvarande byggnadsbeståndet
+  name_sv: Våningsyta för befintligt byggnadsbestånd
 
 - id: building_floor_area_new
   type: finland.aluesarjat.FutureBuildingStock
   name_fi: Uuden rakennuskannan kerrosala
   name_en: Floor area of new building stock
-  name_sv: Våningsytan i det nya byggnadsbeståndet
+  name_sv: Våningsyta för nytt byggnadsbestånd
   input_nodes:
   - id: population
     to_dimensions: []
@@ -225,6 +229,8 @@ nodes:
 
 - id: building_floor_area_total
   name_fi: Rakennusala kokonaisuudessaan
+  name_en: Total building floor area
+  name_sv: Total byggnadsyta
   type: simple.AdditiveNode
   quantity: floor_area
   unit: m**2
@@ -237,13 +243,15 @@ nodes:
 - id: building_heat_statistics
   type: finland.hsy.HsyBuildingHeatConsumption
   name_fi: Rakennuskannan lämmönkulutustilasto
-  name_en: Heat consumption statistics of building stock
-  name_sv: Värmeförbrukningenstatistik av byggnadsbeståndet
+  name_en: Building stock heat consumption statistics
+  name_sv: Statistik över värmeförbrukning i byggnadsbeståndet
   tags: [historical_heat]
   input_nodes: [all_hsy_emissions]
 
 - id: building_heat_per_floor_area_new
   name_fi: Ominaislämmönkulutus uudessa rakennuskannassa
+  name_en: Specific heat consumption in new building stock
+  name_sv: Specifik värmeförbrukning i nytt byggnadsbestånd
   type: simple.AdditiveNode
   quantity: consumption_factor
   unit: kWh/m**2/a
@@ -257,6 +265,8 @@ nodes:
 
 - id: building_heat_consumption_new
   name_fi: Uuden rakennuskannan lämmönkulutus
+  name_en: Heat consumption of new building stock
+  name_sv: Värmeförbrukning i nytt byggnadsbestånd
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
@@ -271,7 +281,7 @@ nodes:
 - id: building_heat_per_floor_area
   name_fi: Rakennusten lämmitys per ala
   name_en: Building heating per floor area
-  name_sv: Värmeförbrukningen per våningsytan
+  name_sv: Byggnadsuppvärmning per våningsyta
   type: finland.aluesarjat.BuildingHeatPerArea
   quantity: consumption_factor
   unit: kWh/a/m**2
@@ -283,8 +293,8 @@ nodes:
 
 - id: building_heat_consumption_existing
   name_fi: Nykyisen rakennuskannan lämmönkulutus
-  name_en: Heat consumption of existing buildings
-  name_sv: Värmeförbrukning i det nuvarande byggnadsbeståndet
+  name_en: Heat consumption of existing building stock
+  name_sv: Värmeförbrukning i befintligt byggnadsbestånd
   type: finland.hsy.MultiplicativeWithDataBackup
   quantity: energy
   unit: GWh/a
@@ -298,8 +308,8 @@ nodes:
 
 - id: building_heat_consumption
   name_fi: Koko rakennuskannan lämmönkulutus
-  name_en: Total building heat consumption
-  name_sv: Total värmeförbrukning i det byggnadsbeståndet
+  name_en: Total building stock heat consumption
+  name_sv: Total värmeförbrukning i byggnadsbeståndet
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a

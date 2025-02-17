@@ -2,15 +2,27 @@ nodes:
 
 - id: green_electricity_consumption
   name_fi: Vihreän sähkön tuottama kompensaatio
-  name_en: Green electricity consumption
-  name_sv: Grön el konsumtion
-  description: Ensin vihreä sähkö vähennetään kokonaissähkäönkulutuksesta, ja sitten
+  name_en: Green electricity compensation
+  name_sv: Kompensation från grön el
+  description_fi: Ensin vihreä sähkö vähennetään kokonaissähkönkulutuksesta, ja sitten
     sovelletaan jäännöspäästökerrointa. Oletus siis on, että ostamalla vihreää sähköä
     omat päästöt alenevat saman verran kuin jos päästökerroin menisi nollaan tilanteesta,
     jossa vihreä sähkö olisi ostettu pois markkinoilta. Tässä siis oletetaan, että
     vihreän sähkön ostaminen generoi nykyisenkaltaista sähköntuotantoa siinä määrin,
     että muiden ostajien päästökerroin ei nousekaan, vaikka vihreä sähkö on ostettu
     pois markkinoilta.
+  description_en: First, green electricity is subtracted from the total electricity consumption, and then
+    the residual emission factor is applied. The assumption is that by purchasing green electricity,
+    one's own emissions decrease by the same amount as if the emission factor went to zero in a situation
+    where green electricity was bought off the market. Here, it is assumed that purchasing green electricity
+    generates current-like electricity production to the extent that the emission factor of other buyers
+    does not increase, even though green electricity has been bought off the market.
+  description_sv: Först dras grön el bort från den totala elförbrukningen, och sedan
+    tillämpas restfaktorn för utsläpp. Antagandet är att genom att köpa grön el,
+    minskar ens egna utsläpp med samma mängd som om utsläppsfaktorn skulle gå till noll i en situation
+    där grön el skulle köpas bort från marknaden. Här antas att köp av grön el
+    genererar nuvarande liknande elproduktion i den utsträckning att utsläppsfaktorn för andra köpare
+    inte stiger, även om grön el har köpts bort från marknaden.
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
@@ -27,7 +39,7 @@ nodes:
 - id: non_green_electricity_consumption
   name_fi: Ei-vihreän sähkön kulutus
   name_en: Non-green electricity consumption
-  name_sv: Ej grön el
+  name_sv: Icke-grön elförbrukning
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
@@ -39,7 +51,9 @@ nodes:
     tags: [arithmetic_inverse]
 
 - id: indifference_ratio
-  name_fi: Samaisuussuhde
+  name_fi: Yhdentekevyyssuhde
+  name_en: Indifference ratio
+  name_sv: Likgiltighetsfaktor  
   type: simple.AdditiveNode
   quantity: ratio
   unit: dimensionless
@@ -54,13 +68,13 @@ nodes:
 - id: residual_emission_factor_ratio
   name_fi: Jäännöspäästökertoimen suhde
   name_en: Residual emission factor ratio
-  name_sv: Restutsläppsfaktorns andel
-  description: Jäännöspäästökertoimen suhde kokonaispäästökertoimeen. Katso tarkempi
+  name_sv: Restfaktor för utsläppsandel
+  description_fi: Jäännöspäästökertoimen suhde kokonaispäästökertoimeen. Katso tarkempi
     kuvaus jäännöspäästökertoimen sivulta.
-  description_en: Residual emission factor ratio to total emission factor. See more
-    detailed explanation from the residual emission factor page.
-  description_sv: Restutsläppsfaktorns andel till total utsläppsfaktor. Se mer detaljerad
-    förklaring på restutsläppsfaktorns sida.
+  description_en: The ratio of the residual emission factor to the total emission factor. See a more
+    detailed description from the residual emission factor page.
+  description_sv: Restfaktorn för utsläpp i förhållande till den totala utsläppsfaktorn. Se en mer
+    detaljerad beskrivning från sidan för restfaktorn för utsläpp.
   type: simple.MultiplicativeNode
   quantity: emission_factor
   unit: dimensionless
@@ -83,6 +97,8 @@ nodes:
 
 # - id: solar_electricity_emissions # TODO It would be better to calculate actual emissions rather than reductions
 #   name_fi: Aurinkosähkön päästöt
+#   name_en: Solar electricity emissions
+#   name_sv: Solelens utsläpp  
 #   type: simple.MultiplicativeNode
 #   quantity: emissions
 #   unit: kt/a

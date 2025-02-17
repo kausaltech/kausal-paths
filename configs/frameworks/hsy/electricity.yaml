@@ -1,5 +1,7 @@
 nodes:
 
+# ------- Common nodes -------
+
 - id: all_hsy_emissions
   type: finland.hsy.HsyNode
   name_fi: HSY:n päästöinventaario
@@ -16,8 +18,12 @@ nodes:
   unit: kt/a
   is_outcome: true
 
+# ------- Block nodes -------
+
 - id: electricity_emission_inventory
   name_en: Electricity emission inventory
+  name_fi: Sähkön päästöinventaario
+  name_sv: Elutsläppsinventering
   type: finland.hsy.HsyEmissions
   unit: kt/a
   input_dimensions: [economic_sector, energy_carrier]
@@ -34,7 +40,7 @@ nodes:
 - id: non_heating_electricity_emissions
   name_fi: Kulutussähkön päästöt
   name_en: Consumption electricity emissions
-  name_sv: Konsumtion elutsläpp
+  name_sv: Utsläpp från konsumtionsel
   type: simple.EmissionFactorActivity
   unit: kt/a
   color: '#0047b6'
@@ -69,15 +75,16 @@ nodes:
 - id: residual_emission_factor
   name_fi: Jäännöspäästökerroin
   name_en: Residual emission factor
-  name_sv: Restutsläppsfaktor
-  description: Jäännöspäästökerroin koskee sitä osaa sähkönkulutuksesta, joka ei ole
+  name_sv: Residual emissionsfaktor
+  description_fi: Jäännöspäästökerroin koskee sitä osaa sähkönkulutuksesta, joka ei ole
     vihreää. Kokonaispäästökertoimesta on siis otettu pois päästöttämän vihreän sähkön
     osuus, jolloin jäljelle jäävä kerroin on hieman suurempi.
-  description_en: Residual emission factor accounts for the share of electricity consumption
-    that is not green. The residual emission factor is therefore slightly higher than
-    the total emission factor.
-  description_sv: Restutsläppsfaktor räknar för den andelen elförbrukning som inte
-    är grön. Restutsläppsfaktorn är därför något högre än den totala utsläppsfaktorn.
+  description_en: The residual emission factor applies to the part of electricity consumption
+    that is not green. The share of emission-free green electricity has been subtracted from the
+    total emission factor, resulting in a slightly higher remaining factor.
+  description_sv: Residual emissionsfaktorn gäller den delen av elförbrukningen som inte är
+    grön. Andelen utsläppsfri grön el har alltså dragits av från den totala emissionsfaktorn,
+    vilket ger en något högre återstående faktor.
   type: simple.MultiplicativeNode
   quantity: emission_factor
   unit: kg/MWh
@@ -92,7 +99,7 @@ nodes:
 - id: non_heating_electricity_energy
   name_fi: Kulutussähkön sähkönkulutus
   name_en: Consumption electricity consumption
-  name_sv: Förbrukning elförbrukning
+  name_sv: Elförbrukning för konsumtionsel
   type: finland.hsy.HsyEnergyConsumption
   unit: GWh/a
   color: '#0047b6'
@@ -105,7 +112,7 @@ nodes:
 - id: electricity_production_emission_factor
   name_fi: Kansallisen sähköntuotannon päästökerroin
   name_en: National electricity production emission factor
-  name_sv: Emissionskoefficient för nationell elproduktion
+  name_sv: Nationell elproduktions emissionsfaktor
   type: finland.hsy.HsyEmissionFactor
   unit: g/kWh
   input_dimensions: [energy_carrier]
@@ -117,7 +124,7 @@ nodes:
 - id: electric_heating_emission_factor
   name_fi: Lämmityssähkön päästökerroin
   name_en: Electric heating emission factor
-  name_sv: Emissionskoefficient för värmeel
+  name_sv: Emissionsfaktor för eluppvärmning
   type: finland.hsy.HsyEmissionFactor
   unit: g/kWh
   input_dimensions: [energy_carrier]
