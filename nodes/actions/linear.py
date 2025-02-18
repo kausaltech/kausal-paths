@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, ClassVar, Iterable, List
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from django.utils.translation import gettext_lazy as _
 from pydantic import BaseModel, Field, RootModel, validator
@@ -26,6 +26,8 @@ from params.param import BoolParameter, NumberParameter, ValidationError
 from .action import ActionNode
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from nodes.node import Node
     from nodes.units import Unit
 
@@ -46,7 +48,7 @@ class ReduceFlow(BaseModel):
     amounts: list[ReduceAmount]
 
     @validator('amounts')
-    def enough_years(cls, v):
+    def enough_years(cls, v):  # noqa: N805
         if len(v) < 2:
             raise ValueError("Must supply values for at least two years")
         return v
@@ -57,7 +59,7 @@ class ReduceFlow(BaseModel):
         dims: dict[str, set[str]] = {dim: set() for dim in list(self.target.categories.keys())}
         nodes: set[str] = set()
 
-        def get_node_id(node: str | int | None):
+        def get_node_id(node: str | int | None) -> str:
             if isinstance(node, str):
                 return node
             if node is None:
@@ -83,7 +85,7 @@ class ReduceFlow(BaseModel):
 
 
 class ReduceParameterValue(RootModel):
-    root: List[ReduceFlow]
+    root: list[ReduceFlow]
 
 
 @dataclass
@@ -110,7 +112,7 @@ class ReduceAction(ActionNode):
         NumberParameter(local_id='multiplier'),
     ]
 
-    def _compute_one(self, flow_id: str, param: ReduceFlow, unit: Unit):
+    def _compute_one(self, flow_id: str, param: ReduceFlow, unit: Unit) -> ppl.PathsDataFrame:
         amounts = sorted(param.amounts, key=lambda x: x.year)
         data = [[a.year, a.amount] for a in param.amounts]
         cols = [YEAR_COLUMN, 'Target']
@@ -139,9 +141,9 @@ class ReduceAction(ActionNode):
 
         targets = [('Target', param.target)]
 
-        all_dims = set(list(param.target.categories.keys()))
+        all_dims = set(param.target.categories.keys())
 
-        def get_node_id(node: str | int | None):
+        def get_node_id(node: str | int | None) -> str:
             if isinstance(node, str):
                 return node
             if node is None:
@@ -150,7 +152,7 @@ class ReduceAction(ActionNode):
                 nr = node
             return self.output_nodes[nr].id
 
-        def make_target_df(target: ReduceTarget, valuecol: str):
+        def make_target_df(target: ReduceTarget, valuecol: str) -> pl.DataFrame:
             target_dims = set(target.categories.keys())
             null_dims = all_dims - target_dims
             target_cats = sorted(target.categories.items(), key=lambda x: x[0])
@@ -173,7 +175,7 @@ class ReduceAction(ActionNode):
         df = pl.concat(dfs).sort(YEAR_COLUMN)
         #df = df.groupby([NODE_COLUMN, *all_dims, YEAR_COLUMN]).agg(pl.sum(VALUE_COLUMN)).sort(YEAR_COLUMN)
         df = df.with_columns([
-            pl.lit(True).alias(FORECAST_COLUMN),
+            pl.lit(True).alias(FORECAST_COLUMN),  # noqa: FBT003
             pl.lit(flow_id).alias(FLOW_ID_COLUMN),
         ])
         meta = ppl.DataFrameMeta(
@@ -233,7 +235,7 @@ class DatasetReduceAction(ActionNode):
         BoolParameter(local_id='relative_goal'),
     ]
 
-    def compute_effect(self) -> ppl.PathsDataFrame:
+    def compute_effect(self) -> ppl.PathsDataFrame:  # noqa: C901, PLR0915
         n = self.get_input_node(tag='historical', required=False)
         if n is None:
             df = self.get_input_dataset_pl(tag='historical')
@@ -272,7 +274,7 @@ class DatasetReduceAction(ActionNode):
         assert len(gdf.metric_cols) == 1
         gdf = (
             gdf.rename({gdf.metric_cols[0]: VALUE_COLUMN})
-            .with_columns(pl.lit(True).alias(FORECAST_COLUMN))
+            .with_columns(pl.lit(True).alias(FORECAST_COLUMN))  # noqa: FBT003
         )
 
         is_mult = self.get_parameter_value('relative_goal', required=False)
@@ -364,11 +366,10 @@ class DatasetDifferenceAction(ActionNode):  # FIXME Merge with DatasetReduceActi
         exprs = [pl.col(dim_id).is_in(gdf[dim_id].unique()) for dim_id in gdf.dim_ids]
         df = df.filter(pl.all_horizontal(exprs))
 
-        end_year = self.get_end_year()
         assert len(gdf.metric_cols) == 1
         gdf = (
             gdf.rename({gdf.metric_cols[0]: VALUE_COLUMN})
-            .with_columns(pl.lit(True).alias(FORECAST_COLUMN))
+            .with_columns(pl.lit(True).alias(FORECAST_COLUMN))  # noqa: FBT003
         )
 
         is_mult = self.get_parameter_value('relative_goal', required=False)
@@ -380,6 +381,7 @@ class DatasetDifferenceAction(ActionNode):  # FIXME Merge with DatasetReduceActi
             metric_cols = [m.column_id for m in self.output_metrics.values()]
             hdf = hdf.rename({m: 'Historical%s' % m for m in metric_cols})
             gdf = gdf.paths.join_over_index(hdf, how='outer', index_from='union')
+            assert gdf is not None
             gdf = gdf.filter(~pl.all_horizontal([pl.col('Historical%s' % col).is_null() for col in metric_cols]))
             for m in self.output_metrics.values():
                 col = m.column_id
@@ -387,7 +389,7 @@ class DatasetDifferenceAction(ActionNode):  # FIXME Merge with DatasetReduceActi
                 gdf = gdf.with_columns(pl.col(col).fill_nan(None))
             gdf = gdf.select_metrics(metric_cols)
 
-        bdf = df.paths.to_wide().filter(pl.col(FORECAST_COLUMN).eq(False))
+        bdf = df.paths.to_wide().filter(pl.col(FORECAST_COLUMN).eq(False))  # noqa: FBT003
         gdf = gdf.paths.to_wide()
 
         meta = bdf.get_meta()

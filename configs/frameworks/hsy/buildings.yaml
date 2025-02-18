@@ -9,6 +9,7 @@ dimensions:
     label_fi: Kaukolämpö
     label_en: District heating
     label_sv: Fjärrvärme
+    aliases: [district_heating]
   - id: oil
     label_fi: Öljylämmitys
     label_en: Oil heating
@@ -100,6 +101,7 @@ nodes:
 # ------- Block nodes ---------------
 
 - id: building_emission_inventory
+  name_fi: Rakennusten päästöinventaario
   name_en: Building emission inventory
   type: finland.hsy.HsyEmissions
   unit: kt/a
@@ -115,6 +117,7 @@ nodes:
     sector: Lämmitys|*|_building_heat_source_|_economic_sector_
 
 - id: greenhouse_gas_inventory
+  name_fi: Kasvihuonekaasujen päästöinventaario
   name_en: Greenhouse gas inventory
   type: simple.AdditiveNode
   quantity: emissions
