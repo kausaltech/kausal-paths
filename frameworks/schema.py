@@ -14,6 +14,7 @@ from django.utils.translation import gettext_lazy as _
 from graphql import GraphQLError
 
 import polars as pl
+import sentry_sdk
 
 from kausal_common.graphene import DjangoNode, DjangoNodeMeta
 from kausal_common.models.general import public_fields
@@ -23,6 +24,7 @@ from kausal_common.strawberry.registry import register_strawberry_type
 from paths.graphql_types import resolve_unit
 
 from nodes.constants import YEAR_COLUMN
+from nodes.exceptions import NodeComputationError
 from nodes.models import InstanceConfig
 
 from .models import (
@@ -218,7 +220,11 @@ class MeasureType(DjangoNode):
         node_id = node_dimension_selection.node_id
         node = context.get_node(node_id)
         with context.get_default_scenario().override():
-            df = node.get_output_pl()
+            try:
+                df = node.get_output_pl()
+            except NodeComputationError as e:
+                sentry_sdk.capture_exception(e)
+                return []
         df = df.filter((pl.col(YEAR_COLUMN) > fwc.baseline_year) & (pl.col(YEAR_COLUMN) <= timezone.now().year))
         dimensions = node_dimension_selection.dimensions
         if dimensions:
