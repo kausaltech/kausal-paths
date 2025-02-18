@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import uuid
 from dataclasses import dataclass
 from functools import cached_property
@@ -18,6 +19,7 @@ from django.utils.translation import gettext_lazy as _
 from django_stubs_ext.db.models import TypedModelMeta
 from pydantic import BaseModel
 
+import sentry_sdk
 from django_pydantic_field import SchemaField
 from loguru import logger
 from treebeard.mp_tree import MP_Node, MP_NodeManager, MP_NodeQuerySet
@@ -742,7 +744,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
 
     @cached_property
     def measure_template_uuid_to_node_dimension_selection(self) -> Mapping[str, NodeDimensionSelection]:
-        measure_template_uuid_to_node_selection = dict()
+        measure_template_uuid_to_multiple_node_dimensions_selections: dict[str, list[NodeDimensionSelection]] = dict()
         instance = self.instance_config.get_instance()
         for node_id, node in instance.context.nodes.items():
             # Intentionally test for concrete type, filter out subclasses
@@ -750,8 +752,28 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
                 continue
             measure_template_uuids = self._get_measure_template_uuids(node)
             for _uuid, dimensions in measure_template_uuids:
-                measure_template_uuid_to_node_selection[_uuid] = NodeDimensionSelection(node_id=node_id, dimensions=dimensions)
-        return measure_template_uuid_to_node_selection
+                measure_template_uuid_to_multiple_node_dimensions_selections.setdefault(_uuid, []).append(
+                    NodeDimensionSelection(node_id=node_id, dimensions=dimensions)
+                )
+
+        re_historical = re.compile(r'.*_historical$')
+        re_observed = re.compile(r'.*_observed$')
+
+        measure_template_uuid_to_single_node_dimension_selection: dict[str, NodeDimensionSelection] = dict()
+        for _uuid, values in measure_template_uuid_to_multiple_node_dimensions_selections.items():
+            if len(values) == 1:
+                measure_template_uuid_to_single_node_dimension_selection[_uuid] = values[0]
+                continue
+            accepted_values = [v for v in values if re_observed.match(v.node_id)]
+            if len(accepted_values) != 1:
+                accepted_values = [v for v in values if not re_historical.match(v.node_id)]
+            if len(accepted_values) == 1:
+                measure_template_uuid_to_single_node_dimension_selection[_uuid] = accepted_values[0]
+                continue
+            msg = f'Cannot find single Node to match MeasureTemplate {_uuid}: {", ".join([n.node_id for n in values])}'
+            logger.error(msg)
+            sentry_sdk.capture_message(msg)
+        return measure_template_uuid_to_single_node_dimension_selection
 
 class MeasureQuerySet(PathsQuerySet['Measure']):
     pass
