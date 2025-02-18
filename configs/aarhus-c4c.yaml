@@ -88,11 +88,154 @@ dimensions:
   - id: gasoline
     label: 'Gasoline'
 
+- id: sector
+  label: GPC Sector
+  categories:
+  - id: i
+    label: 'I Stationary'
+  - id: i1
+    label: 'I.1 Residential'
+  - id: i11
+    label: 'I.1.1 Residential Fuel'
+  - id: i12
+    label: 'I.1.2 Residential Grid Energy'
+  - id: i13
+    label: 'I.1.3 Residential T & D Loss'
+  - id: i2
+    label: 'I.2 Commercial & Institutional'
+  - id: i21
+    label: 'I.2.1 Commercial & Institutional Fuel'
+  - id: i22
+    label: 'I.2.2 Commercial & Institutional Grid Energy'
+  - id: i23
+    label: 'I.2.3 Commercial & Institutional T & D Loss'
+  - id: i3
+    label: 'I.3 Manufacturing'
+  - id: i31
+    label: 'I.3.1 Manufacturing Fuel'
+  - id: i32
+    label: 'I.3.2 Manufacturing Grid Energy'
+  - id: i33
+    label: 'I.3.3 Manufacturing T & D Loss'
+  - id: i4
+    label: 'I.4 Energy'
+  - id: i41
+    label: 'I.4.1 Energy Fuel'
+  - id: i42
+    label: 'I.4.2 Energy Grid Energy'
+  - id: i43
+    label: 'I.4.3 Energy T & D Loss'
+  - id: i5
+    label: 'I.5 Ag, Forestry, & Fishing'
+  - id: i51
+    label: 'I.5.1 Ag, Forestry, & Fishing Fuel'
+  - id: i52
+    label: 'I.5.2 Ag, Forestry, & Fishing Grid Energy'
+  - id: i53
+    label: 'I.5.3 Ag, Forestry, & Fishing T & D Loss'
+  - id: i6
+    label: 'I.6 Non-Specified'
+  - id: i61
+    label: 'I.6.1 Non-Specified Fuel'
+  - id: i62
+    label: 'I.6.2 Non-Specified Grid Energy'
+  - id: i63
+    label: 'I.6.3 Non-Specified T & D Loss'
+  - id: i7
+    label: 'I.7 Fugitive Coal'
+  - id: i71
+    label: 'I.7.1 Fugitive Coal'
+  - id: i8
+    label: 'I.8 Fugitive Oil & Natural Gas'
+  - id: i81
+    label: 'I.8.1 Fugitive Oil & Natural Gas'
+  - id: ii
+    label: 'II Transportation'
+  - id: ii1
+    label: 'II.1 On-Road Transport'
+  - id: ii11
+    label: 'II.1.1 On-Road Transport Fuel'
+  - id: ii12
+    label: 'II.1.2 On-Road Transport Grid Energy'
+  - id: ii13
+    label: 'II.1.3 On-Road Transport Outside City, T & D Loss'
+  - id: ii2
+    label: 'II.2 Railway'
+  - id: ii21
+    label: 'II.2.1 Railway Fuel'
+  - id: ii22
+    label: 'II.2.2 Railway Grid Energy'
+  - id: ii23
+    label: 'II.2.3 Railway Outside City, T & D Loss'
+  - id: ii3
+    label: 'II.3 Waterborne'
+  - id: ii31
+    label: 'II.3.1 Waterborne Fuel'
+  - id: ii32
+    label: 'II.3.2 Waterborne Grid Energy'
+  - id: ii33
+    label: 'II.3.3 Waterborne Outside City, T & D Loss'
+  - id: ii4
+    label: 'II.4 Aviation'
+  - id: ii41
+    label: 'II.4.1 Aviation Fuel'
+  - id: ii42
+    label: 'II.4.2 Aviation Grid Energy'
+  - id: ii43
+    label: 'II.4.3 Aviation Outside City, T & D Loss'
+  - id: ii5
+    label: 'II.5 Off-Road Transport'
+  - id: ii51
+    label: 'II.5.1 Off-Road Transport Fuel'
+  - id: ii52
+    label: 'II.5.2 Off-Road Transport Grid Energy'
+  - id: ii53
+    label: 'II.5.3 Off-Road Transport Outside City, T & D Loss'
+  - id: iii
+    label: 'III Waste'
+  - id: iii1
+    label: 'III.1 Solid Waste'
+  - id: iii11
+    label: 'III.1.1 Solid Waste Disposed in City'
+  - id: iii12
+    label: 'III.1.2 Solid Waste Disposed Outside City'
+  - id: iii2
+    label: 'III.2 Biological Waste'
+  - id: iii21
+    label: 'III.2.1 Biological Waste Treated in City'
+  - id: iii22
+    label: 'III.2.2 Biological Waste Treated Outside City'
+  - id: iii3
+    label: 'III.3 Incineration'
+  - id: iii31
+    label: 'III.3.1 Incineration in City'
+  - id: iii32
+    label: 'III.3.2 Incineration Outside City'
+  - id: iii4
+    label: 'III.4 Wastewater'
+  - id: iii41
+    label: 'III.4.1 Wastewater Treated in City'
+  - id: iii42
+    label: 'III.4.2 Wastewater Treated Outside City'
+  - id: iv
+    label: 'IV IPPU'
+  - id: iv1
+    label: 'IV.1 Industrial Processes'
+  - id: iv2
+    label: 'IV.2 Product Use'
+  - id: v
+    label: 'V AFOLU'
+  - id: v1
+    label: 'V.1 Livestock'
+  - id: v2
+    label: 'V.2 Land'
+  - id: v3
+    label: 'V.3 Aggregate Sources'
+
 emission_sectors:
 - id: net_emissions
   name: Net Emissions
   is_outcome: true
-
 
 nodes:
 - id: i32_manufacturing_grid_energy_emissions
