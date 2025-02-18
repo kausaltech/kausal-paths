@@ -2027,12 +2027,12 @@ actions:
   params:
     sector: Electrification of transport fleet
   input_nodes:
-  - id: fully_electric_vehicle_share
+  - id: fully_electric_vehicle_share_historical
     from_dimensions:
     - id: transport_mode
       categories: [cars]
   output_nodes:
-  - id: fully_electric_car_share
+  - id: fully_electric_vehicle_share
 
 - id: a142_electrification_of_buses
   name_en: Electrification of buses
@@ -2079,12 +2079,12 @@ actions:
   params:
     sector: Electrification of transport fleet
   input_nodes:
-  - id: fully_electric_vehicle_share
+  - id: fully_electric_vehicle_share_historical
     from_dimensions:
     - id: transport_mode
       categories: [light_trucks, heavy_trucks]
   output_nodes:
-  - id: fully_electric_truck_share
+  - id: fully_electric_vehicle_share
 
 # -------------- ELECTRICITY ----------------
 

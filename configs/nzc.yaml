@@ -44,7 +44,7 @@ result_excels:
   - freight_transport_energy_carrier_shares
   - average_truck_utilisation
   - electrification_year_of_transport
-  - old_building_renovation_rate
+  - old_building_renovation_rate_observed
   - new_building_shares
   - efficient_appliances_rate
   - building_heating_type_share
@@ -941,7 +941,7 @@ nodes:
         flatten: true
     - kind: node
       label: Electrification of light trucks
-      node_id: fully_electric_truck_share
+      node_id: fully_electric_vehicle_share
       desired_outcome: increasing
       scenarios: [default, progress_tracking]
       dimensions:
@@ -964,7 +964,7 @@ nodes:
         flatten: true
     - kind: node
       label: Electrification of heavy trucks
-      node_id: fully_electric_truck_share
+      node_id: fully_electric_vehicle_share
       desired_outcome: increasing
       scenarios: [default, progress_tracking]
       dimensions:
@@ -1049,7 +1049,7 @@ nodes:
         flatten: true
     - kind: node
       label: Electrification of passenger vehicles
-      node_id: fully_electric_car_share
+      node_id: fully_electric_vehicle_share
       desired_outcome: increasing
       scenarios: [default, progress_tracking]
       dimensions:
@@ -1163,12 +1163,12 @@ actions:
   params:
     sector: Electrification of transport fleet
   input_nodes:
-  - id: fully_electric_vehicle_share
+  - id: fully_electric_vehicle_share_historical
     from_dimensions:
     - id: transport_mode
       categories: [cars]
   output_nodes:
-  - id: fully_electric_car_share
+  - id: fully_electric_vehicle_share
 
 - id: a142_electrification_of_buses
   name: 1.4.2 Electrification of buses
@@ -1242,12 +1242,12 @@ actions:
   params:
     sector: Electrification of transport fleet
   input_nodes:
-  - id: fully_electric_vehicle_share
+  - id: fully_electric_vehicle_share_historical
     from_dimensions:
     - id: transport_mode
       categories: [light_trucks, heavy_trucks]
   output_nodes:
-  - id: fully_electric_truck_share
+  - id: fully_electric_vehicle_share
 
   # ----------- BUILDINGS ---------------
 
@@ -1277,7 +1277,7 @@ actions:
     to_dimensions:
     - id: building_energy_class
   output_nodes:
-  - id: old_building_renovation_rate
+  - id: old_building_renovation_rate_observed
 
 - id: a312_renovation_shares_improvement
   name: 3.1.2 Renovation shares improvement

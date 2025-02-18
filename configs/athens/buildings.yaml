@@ -250,7 +250,7 @@ nodes:
   params:
     sector: Renovation rate - decarbonisation scenario
 
-- id: old_building_renovation_rate
+- id: old_building_renovation_rate_observed
   name_en: Old building renovation rate
   name_fi: Vanhojen rakennusten peruskorjausaste
   description_en: Shifts building stock from non-renovated to minor or agressively renovated stock. The effect is cumulative, i.e. the renovated stock stays permanently in the new category and thus the stock accumulates to renovated categories.
@@ -318,7 +318,7 @@ nodes:
       categories: [old_no_renovations]
       flatten: true
     to_dimensions: []
-  - id: old_building_renovation_rate
+  - id: old_building_renovation_rate_observed
     from_dimensions:
     - id: building_energy_class
       flatten: true
