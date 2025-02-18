@@ -117,7 +117,7 @@ nodes:
 - id: electricity_consumption_ratio
   name_en: Electricity consumption ratio between statistics and modelled
   name_fi: Sähkönkulutuksen suhde tilastojen ja mallinnetun välillä
-  type: simple.MultiplicativeNode
+  type: simple.FixedScenarioNode
   quantity: ratio
   unit: dimensionless
   input_dimensions: [energy_carrier]

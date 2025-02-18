@@ -535,6 +535,13 @@ class PerCapitaActivity(MultiplicativeNode):
     pass
 
 
+class FixedScenarioNode(MultiplicativeNode):
+    def compute(self) -> ppl.PathsDataFrame:
+        scenario = self.context.scenarios['baseline']
+        with scenario.override():
+            df = MultiplicativeNode.compute(self)
+        return df
+
 class Activity(AdditiveNode):
     explanation = _("""This is Activity Node. It adds activity amounts together.""")
     pass
