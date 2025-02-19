@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://koeln-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: f2cbd95c8ad992dc957ebd669d01537b29a148fe
+  commit: 8dd4ec60872cf6f88ff201ef09a96f250757274d
   dvc_remote: kausal-s3
   # Data from https://docs.google.com/spreadsheets/d/1qUIUgAE1Sqbt6qIClxEypuWRi0GpQQUc/edit?gid=1907288926#gid=1907288926
 name: Demonstration BASIC+ Treibhausgasinventar
@@ -115,14 +115,13 @@ emission_sectors:
   name: Netto Emissionen
   is_outcome: true
   goals:
-  - normalized_by: population
-    label_de: Emissionen
+  - label_de: Emissionen
     label_en: Emissions
     default: true
     linear_interpolation: true
     values:
     - year: 2035
-      value: 0.3
+      value: 300
     is_main_goal: true
 
 nodes:
@@ -130,11 +129,12 @@ nodes:
 - id: population
   name_en: Inhabitants
   name_de: Einwohner*in
-  type: simple.AdditiveNode
+  type: gpc.DatasetNode
   quantity: population
   unit: cap
-  historical_values: [[2008, 1087353], [2023, 1087353]]
-  input_dataset_processors: [LinearInterpolation]
+  input_datasets: [gpc/koeln]
+  params:
+    sector: Einwohnerin
 
 - id: private_houses_emissions
   name: Private Haushalte
@@ -334,7 +334,7 @@ nodes:
     sector: Emissionfaktor Verbrauchssektoren
 
 - id: emissionen_verbrauchsektoren
-  name: Emissionen Endenergie
+  name: Emissionen Verbrauchsektoren
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
@@ -515,19 +515,25 @@ actions:
 
 pages:
 - id: home
-  name: Koeln BASIC+ Greenhouse Gas Inventory
+  name_de: Köln BASIC+ Treibhausgasinventar
+  name_en: Cologne BASIC+ Greenhouse Gas Inventory
   path: /
   type: emission
   outcome_node: net_emissions
-  lead_title: Übersicht Bilanzen Köln
-  lead_paragraph: GPC BASIC+ greenhouse gas inventory (2008-2020) and forecast (2021-2020)
-    for the City of Koeln.
+  lead_title_de: Übersicht Bilanzen Köln
+  lead_title_en: Overview of Cologne's Greenhouse Gas Balances
+  lead_paragraph_de: GPC BASIC+ Treibhausgasinventar (2008-2020) und Prognose (2021-2030)
+    für die Stadt Köln.
+  lead_paragraph_en: GPC BASIC+ greenhouse gas inventory (2008-2020) and forecast
+    (2021-2030) for the City of Cologne.
 
 scenarios:
 - id: baseline
-  name: Business as Usual
+  name_de: Business as Usual
+  name_en: Business as Usual
 
 - id: default
   default: true
-  name: Climate Action Plan
+  name_de: Klimaschutzplan
+  name_en: Climate Action Plan
   all_actions_enabled: true
