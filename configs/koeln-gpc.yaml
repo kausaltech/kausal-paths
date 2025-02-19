@@ -112,17 +112,78 @@ dimensions:
 
 emission_sectors:
 - id: net_emissions
-  name: Netto Emissionen
+  name_de: Netto Emissionen
+  name_en: Net emissions
   is_outcome: true
   goals:
   - label_de: Emissionen
     label_en: Emissions
     default: true
     linear_interpolation: true
-    values:
-    - year: 2035
-      value: 300
     is_main_goal: true
+    values:
+    - year: 2020
+      value: 8805
+    - year: 2021
+      value: 8805
+    - year: 2022
+      value: 8157
+    - year: 2023
+      value: 7497
+    - year: 2024
+      value: 6819
+    - year: 2025
+      value: 6138
+    - year: 2026
+      value: 5474
+    - year: 2027
+      value: 4813
+    - year: 2028
+      value: 4157
+    - year: 2029
+      value: 3509
+    - year: 2030
+      value: 2221
+    - year: 2031
+      value: 1755
+    - year: 2032
+      value: 1328
+    - year: 2033
+      value: 932
+    - year: 2034
+      value: 564
+    - year: 2035
+      value: 271
+    - year: 2036
+      value: 252
+    - year: 2037
+      value: 234
+    - year: 2038
+      value: 215
+    - year: 2039
+      value: 196
+    - year: 2040
+      value: 178
+    - year: 2041
+      value: 176
+    - year: 2042
+      value: 175
+    - year: 2043
+      value: 173
+    - year: 2044
+      value: 172
+    - year: 2045
+      value: 170
+    - year: 2046
+      value: 169
+    - year: 2047
+      value: 167
+    - year: 2048
+      value: 166
+    - year: 2049
+      value: 164
+    - year: 2050
+      value: 163
 
 nodes:
 
