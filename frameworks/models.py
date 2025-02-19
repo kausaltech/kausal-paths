@@ -45,6 +45,7 @@ if TYPE_CHECKING:
 
     from nodes.instance import Instance
     from nodes.models import InstanceConfig
+    from nodes.node import Node
     from users.models import User
 
     from .object_cache import (
@@ -808,6 +809,8 @@ class Measure(CacheablePathsModel['FrameworkConfigCacheData'], models.Model):
     objects: ClassVar[MeasureManager] = MeasureManager()  # pyright: ignore
 
     framework_config_id: int
+
+    _node: tuple[Node | None, NodeDimensionSelection | None]
 
     class Meta:
         constraints = [
