@@ -727,7 +727,10 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             return [(u, None) for u in uuids]
 
         combinations = set()
-        for row in df.select(column_names).iter_rows():
+
+        df = df.select(column_names)
+        df = node.convert_names_to_ids(df)
+        for row in df.iter_rows():
             if row[0] is None:
                 continue
             combinations.add(row)
