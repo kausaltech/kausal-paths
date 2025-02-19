@@ -1513,6 +1513,9 @@ nodes:
     - id: energy_carrier
     - id: heating_type
   - id: heating_cost_stakeholder_shares
+    from_dimensions:
+    - id: cost_type
+      categories: [opex]
     to_dimensions:
     - id: stakeholder
     - id: cost_type
