@@ -224,6 +224,12 @@ dimensions:
   - id: v3
     label: 'V.3 Aggregate Sources'
 
+- id: action
+  label: Action
+  categories:
+  - id: replace_coal_stove_heating_in_municipal_buildings
+    label: 'Replace Coal Stove Heating in Municipal Buildings'
+
 emission_sectors:
 - id: net_emissions
   name: Net Emissions
