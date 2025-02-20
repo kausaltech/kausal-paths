@@ -259,6 +259,38 @@ dimensions:
   - id: v3
     label: 'V.3 Aggregate Sources'
 
+- id: action
+  label: Action
+  categories:
+  - id: energy_management_system
+    label: 'Energy Management System'
+  - id: 100_renewable_heating_in_municipal_buildings
+    label: '100% Renewable Heating in Municipal Buildings'
+  - id: 100_renewable_electricity_in_municipal_buildings
+    label: '100% Renewable Electricity in Municipal Buildings'
+  - id: plan_for_renovation_of_municipal_buildings_to_2030
+    label: 'Plan for Renovation of Municipal Buildings to 2030'
+  - id: upgrading_of_street_lighting
+    label: 'Upgrading of Street Lighting'
+  - id: 100_renewable_electricity_for_streetlights
+    label: '100% Renewable Electricity for Streetlights'
+  - id: data_records_system_for_municipal_vehicle_fleet
+    label: 'Data Records System for Municipal Vehicle Fleet'
+  - id: public_transport_for_work_for_municipal_employees
+    label: 'Public Transport for Work for Municipal Employees'
+  - id: zeroemission_vehicles_in_municipal_institutions
+    label: 'Zero-Emission Vehicles in Municipal Institutions'
+  - id: energy_efficiency_and_res_in_wastewater_treatment
+    label: 'Energy Efficiency and RES in Wastewater Treatment'
+  - id: urban_planning_for_less_dependence_on_private_cars
+    label: 'Urban Planning for Less Dependence on Private Cars'
+  - id: active_lifestyle_and_cycling
+    label: 'Active Lifestyle and Cycling'
+  - id: increase_public_transport_in_everyday_trips
+    label: 'Increase Public Transport in Everyday Trips'
+  - id: zeroemission_tech_and_res_in_district_heating
+    label: 'Zero-Emission Tech and RES in District Heating'
+
 emission_sectors:
 - id: net_emissions
   name: Net Emissions
