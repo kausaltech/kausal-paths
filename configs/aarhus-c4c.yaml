@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://aarhus-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 2f9ad7e00b595276cc35c668c21dc4e52d1668ea
+  commit: b2fb6458209d0646f30d706029b38b5a89c1b7c1
   dvc_remote: kausal-s3
 name: Aarhus Greenhouse Gas Inventory
 owner: City of Aarhus
@@ -240,16 +240,19 @@ emission_sectors:
 nodes:
 - id: i32_manufacturing_grid_energy_emissions
   name: I.3.2 Manufacturing Grid Energy Emissions
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
   input_dimensions: ['energy_source', 'owner', 'scope', 'cost_type', 'ghg', 'heating', 'energy_carrier']
   output_dimensions: ['energy_source', 'owner', 'scope', 'cost_type', 'ghg', 'heating', 'energy_carrier']
-  params:
-    gpc_sector: I.3.2
   input_datasets:
-  - id: gpc/aarhus
+  - id: aarhus/stationary
+    column: emissions
+    dropna: true
     forecast_from: 2025
+    filters:
+    - column: sector
+      value: i32
   output_nodes:
   - id: i3_manufacturing_total_emissions
     to_dimensions:
@@ -263,16 +266,19 @@ nodes:
 
 - id: i41_energy_fuel_emissions
   name: I.4.1 Energy Fuel Emissions
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
   input_dimensions: ['energy_source', 'owner', 'scope', 'cost_type', 'ghg', 'heating', 'energy_carrier']
   output_dimensions: ['energy_source', 'owner', 'scope', 'cost_type', 'ghg', 'heating', 'energy_carrier']
-  params:
-    gpc_sector: I.4.1
   input_datasets:
-  - id: gpc/aarhus
+  - id: aarhus/stationary
+    column: emissions
+    dropna: true
     forecast_from: 2025
+    filters:
+    - column: sector
+      value: i41
   output_nodes:
   - id: i4_energy_total_emissions
     to_dimensions:
@@ -286,16 +292,19 @@ nodes:
 
 - id: ii11_onroad_transport_fuel_emissions
   name: II.1.1 On-Road Transport Fuel Emissions
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
   input_dimensions: ['owner', 'vehicle_type', 'scope', 'cost_type', 'ghg', 'road_type', 'energy_carrier']
   output_dimensions: ['owner', 'vehicle_type', 'scope', 'cost_type', 'ghg', 'road_type', 'energy_carrier']
-  params:
-    gpc_sector: II.1.1
   input_datasets:
-  - id: gpc/aarhus
+  - id: aarhus/onroad_transportation
+    column: emissions
+    dropna: true
     forecast_from: 2025
+    filters:
+    - column: sector
+      value: ii11
   output_nodes:
   - id: ii1_onroad_transport_total_emissions
     to_dimensions:
