@@ -272,10 +272,17 @@ class DVCDataset(Dataset):
                 col = d['column']
                 val = d.get('value', None)
                 vals = d.get('values', [])
+                ref = d.get('ref', None)
                 drop = d.get('drop_col', True)
                 if vals:
                     df = df.filter(pl.col(col).is_in(vals))
                 if val:
+                    df = df.filter(pl.col(col) == val)
+                if ref:
+                    pval = context.get_parameter_value(ref, required=True)
+                    if isinstance(pval, float):
+                        pval = int(pval)
+                    val = str(pval)
                     df = df.filter(pl.col(col) == val)
                 if drop:
                     df = df.drop(col)
