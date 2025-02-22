@@ -1,6 +1,6 @@
 nodes:
 
-- id: green_electricity_consumption
+- id: green_electricity_consumption # TODO Make sure this works without action
   name_fi: Vihreän sähkön tuottama kompensaatio
   name_en: Green electricity compensation
   name_sv: Kompensation från grön el
@@ -23,7 +23,7 @@ nodes:
     där grön el skulle köpas bort från marknaden. Här antas att köp av grön el
     genererar nuvarande liknande elproduktion i den utsträckning att utsläppsfaktorn för andra köpare
     inte stiger, även om grön el har köpts bort från marknaden.
-  type: simple.AdditiveNode
+  type: simple.GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [energy_carrier]
@@ -31,10 +31,14 @@ nodes:
   output_nodes:
   - id: non_heating_electricity_energy
     tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
     to_dimensions:
     - id: economic_sector
       categories: [residential]
     - id: energy_carrier
+      categories: [electricity]
 
 - id: non_green_electricity_consumption
   name_fi: Ei-vihreän sähkön kulutus
@@ -51,7 +55,7 @@ nodes:
     tags: [arithmetic_inverse]
 
 - id: indifference_ratio
-  name_fi: Yhdentekevyyssuhde
+  name_fi: Samaisuussuhde
   name_en: Indifference ratio
   name_sv: Likgiltighetsfaktor  
   type: simple.AdditiveNode

@@ -4,7 +4,7 @@ supported_languages: [sv, en]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: feb5a6dee0eab8e03ae3db47de7ea73582d90857
+  commit: dca8dbb74943840b5b9a5ee7d791e6cfd356fd32
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -39,9 +39,6 @@ include:
   allow_override: true
 - file: frameworks/hsy/transport.yaml
   node_group: Transport
-  allow_override: true
-- file: frameworks/hsy/transport_biofuels.yaml
-  node_group: Transport biofuels
   allow_override: true
 
 action_groups:
@@ -401,6 +398,81 @@ nodes:
   params:
     sector: Sähkö|Kulutussähkö|_energy_carrier_|_economic_sector_
   color: '#0047b6'
+
+- id: green_electricity_consumption
+  name_fi: Vihreän sähkön tuottama kompensaatio
+  name_en: Green electricity compensation
+  name_sv: Kompensation från grön el
+  description_fi: Ensin vihreä sähkö vähennetään kokonaissähkönkulutuksesta, ja sitten
+    sovelletaan jäännöspäästökerrointa. Oletus siis on, että ostamalla vihreää sähköä
+    omat päästöt alenevat saman verran kuin jos päästökerroin menisi nollaan tilanteesta,
+    jossa vihreä sähkö olisi ostettu pois markkinoilta. Tässä siis oletetaan, että
+    vihreän sähkön ostaminen generoi nykyisenkaltaista sähköntuotantoa siinä määrin,
+    että muiden ostajien päästökerroin ei nousekaan, vaikka vihreä sähkö on ostettu
+    pois markkinoilta.
+  description_en: First, green electricity is subtracted from the total electricity
+    consumption, and then the residual emission factor is applied. The assumption
+    is that by purchasing green electricity, one's own emissions decrease by the same
+    amount as if the emission factor went to zero in a situation where green electricity
+    was bought off the market. Here, it is assumed that purchasing green electricity
+    generates current-like electricity production to the extent that the emission
+    factor of other buyers does not increase, even though green electricity has been
+    bought off the market.
+  description_sv: Först dras grön el bort från den totala elförbrukningen, och sedan
+    tillämpas restfaktorn för utsläpp. Antagandet är att genom att köpa grön el, minskar
+    ens egna utsläpp med samma mängd som om utsläppsfaktorn skulle gå till noll i
+    en situation där grön el skulle köpas bort från marknaden. Här antas att köp av
+    grön el genererar nuvarande liknande elproduktion i den utsträckning att utsläppsfaktorn
+    för andra köpare inte stiger, även om grön el har köpts bort från marknaden.
+  type: simple.GenericNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  output_nodes:
+  - id: green_electricity_consumption_post
+    tags: [arithmetic_inverse, non_additive]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: green_electricity_shares
+  name_fi: Vihreän sähkön osuudet
+  name_en: Green electricity shares
+  type: gpc.DatasetNode
+  quantity: ratio
+  unit: '%'
+  input_dimensions: [economic_sector, energy_carrier]
+  output_dimensions: [economic_sector, energy_carrier]
+  input_datasets: [gpc/espoo]
+  params:
+    sector: Vihreän sähkön jakauma
+  output_nodes:
+  - id: green_electricity_consumption_post
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: economic_sector
+    - id: energy_carrier
+      categories: [green_electricity]
+
+- id: green_electricity_consumption_post
+  name_fi: Vihreän sähkön kulutus sektoreittain
+  name_en: Green electricity consumption by sector
+  type: simple.GenericNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [economic_sector, energy_carrier]
+  output_dimensions: [economic_sector, energy_carrier]
+  output_nodes:
+  - id: non_heating_electricity_energy
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: economic_sector
+    - id: energy_carrier
+      categories: [electricity]
 
 # Transport
 
@@ -776,10 +848,14 @@ actions:
   output_nodes:
   - id: non_heating_electricity_energy
     tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
     to_dimensions:
     - id: energy_carrier
+      categories: [electricity]
     - id: economic_sector
-      categories: [residential]
+      categories: [services]
 
 # Transport
 
@@ -804,7 +880,7 @@ actions:
     ökar utsläppen i Esboområdet. Från och med 2028 specificerar regeringsprogrammet
     inte bränslets bioandel, och beräkningen antar att bioandelen kommer att vara
     densamma som 2027 från och med 2028.
-  type: simple.GpcTrajectoryAction
+  type: gpc.DatasetAction
   quantity: fraction
   unit: '%'
   decision_level: nation
@@ -812,10 +888,15 @@ actions:
   input_datasets:
   - id: gpc/espoo
     forecast_from: 2024
+    filters:
+    - column: Scenario
+      ref: scenario_name
+  output_nodes:
+  - id: road_traffic_emission_factor_forecast
+    tags: [non_additive, complement]
+    to_dimensions: []
   params:
     sector: Jakeluvelvoite
-    dimension: scenario
-    category: baseline
 
 - id: increase_electric_passenger_cars # TODO A slider would be nice.
   name_fi: Edistämme sähköautoilua
@@ -1336,33 +1417,29 @@ actions:
     nivå.</p><p>År 2021 var utsläppen 23,7 kt och grunden för dessa utsläppsuppskattningar.
     Men år 2022 var utsläppen endast 21,8 kt, så det pessimistiska scenariot och Finland
     2035-scenariot är mer pessimistiska än det faktiska utfallet.</p>
-  type: gpc.DatasetDifferenceAction2
+  type: gpc.DatasetAction
   quantity: ratio
-  unit: kt/a
+  unit: '%'
+  no_effect_value: 100
   group: waste_agriculture
-  input_dimensions: [waste_treatment, emission_sector, economic_sector]
-  output_dimensions: [waste_treatment, emission_sector, economic_sector]
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
   input_datasets:
   - id: gpc/espoo
     tags: [goal]
     forecast_from: 2024
+    filters:
+    - column: Scenario
+      ref: scenario_name
   params:
     sector: Waste treatment goals
-    filter_categories: scenario:default # FIXME Use categories and select_variant() instead
-    relative_goal: true
-  input_nodes:
-  - id: waste_emission_inventory
-    tags: [baseline]
-    to_dimensions:
-    - id: emission_sector
-      categories: [waste_treatment]
-    - id: economic_sector
-    - id: waste_treatment
   output_nodes:
   - id: waste_treatment_emissions
+    tags: [non_additive]
     from_dimensions:
     - id: emission_sector
       flatten: true
+    to_dimensions: []
 
 - id: reduce_agriculture_emissions
   name_fi: Maatalouden päästöt pienenevät
@@ -1438,9 +1515,10 @@ actions:
     50 procent till 2035. Förändringarna har beräknats utifrån de genomsnittliga utsläppen
     under de senaste fem åren, eftersom de årliga variationerna inom sektorn har varit
     stora.</p>
-  type: gpc.DatasetDifferenceAction2
+  type: gpc.DatasetAction
   quantity: ratio
-  unit: kt/a
+  unit: '%'
+  no_effect_value: 100
   group: industry
   input_dimensions: [emission_sector, economic_sector]
   output_dimensions: [emission_sector, economic_sector]
@@ -1448,9 +1526,9 @@ actions:
   - id: gpc/espoo
     tags: [goal]
     forecast_from: 2024
-  input_nodes:
-  - id: industry_emission_inventory
-    tags: [baseline]
+    filters:
+    - column: Scenario
+      ref: scenario_name
   output_nodes:
   - id: industry_machinery_emissions
     to_dimensions:
@@ -1458,8 +1536,6 @@ actions:
     - id: emission_sector
   params:
     sector: Teollisuus ja työkoneet
-    filter_categories: scenario:default # FIXME Use categories and select_variant() instead
-    relative_goal: true
 #
 # Road traffic
 #
@@ -1468,10 +1544,10 @@ actions:
   name_fi: Fossiilisten polttoaineiden korvaaminen
   name_en: Replacing fossil fuels
   name_sv: Ersättning av fossila bränslen
-  description_fi: Fossiilisten polttoaineiden korvaamisen arvioidaan vähentävän tieliikenteen
-    päästöjä 0.9 %. Kun tämä vaikutus kohdennetaan pelkästään henkilöautoihin, saadaan
-    päästökertoimen vähenemäksi 234 g/kWh * 0.9 % * (1261 GWh/a / 735 GWh/a) = 3.616
-    g/kWh.
+  description_fi: HUOM! Tämä toimenpide korvattaneen jakeluvelvoitteen muutostoimenpiteellä.
+    Fossiilisten polttoaineiden korvaamisen arvioidaan vähentävän tieliikenteen päästöjä
+    0.9 %. Kun tämä vaikutus kohdennetaan pelkästään henkilöautoihin, saadaan päästökertoimen
+    vähenemäksi 234 g/kWh * 0.9 % * (1261 GWh/a / 735 GWh/a) = 3.616 g/kWh.
   description_en: Replacing fossil fuels is estimated to reduce road traffic emissions
     by 0.9%. By targeting this effect solely on passenger cars, the decrease in the
     emission factor is calculated as 234 g/kWh * 0.9% * (1261 GWh/a / 735 GWh/a) =
@@ -1484,13 +1560,13 @@ actions:
   unit: g/kWh
   group: transportation
   forecast_values: [[2024, 0.0], [2035, 0.0]]
-  output_nodes:
-  - id: road_traffic_emission_factor_forecast
-    to_dimensions:
-    - id: vehicle_type
-      categories: [cars]
-    - id: economic_sector
-      categories: [residential]
+  # output_nodes:
+  # - id: road_traffic_emission_factor_forecast
+  #   to_dimensions:
+  #   - id: vehicle_type
+  #     categories: [cars]
+  #   - id: economic_sector
+  #     categories: [residential]
   params:
   - id: target_year_level
     is_visible: false
@@ -1729,6 +1805,7 @@ actions:
     max_value: -56
 
 scenarios:
+
 - id: baseline
   name_fi: Suomi 2035
   name_en: Finland 2035
@@ -1737,11 +1814,6 @@ scenarios:
   - id: scenario_name
     value: baseline
   - id: cleaner_electricity_production.enabled
-    value: true
-
-  - id: reduce_machinery_emissions.filter_categories
-    value: scenario:baseline
-  - id: reduce_machinery_emissions.enabled
     value: true
 
   - id: replace_fossil_fuels_in_cars.enabled
@@ -1760,19 +1832,13 @@ scenarios:
     value: false
   - id: road_transportation_emission_trade.enabled
     value: true
-
-  - id: biofuel_fraction_demand.category
-    value: baseline
-
+  - id: biofuel_fraction_demand.enabled
+    value: true
   - id: replace_fossil_fuels_in_district_heating.enabled
     value: true
   - id: reduce_oil_heating.enabled
     value: true
 
-  - id: reduce_waste_treatment_emissions.enabled
-    value: true
-  - id: reduce_waste_treatment_emissions.filter_categories
-    value: scenario:baseline
   - id: change_non_heating_electricity.enabled
     value: true
   - id: district_heating_emission_factor_goal.categories
@@ -1788,11 +1854,6 @@ scenarios:
   params:
   - id: scenario_name
     value: default
-  - id: reduce_machinery_emissions.filter_categories
-    value: scenario:default
-  - id: reduce_machinery_emissions.enabled
-    value: true
-
   - id: replace_fossil_fuels_in_cars.enabled
     value: true
   - id: upgrade_car_fleet.enabled
@@ -1812,13 +1873,6 @@ scenarios:
   - id: replace_fossil_fuels_in_district_heating.enabled
     value: true
 
-  - id: biofuel_fraction_demand.category
-    value: default
-
-  - id: reduce_waste_treatment_emissions.enabled
-    value: true
-  - id: reduce_waste_treatment_emissions.filter_categories
-    value: scenario:default
   - id: change_non_heating_electricity.enabled
     value: true
   - id: cleaner_electricity_production.enabled
@@ -1834,10 +1888,6 @@ scenarios:
   params:
   - id: scenario_name
     value: pessimistic
-  - id: reduce_waste_treatment_emissions.enabled
-    value: false
-  - id: reduce_waste_treatment_emissions.filter_categories
-    value: scenario:pessimistic
   - id: change_non_heating_electricity.enabled
     value: true
   - id: cleaner_electricity_production.enabled
@@ -1845,8 +1895,6 @@ scenarios:
   - id: replace_fossil_fuels_in_district_heating.enabled
     value: false
 
-  - id: biofuel_fraction_demand.category
-    value: default
   - id: district_heating_emission_factor_goal.categories
     value: scenario:pessimistic
 
@@ -1857,10 +1905,6 @@ scenarios:
   params:
   - id: scenario_name
     value: default
-  - id: reduce_machinery_emissions.filter_categories
-    value: scenario:default
-  - id: reduce_machinery_emissions.enabled
-    value: true
   - id: replace_fossil_fuels_in_cars.enabled
     value: true
   - id: upgrade_car_fleet.enabled
@@ -1879,12 +1923,6 @@ scenarios:
     value: true
   - id: replace_fossil_fuels_in_district_heating.enabled
     value: true
-  - id: biofuel_fraction_demand.category
-    value: default
-  - id: reduce_waste_treatment_emissions.enabled
-    value: true
-  - id: reduce_waste_treatment_emissions.filter_categories
-    value: scenario:default
   - id: change_non_heating_electricity.enabled
     value: true
   - id: cleaner_electricity_production.enabled
@@ -1894,7 +1932,7 @@ scenarios:
   - id: increase_solar_electricity_production.enabled
     value: false
   - id: biofuel_fraction_demand.enabled
-    value: false
+    value: true
   - id: increase_electric_passenger_cars.enabled
     value: false
   - id: environmental_zone_for_trucks.enabled

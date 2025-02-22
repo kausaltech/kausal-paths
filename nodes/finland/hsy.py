@@ -367,12 +367,12 @@ class HsyEmissions(AdditiveNode, HsyNodeMixin):
 
         df = df.rename(columns={EMISSION_QUANTITY: VALUE_COLUMN})
         assert VALUE_COLUMN in df
-
-        # If there are other input nodes connected, add them with this one.
-        if len(other_nodes):
-            df = self.add_nodes(df, other_nodes)
         pdf = ppl.from_pandas(df)
-        # df = self.convert_names_to_ids(df)
+
+        pdf, extra_nodes = self.run_implicit_operations(other_nodes, pdf)
+        assert pdf is not None
+        assert len(extra_nodes) == 0, f"Node {self.id} should not have input nodes of the other type."
+        pdf = pdf.ensure_unit(VALUE_COLUMN, self.unit)
         return pdf
 
 class HsyEmissionFactor(AdditiveNode, HsyNodeMixin):
