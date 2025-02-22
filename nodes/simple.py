@@ -360,6 +360,7 @@ Missing values are assumed to be zero.""")
                 else:
                     raise NodeError(self, "Input dataset has multiple metric columns, but no Value column")
 
+        df = self.apply_multiplier(df, required=False, units=True)
         df = df.ensure_unit(VALUE_COLUMN, self.single_metric_unit)
 
         if self.get_parameter_value('inventory_only', required=False):
@@ -660,6 +661,13 @@ class EmissionFactorActivity(MultiplicativeNode):  # FIXME Does not work with Ta
 class PerCapitaActivity(MultiplicativeNode):
     pass
 
+
+class FixedScenarioNode(MultiplicativeNode):
+    def compute(self) -> ppl.PathsDataFrame:
+        scenario = self.context.scenarios['baseline']
+        with scenario.override():
+            df = MultiplicativeNode.compute(self)
+        return df
 
 class Activity(AdditiveNode):
     explanation = _("""This is Activity Node. It adds activity amounts together.""")
@@ -1020,4 +1028,25 @@ class ChooseInputNode(AdditiveNode):
     def compute(self) -> ppl.PathsDataFrame:
         node_tag = self.get_parameter_value_str('node_tag', required=True)
         df = self.get_input_node(tag=node_tag).get_output_pl(target_node=self)
+        return df
+
+
+class RelativeYearScaledNode(AdditiveNode):
+    explanation = _(
+        """
+        This is RelativeYearScaledNode. First it acts like additive node.
+        In the end, everything is scaled by the values of the reference year.
+        The reference year is either the instance reference year or from parameter.
+        """
+    )
+    allowed_parameters = [
+        *AdditiveNode.allowed_parameters,
+        NumberParameter(local_id='reference_year', label='The year whose values are used for scaling')
+    ]
+    def compute(self):
+        df = AdditiveNode.compute(self)
+        year = self.get_parameter_value('reference_year', required=False)
+        if not year:
+            year = self.context.instance.reference_year
+        df = self._scale_by_reference_year(df, int(year))
         return df

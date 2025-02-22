@@ -250,7 +250,7 @@ nodes:
   params:
     sector: Renovation rate - decarbonisation scenario
 
-- id: old_building_renovation_rate
+- id: old_building_renovation_rate_observed
   name_en: Old building renovation rate
   name_fi: Vanhojen rakennusten peruskorjausaste
   description_en: Shifts building stock from non-renovated to minor or agressively renovated stock. The effect is cumulative, i.e. the renovated stock stays permanently in the new category and thus the stock accumulates to renovated categories.
@@ -318,7 +318,7 @@ nodes:
       categories: [old_no_renovations]
       flatten: true
     to_dimensions: []
-  - id: old_building_renovation_rate
+  - id: old_building_renovation_rate_observed
     from_dimensions:
     - id: building_energy_class
       flatten: true
@@ -338,41 +338,6 @@ nodes:
   - id: nzc/defaults
   params:
     sector: Total heating demand (space heating + domestic hot water + heat for cooking)
-
-- id: heat_energy_use_difference
-  name_en: Heat energy use difference
-  name_fi: Lämmitysenergian käyttöero
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  input_nodes:
-  - id: total_building_heat_energy_use
-    tags: [arithmetic_inverse]
-  - id: building_heat_energy_use
-    from_dimensions:
-    - id: heating_type
-      flatten: true
-    - id: building_energy_class
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: fuel_type
-      flatten: true
-    - id: scope
-      flatten: true
-
-- id: statistical_heat_energy_use
-  name_en: Statistical heat energy use
-  name_fi: Tilastollinen lämmitysenergian käyttö
-  type: gpc.DatasetNode
-  quantity: energy
-  unit: GWh/a
-  input_datasets:
-  - id: nzc/defaults
-  params:
-    sector: Total heating demand (space heating + domestic hot water + heat for cooking)
-  input_nodes:
-  - id: heat_energy_use_difference
 
 - id: energy_use_intensity_data
   name_en: Energy use intensity data for heating
@@ -1526,6 +1491,9 @@ nodes:
     - id: energy_carrier
     - id: heating_type
   - id: heating_cost_stakeholder_shares
+    from_dimensions:
+    - id: cost_type
+      categories: [opex]
     to_dimensions:
     - id: stakeholder
     - id: cost_type

@@ -5,7 +5,7 @@ site_url: https://dut-transport-nzc.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   dvc_remote: kausal-s3
-  commit: 7e1fe405c1682fb4760f4377cae2a237f5f638b5
+  commit: 8f2c9e0f2bb1cde5b63098688d1bc02faa197bfb
 theme_identifier: default
 name: 'DUT: Liikennetoimenpiteitä terveys- ja ilmastohyötyjen edistämiseksi'
 name_en: 'DUT: Transport actions to promote health and climate benefits'
@@ -42,9 +42,10 @@ params:
   is_visible: false
   is_customizable: true
 - id: statistical_correction
-  label: Statistical correction
+  label_en: Statistical correction
+  label_fi: Tilastollinen korjaus
   value: true
-  is_visible: true
+  is_visible: false
   is_customizable: true
 - id: measure_data_override
   value: false
@@ -54,32 +55,42 @@ params:
   value: false
   is_visible: false
   is_customizable: false
+- id: population_size
+  label_en: Population size in the city of interest
+  label_fi: Väestön koko tarkasteltavassa kaupungissa
+  is_visible: true
+  is_customizable: true
+  value: 250000
+  min_value: 50000
+  max_value: 685000
+  step: 1000
+  unit: dimensionless
 
 action_groups:
 - id: promoting_active_mobility
   name: Aktiivisen liikkumisen edistäminen
   name_en: Promoting active mobility
-  color: '#93c572'
+  color: 66c2a5
 - id: promoting_systemic_public_transport
   name: Joukkoliikennejärjestelmän edistäminen
   name_en: Promoting systemic public transport
-  color: '#93c572'
+  color: '#fc8d62'
 - id: limiting_cars
   name: Autoliikenteen rajoittaminen
   name_en: Limiting passenger cars
-  color: '#93c572'
+  color: '#8da0cb'
 - id: electrification
   name: Sähköistäminen
   name_en: Electrification
-  color: '#93c572'
+  color: '#e78ac3'
 - id: nzp_limiting_cars
   name: Autoliikenteen rajoittaminen (NetZeroPlanner-työkalusta)
   name_en: Limiting passenger cars (from NetZeroPlanner)
-  color: '#93c572'
+  color: '#a6d854'
 - id: nzp_electrification
   name: Sähköistäminen (NetZeroPlanner-työkalusta)
   name_en: Electrification (from NetZeroPlanner)
-  color: '#93c572'
+  color: '#ffd92f'
 
 action_efficiency_pairs:
 
@@ -756,20 +767,25 @@ nodes:
   historical_values: [[2018, 0.0], [2023, 0.0]]
 
 - id: population
-  name_fi: Väestön koko Suomessa
-  name_en: Population size in Finland
+  name_fi: Väestön koko tarkasteltavassa kunnassa
+  name_en: Population size in the city of interest
   description: Data Tilastokeskuksen <a 
     href='https://pxdata.stat.fi/PxWeb/pxweb/fi/StatFin/StatFin__vaerak/'>väestöennusteesta</a>.
   description_en: Data from Statiscitcs Finland <a href='https://pxdata.stat.fi/PxWeb/pxweb/fi/StatFin/StatFin__vaerak/'>population
     forecast</a>.
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: population
   unit: cap
-  input_datasets:
-  - id: gpc/dut_transport_nzc
-    forecast_from: 2025
+  historical_values: [[2018, 1], [2025, 1]]
+  input_dataset_processors: [LinearInterpolation]
   params:
-    sector: Population
+  - id: multiplier
+    ref: population_size
+  # input_datasets:
+  # - id: gpc/dut_transport_nzc
+  #   forecast_from: 2025
+  # params:
+  #   sector: Population
 
 - id: average_trip_length
   name_en: Average trip length
@@ -865,10 +881,10 @@ nodes:
   unit: Mtkm/a
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
-  input_datasets: [nzc/defaults]
+  input_datasets: [gpc/dut_transport_nzc]
   input_nodes:
   - id: population
-    tags: [ratio_to_last_historical_value, non_additive]
+    tags: [non_additive]
     to_dimensions: []
   params:
     sector: Total transportation need within city - Road freight transport
@@ -878,7 +894,7 @@ nodes:
 
 - id: historical_electricity_consumption # TODO Use inner join for multiplication; then drop_nulls is not needed.
   name_en: Historical electricity consumption
-  name_fi: historiallinen sähkönkulutus
+  name_fi: Historiallinen sähkönkulutus
   type: gpc.DatasetNode
   quantity: energy
   unit: GWh/a
@@ -1536,10 +1552,6 @@ nodes:
       flatten: true
     - id: iteration
       flatten: true
-  - id: statistical_electricity_consumption
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
   - id: discounted_health_costs
     from_dimensions:
     - id: cost_type
@@ -2015,12 +2027,12 @@ actions:
   params:
     sector: Electrification of transport fleet
   input_nodes:
-  - id: fully_electric_vehicle_share
+  - id: fully_electric_vehicle_share_historical
     from_dimensions:
     - id: transport_mode
       categories: [cars]
   output_nodes:
-  - id: fully_electric_car_share
+  - id: fully_electric_vehicle_share
 
 - id: a142_electrification_of_buses
   name_en: Electrification of buses
@@ -2067,12 +2079,12 @@ actions:
   params:
     sector: Electrification of transport fleet
   input_nodes:
-  - id: fully_electric_vehicle_share
+  - id: fully_electric_vehicle_share_historical
     from_dimensions:
     - id: transport_mode
       categories: [light_trucks, heavy_trucks]
   output_nodes:
-  - id: fully_electric_truck_share
+  - id: fully_electric_vehicle_share
 
 # -------------- ELECTRICITY ----------------
 
@@ -2107,24 +2119,27 @@ pages:
   path: /
   type: emission
   outcome_node: net_emissions
-  lead_title: DUT-liikenne- ja terveysskenaario (TESTIVERSIO)
+  lead_title: DUT-liikenne- ja terveysskenaario (KOKEILUVERSIO)
   lead_title_en: DUT transport and health scenario (TEST VERSION)
   lead_paragraph_fi: DUT-hankkeessa kartoitetaan liikennetoimenpiteitä, joilla olisi
-    myös terveydellisiä hyötyjä. Hanke on osa EU:n Driving Urban Transitions (DUT)
+    myös terveydellisiä hyötyjä. Mallissa tarkastellaan keskimääräisten tietojen avulla
+    suomalaiskaupunkia, jonka koko on oletuksena 250000 asukasta. Voit muuttaa
+    kaupungin kokoa kohdasta Kaikki asetukset.
+    <br/>Mallin tiedot on koottu asiantuntevista lähteistä, mutta niiden soveltuvuutta
+    juuri sinua kiinnostavaan kaupunkiin ei voida varmistaa. Niinpä mallin antamiin
+    tuloksiin tulee suhtautua suuntaa antavina. Toivottavasti ne kuitenkin auttavat
+    pohtimaan terveyden merkitystä paikallistason liikennepolitiikassa.
+    <br/>Tämä mallin on kehitetty hankkeessa, joka on osa EU:n Driving Urban Transitions (DUT)
     -ohjelmaa, ja sitä sponsoroivat Suomessa työ- ja elinkeinoministeriö sekä ympäristöministeriö.
-    Hanketta koordinoi VTT ja mukana ovat Kausal Oy ja UKK-instituutti.<p>
-    Hankkeessa tuotettiin tämä testiversio mallista. Huomaa, että siinä on vielä virheitä ja
+    Hanketta koordinoi VTT ja mukana ovat Kausal Oy ja UKK-instituutti.<p> Hankkeessa
+    tuotettiin tämä testiversio mallista. Huomaa, että siinä on vielä virheitä ja
     puutteita, ja tuloksiin tulee suhtautua varauksella. Mallia kuitenkin kehitetään
-    eteenpäin uusien hankkeiden voimin. Siksi olemme kiinnostuneet kaikista korjaus- ja
-    parannusehdotuksista. Voit lähettää palautetta osoitteeseen support[at]kausal.tech.
-  lead_paragraph_en: The DUT project maps traffic measures that would also have health benefits.
-    The project is part of the EU's Driving Urban Transitions (DUT) program, and it is sponsored
-    in Finland by the Ministry of Economic Affairs and Employment and the Ministry of the Environment.
-    The project is coordinated by VTT, with Kausal Oy and UKK Institute as partners.<p>This test
-    version of the model was produced in the project. Note that it still contains errors and
-    deficiencies, and the results should be treated with caution. However, the model is being
-    developed further through new projects. Therefore, we are interested in all correction and
-    improvement suggestions. You can send feedback to support[at]kausal.tech.
+    eteenpäin uusien hankkeiden voimin. Siksi olemme kiinnostuneet kaikista korjaus-
+    ja parannusehdotuksista. Voit lähettää palautetta osoitteeseen support[at]kausal.tech.
+  lead_paragraph_en: The DUT project maps transport measures that would also have health benefits. The model examines an average Finnish city with an assumed population of 250,000 using average data. You can change the city size in All settings.
+    <br/>The model's data has been compiled from expert sources, but its applicability to the specific city you're interested in cannot be guaranteed. Therefore, the results provided by the model should be considered indicative. However, we hope they help in considering the importance of health in local transport policy.
+    <br/>This model has been developed as part of the EU's Driving Urban Transitions (DUT) program in 2024, sponsored in Finland by the Ministry of Economic Affairs and Employment and the Ministry of the Environment. The project was coordinated by VTT with Kausal Oy and UKK Institute as partners.
+    The project produced this test version of the model. Please note that it still contains errors and deficiencies, and results should be treated with caution. However, the model is being further developed through new projects. Therefore, we are interested in all suggestions for corrections and improvements. You can send feedback to support[at]kausal.tech.
 
 scenarios:
 - id: baseline

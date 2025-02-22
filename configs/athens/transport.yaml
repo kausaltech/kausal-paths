@@ -301,8 +301,8 @@ nodes:
     tags: [geometric_inverse]
   - id: transport_energy_carrier_shares
 
-- id: fully_electric_vehicle_share
-  name_en: Fully electric vehicle share historic
+- id: fully_electric_vehicle_share_historical
+  name_en: Fully electric vehicle share historical
   name_fi: Täyssähköajoneuvojen osuus historiallisesti
   type: gpc.DatasetNode
   quantity: fraction
@@ -314,7 +314,7 @@ nodes:
   params:
     sector: Share of fleet fully electric (not including hybrids)
 
-- id: fully_electric_car_share
+- id: fully_electric_vehicle_share
   name_en: Fully electric car share
   name_fi: Täyssähköautojen osuus
   description_en: Share of car fleet fully electric (not including hybrids)
@@ -415,7 +415,7 @@ nodes:
   input_dimensions: [transport_mode, energy_carrier]
   output_dimensions: [transport_mode, energy_carrier]
   input_nodes:
-  - id: fully_electric_car_share
+  - id: fully_electric_vehicle_share
     to_dimensions:
     - id: energy_carrier
     - id: transport_mode

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import re
 import uuid
+from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Self, cast
 
@@ -16,6 +19,7 @@ from django.utils.translation import gettext_lazy as _
 from django_stubs_ext.db.models import TypedModelMeta
 from pydantic import BaseModel
 
+import sentry_sdk
 from django_pydantic_field import SchemaField
 from loguru import logger
 from treebeard.mp_tree import MP_Node, MP_NodeManager, MP_NodeQuerySet
@@ -30,13 +34,18 @@ from kausal_common.users import UserOrAnon, user_or_none
 from paths.types import CacheablePathsModel, PathsModel, PathsQuerySet
 from paths.utils import IdentifierField, UnitField
 
+from nodes.gpc import DatasetNode
+
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from rich.repr import RichReprResult
 
     from kausal_common.models.types import RevMany
 
     from nodes.instance import Instance
     from nodes.models import InstanceConfig
+    from nodes.node import Node
     from users.models import User
 
     from .object_cache import (
@@ -48,6 +57,12 @@ if TYPE_CHECKING:
         SectionCacheData,  # noqa: F401
     )
     from .permissions import FrameworkConfigPermissionPolicy, FrameworkPermissionPolicy, SectionPermissionPolicy
+
+
+@dataclass
+class NodeDimensionSelection:
+    node_id: str
+    dimensions: dict[str, str] | None
 
 
 class FrameworkQuerySet(PathsQuerySet['Framework']):
@@ -696,6 +711,73 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             self.save(update_fields=['last_modified_by', 'last_modified_at'])
         self.instance_config.invalidate_cache()
 
+    def _dimension_name_to_dataset_column_label(self, name: str) -> str:
+        return name.replace('_', ' ').capitalize()
+
+    def _get_measure_template_uuids(self, node: DatasetNode) -> list[tuple[str, dict[str, str] | None]]:
+        df = node.get_filtered_dataset_df(tag=None)
+        if df is None:
+            return []
+        uuids = {x for x in df.get_column('UUID').to_list() if x is not None}
+        dimensions = node.output_dimensions.values()
+        column_names = ['UUID'] + [
+            self._dimension_name_to_dataset_column_label(dim.id) for dim in dimensions
+        ]
+        if len(uuids) < 2 or len(node.output_dimensions) == 0:
+            return [(u, None) for u in uuids]
+
+        combinations = set()
+
+        df = df.select(column_names)
+        df = node.convert_names_to_ids(df)
+        for row in df.iter_rows():
+            if row[0] is None:
+                continue
+            combinations.add(row)
+        dim_combinations = [c[1:] for c in combinations]
+        if len(dim_combinations) != len(set(dim_combinations)):
+            logger.error(f'For node {node.id} unique MeasureTemplate uuids could not be found.')
+            return []
+        result: list[tuple[str, dict[str, str] | None]] = []
+        for _uuid, *categories in combinations:
+            dims = {}
+            for i, dimension in enumerate(dimensions):
+                dims[dimension.id] = categories[i]
+            result.append((_uuid, dims))
+        return result
+
+    @cached_property
+    def measure_template_uuid_to_node_dimension_selection(self) -> Mapping[str, NodeDimensionSelection]:
+        measure_template_uuid_to_multiple_node_dimensions_selections: dict[str, list[NodeDimensionSelection]] = dict()
+        instance = self.instance_config.get_instance()
+        for node_id, node in instance.context.nodes.items():
+            # Intentionally test for concrete type, filter out subclasses
+            if type(node) is not DatasetNode:
+                continue
+            measure_template_uuids = self._get_measure_template_uuids(node)
+            for _uuid, dimensions in measure_template_uuids:
+                measure_template_uuid_to_multiple_node_dimensions_selections.setdefault(_uuid, []).append(
+                    NodeDimensionSelection(node_id=node_id, dimensions=dimensions)
+                )
+
+        re_historical = re.compile(r'.*_historical$')
+        re_observed = re.compile(r'.*_observed$')
+
+        measure_template_uuid_to_single_node_dimension_selection: dict[str, NodeDimensionSelection] = dict()
+        for _uuid, values in measure_template_uuid_to_multiple_node_dimensions_selections.items():
+            if len(values) == 1:
+                measure_template_uuid_to_single_node_dimension_selection[_uuid] = values[0]
+                continue
+            accepted_values = [v for v in values if re_observed.match(v.node_id)]
+            if len(accepted_values) != 1:
+                accepted_values = [v for v in values if not re_historical.match(v.node_id)]
+            if len(accepted_values) == 1:
+                measure_template_uuid_to_single_node_dimension_selection[_uuid] = accepted_values[0]
+                continue
+            msg = f'Cannot find single Node to match MeasureTemplate {_uuid}: {", ".join([n.node_id for n in values])}'
+            logger.error(msg)
+            sentry_sdk.capture_message(msg)
+        return measure_template_uuid_to_single_node_dimension_selection
 
 class MeasureQuerySet(PathsQuerySet['Measure']):
     pass
@@ -730,6 +812,8 @@ class Measure(CacheablePathsModel['FrameworkConfigCacheData'], models.Model):
     objects: ClassVar[MeasureManager] = MeasureManager()  # pyright: ignore
 
     framework_config_id: int
+
+    _node: tuple[Node | None, NodeDimensionSelection | None]
 
     class Meta:
         constraints = [

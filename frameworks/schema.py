@@ -9,8 +9,12 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import CharField, Q
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from graphql import GraphQLError
+
+import polars as pl
+import sentry_sdk
 
 from kausal_common.graphene import DjangoNode, DjangoNodeMeta
 from kausal_common.models.general import public_fields
@@ -19,7 +23,10 @@ from kausal_common.strawberry.registry import register_strawberry_type
 
 from paths.graphql_types import resolve_unit
 
+from nodes.constants import YEAR_COLUMN
+from nodes.exceptions import NodeComputationError
 from nodes.models import InstanceConfig
+from nodes.schema import NodeInterface
 
 from .models import (
     Framework,
@@ -38,7 +45,9 @@ if TYPE_CHECKING:
 
     from paths.types import PathsGQLInfo as GQLInfo
 
-    from nodes.instance import Instance
+    from frameworks.models import NodeDimensionSelection
+    from nodes.instance import Context, Instance
+    from nodes.node import Node
     from nodes.units import Unit
 
 
@@ -175,8 +184,15 @@ class FrameworkType(DjangoNode):
         return fwc
 
 
+class PlaceHolderDataPoint(graphene.ObjectType):
+    value = graphene.Float()
+    year = graphene.Int()
+
+
 class MeasureType(DjangoNode):
     measure_template = graphene.Field(MeasureTemplateType, required=True)
+    placeholder_data_points = graphene.List(PlaceHolderDataPoint)
+    corresponding_node = graphene.Field(NodeInterface, required=False)
 
     class Meta:
         model = Measure
@@ -192,6 +208,59 @@ class MeasureType(DjangoNode):
     def resolve_data_points(root: Measure, info: GQLInfo) -> list[MeasureDataPoint]:
         return root.cache.measure_datapoints.by_measure(root.pk)
 
+    @staticmethod
+    def _get_fwc_and_context(measure: Measure) -> tuple[FrameworkConfig, Context]:
+        fwc = measure.cache.framework_config
+        if hasattr(measure.cache, 'instance'):
+            instance = measure.cache.instance
+        else:
+            instance = fwc.instance_config.get_instance()
+            measure.cache.instance = instance
+        context = instance.context
+        return fwc, context
+
+    @staticmethod
+    def _find_corresponding_node(measure: Measure) -> tuple[Node | None, NodeDimensionSelection | None]:
+        cached = getattr(measure, '_node', None)
+        if cached is not None:
+            return cached
+        measure_template_uuid = str(measure.measure_template.uuid)
+        fwc, context = MeasureType._get_fwc_and_context(measure)
+        node_dimension_selection = fwc.measure_template_uuid_to_node_dimension_selection.get(measure_template_uuid)
+        if node_dimension_selection is None:
+            return None, None
+        node_id = node_dimension_selection.node_id
+        node = context.get_node(node_id)
+        measure._node = node, node_dimension_selection
+        return node, node_dimension_selection
+
+    @staticmethod
+    def resolve_corresponding_node(root: Measure, info: GQLInfo) -> Node | None:
+        node = MeasureType._find_corresponding_node(root)
+        return node[0]
+
+    @staticmethod
+    def resolve_placeholder_data_points(root: Measure, info: GQLInfo) -> list[PlaceHolderDataPoint]:
+        node, node_dimension_selection = MeasureType._find_corresponding_node(root)
+        if node is None or node_dimension_selection is None:
+            return []
+        fwc, context = MeasureType._get_fwc_and_context(root)
+        with context.get_default_scenario().override():
+            try:
+                df = node.get_output_pl()
+            except NodeComputationError as e:
+                sentry_sdk.capture_exception(e)
+                return []
+        df = df.filter((pl.col(YEAR_COLUMN) > fwc.baseline_year) & (pl.col(YEAR_COLUMN) <= timezone.now().year))
+        dimensions = node_dimension_selection.dimensions
+        if dimensions:
+            df = df.filter(**dimensions)
+        result = []
+        for d in df.select(pl.col('Year'), pl.col('Value')).to_dicts():
+            year = d['Year']
+            value = d['Value']
+            result.append(PlaceHolderDataPoint(year=year, value=value))
+        return result
 
 class FrameworkConfigType(DjangoNode):
     measures = graphene.List(graphene.NonNull(MeasureType), required=True)

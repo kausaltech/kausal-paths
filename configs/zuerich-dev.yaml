@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich-dev.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: f1ba1c1c9ddb617b8ecda156c57caf00bc2eec7b
+  commit: 68f4c88fc34e7d0ee50ebe1d12be37c3b7c01f26
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero Cockpit
@@ -213,6 +213,13 @@ dimensions:
   - id: plant_based_foods
     label_de: Gemüse und weitere pflanzenbasierte Nahrungsmittel
     label_en: Vegetables and other plant-based foods
+
+  - id: equipment
+    label_de: Betriebsmittel
+    label_en: Equipment
+  - id: landfill_waste
+    label_de: Deponiegut
+    label_en: Landfill
 
 - id: greenhouse_gases
   label: Treibhausgase
@@ -1484,14 +1491,14 @@ actions:
   type: linear.ReduceAction
   quantity: ratio
   unit: '%'
-  output_nodes: [waste_incineration_ccs_share]
+  output_nodes: [solid_waste_incineration_ccs_share]
   params:
   - id: reduce
     unit: '%'
     is_customizable: false
     value:
     - target:
-        node: waste_incineration_ccs_share
+        node: solid_waste_incineration_ccs_share
       amounts:
       - year: 2024
         amount: 0
@@ -1524,7 +1531,7 @@ actions:
       - year: 2028
         amount: 0
       - year: 2029
-        amount: 85.5
+        amount: 100
       - year: 2030
         amount: 0
 

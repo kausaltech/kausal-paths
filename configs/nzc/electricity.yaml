@@ -111,37 +111,13 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: nzc/defaults
-  input_nodes:
-  - id: population
-    tags: [ratio_to_last_historical_value, non_additive]
-    to_dimensions: []
   params:
     sector: Total electricity demand within city boundaries
-
-- id: statistical_electricity_consumption
-  name_en: Statistical electricity consumption
-  name_fi: Tilastollinen sähkönkulutus
-  type: simple.ChooseInputNode
-  quantity: energy
-  unit: GWh/a
-  is_visible: false
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  input_nodes:
-  - id: historical_electricity_consumption
-    tags: [progress_tracking]
-  - id: total_electricity_consumption
-    tags: [decarbonisation_scenario] 
-    from_dimensions:
-    - id: sector
-      flatten: true
-  params:
-    node_tag: decarbonisation_scenario
 
 - id: electricity_consumption_ratio
   name_en: Electricity consumption ratio between statistics and modelled
   name_fi: Sähkönkulutuksen suhde tilastojen ja mallinnetun välillä
-  type: simple.MultiplicativeNode
+  type: simple.FixedScenarioNode
   quantity: ratio
   unit: dimensionless
   input_dimensions: [energy_carrier]
@@ -157,8 +133,12 @@ nodes:
       flatten: true
     to_dimensions:
     - id: energy_carrier
+  output_nodes:
+  - id: total_electricity_consumption
+    to_dimensions:
+    - id: energy_carrier
 
-- id: electricity_correction
+- id: electricity_correction # Inactivated for now; you cannot turn correction off.
   name_en: Electricity statistics correction
   name_fi: Sähkötilastojen korjaus
   type: gpc.CorrectionNode2 # TODO Use the total historical average rather than the last historical point
@@ -172,10 +152,6 @@ nodes:
   params:
   - id: do_correction
     ref: statistical_correction
-  output_nodes:
-  - id: total_electricity_consumption
-    to_dimensions:
-    - id: energy_carrier
 
 - id: electricity_production_emission_factor
   name_en: Electricity production emission factor
@@ -240,6 +216,22 @@ nodes:
 
 # ----------- Electricity production ----------------
 
+- id: fossil_electricity_share
+  name: Fossil electricity share
+  type: simple.RelativeYearScaledNode
+  quantity: ratio
+  unit: dimensionless
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: electricity_shares
+    from_dimensions:
+    - id: fuel_type
+      categories: [fossil]
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+
 - id: effective_electricity_emission_factor
   name_en: Effective electricity emission factor
   name_fi: Sähköntuotannon efektiivinen päästökerroin
@@ -256,12 +248,7 @@ nodes:
     to_dimensions:
     - id: energy_carrier
     - id: pollutant
-  - id: electricity_shares
-    tags: [ratio_to_last_historical_value]
-    from_dimensions:
-    - id: fuel_type
-      categories: [fossil]
-      flatten: true
+  - id: fossil_electricity_share
     to_dimensions:
     - id: energy_carrier
   params:

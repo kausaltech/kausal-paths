@@ -215,3 +215,8 @@ class MeasureDataBaselineYearOnly(BoolParameter):
 class ElectrificationScenario(NumberParameter):
     name = _('Transportation electrification scenario')
     id = 'electrification_scenario'
+
+
+class PopulationSize(NumberParameter):
+    name = _('Population size')
+    id = 'population_size'

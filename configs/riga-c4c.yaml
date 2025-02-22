@@ -19,6 +19,14 @@ emission_dimensions: ['ghg']
 features:
   baseline_visible_in_graphs: false
 
+action_groups:
+- id: stationary
+  name: Stationary
+  color: '#4E79A7'
+- id: transportation
+  name: Transportation
+  color: '#E15759'
+
 dimensions:
 - id: scope
   label: Scope
@@ -107,11 +115,186 @@ dimensions:
   - id: private
     label: 'Private'
 
+- id: sector
+  label: GPC Sector
+  categories:
+  - id: i
+    label: 'I Stationary'
+  - id: i1
+    label: 'I.1 Residential'
+  - id: i11
+    label: 'I.1.1 Residential Fuel'
+  - id: i12
+    label: 'I.1.2 Residential Grid Energy'
+  - id: i13
+    label: 'I.1.3 Residential T & D Loss'
+  - id: i2
+    label: 'I.2 Commercial & Institutional'
+  - id: i21
+    label: 'I.2.1 Commercial & Institutional Fuel'
+  - id: i22
+    label: 'I.2.2 Commercial & Institutional Grid Energy'
+  - id: i23
+    label: 'I.2.3 Commercial & Institutional T & D Loss'
+  - id: i3
+    label: 'I.3 Manufacturing'
+  - id: i31
+    label: 'I.3.1 Manufacturing Fuel'
+  - id: i32
+    label: 'I.3.2 Manufacturing Grid Energy'
+  - id: i33
+    label: 'I.3.3 Manufacturing T & D Loss'
+  - id: i4
+    label: 'I.4 Energy'
+  - id: i41
+    label: 'I.4.1 Energy Fuel'
+  - id: i42
+    label: 'I.4.2 Energy Grid Energy'
+  - id: i43
+    label: 'I.4.3 Energy T & D Loss'
+  - id: i5
+    label: 'I.5 Ag, Forestry, & Fishing'
+  - id: i51
+    label: 'I.5.1 Ag, Forestry, & Fishing Fuel'
+  - id: i52
+    label: 'I.5.2 Ag, Forestry, & Fishing Grid Energy'
+  - id: i53
+    label: 'I.5.3 Ag, Forestry, & Fishing T & D Loss'
+  - id: i6
+    label: 'I.6 Non-Specified'
+  - id: i61
+    label: 'I.6.1 Non-Specified Fuel'
+  - id: i62
+    label: 'I.6.2 Non-Specified Grid Energy'
+  - id: i63
+    label: 'I.6.3 Non-Specified T & D Loss'
+  - id: i7
+    label: 'I.7 Fugitive Coal'
+  - id: i71
+    label: 'I.7.1 Fugitive Coal'
+  - id: i8
+    label: 'I.8 Fugitive Oil & Natural Gas'
+  - id: i81
+    label: 'I.8.1 Fugitive Oil & Natural Gas'
+  - id: ii
+    label: 'II Transportation'
+  - id: ii1
+    label: 'II.1 On-Road Transport'
+  - id: ii11
+    label: 'II.1.1 On-Road Transport Fuel'
+  - id: ii12
+    label: 'II.1.2 On-Road Transport Grid Energy'
+  - id: ii13
+    label: 'II.1.3 On-Road Transport Outside City, T & D Loss'
+  - id: ii2
+    label: 'II.2 Railway'
+  - id: ii21
+    label: 'II.2.1 Railway Fuel'
+  - id: ii22
+    label: 'II.2.2 Railway Grid Energy'
+  - id: ii23
+    label: 'II.2.3 Railway Outside City, T & D Loss'
+  - id: ii3
+    label: 'II.3 Waterborne'
+  - id: ii31
+    label: 'II.3.1 Waterborne Fuel'
+  - id: ii32
+    label: 'II.3.2 Waterborne Grid Energy'
+  - id: ii33
+    label: 'II.3.3 Waterborne Outside City, T & D Loss'
+  - id: ii4
+    label: 'II.4 Aviation'
+  - id: ii41
+    label: 'II.4.1 Aviation Fuel'
+  - id: ii42
+    label: 'II.4.2 Aviation Grid Energy'
+  - id: ii43
+    label: 'II.4.3 Aviation Outside City, T & D Loss'
+  - id: ii5
+    label: 'II.5 Off-Road Transport'
+  - id: ii51
+    label: 'II.5.1 Off-Road Transport Fuel'
+  - id: ii52
+    label: 'II.5.2 Off-Road Transport Grid Energy'
+  - id: ii53
+    label: 'II.5.3 Off-Road Transport Outside City, T & D Loss'
+  - id: iii
+    label: 'III Waste'
+  - id: iii1
+    label: 'III.1 Solid Waste'
+  - id: iii11
+    label: 'III.1.1 Solid Waste Disposed in City'
+  - id: iii12
+    label: 'III.1.2 Solid Waste Disposed Outside City'
+  - id: iii2
+    label: 'III.2 Biological Waste'
+  - id: iii21
+    label: 'III.2.1 Biological Waste Treated in City'
+  - id: iii22
+    label: 'III.2.2 Biological Waste Treated Outside City'
+  - id: iii3
+    label: 'III.3 Incineration'
+  - id: iii31
+    label: 'III.3.1 Incineration in City'
+  - id: iii32
+    label: 'III.3.2 Incineration Outside City'
+  - id: iii4
+    label: 'III.4 Wastewater'
+  - id: iii41
+    label: 'III.4.1 Wastewater Treated in City'
+  - id: iii42
+    label: 'III.4.2 Wastewater Treated Outside City'
+  - id: iv
+    label: 'IV IPPU'
+  - id: iv1
+    label: 'IV.1 Industrial Processes'
+  - id: iv2
+    label: 'IV.2 Product Use'
+  - id: v
+    label: 'V AFOLU'
+  - id: v1
+    label: 'V.1 Livestock'
+  - id: v2
+    label: 'V.2 Land'
+  - id: v3
+    label: 'V.3 Aggregate Sources'
+
+- id: action
+  label: Action
+  categories:
+  - id: energy_management_system
+    label: 'Energy Management System'
+  - id: 100_renewable_heating_in_municipal_buildings
+    label: '100% Renewable Heating in Municipal Buildings'
+  - id: 100_renewable_electricity_in_municipal_buildings
+    label: '100% Renewable Electricity in Municipal Buildings'
+  - id: plan_for_renovation_of_municipal_buildings_to_2030
+    label: 'Plan for Renovation of Municipal Buildings to 2030'
+  - id: upgrading_of_street_lighting
+    label: 'Upgrading of Street Lighting'
+  - id: 100_renewable_electricity_for_streetlights
+    label: '100% Renewable Electricity for Streetlights'
+  - id: data_records_system_for_municipal_vehicle_fleet
+    label: 'Data Records System for Municipal Vehicle Fleet'
+  - id: public_transport_for_work_for_municipal_employees
+    label: 'Public Transport for Work for Municipal Employees'
+  - id: zeroemission_vehicles_in_municipal_institutions
+    label: 'Zero-Emission Vehicles in Municipal Institutions'
+  - id: energy_efficiency_and_res_in_wastewater_treatment
+    label: 'Energy Efficiency and RES in Wastewater Treatment'
+  - id: urban_planning_for_less_dependence_on_private_cars
+    label: 'Urban Planning for Less Dependence on Private Cars'
+  - id: active_lifestyle_and_cycling
+    label: 'Active Lifestyle and Cycling'
+  - id: increase_public_transport_in_everyday_trips
+    label: 'Increase Public Transport in Everyday Trips'
+  - id: zeroemission_tech_and_res_in_district_heating
+    label: 'Zero-Emission Tech and RES in District Heating'
+
 emission_sectors:
 - id: net_emissions
   name: Net Emissions
   is_outcome: true
-
 
 nodes:
 - id: net_price
@@ -1098,6 +1281,248 @@ actions:
       flatten: true
     to_dimensions:
     - id: owner
+
+# - id: continuous_improvements_in_the_energy_management_system
+#   name: Continuous Improvements in the Energy Management System
+#   group: stationary
+#   description: The establishment of an energy management system in RSCM is not only a requirement
+#     of laws and regulations but also an essential need for optimising the work of the municipal
+#     government in order to systematically monitor and ensure the reduction of energy consumption in
+#     municipal buildings. As part of this measure, the municipality is required to continuously
+#     improve the created EMS and expand its scope every year, in order to include all (more than
+#     4000) municipal buildings by 2030.
+#   type: simple.AdditiveAction
+#   quantity: emissions
+#   unit: kt/a
+#   forecast_values: [[2025, 1.0], [2030, 1.0]]
+#   input_dataset_processors: [LinearInterpolation]
+
+# - id: 100_renewable_heating_energy_share_in_municipal_buildings
+#   name: 100% Renewable Heating Energy Share in Municipal Buildings
+#   group: stationary
+#   description: In order to achieve the goal of climate neutrality, the municipality must ensure the
+#     use of heat energy produced from renewable energy sources. At the moment, most of the municipal
+#     buildings and sites are connected to the district heating system, and the municipal government
+#     has to work with the main heat energy supplier - AS 'Rīgas Siltums' - to agree on a gradual
+#     transition to heat energy from renewable energy sources with proof of supply. This way, a 100%
+#     RES share can be achieved in 2030 for all municipal buildings connected to DHS. The
+#     municipality must also assess and implement other solutions in buildings with local fossil-fuel
+#     heating systems (reducing the energy consumption of the building first).
+#   type: simple.AdditiveAction
+#   quantity: emissions
+#   unit: kt/a
+#   forecast_values: [[2025, 1.0], [2030, 1.0]]
+#   input_dataset_processors: [LinearInterpolation]
+
+# - id: 100_renewable_electricity_share_in_municipal_buildings
+#   name: 100% Renewable Electricity Share in Municipal Buildings
+#   group: stationary
+#   description: The use of electricity in municipal buildings is the second largest source of CO2
+#     emissions that the municipal government can reduce by having its own electricity production,
+#     for example by installing solar panels on municipal buildings or in municipal territories,
+#     and/or by implementing CO2 compensation mechanisms, such as purchasing renewable electricity
+#     whose CO2 emissions are 0. Given the fact that the price of renewable electricity could be
+#     higher than electricity from the grid, the municipal government can also introduce this measure
+#     gradually, reaching 100% in 2030 when all the electric power consumed in municipal buildings
+#     will come from RES.
+#   type: simple.AdditiveAction
+#   quantity: emissions
+#   unit: kt/a
+#   forecast_values: [[2025, 1.0], [2030, 1.0]]
+#   input_dataset_processors: [LinearInterpolation]
+
+# - id: development_of_a_plan_for_the_renovation_of_municipal_buildings_until_2030
+#   name: Development of a Plan for the Renovation of Municipal Buildings Until 2030 and Consistent Renovation of the Buildings
+#   group: stationary
+#   description: The municipality manages more than 4000 buildings and sites that are not undergoing
+#     renovation due to ownership and management problems. The energy monitoring system developed as
+#     part of EMS will enable the collection of data on municipal buildings and their energy
+#     consumption, which will further make it possible for the municipal government to develop a
+#     building renovation plan for 2030. Action priorities must be clearly defined during the
+#     development of the plan, i.e., the buildings of what type, technical condition, and occupancy
+#     must be renovated first in order to achieve the greatest energy savings while improving the
+#     working conditions in them. The implementation of the measure will not result in direct
+#     savings, but will enable the basic conditions to be met for achieving a systemic reduction in
+#     heat energy consumption through the planned measures, and improving indoor air quality in
+#     municipal buildings, especially in educational institutions.
+#   type: simple.AdditiveAction
+#   quantity: emissions
+#   unit: kt/a
+#   forecast_values: [[2025, 1.0], [2030, 1.0]]
+#   input_dataset_processors: [LinearInterpolation]
+
+# - id: upgrading_of_street_lighting
+#   name: Upgrading of Street Lighting
+#   group: stationary
+#   description: "<p>89% of all street lighting uses sodium lights, the replacement of which with LED
+#     lights will result in significant energy savings. Although the municipality is gradually
+#     implementing various projects for replacing the lights, their replacement will take several
+#     years at the current pace. In a few European capitals, street lighting is being modernised by
+#     signing an energy efficiency service contract, which provides both financing and energy
+#     savings.</p><p>Although the installation of street lighting in the city's streets that are
+#     still unlit will increase the total electricity consumption, the municipal government must set
+#     a goal to install energy-efficient lights on these streets. The implementation of the measure
+#     will ensure that the specific electricity consumption per light will not increase, and the
+#     municipal government will continue to meet the conditions of the EMS. This measure can also be
+#     implemented as part of the street lighting modernisation project.</p><p>The installation of
+#     streetlights in the unlit areas will lead to an increase in electricity consumption, but the
+#     main goal of this measure is to make sure that the increase is minimal by installing efficient
+#     lights and an efficient lighting system.</p><p>The installation of new street lighting and the
+#     upgrading of existing lights also requires the procurement of electricity with a certificate of
+#     origin, in order to ensure that renewable electricity is used in street lighting.</p>"
+#   type: simple.AdditiveAction
+#   quantity: emissions
+#   unit: kt/a
+#   forecast_values: [[2025, 1.0], [2030, 1.0]]
+#   input_dataset_processors: [LinearInterpolation]
+
+# - id: achieve_a_100_renewable_electricity_share_for_streetlights_traffic_lights_and_clocks_in_2030
+#   name: Achieve a 100% Renewable Electricity Share for Streetlights, Traffic Lights, and Clocks in 2030
+#   group: stationary
+#   type: simple.AdditiveAction
+#   description: The installation of new street lighting and the upgrading of existing lights also
+#     requires the procurement of electricity with a certificate of origin, in order to ensure that
+#     renewable electricity is used in street lighting. However, energy efficiency measures must be
+#     implemented as a first priority to reduce electricity consumption as much as possible.
+#   quantity: emissions
+#   unit: kt/a
+#   forecast_values: [[2025, 1.0], [2030, 1.0]]
+#   input_dataset_processors: [LinearInterpolation]
+
+# - id: creation_of_a_data_records_system_for_the_municipal_vehicle_fleet
+#   name: Creation of a Data Records System for the Municipal Vehicle Fleet and Improvements in the Efficiency of Vehicle Use
+#   group: transportation
+#   type: simple.AdditiveAction
+#   description: 'The creation of a fleet monitoring system is an important first step in making it
+#     possible for the municipal government to identify the current situation and follow its
+#     progress. Currently, there are significant deficiencies in data recording: no centralised
+#     records are kept for all vehicles; the analysis of existing information is complicated by
+#     different data storage solutions; gathering the information is manual work; no information on
+#     vehicle mileage is collected, which makes it impossible to compare transport energy consumption
+#     between institutions/vehicles using specific energy consumption indicators. Data on vehicle
+#     fleet and vehicle mileage collected during the preparation of Riga SECAP 2030 show that the
+#     utilisation of vehicles in municipal institutions and companies is often relatively low. In
+#     order to increase the efficiency of vehicle use, the tasks include not only a study of their
+#     existing utilisation but also a study of the corresponding needs, while deciding on the
+#     optimisation of the number of vehicles and other measures.'
+#   quantity: emissions
+#   unit: kt/a
+#   forecast_values: [[2025, 1.0], [2030, 1.0]]
+#   input_dataset_processors: [LinearInterpolation]
+
+# - id: promotion_of_the_use_of_public_transport_for_work_among_employees_of_the_municipal_government
+#   name: Promotion of the Use of Public Transport for Work Among Employees of the Municipal Government
+#   group: transportation
+#   description: In order to increase the use of public transport among municipal employees, one must
+#     create a binding requirement to use public transport for work trips within the city.
+#     Alternatively, a time limit (for example, 40-60 min.) can be set at which journeys can be made
+#     by public transport as a priority. The employees must be provided with monthly public transport
+#     tickets. The implementation of this measure would not only have a positive effect on the
+#     reduction of transport CO2 emissions but would also serve as an example of reducing car
+#     dependency for the rest of the public.
+#   type: simple.AdditiveAction
+#   quantity: emissions
+#   unit: kt/a
+#   forecast_values: [[2025, 1.0], [2030, 1.0]]
+#   input_dataset_processors: [LinearInterpolation]
+
+# - id: transition_to_zeroemission_vehicles_in_companies_and_municipal_institutions
+#   name: Transition to Zero-Emission Vehicles in Companies and Municipal Institutions
+#   group: transportation
+#   description: "<p>The city's goal is a 100% transition to RES zero-emission vehicles in the
+#     municipal fleet by 2030. The measures to be implemented include the development of criteria for
+#     the purchase of vehicles and services, procurements and assessment of the purchase of bicycles
+#     and other micro-mobility vehicles for the work needs of municipal institutions.</p><p>In
+#     addition, activities that would promote the use of low-emission transport solutions (public
+#     transport, bicycles, car sharing) among municipal employees are supported not only for work
+#     trips but also for commuting to and from work.</p><p>The increase in emission-free vehicles
+#     must go hand in hand with the development of the charging infrastructure. The municipal
+#     government will install electric vehicle charging infrastructure at municipal institutions in
+#     proportion to the increase in the number of electric vehicles, encouraging the use of RES
+#     fuels.</p>"
+#   type: simple.AdditiveAction
+#   quantity: emissions
+#   unit: kt/a
+#   forecast_values: [[2025, 1.0], [2030, 1.0]]
+#   input_dataset_processors: [LinearInterpolation]
+
+# - id: energy_efficiency_and_res_use_in_wastewater_treatment_plants
+#   name: Energy Efficiency and RES Use in Wastewater Treatment Plants
+#   group: stationary
+#   description: With the expected amendments to the Council Directive concerning urban wastewater
+#     treatment, the EU aims to achieve climate neutrality in the municipal wastewater treatment
+#     sector. These amendments will require energy audits of wastewater treatment plants and sewer
+#     systems to be carried out by 2028, with the intention to use RES to cover the internal gross
+#     energy consumption for large wastewater treatment plants that treat 10,000 p.e. or more of
+#     wastewater with 20% by 2030, 40% by 2035, 70% by 2040, and 100% by 2045. Currently, 26% of the
+#     Daugavgrīva wastewater treatment plant heat energy consumption is covered by RES, namely the
+#     combustion of biogas produced at the site.
+#   type: simple.AdditiveAction
+#   quantity: emissions
+#   unit: kt/a
+#   forecast_values: [[2025, 1.0], [2030, 1.0]]
+#   input_dataset_processors: [LinearInterpolation]
+
+# - id: urban_planning_aimed_at_creating_a_city_where_local_residents_and_guests_are_less_dependent_on_private_cars
+#   name: Urban Planning Aimed at Creating a City Where Local Residents and Guests Are Less Dependent on Private Cars
+#   group: transportation
+#   description: This measure involves the prioritisation of sustainable ways to travel, the
+#     development and use of sustainable mobility assurance criteria, the practical implementation of
+#     the concept of mobility points, the introduction of smart traffic management technologies, and
+#     other measures. Synergies between different types of mobility must be created. The priority
+#     measures are aimed at the revitalisation of the existing built-up areas of the city and the
+#     construction of detached houses on the periphery, followed by the planning and development of
+#     new built-up areas.
+#   type: simple.AdditiveAction
+#   quantity: emissions
+#   unit: kt/a
+#   forecast_values: [[2025, 1.0], [2030, 1.0]]
+#   input_dataset_processors: [LinearInterpolation]
+
+# - id: promotion_of_an_active_lifestyle_and_cycling
+#   name: Promotion of an Active Lifestyle and Cycling
+#   group: transportation
+#   description: Surveys show that 58% of the population had a positive view of the possibility of
+#     travelling by bicycle in Riga, and 54% of the population have a positive opinion of the
+#     pedestrian infrastructure for their daily needs. The goal of the city is to improve these
+#     indicators and create an accessible, comfortable, and safe infrastructure for pedestrians and
+#     cyclists, which would be interesting for people of all ages, genders, and social statuses,
+#     including residents and guests of the city.
+#   type: simple.AdditiveAction
+#   quantity: emissions
+#   unit: kt/a
+#   forecast_values: [[2025, 1.0], [2030, 1.0]]
+#   input_dataset_processors: [LinearInterpolation]
+
+# - id: increase_the_share_of_public_transport_in_everyday_passenger_trips
+#   name: Increase the Share of Public Transport in Everyday Passenger Trips
+#   group: transportation
+#   description: "The measure aims to encourage more use of public transport in the city and foster
+#     more active urban mobility. The scope for the development of public transport are: improvement
+#     of accessibility of public transport; improvement of public transport service quality;
+#     modernisation of 'Rīgas satiksme' rolling stock; promotion of railway use."
+#   type: simple.AdditiveAction
+#   quantity: emissions
+#   unit: kt/a
+#   forecast_values: [[2025, 1.0], [2030, 1.0]]
+#   input_dataset_processors: [LinearInterpolation]
+
+# - id: promotion_of_zeroemission_technologies_and_res_in_district_heating
+#   name: Promotion of Zero-Emission Technologies and RES in District Heating
+#   group: stationary
+#   description: The purpose of this field of action is to reduce the GHG emissions of the Riga DHS
+#     and promote electrification. It involves the conversion of existing energy sources of AS 'Rīgas
+#     siltums' to zero-emission and RES solutions, achieving an RES share of at least 90%, and the
+#     procurement of RES heating energy, electricity, and residual heat, which will include incentive
+#     conditions for producers. If possible, the producers will be required to submit heating energy
+#     certificates. At the end of 2023, REA began to work on the Riga State City District Heating
+#     Development Strategy 2024-2030, which will provide more detailed information and an approach
+#     for how to organise the implementation of this field of action.
+#   type: simple.AdditiveAction
+#   quantity: emissions
+#   unit: kt/a
+#   forecast_values: [[2025, 1.0], [2030, 1.0]]
+#   input_dataset_processors: [LinearInterpolation]
 
 pages:
 - id: home

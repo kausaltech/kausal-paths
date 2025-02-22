@@ -126,7 +126,7 @@ class DatasetNode(AdditiveNode):
     )
 
     # -----------------------------------------------------------------------------------
-    def get_gpc_dataset(self, tag: str | None = None) -> ppl.PathsDataFrame:
+    def get_filtered_dataset_df(self, tag: str | None = None) -> ppl.PathsDataFrame:
         sector = self.get_parameter_value('gpc_sector', required=False)
         if not sector:
             sector = self.get_parameter_value('sector', required=False)
@@ -142,12 +142,14 @@ class DatasetNode(AdditiveNode):
 
         df = df.with_columns(df['Quantity'].replace(qlookup).replace(self.quantitylookup))
         df = df.filter(pl.col('Quantity') == self.quantity)
+        return df
 
+    def get_gpc_dataset(self, tag: str | None = None) -> ppl.PathsDataFrame:
+        df = self.get_filtered_dataset_df(tag=tag)
         dropcols = ['Sector', 'Quantity']
         if 'UUID' in df.columns:
             dropcols += ['UUID']
         df = df.drop(dropcols)
-
         return df
 
     # -----------------------------------------------------------------------------------
@@ -170,7 +172,7 @@ class DatasetNode(AdditiveNode):
 
     # -----------------------------------------------------------------------------------
     def convert_names_to_ids(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        exset = {YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN, UNCERTAINTY_COLUMN, 'Unit'}
+        exset = {YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN, UNCERTAINTY_COLUMN, 'Unit', 'UUID'}
 
         # Convert index level names from labels to IDs.
         collookup = {}
@@ -283,7 +285,7 @@ class DatasetNode(AdditiveNode):
             if len(historical_years) > 0:
                 start_from_year = cast(int, historical_years[YEAR_COLUMN].max()) + 1
         df = self.add_nodes_pl(df, input_nodes, start_from_year=start_from_year)
-        if len(na_nodes) > 0 and not measure_data_override:
+        if len(na_nodes) > 0:
             assert len(na_nodes) == 1  # Only one multiplier allowed.
             mult = na_nodes[0].get_output_pl(target_node=self)
             if start_from_year is not None:
@@ -322,8 +324,11 @@ class DatasetNode(AdditiveNode):
         df = self.add_missing_years(df)
         df = self.crop_to_model_range(df)
 
-        if not self.get_parameter_value('inventory_only', required=False):
-            df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
+        df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
+        # First extend, then truncate because there may be measure observations beyond
+        # the last historical year in the dataset.
+        if self.get_parameter_value('inventory_only', required=False):
+            df = df.filter(~pl.col(FORECAST_COLUMN))
 
         df = self.apply_multiplier(df, required=False, units=True)
         df = self.add_and_multiply_input_nodes(df)

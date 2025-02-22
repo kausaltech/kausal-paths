@@ -324,8 +324,8 @@ nodes:
     tags: [geometric_inverse]
   - id: transport_energy_carrier_shares
 
-- id: fully_electric_vehicle_share
-  name_en: Fully electric vehicle share historic
+- id: fully_electric_vehicle_share_historical
+  name_en: Fully electric vehicle share historical
   name_fi: Täyssähköajoneuvojen osuus historiallisesti
   type: gpc.DatasetNode
   quantity: fraction
@@ -337,11 +337,11 @@ nodes:
   params:
     sector: Share of fleet fully electric (not including hybrids)
 
-- id: fully_electric_car_share
-  name_en: Fully electric car share
-  name_fi: Täyssähköautojen osuus
-  description_en: Share of car fleet fully electric (not including hybrids)
-  description_fi: Täyssähköautojen osuus henkilöautokannasta (ei sisällä hybridejä)
+- id: fully_electric_vehicle_share
+  name_en: Fully electric car and truck share
+  name_fi: Täyssähköautojen ja -kuorma-autojen osuus
+  description_en: Share of car and truck fleet fully electric (not including hybrids)
+  description_fi: Täyssähköautojen ja -kuoma-autojen osuus henkilöautokannasta (ei sisällä hybridejä)
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -438,7 +438,7 @@ nodes:
   input_dimensions: [transport_mode, energy_carrier]
   output_dimensions: [transport_mode, energy_carrier]
   input_nodes:
-  - id: fully_electric_car_share
+  - id: fully_electric_vehicle_share
     to_dimensions:
     - id: energy_carrier
     - id: transport_mode
@@ -504,12 +504,24 @@ nodes:
   - id: nzc/defaults
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
+  params:
+    sector: Transport need
+
+# A separate node is needed so that the observations get implemened correctly.
+- id: passenger_kilometres_data_scaled
+  name_en: Passenger kilometres data skaled
+  name_fi: Henkilökilometrien data skaalattuna
+  type: simple.MultiplicativeNode
+  quantity: mileage
+  unit: Mpkm/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
   input_nodes:
   - id: population
     tags: [ratio_to_last_historical_value, non_additive]
     to_dimensions: []
-  params:
-    sector: Transport need
+  - id: passenger_kilometres_data
+    tags: [non_additive]
 
 - id: passenger_kilometres_reduced
   name_en: Passenger kilometres reduced
@@ -520,7 +532,7 @@ nodes:
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_nodes:
-  - id: passenger_kilometres_data
+  - id: passenger_kilometres_data_scaled
     tags: [non_additive]
   - id: motorised_transport_change
     tags: [arithmetic_inverse]
@@ -534,7 +546,7 @@ nodes:
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_nodes:
-  - id: passenger_kilometres_data
+  - id: passenger_kilometres_data_scaled
   - id: passenger_kilometres_reduced
 
 - id: relative_transport_mode_switches
@@ -580,9 +592,6 @@ nodes:
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_nodes:
-  - id: population
-    tags: [ratio_to_last_historical_value, non_additive]
-    to_dimensions: []
   - id: passenger_kilometres_reduced
   - id: passenger_kilometres_switched
   params:
