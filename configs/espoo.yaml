@@ -4,7 +4,7 @@ supported_languages: [sv, en]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: dca8dbb74943840b5b9a5ee7d791e6cfd356fd32
+  commit: 75dae83b02b5c44e555731f8f152a915ae3b341a
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -204,7 +204,7 @@ nodes:
   name_fi: Kokonaispäästöt (scope 1+2)
   name_en: Net emissions (scope 1+2)
   name_sv: Totala utsläpp (scope 1+2)
-  type: simple.AdditiveNode
+  type: simple.AdditiveNode # TODO Use GenericNode when it behaves well on outcome page
   quantity: emissions
   unit: kt/a
   is_outcome: true
@@ -350,7 +350,7 @@ nodes:
     <li>Övriga byggnader 82 kWh/m<sup>2</sup>/a</li></ul> I denna modell antas för
     bostadsbyggnader i genomsnitt hälften vara flervåningshus och den andra hälften
     fördelas lika mellan radhus och småhus, dvs. 89 kWh/m<sup>2</sup>/a.
-  type: simple.AdditiveNode
+  type: simple.AdditiveNode # TODO Use GenericNode when input datasets behave well
   quantity: consumption_factor
   unit: kWh/m**2/a
   input_datasets:
@@ -555,20 +555,20 @@ nodes:
     sector: Lämmitys|Kaukolämpö|Kaukolämpö|Asuminen
 
 - id: district_heating_emission_factor_goal
-  name_fi: Kaukolämmön päästökerroin, goal
+  name_fi: Kaukolämmön päästökerroin, tavoite
   name_en: District heating emission factor, goal
   name_sv: Emissionsfaktor för fjärrvärme, goal
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/kWh
-  input_dimensions: [scenario]
-  output_dimensions: [scenario]
   input_datasets:
   - id: gpc/espoo
     forecast_from: 2024
+    filters:
+    - column: Scenario
+      ref: scenario_name
   params:
     sector: Kaukolämmön päästökerrointavoite
-    categories: scenario:hne2030
 
 # Electricity
 
@@ -655,7 +655,7 @@ nodes:
   name_fi: Kuorma-autojen päästöjen muutos
   name_en: Change in truck emissions
   name_sv: Förändring i lastbilsutsläpp
-  type: simple.MultiplicativeNode
+  type: simple.GenericNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [vehicle_type]
@@ -702,19 +702,19 @@ nodes:
   name_fi: Tieliikenteen päästökertoimet
   name_en: Road traffic emission factors
   name_sv: Vägtrafikens utsläppskoefficienter
-  type: simple.AdditiveNode
+  type: simple.GenericNode
   quantity: emission_factor
   unit: g/kWh
   input_dimensions: [vehicle_type, economic_sector]
   output_dimensions: [vehicle_type, economic_sector]
   input_nodes:
   - id: road_traffic_emission_factors_historical
-    tags: [inventory_only]
-  - id: road_traffic_emission_factor_forecast
-    tags: [forecast_only]
-    to_dimensions:
-    - id: vehicle_type
-    - id: economic_sector
+    tags: [non_additive]
+  # - id: road_traffic_emission_factor_forecast # TODO Solve double counting with biofuel fraction
+  #   tags: [forecast_only, non_additive]
+  #   to_dimensions:
+  #   - id: vehicle_type
+  #   - id: economic_sector
 
 pages:
 - id: home  # The page is not shown
@@ -892,7 +892,7 @@ actions:
     - column: Scenario
       ref: scenario_name
   output_nodes:
-  - id: road_traffic_emission_factor_forecast
+  - id: road_traffic_emission_factors
     tags: [non_additive, complement]
     to_dimensions: []
   params:
@@ -1091,9 +1091,6 @@ actions:
     tags: [historical]
   - id: district_heating_emission_factor_goal
     tags: [goal]
-    from_dimensions:
-    - id: scenario
-      flatten: true
   output_nodes:
   - id: district_heating_emission_factor
 
@@ -1426,7 +1423,6 @@ actions:
   output_dimensions: [emission_sector]
   input_datasets:
   - id: gpc/espoo
-    tags: [goal]
     forecast_from: 2024
     filters:
     - column: Scenario
@@ -1841,8 +1837,6 @@ scenarios:
 
   - id: change_non_heating_electricity.enabled
     value: true
-  - id: district_heating_emission_factor_goal.categories
-    value: scenario:suomi2035
 
 
 - id: default
@@ -1877,8 +1871,6 @@ scenarios:
     value: true
   - id: cleaner_electricity_production.enabled
     value: true
-  - id: district_heating_emission_factor_goal.categories
-    value: scenario:hne2030
 
 - id: pessimistic
   name_fi: Pessimistinen
@@ -1894,9 +1886,6 @@ scenarios:
     value: true
   - id: replace_fossil_fuels_in_district_heating.enabled
     value: false
-
-  - id: district_heating_emission_factor_goal.categories
-    value: scenario:pessimistic
 
 - id: default_old
   name_fi: HNE2030 ennen 2024 lisätoimenpiteitä
@@ -1937,8 +1926,6 @@ scenarios:
     value: false
   - id: environmental_zone_for_trucks.enabled
     value: false
-  - id: district_heating_emission_factor_goal.categories
-    value: scenario:hne2030
 
 #######################
 # DATA SOURCES

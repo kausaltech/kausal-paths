@@ -85,7 +85,7 @@ nodes:
   description_sv: Residual emissionsfaktorn gäller den delen av elförbrukningen som inte är
     grön. Andelen utsläppsfri grön el har alltså dragits av från den totala emissionsfaktorn,
     vilket ger en något högre återstående faktor.
-  type: simple.MultiplicativeNode
+  type: simple.GenericNode
   quantity: emission_factor
   unit: kg/MWh
   input_dimensions: [energy_carrier]

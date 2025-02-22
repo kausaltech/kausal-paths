@@ -270,7 +270,7 @@ nodes:
   name_fi: Uuden rakennuskannan lämmönkulutus
   name_en: Heat consumption of new building stock
   name_sv: Värmeförbrukning i nytt byggnadsbestånd
-  type: simple.MultiplicativeNode
+  type: simple.GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [building_use, building_heat_source]

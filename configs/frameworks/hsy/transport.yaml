@@ -206,7 +206,7 @@ nodes:
   name_fi: Tieliikenteen päästöt
   name_en: Road traffic emissions
   name_sv: Vägtrafikens utsläpp
-  type: simple.MultiplicativeNode
+  type: simple.GenericNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [vehicle_type]
@@ -227,7 +227,7 @@ nodes:
   name_fi: Henkilöautojen kokonaismäärä
   name_en: Total number of passenger cars
   name_sv: Totalt antal personbilar
-  type: simple.AdditiveNode
+  type: simple.GenericNode
   quantity: number
   unit: vehicles
   input_dimensions: [vehicle_type]
@@ -262,7 +262,7 @@ nodes:
   description_en: Includes only fuels. The share of electricity in energy and emissions is
     ignored.
   description_sv: Inkluderar endast bränsle. Elens andel i energi och utsläpp ignoreras.
-  type: simple.MultiplicativeNode
+  type: simple.GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [energy_carrier, vehicle_type]
