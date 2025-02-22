@@ -22,6 +22,7 @@ from ruamel.yaml import YAML as RuamelYAML, CommentedMap  # noqa: N811
 from sentry_sdk import start_span
 
 from common.i18n import TranslatedString, gettext_lazy as _, set_default_language
+from nodes.actions import ActionNode
 from nodes.constants import DecisionLevel
 from nodes.exceptions import NodeError
 from nodes.normalization import Normalization
@@ -625,6 +626,11 @@ class InstanceLoader:
         viz_config = config.get('visualizations')
         if viz_config:
             self._node_visualizations[node.id] = viz_config
+
+        no_effect_value = config.get('no_effect_value')
+        if no_effect_value:
+            assert isinstance(node, ActionNode)
+            node.no_effect_value = no_effect_value
 
         return node
 
