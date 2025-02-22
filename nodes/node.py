@@ -1230,7 +1230,9 @@ class Node:
     def compute(self) -> pd.DataFrame | ppl.PathsDataFrame:
         raise Exception('Implement in subclass')
 
-    def is_compatible_unit(self, unit_a: str | Unit, unit_b: str | Unit):
+    def is_compatible_unit(self, unit_a: str | Unit | None, unit_b: str | Unit | None):
+        assert unit_a is not None, f'Unit is missing in node {self.id}. Is it multimetric?'
+        assert unit_b is not None, f'Unit {unit_b} is missing when comparing to node {self.id}'
         if isinstance(unit_a, str):
             unit_a = self.context.unit_registry.parse_units(unit_a)
         if isinstance(unit_b, str):
