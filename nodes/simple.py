@@ -398,7 +398,7 @@ Missing values are assumed to be zero.""")
         return df
 
 
-class SubtractiveNode(Node):
+class SubtractiveNode(Node): # FIXME Remove, when you clean Longmont.
     explanation = _(
         'This is a Subtractive Node. It takes the first input node and subtracts all other input nodes from it.',
     )  # FIXME Is this needed? Edge process arithmetic_inverse could be used instead.
@@ -658,18 +658,18 @@ class EmissionFactorActivity(MultiplicativeNode):  # FIXME Does not work with Ta
         return df
 
 
-class PerCapitaActivity(MultiplicativeNode):
+class PerCapitaActivity(MultiplicativeNode): # FIXME Remove. Replace with GenericNode
     pass
 
 
-class FixedScenarioNode(MultiplicativeNode):
+class FixedScenarioNode(MultiplicativeNode): # FIXME Inherit from GenericNode instead.
     def compute(self) -> ppl.PathsDataFrame:
         scenario = self.context.scenarios['baseline']
         with scenario.override():
             df = MultiplicativeNode.compute(self)
         return df
 
-class Activity(AdditiveNode):
+class Activity(AdditiveNode): # FIXME Are these special classes useful?
     explanation = _("""This is Activity Node. It adds activity amounts together.""")
     pass
 
@@ -709,27 +709,6 @@ class FixedMultiplierNode(SimpleNode):  # FIXME Convert to a generic parameter i
         replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
         if replace_output:
             df = self.replace_output_using_input_dataset_pl(df)
-        return df
-
-
-class FixedMultiplierNode2(AdditiveNode):  # FIXME Merge functionalities with MultiplicativeNode
-    allowed_parameters = [
-        *AdditiveNode.allowed_parameters,
-        NumberParameter(local_id='multiplier'),
-    ]
-
-    def compute(self) -> ppl.PathsDataFrame:  # FIXME Should we instead just use AdditiveNode first?
-        if len(self.input_nodes) == 0:
-            raise NodeError(self, "Node must have at least one input node.")
-        nodes = self.input_nodes
-        node = nodes.pop()
-        df = node.get_output_pl(self)
-        unit = df.get_unit(VALUE_COLUMN)
-        df = self.add_nodes_pl(df, nodes, unit=unit)
-
-        multiplier = self.get_parameter_value('multiplier', units=True, required=True)
-        df = df.multiply_quantity(VALUE_COLUMN, multiplier)
-        df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
 
 
@@ -786,7 +765,7 @@ class MixNode(AdditiveNode):
         return self.add_mix_normalized(df, nodes)
 
 
-class MultiplyLastNode(MultiplicativeNode):  # FIXME Tailored class for a bit wider use. Generalize!
+class MultiplyLastNode(MultiplicativeNode):  # FIXME Remove, when you clean Longmont.
     explanation = _("""First add other input nodes, then multiply the output.
 
     Multiplication and addition is determined based on the input node units.
@@ -828,7 +807,7 @@ class MultiplyLastNode(MultiplicativeNode):  # FIXME Tailored class for a bit wi
         return df
 
 
-class MultiplyLastNode2(MultiplicativeNode):  # FIXME Tailored class for a bit wider use. Generalize!
+class MultiplyLastNode2(MultiplicativeNode):  # FIXME Remove, when you clean Longmont.
     explanation = _("""First add other input nodes, then multiply the output.
 
     Multiplication and addition is determined based on the input node units.
@@ -891,7 +870,7 @@ class MultiplyLastNode2(MultiplicativeNode):  # FIXME Tailored class for a bit w
         return df
 
 
-class ImprovementNode(MultiplicativeNode):
+class ImprovementNode(MultiplicativeNode): # FIXME Remove, when you clean Longmont.
     explanation = _("""First does what MultiplicativeNode does, then calculates 1 - result.
     Can only be used for dimensionless content (i.e., fractions and percentages)
     """)
@@ -910,7 +889,7 @@ class ImprovementNode(MultiplicativeNode):
         return df
 
 
-class ImprovementNode2(MultiplicativeNode):
+class ImprovementNode2(MultiplicativeNode): # FIXME Remove, when you clean Longmont.
     explanation = _("""First does what MultiplicativeNode does, then calculates 1 + result.
     Can only be used for dimensionless content (i.e., fractions and percentages)
     """)
@@ -929,7 +908,7 @@ class ImprovementNode2(MultiplicativeNode):
         return df
 
 
-class RelativeNode(AdditiveNode):
+class RelativeNode(AdditiveNode): # FIXME Remove. Only Espoo and budget use this.
     explanation = _("""
     First like AdditiveNode, then multiply with a node with "non_additive".
     The relative node is assumed to be the relative difference R = V / N - 1,
@@ -953,32 +932,6 @@ class RelativeNode(AdditiveNode):
             df = df.multiply_cols([VALUE_COLUMN, rn], VALUE_COLUMN).drop(rn)
             df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
-
-class TrajectoryNode(SimpleNode):
-    explanation = _(
-        """TrajectoryNode uses select_category() to select a category from a dimension."""
-    )
-    allowed_parameters = [
-        *SimpleNode.allowed_parameters,
-        StringParameter(local_id='dimension'),
-        StringParameter(local_id='category'),
-        NumberParameter(local_id='category_number'),
-        BoolParameter(local_id='keep_dimension'),
-    ]
-    def compute(self):
-        df = self.get_input_dataset_pl()
-        dim_id = self.get_parameter_value('dimension', required=True)
-        cat_id = self.get_parameter_value('category', required=False)
-        cat_no = self.get_parameter_value('category_number', units=False, required=False)
-        if cat_no is not None:
-            cat_no = int(cat_no)
-        keep = self.get_parameter_value('keep_dimension', required=False)
-
-        df = df.select_category(dim_id, cat_id, cat_no, keep_dimension=keep)
-
-        df = df.ensure_unit(VALUE_COLUMN, self.unit)
-        return df
-
 
 class FillNewCategoryNode(AdditiveNode):
     explanation = _(
