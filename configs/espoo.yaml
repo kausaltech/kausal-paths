@@ -4,7 +4,7 @@ supported_languages: [sv, en]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 75dae83b02b5c44e555731f8f152a915ae3b341a
+  commit: bb1d80a6852e3b21cad3edb4c460494f72d59ec1
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -1542,33 +1542,24 @@ actions:
   name_sv: Ersättning av fossila bränslen
   description_fi: HUOM! Tämä toimenpide korvattaneen jakeluvelvoitteen muutostoimenpiteellä.
     Fossiilisten polttoaineiden korvaamisen arvioidaan vähentävän tieliikenteen päästöjä
-    0.9 %. Kun tämä vaikutus kohdennetaan pelkästään henkilöautoihin, saadaan päästökertoimen
-    vähenemäksi 234 g/kWh * 0.9 % * (1261 GWh/a / 735 GWh/a) = 3.616 g/kWh.
+    0.9 %.
   description_en: Replacing fossil fuels is estimated to reduce road traffic emissions
-    by 0.9%. By targeting this effect solely on passenger cars, the decrease in the
-    emission factor is calculated as 234 g/kWh * 0.9% * (1261 GWh/a / 735 GWh/a) =
-    3.616 g/kWh.
+    by 0.9%.
   description_sv: Ersättning av fossila bränslen beräknas minska vägtrafikens utsläpp
-    med 0,9 %. Genom att rikta denna effekt enbart mot personbilar blir minskningen
-    av emissionsfaktorn 234 g/kWh * 0,9 % * (1261 GWh/a / 735 GWh/a) = 3,616 g/kWh.
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: emission_factor
-  unit: g/kWh
+    med 0,9 %.
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: '%'
   group: transportation
-  forecast_values: [[2024, 0.0], [2035, 0.0]]
-  # output_nodes:
-  # - id: road_traffic_emission_factor_forecast
-  #   to_dimensions:
-  #   - id: vehicle_type
-  #     categories: [cars]
-  #   - id: economic_sector
-  #     categories: [residential]
+  input_datasets:
+  - id: gpc/espoo
+    forecast_from: 2024
+  output_nodes:
+  - id: road_traffic_emission_factors
+    tags: [non_additive, complement]
+    to_dimensions: []
   params:
-  - id: target_year_level
-    is_visible: false
-    value: -3.616
-    min_value: -4
-    max_value: -3
+    sector: Liikenteen fossiilisten polttoaineiden korvaaminen
 
 - id: upgrade_car_fleet
   name_fi: Autokannan nopeampi uudistuminen
@@ -1592,7 +1583,7 @@ actions:
   group: transportation
   forecast_values: [[2024, 0.0], [2035, 0.0]]
   output_nodes:
-  - id: road_traffic_emission_factor_forecast
+  - id: road_traffic_emission_factors
     to_dimensions:
     - id: vehicle_type
       categories: [cars]
@@ -1627,7 +1618,7 @@ actions:
   group: transportation
   forecast_values: [[2024, 0.0], [2035, 0.0]]
   output_nodes:
-  - id: road_traffic_emission_factor_forecast
+  - id: road_traffic_emission_factors
     to_dimensions:
     - id: vehicle_type
       categories: [vans]
@@ -1635,10 +1626,10 @@ actions:
       categories: [services]
   params:
   - id: target_year_level
-    is_visible: false
+    is_visible: true
     value: -17.70
-    min_value: -18
-    max_value: -17
+    min_value: -20
+    max_value: -10
 
 - id: improve_personal_traffic_efficiency
   name_fi: Liikennejärjestelmän tehostaminen
