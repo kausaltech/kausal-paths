@@ -2131,7 +2131,7 @@ pages:
     pohtimaan terveyden merkitystä paikallistason liikennepolitiikassa.
     <br/>Tämä mallin on kehitetty hankkeessa, joka on osa EU:n Driving Urban Transitions (DUT)
     -ohjelmaa, ja sitä sponsoroivat Suomessa työ- ja elinkeinoministeriö sekä ympäristöministeriö.
-    Hanketta koordinoi VTT ja mukana ovat Kausal Oy ja UKK-instituutti.<p> Hankkeessa
+    Hanketta koordinoi VTT ja mukana ovat Kausal Oy ja UKK-instituutti.<br/> Hankkeessa
     tuotettiin tämä testiversio mallista. Huomaa, että siinä on vielä virheitä ja
     puutteita, ja tuloksiin tulee suhtautua varauksella. Mallia kuitenkin kehitetään
     eteenpäin uusien hankkeiden voimin. Siksi olemme kiinnostuneet kaikista korjaus-
@@ -2139,7 +2139,7 @@ pages:
   lead_paragraph_en: The DUT project maps transport measures that would also have health benefits. The model examines an average Finnish city with an assumed population of 250,000 using average data. You can change the city size in All settings.
     <br/>The model's data has been compiled from expert sources, but its applicability to the specific city you're interested in cannot be guaranteed. Therefore, the results provided by the model should be considered indicative. However, we hope they help in considering the importance of health in local transport policy.
     <br/>This model has been developed as part of the EU's Driving Urban Transitions (DUT) program in 2024, sponsored in Finland by the Ministry of Economic Affairs and Employment and the Ministry of the Environment. The project was coordinated by VTT with Kausal Oy and UKK Institute as partners.
-    The project produced this test version of the model. Please note that it still contains errors and deficiencies, and results should be treated with caution. However, the model is being further developed through new projects. Therefore, we are interested in all suggestions for corrections and improvements. You can send feedback to support[at]kausal.tech.
+    <b/>The project produced this test version of the model. Please note that it still contains errors and deficiencies, and results should be treated with caution. However, the model is being further developed through new projects. Therefore, we are interested in all suggestions for corrections and improvements. You can send feedback to support[at]kausal.tech.
 
 scenarios:
 - id: baseline

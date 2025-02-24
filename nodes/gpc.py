@@ -53,6 +53,11 @@ class DatasetNode(AdditiveNode):
             description='Variant index number',
             is_customizable=True,
         ),
+        StringParameter(
+            local_id='categories',
+            description='Dimension:category pairs to filter',
+            is_customizable=False,
+        ),
     ]
 
     quantitylookup = {
@@ -211,6 +216,12 @@ class DatasetNode(AdditiveNode):
 
     # -----------------------------------------------------------------------------------
     def select_variant(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        cats = self.get_parameter_value_str('categories', required=False) # FIXME merge with select_category and category_filter
+        if cats:
+            for subcat in cats.split('/'): # TODO Should we use ',' everywhere?
+                dim, cat = subcat.split(':')
+                df = df.filter(pl.col(dim) == cat)
+
         vcols = df.select(pl.col(r'^v_.*$')).columns
         for col in vcols:
             # Check whether varient ID matches the one variant ID controlled locally.

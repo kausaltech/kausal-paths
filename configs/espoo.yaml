@@ -1,14 +1,12 @@
 id: espoo
 default_language: fi
 supported_languages: [sv, en]
-frameworks: [hsy]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: aebba1bba37608aba3f795c98e390cd4134c3a42
-  # commit: 8caa222ae2b5aa14be248435eb8eb47bd401a010
+  commit: bb1d80a6852e3b21cad3edb4c460494f72d59ec1
   dvc_remote: kausal-s3
-name: Hiilineutraali Espoo 2030
+name_fi: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
 name_sv: Kolneutralt Esbo 2030
 owner: Espoon kaupunki
@@ -26,15 +24,32 @@ features:
   show_accumulated_effects: true
   show_significant_digits: 3
 
+include:
+- file: frameworks/hsy/buildings.yaml
+  node_group: Buildings
+  allow_override: true
+- file: frameworks/hsy/electricity.yaml
+  node_group: Electricity
+  allow_override: true
+- file: frameworks/hsy/green_electricity.yaml
+  node_group: Green electricity
+  allow_override: true
+- file: frameworks/hsy/other.yaml
+  node_group: Other
+  allow_override: true
+- file: frameworks/hsy/transport.yaml
+  node_group: Transport
+  allow_override: true
+
 action_groups:
 - id: transportation
   name: Liikenne
-  name_en: Traffic
+  name_en: Transportation
   name_sv: Trafik
 - id: transportation_additional
   name: Liikenteen lisätoimet
-  name_en: Transportation, additional
-  name_sv: Trafik, ytterligare
+  name_en: Additional transportation measures
+  name_sv: Ytterligare trafik åtgärder
 - id: buildings
   name: Rakennukset
   name_en: Buildings
@@ -42,15 +57,15 @@ action_groups:
 - id: electricity
   name: Sähkö
   name_en: Electricity
-  name_sv: El
+  name_sv: Elektricitet
 - id: industry
   name: Teollisuus ja työkoneet
   name_en: Industry and machinery
   name_sv: Industri och arbetsmaskiner
 - id: waste_agriculture
   name: Jätteet, maatalous ja muut
-  name_en: Waste, agriculture and other
-  name_sv: Avfall, jordbruk och annat
+  name_en: Waste, agriculture, and others
+  name_sv: Avfall, jordbruk och övrigt
 
 params:
 - id: municipality_name
@@ -60,770 +75,164 @@ params:
 
 dimensions:
 
-- id: building_heat_source
-  label: Lämmitystapa
-  label_en: Heating method
-  label_sv: Uppvärmningssätt
-  categories:
-  - id: district_heat
-    label: Kaukolämpö
-    label_en: District heating
-    label_sv: Fjärrvärme
-  - id: oil
-    label: Öljylämmitys
-    label_en: Oil heating
-    label_sv: Oljeuppvärmning
-  - id: direct_electric
-    label: Sähkölämmitys
-    label_en: Electric heating
-    label_sv: Eluppvärmning
-  - id: geothermal
-    label: Maalämpö
-    label_en: Geothermal heat
-    label_sv: Jordvärme
-  - id: other
-    label: Muu tai tuntematon
-    label_en: Other or unknown
-    label_sv: Annan eller okänd
-    aliases: [Muu]
-
-- id: building_use
-  label: Rakennuksen käyttötarkoitus
-  label_en: Purpose of use of the building
-  label_sv: Byggnadens användningsändamål
-  categories:
-  - id: residence
-    label: Asuminen
-    label_en: Housing
-    label_sv: Boende
-  - id: services
-    label: Palvelut
-    label_en: Services
-    label_sv: Tjänster
-  - id: industry
-    label: Teollisuus
-    label_en: Industry
-    label_sv: Industrin
-  - id: single_family_houses
-    label: Pientalot
-    label_en: Single-family houses
-    label_sv: Småhus
-  - id: attached_houses
-    label: Rivitalot
-    label_en: Terraced houses
-    label_sv: Radhus
-  - id: apartment_buildings
-    label: Asuinkerrostalot
-    label_en: Blocks of flats
-    label_sv: Flervåningsbostadshus
-  - id: other_buildings
-    label: Muut rakennukset
-    label_en: Other buildings
-    label_sv: Övriga byggnader
-
-- id: vehicle
-  label: Ajoneuvo
-  label_en: Vehicle
-  label_sv: Fordon
-  categories:
-  - id: passenger_cars
-    label: Henkilöautot
-    label_en: Cars
-    label_sv: Personbilar
-  - id: motorcycles
-    label: Moottoripyörät
-    label_en: Motorcycles
-    label_sv: Motorcyklar
-  - id: vans
-    label: Pakettiautot
-    label_en: Vans
-    label_sv: Paketbilar
-  - id: trucks
-    label: Kuorma-autot
-    label_en: Lorries
-    label_sv: Lastbilar
-  - id: buses
-    label: Linja-autot
-    label_en: Buses
-    label_sv: Bussar
-  - id: buses_hsl
-    label: Linja-autot, HSL
-    label_en: Buses, HSL
-    label_sv: Bussar, HRT
-  - id: buses_other
-    label: Linja-autot, muut
-    label_en: Bussar, övriga
-    label_sv: Buses, other
-  - id: local_trains
-    label: Lähijunat
-    label_en: Local trains
-    label_sv: Lokaltåg
-  - id: metro
-    label: Metrot
-    label_en: Metros
-    label_sv: Metro
-  - id: trams
-    label: Raitiovaunut
-    label_en: Trams
-    label_sv: Spårvagnar
-  - id: leasure_boats
-    label: Huviveneet
-    label_en: Pleasure boats
-    label_sv: Fritidsbåtar
-  - id: professional_boats
-    label: Ammattiveneet
-    label_en: Professional boats
-    label_sv: Yrkesbåtar
-  - id: passenger_ships
-    label: Matkustajalaivat
-    label_en: Passenger ships
-    label_sv: Passagerarfartyg
-  - id: cargo_ships
-    label: Rahtilaivat
-    label_en: Cargo ships
-    label_sv: Fraktfartyg
-
-- id: transportation_class
-  label: Liikennemuoto
-  label_en: Mode of transport
-  label_sv: Trafikform
-  categories:
-  - id: road_transportation
-    label: Tieliikenne
-    label_en: Road transport
-    label_sv: Vägtrafik
-  - id: rail_tranportation
-    label: Raideliikenne
-    label_en: Rail transport
-    label_sv: Spårtrafik
-  - id: waterborne_navigation
-    label: Laivaliikenne
-    label_en: Boat traffic
-    label_sv: Fartygstrafik
-  - id: aviation
-    label: Lentoliikenne
-    label_en: Air traffic
-    label_sv: Flygtrafik
-
 - id: scenario
-  label: Skenaario
+  label_fi: Skenaario
   label_en: Scenario
-  label_sv: Skenario
+  label_sv: Scenario
   categories:
-  - id: suomi2035  # TODO: Rename?
-    label: Suomi 2035
+  - id: suomi2035
+    label_fi: Suomi 2035
     label_en: Finland 2035
     label_sv: Finland 2035
+    aliases: [baseline]
   - id: hne2030
-    label: Hiilineutraali Espoo 2030
+    label_fi: Hiilineutraali Espoo 2030
     label_en: Carbon-neutral Espoo 2030
     label_sv: Kolneutralt Esbo 2030
+    aliases: [default]
   - id: pessimistic
-    label: Pessimistinen
+    label_fi: Pessimistinen
     label_en: Pessimistic
     label_sv: Pessimistisk
 
-- id: main_emission_sector
-  label: Päästösektori
-  label_en: Main emission sector
-  label_sv: Utsläppsektor
-  categories:
-  - id: district_heating
-    label: Kaukolämpö
-    label_en: District heating
-    label_sv: Fjärrvärme
-  - id: oil_heating
-    label: Öljylämmitys
-    label_en: Oil heating
-    label_sv: Oljevärme
-  - id: electric_heating
-    label: Sähkölämmitys
-    label_en: Electric heating
-    label_sv: Elvärme
-  - id: consumer_electricity
-    label: Kulutussähkö
-    label_en: Consumer electricity
-    label_sv: Konsumtionel
-  - id: transportation
-    label: Liikenne
-    label_en: Transportation
-    label_sv: Trafik
-  - id: industry_and_machinery
-    label: Teollisuus ja työkoneet
-    label_en: Industry and machinery
-    label_sv: Industri och maskiner
-  - id: waste_treatment
-    label: Jätteiden käsittely
-    label_en: Waste treatment
-    label_sv: Avfall
-  - id: agriculture
-    label: Maatalous
-    label_en: Agriculture
-    label_sv: Jordbruk
-  - id: machinery
-    label: Työkoneet
-    label_en: Machinery
-    label_sv: Maskiner
-  - id: industry
-    label: Teollisuus
-    label_en: Industry
-    label_sv: Industri
-
-- id: cost_type
-  label: Cost Type
-  categories:
-  - id: investment
-    label: Investment
-  - id: energy
-    label: Energy
-  - id: maintenance
-    label: Maintenance
-  - id: operations
-    label: Operations
-
 - id: energy_carrier
-  label: Energialaji
+  label_fi: Energialaji
   label_en: Energy carrier
+  label_sv: Energibärare
   categories:
   - id: district_heat
-    label: Kaukolämpö
+    label_fi: Kaukolämpö
     label_en: District heat
+    label_sv: Fjärrvärme
   - id: electricity
-    label: Sähkö
+    label_fi: Sähkö
     label_en: Electricity
+    label_sv: Elektricitet
+    aliases: [Kulutussähkö, Sähkölämmitys]
   - id: green_electricity
-    label: Vihreä sähkö
+    label_fi: Vihreä sähkö
     label_en: Green electricity
+    label_sv: Grön el
   - id: fuel_oil
-    label: Polttoöljy
+    label_fi: Polttoöljy
     label_en: Fuel oil
+    label_sv: Brännolja
   - id: natural_gas
-    label: Maakaasu
+    label_fi: Maakaasu
     label_en: Natural gas
+    label_sv: Naturgas
   - id: gasoline_diesel
-    label: Bensiini tai diesel
+    label_fi: Bensiini tai diesel
     label_en: Gasoline or diesel
     label_sv: Bensin eller diesel
   - id: hybrid
-    label: Hybridi
+    label_fi: Hybridi
     label_en: Hybrid
     label_sv: Hybrid
   - id: other
-    label: Muu
+    label_fi: Muu
     label_en: Other
     label_sv: Annan
 
 - id: owner
-  label: Owner
+  label_fi: Omistaja
+  label_en: Owner
+  label_sv: Ägare
   categories:
   - id: municipal
-    label: Municipal
+    label_en: Municipal
+    label_fi: Kunnallinen
+    label_sv: Kommunal
   - id: private
-    label: Private
+    label_en: Private
+    label_fi: Yksityinen
+    label_sv: Privat
   - id: fortum
-    label: Fortum
+    label_en: Fortum
+    label_fi: Fortum
+    label_sv: Fortum
   - id: espoon_kaupunki
-    label: Espoon kaupunki
+    label_fi: Espoon kaupunki
+    label_en: City of Espoo
+    label_sv: Esbo stad
   - id: espoon_asunnot
-    label: Espoon asunnot
+    label_fi: Espoon asunnot
+    label_en: Espoo Housing
+    label_sv: Esbo bostäder
   - id: microsoftin_datakeskus
-    label: Microsoftin datakeskus
+    label_fi: Microsoftin datakeskus
+    label_en: Microsoft data center
+    label_sv: Microsofts datacenter
 
-- id: scope
-  label: Scope
-  label_en: Scope
+- id: economic_sector
+  label_fi: Taloussektori
+  label_en: Economic sector
+  label_sv: Ekonomisk sektor
   categories:
-  - id: scope1
-    label: Scope 1
-    label_en: Scope 1
-  - id: scope2
-    label: Scope 2
-    label_en: Scope 2
-
-- id: vehicle_type
-  label: Vehicle type
-  label_en: Vehicle type
-  categories:
-  - id: cars
-    aliases: [passenger_cars]
-    label: Henkilöautot
-    label_en: Cars
-    label_sv: Bilar
-  - id: electric_vehicles
-    label: Sähköautot
-    label_en: Electric vehicles
-    label_sv: Elbilar
-  - id: hybrid_vehicles
-    label: Hybridit
-    label_en: Hybrid vehicles
-    label_sv: Hybrider
-  - id: buses
-    label: Bussit
-    label_en: Buses
-    label_sv: Bussar
-  - id: buses_hsl
-    label: Bussit, HSL
-    label_en: Buses, HSL
-    label_sv: Bussar, HRT
-  - id: buses_other
-    label: Bussit, muu
-    label_en: Buses, other
-    label_sv: Bussar, andra
-  - id: local_trains
-    label: Paikallisjunat
-    label_en: Local Trains
-    label_sv: Lokaltåg
-  - id: motorcycles
-    label: Moottoripyörät
-    label_en: Motorcycles
-    label_sv: Motorcyklar
-  - id: trams
-    label: Ratikat
-    label_en: Trams
-  - id: trucks
-    label: Kuorma-autot
-    label_en: Trucks
-  - id: vans
-    label: Pakettiautot
-    label_en: Vans
-  - id: undefined
-    label: Ei määritelty
-    label_en: Undefined
-    label_sv: Ej definierad
-
-emission_sectors:
-- id: net_emissions
-  name: Kokonaispäästöt (scope 1+2)
-  name_en: Net emissions (scope 1+2)
-  name_sv: Totala utsläpp (scope 1+2)
-  is_outcome: true
-  target_year_goal: 212
-
-- id: building_heating_emissions
-  name: Rakennusten lämmityksen päästöt
-  name_en: Building heating emissions
-  name_sv: Utsläpp från uppvärmning av byggnader
-  part_of: net_emissions
-  color: '#ff4f57'
-
-- id: consumer_electricity_emissions
-  name: Kulutussähkön historialliset päästöt
-  name_en: Household electricity emissions
-  name_sv: Utsläpp av konsumtionsel
-  color: '#0047b6'
-
-- id: transport_emissions
-  name: Liikenteen päästöt
-  name_en: Emissions from traffic
-  name_sv: Utsläpp från trafiken
-  part_of: net_emissions
-  color: '#014B30'
-
-- id: road_transport_emissions
-  name: Tieliikenteen päästöt, tilasto
-  name_en: Road traffic emissions, statistics
-  name_sv: Vägtrafikens utsläpp, statistik
-  description: Tämä on HSY-yhteensopivuutta varten. Se ei ole osa mallia.
+  - id: services
+    label_en: Services
+    label_fi: Palvelut
+    label_sv: Tjänster
+  - id: industry
+    label_en: Industry
+    label_fi: Teollisuus
+    label_sv: Industri
+  - id: residential
+    label_en: Residential
+    label_fi: Asuminen
+    label_sv: Bostäder
+  - id: agriculture
+    label_en: Agriculture
+    label_fi: Maatalous
+    label_sv: Jordbruk
+  - id: field_farming
+    label_fi: Peltoviljely
+    aliases: [Pellot]
+    label_en: Field farming
+    label_sv: Åkerbruk
+  - id: cattle_farming
+    label_fi: Kotieläintalous
+    aliases: [Kotieläimet]
+    label_en: Cattle farming
+    label_sv: Boskapsskötsel
 
 nodes:
 
-# Additive actions and related nodes
+# City nodes
 
-- id: truck_factor
-  name: Kuorma-autojen kerroin
-  name_en: Truck factor
-  name_sv: Lastbilsfaktor
-  type: gpc.DatasetNode
+- id: net_emissions
+  name_fi: Kokonaispäästöt (scope 1+2)
+  name_en: Net emissions (scope 1+2)
+  name_sv: Totala utsläpp (scope 1+2)
+  type: simple.AdditiveNode # TODO Use GenericNode when it behaves well on outcome page
   quantity: emissions
   unit: kt/a
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
-  input_datasets:
-  - id: gpc/espoo
-  params:
-    sector: Kuorma-autoliikenteen kerroin
-
-- id: truck_emission_change
-  name: Kuorma-autojen päästöjen muutos
-  name_en: Change of truck emissions
-  name_sv: Förändring av lastbilsutsläpp
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
-  input_nodes:
-  - id: truck_factor
-    tags: [non_additive]
-  - id: environmental_zone_for_trucks
-    to_dimensions:
-    - id: vehicle_type
-      categories: [trucks]
-  output_nodes:
-  - id: road_traffic_emissions
-
-
-- id: passenger_cars_by_type
-  name: Henkilöautojen määrä
-  type: gpc.DatasetNode
-  quantity: number
-  unit: vehicles
-  input_dimensions: [energy_carrier, vehicle_type]
-  output_dimensions: [energy_carrier, vehicle_type]
-  input_datasets:
-  - id: gpc/espoo
-    forecast_from: 2024
-  params:
-    sector: Henkilöautojen määrä
-
-# ELECTRICITY
-
-- id: total_electricity_consumption
-  name: Sähkön kokonaiskulutus Suomessa
-  name_en: Total electricity consumption in Finland
-  name_sv: Total elförbrukning i Finland
-  type: gpc.DatasetNode
-  quantity: energy
-  unit: TWh/a
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  input_datasets: [gpc/espoo]
-  params:
-    sector: Sähkön kysyntäennuste (TWh)
-
-- id: electricity_emission_factor
-  name: Sähkön päästökerroin
-  name_en: Electricity emission factor
-  name_sv: Elförbrukningsfaktor
-  type: gpc.DatasetNode
-  quantity: emission_factor
-  unit: kg/MWh
-  input_dimensions: [scenario, energy_carrier]
-  output_dimensions: [scenario, energy_carrier]
-  input_datasets: [gpc/espoo]
-  params:
-    sector: Sähkön päästökerroin, t CO2-ekv/GWh
-
-- id: green_electricity_consumption
-  name: Vihreän sähkön tuottama kompensaatio
-  name_en: Green electricity consumption
-  name_sv: Grön el konsumtion
-  description: Ensin vihreä sähkö vähennetään kokonaissähkäönkulutuksesta, ja sitten
-    sovelletaan jäännöspäästökerrointa. Oletus siis on, että ostamalla vihreää sähköä
-    omat päästöt alenevat saman verran kuin jos päästökerroin menisi nollaan tilanteesta,
-    jossa vihreä sähkö olisi ostettu pois markkinoilta. Tässä siis oletetaan, että
-    vihreän sähkön ostaminen generoi nykyisenkaltaista sähköntuotantoa siinä määrin,
-    että muiden ostajien päästökerroin ei nousekaan, vaikka vihreä sähkö on ostettu
-    pois markkinoilta.
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  output_nodes:
-  - id: consumer_electricity_energy
-    tags: [arithmetic_inverse]
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-
-- id: non_green_electricity_consumption
-  name: Ei-vihreän sähkön kulutus
-  name_en: Non-green electricity consumption
-  name_sv: Ej grön el
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  input_nodes:
-  - id: total_electricity_consumption
-  - id: green_electricity_consumption
-    tags: [arithmetic_inverse]
-
-- id: indifference_ratio
-  name: Samaisuussuhde
-  type: simple.AdditiveNode
-  quantity: ratio
-  unit: dimensionless
-  historical_values: [[2000, 1.0], [2024, 1.0], [2025, 0.0]]
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - id: residual_emission_factor_ratio
-    to_dimensions:
-    - id: energy_carrier
-      categories: [electricity]
-
-- id: residual_emission_factor_ratio
-  name: Jäännöspäästökertoimen suhde
-  name_en: Residual emission factor ratio
-  name_sv: Restutsläppsfaktorns andel
-  description: Jäännöspäästökertoimen suhde kokonaispäästökertoimeen. Katso tarkempi
-    kuvaus jäännöspäästökertoimen sivulta.
-  description_en: Residual emission factor ratio to total emission factor. See more
-    detailed explanation from the residual emission factor page.
-  description_sv: Restutsläppsfaktorns andel till total utsläppsfaktor. Se mer detaljerad
-    förklaring på restutsläppsfaktorns sida.
-  type: simple.MultiplicativeNode
-  quantity: emission_factor
-  unit: dimensionless
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  input_nodes:
-  - id: total_electricity_consumption
-    to_dimensions:
-    - id: energy_carrier
-  - id: non_green_electricity_consumption
-    tags: [geometric_inverse]
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    to_dimensions: []
-
-- id: residual_emission_factor
-  name: Jäännöspäästökerroin
-  name_en: Residual emission factor
-  name_sv: Restutsläppsfaktor
-  description: Jäännöspäästökerroin koskee sitä osaa sähkönkulutuksesta, joka ei ole
-    vihreää. Kokonaispäästökertoimesta on siis otettu pois päästöttämän vihreän sähkön
-    osuus, jolloin jäljelle jäävä kerroin on hieman suurempi.
-  description_en: Residual emission factor accounts for the share of electricity consumption
-    that is not green. The residual emission factor is therefore slightly higher than
-    the total emission factor.
-  description_sv: Restutsläppsfaktor räknar för den andelen elförbrukning som inte
-    är grön. Restutsläppsfaktorn är därför något högre än den totala utsläppsfaktorn.
-  type: simple.MultiplicativeNode
-  quantity: emission_factor
-  unit: kg/MWh
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  input_nodes:
-  - id: residual_emission_factor_ratio
-    to_dimensions:
-    - id: energy_carrier
-  - id: electricity_production_emission_factor
-    tags: [non_additive]
-    to_dimensions:
-    - id: energy_carrier
-      categories: [electricity] # FIXME
-
-- id: solar_electricity_emissions
-  name: Aurinkosähkön päästöt
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  input_nodes:
-  - id: increase_solar_electricity_production
-    tags: [arithmetic_inverse]
-  - id: electricity_production_emission_factor
-    to_dimensions: []
-  output_nodes:
-  - id: consumer_electricity_emissions2
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: energy_carrier
-      categories: [electricity]
-
-- id: consumer_electricity_emissions2
-  name: Kulutussähkön päästöt
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  color: '#0047b6'
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  input_nodes:  # FIXME Kyteke kokonaispäästöihin
-  - id: residual_emission_factor
-  - id: consumer_electricity_energy
-    to_dimensions: []
-  output_nodes:
-  - id: net_emissions
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-
-- id: road_traffic_energy_consumption
-  name: Tieliikenteen energiankulutus
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
-  input_nodes:
-  - id: car_fuel_by_energy_carrier
-    tags: [forecast_only]
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-  - id: car_energy_hsy
-    tags: [inventory_only]
-    to_dimensions:
-    - id: vehicle_type
-      categories: [cars]
-  - id: van_energy_hsy
-    tags: [inventory_only]
-    to_dimensions:
-    - id: vehicle_type
-      categories: [vans]
-  - id: truck_energy_hsy
-    tags: [inventory_only]
-    to_dimensions:
-    - id: vehicle_type
-      categories: [trucks]
-  - id: bus_energy_hsy
-    tags: [inventory_only]
-    to_dimensions:
-    - id: vehicle_type
-      categories: [buses]
-  - id: motorcycle_energy_hsy
-    tags: [inventory_only]
-    to_dimensions:
-    - id: vehicle_type
-      categories: [motorcycles]
-  - id: road_transport_energy_forecast
-    tags: [forecast_only]
-    from_dimensions:
-    - id: vehicle_type
-      categories: [cars]
-      exclude: true
-
-- id: traffic_emission_factors
-  name: Liikenteen päästökertoimet
-  name_en: Traffic emission factors
-  name_sv: Utsläppsfaktorer för trafik
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/kWh
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
-  input_nodes:
-  - id: car_traffic_emission_factor
-    tags: [inventory_only]
-    to_dimensions:
-    - id: vehicle_type
-      categories: [cars]
-  - id: van_traffic_emission_factor
-    tags: [inventory_only]
-    to_dimensions:
-    - id: vehicle_type
-      categories: [vans]
-  - id: truck_traffic_emission_factor
-    tags: [inventory_only]
-    to_dimensions:
-    - id: vehicle_type
-      categories: [trucks]
-  - id: bus_traffic_emission_factor # TODO Update the deviation of other buses from other scenarios
-    tags: [inventory_only]
-    to_dimensions:
-    - id: vehicle_type
-      categories: [buses]
-  - id: motorcycle_traffic_emission_factor
-    tags: [inventory_only]
-    to_dimensions:
-    - id: vehicle_type
-      categories: [motorcycles]
-  - id: road_traffic_emission_factor_forecast
-    tags: [forecast_only]
-
-- id: road_traffic_emissions
-  name: Tieliikenteen päästöt
-  name_en: Road traffic emissions
-  name_sv: Vägtrafikens utsläpp
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
-  input_nodes:
-  - id: road_traffic_energy_consumption
-  - id: traffic_emission_factors
-  output_nodes:
-  - id: transport_emissions
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
-
-- id: biofuel_fraction_x
-  name: Jakeluvelvoite, muuttuja x
-  name_en: Biofuel fraction, variable x
-  name_sv: Biofuelsandel, variabel x
-  type: gpc.DatasetNode
-  quantity: energy
-  unit: GWh/a
-  input_datasets: [gpc/espoo]
-  params:
-    sector: Jakeluvelvoite x
-
-- id: biofuel_fraction_y
-  name: Jakeluvelvoite, muuttuja y
-  name_en: Biofuel fraction, variable y
-  name_sv: Biofuelsandel, variabel y
-  type: gpc.DatasetNode
-  quantity: energy
-  unit: GWh/a
-  input_datasets: [gpc/espoo]
-  params:
-    sector: Jakeluvelvoite y
-
-- id: biofuel_fraction_z
-  name: Jakeluvelvoite, muuttuja z
-  name_en: Biofuel fraction, variable z
-  name_sv: Biofuelsandel, variabel z
-  type: gpc.DatasetNode
-  quantity: emission_factor
-  unit: kg/kWh
-  input_datasets: [gpc/espoo]
-  params:
-    sector: Jakeluvelvoite z
-
-- id: biofuel_energy_change
-  name: Biopolttonesteiden energiankulutusmuutos
-  name_en: Biofuel energy consumption change
-  name_sv: Biopolttonesteens energiförbrukningsändring
-  type: simple.MultiplicativeNode
-  quantity: energy
-  unit: GWh/a
-  input_nodes:
-  - id: biofuel_fraction_demand
-    tags: [complement]
-  - id: biofuel_fraction_x
-    tags: [non_additive]
-  - id: biofuel_fraction_y
-    tags: [arithmetic_inverse]
-
-- id: biofual_emission_change
-  name: Biopolttonesteiden päästöjen muutos
-  name_en: Biofuel emissions change
-  name_sv: Biopolttonesteens utsläppens ändring
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_nodes:
-  - id: biofuel_energy_change
-  - id: biofuel_fraction_z
-  output_nodes:
-  - id: road_traffic_emissions
-    to_dimensions:
-    - id: vehicle_type
-      categories: [undefined]
-
-# OLD NODES
+  is_outcome: true
+  target_year_goal: 212
 
 - id: population
   type: finland.population.Population
-  name: Väestö
+  name_fi: Väestö
   name_en: Population
   name_sv: Befolkning
-  description: Sitowisen laskelmassa väkiluvun on kaikkien skenaarioiden osalta oletettu
-    laskennassa kehittyvän Espoon kaupungin pitkän väestöennusteen perusvaihtoehdon
+  description_fi: Sitowisen laskelmassa väkiluvun on kaikkien skenaarioiden osalta
+    oletettu laskennassa kehittyvän Espoon kaupungin pitkän väestöennusteen perusvaihtoehdon
     mukaisesti ja olevan 362690 vuonna 2035. Tässä työkalussa käytetään Tilastokeskuksen
     väestöennustetta, joka on 345000 vuodelle 2035. Toteutunut väestönkehitys (1990,
     2000-2022) on saatu Tilastokeskuksen tilastoista. <a 
     href="https://stat.hel.fi/pxweb/fi/Aluesarjat/Aluesarjat__vrm__ennak__umkun/Hginseutu_VA_VN02_Vaestonmuutos_ennakko.px/">Lähde</a>
+  description_en: In the Sitowise calculation, the population is assumed to develop
+    according to the basic alternative of the City of Espoo's long-term population
+    forecast in all scenarios, reaching 362,690 by 2035. This tool uses Statistics
+    Finland's population forecast, which is 345,000 for 2035. The realized population
+    development (1990, 2000-2022) has been obtained from Statistics Finland. <a 
+    href="https://stat.hel.fi/pxweb/fi/Aluesarjat/Aluesarjat__vrm__ennak__umkun/Hginseutu_VA_VN02_Vaestonmuutos_ennakko.px/">Source</a>
+  description_sv: I Sitowises beräkning antas befolkningen utvecklas enligt basalternativet
+    i Esbo stads långsiktiga befolkningsprognos i alla scenarier och uppgå till 362
+    690 år 2035. I detta verktyg används Statistikcentralens befolkningsprognos, som
+    är 345 000 för år 2035. Den faktiska befolkningsutvecklingen (1990, 2000–2022)
+    har hämtats från Statistikcentralens statistik. <a 
+    href="https://stat.hel.fi/pxweb/fi/Aluesarjat/Aluesarjat__vrm__ennak__umkun/Hginseutu_VA_VN02_Vaestonmuutos_ennakko.px/">Källa</a>
   input_datasets:
   - id: statfi/StatFin/vrm/vaerak/statfin_vaerak_pxt_11re
     filters:
@@ -842,9 +251,11 @@ nodes:
     - dimension: Ikä
       flatten: true
 
+# ----------- Nodes with city-specific adjustments ---------------
+
 - id: all_hsy_emissions
   type: finland.hsy.HsyNode
-  name: HSY:n päästöinventaario
+  name_fi: HSY:n päästöinventaario
   name_en: HSY emission inventory
   name_sv: HRM:s utsläppsinventering
   input_datasets:
@@ -853,304 +264,14 @@ nodes:
     - column: Kaupunki
       value: Espoo
 
-#
-# TRANSPORT
-#
+# Buildings
 
-- id: car_energy_hsy
-  name: Henkilöautojen energiankulutus, HSY-data
-  name_en: Energy consumption of cars, HSY data
-  name_sv: Personbilarnas energiförbrukning, HRM-data
-  params:
-    sector: Liikenne|Tieliikenne|Henkilöautot|Asuminen
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEnergyConsumption
-  unit: GWh/a
-- id: van_energy_hsy
-  name: Pakettiautojen energiankulutus, HSY-data
-  name_en: Energy consumption of vans, HSY data
-  name_sv: Paketbilarnas energiförbrukning, HRM-data
-  params:
-    sector: Liikenne|Tieliikenne|Pakettiautot|Palvelut
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEnergyConsumption
-  unit: GWh/a
-- id: truck_energy_hsy
-  name: Kuorma-autojen energiankulutus, HSY-data
-  name_en: Energy consumption of lorries, HSY data
-  name_sv: Lastbilarnas energiförbrukning, HRM-data
-  params:
-    sector: Liikenne|Tieliikenne|Kuorma-autot|Teollisuus
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEnergyConsumption
-  unit: GWh/a
-- id: bus_energy_hsy
-  name: Linja-autojen energiankulutus, HSY-data
-  name_en: Energy consumption of buses, HSY data
-  name_sv: Bussarnas energiförbrukning, HRM-data
-  params:
-    sector: Liikenne|Tieliikenne|Linja-autot|Palvelut
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEnergyConsumption
-  unit: GWh/a
-- id: motorcycle_energy_hsy
-  name: Moottoripyörien energiankulutus
-  name_en: Energy consumption of motorcycles
-  name_sv: Motorcykeltrafikens energiförbrukning
-  params:
-    sector: Liikenne|Tieliikenne|Moottoripyörät|Asuminen
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEnergyConsumption
-  unit: GWh/a
-
-- id: car_energy
-  name: Henkilöautojen energiankulutus
-  name_en: Energy consumption of cars
-  name_sv: Personbilarnas energiförbrukning
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
-  input_nodes:
-  - id: car_energy_hsy
-    to_dimensions:
-    - id: vehicle_type
-      categories: [cars]
-
-- id: total_car_amount
-  name: Henkilöautojen kokonaismäärä
-  name_en: Total car amount
-  name_sv: Total personbilarnas mängd
-  type: simple.AdditiveNode
-  quantity: number
-  unit: vehicles
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
-  input_nodes:
-  - id: passenger_cars_by_type
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-
-- id: car_fuel_by_energy_carrier
-  name: Henkilöautojen polttoaineenkulutus energialuokittain
-  name_en: Fuel consumption of cars by energy carrier
-  name_sv: Personbilarnas energiförbrukning
-  description: Sisältää vain polttoaineet. Sähkön osuus energiasta ja päästöistä jätetään
-    huomiotta.
-  type: simple.MultiplicativeNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [energy_carrier, vehicle_type]
-  output_dimensions: [energy_carrier, vehicle_type]
-  input_nodes:
-  - id: road_transport_energy_forecast
-    tags: [non_additive]
-    from_dimensions:
-    - id: vehicle_type
-      categories: [cars]
-    to_dimensions:
-    - id: vehicle_type
-  - id: total_car_amount
-    tags: [geometric_inverse]
-    to_dimensions:
-    - id: vehicle_type
-  - id: passenger_cars_by_type
-  - id: fraction_of_electricity_in_car_energy
-    tags: [complement]
-
-
-- id: van_energy
-  name: Pakettiautojen energiankulutus
-  name_en: Energy consumption of vans
-  name_sv: Paketbilarnas energiförbrukning
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  input_nodes:
-  - van_energy_hsy
-- id: truck_energy
-  name: Kuorma-autojen energiankulutus
-  name_en: Energy consumption of lorries
-  name_sv: Lastbilarnas energiförbrukning
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  input_nodes:
-  - truck_energy_hsy
-- id: bus_energy
-  name: Linja-autojen energiankulutus
-  name_en: Energy consumption of buses
-  name_sv: Bussarnas energiförbrukning
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  input_nodes:
-  - bus_energy_hsy
-
-- id: fraction_of_electricity_in_car_energy
-  name: Sähkön osuus henkilöautojen energiankulutuksessa
-  name_en: Fraction of electricity in car energy consumption
-  name_sv: Andel av elenergi i personbilarnas energiförbrukning
-  type: gpc.DatasetNode
-  quantity: fraction
-  unit: dimensionless
-  input_dimensions: [energy_carrier, vehicle_type]
-  output_dimensions: [energy_carrier, vehicle_type]
-  input_datasets: [gpc/espoo]
-  params:
-    sector: Sähkön osuus energiasta
-
-- id: car_traffic_emission_factor
-  name: Henkilöautoliikenteen päästökerroin
-  name_en: Car traffic emission factor
-  name_sv: Utsläppskoefficienten för personbilstrafiken
-  type: finland.hsy.HsyEmissionFactor
-  unit: g/kWh
-  input_nodes: [all_hsy_emissions]
-  params:
-    sector: Liikenne|Tieliikenne|Henkilöautot|Asuminen
-- id: van_traffic_emission_factor
-  name: Pakettiautoliikenteen päästökerroin
-  name_en: Van traffic emission factor
-  name_sv: Utsläppskoefficienten för paketbilstrafiken
-  type: finland.hsy.HsyEmissionFactor
-  unit: g/kWh
-  input_nodes: [all_hsy_emissions]
-  params:
-    sector: Liikenne|Tieliikenne|Pakettiautot|Palvelut
-- id: truck_traffic_emission_factor
-  name: Kuorma-autoliikenteen päästökerroin
-  name_en: Truck traffic emission factor
-  name_sv: Utsläppskoefficienten för lastbilstrafiken
-  type: finland.hsy.HsyEmissionFactor
-  unit: g/kWh
-  input_nodes: [all_hsy_emissions]
-  params:
-    sector: Liikenne|Tieliikenne|Kuorma-autot|Teollisuus
-- id: bus_traffic_emission_factor
-  name: Bussiliikenteen päästökerroin
-  name_en: Bus traffic emission factor
-  name_sv: Utsläppskoefficienten för busstrafiken
-  type: finland.hsy.HsyEmissionFactor
-  unit: g/kWh
-  input_nodes: [all_hsy_emissions]
-  params:
-    sector: Liikenne|Tieliikenne|Linja-autot|Palvelut
-- id: motorcycle_traffic_emission_factor
-  name: Moottoripyöräliikenteen päästökerroin
-  name_en: Motorcycle traffic emission factor
-  name_sv: Utsläppskoefficienten för motorcykeltrafiken
-  type: finland.hsy.HsyEmissionFactor
-  unit: g/kWh
-  input_nodes: [all_hsy_emissions]
-  params:
-    sector: Liikenne|Tieliikenne|Moottoripyörät|Asuminen
-
-- id: addition_to_traffic_emission_factors
-  name: Lisäys liikenteen päästökertoimiin
-  name_en: Addition to traffic emission factors
-  description: HSY teki uudelleenlaskentaa pääkaupunkiseudun päästöihin kesällä 2023.
-    Tämä vaikutti erityisesti liikenteen päästökertoimiin, koska alentunut sekoitevelvoite
-    huomioitiin tarkemmin. Suurentuminen aiempaan päästökertoimeen on kuvattu tässä.
-    Laskennan pohjana on nyt yksityiskohtainen HSY-data, joka on saatu syksyllä 2024.
-    Tämä solmu korjaa virhettä 26.6.2023 saadussa datassa ja on on olemassa vain
-    historiallisista dokumentointityistä. Sitä ei käytetä mallissa.
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/kWh
-  input_datasets:
-  - id: espoo/addition_to_traffic_emission_factor
-    column: emission_factor
-    forecast_from: 2024
-  output_dimensions: [vehicle]
-
-- id: road_traffic_emission_factor_forecast
-  name: Tieliikenteen päästökerroinennuste
-  type: gpc.DatasetNode
-  quantity: emission_factor
-  unit: g/kWh
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
-  input_datasets:
-  - id: gpc/espoo
-    forecast_from: 2024
-  params:
-    sector: Tieliikenteen päästökertoimen ennuste
-
-- id: road_transport_energy_forecast
-  name: Tieliikenteen energiaennuste
-  description: 'Henkilöautot: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot) oletetaan,
-    että henkilöautoliikenteen energiankulutus lisääntyy 8 % ja 22 % vuosiin 2030
-    ja 2035 mennessä vuoteen 2021 verrattuna. Sen sijaan HNE2030-skenaariossa oletetaan
-    kasvuksi vain 4 % ja 11 % vastaavasti eli perusuraan verrattuna -4 % ja -11 %.
-    Bussit: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot) oletetaan,
-    että linja-autoliikenteen energiankulutus lisääntyy 1 % ja 1 % vuosiin 2030 ja
-    2035 mennessä vuoteen 2021 verrattuna. Myös HNE2030-skenaariossa oletetaan kasvuksi
-    1 % ja 1 % vastaavasti.
-    Pakettiautot: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot) oletetaan,
-    että pakettiautoliikenteen energiankulutus lisääntyy 20 % ja 32 % vuosiin 2030
-    ja 2035 mennessä vuoteen 2021 verrattuna. Sen sijaan HNE2030-skenaariossa oletetaan
-    kasvuksi vain 13 % ja 22 % vastaavasti.
-    Kuorma-autot: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot) oletetaan,
-    että kuorma-autoliikenteen energiankulutus lisääntyy 44 % ja 47 % vuosiin 2030
-    ja 2035 mennessä vuoteen 2021 verrattuna. Sen sijaan HNE2030-skenaariossa oletetaan
-    kasvuksi jopa 45 % ja 49 % vastaavasti.'
-  description_en: 'Passenger cars: The baseline forecast (both the pessimistic and Finland 2035 scenarios)
-    assumes that the energy consumption of car traffic will increase by 8% and 22%
-    by 2030 and 2035 respectively compared to 2021. By contrast, the Carbon-neutral
-    Espoo 2030 scenario assumes the growth to be only 4% and 11% respectively, i.e.
-    –4% and –11% compared to the baseline.
-    Buses: The baseline forecast (both the pessimistic and Finland 2035 scenarios)
-    assumes that the energy consumption of car traffic will increase by 1% and 1%
-    by 2030 and 2035 respectively compared to 2021. The Carbon-neutral Espoo 2030
-    scenario also assumes the growth to be 1% and 1% respectively.
-    Vans: The baseline forecast (both the pessimistic and Finland 2035 scenarios)
-    assumes that the energy consumption of van traffic will increase by 20% and 32%
-    by 2030 and 2035 respectively compared to 2021. By contrast, the Carbon-neutral
-    Espoo 2030 scenario assumes the growth to be only 13% and 22% respectively.
-    Trucks: The baseline forecast (both the pessimistic and Finland 2035 scenarios)
-    assumes that the energy consumption of lorry traffic will increase by 44% and
-    47% by 2030 and 2035 respectively compared to 2021. By contrast, the Carbon-neutral
-    Espoo 2030 scenario assumes the growth to be as much as 45% and 49% respectively.'
-  description_sv: 'Personbilar: I grundprognosen (både pessimistiska och scenariot Finland 2035)
-    antas att personbilstrafikens energiförbrukning ökar med 8 procent och med 22
-    procent fram till 2030 och 2035 jämfört med 2021. Däremot antas ökningen i scenariot
-    HNE2030 vara endast 4 procent och 11 procent på motsvarande sätt dvs. -4 procent
-    och -11 procent jämfört med grundscenariot.
-    Bussar: I grundprognosen (både pessimistiska och scenariot Finland 2035)
-    antas att personbilstrafikens energiförbrukning ökar med 1 procent och med 1 procent
-    fram till 2030 och 2035 jämfört med 2021. Även i scenariot HNE2030 antas ökningen
-    vara 1 procent respektive 1 procent.
-    Paketbilar: I grundprognosen (både pessimistiska och scenariot Finland 2035)
-    antas att paketbilstrafikens energiförbrukning ökar med 20 procent och 32 procent
-    fram till 2030 och 2035 jämfört med 2021. Däremot antas ökningen i scenariot HNE2030
-    vara endast 13 procent och 22 procent på motsvarande sätt.
-    Lastbilar: I grundprognosen (både pessimistiska och scenariot Finland 2035)
-    antas att lastbilstrafikens energiförbrukning ökar med 44 procent och 47 procent
-    fram till 2030 och 2035 jämfört med 2021. Däremot antas ökningen i scenariot HNE2030
-    vara upp till 45 procent och 49 procent på motsvarande sätt.'
-  type: gpc.DatasetNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
-  input_datasets:
-  - id: gpc/espoo
-    forecast_from: 2024
-  params:
-    sector: Tieliikenteen suorite-ennuste
-
-#
-# OTHER SECTORS
-#
 - id: building_floor_area_existing
   type: finland.aluesarjat.BuildingStock
-  name: Nykyisen rakennuskannan kerrosala
+  name_fi: Nykyisen rakennuskannan kerrosala
   name_en: Floor area of existing building stock
   name_sv: Våningsytan i det nuvarande byggnadsbeståndet
-  description: Kerrosalasta oletetaan, että vanha rakennuskanta säilyy aikavälillä
+  description_fi: Kerrosalasta oletetaan, että vanha rakennuskanta säilyy aikavälillä
     2021-2035 ja uudisrakennukset vastaavat rakennuskannan lisäystä. Asumisväljyyden
     oletetaan pysyvän muuttumattomana. Muiden kuin asuinrakennusten osalta kerrosalan
     arvioidaan kehittyvän Uudenmaan kasvun vaihtoehdot-selvityksen oletusten mukaisesti.
@@ -1172,151 +293,302 @@ nodes:
     - column: Alue
       value: Espoo
 
-- id: building_heat_per_floor_area_new
-  name: Ominaislämmönkulutus uudessa rakennuskannassa
-  description: Uudisrakennusten ominaislämmönkulutus arvioidaan Sitowisen laskelmissa
-    olevan Suomi2035-skenaariossa <ul><li>Pientalot 115 kWh/m<sup>2</sup>/a</li> <li>Rivitalot
-    109 kWh/m<sup>2</sup>/a</li> <li>Asuinkerrostalot 66 kWh/m<sup>2</sup>/a</li>
-    <li>Muut rakennukset 82 kWh/m<sup>2</sup>/a</li></ul> Tässä mallissa asuinrakennuksille
-    keskimäärin oletetaan puolet kerrostaloja ja lopuista puolet rivitaloja ja puolet
-    pientaloja, eli 89 kWh/m<sup>2</sup>/a.
-  type: simple.AdditiveNode
-  quantity: consumption_factor
-  unit: kWh/m**2/a
-  input_datasets:
-  - espoo/new_building_heating_per_area
-  output_dimensions: [building_use]
-  output_nodes:
-  - id: building_heat_consumption_new
-    to_dimensions:
-    - id: building_use
-
 - id: building_floor_area_new
-  type: finland.aluesarjat.FutureBuildingStock
-  name: Uuden rakennuskannan kerrosala
+  name_fi: Uuden rakennuskannan kerrosala
   name_en: Floor area of new building stock
   name_sv: Våningsytan i det nya byggnadsbeståndet
-  input_nodes:
-  - id: population
-    to_dimensions: []
-  - id: building_floor_area_existing
-    tags: [existing_floor_area]
-  description: Pessimistissä skenaariossa pääastökehitys perustuu asukaskohtaisten
+  description_fi: Pessimistissä skenaariossa pääastökehitys perustuu asukaskohtaisten
     päästöjen kehitykseen ja toteutuneeseen trendiin aikavälillä 2017-2021 sekä väkiluvun
     kehitykseen. Nämä muutokset on huomioitu ominaislämmönkulutuksessa ja uusi rakennusala
     on sama kuin muissa skenaarioissa. Suomi 2035 - ja HNE 2035 -skenaarioissa asumisväljyyden
     oletetaan pysyvän muuttumattomana. Muiden kuin asuinrakennusten osalta kerrosalan
     arvioidaan kehittyvän Uudenmaan kasvun vaihtoehdot -selvityksen oletusten mukaisesti.
     Uusia öljylämmitteiiä rakennuksia ei oleteta rakennettavan missään skenaariossa.
-  description_en: The housing density is expected to remain unchanged. For non-residential
-    buildings, the floor area is estimated to develop according to the assumptions
-    of the “Uudenmaan kasvun vaihtoehdot” (“Uusimaa growth options”) survey. New oil-heated
-    buildings are not expected to be built in any scenario.
-  description_sv: Antas boenderymligheten förbli oförändrad. I fråga om andra än bostadshus
-    beräknas våningsytan utvecklas enligt enligt antagandena i utredningen Alternativ
-    för tillväxten i Nyland. Nya oljeuppvärmda byggnader antas inte byggas i något
-    scenario.
-
-- id: building_heat_consumption_new
-  name: Uuden rakennuskannan lämmönkulutus
-  type: simple.MultiplicativeNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [building_use, building_heat_source]
-  output_dimensions: [building_use, building_heat_source]
+  description_en: In the pessimistic scenario, the main emission development is based
+    on the development of per capita emissions and the realized trend between 2017-2021,
+    as well as population development. These changes are taken into account in the
+    specific heat consumption, and the new building area is the same as in other scenarios.
+    In the Finland 2035 and Carbon-neutral Espoo 2035 scenarios, the housing density
+    is assumed to remain unchanged. For non-residential buildings, the floor area
+    is estimated to develop according to the assumptions of the "Options for Uusimaa's
+    Growth" report. No new oil-heated buildings are assumed to be built in any scenario.
+  description_sv: I det pessimistiska scenariot baseras den huvudsakliga utsläppsutvecklingen
+    på utvecklingen av utsläpp per capita och den realiserade trenden under perioden
+    2017–2021 samt befolkningsutvecklingen. Dessa förändringar beaktas i den specifika
+    värmeförbrukningen, och den nya byggnadsytan är densamma som i andra scenarier.
+    I scenarierna Finland 2035 och Kolneutralt Esbo 2035 antas boendetätheten förbli
+    oförändrad. För andra byggnader än bostadsbyggnader bedöms våningsytan utvecklas
+    enligt antagandena i utredningen "Alternativ för tillväxten i Nyland". Inga nya
+    oljeuppvärmda byggnader antas byggas i något scenario.
+  type: finland.aluesarjat.FutureBuildingStock
   input_nodes:
-  - id: building_floor_area_new
+  - id: population
+    to_dimensions: []
+  - id: building_floor_area_existing
+    tags: [existing_floor_area]
+
+- id: building_heat_per_floor_area_new
+  name_fi: Ominaislämmönkulutus uudessa rakennuskannassa
+  name_en: Specific heat consumption in new building stock
+  name_sv: Specifik värmeförbrukning i nytt byggnadsbestånd
+  description_fi: Uudisrakennusten ominaislämmönkulutus arvioidaan Sitowisen laskelmissa
+    olevan Suomi2035-skenaariossa <ul><li>Pientalot 115 kWh/m<sup>2</sup>/a</li> <li>Rivitalot
+    109 kWh/m<sup>2</sup>/a</li> <li>Asuinkerrostalot 66 kWh/m<sup>2</sup>/a</li>
+    <li>Muut rakennukset 82 kWh/m<sup>2</sup>/a</li></ul> Tässä mallissa asuinrakennuksille
+    keskimäärin oletetaan puolet kerrostaloja ja lopuista puolet rivitaloja ja puolet
+    pientaloja, eli 89 kWh/m<sup>2</sup>/a.
+  description_en: The specific heat consumption of new buildings is estimated in Sitowise's
+    calculations to be in the Finland 2035 scenario <ul><li>Detached houses 115 kWh/m<sup>2</sup>/a</li>
+    <li>Terraced houses 109 kWh/m<sup>2</sup>/a</li> <li>Apartment buildings 66 kWh/m<sup>2</sup>/a</li>
+    <li>Other buildings 82 kWh/m<sup>2</sup>/a</li></ul> In this model, for residential
+    buildings on average, half are assumed to be apartmentbuildings and the other
+    half is divided equally between terraced houses and detached houses, i.e., 89
+    kWh/m<sup>2</sup>/a.
+  description_sv: Den specifika värmeförbrukningen i nybyggnader beräknas i Sitowises
+    beräkningar vara i scenariot Finland 2035 <ul><li>Småhus 115 kWh/m<sup>2</sup>/a</li>
+    <li>Radhus 109 kWh/m<sup>2</sup>/a</li> <li>Flervåningshus 66 kWh/m<sup>2</sup>/a</li>
+    <li>Övriga byggnader 82 kWh/m<sup>2</sup>/a</li></ul> I denna modell antas för
+    bostadsbyggnader i genomsnitt hälften vara flervåningshus och den andra hälften
+    fördelas lika mellan radhus och småhus, dvs. 89 kWh/m<sup>2</sup>/a.
+  type: simple.AdditiveNode # TODO Use GenericNode when input datasets behave well
+  quantity: consumption_factor
+  unit: kWh/m**2/a
+  input_datasets:
+  - espoo/new_building_heating_per_area
+  input_dimensions: [building_use]
+  output_dimensions: [building_use]
+  output_nodes:
+  - id: building_heat_consumption_new
     to_dimensions:
     - id: building_use
-    - id: building_heat_source
 
-- id: electricity_production_emission_factor_historic
-  name: Kansallisen sähköntuotannon päästökerroin, historiallinen
-  name_en: National electricity production emission factor, historic
-  name_sv: Emissionskoefficient för nationell elproduktion, historisk
-  type: finland.hsy.HsyEmissionFactor
-  unit: g/kWh
-  input_nodes: [all_hsy_emissions]
-  params:
-    sector: Sähkö|Kulutussähkö|Kulutussähkö|Asuminen
+# Electricity
 
-- id: electricity_production_emission_factor
-  name: Sähköntuotannon päästökerroin
-  type: simple.RelativeNode
-  quantity: emission_factor
-  unit: t/GWh
-  input_nodes:
-  - id: electricity_production_emission_factor_historic
-
-- id: electric_heating_emission_factor_historic
-  name: Lämmityssähkön päästökerroin, historiallinen
-  name_en: Electric heating emission factor, historical
-  name_sv: Emissionskoefficient för värmeel, historisk
-  type: finland.hsy.HsyEmissionFactor
-  unit: g/kWh
-  input_nodes: [all_hsy_emissions]
-  params:
-    sector: Lämmitys|Sähkölämmitys|Sähkölämmitys|Asuminen
-
-- id: electric_heating_emission_factor
-  name: Lämmityssähkön päästökerroin
-  name_en: Electric heating emission factor
-  name_sv: Emissionskoefficient för värmeel
-  type: simple.RelativeNode
-  quantity: emission_factor
-  unit: t/GWh
-  input_nodes:
-  - id: electric_heating_emission_factor_historic
-
-- id: consumer_electricity_energy
-  name: Kulutussähkön kulutus yhteensä
-  name_en: consumer electricity, total
-  name_sv: Förbrukning elförbrukning, total
-  description: Pessimistisessä skenaariossa asukaskohtaisen sähkönkulutuksen on oletettu
-    kehittyvän vuosina 2017-2021 toteutuneen trendin mukaisesti. Suomi 2035 -skenaariossa
-    asukaskohtaisen sähkönkulutuksen oletetaan pysyvän vuoden 2021 tasolla. HNE2030-skenaariossa
-    kokonaissähkönkulutuksen (sisältäen kulutussähkön ja sähkölämmityksen) oletetaan
-    kasvavan 3,4 % vuodessa vuosina 2021-2035 Carunan arvion perusteella. Kaikki kulutussähkön
-    muutos kohdennetaan asumisen sähkönkulutukseen, koska tietoa jaottelusta asumisen,
-    teollisuuden ja palveluiden välillä ei ole käytettävissä.
-  description_en: In the pessimistic scenario, electricity consumption per capita
-    is expected to develop according to the trend realised in 2017–2021. In the Finland
-    2035 scenario, electricity consumption per capita is expected to remain at the
+- id: non_heating_electricity_energy
+  name_fi: Kulutussähkön sähkönkulutus
+  name_en: Consumption electricity consumption
+  name_sv: Elförbrukning för konsumtionsel
+  description_fi: Pessimistisessä skenaariossa asukaskohtaisen sähkönkulutuksen on
+    oletettu kehittyvän vuosina 2017-2021 toteutuneen trendin mukaisesti. Suomi 2035
+    -skenaariossa asukaskohtaisen sähkönkulutuksen oletetaan pysyvän vuoden 2021 tasolla.
+    HNE2030-skenaariossa kokonaissähkönkulutuksen (sisältäen kulutussähkön ja sähkölämmityksen)
+    oletetaan kasvavan 3,4 % vuodessa vuosina 2021-2035 Carunan arvion perusteella.
+    Kaikki kulutussähkön muutos kohdennetaan asumisen sähkönkulutukseen, koska tietoa
+    jaottelusta asumisen, teollisuuden ja palveluiden välillä ei ole käytettävissä.
+  description_en: In the pessimistic scenario, per capita electricity consumption
+    is assumed to develop according to the realized trend in 2017-2021. In the Finland
+    2035 scenario, per capita electricity consumption is assumed to remain at the
     2021 level. In the Carbon-neutral Espoo 2030 scenario, total electricity consumption
-    (including household electricity and electric heating) is expected to grow by
-    3.4% per year in 2021–2035 based on Caruna’s estimate. All changes in household
-    electricity are focused on the electricity consumption of housing, because information
-    on the division between housing, industry and services is not available.
-  description_sv: I det pessimistiska scenariot har elförbrukningen per invånare antagits
-    utvecklas enligt den realiserade trenden 2017–2021. I scenariot Finland 2035 antas
-    elförbrukningen per invånare hållas på samma nivå som 2021. I scenariot HNE2030
-    antas den totala elförbrukningen (inklusive konsumtionsel och eluppvärmning) öka
-    med 3,4 procent per år under 2021–2035, enligt Carunas bedömning. Alla förändringar
-    i konsumtionselen riktas till elförbrukningen i boendet, eftersom informationen
-    om indelningen mellan boende, industri och service inte är tillgänglig.
-  type: simple.AdditiveNode
+    (including consumption electricity and electric heating) is assumed to increase
+    by 3.4% annually in 2021-2035 based on Caruna's estimate. All changes in consumption
+    electricity are allocated to residential electricity consumption, as information
+    on the division between residential, industrial, and service sectors is not available.
+  description_sv: I det pessimistiska scenariot antas elförbrukningen per capita utvecklas
+    enligt den realiserade trenden 2017–2021. I scenariot Finland 2035 antas elförbrukningen
+    per capita ligga kvar på 2021 års nivå. I scenariot Kolneutralt Esbo 2030 antas
+    den totala elförbrukningen (inklusive konsumtionsel och eluppvärmning) öka med
+    3,4 % per år 2021–2035 baserat på Carunas uppskattning. Alla förändringar i konsumtionselen
+    allokeras till bostädernas elförbrukning, eftersom information om fördelningen
+    mellan bostads-, industri- och servicesektorn inte finns tillgänglig.
+  type: finland.hsy.HsyEnergyConsumption
+  unit: GWh/a
+  input_dimensions: [economic_sector, energy_carrier]
+  output_dimensions: [economic_sector, energy_carrier]
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Sähkö|Kulutussähkö|_energy_carrier_|_economic_sector_
+  color: '#0047b6'
+
+- id: green_electricity_consumption
+  name_fi: Vihreän sähkön tuottama kompensaatio
+  name_en: Green electricity compensation
+  name_sv: Kompensation från grön el
+  description_fi: Ensin vihreä sähkö vähennetään kokonaissähkönkulutuksesta, ja sitten
+    sovelletaan jäännöspäästökerrointa. Oletus siis on, että ostamalla vihreää sähköä
+    omat päästöt alenevat saman verran kuin jos päästökerroin menisi nollaan tilanteesta,
+    jossa vihreä sähkö olisi ostettu pois markkinoilta. Tässä siis oletetaan, että
+    vihreän sähkön ostaminen generoi nykyisenkaltaista sähköntuotantoa siinä määrin,
+    että muiden ostajien päästökerroin ei nousekaan, vaikka vihreä sähkö on ostettu
+    pois markkinoilta.
+  description_en: First, green electricity is subtracted from the total electricity
+    consumption, and then the residual emission factor is applied. The assumption
+    is that by purchasing green electricity, one's own emissions decrease by the same
+    amount as if the emission factor went to zero in a situation where green electricity
+    was bought off the market. Here, it is assumed that purchasing green electricity
+    generates current-like electricity production to the extent that the emission
+    factor of other buyers does not increase, even though green electricity has been
+    bought off the market.
+  description_sv: Först dras grön el bort från den totala elförbrukningen, och sedan
+    tillämpas restfaktorn för utsläpp. Antagandet är att genom att köpa grön el, minskar
+    ens egna utsläpp med samma mängd som om utsläppsfaktorn skulle gå till noll i
+    en situation där grön el skulle köpas bort från marknaden. Här antas att köp av
+    grön el genererar nuvarande liknande elproduktion i den utsträckning att utsläppsfaktorn
+    för andra köpare inte stiger, även om grön el har köpts bort från marknaden.
+  type: simple.GenericNode
   quantity: energy
   unit: GWh/a
-  input_nodes:
-  - consumer_electricity_residence_energy
-  - consumer_electricity_industry_energy
-  - consumer_electricity_services_energy
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  output_nodes:
+  - id: green_electricity_consumption_post
+    tags: [arithmetic_inverse, non_additive]
+    to_dimensions:
+    - id: energy_carrier
 
-- id: consumer_electricity_residence_energy_historical
-  name: Kulutussähkön sähkönkulutus (Asuminen), historiallinen
-  name_en: Consumption electricity consumption (Housing), historical
-  name_sv: Förbrukning elförbrukning (bostäder), historisk
+- id: green_electricity_shares
+  name_fi: Vihreän sähkön osuudet
+  name_en: Green electricity shares
+  type: gpc.DatasetNode
+  quantity: ratio
+  unit: '%'
+  input_dimensions: [economic_sector, energy_carrier]
+  output_dimensions: [economic_sector, energy_carrier]
+  input_datasets: [gpc/espoo]
+  params:
+    sector: Vihreän sähkön jakauma
+  output_nodes:
+  - id: green_electricity_consumption_post
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: economic_sector
+    - id: energy_carrier
+      categories: [green_electricity]
+
+- id: green_electricity_consumption_post
+  name_fi: Vihreän sähkön kulutus sektoreittain
+  name_en: Green electricity consumption by sector
+  type: simple.GenericNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [economic_sector, energy_carrier]
+  output_dimensions: [economic_sector, energy_carrier]
+  output_nodes:
+  - id: non_heating_electricity_energy
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: economic_sector
+    - id: energy_carrier
+      categories: [electricity]
+
+# Transport
+
+- id: road_transport_energy_forecast
+  name_fi: Tieliikenteen energiaennuste
+  name_en: Road transport energy forecast
+  name_sv: Energiprognos för vägtrafik
+  description_fi: 'Henkilöautot: Perusennusteessa (sekä pessimistinen että Suomi 2035
+    -skenaariot) oletetaan, että henkilöautoliikenteen energiankulutus lisääntyy 8
+    % ja 22 % vuosiin 2030 ja 2035 mennessä vuoteen 2021 verrattuna. Sen sijaan HNE2030-skenaariossa
+    oletetaan kasvuksi vain 4 % ja 11 % vastaavasti eli perusuraan verrattuna -4 %
+    ja -11 %. Bussit: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot)
+    oletetaan, että linja-autoliikenteen energiankulutus lisääntyy 1 % ja 1 % vuosiin
+    2030 ja 2035 mennessä vuoteen 2021 verrattuna. Myös HNE2030-skenaariossa oletetaan
+    kasvuksi 1 % ja 1 % vastaavasti. Pakettiautot: Perusennusteessa (sekä pessimistinen
+    että Suomi 2035 -skenaariot) oletetaan, että pakettiautoliikenteen energiankulutus
+    lisääntyy 20 % ja 32 % vuosiin 2030 ja 2035 mennessä vuoteen 2021 verrattuna.
+    Sen sijaan HNE2030-skenaariossa oletetaan kasvuksi vain 13 % ja 22 % vastaavasti.
+    Kuorma-autot: Perusennusteessa (sekä pessimistinen että Suomi 2035 -skenaariot)
+    oletetaan, että kuorma-autoliikenteen energiankulutus lisääntyy 44 % ja 47 % vuosiin
+    2030 ja 2035 mennessä vuoteen 2021 verrattuna. Sen sijaan HNE2030-skenaariossa
+    oletetaan kasvuksi jopa 45 % ja 49 % vastaavasti.'
+  description_en: 'Passenger cars: In the baseline forecast (both pessimistic and
+    Finland 2035 scenarios), it is assumed that the energy consumption of passenger
+    car traffic will increase by 8% and 22% by 2030 and 2035, respectively, compared
+    to 2021. In contrast, in the Carbon-neutral Espoo 2030 scenario, the growth is
+    assumed to be only 4% and 11%, respectively, i.e., -4% and -11% compared to the
+    baseline. Buses: In the baseline forecast (both pessimistic and Finland 2035 scenarios),
+    it is assumed that the energy consumption of bus traffic will increase by 1% and
+    1% by 2030 and 2035, respectively, compared to 2021. In the Carbon-neutral Espoo
+    2030 scenario, the growth is also assumed to be 1% and 1%, respectively. Vans:
+    In the baseline forecast (both pessimistic and Finland 2035 scenarios), it is
+    assumed that the energy consumption of van traffic will increase by 20% and 32%
+    by 2030 and 2035, respectively, compared to 2021. In contrast, in the Carbon-neutral
+    Espoo 2030 scenario, the growth is assumed to be only 13% and 22%, respectively.
+    Trucks: In the baseline forecast (both pessimistic and Finland 2035 scenarios),
+    it is assumed that the energy consumption of truck traffic will increase by 44%
+    and 47% by 2030 and 2035, respectively, compared to 2021. In contrast, in the
+    Carbon-neutral Espoo 2030 scenario, the growth is assumed to be as high as 45%
+    and 49%, respectively.'
+  description_sv: 'Personbilar: I baslinjeprognosen (både pessimistiska och Finland
+    2035-scenarier) antas att energiförbrukningen för personbilstrafik kommer att
+    öka med 8 % och 22 % till 2030 respektive 2035 jämfört med 2021. Däremot antas
+    tillväxten i scenariot Kolneutralt Esbo 2030 endast vara 4 % respektive 11 %,
+    dvs. -4 % och -11 % jämfört med baslinjen. Bussar: I baslinjeprognosen (både pessimistiska
+    och Finland 2035-scenarier) antas att energiförbrukningen för busstrafik kommer
+    att öka med 1 % och 1 % till 2030 respektive 2035 jämfört med 2021. Även i scenariot
+    Kolneutralt Esbo 2030 antas tillväxten vara 1 % respektive 1 %. Skåpbilar: I baslinjeprognosen
+    (både pessimistiska och Finland 2035-scenarier) antas att energiförbrukningen
+    för skåpbilstrafik kommer att öka med 20 % och 32 % till 2030 respektive 2035
+    jämfört med 2021. Däremot antas tillväxten i scenariot Kolneutralt Esbo 2030 endast
+    vara 13 % respektive 22 %. Lastbilar: I baslinjeprognosen (både pessimistiska
+    och Finland 2035-scenarier) antas att energiförbrukningen för lastbilstrafik kommer
+    att öka med 44 % och 47 % till 2030 respektive 2035 jämfört med 2021. Däremot
+    antas tillväxten i scenariot Kolneutralt Esbo 2030 vara så hög som 45 % respektive
+    49 %.'
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  input_datasets:
+  - id: gpc/espoo
+    forecast_from: 2024
+  params:
+    sector: Tieliikenteen suorite-ennuste
+
+# -------------- Nodes needed for implementing actions ----------------
+
+# Buildings
+
+- id: district_heating_emission_factor_historical
+  name_fi: Kaukolämmön päästökerroin, historiallinen
+  name_en: District heating emission factor, historical
+  name_sv: Emissionsfaktor för fjärrvärme, historisk
+  type: finland.hsy.HsyEmissionFactor
+  unit: g/kWh
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Lämmitys|Kaukolämpö|Kaukolämpö|Asuminen
+
+- id: district_heating_emission_factor_goal
+  name_fi: Kaukolämmön päästökerroin, tavoite
+  name_en: District heating emission factor, goal
+  name_sv: Emissionsfaktor för fjärrvärme, goal
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_datasets:
+  - id: gpc/espoo
+    forecast_from: 2024
+    filters:
+    - column: Scenario
+      ref: scenario_name
+  params:
+    sector: Kaukolämmön päästökerrointavoite
+
+# Electricity
+
+- id: non_heating_electricity_energy_historical
+  name_fi: Kulutussähkön sähkönkulutus (Asuminen), historiallinen
+  name_en: Consumption electricity consumption (Residential), historical
+  name_sv: Elförbrukning för konsumtionsel (Bostäder), historisk
   type: finland.hsy.HsyEnergyConsumption
   quantity: energy
   unit: GWh/a
-  params:
-    sector: Sähkö|Kulutussähkö|Kulutussähkö|Asuminen
+  input_dimensions: [economic_sector, energy_carrier]
+  output_dimensions: [economic_sector, energy_carrier]
   input_nodes: [all_hsy_emissions]
+  params:
+    sector: Sähkö|Kulutussähkö|_energy_carrier_|_economic_sector_
 
-- id: consumer_electricity_residence_energy_goal
-  name: Kulutussähkön kulutus (Asuminen), tavoite
-  name_en: Consumer electricity, goal (Housing)
-  name_sv: Förbrukning elförbrukning, mål (bostäder)
+- id: non_heating_electricity_residence_energy_goal
+  name_fi: Kulutussähkön kulutus (Asuminen), tavoite
+  name_en: Consumer electricity consumption (Residential), goal
+  name_sv: Elförbrukning för konsumtionsel (Bostäder), mål
   type: gpc.DatasetNode
   quantity: energy
   unit: GWh/a
@@ -1326,8 +598,22 @@ nodes:
   params:
     sector: Muutos kulutussähkön käytössä (Asuminen)
 
+- id: electricity_production_emission_factor_historic
+  name_fi: Kansallisen sähköntuotannon päästökerroin, historiallinen
+  name_en: National electricity production emission factor, historical
+  name_sv: Nationell elproduktions utsläppskoefficient, historisk
+  type: finland.hsy.HsyEmissionFactor
+  unit: g/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Sähkö|Kulutussähkö|_energy_carrier_|*
+
 - id: electricity_production_emission_factor_goal
-  name: Sähköntuotannon päästökerroin, tavoite
+  name_fi: Sähköntuotannon päästökerroin, tavoite
+  name_en: Electricity production emission factor, goal
+  name_sv: Elproduktionens utsläppskoefficient, mål
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: t/GWh
@@ -1337,202 +623,111 @@ nodes:
   params:
     sector: Kansallinen sähköntuotanto puhdistuu
 
-- id: waste_landfill_emissions
-  name: Kaatopaikkojen päästöt
-  name_en: Landfill emissions
-  name_sv: Deponiutsläpp
-  type: simple.RelativeNode
-  quantity: emissions
-  unit: kt/a
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes: [waste_treatment_emissions]
-- id: biowaste_composting_emissions
-  name: Biojätteen kompostoinnin päästöt
-  name_en: Biowaste composting emissions
-  name_sv: Komposteringsutsläpp av bioavfall
-  type: simple.RelativeNode
-  quantity: emissions
-  unit: kt/a
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes: [waste_treatment_emissions]
-- id: waste_water_treatment_emissions
-  name: Jäteveden käsittelyn päästöt
-  name_en: Wastewater treatment emissions
-  name_sv: Utsläpp från rening av avloppsvatten
-  type: simple.RelativeNode
-  quantity: emissions
-  unit: kt/a
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes: [waste_treatment_emissions]
-- id: sludge_composting_emissions
-  name: Jätevesilietteen kompostoinnin päästöt
-  name_en: Emissions from sewage sludge composting
-  name_sv: Utsläpp från kompostering av avloppsslam
-  type: simple.RelativeNode
-  quantity: emissions
-  unit: kt/a
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes: [waste_treatment_emissions]
+- id: electric_heating_emission_factor_historic
+  name_fi: Lämmityssähkön päästökerroin, historiallinen
+  name_en: Electric heating emission factor, historical
+  name_sv: Eluppvärmningens utsläppskoefficient, historisk
+  type: finland.hsy.HsyEmissionFactor
+  unit: g/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Lämmitys|Sähkölämmitys|_energy_carrier_|*
 
-- id: waste_treatment_emissions_historical
-  name: Jätteiden käsittelyn päästöt, historiallinen
-  name_en: Waste treatment emissions, historical
-  name_sv: Utsläpp från avfallshantering, historisk
-  type: simple.AdditiveNode
+# Transport
+
+- id: truck_factor
+  name_fi: Kuorma-autojen kerroin (vähennyspotentiaali)
+  name_en: Truck factor (reduction potential)
+  name_sv: Lastbilsfaktor (reduktionspotential)
+  type: gpc.DatasetNode
   quantity: emissions
   unit: kt/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: gpc/espoo
+  params:
+    sector: Kuorma-autoliikenteen kerroin
+
+- id: truck_emission_change
+  name_fi: Kuorma-autojen päästöjen muutos
+  name_en: Change in truck emissions
+  name_sv: Förändring i lastbilsutsläpp
+  type: simple.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
   input_nodes:
-  - id: waste_landfill_emissions
-  - id: biowaste_composting_emissions
-  - id: waste_water_treatment_emissions
-  - id: sludge_composting_emissions
+  - id: truck_factor
+    tags: [non_additive]
+  - id: environmental_zone_for_trucks
+    to_dimensions:
+    - id: vehicle_type
+      categories: [trucks]
+  output_nodes:
+  - id: road_traffic_emissions
 
-- id: industry_and_machinery_historical_emissions
-  name: Teollisuus ja työkoneet, historiallinen
-  name_en: Industry and machinery, historical
-  name_sv: Industri och maskiner, historisk
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [main_emission_sector]
-  output_dimensions: [main_emission_sector]
+- id: road_traffic_emission_factor_forecast
+  name_fi: Tieliikenteen päästökerroinennuste
+  name_en: Road traffic emission factor forecast
+  name_sv: Prognos för vägtrafikens utsläppskoefficient
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  input_datasets:
+  - id: gpc/espoo
+    forecast_from: 2024
+  params:
+    sector: Tieliikenteen päästökertoimen ennuste
+
+- id: road_traffic_emission_factors_historical
+  name_fi: Tieliikenteen historialliset päästökertoimet
+  name_en: Historical road traffic emission factors
+  name_sv: Historiska utsläppskoefficienter för vägtrafik
+  type: finland.hsy.HsyEmissionFactor
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Liikenne|Tieliikenne|_vehicle_type_|_economic_sector_
+
+- id: road_traffic_emission_factors  # TODO Update the deviation of other buses from other scenarios
+  name_fi: Tieliikenteen päästökertoimet
+  name_en: Road traffic emission factors
+  name_sv: Vägtrafikens utsläppskoefficienter
+  type: simple.GenericNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
   input_nodes:
-  - id: machinery_emissions
-    to_dimensions:
-    - id: main_emission_sector
-      categories: [machinery]
-  - id: industry_fuel_emissions
-    to_dimensions:
-    - id: main_emission_sector
-      categories: [industry]
-  - id: industrial_processes_emissions
-    to_dimensions:
-    - id: main_emission_sector
-      categories: [industry]
-
-####### Detailed waste emissions with altered names
-
-- id: waste_landfill_residence_emissions  # These nodes are here from the framework as the names have changed.
-  name: Kaatopaikkojen historialliset päästöt (Asuminen)
-  name_en: Landfill historical emissions (Housing)
-  name_sv: Deponiutsläpp historisk (bostäder)
-  output_nodes: [waste_landfill_emissions]
-  params:
-    sector: Jätteiden käsittely|Kaatopaikka|Kaatopaikka|Asuminen
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
-- id: waste_landfill_services_emissions
-  name: Kaatopaikkojen historialliset päästöt (Palvelut)
-  name_en: Landfill historical emissions (Services)
-  name_sv: Deponiutsläpp historisk (tjänster)
-  output_nodes: [waste_landfill_emissions]
-  params:
-    sector: Jätteiden käsittely|Kaatopaikka|Kaatopaikka|Palvelut
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
-- id: waste_landfill_industry_emissions
-  name: Kaatopaikkojen historialliset päästöt (Teollisuus)
-  name_en: Landfill historical emissions (Industry)
-  name_sv: Deponiutsläpp historisk (industri)
-  output_nodes: [waste_landfill_emissions]
-  params:
-    sector: Jätteiden käsittely|Kaatopaikka|Kaatopaikka|Teollisuus
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
-- id: biowaste_composting_residence_emissions
-  name: Biojätteen kompostoinnin historialliset päästöt (Asuminen)
-  name_en: Biowaste composting historical emissions (Housing)
-  name_sv: Bioavfallskomposteringsutsläpp historisk (bostäder)
-  output_nodes: [biowaste_composting_emissions]
-  params:
-    sector: Jätteiden käsittely|Biojätteen kompostointi|Biojätteen kompostointi|Asuminen
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
-- id: biowaste_composting_services_emissions
-  name: Biojätteen kompostoinnin historialliset päästöt (Palvelut)
-  name_en: Biowaste composting historical emissions (Services)
-  name_sv: Bioavfallskomposteringsutsläpp historisk (tjänster)
-  output_nodes: [biowaste_composting_emissions]
-  params:
-    sector: Jätteiden käsittely|Biojätteen kompostointi|Biojätteen kompostointi|Palvelut
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
-- id: biowaste_composting_industry_emissions
-  name: Biojätteen kompostoinnin historialliset päästöt (Teollisuus)
-  name_en: Biowaste composting historical emissions (Industry)
-  name_sv: Bioavfallskomposteringsutsläpp historisk (industri)
-  output_nodes: [biowaste_composting_emissions]
-  params:
-    sector: Jätteiden käsittely|Biojätteen kompostointi|Biojätteen kompostointi|Teollisuus
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
-- id: waste_water_treatment_residence_emissions
-  name: Jäteveden käsittelyn historialliset päästöt (Asuminen)
-  name_en: Wastewater treatment historical emissions (Housing)
-  name_sv: Utsläpp av avloppsvattenrening historisk (bostäder)
-  output_nodes: [waste_water_treatment_emissions]
-  params:
-    sector: Jätteiden käsittely|Jäteveden käsittely|Jäteveden käsittely|Asuminen
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
-- id: waste_water_treatment_services_emissions
-  name: Jäteveden käsittelyn historialliset päästöt (Palvelut)
-  name_en: Wastewater treatment historical emissions (Services)
-  name_sv: Utsläpp av avloppsvattenrening historisk (tjänster)
-  output_nodes: [waste_water_treatment_emissions]
-  params:
-    sector: Jätteiden käsittely|Jäteveden käsittely|Jäteveden käsittely|Palvelut
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
-- id: waste_water_treatment_industry_emissions
-  name: Jäteveden käsittelyn historialliset päästöt (Teollisuus)
-  name_en: Wastewater treatment historical emissions (Industry)
-  name_sv: Utsläpp av avloppsvattenrening historisk (industri)
-  output_nodes: [waste_water_treatment_emissions]
-  params:
-    sector: Jätteiden käsittely|Jäteveden käsittely|Jäteveden käsittely|Teollisuus
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
-- id: sludge_composting_residence_emissions
-  name: Jätevesilietteen kompostoinnin historialliset päästöt (Asuminen)
-  name_en: Emissions from sewage sludge composting historical (Housing)
-  name_sv: Utsläpp från kompostering av avloppsslam historisk (bostäder)
-  output_nodes: [sludge_composting_emissions]
-  params:
-    sector: Jätteiden käsittely|Jätevesilietteen kompostointi|Jätevesilietteen kompostointi|Asuminen
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
-- id: sludge_composting_services_emissions
-  name: Jätevesilietteen kompostoinnin historialliset päästöt (Palvelut)
-  name_en: Emissions from sewage sludge composting historical (Services)
-  name_sv: Utsläpp från kompostering av avloppsslam historisk (tjänster)
-  output_nodes: [sludge_composting_emissions]
-  params:
-    sector: Jätteiden käsittely|Jätevesilietteen kompostointi|Jätevesilietteen kompostointi|Palvelut
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
-- id: sludge_composting_industry_emissions
-  name: Jätevesilietteen kompostoinnin historialliset päästöt (Teollisuus)
-  name_en: Emissions from sewage sludge composting historical (Industry)
-  name_sv: Utsläpp från kompostering av avloppsslam historisk (industri)
-  output_nodes: [sludge_composting_emissions]
-  params:
-    sector: Jätteiden käsittely|Jätevesilietteen kompostointi|Jätevesilietteen kompostointi|Teollisuus
-  input_nodes: [all_hsy_emissions]
-  type: finland.hsy.HsyEmissions
+  - id: road_traffic_emission_factors_historical
+    tags: [non_additive]
+  # - id: road_traffic_emission_factor_forecast # TODO Solve double counting with biofuel fraction
+  #   tags: [forecast_only, non_additive]
+  #   to_dimensions:
+  #   - id: vehicle_type
+  #   - id: economic_sector
 
 pages:
 - id: home  # The page is not shown
-  name: Hiilineutraali Espoo -päästöskenaario
+  name_fi: Hiilineutraali Espoo -päästöskenaario
   name_en: Carbon-neutral Espoo emission scenario
-  name_sv: Utsläppsscenariot Kolneutralt Esbo
+  name_sv: Kolneutralt Esbo utsläppsscenario
   path: /
   type: emission
   outcome_node: net_emissions
   lead_title: Espoon päästöskenaariot
   lead_title_en: Espoo emission scenarios
   lead_title_sv: Esbo utsläppsscenarier
-  lead_paragraph: '<p>Espoon päästöskenaariot visualisoi Espoon kasvihuonekaasupäästöjen
+  lead_paragraph_fi: '<p>Espoon päästöskenaariot visualisoi Espoon kasvihuonekaasupäästöjen
     kehityksen. Voit tarkastella, mistä Espoon kaupungin alueen päästöt syntyvät ja
     kuinka niiden ennustetaan muuttuvan vuoteen 2030 mennessä. Valittavana on: <ul><li><b>Suomi
     2035-skenaario</b>, jossa oletetaan, että kansallisella tasolla toteutettavat
@@ -1551,47 +746,46 @@ pages:
     päästöt on arvioitu pääasiassa interpoloimalla.</p> <p>Työn aikana laadittu skenaariotyökalun
     sisältämät luvut, arviot ja laskukaavat, laskentaperusteet, aikasarjat, lähtöarvot
     ja viitetiedot ovat vapaasti käytettävissä avoimella lisenssillä CC-BY 4.0.</p> '
-  lead_paragraph_en: '<p>Espoo emission scenarios visualise the development of Espoo’s
-    greenhouse gas emissions. You can look at where emissions in the City of Espoo
-    come from and how they are predicted to change by 2030. Options available: <ul><li><b>Finland
-    2035 scenario</b>, which assumes that the climate policy measures and decisions
-    taken at national level will affect Espoo’s emissions development;</li><li>the
-    <b>Carbon-neutral Espoo 2030 scenario (HNE2030)</b>, which assumes that the city’s
-    emissions development will be affected not only by national measures but also
-    by climate measures taken by the city and its partners, such as Fortum and HSY;
-    and</li><li>the <b>pessimistic scenario</b>, which assumes that no new emission
-    reduction measures will be planned or taken by the city.</li></ul></p> <p>Espoo’s
-    goal is to be carbon-neutral by 2030. In support of its climate work, the city
-    is putting together the Carbon-neutral Espoo 2030 roadmap, which describes the
-    city’s own measures and cooperation with partners and residents to achieve the
-    goal of carbon neutrality.</p> <p>The calculations are based on the emission calculation
-    data produced by HSY and the energy consumption data used in the background. The
-    city’s emissions development has been estimated for 2025, 2030 and 2035 for each
-    scenario. In addition, emissions in the intervening years have mainly been estimated
-    by interpolation.</p> <p>A scenario tool was developed during the work, and its
-    figures, estimates, calculation formulas, calculation bases, time series, baseline
-    values and reference data are freely available for use with open licence CC-BY
-    4.0.</p> '
-  lead_paragraph_sv: '<p>Esbos utsläppsscenarier visualiserar utvecklingen av växthusgasutsläppen
-    i Esbo. Du kan granska hur utsläppen i Esbo stads område uppstår och hur de förutspås
-    förändras fram till 2030. Du kan välja mellan: <ul><li><b>scenariot Finland 2035</b>,
-    där man antar att de klimatpolitiska åtgärderna och linjedragningarna som genomförs
-    på nationell nivå påverkar utsläppsutvecklingen i Esbo;</li><li><b>Kolneutralt
-    Esbo 2030 (HNE2030)</b>, där man antar att stadens utsläppsutveckling påverkar
-    inte bara nationella åtgärder utan också staden och dess samarbetspartners, såsom
-    Fortums och HRM:s klimatåtgärder;</li><li>samt <b>det pessimistiska scenariot</b>
-    ett scenario där man antar att nya utsläppsminskningsåtgärder inte planeras eller
-    genomförs i staden.</li></ul></p> <p>Esbo har som mål att vara kolneutralt 2030.
-    För att stöda sitt klimatarbete sammanställer staden färdplanen Kolneutralt Esbo
-    2030, som beskriver stadens egna och partnernas samarbete samt samarbetet med
-    invånarna, för att uppnå målet om kolneutralitet.</p> <p>Som grund för beräkningarna
-    har man utnyttjat de utsläppsberäkningar som HRM producerat och i deras bakgrund
-    uppgifter om energiförbrukningen som använts i bakgrunden. Stadens utsläppsutveckling
-    har för varje scenario uppskattas för 2025, 2030 och 2035. Dessutom har utsläppen
-    under mellanåren bedömts i huvudsak genom interpolation.</p> <p>Siffrorna, uppskattningarna
-    och beräkningsformlerna, beräkningsgrunderna, tidsserierna, utgångsvärdena och
-    referensuppgifterna i scenarioverktyget som utarbetats under arbetets gång är
-    fritt tillgängliga med öppen licens CC-BY 4.0.</p>'
+  lead_paragraph_en: "<p>Espoo emission scenarios visualize the development of Espoo's
+    greenhouse gas emissions. You can examine where emissions in the City of Espoo's
+    area originate from and how they are predicted to change by 2030. The available
+    options are: <ul><li><b>Finland 2035 scenario</b>, which assumes that the climate
+    policy measures and guidelines implemented at the national level will affect Espoo's
+    emission development;</li> <li><b>Carbon-neutral Espoo 2030 scenario (HNE2030)</b>,
+    which assumes that the city's emission development will be influenced not only
+    by national measures but also by climate measures implemented by the city and
+    its partners, such as Fortum and HSY; and</li> <li>a <b>pessimistic scenario</b>,
+    which assumes that no new emission reduction measures will be planned or implemented
+    in the city.</li></ul></p> <p>Espoo aims to be carbon-neutral by 2030. To support
+    its climate work, the city is compiling a Carbon-neutral Espoo 2030 roadmap, which
+    describes the city's own cooperation with partners and residents to achieve the
+    carbon neutrality goal.</p> <p>The calculations are based on the emission calculation
+    data produced by HSY and the energy consumption data used behind them. The city's
+    emission development has been estimated for each scenario for the years 2025,
+    2030, and 2035. In addition, emissions for the intermediate years have been estimated
+    mainlyby interpolation.</p> <p>The figures, estimates, calculation formulas, calculation
+    bases, time series, initial values, and reference data contained in the scenario
+    tool developed during the work are freely available under an open CC-BY 4.0 license.</p>"
+  lead_paragraph_sv: '<p>Esbos utsläppsscenarier visualiserar utvecklingen av Esbos
+    växthusgasutsläpp. Du kan granska var utsläppen i Esbo stads område härstammar
+    från och hur de förväntas förändras fram till 2030. Tillgängliga alternativ är:
+    <ul><li><b>Finland 2035-scenariot</b>, som antar att de klimatpolitiska åtgärderna
+    och riktlinjerna som genomförs på nationell nivå kommer att påverka Esbos utsläppsutveckling;</li>
+    <li><b>Kolneutralt Esbo 2030-scenariot (HNE2030)</b>, som antar att stadens utsläppsutveckling
+    kommer att påverkas inte bara av nationella åtgärder utan även av klimatåtgärder
+    som genomförs av staden och dess partner, såsom Fortum och HRM; och</li> <li>ett
+    <b>pessimistiskt scenario</b>, som antar att inga nya utsläppsminskande åtgärder
+    kommer att planeras eller genomföras i staden.</li></ul></p> <p>Esbos mål är att
+    vara kolneutralt år 2030. För att stödja sitt klimatarbete sammanställer staden
+    en färdplan för ett kolneutralt Esbo 2030, som beskriver stadens eget samarbete
+    med partner och invånare för att uppnå målet om kolneutralitet.</p> <p>Beräkningarna
+    baseras på de utsläppsberäkningsdata som producerats av HRM och de energiförbrukningsdata
+    som använts bakom dem. Stadens utsläppsutveckling har uppskattats för varje scenario
+    för åren 2025, 2030 och 2035. Dessutom har utsläppen för mellanliggande år huvudsakligen
+    uppskattats genom interpolering.</p> <p>Siffrorna, uppskattningarna, beräkningsformlerna,
+    beräkningsgrunderna, tidsserierna, initialvärdena och referensdata som ingår i
+    scenarioverktyget som utvecklats under arbetets gång är fritt tillgängliga under
+    en öppen CC-BY 4.0-licens.</p>'
 
 actions:
 
@@ -1599,25 +793,25 @@ actions:
 # Electriciy
 
 - id: use_certified_electricity
-  name: Tunnistetut suuret toimijat käyttävät sertifioitua puhdasta sähköä Espoossa
-  name_en: Use of certified green electricity by large companies
-  name_sv: Användning av sertifiserad grön el av stora företag
-  description: Suuret toimijat Espoossa käyttävät toiminnassaan sertifioitua puhdasta
+  name_fi: Tunnistetut suuret toimijat käyttävät sertifioitua puhdasta sähköä Espoossa
+  name_en: Identified large actors use certified clean electricity in Espoo
+  name_sv: Identifierade stora aktörer använder certifierad ren el i Esbo
+  description_fi: Suuret toimijat Espoossa käyttävät toiminnassaan sertifioitua puhdasta
     sähköä. Laskennassa huomioidut toimijat ovat Espoon kaupunki, Espoon Asunnot Oy
     sekä Microsoftin Hepokorvenkallion datakeskus. Suurten toimijoiden puhtaan sähkön
-    käytön vaikutus on huomioitu myös ”jäännöskertoimessa” sähkön päästökertoimessa,
+    käytön vaikutus on huomioitu myös "jäännöskertoimessa" sähkön päästökertoimessa,
     jolla on laskettu muu sähkönkulutuksen päästöarvio.
-  description_en: Large companies in Espoo use certified green electricity in their
-    operations. The use of green electricity by large companies is estimated to affect
-    the "residual factor" (i.e. the emission factor of the electricity consumed by
-    others), when the electricity consumption forecast for 2025, 2030 and 2035 is
-    adjusted by removing the certified green electricity used by large companies in
-    Espoo.
-  description_sv: Stora företag i Esbo använder sertifiserad grön el i sina verksamheter.
-    Användningen av grön el av stora företag är uppskattad påverka "restfaktorn" (dvs.
-    utsläppsfaktorn för den el som används av andra), när elförbrukningen förutsägs
-    för 2025, 2030 och 2035 justeras genom att ta bort den sertifiserade gröna elen
-    som stora företag i Esbo använder.
+  description_en: Large actors in Espoo use certified clean electricity in their operations.
+    The actors considered in the calculation are the City of Espoo, Espoon Asunnot
+    Oy, and Microsoft's Hepokorvenkallio data center. The impact of the use of clean
+    electricity by large actors is also considered in the "residual factor" in the
+    emission factor of electricity, which has been used to calculate the emission
+    estimate for other electricity consumption.
+  description_sv: Stora aktörer i Esbo använder certifierad ren elektricitet i sin
+    verksamhet. De aktörer som beaktas i beräkningen är Esbo stad, Espoon Asunnot
+    Oy och Microsofts datacenter i Hepokorvenkallio. Effekten av stora aktörers användning
+    av ren el beaktas också i "restfaktorn" i elens utsläppskoefficient, som har använts
+    för att beräkna utsläppsuppskattningen för annan elanvändning.
   type: gpc.DatasetAction
   quantity: energy
   unit: GWh/a
@@ -1634,12 +828,12 @@ actions:
     sector: Suurten toimijoiden sähkönkulutus
 
 - id: increase_solar_electricity_production
-  name: Aurinkosähkön tuotannon lisääminen
-  name_en: Increase solar electricity production
-  name_sv: Öka solelproduktionen i Esbo
-  description: Lisätään aurinkosähkön tuotantoa Espoon alueella entisestään.
-  description_en: Increase solar electricity production in Espoo’s area.
-  description_sv: Öka solelproduktionen i Esbo.
+  name_fi: Aurinkosähkön tuotannon lisääminen
+  name_en: Increasing solar electricity production
+  name_sv: Ökad produktion av solel
+  description_fi: Lisätään aurinkosähkön tuotantoa Espoon alueella entisestään.
+  description_en: Increase solar electricity production in the Espoo area even further.
+  description_sv: Öka produktionen av solel i Esboområdet ytterligare.
   type: gpc.DatasetAction
   quantity: energy
   unit: GWh/a
@@ -1651,26 +845,42 @@ actions:
   input_datasets:
   - id: gpc/espoo
     forecast_from: 2025
+  output_nodes:
+  - id: non_heating_electricity_energy
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: economic_sector
+      categories: [services]
 
 # Transport
 
 - id: biofuel_fraction_demand
-  name: Jakeluvelvoitteen muutos
-  name_en: Biofuel fraction demand
-  name_sv: Ändring i biobränslen påverkar koldioxidekvivalentut utsläpp
-  description: Jakeluvelvoitteen muutoksen arvioidaan lisäävän tieliikenteen päästöjä.
+  name_fi: Jakeluvelvoitteen muutos
+  name_en: Change in distribution obligation
+  name_sv: Ändring i distributionsskyldighet
+  description_fi: Jakeluvelvoitteen muutoksen arvioidaan lisäävän tieliikenteen päästöjä.
     Jakeluvelvoite on kansallinen toimi, joka ei ole Espoon päätettävissä. Nykyinen
     jakeluvelvoitteen muutos lisää Espoon alueen päästöjä. Vuodesta 2028 alkaen hallitusohjelmassa
     ei ole määritetty polttoaineiden bio-osuutta ja laskennassa oletetaan, että bio-osuus
     on vuodesta 2028 alkaen sama kuin vuonna 2027.
-  description_en: Change the fuel distribution mandate for bio-content in fuels to
-    the ones set in the government programme. From 2028 onwards, the government programme
-    does not specify the bio-content and it is assumed that the bio-content is the
-    same as in 2027 from 2028 onwards.
-  description_sv: Ändring i biobränslen för bioinnehåll i bränslen till de som finns
-    i regeringsprogrammet. Från och med 2028 antas att bioinnehållet är detsamma som
-    2027.
-  type: simple.GpcTrajectoryAction
+  description_en: The change in the distribution obligation is estimated to increase
+    road traffic emissions. The distribution obligation is a national measure that
+    is not within Espoo's decision-making power. The current change in the distribution
+    obligation increases emissions in the Espoo area. From 2028 onwards, the government
+    program does not specify the bio-share of fuels, and the calculation assumes that
+    the bio-share will be the same as in 2027 from 2028 onwards.
+  description_sv: Ändringen i distributionsskyldigheten beräknas öka utsläppen från
+    vägtrafiken. Distributionsskyldigheten är en nationell åtgärd som inte ligger
+    inom Esbos beslutanderätt. Den nuvarande ändringen i distributionsskyldigheten
+    ökar utsläppen i Esboområdet. Från och med 2028 specificerar regeringsprogrammet
+    inte bränslets bioandel, och beräkningen antar att bioandelen kommer att vara
+    densamma som 2027 från och med 2028.
+  type: gpc.DatasetAction
   quantity: fraction
   unit: '%'
   decision_level: nation
@@ -1678,29 +888,38 @@ actions:
   input_datasets:
   - id: gpc/espoo
     forecast_from: 2024
+    filters:
+    - column: Scenario
+      ref: scenario_name
+  output_nodes:
+  - id: road_traffic_emission_factors
+    tags: [non_additive, complement]
+    to_dimensions: []
   params:
     sector: Jakeluvelvoite
-    dimension: scenario
-    category: baseline
 
 - id: increase_electric_passenger_cars # TODO A slider would be nice.
-  name: Edistämme sähköautoilua
+  name_fi: Edistämme sähköautoilua
   name_en: Faster increase in the number of electric passenger cars
   name_sv: Snabbare ökning av antalet elektriska personbilar
-  description: Sähköhenkilöautojen määrän odotetaan kasvavan nopeasti. Lähtökohdaksi
+  description_fi: Sähköhenkilöautojen määrän odotetaan kasvavan nopeasti. Lähtökohdaksi
     otettiin Sähköautojen latausinfran kehittyminen Espoossa -selvityksen skenaariosta
     neljä ladattavien henkilöautojen ja muiden henkilöautojen määrät ja osuudet. Täyssähköhenkilöautojen
     määrän arvioidaan olevan vuonna 2030 70 000 ja vuonna 2035 115 000. Ladattavien
     hybridihenkilöautojen määrän arvioidaan olevan vuona 2030 14 600 ja vuonna 2035
     10 000.
-  description_en: It is assumed that the number of electric passenger cars will increase
-    in Espoo faster than the forecasts. The starting point was the development of
-    electric vehicle charging in Espoo -report, scenario 4, the number of electric
-    passenger cars and the share of other passenger cars in 2025 and 2030.
-  description_sv: Antas att antalet elektriska personbilar kommer att öka i Esbo snabbare
-    än prognoserna. Startpunkten var utvecklingen av elbilbensinladdning i Esbo -rapporten,
-    scenario 4, antalet elektriska personbilar och andelen andra personbilar år 2025
-    och 2030.
+  description_en: The number of electric passenger cars is expected to grow rapidly.
+    The starting point was the number and share of chargeable passenger cars and other
+    passenger cars in scenario four of the report "Development of Electric Vehicle
+    Charging Infrastructure in Espoo". The number of fully electric passenger cars
+    is estimated to be 70,000 in 2030 and 115,000 in 2035. The number of chargeable
+    hybrid passenger cars is estimated to be 14,600 in 2030 and 10,000 in 2035.
+  description_sv: Antalet elektriska personbilar förväntas öka snabbt. Utgångspunkten
+    var antalet och andelen laddningsbara personbilar och andra personbilar i scenario
+    fyra i rapporten "Utveckling av laddningsinfrastruktur för elfordon i Esbo". Antalet
+    helt elektriska personbilar uppskattas till 70 000 år 2030 och 115 000 år 2035.
+    Antalet laddningsbara hybridpersonbilar uppskattas till 14 600 år 2030 och 10
+    000 år 2035.
   type: gpc.DatasetAction
   quantity: number
   unit: vehicles
@@ -1716,14 +935,18 @@ actions:
   - id: passenger_cars_by_type
 
 - id: environmental_zone_for_trucks
-  name: Jakeluliikenteen ja kuorma-autojen sähköistymisen nopean kasvun edistäminen
-  name_en: Accelerated electrification of freight trucks and heavy vehicles
-  name_sv: Snabb ökning av elektriska kuorma-auton och lättlastbilars användning
-  description: Edistetään voimakkaasti fossiilisia polttoaineita käyttävien kuorma-autojen
+  name_fi: Jakeluliikenteen ja kuorma-autojen sähköistymisen nopean kasvun edistäminen
+  name_en: Promoting rapid growth in the electrification of distribution traffic and
+    trucks
+  name_sv: Främja snabb tillväxt i elektrifieringen av distributionstrafik och lastbilar
+  description_fi: Edistetään voimakkaasti fossiilisia polttoaineita käyttävien kuorma-autojen
     ja jakeluliikenteen siirtymää kohti kestäviä käyttövoimia kuten sähköä, biopolttoaineita
     ja biokaasua.
-  description_en: Accelerate the electrification of freight trucks and heavy vehicles.
-  description_sv: Snabb ökning av elektriska kuorma-auton och lättlastbilars användning.
+  description_en: Strongly promote the transition of fossil fuel-using trucks and
+    distribution traffic towards sustainable power sources such as electricity, biofuels,
+    and biogas.
+  description_sv: Främja starkt övergången av fossilbränsledrivna lastbilar och distributionstrafik
+    till hållbara kraftkällor som el, biobränslen och biogas.
   type: simple.AdditiveAction2
   quantity: fraction
   unit: dimensionless
@@ -1734,7 +957,9 @@ actions:
   - id: multiplier
     is_customizable: true
     is_visible: true
-    description: Ympäristövyöhykkeen osuus kuorma-autojen käytöstä
+    description_fi: Ympäristövyöhykkeen osuus kuorma-autojen käytöstä
+    description_en: Share of environmental zone in truck usage
+    description_sv: Andel av miljözon i lastbilsanvändning
     unit: dimensionless
     values:
       default: 0.6
@@ -1746,22 +971,27 @@ actions:
 # ELECTRICITY
 #
 - id: cleaner_electricity_production
-  name: Kansallinen sähköntuotanto puhdistuu
-  name_en: Shift to low-carbon in national electricity production
-  name_sv: Den nationella elproduktionen blir ren
-  description: Pessimistisessä skenaariossa kulutussähkön päästökertoimen oletetaan
+  name_fi: Kansallinen sähköntuotanto puhdistuu
+  name_en: National electricity production becomes cleaner
+  name_sv: Nationell elproduktion blir renare
+  description_fi: Pessimistisessä skenaariossa kulutussähkön päästökertoimen oletetaan
     pysyvän vuoden 2021 tasolla. Suomi 2035 - ja HNE 2035 -skenaarioissa sähkön päästökertoimen
     oletetaan kehittyvän Energiateollisuuden vähähiilisyystiekartan vähähiiliskenaarion
     arvion mukaisesti. Lämmityssähkön päästökertoimeen oletetaan samansuuruinen absoluuttinen
     muutos, jolloin se vuonna 2035 on selvästi suurempi kuin kulutussähköllä.
   description_en: In the pessimistic scenario, the emission factor for household electricity
-    is expected to remain at the 2021 level. In the Finland 2035 and Carbon-neutral
-    Espoo 2035 scenarios, the emission factor for electricity is expected to develop
-    according to the low-carbon scenario estimate of Finnish Energy’s low-carbon roadmap.
-  description_sv: I det pessimistiska scenariot antas utsläppskoefficienten för konsumtionsel
-    hållas på samma nivå som 2021. I scenarierna Finland 2035 och HNE 2035 antas utsläppskoefficienten
-    för el utvecklas enligt bedömningen av koldioxidsnålhetsscenariot i vägkartan
-    för koldioxidsnålhet för energiindustrin.
+    is assumed to remain at the 2021 level. In the Finland 2035 and Carbon-neutral
+    Espoo 2035 scenarios, the emission factor for electricity is assumed to develop
+    according to the estimate of the low-carbon scenario in the low-carbon roadmap
+    of Finnish Energy. An equal absolute change is assumed for the emission factor
+    of electric heating, making it clearly higher than for household electricity in
+    2035.
+  description_sv: I det pessimistiska scenariot antas utsläppskoefficienten för hushållsel
+    ligga kvar på 2021 års nivå. I scenarierna Finland 2035 och Kolneutralt Esbo 2035
+    antas utsläppskoefficienten för el utvecklas enligt uppskattningen i låg koldioxidscenariot
+    i Finsk Energis vägkarta för låga koldioxidutsläpp. En lika stor absolut förändring
+    antas för utsläppskoefficienten för eluppvärmning, vilket gör den klart högre
+    än för hushållsel år 2035.
   type: linear.DatasetReduceAction
   decision_level: nation
   quantity: emission_factor
@@ -1774,22 +1004,17 @@ actions:
     tags: [historical]
     to_dimensions:
     - id: energy_carrier
-      categories: [electricity]
   - id: electricity_production_emission_factor_goal
     tags: [goal]
     to_dimensions:
     - id: energy_carrier
-      flatten: true
   output_nodes:
   - id: electricity_production_emission_factor
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
 
 - id: cleaner_heating_electricity_production
-  name: Kansallinen lämmityssähkön sähköntuotanto puhdistuu
-  name_en: Shift to low-carbon in national electricity production
-  name_sv: Den nationella elproduktionen blir ren
+  name_fi: Kansallinen lämmityssähkön sähköntuotanto puhdistuu
+  name_en: National electric heating electricity production becomes cleaner
+  name_sv: Nationell eluppvärmning elproduktion blir renare
   type: linear.DatasetReduceAction
   decision_level: nation
   quantity: emission_factor
@@ -1802,91 +1027,78 @@ actions:
     tags: [historical]
     to_dimensions:
     - id: energy_carrier
-      categories: [electricity]
-  - id: electricity_production_emission_factor_goal
+  - id: electricity_production_emission_factor_goal # FIXME Shouldn't this be specific for heating?
     tags: [goal]
     to_dimensions:
     - id: energy_carrier
-      flatten: true
   output_nodes:
   - id: electric_heating_emission_factor
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
 
-- id: change_consumer_electricity
-  name: Muutos kulutussähkön käytössä
-  name_en: Change in household energy consumption
-  name_sv: Förändring i användningen av konsumtionsel
+- id: change_non_heating_electricity
+  name_fi: Muutos kulutussähkön käytössä
+  name_en: Change in household electricity use
+  name_sv: Förändring i användningen av hushållsel
   type: linear.DatasetReduceAction
   quantity: energy
   unit: GWh/a
   # group: electricity
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
+  input_dimensions: [economic_sector, energy_carrier]
+  output_dimensions: [economic_sector, energy_carrier]
   input_nodes:
-  - id: consumer_electricity_residence_energy_historical
+  - id: non_heating_electricity_energy_historical
     tags: [historical]
     to_dimensions:
     - id: energy_carrier
-      categories: [electricity]
-  - id: consumer_electricity_residence_energy_goal
+    - id: economic_sector
+  - id: non_heating_electricity_residence_energy_goal
     tags: [goal]
-  output_nodes:
-  - id: consumer_electricity_residence_energy
-    from_dimensions:
+    to_dimensions:
     - id: energy_carrier
-      flatten: true
+    - id: economic_sector
+      categories: [residential]
+  output_nodes:
+  - id: non_heating_electricity_energy
 
 - id: replace_fossil_fuels_in_district_heating
-  name: Fortum korvaa fossiiliset energialähteet kaukolämmöntuotannossa
-  name_en: Fortum replaces fossil fuels in district heat production
-  name_sv: Fortum ersätter fossila energikällor inom fjärrvärmeproduktionen
-  description: Kaukolämmön päästökertoimen osalta laskennassa on tehty seuraavat oletukset.
-    Pessimistisssä skenaariossa kaukolämmön päästökertoimen oletetaan pysyvän vuoden
-    2021 tasolla. Suomi 2035-skenaariossa kaukolämmön päästökertoimen oletetaan kehittyvän
-    keskimäätin Energiateollisuuden vähähiilisyystiekartan vähähiiliskenaarion arvion
-    mukaisesti. HNE 2030-skenaariossa kaukolämmön päästökertoimen oletetaan kehittyvän
-    Fortumin arvion mukaisesti.
-  description_en: For the calculation of the emission factor for district heating,
-    the following assumptions have been made. In the pessimistic scenario, the emission
-    factor for district heating is expected to remain at the 2021 level. In the Finland
-    2035 scenario, the emission factor for district heating is expected to develop
-    on average according to the low-carbon scenario estimate of Finnish Energy’s low-carbon
-    roadmap. In the Carbon-neutral Espoo 2030 scenario, the emission factor for district
-    heating is expected to develop in accordance with Fortum’s estimate.
-  description_sv: I fråga om utsläppskoefficienten för fjärrvärme har följande antaganden
-    gjorts i beräkningen. I det pessimistiska scenariot antas utsläppskoefficienten
-    för fjärrvärme hållas på samma nivå som 2021. I scenariot Finland 2035 antas utsläppskoefficienten
-    för fjärrvärme utvecklas i genomsnitt enligt bedömningen av koldioxidsnålhetsscenariot
-    i vägkartan för koldioxidsnålhet för energiindustrin. I scenariot HNE 2030 antas
-    utsläppskoefficienten för fjärrvärme utvecklas enligt Fortums uppskattning.
-  type: simple.TrajectoryAction
+  name_fi: Fortum korvaa fossiiliset energialähteet kaukolämmöntuotannossa
+  name_en: Fortum replaces fossil energy sources in district heating production
+  name_sv: Fortum ersätter fossila energikällor i fjärrvärmeproduktionen
+  description_fi: Kaukolämmön päästökertoimen osalta laskennassa on tehty seuraavat
+    oletukset. Pessimistisssä skenaariossa kaukolämmön päästökertoimen oletetaan pysyvän
+    vuoden 2021 tasolla. Suomi 2035 -skenaariossa kaukolämmön päästökertoimen oletetaan
+    kehittyvän keskimäärin Energiateollisuuden vähähiilisyystiekartan vähähiiliskenaarion
+    arvion mukaisesti. HNE 2030 -skenaariossa kaukolämmön päästökertoimen oletetaan
+    kehittyvän Fortumin arvion mukaisesti.
+  description_en: The following assumptions have been made in the calculation regarding
+    the emission factor of district heating. In the pessimistic scenario, the emission
+    factor of district heating is assumed to remain at the 2021 level. In the Finland
+    2035 scenario, the emission factor of district heating is assumed to develop on
+    average according to the estimate of the low-carbon scenario in the low-carbon
+    roadmap of Finnish Energy. In the Carbon-neutral Espoo 2030 scenario, the emission
+    factor of district heating is assumed to develop according to Fortum's estimate.
+  description_sv: Följande antaganden har gjorts i beräkningen gällande fjärrvärmens
+    utsläppskoefficient. I det pessimistiska scenariot antas fjärrvärmens utsläppskoefficient
+    ligga kvar på 2021 års nivå. I Finland 2035-scenariot antas fjärrvärmens utsläppskoefficient
+    i genomsnitt utvecklas enligt uppskattningen i låg koldioxidscenariot i Finsk
+    Energis vägkarta för låga koldioxidutsläpp. I Kolneutralt Esbo 2030-scenariot
+    antas fjärrvärmens utsläppskoefficient utvecklas enligt Fortums uppskattning.
+  type: linear.DatasetReduceAction
   quantity: emission_factor
   unit: t/GWh
   group: buildings
-  input_datasets:
-  - id: espoo/energy_sector_trajectories
-    column: district_heat_emission_factor
-    forecast_from: 2024
+  input_nodes:
+  - id: district_heating_emission_factor_historical
+    tags: [historical]
+  - id: district_heating_emission_factor_goal
+    tags: [goal]
   output_nodes:
-  - district_heating_emission_factor
-  params:
-  - id: dimension
-    value: scenario
-  - id: category
-    ref: scenario_name
-  - id: baseline_year
-    value: 2023
-  - id: baseline_year_level
-    value: 119.265308402915
-    unit: t/GWh
+  - id: district_heating_emission_factor
 
 - id: heating_efficiency_improvements_new
-  name: Ominaislämmönkulutuksen paraneminen uudessa rakennuskannassa
+  name_fi: Ominaislämmönkulutuksen paraneminen uudessa rakennuskannassa
   name_en: Improvement of specific heat consumption in new building stock
   name_sv: Förbättring av specifik värmeförbrukning i nytt byggnadsbestånd
-  description: Lämmitysenergia ominaiskulutuksen uudisrakennuksissa oletetaan paranevan
+  description_fi: Lämmitysenergia ominaiskulutuksen uudisrakennuksissa oletetaan paranevan
     kaikissa lämmitysmuodoissa. Uudisrakennusten ominaislämmönkulutus arvioidaan Sitowisen
     laskelmissa olevan Suomi2035- ja HNE2030-skenaarioissa <ul><li>Pientalot 115 kWh/m<sup>2</sup>/a
     ja 66 kWh/m<sup>2</sup>/a</li> <li>Rivitalot 109 kWh/m<sup>2</sup>/a ja 57 kWh/m<sup>2</sup>/a</li>
@@ -1895,13 +1107,28 @@ actions:
     asuinrakennuksille keskimäärin oletetaan puolet kerrostaloja ja lopuista puolet
     rivitaloja ja puolet pientaloja, eli 89 kWh/m<sup>2</sup>/a ja 59.25 kWh/m<sup>2</sup>/a.
     Kaikille rakennustyypeille oletetaan ominaislämmönkulutuksen pieneneminen 30 kWh/m<sup>2</sup>/a.
-  description_en: The specific heat consumption of new buildings is estimated in accordance
-    with the energy efficiency goals. Single-family houses, 115 kWh/m<sup>2</sup>/a.
-    Terraced houses, 109 kWh/m<sup>2</sup>/a. Blocks of flats. 66 kWh/m<sup>2</sup>/a.
-    Other buildings, 82 kWh/m<sup>2</sup>/a.
-  description_sv: Den specifika värmeförbrukningen i nybyggen bedöms i enlighet med
-    energieffektivitetsmålen. Småhus 115 kWh/m<sup>2</sup>/a. Radhus 109 kWh/m<sup>2</sup>/a.
-    Flervåningsbostadshus 66 kWh/m<sup>2</sup>/a. Övriga byggnader 82 kWh/m<sup>2</sup>/a.
+  description_en: The specific heat consumption of new buildings is assumed to improve
+    in all forms of heating. The specific heat consumption of new buildings is estimated
+    in Sitowise's calculations to be in the Finland 2035 and Carbon-neutral Espoo
+    2030 scenarios <ul><li>Detached houses 115 kWh/m<sup>2</sup>/a and 66 kWh/m<sup>2</sup>/a</li>
+    <li>Terraced houses 109 kWh/m<sup>2</sup>/a and 57 kWh/m<sup>2</sup>/a</li> <li>Apartment
+    buildings 66 kWh/m<sup>2</sup>/a and 57 kWh/m<sup>2</sup>/a</li> <li>Other buildings
+    82 kWh/m<sup>2</sup>/a and 52 kWh/m<sup>2</sup>/a</li></ul> In this model, for
+    residential buildings on average, half are assumed to be apartment buildings and
+    the other half is divided equally between terraced houses and detached houses,
+    i.e., 89 kWh/m<sup>2</sup>/a and 59.25 kWh/m<sup>2</sup>/a. A decrease in specific
+    heat consumption of 30 kWh/m<sup>2</sup>/a is assumed for all building types.
+  description_sv: Den specifika värmeförbrukningen i nybyggnader antas förbättras
+    i alla former av uppvärmning. Den specifika värmeförbrukningen i nybyggnader uppskattas
+    i Sitowises beräkningar vara i scenarierna Finland 2035 och Kolneutralt Esbo 2030
+    <ul><li>Småhus 115 kWh/m<sup>2</sup>/a och 66 kWh/m<sup>2</sup>/a</li> <li>Radhus
+    109 kWh/m<sup>2</sup>/a och 57 kWh/m<sup>2</sup>/a</li> <li>Flerbostadshus 66
+    kWh/m<sup>2</sup>/a och 57 kWh/m<sup>2</sup>/a</li> <li>Övriga byggnader 82 kWh/m<sup>2</sup>/a
+    och 52 kWh/m<sup>2</sup>/a</li></ul> I denna modell antas för bostadshus i genomsnitt
+    hälften vara flerbostadshus och den andra hälften delas lika mellan radhus och
+    småhus, dvs. 89 kWh/m<sup>2</sup>/a och 59.25 kWh/m<sup>2</sup>/a. En minskning
+    av den specifika värmeförbrukningen med 30 kWh/m<sup>2</sup>/a antas för alla
+    byggnadstyper.
   type: simple.LinearCumulativeAdditiveAction
   quantity: consumption_factor
   unit: kWh/m**2/a
@@ -1920,10 +1147,10 @@ actions:
     is_visible: false
 
 - id: heating_efficiency_improvements_old
-  name: Ominaislämmönkulutuksen tehostuminen vanhassa rakennuskannassa
+  name_fi: Ominaislämmönkulutuksen tehostuminen vanhassa rakennuskannassa
   name_en: Enhancement of specific heat consumption in old building stock
   name_sv: Effektivisering av specifik värmeförbrukning i gammalt byggnadsbestånd
-  description: <p>HNE2030-skenaariossa kaukolämmön tuotannon ja kulutuksen oletetaan
+  description_fi: <p>HNE2030-skenaariossa kaukolämmön tuotannon ja kulutuksen oletetaan
     Fortumin arvion mukaisesti pysyvän nykytasolla, eli noin 2100 GWh vuodessa. Tämä
     tapahtuu rakennusten energiatehokkuutta parantamalla. Kulutus on 2100 ja 2420
     GWh vuosina 2024 ja 2035, joten tämän jälkeen ominaislämmönkulutuksen oletetaan
@@ -1934,23 +1161,29 @@ actions:
     Kehitys jatkuu samankaltaisena aikavälillä 2030-2035.</p> <p>Pessimistisessä skenaariossa
     rakennusten lämmityksen energiankulutuksen oletetaan kaikkien lämmitysmuotojen
     osalta kehittyvän vuosina 2017-2021 toteutuneen trendin mukaisesti.</p>
-  description_en: <p>The production and consumption of district heating is expected,
-    in accordance with Fortum’s estimate, to remain at its current level of around
-    2,100 GWh per year. This is achieved by improving energy efficiency of existing
-    building stock.</p> <p>In the pessimistic scenario, the energy consumption for
-    heating buildings is expected to develop according to the trend realised in 2017–2021
-    for all forms of heating. In the Finland 2035 scenario, the specific heat consumption
-    of buildings is expected to develop in residential buildings such that heat consumption
-    will decrease by 7.5% from the 2021 level by by 2030 and by 11% in other buildings.
-    This trend will continue in 2030–2035.</p>
-  description_sv: <p>Produktionen och förbrukningen av fjärrvärme antas enligt Fortums
-    bedömning hållas på nuvarande nivå, dvs. cirka 2100 GWh per år. </p> <p>I det
-    pessimistiska scenariot antas energiförbrukningen för uppvärmning av byggnader
-    för alla uppvärmningsformers del utvecklas enligt den realiserade trenden 2017–2021.
-    I scenariot Finland 2035 antas byggnadernas specifika värmeförbrukning utvecklas
-    i bostadshus så att värmeförbrukningen sjunker med 7,5 procent från nivån 2021
-    fram till 2030 och i övriga byggnader med 11 procent. Utvecklingen fortsätter
-    på samma sätt under perioden 2030–2035.</p>
+  description_en: <p>In the Carbon-neutral Espoo 2030 scenario, the production and
+    consumption of district heating is assumed to remain at the current level according
+    to Fortum's estimate, i.e., around 2100 GWh per year. This happens by improving
+    the energy efficiency of buildings. Consumption is 2100 and 2420 GWh in 2024 and
+    2035, respectively, so after this, the specific heat consumption is assumed to
+    decrease by 388 kWh/m<sup>2</sup>/a * (1 - 2100/2420) = 51.3 kWh/m<sup>2</sup>/a
+    by 2035.</p> <p>In the Finland 2035 scenarios, the specific heat consumption of
+    buildings is assumed to develop in residential buildings so that heat consumption
+    decreases by 7.5 percent from the 2021 level by 2030 and by 11 percent in other
+    buildings. The development continues similarly between 2030-2035.</p> <p>In the
+    pessimistic scenario, the energy consumption for heating buildings is assumed
+    to develop according to the trend realized in 2017-2021 for all forms of heating.</p>
+  description_sv: <p>I scenariot Kolneutralt Esbo 2030antas produktionen och förbrukningen
+    av fjärrvärme ligga kvar på nuvarande nivå enligt Fortums uppskattning, dvs. cirka
+    2100 GWh per år. Detta sker genom att förbättra energieffektiviteten i byggnaderna.
+    Förbrukningen är 2100 respektive 2420 GWh år 2024 och 2035, så efter detta antas
+    den specifika värmeförbrukningen minska med 388 kWh/m<sup>2</sup>/a * (1 - 2100/2420)
+    = 51,3 kWh/m<sup>2</sup>/a till 2035.</p> <p>I scenarierna Finland 2035 antas
+    den specifika värmeförbrukningen i byggnader utvecklas i bostadshus så att värmeförbrukningen
+    minskar med 7,5 procent från 2021 års nivå till 2030 och med 11 procent i övriga
+    byggnader. Utvecklingen fortsätter på liknande sätt mellan 2030-2035.</p> <p>I
+    det pessimistiska scenariot antas energiförbrukningen för uppvärmning av byggnader
+    utvecklas enligt trenden som realiserats 2017-2021 för alla former av uppvärmning.</p>
   type: simple.LinearCumulativeAdditiveAction
   quantity: consumption_factor
   unit: kWh/m**2/a
@@ -1971,23 +1204,24 @@ actions:
     is_visible: false
 
 - id: heating_oil_bioshare
-  name: Lämmitysöljyn sekoitusvelvoite
-  name_en: Obligation to mix heating oil
-  name_sv: Blandningsskyldighet för uppvärmningsolja
-  description: Pessimistisessä skenaariossa lämmitysöljyn päästökertoimen oletetaan
+  name_fi: Lämmitysöljyn sekoitusvelvoite
+  name_en: Heating oil blending obligation
+  name_sv: Inblandningsskyldighet för eldningsolja
+  description_fi: Pessimistisessä skenaariossa lämmitysöljyn päästökertoimen oletetaan
     pysyvän vuoden 2021 tasolla. Suomi 2035-skenaariossa ja HNE 2035 -skenaariossa
     biopolttoölyn jakeluvelvoitteen toteutumisen oletetaan vaikuttavan lämmitysöljyn
     päästökertoimeen ja kertoimen oletetaan laskeva 9,7 % vuoden 2021 tasosta vuoteen
     2028 mennessä.
-  description_en: In the pessimistic scenario, the emission factor for heating oil
-    is expected to remain at the 2021 level. In the Finland 2035 and Carbon-neutral
-    Espoo 2035 scenarios, the implementation of the biofuel oil distribution obligation
-    is expected to affect the emission factor for heating oil, and the factor is expected
+  description_en: In the pessimistic scenario, the emission factor of heating oil
+    is assumed to remain at the 2021 level. In the Finland 2035 scenario and the Carbon-neutral
+    Espoo 2035 scenario, the realization of the bio-oil distribution obligation is
+    assumed to affect the emission factor of heating oil, and the factor is assumed
     to decrease by 9.7% from the 2021 level by 2028.
-  description_sv: I det pessimistiska scenariot antas utsläppskoefficienten för uppvärmningsolja
-    hållas på samma nivå som 2021. I scenarierna Finland 2035 och HNE 2035 antas distributionsskyldigheten
-    för biobrännolja påverka utsläppskoefficienten för uppvärmningsolja och koefficienten
-    antas sjunka med 9,7 procent från nivån 2021 fram till 2028.
+  description_sv: I det pessimistiska scenariot antas emissionsfaktorn för eldningsolja
+    ligga kvar på 2021 års nivå. I scenariot Finland 2035 och scenariot Kolneutralt
+    Esbo 2035 antas genomförandet av distributionsskyldigheten för bioolja påverka
+    emissionsfaktorn för eldningsolja, och faktorn antas minska med 9,7 % från 2021
+    års nivå till 2028.
   decision_level: nation
   quantity: emission_factor
   output_nodes:
@@ -1997,37 +1231,38 @@ actions:
   unit: g/kWh
   group: buildings
 
-- id: reduce_oil_heating_residence  # FIXME Combine the next three actions into one.
-  name: Öljylämmityksen vähentäminen (Asuminen)
-  name_en: Reducing oil heating (housing)
-  name_sv: Minskning av oljeuppvärmning (Boende)
-  description: <p>Suomi2035-skenaariossa öljylämmityksestä oletetaan luovuttavan asuin-
-    ja palvelurakennuksissa 95 prosenttisesti vuoteen 2030 mennessä, ja luovuttavan
+- id: reduce_oil_heating
+  name_fi: Öljylämmityksen vähentäminen
+  name_en: Reducing oil heating
+  name_sv: Minskning av oljeuppvärmning
+  description_fi: <p>Suomi2035-skenaariossa öljylämmityksestä oletetaan luovuttavan
+    asuin- ja palvelurakennuksissa 95 prosenttisesti vuoteen 2030 mennessä, ja luovuttavan
     kokonaan vuoteen 2035 mennessä. HNE2030-skenaariossa palvelurakennusten osalta
     oletetaan, että öljylämmityksestä luovutaan 100 prosenttisesti kaupungin ilmastotoimien
     tavoitteiden mukaisesti. Muiden rakennusten osalta oletetaan Suomi 2035-skenaarion
     mukainen kehitys.</p> <p>Lämmitystapamuutoksissa öljylämmitteisistä rakennuksista
     oletetaan siirryttävän muihin lämmitysmuotoihin seuraavasti.</p> <ul><li>Pien-
-    ja rvitalot 100 % lämpöpumppuihin.</li <li>Kerrostaloissa, palvelurakennuksissa
+    ja rivitalot 100 % lämpöpumppuihin.</li <li>Kerrostaloissa, palvelurakennuksissa
     ja teollisuusrakennuksissa 50 % lämpöpumppuhin ja 50 % kaukolämpöön.</li></ul>
-  description_en: The Finland 2035 scenario assumes that oil heating will be given
-    up in residential and service buildings 95% by 2030 and completely by 2035. With
-    regard to service buildings, the Carbon-neutral Espoo 2030 scenario assumes that
-    oil heating will be given up 100% in accordance with the city’s climate action
-    targets. Other buildings are expected to develop according to the Finland 2035
-    scenario. As regards changes in heating methods, it is expected that oil-heated
-    buildings will switch to other forms of heating of follows. Single-family and
-    terraced houses, 100% to heat pumps. Blocks of flats, service buildings and industrial
-    buildings, 50% to heat pumps and 50% to district heating.
-  description_sv: I scenariot Finland2035 antas man avstå från oljeuppvärmning i boende-
-    Och servicebyggnaderna till 95 procent fram till 2030 och avstå helt fram till
-    2035. I scenariot HNE2030 antas för servicebyggnaders del att man avstår från
-    oljeuppvärmning till 100 procent i enlighet med målen för stadens klimatåtgärder.
-    För övriga byggnaders del antas en utveckling enligt scenariot Finland 2035. Vid
-    ändringar i uppvärmningssättet antas man övergå från oljeuppvärmda byggnader till
-    andra uppvärmningsformer enligt följande. Småhus och radhus till 100 procent värmepumpar.
-    I höghus, servicebyggnader och industribyggnader 50 procent till värmepumpar och
-    50 procent till fjärrvärme.
+  description_en: <p>In the Finland 2035 scenario, oil heating is assumed to be abandoned
+    in residential and service buildings by 95 percent by 2030, and completely by
+    2035. In the Carbon-neutral Espoo 2030 scenario, for service buildings, it is
+    assumed that oil heating will be abandoned 100 percent in accordance with the
+    city's climate action targets. For other buildings, the development is assumed
+    to be in accordance with the Finland 2035 scenario.</p> <p>In changes to the heating
+    method, it is assumed that oil-heated buildings will switch to other forms of
+    heating as follows.</p> <ul><li>Detached and terraced houses 100% to heat pumps.</li>
+    <li>In apartment buildings, service buildings, and industrial buildings 50% to
+    heat pumps and 50% to district heating.</li></ul>
+  description_sv: <p>I scenariot Finland 2035 antas oljeuppvärmning överges i bostads-
+    och servicebyggnader med 95 procent till 2030 och helt till 2035. I scenariot
+    Kolneutralt Esbo 2030 antas det för servicebyggnader att oljeuppvärmning överges
+    till 100 procent i enlighet med målen för stadens klimatåtgärder. För övriga byggnader
+    antas utvecklingen vara i enlighet med scenariot Finland 2035.</p> <p>Vid ändringar
+    av uppvärmningsmetoden antas det att oljeuppvärmda byggnader övergår till andra
+    former av uppvärmning enligt följande.</p> <ul><li>Småhus och radhus 100 % till
+    värmepumpar.</li> <li>I flerbostadshus, servicebyggnader och industribyggnader
+    50 % till värmepumpar och 50 % till fjärrvärme.</li></ul>
   type: shift.ShiftAction
   quantity: floor_area
   unit: m**2
@@ -2061,40 +1296,6 @@ actions:
       - year: 2030
         source_amount: -50000
         dest_amounts: [50.0, 50.0]
-
-- id: reduce_oil_heating_services
-  name: Öljylämmityksen vähentäminen (Palvelut)
-  name_en: Reducing oil heating (Services)
-  name_sv: Minskning av oljeuppvärmning (tjänster)
-  description: Suomi2035-skenaariossa öljylämmityksestä oletetaan luovuttavan asuin-
-    ja palvelurakennuksissa 95 prosenttisesti vuoteen 2030 mennessä, ja luovuttavan
-    kokonaan vuoteen 2035 mennessä. HNE2030-skenaariossa palvelurakennusten osalta
-    oletetaan, että öljylämmityksestä luovutaan 100 prosenttisesti kaupungin ilmastotoimien
-    tavoitteiden mukaisesti. Muiden rakennusten osalta oletetaan Suomi 2035-skenaarion
-    mukainen kehitys.
-  description_en: The Finland 2035 scenario assumes that oil heating will be given
-    up in residential and service buildings 95% by 2030 and completely by 2035. With
-    regard to service buildings, the Carbon-neutral Espoo 2030 scenario assumes that
-    oil heating will be given up 100% in accordance with the city’s climate action
-    targets. Other buildings are expected to develop according to the Finland 2035
-    scenario.
-  description_sv: I scenariot Finland2035 antas man avstå från oljeuppvärmning i boende-
-    Och servicebyggnaderna till 95 procent fram till 2030 och avstå helt fram till
-    2035. I scenariot HNE2030 antas för servicebyggnaders del att man avstår från
-    oljeuppvärmning till 100 procent i enlighet med målen för stadens klimatåtgärder.
-    För övriga byggnaders del antas en utveckling enligt scenariot Finland 2035.
-  type: shift.ShiftAction
-  quantity: floor_area
-  unit: m**2
-  group: buildings
-  output_dimensions: [building_heat_source, building_use]
-  output_nodes:
-  - building_floor_area_existing
-  params:
-  - id: shift
-    unit: m**2
-    is_customizable: false
-    value:
     - source:
         categories:
           building_heat_source: oil
@@ -2116,40 +1317,6 @@ actions:
       - year: 2030
         source_amount: -10000
         dest_amounts: [50.0, 50.0]
-
-- id: reduce_oil_heating_industry
-  name: Öljylämmityksen vähentäminen (Teollisuus)
-  name_en: Reducing oil heating (Industry)
-  name_sv: Minskning av oljeuppvärmning (industri)
-  description: Suomi2035-skenaariossa öljylämmityksestä oletetaan luovuttavan asuin-
-    ja palvelurakennuksissa 95 prosenttisesti vuoteen 2030 mennessä, ja luovuttavan
-    kokonaan vuoteen 2035 mennessä. HNE2030-skenaariossa palvelurakennusten osalta
-    oletetaan, että öljylämmityksestä luovutaan 100 prosenttisesti kaupungin ilmastotoimien
-    tavoitteiden mukaisesti. Muiden rakennusten osalta oletetaan Suomi 2035-skenaarion
-    mukainen kehitys.
-  description_en: The Finland 2035 scenario assumes that oil heating will be given
-    up in residential and service buildings 95% by 2030 and completely by 2035. With
-    regard to service buildings, the Carbon-neutral Espoo 2030 scenario assumes that
-    oil heating will be given up 100% in accordance with the city’s climate action
-    targets. Other buildings are expected to develop according to the Finland 2035
-    scenario.
-  description_sv: I scenariot Finland2035 antas man avstå från oljeuppvärmning i boende-
-    Och servicebyggnaderna till 95 procent fram till 2030 och avstå helt fram till
-    2035. I scenariot HNE2030 antas för servicebyggnaders del att man avstår från
-    oljeuppvärmning till 100 procent i enlighet med målen för stadens klimatåtgärder.
-    För övriga byggnaders del antas en utveckling enligt scenariot Finland 2035.
-  type: shift.ShiftAction
-  quantity: floor_area
-  unit: m**2
-  group: buildings
-  output_dimensions: [building_heat_source, building_use]
-  output_nodes:
-  - building_floor_area_existing
-  params:
-  - id: shift
-    unit: m**2
-    is_customizable: false
-    value:
     - source:
         categories:
           building_heat_source: oil
@@ -2173,52 +1340,56 @@ actions:
         dest_amounts: [50.0, 50.0]
 
 - id: city_building_heat_optimization  # FIXME Use goals dataset instead
-  name: Kaupungin kiinteistöjen lämmityksen optimointi
-  name_en: Optimization of heating systems in city-owned buildings
-  name_sv: Optimering av uppvärmningen av stadens fastigheter
-  description: Toimenpiteet koskevat pääasiassa kaupungin omia ja Espoon Asuntojen
+  name_fi: Kaupungin kiinteistöjen lämmityksen optimointi
+  name_en: Optimization of heating in city-owned properties
+  name_sv: Optimering av uppvärmningen i stadens fastigheter
+  description_fi: Toimenpiteet koskevat pääasiassa kaupungin omia ja Espoon Asuntojen
     rakennuksia. Toimenpiteet kattavat siis vain pienen osan rakennus- kannasta, eikä
     niiden kustannusvaikutus ole merkittävä. Peruskorjausten yhteydessä tehtävä energiatehokkuuden
     parantaminen ei välttämättä kasvata kustannuksia. Energiatehokkuustoimenpiteillä
     on huomattava päästövähennysvaikutus. Lisäksi kokonaisuuden toimia on kohdennettu
     kaavoituksen keinoin pääosin uudisrakentamiseen, jossa potentiaalia on olemassa
     olevaan rakennuskantaan nähden vähemmän.
-  description_en: The actions primarily concern the city's own buildings and those
-    of Espoon Asunnot (Espoo Housing). The measures thus cover only a small part of
-    the building stock, and their cost impact is not significant. Improving energy
-    efficiency in conjunction with renovations does not necessarily increase costs.
-    Energy efficiency actions have a significant emission reduction effect. In addition,
-    the overall measures have been targeted mainly at new construction through zoning
-    measures, where there is less potential compared to the existing building stock.
-  description_sv: Åtgärderna gäller främst stadens egna byggnader och Espoon Asunnots
-    (Esbos bostäder) byggnader. Åtgärderna täcker alltså bara en liten del av byggnadsbeståndet,
-    och deras kostnadseffekt är inte betydande. Förbättring av energieffektiviteten
-    i samband med renoveringar ökar inte nödvändigtvis kostnaderna. Energieffektivitetsåtgärder
-    har en betydande utsläppsminskande effekt. Dessutom har de övergripande åtgärderna
-    främst inriktats på nybyggnation genom planläggningsåtgärder, där potentialen
-    är mindre jämfört med det befintliga byggnadsbeståndet.
-  type: simple.CumulativeAdditiveAction
+  description_en: The measures mainly concern the city's own buildings and those of
+    Espoon Asunnot (Espoo Housing). The measures thus cover only a small part of the
+    building stock, and their cost impact is not significant. Improving energy efficiency
+    in connection with renovations does not necessarily increase costs. Energy efficiency
+    measures have a significant emission reduction effect. In addition, the overall
+    measures have been targeted mainly at new construction through zoning measures,
+    where there is less potential compared to the existing building stock.
+  description_sv: Åtgärderna berör huvudsakligen stadens egna byggnader och de som
+    ägs av Espoon Asunnot (Esbo Bostäder). Åtgärderna täcker således endast en liten
+    del av byggnadsbeståndet, och deras kostnadspåverkan är inte betydande. Att förbättra
+    energieffektiviteten i samband med renoveringar ökar inte nödvändigtvis kostnaderna.
+    Energieffektivitetsåtgärder har en betydande utsläppsminskande effekt. Dessutom
+    har de övergripande åtgärderna främst riktats mot nybyggnation genom planläggningsåtgärder,
+    där det finns mindre potential jämfört med det befintliga byggnadsbeståndet.
+  type: gpc.DatasetAction
   quantity: energy
+  unit: GWh/a
   group: buildings
+  input_dimensions: [building_use, building_heat_source, owner]
+  output_dimensions: [building_use, building_heat_source, owner]
+  input_datasets: [gpc/espoo]
   output_nodes:
   - id: building_heat_consumption_existing
+    from_dimensions:
+    - id: owner
+      flatten: true
     to_dimensions:
     - id: building_heat_source
-      categories: [district_heat]
     - id: building_use
-      categories: [services]
-  forecast_values: [[2024, -8.0], [2025, -16], [2026, -4], [2027, -4], [2028, -7], [
-      2029, -14], [2030, -6]]
-  unit: GWh/a
+  params:
+    sector: Kaupungin oman rakennuskannan energiankulutuksen vähennys
 
 #
 # OTHER SECTORS
 #
 - id: reduce_waste_treatment_emissions
-  name: Jätteiden käsittelyn päästöt pienenevät
+  name_fi: Jätteiden käsittelyn päästöt pienenevät
   name_en: Waste treatment emissions are reduced
   name_sv: Utsläppen från avfallsbehandlingen minskar
-  description: <p>Pessimistisessä skenaariossa asukaskohtaisten päästöjen oletetaan
+  description_fi: <p>Pessimistisessä skenaariossa asukaskohtaisten päästöjen oletetaan
     pysyvän vuoden 2021 tasolla. Suomi 2035-skenaariossa päästöjen arvioidaan laskevan
     4 prosenttia vuoden 2020 tasosta vuoteen 2030 mennessä. Samankaltaisen päästökehityksen
     arvioidaan toteutuvan myös aikavälillä 2030-2035. HNE2030-skenaariossa päästöjen
@@ -2226,49 +1397,51 @@ actions:
     oletetaan pysyvän vuoden 2030 tasolla.</p><p>Vuonna 2021 päästöt olivat 23.7 kt
     ja näiden päästöarvioiden pohjana. Kuitenkin vuonna 2022 päästöt olivat vain 21.8
     kt, joten pessimistinen ja Suomi 2035 -skenaariot ovat toteumaa pessimistisempiä.</p>
-  description_en: In the pessimistic scenario, emissions per capita are expected to
-    remain at the 2021 level. In the Finland 2035 scenario, emissions are estimated
-    to decrease by 4% from the 2020 level by 2030. A similar trend in emissions is
-    expected in 2030–2035. In the Carbon-neutral Espoo 2030 scenario, emissions are
-    expected to decrease by 68% between 2021 and 2030, after which they are expected
-    to remain at the 2030 level.
-  description_sv: I det pessimistiska scenariot antas utsläppen per invånare hållas
-    på samma nivå som 2021. I scenariot Finland 2035 uppskattas utsläppen sjunka med
-    4 procent från nivån 2020 fram till 2030. En liknande utsläppsutveckling beräknas
-    förverkligas även under perioden 2030–2035. I scenariot HNE2030 antas utsläppen
-    minska med 68 procent under perioden 2021–2030, varefter utsläppen förväntas stanna
-    på samma nivå som 2030.
-  type: gpc.DatasetDifferenceAction2
+  description_en: <p>In the pessimistic scenario, per capita emissions are assumed
+    to remain at the 2021 level. In the Finland 2035 scenario, emissions are estimated
+    to decrease by 4 percent from the 2020 level by 2030. A similar emission development
+    is estimated to take place also between 2030-2035. In the Carbon-neutral Espoo
+    2030 scenario, emissions are assumed to decrease by 68 percent between 2021-2030,
+    after which emissions are assumed to remain at the 2030 level.</p><p>In 2021,
+    emissions were 23.7 kt and the basis for these emission estimates. However, in
+    2022, emissions were only 21.8 kt, so the pessimistic and Finland 2035 scenarios
+    are more pessimistic than the actual outcome.</p>
+  description_sv: <p>I det pessimistiska scenariot antas utsläppen per capita ligga
+    kvar på 2021 års nivå. I scenariot Finland 2035 uppskattas utsläppen minska med
+    4 procent från 2020 års nivå till 2030. En liknande utsläppsutveckling uppskattas
+    ske även mellan 2030–2035. I scenariot Kolneutralt Esbo 2030 antas utsläppen minska
+    med 68 procent mellan 2021–2030, varefter utsläppen antas ligga kvar på 2030 års
+    nivå.</p><p>År 2021 var utsläppen 23,7 kt och grunden för dessa utsläppsuppskattningar.
+    Men år 2022 var utsläppen endast 21,8 kt, så det pessimistiska scenariot och Finland
+    2035-scenariot är mer pessimistiska än det faktiska utfallet.</p>
+  type: gpc.DatasetAction
   quantity: ratio
-  unit: kt/a
+  unit: '%'
+  no_effect_value: 100
   group: waste_agriculture
-  input_dimensions: [main_emission_sector]
-  output_dimensions: [main_emission_sector]
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
   input_datasets:
   - id: gpc/espoo
-    tags: [goal]
     forecast_from: 2024
+    filters:
+    - column: Scenario
+      ref: scenario_name
   params:
     sector: Waste treatment goals
-    filter_categories: scenario:default
-    relative_goal: true
-  input_nodes:
-  - id: waste_treatment_emissions_historical
-    tags: [baseline]
-    to_dimensions:
-    - id: main_emission_sector
-      categories: [waste_treatment]
   output_nodes:
   - id: waste_treatment_emissions
+    tags: [non_additive]
     from_dimensions:
-    - id: main_emission_sector
+    - id: emission_sector
       flatten: true
+    to_dimensions: []
 
 - id: reduce_agriculture_emissions
-  name: Maatalouden päästöt pienenevät
+  name_fi: Maatalouden päästöt pienenevät
   name_en: Agriculture emissions are reduced
   name_sv: Utsläppen från jordbruket minskar
-  description: Pessimistinessä skenaariossa päästöjen oletetaan pysyvän muuttumattomana
+  description_fi: Pessimistinessä skenaariossa päästöjen oletetaan pysyvän muuttumattomana
     aikavälillä 2021-2035. Suomi 2035 - ja HNE2030-skenaarioissa päästöjen oletetaan
     laskevan 11 prosenttia vuoden 2020 tasosta vuoteen 2035 mennessä. Muutos sijoitetaan
     peltojen päästöihin, joka on suurin osasektori.
@@ -2284,7 +1457,10 @@ actions:
   group: waste_agriculture
   forecast_values: [[2024, 0.0], [2035, 0.0]]
   output_nodes:
-  - agricultural_field_emissions
+  - id: agriculture_emissions
+    to_dimensions:
+    - id: economic_sector
+      categories: [field_farming]
   params:
   - id: target_year_level
     value: -0.1079092776
@@ -2293,10 +1469,10 @@ actions:
     is_visible: false
 
 - id: reduce_machinery_emissions
-  name: Teolllisuuden ja työkoneiden päästöt pienenevät
+  name_fi: Teollisuuden ja työkoneiden päästöt pienenevät
   name_en: Industry and machinery emissions are reduced
   name_sv: Utsläppen från industri och arbetsmaskinerna minskar
-  description: <p><b>Teollisuus:</b> Pessimistisessä skenaariossa asukaskohtaisten
+  description_fi: <p><b>Teollisuus:</b> Pessimistisessä skenaariossa asukaskohtaisten
     päästöjen oletetaan pysyvän vuoden 2020 tasolla. Laskennassa on hyödynnetty vuotta
     2020 vuoden 2021 sijaan, sillä HSY:n vuoden 2021 tiedoissa havaittiin mahdollista
     epäjohdonmukaisuutta. Suomi 2035 -skenaariossa päästöjen oletetaan laskevan 53
@@ -2309,116 +1485,110 @@ actions:
     päästöjen oletetaan laskevan 50 prosenttia vuoteen 2035 mennessä. Muutokset on
     laskettu viimeisen viiden vuoden päästöjen keskiarvosta, sillä vuosittaiset vaihtelut
     sektorin sisällä ovat olleet suuria.</p>
-  description_en: <p><b>Industry:</b> In the pessimistic scenario, emissions per capita
-    are expected to remain at the 2020 level. The year 2020 was used in the calculation
-    instead of 2021, because HSY’s data for 2021 was observed to be possibly inconsistent.
-    In the Finland 2035 scenario, emissions are expected to decrease by 53% by 2035.
-    In the Carbon-neutral Espoo 2030 scenario, emissions are expected to decrease
-    by 53% by 2035. The changes have been calculated from the average emissions over
-    the last five years, since the annual variations within the sector have been significant.</p>
-    <p><b>Machinery:</b> In the pessimistic scenario, emissions per capita are expected
-    to remain at the 2020 level. In the Finland 2035 scenario, emissions are expected
-    to decrease by 20% by 2035. In the Carbon-neutral Espoo 2030 scenario, machinery
-    emissions are expected to decrease by 50% by 2035. The changes have been calculated
-    from the average emissions over the last five years, since the annual variations
-    within the sector have been significant.</p>
+  description_en: <p><b>Industry:</b> In the pessimistic scenario, per capita emissions
+    are assumed to remain at the 2020 level. The calculation has utilized the year
+    2020 instead of 2021, as possible inconsistencies were observed in HSY's data
+    for 2021. In the Finland 2035 scenario, emissions are assumed to decrease by 53
+    percent by 2035. In the Carbon-neutral Espoo 2030 scenario, emissions are assumed
+    to decrease by 53 percent by 2035. The changes have been calculated from the average
+    emissions of the last five years, as the annual variations within the sector have
+    been large.</p> <p><b>Machinery:</b> In the pessimistic scenario, per capita emissions
+    are assumed to remain at the 2020 level. In the Finland 2035 scenario, emissions
+    are assumed to decrease by 20 percent by 2035. In the Carbon-neutral Espoo 2030
+    scenario, machinery emissions are assumed to decrease by 50 percent by 2035. The
+    changes have been calculated from the average emissions of the last five years,
+    as the annual variations within the sector have been large.</p>
   description_sv: <p><b>Industri:</b> I det pessimistiska scenariot antas utsläppen
-    per invånare hållas på samma nivå som 2020. I beräkningen har man utnyttjat 2020
-    i stället för 2021, eftersom HRM:s uppgifter för 2021 eventuellt var inkonsekventa.
-    I scenariot Finland 2035 antas utsläppen minska med 53 procent fram till 2035.
-    I scenariot HNE2030 antas utsläppen minska med 53 procent fram till 2035. Förändringarna
-    har beräknats utifrån medelvärdet av utsläppen under de senaste fem åren, eftersom
-    de årliga variationerna inom sektorn har varit stora.</p> <p><b>Maskiner:</b>
-    I det pessimistiska scenariot antas utsläppen per invånare hållas på samma nivå
-    som 2020. I scenariot Finland 2035 antas utsläppen minska med 20 procent fram
-    till 2035. I scenariot HNE2030 antas utsläppen från arbetsmaskiner minska med
-    50 procent fram till 2035. Förändringarna har beräknats utifrån medelvärdet av
-    utsläppen under de senaste fem åren, eftersom de årliga variationerna inom sektorn
-    har varit stora.
-  type: gpc.DatasetDifferenceAction2
+    per capita ligga kvar på 2020 års nivå. I beräkningen har år 2020 använts i stället
+    för 2021, eftersom eventuella inkonsekvenser observerades i HRM:s data för 2021.
+    I scenariot Finland 2035 antas utsläppen minska med 53 procent till 2035. I scenariot
+    Kolneutralt Esbo 2030 antas utsläppen minska med 53 procent till 2035. Förändringarna
+    har beräknats utifrån de genomsnittliga utsläppen under de senaste fem åren, eftersom
+    de årliga variationerna inom sektorn har varit stora.</p> <p><b>Arbetsmaskiner:</b>
+    I det pessimistiska scenariot antas utsläppen per capita ligga kvar på 2020 års
+    nivå. I scenariot Finland 2035 antas utsläppen minska med 20 procent till 2035.
+    I scenariot Kolneutralt Esbo 2030 antas utsläppen från arbetsmaskiner minska med
+    50 procent till 2035. Förändringarna har beräknats utifrån de genomsnittliga utsläppen
+    under de senaste fem åren, eftersom de årliga variationerna inom sektorn har varit
+    stora.</p>
+  type: gpc.DatasetAction
   quantity: ratio
-  unit: kt/a
+  unit: '%'
+  no_effect_value: 100
   group: industry
-  input_dimensions: [main_emission_sector]
-  output_dimensions: [main_emission_sector]
+  input_dimensions: [emission_sector, economic_sector]
+  output_dimensions: [emission_sector, economic_sector]
   input_datasets:
   - id: gpc/espoo
     tags: [goal]
     forecast_from: 2024
-  input_nodes:
-  - id: industry_and_machinery_historical_emissions
-    tags: [baseline]
+    filters:
+    - column: Scenario
+      ref: scenario_name
   output_nodes:
   - id: industry_machinery_emissions
-    from_dimensions:
-    - id: main_emission_sector
-      flatten: true
+    to_dimensions:
+    - id: economic_sector
+    - id: emission_sector
   params:
     sector: Teollisuus ja työkoneet
-    filter_categories: scenario:default
-    relative_goal: true
 #
 # Road traffic
 #
 
 - id: replace_fossil_fuels_in_cars
-  name: Fossiilisten polttoaineiden korvaaminen
+  name_fi: Fossiilisten polttoaineiden korvaaminen
   name_en: Replacing fossil fuels
-  name_sv: Ersättning för fossila bränslen
-  description: Fossiilisten polttoaineiden korvaamisen arvioidaan vähentävän tieliikenteen
-    päästöjä 0.9 %. Kun tämä vaikutus kohdennetaan pelkästään henkilöautoihin, saadaan
-    päästökertoimen vähenemäksi 234 g/kWh * 0.9 % * (1261 GWh/a / 735 GWh/a) = 3.616
-    g/kWh.
-  description_en: 'Replacing fossil fuels is estimated to reduce emissions from road
-    transport by 0.9%. By focusing this effect on cars only, the reduction in the
-    emission factor can be calculated as follows: 234 g/kWh * 0.9% * (1261 GWh/a /
-    735 GWh/a) = 3.616 g/kWh.'
-  description_sv: Ersättningen av fossila bränslen bedöms minska utsläppen från vägtrafiken
-    med 0.9 procent. När denna effekt riktas enbart till personbilar kan utsläppskoefficienten
-    minskas 234 g/kWh * 0.9 % * (1261 GWh/a / 735 GWh/a) = 3.616 g/kWh.
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: emission_factor
-  unit: g/kWh
+  name_sv: Ersättning av fossila bränslen
+  description_fi: HUOM! Tämä toimenpide korvattaneen jakeluvelvoitteen muutostoimenpiteellä.
+    Fossiilisten polttoaineiden korvaamisen arvioidaan vähentävän tieliikenteen päästöjä
+    0.9 %.
+  description_en: Replacing fossil fuels is estimated to reduce road traffic emissions
+    by 0.9%.
+  description_sv: Ersättning av fossila bränslen beräknas minska vägtrafikens utsläpp
+    med 0,9 %.
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: '%'
   group: transportation
-  forecast_values: [[2024, 0.0], [2035, 0.0]]
+  input_datasets:
+  - id: gpc/espoo
+    forecast_from: 2024
   output_nodes:
-  - id: road_traffic_emission_factor_forecast
-    to_dimensions:
-    - id: vehicle_type
-      categories: [cars]
+  - id: road_traffic_emission_factors
+    tags: [non_additive, complement]
+    to_dimensions: []
   params:
-  - id: target_year_level
-    is_visible: false
-    value: -3.616
-    min_value: -4
-    max_value: -3
+    sector: Liikenteen fossiilisten polttoaineiden korvaaminen
 
 - id: upgrade_car_fleet
-  name: Autokannan nopeampi uudistuminen
-  name_en: Faster upgrade of the car fleet
+  name_fi: Autokannan nopeampi uudistuminen
+  name_en: Faster renewal of the car fleet
   name_sv: Snabbare förnyelse av bilbeståndet
-  description: Autokannan nopeamman uudistamisen arvioidaan vähentävän tieliikenteen
+  description_fi: Autokannan nopeamman uudistamisen arvioidaan vähentävän tieliikenteen
     päästöjä 0.9 %. Kun tämä vaikutus kohdennetaan pelkästään henkilöautojen päästökertoimeen,
     saadaan päästökertoimen vähenemäksi 234 g/kWh * 0.9 % * (1261 GWh/a / 735 GWh/a)
     = 3.616 g/kWh.
-  description_en: 'A faster upgrade of the car fleet is estimated to reduce emissions
-    from road transport by 0.9%. By focusing this effect on the emission factor for
-    cars only, the reduction in the emission factor can be calculated as follows:
-    234 g/kWh * 0.9% * (1261 GWh/a / 735 GWh/a) = 3.616 g/kWh.'
-  description_sv: En snabbare förnyelse av bilbeståndet bedöms minska utsläppen från
-    vägtrafiken med 0.9 procent. När denna effekt riktas enbart till utsläppskoefficienten
-    för personbilar, minskas utsläppskoefficienten 234 g/kWh * 0.9 % * (1261 GWh/a
-    / 735 GWh/a) = 3.616 g/kWh.
+  description_en: Faster renewal of the car fleet is estimated to reduce road traffic
+    emissions by 0.9%. By targeting this effect solely on the emission factor of passenger
+    cars, the decrease in the emission factor is calculated as 234 g/kWh * 0.9% *
+    (1261 GWh/a / 735 GWh/a) = 3.616 g/kWh.
+  description_sv: En snabbare förnyelse av bilbeståndet beräknas minska vägtrafikens
+    utsläpp med 0,9 %. Genom att rikta denna effekt enbart mot emissionsfaktorn för
+    personbilar blir minskningen av emissionsfaktorn 234 g/kWh * 0,9 % * (1261 GWh/a
+    / 735 GWh/a) = 3,616 g/kWh.
   type: simple.LinearCumulativeAdditiveAction
   quantity: emission_factor
   unit: g/kWh
   group: transportation
   forecast_values: [[2024, 0.0], [2035, 0.0]]
   output_nodes:
-  - id: road_traffic_emission_factor_forecast
+  - id: road_traffic_emission_factors
     to_dimensions:
     - id: vehicle_type
       categories: [cars]
+    - id: economic_sector
+      categories: [residential]
   params:
   - id: target_year_level
     is_visible: false
@@ -2427,51 +1597,53 @@ actions:
     max_value: -3
 
 - id: emission_limits_for_cars_and_vans
-  name: Henkilö- ja pakettiautojen sitovat päästörajat
-  name_en: Binding emission limits for cars and vans
-  name_sv: Bindande utsläppsgränser för person- och paketbilar
-  description: Henkilö- ja pakettiautojen sitovien päästörajojen arvioidaan vähentävän
+  name_fi: Henkilö- ja pakettiautojen sitovat päästörajat
+  name_en: Binding emission limits for passenger cars and vans
+  name_sv: Bindande utsläppsgränser för person- och skåpbilar
+  description_fi: Henkilö- ja pakettiautojen sitovien päästörajojen arvioidaan vähentävän
     tieliikenteen päästöjä 0.7 %. Kun tämä vaikutus kohdennetaan pelkästään pakettiautojen
     päästökertoimeen, saadaan päästökertoimen vähenemäksi 229.8 g/kWh * 0.7 % * (1261
     GWh/a / 114.6 GWh/a) = 17.70 g/kWh.
-  description_en: 'Binding emission limits for cars and vans are estimated to reduce
-    emissions from road transport by 0.7%. By focusing this effect on the emission
-    factor for vans only, the reduction in the emission factor can be calculated as
-    follows: 229.8 g/kWh * 0.7% * (1261 GWh/a / 114.6 GWh/a) = 17.70 g/kWh.'
-  description_sv: De bindande utsläppsgränserna för person- och paketbilar beräknas
-    minska utsläppen från vägtrafiken med 0.7 procent. När denna effekt riktas enbart
-    till utsläppskoefficienten för paketbilar, minskas utsläppskoefficienten 229.8
-    g/kWh * 0.7 % * (1261 GWh/a / 114.6 GWh/a) = 17.70 g/kWh.
+  description_en: Binding emission limits for passenger cars and vans are estimated
+    to reduce road traffic emissions by 0.7%. By targeting this effect solely on the
+    emission factor of vans, the decrease in the emission factor is calculated as
+    229.8 g/kWh * 0.7% * (1261 GWh/a / 114.6 GWh/a) =17.70 g/kWh.
+  description_sv: Bindande utsläppsgränser för person- och skåpbilar beräknas minska
+    vägtrafikens utsläpp med 0,7 %. Genom att rikta denna effekt enbart mot emissionsfaktorn
+    för skåpbilar blir minskningen av emissionsfaktorn 229,8 g/kWh * 0,7 % * (1261
+    GWh/a / 114,6 GWh/a) = 17,70 g/kWh.
   type: simple.LinearCumulativeAdditiveAction
   quantity: emission_factor
   unit: g/kWh
   group: transportation
   forecast_values: [[2024, 0.0], [2035, 0.0]]
   output_nodes:
-  - id: road_traffic_emission_factor_forecast
+  - id: road_traffic_emission_factors
     to_dimensions:
     - id: vehicle_type
       categories: [vans]
+    - id: economic_sector
+      categories: [services]
   params:
   - id: target_year_level
-    is_visible: false
+    is_visible: true
     value: -17.70
-    min_value: -18
-    max_value: -17
+    min_value: -20
+    max_value: -10
 
 - id: improve_personal_traffic_efficiency
-  name: Liikennejärjestelmän tehostaminen
-  name_en: Increasing the efficiency of the transport system
+  name_fi: Liikennejärjestelmän tehostaminen
+  name_en: Improving the efficiency of the transport system
   name_sv: Effektivisering av trafiksystemet
-  description: Liikennejärjestelmän tehostamisen arvioidaan vähentävän tieliikenteen
+  description_fi: Liikennejärjestelmän tehostamisen arvioidaan vähentävän tieliikenteen
     päästöjä 2.8 %. Tämä vastaa energiankulutusta 2.80 % * 1261 GWh/a = 35.31 GWh/a.
     Tämä kohdennetaan henkilöautoihin.
-  description_en: Increasing the efficiency of the transport system is estimated to
-    reduce emissions from road transport by 2.8%. This corresponds to an energy consumption
-    of 2.80% * 1261 GWh/a = 35.31 GWh/a. This will be focused on cars.
-  description_sv: Effektiviseringen av trafiksystemet bedöms minska utsläppen från
-    vägtrafiken med 2.8 procent. Detta motsvarar energiförbrukningen 2.80 % * 1261
-    GWh/a = 35.31 GWh/a. Detta riktas till personbilar.
+  description_en: Improving the efficiency of the transport system is estimated to
+    reduce road traffic emissions by 2.8%. This corresponds to an energy consumption
+    of 2.80% * 1261 GWh/a = 35.31 GWh/a. This is allocated to passenger cars.
+  description_sv: Effektivisering av trafiksystemet beräknas minska vägtrafikens utsläpp
+    med 2,8 %. Detta motsvarar en energiförbrukning på 2,80 % * 1261 GWh/a = 35,31
+    GWh/a. Detta allokeras till personbilar.
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
@@ -2482,6 +1654,8 @@ actions:
     to_dimensions:
     - id: vehicle_type
       categories: [cars]
+    - id: economic_sector
+      categories: [residential]
   params:
   - id: target_year_level
     is_visible: false
@@ -2490,18 +1664,18 @@ actions:
     max_value: -35
 
 - id: increase_remote_work
-  name: Etätyön lisääminen
+  name_fi: Etätyön lisääminen
   name_en: Increasing remote work
   name_sv: Ökat distansarbete
-  description: Etätyön lisäämisen arvioidaan vähentävän tieliikenteen päästöjä 0.9
-    %. Tämä vastaa energiankulutusta 0.9 % * 1261 GWh/a = 11.35 GWh/a. Tämä kohdennetaan
+  description_fi: Etätyön lisäämisen arvioidaan vähentävän tieliikenteen päästöjä
+    0.9 %. Tämä vastaa energiankulutusta 0.9 % * 1261 GWh/a = 11.35 GWh/a. Tämä kohdennetaan
     henkilöautoihin.
-  description_en: Increasing remote work is estimated to reduce emissions from road
-    transport by 0.9%. This corresponds to an energy consumption of 0.9% * 1261 GWh/a
-    = 11.35 GWh/a. This will be focused on cars.
-  description_sv: Ökningen av distansarbetet bedöms minska utsläppen från vägtrafiken
-    med 0.9 procent. Detta motsvarar energiförbrukningen 0.9 % * 1261 GWh/a = 11.35
-    GWh/a. Detta riktas till personbilar.
+  description_en: Increasing remote work is estimated to reduce road traffic emissions
+    by 0.9%. This corresponds to an energy consumption of 0.9% * 1261 GWh/a = 11.35
+    GWh/a. This is allocated to passenger cars.
+  description_sv: Ökad distansarbete beräknas minska vägtrafikens utsläpp med 0,9
+    %. Detta motsvarar en energiförbrukning på 0,9 % * 1261 GWh/a = 11,35 GWh/a. Detta
+    allokeras till personbilar.
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
@@ -2512,6 +1686,8 @@ actions:
     to_dimensions:
     - id: vehicle_type
       categories: [cars]
+    - id: economic_sector
+      categories: [residential]
   params:
   - id: target_year_level
     is_visible: false
@@ -2520,18 +1696,18 @@ actions:
     max_value: -11
 
 - id: improve_transport_services
-  name: Liikenteen palveluiden edistäminen
+  name_fi: Liikenteen palveluiden edistäminen
   name_en: Promoting transport services
   name_sv: Främjande av trafiktjänster
-  description: Liikenteen palveluiden edistämisen arvioidaan vähentävän tieliikenteen
+  description_fi: Liikenteen palveluiden edistämisen arvioidaan vähentävän tieliikenteen
     päästöjä 0.9 %. Tämä vastaa energiankulutusta 0.9 % * 1261 GWh/a = 11.35 GWh/a.
     Tämä kohdennetaan henkilöautoihin.
-  description_en: Promoting transport services is estimated to reduce emissions from
-    road transport by 0.9%. This corresponds to an energy consumption of 0.9% * 1261
-    GWh/a = 11.35 GWh/a. This will be focused on cars.
-  description_sv: Främjandet av trafiktjänster bedöms minska utsläppen från vägtrafiken
-    med 0.9 procent. Detta motsvarar energiförbrukningen 0.9 % * 1261 GWh/a = 11.35
-    GWh/a. Detta riktas till personbilar.
+  description_en: Promoting transport services is estimated to reduce road traffic
+    emissions by 0.9%. This corresponds to an energy consumption of 0.9% * 1261 GWh/a
+    = 11.35 GWh/a. This is allocated to passenger cars.
+  description_sv: Främjande av trafiktjänster beräknas minska vägtrafikens utsläpp
+    med 0,9 %. Detta motsvarar en energiförbrukning på 0,9 % * 1261 GWh/a = 11,35
+    GWh/a. Detta allokeras till personbilar.
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
@@ -2542,6 +1718,8 @@ actions:
     to_dimensions:
     - id: vehicle_type
       categories: [cars]
+    - id: economic_sector
+      categories: [residential]
   params:
   - id: target_year_level
     is_visible: false
@@ -2550,18 +1728,18 @@ actions:
     max_value: -11
 
 - id: trip_aggregation
-  name: Yhdistetyt kuljetukset
+  name_fi: Yhdistetyt kuljetukset
   name_en: Combined transport
   name_sv: Kombinerade transporter
-  description: Kuljetusten yhdistämisen arvioidaan vähentävän tieliikenteen päästöjä
+  description_fi: Kuljetusten yhdistämisen arvioidaan vähentävän tieliikenteen päästöjä
     0.2 %. Tämä vastaa energiankulutusta 0.2 % * 1261 GWh/a = 2.522 GWh/a. Tämä kohdennetaan
     henkilöautoihin.
-  description_en: Combined transport is estimated to reduce emissions from road transport
+  description_en: Combining transport is estimated to reduce road traffic emissions
     by 0.2%. This corresponds to an energy consumption of 0.2% * 1261 GWh/a = 2.522
-    GWh/a. This will be focused on cars.
-  description_sv: Kombinerade transporter bedöms minska utsläppen från vägtrafiken
-    med 0.2 procent. Detta motsvarar energiförbrukningen 0.2 % * 1261 GWh/a = 2.522
-    GWh/a. Detta riktas till personbilar.
+    GWh/a. This is allocated to passenger cars.
+  description_sv: Kombinerade transporter beräknas minska vägtrafikens utsläpp med
+    0,2 %. Detta motsvarar en energiförbrukning på 0,2 % * 1261 GWh/a = 2,522 GWh/a.
+    Detta allokeras till personbilar.
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
@@ -2572,6 +1750,8 @@ actions:
     to_dimensions:
     - id: vehicle_type
       categories: [cars]
+    - id: economic_sector
+      categories: [residential]
   params:
   - id: target_year_level
     is_visible: false
@@ -2580,18 +1760,18 @@ actions:
     max_value: -2
 
 - id: road_transportation_emission_trade
-  name: Tieliikenteen päästökauppa
-  name_en: Road transport emissions trading
-  name_sv: Utsläppshandel med vägtrafik
-  description: Tieliikenteen päästökaupan arvioidaan vähentävän tieliikenteen päästöjä
+  name_fi: Tieliikenteen päästökauppa
+  name_en: Road traffic emissions trading
+  name_sv: Utsläppshandel för vägtrafik
+  description_fi: Tieliikenteen päästökaupan arvioidaan vähentävän tieliikenteen päästöjä
     4.5 %. Tämä vastaa energiankulutusta 4.5 % * 1261 GWh/a = 56.75 GWh/a. Tämä kohdennetaan
     henkilöautoihin.
-  description_en: Road transport emissions trading is estimated to reduce emissions
-    from road transport by 4.5%. This corresponds to an energy consumption of 4.5%
-    * 1261 GWh/a = 56.75 GWh/a. This will be focused on cars.
-  description_sv: Utsläppshandeln med vägtrafik uppskattas minska utsläppen från vägtrafiken
-    med 4.5 procent. Detta motsvarar energiförbrukningen 4.5 % * 1261 GWh/a = 56.75
-    GWh/a. Detta riktas till personbilar.
+  description_en: Road traffic emissions trading is estimated to reduce road traffic
+    emissions by 4.5%. This corresponds to an energy consumption of 4.5% * 1261 GWh/a
+    = 56.75 GWh/a. This is allocated to passenger cars.
+  description_sv: Utsläppshandel för vägtrafik beräknas minska vägtrafikens utsläpp
+    med 4,5 %. Detta motsvarar en energiförbrukning på 4,5 % * 1261 GWh/a = 56,75
+    GWh/a. Detta allokeras till personbilar.
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
@@ -2602,6 +1782,8 @@ actions:
     to_dimensions:
     - id: vehicle_type
       categories: [cars]
+    - id: economic_sector
+      categories: [residential]
   params:
   - id: target_year_level
     is_visible: false
@@ -2610,8 +1792,9 @@ actions:
     max_value: -56
 
 scenarios:
+
 - id: baseline
-  name: Suomi 2035
+  name_fi: Suomi 2035
   name_en: Finland 2035
   name_sv: Finland 2035
   params:
@@ -2620,11 +1803,6 @@ scenarios:
   - id: cleaner_electricity_production.enabled
     value: true
 
-  - id: reduce_machinery_emissions.filter_categories
-    value: scenario:baseline
-  - id: reduce_machinery_emissions.enabled
-    value: true
-
   - id: replace_fossil_fuels_in_cars.enabled
     value: true
   - id: upgrade_car_fleet.enabled
@@ -2641,40 +1819,26 @@ scenarios:
     value: false
   - id: road_transportation_emission_trade.enabled
     value: true
-
-  - id: biofuel_fraction_demand.category
-    value: baseline
-
+  - id: biofuel_fraction_demand.enabled
+    value: true
   - id: replace_fossil_fuels_in_district_heating.enabled
     value: true
-  - id: reduce_oil_heating_residence.enabled
-    value: true
-  - id: reduce_oil_heating_services.enabled
-    value: true
-  - id: reduce_oil_heating_industry.enabled
+  - id: reduce_oil_heating.enabled
     value: true
 
-  - id: reduce_waste_treatment_emissions.enabled
+  - id: change_non_heating_electricity.enabled
     value: true
-  - id: reduce_waste_treatment_emissions.filter_categories
-    value: scenario:baseline
-  - id: change_consumer_electricity.enabled
-    value: true
+
 
 - id: default
   default: true
-  name: Hiilineutraali Espoo 2030
+  name_fi: Hiilineutraali Espoo 2030
   name_en: Carbon-neutral Espoo 2030
   name_sv: Kolneutralt Esbo 2030
   all_actions_enabled: true
   params:
   - id: scenario_name
     value: default
-  - id: reduce_machinery_emissions.filter_categories
-    value: scenario:default
-  - id: reduce_machinery_emissions.enabled
-    value: true
-
   - id: replace_fossil_fuels_in_cars.enabled
     value: true
   - id: upgrade_car_fleet.enabled
@@ -2694,51 +1858,33 @@ scenarios:
   - id: replace_fossil_fuels_in_district_heating.enabled
     value: true
 
-  - id: biofuel_fraction_demand.category
-    value: default
-
-  - id: reduce_waste_treatment_emissions.enabled
-    value: true
-  - id: reduce_waste_treatment_emissions.filter_categories
-    value: scenario:default
-  - id: change_consumer_electricity.enabled
+  - id: change_non_heating_electricity.enabled
     value: true
   - id: cleaner_electricity_production.enabled
     value: true
 
 - id: pessimistic
-  name: Pessimistinen
+  name_fi: Pessimistinen
   name_en: Pessimistic
   name_sv: Pessimistisk
   all_actions_enabled: false
   params:
   - id: scenario_name
     value: pessimistic
-  - id: reduce_waste_treatment_emissions.enabled
-    value: false
-  - id: reduce_waste_treatment_emissions.filter_categories
-    value: scenario:pessimistic
-  - id: change_consumer_electricity.enabled
+  - id: change_non_heating_electricity.enabled
     value: true
   - id: cleaner_electricity_production.enabled
     value: true
   - id: replace_fossil_fuels_in_district_heating.enabled
-    value: true  # FIXME It is illogical that action needs to be enabled to get zero effect.
-
-  - id: biofuel_fraction_demand.category
-    value: default
+    value: false
 
 - id: default_old
-  name: HNE2030 ennen 2024 lisätoimenpiteitä
+  name_fi: HNE2030 ennen 2024 lisätoimenpiteitä
   all_actions_enabled: true
   is_selectable: false
   params:
   - id: scenario_name
     value: default
-  - id: reduce_machinery_emissions.filter_categories
-    value: scenario:default
-  - id: reduce_machinery_emissions.enabled
-    value: true
   - id: replace_fossil_fuels_in_cars.enabled
     value: true
   - id: upgrade_car_fleet.enabled
@@ -2757,13 +1903,7 @@ scenarios:
     value: true
   - id: replace_fossil_fuels_in_district_heating.enabled
     value: true
-  - id: biofuel_fraction_demand.category
-    value: default
-  - id: reduce_waste_treatment_emissions.enabled
-    value: true
-  - id: reduce_waste_treatment_emissions.filter_categories
-    value: scenario:default
-  - id: change_consumer_electricity.enabled
+  - id: change_non_heating_electricity.enabled
     value: true
   - id: cleaner_electricity_production.enabled
     value: true
@@ -2772,7 +1912,7 @@ scenarios:
   - id: increase_solar_electricity_production.enabled
     value: false
   - id: biofuel_fraction_demand.enabled
-    value: false
+    value: true
   - id: increase_electric_passenger_cars.enabled
     value: false
   - id: environmental_zone_for_trucks.enabled

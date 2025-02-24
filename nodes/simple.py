@@ -153,7 +153,7 @@ class SimpleNode(Node):
 
     def scale_by_reference_year(self, df: ppl.PathsDataFrame, year: int | None = None) -> ppl.PathsDataFrame:
         if not year:
-            year = self.get_parameter_value('reference_year', required=False)
+            year = self.get_typed_parameter_value('reference_year', int, required=False)
         if year:
             df = self._scale_by_reference_year(df, year)
             df = df.ensure_unit(VALUE_COLUMN, self.unit)
@@ -161,7 +161,7 @@ class SimpleNode(Node):
 
     def get_shares(self, df: ppl.PathsDataFrame, dim: str | None = None) -> ppl.PathsDataFrame:
         if not dim:
-            dim = self.get_parameter_value('share_dimension', required = False)
+            dim = self.get_parameter_value_str('share_dimension', required = False)
         if dim:
             df = df.paths.calculate_shares(VALUE_COLUMN, VALUE_COLUMN, [dim])
 
@@ -179,7 +179,134 @@ class SimpleNode(Node):
         return df
 
 
-class AdditiveNode(SimpleNode):
+class GenericNode(SimpleNode):
+    """
+    A base node class that handles common operations for combining input nodes.
+
+    The node processes inputs in this order:
+    1. Multiply all multiplicative nodes (tagged 'non_additive')
+    2. Add all additive nodes (tagged 'additive' or having compatible units)
+    3. Process remaining nodes ('other_node') in compute() implementation
+    """
+
+    def _get_input_nodes(self, nodes: list[Node], tag: str | None = None) -> list[Node]:
+        matching_nodes = []
+        for edge in self.edges:
+            if edge.output_node != self:
+                continue
+            node = edge.input_node
+            if node not in nodes:
+                continue
+            if tag is not None and tag not in edge.tags and tag not in node.tags: # TODO Why node.tags here?
+                continue
+            matching_nodes.append(node)
+        return matching_nodes
+
+    def _get_categorized_inputs(self, nodes: list[Node]) -> tuple[list[Node], list[Node], list[Node]]:
+        """
+        Categorize input nodes into multiplicative, additive and other nodes.
+
+        Returns:
+            tuple of (multiplicative_nodes, additive_nodes, other_nodes)
+
+        """
+        explicitly_multiplicative_nodes = self._get_input_nodes(nodes, tag='non_additive')
+        other_nodes = self._get_input_nodes(nodes, tag='other_node')
+
+        # Nodes are additive if they have compatible units and no other classification
+        additive_nodes = []
+        multiplicative_nodes = list(explicitly_multiplicative_nodes)
+        for node in nodes:
+            if node in explicitly_multiplicative_nodes or node in other_nodes:
+                continue
+
+            if self.is_compatible_unit(self.unit, node.unit):
+                additive_nodes.append(node)
+            else:
+                multiplicative_nodes.append(node)
+
+        return multiplicative_nodes, additive_nodes, other_nodes
+
+    def _multiply_nodes(self, nodes: list[Node], base_df: ppl.PathsDataFrame | None = None) -> ppl.PathsDataFrame | None:
+        """Multiply outputs from the given nodes using inner join and union of dimensions."""
+        if not nodes and base_df is None:
+            return None
+
+        if base_df is not None:
+            result = base_df
+        else:
+            result = nodes.pop(0).get_output_pl(target_node=self)
+
+        for node in nodes:
+            df = node.get_output_pl(target_node=self)
+            result = result.paths.join_over_index(df, how='inner', index_from='union')
+            result = result.multiply_cols(
+                [VALUE_COLUMN, f'{VALUE_COLUMN}_right'],
+                VALUE_COLUMN
+            ).drop(f'{VALUE_COLUMN}_right')
+
+        return result
+
+    def _add_nodes(self, nodes: list[Node], base_df: ppl.PathsDataFrame | None = None) -> ppl.PathsDataFrame | None:
+        """Add outputs from the given nodes using outer join."""
+        if not nodes and base_df is None:
+            return None
+
+        if base_df is not None:
+            result = base_df
+        else:
+            result = nodes.pop(0).get_output_pl(target_node=self)
+
+        for node in nodes:
+            df = node.get_output_pl(target_node=self)
+            if set(df.dim_ids) != set(result.dim_ids):
+                raise NodeError(
+                    self,
+                    f"Dimensions don't match for implicit addition: {df.dim_ids} vs {result.dim_ids}"
+                )
+
+            result = result.paths.add_with_dims(df, how='outer')
+            # TODO Should null handling be configurable by parameter?
+            result = result.with_columns(pl.col(VALUE_COLUMN).fill_null(0.0))
+
+        return result
+
+    def run_implicit_operations(
+            self,
+            nodes: list[Node] | None = None,
+            base_df: ppl.PathsDataFrame | None = None
+            ) -> tuple[ppl.PathsDataFrame | None, list[Node]]:
+        """
+        Process all inputs according to their categories.
+
+        Returns the combined result of multiplicative and additive nodes.
+        """
+        if nodes is None:
+            nodes = self.input_nodes
+        mult_nodes, add_nodes, other_nodes = self._get_categorized_inputs(nodes)
+
+        result = self._multiply_nodes(mult_nodes, base_df)
+        result = self._add_nodes(add_nodes, result)
+
+        return result, other_nodes
+
+    def compute(self) -> ppl.PathsDataFrame:
+        """
+        To be implemented by subclasses to define specific behavior.
+
+        Base implementation just returns the result of process_inputs().
+        """
+        df, other_nodes = self.run_implicit_operations()
+
+        if df is None:
+            raise NodeError(self, "No input nodes to process")
+
+        assert len(other_nodes) == 0, f"Generic node {self.id} cannot have other than additive or multiplicative input nodes."
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
+
+        return df
+
+class AdditiveNode(GenericNode):
     explanation = _("""This is an Additive Node. It performs a simple addition of inputs.
 Missing values are assumed to be zero.""")
     allowed_parameters = [
@@ -271,7 +398,7 @@ Missing values are assumed to be zero.""")
         return df
 
 
-class SubtractiveNode(Node):
+class SubtractiveNode(Node): # FIXME Remove, when you clean Longmont.
     explanation = _(
         'This is a Subtractive Node. It takes the first input node and subtracts all other input nodes from it.',
     )  # FIXME Is this needed? Edge process arithmetic_inverse could be used instead.
@@ -531,18 +658,18 @@ class EmissionFactorActivity(MultiplicativeNode):  # FIXME Does not work with Ta
         return df
 
 
-class PerCapitaActivity(MultiplicativeNode):
+class PerCapitaActivity(MultiplicativeNode): # FIXME Remove. Replace with GenericNode
     pass
 
 
-class FixedScenarioNode(MultiplicativeNode):
+class FixedScenarioNode(MultiplicativeNode): # FIXME Inherit from GenericNode instead.
     def compute(self) -> ppl.PathsDataFrame:
         scenario = self.context.scenarios['baseline']
         with scenario.override():
             df = MultiplicativeNode.compute(self)
         return df
 
-class Activity(AdditiveNode):
+class Activity(AdditiveNode): # FIXME Are these special classes useful?
     explanation = _("""This is Activity Node. It adds activity amounts together.""")
     pass
 
@@ -582,27 +709,6 @@ class FixedMultiplierNode(SimpleNode):  # FIXME Convert to a generic parameter i
         replace_output = self.get_parameter_value('replace_output_using_input_dataset', required=False)
         if replace_output:
             df = self.replace_output_using_input_dataset_pl(df)
-        return df
-
-
-class FixedMultiplierNode2(AdditiveNode):  # FIXME Merge functionalities with MultiplicativeNode
-    allowed_parameters = [
-        *AdditiveNode.allowed_parameters,
-        NumberParameter(local_id='multiplier'),
-    ]
-
-    def compute(self) -> ppl.PathsDataFrame:  # FIXME Should we instead just use AdditiveNode first?
-        if len(self.input_nodes) == 0:
-            raise NodeError(self, "Node must have at least one input node.")
-        nodes = self.input_nodes
-        node = nodes.pop()
-        df = node.get_output_pl(self)
-        unit = df.get_unit(VALUE_COLUMN)
-        df = self.add_nodes_pl(df, nodes, unit=unit)
-
-        multiplier = self.get_parameter_value('multiplier', units=True, required=True)
-        df = df.multiply_quantity(VALUE_COLUMN, multiplier)
-        df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
 
 
@@ -659,7 +765,7 @@ class MixNode(AdditiveNode):
         return self.add_mix_normalized(df, nodes)
 
 
-class MultiplyLastNode(MultiplicativeNode):  # FIXME Tailored class for a bit wider use. Generalize!
+class MultiplyLastNode(MultiplicativeNode):  # FIXME Remove, when you clean Longmont.
     explanation = _("""First add other input nodes, then multiply the output.
 
     Multiplication and addition is determined based on the input node units.
@@ -701,7 +807,7 @@ class MultiplyLastNode(MultiplicativeNode):  # FIXME Tailored class for a bit wi
         return df
 
 
-class MultiplyLastNode2(MultiplicativeNode):  # FIXME Tailored class for a bit wider use. Generalize!
+class MultiplyLastNode2(MultiplicativeNode):  # FIXME Remove, when you clean Longmont.
     explanation = _("""First add other input nodes, then multiply the output.
 
     Multiplication and addition is determined based on the input node units.
@@ -764,7 +870,7 @@ class MultiplyLastNode2(MultiplicativeNode):  # FIXME Tailored class for a bit w
         return df
 
 
-class ImprovementNode(MultiplicativeNode):
+class ImprovementNode(MultiplicativeNode): # FIXME Remove, when you clean Longmont.
     explanation = _("""First does what MultiplicativeNode does, then calculates 1 - result.
     Can only be used for dimensionless content (i.e., fractions and percentages)
     """)
@@ -783,7 +889,7 @@ class ImprovementNode(MultiplicativeNode):
         return df
 
 
-class ImprovementNode2(MultiplicativeNode):
+class ImprovementNode2(MultiplicativeNode): # FIXME Remove, when you clean Longmont.
     explanation = _("""First does what MultiplicativeNode does, then calculates 1 + result.
     Can only be used for dimensionless content (i.e., fractions and percentages)
     """)
@@ -802,7 +908,7 @@ class ImprovementNode2(MultiplicativeNode):
         return df
 
 
-class RelativeNode(AdditiveNode):
+class RelativeNode(AdditiveNode): # FIXME Remove. Only Espoo and budget use this.
     explanation = _("""
     First like AdditiveNode, then multiply with a node with "non_additive".
     The relative node is assumed to be the relative difference R = V / N - 1,
@@ -826,32 +932,6 @@ class RelativeNode(AdditiveNode):
             df = df.multiply_cols([VALUE_COLUMN, rn], VALUE_COLUMN).drop(rn)
             df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
-
-class TrajectoryNode(SimpleNode):
-    explanation = _(
-        """TrajectoryNode uses select_category() to select a category from a dimension."""
-    )
-    allowed_parameters = [
-        *SimpleNode.allowed_parameters,
-        StringParameter(local_id='dimension'),
-        StringParameter(local_id='category'),
-        NumberParameter(local_id='category_number'),
-        BoolParameter(local_id='keep_dimension'),
-    ]
-    def compute(self):
-        df = self.get_input_dataset_pl()
-        dim_id = self.get_parameter_value('dimension', required=True)
-        cat_id = self.get_parameter_value('category', required=False)
-        cat_no = self.get_parameter_value('category_number', units=False, required=False)
-        if cat_no is not None:
-            cat_no = int(cat_no)
-        keep = self.get_parameter_value('keep_dimension', required=False)
-
-        df = df.select_category(dim_id, cat_id, cat_no, keep_dimension=keep)
-
-        df = df.ensure_unit(VALUE_COLUMN, self.unit)
-        return df
-
 
 class FillNewCategoryNode(AdditiveNode):
     explanation = _(

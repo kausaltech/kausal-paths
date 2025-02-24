@@ -634,8 +634,6 @@ class DatasetDifferenceAction2(DatasetAction):
             hdf = df.drop(YEAR_COLUMN)
             metric_cols = [m.column_id for m in self.output_metrics.values()]
             hdf = hdf.rename({m: 'Historical%s' % m for m in metric_cols})
-            print(hdf)
-            print(gdf)
             gdf = gdf.paths.join_over_index(hdf, how='outer', index_from='union')
             gdf = gdf.filter(~pl.all_horizontal([pl.col('Historical%s' % col).is_null() for col in metric_cols]))
             for m in self.output_metrics.values():

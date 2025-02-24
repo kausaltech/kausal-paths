@@ -1,23 +1,56 @@
+from __future__ import annotations
+
+import re
 import typing
-from typing import ClassVar, Tuple, Union
+import warnings
+from functools import wraps
+from typing import ClassVar, ParamSpec, TypedDict, TypeVar
 
 import numpy as np
 import pandas as pd
 import polars as pl
-from common import polars as ppl
-from nodes.calc import extend_last_historical_value
-from nodes.dimensions import Dimension
-from params import StringParameter, Parameter, NumberParameter
-from nodes.node import Node, NodeMetric
-from nodes.constants import (
-    PER_CAPITA_QUANTITY, VALUE_COLUMN, YEAR_COLUMN, FORECAST_COLUMN,
-    EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY
-)
-from nodes.simple import AdditiveNode, MultiplicativeNode
-from nodes.exceptions import NodeError
+from loguru import logger
 
+from common import polars as ppl
+from common.i18n import TranslatedString
+from nodes.calc import extend_last_historical_value
+from nodes.constants import (
+    EMISSION_FACTOR_QUANTITY,
+    EMISSION_QUANTITY,
+    ENERGY_QUANTITY,
+    FORECAST_COLUMN,
+    PER_CAPITA_QUANTITY,
+    VALUE_COLUMN,
+    YEAR_COLUMN,
+)
+from nodes.dimensions import Dimension
+from nodes.exceptions import NodeError
+from nodes.node import Node, NodeMetric
+from nodes.simple import AdditiveNode, MultiplicativeNode
+from params import NumberParameter, Parameter, StringParameter
+
+if typing.TYPE_CHECKING:
+    from collections.abc import Callable
 
 BELOW_ZERO_WARNED = False
+
+
+P = ParamSpec('P')  # For parameters
+R = TypeVar('R')    # For return type
+
+def deprecated(alternative: str) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    def decorator(func: Callable[P, R]) -> Callable[P, R]:
+        @wraps(func)
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+            warnings.warn(
+                f"{func.__name__} is deprecated and will be removed in future versions. "
+                f"Use {alternative} instead.",
+                DeprecationWarning,
+                stacklevel=2
+            )
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
 
 
 class AluesarjatNode(Node):
@@ -45,7 +78,8 @@ class AluesarjatNode(Node):
             if hasattr(df[metric_id], 'pint'):
                 df[metric_id] = self.convert_to_unit(df[metric_id], metric.unit)
             else:
-                df[metric_id] = df[metric_id].astype('pint[' + str(metric.unit) + ']')
+                # Convert to pint unit directly rather than using astype
+                df[metric_id] = pd.Series(df[metric_id].values, dtype=f"pint[{metric.unit}]")
 
         dimensions = ['Rakennuksen käyttötarkoitus', 'Rakennuksen lämmitystapa', 'Rakennuksen lämmitysaine']
         df['Dimension'] = ''
@@ -67,7 +101,7 @@ class HsyNode(Node):
         ENERGY_QUANTITY: NodeMetric(unit='GWh/a', quantity=ENERGY_QUANTITY),
     }
     output_dimensions = {
-        'sector': Dimension(id='hsy_sector', label=dict(en='HSY emission sector'), is_internal=True)
+        'sector': Dimension(id='hsy_sector', label=TranslatedString(en='HSY emission sector'), is_internal=True)
     }
 
     def compute(self) -> pd.DataFrame:
@@ -87,7 +121,7 @@ class HsyNode(Node):
         })
         below_zero = (df[EMISSION_QUANTITY] < 0) | (df[ENERGY_QUANTITY] < 0)
         if len(below_zero):
-            global BELOW_ZERO_WARNED
+            global BELOW_ZERO_WARNED  # noqa: PLW0603
 
             if not BELOW_ZERO_WARNED:
                 self.logger.warning('HSY dataset has negative emissions, filling with zero')
@@ -110,13 +144,18 @@ class HsyNode(Node):
             if hasattr(df[metric_id], 'pint'):
                 df[metric_id] = self.convert_to_unit(df[metric_id], metric.unit)
             else:
-                df[metric_id] = df[metric_id].astype('pint[' + str(metric.unit) + ']')
+                df[metric_id] = pd.Series(df[metric_id].values, dtype=f"pint[{metric.unit}]")
 
         df[FORECAST_COLUMN] = False
         return df
 
     def check(self):
         return
+
+
+class SectorParseResult(TypedDict):
+    pattern: str
+    dimensions: dict[int, str]
 
 
 class HsyNodeMixin:
@@ -128,7 +167,125 @@ class HsyNodeMixin:
         ),
     ]
 
-    def get_sector(self: Union[Node, 'HsyNodeMixin'], columns: str | list[str], sector: str | None = None, multi_index: bool = False) -> Tuple[pd.DataFrame, list[Node]]:
+    def parse_dimension_names_from_sector_string(self, sector_name: str) -> SectorParseResult:
+        sector_levels = sector_name.split('|')
+        dimension_map = {}  # Maps level index to dimension name
+        filter_pattern = []  # Build regex pattern for filtering
+
+        for i, level in enumerate(sector_levels):
+            if level.startswith('_') and level.endswith('_'):
+                # This is a dimension level
+                dim_name = level.strip('_')
+                dimension_map[i] = dim_name
+                filter_pattern.append(r'[^|]+')  # Match any non-pipe characters
+            elif level == '*':
+                filter_pattern.append(r'[^|]+')
+            else:
+                # This is a fixed level
+                filter_pattern.append(re.escape(level))
+
+        # Create regex pattern for filtering
+        full_pattern = r'\|'.join(filter_pattern)
+        return {'pattern': full_pattern, 'dimensions': dimension_map}
+
+    def get_sector2(
+        self: Node | HsyNodeMixin,
+        columns: str | list[str],
+        sector: str | None = None,
+        multi_index: bool = False
+    ) -> tuple[pd.DataFrame, list[Node]]:
+        """
+        Get sector data with dimensional support.
+
+        This method extends the original get_sector functionality with support
+        for dimensional data parsing. Use this for new code.
+
+        Args:
+            columns: Columns to include in output
+            sector: Sector string, can include dimension markers like:
+                   'Liikenne|Tieliikenne|_vehicle_type_|_sector_type_'
+                   where _dimension_name_ indicates which levels become dimensions.
+                   In the string, * means that the level is ignored.
+            multi_index: Whether to keep sector in index when no dimensions specified
+
+        """
+        assert isinstance(self, Node)
+        assert isinstance(self, HsyNodeMixin)
+        nodes = list(self.input_nodes)
+        for node in nodes:
+            if isinstance(node, HsyNode):
+                break
+        else:
+            raise NodeError(self, "HsyNode not configured as an input node")
+
+        nodes.remove(node)
+        df = node.get_output()
+
+        sector_name: str
+        if sector is None:
+            sector_name = self.get_parameter_value_str('sector')
+        else:
+            sector_name = sector
+
+        parsed_sectors = self.parse_dimension_names_from_sector_string(sector_name)
+        full_pattern = parsed_sectors['pattern']
+        dimension_map = parsed_sectors['dimensions']
+        matching_sectors = df.index.get_level_values('sector').str.match(full_pattern)
+
+        if not matching_sectors.any():
+            raise NodeError(self, f"Sector pattern '{full_pattern}' not found in input")
+
+        df = df.loc[matching_sectors]
+
+        if dimension_map:
+            # Split sectors into hierarchy levels
+            df['sector_levels'] = df.index.get_level_values('sector').str.split('|')
+
+            # Create new columns for each dimension with proper category IDs
+            for level_idx, dim_name in dimension_map.items():
+                dim = self.input_dimensions[dim_name]
+                # Extract the level values as a series and convert to category IDs
+                level_series = pl.Series(df['sector_levels'].str[level_idx])
+                df[dim_name] = dim.series_to_ids_pl(level_series)
+
+            # Group by dimensions and year
+            group_cols = ['Year'] + list(dimension_map.values())
+            df_xs = df.groupby(group_cols).sum()
+
+        elif multi_index:
+            df_xs = df.groupby(['Year', 'sector']).sum()
+        else:
+            df_xs = df.groupby('Year').sum()
+
+        assert isinstance(df_xs, pd.DataFrame)
+        df = df_xs
+
+        if isinstance(columns, str):
+            columns = [columns]
+        df = df[columns].copy()
+        df['Forecast'] = False
+        df = extend_last_historical_value(df, end_year=self.context.model_end_year)
+
+        return df, nodes
+
+    @deprecated(alternative='get_sector2')
+    def get_sector(
+        self, columns: str | list[str],
+        sector: str | None = None,
+        multi_index: bool = False) -> tuple[pd.DataFrame, list[Node]]:
+        """
+        Get sector data using simple string matching (deprecated).
+
+        This method is deprecated and will be removed in future versions.
+        Use get_sector2() instead, which supports dimensional data.
+
+        Args:
+            columns: Columns to include in output
+            sector: Sector string to match
+            multi_index: Whether to keep sector in index
+
+        """
+
         assert isinstance(self, Node)
         nodes = list(self.input_nodes)
         for node in nodes:
@@ -143,7 +300,7 @@ class HsyNodeMixin:
 
         sector_name: str
         if sector is None:
-            sector_name = self.get_parameter_value('sector')
+            sector_name = self.get_parameter_value_str('sector')
         else:
             sector_name = sector
 
@@ -173,38 +330,66 @@ class HsyEnergyConsumption(AdditiveNode, HsyNodeMixin):
     quantity = ENERGY_QUANTITY
     allowed_parameters: ClassVar[list[Parameter]] = HsyNodeMixin.allowed_parameters
 
-    def compute(self) -> pd.DataFrame:
-        df, other_nodes = self.get_sector(ENERGY_QUANTITY)
+    def compute(self) -> ppl.PathsDataFrame:
+        try:
+            df, other_nodes = self.get_sector2(
+                columns=[ENERGY_QUANTITY],
+                # multi_index=True,
+            )
+        except (NodeError, ValueError, KeyError) as e:
+            logger.warning(f"Dimensional parsing failed: {e}. Falling back to legacy sector parsing.")
+            df, other_nodes = self.get_sector(ENERGY_QUANTITY)
+
         df = df.rename(columns={ENERGY_QUANTITY: VALUE_COLUMN})
         assert VALUE_COLUMN in df
 
         # If there are other input nodes connected, add them with this one.
         if len(other_nodes):
             df = self.add_nodes(df, other_nodes)
-        return df
-
+        pdf = ppl.from_pandas(df)
+        # df = self.convert_names_to_ids(df)
+        return pdf
 
 class HsyEmissions(AdditiveNode, HsyNodeMixin):
     default_unit = 'kt/a'
     quantity = EMISSION_QUANTITY
     allowed_parameters: ClassVar[list[Parameter]] = HsyNodeMixin.allowed_parameters
 
-    def compute(self) -> pd.DataFrame:
-        df, other_nodes = self.get_sector(EMISSION_QUANTITY)
+    def compute(self) -> ppl.PathsDataFrame:
+        try:
+            df, other_nodes = self.get_sector2(
+                columns=[EMISSION_QUANTITY],
+                # multi_index=True,
+            )
+        except (NodeError, ValueError, KeyError) as e:
+            logger.warning(f"Dimensional parsing failed: {e}. Falling back to legacy sector parsing.")
+            df, other_nodes = self.get_sector(EMISSION_QUANTITY)
+
         df = df.rename(columns={EMISSION_QUANTITY: VALUE_COLUMN})
         assert VALUE_COLUMN in df
-        if len(other_nodes):
-            df = self.add_nodes(df, other_nodes)
-        return df
+        pdf = ppl.from_pandas(df)
 
+        pdf, extra_nodes = self.run_implicit_operations(other_nodes, pdf)
+        assert pdf is not None
+        assert len(extra_nodes) == 0, f"Node {self.id} should not have input nodes of the other type."
+        pdf = pdf.ensure_unit(VALUE_COLUMN, self.unit)
+        return pdf
 
 class HsyEmissionFactor(AdditiveNode, HsyNodeMixin):
     default_unit = 'g/kWh'
     quantity = EMISSION_FACTOR_QUANTITY
     allowed_parameters: ClassVar[list[Parameter]] = HsyNodeMixin.allowed_parameters
 
-    def compute(self) -> pd.DataFrame:
-        df, other_nodes = self.get_sector([ENERGY_QUANTITY, EMISSION_QUANTITY])
+    def compute(self) -> ppl.PathsDataFrame:
+        try:
+            df, other_nodes = self.get_sector2(
+                columns=[ENERGY_QUANTITY, EMISSION_QUANTITY],
+                # multi_index=True,
+            )
+        except (NodeError, ValueError, KeyError) as e:
+            logger.warning(f"Dimensional parsing failed: {e}. Falling back to legacy sector parsing.")
+            df, other_nodes = self.get_sector(ENERGY_QUANTITY, EMISSION_QUANTITY)
+
         df[VALUE_COLUMN] = df[EMISSION_QUANTITY] / df[ENERGY_QUANTITY].replace(0, np.nan)
         df = df.drop(columns=[ENERGY_QUANTITY, EMISSION_QUANTITY])
         assert self.unit is not None
@@ -213,19 +398,22 @@ class HsyEmissionFactor(AdditiveNode, HsyNodeMixin):
         # If there are other input nodes connected, add them with this one.
         if len(other_nodes):
             df = self.add_nodes(df, other_nodes)
-        return df
+        pdf = ppl.from_pandas(df)
+        # df = self.convert_names_to_ids(df)
+        return pdf
 
 
 class HsyBuildingHeatConsumption(Node, HsyNodeMixin):
     default_unit = 'GWh/a'
     quantity = ENERGY_QUANTITY
+    allowed_parameters: ClassVar[list[Parameter]] = HsyNodeMixin.allowed_parameters
 
     output_dimension_ids = [
         'building_heat_source',
         'building_use',
     ]
 
-    def compute(self) -> pd.DataFrame:
+    def compute(self) -> ppl.PathsDataFrame:
         df, _ = self.get_sector(ENERGY_QUANTITY, sector='Lämmitys', multi_index=True)
         df = df.reset_index().set_index(YEAR_COLUMN)
         df['building_use'] = df['sector'].apply(lambda x: x.split('|')[-1])
@@ -242,21 +430,22 @@ class HsyBuildingHeatConsumption(Node, HsyNodeMixin):
 
         # There was a change in HSY statistics logic for geothermal energy between 2018-2019.
         # Fix geothermal values before 2019, if they are heat rather than electricity.
-        df = ppl.from_pandas(df)
+        pdf: ppl.PathsDataFrame = ppl.from_pandas(df)
         geo = pl.col('building_heat_source')==pl.lit('geothermal')
-        tst = df.filter(geo)
-        tst = tst.group_by(pl.col(YEAR_COLUMN)).sum()
+        tst = pdf.filter(geo)
+        meta = tst.get_meta()
+        tst = ppl.to_ppdf(tst.group_by(pl.col(YEAR_COLUMN)).sum(), meta=meta)
         tst1 = tst.filter(pl.col(YEAR_COLUMN) == 2018)[VALUE_COLUMN][0]
         tst = tst.filter(pl.col(YEAR_COLUMN) == 2019)[VALUE_COLUMN][0]
         if tst1 > tst * 2:
             cop = 3  # Ratio of heat energy produced per electricity consumed
-            df = df.with_columns(
+            pdf = pdf.with_columns(
                 pl.when((geo) & (pl.col(YEAR_COLUMN) < 2019))
                 .then(pl.col(VALUE_COLUMN) / cop)
                 .otherwise(pl.col(VALUE_COLUMN).alias(VALUE_COLUMN))
             )
-        df = df.to_pandas()
-        return df
+        # df = df.to_pandas()
+        return pdf
 
 
 class HsyDataCollection(Node, HsyNodeMixin):
@@ -274,12 +463,12 @@ class HsyDataCollection(Node, HsyNodeMixin):
         ),
     ]
 
-    def compute(self) -> pd.DataFrame:
+    def compute(self) -> ppl.PathsDataFrame:
         assert len(self.output_dimensions) == 2
-        dim1, dim2 = self.output_dimensions.keys()
+        dim1, dim2 = list(self.output_dimensions.keys())
         column = self.quantity
-        dim1_level = int(self.get_parameter_value('dimension1_column')) - 1
-        dim2_level = int(self.get_parameter_value('dimension2_column')) - 1
+        dim1_level = int(self.get_typed_parameter_value('dimension1_column', float)) - 1
+        dim2_level = int(self.get_typed_parameter_value('dimension2_column', float)) - 1
 
         df, _ = self.get_sector(column, multi_index=True)
         df = df.reset_index().set_index(YEAR_COLUMN)
@@ -294,18 +483,20 @@ class HsyDataCollection(Node, HsyNodeMixin):
         df[VALUE_COLUMN] = self.ensure_output_unit(df[column])
         df = df.reset_index()
         df = df.set_index([YEAR_COLUMN, dim1, dim2])[[VALUE_COLUMN, FORECAST_COLUMN]]
-        df = ppl.from_pandas(df)
+        pdf: ppl.PathsDataFrame = ppl.from_pandas(df)
+        assert isinstance(pdf, ppl.PathsDataFrame)
         if self.debug:
-            self.print(df.get_last_historical_values())
-        return df
+            self.print(pdf.get_last_historical_values())
+        return pdf
 
 
 class HsyPerCapitaEnergyConsumption(AdditiveNode, HsyNodeMixin):
     default_unit = 'kWh/cap/a'
     quantity = PER_CAPITA_QUANTITY
     input_datasets = ['population']
+    allowed_parameters: ClassVar[list[Parameter]] = HsyNodeMixin.allowed_parameters
 
-    def compute(self) -> pd.DataFrame:
+    def compute(self) -> ppl.PathsDataFrame:
         df, other_nodes = self.get_sector(ENERGY_QUANTITY)
         pop_df = self.get_input_dataset()
         df[VALUE_COLUMN] = df[VALUE_COLUMN].div(pop_df[VALUE_COLUMN], axis='index')
@@ -330,7 +521,7 @@ class MultiplicativeWithDataBackup(MultiplicativeNode):
         # FIXME If you add actions to years without calculated values, you get zero-counting rather than double-counting.
         df = df.with_columns([
             pl.when(pl.col(VALUE_COLUMN) != pl.col(VALUE_COLUMN + '_right'))
-            .then(True).otherwise(False).alias('DoubleCounting')
+            .then(True).otherwise(False).alias('DoubleCounting')  # noqa: FBT003
         ])
         df = df.with_columns([
             pl.when(pl.col('DoubleCounting'))
