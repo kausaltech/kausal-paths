@@ -1210,9 +1210,11 @@ nodes:
   unit: t/a
   input_dimensions: [energy_carrier, emission_sectors, emission_scope]
   output_dimensions: [energy_carrier, emission_sectors, emission_scope]
-  minimum_year: 2024
   input_datasets:
   - id: saskatoon/forecasted_emissions
+    min_year: 2024
+    max_year: 2050
+    forecast_from: 2024
     filters:
     - dimension: emission_sectors
       categories: [energy_industries]
@@ -1224,9 +1226,11 @@ nodes:
   unit: t/a
   input_dimensions: [emission_scope, emission_sectors, energy_carrier]
   output_dimensions: [emission_scope, emission_sectors, energy_carrier]
-  minimum_year: 2024
   input_datasets:
   - id: saskatoon/forecasted_emissions
+    min_year: 2024
+    max_year: 2050
+    forecast_from: 2024
     filters:
     - dimension: emission_sectors
       categories: [municipal]
@@ -1238,9 +1242,11 @@ nodes:
   unit: t/a
   input_dimensions: [emission_scope, emission_sectors]
   output_dimensions: [emission_scope, emission_sectors]
-  minimum_year: 2024
   input_datasets:
   - id: saskatoon/forecasted_emissions
+    min_year: 2024
+    max_year: 2050
+    forecast_from: 2024
     filters:
     - dimension: emission_sectors
       categories: [waste]
@@ -1262,9 +1268,11 @@ nodes:
   unit: t/a
   input_dimensions: [emission_sectors, emission_scope]
   output_dimensions: [emission_sectors, emission_scope]
-  minimum_year: 2024
   input_datasets:
   - id: saskatoon/forecasted_emissions
+    min_year: 2024
+    max_year: 2050
+    forecast_from: 2024
     filters:
     - dimension: emission_sectors
       categories: [fugitive]
