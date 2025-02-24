@@ -23,6 +23,9 @@ class AdditiveAction(ActionNode):
     def compute_effect(self):
         df = self.get_input_dataset_pl()
 
+        if self.get_parameter_value('allow_null_categories', required=False):
+            self.allow_null_categories = True
+
         for m in self.output_metrics.values():
             if not self.is_enabled():
                 df = df.with_columns(pl.when(pl.col(m.column_id).is_null()).then(None)

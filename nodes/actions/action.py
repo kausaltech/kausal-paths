@@ -79,6 +79,7 @@ class ActionNode(Node):
     allowed_parameters: ClassVar[Sequence[Parameter]] = [
         ENABLED_PARAM,
         NumberParameter(local_id='multiplier', label='Multiplies the output', is_customizable=True),
+        BoolParameter(local_id='allow_null_categories', description='Allow null dimension categories', is_customizable=False),
     ]
 
     def __init_subclass__(cls) -> None:

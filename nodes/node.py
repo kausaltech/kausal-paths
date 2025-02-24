@@ -866,7 +866,7 @@ class Node:
                     raise NodeError(self, 'Dimension %s not in output df' % dim_id)
                 filter_expr = pl.col(dim_id).is_in(cat_ids)
                 if edge_dim.exclude:
-                    filter_expr = ~filter_expr
+                    filter_expr = pl.col(dim_id).is_null() | ~filter_expr
                 df = df.filter(filter_expr)
                 if len(df) == 0:
                     raise NodeError(self, 'No rows left after filtering by %s' % dim_id)
@@ -990,7 +990,7 @@ class Node:
 
             cats = set(df[dim_id].cast(pl.Utf8).unique())
             if getattr(self, 'allow_null_categories', None):
-                cats -= {''}
+                cats -= {'', None}
 
             dim_cats = dim.get_cat_ids()
             diff = cats - dim_cats
