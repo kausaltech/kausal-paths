@@ -4,14 +4,14 @@ supported_languages: []
 site_url: https://saskatoon.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 7f2eab4ebdebb6c755d4ac3edd9e6d00c898752c
+  commit: 337d84dbfabc3841127db02e86deaf683159f31c
   dvc_remote: kausal-s3
   default_path: saskatoon
 name: Saskatoon's GHG Emissions Inventories
 owner_en: City of Saskatoon
 theme_identifier: ca-saskatoon
-target_year: 2023
-model_end_year: 2023
+target_year: 2050
+model_end_year: 2050
 minimum_historical_year: 2014
 maximum_historical_year: 2023
 emission_unit: t/a
@@ -22,34 +22,31 @@ emission_sector_dimension: emission_sectors
 features:
   baseline_visible_in_graphs: true
 
+action_groups:
+- id: buildings
+  name: Buildings & Energy Efficiency
+- id: transportation
+  name: Transportation
+- id: waste
+  name: Waste
+- id: water
+  name: Water Conservation
+- id: land
+  name: Land Use
+- id: energy
+  name: Energy Generation
 
-# action_groups:
-# - id: buildings
-#   name: Buildings & Energy Efficiency
-# - id: transportation
-#   name: Transportation
-# - id: waste
-#   name: Waste
-# - id: water
-#   name: Water Conservation
-# - id: land
-#   name: Land Use
-# - id: energy
-#   name: Energy Generation
-
-
-# action_efficiency_pairs:
-# - graph_type: cost_effectiveness
-#   cost_node: discounted_net_cost
-#   impact_node: net_emissions
-#   invert_cost: false
-#   invert_impact: true
-#   indicator_unit: CAD/t
-#   cost_unit: CAD
-#   impact_unit: t
-#   plot_limit_for_indicator: 3000
-#   label: Marginal Abatement Cost
-
+action_efficiency_pairs:
+- graph_type: cost_effectiveness
+  cost_node: net_cost
+  impact_node: net_emissions
+  invert_cost: false
+  invert_impact: true
+  indicator_unit: CAD/t
+  cost_unit: MCAD
+  impact_unit: kt
+  plot_limit_for_indicator: 3000
+  label: Marginal Abatement Cost
 
 dimensions:
 - id: emission_scope
@@ -222,182 +219,172 @@ dimensions:
   - id: slp
     label: SL&P
 
-# - id: actions
-#   label: LEC Plan Actions
-#   categories:
-#   - id: lec01
-#     label: LEC Action 1
-#   - id: lec02
-#     label: LEC Action 2
-#   - id: lec03
-#     label: LEC Action 3
-#   - id: lec04
-#     label: LEC Action 4
-#   - id: lec05
-#     label: LEC Action 5
-#   - id: lec06
-#     label: LEC Action 6
-#   - id: lec07
-#     label: LEC Action 7
-#   - id: lec08
-#     label: LEC Action 8
-#   - id: lec10
-#     label: LEC Action 10
-#   - id: lec11
-#     label: LEC Action 11
-#   - id: lec12
-#     label: LEC Action 12
-#   - id: lec13
-#     label: LEC Action 13
-#   - id: lec14
-#     label: LEC Action 14
-#   - id: lec15
-#     label: LEC Action 15
-#   - id: lec16
-#     label: LEC Action 16
-#   - id: lec17
-#     label: LEC Action 17
-#   - id: lec18
-#     label: LEC Action 18
-#   - id: lec19
-#     label: LEC Action 19
-#   - id: lec20
-#     label: LEC Action 20
-#   - id: lec21
-#     label: LEC Action 21
-#   - id: lec22
-#     label: LEC Action 22
-#   - id: lec23
-#     label: LEC Action 23
-#   - id: lec24
-#     label: LEC Action 24
-#   - id: lec25
-#     label: LEC Action 25
-#   - id: lec26
-#     label: LEC Action 26
-#   - id: lec27
-#     label: LEC Action 27
-#   - id: lec29
-#     label: LEC Action 29
-#   - id: lec31
-#     label: LEC Action 31
-#   - id: lec32
-#     label: LEC Action 32
-#   - id: lec33
-#     label: LEC Action 33
-#   - id: lec34
-#     label: LEC Action 34
-#   - id: lec35
-#     label: LEC Action 35
-#   - id: lec36
-#     label: LEC Action 36
-#   - id: lec37
-#     label: LEC Action 37
-#   - id: lec38
-#     label: LEC Action 38
-#   - id: lec39
-#     label: LEC Action 39
-#   - id: lec40
-#     label: LEC Action 40
+- id: actions
+  label: LEC Plan Actions
+  categories:
+  - id: lec01
+    label: LEC Action 1
+  - id: lec02
+    label: LEC Action 2
+  - id: lec03
+    label: LEC Action 3
+  - id: lec04
+    label: LEC Action 4
+  - id: lec05
+    label: LEC Action 5
+  - id: lec06
+    label: LEC Action 6
+  - id: lec07
+    label: LEC Action 7
+  - id: lec08
+    label: LEC Action 8
+  - id: lec10
+    label: LEC Action 10
+  - id: lec11
+    label: LEC Action 11
+  - id: lec12
+    label: LEC Action 12
+  - id: lec13
+    label: LEC Action 13
+  - id: lec14
+    label: LEC Action 14
+  - id: lec15
+    label: LEC Action 15
+  - id: lec16
+    label: LEC Action 16
+  - id: lec17
+    label: LEC Action 17
+  - id: lec18
+    label: LEC Action 18
+  - id: lec19
+    label: LEC Action 19
+  - id: lec20
+    label: LEC Action 20
+  - id: lec21
+    label: LEC Action 21
+  - id: lec22
+    label: LEC Action 22
+  - id: lec23
+    label: LEC Action 23
+  - id: lec24
+    label: LEC Action 24
+  - id: lec25
+    label: LEC Action 25
+  - id: lec26
+    label: LEC Action 26
+  - id: lec27
+    label: LEC Action 27
+  - id: lec29
+    label: LEC Action 29
+  - id: lec31
+    label: LEC Action 31
+  - id: lec32
+    label: LEC Action 32
+  - id: lec33
+    label: LEC Action 33
+  - id: lec34
+    label: LEC Action 34
+  - id: lec35
+    label: LEC Action 35
+  - id: lec36
+    label: LEC Action 36
+  - id: lec37
+    label: LEC Action 37
+  - id: lec38
+    label: LEC Action 38
+  - id: lec39
+    label: LEC Action 39
+  - id: lec40
+    label: LEC Action 40
 
-# - id: costs
-#   label: Costs & Returns
-#   categories:
-#   - id: commercial_buildings
-#     label: Commercial Buildings
-#   - id: commercial_equipment
-#     label: Commercial Equipment
-#   - id: commercial_use_vehicles
-#     label: Commercial Use Vehicles
-#   - id: commercial_use_vehicle_emissions
-#     label: Commercial Use Vehicle Emissions
-#   - id: commercial_use_vehicle_fuel
-#     label: Commercial Use Vehicle Fuel
-#   - id: commercial_use_vehicle_maintenance
-#     label: Commercial Use Vehicle Maintenance
-#   - id: energy_production
-#     label: Energy Production
-#   - id: energy_production_emissions
-#     label: Energy Production Emissions
-#   - id: energy_production_fuel
-#     label: Energy Production Fuel
-#   - id: energy_production_revenue
-#     label: Energy Production Revenue
-#   - id: municipal_capital
-#     label: Municipal Capital
-#   - id: municipal_emissions
-#     label: Municipal Emissions
-#   - id: municipal_fuel
-#     label: Municipal Fuel
-#   - id: nonresidential_emissions
-#     label: Non-Residential Emissions
-#   - id: nonresidential_fuel
-#     label: Non-Residential Fuel
-#   - id: personal_use_vehicles
-#     label: Personal Use Vehicles
-#   - id: personal_use_vehicle_emissions
-#     label: Personal Use Vehicle Emissions
-#   - id: personal_use_vehicle_fuel
-#     label: Personal Use Vehicle Fuel
-#   - id: personal_use_vehicle_maintenance
-#     label: Personal Use Vehicle Maintenance
-#   - id: residential_buildings
-#     label: Residential Buildings
-#   - id: residential_emissions
-#     label: Residential Emissions
-#   - id: residential_equipment
-#     label: Residential Equipment
-#   - id: residential_fuel
-#     label: Residential Fuel
-#   - id: transit_revenue
-#     label: Transit Revenue
-
-
-params:
-- id: municipality_name
-  value: Saskatoon
-
+- id: costs
+  label: Costs & Returns
+  categories:
+  - id: commercial_buildings
+    label: Commercial Buildings
+  - id: commercial_equipment
+    label: Commercial Equipment
+  - id: commercial_use_vehicles
+    label: Commercial Use Vehicles
+  - id: commercial_use_vehicle_emissions
+    label: Commercial Use Vehicle Emissions
+  - id: commercial_use_vehicle_fuel
+    label: Commercial Use Vehicle Fuel
+  - id: commercial_use_vehicle_maintenance
+    label: Commercial Use Vehicle Maintenance
+  - id: energy_production
+    label: Energy Production
+  - id: energy_production_emissions
+    label: Energy Production Emissions
+  - id: energy_production_fuel
+    label: Energy Production Fuel
+  - id: energy_production_revenue
+    label: Energy Production Revenue
+  - id: municipal_capital
+    label: Municipal Capital
+  - id: municipal_emissions
+    label: Municipal Emissions
+  - id: municipal_fuel
+    label: Municipal Fuel
+  - id: nonresidential_emissions
+    label: Non-Residential Emissions
+  - id: nonresidential_fuel
+    label: Non-Residential Fuel
+  - id: personal_use_vehicles
+    label: Personal Use Vehicles
+  - id: personal_use_vehicle_emissions
+    label: Personal Use Vehicle Emissions
+  - id: personal_use_vehicle_fuel
+    label: Personal Use Vehicle Fuel
+  - id: personal_use_vehicle_maintenance
+    label: Personal Use Vehicle Maintenance
+  - id: residential_buildings
+    label: Residential Buildings
+  - id: residential_emissions
+    label: Residential Emissions
+  - id: residential_equipment
+    label: Residential Equipment
+  - id: residential_fuel
+    label: Residential Fuel
+  - id: transit_revenue
+    label: Transit Revenue
 
 emission_sectors:
 - id: net_emissions
   name: Greenhouse Gas Emissions
   input_node_dimension:
     label: Emission Sectors
-  # goals:
-  # - values: [{'year': 2022, 'value': 3475466},
-  #            {'year': 2023, 'value': 3408532},
-  #            {'year': 2024, 'value': 3380625},
-  #            {'year': 2025, 'value': 3322668},
-  #            {'year': 2026, 'value': 3399115},
-  #            {'year': 2027, 'value': 3207820},
-  #            {'year': 2028, 'value': 3114352},
-  #            {'year': 2029, 'value': 3014094},
-  #            {'year': 2030, 'value': 2682162},
-  #            {'year': 2031, 'value': 2333985},
-  #            {'year': 2032, 'value': 2353091},
-  #            {'year': 2033, 'value': 2310379},
-  #            {'year': 2034, 'value': 2266418},
-  #            {'year': 2035, 'value': 2180783},
-  #            {'year': 2036, 'value': 1725896},
-  #            {'year': 2037, 'value': 1412895},
-  #            {'year': 2038, 'value': 1383814},
-  #            {'year': 2039, 'value': 1363375},
-  #            {'year': 2040, 'value': 1210011},
-  #            {'year': 2041, 'value': 1167651},
-  #            {'year': 2042, 'value': 1141273},
-  #            {'year': 2043, 'value': 989351},
-  #            {'year': 2044, 'value': 982801},
-  #            {'year': 2045, 'value': 972646},
-  #            {'year': 2046, 'value': 891064},
-  #            {'year': 2047, 'value': 863382},
-  #            {'year': 2048, 'value': 832354},
-  #            {'year': 2049, 'value': 805016},
-  #            {'year': 2050, 'value': 783903}]
-  #   default: true
-  #   is_main_goal: true
+  goals:
+  - values: [{'year': 2024, 'value': 3380625},
+             {'year': 2025, 'value': 3322668},
+             {'year': 2026, 'value': 3399115},
+             {'year': 2027, 'value': 3207820},
+             {'year': 2028, 'value': 3114352},
+             {'year': 2029, 'value': 3014094},
+             {'year': 2030, 'value': 2682162},
+             {'year': 2031, 'value': 2333985},
+             {'year': 2032, 'value': 2353091},
+             {'year': 2033, 'value': 2310379},
+             {'year': 2034, 'value': 2266418},
+             {'year': 2035, 'value': 2180783},
+             {'year': 2036, 'value': 1725896},
+             {'year': 2037, 'value': 1412895},
+             {'year': 2038, 'value': 1383814},
+             {'year': 2039, 'value': 1363375},
+             {'year': 2040, 'value': 1210011},
+             {'year': 2041, 'value': 1167651},
+             {'year': 2042, 'value': 1141273},
+             {'year': 2043, 'value': 989351},
+             {'year': 2044, 'value': 982801},
+             {'year': 2045, 'value': 972646},
+             {'year': 2046, 'value': 891064},
+             {'year': 2047, 'value': 863382},
+             {'year': 2048, 'value': 832354},
+             {'year': 2049, 'value': 805016},
+             {'year': 2050, 'value': 783903}]
+    default: true
+    is_main_goal: true
   is_outcome: true
-  description: <p>Greenhouse gas emissions</p><p><b>Unit:</b> t/yr. = metric tons
-    per year</b></p>
 
 # ----- Sector Emissions -----
 
@@ -669,13 +656,6 @@ nodes:
     tags: [non_additive]
     to_dimensions:
     - id: greenhouse_gases
-  output_nodes:
-  - id: electricity_emissions
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: greenhouse_gases
-      flatten: true
 
 - id: stationary_electricity_loss_emissions_inventory
   name: Electricity Loss Emissions (Inventory)
@@ -696,13 +676,6 @@ nodes:
     tags: [non_additive]
     to_dimensions:
     - id: greenhouse_gases
-  output_nodes:
-  - id: electricity_emissions
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: greenhouse_gases
-      flatten: true
 
 # ----- Stationary Fuels -----
 
@@ -775,13 +748,6 @@ nodes:
     tags: [non_additive]
     to_dimensions:
     - id: greenhouse_gases
-  output_nodes:
-  - id: stationary_energy_emissions
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: greenhouse_gases
-      flatten: true
 
 - id: stationary_propane_consumption_emissions_inventory
   name: Propane Emissions (Inventory)
@@ -801,15 +767,6 @@ nodes:
     to_dimensions:
     - id: energy_carrier
     - id: greenhouse_gases
-  output_nodes:
-  - id: stationary_energy_emissions
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: greenhouse_gases
-      flatten: true
 
 # ----- Transportation Fuels -----
 
@@ -937,3177 +894,3153 @@ nodes:
 
 # ----- Forecasted Stationary Electricity -----
 
-# - id: stationary_electricity_consumption_emissions
-#   name: Electricity Consumption Emissions
-#   type: formula.FormulaNode
-#   quantity: emissions
-#   unit: t/a
-#   input_dimensions: [emission_sectors]
-#   output_dimensions: [emission_sectors]
-#   params:
-#     formula: stationary_electricity_consumption_emissions_inventory + stationary_electricity_consumption_emissions_forecast + energy_industries_emissions_forecast
-#   input_nodes:
-#   - id: stationary_electricity_consumption_emissions_inventory
-#     from_dimensions:
-#     - id: greenhouse_gases
-#       flatten: true
-#     to_dimensions:
-#     - id: emission_sectors
-#   - id: stationary_electricity_consumption_emissions_forecast
-#     from_dimensions:
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-#     to_dimensions:
-#     - id: emission_sectors
-#   - id: energy_industries_emissions_forecast
-#     from_dimensions:
-#     - id: energy_carrier
-#       categories: [electricity]
-#       flatten: true
-#     - id: emission_scope
-#       categories: [scope2]
-#       flatten: true
-#   output_nodes:
-#   - id: electricity_emissions
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
+- id: stationary_electricity_consumption_emissions
+  name: Electricity Consumption Emissions
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
+  params:
+    formula: stationary_electricity_consumption_emissions_inventory + stationary_electricity_consumption_emissions_forecast + energy_industries_emissions_forecast
+  input_nodes:
+  - id: stationary_electricity_consumption_emissions_inventory
+    from_dimensions:
+    - id: greenhouse_gases
+      flatten: true
+    to_dimensions:
+    - id: emission_sectors
+  - id: stationary_electricity_consumption_emissions_forecast
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+    to_dimensions:
+    - id: emission_sectors
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+    - id: emission_scope
+      categories: [scope2]
+      flatten: true
+  output_nodes:
+  - id: electricity_emissions
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
 
-# - id: stationary_electricity_consumption_emissions_forecast
-#   name: Electricity Consumption Emissions (Forecast)
-#   type: simple.MultiplicativeNode
-#   quantity: emissions
-#   unit: t/a
-#   input_dimensions: [emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [emission_sectors, energy_carrier, emission_scope]
-#   input_nodes:
-#   - id: forecasted_energy_consumption
-#     from_dimensions:
-#     - id: emission_sectors
-#       categories: [residential, commercial_institutional, manufacturing_construction]
-#     - id: energy_carrier
-#       categories: [electricity]
-#     to_dimensions:
-#     - id: emission_sectors
-#     - id: energy_carrier
-#   - id: forecasted_emission_factors
-#     from_dimensions:
-#     - id: emission_scope
-#       categories: [scope2]
-#     to_dimensions:
-#     - id: emission_sectors
-#     - id: energy_carrier
-#     - id: emission_scope
+- id: stationary_electricity_consumption_emissions_forecast
+  name: Electricity Consumption Emissions (Forecast)
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_nodes:
+  - id: forecasted_energy_consumption
+    from_dimensions:
+    - id: emission_sectors
+      categories: [residential, commercial_institutional, manufacturing_construction]
+    - id: energy_carrier
+      categories: [electricity]
+    to_dimensions:
+    - id: emission_sectors
+    - id: energy_carrier
+  - id: forecasted_emission_factors
+    from_dimensions:
+    - id: emission_scope
+      categories: [scope2]
+    to_dimensions:
+    - id: emission_sectors
+    - id: energy_carrier
+    - id: emission_scope
 
-# - id: stationary_electricity_loss_emissions
-#   name: Electricity Loss Emissions
-#   type: formula.FormulaNode
-#   quantity: emissions
-#   unit: t/a
-#   input_dimensions: [emission_sectors]
-#   output_dimensions: [emission_sectors]
-#   params:
-#     formula: stationary_electricity_loss_emissions_inventory + stationary_electricity_loss_emissions_forecast + energy_industries_emissions_forecast
-#   input_nodes:
-#   - id: stationary_electricity_loss_emissions_inventory
-#     from_dimensions:
-#     - id: greenhouse_gases
-#       flatten: true
-#     to_dimensions:
-#     - id: emission_sectors
-#   - id: stationary_electricity_loss_emissions_forecast
-#     from_dimensions:
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-#     to_dimensions:
-#     - id: emission_sectors
-#   - id: energy_industries_emissions_forecast
-#     from_dimensions:
-#     - id: energy_carrier
-#       categories: [electricity]
-#       flatten: true
-#     - id: emission_scope
-#       categories: [scope3]
-#       flatten: true
-#   output_nodes:
-#   - id: electricity_emissions
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
+- id: stationary_electricity_loss_emissions
+  name: Electricity Loss Emissions
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
+  params:
+    formula: stationary_electricity_loss_emissions_inventory + stationary_electricity_loss_emissions_forecast + energy_industries_emissions_forecast
+  input_nodes:
+  - id: stationary_electricity_loss_emissions_inventory
+    from_dimensions:
+    - id: greenhouse_gases
+      flatten: true
+    to_dimensions:
+    - id: emission_sectors
+  - id: stationary_electricity_loss_emissions_forecast
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+    to_dimensions:
+    - id: emission_sectors
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+    - id: emission_scope
+      categories: [scope3]
+      flatten: true
+  output_nodes:
+  - id: electricity_emissions
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
 
-# - id: stationary_electricity_loss_emissions_forecast
-#   name: Electricity Loss Emissions (Forecast)
-#   type: simple.MultiplicativeNode
-#   quantity: emissions
-#   unit: t/a
-#   input_dimensions: [emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [emission_sectors, energy_carrier, emission_scope]
-#   input_nodes:
-#   - id: forecasted_energy_consumption
-#     from_dimensions:
-#     - id: emission_sectors
-#       categories: [residential, commercial_institutional, manufacturing_construction]
-#     - id: energy_carrier
-#       categories: [electricity]
-#     to_dimensions:
-#     - id: emission_sectors
-#     - id: energy_carrier
-#   - id: forecasted_emission_factors
-#     from_dimensions:
-#     - id: emission_scope
-#       categories: [scope3]
-#     to_dimensions:
-#     - id: emission_sectors
-#     - id: energy_carrier
-#     - id: emission_scope
+- id: stationary_electricity_loss_emissions_forecast
+  name: Electricity Loss Emissions (Forecast)
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_nodes:
+  - id: forecasted_energy_consumption
+    from_dimensions:
+    - id: emission_sectors
+      categories: [residential, commercial_institutional, manufacturing_construction]
+    - id: energy_carrier
+      categories: [electricity]
+    to_dimensions:
+    - id: emission_sectors
+    - id: energy_carrier
+  - id: forecasted_emission_factors
+    from_dimensions:
+    - id: emission_scope
+      categories: [scope3]
+    to_dimensions:
+    - id: emission_sectors
+    - id: energy_carrier
+    - id: emission_scope
 
 # ----- Forecasted Stationary Fuels -----
 
-# - id: stationary_natural_gas_consumption_emissions
-#   name: Natural Gas Emissions
-#   type: formula.FormulaNode
-#   quantity: emissions
-#   unit: t/a
-#   input_dimensions: [emission_sectors]
-#   output_dimensions: [emission_sectors]
-#   params:
-#     formula: stationary_natural_gas_consumption_emissions_inventory + stationary_natural_gas_consumption_emissions_forecast + energy_industries_emissions_forecast + municipal_emissions_forecast
-#   input_nodes:
-#   - id: stationary_natural_gas_consumption_emissions_inventory
-#     from_dimensions:
-#     - id: greenhouse_gases
-#       flatten: true
-#     to_dimensions:
-#     - id: emission_sectors
-#   - id: stationary_natural_gas_consumption_emissions_forecast
-#     from_dimensions:
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-#     to_dimensions:
-#     - id: emission_sectors
-#   - id: energy_industries_emissions_forecast
-#     from_dimensions:
-#     - id: energy_carrier
-#       categories: [natural_gas]
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-#   - id: municipal_emissions_forecast
-#     from_dimensions:
-#     - id: energy_carrier
-#       categories: [natural_gas]
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-#   output_nodes:
-#   - id: stationary_energy_emissions
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
+- id: stationary_natural_gas_consumption_emissions
+  name: Natural Gas Emissions
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
+  params:
+    formula: stationary_natural_gas_consumption_emissions_inventory + stationary_natural_gas_consumption_emissions_forecast + energy_industries_emissions_forecast + municipal_emissions_forecast
+  input_nodes:
+  - id: stationary_natural_gas_consumption_emissions_inventory
+    from_dimensions:
+    - id: greenhouse_gases
+      flatten: true
+    to_dimensions:
+    - id: emission_sectors
+  - id: stationary_natural_gas_consumption_emissions_forecast
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+    to_dimensions:
+    - id: emission_sectors
+  - id: energy_industries_emissions_forecast
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas]
+      flatten: true
+    - id: emission_scope
+      flatten: true
+  - id: municipal_emissions_forecast
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas]
+      flatten: true
+    - id: emission_scope
+      flatten: true
+  output_nodes:
+  - id: stationary_energy_emissions
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
 
-# - id: stationary_natural_gas_consumption_emissions_forecast
-#   name: Natural Gas Emissions (Forecast)
-#   type: simple.MultiplicativeNode
-#   quantity: emissions
-#   unit: t/a
-#   input_dimensions: [emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [emission_sectors, energy_carrier, emission_scope]
-#   input_nodes:
-#   - id: forecasted_energy_consumption
-#     from_dimensions:
-#     - id: emission_sectors
-#       categories: [residential, commercial_institutional, manufacturing_construction]
-#     - id: energy_carrier
-#       categories: [natural_gas]
-#     to_dimensions:
-#     - id: emission_sectors
-#     - id: energy_carrier
-#   - id: forecasted_emission_factors
+- id: stationary_natural_gas_consumption_emissions_forecast
+  name: Natural Gas Emissions (Forecast)
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_nodes:
+  - id: forecasted_energy_consumption
+    from_dimensions:
+    - id: emission_sectors
+      categories: [residential, commercial_institutional, manufacturing_construction]
+    - id: energy_carrier
+      categories: [natural_gas]
+    to_dimensions:
+    - id: emission_sectors
+    - id: energy_carrier
+  - id: forecasted_emission_factors
 
-# - id: stationary_propane_consumption_emissions
-#   name: Propane Emissions
-#   type: formula.FormulaNode
-#   quantity: emissions
-#   unit: t/a
-#   input_dimensions: [emission_sectors]
-#   output_dimensions: [emission_sectors]
-#   params:
-#     formula: stationary_propane_consumption_emissions_inventory + stationary_propane_consumption_emissions_forecast + municipal_emissions_forecast
-#   input_nodes:
-#   - id: stationary_propane_consumption_emissions_inventory
-#     from_dimensions:
-#     - id: energy_carrier
-#       flatten: true
-#     - id: greenhouse_gases
-#       flatten: true
-#     to_dimensions:
-#     - id: emission_sectors
-#   - id: stationary_propane_consumption_emissions_forecast
-#     from_dimensions:
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-#     to_dimensions:
-#     - id: emission_sectors
-#   - id: municipal_emissions_forecast
-#     from_dimensions:
-#     - id: energy_carrier
-#       categories: [propane]
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-#   output_nodes:
-#   - id: stationary_energy_emissions
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
+- id: stationary_propane_consumption_emissions
+  name: Propane Emissions
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors]
+  output_dimensions: [emission_sectors]
+  params:
+    formula: stationary_propane_consumption_emissions_inventory + stationary_propane_consumption_emissions_forecast + municipal_emissions_forecast
+  input_nodes:
+  - id: stationary_propane_consumption_emissions_inventory
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: greenhouse_gases
+      flatten: true
+    to_dimensions:
+    - id: emission_sectors
+  - id: stationary_propane_consumption_emissions_forecast
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+    to_dimensions:
+    - id: emission_sectors
+  - id: municipal_emissions_forecast
+    from_dimensions:
+    - id: energy_carrier
+      categories: [propane]
+      flatten: true
+    - id: emission_scope
+      flatten: true
+  output_nodes:
+  - id: stationary_energy_emissions
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
 
-# - id: stationary_propane_consumption_emissions_forecast
-#   name: Propane Emissions (Forecast)
-#   type: simple.MultiplicativeNode
-#   quantity: emissions
-#   unit: t/a
-#   input_dimensions: [emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [emission_sectors, energy_carrier, emission_scope]
-#   input_nodes:
-#   - id: forecasted_energy_consumption
-#     from_dimensions:
-#     - id: emission_sectors
-#       categories: [residential, commercial_institutional]
-#     - id: energy_carrier
-#       categories: [propane]
-#     to_dimensions:
-#     - id: emission_sectors
-#     - id: energy_carrier
-#   - id: forecasted_emission_factors
+- id: stationary_propane_consumption_emissions_forecast
+  name: Propane Emissions (Forecast)
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_nodes:
+  - id: forecasted_energy_consumption
+    from_dimensions:
+    - id: emission_sectors
+      categories: [residential, commercial_institutional]
+    - id: energy_carrier
+      categories: [propane]
+    to_dimensions:
+    - id: emission_sectors
+    - id: energy_carrier
+  - id: forecasted_emission_factors
 
-# - id: stationary_other_fuel_consumption_emissions_forecast
-#   name: Other Fuels Emissions
-#   type: simple.MultiplicativeNode
-#   quantity: emissions
-#   unit: t/a
-#   input_dimensions: [emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [emission_sectors, energy_carrier, emission_scope]
-#   input_nodes:
-#   - id: forecasted_energy_consumption
-#     from_dimensions:
-#     - id: emission_sectors
-#       categories: [manufacturing_construction]
-#     - id: energy_carrier
-#       categories: [diesel, fuel_oil, other]
-#     to_dimensions:
-#     - id: emission_sectors
-#     - id: energy_carrier
-#   - id: forecasted_emission_factors
-#   output_nodes:
-#   - id: stationary_energy_emissions
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
+- id: stationary_other_fuel_consumption_emissions_forecast
+  name: Other Fuels Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_nodes:
+  - id: forecasted_energy_consumption
+    from_dimensions:
+    - id: emission_sectors
+      categories: [manufacturing_construction]
+    - id: energy_carrier
+      categories: [diesel, fuel_oil, other]
+    to_dimensions:
+    - id: emission_sectors
+    - id: energy_carrier
+  - id: forecasted_emission_factors
+  output_nodes:
+  - id: stationary_energy_emissions
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
 
 # ----- Forecasted Transportation Fuels -----
 
-# - id: transportation_emissions_forecast
-#   name: Transportation Emissions (Forecast)
-#   type: simple.MultiplicativeNode
-#   quantity: emissions
-#   unit: t/a
-#   input_dimensions: [energy_carrier, emission_sectors, emission_scope]
-#   output_dimensions: [energy_carrier, emission_sectors, emission_scope]
-#   input_nodes:
-#   - id: forecasted_energy_consumption
-#     from_dimensions:
-#     - id: emission_sectors
-#       categories: [transport]
-#     to_dimensions:
-#     - id: emission_sectors
-#     - id: energy_carrier
-#   - id: forecasted_emission_factors
-#   output_nodes:
-#   - id: transportation_emissions
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
+- id: transportation_emissions_forecast
+  name: Transportation Emissions (Forecast)
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, emission_sectors, emission_scope]
+  output_dimensions: [energy_carrier, emission_sectors, emission_scope]
+  input_nodes:
+  - id: forecasted_energy_consumption
+    from_dimensions:
+    - id: emission_sectors
+      categories: [transport]
+    to_dimensions:
+    - id: emission_sectors
+    - id: energy_carrier
+  - id: forecasted_emission_factors
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
 
 # ----- Forecasted Emissions-Only Sectors -----
 
-# - id: energy_industries_emissions_forecast
-#   name: Energy Industries Emissions
-#   type: simple.AdditiveNode
-#   quantity: emissions
-#   unit: t/a
-#   input_dimensions: [energy_carrier, emission_sectors, emission_scope]
-#   output_dimensions: [energy_carrier, emission_sectors, emission_scope]
-#   minimum_year: 2022
-#   input_datasets:
-#   - id: saskatoon/forecasted_emissions
-#     filters:
-#     - dimension: emission_sectors
-#       categories: [energy_industries]
+- id: energy_industries_emissions_forecast
+  name: Energy Industries Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, emission_sectors, emission_scope]
+  output_dimensions: [energy_carrier, emission_sectors, emission_scope]
+  minimum_year: 2024
+  input_datasets:
+  - id: saskatoon/forecasted_emissions
+    filters:
+    - dimension: emission_sectors
+      categories: [energy_industries]
 
-# - id: municipal_emissions_forecast
-#   name: Municipal Emissions
-#   type: simple.AdditiveNode
-#   quantity: emissions
-#   unit: t/a
-#   input_dimensions: [emission_scope, emission_sectors, energy_carrier]
-#   output_dimensions: [emission_scope, emission_sectors, energy_carrier]
-#   minimum_year: 2022
-#   input_datasets:
-#   - id: saskatoon/forecasted_emissions
-#     filters:
-#     - dimension: emission_sectors
-#       categories: [municipal]
+- id: municipal_emissions_forecast
+  name: Municipal Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_scope, emission_sectors, energy_carrier]
+  output_dimensions: [emission_scope, emission_sectors, energy_carrier]
+  minimum_year: 2024
+  input_datasets:
+  - id: saskatoon/forecasted_emissions
+    filters:
+    - dimension: emission_sectors
+      categories: [municipal]
 
-# - id: waste_emissions_forecast
-#   name: Waste Emissions (Forecast)
-#   type: simple.AdditiveNode
-#   quantity: emissions
-#   unit: t/a
-#   input_dimensions: [emission_scope, emission_sectors]
-#   output_dimensions: [emission_scope, emission_sectors]
-#   minimum_year: 2022
-#   input_datasets:
-#   - id: saskatoon/forecasted_emissions
-#     filters:
-#     - dimension: emission_sectors
-#       categories: [waste]
-#     - dimension: energy_carrier
-#       flatten: true
-#   output_nodes:
-#   - id: waste_emissions
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
+- id: waste_emissions_forecast
+  name: Waste Emissions (Forecast)
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_scope, emission_sectors]
+  output_dimensions: [emission_scope, emission_sectors]
+  minimum_year: 2024
+  input_datasets:
+  - id: saskatoon/forecasted_emissions
+    filters:
+    - dimension: emission_sectors
+      categories: [waste]
+    - dimension: energy_carrier
+      flatten: true
+  output_nodes:
+  - id: waste_emissions
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: emission_scope
+      flatten: true
 
-# - id: fugitive_emissions_forecast
-#   name: Fugitive Emissions
-#   type: simple.AdditiveNode
-#   color: '#f28e2b'
-#   quantity: emissions
-#   unit: t/a
-#   input_dimensions: [emission_sectors, emission_scope]
-#   output_dimensions: [emission_sectors, emission_scope]
-#   minimum_year: 2022
-#   input_datasets:
-#   - id: saskatoon/forecasted_emissions
-#     filters:
-#     - dimension: emission_sectors
-#       categories: [fugitive]
-#     - dimension: energy_carrier
-#       flatten: true
-#   output_nodes:
-#   - id: net_emissions
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
+- id: fugitive_emissions_forecast
+  name: Fugitive Emissions
+  type: simple.AdditiveNode
+  color: '#f28e2b'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors, emission_scope]
+  output_dimensions: [emission_sectors, emission_scope]
+  minimum_year: 2024
+  input_datasets:
+  - id: saskatoon/forecasted_emissions
+    filters:
+    - dimension: emission_sectors
+      categories: [fugitive]
+    - dimension: energy_carrier
+      flatten: true
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: emission_scope
+      flatten: true
 
 # ----- Forecasted Emissions & Energy Consumption -----
 
-# - id: forecasted_emissions
-#   name: Emissions Forecast by SSG CityInSight
-#   type: simple.AdditiveNode
-#   quantity: emissions
-#   unit: t/a
-#   input_dimensions: [emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [emission_sectors, energy_carrier, emission_scope]
-#   minimum_year: 2022
-#   input_datasets:
-#   - id: saskatoon/forecasted_emissions
-#     forecast_from: 2022
-
-# - id: forecasted_energy_consumption
-#   name: Energy Consumption Forecast by SSG CityInSight
-#   type: simple.AdditiveNode
-#   quantity: energy
-#   unit: GJ/a
-#   input_dimensions: [emission_sectors, energy_carrier]
-#   output_dimensions: [emission_sectors, energy_carrier]
-#   minimum_year: 2022
-#   input_datasets:
-#   - id: saskatoon/forecasted_energy_consumption
-#     forecast_from: 2022
-
-# - id: forecasted_emission_factors
-#   name: Effective Emission Factors Forecast by SSG CityInSight
-#   type: simple.DivisiveNode
-#   quantity: emission_factor
-#   unit: t/GJ
-#   input_dimensions: [emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [emission_sectors, energy_carrier, emission_scope]
-#   input_nodes:
-#   - id: forecasted_emissions
-#     from_dimensions:
-#     - id: emission_sectors
-#       categories: [residential, commercial_institutional, manufacturing_construction, transport]
-#     to_dimensions:
-#     - id: emission_sectors
-#     - id: energy_carrier
-#     - id: emission_scope
-#   - id: forecasted_energy_consumption
-#     to_dimensions:
-#     - id: emission_sectors
-#     - id: energy_carrier
-
-# - id: forecasted_costs
-#   name: Costs & Revenue Forecast by SSG CityInSight
-#   type: simple.AdditiveNode
-#   quantity: currency
-#   unit: CAD/a
-#   input_dimensions: [costs]
-#   output_dimensions: [costs]
-#   minimum_year: 2022
-#   input_datasets:
-#   - id: saskatoon/forecasted_costs
-#     forecast_from: 2022
-
-# - id: discounted_net_cost
-#   name: Discounted Net Cost
-#   type: simple.AdditiveNode
-#   quantity: currency
-#   unit: CAD/a
-#   input_dimensions: []
-#   output_dimensions: []
-#   input_nodes:
-#   - id: forecasted_costs
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-
-# actions:
-
-# - id: lec_action_01
-#   name: LEC Action 1
-#   description: Apply energy efficiency standards (build to Passive House) to all new municipal buildings.
-#   group: buildings
-#   color: '#4e79a7'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec01]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: municipal_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [municipal]
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: fugitive_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [fugitive]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_02
-#   name: LEC Action 2
-#   description: Perform deep energy retrofits on municipal buildings.
-#   group: buildings
-#   color: '#4e79a7'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec02]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: municipal_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [municipal]
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: fugitive_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [fugitive]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_03
-#   name: LEC Action 3
-#   description: Upgrade plugged appliances and energy conservation behaviours in municipal buildings.
-#   group: buildings
-#   color: '#4e79a7'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec03]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: municipal_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [municipal]
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: fugitive_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [fugitive]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_04
-#   name: LEC Action 4
-#   description: Update all municipal building lighting systems.
-#   group: buildings
-#   color: '#4e79a7'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec04]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_05
-#   name: LEC Action 5
-#   description: Retrofit municipal heating and cooling systems with ground source or air source heat pumps.
-#   group: buildings
-#   color: '#4e79a7'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec05]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: municipal_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [municipal]
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: fugitive_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [fugitive]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_06
-#   name: LEC Action 6
-#   description: Create an electric and thermal energy consumption cap for new home construction by utilizing a municipal step code.
-#   group: buildings
-#   color: '#4e79a7'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec06]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: fugitive_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [fugitive]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_07
-#   name: LEC Action 7
-#   description: Require new homes to include roof solar Photovoltaic (PV) installations in the final year of a municipal step code.
-#   group: buildings
-#   color: '#4e79a7'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec07]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: fugitive_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [fugitive]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_08
-#   name: LEC Actions 8 & 9
-#   description: (8) Create an electric and thermal energy consumption cap for new ICI construction by utilizing a municipal step code. (9) Require new ICI buildings to include roof solar PV installations in the final year of municipal step code.
-#   group: buildings
-#   color: '#4e79a7'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec08]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: municipal_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [municipal]
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: fugitive_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [fugitive]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_10
-#   name: LEC Action 10
-#   description: Incentivize and later mandate homeowners to perform deep energy retrofits.
-#   group: buildings
-#   color: '#4e79a7'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec10]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: fugitive_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [fugitive]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_11
-#   name: LEC Action 11
-#   description: Incentivize and later mandate ICI owners and operators to perform deep energy retrofits.
-#   group: buildings
-#   color: '#4e79a7'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec11]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: municipal_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [municipal]
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: fugitive_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [fugitive]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_12
-#   name: LEC Action 12
-#   description: Require energy efficiency improvements residential and ICI building lighting systems.
-#   group: buildings
-#   color: '#4e79a7'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec12]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: fugitive_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [fugitive]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_13
-#   name: LEC Action 13
-#   description: Incentivize and later mandate homeowners to upgrade household appliances to energy and water efficient models.
-#   group: buildings
-#   color: '#4e79a7'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec13]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: fugitive_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [fugitive]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_14
-#   name: LEC Action 14
-#   description: Retrofit home heating and cooling systems with ground-source or air-source heat pumps.
-#   group: buildings
-#   color: '#4e79a7'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec14]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: fugitive_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [fugitive]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_15
-#   name: LEC Action 15
-#   description: Retrofit ICI heating and cooling systems with ground-source or air-source heat pumps.
-#   group: buildings
-#   color: '#4e79a7'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec15]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: municipal_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [municipal]
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: fugitive_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [fugitive]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_16
-#   name: LEC Action 16
-#   description: Increase the efficiency of industrial processes.
-#   group: buildings
-#   color: '#4e79a7'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec16]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_17
-#   name: LEC Action 17
-#   description: Electrify the municipal fleet over the near-term.
-#   group: transportation
-#   color: '#e15759'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec17]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: municipal_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [municipal]
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: fugitive_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [fugitive]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: waste_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [waste]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_18
-#   name: LEC Action 18
-#   description: Electrify the municipal transit fleet.
-#   group: transportation
-#   color: '#e15759'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec18]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: municipal_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [municipal]
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: fugitive_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [fugitive]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: waste_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [waste]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_19
-#   name: LEC Action 19
-#   description: Implement a vehicle pollution pricing program in high traffic areas.
-#   group: transportation
-#   color: '#e15759'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec19]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: municipal_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [municipal]
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: fugitive_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [fugitive]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: waste_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [waste]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_20
-#   name: LEC Action 20
-#   description: Increase transit routes and frequency through future updates to the Transit Plan.
-#   group: transportation
-#   color: '#e15759'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec20]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_21
-#   name: LEC Action 21
-#   description: Electrify personal vehicles through incentive programs, education, and automotive dealer partnerships.
-#   group: transportation
-#   color: '#e15759'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec21]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_22
-#   name: LEC Action 22
-#   description: Electrify commercial vehicles through incentive programs, education, and automotive dealer partnerships.
-#   group: transportation
-#   color: '#e15759'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec22]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_23
-#   name: LEC Action 23
-#   description: Fund and implement improved cycling and walking infrastructure to encourage active transportation.
-#   group: transportation
-#   color: '#e15759'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec23]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_24
-#   name: LEC Action 24
-#   description: Improve and expand waste management programs and services to increase reduction and diversion.
-#   group: waste
-#   color: '#59a14f'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec24]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: waste_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [waste]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_25
-#   name: LEC Action 25
-#   description: Decrease water use through efficiency, monitoring, and leak reduction.
-#   group: water
-#   color: '#ff9da7'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec25]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: municipal_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [municipal]
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: fugitive_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [fugitive]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: waste_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [waste]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_26
-#   name: LEC Action 26
-#   description: Reduce residential and ICI water use through education programming and water efficiency incentive programs.
-#   group: water
-#   color: '#ff9da7'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec26]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: waste_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [waste]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_27
-#   name: LEC Actions 27 & 28
-#   description: (27) Build complete, compact communities through infill development, mixed-use buildings, and compact housing. (28) Focus development on densification in previously developed areas, increasing the number of multi-family buildings.
-#   group: land
-#   color: '#76b7b2'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec27]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: fugitive_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [fugitive]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_29
-#   name: LEC Action 29
-#   description: Install solar PV systems on municipal buildings.
-#   group: energy
-#   color: '#edc948'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec29]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: municipal_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [municipal]
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: fugitive_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [fugitive]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: waste_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [waste]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_31
-#   name: LEC Action 31
-#   description: Increase landfill gas capture from the Saskatoon Landfill.
-#   group: energy
-#   color: '#edc948'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec31]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: waste_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [waste]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_32
-#   name: LEC Action 32
-#   description: Encourage existing residential building owners and mandate new buildings to install solar PV system through programming and bylaw.
-#   group: energy
-#   color: '#edc948'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec32]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_33
-#   name: LEC Action 33
-#   description: Encourage existing ICI building owners and mandate new buildings to install solar PV systems through programming and bylaw.
-#   group: energy
-#   color: '#edc948'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec33]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_34
-#   name: LEC Actions 30 & 34
-#   description: (30) Install solar PV systems on municipal lands. (34) Install new solar PV utility-scale facilities within or adjacent to city boundaries. Areas within city boundary to be prioritized first.
-#   group: energy
-#   color: '#edc948'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec34]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_35
-#   name: LEC Action 35
-#   description: Install a CHP facility at St. Paul's Hospital.
-#   group: energy
-#   color: '#edc948'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec35]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: municipal_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [municipal]
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: fugitive_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [fugitive]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_36
-#   name: LEC Action 36
-#   description: Implement district energy systems in the downtown and north downtown areas.
-#   group: energy
-#   color: '#edc948'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec36]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: municipal_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [municipal]
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: fugitive_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [fugitive]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_37
-#   name: LEC Action 37
-#   description: Construct a hydropower plant at the weir.
-#   group: energy
-#   color: '#edc948'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec37]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_38
-#   name: LEC Action 38
-#   description: Install renewable energy storage over time.
-#   group: energy
-#   color: '#edc948'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec38]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-#   - id: forecasted_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: emission_sectors
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_39
-#   name: LEC Action 39
-#   description: Procure renewable electricity from third party producers.
-#   group: energy
-#   color: '#edc948'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec39]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
-
-
-
-# - id: lec_action_40
-#   name: LEC Action 40
-#   description: Procure renewable natural gas from third party producers.
-#   group: energy
-#   color: '#edc948'
-#   type: simple.AdditiveAction
-#   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-#   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
-
-#   input_datasets:
-#   - id: saskatoon/action_reductions
-#     forecast_from: 2022
-#     filters:
-#     - dimension: actions
-#       categories: [lec40]
-#       flatten: true
-
-#   output_metrics:
-#   - id: currency
-#     unit: CAD/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kt/a
-#     quantity: emissions
-#   - id: energy
-#     unit: GJ/a
-#     quantity: energy
-
-#   output_nodes:
-#   - id: forecasted_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-
-#   - id: municipal_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [municipal]
-
-#   - id: energy_industries_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [energy_industries]
-
-#   - id: fugitive_emissions_forecast
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_sectors
-#       categories: [fugitive]
-#     - id: energy_carrier
-#       flatten: true
-
-#   - id: forecasted_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: costs
-#       flatten: true
-#     - id: emission_scope
-#       flatten: true
+- id: forecasted_emissions
+  name: Emissions Forecast by SSG CityInSight
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/forecasted_emissions
+    min_year: 2024
+    max_year: 2050
+    forecast_from: 2024
+
+- id: forecasted_energy_consumption
+  name: Energy Consumption Forecast by SSG CityInSight
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GJ/a
+  input_dimensions: [emission_sectors, energy_carrier]
+  output_dimensions: [emission_sectors, energy_carrier]
+  input_datasets:
+  - id: saskatoon/forecasted_energy_consumption
+    min_year: 2024
+    max_year: 2050
+    forecast_from: 2024
+
+- id: forecasted_emission_factors
+  name: Effective Emission Factors Forecast by SSG CityInSight
+  type: simple.DivisiveNode
+  quantity: emission_factor
+  unit: t/GJ
+  input_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [emission_sectors, energy_carrier, emission_scope]
+  input_nodes:
+  - id: forecasted_emissions
+    from_dimensions:
+    - id: emission_sectors
+      categories: [residential, commercial_institutional, manufacturing_construction, transport]
+    to_dimensions:
+    - id: emission_sectors
+    - id: energy_carrier
+    - id: emission_scope
+  - id: forecasted_energy_consumption
+    to_dimensions:
+    - id: emission_sectors
+    - id: energy_carrier
+
+- id: forecasted_costs
+  name: Costs & Revenue Forecast by SSG CityInSight
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: CAD/a
+  input_dimensions: [costs]
+  output_dimensions: [costs]
+  input_datasets:
+  - id: saskatoon/forecasted_costs
+    min_year: 2024
+    max_year: 2050
+    forecast_from: 2024
+
+- id: net_cost
+  name: Net Cost
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MCAD/a
+  input_dimensions: []
+  output_dimensions: []
+  input_nodes:
+  - id: forecasted_costs
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+
+actions:
+
+- id: lec_action_01
+  name: LEC Action 1
+  description: Apply energy efficiency standards (build to Passive House) to all new municipal buildings.
+  group: buildings
+  color: '#4e79a7'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec01
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: municipal_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [municipal]
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: fugitive_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_02
+  name: LEC Action 2
+  description: Perform deep energy retrofits on municipal buildings.
+  group: buildings
+  color: '#4e79a7'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec02
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: municipal_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [municipal]
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: fugitive_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_03
+  name: LEC Action 3
+  description: Upgrade plugged appliances and energy conservation behaviours in municipal buildings.
+  group: buildings
+  color: '#4e79a7'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec03
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: municipal_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [municipal]
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: fugitive_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_04
+  name: LEC Action 4
+  description: Update all municipal building lighting systems.
+  group: buildings
+  color: '#4e79a7'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec04
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_05
+  name: LEC Action 5
+  description: Retrofit municipal heating and cooling systems with ground source or air source heat pumps.
+  group: buildings
+  color: '#4e79a7'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec05
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: municipal_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [municipal]
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: fugitive_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_06
+  name: LEC Action 6
+  description: Create an electric and thermal energy consumption cap for new home construction by utilizing a municipal step code.
+  group: buildings
+  color: '#4e79a7'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec06
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: fugitive_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_07
+  name: LEC Action 7
+  description: Require new homes to include roof solar Photovoltaic (PV) installations in the final year of a municipal step code.
+  group: buildings
+  color: '#4e79a7'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec07
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: fugitive_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_08
+  name: LEC Actions 8 & 9
+  description: (8) Create an electric and thermal energy consumption cap for new ICI construction by utilizing a municipal step code. (9) Require new ICI buildings to include roof solar PV installations in the final year of municipal step code.
+  group: buildings
+  color: '#4e79a7'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec08
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: municipal_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [municipal]
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: fugitive_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_10
+  name: LEC Action 10
+  description: Incentivize and later mandate homeowners to perform deep energy retrofits.
+  group: buildings
+  color: '#4e79a7'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec10
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: fugitive_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_11
+  name: LEC Action 11
+  description: Incentivize and later mandate ICI owners and operators to perform deep energy retrofits.
+  group: buildings
+  color: '#4e79a7'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec11
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: municipal_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [municipal]
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: fugitive_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_12
+  name: LEC Action 12
+  description: Require energy efficiency improvements residential and ICI building lighting systems.
+  group: buildings
+  color: '#4e79a7'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec12
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: fugitive_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_13
+  name: LEC Action 13
+  description: Incentivize and later mandate homeowners to upgrade household appliances to energy and water efficient models.
+  group: buildings
+  color: '#4e79a7'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec13
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: fugitive_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_14
+  name: LEC Action 14
+  description: Retrofit home heating and cooling systems with ground-source or air-source heat pumps.
+  group: buildings
+  color: '#4e79a7'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec14
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: fugitive_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_15
+  name: LEC Action 15
+  description: Retrofit ICI heating and cooling systems with ground-source or air-source heat pumps.
+  group: buildings
+  color: '#4e79a7'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec15
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: municipal_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [municipal]
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: fugitive_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_16
+  name: LEC Action 16
+  description: Increase the efficiency of industrial processes.
+  group: buildings
+  color: '#4e79a7'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec16
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_17
+  name: LEC Action 17
+  description: Electrify the municipal fleet over the near-term.
+  group: transportation
+  color: '#e15759'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec17
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: municipal_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [municipal]
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: fugitive_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+  - id: waste_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [waste]
+    - id: energy_carrier
+      flatten: true
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_18
+  name: LEC Action 18
+  description: Electrify the municipal transit fleet.
+  group: transportation
+  color: '#e15759'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec18
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: municipal_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [municipal]
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: fugitive_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+  - id: waste_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [waste]
+    - id: energy_carrier
+      flatten: true
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_19
+  name: LEC Action 19
+  description: Implement a vehicle pollution pricing program in high traffic areas.
+  group: transportation
+  color: '#e15759'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec19
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: municipal_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [municipal]
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: fugitive_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+  - id: waste_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [waste]
+    - id: energy_carrier
+      flatten: true
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_20
+  name: LEC Action 20
+  description: Increase transit routes and frequency through future updates to the Transit Plan.
+  group: transportation
+  color: '#e15759'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec20
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_21
+  name: LEC Action 21
+  description: Electrify personal vehicles through incentive programs, education, and automotive dealer partnerships.
+  group: transportation
+  color: '#e15759'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec21
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_22
+  name: LEC Action 22
+  description: Electrify commercial vehicles through incentive programs, education, and automotive dealer partnerships.
+  group: transportation
+  color: '#e15759'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec22
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_23
+  name: LEC Action 23
+  description: Fund and implement improved cycling and walking infrastructure to encourage active transportation.
+  group: transportation
+  color: '#e15759'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec23
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_24
+  name: LEC Action 24
+  description: Improve and expand waste management programs and services to increase reduction and diversion.
+  group: waste
+  color: '#59a14f'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec24
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: waste_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [waste]
+    - id: energy_carrier
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_25
+  name: LEC Action 25
+  description: Decrease water use through efficiency, monitoring, and leak reduction.
+  group: water
+  color: '#ff9da7'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec25
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: municipal_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [municipal]
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: fugitive_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+  - id: waste_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [waste]
+    - id: energy_carrier
+      flatten: true
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_26
+  name: LEC Action 26
+  description: Reduce residential and ICI water use through education programming and water efficiency incentive programs.
+  group: water
+  color: '#ff9da7'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec26
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: waste_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [waste]
+    - id: energy_carrier
+      flatten: true
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_27
+  name: LEC Actions 27 & 28
+  description: (27) Build complete, compact communities through infill development, mixed-use buildings, and compact housing. (28) Focus development on densification in previously developed areas, increasing the number of multi-family buildings.
+  group: land
+  color: '#76b7b2'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec27
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: fugitive_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_29
+  name: LEC Action 29
+  description: Install solar PV systems on municipal buildings.
+  group: energy
+  color: '#edc948'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec29
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: municipal_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [municipal]
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: fugitive_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+  - id: waste_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [waste]
+    - id: energy_carrier
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_31
+  name: LEC Action 31
+  description: Increase landfill gas capture from the Saskatoon Landfill.
+  group: energy
+  color: '#edc948'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec31
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: waste_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [waste]
+    - id: energy_carrier
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_32
+  name: LEC Action 32
+  description: Encourage existing residential building owners and mandate new buildings to install solar PV system through programming and bylaw.
+  group: energy
+  color: '#edc948'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec32
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_33
+  name: LEC Action 33
+  description: Encourage existing ICI building owners and mandate new buildings to install solar PV systems through programming and bylaw.
+  group: energy
+  color: '#edc948'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec33
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_34
+  name: LEC Actions 30 & 34
+  description: (30) Install solar PV systems on municipal lands. (34) Install new solar PV utility-scale facilities within or adjacent to city boundaries. Areas within city boundary to be prioritized first.
+  group: energy
+  color: '#edc948'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec34
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_35
+  name: LEC Action 35
+  description: Install a CHP facility at St. Paul's Hospital.
+  group: energy
+  color: '#edc948'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec35
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: municipal_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [municipal]
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: fugitive_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_36
+  name: LEC Action 36
+  description: Implement district energy systems in the downtown and north downtown areas.
+  group: energy
+  color: '#edc948'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec36
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: municipal_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [municipal]
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: fugitive_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_37
+  name: LEC Action 37
+  description: Construct a hydropower plant at the weir.
+  group: energy
+  color: '#edc948'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec37
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_38
+  name: LEC Action 38
+  description: Install renewable energy storage over time.
+  group: energy
+  color: '#edc948'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec38
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: forecasted_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: emission_scope
+      flatten: true
+
+
+
+- id: lec_action_39
+  name: LEC Action 39
+  description: Procure renewable electricity from third party producers.
+  group: energy
+  color: '#edc948'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec39
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+
+
+- id: lec_action_40
+  name: LEC Action 40
+  description: Procure renewable natural gas from third party producers.
+  group: energy
+  color: '#edc948'
+  type: simple.AdditiveAction
+  input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: saskatoon/action_reductions
+    forecast_from: 2024
+    filters:
+    - column: actions
+      value: lec40
+
+  output_metrics:
+  - id: currency
+    unit: CAD/a
+    quantity: currency
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: energy
+    unit: GJ/a
+    quantity: energy
+
+  output_nodes:
+  - id: forecasted_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+
+  - id: municipal_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [municipal]
+
+  - id: energy_industries_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [energy_industries]
+
+  - id: fugitive_emissions_forecast
+    metrics: [emissions]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_sectors
+      categories: [fugitive]
+    - id: energy_carrier
+      flatten: true
+
+  - id: forecasted_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: costs
+      flatten: true
+    - id: emission_scope
+      flatten: true
 
 
 

@@ -259,7 +259,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     # Mega-kilometers is often used for mileage
     Mkm = gigameters
     EUR = [currency] = €
-    CAD = nan EUR
+    CAD = 0.7 EUR
     USD = nan EUR
     SEK = 0.1 EUR
     PLN = 0.2 EUR
@@ -362,6 +362,8 @@ def add_unit_translations():
     set_one('EUR', long=_('euros'), short='€')
     set_one('kiloEUR', long=_('thousand euros'), short='k€')
     set_one('megaEUR', long=_('million euros'), short='M€')
+    set_one('CAD', long=_('Canadian dollars'), short='$')
+    set_one('megaCAD', long=_('million Canadian dollars'), short='M$')
     set_one('kiloSEK', long=_('thousand kronor'), short='kSEK')
     set_one('megaSEK', long=_('million kronor'), short='MSEK')
     set_one('gigawatt_hour', long=_('gigawatt hours'), short='GWh')
