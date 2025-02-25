@@ -369,11 +369,13 @@ class HsyEmissions(AdditiveNode, HsyNodeMixin):
         assert VALUE_COLUMN in df
         pdf = ppl.from_pandas(df)
 
-        pdf, extra_nodes = self.run_implicit_operations(other_nodes, pdf)
-        assert pdf is not None
-        assert len(extra_nodes) == 0, f"Node {self.id} should not have input nodes of the other type."
-        pdf = pdf.ensure_unit(VALUE_COLUMN, self.unit)
-        return pdf
+        dfout, extra_nodes = self.run_implicit_operations(pdf, other_nodes)
+        if dfout is None:
+            raise NodeError(self, f"Node {self.id} failed with implicit operations.")
+        if len(extra_nodes) > 0:
+            raise NodeError(self, f"Node {self.id} can only have additive and multiplicative input nodes.")
+        dfout = dfout.ensure_unit(VALUE_COLUMN, self.unit)
+        return dfout
 
 class HsyEmissionFactor(AdditiveNode, HsyNodeMixin):
     default_unit = 'g/kWh'

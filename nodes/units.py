@@ -375,6 +375,9 @@ def add_unit_translations():
     set_one('personal_activity', long=_('minutes per day per person'), short=_('min/d/cap'))
     set_one('gigaEUR', long=_('billion euros'), short=_('B€'))
     set_one('megasolid_cubic_meter', long='million solid m³', short='M m³ (solid)')
+    if 'kilowatt_hour' in _babel_units:
+        del _babel_units['kilowatt_hour'] # Otherwise fails with compound units.
+    set_one('kilowatt_hour', long=_('kilowatt hour'), short='kWh')
 
     loc = Loc('de')
     loc._data['unit_patterns']['duration-year']['short'] = dict(one='a')

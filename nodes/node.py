@@ -1498,6 +1498,35 @@ class Node:
         df = df.select([YEAR_COLUMN, *meta.dim_ids, VALUE_COLUMN, FORECAST_COLUMN])
         return df
 
+    def multiply_nodes_pl( # FIXME Make more like add_nodes_pl but allow no inputs
+            self,
+            df: ppl.PathsDataFrame | None,
+            nodes: list[Node],
+            metric: str | None = None,
+            keep_nodes: bool = False,
+            node_multipliers: list[float] | None = None,
+            unit: Unit | None = None,
+            start_from_year: int | None = None,
+            ) -> ppl.PathsDataFrame | None:
+        """Multiply outputs from the given nodes using inner join and union of dimensions."""
+        if not nodes and df is None:
+            return None
+
+        if df is not None:
+            result = df
+        else:
+            result = nodes.pop(0).get_output_pl(target_node=self)
+
+        for node in nodes:
+            dfn = node.get_output_pl(target_node=self)
+            result = result.paths.join_over_index(dfn, how='inner', index_from='union')
+            result = result.multiply_cols(
+                [VALUE_COLUMN, f'{VALUE_COLUMN}_right'],
+                VALUE_COLUMN
+            ).drop(f'{VALUE_COLUMN}_right')
+
+        return result
+
     def check(self):
         from nodes.metric import DimensionalMetric
 

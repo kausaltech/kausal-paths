@@ -10,7 +10,7 @@ import polars as pl
 from common import polars as ppl
 from common.i18n import TranslatedString
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
-from nodes.units import Quantity
+from nodes.units import Quantity, Unit
 from params.param import BoolParameter, NumberParameter, Parameter, StringParameter
 
 from .constants import FORECAST_COLUMN, MIX_QUANTITY, VALUE_COLUMN, YEAR_COLUMN
@@ -227,54 +227,15 @@ class GenericNode(SimpleNode):
 
         return multiplicative_nodes, additive_nodes, other_nodes
 
-    def _multiply_nodes(self, nodes: list[Node], base_df: ppl.PathsDataFrame | None = None) -> ppl.PathsDataFrame | None:
-        """Multiply outputs from the given nodes using inner join and union of dimensions."""
-        if not nodes and base_df is None:
-            return None
-
-        if base_df is not None:
-            result = base_df
-        else:
-            result = nodes.pop(0).get_output_pl(target_node=self)
-
-        for node in nodes:
-            df = node.get_output_pl(target_node=self)
-            result = result.paths.join_over_index(df, how='inner', index_from='union')
-            result = result.multiply_cols(
-                [VALUE_COLUMN, f'{VALUE_COLUMN}_right'],
-                VALUE_COLUMN
-            ).drop(f'{VALUE_COLUMN}_right')
-
-        return result
-
-    def _add_nodes(self, nodes: list[Node], base_df: ppl.PathsDataFrame | None = None) -> ppl.PathsDataFrame | None:
-        """Add outputs from the given nodes using outer join."""
-        if not nodes and base_df is None:
-            return None
-
-        if base_df is not None:
-            result = base_df
-        else:
-            result = nodes.pop(0).get_output_pl(target_node=self)
-
-        for node in nodes:
-            df = node.get_output_pl(target_node=self)
-            if set(df.dim_ids) != set(result.dim_ids):
-                raise NodeError(
-                    self,
-                    f"Dimensions don't match for implicit addition: {df.dim_ids} vs {result.dim_ids}"
-                )
-
-            result = result.paths.add_with_dims(df, how='outer')
-            # TODO Should null handling be configurable by parameter?
-            result = result.with_columns(pl.col(VALUE_COLUMN).fill_null(0.0))
-
-        return result
-
     def run_implicit_operations(
             self,
+            df: ppl.PathsDataFrame | None = None,
             nodes: list[Node] | None = None,
-            base_df: ppl.PathsDataFrame | None = None
+            metric: str | None = None,
+            keep_nodes: bool = False,
+            node_multipliers: list[float] | None = None,
+            unit: Unit | None = None,
+            start_from_year: int | None = None,
             ) -> tuple[ppl.PathsDataFrame | None, list[Node]]:
         """
         Process all inputs according to their categories.
@@ -285,8 +246,11 @@ class GenericNode(SimpleNode):
             nodes = self.input_nodes
         mult_nodes, add_nodes, other_nodes = self._get_categorized_inputs(nodes)
 
-        result = self._multiply_nodes(mult_nodes, base_df)
-        result = self._add_nodes(add_nodes, result)
+
+        result = self.multiply_nodes_pl(df, mult_nodes, metric, keep_nodes, node_multipliers,
+                                      unit, start_from_year)
+        result = self.add_nodes_pl(result, add_nodes, metric, keep_nodes, node_multipliers,
+                                   unit, start_from_year)
 
         return result, other_nodes
 
@@ -946,7 +910,7 @@ class FillNewCategoryNode(AdditiveNode):
     ]
 
     def compute(self):
-        category = self.get_parameter_value('new_category', required=True, units=False)
+        category = self.get_parameter_value_str('new_category', required=True)
         dim, cat = category.split(':')
 
         df: ppl.PathsDataFrame = self.add_nodes_pl(None, self.input_nodes)
