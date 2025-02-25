@@ -36,10 +36,6 @@ class InstanceAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceConfig']
 
     model_perms = AdminRole.model_perms + [
         ('nodes', ('instanceconfig', 'nodeconfig'), ('view', 'change')),
-        ('datasets', (
-            'dataset', 'datasetcomment', 'datasetdimension', 'datasetdimensionselectedcategory',
-            'datasetmetric', 'datasetsourcereference', 'dimension', 'dimensioncategory',
-        ), ALL_MODEL_PERMS),
         ('frameworks', (
             'framework',
         ), ('view',)),
@@ -64,10 +60,6 @@ class InstanceViewerRole(InstanceGroupMembershipRole, InstanceSpecificRole['Inst
 
     model_perms = [
         ('nodes', ('instanceconfig', 'nodeconfig'), ('view',)),
-        ('datasets', (
-            'dataset', 'datasetcomment', 'datasetdimension', 'datasetdimensionselectedcategory',
-            'datasetmetric', 'datasetsourcereference', 'dimension', 'dimensioncategory',
-        ), ('view',)),
         ('frameworks', (
             'framework', 'frameworkconfig', 'measure', 'measuredatapoint',
         ), ('view',)),

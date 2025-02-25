@@ -37,7 +37,6 @@ from social_django import urls as social_urls
 from kausal_common.deployment.health_check_view import health_view
 
 from admin_site import urls as admin_urls
-from datasets.api import all_routers as datasets_routers
 from frameworks.urls import urlpatterns as framework_urls
 from nodes.api import all_routers as nodes_routers
 from users.views import change_admin_instance
@@ -63,7 +62,6 @@ except ImportError:
 api_urls = [
     path(r'', include(api_router.urls)),
     *[path(r'', include(r.urls)) for r in nodes_routers],
-    *[path(r'', include(r.urls)) for r in datasets_routers],
 ]
 
 
