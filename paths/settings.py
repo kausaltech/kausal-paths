@@ -152,7 +152,7 @@ INSTALLED_APPS = [
     'modeltrans',
     'pages',
     'nodes',
-    'datasets',
+    'kausal_common.datasets',
     'frameworks',
 ]
 
