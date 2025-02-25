@@ -210,6 +210,22 @@ dimensions:
   - id: v3
     label: 'V.3 Aggregate Sources'
 
+- id: action
+  label: Action
+  categories:
+  - id: change_streetlights_to_led
+    label: 'Change Streetlights to LED'
+  - id: tree_donation
+    label: 'Tree Donation'
+  - id: reforestation
+    label: 'Reforestation'
+  - id: energy_refurbishment_for_private_households
+    label: 'Energy Refurbishment for Private Households'
+  - id: energy_refurbishment_for_school_building
+    label: 'Energy Refurbishment for School Building'
+  - id: new_school_building
+    label: 'New School Building'
+
 emission_sectors:
 - id: net_emissions
   name: Net Emissions

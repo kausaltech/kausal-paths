@@ -257,6 +257,250 @@ dimensions:
     label: Benefit
     label_en: Benefit
 
+- id: sector
+  label: GPC-sektori
+  label_en: GPC sector
+  categories:
+  - id: i
+    label: I Kiinteät lähteet
+    label_en: I Stationary
+  - id: i1
+    label: I.1 Asuinkiinteistöt
+    label_en: I.1 Residential
+  - id: i11
+    label: I.1.1 Asuinkiinteistöjen polttoaine
+    label_en: I.1.1 Residential fuel
+  - id: i12
+    label: I.1.2 Asuinkiinteistöjen verkkoenergia
+    label_en: I.1.2 Residential grid energy
+  - id: i13
+    label: I.1.3 Asuinkiinteistöjen siirto- ja jakeluhäviöt
+    label_en: I.1.3 Residential T & D loss
+  - id: i2
+    label: I.2 Kaupalliset ja julkiset rakennukset
+    label_en: I.2 Commercial & institutional
+  - id: i21
+    label: I.2.1 Kaupallisten ja julkisten polttoaine
+    label_en: I.2.1 Commercial & institutional fuel
+  - id: i22
+    label: I.2.2 Kaupallisten ja julkisten verkkoenergia
+    label_en: I.2.2 Commercial & institutional grid energy
+  - id: i23
+    label: I.2.3 Kaupallisten ja julkisten siirtohäviöt
+    label_en: I.2.3 Commercial & institutional T & D loss
+  - id: i3
+    label: I.3 Teollisuus
+    label_en: I.3 Manufacturing
+  - id: i31
+    label: I.3.1 Teollisuuden polttoaine
+    label_en: I.3.1 Manufacturing fuel
+  - id: i32
+    label: I.3.2 Teollisuuden verkkoenergia
+    label_en: I.3.2 Manufacturing grid energy
+  - id: i33
+    label: I.3.3 Teollisuuden siirto- ja jakeluhäviöt
+    label_en: I.3.3 Manufacturing T & D loss
+  - id: i4
+    label: I.4 Energia
+    label_en: I.4 Energy
+  - id: i41
+    label: I.4.1 Energian polttoaine
+    label_en: I.4.1 Energy fuel
+  - id: i42
+    label: I.4.2 Energian verkkoenergia
+    label_en: I.4.2 Energy grid energy
+  - id: i43
+    label: I.4.3 Energian siirto- ja jakeluhäviöt
+    label_en: I.4.3 Energy T & D loss
+  - id: i5
+    label: I.5 Maa-, metsä- ja kalatalous
+    label_en: I.5 Ag, forestry, & fishing
+  - id: i51
+    label: I.5.1 Maa-, metsä- ja kalatalouden polttoaine
+    label_en: I.5.1 Ag, forestry, & fishing fuel
+  - id: i52
+    label: I.5.2 Maa-, metsä- ja kalatalouden verkkoenergia
+    label_en: I.5.2 Ag, forestry, & fishing grid energy
+  - id: i53
+    label: I.5.3 Maa-, metsä- ja kalatalouden siirtohäviöt
+    label_en: I.5.3 Ag, forestry, & fishing T & D loss
+  - id: i6
+    label: I.6 Määrittelemätön
+    label_en: I.6 Non-specified
+  - id: i61
+    label: I.6.1 Määrittelemättömien polttoaine
+    label_en: I.6.1 Non-specified fuel
+  - id: i62
+    label: I.6.2 Määrittelemättömien verkkoenergia
+    label_en: I.6.2 Non-specified grid energy
+  - id: i63
+    label: I.6.3 Määrittelemättömien siirto- ja jakeluhäviöt
+    label_en: I.6.3 Non-specified T & D loss
+  - id: i7
+    label: I.7 Hiilen haihtumapäästöt
+    label_en: I.7 Fugitive coal
+  - id: i71
+    label: I.7.1 Hiilen haihtumapäästöt
+    label_en: I.7.1 Fugitive coal
+  - id: i8
+    label: I.8 Öljyn ja maakaasun haihtumapäästöt
+    label_en: I.8 Fugitive oil & natural gas
+  - id: i81
+    label: I.8.1 Öljyn ja maakaasun haihtumapäästöt
+    label_en: I.8.1 Fugitive oil & natural gas
+  - id: ii
+    label: II Liikenne
+    label_en: II Transportation
+  - id: ii1
+    label: II.1 Tieliikenne
+    label_en: II.1 On-road transport
+  - id: ii11
+    label: II.1.1 Tieliikenteen polttoaine
+    label_en: II.1.1 On-road transport fuel
+  - id: ii12
+    label: II.1.2 Tieliikenteen verkkoenergia
+    label_en: II.1.2 On-road transport grid energy
+  - id: ii13
+    label: II.1.3 Tieliikenteen kaupungin ulkopuolella
+    label_en: II.1.3 On-road transport outside city, T & D loss
+  - id: ii2
+    label: II.2 Rautatieliikenne
+    label_en: II.2 Railway
+  - id: ii21
+    label: II.2.1 Rautatieliikenteen polttoaine
+    label_en: II.2.1 Railway fuel
+  - id: ii22
+    label: II.2.2 Rautatieliikenteen verkkoenergia
+    label_en: II.2.2 Railway grid energy
+  - id: ii23
+    label: II.2.3 Rautatieliikenteen kaupungin ulkopuolella
+    label_en: II.2.3 Railway outside city, T & D loss
+  - id: ii3
+    label: II.3 Vesiliikenne
+    label_en: II.3 Waterborne
+  - id: ii31
+    label: II.3.1 Vesiliikenteen polttoaine
+    label_en: II.3.1 Waterborne fuel
+  - id: ii32
+    label: II.3.2 Vesiliikenteen verkkoenergia
+    label_en: II.3.2 Waterborne grid energy
+  - id: ii33
+    label: II.3.3 Vesiliikenteen kaupungin ulkopuolella
+    label_en: II.3.3 Waterborne outside city, T & D loss
+  - id: ii4
+    label: II.4 Ilmailu
+    label_en: II.4 Aviation
+  - id: ii41
+    label: II.4.1 Ilmailun polttoaine
+    label_en: II.4.1 Aviation fuel
+  - id: ii42
+    label: II.4.2 Ilmailun verkkoenergia
+    label_en: II.4.2 Aviation grid energy
+  - id: ii43
+    label: II.4.3 Ilmailun kaupungin ulkopuolella
+    label_en: II.4.3 Aviation outside city, T & D loss
+  - id: ii5
+    label: II.5 Maastoliikenne
+    label_en: II.5 Off-road transport
+  - id: ii51
+    label: II.5.1 Maastoliikenteen polttoaine
+    label_en: II.5.1 Off-road transport fuel
+  - id: ii52
+    label: II.5.2 Maastoliikenteen verkkoenergia
+    label_en: II.5.2 Off-road transport grid energy
+  - id: ii53
+    label: II.5.3 Maastoliikenteen kaupungin ulkopuolella
+    label_en: II.5.3 Off-road transport outside city, T & D loss
+  - id: iii
+    label: III Jäte
+    label_en: III Waste
+  - id: iii1
+    label: III.1 Kiinteä jäte
+    label_en: III.1 Solid waste
+  - id: iii11
+    label: III.1.1 Kaupungissa käsitelty jäte
+    label_en: III.1.1 Solid waste disposed in city
+  - id: iii12
+    label: III.1.2 Kaupungin ulkopuolella käsitelty jäte
+    label_en: III.1.2 Solid waste disposed outside city
+  - id: iii2
+    label: III.2 Biologinen jäte
+    label_en: III.2 Biological waste
+  - id: iii21
+    label: III.2.1 Kaupungissa käsitelty biojäte
+    label_en: III.2.1 Biological waste treated in city
+  - id: iii22
+    label: III.2.2 Kaupungin ulkopuolella käsitelty biojäte
+    label_en: III.2.2 Biological waste treated outside city
+  - id: iii3
+    label: III.3 Jätteenpoltto
+    label_en: III.3 Incineration
+  - id: iii31
+    label: III.3.1 Jätteenpoltto kaupungissa
+    label_en: III.3.1 Incineration in city
+  - id: iii32
+    label: III.3.2 Jätteenpoltto kaupungin ulkopuolella
+    label_en: III.3.2 Incineration outside city
+  - id: iii4
+    label: III.4 Jätevesi
+    label_en: III.4 Wastewater
+  - id: iii41
+    label: III.4.1 Kaupungissa käsitelty jätevesi
+    label_en: III.4.1 Wastewater treated in city
+  - id: iii42
+    label: III.4.2 Kaupungin ulkopuolella käsitelty jätevesi
+    label_en: III.4.2 Wastewater treated outside city
+  - id: iv
+    label: IV Teollisuusprosessit ja tuotteiden käyttö
+    label_en: IV IPPU
+  - id: iv1
+    label: IV.1 Teollisuusprosessit
+    label_en: IV.1 Industrial processes
+  - id: iv2
+    label: IV.2 Tuotteiden käyttö
+    label_en: IV.2 Product use
+  - id: v
+    label: V Maatalous, metsätalous ja muu maankäyttö
+    label_en: V AFOLU
+  - id: v1
+    label: V.1 Kotieläimet
+    label_en: V.1 Livestock
+  - id: v2
+    label: V.2 Maa
+    label_en: V.2 Land
+  - id: v3
+    label: V.3 Yhdistetyt lähteet
+    label_en: V.3 Aggregate sources
+
+- id: action
+  label: Toimenpide
+  label_en: Action
+  categories:
+  - id: replacing_street_lighting_with_leds
+    label: Katuvalaistuksen vaihtaminen LED-valaisimiksi
+    label_en: Replacing street lighting with LEDs
+  - id: building_renewable_electricity_production_pv
+    label: Hajautettu uusiutuva energia (aurinkosähkö)
+    label_en: Building renewable electricity production (PV)
+  - id: replacing_oil_heating_with_heat_pumps
+    label: Öljylämmityksestä siirtyminen lämpöpumppuihin
+    label_en: Replacing oil heating with heat pumps
+  - id: energy_efficiency_renovations_in_city_buildings
+    label: Korjausrakentaminen kaupungin kiinteistössä
+    label_en: Energy efficiency renovations in city buildings
+  - id: energy_efficiency_measures_for_new_construction
+    label: Uusien rakennusten energiatehokkuustoimet
+    label_en: Energy efficiency measures for new construction
+  - id: change_in_the_propulsion_of_bus_fleet
+    label: Bussiliikenteen käyttövoimamuutos
+    label_en: Change in the propulsion of bus fleet
+  - id: shift_to_lowcarbon_in_electricity_production
+    label: Kansallinen sähköntuotanto puhdistuu
+    label_en: Shift to low-carbon in electricity production
+  - id: replacing_fossil_fuels_with_res_in_city_machinery
+    label: Fossiilipolttoaineista luopuminen työkoneissa
+    label_en: Replacing fossil fuels with res in city machinery
+
 emission_sectors:
 - id: net_emissions
   name: Kokonaispäästöt

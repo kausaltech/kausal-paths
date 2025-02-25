@@ -347,6 +347,30 @@ dimensions:
   - id: v3
     label: 'V.3 Aggregate Sources'
 
+- id: action
+  label: Action
+  categories:
+  - id: electrify_light_work_machines
+    label: 'Electrify Light Work Machines'
+  - id: fossil_free_car_rental_agreement
+    label: 'Fossil-Free Car Rental Agreement'
+  - id: offset_flight_emissions_with_green_aviation_fuel
+    label: 'Offset Flight Emissions with Green Aviation Fuel'
+  - id: phase_out_private_cars_in_service
+    label: 'Phase out Private Cars in Service'
+  - id: procure_renewable_energy_in_machine_services
+    label: 'Procure Renewable Energy in Machine Services'
+  - id: procure_renewable_energy_in_transport_services
+    label: 'Procure Renewable Energy in Transport Services'
+  - id: replace_city_fleet_with_electric_vehicles
+    label: 'Replace City Fleet with Electric Vehicles'
+  - id: replace_diesel_with_hvo100_in_ms_thomee
+    label: 'Replace Diesel with HVO100 in M/S Thomée'
+  - id: replace_fuel_oil_heating_with_geothermal
+    label: 'Replace Fuel Oil Heating with Geothermal'
+  - id: zero_emission_factor_for_district_heating
+    label: 'Zero-Emission Factor for District Heating'
+
 emission_sectors:
 - id: net_emissions
   name: Net Emissions
