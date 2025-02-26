@@ -150,6 +150,11 @@ nodes:
       flatten: true
     - id: iteration
       flatten: true
+  - id: electricity_correction
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  - id: total_jobs_created
   output_nodes:
   - id: transport_cost
     to_dimensions:

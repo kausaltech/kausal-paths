@@ -250,23 +250,23 @@ nodes:
     to_dimensions:
     - id: transport_mode
 
-- id: electric_vehicle_emission_factor
-  name_en: Electric vehicle emission factor
-  name_fi: Sähköajoneuvojen päästökerroin
-  type: simple.MultiplicativeNode
-  quantity: emission_factor
-  unit: g/vkm
-  input_dimensions: [pollutant, transport_mode, energy_carrier]
-  output_dimensions: [pollutant, transport_mode, energy_carrier]
-  input_nodes:
-  - id: effective_electricity_emission_factor
-    to_dimensions:
-    - id: pollutant
-    - id: energy_carrier
-  - id: electricity_efficiency_for_electric_vehicles
-    to_dimensions:
-    - id: energy_carrier
-    - id: transport_mode
+# - id: electric_vehicle_emission_factor
+#   name_en: Electric vehicle emission factor
+#   name_fi: Sähköajoneuvojen päästökerroin
+#   type: simple.MultiplicativeNode
+#   quantity: emission_factor
+#   unit: g/vkm
+#   input_dimensions: [pollutant, transport_mode, energy_carrier]
+#   output_dimensions: [pollutant, transport_mode, energy_carrier]
+#   input_nodes:
+#   - id: effective_electricity_emission_factor
+#     to_dimensions:
+#     - id: pollutant
+#     - id: energy_carrier
+#   - id: electricity_efficiency_for_electric_vehicles
+#     to_dimensions:
+#     - id: energy_carrier
+#     - id: transport_mode
 
 - id: transport_emission_factor  # TODO Add wear&tear from electric vehicles
   name_en: Transport emission factor
