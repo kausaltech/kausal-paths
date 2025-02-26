@@ -25,6 +25,29 @@ features:
   maximum_fraction_digits: 2
   hide_node_details: false
 
+include:
+- file: modules/health.yaml
+  node_group: Health
+  allow_override: true
+- file: nzc/transport.yaml
+  node_group: Transport
+- file: nzc/transport_cost.yaml
+  node_group: Transport cost
+  allow_override: true
+- file: nzc/transport_health_cost.yaml
+  node_group: Transport health
+  allow_override: true
+- file: nzc/freight_transport.yaml
+  node_group: Freight transport
+- file: nzc/buildings.yaml
+  node_group: Buildings
+- file: nzc/electricity.yaml
+  node_group: Electricity
+- file: nzc/waste.yaml
+  node_group: Waste
+- file: nzc/other.yaml
+  node_group: Other
+
 params:
 - id: municipality_name
   value: Lappeenranta
@@ -1673,20 +1696,3 @@ scenarios:
     value: true
   - id: measure_data_baseline_year_only
     value: false
-
-include:
-- file: modules/health.yaml
-  node_group: health
-  allow_override: true
-- file: nzc/transport.yaml
-  node_group: Transport
-- file: nzc/freight_transport.yaml
-  node_group: Freight transport
-- file: nzc/buildings.yaml
-  node_group: Buildings
-- file: nzc/electricity.yaml
-  node_group: Electricity
-- file: nzc/waste.yaml
-  node_group: Waste
-- file: nzc/other.yaml
-  node_group: Other
