@@ -141,10 +141,10 @@ class InstanceYAMLConfig:
         self,
         existing: list[CommentedMap],
         newconf: list[CommentedMap],
-        allow_override: bool,
         entity_type: str,
         apply_group: str | None = None,
         config_path: Path | None = None,
+        allow_override: bool = False,
     ) -> None:
         by_id = {d['id']: d for d in existing}
         for nc in newconf:
@@ -218,6 +218,15 @@ class InstanceYAMLConfig:
                 dimensions, idata.get('dimensions', []), 'Dimension', apply_group=apply_group,
                 config_path=None, allow_override=allow_override
             )
+            self._merge_include_config(
+                actions, idata.get('actions', []), 'Action', apply_group=apply_group,
+                config_path=None, allow_override=allow_override
+            )
+
+        # Make sure that assignment works even if they are originally empty.
+        data['actions'] = actions
+        data['nodes'] = nodes
+        data['dimensions'] = dimensions
 
         # Serialize and deserialize to get rid of Ruamel extras
         ser_data = json.dumps(data)
@@ -1121,9 +1130,9 @@ class InstanceLoader:
         self.setup_dimensions()
         self.generate_nodes_from_emission_sectors()
         self.setup_global_parameters()
-        self.setup_nodes()
-        self.setup_actions()
-        self.setup_edges()
+        self.setup_nodes()  # type: ignore[misc]
+        self.setup_actions()  # type: ignore[misc]
+        self.setup_edges()  # type: ignore[misc]
         self.setup_action_efficiency_pairs()
         self.setup_scenarios()
         self.setup_normalizations()
