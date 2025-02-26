@@ -449,12 +449,16 @@ nodes:
 - id: vehicle_mileage_historical
   name_de: Verkehr Fahrleistung (historisch)
   name_en: Vehicle kilometers (historical)
-  type: ch.zuerich.VehicleMileageHistorical
+  type: simple.AdditiveNode
   quantity: vehicle_mileage
   unit: Mvkm/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - zuerich/vehicle_mileage
+  params:
+    inventory_only: true
 
 - id: transport_occupancy_factor
   name_de: Verkehrsbelegungsfaktor
