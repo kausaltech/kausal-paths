@@ -153,10 +153,5 @@ def graphql_client_query_data(graphql_client_query):
 
 
 @pytest.fixture
-def user():
-    return UserFactory()
-
-
-@pytest.fixture
 def admin_user():
     return UserFactory(is_staff=True, is_superuser=True)
