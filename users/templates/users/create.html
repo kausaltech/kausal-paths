@@ -1,0 +1,7 @@
+{% extends "wagtailusers/users/create.html" %}
+
+{% block extra_fields %}
+    {# Yes, this will put the field in a weird position, but if we wanted to #}
+    {# put it in the "roles" tab, we'd need to copy a lot of template code #}
+    <li>{% include "wagtailadmin/shared/field.html" with field=form.is_staff %}</li>
+{% endblock extra_fields %}
