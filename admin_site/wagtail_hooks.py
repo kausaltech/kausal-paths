@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from django.templatetags.static import static
 from django.urls import reverse
 from django.utils.html import format_html
@@ -6,7 +10,9 @@ from wagtail import hooks
 from wagtail.admin.menu import Menu, MenuItem, SubmenuMenuItem
 
 from nodes.models import InstanceConfig
-from paths.types import PathsAdminRequest
+
+if TYPE_CHECKING:
+    from paths.types import PathsAdminRequest
 
 
 def global_admin_css():
