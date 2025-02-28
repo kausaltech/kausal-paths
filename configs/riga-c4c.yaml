@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://riga-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 9177ef84aa1d6cb0b49218a98f5ea800729328f1
+  commit: 16a64390146e52d8136db3457038b0712f10d7c5
   dvc_remote: kausal-s3
 name: Riga Greenhouse Gas Inventory
 owner: City of Riga
@@ -15,7 +15,7 @@ minimum_historical_year: 2015
 maximum_historical_year: 2022
 emission_unit: t/a
 emission_forecast_from: 2023
-emission_dimensions: ['ghg']
+emission_dimensions: []
 features:
   baseline_visible_in_graphs: false
 
@@ -26,6 +26,37 @@ action_groups:
 - id: transportation
   name: Transportation
   color: '#E15759'
+
+action_efficiency_pairs:
+- graph_type: cost_effectiveness
+  cost_node: net_price
+  impact_node: net_emissions
+  invert_cost: false
+  invert_impact: true
+  indicator_unit: EUR/t
+  cost_unit: MEUR
+  impact_unit: kt
+  plot_limit_for_indicator: 1000000
+  label: Cost efficiency
+
+- graph_type: cost_benefit
+  cost_node: cost_benefit_analysis
+  impact_node: cost_benefit_analysis
+  cost_unit: kEUR
+  impact_unit: kEUR
+  indicator_unit: kEUR
+  outcome_dimension: cost_benefit
+  label: Cost-benefit
+
+- graph_type: return_of_investment
+  cost_node: total_costs
+  impact_node: total_benefits
+  invert_cost: false
+  invert_impact: true
+  indicator_unit: '%'
+  cost_unit: EUR
+  impact_unit: EUR
+  label: Return on investment
 
 dimensions:
 - id: scope
@@ -43,8 +74,12 @@ dimensions:
     label: 'Biofuel'
   - id: diesel
     label: 'Diesel'
+  - id: district_heat
+    label: 'District Heat'
   - id: electricity
     label: 'Electricity'
+  - id: fossil_fuels
+    label: 'Fossil Fuels'
   - id: gasoline
     label: 'Gasoline'
   - id: hydrogen
@@ -114,6 +149,8 @@ dimensions:
     label: 'Municipal'
   - id: private
     label: 'Private'
+  - id: municipal_and_private
+    label: 'Municipal & Private'
 
 - id: sector
   label: GPC Sector
@@ -291,12 +328,21 @@ dimensions:
   - id: zeroemission_tech_and_res_in_district_heating
     label: 'Zero-Emission Tech and RES in District Heating'
 
+- id: cost_benefit
+  label: Cost-Benefit
+  categories:
+  - id: cost
+    label: 'Cost'
+  - id: benefit
+    label: 'Benefit'
+
 emission_sectors:
 - id: net_emissions
   name: Net Emissions
   is_outcome: true
 
 nodes:
+# ----- COSTS & BENEFITS ------------------------------------------------------
 - id: net_price
   name: Net Price
   type: simple.AdditiveNode
@@ -306,25 +352,59 @@ nodes:
   output_dimensions: []
   is_outcome: true
 
+- id: total_costs
+  name: Total Costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: []
+  output_dimensions: []
+  output_nodes:
+  - id: cost_benefit_analysis
+    to_dimensions:
+    - id: cost_benefit
+      categories: [cost]
+
+- id: total_benefits
+  name: Total Benefits
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: []
+  output_dimensions: []
+  output_nodes:
+  - id: cost_benefit_analysis
+    to_dimensions:
+    - id: cost_benefit
+      categories: [benefit]
+
+- id: cost_benefit_analysis
+  name: Cost-Benefit Analysis
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [cost_benefit]
+  output_dimensions: [cost_benefit]
+
+# -----------------------------------------------------------------------------
 - id: i12_residential_grid_energy_consumption
   name: I.1.2 Residential Grid Energy Consumption
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: energy
   unit: MWh/a
-  input_dimensions: ['scope', 'energy_carrier', 'heating', 'owner']
-  output_dimensions: ['scope', 'energy_carrier', 'heating', 'owner']
-  minimum_year: 2015
-  params:
-    gpc_sector: I.1.2
+  input_dimensions: ['energy_carrier', 'scope', 'heating', 'owner']
+  output_dimensions: ['energy_carrier', 'scope', 'heating', 'owner']
   input_datasets:
-  - id: gpc/riga
+  - id: riga/stationary
+    column: energy
+    dropna: true
+    filters:
+    - column: sector
+      value: i12
+    - column: ghg
+    - column: use
+    - column: source
   output_nodes:
-  - id: i12_residential_grid_energy_consumption_emissions
-    to_dimensions:
-    - id: scope
-    - id: energy_carrier
-    - id: heating
-    - id: owner
   - id: i12_residential_grid_energy_consumption_price
     to_dimensions:
     - id: scope
@@ -332,23 +412,19 @@ nodes:
     - id: heating
     - id: owner
 
-- id: i12_residential_grid_energy_consumption_emissions
-  name: I.1.2 Residential Grid Energy Consumption Emissions
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['scope', 'heating', 'ghg', 'owner', 'energy_carrier']
-  output_dimensions: ['scope', 'heating', 'ghg', 'owner', 'energy_carrier']
+- id: i12_residential_grid_energy_consumption_reduction
+  name: I.1.2 Residential Grid Energy Consumption Reduction
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: ['energy_carrier', 'scope', 'heating', 'owner']
+  output_dimensions: ['energy_carrier', 'scope', 'heating', 'owner']
   output_nodes:
-  - id: i12_residential_grid_energy_total_emissions
-    from_dimensions:
-    - id: heating
-      flatten: true
-    - id: energy_carrier
-      flatten: true
+  - id: i12_residential_grid_energy_consumption_price_reduction
     to_dimensions:
     - id: scope
-    - id: ghg
+    - id: energy_carrier
+    - id: heating
     - id: owner
 
 - id: i12_residential_grid_energy_consumption_price
@@ -356,8 +432,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: EUR/a
-  input_dimensions: ['scope', 'owner', 'energy_carrier', 'heating']
-  output_dimensions: ['scope', 'owner', 'energy_carrier', 'heating']
+  input_dimensions: ['energy_carrier', 'scope', 'owner', 'heating']
+  output_dimensions: ['energy_carrier', 'scope', 'owner', 'heating']
   output_nodes:
   - id: i1_residential_total_price
     to_dimensions:
@@ -366,81 +442,90 @@ nodes:
     - id: energy_carrier
     - id: heating
 
-- id: i12_residential_grid_energy_emission_factor
-  name: I.1.2 Residential Grid Energy Emission Factor
-  type: gpc.DatasetNode
-  quantity: emission_factor
-  unit: t/MWh
-  input_dimensions: ['scope', 'energy_carrier', 'heating', 'ghg']
-  output_dimensions: ['scope', 'energy_carrier', 'heating', 'ghg']
-  params:
-    gpc_sector: I.1.2
-  input_datasets:
-  - id: gpc/riga
-    forecast_from: 2023
+- id: i12_residential_grid_energy_consumption_price_reduction
+  name: I.1.2 Residential Grid Energy Consumption Price Reduction
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['energy_carrier', 'scope', 'owner', 'heating']
+  output_dimensions: ['energy_carrier', 'scope', 'owner', 'heating']
   output_nodes:
-  - id: i12_residential_grid_energy_consumption_emissions
-    to_dimensions:
-    - id: scope
-    - id: energy_carrier
-    - id: heating
-    - id: ghg
-
-- id: i12_residential_grid_energy_emissions
-  name: I.1.2 Residential Grid Energy Emissions
-  type: gpc.DatasetNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['scope', 'ghg', 'source', 'owner']
-  output_dimensions: ['scope', 'ghg', 'source', 'owner']
-  minimum_year: 2020
-  params:
-    gpc_sector: I.1.2
-  input_datasets:
-  - id: gpc/riga
-  output_nodes:
-  - id: i12_residential_grid_energy_total_emissions
+  - id: total_benefits
     from_dimensions:
-    - id: source
+    - id: energy_carrier
       flatten: true
-    to_dimensions:
     - id: scope
-    - id: ghg
+      flatten: true
     - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
 
 - id: i12_residential_grid_energy_unit_price
   name: I.1.2 Residential Grid Energy Unit Price
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: unit_price
   unit: EUR/MWh
-  input_dimensions: ['scope', 'heating']
-  output_dimensions: ['scope', 'heating']
-  minimum_year: 2020
-  params:
-    gpc_sector: I.1.2
+  input_dimensions: ['heating', 'scope']
+  output_dimensions: ['heating', 'scope']
   input_datasets:
-  - id: gpc/riga
+  - id: riga/stationary
+    column: unit_price
+    dropna: true
+    filters:
+    - column: sector
+      value: i12
+    - column: energy_carrier
+    - column: ghg
+    - column: owner
+    - column: use
+    - column: source
   output_nodes:
   - id: i12_residential_grid_energy_consumption_price
+    to_dimensions:
+    - id: scope
+    - id: heating
+  - id: i12_residential_grid_energy_consumption_price_reduction
     to_dimensions:
     - id: scope
     - id: heating
 
 - id: i22_commercial_and_institutional_grid_energy_consumption
   name: I.2.2 Commercial & Institutional Grid Energy Consumption
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: energy
   unit: MWh/a
-  input_dimensions: ['scope', 'energy_carrier', 'use']
-  output_dimensions: ['scope', 'energy_carrier', 'use']
-  minimum_year: 2015
-  params:
-    gpc_sector: I.2.2
+  input_dimensions: ['use', 'scope', 'energy_carrier']
+  output_dimensions: ['use', 'scope', 'energy_carrier']
   input_datasets:
-  - id: gpc/riga
-    forecast_from: 2022
+  - id: riga/stationary
+    column: energy
+    dropna: true
+    forecast_from: 2021
+    filters:
+    - column: sector
+      value: i22
+    - column: ghg
+    - column: owner
+    - column: heating
+    - column: source
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: i22_commercial_and_institutional_grid_energy_consumption_price
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: use
+
+- id: i22_commercial_and_institutional_grid_energy_consumption_reduction
+  name: I.2.2 Commercial & Institutional Grid Energy Consumption Reduction
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: ['use', 'scope', 'energy_carrier']
+  output_dimensions: ['use', 'scope', 'energy_carrier']
+  output_nodes:
+  - id: i22_commercial_and_institutional_grid_energy_consumption_price_reduction
     to_dimensions:
     - id: scope
     - id: energy_carrier
@@ -451,8 +536,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: EUR/a
-  input_dimensions: ['scope', 'use', 'energy_carrier']
-  output_dimensions: ['scope', 'use', 'energy_carrier']
+  input_dimensions: ['use', 'scope', 'energy_carrier']
+  output_dimensions: ['use', 'scope', 'energy_carrier']
   output_nodes:
   - id: i2_commercial_and_institutional_total_price
     to_dimensions:
@@ -460,20 +545,48 @@ nodes:
     - id: use
     - id: energy_carrier
 
+- id: i22_commercial_and_institutional_grid_energy_consumption_price_reduction
+  name: I.2.2 Commercial & Institutional Grid Energy Consumption Price Reduction
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['use', 'scope', 'energy_carrier']
+  output_dimensions: ['use', 'scope', 'energy_carrier']
+  output_nodes:
+  - id: total_benefits
+    from_dimensions:
+    - id: use
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
 - id: i22_commercial_and_institutional_grid_energy_unit_price
   name: I.2.2 Commercial & Institutional Grid Energy Unit Price
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: unit_price
   unit: EUR/MWh
-  input_dimensions: ['scope', 'energy_carrier']
-  output_dimensions: ['scope', 'energy_carrier']
-  minimum_year: 2020
-  params:
-    gpc_sector: I.2.2
+  input_dimensions: ['energy_carrier', 'scope']
+  output_dimensions: ['energy_carrier', 'scope']
   input_datasets:
-  - id: gpc/riga
+  - id: riga/stationary
+    column: unit_price
+    dropna: true
+    filters:
+    - column: sector
+      value: i22
+    - column: ghg
+    - column: owner
+    - column: use
+    - column: heating
+    - column: source
   output_nodes:
   - id: i22_commercial_and_institutional_grid_energy_consumption_price
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+  - id: i22_commercial_and_institutional_grid_energy_consumption_price_reduction
     to_dimensions:
     - id: scope
     - id: energy_carrier
@@ -527,45 +640,6 @@ nodes:
     - id: scope
     - id: energy_carrier
 
-- id: i41_energy_fuel_emissions
-  name: I.4.1 Energy Fuel Emissions
-  type: gpc.DatasetNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['scope', 'ghg', 'owner', 'source']
-  output_dimensions: ['scope', 'ghg', 'owner', 'source']
-  params:
-    gpc_sector: I.4.1
-  input_datasets:
-  - id: gpc/riga
-  output_nodes:
-  - id: i4_energy_total_emissions
-    from_dimensions:
-    - id: owner
-      flatten: true
-    to_dimensions:
-    - id: scope
-    - id: ghg
-    - id: source
-
-- id: i42_energy_grid_energy_emissions
-  name: I.4.2 Energy Grid Energy Emissions
-  type: gpc.DatasetNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['scope', 'ghg', 'source']
-  output_dimensions: ['scope', 'ghg', 'source']
-  params:
-    gpc_sector: I.4.2
-  input_datasets:
-  - id: gpc/riga
-  output_nodes:
-  - id: i4_energy_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-    - id: source
-
 - id: i52_ag_forestry_and_fishing_grid_energy_consumption
   name: I.5.2 Ag, Forestry, & Fishing Grid Energy Consumption
   type: gpc.DatasetNode
@@ -615,392 +689,359 @@ nodes:
     - id: scope
     - id: energy_carrier
 
-- id: ii11_onroad_transport_fuel_combustion
-  name: II.1.1 On-Road Transport Fuel Combustion
-  type: gpc.DatasetNode
-  quantity: fuel_consumption
-  unit: MWh/a
-  input_dimensions: ['scope', 'owner', 'energy_carrier', 'vehicle_type']
-  output_dimensions: ['scope', 'owner', 'energy_carrier', 'vehicle_type']
-  minimum_year: 2020
-  params:
-    gpc_sector: II.1.1
-  input_datasets:
-  - id: gpc/riga
-  output_nodes:
-  - id: ii11_onroad_transport_fuel_combustion_emissions
-    to_dimensions:
-    - id: scope
-    - id: owner
-    - id: energy_carrier
-    - id: vehicle_type
+# - id: ii11_onroad_transport_fuel_combustion
+#   name: II.1.1 On-Road Transport Fuel Combustion
+#   type: gpc.DatasetNode
+#   quantity: fuel_consumption
+#   unit: MWh/a
+#   input_dimensions: ['scope', 'owner', 'energy_carrier', 'vehicle_type']
+#   output_dimensions: ['scope', 'owner', 'energy_carrier', 'vehicle_type']
+#   minimum_year: 2020
+#   params:
+#     gpc_sector: II.1.1
+#   input_datasets:
+#   - id: gpc/riga
+#   output_nodes:
+#   - id: ii11_onroad_transport_fuel_combustion_emissions
+#     to_dimensions:
+#     - id: scope
+#     - id: owner
+#     - id: energy_carrier
+#     - id: vehicle_type
 
-- id: ii11_onroad_transport_fuel_combustion_emissions
-  name: II.1.1 On-Road Transport Fuel Combustion Emissions
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['scope', 'ghg', 'energy_carrier', 'owner', 'vehicle_type']
-  output_dimensions: ['scope', 'ghg', 'energy_carrier', 'owner', 'vehicle_type']
-  output_nodes:
-  - id: ii1_onroad_transport_total_emissions
-    from_dimensions:
-    - id: scope
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: ghg
-    - id: owner
-    - id: vehicle_type
+# - id: ii11_onroad_transport_fuel_combustion_emissions
+#   name: II.1.1 On-Road Transport Fuel Combustion Emissions
+#   type: simple.MultiplicativeNode
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: ['scope', 'ghg', 'energy_carrier', 'owner', 'vehicle_type']
+#   output_dimensions: ['scope', 'ghg', 'energy_carrier', 'owner', 'vehicle_type']
+#   output_nodes:
+#   - id: ii1_onroad_transport_total_emissions
+#     from_dimensions:
+#     - id: scope
+#       flatten: true
+#     - id: energy_carrier
+#       flatten: true
+#     to_dimensions:
+#     - id: ghg
+#     - id: owner
+#     - id: vehicle_type
 
-- id: ii11_onroad_transport_fuel_emission_factor
-  name: II.1.1 On-Road Transport Fuel Emission Factor
-  type: gpc.DatasetNode
-  quantity: emission_factor
-  unit: t/MWh
-  input_dimensions: ['scope', 'energy_carrier', 'ghg']
-  output_dimensions: ['scope', 'energy_carrier', 'ghg']
-  params:
-    gpc_sector: II.1.1
-  input_datasets:
-  - id: gpc/riga
-    forecast_from: 2023
-  output_nodes:
-  - id: ii11_onroad_transport_fuel_combustion_emissions
-    to_dimensions:
-    - id: scope
-    - id: energy_carrier
-    - id: ghg
+# - id: ii11_onroad_transport_fuel_emission_factor
+#   name: II.1.1 On-Road Transport Fuel Emission Factor
+#   type: gpc.DatasetNode
+#   quantity: emission_factor
+#   unit: t/MWh
+#   input_dimensions: ['scope', 'energy_carrier', 'ghg']
+#   output_dimensions: ['scope', 'energy_carrier', 'ghg']
+#   params:
+#     gpc_sector: II.1.1
+#   input_datasets:
+#   - id: gpc/riga
+#     forecast_from: 2023
+#   output_nodes:
+#   - id: ii11_onroad_transport_fuel_combustion_emissions
+#     to_dimensions:
+#     - id: scope
+#     - id: energy_carrier
+#     - id: ghg
 
-- id: ii12_onroad_transport_grid_energy_consumption
-  name: II.1.2 On-Road Transport Grid Energy Consumption
-  type: gpc.DatasetNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: ['scope', 'energy_carrier', 'vehicle_type', 'owner']
-  output_dimensions: ['scope', 'energy_carrier', 'vehicle_type', 'owner']
-  minimum_year: 2015
-  params:
-    gpc_sector: II.1.2
-  input_datasets:
-  - id: gpc/riga
-  output_nodes:
-  - id: ii12_onroad_transport_grid_energy_consumption_emissions
-    to_dimensions:
-    - id: scope
-    - id: energy_carrier
-    - id: vehicle_type
-    - id: owner
+# - id: ii12_onroad_transport_grid_energy_consumption
+#   name: II.1.2 On-Road Transport Grid Energy Consumption
+#   type: gpc.DatasetNode
+#   quantity: energy
+#   unit: MWh/a
+#   input_dimensions: ['scope', 'energy_carrier', 'vehicle_type', 'owner']
+#   output_dimensions: ['scope', 'energy_carrier', 'vehicle_type', 'owner']
+#   minimum_year: 2015
+#   params:
+#     gpc_sector: II.1.2
+#   input_datasets:
+#   - id: gpc/riga
+#   output_nodes:
+#   - id: ii12_onroad_transport_grid_energy_consumption_emissions
+#     to_dimensions:
+#     - id: scope
+#     - id: energy_carrier
+#     - id: vehicle_type
+#     - id: owner
 
-- id: ii12_onroad_transport_grid_energy_consumption_emissions
-  name: II.1.2 On-Road Transport Grid Energy Consumption Emissions
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['scope', 'ghg', 'vehicle_type', 'owner', 'energy_carrier']
-  output_dimensions: ['scope', 'ghg', 'vehicle_type', 'owner', 'energy_carrier']
-  output_nodes:
-  - id: ii1_onroad_transport_total_emissions
-    from_dimensions:
-    - id: scope
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: ghg
-    - id: vehicle_type
-    - id: owner
+# - id: ii12_onroad_transport_grid_energy_consumption_emissions
+#   name: II.1.2 On-Road Transport Grid Energy Consumption Emissions
+#   type: simple.MultiplicativeNode
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: ['scope', 'ghg', 'vehicle_type', 'owner', 'energy_carrier']
+#   output_dimensions: ['scope', 'ghg', 'vehicle_type', 'owner', 'energy_carrier']
+#   output_nodes:
+#   - id: ii1_onroad_transport_total_emissions
+#     from_dimensions:
+#     - id: scope
+#       flatten: true
+#     - id: energy_carrier
+#       flatten: true
+#     to_dimensions:
+#     - id: ghg
+#     - id: vehicle_type
+#     - id: owner
 
-- id: ii12_onroad_transport_grid_energy_emission_factor
-  name: II.1.2 On-Road Transport Grid Energy Emission Factor
-  type: gpc.DatasetNode
-  quantity: emission_factor
-  unit: t/MWh
-  input_dimensions: ['scope', 'energy_carrier', 'ghg']
-  output_dimensions: ['scope', 'energy_carrier', 'ghg']
-  params:
-    gpc_sector: II.1.2
-  input_datasets:
-  - id: gpc/riga
-    forecast_from: 2023
-  output_nodes:
-  - id: ii12_onroad_transport_grid_energy_consumption_emissions
-    to_dimensions:
-    - id: scope
-    - id: energy_carrier
-    - id: ghg
+# - id: ii12_onroad_transport_grid_energy_emission_factor
+#   name: II.1.2 On-Road Transport Grid Energy Emission Factor
+#   type: gpc.DatasetNode
+#   quantity: emission_factor
+#   unit: t/MWh
+#   input_dimensions: ['scope', 'energy_carrier', 'ghg']
+#   output_dimensions: ['scope', 'energy_carrier', 'ghg']
+#   params:
+#     gpc_sector: II.1.2
+#   input_datasets:
+#   - id: gpc/riga
+#     forecast_from: 2023
+#   output_nodes:
+#   - id: ii12_onroad_transport_grid_energy_consumption_emissions
+#     to_dimensions:
+#     - id: scope
+#     - id: energy_carrier
+#     - id: ghg
 
-- id: ii22_railway_grid_energy_consumption
-  name: II.2.2 Railway Grid Energy Consumption
-  type: gpc.DatasetNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: ['scope', 'vehicle_type', 'owner', 'energy_carrier']
-  output_dimensions: ['scope', 'vehicle_type', 'owner', 'energy_carrier']
-  params:
-    gpc_sector: II.2.2
-  input_datasets:
-  - id: gpc/riga
-  output_nodes:
-  - id: ii22_railway_grid_energy_consumption_emissions
-    to_dimensions:
-    - id: scope
-    - id: vehicle_type
-    - id: owner
-    - id: energy_carrier
+# - id: ii22_railway_grid_energy_consumption
+#   name: II.2.2 Railway Grid Energy Consumption
+#   type: gpc.DatasetNode
+#   quantity: energy
+#   unit: MWh/a
+#   input_dimensions: ['scope', 'vehicle_type', 'owner', 'energy_carrier']
+#   output_dimensions: ['scope', 'vehicle_type', 'owner', 'energy_carrier']
+#   params:
+#     gpc_sector: II.2.2
+#   input_datasets:
+#   - id: gpc/riga
+#   output_nodes:
+#   - id: ii22_railway_grid_energy_consumption_emissions
+#     to_dimensions:
+#     - id: scope
+#     - id: vehicle_type
+#     - id: owner
+#     - id: energy_carrier
 
-- id: ii22_railway_grid_energy_consumption_emissions
-  name: II.2.2 Railway Grid Energy Consumption Emissions
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['vehicle_type', 'scope', 'ghg', 'energy_carrier', 'owner']
-  output_dimensions: ['vehicle_type', 'scope', 'ghg', 'energy_carrier', 'owner']
-  output_nodes:
-  - id: ii2_railway_total_emissions
-    to_dimensions:
-    - id: vehicle_type
-    - id: scope
-    - id: ghg
-    - id: energy_carrier
-    - id: owner
+# - id: ii22_railway_grid_energy_consumption_emissions
+#   name: II.2.2 Railway Grid Energy Consumption Emissions
+#   type: simple.MultiplicativeNode
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: ['vehicle_type', 'scope', 'ghg', 'energy_carrier', 'owner']
+#   output_dimensions: ['vehicle_type', 'scope', 'ghg', 'energy_carrier', 'owner']
+#   output_nodes:
+#   - id: ii2_railway_total_emissions
+#     to_dimensions:
+#     - id: vehicle_type
+#     - id: scope
+#     - id: ghg
+#     - id: energy_carrier
+#     - id: owner
 
-- id: ii22_railway_grid_energy_emission_factor
-  name: II.2.2 Railway Grid Energy Emission Factor
-  type: gpc.DatasetNode
-  quantity: emission_factor
-  unit: t/MWh
-  input_dimensions: ['scope', 'ghg', 'energy_carrier']
-  output_dimensions: ['scope', 'ghg', 'energy_carrier']
-  params:
-    gpc_sector: II.2.2
-  input_datasets:
-  - id: gpc/riga
-  output_nodes:
-  - id: ii22_railway_grid_energy_consumption_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-    - id: energy_carrier
+# - id: ii22_railway_grid_energy_emission_factor
+#   name: II.2.2 Railway Grid Energy Emission Factor
+#   type: gpc.DatasetNode
+#   quantity: emission_factor
+#   unit: t/MWh
+#   input_dimensions: ['scope', 'ghg', 'energy_carrier']
+#   output_dimensions: ['scope', 'ghg', 'energy_carrier']
+#   params:
+#     gpc_sector: II.2.2
+#   input_datasets:
+#   - id: gpc/riga
+#   output_nodes:
+#   - id: ii22_railway_grid_energy_consumption_emissions
+#     to_dimensions:
+#     - id: scope
+#     - id: ghg
+#     - id: energy_carrier
 
-- id: ii31_waterborne_fuel_combustion
-  name: II.3.1 Waterborne Fuel Combustion
-  type: gpc.DatasetNode
-  quantity: fuel_consumption
-  unit: MWh/a
-  input_dimensions: ['scope', 'energy_carrier']
-  output_dimensions: ['scope', 'energy_carrier']
-  minimum_year: 2021
-  params:
-    gpc_sector: II.3.1
-  input_datasets:
-  - id: gpc/riga
-  output_nodes:
-  - id: ii31_waterborne_fuel_combustion_emissions
-    to_dimensions:
-    - id: scope
-    - id: energy_carrier
+# - id: ii31_waterborne_fuel_combustion
+#   name: II.3.1 Waterborne Fuel Combustion
+#   type: gpc.DatasetNode
+#   quantity: fuel_consumption
+#   unit: MWh/a
+#   input_dimensions: ['scope', 'energy_carrier']
+#   output_dimensions: ['scope', 'energy_carrier']
+#   minimum_year: 2021
+#   params:
+#     gpc_sector: II.3.1
+#   input_datasets:
+#   - id: gpc/riga
+#   output_nodes:
+#   - id: ii31_waterborne_fuel_combustion_emissions
+#     to_dimensions:
+#     - id: scope
+#     - id: energy_carrier
 
-- id: ii31_waterborne_fuel_combustion_emissions
-  name: II.3.1 Waterborne Fuel Combustion Emissions
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['scope', 'ghg', 'energy_carrier']
-  output_dimensions: ['scope', 'ghg', 'energy_carrier']
-  output_nodes:
-  - id: ii3_waterborne_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-    - id: energy_carrier
+# - id: ii31_waterborne_fuel_combustion_emissions
+#   name: II.3.1 Waterborne Fuel Combustion Emissions
+#   type: simple.MultiplicativeNode
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: ['scope', 'ghg', 'energy_carrier']
+#   output_dimensions: ['scope', 'ghg', 'energy_carrier']
+#   output_nodes:
+#   - id: ii3_waterborne_total_emissions
+#     to_dimensions:
+#     - id: scope
+#     - id: ghg
+#     - id: energy_carrier
 
-- id: ii31_waterborne_fuel_emission_factor
-  name: II.3.1 Waterborne Fuel Emission Factor
-  type: gpc.DatasetNode
-  quantity: emission_factor
-  unit: t/MWh
-  input_dimensions: ['scope', 'energy_carrier', 'ghg']
-  output_dimensions: ['scope', 'energy_carrier', 'ghg']
-  params:
-    gpc_sector: II.3.1
-  input_datasets:
-  - id: gpc/riga
-    forecast_from: 2023
-  output_nodes:
-  - id: ii31_waterborne_fuel_combustion_emissions
-    to_dimensions:
-    - id: scope
-    - id: energy_carrier
-    - id: ghg
-
-- id: i12_residential_grid_energy_total_emissions
-  name: I.1.2 Residential Grid Energy Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['owner', 'scope', 'ghg']
-  output_dimensions: ['owner', 'scope', 'ghg']
-  output_nodes:
-  - id: i1_residential_total_emissions
-    to_dimensions:
-    - id: owner
-    - id: scope
-    - id: ghg
-
-- id: i1_residential_total_emissions
-  name: I.1 Residential Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['owner', 'scope', 'ghg']
-  output_dimensions: ['owner', 'scope', 'ghg']
-  output_nodes:
-  - id: i_stationary_total_emissions
-    from_dimensions:
-    - id: owner
-      flatten: true
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: ghg
-
-- id: i4_energy_total_emissions
-  name: I.4 Energy Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['ghg', 'source', 'scope']
-  output_dimensions: ['ghg', 'source', 'scope']
-  output_nodes:
-  - id: i_stationary_total_emissions
-    from_dimensions:
-    - id: source
-      flatten: true
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: ghg
+# - id: ii31_waterborne_fuel_emission_factor
+#   name: II.3.1 Waterborne Fuel Emission Factor
+#   type: gpc.DatasetNode
+#   quantity: emission_factor
+#   unit: t/MWh
+#   input_dimensions: ['scope', 'energy_carrier', 'ghg']
+#   output_dimensions: ['scope', 'energy_carrier', 'ghg']
+#   params:
+#     gpc_sector: II.3.1
+#   input_datasets:
+#   - id: gpc/riga
+#     forecast_from: 2023
+#   output_nodes:
+#   - id: ii31_waterborne_fuel_combustion_emissions
+#     to_dimensions:
+#     - id: scope
+#     - id: energy_carrier
+#     - id: ghg
 
 - id: i_stationary_emissions
   name: I Stationary Emissions
-  type: gpc.DatasetNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['ghg', 'source']
-  output_dimensions: ['ghg', 'source']
-  params:
-    gpc_sector: I
-  input_datasets:
-  - id: gpc/riga
-  output_nodes:
-  - id: i_stationary_total_emissions
-    from_dimensions:
-    - id: source
-      flatten: true
-    to_dimensions:
-    - id: ghg
-
-- id: i_stationary_total_emissions
-  name: I Stationary Total Emissions
   type: simple.AdditiveNode
   color: '#4e79a7'
   quantity: emissions
   unit: t/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
+  input_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
+  output_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
+  input_datasets:
+  - id: riga/stationary
+    column: emissions
+    dropna: true
+    filters:
+    - column: sector
+      value: i
+    - column: use
+    - column: heating
+    - column: source
   output_nodes:
   - id: net_emissions
-    to_dimensions:
-    - id: ghg
-
-- id: ii1_onroad_transport_total_emissions
-  name: II.1 On-Road Transport Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['vehicle_type', 'owner', 'ghg']
-  output_dimensions: ['vehicle_type', 'owner', 'ghg']
-  output_nodes:
-  - id: ii_transportation_total_emissions
     from_dimensions:
-    - id: vehicle_type
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
       flatten: true
     - id: owner
       flatten: true
-    to_dimensions:
-    - id: ghg
-
-- id: ii2_railway_total_emissions
-  name: II.2 Railway Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['vehicle_type', 'scope', 'ghg', 'energy_carrier', 'owner']
-  output_dimensions: ['vehicle_type', 'scope', 'ghg', 'energy_carrier', 'owner']
-  output_nodes:
-  - id: ii_transportation_total_emissions
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
     - id: scope
       flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: owner
-      flatten: true
-    to_dimensions:
-    - id: ghg
+    to_dimensions: []
 
-- id: ii3_waterborne_total_emissions
-  name: II.3 Waterborne Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['scope', 'ghg', 'energy_carrier']
-  output_dimensions: ['scope', 'ghg', 'energy_carrier']
-  output_nodes:
-  - id: ii_transportation_total_emissions
-    from_dimensions:
-    - id: scope
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: ghg
+# - id: ii1_onroad_transport_total_emissions
+#   name: II.1 On-Road Transport Total Emissions
+#   type: simple.AdditiveNode
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: ['vehicle_type', 'owner', 'ghg']
+#   output_dimensions: ['vehicle_type', 'owner', 'ghg']
+#   output_nodes:
+#   - id: ii_transportation_total_emissions
+#     from_dimensions:
+#     - id: vehicle_type
+#       flatten: true
+#     - id: owner
+#       flatten: true
+#     to_dimensions:
+#     - id: ghg
+
+# - id: ii2_railway_total_emissions
+#   name: II.2 Railway Total Emissions
+#   type: simple.AdditiveNode
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: ['vehicle_type', 'scope', 'ghg', 'energy_carrier', 'owner']
+#   output_dimensions: ['vehicle_type', 'scope', 'ghg', 'energy_carrier', 'owner']
+#   output_nodes:
+#   - id: ii_transportation_total_emissions
+#     from_dimensions:
+#     - id: vehicle_type
+#       flatten: true
+#     - id: scope
+#       flatten: true
+#     - id: energy_carrier
+#       flatten: true
+#     - id: owner
+#       flatten: true
+#     to_dimensions:
+#     - id: ghg
+
+# - id: ii3_waterborne_total_emissions
+#   name: II.3 Waterborne Total Emissions
+#   type: simple.AdditiveNode
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: ['scope', 'ghg', 'energy_carrier']
+#   output_dimensions: ['scope', 'ghg', 'energy_carrier']
+#   output_nodes:
+#   - id: ii_transportation_total_emissions
+#     from_dimensions:
+#     - id: scope
+#       flatten: true
+#     - id: energy_carrier
+#       flatten: true
+#     to_dimensions:
+#     - id: ghg
 
 - id: ii_transportation_emissions
   name: II Transportation Emissions
-  type: gpc.DatasetNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['ghg', 'source']
-  output_dimensions: ['ghg', 'source']
-  params:
-    gpc_sector: II
-  input_datasets:
-  - id: gpc/riga
-  output_nodes:
-  - id: ii_transportation_total_emissions
-    from_dimensions:
-    - id: source
-      flatten: true
-    to_dimensions:
-    - id: ghg
-
-- id: ii_transportation_total_emissions
-  name: II Transportation Total Emissions
   type: simple.AdditiveNode
   color: '#e15759'
   quantity: emissions
   unit: t/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
+  input_dimensions: ['owner', 'ghg']
+  output_dimensions: ['owner', 'ghg']
+  input_datasets:
+  - id: riga/other_transportation
+    column: emissions
+    dropna: true
+    filters:
+    - column: sector
+      value: ii
+    - column: scope
+    - column: energy_carrier
+    - column: vehicle_type
+    - column: source
+  # output_nodes:
+  # - id: ii_transportation_total_emissions
+  #   from_dimensions:
+  #   - id: source
+  #     flatten: true
+  #   to_dimensions:
+  #   - id: ghg
   output_nodes:
   - id: net_emissions
-    to_dimensions:
+    from_dimensions:
+    - id: owner
+      flatten: true
     - id: ghg
+      flatten: true
+    to_dimensions: []
+
+# - id: ii_transportation_total_emissions
+#   name: II Transportation Total Emissions
+#   type: simple.AdditiveNode
+#   color: '#e15759'
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: ['ghg']
+#   output_dimensions: ['ghg']
+#   output_nodes:
+#   - id: net_emissions
+#     to_dimensions:
+#     - id: ghg
 
 - id: iii_waste_emissions
   name: III Waste Emissions
@@ -1017,12 +1058,13 @@ nodes:
   output_nodes:
   - id: net_emissions
     from_dimensions:
+    - id: ghg
+      flatten: true
     - id: owner
       flatten: true
     - id: source
       flatten: true
-    to_dimensions:
-    - id: ghg
+    to_dimensions: []
 
 - id: iv_ippu_emissions
   name: IV IPPU Emissions
@@ -1039,12 +1081,13 @@ nodes:
   output_nodes:
   - id: net_emissions
     from_dimensions:
+    - id: ghg
+      flatten: true
     - id: owner
       flatten: true
     - id: source
       flatten: true
-    to_dimensions:
-    - id: ghg
+    to_dimensions: []
 
 - id: v_afolu_emissions
   name: V AFOLU Emissions
@@ -1061,12 +1104,13 @@ nodes:
   output_nodes:
   - id: net_emissions
     from_dimensions:
+    - id: ghg
+      flatten: true
     - id: owner
       flatten: true
     - id: source
       flatten: true
-    to_dimensions:
-    - id: ghg
+    to_dimensions: []
 
 - id: i1_residential_total_price
   name: I.1 Residential Total Price
@@ -1074,8 +1118,8 @@ nodes:
   color: '#4e79a7'
   quantity: currency
   unit: EUR/a
-  input_dimensions: ['scope', 'owner', 'energy_carrier', 'heating']
-  output_dimensions: ['scope', 'owner', 'energy_carrier', 'heating']
+  input_dimensions: ['energy_carrier', 'scope', 'owner', 'heating']
+  output_dimensions: ['energy_carrier', 'scope', 'owner', 'heating']
   output_nodes:
   - id: i_stationary_total_price
     from_dimensions:
@@ -1084,8 +1128,8 @@ nodes:
     - id: heating
       flatten: true
     to_dimensions:
-    - id: scope
     - id: energy_carrier
+    - id: scope
 
 - id: i2_commercial_and_institutional_total_price
   name: I.2 Commercial & Institutional Total Price
@@ -1093,8 +1137,8 @@ nodes:
   color: '#f28e2b'
   quantity: currency
   unit: EUR/a
-  input_dimensions: ['scope', 'use', 'energy_carrier']
-  output_dimensions: ['scope', 'use', 'energy_carrier']
+  input_dimensions: ['use', 'scope', 'energy_carrier']
+  output_dimensions: ['use', 'scope', 'energy_carrier']
   output_nodes:
   - id: i_stationary_total_price
     from_dimensions:
@@ -1132,6 +1176,32 @@ nodes:
     - id: energy_carrier
     - id: scope
 
+- id: i_stationary_price
+  name: I Stationary Price
+  type: simple.AdditiveNode
+  color: '#B07AA1'
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['action', 'energy_carrier', 'scope', 'owner']
+  output_dimensions: ['action', 'energy_carrier', 'scope', 'owner']
+  output_nodes:
+  - id: i_stationary_total_price
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: owner
+      flatten: true
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: owner
+      flatten: true
+
 - id: i_stationary_total_price
   name: I Stationary Total Price
   type: simple.AdditiveNode
@@ -1149,380 +1219,842 @@ nodes:
       flatten: true
     to_dimensions: []
 
-- id: ii1_onroad_transport_price
-  name: II.1 On-Road Transport Price
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: EUR/a
-  input_dimensions: ['owner']
-  output_dimensions: ['owner']
-  output_nodes:
-  - id: ii_transportation_total_price
-    to_dimensions:
-    - id: owner
-
-- id: ii_transportation_total_price
-  name: II Transportation Total Price
+- id: ii_transportation_price
+  name: II Transportation Price
   type: simple.AdditiveNode
   color: '#e15759'
   quantity: currency
   unit: EUR/a
-  input_dimensions: ['owner']
-  output_dimensions: ['owner']
+  input_dimensions: ['action', 'owner']
+  output_dimensions: ['action', 'owner']
   output_nodes:
   - id: net_price
     from_dimensions:
+    - id: action
+      flatten: true
     - id: owner
       flatten: true
-    to_dimensions: []
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: owner
+      flatten: true
 
 actions:
-- id: data_records_system_for_the_municipal_vehicle_fleet_and_improvements_in_the_efficiency_of_vehicle_use
-  name: Data Records System for the Municipal Vehicle Fleet and Improvements in the Efficiency of Vehicle Use
-  type: gpc.DatasetActionMFM
-  color: '#e15759'
-  input_dimensions: ['owner', 'vehicle_type', 'ghg']
-  output_dimensions: ['owner', 'vehicle_type', 'ghg']
+- id: continuous_improvements_in_the_energy_management_system
+  name: Continuous Improvements in the Energy Management System
+  group: stationary
+  description: The establishment of an energy management system in RSCM is not only a requirement
+    of laws and regulations but also an essential need for optimising the work of the municipal
+    government in order to systematically monitor and ensure the reduction of energy consumption in
+    municipal buildings. As part of this measure, the municipality is required to continuously
+    improve the created EMS and expand its scope every year, in order to include all (more than
+    4000) municipal buildings by 2030.
+  type: simple.AdditiveAction
+  input_dimensions: [energy_carrier, scope, action, owner, ghg, heating, use]
+  output_dimensions: [energy_carrier, scope, action, owner, ghg, heating, use]
   params:
-    action: Data Records System for the Municipal Vehicle Fleet and Improvements in the Efficiency of Vehicle Use
+    allow_null_categories: true
+
   input_datasets:
-  - id: gpc/riga_simple_actions
-    forecast_from: 2025
+  - id: riga/stationary_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [energy_management_system]
+
   output_metrics:
-  - id: ii1_emissions
-    unit: t/a
-    quantity: emissions
-  - id: ii1_currency
+  - id: currency
     unit: EUR/a
     quantity: currency
+  - id: emissions
+    unit: t/a
+    quantity: emissions
+  - id: energy
+    unit: MWh/a
+    quantity: energy
+
   output_nodes:
-  - id: ii1_onroad_transport_total_emissions
-    metrics: [ii1_emissions]
-    to_dimensions:
-    - id: owner
-    - id: vehicle_type
-    - id: ghg
-  - id: ii1_onroad_transport_price
-    metrics: [ii1_currency]
+  - id: i_stationary_emissions
+    metrics: [emissions]
     from_dimensions:
-    - id: vehicle_type
+    - id: action
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: use
+      flatten: true
+  - id: i_stationary_price
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: use
+      flatten: true
+  - id: i22_commercial_and_institutional_grid_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: owner
       flatten: true
     - id: ghg
       flatten: true
-    to_dimensions:
+    - id: heating
+      flatten: true
+  - id: i22_commercial_and_institutional_grid_energy_consumption_reduction
+    metrics: [energy]
+    from_dimensions:
+    - id: action
+      flatten: true
     - id: owner
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: heating
+      flatten: true
+
+
+- id: 100_renewable_heating_energy_share_in_municipal_buildings
+  name: 100% Renewable Heating Energy Share in Municipal Buildings
+  group: stationary
+  description: In order to achieve the goal of climate neutrality, the municipality must ensure the
+    use of heat energy produced from renewable energy sources. At the moment, most of the municipal
+    buildings and sites are connected to the district heating system, and the municipal government
+    has to work with the main heat energy supplier - AS 'Rīgas Siltums' - to agree on a gradual
+    transition to heat energy from renewable energy sources with proof of supply. This way, a 100%
+    RES share can be achieved in 2030 for all municipal buildings connected to DHS. The
+    municipality must also assess and implement other solutions in buildings with local fossil-fuel
+    heating systems (reducing the energy consumption of the building first).
+  type: simple.AdditiveAction
+  input_dimensions: [energy_carrier, scope, action, owner, ghg, heating, use]
+  output_dimensions: [energy_carrier, scope, action, owner, ghg, heating, use]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: riga/stationary_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [100_renewable_heating_in_municipal_buildings]
+
+  output_metrics:
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  - id: emissions
+    unit: t/a
+    quantity: emissions
+
+  output_nodes:
+  - id: i_stationary_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: use
+      flatten: true
+  - id: i_stationary_price
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: use
+      flatten: true
+
+
+- id: 100_renewable_electricity_share_in_municipal_buildings
+  name: 100% Renewable Electricity Share in Municipal Buildings
+  group: stationary
+  description: The use of electricity in municipal buildings is the second largest source of CO2
+    emissions that the municipal government can reduce by having its own electricity production,
+    for example by installing solar panels on municipal buildings or in municipal territories,
+    and/or by implementing CO2 compensation mechanisms, such as purchasing renewable electricity
+    whose CO2 emissions are 0. Given the fact that the price of renewable electricity could be
+    higher than electricity from the grid, the municipal government can also introduce this measure
+    gradually, reaching 100% in 2030 when all the electric power consumed in municipal buildings
+    will come from RES.
+  type: simple.AdditiveAction
+  input_dimensions: [energy_carrier, scope, action, owner, ghg, heating, use]
+  output_dimensions: [energy_carrier, scope, action, owner, ghg, heating, use]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: riga/stationary_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [100_renewable_electricity_in_municipal_buildings]
+
+  output_metrics:
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  - id: emissions
+    unit: t/a
+    quantity: emissions
+
+  output_nodes:
+  - id: i_stationary_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: use
+      flatten: true
+  - id: i_stationary_price
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: use
+      flatten: true
+
+
+- id: development_of_a_plan_for_the_renovation_of_municipal_buildings_until_2030
+  name: Development of a Plan for the Renovation of Municipal Buildings Until 2030 # and Consistent Renovation of the Buildings
+  group: stationary
+  description: The municipality manages more than 4000 buildings and sites that are not undergoing
+    renovation due to ownership and management problems. The energy monitoring system developed as
+    part of EMS will enable the collection of data on municipal buildings and their energy
+    consumption, which will further make it possible for the municipal government to develop a
+    building renovation plan for 2030. Action priorities must be clearly defined during the
+    development of the plan, i.e., the buildings of what type, technical condition, and occupancy
+    must be renovated first in order to achieve the greatest energy savings while improving the
+    working conditions in them. The implementation of the measure will not result in direct
+    savings, but will enable the basic conditions to be met for achieving a systemic reduction in
+    heat energy consumption through the planned measures, and improving indoor air quality in
+    municipal buildings, especially in educational institutions.
+  type: simple.AdditiveAction
+  input_dimensions: [energy_carrier, scope, action, owner, ghg, heating, use]
+  output_dimensions: [energy_carrier, scope, action, owner, ghg, heating, use]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: riga/stationary_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [plan_for_renovation_of_municipal_buildings_to_2030]
+
+  output_metrics:
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  - id: emissions
+    unit: t/a
+    quantity: emissions
+  - id: energy
+    unit: MWh/a
+    quantity: energy
+
+  output_nodes:
+  - id: i_stationary_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: use
+      flatten: true
+  - id: i_stationary_price
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: use
+      flatten: true
+  - id: i22_commercial_and_institutional_grid_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: heating
+      flatten: true
+  - id: i22_commercial_and_institutional_grid_energy_consumption_reduction
+    metrics: [energy]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: heating
+      flatten: true
+
+
+- id: upgrading_of_street_lighting
+  name: Upgrading of Street Lighting
+  group: stationary
+  description: "<p>89% of all street lighting uses sodium lights, the replacement of which with LED
+    lights will result in significant energy savings. Although the municipality is gradually
+    implementing various projects for replacing the lights, their replacement will take several
+    years at the current pace. In a few European capitals, street lighting is being modernised by
+    signing an energy efficiency service contract, which provides both financing and energy
+    savings.</p><p>Although the installation of street lighting in the city's streets that are
+    still unlit will increase the total electricity consumption, the municipal government must set
+    a goal to install energy-efficient lights on these streets. The implementation of the measure
+    will ensure that the specific electricity consumption per light will not increase, and the
+    municipal government will continue to meet the conditions of the EMS. This measure can also be
+    implemented as part of the street lighting modernisation project.</p><p>The installation of
+    streetlights in the unlit areas will lead to an increase in electricity consumption, but the
+    main goal of this measure is to make sure that the increase is minimal by installing efficient
+    lights and an efficient lighting system.</p><p>The installation of new street lighting and the
+    upgrading of existing lights also requires the procurement of electricity with a certificate of
+    origin, in order to ensure that renewable electricity is used in street lighting.</p>"
+  type: simple.AdditiveAction
+  input_dimensions: [energy_carrier, scope, action, owner, ghg, heating, use]
+  output_dimensions: [energy_carrier, scope, action, owner, ghg, heating, use]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: riga/stationary_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [upgrading_of_street_lighting]
+
+  output_metrics:
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  - id: emissions
+    unit: t/a
+    quantity: emissions
+
+  output_nodes:
+  - id: i_stationary_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: use
+      flatten: true
+  - id: i_stationary_price
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: use
+      flatten: true
+
+
+- id: achieve_a_100_renewable_electricity_share_for_streetlights_traffic_lights_and_clocks_in_2030
+  name: Achieve a 100% Renewable Electricity Share for Streetlights, Traffic Lights, and Clocks in 2030
+  group: stationary
+  description: The installation of new street lighting and the upgrading of existing lights also
+    requires the procurement of electricity with a certificate of origin, in order to ensure that
+    renewable electricity is used in street lighting. However, energy efficiency measures must be
+    implemented as a first priority to reduce electricity consumption as much as possible.
+  type: simple.AdditiveAction
+  input_dimensions: [energy_carrier, scope, action, owner, ghg, heating, use]
+  output_dimensions: [energy_carrier, scope, action, owner, ghg, heating, use]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: riga/stationary_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [100_renewable_electricity_for_streetlights]
+
+  output_metrics:
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  - id: emissions
+    unit: t/a
+    quantity: emissions
+
+  output_nodes:
+  - id: i_stationary_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: use
+      flatten: true
+  - id: i_stationary_price
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: use
+      flatten: true
+
+
+- id: creation_of_a_data_records_system_for_the_municipal_vehicle_fleet
+  name: Creation of a Data Records System for the Municipal Vehicle Fleet and Improvements in the Efficiency of Vehicle Use
+  group: transportation
+  type: simple.AdditiveAction
+  description: 'The creation of a fleet monitoring system is an important first step in making it
+    possible for the municipal government to identify the current situation and follow its
+    progress. Currently, there are significant deficiencies in data recording: no centralised
+    records are kept for all vehicles; the analysis of existing information is complicated by
+    different data storage solutions; gathering the information is manual work; no information on
+    vehicle mileage is collected, which makes it impossible to compare transport energy consumption
+    between institutions/vehicles using specific energy consumption indicators. Data on vehicle
+    fleet and vehicle mileage collected during the preparation of Riga SECAP 2030 show that the
+    utilisation of vehicles in municipal institutions and companies is often relatively low. In
+    order to increase the efficiency of vehicle use, the tasks include not only a study of their
+    existing utilisation but also a study of the corresponding needs, while deciding on the
+    optimisation of the number of vehicles and other measures.'
+  input_dimensions: [action, owner, ghg]
+  output_dimensions: [action, owner, ghg]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: riga/transportation_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii
+    - dimension: action
+      categories: [data_records_system_for_municipal_vehicle_fleet]
+
+  output_metrics:
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  - id: emissions
+    unit: t/a
+    quantity: emissions
+
+  output_nodes:
+  - id: ii_transportation_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+  - id: ii_transportation_price
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+
 
 - id: promotion_of_the_use_of_public_transport_for_work_among_employees_of_the_municipal_government
   name: Promotion of the Use of Public Transport for Work Among Employees of the Municipal Government
-  type: gpc.DatasetActionMFM
-  color: '#e15759'
-  input_dimensions: ['owner', 'vehicle_type', 'ghg']
-  output_dimensions: ['owner', 'vehicle_type', 'ghg']
+  group: transportation
+  description: In order to increase the use of public transport among municipal employees, one must
+    create a binding requirement to use public transport for work trips within the city.
+    Alternatively, a time limit (for example, 40-60 min.) can be set at which journeys can be made
+    by public transport as a priority. The employees must be provided with monthly public transport
+    tickets. The implementation of this measure would not only have a positive effect on the
+    reduction of transport CO2 emissions but would also serve as an example of reducing car
+    dependency for the rest of the public.
+  type: simple.AdditiveAction
+  input_dimensions: [action, owner, ghg]
+  output_dimensions: [action, owner, ghg]
   params:
-    action: Promotion of the Use of Public Transport for Work Among Employees of the Municipal Government
+    allow_null_categories: true
+
   input_datasets:
-  - id: gpc/riga_simple_actions
-    forecast_from: 2025
+  - id: riga/transportation_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii
+    - dimension: action
+      categories: [public_transport_for_work_for_municipal_employees]
+
   output_metrics:
-  - id: ii1_emissions
-    unit: t/a
-    quantity: emissions
-  - id: ii1_currency
+  - id: currency
     unit: EUR/a
     quantity: currency
-  output_nodes:
-  - id: ii1_onroad_transport_total_emissions
-    metrics: [ii1_emissions]
-    to_dimensions:
-    - id: owner
-    - id: vehicle_type
-    - id: ghg
-  - id: ii1_onroad_transport_price
-    metrics: [ii1_currency]
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
-    - id: ghg
-      flatten: true
-    to_dimensions:
-    - id: owner
+  - id: emissions
+    unit: t/a
+    quantity: emissions
 
-- id: transition_to_zero_emission_vehicles_in_companies_and_municipal_institutions
+  output_nodes:
+  - id: ii_transportation_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+  - id: ii_transportation_price
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+
+
+- id: transition_to_zeroemission_vehicles_in_companies_and_municipal_institutions
   name: Transition to Zero-Emission Vehicles in Companies and Municipal Institutions
-  type: gpc.DatasetActionMFM
-  color: '#e15759'
-  input_dimensions: ['owner', 'vehicle_type', 'ghg']
-  output_dimensions: ['owner', 'vehicle_type', 'ghg']
+  group: transportation
+  description: "<p>The city's goal is a 100% transition to RES zero-emission vehicles in the
+    municipal fleet by 2030. The measures to be implemented include the development of criteria for
+    the purchase of vehicles and services, procurements and assessment of the purchase of bicycles
+    and other micro-mobility vehicles for the work needs of municipal institutions.</p><p>In
+    addition, activities that would promote the use of low-emission transport solutions (public
+    transport, bicycles, car sharing) among municipal employees are supported not only for work
+    trips but also for commuting to and from work.</p><p>The increase in emission-free vehicles
+    must go hand in hand with the development of the charging infrastructure. The municipal
+    government will install electric vehicle charging infrastructure at municipal institutions in
+    proportion to the increase in the number of electric vehicles, encouraging the use of RES
+    fuels.</p>"
+  type: simple.AdditiveAction
+  input_dimensions: [action, owner, ghg]
+  output_dimensions: [action, owner, ghg]
   params:
-    action: Transition to Zero-Emission Vehicles in Companies and Municipal Institutions
+    allow_null_categories: true
+
   input_datasets:
-  - id: gpc/riga_simple_actions
-    forecast_from: 2025
+  - id: riga/transportation_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii
+    - dimension: action
+      categories: [zeroemission_vehicles_in_municipal_institutions]
+
   output_metrics:
-  - id: ii1_emissions
-    unit: t/a
-    quantity: emissions
-  - id: ii1_currency
+  - id: currency
     unit: EUR/a
     quantity: currency
+  - id: emissions
+    unit: t/a
+    quantity: emissions
+
   output_nodes:
-  - id: ii1_onroad_transport_total_emissions
-    metrics: [ii1_emissions]
-    to_dimensions:
-    - id: owner
-    - id: vehicle_type
-    - id: ghg
-  - id: ii1_onroad_transport_price
-    metrics: [ii1_currency]
+  - id: ii_transportation_emissions
+    metrics: [emissions]
     from_dimensions:
-    - id: vehicle_type
+    - id: action
+      flatten: true
+  - id: ii_transportation_price
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+
+
+- id: energy_efficiency_and_res_use_in_wastewater_treatment_plants
+  name: Energy Efficiency and RES Use in Wastewater Treatment Plants
+  group: stationary
+  description: With the expected amendments to the Council Directive concerning urban wastewater
+    treatment, the EU aims to achieve climate neutrality in the municipal wastewater treatment
+    sector. These amendments will require energy audits of wastewater treatment plants and sewer
+    systems to be carried out by 2028, with the intention to use RES to cover the internal gross
+    energy consumption for large wastewater treatment plants that treat 10,000 p.e. or more of
+    wastewater with 20% by 2030, 40% by 2035, 70% by 2040, and 100% by 2045. Currently, 26% of the
+    Daugavgrīva wastewater treatment plant heat energy consumption is covered by RES, namely the
+    combustion of biogas produced at the site.
+  type: simple.AdditiveAction
+  input_dimensions: [energy_carrier, scope, action, owner, ghg, heating, use]
+  output_dimensions: [energy_carrier, scope, action, owner, ghg, heating, use]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: riga/stationary_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [energy_efficiency_and_res_in_wastewater_treatment]
+
+  output_metrics:
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  - id: emissions
+    unit: t/a
+    quantity: emissions
+  - id: energy
+    unit: MWh/a
+    quantity: energy
+
+  output_nodes:
+  - id: i_stationary_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: use
+      flatten: true
+  - id: i_stationary_price
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: use
+      flatten: true
+  - id: i22_commercial_and_institutional_grid_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: owner
       flatten: true
     - id: ghg
       flatten: true
-    to_dimensions:
+    - id: heating
+      flatten: true
+  - id: i22_commercial_and_institutional_grid_energy_consumption_reduction
+    metrics: [energy]
+    from_dimensions:
+    - id: action
+      flatten: true
     - id: owner
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: heating
+      flatten: true
 
-# - id: continuous_improvements_in_the_energy_management_system
-#   name: Continuous Improvements in the Energy Management System
-#   group: stationary
-#   description: The establishment of an energy management system in RSCM is not only a requirement
-#     of laws and regulations but also an essential need for optimising the work of the municipal
-#     government in order to systematically monitor and ensure the reduction of energy consumption in
-#     municipal buildings. As part of this measure, the municipality is required to continuously
-#     improve the created EMS and expand its scope every year, in order to include all (more than
-#     4000) municipal buildings by 2030.
-#   type: simple.AdditiveAction
-#   quantity: emissions
-#   unit: kt/a
-#   forecast_values: [[2025, 1.0], [2030, 1.0]]
-#   input_dataset_processors: [LinearInterpolation]
 
-# - id: 100_renewable_heating_energy_share_in_municipal_buildings
-#   name: 100% Renewable Heating Energy Share in Municipal Buildings
-#   group: stationary
-#   description: In order to achieve the goal of climate neutrality, the municipality must ensure the
-#     use of heat energy produced from renewable energy sources. At the moment, most of the municipal
-#     buildings and sites are connected to the district heating system, and the municipal government
-#     has to work with the main heat energy supplier - AS 'Rīgas Siltums' - to agree on a gradual
-#     transition to heat energy from renewable energy sources with proof of supply. This way, a 100%
-#     RES share can be achieved in 2030 for all municipal buildings connected to DHS. The
-#     municipality must also assess and implement other solutions in buildings with local fossil-fuel
-#     heating systems (reducing the energy consumption of the building first).
-#   type: simple.AdditiveAction
-#   quantity: emissions
-#   unit: kt/a
-#   forecast_values: [[2025, 1.0], [2030, 1.0]]
-#   input_dataset_processors: [LinearInterpolation]
+- id: urban_planning_aimed_at_creating_a_city_where_local_residents_and_guests_are_less_dependent_on_private_cars
+  name: Urban Planning Aimed at Creating a City Where Local Residents and Guests Are Less Dependent on Private Cars
+  group: transportation
+  description: This measure involves the prioritisation of sustainable ways to travel, the
+    development and use of sustainable mobility assurance criteria, the practical implementation of
+    the concept of mobility points, the introduction of smart traffic management technologies, and
+    other measures. Synergies between different types of mobility must be created. The priority
+    measures are aimed at the revitalisation of the existing built-up areas of the city and the
+    construction of detached houses on the periphery, followed by the planning and development of
+    new built-up areas.
+  type: simple.AdditiveAction
+  input_dimensions: [action, owner, ghg]
+  output_dimensions: [action, owner, ghg]
+  params:
+    allow_null_categories: true
 
-# - id: 100_renewable_electricity_share_in_municipal_buildings
-#   name: 100% Renewable Electricity Share in Municipal Buildings
-#   group: stationary
-#   description: The use of electricity in municipal buildings is the second largest source of CO2
-#     emissions that the municipal government can reduce by having its own electricity production,
-#     for example by installing solar panels on municipal buildings or in municipal territories,
-#     and/or by implementing CO2 compensation mechanisms, such as purchasing renewable electricity
-#     whose CO2 emissions are 0. Given the fact that the price of renewable electricity could be
-#     higher than electricity from the grid, the municipal government can also introduce this measure
-#     gradually, reaching 100% in 2030 when all the electric power consumed in municipal buildings
-#     will come from RES.
-#   type: simple.AdditiveAction
-#   quantity: emissions
-#   unit: kt/a
-#   forecast_values: [[2025, 1.0], [2030, 1.0]]
-#   input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: riga/transportation_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii
+    - dimension: action
+      categories: [urban_planning_for_less_dependence_on_private_cars]
 
-# - id: development_of_a_plan_for_the_renovation_of_municipal_buildings_until_2030
-#   name: Development of a Plan for the Renovation of Municipal Buildings Until 2030 and Consistent Renovation of the Buildings
-#   group: stationary
-#   description: The municipality manages more than 4000 buildings and sites that are not undergoing
-#     renovation due to ownership and management problems. The energy monitoring system developed as
-#     part of EMS will enable the collection of data on municipal buildings and their energy
-#     consumption, which will further make it possible for the municipal government to develop a
-#     building renovation plan for 2030. Action priorities must be clearly defined during the
-#     development of the plan, i.e., the buildings of what type, technical condition, and occupancy
-#     must be renovated first in order to achieve the greatest energy savings while improving the
-#     working conditions in them. The implementation of the measure will not result in direct
-#     savings, but will enable the basic conditions to be met for achieving a systemic reduction in
-#     heat energy consumption through the planned measures, and improving indoor air quality in
-#     municipal buildings, especially in educational institutions.
-#   type: simple.AdditiveAction
-#   quantity: emissions
-#   unit: kt/a
-#   forecast_values: [[2025, 1.0], [2030, 1.0]]
-#   input_dataset_processors: [LinearInterpolation]
+  output_metrics:
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  - id: emissions
+    unit: t/a
+    quantity: emissions
 
-# - id: upgrading_of_street_lighting
-#   name: Upgrading of Street Lighting
-#   group: stationary
-#   description: "<p>89% of all street lighting uses sodium lights, the replacement of which with LED
-#     lights will result in significant energy savings. Although the municipality is gradually
-#     implementing various projects for replacing the lights, their replacement will take several
-#     years at the current pace. In a few European capitals, street lighting is being modernised by
-#     signing an energy efficiency service contract, which provides both financing and energy
-#     savings.</p><p>Although the installation of street lighting in the city's streets that are
-#     still unlit will increase the total electricity consumption, the municipal government must set
-#     a goal to install energy-efficient lights on these streets. The implementation of the measure
-#     will ensure that the specific electricity consumption per light will not increase, and the
-#     municipal government will continue to meet the conditions of the EMS. This measure can also be
-#     implemented as part of the street lighting modernisation project.</p><p>The installation of
-#     streetlights in the unlit areas will lead to an increase in electricity consumption, but the
-#     main goal of this measure is to make sure that the increase is minimal by installing efficient
-#     lights and an efficient lighting system.</p><p>The installation of new street lighting and the
-#     upgrading of existing lights also requires the procurement of electricity with a certificate of
-#     origin, in order to ensure that renewable electricity is used in street lighting.</p>"
-#   type: simple.AdditiveAction
-#   quantity: emissions
-#   unit: kt/a
-#   forecast_values: [[2025, 1.0], [2030, 1.0]]
-#   input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: ii_transportation_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+  - id: ii_transportation_price
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
 
-# - id: achieve_a_100_renewable_electricity_share_for_streetlights_traffic_lights_and_clocks_in_2030
-#   name: Achieve a 100% Renewable Electricity Share for Streetlights, Traffic Lights, and Clocks in 2030
-#   group: stationary
-#   type: simple.AdditiveAction
-#   description: The installation of new street lighting and the upgrading of existing lights also
-#     requires the procurement of electricity with a certificate of origin, in order to ensure that
-#     renewable electricity is used in street lighting. However, energy efficiency measures must be
-#     implemented as a first priority to reduce electricity consumption as much as possible.
-#   quantity: emissions
-#   unit: kt/a
-#   forecast_values: [[2025, 1.0], [2030, 1.0]]
-#   input_dataset_processors: [LinearInterpolation]
 
-# - id: creation_of_a_data_records_system_for_the_municipal_vehicle_fleet
-#   name: Creation of a Data Records System for the Municipal Vehicle Fleet and Improvements in the Efficiency of Vehicle Use
-#   group: transportation
-#   type: simple.AdditiveAction
-#   description: 'The creation of a fleet monitoring system is an important first step in making it
-#     possible for the municipal government to identify the current situation and follow its
-#     progress. Currently, there are significant deficiencies in data recording: no centralised
-#     records are kept for all vehicles; the analysis of existing information is complicated by
-#     different data storage solutions; gathering the information is manual work; no information on
-#     vehicle mileage is collected, which makes it impossible to compare transport energy consumption
-#     between institutions/vehicles using specific energy consumption indicators. Data on vehicle
-#     fleet and vehicle mileage collected during the preparation of Riga SECAP 2030 show that the
-#     utilisation of vehicles in municipal institutions and companies is often relatively low. In
-#     order to increase the efficiency of vehicle use, the tasks include not only a study of their
-#     existing utilisation but also a study of the corresponding needs, while deciding on the
-#     optimisation of the number of vehicles and other measures.'
-#   quantity: emissions
-#   unit: kt/a
-#   forecast_values: [[2025, 1.0], [2030, 1.0]]
-#   input_dataset_processors: [LinearInterpolation]
+- id: promotion_of_an_active_lifestyle_and_cycling
+  name: Promotion of an Active Lifestyle and Cycling
+  group: transportation
+  description: Surveys show that 58% of the population had a positive view of the possibility of
+    travelling by bicycle in Riga, and 54% of the population have a positive opinion of the
+    pedestrian infrastructure for their daily needs. The goal of the city is to improve these
+    indicators and create an accessible, comfortable, and safe infrastructure for pedestrians and
+    cyclists, which would be interesting for people of all ages, genders, and social statuses,
+    including residents and guests of the city.
+  type: simple.AdditiveAction
+  input_dimensions: [action, owner, ghg]
+  output_dimensions: [action, owner, ghg]
+  params:
+    allow_null_categories: true
 
-# - id: promotion_of_the_use_of_public_transport_for_work_among_employees_of_the_municipal_government
-#   name: Promotion of the Use of Public Transport for Work Among Employees of the Municipal Government
-#   group: transportation
-#   description: In order to increase the use of public transport among municipal employees, one must
-#     create a binding requirement to use public transport for work trips within the city.
-#     Alternatively, a time limit (for example, 40-60 min.) can be set at which journeys can be made
-#     by public transport as a priority. The employees must be provided with monthly public transport
-#     tickets. The implementation of this measure would not only have a positive effect on the
-#     reduction of transport CO2 emissions but would also serve as an example of reducing car
-#     dependency for the rest of the public.
-#   type: simple.AdditiveAction
-#   quantity: emissions
-#   unit: kt/a
-#   forecast_values: [[2025, 1.0], [2030, 1.0]]
-#   input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: riga/transportation_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii
+    - dimension: action
+      categories: [active_lifestyle_and_cycling]
 
-# - id: transition_to_zeroemission_vehicles_in_companies_and_municipal_institutions
-#   name: Transition to Zero-Emission Vehicles in Companies and Municipal Institutions
-#   group: transportation
-#   description: "<p>The city's goal is a 100% transition to RES zero-emission vehicles in the
-#     municipal fleet by 2030. The measures to be implemented include the development of criteria for
-#     the purchase of vehicles and services, procurements and assessment of the purchase of bicycles
-#     and other micro-mobility vehicles for the work needs of municipal institutions.</p><p>In
-#     addition, activities that would promote the use of low-emission transport solutions (public
-#     transport, bicycles, car sharing) among municipal employees are supported not only for work
-#     trips but also for commuting to and from work.</p><p>The increase in emission-free vehicles
-#     must go hand in hand with the development of the charging infrastructure. The municipal
-#     government will install electric vehicle charging infrastructure at municipal institutions in
-#     proportion to the increase in the number of electric vehicles, encouraging the use of RES
-#     fuels.</p>"
-#   type: simple.AdditiveAction
-#   quantity: emissions
-#   unit: kt/a
-#   forecast_values: [[2025, 1.0], [2030, 1.0]]
-#   input_dataset_processors: [LinearInterpolation]
+  output_metrics:
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  - id: emissions
+    unit: t/a
+    quantity: emissions
 
-# - id: energy_efficiency_and_res_use_in_wastewater_treatment_plants
-#   name: Energy Efficiency and RES Use in Wastewater Treatment Plants
-#   group: stationary
-#   description: With the expected amendments to the Council Directive concerning urban wastewater
-#     treatment, the EU aims to achieve climate neutrality in the municipal wastewater treatment
-#     sector. These amendments will require energy audits of wastewater treatment plants and sewer
-#     systems to be carried out by 2028, with the intention to use RES to cover the internal gross
-#     energy consumption for large wastewater treatment plants that treat 10,000 p.e. or more of
-#     wastewater with 20% by 2030, 40% by 2035, 70% by 2040, and 100% by 2045. Currently, 26% of the
-#     Daugavgrīva wastewater treatment plant heat energy consumption is covered by RES, namely the
-#     combustion of biogas produced at the site.
-#   type: simple.AdditiveAction
-#   quantity: emissions
-#   unit: kt/a
-#   forecast_values: [[2025, 1.0], [2030, 1.0]]
-#   input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: ii_transportation_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+  - id: ii_transportation_price
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
 
-# - id: urban_planning_aimed_at_creating_a_city_where_local_residents_and_guests_are_less_dependent_on_private_cars
-#   name: Urban Planning Aimed at Creating a City Where Local Residents and Guests Are Less Dependent on Private Cars
-#   group: transportation
-#   description: This measure involves the prioritisation of sustainable ways to travel, the
-#     development and use of sustainable mobility assurance criteria, the practical implementation of
-#     the concept of mobility points, the introduction of smart traffic management technologies, and
-#     other measures. Synergies between different types of mobility must be created. The priority
-#     measures are aimed at the revitalisation of the existing built-up areas of the city and the
-#     construction of detached houses on the periphery, followed by the planning and development of
-#     new built-up areas.
-#   type: simple.AdditiveAction
-#   quantity: emissions
-#   unit: kt/a
-#   forecast_values: [[2025, 1.0], [2030, 1.0]]
-#   input_dataset_processors: [LinearInterpolation]
 
-# - id: promotion_of_an_active_lifestyle_and_cycling
-#   name: Promotion of an Active Lifestyle and Cycling
-#   group: transportation
-#   description: Surveys show that 58% of the population had a positive view of the possibility of
-#     travelling by bicycle in Riga, and 54% of the population have a positive opinion of the
-#     pedestrian infrastructure for their daily needs. The goal of the city is to improve these
-#     indicators and create an accessible, comfortable, and safe infrastructure for pedestrians and
-#     cyclists, which would be interesting for people of all ages, genders, and social statuses,
-#     including residents and guests of the city.
-#   type: simple.AdditiveAction
-#   quantity: emissions
-#   unit: kt/a
-#   forecast_values: [[2025, 1.0], [2030, 1.0]]
-#   input_dataset_processors: [LinearInterpolation]
+- id: increase_the_share_of_public_transport_in_everyday_passenger_trips
+  name: Increase the Share of Public Transport in Everyday Passenger Trips
+  group: transportation
+  description: "The measure aims to encourage more use of public transport in the city and foster
+    more active urban mobility. The scope for the development of public transport are: improvement
+    of accessibility of public transport; improvement of public transport service quality;
+    modernisation of 'Rīgas satiksme' rolling stock; promotion of railway use."
+  type: simple.AdditiveAction
+  input_dimensions: [action, owner, ghg]
+  output_dimensions: [action, owner, ghg]
+  params:
+    allow_null_categories: true
 
-# - id: increase_the_share_of_public_transport_in_everyday_passenger_trips
-#   name: Increase the Share of Public Transport in Everyday Passenger Trips
-#   group: transportation
-#   description: "The measure aims to encourage more use of public transport in the city and foster
-#     more active urban mobility. The scope for the development of public transport are: improvement
-#     of accessibility of public transport; improvement of public transport service quality;
-#     modernisation of 'Rīgas satiksme' rolling stock; promotion of railway use."
-#   type: simple.AdditiveAction
-#   quantity: emissions
-#   unit: kt/a
-#   forecast_values: [[2025, 1.0], [2030, 1.0]]
-#   input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: riga/transportation_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii
+    - dimension: action
+      categories: [increase_public_transport_in_everyday_trips]
 
-# - id: promotion_of_zeroemission_technologies_and_res_in_district_heating
-#   name: Promotion of Zero-Emission Technologies and RES in District Heating
-#   group: stationary
-#   description: The purpose of this field of action is to reduce the GHG emissions of the Riga DHS
-#     and promote electrification. It involves the conversion of existing energy sources of AS 'Rīgas
-#     siltums' to zero-emission and RES solutions, achieving an RES share of at least 90%, and the
-#     procurement of RES heating energy, electricity, and residual heat, which will include incentive
-#     conditions for producers. If possible, the producers will be required to submit heating energy
-#     certificates. At the end of 2023, REA began to work on the Riga State City District Heating
-#     Development Strategy 2024-2030, which will provide more detailed information and an approach
-#     for how to organise the implementation of this field of action.
-#   type: simple.AdditiveAction
-#   quantity: emissions
-#   unit: kt/a
-#   forecast_values: [[2025, 1.0], [2030, 1.0]]
-#   input_dataset_processors: [LinearInterpolation]
+  output_metrics:
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  - id: emissions
+    unit: t/a
+    quantity: emissions
+
+  output_nodes:
+  - id: ii_transportation_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+  - id: ii_transportation_price
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+
+
+- id: promotion_of_zeroemission_technologies_and_res_in_district_heating
+  name: Promotion of Zero-Emission Technologies and RES in District Heating
+  group: stationary
+  description: The purpose of this field of action is to reduce the GHG emissions of the Riga DHS
+    and promote electrification. It involves the conversion of existing energy sources of AS 'Rīgas
+    siltums' to zero-emission and RES solutions, achieving an RES share of at least 90%, and the
+    procurement of RES heating energy, electricity, and residual heat, which will include incentive
+    conditions for producers. If possible, the producers will be required to submit heating energy
+    certificates. At the end of 2023, REA began to work on the Riga State City District Heating
+    Development Strategy 2024-2030, which will provide more detailed information and an approach
+    for how to organise the implementation of this field of action.
+  type: simple.AdditiveAction
+  input_dimensions: [energy_carrier, scope, action, owner, ghg, heating, use]
+  output_dimensions: [energy_carrier, scope, action, owner, ghg, heating, use]
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: riga/stationary_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [zeroemission_tech_and_res_in_district_heating]
+
+  output_metrics:
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  - id: emissions
+    unit: t/a
+    quantity: emissions
+  - id: energy
+    unit: MWh/a
+    quantity: energy
+
+  output_nodes:
+  - id: i_stationary_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: use
+      flatten: true
+  - id: i_stationary_price
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: use
+      flatten: true
+  - id: i12_residential_grid_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: use
+      flatten: true
+  - id: i12_residential_grid_energy_consumption_reduction
+    metrics: [energy]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: use
+      flatten: true
+
 
 pages:
 - id: home
