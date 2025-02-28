@@ -1,0 +1,476 @@
+actions:
+
+# Levers
+
+- id: lever_on_cars_and_bikes
+  name_en: Lever affecting cars and bikes directly
+  type: gpc.DatasetActionMFM
+  quantity: emissions
+  unit: kt/a
+  color: '#2ca25f' # FIXME Does not change color
+  input_dimensions: [causal_step]
+  output_dimensions: [causal_step]
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Lever affecting cars and bikes directly
+  params:
+    action: Lever affecting cars and bikes directly
+  output_nodes:
+  - id: shift_from_cars_to_bikes
+    to_dimensions:
+    - id: causal_step
+    - id: sector
+      categories: [transport]
+
+# Actions
+
+- id: municipal_package_delivery_by_bicycle
+  name_de: Paketzustellung der Kommune mit dem Rad
+  name_en: Municipal Package Delivery by Bicycle
+  type: gpc.DatasetActionMFM
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
+  output_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Municipal Package Delivery by Bicycle
+  params:
+    action: Municipal Package Delivery by Bicycle
+  output_nodes:
+  - id: shift_from_cars_to_bikes
+    from_dimensions:
+    - id: action_type
+      flatten: true
+    - id: instrument_category
+      flatten: true
+    - id: action_level
+      flatten: true
+    - id: impact_duration
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [transport]
+    - id: causal_step
+
+- id: amendment_of_parking_space_ordinance
+  name_de: Änderung Stellplatzsatzung
+  name_en: Amendment of Parking Space Ordinance
+  type: gpc.DatasetActionMFM
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
+  output_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Amendment of Parking Space Ordinance
+  params:
+    action: Amendment of Parking Space Ordinance
+  output_nodes:
+  - id: number_of_bicycle_parking_spaces
+    from_dimensions:
+    - id: action_type
+      flatten: true
+    - id: instrument_category
+      flatten: true
+    - id: action_level
+      flatten: true
+    - id: impact_duration
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [transport]
+    - id: causal_step
+
+- id: expansion_and_improvement_of_bicycle_infrastructure
+  name_de: Ausbau und Verbesserung Nutzbarkeit der Rad-Infrastruktur
+  name_en: Expansion and Improvement of Bicycle Infrastructure
+  type: gpc.DatasetActionMFM
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
+  output_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Expansion and Improvement of Bicycle Infrastructure
+  params:
+    action: Expansion and Improvement of Bicycle Infrastructure
+  output_nodes:
+  - id: number_of_safe_cycling_kilometers
+    from_dimensions:
+    - id: action_type
+      flatten: true
+    - id: instrument_category
+      flatten: true
+    - id: action_level
+      flatten: true
+    - id: impact_duration
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [transport]
+    - id: causal_step
+
+- id: visitor_parking_pricing
+  name_de: Parkraumbepreisung Besucher*innen
+  name_en: Visitor Parking Pricing
+  type: gpc.DatasetActionMFM
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
+  output_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Visitor Parking Pricing
+  params:
+    action: Visitor Parking Pricing
+  output_nodes:
+  - id: parking_space_prices
+    from_dimensions:
+    - id: action_type
+      flatten: true
+    - id: instrument_category
+      flatten: true
+    - id: action_level
+      flatten: true
+    - id: impact_duration
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [transport]
+    - id: causal_step
+
+- id: reduce_user_costs_for_environmentally_friendly_transport
+  name_de: Nutzerkosten Umweltverbund reduzieren
+  name_en: Reduce User Costs for Environmentally Friendly Transport
+  type: gpc.DatasetActionMFM
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
+  output_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Reduce User Costs for Environmentally Friendly Transport
+  params:
+    action: Reduce User Costs for Environmentally Friendly Transport
+  output_nodes:
+  - id: public_transport_prices
+    from_dimensions:
+    - id: action_type
+      flatten: true
+    - id: instrument_category
+      flatten: true
+    - id: action_level
+      flatten: true
+    - id: impact_duration
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [transport]
+    - id: causal_step
+
+nodes:
+
+# Characteristic
+
+- id: number_of_bicycle_parking_spaces
+  name_de: Anzahl Fahrrad-Parkplätze
+  name_en: Number of Bicycle Parking Spaces
+  type: simple.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [causal_step, sector]
+  output_dimensions: [causal_step, sector]
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Number of Bicycle Parking Spaces
+  output_nodes:
+  - id: comfort
+
+- id: number_of_safe_cycling_kilometers
+  name_de: Anzahl sichere Radkilometer
+  name_en: Number of Safe Cycling Kilometers
+  type: simple.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [causal_step, sector]
+  output_dimensions: [causal_step, sector]
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Number of Safe Cycling Kilometers
+  output_nodes:
+  - id: safety
+  - id: comfort
+  - id: status
+  - id: fairness
+  - id: health
+
+- id: parking_space_prices
+  name_de: Parkplatzpreise
+  name_en: Parking Space Prices
+  type: simple.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [causal_step, sector]
+  output_dimensions: [causal_step, sector]
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Parking Space Prices
+  output_nodes:
+  - id: fairness
+  - id: affordability
+
+- id: public_transport_prices
+  name_de: ÖPNV-Preise
+  name_en: Public Transport Prices
+  type: simple.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [causal_step, sector]
+  output_dimensions: [causal_step, sector]
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Public Transport Prices
+  output_nodes:
+  - id: affordability
+
+# Behavioral change
+
+- id: safety
+  name_de: Sicherheit
+  name_en: Safety
+  type: simple.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [causal_step, sector]
+  output_dimensions: [causal_step, sector]
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Safety
+  output_nodes:
+  - id: shift_from_cars_to_bikes
+
+- id: comfort
+  name_de: Komfort
+  name_en: Comfort
+  type: simple.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [causal_step, sector]
+  output_dimensions: [causal_step, sector]
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Comfort
+  output_nodes:
+  - id: shift_from_cars_to_bikes
+
+- id: status
+  name_de: Status
+  name_en: Status
+  type: simple.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [causal_step, sector]
+  output_dimensions: [causal_step, sector]
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Status
+  output_nodes:
+  - id: shift_from_cars_to_bikes
+
+- id: fairness
+  name_de: Gereichtigkeit
+  name_en: Fairness
+  type: simple.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [causal_step, sector]
+  output_dimensions: [causal_step, sector]
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Fairness
+  output_nodes:
+  - id: shift_from_cars_to_bikes
+
+- id: health
+  name_de: Gesundheit
+  name_en: Health
+  type: simple.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [causal_step, sector]
+  output_dimensions: [causal_step, sector]
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Health
+  output_nodes:
+  - id: shift_from_cars_to_bikes
+
+- id: affordability
+  name_de: Erschwinglichkeit
+  name_en: Affordability
+  type: simple.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [causal_step, sector]
+  output_dimensions: [causal_step, sector]
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Affordability
+  output_nodes:
+  - id: shift_from_cars_to_bikes
+
+# Activity shift
+
+- id: shift_from_cars_to_bikes
+  name_de: Verlagerung von Autos auf Fahrräder
+  name_en: Shift from cars to bikes
+  type: simple.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [causal_step, sector]
+  output_dimensions: [causal_step, sector]
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Shift from cars to bikes
+
+# Effect
+
+- id: reduced_ghg
+  name_de: Weniger THG
+  name_en: Reduced GHG
+  type: simple.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [causal_step, sector]
+  output_dimensions: [causal_step, sector]
+  input_nodes:
+  - id: shift_from_cars_to_bikes
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Reduced GHG
+  output_nodes:
+  - id: net_emissions
+
+- id: reduced_nox
+  name_de: Weniger NOx
+  name_en: Reduced NOx
+  type: simple.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [causal_step, sector]
+  output_dimensions: [causal_step, sector]
+  input_nodes:
+  - id: shift_from_cars_to_bikes
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Reduced NOx
+
+- id: road_maintenance_savings
+  name_de: Einsparung Strasseninstandhaltung
+  name_en: Road Maintenance Savings
+  type: simple.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [causal_step, sector]
+  output_dimensions: [causal_step, sector]
+  input_nodes:
+  - id: shift_from_cars_to_bikes
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Road Maintenance Savings
+
+- id: reduced_air_pollution
+  name_de: Weniger Luftverschmutzung
+  name_en: Reduced Air Pollution
+  type: simple.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [causal_step, sector]
+  output_dimensions: [causal_step, sector]
+  input_nodes:
+  - id: shift_from_cars_to_bikes
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Reduced Air Pollution
+
+- id: reduced_noise
+  name_de: Weniger Lärm
+  name_en: Reduced Noise
+  type: simple.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [causal_step, sector]
+  output_dimensions: [causal_step, sector]
+  input_nodes:
+  - id: shift_from_cars_to_bikes
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Reduced Noise
+
+# Utility
+
+- id: utility
+  name_en: Utility
+  type: simple.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [causal_step, sector]
+  output_dimensions: [causal_step, sector]
+  input_nodes:
+  - id: safety
+  - id: comfort
+  - id: status
+  - id: fairness
+  - id: health
+  - id: affordability
+  - id: net_emissions
+  - id: road_maintenance_savings
+  # - id: net_cost
+  - id: reduced_nox
+  - id: reduced_air_pollution
+  - id: reduced_noise

@@ -1,0 +1,119 @@
+dimensions: # These are generic dimensions for all DINSpec instances
+
+- id: causal_step
+  label_en: Causal step
+  label_de: Wirkungszusammenhang
+  categories:
+  - id: lever
+    label_en: Lever
+  - id: action
+    label_en: Action
+    label_de: Massnahme
+  - id: characteristic
+    label_en: Characteristic
+    label_de: Merkmal
+  - id: behavioral_change
+    label_en: Behavioral change
+    label_de: Verhaltensveränderung
+  - id: activity_shift
+    label_en: Activity shift
+    label_de: Aktivitätsverlagerung
+  - id: effect
+    label_en: Effect
+    label_de: Wirkung
+  - id: utility
+    label_en: Utility
+
+- id: sector
+  label_en: Sector
+  label_de: Sektorzugehörigkeit
+  categories:
+  - id: buildings
+    label_en: Buildings
+    label_de: Gebäude
+  - id: transport
+    label_en: Transport
+    label_de: Verkehr
+  - id: energy
+    label_en: Energy
+    label_de: Energie
+  - id: industry
+    label_en: Industry
+    label_de: Industrie
+  - id: afolu
+    label_en: Agriculture, Forestry and Land Use (AFOLU)
+    label_de: Land-, Forstwirtschaft und Landnutzungsänderungen (AFOLU)
+  - id: waste
+    label_en: Waste
+    label_de: Abfall
+
+- id: action_type
+  label_en: Action type
+  label_de: Massnahmen-Typ
+  categories:
+  - id: direct_action
+    label_en: Direct action
+    label_de: Direkt Masshame
+  - id: indirect_action
+    label_en: Indirect action
+    label_de: Indirekt Massnahme
+  - id: enabling_action
+    label_en: Enabling action
+    label_de: Grundlagen-Masnahme
+
+- id: instrument_category
+  label_en: Instrument category of measure
+  label_de: Instrumentenkategorie der Massnahme
+  categories:
+  - id: regulation
+    label_en: Regulation
+    label_de: Regulierung
+  - id: fiscal_incentives
+    label_en: Fiscal incentives
+    label_de: Fiskalische Anreize
+  - id: supply
+    label_en: Supply
+    label_de: Versorgung
+  - id: information
+    label_en: Information
+    label_de: Information
+  - id: consumption_role_model
+    label_en: Consumption / Role model
+    label_de: Verbrauch / Vorbild
+  - id: foundations
+    label_en: Foundations
+    label_de: Grundlagen
+
+- id: action_level
+  label_en: Level of action
+  label_de: Ebene der Maßnahme
+  categories:
+  - id: individual
+    label_en: Individual
+    label_de: Individuell
+  - id: municipal
+    label_en: Municipal
+    label_de: Kommunal
+  - id: regional
+    label_en: Regional
+    label_de: Regional
+  - id: national
+    label_en: National
+    label_de: National
+  - id: international
+    label_en: International
+    label_de: International
+
+- id: impact_duration
+  label_en: Impact duration of measure
+  label_de: Wirkdauer der Maßnahme
+  categories:
+  - id: short_term
+    label_en: Short-term
+    label_de: Kurzfristig
+  - id: medium_term
+    label_en: Medium-term
+    label_de: Mittelfristig
+  - id: long_term
+    label_en: Long-term
+    label_de: Langfristig
