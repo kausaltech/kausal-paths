@@ -260,7 +260,8 @@ class GenericNode(SimpleNode):
 
         Base implementation just returns the result of process_inputs().
         """
-        df, other_nodes = self.run_implicit_operations()
+        df = self.get_input_dataset_pl(required=False)
+        df, other_nodes = self.run_implicit_operations(df)
 
         if df is None:
             raise NodeError(self, "No input nodes to process")

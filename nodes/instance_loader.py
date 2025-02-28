@@ -409,7 +409,8 @@ class InstanceLoader:
         return TranslatedString(**langs, default_language=self.default_language)
 
     def _make_node_datasets(self, config: dict, node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912
-        from nodes.datasets import DVCDataset, FixedDataset
+        from nodes.datasets import DVCDataset, FixedDataset, GenericDataset
+        from nodes.simple import GenericNode
         from nodes.units import Unit
 
         ds_config = config.get('input_datasets')
@@ -446,6 +447,9 @@ class InstanceLoader:
             tags = dc.pop('tags', [])
 
             ds_obj: DVCDataset | None = None
+            if node_class == GenericNode: # TODO Think about the proper hierarchy of dataset class selection
+                ds_obj = GenericDataset(id=ds_id, unit=ds_unit, tags=tags, **dc)
+
             if self.fw_config is not None:
                 from nodes.gpc import DatasetNode
 

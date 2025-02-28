@@ -438,6 +438,125 @@ class DVCDataset(Dataset):
 
 
 @dataclass
+class GenericDataset(DVCDataset):
+    """Dataset that already filters for relevant columns."""
+
+    # Supported languages: Czech, Danish, English, Finnish, German, Latvian, Polish, Swedish
+    characterlookup = str.maketrans(
+        {
+            '.': '',
+            ',': '',
+            ':': '',
+            '-': '',
+            '(': '',
+            ')': '',
+            ' ': '_',
+            '/': '_',
+            '&': 'and',
+            'ä': 'a',
+            'å': 'a',
+            'ą': 'a',
+            'á': 'a',
+            'ā': 'a',
+            'ć': 'c',
+            'č': 'c',
+            'ď': 'd',
+            'ę': 'e',
+            'é': 'e',
+            'ě': 'e',
+            'ē': 'e',
+            'ģ': 'g',
+            'í': 'i',
+            'ī': 'i',
+            'ķ': 'k',
+            'ł': 'l',
+            'ļ': 'l',
+            'ń': 'n',
+            'ň': 'n',
+            'ņ': 'n',
+            'ö': 'o',
+            'ø': 'o',
+            'ó': 'o',
+            'ř': 'r',
+            'ś': 's',
+            'š': 's',
+            'ť': 't',
+            'ü': 'u',
+            'ú': 'u',
+            'ů': 'u',
+            'ū': 'u',
+            'ý': 'y',
+            'ź': 'z',
+            'ż': 'z',
+            'ž': 'z',
+            'æ': 'ae',
+            'ß': 'ss',
+        },
+    )
+
+    def implement_unit_col(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        df = df.set_unit(VALUE_COLUMN, df['Unit'].unique()[0])
+        df = df.drop('Unit')
+        return df
+
+    # -----------------------------------------------------------------------------------
+    def convert_names_to_ids(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
+        exset = {YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN, UNCERTAINTY_COLUMN, 'Unit', 'UUID'}
+
+        # Convert index level names from labels to IDs.
+        collookup = {}
+        for col in list(set(df.columns) - exset):
+            collookup[col] = col.lower().translate(self.characterlookup)
+        df = df.rename(collookup)
+
+        # Convert levels within each index level from labels to IDs.
+        if 'scope' in df.columns:
+            catlookup = {}
+            for cat in df['scope'].unique():
+                catlookup[cat] = cat.lower().replace(' ', '').replace('.', '')
+            df = df.with_columns(df['scope'].replace(catlookup))
+            exset.add('scope')
+
+        for col in list(set(df.columns) - exset):
+            catlookup = {}
+            for cat in df[col].unique():
+                catlookup[cat] = cat.lower().translate(self.characterlookup)
+            df = df.with_columns(df[col].replace(catlookup))
+
+            if col in context.dimensions:
+                for cat in context.dimensions[col].categories:
+                    if cat.aliases:
+                        df = df.with_columns(context.dimensions[col].series_to_ids_pl(df[col]))
+                        break
+        return df
+
+    # -----------------------------------------------------------------------------------
+    def drop_unnecessary_levels(self, df: ppl.PathsDataFrame, droplist: list) -> ppl.PathsDataFrame:
+        # Drop filter levels and empty dimension levels.
+        drops = [d for d in droplist if d in df.columns]
+
+        for col in list(set(df.columns) - set(drops)):
+            vals = df[col].unique().to_list()
+            if vals in [['.'], [None]]:
+                drops.append(col)
+
+        df = df.drop(drops)
+        return df
+
+    # -----------------------------------------------------------------------------------
+    def load(self, context: Context) -> ppl.PathsDataFrame:
+        df = DVCDataset.load(self, context)
+        df = self.drop_unnecessary_levels(df, droplist=['Description', 'Quantity']) # TODO Maybe filter by quantity?
+        df = self.implement_unit_col(df)
+        df = self.convert_names_to_ids(df, context)
+
+        if FORECAST_COLUMN not in df.columns:
+            df = df.with_columns(pl.lit(False).alias(FORECAST_COLUMN))  # noqa: FBT003
+
+        return df
+
+
+@dataclass
 class FixedDataset(Dataset):
     """Dataset from fixed values."""
 
