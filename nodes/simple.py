@@ -253,7 +253,7 @@ class GenericNode(SimpleNode):
         if len(add_nodes) > 0: # TODO Instead, add skip_unit_test parameter to add_nodes_pl
             unit_in = add_nodes[0].unit
             result = self.add_nodes_pl(result, add_nodes, metric, keep_nodes, node_multipliers,
-                                   unit_in, start_from_year)
+                                   unit_in, start_from_year, ignore_unit=True)
 
         return result, other_nodes
 
@@ -940,7 +940,7 @@ class FillNewCategoryNode(AdditiveNode):
         return df
 
 
-class FillNewCategoryNode2(AdditiveNode):
+class FillNewCategoryNode2(AdditiveNode): # FIXME Merge into FillNewCategoryNode
     explanation = _(
         """This is a Fill New Category Node.
 
