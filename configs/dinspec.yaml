@@ -47,6 +47,7 @@ emission_sectors: # TODO You may want to allow instances without emission sector
   name_en: Net emissions
   type: simple.AdditiveNode
   is_outcome: true
+  color: '#decbe4'
 
 pages:
 - id: home
@@ -67,3 +68,6 @@ scenarios:
   name_en: Default
   default: true
   all_actions_enabled: true
+  params:
+  - id: lever_on_cars_and_bikes.enabled
+    value: false
