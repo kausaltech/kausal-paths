@@ -1,19 +1,37 @@
 from __future__ import annotations
 
 from cmath import nan
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
+
+from django.utils.translation import gettext_lazy as _
 
 import polars as pl
 
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
-from nodes.node import NodeError
-from nodes.simple import SimpleNode
 from nodes.gpc import DatasetNode
+from nodes.node import NodeError
+from nodes.simple import GenericNode, SimpleNode
 from params import BoolParameter, NumberParameter, PercentageParameter, StringParameter
-from params.param import Parameter
 
 from .action import ActionNode
-from django.utils.translation import gettext_lazy as _
+
+if TYPE_CHECKING:
+    from common.polars import PathsDataFrame
+    from params.param import Parameter
+
+
+class GenericAction(GenericNode, ActionNode):
+
+    no_effect_value = 0.0
+
+    def compute(self) -> PathsDataFrame:
+        df = super().compute()
+        if not self.is_enabled():
+            df = df.with_columns(pl.lit(self.no_effect_value).alias(VALUE_COLUMN))
+        return df
+
+    def compute_effect(self) -> PathsDataFrame:
+        return self.compute()
 
 
 class AdditiveAction(ActionNode):

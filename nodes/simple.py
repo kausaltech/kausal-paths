@@ -9,6 +9,7 @@ import polars as pl
 
 from common import polars as ppl
 from common.i18n import TranslatedString
+from nodes.actions import ActionNode
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
 from nodes.units import Quantity, Unit
 from params.param import BoolParameter, NumberParameter, Parameter, StringParameter
@@ -210,14 +211,14 @@ class GenericNode(SimpleNode):
             tuple of (multiplicative_nodes, additive_nodes, other_nodes)
 
         """
-        explicitly_multiplicative_nodes = self._get_input_nodes(nodes, tag='non_additive')
+        additive_nodes = self._get_input_nodes(nodes, tag='additive')
+        multiplicative_nodes = self._get_input_nodes(nodes, tag='non_additive')
         other_nodes = self._get_input_nodes(nodes, tag='other_node')
+        listed_nodes = [*additive_nodes, *multiplicative_nodes, *other_nodes]
 
         # Nodes are additive if they have compatible units and no other classification
-        additive_nodes = []
-        multiplicative_nodes = list(explicitly_multiplicative_nodes)
         for node in nodes:
-            if node in explicitly_multiplicative_nodes or node in other_nodes:
+            if node in listed_nodes:
                 continue
 
             if self.is_compatible_unit(self.unit, node.unit):
@@ -249,8 +250,10 @@ class GenericNode(SimpleNode):
 
         result = self.multiply_nodes_pl(df, mult_nodes, metric, keep_nodes, node_multipliers,
                                       unit, start_from_year)
-        result = self.add_nodes_pl(result, add_nodes, metric, keep_nodes, node_multipliers,
-                                   unit, start_from_year)
+        if len(add_nodes) > 0: # TODO Instead, add skip_unit_test parameter to add_nodes_pl
+            unit_in = add_nodes[0].unit
+            result = self.add_nodes_pl(result, add_nodes, metric, keep_nodes, node_multipliers,
+                                   unit_in, start_from_year)
 
         return result, other_nodes
 
@@ -266,7 +269,12 @@ class GenericNode(SimpleNode):
         if df is None:
             raise NodeError(self, "No input nodes to process")
 
-        assert len(other_nodes) == 0, f"Generic node {self.id} cannot have other than additive or multiplicative input nodes."
+        if type(self) is GenericNode and len(other_nodes) > 0:
+            raise NodeError(self, f"Generic node {self.id} cannot have other than additive or multiplicative input nodes.")
+
+        mult = self.get_parameter_value('multiplier', required=False, units=True)
+        if mult:
+            df = df.multiply_quantity(VALUE_COLUMN, mult)
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
 
         return df
@@ -930,6 +938,71 @@ class FillNewCategoryNode(AdditiveNode):
                 df = df.filter(~pl.col(col).is_null())
             df = df.paths.to_narrow()
         return df
+
+
+class FillNewCategoryNode2(AdditiveNode):
+    explanation = _(
+        """This is a Fill New Category Node.
+
+        It behaves like Additive Node, but in the end of computation
+        it creates a new category such that the values along that dimension sum up to 1. The input nodes
+        must have a dimensionless unit. The new category in an existing dimension is given as parameter
+        'new_category' in format 'dimension:category
+        """)
+    allowed_parameters = [
+        *AdditiveNode.allowed_parameters,
+        StringParameter(local_id='new_category'),
+    ]
+
+    def compute(self) -> ppl.PathsDataFrame:
+        df: ppl.PathsDataFrame = self.add_nodes_pl(None, self.input_nodes)
+
+        df = self.fill_new_category(df)
+        return df
+
+    def fill_new_category(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        category = self.get_parameter_value_str('new_category', required=True)
+        dim, cat = category.split(':')
+
+        df = df.ensure_unit(VALUE_COLUMN, 'dimensionless')
+
+        df2 = df.paths.sum_over_dims(dim)
+        df2 = df2.with_columns((pl.lit(1.0) - pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
+        df2 = df2.with_columns(pl.lit(cat).cast(pl.Categorical).alias(dim))
+        df2 = df2.select(df.columns)
+
+        df = df.paths.concat_vertical(df2)
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
+        if self.get_parameter_value('drop_nans', required=False):  # FIXME Not consistent with the parameter name!
+            df = df.paths.to_wide()
+            for col in df.metric_cols:
+                df = df.filter(~pl.col(col).is_null())
+            df = df.paths.to_narrow()
+        return df
+
+
+
+class LeverNode(GenericNode):
+    explanation = _(
+        """
+        LeverNode replaces the upstream computation completely, is the lever is enabled.
+        """
+    )
+
+    def compute(self):
+        df = super().compute()
+        lever = self.get_input_node(tag='other_node', required=True)
+        return self.override_with_lever(df, lever)
+
+    def override_with_lever(self, df: ppl.PathsDataFrame, lever: Node) -> ppl.PathsDataFrame:
+        if not isinstance(lever, ActionNode):
+            raise NodeError(self, f"Lever {lever} must be an action.")
+        if not lever.is_enabled():
+            return df
+        dfl = lever.get_output_pl(target_node=self)
+        if len(df) != len(dfl):
+            raise NodeError(self, f"Lever {lever.id} must have the same structure as the affected node {self.id}")
+        return dfl
 
 
 class ChooseInputNode(AdditiveNode):
