@@ -4,7 +4,7 @@ supported_languages: [de]
 site_url: https://dinspec.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 5453e97944073f3c16261c6b75f2b7aab7fee31f
+  commit: de1db5ccf2bd54e42beb1c245f9ea888b3fa9ef7
   dvc_remote: kausal-s3
 name: Greenhouse Gas Inventory according to DINSpec 91637
 owner: Kausal

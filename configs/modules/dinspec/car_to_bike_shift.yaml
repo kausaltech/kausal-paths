@@ -32,7 +32,7 @@ actions:
     is_visible: true
     is_customizable: true
     label_en: Fraction of car traffic shifting to bikes
-    unit: a/kt
+    unit: dimensionless
     value: 0.05
     min_value: 0.0
     max_value: 1.0
@@ -52,8 +52,8 @@ actions:
   name_de: Paketzustellung der Kommune mit dem Rad
   name_en: Municipal Package Delivery by Bicycle
   type: gpc.DatasetActionMFM
-  quantity: emissions
-  unit: kt/a
+  quantity: number
+  unit: pcs/cap/a
   input_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
   output_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
   input_datasets:
@@ -63,28 +63,30 @@ actions:
       value: Municipal Package Delivery by Bicycle
   params:
     action: Municipal Package Delivery by Bicycle
-  # output_nodes:
-  # - id: shift_from_cars_to_bikes
-  #   from_dimensions:
-  #   - id: action_type
-  #     flatten: true
-  #   - id: instrument_category
-  #     flatten: true
-  #   - id: action_level
-  #     flatten: true
-  #   - id: impact_duration
-  #     flatten: true
-  #   to_dimensions:
-  #   - id: sector
-  #     categories: [transport]
-  #   - id: causal_step
+  output_nodes:
+  - id: shift_from_cars_to_bikes
+    tags: [additive, ignore_content]
+    from_dimensions:
+    - id: action_type
+      flatten: true
+    - id: instrument_category
+      flatten: true
+    - id: action_level
+      flatten: true
+    - id: impact_duration
+      flatten: true
+    - id: causal_step
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [transport]
 
 - id: amendment_of_parking_space_ordinance
   name_de: Änderung Stellplatzsatzung
   name_en: Amendment of Parking Space Ordinance
   type: gpc.DatasetActionMFM
-  quantity: emissions
-  unit: kt/a
+  quantity: number
+  unit: pcs/cap
   input_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
   output_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
   input_datasets:
@@ -114,8 +116,8 @@ actions:
   name_de: Ausbau und Verbesserung Nutzbarkeit der Rad-Infrastruktur
   name_en: Expansion and Improvement of Bicycle Infrastructure
   type: gpc.DatasetActionMFM
-  quantity: emissions
-  unit: kt/a
+  quantity: length
+  unit: km
   input_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
   output_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
   input_datasets:
@@ -145,8 +147,8 @@ actions:
   name_de: Parkraumbepreisung Besucher*innen
   name_en: Visitor Parking Pricing
   type: gpc.DatasetActionMFM
-  quantity: emissions
-  unit: kt/a
+  quantity: unit_price
+  unit: EUR/pcs/d
   input_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
   output_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
   input_datasets:
@@ -176,8 +178,8 @@ actions:
   name_de: Nutzerkosten Umweltverbund reduzieren
   name_en: Reduce User Costs for Environmentally Friendly Transport
   type: gpc.DatasetActionMFM
-  quantity: emissions
-  unit: kt/a
+  quantity: unit_price
+  unit: EUR/pcs
   input_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
   output_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
   input_datasets:
@@ -211,8 +213,8 @@ nodes:
   name_de: Anzahl Fahrrad-Parkplätze
   name_en: Number of Bicycle Parking Spaces
   type: simple.GenericNode
-  quantity: emissions
-  unit: kt/a
+  quantity: number
+  unit: pcs/inh
   color: '#fbb4ae'
   input_dimensions: [causal_step, sector]
   output_dimensions: [causal_step, sector]
@@ -223,14 +225,14 @@ nodes:
       value: Number of Bicycle Parking Spaces
   output_nodes:
   - id: comfort
-    tags: [additive]
+    tags: [additive, ignore_content]
 
 - id: number_of_safe_cycling_kilometers
   name_de: Anzahl sichere Radkilometer
   name_en: Number of Safe Cycling Kilometers
   type: simple.GenericNode
-  quantity: emissions
-  unit: kt/a
+  quantity: length
+  unit: km
   color: '#fbb4ae'
   input_dimensions: [causal_step, sector]
   output_dimensions: [causal_step, sector]
@@ -241,22 +243,22 @@ nodes:
       value: Number of Safe Cycling Kilometers
   output_nodes:
   - id: safety
-    tags: [additive]
+    tags: [additive, ignore_content]
   - id: comfort
-    tags: [additive]
+    tags: [additive, ignore_content]
   - id: status
-    tags: [additive]
+    tags: [additive, ignore_content]
   - id: fairness
-    tags: [additive]
+    tags: [additive, ignore_content]
   - id: health
-    tags: [additive]
+    tags: [additive, ignore_content]
 
 - id: parking_space_prices
   name_de: Parkplatzpreise
   name_en: Parking Space Prices
   type: simple.GenericNode
-  quantity: emissions
-  unit: kt/a
+  quantity: unit_price
+  unit: EUR/pcs/h
   color: '#fbb4ae'
   input_dimensions: [causal_step, sector]
   output_dimensions: [causal_step, sector]
@@ -267,16 +269,16 @@ nodes:
       value: Parking Space Prices
   output_nodes:
   - id: fairness
-    tags: [additive]
+    tags: [additive, ignore_content]
   - id: affordability
-    tags: [additive]
+    tags: [additive, ignore_content]
 
 - id: public_transport_prices
   name_de: ÖPNV-Preise
   name_en: Public Transport Prices
   type: simple.GenericNode
-  quantity: emissions
-  unit: kt/a
+  quantity: unit_price
+  unit: EUR/pcs
   color: '#fbb4ae'
   input_dimensions: [causal_step, sector]
   output_dimensions: [causal_step, sector]
@@ -287,7 +289,7 @@ nodes:
       value: Public Transport Prices
   output_nodes:
   - id: affordability
-    tags: [additive]
+    tags: [additive, ignore_content]
 
 # Behavioral change
 
@@ -300,15 +302,11 @@ nodes:
   color: '#b3cde3'
   input_dimensions: [causal_step, sector]
   output_dimensions: [causal_step, sector]
-  # input_datasets:
-  # - id: gpc/dinspec
-  #   filters:
-  #   - column: Slice
-  #     value: Safety
-  params:
-  - id: multiplier
-    value: 1
-    unit: a/kt
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Safety
   output_nodes:
   - id: shift_from_cars_to_bikes
     from_dimensions:
@@ -326,15 +324,11 @@ nodes:
   color: '#b3cde3'
   input_dimensions: [causal_step, sector]
   output_dimensions: [causal_step, sector]
-  # input_datasets:
-  # - id: gpc/dinspec
-  #   filters:
-  #   - column: Slice
-  #     value: Comfort
-  params:
-  - id: multiplier
-    value: 1
-    unit: a/kt
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Comfort
   output_nodes:
   - id: shift_from_cars_to_bikes
     from_dimensions:
@@ -352,15 +346,11 @@ nodes:
   color: '#b3cde3'
   input_dimensions: [causal_step, sector]
   output_dimensions: [causal_step, sector]
-  # input_datasets:
-  # - id: gpc/dinspec
-  #   filters:
-  #   - column: Slice
-  #     value: Status
-  params:
-  - id: multiplier
-    value: 1
-    unit: a/kt
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Status
   output_nodes:
   - id: shift_from_cars_to_bikes
     from_dimensions:
@@ -378,15 +368,11 @@ nodes:
   color: '#b3cde3'
   input_dimensions: [causal_step, sector]
   output_dimensions: [causal_step, sector]
-  # input_datasets:
-  # - id: gpc/dinspec
-  #   filters:
-  #   - column: Slice
-  #     value: Fairness
-  params:
-  - id: multiplier
-    value: 1
-    unit: a/kt
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Fairness
   output_nodes:
   - id: shift_from_cars_to_bikes
     from_dimensions:
@@ -404,15 +390,11 @@ nodes:
   color: '#b3cde3'
   input_dimensions: [causal_step, sector]
   output_dimensions: [causal_step, sector]
-  # input_datasets:
-  # - id: gpc/dinspec
-  #   filters:
-  #   - column: Slice
-  #     value: Health
-  params:
-  - id: multiplier
-    value: 1
-    unit: a/kt
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Health
   output_nodes:
   - id: shift_from_cars_to_bikes
     from_dimensions:
@@ -430,15 +412,11 @@ nodes:
   color: '#b3cde3'
   input_dimensions: [causal_step, sector]
   output_dimensions: [causal_step, sector]
-  # input_datasets:
-  # - id: gpc/dinspec
-  #   filters:
-  #   - column: Slice
-  #     value: Affordability
-  params:
-  - id: multiplier
-    value: 1
-    unit: a/kt
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Affordability
   output_nodes:
   - id: shift_from_cars_to_bikes
     from_dimensions:
@@ -502,7 +480,7 @@ nodes:
   name_de: Weniger NOx
   name_en: Reduced NOx
   type: simple.GenericNode
-  quantity: emissions
+  quantity: concentration
   unit: ug/m**3
   color: '#decbe4'
   input_dimensions: [causal_step, sector]
@@ -530,7 +508,7 @@ nodes:
   name_de: Einsparung Strasseninstandhaltung
   name_en: Road Maintenance Savings
   type: simple.GenericNode
-  quantity: emissions
+  quantity: currency
   unit: MEUR/a
   color: '#decbe4'
   input_dimensions: [causal_step, sector]
@@ -558,7 +536,7 @@ nodes:
   name_de: Weniger Luftverschmutzung
   name_en: Reduced Air Pollution
   type: simple.GenericNode
-  quantity: emissions
+  quantity: concentration
   unit: ug/m**3
   color: '#decbe4'
   input_dimensions: [causal_step, sector]
@@ -586,7 +564,7 @@ nodes:
   name_de: Weniger Lärm
   name_en: Reduced Noise
   type: simple.GenericNode
-  quantity: emissions
+  quantity: exposure
   unit: Lden
   color: '#decbe4'
   input_dimensions: [causal_step, sector]
