@@ -2,11 +2,14 @@ dimensions:
 
 - id: transport_mode
   label_en: Transport mode
+  label_de: Verkehrsmittel
   categories:
   - id: cars
     label_en: Cars
+    label_de: Autos
   - id: bicycles
     label_en: Bicycles
+    label_de: Fahrräder
 
 actions:
 
@@ -14,6 +17,7 @@ actions:
 
 - id: lever_on_cars_and_bikes
   name_en: Lever affecting cars and bikes directly
+  name_de: Hebel mit direkter Wirkung auf Autos und Fahrräder
   type: simple.GenericAction
   quantity: ratio
   unit: dimensionless
@@ -32,6 +36,7 @@ actions:
     is_visible: true
     is_customizable: true
     label_en: Fraction of car traffic shifting to bikes
+    label_de: Anteil des Autoverkehrs, der auf Fahrräder verlagert wird
     unit: dimensionless
     value: 0.05
     min_value: 0.0
@@ -45,6 +50,8 @@ actions:
       flatten: true
     to_dimensions:
     - id: sector
+    - id: causal_step
+      categories: [activity_shift]
 
 # Actions
 
@@ -76,10 +83,12 @@ actions:
     - id: impact_duration
       flatten: true
     - id: causal_step
-      flatten: true
+      flatten: true 
     to_dimensions:
     - id: sector
       categories: [transport]
+    - id: causal_step
+      categories: [activity_shift]
 
 - id: amendment_of_parking_space_ordinance
   name_de: Änderung Stellplatzsatzung
@@ -314,6 +323,8 @@ nodes:
       flatten: true
     to_dimensions:
     - id: sector
+    - id: causal_step
+      categories: [activity_shift]
 
 - id: comfort
   name_de: Komfort
@@ -336,6 +347,8 @@ nodes:
       flatten: true
     to_dimensions:
     - id: sector
+    - id: causal_step
+      categories: [activity_shift]
 
 - id: status
   name_de: Status
@@ -358,6 +371,8 @@ nodes:
       flatten: true
     to_dimensions:
     - id: sector
+    - id: causal_step
+      categories: [activity_shift]
 
 - id: fairness
   name_de: Gereichtigkeit
@@ -380,6 +395,8 @@ nodes:
       flatten: true
     to_dimensions:
     - id: sector
+    - id: causal_step
+      categories: [activity_shift]
 
 - id: health
   name_de: Gesundheit
@@ -402,6 +419,8 @@ nodes:
       flatten: true
     to_dimensions:
     - id: sector
+    - id: causal_step
+      categories: [activity_shift]
 
 - id: affordability
   name_de: Erschwinglichkeit
@@ -424,6 +443,8 @@ nodes:
       flatten: true
     to_dimensions:
     - id: sector
+    - id: causal_step
+      categories: [activity_shift]
 
 # Activity shift
 
@@ -431,24 +452,17 @@ nodes:
   name_de: Verlagerung von Autos auf Fahrräder
   name_en: Shift from cars to bikes
   type: simple.LeverNode
-  quantity: emissions
+  quantity: fraction
   unit: dimensionless
   color: '#ccebc5'
-  input_dimensions: [sector]
-  output_dimensions: [sector]
-  # params:
-  #   new_category: sector:buildings
-  # input_datasets:
-  # - id: gpc/dinspec
-  #   filters:
-  #   - column: Slice
-  #     value: Shift from cars to bikes
+  input_dimensions: [sector, causal_step]
+  output_dimensions: [sector, causal_step]
 
 # Effect
 
-- id: reduced_ghg
-  name_de: Weniger THG
-  name_en: Reduced GHG
+- id: ghg_emissions
+  name_de: THG emissionen
+  name_en: GHG emissions
   type: simple.GenericNode
   quantity: emissions
   unit: kt/a
@@ -460,28 +474,26 @@ nodes:
     from_dimensions:
     - id: sector
       categories: [transport]
+    - id: causal_step
+      flatten: true
     to_dimensions:
     - id: sector
     - id: causal_step
       categories: [effect]
-  # input_datasets:
-  # - id: gpc/dinspec
-  #   filters:
-  #   - column: Slice
-  #     value: Reduced GHG
-  params:
-  - id: multiplier
-    value: 1
-    unit: kt/a
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Reduced GHG
   output_nodes:
   - id: net_emissions
 
-- id: reduced_nox
-  name_de: Weniger NOx
-  name_en: Reduced NOx
+- id: nox_emissions
+  name_de: NOx-Emissionen
+  name_en: NOx emissions
   type: simple.GenericNode
-  quantity: concentration
-  unit: ug/m**3
+  quantity: emissions
+  unit: t/a
   color: '#decbe4'
   input_dimensions: [causal_step, sector]
   output_dimensions: [causal_step, sector]
@@ -490,23 +502,21 @@ nodes:
     from_dimensions:
     - id: sector
       categories: [transport]
+    - id: causal_step
+      flatten: true
     to_dimensions:
     - id: sector
     - id: causal_step
       categories: [effect]
-  # input_datasets:
-  # - id: gpc/dinspec
-  #   filters:
-  #   - column: Slice
-  #     value: Reduced NOx
-  params:
-  - id: multiplier
-    value: 1
-    unit: ug/m**3
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Reduced NOx
 
-- id: road_maintenance_savings
-  name_de: Einsparung Strasseninstandhaltung
-  name_en: Road Maintenance Savings
+- id: road_maintenance_cost
+  name_de: Straßeninstandhaltungskosten
+  name_en: Road maintenance cost
   type: simple.GenericNode
   quantity: currency
   unit: MEUR/a
@@ -518,26 +528,24 @@ nodes:
     from_dimensions:
     - id: sector
       categories: [transport]
+    - id: causal_step
+      flatten: true
     to_dimensions:
     - id: sector
     - id: causal_step
       categories: [effect]
-  # input_datasets:
-  # - id: gpc/dinspec
-  #   filters:
-  #   - column: Slice
-  #     value: Road Maintenance Savings
-  params:
-  - id: multiplier
-    value: 1
-    unit: MEUR/a
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Road Maintenance Savings
 
-- id: reduced_air_pollution
-  name_de: Weniger Luftverschmutzung
-  name_en: Reduced Air Pollution
+- id: air_pollution_emissions
+  name_de: Luftschadstoffemissionen
+  name_en: Air pollution emissions
   type: simple.GenericNode
-  quantity: concentration
-  unit: ug/m**3
+  quantity: emissions
+  unit: t/a
   color: '#decbe4'
   input_dimensions: [causal_step, sector]
   output_dimensions: [causal_step, sector]
@@ -546,23 +554,21 @@ nodes:
     from_dimensions:
     - id: sector
       categories: [transport]
+    - id: causal_step
+      flatten: true
     to_dimensions:
     - id: sector
     - id: causal_step
       categories: [effect]
-  # input_datasets:
-  # - id: gpc/dinspec
-  #   filters:
-  #   - column: Slice
-  #     value: Reduced Air Pollution
-  params:
-  - id: multiplier
-    value: 1
-    unit: ug/m**3
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Reduced Air Pollution
 
 - id: reduced_noise
-  name_de: Weniger Lärm
-  name_en: Reduced Noise
+  name_de: Lärmbelastung
+  name_en: Noise pollution
   type: simple.GenericNode
   quantity: exposure
   unit: Lden
@@ -574,19 +580,17 @@ nodes:
     from_dimensions:
     - id: sector
       categories: [transport]
+    - id: causal_step
+      flatten: true
     to_dimensions:
     - id: sector
     - id: causal_step
       categories: [effect]
-  # input_datasets:
-  # - id: gpc/dinspec
-  #   filters:
-  #   - column: Slice
-  #     value: Reduced Noise
-  params:
-  - id: multiplier
-    value: 1
-    unit: Lden
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Reduced Noise
 
 # Utility # TODO Utilities are needed for further development, not for demonstration
 
