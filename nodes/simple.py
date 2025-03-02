@@ -250,10 +250,8 @@ class GenericNode(SimpleNode):
 
         result = self.multiply_nodes_pl(df, mult_nodes, metric, keep_nodes, node_multipliers,
                                       unit, start_from_year)
-        if len(add_nodes) > 0: # TODO Instead, add skip_unit_test parameter to add_nodes_pl
-            unit_in = add_nodes[0].unit
-            result = self.add_nodes_pl(result, add_nodes, metric, keep_nodes, node_multipliers,
-                                   unit_in, start_from_year, ignore_unit=True)
+        result = self.add_nodes_pl(result, add_nodes, metric, keep_nodes, node_multipliers,
+                                   unit, start_from_year, ignore_unit=True)
 
         return result, other_nodes
 
@@ -1001,7 +999,8 @@ class LeverNode(GenericNode):
             return df
         dfl = lever.get_output_pl(target_node=self)
         if len(df) != len(dfl):
-            raise NodeError(self, f"Lever {lever.id} must have the same structure as the affected node {self.id}")
+            s = f"({len(dfl)} rows) as the affected node {self.id} ({len(df)} rows)"
+            raise NodeError(self, f"Lever {lever.id} must have the same structure {s}")
         return dfl
 
 

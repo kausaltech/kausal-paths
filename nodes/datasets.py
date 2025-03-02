@@ -15,6 +15,7 @@ import polars as pl
 from numpy.random import default_rng  # TODO Could call Generator to give hints about rng attributes but requires code change
 
 from common import polars as ppl
+from nodes.calc import extend_last_historical_value_pl
 from nodes.units import Unit
 
 from .constants import FORECAST_COLUMN, UNCERTAINTY_COLUMN, VALUE_COLUMN, YEAR_COLUMN
@@ -553,6 +554,9 @@ class GenericDataset(DVCDataset):
         if FORECAST_COLUMN not in df.columns:
             df = df.with_columns(pl.lit(False).alias(FORECAST_COLUMN))  # noqa: FBT003
 
+        self.interpolate = True
+        df = self._linear_interpolate(df)
+        df = extend_last_historical_value_pl(df, end_year=context.instance.model_end_year)
         return df
 
 
