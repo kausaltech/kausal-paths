@@ -117,9 +117,10 @@ INSTALLED_APPS = [
     'wagtail.contrib.redirects',
     'wagtail.embeds',
     'wagtail.sites',
-    'users',  # must be before wagtail.users
     'admin_site',  # must be before wagtail.admin
-    'wagtail.users',
+    'users',  # must be before wagtail.users
+    # 'wagtail.users',  # this should be removed in favour of the custom app config
+    "paths.apps.CustomUsersAppConfig",  # a custom app config for the wagtail.users app
     'wagtail.snippets',
     'wagtail.documents',
     'wagtail.images',
