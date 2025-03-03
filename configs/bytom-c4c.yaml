@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://bytom-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a27843536817d7841e0b1a8ba546c62f13c25696
+  commit: de1db5ccf2bd54e42beb1c245f9ea888b3fa9ef7
   dvc_remote: kausal-s3
 name: Bytom Greenhouse Gas Inventory
 owner: City of Bytom
@@ -247,15 +247,20 @@ nodes:
 
 - id: i11_residential_fuel_consumption
   name: I.1.1 Residential Fuel Consumption
-  type: gpc.DatasetNode
-  quantity: energy
+  type: simple.AdditiveNode
+  quantity: fuel_consumption
   unit: m³/a
   input_dimensions: ['energy_carrier', 'owner', 'scope']
   output_dimensions: ['energy_carrier', 'owner', 'scope']
-  params:
-    gpc_sector: I.1.1
   input_datasets:
-  - id: gpc/bytom
+  - id: bytom/stationary
+    column: fuel_consumption
+    dropna: true
+    filters:
+    - column: sector
+      value: i11
+    - column: ghg
+    - column: heating
   output_nodes:
   - id: i11_residential_fuel_consumption_emissions
     to_dimensions:
@@ -280,15 +285,20 @@ nodes:
 
 - id: i11_residential_fuel_emission_factor
   name: I.1.1 Residential Fuel Emission Factor
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/m³
   input_dimensions: ['energy_carrier', 'owner', 'scope', 'ghg']
   output_dimensions: ['energy_carrier', 'owner', 'scope', 'ghg']
-  params:
-    gpc_sector: I.1.1
   input_datasets:
-  - id: gpc/bytom
+  - id: bytom/stationary
+    column: emission_factor_fuel
+    dropna: true
+    filters:
+    - column: sector
+      value: i11
+    - column: heating
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: i11_residential_fuel_consumption_emissions
     to_dimensions:
@@ -299,15 +309,20 @@ nodes:
 
 - id: i12_residential_grid_energy_consumption
   name: I.1.2 Residential Grid Energy Consumption
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: energy
   unit: kWh/a
   input_dimensions: ['energy_carrier', 'owner', 'scope']
   output_dimensions: ['energy_carrier', 'owner', 'scope']
-  params:
-    gpc_sector: I.1.2
   input_datasets:
-  - id: gpc/bytom
+  - id: bytom/stationary
+    column: energy
+    dropna: true
+    filters:
+    - column: sector
+      value: i12
+    - column: ghg
+    - column: heating
   output_nodes:
   - id: i12_residential_grid_energy_consumption_emissions
     to_dimensions:
@@ -332,15 +347,20 @@ nodes:
 
 - id: i12_residential_grid_energy_emission_factor
   name: I.1.2 Residential Grid Energy Emission Factor
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/MWh
   input_dimensions: ['energy_carrier', 'owner', 'scope', 'ghg']
   output_dimensions: ['energy_carrier', 'owner', 'scope', 'ghg']
-  params:
-    gpc_sector: I.1.2
   input_datasets:
-  - id: gpc/bytom
+  - id: bytom/stationary
+    column: emission_factor_energy
+    dropna: true
+    filters:
+    - column: sector
+      value: i12
+    - column: heating
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: i12_residential_grid_energy_consumption_emissions
     to_dimensions:
@@ -351,15 +371,21 @@ nodes:
 
 - id: i22_commercial_and_institutional_grid_energy_consumption
   name: I.2.2 Commercial & Institutional Grid Energy Consumption
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: energy
   unit: MWh/a
   input_dimensions: ['energy_carrier', 'scope']
   output_dimensions: ['energy_carrier', 'scope']
-  params:
-    gpc_sector: I.2.2
   input_datasets:
-  - id: gpc/bytom
+  - id: bytom/stationary
+    column: energy
+    dropna: true
+    filters:
+    - column: sector
+      value: i22
+    - column: ghg
+    - column: owner
+    - column: heating
   output_nodes:
   - id: i22_commercial_and_institutional_grid_energy_consumption_emissions
     to_dimensions:
@@ -382,15 +408,21 @@ nodes:
 
 - id: i22_commercial_and_institutional_grid_energy_emission_factor
   name: I.2.2 Commercial & Institutional Grid Energy Emission Factor
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/MWh
   input_dimensions: ['energy_carrier', 'scope', 'ghg']
   output_dimensions: ['energy_carrier', 'scope', 'ghg']
-  params:
-    gpc_sector: I.2.2
   input_datasets:
-  - id: gpc/bytom
+  - id: bytom/stationary
+    column: emission_factor_energy
+    dropna: true
+    filters:
+    - column: sector
+      value: i22
+    - column: owner
+    - column: heating
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: i22_commercial_and_institutional_grid_energy_consumption_emissions
     to_dimensions:
@@ -400,15 +432,20 @@ nodes:
 
 - id: i31_manufacturing_fuel_emissions
   name: I.3.1 Manufacturing Fuel Emissions
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
   input_dimensions: ['owner', 'scope', 'ghg']
   output_dimensions: ['owner', 'scope', 'ghg']
-  params:
-    gpc_sector: I.3.1
   input_datasets:
-  - id: gpc/bytom
+  - id: bytom/stationary
+    column: emissions
+    dropna: true
+    filters:
+    - column: sector
+      value: i31
+    - column: energy_carrier
+    - column: heating
   output_nodes:
   - id: i3_manufacturing_total_emissions
     to_dimensions:
@@ -466,15 +503,20 @@ nodes:
 
 - id: i42_energy_grid_energy_emission_factor
   name: I.4.2 Energy Grid Energy Emission Factor
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/kWh
   input_dimensions: ['energy_carrier', 'scope', 'ghg']
   output_dimensions: ['energy_carrier', 'scope', 'ghg']
-  params:
-    gpc_sector: I.4.2
   input_datasets:
-  - id: gpc/bytom
+  - id: bytom/stationary
+    column: emission_factor_energy
+    dropna: true
+    filters:
+    - column: sector
+      value: i42
+    - column: owner
+    - column: heating
   output_nodes:
   - id: i42_energy_grid_energy_consumption_emissions
     to_dimensions:
@@ -484,15 +526,21 @@ nodes:
 
 - id: i42_energy_grid_energy_energy_factor
   name: I.4.2 Energy Grid Energy Energy Factor
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: energy_factor
   unit: kWh/count/a
   input_dimensions: ['energy_carrier', 'scope']
   output_dimensions: ['energy_carrier', 'scope']
-  params:
-    gpc_sector: I.4.2
   input_datasets:
-  - id: gpc/bytom
+  - id: bytom/stationary
+    column: energy_factor
+    dropna: true
+    filters:
+    - column: sector
+      value: i42
+    - column: ghg
+    - column: owner
+    - column: heating
   output_nodes:
   - id: i42_energy_grid_energy_consumption
     tags: [non_additive]
@@ -502,15 +550,22 @@ nodes:
 
 - id: i42_energy_grid_energy_number
   name: I.4.2 Energy Grid Energy Number
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: number
   unit: count
   input_dimensions: ['scope']
   output_dimensions: ['scope']
-  params:
-    gpc_sector: I.4.2
   input_datasets:
-  - id: gpc/bytom
+  - id: bytom/stationary
+    column: number
+    dropna: true
+    filters:
+    - column: sector
+      value: i42
+    - column: energy_carrier
+    - column: ghg
+    - column: owner
+    - column: heating
   output_nodes:
   - id: i42_energy_grid_energy_consumption
     to_dimensions:
@@ -518,15 +573,22 @@ nodes:
 
 - id: i42_energy_grid_energy_price
   name: I.4.2 Energy Grid Energy Price
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: currency
   unit: PLN/a
   input_dimensions: ['scope']
   output_dimensions: ['scope']
-  params:
-    gpc_sector: I.4.2
   input_datasets:
-  - id: gpc/bytom
+  - id: bytom/stationary
+    column: currency
+    dropna: true
+    filters:
+    - column: sector
+      value: i42
+    - column: energy_carrier
+    - column: ghg
+    - column: owner
+    - column: heating
   output_nodes:
   - id: i42_energy_grid_energy_total_price
     to_dimensions:
@@ -546,15 +608,21 @@ nodes:
 
 - id: i42_energy_grid_energy_unit_price
   name: I.4.2 Energy Grid Energy Unit Price
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: unit_price
   unit: PLN/kWh
   input_dimensions: ['energy_carrier', 'scope']
   output_dimensions: ['energy_carrier', 'scope']
-  params:
-    gpc_sector: I.4.2
   input_datasets:
-  - id: gpc/bytom
+  - id: bytom/stationary
+    column: unit_price
+    dropna: true
+    filters:
+    - column: sector
+      value: i42
+    - column: ghg
+    - column: owner
+    - column: heating
   output_nodes:
   - id: i42_energy_grid_energy_consumption_price
     to_dimensions:
@@ -563,15 +631,21 @@ nodes:
 
 - id: i43_energy_t_and_d_loss_emission_factor
   name: I.4.3 Energy T & D Loss Emission Factor
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/count/a
   input_dimensions: ['heating', 'scope', 'ghg']
   output_dimensions: ['heating', 'scope', 'ghg']
-  params:
-    gpc_sector: I.4.3
   input_datasets:
-  - id: gpc/bytom
+  - id: bytom/stationary
+    column: emission_factor_number
+    dropna: true
+    filters:
+    - column: sector
+      value: i43
+    - column: energy_carrier
+    - column: owner
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: i43_energy_t_and_d_loss_number_emissions
     tags: [non_additive]
@@ -582,15 +656,21 @@ nodes:
 
 - id: i43_energy_t_and_d_loss_number
   name: I.4.3 Energy T & D Loss Number
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: number
   unit: count
   input_dimensions: ['heating', 'scope']
   output_dimensions: ['heating', 'scope']
-  params:
-    gpc_sector: I.4.3
   input_datasets:
-  - id: gpc/bytom
+  - id: bytom/stationary
+    column: number
+    dropna: true
+    filters:
+    - column: sector
+      value: i43
+    - column: energy_carrier
+    - column: ghg
+    - column: owner
   output_nodes:
   - id: i43_energy_t_and_d_loss_number_emissions
     to_dimensions:
@@ -630,15 +710,20 @@ nodes:
 
 - id: iii21_biological_waste_treated_in_city_emission_factor
   name: III.2.1 Biological Waste Treated in City Emission Factor
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/Mg
   input_dimensions: ['owner', 'scope', 'ghg']
   output_dimensions: ['owner', 'scope', 'ghg']
-  params:
-    gpc_sector: III.2.1
   input_datasets:
-  - id: gpc/bytom
+  - id: bytom/waste
+    column: emission_factor_mass
+    dropna: true
+    filters:
+    - column: sector
+      value: iii21
+    - column: source
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: iii21_biological_waste_treated_in_city_mass_emissions
     to_dimensions:
@@ -648,15 +733,20 @@ nodes:
 
 - id: iii21_biological_waste_treated_in_city_mass
   name: III.2.1 Biological Waste Treated in City Mass
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: mass
   unit: Mg/a
   input_dimensions: ['owner', 'scope']
   output_dimensions: ['owner', 'scope']
-  params:
-    gpc_sector: III.2.1
   input_datasets:
-  - id: gpc/bytom
+  - id: bytom/waste
+    column: mass
+    dropna: true
+    filters:
+    - column: sector
+      value: iii21
+    - column: ghg
+    - column: source
   output_nodes:
   - id: iii21_biological_waste_treated_in_city_mass_emissions
     tags: [non_additive]
@@ -680,15 +770,21 @@ nodes:
 
 - id: iii4_wastewater_emission_factor
   name: III.4 Wastewater Emission Factor
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/m³
   input_dimensions: ['source', 'ghg']
   output_dimensions: ['source', 'ghg']
-  params:
-    gpc_sector: III.4
   input_datasets:
-  - id: gpc/bytom
+  - id: bytom/waste
+    column: emission_factor_volume
+    dropna: true
+    filters:
+    - column: sector
+      value: iii4
+    - column: scope
+    - column: owner
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: iii4_wastewater_volume_emissions
     to_dimensions:
@@ -697,15 +793,21 @@ nodes:
 
 - id: iii4_wastewater_volume
   name: III.4 Wastewater Volume
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: volume
   unit: m³/a
   input_dimensions: ['source']
   output_dimensions: ['source']
-  params:
-    gpc_sector: III.4
   input_datasets:
-  - id: gpc/bytom
+  - id: bytom/waste
+    column: volume
+    dropna: true
+    filters:
+    - column: sector
+      value: iii4
+    - column: scope
+    - column: ghg
+    - column: owner
   output_nodes:
   - id: iii4_wastewater_volume_emissions
     to_dimensions:
@@ -876,31 +978,38 @@ nodes:
 actions:
 - id: replace_coal_stove_heating_in_buildings_belonging_to_the_municipality_100
   name: Replace Coal Stove Heating in Buildings Belonging to the Municipality (100%)
-  type: gpc.DatasetActionMFM
+  type: simple.AdditiveAction
   color: '#4e79a7'
   input_dimensions: ['scope', 'heating']
   output_dimensions: ['scope', 'heating']
   params:
-    action: Replace Coal Stove Heating in Buildings Belonging to the Municipality (100%)
+    allow_null_categories: true
+
   input_datasets:
-  - id: gpc/bytom_simple_actions
+  - id: bytom/stationary_actions
     forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: replace_coal_stove_heating_in_municipal_buildings
+
   output_metrics:
-  - id: i43_number
+  - id: number
     unit: count/a
     quantity: number
-  - id: i43_currency
+  - id: currency
     unit: PLN/a
     quantity: currency
+
   output_nodes:
   - id: i43_energy_t_and_d_loss_number
-    metrics: [i43_number]
+    metrics: [number]
     tags: [cumulative]
     to_dimensions:
     - id: scope
     - id: heating
   - id: i43_energy_t_and_d_loss_price
-    metrics: [i43_currency]
+    metrics: [currency]
     to_dimensions:
     - id: scope
     - id: heating
