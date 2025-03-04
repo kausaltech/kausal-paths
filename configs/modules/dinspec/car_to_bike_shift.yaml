@@ -23,8 +23,8 @@ actions:
   unit: dimensionless
   color: '#2ca25f' # FIXME Does not change color
   group: lever
-  input_dimensions: [causal_step, sector]
-  output_dimensions: [causal_step, sector]
+  input_dimensions: [causal_step, sector, transport_mode]
+  output_dimensions: [causal_step, sector, transport_mode]
   input_datasets:
   - id: gpc/dinspec
     filters:
@@ -51,6 +51,7 @@ actions:
     - id: sector
     - id: causal_step
       categories: [activity_shift]
+    - id: transport_mode
 
 # Actions
 
@@ -508,12 +509,19 @@ nodes:
   name_en: Shift from cars to bikes
   type: simple.LeverNode
   quantity: emissions # TODO Use fraction after fixing colors
-  unit: dimensionless
+  unit: '%'
   color: '#ccebc5'
-  input_dimensions: [sector, causal_step]
-  output_dimensions: [sector, causal_step]
+  input_dimensions: [transport_mode, sector, causal_step]
+  output_dimensions: [transport_mode, sector, causal_step]
   input_nodes:
   - id: fraction_of_car_trips
+    to_dimensions:
+    - id: sector
+    - id: causal_step
+    - id: transport_mode
+      categories: [cars]
+  params:
+    new_category: transport_mode:bicycles
 
 # Effect
 
@@ -524,8 +532,8 @@ nodes:
   quantity: emissions
   unit: kt/a
   color: '#decbe4'
-  input_dimensions: [causal_step, sector]
-  output_dimensions: [causal_step, sector]
+  input_dimensions: [transport_mode, sector, causal_step]
+  output_dimensions: [transport_mode, sector, causal_step]
   input_nodes:
   - id: shift_from_cars_to_bikes
     from_dimensions:
@@ -537,6 +545,7 @@ nodes:
     - id: sector
     - id: causal_step
       categories: [effect]
+    - id: transport_mode
   input_datasets:
   - id: gpc/dinspec
     filters:
@@ -552,8 +561,8 @@ nodes:
   quantity: emissions
   unit: t/a
   color: '#decbe4'
-  input_dimensions: [causal_step, sector]
-  output_dimensions: [causal_step, sector]
+  input_dimensions: [transport_mode, sector, causal_step]
+  output_dimensions: [transport_mode, sector, causal_step]
   input_nodes:
   - id: shift_from_cars_to_bikes
     from_dimensions:
@@ -565,6 +574,7 @@ nodes:
     - id: sector
     - id: causal_step
       categories: [effect]
+    - id: transport_mode
   input_datasets:
   - id: gpc/dinspec
     filters:
@@ -578,8 +588,8 @@ nodes:
   quantity: currency
   unit: MEUR/a
   color: '#decbe4'
-  input_dimensions: [causal_step, sector]
-  output_dimensions: [causal_step, sector]
+  input_dimensions: [transport_mode, sector, causal_step]
+  output_dimensions: [transport_mode, sector, causal_step]
   input_nodes:
   - id: shift_from_cars_to_bikes
     from_dimensions:
@@ -591,6 +601,7 @@ nodes:
     - id: sector
     - id: causal_step
       categories: [effect]
+    - id: transport_mode
   input_datasets:
   - id: gpc/dinspec
     filters:
@@ -604,8 +615,8 @@ nodes:
   quantity: emissions
   unit: t/a
   color: '#decbe4'
-  input_dimensions: [causal_step, sector]
-  output_dimensions: [causal_step, sector]
+  input_dimensions: [transport_mode, sector, causal_step]
+  output_dimensions: [transport_mode, sector, causal_step]
   input_nodes:
   - id: shift_from_cars_to_bikes
     from_dimensions:
@@ -617,6 +628,7 @@ nodes:
     - id: sector
     - id: causal_step
       categories: [effect]
+    - id: transport_mode
   input_datasets:
   - id: gpc/dinspec
     filters:
@@ -630,8 +642,8 @@ nodes:
   quantity: emissions # TODO Use exposure after fixing colors
   unit: Lden
   color: '#decbe4'
-  input_dimensions: [causal_step, sector]
-  output_dimensions: [causal_step, sector]
+  input_dimensions: [transport_mode, sector, causal_step]
+  output_dimensions: [transport_mode, sector, causal_step]
   input_nodes:
   - id: shift_from_cars_to_bikes
     from_dimensions:
@@ -643,6 +655,7 @@ nodes:
     - id: sector
     - id: causal_step
       categories: [effect]
+    - id: transport_mode
   input_datasets:
   - id: gpc/dinspec
     filters:

@@ -986,11 +986,17 @@ class LeverNode(GenericNode):
     explanation = _(
         """LeverNode replaces the upstream computation completely, if the lever is enabled."""
     )
+    allowed_parameters = [
+        *GenericNode.allowed_parameters,
+        StringParameter(local_id='new_category'),
+    ]
 
     def compute(self) -> ppl.PathsDataFrame:
         df = super().compute()
         lever = self.get_input_node(tag='other_node', required=True)
-        return self.override_with_lever(df, lever)
+        df = self.override_with_lever(df, lever)
+        df = self.fill_new_category(df)
+        return df
 
     def override_with_lever(self, df: ppl.PathsDataFrame, lever: Node) -> ppl.PathsDataFrame:
         if not isinstance(lever, ActionNode):
@@ -1009,6 +1015,26 @@ class LeverNode(GenericNode):
             s = f"({len(out)} rows) as the affected node {self.id} ({len(df)} rows)"
             raise NodeError(self, f"Lever {lever.id} must result in the same structure {s}")
         return out
+
+    def fill_new_category(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        category = self.get_parameter_value_str('new_category', required=True)
+        dim, cat = category.split(':')
+
+        df = df.ensure_unit(VALUE_COLUMN, 'dimensionless')
+
+        df2 = df.paths.sum_over_dims(dim)
+        df2 = df2.with_columns((pl.lit(1.0) - pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
+        df2 = df2.with_columns(pl.lit(cat).cast(pl.Categorical).alias(dim))
+        df2 = df2.select(df.columns)
+
+        df = df.paths.concat_vertical(df2)
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
+        if self.get_parameter_value('drop_nans', required=False):  # FIXME Not consistent with the parameter name!
+            df = df.paths.to_wide()
+            for col in df.metric_cols:
+                df = df.filter(~pl.col(col).is_null())
+            df = df.paths.to_narrow()
+        return df
 
 
 class WeightedSumNode(GenericNode):

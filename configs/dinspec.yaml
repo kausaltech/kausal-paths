@@ -4,7 +4,7 @@ supported_languages: [de]
 site_url: https://dinspec.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: c27477d6486bcecbd9053abb360d1e00f2b7d431
+  commit: 4a4cd140f9022c9ab5ac0e75307945e22aa832e3
   dvc_remote: kausal-s3
 name: Greenhouse Gas Inventory according to DINSpec 91637
 owner: Kausal
@@ -15,7 +15,7 @@ minimum_historical_year: 2020
 maximum_historical_year: 2023
 emission_unit: kt/a
 emission_forecast_from: 2024
-emission_dimensions: [causal_step, sector]
+emission_dimensions: [transport_mode, causal_step, sector]
 features:
   baseline_visible_in_graphs: true
   show_significant_digits: 3
