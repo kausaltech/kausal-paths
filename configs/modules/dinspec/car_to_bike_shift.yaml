@@ -234,9 +234,13 @@ nodes:
       value: Number of Bicycle Parking Spaces
   output_nodes:
   - id: comfort
-    tags: [additive, ignore_content]
+    from_dimensions:
+    - id: causal_step
+      flatten: true
+    to_dimensions:
+    - id: sector
 
-- id: number_of_safe_cycling_kilometers
+- id: number_of_safe_cycling_kilometers # FIXME Why 67 km nii 2029 and 17 km in 2030? Actions are not extended.
   name_de: Anzahl sichere Radkilometer
   name_en: Number of Safe Cycling Kilometers
   type: simple.GenericNode
@@ -252,15 +256,35 @@ nodes:
       value: Number of Safe Cycling Kilometers
   output_nodes:
   - id: safety
-    tags: [additive, ignore_content]
+    from_dimensions:
+    - id: causal_step
+      flatten: true
+    to_dimensions:
+    - id: sector
   - id: comfort
-    tags: [additive, ignore_content]
+    from_dimensions:
+    - id: causal_step
+      flatten: true
+    to_dimensions:
+    - id: sector
   - id: status
-    tags: [additive, ignore_content]
+    from_dimensions:
+    - id: causal_step
+      flatten: true
+    to_dimensions:
+    - id: sector
   - id: fairness
-    tags: [additive, ignore_content]
+    from_dimensions:
+    - id: causal_step
+      flatten: true
+    to_dimensions:
+    - id: sector
   - id: health
-    tags: [additive, ignore_content]
+    from_dimensions:
+    - id: causal_step
+      flatten: true
+    to_dimensions:
+    - id: sector
 
 - id: parking_space_prices
   name_de: Parkplatzpreise
@@ -278,9 +302,17 @@ nodes:
       value: Parking Space Prices
   output_nodes:
   - id: fairness
-    tags: [additive, ignore_content]
+    from_dimensions:
+    - id: causal_step
+      flatten: true
+    to_dimensions:
+    - id: sector
   - id: affordability
-    tags: [additive, ignore_content]
+    from_dimensions:
+    - id: causal_step
+      flatten: true
+    to_dimensions:
+    - id: sector
 
 - id: public_transport_prices
   name_de: ÖPNV-Preise
@@ -298,14 +330,18 @@ nodes:
       value: Public Transport Prices
   output_nodes:
   - id: affordability
-    tags: [additive, ignore_content]
+    from_dimensions:
+    - id: causal_step
+      flatten: true
+    to_dimensions:
+    - id: sector
 
 # Behavioral change
 
 - id: safety
   name_de: Sicherheit
   name_en: Safety
-  type: simple.GenericNode
+  type: simple.WeightedSumNode
   quantity: ratio
   unit: dimensionless
   color: '#b3cde3'
@@ -313,6 +349,7 @@ nodes:
   output_dimensions: [causal_step, sector]
   input_datasets:
   - id: gpc/dinspec
+    tags: [input_node_weights]
     filters:
     - column: Slice
       value: Safety
@@ -325,11 +362,20 @@ nodes:
     - id: sector
     - id: causal_step
       categories: [activity_shift]
+  - id: baseline
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: causal_step
+      flatten: true
+    to_dimensions:
+    - id: sector
+    - id: causal_step
+      categories: [characteristic]
 
 - id: comfort
   name_de: Komfort
   name_en: Comfort
-  type: simple.GenericNode
+  type: simple.WeightedSumNode
   quantity: ratio
   unit: dimensionless
   color: '#b3cde3'
@@ -337,6 +383,7 @@ nodes:
   output_dimensions: [causal_step, sector]
   input_datasets:
   - id: gpc/dinspec
+    tags: [input_node_weights]
     filters:
     - column: Slice
       value: Comfort
@@ -349,11 +396,19 @@ nodes:
     - id: sector
     - id: causal_step
       categories: [activity_shift]
+  - id: baseline
+    from_dimensions:
+    - id: causal_step
+      flatten: true
+    to_dimensions:
+    - id: sector
+    - id: causal_step
+      categories: [characteristic]
 
 - id: status
   name_de: Status
   name_en: Status
-  type: simple.GenericNode
+  type: simple.WeightedSumNode
   quantity: ratio
   unit: dimensionless
   color: '#b3cde3'
@@ -361,6 +416,7 @@ nodes:
   output_dimensions: [causal_step, sector]
   input_datasets:
   - id: gpc/dinspec
+    tags: [input_node_weights]
     filters:
     - column: Slice
       value: Status
@@ -373,11 +429,19 @@ nodes:
     - id: sector
     - id: causal_step
       categories: [activity_shift]
+  - id: baseline
+    from_dimensions:
+    - id: causal_step
+      flatten: true
+    to_dimensions:
+    - id: sector
+    - id: causal_step
+      categories: [characteristic]
 
 - id: fairness
   name_de: Gereichtigkeit
   name_en: Fairness
-  type: simple.GenericNode
+  type: simple.WeightedSumNode
   quantity: ratio
   unit: dimensionless
   color: '#b3cde3'
@@ -385,6 +449,7 @@ nodes:
   output_dimensions: [causal_step, sector]
   input_datasets:
   - id: gpc/dinspec
+    tags: [input_node_weights]
     filters:
     - column: Slice
       value: Fairness
@@ -397,11 +462,20 @@ nodes:
     - id: sector
     - id: causal_step
       categories: [activity_shift]
+  - id: baseline
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: causal_step
+      flatten: true
+    to_dimensions:
+    - id: sector
+    - id: causal_step
+      categories: [characteristic]
 
 - id: health
   name_de: Gesundheit
   name_en: Health
-  type: simple.GenericNode
+  type: simple.WeightedSumNode
   quantity: ratio
   unit: dimensionless
   color: '#b3cde3'
@@ -409,6 +483,7 @@ nodes:
   output_dimensions: [causal_step, sector]
   input_datasets:
   - id: gpc/dinspec
+    tags: [input_node_weights]
     filters:
     - column: Slice
       value: Health
@@ -421,11 +496,20 @@ nodes:
     - id: sector
     - id: causal_step
       categories: [activity_shift]
+  - id: baseline
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: causal_step
+      flatten: true
+    to_dimensions:
+    - id: sector
+    - id: causal_step
+      categories: [characteristic]
 
 - id: affordability
   name_de: Erschwinglichkeit
   name_en: Affordability
-  type: simple.GenericNode
+  type: simple.WeightedSumNode
   quantity: ratio
   unit: dimensionless
   color: '#b3cde3'
@@ -433,6 +517,7 @@ nodes:
   output_dimensions: [causal_step, sector]
   input_datasets:
   - id: gpc/dinspec
+    tags: [input_node_weights]
     filters:
     - column: Slice
       value: Affordability
@@ -445,8 +530,21 @@ nodes:
     - id: sector
     - id: causal_step
       categories: [activity_shift]
+  - id: baseline
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: causal_step
+      flatten: true
+    to_dimensions:
+    - id: sector
+    - id: causal_step
+      categories: [characteristic]
 
 # Activity shift
+
+# FIXME Convert to percentages
+# Make parameter valeues realistic
+# Check signs in paramters
 
 - id: shift_from_cars_to_bikes
   name_de: Verlagerung von Autos auf Fahrräder
@@ -591,6 +689,25 @@ nodes:
     filters:
     - column: Slice
       value: Reduced Noise
+
+- id: baseline
+  name_en: Baseline
+  type: simple.LogitNode
+  quantity: fraction
+  unit: dimensionless
+  color: '#b3cde3'
+  input_dimensions: [causal_step, sector]
+  output_dimensions: [causal_step, sector]
+  input_datasets:
+  - id: gpc/dinspec
+    filters:
+    - column: Slice
+      value: Car baseline fraction
+  - id: gpc/dinspec
+    tags: [input_node_weights]
+    filters:
+    - column: Slice
+      value: Weights for shift from cars to bicycles
 
 # Utility # TODO Utilities are needed for further development, not for demonstration
 
