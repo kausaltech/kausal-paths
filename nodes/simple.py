@@ -998,10 +998,17 @@ class LeverNode(GenericNode):
         if not lever.is_enabled():
             return df
         dfl = lever.get_output_pl(target_node=self)
-        if len(df) != len(dfl):
-            s = f"({len(dfl)} rows) as the affected node {self.id} ({len(df)} rows)"
-            raise NodeError(self, f"Lever {lever.id} must have the same structure {s}")
-        return dfl
+        out = df.paths.join_over_index(dfl, how='left', index_from='left')
+        out = out.with_columns(
+            (pl.when(pl.col(FORECAST_COLUMN))
+            .then(pl.col(VALUE_COLUMN + '_right'))
+            .otherwise(pl.col(VALUE_COLUMN))).alias(VALUE_COLUMN)
+        )
+        out = out.drop(VALUE_COLUMN + '_right')
+        if len(df) != len(out):
+            s = f"({len(out)} rows) as the affected node {self.id} ({len(df)} rows)"
+            raise NodeError(self, f"Lever {lever.id} must result in the same structure {s}")
+        return out
 
 
 class WeightedSumNode(GenericNode):
@@ -1077,22 +1084,26 @@ class LogitNode(WeightedSumNode):
 
     def compute(self) -> ppl.PathsDataFrame:
         df = self.combine_weighted_node_outputs()
+        df = df.ensure_unit(VALUE_COLUMN, 'dimensionless')
 
-        if df is not None:
-            return df
-        df_obs = self.get_input_dataset_pl()
+        # if df is not None:
+        #     return df
+        df_obs = self.get_input_dataset_pl('observations')
 
         if df_obs is None:
             raise NodeError(self, f"LogitNode {self.id} must have one dataset for baseline values.")
+        df_obs = df_obs.ensure_unit(VALUE_COLUMN, 'dimensionless')
         test = df_obs.with_columns(
             (pl.lit(0.0) < pl.col(VALUE_COLUMN)) & (pl.col(VALUE_COLUMN) < pl.lit(1.0))
             )['literal'].all()
         if not test:
             raise NodeError(self, f"All values in {self.id} must be between 0 and 1, exclusive.")
-        df_obs = df_obs.with_columns((pl.col(VALUE_COLUMN) / (pl.lit(1.0) - pl.col(VALUE_COLUMN))).log().alias('a'))
-        df = super().compute()
+        df_obs = df_obs.with_columns((pl.col(VALUE_COLUMN) / (pl.lit(1.0) - pl.col(VALUE_COLUMN))).log().alias(VALUE_COLUMN))
+        df = df.paths.join_over_index(df_obs, how='outer', index_from='left') # FIXME Use DF sum instead
+        df = df.sum_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN).drop(VALUE_COLUMN + '_right')
         expr = pl.lit(1.0) / (pl.lit(1.0) + (pl.lit(-1.0) * pl.col(VALUE_COLUMN)).exp())
         df = df.with_columns(expr.alias(VALUE_COLUMN))
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
 
         return df
 
