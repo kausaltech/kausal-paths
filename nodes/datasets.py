@@ -16,7 +16,7 @@ from numpy.random import default_rng  # TODO Could call Generator to give hints 
 
 from common import polars as ppl
 from nodes.calc import extend_last_historical_value_pl
-from nodes.units import Unit
+from nodes.units import Unit, unit_registry
 
 from .constants import FORECAST_COLUMN, UNCERTAINTY_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 
@@ -496,13 +496,51 @@ class GenericDataset(DVCDataset):
     )
 
     def implement_unit_col(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        df = df.set_unit(VALUE_COLUMN, df['Unit'].unique()[0])
-        df = df.drop('Unit')
-        return df
+        """Create separate metric columns for each unique unit in the DataFrame."""
+        if 'Unit' not in df.columns:
+            return df
+
+        unique_units = df['Unit'].unique()
+        if len(unique_units) == 1:
+            df = df.set_unit(VALUE_COLUMN, unique_units[0])
+            df = df.drop('Unit')
+            return df
+
+        meta = df.get_meta()
+        result = df.copy()
+
+        new_units = meta.units.copy()
+        if VALUE_COLUMN in new_units:
+            del new_units[VALUE_COLUMN]
+
+        # Create a new metric column for each unit
+        for unit_str in unique_units:
+            column_name = f"{VALUE_COLUMN}_{unit_str.replace('/', '_per_')}"
+
+            # Create a filtered column with values only where Unit matches
+            result = result.with_columns(
+                pl.when(pl.col('Unit') == unit_str)
+                .then(pl.col(VALUE_COLUMN))
+                .otherwise(None)
+                .alias(column_name)
+            )
+
+            # Add unit to metadata
+            unit = unit_registry.parse_units(unit_str)
+            new_units[column_name] = unit
+
+        result = result.drop([VALUE_COLUMN, 'Unit'])
+        new_meta = ppl.DataFrameMeta(
+            primary_keys=meta.primary_keys,
+            units=new_units
+        )
+
+        return ppl.to_ppdf(result, meta=new_meta)
 
     # -----------------------------------------------------------------------------------
     def convert_names_to_ids(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
         exset = {YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN, UNCERTAINTY_COLUMN, 'Unit', 'UUID'}
+        exset |= {col for col in df.columns if col.startswith(f"{VALUE_COLUMN}_")}
 
         # Convert index level names from labels to IDs.
         collookup = {}

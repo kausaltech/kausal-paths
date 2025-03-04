@@ -181,14 +181,16 @@ class SimpleNode(Node):
 
 
 class GenericNode(SimpleNode):
-    """
-    A base node class that handles common operations for combining input nodes.
+    explanation = _(
+        """
+        GenericNode: A base node class that handles common operations for combining input nodes.
 
-    The node processes inputs in this order:
-    1. Multiply all multiplicative nodes (tagged 'non_additive')
-    2. Add all additive nodes (tagged 'additive' or having compatible units)
-    3. Process remaining nodes ('other_node') in compute() implementation
-    """
+        The node processes inputs in this order:
+        1. Multiply all multiplicative nodes (tagged 'non_additive')
+        2. Add all additive nodes (tagged 'additive' or having compatible units)
+        3. Process remaining nodes ('other_node') in compute() implementation
+        """
+    )
 
     def _get_input_nodes(self, nodes: list[Node], tag: str | None = None) -> list[Node]:
         matching_nodes = []
@@ -379,7 +381,7 @@ class SubtractiveNode(Node): # FIXME Remove, when you clean Longmont.
         ),
     ]
 
-    def compute(self):
+    def compute(self) -> ppl.PathsDataFrame:
         nodes = list(self.input_nodes)
         mults = [1.0 if i == 0 else -1.0 for i, _ in enumerate(nodes)]
         df = self.add_nodes_pl(None, nodes, node_multipliers=mults)
@@ -400,7 +402,7 @@ class SectorEmissions(AdditiveNode):
         StringParameter(local_id='category', description='Category id for the emission sector dimension', is_customizable=False),
     ]
 
-    def compute(self):
+    def compute(self) -> ppl.PathsDataFrame:
         val = self.get_parameter_value('category', required=False)
         if val is not None:
             df = self.get_input_dataset_pl()
@@ -723,7 +725,7 @@ class MixNode(AdditiveNode):
         df = df.ensure_unit(m.column_id, m.unit)
         return df
 
-    def compute(self):
+    def compute(self) -> ppl.PathsDataFrame:
         anode = self.get_input_node(tag='activity')
         adf = anode.get_output_pl(target_node=self)
         am = anode.get_default_output_metric()
@@ -846,7 +848,7 @@ class ImprovementNode(MultiplicativeNode): # FIXME Remove, when you clean Longmo
     Can only be used for dimensionless content (i.e., fractions and percentages)
     """)
 
-    def compute(self):
+    def compute(self) -> ppl.PathsDataFrame:
         if len(self.input_nodes) == 1:
             node = self.input_nodes[0]
             df = node.get_output_pl(target_node=self)
@@ -865,7 +867,7 @@ class ImprovementNode2(MultiplicativeNode): # FIXME Remove, when you clean Longm
     Can only be used for dimensionless content (i.e., fractions and percentages)
     """)
 
-    def compute(self):
+    def compute(self) -> ppl.PathsDataFrame:
         if len(self.input_nodes) == 1:
             node = self.input_nodes[0]
             df = node.get_output_pl(target_node=self)
@@ -916,7 +918,7 @@ class FillNewCategoryNode(AdditiveNode):
         StringParameter(local_id='new_category'),
     ]
 
-    def compute(self):
+    def compute(self) -> ppl.PathsDataFrame:
         category = self.get_parameter_value_str('new_category', required=True)
         dim, cat = category.split(':')
 
@@ -982,12 +984,10 @@ class FillNewCategoryNode2(AdditiveNode): # FIXME Merge into FillNewCategoryNode
 
 class LeverNode(GenericNode):
     explanation = _(
-        """
-        LeverNode replaces the upstream computation completely, is the lever is enabled.
-        """
+        """LeverNode replaces the upstream computation completely, if the lever is enabled."""
     )
 
-    def compute(self):
+    def compute(self) -> ppl.PathsDataFrame:
         df = super().compute()
         lever = self.get_input_node(tag='other_node', required=True)
         return self.override_with_lever(df, lever)
@@ -1002,6 +1002,99 @@ class LeverNode(GenericNode):
             s = f"({len(dfl)} rows) as the affected node {self.id} ({len(df)} rows)"
             raise NodeError(self, f"Lever {lever.id} must have the same structure {s}")
         return dfl
+
+
+class WeightedSumNode(GenericNode):
+    explanation = _(
+        """Calculates the sum of input nodes, weighted by each node's weights."""
+    )
+
+    def combine_weighted_node_outputs(self):
+        """Combine node outputs weighted by values in a multidimensional weights DataFrame."""
+        weights_df = self.get_input_dataset_pl(tag='input_node_weights', required=False)
+        if weights_df is None:
+            return None
+        node_map = {node.id: node for node in self.input_nodes}
+        result = None
+
+        # Process each unique node in the weights dataframe
+        for node_id in weights_df['node'].unique():
+            if node_id not in node_map:
+                self.logger.warning(f"Node {node_id} not found in input nodes")
+                continue
+
+            node = node_map[node_id]
+            node_output = node.get_output_pl(target_node=self)
+
+            node_weights = weights_df.filter(pl.col('node') == node_id).drop('node')
+
+            # Find the metric column that has non-null values for this node
+            valid_metric = None
+            metrics = node_weights.metric_cols.copy()
+            for col in node_weights.metric_cols:
+                if col in node_weights.columns and node_weights[col].null_count() < len(node_weights):
+                    valid_metric = col
+                    metrics.remove(col)
+                    break
+            node_weights = node_weights.drop(metrics)
+            if not valid_metric:
+                raise NodeError(self, f"No valid metric column found for weight dataset in node {node_id}")
+
+            # Create a version with this metric renamed to VALUE_COLUMN
+            if valid_metric != VALUE_COLUMN:
+                node_weights = node_weights.rename({valid_metric: VALUE_COLUMN})
+
+            weighted_output = node_output.paths.multiply_with_dims(node_weights, how='inner')
+
+            # Add to result (first time initializes, subsequent adds)
+            if result is None:
+                result = weighted_output
+            else:
+                result = result.paths.add_with_dims(weighted_output, how='outer')
+
+        if result is None:
+            raise NodeError(self, "No matching nodes found in weights DataFrame for {self.id}")
+
+        return result
+
+    def compute(self) -> ppl.PathsDataFrame:
+        return self.combine_weighted_node_outputs()
+
+class LogitNode(WeightedSumNode):
+    explanation = _(
+        """
+        LogitNode gives a probability of event given a baseline and several determinants.
+
+        The baseline is given as a dataset of observed values. The determinants are linearly
+        related to the logit of the probability:
+        ln(y / (1 - y)) = a + sum_i(b_i * X_i,)
+        where y is the probability, a is baseline, X_i determinants and b_i coefficients.
+        The node expects that a comes from dataset and sum_i(b_i * X_i,) is given by the input nodes
+        when operated with the GenericNode compute(). The probability is calculated as
+        ln(y / (1 - y)) = b <=> y = 1 / (1 + exp(-b)).
+        """
+    )
+
+    def compute(self) -> ppl.PathsDataFrame:
+        df = self.combine_weighted_node_outputs()
+
+        if df is not None:
+            return df
+        df_obs = self.get_input_dataset_pl()
+
+        if df_obs is None:
+            raise NodeError(self, f"LogitNode {self.id} must have one dataset for baseline values.")
+        test = df_obs.with_columns(
+            (pl.lit(0.0) < pl.col(VALUE_COLUMN)) & (pl.col(VALUE_COLUMN) < pl.lit(1.0))
+            )['literal'].all()
+        if not test:
+            raise NodeError(self, f"All values in {self.id} must be between 0 and 1, exclusive.")
+        df_obs = df_obs.with_columns((pl.col(VALUE_COLUMN) / (pl.lit(1.0) - pl.col(VALUE_COLUMN))).log().alias('a'))
+        df = super().compute()
+        expr = pl.lit(1.0) / (pl.lit(1.0) + (pl.lit(-1.0) * pl.col(VALUE_COLUMN)).exp())
+        df = df.with_columns(expr.alias(VALUE_COLUMN))
+
+        return df
 
 
 class ChooseInputNode(AdditiveNode):
@@ -1033,7 +1126,7 @@ class RelativeYearScaledNode(AdditiveNode):
         *AdditiveNode.allowed_parameters,
         NumberParameter(local_id='reference_year', label='The year whose values are used for scaling')
     ]
-    def compute(self):
+    def compute(self) -> ppl.PathsDataFrame:
         df = AdditiveNode.compute(self)
         year = self.get_parameter_value('reference_year', required=False)
         if not year:
