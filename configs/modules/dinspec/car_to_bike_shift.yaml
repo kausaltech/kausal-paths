@@ -22,14 +22,13 @@ actions:
   quantity: ratio
   unit: dimensionless
   color: '#2ca25f' # FIXME Does not change color
+  group: lever
   input_dimensions: [causal_step, sector]
   output_dimensions: [causal_step, sector]
   input_datasets:
   - id: gpc/dinspec
     filters:
     - column: Slice
-      value: Lever affecting cars and bikes directly
-    - column: Action
       value: Lever affecting cars and bikes directly
   params:
   - id: multiplier
@@ -57,21 +56,20 @@ actions:
 
 - id: municipal_package_delivery_by_bicycle
   name_de: Paketzustellung der Kommune mit dem Rad
-  name_en: Municipal Package Delivery by Bicycle
-  type: gpc.DatasetActionMFM
+  name_en: Municipal package delivery by bicycle
+  type: simple.GenericAction
   quantity: number
   unit: pcs/cap/a
-  input_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
-  output_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
+  group: supply
+  input_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration, sector]
+  output_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration, sector]
   input_datasets:
   - id: gpc/dinspec
     filters:
     - column: Slice
       value: Municipal Package Delivery by Bicycle
-  params:
-    action: Municipal Package Delivery by Bicycle
   output_nodes:
-  - id: shift_from_cars_to_bikes
+  - id: fraction_of_car_trips
     tags: [additive, ignore_content]
     from_dimensions:
     - id: action_type
@@ -86,25 +84,23 @@ actions:
       flatten: true 
     to_dimensions:
     - id: sector
-      categories: [transport]
     - id: causal_step
       categories: [activity_shift]
 
 - id: amendment_of_parking_space_ordinance
   name_de: Änderung Stellplatzsatzung
-  name_en: Amendment of Parking Space Ordinance
-  type: gpc.DatasetActionMFM
+  name_en: Amendment of parking space ordinance
+  type: simple.GenericAction
   quantity: number
   unit: pcs/cap
-  input_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
-  output_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
+  group: regulation
+  input_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration, sector]
+  output_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration, sector]
   input_datasets:
   - id: gpc/dinspec
     filters:
     - column: Slice
       value: Amendment of Parking Space Ordinance
-  params:
-    action: Amendment of Parking Space Ordinance
   output_nodes:
   - id: number_of_bicycle_parking_spaces
     from_dimensions:
@@ -118,24 +114,22 @@ actions:
       flatten: true
     to_dimensions:
     - id: sector
-      categories: [transport]
     - id: causal_step
 
 - id: expansion_and_improvement_of_bicycle_infrastructure
   name_de: Ausbau und Verbesserung Nutzbarkeit der Rad-Infrastruktur
-  name_en: Expansion and Improvement of Bicycle Infrastructure
-  type: gpc.DatasetActionMFM
+  name_en: Expansion and improvement of bicycle infrastructure
+  type: simple.GenericAction
   quantity: length
   unit: km
-  input_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
-  output_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
+  group: supply
+  input_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration, sector]
+  output_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration, sector]
   input_datasets:
   - id: gpc/dinspec
     filters:
     - column: Slice
       value: Expansion and Improvement of Bicycle Infrastructure
-  params:
-    action: Expansion and Improvement of Bicycle Infrastructure
   output_nodes:
   - id: number_of_safe_cycling_kilometers
     from_dimensions:
@@ -149,24 +143,22 @@ actions:
       flatten: true
     to_dimensions:
     - id: sector
-      categories: [transport]
     - id: causal_step
 
 - id: visitor_parking_pricing
   name_de: Parkraumbepreisung Besucher*innen
-  name_en: Visitor Parking Pricing
-  type: gpc.DatasetActionMFM
+  name_en: Visitor parking pricing
+  type: simple.GenericAction
   quantity: unit_price
   unit: EUR/pcs/d
-  input_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
-  output_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
+  group: fiscal_incentive
+  input_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration, sector]
+  output_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration, sector]
   input_datasets:
   - id: gpc/dinspec
     filters:
     - column: Slice
       value: Visitor Parking Pricing
-  params:
-    action: Visitor Parking Pricing
   output_nodes:
   - id: parking_space_prices
     from_dimensions:
@@ -180,24 +172,22 @@ actions:
       flatten: true
     to_dimensions:
     - id: sector
-      categories: [transport]
     - id: causal_step
 
 - id: reduce_user_costs_for_environmentally_friendly_transport
   name_de: Nutzerkosten Umweltverbund reduzieren
-  name_en: Reduce User Costs for Environmentally Friendly Transport
-  type: gpc.DatasetActionMFM
+  name_en: Reduce user costs for environmentally friendly transport
+  type: simple.GenericAction
   quantity: unit_price
   unit: EUR/pcs
-  input_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
-  output_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration]
+  group: fiscal_incentive
+  input_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration, sector]
+  output_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration, sector]
   input_datasets:
   - id: gpc/dinspec
     filters:
     - column: Slice
       value: Reduce User Costs for Environmentally Friendly Transport
-  params:
-    action: Reduce User Costs for Environmentally Friendly Transport
   output_nodes:
   - id: public_transport_prices
     from_dimensions:
@@ -211,7 +201,6 @@ actions:
       flatten: true
     to_dimensions:
     - id: sector
-      categories: [transport]
     - id: causal_step
 
 nodes:
@@ -220,9 +209,9 @@ nodes:
 
 - id: number_of_bicycle_parking_spaces
   name_de: Anzahl Fahrrad-Parkplätze
-  name_en: Number of Bicycle Parking Spaces
+  name_en: Number of bicycle parking spaces
   type: simple.GenericNode
-  quantity: number
+  quantity: emissions # TODO Use number after fixing colors
   unit: pcs/inh
   color: '#fbb4ae'
   input_dimensions: [causal_step, sector]
@@ -242,9 +231,9 @@ nodes:
 
 - id: number_of_safe_cycling_kilometers # FIXME Why 67 km nii 2029 and 17 km in 2030? Actions are not extended.
   name_de: Anzahl sichere Radkilometer
-  name_en: Number of Safe Cycling Kilometers
+  name_en: Number of safe cycling kilometers
   type: simple.GenericNode
-  quantity: length
+  quantity: emissions # TODO Use length after fixing colors
   unit: km
   color: '#fbb4ae'
   input_dimensions: [causal_step, sector]
@@ -288,7 +277,7 @@ nodes:
 
 - id: parking_space_prices
   name_de: Parkplatzpreise
-  name_en: Parking Space Prices
+  name_en: Parking space prices
   type: simple.GenericNode
   quantity: unit_price
   unit: EUR/pcs/h
@@ -316,7 +305,7 @@ nodes:
 
 - id: public_transport_prices
   name_de: ÖPNV-Preise
-  name_en: Public Transport Prices
+  name_en: Public transport prices
   type: simple.GenericNode
   quantity: unit_price
   unit: EUR/pcs
@@ -342,7 +331,7 @@ nodes:
   name_de: Sicherheit
   name_en: Safety
   type: simple.WeightedSumNode
-  quantity: ratio
+  quantity: emissions # TODO Use ratio after fixing colors
   unit: dimensionless
   color: '#b3cde3'
   input_dimensions: [causal_step, sector]
@@ -354,7 +343,7 @@ nodes:
     - column: Slice
       value: Safety
   output_nodes:
-  - id: shift_from_cars_to_bikes
+  - id: fraction_of_car_trips
     from_dimensions:
     - id: causal_step
       flatten: true
@@ -362,21 +351,12 @@ nodes:
     - id: sector
     - id: causal_step
       categories: [activity_shift]
-  - id: baseline
-    tags: [arithmetic_inverse]
-    from_dimensions:
-    - id: causal_step
-      flatten: true
-    to_dimensions:
-    - id: sector
-    - id: causal_step
-      categories: [characteristic]
 
 - id: comfort
   name_de: Komfort
   name_en: Comfort
   type: simple.WeightedSumNode
-  quantity: ratio
+  quantity: emissions # TODO Use ratio after fixing colors
   unit: dimensionless
   color: '#b3cde3'
   input_dimensions: [causal_step, sector]
@@ -388,7 +368,7 @@ nodes:
     - column: Slice
       value: Comfort
   output_nodes:
-  - id: shift_from_cars_to_bikes
+  - id: fraction_of_car_trips
     from_dimensions:
     - id: causal_step
       flatten: true
@@ -396,20 +376,12 @@ nodes:
     - id: sector
     - id: causal_step
       categories: [activity_shift]
-  - id: baseline
-    from_dimensions:
-    - id: causal_step
-      flatten: true
-    to_dimensions:
-    - id: sector
-    - id: causal_step
-      categories: [characteristic]
 
 - id: status
   name_de: Status
   name_en: Status
   type: simple.WeightedSumNode
-  quantity: ratio
+  quantity: emissions # TODO Use ratio after fixing colors
   unit: dimensionless
   color: '#b3cde3'
   input_dimensions: [causal_step, sector]
@@ -421,7 +393,7 @@ nodes:
     - column: Slice
       value: Status
   output_nodes:
-  - id: shift_from_cars_to_bikes
+  - id: fraction_of_car_trips
     from_dimensions:
     - id: causal_step
       flatten: true
@@ -429,20 +401,12 @@ nodes:
     - id: sector
     - id: causal_step
       categories: [activity_shift]
-  - id: baseline
-    from_dimensions:
-    - id: causal_step
-      flatten: true
-    to_dimensions:
-    - id: sector
-    - id: causal_step
-      categories: [characteristic]
 
 - id: fairness
   name_de: Gereichtigkeit
   name_en: Fairness
   type: simple.WeightedSumNode
-  quantity: ratio
+  quantity: emissions # TODO Use ratio after fixing colors
   unit: dimensionless
   color: '#b3cde3'
   input_dimensions: [causal_step, sector]
@@ -454,7 +418,7 @@ nodes:
     - column: Slice
       value: Fairness
   output_nodes:
-  - id: shift_from_cars_to_bikes
+  - id: fraction_of_car_trips
     from_dimensions:
     - id: causal_step
       flatten: true
@@ -462,21 +426,12 @@ nodes:
     - id: sector
     - id: causal_step
       categories: [activity_shift]
-  - id: baseline
-    tags: [arithmetic_inverse]
-    from_dimensions:
-    - id: causal_step
-      flatten: true
-    to_dimensions:
-    - id: sector
-    - id: causal_step
-      categories: [characteristic]
 
 - id: health
   name_de: Gesundheit
   name_en: Health
   type: simple.WeightedSumNode
-  quantity: ratio
+  quantity: emissions # TODO Use ratio after fixing colors
   unit: dimensionless
   color: '#b3cde3'
   input_dimensions: [causal_step, sector]
@@ -488,7 +443,7 @@ nodes:
     - column: Slice
       value: Health
   output_nodes:
-  - id: shift_from_cars_to_bikes
+  - id: fraction_of_car_trips
     from_dimensions:
     - id: causal_step
       flatten: true
@@ -496,21 +451,12 @@ nodes:
     - id: sector
     - id: causal_step
       categories: [activity_shift]
-  - id: baseline
-    tags: [arithmetic_inverse]
-    from_dimensions:
-    - id: causal_step
-      flatten: true
-    to_dimensions:
-    - id: sector
-    - id: causal_step
-      categories: [characteristic]
 
 - id: affordability
   name_de: Erschwinglichkeit
   name_en: Affordability
   type: simple.WeightedSumNode
-  quantity: ratio
+  quantity: emissions # TODO Use ratio after fixing colors
   unit: dimensionless
   color: '#b3cde3'
   input_dimensions: [causal_step, sector]
@@ -522,7 +468,7 @@ nodes:
     - column: Slice
       value: Affordability
   output_nodes:
-  - id: shift_from_cars_to_bikes
+  - id: fraction_of_car_trips
     from_dimensions:
     - id: causal_step
       flatten: true
@@ -530,37 +476,50 @@ nodes:
     - id: sector
     - id: causal_step
       categories: [activity_shift]
-  - id: baseline
-    tags: [arithmetic_inverse]
-    from_dimensions:
-    - id: causal_step
-      flatten: true
-    to_dimensions:
-    - id: sector
-    - id: causal_step
-      categories: [characteristic]
 
 # Activity shift
 
 # FIXME Convert to percentages
-# Make parameter valeues realistic
 # Check signs in paramters
+
+- id: fraction_of_car_trips
+  name_en: Fraction of car trips
+  name_de: Anteil der Autofahrten
+  type: simple.LogitNode
+  quantity: emissions # TODO Use fraction after fixing colors
+  unit: '%'
+  color: '#ccebc5'
+  input_dimensions: [sector, causal_step]
+  output_dimensions: [sector, causal_step]
+  input_datasets:
+  - id: gpc/dinspec
+    tags: [input_node_weights]
+    filters:
+    - column: Slice
+      value: Weights for shift from cars to bicycles
+  - id: gpc/dinspec
+    tags: [observations]
+    filters:
+    - column: Slice
+      value: Car baseline fraction
 
 - id: shift_from_cars_to_bikes
   name_de: Verlagerung von Autos auf Fahrräder
   name_en: Shift from cars to bikes
   type: simple.LeverNode
-  quantity: fraction
+  quantity: emissions # TODO Use fraction after fixing colors
   unit: dimensionless
   color: '#ccebc5'
   input_dimensions: [sector, causal_step]
   output_dimensions: [sector, causal_step]
+  input_nodes:
+  - id: fraction_of_car_trips
 
 # Effect
 
 - id: ghg_emissions
-  name_de: THG emissionen
-  name_en: GHG emissions
+  name_en: Transport GHG emissions
+  name_de: Verkehrsbedingte THG-Emissionen
   type: simple.GenericNode
   quantity: emissions
   unit: kt/a
@@ -668,7 +627,7 @@ nodes:
   name_de: Lärmbelastung
   name_en: Noise pollution
   type: simple.GenericNode
-  quantity: exposure
+  quantity: emissions # TODO Use exposure after fixing colors
   unit: Lden
   color: '#decbe4'
   input_dimensions: [causal_step, sector]
@@ -689,25 +648,6 @@ nodes:
     filters:
     - column: Slice
       value: Reduced Noise
-
-- id: baseline
-  name_en: Baseline
-  type: simple.LogitNode
-  quantity: fraction
-  unit: dimensionless
-  color: '#b3cde3'
-  input_dimensions: [causal_step, sector]
-  output_dimensions: [causal_step, sector]
-  input_datasets:
-  - id: gpc/dinspec
-    filters:
-    - column: Slice
-      value: Car baseline fraction
-  - id: gpc/dinspec
-    tags: [input_node_weights]
-    filters:
-    - column: Slice
-      value: Weights for shift from cars to bicycles
 
 # Utility # TODO Utilities are needed for further development, not for demonstration
 

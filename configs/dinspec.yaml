@@ -4,7 +4,7 @@ supported_languages: [de]
 site_url: https://dinspec.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 1a7a2fc98cdbd9832b3a3a36e4b9c00c482242d4
+  commit: c27477d6486bcecbd9053abb360d1e00f2b7d431
   dvc_remote: kausal-s3
 name: Greenhouse Gas Inventory according to DINSpec 91637
 owner: Kausal
@@ -31,11 +31,23 @@ include:
 
 action_groups:
 - id: stationary
-  name: Stationary
-  color: '#4E79A7'
+  name: Stationary # TODO Make multilingual
+  color: '#1b9e77'
 - id: transportation
   name: Transportation
-  color: '#E15759'
+  color: '#d95f02'
+- id: lever
+  name: Levers
+  color: '#7570b3'
+- id: supply
+  name: Supply actions
+  color: '#e7298a'
+- id: regulation
+  name: Regulations
+  color: '#66a61e'
+- id: fiscal_incentive
+  name: Fiscal incentives
+  color: '#e6ab02'
 
 params:
 - id: municipality_name
