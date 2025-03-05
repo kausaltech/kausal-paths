@@ -123,7 +123,7 @@ class SimpleNode(Node):
             df = df.ensure_unit(right, meta.units[metric_col])
             df = df.with_columns([
                 pl.col(metric_col).fill_null(pl.col(right)),
-            ])
+            ]).drop(right)
         return df
 
     def maybe_drop_nulls(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
@@ -250,8 +250,7 @@ class GenericNode(SimpleNode):
         mult_nodes, add_nodes, other_nodes = self._get_categorized_inputs(nodes)
 
 
-        result = self.multiply_nodes_pl(df, mult_nodes, metric, keep_nodes, node_multipliers,
-                                      unit, start_from_year)
+        result = self.multiply_nodes_pl(df, mult_nodes, metric, unit, start_from_year)
         result = self.add_nodes_pl(result, add_nodes, metric, keep_nodes, node_multipliers,
                                    unit, start_from_year, ignore_unit=True)
 

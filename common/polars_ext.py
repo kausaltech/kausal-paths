@@ -330,129 +330,76 @@ class PathsExt:
             df = df.with_columns(cast_exprs)
         return df
 
-    def add_with_dims(self, odf: ppl.PathsDataFrame, how: Literal['left', 'outer'] = 'left') -> ppl.PathsDataFrame:
+    def add_with_dims(
+            self,
+            odf: ppl.PathsDataFrame,
+            how: Literal['left', 'inner', 'outer'] = 'outer'
+        ) -> ppl.PathsDataFrame:
+        """Add two PathsDataFrames with dimension awareness."""
         df = self._df
-        if len(df.metric_cols) != 1:
-            raise Exception("Currently adding only one metric column is supported")
+        if len(df.metric_cols) != 1 or len(odf.metric_cols) != 1:
+            raise Exception("Currently adding only one metric column is supported.")
         val_col = df.metric_cols[0]
 
+        if set(df.dim_ids) != set(odf.dim_ids):
+            raise ValueError(f"Dimensions must match for addition: {df.dim_ids} vs {odf.dim_ids}.")
+
+        # Ensure same unit for addition
         output_unit = df.get_unit(val_col)
-        meta = df.get_meta()
-        cols = df.columns
-        odf = odf.ensure_unit(val_col, output_unit).select([YEAR_COLUMN, *meta.dim_ids, val_col, FORECAST_COLUMN])
+        odf = odf.ensure_unit(val_col, output_unit)
 
-        for dim in meta.dim_ids:
-            dt = df[dim].dtype
-            if odf[dim].dtype != dt:
-                odf = odf.with_columns([pl.col(dim).cast(df[dim].dtype)])
+        # For addition: how='outer', index_from='left' because we want all rows but not new dimensions
+        jdf = df.paths.join_over_index(
+            odf,
+            how=how,
+            index_from='left'
+        )
 
-        left_fc = pl.col(FORECAST_COLUMN)
-        right_fc = pl.col(FORECAST_COLUMN + '_right')
-        left_val = pl.col(val_col)
-        right_val = pl.col(val_col + '_right')
-        pl_how: pl_types.JoinStrategy = how
-        if how == 'outer':
-            left_fc = left_fc.fill_null(value=False)
-            right_fc = right_fc.fill_null(value=False)
-
-            left_val = left_val.fill_null(0)
-            right_val = right_val.fill_null(0)
-            pl_how = 'outer_coalesce'
-        elif how == 'left':
-            right_fc = right_fc.fill_null(value=False)
-            right_val = right_val.fill_null(value=False)
-
-        df = ppl.to_ppdf(df.join(odf, on=[YEAR_COLUMN, *meta.dim_ids], how=pl_how), meta=meta) # FIXME Use join_over_index
-        df = df.with_columns([
-            left_val + right_val,
-            left_fc | right_fc,
+        jdf = jdf.with_columns([
+            (pl.col(val_col).fill_null(0.0) + pl.col(f"{val_col}_right").fill_null(0.0)).alias(val_col)
         ])
-        df = df.select(cols)
-        return df
+
+        cols = [YEAR_COLUMN, FORECAST_COLUMN, val_col] + df.dim_ids
+        jdf = jdf.select([col for col in cols if col in jdf.columns])
+
+        return jdf
 
     def multiply_with_dims(
-        self,
-        odf: ppl.PathsDataFrame,
-        how: Literal['left', 'inner', 'outer'] = 'left'
-    ) -> ppl.PathsDataFrame:
+            self,
+            odf: ppl.PathsDataFrame,
+            how: Literal['left', 'inner', 'outer'] = 'inner'
+        ) -> ppl.PathsDataFrame:
         """Multiply two PathsDataFrames, handling dimensions and units properly."""
         df = self._df
         if len(df.metric_cols) != 1 or len(odf.metric_cols) != 1:
-            raise Exception("Currently multiplying only one metric column is supported")
+            raise Exception("Currently multiplying only one metric column is supported.")
         val_col = df.metric_cols[0]
 
-        # Get and calculate output unit (product of input units)
         left_unit = df.get_unit(val_col)
         right_unit = odf.get_unit(val_col)
-        output_unit = left_unit * right_unit  # Units multiply
-
+        output_unit = left_unit * right_unit
         meta = df.get_meta()
+        all_dims = list(set(df.dim_ids) | set(odf.dim_ids)) + [YEAR_COLUMN]
 
-        # Get dimensions for joining and result
-        all_dims = list(set(df.dim_ids) | set(odf.dim_ids))
-        join_dims = list(set(df.dim_ids) & set(odf.dim_ids))
+        # For multiplication: how='inner', index_from='union' to ensure both factors and include all dimensions
+        jdf = df.paths.join_over_index(
+            odf,
+            how=how,
+            index_from='union'
+        )
 
-        # Ensure dimension columns have matching types for join
-        for dim in join_dims:
-            dt = df[dim].dtype
-            if odf[dim].dtype != dt:
-                odf = odf.with_columns([pl.col(dim).cast(df[dim].dtype)])
+        jdf = jdf.with_columns([
+            (pl.col(val_col) * pl.col(f"{val_col}_right")).alias(val_col) # null factor must give null
+        ])
 
-        # Setup column references
-        left_fc = pl.col(FORECAST_COLUMN)
-        right_fc = pl.col(FORECAST_COLUMN + '_right')
-        left_val = pl.col(val_col)
-        right_val = pl.col(val_col + '_right')
-
-        # Handle different join strategies
-        pl_how: pl_types.JoinStrategy = how
-        if how == 'outer':
-            left_fc = left_fc.fill_null(value=True)
-            right_fc = right_fc.fill_null(value=True)
-            left_val = left_val.fill_null(1)  # For multiplication, use 1 as identity
-            right_val = right_val.fill_null(1)
-            pl_how = 'outer_coalesce'
-        elif how == 'left':
-            right_fc = right_fc.fill_null(value=True)
-            right_val = right_val.fill_null(1)  # For multiplication, use 1 as identity
-        elif how == 'inner':
-            pass  # Use inner join as-is
-        else:
-            raise ValueError(f"Invalid join strategy: {how}")
-
-        # Join dataframes on common dimensions
-        joined_df = df.join(odf, on=[YEAR_COLUMN, *join_dims], how=pl_how) # FIXME Use join_over_index
-
-        # Update unit for the multiplied column
         new_units = meta.units.copy()
         new_units[val_col] = output_unit
 
-        # Update primary keys to include all dimensions
-        new_primary_keys = [YEAR_COLUMN] + all_dims
+        cols = [FORECAST_COLUMN, val_col] + all_dims
+        jdf = jdf.select([col for col in cols if col in jdf.columns])
 
-        # # Handle any columns with _right suffix that need to be renamed
-        # rename_dict = {}
-        # for col in joined_df.columns:
-        #     if col.endswith('_right') and col != f"{val_col}_right" and col != f"{FORECAST_COLUMN}_right":
-        #         original_name = col[:-6]  # Remove _right suffix
-        #         if original_name not in joined_df.columns:
-        #             rename_dict[col] = original_name
-
-        # if rename_dict:
-        #     joined_df = joined_df.rename(rename_dict)
-
-        # Perform multiplication and handle forecast column
-        result_df = joined_df.with_columns([
-            (left_val * right_val).alias(val_col),
-            (left_fc | right_fc).alias(FORECAST_COLUMN)
-        ])
-
-        cols_to_keep = [YEAR_COLUMN, FORECAST_COLUMN, val_col] + all_dims
-        result_df = result_df.select([col for col in cols_to_keep if col in result_df.columns])
-
-        # Apply updated metadata with new unit and dimensions
-        new_meta = ppl.DataFrameMeta(primary_keys=new_primary_keys, units=new_units)
-        return ppl.to_ppdf(result_df, meta=new_meta)
+        new_meta = ppl.DataFrameMeta(primary_keys=all_dims, units=new_units)
+        return ppl.to_ppdf(jdf, meta=new_meta)
 
     def add_df(self, odf: ppl.PathsDataFrame, how: Literal['left', 'outer'] = 'left') -> ppl.PathsDataFrame:
         df = self._df
