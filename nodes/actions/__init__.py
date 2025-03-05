@@ -1,3 +1,10 @@
-from .action import ActionNode, ActionEfficiencyPair, ActionEfficiency, ActionGroup
+from __future__ import annotations
 
-__all__ = [ActionNode, ActionEfficiencyPair, ActionEfficiency, ActionGroup]
+from typing import TYPE_CHECKING
+
+from .action import ActionGroup, ActionImpact, ActionNode, ImpactOverview
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+__all__: Sequence[str] = ["ActionNode", "ImpactOverview", "ActionImpact", "ActionGroup"]

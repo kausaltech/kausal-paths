@@ -26,7 +26,7 @@ action_groups:
   name: Forest industry
   color: '#50c878'
 
-action_efficiency_pairs:
+impact_overviews:
 # - graph_type: cost_efficiency
 #   cost_node: action_costs
 #   impact_node: total_cost
