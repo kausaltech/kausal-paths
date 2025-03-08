@@ -183,100 +183,129 @@ class SimpleNode(Node):
 class GenericNode(SimpleNode):
     explanation = _(
         """
-        GenericNode: A base node class that handles common operations for combining input nodes.
+        GenericNode: A highly configurable node that processes inputs through a sequence of operations.
 
-        The node processes inputs in this order:
-        1. Multiply all multiplicative nodes (tagged 'non_additive')
-        2. Add all additive nodes (tagged 'additive' or having compatible units)
-        3. Process remaining nodes ('other_node') in compute() implementation
+        Operations are defined in the 'operations' parameter and executed in order.
+        Each operation works on its corresponding basket of nodes.
         """
     )
+    allowed_parameters = [
+        *SimpleNode.allowed_parameters,
+        StringParameter(local_id='operations', label='Comma-separated list of operations to execute in order')
+    ]
 
-    def _get_input_nodes(self, nodes: list[Node], tag: str | None = None) -> list[Node]:
-        matching_nodes = []
+    def _get_input_baskets(self, nodes: list[Node]) -> dict[str, list[Node]]:
+        """Return a dictionary of node 'baskets' categorized by type."""
+        baskets: dict = {
+            'additive': [],
+            'multiplicative': [],
+            'other': []
+        }
+
+        # Categorize nodes by tags first
         for edge in self.edges:
-            if edge.output_node != self:
+            if edge.output_node != self or edge.input_node not in nodes:
                 continue
+
             node = edge.input_node
-            if node not in nodes:
-                continue
-            if tag is not None and tag not in edge.tags and tag not in node.tags: # TODO Why node.tags here?
-                continue
-            matching_nodes.append(node)
-        return matching_nodes
-
-    def _get_categorized_inputs(self, nodes: list[Node]) -> tuple[list[Node], list[Node], list[Node]]:
-        """
-        Categorize input nodes into multiplicative, additive and other nodes.
-
-        Returns:
-            tuple of (multiplicative_nodes, additive_nodes, other_nodes)
-
-        """
-        additive_nodes = self._get_input_nodes(nodes, tag='additive')
-        multiplicative_nodes = self._get_input_nodes(nodes, tag='non_additive')
-        other_nodes = self._get_input_nodes(nodes, tag='other_node')
-        listed_nodes = [*additive_nodes, *multiplicative_nodes, *other_nodes]
-
-        # Nodes are additive if they have compatible units and no other classification
-        for node in nodes:
-            if node in listed_nodes:
-                continue
-
-            if self.is_compatible_unit(self.unit, node.unit):
-                additive_nodes.append(node)
+            if 'additive' in edge.tags or 'additive' in node.tags:
+                baskets['additive'].append(node)
+            elif 'non_additive' in edge.tags or 'non_additive' in node.tags:
+                baskets['multiplicative'].append(node)
+            elif 'other_node' in edge.tags or 'other_node' in node.tags:
+                baskets['other'].append(node)
+            elif self.is_compatible_unit(self.unit, node.unit):
+                baskets['additive'].append(node)
             else:
-                multiplicative_nodes.append(node)
+                baskets['multiplicative'].append(node)
 
-        return multiplicative_nodes, additive_nodes, other_nodes
+        return baskets
 
-    def run_implicit_operations(
-            self,
-            df: ppl.PathsDataFrame | None = None,
-            nodes: list[Node] | None = None,
-            metric: str | None = None,
-            keep_nodes: bool = False,
-            node_multipliers: list[float] | None = None,
-            unit: Unit | None = None,
-            start_from_year: int | None = None,
-            ) -> tuple[ppl.PathsDataFrame | None, list[Node]]:
-        """
-        Process all inputs according to their categories.
+    # Operation wrapper functions
+    def _operation_multiply(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        """Multiply all nodes in the multiplicative basket."""
+        nodes = baskets['multiplicative']
+        if nodes and len(nodes) > 0:
+            df = self.multiply_nodes_pl(
+                df=df,
+                nodes=nodes,
+                metric=kwargs.get('metric'),
+                unit=kwargs.get('unit'),
+                start_from_year=kwargs.get('start_from_year')
+            )
+        return df, baskets
 
-        Returns the combined result of multiplicative and additive nodes.
-        """
-        if nodes is None:
-            nodes = self.input_nodes
-        mult_nodes, add_nodes, other_nodes = self._get_categorized_inputs(nodes)
+    def _operation_add(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        """Add all nodes in the additive basket."""
+        nodes = baskets['additive']
+        if nodes and len(nodes) > 0:
+            df = self.add_nodes_pl(
+                df=df,
+                nodes=nodes,
+                metric=kwargs.get('metric'),
+                keep_nodes=kwargs.get('keep_nodes', False),
+                node_multipliers=kwargs.get('node_multipliers'),
+                unit=kwargs.get('unit'),
+                start_from_year=kwargs.get('start_from_year'),
+                ignore_unit=True
+            )
+        return df, baskets
 
+    def _operation_other(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        """Process other nodes - to be implemented by subclasses."""
+        if type(self) is GenericNode and len(baskets['other']) > 0:
+            raise NodeError(self, f"Generic node {self.id} cannot handle 'other' nodes.")
+        return df, baskets
 
-        result = self.multiply_nodes_pl(df, mult_nodes, metric, unit, start_from_year)
-        result = self.add_nodes_pl(result, add_nodes, metric, keep_nodes, node_multipliers,
-                                   unit, start_from_year, ignore_unit=True)
-
-        return result, other_nodes
-
-    def compute(self) -> ppl.PathsDataFrame:
-        """
-        To be implemented by subclasses to define specific behavior.
-
-        Base implementation just returns the result of process_inputs().
-        """
-        df = self.get_input_dataset_pl(required=False)
-        df, other_nodes = self.run_implicit_operations(df)
-
+    def _operation_apply_multiplier(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        """Apply the node's multiplier parameter to the dataframe."""
         if df is None:
-            raise NodeError(self, "No input nodes to process")
-
-        if type(self) is GenericNode and len(other_nodes) > 0:
-            raise NodeError(self, f"Generic node {self.id} cannot have other than additive or multiplicative input nodes.")
-
+            raise NodeError(self, "Cannot apply multiplier because no PathsDataFrame is available.")
         mult = self.get_parameter_value('multiplier', required=False, units=True)
         if mult:
             df = df.multiply_quantity(VALUE_COLUMN, mult)
+        return df, baskets
+
+    # Registry of available operations
+    OPERATIONS = {
+        'multiply': _operation_multiply,
+        'add': _operation_add,
+        'other': _operation_other,
+        'apply_multiplier': _operation_apply_multiplier, # Does not work for non-dimensionless units. (Due to baseline values?)
+    }
+
+    def compute(self) -> ppl.PathsDataFrame:
+        """Process inputs according to the operations sequence."""
+        # Get operation sequence from parameter
+        operations_str = self.get_parameter_value_str('operations', required=False) or 'multiply,add,other,apply_multiplier'
+        operations = [op.strip() for op in operations_str.split(',')]
+
+        # Get input dataset and categorize nodes
+        df = self.get_input_dataset_pl(required=False)
+        baskets = self._get_input_baskets(self.input_nodes)
+
+        kwargs = {
+            'metric': None,
+            'unit': self.unit,
+            'start_from_year': None,
+            'keep_nodes': False,
+            'node_multipliers': None
+        }
+
+        # Apply operations in sequence
+        for op_name in operations:
+            if op_name not in self.OPERATIONS:
+                raise NodeError(self, f"Unknown operation: {op_name}")
+
+            operation_func = self.OPERATIONS[op_name]
+            df, baskets = operation_func(self, df, baskets, **kwargs)
+        if not isinstance(df, ppl.PathsDataFrame):
+            raise NodeError(self, "The output is not a PathsDataFrame.")
+
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
 
         return df
+
 
 class AdditiveNode(GenericNode):
     explanation = _("""This is an Additive Node. It performs a simple addition of inputs.
