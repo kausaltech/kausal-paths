@@ -27,6 +27,7 @@ actions:
   output_dimensions: [causal_step, sector, transport_mode]
   input_datasets:
   - id: gpc/dinspec
+    tags: [baseline]
     filters:
     - column: Slice
       value: Lever affecting cars and bikes directly
@@ -38,8 +39,8 @@ actions:
     label_de: Anteil des Autoverkehrs, der auf Fahrräder verlagert wird
     unit: dimensionless
     value: 0.05
-    min_value: 0.0
-    max_value: 1.0
+    min_value: 0.01
+    max_value: 0.99
     step: 0.01
   output_nodes:
   - id: shift_from_cars_to_bikes
@@ -66,6 +67,7 @@ actions:
   output_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration, sector]
   input_datasets:
   - id: gpc/dinspec
+    tags: [baseline]
     filters:
     - column: Slice
       value: Municipal Package Delivery by Bicycle
@@ -99,6 +101,7 @@ actions:
   output_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration, sector]
   input_datasets:
   - id: gpc/dinspec
+    tags: [baseline]
     filters:
     - column: Slice
       value: Amendment of Parking Space Ordinance
@@ -128,6 +131,7 @@ actions:
   output_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration, sector]
   input_datasets:
   - id: gpc/dinspec
+    tags: [baseline]
     filters:
     - column: Slice
       value: Expansion and Improvement of Bicycle Infrastructure
@@ -157,6 +161,7 @@ actions:
   output_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration, sector]
   input_datasets:
   - id: gpc/dinspec
+    tags: [baseline]
     filters:
     - column: Slice
       value: Visitor Parking Pricing
@@ -186,6 +191,7 @@ actions:
   output_dimensions: [causal_step, action_type, instrument_category, action_level, impact_duration, sector]
   input_datasets:
   - id: gpc/dinspec
+    tags: [baseline]
     filters:
     - column: Slice
       value: Reduce User Costs for Environmentally Friendly Transport
@@ -219,11 +225,13 @@ nodes:
   output_dimensions: [causal_step, sector]
   input_datasets:
   - id: gpc/dinspec
+    tags: [baseline]
     filters:
     - column: Slice
       value: Number of Bicycle Parking Spaces
   output_nodes:
   - id: comfort
+    tags: [additive]
     from_dimensions:
     - id: causal_step
       flatten: true
@@ -241,35 +249,41 @@ nodes:
   output_dimensions: [causal_step, sector]
   input_datasets:
   - id: gpc/dinspec
+    tags: [baseline]
     filters:
     - column: Slice
       value: Number of Safe Cycling Kilometers
   output_nodes:
   - id: safety
+    tags: [additive]
     from_dimensions:
     - id: causal_step
       flatten: true
     to_dimensions:
     - id: sector
   - id: comfort
+    tags: [additive]
     from_dimensions:
     - id: causal_step
       flatten: true
     to_dimensions:
     - id: sector
   - id: status
+    tags: [additive]
     from_dimensions:
     - id: causal_step
       flatten: true
     to_dimensions:
     - id: sector
   - id: fairness
+    tags: [additive]
     from_dimensions:
     - id: causal_step
       flatten: true
     to_dimensions:
     - id: sector
   - id: health
+    tags: [additive]
     from_dimensions:
     - id: causal_step
       flatten: true
@@ -287,17 +301,20 @@ nodes:
   output_dimensions: [causal_step, sector]
   input_datasets:
   - id: gpc/dinspec
+    tags: [baseline]
     filters:
     - column: Slice
       value: Parking Space Prices
   output_nodes:
   - id: fairness
+    tags: [additive]
     from_dimensions:
     - id: causal_step
       flatten: true
     to_dimensions:
     - id: sector
   - id: affordability
+    tags: [additive]
     from_dimensions:
     - id: causal_step
       flatten: true
@@ -315,11 +332,13 @@ nodes:
   output_dimensions: [causal_step, sector]
   input_datasets:
   - id: gpc/dinspec
+    tags: [baseline]
     filters:
     - column: Slice
       value: Public Transport Prices
   output_nodes:
   - id: affordability
+    tags: [additive]
     from_dimensions:
     - id: causal_step
       flatten: true
@@ -548,6 +567,7 @@ nodes:
     - id: transport_mode
   input_datasets:
   - id: gpc/dinspec
+    tags: [baseline]
     filters:
     - column: Slice
       value: Reduced GHG
@@ -577,6 +597,7 @@ nodes:
     - id: transport_mode
   input_datasets:
   - id: gpc/dinspec
+    tags: [baseline]
     filters:
     - column: Slice
       value: Reduced NOx
@@ -604,6 +625,7 @@ nodes:
     - id: transport_mode
   input_datasets:
   - id: gpc/dinspec
+    tags: [baseline]
     filters:
     - column: Slice
       value: Road Maintenance Savings
@@ -631,6 +653,7 @@ nodes:
     - id: transport_mode
   input_datasets:
   - id: gpc/dinspec
+    tags: [baseline]
     filters:
     - column: Slice
       value: Reduced Air Pollution
@@ -658,6 +681,7 @@ nodes:
     - id: transport_mode
   input_datasets:
   - id: gpc/dinspec
+    tags: [baseline]
     filters:
     - column: Slice
       value: Reduced Noise

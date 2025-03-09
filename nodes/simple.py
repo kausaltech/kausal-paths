@@ -19,7 +19,8 @@ from .exceptions import NodeError
 from .node import Node, NodeMetric
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
+    from typing import Any
 
     import pandas as pd
 
@@ -180,6 +181,8 @@ class SimpleNode(Node):
         return df
 
 
+# class Oper
+
 class GenericNode(SimpleNode):
     explanation = _(
         """
@@ -193,10 +196,25 @@ class GenericNode(SimpleNode):
         *SimpleNode.allowed_parameters,
         StringParameter(local_id='operations', label='Comma-separated list of operations to execute in order')
     ]
+    # Class-level default operations
+    DEFAULT_OPERATIONS = 'multiply,add,other,apply_multiplier'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Instance-level operations (can be overridden by subclasses)
+        self.default_operations = self.DEFAULT_OPERATIONS
+
+        # Operation registry
+        self.OPERATIONS: dict[str, Callable[..., tuple[Any, Any]]]  = {
+            'multiply': self._operation_multiply,
+            'add': self._operation_add,
+            'other': self._operation_other,
+            'apply_multiplier': self._operation_apply_multiplier,
+        }
 
     def _get_input_baskets(self, nodes: list[Node]) -> dict[str, list[Node]]:
         """Return a dictionary of node 'baskets' categorized by type."""
-        baskets: dict = {
+        baskets: dict[str, list[Node]] = {
             'additive': [],
             'multiplicative': [],
             'other': []
@@ -266,22 +284,14 @@ class GenericNode(SimpleNode):
             df = df.multiply_quantity(VALUE_COLUMN, mult)
         return df, baskets
 
-    # Registry of available operations
-    OPERATIONS = {
-        'multiply': _operation_multiply,
-        'add': _operation_add,
-        'other': _operation_other,
-        'apply_multiplier': _operation_apply_multiplier, # Does not work for non-dimensionless units. (Due to baseline values?)
-    }
-
     def compute(self) -> ppl.PathsDataFrame:
         """Process inputs according to the operations sequence."""
-        # Get operation sequence from parameter
-        operations_str = self.get_parameter_value_str('operations', required=False) or 'multiply,add,other,apply_multiplier'
+        # Get operation sequence from parameter or class default
+        operations_str = self.get_parameter_value_str('operations', required=False) or self.default_operations
         operations = [op.strip() for op in operations_str.split(',')]
 
         # Get input dataset and categorize nodes
-        df = self.get_input_dataset_pl(required=False)
+        df = self.get_input_dataset_pl(tag='baseline', required=False)
         baskets = self._get_input_baskets(self.input_nodes)
 
         kwargs = {
@@ -298,7 +308,7 @@ class GenericNode(SimpleNode):
                 raise NodeError(self, f"Unknown operation: {op_name}")
 
             operation_func = self.OPERATIONS[op_name]
-            df, baskets = operation_func(self, df, baskets, **kwargs)
+            df, baskets = operation_func(df, baskets, **kwargs)
         if not isinstance(df, ppl.PathsDataFrame):
             raise NodeError(self, "The output is not a PathsDataFrame.")
 
@@ -1009,7 +1019,6 @@ class FillNewCategoryNode2(AdditiveNode): # FIXME Merge into FillNewCategoryNode
         return df
 
 
-
 class LeverNode(GenericNode):
     explanation = _(
         """LeverNode replaces the upstream computation completely, if the lever is enabled."""
@@ -1019,19 +1028,28 @@ class LeverNode(GenericNode):
         StringParameter(local_id='new_category'),
     ]
 
-    def compute(self) -> ppl.PathsDataFrame:
-        df = super().compute()
-        lever = self.get_input_node(tag='other_node', required=True)
-        df = self.override_with_lever(df, lever)
-        df = self.fill_new_category(df)
-        return df
+    def _operation_override_with_lever(self, df: ppl.PathsDataFrame, baskets: dict, **kwargs) -> tuple:
+        """Override upstream computation with lever values if enabled."""
+        if df is None:
+            return None, baskets
 
-    def override_with_lever(self, df: ppl.PathsDataFrame, lever: Node) -> ppl.PathsDataFrame:
+        # Get the lever node from the "other" basket
+        lever_nodes = baskets.get('other', [])
+        if not lever_nodes:
+            raise NodeError(self, "LeverNode requires an 'other_node' tagged input as lever")
+
+        lever = lever_nodes[0]  # Use the first lever node
+
         if not isinstance(lever, ActionNode):
             raise NodeError(self, f"Lever {lever} must be an action.")
+
+        # If lever is not enabled, return original dataframe
         if not lever.is_enabled():
-            return df
+            return df, baskets
+
+        # Get lever output and override values
         dfl = lever.get_output_pl(target_node=self)
+        dfl = dfl.ensure_unit(VALUE_COLUMN, df.get_unit(VALUE_COLUMN))
         out = df.paths.join_over_index(dfl, how='left', index_from='left')
         out = out.with_columns(
             (pl.when(pl.col(FORECAST_COLUMN))
@@ -1039,12 +1057,18 @@ class LeverNode(GenericNode):
             .otherwise(pl.col(VALUE_COLUMN))).alias(VALUE_COLUMN)
         )
         out = out.drop(VALUE_COLUMN + '_right')
-        if len(df) != len(out):
-            s = f"({len(out)} rows) as the affected node {self.id} ({len(df)} rows)"
-            raise NodeError(self, f"Lever {lever.id} must result in the same structure {s}")
-        return out
 
-    def fill_new_category(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        if len(df) != len(out):
+            s = f"({len(out)} rows) as the affected node {self.id} ({len(df)} rows)."
+            raise NodeError(self, f"Lever {lever.id} must result in the same structure {s}")
+
+        return out, baskets
+
+    def _operation_fill_new_category(self, df: ppl.PathsDataFrame, baskets: dict, **kwargs) -> tuple:
+        """Fill in a new category with complement values."""
+        if df is None:
+            return None, baskets
+
         category = self.get_parameter_value_str('new_category', required=True)
         dim, cat = category.split(':')
 
@@ -1057,55 +1081,81 @@ class LeverNode(GenericNode):
 
         df = df.paths.concat_vertical(df2)
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
+
         if self.get_parameter_value('drop_nans', required=False):  # FIXME Not consistent with the parameter name!
             df = df.paths.to_wide()
             for col in df.metric_cols:
                 df = df.filter(~pl.col(col).is_null())
             df = df.paths.to_narrow()
-        return df
+
+        return df, baskets
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Register custom operations
+        self.OPERATIONS['override_with_lever'] = self._operation_override_with_lever
+        self.OPERATIONS['fill_new_category'] = self._operation_fill_new_category
+        # Set default operations sequence
+        self.default_operations = 'multiply,add,other,override_with_lever,fill_new_category,apply_multiplier'
 
 
 class WeightedSumNode(GenericNode):
     explanation = _(
-        """Calculates the sum of input nodes, weighted by each node's weights."""
+        """
+        WeightedSumNode: Combines additive inputs using weights from a multidimensional weights DataFrame.
+        """
     )
+    # Class-level default overrides parent
+    DEFAULT_OPERATIONS = 'multiply,add_with_weights,add,other,apply_multiplier'
 
-    def combine_weighted_node_outputs(self):
-        """Combine node outputs weighted by values in a multidimensional weights DataFrame."""
-        weights_df = self.get_input_dataset_pl(tag='input_node_weights', required=False)
-        if weights_df is None:
-            return None
-        node_map = {node.id: node for node in self.input_nodes}
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Register the custom operation
+        self.OPERATIONS['add_with_weights'] = self._operation_add_with_weights
+
+    def _process_single_weighted_node(self, node: Node, node_weights: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        """Process a single node with its weights and return the weighted output."""
+        # Get node output
+        node_output = node.get_output_pl(target_node=self)
+
+        # Find the metric column that has non-null values for this node
+        valid_metric = None
+        metrics = node_weights.metric_cols.copy()
+        for col in metrics:
+            if col in node_weights.columns and node_weights[col].null_count() < len(node_weights):
+                valid_metric = col
+                metrics.remove(col)
+                break
+
+        node_weights = node_weights.drop(metrics)
+        if not valid_metric:
+            raise NodeError(self, f"No valid metric column found for weight dataset for node {node.id}")
+
+        # Create a version with this metric renamed to VALUE_COLUMN
+        if valid_metric != VALUE_COLUMN:
+            node_weights = node_weights.rename({valid_metric: VALUE_COLUMN})
+
+        # Multiply node output with weights
+        return node_output.paths.multiply_with_dims(node_weights, how='inner')
+
+    def _combine_weighted_outputs(self, weights_df: ppl.PathsDataFrame, additive_nodes: list[Node]) -> ppl.PathsDataFrame | None:
+        """Process and combine all weighted node outputs."""
+        # Create a lookup map for additive nodes
+        node_map = {node.id: node for node in additive_nodes}
         result = None
 
         # Process each unique node in the weights dataframe
         for node_id in weights_df['node'].unique():
             if node_id not in node_map:
-                self.logger.warning(f"Node {node_id} not found in input nodes")
+                self.logger.warning(f"Node {node_id} not found in additive nodes")
                 continue
 
+            # Get node and its weights
             node = node_map[node_id]
-            node_output = node.get_output_pl(target_node=self)
-
             node_weights = weights_df.filter(pl.col('node') == node_id).drop('node')
 
-            # Find the metric column that has non-null values for this node
-            valid_metric = None
-            metrics = node_weights.metric_cols.copy()
-            for col in node_weights.metric_cols:
-                if col in node_weights.columns and node_weights[col].null_count() < len(node_weights):
-                    valid_metric = col
-                    metrics.remove(col)
-                    break
-            node_weights = node_weights.drop(metrics)
-            if not valid_metric:
-                raise NodeError(self, f"No valid metric column found for weight dataset in node {node_id}")
-
-            # Create a version with this metric renamed to VALUE_COLUMN
-            if valid_metric != VALUE_COLUMN:
-                node_weights = node_weights.rename({valid_metric: VALUE_COLUMN})
-
-            weighted_output = node_output.paths.multiply_with_dims(node_weights, how='inner')
+            # Process the node
+            weighted_output = self._process_single_weighted_node(node, node_weights)
 
             # Add to result (first time initializes, subsequent adds)
             if result is None:
@@ -1113,13 +1163,37 @@ class WeightedSumNode(GenericNode):
             else:
                 result = result.paths.add_with_dims(weighted_output, how='outer')
 
-        if result is None:
-            raise NodeError(self, "No matching nodes found in weights DataFrame for {self.id}")
-
         return result
 
-    def compute(self) -> ppl.PathsDataFrame:
-        return self.combine_weighted_node_outputs()
+    def _operation_add_with_weights(self, df: ppl.PathsDataFrame, baskets: dict, **kwargs) -> tuple:
+        """Combine additive node outputs weighted by values in a multidimensional weights DataFrame."""
+        # Get weights dataframe from specifically tagged input
+        weights_df = self.get_input_dataset_pl(tag='input_node_weights', required=False)
+        if weights_df is None:
+            return df, baskets
+
+        # Focus specifically on nodes in the additive basket
+        additive_nodes = baskets['additive']
+        if not additive_nodes:
+            raise NodeError(
+                self,
+                "If node contains weights, it must contain additive input nodes (typically with tag 'additive')."
+            )
+
+        # Process all weighted nodes
+        result = self._combine_weighted_outputs(weights_df, additive_nodes)
+
+        if result is None:
+            self.logger.warning(f"No matching nodes found in weights DataFrame for {self.id}")
+            return df, baskets
+
+        # Remove processed nodes from additive basket (to prevent double-counting)
+        processed_nodes = [node for node in additive_nodes if node.id in weights_df['node'].unique()]
+        for node in processed_nodes:
+            baskets['additive'].remove(node)
+
+        return result, baskets
+
 
 class LogitNode(WeightedSumNode):
     explanation = _(
@@ -1136,30 +1210,49 @@ class LogitNode(WeightedSumNode):
         """
     )
 
-    def compute(self) -> ppl.PathsDataFrame:
-        df = self.combine_weighted_node_outputs()
+    def _operation_logit_transform(self, df: ppl.PathsDataFrame, baskets: dict, **kwargs) -> tuple:
+        """Apply logit transform to combine observations with weighted sum."""
+        if df is None:
+            return None, baskets
+
+        # Ensure our weighted sum is in dimensionless units
         df = df.ensure_unit(VALUE_COLUMN, 'dimensionless')
 
-        # if df is not None:
-        #     return df
-        df_obs = self.get_input_dataset_pl('observations')
-
+        # Get observations dataset
+        df_obs = self.get_input_dataset_pl(tag='observations', required=False)
         if df_obs is None:
             raise NodeError(self, f"LogitNode {self.id} must have one dataset for baseline values.")
+
+        # Validate and transform observations to logit space
         df_obs = df_obs.ensure_unit(VALUE_COLUMN, 'dimensionless')
         test = df_obs.with_columns(
             (pl.lit(0.0) < pl.col(VALUE_COLUMN)) & (pl.col(VALUE_COLUMN) < pl.lit(1.0))
-            )['literal'].all()
+        )['literal'].all()
+
         if not test:
             raise NodeError(self, f"All values in {self.id} must be between 0 and 1, exclusive.")
-        df_obs = df_obs.with_columns((pl.col(VALUE_COLUMN) / (pl.lit(1.0) - pl.col(VALUE_COLUMN))).log().alias(VALUE_COLUMN))
-        df = df.paths.join_over_index(df_obs, how='outer', index_from='left') # FIXME Use DF sum instead
+
+        df_obs = df_obs.with_columns(
+            (pl.col(VALUE_COLUMN) / (pl.lit(1.0) - pl.col(VALUE_COLUMN))).log().alias(VALUE_COLUMN)
+        )
+
+        # Join observations with weighted sum
+        df = df.paths.join_over_index(df_obs, how='outer', index_from='left')
         df = df.sum_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN).drop(VALUE_COLUMN + '_right')
+
+        # Apply inverse logit function to get probabilities
         expr = pl.lit(1.0) / (pl.lit(1.0) + (pl.lit(-1.0) * pl.col(VALUE_COLUMN)).exp())
         df = df.with_columns(expr.alias(VALUE_COLUMN))
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
 
-        return df
+        return df, baskets
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Register the logit transform operation
+        self.OPERATIONS['logit_transform'] = self._operation_logit_transform
+        # Set default operations sequence
+        self.default_operations = 'multiply,add_with_weights,add,logit_transform,other,apply_multiplier'
 
 
 class ChooseInputNode(AdditiveNode):
