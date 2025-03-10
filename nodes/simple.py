@@ -251,6 +251,7 @@ class GenericNode(SimpleNode):
                 unit=kwargs.get('unit'),
                 start_from_year=kwargs.get('start_from_year')
             )
+            baskets['multiplicative'] = []
         return df, baskets
 
     def _operation_add(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
@@ -267,6 +268,7 @@ class GenericNode(SimpleNode):
                 start_from_year=kwargs.get('start_from_year'),
                 ignore_unit=True
             )
+            baskets['additive'] = []
         return df, baskets
 
     def _operation_other(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
@@ -294,6 +296,9 @@ class GenericNode(SimpleNode):
         df = self.get_input_dataset_pl(tag='baseline', required=False)
         baskets = self._get_input_baskets(self.input_nodes)
 
+        # Track original node counts for validation
+        original_node_counts = {basket: len(nodes) for basket, nodes in baskets.items()}
+
         kwargs = {
             'metric': None,
             'unit': self.unit,
@@ -311,6 +316,17 @@ class GenericNode(SimpleNode):
             df, baskets = operation_func(df, baskets, **kwargs)
         if not isinstance(df, ppl.PathsDataFrame):
             raise NodeError(self, "The output is not a PathsDataFrame.")
+
+        # Validate that all nodes were used
+        unused_nodes = [
+            (node.id, basket)
+            for basket, nodes in baskets.items()
+            if nodes and original_node_counts.get(basket, 0) > 0
+            for node in nodes]
+
+        if unused_nodes:
+            unused_str = ", ".join([f"{node_id} ({basket})" for node_id, basket in unused_nodes])
+            raise NodeError(self, f"Unused input nodes found after all operations: {unused_str}")
 
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
 

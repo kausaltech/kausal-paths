@@ -258,6 +258,7 @@ nodes:
   name_fi: HSY:n päästöinventaario
   name_en: HSY emission inventory
   name_sv: HRM:s utsläppsinventering
+  tags: [other_node]
   input_datasets:
   - id: hsy/pks_khk_paastot
     filters:
