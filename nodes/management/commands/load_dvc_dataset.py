@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from functools import lru_cache
 from typing import TYPE_CHECKING
 
 from django.contrib.contenttypes.models import ContentType
@@ -35,6 +36,22 @@ if TYPE_CHECKING:
     from nodes.units import Unit
 
 
+@lru_cache
+def get_dimension(instance_config: InstanceConfig, identifier: str) -> Dimension:
+    scope = DimensionScope.objects.get(
+            scope_content_type=ContentType.objects.get_for_model(instance_config),
+            scope_id=instance_config.pk,
+            identifier=identifier,
+    )
+    return scope.dimension
+
+
+@lru_cache
+def get_dimension_category(instance_config: InstanceConfig, dimension_identifier: str, identifier: str) -> DimensionCategory:
+    dimension = get_dimension(instance_config, dimension_identifier)
+    return DimensionCategory.objects.get(dimension=dimension, identifier=identifier)
+
+
 class Command(BaseCommand):
     help = 'Create a dataset in DB based on a DVC dataset'
 
@@ -44,10 +61,9 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('instance', metavar='INSTANCE_ID', type=str, nargs=1)
         parser.add_argument('datasets', metavar='DATASET_ID', type=str, nargs='*')
-        # TODO: implement force
-        # parser.add_argument('--force', action='store_true')
+        parser.add_argument('--force', action='store_true')
 
-    def sync_dataset(self, instance_config: InstanceConfig, ctx: Context, ds_id: str):
+    def sync_dataset(self, instance_config: InstanceConfig, ctx: Context, ds_id: str, force: bool = False):
         dvc_ds = ctx.load_dvc_dataset(ds_id)
         df = ppl.from_dvc_dataset(dvc_ds)
         self.rename_value_columns(df)
@@ -56,17 +72,27 @@ class Command(BaseCommand):
 
         identifier = ds_id.split('/')[-1]
         assert identifier == dvc_metadata['identifier']
-        dataset, created = Dataset.objects.get_or_create(
+        get_or_create_kwargs = dict(
             scope_content_type=ContentType.objects.get_for_model(instance_config),
             scope_id=instance_config.pk,
             identifier=identifier,
         )
-        if created:
-            print(f"Created dataset {dataset}")
+        try:
+            dataset = Dataset.objects.get(**get_or_create_kwargs)
+        except Dataset.DoesNotExist:
+            pass
         else:
-            # TODO: We might want to update the dataset instead of aborting
-            print(f"Dataset {identifier} exists already for instance {instance_config}. Aborting.")
-            return
+            if force:
+                print(f"Deleting existing dataset '{dataset}'")
+                dataset.delete()
+            else:
+                print(
+                    f"Dataset '{dataset}' with identifier '{identifier}' exists already for instance "
+                    f"'{instance_config}'. Aborting."
+                )
+                return
+        dataset = Dataset.objects.create(**get_or_create_kwargs)
+        print(f"Created dataset '{dataset}'")
 
         self.create_dataset_schema(
             dataset=dataset,
@@ -104,7 +130,7 @@ class Command(BaseCommand):
         for col, dt in df.schema.items():
             if dt == pl.Categorical:
                 df = df.with_columns(pl.col(col).cast(pl.Utf8))
-        self.create_data_points(df, dataset, metrics)
+        self.create_data_points(instance_config, df, dataset, metrics)
 
     def create_dataset_schema(
         self, dataset: Dataset, instance_config: InstanceConfig, default_language: str, name_i18n: dict[str, str] | None
@@ -117,9 +143,9 @@ class Command(BaseCommand):
             name = TranslatedString(default_language=default_language, **name_i18n)
             name.set_modeltrans_field(dataset.schema, 'name', default_language)
         dataset.schema.save()
-        print(f"Created dataset schema {dataset.schema}")
+        print(f"Created dataset schema '{dataset.schema}'")
         dataset.save(update_fields=['schema'])
-        print(f"Setting scope of schema {dataset.schema} to {instance_config}")
+        print(f"Setting scope of schema '{dataset.schema}' to '{instance_config}'")
         DatasetSchemaScope.objects.create(
             schema=dataset.schema,
             scope_content_type=ContentType.objects.get_for_model(instance_config),
@@ -127,12 +153,19 @@ class Command(BaseCommand):
         )
         return dataset.schema
 
-    def create_data_points(self, df: ppl.PathsDataFrame, dataset: Dataset, metrics: dict[str, DatasetMetric]):
+    def create_data_points(
+        self,
+        instance_config: InstanceConfig,
+        df: ppl.PathsDataFrame,
+        dataset: Dataset,
+        metrics: dict[str, DatasetMetric]
+    ):
         meta = df.get_meta()
         table = JSONDataset.serialize_df(df)
         # We might not need to serialize `df` to create the data points, but I didn't check what the manipulations
         # of `df` above and the serialization do, so I'll take the serialization like the old version of
         # this management command did.
+        num_created = 0
         for row in table['data']:
             year = date(year=row['Year'], month=1, day=1)  # FIXME: other granularities?
             for metric_identifier, metric in metrics.items():
@@ -145,11 +178,13 @@ class Command(BaseCommand):
                     metric=metric,
                     value=value,
                 )
+                num_created += 1
                 for dimension in meta.dim_ids:
                     dim_cat_identifier = row[dimension]
                     if dim_cat_identifier:
-                        cat = self.dimension_categories[dimension][dim_cat_identifier]
+                        cat = get_dimension_category(instance_config, dimension, dim_cat_identifier)
                         data_point.dimension_categories.add(cat)
+        print(f"Created {num_created} data points")
 
     def rename_value_columns(self, df: ppl.PathsDataFrame):
         meta = df.get_meta()
@@ -172,7 +207,7 @@ class Command(BaseCommand):
             label = TranslatedString(default_language=default_language, **label_i18n)
             label.set_modeltrans_field(metric, 'label', default_language)
         metric.save()
-        print(f"Created metric {metric} and linking it to schema {schema}")
+        print(f"Created metric '{metric}' and linking it to schema '{schema}'")
         DatasetSchemaMetric.objects.create(schema=schema, metric=metric)
         return metric
 
@@ -188,9 +223,9 @@ class Command(BaseCommand):
         except DimensionScope.DoesNotExist:
             return self.create_dimension(schema, instance_config, default_language, spec)
         print(
-            f"There is already a dimension with identifier {spec.id} for {instance_config}; skipping creation of "
+            f"There is already a dimension with identifier '{spec.id}' for '{instance_config}'; skipping creation of "
             f"Dimension, DimensionCategory and DimensionScope instances and linking the existing dimension to the "
-            f"schema {schema}"
+            f"schema '{schema}'"
         )
         DatasetSchemaDimension.objects.create(schema=schema, dimension=existing_scope.dimension)
         return existing_scope.dimension
@@ -201,18 +236,15 @@ class Command(BaseCommand):
         dimension = Dimension()
         spec.label.set_modeltrans_field(dimension, 'name', default_language)
         dimension.save()
-        print(f"Created dimension {dimension} and linking it to schema {schema}")
+        print(f"Created dimension '{dimension}' and linking it to schema '{schema}'")
         DatasetSchemaDimension.objects.create(schema=schema, dimension=dimension)
-        assert spec.id not in self.dimension_categories
-        self.dimension_categories[spec.id] = {}
         for cat_spec in spec.categories:
-            cat = self.create_dimension_category(
+            self.create_dimension_category(
                 dimension=dimension,
                 default_language=default_language,
                 spec=cat_spec,
             )
-            self.dimension_categories[spec.id][cat_spec.id] = cat
-        print(f"Setting scope of dimension {dimension} to {instance_config}")
+        print(f"Setting scope of dimension '{dimension}' to '{instance_config}'")
         DimensionScope.objects.create(
             dimension=dimension,
             scope_content_type=ContentType.objects.get_for_model(instance_config),
@@ -224,10 +256,10 @@ class Command(BaseCommand):
     def create_dimension_category(
         self, dimension: Dimension, default_language: str, spec: DimensionCategorySpec
     ) -> DimensionCategory:
-        cat = DimensionCategory(dimension=dimension)
+        cat = DimensionCategory(dimension=dimension, identifier=spec.id)
         spec.label.set_modeltrans_field(cat, 'label', default_language)
         cat.save()
-        print(f"Created dimension category {cat}")
+        print(f"Created dimension category '{cat}'")
         return cat
 
     def handle(self, *args, **options):
@@ -243,4 +275,4 @@ class Command(BaseCommand):
 
         for ds_id in options['datasets']:
             with transaction.atomic():
-                self.sync_dataset(ic, ctx, ds_id)
+                self.sync_dataset(ic, ctx, ds_id, force=options['force'])
