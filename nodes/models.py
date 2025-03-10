@@ -473,9 +473,10 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
                 node.delete()
 
     def sync_dimensions(self, update_existing=False, delete_stale=False):
-        from datasets.models import Dimension as DimensionModel
+        pass
+        # from datasets.models import Dimension as DimensionModel
 
-        DimensionModel.sync_dimensions(self, update_existing=update_existing, delete_stale=delete_stale)
+        # DimensionModel.sync_dimensions(self, update_existing=update_existing, delete_stale=delete_stale)
 
     def update_modified_at(self, save=True):
         self.modified_at = timezone.now()
