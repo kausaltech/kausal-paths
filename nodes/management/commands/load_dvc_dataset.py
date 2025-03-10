@@ -72,34 +72,42 @@ class Command(BaseCommand):
 
         identifier = ds_id.split('/')[-1]
         assert identifier == dvc_metadata['identifier']
-        get_or_create_kwargs = dict(
+        get_kwargs = dict(
             scope_content_type=ContentType.objects.get_for_model(instance_config),
             scope_id=instance_config.pk,
             identifier=identifier,
         )
         try:
-            dataset = Dataset.objects.get(**get_or_create_kwargs)
+            dataset = Dataset.objects.get(**get_kwargs)
         except Dataset.DoesNotExist:
             pass
         else:
             if force:
+                if dataset.schema.datasets.count() > 1:
+                    print("Dataset exists already, but schema is linked to other datasets as well. Aborting.")
+                    return
                 print(f"Deleting existing dataset '{dataset}'")
                 dataset.delete()
+                print(f"Deleting dataset schema '{dataset.schema}'")
+                dataset.schema.delete()
             else:
                 print(
                     f"Dataset '{dataset}' with identifier '{identifier}' exists already for instance "
                     f"'{instance_config}'. Aborting."
                 )
                 return
-        dataset = Dataset.objects.create(**get_or_create_kwargs)
-        print(f"Created dataset '{dataset}'")
 
-        self.create_dataset_schema(
-            dataset=dataset,
+        schema = self.create_dataset_schema(
             instance_config=instance_config,
             default_language=ctx.instance.default_language,
             name_i18n=dvc_metadata['name'],
         )
+        create_kwargs = dict(
+            **get_kwargs,
+            schema=schema,
+        )
+        dataset = Dataset.objects.create(**create_kwargs)
+        print(f"Created dataset '{dataset}'")
 
         metrics_meta = {m.get('id', None): m for m in dvc_metadata.get('metrics', [])}  # Don't blame me for this!
         # Map metric identifiers (column names) to Metric instances
@@ -133,25 +141,24 @@ class Command(BaseCommand):
         self.create_data_points(instance_config, df, dataset, metrics)
 
     def create_dataset_schema(
-        self, dataset: Dataset, instance_config: InstanceConfig, default_language: str, name_i18n: dict[str, str] | None
+        self, instance_config: InstanceConfig, default_language: str, name_i18n: dict[str, str] | None
     ) -> DatasetSchema:
-        dataset.schema = DatasetSchema(
+        schema = DatasetSchema(
             time_resolution=DatasetSchema.TimeResolution.YEARLY,  # TODO: allow other granularities
             # unit=?,  # What the hell is this for in DatasetSchema?
         )
         if name_i18n is not None:
             name = TranslatedString(default_language=default_language, **name_i18n)
-            name.set_modeltrans_field(dataset.schema, 'name', default_language)
-        dataset.schema.save()
-        print(f"Created dataset schema '{dataset.schema}'")
-        dataset.save(update_fields=['schema'])
-        print(f"Setting scope of schema '{dataset.schema}' to '{instance_config}'")
+            name.set_modeltrans_field(schema, 'name', default_language)
+        schema.save()
+        print(f"Created dataset schema '{schema}'")
+        print(f"Setting scope of schema '{schema}' to '{instance_config}'")
         DatasetSchemaScope.objects.create(
-            schema=dataset.schema,
+            schema=schema,
             scope_content_type=ContentType.objects.get_for_model(instance_config),
             scope_id=instance_config.pk,
         )
-        return dataset.schema
+        return schema
 
     def create_data_points(
         self,
