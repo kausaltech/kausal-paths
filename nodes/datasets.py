@@ -583,18 +583,57 @@ class GenericDataset(DVCDataset):
         return df
 
     # -----------------------------------------------------------------------------------
+
     def load(self, context: Context) -> ppl.PathsDataFrame:
-        df = DVCDataset.load(self, context)
-        df = self.drop_unnecessary_levels(df, droplist=['Description', 'Quantity']) # TODO Maybe filter by quantity?
+        # Don't call DVCDataset.load directly since it does post_process too early
+        # Instead, replicate the parts we need but with different ordering
+
+        obj = None
+        cache_key: str | None
+        if not context.skip_cache:
+            cache_key = self.get_cache_key(context)
+            res = context.cache.get(cache_key)
+            if res.is_hit:
+                obj = res.obj
+        else:
+            cache_key = None
+
+        if obj is not None:
+            self.df = obj
+            return obj
+
+        if self.input_dataset:
+            ds_id = self.input_dataset
+        else:
+            ds_id = self.id
+
+        dvc_ds = context.load_dvc_dataset(ds_id)
+        assert dvc_ds.df is not None
+        df = ppl.from_dvc_dataset(dvc_ds)
+
+        # First process data as DVCDataset would, but WITHOUT calling post_process
+        df = self._filter_and_process_df(context, df)
+
+        # Now do GenericDataset specific processing
+        df = self.drop_unnecessary_levels(df, droplist=['Description', 'Quantity'])
         df = self.implement_unit_col(df)
         df = self.convert_names_to_ids(df, context)
 
+        # Only AFTER metric columns exist, handle interpolation
         if FORECAST_COLUMN not in df.columns:
             df = df.with_columns(pl.lit(False).alias(FORECAST_COLUMN))  # noqa: FBT003
 
-        self.interpolate = True
-        df = self._linear_interpolate(df)
+        self.interpolate = True # TODO Do we need this?
+        if self.interpolate:
+            df = self._linear_interpolate(df)
+
         df = extend_last_historical_value_pl(df, end_year=context.instance.model_end_year)
+
+        # Finalize processing
+        df = self.interpret(df, context)
+        if cache_key:
+            context.cache.set(cache_key, df, expiry=0)
+
         return df
 
 

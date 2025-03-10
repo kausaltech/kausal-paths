@@ -1504,34 +1504,43 @@ class Node:
         df = df.select([YEAR_COLUMN, *meta.dim_ids, VALUE_COLUMN, FORECAST_COLUMN])
         return df
 
-    def multiply_nodes_pl( # FIXME Make more like add_nodes_pl but allow no inputs
+    def multiply_nodes_pl(
             self,
             df: ppl.PathsDataFrame | None,
             nodes: list[Node],
             metric: str | None = None,
-            keep_nodes: bool = False,
-            node_multipliers: list[float] | None = None,
             unit: Unit | None = None,
             start_from_year: int | None = None,
-            ) -> ppl.PathsDataFrame | None:
+        ) -> ppl.PathsDataFrame | None:
         """Multiply outputs from the given nodes using inner join and union of dimensions."""
-        if not nodes and df is None:
-            return None
+        if len(nodes) == 0:
+            if df is None:
+                return None
+            return df
 
-        if df is not None:
-            result = df
-        else:
-            result = nodes.pop(0).get_output_pl(target_node=self)
+        result_df = df
 
         for node in nodes:
-            dfn = node.get_output_pl(target_node=self)
-            result = result.paths.join_over_index(dfn, how='inner', index_from='union')
-            result = result.multiply_cols(
-                [VALUE_COLUMN, f'{VALUE_COLUMN}_right'],
-                VALUE_COLUMN
-            ).drop(f'{VALUE_COLUMN}_right')
+            node_df = node.get_output_pl(self, metric=metric)
+            if start_from_year is not None:
+                node_df = node_df.filter(pl.col(YEAR_COLUMN) >= start_from_year)
 
-        return result
+            if self.debug:
+                print('%s: multiplying with output from node %s' % (self.id, node.id))
+                self.print(node_df)
+
+            if VALUE_COLUMN not in node_df.columns:
+                raise NodeError(self, f'Value column missing in output of {node.id}')
+
+            if result_df is None:
+                result_df = node_df
+            else:
+                result_df = result_df.paths.multiply_with_dims(node_df)
+
+        if unit is not None and result_df is not None:
+            result_df = result_df.ensure_unit(VALUE_COLUMN, unit)
+
+        return result_df
 
     def check(self):
         from nodes.metric import DimensionalMetric
