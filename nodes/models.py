@@ -629,50 +629,6 @@ class InstanceToken(models.Model):
         return self.instance.natural_key() + (self.token, self.created_at)
 
 
-class DataSourceManager(models.Manager):
-    def get_by_natural_key(self, uuid):
-        return self.get(uuid=uuid)
-
-
-class DataSource(UserModifiableModel):
-    """
-    Reusable reference to some published data source.
-
-    DataSource is used to track where specific data values in datasets have come from.
-    """
-
-    instance = models.ForeignKey(
-        InstanceConfig, on_delete=models.CASCADE, related_name='data_sources', editable=True,
-        verbose_name=_('instance'),
-    )
-    uuid = UUIDIdentifierField(null=False, blank=False)
-    name = models.CharField(max_length=200, null=False, blank=False, verbose_name=_('name'))
-    edition = models.CharField(max_length=100, null=True, blank=True, verbose_name=_('edition'))
-
-    authority = models.CharField(
-        max_length=200, verbose_name=_('authority'), help_text=_('The organization responsible for the data source'),
-        null=True, blank=True,
-    )
-    description = models.TextField(null=True, blank=True, verbose_name=_('description'))
-    url = models.URLField(verbose_name=_('URL'), null=True, blank=True)
-
-    objects = DataSourceManager()
-
-    def get_label(self):
-        name, *rest = [p for p in (self.name, self.authority, self.edition) if p is not None]
-        return f'{name}, {" ".join(rest)}'
-
-    def __str__(self):
-        return self.get_label()
-
-    class Meta:  # pyright: ignore
-        verbose_name = _('Data source')
-        verbose_name_plural = _('Data sources')
-
-    def natural_key(self):
-        return (str(self.uuid),)
-
-
 class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['NodeConfig']):  # type: ignore[override]
     pass
 
