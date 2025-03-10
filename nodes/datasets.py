@@ -25,6 +25,8 @@ if TYPE_CHECKING:
 
     from pandas import DataFrame as PandasDataFrame
 
+    from datasets.models import Dataset as DBDatasetModel
+
     from .context import Context
 
 
@@ -221,14 +223,9 @@ class Dataset(ABC):
         s = functions[key](match, size)
         return s
 
-@dataclass
-class DVCDataset(Dataset):
-    """Dataset that is loaded by dvc-pandas."""
 
-    # The output can be customized further by specifying a column and filters.
-    # If `input_dataset` is not specified, we default to `id` being
-    # the dvc-pandas dataset identifier.
-    input_dataset: str | None = None
+@dataclass
+class DatasetWithFilters(Dataset):
     column: str | None = None
     filters: list | None = None
     dropna: bool | None = None
@@ -237,12 +234,6 @@ class DVCDataset(Dataset):
 
     # The year from which the time series becomes a forecast
     forecast_from: int | None = None
-    unit: Unit | None = None
-
-    def __post_init__(self):
-        super().__post_init__()
-        if self.unit is not None:
-            assert isinstance(self.unit, Unit)
 
     def _process_output(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         if self.max_year:
@@ -374,6 +365,22 @@ class DVCDataset(Dataset):
 
         df = self._process_output(df)
         return df
+
+
+@dataclass
+class DVCDataset(DatasetWithFilters):
+    """Dataset that is loaded by dvc-pandas."""
+
+    # The output can be customized further by specifying a column and filters.
+    # If `input_dataset` is not specified, we default to `id` being
+    # the dvc-pandas dataset identifier.
+    input_dataset: str | None = None
+    unit: Unit | None = None
+
+    def __post_init__(self):
+        super().__post_init__()
+        if self.unit is not None:
+            assert isinstance(self.unit, Unit)
 
     def load(self, context: Context) -> ppl.PathsDataFrame:
         obj = None
@@ -765,3 +772,42 @@ class JSONDataset(Dataset):
             f['format'] = 'uuid'
 
         return d
+
+
+@dataclass
+class DBDataset(DatasetWithFilters):
+    """Dataset that is loaded from the admin UI's Dataset model."""
+
+    db_dataset_id: str | None = None
+    db_dataset_obj: DBDatasetModel | None = None
+    unit: Unit | None = None
+
+    def __post_init__(self):
+        super().__post_init__()
+        if self.db_dataset_id is not None:
+            from datasets.models import Dataset as DBDatasetModel
+            self.db_dataset_obj = DBDatasetModel.objects.get(uuid=self.db_dataset_id)
+
+    def load(self, context: Context) -> ppl.PathsDataFrame:
+        if self.df is not None:
+            return self.df
+
+        admin_ds = self.db_dataset_obj
+        if admin_ds is None:
+            raise Exception('Admin dataset not loaded')
+        df = JSONDataset.deserialize_df(admin_ds.table)
+        df = self.post_process(context, df)
+        self.df = df
+        return df
+
+    def hash_data(self, context: Context) -> dict[str, Any]:
+        obj = self.db_dataset_obj
+        assert obj is not None
+        return dict(obj_pk=obj.pk, updated_at=str(obj.updated_at))
+
+    def get_unit(self, context: Context) -> Unit:
+        df = self.load(context)
+        meta = df.get_meta()
+        if len(meta.units) == 1:
+            return next(iter(meta.units.values()))
+        raise Exception('Dataset %s does not have a single unit' % self.id)

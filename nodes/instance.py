@@ -48,12 +48,28 @@ class InstanceFeatures:
     """
 
     baseline_visible_in_graphs: bool = True
+    """Whether to display the baseline data in graphs and visualizations."""
+
     show_accumulated_effects: bool = True
+    """Whether to display accumulated effects over time in the UI."""
+
     show_significant_digits: int | None = 3
+    """Number of significant digits to display in numerical results. None means no limit."""
+
     maximum_fraction_digits: int | None = None
+    """Maximum number of decimal places to display after the decimal point. None means no limit."""
+
     hide_node_details: bool = False
+    """Whether to hide detailed node information in the UI."""
+
     show_refresh_prompt: bool = False
+    """Whether to show a prompt to refresh data when it might be outdated."""
+
     requires_authentication: bool = False
+    """Whether authentication is required to access this instance."""
+
+    use_datasets_from_db: bool = False
+    """Whether to use datasets from the database instead of the .parquet files."""
 
 
 @dataclass
