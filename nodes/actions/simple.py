@@ -8,9 +8,10 @@ from django.utils.translation import gettext_lazy as _
 import polars as pl
 
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
+from nodes.generic import GenericNode
 from nodes.gpc import DatasetNode
 from nodes.node import NodeError
-from nodes.simple import GenericNode, SimpleNode
+from nodes.simple import SimpleNode
 from params import BoolParameter, NumberParameter, PercentageParameter, StringParameter
 
 from .action import ActionNode
@@ -21,6 +22,10 @@ if TYPE_CHECKING:
 
 
 class GenericAction(GenericNode, ActionNode):
+    allowed_parameters = [
+        *GenericNode.allowed_parameters,
+        *ActionNode.allowed_parameters,
+    ]
 
     no_effect_value = 0.0
 
@@ -64,7 +69,8 @@ class AdditiveAction2(AdditiveAction, SimpleNode):  # FIXME Merge with AdditiveA
         return df
 
 
-class CumulativeAdditiveAction(ActionNode):  # FIXME Update to deal with old-fashioned multi-metric nodes such as Tampere/private_building_energy_renovation
+# FIXME Update to deal with old-fashioned multi-metric nodes such as Tampere/private_building_energy_renovation
+class CumulativeAdditiveAction(ActionNode):
     explanation = _("""Additive action where the effect is cumulative and remains in the future.""")
 
     allowed_parameters: ClassVar[list[Parameter]] = [

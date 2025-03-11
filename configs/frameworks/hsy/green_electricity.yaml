@@ -23,7 +23,7 @@ nodes:
     där grön el skulle köpas bort från marknaden. Här antas att köp av grön el
     genererar nuvarande liknande elproduktion i den utsträckning att utsläppsfaktorn för andra köpare
     inte stiger, även om grön el har köpts bort från marknaden.
-  type: simple.GenericNode
+  type: generic.GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [energy_carrier]
@@ -79,7 +79,7 @@ nodes:
     detailed description from the residual emission factor page.
   description_sv: Restfaktorn för utsläpp i förhållande till den totala utsläppsfaktorn. Se en mer
     detaljerad beskrivning från sidan för restfaktorn för utsläpp.
-  type: simple.GenericNode
+  type: generic.GenericNode
   quantity: emission_factor
   unit: dimensionless
   input_dimensions: [energy_carrier]
@@ -103,7 +103,7 @@ nodes:
 #   name_fi: Aurinkosähkön päästöt
 #   name_en: Solar electricity emissions
 #   name_sv: Solelens utsläpp  
-#   type: simple.GenericNode
+#   type: generic.GenericNode
 #   quantity: emissions
 #   unit: kt/a
 #   input_dimensions: [energy_carrier]

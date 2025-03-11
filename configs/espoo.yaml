@@ -391,7 +391,7 @@ nodes:
     3,4 % per år 2021–2035 baserat på Carunas uppskattning. Alla förändringar i konsumtionselen
     allokeras till bostädernas elförbrukning, eftersom information om fördelningen
     mellan bostads-, industri- och servicesektorn inte finns tillgänglig.
-  type: finland.hsy.HsyEnergyConsumption
+  type: generic.DimensionalSectorEnergy
   unit: GWh/a
   input_dimensions: [economic_sector, energy_carrier]
   output_dimensions: [economic_sector, energy_carrier]
@@ -425,7 +425,7 @@ nodes:
     en situation där grön el skulle köpas bort från marknaden. Här antas att köp av
     grön el genererar nuvarande liknande elproduktion i den utsträckning att utsläppsfaktorn
     för andra köpare inte stiger, även om grön el har köpts bort från marknaden.
-  type: simple.GenericNode
+  type: generic.GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [energy_carrier]
@@ -460,7 +460,7 @@ nodes:
 - id: green_electricity_consumption_post
   name_fi: Vihreän sähkön kulutus sektoreittain
   name_en: Green electricity consumption by sector
-  type: simple.GenericNode
+  type: generic.GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [economic_sector, energy_carrier]
@@ -549,7 +549,7 @@ nodes:
   name_fi: Kaukolämmön päästökerroin, historiallinen
   name_en: District heating emission factor, historical
   name_sv: Emissionsfaktor för fjärrvärme, historisk
-  type: finland.hsy.HsyEmissionFactor
+  type: generic.DimensionalSectorEmissionFactor
   unit: g/kWh
   input_nodes: [all_hsy_emissions]
   params:
@@ -577,7 +577,7 @@ nodes:
   name_fi: Kulutussähkön sähkönkulutus (Asuminen), historiallinen
   name_en: Consumption electricity consumption (Residential), historical
   name_sv: Elförbrukning för konsumtionsel (Bostäder), historisk
-  type: finland.hsy.HsyEnergyConsumption
+  type: generic.DimensionalSectorEnergy
   quantity: energy
   unit: GWh/a
   input_dimensions: [economic_sector, energy_carrier]
@@ -603,7 +603,7 @@ nodes:
   name_fi: Kansallisen sähköntuotannon päästökerroin, historiallinen
   name_en: National electricity production emission factor, historical
   name_sv: Nationell elproduktions utsläppskoefficient, historisk
-  type: finland.hsy.HsyEmissionFactor
+  type: generic.DimensionalSectorEmissionFactor
   unit: g/kWh
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
@@ -628,7 +628,7 @@ nodes:
   name_fi: Lämmityssähkön päästökerroin, historiallinen
   name_en: Electric heating emission factor, historical
   name_sv: Eluppvärmningens utsläppskoefficient, historisk
-  type: finland.hsy.HsyEmissionFactor
+  type: generic.DimensionalSectorEmissionFactor
   unit: g/kWh
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
@@ -656,7 +656,7 @@ nodes:
   name_fi: Kuorma-autojen päästöjen muutos
   name_en: Change in truck emissions
   name_sv: Förändring i lastbilsutsläpp
-  type: simple.GenericNode
+  type: generic.GenericNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [vehicle_type]
@@ -690,7 +690,7 @@ nodes:
   name_fi: Tieliikenteen historialliset päästökertoimet
   name_en: Historical road traffic emission factors
   name_sv: Historiska utsläppskoefficienter för vägtrafik
-  type: finland.hsy.HsyEmissionFactor
+  type: generic.DimensionalSectorEmissionFactor
   quantity: emission_factor
   unit: g/kWh
   input_dimensions: [vehicle_type, economic_sector]
@@ -703,7 +703,7 @@ nodes:
   name_fi: Tieliikenteen päästökertoimet
   name_en: Road traffic emission factors
   name_sv: Vägtrafikens utsläppskoefficienter
-  type: simple.GenericNode
+  type: generic.GenericNode
   quantity: emission_factor
   unit: g/kWh
   input_dimensions: [vehicle_type, economic_sector]

@@ -24,7 +24,7 @@ nodes:
   name_en: Electricity emission inventory
   name_fi: Sähkön päästöinventaario
   name_sv: Elutsläppsinventering
-  type: finland.hsy.HsyEmissions
+  type: generic.DimensionalSectorEmissions
   unit: kt/a
   input_dimensions: [economic_sector, energy_carrier]
   output_dimensions: [economic_sector, energy_carrier]
@@ -85,7 +85,7 @@ nodes:
   description_sv: Residual emissionsfaktorn gäller den delen av elförbrukningen som inte är
     grön. Andelen utsläppsfri grön el har alltså dragits av från den totala emissionsfaktorn,
     vilket ger en något högre återstående faktor.
-  type: simple.GenericNode
+  type: generic.GenericNode
   quantity: emission_factor
   unit: kg/MWh
   input_dimensions: [energy_carrier]
@@ -100,7 +100,7 @@ nodes:
   name_fi: Kulutussähkön sähkönkulutus
   name_en: Consumption electricity consumption
   name_sv: Elförbrukning för konsumtionsel
-  type: finland.hsy.HsyEnergyConsumption
+  type: generic.DimensionalSectorEnergy
   unit: GWh/a
   color: '#0047b6'
   input_dimensions: [economic_sector, energy_carrier]
@@ -113,7 +113,7 @@ nodes:
   name_fi: Kansallisen sähköntuotannon päästökerroin
   name_en: National electricity production emission factor
   name_sv: Nationell elproduktions emissionsfaktor
-  type: finland.hsy.HsyEmissionFactor
+  type: generic.DimensionalSectorEmissionFactor
   unit: g/kWh
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
@@ -125,7 +125,7 @@ nodes:
   name_fi: Lämmityssähkön päästökerroin
   name_en: Electric heating emission factor
   name_sv: Emissionsfaktor för eluppvärmning
-  type: finland.hsy.HsyEmissionFactor
+  type: generic.DimensionalSectorEmissionFactor
   unit: g/kWh
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]

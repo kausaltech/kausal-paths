@@ -11,9 +11,8 @@ import polars as pl
 
 from common import polars as ppl
 from common.i18n import TranslatedString
-from nodes.calc import extend_last_historical_value, extend_last_historical_value_pl
+from nodes.calc import extend_last_historical_value
 from nodes.constants import (
-    EMISSION_FACTOR_QUANTITY,
     EMISSION_QUANTITY,
     ENERGY_QUANTITY,
     FORECAST_COLUMN,
@@ -24,7 +23,7 @@ from nodes.constants import (
 from nodes.dimensions import Dimension
 from nodes.exceptions import NodeError
 from nodes.node import Node, NodeMetric
-from nodes.simple import AdditiveNode, GenericNode, MultiplicativeNode
+from nodes.simple import AdditiveNode, MultiplicativeNode
 from params import NumberParameter, Parameter, StringParameter
 
 if typing.TYPE_CHECKING:
@@ -323,184 +322,6 @@ class HsyNodeMixin:
 
         return df, nodes
 
-
-class HsyEmissions(GenericNode):
-    default_unit = 'kt/a'
-    quantity = EMISSION_QUANTITY
-    allowed_parameters = [
-        *GenericNode.allowed_parameters,
-        StringParameter(
-            local_id='sector',
-            label='Sector path in HSY emission database',
-            is_customizable=False
-        ),
-    ]
-
-    def parse_dimension_names_from_sector_string(self, sector_name: str) -> SectorParseResult:
-        sector_levels = sector_name.split('|')
-        dimension_map = {}  # Maps level index to dimension name
-        filter_pattern = []  # Build regex pattern for filtering
-
-        for i, level in enumerate(sector_levels):
-            if level.startswith('_') and level.endswith('_'):
-                # This is a dimension level
-                dim_name = level.strip('_')
-                dimension_map[i] = dim_name
-                filter_pattern.append(r'[^|]+')  # Match any non-pipe characters
-            elif level == '*':
-                filter_pattern.append(r'[^|]+')
-            else:
-                # This is a fixed level
-                filter_pattern.append(re.escape(level))
-
-        # Create regex pattern for filtering
-        full_pattern = r'\|'.join(filter_pattern)
-        return {'pattern': full_pattern, 'dimensions': dimension_map}
-
-    def process_sector_data_pl(
-        self,
-        df: ppl.PathsDataFrame,
-        columns: str | list[str]
-    ) -> ppl.PathsDataFrame:
-        """
-        Process sector data from a polars DataFrame.
-
-        Args:
-            df: Input PathsDataFrame with sector data
-            columns: Column names to include
-
-        Returns:
-            Processed PathsDataFrame with dimensional support
-
-        """
-        if isinstance(columns, str):
-            columns = [columns]
-
-        # Get sector pattern
-        sector_name: str = self.get_parameter_value_str('sector')
-
-        # Parse dimensions from sector pattern
-        parsed_sectors = self.parse_dimension_names_from_sector_string(sector_name)
-        full_pattern = parsed_sectors['pattern']
-        dimension_map = parsed_sectors['dimensions']
-
-        # Filter by sector pattern
-        matching_sectors = df.filter(pl.col('sector').str.contains(full_pattern))
-        meta = matching_sectors.get_meta()
-
-        if len(matching_sectors) == 0:
-            raise NodeError(self, f"Sector pattern '{full_pattern}' not found in input")
-
-        # Handle dimensions if specified
-        if dimension_map:
-            # Create dimension columns
-            for level_idx, dim_name in dimension_map.items():
-                # Split sector and extract the level
-                matching_sectors = matching_sectors.with_columns(
-                    pl.col('sector').str.split('|').list.get(level_idx).alias(dim_name)
-                )
-
-                # Convert to proper dimension IDs if needed
-                if dim_name in self.input_dimensions:
-                    dim = self.input_dimensions[dim_name]
-                    matching_sectors = matching_sectors.with_columns(
-                        dim.series_to_ids_pl(matching_sectors[dim_name]).alias(dim_name)
-                    )
-
-            # Group by dimensions and year
-            group_cols = [YEAR_COLUMN] + list(dimension_map.values())
-            result = matching_sectors.group_by(group_cols).agg([
-                pl.sum(col).alias(col) for col in columns
-            ])
-
-            # Add dimension columns to index
-            result = ppl.to_ppdf(result, meta)
-            for dim_name in dimension_map.values():
-                result = result.add_to_index(dim_name)
-        else:
-            # No dimensions, just group by year
-            result = matching_sectors.group_by(YEAR_COLUMN).agg([
-                pl.sum(col).alias(col) for col in columns
-            ])
-            result = ppl.to_ppdf(result, meta)
-
-        # Add forecast column if not present
-        if FORECAST_COLUMN not in result.columns:
-            result = result.with_columns(pl.lit(False).alias(FORECAST_COLUMN))  # noqa: FBT003
-
-        return result
-
-    def _operation_process_sector(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
-        """Process the sector data from HSY nodes."""
-        if df is not None:
-            raise NodeError(self, "process_sector must be the first operation, so df must be None.") # TODO Could be relaxed
-        if len(baskets['other']) != 1:
-            raise NodeError(self, "The node must have exactly one 'other_node' input.")
-
-        # Get the output from HSY node
-        n = baskets['other'][0]
-        data_df = n.get_output_pl()
-
-        # Process the sector data (default to emissions column)
-        data_column = getattr(self, 'data_column', EMISSION_QUANTITY)
-        result = self.process_sector_data_pl(data_df, columns=[data_column])
-
-        result = result.rename({data_column: VALUE_COLUMN})
-        result = extend_last_historical_value_pl(result, end_year=self.context.model_end_year)
-        result = result.ensure_unit(VALUE_COLUMN, self.unit)
-        baskets['other'] = []
-
-        return result, baskets
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Register the sector processing operation
-        self.OPERATIONS['process_sector'] = self._operation_process_sector
-        # Set default operations sequence
-        self.default_operations = 'process_sector,multiply,add,apply_multiplier'
-
-
-class HsyEnergyConsumption(HsyEmissions):
-    default_unit = 'GWh/a'
-    quantity = ENERGY_QUANTITY
-
-    def __init__(self, *args, **kwargs):
-        # Set the data column before initializing
-        self.data_column = ENERGY_QUANTITY
-        super().__init__(*args, **kwargs)
-
-
-class HsyEmissionFactor(HsyEmissions):
-    default_unit = 'g/kWh'
-    quantity = EMISSION_FACTOR_QUANTITY
-
-    def _operation_process_emission_factor(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
-        """Calculate emission factors from energy and emission data."""
-        if df is not None:
-            raise NodeError(self, "process_sector must be the first operation, so df must be None.") # TODO Could be relaxed
-        if len(baskets['other']) != 1:
-            raise NodeError(self, "The node must have exactly one 'other_node' input.")
-
-        # Get the output from HSY node
-        n = baskets['other'][0]
-        data_df = n.get_output_pl()
-
-        # Process the sector data with both energy and emissions columns
-        result = self.process_sector_data_pl(data_df, columns=[ENERGY_QUANTITY, EMISSION_QUANTITY])
-
-        # Calculate emission factor: emissions / energy
-        result = result.divide_cols([EMISSION_QUANTITY, ENERGY_QUANTITY], VALUE_COLUMN)
-        result = result.drop([ENERGY_QUANTITY, EMISSION_QUANTITY])
-        result = extend_last_historical_value_pl(result, end_year=self.context.model_end_year)
-        result = result.ensure_unit(VALUE_COLUMN, self.unit)
-        baskets['other'] = []
-
-        return result, baskets
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Override the operations to use the emission factor calculation
-        self.OPERATIONS['process_sector'] = self._operation_process_emission_factor
 
 class HsyBuildingHeatConsumption(Node, HsyNodeMixin):
     default_unit = 'GWh/a'

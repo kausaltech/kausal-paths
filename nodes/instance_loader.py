@@ -410,7 +410,8 @@ class InstanceLoader:
 
     def _make_node_datasets(self, config: dict, node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912
         from nodes.datasets import DVCDataset, FixedDataset, GenericDataset
-        from nodes.simple import AdditiveNode, GenericNode
+        from nodes.generic import GenericNode
+        from nodes.simple import AdditiveNode
         from nodes.units import Unit
 
         ds_config = config.get('input_datasets')

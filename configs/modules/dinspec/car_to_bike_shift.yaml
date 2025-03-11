@@ -35,8 +35,8 @@ actions:
   - id: multiplier
     is_visible: true
     is_customizable: true
-    label_en: Fraction of car traffic shifting to bikes
-    label_de: Anteil des Autoverkehrs, der auf Fahrräder verlagert wird
+    label_en: Fraction of car traffic after shifting to bikes
+    label_de: Anteil des Autoverkehrs nach Verlagerung auf Fahrräder
     unit: dimensionless
     value: 0.05
     min_value: 0.01
@@ -217,7 +217,7 @@ nodes:
 - id: number_of_bicycle_parking_spaces
   name_de: Anzahl Fahrrad-Parkplätze
   name_en: Number of bicycle parking spaces
-  type: simple.GenericNode
+  type: generic.GenericNode
   quantity: emissions # TODO Use number after fixing colors
   unit: pcs/inh
   color: '#fbb4ae'
@@ -241,7 +241,7 @@ nodes:
 - id: number_of_safe_cycling_kilometers # FIXME Why 67 km nii 2029 and 17 km in 2030? Actions are not extended.
   name_de: Anzahl sichere Radkilometer
   name_en: Number of safe cycling kilometers
-  type: simple.GenericNode
+  type: generic.GenericNode
   quantity: emissions # TODO Use length after fixing colors
   unit: km
   color: '#fbb4ae'
@@ -293,7 +293,7 @@ nodes:
 - id: parking_space_prices
   name_de: Parkplatzpreise
   name_en: Parking space prices
-  type: simple.GenericNode
+  type: generic.GenericNode
   quantity: unit_price
   unit: EUR/pcs/h
   color: '#fbb4ae'
@@ -324,7 +324,7 @@ nodes:
 - id: public_transport_prices
   name_de: ÖPNV-Preise
   name_en: Public transport prices
-  type: simple.GenericNode
+  type: generic.GenericNode
   quantity: unit_price
   unit: EUR/pcs
   color: '#fbb4ae'
@@ -350,7 +350,7 @@ nodes:
 - id: safety
   name_de: Sicherheit
   name_en: Safety
-  type: simple.WeightedSumNode
+  type: generic.WeightedSumNode
   quantity: emissions # TODO Use ratio after fixing colors
   unit: dimensionless
   color: '#b3cde3'
@@ -375,7 +375,7 @@ nodes:
 - id: comfort
   name_de: Komfort
   name_en: Comfort
-  type: simple.WeightedSumNode
+  type: generic.WeightedSumNode
   quantity: emissions # TODO Use ratio after fixing colors
   unit: dimensionless
   color: '#b3cde3'
@@ -400,7 +400,7 @@ nodes:
 - id: status
   name_de: Status
   name_en: Status
-  type: simple.WeightedSumNode
+  type: generic.WeightedSumNode
   quantity: emissions # TODO Use ratio after fixing colors
   unit: dimensionless
   color: '#b3cde3'
@@ -425,7 +425,7 @@ nodes:
 - id: fairness
   name_de: Gereichtigkeit
   name_en: Fairness
-  type: simple.WeightedSumNode
+  type: generic.WeightedSumNode
   quantity: emissions # TODO Use ratio after fixing colors
   unit: dimensionless
   color: '#b3cde3'
@@ -450,7 +450,7 @@ nodes:
 - id: health
   name_de: Gesundheit
   name_en: Health
-  type: simple.WeightedSumNode
+  type: generic.WeightedSumNode
   quantity: emissions # TODO Use ratio after fixing colors
   unit: dimensionless
   color: '#b3cde3'
@@ -475,7 +475,7 @@ nodes:
 - id: affordability
   name_de: Erschwinglichkeit
   name_en: Affordability
-  type: simple.WeightedSumNode
+  type: generic.WeightedSumNode
   quantity: emissions # TODO Use ratio after fixing colors
   unit: dimensionless
   color: '#b3cde3'
@@ -505,7 +505,7 @@ nodes:
 - id: fraction_of_car_trips
   name_en: Fraction of car trips
   name_de: Anteil der Autofahrten
-  type: simple.LogitNode
+  type: generic.LogitNode
   quantity: emissions # TODO Use fraction after fixing colors
   unit: '%'
   color: '#ccebc5'
@@ -526,7 +526,7 @@ nodes:
 - id: shift_from_cars_to_bikes
   name_de: Verlagerung von Autos auf Fahrräder
   name_en: Shift from cars to bikes
-  type: simple.LeverNode
+  type: generic.LeverNode
   quantity: emissions # TODO Use fraction after fixing colors
   unit: '%'
   color: '#ccebc5'
@@ -547,7 +547,7 @@ nodes:
 - id: ghg_emissions
   name_en: Transport GHG emissions
   name_de: Verkehrsbedingte THG-Emissionen
-  type: simple.GenericNode
+  type: generic.GenericNode
   quantity: emissions
   unit: kt/a
   color: '#decbe4'
@@ -577,7 +577,7 @@ nodes:
 - id: nox_emissions
   name_de: NOx-Emissionen
   name_en: NOx emissions
-  type: simple.GenericNode
+  type: generic.GenericNode
   quantity: emissions
   unit: t/a
   color: '#decbe4'
@@ -605,7 +605,7 @@ nodes:
 - id: road_maintenance_cost
   name_de: Straßeninstandhaltungskosten
   name_en: Road maintenance cost
-  type: simple.GenericNode
+  type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   color: '#decbe4'
@@ -633,7 +633,7 @@ nodes:
 - id: air_pollution_emissions
   name_de: Luftschadstoffemissionen
   name_en: Air pollution emissions
-  type: simple.GenericNode
+  type: generic.GenericNode
   quantity: emissions
   unit: t/a
   color: '#decbe4'
@@ -661,7 +661,7 @@ nodes:
 - id: reduced_noise
   name_de: Lärmbelastung
   name_en: Noise pollution
-  type: simple.GenericNode
+  type: generic.GenericNode
   quantity: emissions # TODO Use exposure after fixing colors
   unit: Lden
   color: '#decbe4'
@@ -690,7 +690,7 @@ nodes:
 
 # - id: utility
 #   name_en: Utility
-#   type: simple.GenericNode
+#   type: generic.GenericNode
 #   quantity: ratio
 #   unit: dimensionless
 #   color: '#fed9a6'
