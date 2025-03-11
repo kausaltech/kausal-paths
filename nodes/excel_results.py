@@ -202,41 +202,37 @@ class InstanceResultExcel(I18nBaseModel):
             )
         )
 
-        df = (df
-            .join(
-                forecast_from_df,
-                on=grouping_cols,
-                how='left'
-            )
-            .drop('_dummy_group')  # Remove the dummy column after join
-        )
+        dfout: pl.DataFrame = df.join(
+            forecast_from_df,
+            on=grouping_cols,
+            how='left'
+        ).drop('_dummy_group')  # Remove the dummy column after join
 
-        df = (df  # noqa: PD010
-            .select([
+        dfout = dfout.select([  # noqa: PD010
                 *[col_map[col_id].alias(col_id) for col_id in col_map.keys()],
                 pl.col(YEAR_COLUMN),
                 pl.col(VALUE_COLUMN),
                 pl.col(FORECAST_COLUMN)
-            ])
-            .pivot(
+            ]).pivot(  # type: ignore[call-arg]
                 values=VALUE_COLUMN,
                 index=[*col_map.keys()],  # Now includes Forecast_from
                 columns=YEAR_COLUMN,
+                maintain_order=True,
                 aggregate_function='first'
             )
-        )
-        df = df.with_columns([
+
+        dfout = dfout.with_columns([
             pl.col(col).cast(pl.String, strict=False).fill_null(".")
-            for col in df.columns
+            for col in dfout.columns
             if col in dim_ids
         ])
         for col in cols:
-            if str(col) not in df.columns:
-                df = df.with_columns(pl.lit(None).alias(str(col)))
-        df = df.select(cols)
+            if str(col) not in dfout.columns:
+                dfout = dfout.with_columns(pl.lit(None).alias(str(col)))
+        dfout = dfout.select(cols)
 
         # Write to sheet
-        for row in df.iter_rows():
+        for row in dfout.iter_rows():
             sheet.append(row)
 
     def _add_param_sheet(self, context: Context, wb: Workbook) -> None:
