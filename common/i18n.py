@@ -98,7 +98,6 @@ class TranslatedString:
         setattr(obj, field_name, field_val)
         if not obj.i18n:  # type: ignore
             obj.i18n = {}  # type: ignore
-        i18n = {convert_language_code(key, 'modeltrans'): value for key, value in i18n.items()}
         obj.i18n.update(i18n)  # type: ignore
 
     def __str__(self):
