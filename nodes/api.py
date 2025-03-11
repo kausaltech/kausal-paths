@@ -11,25 +11,10 @@ all_routers = []
 
 
 class InstanceSerializer(serializers.ModelSerializer):
-    datasets = relations.NestedHyperlinkedIdentityField(
-        view_name='instance-datasets-list',
-        read_only=True,
-        lookup_url_kwarg='instance_pk'
-    )
-    dimensions = relations.NestedHyperlinkedIdentityField(
-        view_name='instance-dimensions-list',
-        read_only=True,
-        lookup_url_kwarg='instance_pk'
-    )
-    data_sources = relations.NestedHyperlinkedIdentityField(
-        view_name='instance-data-sources-list',
-        read_only=True,
-        lookup_url_kwarg='instance_pk'
-    )
 
     class Meta:
         model = InstanceConfig
-        fields = ['id', 'identifier', 'name', 'datasets', 'dimensions', 'data_sources']
+        fields = ['id', 'identifier', 'name']
 
 
 class ReadOnly(permissions.BasePermission):

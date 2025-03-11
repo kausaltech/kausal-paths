@@ -1,12 +1,21 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from django.templatetags.static import static
 from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from wagtail import hooks
 from wagtail.admin.menu import Menu, MenuItem, SubmenuMenuItem
+from wagtail.snippets.models import register_snippet
+
+from kausal_common.datasets.wagtail_admin import DatasetSchemaViewSet
 
 from nodes.models import InstanceConfig
-from paths.types import PathsAdminRequest
+
+if TYPE_CHECKING:
+    from paths.types import PathsAdminRequest
 
 
 def global_admin_css():
@@ -72,3 +81,5 @@ def register_instance_chooser():
     )
 
 hooks.register('register_admin_menu_item', register_instance_chooser)
+
+register_snippet(DatasetSchemaViewSet)
