@@ -11,6 +11,8 @@ from wagtail.admin.forms.models import WagtailAdminModelForm
 from wagtail.snippets.views.chooser import ChooseResultsView, ChooseView, SnippetChooserViewSet
 from wagtail.snippets.views.snippets import CreateView, EditView, SnippetViewSet
 
+from kausal_common.models.permissions import PermissionedModel
+
 from paths.types import PathsAdminRequest, PathsModel
 
 from admin_site.forms import PathsAdminModelForm
@@ -118,7 +120,7 @@ class PathsViewSet(Generic[_ModelT, _QS, _FormT], SnippetViewSet[_ModelT, _FormT
 
     @property
     def permission_policy(self):
-        if issubclass(self.model, PathsModel):
+        if issubclass(self.model, PermissionedModel):
             return self.model.permission_policy()
         return super().permission_policy
 
