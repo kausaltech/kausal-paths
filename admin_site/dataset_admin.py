@@ -7,7 +7,7 @@ from wagtail.snippets.models import register_snippet
 from wagtail.snippets.views.snippets import CreateView
 
 from kausal_common.datasets.config import dataset_config
-from kausal_common.datasets.models import DatasetSchema, DatasetSchemaScope
+from kausal_common.datasets.models import Dataset, DatasetSchema, DatasetSchemaScope
 
 from admin_site.viewsets import PathsViewSet
 from kausal_paths_extensions.dataset_editor import DatasetViewSet
@@ -27,13 +27,15 @@ class DatasetSchemaCreateView(CreateView[DatasetSchema, WagtailAdminModelForm[Da
 
     def save_instance(self) -> DatasetSchema:
         instance = super().save_instance()
-        callback = dataset_config.SCHEMA_DEFAULT_SCOPE_FUNCTION
+        callback = getattr(dataset_config, 'SCHEMA_DEFAULT_SCOPE_FUNCTION', None)
         if callback is not None:
             default_scope_model_instance = callback()
             DatasetSchemaScope.objects.create(
                 schema=instance,
                 scope=default_scope_model_instance
             )
+        if dataset_config.SCHEMA_HAS_SINGLE_DATASET:
+            Dataset.objects.get_or_create(schema=instance)
         return instance
 
 
