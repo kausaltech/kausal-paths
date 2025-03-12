@@ -7,7 +7,7 @@ from wagtail.snippets.models import register_snippet
 from wagtail.snippets.views.snippets import CreateView, SnippetViewSet
 
 from kausal_common.datasets.config import dataset_config
-from kausal_common.datasets.models import DatasetSchema
+from kausal_common.datasets.models import Dataset, DatasetSchema, DatasetSchemaScope
 
 from kausal_paths_extensions.dataset_editor import DatasetViewSet
 from users.models import User
@@ -24,6 +24,18 @@ class DatasetSchemaCreateView(CreateView[DatasetSchema, WagtailAdminModelForm[Da
             return super().get_success_url()
         return reverse(DatasetViewSet().get_url_name('edit'), args=(only_dataset.pk,))
 
+    def save_instance(self) -> DatasetSchema:
+        instance = super().save_instance()
+        callback = getattr(dataset_config, 'SCHEMA_DEFAULT_SCOPE_FUNCTION', None)
+        if callback is not None:
+            default_scope_model_instance = callback()
+            DatasetSchemaScope.objects.create(
+                schema=instance,
+                scope=default_scope_model_instance
+            )
+        if dataset_config.SCHEMA_HAS_SINGLE_DATASET:
+            Dataset.objects.get_or_create(schema=instance)
+        return instance
 
 class DatasetSchemaViewSet(SnippetViewSet):
     model = DatasetSchema
