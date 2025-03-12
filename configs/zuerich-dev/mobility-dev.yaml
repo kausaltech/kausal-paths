@@ -446,7 +446,7 @@ nodes:
 
 # ----- Vehicle Kilometers Inside the City -----
 
-- id: vehicle_mileage_historical
+- id: vehicle_kilometers_historical
   name_de: Verkehr Fahrleistung (historisch)
   name_en: Vehicle kilometers (historical)
   type: simple.AdditiveNode
@@ -478,16 +478,16 @@ nodes:
   unit: Mpkm/a
   type: ch.zuerich.PassengerKilometers
   input_nodes:
-  - id: vehicle_mileage_historical
+  - id: vehicle_kilometers_historical
     tags: [vehicle_mileage]
   - id: transport_occupancy_factor
     tags: [occupancy_factor]
     to_dimensions:
     - id: transport_mode
 
-- id: mobility_demand_per_inhabitant
-  name_de: Mobilitätsnachfrage pro Einwohner
-  name_en: Mobility demand per inhabitant
+- id: transport_demand_per_inhabitant_historical
+  name_de: Mobilitätsnachfrage pro Einwohner (historisch)
+  name_en: Mobility demand per inhabitant (historical)
   quantity: per_capita
   unit: pkm/cap/a
   type: simple.DivisiveNode
@@ -499,6 +499,15 @@ nodes:
     - id: transport_mode
       flatten: true
   - id: population
+
+- id: transport_demand_per_inhabitant
+  name_de: Mobilitätsnachfrage pro Einwohner
+  name_en: Mobility demand per inhabitant
+  quantity: per_capita
+  unit: pkm/cap/a
+  type: simple.AdditiveNode
+  input_nodes:
+  - id: transport_demand_per_inhabitant_historical
 
 - id: transport_modal_split
   name_de: Verkehrsträgeranteil
@@ -521,13 +530,13 @@ nodes:
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_nodes:
-  - id: mobility_demand_per_inhabitant
+  - id: transport_demand_per_inhabitant
     to_dimensions: []
   - id: population
     to_dimensions: []
   - id: transport_modal_split
 
-- id: vehicle_mileage_per_inhabitant
+- id: vehicle_kilometers_per_inhabitant
   name_de: Verkehr Fahrleistung pro Einwohner
   name_en: Vehicle kilometers per inhabitant
   quantity: per_capita
@@ -540,7 +549,7 @@ nodes:
     tags: [passenger_kilometers]
   - id: transport_occupancy_factor
     tags: [occupancy_factor]
-  - id: vehicle_mileage_historical
+  - id: vehicle_kilometers_historical
     to_dimensions:
     - id: vehicle_type
     tags: [mileage_historical]
@@ -557,7 +566,7 @@ nodes:
   input_dimensions: [vehicle_type]
   output_dimensions: [vehicle_type]
   input_nodes:
-  - id: vehicle_mileage_historical
+  - id: vehicle_kilometers_historical
     tags: mileage
 
 - id: vehicle_engine_type_split
@@ -569,10 +578,10 @@ nodes:
   input_dimensions: [vehicle_type]
   output_dimensions: [vehicle_type]
   input_nodes:
-  - id: vehicle_mileage_historical
+  - id: vehicle_kilometers_historical
     tags: mileage
 
-- id: vehicle_mileage
+- id: vehicle_kilometers
   name_de: Verkehr Fahrleistung
   name_en: Vehicle kilometers
   type: ch.zuerich.VehicleMileage
@@ -580,7 +589,7 @@ nodes:
   unit: Mvkm/a
   output_dimensions: [vehicle_type]
   input_nodes:
-  - id: vehicle_mileage_per_inhabitant
+  - id: vehicle_kilometers_per_inhabitant
     tags: [mileage_per_inhabitant]
     to_dimensions:
     - id: transport_mode
@@ -667,10 +676,10 @@ nodes:
   unit: kg/kg
   quantity: emissions
   params:
-    formula: tank_respiration / (vehicle_mileage_historical * transport_fuel_factor)
+    formula: tank_respiration / (vehicle_kilometers_historical * transport_fuel_factor)
     extend_last_historical_value: true
   input_nodes:
-  - id: vehicle_mileage_historical
+  - id: vehicle_kilometers_historical
     to_dimensions:
     - id: vehicle_type
   - id: transport_fuel_factor
@@ -1270,7 +1279,7 @@ nodes:
   output_dimensions: [vehicle_type]
   unit: GWh/a
   input_nodes:
-  - id: vehicle_mileage
+  - id: vehicle_kilometers
     from_dimensions:
     - id: vehicle_type
       groups: [buses, trolleybuses, tram, rail_passenger, small_railways]
@@ -1292,7 +1301,7 @@ nodes:
   output_dimensions: [vehicle_type]
   unit: GWh/a
   input_nodes:
-  - id: vehicle_mileage
+  - id: vehicle_kilometers
     from_dimensions:
     - id: vehicle_type
       groups: [buses, trolleybuses, tram, rail_passenger, small_railways]
@@ -1315,7 +1324,7 @@ nodes:
   output_dimensions: [energy_carrier, vehicle_type]
   unit: kg/a
   input_nodes:
-  - id: vehicle_mileage
+  - id: vehicle_kilometers
     to_dimensions:
     - id: vehicle_type
   - id: transport_fuel_factor

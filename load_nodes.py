@@ -74,6 +74,11 @@ parser.add_argument('--profile', action='store_true', help='profile computation 
 parser.add_argument('--disable-ext-cache', action='store_true', help='disable external cache')
 parser.add_argument('--cache-benchmark', action='store_true', help='Perform cache benchmarks')
 parser.add_argument('--generate-result-excel', type=str, metavar='FILENAME', help='Create an Excel file from model outputs')
+parser.add_argument('--format', choices=['long', 'wide'], default='long',
+                   help="""
+                   Excel output format (default: long). Originally, long was used for climate city contracts,
+                   wide for GPC datasets.
+                   """)
 
 # parser.add_argument('--sync', action='store_true', help='sync db to node contents')
 args = parser.parse_args()
@@ -312,9 +317,16 @@ def generate_result_excel():
         if not instance.result_excels:
             if ic is None:
                 raise Exception("Instance '%s' not found" % instance.id)
-            out = InstanceResultExcel.create_for_instance(instance_obj, existing_wb=existing_wb)
+            out = InstanceResultExcel.create_for_instance(
+                ic=instance_obj,
+                existing_wb=existing_wb,
+                context=context,
+                format=args.format
+            )
         else:
-            out = instance.result_excels[0].create_result_excel(instance, existing_wb=existing_wb)
+            excel_res = instance.result_excels[0]
+            excel_res.format = args.format  # Add this line
+            out = excel_res.create_result_excel(instance, existing_wb=existing_wb)
     with excel_path.open('wb') as f:
         f.write(out.getvalue())
 
@@ -327,10 +339,8 @@ for node_id in args.node or []:
     with start_span(name='print-node-output: %s' % node_id, op='function'):
         with start_span(name='get-node', op='function'):
             node = context.get_node(node_id)
-        with start_span(name='run-node', op='function'):
-            with context.run():
-                with start_span(name='print-output', op='function'):
-                    node.print_output(filters=all_filters or None)
+        with start_span(name='run-node', op='function'), context.run(), start_span(name='print-output', op='function'):
+            node.print_output(filters=all_filters or None)
                 # node.plot_output(filters=all_filters or None)
 
     if isinstance(node, ActionNode):
