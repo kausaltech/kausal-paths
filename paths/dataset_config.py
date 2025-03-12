@@ -8,4 +8,7 @@ dataset_config under the project directory.
 """
 from __future__ import annotations
 
-DATASOURCE_DEFAULT_SCOPE_CONTENT_TYPE =  ('nodes', 'instanceconfig')
+DATASOURCE_DEFAULT_SCOPE_CONTENT_TYPE: tuple[str, str] =  ('nodes', 'instanceconfig')
+SCHEMA_HAS_SINGLE_DATASET: bool = True
+SHOW_DATASETS_IN_MENU: bool = True
+SHOW_SCHEMAS_IN_MENU: bool = False

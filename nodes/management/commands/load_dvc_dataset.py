@@ -83,13 +83,14 @@ class Command(BaseCommand):
             pass
         else:
             if force:
-                if dataset.schema.datasets.count() > 1:
+                if dataset.schema and dataset.schema.datasets.count() > 1:
                     print("Dataset exists already, but schema is linked to other datasets as well. Aborting.")
                     return
                 print(f"Deleting existing dataset '{dataset}'")
                 dataset.delete()
-                print(f"Deleting dataset schema '{dataset.schema}'")
-                dataset.schema.delete()
+                if dataset.schema:
+                    print(f"Deleting dataset schema '{dataset.schema}'")
+                    dataset.schema.delete()
             else:
                 print(
                     f"Dataset '{dataset}' with identifier '{identifier}' exists already for instance "
@@ -114,7 +115,7 @@ class Command(BaseCommand):
         metrics = {
             col: self.create_metric(
                 unit=df_metadata.units[col],
-                schema=dataset.schema,
+                schema=schema,
                 default_language=ctx.instance.default_language,
                 label_i18n=metrics_meta.get(col, {}).get('label'),
             )
@@ -123,7 +124,7 @@ class Command(BaseCommand):
 
         for col in df_metadata.dim_ids:
             self.get_or_create_dimension(
-                schema=dataset.schema,
+                schema=schema,
                 instance_config=instance_config,
                 default_language=ctx.instance.default_language,
                 spec=ctx.dimensions[col],
@@ -241,6 +242,7 @@ class Command(BaseCommand):
         self, schema: DatasetSchema, instance_config: InstanceConfig, default_language: str, spec: DimensionSpec
     ) -> Dimension:
         dimension = Dimension()
+        assert isinstance(spec.label, TranslatedString)
         spec.label.set_modeltrans_field(dimension, 'name', default_language)
         dimension.save()
         print(f"Created dimension '{dimension}' and linking it to schema '{schema}'")
@@ -264,6 +266,7 @@ class Command(BaseCommand):
         self, dimension: Dimension, default_language: str, spec: DimensionCategorySpec
     ) -> DimensionCategory:
         cat = DimensionCategory(dimension=dimension, identifier=spec.id)
+        assert isinstance(spec.label, TranslatedString)
         spec.label.set_modeltrans_field(cat, 'label', default_language)
         cat.save()
         print(f"Created dimension category '{cat}'")
