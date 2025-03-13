@@ -4,11 +4,12 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from wagtail.admin.forms.models import WagtailAdminModelForm
 from wagtail.snippets.models import register_snippet
-from wagtail.snippets.views.snippets import CreateView, SnippetViewSet
+from wagtail.snippets.views.snippets import CreateView
 
 from kausal_common.datasets.config import dataset_config
 from kausal_common.datasets.models import Dataset, DatasetSchema, DatasetSchemaScope
 
+from admin_site.viewsets import PathsViewSet
 from kausal_paths_extensions.dataset_editor import DatasetViewSet
 from users.models import User
 
@@ -37,7 +38,8 @@ class DatasetSchemaCreateView(CreateView[DatasetSchema, WagtailAdminModelForm[Da
             Dataset.objects.get_or_create(schema=instance)
         return instance
 
-class DatasetSchemaViewSet(SnippetViewSet):
+
+class DatasetSchemaViewSet(PathsViewSet):
     model = DatasetSchema
     icon = 'table'
     add_to_admin_menu = dataset_config.SHOW_SCHEMAS_IN_MENU
