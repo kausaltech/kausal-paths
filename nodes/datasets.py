@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
     from pandas import DataFrame as PandasDataFrame
 
-    from datasets.models import Dataset as DBDatasetModel
+    from kausal_common.datasets.models import Dataset as DBDatasetModel
 
     from .context import Context
 
@@ -255,7 +255,7 @@ class DatasetWithFilters(Dataset):
 
         return df
 
-    def _filter_df(self, context: Context, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:  # noqa: C901
+    def _filter_df(self, context: Context, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912
         if not self.filters:
             return df
 
@@ -785,17 +785,18 @@ class DBDataset(DatasetWithFilters):
     def __post_init__(self):
         super().__post_init__()
         if self.db_dataset_id is not None:
-            from datasets.models import Dataset as DBDatasetModel
+            from kausal_common.datasets.models import Dataset as DBDatasetModel
             self.db_dataset_obj = DBDatasetModel.objects.get(uuid=self.db_dataset_id)
 
     def load(self, context: Context) -> ppl.PathsDataFrame:
         if self.df is not None:
             return self.df
 
-        admin_ds = self.db_dataset_obj
-        if admin_ds is None:
+        ds_obj = self.db_dataset_obj
+        if ds_obj is None:
             raise Exception('Admin dataset not loaded')
-        df = JSONDataset.deserialize_df(admin_ds.table)
+        df = self.deserialize_df(ds_obj)
+        df = self._filter_and_process_df(context, df)
         df = self.post_process(context, df)
         self.df = df
         return df
@@ -803,7 +804,7 @@ class DBDataset(DatasetWithFilters):
     def hash_data(self, context: Context) -> dict[str, Any]:
         obj = self.db_dataset_obj
         assert obj is not None
-        return dict(obj_pk=obj.pk, updated_at=str(obj.updated_at))
+        return dict(obj_pk=obj.pk, updated_at=str(obj.last_modified_at))
 
     def get_unit(self, context: Context) -> Unit:
         df = self.load(context)
@@ -811,3 +812,78 @@ class DBDataset(DatasetWithFilters):
         if len(meta.units) == 1:
             return next(iter(meta.units.values()))
         raise Exception('Dataset %s does not have a single unit' % self.id)
+
+    @classmethod
+    def deserialize_df(cls, ds_in: DBDatasetModel) -> ppl.PathsDataFrame:
+        from django.contrib.postgres.expressions import ArraySubquery
+        from django.db.models.expressions import F, OuterRef
+        from django.db.models.fields import CharField
+        from django.db.models.functions.comparison import Cast, Coalesce, JSONObject
+
+        from kausal_common.datasets.models import (
+            DataPoint,
+            Dataset as DBDatasetModel,
+            DatasetMetric,
+            DatasetSchemaDimension,
+            DimensionCategory,
+        )
+
+        # dim_cats = DimensionCategory.objects.filter(data_points=OuterRef('pk')).values(
+        #     json=JSONObject(
+        #         dim_id=Coalesce(F('dimension__identifier'), Cast('dimension__uuid', output_field=CharField())),
+        #         cat_id=Coalesce(F('identifier'), Cast('uuid', output_field=CharField())),
+        #     )
+        # )
+
+        dims = DatasetSchemaDimension.objects.filter(schema=ds_in.schema).annotate(
+            dim_uuid=F('dimension__uuid'),
+            dim_id=Coalesce(F('dimension__scopes__identifier'), Cast('dimension__uuid', output_field=CharField())),
+        ).values_list('dim_uuid', 'dim_id')
+        dim_anns = {
+            str(dim[1]): DimensionCategory.objects.filter(dimension__uuid=dim[0])
+            .filter(data_points=OuterRef('pk'))
+            .annotate(cat_id=Coalesce(F('identifier'), Cast('uuid', output_field=CharField())))
+            .values_list('cat_id', flat=True)
+            for dim in dims
+        }
+
+        dps = DataPoint.objects.filter(dataset=OuterRef('pk')).order_by().distinct('id').values(
+            json=JSONObject(
+                id=F('id'),
+                **{YEAR_COLUMN: F('date__year')},
+                value=F('value'),
+                metric=F('metric__uuid'),
+                #dim_cats=ArraySubquery(dim_cats),
+                **dim_anns,
+            ),
+        )
+
+        metrics = DatasetMetric.objects.filter(schema=OuterRef('schema')).values(
+            json=JSONObject(
+                uuid=F('uuid'),
+                name=Coalesce(F('name'), F('label'), Cast('uuid', output_field=CharField())),
+                unit=F('unit'),
+            )
+        )
+
+        ds = DBDatasetModel.objects.filter(id=ds_in.pk).annotate(dps=ArraySubquery(dps), metrics=ArraySubquery(metrics)).first()
+        assert ds is not None
+        df = pl.DataFrame(ds.dps)  # type: ignore
+        mdf = pl.DataFrame(ds.metrics)  # type: ignore
+        df = df.join(mdf.select(pl.col('uuid').alias('metric'), pl.col('name').alias('metric_name')), on='metric', how='left')
+
+        dim_ids = [str(dim[1]) for dim in dims]
+
+        df = df.with_columns(pl.col('metric_name').alias('metric')).drop('metric_name', 'id')
+        df = df.pivot(on='metric', index=[YEAR_COLUMN, *dim_ids], values='value')  # noqa: PD010
+
+        meta = ppl.DataFrameMeta(
+            units={
+                m['name']: unit_registry.parse_units(m['unit']) for m in ds.metrics  # type: ignore
+            },
+            primary_keys=[YEAR_COLUMN, *dim_ids]
+        )
+
+        pdf = ppl.to_ppdf(df, meta)
+
+        return pdf
