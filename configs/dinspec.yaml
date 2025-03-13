@@ -1,0 +1,85 @@
+id: dinspec
+default_language: en
+supported_languages: [de]
+site_url: https://dinspec.paths.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: 4a4cd140f9022c9ab5ac0e75307945e22aa832e3
+  dvc_remote: kausal-s3
+name: Greenhouse Gas Inventory according to DINSpec 91637
+owner: Kausal
+theme_identifier: default
+target_year: 2035
+model_end_year: 2035
+minimum_historical_year: 2020
+maximum_historical_year: 2023
+emission_unit: kt/a
+emission_forecast_from: 2024
+emission_dimensions: [transport_mode, causal_step, sector]
+features:
+  baseline_visible_in_graphs: true
+  show_significant_digits: 3
+  maximum_fraction_digits: 0
+
+include:
+- file: modules/dinspec/dimensions.yaml
+  node_group: Dimensions
+  allow_override: true
+- file: modules/dinspec/car_to_bike_shift.yaml
+  node_group: Transport
+  allow_override: true
+
+action_groups:
+- id: stationary
+  name: Stationary # TODO Make multilingual
+  color: '#1b9e77'
+- id: transportation
+  name: Transportation
+  color: '#d95f02'
+- id: lever
+  name: Levers
+  color: '#7570b3'
+- id: supply
+  name: Supply actions
+  color: '#e7298a'
+- id: regulation
+  name: Regulations
+  color: '#66a61e'
+- id: fiscal_incentive
+  name: Fiscal incentives
+  color: '#e6ab02'
+
+params:
+- id: municipality_name
+  value: Example
+
+emission_sectors: # TODO You may want to allow instances without emission sectors
+
+- id: net_emissions
+  name_en: Net emissions
+  type: simple.AdditiveNode
+  is_outcome: true
+  color: '#decbe4'
+
+pages:
+- id: home
+  name: DINSpec Greenhouse Gas Inventory
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Greenhouse gas inventory according to DIN Spec 91637
+  lead_paragraph: Greenhouse gas inventory according to DIN Spec 91637 for years 2020
+    - 2035
+
+scenarios:
+
+- id: baseline
+  name_en: Baseline
+
+- id: default
+  name_en: Default
+  default: true
+  all_actions_enabled: true
+  params:
+  - id: lever_on_cars_and_bikes.enabled
+    value: false

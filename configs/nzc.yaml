@@ -22,6 +22,32 @@ features:
   hide_node_details: true
   show_refresh_prompt: true
   requires_authentication: true
+
+include:
+
+- file: nzc/transport.yaml
+  node_group: Transport
+  allow_override: true
+- file: nzc/transport_cost.yaml
+  node_group: Transport cost
+  allow_override: true
+- file: nzc/transport_health_cost.yaml
+  node_group: Transport health
+  allow_override: true
+- file: nzc/freight_transport.yaml
+  node_group: Freight transport
+  allow_override: true
+- file: nzc/buildings.yaml
+  node_group: Buildings
+  allow_override: true
+- file: nzc/electricity.yaml
+  node_group: Electricity
+  allow_override: true
+- file: nzc/waste.yaml
+  node_group: Waste
+- file: nzc/other.yaml
+  node_group: Other
+
 result_excels:
 - base_excel_url:
     https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
@@ -1101,6 +1127,24 @@ nodes:
   - id: passenger_kilometres
     tags: [forecast_only]
 
+- id: electrification_year_of_transport
+  name_en: Electrification year of passenger cars
+  name_fi: Henkilöautojen sähköistämisvuosi
+  description_en: This node is needed as output for NetZeroPlanner. It is used in the Climate City Contract tables.
+  description_fi: Tämä solmu tarvitaan NetZeroPlannerin tuloksena. Sitä käytetään Climate City Contract -taulukoissa.
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+    filters:
+    - column: Parameter
+      value: Max year
+  params:
+    sector: Electrification of transport fleet
+
 actions:
 
 # --------------- TRANSPORT -------------
@@ -1611,21 +1655,3 @@ scenarios:
     value: true
   - id: measure_data_baseline_year_only
     value: false
-
-include:
-- file: nzc/transport.yaml
-  node_group: Transport
-  allow_override: true
-- file: nzc/freight_transport.yaml
-  node_group: Freight transport
-  allow_override: true
-- file: nzc/buildings.yaml
-  node_group: Buildings
-  allow_override: true
-- file: nzc/electricity.yaml
-  node_group: Electricity
-  allow_override: true
-- file: nzc/waste.yaml
-  node_group: Waste
-- file: nzc/other.yaml
-  node_group: Other

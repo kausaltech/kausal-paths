@@ -56,6 +56,7 @@ if TYPE_CHECKING:
 
     from loguru import Logger
 
+    from kausal_common.datasets.models import Dataset as DatasetModel
     from kausal_common.models.permission_policy import BaseObjectAction, ObjectSpecificAction
 
     from frameworks.models import FrameworkConfig
@@ -99,15 +100,15 @@ class InstanceConfigQuerySet(MultilingualQuerySet['InstanceConfig'], Permissione
     def adminable_for(self, user: User):
         return InstanceConfig.permission_policy().adminable_instances(user)
 
-
 _InstanceConfigManager = models.Manager.from_queryset(InstanceConfigQuerySet)
+
 class InstanceConfigManager(MLModelManager['InstanceConfig', InstanceConfigQuerySet], _InstanceConfigManager):  # pyright: ignore[reportIncompatibleMethodOverride]
     def get_by_natural_key(self, identifier: str) -> InstanceConfig:
         return self.get(identifier=identifier)
 del _InstanceConfigManager
 
 
-class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', InstanceConfigQuerySet]):
+class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any, InstanceConfigQuerySet]):
     def __init__(self):
         from frameworks.roles import framework_admin_role, framework_viewer_role
 
@@ -243,12 +244,12 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
 
     i18n = TranslationField(fields=('name', 'lead_title', 'lead_paragraph'))
 
-    objects: ClassVar[InstanceConfigManager] = InstanceConfigManager()  # pyright: ignore
+    objects: ClassVar[InstanceConfigManager] = InstanceConfigManager()
 
     # Type annotations
     nodes: RevMany[NodeConfig]
     hostnames: RevMany[InstanceHostname]
-    dimensions: RevMany[DimensionModel]
+    dimensions: RevMany[DatasetDimensionModel]
     datasets: RevMany[DatasetModel]
     framework_config: RevOne[InstanceConfig, FrameworkConfig]
     framework_config_id: int | None
@@ -265,6 +266,11 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
 
     def __str__(self) -> str:
         return self.get_name()
+
+    def __rich_repr__(self):
+        yield self.identifier
+        yield 'id', self.pk
+        yield 'name', self.name
 
     def save(self, *args, **kwargs):
         if self.uuid is None:
@@ -295,11 +301,6 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
 
     def natural_key(self):
         return (self.identifier,)
-
-    def __rich_repr__(self):
-        yield self.identifier
-        yield 'id', self.pk
-        yield 'name', self.name
 
     @classmethod
     def permission_policy(cls) -> InstanceConfigPermissionPolicy:

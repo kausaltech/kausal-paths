@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://saskatoon.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 337d84dbfabc3841127db02e86deaf683159f31c
+  commit: 0ee1c90fb6124e68625484d4805121ab1b0ea07e
   dvc_remote: kausal-s3
   default_path: saskatoon
 name: Saskatoon's GHG Emissions Inventories
@@ -437,23 +437,23 @@ emission_sectors:
 
 nodes:
 
-- id: generation_emissions
-  name: Landfill Gas Combustion Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: []
-  output_dimensions: []
-  input_dataset_processors: [LinearInterpolation]
-  input_datasets:
-  - id: saskatoon/greenhouse_gas_emissions_by_sector
-    filters:
-    - column: emission_sectors
-      value: energy_industries
-  output_nodes:
-  - id: stationary_energy_emissions
-  params:
-    inventory_only: true
+# - id: generation_emissions
+#   name: Landfill Gas Combustion Emissions
+#   type: simple.AdditiveNode
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: []
+#   output_dimensions: []
+#   input_dataset_processors: [LinearInterpolation]
+#   input_datasets:
+#   - id: saskatoon/greenhouse_gas_emissions_by_sector
+#     filters:
+#     - column: emission_sectors
+#       value: energy_industries
+#   output_nodes:
+#   - id: stationary_energy_emissions
+#   params:
+#     inventory_only: true
 
 - id: solid_waste_emissions
   name: Solid Waste Disposal Emissions
@@ -628,7 +628,7 @@ nodes:
   name: Electricity Emission Factor
   type: simple.AdditiveNode
   quantity: emission_factor
-  unit: t/kWh
+  unit: kg/kWh
   output_dimensions: [greenhouse_gases]
   input_dimensions: [greenhouse_gases]
   input_dataset_processors: [LinearInterpolation]
@@ -710,7 +710,7 @@ nodes:
   name: Natural Gas Emission Factor
   type: simple.AdditiveNode
   quantity: emission_factor
-  unit: t/m³
+  unit: kg/m³
   output_dimensions: [greenhouse_gases]
   input_dimensions: [greenhouse_gases]
   input_dataset_processors: [LinearInterpolation]
@@ -723,7 +723,7 @@ nodes:
   name: Fuel Emission Factor
   type: simple.AdditiveNode
   quantity: emission_factor
-  unit: t/L
+  unit: kg/L
   output_dimensions: [energy_carrier, greenhouse_gases]
   input_dimensions: [energy_carrier, greenhouse_gases]
   input_dataset_processors: [LinearInterpolation]

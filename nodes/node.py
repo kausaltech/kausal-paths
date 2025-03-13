@@ -1081,6 +1081,10 @@ class Node:
                         ])
                         dfp = dfp.with_columns(pl.lit('expectation').alias(UNCERTAINTY_COLUMN))
                         df = ppl.to_ppdf(dfp, meta)
+                case 'ignore_content':
+                    no_effect_value = getattr(self, 'no_effect_value', 0.0)
+                    df = df.with_columns(pl.lit(no_effect_value).alias(VALUE_COLUMN))
+                    df = df.set_unit(VALUE_COLUMN, target_node.unit, force=True)
                 case _:
                     pass
 
@@ -1432,6 +1436,7 @@ class Node:
         node_multipliers: list[float] | None = None,
         unit: Unit | None = None,
         start_from_year: int | None = None,
+        ignore_unit: bool = False,
     ) -> ppl.PathsDataFrame:
         if len(nodes) == 0:
             if df is None:
@@ -1471,12 +1476,13 @@ class Node:
             raise NodeError(self, 'Value column missing in data')
         if FORECAST_COLUMN not in cols:
             raise NodeError(self, 'Forecast column missing in data')
+        if not ignore_unit:
+            if unit is None:
+                unit = self.unit
+                assert unit is not None
 
-        if unit is None:
-            unit = self.unit
-            assert unit is not None
+            df = df.ensure_unit(VALUE_COLUMN, unit)
 
-        df = df.ensure_unit(VALUE_COLUMN, unit)
         meta = df.get_meta()
         for node, node_df in node_outputs:
             if self.debug:
@@ -1636,6 +1642,8 @@ class Node:
                         edge_text += _('    - Convert NaNs to zeros.\n')
                     elif tag == 'expectation':
                         edge_text += _('    - Take the expected value over the uncertainty dimension.\n')
+                    elif tag == 'ignore_content':
+                        edge_text += _('    - Show edge on graphs but ignore upstream content.\n')
                     else:
                         edge_text += _('    - The tag "%s" is given.\n') % tag
 

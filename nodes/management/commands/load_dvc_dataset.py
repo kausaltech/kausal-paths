@@ -17,7 +17,6 @@ from kausal_common.datasets.models import (
     DatasetMetric,
     DatasetSchema,
     DatasetSchemaDimension,
-    DatasetSchemaMetric,
     DatasetSchemaScope,
     Dimension,
     DimensionCategory,
@@ -61,6 +60,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('instance', metavar='INSTANCE_ID', type=str, nargs=1)
         parser.add_argument('datasets', metavar='DATASET_ID', type=str, nargs='*')
+        parser.add_argument('--all', action='store_true', help='Sync all datasets')
         parser.add_argument('--force', action='store_true')
 
     def sync_dataset(self, instance_config: InstanceConfig, ctx: Context, ds_id: str, force: bool = False):
@@ -70,8 +70,7 @@ class Command(BaseCommand):
         df_metadata = df.get_meta()
         dvc_metadata = dvc_ds.metadata or {}
 
-        identifier = ds_id.split('/')[-1]
-        assert identifier == dvc_metadata['identifier']
+        identifier = ds_id
         get_kwargs = dict(
             scope_content_type=ContentType.objects.get_for_model(instance_config),
             scope_id=instance_config.pk,
@@ -83,14 +82,15 @@ class Command(BaseCommand):
             pass
         else:
             if force:
-                if dataset.schema and dataset.schema.datasets.count() > 1:
+                schema = dataset.schema
+                assert schema is not None
+                if schema.datasets.count() > 1:
                     print("Dataset exists already, but schema is linked to other datasets as well. Aborting.")
                     return
                 print(f"Deleting existing dataset '{dataset}'")
                 dataset.delete()
-                if dataset.schema:
-                    print(f"Deleting dataset schema '{dataset.schema}'")
-                    dataset.schema.delete()
+                print(f"Deleting dataset schema '{schema}'")
+                schema.delete()
             else:
                 print(
                     f"Dataset '{dataset}' with identifier '{identifier}' exists already for instance "
@@ -114,6 +114,7 @@ class Command(BaseCommand):
         # Map metric identifiers (column names) to Metric instances
         metrics = {
             col: self.create_metric(
+                col=col,
                 unit=df_metadata.units[col],
                 schema=schema,
                 default_language=ctx.instance.default_language,
@@ -205,18 +206,18 @@ class Command(BaseCommand):
                 if col != YEAR_COLUMN:
                     df = df.rename({col: YEAR_COLUMN})
             else:
+                print(df)
                 raise Exception(f"Unknown column {col}")
 
     def create_metric(
-        self, unit: Unit, schema: DatasetSchema, default_language: str, label_i18n: dict[str, str] | None
+        self, col: str, unit: Unit, schema: DatasetSchema, default_language: str, label_i18n: dict[str, str] | None
     ) -> DatasetMetric:
-        metric = DatasetMetric(unit=str(unit))
+        metric = DatasetMetric(schema=schema, name=col, unit=str(unit))
         if label_i18n is not None:
             label = TranslatedString(default_language=default_language, **label_i18n)
             label.set_modeltrans_field(metric, 'label', default_language)
         metric.save()
         print(f"Created metric '{metric}' and linking it to schema '{schema}'")
-        DatasetSchemaMetric.objects.create(schema=schema, metric=metric)
         return metric
 
     def get_or_create_dimension(
@@ -242,8 +243,9 @@ class Command(BaseCommand):
         self, schema: DatasetSchema, instance_config: InstanceConfig, default_language: str, spec: DimensionSpec
     ) -> Dimension:
         dimension = Dimension()
-        assert isinstance(spec.label, TranslatedString)
-        spec.label.set_modeltrans_field(dimension, 'name', default_language)
+        label = spec.label
+        assert isinstance(label, TranslatedString)
+        label.set_modeltrans_field(dimension, 'name', default_language)
         dimension.save()
         print(f"Created dimension '{dimension}' and linking it to schema '{schema}'")
         DatasetSchemaDimension.objects.create(schema=schema, dimension=dimension)
@@ -266,8 +268,9 @@ class Command(BaseCommand):
         self, dimension: Dimension, default_language: str, spec: DimensionCategorySpec
     ) -> DimensionCategory:
         cat = DimensionCategory(dimension=dimension, identifier=spec.id)
-        assert isinstance(spec.label, TranslatedString)
-        spec.label.set_modeltrans_field(cat, 'label', default_language)
+        label = spec.label
+        assert isinstance(label, TranslatedString)
+        label.set_modeltrans_field(cat, 'label', default_language)
         cat.save()
         print(f"Created dimension category '{cat}'")
         return cat
@@ -277,12 +280,18 @@ class Command(BaseCommand):
         ic = InstanceConfig.objects.get(identifier=instance_id)
         ctx = ic.get_instance().context
         if not options['datasets']:
-            print("Available datasets:")
-            ctx.generate_baseline_values()
-            for ds_id in ctx.dvc_datasets.keys():
-                print(ds_id)
-            exit()
+            if not options['all']:
+                print("Available datasets:")
+                dvc_dataset_ids = sorted(ctx.get_all_dvc_dataset_ids())
+                for ds_id in dvc_dataset_ids:
+                    print(ds_id)
+                exit()
+            else:
+                dvc_dataset_ids = sorted(ctx.get_all_dvc_dataset_ids())
+                ds_ids = dvc_dataset_ids
+        else:
+            ds_ids = options['datasets'][0]
 
-        for ds_id in options['datasets']:
+        for ds_id in ds_ids:
             with transaction.atomic():
                 self.sync_dataset(ic, ctx, ds_id, force=options['force'])

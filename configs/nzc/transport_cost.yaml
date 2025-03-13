@@ -1,0 +1,678 @@
+nodes:
+
+# ---------------- Transport costs ---------------
+
+- id: car_driving_unit_price
+  name_en: Car driving unit price
+  name_fi: Auton ajamisen yksikköhinta
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/vkm
+  input_dimensions: [transport_mode, cost_type]
+  output_dimensions: [transport_mode, cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Cost of driving a car per kilometre (excluding fuel)
+
+- id: car_driving_costs
+  name_en: Car driving costs (excluding fuel)
+  name_fi: Auton ajamisen kustannukset (ilman polttoainetta)
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [transport_mode, cost_type, energy_carrier]
+  output_dimensions: [transport_mode, cost_type, energy_carrier]
+  input_nodes:
+  - id: car_driving_unit_price
+    from_dimensions:
+    - id: cost_type
+      categories: [fuel]
+      exclude: true
+    to_dimensions:
+    - id: transport_mode
+    - id: cost_type
+  - id: vehicle_kilometres
+    from_dimensions:
+    - id: transport_mode
+      categories: [cars]
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  output_nodes:
+  - id: transport_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+    - id: cost_type
+    - id: stakeholder
+      categories: [citizens]
+
+- id: charging_infrastructure_unit_price
+  name_en: Charging infrastructure unit price
+  name_fi: Latausinfrastruktuurin yksikköhinta
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/v
+  input_dimensions: [transport_mode, cost_type, energy_carrier]
+  output_dimensions: [transport_mode, cost_type, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Charging infrastructure costs
+
+- id: charging_infrastructure_shares
+  name_en: Charging infrastructure shares
+  name_fi: Latausinfrastruktuurin osuudet
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode, cost_type, energy_carrier, stakeholder]
+  output_dimensions: [transport_mode, cost_type, energy_carrier, stakeholder]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: ev charging infrastructure
+
+- id: total_number_of_cars
+  name_en: Total number of cars
+  name_fi: Autojen kokonaismäärä
+  type: gpc.DatasetNode
+  quantity: number
+  unit: vehicle
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Total number of cars + motorcycles in city
+
+- id: vehicle_kilometres_per_car
+  name_en: Vehicle kilometres per car
+  name_fi: Ajoneuvokilometrit autoa kohti
+  type: simple.MultiplicativeNode
+  quantity: mileage
+  unit: vkm/v/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: total_number_of_cars
+    tags: [geometric_inverse]
+  - id: vehicle_kilometres
+    tags: [inventory_only]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+
+- id: number_of_new_evs
+  name_en: Number of new EVs
+  name_fi: Uusien sähköautojen määrä
+  type: simple.MultiplicativeNode
+  quantity: number
+  unit: v/a
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_nodes:
+  - id: vehicle_kilometres
+    tags: [difference]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: vehicle_kilometres_per_car
+    tags: [geometric_inverse, extend_values]
+    to_dimensions:
+    - id: transport_mode
+
+- id: charging_infrastructure_costs
+  name_en: Charging infrastructure costs, cars
+  name_fi: Latausinfrastruktuurin kustannukset, autot
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [transport_mode, cost_type, energy_carrier, stakeholder]
+  output_dimensions: [transport_mode, cost_type, energy_carrier, stakeholder]
+  input_nodes:
+  - id: charging_infrastructure_unit_price
+    tags: [non_additive]
+    to_dimensions:
+    - id: transport_mode
+    - id: cost_type
+    - id: energy_carrier
+  - id: number_of_new_evs
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  - id: charging_infrastructure_shares
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+    - id: stakeholder
+  output_nodes:
+  - id: transport_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+
+- id: charging_infrastructure_costs_buses
+  name_en: Charging infrastructure costs, buses
+  name_fi: Latausinfrastruktuurin kustannukset, bussit
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [transport_mode, cost_type, energy_carrier, stakeholder]
+  output_dimensions: [transport_mode, cost_type, energy_carrier, stakeholder]
+  input_nodes:
+  - id: charging_infrastructure_unit_price
+    tags: [non_additive]
+    to_dimensions:
+    - id: transport_mode
+    - id: cost_type
+    - id: energy_carrier
+    - id: stakeholder
+      categories: [transport_operators]
+  - id: number_of_buses
+    tags: [difference]
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  output_nodes:
+  - id: transport_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+
+- id: total_cost_of_ownership_historical
+  name_en: Total cost of ownership historical
+  name_fi: Omistamisen kokonaiskustannukset historiallisesti
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/vkm
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Total cost of ownership
+
+- id: total_cost_of_ownership_shares
+  name_en: Total cost of ownership shares
+  name_fi: Omistamisen kokonaiskustannusten osuudet
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [cost_type, transport_mode]
+  output_dimensions: [cost_type, transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Total cost of ownership shares
+
+- id: total_cost_of_ownership
+  name_en: Total cost of ownership
+  name_fi: Omistamisen kokonaiskustannukset
+  type: simple.MultiplicativeNode
+  quantity: unit_price
+  unit: EUR/vkm
+  input_dimensions: [cost_type, transport_mode]
+  output_dimensions: [cost_type, transport_mode]
+  input_datasets: [nzc/defaults]
+  input_nodes:
+  - id: total_cost_of_ownership_historical
+    tags: [non_additive]
+    to_dimensions:
+    - id: transport_mode
+  - id: total_cost_of_ownership_shares
+    to_dimensions:
+    - id: transport_mode
+    - id: cost_type
+
+- id: transport_ownership_costs
+  name_en: Transport ownership costs
+  name_fi: Liikenteen omistamisen kustannukset
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, transport_mode, energy_carrier]
+  output_dimensions: [cost_type, transport_mode, energy_carrier]
+  input_nodes:
+  - id: total_cost_of_ownership
+    to_dimensions:
+    - id: cost_type
+    - id: transport_mode
+  - id: vehicle_kilometres
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  output_nodes:
+  - id: transport_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: transport_mode
+    - id: stakeholder
+      categories: [transport_operators]
+
+- id: electric_vehicles_additional_unit_price_historical
+  name_en: Electric vehicles additional unit price historical
+  name_fi: Sähköajoneuvojen lisäyksikköhinta historiallisesti
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/v
+  input_dimensions: [transport_mode, energy_carrier, cost_type]
+  output_dimensions: [transport_mode, energy_carrier, cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Additional costs for electric vehicles
+
+- id: electric_vehicles_unit_price_rate
+  name_en: Electric vehicles additional unit price rate
+  name_fi: Sähköajoneuvojen lisäyksikköhinnan muutos
+  type: gpc.DatasetNode
+  quantity: rate
+  unit: '%/a'
+  input_dimensions: [transport_mode, energy_carrier, cost_type]
+  output_dimensions: [transport_mode, energy_carrier, cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Additional costs for electric vehicles rate
+
+- id: electric_vehicles_additional_unit_price
+  name_en: Electric vehicles additional unit price
+  name_fi: Sähköajoneuvojen lisäyksikköhinta
+  type: simple.MultiplicativeNode
+  quantity: unit_price
+  unit: EUR/v
+  input_dimensions: [transport_mode, energy_carrier, cost_type]
+  output_dimensions: [transport_mode, energy_carrier, cost_type]
+  input_nodes:
+  - id: electric_vehicles_additional_unit_price_historical
+    tags: [non_additive]
+  - id: electric_vehicles_unit_price_rate
+    tags: [arithmetic_inverse, complement_cumulative_product]
+
+- id: additional_cost_of_buying_electric_vehicles
+  name_en: Additional cost of buying electric vehicles
+  name_fi: Sähköajoneuvojen ostamisen lisäkustannukset
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [transport_mode, energy_carrier, cost_type, stakeholder]
+  output_dimensions: [transport_mode, energy_carrier, cost_type, stakeholder]
+  input_nodes:
+  - id: electric_vehicles_additional_unit_price
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+      categories: [capex]
+    - id: transport_mode
+    - id: energy_carrier
+  - id: number_of_new_evs
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  - id: up_front_cost_shares_of_evs
+  output_nodes:
+  - id: transport_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: transport_mode
+    - id: cost_type
+
+- id: additional_cost_of_buying_electric_buses
+  name_en: Additional cost of buying electric buses
+  name_fi: Sähköbussien ostamisen lisäkustannukset
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [transport_mode, energy_carrier, cost_type]
+  output_dimensions: [transport_mode, energy_carrier, cost_type]
+  input_nodes:
+  - id: electric_vehicles_additional_unit_price
+    from_dimensions:
+    - id: transport_mode
+      categories: [buses]
+  - id: number_of_buses
+    tags: [difference]
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  output_nodes:
+  - id: transport_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+      categories: [transport_operators]
+    - id: transport_mode
+    - id: cost_type
+
+- id: electricity_efficiency_for_electric_vehicles
+  name_en: Electricity efficiency for electric vehicles
+  name_fi: Sähköajoneuvojen sähkönkulutuksen tehokkuus
+  type: gpc.DatasetNode
+  quantity: energy_factor
+  unit: kWh/vkm
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Electricity consumption average vehicle
+
+- id: up_front_cost_shares_of_evs
+  name_en: Up-front cost shares of EVs
+  name_fi: Sähköautojen etukäteiskustannusten osuudet
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode, energy_carrier, stakeholder, cost_type]
+  output_dimensions: [transport_mode, energy_carrier, stakeholder, cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: up-front costs for EVs
+
+- id: public_transport_operation_unit_price
+  name_en: Public transport operation unit price
+  name_fi: Joukkoliikenteen liikennöinnin yksikköhinta
+  description_en: Operational costs of buses and trains come from Sveriges kommuner och landsting (2017)
+    and values are at 1.1 Reduce transport need G236:G241. The values are constant across time.
+    <h2>References</h2><ul><li>Essen et. al. (2019). Handbook on the external costs of transport.
+    For European Commission Directorate-General for Mobility and Transport</li>
+    <li>Sveriges kommuner och landsting (2017). Kollektivtrafikens kostnadsutveckling – en överblick. https://webbutik.skl.se/sv/artiklar/kollektivtrafikens-kostnadsutveckling-en-overblick.html</li></ul>'
+  description_fi: Bussien ja junien liikennöintikustannukset ovat peräisin Sveriges kommuner och landstin (2017)
+    ja arvot löytyvät kohdasta 1.1 Liikennetarpeen vähentäminen G236:G241. Arvot ovat vakioita ajan suhteen.
+    <h2>Lähteet</h2><ul><li>Essen et. al. (2019). Handbook on the external costs of transport.
+    Euroopan komission liikenne- ja liikkuvuusasioiden pääosastolle</li>
+    <li>Sveriges kommuner och landsting (2017). Kollektivtrafikens kostnadsutveckling – en överblick. https://webbutik.skl.se/sv/artiklar/kollektivtrafikens-kostnadsutveckling-en-overblick.html</li></ul>'
+  # type: gpc.DatasetNode
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/vkm
+  historical_values: [[2018, 0.32]]
+  # # input_dimensions: [transport_mode, cost_type]
+  # # output_dimensions: [transport_mode, cost_type]
+  # input_datasets: [nzc/defaults]
+  # params:
+  #   sector: public transport operation unit price
+
+- id: public_transport_operation_cost_shares
+  name_en: Public transport operation cost shares
+  name_fi: Joukkoliikenteen liikennöinnin kustannusosuudet
+  description_en: See transport_air_pollution_cost_shares
+  description_fi: Katso transport_air_pollution_cost_shares
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [stakeholder, cost_type, transport_mode]
+  output_dimensions: [stakeholder, cost_type, transport_mode]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: public transport operation costs
+
+- id: public_transport_operation_cost
+  name_en: Public transport operation cost (excluding fuel)
+  name_fi: Joukkoliikenteen liikennöintikustannukset (ilman polttoainetta)
+  description_en: Operation cost to all stakeholders.
+  description_fi: Liikennöintikustannukset kaikille sidosryhmille.
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [transport_mode, stakeholder, cost_type]
+  output_dimensions: [transport_mode, stakeholder, cost_type]
+  input_nodes:
+  - id: public_transport_operation_unit_price
+    to_dimensions:
+    - id: transport_mode
+      categories: [buses]
+    - id: cost_type
+      categories: [opex]
+  - id: vehicle_kilometres
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: transport_mode
+      categories: [buses, trains]
+    to_dimensions:
+    - id: transport_mode
+  - id: public_transport_operation_cost_shares
+    from_dimensions:
+    - id: transport_mode
+      categories: [public_transport]
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+  output_nodes:
+  - id: transport_cost
+    to_dimensions:
+    - id: transport_mode
+    - id: stakeholder
+    - id: cost_type
+
+- id: transport_energy_factor_ice_petrol_diesel
+  name_en: Transport energy factor - ICE petrol/diesel
+  name_fi: Liikenteen energiakerroin - polttomoottoriautot bensiini/diesel
+  description_en: Values come from European Commission (2019) and are found from 1.1 Reduce transport need G266.
+    <h2>References</h2>
+    European commission (2019) - Reducing CO2 emissions from passenger cars.
+    https://ec.europa.eu/clima/policies/transport/vehicles/cars_en
+  description_fi: Arvot ovat peräisin Euroopan komissiolta (2019) ja löytyvät kohdasta 1.1 Liikennetarpeen vähentäminen G266.
+    <h2>Lähteet</h2>
+    Euroopan komissio (2019) - Henkilöautojen CO2-päästöjen vähentäminen.
+    https://ec.europa.eu/clima/policies/transport/vehicles/cars_en
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: l/g
+  input_datasets: [nzc/defaults]
+  params:
+    sector: transport energy factor ice petrol diesel
+
+- id: bus_mileage
+  name_en: Bus mileage (fuel use)
+  name_fi: Bussien ajosuorite (polttoaineen kulutus)
+  type: gpc.DatasetNode
+  quantity: energy_factor
+  unit: l/vkm
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets: [nzc/defaults]
+  output_nodes:
+  - id: vehicle_mileage
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+    - id: stakeholder
+      categories: [transport_operators]
+  params:
+    sector: Average fuel consumption of buses, based on current fleet
+
+- id: fuel_unit_price
+  name_en: Fuel unit price
+  name_fi: Polttoaineen yksikköhinta
+  description_en: The values come from Eurostat (2019) - Electricity prices for household consumers
+    and are found from MIA D430.
+  description_fi: Arvot ovat peräisin Eurostatista (2019) - Sähkön hinnat kotitalouskuluttajille
+    ja löytyvät MIA D430:sta.
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/l
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: fuel unit price
+
+- id: vehicle_mileage
+  name_en: Vehicle mileage (fuel use)
+  name_fi: Ajoneuvojen ajosuorite (polttoaineen kulutus)
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: l/vkm
+  input_dimensions: [transport_mode, energy_carrier, stakeholder]
+  output_dimensions: [transport_mode, energy_carrier, stakeholder]
+  input_nodes:
+  - id: transport_emission_factor
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
+      flatten: true
+    - id: energy_carrier
+      categories: [petrol_diesel]
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  - id: transport_energy_factor_ice_petrol_diesel
+    to_dimensions:
+    - id: transport_mode
+      categories: [cars]
+    - id: stakeholder
+      categories: [citizens]
+
+- id: transport_fuel_cost
+  name_en: Transport fuel cost
+  name_fi: Liikenteen polttoainekustannukset
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, transport_mode, cost_type, energy_carrier]
+  output_dimensions: [stakeholder, transport_mode, cost_type, energy_carrier]
+  input_nodes:
+  - id: vehicle_mileage
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+    - id: stakeholder
+  - id: vehicle_kilometres
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  - id: fuel_unit_price
+    to_dimensions:
+    - id: cost_type
+  output_nodes:
+  - id: transport_cost
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: transport_mode
+    - id: cost_type
+
+- id: walking_cycling_unit_price1
+  name_en: Walking & cycling unit price, co-benefits
+  name_fi: Kävelyn ja pyöräilyn yksikköhinta, rinnakkaishyödyt
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/pkm
+  input_datasets: [nzc/defaults]
+  input_dimensions: [transport_mode, cost_type]
+  output_dimensions: [transport_mode, cost_type]
+  params:
+    sector: Average value of increased walking/cycling
+
+- id: walking_cycling_unit_price2
+  name_en: Walking & cycling unit price, capex
+  name_fi: Kävelyn ja pyöräilyn yksikköhinta, investoinnit
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/pkm
+  input_datasets: [nzc/defaults]
+  input_dimensions: [transport_mode, cost_type]
+  output_dimensions: [transport_mode, cost_type]
+  params:
+    sector: Total Average cost of cycling/walking
+
+- id: walking_cycling_unit_price
+  name_en: Walking & cycling unit price
+  name_fi: Kävelyn ja pyöräilyn yksikköhinta
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/pkm
+  input_dimensions: [transport_mode, cost_type]
+  output_dimensions: [transport_mode, cost_type]
+  input_nodes:
+  - id: walking_cycling_unit_price1
+  - id: walking_cycling_unit_price2
+    to_dimensions:
+    - id: transport_mode
+    - id: cost_type
+
+- id: walking_cycling_co_benefit
+  name_en: Walking & cycling co-benefit
+  name_fi: Kävelyn ja pyöräilyn rinnakkaishyödyt
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, transport_mode, cost_type]
+  output_dimensions: [stakeholder, transport_mode, cost_type]
+  input_nodes:
+  - id: walking_cycling_unit_price1
+    tags: [arithmetic_inverse]
+    to_dimensions:
+    - id: transport_mode
+    - id: cost_type
+  - id: co_benefit_cost_shares
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+  - id: passenger_kilometres
+    to_dimensions:
+    - id: transport_mode
+  output_nodes: [transport_cost]
+
+- id: walking_cycling_cost_shares
+  name_en: Walking & cycling cost shares, capex
+  name_fi: Kävelyn ja pyöräilyn kustannusosuudet, investoinnit
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_datasets: [nzc/defaults]
+  input_dimensions: [transport_mode, cost_type, stakeholder]
+  output_dimensions: [transport_mode, cost_type, stakeholder]
+  params:
+    sector: investment costs in walking & cycling
+
+- id: walking_cycling_cost
+  name_en: Walking & cycling cost
+  name_fi: Kävelyn ja pyöräilyn kustannukset
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, transport_mode, cost_type]
+  output_dimensions: [stakeholder, transport_mode, cost_type]
+  input_nodes:
+  - id: walking_cycling_unit_price2
+    to_dimensions:
+    - id: transport_mode
+    - id: cost_type
+  - id: walking_cycling_cost_shares
+  - id: passenger_kilometres
+    to_dimensions:
+    - id: transport_mode
+  output_nodes: [transport_cost]
+
+- id: transport_cost
+  name_en: Transport cost
+  name_fi: Liikenteen kustannukset
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  color: '#ffff33'
+  input_dimensions: [stakeholder, transport_mode, cost_type]
+  output_dimensions: [stakeholder, transport_mode, cost_type]
+  output_nodes:
+  - id: total_cost
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder

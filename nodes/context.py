@@ -278,6 +278,15 @@ class Context:
         self.dvc_datasets[ds_id] = ds
         return ds
 
+    def get_all_dvc_dataset_ids(self) -> set[str]:
+        all_datasets = set()
+        for node in self.nodes.values():
+            for ds in node.input_dataset_instances:
+                if not isinstance(ds, DVCDataset):
+                    continue
+                all_datasets.add(ds.id)
+        return all_datasets
+
     def load_all_dvc_datasets(self):
         """
         Load all the DVC datasets that are needed by the nodes.
@@ -286,13 +295,7 @@ class Context:
         is generally faster.
         """
 
-        all_datasets = set()
-        for node in self.nodes.values():
-            for ds in node.input_dataset_instances:
-                if not isinstance(ds, DVCDataset):
-                    continue
-                all_datasets.add(ds.id)
-
+        all_datasets = self.get_all_dvc_dataset_ids()
         with self.start_span('load all datasets', op='model.load'):
             try:
                 self.dataset_repo.load_datasets(list(all_datasets))

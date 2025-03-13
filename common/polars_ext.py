@@ -362,13 +362,97 @@ class PathsExt:
             right_fc = right_fc.fill_null(value=False)
             right_val = right_val.fill_null(value=False)
 
-        df = ppl.to_ppdf(df.join(odf, on=[YEAR_COLUMN, *meta.dim_ids], how=pl_how), meta=meta)
+        df = ppl.to_ppdf(df.join(odf, on=[YEAR_COLUMN, *meta.dim_ids], how=pl_how), meta=meta) # FIXME Use join_over_index
         df = df.with_columns([
             left_val + right_val,
             left_fc | right_fc,
         ])
         df = df.select(cols)
         return df
+
+    def multiply_with_dims(
+        self,
+        odf: ppl.PathsDataFrame,
+        how: Literal['left', 'inner', 'outer'] = 'left'
+    ) -> ppl.PathsDataFrame:
+        """Multiply two PathsDataFrames, handling dimensions and units properly."""
+        df = self._df
+        if len(df.metric_cols) != 1 or len(odf.metric_cols) != 1:
+            raise Exception("Currently multiplying only one metric column is supported")
+        val_col = df.metric_cols[0]
+
+        # Get and calculate output unit (product of input units)
+        left_unit = df.get_unit(val_col)
+        right_unit = odf.get_unit(val_col)
+        output_unit = left_unit * right_unit  # Units multiply
+
+        meta = df.get_meta()
+
+        # Get dimensions for joining and result
+        all_dims = list(set(df.dim_ids) | set(odf.dim_ids))
+        join_dims = list(set(df.dim_ids) & set(odf.dim_ids))
+
+        # Ensure dimension columns have matching types for join
+        for dim in join_dims:
+            dt = df[dim].dtype
+            if odf[dim].dtype != dt:
+                odf = odf.with_columns([pl.col(dim).cast(df[dim].dtype)])
+
+        # Setup column references
+        left_fc = pl.col(FORECAST_COLUMN)
+        right_fc = pl.col(FORECAST_COLUMN + '_right')
+        left_val = pl.col(val_col)
+        right_val = pl.col(val_col + '_right')
+
+        # Handle different join strategies
+        pl_how: pl_types.JoinStrategy = how
+        if how == 'outer':
+            left_fc = left_fc.fill_null(value=True)
+            right_fc = right_fc.fill_null(value=True)
+            left_val = left_val.fill_null(1)  # For multiplication, use 1 as identity
+            right_val = right_val.fill_null(1)
+            pl_how = 'outer_coalesce'
+        elif how == 'left':
+            right_fc = right_fc.fill_null(value=True)
+            right_val = right_val.fill_null(1)  # For multiplication, use 1 as identity
+        elif how == 'inner':
+            pass  # Use inner join as-is
+        else:
+            raise ValueError(f"Invalid join strategy: {how}")
+
+        # Join dataframes on common dimensions
+        joined_df = df.join(odf, on=[YEAR_COLUMN, *join_dims], how=pl_how) # FIXME Use join_over_index
+
+        # Update unit for the multiplied column
+        new_units = meta.units.copy()
+        new_units[val_col] = output_unit
+
+        # Update primary keys to include all dimensions
+        new_primary_keys = [YEAR_COLUMN] + all_dims
+
+        # # Handle any columns with _right suffix that need to be renamed
+        # rename_dict = {}
+        # for col in joined_df.columns:
+        #     if col.endswith('_right') and col != f"{val_col}_right" and col != f"{FORECAST_COLUMN}_right":
+        #         original_name = col[:-6]  # Remove _right suffix
+        #         if original_name not in joined_df.columns:
+        #             rename_dict[col] = original_name
+
+        # if rename_dict:
+        #     joined_df = joined_df.rename(rename_dict)
+
+        # Perform multiplication and handle forecast column
+        result_df = joined_df.with_columns([
+            (left_val * right_val).alias(val_col),
+            (left_fc | right_fc).alias(FORECAST_COLUMN)
+        ])
+
+        cols_to_keep = [YEAR_COLUMN, FORECAST_COLUMN, val_col] + all_dims
+        result_df = result_df.select([col for col in cols_to_keep if col in result_df.columns])
+
+        # Apply updated metadata with new unit and dimensions
+        new_meta = ppl.DataFrameMeta(primary_keys=new_primary_keys, units=new_units)
+        return ppl.to_ppdf(result_df, meta=new_meta)
 
     def add_df(self, odf: ppl.PathsDataFrame, how: Literal['left', 'outer'] = 'left') -> ppl.PathsDataFrame:
         df = self._df

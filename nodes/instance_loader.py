@@ -141,10 +141,10 @@ class InstanceYAMLConfig:
         self,
         existing: list[CommentedMap],
         newconf: list[CommentedMap],
-        allow_override: bool,
         entity_type: str,
         apply_group: str | None = None,
         config_path: Path | None = None,
+        allow_override: bool = False,
     ) -> None:
         by_id = {d['id']: d for d in existing}
         for nc in newconf:
@@ -218,6 +218,15 @@ class InstanceYAMLConfig:
                 dimensions, idata.get('dimensions', []), 'Dimension', apply_group=apply_group,
                 config_path=None, allow_override=allow_override
             )
+            self._merge_include_config(
+                actions, idata.get('actions', []), 'Action', apply_group=apply_group,
+                config_path=None, allow_override=allow_override
+            )
+
+        # Make sure that assignment works even if they are originally empty.
+        data['actions'] = actions
+        data['nodes'] = nodes
+        data['dimensions'] = dimensions
 
         # Serialize and deserialize to get rid of Ruamel extras
         ser_data = json.dumps(data)
@@ -400,7 +409,8 @@ class InstanceLoader:
         return TranslatedString(**langs, default_language=self.default_language)
 
     def _make_node_datasets(self, config: dict, node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912
-        from nodes.datasets import DVCDataset, FixedDataset
+        from nodes.datasets import DBDataset, DVCDataset, FixedDataset, GenericDataset
+        from nodes.simple import AdditiveNode, GenericNode
         from nodes.units import Unit
 
         ds_config = config.get('input_datasets')
@@ -436,7 +446,10 @@ class InstanceLoader:
                 ds_unit = None
             tags = dc.pop('tags', [])
 
-            ds_obj: DVCDataset | None = None
+            ds_obj: DVCDataset | DBDataset | None = None
+            if issubclass(node_class, GenericNode) and not issubclass(node_class, AdditiveNode):
+                ds_obj = GenericDataset(id=ds_id, unit=ds_unit, tags=tags, **dc)
+
             if self.fw_config is not None:
                 from nodes.gpc import DatasetNode
 
@@ -444,6 +457,12 @@ class InstanceLoader:
                     from frameworks.datasets import FrameworkMeasureDVCDataset
 
                     ds_obj = FrameworkMeasureDVCDataset(id=ds_id, unit=ds_unit, tags=tags, **dc)
+            elif self.instance.features.use_datasets_from_db:
+                ds_db_obj = self.db_datasets.get(ds_id)
+                if ds_db_obj is not None:
+                    self.logger.debug('Loading dataset %s from DB' % ds_id)
+                    ds_obj = DBDataset(id=ds_id, unit=ds_unit, tags=tags, **dc, db_dataset_id=str(ds_db_obj.uuid))
+
             if ds_obj is None:
                 ds_obj = DVCDataset(id=ds_id, unit=ds_unit, tags=tags, **dc)
             ds_obj.interpolate = ds_interpolate
@@ -1008,6 +1027,18 @@ class InstanceLoader:
             node = self.context.get_node(node_id)
             self._make_node_visualizations(node, viz_config)
 
+    def load_db_datasets(self):
+        from kausal_common.datasets.models import Dataset as DBDatasetModel
+
+        from nodes.models import InstanceConfig
+        try:
+            ic = self.instance.config
+        except InstanceConfig.DoesNotExist:
+            self.db_datasets = {}
+            return
+        ds_objs = DBDatasetModel.mgr.qs.for_instance_config(ic).only('uuid', 'identifier', 'last_modified_at')
+        self.db_datasets = {ds.identifier: ds for ds in ds_objs}
+
     def _init_instance(self) -> None:  # noqa: PLR0915
         import dvc_pandas
 
@@ -1118,12 +1149,14 @@ class InstanceLoader:
         self._subactions = {}
         self._scenario_values = {}
         self._node_visualizations = {}
+        self.db_datasets = {}
         self.setup_dimensions()
         self.generate_nodes_from_emission_sectors()
         self.setup_global_parameters()
-        self.setup_nodes()
-        self.setup_actions()
-        self.setup_edges()
+        self.load_db_datasets()
+        self.setup_nodes()  # type: ignore[misc]
+        self.setup_actions()  # type: ignore[misc]
+        self.setup_edges()  # type: ignore[misc]
         self.setup_action_efficiency_pairs()
         self.setup_scenarios()
         self.setup_normalizations()

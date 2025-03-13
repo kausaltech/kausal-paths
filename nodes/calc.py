@@ -30,8 +30,8 @@ def extend_last_historical_value_pl(df: ppl.PathsDataFrame, end_year: int) -> pp
     if last_hist_year is not None:
         fc_cond = pl.col(YEAR_COLUMN) > last_hist_year
     else:
-        fc_cond = True
-    fc = pl.when(fc_cond).then(True).otherwise(False)
+        fc_cond = pl.lit(True)  # noqa: FBT003
+    fc = pl.when(fc_cond).then(True).otherwise(False)  # noqa: FBT003
     df = df.with_columns([fc.alias(FORECAST_COLUMN)])
     df = df.paths.to_narrow()
     return df

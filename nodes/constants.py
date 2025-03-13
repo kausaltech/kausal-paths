@@ -73,13 +73,13 @@ UNIT_PRICE_QUANTITIES = {
 
 STACKABLE_QUANTITIES = ACTIVITY_QUANTITIES | {
     MIX_QUANTITY, GROUPED_MIX_QUANTITY, POPULATION_QUANTITY, FLOOR_AREA_QUANTITY, CURRENCY_QUANTITY,
-    NUMBER_QUANTITY, 'area', 'disease_burden', 'health_effect',
+    NUMBER_QUANTITY, 'area', 'disease_burden', 'health_effect', 'length',
 }
 
-KNOWN_QUANTITIES = ACTIVITY_QUANTITIES | ACTIVITY_FACTOR_QUANTITIES | UNIT_PRICE_QUANTITIES | {
+KNOWN_QUANTITIES = ACTIVITY_QUANTITIES | ACTIVITY_FACTOR_QUANTITIES | UNIT_PRICE_QUANTITIES | STACKABLE_QUANTITIES | {
     EMISSION_FACTOR_QUANTITY, CURRENCY_QUANTITY, NUMBER_QUANTITY, PER_CAPITA_QUANTITY, FLOOR_AREA_QUANTITY,
     MIX_QUANTITY, GROUPED_MIX_QUANTITY, POPULATION_QUANTITY,
-    'ratio', 'exposure', 'exposure_response', 'disease_burden', 'case_burden', 'mass_concentration',
+    'ratio', 'exposure', 'exposure_response', 'disease_burden', 'case_burden', 'mass_concentration', 'concentration',
     'body_weight', 'incidence', 'fraction', 'probability', 'ingestion', 'area', 'effect', 'health_effect', 'rate',
     'speed',
 }
