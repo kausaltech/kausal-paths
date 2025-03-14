@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://norderstedt-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 913722f2a68c46a4425ec4c9832d34d9f3e4026c
+  commit: c7c89f0ca2c624723d3dd23395532d4e706b0756
   dvc_remote: kausal-s3
 name: Norderstedt Greenhouse Gas Inventory
 owner: City of Norderstedt
@@ -15,27 +15,49 @@ minimum_historical_year: 2020
 maximum_historical_year: 2023
 emission_unit: t/a
 emission_forecast_from: 2024
-emission_dimensions: [] # ['scope', 'ghg']
+emission_dimensions: []
 features:
   baseline_visible_in_graphs: true
+  use_datasets_from_db: true
 
 action_groups:
 - id: i_stationary
   name: Stationary
+  color: '#4e79a7'
 - id: v_afolu
   name: AFOLU
+  color: '#b07aa1'
 
-# impact_overviews:
-# - graph_type: cost_effectiveness
-#   cost_node: net_price
-#   impact_node: net_emissions
-#   invert_cost: false
-#   invert_impact: true
-#   indicator_unit: EUR/t
-#   cost_unit: EUR
-#   impact_unit: t
-#   plot_limit_for_indicator: 1000
-#   label: Marginal Abatement Cost
+impact_overviews:
+- graph_type: cost_effectiveness
+  cost_node: aggregate_net_price
+  impact_node: net_emissions
+  invert_cost: false
+  invert_impact: true
+  indicator_unit: EUR/t
+  cost_unit: MEUR
+  impact_unit: t
+  plot_limit_for_indicator: 20000
+  label: Cost efficiency
+
+- graph_type: cost_benefit
+  cost_node: cost_benefit_analysis
+  impact_node: cost_benefit_analysis
+  cost_unit: kEUR
+  impact_unit: kEUR
+  indicator_unit: kEUR
+  outcome_dimension: cost_benefit
+  label: Cost-benefit
+
+- graph_type: return_of_investment
+  cost_node: total_costs
+  impact_node: total_benefits
+  invert_cost: false
+  invert_impact: true
+  indicator_unit: '%'
+  cost_unit: EUR
+  impact_unit: EUR
+  label: Return on investment
 
 dimensions:
 - id: scope
@@ -57,6 +79,10 @@ dimensions:
   categories:
   - id: electricity
     label: 'Electricity'
+  - id: electricity_and_heating_existing_buildings
+    label: Electricity & Heating (Existing Buildings)
+  - id: electricity_and_heating_new_buildings
+    label: Electricity & Heating (New Buildings)
 
 - id: cost_type
   label: Cost Type
@@ -65,6 +91,8 @@ dimensions:
     label: 'Operations'
   - id: capex_infrastructure
     label: 'Capex, Infrastructure'
+  - id: opex_infrastructure
+    label: 'Opex, Infrastructure'
 
 - id: sector
   label: GPC Sector
@@ -219,12 +247,20 @@ dimensions:
     label: 'Tree Donation'
   - id: reforestation
     label: 'Reforestation'
-  - id: energy_refurbishment_for_private_households
+  - id: program_energy_refurbishment_for_private_households
     label: 'Energy Refurbishment for Private Households'
-  - id: energy_refurbishment_for_school_building
+  - id: energy_refurbishment_school_building
     label: 'Energy Refurbishment for School Building'
   - id: new_school_building
     label: 'New School Building'
+
+- id: cost_benefit
+  label: Cost-Benefit
+  categories:
+  - id: cost
+    label: 'Cost'
+  - id: benefit
+    label: 'Benefit'
 
 emission_sectors:
 - id: net_emissions
@@ -237,22 +273,56 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: EUR/a
-  input_dimensions: [] # ['scope']
-  output_dimensions: [] # ['scope']
+  input_dimensions: ['cost_type', 'scope']
+  output_dimensions: ['cost_type', 'scope']
   is_outcome: true
+
+- id: i12_residential_grid_energy_emissions
+  name: I.1.2 Residential Grid Energy Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'scope']
+  output_dimensions: ['ghg', 'scope']
+  output_nodes:
+  - id: i1_residential_total_emissions
+    to_dimensions:
+    - id: ghg
+    - id: scope
+
+- id: i12_residential_grid_energy_price
+  name: I.1.2 Residential Grid Energy Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['action', 'cost_type', 'scope']
+  output_dimensions: ['action', 'cost_type', 'scope']
+  output_nodes:
+  - id: i1_residential_total_price
+    from_dimensions:
+    - id: action
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: cost_type
 
 - id: i22_commercial_and_institutional_grid_energy_consumption
   name: I.2.2 Commercial & Institutional Grid Energy Consumption
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: energy
   unit: kWh/a
-  input_dimensions: ['scope', 'energy_carrier']
-  output_dimensions: ['scope', 'energy_carrier']
-  params:
-    gpc_sector: I.2.2
+  input_dimensions: ['energy_carrier', 'scope']
+  output_dimensions: ['energy_carrier', 'scope']
   input_datasets:
-  - id: gpc/norderstedt
+  - id: norderstedt/stationary
+    column: energy
+    dropna: true
     forecast_from: 2024
+    filters:
+    - column: sector
+      value: i22
+    - column: ghg
+    - column: cost_type
   output_nodes:
   - id: i22_commercial_and_institutional_grid_energy_consumption_emissions
     to_dimensions:
@@ -268,8 +338,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['scope', 'ghg', 'energy_carrier']
-  output_dimensions: ['scope', 'ghg', 'energy_carrier']
+  input_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['energy_carrier', 'scope', 'ghg']
   output_nodes:
   - id: i2_commercial_and_institutional_total_emissions
     to_dimensions:
@@ -298,10 +368,13 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: EUR/a
-  input_dimensions: ['cost_type', 'scope']
-  output_dimensions: ['cost_type', 'scope']
+  input_dimensions: ['action', 'cost_type', 'scope']
+  output_dimensions: ['action', 'cost_type', 'scope']
   output_nodes:
   - id: i22_commercial_and_institutional_grid_energy_total_price
+    from_dimensions:
+    - id: action
+      flatten: true
     to_dimensions:
     - id: scope
     - id: cost_type
@@ -321,16 +394,20 @@ nodes:
 
 - id: i22_commercial_and_institutional_grid_energy_emission_factor
   name: I.2.2 Commercial & Institutional Grid Energy Emission Factor
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emission_factor
-  unit: g/kWh
-  input_dimensions: ['scope', 'ghg', 'energy_carrier']
-  output_dimensions: ['scope', 'ghg', 'energy_carrier']
-  params:
-    gpc_sector: I.2.2
+  unit: kg/kWh
+  input_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['energy_carrier', 'scope', 'ghg']
   input_datasets:
-  - id: gpc/norderstedt
+  - id: norderstedt/stationary
+    column: emission_factor
+    dropna: true
     forecast_from: 2024
+    filters:
+    - column: sector
+      value: i22
+    - column: cost_type
   output_nodes:
   - id: i22_commercial_and_institutional_grid_energy_consumption_emissions
     to_dimensions:
@@ -340,16 +417,20 @@ nodes:
 
 - id: i22_commercial_and_institutional_grid_energy_unit_price
   name: I.2.2 Commercial & Institutional Grid Energy Unit Price
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: unit_price
   unit: EUR/kWh
-  input_dimensions: ['cost_type', 'scope', 'energy_carrier']
-  output_dimensions: ['cost_type', 'scope', 'energy_carrier']
-  params:
-    gpc_sector: I.2.2
+  input_dimensions: ['energy_carrier', 'cost_type', 'scope']
+  output_dimensions: ['energy_carrier', 'cost_type', 'scope']
   input_datasets:
-  - id: gpc/norderstedt
+  - id: norderstedt/stationary
+    column: unit_price
+    dropna: true
     forecast_from: 2024
+    filters:
+    - column: sector
+      value: i22
+    - column: ghg
   output_nodes:
   - id: i22_commercial_and_institutional_grid_energy_consumption_price
     to_dimensions:
@@ -359,16 +440,11 @@ nodes:
 
 - id: v2_land_emissions
   name: V.2 Land Emissions
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
-  params:
-    gpc_sector: V.2
-  input_datasets:
-  - id: gpc/norderstedt
-    forecast_from: 2024
+  input_dimensions: ['ghg', 'scope']
+  output_dimensions: ['ghg', 'scope']
   output_nodes:
   - id: v_afolu_total_emissions
     to_dimensions:
@@ -380,26 +456,69 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: EUR/a
-  input_dimensions: ['scope']
-  output_dimensions: ['scope']
+  input_dimensions: ['action', 'cost_type', 'scope']
+  output_dimensions: ['action', 'cost_type', 'scope']
   output_nodes:
   - id: v_afolu_total_price
     to_dimensions:
+    - id: action
+    - id: cost_type
     - id: scope
+
+- id: i1_residential_total_emissions
+  name: I.1 Residential Total Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg', 'scope']
+  output_dimensions: ['ghg', 'scope']
+  output_nodes:
+  - id: i_stationary_total_emissions
+    from_dimensions:
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: ghg
 
 - id: i2_commercial_and_institutional_total_emissions
   name: I.2 Commercial & Institutional Total Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['scope', 'ghg', 'energy_carrier']
-  output_dimensions: ['scope', 'ghg', 'energy_carrier']
+  input_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_dimensions: ['energy_carrier', 'scope', 'ghg']
+  output_nodes:
+  - id: i_stationary_total_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: ghg
+
+- id: i_stationary_emissions
+  name: I Stationary Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg']
+  output_dimensions: ['ghg']
+  input_datasets:
+  - id: norderstedt/stationary
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: i
+    - column: scope
+    - column: energy_carrier
+    - column: cost_type
   output_nodes:
   - id: i_stationary_total_emissions
     to_dimensions:
-    - id: scope
     - id: ghg
-    - id: energy_carrier
 
 - id: i_stationary_total_emissions
   name: I Stationary Total Emissions
@@ -407,16 +526,12 @@ nodes:
   color: '#4e79a7'
   quantity: emissions
   unit: t/a
-  input_dimensions: ['scope', 'ghg', 'energy_carrier']
-  output_dimensions: ['scope', 'ghg', 'energy_carrier']
+  input_dimensions: ['ghg']
+  output_dimensions: ['ghg']
   output_nodes:
   - id: net_emissions
     from_dimensions:
-    - id: scope
-      flatten: true
     - id: ghg
-      flatten: true
-    - id: energy_carrier
       flatten: true
 
 - id: v_afolu_total_emissions
@@ -425,14 +540,14 @@ nodes:
   color: '#b07aa1'
   quantity: emissions
   unit: t/a
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
+  input_dimensions: ['ghg', 'scope']
+  output_dimensions: ['ghg', 'scope']
   output_nodes:
   - id: net_emissions
     from_dimensions:
-    - id: scope
-      flatten: true
     - id: ghg
+      flatten: true
+    - id: scope
       flatten: true
 
 - id: v_afolu_total_price
@@ -441,13 +556,29 @@ nodes:
   color: '#b07aa1'
   quantity: currency
   unit: EUR/a
-  input_dimensions: ['scope']
-  output_dimensions: ['scope']
+  input_dimensions: ['action', 'cost_type', 'scope']
+  output_dimensions: ['action', 'cost_type', 'scope']
   output_nodes:
   - id: net_price
     from_dimensions:
-    - id: scope
+    - id: action
       flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: scope
+
+- id: i1_residential_total_price
+  name: I.1 Residential Total Price
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: ['cost_type', 'scope']
+  output_dimensions: ['cost_type', 'scope']
+  output_nodes:
+  - id: i_stationary_total_price
+    to_dimensions:
+    - id: scope
+    - id: cost_type
 
 - id: i2_commercial_and_institutional_total_price
   name: I.2 Commercial & Institutional Total Price
@@ -472,116 +603,544 @@ nodes:
   output_dimensions: ['cost_type', 'scope']
   output_nodes:
   - id: net_price
+    to_dimensions:
+    - id: cost_type
+    - id: scope
+
+# ----- COSTS & BENEFITS ------------------------------------------------------
+
+- id: aggregate_net_price
+  name: Net Cost
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: []
+  output_dimensions: []
+  input_nodes:
+  - id: net_price
     from_dimensions:
     - id: cost_type
       flatten: true
     - id: scope
       flatten: true
+
+- id: total_costs
+  name: Total Costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: []
+  output_dimensions: []
+  input_nodes:
+  - id: i12_residential_grid_energy_price
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: i22_commercial_and_institutional_grid_energy_price
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: v2_land_price
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: energy_cost_increases
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
+- id: total_benefits
+  name: Total Benefits
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: []
+  output_dimensions: []
+  input_nodes:
+  - id: energy_cost_reductions
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+
+- id: cost_benefit_analysis
+  name: Cost-benefit analysis
+  name_en: Cost-benefit analysis
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [cost_benefit]
+  output_dimensions: [cost_benefit]
+  input_nodes:
+  - id: total_costs
+    to_dimensions:
+    - id: cost_benefit
+      categories: [cost]
+  - id: total_benefits
+    to_dimensions:
+    - id: cost_benefit
+      categories: [benefit]
+
+- id: energy_consumption_reductions
+  name: Energy Consumption Reductions
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [energy_carrier, scope]
+  output_dimensions: [energy_carrier, scope]
+  input_nodes:
+  - id: change_streetlights_to_led
+    metrics: [energy]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+  - id: energy_refurbishment_school_building
+    metrics: [energy]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+
+- id: energy_consumption_increases
+  name: Energy Consumption Increases
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [energy_carrier, scope]
+  output_dimensions: [energy_carrier, scope]
+  input_nodes:
+  - id: new_school_building
+    metrics: [energy]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+
+- id: energy_cost_reductions
+  name: Energy Cost Reductions
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [cost_type, scope, energy_carrier]
+  output_dimensions: [cost_type, scope, energy_carrier]
+  params:
+    formula: ((baseline_energy + reduction) * price) + (baseline_energy * baseline_price)
+  input_nodes:
+  - id: baseline_energy_consumption
+    tags: [baseline_energy]
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+  - id: energy_consumption_reductions
+    tags: [reduction]
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+  - id: baseline_unit_price
+    tags: [baseline_price, arithmetic_inverse]
+  - id: i22_commercial_and_institutional_grid_energy_unit_price
+    tags: [price]
+
+- id: energy_cost_increases
+  name: Energy Cost Increases
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [cost_type, scope, energy_carrier]
+  output_dimensions: [cost_type, scope, energy_carrier]
+  input_nodes:
+  - id: energy_consumption_increases
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+  - id: i22_commercial_and_institutional_grid_energy_unit_price
+
+- id: baseline_energy_consumption
+  name: Baseline Energy Consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: ['energy_carrier', 'scope']
+  output_dimensions: ['energy_carrier', 'scope']
+  input_datasets:
+  - id: norderstedt/stationary
+    column: energy
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: i22
+    - column: ghg
+    - column: cost_type
+
+- id: baseline_unit_price
+  name: Baseline Unit Price
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/kWh
+  input_dimensions: ['energy_carrier', 'cost_type', 'scope']
+  output_dimensions: ['energy_carrier', 'cost_type', 'scope']
+  input_datasets:
+  - id: norderstedt/stationary
+    column: unit_price
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: i22
+    - column: ghg
 
 actions:
 - id: change_streetlights_to_led
   name: Change Streetlights to LED
-  type: gpc.DatasetActionMFM
+  type: simple.AdditiveAction
   group: i_stationary
-  color: '#4e79a7'
-  input_dimensions: ['cost_type', 'scope', 'energy_carrier']
-  output_dimensions: ['cost_type', 'scope', 'energy_carrier']
+  input_dimensions: ['action', 'cost_type', 'scope', 'energy_carrier']
+  output_dimensions: ['action', 'cost_type', 'scope', 'energy_carrier']
   params:
-    action: Change Streetlights to LED
+    allow_null_categories: true
+
   input_datasets:
-  - id: gpc/norderstedt_simple_actions
+  - id: norderstedt/stationary_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [change_streetlights_to_led]
+    - column: ghg
+
   output_metrics:
-  - id: i22_energy
+  - id: energy
     unit: kWh/a
     quantity: energy
-  - id: i22_currency
+  - id: currency
     unit: EUR/a
     quantity: currency
+
   output_nodes:
   - id: i22_commercial_and_institutional_grid_energy_consumption
-    metrics: [i22_energy]
+    metrics: [energy]
     from_dimensions:
+    - id: action
+      flatten: true
     - id: cost_type
       flatten: true
     to_dimensions:
     - id: scope
     - id: energy_carrier
   - id: i22_commercial_and_institutional_grid_energy_price
-    metrics: [i22_currency]
+    metrics: [currency]
     from_dimensions:
     - id: energy_carrier
       flatten: true
     to_dimensions:
-    - id: scope
+    - id: action
     - id: cost_type
+    - id: scope
 
-- id: change_streetlights_to_led_by_2029
-  name: Change Streetlights to LED (by 2029)
-  type: gpc.DatasetActionMFM
+
+- id: program_energy_refurbishment_for_private_households
+  name: Energy Refurbishment for Private Households Program
+  type: simple.AdditiveAction
   group: i_stationary
-  color: '#4e79a7'
-  input_dimensions: ['cost_type', 'scope', 'energy_carrier']
-  output_dimensions: ['cost_type', 'scope', 'energy_carrier']
+  input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
+  output_dimensions: ['action', 'cost_type', 'scope', 'ghg']
   params:
-    action: Change Streetlights to LED (by 2029)
-  input_datasets:
-  - id: gpc/norderstedt_simple_actions
-  output_metrics:
-  - id: i22_energy
-    unit: kWh/a
-    quantity: energy
-  - id: i22_currency
-    unit: EUR/a
-    quantity: currency
-  output_nodes:
-  - id: i22_commercial_and_institutional_grid_energy_consumption
-    metrics: [i22_energy]
-    from_dimensions:
-    - id: cost_type
-      flatten: true
-    to_dimensions:
-    - id: scope
-    - id: energy_carrier
-  - id: i22_commercial_and_institutional_grid_energy_price
-    metrics: [i22_currency]
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: scope
-    - id: cost_type
+    allow_null_categories: true
 
-- id: tree_donation
-  name: Tree Donation
-  type: gpc.DatasetActionMFM
-  group: v_afolu
-  color: '#b07aa1'
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
-  params:
-    action: Tree Donation
   input_datasets:
-  - id: gpc/norderstedt_simple_actions
+  - id: norderstedt/stationary_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [program_energy_refurbishment_for_private_households]
+    - column: energy_carrier
+
   output_metrics:
-  - id: v2_emissions
+  - id: emissions
     unit: kg/a
     quantity: emissions
-  - id: v2_currency
+  - id: currency
     unit: EUR/a
     quantity: currency
+
+  output_nodes:
+  - id: i12_residential_grid_energy_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+  - id: i12_residential_grid_energy_price
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: scope
+
+
+- id: energy_refurbishment_school_building
+  name: Energy Refurbishment for School Building
+  type: simple.AdditiveAction
+  group: i_stationary
+  input_dimensions: ['action', 'cost_type', 'scope', 'energy_carrier', 'ghg']
+  output_dimensions: ['action', 'cost_type', 'scope', 'energy_carrier', 'ghg']
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: norderstedt/stationary_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [energy_refurbishment_school_building]
+
+  output_metrics:
+  - id: energy
+    unit: kWh/a
+    quantity: energy
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  - id: unit_price
+    unit: EUR/kWh
+    quantity: unit_price
+  - id: emission_factor
+    unit: kg/kWh
+    quantity: emission_factor
+
+  output_nodes:
+  - id: i22_commercial_and_institutional_grid_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+  - id: i22_commercial_and_institutional_grid_energy_price
+    metrics: [currency]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: scope
+  - id: i22_commercial_and_institutional_grid_energy_unit_price
+    metrics: [unit_price]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: scope
+    - id: energy_carrier
+  - id: i22_commercial_and_institutional_grid_energy_emission_factor
+    metrics: [emission_factor]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+    - id: ghg
+
+
+- id: new_school_building
+  name: New School Building
+  type: simple.AdditiveAction
+  group: i_stationary
+  input_dimensions: ['action', 'cost_type', 'scope', 'energy_carrier']
+  output_dimensions: ['action', 'cost_type', 'scope', 'energy_carrier']
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: norderstedt/stationary_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [new_school_building]
+    - column: ghg
+
+  output_metrics:
+  - id: energy
+    unit: kWh/a
+    quantity: energy
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+
+  output_nodes:
+  - id: i22_commercial_and_institutional_grid_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: energy_carrier
+  - id: i22_commercial_and_institutional_grid_energy_price
+    metrics: [currency]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: scope
+
+
+- id: reforestation
+  name: Reforestation
+  type: simple.AdditiveAction
+  group: v_afolu
+  input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
+  output_dimensions: ['action', 'cost_type', 'scope', 'ghg']
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: norderstedt/afolu_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [reforestation]
+
+  output_metrics:
+  - id: emissions
+    unit: kg/a
+    quantity: emissions
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+
   output_nodes:
   - id: v2_land_emissions
-    metrics: [v2_emissions]
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
     to_dimensions:
     - id: scope
     - id: ghg
   - id: v2_land_price
-    metrics: [v2_currency]
+    metrics: [currency]
     from_dimensions:
     - id: ghg
       flatten: true
     to_dimensions:
+    - id: action
+    - id: cost_type
     - id: scope
+
+
+- id: tree_donation
+  name: Tree Donation
+  type: simple.AdditiveAction
+  group: v_afolu
+  input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
+  output_dimensions: ['action', 'cost_type', 'scope', 'ghg']
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: norderstedt/afolu_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [tree_donation]
+
+  output_metrics:
+  - id: emissions
+    unit: kg/a
+    quantity: emissions
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+
+  output_nodes:
+  - id: v2_land_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+  - id: v2_land_price
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: scope
+
 
 pages:
 - id: home
@@ -599,10 +1158,4 @@ scenarios:
 - id: default
   default: true
   name: Climate Action Plan
-  params:
-  - id: change_streetlights_to_led.enabled
-    value: true
-  - id: change_streetlights_to_led_by_2029.enabled
-    value: false
-  - id: tree_donation.enabled
-    value: true
+  all_actions_enabled: true

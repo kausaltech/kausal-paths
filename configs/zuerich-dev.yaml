@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich-dev.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: d6e074804de7eb4fb394bef7e523e66dfe906b46
+  commit: 52e49e3546a3015b870799af2890dee940c80ce7
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero Cockpit
@@ -1130,24 +1130,17 @@ actions:
     entsprechenden stadtplanerischen Prozesse und Massnahmen werden erst mittel- bis
     langfristig Wirkung zeigen.
   group: mobility
-  type: linear.ReduceAction
+  type: linear.DatasetReduceAction
   unit: pkm/cap/a
   quantity: per_capita
+  input_nodes:
+  - id: transport_demand_per_inhabitant_historical
+    tags: [historical]
+  input_datasets:
+  - id: zuerich/transportation_demand_goals
+    tags: [goal]
   output_nodes:
-  - id: mobility_demand_per_inhabitant
-  params:
-  - id: reduce
-    unit: pkm/cap/a
-    is_customizable: false
-    value:
-    - target: {}
-      amounts:
-      - year: 2023
-        amount: -45
-      - year: 2039
-        amount: -45
-      - year: 2040
-        amount: 0
+  - id: transport_demand_per_inhabitant
 
 #
 # Massnahmenpaket 4: Verlagerung des MIV in Richtung des Umweltverbundes
@@ -1196,7 +1189,7 @@ actions:
       - categories:
           transport_mode: rail_passenger
       amounts:
-      - year: 2023
+      - year: 2024
         source_amount: -0.27
         dest_amounts: [27.3, 13.9, 58.8]
       - year: 2039
@@ -1228,7 +1221,7 @@ actions:
       - categories:
           transport_mode: bicycle
       amounts:
-      - year: 2023
+      - year: 2024
         source_amount: -0.73
         dest_amounts: [100]
       - year: 2039

@@ -593,16 +593,23 @@ nodes:
 
 - id: i32_manufacturing_grid_energy_consumption
   name: I.3.2 Manufacturing Grid Energy Consumption
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: energy
   unit: MWh/a
   input_dimensions: ['scope', 'energy_carrier']
   output_dimensions: ['scope', 'energy_carrier']
-  minimum_year: 2015
-  params:
-    gpc_sector: I.3.2
   input_datasets:
-  - id: gpc/riga
+  - id: riga/stationary
+    column: energy
+    dropna: true
+    filters:
+    - column: sector
+      value: i32
+    - column: ghg
+    - column: owner
+    - column: use
+    - column: heating
+    - column: source
   output_nodes:
   - id: i32_manufacturing_grid_energy_consumption_price
     to_dimensions:
@@ -624,16 +631,23 @@ nodes:
 
 - id: i32_manufacturing_grid_energy_unit_price
   name: I.3.2 Manufacturing Grid Energy Unit Price
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: unit_price
   unit: EUR/MWh
   input_dimensions: ['scope', 'energy_carrier']
   output_dimensions: ['scope', 'energy_carrier']
-  minimum_year: 2020
-  params:
-    gpc_sector: I.3.2
   input_datasets:
-  - id: gpc/riga
+  - id: riga/stationary
+    column: unit_price
+    dropna: true
+    filters:
+    - column: sector
+      value: i32
+    - column: ghg
+    - column: owner
+    - column: use
+    - column: heating
+    - column: source
   output_nodes:
   - id: i32_manufacturing_grid_energy_consumption_price
     to_dimensions:
@@ -642,16 +656,23 @@ nodes:
 
 - id: i52_ag_forestry_and_fishing_grid_energy_consumption
   name: I.5.2 Ag, Forestry, & Fishing Grid Energy Consumption
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: energy
   unit: MWh/a
   input_dimensions: ['scope', 'energy_carrier']
   output_dimensions: ['scope', 'energy_carrier']
-  minimum_year: 2020
-  params:
-    gpc_sector: I.5.2
   input_datasets:
-  - id: gpc/riga
+  - id: riga/stationary
+    column: energy
+    dropna: true
+    filters:
+    - column: sector
+      value: i52
+    - column: ghg
+    - column: owner
+    - column: use
+    - column: heating
+    - column: source
   output_nodes:
   - id: i52_ag_forestry_and_fishing_grid_energy_consumption_price
     to_dimensions:
@@ -673,16 +694,23 @@ nodes:
 
 - id: i52_ag_forestry_and_fishing_grid_energy_unit_price
   name: I.5.2 Ag, Forestry, & Fishing Grid Energy Unit Price
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: unit_price
   unit: EUR/MWh
   input_dimensions: ['scope', 'energy_carrier']
   output_dimensions: ['scope', 'energy_carrier']
-  minimum_year: 2020
-  params:
-    gpc_sector: I.5.2
   input_datasets:
-  - id: gpc/riga
+  - id: riga/stationary
+    column: unit_price
+    dropna: true
+    filters:
+    - column: sector
+      value: i52
+    - column: ghg
+    - column: owner
+    - column: use
+    - column: heating
+    - column: source
   output_nodes:
   - id: i52_ag_forestry_and_fishing_grid_energy_consumption_price
     to_dimensions:
@@ -1045,16 +1073,19 @@ nodes:
 
 - id: iii_waste_emissions
   name: III Waste Emissions
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   color: '#59A14F'
   quantity: emissions
   unit: t/a
   input_dimensions: ['ghg', 'owner', 'source']
   output_dimensions: ['ghg', 'owner', 'source']
-  params:
-    gpc_sector: III
   input_datasets:
-  - id: gpc/riga
+  - id: riga/waste
+    column: emissions
+    dropna: true
+    filters:
+    - column: sector
+      value: iii
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -1068,16 +1099,19 @@ nodes:
 
 - id: iv_ippu_emissions
   name: IV IPPU Emissions
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   color: '#F28E2B'
   quantity: emissions
   unit: t/a
   input_dimensions: ['ghg', 'owner', 'source']
   output_dimensions: ['ghg', 'owner', 'source']
-  params:
-    gpc_sector: IV
   input_datasets:
-  - id: gpc/riga
+  - id: riga/ippu_and_afolu
+    column: emissions
+    dropna: true
+    filters:
+    - column: sector
+      value: iv
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -1091,16 +1125,19 @@ nodes:
 
 - id: v_afolu_emissions
   name: V AFOLU Emissions
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   color: '#B07AA1'
   quantity: emissions
   unit: t/a
   input_dimensions: ['ghg', 'owner', 'source']
   output_dimensions: ['ghg', 'owner', 'source']
-  params:
-    gpc_sector: V
   input_datasets:
-  - id: gpc/riga
+  - id: riga/ippu_and_afolu
+    column: emissions
+    dropna: true
+    filters:
+    - column: sector
+      value: v
   output_nodes:
   - id: net_emissions
     from_dimensions:
