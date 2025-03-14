@@ -152,7 +152,7 @@ action_groups:
 - id: reforestation
   name: 7. Reforestation
 
-action_efficiency_pairs:
+impact_overviews:
 
 - graph_type: cost_benefit
   cost_node: discounted_investment

@@ -18,7 +18,7 @@ emission_forecast_from: 2023
 emission_dimensions: ['scope', 'ghg']
 features:
   baseline_visible_in_graphs: true
-action_efficiency_pairs:
+impact_overviews:
 - graph_type: cost_effectiveness
   cost_node: discounted_net_costs
   impact_node: total_emissions
