@@ -1,10 +1,11 @@
+# Dataset: https://docs.google.com/spreadsheets/d/12_McEL0wQWS0G-0zBYEfnPOBdkdpRd31__qwpqYZ0ZE/edit?gid=0#gid=0
 id: forestry-fi
 default_language: en
 supported_languages: [fi]
 site_url: https://forestry-fi.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: b79a45826fd7f91a462da3ea19488175bd1cdc4e
+  commit: f5d9e9eac776ceb9d2aa9740244cfdb53e8d8b40
   dvc_remote: kausal-s3
 name_en: Multi-stakeholder forestry policy options
 name_fi: Metsäpolitiikan monet vaihtoehdot
@@ -820,7 +821,274 @@ nodes:
   - id: total_cost
     tags: [make_nonpositive]
 
+- id: forest_protection_criteria
+  name: Forest protection criteria
+  description: Finnish Government is deciding the criteria for forest protection in
+    April 2025. The criteria are strict, which means that only a small fraction of
+    forests in Southern Finland is eligible for protection. The age of the forest
+    should be more than 100 - 140 years, and there should be more than 60 m**3/ha
+    of dead wood.
+  type: generic.GenericNode
+  quantity: emissions # FIXME Convert to argument when the colors work properly.
+  unit: dimensionless
+  color: '#ff7354'
+  input_datasets:
+  - id: sunnydale/forestry_fi
+    tags: [baseline] # TODO Remove after you have merged datasets into operations.
+    filters:
+    - column: Sector
+      value: Argument placeholder
+  output_nodes:
+  - id: protect_the_forest
+    tags: [ignore_content]
+
+- id: forest_owners_right_to_self_determination
+  name: Forest owner's right to self determination
+  name_fi: Metsänomistajan itsemääräämisoikeus
+  type: generic.GenericNode
+  quantity: emissions # FIXME Convert to argument when the colors work properly.
+  unit: dimensionless
+  color: '#ff7354'
+  input_datasets:
+  - id: sunnydale/forestry_fi
+    tags: [baseline]
+    filters:
+    - column: Sector
+      value: Argument placeholder
+  output_nodes:
+  - id: protect_the_forest
+    tags: [ignore_content]
+
+- id: responsibility_of_nature_protection
+  name: Everyone has the responsibility to protect nature as a part of their own actions
+  name_fi: Jokaisella on velvollisuus suojella luontoa oman toimintansa puitteissa
+  type: generic.GenericNode
+  quantity: emissions # FIXME Convert to argument when the colors work properly.
+  unit: dimensionless
+  color: '#ff7354'
+  input_datasets:
+  - id: sunnydale/forestry_fi
+    tags: [baseline]
+    filters:
+    - column: Sector
+      value: Argument placeholder
+  output_nodes:
+  - id: protect_the_forest
+    tags: [ignore_content]
+
+- id: forest_property_protection
+  name: Forest owner's property must be protected
+  name_fi: Metsänomistajan omaisuus ja päätösvalta on suojattu
+  type: generic.GenericNode
+  quantity: emissions # FIXME Convert to argument when the colors work properly.
+  unit: dimensionless
+  color: '#ff7354'
+  input_datasets:
+  - id: sunnydale/forestry_fi
+    tags: [baseline]
+    filters:
+    - column: Sector
+      value: Argument placeholder
+  output_nodes:
+  - id: protect_the_forest
+    tags: [ignore_content]
+
+- id: biodiversity_strategy_requires_action
+  name: EU biodiversity strategy requires nature conservation
+  name_fi: EU:n biodiversiteettistrategia vaatii luonnonsuojelua
+  type: generic.GenericNode
+  quantity: emissions # FIXME Convert to argument when the colors work properly.
+  unit: dimensionless
+  color: '#ff7354'
+  input_datasets:
+  - id: sunnydale/forestry_fi
+    tags: [baseline]
+    filters:
+    - column: Sector
+      value: Argument placeholder
+  output_nodes:
+  - id: protect_the_forest
+    tags: [ignore_content]
+
+- id: premature_cuts_destroy_income
+  name: Premature forest cuts destroy income opportunities
+  name_fi: Aavustushakkuut tuhavat ansaintamahdollisuuksia
+  type: generic.GenericNode
+  quantity: emissions # FIXME Convert to argument when the colors work properly.
+  unit: dimensionless
+  color: '#ff7354'
+  input_datasets:
+  - id: sunnydale/forestry_fi
+    tags: [baseline]
+    filters:
+    - column: Sector
+      value: Argument placeholder
+  output_nodes:
+  - id: other_forest_income
+    tags: [ignore_content]
+
+- id: threat_of_forced_conseervation
+  name: Threat of forced conservation
+  name_fi: Pakkosuojelu on metsänomistajan uhka
+  type: generic.GenericNode
+  quantity: emissions # FIXME Convert to argument when the colors work properly.
+  unit: dimensionless
+  color: '#ff7354'
+  input_datasets:
+  - id: sunnydale/forestry_fi
+    tags: [baseline]
+    filters:
+    - column: Sector
+      value: Argument placeholder
+  output_nodes:
+  - id: protect_the_forest
+    tags: [ignore_content]
+
+- id: biodiversity_in_forests
+  name: Biodiversity in forests
+  name_fi: Monimuotoisuus metsissä
+  type: generic.GenericNode
+  quantity: rate
+  unit: dimensionless
+
+- id: diversity_of_habitat
+  name: Diversity of habitat
+  name_fi: Elinympäristön monipuolisuus
+  type: generic.GenericNode
+  quantity: rate
+  unit: dimensionless
+  input_nodes:
+  - id: amount_of_wood_in_forests
+    tags: [additive] # TODO Consider turning off unit checking also in multiply_nodes_pl.
+  output_nodes:
+  - id: biodiversity_in_forests
+  params:
+  - id: multiplier
+    value: 0.0001
+    unit: 1/Mm3_solid
+
+- id: continuation_of_habitat
+  name: Continuation of habitat
+  name_fi: Elinympäristön jatkuvuus
+  type: generic.GenericNode
+  quantity: rate
+  unit: dimensionless
+  input_nodes:
+  - id: amount_of_wood_in_forests
+    tags: [additive]
+  output_nodes:
+  - id: biodiversity_in_forests
+  params:
+  - id: multiplier
+    value: 0.0001
+    unit: 1/Mm3_solid
+
+- id: price_of_forest_protection
+  name: Price of forest protection
+  name_fi: Metsien suojelukorvauksen hinta
+  type: generic.GenericNode
+  quantity: unit_price
+  unit: EUR/m3_solid/a
+  input_datasets:
+  - id: sunnydale/forestry_fi
+    tags: [baseline]
+    filters:
+    - column: Sector
+      value: Forest protection unit price
+
+- id: price_of_carbon_sinks
+  name: Price of carbon sinks
+  name_fi: Metsien hiilinielujen hinta
+  type: generic.GenericNode
+  quantity: unit_price
+  unit: EUR/m3_solid/a
+  input_datasets:
+  - id: sunnydale/forestry_fi
+    tags: [baseline]
+    filters:
+    - column: Sector
+      value: Carbon sink unit price
+
+- id: other_forest_income
+  name: Other forest income
+  name_fi: Muu metsätulo
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_datasets:
+  - id: sunnydale/forestry_fi
+    filters:
+    - column: Sector
+      value: Argument placeholder
+  input_nodes:
+  - id: price_of_forest_protection
+    tags: [additive]
+  - id: price_of_carbon_sinks
+    tags: [additive]
+  - id: amount_of_wood_in_forests
+  output_nodes:
+  - id: total_economic_cost
+    to_dimensions:
+    - id: cost_type
+      categories: [economic]
+    - id: stakeholder
+      categories: [forest_owner]
+  params:
+    operations: add,multiply
+
 actions:
+
+- id: cut_the_forest
+  name_en: Cut the forest
+  name_fi: Hakkaa metsä
+  type: gpc.DatasetAction
+  quantity: mass
+  unit: Mm3_solid/a
+  group: forestry
+  input_datasets: [sunnydale/forestry_fi]
+  output_nodes:
+  - id: forest_cuts_in_finland
+  params:
+    sector: Forest cuts by a forest owner
+
+- id: protect_the_forest
+  name_en: Protect the forest
+  name_fi: Suojele metsä
+  type: gpc.DatasetAction
+  quantity: rate
+  unit: '%/a'
+  group: forestry
+  input_datasets: [sunnydale/forestry_fi]
+  output_nodes:
+  - id: forest_growth_rate
+  params:
+    sector: Growth increase due to protection
+
+- id: pay_for_forest_protection
+  name_en: Pay for forest protection
+  name_fi: Maksa metsänsuojelukorvaus
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: dimensionless
+  group: forestry
+  input_datasets: [sunnydale/forestry_fi]
+  output_nodes:
+  - id: price_of_forest_protection
+  params:
+    sector: Yes/no decision
+
+- id: pay_for_carbon_sink
+  name_en: Pay for carbon sink
+  name_fi: Maksa hiilinielusta
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: dimensionless
+  group: forestry
+  input_datasets: [sunnydale/forestry_fi]
+  output_nodes:
+  - id: price_of_carbon_sinks
+  params:
+    sector: Yes/no decision
 
 - id: district_heating_with_biofuels
   name_en: District heating with biofuels
