@@ -4,14 +4,18 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, cast
 from typing_extensions import TypeVar
 
+from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
 from django.core.exceptions import FieldDoesNotExist
 from django.db.models import Model, QuerySet
 from django.forms import BaseModelForm
 from wagtail.admin.forms.models import WagtailAdminModelForm
 from wagtail.snippets.views.chooser import ChooseResultsView, ChooseView, SnippetChooserViewSet
-from wagtail.snippets.views.snippets import CreateView, EditView, SnippetViewSet
+from wagtail.snippets.views.snippets import CreateView, DeleteView, EditView, SnippetViewSet
 
-from paths.types import PathsAdminRequest, PathsModel
+from kausal_common.models.permission_policy import ModelPermissionPolicy
+from kausal_common.models.permissions import PermissionedModel
+
+from paths.types import PathsAdminRequest
 
 from admin_site.forms import PathsAdminModelForm
 from users.models import User
@@ -19,6 +23,7 @@ from users.models import User
 if TYPE_CHECKING:
     from django.http import HttpRequest
     from wagtail.admin.panels.group import ObjectList
+    from wagtail.permission_policies.base import BasePermissionPolicy
 
     from nodes.models import InstanceConfig
 
@@ -45,7 +50,29 @@ class AdminInstanceMixin:
         return realm_context.get().realm
 
 
+def user_has_permission(
+    permission_policy: BasePermissionPolicy,
+    user: AbstractBaseUser | AnonymousUser,
+    permission: str,
+    obj: Model
+) -> bool:
+    assert isinstance(permission_policy, ModelPermissionPolicy)
+    if isinstance(user, AnonymousUser):
+        return False
+    return permission_policy.user_has_permission_for_instance(
+        user, permission, obj
+    )
+
+
 class PathsEditView(EditView[_ModelT, _FormT], AdminInstanceMixin):
+    def user_has_permission(self, permission):
+        return user_has_permission(
+            self.permission_policy,
+            self.request.user,
+            permission,
+            self.object
+        )
+
     def get_editing_sessions(self):
         return None
 
@@ -54,6 +81,16 @@ class PathsEditView(EditView[_ModelT, _FormT], AdminInstanceMixin):
             **super().get_form_kwargs(),
             'admin_instance': self.admin_instance,
         }
+
+
+class PathsDeleteView(DeleteView[_ModelT, _FormT], AdminInstanceMixin):
+    def user_has_permission(self, permission):
+        return user_has_permission(
+            self.permission_policy,
+            self.request.user,
+            permission,
+            self.object
+        )
 
 
 class PathsCreateView(CreateView[_ModelT, _FormT], AdminInstanceMixin):
@@ -100,6 +137,7 @@ class PathsChooserViewSet(SnippetChooserViewSet, Generic[_ModelT]):
 class PathsViewSet(Generic[_ModelT, _QS, _FormT], SnippetViewSet[_ModelT, _FormT]):
     add_view_class: ClassVar = PathsCreateView[_ModelT, _FormT]
     edit_view_class: ClassVar = PathsEditView[_ModelT, _FormT]
+    delete_view_class: ClassVar = PathsDeleteView[_ModelT, _FormT]
     add_to_admin_menu = True
     chooser_viewset_class = PathsChooserViewSet
 
@@ -118,7 +156,7 @@ class PathsViewSet(Generic[_ModelT, _QS, _FormT], SnippetViewSet[_ModelT, _FormT
 
     @property
     def permission_policy(self):
-        if issubclass(self.model, PathsModel):
+        if issubclass(self.model, PermissionedModel):
             return self.model.permission_policy()
         return super().permission_policy
 

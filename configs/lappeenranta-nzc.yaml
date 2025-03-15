@@ -105,7 +105,7 @@ action_groups:
   name_en: 7. Reforestation
   name: 7. Uudelleenmetsitys
 
-# action_efficiency_pairs:
+# impact_overviews:
 
 # - graph_type: cost_benefit
 #   cost_node: discounted_investment

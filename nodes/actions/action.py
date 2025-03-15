@@ -317,19 +317,15 @@ class ActionNode(Node):
         return df
 
 
-class ActionEfficiency(typing.NamedTuple):
+class ActionImpact(typing.NamedTuple):
     action: ActionNode
     df: ppl.PathsDataFrame
     efficiency_divisor: float  # FIXME AEP depreciated
     unit_adjustment_multiplier: float
 
 
-class ActionImpact(ActionEfficiency):
-    pass
-
-
 @dataclass
-class ActionEfficiencyPair:
+class ImpactOverview:
     graph_type: str
     cost_node: Node
     impact_node: Node
@@ -365,13 +361,13 @@ class ActionEfficiencyPair:
         stakeholder_dimension: str | None = None,
         outcome_dimension: str | None = None,
         label: TranslatedString | str | None = None,
-    ) -> ActionEfficiencyPair:
+    ) -> ImpactOverview:
         cost_node = context.get_node(cost_node_id)
         impact_node = context.get_node(impact_node_id)
         indicator_unit_obj = context.unit_registry.parse_units(indicator_unit or '')
         cost_unit_obj = context.unit_registry.parse_units(cost_unit)
         impact_unit_obj = context.unit_registry.parse_units(impact_unit)
-        aep = ActionEfficiencyPair(
+        aep = ImpactOverview(
             graph_type=graph_type,
             cost_node=cost_node,
             impact_node=impact_node,
@@ -464,7 +460,7 @@ class ActionEfficiencyPair:
             if self.outcome_dimension is not None:
                 raise Exception('Outcome indicator is not allowed in a return-of-investment graph')
 
-    def calculate_iter(self, context: Context, actions: Iterable[ActionNode] | None = None) -> Iterator[ActionEfficiency]:
+    def calculate_iter(self, context: Context, actions: Iterable[ActionNode] | None = None) -> Iterator[ActionImpact]:
         if actions is None:
             actions = list(context.get_actions())
 
@@ -515,7 +511,7 @@ class ActionEfficiencyPair:
 
             unit_adjustment_multiplier = unit_adjustment_multiplier.to('dimensionless') # type: ignore
 
-            ae = ActionEfficiency(
+            ae = ActionImpact(
                 action=action,
                 df=df,
                 efficiency_divisor=1 / unit_adjustment_multiplier,  # FIXME depreciated
@@ -525,11 +521,6 @@ class ActionEfficiencyPair:
 
         pc.display('done')
 
-    def calculate(self, context: Context, actions: Iterable[ActionNode] | None = None) -> list[ActionEfficiency]:
+    def calculate(self, context: Context, actions: Iterable[ActionNode] | None = None) -> list[ActionImpact]:
         out = list(self.calculate_iter(context, actions))
         return out
-
-
-@dataclass
-class ImpactOverview(ActionEfficiencyPair):
-    pass

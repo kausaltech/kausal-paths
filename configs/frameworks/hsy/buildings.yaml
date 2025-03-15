@@ -103,7 +103,7 @@ nodes:
 - id: building_emission_inventory
   name_fi: Rakennusten päästöinventaario
   name_en: Building emission inventory
-  type: finland.hsy.HsyEmissions
+  type: generic.DimensionalSectorEmissions
   unit: kt/a
   input_dimensions: [building_heat_source, economic_sector]
   output_dimensions: [building_heat_source, economic_sector]
@@ -185,7 +185,7 @@ nodes:
   name_fi: Kaukolämmön päästökerroin
   name_en: District heating emission factor
   name_sv: Emissionsfaktor för fjärrvärme
-  type: finland.hsy.HsyEmissionFactor
+  type: generic.DimensionalSectorEmissionFactor
   unit: g/kWh
   input_nodes: [all_hsy_emissions]
   params:
@@ -195,7 +195,7 @@ nodes:
   name_fi: Öljylämmityksen päästökerroin
   name_en: Oil heating emission factor
   name_sv: Emissionsfaktor för oljeuppvärmning
-  type: finland.hsy.HsyEmissionFactor
+  type: generic.DimensionalSectorEmissionFactor
   unit: g/kWh
   input_nodes: [all_hsy_emissions]
   params:
@@ -205,7 +205,7 @@ nodes:
   name_fi: Lämmityssähkön päästökerroin
   name_en: Electric heating emission factor
   name_sv: Emissionsfaktor för eluppvärmning
-  type: finland.hsy.HsyEmissionFactor
+  type: generic.DimensionalSectorEmissionFactor
   unit: g/kWh
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
@@ -270,7 +270,7 @@ nodes:
   name_fi: Uuden rakennuskannan lämmönkulutus
   name_en: Heat consumption of new building stock
   name_sv: Värmeförbrukning i nytt byggnadsbestånd
-  type: simple.GenericNode
+  type: generic.GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [building_use, building_heat_source]

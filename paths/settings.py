@@ -152,7 +152,7 @@ INSTALLED_APPS = [
     'modeltrans',
     'pages',
     'nodes',
-    'datasets',
+    'kausal_common.datasets',
     'frameworks',
 ]
 
@@ -296,6 +296,7 @@ GRAPPLE = {
 }
 
 REST_FRAMEWORK = {
+    'PAGE_SIZE': 200,
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.TokenAuthentication',

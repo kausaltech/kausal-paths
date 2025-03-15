@@ -106,7 +106,7 @@ nodes:
   name_en: Transport emission inventory
   name_fi: Liikenteen päästöinventaario
   name_sv: Utsläppsinventering för transport
-  type: finland.hsy.HsyEmissions
+  type: generic.DimensionalSectorEmissions
   unit: kt/a
   input_dimensions: [vehicle_type, economic_sector]
   output_dimensions: [vehicle_type, economic_sector]
@@ -150,7 +150,7 @@ nodes:
   name_fi: Tieliikenteen päästökertoimet
   name_en: Road traffic emission factors
   name_sv: Emissionsfaktorer för vägtrafik
-  type: finland.hsy.HsyEmissionFactor
+  type: generic.DimensionalSectorEmissionFactor
   quantity: emission_factor
   unit: g/kWh
   input_dimensions: [vehicle_type, economic_sector]
@@ -163,7 +163,7 @@ nodes:
   name_fi: Tieliikenteen historiallinen energiankulutus
   name_en: Historical road transport energy consumption
   name_sv: Historisk energiförbrukning för vägtrafik
-  type: finland.hsy.HsyEnergyConsumption
+  type: generic.DimensionalSectorEnergy
   unit: GWh/a
   input_dimensions: [vehicle_type, economic_sector]
   output_dimensions: [vehicle_type, economic_sector]
@@ -206,7 +206,7 @@ nodes:
   name_fi: Tieliikenteen päästöt
   name_en: Road traffic emissions
   name_sv: Vägtrafikens utsläpp
-  type: simple.GenericNode
+  type: generic.GenericNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [vehicle_type]
@@ -227,7 +227,7 @@ nodes:
   name_fi: Henkilöautojen kokonaismäärä
   name_en: Total number of passenger cars
   name_sv: Totalt antal personbilar
-  type: simple.GenericNode
+  type: generic.GenericNode
   quantity: number
   unit: vehicles
   input_dimensions: [vehicle_type]
@@ -262,7 +262,7 @@ nodes:
   description_en: Includes only fuels. The share of electricity in energy and emissions is
     ignored.
   description_sv: Inkluderar endast bränsle. Elens andel i energi och utsläpp ignoreras.
-  type: simple.GenericNode
+  type: generic.GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [energy_carrier, vehicle_type]
@@ -304,7 +304,7 @@ nodes:
   name_fi: Raideliikenteen sähkönkulutus
   name_en: Rail transport electricity consumption
   name_sv: Elförbrukning för spårtrafik
-  type: finland.hsy.HsyEnergyConsumption
+  type: generic.DimensionalSectorEnergy
   unit: GWh/a
   input_dimensions: [vehicle_type, economic_sector]
   output_dimensions: [vehicle_type, economic_sector]
@@ -339,7 +339,7 @@ nodes:
   name_fi: Laivaliikenteen päästöt
   name_en: Waterborne transport emissions
   name_sv: Utsläpp från sjöfart
-  type: finland.hsy.HsyEmissions
+  type: generic.DimensionalSectorEmissions
   input_dimensions: [vehicle_type, economic_sector]
   output_dimensions: [vehicle_type, economic_sector]
   input_nodes: [all_hsy_emissions]

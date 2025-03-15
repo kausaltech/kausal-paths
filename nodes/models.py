@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 
 from django.conf import settings
 from django.contrib.auth.models import Group
+from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models, transaction
@@ -31,6 +32,7 @@ import sentry_sdk
 from loguru import logger
 from wagtail_color_panel.fields import ColorField  # type: ignore
 
+from kausal_common.datasets.models import Dimension as DatasetDimensionModel, DimensionCategory, DimensionScope
 from kausal_common.i18n.helpers import convert_language_code
 from kausal_common.models.permission_policy import ModelPermissionPolicy, ParentInheritedPolicy
 from kausal_common.models.permissions import PermissionedQuerySet
@@ -42,8 +44,6 @@ from paths.utils import (
     ChoiceArrayField,
     IdentifierField,
     InstanceIdentifierValidator,
-    UserModifiableModel,
-    UUIDIdentifierField,
     get_default_language,
     get_supported_languages,
 )
@@ -56,10 +56,11 @@ if TYPE_CHECKING:
 
     from loguru import Logger
 
+    from kausal_common.datasets.models import Dataset as DatasetModel
     from kausal_common.models.permission_policy import BaseObjectAction, ObjectSpecificAction
 
-    from datasets.models import Dataset as DatasetModel, Dimension as DimensionModel
     from frameworks.models import FrameworkConfig
+    from nodes.dimensions import Dimension as NodeDimension
     from nodes.node import Node
     from pages.config import OutcomePage as OutcomePageConfig
     from pages.models import ActionListPage, InstanceSiteContent
@@ -99,15 +100,15 @@ class InstanceConfigQuerySet(MultilingualQuerySet['InstanceConfig'], Permissione
     def adminable_for(self, user: User):
         return InstanceConfig.permission_policy().adminable_instances(user)
 
-
 _InstanceConfigManager = models.Manager.from_queryset(InstanceConfigQuerySet)
+
 class InstanceConfigManager(MLModelManager['InstanceConfig', InstanceConfigQuerySet], _InstanceConfigManager):  # pyright: ignore[reportIncompatibleMethodOverride]
     def get_by_natural_key(self, identifier: str) -> InstanceConfig:
         return self.get(identifier=identifier)
 del _InstanceConfigManager
 
 
-class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', InstanceConfigQuerySet]):
+class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any, InstanceConfigQuerySet]):
     def __init__(self):
         from frameworks.roles import framework_admin_role, framework_viewer_role
 
@@ -243,12 +244,12 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
 
     i18n = TranslationField(fields=('name', 'lead_title', 'lead_paragraph'))
 
-    objects: ClassVar[InstanceConfigManager] = InstanceConfigManager()  # pyright: ignore
+    objects: ClassVar[InstanceConfigManager] = InstanceConfigManager()
 
     # Type annotations
     nodes: RevMany[NodeConfig]
     hostnames: RevMany[InstanceHostname]
-    dimensions: RevMany[DimensionModel]
+    dimensions: RevMany[DatasetDimensionModel]
     datasets: RevMany[DatasetModel]
     framework_config: RevOne[InstanceConfig, FrameworkConfig]
     framework_config_id: int | None
@@ -265,6 +266,11 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
 
     def __str__(self) -> str:
         return self.get_name()
+
+    def __rich_repr__(self):
+        yield self.identifier
+        yield 'id', self.pk
+        yield 'name', self.name
 
     def save(self, *args, **kwargs):
         if self.uuid is None:
@@ -295,11 +301,6 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
 
     def natural_key(self):
         return (self.identifier,)
-
-    def __rich_repr__(self):
-        yield self.identifier
-        yield 'id', self.pk
-        yield 'name', self.name
 
     @classmethod
     def permission_policy(cls) -> InstanceConfigPermissionPolicy:
@@ -472,10 +473,92 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
             if delete_stale:
                 node.delete()
 
-    def sync_dimensions(self, update_existing=False, delete_stale=False):
-        from datasets.models import Dimension as DimensionModel
+    def sync_categories(
+            self,
+            dataset_dim: DatasetDimensionModel,
+            scope: DimensionScope,
+            update_existing=False,
+            delete_stale=False,
+        ):
+        found_cats = set()
+        instance = self.get_instance()
+        default_lang = instance.default_language
+        assert scope.identifier is not None
+        dim = instance.context.dimensions[scope.identifier]
 
-        DimensionModel.sync_dimensions(self, update_existing=update_existing, delete_stale=delete_stale)
+        cats = {cat.identifier: cat for cat in dataset_dim.categories.all()}
+        for cat in dim.categories:
+            cat_obj = cats.get(cat.id)
+            if cat_obj is None:
+                label, i18n = get_modeltrans_attrs_from_str(cat.label, 'label', default_lang)
+                cat_obj = DimensionCategory.objects.create(
+                    dimension=dataset_dim,
+                    identifier=cat.id,
+                    label=label,
+                    i18n=i18n
+                )
+                print("Creating category %s" % cat.id)
+            else:
+                found_cats.add(cat_obj.pk)
+                label, i18n = get_modeltrans_attrs_from_str(cat.label, 'label', default_lang)
+                if i18n != cat_obj.i18n or cat_obj.label != label:
+                    cat_obj.label, cat_obj.i18n = label, i18n
+                    print('Updating category %s' % cat.id)
+                    cat_obj.save()
+
+        for cat_obj in cats.values():
+            if cat_obj.pk in found_cats:
+                continue
+            print("Deleting stale category %s" % cat_obj)
+            cat_obj.delete()
+
+    def sync_dimension(self, dim: NodeDimension, update_existing=False, delete_stale=False) -> DatasetDimensionModel:
+        try:
+            scope = DimensionScope.objects.get(
+                scope_content_type=ContentType.objects.get_for_model(self),
+                scope_id=self.pk,
+                identifier=dim.id,
+            )
+            dim_obj = scope.dimension
+        except DimensionScope.DoesNotExist:
+            label, i18n = get_modeltrans_attrs_from_str(dim.label, 'label', self.primary_language)  # type: ignore
+            dim_obj, created = DatasetDimensionModel.objects.get_or_create(name=label, i18n=i18n)
+
+            scope = DimensionScope.objects.create(
+                scope_content_type=ContentType.objects.get_for_model(self),
+                scope_id=self.pk,
+                identifier=dim.id,
+                dimension=dim_obj
+            )
+            if created:
+                print("Creating dimension %s" % dim.id)
+
+        if update_existing and (dim_obj.name != label or dim_obj.i18n != i18n):
+            if dim_obj.pk:
+                print('Updating dimension %s' % dim.id)
+            dim_obj.name = label
+            dim_obj.i18n = i18n
+            dim_obj.save()
+
+        self.sync_categories(dataset_dim=dim_obj, scope=scope, update_existing=update_existing, delete_stale=delete_stale)
+        return dim_obj
+
+    def sync_dimensions(self, update_existing=False, delete_stale=False) -> None:
+        instance = self.get_instance()
+        found_dims = set()
+        for dim in instance.context.dimensions.values():
+            obj = self.sync_dimension(dim, update_existing=update_existing, delete_stale=delete_stale)
+            found_dims.add(obj)
+
+        if delete_stale:
+            dimensions = DatasetDimensionModel.objects.filter(
+                scopes__scope_content_type=ContentType.objects.get_for_model(self),
+                scopes__scope_id=self.pk,
+            )
+            for dim_obj in dimensions:
+                if dim_obj not in found_dims:
+                    dim_obj.delete()
+
 
     def update_modified_at(self, save=True):
         self.modified_at = timezone.now()
@@ -627,50 +710,6 @@ class InstanceToken(models.Model):
 
     def natural_key(self):
         return self.instance.natural_key() + (self.token, self.created_at)
-
-
-class DataSourceManager(models.Manager):
-    def get_by_natural_key(self, uuid):
-        return self.get(uuid=uuid)
-
-
-class DataSource(UserModifiableModel):
-    """
-    Reusable reference to some published data source.
-
-    DataSource is used to track where specific data values in datasets have come from.
-    """
-
-    instance = models.ForeignKey(
-        InstanceConfig, on_delete=models.CASCADE, related_name='data_sources', editable=True,
-        verbose_name=_('instance'),
-    )
-    uuid = UUIDIdentifierField(null=False, blank=False)
-    name = models.CharField(max_length=200, null=False, blank=False, verbose_name=_('name'))
-    edition = models.CharField(max_length=100, null=True, blank=True, verbose_name=_('edition'))
-
-    authority = models.CharField(
-        max_length=200, verbose_name=_('authority'), help_text=_('The organization responsible for the data source'),
-        null=True, blank=True,
-    )
-    description = models.TextField(null=True, blank=True, verbose_name=_('description'))
-    url = models.URLField(verbose_name=_('URL'), null=True, blank=True)
-
-    objects = DataSourceManager()
-
-    def get_label(self):
-        name, *rest = [p for p in (self.name, self.authority, self.edition) if p is not None]
-        return f'{name}, {" ".join(rest)}'
-
-    def __str__(self):
-        return self.get_label()
-
-    class Meta:  # pyright: ignore
-        verbose_name = _('Data source')
-        verbose_name_plural = _('Data sources')
-
-    def natural_key(self):
-        return (str(self.uuid),)
 
 
 class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['NodeConfig']):  # type: ignore[override]

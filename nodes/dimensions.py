@@ -146,9 +146,9 @@ class Dimension(I18nBaseModel):
             id_map[cat.id] = cat._group.id
         return expr.cast(pl.Utf8).replace(id_map)
 
-    def series_to_ids_pl(self, s: pl.Series) -> pl.Series:
+    def series_to_ids_pl(self, s: pl.Series, allow_null=False) -> pl.Series:
         name = s.name
-        if s.null_count():
+        if not allow_null and s.null_count():
             raise Exception("Series contains NaNs")
         s = s.cast(str).str.strip_chars()
         cat_map = self.labels_to_ids()
@@ -157,8 +157,9 @@ class Dimension(I18nBaseModel):
         map_df = pl.DataFrame(dict(label=labels, id=ids))
         df = pl.DataFrame(dict(cat=s))
         df = df.join(map_df, left_on='cat', right_on='label', how='left')
-        if df['id'].null_count():
+        if df['id'].null_count() > s.null_count():
             missing_cats = df.filter(pl.col('id').is_null())['cat'].unique()
+            # FIXME: `missing_cats` should not contain those items that were already in `s`.
             raise Exception("Some dimension categories failed to convert (%s)" % ', '.join(missing_cats))
         ret = df['id'].cast(pl.Categorical)
         if name:

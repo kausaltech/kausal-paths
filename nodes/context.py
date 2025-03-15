@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from params import Parameter
     from params.storage import SettingStorage
 
-    from .actions.action import ActionEfficiencyPair, ActionNode
+    from .actions.action import ActionNode, ImpactOverview
     from .dimensions import Dimension
     from .instance import Instance
     from .node import Node
@@ -140,7 +140,7 @@ class Context:
     instance: Instance
     """The computation model instance."""
 
-    action_efficiency_pairs: list[ActionEfficiencyPair]
+    impact_overviews: list[ImpactOverview]
     """List of action efficiency pairs available for the computation model."""
 
     setting_storage: SettingStorage | None
@@ -201,7 +201,7 @@ class Context:
         self.active_scenario = None  # type: ignore
         self.custom_scenario = None  # type: ignore
         self.active_normalization = None
-        self.action_efficiency_pairs = []
+        self.impact_overviews = []
         self.dimensions = {}
         self.options = {}
         self.normalizations = {}
@@ -278,6 +278,15 @@ class Context:
         self.dvc_datasets[ds_id] = ds
         return ds
 
+    def get_all_dvc_dataset_ids(self) -> set[str]:
+        all_datasets = set()
+        for node in self.nodes.values():
+            for ds in node.input_dataset_instances:
+                if not isinstance(ds, DVCDataset):
+                    continue
+                all_datasets.add(ds.id)
+        return all_datasets
+
     def load_all_dvc_datasets(self):
         """
         Load all the DVC datasets that are needed by the nodes.
@@ -286,13 +295,7 @@ class Context:
         is generally faster.
         """
 
-        all_datasets = set()
-        for node in self.nodes.values():
-            for ds in node.input_dataset_instances:
-                if not isinstance(ds, DVCDataset):
-                    continue
-                all_datasets.add(ds.id)
-
+        all_datasets = self.get_all_dvc_dataset_ids()
         with self.start_span('load all datasets', op='model.load'):
             try:
                 self.dataset_repo.load_datasets(list(all_datasets))

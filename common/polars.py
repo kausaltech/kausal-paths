@@ -394,17 +394,19 @@ class PathsDataFrame(pl.DataFrame):
     def ensure_unit(self, col: str, unit: Unit | str | None) -> PathsDataFrame:
         assert unit is not None, 'Unit is missing.'
         if isinstance(unit, str):
-            unit = unit_registry.parse_units(unit)
+            unit_obj = unit_registry.parse_units(unit)
+        else:
+            unit_obj = unit
         col_unit = self._units[col]
-        if col_unit == unit:
+        if col_unit == unit_obj:
             return self
-        if not col_unit.is_compatible_with(unit):
-            raise Exception("Unit '%s' for column %s is not compatible with '%s'" % (col_unit, col, unit))
+        if not col_unit.is_compatible_with(unit_obj):
+            raise Exception("Unit '%s' for column %s is not compatible with '%s'" % (col_unit, col, unit_obj))
 
-        assert isinstance(unit, Unit)
+        assert isinstance(unit_obj, Unit), f'Unit is not a Unit: {type(unit)}'
         vls = self[col].to_numpy()
-        vls = (vls * col_unit).to(unit).m
-        df = self.with_columns([pl.Series(name=col, values=vls)], units={col: unit})
+        vls = (vls * col_unit).to(unit_obj).m
+        df = self.with_columns([pl.Series(name=col, values=vls)], units={col: unit_obj})
         return df
 
     def to_pandas(

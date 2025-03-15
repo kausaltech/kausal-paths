@@ -35,9 +35,9 @@ from social_django import urls as social_urls
 
 #from strawberry.django.views import GraphQLView
 from kausal_common.deployment.health_check_view import health_view
+from kausal_common.datasets.api import all_routers as datasets_api_nested_routers, router as datasets_api_root_router
 
 from admin_site import urls as admin_urls
-from datasets.api import all_routers as datasets_routers
 from frameworks.urls import urlpatterns as framework_urls
 from nodes.api import all_routers as nodes_routers
 from users.views import change_admin_instance
@@ -59,11 +59,13 @@ try:
 except ImportError:
     kpe_urls = None
 
+for prefix, viewset, basename in datasets_api_root_router.registry:
+    api_router.register(prefix, viewset, basename=basename)
 
 api_urls = [
     path(r'', include(api_router.urls)),
     *[path(r'', include(r.urls)) for r in nodes_routers],
-    *[path(r'', include(r.urls)) for r in datasets_routers],
+    *[path(r'', include(r.urls)) for r in datasets_api_nested_routers],
 ]
 
 

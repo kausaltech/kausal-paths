@@ -19,7 +19,7 @@ from nodes.exceptions import NodeError
 from nodes.models import InstanceConfig
 
 if TYPE_CHECKING:
-    from nodes.actions.action import ActionEfficiencyPair
+    from nodes.actions.action import ImpactOverview
     from nodes.context import Context
 
 logger = loguru.logger.opt(colors=True)
@@ -91,7 +91,7 @@ class Command(BaseCommand):
                     logger.error("Instance %s, node %s differs" % (ctx.instance.id, node.id))
                     print(diffs)
 
-    def run_aep(self, ctx: Context, aep: ActionEfficiencyPair):
+    def run_aep(self, ctx: Context, aep: ImpactOverview):
         logger.info('Calculating action afficiency pair: %s:%s' % (aep.cost_node.id, aep.impact_node.id))
 
     def check_instance(self, ic: InstanceConfig):
@@ -101,7 +101,7 @@ class Command(BaseCommand):
         ctx.load_all_dvc_datasets()
         with ctx.run():
             self.run_nodes(ctx)
-            for aep in ctx.action_efficiency_pairs:
+            for aep in ctx.impact_overviews:
                 self.run_aep(ctx, aep)
 
     def handle(self, *args, **options):
