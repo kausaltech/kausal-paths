@@ -66,6 +66,8 @@ class GenericNode(SimpleNode):
                 continue
 
             node = edge.input_node
+            if 'ignore_content' in edge.tags or 'ignore_content' in node.tags:
+                continue
             if 'additive' in edge.tags or 'additive' in node.tags:
                 baskets['additive'].append(node)
             elif 'non_additive' in edge.tags or 'non_additive' in node.tags:
