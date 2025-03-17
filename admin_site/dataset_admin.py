@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+from django.forms import BaseInlineFormSet
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from wagtail.admin.forms.models import WagtailAdminModelForm
@@ -7,11 +10,16 @@ from wagtail.snippets.models import register_snippet
 from wagtail.snippets.views.snippets import CreateView
 
 from kausal_common.datasets.config import dataset_config
-from kausal_common.datasets.models import Dataset, DatasetSchema, DatasetSchemaScope
+from kausal_common.datasets.models import Dataset, DatasetSchema, DatasetSchemaScope, DimensionScope
+
+from paths.context import realm_context
 
 from admin_site.viewsets import PathsViewSet
 from kausal_paths_extensions.dataset_editor import DatasetViewSet
 from users.models import User
+
+if TYPE_CHECKING:
+    from nodes.models import InstanceConfig
 
 
 class DatasetSchemaCreateView(CreateView[DatasetSchema, WagtailAdminModelForm[DatasetSchema, User]]):
@@ -38,6 +46,25 @@ class DatasetSchemaCreateView(CreateView[DatasetSchema, WagtailAdminModelForm[Da
             Dataset.objects.get_or_create(schema=instance)
         return instance
 
+class DimensionFormSet(BaseInlineFormSet):
+    active_instance: InstanceConfig
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.active_instance = realm_context.get().realm
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        return queryset.filter(
+            dimension__scopes__in=DimensionScope.objects.get_queryset().for_instance_config(self.active_instance)
+        )
+
+    def add_fields(self, form, index):
+        super().add_fields(form, index)
+        if 'dimension' in form.fields:
+            form.fields['dimension'].queryset = form.fields['dimension'].queryset.filter(
+                scopes__in=DimensionScope.objects.get_queryset().for_instance_config(self.active_instance)
+            )
 
 class DatasetSchemaViewSet(PathsViewSet):
     model = DatasetSchema
@@ -50,5 +77,23 @@ class DatasetSchemaViewSet(PathsViewSet):
     panels = DatasetSchema.panels
     add_view_class = DatasetSchemaCreateView
 
+    def get_form_class(self, for_update=False):
+        form_class = super().get_form_class(for_update)
+        class DimensionForm(form_class):  # type: ignore[valid-type, misc]
+            class Meta:
+                model = DatasetSchema
+                fields = [panel.field_name for panel in DatasetSchema.panels if hasattr(panel, 'field_name')]
+                formsets = getattr(form_class.Meta, 'formsets', {}).copy()
+                formsets.update({
+                    'dimensions': {
+                        'formset': DimensionFormSet,
+                        'fields': ['dimension'],
+                        'min_num': 0,
+                        'validate_min': False,
+                        'can_order': False,
+                    }
+                })
+
+        return DimensionForm
 
 register_snippet(DatasetSchemaViewSet)
