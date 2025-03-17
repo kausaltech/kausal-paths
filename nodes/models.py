@@ -78,7 +78,7 @@ def get_instance_identifier_from_wildcard_domain(
     # Get instance identifier from hostname for development and testing
     parts = hostname.lower().split('.', maxsplit=1)
     req_wildcards: list[str] = getattr(request, 'wildcard_domains', None) or []
-    settings_wildcards: list[str] = cast(list[str], settings.HOSTNAME_INSTANCE_DOMAINS) or []
+    settings_wildcards: list[str] = cast('list[str]', settings.HOSTNAME_INSTANCE_DOMAINS) or []
     wildcard_domains: list[str] = [*settings_wildcards, *req_wildcards]
     if len(parts) == 2 and parts[1].lower() in wildcard_domains:
         return (parts[0], parts[1])
@@ -434,7 +434,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     def action_list_page(self) -> ActionListPage | None:
         from pages.models import ActionListPage
         qs = self.root_page.get_descendants().type(ActionListPage).specific()
-        return cast(ActionListPage | None, qs.first())
+        return cast('ActionListPage | None', qs.first())
 
     def get_translated_root_page(self) -> Page:
         """Return root page in activated language, fall back to default language."""
@@ -533,6 +533,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
             if created:
                 print("Creating dimension %s" % dim.id)
 
+        # FIXME label is defined only when DimensionScope.DoesNotExist
         if update_existing and (dim_obj.name != label or dim_obj.i18n != i18n):
             if dim_obj.pk:
                 print('Updating dimension %s' % dim.id)
@@ -575,7 +576,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     def _create_default_pages(self) -> Page:
         from pages.models import ActionListPage, OutcomePage
 
-        root = cast(Page, Page.get_first_root_node())
+        root = cast('Page', Page.get_first_root_node())
         home_pages = root.get_children()
 
         instance = self.get_instance()
@@ -591,7 +592,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         assert home_page_conf is not None
         assert home_page_conf.outcome_node is not None
 
-        root_node: Page = cast(Page, Page.get_first_root_node())
+        root_node: Page = cast('Page', Page.get_first_root_node())
         with override(self.primary_language):
             locale, _ = Locale.objects.get_or_create(language_code=self.primary_language)
             try:
@@ -617,7 +618,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
                 if slug == 'home':
                     continue
 
-                page = cast(OutcomePage, home_page.get_children().filter(slug=slug).first())
+                page = cast('OutcomePage', home_page.get_children().filter(slug=slug).first())
                 if page is not None:
                     continue
 
@@ -834,7 +835,7 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
             if not self.i18n:
                 self.i18n = {}
             assert isinstance(self.i18n, dict)
-            self.i18n |= cast(dict, i18n)
+            self.i18n |= cast('dict', i18n)
 
         if overwritten:
             self.instance.log.info('Overwrote contents in node %s' % str(node))

@@ -10,6 +10,7 @@ import polars as pl
 from common import polars as ppl
 from nodes.actions import ActionNode
 from nodes.calc import extend_last_historical_value_pl
+from nodes.units import unit_registry
 from params.param import StringParameter
 
 from .constants import EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
@@ -59,25 +60,37 @@ class GenericNode(SimpleNode):
             'multiplicative': [],
             'other': []
         }
+        tag_to_basket = {
+            'additive': 'additive',
+            'non_additive': 'multiplicative',
+            'other_node': 'other',
+            'rate': 'other',
+            'base': 'other',
+        }
+        # Special tags that should be skipped completely
+        skip_tags = {'ignore_content'}
 
-        # Categorize nodes by tags first
+        # Categorize nodes by tags
         for edge in self.edges:
             if edge.output_node != self or edge.input_node not in nodes:
                 continue
 
             node = edge.input_node
-            if 'ignore_content' in edge.tags or 'ignore_content' in node.tags:
+            if any(tag in edge.tags or tag in node.tags for tag in skip_tags):
                 continue
-            if 'additive' in edge.tags or 'additive' in node.tags:
-                baskets['additive'].append(node)
-            elif 'non_additive' in edge.tags or 'non_additive' in node.tags:
-                baskets['multiplicative'].append(node)
-            elif 'other_node' in edge.tags or 'other_node' in node.tags:
-                baskets['other'].append(node)
-            elif self.is_compatible_unit(self.unit, node.unit):
-                baskets['additive'].append(node)
-            else:
-                baskets['multiplicative'].append(node)
+
+            assigned = False
+            for tag, basket in tag_to_basket.items():
+                if tag in edge.tags or tag in node.tags:
+                    baskets[basket].append(node)
+                    assigned = True
+                    break
+
+            if not assigned:
+                if self.is_compatible_unit(self.unit, node.unit):
+                    baskets['additive'].append(node)
+                else:
+                    baskets['multiplicative'].append(node)
 
         return baskets
 
@@ -184,7 +197,7 @@ class LeverNode(GenericNode):
         StringParameter(local_id='new_category'),
     ]
 
-    def _operation_override_with_lever(self, df: ppl.PathsDataFrame, baskets: dict, **kwargs) -> tuple:
+    def _operation_override_with_lever(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
         """Override upstream computation with lever values if enabled."""
         if df is None:
             return None, baskets
@@ -419,7 +432,7 @@ class SectorParseResult(TypedDict):
     dimensions: dict[int, str]
 
 
-class DimensionalSectorEmissions(GenericNode):
+class DimensionalSectorNode(GenericNode):
     default_unit = 'kt/a'
     quantity = EMISSION_QUANTITY
     allowed_parameters = [
@@ -555,7 +568,17 @@ class DimensionalSectorEmissions(GenericNode):
         self.default_operations = 'process_sector,multiply,add,apply_multiplier'
 
 
-class DimensionalSectorEnergy(DimensionalSectorEmissions):
+class DimensionalSectorEmissions(DimensionalSectorNode):
+    default_unit = 'kt/a'
+    quantity = EMISSION_QUANTITY
+
+    def __init__(self, *args, **kwargs):
+        # Set the data column before initializing
+        self.data_column = EMISSION_QUANTITY
+        super().__init__(*args, **kwargs)
+
+
+class DimensionalSectorEnergy(DimensionalSectorNode):
     default_unit = 'GWh/a'
     quantity = ENERGY_QUANTITY
 
@@ -565,7 +588,7 @@ class DimensionalSectorEnergy(DimensionalSectorEmissions):
         super().__init__(*args, **kwargs)
 
 
-class DimensionalSectorEmissionFactor(DimensionalSectorEmissions):
+class DimensionalSectorEmissionFactor(DimensionalSectorNode):
     default_unit = 'g/kWh'
     quantity = EMISSION_FACTOR_QUANTITY
 
@@ -596,3 +619,89 @@ class DimensionalSectorEmissionFactor(DimensionalSectorEmissions):
         super().__init__(*args, **kwargs)
         # Override the operations to use the emission factor calculation
         self.OPERATIONS['process_sector'] = self._operation_process_emission_factor
+
+
+class IterativeNode(GenericNode):
+    explanation = _(
+        """
+        This is generic IterativeNode for calculating values year by year.
+        It calculates one year at a time based on previous year's value and inputs and outputs
+        starting from the first forecast year. In addition, it must have a feedback loop (otherwise it makes
+        no sense to use this node class), which is given as a growth rate per year from the previous year's value.
+        """)
+
+    def _get_other_node(self, tag: str, baskets: dict) -> Node:
+        """Get and validate a required node from 'other' basket."""
+        other_nodes = baskets.get('other', [])
+
+        node = self.get_input_node(tag=tag, required=True)
+
+        if node not in other_nodes:
+            raise NodeError(self, f"The node with tag '{tag}' must be in 'other' basket")
+
+        baskets['other'].remove(node)
+
+        return node
+
+    def _operation_year_iteration(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        """
+        Perform year-by-year iteration using previous values, growth rate and changes.
+
+        This operation expects df to contain the summed changes from all additive inputs.
+        """
+
+        # Get rate and base nodes
+        rate_node = self._get_other_node(tag='rate', baskets=baskets)
+        base_node = self._get_other_node(tag='base', baskets=baskets)
+
+        # Get and prepare the rate
+        rate = rate_node.get_output_pl(target_node=self)
+        rate = rate.ensure_unit(VALUE_COLUMN, '1/a')
+        rate = rate.set_unit(VALUE_COLUMN, 'dimensionless', force=True)
+        rate = rate.with_columns(pl.col(VALUE_COLUMN) + pl.lit(1.0).alias(VALUE_COLUMN))
+
+        # Get the base
+        base_df = base_node.get_output_pl(target_node=self)
+
+        if df is None:
+            df_out = base_df.with_columns(pl.lit(0.0).alias('changes'))
+        else:
+            # The changes are in df (output from previous operations)
+            # Rename it to "changes" for clarity
+            df_out = base_df.paths.join_over_index(df, how='left', index_from='left')
+            df_out = df_out.rename({VALUE_COLUMN + '_right': 'changes'})
+            df_out = df_out.set_unit('changes', df_out.get_unit('changes') * unit_registry('a'), force=True)
+            df_out = df_out.ensure_unit('changes', df_out.get_unit(VALUE_COLUMN))
+
+        df_out = df_out.with_columns(pl.col('changes').fill_null(0.0))
+        df_out = df_out.paths.join_over_index(rate, how='left', index_from='union')
+        df_out = df_out.rename({VALUE_COLUMN + '_right': 'rate'})
+        df_out = df_out.paths.to_wide()
+
+        # Perform the year-by-year iteration
+        last_historical_year = df_out.filter(~pl.col(FORECAST_COLUMN))[YEAR_COLUMN].max()
+        if last_historical_year is None:  # No historical rows
+            raise NodeError(self, "IterativeNode must have historical values.")
+
+        for year in range(last_historical_year + 1, self.get_end_year() + 1):
+            df_out = df_out.with_columns(
+                pl.when(pl.col(YEAR_COLUMN) == year)
+                .then(
+                    (
+                        df_out.filter(pl.col(YEAR_COLUMN) == year - 1)[VALUE_COLUMN].first() +
+                        df_out.filter(pl.col(YEAR_COLUMN) == year)['changes'].first()
+                    ) * df_out.filter(pl.col(YEAR_COLUMN) == year)['rate'].first()
+                )
+                .otherwise(pl.col(VALUE_COLUMN))
+                .alias(VALUE_COLUMN)
+            )
+        df_out = df_out.drop(['rate', 'changes'])
+
+        return df_out, baskets
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Register operations
+        self.OPERATIONS['year_iteration'] = self._operation_year_iteration
+        # Set default operations sequence to let standard add happen before year_iteration
+        self.default_operations = 'multiply,add,year_iteration,other,apply_multiplier'

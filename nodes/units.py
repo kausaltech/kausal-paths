@@ -219,8 +219,8 @@ class PathsPrettyFormatter(PrettyFormatter):
         return super().format_unit(unit, uspec, sort_func, **babel_kwds)
 
 
-unit_registry.html_formatter = PathsHTMLFormatter(registry=cast(UnitRegistry, unit_registry))
-unit_registry.pretty_formatter = PathsPrettyFormatter(registry=cast(UnitRegistry, unit_registry))
+unit_registry.html_formatter = PathsHTMLFormatter(registry=cast('UnitRegistry', unit_registry))
+unit_registry.pretty_formatter = PathsPrettyFormatter(registry=cast('UnitRegistry', unit_registry))
 
 
 """
@@ -317,7 +317,7 @@ app_registry = pint.get_application_registry()
 app_registry._registry = unit_registry  # pyright: ignore
 #pint_pandas.PintType.ureg = unit_registry  # type: ignore
 
-def add_unit_translations():
+def add_unit_translations():  # noqa: PLR0915
     """
     Add translations for some commonly used units.
 
@@ -374,6 +374,7 @@ def add_unit_translations():
     set_one('per_100000py', long=_('cases per 100,000 person-years'), short=_('#/100000 py'))
     set_one('personal_activity', long=_('minutes per day per person'), short=_('min/d/cap'))
     set_one('gigaEUR', long=_('billion euros'), short=_('B€'))
+    set_one('solid_cubic_meter', long='solid m³', short='m³ (solid)')
     set_one('megasolid_cubic_meter', long='million solid m³', short='M m³ (solid)')
     if 'kilowatt_hour' in _babel_units:
         del _babel_units['kilowatt_hour'] # Otherwise fails with compound units.
