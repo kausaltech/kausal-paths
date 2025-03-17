@@ -85,9 +85,9 @@ class DatasetSchemaViewSet(PathsViewSet):
     def get_form_class(self, for_update=False):
         form_class = super().get_form_class(for_update)
         class DatasetSchemaWithDimensionForm(form_class):  # type: ignore[valid-type, misc]
-            class Meta:
+            class Meta(form_class.Meta):
                 model = DatasetSchema
-                fields = [panel.field_name for panel in DatasetSchema.panels if hasattr(panel, 'field_name')]
+                fields = form_class.Meta.fields
                 formsets = getattr(form_class.Meta, 'formsets', {}).copy()
                 formsets.update({
                     'dimensions': {
