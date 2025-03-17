@@ -7,7 +7,6 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from wagtail.admin.forms.models import WagtailAdminModelForm
 from wagtail.snippets.models import register_snippet
-from wagtail.snippets.views.snippets import CreateView
 
 from kausal_common.datasets.config import dataset_config
 from kausal_common.datasets.models import (
@@ -19,7 +18,7 @@ from kausal_common.datasets.models import (
 
 from paths.context import realm_context
 
-from admin_site.viewsets import PathsViewSet
+from admin_site.viewsets import PathsCreateView, PathsViewSet
 from kausal_paths_extensions.dataset_editor import DatasetViewSet
 from users.models import User
 
@@ -27,7 +26,7 @@ if TYPE_CHECKING:
     from nodes.models import InstanceConfig
 
 
-class DatasetSchemaCreateView(CreateView[DatasetSchema, WagtailAdminModelForm[DatasetSchema, User]]):
+class DatasetSchemaCreateView(PathsCreateView[DatasetSchema, WagtailAdminModelForm[DatasetSchema, User]]):
     def get_success_url(self):
         if not dataset_config.SCHEMA_HAS_SINGLE_DATASET:
             return super().get_success_url()
