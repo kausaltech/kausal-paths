@@ -47,8 +47,8 @@ class DatasetSchemaCreateView(CreateView[DatasetSchema, WagtailAdminModelForm[Da
                 schema=instance,
                 scope=default_scope_model_instance
             )
-        if dataset_config.SCHEMA_HAS_SINGLE_DATASET:
-            Dataset.objects.get_or_create(schema=instance)
+            if dataset_config.SCHEMA_HAS_SINGLE_DATASET:
+                Dataset.objects.get_or_create(schema=instance, defaults={'scope': default_scope_model_instance})
         return instance
 
 class DatasetSchemaFormWithDimensionFormSet(BaseInlineFormSet):
