@@ -26,7 +26,7 @@ pip install -r requirements.txt
 > CPPFLAGS="-I/opt/homebrew/include -L/opt/homebrew/lib" pip install python-snappy
 > ```
 
-Create a file called `local_settings.py` in your repo root with the following contents:
+Create a file called `local_settings.py` in your repository root with the following contents:
 
 ```python
 from paths.settings import BASE_DIR
