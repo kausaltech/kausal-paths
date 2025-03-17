@@ -10,7 +10,12 @@ from wagtail.snippets.models import register_snippet
 from wagtail.snippets.views.snippets import CreateView
 
 from kausal_common.datasets.config import dataset_config
-from kausal_common.datasets.models import Dataset, DatasetSchema, DatasetSchemaScope, DimensionScope
+from kausal_common.datasets.models import (
+    Dataset,
+    DatasetSchema,
+    DatasetSchemaScope,
+    DimensionScope,
+)
 
 from paths.context import realm_context
 
@@ -46,7 +51,7 @@ class DatasetSchemaCreateView(CreateView[DatasetSchema, WagtailAdminModelForm[Da
             Dataset.objects.get_or_create(schema=instance)
         return instance
 
-class DimensionFormSet(BaseInlineFormSet):
+class DatasetSchemaFormWithDimensionFormSet(BaseInlineFormSet):
     active_instance: InstanceConfig
 
     def __init__(self, *args, **kwargs):
@@ -79,14 +84,14 @@ class DatasetSchemaViewSet(PathsViewSet):
 
     def get_form_class(self, for_update=False):
         form_class = super().get_form_class(for_update)
-        class DimensionForm(form_class):  # type: ignore[valid-type, misc]
+        class DatasetSchemaWithDimensionForm(form_class):  # type: ignore[valid-type, misc]
             class Meta:
                 model = DatasetSchema
                 fields = [panel.field_name for panel in DatasetSchema.panels if hasattr(panel, 'field_name')]
                 formsets = getattr(form_class.Meta, 'formsets', {}).copy()
                 formsets.update({
                     'dimensions': {
-                        'formset': DimensionFormSet,
+                        'formset': DatasetSchemaFormWithDimensionFormSet,
                         'fields': ['dimension'],
                         'min_num': 0,
                         'validate_min': False,
@@ -94,6 +99,6 @@ class DatasetSchemaViewSet(PathsViewSet):
                     }
                 })
 
-        return DimensionForm
+        return DatasetSchemaWithDimensionForm
 
 register_snippet(DatasetSchemaViewSet)
