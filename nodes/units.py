@@ -317,7 +317,7 @@ app_registry = pint.get_application_registry()
 app_registry._registry = unit_registry  # pyright: ignore
 #pint_pandas.PintType.ureg = unit_registry  # type: ignore
 
-def add_unit_translations():  # noqa: PLR0915
+def add_unit_translations():
     """
     Add translations for some commonly used units.
 
@@ -354,36 +354,46 @@ def add_unit_translations():  # noqa: PLR0915
     _babel_units['metric_ton'] = 'mass-tonne'
     _babel_units['%'] = 'concentr-percent'
     _babel_units['percent'] = 'concentr-percent'
-    set_one('capita', _('capita'), short=pgettext_lazy('capita short', 'cap'))
-    #set_one('cap', pgettext_lazy('capita short', 'cap'))
+
+    # Define all units in a list of dictionaries
     kt_str = pgettext_lazy('kilotonne short', 'kt')
-    set_one('kt', kt_str, kt_str)
 
-    set_one('EUR', long=_('euros'), short='€')
-    set_one('kiloEUR', long=_('thousand euros'), short='k€')
-    set_one('megaEUR', long=_('million euros'), short='M€')
-    set_one('CAD', long=_('Canadian dollars'), short='$')
-    set_one('megaCAD', long=_('million Canadian dollars'), short='M$')
-    set_one('kiloSEK', long=_('thousand kronor'), short='kSEK')
-    set_one('megaSEK', long=_('million kronor'), short='MSEK')
-    set_one('gigawatt_hour', long=_('gigawatt hours'), short='GWh')
-    set_one('megawatt_hour', long=_('megawatt hour'), short=_('MWh'))
-    set_one('incident', long=_('number of cases'), short=_('#'))
-    set_one('passenger', long=_('trip'), short=_('trip'))
-    set_one('minute', long=_('minute'), short=_('min'))
-    set_one('per_100000py', long=_('cases per 100,000 person-years'), short=_('#/100000 py'))
-    set_one('personal_activity', long=_('minutes per day per person'), short=_('min/d/cap'))
-    set_one('gigaEUR', long=_('billion euros'), short=_('B€'))
-    set_one('solid_cubic_meter', long='solid m³', short='m³ (solid)')
-    set_one('megasolid_cubic_meter', long='million solid m³', short='M m³ (solid)')
-    if 'kilowatt_hour' in _babel_units:
-        del _babel_units['kilowatt_hour'] # Otherwise fails with compound units.
-    set_one('kilowatt_hour', long=_('kilowatt hour'), short='kWh')
-
-    loc = Loc('de')
-    loc._data['unit_patterns']['duration-year']['short'] = dict(one='a')
-
+    unit_definitions = [
+        {'unit': 'capita', 'long': _('capita'), 'short': pgettext_lazy('capita short', 'cap')},
+        {'unit': 'kt', 'long': kt_str, 'short': kt_str},
+        {'unit': 'EUR', 'long': _('euros'), 'short': '€'},
+        {'unit': 'kiloEUR', 'long': _('thousand euros'), 'short': 'k€'},
+        {'unit': 'megaEUR', 'long': _('million euros'), 'short': 'M€'},
+        {'unit': 'CAD', 'long': _('Canadian dollars'), 'short': '$'},
+        {'unit': 'megaCAD', 'long': _('million Canadian dollars'), 'short': 'M$'},
+        {'unit': 'kiloSEK', 'long': _('thousand kronor'), 'short': 'kSEK'},
+        {'unit': 'megaSEK', 'long': _('million kronor'), 'short': 'MSEK'},
+        {'unit': 'gigawatt_hour', 'long': _('gigawatt hours'), 'short': 'GWh'},
+        {'unit': 'megawatt_hour', 'long': _('megawatt hour'), 'short': _('MWh')},
+        {'unit': 'incident', 'long': _('number of cases'), 'short': _('#')},
+        {'unit': 'passenger', 'long': _('trip'), 'short': _('trip')},
+        {'unit': 'minute', 'long': _('minute'), 'short': _('min')},
+        {'unit': 'per_100000py', 'long': _('cases per 100,000 person-years'), 'short': _('#/100000 py')},
+        {'unit': 'personal_activity', 'long': _('minutes per day per person'), 'short': _('min/d/cap')},
+        {'unit': 'gigaEUR', 'long': _('billion euros'), 'short': _('B€')},
+        {'unit': 'solid_cubic_meter', 'long': _('solid m³'), 'short': _('m³ (solid)')},
+        {'unit': 'megasolid_cubic_meter', 'long': _('million solid m³'), 'short': _('M m³ (solid)')},
+        {'unit': 'kilowatt_hour', 'long': _('kilowatt hour'), 'short': 'kWh'},
+    ]
+    #set_one('cap', pgettext_lazy('capita short', 'cap'))
     #set_one('a', pgettext_lazy('year short', 'yr.'))
     #set_one('percent', pgettext_lazy('percent', 'percent'))
     #set_one('metric_ton', pgettext_lazy('metric_ton', 'metric ton'))
     #set_one('%', '%')
+
+    # Special handling for kilowatt_hour
+    if 'kilowatt_hour' in _babel_units:
+        del _babel_units['kilowatt_hour']  # Otherwise fails with compound units.
+   # Apply all unit definitions
+    for definition in unit_definitions:
+        set_one(definition['unit'], definition['long'], definition.get('short'))
+
+    # Special locale-specific customizations
+    loc = Loc('de')
+    loc._data['unit_patterns']['duration-year']['short'] = dict(one='a')
+
