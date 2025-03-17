@@ -268,7 +268,7 @@ nodes:
 # Buildings
 
 - id: building_floor_area_existing
-  type: finland.aluesarjat.BuildingStock
+  type: finland.aluesarjat.BuildingStock # FIXME Use SectorNode instead. Fix the future doubling.
   name_fi: Nykyisen rakennuskannan kerrosala
   name_en: Floor area of existing building stock
   name_sv: Våningsytan i det nuvarande byggnadsbeståndet

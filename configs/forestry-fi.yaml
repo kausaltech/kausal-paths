@@ -5,7 +5,7 @@ supported_languages: [fi]
 site_url: https://forestry-fi.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: f5d9e9eac776ceb9d2aa9740244cfdb53e8d8b40
+  commit: 95c3093e2c37e770f2e2edaa2af6c6666b9fc573
   dvc_remote: kausal-s3
 name_en: Multi-stakeholder forestry policy options
 name_fi: Metsäpolitiikan monet vaihtoehdot
@@ -682,6 +682,34 @@ nodes:
   - id: forest_growth_rate
     tags: [rate]
 
+- id: historical_amount_of_wood_in_a_sample_forest
+  name_fi: Esimerkkimetsän historiallinen koko
+  name_en: Historical forest stock in a sample forest
+  type: generic.GenericNode
+  quantity: mass
+  unit: m3_solid
+  input_datasets:
+  - id: sunnydale/forestry_fi
+    tags: [baseline]
+    filters:
+    - column: Year
+      value: 2023
+      drop_col: false
+    - column: Sector
+      value: Historical forest stock in a sample forest
+
+- id: amount_of_wood_in_a_sample_forest
+  name_fi: Puuston koko esimerkkimetsässä
+  name_en: Forest stock in a sample forest
+  type: generic.IterativeNode
+  quantity: mass
+  unit: m3_solid
+  input_nodes:
+  - id: historical_amount_of_wood_in_a_sample_forest
+    tags: [base]
+  - id: forest_growth_rate
+    tags: [rate]
+
 - id: carbon_sinks_in_forests
   name_en: Carbon sinks in forests
   name_fi: Metsien hiilinelut
@@ -1043,11 +1071,12 @@ actions:
   name_fi: Hakkaa metsä
   type: gpc.DatasetAction
   quantity: mass
-  unit: Mm3_solid/a
+  unit: m3_solid/a
   group: forestry
   input_datasets: [sunnydale/forestry_fi]
   output_nodes:
-  - id: forest_cuts_in_finland
+  - id: amount_of_wood_in_a_sample_forest
+    tags: [additive]
   params:
     sector: Forest cuts by a forest owner
 
