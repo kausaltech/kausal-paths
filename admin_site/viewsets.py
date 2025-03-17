@@ -10,8 +10,9 @@ from django.db.models import Model, QuerySet
 from django.forms import BaseModelForm
 from wagtail.admin.forms.models import WagtailAdminModelForm
 from wagtail.snippets.views.chooser import ChooseResultsView, ChooseView, SnippetChooserViewSet
-from wagtail.snippets.views.snippets import CreateView, DeleteView, EditView, SnippetViewSet
+from wagtail.snippets.views.snippets import CreateView, DeleteView, EditView, IndexView, SnippetViewSet
 
+from kausal_common.admin_site.mixins import HideSnippetsFromBreadcrumbsMixin
 from kausal_common.models.permission_policy import ModelPermissionPolicy
 from kausal_common.models.permissions import PermissionedModel
 
@@ -64,7 +65,7 @@ def user_has_permission(
     )
 
 
-class PathsEditView(EditView[_ModelT, _FormT], AdminInstanceMixin):
+class PathsEditView(HideSnippetsFromBreadcrumbsMixin, EditView[_ModelT, _FormT], AdminInstanceMixin):
     def user_has_permission(self, permission):
         return user_has_permission(
             self.permission_policy,
@@ -93,12 +94,16 @@ class PathsDeleteView(DeleteView[_ModelT, _FormT], AdminInstanceMixin):
         )
 
 
-class PathsCreateView(CreateView[_ModelT, _FormT], AdminInstanceMixin):
+class PathsCreateView(HideSnippetsFromBreadcrumbsMixin, CreateView[_ModelT, _FormT], AdminInstanceMixin):
     def get_form_kwargs(self):
         return {
             **super().get_form_kwargs(),
             'admin_instance': self.admin_instance,
         }
+
+
+class PathsIndexView(HideSnippetsFromBreadcrumbsMixin, IndexView):
+    pass
 
 
 class PathsChooseViewMixin(Generic[_ModelT], AdminInstanceMixin):
@@ -135,6 +140,7 @@ class PathsChooserViewSet(SnippetChooserViewSet, Generic[_ModelT]):
 
 
 class PathsViewSet(Generic[_ModelT, _QS, _FormT], SnippetViewSet[_ModelT, _FormT]):
+    index_view_class: ClassVar = PathsIndexView
     add_view_class: ClassVar = PathsCreateView[_ModelT, _FormT]
     edit_view_class: ClassVar = PathsEditView[_ModelT, _FormT]
     delete_view_class: ClassVar = PathsDeleteView[_ModelT, _FormT]
