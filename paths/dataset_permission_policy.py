@@ -116,8 +116,8 @@ class DatasetPermissionPolicy(ParentInheritedPolicy[Dataset, DatasetSchema, Data
         return self.parent_policy.user_has_perm(user, 'change', context)
 
 
-class DatapointPermissionPolicy(ParentInheritedPolicy[DataPoint, Dataset, DataPointQuerySet]):
-    """Permission policy for Datapoint, inheriting from Dataset."""
+class DataPointPermissionPolicy(ParentInheritedPolicy[DataPoint, Dataset, DataPointQuerySet]):
+    """Permission policy for DataPoint, inheriting from Dataset."""
 
     def __init__(self):
         from kausal_common.datasets.models import DataPoint, Dataset
