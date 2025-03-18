@@ -283,6 +283,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     Mpkm = 1e6 * pkm
     CO2e = [co2e]
     kt_co2e = kilotonne * CO2e
+    t_co2e = tonne * CO2e
     kg_co2e = kg * CO2e
     g_co2e = g * CO2e
     utility = [utility] = Ut
@@ -359,6 +360,7 @@ def add_unit_translations():
     kt_str = pgettext_lazy('kilotonne short', 'kt')
     set_one('kt', kt_str, kt_str)
 
+    set_one('t_co2e', long=_('tonnes CO₂e'), short='tCO₂e')
     set_one('EUR', long=_('euros'), short='€')
     set_one('kiloEUR', long=_('thousand euros'), short='k€')
     set_one('megaEUR', long=_('million euros'), short='M€')
