@@ -174,6 +174,9 @@ nodes:
   input_nodes:
   - id: baseline_year_fleet_emission_factor_pre
     tags: [non_additive]
+    from_dimensions:
+    - id: transport_mode
+      categories: [cars, buses]
     to_dimensions:
     - id: transport_pollutant
     - id: transport_mode
@@ -235,8 +238,6 @@ nodes:
   - id: baseline_year_fleet_emission_factor
     tags: [inventory_only, existing]
     from_dimensions:
-    - id: transport_mode
-      categories: [cars, buses]
     - id: transport_pollutant
       flatten: true
   - id: new_fleet_emission_factor
