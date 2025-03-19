@@ -4,7 +4,7 @@ supported_languages: [sv, en]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: bb1d80a6852e3b21cad3edb4c460494f72d59ec1
+  commit: 357cca60ea56108ce6a5a579be17c58ec330d8ea
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030

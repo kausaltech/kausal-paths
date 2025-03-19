@@ -739,6 +739,8 @@ nodes:
 #       flatten: true
 #     - id: scope
 #       flatten: true
+#     - id: sector
+#       flatten: true
 
 # ------------- Jobs -----------------
 

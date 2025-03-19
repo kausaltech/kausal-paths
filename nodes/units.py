@@ -352,7 +352,6 @@ def add_unit_translations():
             if 'per' in cup:
                 del cup['per']
 
-    _babel_units['metric_ton'] = 'mass-tonne'
     _babel_units['%'] = 'concentr-percent'
     _babel_units['percent'] = 'concentr-percent'
 
@@ -371,6 +370,7 @@ def add_unit_translations():
         {'unit': 'megaSEK', 'long': _('million kronor'), 'short': 'MSEK'},
         {'unit': 'gigawatt_hour', 'long': _('gigawatt hours'), 'short': 'GWh'},
         {'unit': 'megawatt_hour', 'long': _('megawatt hour'), 'short': _('MWh')},
+        {'unit': 'kilowatt_hour', 'long': _('kilowatt hour'), 'short': 'kWh'},
         {'unit': 'incident', 'long': _('number of cases'), 'short': _('#')},
         {'unit': 'passenger', 'long': _('trip'), 'short': _('trip')},
         {'unit': 'minute', 'long': _('minute'), 'short': _('min')},
@@ -379,20 +379,21 @@ def add_unit_translations():
         {'unit': 'gigaEUR', 'long': _('billion euros'), 'short': _('B€')},
         {'unit': 'solid_cubic_meter', 'long': _('solid m³'), 'short': _('m³ (solid)')},
         {'unit': 'megasolid_cubic_meter', 'long': _('million solid m³'), 'short': _('M m³ (solid)')},
-        {'unit': 'kilowatt_hour', 'long': _('kilowatt hour'), 'short': 'kWh'},
         {'unit': 't_co2e', 'long': _('tonnes CO₂e'), 'short': 'tCO₂e'},
+        {'unit': 'metric_ton', 'long': _('tonnes'), 'short': 't'},
     ]
     #set_one('cap', pgettext_lazy('capita short', 'cap'))
 
     #set_one('a', pgettext_lazy('year short', 'yr.'))
     #set_one('percent', pgettext_lazy('percent', 'percent'))
-    #set_one('metric_ton', pgettext_lazy('metric_ton', 'metric ton'))
     #set_one('%', '%')
 
-    # Special handling for kilowatt_hour
-    if 'kilowatt_hour' in _babel_units:
-        del _babel_units['kilowatt_hour']  # Otherwise fails with compound units.
-   # Apply all unit definitions
+    # Special handling for kilowatt_hour and other units in babel
+    del_units = ['kilowatt_hour', 'metric_ton']
+    for u in del_units:
+        if u in _babel_units:
+            del _babel_units[u]  # Otherwise fails with compound units.
+    # Apply all unit definitions
     for definition in unit_definitions:
         set_one(definition['unit'], definition['long'], definition.get('short'))
 

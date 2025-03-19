@@ -3,7 +3,7 @@ default_language: en
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: be7dcb8ce57f03eff60803f38867a8eab02ffbdb
+  commit: ef784d7fe42d555e63359546a8e506f212d03856
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -541,6 +541,8 @@ nodes:
 #       flatten: true
 #     - id: scope
 #       flatten: true
+#     - id: sector
+#       flatten: true
 
 # ------------- Jobs -----------------
 
@@ -767,8 +769,10 @@ nodes:
 - id: building_emissions
   name_en: Building emissions
   name_fi: Rakennusten päästöt
-  description_en: 'This module (all nodes upstream) is based on the excel sheets 3.0 - 3.4 Building & heat levers.'
-  description_fi: 'Tämä moduuli (kaikki ylävirtasolmut) perustuu excel-taulukoihin 3.0 - 3.4 Rakennusten ja lämmityksen vipuvaikutukset.'
+  description_en: This module (all nodes upstream) is based on the excel sheets 3.0
+    - 3.4 Building & heat levers.
+  description_fi: Tämä moduuli (kaikki ylävirtasolmut) perustuu excel-taulukoihin
+    3.0 - 3.4 Rakennusten ja lämmityksen vipuvaikutukset.
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -908,7 +912,7 @@ nodes:
   input_datasets: [nzc/defaults]
   input_nodes:
   - id: total_electricity_consumption
-    tags: [forecast_only] 
+    tags: [forecast_only]
     from_dimensions:
     - id: sector
       flatten: true
@@ -1129,8 +1133,10 @@ nodes:
 - id: electrification_year_of_transport
   name_en: Electrification year of passenger cars
   name_fi: Henkilöautojen sähköistämisvuosi
-  description_en: This node is needed as output for NetZeroPlanner. It is used in the Climate City Contract tables.
-  description_fi: Tämä solmu tarvitaan NetZeroPlannerin tuloksena. Sitä käytetään Climate City Contract -taulukoissa.
+  description_en: This node is needed as output for NetZeroPlanner. It is used in
+    the Climate City Contract tables.
+  description_fi: Tämä solmu tarvitaan NetZeroPlannerin tuloksena. Sitä käytetään
+    Climate City Contract -taulukoissa.
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
