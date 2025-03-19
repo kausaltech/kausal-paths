@@ -162,7 +162,7 @@ nodes:
   - id: freight_transport_emissions
     from_dimensions:
     - id: energy_carrier
-      categories: [electricity]
+      categories: [electricity] # TODO Keep electricity when emission factors are complete.
       exclude: true
     to_dimensions:
     - id: transport_mode
@@ -228,14 +228,34 @@ nodes:
 - id: baseline_year_truck_emission_factor
   name_en: Baseline year truck emission factor
   name_fi: Perusvuoden kuorma-autojen päästökerroin
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/vkm
-  input_dimensions: [transport_mode, pollutant]
-  output_dimensions: [transport_mode, pollutant]
-  input_datasets: [nzc/defaults]
-  params:
-    sector: Baseline year truck emission factor
+  input_dimensions: [pollutant, transport_mode, transport_pollutant, energy_carrier]
+  output_dimensions: [pollutant, transport_mode, transport_pollutant, energy_carrier]
+  input_nodes:
+  - id: baseline_year_fleet_emission_factor
+    from_dimensions:
+    - id: transport_mode
+      categories: [light_trucks, heavy_trucks]
+
+- id: baseline_year_truck_wear_emission_factor # FIXME Bring back the output node when it can receive additions.
+  name_en: Baseline year truck emission factor of wear & tear PM
+  name_fi: Perusvuoden kuorma-autojen päästökerroin kulumapölylle
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_dimensions: [transport_mode, pollutant, energy_carrier]
+  output_dimensions: [transport_mode, pollutant, energy_carrier]
+  input_nodes:
+  - id: baseline_year_truck_emission_factor
+    from_dimensions:
+    - id: pollutant
+      categories: [pm10_wear_tear, pm25_wear_tear]
+    - id: transport_pollutant
+      flatten: true
+  # output_nodes:
+  # - id: truck_emission_factor
 
 - id: new_truck_emission_factor
   name_en: New truck emission factor
@@ -256,13 +276,24 @@ nodes:
   type: costs.DilutionNode
   quantity: emission_factor
   unit: g/vkm
-  input_dimensions: [transport_mode, pollutant]
-  output_dimensions: [transport_mode, pollutant]
+  input_dimensions: [transport_mode, pollutant, energy_carrier]
+  output_dimensions: [transport_mode, pollutant, energy_carrier]
   input_nodes:
   - id: baseline_year_truck_emission_factor
     tags: [inventory_only, existing]
+    from_dimensions:
+    - id: pollutant
+      categories: [pm10_wear_tear, pm25_wear_tear]
+      exclude: true
+    - id: transport_pollutant
+      flatten: true
+    - id: energy_carrier
+      categories: [petrol_diesel]
   - id: new_truck_emission_factor
     tags: [incoming]
+    to_dimensions:
+    - id: transport_mode
+    - id: pollutant
   - id: old_fleet_removal
     tags: [removing, inserting]
     to_dimensions:
@@ -284,7 +315,6 @@ nodes:
       categories: [co2]
     to_dimensions:
     - id: energy_carrier
-      categories: [petrol_diesel]
     - id: transport_mode
     - id: pollutant
   output_nodes:
@@ -327,7 +357,6 @@ nodes:
       categories: [co2]
     to_dimensions:
     - id: energy_carrier
-      categories: [petrol_diesel]
     - id: transport_mode
     - id: pollutant
 
