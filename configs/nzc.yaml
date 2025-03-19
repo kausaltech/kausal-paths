@@ -932,7 +932,6 @@ nodes:
       categories: [co2]
     to_dimensions:
     - id: energy_carrier
-      categories: [petrol_diesel]
     - id: transport_mode
     - id: pollutant
   output_nodes:

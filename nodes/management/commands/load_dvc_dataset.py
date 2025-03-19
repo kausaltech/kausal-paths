@@ -290,7 +290,7 @@ class Command(BaseCommand):
                 dvc_dataset_ids = sorted(ctx.get_all_dvc_dataset_ids())
                 ds_ids = dvc_dataset_ids
         else:
-            ds_ids = options['datasets'][0]
+            ds_ids = options['datasets']
 
         for ds_id in ds_ids:
             with transaction.atomic():

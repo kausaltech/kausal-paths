@@ -20,6 +20,8 @@ from kausal_common.models.permission_policy import (
     ParentInheritedPolicy,
 )
 
+from paths.context import realm_context
+
 from nodes.roles import instance_admin_role, instance_viewer_role
 
 if TYPE_CHECKING:
@@ -55,7 +57,7 @@ class DatasetSchemaPermissionPolicy(ModelPermissionPolicy[DatasetSchema, Dataset
         ).values_list('scope_id', flat=True))
 
     def user_has_perm(self, user: User, action: BaseObjectAction, obj: DatasetSchema) -> bool:
-        active_instance = user.get_active_instance()
+        active_instance = realm_context.get().realm
         instance_ids = self.get_instance_configs_for_schema(obj)
         if active_instance is None or active_instance.pk not in instance_ids:
             return False
@@ -114,8 +116,8 @@ class DatasetPermissionPolicy(ParentInheritedPolicy[Dataset, DatasetSchema, Data
         return self.parent_policy.user_has_perm(user, 'change', context)
 
 
-class DatapointPermissionPolicy(ParentInheritedPolicy[DataPoint, Dataset, DataPointQuerySet]):
-    """Permission policy for Datapoint, inheriting from Dataset."""
+class DataPointPermissionPolicy(ParentInheritedPolicy[DataPoint, Dataset, DataPointQuerySet]):
+    """Permission policy for DataPoint, inheriting from Dataset."""
 
     def __init__(self):
         from kausal_common.datasets.models import DataPoint, Dataset

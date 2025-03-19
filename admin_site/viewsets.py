@@ -10,8 +10,19 @@ from django.db.models import Model, QuerySet
 from django.forms import BaseModelForm
 from wagtail.admin.forms.models import WagtailAdminModelForm
 from wagtail.snippets.views.chooser import ChooseResultsView, ChooseView, SnippetChooserViewSet
-from wagtail.snippets.views.snippets import CreateView, DeleteView, EditView, SnippetViewSet
+from wagtail.snippets.views.snippets import (
+    CopyView,
+    CreateView,
+    DeleteView,
+    EditView,
+    HistoryView,
+    IndexView,
+    InspectView,
+    SnippetViewSet,
+    UsageView,
+)
 
+from kausal_common.admin_site.mixins import HideSnippetsFromBreadcrumbsMixin
 from kausal_common.models.permission_policy import ModelPermissionPolicy
 from kausal_common.models.permissions import PermissionedModel
 
@@ -64,7 +75,21 @@ def user_has_permission(
     )
 
 
-class PathsEditView(EditView[_ModelT, _FormT], AdminInstanceMixin):
+def user_has_permission(
+    permission_policy: BasePermissionPolicy,
+    user: AbstractBaseUser | AnonymousUser,
+    permission: str,
+    obj: Model
+) -> bool:
+    assert isinstance(permission_policy, ModelPermissionPolicy)
+    if isinstance(user, AnonymousUser):
+        return False
+    return permission_policy.user_has_permission_for_instance(
+        user, permission, obj
+    )
+
+
+class PathsEditView(HideSnippetsFromBreadcrumbsMixin, EditView[_ModelT, _FormT], AdminInstanceMixin):
     def user_has_permission(self, permission):
         return user_has_permission(
             self.permission_policy,
@@ -93,12 +118,32 @@ class PathsDeleteView(DeleteView[_ModelT, _FormT], AdminInstanceMixin):
         )
 
 
-class PathsCreateView(CreateView[_ModelT, _FormT], AdminInstanceMixin):
+class PathsCreateView(HideSnippetsFromBreadcrumbsMixin, CreateView[_ModelT, _FormT], AdminInstanceMixin):
     def get_form_kwargs(self):
         return {
             **super().get_form_kwargs(),
             'admin_instance': self.admin_instance,
         }
+
+
+class PathsIndexView(HideSnippetsFromBreadcrumbsMixin, IndexView[_ModelT, _QS]):
+    pass
+
+
+class PathsUsageView(HideSnippetsFromBreadcrumbsMixin, UsageView):
+    pass
+
+
+class PathsHistoryView(HideSnippetsFromBreadcrumbsMixin, HistoryView):
+    pass
+
+
+class PathsCopyView(HideSnippetsFromBreadcrumbsMixin, CopyView[_ModelT, _FormT]):
+    pass
+
+
+class PathsInspectView(HideSnippetsFromBreadcrumbsMixin, InspectView):
+    pass
 
 
 class PathsChooseViewMixin(Generic[_ModelT], AdminInstanceMixin):
@@ -135,9 +180,15 @@ class PathsChooserViewSet(SnippetChooserViewSet, Generic[_ModelT]):
 
 
 class PathsViewSet(Generic[_ModelT, _QS, _FormT], SnippetViewSet[_ModelT, _FormT]):
+    index_view_class: ClassVar = PathsIndexView[_ModelT, _QS]
     add_view_class: ClassVar = PathsCreateView[_ModelT, _FormT]
     edit_view_class: ClassVar = PathsEditView[_ModelT, _FormT]
-    delete_view_class: ClassVar = PathsDeleteView[_ModelT, _FormT]
+    delete_view_class: ClassVar = PathsDeleteView
+    usage_view_class: ClassVar = PathsUsageView
+    history_view_class: ClassVar = PathsHistoryView
+    copy_view_class: ClassVar = PathsCopyView
+    inspect_view_class: ClassVar = PathsInspectView
+
     add_to_admin_menu = True
     chooser_viewset_class = PathsChooserViewSet
 

@@ -283,6 +283,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     Mpkm = 1e6 * pkm
     CO2e = [co2e]
     kt_co2e = kilotonne * CO2e
+    t_co2e = tonne * CO2e
     kg_co2e = kg * CO2e
     g_co2e = g * CO2e
     utility = [utility] = Ut
@@ -379,8 +380,10 @@ def add_unit_translations():
         {'unit': 'solid_cubic_meter', 'long': _('solid m³'), 'short': _('m³ (solid)')},
         {'unit': 'megasolid_cubic_meter', 'long': _('million solid m³'), 'short': _('M m³ (solid)')},
         {'unit': 'kilowatt_hour', 'long': _('kilowatt hour'), 'short': 'kWh'},
+        {'unit': 't_co2e', 'long': _('tonnes CO₂e'), 'short': 'tCO₂e'},
     ]
     #set_one('cap', pgettext_lazy('capita short', 'cap'))
+
     #set_one('a', pgettext_lazy('year short', 'yr.'))
     #set_one('percent', pgettext_lazy('percent', 'percent'))
     #set_one('metric_ton', pgettext_lazy('metric_ton', 'metric ton'))
