@@ -6,16 +6,13 @@ import warnings
 from functools import wraps
 from typing import ClassVar, ParamSpec, TypedDict, TypeVar
 
-import numpy as np
 import pandas as pd
 import polars as pl
-from loguru import logger
 
 from common import polars as ppl
 from common.i18n import TranslatedString
 from nodes.calc import extend_last_historical_value
 from nodes.constants import (
-    EMISSION_FACTOR_QUANTITY,
     EMISSION_QUANTITY,
     ENERGY_QUANTITY,
     FORECAST_COLUMN,
@@ -104,7 +101,7 @@ class HsyNode(Node):
         'sector': Dimension(id='hsy_sector', label=TranslatedString(en='HSY emission sector'), is_internal=True)
     }
 
-    def compute(self) -> pd.DataFrame:
+    def compute(self) -> ppl.PathsDataFrame:
         muni_name = self.get_global_parameter_value('municipality_name')
 
         df = self.get_input_dataset()
@@ -147,7 +144,8 @@ class HsyNode(Node):
                 df[metric_id] = pd.Series(df[metric_id].values, dtype=f"pint[{metric.unit}]")
 
         df[FORECAST_COLUMN] = False
-        return df
+        pdf = ppl.from_pandas(df)
+        return pdf
 
     def check(self):
         return
@@ -325,86 +323,6 @@ class HsyNodeMixin:
         return df, nodes
 
 
-class HsyEnergyConsumption(AdditiveNode, HsyNodeMixin):
-    default_unit = 'GWh/a'
-    quantity = ENERGY_QUANTITY
-    allowed_parameters: ClassVar[list[Parameter]] = HsyNodeMixin.allowed_parameters
-
-    def compute(self) -> ppl.PathsDataFrame:
-        try:
-            df, other_nodes = self.get_sector2(
-                columns=[ENERGY_QUANTITY],
-                # multi_index=True,
-            )
-        except (NodeError, ValueError, KeyError) as e:
-            logger.warning(f"Dimensional parsing failed: {e}. Falling back to legacy sector parsing.")
-            df, other_nodes = self.get_sector(ENERGY_QUANTITY)
-
-        df = df.rename(columns={ENERGY_QUANTITY: VALUE_COLUMN})
-        assert VALUE_COLUMN in df
-
-        # If there are other input nodes connected, add them with this one.
-        if len(other_nodes):
-            df = self.add_nodes(df, other_nodes)
-        pdf = ppl.from_pandas(df)
-        # df = self.convert_names_to_ids(df)
-        return pdf
-
-class HsyEmissions(AdditiveNode, HsyNodeMixin):
-    default_unit = 'kt/a'
-    quantity = EMISSION_QUANTITY
-    allowed_parameters: ClassVar[list[Parameter]] = HsyNodeMixin.allowed_parameters
-
-    def compute(self) -> ppl.PathsDataFrame:
-        try:
-            df, other_nodes = self.get_sector2(
-                columns=[EMISSION_QUANTITY],
-                # multi_index=True,
-            )
-        except (NodeError, ValueError, KeyError) as e:
-            logger.warning(f"Dimensional parsing failed: {e}. Falling back to legacy sector parsing.")
-            df, other_nodes = self.get_sector(EMISSION_QUANTITY)
-
-        df = df.rename(columns={EMISSION_QUANTITY: VALUE_COLUMN})
-        assert VALUE_COLUMN in df
-        pdf = ppl.from_pandas(df)
-
-        dfout, extra_nodes = self.run_implicit_operations(pdf, other_nodes)
-        if dfout is None:
-            raise NodeError(self, f"Node {self.id} failed with implicit operations.")
-        if len(extra_nodes) > 0:
-            raise NodeError(self, f"Node {self.id} can only have additive and multiplicative input nodes.")
-        dfout = dfout.ensure_unit(VALUE_COLUMN, self.unit)
-        return dfout
-
-class HsyEmissionFactor(AdditiveNode, HsyNodeMixin):
-    default_unit = 'g/kWh'
-    quantity = EMISSION_FACTOR_QUANTITY
-    allowed_parameters: ClassVar[list[Parameter]] = HsyNodeMixin.allowed_parameters
-
-    def compute(self) -> ppl.PathsDataFrame:
-        try:
-            df, other_nodes = self.get_sector2(
-                columns=[ENERGY_QUANTITY, EMISSION_QUANTITY],
-                # multi_index=True,
-            )
-        except (NodeError, ValueError, KeyError) as e:
-            logger.warning(f"Dimensional parsing failed: {e}. Falling back to legacy sector parsing.")
-            df, other_nodes = self.get_sector(ENERGY_QUANTITY, EMISSION_QUANTITY)
-
-        df[VALUE_COLUMN] = df[EMISSION_QUANTITY] / df[ENERGY_QUANTITY].replace(0, np.nan)
-        df = df.drop(columns=[ENERGY_QUANTITY, EMISSION_QUANTITY])
-        assert self.unit is not None
-        df[VALUE_COLUMN] = self.convert_to_unit(df[VALUE_COLUMN], self.unit)
-
-        # If there are other input nodes connected, add them with this one.
-        if len(other_nodes):
-            df = self.add_nodes(df, other_nodes)
-        pdf = ppl.from_pandas(df)
-        # df = self.convert_names_to_ids(df)
-        return pdf
-
-
 class HsyBuildingHeatConsumption(Node, HsyNodeMixin):
     default_unit = 'GWh/a'
     quantity = ENERGY_QUANTITY
@@ -450,7 +368,7 @@ class HsyBuildingHeatConsumption(Node, HsyNodeMixin):
         return pdf
 
 
-class HsyDataCollection(Node, HsyNodeMixin):
+class HsyDataCollection(Node, HsyNodeMixin): # FIXME Not used. Remove
     default_unit = 'GWh/a'
     quantity = ENERGY_QUANTITY
 
@@ -492,7 +410,7 @@ class HsyDataCollection(Node, HsyNodeMixin):
         return pdf
 
 
-class HsyPerCapitaEnergyConsumption(AdditiveNode, HsyNodeMixin):
+class HsyPerCapitaEnergyConsumption(AdditiveNode, HsyNodeMixin): # FIXME Not used. Remove
     default_unit = 'kWh/cap/a'
     quantity = PER_CAPITA_QUANTITY
     input_datasets = ['population']
@@ -506,7 +424,7 @@ class HsyPerCapitaEnergyConsumption(AdditiveNode, HsyNodeMixin):
         exit()
 
 
-class MultiplicativeWithDataBackup(MultiplicativeNode):
+class MultiplicativeWithDataBackup(MultiplicativeNode): # FIXME Only used by 1 node; replicate functionality elsewhere.
 
     def compute(self) -> ppl.PathsDataFrame:
         pdf = super().compute()

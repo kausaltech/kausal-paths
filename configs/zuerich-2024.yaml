@@ -40,6 +40,7 @@ features:
   baseline_visible_in_graphs: false
   show_accumulated_effects: false
   show_significant_digits: 2
+  use_datasets_from_db: true
 terms:
   enabled_label_de: Wird umgesetzt
   enabled_label_en: Is implemented

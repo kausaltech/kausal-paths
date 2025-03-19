@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from params import Parameter
     from params.storage import SettingStorage
 
-    from .actions.action import ActionEfficiencyPair, ActionNode
+    from .actions.action import ActionNode, ImpactOverview
     from .dimensions import Dimension
     from .instance import Instance
     from .node import Node
@@ -140,7 +140,7 @@ class Context:
     instance: Instance
     """The computation model instance."""
 
-    action_efficiency_pairs: list[ActionEfficiencyPair]
+    impact_overviews: list[ImpactOverview]
     """List of action efficiency pairs available for the computation model."""
 
     setting_storage: SettingStorage | None
@@ -201,7 +201,7 @@ class Context:
         self.active_scenario = None  # type: ignore
         self.custom_scenario = None  # type: ignore
         self.active_normalization = None
-        self.action_efficiency_pairs = []
+        self.impact_overviews = []
         self.dimensions = {}
         self.options = {}
         self.normalizations = {}

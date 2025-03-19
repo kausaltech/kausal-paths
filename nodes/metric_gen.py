@@ -10,7 +10,7 @@ from paths.const import MODEL_CALC_OP
 from common import polars as ppl
 from common.i18n import gettext as _
 
-from .actions.action import ActionEfficiency, ActionEfficiencyPair, ActionNode
+from .actions.action import ActionImpact, ActionNode, ImpactOverview
 from .actions.shift import ShiftAction
 from .constants import (
     FORECAST_COLUMN,
@@ -529,19 +529,19 @@ def metric_from_visualization(node: Node, visualization: VisualizationNodeOutput
     return dm
 
 
-def from_action_efficiency(  # noqa: C901
-    action_efficiency: ActionEfficiency,
-    root: ActionEfficiencyPair,
+def from_action_impact(  # noqa: C901
+    action_impact: ActionImpact,
+    root: ImpactOverview,
     col: str,
 ) -> DimensionalMetric:
     import pandas as pd
 
-    action = action_efficiency.action
+    action = action_impact.action
 
     def make_id(*args: str) -> str:
         return ':'.join([action.id, *args])
 
-    df = action_efficiency.df
+    df = action_impact.df
     if col == 'Cost':
         dimensions = root.cost_node.output_dimensions.items()
         if root.invert_cost:
@@ -556,6 +556,8 @@ def from_action_efficiency(  # noqa: C901
     dims: list[MetricDimension] = []
 
     for dim_id, dim in dimensions:
+        if dim_id == 'iteration': # FIXME Check that this actually makes sense.
+            continue
         df_cats = set(df[dim_id].unique())
         ordered_cats = []
         for cat in dim.categories:

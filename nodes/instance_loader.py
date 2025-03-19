@@ -410,7 +410,8 @@ class InstanceLoader:
 
     def _make_node_datasets(self, config: dict, node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912
         from nodes.datasets import DBDataset, DVCDataset, FixedDataset, GenericDataset
-        from nodes.simple import AdditiveNode, GenericNode
+        from nodes.generic import GenericNode
+        from nodes.simple import AdditiveNode
         from nodes.units import Unit
 
         ds_config = config.get('input_datasets')
@@ -941,14 +942,14 @@ class InstanceLoader:
             param.set(param_val)
             context.add_global_parameter(param)
 
-    def setup_action_efficiency_pairs(self):
-        from nodes.actions.action import ActionEfficiencyPair
+    def setup_impact_overviews(self):
+        from nodes.actions.action import ImpactOverview
 
         # TODO add an ID so that there can be several impact overviews for different decision makers.
-        conf = self.config.get('action_efficiency_pairs', [])
+        conf = self.config.get('impact_overviews', [])
         for aepc in conf:
             label = self.make_trans_string(aepc, 'label', pop=False)
-            aep = ActionEfficiencyPair.from_config(
+            aep = ImpactOverview.from_config(
                 context=self.context,
                 graph_type=aepc['graph_type'],
                 cost_node_id=aepc['cost_node'],
@@ -965,7 +966,7 @@ class InstanceLoader:
                 outcome_dimension=aepc.get('outcome_dimension', None),
                 label=label,
             )
-            self.context.action_efficiency_pairs.append(aep)
+            self.context.impact_overviews.append(aep)
 
     def setup_normalizations(self):
         ncs = self.config.get('normalizations', [])
@@ -1157,7 +1158,7 @@ class InstanceLoader:
         self.setup_nodes()  # type: ignore[misc]
         self.setup_actions()  # type: ignore[misc]
         self.setup_edges()  # type: ignore[misc]
-        self.setup_action_efficiency_pairs()
+        self.setup_impact_overviews()
         self.setup_scenarios()
         self.setup_normalizations()
         self.setup_node_visualizations()

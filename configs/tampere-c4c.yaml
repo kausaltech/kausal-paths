@@ -23,7 +23,7 @@ params:
 - id: municipality_name
   value: Tampere
 
-action_efficiency_pairs:
+impact_overviews:
 - graph_type: cost_effectiveness
   cost_node: aggregate_net_price
   impact_node: net_emissions

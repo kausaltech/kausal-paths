@@ -108,7 +108,7 @@ nodes:
   name_fi: Teollisuuden päästöinventaario
   name_en: Industry emission inventory
   name_sv: Industrins utsläppsinventering
-  type: finland.hsy.HsyEmissions
+  type: generic.DimensionalSectorEmissions
   unit: kt/a
   input_dimensions: [emission_sector, economic_sector]
   output_dimensions: [emission_sector, economic_sector]
@@ -125,7 +125,7 @@ nodes:
   name_fi: Jätteiden käsittelyn päästöinventaario
   name_en: Waste treatment emission inventory
   name_sv: Utsläppsinventering för avfallsbehandling
-  type: finland.hsy.HsyEmissions
+  type: generic.DimensionalSectorEmissions
   unit: kt/a
   input_dimensions: [waste_treatment, economic_sector]
   output_dimensions: [waste_treatment, economic_sector]
@@ -142,7 +142,7 @@ nodes:
   name_fi: Maatalouden päästöinventaario
   name_en: Agriculture emission inventory
   name_sv: Jordbrukets utsläppsinventering  
-  type: finland.hsy.HsyEmissions
+  type: generic.DimensionalSectorEmissions
   unit: kt/a
   input_dimensions: [emission_sector, economic_sector]
   output_dimensions: [emission_sector, economic_sector]
@@ -159,7 +159,7 @@ nodes:
   name_fi: Teollisuuden ja työkoneiden päästöt
   name_en: Emissions from industry and machinery
   name_sv: Utsläpp från industri och arbetsmaskiner
-  type: finland.hsy.HsyEmissions
+  type: generic.DimensionalSectorEmissions
   input_dimensions: [emission_sector, economic_sector]
   output_dimensions: [emission_sector, economic_sector]
   input_nodes: [all_hsy_emissions]
@@ -177,7 +177,7 @@ nodes:
   name_fi: Maatalouden päästöt
   name_en: Emissions from agriculture
   name_sv: Utsläpp från jordbruket
-  type: finland.hsy.HsyEmissions
+  type: generic.DimensionalSectorEmissions
   input_dimensions: [economic_sector]
   output_dimensions: [economic_sector]
   input_nodes: [all_hsy_emissions]
@@ -193,7 +193,7 @@ nodes:
   name_fi: Jätteiden käsittelyn päästöt
   name_en: Waste treatment emissions
   name_sv: Utsläpp från avfallsbehandling
-  type: finland.hsy.HsyEmissions
+  type: generic.DimensionalSectorEmissions
   unit: kt/a
   input_dimensions: [waste_treatment, economic_sector]
   output_dimensions: [waste_treatment, economic_sector]

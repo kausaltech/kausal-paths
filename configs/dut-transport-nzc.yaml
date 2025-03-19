@@ -116,7 +116,7 @@ action_groups:
   name_en: Electrification (from NetZeroPlanner)
   color: '#ffd92f'
 
-action_efficiency_pairs:
+impact_overviews:
 
 - graph_type: cost_benefit
   cost_node: discounted_health_benefits

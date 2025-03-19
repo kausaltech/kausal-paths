@@ -75,6 +75,20 @@ def user_has_permission(
     )
 
 
+def user_has_permission(
+    permission_policy: BasePermissionPolicy,
+    user: AbstractBaseUser | AnonymousUser,
+    permission: str,
+    obj: Model
+) -> bool:
+    assert isinstance(permission_policy, ModelPermissionPolicy)
+    if isinstance(user, AnonymousUser):
+        return False
+    return permission_policy.user_has_permission_for_instance(
+        user, permission, obj
+    )
+
+
 class PathsEditView(HideSnippetsFromBreadcrumbsMixin, EditView[_ModelT, _FormT], AdminInstanceMixin):
     def user_has_permission(self, permission):
         return user_has_permission(

@@ -56,7 +56,7 @@ action_groups:
   name: Luonnostoimenpiteet
   name_en: Draft actions
 
-action_efficiency_pairs:
+impact_overviews:
 
 - graph_type: value_of_information
   cost_node: total_forest_cost

@@ -27,7 +27,7 @@ action_groups:
   name: Transportation
   color: '#E15759'
 
-action_efficiency_pairs:
+impact_overviews:
 - graph_type: cost_effectiveness
   cost_node: net_price
   impact_node: net_emissions

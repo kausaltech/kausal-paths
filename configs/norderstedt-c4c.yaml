@@ -18,6 +18,7 @@ emission_forecast_from: 2024
 emission_dimensions: []
 features:
   baseline_visible_in_graphs: true
+  use_datasets_from_db: true
 
 action_groups:
 - id: i_stationary
@@ -27,7 +28,7 @@ action_groups:
   name: AFOLU
   color: '#b07aa1'
 
-action_efficiency_pairs:
+impact_overviews:
 - graph_type: cost_effectiveness
   cost_node: aggregate_net_price
   impact_node: net_emissions
