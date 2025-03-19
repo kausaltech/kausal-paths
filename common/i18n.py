@@ -15,7 +15,6 @@ from django.utils.translation import (
     gettext_lazy as gettext_lazy,  # noqa: PLC0414
 )
 from pydantic import BaseModel, GetCoreSchemaHandler, model_validator
-
 from pydantic_core import CoreSchema, core_schema
 
 from kausal_common.i18n.helpers import convert_language_code
@@ -96,9 +95,10 @@ class TranslatedString:
     def set_modeltrans_field(self, obj: Model, field_name: str, default_language: str):
         field_val, i18n = get_modeltrans_attrs_from_str(self, field_name, default_lang=default_language)
         setattr(obj, field_name, field_val)
-        if not obj.i18n:  # type: ignore
-            obj.i18n = {}  # type: ignore
-        obj.i18n.update(i18n)  # type: ignore
+
+        old_i18n: dict[str, str] = dict(getattr(obj, 'i18n') or {})  # noqa: B009
+        old_i18n.update(i18n)
+        setattr(obj, 'i18n', old_i18n)  # noqa: B010
 
     def __str__(self):
         try:
@@ -140,7 +140,7 @@ class TranslatedString:
 
     @classmethod
     def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: GetCoreSchemaHandler,  # noqa: ANN401
+        cls, source_type: Any, handler: GetCoreSchemaHandler,
     ) -> CoreSchema:
         def validate(v) -> TranslatedString:
             return cls.validate(v)

@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from django.templatetags.static import static
 from django.urls import reverse
 from django.utils.html import format_html
@@ -6,7 +10,9 @@ from wagtail import hooks
 from wagtail.admin.menu import Menu, MenuItem, SubmenuMenuItem
 
 from nodes.models import InstanceConfig
-from paths.types import PathsAdminRequest
+
+if TYPE_CHECKING:
+    from paths.types import PathsAdminRequest
 
 
 def global_admin_css():
@@ -72,3 +78,7 @@ def register_instance_chooser():
     )
 
 hooks.register('register_admin_menu_item', register_instance_chooser)
+
+@hooks.register('construct_main_menu')
+def hide_snippets_menu_item(request, menu_items):
+    menu_items[:] = [item for item in menu_items if item.name != 'snippets']

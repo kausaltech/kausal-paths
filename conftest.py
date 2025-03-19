@@ -22,7 +22,6 @@ else:
 
 from pytest_factoryboy import register
 
-from datasets.tests.factories import DatasetFactory
 from nodes.tests.factories import (
     ActionNodeFactory,
     AdditiveActionFactory,
@@ -55,7 +54,6 @@ register(InstanceConfigFactory)
 register(NumberParameterFactory)
 register(ParameterFactory)
 register(StringParameterFactory)
-register(DatasetFactory)
 register(UserFactory)
 register(InstanceFactory)
 
