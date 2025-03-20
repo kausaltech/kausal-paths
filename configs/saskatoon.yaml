@@ -25,28 +25,34 @@ features:
 action_groups:
 - id: buildings
   name: Buildings & Energy Efficiency
+  color: '#4e79a7'
 - id: transportation
   name: Transportation
+  color: '#e15759'
 - id: waste
   name: Waste
+  color: '#59a14f'
 - id: water
   name: Water Conservation
+  color: '#ff9da7'
 - id: land
   name: Land Use
+  color: '#76b7b2'
 - id: energy
   name: Energy Generation
+  color: '#edc948'
 
-action_efficiency_pairs:
-- graph_type: cost_effectiveness
-  cost_node: net_cost
-  impact_node: net_emissions
-  invert_cost: false
-  invert_impact: true
-  indicator_unit: CAD/t
-  cost_unit: MCAD
-  impact_unit: kt
-  plot_limit_for_indicator: 3000
-  label: Marginal Abatement Cost
+# action_efficiency_pairs:
+# - graph_type: cost_effectiveness
+#   cost_node: net_cost
+#   impact_node: net_emissions
+#   invert_cost: false
+#   invert_impact: true
+#   indicator_unit: CAD/t
+#   cost_unit: MCAD
+#   impact_unit: kt
+#   plot_limit_for_indicator: 3000
+#   label: Marginal Abatement Cost
 
 dimensions:
 - id: emission_scope
@@ -1335,31 +1341,31 @@ nodes:
     - id: emission_sectors
     - id: energy_carrier
 
-- id: forecasted_costs
-  name: Costs & Revenue Forecast by SSG CityInSight
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: CAD/a
-  input_dimensions: [costs]
-  output_dimensions: [costs]
-  input_datasets:
-  - id: saskatoon/forecasted_costs
-    min_year: 2024
-    max_year: 2050
-    forecast_from: 2024
+# - id: forecasted_costs
+#   name: Costs & Revenue Forecast by SSG CityInSight
+#   type: simple.AdditiveNode
+#   quantity: currency
+#   unit: CAD/a
+#   input_dimensions: [costs]
+#   output_dimensions: [costs]
+#   input_datasets:
+#   - id: saskatoon/forecasted_costs
+#     min_year: 2024
+#     max_year: 2050
+#     forecast_from: 2024
 
-- id: net_cost
-  name: Net Cost
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MCAD/a
-  input_dimensions: []
-  output_dimensions: []
-  input_nodes:
-  - id: forecasted_costs
-    from_dimensions:
-    - id: costs
-      flatten: true
+# - id: net_cost
+#   name: Net Cost
+#   type: simple.AdditiveNode
+#   quantity: currency
+#   unit: MCAD/a
+#   input_dimensions: []
+#   output_dimensions: []
+#   input_nodes:
+#   - id: forecasted_costs
+#     from_dimensions:
+#     - id: costs
+#       flatten: true
 
 
 actions:
@@ -1368,7 +1374,6 @@ actions:
   name: LEC Action 1
   description: Apply energy efficiency standards (build to Passive House) to all new municipal buildings.
   group: buildings
-  color: '#4e79a7'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -1434,15 +1439,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -1450,7 +1455,6 @@ actions:
   name: LEC Action 2
   description: Perform deep energy retrofits on municipal buildings.
   group: buildings
-  color: '#4e79a7'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -1516,15 +1520,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -1532,7 +1536,6 @@ actions:
   name: LEC Action 3
   description: Upgrade plugged appliances and energy conservation behaviours in municipal buildings.
   group: buildings
-  color: '#4e79a7'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -1598,15 +1601,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -1614,7 +1617,6 @@ actions:
   name: LEC Action 4
   description: Update all municipal building lighting systems.
   group: buildings
-  color: '#4e79a7'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -1662,15 +1664,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -1678,7 +1680,6 @@ actions:
   name: LEC Action 5
   description: Retrofit municipal heating and cooling systems with ground source or air source heat pumps.
   group: buildings
-  color: '#4e79a7'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -1744,15 +1745,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -1760,7 +1761,6 @@ actions:
   name: LEC Action 6
   description: Create an electric and thermal energy consumption cap for new home construction by utilizing a municipal step code.
   group: buildings
-  color: '#4e79a7'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -1818,15 +1818,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -1834,7 +1834,6 @@ actions:
   name: LEC Action 7
   description: Require new homes to include roof solar Photovoltaic (PV) installations in the final year of a municipal step code.
   group: buildings
-  color: '#4e79a7'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -1892,15 +1891,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -1908,7 +1907,6 @@ actions:
   name: LEC Actions 8 & 9
   description: (8) Create an electric and thermal energy consumption cap for new ICI construction by utilizing a municipal step code. (9) Require new ICI buildings to include roof solar PV installations in the final year of municipal step code.
   group: buildings
-  color: '#4e79a7'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -1974,15 +1972,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -1990,7 +1988,6 @@ actions:
   name: LEC Action 10
   description: Incentivize and later mandate homeowners to perform deep energy retrofits.
   group: buildings
-  color: '#4e79a7'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -2048,15 +2045,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -2064,7 +2061,6 @@ actions:
   name: LEC Action 11
   description: Incentivize and later mandate ICI owners and operators to perform deep energy retrofits.
   group: buildings
-  color: '#4e79a7'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -2130,15 +2126,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -2146,7 +2142,6 @@ actions:
   name: LEC Action 12
   description: Require energy efficiency improvements residential and ICI building lighting systems.
   group: buildings
-  color: '#4e79a7'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -2204,15 +2199,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -2220,7 +2215,6 @@ actions:
   name: LEC Action 13
   description: Incentivize and later mandate homeowners to upgrade household appliances to energy and water efficient models.
   group: buildings
-  color: '#4e79a7'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -2278,15 +2272,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -2294,7 +2288,6 @@ actions:
   name: LEC Action 14
   description: Retrofit home heating and cooling systems with ground-source or air-source heat pumps.
   group: buildings
-  color: '#4e79a7'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -2352,15 +2345,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -2368,7 +2361,6 @@ actions:
   name: LEC Action 15
   description: Retrofit ICI heating and cooling systems with ground-source or air-source heat pumps.
   group: buildings
-  color: '#4e79a7'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -2434,15 +2426,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -2450,7 +2442,6 @@ actions:
   name: LEC Action 16
   description: Increase the efficiency of industrial processes.
   group: buildings
-  color: '#4e79a7'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -2498,15 +2489,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -2514,7 +2505,6 @@ actions:
   name: LEC Action 17
   description: Electrify the municipal fleet over the near-term.
   group: transportation
-  color: '#e15759'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -2590,15 +2580,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -2606,7 +2596,6 @@ actions:
   name: LEC Action 18
   description: Electrify the municipal transit fleet.
   group: transportation
-  color: '#e15759'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -2682,15 +2671,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -2698,7 +2687,6 @@ actions:
   name: LEC Action 19
   description: Implement a vehicle pollution pricing program in high traffic areas.
   group: transportation
-  color: '#e15759'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -2774,15 +2762,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -2790,7 +2778,6 @@ actions:
   name: LEC Action 20
   description: Increase transit routes and frequency through future updates to the Transit Plan.
   group: transportation
-  color: '#e15759'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -2838,15 +2825,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -2854,7 +2841,6 @@ actions:
   name: LEC Action 21
   description: Electrify personal vehicles through incentive programs, education, and automotive dealer partnerships.
   group: transportation
-  color: '#e15759'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -2902,15 +2888,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -2918,7 +2904,6 @@ actions:
   name: LEC Action 22
   description: Electrify commercial vehicles through incentive programs, education, and automotive dealer partnerships.
   group: transportation
-  color: '#e15759'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -2966,15 +2951,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -2982,7 +2967,6 @@ actions:
   name: LEC Action 23
   description: Fund and implement improved cycling and walking infrastructure to encourage active transportation.
   group: transportation
-  color: '#e15759'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -3030,15 +3014,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -3046,7 +3030,6 @@ actions:
   name: LEC Action 24
   description: Improve and expand waste management programs and services to increase reduction and diversion.
   group: waste
-  color: '#59a14f'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -3088,15 +3071,15 @@ actions:
     - id: energy_carrier
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -3104,7 +3087,6 @@ actions:
   name: LEC Action 25
   description: Decrease water use through efficiency, monitoring, and leak reduction.
   group: water
-  color: '#ff9da7'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -3180,15 +3162,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -3196,7 +3178,6 @@ actions:
   name: LEC Action 26
   description: Reduce residential and ICI water use through education programming and water efficiency incentive programs.
   group: water
-  color: '#ff9da7'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -3254,15 +3235,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -3270,7 +3251,6 @@ actions:
   name: LEC Actions 27 & 28
   description: (27) Build complete, compact communities through infill development, mixed-use buildings, and compact housing. (28) Focus development on densification in previously developed areas, increasing the number of multi-family buildings.
   group: land
-  color: '#76b7b2'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -3328,15 +3308,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -3344,7 +3324,6 @@ actions:
   name: LEC Action 29
   description: Install solar PV systems on municipal buildings.
   group: energy
-  color: '#edc948'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -3412,15 +3391,15 @@ actions:
     - id: energy_carrier
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -3428,7 +3407,6 @@ actions:
   name: LEC Action 31
   description: Increase landfill gas capture from the Saskatoon Landfill.
   group: energy
-  color: '#edc948'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -3478,15 +3456,15 @@ actions:
     - id: energy_carrier
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -3494,7 +3472,6 @@ actions:
   name: LEC Action 32
   description: Encourage existing residential building owners and mandate new buildings to install solar PV system through programming and bylaw.
   group: energy
-  color: '#edc948'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -3534,15 +3511,15 @@ actions:
     - id: emission_sectors
       categories: [energy_industries]
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -3550,7 +3527,6 @@ actions:
   name: LEC Action 33
   description: Encourage existing ICI building owners and mandate new buildings to install solar PV systems through programming and bylaw.
   group: energy
-  color: '#edc948'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -3590,15 +3566,15 @@ actions:
     - id: emission_sectors
       categories: [energy_industries]
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -3606,7 +3582,6 @@ actions:
   name: LEC Actions 30 & 34
   description: (30) Install solar PV systems on municipal lands. (34) Install new solar PV utility-scale facilities within or adjacent to city boundaries. Areas within city boundary to be prioritized first.
   group: energy
-  color: '#edc948'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -3646,15 +3621,15 @@ actions:
     - id: emission_sectors
       categories: [energy_industries]
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -3662,7 +3637,6 @@ actions:
   name: LEC Action 35
   description: Install a CHP facility at St. Paul's Hospital.
   group: energy
-  color: '#edc948'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -3728,15 +3702,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -3744,7 +3718,6 @@ actions:
   name: LEC Action 36
   description: Implement district energy systems in the downtown and north downtown areas.
   group: energy
-  color: '#edc948'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -3810,15 +3783,15 @@ actions:
     - id: emission_scope
       flatten: true
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -3826,7 +3799,6 @@ actions:
   name: LEC Action 37
   description: Construct a hydropower plant at the weir.
   group: energy
-  color: '#edc948'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -3866,15 +3838,15 @@ actions:
     - id: emission_sectors
       categories: [energy_industries]
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -3882,7 +3854,6 @@ actions:
   name: LEC Action 38
   description: Install renewable energy storage over time.
   group: energy
-  color: '#edc948'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -3922,15 +3893,15 @@ actions:
     - id: emission_sectors
       categories: [energy_industries]
 
-  - id: forecasted_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: emission_scope
-      flatten: true
+  # - id: forecasted_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: emission_sectors
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: emission_scope
+  #     flatten: true
 
 
 
@@ -3938,7 +3909,6 @@ actions:
   name: LEC Action 39
   description: Procure renewable electricity from third party producers.
   group: energy
-  color: '#edc948'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
@@ -3984,7 +3954,6 @@ actions:
   name: LEC Action 40
   description: Procure renewable natural gas from third party producers.
   group: energy
-  color: '#edc948'
   type: simple.AdditiveAction
   input_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
   output_dimensions: [costs, emission_sectors, energy_carrier, emission_scope]
