@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from collections import OrderedDict
     from typing import type_check_only
 
-    from django.contrib.auth.models import AnonymousUser
+    from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
     from wagtail.models import Site
 
     from kausal_common.graphene import GQLContext as CommonGQLContext, GQLInfo as CommonGQLInfo
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from users.models import User
 
 
-type UserOrAnon = 'User | AnonymousUser'
+type UserOrAnon = 'AbstractBaseUser | AnonymousUser'
 
 
 class PathsRequest(HttpRequest):
