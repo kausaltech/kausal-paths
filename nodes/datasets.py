@@ -907,7 +907,15 @@ class DBDataset(DatasetWithFilters):
 
         ds = DBDatasetModel.objects.filter(id=ds_in.pk).annotate(dps=ArraySubquery(dps), metrics=ArraySubquery(metrics)).first()
         assert ds is not None
-        df = pl.DataFrame(ds.dps)  # type: ignore
+        dp_list = cast('list[dict[str, Any]]', ds.dps)  # type: ignore
+        df_schema = {
+            'id': pl.Int64,
+            YEAR_COLUMN: pl.Int64,
+            'value': pl.Float64,
+            'metric': pl.Utf8,
+            **{str(dim[1]): pl.Utf8 for dim in dims},
+        }
+        df = pl.DataFrame(dp_list, schema=df_schema, orient='row')
         mdf = pl.DataFrame(ds.metrics)  # type: ignore
         df = df.join(mdf.select(pl.col('uuid').alias('metric'), pl.col('name').alias('metric_name')), on='metric', how='left')
 
