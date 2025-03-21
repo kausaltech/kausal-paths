@@ -20,7 +20,7 @@ def schema_default_scope():
     from paths.context import realm_context
     return realm_context.get().realm
 
-DATASOURCE_DEFAULT_SCOPE_CONTENT_TYPE: tuple[str, str] =  ('nodes', 'instanceconfig')
+DATA_SOURCE_DEFAULT_SCOPE_CONTENT_TYPE: tuple[str, str] =  ('nodes', 'instanceconfig')
 SCHEMA_HAS_SINGLE_DATASET: bool = True
 SCHEMA_DEFAULT_SCOPE_FUNCTION: Callable[[], Model] | None = schema_default_scope
 SHOW_DATASETS_IN_MENU: bool = True
