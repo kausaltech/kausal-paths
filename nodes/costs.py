@@ -47,10 +47,12 @@ class SelectiveNode(AdditiveNode):
             else:
                 included_nodes.append(node)
 
-        assert len(included_nodes)
+        assert len(included_nodes) > 0
         output_unit = self.output_metrics[DEFAULT_METRIC].unit
         for node in included_nodes:
-            df = node.get_output_pl(target_node=self).ensure_unit(VALUE_COLUMN, output_unit)
+            m = node.get_default_output_metric()
+            df = node.get_output_pl(target_node=self, metric=m.column_id)
+            df = df.ensure_unit(VALUE_COLUMN, output_unit)
             if out is None:
                 out = df
             else:
@@ -105,7 +107,7 @@ class ExponentialNode(AdditiveNode):
             })
             df = df.with_columns([
                 pl.when(pl.col(YEAR_COLUMN) > pl.lit(current_year))
-                .then(pl.lit(True)).otherwise(pl.lit(False)).alias(FORECAST_COLUMN),
+                .then(pl.lit(True)).otherwise(pl.lit(False)).alias(FORECAST_COLUMN),  # noqa: FBT003
                 pl.lit(current_value).alias(VALUE_COLUMN),
             ])
             meta = ppl.DataFrameMeta(units={VALUE_COLUMN: unit}, primary_keys=[YEAR_COLUMN])
@@ -115,7 +117,7 @@ class ExponentialNode(AdditiveNode):
             df = super().compute()  # FIXME Use AdditiveNode.compute instead
 
             if self.get_parameter_value('inventory_only', required=False):  # FIXME use edge procesess instead
-                df = df.with_columns([pl.lit(False).alias(FORECAST_COLUMN)])
+                df = df.with_columns([pl.lit(False).alias(FORECAST_COLUMN)])  # noqa: FBT003
             else:
                 df = extend_last_historical_value_pl(df, self.get_end_year())
 
@@ -143,7 +145,7 @@ class ExponentialNode(AdditiveNode):
         ).drop('power')
 
         return df
-    
+
 
 class InternalGrowthNode(ExponentialNode):
     explanation = _("""
@@ -160,11 +162,11 @@ class InternalGrowthNode(ExponentialNode):
 
     def compute(self):
         df = self.get_input_dataset_pl()
-        current_value = self.get_parameter_value('current_value', required=False)  # FIXME Not used
+        # current_value = self.get_parameter_value('current_value', required=False)  # FIXME Not used
 
         nonadd = self.get_input_nodes(tag='non_additive')
-        if nonadd:
-            df_nonadd = self.add_nodes(None, nonadd)  # FIXME Not used
+        # if nonadd:
+        #     df_nonadd = self.add_nodes(None, nonadd)  # FIXME Not used
         annual_change = self.get_parameter_value('annual_change', units=True, required=False)
         base_value = 1 + annual_change.to('dimensionless').m
 
