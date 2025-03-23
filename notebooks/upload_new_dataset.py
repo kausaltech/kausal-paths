@@ -5,7 +5,6 @@ import re
 import sys
 
 import dvc_pandas
-import pandas as pd
 import polars as pl
 from dotenv import load_dotenv
 from dvc_pandas import Dataset, DatasetMeta, Repository
@@ -16,30 +15,121 @@ def to_snake_case(string):
     if not isinstance(string, str):
         return string
 
-    # Replace special characters and convert to lowercase
     s = string.replace('-', ' ').replace('ä', 'a').replace('ö', 'o').lower().replace(' ', '_')
-
-    # Remove non-alphanumeric characters and normalize underscores
     s = re.sub(r'[^a-z0-9_]', '', s)
     s = re.sub(r'_+', '_', s)
 
     return s
 
 
-def load_data(file_path: str, separator: str, slice_name: str) -> pl.DataFrame:
-    """Load CSV data and filter for specified slice."""
-    df = pl.read_csv(file_path, separator=separator, infer_schema_length=1000)
-    return df.filter(pl.col('Sector') == slice_name).drop(['Slice'])
+def load_data(file_path: str, separator: str) -> pl.DataFrame:
+    """Load CSV data from file."""
+    return pl.read_csv(file_path, separator=separator, infer_schema_length=1000)
 
 
-def clean_dataframe(df: pl.DataFrame, drop_columns: list[str]) -> pl.DataFrame:
-    """Remove specified columns and empty columns."""
-    # Drop columns from droplist if present
-    for col in drop_columns:
+def split_by_slice(df: pl.DataFrame) -> dict[str, pl.DataFrame]:
+    """Split the dataframe into separate dataframes by Slice."""
+    slices = {}
+
+    unique_slices = df.select('Slice').unique().to_series(0).to_list()
+
+    for slice_name in unique_slices:
+        if slice_name is not None:
+            slice_df = df.filter(pl.col('Slice') == slice_name).drop('Slice')
+            slices[slice_name] = slice_df
+            print(f"Created dataset for slice: {slice_name} with {len(slice_df)} rows")
+
+    return slices
+
+
+def extract_units(df: pl.DataFrame, slice_name: str) -> dict:
+    """Extract units from the dataframe."""
+    units = {}
+    if 'Sector' in df.columns and 'Unit' in df.columns:
+        # Get unique sector-unit pairs
+        unique_sectors = df.select(['Sector', 'Unit']).unique()
+
+        for row_idx in range(len(unique_sectors)):
+            row = unique_sectors.row(row_idx, named=True)
+            sector = row['Sector']
+            unit = row['Unit']
+
+            if sector and unit:
+                units[sector] = unit
+
+    # If no Sector column or no valid sector-unit pairs, use "Value" as the key
+    if not units and 'Unit' in df.columns:
+        first_unit = df.select('Unit')[0, 0]
+        if first_unit:
+            units['Value'] = first_unit
+    return units
+
+
+def extract_description(df: pl.DataFrame, slice_name: str) -> str:
+    """Extract description from the dataframe."""
+    description = None # FIXME Does not show up in admin UI.
+    if 'Description' in df.columns:
+        descriptions = []
+        rows_with_description = df.filter(pl.col('Description').is_not_null())
+
+        for row_idx in range(len(rows_with_description)):
+            row = rows_with_description.row(row_idx, named=True)
+
+            parts = []
+            if row.get('Sector'):
+                parts.append(row['Sector'])
+
+            # Add values from dimension columns
+            for col in df.columns:
+                if (
+                    (df[col].dtype == pl.Utf8 or df[col].dtype == pl.String) and
+                    (col not in ['Sector', 'Unit', 'Value', 'Description', 'Quantity', 'Year']) and
+                    (row.get(col))
+                ):
+                    parts.append(f"{col}: {row[col]}")  # noqa: PERF401
+
+            if row['Description']:
+                parts.append(row['Description'])
+
+            if parts:
+                descriptions.append(" - ".join(parts))
+
+        if descriptions:
+            description = "<br/>".join(descriptions)
+    return description
+
+
+def extract_metrics(df: pl.DataFrame, slice_name: str) -> list:
+    """Extract metrics from the dataframe."""
+    # 3. Extract metrics from Quantity and Sector columns
+    metrics = []
+    if 'Sector' in df.columns and 'Quantity' in df.columns:
+        unique_metrics = df.select(['Sector', 'Quantity']).unique()
+
+        for row_idx in range(len(unique_metrics)):
+            row = unique_metrics.row(row_idx, named=True)
+            sector = row['Sector']
+            quantity = row['Quantity']
+
+            if sector and quantity:
+                metrics.append({
+                    "id": to_snake_case(sector),
+                    "quantity": quantity, # FIXME Does not enter the database properly
+                    "label": sector
+                })
+
+    return metrics
+
+
+def clean_dataframe(df: pl.DataFrame) -> pl.DataFrame:
+    """Remove metadata columns and empty columns."""
+    # 1. Drop metadata columns that are now in metadata
+    metadata_columns = ['Unit', 'Description', 'Quantity']
+    for col in metadata_columns:
         if col in df.columns:
             df = df.drop(col)
 
-    # Drop empty columns
+    # 2. Drop any columns that only contain null values
     for col in df.columns:
         if df.select(col).unique().to_series(0).to_list() == [None]:
             df = df.drop(col)
@@ -47,154 +137,156 @@ def clean_dataframe(df: pl.DataFrame, drop_columns: list[str]) -> pl.DataFrame:
     return df
 
 
-def identify_column_types(df: pl.DataFrame) -> tuple[list[str], list[str], list[str]]:
-    """Identify context, value, and dimension columns."""
-    context = []
-    values = []
-
-    for c in df.columns:
-        if c.isdigit():
-            values.append(c)
-        else:
-            context.append(c)
-
-    dims = [c for c in context if c not in ['Quantity', 'Unit', 'UUID', 'Is_action']]
-
-    return context, values, dims
-
-
-def check_duplicates(df: pl.DataFrame, groups: list[str]) -> bool:
-    """Check for duplicated dimension sets."""
-    duplicates = df.group_by(groups).agg(pl.len()).filter(pl.col('len') > 1)
-    if len(duplicates) > 0:
-        print('There are duplicate values. Remove them and try again.')
-        print(duplicates)
-        return False
-    print('No duplicates, continuing...')
-    return True
-
-
-def check_missing_data(df: pl.DataFrame) -> bool:
-    """Check for missing data in required columns."""
-    missing_data = df.filter((pl.col('Sector') + pl.col('Quantity') + pl.col('Unit')).is_null())
-    if missing_data.is_empty():
-        print('No missing data in columns Sector, Quantity, Unit. Continuing...')
-        return True
-    print('Missing data in obligatory cells. Fill in and try again.')
-    print(missing_data.select(['Sector', 'Quantity', 'Unit']))
-    return False
-
-
-def standardize_units(df: pl.DataFrame, unit_replacements: list[list[str]]) -> pl.DataFrame:
-    """Replace units according to standardization rules."""
-    unitcol = df.select('Unit').to_series(0).to_list()
-    for ur in unit_replacements:
-        unitcol = [x.replace(ur[0], ur[1]) for x in unitcol]
-    return df.with_columns(pl.Series(name='Unit', values=unitcol))
-
-
-def standardize_scopes(df: pl.DataFrame) -> pl.DataFrame:
-    """Replace scope numbers with labels."""
-    if 'Scope' in df.columns:
-        scopecol = df.select('Scope').to_series(0).to_list()
-        labels = []
-        for x in scopecol:
-            if x:
-                labels.append(f'Scope {x}')
-            else:
-                labels.append(x)
-        return df.with_columns(pl.Series(name='Scope', values=labels))
-    return df
-
-
-def transform_to_long_format(df: pl.DataFrame, context: list[str], values: list[str]) -> pl.DataFrame:
-    """Transform data from wide to long format if needed."""
-    if 'Value' in df.columns and 'Year' in df.columns:
-        # Already in long format
+def convert_to_standard_format(df: pl.DataFrame) -> pl.DataFrame:
+    """Convert dataframe to standard format with Year column if needed."""
+    # Check if already in standard format
+    if 'Year' in df.columns:
         return df
-    # Initialize empty dataframe for long format
-    dfmain = df.head(1).select(context).with_columns([
-        (pl.lit('0.0').alias('Value').cast(pl.String)),
-        (pl.lit(0).alias('Year').cast(pl.Int64))
+
+    # Identify year columns (columns with numeric names)
+    year_columns = [col for col in df.columns if col.isdigit()]
+
+    if not year_columns:
+        raise ValueError("No year columns found and no Year column exists")
+
+    # Get non-year columns
+    context_columns = [col for col in df.columns if not col.isdigit()]
+
+    # Initialize result dataframe
+    result_df = df.head(1).select(context_columns).with_columns([
+        (pl.lit(0).alias('Year').cast(pl.Int64)),
+        (pl.lit('0.0').alias('Value').cast(pl.String))
     ]).clear()
 
-    # Convert numeric columns to strings for probabilistic data
-    df = df.with_columns([pl.col(col).cast(pl.String) for col in values])
-    df = df.with_row_index(name='Index')
+    # For each row and year, create a new row in the result
+    df = df.with_row_index(name='__row_idx')
 
-    # Process each row and value column
     for i in range(len(df)):
-        print(f'Row {i+1} of {len(df)}')
-        for y in values:
-            mcols = list(context)
-            mcols.extend([y])
+        row = df.filter(pl.col('__row_idx') == i)
 
-            mframe = df.filter(pl.col('Index') == i).select(mcols).with_columns(pl.lit(y).cast(pl.Int64))
-            mframe.columns = dfmain.columns
+        for year in year_columns:
+            value = row.select(year)[0, 0]
 
-            # Ignore empty cells and statfi empty values
-            if mframe['Value'][0] is not None and mframe['Value'][0] not in ['.', '-']:
-                dfmain = pl.concat([dfmain, mframe], rechunk=False)
+            # Skip empty values
+            if value is None or value in ['.', '-']:
+                continue
 
-    return dfmain.rechunk()
+            # Create new row with context values and year/value
+            new_row = row.select(context_columns).with_columns([
+                pl.lit(int(year)).cast(pl.Int64).alias('Year'),
+                pl.lit(str(value)).alias('Value')
+            ])
+
+            result_df = pl.concat([result_df, new_row], rechunk=False)
+
+    return result_df.drop('__row_idx') if '__row_idx' in result_df.columns else result_df
 
 
-def process_action_flags(df: pl.DataFrame) -> pl.DataFrame:
-    """Process Is_action flags if present."""
-    if 'Is_action' in df.columns:
-        df = df.with_columns([pl.when(
-            (pl.col('Is_action')) &
-            (pl.col('Year').eq(0))
-        ).then(pl.lit(None)).otherwise(pl.col('UUID')).alias('UUID')])
-        return df.drop('Is_action')
+def pivot_by_sector(df: pl.DataFrame) -> pl.DataFrame:
+    """Convert dataframe to have sectors as columns."""
+    # Check if we need to pivot (do we have a Sector column?)
+    if 'Sector' not in df.columns:
+        return df
+
+    # Get unique sectors
+    unique_sectors = df.select('Sector').unique().to_series(0).to_list()
+    unique_sectors = [s for s in unique_sectors if s is not None]
+
+    # If only one sector, just rename Value column to that sector
+    if len(unique_sectors) == 1:
+        sector = unique_sectors[0]
+        return df.with_columns(
+            pl.col('Value').alias(sector)
+        ).drop(['Sector', 'Value'])
+
+    # Get dimension columns (all except Sector and Value)
+    dim_cols = [col for col in df.columns if col not in ['Sector', 'Value']]
+
+    # Ensure no null sectors
+    df = df.with_columns(
+        pl.when(pl.col('Sector').is_null())
+          .then(pl.lit("unknown"))
+          .otherwise(pl.col('Sector'))
+          .alias('Sector')
+    )
+
+    # Pivot to have sectors as columns
+    result_df = df.pivot(
+        values="Value",
+        index=dim_cols,
+        on="Sector"
+    )
+
+    return result_df
+
+
+def check_for_duplicates(df: pl.DataFrame) -> bool:
+    """Check if the dataframe has any duplicate rows by all columns."""
+    if len(df) == df.unique().shape[0]:
+        return False  # No duplicates
+    return True  # Has duplicates
+
+
+def prepare_for_dvc(df: pl.DataFrame, units: dict) -> pl.DataFrame:
+    """Prepare dataframe for DVC by standardizing column names."""
+    # Standardize column names (except 'Year')
+    columns = df.columns
+    sectors = list(units.keys())
+    new_columns = [col if col in sectors + ['Year'] else to_snake_case(col) for col in columns]
+
+    # Rename columns
+    df = df.rename(dict(zip(columns, new_columns, strict=False)))
+
+    # Convert string values in columns to snake case
+    for col in new_columns:
+        if col not in sectors + ['Year']:
+            df = df.with_columns(
+                pl.col(col).map_elements(to_snake_case, return_dtype=str).alias(col)
+            )
+
     return df
 
 
-def convert_value_types(df: pl.DataFrame) -> pl.DataFrame:
-    """Try to convert Value column to Float64."""
-    try:
-        df_test = df.with_columns(pl.col('Value').cast(pl.Float64))
-        print('Values are stored as Float64.')
-        return df_test  # noqa: TRY300
-    except pl.exceptions.InvalidOperationError as e:
-        print('Value column contains probabilistic values and is stored as String.')
-        print(f'Conversion details: {e}')
-        return df
-
-
-def save_to_csv(df: pl.DataFrame, file_path: str) -> None:
-    """Save data to CSV if requested."""
+def save_to_csv(df: pl.DataFrame, file_path: str, slice_name: str) -> None:
+    """Save dataframe to CSV if a path is provided."""
     if file_path.upper() not in ['N', 'NONE']:
-        df.write_csv(file_path)
-        print(f'Data saved to {file_path}')
+        # Create a unique filename for each slice
+        file_name, file_ext = os.path.splitext(file_path)  # noqa: PTH122
+        slice_file_path = f"{file_name}_{to_snake_case(slice_name)}{file_ext}"
+
+        df.write_csv(slice_file_path)
+        print(f'Data saved to {slice_file_path}')
 
 
-def standardize_column_names(df: pl.DataFrame, index_cols: list[str]) -> tuple[pl.DataFrame, list[str]]:
-    """Standardize column names to snake_case."""
-    new_cols = [col if col == 'Year' else to_snake_case(col) for col in index_cols]
-    df = df.rename(dict(zip(index_cols, new_cols, strict=False)))
-
-    for col in new_cols:
-        if df[col].dtype == pl.Utf8 or df[col].dtype == pl.String:
-            df = df.with_columns(pl.col(col).map_elements(to_snake_case, return_dtype=str))
-
-    return df, new_cols
-
-
-def push_to_dvc(df: pl.DataFrame, output_path: str, slice_name: str, units: dict[str, str],
-                index_cols: list[str], new_cols: list[str]) -> None:
+def push_to_dvc(df: pl.DataFrame, output_path: str, slice_name: str,
+                units: dict, description: str | None, metrics: list,
+                language: str) -> None:
     """Push dataset to DVC repository."""
+    if output_path.upper() in ['N', 'NONE']:
+        return
+
+    # Get index columns (excluding sector value columns)
+    index_columns = [col for col in df.columns if col not in units.keys()]
+
+    # Build metadata
+    metadata = {'name': {language: slice_name}}
+    if description:
+        metadata['description'] = {language: description}
+    if metrics:
+        metadata['metrics'] = metrics
+
+    # Create dataset metadata
     meta = DatasetMeta(
         identifier=output_path,
-        index_columns=new_cols,
+        index_columns=index_columns,
         units=units,
-        metadata={
-            'name': {'fi': slice_name},
-        }
+        metadata=metadata
     )
 
+    # Create dataset
     ds = Dataset(df, meta=meta)
 
+    # Set up credentials
     creds = dvc_pandas.RepositoryCredentials(
         git_username=os.getenv('DVC_PANDAS_GIT_USERNAME'),
         git_token=os.getenv('DVC_PANDAS_GIT_TOKEN'),
@@ -202,45 +294,64 @@ def push_to_dvc(df: pl.DataFrame, output_path: str, slice_name: str, units: dict
         git_ssh_private_key_file=os.getenv('DVC_SSH_PRIVATE_KEY_FILE'),
     )
 
+    # Initialize repository
     repo = Repository(
         repo_url='https://github.com/kausaltech/dvctest.git',
         dvc_remote='kausal-s3',
         repo_credentials=creds
     )
 
+    # Add timestamp to force update
+    import time
+    ds.meta.metadata['updated_at'] = str(int(time.time()))
+
     repo.push_dataset(ds)
     print(f'Dataset pushed to DVC at {output_path}')
 
 
-def prepare_dvc_data(df: pl.DataFrame, dims: list[str]) -> tuple[pd.MultiIndex, list[str], list[str]]:
-    """Prepare data structure for DVC upload."""
-    indexcols = list(dims)
-    indexcols.extend(['Year'])
+def process_slice(df: pl.DataFrame, slice_name: str, outcsvpath: str, outdvcpath: str, language: str) -> None:
+    """Process a single slice of data."""
+    print(f"\n==== Processing slice: {slice_name} ====")
 
-    if 'Quantity' in df.columns:
-        indexcols.extend(['Quantity'])
+    # 1. Extract metadata before manipulating dataframe
+    units = extract_units(df, slice_name)
+    metrics = extract_metrics(df, slice_name)
+    description = extract_description(df, slice_name)
+    print(f"Units: {units}")
+    print(f"Metrics: {len(metrics)} entries")
+    if description:
+        print("Description extracted")
 
-    pdindex = pd.MultiIndex.from_frame(pd.DataFrame(df.select(indexcols).fill_null('.'),
-                                                   columns=indexcols))
+    # 2. Clean dataframe (remove metadata columns and empty columns)
+    df = clean_dataframe(df)
 
-    valuecols = list(set(df.columns) - set(indexcols))
-    pdframe = pd.DataFrame(df.select(valuecols), index=pdindex, columns=valuecols)
+    # 3. Convert to standard format with Year column if needed
+    df = convert_to_standard_format(df)
+    print(f"Data converted to standard format with {len(df)} rows")
 
-    pl_df = pl.from_pandas(pdframe.reset_index())
+    # 4. Pivot by sector to have sectors as columns
+    df = pivot_by_sector(df)
+    dim_ids = [s for s in df.columns if s not in units.keys()]
+    print(f"Data pivoted by sector with dimension columns: {dim_ids}")
 
-    # Remove columns that shouldn't be in the final dataset
-    for col in ['Unit', 'Sector', 'Quantity']:
-        if col in pl_df.columns:
-            pl_df = pl_df.drop(col)
+    # 5. Check for issues
+    if check_for_duplicates(df):
+        print("Warning: Dataframe contains duplicate rows")
 
-    # Keep only existing index columns
-    indexcols = [c for c in indexcols if c in pl_df.columns]
+    # 6. Prepare for DVC (standardize column names)
+    df = prepare_for_dvc(df, units)
 
-    return pl_df, indexcols
+    # 7. Save to CSV if requested
+    save_to_csv(df, outcsvpath, slice_name)
+
+    # 8. Push to DVC if requested
+    if outdvcpath.upper() not in ['N', 'NONE']:
+        slice_dvc_path = f"{outdvcpath}/{to_snake_case(slice_name)}"
+        push_to_dvc(df, slice_dvc_path, slice_name, units, description, metrics, language)
 
 
 def main():
-    """Process and convert data."""
+    """Process and convert data for all slices."""
     load_dotenv()
 
     # Get command line arguments
@@ -248,77 +359,25 @@ def main():
     incsvsep = sys.argv[2]
     outcsvpath = sys.argv[3]
     outdvcpath = sys.argv[4]
-    slicename = sys.argv[5]
+    language = sys.argv[5]
+    specific_slice = sys.argv[6] if len(sys.argv) > 6 else None
 
-    # Unit standardization rules
-    unitreplace = [
-        ['tCO2e', 't'],
-        ['p-km', 'pkm'],
-        ['Mkm', 'Gm'],
-        ['€', 'EUR']
-    ]
+    # Load data
+    full_df = load_data(incsvpath, incsvsep)
 
-    # Step 1: Load data
-    df = load_data(incsvpath, incsvsep, slicename)
-
-    # Step 2: Get unit for metadata
-    units = {'Value': df['Unit'][0]}
-
-    # Step 3: Clean dataframe
-    df = clean_dataframe(df, drop_columns=['Description'])
-
-    # Step 4: Identify column types
-    context, values, dims = identify_column_types(df)
-
-    # Determine grouping columns
-    if 'UUID' in df.columns:
-        groups = dims + ['UUID']
+    # Process slices
+    if specific_slice:
+        # Process only the specified slice
+        print(f"Processing only slice: {specific_slice}")
+        slice_df = full_df.filter(pl.col('Slice') == specific_slice).drop('Slice')
+        process_slice(slice_df, specific_slice, outcsvpath, outdvcpath, language)
     else:
-        groups = dims
+        # Process all slices
+        slice_dfs = split_by_slice(full_df)
+        print(f"Found {len(slice_dfs)} slices to process")
 
-    # Step 5: Validate data
-    if not check_duplicates(df, groups):
-        return
-
-    if not check_missing_data(df):
-        return
-
-    # Step 6: Standardize values
-    df = standardize_units(df, unitreplace)
-    df = standardize_scopes(df)
-
-    # Step 7: Transform to long format if needed
-    dfmain = transform_to_long_format(df, context, values)
-
-    # Update dimensions list to exclude Year and Value if data was already in long format
-    if 'Value' in df.columns and 'Year' in df.columns:
-        dims = [d for d in dims if d not in ['Year', 'Value']]
-
-    # Step 8: Process action flags
-    dfmain = process_action_flags(dfmain)
-
-    # Step 9: Convert value types if possible
-    dfmain = convert_value_types(dfmain)
-
-    # Step 10: Save to CSV if requested
-    save_to_csv(dfmain, outcsvpath)
-
-    # Step 11: Prepare and push to DVC if requested
-    if outdvcpath.upper() not in ['N', 'NONE']:
-        # Format outdvcpath with snake_case slice name
-        outdvcpath = f"{outdvcpath}/{to_snake_case(slicename)}"
-        print(f"DVC path: {outdvcpath}")
-
-        # Prepare data for DVC
-        pl_df, indexcols = prepare_dvc_data(dfmain, dims)
-
-        # Standardize column names
-        pl_df, new_cols = standardize_column_names(pl_df, indexcols)
-
-        print(pl_df)
-
-        # Push to DVC
-        push_to_dvc(pl_df, outdvcpath, slicename, units, indexcols, new_cols)
+        for slice_name, slice_df in slice_dfs.items():
+            process_slice(slice_df, slice_name, outcsvpath, outdvcpath, language)
 
 
 if __name__ == "__main__":
