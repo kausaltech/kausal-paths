@@ -318,6 +318,7 @@ app_registry = pint.get_application_registry()
 app_registry._registry = unit_registry  # pyright: ignore
 #pint_pandas.PintType.ureg = unit_registry  # type: ignore
 
+
 def add_unit_translations():
     """
     Add translations for some commonly used units.
@@ -330,8 +331,16 @@ def add_unit_translations():
         from django.conf import settings
     except Exception:
         return
+    from typing import TypedDict
+
     from django.utils import translation
     from django.utils.translation import gettext_lazy as _, pgettext_lazy
+
+    # Define a typed dictionary structure for unit definitions
+    class UnitDefinition(TypedDict):
+        unit: str
+        long: str | _  # type: ignore
+        short: str | _ | None # type: ignore
 
     def set_one(u: str, long: str | StrPromise, short: str | StrPromise | None = None) -> None:
         bu = 'kausal-%s' % u
@@ -355,10 +364,10 @@ def add_unit_translations():
     _babel_units['%'] = 'concentr-percent'
     _babel_units['percent'] = 'concentr-percent'
 
-    # Define all units in a list of dictionaries
+    # Define all units in a properly typed list
     kt_str = pgettext_lazy('kilotonne short', 'kt')
 
-    unit_definitions = [
+    unit_definitions: list[UnitDefinition] = [
         {'unit': 'capita', 'long': _('capita'), 'short': pgettext_lazy('capita short', 'cap')},
         {'unit': 'kt', 'long': kt_str, 'short': kt_str},
         {'unit': 'EUR', 'long': _('euros'), 'short': '€'},
@@ -393,9 +402,14 @@ def add_unit_translations():
     for u in del_units:
         if u in _babel_units:
             del _babel_units[u]  # Otherwise fails with compound units.
-    # Apply all unit definitions
+
+    # Apply all unit definitions with explicit casting
     for definition in unit_definitions:
-        set_one(definition['unit'], definition['long'], definition.get('short'))
+        set_one(
+            str(definition['unit']),
+            definition['long'],
+            definition.get('short')
+        )
 
     # Special locale-specific customizations
     loc = Loc('de')

@@ -26,8 +26,6 @@ from kausal_common.admin_site.mixins import HideSnippetsFromBreadcrumbsMixin
 from kausal_common.models.permission_policy import ModelPermissionPolicy
 from kausal_common.models.permissions import PermissionedModel
 
-from paths.types import PathsAdminRequest
-
 from admin_site.forms import PathsAdminModelForm
 from users.models import User
 
@@ -35,6 +33,8 @@ if TYPE_CHECKING:
     from django.http import HttpRequest
     from wagtail.admin.panels.group import ObjectList
     from wagtail.permission_policies.base import BasePermissionPolicy
+
+    from paths.types import PathsAdminRequest
 
     from nodes.models import InstanceConfig
 
@@ -45,7 +45,7 @@ _QS = TypeVar('_QS', bound=QuerySet[Any, Any], default=QuerySet[_ModelT, _ModelT
 def admin_req(request: HttpRequest) -> PathsAdminRequest:
     assert request.user is not None
     assert request.user.is_authenticated
-    return cast(PathsAdminRequest, request)
+    return cast('PathsAdminRequest', request)
 
 
 class PathsModelForm[M: Model](WagtailAdminModelForm[M, User]):
@@ -59,20 +59,6 @@ class AdminInstanceMixin:
     def admin_instance(self) -> InstanceConfig:
         from paths.context import realm_context
         return realm_context.get().realm
-
-
-def user_has_permission(
-    permission_policy: BasePermissionPolicy,
-    user: AbstractBaseUser | AnonymousUser,
-    permission: str,
-    obj: Model
-) -> bool:
-    assert isinstance(permission_policy, ModelPermissionPolicy)
-    if isinstance(user, AnonymousUser):
-        return False
-    return permission_policy.user_has_permission_for_instance(
-        user, permission, obj
-    )
 
 
 def user_has_permission(
@@ -221,7 +207,7 @@ class PathsViewSet(Generic[_ModelT, _QS, _FormT], SnippetViewSet[_ModelT, _FormT
             qs = qs.viewable_by(admin_req(request).user)
         if isinstance(qs, PathsQuerySet):
             qs = qs.within_realm(self.admin_instance)
-        return cast(_QS, qs)
+        return cast('_QS', qs)
 
     def get_edit_handler(self) -> ObjectList | None:
         return super().get_edit_handler()

@@ -649,18 +649,14 @@ class IterativeNode(GenericNode):
 
         This operation expects df to contain the summed changes from all additive inputs.
         """
-
-        # Get rate and base nodes
         rate_node = self._get_other_node(tag='rate', baskets=baskets)
         base_node = self._get_other_node(tag='base', baskets=baskets)
 
-        # Get and prepare the rate
-        rate = rate_node.get_output_pl(target_node=self)
-        rate = rate.ensure_unit(VALUE_COLUMN, '1/a')
-        rate = rate.set_unit(VALUE_COLUMN, 'dimensionless', force=True)
-        rate = rate.with_columns(pl.col(VALUE_COLUMN) + pl.lit(1.0).alias(VALUE_COLUMN))
+        rate_df = rate_node.get_output_pl(target_node=self)
+        rate_df = rate_df.ensure_unit(VALUE_COLUMN, '1/a')
+        rate_df = rate_df.set_unit(VALUE_COLUMN, 'dimensionless', force=True)
+        rate_df = rate_df.with_columns(pl.col(VALUE_COLUMN) + pl.lit(1.0).alias(VALUE_COLUMN))
 
-        # Get the base
         base_df = base_node.get_output_pl(target_node=self)
 
         if df is None:
@@ -674,30 +670,52 @@ class IterativeNode(GenericNode):
             df_out = df_out.ensure_unit('changes', df_out.get_unit(VALUE_COLUMN))
 
         df_out = df_out.with_columns(pl.col('changes').fill_null(0.0))
-        df_out = df_out.paths.join_over_index(rate, how='left', index_from='union')
+        df_out = df_out.paths.join_over_index(rate_df, how='left', index_from='union')
         df_out = df_out.rename({VALUE_COLUMN + '_right': 'rate'})
         df_out = df_out.paths.to_wide()
 
         # Perform the year-by-year iteration
-        last_historical_year = df_out.filter(~pl.col(FORECAST_COLUMN))[YEAR_COLUMN].max()
-        if last_historical_year is None:  # No historical rows
+        historical_df = df_out.filter(~pl.col(FORECAST_COLUMN))
+        if len(historical_df) == 0:
             raise NodeError(self, "IterativeNode must have historical values.")
 
-        for year in range(last_historical_year + 1, self.get_end_year() + 1):
+        # Use explicit type conversion with assertions to help mypy
+        last_historical_year: int = int(historical_df[YEAR_COLUMN].max())
+        end_year_value: int = int(self.get_end_year())
+
+        # Use typed variables for calculations to avoid union type issues
+        for forecast_year in range(last_historical_year + 1, end_year_value + 1):
+            # Convert year to the same type as in df_out's YEAR_COLUMN for filtering
+            year_filter = pl.col(YEAR_COLUMN) == forecast_year
+            prev_year_filter = pl.col(YEAR_COLUMN) == (forecast_year - 1)
+
+            # Extract values as floats to ensure compatibility
+            prev_year_row = df_out.filter(prev_year_filter)
+            current_year_row = df_out.filter(year_filter)
+
+            if len(prev_year_row) == 0 or len(current_year_row) == 0:
+                raise NodeError(self, "IterativeNode cannot have forecast years missing in between.")
+
+            prev_value: float = float(prev_year_row[VALUE_COLUMN].item())
+            change_value: float = float(current_year_row['changes'].item())
+            rate_value: float = float(current_year_row['rate'].item())
+
+            # Calculate new value with explicit float operations
+            new_value: float = (prev_value + change_value) * rate_value
+
+            # Update the dataframe
             df_out = df_out.with_columns(
-                pl.when(pl.col(YEAR_COLUMN) == year)
-                .then(
-                    (
-                        df_out.filter(pl.col(YEAR_COLUMN) == year - 1)[VALUE_COLUMN].first() +
-                        df_out.filter(pl.col(YEAR_COLUMN) == year)['changes'].first()
-                    ) * df_out.filter(pl.col(YEAR_COLUMN) == year)['rate'].first()
-                )
+                pl.when(year_filter)
+                .then(pl.lit(new_value))
                 .otherwise(pl.col(VALUE_COLUMN))
                 .alias(VALUE_COLUMN)
             )
+
+        # Clean up
         df_out = df_out.drop(['rate', 'changes'])
 
         return df_out, baskets
+
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -9,9 +9,8 @@ import polars as pl
 
 from common import polars as ppl
 from common.i18n import TranslatedString
-from nodes.actions import ActionNode
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
-from nodes.units import Quantity, Unit
+from nodes.units import Quantity
 from params.param import BoolParameter, NumberParameter, Parameter, StringParameter
 
 from .constants import FORECAST_COLUMN, MIX_QUANTITY, VALUE_COLUMN, YEAR_COLUMN
@@ -19,7 +18,7 @@ from .exceptions import NodeError
 from .node import Node, NodeMetric
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Sequence
     from typing import Any
 
     import pandas as pd
@@ -384,8 +383,8 @@ class MultiplicativeNode(SimpleNode):
                 assert len(ndf.metric_cols) == 1
                 col = df.metric_cols[0]
 
-            ndf = ndf.rename({col: '_Right'})
-            df = df.paths.join_over_index(ndf, how='left', index_from='union')
+            ndf_new = ndf.rename({col: '_Right'})
+            df = df.paths.join_over_index(ndf_new, how='left', index_from='union')
             df = self.operate_pairwise(df)
 
         assert df is not None
@@ -394,7 +393,7 @@ class MultiplicativeNode(SimpleNode):
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
 
-    def _compute(self, input_df: ppl.PathsDataFrame | None = None) -> ppl.PathsDataFrame:
+    def _compute(self, input_df: ppl.PathsDataFrame | None = None) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912
         additive_nodes: list[Node] = []
         operation_nodes: list[Node] = []
         assert self.unit is not None
@@ -519,7 +518,9 @@ class EmissionFactorActivity(MultiplicativeNode):  # FIXME Does not work with Ta
         for edf in edfs:
             edf = edf.rename({edf.metric_cols[0]: '_Right'}).ensure_unit('_Right', m.unit)  # noqa: PLW2901
             df = df.paths.join_over_index(edf, how='outer', index_from='union')
-            df = df.with_columns((pl.col(m.column_id).fill_null(0.0) + pl.col('_Right').fill_null(0.0)).alias(m.column_id)).drop('_Right')
+            df = df.with_columns(
+                (pl.col(m.column_id).fill_null(0.0) + pl.col('_Right').fill_null(0.0)).alias(m.column_id)
+            ).drop('_Right')
 
         return df
 
@@ -709,8 +710,8 @@ class MultiplyLastNode2(MultiplicativeNode):  # FIXME Remove, when you clean Lon
         df = df.rename({m.column_id: '_Left'})
         for n, ndf in zip(nodes, outputs, strict=False):
             m = n.get_default_output_metric()
-            ndf = ndf.rename({m.column_id: '_Right'})
-            df = df.paths.join_over_index(ndf, how='left', index_from='union')
+            ndf_new = ndf.rename({m.column_id: '_Right'})
+            df = df.paths.join_over_index(ndf_new, how='left', index_from='union')
             df = df.multiply_cols(['_Left', '_Right'], '_Left').drop('_Right')
 
         df = df.rename({'_Left': VALUE_COLUMN})
