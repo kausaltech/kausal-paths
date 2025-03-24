@@ -680,7 +680,7 @@ class IterativeNode(GenericNode):
             raise NodeError(self, "IterativeNode must have historical values.")
 
         # Use explicit type conversion with assertions to help mypy
-        last_historical_year: int = int(historical_df[YEAR_COLUMN].max())
+        last_historical_year: int = int(float(historical_df[YEAR_COLUMN].max()))
         end_year_value: int = int(self.get_end_year())
 
         # Use typed variables for calculations to avoid union type issues

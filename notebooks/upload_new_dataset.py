@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import re
 import sys
+from typing import Any
 
 import dvc_pandas
 import polars as pl
@@ -65,7 +66,7 @@ def extract_units(df: pl.DataFrame, slice_name: str) -> dict:
     return units
 
 
-def extract_description(df: pl.DataFrame, slice_name: str) -> str:
+def extract_description(df: pl.DataFrame, slice_name: str) -> str | None:
     """Extract description from the dataframe."""
     description = None # FIXME Does not show up in admin UI.
     if 'Description' in df.columns:
@@ -241,7 +242,7 @@ def prepare_for_dvc(df: pl.DataFrame, units: dict) -> pl.DataFrame:
     for col in new_columns:
         if col not in sectors + ['Year']:
             df = df.with_columns(
-                pl.col(col).map_elements(to_snake_case, return_dtype=str).alias(col)
+                pl.col(col).map_elements(to_snake_case, return_dtype=pl.Utf8).alias(col)
             )
 
     return df
@@ -269,7 +270,7 @@ def push_to_dvc(df: pl.DataFrame, output_path: str, slice_name: str,
     index_columns = [col for col in df.columns if col not in units.keys()]
 
     # Build metadata
-    metadata = {'name': {language: slice_name}}
+    metadata: dict[str, Any] = {'name': {language: slice_name}}
     if description:
         metadata['description'] = {language: description}
     if metrics:
