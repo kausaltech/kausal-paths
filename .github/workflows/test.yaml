@@ -86,3 +86,6 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: kausaltech/kausal-paths
+          override_commit: ${{ github.sha }}
+          files: /tmp/coverage.xml
+          url: https://codecoverage.kausal.dev
