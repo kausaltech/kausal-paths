@@ -27,7 +27,7 @@ from frameworks.schema import Mutations as FrameworksMutations, Query as Framewo
 from nodes.schema import Mutations as NodesMutations, Query as NodesQuery
 from pages.schema import Query as PagesQuery
 from params.schema import Mutations as ParamsMutations, Query as ParamsQuery, types as params_types
-from users.schema import Mutations as UsersMutations, Query as UsersQuery
+from users.schema import Query as UsersQuery
 
 if TYPE_CHECKING:
     from kausal_common.graphene import GQLInfo
@@ -86,7 +86,7 @@ class Query(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, ServerVersionQ
         return unit
 
 
-class Mutations(ParamsMutations, NodesMutations, FrameworksMutations, UsersMutations):
+class Mutations(ParamsMutations, NodesMutations, FrameworksMutations):
     pass
 
 
