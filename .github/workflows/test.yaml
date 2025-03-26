@@ -84,19 +84,6 @@ jobs:
           path: /tmp/coverage.xml
           retention-days: 1
 
-      # - name: Install GPG for codecov
-      #   run: |
-      #     apt update && apt install --no-install-recommends -y gpg
-
-      # - name: Upload coverage reports to Codecov
-      #   uses: codecov/codecov-action@v5
-      #   with:
-      #     token: ${{ secrets.CODECOV_TOKEN }}
-      #     slug: kausaltech/kausal-paths
-      #     override_commit: ${{ github.sha }}
-      #     override_branch: ${{ github.ref }}
-      #     files: /tmp/coverage.xml
-      #     url: https://codecoverage.kausal.dev
   upload-coverage:
     name: Upload coverage reports
     runs-on: ubuntu-latest
@@ -118,9 +105,6 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          #slug: kausaltech/kausal-paths
-          #override_commit: ${{ github.sha }}
-          #override_branch: ${{ github.ref }}
           files: /tmp/coverage.xml
           url: https://codecoverage.kausal.dev
           recurse_submodules: true
