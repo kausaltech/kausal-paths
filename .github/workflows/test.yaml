@@ -36,7 +36,7 @@ env:
   ELASTICSEARCH_PASSWORD: abcde
 
 jobs:
-  test:
+  run-tests:
     name: Run unit tests
     runs-on: runner-prod
     services:
@@ -76,17 +76,53 @@ jobs:
           PGUSER: ${{ env.POSTGRES_USER }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          COVERAGE_XML_PATH: /tmp/coverage.xml
 
-      - name: Install GPG for codecov
-        run: |
-          apt update && apt install --no-install-recommends -y gpg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pytest-coverage.xml
+          path: /tmp/coverage.xml
+          retention-days: 1
+
+      # - name: Install GPG for codecov
+      #   run: |
+      #     apt update && apt install --no-install-recommends -y gpg
+
+      # - name: Upload coverage reports to Codecov
+      #   uses: codecov/codecov-action@v5
+      #   with:
+      #     token: ${{ secrets.CODECOV_TOKEN }}
+      #     slug: kausaltech/kausal-paths
+      #     override_commit: ${{ github.sha }}
+      #     override_branch: ${{ github.ref }}
+      #     files: /tmp/coverage.xml
+      #     url: https://codecoverage.kausal.dev
+  upload-coverage:
+    name: Upload coverage reports
+    runs-on: ubuntu-latest
+    needs: run-tests
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: pytest-coverage.xml
+          path: /tmp
+
+      - run: ls -la /tmp && head -100 /tmp/coverage.xml
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          slug: kausaltech/kausal-paths
-          override_commit: ${{ github.sha }}
-          override_branch: ${{ github.ref }}
+          #slug: kausaltech/kausal-paths
+          #override_commit: ${{ github.sha }}
+          #override_branch: ${{ github.ref }}
           files: /tmp/coverage.xml
           url: https://codecoverage.kausal.dev
+          recurse_submodules: true
+          verbose: true
+          flags: unittests
