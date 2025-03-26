@@ -78,16 +78,18 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           COVERAGE_XML_PATH: /tmp/coverage.xml
 
+
       - uses: actions/upload-artifact@v4
         with:
           name: pytest-coverage.xml
           path: /tmp/coverage.xml
           retention-days: 1
 
-  upload-coverage:
-    name: Upload coverage reports
+  upload-test-results:
+    name: Upload test results
     runs-on: ubuntu-latest
     needs: run-tests
+    if: always()
     steps:
       - uses: actions/checkout@v4
         with:
@@ -96,10 +98,22 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: pytest-coverage.xml
+          name: junit-test-report.xml
           path: /tmp
 
-      - run: ls -la /tmp && head -100 /tmp/coverage.xml
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: /tmp/junit.xml
+          url: https://codecoverage.kausal.dev
+          flags: unittests
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: pytest-coverage.xml
+          path: /tmp
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
@@ -108,5 +122,4 @@ jobs:
           files: /tmp/coverage.xml
           url: https://codecoverage.kausal.dev
           recurse_submodules: true
-          verbose: true
           flags: unittests
