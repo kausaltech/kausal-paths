@@ -289,3 +289,6 @@ def test_scenario_type(graphql_client_query_data, context, scenario):
         }
     }
     assert data == expected
+
+def test_dummy_test_for_codecov():
+    pytest.fail("test for codecov")
