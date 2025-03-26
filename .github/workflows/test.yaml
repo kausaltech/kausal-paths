@@ -84,6 +84,12 @@ jobs:
           path: /tmp/coverage.xml
           retention-days: 1
 
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
   upload-coverage:
     name: Upload coverage reports
     runs-on: ubuntu-latest
