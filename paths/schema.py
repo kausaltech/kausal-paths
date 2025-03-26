@@ -16,6 +16,7 @@ from grapple.registry import registry as grapple_registry
 
 from kausal_common.graphene.strawberry_schema import CombinedSchema
 from kausal_common.graphene.version_query import Query as ServerVersionQuery
+from kausal_common.users.schema import Mutations as UsersMutations
 
 from paths.graphql_types import UnitType
 from paths.utils import validate_unit
@@ -24,7 +25,7 @@ from frameworks.schema import Mutations as FrameworksMutations, Query as Framewo
 from nodes.schema import Mutations as NodesMutations, Query as NodesQuery
 from pages.schema import Query as PagesQuery
 from params.schema import Mutations as ParamsMutations, Query as ParamsQuery, types as params_types
-from users.schema import Mutations as UsersMutations, Query as UsersQuery
+from users.schema import Query as UsersQuery
 
 if TYPE_CHECKING:
     from kausal_common.graphene import GQLInfo

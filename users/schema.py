@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 
 import graphene
 from graphene_django import DjangoObjectType
-from graphql import GraphQLError
 
 from .models import User
 
@@ -43,24 +42,3 @@ class Query(graphene.ObjectType):
         if user.is_authenticated:
             return user
         return None
-
-
-class RegisterUser(graphene.Mutation):
-    class Arguments:
-        email = graphene.String(required=True)
-        password = graphene.String(required=True)
-
-    user = graphene.Field(UserType)
-
-    def mutate(self, info: GQLInfo, email: str, password: str):
-        email = email.strip().lower()
-        if User.objects.filter(email=email).exists():
-            raise GraphQLError("User with email already exists", nodes=info.field_nodes)
-        user = User(email=email)
-        user.set_password(password)
-        user.save()
-        return RegisterUser(user=user)
-
-
-class Mutations(graphene.ObjectType):
-    register_user = RegisterUser.Field()
