@@ -513,25 +513,23 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
             cat_obj.delete()
 
     def sync_dimension(self, dim: NodeDimension, update_existing=False, delete_stale=False) -> DatasetDimensionModel:
-        try:
-            scope = DimensionScope.objects.get(
-                scope_content_type=ContentType.objects.get_for_model(self),
-                scope_id=self.pk,
-                identifier=dim.id,
-            )
-            dim_obj = scope.dimension
-        except DimensionScope.DoesNotExist:
+        scope = DimensionScope.objects.filter(
+            scope_content_type=ContentType.objects.get_for_model(self),
+            scope_id=self.pk,
+            identifier=dim.id,
+        ).first()
+        if scope is None:
             label, i18n = get_modeltrans_attrs_from_str(dim.label, 'label', self.primary_language)  # type: ignore
-            dim_obj, created = DatasetDimensionModel.objects.get_or_create(name=label, i18n=i18n)
-
+            dim_obj = DatasetDimensionModel.objects.create(name=label, i18n=i18n)
             scope = DimensionScope.objects.create(
                 scope_content_type=ContentType.objects.get_for_model(self),
                 scope_id=self.pk,
                 identifier=dim.id,
                 dimension=dim_obj
             )
-            if created:
-                print("Creating dimension %s" % dim.id)
+            print("Creating dimension %s" % dim.id)
+        else:
+            dim_obj = scope.dimension
 
         # FIXME label is defined only when DimensionScope.DoesNotExist
         if update_existing and (dim_obj.name != label or dim_obj.i18n != i18n):
