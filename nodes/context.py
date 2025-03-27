@@ -536,7 +536,7 @@ class Context:
         self.log.info('Baseline values generated in %.1f ms' % pc.measure())
         self.baseline_values_generated = True
 
-    def get_all_parameters(self) -> Generator[Parameter, None, None]:
+    def get_all_parameters(self) -> Generator[Parameter]:
         """Return all the parameters (global and node-specific)."""
 
         for param in self.global_parameters.values():
@@ -686,7 +686,7 @@ class Context:
         with ExitStack() as stack:
             span_ctx = self.start_span(
                 'context run',
-                op='model.calculate',
+                op=MODEL_CALC_OP,
                 attributes=dict(
                     instance_id=self.instance.id,
                     context_id=self.obj_id,

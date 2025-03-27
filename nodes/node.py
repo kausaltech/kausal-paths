@@ -11,8 +11,9 @@ import pandas as pd
 import pint_pandas
 import polars as pl
 from rich import print as pprint
+from sentry_sdk.consts import SPANSTATUS
 
-from paths.const import MODEL_CALC_OP
+from paths.const import NODE_CALC_OP
 
 from common import polars as ppl
 from common.i18n import I18nString, I18nStringInstance, TranslatedString, get_modeltrans_attrs_from_str
@@ -1103,7 +1104,7 @@ class Node:
             else:
                 span_name = '%s:get' % self.id
             span_ctx = self.context.start_span(
-                span_name, op=MODEL_CALC_OP, attributes=dict(node_id=self.id, node_class=self.__class__.__name__),
+                span_name, op=NODE_CALC_OP, attributes=dict(node_id=self.id, node_class=self.__class__.__name__),
             )
         with span_ctx as span, perf_cm.exec_node(self) as node_run:
             try:
@@ -1123,9 +1124,11 @@ class Node:
             if node_run is not None and cache_res is not None:
                 node_run.mark_cache(cache_res)
 
-        if target_node is not None:
-            df = self._process_edge_output(df, target_node)
+            if target_node is not None:
+                df = self._process_edge_output(df, target_node)
 
+            if span is not None:
+                span.set_status(SPANSTATUS.OK)
         return df
 
     def _get_output_pl(  # noqa: C901

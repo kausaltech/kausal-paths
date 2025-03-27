@@ -7,5 +7,6 @@ FRAMEWORK_VIEWER_ROLE = 'framework-viewer'
 INSTANCE_ADMIN_ROLE = 'instance-admin'
 INSTANCE_VIEWER_ROLE = 'instance-viewer'
 
-MODEL_CALC_OP = 'model.calc'
+MODEL_CALC_OP = 'model.calculate'
 MODEL_CACHE_OP = 'model.cache'
+NODE_CALC_OP = 'node.calculate'
