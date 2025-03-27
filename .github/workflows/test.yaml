@@ -76,13 +76,12 @@ jobs:
           PGUSER: ${{ env.POSTGRES_USER }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          COVERAGE_XML_PATH: /tmp/coverage.xml
-
+          TEST_RESULTS_DIR: /tmp/pytest-results
 
       - uses: actions/upload-artifact@v4
         with:
-          name: pytest-coverage.xml
-          path: /tmp/coverage.xml
+          name: pytest-results
+          path: /tmp/pytest-results
           retention-days: 1
 
   upload-test-results:
@@ -98,28 +97,23 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: junit-test-report.xml
-          path: /tmp
+          name: pytest-results
+          path: /tmp/pytest-results
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/test-results-action@v1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: /tmp/junit.xml
+          files: /tmp/pytest-results/pytest-junit.xml
           url: https://codecoverage.kausal.dev
           flags: unittests
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: pytest-coverage.xml
-          path: /tmp
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: /tmp/coverage.xml
+          files: /tmp/pytest-results/pytest-coverage.xml
           url: https://codecoverage.kausal.dev
           recurse_submodules: true
           flags: unittests
