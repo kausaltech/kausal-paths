@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from .node import Node
 
 
-class UtilityNode(AdditiveNode):
+class UtilityNode(AdditiveNode): # FIXME Use generic.WeightedSumNode instead
     """
     Utility nodes take in outcome nodes and value weight parameters.
 
@@ -89,7 +89,7 @@ class UtilityNode(AdditiveNode):
         return df
 
     def sum_dfs(self, dfs: list[ppl.PathsDataFrame | None]) -> ppl.PathsDataFrame:
-        def join_and_sum(df1: ppl.PathsDataFrame, df2: ppl.PathsDataFrame | None):
+        def join_and_sum(df1: ppl.PathsDataFrame, df2: ppl.PathsDataFrame | None) -> ppl.PathsDataFrame:
             if df2 is None:
                 return df1
             df = df1.paths.join_over_index(df2, how='outer', index_from='union')
@@ -98,7 +98,7 @@ class UtilityNode(AdditiveNode):
             return df
 
         dfs = [x for x in dfs if x is not None]
-        df = functools.reduce(lambda df1, df2: join_and_sum(df1, df2), [df for df in dfs])
+        df = functools.reduce(lambda df1, df2: join_and_sum(df1, df2), [df for df in dfs])  # noqa: C416
         return df
 
     def compute(self) -> ppl.PathsDataFrame:
@@ -131,7 +131,7 @@ class UtilityNode(AdditiveNode):
         return df
 
 
-class AssociationNode(SimpleNode):  # FIXME Use AdditiveNode for compatible units
+class AssociationNode(SimpleNode):  # FIXME Use ignore_content operation instead
     explanation = _("""
     Association nodes connect to their upstream nodes in a loose way:
     Their values follow the relative changes of the input nodes but
@@ -186,7 +186,8 @@ class AssociationNode(SimpleNode):  # FIXME Use AdditiveNode for compatible unit
         return df
 
 
-class LogicalNode(SimpleNode):
+class LogicalNode(SimpleNode): # TODO Make a generic node operation instead
+    # TODO Create a sticky_switch parameter: if the value changes, the change will be permanent.
     explanation = _(
         """
         This is a LogicalNode.
@@ -256,7 +257,7 @@ class LogicalNode(SimpleNode):
         return df
 
 
-class ThresholdNode(AdditiveNode):
+class ThresholdNode(AdditiveNode): # TODO Create a generic node operation instead.
     explanation = _(
         """
         ThresholdNode computes the preliminary result like a regular AdditiveNode.

@@ -4,7 +4,7 @@ supported_languages: [sv, en]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 9d369cdc5ef34561c8854f2625f804420cb04056
+  commit: 3a3f72cd984bce1ebadb62b6e7174726a668cf1c
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -196,6 +196,28 @@ dimensions:
     aliases: [Kotieläimet]
     label_en: Cattle farming
     label_sv: Boskapsskötsel
+
+- id: waste_treatment
+  label_fi: Jätteenkäsittely
+  label_en: Waste treatment
+  label_sv: Avfallsbehandling
+  categories:
+  - id: landfills
+    label_fi: Kaatopaikka
+    label_en: Landfills
+    label_sv: Deponier
+  - id: biowaste_composting
+    label_fi: Biojätteen kompostointi
+    label_en: Biowaste composting
+    label_sv: Kompostering av bioavfall
+  - id: waste_water_treatment
+    label_fi: Jäteveden käsittely
+    label_en: Wastewater treatment
+    label_sv: Avloppsvattenbehandling
+  - id: sludge_composting
+    label_fi: Jätevesilietteen kompostointi
+    label_en: Sewage sludge composting
+    label_sv: Kompostering av avloppsslam
 
 nodes:
 
