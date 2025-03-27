@@ -518,8 +518,8 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
             scope_id=self.pk,
             identifier=dim.id,
         ).first()
+        label, i18n = get_modeltrans_attrs_from_str(dim.label, 'label', self.primary_language)
         if scope is None:
-            label, i18n = get_modeltrans_attrs_from_str(dim.label, 'label', self.primary_language)  # type: ignore
             dim_obj = DatasetDimensionModel.objects.create(name=label, i18n=i18n)
             scope = DimensionScope.objects.create(
                 scope_content_type=ContentType.objects.get_for_model(self),
@@ -531,7 +531,6 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         else:
             dim_obj = scope.dimension
 
-        # FIXME label is defined only when DimensionScope.DoesNotExist
         if update_existing and (dim_obj.name != label or dim_obj.i18n != i18n):
             if dim_obj.pk:
                 print('Updating dimension %s' % dim.id)
