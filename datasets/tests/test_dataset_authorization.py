@@ -18,12 +18,14 @@ User = get_user_model()
 
 @pytest.fixture
 def get_in_admin_context(rf):
-    def get(user, view, url, instance_config, kwargs = {}):
+    def get(user, view, url, instance_config, kwargs = None):
+        if kwargs is None:
+            kwargs = {}
         request = rf.get(url)
         request.user = user
         from paths.context import RealmContext, realm_context
         set_admin_instance(instance_config, request=request)
-        ctx = RealmContext(realm=instance_config, user=request.user)
+        ctx = RealmContext(realm = instance_config, user=request.user)
         with realm_context.activate(ctx):
             return view(request, **kwargs)
     return get
@@ -115,7 +117,7 @@ class TestDatasetAdminAuthorization:
             'dataset2': dataset2,
         }
 
-    @pytest.mark.parametrize('user_key,expected_schemas', [
+    @pytest.mark.parametrize(('user_key', 'expected_schemas'), [
         ('superuser', ['Schema 1', 'Schema 2']),
         ('admin_user', ['Schema 1']),
         ('regular_user', []),
@@ -148,7 +150,7 @@ class TestDatasetAdminAuthorization:
             if schema_name not in expected_schemas:
                 assert schema_name not in content
 
-    @pytest.mark.parametrize('user_key,schema_key,access_allowed', [
+    @pytest.mark.parametrize(('user_key', 'schema_key', 'access_allowed'), [
         ('superuser', 'schema1', True),
         ('superuser', 'schema2', True),
         ('admin_user', 'schema1', True),
@@ -176,7 +178,7 @@ class TestDatasetAdminAuthorization:
         with pytest.raises(PermissionDenied):
             response = get_in_admin_context(user, view, url, data['instance1'], {'pk': schema.id})
 
-    @pytest.mark.parametrize('user_key,schema_key,access_allowed', [
+    @pytest.mark.parametrize(('user_key', 'schema_key', 'access_allowed'), [
         ('superuser', 'schema1', True),
         ('superuser', 'schema2', True),
         ('admin_user', 'schema1', True),
@@ -184,7 +186,9 @@ class TestDatasetAdminAuthorization:
         ('regular_user', 'schema1', False),
         ('regular_user', 'schema2', False),
     ])
-    def test_dataset_schema_delete_view(self, client, setup_test_data, user_key, schema_key, access_allowed, get_in_admin_context):
+    def test_dataset_schema_delete_view(
+        self, client, setup_test_data, user_key, schema_key, access_allowed, get_in_admin_context
+    ):
         """Test access to dataset schema delete view."""
         data = setup_test_data
         user = data[user_key]
@@ -205,7 +209,7 @@ class TestDatasetAdminAuthorization:
         with pytest.raises(PermissionDenied):
             response = get_in_admin_context(user, view, url, data['instance1'], {'pk': schema.id})
 
-    @pytest.mark.parametrize('user_key,expected_datasets', [
+    @pytest.mark.parametrize(('user_key', 'expected_datasets'), [
         ('superuser', [('instance1', 'dataset1'), ('instance2', 'dataset2')]),
         ('admin_user', [('instance1', 'dataset1'), ('instance2', None)]),
         ('regular_user', []),  # No datasets
@@ -244,7 +248,7 @@ class TestDatasetAdminAuthorization:
             else:
                 assert str(data['dataset2'].schema.name) not in content
 
-    @pytest.mark.parametrize('user_key,dataset_key,access_allowed', [
+    @pytest.mark.parametrize(('user_key', 'dataset_key', 'access_allowed'), [
         ('superuser', 'dataset1', True),
         ('superuser', 'dataset2', True),
         ('admin_user', 'dataset1', True),
@@ -275,7 +279,7 @@ class TestDatasetAdminAuthorization:
         with pytest.raises(PermissionDenied):
             response = get_in_admin_context(user, view, url, data['instance1'], {'pk': dataset.id})
 
-    @pytest.mark.parametrize('user_key,dataset_key,access_allowed', [
+    @pytest.mark.parametrize(('user_key', 'dataset_key', 'access_allowed'), [
         ('superuser', 'dataset1', True),
         ('superuser', 'dataset2', True),
         ('admin_user', 'dataset1', True),
@@ -306,7 +310,7 @@ class TestDatasetAdminAuthorization:
         with pytest.raises(PermissionDenied):
             response = get_in_admin_context(user, view, url, data['instance1'], {'pk': dataset.id})
 
-    @pytest.mark.parametrize('user_key,access_allowed', [
+    @pytest.mark.parametrize(('user_key', 'access_allowed'), [
         ('superuser', True),
         ('admin_user', True),
         ('regular_user', False),
@@ -343,7 +347,7 @@ class TestDatasetAdminAuthorization:
         with pytest.raises(PermissionDenied):
             response = get_in_admin_context(user, view, url, data['instance1'])
 
-    @pytest.mark.parametrize('user_key,access_allowed', [
+    @pytest.mark.parametrize(('user_key', 'access_allowed'), [
         ('superuser', True),
         ('admin_user', True),
         ('regular_user', False),
