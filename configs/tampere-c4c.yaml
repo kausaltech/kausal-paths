@@ -2553,25 +2553,31 @@ actions:
 - id: change_streetlights_to_led
   name: Katuvalaistuksen vaihtaminen LED-valaisimiksi
   name_en: Replacing street lighting with LEDs
-  type: gpc.DatasetActionMFM
+  type: simple.AdditiveAction
   color: '#4e79a7'
   input_dimensions: ['cost_type', 'owner', 'energy_carrier', 'scope']
   output_dimensions: ['cost_type', 'owner', 'energy_carrier', 'scope']
   params:
-    action: Change Streetlights to LED
+    allow_null_categories: true
   input_datasets:
-  - id: gpc/tampere_simple_actions
+  - id: tampere/stationary_actions
     forecast_from: 2025
+    filters:
+    - column: sector
+    - column: action
+      value: replacing_street_lighting_with_leds
+    - column: ghg
+    - column: heating
   output_metrics:
-  - id: i62_energy
+  - id: energy
     unit: GWh/a
     quantity: energy
-  - id: i_currency
+  - id: currency
     unit: EUR/a
     quantity: currency
   output_nodes:
   - id: other_electricity_consumption
-    metrics: [i62_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
@@ -2581,7 +2587,7 @@ actions:
     - id: energy_carrier
     - id: scope
   - id: electricity_consumption_reductions
-    metrics: [i62_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
@@ -2592,7 +2598,7 @@ actions:
     to_dimensions:
     - id: energy_carrier
   - id: electricity_consumption_price
-    metrics: [i_currency]
+    metrics: [currency]
     from_dimensions:
     - id: energy_carrier
       flatten: true
@@ -2602,7 +2608,7 @@ actions:
     - id: cost_type
     - id: owner
   - id: total_costs
-    metrics: [i_currency]
+    metrics: [currency]
     from_dimensions:
     - id: cost_type
       categories: ['investment']
@@ -2614,7 +2620,7 @@ actions:
     - id: cost_type
     - id: owner
   - id: total_benefits
-    metrics: [i_currency]
+    metrics: [currency]
     from_dimensions:
     - id: cost_type
       categories: ['maintenance']
@@ -2629,25 +2635,31 @@ actions:
 - id: build_renewable_electricity_production
   name: Hajautettu uusiutuva energia (aurinkosähkö)
   name_en: Building renewable electricity production (PV)
-  type: gpc.DatasetActionMFM
+  type: simple.AdditiveAction
   color: '#4e79a7'
   input_dimensions: ['cost_type', 'owner', 'energy_carrier', 'scope']
   output_dimensions: ['cost_type', 'owner', 'energy_carrier', 'scope']
   params:
-    action: Build Renewable Electricity Production (PV)
+    allow_null_categories: true
   input_datasets:
-  - id: gpc/tampere_simple_actions
+  - id: tampere/stationary_actions
     forecast_from: 2025
+    filters:
+    - column: sector
+    - column: action
+      value: building_renewable_electricity_production_pv
+    - column: ghg
+    - column: heating
   output_metrics:
-  - id: i62_energy
+  - id: energy
     unit: GWh/a
     quantity: energy
-  - id: i_currency
+  - id: currency
     unit: EUR/a
     quantity: currency
   output_nodes:
   - id: other_electricity_consumption
-    metrics: [i62_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
@@ -2657,7 +2669,7 @@ actions:
     - id: energy_carrier
     - id: scope
   - id: electricity_consumption_reductions
-    metrics: [i62_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
@@ -2668,7 +2680,7 @@ actions:
     to_dimensions:
     - id: energy_carrier
   - id: electricity_consumption_price
-    metrics: [i_currency]
+    metrics: [currency]
     from_dimensions:
     - id: energy_carrier
       flatten: true
@@ -2678,7 +2690,7 @@ actions:
     - id: cost_type
     - id: owner
   - id: total_costs
-    metrics: [i_currency]
+    metrics: [currency]
     from_dimensions:
     - id: energy_carrier
       flatten: true
@@ -2691,25 +2703,30 @@ actions:
 - id: replace_oil_heating
   name: Öljylämmityksestä siirtyminen vesi-ilmalämpöpumppuihin kaupungin rakennuskannassa
   name_en: Replacing oil heating with water-to-air heat pumps in city's building stock
-  type: gpc.DatasetActionMFM
+  type: simple.AdditiveAction
   color: '#4e79a7'
   input_dimensions: ['cost_type', 'owner', 'heating', 'energy_carrier', 'scope']
   output_dimensions: ['cost_type', 'owner', 'heating', 'energy_carrier', 'scope']
   params:
-    action: Replace Oil Heating with Water-to-Air Heat Pumps and Geothermal Heating
+    allow_null_categories: true
   input_datasets:
-  - id: gpc/tampere_simple_actions
+  - id: tampere/stationary_actions
     forecast_from: 2025
+    filters:
+    - column: sector
+    - column: action
+      value: replacing_oil_heating_with_heat_pumps
+    - column: ghg
   output_metrics:
-  - id: i11_energy
+  - id: energy
     unit: GWh/a
     quantity: energy
-  - id: i_currency
+  - id: currency
     unit: EUR/a
     quantity: currency
   output_nodes:
   - id: oil_heating_energy_consumption
-    metrics: [i11_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
@@ -2720,7 +2737,7 @@ actions:
     - id: energy_carrier
     - id: scope
   - id: fuel_oil_consumption_reductions
-    metrics: [i11_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
@@ -2733,7 +2750,7 @@ actions:
     to_dimensions:
     - id: energy_carrier
   - id: building_heating_price
-    metrics: [i_currency]
+    metrics: [currency]
     from_dimensions:
     - id: heating
       flatten: true
@@ -2745,7 +2762,7 @@ actions:
     - id: cost_type
     - id: owner
   - id: total_costs
-    metrics: [i_currency]
+    metrics: [currency]
     from_dimensions:
     - id: heating
       flatten: true
@@ -2760,77 +2777,86 @@ actions:
 - id: energy_efficiency_renovations_in_buildings
   name: Korjausrakentaminen kaupungin kiinteistössä
   name_en: Energy efficiency renovations in city's building stock
-  type: gpc.DatasetActionMFM
+  type: simple.AdditiveAction
   color: '#4e79a7'
   input_dimensions: ['cost_type', 'owner', 'heating', 'energy_carrier', 'scope']
   output_dimensions: ['cost_type', 'owner', 'heating', 'energy_carrier', 'scope']
   params:
-    action: Energy Efficiency Renovations in Buildings
+    allow_null_categories: true
   input_datasets:
-  - id: gpc/tampere_simple_actions
+  - id: tampere/stationary_actions
     forecast_from: 2025
+    filters:
+    - column: sector
+    - column: action
+      value: energy_efficiency_renovations_in_city_buildings
+    - column: ghg
   output_metrics:
-  - id: i12_energy
+  - id: energy
     unit: GWh/a
     quantity: energy
-  - id: i62_energy
-    unit: GWh/a
-    quantity: energy
-  - id: i_currency
+  - id: currency
     unit: EUR/a
     quantity: currency
   output_nodes:
   - id: district_heating_energy_consumption
-    metrics: [i12_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
     - id: owner
       flatten: true
+    - id: heating
+      categories: [district_heat]
     to_dimensions:
     - id: heating
     - id: energy_carrier
     - id: scope
   - id: district_heat_consumption_reductions
-    metrics: [i12_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
     - id: owner
       flatten: true
     - id: heating
+      categories: [district_heat]
       flatten: true
     - id: scope
       flatten: true
     to_dimensions:
     - id: energy_carrier
   - id: other_electricity_consumption
-    metrics: [i62_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
     - id: owner
       flatten: true
     - id: heating
+      categories: [district_heat]
+      exclude: true
       flatten: true
     to_dimensions:
     - id: energy_carrier
     - id: scope
   - id: electricity_consumption_reductions
-    metrics: [i62_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
     - id: owner
       flatten: true
     - id: heating
+      categories: [district_heat]
+      exclude: true
       flatten: true
     - id: scope
       flatten: true
     to_dimensions:
     - id: energy_carrier
   - id: building_heating_price
-    metrics: [i_currency]
+    metrics: [currency]
     from_dimensions:
     - id: heating
       flatten: true
@@ -2842,7 +2868,7 @@ actions:
     - id: cost_type
     - id: owner
   - id: total_costs
-    metrics: [i_currency]
+    metrics: [currency]
     from_dimensions:
     - id: heating
       flatten: true
@@ -2857,77 +2883,86 @@ actions:
 - id: energy_efficiency_of_new_construction
   name: Uusien rakennusten energiatehokkuustoimet
   name_en: Energy efficiency measures for new construction projects
-  type: gpc.DatasetActionMFM
+  type: simple.AdditiveAction
   color: '#4e79a7'
   input_dimensions: ['cost_type', 'owner', 'heating', 'energy_carrier', 'scope']
   output_dimensions: ['cost_type', 'owner', 'heating', 'energy_carrier', 'scope']
   params:
-    action: Energy Efficiency of New Construction
+    allow_null_categories: true
   input_datasets:
-  - id: gpc/tampere_simple_actions
+  - id: tampere/stationary_actions
     forecast_from: 2025
+    filters:
+    - column: sector
+    - column: action
+      value: energy_efficiency_measures_for_new_construction
+    - column: ghg
   output_metrics:
-  - id: i12_energy
+  - id: energy
     unit: GWh/a
     quantity: energy
-  - id: i62_energy
-    unit: GWh/a
-    quantity: energy
-  - id: i_currency
+  - id: currency
     unit: EUR/a
     quantity: currency
   output_nodes:
   - id: district_heating_energy_consumption
-    metrics: [i12_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
     - id: owner
       flatten: true
+    - id: heating
+      categories: [district_heat]
     to_dimensions:
     - id: heating
     - id: energy_carrier
     - id: scope
   - id: district_heat_consumption_reductions
-    metrics: [i12_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
     - id: owner
       flatten: true
     - id: heating
+      categories: [district_heat]
       flatten: true
     - id: scope
       flatten: true
     to_dimensions:
     - id: energy_carrier
   - id: other_electricity_consumption
-    metrics: [i62_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
     - id: owner
       flatten: true
     - id: heating
+      categories: [district_heat]
+      exclude: true
       flatten: true
     to_dimensions:
     - id: energy_carrier
     - id: scope
   - id: electricity_consumption_reductions
-    metrics: [i62_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
     - id: owner
       flatten: true
     - id: heating
+      categories: [district_heat]
+      exclude: true
       flatten: true
     - id: scope
       flatten: true
     to_dimensions:
     - id: energy_carrier
   - id: building_heating_price
-    metrics: [i_currency]
+    metrics: [currency]
     from_dimensions:
     - id: heating
       flatten: true
@@ -2939,7 +2974,7 @@ actions:
     - id: cost_type
     - id: owner
   - id: total_costs
-    metrics: [i_currency]
+    metrics: [currency]
     from_dimensions:
     - id: heating
       flatten: true
@@ -2954,25 +2989,29 @@ actions:
 - id: electrify_public_transportation
   name: Bussiliikenteen käyttövoimamuutos
   name_en: Change in the propulsion of bus fleet
-  type: gpc.DatasetActionMFM
+  type: simple.AdditiveAction
   color: '#e15759'
   input_dimensions: ['cost_type', 'owner', 'vehicle_type', 'ghg', 'scope']
   output_dimensions: ['cost_type', 'owner', 'vehicle_type', 'ghg', 'scope']
   params:
-    action: Electrify Public Transportation
+    allow_null_categories: true
   input_datasets:
-  - id: gpc/tampere_simple_actions
+  - id: tampere/transportation_actions
     forecast_from: 2025
+    filters:
+    - column: sector
+    - column: action
+      value: change_in_the_propulsion_of_bus_fleet
   output_metrics:
-  - id: ii11_emissions
+  - id: emissions
     unit: t/a
     quantity: emissions
-  - id: ii_currency
+  - id: currency
     unit: EUR/a
     quantity: currency
   output_nodes:
   - id: bus_emissions_total
-    metrics: [ii11_emissions]
+    metrics: [emissions]
     from_dimensions:
     - id: cost_type
       flatten: true
@@ -2983,7 +3022,7 @@ actions:
     - id: ghg
     - id: scope
   - id: transportation_price
-    metrics: [ii_currency]
+    metrics: [currency]
     from_dimensions:
     - id: ghg
       flatten: true
@@ -2994,7 +3033,7 @@ actions:
     - id: owner
     - id: vehicle_type
   - id: total_benefits
-    metrics: [ii_currency]
+    metrics: [currency]
     from_dimensions:
     - id: vehicle_type
       flatten: true
