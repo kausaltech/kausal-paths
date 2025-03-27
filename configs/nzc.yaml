@@ -3,10 +3,11 @@ default_language: en
 site_url: https://nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: be7dcb8ce57f03eff60803f38867a8eab02ffbdb # 7 Jan
+  # commit: be7dcb8ce57f03eff60803f38867a8eab02ffbdb # 7 Jan
   # commit: 892daa0d78ff8da19b981aea687e2d8221831721 # 14 Jan LAPPEENRANTA!
   # commit: ef784d7fe42d555e63359546a8e506f212d03856 # 19 Mar Causes duplicate row error for Barcelona
   # commit: 6a677a10284da97772334811cb41612afbaf78eb # 23 Mar Causes duplicate row error for Barcelona
+  commit: 48bbde258ccf0a7cb44c64745e456bd2246dd2a9 # 27th Mar Duplicate problem fixed.
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
