@@ -146,7 +146,8 @@ class PathsExecutionContext(ExecutionContext):
 
     def process_context_directive(self, directive: DirectiveNode) -> tuple[InstanceConfig | None, str | None]:
         from .schema import context_directive
-        directive_ast = self.schema.get_directive(context_directive.python_name)
+        assert context_directive.graphql_name is not None
+        directive_ast = self.schema.get_directive(context_directive.graphql_name)
         assert directive_ast is not None
         ctx = get_argument_values(directive_ast, directive, self.variable_values).get('input')
         if ctx is None:
