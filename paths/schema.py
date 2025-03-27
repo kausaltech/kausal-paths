@@ -11,11 +11,14 @@ from graphql.error import GraphQLError
 from graphql.type.definition import GraphQLArgument, GraphQLNonNull
 from graphql.type.directives import GraphQLDirective, specified_directives
 from graphql.type.scalars import GraphQLID, GraphQLString
+from strawberry.tools import merge_types
 
 from grapple.registry import registry as grapple_registry
 
+from kausal_common.deployment import test_mode_enabled
 from kausal_common.graphene.strawberry_schema import CombinedSchema
 from kausal_common.graphene.version_query import Query as ServerVersionQuery
+from kausal_common.testing.schema import TestModeMutations
 
 from paths.graphql_types import UnitType
 from paths.utils import validate_unit
@@ -119,11 +122,20 @@ class SBQuery:
         return SBNode(id=cast(sb.ID, node.id))
 
 
+SB_MUTATION_TYPES: list[type] = []
+if test_mode_enabled():
+    SB_MUTATION_TYPES.append(TestModeMutations)
+
+SBMutation: type | None = None
+if SB_MUTATION_TYPES:
+    SBMutation = merge_types('Mutation', tuple(SB_MUTATION_TYPES))
+
+
 def generate_strawberry_schema() -> sb.Schema:
     from kausal_common.strawberry.registry import strawberry_types
 
     sb_schema = sb.Schema(
-        query=SBQuery, types=strawberry_types, directives=[context_directive]
+        query=SBQuery, mutation=SBMutation, types=strawberry_types, directives=[context_directive]
     )
     return sb_schema
 
