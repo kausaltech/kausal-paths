@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-24 12:59+0100\n"
+"POT-Creation-Date: 2025-03-27 09:38+0200\n"
 "PO-Revision-Date: 2024-10-10 10:20+0000\n"
 "Last-Translator: Matias Wargelin <matias.wargelin@kausal.tech>\n"
 "Language-Team: Spanish (American) <https://weblate.kausal.tech/projects/paths/django/es_US/>\n"
@@ -30,6 +30,12 @@ msgstr "No se ha encontrado ningún usuario con esta dirección de correo electr
 msgid "This user does not have access to admin."
 msgstr "Este usuario no tiene acceso a admin."
 
+#: admin_site/dataset_admin.py
+#, fuzzy
+#| msgid "Data sources"
+msgid "Dataset schemas"
+msgstr "Fuentes de datos"
+
 #: admin_site/perms.py nodes/roles.py
 msgid "General admin"
 msgstr "Administración general"
@@ -51,63 +57,7 @@ msgstr "Nuestras disculpas, el servidor está experimentando dificultades tempor
 msgid "Choose instance"
 msgstr "Elegir instancia"
 
-#: datasets/models.py
-msgid "dataset"
-msgstr "conjunto de datos"
-
-#: datasets/models.py
-msgid "datasets"
-msgstr "conjuntos de datos"
-
-#: datasets/models.py
-msgid "label"
-msgstr "etiqueta"
-
-#: datasets/models.py
-msgid "data source reference"
-msgstr "referencia de la fuente de datos"
-
-#: datasets/models.py
-msgid "data source references"
-msgstr "referencias de fuentes de datos"
-
-#: datasets/models.py
-msgid "Review comment"
-msgstr "Comentario"
-
-#: datasets/models.py
-msgid "Sticky comment"
-msgstr "Comentario pegajoso"
-
-#: datasets/models.py
-msgid "Resolved"
-msgstr "Resuelto"
-
-#: datasets/models.py
-msgid "Unresolved"
-msgstr "Sin resolver"
-
-#: datasets/models.py
-msgid "resolved at"
-msgstr "resuelto en"
-
-#: datasets/models.py
-msgid "comment"
-msgstr "comentario"
-
-#: datasets/models.py
-msgid "comments"
-msgstr "comentarios"
-
-#: datasets/wagtail_hooks.py
-msgid "Data dimensions"
-msgstr "Dimensiones de los datos"
-
-#: datasets/wagtail_hooks.py nodes/models.py
-msgid "Data sources"
-msgstr "Fuentes de datos"
-
-#: frameworks/models.py
+#: frameworks/models.py kausal_common/datasets/models.py
 msgid "Name"
 msgstr "Nombre"
 
@@ -188,6 +138,259 @@ msgstr "Notas internas para la instancia de medida"
 #: frameworks/schema.py
 msgid "ID (or UUID) of the measure template within a framework"
 msgstr "ID (o UUID) del modelo de medida dentro de un marco"
+
+#: kausal_common/datasets/models.py nodes/models.py
+msgid "name"
+msgstr "nombre"
+
+#: kausal_common/datasets/models.py
+#, fuzzy
+#| msgid "Data dimensions"
+msgid "dimension"
+msgstr "Dimensiones de los datos"
+
+#: kausal_common/datasets/models.py
+#, fuzzy
+#| msgid "Data dimensions"
+msgid "dimensions"
+msgstr "Dimensiones de los datos"
+
+#: kausal_common/datasets/models.py
+msgid "Optional identifier that, if set, must be unique within the dimension"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+msgid "label"
+msgstr "etiqueta"
+
+#: kausal_common/datasets/models.py
+msgid "dimension category"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+#, fuzzy
+#| msgid "    - From dimension %s, %s categories %s.\n"
+msgid "dimension categories"
+msgstr "    - De dimensión %s, %s categorías %s.\n"
+
+#: kausal_common/datasets/models.py kausal_common/models/fields.py
+#: paths/utils.py
+msgid "identifier"
+msgstr "identificador"
+
+#: kausal_common/datasets/models.py
+msgid "Optional identifier that, if set, must be unique in the scope"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+#, fuzzy
+#| msgid "Data dimensions"
+msgid "dimension scope"
+msgstr "Dimensiones de los datos"
+
+#: kausal_common/datasets/models.py
+#, fuzzy
+#| msgid "Data dimensions"
+msgid "dimension scopes"
+msgstr "Dimensiones de los datos"
+
+#: kausal_common/datasets/models.py
+msgid "Yearly"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+msgid "Time resolution of the time stamps of data points in this dataset"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+msgid "start date"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+msgid "Descriptive name of the dataset schema"
+msgstr ""
+
+#: kausal_common/datasets/models.py nodes/models.py
+msgid "Description"
+msgstr "Descripción"
+
+#: kausal_common/datasets/models.py
+msgid "Description of the content and use of the dataset"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+msgid "Time resolution"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+msgid "Initial date"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+msgid "Metrics"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+msgid "Defines the interpretation and units for the values of the dataset"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+#, fuzzy
+#| msgid "Data dimensions"
+msgid "Dimensions"
+msgstr "Dimensiones de los datos"
+
+#: kausal_common/datasets/models.py
+msgid "Used when metrics are tracked for multiple categories"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+#, fuzzy
+#| msgid "datasets"
+msgid "dataset schema"
+msgstr "conjuntos de datos"
+
+#: kausal_common/datasets/models.py
+#, fuzzy
+#| msgid "datasets"
+msgid "dataset schemas"
+msgstr "conjuntos de datos"
+
+#: kausal_common/datasets/models.py paths/utils.py
+msgid "unit"
+msgstr "unidad"
+
+#: kausal_common/datasets/models.py
+#, fuzzy
+#| msgid "Data dimensions"
+msgid "dataset schema dimension"
+msgstr "Dimensiones de los datos"
+
+#: kausal_common/datasets/models.py
+#, fuzzy
+#| msgid "Data dimensions"
+msgid "dataset schema dimensions"
+msgstr "Dimensiones de los datos"
+
+#: kausal_common/datasets/models.py
+msgid "schema"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+msgid "Optional identifier that, if set, must be unique in the dataset's scope"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+msgid "dataset"
+msgstr "conjunto de datos"
+
+#: kausal_common/datasets/models.py
+msgid "datasets"
+msgstr "conjuntos de datos"
+
+#: kausal_common/datasets/models.py
+msgid "dataset schema scope"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+msgid "dataset schema scopes"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+msgid "date"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+msgid "Date of this data point in context of the dataset's time resolution"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+msgid "metric"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+msgid "value"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+msgid "data point"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+#, fuzzy
+#| msgid "datasets"
+msgid "data points"
+msgstr "conjuntos de datos"
+
+#: kausal_common/datasets/models.py
+msgid "Review comment"
+msgstr "Comentario"
+
+#: kausal_common/datasets/models.py
+msgid "Sticky comment"
+msgstr "Comentario pegajoso"
+
+#: kausal_common/datasets/models.py
+#, fuzzy
+#| msgid "comment"
+msgid "Comment"
+msgstr "comentario"
+
+#: kausal_common/datasets/models.py
+msgid "Resolved"
+msgstr "Resuelto"
+
+#: kausal_common/datasets/models.py
+msgid "Unresolved"
+msgstr "Sin resolver"
+
+#: kausal_common/datasets/models.py
+msgid "resolved at"
+msgstr "resuelto en"
+
+#: kausal_common/datasets/models.py
+msgid "comment"
+msgstr "comentario"
+
+#: kausal_common/datasets/models.py
+msgid "comments"
+msgstr "comentarios"
+
+#: kausal_common/datasets/models.py
+msgid "edition"
+msgstr "edición"
+
+#: kausal_common/datasets/models.py
+msgid "authority"
+msgstr "autoridad"
+
+#: kausal_common/datasets/models.py
+msgid "The organization responsible for the data source"
+msgstr "La organización responsable de la fuente de datos"
+
+#: kausal_common/datasets/models.py
+msgid "description"
+msgstr "descripción"
+
+#: kausal_common/datasets/models.py
+msgid "URL"
+msgstr "URL"
+
+#: kausal_common/datasets/models.py
+msgid "Data source"
+msgstr "Fuente de datos"
+
+#: kausal_common/datasets/models.py kausal_common/datasets/wagtail_hooks.py
+msgid "Data sources"
+msgstr "Fuentes de datos"
+
+#: kausal_common/datasets/models.py
+msgid "data source reference"
+msgstr "referencia de la fuente de datos"
+
+#: kausal_common/datasets/models.py
+msgid "data source references"
+msgstr "referencias de fuentes de datos"
 
 #: kausal_common/models/modification_tracking.py
 msgid "Created at"
@@ -308,11 +511,12 @@ msgstr "Ahorro de electricidad (kWh/pie cuadrado/a)"
 msgid ""
 "\n"
 "        This is S Curve Action. It calculates non-linear effect with two parameters,\n"
-"        max_impact = A and max_year (year when most of the impact has occurred).\n"
+"        max_impact = A and max_year (year when 98 per cent of the impact has occurred).\n"
 "        The parameters come from Dataset. In addition, there\n"
 "        must be one input node for background data. Function for\n"
-"        S-curve = A/(1+exp(-k*(x-x0)). A is the maximum value, k is the steepness\n"
-"        of the curve (always 0.5), and x0 is the midpoint.\n"
+"        S-curve y = A/(1+exp(-k*(x-x0)). A is the maximum value, k is the steepness\n"
+"        of the curve, and x0 is the midpoint year.\n"
+"        Newton-Raphson method is used to numerically estimate slope and medeian year.\n"
 "        "
 msgstr "Esta es la Acción Curva S. Calcula el efecto no lineal con dos parámetros, max_impact y max_year, que proceden de Dataset. Además, debe haber un nodo de entrada para los datos de fondo. Función para la curva S = A/(1+exp(-k*(x-x0)). A es el valor máximo, k es la inclinación de la curva (siempre 0,5) y x0 es el punto medio."
 
@@ -477,17 +681,72 @@ msgstr ""
 msgid "This is a Formula Node. It uses a specified formula to calculate the output."
 msgstr "Se trata de un Nodo de Fórmula. Utiliza una fórmula especificada para calcular la salida."
 
+#: nodes/generic.py
+msgid ""
+"\n"
+"        GenericNode: A highly configurable node that processes inputs through a sequence of operations.\n"
+"\n"
+"        Operations are defined in the 'operations' parameter and executed in order.\n"
+"        Each operation works on its corresponding basket of nodes.\n"
+"        "
+msgstr ""
+
+#: nodes/generic.py
+msgid "LeverNode replaces the upstream computation completely, if the lever is enabled."
+msgstr ""
+
+#: nodes/generic.py
+msgid ""
+"\n"
+"        WeightedSumNode: Combines additive inputs using weights from a multidimensional weights DataFrame.\n"
+"        "
+msgstr ""
+
+#: nodes/generic.py
+msgid ""
+"\n"
+"        LogitNode gives a probability of event given a baseline and several determinants.\n"
+"\n"
+"        The baseline is given as a dataset of observed values. The determinants are linearly\n"
+"        related to the logit of the probability:\n"
+"        ln(y / (1 - y)) = a + sum_i(b_i * X_i,)\n"
+"        where y is the probability, a is baseline, X_i determinants and b_i coefficients.\n"
+"        The node expects that a comes from dataset and sum_i(b_i * X_i,) is given by the input nodes\n"
+"        when operated with the GenericNode compute(). The probability is calculated as\n"
+"        ln(y / (1 - y)) = b <=> y = 1 / (1 + exp(-b)).\n"
+"        "
+msgstr ""
+
+#: nodes/generic.py
+msgid ""
+"\n"
+"        This is generic IterativeNode for calculating values year by year.\n"
+"        It calculates one year at a time based on previous year's value and inputs and outputs\n"
+"        starting from the first forecast year. In addition, it must have a feedback loop (otherwise it makes\n"
+"        no sense to use this node class), which is given as a growth rate per year from the previous year's value.\n"
+"        "
+msgstr ""
+
 #: nodes/gpc.py
 msgid "This is a DatasetNode. It takes in a specifically formatted dataset and converts the relevant part into a node output."
 msgstr "Se trata de un DatasetNode. Recibe un conjunto de datos con un formato específico y convierte la parte relevante en un nodo de salida."
 
 #: nodes/health.py
+#, fuzzy
+#| msgid ""
+#| "Calculate attributable fraction when the ERF function is relative risk.\n"
+#| "    AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result\n"
+#| "    is smaller than 0, we should use r instead. It can be converted from the result:\n"
+#| "    r/(r+1)=s <=> r=s/(1-s)\n"
+#| "    "
 msgid ""
-"Calculate attributable fraction when the ERF function is relative risk.\n"
-"    AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result\n"
-"    is smaller than 0, we should use r instead. It can be converted from the result:\n"
-"    r/(r+1)=s <=> r=s/(1-s)\n"
-"    "
+"\n"
+"        Calculate attributable fraction when the ERF function is relative risk.\n"
+"\n"
+"        AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result\n"
+"        is smaller than 0, we should use r instead. It can be converted from the result:\n"
+"        r/(r+1)=s <=> r=s/(1-s)\n"
+"        "
 msgstr ""
 "Calcular la fracción atribuible cuando la función FER es el riesgo relativo.\n"
 "    AF=r/(r+1) si r >= 0; AF=r si r<0. Por lo tanto, si el resultado\n"
@@ -508,10 +767,6 @@ msgstr "Sectores"
 #| msgid "Scanario name"
 msgid "Scenarios"
 msgstr "Nombre Scanario"
-
-#: nodes/models.py
-msgid "name"
-msgstr "nombre"
 
 #: nodes/models.py pages/models.py
 msgid "Lead title"
@@ -554,34 +809,6 @@ msgid "Instance tokens"
 msgstr "Fichas de instancia"
 
 #: nodes/models.py
-msgid "instance"
-msgstr "instancia"
-
-#: nodes/models.py
-msgid "edition"
-msgstr "edición"
-
-#: nodes/models.py
-msgid "authority"
-msgstr "autoridad"
-
-#: nodes/models.py
-msgid "The organization responsible for the data source"
-msgstr "La organización responsable de la fuente de datos"
-
-#: nodes/models.py
-msgid "description"
-msgstr "descripción"
-
-#: nodes/models.py
-msgid "URL"
-msgstr "URL"
-
-#: nodes/models.py
-msgid "Data source"
-msgstr "Fuente de datos"
-
-#: nodes/models.py
 msgid "Order"
 msgstr "Pida"
 
@@ -592,10 +819,6 @@ msgstr "Objetivo"
 #: nodes/models.py
 msgid "Short description"
 msgstr "Breve descripción"
-
-#: nodes/models.py
-msgid "Description"
-msgstr "Descripción"
 
 #: nodes/models.py
 msgid "Nodes"
@@ -706,6 +929,10 @@ msgstr ""
 #| msgid "    - Add values to the category %s in a new dimension %s.\n"
 msgid "    - Take the expected value over the uncertainty dimension.\n"
 msgstr "    - Añada valores a la categoría %s en una nueva dimensión %s.\n"
+
+#: nodes/node.py
+msgid "    - Show edge on graphs but ignore upstream content.\n"
+msgstr ""
 
 #: nodes/node.py
 #, python-format
@@ -837,21 +1064,22 @@ msgstr ""
 
 #: nodes/simple.py
 #, fuzzy
-#| msgid ""
-#| "\n"
-#| "    TrajectoryNode uses select_category() to select a category from a dimension.\n"
-#| "    "
-msgid "TrajectoryNode uses select_category() to select a category from a dimension."
-msgstr ""
-"\n"
-"    TrajectoryNode utiliza select_category() para seleccionar una categoría de una dimensión.\n"
-"    "
+#| msgid "This is a Fill New Category Node. It behaves like Additive Node, but in the end of computation it creates a new category such that the values along that dimension sum up to 1. The input nodes must have a dimensionless unit. The new category in an existing dimension is given as parameter \"new_category\" in format \"dimension:category\""
+msgid ""
+"This is a Fill New Category Node. It behaves like Additive Node, but in the end of computation\n"
+"        it creates a new category such that the values along that dimension sum up to 1. The input nodes\n"
+"        must have a dimensionless unit. The new category in an existing dimension is given as parameter\n"
+"        'new_category' in format 'dimension:category\n"
+"        "
+msgstr "Este es un Nodo de Rellenar Nueva Categoría. Se comporta como el Nodo Aditivo, pero al final del cálculo crea una nueva categoría tal que los valores a lo largo de esa dimensión suman 1. Los nodos de entrada deben tener una unidad adimensional. La nueva categoría en una dimensión existente se da como parámetro \"nueva_categoría\" en formato \"dimensión:categoría\"."
 
 #: nodes/simple.py
 #, fuzzy
 #| msgid "This is a Fill New Category Node. It behaves like Additive Node, but in the end of computation it creates a new category such that the values along that dimension sum up to 1. The input nodes must have a dimensionless unit. The new category in an existing dimension is given as parameter \"new_category\" in format \"dimension:category\""
 msgid ""
-"This is a Fill New Category Node. It behaves like Additive Node, but in the end of computation\n"
+"This is a Fill New Category Node.\n"
+"\n"
+"        It behaves like Additive Node, but in the end of computation\n"
 "        it creates a new category such that the values along that dimension sum up to 1. The input nodes\n"
 "        must have a dimensionless unit. The new category in an existing dimension is given as parameter\n"
 "        'new_category' in format 'dimension:category\n"
@@ -867,6 +1095,20 @@ msgid ""
 "        "
 msgstr ""
 
+#: nodes/simple.py
+msgid ""
+"\n"
+"        This is RelativeYearScaledNode. First it acts like additive node.\n"
+"        In the end, everything is scaled by the values of the reference year.\n"
+"        The reference year is either the instance reference year or from parameter.\n"
+"        "
+msgstr ""
+
+#: nodes/units.py
+msgctxt "kilotonne short"
+msgid "kt"
+msgstr "kt"
+
 #: nodes/units.py
 msgid "capita"
 msgstr "cápita"
@@ -875,11 +1117,6 @@ msgstr "cápita"
 msgctxt "capita short"
 msgid "cap"
 msgstr "tapa"
-
-#: nodes/units.py
-msgctxt "kilotonne short"
-msgid "kt"
-msgstr "kt"
 
 #: nodes/units.py
 msgid "euros"
@@ -894,6 +1131,22 @@ msgid "million euros"
 msgstr ""
 
 #: nodes/units.py
+msgid "Canadian dollars"
+msgstr ""
+
+#: nodes/units.py
+msgid "million Canadian dollars"
+msgstr ""
+
+#: nodes/units.py
+msgid "thousand kronor"
+msgstr ""
+
+#: nodes/units.py
+msgid "million kronor"
+msgstr ""
+
+#: nodes/units.py
 msgid "gigawatt hours"
 msgstr ""
 
@@ -903,6 +1156,10 @@ msgstr ""
 
 #: nodes/units.py
 msgid "MWh"
+msgstr ""
+
+#: nodes/units.py
+msgid "kilowatt hour"
 msgstr ""
 
 #: nodes/units.py
@@ -947,6 +1204,65 @@ msgstr ""
 
 #: nodes/units.py
 msgid "B€"
+msgstr ""
+
+#: nodes/units.py
+msgid "solid m³"
+msgstr ""
+
+#: nodes/units.py
+msgid "m³ (solid)"
+msgstr ""
+
+#: nodes/units.py
+msgid "million solid m³"
+msgstr ""
+
+#: nodes/units.py
+msgid "M m³ (solid)"
+msgstr ""
+
+#: nodes/units.py
+msgid "tonnes CO₂e"
+msgstr ""
+
+#: nodes/units.py
+msgid "tonnes"
+msgstr ""
+
+#: nodes/values.py
+msgid ""
+"\n"
+"    Association nodes connect to their upstream nodes in a loose way:\n"
+"    Their values follow the relative changes of the input nodes but\n"
+"    their quantities and units are not dependent on those of the input nodes.\n"
+"    The node MUST have exactly one dataset, which is the prior estimate.\n"
+"    Fractions 1..3 can be used to tell how much the input node should adjust\n"
+"    the output node. The default relation is \"increase\", if \"decrease\" is used,\n"
+"    that must be explicitly said in the tags.\n"
+"    "
+msgstr ""
+
+#: nodes/values.py
+msgid ""
+"\n"
+"        This is a LogicalNode.\n"
+"\n"
+"        It will take in logical inputs (with values 1 (True)\n"
+"        or False (0)). Then it will operate Boolean AND or OR operators\n"
+"        depending on the tags used. The 'and' tag is critical; otherwise 'or' is assumed.\n"
+"        AND operations are performed first, then the OR operations. If you want more complex\n"
+"        structures, use several subsequent nodes.\n"
+"        "
+msgstr ""
+
+#: nodes/values.py
+msgid ""
+"\n"
+"        ThresholdNode computes the preliminary result like a regular AdditiveNode.\n"
+"        Then it gives True (1) if the result if the preliminary result is grater\n"
+"        than or equal to the threshold, otherwise False (0).\n"
+"        "
 msgstr ""
 
 #: pages/models.py
@@ -1197,6 +1513,16 @@ msgstr ""
 msgid "Use only baseline year from measure data"
 msgstr ""
 
+#: params/global_params.py
+msgid "Transportation electrification scenario"
+msgstr ""
+
+#: params/global_params.py
+#, fuzzy
+#| msgid "Population growth rate"
+msgid "Population size"
+msgstr "Tasa de crecimiento demográfico"
+
 #: paths/authentication.py
 msgid "Invalid token."
 msgstr "Token inválido."
@@ -1250,14 +1576,6 @@ msgid "Greek"
 msgstr ""
 
 #: paths/utils.py
-msgid "identifier"
-msgstr "identificador"
-
-#: paths/utils.py
-msgid "unit"
-msgstr "unidad"
-
-#: paths/utils.py
 msgid "uuid"
 msgstr "uuid"
 
@@ -1268,6 +1586,28 @@ msgstr "creado en"
 #: paths/utils.py
 msgid "updated at"
 msgstr "actualizado en"
+
+#: users/forms.py
+msgid "staff status"
+msgstr ""
+
+#: users/forms.py
+msgid "Designates whether the user can log into this admin site."
+msgstr ""
+
+#~ msgid "instance"
+#~ msgstr "instancia"
+
+#, fuzzy
+#~| msgid ""
+#~| "\n"
+#~| "    TrajectoryNode uses select_category() to select a category from a dimension.\n"
+#~| "    "
+#~ msgid "TrajectoryNode uses select_category() to select a category from a dimension."
+#~ msgstr ""
+#~ "\n"
+#~ "    TrajectoryNode utiliza select_category() para seleccionar una categoría de una dimensión.\n"
+#~ "    "
 
 #~ msgid "Year of the data point. If not given, defaults to the baseline year for the framework instance"
 #~ msgstr "Año del punto de datos. Si no se indica, por defecto es el año de referencia para la instancia marco."
