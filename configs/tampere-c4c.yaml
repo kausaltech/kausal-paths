@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://tampere-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 2232072247af64144dd093167fcd029b673b45c1
+  commit: 1d0d9553ad46d42e71d5b01c10e771b70df55679
   dvc_remote: kausal-s3
 name: C4C Hiilineutraali Tampere 2030
 name_en: C4C Carbon-neutral Tampere 2030
@@ -19,9 +19,9 @@ maximum_historical_year: 2022
 emission_dataset: tampere/scenarios/emissions/bau
 emission_unit: kt/a
 emission_forecast_from: 2023
-params:
-- id: municipality_name
-  value: Tampere
+features:
+  baseline_visible_in_graphs: true
+  use_datasets_from_db: true
 
 impact_overviews:
 - graph_type: cost_effectiveness

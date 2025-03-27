@@ -18,6 +18,7 @@ emission_forecast_from: 2023
 emission_dimensions: []
 features:
   baseline_visible_in_graphs: false
+  use_datasets_from_db: true
 
 action_groups:
 - id: stationary
