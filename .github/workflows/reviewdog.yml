@@ -29,9 +29,9 @@ jobs:
           path: |
             ${{ env.UV_CACHE_DIR }}
             .mypy_cache
-          key: ${{ runner.os }}-${{ hashFiles('requirements-lint.txt', 'requirements.txt') }}
+          key: ${{ runner.os }}-${{ hashFiles('requirements-lint.txt', 'requirements-kausal.txt', 'requirements.txt') }}
           restore-keys: |
-            ${{ runner.os }}-${{ hashFiles('requirements-lint.txt', 'requirements.txt') }}
+            ${{ runner.os }}-${{ hashFiles('requirements-lint.txt', 'requirements-kausal.txt', 'requirements.txt') }}
             ${{ runner.os }}
 
       - name: Set up Python
@@ -44,7 +44,7 @@ jobs:
         run: |
           uv venv
           . .venv/bin/activate
-          uv pip install -r requirements-lint.txt -r requirements.txt
+          uv pip install -r requirements-lint.txt -r requirements.txt -r requirements-kausal.txt
 
       - name: Minimize uv cache
         run: uv cache prune --ci
@@ -55,7 +55,7 @@ jobs:
         with:
           path: |
             ${{ env.UV_CACHE_DIR }}
-          key: ${{ runner.os }}-${{ hashFiles('requirements-lint.txt', 'requirements.txt') }}
+          key: ${{ runner.os }}-${{ hashFiles('requirements-lint.txt', 'requirements-kausal.txt', 'requirements.txt') }}
 
       - name: Get push diff
         if: github.event_name == 'push' && github.event.before
