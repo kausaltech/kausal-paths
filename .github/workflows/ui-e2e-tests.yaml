@@ -52,6 +52,8 @@ on:
         required: false
       NPM_TOKEN:
         required: false
+      CODECOV_TOKEN:
+        required: false
 
     outputs:
       test_report_url:
@@ -99,6 +101,7 @@ jobs:
           ALLOWED_HOSTS: localhost
           KUBERNETES_LOGGING: 1
           TEST_MODE: 1
+          CI: 1
           TEST_INSTANCE_IDENTIFIERS: ${{ inputs.instance_identifiers }}
           SECRET_KEY: abcd
           SENTRY_DSN: ${{ vars.SENTRY_DSN }}
@@ -134,10 +137,70 @@ jobs:
       - name: Wait for backend to get ready
         run: wait-for-it.sh -t 180 localhost:8000
 
-      - name: Running Playwright e2e tests
-        run: node_modules/.bin/playwright test
+      - name: Set up environment
+        run: |
+          # Install jq for JSON processing
+          apt-get update && apt-get install -y jq bc
+        shell: bash
+
+      - name: Running Playwright e2e tests with coverage tracking
+        run: |
+          # Start coverage tracking
+          START_COVERAGE_QUERY='mutation { testMode { startCoverageTracking } }'
+
+          echo "Starting coverage tracking..."
+          RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" \
+            -d "{\"query\": \"$START_COVERAGE_QUERY\"}" \
+            http://localhost:8000/v1/graphql/)
+
+          # Debug: Print the raw response
+          echo "Raw API response:"
+          echo "$RESPONSE"
+
+          START_RESULT=$(echo $RESPONSE | jq -r '.data.testMode.startCoverageTracking')
+
+          if [ "$START_RESULT" = "true" ]; then
+            echo "Coverage tracking started successfully"
+          else
+            echo "Failed to start coverage tracking"
+            exit 1
+          fi
+
+          # Run the e2e tests
+          node_modules/.bin/playwright test
+
+          # Stop coverage tracking and generate XML report
+          mkdir -p coverage-data
+          STOP_COVERAGE_QUERY='mutation { testMode { stopCoverageTracking { xml } } }'
+
+          echo "Stopping coverage tracking and generating XML report..."
+          RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" \
+            -d "{\"query\": \"$STOP_COVERAGE_QUERY\"}" \
+            http://localhost:8000/v1/graphql/)
+
+          # Debug: Print the raw response
+          echo "Raw API response:"
+          echo "$RESPONSE"
+
+          # Extract the XML report
+          XML_REPORT=$(echo $RESPONSE | jq -r '.data.testMode.stopCoverageTracking.xml')
+
+          if [ -z "$XML_REPORT" ] || [ "$XML_REPORT" = "null" ]; then
+            echo "Warning: No XML report was generated"
+          else
+            # Save the XML report for Codecov
+            echo "$XML_REPORT" > coverage-data/coverage.xml
+
+            # Calculate coverage percentage from XML
+            COVERAGE_PERCENTAGE=$(grep -o 'line-rate="[0-9.]*"' coverage-data/coverage.xml | head -1 | grep -o '[0-9.]*')
+            COVERAGE_PERCENTAGE=$(echo "$COVERAGE_PERCENTAGE * 100" | bc)
+
+            echo "Coverage data collected. Overall coverage: $COVERAGE_PERCENTAGE%"
+            echo "📊 Code coverage: $COVERAGE_PERCENTAGE%" >> $GITHUB_STEP_SUMMARY
+          fi
         id: playwright_test
         working-directory: ./e2e-tests
+        shell: bash
 
       - name: Upload test report to S3
         id: upload
@@ -163,3 +226,22 @@ jobs:
         with:
           report-file: ./e2e-tests/test-results.json
           report-url: ${{steps.upload.outputs.test_report_url}}
+
+      - name: Upload coverage reports to Codecov
+        if: always() && !cancelled()
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./e2e-tests/coverage-data/coverage.xml
+          url: https://codecoverage.kausal.dev
+          flags: e2e-tests
+          fail_ci_if_error: false
+
+      - name: Upload test results to Codecov
+        if: always() && !cancelled()
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./e2e-tests/playwright-report/results.xml
+          url: https://codecoverage.kausal.dev
+          flags: e2e-tests
