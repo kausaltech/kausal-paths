@@ -131,12 +131,16 @@ jobs:
           npm ci
         working-directory: ./e2e-tests
 
+      - name: Install nyc for coverage
+        run: npm install --no-save nyc
+        working-directory: ./e2e-tests
+
       - name: Wait for backend to get ready
         run: wait-for-it.sh -t 180 localhost:8000
 
-      - name: Running Playwright e2e tests
-        run: node_modules/.bin/playwright test
-        id: playwright_test
+      - name: Running Playwright e2e tests with coverage
+        run: |
+          npx nyc --reporter=lcov --reporter=text node_modules/.bin/playwright test
         working-directory: ./e2e-tests
 
       - name: Upload test report to S3
