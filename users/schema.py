@@ -1,44 +1,52 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import dataclasses
 
 import graphene
-from graphene_django import DjangoObjectType
+import strawberry
+from strawberry.types.field import StrawberryField
 
-from .models import User
+from kausal_common.strawberry.registry import register_strawberry_type
 
-if TYPE_CHECKING:
-    from collections.abc import Sequence
+from frameworks.roles import FrameworkRoleDef
+from users.models import User  # noqa: TC001
 
-    from kausal_common.graphene import GQLInfo
-
-    from frameworks.roles import FrameworkRoleDef
-
-
-class UserFrameworkRole(graphene.ObjectType):
-    framework_id = graphene.ID(required=True)
-    role_id = graphene.String(required=False)
-    org_slug = graphene.String(required=False)
-    org_id = graphene.String(required=False)
+# Instead of defining a new class for the Strawberry type UserFrameworkRole and copying the fields of FrameworkRoleDef,
+# register FrameworkRoleDef with a different name. This way we don't need to juggle data around in
+# `UserType.framework_roles()`.
+strawberry.type(FrameworkRoleDef, name='UserFrameworkRole')
+register_strawberry_type(FrameworkRoleDef)
 
 
-class UserType(DjangoObjectType):
-    framework_roles = graphene.List(graphene.NonNull(UserFrameworkRole))
+@register_strawberry_type
+@strawberry.type
+class UserType:
+    id: int
+    email: str
+    first_name: str
+    last_name: str
 
-    class Meta:
-        model = User
-        fields = ('id', 'email', 'first_name', 'last_name')
+    _user: strawberry.Private[User]
 
-    @staticmethod
-    def resolve_framework_roles(root: User, info: GQLInfo) -> Sequence[FrameworkRoleDef]:
-        return root.extra.framework_roles
+    def __init__(self, user: User):
+        proper_fields = [
+            field.name for field in dataclasses.fields(self)
+            if not isinstance(field, StrawberryField) and field.name != '_user'
+        ]
+        for field in proper_fields:
+            setattr(self, field, getattr(user, field))
+        self._user = user
+
+    @strawberry.field
+    def framework_roles(self) -> list[FrameworkRoleDef]:
+        return list(self._user.extra.framework_roles)
 
 
 class Query(graphene.ObjectType):
     me = graphene.Field(UserType)
 
-    def resolve_me(self, info):
+    def resolve_me(self, info) -> UserType | None:
         user = info.context.user
         if user.is_authenticated:
-            return user
+            return UserType(user)
         return None

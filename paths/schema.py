@@ -114,7 +114,7 @@ class SBNode:
 
 
 @sb.type(name='Query')
-class SBQuery:
+class SBQuery:  # FIXME this does not seem to have any effect at the moment
     @sb.field
     def node(self, info: SBInfo, id: str) -> SBNode:
         context = info.context.instance.context
