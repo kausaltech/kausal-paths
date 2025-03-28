@@ -877,7 +877,7 @@ class DBDataset(DatasetWithFilters):
         dims = DatasetSchemaDimension.objects.filter(schema=ds_in.schema).annotate(
             dim_uuid=F('dimension__uuid'),
             dim_id=Coalesce(F('dimension__scopes__identifier'), Cast('dimension__uuid', output_field=CharField())),
-        ).values_list('dim_uuid', 'dim_id')
+        ).distinct('id').values_list('dim_uuid', 'dim_id')
         dim_anns = {
             str(dim[1]): DimensionCategory.objects.filter(dimension__uuid=dim[0])
             .filter(data_points=OuterRef('pk'))
