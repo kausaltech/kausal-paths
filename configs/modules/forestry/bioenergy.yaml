@@ -1,0 +1,165 @@
+nodes:
+
+- id: biofuel_production
+  name_fi: Bioenergian valmistusmäärä Sunnydalessa
+  name_en: Biofuel production for Sunnydale
+  type: simple.FixedMultiplierNode
+  quantity: mass
+  unit: Mm3_solid/a
+  params:
+  - id: multiplier
+    value: 0.402 #  10000 kWh = 6 * 0.67 m3_solid => 0.402 m3_solid/MWh 
+    unit: m3_solid/MWh # https://www.bioenergianeuvoja.fi/biopolttoaineet/polttopuu/puu/
+  output_nodes:
+  - id: forest_cuts_in_finland
+    to_dimensions:
+    - id: stakeholder
+      categories: [state]
+    - id: case
+      categories: [case1]
+
+- id: district_heating_emission_factor
+  name_en: District heating emission factor
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [energy_carrier, hypothesis]
+  output_dimensions: [energy_carrier, hypothesis]
+  input_datasets: [sunnydale/forestry_fi]
+  params:
+    sector: District heating emission factor
+
+- id: biofuel_emissions
+  name_fi: Bioenergian päästöt Sunnydalessa
+  name_en: Biofuel emissions in Sunnydale
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
+  input_nodes:
+  - id: district_heating_with_biofuels
+    from_dimensions:
+    - id: stakeholder
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+      categories: [non_fossil_emissions]
+  - id: district_heating_emission_factor
+    from_dimensions:
+    - id: energy_carrier
+      categories: [biofuel]
+      flatten: true
+    - id: hypothesis
+      categories: [biofuels_are_carbon_neutral]
+      flatten: true
+    to_dimensions: []
+  output_nodes:
+  - id: net_emissions
+
+- id: emission_change_from_peat_reduction
+  name_fi: Päästömuutos turpeen korvaamisesta
+  name_en: Emission change from peat reduction
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
+  input_nodes:
+  - id: district_heating_with_biofuels
+    tags: [arithmetic_inverse]
+    to_dimensions:
+    - id: cost_type
+      categories: [fossil_emissions]
+    - id: stakeholder
+  - id: district_heating_emission_factor
+    from_dimensions:
+    - id: hypothesis
+      categories: [biofuels_are_carbon_neutral]
+      flatten: true
+    - id: energy_carrier
+      categories: [peat]
+      flatten: true
+    to_dimensions: []
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: stakeholder
+      flatten: true
+
+- id: get_rid_of_peat
+  name: Get rid of peat production
+  type: values.ThresholdNode
+  input_nodes:
+  - id: emission_change_from_peat_reduction
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: stakeholder
+      flatten: true
+  output_nodes:
+  - id: success_by_climate_aware_industrialist
+    tags: [non_additive]
+  params:
+  - id: threshold
+    value: 200
+    unit: kt/a
+  - id: use_input_node_unit_when_adding
+    value: true
+
+- id: biofuel_unit_price
+  name_fi: Bioenergian hinta
+  name_en: Biofuel unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/m3_solid
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
+  input_datasets: [sunnydale/forestry_fi]
+  params:
+    sector: Average biofuel unit price
+
+- id: bioenergy_sales
+  name_fi: Bioenergian myyntivoitto
+  name_en: Biofuel sales
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
+  input_nodes:
+  - id: biofuel_production
+    to_dimensions: []
+  - id: biofuel_unit_price
+    to_dimensions:
+    - id: cost_type
+  output_nodes:
+  - id: total_economic_cost
+    tags: [arithmetic_inverse]
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+      categories: [industry]
+    - id: case
+      categories: [case1]
+
+actions:
+
+- id: district_heating_with_biofuels
+  name_en: District heating with biofuels
+  name_fi: Kaukolämmitys bioenergialla
+  type: gpc.DatasetAction
+  quantity: energy
+  unit: GWh/a
+  group: forestry
+  input_dimensions: [stakeholder]
+  output_dimensions: [stakeholder]
+  input_datasets: [sunnydale/forestry_fi]
+  params:
+    sector: District heating with biofuels in Sunnydale
+  output_nodes:
+  - id: biofuel_production
+    from_dimensions:
+    - id: stakeholder
+      flatten: true

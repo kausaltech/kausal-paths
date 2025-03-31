@@ -9,8 +9,10 @@ import polars as pl
 
 from common import polars as ppl
 from nodes.actions import ActionNode
+from nodes.calc import extend_last_historical_value_pl
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
+from nodes.generic import GenericNode
 from nodes.gpc import DatasetNode
 from nodes.units import unit_registry
 from params import BoolParameter, NumberParameter, Parameter, StringParameter
@@ -210,7 +212,7 @@ class StockReplacementAction(DatasetAction):
 
         return df
 
-    def compute_effect(self) -> ppl.PathsDataFrame:
+    def compute_effect(self) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912, PLR0915
         # Perform initial filtering & processing of dataset. --------------------------------------
         df = self.get_input_dataset_pl()
         sector = str(self.get_parameter_value('sector'))
@@ -678,4 +680,159 @@ class DatasetDifferenceAction2(DatasetAction):
                 )
             df = df.ensure_unit(m.column_id, m.unit)
 
+        return df
+
+
+class DatasetRelationAction(DatasetAction, GenericNode):
+    explanation = _(
+        """
+        ActionRelationshipNode enforces a logical relationship with another action node.
+
+        This node monitors an upstream action node (A) and automatically sets its own
+        enabled state (B) according to the relationship specified in the edge tags.
+        """
+    )
+    DEFAULT_OPERATIONS = 'apply_relationship'
+
+    # Map of all possible relationship types and their behavior
+    RELATIONSHIP_BEHAVIOR = {
+        # Format: 'name': (if_a_true, if_a_false, description)
+        # if_a_true/if_a_false can be: True, False, or None (meaning "no change")
+
+        # Core logical relationships
+        'copy': (True, False, "B equals A (B copies A's state)"),
+        'not': (False, True, "B equals NOT A (B is the opposite of A)"),
+        'always_true': (True, True, "B is always enabled regardless of A"),
+        'always_false': (False, False, "B is always disabled regardless of A"),
+
+        # Named logical relationships (common in digital logic)
+        'and': (True, False, "If A is enabled, B is enabled; otherwise B is disabled"),
+        'or': (None, True, "If A is disabled, B is enabled; otherwise no change"),
+        'nand': (False, None, "If A is enabled, B is disabled; otherwise no change"),
+        'nor': (False, False, "B is disabled regardless of A's state"),
+        'xor': (False, True, "B is enabled if and only if A is disabled"),
+        'xnor': (True, False, "B is enabled if and only if A is enabled"),
+
+        # Implication relationships
+        'implication': (True, None, "If A is enabled, B must be enabled; otherwise no change"),
+        'reverse_implication': (None, False, "If A is disabled, B must be disabled; otherwise no change"),
+
+        # Inhibition relationships
+        'inhibit': (False, None, "If A is enabled, B is disabled; otherwise no change"),
+        'enable': (True, None, "If A is enabled, B is enabled; otherwise no change"),
+        'block': (None, False, "If A is disabled, B is disabled; otherwise no change"),
+        'allow': (None, True, "If A is disabled, B is enabled; otherwise no change"),
+    }
+
+    def _find_relationship_from_tags(self, node: ActionNode) -> str:
+        """
+        Find the relationship type from tags on the input edge or node.
+
+        Returns the first valid relationship tag found.
+        """
+        # First check edge tags
+        for edge in self.edges:
+            if edge.input_node == node and edge.output_node == self:
+                for tag in edge.tags:
+                    if tag in self.RELATIONSHIP_BEHAVIOR:
+                        return tag
+
+        # Then check node tags
+        for tag in node.tags:
+            if tag in self.RELATIONSHIP_BEHAVIOR:
+                return tag
+
+        return None
+
+    def _operation_apply_relationship(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        """
+        Set this node's enabled state.
+
+        It is based on the upstream action node and the
+        relationship defined in tags.
+        """
+
+        # Validate there's exactly one input node in 'other' basket
+        if len(baskets['other']) != 1:
+            raise NodeError(self, "Relationship node requires exactly one upstream action node.")
+
+        # Get the upstream action node
+        action_a: ActionNode = baskets['other'][0]
+
+        # Get relationship type from tags
+        relationship = self._find_relationship_from_tags(action_a)
+
+        if not relationship:
+            valid_relationships = ", ".join(self.RELATIONSHIP_BEHAVIOR.keys())
+            raise NodeError(self,
+                f"No relationship tag found. Valid options are: {valid_relationships}")
+
+        # Get the behavior rules for this relationship
+        if_a_true, if_a_false, _ = self.RELATIONSHIP_BEHAVIOR[relationship]
+
+        # Get the state of input action node
+        a_enabled = action_a.is_enabled()
+
+        # Apply the relationship rule
+        if a_enabled and if_a_true is not None:
+            # A is enabled - apply if_a_true rule
+            self.enabled_param.set(if_a_true)
+
+        elif not a_enabled and if_a_false is not None:
+            # A is disabled - apply if_a_false rule
+            self.enabled_param.set(if_a_false)
+
+        # If the rule returns None, we don't change the enabled state
+
+        baskets['other'] = []  # Mark nodes as processed
+        return df, baskets
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Register the relationship enforcement operation
+        self.OPERATIONS['apply_relationship'] = self._operation_apply_relationship
+
+    def _compute(self) -> ppl.PathsDataFrame:
+        df = self.get_gpc_dataset()
+
+        if self.get_global_parameter_value('measure_data_baseline_year_only', required=False):
+            filt = (pl.col(YEAR_COLUMN) == self.context.instance.reference_year) | (
+                pl.col(YEAR_COLUMN) > self.context.instance.maximum_historical_year
+            )
+            if FORECAST_COLUMN in df.columns:
+                filt |= pl.col(FORECAST_COLUMN)
+            df = df.filter(filt)
+
+        df = self.drop_unnecessary_levels(df, droplist=['Description'])
+        df = self.rename_dimensions(df)
+        df = self.convert_names_to_ids(df)
+        df = self.select_variant(df)
+        df = self.implement_unit_col(df)
+        df = self.add_missing_years(df)
+        df = self.crop_to_model_range(df)
+
+        df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
+        # First extend, then truncate because there may be measure observations beyond
+        # the last historical year in the dataset.
+        if self.get_parameter_value('inventory_only', required=False):
+            df = df.filter(~pl.col(FORECAST_COLUMN))
+
+        df = self.apply_multiplier(df, required=False, units=True)
+        # df = self.add_and_multiply_input_nodes(df)
+        df = self.maybe_drop_nulls(df)
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)  # type: ignore
+        return df
+
+    def compute_effect(self) -> ppl.PathsDataFrame:
+        print('in the beginning:', self.is_enabled())
+        df = self._compute()
+        baskets = self._get_input_baskets(self.input_nodes)
+        print(baskets)
+        df, _ = self._operation_apply_relationship(df, baskets)
+
+        if not self.is_enabled():
+            df = df.with_columns(pl.lit(self.no_effect_value).alias(VALUE_COLUMN))
+
+        assert self.unit is not None
+        df = df.ensure_unit(VALUE_COLUMN, self.unit) # TODO Use get_unit() instead
         return df

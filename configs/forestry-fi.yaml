@@ -5,7 +5,7 @@ supported_languages: [fi]
 site_url: https://forestry-fi.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 95c3093e2c37e770f2e2edaa2af6c6666b9fc573
+  commit: b963f152a7bca20d8ae0bc7945a3e6187d551a94
   dvc_remote: kausal-s3
 name_en: Multi-stakeholder forestry policy options
 name_fi: Metsäpolitiikan monet vaihtoehdot
@@ -21,13 +21,22 @@ minimum_historical_year: 2000
 maximum_historical_year: 2023
 sample_size: 10
 
+include:
+
+- file: modules/forestry/economy.yaml
+  node_group: Forest economy
+  allow_override: true
+# - file: modules/forestry/bioenergy.yaml # Does not work without the economy model.
+#   node_group: Bioenergy
+#   allow_override: true
+
 action_groups:
 - id: forestry
   name_fi: Metsäteollisuus
   name: Forest industry
   color: '#50c878'
 
-impact_overviews:
+# impact_overviews:
 # - graph_type: cost_efficiency
 #   cost_node: action_costs
 #   impact_node: total_cost
@@ -38,18 +47,18 @@ impact_overviews:
 #   impact_unit: Ut
 #   label_fi: Kokonaishyödyn marginaalikustannus
 #   label: Marginal cost in total utility
-- graph_type: cost_benefit
-  cost_node: total_cost_costs
-  impact_node: total_cost_benefits
-  invert_cost: false
-  invert_impact: true
-  indicator_unit: GEUR
-  cost_unit: GEUR
-  impact_unit: GEUR
-  label_fi: Kustannus-hyötyarvio kokonaisvaikutuksista
-  label_en: Cost-benefit analysis of total impacts
-  stakeholder_dimension: stakeholder
-  outcome_dimension: cost_type
+# - graph_type: cost_benefit
+#   cost_node: total_cost_costs
+#   impact_node: total_cost_benefits
+#   invert_cost: false
+#   invert_impact: true
+#   indicator_unit: GEUR
+#   cost_unit: GEUR
+#   impact_unit: GEUR
+#   label_fi: Kustannus-hyötyarvio kokonaisvaikutuksista
+#   label_en: Cost-benefit analysis of total impacts
+#   stakeholder_dimension: stakeholder
+#   outcome_dimension: cost_type
 # - graph_type: value_of_information
 #   cost_node: total_economic_cost
 #   cost_unit: EUR
@@ -57,7 +66,7 @@ impact_overviews:
 
 params:
 - id: municipality_name
-  value: Tampere
+  value: Finland
   label: Municipality name
 - id: emissions_weight
   label: Weight for emissions impacts in utilities
@@ -90,6 +99,15 @@ dimensions:
     label: '0'
   - id: median
     label: Median
+
+- id: case
+  label_en: Case
+  label_fi: Tapaus
+  categories:
+  - id: case1
+    label: Forests of Metsähallitus
+  - id: case2
+    label: Forests of Matti Virtanen
 
 - id: activity
   label_fi: Toiminto
@@ -143,6 +161,10 @@ dimensions:
     aliases: [industry]
   - id: forest_owner
     label: Forest owner
+    label_fi: Yksityinen metsänomistaja
+  - id: state
+    label: State
+    label_fi: Valtio
   - id: mankind
     label_fi: society
     label_en: Society
@@ -273,14 +295,11 @@ nodes:
   input_datasets: [sunnydale/forestry_fi]
   params:
     sector: Sunnydale net emissions
-  # output_nodes:
-  # - id: net_emissions
-  #   from_dimensions:
-  #   - id: cost_type
-  #     flatten: true
-  #   to_dimensions:
-  #   - id: emission_class
-  #     categories: [1_energiasektori]
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: emission_class
+      flatten: true
   # goals:
   # - label: Total emission goal 2035
   #   default: true
@@ -320,52 +339,6 @@ nodes:
   #     value: 37100000000
   #   - year: 2050
   #     value: 0.0
-
-- id: keep_forest_industry_alive
-  name: Forest industry must be kept alive
-  type: values.ThresholdNode
-  input_nodes:
-  - id: forestry_product_sales
-    from_dimensions:
-    - id: stakeholder
-      categories: [industry]
-      flatten: true
-    - id: cost_type
-      categories: [economic]
-      flatten: true
-  params:
-  - id: threshold
-    value: 900
-    unit: MEUR/a
-  - id: use_input_node_unit_when_adding
-    value: true
-
-- id: get_rid_of_peat
-  name: Get rid of peat production
-  type: values.ThresholdNode
-  input_nodes:
-  - id: emission_change_from_peat_reduction
-    tags: [arithmetic_inverse]
-    from_dimensions:
-    - id: cost_type
-      flatten: true
-    - id: stakeholder
-      flatten: true
-  params:
-  - id: threshold
-    value: 200
-    unit: kt/a
-  - id: use_input_node_unit_when_adding
-    value: true
-
-- id: success_by_climate_aware_industrialist
-  name: Success as defined by climate-aware industrialist
-  type: values.LogicalNode
-  input_nodes:
-  - id: keep_forest_industry_alive
-    tags: [and]
-  - id: get_rid_of_peat
-    tags: [and]
 
 # ---------------------------- Global level nodes -----------
 
@@ -489,95 +462,16 @@ nodes:
   type: gpc.DatasetNode
   quantity: mass
   unit: Mm3_solid/a
+  input_dimensions: [stakeholder, case]
+  output_dimensions: [stakeholder, case]
   input_datasets: [sunnydale/forestry_fi]
   params:
     sector: Forestry production in Finland
-  output_nodes: [forest_cuts_in_finland]
-
-- id: biofuel_production
-  name_fi: Bioenergian valmistusmäärä Sunnydalessa
-  name_en: Biofuel production for Sunnydale
-  type: simple.FixedMultiplierNode
-  quantity: mass
-  unit: Mm3_solid/a
-  params:
-  - id: multiplier
-    value: 0.402 #  10000 kWh = 6 * 0.67 m3_solid => 0.402 m3_solid/MWh 
-    unit: m3_solid/MWh # https://www.bioenergianeuvoja.fi/biopolttoaineet/polttopuu/puu/
-  output_nodes: [forest_cuts_in_finland]
-
-- id: district_heating_emission_factor
-  name_en: District heating emission factor
-  type: gpc.DatasetNode
-  quantity: emission_factor
-  unit: g/kWh
-  input_dimensions: [energy_carrier, hypothesis]
-  output_dimensions: [energy_carrier, hypothesis]
-  input_datasets: [sunnydale/forestry_fi]
-  params:
-    sector: District heating emission factor
-
-- id: biofuel_emissions
-  name_fi: Bioenergian päästöt Sunnydalessa
-  name_en: Biofuel emissions in Sunnydale
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [cost_type]
-  output_dimensions: [cost_type]
-  input_nodes:
-  - id: district_heating_with_biofuels
-    from_dimensions:
-    - id: stakeholder
-      flatten: true
-    to_dimensions:
-    - id: cost_type
-      categories: [non_fossil_emissions]
-  - id: district_heating_emission_factor
-    from_dimensions:
-    - id: energy_carrier
-      categories: [biofuel]
-      flatten: true
-    - id: hypothesis
-      categories: [biofuels_are_carbon_neutral]
-      flatten: true
-    to_dimensions: []
   output_nodes:
-  - id: net_emissions
-  # params:
-  # - id: multiplier
-  #   value: 0.1
-  #   unit: ton/m3_solid
-
-- id: emission_change_from_peat_reduction
-  name_fi: Päästömuutos turpeen korvaamisesta
-  name_en: Emission change from peat reduction
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [cost_type, stakeholder]
-  output_dimensions: [cost_type, stakeholder]
-  input_nodes:
-  - id: district_heating_with_biofuels
-    tags: [arithmetic_inverse]
+  - id: forest_cuts_in_finland
     to_dimensions:
-    - id: cost_type
-      categories: [fossil_emissions]
     - id: stakeholder
-  - id: district_heating_emission_factor
-    from_dimensions:
-    - id: hypothesis
-      categories: [biofuels_are_carbon_neutral]
-      flatten: true
-    - id: energy_carrier
-      categories: [peat]
-      flatten: true
-    to_dimensions: []
-  output_nodes:
-  - id: net_emissions
-    from_dimensions:
-    - id: stakeholder
-      flatten: true
+    - id: case
 
 - id: forest_cuts_in_finland
   name_fi: Metsänhakkuut Suomessa
@@ -585,62 +479,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: mass
   unit: Mm3_solid/a
-
-- id: forestry_product_unit_price
-  name_fi: Metsätaloustuotteiden keskihinta
-  name_en: Average forestry product unit price
-  type: gpc.DatasetNode
-  quantity: unit_price
-  unit: EUR/m3_solid
-  input_dimensions: [cost_type, stakeholder]
-  output_dimensions: [cost_type, stakeholder]
-  input_datasets: [sunnydale/forestry_fi]
-  params:
-    sector: Average forestry product unit price
-
-- id: forestry_product_sales
-  name_fi: Metsätaloustuotteiden myyntivoitto
-  name_en: Forestry product sales
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [cost_type, stakeholder]
-  output_dimensions: [cost_type, stakeholder]
-  input_nodes:
-  - id: forestry_production
-    to_dimensions: []
-  - id: forestry_product_unit_price
-  output_nodes:
-  - id: total_economic_cost
-    tags: [arithmetic_inverse]
-
-- id: biofuel_unit_price
-  name_fi: Bioenergian hinta
-  name_en: Biofuel unit price
-  type: gpc.DatasetNode
-  quantity: unit_price
-  unit: EUR/m3_solid
-  input_dimensions: [cost_type, stakeholder]
-  output_dimensions: [cost_type, stakeholder]
-  input_datasets: [sunnydale/forestry_fi]
-  params:
-    sector: Average biofuel unit price
-
-- id: bioenergy_sales
-  name_fi: Bioenergian myyntivoitto
-  name_en: Biofuel sales
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [cost_type, stakeholder]
-  output_dimensions: [cost_type, stakeholder]
-  input_nodes:
-  - id: biofuel_production
-    to_dimensions: []
-  - id: biofuel_unit_price
-  output_nodes:
-  - id: total_economic_cost
-    tags: [arithmetic_inverse]
+  input_dimensions: [stakeholder, case]
+  output_dimensions: [stakeholder, case]
 
 - id: forest_growth_rate
   name_en: Forest growth rate
@@ -659,6 +499,8 @@ nodes:
   type: gpc.DatasetNode # costs.InternalGrowthNode
   quantity: mass
   unit: Mm3_solid
+  input_dimensions: [stakeholder, case]
+  output_dimensions: [stakeholder, case]
   input_datasets:
   - id: sunnydale/forestry_fi
     filters:
@@ -671,65 +513,19 @@ nodes:
 - id: amount_of_wood_in_forests
   name_fi: Suomen metsien koko
   name_en: Forest stock in Finnish forests
-  type: costs.IterativeNode
+  type: generic.IterativeNode
   quantity: mass
   unit: Mm3_solid
+  input_dimensions: [stakeholder, case]
+  output_dimensions: [stakeholder, case]
   input_nodes:
   - id: historical_amount_of_wood_in_forests
     tags: [base]
   - id: forest_cuts_in_finland
-    tags: [arithmetic_inverse]
+    tags: [arithmetic_inverse, additive]
   - id: forest_growth_rate
     tags: [rate]
-
-- id: historical_amount_of_wood_in_a_sample_forest
-  name_fi: Esimerkkimetsän historiallinen koko
-  name_en: Historical forest stock in a sample forest
-  type: generic.GenericNode
-  quantity: mass
-  unit: m3_solid
-  input_datasets:
-  - id: sunnydale/forestry_fi
-    tags: [baseline]
-    filters:
-    - column: Year
-      value: 2023
-      drop_col: false
-    - column: Sector
-      value: Historical forest stock in a sample forest
-
-- id: amount_of_wood_in_a_sample_forest
-  name_fi: Puuston koko esimerkkimetsässä
-  name_en: Forest stock in a sample forest
-  type: generic.IterativeNode
-  quantity: mass
-  unit: m3_solid
-  input_nodes:
-  - id: historical_amount_of_wood_in_a_sample_forest
-    tags: [base]
-  - id: forest_growth_rate
-    tags: [rate]
-
-- id: carbon_sinks_in_forests
-  name_en: Carbon sinks in forests
-  name_fi: Metsien hiilinelut
-  type: simple.FixedMultiplierNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [cost_type]
-  output_dimensions: [cost_type]
-  input_nodes:
-  - id: amount_of_wood_in_forests
-    tags: [difference, arithmetic_inverse]
-    to_dimensions:
-    - id: cost_type
-      categories: [non_fossil_emissions]
-  output_nodes:
-  - id: net_emissions
-  params:
-  - id: multiplier
-    value: 0.1
-    unit: ton/m3_solid
+    to_dimensions: []
 
 - id: forest_industry_emissions
   name_fi: Metsäteollisuuden päästöt
@@ -737,129 +533,75 @@ nodes:
   type: simple.FixedMultiplierNode
   quantity: emissions
   unit: Mt/a
-  input_dimensions: [cost_type]
-  output_dimensions: [cost_type]
+  input_dimensions: [cost_type, case, stakeholder]
+  output_dimensions: [cost_type, case, stakeholder]
   input_nodes:
   - id: forestry_production
     to_dimensions:
     - id: cost_type
       categories: [non_fossil_emissions]
-  output_nodes: [net_emissions]
+    - id: case
+    - id: stakeholder
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: case
+      flatten: true
+    - id: stakeholder
+      flatten: true
+    to_dimensions:
+    - id: cost_type
   params:
   - id: multiplier
     value: 0.1
     unit: ton/m3_solid
 
-- id: total_economic_cost
-  name_fi: Taloudellinen kokonaiskustannus
-  name_en: Total economic cost
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [cost_type, stakeholder]
-  output_dimensions: [cost_type, stakeholder]
-  output_nodes:
-  - id: total_cost
-    # from_dimensions:
-    # - id: stakeholder
-    #   categories: [industry]
-    #   flatten: true
-
-- id: co2_market_price
-  name_en: CO2 market price
-  name_fi: Hiilidioksidin markkinahinta
-  type: gpc.DatasetNode
-  quantity: unit_price
-  unit: EUR/t
-  input_dimensions: [stakeholder]
-  output_dimensions: [stakeholder]
-  input_datasets: [sunnydale/forestry_fi]
-  params:
-    sector: CO2 market price
-
-- id: emission_cost
-  name_fi: Päästöjen kustannus
-  name_en: Emission cost
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [cost_type, stakeholder]
-  output_dimensions: [cost_type, stakeholder]
+- id: carbon_sinks_in_forests
+  name_en: Carbon sinks in forests
+  name_fi: Metsien hiilinelut
+  type: simple.FixedMultiplierNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [cost_type, case]
+  output_dimensions: [cost_type, case]
   input_nodes:
-  - id: net_emissions
-    to_dimensions:
-    - id: cost_type
-  - id: co2_market_price
-    to_dimensions:
-    - id: stakeholder
-  output_nodes:
-  - id: total_cost
-  params:
-  - id: multiplier
-    ref: emissions_weight
-
-- id: total_cost
-  name_fi: Kokonaiskustannus
-  name_en: Total cost
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [cost_type, stakeholder]
-  output_dimensions: [cost_type, stakeholder]
-  is_outcome: true
-
-# ------------------ Nodes for impact overviews ---------------
-
-- id: total_societal_cost
-  name: Total societal cost
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MEUR/a
-  is_visible: false
-  input_dimensions: [cost_type, stakeholder]
-  output_dimensions: [cost_type, stakeholder]
-  input_nodes:
-  - id: total_cost
-    # tags: [make_nonnegative]
+  - id: amount_of_wood_in_forests
+    tags: [difference, arithmetic_inverse]
     from_dimensions:
     - id: stakeholder
-      categories: [mankind]
-
-- id: total_cost_costs
-  name: Total cost costs
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MEUR/a
-  is_visible: false
-  input_dimensions: [cost_type, stakeholder]
-  output_dimensions: [cost_type, stakeholder]
-  input_nodes:
-  - id: total_cost
-    tags: [make_nonnegative]
-
-- id: total_cost_benefits
-  name: Total cost benefits
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MEUR/a
-  is_visible: false
-  input_dimensions: [cost_type, stakeholder]
-  output_dimensions: [cost_type, stakeholder]
-  input_nodes:
-  - id: total_cost
-    tags: [make_nonpositive]
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+      categories: [non_fossil_emissions]
+    - id: case
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: case
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+  params:
+  - id: multiplier
+    value: 0.1
+    unit: ton/m3_solid
 
 - id: forest_protection_criteria
   name: Forest protection criteria
-  description: Finnish Government is deciding the criteria for forest protection in
-    April 2025. The criteria are strict, which means that only a small fraction of
-    forests in Southern Finland is eligible for protection. The age of the forest
-    should be more than 100 - 140 years, and there should be more than 60 m**3/ha
-    of dead wood.
+  description: Finnish Government <a href="https://yle.fi/a/74-20150656">decided</a>
+    the criteria for forest protection in March 2025. The criteria are strict, which
+    means that only a small fraction of forests in Southern Finland is eligible for
+    protection. The age of the forest should be more than 100 - 140 years, and there
+    should be more than 60 m<sup>3</sup>/ha of dead wood. <a 
+    href="https://www.lausuntopalvelu.fi/FI/Proposal/Participation?proposalId=ea3f3238-5483-4954-9100-0f464b874258">Hearing
+    about the criteria, 2024.</a><br/> One of the explicit criteria for the decision
+    was that the criteria would be used also for private forests, and the criteria
+    should not limit forest owner's right to decide about their own property. "Voluntary
+    approach is the way to go in private forests in Southern Finland," <a href="https://yle.fi/a/74-20150797">says</a>
+    Minister of Environment Sari Multala.
   type: generic.GenericNode
-  quantity: emissions # FIXME Convert to argument when the colors work properly.
+  quantity: argument
   unit: dimensionless
-  color: '#ff7354'
   input_datasets:
   - id: sunnydale/forestry_fi
     tags: [baseline] # TODO Remove after you have merged datasets into operations.
@@ -874,9 +616,8 @@ nodes:
   name: Forest owner's right to self determination
   name_fi: Metsänomistajan itsemääräämisoikeus
   type: generic.GenericNode
-  quantity: emissions # FIXME Convert to argument when the colors work properly.
+  quantity: argument
   unit: dimensionless
-  color: '#ff7354'
   input_datasets:
   - id: sunnydale/forestry_fi
     tags: [baseline]
@@ -884,16 +625,28 @@ nodes:
     - column: Sector
       value: Argument placeholder
   output_nodes:
-  - id: protect_the_forest
+  - id: private_forest_protection_is_voluntary
     tags: [ignore_content]
+
+- id: private_forest_protection_is_voluntary
+  name: Private forest protection is voluntary
+  description: This is an indicator about whether a forest owner actually has decision-making
+    power over their forest cuts or not.
+  type: generic.ThresholdNode
+  input_nodes:
+  - id: protect_the_forest
+    tags: [additive, arithmetic_inverse]
+  params:
+  - id: threshold
+    value: -0.05
+    unit: '%/a'
 
 - id: responsibility_of_nature_protection
   name: Everyone has the responsibility to protect nature as a part of their own actions
   name_fi: Jokaisella on velvollisuus suojella luontoa oman toimintansa puitteissa
   type: generic.GenericNode
-  quantity: emissions # FIXME Convert to argument when the colors work properly.
+  quantity: argument
   unit: dimensionless
-  color: '#ff7354'
   input_datasets:
   - id: sunnydale/forestry_fi
     tags: [baseline]
@@ -908,9 +661,8 @@ nodes:
   name: Forest owner's property must be protected
   name_fi: Metsänomistajan omaisuus ja päätösvalta on suojattu
   type: generic.GenericNode
-  quantity: emissions # FIXME Convert to argument when the colors work properly.
+  quantity: argument
   unit: dimensionless
-  color: '#ff7354'
   input_datasets:
   - id: sunnydale/forestry_fi
     tags: [baseline]
@@ -918,16 +670,15 @@ nodes:
     - column: Sector
       value: Argument placeholder
   output_nodes:
-  - id: protect_the_forest
+  - id: private_forest_protection_is_voluntary
     tags: [ignore_content]
 
 - id: biodiversity_strategy_requires_action
   name: EU biodiversity strategy requires nature conservation
   name_fi: EU:n biodiversiteettistrategia vaatii luonnonsuojelua
   type: generic.GenericNode
-  quantity: emissions # FIXME Convert to argument when the colors work properly.
+  quantity: argument
   unit: dimensionless
-  color: '#ff7354'
   input_datasets:
   - id: sunnydale/forestry_fi
     tags: [baseline]
@@ -942,26 +693,21 @@ nodes:
   name: Premature forest cuts destroy income opportunities
   name_fi: Aavustushakkuut tuhavat ansaintamahdollisuuksia
   type: generic.GenericNode
-  quantity: emissions # FIXME Convert to argument when the colors work properly.
+  quantity: argument
   unit: dimensionless
-  color: '#ff7354'
   input_datasets:
   - id: sunnydale/forestry_fi
     tags: [baseline]
     filters:
     - column: Sector
       value: Argument placeholder
-  output_nodes:
-  - id: other_forest_income
-    tags: [ignore_content]
 
 - id: threat_of_forced_conseervation
   name: Threat of forced conservation
   name_fi: Pakkosuojelu on metsänomistajan uhka
   type: generic.GenericNode
-  quantity: emissions # FIXME Convert to argument when the colors work properly.
+  quantity: argument
   unit: dimensionless
-  color: '#ff7354'
   input_datasets:
   - id: sunnydale/forestry_fi
     tags: [baseline]
@@ -969,7 +715,7 @@ nodes:
     - column: Sector
       value: Argument placeholder
   output_nodes:
-  - id: protect_the_forest
+  - id: cut_the_virtanen_forest
     tags: [ignore_content]
 
 - id: biodiversity_in_forests
@@ -978,6 +724,8 @@ nodes:
   type: generic.GenericNode
   quantity: rate
   unit: dimensionless
+  input_dimensions: [stakeholder, case]
+  output_dimensions: [stakeholder, case]
 
 - id: diversity_of_habitat
   name: Diversity of habitat
@@ -985,6 +733,8 @@ nodes:
   type: generic.GenericNode
   quantity: rate
   unit: dimensionless
+  input_dimensions: [stakeholder, case]
+  output_dimensions: [stakeholder, case]
   input_nodes:
   - id: amount_of_wood_in_forests
     tags: [additive] # TODO Consider turning off unit checking also in multiply_nodes_pl.
@@ -1001,6 +751,8 @@ nodes:
   type: generic.GenericNode
   quantity: rate
   unit: dimensionless
+  input_dimensions: [stakeholder, case]
+  output_dimensions: [stakeholder, case]
   input_nodes:
   - id: amount_of_wood_in_forests
     tags: [additive]
@@ -1011,74 +763,39 @@ nodes:
     value: 0.0001
     unit: 1/Mm3_solid
 
-- id: price_of_forest_protection
-  name: Price of forest protection
-  name_fi: Metsien suojelukorvauksen hinta
-  type: generic.GenericNode
-  quantity: unit_price
-  unit: EUR/m3_solid/a
-  input_datasets:
-  - id: sunnydale/forestry_fi
-    tags: [baseline]
-    filters:
-    - column: Sector
-      value: Forest protection unit price
-
-- id: price_of_carbon_sinks
-  name: Price of carbon sinks
-  name_fi: Metsien hiilinielujen hinta
-  type: generic.GenericNode
-  quantity: unit_price
-  unit: EUR/m3_solid/a
-  input_datasets:
-  - id: sunnydale/forestry_fi
-    tags: [baseline]
-    filters:
-    - column: Sector
-      value: Carbon sink unit price
-
-- id: other_forest_income
-  name: Other forest income
-  name_fi: Muu metsätulo
-  type: generic.GenericNode
-  quantity: currency
-  unit: MEUR/a
-  input_datasets:
-  - id: sunnydale/forestry_fi
-    filters:
-    - column: Sector
-      value: Argument placeholder
-  input_nodes:
-  - id: price_of_forest_protection
-    tags: [additive]
-  - id: price_of_carbon_sinks
-    tags: [additive]
-  - id: amount_of_wood_in_forests
-  output_nodes:
-  - id: total_economic_cost
-    to_dimensions:
-    - id: cost_type
-      categories: [economic]
-    - id: stakeholder
-      categories: [forest_owner]
-  params:
-    operations: add,multiply
-
 actions:
 
-- id: cut_the_forest
-  name_en: Cut the forest
-  name_fi: Hakkaa metsä
-  type: gpc.DatasetAction
+- id: cut_the_virtanen_forest
+  name_en: Cut the forest of Matti Virtanen
+  name_fi: Hakkaa Matti Virtasen metsä
+  type: gpc.DatasetRelationAction
   quantity: mass
   unit: m3_solid/a
   group: forestry
+  input_dimensions: [stakeholder, case]
+  output_dimensions: [stakeholder, case]
   input_datasets: [sunnydale/forestry_fi]
   output_nodes:
-  - id: amount_of_wood_in_a_sample_forest
+  - id: forest_cuts_in_finland
     tags: [additive]
   params:
     sector: Forest cuts by a forest owner
+
+- id: cut_the_metsahallitus_forest
+  name_en: Cut the forest of Metsähallitus
+  name_fi: Hakkaa Metsähallituksen metsä
+  type: gpc.DatasetRelationAction
+  quantity: mass
+  unit: m3_solid/a
+  group: forestry
+  input_dimensions: [stakeholder, case]
+  output_dimensions: [stakeholder, case]
+  input_datasets: [sunnydale/forestry_fi]
+  output_nodes:
+  - id: forest_cuts_in_finland
+    tags: [additive]
+  params:
+    sector: Forest cuts by Metsähallitus
 
 - id: protect_the_forest
   name_en: Protect the forest
@@ -1089,53 +806,12 @@ actions:
   group: forestry
   input_datasets: [sunnydale/forestry_fi]
   output_nodes:
-  - id: forest_growth_rate
+  - id: cut_the_virtanen_forest
+    tags: [other_node, nand]
+  - id: cut_the_metsahallitus_forest
+    tags: [other_node, nand]
   params:
     sector: Growth increase due to protection
-
-- id: pay_for_forest_protection
-  name_en: Pay for forest protection
-  name_fi: Maksa metsänsuojelukorvaus
-  type: gpc.DatasetAction
-  quantity: fraction
-  unit: dimensionless
-  group: forestry
-  input_datasets: [sunnydale/forestry_fi]
-  output_nodes:
-  - id: price_of_forest_protection
-  params:
-    sector: Yes/no decision
-
-- id: pay_for_carbon_sink
-  name_en: Pay for carbon sink
-  name_fi: Maksa hiilinielusta
-  type: gpc.DatasetAction
-  quantity: fraction
-  unit: dimensionless
-  group: forestry
-  input_datasets: [sunnydale/forestry_fi]
-  output_nodes:
-  - id: price_of_carbon_sinks
-  params:
-    sector: Yes/no decision
-
-- id: district_heating_with_biofuels
-  name_en: District heating with biofuels
-  name_fi: Kaukolämmitys bioenergialla
-  type: gpc.DatasetAction
-  quantity: energy
-  unit: GWh/a
-  group: forestry
-  input_dimensions: [stakeholder]
-  output_dimensions: [stakeholder]
-  input_datasets: [sunnydale/forestry_fi]
-  params:
-    sector: District heating with biofuels in Sunnydale
-  output_nodes:
-  - id: biofuel_production
-    from_dimensions:
-    - id: stakeholder
-      flatten: true
 
 - id: reduce_forestry_production
   name_en: Reduce forestry production
@@ -1150,6 +826,11 @@ actions:
   output_nodes:
   - id: forestry_production
     tags: [complement, non_additive]
+    to_dimensions:
+    - id: stakeholder
+      categories: [state]
+    - id: case
+      categories: [case1]
 
 pages:
 - id: home
@@ -1181,6 +862,9 @@ scenarios:
   name_fi: Aktiivinen
   name_en: Active
   all_actions_enabled: true
+  params:
+  - id: protect_the_forest.enabled
+    value: false
 
 - id: energy_company
   name_fi: Energiayhtiön arvot

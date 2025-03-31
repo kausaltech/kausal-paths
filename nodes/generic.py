@@ -11,7 +11,7 @@ from common import polars as ppl
 from nodes.actions import ActionNode
 from nodes.calc import extend_last_historical_value_pl
 from nodes.units import unit_registry
-from params.param import StringParameter
+from params.param import NumberParameter, StringParameter
 
 from .constants import EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from .exceptions import NodeError
@@ -647,75 +647,97 @@ class IterativeNode(GenericNode):
         """
         Perform year-by-year iteration using previous values, growth rate and changes.
 
-        This operation expects df to contain the summed changes from all additive inputs.
+        Handles multidimensional dataframes by processing each year's data with full dimensions.
         """
         rate_node = self._get_other_node(tag='rate', baskets=baskets)
         base_node = self._get_other_node(tag='base', baskets=baskets)
 
+        # Get rate dataframe and prepare it
         rate_df = rate_node.get_output_pl(target_node=self)
         rate_df = rate_df.ensure_unit(VALUE_COLUMN, '1/a')
         rate_df = rate_df.set_unit(VALUE_COLUMN, 'dimensionless', force=True)
         rate_df = rate_df.with_columns(pl.col(VALUE_COLUMN) + pl.lit(1.0).alias(VALUE_COLUMN))
 
+        # Get base values
         base_df = base_node.get_output_pl(target_node=self)
 
+        # Add changes column (from additive inputs or default to 0)
         if df is None:
+            # No changes provided - create empty changes column
             df_out = base_df.with_columns(pl.lit(0.0).alias('changes'))
         else:
-            # The changes are in df (output from previous operations)
-            # Rename it to "changes" for clarity
+            # Join changes from provided dataframe
             df_out = base_df.paths.join_over_index(df, how='left', index_from='left')
             df_out = df_out.rename({VALUE_COLUMN + '_right': 'changes'})
+            # Adjust units for changes
             df_out = df_out.set_unit('changes', df_out.get_unit('changes') * unit_registry('a'), force=True)
             df_out = df_out.ensure_unit('changes', df_out.get_unit(VALUE_COLUMN))
 
+        # Fill missing changes with zero and join rates
         df_out = df_out.with_columns(pl.col('changes').fill_null(0.0))
         df_out = df_out.paths.join_over_index(rate_df, how='left', index_from='union')
         df_out = df_out.rename({VALUE_COLUMN + '_right': 'rate'})
-        df_out = df_out.paths.to_wide()
+        df_out = df_out.with_columns(pl.col('rate').fill_null(1.0))  # Default rate to 1.0 (no change)
 
-        # Perform the year-by-year iteration
+        # Find historical and forecast boundary
         historical_df = df_out.filter(~pl.col(FORECAST_COLUMN))
         if len(historical_df) == 0:
             raise NodeError(self, "IterativeNode must have historical values.")
 
-        # Use explicit type conversion with assertions to help mypy
-        last_historical_year: int = int(float(historical_df[YEAR_COLUMN].max()))
-        end_year_value: int = int(self.get_end_year())
+        # Get years needed for iteration
+        last_historical_year = float(historical_df[YEAR_COLUMN].max())
+        end_year = self.get_end_year()
 
-        # Use typed variables for calculations to avoid union type issues
-        for forecast_year in range(last_historical_year + 1, end_year_value + 1):
-            # Convert year to the same type as in df_out's YEAR_COLUMN for filtering
-            year_filter = pl.col(YEAR_COLUMN) == forecast_year
-            prev_year_filter = pl.col(YEAR_COLUMN) == (forecast_year - 1)
+        # Track processed years to build the final result
+        processed_years = {}
 
-            # Extract values as floats to ensure compatibility
-            prev_year_row = df_out.filter(prev_year_filter)
-            current_year_row = df_out.filter(year_filter)
+        keep_cols = [YEAR_COLUMN, FORECAST_COLUMN, VALUE_COLUMN] + df_out.dim_ids
+        # First add all historical data to our result (unchanged)
+        processed_years[last_historical_year] = (
+            df_out.filter(pl.col(YEAR_COLUMN) <= last_historical_year)
+            .select(keep_cols))
 
-            if len(prev_year_row) == 0 or len(current_year_row) == 0:
-                raise NodeError(self, "IterativeNode cannot have forecast years missing in between.")
+        # Process each forecast year sequentially
+        for forecast_year in range(int(last_historical_year) + 1, int(end_year) + 1):
+            # Get previous year's data
+            prev_year = forecast_year - 1
+            prev_year_data = (
+                processed_years[prev_year]
+                .filter(pl.col(YEAR_COLUMN) == prev_year)
+                .drop(YEAR_COLUMN))
 
-            prev_value: float = float(prev_year_row[VALUE_COLUMN].item())
-            change_value: float = float(current_year_row['changes'].item())
-            rate_value: float = float(current_year_row['rate'].item())
+            # Get current year's changes and rates
+            current_year_data = df_out.filter(pl.col(YEAR_COLUMN) == forecast_year)
 
-            # Calculate new value with explicit float operations
-            new_value: float = (prev_value + change_value) * rate_value
+            if len(current_year_data) == 0:
+                raise NodeError(self, f"Year {forecast_year} is missing in the input data")
 
-            # Update the dataframe
-            df_out = df_out.with_columns(
-                pl.when(year_filter)
-                .then(pl.lit(new_value))
-                .otherwise(pl.col(VALUE_COLUMN))
-                .alias(VALUE_COLUMN)
-            )
+            # Create a new dataframe for the current year by joining with previous year
+            # Use outer join to ensure we process all dimension combinations
+            result_year = current_year_data.paths.join_over_index(prev_year_data)
+            result_year = result_year.rename({VALUE_COLUMN + '_right': 'prev_value'})
 
-        # Clean up
-        df_out = df_out.drop(['rate', 'changes'])
+            # Now calculate the new values with a vectorized operation on all dimensions
+            result_year = result_year.with_columns([
+                # New value = (prev_value + changes) * rate
+                ((pl.col('prev_value').fill_null(0.0) +
+                pl.col('changes').fill_null(0.0)) *
+                pl.col('rate').fill_null(1.0)).alias(VALUE_COLUMN)
+            ])
 
-        return df_out, baskets
+            # Add the needed columns to our processed years
+            processed_years[forecast_year] = result_year.select(keep_cols)
 
+        # Combine all years into final result
+        result_frames = list(processed_years.values())
+        final_result = result_frames[0]
+
+        for dfy in result_frames[1:]:
+            final_result = final_result.paths.concat_vertical(dfy)
+
+        final_result = final_result.ensure_unit(VALUE_COLUMN, self.unit)
+
+        return final_result, baskets
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -723,3 +745,120 @@ class IterativeNode(GenericNode):
         self.OPERATIONS['year_iteration'] = self._operation_year_iteration
         # Set default operations sequence to let standard add happen before year_iteration
         self.default_operations = 'multiply,add,year_iteration,other,apply_multiplier'
+
+
+class LogicalNode(GenericNode):
+    explanation = _(
+        """
+        LogicalNode processes logical inputs (values 0 or 1).
+
+        It applies Boolean AND to multiplicative nodes (nodes are ANDed together)
+        and Boolean OR to additive nodes (nodes are ORed together).
+
+        AND operations are performed first, then OR operations. For more complex
+        logical structures, use several subsequent nodes.
+        """
+    )
+    allowed_parameters = [
+        *GenericNode.allowed_parameters,
+    ]
+    quantity = 'fraction'
+    default_unit = 'dimensionless'
+    DEFAULT_OPERATIONS = 'multiply,add,normalize_logical'
+
+    # Small epsilon for float comparisons
+    LOGICAL_EPSILON = 1e-6
+
+    def _operation_normalize_logical(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        """Normalize values to be exactly 0 or 1, handling potential floating-point imprecisions."""
+        if df is None:
+            raise NodeError(self, "Cannot normalize logical values because no PathsDataFrame is available.")
+
+        # Normalize values: anything close to 1 or greater becomes 1, anything else becomes 0
+        df = df.with_columns(
+            pl.when(pl.col(VALUE_COLUMN) >= (1.0 - self.LOGICAL_EPSILON))
+            .then(1.0)
+            .otherwise(0.0)
+            .alias(VALUE_COLUMN)
+        )
+
+        return df, baskets
+
+    def _validate_input_nodes(self, nodes: list[Node]) -> None:
+        """Validate that all input nodes produce logical values (0 or 1 with tolerance)."""
+        for node in nodes:
+            df = node.get_output_pl(target_node=self)
+
+            # Check if values are approximately 0 or 1 using Polars expressions
+            is_approx_zero = (pl.col(VALUE_COLUMN).abs() < self.LOGICAL_EPSILON)
+            is_approx_one = (pl.col(VALUE_COLUMN).abs() - 1.0 < self.LOGICAL_EPSILON)
+            valid_values = df.with_columns(
+                (is_approx_zero | is_approx_one).alias("is_valid")
+            )
+
+            if not valid_values["is_valid"].all():
+                raise NodeError(
+                    self,
+                    f"Input node {node.id} contains values that are not logical (must be approximately 0 or 1)"
+                )
+
+    def compute(self) -> ppl.PathsDataFrame:
+        """Override compute to validate inputs before processing."""
+        self._validate_input_nodes(self.input_nodes)
+        return super().compute()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Register normalize operation
+        self.OPERATIONS['normalize_logical'] = self._operation_normalize_logical
+
+
+class ThresholdNode(GenericNode):
+    explanation = _(
+        """
+        ThresholdNode computes a preliminary result using standard GenericNode operations.
+
+        After computation, it returns True (1) if the result is greater than or equal to
+        the threshold parameter, otherwise False (0).
+        """
+    )
+    allowed_parameters = [
+        *GenericNode.allowed_parameters,
+        NumberParameter(
+            local_id='threshold',
+            label='Gives 1 (True) if the preliminary output is >= threshold',
+            is_customizable=True
+        ),
+    ]
+    quantity = 'fraction'
+    default_unit = 'dimensionless'
+    DEFAULT_OPERATIONS = 'multiply,add,apply_threshold'
+    # Small epsilon for float comparisons
+    LOGICAL_EPSILON = 1e-6
+
+    def _operation_apply_threshold(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        """Apply threshold to the computed values, converting to 0/1."""
+        if df is None:
+            raise NodeError(self, "Cannot apply threshold because no PathsDataFrame is available.")
+
+        threshold = self.get_parameter_value('threshold', units=True, required=True)
+        # Ensure the dataframe has the same unit as the threshold
+        df = df.ensure_unit(VALUE_COLUMN, str(threshold.units))
+
+        # Apply the threshold with a small epsilon for float comparison
+        df = df.with_columns(
+            pl.when(pl.col(VALUE_COLUMN) >= (pl.lit(threshold.m) - self.LOGICAL_EPSILON))
+            .then(1.0)
+            .otherwise(0.0)
+            .alias(VALUE_COLUMN)
+        )
+
+        # Set unit to dimensionless since we now have logical values
+        df = df.clear_unit(VALUE_COLUMN).set_unit(VALUE_COLUMN, 'dimensionless')
+
+        return df, baskets
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Register threshold operation
+        self.OPERATIONS['apply_threshold'] = self._operation_apply_threshold

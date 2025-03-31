@@ -1,3 +1,12 @@
+# Development needs:
+# - Make multipliers datasets instead so that the admin user can reach them (1 wd)
+# - Move all data from code to dataset (1 wd)
+# - Rewrite building nodes and make them generic (2 wd)
+# - Remove health-only dimensions (0.5 wd)
+# - Rewrite improvementNode and other legacy classes (1 wd)
+# - Add categories needed in inventory (0.5 wd)
+# - Build models for e.g. wastewater emissions etc (3 wd)
+
 id: longmont
 default_language: en
 supported_languages: [es-US]
