@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2025-03-27 09:38+0200\n"
-"PO-Revision-Date: 2025-03-31 07:21+0000\n"
+"PO-Revision-Date: 2025-03-31 10:20+0000\n"
 "Last-Translator: Matias Wargelin <matias.wargelin@kausal.tech>\n"
 "Language-Team: Greek <https://weblate.kausal.tech/projects/paths/django/el/>"
 "\n"
@@ -195,11 +195,13 @@ msgstr "Διαστάσεις δεδομένων"
 
 #: kausal_common/datasets/models.py
 msgid "Yearly"
-msgstr ""
+msgstr "Ετήσια"
 
 #: kausal_common/datasets/models.py
 msgid "Time resolution of the time stamps of data points in this dataset"
 msgstr ""
+"Χρονική ανάλυση των χρονικών σφραγίδων των σημείων δεδομένων σε αυτό το "
+"σύνολο δεδομένων"
 
 #: kausal_common/datasets/models.py
 msgid "start date"
@@ -207,7 +209,7 @@ msgstr ""
 
 #: kausal_common/datasets/models.py
 msgid "Descriptive name of the dataset schema"
-msgstr ""
+msgstr "Περιγραφικό όνομα του σχήματος του συνόλου δεδομένων"
 
 #: kausal_common/datasets/models.py nodes/models.py
 msgid "Description"
@@ -215,15 +217,15 @@ msgstr "Περιγραφή"
 
 #: kausal_common/datasets/models.py
 msgid "Description of the content and use of the dataset"
-msgstr ""
+msgstr "Περιγραφή του περιεχομένου και της χρήσης του συνόλου δεδομένων"
 
 #: kausal_common/datasets/models.py
 msgid "Time resolution"
-msgstr ""
+msgstr "Χρονική ανάλυση"
 
 #: kausal_common/datasets/models.py
 msgid "Initial date"
-msgstr ""
+msgstr "Αρχική ημερομηνία"
 
 #: kausal_common/datasets/models.py
 msgid "Metrics"
@@ -232,6 +234,7 @@ msgstr "Μετρικές"
 #: kausal_common/datasets/models.py
 msgid "Defines the interpretation and units for the values of the dataset"
 msgstr ""
+"Καθορίζει την ερμηνεία και τις μονάδες για τις τιμές του συνόλου δεδομένων"
 
 #: kausal_common/datasets/models.py
 msgid "Dimensions"
@@ -240,6 +243,7 @@ msgstr "Διαστάσεις"
 #: kausal_common/datasets/models.py
 msgid "Used when metrics are tracked for multiple categories"
 msgstr ""
+"Χρησιμοποιείται όταν οι μετρήσεις παρακολουθούνται για πολλαπλές κατηγορίες"
 
 #: kausal_common/datasets/models.py
 #, fuzzy
