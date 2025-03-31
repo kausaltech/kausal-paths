@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2025-03-27 09:38+0200\n"
-"PO-Revision-Date: 2025-03-31 07:21+0000\n"
+"PO-Revision-Date: 2025-03-31 10:20+0000\n"
 "Last-Translator: Matias Wargelin <matias.wargelin@kausal.tech>\n"
 "Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>"
 "\n"
@@ -191,11 +191,11 @@ msgstr "Dimensionen der Daten"
 
 #: kausal_common/datasets/models.py
 msgid "Yearly"
-msgstr ""
+msgstr "Jährlich"
 
 #: kausal_common/datasets/models.py
 msgid "Time resolution of the time stamps of data points in this dataset"
-msgstr ""
+msgstr "Zeitliche Auflösung der Zeitstempel der Datenpunkte in diesem Datensatz"
 
 #: kausal_common/datasets/models.py
 msgid "start date"
@@ -203,7 +203,7 @@ msgstr ""
 
 #: kausal_common/datasets/models.py
 msgid "Descriptive name of the dataset schema"
-msgstr ""
+msgstr "Beschreibender Name des Schemas des Datensatzes"
 
 #: kausal_common/datasets/models.py nodes/models.py
 msgid "Description"
@@ -211,15 +211,15 @@ msgstr "Beschreibung"
 
 #: kausal_common/datasets/models.py
 msgid "Description of the content and use of the dataset"
-msgstr ""
+msgstr "Beschreibung des Inhalts und der Verwendung des Datensatzes"
 
 #: kausal_common/datasets/models.py
 msgid "Time resolution"
-msgstr ""
+msgstr "Zeitauflösung"
 
 #: kausal_common/datasets/models.py
 msgid "Initial date"
-msgstr ""
+msgstr "Erstes Datum"
 
 #: kausal_common/datasets/models.py
 msgid "Metrics"
@@ -228,6 +228,7 @@ msgstr "Metriken"
 #: kausal_common/datasets/models.py
 msgid "Defines the interpretation and units for the values of the dataset"
 msgstr ""
+"Legt die Interpretation und die Einheiten für die Werte des Datensatzes fest"
 
 #: kausal_common/datasets/models.py
 msgid "Dimensions"
@@ -236,6 +237,7 @@ msgstr "Dimensionen"
 #: kausal_common/datasets/models.py
 msgid "Used when metrics are tracked for multiple categories"
 msgstr ""
+"Wird verwendet, wenn die Metriken für mehrere Kategorien verfolgt werden"
 
 #: kausal_common/datasets/models.py
 #, fuzzy
