@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2025-03-27 09:38+0200\n"
-"PO-Revision-Date: 2025-03-31 07:21+0000\n"
+"PO-Revision-Date: 2025-03-31 10:20+0000\n"
 "Last-Translator: Matias Wargelin <matias.wargelin@kausal.tech>\n"
 "Language-Team: Latvian <https://weblate.kausal.tech/projects/paths/django/lv/"
 ">\n"
@@ -60,7 +60,7 @@ msgstr "Izvēlieties instanci"
 
 #: frameworks/models.py kausal_common/datasets/models.py
 msgid "Name"
-msgstr ""
+msgstr "Nosaukums"
 
 #: frameworks/models.py
 msgid "High"
@@ -189,11 +189,11 @@ msgstr "Datu dimensijas"
 
 #: kausal_common/datasets/models.py
 msgid "Yearly"
-msgstr ""
+msgstr "Gada"
 
 #: kausal_common/datasets/models.py
 msgid "Time resolution of the time stamps of data points in this dataset"
-msgstr ""
+msgstr "Datu punktu laika zīmju izšķirtspēja šajā datu kopā"
 
 #: kausal_common/datasets/models.py
 msgid "start date"
@@ -201,7 +201,7 @@ msgstr ""
 
 #: kausal_common/datasets/models.py
 msgid "Descriptive name of the dataset schema"
-msgstr ""
+msgstr "Datu kopas shēmas aprakstošais nosaukums"
 
 #: kausal_common/datasets/models.py nodes/models.py
 msgid "Description"
@@ -209,15 +209,15 @@ msgstr "Apraksts"
 
 #: kausal_common/datasets/models.py
 msgid "Description of the content and use of the dataset"
-msgstr ""
+msgstr "Datu kopas satura un izmantošanas apraksts"
 
 #: kausal_common/datasets/models.py
 msgid "Time resolution"
-msgstr ""
+msgstr "Laika izšķirtspēja"
 
 #: kausal_common/datasets/models.py
 msgid "Initial date"
-msgstr ""
+msgstr "Sākotnējais datums"
 
 #: kausal_common/datasets/models.py
 msgid "Metrics"
@@ -225,7 +225,7 @@ msgstr "Metrikas"
 
 #: kausal_common/datasets/models.py
 msgid "Defines the interpretation and units for the values of the dataset"
-msgstr ""
+msgstr "Definē datu kopas vērtību interpretāciju un mērvienības"
 
 #: kausal_common/datasets/models.py
 #, fuzzy
@@ -235,7 +235,7 @@ msgstr "Datu dimensijas"
 
 #: kausal_common/datasets/models.py
 msgid "Used when metrics are tracked for multiple categories"
-msgstr ""
+msgstr "Izmanto, ja metrikas tiek izsekotas vairākām kategorijām"
 
 #: kausal_common/datasets/models.py
 #, fuzzy
