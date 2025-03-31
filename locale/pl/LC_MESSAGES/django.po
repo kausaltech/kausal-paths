@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2025-03-27 09:38+0200\n"
-"PO-Revision-Date: 2025-03-31 07:21+0000\n"
+"PO-Revision-Date: 2025-03-31 10:20+0000\n"
 "Last-Translator: Matias Wargelin <matias.wargelin@kausal.tech>\n"
 "Language-Team: Polish <https://weblate.kausal.tech/projects/paths/django/pl/>"
 "\n"
@@ -62,7 +62,7 @@ msgstr "Wybierz instancję"
 
 #: frameworks/models.py kausal_common/datasets/models.py
 msgid "Name"
-msgstr ""
+msgstr "Nazwa"
 
 #: frameworks/models.py
 msgid "High"
@@ -191,11 +191,12 @@ msgstr "Wymiary"
 
 #: kausal_common/datasets/models.py
 msgid "Yearly"
-msgstr ""
+msgstr "Rocznie"
 
 #: kausal_common/datasets/models.py
 msgid "Time resolution of the time stamps of data points in this dataset"
 msgstr ""
+"Rozdzielczość czasowa znaczników czasu punktów danych w tym zbiorze danych"
 
 #: kausal_common/datasets/models.py
 msgid "start date"
@@ -203,7 +204,7 @@ msgstr ""
 
 #: kausal_common/datasets/models.py
 msgid "Descriptive name of the dataset schema"
-msgstr ""
+msgstr "Opisowa nazwa schematu zbioru danych"
 
 #: kausal_common/datasets/models.py nodes/models.py
 msgid "Description"
@@ -211,15 +212,15 @@ msgstr "Opis"
 
 #: kausal_common/datasets/models.py
 msgid "Description of the content and use of the dataset"
-msgstr ""
+msgstr "Opis zawartości i wykorzystania zbioru danych"
 
 #: kausal_common/datasets/models.py
 msgid "Time resolution"
-msgstr ""
+msgstr "Rozdzielczość czasowa"
 
 #: kausal_common/datasets/models.py
 msgid "Initial date"
-msgstr ""
+msgstr "Data początkowa"
 
 #: kausal_common/datasets/models.py
 msgid "Metrics"
@@ -227,7 +228,7 @@ msgstr "Metryki"
 
 #: kausal_common/datasets/models.py
 msgid "Defines the interpretation and units for the values of the dataset"
-msgstr ""
+msgstr "Określa interpretację i jednostki dla wartości zbioru danych"
 
 #: kausal_common/datasets/models.py
 #, fuzzy
@@ -237,7 +238,7 @@ msgstr "Wymiary"
 
 #: kausal_common/datasets/models.py
 msgid "Used when metrics are tracked for multiple categories"
-msgstr ""
+msgstr "Używany, gdy metryki są śledzone dla wielu kategorii"
 
 #: kausal_common/datasets/models.py
 #, fuzzy
