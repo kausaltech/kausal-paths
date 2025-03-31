@@ -256,12 +256,14 @@ class Command(BaseCommand):
                 spec=cat_spec,
             )
         print(f"Setting scope of dimension '{dimension}' to '{instance_config}'")
-        DimensionScope.objects.create(
+        dimension_scope = DimensionScope(
             dimension=dimension,
             scope_content_type=ContentType.objects.get_for_model(instance_config),
             scope_id=instance_config.pk,
             identifier=spec.id,
         )
+        dimension_scope.full_clean()
+        dimension_scope.save()
         return dimension
 
     def create_dimension_category(

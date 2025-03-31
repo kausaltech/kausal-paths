@@ -520,14 +520,16 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         ).first()
         label, i18n = get_modeltrans_attrs_from_str(dim.label, 'label', self.primary_language)
         if scope is None:
+            print("Creating dimension %s" % dim.id)
             dim_obj = DatasetDimensionModel.objects.create(name=label, i18n=i18n)
-            scope = DimensionScope.objects.create(
+            scope = DimensionScope(
                 scope_content_type=ContentType.objects.get_for_model(self),
                 scope_id=self.pk,
                 identifier=dim.id,
                 dimension=dim_obj
             )
-            print("Creating dimension %s" % dim.id)
+            scope.full_clean()
+            scope.save()
         else:
             dim_obj = scope.dimension
 
