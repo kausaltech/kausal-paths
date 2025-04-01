@@ -2,6 +2,10 @@ name: reviewdog
 on:
   pull_request:
   workflow_call:
+    secrets:
+      EXTRA_PYPI_INDEX:
+        description: 'Private PYPI index'
+        required: true
 
 jobs:
   reviewdog:
@@ -13,8 +17,6 @@ jobs:
       pull-requests: write
     env:
       UV_CACHE_DIR: /tmp/.uv-cache
-    secrets:
-      EXTRA_PYPI_INDEX: ${{ secrets.EXTRA_PYPI_INDEX }}
     steps:
       - uses: actions/checkout@v4
         with:
