@@ -7,11 +7,10 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-27 09:38+0200\n"
+"POT-Creation-Date: 2025-04-01 08:49+0300\n"
 "PO-Revision-Date: 2025-03-31 10:20+0000\n"
 "Last-Translator: Matias Wargelin <matias.wargelin@kausal.tech>\n"
-"Language-Team: Czech <https://weblate.kausal.tech/projects/paths/django/cs/>"
-"\n"
+"Language-Team: Czech <https://weblate.kausal.tech/projects/paths/django/cs/>\n"
 "Language: cs\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -199,6 +198,10 @@ msgstr "Časové rozlišení časových razítek datových bodů v této datové
 
 #: kausal_common/datasets/models.py
 msgid "start date"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+msgid "For a newly created dataset, start entering values from this year"
 msgstr ""
 
 #: kausal_common/datasets/models.py
