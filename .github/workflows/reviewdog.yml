@@ -13,6 +13,8 @@ jobs:
       pull-requests: write
     env:
       UV_CACHE_DIR: /tmp/.uv-cache
+    secrets:
+      EXTRA_PYPI_INDEX: ${{ secrets.EXTRA_PYPI_INDEX }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -41,8 +43,6 @@ jobs:
         run: sudo apt update && sudo apt install --no-install-recommends -y libproj-dev gdal-bin
 
       - name: Install Python dependencies
-        secrets:
-          EXTRA_PYPI_INDEX: ${{ secrets.EXTRA_PYPI_INDEX }}
         run: |
           uv venv
           . .venv/bin/activate
