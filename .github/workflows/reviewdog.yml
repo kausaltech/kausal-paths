@@ -41,7 +41,7 @@ jobs:
         run: sudo apt update && sudo apt install --no-install-recommends -y libproj-dev gdal-bin
 
       - name: Install Python dependencies
-        env:
+        secrets:
           EXTRA_PYPI_INDEX: ${{ secrets.EXTRA_PYPI_INDEX }}
         run: |
           uv venv
