@@ -50,7 +50,7 @@ jobs:
         run: |
           uv venv
           . .venv/bin/activate
-          uv pip install -r requirements-lint.txt -r requirements.txt -r requirements-kausal.txt
+          uv pip install -r requirements-lint.txt -r requirements.txt -r requirements-kausal.txt --extra-index-url "$EXTRA_PYPI_INDEX"
 
       - name: Minimize uv cache
         run: uv cache prune --ci
