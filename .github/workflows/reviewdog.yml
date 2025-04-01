@@ -2,6 +2,10 @@ name: reviewdog
 on:
   pull_request:
   workflow_call:
+    secrets:
+      EXTRA_PYPI_INDEX:
+        description: 'Private PYPI index'
+        required: true
 
 jobs:
   reviewdog:
@@ -29,9 +33,9 @@ jobs:
           path: |
             ${{ env.UV_CACHE_DIR }}
             .mypy_cache
-          key: ${{ runner.os }}-${{ hashFiles('requirements-lint.txt', 'requirements.txt') }}
+          key: ${{ runner.os }}-${{ hashFiles('requirements-lint.txt', 'requirements-kausal.txt', 'requirements.txt') }}
           restore-keys: |
-            ${{ runner.os }}-${{ hashFiles('requirements-lint.txt', 'requirements.txt') }}
+            ${{ runner.os }}-${{ hashFiles('requirements-lint.txt', 'requirements-kausal.txt', 'requirements.txt') }}
             ${{ runner.os }}
 
       - name: Set up Python
@@ -41,10 +45,12 @@ jobs:
         run: sudo apt update && sudo apt install --no-install-recommends -y libproj-dev gdal-bin
 
       - name: Install Python dependencies
+        env:
+          EXTRA_PYPI_INDEX: ${{ secrets.EXTRA_PYPI_INDEX }}
         run: |
           uv venv
           . .venv/bin/activate
-          uv pip install -r requirements-lint.txt -r requirements.txt
+          uv pip install -r requirements-lint.txt -r requirements.txt -r requirements-kausal.txt --extra-index-url "$EXTRA_PYPI_INDEX"
 
       - name: Minimize uv cache
         run: uv cache prune --ci
@@ -55,7 +61,7 @@ jobs:
         with:
           path: |
             ${{ env.UV_CACHE_DIR }}
-          key: ${{ runner.os }}-${{ hashFiles('requirements-lint.txt', 'requirements.txt') }}
+          key: ${{ runner.os }}-${{ hashFiles('requirements-lint.txt', 'requirements-kausal.txt', 'requirements.txt') }}
 
       - name: Get push diff
         if: github.event_name == 'push' && github.event.before
