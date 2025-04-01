@@ -8,6 +8,7 @@ dataset_repo:
   # commit: ef784d7fe42d555e63359546a8e506f212d03856 # 19 Mar Causes duplicate row error for Barcelona
   # commit: 6a677a10284da97772334811cb41612afbaf78eb # 23 Mar Causes duplicate row error for Barcelona
   commit: 48bbde258ccf0a7cb44c64745e456bd2246dd2a9 # 27th Mar Duplicate problem fixed.
+  # commit: d5566c7f9c519c351c7a1b59efb43b3900b2f1dd # 31st Mar with separate electric car and truck fleet shares
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
@@ -99,7 +100,8 @@ result_excels:
   - a332_increase_aggressive_renovations
   - a34_decarbonising_heat_generation
   - a341_heating_technology_improvement
-  - a342_heating_energy_improvement
+  - a342a_heating_energy_improvement_local
+  - a342b_heating_energy_improvement_district
   - a343_change_heating_fossil_share
   - a344_top_performance_improvement
   - a41_replace_fossil_electricity
@@ -974,7 +976,7 @@ nodes:
         flatten: true
     - kind: node
       label: Electrification of light trucks
-      node_id: fully_electric_vehicle_share
+      node_id: fully_electric_truck_share
       desired_outcome: increasing
       scenarios: [default, progress_tracking]
       dimensions:
@@ -997,7 +999,7 @@ nodes:
         flatten: true
     - kind: node
       label: Electrification of heavy trucks
-      node_id: fully_electric_vehicle_share
+      node_id: fully_electric_truck_share
       desired_outcome: increasing
       scenarios: [default, progress_tracking]
       dimensions:
@@ -1292,15 +1294,16 @@ actions:
   output_dimensions: [energy_carrier, transport_mode]
   input_datasets:
   - id: nzc/defaults
+    filters:
+    - column: Transport mode
+      values: [light_trucks, heavy_trucks]
+      drop_col: false
   params:
     sector: Electrification of transport fleet
   input_nodes:
-  - id: fully_electric_vehicle_share_historical
-    from_dimensions:
-    - id: transport_mode
-      categories: [light_trucks, heavy_trucks]
+  - id: fully_electric_truck_share_historical
   output_nodes:
-  - id: fully_electric_vehicle_share
+  - id: fully_electric_truck_share
 
   # ----------- BUILDINGS ---------------
 
@@ -1449,9 +1452,9 @@ actions:
     to_dimensions:
     - id: heating_type
 
-- id: a342_heating_energy_improvement
-  name: 3.4.2 Increase low-emission heating
-  description: Improve the fuel shares of heating.
+- id: a342a_heating_energy_improvement_local
+  name: 3.4.2a Increase low-emission local heating
+  description: Improve the fuel shares of local heating.
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
@@ -1462,10 +1465,37 @@ actions:
   input_nodes:
   - id: heating_fuel_share_historical
     tags: [historical]
+    from_dimensions:
+    - id: heating_type
+      categories: [local_heating]
   - id: heating_fuel_share_goal
     tags: [goal]
+    from_dimensions:
+    - id: heating_type
+      categories: [local_heating]
   output_nodes:
-  - id: heating_fuel_share
+  - id: heating_fuel_share_local
+
+- id: a342b_heating_energy_improvement_district
+  name: 3.4.2b Increase low-emission district heating
+  description: Improve the fuel shares of district heating.
+  type: linear.DatasetReduceAction
+  quantity: fraction
+  unit: '%'
+  group: buildings
+  parent: a34_decarbonising_heat_generation
+  input_dimensions: [energy_carrier, heating_type, fuel_type]
+  output_dimensions: [energy_carrier, heating_type, fuel_type]
+  input_nodes:
+  - id: heating_fuel_share_historical_district
+    tags: [historical]
+  - id: heating_fuel_share_goal
+    tags: [goal]
+    from_dimensions:
+    - id: heating_type
+      categories: [district_heating]
+  output_nodes:
+  - id: heating_fuel_share_district
 
 - id: a343_change_heating_fossil_share
   name: 3.4.3 Reduce fossil waste in heating  # Example city has 0 % waste, so there is no impact

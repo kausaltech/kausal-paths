@@ -521,6 +521,23 @@ nodes:
   params:
     sector: Share of heating fuel
 
+- id: heating_fuel_share_historical_district
+  name_en: District heating fuel share historical
+  name_fi: Kaukolämmityspolttoaineiden osuudet historiallisesti
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [energy_carrier, heating_type, fuel_type]
+  output_dimensions: [energy_carrier, heating_type, fuel_type]
+  input_datasets:
+  - id: nzc/defaults
+    filters:
+    - column: Heating type
+      value: district_heating
+      drop_col: false
+  params:
+    sector: Share of heating fuel
+
 - id: heating_fuel_share_goal
   name_en: Heating fuel share goal
   name_fi: Lämmityspolttoaineiden osuuksien tavoite
@@ -534,9 +551,9 @@ nodes:
   params:
     sector: Share of heating in 2030
 
-- id: heating_fuel_share
-  name_en: Heating energy carrier shares  # TODO update ids to match names
-  name_fi: Lämmitysenergian kantajien osuudet
+- id: heating_fuel_share_local
+  name_en: Local heating energy carrier shares  # TODO update ids to match names
+  name_fi: Paikallislämmityksen energian kantajien osuudet
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -544,8 +561,40 @@ nodes:
   output_dimensions: [energy_carrier, heating_type, fuel_type]
   input_datasets:
   - id: nzc/defaults
+    filters:
+    - column: Heating type
+      value: local_heating
+      drop_col: false
   params:
     sector: Share of heating fuel
+
+- id: heating_fuel_share_district
+  name_en: District heating energy carrier shares  # TODO update ids to match names
+  name_fi: Kaukolämmitysenergian kantajien osuudet
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [energy_carrier, heating_type, fuel_type]
+  output_dimensions: [energy_carrier, heating_type, fuel_type]
+  input_datasets:
+  - id: nzc/defaults
+    filters:
+    - column: Heating type
+      value: district_heating
+      drop_col: false
+  params:
+    sector: Share of heating fuel
+
+- id: heating_fuel_share
+  name: Technical intermediate node
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [energy_carrier, heating_type, fuel_type]
+  output_dimensions: [energy_carrier, heating_type, fuel_type]
+  input_nodes:
+  - id: heating_fuel_share_local
+  - id: heating_fuel_share_district
 
 - id: heating_fossil_share_historical
   name_en: Heating fossil shares historical

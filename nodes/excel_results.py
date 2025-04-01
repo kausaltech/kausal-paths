@@ -88,12 +88,12 @@ class InstanceResultExcel(I18nBaseModel):
         if self.node_ids is not None:
             for node_id in self.node_ids:
                 if node_id not in ctx.nodes:
-                    raise KeyError("Node '%s' not found")
+                    raise KeyError(f"Node {node_id} not found.")
         if self.action_ids is not None:
             actions = {n.id for n in ctx.get_actions()}
             for action_id in self.action_ids:
                 if action_id not in actions:
-                    raise KeyError("Action '%s' not found")
+                    raise KeyError(f"Action {action_id} not found.")
 
     def _output_node_long(
         self,
@@ -208,7 +208,7 @@ class InstanceResultExcel(I18nBaseModel):
             how='left'
         ).drop('_dummy_group')  # Remove the dummy column after join
 
-        dfout = dfout.select([  # noqa: PD010
+        dfout = dfout.select([
                 *[col_map[col_id].alias(col_id) for col_id in col_map.keys()],
                 pl.col(YEAR_COLUMN),
                 pl.col(VALUE_COLUMN),
@@ -336,7 +336,7 @@ class InstanceResultExcel(I18nBaseModel):
                 del wb[sn]
         return wb
 
-    def create_result_excel(
+    def create_result_excel(  # noqa: C901, PLR0912, PLR0915
         self,
         instance: Instance,
         existing_wb: Path | str | None = None,
@@ -473,7 +473,7 @@ class InstanceResultExcel(I18nBaseModel):
         else:
             if (
                 not ic.has_framework_config()
-                or not (fw := ic.framework_config.framework).result_excel_url
+                or not (fw := ic.framework_config.framework).result_excel_url # type: ignore
                 or not fw.result_excel_node_ids
             ):
                 raise ExportNotSupportedError("Framework '%s' doesn't support generating result files" % instance.id)
