@@ -19,6 +19,8 @@ maximum_historical_year: 2022
 emission_dataset: tampere/scenarios/emissions/bau
 emission_unit: kt/a
 emission_forecast_from: 2023
+features:
+  use_datasets_from_db: true
 params:
 - id: municipality_name
   value: Tampere

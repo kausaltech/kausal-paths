@@ -21,6 +21,7 @@ emission_dataset: saskatoon/greenhouse_gas_emissions_by_sector
 emission_sector_dimension: emission_sectors
 features:
   baseline_visible_in_graphs: true
+  use_datasets_from_db: true
 
 action_groups:
 - id: buildings
