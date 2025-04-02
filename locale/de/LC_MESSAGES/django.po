@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2025-04-01 08:49+0300\n"
-"PO-Revision-Date: 2025-04-01 12:20+0000\n"
+"PO-Revision-Date: 2025-04-02 07:20+0000\n"
 "Last-Translator: Matias Wargelin <matias.wargelin@kausal.tech>\n"
 "Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>"
 "\n"
@@ -204,12 +204,12 @@ msgstr ""
 #: kausal_common/datasets/models.py
 msgid "For a newly created dataset, start entering values from this year"
 msgstr ""
-"Bei einem neu erstellten Datensatz beginnen Sie mit der Eingabe von Werten "
+"Für einen neu erstellten Datensatz beginnen Sie mit der Eingabe von Werten "
 "aus diesem Jahr"
 
 #: kausal_common/datasets/models.py
 msgid "Descriptive name of the dataset schema"
-msgstr "Beschreibender Name des Schemas des Datensatzes"
+msgstr "Beschreibender Name des Datensatzschemas"
 
 #: kausal_common/datasets/models.py nodes/models.py
 msgid "Description"
@@ -225,7 +225,7 @@ msgstr "Zeitauflösung"
 
 #: kausal_common/datasets/models.py
 msgid "Initial date"
-msgstr "Erstes Datum"
+msgstr "Ausgangsdatum"
 
 #: kausal_common/datasets/models.py
 msgid "Metrics"
@@ -241,7 +241,8 @@ msgstr "Dimensionen"
 
 #: kausal_common/datasets/models.py
 msgid "Used when metrics are tracked for multiple categories"
-msgstr "Wird verwendet, wenn die Metriken für mehrere Kategorien verfolgt werden"
+msgstr ""
+"Wird verwendet, wenn die Messgrößen für mehrere Kategorien verfolgt werden"
 
 #: kausal_common/datasets/models.py
 #, fuzzy
