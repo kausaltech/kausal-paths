@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://ostersund-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 013f16b8e5041a32c3f865994ade3bb627a9c6a2
+  commit: 310c7977472c7169ac8bbfe979ca52221a710d65
   dvc_remote: kausal-s3
 name: Östersund Greenhouse Gas Inventory
 owner: City of Östersund
@@ -353,7 +353,7 @@ dimensions:
   categories:
   - id: electrify_light_work_machines
     label: 'Electrify Light Work Machines'
-  - id: fossil_free_car_rental_agreement
+  - id: fossilfree_car_rental_agreement
     label: 'Fossil-Free Car Rental Agreement'
   - id: offset_flight_emissions_with_green_aviation_fuel
     label: 'Offset Flight Emissions with Green Aviation Fuel'
@@ -365,11 +365,11 @@ dimensions:
     label: 'Procure Renewable Energy in Transport Services'
   - id: replace_city_fleet_with_electric_vehicles
     label: 'Replace City Fleet with Electric Vehicles'
-  - id: replace_diesel_with_hvo100_in_ms_thomee
+  - id: replace_diesel_with_hvo100_in_m_s_thomee
     label: 'Replace Diesel with HVO100 in M/S Thomée'
   - id: replace_fuel_oil_heating_with_geothermal
     label: 'Replace Fuel Oil Heating with Geothermal'
-  - id: zero_emission_factor_for_district_heating
+  - id: zeroemission_factor_for_district_heating
     label: 'Zero-Emission Factor for District Heating'
 
 emission_sectors:
@@ -389,16 +389,21 @@ nodes:
 
 - id: i1_residential_combustion
   name: I.1 Residential Combustion
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: fuel_consumption
   unit: l/a
   input_dimensions: ['energy_carrier', 'owner', 'scope']
   output_dimensions: ['energy_carrier', 'owner', 'scope']
-  params:
-    gpc_sector: I.1
   input_datasets:
-  - id: gpc/ostersund
+  - id: ostersund/organizational_stationary
+    column: fuel_consumption
+    dropna: true
     forecast_from: 2024
+    filters:
+    - column: sector
+      value: i1
+    - column: ghg
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: i1_residential_combustion_emissions
     to_dimensions:
@@ -423,16 +428,20 @@ nodes:
 
 - id: i1_residential_emission_factor
   name: I.1 Residential Emission Factor
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/l
   input_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
   output_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
-  params:
-    gpc_sector: I.1
   input_datasets:
-  - id: gpc/ostersund
+  - id: ostersund/organizational_stationary
+    column: emission_factor_fuel
+    dropna: true
     forecast_from: 2024
+    filters:
+    - column: sector
+      value: i1
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: i1_residential_combustion_emissions
     to_dimensions:
@@ -443,16 +452,22 @@ nodes:
 
 - id: i1_residential_price
   name: I.1 Residential Price
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: currency
   unit: kSEK/a
   input_dimensions: ['owner', 'scope']
   output_dimensions: ['owner', 'scope']
-  params:
-    gpc_sector: I.1
   input_datasets:
-  - id: gpc/ostersund
+  - id: ostersund/organizational_stationary
+    column: currency
+    dropna: true
     forecast_from: 2024
+    filters:
+    - column: sector
+      value: i1
+    - column: energy_carrier
+    - column: ghg
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: i_stationary_total_price
     to_dimensions:
@@ -461,16 +476,21 @@ nodes:
 
 - id: i42_energy_grid_energy_consumption
   name: I.4.2 Energy Grid Energy Consumption
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
   input_dimensions: ['energy_carrier', 'owner', 'scope']
   output_dimensions: ['energy_carrier', 'owner', 'scope']
-  params:
-    gpc_sector: I.4.2
   input_datasets:
-  - id: gpc/ostersund
+  - id: ostersund/organizational_stationary
+    column: energy
+    dropna: true
     forecast_from: 2024
+    filters:
+    - column: sector
+      value: i42
+    - column: ghg
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: i42_energy_grid_energy_consumption_emissions
     to_dimensions:
@@ -495,16 +515,20 @@ nodes:
 
 - id: i42_energy_grid_energy_emission_factor
   name: I.4.2 Energy Grid Energy Emission Factor
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: t/GWh
   input_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
   output_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
-  params:
-    gpc_sector: I.4.2
   input_datasets:
-  - id: gpc/ostersund
+  - id: ostersund/organizational_stationary
+    column: emission_factor_energy
+    dropna: true
     forecast_from: 2024
+    filters:
+    - column: sector
+      value: i42
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: i42_energy_grid_energy_consumption_emissions
     to_dimensions:
@@ -515,16 +539,21 @@ nodes:
 
 - id: ii11_onroad_transport_fuel_combustion
   name: II.1.1 On-Road Transport Fuel Combustion
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: fuel_consumption
   unit: l/a
   input_dimensions: ['owner', 'scope', 'energy_carrier']
   output_dimensions: ['owner', 'scope', 'energy_carrier']
-  params:
-    gpc_sector: II.1.1
   input_datasets:
-  - id: gpc/ostersund
+  - id: ostersund/organizational_onroad_transportation
+    column: fuel_consumption
+    dropna: true
     forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii11
+    - column: ghg
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii11_onroad_transport_fuel_combustion_emissions
     to_dimensions:
@@ -551,16 +580,20 @@ nodes:
 
 - id: ii11_onroad_transport_fuel_emission_factor
   name: II.1.1 On-Road Transport Fuel Emission Factor
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/l
   input_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
   output_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
-  params:
-    gpc_sector: II.1.1
   input_datasets:
-  - id: gpc/ostersund
+  - id: ostersund/organizational_onroad_transportation
+    column: emission_factor
+    dropna: true
     forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii11
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii11_onroad_transport_fuel_combustion_emissions
     to_dimensions:
@@ -571,16 +604,22 @@ nodes:
 
 - id: ii11_onroad_transport_fuel_price
   name: II.1.1 On-Road Transport Fuel Price
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: currency
   unit: kSEK/a
   input_dimensions: ['owner', 'scope']
   output_dimensions: ['owner', 'scope']
-  params:
-    gpc_sector: II.1.1
   input_datasets:
-  - id: gpc/ostersund
+  - id: ostersund/organizational_onroad_transportation
+    column: currency
+    dropna: true
     forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii11
+    - column: energy_carrier
+    - column: ghg
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii1_onroad_transport_total_price
     to_dimensions:
@@ -589,16 +628,21 @@ nodes:
 
 - id: ii13_onroad_transport_indirect_emissions
   name: II.1.3 On-Road Transport Indirect Emissions
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
   input_dimensions: ['owner', 'ghg', 'scope']
   output_dimensions: ['owner', 'ghg', 'scope']
-  params:
-    gpc_sector: II.1.3
   input_datasets:
-  - id: gpc/ostersund
+  - id: ostersund/organizational_onroad_transportation
+    column: emissions
+    dropna: true
     forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii13
+    - column: energy_carrier
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii1_onroad_transport_total_emissions
     to_dimensions:
@@ -608,16 +652,22 @@ nodes:
 
 - id: ii31_waterborne_fuel_combustion
   name: II.3.1 Waterborne Fuel Combustion
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: fuel_consumption
   unit: l/a
   input_dimensions: ['energy_carrier', 'owner', 'scope']
   output_dimensions: ['energy_carrier', 'owner', 'scope']
-  params:
-    gpc_sector: II.3.1
   input_datasets:
-  - id: gpc/ostersund
+  - id: ostersund/organizational_other_transportation
+    column: fuel_consumption
+    dropna: true
     forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii31
+    - column: ghg
+    - column: business_travel_type
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii31_waterborne_fuel_combustion_emissions
     to_dimensions:
@@ -642,16 +692,21 @@ nodes:
 
 - id: ii31_waterborne_fuel_emission_factor
   name: II.3.1 Waterborne Fuel Emission Factor
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/l
   input_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
   output_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
-  params:
-    gpc_sector: II.3.1
   input_datasets:
-  - id: gpc/ostersund
+  - id: ostersund/organizational_other_transportation
+    column: emission_factor
+    dropna: true
     forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii31
+    - column: business_travel_type
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii31_waterborne_fuel_combustion_emissions
     to_dimensions:
@@ -662,16 +717,23 @@ nodes:
 
 - id: ii31_waterborne_fuel_price
   name: II.3.1 Waterborne Fuel Price
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: currency
   unit: kSEK/a
   input_dimensions: ['owner', 'scope']
   output_dimensions: ['owner', 'scope']
-  params:
-    gpc_sector: II.3.1
   input_datasets:
-  - id: gpc/ostersund
+  - id: ostersund/organizational_other_transportation
+    column: currency
+    dropna: true
     forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii31
+    - column: energy_carrier
+    - column: ghg
+    - column: business_travel_type
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii3_waterborne_total_price
     to_dimensions:
@@ -680,16 +742,21 @@ nodes:
 
 - id: ii41_aviation_fuel_emissions
   name: II.4.1 Aviation Fuel Emissions
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
   input_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
   output_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
-  params:
-    gpc_sector: II.4.1
   input_datasets:
-  - id: gpc/ostersund
+  - id: ostersund/organizational_other_transportation
+    column: emissions
+    dropna: true
     forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii41
+    - column: business_travel_type
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii4_aviation_total_emissions
     to_dimensions:
@@ -713,16 +780,22 @@ nodes:
 
 - id: ii51_offroad_transport_fuel_combustion
   name: II.5.1 Off-Road Transport Fuel Combustion
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: fuel_consumption
   unit: l/a
   input_dimensions: ['energy_carrier', 'owner', 'scope']
   output_dimensions: ['energy_carrier', 'owner', 'scope']
-  params:
-    gpc_sector: II.5.1
   input_datasets:
-  - id: gpc/ostersund
+  - id: ostersund/organizational_other_transportation
+    column: fuel_consumption
+    dropna: true
     forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii51
+    - column: ghg
+    - column: business_travel_type
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii51_offroad_transport_fuel_combustion_emissions
     to_dimensions:
@@ -747,16 +820,21 @@ nodes:
 
 - id: ii51_offroad_transport_fuel_emission_factor
   name: II.5.1 Off-Road Transport Fuel Emission Factor
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/l
   input_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
   output_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
-  params:
-    gpc_sector: II.5.1
   input_datasets:
-  - id: gpc/ostersund
+  - id: ostersund/organizational_other_transportation
+    column: emission_factor
+    dropna: true
     forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii51
+    - column: business_travel_type
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii51_offroad_transport_fuel_combustion_emissions
     to_dimensions:
@@ -767,16 +845,23 @@ nodes:
 
 - id: ii51_offroad_transport_fuel_price
   name: II.5.1 Off-Road Transport Fuel Price
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: currency
   unit: kSEK/a
   input_dimensions: ['owner', 'scope']
   output_dimensions: ['owner', 'scope']
-  params:
-    gpc_sector: II.5.1
   input_datasets:
-  - id: gpc/ostersund
+  - id: ostersund/organizational_other_transportation
+    column: currency
+    dropna: true
     forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii51
+    - column: energy_carrier
+    - column: ghg
+    - column: business_travel_type
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii5_offroad_transport_total_price
     to_dimensions:
@@ -785,16 +870,22 @@ nodes:
 
 - id: ii53_offroad_transport_indirect_combustion
   name: II.5.3 Off-Road Transport Indirect Combustion
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: fuel_consumption
   unit: l/a
   input_dimensions: ['energy_carrier', 'owner', 'scope']
   output_dimensions: ['energy_carrier', 'owner', 'scope']
-  params:
-    gpc_sector: II.5.3
   input_datasets:
-  - id: gpc/ostersund
+  - id: ostersund/organizational_other_transportation
+    column: fuel_consumption
+    dropna: true
     forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii53
+    - column: ghg
+    - column: business_travel_type
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii53_offroad_transport_indirect_combustion_emissions
     to_dimensions:
@@ -819,16 +910,21 @@ nodes:
 
 - id: ii53_offroad_transport_indirect_emission_factor
   name: II.5.3 Off-Road Transport Indirect Emission Factor
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/l
   input_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
   output_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
-  params:
-    gpc_sector: II.5.3
   input_datasets:
-  - id: gpc/ostersund
+  - id: ostersund/organizational_other_transportation
+    column: emission_factor
+    dropna: true
     forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii53
+    - column: business_travel_type
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii53_offroad_transport_indirect_combustion_emissions
     to_dimensions:
@@ -839,16 +935,22 @@ nodes:
 
 - id: ii_transportation_emissions
   name: II Transportation Emissions
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
   input_dimensions: ['business_travel_type', 'owner', 'ghg']
   output_dimensions: ['business_travel_type', 'owner', 'ghg']
-  params:
-    gpc_sector: II
   input_datasets:
-  - id: gpc/ostersund
+  - id: ostersund/organizational_other_transportation
+    column: emissions
+    dropna: true
     forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii
+    - column: scope
+    - column: energy_carrier
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii_transportation_total_emissions
     from_dimensions:
@@ -1932,31 +2034,37 @@ actions:
 # Zeros II.5.1 alkylate gasoline consumption from 2025.
 - id: electrify_light_work_machines
   name: Electrify Light Work Machines
-  type: gpc.DatasetActionMFM
+  type: simple.AdditiveAction
   group: transportation
   input_dimensions: ['scope', 'energy_carrier', 'owner']
   output_dimensions: ['scope', 'energy_carrier', 'owner']
   params:
-    action: Electrify Light Work Machines
+    allow_null_categories: true
   input_datasets:
-  - id: gpc/ostersund_simple_actions
+  - id: ostersund/organizational_other_transportation_actions
     forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: electrify_light_work_machines
+    - column: ghg
+    - column: business_travel_type
   output_metrics:
-  - id: ii51_fuel_consumption
+  - id: fuel_consumption
     unit: l/a
     quantity: fuel_consumption
-  - id: ii51_currency
+  - id: currency
     unit: kSEK/a
     quantity: currency
   output_nodes:
   - id: ii51_offroad_transport_fuel_combustion
-    metrics: [ii51_fuel_consumption]
+    metrics: [fuel_consumption]
     to_dimensions:
     - id: scope
     - id: energy_carrier
     - id: owner
   - id: ii51_offroad_transport_fuel_price
-    metrics: [ii51_currency]
+    metrics: [currency]
     from_dimensions:
     - id: energy_carrier
       flatten: true
@@ -1967,17 +2075,22 @@ actions:
 # Zeros II rental car emissions from 2025.
 - id: fossil_free_car_rental_agreement
   name: Fossil-Free Car Rental Agreement
-  type: gpc.DatasetActionMFM
+  type: simple.AdditiveAction
   group: transportation
   unit: kt/a
   quantity: emissions
   input_dimensions: ['business_travel_type', 'owner', 'ghg']
   output_dimensions: ['business_travel_type', 'owner', 'ghg']
-  params:
-    action: Fossil-Free Car Rental Agreement
   input_datasets:
-  - id: gpc/ostersund_simple_actions
+  - id: ostersund/organizational_other_transportation_actions
+    column: emissions
     forecast_from: 2024
+    filters:
+    - column: sector
+    - column: scope
+    - column: action
+      value: fossilfree_car_rental_agreement
+    - column: energy_carrier
   output_nodes:
   - id: ii_transportation_emissions
     to_dimensions:
@@ -1988,32 +2101,37 @@ actions:
 # Zeros II.4.1 aviation gasoline emissions from 2025.
 - id: offset_flight_emissions_with_green_aviation_fuel
   name: Offset Flight Emissions with Green Aviation Fuel
-  type: gpc.DatasetActionMFM
+  type: simple.AdditiveAction
   group: transportation
   input_dimensions: ['scope', 'energy_carrier', 'ghg', 'owner']
   output_dimensions: ['scope', 'energy_carrier', 'ghg', 'owner']
   params:
-    action: Offset Flight Emissions with Green Aviation Fuel
+    allow_null_categories: true
   input_datasets:
-  - id: gpc/ostersund_simple_actions
+  - id: ostersund/organizational_other_transportation_actions
     forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: offset_flight_emissions_with_green_aviation_fuel
+    - column: business_travel_type
   output_metrics:
-  - id: ii41_emissions
+  - id: emissions
     unit: kt/a
     quantity: emissions
-  - id: ii41_currency
+  - id: currency
     unit: kSEK/a
     quantity: currency
   output_nodes:
   - id: ii41_aviation_fuel_emissions
-    metrics: [ii41_emissions]
+    metrics: [emissions]
     to_dimensions:
     - id: scope
     - id: energy_carrier
     - id: ghg
     - id: owner
   - id: ii41_aviation_fuel_price
-    metrics: [ii41_currency]
+    metrics: [currency]
     from_dimensions:
     - id: energy_carrier
       flatten: true
@@ -2026,17 +2144,22 @@ actions:
 # Zeros II private car emissions from 2025.
 - id: phase_out_private_cars_in_service
   name: Phase out Private Cars in Service
-  type: gpc.DatasetActionMFM
+  type: simple.AdditiveAction
   group: transportation
   unit: kt/a
   quantity: emissions
   input_dimensions: ['business_travel_type', 'owner', 'ghg']
   output_dimensions: ['business_travel_type', 'owner', 'ghg']
-  params:
-    action: Phase out Private Cars in Service
   input_datasets:
-  - id: gpc/ostersund_simple_actions
+  - id: ostersund/organizational_other_transportation_actions
+    column: emissions
     forecast_from: 2024
+    filters:
+    - column: sector
+    - column: scope
+    - column: action
+      value: phase_out_private_cars_in_service
+    - column: energy_carrier
   output_nodes:
   - id: ii_transportation_emissions
     to_dimensions:
@@ -2047,17 +2170,21 @@ actions:
 # Zeros II.5.3 diesel emissions from 2025.
 - id: procure_renewable_energy_in_direct_machine_services
   name: Procure 100% Renewable Energy in Direct Machine Services
-  type: gpc.DatasetActionMFM
+  type: simple.AdditiveAction
   group: transportation
   unit: kt/a
   quantity: emissions
   input_dimensions: ['scope', 'energy_carrier', 'ghg', 'owner']
   output_dimensions: ['scope', 'energy_carrier', 'ghg', 'owner']
-  params:
-    action: Procure 100% Renewable Energy in Direct Machine Services
   input_datasets:
-  - id: gpc/ostersund_simple_actions
+  - id: ostersund/organizational_other_transportation_actions
+    column: emissions
     forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: procure_renewable_energy_in_machine_services
+    - column: business_travel_type
   output_nodes:
   - id: ii53_offroad_transport_indirect_combustion_emissions
     to_dimensions:
@@ -2069,17 +2196,21 @@ actions:
 # Zeros II.1.3 emissions from 2025.
 - id: procure_renewable_energy_in_direct_transport_services
   name: Procure 100% Renewable Energy in Direct Transport Services
-  type: gpc.DatasetActionMFM
+  type: simple.AdditiveAction
   group: transportation
   unit: kt/a
   quantity: emissions
   input_dimensions: ['scope', 'ghg', 'owner']
   output_dimensions: ['scope', 'ghg', 'owner']
-  params:
-    action: Procure 100% Renewable Energy in Direct Transport Services
   input_datasets:
-  - id: gpc/ostersund_simple_actions
+  - id: ostersund/organizational_onroad_transportation_actions
+    column: emissions
     forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: procure_renewable_energy_in_transport_services
+    - column: energy_carrier
   output_nodes:
   - id: ii13_onroad_transport_indirect_emissions
     to_dimensions:
@@ -2090,31 +2221,36 @@ actions:
 # Zeros II.1.1 fuel consumption from 2025.
 - id: replace_city_fleet_with_electric_vehicles
   name: Replace City Fleet with Electric Vehicles
-  type: gpc.DatasetActionMFM
+  type: simple.AdditiveAction
   group: transportation
   input_dimensions: ['scope', 'energy_carrier', 'owner']
   output_dimensions: ['scope', 'energy_carrier', 'owner']
   params:
-    action: Replace City Fleet with Electric Vehicles
+    allow_null_categories: true
   input_datasets:
-  - id: gpc/ostersund_simple_actions
+  - id: ostersund/organizational_onroad_transportation_actions
     forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: replace_city_fleet_with_electric_vehicles
+    - column: ghg
   output_metrics:
-  - id: ii11_fuel_consumption
+  - id: fuel_consumption
     unit: l/a
     quantity: fuel_consumption
-  - id: ii11_currency
+  - id: currency
     unit: kSEK/a
     quantity: currency
   output_nodes:
   - id: ii11_onroad_transport_fuel_combustion
-    metrics: [ii11_fuel_consumption]
+    metrics: [fuel_consumption]
     to_dimensions:
     - id: scope
     - id: energy_carrier
     - id: owner
   - id: ii11_onroad_transport_fuel_price
-    metrics: [ii11_currency]
+    metrics: [currency]
     from_dimensions:
     - id: energy_carrier
       flatten: true
@@ -2125,31 +2261,37 @@ actions:
 # Zeros II.3.1 fuel consumption from 2024.
 - id: replace_diesel_with_hvo100_in_ms_thomee
   name: Replace Diesel with HVO100 in M/S Thomée
-  type: gpc.DatasetActionMFM
+  type: simple.AdditiveAction
   group: transportation
   input_dimensions: ['scope', 'energy_carrier', 'owner']
   output_dimensions: ['scope', 'energy_carrier', 'owner']
   params:
-    action: Replace Diesel with HVO100 in M/S Thomée
+    allow_null_categories: true
   input_datasets:
-  - id: gpc/ostersund_simple_actions
+  - id: ostersund/organizational_other_transportation_actions
     forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: replace_diesel_with_hvo100_in_m_s_thomee
+    - column: ghg
+    - column: business_travel_type
   output_metrics:
-  - id: ii31_fuel_consumption
+  - id: fuel_consumption
     unit: l/a
     quantity: fuel_consumption
-  - id: ii31_currency
+  - id: currency
     unit: kSEK/a
     quantity: currency
   output_nodes:
   - id: ii31_waterborne_fuel_combustion
-    metrics: [ii31_fuel_consumption]
+    metrics: [fuel_consumption]
     to_dimensions:
     - id: scope
     - id: energy_carrier
     - id: owner
   - id: ii31_waterborne_fuel_price
-    metrics: [ii31_currency]
+    metrics: [currency]
     from_dimensions:
     - id: energy_carrier
       flatten: true
@@ -2160,31 +2302,36 @@ actions:
 # Zeros I.1 fuel consumption from 2026.
 - id: replace_fuel_oil_heating_with_geothermal
   name: Replace Fuel Oil Heating with Geothermal
-  type: gpc.DatasetActionMFM
+  type: simple.AdditiveAction
   group: stationary
   input_dimensions: ['scope', 'energy_carrier', 'owner']
   output_dimensions: ['scope', 'energy_carrier', 'owner']
   params:
-    action: Replace Fuel Oil Heating with Geothermal
+    allow_null_categories: true
   input_datasets:
-  - id: gpc/ostersund_simple_actions
+  - id: ostersund/organizational_stationary_actions
     forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: replace_fuel_oil_heating_with_geothermal
+    - column: ghg
   output_metrics:
-  - id: i1_fuel_consumption
+  - id: fuel_consumption
     unit: l/a
     quantity: fuel_consumption
-  - id: i1_currency
+  - id: currency
     unit: kSEK/a
     quantity: currency
   output_nodes:
   - id: i1_residential_combustion
-    metrics: [i1_fuel_consumption]
+    metrics: [fuel_consumption]
     to_dimensions:
     - id: scope
     - id: energy_carrier
     - id: owner
   - id: i1_residential_price
-    metrics: [i1_currency]
+    metrics: [currency]
     from_dimensions:
     - id: energy_carrier
       flatten: true
@@ -2195,17 +2342,20 @@ actions:
 # Zeros I.4.2 district heat emissions from 2025.
 - id: zero_emission_factor_for_district_heating
   name: Zero-Emission Factor for District Heating
-  type: gpc.DatasetActionMFM
+  type: simple.AdditiveAction
   group: stationary
   unit: t/a
   quantity: emissions
   input_dimensions: ['energy_carrier', 'owner', 'ghg', 'scope']
   output_dimensions: ['energy_carrier', 'owner', 'ghg', 'scope']
-  params:
-    action: Zero-Emission Factor for District Heating
   input_datasets:
-  - id: gpc/ostersund_simple_actions
+  - id: ostersund/organizational_stationary_actions
+    column: emissions
     forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: zeroemission_factor_for_district_heating
   output_nodes:
   - id: i42_energy_grid_energy_consumption_emissions
     to_dimensions:
