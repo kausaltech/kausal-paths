@@ -20,6 +20,7 @@ features:
   baseline_visible_in_graphs: true
   show_significant_digits: 3
   maximum_fraction_digits: 0
+  use_datasets_from_db: true
 
 action_groups:
 - id: stationary
