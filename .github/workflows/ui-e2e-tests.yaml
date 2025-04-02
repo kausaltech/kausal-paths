@@ -143,62 +143,44 @@ jobs:
           apt-get update && apt-get install -y jq bc
         shell: bash
 
-      - name: Running Playwright e2e tests with coverage tracking
+      - name: Start coverage tracking
         run: |
-          # Start coverage tracking
           START_COVERAGE_QUERY='mutation { testMode { startCoverageTracking } }'
-
-          echo "Starting coverage tracking..."
           RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" \
             -d "{\"query\": \"$START_COVERAGE_QUERY\"}" \
             http://localhost:8000/v1/graphql/)
-
-          # Debug: Print the raw response
-          echo "Raw API response:"
-          echo "$RESPONSE"
-
           START_RESULT=$(echo $RESPONSE | jq -r '.data.testMode.startCoverageTracking')
-
           if [ "$START_RESULT" = "true" ]; then
             echo "Coverage tracking started successfully"
           else
             echo "Failed to start coverage tracking"
             exit 1
           fi
+        working-directory: ./e2e-tests
+        shell: bash
 
-          # Run the e2e tests
-          node_modules/.bin/playwright test
+      - name: Running Playwright e2e tests
+        run: node_modules/.bin/playwright test
+        id: playwright_test
+        working-directory: ./e2e-tests
 
-          # Stop coverage tracking and generate XML report
+      - name: Stop coverage tracking and collect data
+        if: always() && !cancelled()
+        run: |
           mkdir -p coverage-data
           STOP_COVERAGE_QUERY='mutation { testMode { stopCoverageTracking { xml } } }'
-
-          echo "Stopping coverage tracking and generating XML report..."
           RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" \
             -d "{\"query\": \"$STOP_COVERAGE_QUERY\"}" \
             http://localhost:8000/v1/graphql/)
-
-          # Debug: Print the raw response
-          echo "Raw API response:"
-          echo "$RESPONSE"
-
-          # Extract the XML report
           XML_REPORT=$(echo $RESPONSE | jq -r '.data.testMode.stopCoverageTracking.xml')
-
           if [ -z "$XML_REPORT" ] || [ "$XML_REPORT" = "null" ]; then
             echo "Warning: No XML report was generated"
           else
-            # Save the XML report for Codecov
             echo "$XML_REPORT" > coverage-data/coverage.xml
-
-            # Calculate coverage percentage from XML
             COVERAGE_PERCENTAGE=$(grep -o 'line-rate="[0-9.]*"' coverage-data/coverage.xml | head -1 | grep -o '[0-9.]*')
             COVERAGE_PERCENTAGE=$(echo "$COVERAGE_PERCENTAGE * 100" | bc)
-
-            echo "Coverage data collected. Overall coverage: $COVERAGE_PERCENTAGE%"
-            echo "📊 Code coverage: $COVERAGE_PERCENTAGE%" >> $GITHUB_STEP_SUMMARY
+            echo "Coverage data collected for e2e tests. Test coverage of backend: $COVERAGE_PERCENTAGE%"
           fi
-        id: playwright_test
         working-directory: ./e2e-tests
         shell: bash
 
@@ -227,21 +209,36 @@ jobs:
           report-file: ./e2e-tests/test-results.json
           report-url: ${{steps.upload.outputs.test_report_url}}
 
-      - name: Upload coverage reports to Codecov
+      - name: Upload coverage report as artifact
         if: always() && !cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: ./e2e-tests/coverage-data/coverage.xml
+          retention-days: 1
+
+  upload-coverage:
+    name: Upload coverage report to Codecov
+    needs: e2e_test
+    runs-on: ubuntu-latest
+    if: always() && !cancelled()
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Download coverage report artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-coverage
+          path: ./coverage-data
+
+      - name: Upload coverage report to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./e2e-tests/coverage-data/coverage.xml
+          files: ./coverage-data/coverage.xml
           url: https://codecoverage.kausal.dev
           flags: e2e-tests
-          fail_ci_if_error: false
-
-      - name: Upload test results to Codecov
-        if: always() && !cancelled()
-        uses: codecov/test-results-action@v1
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./e2e-tests/playwright-report/results.xml
-          url: https://codecoverage.kausal.dev
-          flags: e2e-tests
+          recurse_submodules: true
