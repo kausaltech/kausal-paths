@@ -52,6 +52,8 @@ on:
         required: false
       NPM_TOKEN:
         required: false
+      CODECOV_TOKEN:
+        required: false
 
     outputs:
       test_report_url:
@@ -99,6 +101,7 @@ jobs:
           ALLOWED_HOSTS: localhost
           KUBERNETES_LOGGING: 1
           TEST_MODE: 1
+          CI: 1
           TEST_INSTANCE_IDENTIFIERS: ${{ inputs.instance_identifiers }}
           SECRET_KEY: abcd
           SENTRY_DSN: ${{ vars.SENTRY_DSN }}
@@ -134,10 +137,52 @@ jobs:
       - name: Wait for backend to get ready
         run: wait-for-it.sh -t 180 localhost:8000
 
+      - name: Set up environment
+        run: |
+          # Install jq for JSON processing
+          apt-get update && apt-get install -y jq bc
+        shell: bash
+
+      - name: Start coverage tracking
+        run: |
+          START_COVERAGE_QUERY='mutation { testMode { startCoverageTracking } }'
+          RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" \
+            -d "{\"query\": \"$START_COVERAGE_QUERY\"}" \
+            http://localhost:8000/v1/graphql/)
+          START_RESULT=$(echo $RESPONSE | jq -r '.data.testMode.startCoverageTracking')
+          if [ "$START_RESULT" = "true" ]; then
+            echo "Coverage tracking started successfully"
+          else
+            echo "Failed to start coverage tracking"
+            exit 1
+          fi
+        working-directory: ./e2e-tests
+        shell: bash
+
       - name: Running Playwright e2e tests
         run: node_modules/.bin/playwright test
         id: playwright_test
         working-directory: ./e2e-tests
+
+      - name: Stop coverage tracking and collect data
+        if: always() && !cancelled()
+        run: |
+          mkdir -p coverage-data
+          STOP_COVERAGE_QUERY='mutation { testMode { stopCoverageTracking { xml } } }'
+          RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" \
+            -d "{\"query\": \"$STOP_COVERAGE_QUERY\"}" \
+            http://localhost:8000/v1/graphql/)
+          XML_REPORT=$(echo $RESPONSE | jq -r '.data.testMode.stopCoverageTracking.xml')
+          if [ -z "$XML_REPORT" ] || [ "$XML_REPORT" = "null" ]; then
+            echo "Warning: No XML report was generated"
+          else
+            echo "$XML_REPORT" > coverage-data/coverage.xml
+            COVERAGE_PERCENTAGE=$(grep -o 'line-rate="[0-9.]*"' coverage-data/coverage.xml | head -1 | grep -o '[0-9.]*')
+            COVERAGE_PERCENTAGE=$(echo "$COVERAGE_PERCENTAGE * 100" | bc)
+            echo "Coverage data collected for e2e tests. Test coverage of backend: $COVERAGE_PERCENTAGE%"
+          fi
+        working-directory: ./e2e-tests
+        shell: bash
 
       - name: Upload test report to S3
         id: upload
@@ -163,3 +208,37 @@ jobs:
         with:
           report-file: ./e2e-tests/test-results.json
           report-url: ${{steps.upload.outputs.test_report_url}}
+
+      - name: Upload coverage report as artifact
+        if: always() && !cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: ./e2e-tests/coverage-data/coverage.xml
+          retention-days: 1
+
+  upload-coverage:
+    name: Upload coverage report to Codecov
+    needs: e2e_test
+    runs-on: ubuntu-latest
+    if: always() && !cancelled()
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Download coverage report artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-coverage
+          path: ./coverage-data
+
+      - name: Upload coverage report to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage-data/coverage.xml
+          url: https://codecoverage.kausal.dev
+          flags: e2e-tests
+          recurse_submodules: true
