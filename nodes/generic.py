@@ -141,6 +141,43 @@ class GenericNode(SimpleNode):
             df = df.multiply_quantity(VALUE_COLUMN, mult)
         return df, baskets
 
+    def drop_unnecessary_levels(self, df: ppl.PathsDataFrame, droplist: list) -> ppl.PathsDataFrame:
+        # Drop filter levels and empty dimension levels.
+        drops = [d for d in droplist if d in df.columns]
+        df = df.drop(drops)
+        df = df.filter(~pl.col(VALUE_COLUMN).is_null())
+        null_cols = [col for col in df.columns if df[col].null_count() == len(df)]
+        df = df.drop(null_cols)
+        print(type(df))
+        return df
+
+    # -----------------------------------------------------------------------------------
+    # Copied from gpc.DatasetNode
+    def add_missing_years(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        # Add forecast column if needed.
+        if FORECAST_COLUMN not in df.columns:
+            df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
+
+        # Add missing years and interpolate missing values.
+        df = df.paths.to_wide()
+        yearrange = range(df[YEAR_COLUMN].min(), (df[YEAR_COLUMN].max() + 1))  # type: ignore
+        nullcount = df.null_count().sum_horizontal()[0]
+
+        if (len(df[YEAR_COLUMN].unique()) < len(yearrange)) | (nullcount > 0):
+            yeardf = ppl.PathsDataFrame({YEAR_COLUMN: yearrange})
+            yeardf._units = {}
+            yeardf._primary_keys = [YEAR_COLUMN]
+
+            df = df.paths.join_over_index(yeardf, how='outer')
+            for col in list(set(df.columns) - {YEAR_COLUMN, FORECAST_COLUMN}):
+                df = df.with_columns(pl.col(col).interpolate())
+
+            df = df.with_columns(pl.col(FORECAST_COLUMN).fill_null(strategy='backward'))
+
+        df = df.paths.to_narrow()
+        return df
+
+    # -----------------------------------------------------------------------------------
     def compute(self) -> ppl.PathsDataFrame:
         """Process inputs according to the operations sequence."""
         # Get operation sequence from parameter or class default
@@ -149,6 +186,10 @@ class GenericNode(SimpleNode):
 
         # Get input dataset and categorize nodes
         df = self.get_input_dataset_pl(tag='baseline', required=False)
+        if df is not None:
+            df = self.drop_unnecessary_levels(df, droplist=[])
+            df = self.add_missing_years(df)
+            df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
         baskets = self._get_input_baskets(self.input_nodes)
 
         # Track original node counts for validation
