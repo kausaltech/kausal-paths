@@ -344,7 +344,9 @@ dimensions:
 
 emission_sectors:
 - id: net_emissions
-  name: Net emissions
+  name: Net Emissions
+  is_outcome: true
+
 
 nodes:
 # ----- Detailed Inventory -----
