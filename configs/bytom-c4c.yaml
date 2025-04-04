@@ -18,6 +18,7 @@ emission_forecast_from: 2024
 emission_dimensions: ['ghg']
 features:
   baseline_visible_in_graphs: true
+  use_datasets_from_db: true
 
 dimensions:
 - id: energy_carrier
