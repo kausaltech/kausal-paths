@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2025-04-01 08:49+0300\n"
-"PO-Revision-Date: 2025-04-01 12:20+0000\n"
+"PO-Revision-Date: 2025-04-02 12:20+0000\n"
 "Last-Translator: Matias Wargelin <matias.wargelin@kausal.tech>\n"
 "Language-Team: Swedish <https://weblate.kausal.tech/projects/paths/django/sv/"
 ">\n"
@@ -195,7 +195,7 @@ msgstr "Årligen"
 
 #: kausal_common/datasets/models.py
 msgid "Time resolution of the time stamps of data points in this dataset"
-msgstr "Tidsupplösning för tidsstämplarna för datapunkterna i denna dataset"
+msgstr "Tidsupplösning för tidsstämplarna för datapunkterna i detta dataset"
 
 #: kausal_common/datasets/models.py
 msgid "start date"

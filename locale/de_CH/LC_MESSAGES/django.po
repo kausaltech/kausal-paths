@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2025-04-01 08:49+0300\n"
-"PO-Revision-Date: 2025-04-02 07:20+0000\n"
+"PO-Revision-Date: 2025-04-02 10:20+0000\n"
 "Last-Translator: Matias Wargelin <matias.wargelin@kausal.tech>\n"
 "Language-Team: German (Switzerland) <https://weblate.kausal.tech/projects/"
 "paths/django/de_CH/>\n"
@@ -228,7 +228,7 @@ msgstr ""
 #: kausal_common/datasets/models.py
 msgid "Used when metrics are tracked for multiple categories"
 msgstr ""
-"Wird verwendet, wenn die Messgrössen für mehrere Kategorien verfolgt werden"
+"Wird verwendet, wenn die Metriken für mehrere Kategorien verfolgt werden"
 
 #: kausal_common/datasets/models.py
 msgid "dataset schema"
