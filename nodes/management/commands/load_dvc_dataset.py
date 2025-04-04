@@ -61,6 +61,8 @@ class Command(BaseCommand):
         parser.add_argument('instance', metavar='INSTANCE_ID', type=str, nargs=1)
         parser.add_argument('datasets', metavar='DATASET_ID', type=str, nargs='*')
         parser.add_argument('--all', action='store_true', help='Sync all datasets')
+        parser.add_argument('--ignore-prefix', action='append',
+                           help='Ignore datasets with IDs starting with the specified prefix. Can be used multiple times.')
         parser.add_argument('--force', action='store_true')
 
     def sync_dataset(self, instance_config: InstanceConfig, ctx: Context, ds_id: str, force: bool = False):
@@ -291,6 +293,27 @@ class Command(BaseCommand):
                 ds_ids = dvc_dataset_ids
         else:
             ds_ids = options['datasets']
+
+        ignore_prefixes = options.get('ignore_prefix') or []
+
+        # Ensure all prefixes end with / character for filtering
+        normalized_prefixes = []
+        for prefix in ignore_prefixes:
+            if not prefix.endswith('/'):
+                normalized_prefixes.append(f"{prefix}/")
+            else:
+                normalized_prefixes.append(prefix)
+
+        if normalized_prefixes:
+            filtered_ds_ids = [ds_id for ds_id in ds_ids
+                              if not any(ds_id.startswith(prefix) for prefix in normalized_prefixes)]
+
+            ignored_count = len(ds_ids) - len(filtered_ds_ids)
+            if ignored_count > 0:
+                display_prefixes = [p[:-1] for p in normalized_prefixes]
+                print(f"Ignoring {ignored_count} dataset(s) with prefix(es): {', '.join(display_prefixes)}")
+
+            ds_ids = filtered_ds_ids
 
         for ds_id in ds_ids:
             with transaction.atomic():
