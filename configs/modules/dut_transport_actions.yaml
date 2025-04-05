@@ -673,15 +673,16 @@ actions:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: nzc/defaults
+    filters:
+    - column: Transport mode
+      values: [light_trucks, heavy_trucks]
+      drop_col: false
   params:
     sector: Electrification of transport fleet
   input_nodes:
-  - id: fully_electric_vehicle_share_historical
-    from_dimensions:
-    - id: transport_mode
-      categories: [light_trucks, heavy_trucks]
+  - id: fully_electric_truck_share_historical
   output_nodes:
-  - id: fully_electric_vehicle_share
+  - id: fully_electric_truck_share
 
 # -------------- ELECTRICITY ----------------
 

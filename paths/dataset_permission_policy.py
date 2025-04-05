@@ -7,11 +7,9 @@ from django.db.models import Q
 
 from kausal_common.datasets.models import (
     DataPoint,
-    DataPointQuerySet,
     Dataset,
     DatasetQuerySet,
     DatasetSchema,
-    DatasetSchemaQuerySet,
 )
 from kausal_common.models.permission_policy import (
     BaseObjectAction,
@@ -19,18 +17,18 @@ from kausal_common.models.permission_policy import (
     ObjectSpecificAction,
     ParentInheritedPolicy,
 )
+from kausal_common.models.permissions import PermissionedQuerySet
 
 from paths.context import realm_context
 
 from nodes.roles import instance_admin_role, instance_viewer_role
 
 if TYPE_CHECKING:
-
     from nodes.models import InstanceConfig
     from users.models import User
 
 
-class DatasetSchemaPermissionPolicy(ModelPermissionPolicy[DatasetSchema, DatasetSchemaQuerySet]):
+class DatasetSchemaPermissionPolicy(ModelPermissionPolicy[DatasetSchema, 'InstanceConfig', PermissionedQuerySet[DatasetSchema]]):
     """Permission policy for DatasetSchema, based on its scope (InstanceConfig)."""
 
     def __init__(self):
@@ -116,7 +114,7 @@ class DatasetPermissionPolicy(ParentInheritedPolicy[Dataset, DatasetSchema, Data
         return self.parent_policy.user_has_perm(user, 'change', context)
 
 
-class DataPointPermissionPolicy(ParentInheritedPolicy[DataPoint, Dataset, DataPointQuerySet]):
+class DataPointPermissionPolicy(ParentInheritedPolicy[DataPoint, Dataset, PermissionedQuerySet[DataPoint]]):
     """Permission policy for DataPoint, inheriting from Dataset."""
 
     def __init__(self):
@@ -127,7 +125,7 @@ class DataPointPermissionPolicy(ParentInheritedPolicy[DataPoint, Dataset, DataPo
         parent_obj = self.get_parent_obj(obj)
         return self.parent_policy.user_has_perm(user, action, parent_obj)
 
-    def anon_has_perm(self, action: BaseObjectAction, obj: Dataset) -> bool:
+    def anon_has_perm(self, action: BaseObjectAction, obj: DataPoint) -> bool:
         return False
 
     def user_can_create(self, user: User, context: Dataset) -> bool:

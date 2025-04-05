@@ -7,10 +7,11 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-27 09:38+0200\n"
-"PO-Revision-Date: 2024-12-09 16:20+0000\n"
-"Last-Translator: DeepL <noreply-mt-deepl@weblate.org>\n"
-"Language-Team: Greek <https://weblate.kausal.tech/projects/paths/django/el/>\n"
+"POT-Creation-Date: 2025-04-01 08:49+0300\n"
+"PO-Revision-Date: 2025-04-01 12:20+0000\n"
+"Last-Translator: Matias Wargelin <matias.wargelin@kausal.tech>\n"
+"Language-Team: Greek <https://weblate.kausal.tech/projects/paths/django/el/>"
+"\n"
 "Language: el\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -194,19 +195,25 @@ msgstr "Διαστάσεις δεδομένων"
 
 #: kausal_common/datasets/models.py
 msgid "Yearly"
-msgstr ""
+msgstr "Ετήσια"
 
 #: kausal_common/datasets/models.py
 msgid "Time resolution of the time stamps of data points in this dataset"
-msgstr ""
+msgstr "Χρονική ανάλυση των χρονικών σφραγίδων των σημείων δεδομένων σε αυτό το σύνολο δεδομένων"
 
 #: kausal_common/datasets/models.py
 msgid "start date"
 msgstr ""
 
 #: kausal_common/datasets/models.py
-msgid "Descriptive name of the dataset schema"
+msgid "For a newly created dataset, start entering values from this year"
 msgstr ""
+"Για ένα νεοσύστατο σύνολο δεδομένων, αρχίστε να εισάγετε τιμές από το τρέχον "
+"έτος"
+
+#: kausal_common/datasets/models.py
+msgid "Descriptive name of the dataset schema"
+msgstr "Περιγραφικό όνομα του σχήματος του συνόλου δεδομένων"
 
 #: kausal_common/datasets/models.py nodes/models.py
 msgid "Description"
@@ -214,33 +221,31 @@ msgstr "Περιγραφή"
 
 #: kausal_common/datasets/models.py
 msgid "Description of the content and use of the dataset"
-msgstr ""
+msgstr "Περιγραφή του περιεχομένου και της χρήσης του συνόλου δεδομένων"
 
 #: kausal_common/datasets/models.py
 msgid "Time resolution"
-msgstr ""
+msgstr "Χρονική ανάλυση"
 
 #: kausal_common/datasets/models.py
 msgid "Initial date"
-msgstr ""
+msgstr "Αρχική ημερομηνία"
 
 #: kausal_common/datasets/models.py
 msgid "Metrics"
-msgstr ""
+msgstr "Μετρικές"
 
 #: kausal_common/datasets/models.py
 msgid "Defines the interpretation and units for the values of the dataset"
-msgstr ""
+msgstr "Καθορίζει την ερμηνεία και τις μονάδες για τις τιμές του συνόλου δεδομένων"
 
 #: kausal_common/datasets/models.py
-#, fuzzy
-#| msgid "Data dimensions"
 msgid "Dimensions"
-msgstr "Διαστάσεις δεδομένων"
+msgstr "Διαστάσεις"
 
 #: kausal_common/datasets/models.py
 msgid "Used when metrics are tracked for multiple categories"
-msgstr ""
+msgstr "Χρησιμοποιείται όταν οι μετρήσεις παρακολουθούνται για πολλαπλές κατηγορίες"
 
 #: kausal_common/datasets/models.py
 #, fuzzy

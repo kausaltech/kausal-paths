@@ -68,7 +68,11 @@ nodes:
   unit: TWh/a
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
-  input_datasets: [gpc/espoo] # TODO Use HSY data instead
+  input_datasets: # TODO Use HSY data instead
+  - id: gpc/espoo
+    filters:
+    - column: Slice
+      value: electricity
   params:
     sector: Sähkön kysyntäennuste (TWh)
 

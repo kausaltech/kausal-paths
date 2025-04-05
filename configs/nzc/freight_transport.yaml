@@ -1,21 +1,40 @@
 nodes:
 
-# - id: fully_electric_vehicle_share # Only needed if block is used without transport.yaml
-#   name_en: Fully electric truck share
-#   name_fi: Täyssähkökuorma-autojen osuus
-#   type: gpc.DatasetNode
-#   quantity: fraction
-#   unit: '%'
-#   input_dimensions: [transport_mode, energy_carrier]
-#   output_dimensions: [transport_mode, energy_carrier]
-#   input_datasets:
-#   - id: nzc/defaults
-#     filters:
-#     - column: Transport mode
-#       values: [light_trucks, heavy_trucks]
-#       drop_col: false
-#   params:
-#     sector: Share of fleet fully electric (not including hybrids)
+- id: fully_electric_truck_share_historical
+  name_en: Fully electric truck share historical
+  name_fi: Täyssähkökuorma-autojen osuus historiallisesti
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+    filters:
+    - column: Transport mode
+      values: [light_trucks, heavy_trucks]
+      drop_col: false
+  params:
+    sector: Share of fleet fully electric (not including hybrids)
+
+- id: fully_electric_truck_share
+  name_en: Fully electric truck share
+  name_fi: Täyssähkökuorma-autojen osuus
+  description_en: Share of truck fleet fully electric (not including hybrids)
+  description_fi: Täyssähkökuoma-autojen osuus henkilöautokannasta (ei sisällä hybridejä)
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+    filters:
+    - column: Transport mode
+      values: [light_trucks, heavy_trucks]
+      drop_col: false
+  params:
+    sector: Share of fleet fully electric (not including hybrids)
 
 - id: freight_transport_energy_carrier_shares
   name_en: Freight transport energy carrier shares
@@ -28,13 +47,7 @@ nodes:
   input_dimensions: [energy_carrier, transport_mode]
   output_dimensions: [energy_carrier, transport_mode]
   input_nodes:
-  - id: fully_electric_vehicle_share
-    from_dimensions:
-    - id: transport_mode
-      categories: [light_trucks, heavy_trucks]
-    to_dimensions:
-    - id: energy_carrier
-    - id: transport_mode
+  - id: fully_electric_truck_share
   output_nodes:
   - id: freight_transport_vehicle_kilometres
     to_dimensions:

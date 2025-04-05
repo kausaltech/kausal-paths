@@ -6,6 +6,8 @@ env:
 jobs:
   lint:
     uses: ./.github/workflows/reviewdog.yml
+    secrets:
+      EXTRA_PYPI_INDEX: ${{ secrets.EXTRA_PYPI_INDEX }}
 
   build:
     uses: kausaltech/github-actions/.github/workflows/build.yaml@main

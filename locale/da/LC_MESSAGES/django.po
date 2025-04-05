@@ -3,20 +3,21 @@
 # This file is distributed under the same license as the PACKAGE package.
 # Claude <EMAIL@ADDRESS>, YEAR.
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-27 09:38+0200\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: Claude <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
+"POT-Creation-Date: 2025-04-01 08:49+0300\n"
+"PO-Revision-Date: 2025-04-01 12:20+0000\n"
+"Last-Translator: Matias Wargelin <matias.wargelin@kausal.tech>\n"
+"Language-Team: Danish <https://weblate.kausal.tech/projects/paths/django/da/>"
+"\n"
 "Language: da\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Weblate 5.4.2\n"
 
 #: admin_site/api.py
 #, fuzzy
@@ -61,7 +62,7 @@ msgstr "Vælg instans"
 
 #: frameworks/models.py kausal_common/datasets/models.py
 msgid "Name"
-msgstr ""
+msgstr "Navn"
 
 #: frameworks/models.py
 msgid "High"
@@ -190,19 +191,24 @@ msgstr "Dimensioner"
 
 #: kausal_common/datasets/models.py
 msgid "Yearly"
-msgstr ""
+msgstr "Årligt"
 
 #: kausal_common/datasets/models.py
 msgid "Time resolution of the time stamps of data points in this dataset"
-msgstr ""
+msgstr "Tidsopløsning af datapunkternes tidsstempler i dette datasæt"
 
 #: kausal_common/datasets/models.py
 msgid "start date"
 msgstr ""
 
 #: kausal_common/datasets/models.py
-msgid "Descriptive name of the dataset schema"
+msgid "For a newly created dataset, start entering values from this year"
 msgstr ""
+"For et nyoprettet datasæt skal du begynde at indtaste værdier fra dette år"
+
+#: kausal_common/datasets/models.py
+msgid "Descriptive name of the dataset schema"
+msgstr "Beskrivende navn på datasættets skema"
 
 #: kausal_common/datasets/models.py nodes/models.py
 msgid "Description"
@@ -210,33 +216,31 @@ msgstr "Beskrivelse"
 
 #: kausal_common/datasets/models.py
 msgid "Description of the content and use of the dataset"
-msgstr ""
+msgstr "Beskrivelse af indhold og brug af datasættet"
 
 #: kausal_common/datasets/models.py
 msgid "Time resolution"
-msgstr ""
+msgstr "Tidsopløsning"
 
 #: kausal_common/datasets/models.py
 msgid "Initial date"
-msgstr ""
+msgstr "Første dato"
 
 #: kausal_common/datasets/models.py
 msgid "Metrics"
-msgstr ""
+msgstr "Metrikker"
 
 #: kausal_common/datasets/models.py
 msgid "Defines the interpretation and units for the values of the dataset"
-msgstr ""
+msgstr "Definerer fortolkningen og enhederne for værdierne i datasættet"
 
 #: kausal_common/datasets/models.py
-#, fuzzy
-#| msgid "Dimensions"
 msgid "Dimensions"
 msgstr "Dimensioner"
 
 #: kausal_common/datasets/models.py
 msgid "Used when metrics are tracked for multiple categories"
-msgstr ""
+msgstr "Bruges, når metrikker spores for flere kategorier"
 
 #: kausal_common/datasets/models.py
 #, fuzzy

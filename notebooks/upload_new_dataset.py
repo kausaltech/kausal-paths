@@ -52,7 +52,7 @@ def extract_units(df: pl.DataFrame, slice_name: str) -> dict:
 
         for row_idx in range(len(unique_sectors)):
             row = unique_sectors.row(row_idx, named=True)
-            sector = row['Sector']
+            sector = to_snake_case(row['Sector'])
             unit = row['Unit']
 
             if sector and unit:
@@ -100,7 +100,7 @@ def extract_description(df: pl.DataFrame, slice_name: str) -> str | None:
     return description
 
 
-def extract_metrics(df: pl.DataFrame, slice_name: str) -> list:
+def extract_metrics(df: pl.DataFrame, language: str) -> list:
     """Extract metrics from the dataframe."""
     # 3. Extract metrics from Quantity and Sector columns
     metrics = []
@@ -115,8 +115,8 @@ def extract_metrics(df: pl.DataFrame, slice_name: str) -> list:
             if sector and quantity:
                 metrics.append({
                     "id": to_snake_case(sector),
-                    "quantity": quantity, # FIXME Does not enter the database properly
-                    "label": sector
+                    "quantity": to_snake_case(quantity),
+                    "label": {language: sector},
                 })
 
     return metrics
@@ -190,6 +190,7 @@ def pivot_by_sector(df: pl.DataFrame) -> pl.DataFrame:
         return df
 
     # Get unique sectors
+    df = df.with_columns(pl.col('Sector').map_elements(to_snake_case, return_dtype=pl.String))
     unique_sectors = df.select('Sector').unique().to_series(0).to_list()
     unique_sectors = [s for s in unique_sectors if s is not None]
 
@@ -270,7 +271,10 @@ def push_to_dvc(df: pl.DataFrame, output_path: str, slice_name: str,
     index_columns = [col for col in df.columns if col not in units.keys()]
 
     # Build metadata
-    metadata: dict[str, Any] = {'name': {language: slice_name}}
+    metadata: dict[str, Any] = {
+        'name': {language: slice_name},
+        'identifier': to_snake_case(slice_name),
+    }
     if description:
         metadata['description'] = {language: description}
     if metrics:
@@ -316,7 +320,7 @@ def process_slice(df: pl.DataFrame, slice_name: str, outcsvpath: str, outdvcpath
 
     # 1. Extract metadata before manipulating dataframe
     units = extract_units(df, slice_name)
-    metrics = extract_metrics(df, slice_name)
+    metrics = extract_metrics(df, language)
     description = extract_description(df, slice_name)
     print(f"Units: {units}")
     print(f"Metrics: {len(metrics)} entries")

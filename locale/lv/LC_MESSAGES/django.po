@@ -3,20 +3,21 @@
 # This file is distributed under the same license as the PACKAGE package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-27 09:38+0200\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: Claude <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
+"POT-Creation-Date: 2025-04-01 08:49+0300\n"
+"PO-Revision-Date: 2025-04-01 12:20+0000\n"
+"Last-Translator: Matias Wargelin <matias.wargelin@kausal.tech>\n"
+"Language-Team: Latvian <https://weblate.kausal.tech/projects/paths/django/lv/"
+">\n"
 "Language: lv\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n != 0 ? 1 : 2);\n"
+"Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n != 0 ? 1 : 2;\n"
+"X-Generator: Weblate 5.4.2\n"
 
 #: admin_site/api.py
 msgid "Invalid email address"
@@ -59,7 +60,7 @@ msgstr "Izvēlieties instanci"
 
 #: frameworks/models.py kausal_common/datasets/models.py
 msgid "Name"
-msgstr ""
+msgstr "Nosaukums"
 
 #: frameworks/models.py
 msgid "High"
@@ -188,19 +189,23 @@ msgstr "Datu dimensijas"
 
 #: kausal_common/datasets/models.py
 msgid "Yearly"
-msgstr ""
+msgstr "Gada"
 
 #: kausal_common/datasets/models.py
 msgid "Time resolution of the time stamps of data points in this dataset"
-msgstr ""
+msgstr "Datu punktu laika zīmju izšķirtspēja šajā datu kopā"
 
 #: kausal_common/datasets/models.py
 msgid "start date"
 msgstr ""
 
 #: kausal_common/datasets/models.py
+msgid "For a newly created dataset, start entering values from this year"
+msgstr "Jaunizveidotai datu kopai sāciet ievadīt vērtības no šī gada"
+
+#: kausal_common/datasets/models.py
 msgid "Descriptive name of the dataset schema"
-msgstr ""
+msgstr "Datu kopas shēmas aprakstošais nosaukums"
 
 #: kausal_common/datasets/models.py nodes/models.py
 msgid "Description"
@@ -208,23 +213,23 @@ msgstr "Apraksts"
 
 #: kausal_common/datasets/models.py
 msgid "Description of the content and use of the dataset"
-msgstr ""
+msgstr "Datu kopas satura un izmantošanas apraksts"
 
 #: kausal_common/datasets/models.py
 msgid "Time resolution"
-msgstr ""
+msgstr "Laika izšķirtspēja"
 
 #: kausal_common/datasets/models.py
 msgid "Initial date"
-msgstr ""
+msgstr "Sākotnējais datums"
 
 #: kausal_common/datasets/models.py
 msgid "Metrics"
-msgstr ""
+msgstr "Metrikas"
 
 #: kausal_common/datasets/models.py
 msgid "Defines the interpretation and units for the values of the dataset"
-msgstr ""
+msgstr "Definē datu kopas vērtību interpretāciju un mērvienības"
 
 #: kausal_common/datasets/models.py
 #, fuzzy
@@ -234,7 +239,7 @@ msgstr "Datu dimensijas"
 
 #: kausal_common/datasets/models.py
 msgid "Used when metrics are tracked for multiple categories"
-msgstr ""
+msgstr "Izmanto, ja metrikas tiek izsekotas vairākām kategorijām"
 
 #: kausal_common/datasets/models.py
 #, fuzzy
