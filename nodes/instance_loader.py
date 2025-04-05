@@ -131,7 +131,26 @@ class InstanceYAMLConfig:
         apply_group: str | None,
         config_path: Path | None,
         allow_override: bool = False,
+        dataset_replacements: list[dict[str, str]] | None = None, # FIXME Implement and test!
     ) -> None:
+        # Create a mapping of old dataset IDs to new ones
+        if dataset_replacements is None:
+            dataset_replacements = []
+        # dataset_map = {rep['from']: rep['to'] for rep in dataset_replacements}
+
+        # # Process each node in the new configuration
+        # for nc in newconf:
+        #     # Replace dataset IDs in input_datasets if present
+        #     if 'input_datasets' in nc:
+        #         for ds in nc['input_datasets']:
+        #             if isinstance(ds, str):
+        #                 if ds in dataset_map:
+        #                     ds = dataset_map[ds]
+        #             else:
+        #                 ds_id = ds.get('id')
+        #                 if ds_id in dataset_map:
+        #                     ds['id'] = dataset_map[ds_id]
+
         self._merge_config(
             existing, newconf, entity_type=entity_type, apply_group=apply_group,
             config_path=config_path, allow_override=allow_override
@@ -204,6 +223,7 @@ class InstanceYAMLConfig:
         for iconf in includes:
             allow_override = iconf.get('allow_override', False)
             apply_group = iconf.get('node_group', None)
+            dataset_replacements = iconf.get('dataset_replacements', [])
             ifn = (config_path / Path(iconf['file'])).resolve()
             if not ifn.exists():
                 raise Exception('Include file "%s" not found' % str(ifn))
@@ -212,7 +232,7 @@ class InstanceYAMLConfig:
             meta.add_dependency(ifn)
             self._merge_include_config(
                 nodes, idata.get('nodes', []), 'Node', apply_group=apply_group, config_path=ifn,
-                allow_override=allow_override
+                allow_override=allow_override, dataset_replacements=dataset_replacements
             )
             self._merge_include_config(
                 dimensions, idata.get('dimensions', []), 'Dimension', apply_group=apply_group,
@@ -220,7 +240,7 @@ class InstanceYAMLConfig:
             )
             self._merge_include_config(
                 actions, idata.get('actions', []), 'Action', apply_group=apply_group,
-                config_path=None, allow_override=allow_override
+                config_path=None, allow_override=allow_override, dataset_replacements=dataset_replacements
             )
 
         # Make sure that assignment works even if they are originally empty.
@@ -335,7 +355,7 @@ class InstanceLoader:
                 with self.context.start_span(name, op=op):
                     return fn(self, *args, **kwargs)
 
-            return cast(InstanceLoaderFuncT[P, R, SC], wrapper)
+            return cast('InstanceLoaderFuncT[P, R, SC]', wrapper)
 
         return wrap_with_span_outer
 
@@ -408,7 +428,7 @@ class InstanceLoader:
         }
         return TranslatedString(**langs, default_language=self.default_language)
 
-    def _make_node_datasets(self, config: dict, node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912
+    def _make_node_datasets(self, config: dict, node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912, PLR0915
         from nodes.datasets import DBDataset, DVCDataset, FixedDataset, GenericDataset
         from nodes.generic import GenericNode
         from nodes.simple import AdditiveNode
@@ -1037,7 +1057,7 @@ class InstanceLoader:
         except InstanceConfig.DoesNotExist:
             self.db_datasets = {}
             return
-        ds_objs = DBDatasetModel.mgr.qs.for_instance_config(ic).only('uuid', 'identifier', 'last_modified_at')
+        ds_objs = DBDatasetModel.mgr.qs.for_instance_config(ic).only('uuid', 'identifier', 'last_modified_at') # type: ignore
         self.db_datasets = {ds.identifier: ds for ds in ds_objs}
 
     def _init_instance(self) -> None:  # noqa: PLR0915

@@ -692,6 +692,10 @@ class DatasetRelationAction(DatasetAction, GenericNode):
         enabled state (B) according to the relationship specified in the edge tags.
         """
     )
+    allowed_parameters = [
+        *DatasetAction.allowed_parameters,
+        *GenericNode.allowed_parameters,
+    ]
     DEFAULT_OPERATIONS = 'apply_relationship'
 
     # Map of all possible relationship types and their behavior
@@ -765,13 +769,13 @@ class DatasetRelationAction(DatasetAction, GenericNode):
         if not relationship:
             valid_relationships = ", ".join(self.RELATIONSHIP_BEHAVIOR.keys())
             raise NodeError(self,
-                f"No relationship tag found. Valid options are: {valid_relationships}")
+                f"No relationship tag found for action {action_a}. Valid options are: {valid_relationships}")
 
         # Get the behavior rules for this relationship
         if_a_true, if_a_false, _ = self.RELATIONSHIP_BEHAVIOR[relationship]
 
         # Get the state of input action node
-        a_enabled = action_a.is_enabled()
+        a_enabled: bool = action_a.is_enabled()
 
         # Apply the relationship rule
         if a_enabled and if_a_true is not None:
@@ -827,12 +831,14 @@ class DatasetRelationAction(DatasetAction, GenericNode):
         print('in the beginning:', self.is_enabled())
         df = self._compute()
         baskets = self._get_input_baskets(self.input_nodes)
-        print(baskets)
         df, _ = self._operation_apply_relationship(df, baskets)
 
         if not self.is_enabled():
             df = df.with_columns(pl.lit(self.no_effect_value).alias(VALUE_COLUMN))
 
         assert self.unit is not None
-        df = df.ensure_unit(VALUE_COLUMN, self.unit) # TODO Use get_unit() instead
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
+
+    def compute(self) -> ppl.PathsDataFrame:
+        return self.compute_effect()
