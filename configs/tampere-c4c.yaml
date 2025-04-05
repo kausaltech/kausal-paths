@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://tampere-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: b7cedbfa0f0f24959f14a5b59382e880ff5fae5f
+  commit: 1d0d9553ad46d42e71d5b01c10e771b70df55679
   dvc_remote: kausal-s3
 name: C4C Hiilineutraali Tampere 2030
 name_en: C4C Carbon-neutral Tampere 2030
@@ -499,7 +499,7 @@ dimensions:
     label_en: Shift to low-carbon in electricity production
   - id: replacing_fossil_fuels_with_res_in_city_machinery
     label: Fossiilipolttoaineista luopuminen työkoneissa
-    label_en: Replacing fossil fuels with res in city machinery
+    label_en: Replacing fossil fuels with RES in city machinery
 
 emission_sectors:
 - id: net_emissions
@@ -574,16 +574,20 @@ nodes:
 - id: solid_waste_treatment_emissions
   name: Kiinteän jätteen käsittelyn päästöt
   name_en: Solid waste treatment
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [ghg, scope]
   output_dimensions: [ghg, scope]
-  params:
-    gpc_sector: III.1.1
   input_datasets:
-  - id: gpc/tampere
+  - id: tampere/waste
+    column: emissions
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: iii11
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: waste_treatment_emissions
     from_dimensions:
@@ -595,16 +599,19 @@ nodes:
 - id: waste_water_treatment_emissions
   name: Jäteveden puhdistuksen päästöt
   name_en: Waste water treatment
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [ghg, scope]
   output_dimensions: [ghg, scope]
-  params:
-    gpc_sector: III.4.1
   input_datasets:
-  - id: gpc/tampere
+  - id: tampere/waste
+    column: emissions
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: iii41
   output_nodes:
   - id: waste_treatment_emissions
     from_dimensions:
@@ -618,16 +625,20 @@ nodes:
 - id: cattle_digestion_emissions
   name: Eläinten ruoansulatus
   name_en: Cattle digestion
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [ghg, scope]
   output_dimensions: [ghg, scope]
-  params:
-    gpc_sector: V.1
   input_datasets:
-  - id: gpc/tampere
+  - id: tampere/afolu
+    column: emissions
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: v1
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: agriculture_emissions
     from_dimensions:
@@ -639,16 +650,20 @@ nodes:
 - id: field_crops_emissions
   name: Peltoviljelyn päästöt
   name_en: Field crops
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [ghg, scope]
   output_dimensions: [ghg, scope]
-  params:
-    gpc_sector: V.2
   input_datasets:
-  - id: gpc/tampere
+  - id: tampere/afolu
+    column: emissions
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: v2
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: agriculture_emissions
     from_dimensions:
@@ -660,16 +675,20 @@ nodes:
 - id: manure_treatment_emissions
   name: Lannankäsittely
   name_en: Manure treatment
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [ghg, scope]
   output_dimensions: [ghg, scope]
-  params:
-    gpc_sector: V.3
   input_datasets:
-  - id: gpc/tampere
+  - id: tampere/afolu
+    column: emissions
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: v3
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: agriculture_emissions
     from_dimensions:
@@ -683,16 +702,21 @@ nodes:
 - id: heating_fuel_emission_factors
   name: Lämmityspolttoaineen päästökerroin
   name_en: Heating fuel emission factors
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: t/GWh
   input_dimensions: [heating, energy_carrier, ghg, scope]
   output_dimensions: [heating, energy_carrier, ghg, scope]
-  params:
-    gpc_sector: I.1.1
   input_datasets:
-  - id: gpc/tampere
+  - id: tampere/stationary
+    column: emission_factor
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: i11
+    - column: owner
+    - column: cost_type
   output_nodes:
   - id: gas_heating_emissions
   - id: oil_heating_emissions
@@ -700,16 +724,21 @@ nodes:
 - id: other_heating_emission_factors
   name: Lämmityspäästökerroin
   name_en: Heating emission factors
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: t/GWh
   input_dimensions: [heating, energy_carrier, ghg, scope]
   output_dimensions: [heating, energy_carrier, ghg, scope]
-  params:
-    gpc_sector: I.1.2
   input_datasets:
-  - id: gpc/tampere
+  - id: tampere/stationary
+    column: emission_factor
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: i12
+    - column: owner
+    - column: cost_type
   output_nodes:
   - id: direct_electric_heating_emissions
   - id: district_heating_emissions
@@ -720,20 +749,24 @@ nodes:
 - id: district_heating_energy_consumption
   name: Kaukolämmön energiankulutus
   name_en: District heating energy consumption
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [heating, energy_carrier, scope]
   output_dimensions: [heating, energy_carrier, scope]
-  params:
-    gpc_sector: I.1.2
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Heating
-      value: District Heat
-      drop_col: false
+  - id: tampere/stationary
+    column: energy
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: i12
+    - column: ghg
+    - column: owner
+    - dimension: heating
+      categories: [district_heat]
+    - column: cost_type
   output_nodes:
   - id: district_heating_emissions
     to_dimensions:
@@ -784,20 +817,24 @@ nodes:
 - id: district_heating_emissions_total
   name: Kaukolämmön kokonaispäästöt
   name_en: Total district heating emissions
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [heating, energy_carrier, ghg, scope]
   output_dimensions: [heating, energy_carrier, ghg, scope]
-  params:
-    gpc_sector: I.1.2
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Heating
-      value: District Heat
-      drop_col: false
+  - id: tampere/stationary
+    column: emissions
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: i12
+    - column: owner
+    - dimension: heating
+      categories: [district_heat]
+    - column: cost_type
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: building_heating_emissions
     from_dimensions:
@@ -815,20 +852,24 @@ nodes:
 - id: gas_heating_energy_consumption
   name: Kaasulämmityksen energiankulutus
   name_en: Gas heating energy consumption
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [heating, energy_carrier, scope]
   output_dimensions: [heating, energy_carrier, scope]
-  params:
-    gpc_sector: I.1.1
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Heating
-      value: Natural Gas
-      drop_col: false
+  - id: tampere/stationary
+    column: energy
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: i11
+    - column: ghg
+    - column: owner
+    - dimension: heating
+      categories: [natural_gas]
+    - column: cost_type
   output_nodes:
   - id: gas_heating_emissions
     to_dimensions:
@@ -862,20 +903,24 @@ nodes:
 - id: oil_heating_energy_consumption
   name: Öljylämmityksen energiankulutus
   name_en: Oil heating energy consumption
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [heating, energy_carrier, scope]
   output_dimensions: [heating, energy_carrier, scope]
-  params:
-    gpc_sector: I.1.1
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Heating
-      value: Fuel Oil
-      drop_col: false
+  - id: tampere/stationary
+    column: energy
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: i11
+    - column: ghg
+    - column: owner
+    - dimension: heating
+      categories: [fuel_oil]
+    - column: cost_type
   output_nodes:
   - id: oil_heating_emissions
     to_dimensions:
@@ -930,20 +975,24 @@ nodes:
     päästökertoimella.
   description_en: Emissions from oil heating are calculated by multiplying the consumption
     of heating oil by the emission factor.
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [heating, energy_carrier, ghg, scope]
   output_dimensions: [heating, energy_carrier, ghg, scope]
-  params:
-    gpc_sector: I.1.1
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Heating
-      value: Fuel Oil
-      drop_col: false
+  - id: tampere/stationary
+    column: emissions
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: i11
+    - column: owner
+    - dimension: heating
+      categories: [fuel_oil]
+    - column: cost_type
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: separate_heating_emissions
     from_dimensions:
@@ -961,20 +1010,24 @@ nodes:
 - id: geothermal_heating_electricity_consumption
   name: Maalämmön sähkönkulutus
   name_en: Geothermal heating electricity consumption
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [heating, energy_carrier, scope]
   output_dimensions: [heating, energy_carrier, scope]
-  params:
-    gpc_sector: I.1.2
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Heating
-      value: Geothermal
-      drop_col: false
+  - id: tampere/stationary
+    column: energy
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: i12
+    - column: ghg
+    - column: owner
+    - dimension: heating
+      categories: [geothermal]
+    - column: cost_type
   output_nodes:
   - id: geothermal_heating_emissions
     to_dimensions:
@@ -1025,20 +1078,24 @@ nodes:
 - id: geothermal_heating_emissions_total
   name: Maalämmön kokonaispäästöt
   name_en: Total geothermal heating emissions
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [heating, energy_carrier, ghg, scope]
   output_dimensions: [heating, energy_carrier, ghg, scope]
-  params:
-    gpc_sector: I.1.2
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Heating
-      value: Geothermal
-      drop_col: false
+  - id: tampere/stationary
+    column: emissions
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: i12
+    - column: owner
+    - dimension: heating
+      categories: [geothermal]
+    - column: cost_type
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: electric_heating_emissions
     from_dimensions:
@@ -1054,20 +1111,24 @@ nodes:
 - id: direct_electric_heating_electricity_consumption
   name: Suorasähkölämmityksen sähkönkulutus
   name_en: Direct electric heating electricity consumption
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [heating, energy_carrier, scope]
   output_dimensions: [heating, energy_carrier, scope]
-  params:
-    gpc_sector: I.1.2
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Heating
-      value: Direct Electric Heat
-      drop_col: false
+  - id: tampere/stationary
+    column: energy
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: i12
+    - column: ghg
+    - column: owner
+    - dimension: heating
+      categories: [direct_electric_heat]
+    - column: cost_type
   output_nodes:
   - id: direct_electric_heating_emissions
     to_dimensions:
@@ -1118,20 +1179,24 @@ nodes:
 - id: direct_electric_heating_emissions_total
   name: Suorasähkölämmityksen kokonaispäästöt
   name_en: Total direct electric heating emissions
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [heating, energy_carrier, ghg, scope]
   output_dimensions: [heating, energy_carrier, ghg, scope]
-  params:
-    gpc_sector: I.1.2
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Heating
-      value: Direct Electric Heat
-      drop_col: false
+  - id: tampere/stationary
+    column: emissions
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: i12
+    - column: owner
+    - dimension: heating
+      categories: [direct_electric_heat]
+    - column: cost_type
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: electric_heating_emissions
     from_dimensions:
@@ -1149,16 +1214,24 @@ nodes:
 - id: industrial_electricity_consumption
   name: Teollisuuden sähkönkulutus
   name_en: Industrial electricity consumption
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [energy_carrier, scope]
   output_dimensions: [energy_carrier, scope]
-  params:
-    gpc_sector: I.3.2
   input_datasets:
-  - id: gpc/tampere
+  - id: tampere/stationary
+    column: energy
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: i32
+    - column: ghg
+    - column: owner
+    - column: heating
+    - column: cost_type
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: industrial_electricity_emissions
     to_dimensions:
@@ -1194,16 +1267,23 @@ nodes:
 - id: industrial_electricity_emission_factors
   name: Teollisuuden sähkönkulutuksen päästökerroin
   name_en: Industrial electricity emission factors
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: t/GWh
   input_dimensions: [energy_carrier, ghg, scope]
   output_dimensions: [energy_carrier, ghg, scope]
-  params:
-    gpc_sector: I.3.2
   input_datasets:
-  - id: gpc/tampere
+  - id: tampere/stationary
+    column: emission_factor
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: i32
+    - column: owner
+    - column: heating
+    - column: cost_type
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: industrial_electricity_emissions
 
@@ -1228,16 +1308,23 @@ nodes:
 - id: other_electricity_consumption
   name: Muu sähkönkulutus
   name_en: Other electricity consumption
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [energy_carrier, scope]
   output_dimensions: [energy_carrier, scope]
-  params:
-    gpc_sector: I.6.2
   input_datasets:
-  - id: gpc/tampere
+  - id: tampere/stationary
+    column: energy
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: i62
+    - column: ghg
+    - column: owner
+    - column: heating
+    - column: cost_type
   output_nodes:
   - id: other_electricity_emissions
     to_dimensions:
@@ -1273,16 +1360,22 @@ nodes:
 - id: other_electricity_emission_factors
   name: Muun sähkönkulutuksen päästökerroin
   name_en: Other electricity emission factors
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: t/GWh
   input_dimensions: [energy_carrier, ghg, scope]
   output_dimensions: [energy_carrier, ghg, scope]
-  params:
-    gpc_sector: I.6.2
   input_datasets:
-  - id: gpc/tampere
+  - id: tampere/stationary
+    column: emission_factor
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: i62
+    - column: owner
+    - column: heating
+    - column: cost_type
   output_nodes:
   - id: other_electricity_emissions
 
@@ -1300,16 +1393,23 @@ nodes:
 - id: other_electricity_emissions_total
   name: Muun sähkönkulutuksen kokonaispäästöt
   name_en: Total other electricity emissions
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [energy_carrier, ghg, scope]
   output_dimensions: [energy_carrier, ghg, scope]
-  params:
-    gpc_sector: I.6.2
   input_datasets:
-  - id: gpc/tampere
+  - id: tampere/stationary
+    column: emissions
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: i62
+    - column: owner
+    - column: heating
+    - column: cost_type
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: electricity_consumption_emissions
     from_dimensions:
@@ -1334,17 +1434,6 @@ nodes:
   output_nodes:
   - id: net_emissions
 
-# - id: renewable_electricity_consumption_reduction
-#   name: Uusiutuvalla sähköntuotannolla aikaansaatu ostoenergian säästö
-#   name_en: Decrease in purchased energy due to renewable electricity production
-#   quantity: energy
-#   type: simple.FixedMultiplierNode
-#   output_nodes:
-#   - other_electricity_consumption
-#   params:
-#     multiplier: -1
-#   unit: GWh/a
-
 # ----- TRANSPORTATION --------------------------------------------------------
 
 # ----- Buses
@@ -1352,20 +1441,22 @@ nodes:
 - id: bus_kilometers
   name: Bussisuorite
   name_en: Bus kilometers
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: mileage
   unit: Mvkm/a
   input_dimensions: [road_type, vehicle_type, scope]
   output_dimensions: [road_type, vehicle_type, scope]
-  params:
-    gpc_sector: II.1.1
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Vehicle Type
-      value: Buses
-      drop_col: false
+  - id: tampere/onroad_transportation
+    column: mileage
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: ii11
+    - column: ghg
+    - dimension: vehicle_type
+      categories: [buses]
   output_nodes:
   - id: bus_emissions
     to_dimensions:
@@ -1376,20 +1467,21 @@ nodes:
 - id: bus_emission_factors
   name: Bussin päästökerroin
   name_en: Bus emission factors
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/vkm
   input_dimensions: [road_type, vehicle_type, ghg, scope]
   output_dimensions: [road_type, vehicle_type, ghg, scope]
-  params:
-    gpc_sector: II.1.1
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Vehicle Type
-      value: Buses
-      drop_col: false
+  - id: tampere/onroad_transportation
+    column: emission_factor
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: ii11
+    - dimension: vehicle_type
+      categories: [buses]
   output_nodes:
   - id: bus_emissions
 
@@ -1410,20 +1502,23 @@ nodes:
 - id: bus_emissions_total
   name: Bussiliikenteen kokonaispäästöt
   name_en: Total bus emissions
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [vehicle_type, ghg, scope]
   output_dimensions: [vehicle_type, ghg, scope]
-  params:
-    gpc_sector: II.1.1
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Vehicle Type
-      value: Buses
-      drop_col: false
+  - id: tampere/onroad_transportation
+    column: emissions
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: ii11
+    - column: road_type
+    - dimension: vehicle_type
+      categories: [buses]
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: transportation_emissions
     from_dimensions:
@@ -1439,20 +1534,22 @@ nodes:
 - id: local_train_kilometers
   name: Paikallisjunasuorite
   name_en: Local train kilometers
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: mileage
   unit: Mvkm/a
   input_dimensions: [energy_carrier, vehicle_type, scope]
   output_dimensions: [energy_carrier, vehicle_type, scope]
-  params:
-    gpc_sector: II.2.2
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Vehicle Type
-      value: Local Trains
-      drop_col: false
+  - id: tampere/other_transportation
+    column: mileage
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: ii22
+    - column: ghg
+    - dimension: vehicle_type
+      categories: [local_trains]
   output_nodes:
   - id: local_train_emissions
     to_dimensions:
@@ -1463,20 +1560,21 @@ nodes:
 - id: local_train_emission_factors
   name: Paikallisjunan päästökerroin
   name_en: Local train emission factors
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/vkm
   input_dimensions: [energy_carrier, vehicle_type, ghg, scope]
   output_dimensions: [energy_carrier, vehicle_type, ghg, scope]
-  params:
-    gpc_sector: II.2.2
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Vehicle Type
-      value: Local Trains
-      drop_col: false
+  - id: tampere/other_transportation
+    column: emission_factor
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: ii22
+    - dimension: vehicle_type
+      categories: [local_trains]
   output_nodes:
   - id: local_train_emissions
 
@@ -1505,20 +1603,23 @@ nodes:
 - id: motorcycle_kilometers
   name: Moottoripyöräsuorite
   name_en: Motorcycle kilometers
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: mileage
   unit: Mvkm/a
   input_dimensions: [vehicle_type, scope]
   output_dimensions: [vehicle_type, scope]
-  params:
-    gpc_sector: II.1.1
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Vehicle Type
-      value: Motorcycles
-      drop_col: false
+  - id: tampere/onroad_transportation
+    column: mileage
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: ii11
+    - column: ghg
+    - column: road_type
+    - dimension: vehicle_type
+      categories: [motorcycles]
   output_nodes:
   - id: motorcycle_emissions
     to_dimensions:
@@ -1528,20 +1629,22 @@ nodes:
 - id: motorcycle_emission_factors
   name: Moottoripyörien päästökerroin
   name_en: Motorcycle emission factors
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/vkm
   input_dimensions: [vehicle_type, ghg, scope]
   output_dimensions: [vehicle_type, ghg, scope]
-  params:
-    gpc_sector: II.1.1
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Vehicle Type
-      value: Motorcycles
-      drop_col: false
+  - id: tampere/onroad_transportation
+    column: emission_factor
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: ii11
+    - column: road_type
+    - dimension: vehicle_type
+      categories: [motorcycles]
   output_nodes:
   - id: motorcycle_emissions
 
@@ -1559,20 +1662,23 @@ nodes:
 - id: motorcycle_emissions_total
   name: Moottoripyöräliikenteen kokonaispäästöt
   name_en: Total motorcycle emissions
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [vehicle_type, ghg, scope]
   output_dimensions: [vehicle_type, ghg, scope]
-  params:
-    gpc_sector: II.1.1
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Vehicle Type
-      value: Motorcycles
-      drop_col: false
+  - id: tampere/onroad_transportation
+    column: emissions
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: ii11
+    - column: road_type
+    - dimension: vehicle_type
+      categories: [motorcycles]
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: transportation_emissions
     from_dimensions:
@@ -1588,20 +1694,22 @@ nodes:
 - id: car_kilometers
   name: Henkilöautosuorite
   name_en: Passenger car kilometers
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: mileage
   unit: Mvkm/a
   input_dimensions: [road_type, vehicle_type, scope]
   output_dimensions: [road_type, vehicle_type, scope]
-  params:
-    gpc_sector: II.1.1
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Vehicle Type
-      value: Passenger Cars
-      drop_col: false
+  - id: tampere/onroad_transportation
+    column: mileage
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: ii11
+    - column: ghg
+    - dimension: vehicle_type
+      categories: [passenger_cars]
   output_nodes:
   - id: car_emissions
     to_dimensions:
@@ -1612,20 +1720,21 @@ nodes:
 - id: car_emission_factors
   name: Henkilöautoilun päästökerroin
   name_en: Passenger car emission factors
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/vkm
   input_dimensions: [road_type, vehicle_type, ghg, scope]
   output_dimensions: [road_type, vehicle_type, ghg, scope]
-  params:
-    gpc_sector: II.1.1
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Vehicle Type
-      value: Passenger Cars
-      drop_col: false
+  - id: tampere/onroad_transportation
+    column: emission_factor
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: ii11
+    - dimension: vehicle_type
+      categories: [passenger_cars]
   output_nodes:
   - id: car_emissions
 
@@ -1643,20 +1752,22 @@ nodes:
 - id: car_emissions_total
   name: Henkilöautoliikenteen kokonaispäästöt
   name_en: Total passenger car emissions
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [road_type, vehicle_type, ghg, scope]
   output_dimensions: [road_type, vehicle_type, ghg, scope]
-  params:
-    gpc_sector: II.1.1
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Vehicle Type
-      value: Passenger Cars
-      drop_col: false
+  - id: tampere/onroad_transportation
+    column: emissions
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: ii11
+    - dimension: vehicle_type
+      categories: [passenger_cars]
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: transportation_emissions
     from_dimensions:
@@ -1674,20 +1785,22 @@ nodes:
 - id: tram_kilometers
   name: Ratikkasuorite
   name_en: Tram kilometers
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: mileage
   unit: Mvkm/a
   input_dimensions: [energy_carrier, vehicle_type, scope]
   output_dimensions: [energy_carrier, vehicle_type, scope]
-  params:
-    gpc_sector: II.2.2
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Vehicle Type
-      value: Trams
-      drop_col: false
+  - id: tampere/other_transportation
+    column: mileage
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: ii22
+    - column: ghg
+    - dimension: vehicle_type
+      categories: [trams]
   output_nodes:
   - id: tram_emissions
     to_dimensions:
@@ -1698,20 +1811,21 @@ nodes:
 - id: tram_emission_factors
   name: Ratikan päästökerroin
   name_en: Tram emission factors
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/vkm
   input_dimensions: [energy_carrier, vehicle_type, ghg, scope]
   output_dimensions: [energy_carrier, vehicle_type, ghg, scope]
-  params:
-    gpc_sector: II.2.2
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Vehicle Type
-      value: Trams
-      drop_col: false
+  - id: tampere/other_transportation
+    column: emission_factor
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: ii22
+    - dimension: vehicle_type
+      categories: [trams]
   output_nodes:
   - id: tram_emissions
 
@@ -1740,20 +1854,23 @@ nodes:
 - id: truck_kilometers
   name: Kuorma-autosuorite
   name_en: Truck kilometers
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: mileage
   unit: Mvkm/a
   input_dimensions: [vehicle_type, scope]
   output_dimensions: [vehicle_type, scope]
-  params:
-    gpc_sector: II.1.1
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Vehicle Type
-      value: Trucks
-      drop_col: false
+  - id: tampere/onroad_transportation
+    column: mileage
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: ii11
+    - column: ghg
+    - column: road_type
+    - dimension: vehicle_type
+      categories: [trucks]
   output_nodes:
   - id: truck_emissions
     to_dimensions:
@@ -1763,20 +1880,22 @@ nodes:
 - id: truck_emission_factors
   name: Kuorma-autojen päästökerroin
   name_en: Truck emission factors
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/vkm
   input_dimensions: [vehicle_type, ghg, scope]
   output_dimensions: [vehicle_type, ghg, scope]
-  params:
-    gpc_sector: II.1.1
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Vehicle Type
-      value: Trucks
-      drop_col: false
+  - id: tampere/onroad_transportation
+    column: emission_factor
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: ii11
+    - column: road_type
+    - dimension: vehicle_type
+      categories: [trucks]
   output_nodes:
   - id: truck_emissions
 
@@ -1794,20 +1913,23 @@ nodes:
 - id: truck_emissions_total
   name: Kuorma-autoliikenteen kokonaispäästöt
   name_en: Total truck emissions
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [vehicle_type, ghg, scope]
   output_dimensions: [vehicle_type, ghg, scope]
-  params:
-    gpc_sector: II.1.1
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Vehicle Type
-      value: Trucks
-      drop_col: false
+  - id: tampere/onroad_transportation
+    column: emissions
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: ii11
+    - column: road_type
+    - dimension: vehicle_type
+      categories: [trucks]
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: transportation_emissions
     from_dimensions:
@@ -1823,20 +1945,23 @@ nodes:
 - id: van_kilometers
   name: Pakettiautosuorite
   name_en: Van kilometers
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: mileage
   unit: Mvkm/a
   input_dimensions: [vehicle_type, scope]
   output_dimensions: [vehicle_type, scope]
-  params:
-    gpc_sector: II.1.1
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Vehicle Type
-      value: Vans
-      drop_col: false
+  - id: tampere/onroad_transportation
+    column: mileage
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: ii11
+    - column: ghg
+    - column: road_type
+    - dimension: vehicle_type
+      categories: [vans]
   output_nodes:
   - id: van_emissions
     to_dimensions:
@@ -1846,20 +1971,22 @@ nodes:
 - id: van_emission_factors
   name: Pakettiautojen päästökerroin
   name_en: Van emission factors
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/vkm
   input_dimensions: [vehicle_type, ghg, scope]
   output_dimensions: [vehicle_type, ghg, scope]
-  params:
-    gpc_sector: II.1.1
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Vehicle Type
-      value: Vans
-      drop_col: false
+  - id: tampere/onroad_transportation
+    column: emission_factor
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: ii11
+    - column: road_type
+    - dimension: vehicle_type
+      categories: [vans]
   output_nodes:
   - id: van_emissions
 
@@ -1877,20 +2004,23 @@ nodes:
 - id: van_emissions_total
   name: Pakettiautoliikenteen kokonaispäästöt
   name_en: Total van emissions
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [vehicle_type, ghg, scope]
   output_dimensions: [vehicle_type, ghg, scope]
-  params:
-    gpc_sector: II.1.1
   input_datasets:
-  - id: gpc/tampere
-    filters:
-    - column: Vehicle Type
-      value: Vans
-      drop_col: false
+  - id: tampere/onroad_transportation
+    column: emissions
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: ii11
+    - column: road_type
+    - dimension: vehicle_type
+      categories: [vans]
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: transportation_emissions
     from_dimensions:
@@ -1911,16 +2041,24 @@ nodes:
   description_en: The emission forecast for industry and machinery has been made by
     linearly extrapolating the emission development during 2010-2018.
   color: '#E8B455'
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [ghg, scope]
   output_dimensions: [ghg, scope]
-  params:
-    gpc_sector: I.3.1
   input_datasets:
-  - id: gpc/tampere
+  - id: tampere/stationary
+    column: emissions
+    dropna: true
     forecast_from: 2022
+    filters:
+    - column: sector
+      value: i31
+    - column: energy_carrier
+    - column: owner
+    - column: heating
+    - column: cost_type
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -2195,16 +2333,22 @@ nodes:
 - id: energy_unit_prices
   name: Energy unit prices
   name_en: Energy unit prices
-  type: gpc.DatasetNode
+  type: simple.AdditiveNode
   quantity: unit_price
   unit: EUR/kWh
   input_dimensions: [energy_carrier, owner, cost_type]
   output_dimensions: [energy_carrier, owner, cost_type]
-  params:
-    gpc_sector: I
   input_datasets:
-  - id: gpc/tampere
+  - id: tampere/stationary
+    column: unit_price
+    dropna: true
     forecast_from: 2025
+    filters:
+    - column: sector
+      value: i
+    - column: scope
+    - column: ghg
+    - column: heating
   output_nodes:
   - id: energy_cost_reductions
 
@@ -2409,25 +2553,31 @@ actions:
 - id: change_streetlights_to_led
   name: Katuvalaistuksen vaihtaminen LED-valaisimiksi
   name_en: Replacing street lighting with LEDs
-  type: gpc.DatasetActionMFM
+  type: simple.AdditiveAction
   color: '#4e79a7'
   input_dimensions: ['cost_type', 'owner', 'energy_carrier', 'scope']
   output_dimensions: ['cost_type', 'owner', 'energy_carrier', 'scope']
   params:
-    action: Change Streetlights to LED
+    allow_null_categories: true
   input_datasets:
-  - id: gpc/tampere_simple_actions
+  - id: tampere/stationary_actions
     forecast_from: 2025
+    filters:
+    - column: sector
+    - column: action
+      value: replacing_street_lighting_with_leds
+    - column: ghg
+    - column: heating
   output_metrics:
-  - id: i62_energy
+  - id: energy
     unit: GWh/a
     quantity: energy
-  - id: i_currency
+  - id: currency
     unit: EUR/a
     quantity: currency
   output_nodes:
   - id: other_electricity_consumption
-    metrics: [i62_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
@@ -2437,7 +2587,7 @@ actions:
     - id: energy_carrier
     - id: scope
   - id: electricity_consumption_reductions
-    metrics: [i62_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
@@ -2448,7 +2598,7 @@ actions:
     to_dimensions:
     - id: energy_carrier
   - id: electricity_consumption_price
-    metrics: [i_currency]
+    metrics: [currency]
     from_dimensions:
     - id: energy_carrier
       flatten: true
@@ -2458,7 +2608,7 @@ actions:
     - id: cost_type
     - id: owner
   - id: total_costs
-    metrics: [i_currency]
+    metrics: [currency]
     from_dimensions:
     - id: cost_type
       categories: ['investment']
@@ -2470,7 +2620,7 @@ actions:
     - id: cost_type
     - id: owner
   - id: total_benefits
-    metrics: [i_currency]
+    metrics: [currency]
     from_dimensions:
     - id: cost_type
       categories: ['maintenance']
@@ -2485,25 +2635,31 @@ actions:
 - id: build_renewable_electricity_production
   name: Hajautettu uusiutuva energia (aurinkosähkö)
   name_en: Building renewable electricity production (PV)
-  type: gpc.DatasetActionMFM
+  type: simple.AdditiveAction
   color: '#4e79a7'
   input_dimensions: ['cost_type', 'owner', 'energy_carrier', 'scope']
   output_dimensions: ['cost_type', 'owner', 'energy_carrier', 'scope']
   params:
-    action: Build Renewable Electricity Production (PV)
+    allow_null_categories: true
   input_datasets:
-  - id: gpc/tampere_simple_actions
+  - id: tampere/stationary_actions
     forecast_from: 2025
+    filters:
+    - column: sector
+    - column: action
+      value: building_renewable_electricity_production_pv
+    - column: ghg
+    - column: heating
   output_metrics:
-  - id: i62_energy
+  - id: energy
     unit: GWh/a
     quantity: energy
-  - id: i_currency
+  - id: currency
     unit: EUR/a
     quantity: currency
   output_nodes:
   - id: other_electricity_consumption
-    metrics: [i62_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
@@ -2513,7 +2669,7 @@ actions:
     - id: energy_carrier
     - id: scope
   - id: electricity_consumption_reductions
-    metrics: [i62_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
@@ -2524,7 +2680,7 @@ actions:
     to_dimensions:
     - id: energy_carrier
   - id: electricity_consumption_price
-    metrics: [i_currency]
+    metrics: [currency]
     from_dimensions:
     - id: energy_carrier
       flatten: true
@@ -2534,7 +2690,7 @@ actions:
     - id: cost_type
     - id: owner
   - id: total_costs
-    metrics: [i_currency]
+    metrics: [currency]
     from_dimensions:
     - id: energy_carrier
       flatten: true
@@ -2547,25 +2703,30 @@ actions:
 - id: replace_oil_heating
   name: Öljylämmityksestä siirtyminen vesi-ilmalämpöpumppuihin kaupungin rakennuskannassa
   name_en: Replacing oil heating with water-to-air heat pumps in city's building stock
-  type: gpc.DatasetActionMFM
+  type: simple.AdditiveAction
   color: '#4e79a7'
   input_dimensions: ['cost_type', 'owner', 'heating', 'energy_carrier', 'scope']
   output_dimensions: ['cost_type', 'owner', 'heating', 'energy_carrier', 'scope']
   params:
-    action: Replace Oil Heating with Water-to-Air Heat Pumps and Geothermal Heating
+    allow_null_categories: true
   input_datasets:
-  - id: gpc/tampere_simple_actions
+  - id: tampere/stationary_actions
     forecast_from: 2025
+    filters:
+    - column: sector
+    - column: action
+      value: replacing_oil_heating_with_heat_pumps
+    - column: ghg
   output_metrics:
-  - id: i11_energy
+  - id: energy
     unit: GWh/a
     quantity: energy
-  - id: i_currency
+  - id: currency
     unit: EUR/a
     quantity: currency
   output_nodes:
   - id: oil_heating_energy_consumption
-    metrics: [i11_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
@@ -2576,7 +2737,7 @@ actions:
     - id: energy_carrier
     - id: scope
   - id: fuel_oil_consumption_reductions
-    metrics: [i11_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
@@ -2589,7 +2750,7 @@ actions:
     to_dimensions:
     - id: energy_carrier
   - id: building_heating_price
-    metrics: [i_currency]
+    metrics: [currency]
     from_dimensions:
     - id: heating
       flatten: true
@@ -2601,7 +2762,7 @@ actions:
     - id: cost_type
     - id: owner
   - id: total_costs
-    metrics: [i_currency]
+    metrics: [currency]
     from_dimensions:
     - id: heating
       flatten: true
@@ -2616,77 +2777,86 @@ actions:
 - id: energy_efficiency_renovations_in_buildings
   name: Korjausrakentaminen kaupungin kiinteistössä
   name_en: Energy efficiency renovations in city's building stock
-  type: gpc.DatasetActionMFM
+  type: simple.AdditiveAction
   color: '#4e79a7'
   input_dimensions: ['cost_type', 'owner', 'heating', 'energy_carrier', 'scope']
   output_dimensions: ['cost_type', 'owner', 'heating', 'energy_carrier', 'scope']
   params:
-    action: Energy Efficiency Renovations in Buildings
+    allow_null_categories: true
   input_datasets:
-  - id: gpc/tampere_simple_actions
+  - id: tampere/stationary_actions
     forecast_from: 2025
+    filters:
+    - column: sector
+    - column: action
+      value: energy_efficiency_renovations_in_city_buildings
+    - column: ghg
   output_metrics:
-  - id: i12_energy
+  - id: energy
     unit: GWh/a
     quantity: energy
-  - id: i62_energy
-    unit: GWh/a
-    quantity: energy
-  - id: i_currency
+  - id: currency
     unit: EUR/a
     quantity: currency
   output_nodes:
   - id: district_heating_energy_consumption
-    metrics: [i12_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
     - id: owner
       flatten: true
+    - id: heating
+      categories: [district_heat]
     to_dimensions:
     - id: heating
     - id: energy_carrier
     - id: scope
   - id: district_heat_consumption_reductions
-    metrics: [i12_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
     - id: owner
       flatten: true
     - id: heating
+      categories: [district_heat]
       flatten: true
     - id: scope
       flatten: true
     to_dimensions:
     - id: energy_carrier
   - id: other_electricity_consumption
-    metrics: [i62_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
     - id: owner
       flatten: true
     - id: heating
+      categories: [district_heat]
+      exclude: true
       flatten: true
     to_dimensions:
     - id: energy_carrier
     - id: scope
   - id: electricity_consumption_reductions
-    metrics: [i62_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
     - id: owner
       flatten: true
     - id: heating
+      categories: [district_heat]
+      exclude: true
       flatten: true
     - id: scope
       flatten: true
     to_dimensions:
     - id: energy_carrier
   - id: building_heating_price
-    metrics: [i_currency]
+    metrics: [currency]
     from_dimensions:
     - id: heating
       flatten: true
@@ -2698,7 +2868,7 @@ actions:
     - id: cost_type
     - id: owner
   - id: total_costs
-    metrics: [i_currency]
+    metrics: [currency]
     from_dimensions:
     - id: heating
       flatten: true
@@ -2713,77 +2883,86 @@ actions:
 - id: energy_efficiency_of_new_construction
   name: Uusien rakennusten energiatehokkuustoimet
   name_en: Energy efficiency measures for new construction projects
-  type: gpc.DatasetActionMFM
+  type: simple.AdditiveAction
   color: '#4e79a7'
   input_dimensions: ['cost_type', 'owner', 'heating', 'energy_carrier', 'scope']
   output_dimensions: ['cost_type', 'owner', 'heating', 'energy_carrier', 'scope']
   params:
-    action: Energy Efficiency of New Construction
+    allow_null_categories: true
   input_datasets:
-  - id: gpc/tampere_simple_actions
+  - id: tampere/stationary_actions
     forecast_from: 2025
+    filters:
+    - column: sector
+    - column: action
+      value: energy_efficiency_measures_for_new_construction
+    - column: ghg
   output_metrics:
-  - id: i12_energy
+  - id: energy
     unit: GWh/a
     quantity: energy
-  - id: i62_energy
-    unit: GWh/a
-    quantity: energy
-  - id: i_currency
+  - id: currency
     unit: EUR/a
     quantity: currency
   output_nodes:
   - id: district_heating_energy_consumption
-    metrics: [i12_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
     - id: owner
       flatten: true
+    - id: heating
+      categories: [district_heat]
     to_dimensions:
     - id: heating
     - id: energy_carrier
     - id: scope
   - id: district_heat_consumption_reductions
-    metrics: [i12_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
     - id: owner
       flatten: true
     - id: heating
+      categories: [district_heat]
       flatten: true
     - id: scope
       flatten: true
     to_dimensions:
     - id: energy_carrier
   - id: other_electricity_consumption
-    metrics: [i62_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
     - id: owner
       flatten: true
     - id: heating
+      categories: [district_heat]
+      exclude: true
       flatten: true
     to_dimensions:
     - id: energy_carrier
     - id: scope
   - id: electricity_consumption_reductions
-    metrics: [i62_energy]
+    metrics: [energy]
     from_dimensions:
     - id: cost_type
       flatten: true
     - id: owner
       flatten: true
     - id: heating
+      categories: [district_heat]
+      exclude: true
       flatten: true
     - id: scope
       flatten: true
     to_dimensions:
     - id: energy_carrier
   - id: building_heating_price
-    metrics: [i_currency]
+    metrics: [currency]
     from_dimensions:
     - id: heating
       flatten: true
@@ -2795,7 +2974,7 @@ actions:
     - id: cost_type
     - id: owner
   - id: total_costs
-    metrics: [i_currency]
+    metrics: [currency]
     from_dimensions:
     - id: heating
       flatten: true
@@ -2810,25 +2989,29 @@ actions:
 - id: electrify_public_transportation
   name: Bussiliikenteen käyttövoimamuutos
   name_en: Change in the propulsion of bus fleet
-  type: gpc.DatasetActionMFM
+  type: simple.AdditiveAction
   color: '#e15759'
   input_dimensions: ['cost_type', 'owner', 'vehicle_type', 'ghg', 'scope']
   output_dimensions: ['cost_type', 'owner', 'vehicle_type', 'ghg', 'scope']
   params:
-    action: Electrify Public Transportation
+    allow_null_categories: true
   input_datasets:
-  - id: gpc/tampere_simple_actions
+  - id: tampere/transportation_actions
     forecast_from: 2025
+    filters:
+    - column: sector
+    - column: action
+      value: change_in_the_propulsion_of_bus_fleet
   output_metrics:
-  - id: ii11_emissions
+  - id: emissions
     unit: t/a
     quantity: emissions
-  - id: ii_currency
+  - id: currency
     unit: EUR/a
     quantity: currency
   output_nodes:
   - id: bus_emissions_total
-    metrics: [ii11_emissions]
+    metrics: [emissions]
     from_dimensions:
     - id: cost_type
       flatten: true
@@ -2839,7 +3022,7 @@ actions:
     - id: ghg
     - id: scope
   - id: transportation_price
-    metrics: [ii_currency]
+    metrics: [currency]
     from_dimensions:
     - id: ghg
       flatten: true
@@ -2850,7 +3033,7 @@ actions:
     - id: owner
     - id: vehicle_type
   - id: total_benefits
-    metrics: [ii_currency]
+    metrics: [currency]
     from_dimensions:
     - id: vehicle_type
       flatten: true

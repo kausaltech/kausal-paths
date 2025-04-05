@@ -1,0 +1,298 @@
+nodes:
+
+- id: forestry_product_unit_price
+  name_fi: Metsätaloustuotteiden keskihinta
+  name_en: Average forestry product unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/m3_solid
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
+  input_datasets: [sunnydale/forestry_fi]
+  params:
+    sector: Average forestry product unit price
+
+- id: forestry_product_sales
+  name_fi: Metsätaloustuotteiden myyntivoitto
+  name_en: Forestry product sales
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, stakeholder, case]
+  output_dimensions: [cost_type, stakeholder, case]
+  input_nodes:
+  - id: forestry_production
+    to_dimensions:
+    - id: stakeholder
+    - id: case
+  - id: forestry_product_unit_price
+    to_dimensions:
+    - id: cost_type
+  output_nodes:
+  - id: total_economic_cost
+    tags: [arithmetic_inverse]
+
+- id: total_economic_cost
+  name_fi: Taloudellinen kokonaiskustannus
+  name_en: Total economic cost
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, stakeholder, case]
+  output_dimensions: [cost_type, stakeholder, case]
+  output_nodes:
+  - id: total_cost
+
+- id: co2_market_price
+  name_en: CO2 market price
+  name_fi: Hiilidioksidin markkinahinta
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/t
+  input_dimensions: [stakeholder]
+  output_dimensions: [stakeholder]
+  input_datasets: [sunnydale/forestry_fi]
+  params:
+    sector: CO2 market price
+
+- id: emission_cost
+  name_fi: Päästöjen kustannus
+  name_en: Emission cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
+  input_nodes:
+  - id: net_emissions
+    to_dimensions:
+    - id: cost_type
+  - id: co2_market_price
+    to_dimensions:
+    - id: stakeholder
+  output_nodes:
+  - id: total_cost
+    to_dimensions:
+    - id: cost_type
+    - id: stakeholder
+    - id: case
+      categories: [case1]
+  params:
+  - id: multiplier
+    ref: emissions_weight
+
+- id: total_cost
+  name_fi: Kokonaiskustannus
+  name_en: Total cost
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, stakeholder, case]
+  output_dimensions: [cost_type, stakeholder, case]
+  is_outcome: true
+
+# ------------------ Nodes for impact overviews ---------------
+
+- id: total_societal_cost
+  name: Total societal cost
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  is_visible: false
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
+  input_nodes:
+  - id: total_cost
+    from_dimensions:
+    - id: stakeholder
+      categories: [mankind]
+    - id: case
+      flatten: true
+
+- id: total_cost_costs
+  name: Total cost costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  is_visible: false
+  input_dimensions: [cost_type, stakeholder, case]
+  output_dimensions: [cost_type, stakeholder, case]
+  input_nodes:
+  - id: total_cost
+    tags: [make_nonnegative]
+
+- id: total_cost_benefits
+  name: Total cost benefits
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  is_visible: false
+  input_dimensions: [cost_type, stakeholder, case]
+  output_dimensions: [cost_type, stakeholder, case]
+  input_nodes:
+  - id: total_cost
+    tags: [make_nonpositive]
+
+- id: price_of_forest_protection
+  name: Price of forest protection
+  name_fi: Metsien suojelukorvauksen hinta
+  type: generic.GenericNode
+  quantity: unit_price
+  unit: EUR/m3_solid/a
+  input_datasets:
+  - id: sunnydale/forestry_fi
+    tags: [baseline]
+    filters:
+    - column: Sector
+      value: Forest protection unit price
+
+- id: price_of_carbon_sinks
+  name: Price of carbon sinks
+  name_fi: Metsien hiilinielujen hinta
+  type: generic.GenericNode
+  quantity: unit_price
+  unit: EUR/m3_solid/a
+  input_datasets:
+  - id: sunnydale/forestry_fi
+    tags: [baseline]
+    filters:
+    - column: Sector
+      value: Carbon sink unit price
+
+- id: other_forest_income
+  name: Other forest income
+  name_fi: Muu metsätulo
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, case]
+  output_dimensions: [stakeholder, case]
+  input_datasets:
+  - id: sunnydale/forestry_fi
+    filters:
+    - column: Sector
+      value: Argument placeholder
+  input_nodes:
+  - id: price_of_forest_protection
+    tags: [additive]
+    to_dimensions: []
+  - id: price_of_carbon_sinks
+    tags: [additive]
+    to_dimensions: []
+  - id: amount_of_wood_in_forests
+  - id: premature_cuts_destroy_income
+    tags: [ignore_content]
+  output_nodes:
+  - id: total_economic_cost
+    to_dimensions:
+    - id: cost_type
+      categories: [economic]
+    - id: stakeholder
+    - id: case
+  params:
+    operations: add,multiply
+
+- id: total_utility
+  name: Total utility
+  type: generic.WeightedSumNode
+  quantity: utility
+  unit: dimensionless
+  input_dimensions: [stakeholder, cost_type, case]
+  output_dimensions: [stakeholder, cost_type, case]
+  input_datasets:
+  - id: sunnydale/forestry_fi
+    tags: [input_node_weights]
+    filters:
+    - column: Sector
+      value: Utility weights
+  input_nodes:
+  - id: total_cost
+    tags: [additive]
+  - id: private_forest_protection_is_voluntary
+    tags: [additive]
+    to_dimensions: # FIXME Fix categories
+    - id: stakeholder
+      categories: [industry]
+    - id: cost_type
+      categories: [economic]
+    - id: case
+      categories: [case1]
+  - id: biodiversity_in_forests
+    tags: [additive]
+    to_dimensions:
+    - id: stakeholder
+    - id: cost_type
+      categories: [biodiversity]
+    - id: case
+  - id: success_by_climate_aware_industrialist
+    tags: [additive]
+    to_dimensions:
+    - id: stakeholder
+      categories: [industry]
+    - id: cost_type
+      categories: [economic]
+    - id: case
+      categories: [case1]
+
+- id: keep_forest_industry_alive
+  name: Forest industry must be kept alive
+  type: values.ThresholdNode
+  input_nodes:
+  - id: forestry_product_sales
+    from_dimensions:
+    - id: stakeholder
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: case
+      flatten: true
+  params:
+  - id: threshold
+    value: 900
+    unit: MEUR/a
+  - id: use_input_node_unit_when_adding
+    value: true
+
+- id: success_by_climate_aware_industrialist
+  name: Success as defined by climate-aware industrialist
+  type: generic.LogicalNode
+  input_nodes:
+  - id: keep_forest_industry_alive
+    tags: [non_additive]
+
+actions:
+
+- id: price_to_pay_for_forest_protection
+  name_en: Price to pay for forest protection
+  name_fi: Metsänsuojelusta maksettava korvaus
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: EUR/m3_solid/a
+  group: forestry
+  input_datasets: [sunnydale/forestry_fi]
+  output_nodes:
+  - id: price_of_forest_protection
+  params:
+  - id: sector
+    value: Yes/no decision
+  - id: multiplier
+    value: 1.0
+    min_value: 0.1
+    max_value: 1.0
+    step: 0.1
+    unit: EUR/m3_solid/a
+    is_visible: true
+    is_customizable: true
+
+- id: pay_for_carbon_sink
+  name_en: Pay for carbon sink
+  name_fi: Maksa hiilinielusta
+  type: gpc.DatasetAction
+  quantity: fraction
+  unit: dimensionless
+  group: forestry
+  input_datasets: [sunnydale/forestry_fi]
+  output_nodes:
+  - id: price_of_carbon_sinks
+  params:
+    sector: Yes/no decision

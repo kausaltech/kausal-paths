@@ -1604,7 +1604,9 @@ actions:
   - id: emissions_from_other_sectors
     tags: [non_additive, complement]
     to_dimensions: []
-  input_datasets: [nzc/defaults]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2018
   params:
     sector: Reduced CO2e emissions committed by Industry, Agriculture, etc. in Other
       sector

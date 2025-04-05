@@ -4,7 +4,7 @@ supported_languages: [sv, en]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 3a3f72cd984bce1ebadb62b6e7174726a668cf1c
+  commit: 12ed8904e50ac3730d3dbe62ef864931534b8929
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -462,14 +462,15 @@ nodes:
 - id: green_electricity_shares
   name_fi: Vihreän sähkön osuudet
   name_en: Green electricity shares
-  type: gpc.DatasetNode
+  type: generic.GenericNode
   quantity: ratio
   unit: '%'
   input_dimensions: [economic_sector, energy_carrier]
   output_dimensions: [economic_sector, energy_carrier]
-  input_datasets: [gpc/espoo]
-  params:
-    sector: Vihreän sähkön jakauma
+  input_datasets:
+  - id: espoo/electricity
+    tags: [baseline]
+    column: vihrean_sahkon_jakauma
   output_nodes:
   - id: green_electricity_consumption_post
     from_dimensions:
@@ -553,16 +554,16 @@ nodes:
     att öka med 44 % och 47 % till 2030 respektive 2035 jämfört med 2021. Däremot
     antas tillväxten i scenariot Kolneutralt Esbo 2030 vara så hög som 45 % respektive
     49 %.'
-  type: gpc.DatasetNode
+  type: generic.GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [vehicle_type, economic_sector]
   output_dimensions: [vehicle_type, economic_sector]
   input_datasets:
-  - id: gpc/espoo
+  - id: espoo/transport
     forecast_from: 2024
-  params:
-    sector: Tieliikenteen suorite-ennuste
+    column: tieliikenteen_suorite_ennuste
+    tags: [baseline]
 
 # -------------- Nodes needed for implementing actions ----------------
 
@@ -582,17 +583,17 @@ nodes:
   name_fi: Kaukolämmön päästökerroin, tavoite
   name_en: District heating emission factor, goal
   name_sv: Emissionsfaktor för fjärrvärme, goal
-  type: gpc.DatasetNode
+  type: generic.GenericNode
   quantity: emission_factor
   unit: g/kWh
   input_datasets:
-  - id: gpc/espoo
+  - id: espoo/building
+    tags: [baseline]
+    column: kaukolammon_paastokerrointavoite
     forecast_from: 2024
     filters:
-    - column: Scenario
+    - column: scenario
       ref: scenario_name
-  params:
-    sector: Kaukolämmön päästökerrointavoite
 
 # Electricity
 
@@ -613,14 +614,15 @@ nodes:
   name_fi: Kulutussähkön kulutus (Asuminen), tavoite
   name_en: Consumer electricity consumption (Residential), goal
   name_sv: Elförbrukning för konsumtionsel (Bostäder), mål
-  type: gpc.DatasetNode
+  type: generic.GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
-  input_datasets: [gpc/espoo]
-  params:
-    sector: Muutos kulutussähkön käytössä (Asuminen)
+  input_datasets:
+  - id: espoo/electricity
+    tags: [baseline]
+    column: muutos_kulutussahkon_kaytossa_asuminen
 
 - id: electricity_production_emission_factor_historic
   name_fi: Kansallisen sähköntuotannon päästökerroin, historiallinen
@@ -638,14 +640,15 @@ nodes:
   name_fi: Sähköntuotannon päästökerroin, tavoite
   name_en: Electricity production emission factor, goal
   name_sv: Elproduktionens utsläppskoefficient, mål
-  type: gpc.DatasetNode
+  type: generic.GenericNode
   quantity: emission_factor
   unit: t/GWh
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
-  input_datasets: [gpc/espoo]
-  params:
-    sector: Kansallinen sähköntuotanto puhdistuu
+  input_datasets:
+  - id: espoo/electricity
+    tags: [baseline]
+    column: kansallinen_sahkontuotanto_puhdistuu
 
 - id: electric_heating_emission_factor_historic
   name_fi: Lämmityssähkön päästökerroin, historiallinen
@@ -665,15 +668,15 @@ nodes:
   name_fi: Kuorma-autojen kerroin (vähennyspotentiaali)
   name_en: Truck factor (reduction potential)
   name_sv: Lastbilsfaktor (reduktionspotential)
-  type: gpc.DatasetNode
+  type: generic.GenericNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [vehicle_type]
   output_dimensions: [vehicle_type]
   input_datasets:
-  - id: gpc/espoo
-  params:
-    sector: Kuorma-autoliikenteen kerroin
+  - id: espoo/transport
+    tags: [baseline]
+    column: kuorma_autoliikenteen_kerroin
 
 - id: truck_emission_change
   name_fi: Kuorma-autojen päästöjen muutos
@@ -698,16 +701,16 @@ nodes:
   name_fi: Tieliikenteen päästökerroinennuste
   name_en: Road traffic emission factor forecast
   name_sv: Prognos för vägtrafikens utsläppskoefficient
-  type: gpc.DatasetNode
+  type: generic.GenericNode
   quantity: emission_factor
   unit: g/kWh
   input_dimensions: [vehicle_type, economic_sector]
   output_dimensions: [vehicle_type, economic_sector]
   input_datasets:
-  - id: gpc/espoo
+  - id: espoo/transport
     forecast_from: 2024
-  params:
-    sector: Tieliikenteen päästökertoimen ennuste
+    tags: [baseline]
+    column: tieliikenteen_paastokertoimen_ennuste
 
 - id: road_traffic_emission_factors_historical
   name_fi: Tieliikenteen historialliset päästökertoimet
@@ -836,20 +839,21 @@ actions:
     Oy och Microsofts datacenter i Hepokorvenkallio. Effekten av stora aktörers användning
     av ren el beaktas också i "restfaktorn" i elens utsläppskoefficient, som har använts
     för att beräkna utsläppsuppskattningen för annan elanvändning.
-  type: gpc.DatasetAction
+  type: simple.GenericAction
   quantity: energy
   unit: GWh/a
   group: electricity
   input_dimensions: [energy_carrier, owner]
   output_dimensions: [energy_carrier, owner]
-  input_datasets: [gpc/espoo]
+  input_datasets:
+  - id: espoo/electricity
+    tags: [baseline]
+    column: suurten_toimijoiden_sahkonkulutus
   output_nodes:
   - id: green_electricity_consumption
     from_dimensions:
     - id: owner
       flatten: true
-  params:
-    sector: Suurten toimijoiden sähkönkulutus
 
 - id: increase_solar_electricity_production
   name_fi: Aurinkosähkön tuotannon lisääminen
@@ -858,17 +862,17 @@ actions:
   description_fi: Lisätään aurinkosähkön tuotantoa Espoon alueella entisestään.
   description_en: Increase solar electricity production in the Espoo area even further.
   description_sv: Öka produktionen av solel i Esboområdet ytterligare.
-  type: gpc.DatasetAction
+  type: simple.GenericAction
   quantity: energy
   unit: GWh/a
   group: electricity
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
-  params:
-    sector: Arvio aurinkosähkön tuotantomäärästä (GWh)
   input_datasets:
-  - id: gpc/espoo
+  - id: espoo/electricity
+    tags: [baseline]
     forecast_from: 2025
+    column: arvio_aurinkosahkon_tuotantomaarasta_gwh
   output_nodes:
   - id: non_heating_electricity_energy
     tags: [arithmetic_inverse]
@@ -904,23 +908,23 @@ actions:
     ökar utsläppen i Esboområdet. Från och med 2028 specificerar regeringsprogrammet
     inte bränslets bioandel, och beräkningen antar att bioandelen kommer att vara
     densamma som 2027 från och med 2028.
-  type: gpc.DatasetAction
+  type: simple.GenericAction
   quantity: fraction
   unit: '%'
   decision_level: nation
   group: transportation
   input_datasets:
-  - id: gpc/espoo
+  - id: espoo/transport
     forecast_from: 2024
+    tags: [baseline]
+    column: jakeluvelvoite
     filters:
-    - column: Scenario
+    - column: scenario
       ref: scenario_name
   output_nodes:
   - id: road_traffic_emission_factors
     tags: [non_additive, complement]
     to_dimensions: []
-  params:
-    sector: Jakeluvelvoite
 
 - id: increase_electric_passenger_cars # TODO A slider would be nice.
   name_fi: Edistämme sähköautoilua
@@ -944,17 +948,17 @@ actions:
     helt elektriska personbilar uppskattas till 70 000 år 2030 och 115 000 år 2035.
     Antalet laddningsbara hybridpersonbilar uppskattas till 14 600 år 2030 och 10
     000 år 2035.
-  type: gpc.DatasetAction
+  type: simple.GenericAction
   quantity: number
   unit: vehicles
   group: transportation
   input_dimensions: [energy_carrier, vehicle_type]
   output_dimensions: [energy_carrier, vehicle_type]
   input_datasets:
-  - id: gpc/espoo
+  - id: espoo/transport
     forecast_from: 2024
-  params:
-    sector: Sähköhenkilöautojen kasvu
+    tags: [baseline]
+    column: sahkohenkiloautojen_kasvu
   output_nodes:
   - id: passenger_cars_by_type
 
@@ -1388,13 +1392,16 @@ actions:
     Energieffektivitetsåtgärder har en betydande utsläppsminskande effekt. Dessutom
     har de övergripande åtgärderna främst riktats mot nybyggnation genom planläggningsåtgärder,
     där det finns mindre potential jämfört med det befintliga byggnadsbeståndet.
-  type: gpc.DatasetAction
+  type: simple.GenericAction
   quantity: energy
   unit: GWh/a
   group: buildings
   input_dimensions: [building_use, building_heat_source, owner]
   output_dimensions: [building_use, building_heat_source, owner]
-  input_datasets: [gpc/espoo]
+  input_datasets:
+  - id: espoo/building
+    tags: [baseline]
+    column: kaupungin_oman_rakennuskannan_energiankulutuksen_vahennys
   output_nodes:
   - id: building_heat_consumption_existing
     from_dimensions:
@@ -1403,8 +1410,6 @@ actions:
     to_dimensions:
     - id: building_heat_source
     - id: building_use
-  params:
-    sector: Kaupungin oman rakennuskannan energiankulutuksen vähennys
 
 #
 # OTHER SECTORS
@@ -1438,7 +1443,7 @@ actions:
     nivå.</p><p>År 2021 var utsläppen 23,7 kt och grunden för dessa utsläppsuppskattningar.
     Men år 2022 var utsläppen endast 21,8 kt, så det pessimistiska scenariot och Finland
     2035-scenariot är mer pessimistiska än det faktiska utfallet.</p>
-  type: gpc.DatasetAction
+  type: simple.GenericAction
   quantity: ratio
   unit: '%'
   no_effect_value: 100
@@ -1446,13 +1451,14 @@ actions:
   input_dimensions: [emission_sector]
   output_dimensions: [emission_sector]
   input_datasets:
-  - id: gpc/espoo
+  - id: espoo/jatteenkasittelyn_tavoite
+    tags: [baseline]
     forecast_from: 2024
     filters:
-    - column: Scenario
+    - column: scenario
       ref: scenario_name
-  params:
-    sector: Waste treatment goals
+  # params:
+  #   sector: Waste treatment goals
   output_nodes:
   - id: waste_treatment_emissions
     tags: [non_additive]
@@ -1543,12 +1549,14 @@ actions:
   input_dimensions: [emission_sector, economic_sector]
   output_dimensions: [emission_sector, economic_sector]
   input_datasets:
-  - id: gpc/espoo
+  - id: gpc/espoo # FIXME Use genericnode Instead
     tags: [goal]
     forecast_from: 2024
     filters:
     - column: Scenario
       ref: scenario_name
+    - column: Slice
+      value: industry
   output_nodes:
   - id: industry_machinery_emissions
     to_dimensions:
@@ -1571,19 +1579,19 @@ actions:
     by 0.9%.
   description_sv: Ersättning av fossila bränslen beräknas minska vägtrafikens utsläpp
     med 0,9 %.
-  type: gpc.DatasetAction
+  type: simple.GenericAction
   quantity: fraction
   unit: '%'
   group: transportation
   input_datasets:
-  - id: gpc/espoo
+  - id: espoo/transport
+    tags: [baseline]
+    column: liikenteen_fossiilisten_polttoaineiden_korvaaminen
     forecast_from: 2024
   output_nodes:
   - id: road_traffic_emission_factors
     tags: [non_additive, complement]
     to_dimensions: []
-  params:
-    sector: Liikenteen fossiilisten polttoaineiden korvaaminen
 
 - id: upgrade_car_fleet
   name_fi: Autokannan nopeampi uudistuminen
@@ -1823,7 +1831,7 @@ scenarios:
   name_sv: Finland 2035
   params:
   - id: scenario_name
-    value: baseline
+    value: suomi2035
   - id: cleaner_electricity_production.enabled
     value: true
 
@@ -1862,7 +1870,7 @@ scenarios:
   all_actions_enabled: true
   params:
   - id: scenario_name
-    value: default
+    value: hne2030
   - id: replace_fossil_fuels_in_cars.enabled
     value: true
   - id: upgrade_car_fleet.enabled
@@ -1908,7 +1916,7 @@ scenarios:
   is_selectable: false
   params:
   - id: scenario_name
-    value: default
+    value: hne2030
   - id: replace_fossil_fuels_in_cars.enabled
     value: true
   - id: upgrade_car_fleet.enabled
