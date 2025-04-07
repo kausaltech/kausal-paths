@@ -22,6 +22,9 @@ emission_forecast_from: 2023
 params:
 - id: municipality_name
   value: Tampere
+features:
+  baseline_visible_in_graphs: true
+  use_datasets_from_db: true
 
 impact_overviews:
 - graph_type: cost_effectiveness
