@@ -1,49 +1,68 @@
 dimensions:
 - id: waste_type
-  label: Waste Type
+  label_en: Waste Type
+  label_el: Τύπος Αποβλήτων
   categories:
   # NZC
   - id: paper
-    label: Paper and cardboard
+    label_en: Paper and cardboard
+    label_el: Χαρτί και χαρτόνι
   - id: metal
-    label: Metal
+    label_en: Metal
+    label_el: Μέταλλο
   - id: plastics
-    label: Plastics
+    label_en: Plastics
+    label_el: Πλαστικά
   - id: glass
-    label: Glass
+    label_en: Glass
+    label_el: Γυαλί
   - id: organic_waste
-    label: Organic waste
+    label_en: Organic waste
+    label_el: Οργανικά απόβλητα
   - id: other_waste
-    label: Other waste (e.g. textiles, rubble, wood)
+    label_en: Other waste (e.g. textiles, rubble, wood)
+    label_el: Άλλα απόβλητα (π.χ. υφάσματα, μπάζα, ξύλο)
   - id: mixed_waste
-    label: Mixed waste
+    label_en: Mixed waste
+    label_el: Μικτά απόβλητα
   - id: aluminium
-    label: Aluminiium
+    label_en: Aluminiium
+    label_el: Αλουμίνιο
 
   # Inventory
   - id: clinical_waste
-    label: 'Clinical Waste'
+    label_en: 'Clinical Waste'
+    label_el: 'Κλινικά Απόβλητα'
 
 - id: waste_treatment
-  label: Waste treatment
+  label_en: Waste treatment
+  label_el: Επεξεργασία Αποβλήτων
   categories:
   - id: incinerated
-    label: Incinerated (e.g. energy recovery)
+    label_en: Incinerated (e.g. energy recovery)
+    label_el: Αποτέφρωση (π.χ. ανάκτηση ενέργειας)
   - id: recycled
-    label: Recycled
+    label_en: Recycled
+    label_el: Ανακύκλωση
   - id: decay
-    label: Organic decay (waste)
+    label_en: Organic decay (waste)
+    label_el: Οργανική αποσύνθεση (απόβλητα)
   - id: sorting
-    label: Sorting
+    label_en: Sorting
+    label_el: Διαλογή
   - id: plastic_sorting
-    label: Plastic sorting
+    label_en: Plastic sorting
+    label_el: Διαλογή πλαστικών
   - id: landfill
-    label: Landfill
+    label_en: Landfill
+    label_el: Χώρος υγειονομικής ταφής
     aliases: [other, Other waste management]
   - id: landfill_gas
-    label: Landfill gas
+    label_en: Landfill gas
+    label_el: Αέριο χώρου υγειονομικής ταφής
   - id: composting
-    label: Composting
+    label_en: Composting
+    label_el: Κομποστοποίηση
 
 nodes:
 
@@ -51,7 +70,7 @@ nodes:
 
 - id: collected_waste
   name_en: Collected waste
-  name_fi: Kerätty jäte
+  name_el: Συλλεγόμενα απόβλητα
   type: gpc.DatasetNode
   quantity: mass
   unit: t/a
@@ -63,7 +82,7 @@ nodes:
 
 - id: waste_recycling_shares_frozen
   name_en: Waste recycling shares frozen scenario
-  name_fi: Jätteiden kierrätysosuudet jäädytetty skenaario
+  name_el: Μερίδια ανακύκλωσης αποβλήτων - παγωμένο σενάριο
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -75,7 +94,7 @@ nodes:
 
 - id: waste_recycling_future_baseline_shares
   name_en: Waste recycling future baseline shares
-  name_fi: Jätteiden kierrätyksen tulevaisuuden perusosuudet
+  name_el: Μελλοντικά βασικά μερίδια ανακύκλωσης αποβλήτων
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -87,7 +106,7 @@ nodes:
 
 - id: waste_recycling_shares_baseline
   name_en: Waste recycling shares baseline
-  name_fi: Jätteiden kierrätysosuudet perustaso
+  name_el: Βασικά μερίδια ανακύκλωσης αποβλήτων
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
@@ -98,7 +117,7 @@ nodes:
 
 - id: waste_recycling_shares_goal
   name_en: Waste recycling shares goal
-  name_fi: Jätteiden kierrätysosuuksien tavoite
+  name_el: Στόχος μεριδίων ανακύκλωσης αποβλήτων
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -115,7 +134,7 @@ nodes:
 
 - id: waste_recycling_shares
   name_en: Waste recycling shares
-  name_fi: Jätteiden kierrätysosuudet
+  name_el: Μερίδια ανακύκλωσης αποβλήτων
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
@@ -126,7 +145,7 @@ nodes:
 
 - id: waste_management_amount
   name_en: Waste management amount
-  name_fi: Jätehuollon määrä
+  name_el: Ποσότητα διαχείρισης αποβλήτων
   type: simple.MultiplicativeNode
   quantity: mass
   unit: t/a
@@ -141,9 +160,9 @@ nodes:
 
 - id: waste_emission_factor
   name_en: Waste emission factor
-  name_fi: Jätteiden päästökerroin
+  name_el: Συντελεστής εκπομπών αποβλήτων
   description_en: OK. But has mixed waste also, although does not come from the same place as the others.
-  description_fi: OK. Mutta sisältää myös sekajätteen, vaikka se ei tule samasta paikasta kuin muut.
+  description_el: Εντάξει. Αλλά περιλαμβάνει επίσης μικτά απόβλητα, αν και δεν προέρχονται από το ίδιο μέρος με τα άλλα.
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: t/t
@@ -157,7 +176,7 @@ nodes:
 
 - id: waste_emissions
   name_en: Waste emissions
-  name_fi: Jätepäästöt
+  name_el: Εκπομπές αποβλήτων
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
@@ -190,7 +209,7 @@ nodes:
 
 - id: waste_air_pollution_emission_factor
   name_en: Waste air pollution emission factor
-  name_fi: Jätteiden ilmansaastepäästökerroin
+  name_el: Συντελεστής εκπομπών ατμοσφαιρικής ρύπανσης αποβλήτων
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: kg/t
@@ -224,7 +243,7 @@ nodes:
 
 - id: waste_incineration_air_pollution_emissions
   name_en: Waste incineration air pollution emissions
-  name_fi: Jätteenpolton ilmansaastepäästöt
+  name_el: Εκπομπές ατμοσφαιρικής ρύπανσης από αποτέφρωση αποβλήτων
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
@@ -245,7 +264,7 @@ nodes:
 
 - id: recycled_waste_unit_price
   name_en: Recycled waste unit price
-  name_fi: Kierrätetyn jätteen yksikköhinta
+  name_el: Τιμή μονάδας ανακυκλωμένων αποβλήτων
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/t
@@ -265,7 +284,7 @@ nodes:
 
 - id: recycled_waste_sales_income
   name_en: Recycled waste sales income
-  name_fi: Kierrätetyn jätteen myyntitulot
+  name_el: Έσοδα πωλήσεων ανακυκλωμένων αποβλήτων
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -282,7 +301,7 @@ nodes:
 
 - id: waste_treatment_unit_price
   name_en: Waste treatment unit price
-  name_fi: Jätteenkäsittelyn yksikköhinta
+  name_el: Τιμή μονάδας επεξεργασίας αποβλήτων
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/t
@@ -302,7 +321,7 @@ nodes:
 
 - id: waste_treatment_cost
   name_en: Waste treatment cost
-  name_fi: Jätteenkäsittelyn kustannukset
+  name_el: Κόστος επεξεργασίας αποβλήτων
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -318,9 +337,9 @@ nodes:
 
 - id: waste_management_cost
   name_en: Waste management cost
-  name_fi: Jätehuollon kustannukset
+  name_el: Κόστος διαχείρισης αποβλήτων
   description_en: TODO Add nodes for waste incineration income
-  description_fi: TODO Lisää solmut jätteenpolton tuloille
+  description_el: TODO Προσθήκη κόμβων για έσοδα από αποτέφρωση αποβλήτων
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
@@ -329,7 +348,7 @@ nodes:
 
 - id: waste_management_cost_shares
   name_en: Waste management cost shares
-  name_fi: Jätehuollon kustannusosuudet
+  name_el: Μερίδια κόστους διαχείρισης αποβλήτων
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -341,7 +360,7 @@ nodes:
 
 - id: waste_management_cost_by_stakeholder
   name_en: Waste management cost by stakeholder
-  name_fi: Jätehuollon kustannukset sidosryhmittäin
+  name_el: Κόστος διαχείρισης αποβλήτων ανά ενδιαφερόμενο μέρος
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -363,7 +382,7 @@ nodes:
 
 - id: waste_air_pollution_cost
   name_en: Waste air pollution cost
-  name_fi: Jätteiden ilmansaastekustannukset
+  name_el: Κόστος ατμοσφαιρικής ρύπανσης αποβλήτων
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -396,7 +415,7 @@ nodes:
 
 - id: waste_cost
   name_en: Waste cost
-  name_fi: Jätekustannukset
+  name_el: Κόστος αποβλήτων
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a

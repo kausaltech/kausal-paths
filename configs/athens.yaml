@@ -1,12 +1,13 @@
 id: athens
-default_language: en
-supported_languages: [el]
+default_language: el
+supported_languages: [en]
 site_url: https://athens.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 77872ba76751d5e390079b1d2d6858c1e1eb7ee6
   dvc_remote: kausal-s3
-name: Athens Greenhouse Gas Inventory
+name_en: Athens Greenhouse Gas Inventory
+name_el: Απογραφή Εκπομπών Αερίων Θερμοκηπίου Αθηνών
 owner: City of Athens
 theme_identifier: gr-arsinoe
 target_year: 2030
@@ -21,7 +22,8 @@ features:
 
 params:
 - id: discount_rate
-  label: Discount rate
+  label_en: Discount rate
+  label_el: Προεξοφλητικό επιτόκιο
   value: 3.5
   min_value: 0
   max_value: 5
@@ -29,412 +31,577 @@ params:
   is_visible: true
   is_customizable: false
 - id: statistical_correction
-  label: Statistical correction
+  label_en: Statistical correction
+  label_el: Στατιστική διόρθωση
   value: true
   is_visible: true
   is_customizable: true
 
 action_groups:
 - id: transport
-  name: 1. Transport
+  name_en: 1. Transport
+  name: 1. Μεταφορές
   color: '#E15759'
 - id: freight_transport
-  name: 2. Freight transport
+  name_en: 2. Freight transport
+  name: 2. Εμπορευματικές μεταφορές
   color: '#F28E2B'
 - id: buildings
-  name: 3. Buildings
+  name_en: 3. Buildings
+  name: 3. Κτίρια
   color: '#4E79A7'
 - id: electricity
-  name: 4. Electricity
+  name_en: 4. Electricity
+  name: 4. Ηλεκτρική ενέργεια
   color: '#B07AA1'
 - id: waste
-  name: 5. Waste
+  name_en: 5. Waste
+  name: 5. Απόβλητα
   color: '#59A14F'
 - id: scope_3
-  name: 6. Scope 3
+  name_en: 6. Scope 3
+  name: 6. Εμβέλεια 3
   color: '#76B7B2'
 - id: reforestation
-  name: 7. Reforestation
+  name_en: 7. Reforestation
+  name: 7. Αναδάσωση
 
 dimensions:
 - id: pollutant
-  label: Pollutant
+  label_en: Pollutant
+  label_el: Ρύπος
   categories:
   - id: co2
-    label: CO2
+    label_en: CO2
+    label_el: CO2
     aliases: [co2e]
   - id: nox
-    label: NOx
+    label_en: NOx
+    label_el: NOx
   - id: pm25_combustion
-    label: PM2.5 combustion
+    label_en: PM2.5 combustion
+    label_el: Καύση PM2.5
     aliases: [pm25]
   - id: pm25_wear_tear
-    label: PM2.5 wear & tear
+    label_en: PM2.5 wear & tear
+    label_el: Φθορά & σχίσιμο PM2.5
   - id: pm10_combustion
-    label: PM10 combustion
+    label_en: PM10 combustion
+    label_el: Καύση PM10
     aliases: [pm10]
   - id: pm10_wear_tear
-    label: PM10 wear & tear
+    label_en: PM10 wear & tear
+    label_el: Φθορά & σχίσιμο PM10
 
 - id: sector
-  label: Sector
+  label_en: Sector
+  label_el: Τομέας
   help_text: Sectors as categorised in the Mission City Climate City Contracts (CCC).
   categories:
   - id: transport
-    label: Transport
+    label_en: Transport
+    label_el: Μεταφορές
   - id: buildings
-    label: Buildings & Heating
+    label_en: Buildings & Heating
+    label_el: Κτίρια & Θέρμανση
   - id: electricity
-    label: Electricity  # TODO If you start using different electricity sectors, you may want to rename this Other electricity
+    label_en: Electricity
+    label_el: Ηλεκτρική ενέργεια
   - id: waste
-    label: Waste
+    label_en: Waste
+    label_el: Απόβλητα
   - id: other
-    label: Other (incl. IPPU & AFOLU)
+    label_en: Other (incl. IPPU & AFOLU)
+    label_el: Άλλα (συμπ. IPPU & AFOLU)
 
 - id: scope
-  label: Scope
+  label_en: Scope
+  label_el: Εμβέλεια
   help_text: '1: Local emissions. 2: Grid emissions (electricity, district heating).
     3: Indirect emissions.'
   categories:
   - id: scope1
-    label: Scope 1
+    label_en: Scope 1
+    label_el: Εμβέλεια 1
     aliases: [scope_1]
   - id: scope2
-    label: Scope 2
+    label_en: Scope 2
+    label_el: Εμβέλεια 2
     aliases: [scope_2]
   - id: scope3
-    label: Scope 3
+    label_en: Scope 3
+    label_el: Εμβέλεια 3
     aliases: [scope_3]
 
 - id: cost_type
-  label: Cost Type
+  label_en: Cost Type
+  label_el: Τύπος Κόστους
   categories:
   - id: energy_costs
-    label: Energy Costs
+    label_en: Energy Costs
+    label_el: Κόστη Ενέργειας
   - id: investment_costs
-    label: Investment Costs
+    label_en: Investment Costs
+    label_el: Κόστη Επένδυσης
   - id: capex
-    label: CAPEX (capital expenditure)
+    label_en: CAPEX (capital expenditure)
+    label_el: CAPEX (κεφαλαιουχικές δαπάνες)
   - id: capex_levelised
-    label: CAPEX (levelised)
+    label_en: CAPEX (levelised)
+    label_el: CAPEX (σταθμισμένο)
   - id: opex
-    label: OPEX (operational expenditure)
+    label_en: OPEX (operational expenditure)
+    label_el: OPEX (λειτουργικές δαπάνες)
     aliases: [operation_cost, Operation Cost]
   - id: maintenance_costs
-    label: Maintenance Costs
+    label_en: Maintenance Costs
+    label_el: Κόστη Συντήρησης
     aliases: [maintenance]
   - id: sales
-    label: Sales income
+    label_en: Sales income
+    label_el: Έσοδα πωλήσεων
   - id: air_pollution
-    label: Air pollution
+    label_en: Air pollution
+    label_el: Ατμοσφαιρική ρύπανση
     aliases: [air_quality]
   - id: noise
-    label: Noise
+    label_en: Noise
+    label_el: Θόρυβος
   - id: accidents
-    label: Accidents
+    label_en: Accidents
+    label_el: Ατυχήματα
   - id: health
-    label: Health
+    label_en: Health
+    label_el: Υγεία
   - id: co2_cost
-    label: CO2 Cost
+    label_en: CO2 Cost
+    label_el: Κόστος CO2
   - id: aesthetics
-    label: Aesthetics and amenity
+    label_en: Aesthetics and amenity
+    label_el: Αισθητική και ανέσεις
   - id: shading
-    label: Shading
+    label_en: Shading
+    label_el: Σκίαση
   - id: water_regulation
-    label: Water regulation
+    label_en: Water regulation
+    label_el: Ρύθμιση υδάτων
     aliases: [water_regulations]
   - id: forest_management
-    label: Forest management
+    label_en: Forest management
+    label_el: Διαχείριση δασών
   - id: bus_costs
-    label: Bus costs
+    label_en: Bus costs
+    label_el: Κόστη λεωφορείων
   - id: homecharging_infrastructure
-    label: Home-charging infrastructure
+    label_en: Home-charging infrastructure
+    label_el: Υποδομή φόρτισης στο σπίτι
   - id: public_and_workplace_infrastructure
-    label: Public & workplace infrastructure
+    label_en: Public & workplace infrastructure
+    label_el: Δημόσια & εργασιακή υποδομή
   - id: charging_infrastructure_costs
-    label: Charging infrastructure costs
+    label_en: Charging infrastructure costs
+    label_el: Κόστη υποδομής φόρτισης
   - id: vehicle_costs
-    label: Vehicle costs
+    label_en: Vehicle costs
+    label_el: Κόστη οχημάτων
   - id: infrastructure_costs
-    label: Infrastructure costs
+    label_en: Infrastructure costs
+    label_el: Κόστη υποδομής
   - id: network
-    label: Network
+    label_en: Network
+    label_el: Δίκτυο
   - id: fuel
-    label: Fuel costs
+    label_en: Fuel costs
+    label_el: Κόστη καυσίμων
   - id: tires
-    label: Tire costs
+    label_en: Tire costs
+    label_el: Κόστη ελαστικών
   - id: depreciation
-    label: Depreciation costs
+    label_en: Depreciation costs
+    label_el: Κόστη απόσβεσης
   - id: labour_costs
-    label: Labour costs
+    label_en: Labour costs
+    label_el: Κόστη εργασίας
   - id: industry_ippu
-    label: Industry (IPPU)
+    label_en: Industry (IPPU)
+    label_el: Βιομηχανία (IPPU)
   - id: agriculture_afolu
-    label: Agriculture (AFOLU)
+    label_en: Agriculture (AFOLU)
+    label_el: Γεωργία (AFOLU)
   - id: other_sources
-    label: Other sources
+    label_en: Other sources
+    label_el: Άλλες πηγές
   - id: grid_stability
-    label: Storage, grid stability etc.
+    label_en: Storage, grid stability etc.
+    label_el: Αποθήκευση, σταθερότητα δικτύου κλπ.
 
 - id: aggregated_cost_type
-  label: Aggregated cost type
+  label_en: Aggregated cost type
+  label_el: Συγκεντρωτικός τύπος κόστους
   categories:
   - id: capex
-    label: CAPEX
+    label_en: CAPEX
+    label_el: CAPEX
   - id: opex
-    label: OPEX
+    label_en: OPEX
+    label_el: OPEX
   - id: co_benefits
-    label: Co-benefits
+    label_en: Co-benefits
+    label_el: Παράλληλα οφέλη
   - id: co2_cost
-    label: CO2 cost
+    label_en: CO2 cost
+    label_el: Κόστος CO2
 
 - id: ghg
-  label: Greenhouse Gas
+  label_en: Greenhouse Gas
+  label_el: Αέριο Θερμοκηπίου
   categories:
   # NZC
   - id: co2e
-    label: CO2
+    label_en: CO2
+    label_el: CO2
     aliases: [co2]
 
   # Inventory
   - id: ch4
-    label: 'CH4'
+    label_en: 'CH4'
+    label_el: 'CH4'
   - id: n2o
-    label: 'N2O'
+    label_en: 'N2O'
+    label_el: 'N2O'
 
 - id: transport_mode
-  label: Transport Mode
+  label_en: Transport Mode
+  label_el: Τρόπος Μεταφοράς
   categories:
   # NZC
   - id: cars
-    label: Cars
+    label_en: Cars
+    label_el: Αυτοκίνητα
   - id: buses
-    label: Buses
+    label_en: Buses
+    label_el: Λεωφορεία
   - id: trains
-    label: Trains
+    label_en: Trains
+    label_el: Τρένα
     aliases: [Metro/tram, metro/tram, metro_tram]
   - id: public_transport
-    label: Public transport
+    label_en: Public transport
+    label_el: Δημόσιες συγκοινωνίες
   - id: walking
-    label: Walking
+    label_en: Walking
+    label_el: Περπάτημα
   - id: cycling
-    label: Cycling
+    label_en: Cycling
+    label_el: Ποδηλασία
   - id: light_trucks
-    label: Light duty trucks <3.5 tonne
+    label_en: Light duty trucks <3.5 tonne
+    label_el: Ελαφρά φορτηγά <3,5 τόνων
   - id: heavy_trucks
-    label: Heavy duty trucks >3.5 tonne
+    label_en: Heavy duty trucks >3.5 tonne
+    label_el: Βαρέα φορτηγά >3,5 τόνων
   - id: trucks
-    label: Trucks
+    label_en: Trucks
+    label_el: Φορτηγά
   - id: other_motorized
-    label: Other motorized transport
+    label_en: Other motorized transport
+    label_el: Άλλες μηχανοκίνητες μεταφορές
 
   # Inventory
   - id: aviation
-    label: 'Aviation'
+    label_en: 'Aviation'
+    label_el: 'Αεροπορία'
   - id: metro_lines_1_2_and_3
-    label: 'Metro Lines 1, 2 & 3'
+    label_en: 'Metro Lines 1, 2 & 3'
+    label_el: 'Γραμμές Μετρό 1, 2 & 3'
   - id: municipal_heavyduty_trucks
-    label: 'Municipal Heavy-Duty Trucks'
+    label_en: 'Municipal Heavy-Duty Trucks'
+    label_el: 'Δημοτικά Βαρέα Φορτηγά'
   - id: municipal_vehicle_fleet
-    label: 'Municipal Vehicle Fleet'
+    label_en: 'Municipal Vehicle Fleet'
+    label_el: 'Δημοτικός Στόλος Οχημάτων'
   - id: national_railway
-    label: 'National Railway'
+    label_en: 'National Railway'
+    label_el: 'Εθνικός Σιδηρόδρομος'
   - id: private_automobiles
-    label: 'Private Automobiles'
+    label_en: 'Private Automobiles'
+    label_el: 'Ιδιωτικά Αυτοκίνητα'
   - id: private_motorcycles
-    label: 'Private Motorcycles'
+    label_en: 'Private Motorcycles'
+    label_el: 'Ιδιωτικές Μοτοσικλέτες'
   - id: public_transport_buses
-    label: 'Public Transport Buses'
+    label_en: 'Public Transport Buses'
+    label_el: 'Λεωφορεία Δημόσιων Συγκοινωνιών'
   - id: trams
-    label: 'Trams'
+    label_en: 'Trams'
+    label_el: 'Τραμ'
   - id: trolleys
-    label: 'Trolleys'
+    label_en: 'Trolleys'
+    label_el: 'Τρόλεϊ'
 
 - id: energy_carrier
-  label: Energy Carrier
+  label_en: Energy Carrier
+  label_el: Φορέας Ενέργειας
   categories:
   # NZC
   - id: petrol_diesel
-    label: Petrol and diesel
+    label_en: Petrol and diesel
+    label_el: Βενζίνη και πετρέλαιο
   - id: electricity
-    label: Electricity
+    label_en: Electricity
+    label_el: Ηλεκτρική ενέργεια
   - id: fossil
-    label: Fossil (oil, coal, gas)
+    label_en: Fossil (oil, coal, gas)
+    label_el: Ορυκτά (πετρέλαιο, άνθρακας, αέριο)
   - id: heat_pump
-    label: Electric heat pumps / geothermal
+    label_en: Electric heat pumps / geothermal
+    label_el: Ηλεκτρικές αντλίες θερμότητας / γεωθερμία
   - id: bioenergy
-    label: Bio (biogas, biomass) and solar heaters
+    label_en: Bio (biogas, biomass) and solar heaters
+    label_el: Βιο (βιοαέριο, βιομάζα) και ηλιακοί θερμαντήρες
   - id: waste
-    label: Waste (fossil & non-fossil waste)
+    label_en: Waste (fossil & non-fossil waste)
+    label_el: Απόβλητα (ορυκτά & μη-ορυκτά απόβλητα)
 
   # Inventory
   - id: aviation_gasoline
-    label: 'Aviation Gasoline'
+    label_en: 'Aviation Gasoline'
+    label_el: 'Αεροπορική Βενζίνη'
   - id: compressed_natural_gas_cng
-    label: 'Compressed Natural Gas (CNG)'
+    label_en: 'Compressed Natural Gas (CNG)'
+    label_el: 'Συμπιεσμένο Φυσικό Αέριο (CNG)'
   - id: diesel_oil_heating
-    label: 'Diesel Oil (Heating)'
+    label_en: 'Diesel Oil (Heating)'
+    label_el: 'Πετρέλαιο Θέρμανσης'
   - id: diesel_oil_trains
-    label: 'Diesel Oil (Trains)'
+    label_en: 'Diesel Oil (Trains)'
+    label_el: 'Πετρέλαιο (Τρένα)'
   - id: diesel_oil_vehicles
-    label: 'Diesel Oil (Vehicles)'
+    label_en: 'Diesel Oil (Vehicles)'
+    label_el: 'Πετρέλαιο (Οχήματα)'
   - id: gasoline
-    label: 'Gasoline'
+    label_en: 'Gasoline'
+    label_el: 'Βενζίνη'
   - id: kerosene
-    label: 'Kerosene'
+    label_en: 'Kerosene'
+    label_el: 'Κηροζίνη'
   - id: liquefied_petroleum_gas_lpg
-    label: 'Liquefied Petroleum Gas (LPG)'
+    label_en: 'Liquefied Petroleum Gas (LPG)'
+    label_el: 'Υγροποιημένο Αέριο Πετρελαίου (LPG)'
   - id: liquid_fuels
-    label: 'Liquid Fuels'
+    label_en: 'Liquid Fuels'
+    label_el: 'Υγρά Καύσιμα'
   - id: natural_gas
-    label: 'Natural Gas'
+    label_en: 'Natural Gas'
+    label_el: 'Φυσικό Αέριο'
   - id: wood___wood_waste
-    label: 'Wood / Wood Waste'
+    label_en: 'Wood / Wood Waste'
+    label_el: 'Ξύλο / Απόβλητα Ξύλου'
 
 - id: fuel_type
-  label: Fuel type
+  label_en: Fuel type
+  label_el: Τύπος καυσίμου
   categories:
   - id: fossil
-    label: Fossil
+    label_en: Fossil
+    label_el: Ορυκτό
   - id: non_fossil
-    label: Non-fossil
+    label_en: Non-fossil
+    label_el: Μη-ορυκτό
     aliases: [nonfossil, non-fossil]
   - id: mixed
-    label: Mixed fossil and non-fossil
+    label_en: Mixed fossil and non-fossil
+    label_el: Μικτό ορυκτό και μη-ορυκτό
   - id: other
-    label: Other (e.g. nuclear)
+    label_en: Other (e.g. nuclear)
+    label_el: Άλλο (π.χ. πυρηνικό)
   - id: local_pv
-    label: Local photovoltaics
+    label_en: Local photovoltaics
+    label_el: Τοπικά φωτοβολταϊκά
   - id: centralised_pv
-    label: Centralised photovoltaics and wind
+    label_en: Centralised photovoltaics and wind
+    label_el: Κεντρικά φωτοβολταϊκά και αιολικά
   - id: pv
-    label: Photovoltaics
+    label_en: Photovoltaics
+    label_el: Φωτοβολταϊκά
   - id: flexibility
-    label: Flexibility
+    label_en: Flexibility
+    label_el: Ευελιξία
   - id: direct_electricity
-    label: Direct electricity
+    label_en: Direct electricity
+    label_el: Άμεση ηλεκτρική ενέργεια
   - id: heat_pump
-    label: Heat pump
+    label_en: Heat pump
+    label_el: Αντλία θερμότητας
 
 - id: efficiency_programme
-  label: Energy efficiency programme
+  label_en: Energy efficiency programme
+  label_el: Πρόγραμμα ενεργειακής απόδοσης
   categories:
   - id: no_improvements
-    label: No improvements
+    label_en: No improvements
+    label_el: Χωρίς βελτιώσεις
     aliases: [no_improvement]
   - id: minor_improvements
-    label: Minor improvements
+    label_en: Minor improvements
+    label_el: Μικρές βελτιώσεις
   - id: aggressive_improvements
-    label: Aggressive improvements
+    label_en: Aggressive improvements
+    label_el: Επιθετικές βελτιώσεις
   - id: moderate_improvements
-    label: Moderate improvements
+    label_en: Moderate improvements
+    label_el: Μέτριες βελτιώσεις
   - id: nzeb
-    label: Net zero emission buildings
+    label_en: Net zero emission buildings
+    label_el: Κτίρια μηδενικών εκπομπών
 
 - id: city_area
-  label: City area
+  label_en: City area
+  label_el: Περιοχή πόλης
   categories:
   - id: grey
-    label: Grey area
+    label_en: Grey area
+    label_el: Γκρίζα περιοχή
   - id: green
-    label: Green area
+    label_en: Green area
+    label_el: Πράσινη περιοχή
   - id: grey_inside
-    label: Grey area inside city
+    label_en: Grey area inside city
+    label_el: Γκρίζα περιοχή εντός πόλης
   - id: green_inside
-    label: Green area inside city
+    label_en: Green area inside city
+    label_el: Πράσινη περιοχή εντός πόλης
   - id: green_outside
-    label: Green area outside city
+    label_en: Green area outside city
+    label_el: Πράσινη περιοχή εκτός πόλης
   - id: grey_outside
-    label: Grey area outside city
+    label_en: Grey area outside city
+    label_el: Γκρίζα περιοχή εκτός πόλης
 
 - id: area_distance
-  label: Area distance
+  label_en: Area distance
+  label_el: Απόσταση περιοχής
   categories:
   - id: metropolitan
-    label: Metropolitan
+    label_en: Metropolitan
+    label_el: Μητροπολιτική
   - id: inside
-    label: Inside city
+    label_en: Inside city
+    label_el: Εντός πόλης
   - id: outside
-    label: Outside city
+    label_en: Outside city
+    label_el: Εκτός πόλης
   - id: average
-    label: Average
+    label_en: Average
+    label_el: Μέσος όρος
 
 - id: stakeholder
-  label: Stakeholder
+  label_en: Stakeholder
+  label_el: Ενδιαφερόμενο μέρος
   categories:
   - id: citizens
-    label: Citizens
+    label_en: Citizens
+    label_el: Πολίτες
   - id: property_owners
-    label: Property owners
+    label_en: Property owners
+    label_el: Ιδιοκτήτες ακινήτων
   - id: city
-    label: City
+    label_en: City
+    label_el: Πόλη
     aliases: [cities, Cities]
   - id: healthcare_providers
-    label: Healthcare providers
+    label_en: Healthcare providers
+    label_el: Πάροχοι υγειονομικής περίθαλψης
   - id: transport_operators
-    label: Transport operators
+    label_en: Transport operators
+    label_el: Φορείς εκμετάλλευσης μεταφορών
   - id: utilities
-    label: Utilities
+    label_en: Utilities
+    label_el: Επιχειρήσεις κοινής ωφέλειας
 
 - id: parameter
-  label: Parameter
+  label_en: Parameter
+  label_el: Παράμετρος
   categories:
   - id: max_impact
-    label: Maximum impact
+    label_en: Maximum impact
+    label_el: Μέγιστη επίδραση
   - id: max_year
-    label: Year to reach maximum impact
+    label_en: Year to reach maximum impact
+    label_el: Έτος επίτευξης μέγιστης επίδρασης
   - id: baseline_scenario
-    label: Baseline scenario
+    label_en: Baseline scenario
+    label_el: Σενάριο αναφοράς
   - id: decarbonisation_scenario
-    label: Decarbonisation scenario
+    label_en: Decarbonisation scenario
+    label_el: Σενάριο απανθρακοποίησης
   - id: frozen_scenario
-    label: Frozen scenario
+    label_en: Frozen scenario
+    label_el: Παγωμένο σενάριο
   - id: progress_tracking
-    label: Progress tracking scenario
+    label_en: Progress tracking scenario
+    label_el: Σενάριο παρακολούθησης προόδου
 
 - id: country
-  label: Country
+  label_en: Country
+  label_el: Χώρα
   categories:
   - id: at
-    label: Austria
+    label_en: Austria
+    label_el: Αυστρία
   - id: be
-    label: Belgium
+    label_en: Belgium
+    label_el: Βέλγιο
   - id: cz
-    label: Czeck Republic
+    label_en: Czeck Republic
+    label_el: Τσεχική Δημοκρατία
   - id: dk
-    label: Denmark
+    label_en: Denmark
+    label_el: Δανία
   - id: fr
-    label: France
+    label_en: France
+    label_el: Γαλλία
   - id: de
-    label: Germany
+    label_en: Germany
+    label_el: Γερμανία
   - id: it
-    label: Italy
+    label_en: Italy
+    label_el: Ιταλία
   - id: lt
-    label: Latvia
+    label_en: Latvia
+    label_el: Λετονία
   # - id: 'no'
   #   label: Norway
   - id: pl
-    label: Poland
+    label_en: Poland
+    label_el: Πολωνία
   - id: ro
-    label: Romania
+    label_en: Romania
+    label_el: Ρουμανία
   - id: sk
-    label: Slovakia
+    label_en: Slovakia
+    label_el: Σλοβακία
   - id: es
-    label: Spain
+    label_en: Spain
+    label_el: Ισπανία
   - id: se
-    label: Sweden
+    label_en: Sweden
+    label_el: Σουηδία
   - id: average
-    label: Average
+    label_en: Average
+    label_el: Μέσος όρος
 
 emission_sectors:
 - id: net_emissions
-  name: Net emissions
+  name_en: Net emissions
+  name_el: Καθαρές εκπομπές
   is_outcome: true
 
 nodes:
 
 - id: technical_root_node
-  name: Technical root node
+  name_en: Technical root node
+  name_el: Τεχνικός κόμβος ρίζας
   description: This node is used as the outcome node of ParentActionNodes so that
     they don't pick a random root node from the model.
   type: simple.AdditiveNode
@@ -443,7 +610,8 @@ nodes:
   historical_values: [[2018, 0.0], [2023, 0.0]]
 
 - id: population
-  name: Population
+  name_en: Population
+  name_el: Πληθυσμός
   type: gpc.DatasetNode
   quantity: population
   unit: cap
@@ -455,7 +623,8 @@ nodes:
     sector: Population
 
 - id: population_growth
-  name: Population growth
+  name_en: Population growth
+  name_el: Πληθυσμιακή αύξηση
   type: gpc.DatasetNode
   quantity: rate
   unit: '%/a'
@@ -466,7 +635,8 @@ nodes:
 # ------------- Jobs -----------------
 
 - id: total_jobs_created
-  name: Total jobs created
+  name_en: Total jobs created
+  name_el: Συνολικές θέσεις εργασίας που δημιουργήθηκαν
   type: simple.AdditiveNode
   quantity: employment
   unit: jobs
@@ -474,7 +644,8 @@ nodes:
 # ------------- Costs ----------------
 
 - id: co2_unit_price
-  name: CO2 unit price
+  name_en: CO2 unit price
+  name_el: Τιμή μονάδας CO2
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/t
@@ -485,7 +656,8 @@ nodes:
     sector: Value of CO2 reduction
 
 - id: co2_emissions_cost
-  name: CO2 emissions cost
+  name_en: CO2 emissions cost
+  name_el: Κόστος εκπομπών CO2
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -514,7 +686,8 @@ nodes:
   - id: total_cost
 
 - id: total_cost
-  name: Total cost
+  name_en: Total cost
+  name_el: Συνολικό κόστος
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
@@ -522,7 +695,8 @@ nodes:
   output_dimensions: [stakeholder, cost_type]
 
 - id: aggregated_cost_types
-  name: Aggregated cost types
+  name_en: Aggregated cost types
+  name_el: Συγκεντρωτικοί τύποι κόστους
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -533,7 +707,8 @@ nodes:
     sector: Aggregated cost types
 
 - id: aggregated_cost
-  name: Aggregated cost
+  name_en: Aggregated cost
+  name_el: Συγκεντρωτικό κόστος
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -551,7 +726,8 @@ nodes:
     - id: aggregated_cost_type
 
 - id: discounted_cost
-  name: Discounted cost
+  name_en: Discounted cost
+  name_el: Προεξοφλημένο κόστος
   type: costs.ExponentialNode
   quantity: currency
   unit: MEUR/a
@@ -566,7 +742,8 @@ nodes:
     value: true
 
 - id: discounted_total_cost
-  name: Discounted total cost
+  name_en: Discounted total cost
+  name_el: Προεξοφλημένο συνολικό κόστος
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
@@ -581,7 +758,8 @@ nodes:
       flatten: true
 
 - id: discounted_investment
-  name: Discounted investment
+  name_en: Discounted investment
+  name_el: Προεξοφλημένη επένδυση
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
@@ -597,8 +775,9 @@ nodes:
     - id: stakeholder
     - id: cost_type
 
-- id: discounted_benefits  # TODO Remove this if the single-node CBA visualisation gets accepted.
-  name: Discounted benefits
+- id: discounted_benefits
+  name_en: Discounted benefits
+  name_el: Προεξοφλημένα οφέλη
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
@@ -620,8 +799,9 @@ actions:
 # --------------- TRANSPORT -------------
 
 - id: a11_reduce_all_motorised_transport
-  name: 1.1 Reduce all motorised transport
-  type: gpc.DatasetAction2  # TODO Allow historical values in LinearCumulativeAdditiveAction.
+  name_en: 1.1 Reduce all motorised transport
+  name_el: 1.1 Μείωση όλων των μηχανοκίνητων μεταφορών
+  type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'
   group: transport
@@ -635,7 +815,8 @@ actions:
     tags: [non_additive, extend_values]
 
 - id: a12_modal_switch_from_cars_to_other_modes
-  name: 1.2 Modal switch from cars to other modes
+  name_en: 1.2 Modal switch from cars to other modes
+  name_el: 1.2 Μετατόπιση από αυτοκίνητα σε άλλους τρόπους μεταφοράς
   type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'
@@ -648,7 +829,8 @@ actions:
     to_dimensions: []
 
 - id: a13_car_pooling
-  name: 1.3 Car pooling
+  name_en: 1.3 Car pooling
+  name_el: 1.3 Συνεπιβατισμός
   description: How many % increase there is in the average number of people in a car.
   type: gpc.DatasetAction2
   quantity: fraction
@@ -665,7 +847,8 @@ actions:
     sector: 1.3 Car pooling
 
 - id: a141_electrification_of_passenger_cars
-  name: 1.4.1 Electrification of passenger cars
+  name_en: 1.4.1 Electrification of passenger cars
+  name_el: 1.4.1 Εξηλεκτρισμός επιβατικών αυτοκινήτων
   type: gpc.SCurveAction
   quantity: fraction
   unit: '%'
@@ -685,7 +868,8 @@ actions:
   - id: fully_electric_vehicle_share
 
 - id: a142_electrification_of_buses
-  name: 1.4.2 Electrification of buses
+  name_en: 1.4.2 Electrification of buses
+  name_el: 1.4.2 Εξηλεκτρισμός λεωφορείων
   description: Fraction of buses that is replaced with electric buses each year.
   type: gpc.DatasetAction2
   quantity: fraction
@@ -704,14 +888,16 @@ actions:
 # ----------------- Freight transport -----------------
 
 - id: a21_optimised_logistics
-  name: 2.1 Optimised logistics
+  name_en: 2.1 Optimised logistics
+  name_el: 2.1 Βελτιστοποιημένα logistics
   type: parent.ParentActionNode
   quantity: mass
   unit: m**3
   group: freight_transport
 
 - id: a211_improve_utilisation_of_trucks
-  name: 2.1.1 Improve utilisation of trucks
+  name_en: 2.1.1 Improve utilisation of trucks
+  name_el: 2.1.1 Βελτίωση χρήσης φορτηγών
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
@@ -728,7 +914,8 @@ actions:
   - id: average_truck_utilisation
 
 - id: a212_route_optimisation
-  name: 2.1.2 Route optimisation
+  name_en: 2.1.2 Route optimisation
+  name_el: 2.1.2 Βελτιστοποίηση διαδρομών
   type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'
@@ -744,7 +931,8 @@ actions:
     sector: Reduction of total distance travelled through route optimisation
 
 - id: a22_truck_fleet_electrification
-  name: 2.2 Truck fleet electrification
+  name_en: 2.2 Truck fleet electrification
+  name_el: 2.2 Εξηλεκτρισμός στόλου φορτηγών
   type: gpc.SCurveAction
   quantity: fraction
   unit: '%'
@@ -766,14 +954,16 @@ actions:
   # ----------- BUILDINGS ---------------
 
 - id: a31_renovation_improvements
-  name: 3.1 Improve renovation of existing buildings
+  name_en: 3.1 Improve renovation of existing buildings
+  name_el: 3.1 Βελτίωση ανακαίνισης υφιστάμενων κτιρίων
   type: parent.ParentActionNode
   quantity: fraction
   unit: m**3
   group: buildings
 
 - id: a311_renovation_rate_improvement
-  name: 3.1.1 Renovation rate improvement
+  name_en: 3.1.1 Renovation rate improvement
+  name_el: 3.1.1 Βελτίωση ρυθμού ανακαίνισης
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%/a'
@@ -794,7 +984,8 @@ actions:
   - id: old_building_renovation_rate_observed
 
 - id: a312_renovation_shares_improvement
-  name: 3.1.2 Renovation shares improvement
+  name_en: 3.1.2 Renovation shares improvement
+  name_el: 3.1.2 Βελτίωση μεριδίων ανακαίνισης
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
@@ -815,7 +1006,8 @@ actions:
   - id: renovation_intensity_shares
 
 - id: a32_new_building_improvements
-  name: 3.2 Improve new building shares
+  name_en: 3.2 Improve new building shares
+  name_el: 3.2 Βελτίωση μεριδίων νέων κτιρίων
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
@@ -831,14 +1023,16 @@ actions:
   - id: new_building_shares
 
 - id: a33_do_efficient_appliances
-  name: 3.3 Efficient lighting & appliances renovation
+  name_en: 3.3 Efficient lighting & appliances renovation
+  name_el: 3.3 Αποδοτικός φωτισμός & ανακαίνιση συσκευών
   type: parent.ParentActionNode
   quantity: fraction
   unit: m**3
   group: buildings
 
 - id: a331_increase_appliance_renovation
-  name: 3.3.1 Increase appliance renovation
+  name_en: 3.3.1 Increase appliance renovation
+  name_el: 3.3.1 Αύξηση ανακαίνισης συσκευών
   type: linear.DatasetReduceAction
   quantity: rate
   unit: '%/a'
@@ -863,7 +1057,8 @@ actions:
     - id: energy_carrier
 
 - id: a332_increase_aggressive_renovations
-  name: 3.3.2 Increase aggressive appliance renovation
+  name_en: 3.3.2 Increase aggressive appliance renovation
+  name_el: 3.3.2 Αύξηση επιθετικής ανακαίνισης συσκευών
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
@@ -880,14 +1075,16 @@ actions:
   - id: efficiency_programme_shares
 
 - id: a34_decarbonising_heat_generation
-  name: 3.4 Decarbonise heat generation
+  name_en: 3.4 Decarbonise heat generation
+  name_el: 3.4 Απανθρακοποίηση παραγωγής θερμότητας
   type: parent.ParentActionNode
   quantity: fraction
   unit: m**3
   group: buildings
 
-- id: a341_heating_technology_improvement  # TODO Add 20 a lifetime
-  name: 3.4.1 Increase district heating
+- id: a341_heating_technology_improvement
+  name_en: 3.4.1 Increase district heating
+  name_el: 3.4.1 Αύξηση τηλεθέρμανσης
   description: Switch from local to district heating.
   type: linear.DatasetReduceAction
   quantity: fraction
@@ -909,7 +1106,8 @@ actions:
     - id: heating_type
 
 - id: a342_heating_energy_improvement
-  name: 3.4.2 Increase low-emission heating
+  name_en: 3.4.2 Increase low-emission heating
+  name_el: 3.4.2 Αύξηση θέρμανσης χαμηλών εκπομπών
   description: Improve the fuel shares of heating.
   type: linear.DatasetReduceAction
   quantity: fraction
@@ -927,7 +1125,8 @@ actions:
   - id: heating_fuel_share
 
 - id: a343_change_heating_fossil_share
-  name: 3.4.3 Reduce fossil waste in heating  # Example city has 0 % waste, so there is no impact
+  name_en: 3.4.3 Reduce fossil waste in heating
+  name_el: 3.4.3 Μείωση ορυκτών αποβλήτων στη θέρμανση
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
@@ -948,7 +1147,8 @@ actions:
   - id: heating_waste_fossil_share
 
 - id: a344_top_performance_improvement
-  name: 3.4.4 Improve top performance standard
+  name_en: 3.4.4 Improve top performance standard
+  name_el: 3.4.4 Βελτίωση προτύπου κορυφαίας απόδοσης
   type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'
@@ -966,8 +1166,9 @@ actions:
 
 # -------------- ELECTRICITY ----------------
 
-- id: a41_replace_fossil_electricity  # TODO streamline this by using relative goal
+- id: a41_replace_fossil_electricity
   name_en: 4.1 Replace fossil electricity
+  name_el: 4.1 Αντικατάσταση ορυκτής ηλεκτρικής ενέργειας
   type: linear.DatasetReduceAction
   quantity: fraction
   unit: '%'
@@ -985,7 +1186,8 @@ actions:
 # ------------- WASTE -------------------------
 
 - id: waste_recycling_trend
-  name: Waste recycling trend
+  name_en: Waste recycling trend
+  name_el: Τάση ανακύκλωσης αποβλήτων
   type: linear.DatasetDifferenceAction
   quantity: fraction
   unit: '%'
@@ -1003,7 +1205,8 @@ actions:
   - id: waste_recycling_shares_baseline
 
 - id: a51_increase_waste_recycling
-  name: 5.1 Increase waste recycling
+  name_en: 5.1 Increase waste recycling
+  name_el: 5.1 Αύξηση ανακύκλωσης αποβλήτων
   type: linear.DatasetDifferenceAction
   quantity: fraction
   unit: '%'
@@ -1024,7 +1227,8 @@ actions:
 # ---------------- OTHER SECTORS -------------
 
 - id: a61_reduced_co2_emissions_in_other_sectors
-  name: 6.1 Reduce CO2 emissions in other sectors
+  name_en: 6.1 Reduce CO2 emissions in other sectors
+  name_el: 6.1 Μείωση εκπομπών CO2 σε άλλους τομείς
   type: gpc.DatasetAction2
   quantity: fraction
   unit: '%'
@@ -1040,7 +1244,8 @@ actions:
 
 pages:
 - id: home
-  name: Athens Greenhouse Gas Inventory
+  name_en: Athens Greenhouse Gas Inventory
+  name_el: Απογραφή Εκπομπών Αερίων Θερμοκηπίου Αθηνών
   path: /
   type: emission
   outcome_node: net_emissions
@@ -1049,7 +1254,8 @@ pages:
 
 scenarios:
 - id: baseline
-  name: Baseline scenario
+  name_en: Baseline scenario
+  name_el: Σενάριο αναφοράς
   params:
   - id: waste_recycling_trend.enabled
     value: true
@@ -1058,7 +1264,8 @@ scenarios:
 
 - id: default
   default: true
-  name: Decarbonisation scenario
+  name_en: Decarbonisation scenario
+  name_el: Σενάριο απανθρακοποίησης
   all_actions_enabled: true
   params:
   - id: statistical_electricity_consumption.node_tag

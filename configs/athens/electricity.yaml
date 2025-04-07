@@ -4,9 +4,9 @@ nodes:
 
 - id: total_electricity_consumption_uncorr
   name_en: Total electricity consumption, uncorrected
-  name_fi: Sähkön kokonaiskulutus, korjaamaton
+  name_el: Συνολική κατανάλωση ηλεκτρικής ενέργειας, μη διορθωμένη
   description_en: Consumption is not corrected for the actual consumption statistics.
-  description_fi: Kulutusta ei ole korjattu todellisten kulutustilastojen mukaan.
+  description_el: Η κατανάλωση δεν διορθώνεται με βάση τα πραγματικά στατιστικά στοιχεία κατανάλωσης.
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
@@ -15,11 +15,9 @@ nodes:
 
 - id: total_electricity_consumption
   name_en: Total electricity consumption
-  name_fi: Sähkön kokonaiskulutus
-  description_en: These consumption values are corrected for actual consumption statistics,
-    if the global parameter <i>Statistical correction</i> is turned on.
-  description_fi: Nämä kulutusarvot on korjattu todellisten kulutustilastojen mukaan,
-    jos globaali parametri <i>Tilastollinen korjaus</i> on käytössä.
+  name_el: Συνολική κατανάλωση ηλεκτρικής ενέργειας
+  description_en: These consumption values are corrected for actual consumption statistics, if the global parameter <i>Statistical correction</i> is turned on.
+  description_el: Αυτές οι τιμές κατανάλωσης διορθώνονται με βάση τα πραγματικά στατιστικά στοιχεία κατανάλωσης, εάν η καθολική παράμετρος <i>Στατιστική διόρθωση</i> είναι ενεργοποιημένη.
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
@@ -31,11 +29,9 @@ nodes:
 
 - id: total_electricity_production
   name_en: Total electricity production by shares
-  name_fi: Sähköntuotannon kokonaismäärä osuuksittain
-  description_en: These production values are corrected for actual consumption statistics,
-    if the global parameter <i>Statistical correction</i> is turned on.
-  description_fi: Nämä tuotantoarvot on korjattu todellisten kulutustilastojen mukaan,
-    jos globaali parametri <i>Tilastollinen korjaus</i> on käytössä.
+  name_el: Συνολική παραγωγή ηλεκτρικής ενέργειας ανά μερίδια
+  description_en: These production values are corrected for actual consumption statistics, if the global parameter <i>Statistical correction</i> is turned on.
+  description_el: Αυτές οι τιμές παραγωγής διορθώνονται με βάση τα πραγματικά στατιστικά στοιχεία κατανάλωσης, εάν η καθολική παράμετρος <i>Στατιστική διόρθωση</i> είναι ενεργοποιημένη.
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a
@@ -56,7 +52,7 @@ nodes:
 
 - id: total_electricity_emissions
   name_en: Total electricity emissions including air pollutants
-  name_fi: Sähköntuotannon kokonaispäästöt, mukaan lukien ilmansaasteet
+  name_el: Συνολικές εκπομπές ηλεκτρικής ενέργειας συμπεριλαμβανομένων των ατμοσφαιρικών ρύπων
   type: simple.MultiplicativeNode
   quantity: mass
   unit: kt/a
@@ -74,7 +70,7 @@ nodes:
 
 - id: electricity_emissions
   name_en: Electricity emissions
-  name_fi: Sähköntuotannon päästöt
+  name_el: Εκπομπές ηλεκτρικής ενέργειας
   type: simple.AdditiveNode
   color: '#B07AA1'
   quantity: emissions
@@ -104,7 +100,7 @@ nodes:
 
 - id: historical_electricity_consumption
   name_en: Historical electricity consumption
-  name_fi: historiallinen sähkönkulutus
+  name_el: Ιστορική κατανάλωση ηλεκτρικής ενέργειας
   type: gpc.DatasetNode
   quantity: energy
   unit: GWh/a
@@ -121,7 +117,7 @@ nodes:
 
 - id: statistical_electricity_consumption
   name_en: Statistical electricity consumption
-  name_fi: Tilastollinen sähkönkulutus
+  name_el: Στατιστική κατανάλωση ηλεκτρικής ενέργειας
   type: simple.ChooseInputNode
   quantity: energy
   unit: GWh/a
@@ -141,7 +137,7 @@ nodes:
 
 - id: electricity_consumption_ratio
   name_en: Electricity consumption ratio between statistics and modelled
-  name_fi: Sähkönkulutuksen suhde tilastojen ja mallinnetun välillä
+  name_el: Αναλογία κατανάλωσης ηλεκτρικής ενέργειας μεταξύ στατιστικών και μοντελοποιημένων
   type: simple.MultiplicativeNode
   quantity: ratio
   unit: dimensionless
@@ -161,8 +157,10 @@ nodes:
 
 - id: electricity_correction
   name_en: Electricity statistics correction
-  name_fi: Sähkötilastojen korjaus
-  type: gpc.CorrectionNode2 # TODO Use the total historical average rather than the last historical point
+  name_el: Διόρθωση στατιστικών ηλεκτρικής ενέργειας
+  description_en: Corrects modelled electricity consumption to match historical statistics.
+  description_el: Διορθώνει την μοντελοποιημένη κατανάλωση ηλεκτρικής ενέργειας ώστε να ταιριάζει με τα ιστορικά στατιστικά στοιχεία.
+  type: gpc.CorrectionNode2
   quantity: ratio
   unit: dimensionless
   input_dimensions: [energy_carrier]
@@ -180,7 +178,7 @@ nodes:
 
 - id: electricity_production_emission_factor
   name_en: Electricity production emission factor
-  name_fi: Sähköntuotannon päästökerroin
+  name_el: Συντελεστής εκπομπών παραγωγής ηλεκτρικής ενέργειας
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/kWh
@@ -192,7 +190,7 @@ nodes:
 
 - id: electricity_production_unit_price
   name_en: Electricity production unit_price
-  name_fi: Sähköntuotannon yksikköhinta
+  name_el: Τιμή μονάδας παραγωγής ηλεκτρικής ενέργειας
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/MWh
@@ -204,7 +202,9 @@ nodes:
 
 - id: consumer_electricity_unit_price
   name_en: Consumer electricity unit_price
-  name_fi: Kuluttajan sähkön yksikköhinta
+  name_el: Τιμή μονάδας ηλεκτρικής ενέργειας καταναλωτή
+  description_en: The values come from Eurostat (2019) - Electricity prices for household consumers.
+  description_el: Οι τιμές προέρχονται από τη Eurostat (2019) - Τιμές ηλεκτρικής ενέργειας για οικιακούς καταναλωτές.
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/kWh
@@ -216,7 +216,7 @@ nodes:
 
 - id: electricity_consumption_cost
   name_en: Electricity consumption cost
-  name_fi: Sähkön kulutuksen kustannukset
+  name_el: Κόστος κατανάλωσης ηλεκτρικής ενέργειας
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -233,7 +233,7 @@ nodes:
     to_dimensions:
     - id: energy_carrier
     - id: stakeholder
-      categories: [citizens]  # FIXME Actually affects other stakeholders as well
+      categories: [citizens]
     - id: cost_type
       categories: [opex]
   output_nodes:
@@ -243,9 +243,9 @@ nodes:
 
 - id: effective_electricity_emission_factor
   name_en: Effective electricity emission factor
-  name_fi: Sähköntuotannon efektiivinen päästökerroin
+  name_el: Αποτελεσματικός συντελεστής εκπομπών ηλεκτρικής ενέργειας
   description_en: The effective electricity emission factor depends on amounts and emission factors of all electricity production modes.
-  description_fi: Sähköntuotannon efektiivinen päästökerroin riippuu kaikkien sähköntuotantomuotojen määristä ja päästökertoimista.
+  description_el: Ο αποτελεσματικός συντελεστής εκπομπών ηλεκτρικής ενέργειας εξαρτάται από τις ποσότητες και τους συντελεστές εκπομπών όλων των τρόπων παραγωγής ηλεκτρικής ενέργειας.
   type: simple.MultiplicativeNode
   quantity: emission_factor
   unit: g/kWh
@@ -270,7 +270,7 @@ nodes:
 
 - id: new_electricity_production_capacity
   name_en: New electricity production capacity
-  name_fi: Uusi sähköntuotantokapasiteetti
+  name_el: Νέα δυναμικότητα παραγωγής ηλεκτρικής ενέργειας
   type: simple.MultiplicativeNode
   quantity: energy
   unit: GWh/a**2
@@ -296,7 +296,7 @@ nodes:
 
 - id: existing_electricity_production
   name_en: Existing electricity production
-  name_fi: Olemassa oleva sähköntuotanto
+  name_el: Υφιστάμενη παραγωγή ηλεκτρικής ενέργειας
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
@@ -319,7 +319,7 @@ nodes:
 
 - id: electricity_production_cost
   name_en: Electricity production cost
-  name_fi: Sähköntuotannon kustannukset
+  name_el: Κόστος παραγωγής ηλεκτρικής ενέργειας
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -341,7 +341,7 @@ nodes:
 
 - id: new_renewable_electricity_production
   name_en: New renewable electricity production
-  name_fi: Uusi uusiutuva sähköntuotanto
+  name_el: Νέα παραγωγή ανανεώσιμης ηλεκτρικής ενέργειας
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
@@ -358,7 +358,7 @@ nodes:
 
 - id: operating_unit_price_for_renewables
   name_en: Operating cost for renewables
-  name_fi: Uusiutuvien käyttökustannukset
+  name_el: Λειτουργικό κόστος για ανανεώσιμες πηγές
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/MWh
@@ -370,7 +370,7 @@ nodes:
 
 - id: renewable_electricity_operating_cost
   name_en: Renewable electricity operating cost
-  name_fi: Uusiutuvan sähkön käyttökustannukset
+  name_el: Λειτουργικό κόστος ανανεώσιμης ηλεκτρικής ενέργειας
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -402,7 +402,7 @@ nodes:
 
 - id: electricity_air_pollution_cost
   name_en: Electricity air pollution cost
-  name_fi: Sähköntuotannon ilmansaasteiden kustannukset
+  name_el: Κόστος ατμοσφαιρικής ρύπανσης ηλεκτρικής ενέργειας
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -440,7 +440,7 @@ nodes:
 
 - id: effective_electricity_production_hours
   name_en: Effective electricity production hours
-  name_fi: Sähköntuotannon todelliset tunnit
+  name_el: Αποτελεσματικές ώρες παραγωγής ηλεκτρικής ενέργειας
   type: gpc.DatasetNode
   quantity: ratio
   unit: h/a
@@ -452,9 +452,9 @@ nodes:
 
 - id: job_demand_of_renewables
   name_en: Job demand of renewables
-  name_fi: Uusiutuvien työvoiman tarve
+  name_el: Ζήτηση εργασίας από ανανεώσιμες πηγές
   description_en: Are these jobs permanent or do they relate to the building phase of PV? Now we assume that they are permanent and accumulate.
-  description_fi: Ovatko nämä työpaikat pysyviä vai liittyvätkö ne aurinkopaneelien rakennusvaiheeseen? Nyt oletamme, että ne ovat pysyviä ja kertyvät.
+  description_el: Είναι αυτές οι θέσεις εργασίας μόνιμες ή σχετίζονται με τη φάση κατασκευής των φωτοβολταϊκών; Προς το παρόν υποθέτουμε ότι είναι μόνιμες και συσσωρεύονται.
   type: gpc.DatasetNode
   quantity: demand_factor
   unit: jobs/MW
@@ -466,13 +466,12 @@ nodes:
 
 - id: jobs_created_by_renewables
   name_en: Jobs created by renewables
-  name_fi: Uusiutuvien luomat työpaikat
+  name_el: Θέσεις εργασίας που δημιουργούνται από ανανεώσιμες πηγές
   description_en: Cumulative number of existing jobs due to renewables
-  description_fi: Uusiutuvien energialähteiden ansiosta olevien työpaikkojen kertyvä määrä
+  description_el: Συσσωρευτικός αριθμός υπαρχουσών θέσεων εργασίας λόγω ανανεώσιμων πηγών ενέργειας
   type: simple.MultiplicativeNode
   quantity: employment
   unit: jobs
-  # is_outcome: true
   input_dimensions: [fuel_type, energy_carrier]
   output_dimensions: [fuel_type, energy_carrier]
   input_nodes:
@@ -497,7 +496,7 @@ nodes:
 
 - id: new_electricity_production_shares
   name_en: New electricity production shares
-  name_fi: Uuden sähköntuotannon osuudet
+  name_el: Μερίδια νέας παραγωγής ηλεκτρικής ενέργειας
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -509,7 +508,7 @@ nodes:
 
 - id: electricity_production_shares_historical
   name_en: Electricity production shares historical
-  name_fi: Sähköntuotannon historialliset osuudet
+  name_el: Ιστορικά μερίδια παραγωγής ηλεκτρικής ενέργειας
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -522,7 +521,7 @@ nodes:
 
 - id: electricity_production_shares
   name_en: Electricity production shares
-  name_fi: Sähköntuotannon osuudet
+  name_el: Μερίδια παραγωγής ηλεκτρικής ενέργειας
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
@@ -533,7 +532,7 @@ nodes:
 
 - id: renewable_electricity_upfront_price
   name_en: Renewable electricity upfront price
-  name_fi: Uusiutuvan sähkön etukäteishinta
+  name_el: Αρχική τιμή ανανεώσιμης ηλεκτρικής ενέργειας
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/MWh
@@ -545,7 +544,7 @@ nodes:
 
 - id: renewable_electricity_shares
   name_en: Renewable electricity cost shares
-  name_fi: Uusiutuvan sähkön kustannusosuudet
+  name_el: Μερίδια κόστους ανανεώσιμης ηλεκτρικής ενέργειας
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -563,7 +562,7 @@ nodes:
 
 - id: renewable_electricity_investment_cost
   name_en: Renewable electricity investment cost
-  name_fi: Uusiutuvan sähkön investointikustannukset
+  name_el: Κόστος επένδυσης ανανεώσιμης ηλεκτρικής ενέργειας
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
@@ -579,12 +578,12 @@ nodes:
     - id: fuel_type
     - id: energy_carrier
     - id: cost_type
-  - id: multiplier_node  # TODO
+  - id: multiplier_node
     to_dimensions: []
 
-- id: multiplier_node  # TODO Improve
+- id: multiplier_node
   name_en: Multiplier node
-  name_fi: Kerroinsolmu
+  name_el: Κόμβος πολλαπλασιαστή
   type: simple.AdditiveNode
   quantity: fraction
   unit: a
@@ -592,7 +591,7 @@ nodes:
 
 - id: electricity_cost
   name_en: Electricity cost
-  name_fi: Sähkön kustannukset
+  name_el: Κόστος ηλεκτρικής ενέργειας
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
@@ -612,7 +611,7 @@ nodes:
 
 - id: existing_electricity_cost_shares
   name_en: Existing electricity cost shares
-  name_fi: Nykyisen sähkön kustannusosuudet
+  name_el: Μερίδια κόστους υφιστάμενης ηλεκτρικής ενέργειας
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -624,9 +623,9 @@ nodes:
 
 - id: fossil_electricity_goal
   name_en: Fossil electricity reduction goal
-  name_fi: Fossiilisen sähkön vähennystavoite
+  name_el: Στόχος μείωσης ορυκτής ηλεκτρικής ενέργειας
   description_en: Share of current fossil production replaced by renewables (or nuclear)
-  description_fi: Osuus nykyisestä fossiilisesta tuotannosta, joka korvataan uusiutuvilla energialähteillä (tai ydinvoimalla)
+  description_el: Μερίδιο της τρέχουσας παραγωγής από ορυκτά καύσιμα που αντικαθίσταται από ανανεώσιμες πηγές (ή πυρηνική ενέργεια)
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -639,7 +638,7 @@ nodes:
 
 - id: fossil_electricity_shares_goal
   name_en: Fossil electricity shares goal
-  name_fi: Fossiilisen sähkön osuuksien tavoite
+  name_el: Στόχος μεριδίων ορυκτής ηλεκτρικής ενέργειας
   type: simple.MultiplicativeNode
   quantity: fraction
   unit: '%'
@@ -658,9 +657,11 @@ nodes:
       categories: [fossil]
     - id: energy_carrier
 
-- id: electricity_shares_goal  # TODO Why does the graph not make sense?!?
+- id: electricity_shares_goal
   name_en: Electricity shares goal
-  name_fi: Sähkön osuuksien tavoite
+  name_el: Στόχος μεριδίων ηλεκτρικής ενέργειας
+  description_en: Target shares of different electricity production types
+  description_el: Στόχοι μεριδίων διαφορετικών τύπων παραγωγής ηλεκτρικής ενέργειας
   type: simple.FillNewCategoryNode
   quantity: fraction
   unit: '%'
@@ -678,7 +679,7 @@ nodes:
 
 - id: electricity_shares
   name_en: Electricity shares
-  name_fi: Sähkön osuudet
+  name_el: Μερίδια ηλεκτρικής ενέργειας
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -688,4 +689,3 @@ nodes:
   - id: gpc/athens_nzc
   params:
     sector: Share of total electricity demand produced by fossil/renewables
-

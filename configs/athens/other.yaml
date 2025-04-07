@@ -1,29 +1,40 @@
 dimensions:
 - id: diet
-  label: Diet
+  label_en: Diet
+  label_el: Διατροφή
   categories:
   - id: current_average
-    label: Current average
+    label_en: Current average
+    label_el: Τρέχων μέσος όρος
   - id: flexitarian
-    label: Flexitarian
+    label_en: Flexitarian
+    label_el: Ευέλικτη χορτοφαγία
   - id: pescetarian
-    label: Pescetarian
+    label_en: Pescetarian
+    label_el: Ψαροφαγία
   - id: vegetarian
-    label: Vegetarian
+    label_en: Vegetarian
+    label_el: Χορτοφαγία
   - id: vegan
-    label: Vegan
+    label_en: Vegan
+    label_el: Αυστηρή χορτοφαγία
 
 - id: material
-  label: Material
+  label_en: Material
+  label_el: Υλικό
   categories:
   - id: concrete
-    label: Concrete
+    label_en: Concrete
+    label_el: Σκυρόδεμα
   - id: steel
-    label: Steel
+    label_en: Steel
+    label_el: Χάλυβας
   - id: plastics
-    label: Plastics
+    label_en: Plastics
+    label_el: Πλαστικά
   - id: aluminium
-    label: Aluminium
+    label_en: Aluminium
+    label_el: Αλουμίνιο
 
 nodes:
 
@@ -31,7 +42,7 @@ nodes:
 
 - id: emissions_from_other_sectors
   name_en: Emissions from other sectors
-  name_fi: Päästöt muilta sektoreilta
+  name_el: Εκπομπές από άλλους τομείς
   type: gpc.DatasetNode
   color: '#76B7B2'
   quantity: emissions
@@ -57,7 +68,7 @@ nodes:
 
 - id: building_material_shares
   name_en: Building material shares
-  name_fi: Rakennusmateriaalien osuudet
+  name_el: Μερίδια δομικών υλικών
   type: gpc.DatasetNode
   quantity: fraction
   unit: dimensionless
@@ -69,7 +80,7 @@ nodes:
 
 - id: building_materials_used_in_new_buildings
   name_en: Building material used in new buildings
-  name_fi: Uudisrakennuksissa käytetyt rakennusmateriaalit
+  name_el: Δομικά υλικά που χρησιμοποιούνται σε νέα κτίρια
   type: gpc.DatasetNode
   quantity: mass
   unit: t/m**2
@@ -79,7 +90,7 @@ nodes:
 
 - id: building_materials_used_by_material
   name_en: Building materials used by material
-  name_fi: Käytetyt rakennusmateriaalit materiaaleittain
+  name_el: Δομικά υλικά που χρησιμοποιούνται ανά υλικό
   type: simple.MultiplicativeNode
   quantity: mass
   unit: t/m**2
@@ -95,7 +106,7 @@ nodes:
 
 - id: building_construction_material_use
   name_en: Building construction material use
-  name_fi: Rakennusmateriaalien käyttö rakentamisessa
+  name_el: Χρήση υλικών κατασκευής κτιρίων
   type: simple.MultiplicativeNode
   quantity: mass
   unit: kt/a
@@ -111,7 +122,7 @@ nodes:
 
 - id: tonnes_material_used_for_renovations
   name_en: Tonnes material used for renovations
-  name_fi: Tonnia materiaalia käytetty peruskorjauksiin
+  name_el: Τόνοι υλικών που χρησιμοποιούνται για ανακαινίσεις
   type: gpc.DatasetNode
   quantity: mass
   unit: t/m**2
@@ -124,7 +135,7 @@ nodes:
 
 - id: building_renovation_material_use
   name_en: Building renovation material use
-  name_fi: Rakennusmateriaalien käyttö peruskorjauksissa
+  name_el: Χρήση υλικών ανακαίνισης κτιρίων
   type: simple.MultiplicativeNode
   quantity: mass
   unit: kt/a
@@ -146,7 +157,7 @@ nodes:
 
 - id: building_material_use
   name_en: Building material use
-  name_fi: Rakennusmateriaalien käyttö
+  name_el: Χρήση δομικών υλικών
   type: simple.AdditiveNode
   quantity: mass
   unit: kt/a
@@ -158,7 +169,7 @@ nodes:
 
 - id: building_material_unit_price
   name_en: Building material unit price
-  name_fi: Rakennusmateriaalien yksikköhinta
+  name_el: Τιμή μονάδας δομικών υλικών
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/t
@@ -170,7 +181,7 @@ nodes:
 
 - id: building_material_cost
   name_en: Building material cost
-  name_fi: Rakennusmateriaalikustannukset
+  name_el: Κόστος δομικών υλικών
   type: simple.MultiplicativeNode
   quantity: currency
   unit: MEUR/a
