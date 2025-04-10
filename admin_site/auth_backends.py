@@ -6,9 +6,10 @@ from typing import Any
 import sentry_sdk
 from loguru import logger
 from social_core.backends.azuread_tenant import AzureADTenantOAuth2
+from social_core.backends.email import EmailAuth
 from social_core.backends.oauth import BaseOAuth2
 
-from paths.const import FRAMEWORK_VIEWER_ROLE, INSTANCE_ADMIN_ROLE, INSTANCE_VIEWER_ROLE
+from paths.const import INSTANCE_ADMIN_ROLE, INSTANCE_VIEWER_ROLE
 
 from frameworks.roles import FrameworkRoleDef
 
@@ -144,3 +145,13 @@ class NZCPortalOAuth2(BaseOAuth2):
 
     def get_key_and_secret(self):
         return self.setting('CLIENT_ID'), self.setting('CLIENT_SECRET')
+
+
+class PasswordAuth(EmailAuth):
+    name = 'password'
+    ID_KEY = 'username'
+
+    def get_user_details(self, response):
+        details = super().get_user_details(response)
+        details['email'] = details['username']
+        return details
