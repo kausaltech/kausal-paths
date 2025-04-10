@@ -101,7 +101,7 @@ class PathsExecutionContext(ExecutionContext):
 
     def activate_language(self, lang: str):
         self.context_value.graphql_query_language = lang
-        return cast(AbstractContextManager, translation.override(lang))
+        return cast('AbstractContextManager', translation.override(lang))
 
     def get_instance_by_identifier(
         self,
@@ -530,7 +530,7 @@ class PathsGraphQLView(GraphQLView):
 
         request._referer = self.request.META.get('HTTP_REFERER')
         request.graphql_operation_name = operation_name
-        wildcard_domains = request.headers.get(settings.WILDCARD_DOMAINS_HEADER)
+        wildcard_domains = request.headers.get(WILDCARD_DOMAINS_HEADER)
         request.wildcard_domains = [d.lower() for d in wildcard_domains.split(',')] if wildcard_domains else []
 
         if query is not None:

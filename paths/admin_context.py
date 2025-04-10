@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import typing
-from contextvars import ContextVar
 
 if typing.TYPE_CHECKING:
     from paths.types import PathsAdminRequest

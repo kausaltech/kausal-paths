@@ -1,11 +1,16 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from django.contrib.auth import REDIRECT_FIELD_NAME
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseRedirect, HttpResponseBadRequest
+from django.http import HttpResponseBadRequest, HttpResponseRedirect
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods
 
-from paths.types import PathsAdminRequest
+if TYPE_CHECKING:
+    from paths.types import PathsAdminRequest
 
 
 @require_http_methods(['POST', 'GET'])
@@ -24,7 +29,7 @@ def change_admin_instance(request: PathsAdminRequest, instance_id):
     user = request.user
     adminable_instances = user.get_adminable_instances()
     try:
-        user.selected_instance = next(i for i in adminable_instances if i.id == instance_id)
+        user.selected_instance = next(i for i in adminable_instances if i.pk == instance_id)
     except StopIteration:
         return HttpResponseBadRequest("Invalid instance ID")
     user.save(update_fields=['selected_instance'])

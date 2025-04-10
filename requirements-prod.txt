@@ -6,9 +6,9 @@ packaging==23.2
     # via
     #   -c requirements.txt
     #   gunicorn
-psycopg==3.2.3
+psycopg==3.2.6
     # via
     #   -c requirements.txt
     #   -r requirements-prod.in
-psycopg-c==3.2.3
+psycopg-c==3.2.6
     # via psycopg

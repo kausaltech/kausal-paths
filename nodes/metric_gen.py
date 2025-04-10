@@ -418,7 +418,7 @@ def _join_scenario_dfs(scenario_dfs: list[ppl.PathsDataFrame]) -> ppl.PathsDataF
     sdfs = [first_df]
     for sdf in scenario_dfs[1:]:
         if not sdf.get_meta().is_equal(meta, ignore_order=True):
-            with sentry_sdk.push_scope() as scope:
+            with sentry_sdk.new_scope() as scope:
                 scope.set_context('scenario_dfs', dict(first=first_df.serialize_meta(), other=sdf.serialize_meta()))
                 sentry_sdk.capture_message('Scenario dataframes have different metadata', level='error')
             raise ValueError('Scenario dataframes have different metadata')
@@ -449,7 +449,7 @@ def metric_from_node(
     if isinstance(node, ShiftAction):
         return None
 
-    with sentry_sdk.push_scope() as scope, node.context.start_span('Dimension metric for: %s' % node.id, op=MODEL_CALC_OP):
+    with sentry_sdk.new_scope() as scope, node.context.start_span('Dimension metric for: %s' % node.id, op=MODEL_CALC_OP):
         scope.set_tag('node_id', node.id)
         scope.set_context(
             'metric_dim',

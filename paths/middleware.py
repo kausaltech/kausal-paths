@@ -9,35 +9,30 @@ from django.utils import translation
 from django.utils.deprecation import MiddlewareMixin
 from wagtail.users.models import UserProfile
 
-from kausal_common.logging.http import start_request
-
 from paths.admin_context import set_admin_instance
 from paths.context import PathsObjectCache
-from paths.types import PathsAdminRequest, PathsRequest
 
 from nodes.models import InstanceConfig
 from users.models import User
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from django.http import HttpRequest
+
+    from paths.types import PathsAdminRequest, PathsRequest
 
 
 class RequestMiddleware(MiddlewareMixin):
     def __init__(self, get_response) -> None:
         super().__init__(get_response)
 
-    def __call__(self, request: HttpRequest):
-        request = cast(PathsRequest, request)
+    def process_request(self, request: HttpRequest) -> None:
+        request = cast('PathsRequest', request)
         request.cache = PathsObjectCache(request.user)
-        with start_request(request):
-            return self.get_response(request)  # pyright: ignore
 
 
-class AdminMiddleware:
-    def __init__(self, get_response: Callable) -> None:
-        self.get_response = get_response
+class AdminMiddleware(MiddlewareMixin):
+    def __init__(self, get_response) -> None:
+        super().__init__(get_response)
 
     def get_admin_instance(self, request: PathsAdminRequest) -> None | InstanceConfig:
         if not re.match(r'^/admin/', request.path):
@@ -81,9 +76,10 @@ class AdminMiddleware:
                 lang = settings.LANGUAGES[0][0]
         translation.activate(lang)
 
-    def __call__(self, request: PathsAdminRequest):
+    def __call__(self, request: HttpRequest):
         from paths.context import RealmContext, realm_context
 
+        request = cast('PathsAdminRequest', request)
         ic = self.get_admin_instance(request)
         if ic is None:
             return self.get_response(request)

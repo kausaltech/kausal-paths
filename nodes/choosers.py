@@ -1,10 +1,17 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from django.utils.translation import gettext_lazy as _
 from wagtail import hooks
 
 from generic_chooser.views import ModelChooserMixin, ModelChooserViewSet
 from generic_chooser.widgets import AdminChooser
+
 from nodes.models import NodeConfig
-from paths.types import PathsAdminRequest
+
+if TYPE_CHECKING:
+    from paths.types import PathsAdminRequest
 
 
 class NodeChooserMixin(ModelChooserMixin):

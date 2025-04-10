@@ -16,9 +16,10 @@ from corsheaders.defaults import default_headers as default_cors_headers
 
 from kausal_common import ENV_SCHEMA as COMMON_ENV_SCHEMA, register_settings as register_common_settings
 from kausal_common.deployment import set_secret_file_vars
+from kausal_common.deployment.http import get_allowed_cors_headers
 from kausal_common.sentry.init import init_sentry
 
-from .const import INSTANCE_HOSTNAME_HEADER, INSTANCE_IDENTIFIER_HEADER, WILDCARD_DOMAINS_HEADER
+from .const import INSTANCE_HOSTNAME_HEADER, INSTANCE_IDENTIFIER_HEADER
 
 PROJECT_NAME = 'paths'
 
@@ -158,6 +159,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'kausal_common.deployment.middleware.RequestStartMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -275,18 +277,15 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r'^https://([a-z0-9-_]+\.)*kausal\.tech$',
     r'^https://([a-z0-9-_]+\.)*kausal\.dev$',
 ]
-CORS_ALLOW_HEADERS = list(default_cors_headers) + [
-    'sentry-trace',
-    'baggage',
-    'tracecontext',
-    'tracestate',
+CORS_ALLOW_HEADERS = list(default_cors_headers) + get_allowed_cors_headers() + [
     INSTANCE_IDENTIFIER_HEADER,
     INSTANCE_HOSTNAME_HEADER,
-    WILDCARD_DOMAINS_HEADER,
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_PREFLIGHT_MAX_AGE = 3600
 CORS_ALLOW_ALL_ORIGINS = True
+
+CSRF_COOKIE_AGE = 24 * 3600  # one day
 
 SESSION_COOKIE_SAMESITE = 'None'
 SESSION_COOKIE_SECURE = True
@@ -557,7 +556,7 @@ if ENABLE_DEBUG_TOOLBAR:
     MIDDLEWARE.insert(0, 'debug_toolbar.middleware.DebugToolbarMiddleware')
 
 if env('CONFIGURE_LOGGING'):
-    from kausal_common.logging.init import LogFormat, init_logging_django
+    from kausal_common.logging.init import LogFormat, UserLoggingOptions, init_logging_django
 
     is_kube = env.bool('KUBERNETES_MODE') or env.bool('KUBERNETES_LOGGING', False)  # type: ignore
     log_format: LogFormat | None
@@ -566,17 +565,11 @@ if env('CONFIGURE_LOGGING'):
         log_format = None
     else:
         log_format = 'logfmt'
-    LOGGING = init_logging_django(log_format, log_sql_queries=LOG_SQL_QUERIES)
+    LOGGING = init_logging_django(log_format, options=UserLoggingOptions(sql_queries=LOG_SQL_QUERIES))
 
 if True:
     from kausal_common.sentry.init import init_sentry
 
     init_sentry(SENTRY_DSN, DEPLOYMENT_TYPE)
-
-DATABASES['default']['CONN_MAX_AGE'] = env('DATABASE_CONN_MAX_AGE')
-CORS_ALLOW_HEADERS.append(INSTANCE_HOSTNAME_HEADER)
-
-CORS_ALLOW_HEADERS.append(INSTANCE_IDENTIFIER_HEADER)
-CORS_ALLOW_HEADERS.append(WILDCARD_DOMAINS_HEADER)
 
 HOSTNAME_INSTANCE_DOMAINS = env('HOSTNAME_INSTANCE_DOMAINS')

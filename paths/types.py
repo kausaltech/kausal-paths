@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Any, Self
 
 from django.core.exceptions import FieldDoesNotExist
 from django.db.models import ForeignKey
-from django.http import HttpRequest
 
 from kausal_common.models.object_cache import CacheableModel
 from kausal_common.models.permissions import PermissionedModel, PermissionedQuerySet
@@ -16,6 +15,7 @@ if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
     from wagtail.models import Site
 
+    from kausal_common.deployment.types import LoggedHttpRequest
     from kausal_common.graphene import GQLContext as CommonGQLContext, GQLInfo as CommonGQLInfo
 
     from paths.context import PathsObjectCache
@@ -30,24 +30,23 @@ if TYPE_CHECKING:
 type UserOrAnon = 'AbstractBaseUser | AnonymousUser'
 
 
-class PathsRequest(HttpRequest):
-    user: UserOrAnon  # type: ignore[override]
-    cache: PathsObjectCache
-    correlation_id: str
-    """Randomly generated ID for correlation."""
+if TYPE_CHECKING:
+    class PathsRequest(LoggedHttpRequest):
+        user: UserOrAnon  # type: ignore[override]
+        cache: PathsObjectCache
 
 
-class PathsAuthenticatedRequest(PathsRequest):
-    user: User  # type: ignore[override]
+    class PathsAuthenticatedRequest(PathsRequest):
+        user: User  # type: ignore[override]
 
 
-class PathsAdminRequest(PathsAuthenticatedRequest):
-    admin_instance: InstanceConfig
-    _wagtail_site: Site | None
+    class PathsAdminRequest(PathsAuthenticatedRequest):
+        admin_instance: InstanceConfig
+        _wagtail_site: Site | None
 
 
-class PathsAPIRequest(PathsAuthenticatedRequest):
-    wildcard_domains: list[str] | None
+    class PathsAPIRequest(PathsAuthenticatedRequest):
+        wildcard_domains: list[str] | None
 
 
 class PathsModel(PermissionedModel):

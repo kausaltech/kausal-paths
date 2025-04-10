@@ -1,13 +1,5 @@
 from __future__ import annotations
 
-from typing import cast
-
-from django.db import models
-from django.utils.translation import gettext_lazy as _
-from wagtail.images.models import AbstractImage, AbstractRendition, Image as WagtailImage
-
-from paths.types import PathsRequest
-
 """
 class PathsImage(AbstractImage):
     admin_form_fields = WagtailImage.admin_form_fields + ('image_credit', 'alt_text')
