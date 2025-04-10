@@ -230,6 +230,7 @@ SOCIAL_AUTH_NZCPORTAL_CLIENT_SECRET = env.str('NZCPORTAL_CLIENT_SECRET')
 AUTHENTICATION_BACKENDS = (
     'admin_site.auth_backends.AzureADAuth',
     *(['admin_site.auth_backends.NZCPortalOAuth2'] if SOCIAL_AUTH_NZCPORTAL_CLIENT_ID else []),
+    'admin_site.auth_backends.PasswordAuth',
     'django.contrib.auth.backends.ModelBackend',
 )
 
@@ -252,6 +253,8 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.social_user',
     # Finds user by email address
     'kausal_common.auth.pipeline.find_user_by_email',
+    # Validate password
+    'kausal_common.auth.pipeline.validate_user_password',
     # Get or create the user and update user data
     'kausal_common.auth.pipeline.create_or_update_user',
     # Create the record that associated the social account with this user.
