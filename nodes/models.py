@@ -386,7 +386,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
 
         token = instance_context.set(instance)
         try:
-            with sentry_sdk.push_scope() as scope:
+            with sentry_sdk.new_scope() as scope:
                 self.set_instance_scope(scope)
                 yield instance
         finally:

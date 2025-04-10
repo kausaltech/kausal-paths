@@ -1,6 +1,9 @@
-INSTANCE_IDENTIFIER_HEADER = 'x-paths-instance-identifier'  # noqa: I002
+from __future__ import annotations
+
+from kausal_common.const import WILDCARD_DOMAINS_HEADER as WILDCARD_DOMAINS_HEADER  # noqa: PLC0414
+
+INSTANCE_IDENTIFIER_HEADER = 'x-paths-instance-identifier'
 INSTANCE_HOSTNAME_HEADER = 'x-paths-instance-hostname'
-WILDCARD_DOMAINS_HEADER = 'x-wildcard-domains'
 
 FRAMEWORK_ADMIN_ROLE = 'framework-admin'
 FRAMEWORK_VIEWER_ROLE = 'framework-viewer'

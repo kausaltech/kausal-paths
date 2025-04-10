@@ -9,55 +9,59 @@ asttokens==3.0.0
     # via
     #   -c requirements.txt
     #   stack-data
-basedpyright==1.22.1
+basedpyright==1.28.5
     # via -r requirements-dev.in
 cfgv==3.4.0
     # via pre-commit
-click==8.1.7
+click==8.1.8
     # via
     #   -c requirements.txt
     #   ondivi
-decorator==5.1.1
+decorator==5.2.1
     # via
     #   -c requirements.txt
     #   ipdb
     #   ipython
 distlib==0.3.9
     # via virtualenv
-django==5.1.4
+django==5.2
     # via
     #   -c requirements-lint.txt
     #   -c requirements.txt
     #   django-debug-toolbar
-django-debug-toolbar==4.4.6
+django-debug-toolbar==5.1.0
     # via -r requirements-dev.in
-executing==2.1.0
+executing==2.2.0
     # via
     #   -c requirements.txt
     #   stack-data
-filelock==3.16.1
+filelock==3.18.0
     # via
     #   -c requirements.txt
     #   virtualenv
-gitdb==4.0.11
+gitdb==4.0.12
     # via
     #   -c requirements.txt
     #   gitpython
-gitpython==3.1.43
+gitpython==3.1.44
     # via
     #   -c requirements.txt
     #   ondivi
-identify==2.6.3
+identify==2.6.9
     # via pre-commit
 inotify==0.2.10
     # via -r requirements-dev.in
 ipdb==0.13.13
     # via -r requirements-dev.in
-ipython==8.30.0
+ipython==9.1.0
     # via
     #   -c requirements.txt
     #   -r requirements-dev.in
     #   ipdb
+ipython-pygments-lexers==1.1.1
+    # via
+    #   -c requirements.txt
+    #   ipython
 jedi==0.19.2
     # via
     #   -c requirements.txt
@@ -70,11 +74,11 @@ matplotlib-inline==0.1.7
     #   ipython
 nodeenv==1.9.1
     # via pre-commit
-nodejs-wheel-binaries==22.12.0
+nodejs-wheel-binaries==22.14.0
     # via basedpyright
 nose==1.3.7
     # via inotify
-ondivi==0.6.0
+ondivi==0.7.0
     # via -r requirements-dev.in
 parse==1.20.2
     # via ondivi
@@ -86,17 +90,17 @@ pexpect==4.9.0
     # via
     #   -c requirements.txt
     #   ipython
-pip==24.3.1
+pip==25.0.1
     # via -r requirements-dev.in
-platformdirs==4.3.6
+platformdirs==4.3.7
     # via
     #   -c requirements.txt
     #   virtualenv
 plotext==5.3.2
     # via -r requirements-dev.in
-pre-commit==4.0.1
+pre-commit==4.2.0
     # via -r requirements-dev.in
-prompt-toolkit==3.0.48
+prompt-toolkit==3.0.50
     # via
     #   -c requirements.txt
     #   ipython
@@ -108,15 +112,16 @@ pure-eval==0.2.3
     # via
     #   -c requirements.txt
     #   stack-data
-pygments==2.18.0
+pygments==2.19.1
     # via
     #   -c requirements.txt
     #   ipython
+    #   ipython-pygments-lexers
 pyyaml==6.0.2
     # via
     #   -c requirements.txt
     #   pre-commit
-smmap==5.0.1
+smmap==5.0.2
     # via
     #   -c requirements.txt
     #   gitdb
@@ -135,9 +140,9 @@ traitlets==5.14.3
     #   -c requirements.txt
     #   ipython
     #   matplotlib-inline
-uv==0.5.8
+uv==0.6.14
     # via -r requirements-dev.in
-virtualenv==20.28.0
+virtualenv==20.30.0
     # via pre-commit
 wcwidth==0.2.13
     # via

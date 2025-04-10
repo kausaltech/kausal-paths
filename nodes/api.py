@@ -1,10 +1,18 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from django.shortcuts import get_object_or_404
-from rest_framework import viewsets, serializers, settings, permissions, response, generics
-from rest_framework_nested import routers, relations
+from rest_framework import generics, permissions, response, serializers, settings, viewsets
+
+from rest_framework_nested import routers
 
 from paths.api_router import router
-from paths.types import PathsAPIRequest
+
 from .models import InstanceConfig
+
+if TYPE_CHECKING:
+    from paths.types import PathsAPIRequest
 
 
 all_routers = []
