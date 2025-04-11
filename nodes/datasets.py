@@ -259,6 +259,7 @@ class DatasetWithFilters(Dataset):
         if not self.filters:
             return df
 
+        df_orig = df
         for d in self.filters:
             if 'column' in d:
                 col = d['column']
@@ -298,6 +299,10 @@ class DatasetWithFilters(Dataset):
                 flatten = d.get('flatten', False)
                 if flatten:
                     df = df.paths.sum_over_dims(dim_id)
+            if len(df) == 0:
+                print(df_orig)
+                print(self.filters)
+                raise ValueError("Nothing left after filtering. See original dataset above.")
 
         return df
 
@@ -548,6 +553,7 @@ class GenericDataset(DVCDataset):
     def convert_names_to_ids(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
         exset = {YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN, UNCERTAINTY_COLUMN, 'Unit', 'UUID'}
         exset |= {col for col in df.columns if col.startswith(f"{VALUE_COLUMN}_")}
+        exset |= set(df.get_meta().units.keys())
 
         # Convert index level names from labels to IDs.
         collookup = {}
@@ -565,7 +571,7 @@ class GenericDataset(DVCDataset):
 
         for col in list(set(df.columns) - exset):
             catlookup = {}
-            for cat in df[col].unique():
+            for cat in df[col].unique().drop_nulls():
                 catlookup[cat] = cat.lower().translate(self.characterlookup)
             df = df.with_columns(df[col].replace(catlookup))
 
@@ -578,6 +584,16 @@ class GenericDataset(DVCDataset):
 
     # -----------------------------------------------------------------------------------
     def drop_unnecessary_levels(self, df: ppl.PathsDataFrame, droplist: list) -> ppl.PathsDataFrame:
+        # Get all metric columns from the DataFrame's metadata
+        metric_cols = list(df.get_meta().units.keys())
+
+        # Only drop rows where all metric columns are null
+        if metric_cols:
+            null_condition = pl.lit(True)  # noqa: FBT003
+            for col in metric_cols:
+                null_condition = null_condition & pl.col(col).is_null()
+            df = df.filter(~null_condition)
+
         # Drop filter levels and empty dimension levels.
         drops = [d for d in droplist if d in df.columns]
 
@@ -764,7 +780,7 @@ class JSONDataset(Dataset):
         return dict(hash=int(pd.util.hash_pandas_object(df).sum()))
 
     def get_unit(self, context: Context) -> Unit:
-        return cast(Unit, self.unit)
+        return cast('Unit', self.unit)
 
     @classmethod
     def deserialize_df(cls, value: dict) -> ppl.PathsDataFrame:

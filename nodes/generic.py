@@ -11,7 +11,7 @@ from common import polars as ppl
 from nodes.actions import ActionNode
 from nodes.calc import extend_last_historical_value_pl
 from nodes.units import unit_registry
-from params.param import NumberParameter, StringParameter
+from params.param import BoolParameter, NumberParameter, StringParameter
 
 from .constants import EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from .exceptions import NodeError
@@ -35,7 +35,10 @@ class GenericNode(SimpleNode):
     )
     allowed_parameters = [
         *SimpleNode.allowed_parameters,
-        StringParameter(local_id='operations', label='Comma-separated list of operations to execute in order')
+        StringParameter(local_id='operations', label='Comma-separated list of operations to execute in order'),
+        StringParameter(local_id='categories', label='Dimension and categories to select'),
+        NumberParameter(local_id='selected_number', label='Number of the selected stakeholder'),
+        BoolParameter(local_id='do_correction', label='Correct heating energy by weather?'),
     ]
     # Class-level default operations
     DEFAULT_OPERATIONS = 'multiply,add,other,apply_multiplier'
@@ -51,6 +54,10 @@ class GenericNode(SimpleNode):
             'add': self._operation_add,
             'other': self._operation_other,
             'apply_multiplier': self._operation_apply_multiplier,
+            'select_variant': self._operation_select_variant,
+            'inventory_only': self._operation_inventory_only,
+            'extend_values': self._operation_extend_values,
+            'do_correction': self._operation_do_correction,
         }
 
     def _get_input_baskets(self, nodes: list[Node]) -> dict[str, list[Node]]:
@@ -87,7 +94,9 @@ class GenericNode(SimpleNode):
                     break
 
             if not assigned:
-                if self.is_compatible_unit(self.unit, node.unit):
+                df = node.get_output_pl(target_node=self) # Works with multi-metric nodes.
+                df_unit = df.get_unit(VALUE_COLUMN)
+                if self.is_compatible_unit(self.unit, df_unit):
                     baskets['additive'].append(node)
                 else:
                     baskets['multiplicative'].append(node)
@@ -145,10 +154,18 @@ class GenericNode(SimpleNode):
         # Drop filter levels and empty dimension levels.
         drops = [d for d in droplist if d in df.columns]
         df = df.drop(drops)
-        df = df.filter(~pl.col(VALUE_COLUMN).is_null())
+        # Get all metric columns from the DataFrame's metadata
+        metric_cols = list(df.get_meta().units.keys())
+
+        # Only drop rows where all metric columns are null
+        if metric_cols:
+            null_condition = pl.lit(True)  # noqa: FBT003
+            for col in metric_cols:
+                null_condition = null_condition & pl.col(col).is_null()
+            df = df.filter(~null_condition)
+
         null_cols = [col for col in df.columns if df[col].null_count() == len(df)]
         df = df.drop(null_cols)
-        print(type(df))
         return df
 
     # -----------------------------------------------------------------------------------
@@ -178,6 +195,39 @@ class GenericNode(SimpleNode):
         return df
 
     # -----------------------------------------------------------------------------------
+    def _operation_select_variant(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        filt = self.get_parameter_value_str('categories', required=False) # FIXME merge with select_variant
+        if filt:
+            dim, cats = filt.split(':')
+            cat = cats.split(',')
+            val = self.get_parameter_value('selected_number', required=True)
+            print('selected_number:', val)
+            if val is not None:
+                cat = cat[round(val)]
+                print(cat)
+            df = df.filter(pl.col(dim) == cat)
+
+        return df, baskets
+
+    # -----------------------------------------------------------------------------------
+    def _operation_do_correction(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        do_correction = self.get_parameter_value('do_correction', required=True)
+
+        if not do_correction:
+            df = df.with_columns(pl.col(VALUE_COLUMN) * pl.lit(0) + pl.lit(1.0))
+
+        return df, baskets
+
+    def _operation_inventory_only(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        df = df.filter(~pl.col(FORECAST_COLUMN))
+        return df, baskets
+
+    def _operation_extend_values(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        df = extend_last_historical_value_pl(df, self.get_end_year())
+        return df, baskets
+
+    # -----------------------------------------------------------------------------------
+
     def compute(self) -> ppl.PathsDataFrame:
         """Process inputs according to the operations sequence."""
         # Get operation sequence from parameter or class default

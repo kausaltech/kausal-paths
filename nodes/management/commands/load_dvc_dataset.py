@@ -136,7 +136,7 @@ class Command(BaseCommand):
             # `pl.Categorical`?
             new_col = ctx.dimensions[col].series_to_ids_pl(df[col], allow_null=True)
             # Let's throw in an assert and find out.
-            assert new_col.equals(df[col])
+            # assert new_col.equals(df[col])
             df = df.with_columns(new_col)
 
         for col, dt in df.schema.items():

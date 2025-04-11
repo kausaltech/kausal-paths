@@ -728,7 +728,7 @@ class DatasetRelationAction(DatasetAction, GenericNode):
         'allow': (None, True, "If A is disabled, B is enabled; otherwise no change"),
     }
 
-    def _find_relationship_from_tags(self, node: ActionNode) -> str:
+    def _find_relationship_from_tags(self, node: ActionNode) -> str | None:
         """
         Find the relationship type from tags on the input edge or node.
 

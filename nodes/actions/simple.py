@@ -29,14 +29,14 @@ class GenericAction(GenericNode, ActionNode):
 
     no_effect_value = 0.0
 
-    def compute(self) -> PathsDataFrame:
+    def compute_effect(self) -> PathsDataFrame:
         df = super().compute()
         if not self.is_enabled():
             df = df.with_columns(pl.lit(self.no_effect_value).alias(VALUE_COLUMN))
         return df
 
-    def compute_effect(self) -> PathsDataFrame:
-        return self.compute()
+    def compute(self) -> PathsDataFrame:
+        return self.compute_effect()
 
 
 class AdditiveAction(ActionNode):
@@ -135,7 +135,7 @@ class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
 
         target_year_level = self.get_parameter_value('target_year_level', required=False)
         if target_year_level is not None:
-            if set(df.columns) != set([VALUE_COLUMN, FORECAST_COLUMN]):
+            if set(df.columns) != {VALUE_COLUMN, FORECAST_COLUMN}:
                 raise NodeError(self, "target_year_level parameter can only be used with single-value nodes")
             df.loc[target_year, VALUE_COLUMN] = target_year_level
             if delay is not None:

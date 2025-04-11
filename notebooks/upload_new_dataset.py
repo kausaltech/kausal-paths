@@ -28,11 +28,58 @@ def load_data(file_path: str, separator: str) -> pl.DataFrame:
     return pl.read_csv(file_path, separator=separator, infer_schema_length=1000)
 
 
+def validate_required_columns(df: pl.DataFrame) -> None:
+    """Validate that required columns exist in the dataframe."""
+    required_columns = ['Quantity', 'Unit']
+    missing_columns = [col for col in required_columns if col not in df.columns]
+
+    if missing_columns:
+        raise ValueError(f"Missing required columns: {', '.join(missing_columns)}")
+
+    if not any(col in df.columns for col in ['MetricGroup', 'Metric', 'Sector']):
+        raise ValueError("Missing metric group column. Dataset must contain either 'MetricGroup', 'Metric', or 'Sector' column.")
+
+
+def determine_metric_column(df: pl.DataFrame) -> str:
+    """Determine which column to use for metrics."""
+    if 'MetricGroup' in df.columns:
+        return 'MetricGroup'
+    if 'Metric' in df.columns:
+        return 'Metric'  # backward compatibility
+    if 'Sector' in df.columns:
+        return 'Sector'  # legacy support
+    raise ValueError("No metric group column found. DataFrame must contain 'MetricGroup', 'Metric', or 'Sector' column.")
+
+
+def create_compound_identifiers(df: pl.DataFrame, metric_col: str) -> pl.DataFrame:
+    """Create compound identifiers from metric group and quantity."""
+    if len(df) == len(df['Quantity'].unique()):
+        df = df.with_columns(
+            pl.col('Quantity').map_elements(to_snake_case, return_dtype=pl.Utf8).alias('CompoundID')
+        )
+    else:
+        df = df.with_columns([
+            (
+                pl.concat_str([
+                    pl.col(metric_col).map_elements(to_snake_case, return_dtype=pl.Utf8),
+                    pl.lit('_'),
+                    pl.when(pl.col('Quantity').is_null())
+                    .then(pl.lit('value'))
+                    .otherwise(pl.col('Quantity').map_elements(to_snake_case, return_dtype=pl.Utf8))
+                ])
+            ).alias('CompoundID')
+        ])
+    return df
+
+
 def split_by_slice(df: pl.DataFrame) -> dict[str, pl.DataFrame]:
     """Split the dataframe into separate dataframes by Slice."""
     slices = {}
 
-    unique_slices = df.select('Slice').unique().to_series(0).to_list()
+    if 'Slice' in df.columns:
+        unique_slices = df.select('Slice').unique().to_series(0).to_list()
+    else:
+        raise ValueError("If specific_slice is not defined, there must be column Slice.")
 
     for slice_name in unique_slices:
         if slice_name is not None:
@@ -44,29 +91,24 @@ def split_by_slice(df: pl.DataFrame) -> dict[str, pl.DataFrame]:
 
 
 def extract_units(df: pl.DataFrame, slice_name: str) -> dict:
-    """Extract units from the dataframe."""
+    """Extract units from the dataframe using compound identifiers."""
     units = {}
-    if 'Sector' in df.columns and 'Unit' in df.columns:
-        # Get unique sector-unit pairs
-        unique_sectors = df.select(['Sector', 'Unit']).unique()
 
-        for row_idx in range(len(unique_sectors)):
-            row = unique_sectors.row(row_idx, named=True)
-            sector = to_snake_case(row['Sector'])
-            unit = row['Unit']
+    # Use the already created compound IDs
+    unique_metrics = df.select(['CompoundID', 'Unit']).unique()
 
-            if sector and unit:
-                units[sector] = unit
+    for row_idx in range(len(unique_metrics)):
+        row = unique_metrics.row(row_idx, named=True)
+        compound_id = row['CompoundID']
+        unit = row['Unit']
 
-    # If no Sector column or no valid sector-unit pairs, use "Value" as the key
-    if not units and 'Unit' in df.columns:
-        first_unit = df.select('Unit')[0, 0]
-        if first_unit:
-            units['Value'] = first_unit
+        if compound_id and unit:
+            units[compound_id] = unit
+
     return units
 
 
-def extract_description(df: pl.DataFrame, slice_name: str) -> str | None:
+def extract_description(df: pl.DataFrame, slice_name: str, metric_col: str) -> str | None:
     """Extract description from the dataframe."""
     description = None # FIXME Does not show up in admin UI.
     if 'Description' in df.columns:
@@ -77,14 +119,14 @@ def extract_description(df: pl.DataFrame, slice_name: str) -> str | None:
             row = rows_with_description.row(row_idx, named=True)
 
             parts = []
-            if row.get('Sector'):
-                parts.append(row['Sector'])
+            if row.get(metric_col):
+                parts.append(row[metric_col])
 
             # Add values from dimension columns
             for col in df.columns:
                 if (
                     (df[col].dtype == pl.Utf8 or df[col].dtype == pl.String) and
-                    (col not in ['Sector', 'Unit', 'Value', 'Description', 'Quantity', 'Year']) and
+                    (col not in [metric_col, 'Unit', 'Value', 'Description', 'Quantity', 'Year', 'CompoundID']) and
                     (row.get(col))
                 ):
                     parts.append(f"{col}: {row[col]}")  # noqa: PERF401
@@ -100,32 +142,38 @@ def extract_description(df: pl.DataFrame, slice_name: str) -> str | None:
     return description
 
 
-def extract_metrics(df: pl.DataFrame, language: str) -> list:
-    """Extract metrics from the dataframe."""
-    # 3. Extract metrics from Quantity and Sector columns
+def extract_metrics(df: pl.DataFrame, language: str, metric_col: str) -> list:
+    """
+    Extract metrics from the dataframe using compound identifiers.
+
+    The metric_col parameter should be 'MetricGroup', 'Metric', or 'Sector',
+    in order of preference.
+    """
     metrics = []
-    if 'Sector' in df.columns and 'Quantity' in df.columns:
-        unique_metrics = df.select(['Sector', 'Quantity']).unique()
 
-        for row_idx in range(len(unique_metrics)):
-            row = unique_metrics.row(row_idx, named=True)
-            sector = row['Sector']
-            quantity = row['Quantity']
+    # Use the already created compound IDs
+    unique_metrics = df.select([metric_col, 'CompoundID', 'Quantity']).unique()
 
-            if sector and quantity:
-                metrics.append({
-                    "id": to_snake_case(sector),
-                    "quantity": to_snake_case(quantity),
-                    "label": {language: sector},
-                })
+    for row_idx in range(len(unique_metrics)):
+        row = unique_metrics.row(row_idx, named=True)
+        metric_name = row[metric_col]
+        compound_id = row['CompoundID']
+        quantity = row['Quantity']
+
+        if metric_name and quantity and compound_id:
+            metrics.append({
+                "id": compound_id,
+                "quantity": to_snake_case(quantity),
+                "label": {language: f"{metric_name} ({quantity})"},
+            })
 
     return metrics
 
 
 def clean_dataframe(df: pl.DataFrame) -> pl.DataFrame:
     """Remove metadata columns and empty columns."""
-    # 1. Drop metadata columns that are now in metadata
-    metadata_columns = ['Unit', 'Description', 'Quantity']
+    # 1. Drop metadata columns that are now in metadata but keep CompoundID
+    metadata_columns = ['Unit', 'Description']
     for col in metadata_columns:
         if col in df.columns:
             df = df.drop(col)
@@ -183,40 +231,39 @@ def convert_to_standard_format(df: pl.DataFrame) -> pl.DataFrame:
     return result_df.drop('__row_idx') if '__row_idx' in result_df.columns else result_df
 
 
-def pivot_by_sector(df: pl.DataFrame) -> pl.DataFrame:
-    """Convert dataframe to have sectors as columns."""
-    # Check if we need to pivot (do we have a Sector column?)
-    if 'Sector' not in df.columns:
-        return df
-
-    # Get unique sectors
-    df = df.with_columns(pl.col('Sector').map_elements(to_snake_case, return_dtype=pl.String))
-    unique_sectors = df.select('Sector').unique().to_series(0).to_list()
-    unique_sectors = [s for s in unique_sectors if s is not None]
-
-    # If only one sector, just rename Value column to that sector
-    if len(unique_sectors) == 1:
-        sector = unique_sectors[0]
+def pivot_by_compound_id(df: pl.DataFrame, metric_col: str) -> pl.DataFrame:
+    """Convert dataframe to have compound identifiers as columns."""
+    # Get unique compound IDs
+    unique_ids = df.select('CompoundID').unique().to_series(0).to_list()
+    unique_ids = [s for s in unique_ids if s is not None]
+    # If only one compound ID, just rename Value column to that ID
+    if len(unique_ids) == 1:
+        compound_id = unique_ids[0]
         return df.with_columns(
-            pl.col('Value').alias(sector)
-        ).drop(['Sector', 'Value'])
+            pl.col('Value').alias(compound_id)
+        ).drop([metric_col, 'Quantity', 'Value', 'CompoundID'])
 
-    # Get dimension columns (all except Sector and Value)
-    dim_cols = [col for col in df.columns if col not in ['Sector', 'Value']]
+    # Get dimension columns (all except those used for pivoting and the value)
+    dim_cols = [col for col in df.columns if col not in [metric_col, 'Quantity', 'Value', 'CompoundID']]
 
-    # Ensure no null sectors
+    # Ensure no null compound IDs
     df = df.with_columns(
-        pl.when(pl.col('Sector').is_null())
+        pl.when(pl.col('CompoundID').is_null())
           .then(pl.lit("unknown"))
-          .otherwise(pl.col('Sector'))
-          .alias('Sector')
+          .otherwise(pl.col('CompoundID'))
+          .alias('CompoundID')
     )
 
-    # Pivot to have sectors as columns
+
+    # Pivot to have compound IDs as columns
+    try:
+        df = df.with_columns(pl.col('Value').cast(pl.Float64))
+    finally:
+        pass
     result_df = df.pivot(
         values="Value",
         index=dim_cols,
-        on="Sector"
+        on="CompoundID"
     )
 
     return result_df
@@ -233,15 +280,15 @@ def prepare_for_dvc(df: pl.DataFrame, units: dict) -> pl.DataFrame:
     """Prepare dataframe for DVC by standardizing column names."""
     # Standardize column names (except 'Year')
     columns = df.columns
-    sectors = list(units.keys())
-    new_columns = [col if col in sectors + ['Year'] else to_snake_case(col) for col in columns]
+    metrics = list(units.keys())
+    new_columns = [col if col in metrics + ['Year'] else to_snake_case(col) for col in columns]
 
     # Rename columns
     df = df.rename(dict(zip(columns, new_columns, strict=False)))
 
     # Convert string values in columns to snake case
     for col in new_columns:
-        if col not in sectors + ['Year']:
+        if col not in metrics + ['Year']:
             df = df.with_columns(
                 pl.col(col).map_elements(to_snake_case, return_dtype=pl.Utf8).alias(col)
             )
@@ -257,6 +304,7 @@ def save_to_csv(df: pl.DataFrame, file_path: str, slice_name: str) -> None:
         slice_file_path = f"{file_name}_{to_snake_case(slice_name)}{file_ext}"
 
         df.write_csv(slice_file_path)
+        print(df)
         print(f'Data saved to {slice_file_path}')
 
 
@@ -267,7 +315,7 @@ def push_to_dvc(df: pl.DataFrame, output_path: str, slice_name: str,
     if output_path.upper() in ['N', 'NONE']:
         return
 
-    # Get index columns (excluding sector value columns)
+    # Get index columns (excluding metric value columns)
     index_columns = [col for col in df.columns if col not in units.keys()]
 
     # Build metadata
@@ -318,38 +366,48 @@ def process_slice(df: pl.DataFrame, slice_name: str, outcsvpath: str, outdvcpath
     """Process a single slice of data."""
     print(f"\n==== Processing slice: {slice_name} ====")
 
-    # 1. Extract metadata before manipulating dataframe
+    # 1. Validate required columns
+    validate_required_columns(df)
+
+    # 2. Determine which column to use for metrics
+    metric_col = determine_metric_column(df)
+    print(f"Using '{metric_col}' as the metric group column")
+
+    # 3. Create compound identifiers early
+    df = create_compound_identifiers(df, metric_col)
+
+    # 4. Extract metadata using compound identifiers
     units = extract_units(df, slice_name)
-    metrics = extract_metrics(df, language)
-    description = extract_description(df, slice_name)
+    metrics = extract_metrics(df, language, metric_col)
+    description = extract_description(df, slice_name, metric_col)
     print(f"Units: {units}")
     print(f"Metrics: {len(metrics)} entries")
     if description:
         print("Description extracted")
 
-    # 2. Clean dataframe (remove metadata columns and empty columns)
+    # 5. Clean dataframe (remove metadata columns)
     df = clean_dataframe(df)
 
-    # 3. Convert to standard format with Year column if needed
+    # 6. Convert to standard format with Year column if needed
     df = convert_to_standard_format(df)
     print(f"Data converted to standard format with {len(df)} rows")
 
-    # 4. Pivot by sector to have sectors as columns
-    df = pivot_by_sector(df)
+    # 7. Pivot by compound ID
+    df = pivot_by_compound_id(df, metric_col)
     dim_ids = [s for s in df.columns if s not in units.keys()]
-    print(f"Data pivoted by sector with dimension columns: {dim_ids}")
+    print(f"Data pivoted by compound identifiers with dimension columns: {dim_ids}")
 
-    # 5. Check for issues
+    # 8. Check for issues
     if check_for_duplicates(df):
         print("Warning: Dataframe contains duplicate rows")
 
-    # 6. Prepare for DVC (standardize column names)
+    # 9. Prepare for DVC (standardize column names)
     df = prepare_for_dvc(df, units)
 
-    # 7. Save to CSV if requested
+    # 10. Save to CSV if requested
     save_to_csv(df, outcsvpath, slice_name)
 
-    # 8. Push to DVC if requested
+    # 11. Push to DVC if requested
     if outdvcpath.upper() not in ['N', 'NONE']:
         slice_dvc_path = f"{outdvcpath}/{to_snake_case(slice_name)}"
         push_to_dvc(df, slice_dvc_path, slice_name, units, description, metrics, language)
@@ -374,7 +432,7 @@ def main():
     if specific_slice:
         # Process only the specified slice
         print(f"Processing only slice: {specific_slice}")
-        slice_df = full_df.filter(pl.col('Slice') == specific_slice).drop('Slice')
+        slice_df = full_df.filter(pl.col('Slice') == specific_slice).drop('Slice') if 'Slice' in full_df.columns else full_df
         process_slice(slice_df, specific_slice, outcsvpath, outdvcpath, language)
     else:
         # Process all slices

@@ -220,3 +220,8 @@ class ElectrificationScenario(NumberParameter):
 class PopulationSize(NumberParameter):
     name = _('Population size')
     id = 'population_size'
+
+
+class SelectedNumber(NumberParameter):
+    name = _('Number of the selected item')
+    id = 'selected_number'
