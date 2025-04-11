@@ -5,7 +5,7 @@ supported_languages: [fi]
 site_url: https://forestry-fi.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: b963f152a7bca20d8ae0bc7945a3e6187d551a94
+  commit: 8ee3bb7009333189b9697484c04209f8d03d7f9e
   dvc_remote: kausal-s3
 name_en: Multi-stakeholder forestry policy options
 name_fi: Metsäpolitiikan monet vaihtoehdot

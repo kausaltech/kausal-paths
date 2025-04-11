@@ -47,26 +47,36 @@ action_groups:
   name: Liikenne
   name_en: Transportation
   name_sv: Trafik
+  color: '#377eb8'
 - id: transportation_additional
   name: Liikenteen lisätoimet
   name_en: Additional transportation measures
   name_sv: Ytterligare trafik åtgärder
+  color: '#e41a1c'
 - id: buildings
   name: Rakennukset
   name_en: Buildings
   name_sv: Byggnader
+  color: '#4daf4a'
 - id: electricity
   name: Sähkö
   name_en: Electricity
   name_sv: Elektricitet
+  color: '#984ea3'
 - id: industry
   name: Teollisuus ja työkoneet
   name_en: Industry and machinery
   name_sv: Industri och arbetsmaskiner
+  color: '#ff7f00'
 - id: waste_agriculture
   name: Jätteet, maatalous ja muut
   name_en: Waste, agriculture, and others
   name_sv: Avfall, jordbruk och övrigt
+- id: other
+  name: Muut toimet
+  name_en: Other actions
+  name_sv: Andra åtgärder
+  color: '#ffff33'
 
 params:
 - id: municipality_name
@@ -742,6 +752,38 @@ nodes:
   #   to_dimensions:
   #   - id: vehicle_type
   #   - id: economic_sector
+
+- id: waste_treatment_emissions_data
+  name_fi: Jätteenkäsittelyn päästödata
+  name_en: Waste treatment_emissions data
+  name_sv: Utsläppdata om avfallsbehandlingen
+  description_fi: Data on saatu Juha Viholaiselta maaliskuussa 2024.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [waste_treatment]
+  output_dimensions: [waste_treatment]
+  input_datasets:
+  - id: espoo/jatteenkasittelyn_paastot_ja_ennuste
+    forecast_from: 2025
+    tags: [baseline]
+    column: jatteenkasittelyn_paastot
+
+- id: waste_treatment_emissions_data2
+  name_fi: Jätteenkäsittelyn päästödata
+  name_en: Waste treatment_emissions data
+  name_sv: Utsläppdata om avfallsbehandlingen
+  description_fi: Data on saatu Juha Viholaiselta maaliskuussa 2024.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [waste_treatment]
+  output_dimensions: [waste_treatment]
+  input_datasets:
+  - id: espoo/jatteenkasittelyn_paastot_ja_ennuste
+    forecast_from: 2025
+    tags: [baseline]
+    column: jatteenkasittelyn_paastot
 
 pages:
 - id: home  # The page is not shown
@@ -1447,7 +1489,7 @@ actions:
   quantity: ratio
   unit: '%'
   no_effect_value: 100
-  group: waste_agriculture
+  group: other
   input_dimensions: [emission_sector]
   output_dimensions: [emission_sector]
   input_datasets:
@@ -1467,6 +1509,24 @@ actions:
       flatten: true
     to_dimensions: []
 
+- id: reduce_waste_treatment_emissions2
+  name_fi: Jätteiden käsittelyn päästöt pienenevät uusi
+  name_en: Waste treatment emissions are reduced
+  name_sv: Utsläppen från avfallsbehandlingen minskar
+  type: linear.DatasetReduceAction
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [waste_treatment]
+  output_dimensions: [waste_treatment]
+  # input_datasets:
+  # - id: espoo/jatteenkasittelyn_paastot_ja_ennuste
+  #   tags: [historical]
+  input_nodes:
+  - id: waste_treatment_emissions_data
+    tags: [forecast_only, goal]
+  - id: waste_treatment_emissions_data2
+    tags: [historical_only, historical]
+
 - id: reduce_agriculture_emissions
   name_fi: Maatalouden päästöt pienenevät
   name_en: Agriculture emissions are reduced
@@ -1484,7 +1544,7 @@ actions:
   type: simple.LinearCumulativeAdditiveAction
   quantity: emissions
   unit: kt/a
-  group: waste_agriculture
+  group: other
   forecast_values: [[2024, 0.0], [2035, 0.0]]
   output_nodes:
   - id: agriculture_emissions
@@ -1545,7 +1605,7 @@ actions:
   quantity: ratio
   unit: '%'
   no_effect_value: 100
-  group: industry
+  group: other
   input_dimensions: [emission_sector, economic_sector]
   output_dimensions: [emission_sector, economic_sector]
   input_datasets:

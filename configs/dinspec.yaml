@@ -1,10 +1,11 @@
+# Data: https://docs.google.com/spreadsheets/d/1fiO0SdhVbrVbUbCc7rEjNFFylF21AKUcugwdAQWznDc/edit?gid=0#gid=0
 id: dinspec
 default_language: en
 supported_languages: [de]
 site_url: https://dinspec.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 4a4cd140f9022c9ab5ac0e75307945e22aa832e3
+  commit: 116732e7b177932dadba8865fa5d1552ff7aa528
   dvc_remote: kausal-s3
 name: Greenhouse Gas Inventory according to DINSpec 91637
 owner: Kausal
@@ -28,6 +29,9 @@ include:
 - file: modules/dinspec/car_to_bike_shift.yaml
   node_group: Transport
   allow_override: true
+- file: modules/congestion_charge.yaml
+  node_group: Congestion charge
+  allow_override: true
 
 action_groups:
 - id: stationary
@@ -48,10 +52,20 @@ action_groups:
 - id: fiscal_incentive
   name: Fiscal incentives
   color: '#e6ab02'
+- id: congestion_charge
+  name: Congestion charge
 
 params:
 - id: municipality_name
   value: Example
+- id: selected_number
+  label: Number of selected stakeholder (0=True Finns, 1=The Greens)
+  is_customizable: true
+  is_visible: true
+  value: 0
+  min_value: 0
+  max_value: 1
+  step: 1
 
 emission_sectors: # TODO You may want to allow instances without emission sectors
 

@@ -1249,8 +1249,10 @@ pages:
   path: /
   type: emission
   outcome_node: net_emissions
-  lead_title: Athens Greenhouse Gas Inventory
-  lead_paragraph: Greenhouse gas inventory (2014-2021) for the City of Athens.
+  lead_title_en: Athens Greenhouse Gas Inventory
+  lead_paragraph_en: Greenhouse gas inventory (2014-2021) for the City of Athens.
+  lead_title_el: Απογραφή Αερίων Θερμοκηπίου Αθήνας
+  lead_paragraph_el: Απογραφή αερίων θερμοκηπίου (2014-2021) για τον Δήμο Αθηναίων.
 
 scenarios:
 - id: baseline
