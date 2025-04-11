@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://saskatoon.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 0ee1c90fb6124e68625484d4805121ab1b0ea07e
+  commit: 50a25924432fc9dfc8b659210fecac15a57f312f
   dvc_remote: kausal-s3
   default_path: saskatoon
 name: Saskatoon's GHG Emissions Inventories
@@ -21,7 +21,7 @@ emission_dataset: saskatoon/greenhouse_gas_emissions_by_sector
 emission_sector_dimension: emission_sectors
 features:
   baseline_visible_in_graphs: true
-  use_datasets_from_db: false
+  use_datasets_from_db: true
 
 action_groups:
 - id: buildings
@@ -166,6 +166,8 @@ dimensions:
     label: Diesel (Heavy-Duty)
   - id: diesel_light
     label: Diesel (Light-Duty)
+  - id: diesel_offroad
+    label: Diesel (Off-Road)
   - id: gasoline_heavy
     label: Gasoline (Heavy-Duty)
   - id: gasoline_light
@@ -355,6 +357,56 @@ dimensions:
     label: Residential Fuel
   - id: transit_revenue
     label: Transit Revenue
+
+- id: facility_operation
+  label: Facility / Operation
+  categories:
+  - id: wastewater_treatment_plant
+    label: Wastewater Treatment Plant
+  - id: water_treatment_plant
+    label: Water Treatment Plant
+  - id: lift_stations
+    label: Lift Stations
+  - id: wastewater_treatment_operations
+    label: Wastewater Treatment Operations
+  - id: water_treatment_operations
+    label: Water Treatment Operations
+  - id: streetlighting
+    label: Streetlighting
+  - id: holiday_lighting
+    label: Holiday Lighting
+  - id: traffic_signals
+    label: Traffic Signals
+
+- id: user
+  label: User
+  categories:
+  - id: access_transit
+    label: Access Transit
+  - id: air_support
+    label: Air Support
+  - id: department_and_bulk_deliveries
+    label: Department & Bulk Deliveries
+  - id: employee_car_allowance
+    label: Employee Car Allowance
+  - id: fleet
+    label: Fleet
+  - id: saskatoon_transit
+    label: Saskatoon Transit
+  - id: sfd
+    label: SFD
+  - id: sps
+    label: SPS
+
+- id: waste_type
+  label: Waste Type
+  categories:
+  - id: municipal_solid_waste
+    label: Municipal Solid Waste
+  - id: garden_and_park_waste
+    label: Garden & Park Waste
+  - id: wastewater_digester_gas_and_fugitive
+    label: Wastewater Digester Gas & Fugitive
 
 emission_sectors:
 - id: net_emissions
@@ -1367,6 +1419,633 @@ nodes:
 #     from_dimensions:
 #     - id: costs
 #       flatten: true
+
+# ----- Corporate Inventory -----
+
+- id: buildings_natural_gas_combustion_corporate
+  name: Buildings Natural Gas Combustion
+  type: simple.AdditiveNode
+  quantity: fuel_consumption
+  unit: m³/a
+  input_dimensions: [energy_carrier, emission_scope]
+  output_dimensions: [energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/corporate_stationary
+    column: fuel_consumption_cubic_meters
+    dropna: true
+    filters:
+    - column: pcp_sector
+      value: i11
+    - column: utility
+    - column: facility_operation
+  input_dataset_processors: [LinearInterpolation]
+  params:
+    inventory_only: true
+
+- id: buildings_natural_gas_emissions_corporate
+  name: Buildings Natural Gas Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, greenhouse_gases, emission_scope]
+  output_dimensions: [energy_carrier, greenhouse_gases, emission_scope]
+  input_nodes:
+  - id: buildings_natural_gas_combustion_corporate
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+    - id: emission_scope
+  - id: natural_gas_emission_factor
+    to_dimensions:
+    - id: greenhouse_gases
+
+- id: buildings_grid_energy_consumption_corporate
+  name: Buildings Grid Energy Consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [utility, energy_carrier, emission_scope]
+  output_dimensions: [utility, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/corporate_stationary
+    column: energy
+    dropna: true
+    filters:
+    - column: pcp_sector
+      value: i12
+    - column: facility_operation
+  input_dataset_processors: [LinearInterpolation]
+  params:
+    inventory_only: true
+
+- id: buildings_grid_energy_emissions_corporate
+  name: Buildings Grid Energy Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [utility, energy_carrier, greenhouse_gases, emission_scope]
+  output_dimensions: [utility, energy_carrier, greenhouse_gases, emission_scope]
+  input_nodes:
+  - id: buildings_grid_energy_consumption_corporate
+    tags: [non_additive]
+    to_dimensions:
+    - id: utility
+    - id: energy_carrier
+    - id: emission_scope
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: greenhouse_gases
+
+- id: buildings_t_and_d_loss_corporate
+  name: Buildings T & D Loss
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [utility, energy_carrier, emission_scope]
+  output_dimensions: [utility, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/corporate_stationary
+    column: energy
+    dropna: true
+    filters:
+    - column: pcp_sector
+      value: i13
+    - column: facility_operation
+  input_dataset_processors: [LinearInterpolation]
+  params:
+    inventory_only: true
+
+- id: buildings_t_and_d_emissions_corporate
+  name: Buildings T & D Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [utility, energy_carrier, greenhouse_gases, emission_scope]
+  output_dimensions: [utility, energy_carrier, greenhouse_gases, emission_scope]
+  input_nodes:
+  - id: buildings_t_and_d_loss_corporate
+    tags: [non_additive]
+    to_dimensions:
+    - id: utility
+    - id: energy_carrier
+    - id: emission_scope
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: greenhouse_gases
+
+- id: buildings_emissions_corporate
+  name: Buildings Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, greenhouse_gases, emission_scope]
+  output_dimensions: [energy_carrier, greenhouse_gases, emission_scope]
+  input_nodes:
+  - id: buildings_natural_gas_emissions_corporate
+  - id: buildings_grid_energy_emissions_corporate
+    from_dimensions:
+    - id: utility
+      flatten: true
+  - id: buildings_t_and_d_emissions_corporate
+    from_dimensions:
+    - id: utility
+      flatten: true
+
+
+- id: water_and_wastewater_natural_gas_combustion_corporate
+  name: Water & Wastewater Natural Gas Combustion
+  type: simple.AdditiveNode
+  quantity: fuel_consumption
+  unit: m³/a
+  input_dimensions: [facility_operation, energy_carrier, emission_scope]
+  output_dimensions: [facility_operation, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/corporate_stationary
+    column: fuel_consumption_cubic_meters
+    dropna: true
+    filters:
+    - column: pcp_sector
+      value: i21
+    - column: utility
+  input_dataset_processors: [LinearInterpolation]
+  params:
+    inventory_only: true
+
+- id: water_and_wastewater_natural_gas_emissions_corporate
+  name: Water & Wastewater Natural Gas Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [facility_operation, energy_carrier, greenhouse_gases, emission_scope]
+  output_dimensions: [facility_operation, energy_carrier, greenhouse_gases, emission_scope]
+  input_nodes:
+  - id: water_and_wastewater_natural_gas_combustion_corporate
+    tags: [non_additive]
+    to_dimensions:
+    - id: facility_operation
+    - id: energy_carrier
+    - id: emission_scope
+  - id: natural_gas_emission_factor
+    to_dimensions:
+    - id: greenhouse_gases
+
+- id: water_and_wastewater_other_fuel_combustion_corporate
+  name: Water & Wastewater Other Fuel Combustion
+  type: simple.AdditiveNode
+  quantity: fuel_consumption
+  unit: l/a
+  input_dimensions: [facility_operation, energy_carrier, emission_scope]
+  output_dimensions: [facility_operation, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/corporate_stationary
+    column: fuel_consumption_liters
+    dropna: true
+    filters:
+    - column: pcp_sector
+      value: i21
+    - column: utility
+  input_dataset_processors: [LinearInterpolation]
+  params:
+    inventory_only: true
+
+- id: water_and_wastewater_other_fuel_emissions_corporate
+  name: Water & Wastewater Other Fuel Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [facility_operation, energy_carrier, greenhouse_gases, emission_scope]
+  output_dimensions: [facility_operation, energy_carrier, greenhouse_gases, emission_scope]
+  input_nodes:
+  - id: water_and_wastewater_other_fuel_combustion_corporate
+    tags: [non_additive]
+    to_dimensions:
+    - id: facility_operation
+    - id: energy_carrier
+    - id: emission_scope
+  - id: fuel_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+    - id: greenhouse_gases
+
+- id: water_and_wastewater_grid_energy_consumption_corporate
+  name: Water & Wastewater Grid Energy Consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [facility_operation, utility, energy_carrier, emission_scope]
+  output_dimensions: [facility_operation, utility, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/corporate_stationary
+    column: energy
+    dropna: true
+    filters:
+    - column: pcp_sector
+      value: i22
+  input_dataset_processors: [LinearInterpolation]
+  params:
+    inventory_only: true
+
+- id: water_and_wastewater_grid_energy_emissions_corporate
+  name: Water & Wastewater Grid Energy Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [facility_operation, utility, energy_carrier, greenhouse_gases, emission_scope]
+  output_dimensions: [facility_operation, utility, energy_carrier, greenhouse_gases, emission_scope]
+  input_nodes:
+  - id: water_and_wastewater_grid_energy_consumption_corporate
+    tags: [non_additive]
+    to_dimensions:
+    - id: facility_operation
+    - id: utility
+    - id: energy_carrier
+    - id: emission_scope
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: greenhouse_gases
+
+- id: water_and_wastewater_t_and_d_loss_corporate
+  name: Water & Wastewater T & D Loss
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [utility, energy_carrier, emission_scope]
+  output_dimensions: [utility, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/corporate_stationary
+    column: energy
+    dropna: true
+    filters:
+    - column: pcp_sector
+      value: i23
+    - column: facility_operation
+  input_dataset_processors: [LinearInterpolation]
+  params:
+    inventory_only: true
+
+- id: water_and_wastewater_t_and_d_emissions_corporate
+  name: Water & Wastewater T & D Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [utility, energy_carrier, greenhouse_gases, emission_scope]
+  output_dimensions: [utility, energy_carrier, greenhouse_gases, emission_scope]
+  input_nodes:
+  - id: water_and_wastewater_t_and_d_loss_corporate
+    tags: [non_additive]
+    to_dimensions:
+    - id: utility
+    - id: energy_carrier
+    - id: emission_scope
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: greenhouse_gases
+
+- id: water_and_wastewater_emissions_corporate
+  name: Water & Wastewater Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, greenhouse_gases, emission_scope]
+  output_dimensions: [energy_carrier, greenhouse_gases, emission_scope]
+  input_nodes:
+  - id: water_and_wastewater_natural_gas_emissions_corporate
+    from_dimensions:
+    - id: facility_operation
+      flatten: true
+  - id: water_and_wastewater_other_fuel_emissions_corporate
+    from_dimensions:
+    - id: facility_operation
+      flatten: true
+  - id: water_and_wastewater_grid_energy_emissions_corporate
+    from_dimensions:
+    - id: facility_operation
+      flatten: true
+    - id: utility
+      flatten: true
+  - id: water_and_wastewater_t_and_d_emissions_corporate
+    from_dimensions:
+    - id: utility
+      flatten: true
+
+
+- id: streetlighting_grid_energy_consumption_corporate
+  name: Streetlighting Grid Energy Consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [facility_operation, utility, energy_carrier, emission_scope]
+  output_dimensions: [facility_operation, utility, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/corporate_stationary
+    column: energy
+    dropna: true
+    filters:
+    - column: pcp_sector
+      value: i32
+  input_dataset_processors: [LinearInterpolation]
+  params:
+    inventory_only: true
+
+- id: streetlighting_grid_energy_emissions_corporate
+  name: Streetlighting Grid Energy Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [facility_operation, utility, energy_carrier, greenhouse_gases, emission_scope]
+  output_dimensions: [facility_operation, utility, energy_carrier, greenhouse_gases, emission_scope]
+  input_nodes:
+  - id: streetlighting_grid_energy_consumption_corporate
+    tags: [non_additive]
+    to_dimensions:
+    - id: facility_operation
+    - id: utility
+    - id: energy_carrier
+    - id: emission_scope
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: greenhouse_gases
+
+- id: streetlighting_t_and_d_loss_corporate
+  name: Streetlighting T & D Loss
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [utility, energy_carrier, emission_scope]
+  output_dimensions: [utility, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/corporate_stationary
+    column: energy
+    dropna: true
+    filters:
+    - column: pcp_sector
+      value: i33
+    - column: facility_operation
+  input_dataset_processors: [LinearInterpolation]
+  params:
+    inventory_only: true
+
+- id: streetlighting_t_and_d_emissions_corporate
+  name: Streetlighting T & D Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [utility, energy_carrier, greenhouse_gases, emission_scope]
+  output_dimensions: [utility, energy_carrier, greenhouse_gases, emission_scope]
+  input_nodes:
+  - id: streetlighting_t_and_d_loss_corporate
+    tags: [non_additive]
+    to_dimensions:
+    - id: utility
+    - id: energy_carrier
+    - id: emission_scope
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: greenhouse_gases
+
+- id: streetlighting_emissions_corporate
+  name: Streetlighting Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [utility, energy_carrier, greenhouse_gases, emission_scope]
+  output_dimensions: [utility, energy_carrier, greenhouse_gases, emission_scope]
+  input_nodes:
+  - id: streetlighting_grid_energy_emissions_corporate
+    from_dimensions:
+    - id: facility_operation
+      flatten: true
+  - id: streetlighting_t_and_d_emissions_corporate
+
+
+- id: other_grid_energy_consumption_corporate
+  name: Other Grid Energy Consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [utility, energy_carrier, emission_scope]
+  output_dimensions: [utility, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/corporate_stationary
+    column: energy
+    dropna: true
+    filters:
+    - column: pcp_sector
+      value: i42
+    - column: facility_operation
+  input_dataset_processors: [LinearInterpolation]
+  params:
+    inventory_only: true
+
+- id: other_grid_energy_emissions_corporate
+  name: Other Grid Energy Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [utility, energy_carrier, greenhouse_gases, emission_scope]
+  output_dimensions: [utility, energy_carrier, greenhouse_gases, emission_scope]
+  input_nodes:
+  - id: other_grid_energy_consumption_corporate
+    tags: [non_additive]
+    to_dimensions:
+    - id: utility
+    - id: energy_carrier
+    - id: emission_scope
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: greenhouse_gases
+
+- id: other_t_and_d_loss_corporate
+  name: Other T & D Loss
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [utility, energy_carrier, emission_scope]
+  output_dimensions: [utility, energy_carrier, emission_scope]
+  input_datasets:
+  - id: saskatoon/corporate_stationary
+    column: energy
+    dropna: true
+    filters:
+    - column: pcp_sector
+      value: i43
+    - column: facility_operation
+  input_dataset_processors: [LinearInterpolation]
+  params:
+    inventory_only: true
+
+- id: other_t_and_d_emissions_corporate
+  name: Other T & D Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [utility, energy_carrier, greenhouse_gases, emission_scope]
+  output_dimensions: [utility, energy_carrier, greenhouse_gases, emission_scope]
+  input_nodes:
+  - id: other_t_and_d_loss_corporate
+    tags: [non_additive]
+    to_dimensions:
+    - id: utility
+    - id: energy_carrier
+    - id: emission_scope
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: greenhouse_gases
+
+- id: other_emissions_corporate
+  name: Other Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [utility, energy_carrier, greenhouse_gases, emission_scope]
+  output_dimensions: [utility, energy_carrier, greenhouse_gases, emission_scope]
+  input_nodes:
+  - id: other_grid_energy_emissions_corporate
+  - id: other_t_and_d_emissions_corporate
+
+
+- id: onroad_transport_fuel_combustion_corporate
+  name: On-Road Transport Fuel Combustion
+  type: simple.AdditiveNode
+  quantity: fuel_consumption
+  unit: l/a
+  input_dimensions: [energy_carrier, user, emission_scope]
+  output_dimensions: [energy_carrier, user, emission_scope]
+  input_datasets:
+  - id: saskatoon/corporate_transportation
+    filters:
+    - column: pcp_sector
+      value: ii11
+  input_dataset_processors: [LinearInterpolation]
+  params:
+    inventory_only: true
+
+- id: onroad_transport_emissions_corporate
+  name: On-Road Transport Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, user, greenhouse_gases, emission_scope]
+  output_dimensions: [energy_carrier, user, greenhouse_gases, emission_scope]
+  input_nodes:
+  - id: onroad_transport_fuel_combustion_corporate
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+    - id: user
+    - id: emission_scope
+  - id: fuel_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+    - id: greenhouse_gases
+
+
+- id: aviation_fuel_combustion_corporate
+  name: Aviation Fuel Combustion
+  type: simple.AdditiveNode
+  quantity: fuel_consumption
+  unit: l/a
+  input_dimensions: [energy_carrier, user, emission_scope]
+  output_dimensions: [energy_carrier, user, emission_scope]
+  input_datasets:
+  - id: saskatoon/corporate_transportation
+    filters:
+    - column: pcp_sector
+      value: ii41
+  input_dataset_processors: [LinearInterpolation]
+  params:
+    inventory_only: true
+
+- id: aviation_emissions_corporate
+  name: Aviation Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, user, greenhouse_gases, emission_scope]
+  output_dimensions: [energy_carrier, user, greenhouse_gases, emission_scope]
+  input_nodes:
+  - id: aviation_fuel_combustion_corporate
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+    - id: user
+    - id: emission_scope
+  - id: fuel_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+    - id: greenhouse_gases
+
+
+- id: stationary_emissions_corporate
+  name: Stationary Emissions
+  type: simple.AdditiveNode
+  color: '#4e79a7'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, greenhouse_gases, emission_scope]
+  output_dimensions: [energy_carrier, greenhouse_gases, emission_scope]
+  input_nodes:
+  - id: buildings_emissions_corporate
+  - id: water_and_wastewater_emissions_corporate
+  - id: streetlighting_emissions_corporate
+    from_dimensions:
+    - id: utility
+      flatten: true
+  - id: other_emissions_corporate
+    from_dimensions:
+    - id: utility
+      flatten: true
+
+- id: transport_emissions_corporate
+  name: Transportation Emissions
+  type: simple.AdditiveNode
+  color: '#e15759'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, user, greenhouse_gases, emission_scope]
+  output_dimensions: [energy_carrier, user, greenhouse_gases, emission_scope]
+  input_nodes:
+  - id: onroad_transport_emissions_corporate
+  - id: aviation_emissions_corporate
+
+- id: waste_emissions_corporate
+  name: Waste Emissions
+  type: simple.AdditiveNode
+  color: '#59a14f'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [waste_type, greenhouse_gases, emission_scope]
+  output_dimensions: [waste_type, greenhouse_gases, emission_scope]
+  input_datasets:
+  - id: saskatoon/corporate_waste
+    filters:
+    - column: pcp_sector
+  input_dataset_processors: [LinearInterpolation]
+  params:
+    inventory_only: true
+
+- id: net_emissions_corporate
+  name: Greenhouse Gas Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [greenhouse_gases, emission_scope]
+  output_dimensions: [greenhouse_gases, emission_scope]
+  input_nodes:
+  - id: stationary_emissions_corporate
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  - id: transport_emissions_corporate
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: user
+      flatten: true 
+  - id: waste_emissions_corporate
+    from_dimensions:
+    - id: waste_type
+      flatten: true
 
 
 actions:
