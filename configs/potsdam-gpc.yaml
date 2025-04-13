@@ -42,206 +42,302 @@ action_groups:
 
 dimensions:
 - id: ghg
-  label: THG
+  label_en: GHG (Greenhouse Gas)
+  label_de: THG (Treibhausgas)
   categories:
   - id: co2e
-    label: CO2e
+    label_en: CO2e (Carbon dioxide equivalent)
+    label_de: CO2e (Kohlendioxid-Äquivalent)
 
 - id: energietrager
-  label: Energieträger
+  label_en: Energy Carriers
+  label_de: Energieträger
   categories:
   - id: strom
-    label: Strom
+    label_en: Electricity
+    label_de: Strom
   - id: fahrstrom
-    label: Fahrstrom
+    label_en: Traction Power
+    label_de: Fahrstrom
   - id: heizstrom
-    label: Heizstrom
+    label_en: Heating Electricity
+    label_de: Heizstrom
   - id: fernwarme
-    label: Fernwärme
+    label_en: District Heating
+    label_de: Fernwärme
   - id: nahwarme
-    label: Nahwärme
+    label_en: Local Heating
+    label_de: Nahwärme
   - id: gas
-    label: Gas
+    label_en: Gas
+    label_de: Gas
   - id: biogas
-    label: Biogas
+    label_en: Biogas
+    label_de: Biogas
   - id: heizol
-    label: Heizöl
+    label_en: Heating Oil
+    label_de: Heizöl
   - id: kohle
-    label: Kohle
+    label_en: Coal
+    label_de: Kohle
   - id: biomasse
-    label: Biomasse
+    label_en: Biomass
+    label_de: Biomasse
   - id: solarthermie
-    label: Solarthermie
+    label_en: Solar Thermal
+    label_de: Solarthermie
   - id: umweltwarme
-    label: Umweltwärme
+    label_en: Ambient Heat
+    label_de: Umweltwärme
   - id: benzin_fossil
-    label: Benzin fossil
+    label_en: Fossil Gasoline
+    label_de: Benzin fossil
   - id: benzin_biogen
-    label: Benzin biogen
+    label_en: Biogenic Gasoline
+    label_de: Benzin biogen
   - id: diesel_fossil
-    label: Diesel fossil
+    label_en: Fossil Diesel
+    label_de: Diesel fossil
   - id: diesel_biogen
-    label: Diesel biogen
+    label_en: Biogenic Diesel
+    label_de: Diesel biogen
   - id: cng_fossil
-    label: CNG fossil
+    label_en: Fossil CNG (Compressed Natural Gas)
+    label_de: CNG fossil
   - id: lpg
-    label: LPG
+    label_en: LPG (Liquefied Petroleum Gas)
+    label_de: LPG
   - id: wasserstoff
-    label: Wasserstoff
+    label_en: Hydrogen
+    label_de: Wasserstoff
 
 - id: scope
-  label: Scope
+  label_en: Scope
+  label_de: Scope
   categories:
   - id: scope1
-    label: Scope 1
+    label_en: Scope 1
+    label_de: Scope 1
     aliases: ['1']
   - id: scope2
-    label: Scope 2
+    label_en: Scope 2
+    label_de: Scope 2
     aliases: ['2']
 
 - id: sector
-  label: GPC Sector
+  label_en: GPC Sector
+  label_de: GPC Sektor
   categories:
   - id: i
-    label: I Stationary
+    label_en: I Stationary
+    label_de: I Stationär
   - id: i1
-    label: I.1 Residential
+    label_en: I.1 Residential
+    label_de: I.1 Wohngebäude
   - id: i11
-    label: I.1.1 Residential Fuel
+    label_en: I.1.1 Residential Fuel
+    label_de: I.1.1 Brennstoffe in Wohngebäuden
   - id: i12
-    label: I.1.2 Residential Grid Energy
+    label_en: I.1.2 Residential Grid Energy
+    label_de: I.1.2 Netzenergie in Wohngebäuden
   - id: i13
-    label: I.1.3 Residential T & D Loss
+    label_en: I.1.3 Residential T & D Loss
+    label_de: I.1.3 Übertragungs- und Verteilungsverluste in Wohngebäuden
   - id: i2
-    label: I.2 Commercial & Institutional
+    label_en: I.2 Commercial & Institutional
+    label_de: I.2 Gewerbe & Institutionen
   - id: i21
-    label: I.2.1 Commercial & Institutional Fuel
+    label_en: I.2.1 Commercial & Institutional Fuel
+    label_de: I.2.1 Brennstoffe in Gewerbe & Institutionen
   - id: i22
-    label: I.2.2 Commercial & Institutional Grid Energy
+    label_en: I.2.2 Commercial & Institutional Grid Energy
+    label_de: I.2.2 Netzenergie in Gewerbe & Institutionen
   - id: i23
-    label: I.2.3 Commercial & Institutional T & D Loss
+    label_en: I.2.3 Commercial & Institutional T & D Loss
+    label_de: I.2.3 Übertragungs- und Verteilungsverluste in Gewerbe & Institutionen
   - id: i3
-    label: I.3 Manufacturing
+    label_en: I.3 Manufacturing
+    label_de: I.3 Produktion
   - id: i31
-    label: I.3.1 Manufacturing Fuel
+    label_en: I.3.1 Manufacturing Fuel
+    label_de: I.3.1 Brennstoffe in der Produktion
   - id: i32
-    label: I.3.2 Manufacturing Grid Energy
+    label_en: I.3.2 Manufacturing Grid Energy
+    label_de: I.3.2 Netzenergie in der Produktion
   - id: i33
-    label: I.3.3 Manufacturing T & D Loss
+    label_en: I.3.3 Manufacturing T & D Loss
+    label_de: I.3.3 Übertragungs- und Verteilungsverluste in der Produktion
   - id: i4
-    label: I.4 Energy
+    label_en: I.4 Energy
+    label_de: I.4 Energie
   - id: i41
-    label: I.4.1 Energy Fuel
+    label_en: I.4.1 Energy Fuel
+    label_de: I.4.1 Brennstoffe im Energiesektor
   - id: i42
-    label: I.4.2 Energy Grid Energy
+    label_en: I.4.2 Energy Grid Energy
+    label_de: I.4.2 Netzenergie im Energiesektor
   - id: i43
-    label: I.4.3 Energy T & D Loss
+    label_en: I.4.3 Energy T & D Loss
+    label_de: I.4.3 Übertragungs- und Verteilungsverluste im Energiesektor
   - id: i5
-    label: I.5 Ag, Forestry, & Fishing
+    label_en: I.5 Ag, Forestry, & Fishing
+    label_de: I.5 Landwirtschaft, Forstwirtschaft & Fischerei
   - id: i51
-    label: I.5.1 Ag, Forestry, & Fishing Fuel
+    label_en: I.5.1 Ag, Forestry, & Fishing Fuel
+    label_de: I.5.1 Brennstoffe in Landwirtschaft, Forstwirtschaft & Fischerei
   - id: i52
-    label: I.5.2 Ag, Forestry, & Fishing Grid Energy
+    label_en: I.5.2 Ag, Forestry, & Fishing Grid Energy
+    label_de: I.5.2 Netzenergie in Landwirtschaft, Forstwirtschaft & Fischerei
   - id: i53
-    label: I.5.3 Ag, Forestry, & Fishing T & D Loss
+    label_en: I.5.3 Ag, Forestry, & Fishing T & D Loss
+    label_de: I.5.3 Übertragungs- und Verteilungsverluste in Landwirtschaft, Forstwirtschaft & Fischerei
   - id: i6
-    label: I.6 Non-Specified
+    label_en: I.6 Non-Specified
+    label_de: I.6 Nicht spezifiziert
   - id: i61
-    label: I.6.1 Non-Specified Fuel
+    label_en: I.6.1 Non-Specified Fuel
+    label_de: I.6.1 Nicht spezifizierte Brennstoffe
   - id: i62
-    label: I.6.2 Non-Specified Grid Energy
+    label_en: I.6.2 Non-Specified Grid Energy
+    label_de: I.6.2 Nicht spezifizierte Netzenergie
   - id: i63
-    label: I.6.3 Non-Specified T & D Loss
+    label_en: I.6.3 Non-Specified T & D Loss
+    label_de: I.6.3 Nicht spezifizierte Übertragungs- und Verteilungsverluste
   - id: i7
-    label: I.7 Fugitive Coal
+    label_en: I.7 Fugitive Coal
+    label_de: I.7 Flüchtige Emissionen aus Kohle
   - id: i71
-    label: I.7.1 Fugitive Coal
+    label_en: I.7.1 Fugitive Coal
+    label_de: I.7.1 Flüchtige Emissionen aus Kohle
   - id: i8
-    label: I.8 Fugitive Oil & Natural Gas
+    label_en: I.8 Fugitive Oil & Natural Gas
+    label_de: I.8 Flüchtige Emissionen aus Öl & Erdgas
   - id: i81
-    label: I.8.1 Fugitive Oil & Natural Gas
+    label_en: I.8.1 Fugitive Oil & Natural Gas
+    label_de: I.8.1 Flüchtige Emissionen aus Öl & Erdgas
   - id: ii
-    label: II Transportation
+    label_en: II Transportation
+    label_de: II Verkehr
   - id: ii1
-    label: II.1 On-Road Transport
+    label_en: II.1 On-Road Transport
+    label_de: II.1 Straßenverkehr
   - id: ii11
-    label: II.1.1 On-Road Transport Fuel
+    label_en: II.1.1 On-Road Transport Fuel
+    label_de: II.1.1 Brennstoffe im Straßenverkehr
   - id: ii12
-    label: II.1.2 On-Road Transport Grid Energy
+    label_en: II.1.2 On-Road Transport Grid Energy
+    label_de: II.1.2 Netzenergie im Straßenverkehr
   - id: ii13
-    label: II.1.3 On-Road Transport Outside City, T & D Loss
+    label_en: II.1.3 On-Road Transport Outside City, T & D Loss
+    label_de: II.1.3 Straßenverkehr außerhalb der Stadt, Übertragungs- und Verteilungsverluste
   - id: ii2
-    label: II.2 Railway
+    label_en: II.2 Railway
+    label_de: II.2 Schienenverkehr
   - id: ii21
-    label: II.2.1 Railway Fuel
+    label_en: II.2.1 Railway Fuel
+    label_de: II.2.1 Brennstoffe im Schienenverkehr
   - id: ii22
-    label: II.2.2 Railway Grid Energy
+    label_en: II.2.2 Railway Grid Energy
+    label_de: II.2.2 Netzenergie im Schienenverkehr
   - id: ii23
-    label: II.2.3 Railway Outside City, T & D Loss
+    label_en: II.2.3 Railway Outside City, T & D Loss
+    label_de: II.2.3 Schienenverkehr außerhalb der Stadt, Übertragungs- und Verteilungsverluste
   - id: ii3
-    label: II.3 Waterborne
+    label_en: II.3 Waterborne
+    label_de: II.3 Schifffahrt
   - id: ii31
-    label: II.3.1 Waterborne Fuel
+    label_en: II.3.1 Waterborne Fuel
+    label_de: II.3.1 Brennstoffe in der Schifffahrt
   - id: ii32
-    label: II.3.2 Waterborne Grid Energy
+    label_en: II.3.2 Waterborne Grid Energy
+    label_de: II.3.2 Netzenergie in der Schifffahrt
   - id: ii33
-    label: II.3.3 Waterborne Outside City, T & D Loss
+    label_en: II.3.3 Waterborne Outside City, T & D Loss
+    label_de: II.3.3 Schifffahrt außerhalb der Stadt, Übertragungs- und Verteilungsverluste
   - id: ii4
-    label: II.4 Aviation
+    label_en: II.4 Aviation
+    label_de: II.4 Luftfahrt
   - id: ii41
-    label: II.4.1 Aviation Fuel
+    label_en: II.4.1 Aviation Fuel
+    label_de: II.4.1 Brennstoffe in der Luftfahrt
   - id: ii42
-    label: II.4.2 Aviation Grid Energy
+    label_en: II.4.2 Aviation Grid Energy
+    label_de: II.4.2 Netzenergie in der Luftfahrt
   - id: ii43
-    label: II.4.3 Aviation Outside City, T & D Loss
+    label_en: II.4.3 Aviation Outside City, T & D Loss
+    label_de: II.4.3 Luftfahrt außerhalb der Stadt, Übertragungs- und Verteilungsverluste
   - id: ii5
-    label: II.5 Off-Road Transport
+    label_en: II.5 Off-Road Transport
+    label_de: II.5 Geländefahrzeuge
   - id: ii51
-    label: II.5.1 Off-Road Transport Fuel
+    label_en: II.5.1 Off-Road Transport Fuel
+    label_de: II.5.1 Brennstoffe bei Geländefahrzeugen
   - id: ii52
-    label: II.5.2 Off-Road Transport Grid Energy
+    label_en: II.5.2 Off-Road Transport Grid Energy
+    label_de: II.5.2 Netzenergie bei Geländefahrzeugen
   - id: ii53
-    label: II.5.3 Off-Road Transport Outside City, T & D Loss
+    label_en: II.5.3 Off-Road Transport Outside City, T & D Loss
+    label_de: II.5.3 Geländefahrzeuge außerhalb der Stadt, Übertragungs- und Verteilungsverluste
   - id: iii
-    label: III Waste
+    label_en: III Waste
+    label_de: III Abfall
   - id: iii1
-    label: III.1 Solid Waste
+    label_en: III.1 Solid Waste
+    label_de: III.1 Festabfall
   - id: iii11
-    label: III.1.1 Solid Waste Disposed in City
+    label_en: III.1.1 Solid Waste Disposed in City
+    label_de: III.1.1 Festabfallentsorgung in der Stadt
   - id: iii12
-    label: III.1.2 Solid Waste Disposed Outside City
+    label_en: III.1.2 Solid Waste Disposed Outside City
+    label_de: III.1.2 Festabfallentsorgung außerhalb der Stadt
   - id: iii2
-    label: III.2 Biological Waste
+    label_en: III.2 Biological Waste
+    label_de: III.2 Biologische Abfälle
   - id: iii21
-    label: III.2.1 Biological Waste Treated in City
+    label_en: III.2.1 Biological Waste Treated in City
+    label_de: III.2.1 Behandlung biologischer Abfälle in der Stadt
   - id: iii22
-    label: III.2.2 Biological Waste Treated Outside City
+    label_en: III.2.2 Biological Waste Treated Outside City
+    label_de: III.2.2 Behandlung biologischer Abfälle außerhalb der Stadt
   - id: iii3
-    label: III.3 Incineration
+    label_en: III.3 Incineration
+    label_de: III.3 Verbrennung
   - id: iii31
-    label: III.3.1 Incineration in City
+    label_en: III.3.1 Incineration in City
+    label_de: III.3.1 Verbrennung in der Stadt
   - id: iii32
-    label: III.3.2 Incineration Outside City
+    label_en: III.3.2 Incineration Outside City
+    label_de: III.3.2 Verbrennung außerhalb der Stadt
   - id: iii4
-    label: III.4 Wastewater
+    label_en: III.4 Wastewater
+    label_de: III.4 Abwasser
   - id: iii41
-    label: III.4.1 Wastewater Treated in City
+    label_en: III.4.1 Wastewater Treated in City
+    label_de: III.4.1 Abwasserbehandlung in der Stadt
   - id: iii42
-    label: III.4.2 Wastewater Treated Outside City
+    label_en: III.4.2 Wastewater Treated Outside City
+    label_de: III.4.2 Abwasserbehandlung außerhalb der Stadt
   - id: iv
-    label: IV IPPU
+    label_en: IV IPPU
+    label_de: IV IPPU (Industrieprozesse und Produktverwendung)
   - id: iv1
-    label: IV.1 Industrial Processes
+    label_en: IV.1 Industrial Processes
+    label_de: IV.1 Industrieprozesse
   - id: iv2
-    label: IV.2 Product Use
+    label_en: IV.2 Product Use
+    label_de: IV.2 Produktverwendung
   - id: v
-    label: V AFOLU
+    label_en: V AFOLU
+    label_de: V AFOLU (Landwirtschaft, Forstwirtschaft und andere Landnutzung)
   - id: v1
-    label: V.1 Livestock
+    label_en: V.1 Livestock
+    label_de: V.1 Viehzucht
   - id: v2
-    label: V.2 Land
+    label_en: V.2 Land
+    label_de: V.2 Land
   - id: v3
-    label: V.3 Aggregate Sources
+    label_en: V.3 Aggregate Sources
+    label_de: V.3 Aggregierte Quellen
 
 emission_sectors:
 - id: net_emissions
