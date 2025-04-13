@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import re
 import sys
+import warnings
 from typing import Any
 
 import dvc_pandas
@@ -11,7 +12,7 @@ from dotenv import load_dotenv
 from dvc_pandas import Dataset, DatasetMeta, Repository
 
 
-def to_snake_case(string):
+def to_snake_case(string: str) -> str:
     """Convert a string to snake_case."""
     if not isinstance(string, str):
         return string
@@ -40,10 +41,10 @@ def validate_required_columns(df: pl.DataFrame) -> None:
         raise ValueError("Missing metric group column. Dataset must contain either 'MetricGroup', 'Metric', or 'Sector' column.")
 
 
-def determine_metric_column(df: pl.DataFrame) -> str:
+def determine_metric_group_column(df: pl.DataFrame) -> str:
     """Determine which column to use for metrics."""
-    if 'MetricGroup' in df.columns:
-        return 'MetricGroup'
+    if 'Metric Group' in df.columns:
+        return 'Metric Group'
     if 'Metric' in df.columns:
         return 'Metric'  # backward compatibility
     if 'Sector' in df.columns:
@@ -51,24 +52,36 @@ def determine_metric_column(df: pl.DataFrame) -> str:
     raise ValueError("No metric group column found. DataFrame must contain 'MetricGroup', 'Metric', or 'Sector' column.")
 
 
-def create_compound_identifiers(df: pl.DataFrame, metric_col: str) -> pl.DataFrame:
-    """Create compound identifiers from metric group and quantity."""
-    if len(df) == len(df['Quantity'].unique()):
-        df = df.with_columns(
-            pl.col('Quantity').map_elements(to_snake_case, return_dtype=pl.Utf8).alias('CompoundID')
-        )
-    else:
-        df = df.with_columns([
-            (
-                pl.concat_str([
-                    pl.col(metric_col).map_elements(to_snake_case, return_dtype=pl.Utf8),
-                    pl.lit('_'),
-                    pl.when(pl.col('Quantity').is_null())
-                    .then(pl.lit('value'))
-                    .otherwise(pl.col('Quantity').map_elements(to_snake_case, return_dtype=pl.Utf8))
-                ])
-            ).alias('CompoundID')
-        ])
+def create_metric_col(df: pl.DataFrame, metric_group: str) -> pl.DataFrame:
+    """
+    Create metric labels from metric group and quantity.
+
+    Uses the simplest combination of columns that maintains uniqueness.
+    """
+    # Get the full unique count with all columns
+    full_unique = df.select([metric_group, 'Quantity', 'Unit']).unique()
+    full_count = len(full_unique)
+
+    # Try combinations in order of simplicity
+    cols_to_use = [metric_group]
+    if len(df.select(cols_to_use).unique()) != full_count:
+        cols_to_use.append('Quantity')
+        if len(df.select(cols_to_use).unique()) != full_count:
+            cols_to_use.append('Unit')
+
+    # Create the label by joining the selected columns with spaces
+    df = df.with_columns(
+        pl.concat_str([
+            pl.col(col)
+            for col in cols_to_use
+        ], separator=" ").alias('metric_col')
+    ).drop(metric_group)
+
+    # Convert metric_col to snake_case
+    df = df.with_columns(
+        pl.col('metric_col').map_elements(to_snake_case).alias('metric_col')
+    )
+
     return df
 
 
@@ -91,24 +104,23 @@ def split_by_slice(df: pl.DataFrame) -> dict[str, pl.DataFrame]:
 
 
 def extract_units(df: pl.DataFrame, slice_name: str) -> dict:
-    """Extract units from the dataframe using compound identifiers."""
+    """Extract units from the dataframe using metric labels."""
     units = {}
 
-    # Use the already created compound IDs
-    unique_metrics = df.select(['CompoundID', 'Unit']).unique()
+    # Use the already created metric labels
+    unique_metrics = df.select(['metric_col', 'Unit']).unique()
 
-    for row_idx in range(len(unique_metrics)):
-        row = unique_metrics.row(row_idx, named=True)
-        compound_id = row['CompoundID']
+    for row in unique_metrics.iter_rows(named=True):
+        metric_col = row['metric_col']
         unit = row['Unit']
 
-        if compound_id and unit:
-            units[compound_id] = unit
+        if metric_col and unit:
+            units[metric_col] = unit
 
     return units
 
 
-def extract_description(df: pl.DataFrame, slice_name: str, metric_col: str) -> str | None:
+def extract_description(df: pl.DataFrame, slice_name: str) -> str | None:
     """Extract description from the dataframe."""
     description = None # FIXME Does not show up in admin UI.
     if 'Description' in df.columns:
@@ -119,14 +131,14 @@ def extract_description(df: pl.DataFrame, slice_name: str, metric_col: str) -> s
             row = rows_with_description.row(row_idx, named=True)
 
             parts = []
-            if row.get(metric_col):
-                parts.append(row[metric_col])
+            if row.get('metric_col'):
+                parts.append(row['metric_col'])
 
             # Add values from dimension columns
             for col in df.columns:
                 if (
                     (df[col].dtype == pl.Utf8 or df[col].dtype == pl.String) and
-                    (col not in [metric_col, 'Unit', 'Value', 'Description', 'Quantity', 'Year', 'CompoundID']) and
+                    (col not in ['metric_col', 'Unit', 'Value', 'Description', 'Quantity', 'Year']) and
                     (row.get(col))
                 ):
                     parts.append(f"{col}: {row[col]}")  # noqa: PERF401
@@ -142,29 +154,22 @@ def extract_description(df: pl.DataFrame, slice_name: str, metric_col: str) -> s
     return description
 
 
-def extract_metrics(df: pl.DataFrame, language: str, metric_col: str) -> list:
-    """
-    Extract metrics from the dataframe using compound identifiers.
-
-    The metric_col parameter should be 'MetricGroup', 'Metric', or 'Sector',
-    in order of preference.
-    """
+def extract_metrics(df: pl.DataFrame, language: str) -> list:
+    """Extract metrics from the dataframe using metric labels."""
     metrics = []
 
-    # Use the already created compound IDs
-    unique_metrics = df.select([metric_col, 'CompoundID', 'Quantity']).unique()
+    # Use the already created metric labels
+    unique_metrics = df.select(['metric_col', 'Quantity']).unique()
 
-    for row_idx in range(len(unique_metrics)):
-        row = unique_metrics.row(row_idx, named=True)
-        metric_name = row[metric_col]
-        compound_id = row['CompoundID']
+    for row in unique_metrics.iter_rows(named=True):
+        metric_name = row['metric_col']
         quantity = row['Quantity']
 
-        if metric_name and quantity and compound_id:
+        if metric_name and quantity:
             metrics.append({
-                "id": compound_id,
+                "id": to_snake_case(metric_name),
                 "quantity": to_snake_case(quantity),
-                "label": {language: f"{metric_name} ({quantity})"},
+                "label": {language: metric_name},
             })
 
     return metrics
@@ -231,39 +236,44 @@ def convert_to_standard_format(df: pl.DataFrame) -> pl.DataFrame:
     return result_df.drop('__row_idx') if '__row_idx' in result_df.columns else result_df
 
 
-def pivot_by_compound_id(df: pl.DataFrame, metric_col: str) -> pl.DataFrame:
-    """Convert dataframe to have compound identifiers as columns."""
-    # Get unique compound IDs
-    unique_ids = df.select('CompoundID').unique().to_series(0).to_list()
+def pivot_by_compound_id(df: pl.DataFrame) -> pl.DataFrame:
+    """Convert dataframe to have metric labels as columns."""
+    # Get unique metric labels
+    unique_ids = df.select('metric_col').unique().to_series(0).to_list()
     unique_ids = [s for s in unique_ids if s is not None]
-    # If only one compound ID, just rename Value column to that ID
+    # If only one metric label, just rename Value column to that label
     if len(unique_ids) == 1:
-        compound_id = unique_ids[0]
+        metric_label = unique_ids[0]
         return df.with_columns(
-            pl.col('Value').alias(compound_id)
-        ).drop([metric_col, 'Quantity', 'Value', 'CompoundID'])
+            pl.col('Value').alias(metric_label)
+        ).drop(['Quantity', 'Value'])
 
     # Get dimension columns (all except those used for pivoting and the value)
-    dim_cols = [col for col in df.columns if col not in [metric_col, 'Quantity', 'Value', 'CompoundID']]
+    dim_cols = [col for col in df.columns if col not in ['Quantity', 'Value', 'metric_col']]
 
-    # Ensure no null compound IDs
+    # Ensure no null metric labels
     df = df.with_columns(
-        pl.when(pl.col('CompoundID').is_null())
+        pl.when(pl.col('metric_col').is_null())
           .then(pl.lit("unknown"))
-          .otherwise(pl.col('CompoundID'))
-          .alias('CompoundID')
+          .otherwise(pl.col('metric_col'))
+          .alias('metric_col')
     )
 
-
-    # Pivot to have compound IDs as columns
+    # Pivot to have metric labels as columns
     try:
         df = df.with_columns(pl.col('Value').cast(pl.Float64))
-    finally:
-        pass
+    except ValueError:
+        warnings.warn(
+            "Some values could not be converted to float and will be kept as strings. "
+            "This is normal for some datasets that contain non-numeric values.",
+            UserWarning,
+            stacklevel=2
+        )
+
     result_df = df.pivot(
         values="Value",
         index=dim_cols,
-        on="CompoundID"
+        on="metric_col"
     )
 
     return result_df
@@ -370,16 +380,16 @@ def process_slice(df: pl.DataFrame, slice_name: str, outcsvpath: str, outdvcpath
     validate_required_columns(df)
 
     # 2. Determine which column to use for metrics
-    metric_col = determine_metric_column(df)
-    print(f"Using '{metric_col}' as the metric group column")
+    metric_group = determine_metric_group_column(df)
+    print(f"Using '{metric_group}' as the metric group column")
 
-    # 3. Create compound identifiers early
-    df = create_compound_identifiers(df, metric_col)
+    # 3. Create metric labels
+    df = create_metric_col(df, metric_group)
 
-    # 4. Extract metadata using compound identifiers
+    # 4. Extract metadata using metric labels
     units = extract_units(df, slice_name)
-    metrics = extract_metrics(df, language, metric_col)
-    description = extract_description(df, slice_name, metric_col)
+    metrics = extract_metrics(df, language)
+    description = extract_description(df, slice_name)
     print(f"Units: {units}")
     print(f"Metrics: {len(metrics)} entries")
     if description:
@@ -393,7 +403,7 @@ def process_slice(df: pl.DataFrame, slice_name: str, outcsvpath: str, outdvcpath
     print(f"Data converted to standard format with {len(df)} rows")
 
     # 7. Pivot by compound ID
-    df = pivot_by_compound_id(df, metric_col)
+    df = pivot_by_compound_id(df)
     dim_ids = [s for s in df.columns if s not in units.keys()]
     print(f"Data pivoted by compound identifiers with dimension columns: {dim_ids}")
 

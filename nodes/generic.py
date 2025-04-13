@@ -195,22 +195,46 @@ class GenericNode(SimpleNode):
         return df
 
     # -----------------------------------------------------------------------------------
-    def _operation_select_variant(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
-        filt = self.get_parameter_value_str('categories', required=False) # FIXME merge with select_variant
-        if filt:
+    def _operation_select_variant(self, df: ppl.PathsDataFrame, baskets: dict, **kwargs) -> tuple:
+        filt = self.get_parameter_value_str('categories', required=False)
+        if filt is not None:
+            # Validate format: "dimension:category[,category...]"
+            if ':' not in filt:
+                raise ValueError(f"Categories parameter must contain ':' to separate dimension and values, got {filt}")
+
             dim, cats = filt.split(':')
-            cat = cats.split(',')
+            dim = dim.strip()
+
+            if dim not in df.columns:
+                raise ValueError(f"Dimension '{dim}' not found in DataFrame columns: {list(df.columns)}")
+
+            cat_list = [cat.strip() for cat in cats.split(',')]
+
+            # Get unique values in the dimension
+            unique_values = df[dim].unique().to_list()
+            invalid_cats = [cat for cat in cat_list if cat not in unique_values]
+            if invalid_cats:
+                raise ValueError(
+                    f"Categories {invalid_cats} not found in dimension '{dim}'. Valid categories are: {unique_values}"
+                )
+
             val = self.get_parameter_value('selected_number', required=True)
-            print('selected_number:', val)
             if val is not None:
-                cat = cat[round(val)]
-                print(cat)
+                idx = round(val)
+                if idx < 0 or idx >= len(cat_list):
+                    raise ValueError(f"Selected number {val} is out of range for categories {cat_list}")
+                cat = cat_list[idx]
+            else:
+                cat = cat_list[0]  # Default to first category if no selection
+
             df = df.filter(pl.col(dim) == cat)
 
         return df, baskets
 
     # -----------------------------------------------------------------------------------
     def _operation_do_correction(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        if df is None:
+            raise NodeError(self, "Dataframe missing for 'do correction'.")
         do_correction = self.get_parameter_value('do_correction', required=True)
 
         if not do_correction:

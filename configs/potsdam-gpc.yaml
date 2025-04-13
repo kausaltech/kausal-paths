@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://potsdam-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 40650bf91f8d6d251b4a6dee5822b78707c7dc82
+  commit: f19b12470db6a6634e82c73572dd8f7583d639b6
   dvc_remote: kausal-s3
 name: Klimaschutz-Monitor-Potsdam Treibhausgasinventar
 owner: Stadt Potsdam
@@ -18,6 +18,7 @@ emission_forecast_from: 2023
 emission_dimensions: [energietrager, scope, ghg]
 features:
   baseline_visible_in_graphs: true
+  use_datasets_from_db: true
 params:
 - id: weather_correction
   label: Wetterkorrektur durchführen?
@@ -265,7 +266,7 @@ nodes:
   - id: gpc/potsdam
     forecast_from: 2023
     tags: [baseline]
-    column: weather_correction_ratio
+    column: weather_correction
     filters:
     - column: scope
   params:
@@ -290,7 +291,7 @@ nodes:
   - id: gpc/potsdam
     forecast_from: 2023
     tags: [baseline]
-    column: energy_consumption_energy_consumption
+    column: energy
     filters:
     - column: sector
       value: i11
@@ -326,7 +327,7 @@ nodes:
   - id: gpc/potsdam
     forecast_from: 2023
     tags: [baseline]
-    column: emission_factor_emission_factor
+    column: emission_factor
     filters:
     - column: sector
       value: i11
@@ -348,7 +349,7 @@ nodes:
   - id: gpc/potsdam
     forecast_from: 2023
     tags: [baseline]
-    column: energy_consumption_energy_consumption
+    column: energy
     filters:
     - column: sector
       value: i12
@@ -383,7 +384,7 @@ nodes:
   - id: gpc/potsdam
     forecast_from: 2023
     tags: [baseline]
-    column: emission_factor_emission_factor
+    column: emission_factor
     filters:
     - column: sector
       value: i12
@@ -406,7 +407,7 @@ nodes:
   - id: gpc/potsdam
     forecast_from: 2023
     tags: [baseline]
-    column: energy_consumption_energy_consumption
+    column: energy
     filters:
     - column: sector
       value: i42
@@ -443,7 +444,7 @@ nodes:
   - id: gpc/potsdam
     forecast_from: 2023
     tags: [baseline]
-    column: emission_factor_emission_factor
+    column: emission_factor
     filters:
     - column: sector
       value: i42
@@ -468,7 +469,7 @@ nodes:
   - id: gpc/potsdam
     forecast_from: 2023
     tags: [baseline]
-    column: emission_factor_emission_factor
+    column: emission_factor
     filters:
     - column: sector
       value: i42
@@ -491,7 +492,7 @@ nodes:
   - id: gpc/potsdam
     forecast_from: 2023
     tags: [baseline]
-    column: energy_consumption_energy_consumption
+    column: energy
     filters:
     - column: sector
       value: ii11
@@ -527,7 +528,7 @@ nodes:
   - id: gpc/potsdam
     forecast_from: 2023
     tags: [baseline]
-    column: emission_factor_emission_factor
+    column: emission_factor
     filters:
     - column: sector
       value: ii11
@@ -550,7 +551,7 @@ nodes:
   - id: gpc/potsdam
     forecast_from: 2023
     tags: [baseline]
-    column: energy_consumption_energy_consumption
+    column: energy
     filters:
     - column: sector
       value: ii12
@@ -586,7 +587,7 @@ nodes:
   - id: gpc/potsdam
     forecast_from: 2023
     tags: [baseline]
-    column: emission_factor_emission_factor
+    column: emission_factor
     filters:
     - column: sector
       value: ii12
@@ -824,7 +825,7 @@ actions:
   - id: gpc/potsdam_master_plan_actions
     tags: [baseline]
     forecast_from: 2022
-    column: energy_consumption_energy_consumption
+    column: energy
     filters:
     - column: sector
       value: i11
@@ -848,7 +849,7 @@ actions:
   - id: gpc/potsdam_master_plan_actions
     tags: [baseline]
     forecast_from: 2022
-    column: emission_factor_emission_factor
+    column: emission_factor
     filters:
     - column: sector
       value: i11
@@ -869,7 +870,7 @@ actions:
   - id: gpc/potsdam_master_plan_actions
     tags: [baseline]
     forecast_from: 2022
-    column: energy_consumption_energy_consumption
+    column: energy
     filters:
     - column: sector
       value: i12
@@ -894,7 +895,7 @@ actions:
   - id: gpc/potsdam_master_plan_actions
     tags: [baseline]
     forecast_from: 2022
-    column: emission_factor_emission_factor
+    column: emission_factor
     filters:
     - column: sector
       value: i12
@@ -918,7 +919,7 @@ actions:
   - id: gpc/potsdam_master_plan_actions
     tags: [baseline]
     forecast_from: 2022
-    column: energy_consumption_energy_consumption
+    column: energy
     filters:
     - column: sector
       value: i42
@@ -946,7 +947,7 @@ actions:
   - id: gpc/potsdam_master_plan_actions
     tags: [baseline]
     forecast_from: 2022
-    column: emission_factor_emission_factor
+    column: emission_factor
     filters:
     - column: sector
       value: i42
@@ -970,7 +971,7 @@ actions:
   - id: gpc/potsdam_master_plan_actions
     tags: [baseline]
     forecast_from: 2022
-    column: energy_consumption_energy_consumption
+    column: energy
     filters:
     - column: sector
       value: ii11
@@ -990,7 +991,7 @@ actions:
   - id: gpc/potsdam_master_plan_actions
     tags: [baseline]
     forecast_from: 2022
-    column: emission_factor_emission_factor
+    column: emission_factor
     filters:
     - column: sector
       value: ii11
@@ -1009,7 +1010,7 @@ actions:
   - id: gpc/potsdam_master_plan_actions
     tags: [baseline]
     forecast_from: 2022
-    column: energy_consumption_energy_consumption
+    column: energy
     filters:
     - column: sector
       value: ii12
@@ -1028,7 +1029,7 @@ actions:
   - id: gpc/potsdam_master_plan_actions
     tags: [baseline]
     forecast_from: 2022
-    column: emission_factor_emission_factor
+    column: emission_factor
     filters:
     - column: sector
       value: ii12
