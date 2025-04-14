@@ -258,7 +258,7 @@ def update_instance():
     else:
         instance_obj = ic
 
-    with transaction.atomic():
+    with transaction.atomic(), instance_obj.enter_instance_context():
         if args.update_instance:
             instance_obj.update_from_instance(instance, overwrite=True)
             instance_obj.save()
