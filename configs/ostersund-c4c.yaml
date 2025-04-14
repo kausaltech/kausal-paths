@@ -2146,26 +2146,45 @@ actions:
   name: Phase out Private Cars in Service
   type: simple.AdditiveAction
   group: transportation
-  unit: kt/a
-  quantity: emissions
-  input_dimensions: ['business_travel_type', 'owner', 'ghg']
-  output_dimensions: ['business_travel_type', 'owner', 'ghg']
+  input_dimensions: ['business_travel_type', 'owner', 'ghg', 'scope']
+  output_dimensions: ['business_travel_type', 'owner', 'ghg', 'scope']
+  params:
+    allow_null_categories: true
   input_datasets:
   - id: ostersund/organizational_other_transportation_actions
-    column: emissions
     forecast_from: 2024
     filters:
     - column: sector
-    - column: scope
     - column: action
       value: phase_out_private_cars_in_service
     - column: energy_carrier
+  output_metrics:
+  - id: emissions
+    unit: kt/a
+    quantity: emissions
+  - id: currency
+    unit: kSEK/a
+    quantity: currency
   output_nodes:
   - id: ii_transportation_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: scope
+      flatten: true
     to_dimensions:
     - id: business_travel_type
     - id: owner
     - id: ghg
+  - id: ii_transportation_total_price
+    metrics: [currency]
+    from_dimensions:
+    - id: business_travel_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: owner
+    - id: scope
 
 # Zeros II.5.3 diesel emissions from 2025.
 - id: procure_renewable_energy_in_direct_machine_services
