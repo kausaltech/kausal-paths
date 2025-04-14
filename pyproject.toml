@@ -35,6 +35,8 @@ sqlite_cache = true
 cache_fine_grained = true
 explicit_package_bases = true
 strict_optional = true
+always_true = ['IS_PATHS']
+always_false = ['IS_WATCH']
 
 
 [[tool.mypy.overrides]]
@@ -117,6 +119,7 @@ reportMissingTypeStubs = false
 reportImplicitStringConcatenation = false
 reportUnusedParameter = false
 reportAny = false
+defineConstant = { 'IS_PATHS' = true, 'IS_WATCH' = false }
 
 [tool.django-stubs]
 django_settings_module = "paths.settings"

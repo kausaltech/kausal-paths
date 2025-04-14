@@ -32,11 +32,16 @@ import sentry_sdk
 from loguru import logger
 from wagtail_color_panel.fields import ColorField  # type: ignore
 
-from kausal_common.datasets.models import Dimension as DatasetDimensionModel, DimensionCategory, DimensionScope
+from kausal_common.datasets.models import (
+    Dataset as DatasetModel,
+    Dimension as DatasetDimensionModel,
+    DimensionCategory,
+    DimensionScope,
+)
 from kausal_common.i18n.helpers import convert_language_code
 from kausal_common.models.permission_policy import ModelPermissionPolicy, ParentInheritedPolicy
 from kausal_common.models.permissions import PermissionedQuerySet
-from kausal_common.models.types import FK, MLModelManager, RevMany, RevOne, copy_signature
+from kausal_common.models.types import FK, M2M, MLModelManager, RevMany, RevOne, copy_signature
 from kausal_common.models.uuid import UUIDIdentifiedModel
 
 from paths.types import CacheablePathsModel, PathsModel, PathsQuerySet, UserOrAnon
@@ -56,7 +61,6 @@ if TYPE_CHECKING:
 
     from loguru import Logger
 
-    from kausal_common.datasets.models import Dataset as DatasetModel
     from kausal_common.models.permission_policy import BaseObjectAction, ObjectSpecificAction
 
     from frameworks.models import FrameworkConfig
@@ -458,6 +462,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
                 node_config = NodeConfig(instance=self, **node.as_node_config_attributes())
                 self.log.info("Creating node config for node %s" % node.id)
                 node_config.save()
+                node_config.update_relations_from_node(node)
                 node.database_id = node_config.pk
             else:
                 found_nodes.add(node.id)
@@ -753,6 +758,8 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
         'self', null=True, blank=True, on_delete=models.SET_NULL, related_name='indicates_nodes',
     )
 
+    datasets: M2M[DatasetModel, NodeDataset] = models.ManyToManyField(DatasetModel, through='NodeDataset', related_name='nodes')
+
     color: CharField[str, str] = ColorField(max_length=20, null=True, blank=True)
     input_data = models.JSONField(null=True, editable=False)
     params = models.JSONField(null=True, editable=False)
@@ -837,6 +844,28 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
         if overwritten:
             self.instance.log.info('Overwrote contents in node %s' % str(node))
 
+        if self.pk:
+            self.update_relations_from_node(node)
+
+    def update_relations_from_node(self, node: Node):
+        from nodes.datasets import DBDataset
+
+        current_dss = {ds.pk for ds in self.datasets.all()}
+        for dataset in node.input_dataset_instances:
+            if not isinstance(dataset, DBDataset):
+                continue
+            obj = dataset.db_dataset_obj
+            if obj is None:
+                continue
+            if obj.pk not in current_dss:
+                self.instance.log.info('Adding dataset %s to node %s' % (obj.identifier, self))
+                self.datasets.add(obj)
+            else:
+                current_dss.remove(obj.pk)
+
+        # The remaining current_dss are the ones to delete
+        self.datasets.remove(*current_dss)
+
     def can_edit_data(self):
         node = self.get_node()
         if node is None:
@@ -890,3 +919,15 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
 
     def natural_key(self):
         return self.instance.natural_key() + (self.identifier,)
+
+
+class NodeDataset(models.Model):
+    node = models.ForeignKey(NodeConfig, on_delete=models.CASCADE, related_name='datasets_edges')
+    dataset = models.ForeignKey(DatasetModel, on_delete=models.PROTECT, related_name='nodes_edges')
+
+    class Meta:
+        verbose_name = _('Node dataset')
+        verbose_name_plural = _('Node datasets')
+
+    def __str__(self) -> str:
+        return f'{self.node.identifier} -> {self.dataset}'
