@@ -873,7 +873,7 @@ class DBDataset(DatasetWithFilters):
         from django.contrib.postgres.expressions import ArraySubquery
         from django.db.models.expressions import F, OuterRef
         from django.db.models.fields import CharField
-        from django.db.models.functions.comparison import Cast, Coalesce, JSONObject
+        from django.db.models.functions import Cast, Coalesce, JSONObject
 
         from kausal_common.datasets.models import (
             DataPoint,

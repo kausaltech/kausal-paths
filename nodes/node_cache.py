@@ -220,10 +220,10 @@ class NodeHasher:
     def prefetch_nodes(cls, context: Context, nodes: list[Node]) -> None:
         state = HashingState()
         node_count = len(nodes)
-        with sentry_sdk.start_span(op='model.hash', description='Hashing %d nodes' % node_count):
+        with sentry_sdk.start_span(op='model.hash', name='Hashing %d nodes' % node_count):
             for node in nodes:
                 node.hasher.calculate_hash(state=state)
-        with sentry_sdk.start_span(op='model.prefetch', description='Prefetching %d nodes' % node_count):
+        with sentry_sdk.start_span(op='model.prefetch', name='Prefetching %d nodes' % node_count):
             cls._prefetch_from_state(context=context, state=state)
 
     @classmethod

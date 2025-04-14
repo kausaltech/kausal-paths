@@ -294,7 +294,7 @@ class PathsExecutionContext(ExecutionContext):
 
     def execute_operation(self, operation: OperationDefinitionNode, root_value: Any) -> AwaitableOrValue[Any] | None:
         op_name = operation.name.value if operation.name else '<unnamed>'
-        with sentry_sdk.start_span(op='graphql.execute', description='Query %s' % op_name):
+        with sentry_sdk.start_span(op='graphql.execute', name='Query %s' % op_name):
             if operation.operation != OperationType.QUERY or self.context_value.user.is_authenticated:
                 self.context_value.graphene_no_cache = True  # type: ignore[attr-defined]
             with self.instance_context(operation):

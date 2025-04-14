@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import pint_pandas
 import polars as pl
+from polars.datatypes.group import INTEGER_DTYPES, NUMERIC_DTYPES
 from rich import print as pprint
 from sentry_sdk.consts import SPANSTATUS
 
@@ -939,11 +940,11 @@ class Node:
         if YEAR_COLUMN not in meta.primary_keys:
             raise NodeError(self, "'%s' column missing" % YEAR_COLUMN)
 
-        if df.schema[YEAR_COLUMN] not in pl.INTEGER_DTYPES:
+        if df.schema[YEAR_COLUMN] not in INTEGER_DTYPES:
             raise NodeError(self, "Invalid dtype for 'Year': %s" % df.schema[YEAR_COLUMN])
 
         ldf = df.lazy()
-        dupe_rows = ldf.group_by(meta.primary_keys).agg(pl.count()).filter(pl.col('count') > 1).sort(YEAR_COLUMN)
+        dupe_rows = ldf.group_by(meta.primary_keys).agg(pl.len().alias('count')).filter(pl.col('count') > 1).sort(YEAR_COLUMN)
         has_dupes = bool(len(dupe_rows.limit(1).collect()))
         if has_dupes:
             print(dupe_rows.collect())
@@ -968,7 +969,7 @@ class Node:
                 raise NodeError(self, "Expecting unit '%s' in column '%s'; got '%s'" % (metric.unit, metric.column_id, unit))
 
             dt = df.schema[metric.column_id]
-            if dt not in pl.NUMERIC_DTYPES:
+            if dt not in NUMERIC_DTYPES:
                 raise NodeError(self, "Output column '%s' is of wrong type (%s)" % (metric.column_id, dt))
             continue
             # all_hsy_emissions still has nulls
