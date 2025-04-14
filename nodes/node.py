@@ -967,6 +967,9 @@ class Node:
             if unit != metric.unit:
                 raise NodeError(self, "Expecting unit '%s' in column '%s'; got '%s'" % (metric.unit, metric.column_id, unit))
 
+            dt = df.schema[metric.column_id]
+            if dt not in pl.NUMERIC_DTYPES:
+                raise NodeError(self, "Output column '%s' is of wrong type (%s)" % (metric.column_id, dt))
             continue
             # all_hsy_emissions still has nulls
             col = df[metric.column_id]
