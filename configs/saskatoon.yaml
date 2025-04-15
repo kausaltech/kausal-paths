@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://saskatoon.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 50a25924432fc9dfc8b659210fecac15a57f312f
+  commit: 906516c06b837ae0c73fe657779a99a8b5e1d8d1
   dvc_remote: kausal-s3
   default_path: saskatoon
 name: Saskatoon's GHG Emissions Inventories
@@ -198,7 +198,7 @@ dimensions:
   label: Livestock
   categories:
   - id: buffalo
-    label: Buffalo
+    label: Bison & Buffalo
   - id: calves
     label: Calves
   - id: cattle_dairy
@@ -206,13 +206,13 @@ dimensions:
   - id: cattle_nondairy
     label: Cattle (Non-Dairy)
   - id: deer
-    label: Deer
+    label: Elk & Deer
   - id: goats
     label: Goats
   - id: horses
     label: Horses
   - id: llamas
-    label: Llamas
+    label: Alpacas & Llamas
   - id: poultry
     label: Poultry
   - id: sheep
@@ -1976,6 +1976,41 @@ nodes:
     - id: greenhouse_gases
 
 
+- id: livestock_count_corporate
+  name: Livestock Count
+  type: simple.AdditiveNode
+  quantity: number
+  unit: cap/a
+  input_dimensions: [livestock, emission_scope]
+  output_dimensions: [livestock, emission_scope]
+  input_datasets:
+  - id: saskatoon/corporate_afolu
+    filters:
+    - column: pcp_sector
+      value: v1
+  input_dataset_processors: [LinearInterpolation]
+  params:
+    inventory_only: true
+
+- id: livestock_emissions_corporate
+  name: Livestock Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [livestock, greenhouse_gases, emission_scope]
+  output_dimensions: [livestock, greenhouse_gases, emission_scope]
+  input_nodes:
+  - id: livestock_count_corporate
+    tags: [non_additive]
+    to_dimensions:
+    - id: livestock
+    - id: emission_scope
+  - id: livestock_emission_factor
+    to_dimensions:
+    - id: livestock
+    - id: greenhouse_gases
+
+
 - id: stationary_emissions_corporate
   name: Stationary Emissions
   type: simple.AdditiveNode
@@ -2024,6 +2059,17 @@ nodes:
   params:
     inventory_only: true
 
+- id: afolu_emissions_corporate
+  name: AFOLU Emissions
+  type: simple.AdditiveNode
+  color: '#76b7b2'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [livestock, greenhouse_gases, emission_scope]
+  output_dimensions: [livestock, greenhouse_gases, emission_scope]
+  input_nodes:
+  - id: livestock_emissions_corporate
+
 - id: net_emissions_corporate
   name: Greenhouse Gas Emissions
   type: simple.AdditiveNode
@@ -2045,6 +2091,10 @@ nodes:
   - id: waste_emissions_corporate
     from_dimensions:
     - id: waste_type
+      flatten: true
+  - id: afolu_emissions_corporate
+    from_dimensions:
+    - id: livestock
       flatten: true
 
 
