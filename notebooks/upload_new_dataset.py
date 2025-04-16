@@ -37,8 +37,8 @@ def validate_required_columns(df: pl.DataFrame) -> None:
     if missing_columns:
         raise ValueError(f"Missing required columns: {', '.join(missing_columns)}")
 
-    if not any(col in df.columns for col in ['MetricGroup', 'Metric', 'Sector']):
-        raise ValueError("Missing metric group column. Dataset must contain either 'MetricGroup', 'Metric', or 'Sector' column.")
+    if not any(col in df.columns for col in ['Metric Group', 'Metric', 'Sector']):
+        raise ValueError("Missing metric group column. Dataset must contain either 'Metric Group', 'Metric', or 'Sector' column.")
 
 
 def determine_metric_group_column(df: pl.DataFrame) -> str:
@@ -49,7 +49,7 @@ def determine_metric_group_column(df: pl.DataFrame) -> str:
         return 'Metric'  # backward compatibility
     if 'Sector' in df.columns:
         return 'Sector'  # legacy support
-    raise ValueError("No metric group column found. DataFrame must contain 'MetricGroup', 'Metric', or 'Sector' column.")
+    raise ValueError("No metric group column found. DataFrame must contain 'Metric Group', 'Metric', or 'Sector' column.")
 
 
 def create_metric_col(df: pl.DataFrame, metric_group: str) -> pl.DataFrame:
@@ -79,7 +79,7 @@ def create_metric_col(df: pl.DataFrame, metric_group: str) -> pl.DataFrame:
 
     # Convert metric_col to snake_case
     df = df.with_columns(
-        pl.col('metric_col').map_elements(to_snake_case).alias('metric_col')
+        pl.col('metric_col').map_elements(to_snake_case, return_dtype=pl.Utf8).alias('metric_col')
     )
 
     return df
@@ -241,12 +241,6 @@ def pivot_by_compound_id(df: pl.DataFrame) -> pl.DataFrame:
     # Get unique metric labels
     unique_ids = df.select('metric_col').unique().to_series(0).to_list()
     unique_ids = [s for s in unique_ids if s is not None]
-    # If only one metric label, just rename Value column to that label
-    if len(unique_ids) == 1:
-        metric_label = unique_ids[0]
-        return df.with_columns(
-            pl.col('Value').alias(metric_label)
-        ).drop(['Quantity', 'Value'])
 
     # Get dimension columns (all except those used for pivoting and the value)
     dim_cols = [col for col in df.columns if col not in ['Quantity', 'Value', 'metric_col']]
@@ -299,6 +293,9 @@ def prepare_for_dvc(df: pl.DataFrame, units: dict) -> pl.DataFrame:
     # Convert string values in columns to snake case
     for col in new_columns:
         if col not in metrics + ['Year']:
+            if df[col].dtype != pl.Utf8:
+                print(df)
+                raise ValueError(f"Column {col} does not contain strings.")
             df = df.with_columns(
                 pl.col(col).map_elements(to_snake_case, return_dtype=pl.Utf8).alias(col)
             )
