@@ -2344,6 +2344,18 @@ nodes:
     - id: vehicle_type
       flatten: true
 
+- id: industry_and_machinery_price
+  name: Teollisuuden ja työkoneiden kustannukset
+  name_en: Industry and machinery cost
+  type: simple.AdditiveNode
+  color: '#E8B455'
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [cost_type, owner]
+  output_dimensions: [cost_type, owner]
+  output_nodes:
+  - id: net_price
+
 - id: electricity_consumption_price
   name: Sähkön kulutuksen kustannukset
   name_en: Electricity consumption cost
@@ -3107,6 +3119,63 @@ actions:
     from_dimensions:
     - id: streetlight_type
       flatten: true
+
+- id: replacing_fossil_fuels_with_res_in_city_machinery
+  name: Fossiilisista polttoaineista luopuminen kaupungin työkoneissa
+  name_en: Replacing fossil fuels with renewables in the city's own machinery
+  type: simple.AdditiveAction
+  color: '#4e79a7'
+  input_dimensions: ['cost_type', 'owner', 'ghg', 'scope']
+  output_dimensions: ['cost_type', 'owner', 'ghg', 'scope']
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: tampere/stationary_actions
+    forecast_from: 2025
+    filters:
+    - column: sector
+    - column: action
+      value: replacing_fossil_fuels_with_res_in_city_machinery
+    - column: heating
+    - column: energy_carrier
+  output_metrics:
+  - id: emissions
+    unit: t/a
+    quantity: emissions
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: industry_and_machinery_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    to_dimensions:
+    - id: ghg
+    - id: scope
+  - id: industry_and_machinery_price
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+  - id: total_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
 
 pages:
 - id: home
