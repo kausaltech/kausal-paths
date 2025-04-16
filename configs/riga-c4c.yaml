@@ -328,6 +328,38 @@ dimensions:
     label: 'Increase Public Transport in Everyday Trips'
   - id: zeroemission_tech_and_res_in_district_heating
     label: 'Zero-Emission Tech and RES in District Heating'
+  - id: promote_distance_working_and_online_services
+    label: 'Promote Distance Working and Online Services'
+  - id: restrictions_on_private_transport
+    label: 'Restrictions on Private Transport'
+  - id: other_measures_to_reduce_car_use
+    label: 'Other Measures to Reduce Car Use'
+  - id: electrification_and_res_in_decentralised_heating
+    label: 'Electrification and RES in Decentralised Heating'
+  - id: clean_tech_in_vehicles_for_municipal_functions
+    label: 'Clean Tech in Vehicles for Municipal Functions'
+  - id: collect_mobility_data_and_monitor_measures
+    label: 'Collect Mobility Data and Monitor Measures'
+  - id: connect_new_clients_to_riga_dhs
+    label: 'Connect New Clients to Riga DHS'
+  - id: increase_efficiency_of_heat_generation_and_mgmt
+    label: 'Increase Efficiency of Heat Generation and Mgmt'
+  - id: transition_to_4th_generation_heating_supply_system
+    label: 'Transition to 4th Generation Heating Supply System'
+  - id: implementation_of_innovative_projects
+    label: 'Implementation of Innovative Projects'
+  - id: promote_res_in_generation_of_electricity_for_riga
+    label: 'Promote RES in Generation of Electricity for Riga'
+  - id: energy_efficiency_data_for_apartment_buildings
+    label: 'Energy Efficiency Data for Apartment Buildings'
+  - id: revised_laws_to_increase_apartment_renovation_rate
+    label: 'Revised Laws to Increase Apartment Renovation Rate'
+  - id: resident_involvement_in_renovation_of_apartments
+    label: 'Resident Involvement in Renovation of Apartments'
+  - id: establishment_of_the_riga_energy_efficiency_fund
+    label: 'Establishment of the Riga Energy Efficiency Fund'
+  - id: research_and_implement_standardised_renovations
+    label: 'Research and Implement Standardised Renovations'
 
 - id: cost_benefit
   label: Cost-Benefit
