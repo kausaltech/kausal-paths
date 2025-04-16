@@ -363,6 +363,8 @@ def push_to_dvc(df: pl.DataFrame, output_path: str, slice_name: str,
 
     # Add timestamp to force update
     import time
+    if ds.meta.metadata is None:
+        ds.meta.metadata = {}
     ds.meta.metadata['updated_at'] = str(int(time.time()))
 
     repo.push_dataset(ds)
