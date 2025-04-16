@@ -122,28 +122,21 @@ class SBQuery:  # FIXME this does not seem to have any effect at the moment
         return SBNode(id=cast(sb.ID, node.id))
 
 
-SB_MUTATION_TYPES: list[type] = []
-if test_mode_enabled():
-    SB_MUTATION_TYPES.append(TestModeMutations)
-
-SBMutation: type | None = None
-if SB_MUTATION_TYPES:
-    SBMutation = merge_types('Mutation', tuple(SB_MUTATION_TYPES))
-
-
-def generate_strawberry_schema() -> sb.Schema:
+def generate_strawberry_schema(query: type, mutation: type | None = None) -> sb.Schema:
     from kausal_common.strawberry.registry import strawberry_types
 
     sb_schema = sb.Schema(
-        query=SBQuery, mutation=SBMutation, types=strawberry_types, directives=[context_directive]
+        # TODO: Add DjangoOptimizerExtension?
+        # https://strawberry.rocks/docs/django/guide/optimizer
+        query=query, mutation=mutation, types=strawberry_types, directives=[context_directive]
     )
     return sb_schema
 
 
-def generate_schema() -> tuple[sb.Schema, CombinedSchema]:
+def generate_schema(sb_query: type, sb_mutation: type | None = None) -> tuple[sb.Schema, CombinedSchema]:
     # We generate the Strawberry schema just to be able to utilize the
     # resolved GraphQL types directly in the Graphene schema.
-    sb_schema = generate_strawberry_schema()
+    sb_schema = generate_strawberry_schema(sb_query, sb_mutation)
 
     schema = CombinedSchema(
         sb_schema=sb_schema,
@@ -155,4 +148,4 @@ def generate_schema() -> tuple[sb.Schema, CombinedSchema]:
     return sb_schema, schema
 
 
-sb_schema, schema = generate_schema()
+sb_schema, schema = generate_schema(SBQuery)

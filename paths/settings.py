@@ -15,7 +15,7 @@ import environ
 from corsheaders.defaults import default_headers as default_cors_headers
 
 from kausal_common import ENV_SCHEMA as COMMON_ENV_SCHEMA, register_settings as register_common_settings
-from kausal_common.deployment import set_secret_file_vars
+from kausal_common.deployment import set_secret_file_vars, test_mode_enabled
 from kausal_common.deployment.http import get_allowed_cors_headers
 from kausal_common.sentry.init import init_sentry
 
@@ -290,8 +290,12 @@ CSRF_COOKIE_AGE = 24 * 3600  # one day
 SESSION_COOKIE_SAMESITE = 'None'
 SESSION_COOKIE_SECURE = True
 
+if test_mode_enabled():
+    GRAPHENE_SCHEMA = f'{PROJECT_NAME}.schema_test_mode.schema'
+else:
+    GRAPHENE_SCHEMA = f'{PROJECT_NAME}.schema.schema'
 GRAPHENE = {
-    'SCHEMA': f'{PROJECT_NAME}.schema.schema',
+    'SCHEMA': GRAPHENE_SCHEMA,
 }
 GRAPPLE = {
     'APPS': ['pages'],
