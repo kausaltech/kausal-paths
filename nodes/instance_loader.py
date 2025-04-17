@@ -44,9 +44,6 @@ if TYPE_CHECKING:
     from params import Parameter
 
 
-yaml = RuamelYAML()
-
-
 class ConfigLocation(TypedDict):
     file_path: str
     line: int
@@ -186,6 +183,7 @@ class InstanceYAMLConfig:
     def load(self):
         meta = self.meta
         entrypoint = meta.entrypoint
+        yaml = RuamelYAML()
         with entrypoint.path.open('r', encoding='utf8') as f:
             data: dict = yaml.load(f)
         if 'instance' in data:
