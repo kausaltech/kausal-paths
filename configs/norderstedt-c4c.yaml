@@ -253,6 +253,16 @@ dimensions:
     label: 'Energy Refurbishment for School Building'
   - id: new_school_building
     label: 'New School Building'
+  - id: roof_refurbishment_for_public_building
+    label: 'Roof Refurbishment for Public Building'
+  - id: decarbonize_municipal_electricity_corporate
+    label: 'Decarbonize Municipal Electricity (Corporate)'
+  - id: decarbonize_municipal_electricity_community
+    label: 'Decarbonize Municipal Electricity (Community)'
+  - id: decarbonize_municipal_district_heating_corporate
+    label: 'Decarbonize Municipal District Heating (Corporate)'
+  - id: decarbonize_municipal_district_heating_community
+    label: 'Decarbonize Municipal District Heating (Community)'
 
 - id: cost_benefit
   label: Cost-Benefit
