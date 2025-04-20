@@ -279,6 +279,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     job = [employment] = fte = full_time_equivalent
     million_square_meters = 1e6 * meter ** 2 = Msqm
     thousand_square_meters = 1e3 * meter ** 2 = ksqm
+    thousand_hectares = 1e7 * meter ** 2 = t_ha
     solid_cubic_meter = 1 m**3 = m3_solid
     Mpkm = 1e6 * pkm
     CO2e = [co2e]
@@ -390,6 +391,7 @@ def add_unit_translations():
         {'unit': 'megasolid_cubic_meter', 'long': _('million solid m³'), 'short': _('M m³ (solid)')},
         {'unit': 't_co2e', 'long': _('tonnes CO₂e'), 'short': 'tCO₂e'},
         {'unit': 'metric_ton', 'long': _('tonnes'), 'short': 't'},
+        {'unit': 't_ha', 'long': _('1000 hectares'), 'short': '1000 ha'},
     ]
     #set_one('cap', pgettext_lazy('capita short', 'cap'))
 

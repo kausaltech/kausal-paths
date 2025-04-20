@@ -5,7 +5,7 @@ supported_languages: [fi]
 site_url: https://forestry-fi.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 8ee3bb7009333189b9697484c04209f8d03d7f9e
+  commit: a67c8ab3da8f053b81bf999389dbcd49b7e843d9
   dvc_remote: kausal-s3
 name_en: Multi-stakeholder forestry policy options
 name_fi: Metsäpolitiikan monet vaihtoehdot
@@ -144,6 +144,39 @@ dimensions:
   - id: biodiversity
     label_fi: Biodiversiteetti
     label_en: Biodiversity
+  - id: log
+    label_fi: Tukki
+    label_en: Log
+    aliases: [tukki]
+  - id: fiberwood
+    label_fi: Kuitupuu
+    label_en: Fiber wood
+    aliases: [kuitupuu]
+  - id: small_log
+    label_fi: Pikkutukki
+    label_en: Small log
+    aliases: [pikkutukki]
+
+- id: treatment
+  label_en: Treatment
+  label_fi: Käsittely
+  categories:
+  - id: standing_sales
+    label_fi: Pystykauppa yhteensä
+    label_en: Standing sales
+    aliases: [pystykauppa_yhteensa]
+  - id: clearing_cut
+    label_fi: Uudistushakkuu
+    label_en: Clearing cut
+    aliases: [uudistushakkuu]
+  - id: pruning_cut
+    label_fi: Harvennushakkuu
+    label_en: Pruning cut
+    aliases: [harvennushakkuu]
+  - id: first_cut
+    label_fi: Ensiharvennus
+    label_en: First cut
+    aliases: [ensiharvennus]
 
 - id: stakeholder
   label_fi: Sidosryhmä
@@ -158,17 +191,72 @@ dimensions:
   - id: industry
     label_fi: Yrityselämä
     label: Industry and commerce
-    aliases: [industry]
+    aliases: [industry, yhtiot]
   - id: forest_owner
     label: Forest owner
     label_fi: Yksityinen metsänomistaja
+    aliases: [yksityiset]
   - id: state
     label: State
     label_fi: Valtio
+    aliases: [valtio]
   - id: mankind
     label_fi: society
     label_en: Society
     aliases: [Activist, Mankind]
+  - id: other_consumers
+    label_fi: Muut
+    label_en: Other
+    aliases: [muut]
+  - id: private_other
+    label_fi: Yksityiset ja muut
+    label_en: Private and other
+    aliases: [yksityiset_ja_muut]
+  - id: industry_state
+    label_fi: Yhtiöt ja valtio
+    label_en: Industry and state
+    aliases: [yhtiot_ja_valtio]
+
+- id: age
+  label_en: Age
+  label_fi: Ikä
+  categories:
+  - id: '0'
+    label_fi: '0'
+    label_en: '0'
+    aliases: [puuton]
+  - id: '1'
+    label_fi: 1-20
+    label_en: 1-20
+    aliases: [ikaluokka_1_20]
+  - id: '21'
+    label_fi: 21-40
+    label_en: 21-40
+    aliases: [ikaluokka_21_40]
+  - id: '41'
+    label_fi: 41-60
+    label_en: 41-60
+    aliases: [ikaluokka_41_60]
+  - id: '61'
+    label_fi: 61-80
+    label_en: 61-80
+    aliases: [ikaluokka_61_80]
+  - id: '81'
+    label_fi: 81-100
+    label_en: 81-100
+    aliases: [ikaluokka_81_100]
+  - id: '101'
+    label_fi: 101-120
+    label_en: 101-120
+    aliases: [ikaluokka_101_120]
+  - id: '121'
+    label_fi: 121-140
+    label_en: 141-140
+    aliases: [ikaluokka_121_140]
+  - id: '141'
+    label_fi: 141-
+    label_en: 141-
+    aliases: [ikaluokka_141]
 
 - id: hypothesis
   label_fi: Hypoteesi
@@ -236,6 +324,65 @@ dimensions:
     label: European Union (27),
   - id: europe_excl_eu27
     label: Europe (excl. EU-27)
+  - id: uusimaa
+    label: Uusimaa
+  - id: varsinais_suomi
+    label: Varsinais-Suomi
+  - id: satakunta
+    label: Satakunta
+  - id: kanta_hame
+    label: Kanta-Häme
+  - id: pirkanmaa
+    label: Pirkanmaa
+  - id: paijat_hame
+    label: Päijät-Häme
+  - id: kymenlaakso
+    label: Kymenlaakso
+  - id: etela_karjala
+    label: Etelä-Karjala
+  - id: etela_savo
+    label: Etelä-Savo
+  - id: pohjois_savo
+    label: Pohjois-Savo
+  - id: pohjois_karjala
+    label: Pohjois-Karjala
+  - id: keski_suomi
+    label: Keski-Suomi
+  - id: etela_pohjanmaa
+    label: Etelä-Pohjanmaa
+  - id: pohjanmaa
+    label: Pohjanmaa
+  - id: keski_pohjanmaa
+    label: Keski-Pohjanmaa
+  - id: pohjois_pohjanmaa
+    label: Pohjois-Pohjanmaa
+  - id: kainuu
+    label: Kainuu
+  - id: lappi
+    label: Lappi
+  - id: ahvenanmaa
+    label: Ahvenanmaa
+
+- id: species
+  label_en: Species
+  label_fi: Laji
+  categories:
+  - id: pine
+    label_fi: Mänty
+    label_en: Pine
+    aliases: [manty]
+  - id: spruce
+    label_fi: Kuusi
+    label_en: Spruce
+    aliases: [kuusi]
+  - id: birch
+    label_en: Birch
+    label_fi: Koivu
+    aliases: [koivu]
+  - id: other_species
+    label_en: Other species
+    label_fi: Muut lehtipuut
+    aliases: [muut_lehtipuut]
 
 - id: energy_carrier
   label: Energy carrier
@@ -492,6 +639,143 @@ nodes:
   params:
   - id: sector
     value: Forest growth
+
+- id: forest_land_ownership
+  name_en: Forest land ownership
+  type: generic.GenericNode
+  quantity: area
+  unit: t_ha
+  input_dimensions: [region, stakeholder]
+  output_dimensions: [region, stakeholder]
+  input_datasets:
+  - id: sunnydale/forest_land_ownership
+    tags: [baseline]
+    column: forest_land_ownership
+
+- id: amount_of_wood_in_forest
+  name_fi: Suomen metsien koko
+  name_en: Forest stock in Finnish forests
+  type: generic.GenericNode
+  quantity: volume
+  unit: Mm3_solid
+  input_dimensions: [region, species]
+  output_dimensions: [region, species]
+  input_datasets:
+  - id: sunnydale/amount_of_wood_in_forest
+    tags: [baseline]
+    column: amount_of_wood_in_forest
+
+- id: annual_growth_of_forest
+  name_fi: Suomen metsien kasvu
+  name_en: Forest growth in Finnish forests
+  type: generic.GenericNode
+  quantity: volume
+  unit: Mm3_solid
+  input_dimensions: [region, species, stakeholder]
+  output_dimensions: [region, species, stakeholder]
+  input_datasets:
+  - id: sunnydale/annual_growth_of_forest
+    tags: [baseline]
+    column: annual_growth_of_forest
+
+- id: standing_wood_unit_prices
+  name: Standing wood unit prices
+  type: generic.GenericNode
+  quantity: unit_price
+  unit: EUR/m3_solid
+  input_dimensions: [treatment, species, cost_type, region]
+  output_dimensions: [treatment, species, cost_type, region]
+  input_datasets:
+  - id: sunnydale/standing_wood_unit_price
+    tags: [baseline]
+    column: standing_wood_unit_price
+
+- id: age_of_forests
+  name: Age of forests
+  type: generic.GenericNode
+  quantity: area
+  unit: t_ha
+  input_dimensions: [age, region]
+  output_dimensions: [age, region]
+  input_datasets:
+  - id: sunnydale/age_of_forests
+    tags: [baseline]
+    column: age_of_forests
+
+- id: dynamic_forest
+  name: Dynamic forest
+  type: generic.CohortNode
+  quantity: area
+  unit: t_ha
+  input_dimensions: [age, region, species]
+  output_dimensions: [age, region, species]
+  input_nodes:
+  - id: age_of_forests
+    tags: [inventory]
+    to_dimensions:
+    - id: age
+    - id: region
+
+- id: forest_volume
+  name: Forest volume
+  type: generic.GenericNode
+  quantity: volume
+  unit: m3_solid
+  input_dimensions: [age, region, species]
+  output_dimensions: [age, region, species]
+  input_nodes:
+  - id: dynamic_forest
+    metrics: [total_volume]
+
+- id: forest_area
+  name: Forest area
+  type: generic.GenericNode
+  quantity: area
+  unit: t_ha
+  input_dimensions: [age, region, species]
+  output_dimensions: [age, region, species]
+  input_nodes:
+  - id: dynamic_forest
+    metrics: [hectares]
+
+- id: forest_harvest_volume
+  name: Forest harvest volume
+  type: generic.GenericNode
+  quantity: volume
+  unit: m3_solid
+  input_dimensions: [age, region, species]
+  output_dimensions: [age, region, species]
+  input_nodes:
+  - id: dynamic_forest
+    metrics: [harvest_volume]
+
+- id: forest_natural_mortality_volume
+  name: Forest natural mortality volume
+  type: generic.GenericNode
+  quantity: volume
+  unit: m3_solid
+  input_dimensions: [age, region, species]
+  output_dimensions: [age, region, species]
+  input_nodes:
+  - id: dynamic_forest
+    metrics: [natural_mortality]
+    tags: [cumulative]
+
+- id: growth_of_forests
+  name: Growth of forests
+  type: generic.GenericNode
+  quantity: rate
+  unit: '%'
+  input_dimensions: [region, species]
+  output_dimensions: [region, species]
+  input_nodes:
+  - id: amount_of_wood_in_forest
+    tags: [geometric_inverse]
+  - id: annual_growth_of_forest
+    from_dimensions:
+    - id: stakeholder
+      flatten: true
+
 
 - id: historical_amount_of_wood_in_forests
   name_fi: Suomen metsien historiallinen koko

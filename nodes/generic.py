@@ -5,12 +5,14 @@ from typing import TYPE_CHECKING, Any, TypedDict
 
 from django.utils.translation import gettext_lazy as _
 
+import numpy as np
 import polars as pl
 
 from common import polars as ppl
 from nodes.actions import ActionNode
 from nodes.calc import extend_last_historical_value_pl
-from nodes.units import unit_registry
+from nodes.node import NodeMetric
+from nodes.units import Unit, unit_registry
 from params.param import BoolParameter, NumberParameter, StringParameter
 
 from .constants import EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
@@ -219,7 +221,7 @@ class GenericNode(SimpleNode):
                 )
 
             val = self.get_parameter_value('selected_number', required=True)
-            if val is not None:
+            if isinstance(val, (int, float)):
                 idx = round(val)
                 if idx < 0 or idx >= len(cat_list):
                     raise ValueError(f"Selected number {val} is out of range for categories {cat_list}")
@@ -243,10 +245,14 @@ class GenericNode(SimpleNode):
         return df, baskets
 
     def _operation_inventory_only(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        if df is None:
+            raise NodeError(self, "There must be a dataframe for operation 'inventory only'.")
         df = df.filter(~pl.col(FORECAST_COLUMN))
         return df, baskets
 
     def _operation_extend_values(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        if df is None:
+            raise NodeError(self, "There must be a dataframe for operation 'extend values'.")
         df = extend_last_historical_value_pl(df, self.get_end_year())
         return df, baskets
 
@@ -800,7 +806,9 @@ class IterativeNode(GenericNode):
             raise NodeError(self, "IterativeNode must have historical values.")
 
         # Get years needed for iteration
-        last_historical_year = float(historical_df[YEAR_COLUMN].max())
+        last_historical_year = historical_df[YEAR_COLUMN].sort().last()
+        assert isinstance(last_historical_year, (int, float))
+        last_historical_year = float(last_historical_year)
         end_year = self.get_end_year()
 
         # Track processed years to build the final result
@@ -977,3 +985,380 @@ class ThresholdNode(GenericNode):
         super().__init__(*args, **kwargs)
         # Register threshold operation
         self.OPERATIONS['apply_threshold'] = self._operation_apply_threshold
+
+
+class CohortNode(GenericNode):
+
+    output_metrics = {
+         'hectares': NodeMetric('t_ha', 'area'),
+         'total_volume': NodeMetric('m3_solid', 'volume'),
+         'harvest_volume': NodeMetric('m3_solid', 'volume'),
+         'natural_mortality': NodeMetric('m3_solid/a', 'volume'),
+    }
+    # allowed_parameters = [
+    #     *GenericNode.allowed_parameters,
+    #     NumberParameter('harvest_age', 'Age of forest with most of the tree felling'),
+    #     NumberParameter('harvest_fraction', 'Fraction of trees cut at the harvest age, rest is protected')
+    # ]
+
+    def get_transition_matrix(self, n_ages, harvest_age):
+                # Create base transition matrix - simple aging
+        base_matrix = np.zeros((n_ages, n_ages))
+        for i in range(n_ages - 1):
+            base_matrix[i+1, i] = 1.0
+        base_matrix[n_ages-1, n_ages-1] = 1.0
+
+        # Create transition matrix for this year
+        transition_matrix = base_matrix.copy()
+
+        # Apply harvest rule - ages >= harvest_age go to age 0
+        for age in range(n_ages):
+            if age >= harvest_age:
+                transition_matrix[0, age] = 1.0
+                # Zero out progression to next age
+                if age < n_ages - 1:
+                    transition_matrix[age+1, age] = 0.0
+                else:
+                    transition_matrix[age, age] = 0.0
+
+        return transition_matrix
+
+    def simulate_age_dynamics(  # noqa: D417
+            self,
+            initial_ages,
+            years,
+            harvest_age,
+            growth_curve,
+            mortality_rate_fn,
+            site=None,
+            species=None
+        ):
+        """
+        Core simulation function handling pure age dynamics and returning a DataFrame.
+
+        Parameters
+        ----------
+        - initial_ages: numpy array of hectares by age (0 to max_age)
+        - years: sequence of years (e.g. range(2020, 2051))
+        - harvest_age: age at which stands are harvested
+        - growth_curve: function that returns volume per hectare given age
+        - mortality_rate_fn: function that returns mortality rate given age
+        - site: optional site identifier to include in output
+        - species: optional species identifier to include in output
+
+        Returns
+        -------
+        - Polars DataFrame with complete simulation results
+
+        """
+        # Initialize results structure
+        n_years = len(years)
+        n_ages = len(initial_ages)
+
+        # Output arrays for calculations
+        hectares = np.zeros((n_years, n_ages))
+        hectares[0, :] = initial_ages
+
+        harvest_volume = np.zeros((n_years, n_ages))
+        natural_mortality = np.zeros((n_years, n_ages))
+
+        # Pre-calculate volume by age (internal only)
+        volume_by_age = np.array([growth_curve(age) for age in range(n_ages)])
+
+        # For each year in simulation (starting from second year)
+        for year_idx in range(1, n_years):
+            # Create transition matrix for this year
+            transition_matrix = self.get_transition_matrix(n_ages, harvest_age)
+
+            # Calculate pre-transition state
+            pre_hectares = hectares[year_idx-1].copy()
+
+            # Track harvest volume by age class
+            for age in range(n_ages):
+                if age >= harvest_age:
+                    # Calculate harvest volume for this age class
+                    vol_per_ha = volume_by_age[age]
+                    hectares_harvested = pre_hectares[age]
+                    harvest_volume[year_idx, 0] += hectares_harvested * vol_per_ha
+                    # Note: We add to age 0 because harvested stands regenerate to age 0
+
+            # Apply transition - this handles both aging and harvesting
+            new_hectares = transition_matrix @ pre_hectares
+
+            # Calculate natural mortality by age class
+            mortality_hectares = np.zeros(n_ages)
+            for age in range(n_ages):
+                mort_rate = mortality_rate_fn(age)
+                mortality_hectares[age] = new_hectares[age] * mort_rate
+                new_hectares[age] -= mortality_hectares[age]
+
+                # Record mortality volume by age
+                natural_mortality[year_idx, age] = mortality_hectares[age] * volume_by_age[age]
+
+            # Mortality creates new stands
+            total_mortality_hectares = np.sum(mortality_hectares)
+            if total_mortality_hectares > 0:
+                new_hectares[0] += total_mortality_hectares
+
+            # Store the new state
+            hectares[year_idx] = new_hectares
+
+        # Convert results directly to DataFrame
+        results_data = []
+        for year_idx, year in enumerate(years):
+            for age in range(n_ages):
+                # Calculate volume per ha and total volume
+                volume_per_ha = volume_by_age[age]
+                total_volume = hectares[year_idx, age] * volume_per_ha
+
+                # Only include rows with actual data
+                # if (hectares[year_idx, age] > 0 or
+                # harvest_volume[year_idx, age] > 0 or
+                # natural_mortality[year_idx, age] > 0):
+
+                row = {
+                    YEAR_COLUMN: year,
+                    'annual_age': age,
+                    'hectares': hectares[year_idx, age],
+                    # 'volume_per_ha': volume_per_ha,
+                    'total_volume': total_volume,
+                    'harvest_volume': harvest_volume[year_idx, age],
+                    'natural_mortality': natural_mortality[year_idx, age]
+                }
+
+                # Add optional site and species if provided
+                if site is not None:
+                    row['region'] = site
+                if species is not None:
+                    row['species'] = species
+
+                results_data.append(row)
+
+        # Create and return DataFrame
+        return pl.DataFrame(results_data)
+
+    def simulate_cohort(  # noqa: D417
+            self,
+            initial_year: ppl.PathsDataFrame,
+            years: range,
+            cohort_params: dict
+        ):
+        """
+        Simulate forest development for all site types and species.
+
+        Parameters
+        ----------
+        - initial_year: DataFrame with initial state
+        - years: range of years to simulate
+        - cohort_params: dict with params for each site/species
+
+        Returns
+        -------
+        - DataFrame with combined results
+
+        """
+        # Maximum age to model
+        max_age = 161  # 0 to 160 years
+
+        # Process each site type and species separately
+        all_results = []
+
+        dim_combinations = initial_year.select(initial_year.dim_ids).unique()
+
+        for combo in dim_combinations.iter_rows(named=True):
+            # Extract data for this combination of dimensions
+            site_sp_data = initial_year.filter(
+                pl.all_horizontal(
+                    pl.col(dim) == combo[dim] for dim in initial_year.dim_ids
+                )
+            )
+            site = combo['region']
+            sp = 'pine'
+
+            # Create array of hectares by age
+            initial_ages = np.zeros(max_age)
+            for row in site_sp_data.iter_rows(named=True):
+                age = row['annual_age']
+                if age < max_age:
+                    initial_ages[age] += row[VALUE_COLUMN]
+
+            # Get parameters for this site/species
+            params = cohort_params.get(
+                (site, sp),
+                self.create_default_params(site, sp, max_age)
+            )
+
+            # Extract just the parameters needed for core function
+            harvest_age = params['harvest_age']
+            growth_curve = params['growth_curve']
+            mortality_rate_fn = params['mortality_rates']
+
+            # Run core simulation - now returns a complete DataFrame
+            stand_results = self.simulate_age_dynamics(
+                initial_ages,
+                years,
+                harvest_age,
+                growth_curve,
+                mortality_rate_fn,
+                site=site,
+                species=sp
+            )
+
+            # Add to results
+            all_results.append(stand_results)
+
+        # Combine all results
+        out = pl.concat(all_results)
+        meta = initial_year.get_meta()
+        meta.primary_keys += ['species']
+        meta.units['hectares'] = meta.units[VALUE_COLUMN]
+        meta.units['natural_mortality'] = Unit('m3_solid/a')
+        meta.units['total_volume'] = Unit('m3_solid')
+        meta.units['harvest_volume'] = Unit('m3_solid')
+        out = ppl.to_ppdf(out, meta=meta)
+
+        return out
+
+
+    def create_default_params(self, region: str, species: str, max_age: int) -> dict:
+        """Create default parameters for a site type and species."""
+
+        # Default harvest ages
+        harvest_ages = {
+            ("herb-rich", "pine"): 80,
+            ("herb-rich", "spruce"): 70,
+            ("herb-rich", "birch"): 60,
+            ("fresh", "pine"): 90,
+            ("fresh", "spruce"): 80,
+            ("fresh", "birch"): 70
+        }
+
+        # Site factors for growth
+        site_factors = {
+            "herb-rich": 1.3,
+            "fresh": 1.0,
+            "sub-dry": 0.7,
+            "dry": 0.5
+        }
+
+        # Species factors for growth
+        species_factors = {
+            "pine": 1.0,
+            "spruce": 1.2,
+            "birch": 0.8,
+            "other": 0.7
+        }
+
+        # Get site and species factors
+        site_factor = site_factors.get(region, 0.8)
+        sp_factor = species_factors.get(species, 1.0)
+
+        # Get harvest age, default to 100
+        harvest_age = harvest_ages.get((region, 'pine'), 100)
+
+        # Create growth curve function
+        def growth_curve(age: int) -> float:
+            return site_factor * 7.0 * age * sp_factor # 560 m3_solid / ha at 100 a
+
+        # Create mortality rate function
+        def mortality_rates(age: int) -> float:
+            return 0.005 + 0.0005 * age/10
+
+        return {
+            'region': region,
+            'species': 'pine', # species,
+            'harvest_age': harvest_age,
+            'max_age': max_age,
+            'growth_curve': growth_curve,
+            'mortality_rates': mortality_rates
+        }
+
+    def expand_to_annual_ages(
+            self,
+            forest_df: ppl.PathsDataFrame,
+            age_groups: list[tuple],
+        ) -> ppl.PathsDataFrame:
+        """Convert aggregated age group data to annual age classes."""
+        annual_data = []
+        meta = forest_df.get_meta()
+
+        # Process each record in the dataframe
+        for record in forest_df.iter_rows(named=True):
+            age_group = record['age']
+            hectares = record[VALUE_COLUMN]
+            for start, end in age_groups:
+                if age_group == str(start):
+                    age_start = start
+                    age_end = end
+                    break
+
+            # For other age groups, distribute across years in the group
+            years_in_group = age_end - age_start + 1
+
+            # Distribute hectares evenly across years
+            hectares_per_year = hectares / years_in_group
+
+            for age in range(age_start, age_end + 1):
+                annual_data.append({  # noqa: PERF401
+                    **{k: v for k, v in record.items() if k not in {'age', VALUE_COLUMN}},
+                    'annual_age': age,
+                    VALUE_COLUMN: hectares_per_year
+                })
+
+        out = ppl.to_ppdf(pl.DataFrame(annual_data), meta=meta)
+        out = out.add_to_index('annual_age')
+
+        return out
+
+    def aggregate_to_age_groups(
+            self,
+            annual_results: ppl.PathsDataFrame,
+            age_groups: list) -> ppl.PathsDataFrame:
+        """Aggregate annual age results back to original age groups."""
+
+        def find_age_group(age: int) -> str: #, age_groups: list[tuple[int, int]]) -> str:
+            for start, end in age_groups:
+                if start <= age <= end:
+                    return f"{start}"
+
+            # If no range matches, return the start of the last group
+            return f"{age_groups[-1][0]}"
+
+        # Add age group ID
+        df = annual_results.with_columns([
+            pl.col('annual_age').map_elements(find_age_group, return_dtype=pl.Utf8).alias('age')
+        ])
+        df = df.add_to_index('age')
+        df = df.with_columns((pl.col(YEAR_COLUMN) > pl.col(YEAR_COLUMN).min()).alias(FORECAST_COLUMN))
+        df = df.paths.sum_over_dims('annual_age')
+
+        return df
+
+    def compute(self) -> ppl.PathsDataFrame:
+        # Define age groups
+        age_groups = [(0,0), (1,20), (21,40), (41,60), (61,80), (81,100),
+                    (101,120), (121,140), (141,160)]
+
+        # Define simulation years
+        years = range(2022, 2050)
+
+        node = self.get_input_node(tag='inventory')
+        df = node.get_output_pl(target_node=self)
+        initial_year = df.get_last_historical_values()
+
+        # Convert to annual ages
+        annual_forest = self.expand_to_annual_ages(initial_year, age_groups)
+
+        # Create parameters for each site/species
+        cohort_params = {}
+        for site in annual_forest['region'].unique():
+            # Create specific parameters
+            cohort_params[(site)] = self.create_default_params(
+                site, 'pine', 161 # FIXME
+            )
+
+        # Run the simulation
+        results = self.simulate_cohort(annual_forest, years, cohort_params)
+
+        # Aggregate back to age groups if needed
+        return self.aggregate_to_age_groups(results, age_groups)
