@@ -612,6 +612,8 @@ class NodeInterface(graphene.Interface):
     def resolve_description(root: Node, info: GQLInstanceInfo) -> str | None:
         nc = root.db_obj
         if nc is None or not nc.description_i18n:
+            if info.context.instance.features.show_explanations:
+                return root.get_explanation()
             return None
         return expand_db_html(nc.description_i18n)
 
