@@ -190,6 +190,7 @@ class GenericNode(SimpleNode):
             df = df.paths.join_over_index(yeardf, how='outer')
             for col in list(set(df.columns) - {YEAR_COLUMN, FORECAST_COLUMN}):
                 df = df.with_columns(pl.col(col).interpolate())
+                df = df.with_columns(pl.col(col).fill_null(strategy='backward'))
 
             df = df.with_columns(pl.col(FORECAST_COLUMN).fill_null(strategy='backward'))
 
@@ -992,34 +993,52 @@ class CohortNode(GenericNode):
     output_metrics = {
          'hectares': NodeMetric('t_ha', 'area'),
          'total_volume': NodeMetric('m3_solid', 'volume'),
-         'harvest_volume': NodeMetric('m3_solid', 'volume'),
+         'harvest_volume': NodeMetric('m3_solid/a', 'volume'),
          'natural_mortality': NodeMetric('m3_solid/a', 'volume'),
     }
     # allowed_parameters = [
     #     *GenericNode.allowed_parameters,
-    #     NumberParameter('harvest_age', 'Age of forest with most of the tree felling'),
+    #     NumberParameter('harvest_probabilities', 'Age of forest with most of the tree felling'),
     #     NumberParameter('harvest_fraction', 'Fraction of trees cut at the harvest age, rest is protected')
     # ]
 
-    def get_transition_matrix(self, n_ages, harvest_age):
-                # Create base transition matrix - simple aging
-        base_matrix = np.zeros((n_ages, n_ages))
-        for i in range(n_ages - 1):
-            base_matrix[i+1, i] = 1.0
-        base_matrix[n_ages-1, n_ages-1] = 1.0
+    def get_transition_matrix(self, n_ages, harvest_probabilities):
+        """
+        Create a transition matrix with age-specific harvest probabilities.
 
-        # Create transition matrix for this year
-        transition_matrix = base_matrix.copy()
+        Args:
+            n_ages: Number of age groups
+            harvest_probabilities: Array/list of length n_ages with probabilities (0-1) of harvesting for each age
 
-        # Apply harvest rule - ages >= harvest_age go to age 0
-        for age in range(n_ages):
-            if age >= harvest_age:
-                transition_matrix[0, age] = 1.0
-                # Zero out progression to next age
-                if age < n_ages - 1:
-                    transition_matrix[age+1, age] = 0.0
-                else:
-                    transition_matrix[age, age] = 0.0
+        Returns:
+            Transition matrix incorporating probabilities of harvesting and aging
+
+        """
+        # Ensure we have the right number of probabilities
+        assert len(harvest_probabilities) == n_ages, "Must provide harvest probability for each age group"
+
+        # Create transition matrix
+        transition_matrix = np.zeros((n_ages, n_ages))
+
+        # For each current age
+        for current_age in range(n_ages):
+            harvest_prob = harvest_probabilities[current_age]
+
+            # Sanity check on probability
+            assert 0 <= harvest_prob <= 1, (
+                f"Harvest probability must be between 0 and 1, got {harvest_prob} for age {current_age}")
+
+            # Probability of being harvested (moves to age 0)
+            if harvest_prob > 0:
+                transition_matrix[0, current_age] = harvest_prob
+
+            # Probability of aging normally
+            if current_age < n_ages - 1:
+                # Move to next age with probability (1-harvest_prob)
+                transition_matrix[current_age + 1, current_age] = 1.0 - harvest_prob
+            else:
+                # Last age group stays in place if not harvested
+                transition_matrix[current_age, current_age] = 1.0 - harvest_prob
 
         return transition_matrix
 
@@ -1027,7 +1046,7 @@ class CohortNode(GenericNode):
             self,
             initial_ages,
             years,
-            harvest_age,
+            harvest_probabilities,
             growth_curve,
             mortality_rate_fn,
             site=None,
@@ -1040,7 +1059,7 @@ class CohortNode(GenericNode):
         ----------
         - initial_ages: numpy array of hectares by age (0 to max_age)
         - years: sequence of years (e.g. range(2020, 2051))
-        - harvest_age: age at which stands are harvested
+        - harvest_probabilities: age at which stands are harvested
         - growth_curve: function that returns volume per hectare given age
         - mortality_rate_fn: function that returns mortality rate given age
         - site: optional site identifier to include in output
@@ -1065,22 +1084,23 @@ class CohortNode(GenericNode):
         # Pre-calculate volume by age (internal only)
         volume_by_age = np.array([growth_curve(age) for age in range(n_ages)])
 
+
         # For each year in simulation (starting from second year)
         for year_idx in range(1, n_years):
             # Create transition matrix for this year
-            transition_matrix = self.get_transition_matrix(n_ages, harvest_age)
+            transition_matrix = self.get_transition_matrix(n_ages, harvest_probabilities)
 
             # Calculate pre-transition state
             pre_hectares = hectares[year_idx-1].copy()
 
             # Track harvest volume by age class
             for age in range(n_ages):
-                if age >= harvest_age:
-                    # Calculate harvest volume for this age class
+                # Calculate harvest volume based on probability for each age class
+                prob = harvest_probabilities[age]
+                if prob > 0:
                     vol_per_ha = volume_by_age[age]
-                    hectares_harvested = pre_hectares[age]
-                    harvest_volume[year_idx, 0] += hectares_harvested * vol_per_ha
-                    # Note: We add to age 0 because harvested stands regenerate to age 0
+                    hectares_harvested = pre_hectares[age] * prob
+                    harvest_volume[year_idx, age] += hectares_harvested * vol_per_ha
 
             # Apply transition - this handles both aging and harvesting
             new_hectares = transition_matrix @ pre_hectares
@@ -1111,11 +1131,6 @@ class CohortNode(GenericNode):
                 volume_per_ha = volume_by_age[age]
                 total_volume = hectares[year_idx, age] * volume_per_ha
 
-                # Only include rows with actual data
-                # if (hectares[year_idx, age] > 0 or
-                # harvest_volume[year_idx, age] > 0 or
-                # natural_mortality[year_idx, age] > 0):
-
                 row = {
                     YEAR_COLUMN: year,
                     'annual_age': age,
@@ -1127,7 +1142,7 @@ class CohortNode(GenericNode):
                 }
 
                 # Add optional site and species if provided
-                if site is not None:
+                if site is not None: # FIXME Move these to simulate_cohort()
                     row['region'] = site
                 if species is not None:
                     row['species'] = species
@@ -1141,7 +1156,7 @@ class CohortNode(GenericNode):
             self,
             initial_year: ppl.PathsDataFrame,
             years: range,
-            cohort_params: dict
+            cohort_params: dict,
         ):
         """
         Simulate forest development for all site types and species.
@@ -1177,10 +1192,12 @@ class CohortNode(GenericNode):
 
             # Create array of hectares by age
             initial_ages = np.zeros(max_age)
+            harvest_probabilities = np.zeros(max_age)
             for row in site_sp_data.iter_rows(named=True):
                 age = row['annual_age']
                 if age < max_age:
-                    initial_ages[age] += row[VALUE_COLUMN]
+                    initial_ages[age] += row['hectares']
+                    harvest_probabilities[age] = row['harvest_probability']
 
             # Get parameters for this site/species
             params = cohort_params.get(
@@ -1189,7 +1206,6 @@ class CohortNode(GenericNode):
             )
 
             # Extract just the parameters needed for core function
-            harvest_age = params['harvest_age']
             growth_curve = params['growth_curve']
             mortality_rate_fn = params['mortality_rates']
 
@@ -1197,7 +1213,7 @@ class CohortNode(GenericNode):
             stand_results = self.simulate_age_dynamics(
                 initial_ages,
                 years,
-                harvest_age,
+                harvest_probabilities,
                 growth_curve,
                 mortality_rate_fn,
                 site=site,
@@ -1211,10 +1227,10 @@ class CohortNode(GenericNode):
         out = pl.concat(all_results)
         meta = initial_year.get_meta()
         meta.primary_keys += ['species']
-        meta.units['hectares'] = meta.units[VALUE_COLUMN]
+        meta.units['hectares'] = meta.units['hectares']
         meta.units['natural_mortality'] = Unit('m3_solid/a')
         meta.units['total_volume'] = Unit('m3_solid')
-        meta.units['harvest_volume'] = Unit('m3_solid')
+        meta.units['harvest_volume'] = Unit('m3_solid/a')
         out = ppl.to_ppdf(out, meta=meta)
 
         return out
@@ -1222,16 +1238,6 @@ class CohortNode(GenericNode):
 
     def create_default_params(self, region: str, species: str, max_age: int) -> dict:
         """Create default parameters for a site type and species."""
-
-        # Default harvest ages
-        harvest_ages = {
-            ("herb-rich", "pine"): 80,
-            ("herb-rich", "spruce"): 70,
-            ("herb-rich", "birch"): 60,
-            ("fresh", "pine"): 90,
-            ("fresh", "spruce"): 80,
-            ("fresh", "birch"): 70
-        }
 
         # Site factors for growth
         site_factors = {
@@ -1253,9 +1259,6 @@ class CohortNode(GenericNode):
         site_factor = site_factors.get(region, 0.8)
         sp_factor = species_factors.get(species, 1.0)
 
-        # Get harvest age, default to 100
-        harvest_age = harvest_ages.get((region, 'pine'), 100)
-
         # Create growth curve function
         def growth_curve(age: int) -> float:
             return site_factor * 7.0 * age * sp_factor # 560 m3_solid / ha at 100 a
@@ -1267,7 +1270,7 @@ class CohortNode(GenericNode):
         return {
             'region': region,
             'species': 'pine', # species,
-            'harvest_age': harvest_age,
+            # 'harvest_probabilities': harvest_probabilities,
             'max_age': max_age,
             'growth_curve': growth_curve,
             'mortality_rates': mortality_rates
@@ -1300,13 +1303,22 @@ class CohortNode(GenericNode):
 
             for age in range(age_start, age_end + 1):
                 annual_data.append({  # noqa: PERF401
-                    **{k: v for k, v in record.items() if k not in {'age', VALUE_COLUMN}},
+                    **{k: v for k, v in record.items() if k not in {'age', VALUE_COLUMN, VALUE_COLUMN + '_right'}},
                     'annual_age': age,
-                    VALUE_COLUMN: hectares_per_year
+                    'hectares': hectares_per_year, # Initial_year
+                    'harvest_probability': record[VALUE_COLUMN + '_right'], # Harvest_probability
                 })
 
-        out = ppl.to_ppdf(pl.DataFrame(annual_data), meta=meta)
-        out = out.add_to_index('annual_age')
+        new_keys = {VALUE_COLUMN: 'hectares', VALUE_COLUMN + '_right': 'harvest_probability'}
+
+        for old_key, new_key in new_keys.items():
+            if old_key in meta.units:
+                meta.units[new_key] = meta.units.pop(old_key)
+
+
+        out = pl.DataFrame(annual_data)
+        meta.primary_keys = [col for col in out.columns if col in meta.primary_keys + ['annual_age']]
+        out = ppl.to_ppdf(out, meta=meta)
 
         return out
 
@@ -1340,14 +1352,25 @@ class CohortNode(GenericNode):
                     (101,120), (121,140), (141,160)]
 
         # Define simulation years
-        years = range(2022, 2050)
+        years = range(2022, 2030)
 
         node = self.get_input_node(tag='inventory')
         df = node.get_output_pl(target_node=self)
-        initial_year = df.get_last_historical_values()
+        # df = df.filter(pl.col('region') == 'uusimaa')
+        # initial_year = df.get_last_historical_values()
+
+        harvest = self.get_input_node(tag='harvest').get_output_pl(target_node=self)
+        harvest = harvest.ensure_unit(VALUE_COLUMN, '1/a')
+        df = df.paths.join_over_index(harvest).get_last_historical_values()
+        # harvest_probabilities = harvest.get_output_pl(target_node=self).get_last_historical_values()
+        # # harvest_probabilities = harvest_probabilities.sort(pl.col('age'))
+        # harvest_probabilities = self.expand_to_annual_ages(harvest_probabilities, age_groups)
+        # print(harvest_probabilities)
 
         # Convert to annual ages
-        annual_forest = self.expand_to_annual_ages(initial_year, age_groups)
+        annual_forest = self.expand_to_annual_ages(df, age_groups)
+        # annual_forest = self.expand_to_annual_ages(initial_year, age_groups)
+        # df = initial_year.paths.join_over_index(harvest_probabilities)
 
         # Create parameters for each site/species
         cohort_params = {}

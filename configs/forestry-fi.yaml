@@ -5,7 +5,7 @@ supported_languages: [fi]
 site_url: https://forestry-fi.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a67c8ab3da8f053b81bf999389dbcd49b7e843d9
+  commit: b493708b3957c002c43b80caf5c22b2a4731b383
   dvc_remote: kausal-s3
 name_en: Multi-stakeholder forestry policy options
 name_fi: Metsäpolitiikan monet vaihtoehdot
@@ -20,6 +20,8 @@ reference_year: 1990
 minimum_historical_year: 2000
 maximum_historical_year: 2023
 sample_size: 10
+features:
+  show_explanations: true
 
 include:
 
@@ -228,35 +230,35 @@ dimensions:
   - id: '1'
     label_fi: 1-20
     label_en: 1-20
-    aliases: [ikaluokka_1_20]
+    aliases: [ikaluokka_1_20, '1_20']
   - id: '21'
     label_fi: 21-40
     label_en: 21-40
-    aliases: [ikaluokka_21_40]
+    aliases: [ikaluokka_21_40, '21_40']
   - id: '41'
     label_fi: 41-60
     label_en: 41-60
-    aliases: [ikaluokka_41_60]
+    aliases: [ikaluokka_41_60, '41_60']
   - id: '61'
     label_fi: 61-80
     label_en: 61-80
-    aliases: [ikaluokka_61_80]
+    aliases: [ikaluokka_61_80, '61_80']
   - id: '81'
     label_fi: 81-100
     label_en: 81-100
-    aliases: [ikaluokka_81_100]
+    aliases: [ikaluokka_81_100, '81_100']
   - id: '101'
     label_fi: 101-120
     label_en: 101-120
-    aliases: [ikaluokka_101_120]
+    aliases: [ikaluokka_101_120, '101_120']
   - id: '121'
     label_fi: 121-140
     label_en: 141-140
-    aliases: [ikaluokka_121_140]
+    aliases: [ikaluokka_121_140, '121_140']
   - id: '141'
     label_fi: 141-
     label_en: 141-
-    aliases: [ikaluokka_141]
+    aliases: [ikaluokka_141, '141_']
 
 - id: hypothesis
   label_fi: Hypoteesi
@@ -702,6 +704,18 @@ nodes:
     tags: [baseline]
     column: age_of_forests
 
+- id: harvest_probabilities
+  name: harvest_probabilities
+  type: generic.GenericNode
+  quantity: rate
+  unit: '%/a'
+  input_dimensions: [age]
+  output_dimensions: [age]
+  input_datasets:
+  - id: sunnydale/harvesting_probability
+    tags: [baseline]
+    column: harvesting_probability
+
 - id: dynamic_forest
   name: Dynamic forest
   type: generic.CohortNode
@@ -715,6 +729,10 @@ nodes:
     to_dimensions:
     - id: age
     - id: region
+  - id: harvest_probabilities
+    tags: [harvest]
+    to_dimensions:
+    - id: age
 
 - id: forest_volume
   name: Forest volume
@@ -742,7 +760,7 @@ nodes:
   name: Forest harvest volume
   type: generic.GenericNode
   quantity: volume
-  unit: m3_solid
+  unit: m3_solid/a
   input_dimensions: [age, region, species]
   output_dimensions: [age, region, species]
   input_nodes:
@@ -776,6 +794,92 @@ nodes:
     - id: stakeholder
       flatten: true
 
+- id: forest_sales
+  name: Forest sales
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, treatment, age, region, species]
+  output_dimensions: [cost_type, treatment, age, region, species]
+  input_nodes:
+  - id: forest_harvest_volume
+    to_dimensions:
+    - id: age
+    - id: region
+    - id: species
+  - id: standing_wood_unit_prices
+    to_dimensions:
+    - id: cost_type
+    - id: treatment
+    - id: region
+    - id: species
+
+- id: co2_emission_potential_in_wood
+  name: CO2 emission potential in wood
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: kg/m3_solid
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
+  input_datasets:
+  - id: sunnydale/co2_emission_potential_in_wood
+    tags: [baseline]
+    column: co2_emission_potential_in_wood
+
+- id: co2_cost_of_forestry
+  name: CO2 cost of forestry
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, age, region, species, cost_type]
+  output_dimensions: [stakeholder, age, region, species, cost_type]
+  input_nodes:
+  - id: forest_harvest_volume
+    to_dimensions:
+    - id: age
+    - id: region
+    - id: species
+  - id: co2_market_price
+    from_dimensions:
+    - id: stakeholder
+      flatten: true
+    to_dimensions: []
+  - id: co2_emission_potential_in_wood
+    to_dimensions:
+    - id: cost_type
+
+- id: total_forestry_cost
+  name: Total forestry cost
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, region, cost_type]
+  output_dimensions: [stakeholder, region, cost_type]
+  input_nodes:
+  - id: co2_cost_of_forestry
+    from_dimensions:
+    - id: age
+      flatten: true
+    - id: species
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+    - id: region
+    - id: cost_type
+  - id: forest_sales
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: treatment
+      flatten: true
+    - id: age
+      flatten: true
+    - id: species
+      flatten: true
+    to_dimensions:
+    - id: region
+    - id: cost_type
+    - id: stakeholder
+      categories: [forest_owner]
 
 - id: historical_amount_of_wood_in_forests
   name_fi: Suomen metsien historiallinen koko
@@ -1048,6 +1152,32 @@ nodes:
     unit: 1/Mm3_solid
 
 actions:
+
+- id: who_pays_for_wood_emissions
+  name: Who pays for wood emissions?
+  type: simple.GenericAction
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [stakeholder]
+  output_dimensions: [stakeholder]
+  input_datasets:
+  - id: sunnydale/co2_emission_potential_in_wood
+    tags: [baseline]
+    column: who_pays_for_wood_co2
+  params:
+  - id: categories
+    value: stakeholder:state,industry,forest_owner
+  - id: selected_number
+    value: 0
+    min_value: 0
+    max_value: 2
+    step: 1
+  - id: operations
+    value: add,select_variant
+  output_nodes:
+  - id: co2_cost_of_forestry
+    to_dimensions:
+    - id: stakeholder
 
 - id: cut_the_virtanen_forest
   name_en: Cut the forest of Matti Virtanen
