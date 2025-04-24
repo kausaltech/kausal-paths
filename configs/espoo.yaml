@@ -4,7 +4,7 @@ supported_languages: [sv, en]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 12ed8904e50ac3730d3dbe62ef864931534b8929
+  commit: 26560be9cd959ffe9999762c550e7c22c7681710
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -24,6 +24,7 @@ features:
   show_accumulated_effects: true
   use_datasets_from_db: true
   show_significant_digits: 3
+  show_explanations: true
 
 include:
 - file: frameworks/hsy/buildings.yaml
@@ -244,7 +245,6 @@ nodes:
   target_year_goal: 212
 
 - id: population
-  type: finland.population.Population
   name_fi: Väestö
   name_en: Population
   name_sv: Befolkning
@@ -266,23 +266,14 @@ nodes:
     är 345 000 för år 2035. Den faktiska befolkningsutvecklingen (1990, 2000–2022)
     har hämtats från Statistikcentralens statistik. <a 
     href="https://stat.hel.fi/pxweb/fi/Aluesarjat/Aluesarjat__vrm__ennak__umkun/Hginseutu_VA_VN02_Vaestonmuutos_ennakko.px/">Källa</a>
+  type: generic.GenericNode
+  quantity: population
+  unit: cap
   input_datasets:
-  - id: statfi/StatFin/vrm/vaerak/statfin_vaerak_pxt_11re
-    filters:
-    - column: Alue
-      value: Espoo
-    - dimension: Sukupuoli
-      flatten: true
-    - dimension: Ikä
-      flatten: true
-  - id: statfi/StatFin/vrm/vaenn/statfin_vaenn_pxt_139f
-    filters:
-    - column: Alue
-      value: Espoo
-    - dimension: Sukupuoli
-      flatten: true
-    - dimension: Ikä
-      flatten: true
+  - id: espoo/vaestoennuste
+    tags: [baseline]
+    forecast_from: 2023
+    column: vaestoennuste
 
 # ----------- Nodes with city-specific adjustments ---------------
 
@@ -398,10 +389,10 @@ nodes:
 
 # Electricity
 
-- id: non_heating_electricity_energy
-  name_fi: Kulutussähkön sähkönkulutus
-  name_en: Consumption electricity consumption
-  name_sv: Elförbrukning för konsumtionsel
+- id: non_heating_electricity_energy_hsy
+  name_fi: Kulutussähkön sähkönkulutus, HSY
+  name_en: Consumption electricity consumption, HSY
+  name_sv: Elförbrukning för konsumtionsel, HSY
   description_fi: Pessimistisessä skenaariossa asukaskohtaisen sähkönkulutuksen on
     oletettu kehittyvän vuosina 2017-2021 toteutuneen trendin mukaisesti. Suomi 2035
     -skenaariossa asukaskohtaisen sähkönkulutuksen oletetaan pysyvän vuoden 2021 tasolla.
@@ -432,6 +423,38 @@ nodes:
   params:
     sector: Sähkö|Kulutussähkö|_energy_carrier_|_economic_sector_
   color: '#0047b6'
+
+- id: electricity_per_person
+  name_en: Non-heating electricity per person
+  name_fi: Ei-lämmityssähkön kulutus per henkilö
+  type: generic.GenericNode
+  quantity: energy
+  unit: kWh/cap/a
+  input_dimensions: [economic_sector, energy_carrier]
+  output_dimensions: [economic_sector, energy_carrier]
+  input_datasets:
+  - id: espoo/electricity
+    tags: [baseline]
+    column: ei_lammityssahkon_kulutus_henkea_kohti
+    forecast_from: 2024
+
+- id: non_heating_electricity_energy
+  name_en: Non-heating electricity
+  name_fi: Ei-lämmityssähkön kulutus
+  type: generic.GenericNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [economic_sector, energy_carrier]
+  output_dimensions: [economic_sector, energy_carrier]
+  input_nodes:
+  - id: non_heating_electricity_energy_hsy
+    from_dimensions:
+    - id: economic_sector
+      categories: [residential]
+      exclude: true
+  - id: electricity_per_person
+  - id: population
+    to_dimensions: []
 
 - id: green_electricity_consumption
   name_fi: Vihreän sähkön tuottama kompensaatio
@@ -753,10 +776,10 @@ nodes:
   #   - id: vehicle_type
   #   - id: economic_sector
 
-- id: waste_treatment_emissions_data
-  name_fi: Jätteenkäsittelyn päästödata
-  name_en: Waste treatment_emissions data
-  name_sv: Utsläppdata om avfallsbehandlingen
+- id: waste_treatment_emissions_data_goal
+  name_fi: Jätteenkäsittelyn päästödata, ennuste
+  name_en: Waste treatment_emissions data forecast
+  name_sv: Utsläppdata om avfallsbehandlingen prognos
   description_fi: Data on saatu Juha Viholaiselta maaliskuussa 2024.
   type: generic.GenericNode
   quantity: emissions
@@ -769,21 +792,18 @@ nodes:
     tags: [baseline]
     column: jatteenkasittelyn_paastot
 
-- id: waste_treatment_emissions_data2
-  name_fi: Jätteenkäsittelyn päästödata
-  name_en: Waste treatment_emissions data
-  name_sv: Utsläppdata om avfallsbehandlingen
+- id: waste_treatment_emissions_data_historical
+  name_fi: Jätteenkäsittelyn päästödata, historiallinen
+  name_en: Waste treatment_emissions data, historical
+  name_sv: Utsläppdata om avfallsbehandlingen, historisk
   description_fi: Data on saatu Juha Viholaiselta maaliskuussa 2024.
-  type: generic.GenericNode
-  quantity: emissions
+  type: generic.DimensionalSectorEmissions
   unit: kt/a
   input_dimensions: [waste_treatment]
   output_dimensions: [waste_treatment]
-  input_datasets:
-  - id: espoo/jatteenkasittelyn_paastot_ja_ennuste
-    forecast_from: 2025
-    tags: [baseline]
-    column: jatteenkasittelyn_paastot
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Jätteiden käsittely|*|_waste_treatment_|*
 
 pages:
 - id: home  # The page is not shown
@@ -1456,76 +1476,28 @@ actions:
 #
 # OTHER SECTORS
 #
-- id: reduce_waste_treatment_emissions
+
+- id: reduce_waste_treatment_emissions2
   name_fi: Jätteiden käsittelyn päästöt pienenevät
   name_en: Waste treatment emissions are reduced
   name_sv: Utsläppen från avfallsbehandlingen minskar
-  description_fi: <p>Pessimistisessä skenaariossa asukaskohtaisten päästöjen oletetaan
-    pysyvän vuoden 2021 tasolla. Suomi 2035-skenaariossa päästöjen arvioidaan laskevan
-    4 prosenttia vuoden 2020 tasosta vuoteen 2030 mennessä. Samankaltaisen päästökehityksen
-    arvioidaan toteutuvan myös aikavälillä 2030-2035. HNE2030-skenaariossa päästöjen
-    oletetaan laskevan 68 prosenttia aikavälillä 2021-2030, minkä jälkeen päästöjen
-    oletetaan pysyvän vuoden 2030 tasolla.</p><p>Vuonna 2021 päästöt olivat 23.7 kt
-    ja näiden päästöarvioiden pohjana. Kuitenkin vuonna 2022 päästöt olivat vain 21.8
-    kt, joten pessimistinen ja Suomi 2035 -skenaariot ovat toteumaa pessimistisempiä.</p>
-  description_en: <p>In the pessimistic scenario, per capita emissions are assumed
-    to remain at the 2021 level. In the Finland 2035 scenario, emissions are estimated
-    to decrease by 4 percent from the 2020 level by 2030. A similar emission development
-    is estimated to take place also between 2030-2035. In the Carbon-neutral Espoo
-    2030 scenario, emissions are assumed to decrease by 68 percent between 2021-2030,
-    after which emissions are assumed to remain at the 2030 level.</p><p>In 2021,
-    emissions were 23.7 kt and the basis for these emission estimates. However, in
-    2022, emissions were only 21.8 kt, so the pessimistic and Finland 2035 scenarios
-    are more pessimistic than the actual outcome.</p>
-  description_sv: <p>I det pessimistiska scenariot antas utsläppen per capita ligga
-    kvar på 2021 års nivå. I scenariot Finland 2035 uppskattas utsläppen minska med
-    4 procent från 2020 års nivå till 2030. En liknande utsläppsutveckling uppskattas
-    ske även mellan 2030–2035. I scenariot Kolneutralt Esbo 2030 antas utsläppen minska
-    med 68 procent mellan 2021–2030, varefter utsläppen antas ligga kvar på 2030 års
-    nivå.</p><p>År 2021 var utsläppen 23,7 kt och grunden för dessa utsläppsuppskattningar.
-    Men år 2022 var utsläppen endast 21,8 kt, så det pessimistiska scenariot och Finland
-    2035-scenariot är mer pessimistiska än det faktiska utfallet.</p>
-  type: simple.GenericAction
-  quantity: ratio
-  unit: '%'
-  no_effect_value: 100
-  group: other
-  input_dimensions: [emission_sector]
-  output_dimensions: [emission_sector]
-  input_datasets:
-  - id: espoo/jatteenkasittelyn_tavoite
-    tags: [baseline]
-    forecast_from: 2024
-    filters:
-    - column: scenario
-      ref: scenario_name
-  # params:
-  #   sector: Waste treatment goals
-  output_nodes:
-  - id: waste_treatment_emissions
-    tags: [non_additive]
-    from_dimensions:
-    - id: emission_sector
-      flatten: true
-    to_dimensions: []
-
-- id: reduce_waste_treatment_emissions2
-  name_fi: Jätteiden käsittelyn päästöt pienenevät uusi
-  name_en: Waste treatment emissions are reduced
-  name_sv: Utsläppen från avfallsbehandlingen minskar
+  description_fi: Kaikki päästövähennykset kohdennetaan asumiseen tällä hetkellä.
   type: linear.DatasetReduceAction
   quantity: emissions
   unit: kt/a
   input_dimensions: [waste_treatment]
   output_dimensions: [waste_treatment]
-  # input_datasets:
-  # - id: espoo/jatteenkasittelyn_paastot_ja_ennuste
-  #   tags: [historical]
   input_nodes:
-  - id: waste_treatment_emissions_data
+  - id: waste_treatment_emissions_data_goal
     tags: [forecast_only, goal]
-  - id: waste_treatment_emissions_data2
+  - id: waste_treatment_emissions_data_historical
     tags: [historical_only, historical]
+  output_nodes:
+  - id: waste_treatment_emissions
+    to_dimensions:
+    - id: waste_treatment
+    - id: economic_sector
+      categories: [residential]
 
 - id: reduce_agriculture_emissions
   name_fi: Maatalouden päästöt pienenevät

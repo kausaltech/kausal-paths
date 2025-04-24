@@ -56,7 +56,7 @@ HEAT_SOURCE_MAP = {
     'Puu, turve': 'Muu',
     'Sähkö': 'Sähkölämmitys',
     'Öljy, kaasu': 'Öljylämmitys',
-    'Yhteensä': 'Muu',
+    # 'Yhteensä': 'Muu',
 }
 
 
@@ -81,7 +81,7 @@ class BuildingStock(AdditiveNode):
     ]
     global_parameters = ['municipality_name']
 
-    def compute(self) -> pd.DataFrame:
+    def compute(self) -> ppl.PathsDataFrame:
         df = self.get_input_dataset()
         muni = self.get_global_parameter_value('municipality_name')
         if 'Alue' in df.columns:
@@ -89,7 +89,8 @@ class BuildingStock(AdditiveNode):
         df = df.loc[
             (df.Tiedot == 'Kerrosala (m2)') &
             (df['Rakennuksen käyttötarkoitus'] != 'Asuinrakennukset yhteensä') &
-            (df['Rakennuksen käyttötarkoitus'] != 'Rakennukset yhteensä')
+            (df['Rakennuksen käyttötarkoitus'] != 'Rakennukset yhteensä') &
+            (df['Rakennuksen lämmitysaine'] != 'Yhteensä')
         ]
 
         hs_dim = self.output_dimensions['building_heat_source']
@@ -111,12 +112,15 @@ class BuildingStock(AdditiveNode):
 
         df = extend_last_historical_value(df, self.context.model_end_year)
         df = self.add_nodes(df, self.input_nodes)
-        return df
+        dfpl = ppl.from_pandas(df)
+        return dfpl
 
 
 class FutureBuildingStock(SimpleNode):
     """
-    Calculate the new floor area of future buildings based on the 10-year average
+    Calculate the new floor area of future buildings.
+
+    This is based on the 10-year average
     per respective new population; calculate this separately for different building types
     (unless floor area decreases) and assume the same ratio will hold in the future.
     """
@@ -148,7 +152,7 @@ class FutureBuildingStock(SimpleNode):
 
         last_hist_year = df.loc[~df.Forecast].index.get_level_values(YEAR_COLUMN).max()
         df = df.drop(columns=FORECAST_COLUMN)
-        df = df.unstack(self.output_dimension_ids)  # type: ignore
+        df = df.unstack(self.output_dimension_ids)  # type: ignore  # noqa: PD010
         df['PopDiff'] = pop_df[VALUE_COLUMN]
         # Count the average from the last 10 years
         df = df.loc[(df.index >= last_hist_year - 10) & (df.index <= last_hist_year)]
@@ -168,7 +172,7 @@ class FutureBuildingStock(SimpleNode):
         area_per_new_cap_df = df.mul(total_sum, axis=0)
 
         # Now look into the future
-        pop_diff = pop_df.loc[pop_df.index >= last_hist_year, VALUE_COLUMN].diff().dropna()
+        pop_diff = pop_df.loc[pop_df.index >= last_hist_year, VALUE_COLUMN].diff().dropna() # type: ignore
         df = area_per_new_cap_df
         future_index = pd.RangeIndex(last_hist_year + 1, self.context.model_end_year + 1, name=YEAR_COLUMN)
         df = df.reindex(df.index.append(future_index))
@@ -176,7 +180,7 @@ class FutureBuildingStock(SimpleNode):
         df = df.mul(pop_diff, axis=0).dropna().cumsum()
         df = df.astype(area_dt)
 
-        df = cast(pd.DataFrame, df.stack(cast(Sequence[str], self.output_dimension_ids), future_stack=True))  # noqa: PD013
+        df = cast('pd.DataFrame', df.stack(cast('Sequence[str]', self.output_dimension_ids), future_stack=True))  # noqa: PD013
         assert isinstance(df, pd.DataFrame)
         df = df.rename(columns={'Area': VALUE_COLUMN})
         df[FORECAST_COLUMN] = True
@@ -250,7 +254,7 @@ class BuildingHeatPredict(Node):
         return df
 
 
-class BuildingHeatPerAreaOld(Node):
+class BuildingHeatPerAreaOld(Node): # FIXME Not used. Remove
     output_metrics = {
         HEAT_CONSUMPTION: NodeMetric(unit='kWh/a/m**2', quantity=ENERGY_QUANTITY)
     }
@@ -271,12 +275,12 @@ class BuildingHeatPerAreaOld(Node):
         heat_df.index = heat_df.index.reorder_levels(area_df.index.names)
         df = heat_df.sort_index()
         df = df.rename(columns={VALUE_COLUMN: 'HeatConsumption'})
-        heat_dt = df.dtypes['HeatConsumption']
+        heat_dt = df.dtypes['HeatConsumption']  # noqa: F841
 
         df['Area'] = area_df[VALUE_COLUMN]
-        area_dt = area_df.dtypes[VALUE_COLUMN]
+        area_dt = area_df.dtypes[VALUE_COLUMN]  # noqa: F841
         df[FORECAST_COLUMN] |= area_df[FORECAST_COLUMN]
-        last_hist_year = df.loc[~df[FORECAST_COLUMN]].index.get_level_values(YEAR_COLUMN).max()
+        last_hist_year = df.loc[~df[FORECAST_COLUMN]].index.get_level_values(YEAR_COLUMN).max()  # noqa: F841
 
         # Calculate heat consumption per area
         rows = ~df[FORECAST_COLUMN]
@@ -298,7 +302,7 @@ class BuildingHeatPerAreaOld(Node):
             exit()
         """
 
-        s = pa_df.stack(self.output_dimension_ids)  # type: ignore
+        s = pa_df.stack(self.output_dimension_ids)  # type: ignore  # noqa: PD013
         s = s.astype(dt)
         s.index = s.index.reorder_levels(heat_df.index.names)  # type: ignore
         df['PerArea'] = s
@@ -322,7 +326,7 @@ class BuildingHeatPerArea(DivisiveNode):
     ]
 
     # FIXME compute() forked from MultiplicativeNode. Maybe generalize?
-    def compute(self) -> ppl.PathsDataFrame:
+    def compute(self) -> ppl.PathsDataFrame:  # noqa: C901
         additive_nodes: list[Node] = []
         operation_nodes: list[Node] = []
         assert self.unit is not None
@@ -374,7 +378,7 @@ class BuildingHeatPerArea(DivisiveNode):
 
         return df
 
-    def compute_old(self) -> pd.DataFrame:
+    def compute_old(self) -> ppl.PathsDataFrame: # FIXME Not used. Remove
         df = super().compute()
         df = df.with_columns(pl.col(VALUE_COLUMN).fill_nan(None)).drop_nulls()
         df = df.filter(~pl.col(FORECAST_COLUMN))  # FIXME forgets added nodes
