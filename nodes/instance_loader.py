@@ -479,7 +479,6 @@ class InstanceLoader:
             elif self.instance.features.use_datasets_from_db:
                 ds_db_obj = self.db_datasets.get(ds_id)
                 if ds_db_obj is not None:
-                    self.logger.debug('Loading dataset %s from DB' % ds_id)
                     ds_obj = DBDataset(id=ds_id, unit=ds_unit, tags=tags, **dc, db_dataset_id=str(ds_db_obj.uuid))
 
             if ds_obj is None:
@@ -1031,6 +1030,9 @@ class InstanceLoader:
         fw_config: FrameworkConfig | None = None,
         config_mtime_hash: str | None = None,
     ):
+        from .units import add_unit_translations
+
+        add_unit_translations()
         self.yaml_file_path = yaml_file_path.absolute() if yaml_file_path else None
         self.config = config
         self.fw_config = fw_config

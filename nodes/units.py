@@ -314,18 +314,22 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
 
 define_custom_units(unit_registry)
 unit_registry.formatter.default_format = '~P'
-#pint.set_application_registry(unit_registry)
 app_registry = pint.get_application_registry()
 app_registry._registry = unit_registry  # pyright: ignore
-#pint_pandas.PintType.ureg = unit_registry  # type: ignore
 
+_translations_added = False
 
-def add_unit_translations():
+def add_unit_translations():  # noqa: C901
     """
     Add translations for some commonly used units.
 
     Called from Django's App.ready() handler.
     """
+    global _translations_added  # noqa: PLW0603
+    if _translations_added:
+        return
+    _translations_added = True
+
     from babel import Locale as Loc
     from pint.babel_names import _babel_units
     try:
@@ -416,4 +420,3 @@ def add_unit_translations():
     # Special locale-specific customizations
     loc = Loc('de')
     loc._data['unit_patterns']['duration-year']['short'] = dict(one='a')
-
