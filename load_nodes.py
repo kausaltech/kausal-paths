@@ -133,6 +133,51 @@ else:
         context = loader.context
         instance = loader.instance
 
+def print_db_datasets():
+    from nodes.datasets import DBDataset, DVCDataset
+
+    if TYPE_CHECKING:
+        from nodes.node import Node
+
+    db_datasets: dict[str, tuple[DBDataset, list[Node]]] = {}
+    dvc_datasets: dict[str, tuple[DVCDataset, list[Node]]] = {}
+    for node in context.nodes.values():
+        for ds in node.input_dataset_instances:
+            if isinstance(ds, DBDataset):
+                db_datasets.setdefault(ds.id, (ds, []))[1].append(node)
+            elif isinstance(ds, DVCDataset):
+                dvc_datasets.setdefault(ds.id, (ds, []))[1].append(node)
+    print('Datasets in use:')
+    table = Table()
+    table.add_column('Source')
+    table.add_column('Dataset ID')
+    table.add_column('Modified at')
+    table.add_column('Used by nodes')
+    node_colors = ['white', 'bright_white']
+    node_color = node_colors[0]
+    for ds_id, (ds, nodes) in db_datasets.items():
+        ds_obj = ds.db_dataset_obj
+        table.add_row(
+            '[green]DB[/green]',
+            '[%s]%s[/%s]' % (node_color, ds_id, node_color),
+            ds_obj.last_modified_at.strftime('%Y-%m-%d %H:%M:%S') if ds_obj else '',
+            ', '.join('[%s]%s[/%s]' % (node_color, node.id, node_color) for node in nodes),
+        )
+        node_color = node_colors[(node_colors.index(node_color) + 1) % len(node_colors)]
+    for ds_id, (_, nodes) in dvc_datasets.items():
+        dvc_ds = context.load_dvc_dataset(ds_id)
+        table.add_row(
+            '[blue]DVC[/blue]',
+            '[%s]%s[/%s]' % (node_color, ds_id, node_color),
+            dvc_ds.modified_at.strftime('%Y-%m-%d %H:%M:%S') if dvc_ds.modified_at else '',
+            ', '.join('[%s]%s[/%s]' % (node_color, node.id, node_color) for node in nodes),
+        )
+        node_color = node_colors[(node_colors.index(node_color) + 1) % len(node_colors)]
+    console.print(table)
+
+
+print_db_datasets()
+
 if args.pull_datasets:
     with start_span(name='pull-datasets', op='init') as span:
         context.pull_datasets()
