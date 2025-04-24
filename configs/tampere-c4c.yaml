@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://tampere-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 1d0d9553ad46d42e71d5b01c10e771b70df55679
+  commit: a0202c9e8edf49b7cdc5c4d9bba3323dcffbb36b
   dvc_remote: kausal-s3
 name: C4C Hiilineutraali Tampere 2030
 name_en: C4C Carbon-neutral Tampere 2030
@@ -1450,6 +1450,49 @@ nodes:
 
 # ----- TRANSPORTATION --------------------------------------------------------
 
+- id: onroad_transportation_emission_factors
+  name: Tieliikenteen päästökertoimet
+  name_en: On-road transportation emission factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_dimensions: [vehicle_type, ghg, scope]
+  output_dimensions: [vehicle_type, ghg, scope]
+  input_datasets:
+  - id: tampere/onroad_transportation
+    column: emission_factor
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii11
+  output_nodes:
+  - id: bus_emissions
+  - id: motorcycle_emissions
+  - id: car_emissions
+  - id: truck_emissions
+  - id: van_emissions
+
+- id: rail_transportation_emission_factors
+  name: Rautatieliikenteen päästökertoimet
+  name_en: Rail transportation emission factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_dimensions: [vehicle_type, energy_carrier, ghg, scope]
+  output_dimensions: [vehicle_type, energy_carrier, ghg, scope]
+  input_datasets:
+  - id: tampere/other_transportation
+    column: emission_factor
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii22
+  output_nodes:
+  - id: local_train_emissions
+  - id: tram_emissions
+
 # ----- Buses
 
 - id: bus_kilometers
@@ -1458,13 +1501,13 @@ nodes:
   type: simple.AdditiveNode
   quantity: mileage
   unit: Mvkm/a
-  input_dimensions: [road_type, vehicle_type, scope]
-  output_dimensions: [road_type, vehicle_type, scope]
+  input_dimensions: [vehicle_type, scope]
+  output_dimensions: [vehicle_type, scope]
   input_datasets:
   - id: tampere/onroad_transportation
     column: mileage
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: ii11
@@ -1474,30 +1517,8 @@ nodes:
   output_nodes:
   - id: bus_emissions
     to_dimensions:
-    - id: road_type
     - id: vehicle_type
     - id: scope
-
-- id: bus_emission_factors
-  name: Bussin päästökerroin
-  name_en: Bus emission factors
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/vkm
-  input_dimensions: [road_type, vehicle_type, ghg, scope]
-  output_dimensions: [road_type, vehicle_type, ghg, scope]
-  input_datasets:
-  - id: tampere/onroad_transportation
-    column: emission_factor
-    dropna: true
-    forecast_from: 2022
-    filters:
-    - column: sector
-      value: ii11
-    - dimension: vehicle_type
-      categories: [buses]
-  output_nodes:
-  - id: bus_emissions
 
 - id: bus_emissions
   name: Bussiliikenteen päästöt
@@ -1505,13 +1526,10 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [road_type, vehicle_type, ghg, scope]
-  output_dimensions: [road_type, vehicle_type, ghg, scope]
+  input_dimensions: [vehicle_type, ghg, scope]
+  output_dimensions: [vehicle_type, ghg, scope]
   output_nodes:
   - id: bus_emissions_total
-    from_dimensions:
-    - id: road_type
-      flatten: true
 
 - id: bus_emissions_total
   name: Bussiliikenteen kokonaispäästöt
@@ -1525,11 +1543,10 @@ nodes:
   - id: tampere/onroad_transportation
     column: emissions
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: ii11
-    - column: road_type
     - dimension: vehicle_type
       categories: [buses]
   input_dataset_processors: [LinearInterpolation]
@@ -1557,7 +1574,7 @@ nodes:
   - id: tampere/other_transportation
     column: mileage
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: ii22
@@ -1570,27 +1587,6 @@ nodes:
     - id: energy_carrier
     - id: vehicle_type
     - id: scope
-
-- id: local_train_emission_factors
-  name: Paikallisjunan päästökerroin
-  name_en: Local train emission factors
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/vkm
-  input_dimensions: [energy_carrier, vehicle_type, ghg, scope]
-  output_dimensions: [energy_carrier, vehicle_type, ghg, scope]
-  input_datasets:
-  - id: tampere/other_transportation
-    column: emission_factor
-    dropna: true
-    forecast_from: 2022
-    filters:
-    - column: sector
-      value: ii22
-    - dimension: vehicle_type
-      categories: [local_trains]
-  output_nodes:
-  - id: local_train_emissions
 
 - id: local_train_emissions
   name: Lähijunaliikenteen päästöt
@@ -1626,12 +1622,11 @@ nodes:
   - id: tampere/onroad_transportation
     column: mileage
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: ii11
     - column: ghg
-    - column: road_type
     - dimension: vehicle_type
       categories: [motorcycles]
   output_nodes:
@@ -1639,28 +1634,6 @@ nodes:
     to_dimensions:
     - id: vehicle_type
     - id: scope
-
-- id: motorcycle_emission_factors
-  name: Moottoripyörien päästökerroin
-  name_en: Motorcycle emission factors
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/vkm
-  input_dimensions: [vehicle_type, ghg, scope]
-  output_dimensions: [vehicle_type, ghg, scope]
-  input_datasets:
-  - id: tampere/onroad_transportation
-    column: emission_factor
-    dropna: true
-    forecast_from: 2022
-    filters:
-    - column: sector
-      value: ii11
-    - column: road_type
-    - dimension: vehicle_type
-      categories: [motorcycles]
-  output_nodes:
-  - id: motorcycle_emissions
 
 - id: motorcycle_emissions
   name: Moottoripyöräliikenteen päästöt
@@ -1685,11 +1658,10 @@ nodes:
   - id: tampere/onroad_transportation
     column: emissions
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: ii11
-    - column: road_type
     - dimension: vehicle_type
       categories: [motorcycles]
   input_dataset_processors: [LinearInterpolation]
@@ -1711,13 +1683,13 @@ nodes:
   type: simple.AdditiveNode
   quantity: mileage
   unit: Mvkm/a
-  input_dimensions: [road_type, vehicle_type, scope]
-  output_dimensions: [road_type, vehicle_type, scope]
+  input_dimensions: [vehicle_type, scope]
+  output_dimensions: [vehicle_type, scope]
   input_datasets:
   - id: tampere/onroad_transportation
     column: mileage
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: ii11
@@ -1727,30 +1699,8 @@ nodes:
   output_nodes:
   - id: car_emissions
     to_dimensions:
-    - id: road_type
     - id: vehicle_type
     - id: scope
-
-- id: car_emission_factors
-  name: Henkilöautoilun päästökerroin
-  name_en: Passenger car emission factors
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/vkm
-  input_dimensions: [road_type, vehicle_type, ghg, scope]
-  output_dimensions: [road_type, vehicle_type, ghg, scope]
-  input_datasets:
-  - id: tampere/onroad_transportation
-    column: emission_factor
-    dropna: true
-    forecast_from: 2022
-    filters:
-    - column: sector
-      value: ii11
-    - dimension: vehicle_type
-      categories: [passenger_cars]
-  output_nodes:
-  - id: car_emissions
 
 - id: car_emissions
   name: Henkilöautoliikenteen päästöt
@@ -1758,8 +1708,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [road_type, vehicle_type, ghg, scope]
-  output_dimensions: [road_type, vehicle_type, ghg, scope]
+  input_dimensions: [vehicle_type, ghg, scope]
+  output_dimensions: [vehicle_type, ghg, scope]
   output_nodes:
   - id: car_emissions_total
 
@@ -1769,13 +1719,13 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [road_type, vehicle_type, ghg, scope]
-  output_dimensions: [road_type, vehicle_type, ghg, scope]
+  input_dimensions: [vehicle_type, ghg, scope]
+  output_dimensions: [vehicle_type, ghg, scope]
   input_datasets:
   - id: tampere/onroad_transportation
     column: emissions
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: ii11
@@ -1785,8 +1735,6 @@ nodes:
   output_nodes:
   - id: transportation_emissions
     from_dimensions:
-    - id: road_type
-      flatten: true
     - id: vehicle_type
       flatten: true
     - id: ghg
@@ -1808,7 +1756,7 @@ nodes:
   - id: tampere/other_transportation
     column: mileage
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: ii22
@@ -1821,27 +1769,6 @@ nodes:
     - id: energy_carrier
     - id: vehicle_type
     - id: scope
-
-- id: tram_emission_factors
-  name: Ratikan päästökerroin
-  name_en: Tram emission factors
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/vkm
-  input_dimensions: [energy_carrier, vehicle_type, ghg, scope]
-  output_dimensions: [energy_carrier, vehicle_type, ghg, scope]
-  input_datasets:
-  - id: tampere/other_transportation
-    column: emission_factor
-    dropna: true
-    forecast_from: 2022
-    filters:
-    - column: sector
-      value: ii22
-    - dimension: vehicle_type
-      categories: [trams]
-  output_nodes:
-  - id: tram_emissions
 
 - id: tram_emissions
   name: Ratikkaliikenteen päästöt
@@ -1877,12 +1804,11 @@ nodes:
   - id: tampere/onroad_transportation
     column: mileage
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: ii11
     - column: ghg
-    - column: road_type
     - dimension: vehicle_type
       categories: [trucks]
   output_nodes:
@@ -1890,28 +1816,6 @@ nodes:
     to_dimensions:
     - id: vehicle_type
     - id: scope
-
-- id: truck_emission_factors
-  name: Kuorma-autojen päästökerroin
-  name_en: Truck emission factors
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/vkm
-  input_dimensions: [vehicle_type, ghg, scope]
-  output_dimensions: [vehicle_type, ghg, scope]
-  input_datasets:
-  - id: tampere/onroad_transportation
-    column: emission_factor
-    dropna: true
-    forecast_from: 2022
-    filters:
-    - column: sector
-      value: ii11
-    - column: road_type
-    - dimension: vehicle_type
-      categories: [trucks]
-  output_nodes:
-  - id: truck_emissions
 
 - id: truck_emissions
   name: Kuorma-autoliikenteen päästöt
@@ -1936,11 +1840,10 @@ nodes:
   - id: tampere/onroad_transportation
     column: emissions
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: ii11
-    - column: road_type
     - dimension: vehicle_type
       categories: [trucks]
   input_dataset_processors: [LinearInterpolation]
@@ -1968,12 +1871,11 @@ nodes:
   - id: tampere/onroad_transportation
     column: mileage
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: ii11
     - column: ghg
-    - column: road_type
     - dimension: vehicle_type
       categories: [vans]
   output_nodes:
@@ -1981,28 +1883,6 @@ nodes:
     to_dimensions:
     - id: vehicle_type
     - id: scope
-
-- id: van_emission_factors
-  name: Pakettiautojen päästökerroin
-  name_en: Van emission factors
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/vkm
-  input_dimensions: [vehicle_type, ghg, scope]
-  output_dimensions: [vehicle_type, ghg, scope]
-  input_datasets:
-  - id: tampere/onroad_transportation
-    column: emission_factor
-    dropna: true
-    forecast_from: 2022
-    filters:
-    - column: sector
-      value: ii11
-    - column: road_type
-    - dimension: vehicle_type
-      categories: [vans]
-  output_nodes:
-  - id: van_emissions
 
 - id: van_emissions
   name: Pakettiautoliikenteen päästöt
@@ -2027,11 +1907,10 @@ nodes:
   - id: tampere/onroad_transportation
     column: emissions
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: ii11
-    - column: road_type
     - dimension: vehicle_type
       categories: [vans]
   input_dataset_processors: [LinearInterpolation]
