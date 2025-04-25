@@ -273,7 +273,7 @@ nodes:
   - id: espoo/vaestoennuste
     tags: [baseline]
     forecast_from: 2023
-    column: vaestoennuste
+    column: population
 
 # ----------- Nodes with city-specific adjustments ---------------
 
@@ -613,7 +613,7 @@ nodes:
     sector: Lämmitys|Kaukolämpö|Kaukolämpö|Asuminen
 
 - id: district_heating_emission_factor_goal
-  name_fi: Kaukolämmön päästökerroin, tavoite
+  name_fi: Kaukolämmön päästökerroin, ennuste
   name_en: District heating emission factor, goal
   name_sv: Emissionsfaktor för fjärrvärme, goal
   type: generic.GenericNode
@@ -644,7 +644,7 @@ nodes:
     sector: Sähkö|Kulutussähkö|_energy_carrier_|_economic_sector_
 
 - id: non_heating_electricity_residence_energy_goal
-  name_fi: Kulutussähkön kulutus (Asuminen), tavoite
+  name_fi: Kulutussähkön kulutus (Asuminen), ennuste
   name_en: Consumer electricity consumption (Residential), goal
   name_sv: Elförbrukning för konsumtionsel (Bostäder), mål
   type: generic.GenericNode
@@ -670,7 +670,7 @@ nodes:
     sector: Sähkö|Kulutussähkö|_energy_carrier_|*
 
 - id: electricity_production_emission_factor_goal
-  name_fi: Sähköntuotannon päästökerroin, tavoite
+  name_fi: Sähköntuotannon päästökerroin, ennuste
   name_en: Electricity production emission factor, goal
   name_sv: Elproduktionens utsläppskoefficient, mål
   type: generic.GenericNode
