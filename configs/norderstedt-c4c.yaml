@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://norderstedt-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: c7c89f0ca2c624723d3dd23395532d4e706b0756
+  commit: 39e1d6015ab1f42a18eefca81a6720c3706d3616
   dvc_remote: kausal-s3
 name: Norderstedt Greenhouse Gas Inventory
 owner: City of Norderstedt
@@ -287,6 +287,7 @@ nodes:
   output_dimensions: ['cost_type', 'scope']
   is_outcome: true
 
+
 - id: i12_residential_grid_energy_emissions
   name: I.1.2 Residential Grid Energy Emissions
   type: simple.AdditiveNode
@@ -315,6 +316,7 @@ nodes:
     to_dimensions:
     - id: scope
     - id: cost_type
+
 
 - id: i22_commercial_and_institutional_grid_energy_consumption
   name: I.2.2 Commercial & Institutional Grid Energy Consumption
@@ -448,6 +450,7 @@ nodes:
     - id: energy_carrier
     - id: cost_type
 
+
 - id: v2_land_emissions
   name: V.2 Land Emissions
   type: simple.AdditiveNode
@@ -457,8 +460,10 @@ nodes:
   output_dimensions: ['ghg', 'scope']
   output_nodes:
   - id: v_afolu_total_emissions
-    to_dimensions:
+    from_dimensions:
     - id: scope
+      flatten: true
+    to_dimensions:
     - id: ghg
 
 - id: v2_land_price
@@ -474,6 +479,7 @@ nodes:
     - id: action
     - id: cost_type
     - id: scope
+
 
 - id: i1_residential_total_emissions
   name: I.1 Residential Total Emissions
@@ -544,21 +550,87 @@ nodes:
     - id: ghg
       flatten: true
 
+
+- id: ii_transportation_total_emissions
+  name: II Transportation Total Emissions
+  type: simple.AdditiveNode
+  color: '#e15759'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg']
+  output_dimensions: ['ghg']
+  input_datasets:
+  - id: norderstedt/transportation
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: ghg
+      flatten: true
+
+
+- id: iii_waste_total_emissions
+  name: III Waste Total Emissions
+  type: simple.AdditiveNode
+  color: '#59a14f'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg']
+  output_dimensions: ['ghg']
+  input_datasets:
+  - id: norderstedt/waste
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: iii
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: ghg
+      flatten: true
+
+
+- id: v_afolu_emissions
+  name: V AFOLU Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg']
+  output_dimensions: ['ghg']
+  input_datasets:
+  - id: norderstedt/afolu
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: v
+  output_nodes:
+  - id: v_afolu_total_emissions
+    to_dimensions:
+    - id: ghg
+
 - id: v_afolu_total_emissions
   name: V AFOLU Total Emissions
   type: simple.AdditiveNode
   color: '#b07aa1'
   quantity: emissions
   unit: t/a
-  input_dimensions: ['ghg', 'scope']
-  output_dimensions: ['ghg', 'scope']
+  input_dimensions: ['ghg']
+  output_dimensions: ['ghg']
   output_nodes:
   - id: net_emissions
     from_dimensions:
     - id: ghg
       flatten: true
-    - id: scope
-      flatten: true
+
 
 - id: v_afolu_total_price
   name: V AFOLU Total Price
@@ -1150,6 +1222,106 @@ actions:
     - id: action
     - id: cost_type
     - id: scope
+
+
+- id: decarbonize_municipal_electricity_corporate
+  name: Decarbonize Municipal Electricity (Corporate)
+  type: simple.AdditiveAction
+  group: i_stationary
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg']
+  output_dimensions: ['ghg']
+  input_datasets:
+  - id: norderstedt/stationary_actions
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: decarbonize_municipal_electricity_corporate
+    - column: scope
+    - column: cost_type
+    - column: energy_carrier
+  output_nodes:
+  - id: i_stationary_emissions
+    to_dimensions:
+    - id: ghg
+
+
+- id: decarbonize_municipal_electricity_community
+  name: Decarbonize Municipal Electricity (Community)
+  type: simple.AdditiveAction
+  group: i_stationary
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg']
+  output_dimensions: ['ghg']
+  input_datasets:
+  - id: norderstedt/stationary_actions
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: decarbonize_municipal_electricity_community
+    - column: scope
+    - column: cost_type
+    - column: energy_carrier
+  output_nodes:
+  - id: i_stationary_emissions
+    to_dimensions:
+    - id: ghg
+
+
+- id: decarbonize_municipal_district_heating_corporate
+  name: Decarbonize Municipal District Heating (Corporate)
+  type: simple.AdditiveAction
+  group: i_stationary
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg']
+  output_dimensions: ['ghg']
+  input_datasets:
+  - id: norderstedt/stationary_actions
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: decarbonize_municipal_district_heating_corporate
+    - column: scope
+    - column: cost_type
+    - column: energy_carrier
+  output_nodes:
+  - id: i_stationary_emissions
+    to_dimensions:
+    - id: ghg
+
+
+- id: decarbonize_municipal_district_heating_community
+  name: Decarbonize Municipal District Heating (Community)
+  type: simple.AdditiveAction
+  group: i_stationary
+  quantity: emissions
+  unit: t/a
+  input_dimensions: ['ghg']
+  output_dimensions: ['ghg']
+  input_datasets:
+  - id: norderstedt/stationary_actions
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: decarbonize_municipal_district_heating_community
+    - column: scope
+    - column: cost_type
+    - column: energy_carrier
+  output_nodes:
+  - id: i_stationary_emissions
+    to_dimensions:
+    - id: ghg
 
 
 pages:
