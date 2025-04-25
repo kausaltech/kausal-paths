@@ -27,14 +27,15 @@ if TYPE_CHECKING:
 
 
 class GenericNode(SimpleNode):
-    explanation = _(
-        """
-        GenericNode: A highly configurable node that processes inputs through a sequence of operations.
+    """
+    GenericNode: A highly configurable node that processes inputs through a sequence of operations.
 
-        Operations are defined in the 'operations' parameter and executed in order.
-        Each operation works on its corresponding basket of nodes.
-        """
-    )
+    Operations are defined in the 'operations' parameter and executed in order.
+    Each operation works on its corresponding basket of nodes.
+    """
+
+    explanation = _("Multiply input nodes whose unit does not match the output. Then add the rest.")
+
     allowed_parameters = [
         *SimpleNode.allowed_parameters,
         StringParameter(local_id='operations', label='Comma-separated list of operations to execute in order'),
@@ -1352,7 +1353,7 @@ class CohortNode(GenericNode):
                     (101,120), (121,140), (141,160)]
 
         # Define simulation years
-        years = range(2022, 2030)
+        years = range(2022, 2050)
 
         node = self.get_input_node(tag='inventory')
         df = node.get_output_pl(target_node=self)
