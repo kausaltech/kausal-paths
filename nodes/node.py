@@ -1592,104 +1592,138 @@ class Node:
         df = df.set_unit(VALUE_COLUMN, 'dimensionless')
         return df
 
-    def get_explanation(self):  # FIXME Add warning if categories drop out in merge.  # noqa: C901, PLR0912, PLR0915
-        operation_nodes = [n.name for n in self.input_nodes]  # FIXME separate operation and additive
-        text = str(self.explanation) + '\n'
+    tag_descriptions = {
+        'non_additive': _('Input node values are not added but operated despite matching units.'),
+        'truncate_beyond_end': _('Truncate values beyond the model end year. There may be some from data'),
+        'truncate_before_start': _('Truncate values before the reference year. There may be some from data'),
+        'extend_values': _('Extend the last historical values to the remaining missing years.'),
+        'inventory_only': _('Truncate the forecast values.'),
+        'arithmetic_inverse': _('Take the arithmetic inverse of the values (-x).'),
+        'geometric_inverse': _('Take the geometric inverse of the values (1/x).'),
+        'complement': _('Take the complement of the dimensionless values (1-x).'),
+        'difference': _('Take the difference over time (i.e. annual changes)'),
+        'cumulative': _('Take the cumulative sum over time.'),
+        'cumulative_product': _('Take the cumulative product of the dimensionless values over time.'),
+        'complement_cumulative_product': _('Take the cumulative product of the dimensionless complement values over time.'),
+        'ratio_to_last_historical_value': _('Take the ratio of the values compared with the last historical value.'),
+        'existing': _('This is used as the baseline.'),
+        'incoming': _('This is used for the incoming stock.'),
+        'removing': _('This is the rate of stock removal.'),
+        'inserting': _('This is the rate of new stock coming in.'),
+        'historical': _('The node is used as the historical starting point.'),
+        'goal': _('The node is used as the goal for the action.'),
+        'make_nonnegative': _('Negative result values are replaced with 0.'),
+        'make_nonpositive': _('Positive result values are replaced with 0.'),
+        'empty_to_zero': _('Convert NaNs to zeros.'),
+        'expectation': _('Take the expected value over the uncertainty dimension.'),
+        'ignore_content': _('Show edge on graphs but ignore upstream content.'),
+    }
+
+    def get_explanation(self):
+        """Generate an HTML explanation of this node's processing logic and inputs."""
+
+        html = []
+
+        # Start with the explanation text
+        if self.explanation:
+            html.append(f"<p>{self.explanation}</p>")
+
+        # Add formula if available
         if 'formula' in self.parameters.keys():
-            text += 'The formula is:\n%s\n' % self.get_parameter_value_str('formula', required=False)
-        if len(operation_nodes) > 0:
-            text += _('The node has the following input nodes:') + '\n' + str(operation_nodes)
-        else:
-            text += _('The node does not have input nodes.')
-        edge_text0 = edge_text = (
-            'The input nodes are processed in the following way before using as input for calculations in this node:\n'
-        )
+            formula = self.get_parameter_value_str('formula', required=False)
+            html.append(f"<p>{_('The formula is:')}</p>")
+            html.append(f"<pre>{formula}</pre>")
+
+        # # Handle input nodes # FIXME Add operations when the buckets is a node attribute.
+        # operation_nodes = [getattr(n, 'translated_name', n.name) for n in self.input_nodes]
+        # if operation_nodes:
+        #     html.append(f"<p>{_('The node has the following input nodes:')}</p>")
+        #     html.append("<ul>")
+        #     html.extend([f"<li>{node_name}</li>" for node_name in operation_nodes])
+        #     html.append("</ul>")
+        # else:
+        #     html.append(f"<p>{_('The node does not have input nodes.')}</p>")
+
+
+        # Add datasets information
+        dataset_html = []
+        if self.input_dataset_instances:
+            dataset_html.append(f"<p>{_('The node has the following datasets:')}</p>")
+            dataset_html.append("<ul>")
+            dataset_html.extend([f"<li>{dataset.id}</li>" for dataset in self.input_dataset_instances])
+            dataset_html.append("</ul>")
+
+        edge_html = self.get_edge_explanation()
+        # Combine all parts
+        if edge_html is not None:
+            html.extend(edge_html)
+        if dataset_html:
+            html.extend(dataset_html)
+
+        return "\n".join(html)
+
+    def get_edge_explanation(self):
+        has_edge_info = False
+        edge_html = []
+        edge_html.append(f"<p>{_(
+            'The input nodes are processed in the following way before using as input for calculations in this node:'
+        )}</p>")
+        edge_html.append("<ul>")  # Start the main list for nodes
+
         for node in self.input_nodes:
             for edge in node.edges:
-                if edge.output_node != self:
+                if edge.output_node != self or not edge.tags:
                     continue
-                if len(edge.tags) == 0:
-                    continue
-                edge_text += '    Node ' + str(node.name) + ':\n'
+
+                has_edge_info = True
+                node_name = getattr(node, 'translated_name', node.name)
+
+                # Create a list item for the node with nested list
+                edge_html.append(f"<li>{_('Node')} {node_name}:")
+                edge_html.append("<ul>")  # Start nested list for this node
+
+                # Process edge tags using the lookup dictionary
                 for tag in edge.tags:
-                    if tag == 'non_additive':
-                        edge_text += _('    - Input node values are not added but operated despite matching units.\n')
-                    elif tag == 'truncate_beyond_end':
-                        edge_text += _('    - Truncate values beyond the model end year. There may be some from data')
-                    elif tag == 'truncate_before_start':
-                        edge_text += _('    - Truncate values before the reference year. There may be some from data')
-                    elif tag == 'extend_values':
-                        edge_text += _('    - Extend the last historical values to the remaining missing years.\n')
-                    elif tag == 'inventory_only':
-                        edge_text += _('    - Truncate the forecast values.\n')
-                    elif tag == 'arithmetic_inverse':
-                        edge_text += _('    - Take the arithmetic inverse of the values (-x).\n')
-                    elif tag == 'geometric_inverse':
-                        edge_text += _('    - Take the geometric inverse of the values (1/x).\n')
-                    elif tag == 'complement':
-                        edge_text += _('    - Take the complement of the dimensionless values (1-x).\n')
-                    elif tag == 'difference':
-                        edge_text += _('    - Take the difference across time (i.e. annual changes)\n')
-                    elif tag == 'cumulative':
-                        edge_text += _('    - Take the cumulative sum across time.\n')
-                    elif tag == 'cumulative_product':
-                        edge_text += _('    - Take the cumulative product of the dimensionless values across time.\n')
-                    elif tag == 'complement_cumulative_product':
-                        edge_text += _('    - Take the cumulative product of the dimensionless complement values across time.\n')
-                    elif tag == 'ratio_to_last_historical_value':
-                        edge_text += _('    - Take the ratio of the values compared with the last historical value.\n')
-                    elif tag == 'existing':
-                        edge_text += _('    - This is used as the baseline.\n')
-                    elif tag == 'incoming':
-                        edge_text += _('    - This is used for the incoming stock.\n')
-                    elif tag == 'removing':
-                        edge_text += _('    - This is the rate of stock removal.\n')
-                    elif tag == 'inserting':
-                        edge_text += _('    - This is the rate of new stock coming in.\n')
-                    elif tag == 'historical':
-                        edge_text += _('    - The node is used as the historical starting point.\n')
-                    elif tag == 'goal':
-                        edge_text += _('    - The node is used as the goal for the action.\n')
-                    elif tag == 'make_nonnegative':
-                        edge_text += _('    - Negative result values are replaced with 0.\n')
-                    elif tag == 'make_nonpositive':
-                        edge_text += _('    - Positive result values are replaced with 0.\n')
-                    elif tag == 'empty_to_zero':
-                        edge_text += _('    - Convert NaNs to zeros.\n')
-                    elif tag == 'expectation':
-                        edge_text += _('    - Take the expected value over the uncertainty dimension.\n')
-                    elif tag == 'ignore_content':
-                        edge_text += _('    - Show edge on graphs but ignore upstream content.\n')
-                    else:
-                        edge_text += _('    - The tag "%s" is given.\n') % tag
+                    description = self.tag_descriptions.get(tag, _('The tag "%s" is given.') % tag)
+                    edge_html.append(f"<li>{description}</li>")
 
-                from_dims = edge.from_dimensions
-                if from_dims is not None:
-                    for dim in from_dims:
-                        cats = str([cat.label for cat in from_dims[dim].categories])
-                        dimlabel = self.context.dimensions[dim].label
-                        if len(from_dims[dim].categories) > 0:
-                            if from_dims[dim].exclude:
-                                do = 'exclude'
-                            else:
-                                do = 'include'
-                            edge_text += _('    - From dimension %s, %s categories %s.\n') % (dimlabel, do, cats)
-                        if from_dims[dim].flatten:
-                            edge_text += _('    - Sum over dimension %s .\n') % dimlabel
+                edge_html = self.get_explanation_for_edge_from(edge, edge_html)
+                edge_html = self.get_explanation_for_edge_to(edge, edge_html)
 
-                to_dims = edge.to_dimensions
-                if to_dims is not None:
-                    for dim in to_dims:
-                        cats = str([cat.label for cat in to_dims[dim].categories])
-                        dimlabel = self.context.dimensions[dim].label
-                        if len(to_dims[dim].categories) > 0:
-                            edge_text += _('    - Add values to the category %s in a new dimension %s.\n' % (cats, dim))  # noqa: INT003
+                edge_html.append("</ul>")  # Close node's nested list
+                edge_html.append("</li>")  # Close node list item
 
-        # print(self.input_datasets)  # FIXME Why does this not work?
-        # if self.input_datasets:
-        #     dataset_text = _('The node has the following datasets:') + '\n' + str(self.input_datasets)
-        if edge_text == edge_text0:
-            edge_text = ''
-        # FIXME The following probably does not work properly in translations.
-        text += edge_text  # + dataset_text
-        return text
+        if not has_edge_info:
+            return None
+        edge_html.append("</ul>")  # Close main nodes list
+        return edge_html
+
+
+    def get_explanation_for_edge_from(self, edge, edge_html):
+        from_dims = edge.from_dimensions
+        if from_dims is not None:
+            for dim in from_dims:
+                dimlabel = self.context.dimensions[dim].label
+                cats = [str(cat.label) for cat in from_dims[dim].categories]
+
+                if cats:
+                    do = _('exclude') if from_dims[dim].exclude else _('include')
+                    edge_html.append(f"<li>{_('From dimension %s, %s categories: %s.') % (dimlabel, do, ', '.join(cats))}</li>")
+
+                if from_dims[dim].flatten:
+                    edge_html.append(f"<li>{_('Sum over dimension %s.') % dimlabel}</li>")
+        return edge_html
+
+    def get_explanation_for_edge_to(self, edge, edge_html):
+        to_dims = edge.to_dimensions
+        if to_dims is not None:
+            for dim in to_dims:
+                dimlabel = self.context.dimensions[dim].label
+                cats = [str(cat.label) for cat in to_dims[dim].categories]
+
+                if cats:
+                    cat_str = ', '.join(cats)
+                    edge_html.append(
+                        f"<li>{_('Add values to the category %s in a new dimension %s.') % (cat_str, dimlabel)}</li>"
+                    )
+        return edge_html
