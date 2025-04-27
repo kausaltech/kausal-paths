@@ -1626,9 +1626,13 @@ class Node:
 
         # Start with the explanation text
         if self.explanation:
-            html.append(f"<p>{self.explanation}</p>")
+            html.append(f"<p>{self.explanation}")
+        if 'operations' in self.parameters.keys():
+            operations = self.get_parameter_value_str('operations', required=False)
+            html.append(f"The order of operations is {operations}.")
+        html.append("</p>")
 
-        # Add formula if available
+        # Add formula if available # TODO Also describe other parameters.
         if 'formula' in self.parameters.keys():
             formula = self.get_parameter_value_str('formula', required=False)
             html.append(f"<p>{_('The formula is:')}</p>")
@@ -1655,7 +1659,7 @@ class Node:
 
         edge_html = self.get_edge_explanation()
         # Combine all parts
-        if edge_html is not None:
+        if edge_html:
             html.extend(edge_html)
         if dataset_html:
             html.extend(dataset_html)
@@ -1663,43 +1667,51 @@ class Node:
         return "\n".join(html)
 
     def get_edge_explanation(self):
-        has_edge_info = False
         edge_html = []
         edge_html.append(f"<p>{_(
             'The input nodes are processed in the following way before using as input for calculations in this node:'
         )}</p>")
         edge_html.append("<ul>")  # Start the main list for nodes
+        edge_html0 = edge_html.copy()
 
         for node in self.input_nodes:
             for edge in node.edges:
-                if edge.output_node != self or not edge.tags:
+                if edge.output_node != self:
                     continue
 
-                has_edge_info = True
+                tag_html = self.get_explanation_for_edge_tag(edge)
+                from_html = self.get_explanation_for_edge_from(edge)
+                to_html = self.get_explanation_for_edge_to(edge)
+
+            if tag_html or from_html or to_html:
+
                 node_name = getattr(node, 'translated_name', node.name)
 
                 # Create a list item for the node with nested list
                 edge_html.append(f"<li>{_('Node')} {node_name}:")
                 edge_html.append("<ul>")  # Start nested list for this node
-
-                # Process edge tags using the lookup dictionary
-                for tag in edge.tags:
-                    description = self.tag_descriptions.get(tag, _('The tag "%s" is given.') % tag)
-                    edge_html.append(f"<li>{description}</li>")
-
-                edge_html = self.get_explanation_for_edge_from(edge, edge_html)
-                edge_html = self.get_explanation_for_edge_to(edge, edge_html)
-
+                edge_html.extend(tag_html)
+                edge_html.extend(from_html)
+                edge_html.extend(to_html)
                 edge_html.append("</ul>")  # Close node's nested list
                 edge_html.append("</li>")  # Close node list item
 
-        if not has_edge_info:
-            return None
+        if edge_html == edge_html0:
+            return []
         edge_html.append("</ul>")  # Close main nodes list
         return edge_html
 
+    def get_explanation_for_edge_tag(self, edge):
+        edge_html = []
+        # Process edge tags using the lookup dictionary
+        if edge.tags:
+            for tag in edge.tags:
+                description = self.tag_descriptions.get(tag, _('The tag "%s" is given.') % tag)
+                edge_html.append(f"<li>{description}</li>")
+        return edge_html
 
-    def get_explanation_for_edge_from(self, edge, edge_html):
+    def get_explanation_for_edge_from(self, edge):
+        edge_html = []
         from_dims = edge.from_dimensions
         if from_dims is not None:
             for dim in from_dims:
@@ -1714,7 +1726,8 @@ class Node:
                     edge_html.append(f"<li>{_('Sum over dimension %s.') % dimlabel}</li>")
         return edge_html
 
-    def get_explanation_for_edge_to(self, edge, edge_html):
+    def get_explanation_for_edge_to(self, edge):
+        edge_html = []
         to_dims = edge.to_dimensions
         if to_dims is not None:
             for dim in to_dims:
@@ -1724,6 +1737,6 @@ class Node:
                 if cats:
                     cat_str = ', '.join(cats)
                     edge_html.append(
-                        f"<li>{_('Add values to the category %s in a new dimension %s.') % (cat_str, dimlabel)}</li>"
+                        f"<li>{_('Categorize the values to %s in a new dimension %s.') % (cat_str, dimlabel)}</li>"
                     )
         return edge_html

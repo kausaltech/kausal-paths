@@ -34,7 +34,7 @@ class GenericNode(SimpleNode):
     Each operation works on its corresponding basket of nodes.
     """
 
-    explanation = _("Multiply input nodes whose unit does not match the output. Then add the rest.")
+    explanation = _("Multiply input nodes whose unit does not match the output. Add the rest.")
 
     allowed_parameters = [
         *SimpleNode.allowed_parameters,
@@ -111,6 +111,10 @@ class GenericNode(SimpleNode):
         """Multiply all nodes in the multiplicative basket."""
         nodes = baskets['multiplicative']
         if nodes and len(nodes) > 0:
+            print(nodes)
+            print(df)
+            print(kwargs)
+            print(baskets)
             df = self.multiply_nodes_pl(
                 df=df,
                 nodes=nodes,
@@ -990,6 +994,12 @@ class ThresholdNode(GenericNode):
 
 
 class CohortNode(GenericNode):
+    explanation = _(
+    """
+    Cohort node take in initial age structure (inventory) and follows the cohort in time as it ages.
+
+    Harvest describes how much is removed from the cohort.
+    """)
 
     output_metrics = {
          'hectares': NodeMetric('t_ha', 'area'),
@@ -1004,17 +1014,8 @@ class CohortNode(GenericNode):
     # ]
 
     def get_transition_matrix(self, n_ages, harvest_probabilities):
-        """
-        Create a transition matrix with age-specific harvest probabilities.
-
-        Args:
-            n_ages: Number of age groups
-            harvest_probabilities: Array/list of length n_ages with probabilities (0-1) of harvesting for each age
-
-        Returns:
-            Transition matrix incorporating probabilities of harvesting and aging
-
-        """
+        """Create a transition matrix with age-specific harvest probabilities."""
+        # This method is fine as is - no changes needed
         # Ensure we have the right number of probabilities
         assert len(harvest_probabilities) == n_ages, "Must provide harvest probability for each age group"
 
@@ -1043,32 +1044,33 @@ class CohortNode(GenericNode):
 
         return transition_matrix
 
-    def simulate_age_dynamics(  # noqa: D417
+    def simulate_age_dynamics(
             self,
             initial_ages,
             years,
             harvest_probabilities,
             growth_curve,
-            mortality_rate_fn,
-            site=None,
-            species=None
+            mortality_rate_fn
         ):
         """
         Core simulation function handling pure age dynamics and returning a DataFrame.
 
         Parameters
         ----------
-        - initial_ages: numpy array of hectares by age (0 to max_age)
-        - years: sequence of years (e.g. range(2020, 2051))
-        - harvest_probabilities: age at which stands are harvested
-        - growth_curve: function that returns volume per hectare given age
-        - mortality_rate_fn: function that returns mortality rate given age
-        - site: optional site identifier to include in output
-        - species: optional species identifier to include in output
+        initial_ages
+            numpy array of hectares by age (0 to max_age)
+        years
+            sequence of years (e.g. range(2020, 2051))
+        harvest_probabilities
+            probabilities of harvesting for each age
+        growth_curve
+            function that returns volume per hectare given age
+        mortality_rate_fn
+            function that returns mortality rate given age
 
         Returns
         -------
-        - Polars DataFrame with complete simulation results
+        Polars DataFrame with simulation results (without dimension data)
 
         """
         # Initialize results structure
@@ -1084,7 +1086,6 @@ class CohortNode(GenericNode):
 
         # Pre-calculate volume by age (internal only)
         volume_by_age = np.array([growth_curve(age) for age in range(n_ages)])
-
 
         # For each year in simulation (starting from second year)
         for year_idx in range(1, n_years):
@@ -1136,111 +1137,118 @@ class CohortNode(GenericNode):
                     YEAR_COLUMN: year,
                     'annual_age': age,
                     'hectares': hectares[year_idx, age],
-                    # 'volume_per_ha': volume_per_ha,
                     'total_volume': total_volume,
                     'harvest_volume': harvest_volume[year_idx, age],
                     'natural_mortality': natural_mortality[year_idx, age]
                 }
 
-                # Add optional site and species if provided
-                if site is not None: # FIXME Move these to simulate_cohort()
-                    row['region'] = site
-                if species is not None:
-                    row['species'] = species
-
                 results_data.append(row)
 
-        # Create and return DataFrame
+        # Create and return DataFrame without dimension data
         return pl.DataFrame(results_data)
 
-    def simulate_cohort(  # noqa: D417
+    def simulate_cohort(
             self,
             initial_year: ppl.PathsDataFrame,
             years: range,
-            cohort_params: dict,
+            max_age: int = 161
         ):
         """
-        Simulate forest development for all site types and species.
+        Simulate forest development for all dimension combinations.
 
         Parameters
         ----------
-        - initial_year: DataFrame with initial state
-        - years: range of years to simulate
-        - cohort_params: dict with params for each site/species
+        initial_year
+            DataFrame with initial state
+        years
+            Range of years to simulate
+        max_age
+            Maximum age to model (default: 161)
 
         Returns
         -------
-        - DataFrame with combined results
+        DataFrame with combined results
 
         """
-        # Maximum age to model
-        max_age = 161  # 0 to 160 years
-
-        # Process each site type and species separately
+        if len(initial_year.dim_ids) < 2:
+            raise NodeError(self, "CohortNode must receive at least one dimension in addition to Age.")
+        # Process each dimension combination separately
         all_results = []
 
-        dim_combinations = initial_year.select(initial_year.dim_ids).unique()
+        # Get all unique dimension combinations
+        dim_combinations = initial_year.select(initial_year.dim_ids).drop('annual_age').unique()
 
         for combo in dim_combinations.iter_rows(named=True):
             # Extract data for this combination of dimensions
-            site_sp_data = initial_year.filter(
+            combo_data = initial_year.filter(
                 pl.all_horizontal(
-                    pl.col(dim) == combo[dim] for dim in initial_year.dim_ids
+                    pl.col(dim) == combo[dim] for dim in dim_combinations.columns
                 )
             )
-            site = combo['region']
-            sp = 'pine'
 
-            # Create array of hectares by age
+            # Create array of hectares by age and harvest probabilities
             initial_ages = np.zeros(max_age)
             harvest_probabilities = np.zeros(max_age)
-            for row in site_sp_data.iter_rows(named=True):
+
+            for row in combo_data.iter_rows(named=True):
                 age = row['annual_age']
                 if age < max_age:
                     initial_ages[age] += row['hectares']
                     harvest_probabilities[age] = row['harvest_probability']
 
-            # Get parameters for this site/species
-            params = cohort_params.get(
-                (site, sp),
-                self.create_default_params(site, sp, max_age)
-            )
+            # Get parameters for this dimension combination
+            params = self.create_default_params(combo, max_age)
 
-            # Extract just the parameters needed for core function
+            # Extract parameters
             growth_curve = params['growth_curve']
             mortality_rate_fn = params['mortality_rates']
 
-            # Run core simulation - now returns a complete DataFrame
-            stand_results = self.simulate_age_dynamics(
+            # Run core simulation without dimension data
+            sim_results = self.simulate_age_dynamics(
                 initial_ages,
                 years,
                 harvest_probabilities,
                 growth_curve,
-                mortality_rate_fn,
-                site=site,
-                species=sp
+                mortality_rate_fn
             )
 
+            # Add dimension data to results
+            for dim in dim_combinations.columns:
+                sim_results = sim_results.with_columns(pl.lit(combo[dim]).alias(dim))
+
             # Add to results
-            all_results.append(stand_results)
+            all_results.append(sim_results)
 
         # Combine all results
         out = pl.concat(all_results)
+
+        # Apply metadata
         meta = initial_year.get_meta()
-        meta.primary_keys += ['species']
+        meta.primary_keys = [col for col in out.columns if col in initial_year.primary_keys]
         meta.units['hectares'] = meta.units['hectares']
         meta.units['natural_mortality'] = Unit('m3_solid/a')
         meta.units['total_volume'] = Unit('m3_solid')
         meta.units['harvest_volume'] = Unit('m3_solid/a')
-        out = ppl.to_ppdf(out, meta=meta)
 
-        return out
+        return ppl.to_ppdf(out, meta=meta)
 
+    def create_default_params(self, combo: dict, max_age: int) -> dict:
+        """
+        Create default parameters for a given dimension combination.
 
-    def create_default_params(self, region: str, species: str, max_age: int) -> dict:
-        """Create default parameters for a site type and species."""
+        Parameters
+        ----------
+        combo
+            Dictionary containing dimension values (e.g. {'region': 'uusimaa', 'species': 'pine'})
+        max_age
+            Maximum age to model
 
-        # Site factors for growth
+        Returns
+        -------
+        Dictionary of parameters for simulation
+
+        """
+        # Site factors for growth - use region if available, otherwise default
         site_factors = {
             "herb-rich": 1.3,
             "fresh": 1.0,
@@ -1248,7 +1256,7 @@ class CohortNode(GenericNode):
             "dry": 0.5
         }
 
-        # Species factors for growth
+        # Species factors for growth - use species if available, otherwise default
         species_factors = {
             "pine": 1.0,
             "spruce": 1.2,
@@ -1256,26 +1264,31 @@ class CohortNode(GenericNode):
             "other": 0.7
         }
 
-        # Get site and species factors
+        # Get region and species from combo if available, otherwise use defaults
+        region = combo.get('region', 'unknown')
+        species = combo.get('species', 'pine')
+
+        # Get growth factors
         site_factor = site_factors.get(region, 0.8)
         sp_factor = species_factors.get(species, 1.0)
 
         # Create growth curve function
         def growth_curve(age: int) -> float:
-            return site_factor * 7.0 * age * sp_factor # 560 m3_solid / ha at 100 a
+            return site_factor * 7.0 * age * sp_factor  # 560 m3_solid / ha at 100 a
 
-        # Create mortality rate function
+        # Create mortality rate function - could be customized based on other dimensions
         def mortality_rates(age: int) -> float:
             return 0.005 + 0.0005 * age/10
 
-        return {
-            'region': region,
-            'species': 'pine', # species,
-            # 'harvest_probabilities': harvest_probabilities,
+        # Build parameter dictionary - include all combo items for reference
+        params = {
+            **combo,  # Include all dimension values
             'max_age': max_age,
             'growth_curve': growth_curve,
             'mortality_rates': mortality_rates
         }
+
+        return params
 
     def expand_to_annual_ages(
             self,
@@ -1354,35 +1367,23 @@ class CohortNode(GenericNode):
 
         # Define simulation years
         years = range(2022, 2050)
+        max_age = 161  # 0 to 160 years
 
+        # Get input data
         node = self.get_input_node(tag='inventory')
         df = node.get_output_pl(target_node=self)
-        # df = df.filter(pl.col('region') == 'uusimaa')
-        # initial_year = df.get_last_historical_values()
 
+        # Get harvest probabilities and join with inventory data
         harvest = self.get_input_node(tag='harvest').get_output_pl(target_node=self)
         harvest = harvest.ensure_unit(VALUE_COLUMN, '1/a')
         df = df.paths.join_over_index(harvest).get_last_historical_values()
-        # harvest_probabilities = harvest.get_output_pl(target_node=self).get_last_historical_values()
-        # # harvest_probabilities = harvest_probabilities.sort(pl.col('age'))
-        # harvest_probabilities = self.expand_to_annual_ages(harvest_probabilities, age_groups)
-        # print(harvest_probabilities)
 
         # Convert to annual ages
         annual_forest = self.expand_to_annual_ages(df, age_groups)
-        # annual_forest = self.expand_to_annual_ages(initial_year, age_groups)
-        # df = initial_year.paths.join_over_index(harvest_probabilities)
 
-        # Create parameters for each site/species
-        cohort_params = {}
-        for site in annual_forest['region'].unique():
-            # Create specific parameters
-            cohort_params[(site)] = self.create_default_params(
-                site, 'pine', 161 # FIXME
-            )
+        # Run the simulation with dimension-agnostic approach
+        results = self.simulate_cohort(annual_forest, years, max_age)
 
-        # Run the simulation
-        results = self.simulate_cohort(annual_forest, years, cohort_params)
-
-        # Aggregate back to age groups if needed
+        # Aggregate back to age groups
         return self.aggregate_to_age_groups(results, age_groups)
+

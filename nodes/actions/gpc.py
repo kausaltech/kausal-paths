@@ -828,7 +828,6 @@ class DatasetRelationAction(DatasetAction, GenericNode):
         return df
 
     def compute_effect(self) -> ppl.PathsDataFrame:
-        print('in the beginning:', self.is_enabled())
         df = self._compute()
         baskets = self._get_input_baskets(self.input_nodes)
         df, _ = self._operation_apply_relationship(df, baskets)
