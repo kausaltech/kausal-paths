@@ -467,8 +467,11 @@ class ImpactOverview:
         pc = PerfCounter('Action efficiency %s / %s' % (self.cost_node.id, self.impact_node.id), level=PerfCounter.Level.DEBUG)
         pc.display('starting')
         for action in actions:
+            # FIXME Should work with single-node graphs
             if not action.is_connected_to(self.cost_node) or not action.is_connected_to(self.impact_node):
                 # Action is not connected to either cost or impact nodes, skip it
+                continue
+            if not action.is_enabled(): # Inactive actions would give false zeros
                 continue
 
             # Dimensions that cost and impact nodes can have, and should if they are given:

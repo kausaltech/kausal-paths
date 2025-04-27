@@ -111,10 +111,6 @@ class GenericNode(SimpleNode):
         """Multiply all nodes in the multiplicative basket."""
         nodes = baskets['multiplicative']
         if nodes and len(nodes) > 0:
-            print(nodes)
-            print(df)
-            print(kwargs)
-            print(baskets)
             df = self.multiply_nodes_pl(
                 df=df,
                 nodes=nodes,

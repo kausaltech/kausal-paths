@@ -168,33 +168,32 @@ nodes:
     - column: Sector
       value: Carbon sink unit price
 
-# - id: other_forest_income
-#   name: Other forest income
-#   name_fi: Muu metsätulo
-#   type: generic.GenericNode
-#   quantity: currency
-#   unit: MEUR/a
-#   input_dimensions: [age, region, species]
-#   output_dimensions: [age, region, species]
-# #   input_datasets:
-# #   - id: sunnydale/forestry_fi
-# #     filters:
-# #     - column: Sector
-# #       value: Argument placeholder
-#   input_nodes:
-#   - id: price_of_forest_protection
-#     tags: [additive]
-#     to_dimensions: []
-#   - id: price_of_carbon_sinks
-#     tags: [additive]
-#     to_dimensions: []
-#   - id: forest_volume
-#     tags: [non_additive] # TODO Consider turning off unit checking also in multiply_nodes_pl.
-# #     from_dimensions:
-# #     - id: age
-# #       flatten: true
-# #     - id: region
-# #       flatten: true
+- id: other_forest_income
+  name: Other forest income
+  name_fi: Muu metsätulo
+  type: generic.GenericNode
+  quantity: currency
+  unit: EUR/m3_solid/a
+  input_dimensions: [species]
+  output_dimensions: [species]
+  input_nodes:
+  - id: price_of_forest_protection
+    tags: [additive]
+    to_dimensions:
+    - id: species
+      categories: [pine] # TODO Remove
+  - id: price_of_carbon_sinks
+    tags: [additive]
+    to_dimensions:
+    - id: species
+      categories: [pine] # TODO Remove
+  # - id: forest_volume
+  #   tags: [non_additive] # FIXME Unclear why this gives an error.
+  #   from_dimensions:
+  #   - id: age
+  #     flatten: true
+  #   - id: region
+  #     flatten: true
 # #     - id: species
 # #       flatten: true
 # #     to_dimensions:
@@ -211,8 +210,8 @@ nodes:
 # #       categories: [economic]
 # #     - id: stakeholder
 # #     - id: case
-#   params:
-#     operations: add,multiply
+  params:
+    operations: add,multiply
 
 - id: total_utility
   name: Total utility
@@ -221,6 +220,7 @@ nodes:
   unit: dimensionless
   input_dimensions: [stakeholder, cost_type, case]
   output_dimensions: [stakeholder, cost_type, case]
+  is_outcome: true
   input_datasets:
   - id: sunnydale/forestry_fi
     tags: [input_node_weights]
