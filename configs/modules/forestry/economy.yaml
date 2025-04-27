@@ -21,10 +21,19 @@ nodes:
   input_dimensions: [cost_type, stakeholder, case]
   output_dimensions: [cost_type, stakeholder, case]
   input_nodes:
-  - id: forestry_production
+  - id: forest_harvest_volume
+    from_dimensions:
+    - id: age
+      flatten: true
+    - id: species
+      flatten: true
+    - id: region
+      flatten: true
     to_dimensions:
     - id: stakeholder
+      categories: [state]
     - id: case
+      categories: [case1]
   - id: forestry_product_unit_price
     to_dimensions:
     - id: cost_type
@@ -159,38 +168,51 @@ nodes:
     - column: Sector
       value: Carbon sink unit price
 
-- id: other_forest_income
-  name: Other forest income
-  name_fi: Muu metsätulo
-  type: generic.GenericNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [stakeholder, case]
-  output_dimensions: [stakeholder, case]
-  input_datasets:
-  - id: sunnydale/forestry_fi
-    filters:
-    - column: Sector
-      value: Argument placeholder
-  input_nodes:
-  - id: price_of_forest_protection
-    tags: [additive]
-    to_dimensions: []
-  - id: price_of_carbon_sinks
-    tags: [additive]
-    to_dimensions: []
-  - id: amount_of_wood_in_forests
-  - id: premature_cuts_destroy_income
-    tags: [ignore_content]
-  output_nodes:
-  - id: total_economic_cost
-    to_dimensions:
-    - id: cost_type
-      categories: [economic]
-    - id: stakeholder
-    - id: case
-  params:
-    operations: add,multiply
+# - id: other_forest_income
+#   name: Other forest income
+#   name_fi: Muu metsätulo
+#   type: generic.GenericNode
+#   quantity: currency
+#   unit: MEUR/a
+#   input_dimensions: [age, region, species]
+#   output_dimensions: [age, region, species]
+# #   input_datasets:
+# #   - id: sunnydale/forestry_fi
+# #     filters:
+# #     - column: Sector
+# #       value: Argument placeholder
+#   input_nodes:
+#   - id: price_of_forest_protection
+#     tags: [additive]
+#     to_dimensions: []
+#   - id: price_of_carbon_sinks
+#     tags: [additive]
+#     to_dimensions: []
+#   - id: forest_volume
+#     tags: [non_additive] # TODO Consider turning off unit checking also in multiply_nodes_pl.
+# #     from_dimensions:
+# #     - id: age
+# #       flatten: true
+# #     - id: region
+# #       flatten: true
+# #     - id: species
+# #       flatten: true
+# #     to_dimensions:
+# #     - id: stakeholder
+# #       categories: [state]
+# #     - id: case
+# #       categories: [case1]
+# #   - id: premature_cuts_destroy_income
+# #     tags: [ignore_content]
+# #   output_nodes:
+# #   - id: total_economic_cost
+# #     to_dimensions:
+# #     - id: cost_type
+# #       categories: [economic]
+# #     - id: stakeholder
+# #     - id: case
+#   params:
+#     operations: add,multiply
 
 - id: total_utility
   name: Total utility
@@ -294,5 +316,6 @@ actions:
   input_datasets: [sunnydale/forestry_fi]
   output_nodes:
   - id: price_of_carbon_sinks
+    tags: [ignore_content]
   params:
     sector: Yes/no decision

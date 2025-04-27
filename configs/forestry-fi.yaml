@@ -5,7 +5,7 @@ supported_languages: [fi]
 site_url: https://forestry-fi.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: b493708b3957c002c43b80caf5c22b2a4731b383
+  commit: d9648b604f976770dfa3205976b34c3eabc94f60
   dvc_remote: kausal-s3
 name_en: Multi-stakeholder forestry policy options
 name_fi: Metsäpolitiikan monet vaihtoehdot
@@ -605,43 +605,6 @@ nodes:
 
 # ---------------------------- Suomen metsänielukeskustelu
 
-- id: forestry_production
-  name_fi: Metsätaloustuotteiden valmistusmäärä Suomessa
-  name_en: Forestry production in Finland
-  type: gpc.DatasetNode
-  quantity: mass
-  unit: Mm3_solid/a
-  input_dimensions: [stakeholder, case]
-  output_dimensions: [stakeholder, case]
-  input_datasets: [sunnydale/forestry_fi]
-  params:
-    sector: Forestry production in Finland
-  output_nodes:
-  - id: forest_cuts_in_finland
-    to_dimensions:
-    - id: stakeholder
-    - id: case
-
-- id: forest_cuts_in_finland
-  name_fi: Metsänhakkuut Suomessa
-  name_en: Forest cutting in Finland
-  type: simple.AdditiveNode
-  quantity: mass
-  unit: Mm3_solid/a
-  input_dimensions: [stakeholder, case]
-  output_dimensions: [stakeholder, case]
-
-- id: forest_growth_rate
-  name_en: Forest growth rate
-  name_fi: Metsän kasvunopeus
-  type: gpc.DatasetNode
-  quantity: rate
-  unit: '%/a'
-  input_datasets: [sunnydale/forestry_fi]
-  params:
-  - id: sector
-    value: Forest growth
-
 - id: forest_land_ownership
   name_en: Forest land ownership
   type: generic.GenericNode
@@ -692,6 +655,18 @@ nodes:
     tags: [baseline]
     column: standing_wood_unit_price
 
+- id: forest_treatment_by_age
+  name: Forest treatment by age
+  type: generic.GenericNode
+  quantity: ratio
+  unit: dimensionless
+  input_dimensions: [treatment, age]
+  output_dimensions: [treatment, age]
+  input_datasets:
+  - id: sunnydale/harvesting_characteristics
+    tags: [baseline]
+    column: treatment_type_by_age
+
 - id: age_of_forests
   name: Age of forests
   type: generic.GenericNode
@@ -705,19 +680,19 @@ nodes:
     column: age_of_forests
 
 - id: harvest_probabilities
-  name: harvest_probabilities
+  name: Harvest probabilities for different ages
   type: generic.GenericNode
   quantity: rate
   unit: '%/a'
   input_dimensions: [age]
   output_dimensions: [age]
   input_datasets:
-  - id: sunnydale/harvesting_probability
+  - id: sunnydale/harvesting_characteristics
     tags: [baseline]
     column: harvesting_probability
 
 - id: dynamic_forest
-  name: Dynamic forest
+  name: Dynamic forest model
   type: generic.CohortNode
   quantity: area
   unit: t_ha
@@ -726,9 +701,14 @@ nodes:
   input_nodes:
   - id: age_of_forests
     tags: [inventory]
+    # from_dimensions:
+    # - id: region
+    #   categories: [uusimaa]
     to_dimensions:
     - id: age
     - id: region
+    - id: species
+      categories: [pine]
   - id: harvest_probabilities
     tags: [harvest]
     to_dimensions:
@@ -799,14 +779,18 @@ nodes:
   type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [cost_type, treatment, age, region, species]
-  output_dimensions: [cost_type, treatment, age, region, species]
+  input_dimensions: [cost_type, treatment, region, age, species]
+  output_dimensions: [cost_type, treatment, region, age, species]
   input_nodes:
   - id: forest_harvest_volume
     to_dimensions:
-    - id: age
     - id: region
     - id: species
+    - id: age
+  - id: forest_treatment_by_age
+    to_dimensions:
+    - id: treatment
+    - id: age
   - id: standing_wood_unit_prices
     to_dimensions:
     - id: cost_type
@@ -831,14 +815,17 @@ nodes:
   type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [stakeholder, age, region, species, cost_type]
-  output_dimensions: [stakeholder, age, region, species, cost_type]
+  input_dimensions: [stakeholder, region, cost_type]
+  output_dimensions: [stakeholder, region, cost_type]
   input_nodes:
   - id: forest_harvest_volume
-    to_dimensions:
+    from_dimensions:
     - id: age
-    - id: region
+      flatten: true
     - id: species
+      flatten: true
+    to_dimensions:
+    - id: region
   - id: co2_market_price
     from_dimensions:
     - id: stakeholder
@@ -857,11 +844,6 @@ nodes:
   output_dimensions: [stakeholder, region, cost_type]
   input_nodes:
   - id: co2_cost_of_forestry
-    from_dimensions:
-    - id: age
-      flatten: true
-    - id: species
-      flatten: true
     to_dimensions:
     - id: stakeholder
     - id: region
@@ -880,99 +862,16 @@ nodes:
     - id: cost_type
     - id: stakeholder
       categories: [forest_owner]
-
-- id: historical_amount_of_wood_in_forests
-  name_fi: Suomen metsien historiallinen koko
-  name_en: Historical forest stock in Finnish forests
-  type: gpc.DatasetNode # costs.InternalGrowthNode
-  quantity: mass
-  unit: Mm3_solid
-  input_dimensions: [stakeholder, case]
-  output_dimensions: [stakeholder, case]
-  input_datasets:
-  - id: sunnydale/forestry_fi
-    filters:
-    - column: Year
-      value: 2023
-      drop_col: false
-  params:
-    sector: Historical forest stock in Finland
-
-- id: amount_of_wood_in_forests
-  name_fi: Suomen metsien koko
-  name_en: Forest stock in Finnish forests
-  type: generic.IterativeNode
-  quantity: mass
-  unit: Mm3_solid
-  input_dimensions: [stakeholder, case]
-  output_dimensions: [stakeholder, case]
-  input_nodes:
-  - id: historical_amount_of_wood_in_forests
-    tags: [base]
-  - id: forest_cuts_in_finland
-    tags: [arithmetic_inverse, additive]
-  - id: forest_growth_rate
-    tags: [rate]
-    to_dimensions: []
-
-- id: forest_industry_emissions
-  name_fi: Metsäteollisuuden päästöt
-  name_en: Forest industry emissions
-  type: simple.FixedMultiplierNode
-  quantity: emissions
-  unit: Mt/a
-  input_dimensions: [cost_type, case, stakeholder]
-  output_dimensions: [cost_type, case, stakeholder]
-  input_nodes:
-  - id: forestry_production
-    to_dimensions:
-    - id: cost_type
-      categories: [non_fossil_emissions]
-    - id: case
-    - id: stakeholder
   output_nodes:
-  - id: net_emissions
+  - id: total_cost
     from_dimensions:
-    - id: case
+    - id: region
       flatten: true
+    to_dimensions:
     - id: stakeholder
-      flatten: true
-    to_dimensions:
     - id: cost_type
-  params:
-  - id: multiplier
-    value: 0.1
-    unit: ton/m3_solid
-
-- id: carbon_sinks_in_forests
-  name_en: Carbon sinks in forests
-  name_fi: Metsien hiilinelut
-  type: simple.FixedMultiplierNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [cost_type, case]
-  output_dimensions: [cost_type, case]
-  input_nodes:
-  - id: amount_of_wood_in_forests
-    tags: [difference, arithmetic_inverse]
-    from_dimensions:
-    - id: stakeholder
-      flatten: true
-    to_dimensions:
-    - id: cost_type
-      categories: [non_fossil_emissions]
     - id: case
-  output_nodes:
-  - id: net_emissions
-    from_dimensions:
-    - id: case
-      flatten: true
-    to_dimensions:
-    - id: cost_type
-  params:
-  - id: multiplier
-    value: 0.1
-    unit: ton/m3_solid
+      categories: [case1]
 
 - id: forest_protection_criteria
   name: Forest protection criteria
@@ -1089,6 +988,9 @@ nodes:
     filters:
     - column: Sector
       value: Argument placeholder
+  output_nodes:
+  - id: harvest_probabilities
+    tags: [ignore_content]
 
 - id: threat_of_forced_conseervation
   name: Threat of forced conservation
@@ -1124,8 +1026,20 @@ nodes:
   input_dimensions: [stakeholder, case]
   output_dimensions: [stakeholder, case]
   input_nodes:
-  - id: amount_of_wood_in_forests
+  - id: forest_volume
     tags: [additive] # TODO Consider turning off unit checking also in multiply_nodes_pl.
+    from_dimensions:
+    - id: age
+      flatten: true
+    - id: region
+      flatten: true
+    - id: species
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+      categories: [state]
+    - id: case
+      categories: [case1]
   output_nodes:
   - id: biodiversity_in_forests
   params:
@@ -1142,8 +1056,20 @@ nodes:
   input_dimensions: [stakeholder, case]
   output_dimensions: [stakeholder, case]
   input_nodes:
-  - id: amount_of_wood_in_forests
-    tags: [additive]
+  - id: forest_volume
+    tags: [additive] # TODO Consider turning off unit checking also in multiply_nodes_pl.
+    from_dimensions:
+    - id: age
+      flatten: true
+    - id: region
+      flatten: true
+    - id: species
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+      categories: [state]
+    - id: case
+      categories: [case1]
   output_nodes:
   - id: biodiversity_in_forests
   params:
@@ -1189,9 +1115,9 @@ actions:
   input_dimensions: [stakeholder, case]
   output_dimensions: [stakeholder, case]
   input_datasets: [sunnydale/forestry_fi]
-  output_nodes:
-  - id: forest_cuts_in_finland
-    tags: [additive]
+  # output_nodes:
+  # - id: forest_cuts_in_finland
+  #   tags: [additive]
   params:
     sector: Forest cuts by a forest owner
 
@@ -1205,9 +1131,9 @@ actions:
   input_dimensions: [stakeholder, case]
   output_dimensions: [stakeholder, case]
   input_datasets: [sunnydale/forestry_fi]
-  output_nodes:
-  - id: forest_cuts_in_finland
-    tags: [additive]
+  # output_nodes:
+  # - id: forest_cuts_in_finland
+  #   tags: [additive]
   params:
     sector: Forest cuts by Metsähallitus
 
@@ -1238,13 +1164,14 @@ actions:
   params:
     sector: Reduce forestry production
   output_nodes:
-  - id: forestry_production
-    tags: [complement, non_additive]
-    to_dimensions:
-    - id: stakeholder
-      categories: [state]
-    - id: case
-      categories: [case1]
+  - id: forest_harvest_volume
+    tags: [ignore_content]
+    # tags: [complement, non_additive]
+    # to_dimensions:
+    # - id: stakeholder
+    #   categories: [state]
+    # - id: case
+    #   categories: [case1]
 
 pages:
 - id: home

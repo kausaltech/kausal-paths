@@ -21,6 +21,7 @@ features:
   baseline_visible_in_graphs: true
   show_significant_digits: 3
   maximum_fraction_digits: 0
+  show_explanations: true
 
 include:
 - file: modules/dinspec/dimensions.yaml
