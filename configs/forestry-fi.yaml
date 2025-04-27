@@ -28,6 +28,9 @@ include:
 - file: modules/forestry/economy.yaml
   node_group: Forest economy
   allow_override: true
+- file: modules/forestry/greentransition.yaml
+  node_group: Green transition
+  allow_override: false
 # - file: modules/forestry/bioenergy.yaml # Does not work without the economy model.
 #   node_group: Bioenergy
 #   allow_override: true
@@ -37,6 +40,8 @@ action_groups:
   name_fi: Metsäteollisuus
   name: Forest industry
   color: '#50c878'
+- id: draft
+  name: Draft
 
 # impact_overviews:
 # - graph_type: cost_efficiency
