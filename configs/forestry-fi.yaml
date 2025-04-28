@@ -143,8 +143,8 @@ dimensions:
     label_fi: Taloudellinen
     label_en: Economic
   - id: fossil_emissions
-    label_fi: Fossiilinen päästö
-    label_en: Fossil emissions
+    label_fi: Fossiilinen CO2
+    label_en: Fossil CO2
   - id: non_fossil_emissions
     label_fi: Ei-fossiilinen päästö
     label_en: Non-fossil emissions
@@ -163,6 +163,15 @@ dimensions:
     label_fi: Pikkutukki
     label_en: Small log
     aliases: [pikkutukki]
+  - id: wood_purchase
+    label_fi: Puun osto
+    label_en: Wood purchase
+  - id: wood_product_sales
+    label_fi: Puutuotteiden myynti
+    label_en: Wood product sales
+  - id: co2_cost
+    label_fi: Biogeeninen CO2
+    label_en: Biogenic CO2
 
 - id: treatment
   label_en: Treatment
@@ -468,7 +477,18 @@ nodes:
 - id: net_emissions
   name_fi: Kokonaispäästöt
   name_en: Net emissions
-  description: Net emissions of the municipality Sunnydale
+  description_fi: Suomen kasvihuonekaasujen nettokokonaispäästöt, eli scope 1+2 ja hiilinielut.
+    <h3>Hypoteesit</h3> <ul><li>Hakkuiden lisääminen lisää kasvihuonekaasupäästöjä.
+    (1)</li> <li>Hakkuiden lisääminen ei vaikuta kasvihuonekaasupäästöihin. (2)</li>
+    <li>Löysempi kasvihuonekaasupäästötavoite ei aiheuta haittaa. (3)</li> <li>Suomen
+    toimien vaikutukset kasvihuonekaasupäästöihin ovat vähäiset. (4)</li></ul> <h3>Viitteet</h3>
+    <ul><li>HS.ymp.2 Krist Savo</li> <li>(1) HS.ymp.1 Vihr Uusimaa</li> <li>HS.ymp.2
+    Vihr Uusimaa</li> <li>(2) HS.ymp.1 Perus Uusimaa</li> <li>HS.ymp.2 Perus Uusimaa</li>
+    <li>(3) HS.ymp.1 Perus Savo</li> <li>HS.ymp.1 Rkp Uusimaa</li> <li>(4) HS.ymp.2
+    Rkp Uusimaa</li> <li>HS.ymp.2 Vihr Savo</li> <li>HS.ymp.2 Kok Savo</li> <li>HS.ymp.2
+    Vas Savo</li> <li>(4) HS.ymp.1 Liik Savo</li> <li>HS.ymp.1 Liik Uusimaa</li> <li>HS.ymp.2
+    Kok Uusimaa</li> <li>HS.ymp.1 Sdp Savo</li> <li>HS.ymp.1 Sdp Uusimaa</li> <li>HS.ymp.2
+    Sdp Uusimaa</li> <li>HS.ymp.1 Kesk Savo</li> <li>HS.ymp.2 Kesk Savo</li></ul>
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -706,9 +726,9 @@ nodes:
   input_nodes:
   - id: age_of_forests
     tags: [inventory]
-    # from_dimensions:
-    # - id: region
-    #   categories: [uusimaa]
+    from_dimensions:
+    - id: region
+      categories: [uusimaa]
     to_dimensions:
     - id: age
     - id: region
@@ -746,11 +766,20 @@ nodes:
   type: generic.GenericNode
   quantity: volume
   unit: m3_solid/a
-  input_dimensions: [age, region, species]
-  output_dimensions: [age, region, species]
+  input_dimensions: [age, region, species, treatment]
+  output_dimensions: [age, region, species, treatment]
   input_nodes:
   - id: dynamic_forest
     metrics: [harvest_volume]
+    tags: [non_additive]
+    to_dimensions:
+    - id: age
+    - id: region
+    - id: species
+  - id: forest_treatment_by_age
+    to_dimensions:
+    - id: treatment
+    - id: age
 
 - id: forest_natural_mortality_volume
   name: Forest natural mortality volume
@@ -784,18 +813,17 @@ nodes:
   type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [cost_type, treatment, region, age, species]
-  output_dimensions: [cost_type, treatment, region, age, species]
+  input_dimensions: [cost_type, treatment, region, species]
+  output_dimensions: [cost_type, treatment, region, species]
   input_nodes:
   - id: forest_harvest_volume
+    from_dimensions:
+    - id: age
+      flatten: true
     to_dimensions:
     - id: region
     - id: species
-    - id: age
-  - id: forest_treatment_by_age
-    to_dimensions:
     - id: treatment
-    - id: age
   - id: standing_wood_unit_prices
     to_dimensions:
     - id: cost_type
@@ -829,6 +857,8 @@ nodes:
       flatten: true
     - id: species
       flatten: true
+    - id: treatment
+      flatten: true
     to_dimensions:
     - id: region
   - id: co2_market_price
@@ -840,43 +870,43 @@ nodes:
     to_dimensions:
     - id: cost_type
 
-- id: total_forestry_cost
-  name: Total forestry cost
-  type: generic.GenericNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [stakeholder, region, cost_type]
-  output_dimensions: [stakeholder, region, cost_type]
-  input_nodes:
-  - id: co2_cost_of_forestry
-    to_dimensions:
-    - id: stakeholder
-    - id: region
-    - id: cost_type
-  - id: forest_sales
-    tags: [arithmetic_inverse]
-    from_dimensions:
-    - id: treatment
-      flatten: true
-    - id: age
-      flatten: true
-    - id: species
-      flatten: true
-    to_dimensions:
-    - id: region
-    - id: cost_type
-    - id: stakeholder
-      categories: [forest_owner]
-  output_nodes:
-  - id: total_cost
-    from_dimensions:
-    - id: region
-      flatten: true
-    to_dimensions:
-    - id: stakeholder
-    - id: cost_type
-    - id: case
-      categories: [case1]
+# - id: total_forestry_cost
+#   name: Total forestry cost
+#   type: generic.GenericNode
+#   quantity: currency
+#   unit: MEUR/a
+#   input_dimensions: [stakeholder, region, cost_type]
+#   output_dimensions: [stakeholder, region, cost_type]
+#   input_nodes:
+#   - id: co2_cost_of_forestry
+#     to_dimensions:
+#     - id: stakeholder
+#     - id: region
+#     - id: cost_type
+#   - id: forest_sales
+#     tags: [arithmetic_inverse]
+#     from_dimensions:
+#     - id: treatment
+#       flatten: true
+#     - id: age
+#       flatten: true
+#     - id: species
+#       flatten: true
+#     to_dimensions:
+#     - id: region
+#     - id: cost_type
+#     - id: stakeholder
+#       categories: [forest_owner]
+#   output_nodes:
+#   - id: total_cost
+#     from_dimensions:
+#     - id: region
+#       flatten: true
+#     to_dimensions:
+#     - id: stakeholder
+#     - id: cost_type
+#     - id: case
+#       categories: [case1]
 
 - id: forest_protection_criteria
   name: Forest protection criteria
@@ -1120,9 +1150,9 @@ actions:
   input_dimensions: [stakeholder, case]
   output_dimensions: [stakeholder, case]
   input_datasets: [sunnydale/forestry_fi]
-  # output_nodes:
-  # - id: forest_cuts_in_finland
-  #   tags: [additive]
+  output_nodes:
+  - id: harvest_probabilities
+    tags: [ignore_content]
   params:
     sector: Forest cuts by a forest owner
 
@@ -1136,9 +1166,9 @@ actions:
   input_dimensions: [stakeholder, case]
   output_dimensions: [stakeholder, case]
   input_datasets: [sunnydale/forestry_fi]
-  # output_nodes:
-  # - id: forest_cuts_in_finland
-  #   tags: [additive]
+  output_nodes:
+  - id: harvest_probabilities
+    tags: [ignore_content]
   params:
     sector: Forest cuts by Metsähallitus
 
@@ -1211,6 +1241,28 @@ scenarios:
   params:
   - id: protect_the_forest.enabled
     value: false
+  - id: who_pays_for_wood_emissions.selected_number
+    value: 0
+
+- id: industry_pays_co2
+  name_fi: Metsäteollisuus maksaa CO2
+  name_en: Industry pays CO2
+  all_actions_enabled: true
+  params:
+  - id: protect_the_forest.enabled
+    value: false
+  - id: who_pays_for_wood_emissions.selected_number
+    value: 1
+
+- id: forest_owner_pays_co2
+  name_fi: Metsänomistaja maksaa CO2
+  name_en: Forest owner pays CO2
+  all_actions_enabled: true
+  params:
+  - id: protect_the_forest.enabled
+    value: false
+  - id: who_pays_for_wood_emissions.selected_number
+    value: 2
 
 - id: energy_company
   name_fi: Energiayhtiön arvot

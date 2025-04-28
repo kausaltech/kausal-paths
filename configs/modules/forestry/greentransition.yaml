@@ -27,171 +27,11 @@ nodes:
 - id: net_emissions2
   name: Kokonaispäästöt
   name_en: Net emissions
-  description: Suomen kasvihuonekaasujen nettokokonaispäästöt, eli scope 1+2 ja hiilinielut.
-    <h3>Hypoteesit</h3> <ul><li>Hakkuiden lisääminen lisää kasvihuonekaasupäästöjä.
-    (1)</li> <li>Hakkuiden lisääminen ei vaikuta kasvihuonekaasupäästöihin. (2)</li>
-    <li>Löysempi kasvihuonekaasupäästötavoite ei aiheuta haittaa. (3)</li> <li>Suomen
-    toimien vaikutukset kasvihuonekaasupäästöihin ovat vähäiset. (4)</li></ul> <h3>Viitteet</h3>
-    <ul><li>HS.ymp.2 Krist Savo</li> <li>(1) HS.ymp.1 Vihr Uusimaa</li> <li>HS.ymp.2
-    Vihr Uusimaa</li> <li>(2) HS.ymp.1 Perus Uusimaa</li> <li>HS.ymp.2 Perus Uusimaa</li>
-    <li>(3) HS.ymp.1 Perus Savo</li> <li>HS.ymp.1 Rkp Uusimaa</li> <li>(4) HS.ymp.2
-    Rkp Uusimaa</li> <li>HS.ymp.2 Vihr Savo</li> <li>HS.ymp.2 Kok Savo</li> <li>HS.ymp.2
-    Vas Savo</li> <li>(4) HS.ymp.1 Liik Savo</li> <li>HS.ymp.1 Liik Uusimaa</li> <li>HS.ymp.2
-    Kok Uusimaa</li> <li>HS.ymp.1 Sdp Savo</li> <li>HS.ymp.1 Sdp Uusimaa</li> <li>HS.ymp.2
-    Sdp Uusimaa</li> <li>HS.ymp.1 Kesk Savo</li> <li>HS.ymp.2 Kesk Savo</li></ul>
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
   is_outcome: true
   input_dataset_processors: [LinearInterpolation]
-
-- id: forest_amount_historical
-  name: Forest amount, historical
-  type: gpc.DatasetNode
-  quantity: volume
-  unit: m**3
-  # input_dimensions: [iteration]
-  # output_dimensions: [iteration]
-  input_datasets: [gpc/greentransition_sample]
-  params:
-    sector: Forest amount
-  output_nodes:
-  - id: forest_amount
-- id: forest_growth
-  name: Forest growth
-  type: gpc.DatasetNode
-  quantity: volume
-  unit: m**3/a
-  # input_dimensions: [iteration]
-  # output_dimensions: [iteration]
-  input_datasets: [gpc/greentransition_sample]
-  params:
-    sector: Forest growth
-  output_nodes:
-  - id: forest_amount
-    tags: [cumulative]
-- id: forest_amount
-  name: Forest amount
-  type: simple.AdditiveNode
-  quantity: volume
-  unit: m**3
-  # input_dimensions: [iteration]
-  # output_dimensions: [iteration]
-  output_nodes:
-  - id: alternative_forest_use_benefit
-    to_dimensions: []
-- id: alternative_forest_use_unit_price
-  name: Alternative forest use unit price
-  type: gpc.DatasetNode
-  quantity: unit_price
-  unit: EUR/m**3/a
-  input_dimensions: [iteration]
-  output_dimensions: [iteration]
-  input_datasets: [gpc/greentransition_sample]
-  params:
-  - id: sector
-    value: Alternative forest use unit price, sample
-  # - id: multiplier
-  #   value: 0.3
-  #   unit: dimensionless
-  output_nodes:
-  - id: alternative_forest_use_benefit
-- id: wood_unit_price
-  name: Wood unit price
-  type: gpc.DatasetNode
-  quantity: unit_price
-  unit: EUR/m**3
-  input_dimensions: [iteration]
-  output_dimensions: [iteration]
-  input_datasets: [gpc/greentransition_sample]
-  params:
-    sector: Wood unit price, sample
-  output_nodes:
-  - id: forest_sales_income
-- id: alternative_forest_use_benefit
-  name: Alternative forest use benefit
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: kEUR/a
-  input_dimensions: [iteration]
-  output_dimensions: [iteration]
-  output_nodes:
-  - id: total_forest_cost
-    tags: [arithmetic_inverse]
-- id: forest_sales_income
-  name: Forest sales income
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: kEUR/a
-  input_dimensions: [iteration]
-  output_dimensions: [iteration]
-  output_nodes:
-  - id: total_forest_cost
-    tags: [arithmetic_inverse]
-- id: forest_carbon_emissions
-  name: Forest carbon emissions
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [iteration]
-  output_dimensions: [iteration]
-  output_nodes:
-  - id: carbon_cost
-- id: wood_emission_factor
-  name: Wood emission factor
-  type: gpc.DatasetNode
-  quantity: emission_factor
-  unit: t/m**3
-  input_dimensions: [iteration]
-  output_dimensions: [iteration]
-  input_datasets: [gpc/greentransition_sample]
-  params:
-    sector: Wood emission factor, sample
-  output_nodes:
-  - id: forest_carbon_emissions
-- id: carbon_unit_price
-  name: Carbon unit price
-  type: gpc.DatasetNode
-  quantity: unit_price
-  unit: EUR/t
-  input_dimensions: [iteration]
-  output_dimensions: [iteration]
-  input_datasets: [gpc/greentransition_sample]
-  params:
-  - id: sector
-    value: Carbon unit price, sample
-  # - id: multiplier
-  #   value: 0.1
-  #   unit: dimensionless
-  output_nodes:
-  - id: carbon_cost
-- id: carbon_cost
-  name: Carbon cost
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: kEUR/a
-  input_dimensions: [iteration]
-  output_dimensions: [iteration]
-  output_nodes:
-  - id: total_forest_cost
-- id: total_forest_cost
-  name: Total forest cost
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: kEUR/a
-  is_outcome: true
-  input_dimensions: [iteration]
-  output_dimensions: [iteration]
-- id: total_forest_cost_expectation
-  name: Total forest cost expectation
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: kEUR/a
-  input_dimensions: [iteration]
-  output_dimensions: [iteration]
-  input_nodes:
-  - id: total_forest_cost
-    tags: [expectation]
 
 # ------------------ Etelä-Suomen biodiversiteetti --------------
 
@@ -243,25 +83,9 @@ nodes:
   - id: rich_forest_biodiversity_area
   - id: forest_biodiversity_channels
   - id: forest_grazing
-
-- id: forest_protection_unit_cost
-  name: Metsien suojelun yksikköhinta
-  description: Metsien suojelun kustannuksiin sisältyvät suorat tuet tai lunastushinnat
-    maanomistajalle sekä vaihtoehtoiskustannukset eli maankäytön muutoksesta syntyvä
-    sadon väheneminen.
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MEUR/ha/a
-  historical_values: [[2010, 100], [2023, 120]]
-
-- id: forest_protection_cost
-  name: Metsien suojelun kustannus
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: MEUR/a
-  input_nodes:
-  - id: protected_forest_area
-  - id: forest_protection_unit_cost
+  output_nodes:
+  - id: diversity_of_habitat
+    tags: [ignore_content]
 
 # ---------------------------- Suomen metsänielukeskustelu
 
@@ -299,12 +123,14 @@ nodes:
 
 - id: pulp_production
   name: Sellun valmistusmäärä Suomessa
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: mass
   unit: Mt/a
   input_dataset_processors: [LinearInterpolation]
-  input_nodes: [pulp_production_capacity]
-  output_nodes: [forest_cuts_in_finland]
+  input_nodes:
+  - id: pulp_production_capacity
+  - id: forest_harvest_volume
+    tags: [ignore_content]
 
 - id: high_price_wood_production
   name: Korkean jalostusasteen puutuotteiden valmistusmäärä Suomessa
@@ -313,13 +139,6 @@ nodes:
   unit: Mt/a
   historical_values: [[2000, 90], [2023, 50]]
   input_dataset_processors: [LinearInterpolation]
-  output_nodes: [forest_cuts_in_finland]
-
-- id: forest_cuts_in_finland
-  name: Metsänhakkuut Suomessa
-  type: simple.AdditiveNode
-  quantity: mass
-  unit: Mt/a
 
 - id: pulp_price
   name: Sellun hinta
@@ -328,48 +147,6 @@ nodes:
   unit: EUR/t
   historical_values: [[2000, 1000], [2023, 900]]
   input_dataset_processors: [LinearInterpolation]
-
-- id: high_price_wood_price
-  name: Korkean jalostusasteen puutuotteiden hinta
-  type: simple.AdditiveNode
-  quantity: unit_price
-  unit: EUR/t
-  historical_values: [[2000, 4000], [2023, 4000]]
-  input_dataset_processors: [LinearInterpolation]
-
-- id: pulp_sales
-  name: Sellun myyntivoitto
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: MEUR/a
-  input_nodes: [pulp_production, pulp_price]
-
-- id: high_price_wood_sales
-  name: Korkean jalostusasteen puutuotteiden myyntivoitto
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: MEUR/a
-  input_nodes: [high_price_wood_production, high_price_wood_price]
-
-- id: total_forest_sales
-  name: Metsäteollisuuden tuotto
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MEUR/a
-  input_nodes: [pulp_sales, high_price_wood_sales]
-
-- id: amount_of_wood_in_forests
-  name: Suomen metsien hiilivarasto
-  type: costs.InternalGrowthNode
-  quantity: mass
-  unit: Mt
-  input_nodes: [forest_cuts_in_finland]
-  historical_values: [[2000, -3000], [2023, -3200]]
-  input_dataset_processors: [LinearInterpolation]
-  params:
-  - id: annual_change
-    value: 4.1875  # Year 2021: 134 Mt growth, 3200 Mt Wood storage in forests.
-    unit: '%'
 
 - id: pulp_industry_emissions
   name: Selluteollisuuden päästöt
@@ -481,23 +258,29 @@ nodes:
 
 - id: southern_finland_biodiversity_utility
   name: Etelä-Suomen biodiversiteetin utiliteetti
-  type: simple.FixedMultiplierNode
+  type: generic.GenericNode
   quantity: utility
-  unit: Ut/a
+  unit: dimensionless
+  input_datasets:
+  - id: sunnydale/forestry2
+    tags: [baseline]
+    forecast_from: 2024
+    column: technical_row_to_make_sure_uuid_is_not_dropped_fraction
   input_nodes:
-  - id: number_of_endangered_species
-    tags: [non_additive]
-  output_nodes: [forestry_utility]
-  params:
-  - id: multiplier
-    value: 1
-    unit: Ut/a/pcs
+  - id: biodiversity_in_forests
+    tags: [ignore_content]
+  output_nodes:
+  - id: forestry_utility
+    tags: [ignore_content]
 
 - id: forestry_utility
   name: Metsien utiliteetti
   type: simple.AdditiveNode
   quantity: utility
   unit: Ut/a
+  output_nodes:
+  - id: total_utility
+    tags: [ignore_content]
 
 # - id: uncertain_node
 #   name: Uncertain node
@@ -579,28 +362,6 @@ actions:
 #   - id: tech2
 #     tags: [non_additive]
 #     to_dimensions: []
-
-- id: sell_forest
-  name: Sell forest
-  type: gpc.DatasetAction
-  quantity: volume
-  unit: m**3/a
-  group: draft
-  # input_dimensions: [iteration]
-  # output_dimensions: [iteration]
-  input_datasets:
-  - id: gpc/greentransition_sample
-    forecast_from: 2025
-  params:
-    sector: Sell forest
-  output_nodes:
-  - id: forest_amount
-    tags: [arithmetic_inverse, cumulative]
-    to_dimensions: []
-  - id: forest_sales_income
-    to_dimensions: []
-  - id: forest_carbon_emissions
-    to_dimensions: []
 
 - id: forest_grazing_support
   name: Metsälaidunnuksen tuki

@@ -1688,7 +1688,7 @@ class Node:
                 node_name = getattr(node, 'translated_name', node.name)
 
                 # Create a list item for the node with nested list
-                edge_html.append(f"<li>{_('Node')} {node_name}:")
+                edge_html.append(f"<li>{_('Node')} <i>{node_name}</i>:")
                 edge_html.append("<ul>")  # Start nested list for this node
                 edge_html.extend(tag_html)
                 edge_html.extend(from_html)
@@ -1706,7 +1706,7 @@ class Node:
         # Process edge tags using the lookup dictionary
         if edge.tags:
             for tag in edge.tags:
-                description = self.tag_descriptions.get(tag, _('The tag "%s" is given.') % tag)
+                description = self.tag_descriptions.get(tag, _('The tag <i>"%s"</i> is given.') % tag)
                 edge_html.append(f"<li>{description}</li>")
         return edge_html
 
@@ -1720,10 +1720,12 @@ class Node:
 
                 if cats:
                     do = _('exclude') if from_dims[dim].exclude else _('include')
-                    edge_html.append(f"<li>{_('From dimension %s, %s categories: %s.') % (dimlabel, do, ', '.join(cats))}</li>")
+                    edge_html.append(
+                        f"<li>{_('From dimension <i>%s</i>, %s categories: <i>%s</i>.') % (dimlabel, do, ', '.join(cats))}</li>"
+                    )
 
                 if from_dims[dim].flatten:
-                    edge_html.append(f"<li>{_('Sum over dimension %s.') % dimlabel}</li>")
+                    edge_html.append(f"<li>{_('Sum over dimension <i>%s</i>.') % dimlabel}</li>")
         return edge_html
 
     def get_explanation_for_edge_to(self, edge):
@@ -1737,6 +1739,6 @@ class Node:
                 if cats:
                     cat_str = ', '.join(cats)
                     edge_html.append(
-                        f"<li>{_('Categorize the values to %s in a new dimension %s.') % (cat_str, dimlabel)}</li>"
+                        f"<li>{_('Categorize the values to <i>%s</i> in a new dimension <i>%s</i>.') % (cat_str, dimlabel)}</li>"
                     )
         return edge_html
