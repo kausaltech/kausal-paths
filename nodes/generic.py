@@ -556,6 +556,7 @@ class SectorParseResult(TypedDict):
 
 
 class DimensionalSectorNode(GenericNode):
+    explanation = _("Reads in a dataset and filters and interprets its content according to the <i>sector</i> parameter.")
     default_unit = 'kt/a'
     quantity = EMISSION_QUANTITY
     allowed_parameters = [
@@ -692,6 +693,7 @@ class DimensionalSectorNode(GenericNode):
 
 
 class DimensionalSectorEmissions(DimensionalSectorNode):
+    explanation = _("Filters emissions according to the <i>sector</i> parameter.")
     default_unit = 'kt/a'
     quantity = EMISSION_QUANTITY
 
@@ -702,6 +704,7 @@ class DimensionalSectorEmissions(DimensionalSectorNode):
 
 
 class DimensionalSectorEnergy(DimensionalSectorNode):
+    explanation = _("Filters energy use according to the <i>sector</i> parameter.")
     default_unit = 'GWh/a'
     quantity = ENERGY_QUANTITY
 
@@ -712,6 +715,7 @@ class DimensionalSectorEnergy(DimensionalSectorNode):
 
 
 class DimensionalSectorEmissionFactor(DimensionalSectorNode):
+    explanation = _("Filters emissions and energy according to the <i>sector</i> parameter and calculates emission factor.")
     default_unit = 'g/kWh'
     quantity = EMISSION_FACTOR_QUANTITY
 

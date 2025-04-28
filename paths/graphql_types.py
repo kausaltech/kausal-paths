@@ -82,6 +82,13 @@ class UnitType:
     def html_long(self, parent: sb.Parent[Unit]) -> str:
         return format_unit(parent, long=True, html=True)
 
+    @sb.field
+    def standard(self, parent: sb.Parent[Unit]) -> str:
+        # Format using a fixed locale (i.e., English)
+        return str(parent)
+        # return unit_registry.pretty_formatter.format_unit( # Alternative if the simple version causes trouble.
+        #     parent, uspec='Z', sort_func=None, use_plural=True, length='short', locale='en'
+        # )
 
 @convert_django_field.register(UnitField)  # pyright: ignore
 def convert_unit_field(field, registry=None):
