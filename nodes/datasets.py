@@ -9,6 +9,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, cast
 
+from django.utils.translation import gettext_lazy as _
+
 import numpy as np
 import orjson
 import polars as pl
@@ -306,7 +308,33 @@ class DatasetWithFilters(Dataset):
 
         return df
 
+    def add_explanation(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        dataset_html = df.explanation
+        dataset_html.append(f"<li><i>{self.id}</i>")
+        if hasattr(self, 'filters') and isinstance(self.filters, list) and self.filters:
+            dataset_html.append(_(" has the following filters:"))
+            dataset_html.append("<ul>")
+
+            filter_text = _("Filter")
+            filter_no = 1
+            for filter_dict in self.filters:
+                dataset_html.append(f"<li>{filter_text} {filter_no}</li>")
+                if isinstance(filter_dict, dict):
+                    dataset_html.append("<ul>")
+                    for key, value in filter_dict.items():
+                        v = str(value)
+                        dataset_html.append(f"<li><strong>{key}:</strong> {v}</li>")
+                    dataset_html.append("</ul>")
+                filter_no += 1
+            dataset_html.append("</ul>")
+        dataset_html.append("</ul>")
+
+        df = df.with_explanation([str(item) for item in dataset_html])
+
+        return df
+
     def _filter_and_process_df(self, context: Context, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        df = self.add_explanation(df)
         df = self._filter_df(context, df)
         cols = df.columns
 
