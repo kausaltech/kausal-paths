@@ -414,7 +414,8 @@ def process_slice(df: pl.DataFrame, slice_name: str, outcsvpath: str, outdvcpath
     df = prepare_for_dvc(df, units)
 
     # 10. Save to CSV if requested
-    save_to_csv(df, outcsvpath, slice_name)
+    if outcsvpath.upper() not in ['N', 'NONE']:
+        save_to_csv(df, outcsvpath, slice_name)
 
     # 11. Push to DVC if requested
     if outdvcpath.upper() not in ['N', 'NONE']:
@@ -439,10 +440,14 @@ def main():
 
     # Process slices
     if specific_slice:
-        # Process only the specified slice
-        print(f"Processing only slice: {specific_slice}")
-        slice_df = full_df.filter(pl.col('Slice') == specific_slice).drop('Slice') if 'Slice' in full_df.columns else full_df
-        process_slice(slice_df, specific_slice, outcsvpath, outdvcpath, language)
+        if specific_slice == 'plain_csv':
+            print("Uploading the csv file as is.")
+            push_to_dvc(full_df, outdvcpath, '', {}, None, [], language)
+        else:
+            # Process only the specified slice
+            print(f"Processing only slice: {specific_slice}")
+            slice_df = full_df.filter(pl.col('Slice') == specific_slice).drop('Slice') if 'Slice' in full_df.columns else full_df
+            process_slice(slice_df, specific_slice, outcsvpath, outdvcpath, language)
     else:
         # Process all slices
         slice_dfs = split_by_slice(full_df)
