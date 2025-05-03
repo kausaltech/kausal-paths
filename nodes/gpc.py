@@ -259,6 +259,7 @@ class DatasetNode(AdditiveNode):
 
             df = df.with_columns(pl.col(FORECAST_COLUMN).fill_null(strategy='backward'))
 
+        df = df.filter(pl.col(YEAR_COLUMN) <= self.context.model_end_year) # TODO Should we truncate pre-historic years
         df = df.paths.to_narrow()
         return df
 

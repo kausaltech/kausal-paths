@@ -128,25 +128,24 @@ class InstanceYAMLConfig:
         apply_group: str | None,
         config_path: Path | None,
         allow_override: bool = False,
-        dataset_replacements: list[dict[str, str]] | None = None, # FIXME Implement and test!
+        dataset_replacements: list[dict[str, str]] | None = None,
     ) -> None:
         # Create a mapping of old dataset IDs to new ones
         if dataset_replacements is None:
             dataset_replacements = []
-        # dataset_map = {rep['from']: rep['to'] for rep in dataset_replacements}
+        dataset_map = {rep['from']: rep['to'] for rep in dataset_replacements}
 
-        # # Process each node in the new configuration
-        # for nc in newconf:
-        #     # Replace dataset IDs in input_datasets if present
-        #     if 'input_datasets' in nc:
-        #         for ds in nc['input_datasets']:
-        #             if isinstance(ds, str):
-        #                 if ds in dataset_map:
-        #                     ds = dataset_map[ds]
-        #             else:
-        #                 ds_id = ds.get('id')
-        #                 if ds_id in dataset_map:
-        #                     ds['id'] = dataset_map[ds_id]
+        # Process each node in the new configuration
+        for nc in newconf:
+            # Replace dataset IDs in input_datasets if present
+            if 'input_datasets' in nc:
+                for i, ds in enumerate(nc['input_datasets']):
+                    if isinstance(ds, str):
+                        nc['input_datasets'][i] = dataset_map.get(ds, ds)
+                        # print(f"Node {nc.id} datasets from {ds} to {dataset_map.get(ds)}")
+                    else:
+                        ds_id = ds['id']
+                        nc['input_datasets'][i]['id'] = dataset_map.get(ds_id, ds_id)
 
         self._merge_config(
             existing, newconf, entity_type=entity_type, apply_group=apply_group,

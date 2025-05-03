@@ -258,7 +258,7 @@ class Node:
     input_dimension_ids: list[str] = []
     "References to the dimensions that this node's input must contain (typically set in a class)."
 
-    explanation: str = "Text about the node class missing."
+    explanation: str | I18nString = "Text about the node class missing."
     'Textual explanation about what the node computes (typicallly set in a class).'
 
     # set if this node has a specific goal for the simulation target year
@@ -1630,7 +1630,7 @@ class Node:
             html.append(f"<p>{self.explanation}")
         if 'operations' in self.parameters.keys():
             operations = self.get_parameter_value_str('operations', required=False)
-            html.append(f"The order of operations is {operations}.")
+            html.append(f"_(The order of operations is) {operations}.")
         html.append("</p>")
 
         # Add formula if available # TODO Also describe other parameters.

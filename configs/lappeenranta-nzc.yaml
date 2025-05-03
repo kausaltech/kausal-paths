@@ -5,7 +5,8 @@ site_url: https://lappeenranta-nzc.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   dvc_remote: kausal-s3
-  commit: 892daa0d78ff8da19b981aea687e2d8221831721
+  commit: b3fec277bd21292fb22f8d59f6d5c9beb2a5000f # New with a separate lappeenranta/defaults dataset
+  # commit: 892daa0d78ff8da19b981aea687e2d8221831721 # Old Lappeenranta-specific version of nzc/defaults
 theme_identifier: lpr-ilmasto
 name: Lappeenrannan missiokaupungin ilmasto-ohjelma 2030
 name_en: Lappeenranta Mission City Climate Action Plan 2030
@@ -29,24 +30,51 @@ include:
 - file: modules/health.yaml
   node_group: Health
   allow_override: true
+  dataset_replacements:
+  - from: nzc/defaults
+    to: lappeenranta/defaults
 - file: nzc/transport.yaml
   node_group: Transport
+  dataset_replacements:
+  - from: nzc/defaults
+    to: lappeenranta/defaults
 - file: nzc/transport_cost.yaml
   node_group: Transport cost
   allow_override: true
+  dataset_replacements:
+  - from: nzc/defaults
+    to: lappeenranta/defaults
 - file: nzc/transport_health_cost.yaml
   node_group: Transport health
   allow_override: true
+  dataset_replacements:
+  - from: nzc/defaults
+    to: lappeenranta/defaults
 - file: nzc/freight_transport.yaml
   node_group: Freight transport
+  dataset_replacements:
+  - from: nzc/defaults
+    to: lappeenranta/defaults
 - file: nzc/buildings.yaml
   node_group: Buildings
+  dataset_replacements:
+  - from: nzc/defaults
+    to: lappeenranta/defaults
 - file: nzc/electricity.yaml
   node_group: Electricity
+  dataset_replacements:
+  - from: nzc/defaults
+    to: lappeenranta/defaults
 - file: nzc/waste.yaml
   node_group: Waste
+  dataset_replacements:
+  - from: nzc/defaults
+    to: lappeenranta/defaults
 - file: nzc/other.yaml
   node_group: Other
+  dataset_replacements:
+  - from: nzc/defaults
+    to: lappeenranta/defaults
 
 params:
 - id: municipality_name
@@ -709,7 +737,7 @@ nodes:
   type: gpc.DatasetNode
   quantity: population
   unit: cap
-  input_datasets: [nzc/defaults]
+  input_datasets: [lappeenranta/defaults]
   input_nodes:
   - id: population_growth
     tags: [arithmetic_inverse, complement_cumulative_product, non_additive]
@@ -722,7 +750,7 @@ nodes:
   type: gpc.DatasetNode
   quantity: rate
   unit: '%/a'
-  input_datasets: [nzc/defaults]
+  input_datasets: [lappeenranta/defaults]
   params:
     sector: Expected annual population growth (up until 2030)
 
@@ -761,7 +789,7 @@ nodes:
   unit: EUR/t
   input_dimensions: [cost_type, ghg]
   output_dimensions: [cost_type, ghg]
-  input_datasets: [nzc/defaults]
+  input_datasets: [lappeenranta/defaults]
   params:
     sector: Value of CO2 reduction
 
@@ -811,7 +839,7 @@ nodes:
   unit: dimensionless
   input_dimensions: [cost_type, aggregated_cost_type]
   output_dimensions: [cost_type, aggregated_cost_type]
-  input_datasets: [nzc/defaults]
+  input_datasets: [lappeenranta/defaults]
   params:
     sector: Aggregated cost types
 
@@ -1175,7 +1203,7 @@ actions:
   quantity: fraction
   unit: '%'
   group: transport
-  input_datasets: [nzc/defaults]
+  input_datasets: [lappeenranta/defaults]
   params:
     sector: Transportation need reduction by 2030 from urban planning, digital meetings
       and other transport-reducing initiatives
@@ -1191,7 +1219,7 @@ actions:
   quantity: fraction
   unit: '%'
   group: transport
-  input_datasets: [nzc/defaults]
+  input_datasets: [lappeenranta/defaults]
   params:
     sector: Reduced Pkm cars + motorcycles by 2030
   output_nodes:
@@ -1210,7 +1238,7 @@ actions:
   group: transport
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
-  input_datasets: [nzc/defaults]
+  input_datasets: [lappeenranta/defaults]
   output_nodes:
   - id: relative_transport_efficiency
     to_dimensions:
@@ -1228,7 +1256,7 @@ actions:
   input_dimensions: [transport_mode, energy_carrier]
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
-  - id: nzc/defaults
+  - id: lappeenranta/defaults
   params:
     sector: Electrification of transport fleet
   input_nodes:
@@ -1251,7 +1279,7 @@ actions:
   input_dimensions: [transport_mode, energy_carrier]
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
-  - id: nzc/defaults
+  - id: lappeenranta/defaults
   params:
     sector: Expected procurement schedule for buses
   output_nodes:
@@ -1295,7 +1323,7 @@ actions:
   group: freight_transport
   parent: a21_optimised_logistics
   input_datasets:
-  - id: nzc/defaults
+  - id: lappeenranta/defaults
   output_nodes:
   - id: freight_transport_vehicle_kilometres
     tags: [complement, non_additive]
@@ -1313,7 +1341,7 @@ actions:
   input_dimensions: [transport_mode, energy_carrier]
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
-  - id: nzc/defaults
+  - id: lappeenranta/defaults
     filters:
     - column: Transport mode
       values: [light_trucks, heavy_trucks]
@@ -1533,7 +1561,7 @@ actions:
   unit: '%'
   group: buildings
   parent: a34_decarbonising_heat_generation
-  input_datasets: [nzc/defaults]
+  input_datasets: [lappeenranta/defaults]
   params:
     sector: 3.4.4 Top performance standard improvement compared with the regular new
       buildings
@@ -1616,7 +1644,7 @@ actions:
   - id: emissions_from_other_sectors
     tags: [non_additive, complement]
     to_dimensions: []
-  input_datasets: [nzc/defaults]
+  input_datasets: [lappeenranta/defaults]
   params:
     sector: Reduced CO2e emissions committed by Industry, Agriculture, etc. in Other
       sector
@@ -1653,7 +1681,7 @@ actions:
 #   group: reforestation
 #   input_dimensions: [area_distance]
 #   output_dimensions: [area_distance]
-#   input_datasets: [nzc/defaults]
+#   input_datasets: [lappeenranta/defaults]
 #   params:
 #     sector: Number of planted trees until 2030
 #   output_nodes:
