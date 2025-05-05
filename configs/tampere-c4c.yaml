@@ -15,10 +15,10 @@ model_end_year: 2030
 target_year: 2030
 reference_year: 1990
 minimum_historical_year: 2010
-maximum_historical_year: 2022
+maximum_historical_year: 2023
 emission_dataset: tampere/scenarios/emissions/bau
 emission_unit: kt/a
-emission_forecast_from: 2023
+emission_forecast_from: 2024
 params:
 - id: municipality_name
   value: Tampere
@@ -597,7 +597,7 @@ nodes:
   - id: tampere/waste
     column: emissions
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: iii11
@@ -622,7 +622,7 @@ nodes:
   - id: tampere/waste
     column: emissions
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: iii41
@@ -648,7 +648,7 @@ nodes:
   - id: tampere/afolu
     column: emissions
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: v1
@@ -673,7 +673,7 @@ nodes:
   - id: tampere/afolu
     column: emissions
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: v2
@@ -698,7 +698,7 @@ nodes:
   - id: tampere/afolu
     column: emissions
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: v3
@@ -725,7 +725,7 @@ nodes:
   - id: tampere/stationary
     column: emission_factor
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: i11
@@ -747,7 +747,7 @@ nodes:
   - id: tampere/stationary
     column: emission_factor
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: i12
@@ -772,7 +772,7 @@ nodes:
   - id: tampere/stationary
     column: energy
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: i12
@@ -840,7 +840,7 @@ nodes:
   - id: tampere/stationary
     column: emissions
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: i12
@@ -875,7 +875,7 @@ nodes:
   - id: tampere/stationary
     column: energy
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: i11
@@ -926,7 +926,7 @@ nodes:
   - id: tampere/stationary
     column: energy
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: i11
@@ -998,7 +998,7 @@ nodes:
   - id: tampere/stationary
     column: emissions
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: i11
@@ -1033,7 +1033,7 @@ nodes:
   - id: tampere/stationary
     column: energy
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: i12
@@ -1101,7 +1101,7 @@ nodes:
   - id: tampere/stationary
     column: emissions
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: i12
@@ -1134,7 +1134,7 @@ nodes:
   - id: tampere/stationary
     column: energy
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: i12
@@ -1202,7 +1202,7 @@ nodes:
   - id: tampere/stationary
     column: emissions
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: i12
@@ -1237,7 +1237,7 @@ nodes:
   - id: tampere/stationary
     column: energy
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: i32
@@ -1290,7 +1290,7 @@ nodes:
   - id: tampere/stationary
     column: emission_factor
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: i32
@@ -1331,7 +1331,7 @@ nodes:
   - id: tampere/stationary
     column: energy
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: i62
@@ -1383,7 +1383,7 @@ nodes:
   - id: tampere/stationary
     column: emission_factor
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: i62
@@ -1416,7 +1416,7 @@ nodes:
   - id: tampere/stationary
     column: emissions
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: i62
@@ -1943,7 +1943,7 @@ nodes:
   - id: tampere/stationary
     column: emissions
     dropna: true
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: i31
@@ -2187,7 +2187,7 @@ nodes:
   - id: tampere/stationary
     column: unit_price
     dropna: true
-    forecast_from: 2025
+    forecast_from: 2024
     filters:
     - column: sector
       value: i
@@ -2418,7 +2418,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: tampere/transportation_actions
-    forecast_from: 2025
+    forecast_from: 2024
     filters:
     - column: sector
     - column: action
@@ -2477,7 +2477,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: tampere/stationary_actions
-    forecast_from: 2025
+    forecast_from: 2024
     filters:
     - column: sector
     - column: action
@@ -2583,7 +2583,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: tampere/stationary_actions
-    forecast_from: 2025
+    forecast_from: 2024
     filters:
     - column: sector
     - column: action
@@ -2657,7 +2657,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: tampere/stationary_actions
-    forecast_from: 2025
+    forecast_from: 2024
     filters:
     - column: sector
     - column: action
@@ -2725,7 +2725,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: tampere/stationary_actions
-    forecast_from: 2025
+    forecast_from: 2024
     filters:
     - column: sector
     - column: action
@@ -2807,7 +2807,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: tampere/stationary_actions
-    forecast_from: 2025
+    forecast_from: 2024
     filters:
     - column: sector
     - column: action
@@ -2913,7 +2913,7 @@ actions:
     allow_null_categories: true
   input_datasets:
   - id: tampere/stationary_actions
-    forecast_from: 2025
+    forecast_from: 2024
     filters:
     - column: sector
     - column: action
@@ -2984,7 +2984,7 @@ actions:
     value: Value
   input_datasets:
   - id: gpc/tampere_simple_actions
-    forecast_from: 2023
+    forecast_from: 2024
   output_nodes:
   - id: other_heating_emission_factors
     to_dimensions:
