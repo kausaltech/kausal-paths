@@ -107,6 +107,7 @@ class ReduceParameter(ParameterWithUnit, Parameter):
 
 
 class ReduceAction(ActionNode):
+    explanation = _("""Define action with parameters <i>reduce</i> and <i>multiplier</i>.""")
     allowed_parameters: ClassVar[list[Parameter]] = [
         ReduceParameter(local_id='reduce'),
         NumberParameter(local_id='multiplier'),

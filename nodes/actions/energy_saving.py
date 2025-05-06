@@ -25,6 +25,9 @@ from params import NumberParameter, Parameter, StringParameter
 
 from .action import ActionNode
 
+if typing.TYPE_CHECKING:
+    from common import polars as ppl
+
 
 @njit(cache=True)
 def simulate_led_retrofit(
@@ -244,8 +247,7 @@ def simulate_building_energy_saving(params: BuildingEnergyParams):
                 if params.all_in_investment:
                     new_renovations *= 0
             val += new_renovations
-            if val > params.renovation_potential:
-                val = params.renovation_potential
+            val = min(val, params.renovation_potential)
 
             total_renovated[i] = val
             renovated_per_year[i] = val - total_renovated[i - 1]
@@ -269,14 +271,14 @@ def simulate_building_energy_saving(params: BuildingEnergyParams):
 
 
 class BuildingEnergySavingAction(ActionNode):
-    """
+    explanation = _("""
     Action that has an energy saving effect on building stock (per floor area).
 
     The output values are given per TOTAL building floor area,
     not per RENOVATEABLE building floor area. This is useful because
     the costs and savings from total renovations sum up to a meaningful
     impact on nodes that are given per floor area.
-    """
+    """)
 
     output_metrics = {
         DEFAULT_METRIC: NodeMetric('%', 'fraction', column_id=VALUE_COLUMN),
@@ -326,12 +328,13 @@ class BuildingEnergySavingAction(ActionNode):
         'renovation_rate_baseline', 'all_in_investment',
     ]
 
-    def compute_effect(self) -> pd.DataFrame:
+    def compute_effect(self) -> pd.DataFrame | ppl.PathsDataFrame:
         # Global parameters
         renovation_rate_param = self.get_global_parameter_value('renovation_rate_baseline', units=True)
         renovation_rate_baseline = renovation_rate_param.to('1/a').m
         model_end_year = self.context.model_end_year
         all_in_investment = self.get_global_parameter_value('all_in_investment')
+        assert isinstance(all_in_investment, bool)
         current_year = self.context.instance.maximum_historical_year
         assert current_year is not None
 
@@ -385,10 +388,11 @@ class BuildingEnergySavingAction(ActionNode):
 
     def compute_effect_old(self) -> pd.DataFrame:
         # Global parameters
-        renovation_rate_baseline = self.context.get_parameter_value('renovation_rate_baseline', units=True)
+        renovation_rate_baseline = self.get_global_parameter_value('renovation_rate_baseline', units=True)
         renovation_rate_baseline = renovation_rate_baseline.to('1/a').m
         model_end_year = self.context.model_end_year
         current_year = self.context.instance.maximum_historical_year
+        assert isinstance(current_year, int)
 
         # Local parameters
         lifetime = self.get_parameter_value('investment_lifetime', units=True).to('a').m
@@ -416,8 +420,8 @@ class BuildingEnergySavingAction(ActionNode):
         cost = df[VALUE_COLUMN].copy()
 
         # Reinvestments after renovation potential reached
-        for round in range(1, len(df.index) // lifetime):
-            s = df[VALUE_COLUMN].shift(lifetime * round, fill_value=0)
+        for roundd in range(1, len(df.index) // lifetime):
+            s = df[VALUE_COLUMN].shift(lifetime * roundd, fill_value=0)
             cost += s
 
         cost = cost.diff().fillna(0)
@@ -432,9 +436,7 @@ class BuildingEnergySavingAction(ActionNode):
 
 
 class BuildingEnergySavingActionUs(BuildingEnergySavingAction):
-    """
-    BuildingEnergySavingAction with U.S. units and natural gas instead of heat.
-    """
+    explanation = _("""BuildingEnergySavingAction with U.S. units and natural gas instead of heat.""")
 
     output_metrics = {
         VALUE_COLUMN: NodeMetric('%', 'fraction'),
@@ -490,6 +492,7 @@ class BuildingEnergySavingActionUs(BuildingEnergySavingAction):
         renovation_rate_baseline = renovation_rate_param.to('1/a').m
         model_end_year = self.context.model_end_year
         all_in_investment = self.get_global_parameter_value('all_in_investment')
+        assert isinstance(all_in_investment, bool)
         current_year = self.context.instance.maximum_historical_year
         assert current_year is not None
 
@@ -543,12 +546,20 @@ class BuildingEnergySavingActionUs(BuildingEnergySavingAction):
 
 
 class CfFloorAreaAction(BuildingEnergySavingAction):
+    explanation = _(
     """
-    BuildingEnergySavingAction with cumulative energy savings.
+    Action that has an energy saving effect on building stock (per floor area).
+
+    The output values are given per TOTAL building floor area,
+    not per RENOVATEABLE building floor area. This is useful because
+    the costs and savings from total renovations sum up to a meaningful
+    impact on nodes that are given per floor area.
+
+    Outputs:
     # fraction of existing buildings triggering code updates
     # compliance of new buildings to the more active regulations
     # improvement in energy consumption factor
-    """
+    """)
 
     output_metrics = {
         'triggered': NodeMetric('%', 'fraction', column_id='triggered'),
@@ -570,7 +581,7 @@ class CfFloorAreaAction(BuildingEnergySavingAction):
         )
     ]
 
-    def compute_effect(self) -> pd.DataFrame:
+    def compute_effect(self) -> pd.DataFrame | ppl.PathsDataFrame:
 
         df = self.get_input_dataset_pl(tag='floor', required=True)
         assert 'action_change' in df.primary_keys
@@ -585,12 +596,12 @@ class CfFloorAreaAction(BuildingEnergySavingAction):
 
         unit_el = self.get_parameter_value('electricity_unit', units=False, required=False)
         if unit_el is not None:
-            self.output_metrics['electricity'].default_unit = unit_el
+            self.output_metrics['electricity'].default_unit = unit_el # type: ignore
             self.output_metrics['electricity'].populate_unit(context=self.context)
 
         unit_gas = self.get_parameter_value('natural_gas_unit', units=False, required=False)
         if unit_gas is not None:
-            self.output_metrics['natural_gas'].default_unit = unit_gas
+            self.output_metrics['natural_gas'].default_unit = unit_gas # type: ignore
             self.output_metrics['natural_gas'].populate_unit(context=self.context)
 
         df = df2.paths.join_over_index(df, index_from='union')
@@ -606,8 +617,8 @@ class CfFloorAreaAction(BuildingEnergySavingAction):
         return df
 
 
-class EnergyAction(ActionNode):
-    """Simple action with several energy metrics."""
+class EnergyAction(ActionNode): # FIXME Replace with a more generic node class?
+    explanation = _("""Simple action with several energy metrics.""")
 
     output_metrics = {
         'electricity': NodeMetric('kWh/ft**2/a', 'fraction', column_id='electricity'),
