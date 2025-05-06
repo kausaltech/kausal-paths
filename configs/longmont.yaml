@@ -40,7 +40,8 @@ normalizations:
     unit: miles/cap/a
 features:
   baseline_visible_in_graphs: true
-  use_datasets_from_db: false
+  use_datasets_from_db: true
+  show_explanations: true
 
 result_excels:
 - base_excel_url: 
