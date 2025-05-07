@@ -54,7 +54,7 @@ jobs:
     needs: [build]
     uses: kausaltech/github-actions/.github/workflows/deploy.yaml@main
     secrets:
-      gitops_pat: ${{ secrets.GHA_GITOPS_PAT }}
+      gitops_ssh_key: ${{ secrets.GITOPS_SSH_KEY }}
     if: needs.build.outputs.deployment_env
     with:
       docker_image_repo: ${{ needs.build.outputs.image }}
