@@ -1184,27 +1184,22 @@ nodes:
 - id: transport_fuel_primary_energy_consumption
   name_en: Transport fuel primary energy consumption
   name_de: Transport fuel primary energy consumption
+  short_name_en: Transport
+  short_name_de: Verkehr
   input_dimensions: [vehicle_type, energy_carrier, renewable_energy]
   output_dimensions: [vehicle_type, energy_carrier, renewable_energy]
-  type: formula.FormulaNode
+  type: simple.MultiplicativeNode
   unit: GWh/a
   quantity: energy
-  params:
-    formula: (transport_fuel_end_energy_consumption + aviation_fuel_consumption) *
-      transport_fuel_energy_factor
   input_nodes:
   - id: transport_fuel_energy_factor
     to_dimensions:
     - id: energy_carrier
     - id: renewable_energy
   - id: transport_fuel_end_energy_consumption
+    tags: [non_additive]
     to_dimensions:
     - id: vehicle_type
-    - id: energy_carrier
-  - id: aviation_fuel_consumption
-    to_dimensions:
-    - id: vehicle_type
-      categories: [aviation]
     - id: energy_carrier
   output_nodes:
   - id: transport_primary_energy_demand
@@ -1367,9 +1362,13 @@ nodes:
     - id: vehicle_type
     - id: energy_carrier
       categories: [electricity]
-  - id: aviation_fuel_consumption
+  - id: aviation_end_energy_consumption
+    from_dimensions:
+    - id: flight_type
+      flatten: true
     to_dimensions:
     - id: energy_carrier
+      categories: [kerosene]
     - id: vehicle_type
       categories: [aviation]
 

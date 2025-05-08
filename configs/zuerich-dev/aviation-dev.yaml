@@ -99,32 +99,66 @@ nodes:
     - id: flight_type
       flatten: true
 
-- id: aviation_fuel_consumption_per_inhabitant
-  name_de: Aviation fuel consumption per inhabitant
-  name_en: Aviation fuel consumption per inhabitant
+- id: aviation_end_energy_factors
+  name_de: Aviation end energy factors
+  name_en: Aviation end energy factors
   type: simple.AdditiveNode
-  quantity: energy
-  unit: kWh/cap/a
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
+  quantity: energy_factor
+  unit: MJ/pkm
+  input_dimensions: [flight_type]
+  output_dimensions: [flight_type]
   input_datasets:
-  - id: zuerich/aviation_fuel_consumption
+  - id: zuerich/aviation_end_energy_factors
   input_dataset_processors: [LinearInterpolation]
-  minimum_year: 2010
 
-- id: aviation_fuel_consumption
-  name_de: Aviation fuel consumption
-  name_en: Aviation fuel consumption
+- id: aviation_primary_energy_factors
+  name_de: Aviation primary energy factors
+  name_en: Aviation primary energy factors
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: MJ/pkm
+  input_dimensions: [flight_type]
+  output_dimensions: [flight_type]
+  input_datasets:
+  - id: zuerich/aviation_primary_energy_factors
+  input_dataset_processors: [LinearInterpolation]
+
+- id: aviation_end_energy_consumption
+  name_de: Aviation end energy consumption
+  name_en: Aviation end energy consumption
   short_name_de: Flugverkehr
   short_name_en: Aviation
   type: simple.MultiplicativeNode
-  quantity: energy
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
+  quantity: emissions
+  input_dimensions: [flight_type]
+  output_dimensions: [flight_type]
   unit: GWh/a
   input_nodes:
-  - id: population
-    tags: [non_additive]
-    to_dimensions: []
-  - id: aviation_fuel_consumption_per_inhabitant
-    tags: [non_additive]
+  - id: aviation_mileage
+  - id: aviation_end_energy_factors
+
+- id: aviation_primary_energy_consumption
+  name_de: Aviation primary energy consumption
+  name_en: Aviation primary energy consumption
+  short_name_de: Flugverkehr
+  short_name_en: Aviation
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  input_dimensions: [flight_type]
+  output_dimensions: [flight_type]
+  unit: GWh/a
+  input_nodes:
+  - id: aviation_mileage
+  - id: aviation_primary_energy_factors
+  output_nodes:
+  - id: transport_primary_energy_demand
+    from_dimensions:
+    - id: flight_type
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+      categories: [aviation]
+    - id: renewable_energy
+      categories: [nonrenewable]
+    - id: energy_carrier
+      categories: [kerosene]
