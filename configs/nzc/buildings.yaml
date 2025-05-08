@@ -281,7 +281,7 @@ nodes:
 - id: renovation_intensity_shares_goal
   name_en: Renovation intensity shares goal
   name_fi: Peruskorjausten intensiteetin osuuksien tavoite
-  type: gpc.DatasetNode
+  type: gpc.DatasetPlusOneNode
   quantity: fraction
   unit: '%'
   input_dimensions: [building_energy_class]
@@ -420,7 +420,7 @@ nodes:
 - id: energy_use_intensity_change_new
   name_en: Energy use intensity change for new buildings
   name_fi: Energiankäytön intensiteetin muutos uudisrakennuksille
-  type: gpc.DatasetNode
+  type: gpc.DatasetPlusOneNode
   quantity: fraction
   unit: '%'
   input_dimensions: [building_energy_class]
@@ -1017,7 +1017,7 @@ nodes:
 - id: efficient_appliances_renovation_rate_goal
   name_en: Lighting & appliances renovation rate goal
   name_fi: Valaistuksen ja laitteiden peruskorjausasteen tavoite
-  type: gpc.DatasetNode
+  type: gpc.DatasetPlusOneNode
   quantity: fraction
   unit: '%/a'
   input_dimensions: [energy_carrier]

@@ -226,12 +226,12 @@ class DatasetNode(AdditiveNode):
         for col in vcols:
             # Check whether varient ID matches the one variant ID controlled locally.
             if col[2:] == self.get_parameter_value('variant_id', required=False):
-                val = '%i' % round(cast(float, self.get_parameter_value('variant_number', required=True)))
+                val = '%i' % round(cast('float', self.get_parameter_value('variant_number', required=True)))
 
             # If not, use the corresponding global parameter.
             else:
                 self.global_parameters.append(col[2:])
-                val = '%i' % round(cast(float, self.get_global_parameter_value(col[2:], required=True)))
+                val = '%i' % round(cast('float', self.get_global_parameter_value(col[2:], required=True)))
 
             df = df.filter(pl.col(col) == val).drop(col)
 
@@ -283,7 +283,7 @@ class DatasetNode(AdditiveNode):
         if measure_data_override:
             historical_years = df.filter(~pl.col(FORECAST_COLUMN))
             if len(historical_years) > 0:
-                start_from_year = cast(int, historical_years[YEAR_COLUMN].max()) + 1
+                start_from_year = cast('int', historical_years[YEAR_COLUMN].max()) + 1
         df = self.add_nodes_pl(df, input_nodes, start_from_year=start_from_year)
         if len(na_nodes) > 0:
             assert len(na_nodes) == 1  # Only one multiplier allowed.
@@ -292,11 +292,16 @@ class DatasetNode(AdditiveNode):
                 # force multiplier to 1 below max year
                 mult = mult.ensure_unit(VALUE_COLUMN, 'dimensionless')
                 mult = mult.with_columns(
-                    pl.when(pl.col(YEAR_COLUMN) <= start_from_year)
+                    pl.when(pl.col(YEAR_COLUMN) < start_from_year)
                     .then(pl.lit(1.0))
                     .otherwise(pl.col(VALUE_COLUMN))
                     .alias(VALUE_COLUMN),
                 )
+                mult = mult.with_columns(
+                    pl.when(pl.col(YEAR_COLUMN) < start_from_year)
+                    .then(pl.lit(False))  # noqa: FBT003
+                    .otherwise(pl.col(FORECAST_COLUMN))
+                    .alias(FORECAST_COLUMN))
             df = df.paths.join_over_index(mult, how='outer', index_from='union')
 
             df = df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN).drop(
@@ -305,17 +310,21 @@ class DatasetNode(AdditiveNode):
         return df
 
     # -----------------------------------------------------------------------------------
-    def compute(self) -> ppl.PathsDataFrame:
-        df = self.get_gpc_dataset()
-
+    def get_correct_baseline(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         if self.get_global_parameter_value('measure_data_baseline_year_only', required=False):
             filt = (pl.col(YEAR_COLUMN) == self.context.instance.reference_year) | (
-                pl.col(YEAR_COLUMN) > self.context.instance.maximum_historical_year
+                pl.col(YEAR_COLUMN) > self.context.instance.maximum_historical_year # TODO Not fully sure about this logic
             )
             if FORECAST_COLUMN in df.columns:
                 filt |= pl.col(FORECAST_COLUMN)
             df = df.filter(filt)
+        return df
 
+    # -----------------------------------------------------------------------------------
+
+    def compute(self) -> ppl.PathsDataFrame:
+        df = self.get_gpc_dataset()
+        df = self.get_correct_baseline(df)
         df = self.drop_unnecessary_levels(df, droplist=['Description'])
         df = self.rename_dimensions(df)
         df = self.convert_names_to_ids(df)
@@ -334,6 +343,22 @@ class DatasetNode(AdditiveNode):
         df = self.add_and_multiply_input_nodes(df)
         df = self.maybe_drop_nulls(df)
         df = df.ensure_unit(VALUE_COLUMN, self.unit)  # type: ignore
+        return df
+
+class DatasetPlusOneNode(DatasetNode):
+    """Used for action goal setting when reference year + 1 data is needed."""
+
+    def get_correct_baseline(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        if self.get_global_parameter_value('measure_data_baseline_year_only', required=False):
+            filt = (pl.col(YEAR_COLUMN) == self.context.instance.reference_year) | (
+                pl.col(YEAR_COLUMN) > self.context.instance.maximum_historical_year # TODO Not fully sure about this logic
+            )
+            refyear = self.context.instance.reference_year
+            if isinstance(refyear, int):
+                filt |= (pl.col(YEAR_COLUMN) == refyear + 1) # Needed by some actions
+            if FORECAST_COLUMN in df.columns:
+                filt |= pl.col(FORECAST_COLUMN)
+            df = df.filter(filt)
         return df
 
 

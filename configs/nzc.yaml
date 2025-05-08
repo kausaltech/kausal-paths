@@ -27,6 +27,7 @@ features:
   hide_node_details: true
   show_refresh_prompt: true
   requires_authentication: true
+  show_explanations: true
 
 include:
 
