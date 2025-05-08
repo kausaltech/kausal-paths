@@ -78,7 +78,7 @@ if 'Scope' in df.columns:
     scopecol = df.select('Scope').to_series(0).to_list()
     labels = []
     for x in scopecol:
-        if x:
+        if isinstance(x, int):
             labels.append('Scope %i' % x)
         else:
             labels.append(x)

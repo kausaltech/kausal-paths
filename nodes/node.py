@@ -258,7 +258,7 @@ class Node:
     input_dimension_ids: list[str] = []
     "References to the dimensions that this node's input must contain (typically set in a class)."
 
-    explanation: I18nString = _('NOTE! Add text about the node class.')
+    explanation: str | I18nString = "Text about the node class missing."
     'Textual explanation about what the node computes (typicallly set in a class).'
 
     # set if this node has a specific goal for the simulation target year
@@ -1593,30 +1593,31 @@ class Node:
         return df
 
     tag_descriptions = {
-        'non_additive': _('Input node values are not added but operated despite matching units.'),
-        'truncate_beyond_end': _('Truncate values beyond the model end year. There may be some from data'),
-        'truncate_before_start': _('Truncate values before the reference year. There may be some from data'),
-        'extend_values': _('Extend the last historical values to the remaining missing years.'),
-        'inventory_only': _('Truncate the forecast values.'),
+        'additive': _("Add input node values (even if the units don't match with the node units)."),
         'arithmetic_inverse': _('Take the arithmetic inverse of the values (-x).'),
-        'geometric_inverse': _('Take the geometric inverse of the values (1/x).'),
         'complement': _('Take the complement of the dimensionless values (1-x).'),
-        'difference': _('Take the difference over time (i.e. annual changes)'),
+        'complement_cumulative_product': _('Take the cumulative product of the dimensionless complement values over time.'),
         'cumulative': _('Take the cumulative sum over time.'),
         'cumulative_product': _('Take the cumulative product of the dimensionless values over time.'),
-        'complement_cumulative_product': _('Take the cumulative product of the dimensionless complement values over time.'),
-        'ratio_to_last_historical_value': _('Take the ratio of the values compared with the last historical value.'),
-        'existing': _('This is used as the baseline.'),
-        'incoming': _('This is used for the incoming stock.'),
-        'removing': _('This is the rate of stock removal.'),
-        'inserting': _('This is the rate of new stock coming in.'),
-        'historical': _('The node is used as the historical starting point.'),
-        'goal': _('The node is used as the goal for the action.'),
-        'make_nonnegative': _('Negative result values are replaced with 0.'),
-        'make_nonpositive': _('Positive result values are replaced with 0.'),
+        'difference': _('Take the difference over time (i.e. annual changes)'),
         'empty_to_zero': _('Convert NaNs to zeros.'),
         'expectation': _('Take the expected value over the uncertainty dimension.'),
+        'extend_values': _('Extend the last historical values to the remaining missing years.'),
+        'geometric_inverse': _('Take the geometric inverse of the values (1/x).'),
+        'goal': _('The node is used as the goal for the action.'),
+        'historical': _('The node is used as the historical starting point.'),
+        'existing': _('This is used as the baseline.'),
+        'incoming': _('This is used for the incoming stock.'),
         'ignore_content': _('Show edge on graphs but ignore upstream content.'),
+        'inserting': _('This is the rate of new stock coming in.'),
+        'inventory_only': _('Truncate the forecast values.'),
+        'make_nonnegative': _('Negative result values are replaced with 0.'),
+        'make_nonpositive': _('Positive result values are replaced with 0.'),
+        'non_additive': _('Input node values are not added but operated despite matching units.'),
+        'ratio_to_last_historical_value': _('Take the ratio of the values compared with the last historical value.'),
+        'removing': _('This is the rate of stock removal.'),
+        'truncate_before_start': _('Truncate values before the reference year. There may be some from data'),
+        'truncate_beyond_end': _('Truncate values beyond the model end year. There may be some from data'),
     }
 
     def get_explanation(self):
@@ -1629,7 +1630,7 @@ class Node:
             html.append(f"<p>{self.explanation}")
         if 'operations' in self.parameters.keys():
             operations = self.get_parameter_value_str('operations', required=False)
-            html.append(f"The order of operations is {operations}.")
+            html.append(f"_(The order of operations is) {operations}.")
         html.append("</p>")
 
         # Add formula if available # TODO Also describe other parameters.
@@ -1652,9 +1653,10 @@ class Node:
         # Add datasets information
         dataset_html = []
         if self.input_dataset_instances:
+            df = self.get_output_pl()
             dataset_html.append(f"<p>{_('The node has the following datasets:')}</p>")
             dataset_html.append("<ul>")
-            dataset_html.extend([f"<li>{dataset.id}</li>" for dataset in self.input_dataset_instances])
+            dataset_html.extend(df.explanation)
             dataset_html.append("</ul>")
 
         edge_html = self.get_edge_explanation()

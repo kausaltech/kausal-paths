@@ -38,6 +38,7 @@ class PathsExt:
         """Project the DataFrame wide (dimension categories become columns) and group by year."""
 
         df = self._df
+        explanation = df.explanation
 
         if meta is None:
             meta = df.get_meta()
@@ -104,12 +105,17 @@ class PathsExt:
             else:
                 if FORECAST_COLUMN in index_cols:
                     tdf = tdf.drop(FORECAST_COLUMN)
-                mdf = mdf.join(tdf, on=YEAR_COLUMN)
+                mdf = mdf.join(tdf, on=YEAR_COLUMN) # type: ignore
         assert mdf is not None
         mdf = mdf.sort(YEAR_COLUMN)
+        meta2 = ppl.DataFrameMeta(
+            units=units,
+            primary_keys=[YEAR_COLUMN],
+            explanation=explanation
+        )
         return ppl.PathsDataFrame._from_pydf(
             mdf._df,
-            meta=ppl.DataFrameMeta(units=units, primary_keys=[YEAR_COLUMN]),
+            meta=meta2,
         )
 
     def to_narrow(self, assign_dimension: str | None = None, assign_metric: str | None = None) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912
@@ -134,7 +140,7 @@ class PathsExt:
             if col != new_col:
                 renames[col] = new_col
 
-        if not len(widened_cols):
+        if not len(widened_cols):  # noqa: PLC1802
             return df  # type: ignore
 
         if renames:
@@ -257,7 +263,7 @@ class PathsExt:
         om = other.get_meta()
         # Join on subset of keys
         join_on = list(set(sm.primary_keys) & set(om.primary_keys))
-        if not len(join_on):
+        if not len(join_on):  # noqa: PLC1802
             if len(other) == 1:  # A single value copied to all rows
                 #df = sdf.with_columns(other).paths._df
                 raise Exception("invalid access")
