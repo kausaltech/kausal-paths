@@ -1485,6 +1485,7 @@ actions:
   type: linear.DatasetReduceAction
   quantity: emissions
   unit: kt/a
+  group: other
   input_dimensions: [waste_treatment]
   output_dimensions: [waste_treatment]
   input_nodes:

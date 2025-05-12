@@ -318,13 +318,14 @@ class DatasetWithFilters(Dataset):
             filter_text = _("Filter")
             filter_no = 1
             for filter_dict in self.filters:
-                dataset_html.append(f"<li>{filter_text} {filter_no}</li>")
+                dataset_html.append(f"<li>{filter_text} {filter_no}")
                 if isinstance(filter_dict, dict):
                     dataset_html.append("<ul>")
                     for key, value in filter_dict.items():
                         v = str(value)
                         dataset_html.append(f"<li><strong>{key}:</strong> {v}</li>")
                     dataset_html.append("</ul>")
+                dataset_html.append("</li>")
                 filter_no += 1
             dataset_html.append("</ul>")
         dataset_html.append("</ul>")

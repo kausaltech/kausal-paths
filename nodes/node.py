@@ -1666,7 +1666,7 @@ class Node:
         if dataset_html:
             html.extend(dataset_html)
 
-        return "\n".join(html)
+        return "".join(html)
 
     def get_edge_explanation(self):
         edge_html = []
