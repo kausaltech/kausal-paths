@@ -328,7 +328,7 @@ class DatasetWithFilters(Dataset):
                 dataset_html.append("</li>")
                 filter_no += 1
             dataset_html.append("</ul>")
-        dataset_html.append("</ul>")
+        dataset_html.append("</li>")
 
         df = df.with_explanation([str(item) for item in dataset_html])
 
