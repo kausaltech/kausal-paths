@@ -925,7 +925,7 @@ actions:
     filters:
     - column: sector
       value: i11
-  # output_nodes: [i11_residential_fuel_consumption]
+  output_nodes: [i11_residential_fuel_consumption]
 
 - id: i11_residential_fuel_emission_factor_action
   name: Umsetzung drastische CO2-Reduktion von Wärmeenergieträgern ( außer Fernwärme)
