@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import typing
 
+import paths.utils
+
 if typing.TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -19,6 +21,10 @@ def schema_default_scope():
     # Only call in view contexts where the context has been initialized
     from paths.context import realm_context
     return realm_context.get().realm
+
+def validate_unit(unit: str) -> None:
+    """Raise `ValidationError` if `unit` is not a valid unit."""
+    paths.utils.validate_unit(unit)
 
 DATA_SOURCE_DEFAULT_SCOPE_CONTENT_TYPE: tuple[str, str] =  ('nodes', 'instanceconfig')
 SCHEMA_HAS_SINGLE_DATASET: bool = True
