@@ -449,10 +449,45 @@ nodes:
     to_dimensions:
     - id: energy_carrier
   output_nodes:
-  - id: end_energy_consumption
+  - id: transport_end_energy_consumption
     from_dimensions:
     - id: non_road_machinery
       flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+      categories: [off_non_road]
+
+- id: non_road_machinery_primary_energy_consumption
+  name_de: Baumaschinen und Spezialfahrzeuge Primary Energy Consumption
+  name_en: Building machine and special vehicle primary energy consumption
+  short_name_de: Non-Road Maschinen
+  short_name_en: Non-road machinery
+  input_dimensions: [energy_carrier, non_road_machinery, renewable_energy]
+  output_dimensions: [energy_carrier, non_road_machinery, renewable_energy]
+  type: simple.MultiplicativeNode
+  unit: GWh/a
+  quantity: energy
+  input_nodes:
+  - id: transport_fuel_energy_factor
+    to_dimensions:
+    - id: energy_carrier
+    - id: renewable_energy
+  - id: non_road_machinery_end_energy_consumption
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+    - id: non_road_machinery
+  output_nodes:
+  - id: transport_primary_energy_demand
+    from_dimensions:
+    - id: non_road_machinery
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: renewable_energy
+    - id: vehicle_type
+      categories: [off_non_road]
 
 - id: non_road_machinery_emissions_2kw
   name_de: Treibhausgasemissionen Baumaschinen und Spezialfahrzeuge (2000-Watt)

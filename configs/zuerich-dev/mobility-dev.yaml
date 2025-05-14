@@ -335,6 +335,9 @@ dimensions:
     label: E-Scoter
     label_en: E-scooter
 
+  - id: off_non_road
+    label: Baumaschinen und Spezialfahrzeuge
+    label_en: Off-/Non-Road
   - id: off_non_road_petrol
     label: Baumaschinen und Spezialfahrzeuge / Benzin
     label_en: Off-/Non-Road / Petrol
