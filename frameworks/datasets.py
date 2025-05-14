@@ -60,6 +60,7 @@ class FrameworkMeasureDVCDataset(DVCDataset):
         dpdf = pl.DataFrame(data=list(dps), schema=schema, orient='row')
 
         meta = df.get_meta()
+        meta.observed_years = set(dpdf['MeasureYear'])
         df_cols = df.columns
 
         baseline_year = context.instance.reference_year
