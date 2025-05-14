@@ -31,6 +31,7 @@ class DataFrameMeta:
     units: dict[str, Unit]
     primary_keys: list[str]
     explanation: list[str] = field(default_factory=list)
+    observed_years: set[int] = field(default_factory=set)
 
     @classmethod
     def get_dim_ids(cls, pks: list[str]) -> list[str]:
@@ -51,7 +52,8 @@ class DataFrameMeta:
         return DataFrameMeta(
             units=self.units.copy(),
             primary_keys=self.primary_keys.copy(),
-            explanation = self.explanation.copy()
+            explanation = self.explanation.copy(),
+            observed_years=self.observed_years.copy()
         )
 
     def serialize(self) -> dict[str, Any]:
@@ -73,6 +75,7 @@ class PathsDataFrame(pl.DataFrame):
     _units: dict[str, Unit]
     _primary_keys: list[str]
     _explanation:  list[str]
+    _observed_years: set[int]
     paths: PathsExt
 
     @classmethod
@@ -82,6 +85,7 @@ class PathsDataFrame(pl.DataFrame):
         df._units = {}
         df._primary_keys = []
         df._explanation = []
+        df._observed_years = set()
 
         if meta is None:
             return df
@@ -93,6 +97,7 @@ class PathsDataFrame(pl.DataFrame):
                 df._primary_keys.append(col)
 
         df._explanation = meta.explanation.copy() if meta.explanation else []
+        df._observed_years = meta.observed_years.copy() if meta.observed_years else set()
         validate_ppdf(df)
 
         return df
@@ -115,6 +120,12 @@ class PathsDataFrame(pl.DataFrame):
         if not hasattr(self, '_explanation'):
             self._explanation = []
         return self._explanation
+
+    @property
+    def observed_years(self) -> set[int]:
+        if not hasattr(self, '_observed_years'):
+            self._observed_years = set()
+        return self._observed_years
 
     def with_explanation(self, explanation: list) -> PathsDataFrame:
         """Return a new PathsDataFrame with the updated explanation."""
@@ -254,10 +265,12 @@ class PathsDataFrame(pl.DataFrame):
 
     def get_meta(self) -> DataFrameMeta:
         explanation_list = getattr(self, '_explanation', [])
+        observed_years: set[int] = getattr(self, '_observed_years', set())
         meta = DataFrameMeta(
             units=self._units.copy(),
             primary_keys=self._primary_keys.copy(),
-            explanation=explanation_list.copy()
+            explanation=explanation_list.copy(),
+            observed_years=observed_years.copy()
         )
         return meta
 
@@ -287,7 +300,7 @@ class PathsDataFrame(pl.DataFrame):
         return PathsDataFrame._from_pydf(self._df, meta=meta)
 
     def multiply_cols(self, cols: list[str], out_col: str, out_unit: Unit | None = None) -> PathsDataFrame:
-        res_unit = cast(Unit, reduce(lambda x, y: x * y, [self._units[col] for col in cols]))  # pyright: ignore
+        res_unit = cast('Unit', reduce(lambda x, y: x * y, [self._units[col] for col in cols]))  # pyright: ignore
         s = reduce(lambda x, y: x * y, [self[col] for col in cols])
         df = self.with_columns([s.alias(out_col)])
         df._units[out_col] = res_unit
@@ -304,7 +317,7 @@ class PathsDataFrame(pl.DataFrame):
         return df
 
     def divide_cols(self, cols: list[str], out_col: str, out_unit: Unit | None = None) -> PathsDataFrame:
-        res_unit = cast(Unit, reduce(lambda x, y: x / y, [self._units[col] for col in cols]))  # pyright: ignore
+        res_unit = cast('Unit', reduce(lambda x, y: x / y, [self._units[col] for col in cols]))  # pyright: ignore
         s = reduce(lambda x, y: x / y, [self[col] for col in cols])
         df = self.with_columns([s.alias(out_col)])
         df._units[out_col] = res_unit
@@ -313,7 +326,7 @@ class PathsDataFrame(pl.DataFrame):
         return df
 
     def divide_quantity(self, col: str, quantity: Quantity, out_unit: Unit | None = None) -> PathsDataFrame:
-        res_unit = cast(Unit, quantity.units / self._units[col])
+        res_unit = cast('Unit', quantity.units / self._units[col])
         df = self.with_columns((pl.lit(quantity.m) / pl.col(col)).alias(col))
         df._units[col] = res_unit
         if out_unit:
@@ -393,7 +406,7 @@ class PathsDataFrame(pl.DataFrame):
     def diff(self, col: str, n: int = 1) -> PathsDataFrame:
         meta = self.get_meta()
         unit = unit_registry(TIME_INTERVAL)
-        meta.units[col] = cast(Unit, meta.units[col] / unit)
+        meta.units[col] = cast('Unit', meta.units[col] / unit)
 
         df = self.paths.to_wide()
         for df_col in df.columns:
@@ -588,17 +601,25 @@ def to_ppdf(df: pl.DataFrame | PathsDataFrame, meta: DataFrameMeta | None = None
         return df
 
     source_explanation = []
-    if isinstance(df, PathsDataFrame) and hasattr(df, '_explanation'):
-        source_explanation = df._explanation.copy() if df._explanation else []
+    source_observed_years = set()
+    if isinstance(df, PathsDataFrame):
+        if hasattr(df, '_explanation'):
+            source_explanation = df._explanation.copy()
+        if hasattr(df, '_observed_years'):
+            source_observed_years = df._observed_years.copy()
+
 
     if meta is None:
         meta = DataFrameMeta(
             units={},
             primary_keys=[],
-            explanation=source_explanation
+            explanation=source_explanation,
+            observed_years=source_observed_years
         )
     elif source_explanation and not meta.explanation:
         meta.explanation = source_explanation
+    elif source_observed_years:
+        meta.observed_years.update(source_observed_years)
 
     pdf = PathsDataFrame._from_pydf(df._df, meta=meta)
     validate_ppdf(pdf)

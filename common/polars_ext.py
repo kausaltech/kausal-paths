@@ -39,6 +39,7 @@ class PathsExt:
 
         df = self._df
         explanation = df.explanation
+        observed_years = df.observed_years
 
         if meta is None:
             meta = df.get_meta()
@@ -111,7 +112,8 @@ class PathsExt:
         meta2 = ppl.DataFrameMeta(
             units=units,
             primary_keys=[YEAR_COLUMN],
-            explanation=explanation
+            explanation=explanation,
+            observed_years=observed_years
         )
         return ppl.PathsDataFrame._from_pydf(
             mdf._df,
@@ -299,6 +301,9 @@ class PathsExt:
             meta.primary_keys = list(set(sm.primary_keys) | set(om.primary_keys))
         else:
             raise ValueError("Invalid value for 'index_from'")
+
+        meta.explanation.extend(om.explanation)
+        meta.observed_years |= om.observed_years
 
         out = ppl.to_ppdf(df, meta=meta)
         if out.paths.index_has_duplicates():

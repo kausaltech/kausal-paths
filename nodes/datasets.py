@@ -308,7 +308,7 @@ class DatasetWithFilters(Dataset):
 
         return df
 
-    def add_explanation(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+    def add_explanation(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame: # TODO Move to Dataset?
         dataset_html = df.explanation
         dataset_html.append(f"<li><i>{self.id}</i>")
         if hasattr(self, 'filters') and isinstance(self.filters, list) and self.filters:
