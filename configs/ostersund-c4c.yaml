@@ -371,6 +371,14 @@ dimensions:
     label: 'Replace Fuel Oil Heating with Geothermal'
   - id: zeroemission_factor_for_district_heating
     label: 'Zero-Emission Factor for District Heating'
+  - id: bicycle_and_pedestrian_infrastructure_measures
+    label: 'Bicycle and Pedestrian Infrastructure Measures'
+  - id: public_transport_infrastructure_measures
+    label: 'Public Transport Infrastructure Measures'
+  - id: mobility_management
+    label: 'Mobility Management'
+  - id: parking_measures
+    label: 'Parking Measures'
 
 emission_sectors:
 - id: net_emissions
