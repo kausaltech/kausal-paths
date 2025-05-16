@@ -514,6 +514,12 @@ dimensions:
   - id: replacing_fossil_fuels_with_res_in_city_machinery
     label: Fossiilipolttoaineista luopuminen työkoneissa
     label_en: Replacing fossil fuels with RES in city machinery
+  - id: replacing_oil_heating_with_geothermal
+    label: Öljylämmityksestä siirtyminen maalämpöihin
+    label_en: Replacing oil heating with geothermal
+  - id: change_in_vehicle_propulsion
+    label: Autoliikenteen käyttövoimamuutos
+    label_en: Change in vehicle propulsion
 
 emission_sectors:
 - id: net_emissions
