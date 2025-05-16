@@ -749,6 +749,7 @@ nodes:
   - id: direct_electric_heating_emissions
   - id: district_heating_emissions
   - id: geothermal_heating_emissions
+  - id: water_to_air_heat_pump_emissions
 
 # ----- District Heating
 
@@ -1095,6 +1096,54 @@ nodes:
       categories: [geothermal]
     - column: cost_type
   input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: electric_heating_emissions
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+
+- id: water_to_air_heat_pump_electricity_consumption
+  name: Vesi-ilmalämpöpumpun sähkönkulutus
+  name_en: Water-to-air heat pump electricity consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [heating, energy_carrier, scope]
+  output_dimensions: [heating, energy_carrier, scope]
+  input_datasets:
+  - id: tampere/stationary
+    column: energy
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: i12
+    - column: ghg
+    - column: owner
+    - dimension: heating
+      categories: [water_to_air_heat_pump]
+    - column: cost_type
+  output_nodes:
+  - id: water_to_air_heat_pump_emissions
+    to_dimensions:
+    - id: heating
+    - id: energy_carrier
+    - id: scope
+
+- id: water_to_air_heat_pump_emissions
+  name: Vesi-ilmalämpöpumpun päästöt
+  name_en: Water-to-air heat pump emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [heating, energy_carrier, ghg, scope]
+  output_dimensions: [heating, energy_carrier, ghg, scope]
   output_nodes:
   - id: electric_heating_emissions
     from_dimensions:
