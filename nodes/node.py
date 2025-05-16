@@ -1655,10 +1655,11 @@ class Node:
         dataset_html = []
         if self.input_dataset_instances:
             df = self.get_output_pl()
-            dataset_html.append(f"<p>{_('The node has the following datasets:')}</p>")
+            dataset_html.append(f"<p>{_('The node has the following datasets:')}")
             dataset_html.append("<ul>")
-            dataset_html.extend(df.explanation[self.id])
-            dataset_html.append("</ul>")
+            print('get_explanation', df.explanation.keys(), df.explanation.get(self.id, []))
+            dataset_html.extend(df.explanation.get(self.id, [])) # TODO Study where explanation is missing.
+            dataset_html.append("</ul></p>")
 
         edge_html = self.get_edge_explanation()
         # Combine all parts
@@ -1673,7 +1674,7 @@ class Node:
         edge_html = []
         edge_html.append(f"<p>{_(
             'The input nodes are processed in the following way before using as input for calculations in this node:'
-        )}</p>")
+        )}")
         edge_html.append("<ul>")  # Start the main list for nodes
         edge_html0 = edge_html.copy()
 
@@ -1691,17 +1692,15 @@ class Node:
                 node_name = getattr(node, 'translated_name', node.name)
 
                 # Create a list item for the node with nested list
-                edge_html.append(f"<li>{_('Node')} <i>{node_name}</i>:")
-                edge_html.append("<ul>")  # Start nested list for this node
+                edge_html.append(f"<li>{_('Node')} <i>{node_name}</i>:<ul>")
                 edge_html.extend(tag_html)
                 edge_html.extend(from_html)
                 edge_html.extend(to_html)
-                edge_html.append("</ul>")  # Close node's nested list
-                edge_html.append("</li>")  # Close node list item
+                edge_html.append("</ul></li>")
 
         if edge_html == edge_html0:
             return []
-        edge_html.append("</ul>")  # Close main nodes list
+        edge_html.append("</ul></p>")  # Close main nodes list
         return edge_html
 
     def get_explanation_for_edge_tag(self, edge):
