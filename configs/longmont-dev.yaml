@@ -7,16 +7,16 @@
 # - Add categories needed in inventory (0.5 wd)
 # - Build models for e.g. wastewater emissions etc (3 wd)
 
-id: longmont
+id: longmont-dev
 default_language: en
 supported_languages: [es-US]
-site_url: https://longmont.paths-test.kausal.tech
+site_url: https://longmont-dev.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: f5c57165bb8a2d94c9598c1841c63e072a8c6be7
   dvc_remote: kausal-s3
-name: Longmont Greenhouse Gas Inventory
-name_es-US: Inventario de gases de efecto invernadero de Longmont
+name: 2025 Draft Longmont Greenhouse Gas Inventory
+name_es-US: 2025 Inventario de gases de efecto invernadero de Longmont
 owner: City of Longmont
 owner_es-US: Ciudad de Longmont
 theme_identifier: us-longmont
@@ -41,7 +41,7 @@ normalizations:
 features:
   baseline_visible_in_graphs: true
   use_datasets_from_db: true
-  show_explanations: false
+  show_explanations: true
 
 result_excels:
 - base_excel_url: 
