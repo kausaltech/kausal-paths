@@ -50,7 +50,7 @@ class Dataset(ABC):
             self.unit = None
 
     @abstractmethod
-    def load(self, context: Context) -> ppl.PathsDataFrame:
+    def load(self, context: Context, node_id: str) -> ppl.PathsDataFrame:
         raise NotImplementedError()
 
     @abstractmethod
@@ -93,8 +93,8 @@ class Dataset(ABC):
             df = self._linear_interpolate(df)
         return df
 
-    def get_copy(self, context: Context) -> ppl.PathsDataFrame:
-        df = self.load(context)
+    def get_copy(self, context: Context, node_id: str) -> ppl.PathsDataFrame:
+        df = self.load(context, node_id)
         return df.copy()
 
     def get_unit(self, context: Context) -> Unit:  # pyright: ignore[reportUnusedParameter]
@@ -308,11 +308,11 @@ class DatasetWithFilters(Dataset):
 
         return df
 
-    def add_explanation(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame: # TODO Move to Dataset?
-        dataset_html = df.explanation
+    def add_explanation(self, df: ppl.PathsDataFrame, node_id: str) -> ppl.PathsDataFrame:
+        dataset_html = []
         dataset_html.append(f"<li><i>{self.id}</i>")
         if hasattr(self, 'filters') and isinstance(self.filters, list) and self.filters:
-            dataset_html.append(_(" has the following filters:"))
+            dataset_html.append(str(_(" has the following filters:")))
             dataset_html.append("<ul>")
 
             filter_text = _("Filter")
@@ -330,12 +330,11 @@ class DatasetWithFilters(Dataset):
             dataset_html.append("</ul>")
         dataset_html.append("</li>")
 
-        df = df.with_explanation([str(item) for item in dataset_html])
-
+        df = df.with_explanation(dataset_html, node_id=node_id)
         return df
 
-    def _filter_and_process_df(self, context: Context, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        df = self.add_explanation(df)
+    def _filter_and_process_df(self, context: Context, df: ppl.PathsDataFrame, node_id: str) -> ppl.PathsDataFrame:
+        df = self.add_explanation(df, node_id)
         df = self._filter_df(context, df)
         cols = df.columns
 
@@ -416,7 +415,7 @@ class DVCDataset(DatasetWithFilters):
         if self.unit is not None:
             assert isinstance(self.unit, Unit)
 
-    def load(self, context: Context) -> ppl.PathsDataFrame:
+    def load(self, context: Context, node_id: str) -> ppl.PathsDataFrame:
         obj = None
         cache_key: str | None
         if not context.skip_cache:
@@ -440,7 +439,7 @@ class DVCDataset(DatasetWithFilters):
         assert dvc_ds.df is not None
         df = ppl.from_dvc_dataset(dvc_ds)
 
-        df = self._filter_and_process_df(context, df)
+        df = self._filter_and_process_df(context, df, node_id)
         df = self.post_process(context, df)
         df = self.interpret(df, context)
         if cache_key:
@@ -451,7 +450,7 @@ class DVCDataset(DatasetWithFilters):
     def get_unit(self, context: Context) -> Unit:
         if self.unit:
             return self.unit
-        df = self.load(context)
+        df = self.load(context, node_id='')
         if VALUE_COLUMN in df.columns:
             meta = df.get_meta()
             if VALUE_COLUMN not in meta.units:
@@ -636,7 +635,7 @@ class GenericDataset(DVCDataset):
 
     # -----------------------------------------------------------------------------------
 
-    def load(self, context: Context) -> ppl.PathsDataFrame:
+    def load(self, context: Context, node_id: str) -> ppl.PathsDataFrame:
         # Don't call DVCDataset.load directly since it does post_process too early
         # Instead, replicate the parts we need but with different ordering
 
@@ -664,7 +663,7 @@ class GenericDataset(DVCDataset):
         df = ppl.from_dvc_dataset(dvc_ds)
 
         # First process data as DVCDataset would, but WITHOUT calling post_process
-        df = self._filter_and_process_df(context, df)
+        df = self._filter_and_process_df(context, df, node_id)
 
         # Now do GenericDataset specific processing
         df = self.drop_unnecessary_levels(df, droplist=['Description', 'Quantity'])
@@ -748,7 +747,7 @@ class FixedDataset(Dataset):
 
         self.df = pdf
 
-    def load(self, context: Context) -> ppl.PathsDataFrame:
+    def load(self, context: Context, node_id: str) -> ppl.PathsDataFrame:
         # FIXME Cache does not work properly now but does not cause error.
         obj = None
         cache_key: str | None
@@ -766,7 +765,7 @@ class FixedDataset(Dataset):
 
         df = self.df
         assert df is not None
-        df = self.interpret(df, context) # FIXME If all are scalars, do not create interpret dimension.
+        df = self.interpret(df, context) # FIXME Check that output_dimensions and interpret match.
         self.df = df
         if cache_key:
             context.cache.set(cache_key, df, expiry=0)
@@ -798,9 +797,9 @@ class JSONDataset(Dataset):
         if len(meta.units) == 1:
             self.unit = next(iter(meta.units.values()))
 
-    def load(self, context: Context) -> ppl.PathsDataFrame:
+    def load(self, context: Context, node_id: str) -> ppl.PathsDataFrame:
         assert self.df is not None
-        return self.post_process(context, self.df)
+        return self.post_process(context, self.df) # TODO Filtering was forgotten?
 
     def hash_data(self, context: Context) -> dict[str, Any]:
         import pandas as pd
@@ -872,7 +871,7 @@ class DBDataset(DatasetWithFilters):
             from kausal_common.datasets.models import Dataset as DBDatasetModel
             self.db_dataset_obj = DBDatasetModel.objects.get(uuid=self.db_dataset_id)
 
-    def load(self, context: Context) -> ppl.PathsDataFrame:
+    def load(self, context: Context, node_id: str) -> ppl.PathsDataFrame:
         if self.df is not None:
             return self.df
 
@@ -880,7 +879,7 @@ class DBDataset(DatasetWithFilters):
         if ds_obj is None:
             raise Exception('Admin dataset not loaded')
         df = self.deserialize_df(ds_obj)
-        df = self._filter_and_process_df(context, df)
+        df = self._filter_and_process_df(context, df, node_id)
         df = self.post_process(context, df)
         self.df = df
         return df
@@ -891,7 +890,7 @@ class DBDataset(DatasetWithFilters):
         return dict(obj_pk=obj.pk, updated_at=str(obj.last_modified_at))
 
     def get_unit(self, context: Context) -> Unit:
-        df = self.load(context)
+        df = self.load(context, node_id='')
         meta = df.get_meta()
         if len(meta.units) == 1:
             return next(iter(meta.units.values()))
