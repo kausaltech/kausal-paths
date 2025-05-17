@@ -652,7 +652,7 @@ class Node:
                 if exclude:
                     continue
 
-            df = ds.get_copy(self.context)
+            df = ds.get_copy(self.context, self.id)
             if df.paths.index_has_duplicates():
                 raise NodeError(self, 'Input dataset has duplicate index rows')
             assert isinstance(df, ppl.PathsDataFrame)
@@ -743,7 +743,7 @@ class Node:
         if len(self.input_dataset_instances) != 1:  # FIXME What's the point here?
             return None
         ds = self.input_dataset_instances[0]
-        df = ds.get_copy(self.context)
+        df = ds.get_copy(self.context, self.id)
         if FORECAST_COLUMN not in df:
             return None
 
@@ -1063,7 +1063,7 @@ class Node:
                 case 'complement_cumulative_product':
                     df = df.cumprod(VALUE_COLUMN, complement=True)
                 case 'ratio_to_last_historical_value':
-                    year = cast(int, df.filter(~df[FORECAST_COLUMN])[YEAR_COLUMN].max())
+                    year = cast('int', df.filter(~df[FORECAST_COLUMN])[YEAR_COLUMN].max())
                     df = self._scale_by_reference_year(df, year)
                 case 'make_nonnegative':
                     df = df.with_columns(pl.max_horizontal(VALUE_COLUMN, 0.0))
@@ -1089,6 +1089,7 @@ class Node:
                 case 'ignore_content':
                     no_effect_value = getattr(self, 'no_effect_value', 0.0)
                     df = df.with_columns(pl.lit(no_effect_value).alias(VALUE_COLUMN))
+                    assert isinstance(target_node.unit, Unit)
                     df = df.set_unit(VALUE_COLUMN, target_node.unit, force=True)
                 case _:
                     pass
@@ -1394,7 +1395,7 @@ class Node:
             datasets = [x.id for x in self.input_dataset_instances]
             raise NodeError(self, 'Too many input datasets: %s' % ', '.join(datasets))
         ds = self.input_dataset_instances[0]
-        df = ds.get_copy(self.context)
+        df = ds.get_copy(self.context, self.id)
         if not isinstance(df, ppl.PathsDataFrame) or FORECAST_COLUMN not in df.columns:
             msg = f'Dataset {ds.id} is not suitable for serialization'
             raise Exception(msg)
@@ -1654,10 +1655,11 @@ class Node:
         dataset_html = []
         if self.input_dataset_instances:
             df = self.get_output_pl()
-            dataset_html.append(f"<p>{_('The node has the following datasets:')}</p>")
+            dataset_html.append(f"<p>{_('The node has the following datasets:')}")
             dataset_html.append("<ul>")
-            dataset_html.extend(df.explanation)
-            dataset_html.append("</ul>")
+            print('get_explanation', df.explanation.keys(), df.explanation.get(self.id, []))
+            dataset_html.extend(df.explanation.get(self.id, [])) # TODO Study where explanation is missing.
+            dataset_html.append("</ul></p>")
 
         edge_html = self.get_edge_explanation()
         # Combine all parts
@@ -1672,7 +1674,7 @@ class Node:
         edge_html = []
         edge_html.append(f"<p>{_(
             'The input nodes are processed in the following way before using as input for calculations in this node:'
-        )}</p>")
+        )}")
         edge_html.append("<ul>")  # Start the main list for nodes
         edge_html0 = edge_html.copy()
 
@@ -1690,17 +1692,15 @@ class Node:
                 node_name = getattr(node, 'translated_name', node.name)
 
                 # Create a list item for the node with nested list
-                edge_html.append(f"<li>{_('Node')} <i>{node_name}</i>:")
-                edge_html.append("<ul>")  # Start nested list for this node
+                edge_html.append(f"<li>{_('Node')} <i>{node_name}</i>:<ul>")
                 edge_html.extend(tag_html)
                 edge_html.extend(from_html)
                 edge_html.extend(to_html)
-                edge_html.append("</ul>")  # Close node's nested list
-                edge_html.append("</li>")  # Close node list item
+                edge_html.append("</ul></li>")
 
         if edge_html == edge_html0:
             return []
-        edge_html.append("</ul>")  # Close main nodes list
+        edge_html.append("</ul></p>")  # Close main nodes list
         return edge_html
 
     def get_explanation_for_edge_tag(self, edge):
