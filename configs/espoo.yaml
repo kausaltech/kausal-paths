@@ -24,7 +24,7 @@ features:
   show_accumulated_effects: true
   use_datasets_from_db: true
   show_significant_digits: 3
-  show_explanations: false
+  show_explanations: true
 
 include:
 - file: frameworks/hsy/buildings.yaml
