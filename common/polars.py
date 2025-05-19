@@ -30,7 +30,7 @@ if typing.TYPE_CHECKING:
 class DataFrameMeta:
     units: dict[str, Unit]
     primary_keys: list[str]
-    explanation: dict[str, list[str]] = field(default_factory=dict)
+    explanation: list[str] = field(default_factory=list)
     observed_years: set[int] = field(default_factory=set)
 
     @classmethod
@@ -74,7 +74,7 @@ class DataFrameMeta:
 class PathsDataFrame(pl.DataFrame):
     _units: dict[str, Unit]
     _primary_keys: list[str]
-    _explanation: dict[str, list[str]]
+    _explanation:  list[str]
     _observed_years: set[int]
     paths: PathsExt
 
@@ -84,7 +84,7 @@ class PathsDataFrame(pl.DataFrame):
         df._df = py_df
         df._units = {}
         df._primary_keys = []
-        df._explanation = {}
+        df._explanation = []
         df._observed_years = set()
 
         if meta is None:
@@ -96,7 +96,7 @@ class PathsDataFrame(pl.DataFrame):
             if col in df.columns:
                 df._primary_keys.append(col)
 
-        df._explanation = meta.explanation.copy() if meta.explanation else {}
+        df._explanation = meta.explanation.copy() if meta.explanation else []
         df._observed_years = meta.observed_years.copy() if meta.observed_years else set()
         validate_ppdf(df)
 
@@ -115,10 +115,10 @@ class PathsDataFrame(pl.DataFrame):
         return list(self._units.keys())
 
     @property
-    def explanation(self) -> dict[str, list[str]]:
-        """Get all explanations as a dict."""
+    def explanation(self) -> list:
+        """Get the explanation from attribute (for consistency)."""
         if not hasattr(self, '_explanation'):
-            self._explanation = {}
+            self._explanation = []
         return self._explanation
 
     @property
@@ -127,13 +127,10 @@ class PathsDataFrame(pl.DataFrame):
             self._observed_years = set()
         return self._observed_years
 
-    def with_explanation(self, explanation: list[str], node_id: str) -> PathsDataFrame:
-        """Return a new PathsDataFrame with the updated explanation for a specific node."""
+    def with_explanation(self, explanation: list) -> PathsDataFrame:
+        """Return a new PathsDataFrame with the updated explanation."""
         meta = self.get_meta()
-        if not hasattr(meta, 'explanation'):
-            meta.explanation = {}
-        meta.explanation = meta.explanation.copy() if meta.explanation else {}
-        meta.explanation[node_id] = explanation.copy()
+        meta.explanation = explanation.copy()
         df = self.replace_meta(meta)
         return df
 
@@ -267,7 +264,7 @@ class PathsDataFrame(pl.DataFrame):
         return PathsDataFrame._from_pydf(df._df, meta=self.get_meta())
 
     def get_meta(self) -> DataFrameMeta:
-        explanation_list = getattr(self, '_explanation', {})
+        explanation_list = getattr(self, '_explanation', [])
         observed_years: set[int] = getattr(self, '_observed_years', set())
         meta = DataFrameMeta(
             units=self._units.copy(),
@@ -603,7 +600,7 @@ def to_ppdf(df: pl.DataFrame | PathsDataFrame, meta: DataFrameMeta | None = None
         validate_ppdf(df)
         return df
 
-    source_explanation = {}
+    source_explanation = []
     source_observed_years = set()
     if isinstance(df, PathsDataFrame):
         if hasattr(df, '_explanation'):
@@ -663,7 +660,7 @@ def from_dvc_dataset(ds: DVCDataset):
         for col, unit in ds.units.items():
             units[col] = unit_registry.parse_units(unit)
     primary_keys = ds.index_columns or []
-    pldf = PathsDataFrame._from_pydf(ds.df._df, meta=DataFrameMeta(units, primary_keys))  # pyright: ignore[reportPrivateUsage]
+    pldf = PathsDataFrame._from_pydf(ds.df._df, meta=DataFrameMeta(units, primary_keys, explanation=[]))  # pyright: ignore[reportPrivateUsage]
     return pldf
 
 

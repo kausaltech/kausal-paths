@@ -613,7 +613,7 @@ class Context:
                         ds_icon = '🐼'
                     else:
                         ds_icon = '❓'
-                    node_str += '\n  %s %s (%s)' % (ds_icon, ds.id, ', '.join(ds.get_copy(self, node_id).columns))
+                    node_str += '\n  %s %s (%s)' % (ds_icon, ds.id, ', '.join(ds.get_copy(self).columns))
             if tree is None:
                 branch = Tree(node_str)
             else:

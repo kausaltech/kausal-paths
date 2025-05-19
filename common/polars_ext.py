@@ -302,7 +302,7 @@ class PathsExt:
         else:
             raise ValueError("Invalid value for 'index_from'")
 
-        meta.explanation.update(om.explanation)
+        meta.explanation.extend(om.explanation)
         meta.observed_years |= om.observed_years
 
         out = ppl.to_ppdf(df, meta=meta)
