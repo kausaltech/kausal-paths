@@ -26,6 +26,7 @@ from .simple import AdditiveNode, RelativeNode
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from typing import Literal
 
     from nodes.dimensions import Dimension
     from nodes.scenario import Scenario
@@ -34,8 +35,6 @@ if TYPE_CHECKING:
     from .goals import NodeGoalsEntry
     from .node import Node, NodeMetric
 
-
-from typing import TYPE_CHECKING
 
 from .metric import (
     DimensionalMetric,
@@ -48,10 +47,6 @@ from .metric import (
     MetricYearlyGoal,
     NormalizerNode,
 )
-
-if TYPE_CHECKING:
-    from .node import Node
-    from .scenario import Scenario
 
 
 def _make_id(node: Node, *args: str) -> str:
@@ -325,7 +320,7 @@ def _make_data_dimension(
 
 
 def _generate_output_data(node: Node, dims: list[MetricDimension], df: ppl.PathsDataFrame,
-                          dropped_not_filled: bool = False) -> MetricData:
+                          null_handling: Literal['zero', 'drop', 'keep'] = 'zero') -> MetricData:
     if df.paths.index_has_duplicates():
         raise NodeError(node, 'DataFrame index has duplicates')
 
@@ -351,9 +346,11 @@ def _generate_output_data(node: Node, dims: list[MetricDimension], df: ppl.Paths
     jdf = idx_df.join(df, how='left', on=idx_exprs, validate='1:1')
     assert len(df.metric_cols) == 1
     metric_col = df.metric_cols[0]
-    vals: list[float]
-    if dropped_not_filled:
+    vals: list[float | None]
+    if null_handling == 'drop':
         vals = jdf[metric_col].drop_nulls().to_list()
+    elif null_handling == 'keep':
+        vals = jdf[metric_col].to_list()
     else:
         vals = jdf[metric_col].fill_null(0).to_list()
     return MetricData(
@@ -490,8 +487,9 @@ def metric_from_visualization(node: Node, visualization: VisualizationNodeOutput
             sdf = add_scenario_column(sdf, scenario.id)
             truncate = scenario.param_values.get('measure_data_override', False)
             if truncate:
+                observed_years = set(node.context.instance.measure_years or [])
                 sdf = sdf.with_columns(
-                    pl.when(pl.col(FORECAST_COLUMN))
+                    pl.when(pl.col(FORECAST_COLUMN) | ~pl.col(YEAR_COLUMN).is_in(observed_years))
                     .then(pl.lit(None))
                     .otherwise(pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN)
                 )
@@ -513,7 +511,7 @@ def metric_from_visualization(node: Node, visualization: VisualizationNodeOutput
         dims.append(data_dim)
 
     unit = df.get_unit(df.metric_cols[0])
-    data = _generate_output_data(node, dims, df, dropped_not_filled=True)
+    data = _generate_output_data(node, dims, df, null_handling='keep')
     dm = DimensionalMetric(
         id='%s:%s' % (node.id, visualization.id),
         name=str(node.name),
@@ -599,7 +597,7 @@ def from_action_impact(  # noqa: C901
     idx_df = pl.DataFrame(idx_vals, orient='row', schema={col: df.schema[col] for col in idx_names})
 
     jdf = idx_df.join(df, how='left', on=idx_names)
-    vals: list[float] = jdf[col].fill_null(0).to_list()
+    vals: list[float | None] = jdf[col].fill_null(0).to_list()
     goals: list[MetricDimensionGoal] = []
 
     dm = DimensionalMetric(  # Normalization or grouping is not possible at the moment.

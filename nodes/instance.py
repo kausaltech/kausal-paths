@@ -105,6 +105,9 @@ class Instance:
     reference_year: int | None = None
     """Reference (or baseline) year for the instance."""
 
+    measure_years: list[int] | None = None
+    """Years that have data available (for instances with measure data points)"""
+
     minimum_historical_year: int
     """The earliest year for which historical data is available.
 

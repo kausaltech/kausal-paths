@@ -332,14 +332,14 @@ class NormalizerNode(BaseModel):
 class MetricData:
     forecast_from: int | None
     years: list[int]
-    values: list[float]
+    values: list[float | None]
 
 
 class DimensionalMetric(BaseModel):
     id: str
     name: str
     dimensions: list[MetricDimension]
-    values: list[float]
+    values: list[float | None]
     years: list[int]
     stackable: bool
     forecast_from: int | None

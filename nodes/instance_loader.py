@@ -1113,17 +1113,25 @@ class InstanceLoader:
             min_hist_year: int = self.config['minimum_historical_year']
             site_url = self.config.get('site_url')
             reference_year = self.config.get('reference_year')
+            years_in_data = None
         else:
             from frameworks.models import MeasureDataPoint
 
             owner = self.simple_trans_string(fwc.organization_name or '')
             name = self.simple_trans_string(fwc.instance_config.get_name())
-            mdp_data = MeasureDataPoint.objects.filter(measure__framework_config=fwc).aggregate(
-                min_year=Min('year'),
-                max_year=Max('year'),
+            measure_data_points = MeasureDataPoint.objects.filter(
+                measure__framework_config=fwc
+            ).exclude(
+                value__isnull=True
             )
-            max_hist_year = mdp_data['max_year'] or fwc.baseline_year
-            min_hist_year = mdp_data['min_year'] or fwc.baseline_year
+            years_in_data = list(measure_data_points.values_list('year', flat=True).order_by('year').distinct())
+            if len(years_in_data):
+                max_hist_year = years_in_data[-1]
+                min_hist_year = years_in_data[0]
+            else:
+                max_hist_year = fwc.baseline_year
+                min_hist_year = fwc.baseline_year
+
             site_url = fwc.get_view_url()
             reference_year = fwc.baseline_year
             if fwc.target_year is not None:
@@ -1135,6 +1143,7 @@ class InstanceLoader:
             owner=owner,
             default_language=self.config['default_language'],
             action_groups=agcs,
+            measure_years=years_in_data,
             features=self.config.get('features', {}),
             terms=self.config.get('terms', {}),
             result_excels=[InstanceResultExcel.model_validate(r) for r in self.config.get('result_excels', [])],
