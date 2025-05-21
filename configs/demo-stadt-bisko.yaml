@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://demo-stadt-bisko.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: cdfc0c58b1bff27100013a72fafbfecbef6cfac8
+  commit: e66975894bdfe7e8d493884f274273fbaa46a2ab
   dvc_remote: kausal-s3
 name: Klimaschutz-Monitor Treibhausgasinventar
 owner: Stadt Demo
@@ -28,6 +28,7 @@ params:
   is_visible: true
 
 action_groups:
+
 - id: stationary
   name: Wärme
   color: '#989898'
@@ -41,14 +42,109 @@ action_groups:
   name: AFOLU
   color: '#cccccc'
 
+impact_overviews:
+- graph_type: cost_effectiveness
+  cost_node: aggregate_total_cost
+  impact_node: aggregate_net_emissions
+  invert_cost: false
+  invert_impact: true
+  indicator_unit: EUR/t
+  cost_unit: MEUR
+  impact_unit: kt
+  # plot_limit_for_indicator: 100
+  label: Cost efficiency
+
+- graph_type: cost_benefit
+  cost_node: total_cost
+  impact_node: total_cost
+  cost_unit: MEUR
+  impact_unit: MEUR
+  indicator_unit: MEUR
+  outcome_dimension: cost_type
+  label: Cost-benefit
+
+# - graph_type: return_of_investment
+#   cost_node: aggregate_total_costs
+#   impact_node: total_benefits
+#   invert_cost: false
+#   invert_impact: true
+#   indicator_unit: '%'
+#   cost_unit: MEUR
+#   impact_unit: MEUR
+#   label: Return on investment
+
 dimensions:
-- id: ghg
-  label_en: GHG (Greenhouse Gas)
-  label_de: THG (Treibhausgas)
+
+- id: cost_type
+  label: Cost Type
   categories:
-  - id: co2e
-    label_en: CO2e (Carbon dioxide equivalent)
-    label_de: CO2e (Kohlendioxid-Äquivalent)
+  - id: energy_costs
+    label: Energy Costs
+  - id: investment_costs
+    aliases: [investment]
+    label: Investment Costs
+  - id: capex
+    label: CAPEX (capital expenditure)
+  - id: capex_levelised
+    label: CAPEX (levelised)
+  - id: opex
+    label: OPEX (operational expenditure)
+    aliases: [operation_cost, Operation Cost]
+  - id: maintenance_costs
+    label: Maintenance Costs
+    aliases: [maintenance]
+  - id: sales
+    label: Sales income
+  - id: air_pollution
+    label: Air pollution
+    aliases: [air_quality]
+  - id: noise
+    label: Noise
+  - id: accidents
+    label: Accidents
+  - id: health
+    label: Health
+  - id: co2_cost
+    label: CO2 Cost
+  - id: aesthetics
+    label: Aesthetics and amenity
+  - id: shading
+    label: Shading
+  - id: water_regulation
+    label: Water regulation
+    aliases: [water_regulations]
+  - id: forest_management
+    label: Forest management
+  - id: bus_costs
+    label: Bus costs
+  - id: homecharging_infrastructure
+    label: Home-charging infrastructure
+  - id: public_and_workplace_infrastructure
+    label: Public & workplace infrastructure
+  - id: charging_infrastructure_costs
+    label: Charging infrastructure costs
+  - id: vehicle_costs
+    label: Vehicle costs
+  - id: infrastructure_costs
+    label: Infrastructure costs
+  - id: network
+    label: Network
+  - id: fuel
+    label: Fuel costs
+  - id: tires
+    label: Tire costs
+  - id: depreciation
+    label: Depreciation costs
+  - id: labour_costs
+    label: Labour costs
+  - id: industry_ippu
+    label: Industry (IPPU)
+  - id: agriculture_afolu
+    label: Agriculture (AFOLU)
+  - id: other_sources
+    label: Other sources
+  - id: grid_stability
+    label: Storage, grid stability etc.
 
 - id: energietrager
   label_en: Energy Carriers
@@ -69,7 +165,11 @@ dimensions:
   - id: nahwarme
     label_en: Local Heating
     label_de: Nahwärme
+  - id: sonstige_konventionelle
+    label_en: Other conventional
+    label_de: Sonstige konventionelle
   - id: gas
+    aliases: [erdgas]
     label_en: Gas
     label_de: Gas
   - id: biogas
@@ -79,8 +179,18 @@ dimensions:
     label_en: Heating Oil
     label_de: Heizöl
   - id: kohle
+    aliases: [steinkohle]
     label_en: Coal
     label_de: Kohle
+  - id: sonstige_erneuerbare
+    label_en: Other Renewable
+    label_de: Sonstige Erneuerbare
+  - id: braunkohle
+    label_en: Brown coal
+    label_de: Braunkohle
+  - id: kerosin
+    label_en: Kerosin
+    label_de: Kerosin
   - id: biomasse
     label_en: Biomass
     label_de: Biomasse
@@ -91,26 +201,39 @@ dimensions:
     label_en: Ambient Heat
     label_de: Umweltwärme
   - id: benzin_fossil
+    aliases: [benzin]
     label_en: Fossil Gasoline
     label_de: Benzin fossil
   - id: benzin_biogen
     label_en: Biogenic Gasoline
     label_de: Benzin biogen
   - id: diesel_fossil
+    aliases: [diesel]
     label_en: Fossil Diesel
     label_de: Diesel fossil
   - id: diesel_biogen
     label_en: Biogenic Diesel
     label_de: Diesel biogen
   - id: cng_fossil
+    aliases: []
     label_en: Fossil CNG (Compressed Natural Gas)
     label_de: CNG fossil
   - id: lpg
+    aliases: [flssiggas]
     label_en: LPG (Liquefied Petroleum Gas)
     label_de: LPG
   - id: wasserstoff
-    label_en: Hydrogen
+    label_en: Hydrogen +
     label_de: Wasserstoff
+
+- id: ghg
+  label_en: GHG (Greenhouse Gas)
+  label_de: THG (Treibhausgas)
+  categories:
+  - id: co2e
+    aliases: [co2]
+    label_en: CO2e (Carbon dioxide equivalent)
+    label_de: CO2e (Kohlendioxid-Äquivalent)
 
 - id: scope
   label_en: Scope
@@ -129,6 +252,16 @@ dimensions:
   label_en: GPC Sector
   label_de: GPC Sektor
   categories:
+  - id: industrie
+    label_de: Industrie
+  - id: kommunale_einrichtungen
+    label_de: Kommunale Einrichtungen
+  - id: gewerbe_handel_dienstleistungen
+    label_de: Gewerbe, Handel, Dienstleistungen
+  - id: verkehr
+    label_de: Verkehr
+  - id: private_haushalte
+    label_de: Private Haushalte
   - id: i
     label_en: I Stationary
     label_de: I Stationär
@@ -355,6 +488,135 @@ emission_sectors:
       value: 551
 
 nodes:
+
+- id: co2_unit_price
+  name: CO2 unit price
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: EUR/t
+  input_dimensions: [cost_type, ghg]
+  output_dimensions: [cost_type, ghg]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Value of CO2 reduction
+
+- id: co2_emissions_cost
+  name: CO2 emissions cost
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, scope, ghg]
+  output_dimensions: [cost_type, scope, ghg]
+  input_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: energietrager
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+  - id: co2_unit_price
+    to_dimensions:
+    - id: cost_type
+    - id: ghg
+  output_nodes:
+  - id: total_cost
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: ghg
+      flatten: true
+
+- id: fuel_unit_price
+  name: Fuel unit price
+  type: generic.GenericNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: [energietrager, sector]
+  output_dimensions: [energietrager, sector]
+  input_datasets:
+  - id: gpc/energiepreis
+    tags: [baseline]
+    column: energiepreis
+
+- id: fuel_cost
+  name: Fuel cost
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [energietrager, sector]
+  output_dimensions: [energietrager, sector]
+  input_nodes:
+  - id: fuel_unit_price
+  - id: total_energy_consumption
+    from_dimensions:
+    - id: scope
+      flatten: true
+  output_nodes:
+  - id: total_cost
+    from_dimensions:
+    - id: energietrager
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+      categories: [fuel]
+
+- id: total_cost
+  name: Total cost
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
+
+- id: aggregate_total_cost
+  name: Aggregate total cost
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  is_outcome: true
+  input_nodes:
+  - id: total_cost
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+
+- id: aggregate_net_emissions
+  name: Aggregate net_emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  is_outcome: true
+  input_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: energietrager
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: ghg
+      flatten: true
+
+- id: carbon_budget
+  name: Kohlenstoffbudget
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt
+  input_dimensions: [energietrager, scope, ghg]
+  output_dimensions: [energietrager, scope, ghg]
+  input_nodes:
+  - id: net_emissions
+    tags: [cumulative]
+  goals:
+  - label: Kohlenstoffbudget
+    default: true
+    is_main_goal: true
+    values:
+    - year: 2045
+      value: 50
+
 - id: weather_correction
   name: Witterungsbereinigung
   type: generic.GenericNode
@@ -856,7 +1118,12 @@ nodes:
   - i11_residential_fuel_consumption
   - i12_residential_grid_energy_consumption
   output_nodes:
-  - total_energy_consumption
+  - id: total_energy_consumption
+    to_dimensions:
+    - id: sector
+      categories: [private_haushalte]
+    - id: energietrager
+    - id: scope
 
 - id: electricity_consumption_without_heating
   name: Stromverbrauch (ohne Heizung)
@@ -868,7 +1135,12 @@ nodes:
   input_nodes:
   - i42_energy_grid_energy_consumption
   output_nodes:
-  - total_energy_consumption
+  - id: total_energy_consumption
+    to_dimensions:
+    - id: sector
+      categories: [private_haushalte]
+    - id: energietrager
+    - id: scope
   params:
   - id: drop_nulls
     value: true
@@ -887,7 +1159,12 @@ nodes:
   - ii12_onroad_transport_grid_energy_consumption
   - ii11_onroad_transport_fuel_consumption
   output_nodes:
-  - total_energy_consumption
+  - id: total_energy_consumption
+    to_dimensions:
+    - id: sector
+      categories: [verkehr]
+    - id: energietrager
+    - id: scope
   params:
   - id: drop_nulls
     value: true
@@ -900,10 +1177,138 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy
   unit: MWh/a
-  input_dimensions: [energietrager, scope]
-  output_dimensions: [energietrager, scope]
+  input_dimensions: [energietrager, sector, scope]
+  output_dimensions: [energietrager, sector, scope]
+
+- id: exponential_change
+  name: Exponential change
+  type: costs.ExponentialNode
+  quantity: energy
+  unit: GWh/a
+  params:
+  - id: current_value
+    value: 200
+    unit: GWh/a
+  - id: annual_change
+    value: 10
+    unit: '%'
+    min_value: 0
+    max_value: 10
+    description: Annual reduction of fuel consumption
+  - id: is_decreasing_rate
+    value: true
+
+- id: population
+  name: Einwohner
+  type: generic.GenericNode
+  quantity: population
+  unit: cap
+  input_datasets:
+  - id: gpc/demo_stadt
+    tags: [baseline]
+    column: population
+
 
 actions:
+
+# - id: build_renewable_electricity_production
+#   name: Hajautettu uusiutuva energia (aurinkosähkö)
+#   name_en: Building renewable electricity production (PV)
+#   type: simple.AdditiveAction
+#   group: electricity
+#   input_dimensions: ['cost_type', 'scope']
+#   output_dimensions: ['cost_type', 'scope']
+#   params:
+#     allow_null_categories: true
+#   input_datasets:
+#   - id: tampere/stationary_actions
+#     forecast_from: 2024
+#     filters:
+#     - column: sector
+#     - column: action
+#       value: building_renewable_electricity_production_pv
+#     - column: ghg
+#     - column: heating
+#     - column: owner
+#       value: private
+#     - column: energy_carrier
+#   output_metrics:
+#   - id: energy
+#     unit: GWh/a
+#     quantity: energy
+#   - id: currency
+#     unit: EUR/a
+#     quantity: currency
+  # output_nodes:
+  # - id: other_electricity_consumption
+  #   metrics: [energy]
+  #   from_dimensions:
+  #   - id: cost_type
+  #     flatten: true
+  #   - id: owner
+  #     flatten: true
+  #   to_dimensions:
+  #   - id: energy_carrier
+  #   - id: scope
+  # - id: energy_consumption_reductions
+  #   metrics: [energy]
+  #   from_dimensions:
+  #   - id: cost_type
+  #     flatten: true
+  #   - id: owner
+  #     flatten: true
+  #   - id: scope
+  #     flatten: true
+  #   to_dimensions:
+  #   - id: energy_carrier
+  # - id: electricity_consumption_price
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: scope
+  #     flatten: true
+  #   to_dimensions:
+  #   - id: cost_type
+  #   - id: owner
+  # - id: total_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: scope
+  #     flatten: true
+  #   to_dimensions:
+  #   - id: cost_type
+  #   - id: owner
+
+
+- id: solar_power_production
+  name: Photovoltaikstromerzeugung
+  type: simple.LinearCumulativeAdditiveAction
+  quantity: energy
+  unit: GWh/a
+  group: electricity
+  output_nodes:
+  - id: i42_energy_grid_energy_consumption
+    tags: [arithmetic_inverse]
+    to_dimensions:
+    - id: energietrager
+      categories: [strom]
+    - id: scope
+      categories: [scope2]
+  forecast_values: [[2022, 0]]
+  params:
+  - id: target_year_level
+    values:
+      default: 100
+    min_value: 0
+    max_value: 100
+    step: 10
+    unit: GWh/a
+    # description: PV energy production in 2030
+    # description_fi: Aurinkosähköjärjestelmien vuosituotanto vuonna 2030
+    description: Photovoltaikstromerzeugung 2045
 
 - id: i11_residential_fuel_consumption_action
   name: Reduktion im Verbrauch von Wärmeenergieträgern (außer Fernwärme)
