@@ -827,7 +827,7 @@ class ActionNodeType(graphene.ObjectType):
             return None
         if nc.indicator_node is None:
             return None
-        return nc.indicator_node.get_node(visible_for_user=info.context.get_user())
+        return nc.indicator_node.get_node(visible_for_user=info.context.user)
 
 
 class ScenarioType(graphene.ObjectType):
