@@ -145,6 +145,17 @@ action_groups:
 #   outcome_dimension: cost_type
 #   label: Cost-benefit
 
+# - graph_type: cost_benefit
+#   cost_node: health_effect_of_active_mobility
+#   impact_node: health_effect_of_active_mobility
+#   cost_unit: case
+#   impact_unit: case
+#   indicator_unit: case
+#   stakeholder_dimension: transport_mode
+#   outcome_dimension: response
+#   label_en: Number of attributable (avoided) deaths
+#   label_fi: Aktiiviseen liikkumiseen liittyvät (vältetyt) tapaukset
+
 # - graph_type: cost_effectiveness
 #   cost_node: discounted_total_cost
 #   impact_node: aggregated_net_emissions

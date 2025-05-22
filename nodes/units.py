@@ -382,6 +382,7 @@ def add_unit_translations():  # noqa: C901
         {'unit': 'megaCAD', 'long': _('million Canadian dollars'), 'short': 'M$'},
         {'unit': 'kiloSEK', 'long': _('thousand kronor'), 'short': 'kSEK'},
         {'unit': 'megaSEK', 'long': _('million kronor'), 'short': 'MSEK'},
+        {'unit': 'terawatt_hour', 'long': _('terawatt hours'), 'short': 'TWh'},
         {'unit': 'gigawatt_hour', 'long': _('gigawatt hours'), 'short': 'GWh'},
         {'unit': 'megawatt_hour', 'long': _('megawatt hour'), 'short': _('MWh')},
         {'unit': 'kilowatt_hour', 'long': _('kilowatt hour'), 'short': 'kWh'},
@@ -395,6 +396,7 @@ def add_unit_translations():  # noqa: C901
         {'unit': 'megasolid_cubic_meter', 'long': _('million solid m³'), 'short': _('M m³ (solid)')},
         {'unit': 't_co2e', 'long': _('tonnes CO₂e'), 'short': 'tCO₂e'},
         {'unit': 'metric_ton', 'long': _('tonnes'), 'short': 't'},
+        {'unit': 'megametric_ton', 'long': _('megatonnes'), 'short': _('Mt')},
         {'unit': 't_ha', 'long': _('1000 hectares'), 'short': '1000 ha'},
     ]
     #set_one('cap', pgettext_lazy('capita short', 'cap'))
