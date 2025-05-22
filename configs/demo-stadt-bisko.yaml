@@ -51,7 +51,7 @@ impact_overviews:
   indicator_unit: EUR/t
   cost_unit: MEUR
   impact_unit: kt
-  # plot_limit_for_indicator: 100
+  plot_limit_for_indicator: 2000
   label: Cost efficiency
 
 - graph_type: cost_benefit
@@ -63,15 +63,15 @@ impact_overviews:
   outcome_dimension: cost_type
   label: Cost-benefit
 
-# - graph_type: return_of_investment
-#   cost_node: aggregate_total_costs
-#   impact_node: total_benefits
-#   invert_cost: false
-#   invert_impact: true
-#   indicator_unit: '%'
-#   cost_unit: MEUR
-#   impact_unit: MEUR
-#   label: Return on investment
+- graph_type: return_of_investment
+  cost_node: aggreagated_implementation_cost
+  impact_node: aggregate_total_cost
+  invert_cost: false
+  invert_impact: true
+  indicator_unit: '%'
+  cost_unit: MEUR
+  impact_unit: MEUR
+  label: Return on investment
 
 dimensions:
 
@@ -81,8 +81,11 @@ dimensions:
   - id: energy_costs
     label: Energy Costs
   - id: investment_costs
-    aliases: [investment]
     label: Investment Costs
+  - id: investment
+    label: investment
+  - id: maintenance
+    label: Maintenance
   - id: capex
     label: CAPEX (capital expenditure)
   - id: capex_levelised
@@ -92,7 +95,6 @@ dimensions:
     aliases: [operation_cost, Operation Cost]
   - id: maintenance_costs
     label: Maintenance Costs
-    aliases: [maintenance]
   - id: sales
     label: Sales income
   - id: air_pollution
@@ -562,6 +564,27 @@ nodes:
     to_dimensions:
     - id: cost_type
       categories: [fuel]
+
+- id: implementation_cost
+  name: Implementierungskosten
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
+  output_nodes:
+  - id: total_cost
+
+- id: aggreagated_implementation_cost
+  name: Total Implementierungskosten
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_nodes:
+  - id: implementation_cost
+    from_dimensions:
+    - id: cost_type
+      flatten: true
 
 - id: total_cost
   name: Total cost
@@ -1211,45 +1234,47 @@ nodes:
 
 actions:
 
-# - id: build_renewable_electricity_production
-#   name: Hajautettu uusiutuva energia (aurinkosähkö)
-#   name_en: Building renewable electricity production (PV)
-#   type: simple.AdditiveAction
-#   group: electricity
-#   input_dimensions: ['cost_type', 'scope']
-#   output_dimensions: ['cost_type', 'scope']
-#   params:
-#     allow_null_categories: true
-#   input_datasets:
-#   - id: tampere/stationary_actions
-#     forecast_from: 2024
-#     filters:
-#     - column: sector
-#     - column: action
-#       value: building_renewable_electricity_production_pv
-#     - column: ghg
-#     - column: heating
-#     - column: owner
-#       value: private
-#     - column: energy_carrier
-#   output_metrics:
-#   - id: energy
-#     unit: GWh/a
-#     quantity: energy
-#   - id: currency
-#     unit: EUR/a
-#     quantity: currency
-  # output_nodes:
-  # - id: other_electricity_consumption
-  #   metrics: [energy]
-  #   from_dimensions:
-  #   - id: cost_type
-  #     flatten: true
-  #   - id: owner
-  #     flatten: true
-  #   to_dimensions:
-  #   - id: energy_carrier
-  #   - id: scope
+- id: build_renewable_electricity_production
+  name: Hajautettu uusiutuva energia (aurinkosähkö)
+  name_en: Building renewable electricity production (PV)
+  name_de: Aufbau einer erneuerbaren Stromerzeugung (PV)
+  type: simple.AdditiveAction
+  group: electricity
+  input_dimensions: ['cost_type', 'scope']
+  output_dimensions: ['cost_type', 'scope']
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: tampere/stationary_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: building_renewable_electricity_production_pv
+    - column: ghg
+    - column: heating
+    - column: owner
+    #   value: private
+    - column: energy_carrier
+  output_metrics:
+  - id: energy
+    unit: GWh/a
+    quantity: energy
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: i42_energy_grid_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    # - id: owner
+    #   flatten: true
+    to_dimensions:
+    - id: energietrager 
+      categories: [strom]
+    - id: scope
   # - id: energy_consumption_reductions
   #   metrics: [energy]
   #   from_dimensions:
@@ -1261,16 +1286,16 @@ actions:
   #     flatten: true
   #   to_dimensions:
   #   - id: energy_carrier
-  # - id: electricity_consumption_price
-  #   metrics: [currency]
-  #   from_dimensions:
-  #   - id: energy_carrier
-  #     flatten: true
-  #   - id: scope
-  #     flatten: true
-  #   to_dimensions:
-  #   - id: cost_type
-  #   - id: owner
+  - id: implementation_cost
+    metrics: [currency]
+    from_dimensions:
+    # - id: energietrager
+    #   flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    # - id: owner
   # - id: total_costs
   #   metrics: [currency]
   #   from_dimensions:
