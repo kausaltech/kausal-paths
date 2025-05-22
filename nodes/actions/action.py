@@ -238,9 +238,9 @@ class ActionNode(Node):
         if not scenario.has_parameter(self.enabled_param):
             scenario.add_parameter(self.enabled_param, scenario.all_actions_enabled)
 
-    def compute_indicator(self, cost_node: Node, impact_node: Node, match_dims_i: list,
+    def compute_indicator(self, cost_node: Node, effect_node: Node, match_dims_i: list,
                            match_dims_c: list, graph_type: str) -> ppl.PathsDataFrame:
-        pc = PerfCounter('Impact %s [%s / %s]' % (self.id, cost_node.id, impact_node.id), level=PerfCounter.Level.DEBUG)
+        pc = PerfCounter('Impact %s [%s / %s]' % (self.id, cost_node.id, effect_node.id), level=PerfCounter.Level.DEBUG)
 
         pc.display('starting')
         with self.context.perf_context.exec_node(cost_node):
@@ -278,9 +278,9 @@ class ActionNode(Node):
 
         else:
 
-            with self.context.perf_context.exec_node(impact_node):
-                impact_df = self.compute_impact(impact_node)
-                impact_m = impact_node.get_default_output_metric()
+            with self.context.perf_context.exec_node(effect_node):
+                impact_df = self.compute_impact(effect_node)
+                impact_m = effect_node.get_default_output_metric()
                 impact_df = (
                     impact_df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
                 )
@@ -294,7 +294,7 @@ class ActionNode(Node):
                     impact_df.select([*impact_df.primary_keys, FORECAST_COLUMN, zero_to_nan.alias('Impact')])
                     .set_unit('Impact', impact_df.get_unit(impact_m.column_id))
                 )
-            pc.display('impact of %s on %s computed' % (self.id, impact_node.id))
+            pc.display('impact of %s on %s computed' % (self.id, effect_node.id))
 
             df = cost_df.paths.join_over_index(impact_df, how='outer', index_from='union')
             df = df.with_columns([
@@ -306,7 +306,7 @@ class ActionNode(Node):
                 raise NodeError(
                     self, """With impact overview %s, impact node %s dimensions %s
                     do not match with expected: %s.""" %
-                    (graph_type, impact_node.id, impact_df.dim_ids, match_dims_i))
+                    (graph_type, effect_node.id, impact_df.dim_ids, match_dims_i))
 
         if not set(cost_df.dim_ids) == set(match_dims_c):
             raise NodeError(
@@ -328,15 +328,15 @@ class ActionImpact(typing.NamedTuple):
 class ImpactOverview:
     graph_type: str
     cost_node: Node
-    impact_node: Node
+    effect_node: Node
     efficiency_unit: Unit  # FIXME AEP depreciated
     cost_unit: Unit
-    impact_unit: Unit
+    effect_unit: Unit
     indicator_unit: Unit
     plot_limit_efficiency: float | None  # FIXME depreciated, replace by plot_limit_for_indicator
     plot_limit_for_indicator: float | None
     invert_cost: bool
-    invert_impact: bool
+    invert_effect: bool
     indicator_cutpoint: float | None
     cost_cutpoint: float | None
     stakeholder_dimension: str | None
@@ -349,11 +349,11 @@ class ImpactOverview:
         context: Context,
         graph_type: str,
         cost_node_id: str,
-        impact_node_id: str,
+        effect_node_id: str,
         cost_unit: str,
-        impact_unit: str,
+        effect_unit: str,
         invert_cost: bool,
-        invert_impact: bool,
+        invert_effect: bool,
         indicator_unit: str | None = None,
         plot_limit_for_indicator: float | None = None,
         indicator_cutpoint: float | None = None,
@@ -363,22 +363,22 @@ class ImpactOverview:
         label: TranslatedString | str | None = None,
     ) -> ImpactOverview:
         cost_node = context.get_node(cost_node_id)
-        impact_node = context.get_node(impact_node_id)
+        effect_node = context.get_node(effect_node_id)
         indicator_unit_obj = context.unit_registry.parse_units(indicator_unit or '')
         cost_unit_obj = context.unit_registry.parse_units(cost_unit)
-        impact_unit_obj = context.unit_registry.parse_units(impact_unit)
+        effect_unit_obj = context.unit_registry.parse_units(effect_unit)
         aep = ImpactOverview(
             graph_type=graph_type,
             cost_node=cost_node,
-            impact_node=impact_node,
+            effect_node=effect_node,
             efficiency_unit=indicator_unit_obj,  # FIXME depreciated
             cost_unit=cost_unit_obj,
-            impact_unit=impact_unit_obj,
+            effect_unit=effect_unit_obj,
             indicator_unit=indicator_unit_obj,
             plot_limit_efficiency=plot_limit_for_indicator,  # FIXME depreciated
             plot_limit_for_indicator=plot_limit_for_indicator,
             invert_cost=invert_cost,
-            invert_impact=invert_impact,
+            invert_effect=invert_effect,
             indicator_cutpoint=indicator_cutpoint,
             cost_cutpoint=cost_cutpoint,
             stakeholder_dimension=stakeholder_dimension,
@@ -399,7 +399,7 @@ class ImpactOverview:
             'impact': {
                 'allow_non_stackable': False,
                 'is_cost_node_required': False,
-                'is_impact_node_required': True,
+                'is_effect_node_required': True,
                 'indicator_unit_type': 'None',
                 'allow_stakeholders': False,
                 'allow_outcomes': True,
@@ -407,7 +407,7 @@ class ImpactOverview:
             'cost_efficiency': {
                 'allow_non_stackable': False,
                 'is_cost_node_required': True,  # If node is required, then its unit is as well.
-                'is_impact_node_required': True,
+                'is_effect_node_required': True,
                 'indicator_unit_type': 'cost/impact',  # Possible values: None, cost/impact, dimensionless
                 'allow_stakeholders': False,
                 'allow_outcomes': True,
@@ -415,7 +415,7 @@ class ImpactOverview:
             'cost_benefit': {
                 'allow_non_stackable': False,
                 'is_cost_node_required': True,
-                'is_impact_node_required': False,
+                'is_effect_node_required': False,
                 'indicator_unit_type': 'None',
                 'allow_stakeholders': True,
                 'allow_outcomes': True,
@@ -423,7 +423,7 @@ class ImpactOverview:
             'return_on_investment': {
                 'allow_non_stackable': False,
                 'is_cost_node_required': True,
-                'is_impact_node_required': True,
+                'is_effect_node_required': True,
                 'indicator_unit_type': 'dimensionless',
                 'allow_stakeholders': False,
                 'allow_outcomes': False,
@@ -431,30 +431,30 @@ class ImpactOverview:
             'value_of_information': {
                 'allow_non_stackable': True,  # TODO Think whether we actually need this attribute
                 'is_cost_node_required': True,
-                'is_impact_node_required': False,
+                'is_effect_node_required': False,
                 'indicator_unit_type': 'None',
                 'allow_stakeholders': False,
                 'allow_outcomes': False,
             },
         }
 
-        if not (self.cost_node.quantity in STACKABLE_QUANTITIES and self.impact_node.quantity in STACKABLE_QUANTITIES):
+        if not (self.cost_node.quantity in STACKABLE_QUANTITIES and self.effect_node.quantity in STACKABLE_QUANTITIES):
             raise Exception('Cost and impact nodes must have stackable quantities')
-        if self.cost_node.unit is None or self.impact_node.unit is None:
+        if self.cost_node.unit is None or self.effect_node.unit is None:
             raise Exception('Cost or impact node does not have a unit')
-        if self.graph_type == 'cost_effectiveness':
-            div_unit = self.cost_node.unit / self.impact_node.unit
+        if self.graph_type == 'cost_efficiency':
+            div_unit = self.cost_node.unit / self.effect_node.unit
             if not self.indicator_unit.is_compatible_with(div_unit):
                 raise Exception('Indicator unit %s is not compatible with %s' % (self.indicator_unit, div_unit))
             if self.stakeholder_dimension is not None:
                 raise Exception('Stakeholder dimension is not allowed for a cost-effectiveness graph')
-        if self.graph_type == 'cost_benefit' and self.cost_unit != self.impact_unit:
-                raise Exception('Units must be the same for cost %s and impact %s' % (self.cost_unit, self.impact_unit))
-        if self.graph_type == 'return_of_investment':
+        if self.graph_type == 'cost_benefit' and self.cost_unit != self.effect_unit:
+                raise Exception('Units must be the same for cost %s and impact %s' % (self.cost_unit, self.effect_unit))
+        if self.graph_type == 'return_on_investment':
             if not self.indicator_unit.dimensionless:
                 raise Exception('The indicator unit %s must be dimensionless' % (self.indicator_unit))
-            if not self.cost_unit == self.impact_unit:
-                raise Exception('Units must be the same for cost %s and impact %s' % (self.cost_unit, self.impact_unit))
+            if not self.cost_unit == self.effect_unit:
+                raise Exception('Units must be the same for cost %s and impact %s' % (self.cost_unit, self.effect_unit))
             if self.stakeholder_dimension is not None:
                 raise Exception('Stakeholder dimension is not allowed for a return-of-investment graph')
             if self.outcome_dimension is not None:
@@ -464,11 +464,11 @@ class ImpactOverview:
         if actions is None:
             actions = list(context.get_actions())
 
-        pc = PerfCounter('Action efficiency %s / %s' % (self.cost_node.id, self.impact_node.id), level=PerfCounter.Level.DEBUG)
+        pc = PerfCounter('Action efficiency %s / %s' % (self.cost_node.id, self.effect_node.id), level=PerfCounter.Level.DEBUG)
         pc.display('starting')
         for action in actions:
             # FIXME Should work with single-node graphs
-            if not action.is_connected_to(self.cost_node) or not action.is_connected_to(self.impact_node):
+            if not action.is_connected_to(self.cost_node) or not action.is_connected_to(self.effect_node):
                 # Action is not connected to either cost or impact nodes, skip it
                 continue
             if not action.is_enabled(): # Inactive actions would give false zeros
@@ -480,7 +480,7 @@ class ImpactOverview:
             # roi
             # voi i_out                   c_iter
             match_dims_c = match_dims_i = []  # For cost and impact nodes, respectively
-            if self.graph_type == 'cost_effectiveness':
+            if self.graph_type == 'cost_efficiency':
                 match_dims_c += [self.outcome_dimension]
             if self.graph_type == 'cost_benefit':
                 match_dims_c.extend([self.outcome_dimension, self.stakeholder_dimension])
@@ -493,7 +493,7 @@ class ImpactOverview:
 
             with context.perf_context.exec_node(action):
                 df = action.compute_indicator(
-                    self.cost_node, self.impact_node, match_dims_i, match_dims_c, self.graph_type
+                    self.cost_node, self.effect_node, match_dims_i, match_dims_c, self.graph_type
                 )
             if not len(df):
                 # No impact for this action, skip it
@@ -502,14 +502,14 @@ class ImpactOverview:
             df = df.set_unit('Cost', df.get_unit('Cost') * Quantity('1 a'), force=True)
             df = df.set_unit('Impact', df.get_unit('Impact') * Quantity('1 a'), force=True)
             df = df.ensure_unit('Cost', self.cost_unit)
-            df = df.ensure_unit('Impact', self.impact_unit)
+            df = df.ensure_unit('Impact', self.effect_unit)
 
-            if self.graph_type == 'cost_effectiveness':
-                unit_adjustment_multiplier = 1 * self.cost_unit / self.impact_unit / self.indicator_unit
-            elif self.graph_type == 'return_of_investment':
-                unit_adjustment_multiplier = 1 * self.impact_unit / self.cost_unit / self.indicator_unit
+            if self.graph_type == 'cost_efficiency':
+                unit_adjustment_multiplier = 1 * self.cost_unit / self.effect_unit / self.indicator_unit
+            elif self.graph_type == 'return_on_investment':
+                unit_adjustment_multiplier = 1 * self.effect_unit / self.cost_unit / self.indicator_unit
             else:
-                assert self.cost_unit == self.impact_unit
+                assert self.cost_unit == self.effect_unit
                 unit_adjustment_multiplier = 1 * self.cost_unit / self.indicator_unit
 
             unit_adjustment_multiplier = unit_adjustment_multiplier.to('dimensionless') # type: ignore

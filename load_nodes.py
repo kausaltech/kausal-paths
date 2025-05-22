@@ -427,7 +427,7 @@ if args.print_impact_overviews:
     def print_impact_overviews(): # FIXME Adjust to be functional sith different types of impact overviews
         pc = PerfCounter('Impact overviews')
         for aep in context.impact_overviews:
-            title = '%s / %s' % (aep.cost_node.id, aep.impact_node.id)
+            title = '%s / %s' % (aep.cost_node.id, aep.effect_node.id)
             pc.display('%s starting' % title)
             table = Table(title=title)
             table.add_column('Action')

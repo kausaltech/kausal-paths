@@ -547,8 +547,8 @@ def from_action_impact(  # noqa: C901
         if root.invert_cost:
             df = df.with_columns((pl.col(col) * pl.lit(-1.0)).alias(col))
     elif col == 'Impact':
-        dimensions = root.impact_node.output_dimensions.items()
-        if root.invert_impact:
+        dimensions = root.effect_node.output_dimensions.items()
+        if root.invert_effect:
             df = df.with_columns((pl.col(col) * pl.lit(-1.0)).alias(col))
     else:
         raise ValueError('Unknown column %s' % col)

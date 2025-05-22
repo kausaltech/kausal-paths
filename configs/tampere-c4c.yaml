@@ -27,34 +27,34 @@ features:
   use_datasets_from_db: true
 
 impact_overviews:
-- graph_type: cost_effectiveness
+- graph_type: cost_efficiency
   cost_node: net_cost
-  impact_node: net_emissions
+  effect_node: net_emissions
   invert_cost: false
-  invert_impact: true
+  invert_effect: true
   indicator_unit: EUR/t
   cost_unit: EUR
-  impact_unit: t
+  effect_unit: t
   plot_limit_for_indicator: 50000
   label: Kustannusvaikuttavuus
 
 - graph_type: cost_benefit
   cost_node: cost_benefit_analysis
-  impact_node: cost_benefit_analysis
+  effect_node: cost_benefit_analysis
   cost_unit: kEUR
-  impact_unit: kEUR
+  effect_unit: kEUR
   indicator_unit: kEUR
   outcome_dimension: cost_benefit
   label: Cost-benefit
 
-- graph_type: return_of_investment
+- graph_type: return_on_investment
   cost_node: aggregate_total_costs
-  impact_node: aggregate_total_benefits
+  effect_node: aggregate_total_benefits
   invert_cost: false
-  invert_impact: true
+  invert_effect: true
   indicator_unit: '%'
   cost_unit: EUR
-  impact_unit: EUR
+  effect_unit: EUR
   label: Return on investment
 
 action_groups:

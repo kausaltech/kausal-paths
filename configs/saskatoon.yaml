@@ -44,14 +44,14 @@ action_groups:
   color: '#edc948'
 
 # impact_overviews:
-# - graph_type: cost_effectiveness
+# - graph_type: cost_efficiency
 #   cost_node: net_cost
-#   impact_node: net_emissions
+#   effect_node: net_emissions
 #   invert_cost: false
-#   invert_impact: true
+#   invert_effect: true
 #   indicator_unit: CAD/t
 #   cost_unit: MCAD
-#   impact_unit: kt
+#   effect_unit: kt
 #   plot_limit_for_indicator: 3000
 #   label: Marginal Abatement Cost
 

@@ -55,44 +55,44 @@ action_groups:
   color: '#50c878'
 
 impact_overviews:
-- graph_type: cost_effectiveness
+- graph_type: cost_efficiency
   cost_node: total_discounted_economic_costs
-  impact_node: net_emissions
+  effect_node: net_emissions
   invert_cost: true
-  invert_impact: true
+  invert_effect: true
   indicator_unit: kEUR/t
   cost_unit: MEUR
-  impact_unit: t
+  effect_unit: t
   plot_limit_for_indicator: 5000
   label: Cost efficiency
-- graph_type: return_of_investment
+- graph_type: return_on_investment
   cost_node: total_discounted_action_costs
-  impact_node: total_discounted_economic_costs
+  effect_node: total_discounted_economic_costs
   invert_cost: false
-  invert_impact: false
+  invert_effect: false
   indicator_unit: '%'
   cost_unit: MEUR
-  impact_unit: MEUR
+  effect_unit: MEUR
   label: Return on investment
 - graph_type: cost_benefit
   cost_node: test_investments_for_the_city
-  impact_node: discounted_costs
+  effect_node: discounted_costs
   invert_cost: true
-  invert_impact: true
+  invert_effect: true
   indicator_unit: MEUR
   cost_unit: MEUR
-  impact_unit: MEUR
+  effect_unit: MEUR
   stakeholder_dimension: stakeholder
   outcome_dimension: outcome_of_interest
   label: Cost-benefit analysis
 - graph_type: cost_benefit
   cost_node: total_discounted_action_costs
-  impact_node: total_economic_costs
+  effect_node: total_economic_costs
   invert_cost: true
-  invert_impact: true
+  invert_effect: true
   indicator_unit: MEUR
   cost_unit: MEUR
-  impact_unit: MEUR
+  effect_unit: MEUR
 #  stakeholder_dimension: stakeholder
 #  outcome_dimension: outcome_of_interest
   label: Cost-benefit analysis for the city

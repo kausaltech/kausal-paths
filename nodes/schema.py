@@ -889,13 +889,22 @@ class ImpactOverviewType(graphene.ObjectType):
     plot_limit_indicator = graphene.Float()
     plot_limit_for_indicator = graphene.Float()
     invert_cost = graphene.Boolean(required=True)
-    invert_impact = graphene.Boolean(required=True)
+    invert_effect = graphene.Boolean(required=True)
+    invert_impact = graphene.Boolean(required=True, deprecation_reason="Use invertEffect instead")
     label = graphene.String(required=True)
     actions = graphene.List(graphene.NonNull(ActionImpact), required=True)
 
     @staticmethod
     def resolve_id(root: ImpactOverview, info: GQLInstanceInfo) -> str:
-        return '%s:%s' % (root.cost_node.id, root.impact_node.id)
+        return '%s:%s' % (root.cost_node.id, root.effect_node.id)
+
+    @staticmethod
+    def resolve_graph_type(root: ImpactOverview, info: GQLInstanceInfo) -> str:
+        if root.graph_type == 'return_on_investment':
+            graph_type = 'return_of_investment' # FIXME Depreciated, remove when UI accepts 'on'
+        else:
+            graph_type = root.graph_type
+        return graph_type
 
     @staticmethod
     def resolve_actions(root: ImpactOverview, info: GQLInstanceInfo) -> list[dict[str, Any]]:
@@ -924,12 +933,16 @@ class ImpactOverviewType(graphene.ObjectType):
         return root.indicator_unit
 
     @staticmethod
-    def resolve_effect_unit(root: ImpactOverview, info: GQLInstanceInfo) -> Unit:
-        return root.impact_unit # FIXME Fix also functions in action.py
+    def resolve_impact_unit(root: ImpactOverview, info: GQLInstanceInfo) -> Unit:
+        return root.effect_unit
 
     @staticmethod
-    def resolve_effect_node(root: ImpactOverview, info: GQLInstanceInfo) -> Node:
-        return root.impact_node
+    def resolve_impact_node(root: ImpactOverview, info: GQLInstanceInfo) -> Node:
+        return root.effect_node
+
+    @staticmethod
+    def resolve_invert_impact(root: ImpactOverview, info: GQLInstanceInfo) -> bool:
+        return root.invert_effect
 
 
 class InstanceBasicConfiguration(graphene.ObjectType):
