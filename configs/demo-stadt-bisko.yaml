@@ -8,7 +8,7 @@ dataset_repo:
   dvc_remote: kausal-s3
 name: Klimaschutz-Monitor Treibhausgasinventar
 owner: Stadt Demo
-theme_identifier: standard
+theme_identifier: de-dusseldorf
 target_year: 2045
 model_end_year: 2050
 reference_year: 1995

@@ -704,6 +704,42 @@ nodes:
     tags: [baseline]
     column: age_of_forests
 
+- id: urban_planning
+  name: Urban planning should consider LULUCF
+  description: 'Some references about urban planning and LULUCF. <ul>
+    <li><a href="https://www.ely-keskus.fi/documents/10191/54114053/2024-01-17_Kaavoituksen_ilmastowebinaari_Kari_Oinonen_SYKE_Hiilikartta.pdf/ad022e8d-ebd4-d262-25c8-c2316ac2a785?t=1705577174791">Hiilikartta by Syke and Luke</a></li>
+    <li><a href="https://www.sitowise.com/digital-solutions/planect">Sitowise: Planect for urban impact assessment</a></li>
+    <li><a href="https://publish.kuopio.fi/kuulutus/2022833538.1119746.PDF">Kuopio 2022: Valkoselkätikka-alueiden inventointi ja arvotus</a></li>
+    <li><a href="https://must-project.fi/must-hankkeen-ensimmainen-politiikkasuositus-laittaa-keskioon-kaupunkiluonnon-laadun/">MUST-hanke 2025: Politiikkasuositus laittaa keskiöön kaupunkiluonnon laadun</a></li>
+    </ul>'
+  type: generic.GenericNode
+  quantity: argument
+  unit: dimensionless
+  input_datasets:
+  - id: sunnydale/forestry_fi
+    tags: [baseline] # TODO Remove after you have merged datasets into operations.
+    filters:
+    - column: Sector
+      value: Argument placeholder
+  output_nodes:
+  - id: land_use_change
+    tags: [ignore_content]
+
+- id: land_use_change
+  name: Land use change
+  type: generic.GenericNode
+  quantity: area
+  unit: dimensionless
+  input_datasets:
+  - id: sunnydale/forestry_fi
+    tags: [baseline] # TODO Remove after you have merged datasets into operations.
+    filters:
+    - column: Sector
+      value: Argument placeholder
+  output_nodes:
+  - id: dynamic_forest
+    tags: [ignore_content]
+
 - id: harvest_probabilities
   name: Harvest probabilities for different ages
   type: generic.GenericNode
@@ -718,6 +754,16 @@ nodes:
 
 - id: dynamic_forest
   name: Dynamic forest model
+  description: '<ul>
+    <li><a href="https://www.ilmasto-opas.fi/artikkelit/ekosysteemimallinnus">Ekosysteemimallinnus</a> (1.11.2017)</li>
+    <li><a href="https://puuproffa.fi/puutieto/puut-kasvavat/metsan-kasvu/">Metsän kasvu</a></li>
+    <li><a href="https://www.maaseuduntulevaisuus.fi/metsa/f693cb0c-3af5-5410-8d55-72ad55ab480c">Uusi Motti-ohjelmisto arvioi hinnan energiapuulle</a> (22.1.2013)</li>
+    <li><a href="https://jukuri.luke.fi/bitstream/handle/10024/538149/luke-luobio_7_2017.pdf?sequence=6&isAllowed=y">MELA 2016 Reference Manual</a> (2017)</li>
+    <li><a href="https://zonationteam.github.io/Zonation5/">Zonation 5, a spatial prioritization software</a></li>
+    <li><a href="https://www.optforests.eu/toolkit/models/motti">OptForests: Motti simulator</a></li>
+    <li><a href="https://www.forestflux.eu/">Forest Flux, high-resolution maps of forest carbon fluxes</a></li>
+    <li><a href="https://www.helsinki.fi/en/researchgroups/forest-modelling/forest-models/crobas">CROBAS, a generic tree growth model by the University of Helsinki</a></li>
+    </ul>'
   type: generic.CohortNode
   quantity: area
   unit: t_ha
@@ -910,7 +956,7 @@ nodes:
 
 - id: forest_protection_criteria
   name: Forest protection criteria
-  description: Finnish Government <a href="https://yle.fi/a/74-20150656">decided</a>
+  description: 'Finnish Government <a href="https://yle.fi/a/74-20150656">decided</a>
     the criteria for forest protection in March 2025. The criteria are strict, which
     means that only a small fraction of forests in Southern Finland is eligible for
     protection. The age of the forest should be more than 100 - 140 years, and there
@@ -918,9 +964,15 @@ nodes:
     href="https://www.lausuntopalvelu.fi/FI/Proposal/Participation?proposalId=ea3f3238-5483-4954-9100-0f464b874258">Hearing
     about the criteria, 2024.</a><br/> One of the explicit criteria for the decision
     was that the criteria would be used also for private forests, and the criteria
-    should not limit forest owner's right to decide about their own property. "Voluntary
+    should not limit forest owner´s right to decide about their own property. "Voluntary
     approach is the way to go in private forests in Southern Finland," <a href="https://yle.fi/a/74-20150797">says</a>
-    Minister of Environment Sari Multala.
+    Minister of Environment Sari Multala.<br/><ul>
+    <li><a href="https://www.hs.fi/politiikka/art-2000011090792.html">Yle: Hallitus piti päänsä vanhojen metsien suojelu­kriteereistä</a></li>
+    <li><a hfref="https://yle.fi/a/74-20148157">Yle näki lopulliset kriteerit vanhojen metsien suojeluun – kova kritiikki ei näytä kääntäneen hallituksen päätä</a></li>
+    <li><a href="https://yle.fi/a/74-20093322">Ministerit vahvistivat tiukat kriteerit: Etelä-Suomesta ei juuri löydy suojeltavaa vanhaa metsää</a></li>
+    <li><a href="https://yle.fi/a/74-20087923">Ylen tiedot: Vanhat metsät aiotaan määritellä niin tiukasti, että Etelä-Suomesta ei löydy suojeltavaa</a> (Yle 13.5.2024)</li>
+    <li><a href="https://www.lausuntopalvelu.fi/FI/Proposal/Participation?proposalId=ea3f3238-5483-4954-9100-0f464b874258">Vanhojen metsien kriteerit Suomessa. Lausuntopyyntö VN/7491/2024</a></li>
+    </ul>'
   type: generic.GenericNode
   quantity: argument
   unit: dimensionless
