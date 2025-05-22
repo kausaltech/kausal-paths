@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 from pydantic import BaseModel, Field
 
 import numpy as np
-import pandas as pd
 import polars as pl
 import sentry_sdk
 
@@ -283,7 +282,7 @@ class MetricDimension(BaseModel):
                 continue
             rgb = sRGBColor.new_from_rgb_hex(color)
             lab: LabColor = convert_color(rgb, LabColor)
-            vals = cast(LabColorVals, lab.get_value_tuple())
+            vals = cast('LabColorVals', lab.get_value_tuple())
             start = list(vals)
             start[0] -= LAB_Kn * 1
             end = list(vals)
@@ -294,7 +293,7 @@ class MetricDimension(BaseModel):
             colors_out = []
             for i in range(count):
                 t = step * i
-                c = cast(LabColorVals, tuple(start[j] + t * (end[j] - start[j]) for j in range(3)))
+                c = cast('LabColorVals', tuple(start[j] + t * (end[j] - start[j]) for j in range(3)))
                 out = LabColor(*c)
                 out_rgb: sRGBColor = convert_color(out, sRGBColor)
                 out_rgb.rgb_r = out_rgb.clamped_rgb_r
@@ -346,6 +345,7 @@ class DimensionalMetric(BaseModel):
     goals: list[MetricDimensionGoal]
     normalized_by: NormalizerNode | None
     unit: Unit
+    measure_datapoint_years: list[int] = Field(default_factory=list)
 
     def to_df(self, drop_single_cat_dims: bool = False) -> ppl.PathsDataFrame:
         idx_df = self.generate_index_df(self.dimensions, self.years)
@@ -407,7 +407,7 @@ class DimensionalMetric(BaseModel):
         raise ValueError(f'Dimension {dim_id} not found')
 
     def plot(self, dim_id: str | None = None):
-        import altair as alt
+        import altair as alt  # type: ignore
 
         df = self.to_df(drop_single_cat_dims=True).with_columns(pl.col('Year').cast(pl.Utf8))
         x = alt.X(field='Year', type='temporal')

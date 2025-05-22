@@ -339,6 +339,7 @@ class DimensionalMetricType:
     goals: strawberry.auto
     normalized_by: strawberry.auto
     unit: Annotated[UnitType, sb.lazy('paths.graphql_types')]
+    measure_datapoint_years: strawberry.auto
 
 
 ActionDecisionLevel = graphene.Enum.from_enum(DecisionLevel)
@@ -390,7 +391,7 @@ class VisualizationNodeDimension:
 
 @register_strawberry_type
 @sb.experimental.pydantic.type(model=viz.VisualizationNodeOutput)
-class VisualizationNodeOutput(VisualizationEntry):
+class VisualizationNodeOutput(VisualizationEntry):  # type: ignore[override]
     node_id: str
     desired_outcome: viz.DesiredOutcome
     dimensions: list[VisualizationNodeDimension]
@@ -398,7 +399,7 @@ class VisualizationNodeOutput(VisualizationEntry):
 
     @sb.field
     def metric_dim(self, info: sb.Info) -> DimensionalMetricType | None:
-        e = cast(viz.VisualizationNodeOutput, self)
+        e = cast('viz.VisualizationNodeOutput', self)
         req: GQLInstanceContext = info.context
         dm = e.get_metric_data(req.instance.context.nodes[self.node_id])
         if dm is None:
@@ -414,7 +415,7 @@ class VisualizationNodeOutput(VisualizationEntry):
 
 @register_strawberry_type
 @sb.experimental.pydantic.type(model=viz.VisualizationGroup)
-class VisualizationGroup(VisualizationEntry):
+class VisualizationGroup(VisualizationEntry):  # type: ignore[override]
     children: list[VisualizationEntry]
 
     def to_pydantic(self) -> viz.VisualizationGroup:
@@ -826,11 +827,11 @@ class ActionNodeType(graphene.ObjectType):
             return None
         if nc.indicator_node is None:
             return None
-        return nc.indicator_node.get_node(visible_for_user=info.context.user)
+        return nc.indicator_node.get_node(visible_for_user=info.context.get_user())
 
 
 class ScenarioType(graphene.ObjectType):
-    id = graphene.ID()
+    id = graphene.ID(required=True)
     name = graphene.String(required=True)
     kind = ScenarioKind(required=False)
     is_active = graphene.Boolean(required=True)

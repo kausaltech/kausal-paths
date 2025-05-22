@@ -141,6 +141,13 @@ class VisualizationNodeOutput(VisualizationEntry):
             return None
         return metric
 
+    def get_measure_datapoint_years(self, node: Node) -> list[int]:
+        from nodes.gpc import DatasetNode
+
+        if isinstance(node, DatasetNode):
+            return node.get_measure_datapoint_years()
+        return []
+
     def get_output(self, node: Node) -> PathsDataFrame:
         df = node.get_output_pl()
         if self.output_metric_id is not None:

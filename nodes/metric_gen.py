@@ -117,6 +117,7 @@ def _get_df(
         new_dims.append(scenario_dim)
 
     if input_nodes is None:
+
         def get_output_without_input_nodes() -> ppl.PathsDataFrame:
             return node.get_output_pl()
 
@@ -324,8 +325,9 @@ def _make_data_dimension(
     return mdim
 
 
-def _generate_output_data(node: Node, dims: list[MetricDimension], df: ppl.PathsDataFrame,
-                          dropped_not_filled: bool = False) -> MetricData:
+def _generate_output_data(
+    node: Node, dims: list[MetricDimension], df: ppl.PathsDataFrame, dropped_not_filled: bool = False
+) -> MetricData:
     if df.paths.index_has_duplicates():
         raise NodeError(node, 'DataFrame index has duplicates')
 
@@ -371,8 +373,7 @@ def _from_node_metric(node: Node, m: NodeMetric, scenarios: Sequence[Scenario]) 
     with node.context.start_span('Compute metric values', op=MODEL_CALC_OP):
         df, dims = _compute_values(node, scenarios)
 
-    if (UNCERTAINTY_COLUMN in df.columns and
-        not df.filter(pl.col(UNCERTAINTY_COLUMN) == 'median').is_empty()):
+    if UNCERTAINTY_COLUMN in df.columns and not df.filter(pl.col(UNCERTAINTY_COLUMN) == 'median').is_empty():
         df = df.filter(pl.col(UNCERTAINTY_COLUMN) == 'median')
 
     if node.context.active_normalization:
@@ -464,7 +465,7 @@ def metric_from_node(
         return _from_node_metric(node, m, extra_scenarios)
 
 
-def metric_from_visualization(node: Node, visualization: VisualizationNodeOutput) -> DimensionalMetric | None:
+def metric_from_visualization(node: Node, visualization: VisualizationNodeOutput) -> DimensionalMetric | None:  # noqa: C901
     dims: list[MetricDimension] = []
     scenarios: list[Scenario] = []
     if visualization.scenarios:
@@ -491,9 +492,7 @@ def metric_from_visualization(node: Node, visualization: VisualizationNodeOutput
             truncate = scenario.param_values.get('measure_data_override', False)
             if truncate:
                 sdf = sdf.with_columns(
-                    pl.when(pl.col(FORECAST_COLUMN))
-                    .then(pl.lit(None))
-                    .otherwise(pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN)
+                    pl.when(pl.col(FORECAST_COLUMN)).then(pl.lit(None)).otherwise(pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN)
                 )
             scenario_dfs.append(sdf)
 
@@ -525,6 +524,7 @@ def metric_from_visualization(node: Node, visualization: VisualizationNodeOutput
         goals=[],
         normalized_by=None,
         unit=unit,
+        measure_datapoint_years=visualization.get_measure_datapoint_years(node),
     )
     return dm
 
@@ -556,7 +556,7 @@ def from_action_impact(  # noqa: C901
     dims: list[MetricDimension] = []
 
     for dim_id, dim in dimensions:
-        if dim_id == 'iteration': # FIXME Check that this actually makes sense.
+        if dim_id == 'iteration':  # FIXME Check that this actually makes sense.
             continue
         df_cats = set(df[dim_id].unique())
         ordered_cats = []

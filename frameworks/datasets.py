@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 import polars as pl
@@ -21,6 +21,8 @@ ENABLE_UNIT_CONVERSION = True
 
 @dataclass
 class FrameworkMeasureDVCDataset(DVCDataset):
+    measure_data_point_years: list[int] = field(default_factory=list)
+
     def hash_data(self, context: Context) -> dict[str, Any]:
         data = super().hash_data(context)
         if context.framework_config_data:
@@ -97,17 +99,15 @@ class FrameworkMeasureDVCDataset(DVCDataset):
                 ],
             )
 
-        jdf = jdf.with_columns(
-            [
-                pl.when(pl.col('NrSectorYears') == 1).then(
-                    pl.coalesce(['MeasureYear', YEAR_COLUMN]),
-                ).otherwise(pl.col(YEAR_COLUMN)).alias(YEAR_COLUMN),
-                pl.coalesce(['MeasureValue', 'MeasureDefaultValue', 'Value']).alias('Value'),
-                pl.coalesce(['MeasureUnit', 'Unit']).alias('Unit'),
-            ],
-        )
-
-        df = ppl.to_ppdf(jdf.select(df_cols), meta=meta)
+        jdf = jdf.with_columns([
+            pl.when(pl.col('NrSectorYears') == 1).then(
+                pl.coalesce(['MeasureYear', YEAR_COLUMN]),
+            ).otherwise(pl.col(YEAR_COLUMN)).alias(YEAR_COLUMN),
+            pl.coalesce(['MeasureValue', 'MeasureDefaultValue', 'Value']).alias('Value'),
+            pl.coalesce(['MeasureUnit', 'Unit']).alias('Unit'),
+            (pl.col('MeasureValue').is_not_null() | pl.col('MeasureDefaultValue').is_not_null()).alias('FromMeasureDataPoint')
+        ])
+        df = ppl.to_ppdf(jdf.select([*df_cols, 'FromMeasureDataPoint']), meta=meta)
         return df
 
     def post_process(self, context: Context | None, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
