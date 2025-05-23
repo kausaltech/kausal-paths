@@ -57,7 +57,6 @@ impact_overviews:
 - graph_type: cost_benefit
   cost_node: total_cost
   effect_node: total_cost
-  cost_unit: MEUR
   effect_unit: MEUR
   indicator_unit: MEUR
   outcome_dimension: cost_type

@@ -164,7 +164,6 @@ action_groups:
 # - graph_type: cost_benefit
 #   cost_node: discounted_investment
 #   effect_node: discounted_benefits
-#   cost_unit: MEUR
 #   effect_unit: MEUR
 #   indicator_unit: MEUR
 #   stakeholder_dimension: stakeholder

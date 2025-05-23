@@ -138,7 +138,6 @@ action_groups:
 # - graph_type: cost_benefit
 #   cost_node: discounted_investment
 #   effect_node: discounted_benefits
-#   cost_unit: MEUR
 #   effect_unit: MEUR
 #   indicator_unit: MEUR
 #   stakeholder_dimension: stakeholder
@@ -148,7 +147,6 @@ action_groups:
 # - graph_type: cost_benefit
 #   cost_node: health_effect_of_active_mobility
 #   effect_node: health_effect_of_active_mobility
-#   cost_unit: case
 #   effect_unit: case
 #   indicator_unit: case
 #   stakeholder_dimension: transport_mode

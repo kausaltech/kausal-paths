@@ -80,7 +80,6 @@ impact_overviews:
   invert_cost: true
   invert_effect: true
   indicator_unit: MEUR
-  cost_unit: MEUR
   effect_unit: MEUR
   stakeholder_dimension: stakeholder
   outcome_dimension: outcome_of_interest
@@ -91,7 +90,6 @@ impact_overviews:
   invert_cost: true
   invert_effect: true
   indicator_unit: MEUR
-  cost_unit: MEUR
   effect_unit: MEUR
 #  stakeholder_dimension: stakeholder
 #  outcome_dimension: outcome_of_interest

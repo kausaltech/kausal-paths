@@ -45,7 +45,6 @@ impact_overviews:
 - graph_type: cost_benefit
   cost_node: cost_benefit_analysis
   effect_node: cost_benefit_analysis
-  cost_unit: MSEK
   effect_unit: MSEK
   indicator_unit: MSEK
   outcome_dimension: cost_benefit

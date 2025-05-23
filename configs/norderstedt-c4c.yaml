@@ -43,7 +43,6 @@ impact_overviews:
 - graph_type: cost_benefit
   cost_node: cost_benefit_analysis
   effect_node: cost_benefit_analysis
-  cost_unit: kEUR
   effect_unit: kEUR
   indicator_unit: kEUR
   outcome_dimension: cost_benefit

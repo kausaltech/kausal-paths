@@ -851,10 +851,11 @@ class ScenarioType(graphene.ObjectType):
 
 class ActionImpact(graphene.ObjectType):
     action = graphene.Field(ActionNodeType, required=True)
-    cost_values = graphene.List(YearlyValue, required=True)
-    impact_values = graphene.List(YearlyValue, required=True)
+    cost_values = graphene.List(YearlyValue, required=True, deprecation_reason="Use costDim instead.")
+    impact_values = graphene.List(YearlyValue, required=True, deprecation_reason="Use effectDim instead.")
     cost_dim = graphene.Field(DimensionalMetricType, required=True)
-    impact_dim = graphene.Field(DimensionalMetricType, required=True)
+    impact_dim = graphene.Field(DimensionalMetricType, required=True, deprecation_reason="Use effectDim instead.")
+    effect_dim = graphene.Field(DimensionalMetricType, required=True)
     efficiency_divisor = graphene.Float()  # FIXME AEP depreciated
     unit_adjustment_multiplier = graphene.Float()  # To replace efficiency_divisor
 
@@ -874,8 +875,8 @@ class ImpactOverviewType(graphene.ObjectType):
         required=True,
         deprecation_reason="Use indicatorUnit instead"
     )  # FIXME depreciated
-    indicator_unit = graphene.Field('paths.schema.UnitType', required=True)  # FIXME Is this always needed?
-    cost_unit = graphene.Field('paths.schema.UnitType', required=True)
+    indicator_unit = graphene.Field('paths.schema.UnitType', required=False)  # FIXME Is this always needed?
+    cost_unit = graphene.Field('paths.schema.UnitType', required=False)
     effect_unit = graphene.Field('paths.schema.UnitType', required=True)
     impact_unit = graphene.Field(
         'paths.schema.UnitType',
@@ -886,17 +887,21 @@ class ImpactOverviewType(graphene.ObjectType):
     plot_limit_efficiency = graphene.Float( # FIXME Remove from UI and here.
         deprecation_reason="Use plot_limit_indicator instead"
     )
-    plot_limit_indicator = graphene.Float()
+    plot_limit_indicator = graphene.Float() # FIXME Depreciated
     plot_limit_for_indicator = graphene.Float()
-    invert_cost = graphene.Boolean(required=True)
-    invert_effect = graphene.Boolean(required=True)
-    invert_impact = graphene.Boolean(required=True, deprecation_reason="Use invertEffect instead")
+    invert_cost = graphene.Boolean(required=True, deprecation_reason="Not needed") # FIXME Depreciated
+    invert_effect = graphene.Boolean(required=True, deprecation_reason="Not needed") # FIXME Depreciated
+    invert_impact = graphene.Boolean(required=True, deprecation_reason="Not needed")
     label = graphene.String(required=True)
     actions = graphene.List(graphene.NonNull(ActionImpact), required=True)
 
     @staticmethod
     def resolve_id(root: ImpactOverview, info: GQLInstanceInfo) -> str:
         return '%s:%s' % (root.cost_node.id, root.effect_node.id)
+
+    @staticmethod
+    def resolve_plot_limit_efficiency(root: ImpactOverview, info: GQLInstanceInfo) -> str:
+        return root.plot_limit_for_indicator
 
     @staticmethod
     def resolve_graph_type(root: ImpactOverview, info: GQLInstanceInfo) -> str:
@@ -911,14 +916,19 @@ class ImpactOverviewType(graphene.ObjectType):
         all_aes = root.calculate(info.context.instance.context)
         out: list[dict] = []
         for ae in all_aes:
+            if ae.unit_adjustment_multiplier is not None:
+                ed = 1 / ae.unit_adjustment_multiplier
+            else:
+                ed = None
             years = ae.df[YEAR_COLUMN]
             d = dict(
                 action=ae.action,
                 cost_values=[YearlyValue(year, float(val)) for year, val in zip(years, list(ae.df['Cost']), strict=False)],
-                impact_values=[YearlyValue(year, float(val)) for year, val in zip(years, list(ae.df['Impact']), strict=False)],
+                impact_values=[YearlyValue(year, float(val)) for year, val in zip(years, list(ae.df['Effect']), strict=False)],
                 cost_dim=DimensionalMetric.from_action_impact(ae, root, 'Cost'),
-                impact_dim=DimensionalMetric.from_action_impact(ae, root, 'Impact'),
-                efficiency_divisor=ae.efficiency_divisor,
+                impact_dim=DimensionalMetric.from_action_impact(ae, root, 'Effect'), # FIXME Deprecated
+                effect_dim=DimensionalMetric.from_action_impact(ae, root, 'Effect'),
+                efficiency_divisor= ed, # FIXME Depreciated
                 unit_adjustment_multiplier=ae.unit_adjustment_multiplier,
             )
             out.append(d)
@@ -942,7 +952,15 @@ class ImpactOverviewType(graphene.ObjectType):
 
     @staticmethod
     def resolve_invert_impact(root: ImpactOverview, info: GQLInstanceInfo) -> bool:
-        return root.invert_effect
+        return False
+
+    @staticmethod
+    def resolve_invert_effect(root: ImpactOverview, info: GQLInstanceInfo) -> bool:
+        return False
+
+    @staticmethod
+    def resolve_invert_cost(root: ImpactOverview, info: GQLInstanceInfo) -> bool:
+        return False
 
 
 class InstanceBasicConfiguration(graphene.ObjectType):
