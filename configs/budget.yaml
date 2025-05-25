@@ -71,8 +71,8 @@ impact_overviews:
   invert_cost: false
   invert_effect: false
   indicator_unit: '%'
-  cost_unit: MEUR
-  effect_unit: MEUR
+  # cost_unit: MEUR
+  # effect_unit: MEUR
   label: Return on investment
 - graph_type: cost_benefit
   cost_node: test_investments_for_the_city
@@ -80,7 +80,7 @@ impact_overviews:
   invert_cost: true
   invert_effect: true
   indicator_unit: MEUR
-  effect_unit: MEUR
+  # effect_unit: MEUR
   stakeholder_dimension: stakeholder
   outcome_dimension: outcome_of_interest
   label: Cost-benefit analysis
@@ -90,7 +90,7 @@ impact_overviews:
   invert_cost: true
   invert_effect: true
   indicator_unit: MEUR
-  effect_unit: MEUR
+  # effect_unit: MEUR
 #  stakeholder_dimension: stakeholder
 #  outcome_dimension: outcome_of_interest
   label: Cost-benefit analysis for the city

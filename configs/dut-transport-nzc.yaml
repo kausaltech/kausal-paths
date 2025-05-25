@@ -121,7 +121,7 @@ impact_overviews:
 - graph_type: cost_benefit
   cost_node: discounted_health_benefits
   effect_node: discounted_health_benefits
-  effect_unit: MEUR
+  # effect_unit: MEUR
   indicator_unit: MEUR
   stakeholder_dimension: stakeholder
   outcome_dimension: cost_type

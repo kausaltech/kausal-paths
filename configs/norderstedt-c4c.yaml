@@ -43,7 +43,7 @@ impact_overviews:
 - graph_type: cost_benefit
   cost_node: cost_benefit_analysis
   effect_node: cost_benefit_analysis
-  effect_unit: kEUR
+  # effect_unit: kEUR
   indicator_unit: kEUR
   outcome_dimension: cost_benefit
   label: Cost-benefit
@@ -54,8 +54,8 @@ impact_overviews:
   invert_cost: false
   invert_effect: true
   indicator_unit: '%'
-  cost_unit: EUR
-  effect_unit: EUR
+  # cost_unit: EUR
+  # effect_unit: EUR
   label: Return on investment
 
 dimensions:

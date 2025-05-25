@@ -76,7 +76,7 @@ impact_overviews:
   invert_cost: false
   invert_effect: false
   indicator_unit: MEUR
-  effect_unit: MEUR
+  # effect_unit: MEUR
   label: Kustannus-hyötyarvio kokonaisvaikutuksista
   label_en: Cost-benefit analysis of total impacts
 

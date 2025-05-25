@@ -62,7 +62,6 @@ action_groups:
 #   invert_cost: false
 #   invert_effect: true
 #   indicator_unit: GEUR
-#   effect_unit: GEUR
 #   label_fi: Kustannus-hyötyarvio kokonaisvaikutuksista
 #   label_en: Cost-benefit analysis of total impacts
 #   stakeholder_dimension: stakeholder

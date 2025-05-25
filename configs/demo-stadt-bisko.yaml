@@ -57,7 +57,7 @@ impact_overviews:
 - graph_type: cost_benefit
   cost_node: total_cost
   effect_node: total_cost
-  effect_unit: MEUR
+  # effect_unit: MEUR
   indicator_unit: MEUR
   outcome_dimension: cost_type
   label: Cost-benefit
@@ -68,8 +68,8 @@ impact_overviews:
   invert_cost: false
   invert_effect: false
   indicator_unit: '%'
-  cost_unit: MEUR
-  effect_unit: MEUR
+  # cost_unit: MEUR
+  # effect_unit: MEUR
   label: Return on investment
 
 dimensions:

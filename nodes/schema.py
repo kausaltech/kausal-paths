@@ -582,7 +582,7 @@ class NodeInterface(graphene.Interface):
         try:
             ret = DimensionalMetric.from_node(root, extra_scenarios=extra_scenarios)
         except Exception:
-            logging.exception('Exception while resolving metric_dim for node %s' % root.id)
+            logging.exception('Exception while resolving metric_dim for node %s' % root.id)  # noqa: LOG015
             return None
         return ret
 
@@ -875,13 +875,13 @@ class ImpactOverviewType(graphene.ObjectType):
         required=True,
         deprecation_reason="Use indicatorUnit instead"
     )  # FIXME depreciated
-    indicator_unit = graphene.Field('paths.schema.UnitType', required=False)  # FIXME Is this always needed?
-    cost_unit = graphene.Field('paths.schema.UnitType', required=False)
+    indicator_unit = graphene.Field('paths.schema.UnitType', required=True)
+    cost_unit = graphene.Field('paths.schema.UnitType', required=True)
     effect_unit = graphene.Field('paths.schema.UnitType', required=True)
     impact_unit = graphene.Field(
         'paths.schema.UnitType',
         required=True,
-        deprecation_reason="Use effectUnit instead")
+        deprecation_reason="Use indicatorUnit instead")
     indicator_cutpoint = graphene.Float()  # For setting decision criterion on the indicator. Uses indicator units
     cost_cutpoint = graphene.Float()  # For setting decision criterion on the cost. Uses cost units
     plot_limit_efficiency = graphene.Float( # FIXME Remove from UI and here.
@@ -897,10 +897,11 @@ class ImpactOverviewType(graphene.ObjectType):
 
     @staticmethod
     def resolve_id(root: ImpactOverview, info: GQLInstanceInfo) -> str:
-        return '%s:%s' % (root.cost_node.id, root.effect_node.id)
+        cost_id = root.cost_node.id if root.cost_node else 'None'
+        return '%s:%s' % (cost_id, root.effect_node.id)
 
     @staticmethod
-    def resolve_plot_limit_efficiency(root: ImpactOverview, info: GQLInstanceInfo) -> str:
+    def resolve_plot_limit_efficiency(root: ImpactOverview, info: GQLInstanceInfo) -> float | None:
         return root.plot_limit_for_indicator
 
     @staticmethod
@@ -943,8 +944,16 @@ class ImpactOverviewType(graphene.ObjectType):
         return root.indicator_unit
 
     @staticmethod
+    def resolve_cost_unit(root: ImpactOverview, info: GQLInstanceInfo) -> Unit:
+        return root.cost_unit or root.indicator_unit
+
+    @staticmethod
+    def resolve_effect_unit(root: ImpactOverview, info: GQLInstanceInfo) -> Unit:
+        return root.effect_unit or root.indicator_unit
+
+    @staticmethod
     def resolve_impact_unit(root: ImpactOverview, info: GQLInstanceInfo) -> Unit:
-        return root.effect_unit
+        return root.effect_unit or root.indicator_unit
 
     @staticmethod
     def resolve_impact_node(root: ImpactOverview, info: GQLInstanceInfo) -> Node:

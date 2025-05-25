@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Callable, ClassVar, cast
 
 import pandas as pd
+import pint
 import polars as pl
 
 from common import polars as ppl
@@ -24,7 +25,7 @@ from nodes.constants import (
     DecisionLevel,
 )
 from nodes.node import Node, NodeError
-from nodes.units import Quantity, Unit
+from nodes.units import Quantity, Unit, unit_registry
 from params import BoolParameter, NumberParameter
 
 if typing.TYPE_CHECKING:
@@ -289,17 +290,13 @@ class ActionNode(Node):
             cost_df = self.compute_node_impact(io.cost_node, 'Cost', dims)
 
         effect_df = self.compute_node_impact(io.effect_node, 'Effect', dims)
+
         if io.graph_type == 'value_of_information':
             effect_df = self.get_value_of_information(effect_df)
 
-        od = io.outcome_dimension
-        sd = io.stakeholder_dimension
-        if io.graph_type != 'cost_benefit':
-            assert od is None
-            assert sd is None
-
         if io.graph_type == 'cost_benefit':
-            assert io.cost_node is not None
+            od = io.outcome_dimension
+            sd = io.stakeholder_dimension
             if od is not None:
                 assert od in cost_df.dim_ids
                 assert od in effect_df.dim_ids
@@ -405,71 +402,97 @@ class ImpactOverview:
     def validate(self):
 
         if self.effect_node.quantity not in STACKABLE_QUANTITIES:
-            raise Exception('Impact node must have stackable quantities')
+            raise Exception(f"Impact node quantity {self.effect_node.quantity} must be stackable.")
         if self.cost_node is not None and self.cost_node.quantity not in STACKABLE_QUANTITIES:
-                raise Exception('Cost node must have stackable quantities')
-        if self.graph_type in ['cost_efficiency']:
-            assert self.cost_node is not None
-            assert self.cost_unit is not None
-            assert self.effect_unit is not None
-            div_unit = self.cost_unit / self.effect_unit
-            if not self.indicator_unit.is_compatible_with(div_unit):
-                raise Exception('Indicator unit %s is not compatible with %s' % (self.indicator_unit, div_unit))
+                raise Exception(f"Cost node quantity {self.cost_node.quantity} must be stackable.")
 
-    def _adjust_graph_units(self, df: ppl.PathsDataFrame, has_cost: bool,
+        ff = ['outcome_dimension', 'stakeholder_dimension']
+        rf = ['effect_node', 'indicator_unit']
+        field_lists = {
+            'cost_benefit':
+                {'required': [*rf, 'cost_node'],
+                 'forbidden': ['cost_unit', 'effect_unit']},
+            'cost_efficiency':
+                {'required': [*rf, 'cost_node'],
+                 'forbidden': ff},
+            'return_on_investment':
+                {'required': rf,
+                 'forbidden': [*ff, 'cost_unit', 'effect_unit']},
+            'value_of_information':
+                {'required': rf,
+                 'forbidden': [*ff, 'cost_unit', 'effect_unit', 'cost_node']},
+        }
+        forbidden_fields = field_lists[self.graph_type]['forbidden']
+        required_fields = field_lists[self.graph_type]['required']
+
+        for field_name, field_value in self.__dict__.items():
+            if field_value is not None and field_name in forbidden_fields:
+                print(f"Field '{field_name}' is not used for graph type '{self.graph_type}'") # TODO raise ValueError
+
+            if field_value is None and field_name in required_fields:
+                print(f"Field '{field_name}' must be given for graph type '{self.graph_type}'") # TODO raise ValueError
+
+    def _adjust_graph_units(self, df: ppl.PathsDataFrame,
                             is_same_unit: bool) -> ppl.PathsDataFrame:
-        if has_cost:
-            assert self.cost_node is not None
-            if is_same_unit:
-                if self.cost_unit is None:
-                    cost_unit = self.effect_unit
-                else:
-                    print(f"For {self.graph_type} graph, give only effect_unit, not cost_unit.") # FIXME Make error
-                    cost_unit = self.effect_unit
-            else:
-                assert self.cost_unit is not None
-                cost_unit = self.cost_unit
-            df = df.set_unit('Cost', df.get_unit('Cost') * Quantity('1 a'), force=True)
-            df = df.ensure_unit('Cost', cost_unit)
-        elif self.cost_unit or self.cost_node:
-                raise ValueError(f"{self.graph_type} graphs should not have cost information.")
+        df = df.set_unit('Cost', df.get_unit('Cost') * unit_registry.a, force=True)
+        df = df.set_unit('Effect', df.get_unit('Effect') * unit_registry.a, force=True)
+        if is_same_unit:
+            cost_unit = effect_unit = self.indicator_unit
+        else:
+            cost_unit = self.cost_unit or df.get_unit('Cost')
+            effect_unit = self.effect_unit or df.get_unit('Effect')
 
-        df = df.set_unit('Effect', df.get_unit('Effect') * Quantity('1 a'), force=True)
-        df = df.ensure_unit('Effect', self.effect_unit)
+        df = df.ensure_unit('Cost', cost_unit)
+        df = df.ensure_unit('Effect', effect_unit)
 
         return df
 
-    def calculate_iter(self, context: Context, actions: Iterable[ActionNode] | None = None) -> Iterator[ActionImpact]:
+    def _get_unit_adjustment_function(self) -> tuple[Callable[[ppl.PathsDataFrame], float], bool]:
 
         def _cea(df: ppl.PathsDataFrame) -> float:
             uam = 1 * df.get_unit('Cost') / df.get_unit('Effect') / self.indicator_unit
             assert isinstance(uam, Quantity)
-            return uam.to('dimensionless').m
+            try:
+                return uam.to('dimensionless').m
+            except pint.DimensionalityError as e:
+                raise Exception(
+                    f"Indicator unit {self.indicator_unit} is not compatible with Cost / Effect."
+                ) from e
 
         def _roi(df: ppl.PathsDataFrame) -> float:
             uam = 1 * df.get_unit('Effect') / df.get_unit('Cost') / self.indicator_unit
             assert isinstance(uam, Quantity)
-            return uam.to('dimensionless').m
+            try:
+                return uam.to('dimensionless').m
+            except pint.DimensionalityError as e:
+                raise Exception(
+                    f"Indicator unit {self.indicator_unit} is not compatible with Cost / Effect."
+                ) from e
 
         def _unity(df: ppl.PathsDataFrame) -> float:
             return 1.0
 
         unit_adjustments = {
-            'cost_efficiency': {'has_cost':True, 'is_same_unit': False, 'fn': _cea},
-            'cost_benefit': {'has_cost':True, 'is_same_unit': True, 'fn': _unity},
-            'cost_benefit1': {'has_cost': False, 'is_same_unit': False, 'fn': _unity},
-            'return_on_investment': {'has_cost':True, 'is_same_unit': True, 'fn': _roi},
-            'value_of_information': {'has_cost':False, 'is_same_unit': False, 'fn': _unity},
+            'cost_efficiency': {'is_same_unit': False, 'fn': _cea},
+            'cost_benefit': {'is_same_unit': True, 'fn': _unity},
+            'cost_benefit1': {'is_same_unit': True, 'fn': _unity},
+            'return_on_investment': {'is_same_unit': False, 'fn': _roi},
+            'value_of_information': {'is_same_unit': True, 'fn': _unity},
         }
 
-        if actions is None:
-            actions = list(context.get_actions())
-        has_cost = unit_adjustments[self.graph_type]['has_cost']
-        assert isinstance(has_cost, bool)
         is_same_unit = unit_adjustments[self.graph_type]['is_same_unit']
         assert isinstance(is_same_unit, bool)
         unit_adjustment_function = cast('Callable[[ppl.PathsDataFrame], float]',
                               unit_adjustments[self.graph_type]['fn'])
+
+        return unit_adjustment_function, is_same_unit
+
+    def calculate_iter(self, context: Context, actions: Iterable[ActionNode] | None = None) -> Iterator[ActionImpact]:
+
+        if actions is None:
+            actions = list(context.get_actions())
+
+        unit_adjustment_function, is_same_unit = self._get_unit_adjustment_function()
 
         for action in actions:
             if not action.is_connected_to(self.effect_node):
@@ -482,7 +505,7 @@ class ImpactOverview:
                 # No impact for this action, skip it
                 continue
 
-            df = self._adjust_graph_units(df, has_cost, is_same_unit)
+            df = self._adjust_graph_units(df, is_same_unit)
             uam = unit_adjustment_function(df)
 
             ae = ActionImpact(
@@ -495,3 +518,18 @@ class ImpactOverview:
     def calculate(self, context: Context, actions: Iterable[ActionNode] | None = None) -> list[ActionImpact]:
         out = list(self.calculate_iter(context, actions))
         return out
+
+"""
+A discussion started with Claude.
+
+I have class ImpactOverView, which produces graphs from data. Depending on the graph_type,
+different attributes are needed. For example, benefit_cost type needs cost_node but not
+cost_unit, while cost_efficiency needs both and value_of_information neither. So far,
+I have defined the attributes in a static yaml file and tested for compliance in code.
+However, I want to develop a user interface for administrators based on Wagtail. There
+the admin user could create a new ImpactOverview, and, after selecting the graph_type,
+would only be asked about the attributes that are relevant. What is a good way to
+implement this?
+
+Claude recommended Wagtail StreamFields with different block types for different graph_types.
+"""

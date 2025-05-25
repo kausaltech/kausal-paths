@@ -45,7 +45,7 @@ impact_overviews:
 - graph_type: cost_benefit
   cost_node: cost_benefit_analysis
   effect_node: cost_benefit_analysis
-  effect_unit: MSEK
+  # effect_unit: MSEK
   indicator_unit: MSEK
   outcome_dimension: cost_benefit
   label: Cost-benefit
@@ -56,8 +56,8 @@ impact_overviews:
   invert_cost: false
   invert_effect: true
   indicator_unit: '%'
-  cost_unit: kSEK
-  effect_unit: kSEK
+  # cost_unit: kSEK
+  # effect_unit: kSEK
   label: Return on investment
 
 params:

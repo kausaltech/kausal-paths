@@ -38,8 +38,8 @@ impact_overviews:
   invert_cost: false
   invert_effect: false
   indicator_unit: '%'
-  cost_unit: MEUR
-  effect_unit: MEUR
+  # cost_unit: MEUR
+  # effect_unit: MEUR
   label: Return on investment
 
 #- graph_type: cost_benefit

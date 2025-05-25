@@ -164,7 +164,6 @@ action_groups:
 # - graph_type: cost_benefit
 #   cost_node: discounted_investment
 #   effect_node: discounted_benefits
-#   effect_unit: MEUR
 #   indicator_unit: MEUR
 #   stakeholder_dimension: stakeholder
 #   outcome_dimension: cost_type
@@ -176,8 +175,6 @@ action_groups:
 #   invert_cost: false
 #   invert_effect: true
 #   indicator_unit: dimensionless
-#   cost_unit: kEUR
-#   effect_unit: kEUR
 #   label: Return on investment for the city with co-benefits
 
 # - graph_type: cost_efficiency

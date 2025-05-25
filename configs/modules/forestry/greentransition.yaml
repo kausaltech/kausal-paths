@@ -5,18 +5,13 @@
 # - graph_type: value_of_information
 #   cost_node: total_forest_cost
 #   effect_node: total_forest_cost
-#   cost_unit: kEUR
-#   effect_unit: kEUR  # FIXME Make it possible to operate without impact node
 #   indicator_unit: kEUR
-#   # outcome_dimension: iteration
 #   label: Value of forest information
 
 # - graph_type: cost_benefit
 #   cost_node: total_forest_cost
 #   effect_node: total_forest_cost
-#   effect_unit: kEUR  # FIXME Make it possible to operate without impact node
 #   indicator_unit: kEUR
-#   outcome_dimension: iteration
 #   label: Costs and benefits of the forest
 
 
