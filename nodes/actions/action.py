@@ -278,7 +278,7 @@ class ActionNode(Node):
             df = df.rename({m.column_id: colname})
         if keepcols is not None:
             dropcols = [col for col in df.dim_ids if col not in keepcols]
-            df = df.paths.sum_over_dims(dropcols)
+            df = df.paths.sum_over_dims(dropcols) # FIXME Dims used later but they are summed over.
 
         return df
 

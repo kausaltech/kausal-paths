@@ -8,7 +8,7 @@ dataset_repo:
   dvc_remote: kausal-s3
 name: Klimaschutz-Monitor Treibhausgasinventar
 owner: Stadt Demo
-theme_identifier: de-dusseldorf
+theme_identifier: default
 target_year: 2045
 model_end_year: 2050
 reference_year: 1995
@@ -63,10 +63,10 @@ impact_overviews:
   label: Cost-benefit
 
 - graph_type: return_on_investment
-  cost_node: aggreagated_implementation_cost
-  effect_node: aggregate_total_cost
+  cost_node: aggregated_implementation_cost
+  effect_node: aggregate_total_cost_wo_impl
   invert_cost: false
-  invert_effect: false
+  invert_effect: true
   indicator_unit: '%'
   # cost_unit: MEUR
   # effect_unit: MEUR
@@ -491,7 +491,8 @@ emission_sectors:
 nodes:
 
 - id: co2_unit_price
-  name: CO2 unit price
+  name_en: CO2 unit price
+  name_de: CO2-Einheitspreis
   type: gpc.DatasetNode
   quantity: unit_price
   unit: EUR/t
@@ -502,7 +503,8 @@ nodes:
     sector: Value of CO2 reduction
 
 - id: co2_emissions_cost
-  name: CO2 emissions cost
+  name_en: CO2 emissions cost
+  name_de: CO2-Emissionskosten
   type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
@@ -529,7 +531,8 @@ nodes:
       flatten: true
 
 - id: fuel_unit_price
-  name: Fuel unit price
+  name_en: Fuel unit price
+  name_de: Brennstoff-Einheitspreis
   type: generic.GenericNode
   quantity: unit_price
   unit: EUR/MWh
@@ -541,7 +544,8 @@ nodes:
     column: energiepreis
 
 - id: fuel_cost
-  name: Fuel cost
+  name_en: Fuel cost
+  name_de: Brennstoffkosten
   type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
@@ -565,7 +569,8 @@ nodes:
       categories: [fuel]
 
 - id: implementation_cost
-  name: Implementierungskosten
+  name_en: Implementation cost
+  name_de: Implementierungskosten
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
@@ -574,11 +579,13 @@ nodes:
   output_nodes:
   - id: total_cost
 
-- id: aggreagated_implementation_cost
-  name: Total Implementierungskosten
+- id: aggregated_implementation_cost
+  name_en: Total implementation cost
+  name_de: Gesamte Implementierungskosten
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
+  is_outcome: true
   input_nodes:
   - id: implementation_cost
     from_dimensions:
@@ -586,7 +593,8 @@ nodes:
       flatten: true
 
 - id: total_cost
-  name: Total cost
+  name_en: Total cost
+  name_de: Gesamtkosten
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
@@ -594,7 +602,8 @@ nodes:
   output_dimensions: [cost_type]
 
 - id: aggregate_total_cost
-  name: Aggregate total cost
+  name_en: Aggregate total cost
+  name_de: Aggregierte Gesamtkosten
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
@@ -605,8 +614,32 @@ nodes:
     - id: cost_type
       flatten: true
 
+- id: aggregate_total_cost_wo_impl
+  name_en: Aggregate total cost without implementation
+  name_de: Aggregierte Gesamtkosten ohne Implementierung
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  is_outcome: true
+  input_nodes:
+  - id: co2_emissions_cost
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: fuel_cost
+    from_dimensions:
+    - id: energietrager
+      flatten: true
+    - id: sector
+      flatten: true
+
 - id: aggregate_net_emissions
-  name: Aggregate net_emissions
+  name_en: Aggregate net emissions
+  name_de: Aggregierte Nettoemissionen
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
@@ -1230,11 +1263,77 @@ nodes:
     tags: [baseline]
     column: population
 
+- id: solar_power_production_cost
+  name_en: Solar power production cost
+  name_de: Kosten der Solarstromerzeugung
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_nodes:
+  - id: solar_power_production
+    tags: [additive, difference]
+  output_nodes:
+  - id: implementation_cost
+    to_dimensions:
+    - id: cost_type
+      categories: [investment_costs]
+  params:
+  - id: multiplier
+    value: 1250.0 # 50 EUR/MWh during 25 a lifetime = 1000 EUR/MWh on the year when built
+    unit: EUR/(MWh/a)
+
+- id: consumer_electricity_renovation_cost
+  name_en: Consumer electricity renovation cost
+  name_de: Kosten für Stromrenovierung der Verbraucher
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_nodes:
+  - id: i42_energy_grid_energy_consumption_action
+    tags: [additive, arithmetic_inverse, difference]
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: energietrager
+      flatten: true
+  output_nodes:
+  - id: implementation_cost
+    to_dimensions:
+    - id: cost_type
+      categories: [investment_costs]
+  params:
+  - id: multiplier
+    value: 1500.0
+    unit: EUR/(MWh/a)
+
+- id: consumer_fuel_action_cost
+  name_en: Consumer fuel action cost
+  name_de: Kosten für Brennstoffmaßnahmen der Verbraucher
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_nodes:
+  - id: i11_residential_fuel_consumption_action
+    tags: [additive, arithmetic_inverse, difference]
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: energietrager
+      flatten: true
+  output_nodes:
+  - id: implementation_cost
+    to_dimensions:
+    - id: cost_type
+      categories: [investment_costs]
+  params:
+  - id: multiplier
+    value: 1500.0
+    unit: EUR/(MWh/a)
 
 actions:
 
 - id: build_renewable_electricity_production
-  name: Hajautettu uusiutuva energia (aurinkosähkö)
+  name_fi: Hajautettu uusiutuva energia (aurinkosähkö)
   name_en: Building renewable electricity production (PV)
   name_de: Aufbau einer erneuerbaren Stromerzeugung (PV)
   type: simple.AdditiveAction
@@ -1308,7 +1407,8 @@ actions:
 
 
 - id: solar_power_production
-  name: Photovoltaikstromerzeugung
+  name_en: Photovoltaic power generation
+  name_de: Photovoltaikstromerzeugung
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
@@ -1335,7 +1435,8 @@ actions:
     description: Photovoltaikstromerzeugung 2045
 
 - id: i11_residential_fuel_consumption_action
-  name: Reduktion im Verbrauch von Wärmeenergieträgern (außer Fernwärme)
+  name_en: Reduction in consumption of heating energy carriers (excluding district heating)
+  name_de: Reduktion im Verbrauch von Wärmeenergieträgern (außer Fernwärme)
   description: Durch den prognostizierten starken Zuzug in die Landeshauptstadt wird
     auch der Bedarf nach Wärmeenergie steigen. Durch Maßnahmen zur Gebäudesanierung
     und hohen energetischen Standards im Neubau sollte jedoch eine deutliche Reduktion
@@ -1359,7 +1460,8 @@ actions:
   output_nodes: [i11_residential_fuel_consumption]
 
 - id: i11_residential_fuel_emission_factor_action
-  name: Umsetzung drastische CO2-Reduktion von Wärmeenergieträgern ( außer Fernwärme)
+  name_en: Implementation of drastic CO2 reduction for heating energy carriers (excluding district heating)
+  name_de: Umsetzung drastische CO2-Reduktion von Wärmeenergieträgern ( außer Fernwärme)
   description: Die Verringerung des Wärmenergieverbrauchs ist eine Seite der Medaille.
     Die andere ist die deutliche Reduzierung der Treibhausgasemissionen je eingesetzter
     Kilowattstunde. Kern der Stadt Strategie ist die langfristige Abkehr von fossilen
@@ -1383,7 +1485,8 @@ actions:
   output_nodes: [i11_residential_fuel_emission_factor]
 
 - id: i12_residential_grid_energy_consumption_action
-  name: Ausbau der Fernwärme
+  name_en: District heating expansion
+  name_de: Ausbau der Fernwärme
   description: Der Ausbau der Fernwärme ist ein wichtiger Baustein in der Stadt Klimaschutzstrategie.
     Hier lassen sich zentral emissionsarme Technologien effizienter umsetzen, etwa
     die Tiefe Geothermie. Die Abnahmestellen sollten daher deutlich steigen und die
@@ -1405,7 +1508,8 @@ actions:
   - id: i12_residential_grid_energy_consumption
 
 - id: i12_residential_grid_energy_emission_factor_action
-  name: Umsetzung drastische CO2-Reduktion in der Fernwärmeerzeugung
+  name_en: Implementation of drastic CO2 reduction in district heating generation
+  name_de: Umsetzung drastische CO2-Reduktion in der Fernwärmeerzeugung
   description: 'Der Emissionsfaktor der Stadt Fernwärme liegt derzeit bei ca. 155g/kWh
     und soll bis zum Jahr 2025 auf ca. 50g/kWh sinken. Zum Vergleich: Erdgas in der
     Wärmenutzung erzeugt ca. 250g/kWh, Biogas 110g/kWh und Solarthermie 25g/kWh (jeweils
@@ -1429,7 +1533,8 @@ actions:
   output_nodes: [i12_residential_grid_energy_emission_factor]
 
 - id: i42_energy_grid_energy_consumption_action
-  name: Reduktion des Stromverbrauch in Haushalten und Gewerbe (ohne Heiz- und Mobilitätsstrom)
+  name_en: Reduction of electricity consumption in households and commerce (excluding heating and mobility electricity)
+  name_de: Reduktion des Stromverbrauch in Haushalten und Gewerbe (ohne Heiz- und Mobilitätsstrom)
   description: Der Stromverbrauch in diesem Bereich sollte deutlich reduziert werden,
     von heute ca. 525.000 MWh auf ca. 375.000 MWh bzw. pro Einwohner von 2.800 kWh
     auf 1.700 kWh pro Jahr. Dafür sind eine Vielzahl kleinteiliger Maßnahmen nötig,
@@ -1453,7 +1558,8 @@ actions:
   output_nodes: [i42_energy_grid_energy_consumption]
 
 - id: i42_energy_grid_energy_emission_factor_action
-  name: Ausbau erneuerbarer Energien in der Stromerzeugung
+  name_en: Expansion of renewable energies in electricity generation
+  name_de: Ausbau erneuerbarer Energien in der Stromerzeugung
   description: Strom wird künftig als Energieträger noch wichtiger als er es heute
     bereits ist. Auch Wärmeenergie und Mobilität sollen zum Teil darüber gedeckt werden.
     Umso wichtiger ist es die Erzeugung soweit möglich auf Erneuerbare Energie umzustellen.<br>
@@ -1481,7 +1587,8 @@ actions:
   output_nodes: [i42_energy_grid_energy_emission_factor]
 
 - id: ii11_onroad_transport_fuel_consumption_action
-  name: Reduzierung Gesamtenergieverbrauchs im BInnenverkehr
+  name_en: Reduction of total energy consumption in local transport
+  name_de: Reduzierung Gesamtenergieverbrauchs im Binnenverkehr
   description: Die Umstellung der Mobilität auf elektrische Antriebe und fossilfreie
     Brennstoffe sind nur die halbe Miete zur Erreichung der Klimaschutzziele. Der
     Energieeinsatz sollte bis 2045 etwa halbiert werden im Vergleich zu 2020. Zum
@@ -1505,7 +1612,8 @@ actions:
   output_nodes: [ii11_onroad_transport_fuel_consumption]
 
 - id: ii11_onroad_transport_fuel_emission_factor_action
-  name: Zunahme der Anteile emissionsarmer Brennstoffe und der Elektromobilität
+  name_en: Increase in shares of low-emission fuels and electric mobility
+  name_de: Zunahme der Anteile emissionsarmer Brennstoffe und der Elektromobilität
   description: Insbesondere die verbleibenden Anteile des Motorisierten Individualverkehrs
     (MIV) sollten durch Elektromobilität und – in geringerem Umfang – durch synthetische
     Treibstoffe und effiziente Erdgasnutzung gedeckt werden.
@@ -1525,7 +1633,8 @@ actions:
   output_nodes: [ii11_onroad_transport_fuel_emission_factor]
 
 - id: ii12_onroad_transport_grid_energy_consumption_action
-  name: Erhöhung des Anteils des stromgebundenen ÖPNV und der Elektromobilität
+  name_en: Increase in the share of grid-connected public transport and electric mobility
+  name_de: Erhöhung des Anteils des stromgebundenen ÖPNV und der Elektromobilität
   description: Das Straßenbahnnetz soll ausgebaut und eine hohe Auslastung erreicht
     werden. Auch der MIV soll zunehmend elektrifiziert werden.
   type: simple.GenericAction
@@ -1544,7 +1653,8 @@ actions:
   output_nodes: [ii12_onroad_transport_grid_energy_consumption]
 
 - id: ii12_onroad_transport_grid_energy_emission_factor_action
-  name: Strom aus erneuerbaren Energien für ÖPNV und Elektromobilität
+  name_en: Electricity from renewable energies for public transport and electric mobility
+  name_de: Strom aus erneuerbaren Energien für ÖPNV und Elektromobilität
   description: Wie unter Maßnahme 2.2 beschrieben, sollte auch der Strombedarf der
     Mobilität soweit möglich aus lokalen Erneuerbaren Quellen gedeckt werden.
   type: simple.GenericAction
