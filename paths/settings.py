@@ -62,6 +62,9 @@ env = environ.FileAwareEnv(
     GITHUB_APP_ID=(str, ''),
     GITHUB_APP_PRIVATE_KEY=(str, ''),
     MOUNTED_SECRET_PATHS=(list, []),
+    REQUEST_LOG_MAX_DAYS=(int, 90),
+    REQUEST_LOG_METHODS=(list, ['POST', 'PUT', 'PATCH', 'DELETE']),
+    REQUEST_LOG_IGNORE_PATHS=(list, ['/v1/graphql/']),
     **COMMON_ENV_SCHEMA,
 )
 
@@ -156,6 +159,7 @@ INSTALLED_APPS = [
     'nodes',
     'kausal_common.datasets',
     'frameworks',
+    'request_log',
 ]
 
 MIDDLEWARE = [
@@ -173,6 +177,7 @@ MIDDLEWARE = [
     'paths.middleware.RequestMiddleware',
     'admin_site.middleware.AuthExceptionMiddleware',
     'paths.middleware.AdminMiddleware',
+    'kausal_common.logging.request_log.middleware.LogUnsafeRequestMiddleware', # use middleware from kausal_common, no additions
 ]
 
 ROOT_URLCONF = f'{PROJECT_NAME}.urls'
@@ -568,6 +573,11 @@ if env('CONFIGURE_LOGGING'):
     else:
         log_format = 'logfmt'
     LOGGING = init_logging_django(log_format, options=UserLoggingOptions(sql_queries=LOG_SQL_QUERIES))
+
+REQUEST_LOG_MAX_DAYS = env('REQUEST_LOG_MAX_DAYS')
+REQUEST_LOG_METHODS = env('REQUEST_LOG_METHODS')
+REQUEST_LOG_IGNORE_PATHS = env('REQUEST_LOG_IGNORE_PATHS')
+REQUEST_LOG_MAX_BODY_SIZE = 100 * 1024
 
 if True:
     from kausal_common.sentry.init import init_sentry

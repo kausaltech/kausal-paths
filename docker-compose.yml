@@ -22,6 +22,9 @@ x-django-environment: &django-environment
   AWS_SECRET_ACCESS_KEY:
   KUBERNETES_LOGGING: 1
   TEST_MODE:
+  REQUEST_LOG_MAX_DAYS:
+  REQUEST_LOG_METHODS:
+  REQUEST_LOG_IGNORE_PATHS:
 
 x-django-build: &django-build
   context: .

@@ -50,8 +50,7 @@ jobs:
       s3_bucket: ${{ vars.BUILD_S3_BUCKET }}
 
   deploy:
-    #needs: [build, test, ui-e2e-test]
-    needs: [build]
+    needs: [build, test, ui-e2e-test]
     uses: kausaltech/github-actions/.github/workflows/deploy.yaml@main
     secrets:
       gitops_ssh_key: ${{ secrets.GITOPS_SSH_KEY }}
