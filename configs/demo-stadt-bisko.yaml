@@ -82,7 +82,7 @@ dimensions:
   - id: investment_costs
     label: Investment Costs
   - id: investment
-    label: investment
+    label: Investment
   - id: maintenance
     label: Maintenance
   - id: capex
@@ -498,7 +498,9 @@ nodes:
   unit: EUR/t
   input_dimensions: [cost_type, ghg]
   output_dimensions: [cost_type, ghg]
-  input_datasets: [nzc/defaults]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2025
   params:
     sector: Value of CO2 reduction
 
@@ -1276,7 +1278,7 @@ nodes:
   - id: implementation_cost
     to_dimensions:
     - id: cost_type
-      categories: [investment_costs]
+      categories: [investment]
   params:
   - id: multiplier
     value: 1250.0 # 50 EUR/MWh during 25 a lifetime = 1000 EUR/MWh on the year when built
@@ -1300,7 +1302,7 @@ nodes:
   - id: implementation_cost
     to_dimensions:
     - id: cost_type
-      categories: [investment_costs]
+      categories: [investment]
   params:
   - id: multiplier
     value: 1500.0
@@ -1324,7 +1326,7 @@ nodes:
   - id: implementation_cost
     to_dimensions:
     - id: cost_type
-      categories: [investment_costs]
+      categories: [investment]
   params:
   - id: multiplier
     value: 1500.0
@@ -1409,6 +1411,7 @@ actions:
 - id: solar_power_production
   name_en: Photovoltaic power generation
   name_de: Photovoltaikstromerzeugung
+  description_de: Geschätztes Wachstum der Photovoltaik-Produktion. Das Kraftwerk schätzt, dass die Produktion im Jahr 2030 etwa 10 - 20 GWh / Jahr betragen würde. Die aktuelle Produktion im Jahr 2020 beträgt etwa 0,2 GWh. Das ungenutzte Potenzial auf den Dächern von Gebäuden liegt laut kommunaler Bilanz Erneuerbare Energien 2016 bei 800-900 GWh (ohne Berücksichtigung aller Restriktionen).</br><h3>Details</h3>Siehe <a href="https://sunnydale.test.kausal.tech/de/climate/actions/E1">Photovoltaikstromerzeugung, Klimaplan</a>.
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
@@ -1421,7 +1424,7 @@ actions:
       categories: [strom]
     - id: scope
       categories: [scope2]
-  forecast_values: [[2022, 0]]
+  forecast_values: [[2025, 0]]
   params:
   - id: target_year_level
     values:
