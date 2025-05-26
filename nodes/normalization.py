@@ -61,6 +61,18 @@ class Normalization:
         )
         return df
 
+    def get_normalized_unit(self, metric: NodeMetric) -> Unit | None:
+        for q in self.quantities:
+            if metric.quantity == q.id:
+                break
+        else:
+            return None
+
+        normalized_unit: Unit = typing.cast('Unit', metric.unit / self.normalizer_node.unit)
+        if not normalized_unit.is_compatible_with(q.unit):
+            return None
+        return normalized_unit
+
     def normalize_output(self, metric: NodeMetric, df: PathsDataFrame) -> tuple[Node | None, PathsDataFrame]:
         def nop() -> tuple[None, PathsDataFrame]:
             return (None, df)
@@ -71,9 +83,9 @@ class Normalization:
         else:
             return nop()
 
-        normalized_unit: Unit = typing.cast('Unit', metric.unit / self.normalizer_node.unit)
-        if not normalized_unit.is_compatible_with(q.unit):
-            self.normalizer_node.warning("Metric unit %s is incompatible with normalization" % normalized_unit)
+        normalized_unit = self.get_normalized_unit(metric)
+        if normalized_unit is None:
+            self.normalizer_node.warning("Metric unit %s is incompatible with normalization" % metric.unit)
             return nop()
         if YEAR_COLUMN not in df.primary_keys:
             self.normalizer_node.warning("Year column not in dataframe")
