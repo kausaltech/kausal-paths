@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://demo-stadt-bisko.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: e66975894bdfe7e8d493884f274273fbaa46a2ab
+  commit: 839b2d2309f1e7a467b5985caf1e94193580f4ec
   dvc_remote: kausal-s3
 name: Klimaschutz-Monitor Treibhausgasinventar
 owner: Stadt Demo
@@ -1261,9 +1261,11 @@ nodes:
   quantity: population
   unit: cap
   input_datasets:
-  - id: gpc/demo_stadt
+  - id: gpc/demo/generische_daten
     tags: [baseline]
     column: population
+    # filters:
+    # - column: dataset
 
 - id: solar_power_production_cost
   name_en: Solar power production cost
@@ -1334,84 +1336,18 @@ nodes:
 
 actions:
 
-- id: build_renewable_electricity_production
-  name_fi: Hajautettu uusiutuva energia (aurinkosähkö)
-  name_en: Building renewable electricity production (PV)
-  name_de: Aufbau einer erneuerbaren Stromerzeugung (PV)
-  type: simple.AdditiveAction
-  group: electricity
-  input_dimensions: ['cost_type', 'scope']
-  output_dimensions: ['cost_type', 'scope']
-  params:
-    allow_null_categories: true
-  input_datasets:
-  - id: tampere/stationary_actions
-    forecast_from: 2024
-    filters:
-    - column: sector
-    - column: action
-      value: building_renewable_electricity_production_pv
-    - column: ghg
-    - column: heating
-    - column: owner
-    #   value: private
-    - column: energy_carrier
-  output_metrics:
-  - id: energy
-    unit: GWh/a
-    quantity: energy
-  - id: currency
-    unit: EUR/a
-    quantity: currency
-  output_nodes:
-  - id: i42_energy_grid_energy_consumption
-    metrics: [energy]
-    from_dimensions:
-    - id: cost_type
-      flatten: true
-    # - id: owner
-    #   flatten: true
-    to_dimensions:
-    - id: energietrager 
-      categories: [strom]
-    - id: scope
-  # - id: energy_consumption_reductions
-  #   metrics: [energy]
-  #   from_dimensions:
-  #   - id: cost_type
-  #     flatten: true
-  #   - id: owner
-  #     flatten: true
-  #   - id: scope
-  #     flatten: true
-  #   to_dimensions:
-  #   - id: energy_carrier
-  - id: implementation_cost
-    metrics: [currency]
-    from_dimensions:
-    # - id: energietrager
-    #   flatten: true
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: cost_type
-    # - id: owner
-  # - id: total_costs
-  #   metrics: [currency]
-  #   from_dimensions:
-  #   - id: energy_carrier
-  #     flatten: true
-  #   - id: scope
-  #     flatten: true
-  #   to_dimensions:
-  #   - id: cost_type
-  #   - id: owner
-
 
 - id: solar_power_production
   name_en: Photovoltaic power generation
   name_de: Photovoltaikstromerzeugung
-  description_de: Geschätztes Wachstum der Photovoltaik-Produktion. Das Kraftwerk schätzt, dass die Produktion im Jahr 2030 etwa 10 - 20 GWh / Jahr betragen würde. Die aktuelle Produktion im Jahr 2020 beträgt etwa 0,2 GWh. Das ungenutzte Potenzial auf den Dächern von Gebäuden liegt laut kommunaler Bilanz Erneuerbare Energien 2016 bei 800-900 GWh (ohne Berücksichtigung aller Restriktionen).</br><h3>Details</h3>Siehe <a href="https://sunnydale.test.kausal.tech/de/climate/actions/E1">Photovoltaikstromerzeugung, Klimaplan</a>.
+  description_de: Geschätztes Wachstum der Photovoltaik-Produktion. Das Kraftwerk
+    schätzt, dass die Produktion im Jahr 2030 etwa 10 - 20 GWh / Jahr betragen würde.
+    Die aktuelle Produktion im Jahr 2020 beträgt etwa 0,2 GWh. Das ungenutzte Potenzial
+    auf den Dächern von Gebäuden liegt laut kommunaler Bilanz Erneuerbare Energien
+    2016 bei 800-900 GWh (ohne Berücksichtigung aller Restriktionen).</br><h3>Details</h3>Siehe
+    <a 
+    href="https://sunnydale.test.kausal.tech/de/climate/actions/E1">Photovoltaikstromerzeugung,
+    Klimaplan</a>.
   type: simple.LinearCumulativeAdditiveAction
   quantity: energy
   unit: GWh/a
@@ -1438,7 +1374,8 @@ actions:
     description: Photovoltaikstromerzeugung 2045
 
 - id: i11_residential_fuel_consumption_action
-  name_en: Reduction in consumption of heating energy carriers (excluding district heating)
+  name_en: Reduction in consumption of heating energy carriers (excluding district
+    heating)
   name_de: Reduktion im Verbrauch von Wärmeenergieträgern (außer Fernwärme)
   description: Durch den prognostizierten starken Zuzug in die Landeshauptstadt wird
     auch der Bedarf nach Wärmeenergie steigen. Durch Maßnahmen zur Gebäudesanierung
@@ -1463,7 +1400,8 @@ actions:
   output_nodes: [i11_residential_fuel_consumption]
 
 - id: i11_residential_fuel_emission_factor_action
-  name_en: Implementation of drastic CO2 reduction for heating energy carriers (excluding district heating)
+  name_en: Implementation of drastic CO2 reduction for heating energy carriers (excluding
+    district heating)
   name_de: Umsetzung drastische CO2-Reduktion von Wärmeenergieträgern ( außer Fernwärme)
   description: Die Verringerung des Wärmenergieverbrauchs ist eine Seite der Medaille.
     Die andere ist die deutliche Reduzierung der Treibhausgasemissionen je eingesetzter
@@ -1536,8 +1474,10 @@ actions:
   output_nodes: [i12_residential_grid_energy_emission_factor]
 
 - id: i42_energy_grid_energy_consumption_action
-  name_en: Reduction of electricity consumption in households and commerce (excluding heating and mobility electricity)
-  name_de: Reduktion des Stromverbrauch in Haushalten und Gewerbe (ohne Heiz- und Mobilitätsstrom)
+  name_en: Reduction of electricity consumption in households and commerce (excluding
+    heating and mobility electricity)
+  name_de: Reduktion des Stromverbrauch in Haushalten und Gewerbe (ohne Heiz- und
+    Mobilitätsstrom)
   description: Der Stromverbrauch in diesem Bereich sollte deutlich reduziert werden,
     von heute ca. 525.000 MWh auf ca. 375.000 MWh bzw. pro Einwohner von 2.800 kWh
     auf 1.700 kWh pro Jahr. Dafür sind eine Vielzahl kleinteiliger Maßnahmen nötig,
@@ -1589,6 +1529,80 @@ actions:
       value: i42
   output_nodes: [i42_energy_grid_energy_emission_factor]
 
+- id: build_renewable_electricity_production
+  name_fi: Hajautettu uusiutuva energia (aurinkosähkö)
+  name_en: Building renewable electricity production (PV)
+  name_de: Aufbau einer erneuerbaren Stromerzeugung (PV)
+  type: simple.AdditiveAction
+  group: electricity
+  decision_level: nation
+  input_dimensions: [cost_type, scope]
+  output_dimensions: [cost_type, scope]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: tampere/stationary_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: building_renewable_electricity_production_pv
+    - column: ghg
+    - column: heating
+    - column: owner
+    #   value: private
+    - column: energy_carrier
+  output_metrics:
+  - id: energy
+    unit: GWh/a
+    quantity: energy
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: i42_energy_grid_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    # - id: owner
+    #   flatten: true
+    to_dimensions:
+    - id: energietrager
+      categories: [strom]
+    - id: scope
+  # - id: energy_consumption_reductions
+  #   metrics: [energy]
+  #   from_dimensions:
+  #   - id: cost_type
+  #     flatten: true
+  #   - id: owner
+  #     flatten: true
+  #   - id: scope
+  #     flatten: true
+  #   to_dimensions:
+  #   - id: energy_carrier
+  - id: implementation_cost
+    metrics: [currency]
+    from_dimensions:
+    # - id: energietrager
+    #   flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    # - id: owner
+  # - id: total_costs
+  #   metrics: [currency]
+  #   from_dimensions:
+  #   - id: energy_carrier
+  #     flatten: true
+  #   - id: scope
+  #     flatten: true
+  #   to_dimensions:
+  #   - id: cost_type
+  #   - id: owner
+
 - id: ii11_onroad_transport_fuel_consumption_action
   name_en: Reduction of total energy consumption in local transport
   name_de: Reduzierung Gesamtenergieverbrauchs im Binnenverkehr
@@ -1624,6 +1638,7 @@ actions:
   quantity: emission_factor
   unit: t/MWh
   group: transport
+  decision_level: nation
   output_dimensions: [energietrager, ghg, scope]
   input_datasets:
   - id: gpc/demo_stadt_massnahmen
