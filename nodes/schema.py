@@ -447,6 +447,7 @@ class NodeInterface(graphene.Interface):
     downstream_nodes = graphene.List(
         graphene.NonNull(lambda: NodeInterface),
         max_depth=graphene.Int(required=False),
+        only_outcome=graphene.Boolean(required=False),
         required=True,
     )
     upstream_nodes = graphene.List(
@@ -469,6 +470,7 @@ class NodeInterface(graphene.Interface):
         target_node_id=graphene.ID(required=False),
         goal_id=graphene.ID(required=False),
     )
+    impact_metrics = graphene.List(graphene.NonNull(ForecastMetricType), required=True)
 
     metrics = graphene.List(graphene.NonNull(ForecastMetricType))
     dimensional_flow = graphene.Field(DimensionalFlowType, required=False)
@@ -522,9 +524,11 @@ class NodeInterface(graphene.Interface):
         return isinstance(root, ActionNode)
 
     @staticmethod
-    def resolve_downstream_nodes(root: Node, info: GQLInstanceInfo, max_depth: int | None = None) -> list[Node]:
+    def resolve_downstream_nodes(
+        root: Node, info: GQLInstanceInfo, max_depth: int | None = None, only_outcome: bool = False
+    ) -> list[Node]:
         info.context._upstream_node = root  # type: ignore
-        return root.get_downstream_nodes(max_depth=max_depth)
+        return root.get_downstream_nodes(max_depth=max_depth, only_outcome=only_outcome)
 
     @staticmethod
     def resolve_upstream_nodes(
@@ -672,7 +676,36 @@ class NodeInterface(graphene.Interface):
         return val.value
 
     @staticmethod
-    def resolve_impact_metric(  # noqa: C901, PLR0912
+    def _get_impact_metric(source_node: ActionNode, target_node: Node, goal: NodeGoalsEntry | None = None) -> Metric | None:
+        df: ppl.PathsDataFrame = source_node.compute_impact(target_node)
+        if goal is not None:
+            df = goal.filter_df(df)
+
+        df = df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
+        if df.dim_ids:
+            # FIXME: Check if can be summed?
+            df = df.paths.sum_over_dims()
+
+        try:
+            m = target_node.get_default_output_metric()
+        except Exception:
+            return None
+
+        df = df.select([*df.primary_keys, FORECAST_COLUMN, m.column_id])
+        active_normalization = target_node.context.active_normalization
+        if active_normalization and active_normalization.get_normalized_unit(m) is not None:
+            _, df = active_normalization.normalize_output(m, df)
+
+        metric = Metric(
+            id='%s-%s-impact' % (source_node.id, target_node.id),
+            name='Impact',
+            df=df,
+            unit=df.get_unit(m.column_id),
+        )
+        return metric
+
+    @staticmethod
+    def resolve_impact_metric(
         root: Node,
         info: GQLInstanceInfo,
         target_node_id: str | None = None,
@@ -713,31 +746,18 @@ class NodeInterface(graphene.Interface):
         if not isinstance(source_node, ActionNode):
             return None
 
-        df: ppl.PathsDataFrame = source_node.compute_impact(target_node)
-        if goal is not None:
-            df = goal.filter_df(df)
+        return NodeInterface._get_impact_metric(source_node, target_node, goal)
 
-        df = df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
-        if df.dim_ids:
-            # FIXME: Check if can be summed?
-            df = df.paths.sum_over_dims()
-
-        try:
-            m = target_node.get_default_output_metric()
-        except Exception:
-            return None
-
-        df = df.select([*df.primary_keys, FORECAST_COLUMN, m.column_id])
-        if target_node.context.active_normalization:
-            _, df = target_node.context.active_normalization.normalize_output(m, df)
-
-        metric = Metric(
-            id='%s-%s-impact' % (source_node.id, target_node.id),
-            name='Impact',
-            df=df,
-            unit=df.get_unit(m.column_id),
-        )
-        return metric
+    @staticmethod
+    def resolve_impact_metrics(root: Node, info: GQLInstanceInfo) -> list[Metric]:
+        if not isinstance(root, ActionNode):
+            return []
+        metrics = []
+        for outcome_node in root.get_downstream_nodes(only_outcome=True):
+            metric = NodeInterface._get_impact_metric(root, outcome_node)
+            if metric is not None:
+                metrics.append(metric)
+        return metrics
 
     @staticmethod
     def resolve_visualizations(root: Node, info: GQLInstanceInfo) -> list[viz.VisualizationEntryType] | None:
