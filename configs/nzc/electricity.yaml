@@ -714,3 +714,16 @@ nodes:
   params:
     sector: Share of total electricity demand produced by fossil/renewables
 
+- id: electricity_share_fossil
+  name_en: Electricity share from fossil sources
+  name_fi: Fossiilisista lähteistä tuotetun sähkön osuus
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [fuel_type, energy_carrier]
+  output_dimensions: [fuel_type, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Share of total electricity demand produced by fossil/renewables
+    uuid: 82c7d588-6369-4db8-b961-c83a93d1ae42
