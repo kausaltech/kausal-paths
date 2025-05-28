@@ -1,0 +1,271 @@
+id: minneapolis-demo
+default_language: en
+supported_languages: []
+site_url: https://minneapolis-demo.paths.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: 67f551708512a96488637e66e72d1d8b74f4c96d
+  dvc_remote: kausal-s3
+name: Minneapolis Greenhouse Gas Emissions
+owner: City of Minneapolis
+theme_identifier: us-minneapolis
+target_year: 2035
+model_end_year: 2050
+minimum_historical_year: 2006
+maximum_historical_year: 2021
+emission_unit: kt_co2e/a
+emission_forecast_from: 2022
+emission_dimensions: ['sector']
+features:
+  baseline_visible_in_graphs: true
+
+action_groups:
+  - id: wastewater
+    name: Wastewater
+    color: '#F68527'
+  - id: solid_waste
+    name: Solid Waste
+    color: '#FFD135'
+  - id: onroad_transportation
+    name: On-Road Transportation
+    color: '#A5B73C'
+  - id: fossil_gas
+    name: Fossil Gas
+    color: '#606263'
+  - id: electricity
+    name: Electricity
+    color: '#008AC2'
+
+dimensions:
+- id: sector
+  label: Emission Sector
+  categories:
+  - id: wastewater
+    label: Wastewater
+  - id: solid_waste
+    label: Solid Waste
+  - id: onroad_transportation
+    label: On-Road Transportation
+  - id: fossil_gas
+    label: Fossil Gas
+  - id: electricity
+    label: Electricity
+
+emission_sectors:
+- id: net_emissions
+  name: Net Emissions
+  is_outcome: true
+  goals:
+  - values: [{'year': 2025, 'value': 2865.200},
+             {'year': 2030, 'value': 1367.600},
+             {'year': 2035, 'value': 417.560},
+             {'year': 2040, 'value': 144.560},
+             {'year': 2045, 'value': 70.720},
+             {'year': 2050, 'value': 0}]
+    default: true
+    is_main_goal: true
+
+nodes:
+- id: wastewater_emissions
+  name: Wastewater Emissions
+  color: '#F68527'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: ['sector']
+  output_dimensions: ['sector']
+  input_datasets:
+  - id: test/emissions
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [wastewater]
+  output_nodes:
+  - id: net_emissions
+
+- id: solid_waste_emissions
+  name: Solid Waste Emissions
+  color: '#FFD135'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: ['sector']
+  output_dimensions: ['sector']
+  input_datasets:
+  - id: test/emissions
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [solid_waste]
+  output_nodes:
+  - id: net_emissions
+
+- id: onroad_transportation_emissions
+  name: On-Road Transportation Emissions
+  color: '#A5B73C'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: ['sector']
+  output_dimensions: ['sector']
+  input_datasets:
+  - id: test/emissions
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [onroad_transportation]
+  output_nodes:
+  - id: net_emissions
+
+- id: fossil_gas_emissions
+  name: Fossil Gas Emissions
+  color: '#606263'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: ['sector']
+  output_dimensions: ['sector']
+  input_datasets:
+  - id: test/emissions
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [fossil_gas]
+  output_nodes:
+  - id: net_emissions
+
+- id: electricity_emissions
+  name: Electricity Emissions
+  color: '#008AC2'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: ['sector']
+  output_dimensions: ['sector']
+  input_datasets:
+  - id: test/emissions
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [electricity]
+  output_nodes:
+  - id: net_emissions
+
+actions:
+- id: reduce_electricity_emissions
+  name: Reduce Electricity Emissions
+  description: Reduce greenhouse gas emissions from the use of electricity.
+  type: simple.AdditiveAction
+  group: electricity
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: ['sector']
+  output_dimensions: ['sector']
+  input_datasets:
+  - id: test/actions
+    column: emissions
+    forecast_from: 2022
+    filters:
+    - dimension: sector
+      categories: [electricity]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: electricity_emissions
+
+- id: reduce_fossil_gas_emissions
+  name: Reduce Fossil Gas Emissions
+  description: Reduce greenhouse gas emissions from the combustion of fossil (natural) gas in buildings.
+  type: simple.AdditiveAction
+  group: fossil_gas
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: ['sector']
+  output_dimensions: ['sector']
+  input_datasets:
+  - id: test/actions
+    column: emissions
+    forecast_from: 2022
+    filters:
+    - dimension: sector
+      categories: [fossil_gas]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: fossil_gas_emissions
+
+- id: reduce_onroad_transportation_emissions
+  name: Reduce On-Road Transportation Emissions
+  description: Reduce greenhouse gas emissions from the use of gasoline and diesel for on-road transportation.
+  type: simple.AdditiveAction
+  group: onroad_transportation
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: ['sector']
+  output_dimensions: ['sector']
+  input_datasets:
+  - id: test/actions
+    column: emissions
+    forecast_from: 2022
+    filters:
+    - dimension: sector
+      categories: [onroad_transportation]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: onroad_transportation_emissions
+
+- id: reduce_solid_waste_emissions
+  name: Reduce Solid Waste Emissions
+  description: Reduce greenhouse gas emissions from the disposal of solid waste in landfills.
+  type: simple.AdditiveAction
+  group: solid_waste
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: ['sector']
+  output_dimensions: ['sector']
+  input_datasets:
+  - id: test/actions
+    column: emissions
+    forecast_from: 2022
+    filters:
+    - dimension: sector
+      categories: [solid_waste]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: solid_waste_emissions
+
+- id: reduce_wastewater_emissions
+  name: Reduce Wastewater Emissions
+  description: Reduce greenhouse gas emissions from the disposal and cleaning of wastewater from buildings.
+  type: simple.AdditiveAction
+  group: wastewater
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: ['sector']
+  output_dimensions: ['sector']
+  input_datasets:
+  - id: test/actions
+    column: emissions
+    forecast_from: 2022
+    filters:
+    - dimension: sector
+      categories: [wastewater]
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: wastewater_emissions
+
+pages:
+- id: home
+  name: Minneapolis Greenhouse Gas Emissions
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Citywide Greenhouse Gas Emissions
+  lead_paragraph: Greenhouse gas inventory (2006-2021) and forecast (2022-2050) for the City of Minneapolis.
+
+scenarios:
+- id: baseline
+  name: Business as Usual
+
+- id: default
+  default: true
+  name: Climate Equity Plan
+  all_actions_enabled: true
