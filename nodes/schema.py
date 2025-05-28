@@ -448,6 +448,7 @@ class NodeInterface(graphene.Interface):
         graphene.NonNull(lambda: NodeInterface),
         max_depth=graphene.Int(required=False),
         only_outcome=graphene.Boolean(required=False),
+        until_node=graphene.ID(required=False),
         required=True,
     )
     upstream_nodes = graphene.List(
