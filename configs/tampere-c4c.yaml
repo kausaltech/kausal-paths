@@ -523,6 +523,9 @@ dimensions:
   - id: change_in_vehicle_propulsion
     label: Autoliikenteen käyttövoimamuutos
     label_en: Change in vehicle propulsion
+  - id: tramline_3_construction
+    label: Ratikan 3 vaihe (2028-2030)
+    label_en: Tramline 3 construction (2028-2030)
 
 emission_sectors:
 - id: net_emissions
@@ -2589,6 +2592,79 @@ actions:
     - id: cost_type
     - id: owner
 
+- id: change_in_vehicle_propulsion_of_private_cars
+  name: Henkilöautoliikenteen käyttövoimamuutos
+  name_en: Change in vehicle propulsion of private cars
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: ['cost_type', 'owner', 'vehicle_type', 'ghg', 'scope']
+  output_dimensions: ['cost_type', 'owner', 'vehicle_type', 'ghg', 'scope']
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: tampere/transportation_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: change_in_vehicle_propulsion
+  output_metrics:
+  - id: emissions
+    unit: t/a
+    quantity: emissions
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: car_emissions_total
+    metrics: [emissions]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: ghg
+    - id: scope
+  - id: transportation_price
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+    - id: vehicle_type
+  - id: total_costs
+    metrics: [currency]
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+
 - id: energy_efficiency_renovations_in_buildings
   name: Korjausrakentaminen kaupungin kiinteistössä
   name_en: Energy efficiency renovations in city's building stock
@@ -2675,6 +2751,111 @@ actions:
       flatten: true
     - id: scope
       flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+
+- id: replacing_oil_heating_with_geothermal
+  name: Öljylämmityksestä siirtyminen maalämpöihin yksityisomisteisissa rakennuskannassa
+  name_en: Replacing oil heating with geothermal heating in private buildings
+  type: simple.AdditiveAction
+  group: building_heating
+  input_dimensions: ['cost_type', 'owner', 'heating', 'energy_carrier', 'scope']
+  output_dimensions: ['cost_type', 'owner', 'heating', 'energy_carrier', 'scope']
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: tampere/stationary_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: replacing_oil_heating_with_geothermal
+    - column: ghg
+  output_metrics:
+  - id: energy
+    unit: GWh/a
+    quantity: energy
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: oil_heating_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      categories: [fuel_oil]
+    to_dimensions:
+    - id: heating
+    - id: energy_carrier
+    - id: scope
+  - id: energy_consumption_reductions
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+  - id: geothermal_heating_electricity_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      categories: [geothermal]
+    to_dimensions:
+    - id: heating
+    - id: energy_carrier
+    - id: scope
+  - id: building_heating_price
+    metrics: [currency]
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+  - id: total_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: cost_type
+      categories: [investment]
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+  - id: total_benefits
+    metrics: [currency]
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: cost_type
+      categories: [operations]
     to_dimensions:
     - id: cost_type
     - id: owner
