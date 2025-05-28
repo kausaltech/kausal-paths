@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://aarhus-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 3f73294fd3bcc74ef7d2fcaee601f768431710fc
+  commit: 685dcf8fec639a31228ecd7d88942b4b48786513
   dvc_remote: kausal-s3
 name: Aarhus Greenhouse Gas Inventory
 owner: City of Aarhus
@@ -21,13 +21,13 @@ features:
   use_datasets_from_db: true
 
 dimensions:
-- id: energy_source
-  label: Energy Source
+- id: energy_usage
+  label: Energy Usage
   categories:
-  - id: industri
-    label: 'Industri'
-  - id: kollektiv_elforsyning_
-    label: 'Kollektiv elforsyning'
+  - id: electricity_consumption
+    label: Electricity Consumption
+  - id: distribution_loss
+    label: Distribution Loss
 
 - id: owner
   label: Owner
@@ -68,6 +68,8 @@ dimensions:
 
   - id: ferry
     label: Ferry
+  - id: aviation
+    label: Aviation
 
 - id: emission_source
   label: Emission Source
@@ -92,14 +94,6 @@ dimensions:
     label: CO2
   - id: co2e
     label: CO2e
-
-- id: heating
-  label: Heating
-  categories:
-  - id: direct_electric_heat
-    label: 'Direct Electric Heat'
-  - id: fuel_oil
-    label: 'Fuel Oil'
 
 - id: energy_carrier
   label: Energy Carrier
@@ -168,16 +162,12 @@ dimensions:
     label: 'I.1.1 CHP: District Heat'
   - id: i12
     label: 'I.1.2 CHP: Electricity Generation'
-
   - id: i2
-    label: 'I.2 Commercial & Institutional'
+    label: I.2 Electricity
   - id: i21
-    label: 'I.2.1 Commercial & Institutional Fuel'
+    label: I.2.1 Renewable Electricity Generation
   - id: i22
-    label: 'I.2.2 Commercial & Institutional Grid Energy'
-  - id: i23
-    label: 'I.2.3 Commercial & Institutional T & D Loss'
-
+    label: I.2.2 Electricity Demand
   - id: i3
     label: I.3 Manufacturing
   - id: i4
@@ -206,32 +196,10 @@ dimensions:
     label: II.1 On-Road Transport
   - id: ii2
     label: II.2 Rail Transport
-
   - id: ii3
-    label: 'II.3 Waterborne'
-  - id: ii31
-    label: 'II.3.1 Waterborne Fuel'
-  - id: ii32
-    label: 'II.3.2 Waterborne Grid Energy'
-  - id: ii33
-    label: 'II.3.3 Waterborne Outside City, T & D Loss'
+    label: II.3 Waterborne Transport
   - id: ii4
-    label: 'II.4 Aviation'
-  - id: ii41
-    label: 'II.4.1 Aviation Fuel'
-  - id: ii42
-    label: 'II.4.2 Aviation Grid Energy'
-  - id: ii43
-    label: 'II.4.3 Aviation Outside City, T & D Loss'
-  - id: ii5
-    label: 'II.5 Off-Road Transport'
-  - id: ii51
-    label: 'II.5.1 Off-Road Transport Fuel'
-  - id: ii52
-    label: 'II.5.2 Off-Road Transport Grid Energy'
-  - id: ii53
-    label: 'II.5.3 Off-Road Transport Outside City, T & D Loss'
-
+    label: II.4 Aviation
   - id: iii
     label: III Waste
   - id: iii1
@@ -319,6 +287,8 @@ nodes:
   input_dimensions: ['energy_carrier', 'ghg']
   output_dimensions: ['energy_carrier', 'ghg']
   input_nodes:
+  - id: chp_emissions
+  - id: electricity_emissions
   - id: manufacturing_emissions
   - id: other_energy_emissions
   - id: nonroad_energy_emissions
@@ -327,6 +297,183 @@ nodes:
     from_dimensions:
     - id: energy_carrier
       flatten: true
+
+# ---------- I.1 Combined Heat & Power
+
+- id: chp_district_heat_energy_consumption
+  name: CHP District Heat Energy Consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: TJ/a
+  input_dimensions: ['energy_carrier']
+  output_dimensions: ['energy_carrier']
+  input_datasets:
+  - id: aarhus/combined_heat_and_power
+    column: energy
+    forecast_from: 2023
+    filters:
+    - column: sector
+      value: i11
+
+- id: chp_district_heat_emissions
+  name: CHP District Heat Emissions
+  short_name: District Heat Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['energy_carrier', 'ghg']
+  output_dimensions: ['energy_carrier', 'ghg']
+  input_nodes:
+  - id: energy_emission_factors
+  - id: chp_district_heat_energy_consumption
+    to_dimensions:
+    - id: energy_carrier
+
+- id: chp_electricity_generation_energy_consumption
+  name: CHP Electricity Generation Energy Consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: TJ/a
+  input_dimensions: ['energy_carrier']
+  output_dimensions: ['energy_carrier']
+  input_datasets:
+  - id: aarhus/combined_heat_and_power
+    column: energy
+    forecast_from: 2023
+    filters:
+    - column: sector
+      value: i12
+
+- id: chp_electricity_generation_emissions
+  name: CHP Electricity Generation Emissions
+  short_name: Electricity Generation Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['energy_carrier', 'ghg']
+  output_dimensions: ['energy_carrier', 'ghg']
+  input_nodes:
+  - id: energy_emission_factors
+  - id: chp_electricity_generation_energy_consumption
+    to_dimensions:
+    - id: energy_carrier
+
+- id: chp_electricity_generation_energy_factors
+  name: CHP Electricity Generation Energy Factors
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: TJ/TJ
+  input_dimensions: ['energy_carrier']
+  output_dimensions: ['energy_carrier']
+  input_datasets:
+  - id: aarhus/combined_heat_and_power
+    column: energy_factor
+    forecast_from: 2023
+    filters:
+    - column: sector
+      value: i12
+
+- id: chp_electricity_generation_energy_production
+  name: CHP Electricity Generation Energy Production
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: TJ/a
+  input_dimensions: ['energy_carrier']
+  output_dimensions: ['energy_carrier']
+  input_nodes:
+  - id: chp_electricity_generation_energy_factors
+  - id: chp_electricity_generation_energy_consumption
+    tags: [non_additive]
+
+- id: chp_emissions
+  name: Combined Heat & Power (CHP) Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['energy_carrier', 'ghg']
+  output_dimensions: ['energy_carrier', 'ghg']
+  input_nodes:
+  - id: chp_district_heat_emissions
+  - id: chp_electricity_generation_emissions
+
+# ---------- I.2 Electricity
+
+- id: renewable_electricity_generation
+  name: Renewable Electricity Generation
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: TJ/a
+  input_dimensions: ['energy_carrier']
+  output_dimensions: ['energy_carrier']
+  input_datasets:
+  - id: aarhus/electricity
+    column: energy
+    forecast_from: 2023
+    filters:
+    - column: sector
+      value: i21
+    - column: energy_usage
+
+- id: electricity_demand
+  name: Electricity Demand
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: TJ/a
+  input_dimensions: ['energy_usage', 'energy_carrier']
+  output_dimensions: ['energy_usage', 'energy_carrier']
+  input_datasets:
+  - id: aarhus/electricity
+    column: energy
+    forecast_from: 2023
+    filters:
+    - column: sector
+      value: i22
+
+- id: electricity_import
+  name: Electricity Import
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: TJ/a
+  input_dimensions: ['energy_carrier']
+  output_dimensions: ['energy_carrier']
+  input_nodes:
+  - id: electricity_demand
+    from_dimensions:
+    - id: energy_usage
+      flatten: true
+  - id: chp_district_heat_energy_consumption
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: chp_electricity_generation_energy_production
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: renewable_electricity_generation
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+
+- id: electricity_emissions
+  name: Electricity Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['energy_carrier', 'ghg']
+  output_dimensions: ['energy_carrier', 'ghg']
+  input_nodes:
+  - id: energy_emission_factors
+  - id: electricity_import
+    to_dimensions:
+    - id: energy_carrier
 
 # ---------- I.3 Manufacturing
 
@@ -544,6 +691,8 @@ nodes:
   input_nodes:
   - id: onroad_transport_emissions
   - id: rail_transport_emissions
+  - id: waterborne_transport_emissions
+  - id: aviation_emissions
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -925,6 +1074,57 @@ nodes:
   - id: rail_transport_high_speed_train_emissions
   - id: rail_transport_local_train_emissions
   - id: rail_transport_light_rail_emissions
+
+# ---------- II.3 Waterborne Transportation
+
+- id: waterborne_transport_emissions
+  name: Waterborne Transport Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
+  output_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
+  input_datasets:
+  - id: aarhus/waterborne_transportation
+    column: emissions
+    forecast_from: 2023
+    filters:
+    - column: sector
+    - dimension: ghg
+      categories: [co2e]
+
+# ---------- II.4 Aviation
+
+- id: aviation_energy_consumption
+  name: Aviation Energy Consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: TJ/a
+  input_dimensions: ['energy_carrier', 'vehicle_type']
+  output_dimensions: ['energy_carrier', 'vehicle_type']
+  input_datasets:
+  - id: aarhus/aviation
+    column: energy
+    forecast_from: 2023
+    filters:
+    - column: sector
+
+- id: aviation_emissions
+  name: Aviation Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
+  output_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
+  input_nodes:
+  - id: energy_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+  - id: aviation_energy_consumption
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
 
 # ----- III Waste
 
