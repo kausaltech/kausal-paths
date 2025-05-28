@@ -525,10 +525,17 @@ class NodeInterface(graphene.Interface):
 
     @staticmethod
     def resolve_downstream_nodes(
-        root: Node, info: GQLInstanceInfo, max_depth: int | None = None, only_outcome: bool = False
+        root: Node, info: GQLInstanceInfo, max_depth: int | None = None, only_outcome: bool = False, until_node: str | None = None
     ) -> list[Node]:
         info.context._upstream_node = root  # type: ignore
-        return root.get_downstream_nodes(max_depth=max_depth, only_outcome=only_outcome)
+        if until_node is not None:
+            try:
+                to_node = root.context.get_node(until_node)
+            except KeyError:
+                raise GraphQLError('Node %s not found' % until_node, info.field_nodes) from None
+        else:
+            to_node = None
+        return root.get_downstream_nodes(max_depth=max_depth, only_outcome=only_outcome, until_node=to_node)
 
     @staticmethod
     def resolve_upstream_nodes(
