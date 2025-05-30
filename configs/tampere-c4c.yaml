@@ -526,6 +526,15 @@ dimensions:
   - id: tramline_3_construction
     label: Ratikan 3 vaihe (2028-2030)
     label_en: Tramline 3 construction (2028-2030)
+  - id: improving_the_service_level_of_public_transport
+    label: Joukkoliikenteen palvelvutason nosto
+    label_en: Improving the service level of public transport
+  - id: promoting_walking_and_cycling
+    label: Kävelyn ja pyöräilyn edistäminen
+    label_en: Promoting walking and cycling
+  - id: parking_policy_to_support_sustainable_mobility
+    label: Kestävää liikkumista tukeva pysäköintipolitiikka
+    label_en: Parking policy to support sustainable mobility
 
 emission_sectors:
 - id: net_emissions
