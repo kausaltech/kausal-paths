@@ -1525,7 +1525,7 @@ actions:
   input_dimensions: [energy_carrier, heating_type, fuel_type]
   output_dimensions: [energy_carrier, heating_type, fuel_type]
   input_nodes:
-  - id: heating_fuel_share_historical_district
+  - id: heating_fuel_share_district_historical
     tags: [historical]
   - id: heating_fuel_share_goal
     tags: [goal]

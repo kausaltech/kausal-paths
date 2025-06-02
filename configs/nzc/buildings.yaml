@@ -499,14 +499,16 @@ nodes:
 - id: building_heating_type_share
   name_en: Building heating type shares of local vs. district
   name_fi: Rakennusten lämmitystyyppien osuudet paikallisesta vs. kaukolämmöstä
-  type: simple.AdditiveNode
+  type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
   group: buildings
   input_dimensions: [heating_type]
   output_dimensions: [heating_type]
-  input_nodes:
-  - id: building_heating_type_share_historical
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Heating technologies
 
 - id: heating_fuel_share_historical
   name_en: Heating fuel share historical
@@ -521,7 +523,7 @@ nodes:
   params:
     sector: Share of heating fuel
 
-- id: heating_fuel_share_historical_district
+- id: heating_fuel_share_district_historical
   name_en: District heating fuel share historical
   name_fi: Kaukolämmityspolttoaineiden osuudet historiallisesti
   type: gpc.DatasetNode
