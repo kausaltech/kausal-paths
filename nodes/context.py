@@ -665,8 +665,8 @@ class Context:
 
         return [n for n in self.nodes.values() if isinstance(n, ActionNode)]
 
-    def warning(self, msg: Any, *args) -> None:
-        self.instance.warning(msg, *args)
+    def warning(self, msg: Any, *args, depth: int = 0, **kwargs) -> None:
+        self.instance.warning(msg, *args, depth=depth + 1, **kwargs)
 
     @cached_property
     def framework_config_data(self) -> FrameworkConfigData | None:

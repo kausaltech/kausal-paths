@@ -55,7 +55,7 @@ include:
   node_group: Other
 
 result_excels:
-- base_excel_url: 
+- base_excel_url:
     https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
   name: Climate City Contract Tables
   node_ids:
@@ -931,12 +931,11 @@ nodes:
       dimensions: []
     - kind: node
       label: Fossil fuel usage in electricity production
-      node_id: electricity_shares
+      node_id: electricity_share_fossil
       desired_outcome: decreasing
       scenarios: [default, progress_tracking]
       dimensions:
       - id: fuel_type
-        categories: [fossil]
         flatten: true
       - id: energy_carrier
         flatten: true
@@ -1522,7 +1521,7 @@ actions:
   input_dimensions: [energy_carrier, heating_type, fuel_type]
   output_dimensions: [energy_carrier, heating_type, fuel_type]
   input_nodes:
-  - id: heating_fuel_share_historical_district
+  - id: heating_fuel_share_district_historical
     tags: [historical]
   - id: heating_fuel_share_goal
     tags: [goal]

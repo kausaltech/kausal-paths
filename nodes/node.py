@@ -1216,14 +1216,28 @@ class Node:
             metric = next(iter(self.output_metrics.values()))
         return metric.ensure_output_unit(self, s, input_node)
 
-    def get_downstream_nodes(self, to_node: Node | None = None, max_depth: int | None = None) -> list[Node]:
+    def get_downstream_nodes(
+        self, *, max_depth: int | None = None, only_outcome: bool = False, until_node: Node | None = None
+    ) -> list[Node]:
         import networkx as nx
 
-        res = nx.bfs_successors(self.context.node_graph, self.id, depth_limit=max_depth)
+        node_ids = set[str]()
+        if until_node is not None:
+            res = nx.all_simple_paths(G=self.context.node_graph, source=self.id, target=until_node.id, cutoff=max_depth)
+            for path in res:
+                node_ids.update(path)
+        else:
+            res = nx.bfs_successors(G=self.context.node_graph, source=self.id, depth_limit=max_depth)
+            for __, children in res:
+                node_ids.update(children)
         nodes: list[Node] = []
-        for __, children in res:
-            for node_id in children:
-                nodes.append(self.context.get_node(node_id))  # noqa: PERF401
+        if self.id in node_ids:
+            node_ids.remove(self.id)
+        for node_id in node_ids:
+            node = self.context.get_node(node_id)
+            if only_outcome and not node.is_outcome:
+                continue
+            nodes.append(node)
         return nodes
 
     def get_upstream_nodes(self, filter_func: Callable[[Node], bool] | None = None) -> list[Node]:
@@ -1368,8 +1382,9 @@ class Node:
 
         return attributes
 
-    def warning(self, msg: str):
-        self.context.warning('%s %s' % (str(self), msg))
+    def warning(self, msg: str, depth: int = 0, **kwargs):
+        ctx = {'node.id': self.id}
+        self.context.warning('%s %s' % (str(self), msg), depth=depth + 1, **ctx, **kwargs)
 
     def add_nodes_pl(  # noqa: C901, PLR0912, PLR0915
         self,

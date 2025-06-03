@@ -395,6 +395,7 @@ def add_unit_translations():  # noqa: C901
         {'unit': 'solid_cubic_meter', 'long': _('solid m³'), 'short': _('m³ (solid)')},
         {'unit': 'megasolid_cubic_meter', 'long': _('million solid m³'), 'short': _('M m³ (solid)')},
         {'unit': 't_co2e', 'long': _('tonnes CO₂e'), 'short': 'tCO₂e'},
+        {'unit': 'kt_co2e', 'long': _('kilotonnes CO₂e'), 'short': 'ktCO₂e'},
         {'unit': 'metric_ton', 'long': _('tonnes'), 'short': 't'},
         {'unit': 'megametric_ton', 'long': _('megatonnes'), 'short': _('Mt')},
         {'unit': 't_ha', 'long': _('1000 hectares'), 'short': '1000 ha'},

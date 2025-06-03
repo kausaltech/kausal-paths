@@ -754,6 +754,11 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             # Intentionally test for concrete type, filter out subclasses
             if type(node) is not DatasetNode:
                 continue
+            # Workaround to filter viz helper nodes
+            # FIXME: Implement this better later
+            uuid_param = node.get_parameter_value_str('uuid', required=False)
+            if uuid_param:
+                continue
             measure_template_uuids = self._get_measure_template_uuids(node)
             for _uuid, dimensions in measure_template_uuids:
                 measure_template_uuid_to_multiple_node_dimensions_selections.setdefault(_uuid, []).append(
@@ -775,7 +780,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
                 measure_template_uuid_to_single_node_dimension_selection[_uuid] = accepted_values[0]
                 continue
             msg = f'Cannot find single Node to match MeasureTemplate {_uuid}: {", ".join([n.node_id for n in values])}'
-            logger.error(msg)
+            logger.warning(msg)
             sentry_sdk.capture_message(msg)
         return measure_template_uuid_to_single_node_dimension_selection
 
