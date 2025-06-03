@@ -2674,6 +2674,181 @@ actions:
     - id: cost_type
     - id: owner
 
+- id: improving_the_service_level_of_public_transport
+  name: Joukkoliikenteen palvelvutason nosto
+  name_en: Improving the service level of public transport
+  type: simple.AdditiveAction
+  group: transportation
+  unit: Mvkm/a
+  quantity: mileage
+  input_dimensions: ['vehicle_type', 'scope']
+  output_dimensions: ['vehicle_type', 'scope']
+  input_datasets:
+  - id: tampere/transportation_actions
+    column: mileage
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: improving_the_service_level_of_public_transport
+    - column: owner
+    - column: ghg
+    - column: cost_type
+  output_nodes:
+  - id: car_kilometers
+
+- id: promoting_walking_and_cycling
+  name: Kävelyn ja pyöräilyn edistäminen
+  name_en: Promoting walking and cycling
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: ['cost_type', 'owner', 'vehicle_type', 'scope']
+  output_dimensions: ['cost_type', 'owner', 'vehicle_type', 'scope']
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: tampere/transportation_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: promoting_walking_and_cycling
+    - column: ghg
+  output_metrics:
+  - id: mileage
+    unit: Mvkm/a
+    quantity: mileage
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: car_kilometers
+    metrics: [mileage]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: scope
+  - id: transportation_price
+    metrics: [currency]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+    - id: vehicle_type
+      categories: [passenger_cars]
+  - id: total_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+
+- id: parking_policy_to_support_sustainable_mobility
+  name: Kestävää liikkumista tukeva pysäköintipolitiikka
+  name_en: Parking policy to support sustainable mobility
+  type: simple.AdditiveAction
+  group: transportation
+  unit: Mvkm/a
+  quantity: mileage
+  input_dimensions: ['vehicle_type', 'scope']
+  output_dimensions: ['vehicle_type', 'scope']
+  input_datasets:
+  - id: tampere/transportation_actions
+    column: mileage
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: parking_policy_to_support_sustainable_mobility
+    - column: owner
+    - column: ghg
+    - column: cost_type
+  output_nodes:
+  - id: car_kilometers
+
+- id: tramline_3_construction
+  name: Ratikan 3 vaihe (2028-2030)
+  name_en: Tramline 3 construction (2028-2030)
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: ['cost_type', 'owner', 'vehicle_type', 'scope']
+  output_dimensions: ['cost_type', 'owner', 'vehicle_type', 'scope']
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: tampere/transportation_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: tramline_3_construction
+    - column: ghg
+  output_metrics:
+  - id: mileage
+    unit: Mvkm/a
+    quantity: mileage
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: car_kilometers
+    metrics: [mileage]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: vehicle_type
+      categories: [passenger_cars]
+    to_dimensions:
+    - id: vehicle_type
+    - id: scope
+  - id: tram_kilometers
+    metrics: [mileage]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: vehicle_type
+      categories: [trams]
+    to_dimensions:
+    - id: vehicle_type
+    - id: scope
+    - id: energy_carrier
+      categories: [electricity]
+  - id: transportation_price
+    metrics: [currency]
+    from_dimensions:
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+    - id: vehicle_type
+  - id: total_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+
 - id: energy_efficiency_renovations_in_buildings
   name: Korjausrakentaminen kaupungin kiinteistössä
   name_en: Energy efficiency renovations in city's building stock
