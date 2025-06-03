@@ -1562,6 +1562,7 @@ actions:
   output_nodes:
   - id: i42_energy_grid_energy_consumption
     metrics: [energy]
+    tags: [extend_forecast_values]
     from_dimensions:
     - id: cost_type
       flatten: true

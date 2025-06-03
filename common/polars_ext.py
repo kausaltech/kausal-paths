@@ -181,7 +181,7 @@ class PathsExt:
         return ppl.to_ppdf(df, meta=meta)
 
     def make_forecast_rows(self, end_year: int) -> ppl.PathsDataFrame:
-        df: DF = self._df
+        df = self._df
         if isinstance(df, ppl.PathsDataFrame):
             meta = df.get_meta()
         else:
@@ -195,16 +195,18 @@ class PathsExt:
         else:
             last_hist_year = df.filter(~pl.col(FORECAST_COLUMN))[YEAR_COLUMN].max()
             if last_hist_year is None:
-                last_hist_year = 2021  # FIXME. This may occur with forecast_values.
+                last_hist_year = df[YEAR_COLUMN].max()
         assert isinstance(last_hist_year, int)
+        if last_hist_year >= end_year:
+            return df
         years = pl.DataFrame(data=range(last_hist_year + 1, end_year + 1), schema=[YEAR_COLUMN])
         if len(years):
-            df = df.join(years, on=YEAR_COLUMN, how='outer', coalesce=True).sort(YEAR_COLUMN)
-            df = df.with_columns([
+            df2 = df.join(years, on=YEAR_COLUMN, how='outer', coalesce=True).sort(YEAR_COLUMN)
+            df2 = df2.with_columns([
                 pl.when(pl.col(YEAR_COLUMN) > last_hist_year).then(pl.lit(value=True))\
                     .otherwise(pl.col(FORECAST_COLUMN)).alias(FORECAST_COLUMN),
             ])
-        return ppl.to_ppdf(df, meta=meta)
+        return ppl.to_ppdf(df2, meta=meta)
 
     def nafill_pad(self) -> ppl.PathsDataFrame:
         """
