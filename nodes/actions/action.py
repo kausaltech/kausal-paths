@@ -346,6 +346,11 @@ class ImpactOverview:
     stakeholder_dimension: str | None = None
     outcome_dimension: str | None = None
     label: TranslatedString | str | None = None
+    cost_category_label: TranslatedString | str | None = None
+    effect_category_label: TranslatedString | str | None = None
+    cost_label: TranslatedString | str | None = None
+    effect_label: TranslatedString | str | None = None
+    indicator_label: TranslatedString | str | None = None
 
     @classmethod
     def from_config(  # noqa: PLR0913
@@ -365,6 +370,11 @@ class ImpactOverview:
         stakeholder_dimension: str | None,
         outcome_dimension: str | None,
         label: TranslatedString | str | None,
+        cost_category_label: TranslatedString | str | None,
+        effect_category_label: TranslatedString | str | None,
+        cost_label: TranslatedString | str | None,
+        effect_label: TranslatedString | str | None,
+        indicator_label: TranslatedString | str | None,
     ) -> ImpactOverview:
         if cost_node_id is not None:
             cost_node = context.get_node(cost_node_id)
@@ -395,6 +405,11 @@ class ImpactOverview:
             stakeholder_dimension=stakeholder_dimension,
             outcome_dimension=outcome_dimension,
             label=label,
+            cost_category_label=cost_category_label,
+            effect_category_label=effect_category_label,
+            cost_label=cost_label,
+            effect_label=effect_label,
+            indicator_label=indicator_label,
         )
         aep.validate()
         return aep

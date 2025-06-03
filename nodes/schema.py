@@ -921,6 +921,11 @@ class ImpactOverviewType(graphene.ObjectType):
     invert_effect = graphene.Boolean(required=True, deprecation_reason="Not needed") # FIXME Depreciated
     invert_impact = graphene.Boolean(required=True, deprecation_reason="Not needed")
     label = graphene.String(required=True)
+    cost_label = graphene.String(required=False)
+    effect_label = graphene.String(required=False)
+    indicator_label = graphene.String(required=False)
+    cost_category_label = graphene.String(required=False)
+    effect_category_label = graphene.String(required=False)
     actions = graphene.List(graphene.NonNull(ActionImpact), required=True)
 
     @staticmethod

@@ -425,7 +425,7 @@ class InstanceLoader:
         }
         return TranslatedString(**langs, default_language=self.default_language)
 
-    def _make_node_datasets(self, config: dict, node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912, PLR0915
+    def _make_node_datasets(self, config: dict, node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912
         from nodes.datasets import DBDataset, DVCDataset, FixedDataset, GenericDataset
         from nodes.generic import GenericNode
         from nodes.simple import AdditiveNode
@@ -965,6 +965,11 @@ class InstanceLoader:
         conf = self.config.get('impact_overviews', [])
         for aepc in conf:
             label = self.make_trans_string(aepc, 'label', pop=False)
+            cost_category_label = self.make_trans_string(aepc, 'cost_category_label', pop=False)
+            effect_category_label = self.make_trans_string(aepc, 'effect_category_label', pop=False)
+            cost_label = self.make_trans_string(aepc, 'cost_label', pop=False)
+            effect_label = self.make_trans_string(aepc, 'effect_label', pop=False)
+            indicator_label = self.make_trans_string(aepc, 'indicator_label', pop=False)
             aep = ImpactOverview.from_config(
                 context=self.context,
                 graph_type=aepc['graph_type'],
@@ -981,6 +986,11 @@ class InstanceLoader:
                 stakeholder_dimension=aepc.get('stakeholder_dimension', None),
                 outcome_dimension=aepc.get('outcome_dimension', None),
                 label=label,
+                cost_category_label=cost_category_label,
+                effect_category_label=effect_category_label,
+                cost_label=cost_label,
+                effect_label=effect_label,
+                indicator_label=indicator_label,
             )
             self.context.impact_overviews.append(aep)
 
