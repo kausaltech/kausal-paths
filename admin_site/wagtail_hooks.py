@@ -53,7 +53,7 @@ class InstanceItem(MenuItem):
 class InstanceChooserMenu(Menu):
     def menu_items_for_request(self, request: PathsAdminRequest):
         user = request.user
-        instances = InstanceConfig.permission_policy().instances_user_has_any_permission_for(user, ['change'])
+        instances = user.get_adminable_instances()
         if len(instances) < 2:
             return []
         items = []
