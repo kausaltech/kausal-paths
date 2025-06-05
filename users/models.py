@@ -72,7 +72,7 @@ class User(AbstractUser):
 
     def get_adminable_instances(self) -> InstanceConfigQuerySet:
         from nodes.models import InstanceConfig
-        return InstanceConfig.permission_policy().instances_user_has_permission_for(self, 'change')
+        return InstanceConfig.permission_policy().adminable_instances(self)
 
     @cached_property
     def cgroups(self) -> QS[Group]:

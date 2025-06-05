@@ -60,6 +60,7 @@ class InstanceViewerRole(InstanceGroupMembershipRole, InstanceSpecificRole['Inst
     instance_group_field_name = 'viewer_group'
 
     model_perms = [
+        ('wagtailadmin', 'admin', ('access',)),
         ('nodes', ('instanceconfig', 'nodeconfig'), ('view',)),
         ('frameworks', (
             'framework', 'frameworkconfig', 'measure', 'measuredatapoint',
