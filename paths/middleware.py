@@ -44,6 +44,7 @@ class RequestMiddleware(MiddlewareMixin):
 
 class AdminMiddleware:
     async_capable = True
+    sync_capable = False
 
     def __init__(self, get_response) -> None:
         self.get_response = get_response
