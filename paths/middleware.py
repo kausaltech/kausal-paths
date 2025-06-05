@@ -50,7 +50,7 @@ class AdminMiddleware(MiddlewareMixin):
             instance_config = InstanceConfig.objects.filter(id=admin_instance_id).first()
 
         adminable_instances = (
-            InstanceConfig.permission_policy().instances_user_has_any_permission_for(user, ['change'])
+            InstanceConfig.permission_policy().instances_user_has_any_permission_for(user, ['view'])
             .filter(site__isnull=False)
         )
         if instance_config is not None and instance_config not in adminable_instances:
