@@ -37,12 +37,12 @@ class ParameterInterface(graphene.Interface):
 
     # TODO: Use the proper field names instead of defining this alias?
     @staticmethod
-    def resolve_id(root: Parameter, info):
+    def resolve_id(root: Parameter, info) -> str:
         return root.global_id
 
     # TODO: Use the proper field names instead of defining this alias?
     @staticmethod
-    def resolve_node_relative_id(root: Parameter, info):
+    def resolve_node_relative_id(root: Parameter, info) -> str:
         return root.local_id
 
     @classmethod
@@ -104,15 +104,17 @@ class SetParameterMutation(graphene.Mutation):
     ok = graphene.Boolean()
     parameter = graphene.Field(ParameterInterface)
 
+    @ensure_instance
+    @staticmethod
     def mutate(
-        self, info: GQLInstanceInfo, id: str, number_value: float | None = None,
+        root, info: GQLInstanceInfo, id: str, number_value: float | None = None,
         bool_value: bool | None = None, string_value: str | None = None
-    ):
+    ) -> SetParameterMutation:
         context = info.context.instance.context
         try:
             param = context.get_parameter(id)
         except KeyError:
-            raise GraphQLError("Parameter %s does not exist", info.field_nodes)
+            raise GraphQLError("Parameter %s does not exist", info.field_nodes) from None
 
         if not param.is_customizable:
             raise GraphQLError("Parameter %s is not customizable", info.field_nodes)
@@ -123,22 +125,23 @@ class SetParameterMutation(graphene.Mutation):
             StringParameter: (string_value, 'stringValue'),
         }
         param_type = type(param)
-        for klasses, (value, attr_name) in parameter_values.items():
-            if isinstance(klasses, tuple):
-                found = False
-                for k in klasses:
-                    if issubclass(param_type, k):
-                        found = True
-                        break
-                if found:
-                    break
-            elif issubclass(param_type, klasses):
+        for klasses, (value, attr_name) in parameter_values.items():  # noqa: B007
+            # if isinstance(klasses, tuple):
+            #     found = False
+            #     for k in klasses:
+            #         if issubclass(param_type, k):
+            #             found = True
+            #             break
+            #     if found:
+            #         break
+            #     continue
+            if issubclass(param_type, klasses):
                 break
         else:
             raise Exception("Attempting to mutate an unsupported parameter class: %s" % type(param))
 
         if value is None:
-            raise GraphQLError("You must specify '%s' for '%s'" % (attr_name, param.id), info.field_nodes)
+            raise GraphQLError("You must specify '%s' for '%s'" % (attr_name, param.global_id), info.field_nodes)
 
         del parameter_values[klasses]
         for v, _ in parameter_values.values():
@@ -148,7 +151,7 @@ class SetParameterMutation(graphene.Mutation):
         try:
             value = param.clean(value)
         except ValidationError as e:
-            raise GraphQLError(str(e), info.field_nodes)
+            raise GraphQLError(str(e), info.field_nodes)  # noqa: B904
 
         setting_storage = info.context.instance.context.setting_storage
         assert setting_storage is not None
@@ -165,7 +168,9 @@ class ResetParameterMutation(graphene.Mutation):
 
     ok = graphene.Boolean()
 
-    def mutate(root, info: GQLInstanceInfo, id: str = None):
+    @staticmethod
+    @ensure_instance
+    def mutate(root, info: GQLInstanceInfo, id: str | None = None) -> ResetParameterMutation:
         context = info.context.instance.context
         storage = context.setting_storage
         assert storage is not None
@@ -193,7 +198,9 @@ class ActivateScenarioMutation(graphene.Mutation):
     ok = graphene.Boolean()
     active_scenario = graphene.Field('nodes.schema.ScenarioType')
 
-    def mutate(self, info: GQLInstanceInfo, id):
+    @staticmethod
+    @ensure_instance
+    def mutate(root, info: GQLInstanceInfo, id: str) -> dict[str, Any]:
         context = info.context.instance.context
         scenario = context.scenarios.get(id)
         if scenario is None:
@@ -222,21 +229,23 @@ class Query(graphene.ObjectType):
     parameters = graphene.List(graphene.NonNull(ParameterInterface), required=True)
     parameter = graphene.Field(ParameterInterface, id=graphene.ID(required=True))
 
+    @staticmethod
     @ensure_instance
-    def resolve_parameters(root, info: GQLInstanceInfo):
+    def resolve_parameters(root, info: GQLInstanceInfo) -> list[Parameter[Any]]:
         instance = info.context.instance
         params = [param for param in instance.context.global_parameters.values() if param.is_visible]
         return params
 
+    @staticmethod
     @ensure_instance
-    def resolve_parameter(root, info: GQLInstanceInfo, id):
+    def resolve_parameter(root, info: GQLInstanceInfo, id: str) -> Parameter[Any] | None:
         instance = info.context.instance
         try:
             param = instance.context.get_parameter(id)
             if not param.is_visible:
                 return None
         except KeyError:
-            raise GraphQLError(f"Parameter {id} does not exist", info.field_nodes)
+            raise GraphQLError(f"Parameter {id} does not exist", info.field_nodes) from None
         return param
 
 

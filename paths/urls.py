@@ -27,15 +27,16 @@ from django.urls import include, path, re_path
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import TemplateView
 from django.views.static import serve as serve_static
-from wagtail import urls as wagtail_urls
-from wagtail.documents import urls as wagtaildocs_urls
+from wagtail import urls as wagtail_urls  # type: ignore[attr-defined]
+from wagtail.documents import urls as wagtaildocs_urls  # type: ignore[attr-defined]
 
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 from social_django import urls as social_urls
 
+from kausal_common.datasets.api import all_routers as datasets_api_nested_routers, router as datasets_api_root_router
+
 #from strawberry.django.views import GraphQLView
 from kausal_common.deployment.health_check_view import health_view
-from kausal_common.datasets.api import all_routers as datasets_api_nested_routers, router as datasets_api_root_router
 
 from admin_site import urls as admin_urls
 from frameworks.urls import urlpatterns as framework_urls
@@ -45,12 +46,8 @@ from users.views import change_admin_instance
 from .api_router import router as api_router
 from .graphql_views import PathsGraphQLView
 
-#from .v2_schema import schema as v2_schema
-
 if TYPE_CHECKING:
     from types import ModuleType
-
-#from .schema import federation_schema
 
 
 kpe_urls: ModuleType | None
@@ -70,7 +67,6 @@ api_urls = [
 
 
 urlpatterns = [
-    # path('django-admin/', admin.site.urls),
     re_path(
         r'^admin/change-admin-instance/(?:(?P<instance_id>\d+)/)?$',
         change_admin_instance,
@@ -86,7 +82,7 @@ urlpatterns = [
         template_name='graphql-voyager.html',
     ), name='graphql-voyager'),
 
-    path('v1/graphql/', csrf_exempt(PathsGraphQLView.as_view(graphiql=True)), name='graphql'),
+    path('v1/graphql/', csrf_exempt(PathsGraphQLView.as_view()), name='graphql'),
     path('v1/', include(api_urls)),
     path('v1/schema/', SpectacularAPIView.as_view(urlconf=api_urls), name='schema'),
     path('v1/schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
@@ -107,10 +103,6 @@ if settings.DEBUG:
 
 if kpe_urls is not None:
     urlpatterns.append(path('', include(kpe_urls)))
-
-##
-#    #path('v1/graphql-subschema/', csrf_exempt(PathsGraphQLView.as_view(schema=federation_schema, graphiql=True)), name='graphql-subschema'),
-#    path('v2/graphql/', csrf_exempt(GraphQLView.as_view(schema=v2_schema)), name='graphql_v2'),
 
 
 if settings.ENABLE_DEBUG_TOOLBAR:

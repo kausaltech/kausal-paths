@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import threading
 import uuid
-from contextlib import contextmanager
+from contextlib import asynccontextmanager, contextmanager
 from contextvars import ContextVar
 from functools import cached_property
 from pathlib import Path
@@ -29,6 +29,9 @@ from wagtail.models.sites import Site
 from wagtail.search import index
 
 import sentry_sdk
+from asgiref.sync import sync_to_async
+from channels.consumer import async_to_sync
+from channels.layers import get_channel_layer
 from loguru import logger
 from wagtail_color_panel.fields import ColorField  # type: ignore
 
@@ -44,7 +47,8 @@ from kausal_common.models.permissions import PermissionedQuerySet
 from kausal_common.models.types import FK, M2M, MLModelManager, RevMany, RevOne, copy_signature
 from kausal_common.models.uuid import UUIDIdentifiedModel
 
-from paths.types import CacheablePathsModel, PathsModel, PathsQuerySet, UserOrAnon
+from paths.const import INSTANCE_CHANGE_GROUP, INSTANCE_CHANGE_TYPE
+from paths.types import CacheablePathsModel, PathsModel, PathsQuerySet
 from paths.utils import (
     ChoiceArrayField,
     IdentifierField,
@@ -62,6 +66,7 @@ if TYPE_CHECKING:
     from loguru import Logger
 
     from kausal_common.models.permission_policy import BaseObjectAction, ObjectSpecificAction
+    from kausal_common.users import UserOrAnon
 
     from frameworks.models import FrameworkConfig
     from nodes.dimensions import Dimension as NodeDimension
@@ -77,26 +82,32 @@ instance_cache_lock = threading.Lock()
 
 
 def get_instance_identifier_from_wildcard_domain(
-    hostname: str, request: HttpRequest | None = None,
+    hostname: str, request: HttpRequest | None = None, wildcard_domains: list[str] | None = None,
 ) -> tuple[str, str] | tuple[None, None]:
     # Get instance identifier from hostname for development and testing
     parts = hostname.lower().split('.', maxsplit=1)
-    req_wildcards: list[str] = getattr(request, 'wildcard_domains', None) or []
-    settings_wildcards: list[str] = cast('list[str]', settings.HOSTNAME_INSTANCE_DOMAINS) or []
-    wildcard_domains: list[str] = [*settings_wildcards, *req_wildcards]
-    if len(parts) == 2 and parts[1].lower() in wildcard_domains:
+    if wildcard_domains is None:
+        if request is not None:
+            req_wildcards: list[str] = getattr(request, 'wildcard_domains', None) or []
+        else:
+            req_wildcards = []
+        settings_wildcards: list[str] = cast('list[str]', settings.HOSTNAME_INSTANCE_DOMAINS) or []
+        wd_domains = [*settings_wildcards, *req_wildcards]
+    else:
+        wd_domains = wildcard_domains
+    if len(parts) == 2 and parts[1].lower() in wd_domains:
         return (parts[0], parts[1])
     return (None, None)
 
 
 class InstanceConfigQuerySet(MultilingualQuerySet['InstanceConfig'], PermissionedQuerySet['InstanceConfig']):  # type: ignore[override]
-    def for_hostname(self, hostname: str, request: HttpRequest | None = None):
+    def for_hostname(self, hostname: str, request: HttpRequest | None = None, wildcard_domains: list[str] | None = None):
         hostname = hostname.lower()
         hostnames = InstanceHostname.objects.filter(hostname=hostname)
         lookup = models.Q(id__in=hostnames.values_list('instance'))
 
         # Get instance identifier from hostname for development and testing
-        identifier, _ = get_instance_identifier_from_wildcard_domain(hostname, request)
+        identifier, _ = get_instance_identifier_from_wildcard_domain(hostname, request=request, wildcard_domains=wildcard_domains)
         if identifier:
             lookup |= models.Q(identifier=identifier)
         return self.filter(lookup)
@@ -390,11 +401,27 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
 
         token = instance_context.set(instance)
         try:
+            with sentry_sdk.new_scope() as scope, logger.contextualize(instance=self.identifier):
+                self.set_instance_scope(scope)
+                yield instance
+        finally:
+            instance_context.reset(token)
+
+    @asynccontextmanager
+    async def enter_instance_context_async(self):
+        if self.identifier in _pytest_instances:
+            instance = _pytest_instances[self.identifier]
+        else:
+            instance = await sync_to_async(self._initialize_instance)(node_refs=True)
+
+        token = instance_context.set(instance)
+        try:
             with sentry_sdk.new_scope() as scope:
                 self.set_instance_scope(scope)
                 yield instance
         finally:
             instance_context.reset(token)
+
 
     def _get_instance(self, node_refs: bool = False) -> Instance:
         if self.identifier in _pytest_instances:
@@ -650,10 +677,23 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
             self.site = site
             self.save(update_fields=['site'])
 
-    def invalidate_cache(self):
+    def invalidate_cache(self, save: bool = True):
         self.cache_invalidated_at = timezone.now()
         self.log.info("Invalidating cache")
         self.save(update_fields=['cache_invalidated_at'])
+
+    def notify_change(self):
+        self.update_modified_at(save=False)
+        self.invalidate_cache(save=False)
+        self.log.info("Instance modified")
+        self.save(update_fields=['modified_at', 'cache_invalidated_at'])
+        cl = get_channel_layer()
+        if cl is None:
+            return
+        async_to_sync(cl.group_send)(INSTANCE_CHANGE_GROUP, {
+            'type': INSTANCE_CHANGE_TYPE,
+            'pk': self.pk,
+        })
 
     @cached_property
     def log(self) -> Logger:

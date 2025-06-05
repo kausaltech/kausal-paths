@@ -30,7 +30,7 @@ except ImportError:
 
 
 def set_log_vars(resp):
-    from kausal_common.logging.handler import ISO_FORMAT
+    from kausal_common.logging.rich_logger import ISO_FORMAT
     now = datetime.now(UTC)
     uwsgi.set_logvar('isotime', now.strftime(ISO_FORMAT).replace('+00:00', 'Z'))
     if hasattr(resp, '_response'):

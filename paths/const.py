@@ -13,3 +13,8 @@ INSTANCE_VIEWER_ROLE = 'instance-viewer'
 MODEL_CALC_OP = 'model.calculate'
 MODEL_CACHE_OP = 'model.cache'
 NODE_CALC_OP = 'node.calculate'
+
+
+# Django Channels
+INSTANCE_CHANGE_TYPE = 'instance.change'
+INSTANCE_CHANGE_GROUP = 'instance_change'

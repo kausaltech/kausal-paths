@@ -12,27 +12,27 @@ if TYPE_CHECKING:
     from collections import OrderedDict
     from typing import type_check_only
 
-    from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
+    from graphql import GraphQLResolveInfo
     from wagtail.models import Site
 
     from kausal_common.deployment.types import LoggedHttpRequest
     from kausal_common.graphene import GQLContext as CommonGQLContext, GQLInfo as CommonGQLInfo
+    from kausal_common.perf.perf_context import PerfContext
+    from kausal_common.users import UserOrAnon
 
     from paths.context import PathsObjectCache
     from paths.graphql_helpers import GraphQLPerfNode
+    from paths.graphql_types import PathsGraphQLContext
 
+    from common.cache import CacheResult
     from nodes.instance import Instance
     from nodes.models import InstanceConfig
-    from nodes.perf import PerfContext
     from users.models import User
-
-
-type UserOrAnon = 'AbstractBaseUser | AnonymousUser'
 
 
 if TYPE_CHECKING:
     class PathsRequest(LoggedHttpRequest):
-        user: UserOrAnon  # type: ignore[override]
+        user: UserOrAnon  # type: ignore[override, assignment]
         cache: PathsObjectCache
 
 
@@ -76,15 +76,14 @@ if TYPE_CHECKING:
     @type_check_only
     class PathsGQLContext(CommonGQLContext):  # pyright: ignore[reportGeneralTypeIssues]
         graphql_operation_name: str | None
-        graphql_perf: PerfContext[GraphQLPerfNode]
+        graphql_perf: PerfContext[GraphQLPerfNode, CacheResult]
         oauth2_error: OrderedDict[str, str]
         cache: PathsObjectCache
         _referer: str | None
 
-
     @type_check_only
     class PathsGQLInfo(CommonGQLInfo):  # pyright: ignore[reportGeneralTypeIssues]
-        context: PathsGQLContext  # pyright: ignore[reportIncompatibleVariableOverride]
+        context: PathsGraphQLContext
 
     @type_check_only
     class GQLInstanceContext(PathsGQLContext):  # pyright: ignore
@@ -92,8 +91,8 @@ if TYPE_CHECKING:
         wildcard_domains: list[str]
 
     @type_check_only
-    class GQLInstanceInfo(PathsGQLInfo):  # pyright: ignore
-        context: GQLInstanceContext  # type: ignore[assignment]
+    class GQLInstanceInfo(GraphQLResolveInfo):
+        context: PathsGraphQLContext[Instance]
 
 
 class CacheablePathsModel[CacheT](CacheableModel[CacheT], PathsModel):

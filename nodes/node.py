@@ -1089,7 +1089,7 @@ class Node:
                 case 'ignore_content':
                     no_effect_value = getattr(self, 'no_effect_value', 0.0)
                     df = df.with_columns(pl.lit(no_effect_value).alias(VALUE_COLUMN))
-                    df = df.set_unit(VALUE_COLUMN, target_node.unit, force=True)
+                    df = df.set_unit(VALUE_COLUMN, target_node.single_metric_unit, force=True)
                 case _:
                     pass
 

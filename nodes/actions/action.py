@@ -148,7 +148,7 @@ class ActionNode(Node):
 
     def compute_impact(self, target_node: Node) -> ppl.PathsDataFrame:
         from_baseline: bool | None = cast(
-            bool, self.get_global_parameter_value('action_impact_from_baseline', required=False) or False,
+            'bool', self.get_global_parameter_value('action_impact_from_baseline', required=False) or False,
         )
 
         was_enabled = self.is_enabled()

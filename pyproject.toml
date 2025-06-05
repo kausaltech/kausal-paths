@@ -76,6 +76,7 @@ module = [
   "taggit.*",
   "permissionedforms.*",
   "diffsync.*",
+  "channels.*",
 ]
 ignore_missing_imports = true
 

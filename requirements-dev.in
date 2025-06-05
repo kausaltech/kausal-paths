@@ -11,3 +11,7 @@ ondivi
 django-debug-toolbar
 basedpyright
 line-profiler
+pdbr[ipython]
+viztracer
+daphne
+

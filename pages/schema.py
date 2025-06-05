@@ -16,6 +16,8 @@ from .models import OutcomePage, Page, PathsPage
 from .perms import PagePermissionPolicy
 
 if TYPE_CHECKING:
+    from wagtail.query import PageQuerySet
+
     from paths.graphql_helpers import GQLInstanceInfo
 
     from nodes.node import Node
@@ -50,7 +52,8 @@ class Query:
     page = graphene.Field(PageInterface, path=graphene.String(required=True))
 
     @ensure_instance
-    def resolve_pages(query, info: GQLInstanceInfo, in_menu: bool = False, **kwargs):
+    @staticmethod
+    def resolve_pages(query, info: GQLInstanceInfo, in_menu: bool = False, **kwargs) -> PageQuerySet:
         instance_config = InstanceConfig.objects.get(identifier=info.context.instance.id)
         root_page = instance_config.get_translated_root_page()
         qs = root_page.get_descendants(inclusive=True).live().public().specific()
@@ -60,7 +63,8 @@ class Query:
         return qs
 
     @ensure_instance
-    def resolve_page(query: Query, info: GQLInstanceInfo, path: str, **kwargs) -> Page | None:
+    @staticmethod
+    def resolve_page(query, info: GQLInstanceInfo, path: str, **kwargs) -> Page | None:
         qs = Query.resolve_pages(query, info, **kwargs)
         if not path.endswith('/'):
             path = path + '/'

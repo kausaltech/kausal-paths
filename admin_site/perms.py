@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import Sequence, TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING, Tuple
 
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
@@ -9,10 +9,12 @@ from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 from wagtail.models import PAGE_PERMISSION_CODENAMES, GroupPagePermission
 
-from nodes.models import InstanceConfig
-
 if TYPE_CHECKING:
-    from django.utils.functional import _StrPromise as StrPromise  # type: ignore
+    from collections.abc import Sequence
+
+    from django_stubs_ext import StrPromise
+
+    from nodes.models import InstanceConfig
 
 
 ALL_MODEL_PERMS = ('view', 'change', 'delete', 'add')
