@@ -152,13 +152,16 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any
             return False
         return user.has_instance_role(self.fw_viewer_role, obj.framework_config.framework)
 
-    def construct_perm_q(self, user: User, action: ObjectSpecificAction) -> models.Q | None:
+    def construct_perm_q(self, user: User, action: ObjectSpecificAction, include_implicit_public: bool = True) -> models.Q | None:
         is_admin = self.admin_role.role_q(user)
         is_viewer = self.viewer_role.role_q(user)
         is_fw_admin = self.fw_admin_role.role_q(user, prefix='framework_config__framework')
         is_fw_viewer = self.fw_viewer_role.role_q(user, prefix='framework_config__framework')
         if action == 'view':
-            return is_viewer | is_admin | is_fw_admin | is_fw_viewer | Q(framework_config__isnull=True)
+            q = is_viewer | is_admin | is_fw_admin | is_fw_viewer
+            if include_implicit_public:
+                q |= Q(framework_config__isnull=True)
+            return q
         return is_admin | is_fw_admin
 
     def construct_perm_q_anon(self, action: BaseObjectAction) -> Q | None:
@@ -168,7 +171,16 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any
         return None
 
     def adminable_instances(self, user: User) -> InstanceConfigQuerySet:
-        return self.instances_user_has_any_permission_for(user, ['change'])
+        """
+        Return instances that the user has been explicitly granted access to.
+
+        We can't simply use the 'view' permission on InstanceConfig, because
+        most instances will be public by default.
+        """
+        qs = self.get_queryset()
+        if user.is_superuser:
+            return qs
+        return qs.filter(self.construct_perm_q(user, 'view', include_implicit_public=False))
 
     def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: InstanceConfig) -> bool:
         if action == 'delete':

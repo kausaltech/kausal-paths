@@ -75,7 +75,7 @@ class User(AbstractUser):
 
     def get_adminable_instances(self) -> InstanceConfigQuerySet:
         from nodes.models import InstanceConfig
-        return InstanceConfig.permission_policy().instances_user_has_permission_for(self, 'change')
+        return InstanceConfig.permission_policy().adminable_instances(self)
 
     def user_is_admin_for_instance(self, instance_config: InstanceConfig) -> bool:
         from nodes.models import InstanceConfig
