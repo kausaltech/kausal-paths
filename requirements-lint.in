@@ -13,3 +13,4 @@ types-openpyxl
 pyarrow-stubs
 types-pygit2
 types-oauthlib
+types-networkx

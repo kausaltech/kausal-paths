@@ -34,8 +34,6 @@ from kausal_common.users import UserOrAnon, user_or_none
 from paths.types import CacheablePathsModel, PathsModel, PathsQuerySet
 from paths.utils import IdentifierField, UnitField
 
-from nodes.gpc import DatasetNode
-
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
@@ -43,6 +41,7 @@ if TYPE_CHECKING:
 
     from kausal_common.models.types import RevMany
 
+    from nodes.gpc import DatasetNode
     from nodes.instance import Instance
     from nodes.models import InstanceConfig
     from nodes.node import Node
@@ -276,8 +275,8 @@ class FrameworkDimensionCategory(UUIDIdentifiedModel, OrderedModel):
 
 class SectionQuerySet(MP_NodeQuerySet['Section'], PathsQuerySet['Section']):  # type: ignore[override]
     def _parents(self) -> SectionQuerySet:
-        model = cast(type[Section], self.model)
-        qs = cast(SectionQuerySet, model._default_manager.get_queryset())
+        model = cast('type[Section]', self.model)
+        qs = cast('SectionQuerySet', model._default_manager.get_queryset())
         parents = qs.filter(
             path=Substr(OuterRef('path'), 1, Length(OuterRef('path')) - model.steplen),
         )
@@ -514,15 +513,15 @@ class MeasureTemplateDefaultDataPoint(CacheablePathsModel['MeasureTemplateDefaul
     def __str__(self):
         return f"{self.template.name} - {self.year}"
 
-    @classmethod
-    def permission_policy(cls) -> ModelPermissionPolicy[Self, QS[Self]]:
-        return ModelReadOnlyPolicy(cls)
-
     def __rich_repr__(self):
         yield "template", self.template.name
         yield "year", self.year
         yield "value", self.value
         yield "unit", self.template.unit
+
+    @classmethod
+    def permission_policy(cls) -> ModelPermissionPolicy[Self, QS[Self]]:
+        return ModelReadOnlyPolicy(cls)
 
 
 def create_random_token():
@@ -710,7 +709,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         self.last_modified_at = timezone.now()
         if save:
             self.save(update_fields=['last_modified_by', 'last_modified_at'])
-        self.instance_config.invalidate_cache()
+        self.instance_config.notify_change()
 
     def _dimension_name_to_dataset_column_label(self, name: str) -> str:
         return name.replace('_', ' ').capitalize()
@@ -749,6 +748,8 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
 
     @cached_property
     def measure_template_uuid_to_node_dimension_selection(self) -> Mapping[str, NodeDimensionSelection]:
+        from nodes.gpc import DatasetNode
+
         measure_template_uuid_to_multiple_node_dimensions_selections: dict[str, list[NodeDimensionSelection]] = dict()
         instance = self.instance_config.get_instance()
         for node_id, node in instance.context.nodes.items():

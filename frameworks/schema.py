@@ -294,9 +294,8 @@ class FrameworkConfigType(DjangoNode):
 
     @staticmethod
     def resolve_results_download_url(root: FrameworkConfig, info: GQLInfo) -> str:
-        req = info.context
         path = reverse('framework_config_results_download', kwargs=dict(fwc_id=root.pk, token=root.token))
-        return req.build_absolute_uri(path)
+        return info.context.build_absolute_uri(path)
 
     @staticmethod
     def resolve_instance(root: FrameworkConfig, info: GQLInfo) -> Instance:
@@ -304,13 +303,15 @@ class FrameworkConfigType(DjangoNode):
 
     @staticmethod
     def resolve_organization_slug(root: FrameworkConfig, info: GQLInfo) -> str | None:
-        if info.context.user.is_superuser:
+        user = info.context.get_user()
+        if user.is_superuser:
             return root.organization_slug
         return None
 
     @staticmethod
     def resolve_organization_identifier(root: FrameworkConfig, info: GQLInfo) -> str | None:
-        if info.context.user.is_superuser:
+        user = info.context.get_user()
+        if user.is_superuser:
             return root.organization_identifier
         return None
 
@@ -436,7 +437,7 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
         target_year: int | None = None,
         uuid: str | None = None,
     ) -> FrameworkConfig:
-        id_field = cast(CharField, InstanceConfig._meta.get_field('identifier'))
+        id_field = cast('CharField', InstanceConfig._meta.get_field('identifier'))
         try:
             id_field.run_validators(instance_identifier)
         except ValidationError:
@@ -451,6 +452,7 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
         if not uuid:
             uuid = str(uuid4())
 
+        user = info.context.get_user()
         fc = FrameworkConfig.create_instance(
             framework=framework,
             instance_identifier=instance_identifier,
@@ -458,7 +460,7 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
             baseline_year=baseline_year,
             target_year=target_year,
             uuid=uuid,
-            user=info.context.user,
+            user=user,
         )
         fc_cached = framework.cache.framework_configs.get(fc.pk)
         assert fc_cached is not None
@@ -474,10 +476,10 @@ class CreateFrameworkConfigMutation(graphene.Mutation):
             info=info,
             framework=framework,
             instance_identifier=str(config_input.instance_identifier),
-            name=cast(str, config_input.name),
-            baseline_year=cast(int, config_input.baseline_year),
-            target_year=cast(int | None, config_input.target_year),
-            uuid=cast(str | None, config_input.uuid),
+            name=cast('str', config_input.name),
+            baseline_year=cast('int', config_input.baseline_year),
+            target_year=cast('int | None', config_input.target_year),
+            uuid=cast('str | None', config_input.uuid),
         )
         return CreateFrameworkConfigMutation(ok=True, framework_config=fc)
 
@@ -527,8 +529,9 @@ class UpdateFrameworkConfigMutation(graphene.Mutation):
         if organization_name is not None:
             fwc.organization_name = organization_name
 
+        user = info.context.get_user()
         if organization_slug is not None or organization_identifier is not None:
-            if not info.context.user.is_superuser:
+            if not user.is_superuser:
                 raise GraphQLError("Only superusers can set organization slug or identifier", nodes=info.field_nodes)
             if organization_slug is not None:
                 fwc.organization_slug = organization_slug
@@ -554,7 +557,7 @@ class UpdateFrameworkConfigMutation(graphene.Mutation):
         if target_year != 0:
             fwc.target_year = target_year
 
-        fwc.notify_change(user=info.context.user)
+        fwc.notify_change(user=user)
         fwc.save()
 
         return UpdateFrameworkConfigMutation(ok=True, framework_config=fwc)
@@ -628,7 +631,8 @@ class UpdateMeasureDataPoint(graphene.Mutation):
         dp.value = value
         dp.save()
 
-        fwc.notify_change(info.context.user, save=True)
+        user = info.context.get_user()
+        fwc.notify_change(user=user, save=True)
 
         return UpdateMeasureDataPoint(ok=True, measure_data_point=dp)
 
@@ -739,7 +743,8 @@ class UpdateMeasureDataPoints(graphene.Mutation):
                     mdp.value = value
                     mdp.save()
 
-        fwc.notify_change(info.context.user, save=True)
+        user = info.context.get_user()
+        fwc.notify_change(user=user, save=True)
 
         return UpdateMeasureDataPoints(
             ok=True,
@@ -783,10 +788,10 @@ class CreateNZCFrameworkConfigMutation(graphene.Mutation):
             return 'low'
 
         ret = CreateFrameworkConfigMutation.create_framework_config(info, config_input)
-        fwc = cast(FrameworkConfig, ret.framework_config)
+        fwc = cast('FrameworkConfig', ret.framework_config)
         instance = fwc.instance_config.get_instance()
         dvc_repo = instance.context.dataset_repo
-        data = cast(dict, nzc_data)
+        data = cast('dict', nzc_data)
         defaults = get_nzc_default_values(dvc_repo, NZCPlaceholderInput(
             population=data['population'],
             renewmix=lowhigh_to_str(data['renewable_mix']),

@@ -73,6 +73,8 @@ diffsync
 django-pydantic-field
 graphene-pydantic
 xxhash
+channels
+channels-redis
 # FIXME: We moved the email configuration to kausal-common. The django-anymail
 # requirements should ideally also be moved to
 # kausal_common/requirements-common.txt. However, this seems difficult at the

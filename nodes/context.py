@@ -12,6 +12,8 @@ from rich.tree import Tree
 from sentry_sdk import start_span
 
 from kausal_common.debugging.perf import PerfCounter
+from kausal_common.deployment import env_bool
+from kausal_common.perf.perf_context import PerfContext
 
 from paths.const import MODEL_CACHE_OP, MODEL_CALC_OP
 
@@ -24,7 +26,6 @@ from common.cache import Cache
 from params.discover import discover_parameter_types
 
 from .datasets import Dataset, DVCDataset, FixedDataset
-from .perf import PerfContext
 from .units import Unit, unit_registry
 
 if TYPE_CHECKING:
@@ -34,6 +35,7 @@ if TYPE_CHECKING:
 
     import dvc_pandas
     import networkx  # noqa: ICN001
+    from rich.repr import RichReprResult
 
     from params import Parameter
     from params.storage import SettingStorage
@@ -156,7 +158,7 @@ class Context:
     perf_context: PerfContext[Node]
     """Performance context for the context."""
 
-    node_graph: networkx.DiGraph
+    node_graph: networkx.DiGraph[str]
     """Directed NetworkX graph for the nodes and edges in the model."""
 
     baseline_values_generated: bool = False
@@ -213,7 +215,13 @@ class Context:
             redis_url=os.getenv('REDIS_URL'),
             base_logger=self.log,
         )
+        if env_bool('DISABLE_PATHS_MODEL_CACHE', default=False):
+            self.skip_cache = True
         super().__init__()
+
+    def __rich_repr__(self) -> RichReprResult:
+        yield 'instance', self.instance.id
+        yield 'obj_id', self.obj_id
 
     @contextmanager
     def start_span(self, name: str, op: str | None = None, attributes: dict[str, Any] | None = None):
@@ -232,7 +240,7 @@ class Context:
         """
         import networkx as nx
 
-        g = nx.DiGraph()
+        g: nx.DiGraph[str] = nx.DiGraph()
         g.add_nodes_from([n.id for n in self.nodes.values()])
         for node in self.nodes.values():
             for output in node.output_nodes:

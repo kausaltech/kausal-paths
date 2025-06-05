@@ -26,7 +26,7 @@ from pint.delegates.formatter.plain import PrettyFormatter
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from django.utils.functional import _StrPromise as StrPromise  # pyright: ignore
+    from django_stubs_ext import StrPromise
     from pydantic import GetCoreSchemaHandler
     from pydantic_core import CoreSchema
 

@@ -17,9 +17,9 @@ import redis
 from redis import client as redis_client
 
 from kausal_common.debugging.perf import PerfCounter
+from kausal_common.perf.perf_context import PerfStats
 
 from common import base32_crockford, polars as ppl
-from nodes.perf import PerfStats
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -105,11 +105,11 @@ class LocalLRUCache:
         """Make a method thread-safe using the instance's lock."""
 
         @wraps(method)
-        def wrapper(self: SC, *args, **kwargs) -> Any:  # noqa: ANN401
+        def wrapper(self: SC, *args, **kwargs) -> Any:
             _rich_traceback_omit = True
             with self.lock:
                 return method(self, *args, **kwargs)
-        return cast(LRUFuncT[P, R, SC], wrapper)
+        return cast('LRUFuncT[P, R, SC]', wrapper)
 
     def __init__(self, max_size: int, log: loguru.Logger):
         """
@@ -280,9 +280,8 @@ class CacheRun:
             style = 'bold red'
 
         self.cache.log.info(
-            'End execution run ([{style}]{comp_time:.2f}[/] ms, {nr_reqs} reqs ({nr_hits} hits, {nr_misses} misses); '
-            'caching {nr_new_objs} new objects ({nr_new_bytes} MiB) took {dump_time:.2f} ms)',
-            style=style,
+            'End execution run ([%(style)s]{comp_time:.2f}[/] ms, {nr_reqs} reqs ({nr_hits} hits, {nr_misses} misses); '
+            'caching {nr_new_objs} new objects ({nr_new_bytes} MiB) took {dump_time:.2f} ms)' % dict(style=style),
             comp_time=comp_time,
             nr_reqs=self.stats.nr_calls,
             nr_hits=self.stats.cache_hits,
@@ -401,10 +400,10 @@ class RedisCache(ExtCache):
         )
         if resp is None:
             return None
-        return cast(bytes, resp)
+        return cast('bytes', resp)
 
     def get_many(self, keys: Sequence[str], expiry: int | None = None) -> dict[str, bytes | None]:
-        resp = cast(list[bytes | None], self.client.mget(keys=keys))
+        resp = cast('list[bytes | None]', self.client.mget(keys=keys))
         return dict(zip(keys, resp, strict=True))
 
     def set(self, key: str, data: bytes, expiry: int | None = None) -> None:
@@ -435,7 +434,7 @@ class Cache(AbstractContextManager):
         self.ext_cache_ttl = 60 * 60
         self.ureg = ureg
         self.run = None
-        self.log = base_logger or loguru.logger.bind(markup=True)
+        self.log = base_logger.bind(markup=True) if base_logger else loguru.logger.bind(markup=True)
         self.obj_id = base32_crockford.gen_obj_id(self)
         self.pc = PerfCounter(f'cache {self.obj_id}')
         self.local = LocalLRUCache(32 * 1024 * 1024, self.log)
@@ -453,7 +452,7 @@ class Cache(AbstractContextManager):
             redis_str = ', [warning]not using external cache[/]'
             self.allowed_kinds.remove(CacheKind.EXT)
 
-        self.log.debug('Cache initialized{redis_state}', redis_state=redis_str)
+        self.log.debug('Cache initialized%s' % redis_str)
         super().__init__()
 
     def set_allowed_cache_kinds(self, kinds: set[CacheKind]):
@@ -473,7 +472,7 @@ class Cache(AbstractContextManager):
 
     def __exit__(
         self,
-        __exc_type: type[BaseException] | None,
+        __exc_type: type[BaseException] | None,  # noqa: PYI063
         __exc_value: BaseException | None,
         __traceback: TracebackType | None,
     ) -> None:
