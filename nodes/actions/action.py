@@ -351,6 +351,7 @@ class ImpactOverview:
     cost_label: TranslatedString | str | None = None
     effect_label: TranslatedString | str | None = None
     indicator_label: TranslatedString | str | None = None
+    description: TranslatedString | str | None = None
 
     @classmethod
     def from_config(  # noqa: PLR0913
@@ -375,6 +376,7 @@ class ImpactOverview:
         cost_label: TranslatedString | str | None,
         effect_label: TranslatedString | str | None,
         indicator_label: TranslatedString | str | None,
+        description: TranslatedString | str | None,
     ) -> ImpactOverview:
         if cost_node_id is not None:
             cost_node = context.get_node(cost_node_id)
@@ -410,6 +412,7 @@ class ImpactOverview:
             cost_label=cost_label,
             effect_label=effect_label,
             indicator_label=indicator_label,
+            description=description,
         )
         aep.validate()
         return aep
@@ -417,9 +420,9 @@ class ImpactOverview:
     def validate(self):
 
         if self.effect_node.quantity not in STACKABLE_QUANTITIES:
-            raise Exception(f"Impact node quantity {self.effect_node.quantity} must be stackable.")
+            raise Exception(f"Effect node {self.effect_node.id} quantity {self.effect_node.quantity} is not stackable.")
         if self.cost_node is not None and self.cost_node.quantity not in STACKABLE_QUANTITIES:
-                raise Exception(f"Cost node quantity {self.cost_node.quantity} must be stackable.")
+                raise Exception(f"Cost node {self.cost_node.id} quantity {self.cost_node.quantity} is not stackable.")
 
         ff = ['outcome_dimension', 'stakeholder_dimension']
         rf = ['effect_node', 'indicator_unit']
@@ -427,6 +430,9 @@ class ImpactOverview:
             'cost_benefit':
                 {'required': [*rf, 'cost_node'],
                  'forbidden': ['cost_unit', 'effect_unit']},
+            'cost_benefit1':
+                {'required': rf,
+                 'forbidden': ['cost_unit', 'effect_unit', 'cost_node']},
             'cost_efficiency':
                 {'required': [*rf, 'cost_node'],
                  'forbidden': ff},
@@ -436,13 +442,16 @@ class ImpactOverview:
             'value_of_information':
                 {'required': rf,
                  'forbidden': [*ff, 'cost_unit', 'effect_unit', 'cost_node']},
+            'simple_effect':
+                {'required': rf,
+                 'forbidden': [*ff, 'cost_unit', 'effect_unit', 'cost_node']},
         }
         forbidden_fields = field_lists[self.graph_type]['forbidden']
         required_fields = field_lists[self.graph_type]['required']
 
         for field_name, field_value in self.__dict__.items():
             if field_value is not None and field_name in forbidden_fields:
-                print(f"Field '{field_name}' is not used for graph type '{self.graph_type}'") # TODO raise ValueError
+                print(f"Field '{field_name}' must not be used for graph type '{self.graph_type}'") # TODO raise ValueError
 
             if field_value is None and field_name in required_fields:
                 print(f"Field '{field_name}' must be given for graph type '{self.graph_type}'") # TODO raise ValueError
@@ -481,7 +490,7 @@ class ImpactOverview:
                 return uam.to('dimensionless').m
             except pint.DimensionalityError as e:
                 raise Exception(
-                    f"Indicator unit {self.indicator_unit} is not compatible with Cost / Effect."
+                    f"Indicator unit {self.indicator_unit} is not compatible with Effect / Cost."
                 ) from e
 
         def _unity(df: ppl.PathsDataFrame) -> float:
@@ -493,6 +502,7 @@ class ImpactOverview:
             'cost_benefit1': {'is_same_unit': True, 'fn': _unity},
             'return_on_investment': {'is_same_unit': False, 'fn': _roi},
             'value_of_information': {'is_same_unit': True, 'fn': _unity},
+            'simple_effect': {'is_same_unit': True, 'fn': _unity},
         }
 
         is_same_unit = unit_adjustments[self.graph_type]['is_same_unit']

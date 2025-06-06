@@ -970,6 +970,7 @@ class InstanceLoader:
             cost_label = self.make_trans_string(aepc, 'cost_label', pop=False)
             effect_label = self.make_trans_string(aepc, 'effect_label', pop=False)
             indicator_label = self.make_trans_string(aepc, 'indicator_label', pop=False)
+            description = self.make_trans_string(aepc, 'description', pop=False)
             aep = ImpactOverview.from_config(
                 context=self.context,
                 graph_type=aepc['graph_type'],
@@ -991,6 +992,7 @@ class InstanceLoader:
                 cost_label=cost_label,
                 effect_label=effect_label,
                 indicator_label=indicator_label,
+                description=description,
             )
             self.context.impact_overviews.append(aep)
 

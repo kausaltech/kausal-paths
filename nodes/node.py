@@ -1631,12 +1631,12 @@ class Node:
         year = cast('int', df.filter(~df[FORECAST_COLUMN])[YEAR_COLUMN].max())
         return self._scale_by_reference_year(df, year)
 
-    def _truncate_beyond_end(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
-        return df.filter(pl.col(YEAR_COLUMN).le(self.get_end_year()))
-
     def _truncate_before_start(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
         baseline_year = self.context.instance.reference_year
         return df.filter(pl.col(YEAR_COLUMN).ge(baseline_year))
+
+    def _truncate_beyond_end(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
+        return df.filter(pl.col(YEAR_COLUMN).le(self.get_end_year()))
 
     tag_descriptions = {
         'additive': _("Add input node values (even if the units don't match with the node units)."),

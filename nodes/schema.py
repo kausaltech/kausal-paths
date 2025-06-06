@@ -926,6 +926,7 @@ class ImpactOverviewType(graphene.ObjectType):
     indicator_label = graphene.String(required=False)
     cost_category_label = graphene.String(required=False)
     effect_category_label = graphene.String(required=False)
+    description = graphene.String(required=False)
     actions = graphene.List(graphene.NonNull(ActionImpact), required=True)
 
     @staticmethod
