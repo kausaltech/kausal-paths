@@ -204,8 +204,8 @@ class Instance:
         with self.yaml_file_path.open('w', encoding='utf8') as f:
             yaml.dump(data, f)
 
-    def warning(self, msg: str, *args):
-        self.log.opt(depth=1).warning(msg, *args)
+    def warning(self, msg: str, *args, depth: int = 1):
+        self.log.opt(depth=depth).warning(msg, *args)
 
     @overload
     def get_goals(self, goal_id: str) -> NodeGoalsEntry: ...

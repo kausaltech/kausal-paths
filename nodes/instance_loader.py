@@ -425,7 +425,7 @@ class InstanceLoader:
         }
         return TranslatedString(**langs, default_language=self.default_language)
 
-    def _make_node_datasets(self, config: dict, node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912, PLR0915
+    def _make_node_datasets(self, config: dict, node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912
         from nodes.datasets import DBDataset, DVCDataset, FixedDataset, GenericDataset
         from nodes.generic import GenericNode
         from nodes.simple import AdditiveNode
@@ -965,22 +965,34 @@ class InstanceLoader:
         conf = self.config.get('impact_overviews', [])
         for aepc in conf:
             label = self.make_trans_string(aepc, 'label', pop=False)
+            cost_category_label = self.make_trans_string(aepc, 'cost_category_label', pop=False)
+            effect_category_label = self.make_trans_string(aepc, 'effect_category_label', pop=False)
+            cost_label = self.make_trans_string(aepc, 'cost_label', pop=False)
+            effect_label = self.make_trans_string(aepc, 'effect_label', pop=False)
+            indicator_label = self.make_trans_string(aepc, 'indicator_label', pop=False)
+            description = self.make_trans_string(aepc, 'description', pop=False)
             aep = ImpactOverview.from_config(
                 context=self.context,
                 graph_type=aepc['graph_type'],
-                cost_node_id=aepc['cost_node'],
-                impact_node_id=aepc['impact_node'],
-                cost_unit=aepc['cost_unit'],
-                impact_unit=aepc['impact_unit'],
-                indicator_unit=aepc.get('indicator_unit', None),
+                cost_node_id=aepc.get('cost_node', None),
+                effect_node_id=aepc['effect_node'],
+                cost_unit=aepc.get('cost_unit', None),
+                effect_unit=aepc.get('effect_unit', None),
+                indicator_unit=aepc['indicator_unit'],
                 plot_limit_for_indicator=aepc.get('plot_limit_for_indicator', None),
                 invert_cost=aepc.get('invert_cost', False),
-                invert_impact=aepc.get('invert_impact', False),
+                invert_effect=aepc.get('invert_effect', False),
                 indicator_cutpoint=aepc.get('indicator_cutpoint', None),
                 cost_cutpoint=aepc.get('cost_cutpoint', None),  # TODO Make these parameters.
                 stakeholder_dimension=aepc.get('stakeholder_dimension', None),
                 outcome_dimension=aepc.get('outcome_dimension', None),
                 label=label,
+                cost_category_label=cost_category_label,
+                effect_category_label=effect_category_label,
+                cost_label=cost_label,
+                effect_label=effect_label,
+                indicator_label=indicator_label,
+                description=description,
             )
             self.context.impact_overviews.append(aep)
 
