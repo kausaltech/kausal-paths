@@ -526,7 +526,7 @@ dimensions:
     label: Ratikan 3 vaihe (2028-2030)
     label_en: Tramline 3 construction (2028-2030)
   - id: improving_the_service_level_of_public_transport
-    label: Joukkoliikenteen palvelvutason nosto
+    label: Joukkoliikenteen palvelutason nosto
     label_en: Improving the service level of public transport
   - id: promoting_walking_and_cycling
     label: Kävelyn ja pyöräilyn edistäminen
@@ -2674,7 +2674,7 @@ actions:
     - id: owner
 
 - id: improving_the_service_level_of_public_transport
-  name: Joukkoliikenteen palvelvutason nosto
+  name: Joukkoliikenteen palvelutason nosto
   name_en: Improving the service level of public transport
   type: simple.AdditiveAction
   group: transportation
