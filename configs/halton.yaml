@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://halton.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 6f3a045958a5e0f421abbda032a82adc0c5bf144
+  commit: 7ed0482c6d57716c11cc90bc87be624b8eebda57
   dvc_remote: kausal-s3
 name: Halton Region Greenhouse Gas Inventory
 owner: Halton Region
@@ -72,12 +72,12 @@ dimensions:
 - id: asset_class
   label: Asset Class
   categories:
-  - id: corporate_offices
-    label: Corporate Offices
+  - id: corporate_office
+    label: Corporate Office
+  - id: childcare_centre
+    label: Childcare Centre
   - id: long_term_care_ltc
     label: Long Term Care (LTC)
-  - id: daycare
-    label: Daycare
   - id: operations_centre
     label: Operations Centre
   - id: other
@@ -86,12 +86,16 @@ dimensions:
     label: Wastewater Treatment Plant (WWTP)
   - id: water_treatment_plant_wtp
     label: Water Treatment Plant (WTP)
-  - id: biosolids_facility
-    label: Biosolids Facility
+  - id: well
+    label: Well
+  - id: biosolids_management_centre
+    label: Biosolids Management Centre
   - id: equipment
     label: Equipment
   - id: pumping_station
     label: Pumping Station
+  - id: stormwater_pumping_station
+    label: Stormwater Pumping Station
   - id: reservoir
     label: Reservoir
   - id: solid_waste_management_site
@@ -100,6 +104,12 @@ dimensions:
     label: Booster Station
   - id: streetlights_and_traffic_lights
     label: Streetlights & Traffic Lights
+  - id: bulk_water_station
+    label: Bulk Water Station
+  - id: process_water
+    label: Process Water
+  - id: storage
+    label: Storage
 
 - id: energy_carrier
   label: Energy Carrier
@@ -137,9 +147,178 @@ dimensions:
   - id: diesel_medium_and_heavyduty_vehicles
     label: Diesel Medium- & Heavy-duty Vehicles
 
+- id: property
+  label: Property
+  categories:
+  - id: woodside_dr
+    label: Woodside Dr
+  - id: brant_ct
+    label: Brant Ct
+  - id: burloak_dr
+    label: Burloak Dr
+  - id: elm_rd
+    label: Elm Rd
+  - id: margaret_dr
+    label: Margaret Dr
+  - id: maurice_dr
+    label: Maurice Dr
+  - id: walkers_landing
+    label: Walkers Landing
+  - id: other
+    label: Other
+
 - id: asset
   label: Asset
   categories:
+  # ----- Childcare Centre
+  - id: childcare_centre_margaret
+    label: Childcare Centre Margaret
+  - id: childcare_centre_sedgewick
+    label: Childcare Centre Sedgewick
+  - id: childcare_centre_maple
+    label: Childcare Centre Maple
+  - id: childcare_centre_hrc
+    label: Childcare Centre HRC
+
+  # ----- Corporate Office
+  - id: north_service_road_offices
+    label: North Service Road Offices
+  - id: hrc_block_a_west
+    label: HRC Block A West
+  - id: hrc_block_b_main
+    label: HRC Block B Main
+  - id: hrc_block_c_east
+    label: HRC Block C East
+
+  # ----- LTC
+  - id: ltc_post_inn_village
+    label: LTC Post Inn Village
+  - id: ltc_creekway_village
+    label: LTC Creekway Village
+  - id: ltc_allendale
+    label: LTC Allendale
+
+  # ----- Operations Centre
+  - id: operations_centre_woodlands
+    label: Operations Centre Woodlands
+  - id: operations_centre_north
+    label: Operations Centre North
+
+  # ----- Biosolids Management Centre
+  - id: 4449_bronte_rd_sludge_storage
+    label: 4449 Bronte Rd Sludge Storage
+  - id: sludge_plant_highway_25
+    label: Sludge Plant Highway 25
+
+  # ----- Booster Station
+  - id: bs_1326_dundas_st
+    label: BS 1326 Dundas St
+  - id: bs_22_side_rd_lot_22_con_7
+    label: BS 22 Side Rd (Lot 22 Con 7)
+  - id: bs_3049_upper_middle_rd_w_pumping_station
+    label: BS 3049 Upper Middle Rd W Pumping Station
+  - id: bs_3200_guelph_line_headon_resevoir
+    label: BS 3200 Guelph Line Headon Resevoir
+  - id: bs_3207_heathfield_dr_washburn
+    label: BS 3207 Heathfield Dr Washburn
+  - id: bs_3321_appleby_line_appleby_ln_reservoir
+    label: BS 3321 Appleby Line Appleby Ln Reservoir
+  - id: bs_3330_neyagawa_blvd_pump_at_dump
+    label: BS 3330 Neyagawa Blvd Pump at Dump
+  - id: bs_pump_neyagawa_booster_pumping_station
+    label: BS Pump Neyagawa Booster Pumping Station
+  - id: bs_8th_line
+    label: BS 8th Line
+  - id: bs_bailie
+    label: BS Bailie
+  - id: bs_brant_st
+    label: BS Brant St
+  - id: bs_davis_rd
+    label: BS Davis Rd
+  - id: bs_first_st_wwps_17
+    label: BS First St WWPS 17
+  - id: bs_moore_park_bs_2
+    label: BS Moore Park BS 2
+  - id: bs_tyandaga_bs_and_reservoir
+    label: BS Tyandaga BS & Reservoir
+  - id: bs_zone_iv_bs_8th_line_bs
+    label: BS Zone IV BS (8th Line BS)
+  - id: bs_926_kingsway_dr
+    label: BS 926 Kingsway Dr
+  - id: bs_norval_standpipe
+    label: BS Norval Standpipe
+
+  # ----- Bulk Water Station
+  - id: bulk_water_station_3089_harrison
+    label: Bulk Water Station 3089 Harrison
+  - id: bulk_water_station_6620_fifth_ln
+    label: Bulk Water Station 6620 Fifth Ln
+  - id: bulk_water_station_guelph_line
+    label: Bulk Water Station Guelph Line
+  - id: bulk_water_station_plains_rd
+    label: Bulk Water Station Plains Rd
+
+  # ----- Equipment
+  - id: 125_forsythe_st_heat
+    label: 125 Forsythe St Heat
+  - id: 136_maurice_dr_sewer_monitor
+    label: 136 Maurice Dr Sewer Monitor
+  - id: 1360_lakeshore_rd_w_flow_monitor_station
+    label: 1360 Lakeshore Rd W Flow Monitor Station
+  - id: 1392_hazel_mcleary_dr_press_reducing_val
+    label: 1392 Hazel McLeary Dr Press Reducing Val
+  - id: 1475_lakeshore_rd_e
+    label: 1475 Lakeshore Rd E
+  - id: 2019_lakeshore_rd_w_flow_monitor_station
+    label: 2019 Lakeshore Rd W Flow Monitor Station
+  - id: 321_yates_dr
+    label: 321 Yates Dr
+  - id: 340_burnhamthorpe_rd_e
+    label: 340 Burnhamthorpe Rd E
+  - id: 590_argus_rd_sewer_monitor
+    label: 590 Argus Rd Sewer Monitor
+  - id: 590_rebecca_st_corner_fourth_line
+    label: 590 Rebecca St Corner Fourth Line
+  - id: joshua_creek_prv
+    label: Joshua Creek PRV
+  - id: kingsway_prv
+    label: Kingsway PRV
+  - id: royal_windsor_prv
+    label: Royal Windsor PRV
+
+  # ----- Process Water
+  - id: 51_guelph_st
+    label: 51 Guelph St
+  - id: 527_burhamthorpe_rd_w
+    label: 527 Burhamthorpe Rd W
+  - id: 539_settlers_rd_w
+    label: 539 Settlers Rd W
+
+  # ----- Solid Waste Management Site
+  - id: solid_waste_management_5400_regional_rd_25
+    label: Solid Waste Management 5400 Regional Rd 25
+  - id: solid_waste_management_5406_regional_rd_25
+    label: Solid Waste Management 5406 Regional Rd 25
+  - id: solid_waste_management_landfill_site_pump
+    label: Solid Waste Management Landfill Site Pump
+  - id: solid_waste_management_367_n_service_rd
+    label: Solid Waste Management 367 N Service Rd
+
+  # ----- Storage
+  - id: wastewater_storage_tank
+    label: Wastewater Storage Tank
+  - id: burnhamthorpe_water_tower
+    label: Burnhamthorpe Water Tower
+  - id: milton_surge_tank
+    label: Milton Surge Tank
+  - id: lawson_rd_bulk_water_station
+    label: Lawson Rd Bulk Water Station
+
+  # ----- Streetlights & Traffic Lights
+  - id: streetlights_and_traffic_lights
+    label: Streetlights & Traffic Lights
+
+  # ----- WWTP
   - id: wwtp_skyway
     label: WWTP Skyway
   - id: wwtp_mid_halton
@@ -153,6 +332,7 @@ dimensions:
   - id: wwtp_acton
     label: WWTP Acton
 
+  # ----- WTP
   - id: wtp_burlington
     label: WTP Burlington
   - id: wtp_georgetown
@@ -165,6 +345,8 @@ dimensions:
     label: WTP Prospect Park
   - id: wtp_burloak
     label: WTP Burloak
+
+  # ----- Well
   - id: wtp_campbellville_well_1_north_halton
     label: WTP Campbellville Well 1 (North Halton)
   - id: wtp_cedarvale_well_3a_north_halton
@@ -182,6 +364,7 @@ dimensions:
   - id: wtp_walkers_line_wells_north_halton
     label: WTP Walkers Line Wells (North Halton)
 
+  # ----- WWPS
   - id: wwps_1437_dundas_st_e
     label: WWPS 1437 Dundas St E
   - id: wwps_3241_lakeshore_rd_ps_9
@@ -342,7 +525,20 @@ dimensions:
     label: WWPS 1263 Spring Gardens Rd PS 24
   - id: wwps_1281_cumnock_cres
     label: WWPS 1281 Cumnock Cres
+  - id: wwps_371_rebecca_st_christina
+    label: WWPS 371 Rebecca St Christina
+  - id: wwps_52_edgewater
+    label: WWPS 52 Edgewater
+  - id: wwps_90_appleby_line
+    label: WWPS 90 Appleby Line
+  - id: wwps_9098_haltonerin_townline
+    label: WWPS 9098 Halton-Erin Townline
+  - id: wwps_dundas_crossing
+    label: WWPS Dundas Crossing
+  - id: wwps_l30_c3_3rd_line_30_amp
+    label: WWPS L30 C3 3rd Line 30 Amp
 
+  # ----- SWPS
   - id: swps_225_james_snow_parkway
     label: SWPS 225 James Snow Parkway
   - id: swps_fairview
@@ -350,9 +546,23 @@ dimensions:
   - id: swps_appleby
     label: SWPS Appleby
 
+  # ----- Reservoir
   - id: reservoir_8th_line
     label: Reservoir 8th Line
+  - id: reservoir_ashgrove
+    label: Reservoir Ashgrove
+  - id: reservoir_mccraney
+    label: Reservoir McCraney
+  - id: reservoir_milton
+    label: Reservoir Milton
+  - id: reservoir_moore
+    label: Reservoir Moore
+  - id: reservoir_third_line
+    label: Reservoir Third Line
+  - id: reservoir_waterdown
+    label: Reservoir Waterdown
 
+  # ----- EMS
   - id: 00_hq_1179_bronte
     label: 00 HQ (1179 Bronte)
   - id: 2_139_georgian_dr
@@ -380,6 +590,7 @@ dimensions:
   - id: storage
     label: Storage
 
+  # ----- HRPS
   - id: regional_headquarters
     label: Regional Headquarters
   - id: district_acton_10_division
@@ -394,6 +605,298 @@ dimensions:
     label: District Burlington (30 Division)
   - id: communication_towers
     label: Communication Towers
+
+  # ----- HCHC
+  - id: 234_woodside_dr
+    label: 234 Woodside Dr
+  - id: 274_woodside_dr
+    label: 274 Woodside Dr
+  - id: 238_woodside_dr
+    label: 238 Woodside Dr
+  - id: 260_woodside_dr
+    label: 260 Woodside Dr
+  - id: abbeyview
+    label: Abbeyview
+  - id: aldershot_village_seniors_residence
+    label: Aldershot Village Seniors Residence
+  - id: braeside
+    label: Braeside
+  - id: brant_ct_708
+    label: Brant Ct 708
+  - id: brant_ct_710
+    label: Brant Ct 710
+  - id: brays_ln
+    label: Brays Ln
+  - id: bruce_apartments
+    label: Bruce Apartments
+  - id: burloak_dr_264
+    label: Burloak Dr 264
+  - id: burloak_dr_278
+    label: Burloak Dr 278
+  - id: burloak_dr_294
+    label: Burloak Dr 294
+  - id: burloak_dr_324
+    label: Burloak Dr 324
+  - id: burloak_dr_344
+    label: Burloak Dr 344
+  - id: burloak_dr_360
+    label: Burloak Dr 360
+  - id: donaghey_square
+    label: Donaghey Square
+  - id: elm_rd_1478
+    label: Elm Rd 1478
+  - id: elm_rd_1482
+    label: Elm Rd 1482
+  - id: elm_rd_1484
+    label: Elm Rd 1484
+  - id: elm_rd_1486
+    label: Elm Rd 1486
+  - id: elm_rd_1490
+    label: Elm Rd 1490
+  - id: elm_rd_1492
+    label: Elm Rd 1492
+  - id: glen_valley_pl
+    label: Glen Valley Pl
+  - id: golden_briar_heights
+    label: Golden Briar Heights
+  - id: harmony_ct
+    label: Harmony Ct
+  - id: holmesway_pl_28
+    label: Holmesway Pl 28
+  - id: john_armstrong_terrace
+    label: John Armstrong Terrace
+  - id: john_r_rhodes_residence
+    label: John R Rhodes Residence
+  - id: kin_ct
+    label: Kin Ct
+  - id: lakeview_villa
+    label: Lakeview Villa
+  - id: longmoor_dr
+    label: Longmoor Dr
+  - id: maple_crossing
+    label: Maple Crossing
+  - id: margaret_dr_301_serv_lighting
+    label: Margaret Dr 301 Serv Lighting
+  - id: margaret_dr_318_serv_lighting
+    label: Margaret Dr 318 Serv Lighting
+  - id: margaret_dr_287
+    label: Margaret Dr 287
+  - id: margaret_dr_289
+    label: Margaret Dr 289
+  - id: margaret_dr_291
+    label: Margaret Dr 291
+  - id: margaret_dr_293
+    label: Margaret Dr 293
+  - id: margaret_dr_295
+    label: Margaret Dr 295
+  - id: margaret_dr_297
+    label: Margaret Dr 297
+  - id: margaret_dr_299
+    label: Margaret Dr 299
+  - id: margaret_dr_301
+    label: Margaret Dr 301
+  - id: margaret_dr_303
+    label: Margaret Dr 303
+  - id: margaret_dr_305
+    label: Margaret Dr 305
+  - id: margaret_dr_307
+    label: Margaret Dr 307
+  - id: margaret_dr_309
+    label: Margaret Dr 309
+  - id: margaret_dr_311
+    label: Margaret Dr 311
+  - id: margaret_dr_313
+    label: Margaret Dr 313
+  - id: margaret_dr_315
+    label: Margaret Dr 315
+  - id: margaret_dr_317
+    label: Margaret Dr 317
+  - id: margaret_dr_318
+    label: Margaret Dr 318
+  - id: margaret_dr_319
+    label: Margaret Dr 319
+  - id: margaret_dr_320
+    label: Margaret Dr 320
+  - id: margaret_dr_321
+    label: Margaret Dr 321
+  - id: margaret_dr_322
+    label: Margaret Dr 322
+  - id: margaret_dr_323
+    label: Margaret Dr 323
+  - id: margaret_dr_324
+    label: Margaret Dr 324
+  - id: margaret_dr_325
+    label: Margaret Dr 325
+  - id: margaret_dr_326
+    label: Margaret Dr 326
+  - id: margaret_dr_327
+    label: Margaret Dr 327
+  - id: margaret_dr_328
+    label: Margaret Dr 328
+  - id: margaret_dr_329
+    label: Margaret Dr 329
+  - id: margaret_dr_330
+    label: Margaret Dr 330
+  - id: margaret_dr_331
+    label: Margaret Dr 331
+  - id: margaret_dr_332
+    label: Margaret Dr 332
+  - id: margaret_dr_333
+    label: Margaret Dr 333
+  - id: margaret_dr_334
+    label: Margaret Dr 334
+  - id: margaret_dr_335
+    label: Margaret Dr 335
+  - id: margaret_dr_336
+    label: Margaret Dr 336
+  - id: margaret_dr_337
+    label: Margaret Dr 337
+  - id: margaret_dr_338
+    label: Margaret Dr 338
+  - id: margaret_dr_339
+    label: Margaret Dr 339
+  - id: margaret_dr_341
+    label: Margaret Dr 341
+  - id: margaret_dr_343
+    label: Margaret Dr 343
+  - id: margaret_dr_345
+    label: Margaret Dr 345
+  - id: margaret_dr_347
+    label: Margaret Dr 347
+  - id: margaret_dr_349
+    label: Margaret Dr 349
+  - id: margaret_dr_351
+    label: Margaret Dr 351
+  - id: margaret_dr_353
+    label: Margaret Dr 353
+  - id: margaret_dr_355
+    label: Margaret Dr 355
+  - id: margaret_dr_357
+    label: Margaret Dr 357
+  - id: margaret_dr_359
+    label: Margaret Dr 359
+  - id: martin_house_seniors_residence
+    label: Martin House Seniors Residence
+  - id: maurice_dr_284
+    label: Maurice Dr 284
+  - id: maurice_dr_286
+    label: Maurice Dr 286
+  - id: maurice_dr_288
+    label: Maurice Dr 288
+  - id: maurice_dr_290
+    label: Maurice Dr 290
+  - id: maurice_dr_292
+    label: Maurice Dr 292
+  - id: maurice_dr_294
+    label: Maurice Dr 294
+  - id: maurice_dr_296
+    label: Maurice Dr 296
+  - id: maurice_dr_298
+    label: Maurice Dr 298
+  - id: maurice_dr_300_unit_1
+    label: Maurice Dr 300 Unit 1
+  - id: maurice_dr_300_unit_2
+    label: Maurice Dr 300 Unit 2
+  - id: maurice_dr_300_unit_3
+    label: Maurice Dr 300 Unit 3
+  - id: maurice_dr_300_unit_4
+    label: Maurice Dr 300 Unit 4
+  - id: maurice_dr_300_unit_5
+    label: Maurice Dr 300 Unit 5
+  - id: maurice_dr_300_unit_6
+    label: Maurice Dr 300 Unit 6
+  - id: maurice_dr_300_unit_7
+    label: Maurice Dr 300 Unit 7
+  - id: maurice_dr_302_unit_1
+    label: Maurice Dr 302 Unit 1
+  - id: maurice_dr_302_unit_2
+    label: Maurice Dr 302 Unit 2
+  - id: maurice_dr_302_unit_3
+    label: Maurice Dr 302 Unit 3
+  - id: maurice_dr_302_unit_4
+    label: Maurice Dr 302 Unit 4
+  - id: maurice_dr_302_unit_5
+    label: Maurice Dr 302 Unit 5
+  - id: maurice_dr_302_unit_6
+    label: Maurice Dr 302 Unit 6
+  - id: maurice_dr_302_unit_7
+    label: Maurice Dr 302 Unit 7
+  - id: maurice_dr_304_unit_1
+    label: Maurice Dr 304 Unit 1
+  - id: maurice_dr_304_unit_2
+    label: Maurice Dr 304 Unit 2
+  - id: maurice_dr_304_unit_3
+    label: Maurice Dr 304 Unit 3
+  - id: maurice_dr_304_unit_4
+    label: Maurice Dr 304 Unit 4
+  - id: maurice_dr_304_unit_5
+    label: Maurice Dr 304 Unit 5
+  - id: maurice_dr_304_unit_6
+    label: Maurice Dr 304 Unit 6
+  - id: maurice_dr_304_unit_7
+    label: Maurice Dr 304 Unit 7
+  - id: maurice_dr_304_unit_8
+    label: Maurice Dr 304 Unit 8
+  - id: maurice_dr_306_unit_1
+    label: Maurice Dr 306 Unit 1
+  - id: maurice_dr_306_unit_2
+    label: Maurice Dr 306 Unit 2
+  - id: maurice_dr_306_unit_3
+    label: Maurice Dr 306 Unit 3
+  - id: maurice_dr_306_unit_4
+    label: Maurice Dr 306 Unit 4
+  - id: maurice_dr_306_unit_5
+    label: Maurice Dr 306 Unit 5
+  - id: maurice_dr_306_unit_6
+    label: Maurice Dr 306 Unit 6
+  - id: maurice_dr_306_unit_7
+    label: Maurice Dr 306 Unit 7
+  - id: maurice_dr_306_unit_8
+    label: Maurice Dr 306 Unit 8
+  - id: maurice_dr_308
+    label: Maurice Dr 308
+  - id: maurice_dr_310
+    label: Maurice Dr 310
+  - id: maurice_dr_312
+    label: Maurice Dr 312
+  - id: maurice_dr_314
+    label: Maurice Dr 314
+  - id: maurice_dr_316
+    label: Maurice Dr 316
+  - id: maurice_dr_318
+    label: Maurice Dr 318
+  - id: maurice_dr_320_government_housing
+    label: Maurice Dr 320 Government Housing
+  - id: normandy_pl
+    label: Normandy Pl
+  - id: oaklands
+    label: Oaklands
+  - id: pinedale_ave
+    label: Pinedale Ave
+  - id: sargent_ct
+    label: Sargent Ct
+  - id: sheridan_woods
+    label: Sheridan Woods
+  - id: walkers_fields
+    label: Walkers Fields
+  - id: walkers_landing_513
+    label: Walkers Landing 513
+  - id: walkers_landing_515
+    label: Walkers Landing 515
+  - id: wellington_terrace
+    label: Wellington Terrace
+
+  # ----- Other
+  - id: 550_ontario_st_s
+    label: 550 Ontario St S
+  - id: wesley_emergency_shelter
+    label: Wesley Emergency Shelter
+  - id: adult_daycare
+    label: Adult Daycare
+  - id: 52_steeles_ave
+    label: 52 Steeles Ave
+  - id: heritage_building_5357_first_line_ford_farm_house
+    label: Heritage Building 5357 First Line Ford Farm House
 
 emission_sectors:
 - id: net_emissions
@@ -659,8 +1162,10 @@ nodes:
   input_dimensions: [asset, energy_carrier]
   output_dimensions: [asset, energy_carrier]
   input_nodes:
+  - id: cs_electricity_emissions
   - id: pw_electricity_emissions
   - id: ems_electricity_emissions
+  - id: hchc_electricity_emissions
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -668,6 +1173,129 @@ nodes:
       flatten: true
     - id: energy_carrier
       flatten: true
+
+# ---------- Corporate Services
+
+- id: cs_purchased_electricity
+  name: Corporate Services Purchased Electricity
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [asset_class, asset, energy_carrier]
+  output_dimensions: [asset_class, asset, energy_carrier]
+  input_datasets:
+  - id: halton/purchased_electricity
+    column: energy
+    forecast_from: 2024
+    filters:
+    - column: department
+      value: corporate_services
+    - column: property
+
+- id: childcare_centre_electricity_emissions
+  name: Childcare Centre Electricity Emissions
+  short_name: Childcare Centre Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: cs_purchased_electricity
+    from_dimensions:
+    - id: asset_class
+      categories: [childcare_centre]
+      flatten: true
+
+- id: corporate_office_electricity_emissions
+  name: Corporate Office Electricity Emissions
+  short_name: Corporate Office Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: cs_purchased_electricity
+    from_dimensions:
+    - id: asset_class
+      categories: [corporate_office]
+      flatten: true
+
+- id: ltc_electricity_emissions
+  name: LTC Electricity Emissions
+  short_name: LTC Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: cs_purchased_electricity
+    from_dimensions:
+    - id: asset_class
+      categories: [long_term_care_ltc]
+      flatten: true
+
+- id: operations_centre_electricity_emissions
+  name: Operations Centre Electricity Emissions
+  short_name: Operations Centre Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: cs_purchased_electricity
+    from_dimensions:
+    - id: asset_class
+      categories: [operations_centre]
+      flatten: true
+
+- id: other_cs_electricity_emissions
+  name: Other CS Electricity Emissions
+  short_name: Other Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: cs_purchased_electricity
+    from_dimensions:
+    - id: asset_class
+      categories: [other]
+      flatten: true
+
+- id: cs_electricity_emissions
+  name: Corporate Services Electricity Emissions
+  short_name: Corporate Services Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: childcare_centre_electricity_emissions
+  - id: corporate_office_electricity_emissions
+  - id: ltc_electricity_emissions
+  - id: operations_centre_electricity_emissions
+  - id: other_cs_electricity_emissions
 
 # ---------- Public Works
 
@@ -685,6 +1313,187 @@ nodes:
     filters:
     - column: department
       value: public_works
+    - column: property
+
+- id: biosolids_management_centre_electricity_emissions
+  name: Biosolids Management Centre Electricity Emissions
+  short_name: Biosolids Management Centre Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: pw_purchased_electricity
+    from_dimensions:
+    - id: asset_class
+      categories: [biosolids_management_centre]
+      flatten: true
+
+- id: booster_station_electricity_emissions
+  name: Booster Station Electricity Emissions
+  short_name: Booster Station Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: pw_purchased_electricity
+    from_dimensions:
+    - id: asset_class
+      categories: [booster_station]
+      flatten: true
+
+- id: bulk_water_station_electricity_emissions
+  name: Bulk Water Station Electricity Emissions
+  short_name: Bulk Water Station Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: pw_purchased_electricity
+    from_dimensions:
+    - id: asset_class
+      categories: [bulk_water_station]
+      flatten: true
+
+- id: equipment_electricity_emissions
+  name: Equipment Electricity Emissions
+  short_name: Equipment Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: pw_purchased_electricity
+    from_dimensions:
+    - id: asset_class
+      categories: [equipment]
+      flatten: true
+
+- id: process_water_electricity_emissions
+  name: Process Water Electricity Emissions
+  short_name: Process Water Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: pw_purchased_electricity
+    from_dimensions:
+    - id: asset_class
+      categories: [process_water]
+      flatten: true
+
+- id: reservoir_electricity_emissions
+  name: Reservoir Electricity Emissions
+  short_name: Reservoir Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: pw_purchased_electricity
+    from_dimensions:
+    - id: asset_class
+      categories: [reservoir]
+      flatten: true
+
+- id: solid_waste_management_site_electricity_emissions
+  name: Solid Waste Management Site Electricity Emissions
+  short_name: Solid Waste Management Site Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: pw_purchased_electricity
+    from_dimensions:
+    - id: asset_class
+      categories: [solid_waste_management_site]
+      flatten: true
+
+- id: storage_electricity_emissions
+  name: Storage Electricity Emissions
+  short_name: Storage Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: pw_purchased_electricity
+    from_dimensions:
+    - id: asset_class
+      categories: [storage]
+      flatten: true
+
+- id: stormwater_pumping_station_electricity_emissions
+  name: Stormwater Pumping Station Electricity Emissions
+  short_name: Stormwater Pumping Station Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: pw_purchased_electricity
+    from_dimensions:
+    - id: asset_class
+      categories: [stormwater_pumping_station]
+      flatten: true
+
+- id: streetlight_and_traffic_light_electricity_emissions
+  name: Streetlight & Traffic Light Electricity Emissions
+  short_name: Streetlight & Traffic Light Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: pw_purchased_electricity
+    from_dimensions:
+    - id: asset_class
+      categories: [streetlights_and_traffic_lights]
+      flatten: true
 
 - id: wwtp_electricity_emissions
   name: WWTP Electricity Emissions
@@ -740,6 +1549,24 @@ nodes:
       categories: [pumping_station]
       flatten: true
 
+- id: well_electricity_emissions
+  name: Well Electricity Emissions
+  short_name: Well Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: pw_purchased_electricity
+    from_dimensions:
+    - id: asset_class
+      categories: [well]
+      flatten: true
+
 - id: pw_electricity_emissions
   name: Public Works Electricity Emissions
   short_name: Public Works Emissions
@@ -749,9 +1576,20 @@ nodes:
   input_dimensions: [asset, energy_carrier]
   output_dimensions: [asset, energy_carrier]
   input_nodes:
+  - id: biosolids_management_centre_electricity_emissions
+  - id: booster_station_electricity_emissions
+  - id: bulk_water_station_electricity_emissions
+  - id: equipment_electricity_emissions
+  - id: process_water_electricity_emissions
+  - id: reservoir_electricity_emissions
+  - id: solid_waste_management_site_electricity_emissions
+  - id: storage_electricity_emissions
+  - id: stormwater_pumping_station_electricity_emissions
+  - id: streetlight_and_traffic_light_electricity_emissions
   - id: wwtp_electricity_emissions
   - id: wtp_electricity_emissions
   - id: pumping_station_electricity_emissions
+  - id: well_electricity_emissions
 
 # ---------- EMS
 
@@ -769,6 +1607,7 @@ nodes:
     filters:
     - column: department
       value: emergency_medical_services_ems
+    - column: property
 
 - id: ems_electricity_emissions
   name: EMS Electricity Emissions
@@ -783,6 +1622,186 @@ nodes:
     to_dimensions:
     - id: energy_carrier
   - id: ems_purchased_electricity
+
+# ---------- HCHC
+
+- id: hchc_purchased_electricity
+  name: HCHC Purchased Electricity
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [property, asset, energy_carrier]
+  output_dimensions: [property, asset, energy_carrier]
+  input_datasets:
+  - id: halton/purchased_electricity
+    column: energy
+    forecast_from: 2024
+    filters:
+    - column: department
+      value: halton_community_housing_corporation_hchc
+    - column: asset_class
+
+- id: brant_court_electricity_emissions
+  name: Brant Court Electricity Emissions
+  short_name: Brant Court Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: hchc_purchased_electricity
+    from_dimensions:
+    - id: property
+      categories: [brant_ct]
+      flatten: true
+
+- id: burloak_drive_electricity_emissions
+  name: Burloak Drive Electricity Emissions
+  short_name: Burloak Drive Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: hchc_purchased_electricity
+    from_dimensions:
+    - id: property
+      categories: [burloak_dr]
+      flatten: true
+
+- id: elm_road_electricity_emissions
+  name: Elm Road Electricity Emissions
+  short_name: Elm Road Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: hchc_purchased_electricity
+    from_dimensions:
+    - id: property
+      categories: [elm_rd]
+      flatten: true
+
+- id: margaret_drive_electricity_emissions
+  name: Margaret Drive Electricity Emissions
+  short_name: Margaret Drive Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: hchc_purchased_electricity
+    from_dimensions:
+    - id: property
+      categories: [margaret_dr]
+      flatten: true
+
+- id: maurice_drive_electricity_emissions
+  name: Maurice Drive Electricity Emissions
+  short_name: Maurice Drive Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: hchc_purchased_electricity
+    from_dimensions:
+    - id: property
+      categories: [maurice_dr]
+      flatten: true
+
+- id: walkers_landing_electricity_emissions
+  name: Walkers Landing Electricity Emissions
+  short_name: Walkers Landing Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: hchc_purchased_electricity
+    from_dimensions:
+    - id: property
+      categories: [walkers_landing]
+      flatten: true
+
+- id: woodside_drive_electricity_emissions
+  name: Woodside Drive Electricity Emissions
+  short_name: Woodside Drive Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: hchc_purchased_electricity
+    from_dimensions:
+    - id: property
+      categories: [woodside_dr]
+      flatten: true
+
+- id: other_hchc_electricity_emissions
+  name: Other HCHC Electricity Emissions
+  short_name: Other Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: hchc_purchased_electricity
+    from_dimensions:
+    - id: property
+      categories: [other]
+      flatten: true
+
+- id: hchc_electricity_emissions
+  name: HCHC Electricity Emissions
+  short_name: HCHC Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: brant_court_electricity_emissions
+  - id: burloak_drive_electricity_emissions
+  - id: elm_road_electricity_emissions
+  - id: margaret_drive_electricity_emissions
+  - id: maurice_drive_electricity_emissions
+  - id: walkers_landing_electricity_emissions
+  - id: woodside_drive_electricity_emissions
+  - id: other_hchc_electricity_emissions
 
 # ----- Water & Wastewater Treatment
 
@@ -927,6 +1946,7 @@ nodes:
     - column: department
       value: halton_regional_police_service_hrps
     - column: asset_class
+    - column: property
 
 - id: hrps_electricity_emissions
   name: HRPS Electricity Emissions
