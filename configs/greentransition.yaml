@@ -19,6 +19,8 @@ reference_year: 2010
 minimum_historical_year: 2010
 maximum_historical_year: 2023
 sample_size: 100
+features:
+  show_explanations: true
 
 action_groups:
 - id: forestry

@@ -17,14 +17,14 @@ emission_unit: kt/a
 model_end_year: 2035
 target_year: 2030
 reference_year: 1990
-minimum_historical_year: 2000
+minimum_historical_year: 1990
 maximum_historical_year: 2023
 features:
   baseline_visible_in_graphs: true
   show_accumulated_effects: true
   use_datasets_from_db: true
   show_significant_digits: 3
-  show_explanations: true
+  show_explanations: false
 
 include:
 - file: frameworks/hsy/buildings.yaml
@@ -272,7 +272,7 @@ nodes:
   input_datasets:
   - id: espoo/vaestoennuste
     tags: [baseline]
-    forecast_from: 2023
+    forecast_from: 2025
     column: population
 
 # ----------- Nodes with city-specific adjustments ---------------
