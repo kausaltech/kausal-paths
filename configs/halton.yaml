@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://halton.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 7ed0482c6d57716c11cc90bc87be624b8eebda57
+  commit: a340a3423317cd97b40a35f46ca47133e8fb425d
   dvc_remote: kausal-s3
 name: Halton Region Greenhouse Gas Inventory
 owner: Halton Region
@@ -285,6 +285,8 @@ dimensions:
     label: Kingsway PRV
   - id: royal_windsor_prv
     label: Royal Windsor PRV
+  - id: appleby_line_rear_x_bl
+    label: Appleby Line Rear X BL
 
   # ----- Process Water
   - id: 51_guelph_st
@@ -629,6 +631,8 @@ dimensions:
     label: Brays Ln
   - id: bruce_apartments
     label: Bruce Apartments
+  - id: burloak_dr
+    label: Burloak Dr
   - id: burloak_dr_264
     label: Burloak Dr 264
   - id: burloak_dr_278
@@ -643,6 +647,8 @@ dimensions:
     label: Burloak Dr 360
   - id: donaghey_square
     label: Donaghey Square
+  - id: elm_rd
+    label: Elm Rd
   - id: elm_rd_1478
     label: Elm Rd 1478
   - id: elm_rd_1482
@@ -675,6 +681,8 @@ dimensions:
     label: Longmoor Dr
   - id: maple_crossing
     label: Maple Crossing
+  - id: margaret_dr
+    label: Margaret Dr
   - id: margaret_dr_301_serv_lighting
     label: Margaret Dr 301 Serv Lighting
   - id: margaret_dr_318_serv_lighting
@@ -777,6 +785,8 @@ dimensions:
     label: Margaret Dr 359
   - id: martin_house_seniors_residence
     label: Martin House Seniors Residence
+  - id: maurice_dr
+    label: Maurice Dr
   - id: maurice_dr_284
     label: Maurice Dr 284
   - id: maurice_dr_286
@@ -885,6 +895,8 @@ dimensions:
     label: Walkers Landing 515
   - id: wellington_terrace
     label: Wellington Terrace
+  - id: holmesway_dr
+    label: Holmesway Dr
 
   # ----- Other
   - id: 550_ontario_st_s
@@ -897,6 +909,10 @@ dimensions:
     label: 52 Steeles Ave
   - id: heritage_building_5357_first_line_ford_farm_house
     label: Heritage Building 5357 First Line Ford Farm House
+  - id: halton_regional_laboratory
+    label: Halton Regional Laboratory
+  - id: bulk_water_station_29_todd_rd_georgetown
+    label: Bulk Water Station 29 Todd Rd Georgetown
 
 emission_sectors:
 - id: net_emissions
@@ -954,6 +970,8 @@ nodes:
   input_dimensions: [asset, energy_carrier]
   output_dimensions: [asset, energy_carrier]
   input_nodes:
+  - id: cs_stationary_combustion_emissions
+  - id: hchc_stationary_combustion_emissions
   - id: pw_stationary_combustion_emissions
   - id: ems_stationary_combustion_emissions
   output_nodes:
@@ -963,6 +981,129 @@ nodes:
       flatten: true
     - id: energy_carrier
       flatten: true
+
+# ---------- Corporate Services
+
+- id: cs_stationary_fuel_combustion
+  name: Corporate Services Stationary Fuel Combustion
+  type: simple.AdditiveNode
+  quantity: fuel_consumption
+  unit: m³/a
+  input_dimensions: [asset_class, asset, energy_carrier]
+  output_dimensions: [asset_class, asset, energy_carrier]
+  input_datasets:
+  - id: halton/stationary_combustion
+    column: fuel_consumption
+    forecast_from: 2024
+    filters:
+    - column: department
+      value: corporate_services
+    - column: property
+
+- id: childcare_centre_stationary_combustion_emissions
+  name: Childcare Centre Stationary Combustion Emissions
+  short_name: Childcare Centre Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: natural_gas_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: cs_stationary_fuel_combustion
+    from_dimensions:
+    - id: asset_class
+      categories: [childcare_centre]
+      flatten: true
+
+- id: corporate_office_stationary_combustion_emissions
+  name: Corporate Office Stationary Combustion Emissions
+  short_name: Corporate Office Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: natural_gas_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: cs_stationary_fuel_combustion
+    from_dimensions:
+    - id: asset_class
+      categories: [corporate_office]
+      flatten: true
+
+- id: ltc_stationary_combustion_emissions
+  name: LTC Stationary Combustion Emissions
+  short_name: LTC Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: natural_gas_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: cs_stationary_fuel_combustion
+    from_dimensions:
+    - id: asset_class
+      categories: [long_term_care_ltc]
+      flatten: true
+
+- id: operations_centre_stationary_combustion_emissions
+  name: Operations Centre Stationary Combustion Emissions
+  short_name: Operations Centre Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: natural_gas_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: cs_stationary_fuel_combustion
+    from_dimensions:
+    - id: asset_class
+      categories: [operations_centre]
+      flatten: true
+
+- id: other_cs_stationary_combustion_emissions
+  name: Other CS Stationary Combustion Emissions
+  short_name: Other Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: natural_gas_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: cs_stationary_fuel_combustion
+    from_dimensions:
+    - id: asset_class
+      categories: [other]
+      flatten: true
+
+- id: cs_stationary_combustion_emissions
+  name: Corporate Services Stationary Combustion Emissions
+  short_name: Corporate Services Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: childcare_centre_stationary_combustion_emissions
+  - id: corporate_office_stationary_combustion_emissions
+  - id: ltc_stationary_combustion_emissions
+  - id: operations_centre_stationary_combustion_emissions
+  - id: other_cs_stationary_combustion_emissions
 
 # ---------- Public Works
 
@@ -980,6 +1121,7 @@ nodes:
     filters:
     - column: department
       value: public_works
+    - column: property
 
 - id: wwtp_stationary_combustion_emissions
   name: WWTP Stationary Combustion Emissions
@@ -1035,6 +1177,60 @@ nodes:
       categories: [pumping_station]
       flatten: true
 
+- id: reservoir_stationary_combustion_emissions
+  name: Reservoir Stationary Combustion Emissions
+  short_name: Reservoir Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: natural_gas_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: pw_stationary_fuel_combustion
+    from_dimensions:
+    - id: asset_class
+      categories: [reservoir]
+      flatten: true
+
+- id: equipment_stationary_combustion_emissions
+  name: Equipment Stationary Combustion Emissions
+  short_name: Equipment Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: natural_gas_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: pw_stationary_fuel_combustion
+    from_dimensions:
+    - id: asset_class
+      categories: [equipment]
+      flatten: true
+
+- id: other_pw_stationary_combustion_emissions
+  name: Other PW Stationary Combustion Emissions
+  short_name: Other Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: natural_gas_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: pw_stationary_fuel_combustion
+    from_dimensions:
+    - id: asset_class
+      categories: [other]
+      flatten: true
+
 - id: pw_stationary_combustion_emissions
   name: Public Works Stationary Combustion Emissions
   short_name: Public Works Emissions
@@ -1047,6 +1243,9 @@ nodes:
   - id: wwtp_stationary_combustion_emissions
   - id: wtp_stationary_combustion_emissions
   - id: ps_stationary_combustion_emissions
+  - id: reservoir_stationary_combustion_emissions
+  - id: equipment_stationary_combustion_emissions
+  - id: other_pw_stationary_combustion_emissions
 
 # ---------- EMS
 
@@ -1065,6 +1264,7 @@ nodes:
     - column: department
       value: emergency_medical_services_ems
     - column: asset_class
+    - column: property
 
 - id: ems_stationary_combustion_emissions
   name: EMS Stationary Combustion Emissions
@@ -1079,6 +1279,129 @@ nodes:
     to_dimensions:
     - id: energy_carrier
   - id: ems_stationary_fuel_combustion
+
+# ---------- HCHC
+
+- id: hchc_stationary_fuel_combustion
+  name: HCHC Stationary Fuel Combustion
+  type: simple.AdditiveNode
+  quantity: fuel_consumption
+  unit: m³/a
+  input_dimensions: [property, asset, energy_carrier]
+  output_dimensions: [property, asset, energy_carrier]
+  input_datasets:
+  - id: halton/stationary_combustion
+    column: fuel_consumption
+    forecast_from: 2024
+    filters:
+    - column: department
+      value: halton_community_housing_corporation_hchc
+    - column: asset_class
+
+- id: brant_court_stationary_combustion_emissions
+  name: Brant Court Stationary Combustion Emissions
+  short_name: Brant Court Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: natural_gas_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: hchc_stationary_fuel_combustion
+    from_dimensions:
+    - id: property
+      categories: [brant_ct]
+      flatten: true
+
+- id: maurice_drive_stationary_combustion_emissions
+  name: Maurice Drive Stationary Combustion Emissions
+  short_name: Maurice Drive Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: natural_gas_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: hchc_stationary_fuel_combustion
+    from_dimensions:
+    - id: property
+      categories: [maurice_dr]
+      flatten: true
+
+- id: other_hchc_stationary_combustion_emissions
+  name: Other HCHC Stationary Combustion Emissions
+  short_name: Other Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: natural_gas_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: hchc_stationary_fuel_combustion
+    from_dimensions:
+    - id: property
+      categories: [other]
+      flatten: true
+
+- id: walkers_landing_stationary_combustion_emissions
+  name: Walkers Landing Stationary Combustion Emissions
+  short_name: Walkers Landing Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: natural_gas_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: hchc_stationary_fuel_combustion
+    from_dimensions:
+    - id: property
+      categories: [walkers_landing]
+      flatten: true
+
+- id: woodside_drive_stationary_combustion_emissions
+  name: Woodside Drive Stationary Combustion Emissions
+  short_name: Woodside Drive Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: natural_gas_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: hchc_stationary_fuel_combustion
+    from_dimensions:
+    - id: property
+      categories: [woodside_dr]
+      flatten: true
+
+- id: hchc_stationary_combustion_emissions
+  name: HCHC Stationary Combustion Emissions
+  short_name: HCHC Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: brant_court_stationary_combustion_emissions
+  - id: maurice_drive_stationary_combustion_emissions
+  - id: other_hchc_stationary_combustion_emissions
+  - id: walkers_landing_stationary_combustion_emissions
+  - id: woodside_drive_stationary_combustion_emissions
 
 # ----- Mobile Combustion
 
@@ -1977,6 +2300,7 @@ nodes:
     - column: department
       value: halton_regional_police_service_hrps
     - column: asset_class
+    - column: property
 
 - id: hrps_stationary_combustion_emissions
   name: HRPS Stationary Combustion Emissions
