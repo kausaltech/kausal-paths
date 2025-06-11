@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://halton.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a340a3423317cd97b40a35f46ca47133e8fb425d
+  commit: 448702268c9755708276fe79b55c7641f2ab70b5
   dvc_remote: kausal-s3
 name: Halton Region Greenhouse Gas Inventory
 owner: Halton Region
@@ -114,6 +114,8 @@ dimensions:
 - id: energy_carrier
   label: Energy Carrier
   categories:
+  - id: biogas
+    label: Biogas
   - id: clear_diesel
     label: Clear Diesel
   - id: electricity
@@ -183,6 +185,8 @@ dimensions:
   # ----- Corporate Office
   - id: north_service_road_offices
     label: North Service Road Offices
+  - id: halton_regional_centre
+    label: Halton Regional Centre
   - id: hrc_block_a_west
     label: HRC Block A West
   - id: hrc_block_b_main
@@ -209,6 +213,8 @@ dimensions:
     label: 4449 Bronte Rd Sludge Storage
   - id: sludge_plant_highway_25
     label: Sludge Plant Highway 25
+  - id: biosolids_management_centre
+    label: Biosolids Management Centre
 
   # ----- Booster Station
   - id: bs_1326_dundas_st
@@ -347,6 +353,12 @@ dimensions:
     label: WTP Prospect Park
   - id: wtp_burloak
     label: WTP Burloak
+  - id: wtp_milton
+    label: WTP Milton
+  - id: wtp_oksw
+    label: WTP OKSW
+  - id: wtp_okse
+    label: WTP OKSE
 
   # ----- Well
   - id: wtp_campbellville_well_1_north_halton
@@ -591,6 +603,20 @@ dimensions:
     label: 17 (7825 Louis St Laurent Ave)
   - id: storage
     label: Storage
+  - id: paramedic_services
+    label: Paramedic Services
+  - id: ems_station
+    label: EMS Station
+  - id: ems_station_6
+    label: EMS Station 6
+  - id: ems_station_8
+    label: EMS Station 8
+  - id: halton_ems_station
+    label: Halton EMS Station
+  - id: milton_ems_station
+    label: Milton EMS Station
+  - id: oakville_ems_station
+    label: Oakville EMS Station
 
   # ----- HRPS
   - id: regional_headquarters
@@ -913,6 +939,14 @@ dimensions:
     label: Halton Regional Laboratory
   - id: bulk_water_station_29_todd_rd_georgetown
     label: Bulk Water Station 29 Todd Rd Georgetown
+  - id: community_care_halton_region
+    label: Community Care Halton Region
+  - id: north_operations_yard
+    label: North Operations Yard
+  - id: wwt_digester_biogas_combustion_weao
+    label: WWT Digester Biogas Combustion (WEAO)
+  - id: propane_combustion
+    label: Propane Combustion
 
 emission_sectors:
 - id: net_emissions
@@ -958,6 +992,23 @@ nodes:
     column: emission_factor_electricity
     dropna: true
     forecast_from: 2024
+
+- id: waste_emission_factor
+  name: Waste Emission Factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t_co2e/t
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: halton/corporate_waste
+    column: emission_factor
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: department
+    - column: asset_class
+    - column: asset
 
 # ----- Stationary Combustion
 
@@ -1104,6 +1155,38 @@ nodes:
   - id: ltc_stationary_combustion_emissions
   - id: operations_centre_stationary_combustion_emissions
   - id: other_cs_stationary_combustion_emissions
+  - id: propane_stationary_combustion_emissions
+
+- id: cs_stationary_propane_combustion
+  name: Corporate Services Stationary Propane Combustion
+  type: simple.AdditiveNode
+  quantity: fuel_consumption
+  unit: L/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_datasets:
+  - id: halton/other_stationary_combustion
+    column: fuel_consumption
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: department
+      value: corporate_services
+    - column: asset_class
+
+- id: propane_stationary_combustion_emissions
+  name: Propane Stationary Combustion Emissions
+  short_name: Propane Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: other_fuel_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+  - id: cs_stationary_propane_combustion
 
 # ---------- Public Works
 
@@ -1246,6 +1329,25 @@ nodes:
   - id: reservoir_stationary_combustion_emissions
   - id: equipment_stationary_combustion_emissions
   - id: other_pw_stationary_combustion_emissions
+  - id: biogas_stationary_combustion_emissions
+
+- id: biogas_stationary_combustion_emissions
+  name: Biogas Stationary Combustion Emissions
+  short_name: Biogas Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_datasets:
+  - id: halton/other_stationary_combustion
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: department
+      value: public_works
+    - column: asset_class
 
 # ---------- EMS
 
@@ -2252,7 +2354,289 @@ nodes:
     - id: emission_source
       flatten: true
 
+# ----- Corporate Waste
+
+- id: corporate_waste_emissions
+  name: Corporate Waste Emissions
+  color: '#499894'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset]
+  output_dimensions: [asset]
+  input_nodes:
+  - id: cs_waste_emissions
+  - id: pw_waste_emissions
+  - id: ems_waste_emissions
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: asset
+      flatten: true
+
+# ---------- Corporate Services
+
+- id: cs_corporate_waste
+  name: Corporate Services Corporate Waste
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: t/a
+  input_dimensions: [asset_class, asset]
+  output_dimensions: [asset_class, asset]
+  input_datasets:
+  - id: halton/corporate_waste
+    column: mass
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: department
+      value: corporate_services
+
+- id: corporate_office_waste_emissions
+  name: Corporate Office Waste Emissions
+  short_name: Corporate Office Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset]
+  output_dimensions: [asset]
+  input_nodes:
+  - id: waste_emission_factor
+    to_dimensions: []
+  - id: cs_corporate_waste
+    from_dimensions:
+    - id: asset_class
+      categories: [corporate_office]
+      flatten: true
+
+- id: ltc_waste_emissions
+  name: LTC Waste Emissions
+  short_name: LTC Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset]
+  output_dimensions: [asset]
+  input_nodes:
+  - id: waste_emission_factor
+    to_dimensions: []
+  - id: cs_corporate_waste
+    from_dimensions:
+    - id: asset_class
+      categories: [long_term_care_ltc]
+      flatten: true
+
+- id: operations_centre_waste_emissions
+  name: Operations Centre Waste Emissions
+  short_name: Operations Centre Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset]
+  output_dimensions: [asset]
+  input_nodes:
+  - id: waste_emission_factor
+    to_dimensions: []
+  - id: cs_corporate_waste
+    from_dimensions:
+    - id: asset_class
+      categories: [operations_centre]
+      flatten: true
+
+- id: other_cs_waste_emissions
+  name: Other CS Waste Emissions
+  short_name: Other Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset]
+  output_dimensions: [asset]
+  input_nodes:
+  - id: waste_emission_factor
+    to_dimensions: []
+  - id: cs_corporate_waste
+    from_dimensions:
+    - id: asset_class
+      categories: [other]
+      flatten: true
+
+- id: cs_waste_emissions
+  name: Corporate Services Waste Emissions
+  short_name: Corporate Services Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset]
+  output_dimensions: [asset]
+  input_nodes:
+  - id: corporate_office_waste_emissions
+  - id: ltc_waste_emissions
+  - id: operations_centre_waste_emissions
+  - id: other_cs_waste_emissions
+
+# ---------- Public Works
+
+- id: pw_corporate_waste
+  name: Public Works Corporate Waste
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: t/a
+  input_dimensions: [asset_class, asset]
+  output_dimensions: [asset_class, asset]
+  input_datasets:
+  - id: halton/corporate_waste
+    column: mass
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: department
+      value: public_works
+
+- id: biosolids_management_centre_waste_emissions
+  name: Biosolids Management Centre Waste Emissions
+  short_name: Biosolids Management Centre Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset]
+  output_dimensions: [asset]
+  input_nodes:
+  - id: waste_emission_factor
+    to_dimensions: []
+  - id: pw_corporate_waste
+    from_dimensions:
+    - id: asset_class
+      categories: [biosolids_management_centre]
+      flatten: true
+
+- id: pumping_station_waste_emissions
+  name: Pumping Station Waste Emissions
+  short_name: Pumping Station Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset]
+  output_dimensions: [asset]
+  input_nodes:
+  - id: waste_emission_factor
+    to_dimensions: []
+  - id: pw_corporate_waste
+    from_dimensions:
+    - id: asset_class
+      categories: [pumping_station]
+      flatten: true
+
+- id: wwtp_waste_emissions
+  name: WWTP Waste Emissions
+  short_name: WWTP Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset]
+  output_dimensions: [asset]
+  input_nodes:
+  - id: waste_emission_factor
+    to_dimensions: []
+  - id: pw_corporate_waste
+    from_dimensions:
+    - id: asset_class
+      categories: [wastewater_treatment_plant_wwtp]
+      flatten: true
+
+- id: wtp_waste_emissions
+  name: WTP Waste Emissions
+  short_name: WTP Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset]
+  output_dimensions: [asset]
+  input_nodes:
+  - id: waste_emission_factor
+    to_dimensions: []
+  - id: pw_corporate_waste
+    from_dimensions:
+    - id: asset_class
+      categories: [water_treatment_plant_wtp]
+      flatten: true
+
+- id: pw_waste_emissions
+  name: Public Works Waste Emissions
+  short_name: Public Works Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset]
+  output_dimensions: [asset]
+  input_nodes:
+  - id: biosolids_management_centre_waste_emissions
+  - id: pumping_station_waste_emissions
+  - id: wwtp_waste_emissions
+  - id: wtp_waste_emissions
+
+# ---------- EMS
+
+- id: ems_corporate_waste
+  name: EMS Corporate Waste
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: t/a
+  input_dimensions: [asset]
+  output_dimensions: [asset]
+  input_datasets:
+  - id: halton/corporate_waste
+    column: mass
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: department
+      value: emergency_medical_services_ems
+    - column: asset_class
+
+- id: ems_waste_emissions
+  name: EMS Waste Emissions
+  short_name: EMS Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset]
+  output_dimensions: [asset]
+  input_nodes:
+  - id: waste_emission_factor
+    to_dimensions: []
+  - id: ems_corporate_waste
+
 # ----- HRPS
+
+- id: hrps_corporate_waste
+  name: HRPS Corporate Waste
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: t/a
+  input_dimensions: [asset]
+  output_dimensions: [asset]
+  input_datasets:
+  - id: halton/corporate_waste
+    column: mass
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: department
+      value: halton_regional_police_service_hrps
+    - column: asset_class
+
+- id: hrps_waste_emissions
+  name: HRPS Waste Emissions
+  short_name: Corporate Waste Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset]
+  output_dimensions: [asset]
+  input_nodes:
+  - id: waste_emission_factor
+    to_dimensions: []
+  - id: hrps_corporate_waste
 
 - id: hrps_purchased_electricity
   name: HRPS Purchased Electricity
@@ -2352,26 +2736,33 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt_co2e/a
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
+  input_dimensions: []
+  output_dimensions: []
   input_nodes:
+  - id: hrps_waste_emissions
+    from_dimensions:
+    - id: asset
+      flatten: true
   - id: hrps_electricity_emissions
     from_dimensions:
     - id: asset
+      flatten: true
+    - id: energy_carrier
       flatten: true
   - id: hrps_stationary_combustion_emissions
     from_dimensions:
     - id: asset
       flatten: true
+    - id: energy_carrier
+      flatten: true
   - id: hrps_fleet_emissions
     from_dimensions:
     - id: vehicle_fleet
       flatten: true
-  output_nodes:
-  - id: net_emissions
-    from_dimensions:
     - id: energy_carrier
       flatten: true
+  output_nodes:
+  - id: net_emissions
 
 pages:
 - id: home
