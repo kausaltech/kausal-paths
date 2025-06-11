@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://halton.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 448702268c9755708276fe79b55c7641f2ab70b5
+  commit: cc679d16fd1ba148e3949e0c7a5b85503250d5fe
   dvc_remote: kausal-s3
 name: Halton Region Greenhouse Gas Inventory
 owner: Halton Region
@@ -215,6 +215,30 @@ dimensions:
     label: Sludge Plant Highway 25
   - id: biosolids_management_centre
     label: Biosolids Management Centre
+  - id: mh_lystuk
+    label: MH Lystuk
+  - id: mh_mineland
+    label: MH Mineland
+  - id: mh_agriculture_outside
+    label: MH Agriculture Outside
+  - id: sw_lystuk
+    label: SW Lystuk
+  - id: sw_mineland
+    label: SW Mineland
+  - id: sw_agriculture_outside
+    label: SW Agriculture Outside
+  - id: bmc_oak_se
+    label: BMC Oak SE
+  - id: bmc_oak_sw
+    label: BMC Oak SW
+  - id: bmc_gt
+    label: BMC GT
+  - id: bmc_at
+    label: BMC AT
+  - id: bmc_agriculture_outside
+    label: BMC Agriculture Outside
+  - id: bmc_agriculture_inside
+    label: BMC Agriculture Inside
 
   # ----- Booster Station
   - id: bs_1326_dundas_st
@@ -947,6 +971,30 @@ dimensions:
     label: WWT Digester Biogas Combustion (WEAO)
   - id: propane_combustion
     label: Propane Combustion
+
+  # ----- Leased Asset
+  - id: 232_south_service_rd_e_b_health_center
+    label: 232 South Service Rd E B Health Center
+  - id: 280_guelph_st
+    label: 280 Guelph St
+  - id: 372_queen_st_unit_11_14
+    label: 372 Queen St Unit 11/14
+  - id: 405_industrial_dr_unit_10
+    label: 405 Industrial Dr Unit 10
+  - id: 470_bronte_st_s_unit_203
+    label: 470 Bronte St S Unit 203
+  - id: 470_bronte_st_s_unit_207
+    label: 470 Bronte St S Unit 207
+  - id: 470_bronte_st_s_unit_208
+    label: 470 Bronte St S Unit 208
+  - id: 470_bronte_st_s_unit_211
+    label: 470 Bronte St S Unit 211
+  - id: 567_michigan_dr_200
+    label: 567 Michigan Dr 200
+  - id: 1200_brant
+    label: 1200 Brant
+  - id: 3350_fairview_st_unit_9
+    label: 3350 Fairview St Unit 9
 
 emission_sectors:
 - id: net_emissions
@@ -2605,6 +2653,104 @@ nodes:
   - id: waste_emission_factor
     to_dimensions: []
   - id: ems_corporate_waste
+
+# ----- Biosolids Transportation
+
+- id: biosolids_transportation_emissions
+  name: Biosolids Transportation Emissions
+  color: '#79706E'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset]
+  output_dimensions: [asset]
+  input_datasets:
+  - id: halton/biosolids_transportation
+    column: emissions
+    forecast_from: 2024
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: asset
+      flatten: true
+
+# ----- Leased Assets
+
+- id: leased_asset_purchased_electricity
+  name: Leased Asset Purchased Electricity
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_datasets:
+  - id: halton/leased_assets
+    column: energy
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: department
+
+- id: leased_asset_electricity_emissions
+  name: Leased Asset Electricity Emissions
+  short_name: Purchased Electricity Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: leased_asset_purchased_electricity
+
+- id: leased_asset_stationary_fuel_combustion
+  name: Leased Asset Stationary Fuel Combustion
+  type: simple.AdditiveNode
+  quantity: fuel_consumption
+  unit: m³/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_datasets:
+  - id: halton/leased_assets
+    column: fuel_consumption
+    forecast_from: 2024
+    filters:
+    - column: department
+
+- id: leased_asset_stationary_combustion_emissions
+  name: Leased Asset Stationary Combustion Emissions
+  short_name: Stationary Combustion Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: natural_gas_emission_factor
+    to_dimensions:
+    - id: energy_carrier
+  - id: leased_asset_stationary_fuel_combustion
+
+- id: leased_asset_emissions
+  name: Leased Asset Emissions
+  color: '#D37295'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_nodes:
+  - id: leased_asset_electricity_emissions
+  - id: leased_asset_stationary_combustion_emissions
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: asset
+      flatten: true
+    - id: energy_carrier
+      flatten: true
 
 # ----- HRPS
 
