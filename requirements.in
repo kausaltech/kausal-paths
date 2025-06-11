@@ -84,3 +84,4 @@ channels-redis
 django-anymail[mailgun]
 django-anymail[sendgrid]
 django-anymail[mailjet]
+asgi_cors

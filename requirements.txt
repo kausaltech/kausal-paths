@@ -38,6 +38,8 @@ appdirs==1.4.4
     # via
     #   dvc-pandas
     #   iterative-telemetry
+asgi-cors==1.0.1
+    # via -r requirements.in
 asgiref==3.8.1
     # via
     #   channels
