@@ -1928,20 +1928,20 @@ scenarios:
   - id: cleaner_electricity_production.enabled
     value: true
 
-- id: pessimistic
-  name_fi: Pessimistinen
-  name_en: Pessimistic
-  name_sv: Pessimistisk
-  all_actions_enabled: false
-  params:
-  - id: scenario_name
-    value: pessimistic
-  - id: change_non_heating_electricity.enabled
-    value: true
-  - id: cleaner_electricity_production.enabled
-    value: true
-  - id: replace_fossil_fuels_in_district_heating.enabled
-    value: false
+# - id: pessimistic
+#   name_fi: Pessimistinen
+#   name_en: Pessimistic
+#   name_sv: Pessimistisk
+#   all_actions_enabled: false
+#   params:
+#   - id: scenario_name
+#     value: pessimistic
+#   - id: change_non_heating_electricity.enabled
+#     value: true
+#   - id: cleaner_electricity_production.enabled
+#     value: true
+#   - id: replace_fossil_fuels_in_district_heating.enabled
+#     value: false
 
 - id: default_old
   name_fi: HNE2030 ennen 2024 lisätoimenpiteitä

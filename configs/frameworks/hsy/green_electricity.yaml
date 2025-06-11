@@ -61,7 +61,7 @@ nodes:
   type: simple.AdditiveNode
   quantity: ratio
   unit: dimensionless
-  historical_values: [[2000, 1.0], [2024, 1.0], [2025, 0.0]]
+  historical_values: [[1990, 1.0], [2024, 1.0], [2025, 0.0]]
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: residual_emission_factor_ratio
