@@ -723,10 +723,10 @@ nodes:
   input_nodes:
   - id: truck_factor
     tags: [non_additive]
-  - id: environmental_zone_for_trucks
-    to_dimensions:
-    - id: vehicle_type
-      categories: [trucks]
+  # - id: environmental_zone_for_trucks
+  #   to_dimensions:
+  #   - id: vehicle_type
+  #     categories: [trucks]
   output_nodes:
   - id: road_traffic_emissions
 
@@ -1024,38 +1024,38 @@ actions:
   output_nodes:
   - id: passenger_cars_by_type
 
-- id: environmental_zone_for_trucks
-  name_fi: Jakeluliikenteen ja kuorma-autojen sähköistymisen nopean kasvun edistäminen
-  name_en: Promoting rapid growth in the electrification of distribution traffic and
-    trucks
-  name_sv: Främja snabb tillväxt i elektrifieringen av distributionstrafik och lastbilar
-  description_fi: Edistetään voimakkaasti fossiilisia polttoaineita käyttävien kuorma-autojen
-    ja jakeluliikenteen siirtymää kohti kestäviä käyttövoimia kuten sähköä, biopolttoaineita
-    ja biokaasua.
-  description_en: Strongly promote the transition of fossil fuel-using trucks and
-    distribution traffic towards sustainable power sources such as electricity, biofuels,
-    and biogas.
-  description_sv: Främja starkt övergången av fossilbränsledrivna lastbilar och distributionstrafik
-    till hållbara kraftkällor som el, biobränslen och biogas.
-  type: simple.AdditiveAction2
-  quantity: fraction
-  unit: dimensionless
-  group: transportation
-  forecast_values: [[2026, 1.0], [2035, 1.0]]
-  input_dataset_processors: [LinearInterpolation]
-  params:
-  - id: multiplier
-    is_customizable: true
-    is_visible: true
-    description_fi: Ympäristövyöhykkeen osuus kuorma-autojen käytöstä
-    description_en: Share of environmental zone in truck usage
-    description_sv: Andel av miljözon i lastbilsanvändning
-    unit: dimensionless
-    values:
-      default: 0.6
-    min_value: 0
-    max_value: 1
-    step: 0.05
+# - id: environmental_zone_for_trucks
+#   name_fi: Jakeluliikenteen ja kuorma-autojen sähköistymisen nopean kasvun edistäminen
+#   name_en: Promoting rapid growth in the electrification of distribution traffic and
+#     trucks
+#   name_sv: Främja snabb tillväxt i elektrifieringen av distributionstrafik och lastbilar
+#   description_fi: Edistetään voimakkaasti fossiilisia polttoaineita käyttävien kuorma-autojen
+#     ja jakeluliikenteen siirtymää kohti kestäviä käyttövoimia kuten sähköä, biopolttoaineita
+#     ja biokaasua.
+#   description_en: Strongly promote the transition of fossil fuel-using trucks and
+#     distribution traffic towards sustainable power sources such as electricity, biofuels,
+#     and biogas.
+#   description_sv: Främja starkt övergången av fossilbränsledrivna lastbilar och distributionstrafik
+#     till hållbara kraftkällor som el, biobränslen och biogas.
+#   type: simple.AdditiveAction2
+#   quantity: fraction
+#   unit: dimensionless
+#   group: transportation
+#   forecast_values: [[2026, 1.0], [2035, 1.0]]
+#   input_dataset_processors: [LinearInterpolation]
+#   params:
+#   - id: multiplier
+#     is_customizable: true
+#     is_visible: true
+#     description_fi: Ympäristövyöhykkeen osuus kuorma-autojen käytöstä
+#     description_en: Share of environmental zone in truck usage
+#     description_sv: Andel av miljözon i lastbilsanvändning
+#     unit: dimensionless
+#     values:
+#       default: 0.6
+#     min_value: 0
+#     max_value: 1
+#     step: 0.05
 
 # OLD ACTIONS
 # ELECTRICITY
@@ -1980,8 +1980,8 @@ scenarios:
     value: true
   - id: increase_electric_passenger_cars.enabled
     value: false
-  - id: environmental_zone_for_trucks.enabled
-    value: false
+  # - id: environmental_zone_for_trucks.enabled
+  #   value: false
 
 #######################
 # DATA SOURCES
