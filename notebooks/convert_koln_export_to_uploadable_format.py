@@ -1,16 +1,26 @@
-import pandas as pd
+# Usage:
+# python convert_koln_export_to_uploadable_format.py "/Users/jouni/Downloads/KSP
+#  Export/datenzeitreihen*" datenzeitreihen_combined.csv
+# python convert_energietraeger_to_uploadable_format.py  "/Users/jouni/Downloads/KSP
+#  Export/energietraeger*" combined_energietraeger.csv
+# python combine_csvs.py datenzeitreihen_combined.csv combined_energietraeger.csv combined_bisko.csv
+from __future__ import annotations
+
+import csv
+import glob
 import re
 import sys
 from pathlib import Path
-import glob
-import csv
+
+import pandas as pd
 
 # Import the quantity constants
 sys.path.append('..')
-from nodes.constants import ENERGY_QUANTITY, EMISSION_FACTOR_QUANTITY, NUMBER_QUANTITY, MILEAGE_QUANTITY, FLOOR_AREA_QUANTITY
+from nodes.constants import EMISSION_FACTOR_QUANTITY, ENERGY_QUANTITY, FLOOR_AREA_QUANTITY, MILEAGE_QUANTITY, NUMBER_QUANTITY
+
 
 def extract_metric_and_unit(metric_text):
-    """Extract metric name and unit from text like 'Metric name [unit]'"""
+    """Extract metric name and unit from text like 'Metric name [unit]'."""
     unit_match = re.search(r'\[([^\]]+)\]$', metric_text)
     if unit_match:
         unit = unit_match.group(1)
@@ -21,7 +31,7 @@ def extract_metric_and_unit(metric_text):
     return metric, unit
 
 def extract_bisko_code(metric_text):
-    """Extract any value in parentheses at the end and add to BISKO column"""
+    """Extract any value in parentheses at the end and add to BISKO column."""
     bisko_code = ""
     cleaned_text = metric_text
 
@@ -40,7 +50,7 @@ def extract_bisko_code(metric_text):
     return cleaned_text, bisko_code
 
 def convert_unit_and_get_quantity(unit):
-    """Convert unit according to the rules and determine the appropriate quantity"""
+    """Convert unit according to the rules and determine the appropriate quantity."""
     unit = unit.strip()
 
     if unit == "t CO2-Äqu./MWh":
@@ -67,7 +77,7 @@ def convert_unit_and_get_quantity(unit):
         return unit, 1
 
 def transform_slice_name(filename_stem):
-    """Transform filename to slice name according to the rules"""
+    """Transform filename to slice name according to the rules."""
     if filename_stem.startswith('datenzeitreihen'):
         if filename_stem == 'datenzeitreihen':
             return "Emissionsfaktoren für die Energieerzeugung"
@@ -83,7 +93,7 @@ def transform_slice_name(filename_stem):
         return 'datenzeitreihen'
 
 def extract_region_and_clean_metric(metric_text):
-    """Extract region (Lokal/National) and clean the metric text"""
+    """Extract region (Lokal/National) and clean the metric text."""
     region = "National"
     cleaned_text = metric_text
 
@@ -94,7 +104,7 @@ def extract_region_and_clean_metric(metric_text):
     return cleaned_text, region
 
 def extract_haushalte_info(metric_text):
-    """Extract household size information from metric text"""
+    """Extract household size information from metric text."""
     if "1-Personen-Haushalte" in metric_text:
         return "1-Personen"
     elif "2-Personen-Haushalte" in metric_text:
@@ -110,7 +120,7 @@ def extract_haushalte_info(metric_text):
     return ""
 
 def extract_strassentyp_info(metric_text):
-    """Extract street type information from metric text"""
+    """Extract street type information from metric text."""
     metric_lower = metric_text.lower()
 
     if "auf autobahn" in metric_lower:
@@ -123,7 +133,7 @@ def extract_strassentyp_info(metric_text):
     return ""
 
 def extract_wohnflaeche_info(metric_text):
-    """Extract WohnFläche information from metric text"""
+    """Extract WohnFläche information from metric text."""
     if metric_text.startswith("Wohnfläche in "):
         # Remove "Wohnfläche in " and return the rest
         return metric_text[len("Wohnfläche in "):].strip()
@@ -131,7 +141,7 @@ def extract_wohnflaeche_info(metric_text):
     return ""
 
 def process_single_file(input_file):
-    """Process a single Excel/CSV file and return the converted DataFrame"""
+    """Process a single Excel/CSV file and return the converted DataFrame."""
     if input_file.suffix.lower() in ['.xlsx', '.xls']:
         df = pd.read_excel(input_file, header=0)
     else:
@@ -261,7 +271,7 @@ def process_single_file(input_file):
     return file_df
 
 def convert_multiple_files(input_patterns, output_file):
-    """Convert multiple BISKO Excel/CSV files to a single upload script format CSV"""
+    """Convert multiple BISKO Excel/CSV files to a single upload script format CSV."""
 
     all_files = []
     for pattern in input_patterns:
@@ -291,7 +301,8 @@ def convert_multiple_files(input_patterns, output_file):
     combined_df = pd.concat(all_dataframes, ignore_index=True, sort=False)
 
     year_cols = sorted([col for col in combined_df.columns if col.isdigit()])
-    metadata_cols = ['Metric Group', 'Energieträger', 'Haushalte', 'Straßentyp', 'WohnFläche', 'Quantity', 'Unit', 'Slice', 'Region', 'BISKO']
+    metadata_cols = ['Metric Group', 'Energieträger', 'Haushalte', 'Straßentyp', 'WohnFläche', 'Quantity',
+                     'Unit', 'Slice', 'Region', 'BISKO']
     final_columns = metadata_cols + year_cols
     combined_df = combined_df[final_columns]
 
@@ -301,12 +312,12 @@ def convert_multiple_files(input_patterns, output_file):
     combined_df.to_csv(temp_file, index=False, sep=';', encoding='utf-8',
                       quotechar='"', quoting=csv.QUOTE_NONNUMERIC, na_rep='')
 
-    with open(temp_file, 'r', encoding='utf-8') as infile:
+    with open(temp_file, 'r', encoding='utf-8') as infile:  # noqa: PTH123, UP015
         content = infile.read()
 
     content = content.replace('""', '')
 
-    with open(output_file, 'w', encoding='utf-8') as outfile:
+    with open(output_file, 'w', encoding='utf-8') as outfile:  # noqa: PTH123
         outfile.write(content)
 
     Path(temp_file).unlink()
