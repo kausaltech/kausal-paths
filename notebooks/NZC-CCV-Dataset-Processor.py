@@ -1,3 +1,5 @@
+from __future__ import annotations  # noqa: N999
+
 import polars as pl
 
 # ---------------------------------------------------------------------------------------
@@ -52,7 +54,7 @@ for jdf in [dh_df, incin_df, w_df, w2030_df]:
     all_df = all_df.join(jdf, on = 'Cluster_42')
 
 for measure in pop_measures:
-    all_df = all_df.with_columns((pl.col(measure) / pl.col('015')))
+    all_df = all_df.with_columns(pl.col(measure) / pl.col('015'))
 
 # ---------------------------------------------------------------------------------------
 all_df = all_df.transpose(include_header = True)
@@ -63,7 +65,7 @@ all_df = all_df.tail(-1)
 all_df.columns = headers
 
 all_df = all_df.with_columns(pl.when(pl.col('Measure').is_in(pop_measures))
-                               .then(True).otherwise(False).alias('PerCapita'))
+                               .then(True).otherwise(False).alias('PerCapita'))  # noqa: FBT003
 
 uuiddf = pl.read_csv('../NZC-Placeholders-V2/UUID-Lookup-V2.tsv', separator = '\t')
 all_df = all_df.join(uuiddf, how = 'inner', left_on = 'Measure', right_on = 'MID')
