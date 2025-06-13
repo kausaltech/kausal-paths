@@ -711,24 +711,24 @@ nodes:
     tags: [baseline]
     column: kuorma_autoliikenteen_kerroin
 
-- id: truck_emission_change
-  name_fi: Kuorma-autojen päästöjen muutos
-  name_en: Change in truck emissions
-  name_sv: Förändring i lastbilsutsläpp
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
-  input_nodes:
-  - id: truck_factor
-    tags: [non_additive]
-  # - id: environmental_zone_for_trucks
-  #   to_dimensions:
-  #   - id: vehicle_type
-  #     categories: [trucks]
-  output_nodes:
-  - id: road_traffic_emissions
+# - id: truck_emission_change
+#   name_fi: Kuorma-autojen päästöjen muutos
+#   name_en: Change in truck emissions
+#   name_sv: Förändring i lastbilsutsläpp
+#   type: generic.GenericNode
+#   quantity: emissions
+#   unit: kt/a
+#   input_dimensions: [vehicle_type]
+#   output_dimensions: [vehicle_type]
+#   input_nodes:
+#   - id: truck_factor
+#     tags: [non_additive]
+#   # - id: environmental_zone_for_trucks
+#   #   to_dimensions:
+#   #   - id: vehicle_type
+#   #     categories: [trucks]
+#   output_nodes:
+#   - id: road_traffic_emissions
 
 - id: road_traffic_emission_factor_forecast
   name_fi: Tieliikenteen päästökerroinennuste
