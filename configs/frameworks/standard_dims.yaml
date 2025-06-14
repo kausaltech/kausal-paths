@@ -1,0 +1,335 @@
+dimensions:
+
+- id: pollutant
+  label_en: Pollutant
+  categories:
+  - id: co2
+    label_en: CO2
+    aliases: [co2e]
+  - id: nox
+    label_en: NOx
+  - id: pm25_combustion
+    label_en: PM2.5 combustion
+    aliases: [pm25]
+  - id: pm25_wear_tear
+    label_en: PM2.5 wear & tear
+  - id: pm10_combustion
+    label_en: PM10 combustion
+    aliases: [pm10]
+  - id: pm10_wear_tear
+    label_en: PM10 wear & tear
+
+- id: sector
+  label_en: Sector
+  label_de: Sektoren
+  help_text: Sectors as categorised in the Mission City Climate City Contracts (CCC) and BISKO.
+  categories:
+  - id: transport
+    label_en: Transport
+    label_de: Verkehr
+  - id: buildings
+    label_en: Buildings & Heating
+    label_de: Gebäude & Heizung
+  - id: private_households
+    label_en: Private Households
+    label_de: Private Haushalte
+  - id: municipal_facilities
+    label_en: Municipal Facilities
+    label_de: Kommunale Einrichtungen
+  - id: commerce_trade_services
+    label_en: Commerce, Trade & Services
+    label_de: Gewerbe, Handel, Dienstleistungen
+  - id: industry
+    label_en: Industry
+    label_de: Industrie
+  - id: electricity
+    label_en: Electricity
+    label_de: Strom
+  - id: waste
+    label_en: Waste
+    label_de: Abfall
+  - id: other
+    label_en: Other (incl. IPPU & AFOLU)
+    label_de: Sonstige (inkl. IPPU & AFOLU)
+
+- id: scope
+  label_en: Scope
+  help_text: '1: Local emissions. 2: Grid emissions (electricity, district heating).
+    3: Indirect emissions.'
+  categories:
+  - id: scope1
+    label_en: Scope 1
+    aliases: [scope_1]
+  - id: scope2
+    label_en: Scope 2
+    aliases: [scope_2]
+  - id: scope3
+    label_en: Scope 3
+    aliases: [scope_3]
+
+- id: cost_type
+  label_en: Cost Type
+  categories:
+  - id: capex
+    label_en: CAPEX (capital expenditure)
+    aliases: [Investment Costs]
+  - id: capex_levelised
+    label_en: CAPEX (levelised)
+  - id: opex
+    label_en: OPEX (operational expenditure)
+    aliases: [operation_cost, Operation Cost]
+  - id: energy_costs
+    label_en: Energy Costs
+  - id: maintenance_costs
+    label_en: Maintenance Costs
+    aliases: [maintenance]
+  - id: sales
+    label_en: Sales income
+  - id: air_pollution
+    label_en: Air pollution
+    aliases: [air_quality]
+  - id: noise
+    label_en: Noise
+  - id: accidents
+    label_en: Accidents
+  - id: health
+    label_en: Health
+  - id: co2_cost
+    label_en: CO2 Cost
+  - id: aesthetics
+    label_en: Aesthetics and amenity
+  - id: shading
+    label_en: Shading
+  - id: water_regulation
+    label_en: Water regulation
+    aliases: [water_regulations]
+  - id: forest_management
+    label_en: Forest management
+  - id: bus_costs
+    label_en: Bus costs
+  - id: vehicle_costs
+    label_en: Vehicle costs
+  - id: infrastructure_costs
+    label_en: Infrastructure costs
+  - id: network
+    label_en: Network
+  - id: fuel
+    label_en: Fuel costs
+  - id: tires
+    label_en: Tire costs
+  - id: depreciation
+    label_en: Depreciation costs
+  - id: labour_costs
+    label_en: Labour costs
+  - id: industry_ippu
+    label_en: Industry (IPPU)
+  - id: agriculture_afolu
+    label_en: Agriculture (AFOLU)
+  - id: other_sources
+    label_en: Other sources
+  - id: grid_stability
+    label_en: Storage, grid stability etc.
+
+- id: aggregated_cost_type
+  label_en: Aggregated cost type
+  categories:
+  - id: capex
+    label_en: CAPEX
+  - id: opex
+    label_en: OPEX
+  - id: co_benefits
+    label_en: Co-benefits
+  - id: co2_cost
+    label_en: CO2 cost
+
+- id: ghg
+  label_en: Greenhouse gas
+  categories:
+  - id: co2e
+    label_en: CO2e
+    aliases: [co2]
+
+- id: transport_mode
+  label_en: Transport mode
+  categories:
+  - id: cars
+    label_en: Cars
+  - id: buses
+    label_en: Buses
+  - id: trains
+    label_en: Trains
+    aliases: [Metro/tram, metro/tram, metro_tram]
+  - id: public_transport
+    label_en: Public transport
+  - id: walking
+    label_en: Walking
+  - id: cycling
+    label_en: Cycling
+  - id: light_trucks
+    label_en: Light duty trucks <3.5 tonne
+  - id: heavy_trucks
+    label_en: Heavy duty trucks >3.5 tonne
+  - id: trucks
+    label_en: Trucks
+  - id: other_motorized
+    label_en: Other motorized transport
+
+- id: energy_carrier
+  label_en: Energy carrier
+  label_de: Energieträger
+  categories:
+  - id: total
+    label_en: Total
+    label_de: Gesamt
+  - id: petrol
+    label_en: Petrol
+    label_de: Benzin
+  - id: bio_petrol
+    label_en: Bio petrol
+    label_de: Biobenzin
+  - id: diesel
+    label_en: Diesel
+    label_de: Diesel
+  - id: biodiesel
+    label_en: Biodiesel
+    label_de: Diesel biogen
+  - id: kerosene
+    label_en: Kerosene
+    label_de: Kerosin
+  - id: heating_oil
+    label_en: Heating oil
+    label_de: Heizöl
+  - id: natural_gas
+    label_en: Natural gas
+    label_de: Erdgas
+  - id: lpg
+    label_en: LPG (Liquefied petroleum gas)
+    label_de: Flüssiggas
+    aliases: [LPG]
+  - id: cng_fossil
+    label_en: CNG fossil
+    label_de: CNG fossil
+  - id: cng_bio
+    label_en: CNG bio
+    label_de: CNG bio
+  - id: biogas
+    label_en: Biogas
+    label_de: Biogas
+  - id: hard_coal
+    label_en: Hard coal
+    label_de: Steinkohle
+  - id: brown_coal
+    label_en: Brown coal / Lignite
+    label_de: Braunkohle
+  - id: biomass
+    label_en: Biomass
+    label_de: Biomasse
+  - id: electricity
+    label_en: Electricity
+    label_de: Strom
+  - id: heating_electricity
+    label_en: Heating electricity
+    label_de: Heizstrom
+  - id: district_heating
+    label_en: District heating
+    label_de: Fernwärme
+  - id: local_heating
+    label_en: Local heating
+    label_de: Nahwärme
+  - id: solar_thermal
+    label_en: Solar thermal
+    label_de: Solarthermie
+  - id: environmental_heat
+    label_en: Environmental heat / Heat pump
+    label_de: Umweltwärme
+  - id: other_renewables
+    label_en: Other renewables
+    label_de: Sonstige Erneuerbare
+  - id: other_conventional
+    label_en: Other conventional
+    label_de: Sonstige Konventionelle
+
+- id: fuel_type
+  label_en: Fuel type
+  categories:
+  - id: fossil
+    label_en: Fossil
+  - id: non_fossil
+    label_en: Non-fossil
+    aliases: [nonfossil, non-fossil]
+  - id: mixed
+    label_en: Mixed fossil and non-fossil
+  - id: other
+    label_en: Other (e.g. nuclear)
+  - id: local_pv
+    label_en: Local photovoltaics
+  - id: centralised_pv
+    label_en: Centralised photovoltaics and wind
+  - id: pv
+    label_en: Photovoltaics
+  - id: flexibility
+    label_en: Flexibility
+  - id: direct_electricity
+    label_en: Direct electricity
+  - id: heat_pump
+    label_en: Heat pump
+
+- id: efficiency_programme
+  label_en: Energy efficiency programme
+  categories:
+  - id: no_improvements
+    label_en: No improvements
+    aliases: [no_improvement]
+  - id: minor_improvements
+    label_en: Minor improvements
+  - id: aggressive_improvements
+    label_en: Aggressive improvements
+  - id: moderate_improvements
+    label_en: Moderate improvements
+  - id: nzeb
+    label_en: Net zero emission buildings
+
+- id: city_area
+  label_en: City area
+  categories:
+  - id: grey
+    label_en: Grey area
+  - id: green
+    label_en: Green area
+  - id: grey_inside
+    label_en: Grey area inside city
+  - id: green_inside
+    label_en: Green area inside city
+  - id: green_outside
+    label_en: Green area outside city
+  - id: grey_outside
+    label_en: Grey area outside city
+
+- id: area_distance
+  label_en: Area distance
+  categories:
+  - id: metropolitan
+    label_en: Metropolitan
+  - id: inside
+    label_en: Inside city
+  - id: outside
+    label_en: Outside city
+  - id: average
+    label_en: Average
+
+- id: stakeholder
+  label_en: Stakeholder
+  categories:
+  - id: citizens
+    label_en: Citizens
+  - id: property_owners
+    label_en: Property owners
+  - id: city
+    label_en: City
+    aliases: [cities, Cities]
+  - id: healthcare_providers
+    label_en: Healthcare providers
+  - id: transport_operators
+    label_en: Transport operators
+  - id: utilities
+    label_en: Utilities
