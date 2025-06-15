@@ -58,8 +58,8 @@ def replace_labels_with_ids(df: pl.DataFrame, mappings: dict[str, dict[str, str]
 
     for dim_id, col_name in dim_cols:
         print("Replacing labels with mappings on column:", col_name)
-        for label, id_val in mappings[dim_id].items():
-            print(f"  '{label}' -> '{id_val}'")
+        # for label, id_val in mappings[dim_id].items():
+        #     print(f"  '{label}' -> '{id_val}'")
 
         def _mapping_fun(value) -> str:
             label_map = mappings[dim_id]  # noqa: B023

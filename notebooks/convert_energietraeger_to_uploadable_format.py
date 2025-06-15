@@ -1,43 +1,47 @@
-import pandas as pd
-import re
-import sys
-import csv
-from pathlib import Path
+from __future__ import annotations
+
 import glob
+import sys
+from pathlib import Path
+
+import pandas as pd
+import polars as pl
+from use_ids import load_yaml_mappings, replace_labels_with_ids  # type: ignore
 
 sys.path.append('..')
+from typing import Any
+
 from nodes.constants import ENERGY_QUANTITY
 
-def extract_unit_from_file(lines):
+
+def extract_unit_from_file(lines) -> str:
     try:
         unit_line = lines[-5].strip()
         parts = unit_line.split(',')
         if len(parts) > 1:
             unit = parts[1].strip().strip('"')
             return unit
-        else:
-            return "MWh"
+        return "MWh"  # noqa: TRY300
     except (IndexError, AttributeError):
         return "MWh"
 
-def format_unit_for_energy(unit):
+def format_unit_for_energy(unit) -> str:
     unit = unit.strip()
     if unit and not unit.endswith('/a') and not unit.endswith('/year'):
         return f"{unit}/a"
     return unit
 
-def transform_slice_name(filename_stem):
+def transform_slice_name(filename_stem) -> str:
     if filename_stem.startswith('energietraeger-'):
         suffix = filename_stem[len('energietraeger-'):]
         return f"Energieverbrauch nach Energieträgern, {suffix}"
-    else:
-        return filename_stem
+    return filename_stem
 
-def is_energietraeger_file(filename):
+def is_energietraeger_file(filename) -> bool:
     return filename.startswith('energietraeger-')
 
-def process_single_energietraeger_file(input_file):
-    with open(input_file, 'r', encoding='utf-8') as f:
+def get_single_ksp_file(input_file) -> tuple[pd.DataFrame, str]:
+    with open(input_file, 'r', encoding='utf-8') as f:  # noqa: PTH123, UP015
         lines = f.readlines()
 
     raw_unit = extract_unit_from_file(lines)
@@ -46,8 +50,8 @@ def process_single_energietraeger_file(input_file):
     data_end = None
 
     for i, line in enumerate(lines):
-        line = line.strip()
-        if line.startswith('Einheit:') or line.startswith('Witterungskorrektur:') or line.startswith('Bilanzierungsmethode:'):
+        line_ = line.strip()
+        if line_.startswith(('Einheit:', 'Witterungskorrektur:', 'Bilanzierungsmethode:')):
             data_end = i
             break
 
@@ -62,10 +66,16 @@ def process_single_energietraeger_file(input_file):
     try:
         df = pd.read_csv(io.StringIO(data_string), sep=',', encoding='utf-8', quotechar='"')
     except Exception:
-        return pd.DataFrame()
+        return pd.DataFrame(), ''
 
     if df.empty:
-        return pd.DataFrame()
+        return pd.DataFrame(), ''
+
+    return df, raw_unit
+
+def process_single_ksp_file(input_file) -> pl.DataFrame:
+    print('Processing file: ', input_file)
+    df, raw_unit = get_single_ksp_file(input_file)
 
     first_col_name = df.columns[0]
 
@@ -83,7 +93,7 @@ def process_single_energietraeger_file(input_file):
             continue
 
     if not year_columns:
-        return pd.DataFrame()
+        return pl.DataFrame()
 
     filename_stem = input_file.stem
     is_energietraeger = is_energietraeger_file(filename_stem)
@@ -94,6 +104,22 @@ def process_single_energietraeger_file(input_file):
     else:
         formatted_unit = raw_unit
 
+    df = build_gpc_from_ksp(df, first_col_name, formatted_unit, slice_value, is_energietraeger, year_column_mapping)
+    dim_mappings = load_yaml_mappings()
+    dfpl = pl.from_pandas(df)
+    dfpl = replace_labels_with_ids(dfpl, dim_mappings)
+    print('Success.')
+    return dfpl
+
+def build_gpc_from_ksp(  # noqa: C901, PLR0912
+        df: pd.DataFrame,
+        first_col_name: str,
+        formatted_unit: str,
+        slice_value: str,
+        is_energietraeger: bool,
+        year_column_mapping: dict,
+        ) -> pd.DataFrame:
+
     output_rows = []
 
     for _, row in df.iterrows():
@@ -102,6 +128,7 @@ def process_single_energietraeger_file(input_file):
             continue
 
         metric_name = metric_name.strip()
+        output_row: dict[str, Any]
 
         if is_energietraeger:
             output_row = {
@@ -114,7 +141,7 @@ def process_single_energietraeger_file(input_file):
         else:
             output_row = {
                 'Metric Group': metric_name,
-                'Quantity': 1,
+                'Quantity': '1',
                 'Unit': formatted_unit,
                 'Slice': slice_value
             }
@@ -152,59 +179,32 @@ def process_single_energietraeger_file(input_file):
 def convert_multiple_energietraeger_files(input_patterns, output_file):
     input_files = []
     for pattern in input_patterns:
-        files = glob.glob(pattern)
+        files = glob.glob(pattern)  # noqa: PTH207
         input_files.extend([Path(f) for f in files])
 
     if not input_files:
+        print("Input files not found.")
         return
 
     all_dataframes = []
 
     for input_file in input_files:
         try:
-            df = process_single_energietraeger_file(input_file)
-            if not df.empty:
+            df = process_single_ksp_file(input_file)
+            if df is not None:
                 all_dataframes.append(df)
-        except Exception:
+        except Exception:  # noqa: S112
             continue
 
     if not all_dataframes:
         raise ValueError("No valid data found in any input files")
 
-    combined_df = pd.concat(all_dataframes, ignore_index=True)
+    combined_df = pl.concat(all_dataframes, how='vertical')
+    assert isinstance(combined_df, pl.DataFrame)
 
-    year_columns = []
-    for col in combined_df.columns:
-        if col not in ['Metric Group', 'Energieträger', 'Quantity', 'Unit', 'Slice']:
-            try:
-                year = int(col)
-                if 1900 <= year <= 2100:
-                    year_columns.append(col)
-            except (ValueError, TypeError):
-                continue
-
-    year_columns = sorted(year_columns, key=int)
-
-    base_columns = ['Metric Group', 'Quantity', 'Unit', 'Slice']
-    if 'Energieträger' in combined_df.columns:
-        base_columns.insert(1, 'Energieträger')
-
-    final_columns = base_columns + year_columns
-    combined_df = combined_df.reindex(columns=final_columns)
-
-    temp_file = str(output_file) + '.tmp'
-    combined_df.to_csv(temp_file, sep=';', index=False, encoding='utf-8',
-                      quoting=csv.QUOTE_ALL, na_rep='')
-
-    with open(temp_file, 'r', encoding='utf-8') as infile:
-        content = infile.read()
-
-    content = content.replace('""', '')
-
-    with open(output_file, 'w', encoding='utf-8') as outfile:
-        outfile.write(content)
-
-    Path(temp_file).unlink()
+    combined_df.write_csv(output_file, separator=',',
+                      quote_style='necessary', null_value='')
+    print(combined_df)
 
 def main():
     if len(sys.argv) < 3:
@@ -216,6 +216,7 @@ def main():
 
     try:
         convert_multiple_energietraeger_files(input_patterns, output_file)
+        print('Successfully saved everything to', output_file)
     except Exception as e:
         print(f"Error during conversion: {e}")
         sys.exit(1)

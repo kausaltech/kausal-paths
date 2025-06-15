@@ -1,5 +1,5 @@
 # Usage:
-# python convert_koln_export_to_uploadable_format.py "/Users/jouni/Downloads/KSP
+# python convert_ksp_export_to_uploadable_format.py "/Users/jouni/Downloads/KSP
 #  Export/datenzeitreihen*" datenzeitreihen_combined.csv
 # python convert_energietraeger_to_uploadable_format.py  "/Users/jouni/Downloads/KSP
 #  Export/energietraeger*" combined_energietraeger.csv
@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import csv
 import glob
+import os
 import re
 import sys
 from pathlib import Path
@@ -53,44 +54,34 @@ def convert_unit_and_get_quantity(unit):
     """Convert unit according to the rules and determine the appropriate quantity."""
     unit = unit.strip()
 
-    if unit == "t CO2-Äqu./MWh":
-        return "t/MWh", EMISSION_FACTOR_QUANTITY
-    elif unit == "g CO2-Äqu./Wh":
-        return "g/Wh", EMISSION_FACTOR_QUANTITY
-    elif unit == "MWh":
-        return "MWh/a", ENERGY_QUANTITY
-    elif unit == "GJ":
-        return "GJ/a", ENERGY_QUANTITY
-    elif unit == "Anzahl":
-        return "pcs", NUMBER_QUANTITY
-    elif unit == "Wege/Person/d":
-        return "trips/person/d", NUMBER_QUANTITY
-    elif unit == "km/Weg":
-        return "km/trip", NUMBER_QUANTITY
-    elif unit == "%":
-        return "%", NUMBER_QUANTITY
-    elif unit in ["Mio. Fz-km", "Mio. Zug-km"]:
-        return "Mvkm", MILEAGE_QUANTITY
-    elif unit == "m²":
-        return "m²", FLOOR_AREA_QUANTITY
-    else:
-        return unit, 1
+    unit_mapping = {
+        "t CO2-Äqu./MWh": ("t/MWh", EMISSION_FACTOR_QUANTITY),
+        "g CO2-Äqu./Wh": ("g/Wh", EMISSION_FACTOR_QUANTITY),
+        "MWh": ("MWh/a", ENERGY_QUANTITY),
+        "GJ": ("GJ/a", ENERGY_QUANTITY),
+        "Anzahl": ("pcs", NUMBER_QUANTITY),
+        "Wege/Person/d": ("trips/person/d", NUMBER_QUANTITY),
+        "km/Weg": ("km/trip", NUMBER_QUANTITY),
+        "%": ("%", NUMBER_QUANTITY),
+        "Mio. Fz-km": ("Mvkm", MILEAGE_QUANTITY),
+        "Mio. Zug-km": ("Mvkm", MILEAGE_QUANTITY),
+        "m²": ("m²", FLOOR_AREA_QUANTITY),
+    }
+
+    return unit_mapping.get(unit, (unit, 1))
 
 def transform_slice_name(filename_stem):
     """Transform filename to slice name according to the rules."""
     if filename_stem.startswith('datenzeitreihen'):
-        if filename_stem == 'datenzeitreihen':
-            return "Emissionsfaktoren für die Energieerzeugung"
-        elif filename_stem == 'datenzeitreihen-2':
-            return "Emissionsfaktoren für die Industrie"
-        elif filename_stem == 'datenzeitreihen-3':
-            return "Emissionsfaktoren für den Verkehr"
-        elif filename_stem == 'datenzeitreihen-4':
-            return "Aktivitäten, Verkehr und Gebäude"
-        else:
-            return filename_stem
-    else:
-        return 'datenzeitreihen'
+        slice_name_mapping = {
+            'datenzeitreihen': "Emissionsfaktoren für die Energieerzeugung",
+            'datenzeitreihen-2': "Emissionsfaktoren für die Industrie",
+            'datenzeitreihen-3': "Emissionsfaktoren für den Verkehr",
+            'datenzeitreihen-4': "Aktivitäten, Verkehr und Gebäude",
+        }
+
+        return slice_name_mapping.get(filename_stem, filename_stem)
+    return 'datenzeitreihen'
 
 def extract_region_and_clean_metric(metric_text):
     """Extract region (Lokal/National) and clean the metric text."""
@@ -276,7 +267,7 @@ def convert_multiple_files(input_patterns, output_file):
     all_files = []
     for pattern in input_patterns:
         if '*' in pattern or '?' in pattern:
-            matched_files = glob.glob(pattern)
+            matched_files = glob.glob(pattern)  # noqa: PTH207
             all_files.extend([Path(f) for f in matched_files])
         else:
             file_path = Path(pattern)
@@ -292,7 +283,7 @@ def convert_multiple_files(input_patterns, output_file):
             df = process_single_file(input_file)
             if not df.empty:
                 all_dataframes.append(df)
-        except Exception as e:
+        except Exception:  # noqa: S112
             continue
 
     if not all_dataframes:
@@ -324,18 +315,53 @@ def convert_multiple_files(input_patterns, output_file):
 
     return combined_df
 
+def process_files_in_directory(directory_path):
+    """Process all files in the given directory."""
+    if not os.path.isdir(directory_path):  # noqa: PTH112
+        print(f"Error: {directory_path} is not a valid directory")
+        return
+
+    # Get all files in the directory
+    files = os.listdir(directory_path)  # noqa: PTH208
+
+    for filename in files:
+        file_path = os.path.join(directory_path, filename)  # noqa: PTH118
+
+        # Skip if it's a directory
+        if os.path.isfile(file_path):  # noqa: PTH113
+            print(f"Processing: {filename}")
+
+            # Open and process the file
+            try:
+                with open(file_path, 'r', encoding='utf-8') as file:  # noqa: PTH123, UP015
+                    content = file.read()
+                    # Your file processing logic here
+                    # Example: print first 100 characters
+                    print(f"Content preview: {content[:100]}...")
+
+            except Exception as e:
+                print(f"Error processing {filename}: {e}")
+
 def main():
-    if len(sys.argv) < 3:
-        print("Usage: python convert_koln_export_to_uploadable_format.py <input_file1> [input_file2] [input_file3] ... <output_file>")
-        sys.exit(1)
+    if len(sys.argv) == 2:
 
-    input_patterns = sys.argv[1:-1]
-    output_file = Path(sys.argv[-1])
+        directory_path = sys.argv[1]
+        process_files_in_directory(directory_path)
 
-    try:
-        convert_multiple_files(input_patterns, output_file)
-    except Exception as e:
-        print(f"Error during conversion: {e}")
+    elif len(sys.argv) > 2:
+        input_patterns = sys.argv[1:-1]
+        output_file = Path(sys.argv[-1])
+
+        try:
+            convert_multiple_files(input_patterns, output_file)
+        except Exception as e:
+            print(f"Error during conversion: {e}")
+            sys.exit(1)
+
+    else:
+        print("Usage: python convert_ksp_export_to_uploadable_format.py "
+              "<input_file1> [input_file2] [input_file3] ... <output_file>")
+        print("Or: python convert_ksp_export_to_uploadable_format.py <input_directory>")
         sys.exit(1)
 
 if __name__ == "__main__":
