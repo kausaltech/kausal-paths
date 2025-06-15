@@ -51,6 +51,9 @@ dimensions:
   - id: other
     label_en: Other (incl. IPPU & AFOLU)
     label_de: Sonstige (inkl. IPPU & AFOLU)
+  - id: total
+    label_en: Total
+    label_de: Gesamt
 
 - id: scope
   label_en: Scope
@@ -333,3 +336,24 @@ dimensions:
     label_en: Transport operators
   - id: utilities
     label_en: Utilities
+
+- id: weather_correction
+  label_en: Weather correction
+  label_de: Witterungskorrektur
+  categories:
+  - id: corrected
+    label_en: Corrected
+    label_de: Witterungskorrigiert
+    aliases: [witterungskorrigiert]
+  - id: not_corrected
+    label_en: 'Not corrected'
+    label_de: Nicht witterungskorrigiert
+    aliases: [nicht witterungskorrigiert]
+
+- id: inventory_method
+  label_en: Inventory method
+  label_de: Bilanzierungsmethode
+  categories:
+  - id: eev
+    label_en: EEV
+    label_de: EEV
