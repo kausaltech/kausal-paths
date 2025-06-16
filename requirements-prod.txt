@@ -13,9 +13,13 @@ gunicorn==23.0.0
     #   -r requirements-prod.in
     #   uvicorn-worker
 h11==0.16.0
-    # via uvicorn
+    # via
+    #   -c requirements.txt
+    #   uvicorn
 httptools==0.6.4
-    # via uvicorn
+    # via
+    #   -c requirements.txt
+    #   uvicorn
 idna==3.10
     # via
     #   -c requirements.txt
@@ -42,22 +46,22 @@ sniffio==1.3.1
     # via
     #   -c requirements.txt
     #   anyio
-typing-extensions==4.13.2
+uvicorn==0.34.3
     # via
     #   -c requirements.txt
-    #   anyio
-    #   psycopg
-uvicorn==0.34.2
-    # via
     #   -r requirements-prod.in
     #   uvicorn-worker
 uvicorn-worker==0.3.0
     # via -r requirements-prod.in
 uvloop==0.21.0
-    # via uvicorn
+    # via
+    #   -c requirements.txt
+    #   uvicorn
 watchfiles==1.0.5
     # via
     #   -c requirements.txt
     #   uvicorn
 websockets==15.0.1
-    # via uvicorn
+    # via
+    #   -c requirements.txt
+    #   uvicorn
