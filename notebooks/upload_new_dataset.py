@@ -49,6 +49,8 @@ def determine_metric_group_column(df: pl.DataFrame) -> str:
         return 'Metric'  # backward compatibility
     if 'Sector' in df.columns:
         return 'Sector'  # legacy support
+    if 'sector' in df.columns:
+        return 'sector'  # legacy support
     raise ValueError("No metric group column found. DataFrame must contain 'Metric Group', 'Metric', or 'Sector' column.")
 
 

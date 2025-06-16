@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://potsdam-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: f19b12470db6a6634e82c73572dd8f7583d639b6
+  commit: ebb193d09fbd9fc43ab359b658bd4ceabecbee5b
   dvc_remote: kausal-s3
 name: Klimaschutz-Monitor-Potsdam Treibhausgasinventar
 owner: Stadt Potsdam
@@ -19,6 +19,12 @@ emission_dimensions: [energietrager, scope, ghg]
 features:
   baseline_visible_in_graphs: true
   use_datasets_from_db: true
+
+include:
+- file: frameworks/standard_dims.yaml
+  allow_override: false
+
+
 params:
 - id: weather_correction
   label: Wetterkorrektur durchführen?
@@ -41,13 +47,14 @@ action_groups:
   color: '#cccccc'
 
 dimensions:
-- id: ghg
-  label_en: GHG (Greenhouse Gas)
-  label_de: THG (Treibhausgas)
-  categories:
-  - id: co2e
-    label_en: CO2e (Carbon dioxide equivalent)
-    label_de: CO2e (Kohlendioxid-Äquivalent)
+
+# - id: ghg
+#   label_en: GHG (Greenhouse Gas)
+#   label_de: THG (Treibhausgas)
+#   categories:
+#   - id: co2e
+#     label_en: CO2e (Carbon dioxide equivalent)
+#     label_de: CO2e (Kohlendioxid-Äquivalent)
 
 - id: energietrager
   label_en: Energy Carriers
@@ -111,233 +118,233 @@ dimensions:
     label_en: Hydrogen
     label_de: Wasserstoff
 
-- id: scope
-  label_en: Scope
-  label_de: Scope
-  categories:
-  - id: scope1
-    label_en: Scope 1
-    label_de: Scope 1
-    aliases: ['1']
-  - id: scope2
-    label_en: Scope 2
-    label_de: Scope 2
-    aliases: ['2']
+# - id: scope
+#   label_en: Scope
+#   label_de: Scope
+#   categories:
+#   - id: scope1
+#     label_en: Scope 1
+#     label_de: Scope 1
+#     aliases: ['1']
+#   - id: scope2
+#     label_en: Scope 2
+#     label_de: Scope 2
+#     aliases: ['2']
 
-- id: sector
-  label_en: GPC Sector
-  label_de: GPC Sektor
-  categories:
-  - id: i
-    label_en: I Stationary
-    label_de: I Stationär
-  - id: i1
-    label_en: I.1 Residential
-    label_de: I.1 Wohngebäude
-  - id: i11
-    label_en: I.1.1 Residential Fuel
-    label_de: I.1.1 Brennstoffe in Wohngebäuden
-  - id: i12
-    label_en: I.1.2 Residential Grid Energy
-    label_de: I.1.2 Netzenergie in Wohngebäuden
-  - id: i13
-    label_en: I.1.3 Residential T & D Loss
-    label_de: I.1.3 Übertragungs- und Verteilungsverluste in Wohngebäuden
-  - id: i2
-    label_en: I.2 Commercial & Institutional
-    label_de: I.2 Gewerbe & Institutionen
-  - id: i21
-    label_en: I.2.1 Commercial & Institutional Fuel
-    label_de: I.2.1 Brennstoffe in Gewerbe & Institutionen
-  - id: i22
-    label_en: I.2.2 Commercial & Institutional Grid Energy
-    label_de: I.2.2 Netzenergie in Gewerbe & Institutionen
-  - id: i23
-    label_en: I.2.3 Commercial & Institutional T & D Loss
-    label_de: I.2.3 Übertragungs- und Verteilungsverluste in Gewerbe & Institutionen
-  - id: i3
-    label_en: I.3 Manufacturing
-    label_de: I.3 Produktion
-  - id: i31
-    label_en: I.3.1 Manufacturing Fuel
-    label_de: I.3.1 Brennstoffe in der Produktion
-  - id: i32
-    label_en: I.3.2 Manufacturing Grid Energy
-    label_de: I.3.2 Netzenergie in der Produktion
-  - id: i33
-    label_en: I.3.3 Manufacturing T & D Loss
-    label_de: I.3.3 Übertragungs- und Verteilungsverluste in der Produktion
-  - id: i4
-    label_en: I.4 Energy
-    label_de: I.4 Energie
-  - id: i41
-    label_en: I.4.1 Energy Fuel
-    label_de: I.4.1 Brennstoffe im Energiesektor
-  - id: i42
-    label_en: I.4.2 Energy Grid Energy
-    label_de: I.4.2 Netzenergie im Energiesektor
-  - id: i43
-    label_en: I.4.3 Energy T & D Loss
-    label_de: I.4.3 Übertragungs- und Verteilungsverluste im Energiesektor
-  - id: i5
-    label_en: I.5 Ag, Forestry, & Fishing
-    label_de: I.5 Landwirtschaft, Forstwirtschaft & Fischerei
-  - id: i51
-    label_en: I.5.1 Ag, Forestry, & Fishing Fuel
-    label_de: I.5.1 Brennstoffe in Landwirtschaft, Forstwirtschaft & Fischerei
-  - id: i52
-    label_en: I.5.2 Ag, Forestry, & Fishing Grid Energy
-    label_de: I.5.2 Netzenergie in Landwirtschaft, Forstwirtschaft & Fischerei
-  - id: i53
-    label_en: I.5.3 Ag, Forestry, & Fishing T & D Loss
-    label_de: I.5.3 Übertragungs- und Verteilungsverluste in Landwirtschaft, Forstwirtschaft & Fischerei
-  - id: i6
-    label_en: I.6 Non-Specified
-    label_de: I.6 Nicht spezifiziert
-  - id: i61
-    label_en: I.6.1 Non-Specified Fuel
-    label_de: I.6.1 Nicht spezifizierte Brennstoffe
-  - id: i62
-    label_en: I.6.2 Non-Specified Grid Energy
-    label_de: I.6.2 Nicht spezifizierte Netzenergie
-  - id: i63
-    label_en: I.6.3 Non-Specified T & D Loss
-    label_de: I.6.3 Nicht spezifizierte Übertragungs- und Verteilungsverluste
-  - id: i7
-    label_en: I.7 Fugitive Coal
-    label_de: I.7 Flüchtige Emissionen aus Kohle
-  - id: i71
-    label_en: I.7.1 Fugitive Coal
-    label_de: I.7.1 Flüchtige Emissionen aus Kohle
-  - id: i8
-    label_en: I.8 Fugitive Oil & Natural Gas
-    label_de: I.8 Flüchtige Emissionen aus Öl & Erdgas
-  - id: i81
-    label_en: I.8.1 Fugitive Oil & Natural Gas
-    label_de: I.8.1 Flüchtige Emissionen aus Öl & Erdgas
-  - id: ii
-    label_en: II Transportation
-    label_de: II Verkehr
-  - id: ii1
-    label_en: II.1 On-Road Transport
-    label_de: II.1 Straßenverkehr
-  - id: ii11
-    label_en: II.1.1 On-Road Transport Fuel
-    label_de: II.1.1 Brennstoffe im Straßenverkehr
-  - id: ii12
-    label_en: II.1.2 On-Road Transport Grid Energy
-    label_de: II.1.2 Netzenergie im Straßenverkehr
-  - id: ii13
-    label_en: II.1.3 On-Road Transport Outside City, T & D Loss
-    label_de: II.1.3 Straßenverkehr außerhalb der Stadt, Übertragungs- und Verteilungsverluste
-  - id: ii2
-    label_en: II.2 Railway
-    label_de: II.2 Schienenverkehr
-  - id: ii21
-    label_en: II.2.1 Railway Fuel
-    label_de: II.2.1 Brennstoffe im Schienenverkehr
-  - id: ii22
-    label_en: II.2.2 Railway Grid Energy
-    label_de: II.2.2 Netzenergie im Schienenverkehr
-  - id: ii23
-    label_en: II.2.3 Railway Outside City, T & D Loss
-    label_de: II.2.3 Schienenverkehr außerhalb der Stadt, Übertragungs- und Verteilungsverluste
-  - id: ii3
-    label_en: II.3 Waterborne
-    label_de: II.3 Schifffahrt
-  - id: ii31
-    label_en: II.3.1 Waterborne Fuel
-    label_de: II.3.1 Brennstoffe in der Schifffahrt
-  - id: ii32
-    label_en: II.3.2 Waterborne Grid Energy
-    label_de: II.3.2 Netzenergie in der Schifffahrt
-  - id: ii33
-    label_en: II.3.3 Waterborne Outside City, T & D Loss
-    label_de: II.3.3 Schifffahrt außerhalb der Stadt, Übertragungs- und Verteilungsverluste
-  - id: ii4
-    label_en: II.4 Aviation
-    label_de: II.4 Luftfahrt
-  - id: ii41
-    label_en: II.4.1 Aviation Fuel
-    label_de: II.4.1 Brennstoffe in der Luftfahrt
-  - id: ii42
-    label_en: II.4.2 Aviation Grid Energy
-    label_de: II.4.2 Netzenergie in der Luftfahrt
-  - id: ii43
-    label_en: II.4.3 Aviation Outside City, T & D Loss
-    label_de: II.4.3 Luftfahrt außerhalb der Stadt, Übertragungs- und Verteilungsverluste
-  - id: ii5
-    label_en: II.5 Off-Road Transport
-    label_de: II.5 Geländefahrzeuge
-  - id: ii51
-    label_en: II.5.1 Off-Road Transport Fuel
-    label_de: II.5.1 Brennstoffe bei Geländefahrzeugen
-  - id: ii52
-    label_en: II.5.2 Off-Road Transport Grid Energy
-    label_de: II.5.2 Netzenergie bei Geländefahrzeugen
-  - id: ii53
-    label_en: II.5.3 Off-Road Transport Outside City, T & D Loss
-    label_de: II.5.3 Geländefahrzeuge außerhalb der Stadt, Übertragungs- und Verteilungsverluste
-  - id: iii
-    label_en: III Waste
-    label_de: III Abfall
-  - id: iii1
-    label_en: III.1 Solid Waste
-    label_de: III.1 Festabfall
-  - id: iii11
-    label_en: III.1.1 Solid Waste Disposed in City
-    label_de: III.1.1 Festabfallentsorgung in der Stadt
-  - id: iii12
-    label_en: III.1.2 Solid Waste Disposed Outside City
-    label_de: III.1.2 Festabfallentsorgung außerhalb der Stadt
-  - id: iii2
-    label_en: III.2 Biological Waste
-    label_de: III.2 Biologische Abfälle
-  - id: iii21
-    label_en: III.2.1 Biological Waste Treated in City
-    label_de: III.2.1 Behandlung biologischer Abfälle in der Stadt
-  - id: iii22
-    label_en: III.2.2 Biological Waste Treated Outside City
-    label_de: III.2.2 Behandlung biologischer Abfälle außerhalb der Stadt
-  - id: iii3
-    label_en: III.3 Incineration
-    label_de: III.3 Verbrennung
-  - id: iii31
-    label_en: III.3.1 Incineration in City
-    label_de: III.3.1 Verbrennung in der Stadt
-  - id: iii32
-    label_en: III.3.2 Incineration Outside City
-    label_de: III.3.2 Verbrennung außerhalb der Stadt
-  - id: iii4
-    label_en: III.4 Wastewater
-    label_de: III.4 Abwasser
-  - id: iii41
-    label_en: III.4.1 Wastewater Treated in City
-    label_de: III.4.1 Abwasserbehandlung in der Stadt
-  - id: iii42
-    label_en: III.4.2 Wastewater Treated Outside City
-    label_de: III.4.2 Abwasserbehandlung außerhalb der Stadt
-  - id: iv
-    label_en: IV IPPU
-    label_de: IV IPPU (Industrieprozesse und Produktverwendung)
-  - id: iv1
-    label_en: IV.1 Industrial Processes
-    label_de: IV.1 Industrieprozesse
-  - id: iv2
-    label_en: IV.2 Product Use
-    label_de: IV.2 Produktverwendung
-  - id: v
-    label_en: V AFOLU
-    label_de: V AFOLU (Landwirtschaft, Forstwirtschaft und andere Landnutzung)
-  - id: v1
-    label_en: V.1 Livestock
-    label_de: V.1 Viehzucht
-  - id: v2
-    label_en: V.2 Land
-    label_de: V.2 Land
-  - id: v3
-    label_en: V.3 Aggregate Sources
-    label_de: V.3 Aggregierte Quellen
+# - id: sector
+#   label_en: GPC Sector
+#   label_de: GPC Sektor
+#   categories:
+#   - id: i
+#     label_en: I Stationary
+#     label_de: I Stationär
+#   - id: i1
+#     label_en: I.1 Residential
+#     label_de: I.1 Wohngebäude
+#   - id: i11
+#     label_en: I.1.1 Residential Fuel
+#     label_de: I.1.1 Brennstoffe in Wohngebäuden
+#   - id: i12
+#     label_en: I.1.2 Residential Grid Energy
+#     label_de: I.1.2 Netzenergie in Wohngebäuden
+#   - id: i13
+#     label_en: I.1.3 Residential T & D Loss
+#     label_de: I.1.3 Übertragungs- und Verteilungsverluste in Wohngebäuden
+#   - id: i2
+#     label_en: I.2 Commercial & Institutional
+#     label_de: I.2 Gewerbe & Institutionen
+#   - id: i21
+#     label_en: I.2.1 Commercial & Institutional Fuel
+#     label_de: I.2.1 Brennstoffe in Gewerbe & Institutionen
+#   - id: i22
+#     label_en: I.2.2 Commercial & Institutional Grid Energy
+#     label_de: I.2.2 Netzenergie in Gewerbe & Institutionen
+#   - id: i23
+#     label_en: I.2.3 Commercial & Institutional T & D Loss
+#     label_de: I.2.3 Übertragungs- und Verteilungsverluste in Gewerbe & Institutionen
+#   - id: i3
+#     label_en: I.3 Manufacturing
+#     label_de: I.3 Produktion
+#   - id: i31
+#     label_en: I.3.1 Manufacturing Fuel
+#     label_de: I.3.1 Brennstoffe in der Produktion
+#   - id: i32
+#     label_en: I.3.2 Manufacturing Grid Energy
+#     label_de: I.3.2 Netzenergie in der Produktion
+#   - id: i33
+#     label_en: I.3.3 Manufacturing T & D Loss
+#     label_de: I.3.3 Übertragungs- und Verteilungsverluste in der Produktion
+#   - id: i4
+#     label_en: I.4 Energy
+#     label_de: I.4 Energie
+#   - id: i41
+#     label_en: I.4.1 Energy Fuel
+#     label_de: I.4.1 Brennstoffe im Energiesektor
+#   - id: i42
+#     label_en: I.4.2 Energy Grid Energy
+#     label_de: I.4.2 Netzenergie im Energiesektor
+#   - id: i43
+#     label_en: I.4.3 Energy T & D Loss
+#     label_de: I.4.3 Übertragungs- und Verteilungsverluste im Energiesektor
+#   - id: i5
+#     label_en: I.5 Ag, Forestry, & Fishing
+#     label_de: I.5 Landwirtschaft, Forstwirtschaft & Fischerei
+#   - id: i51
+#     label_en: I.5.1 Ag, Forestry, & Fishing Fuel
+#     label_de: I.5.1 Brennstoffe in Landwirtschaft, Forstwirtschaft & Fischerei
+#   - id: i52
+#     label_en: I.5.2 Ag, Forestry, & Fishing Grid Energy
+#     label_de: I.5.2 Netzenergie in Landwirtschaft, Forstwirtschaft & Fischerei
+#   - id: i53
+#     label_en: I.5.3 Ag, Forestry, & Fishing T & D Loss
+#     label_de: I.5.3 Übertragungs- und Verteilungsverluste in Landwirtschaft, Forstwirtschaft & Fischerei
+#   - id: i6
+#     label_en: I.6 Non-Specified
+#     label_de: I.6 Nicht spezifiziert
+#   - id: i61
+#     label_en: I.6.1 Non-Specified Fuel
+#     label_de: I.6.1 Nicht spezifizierte Brennstoffe
+#   - id: i62
+#     label_en: I.6.2 Non-Specified Grid Energy
+#     label_de: I.6.2 Nicht spezifizierte Netzenergie
+#   - id: i63
+#     label_en: I.6.3 Non-Specified T & D Loss
+#     label_de: I.6.3 Nicht spezifizierte Übertragungs- und Verteilungsverluste
+#   - id: i7
+#     label_en: I.7 Fugitive Coal
+#     label_de: I.7 Flüchtige Emissionen aus Kohle
+#   - id: i71
+#     label_en: I.7.1 Fugitive Coal
+#     label_de: I.7.1 Flüchtige Emissionen aus Kohle
+#   - id: i8
+#     label_en: I.8 Fugitive Oil & Natural Gas
+#     label_de: I.8 Flüchtige Emissionen aus Öl & Erdgas
+#   - id: i81
+#     label_en: I.8.1 Fugitive Oil & Natural Gas
+#     label_de: I.8.1 Flüchtige Emissionen aus Öl & Erdgas
+#   - id: ii
+#     label_en: II Transportation
+#     label_de: II Verkehr
+#   - id: ii1
+#     label_en: II.1 On-Road Transport
+#     label_de: II.1 Straßenverkehr
+#   - id: ii11
+#     label_en: II.1.1 On-Road Transport Fuel
+#     label_de: II.1.1 Brennstoffe im Straßenverkehr
+#   - id: ii12
+#     label_en: II.1.2 On-Road Transport Grid Energy
+#     label_de: II.1.2 Netzenergie im Straßenverkehr
+#   - id: ii13
+#     label_en: II.1.3 On-Road Transport Outside City, T & D Loss
+#     label_de: II.1.3 Straßenverkehr außerhalb der Stadt, Übertragungs- und Verteilungsverluste
+#   - id: ii2
+#     label_en: II.2 Railway
+#     label_de: II.2 Schienenverkehr
+#   - id: ii21
+#     label_en: II.2.1 Railway Fuel
+#     label_de: II.2.1 Brennstoffe im Schienenverkehr
+#   - id: ii22
+#     label_en: II.2.2 Railway Grid Energy
+#     label_de: II.2.2 Netzenergie im Schienenverkehr
+#   - id: ii23
+#     label_en: II.2.3 Railway Outside City, T & D Loss
+#     label_de: II.2.3 Schienenverkehr außerhalb der Stadt, Übertragungs- und Verteilungsverluste
+#   - id: ii3
+#     label_en: II.3 Waterborne
+#     label_de: II.3 Schifffahrt
+#   - id: ii31
+#     label_en: II.3.1 Waterborne Fuel
+#     label_de: II.3.1 Brennstoffe in der Schifffahrt
+#   - id: ii32
+#     label_en: II.3.2 Waterborne Grid Energy
+#     label_de: II.3.2 Netzenergie in der Schifffahrt
+#   - id: ii33
+#     label_en: II.3.3 Waterborne Outside City, T & D Loss
+#     label_de: II.3.3 Schifffahrt außerhalb der Stadt, Übertragungs- und Verteilungsverluste
+#   - id: ii4
+#     label_en: II.4 Aviation
+#     label_de: II.4 Luftfahrt
+#   - id: ii41
+#     label_en: II.4.1 Aviation Fuel
+#     label_de: II.4.1 Brennstoffe in der Luftfahrt
+#   - id: ii42
+#     label_en: II.4.2 Aviation Grid Energy
+#     label_de: II.4.2 Netzenergie in der Luftfahrt
+#   - id: ii43
+#     label_en: II.4.3 Aviation Outside City, T & D Loss
+#     label_de: II.4.3 Luftfahrt außerhalb der Stadt, Übertragungs- und Verteilungsverluste
+#   - id: ii5
+#     label_en: II.5 Off-Road Transport
+#     label_de: II.5 Geländefahrzeuge
+#   - id: ii51
+#     label_en: II.5.1 Off-Road Transport Fuel
+#     label_de: II.5.1 Brennstoffe bei Geländefahrzeugen
+#   - id: ii52
+#     label_en: II.5.2 Off-Road Transport Grid Energy
+#     label_de: II.5.2 Netzenergie bei Geländefahrzeugen
+#   - id: ii53
+#     label_en: II.5.3 Off-Road Transport Outside City, T & D Loss
+#     label_de: II.5.3 Geländefahrzeuge außerhalb der Stadt, Übertragungs- und Verteilungsverluste
+#   - id: iii
+#     label_en: III Waste
+#     label_de: III Abfall
+#   - id: iii1
+#     label_en: III.1 Solid Waste
+#     label_de: III.1 Festabfall
+#   - id: iii11
+#     label_en: III.1.1 Solid Waste Disposed in City
+#     label_de: III.1.1 Festabfallentsorgung in der Stadt
+#   - id: iii12
+#     label_en: III.1.2 Solid Waste Disposed Outside City
+#     label_de: III.1.2 Festabfallentsorgung außerhalb der Stadt
+#   - id: iii2
+#     label_en: III.2 Biological Waste
+#     label_de: III.2 Biologische Abfälle
+#   - id: iii21
+#     label_en: III.2.1 Biological Waste Treated in City
+#     label_de: III.2.1 Behandlung biologischer Abfälle in der Stadt
+#   - id: iii22
+#     label_en: III.2.2 Biological Waste Treated Outside City
+#     label_de: III.2.2 Behandlung biologischer Abfälle außerhalb der Stadt
+#   - id: iii3
+#     label_en: III.3 Incineration
+#     label_de: III.3 Verbrennung
+#   - id: iii31
+#     label_en: III.3.1 Incineration in City
+#     label_de: III.3.1 Verbrennung in der Stadt
+#   - id: iii32
+#     label_en: III.3.2 Incineration Outside City
+#     label_de: III.3.2 Verbrennung außerhalb der Stadt
+#   - id: iii4
+#     label_en: III.4 Wastewater
+#     label_de: III.4 Abwasser
+#   - id: iii41
+#     label_en: III.4.1 Wastewater Treated in City
+#     label_de: III.4.1 Abwasserbehandlung in der Stadt
+#   - id: iii42
+#     label_en: III.4.2 Wastewater Treated Outside City
+#     label_de: III.4.2 Abwasserbehandlung außerhalb der Stadt
+#   - id: iv
+#     label_en: IV IPPU
+#     label_de: IV IPPU (Industrieprozesse und Produktverwendung)
+#   - id: iv1
+#     label_en: IV.1 Industrial Processes
+#     label_de: IV.1 Industrieprozesse
+#   - id: iv2
+#     label_en: IV.2 Product Use
+#     label_de: IV.2 Produktverwendung
+#   - id: v
+#     label_en: V AFOLU
+#     label_de: V AFOLU (Landwirtschaft, Forstwirtschaft und andere Landnutzung)
+#   - id: v1
+#     label_en: V.1 Livestock
+#     label_de: V.1 Viehzucht
+#   - id: v2
+#     label_en: V.2 Land
+#     label_de: V.2 Land
+#   - id: v3
+#     label_en: V.3 Aggregate Sources
+#     label_de: V.3 Aggregierte Quellen
 
 emission_sectors:
 - id: net_emissions
@@ -374,6 +381,425 @@ nodes:
   - id: i11_residential_fuel_consumption
     tags: non_additive
     to_dimensions: []
+
+# Emissions, historical
+
+- id: emissions_transport_historical
+  name: Historische Emissionen von Verkehr
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: potsdam/emissionen/transport
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: weather_correction
+    - column: inventory_method
+  output_nodes: [emissions_historical]
+
+- id: emissions_municipal_facilities_historical
+  name: Historische Emissionen von Kommunale Einrichtungen
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: potsdam/emissionen/municipal_facilities
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: weather_correction
+    - column: inventory_method
+  output_nodes: [emissions_historical]
+
+- id: emissions_private_haouseholds_historical
+  name: Historische Emissionen von private Haushalte
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: potsdam/emissionen/private_households
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: weather_correction
+    - column: inventory_method
+  output_nodes: [emissions_historical]
+
+- id: emissions_industry_historical
+  name: Historische Emissionen von Industrie
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: potsdam/emissionen/industry
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: weather_correction
+    - column: inventory_method
+  output_nodes: [emissions_historical]
+
+- id: emissions_commerce_historical
+  name: Historische Emissionen von Gewerbe, Handel, Dienstleistungen
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: potsdam/emissionen/commerce_trade_services
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: weather_correction
+    - column: inventory_method
+  output_nodes: [emissions_historical]
+
+- id: emissions_historical
+  name: Historische Emissionen
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  # energy
+
+- id: energy_transport
+  name: Energieverbrauch von Verkehr
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: potsdam/energie/transport
+    tags: [baseline]
+    column: energy
+    filters:
+    - column: weather_correction
+    - column: inventory_method
+  output_nodes: [energy_use]
+
+- id: energy_municipal_facilities
+  name: Energieverbrauch von Kommunale Einrichtungen
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: potsdam/energie/municipal_facilities
+    tags: [baseline]
+    column: energy
+    filters:
+    - column: weather_correction
+    - column: inventory_method
+  output_nodes: [energy_use]
+
+- id: energy_private_haouseholds
+  name: Energieverbrauch von private Haushalte
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: potsdam/energie/private_households
+    tags: [baseline]
+    column: energy
+    filters:
+    - column: weather_correction
+    - column: inventory_method
+  output_nodes: [energy_use]
+
+- id: energy_industry
+  name: Energieverbrauch von Industrie
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: potsdam/energie/industry
+    tags: [baseline]
+    column: energy
+    filters:
+    - column: weather_correction
+    - column: inventory_method
+  output_nodes: [energy_use]
+
+- id: energy_commerce
+  name: Energieverbrauch von Gewerbe, Handel, Dienstleistungen
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: potsdam/energie/commerce_trade_services
+    tags: [baseline]
+    column: energy
+    filters:
+    - column: weather_correction
+    - column: inventory_method
+  output_nodes: [energy_use]
+
+- id: energy_use
+  name: Energieverbrauch
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  # Costs, historical
+
+- id: costs_transport_historical
+  name: Historische Kosten von Verkehr
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: potsdam/kosten/transport
+    tags: [baseline]
+    column: currency
+    filters:
+    - column: weather_correction
+    - column: inventory_method
+  output_nodes: [costs_historical]
+
+- id: costs_municipal_facilities_historical
+  name: Historische Kosten von Kommunale Einrichtungen
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: potsdam/kosten/municipal_facilities
+    tags: [baseline]
+    column: currency
+    filters:
+    - column: weather_correction
+    - column: inventory_method
+  output_nodes: [costs_historical]
+
+- id: costs_private_haouseholds_historical
+  name: Historische Kosten von private Haushalte
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: potsdam/kosten/private_households
+    tags: [baseline]
+    column: currency
+    filters:
+    - column: weather_correction
+    - column: inventory_method
+  output_nodes: [costs_historical]
+
+- id: costs_industry_historical
+  name: Historische Kosten von Industrie
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: potsdam/kosten/industry
+    tags: [baseline]
+    column: currency
+    filters:
+    - column: weather_correction
+    - column: inventory_method
+  output_nodes: [costs_historical]
+
+- id: costs_commerce_historical
+  name: Historische Kosten von Gewerbe, Handel, Dienstleistungen
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: potsdam/kosten/commerce_trade_services
+    tags: [baseline]
+    forecast_from: 2023
+    column: currency
+    filters:
+    - column: weather_correction
+    - column: inventory_method
+  output_nodes: [costs_historical]
+
+- id: costs_historical
+  name: Historische Kosten
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+# Emission factors and unit costs
+
+- id: emission_factors
+  name: Emissionfaktoren
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: emissions_historical
+  - id: energy_use
+    tags: [geometric_inverse]
+  params:
+    operations: multiply, inventory_only, extrapolate, add
+
+- id: energy_prices
+  name: Energiepreis
+  type: generic.GenericNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: costs_historical
+  - id: energy_use
+    tags: [geometric_inverse]
+  params:
+    operations: multiply, inventory_only, extrapolate, add
+
+# Calculated emissions
+
+- id: emissions_transport
+  name: Emissionen von Verkehr
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes: [emission_factors, energy_transport]
+  output_nodes: [net_emissions2]
+
+- id: emissions_municipal_facilities
+  name: Emissionen von Kommunale Einrichtungen
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes: [emission_factors, energy_municipal_facilities]
+  output_nodes: [net_emissions2]
+
+- id: emissions_private_haouseholds
+  name: Emissionen von private Haushalte
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes: [emission_factors, energy_private_haouseholds]
+  output_nodes: [net_emissions2]
+
+- id: emissions_industry
+  name: Emissionen von Industrie
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes: [emission_factors, energy_industry]
+  output_nodes: [net_emissions2]
+
+- id: emissions_commerce
+  name: Emissionen von Gewerbe, Handel, Dienstleistungen
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes: [emission_factors, energy_commerce]
+  output_nodes: [net_emissions2]
+
+- id: net_emissions2
+  name: Emissionen
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  # Calculated costs
+
+- id: costs_transport
+  name: Kosten von Verkehr
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes: [energy_prices, energy_commerce]
+  output_nodes: [total_costs]
+
+- id: costs_municipal_facilities
+  name: Kosten von Kommunale Einrichtungen
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes: [energy_prices, energy_commerce]
+  output_nodes: [total_costs]
+
+- id: costs_private_haouseholds
+  name: Kosten von private Haushalte
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes: [energy_prices, energy_commerce]
+  output_nodes: [total_costs]
+
+- id: costs_industry
+  name: Kosten von Industrie
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes: [energy_prices, energy_commerce]
+  output_nodes: [total_costs]
+
+- id: costs_commerce
+  name: Kosten von Gewerbe, Handel, Dienstleistungen
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes: [energy_prices, energy_commerce]
+  output_nodes: [total_costs]
+
+- id: total_costs
+  name: Kosten
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+
+    # Old nodes
 
 - id: i11_residential_fuel_consumption
   name: Endenergieverbrauch Wärmesektor
@@ -925,7 +1351,8 @@ actions:
     filters:
     - column: sector
       value: i11
-  output_nodes: [i11_residential_fuel_consumption]
+  output_nodes:
+  - id: i11_residential_fuel_consumption
 
 - id: i11_residential_fuel_emission_factor_action
   name: Umsetzung drastische CO2-Reduktion von Wärmeenergieträgern ( außer Fernwärme)
