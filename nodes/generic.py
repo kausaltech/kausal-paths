@@ -61,6 +61,7 @@ class GenericNode(SimpleNode):
             'inventory_only': self._operation_inventory_only,
             'extend_values': self._operation_extend_values,
             'do_correction': self._operation_do_correction,
+            'extrapolate': self._operation_extrapolate,
         }
 
     def _get_input_baskets(self, nodes: list[Node]) -> dict[str, list[Node]]:
@@ -151,6 +152,29 @@ class GenericNode(SimpleNode):
         mult = self.get_parameter_value('multiplier', required=False, units=True)
         if mult:
             df = df.multiply_quantity(VALUE_COLUMN, mult)
+        return df, baskets
+
+    def _operation_extrapolate(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        """Replace NaNs and Nulls by extrapolating from existing values."""
+        if df is None:
+            raise NodeError(self, "Cannot extrapolate because no PathsDataFrame is available.")
+
+        df = df.paths.to_wide()
+        df = df.with_columns([
+            pl.col(col)
+            .map_elements(lambda x: None if (x is not None and np.isnan(x)) else x, return_dtype=pl.Float64)
+            .interpolate(method='linear')
+            .forward_fill()
+            .backward_fill()
+            .alias(col)
+            for col in df.columns if col in df.metric_cols
+        ])
+        df = df.select([
+            col for col in df.columns
+            if df.select(pl.col(col).is_not_null().any()).item()
+        ])
+        df = df.paths.to_narrow()
+
         return df, baskets
 
     def drop_unnecessary_levels(self, df: ppl.PathsDataFrame, droplist: list) -> ppl.PathsDataFrame:
