@@ -1,4 +1,3 @@
-from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import PermissionDenied
 from django.urls import reverse
@@ -12,17 +11,19 @@ from paths.admin_context import set_admin_instance
 from admin_site.dataset_admin import DatasetSchemaViewSet
 from nodes.models import InstanceConfig
 from nodes.roles import instance_admin_role
-
-User = get_user_model()
+from users.models import User
 
 
 @pytest.fixture
 def get_in_admin_context(rf):
-    def get(user, view, url, instance_config, kwargs = None):
+    def get(user: User, view, url: str, instance_config: InstanceConfig, kwargs: dict | None = None):
         if kwargs is None:
             kwargs = {}
         request = rf.get(url)
         request.user = user
+        if not user.selected_instance:
+            user.selected_instance = instance_config
+            user.save()
         from paths.context import RealmContext, realm_context
         set_admin_instance(instance_config, request=request)
         ctx = RealmContext(realm = instance_config, user=request.user)

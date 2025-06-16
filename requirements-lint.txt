@@ -50,57 +50,56 @@ mypy==1.15.0
     #   graphene-stubs
 mypy-baseline==0.7.2
     # via -r requirements-lint.in
-mypy-extensions==1.0.0
+mypy-extensions==1.1.0
     # via mypy
 numpy==2.2.4
     # via
     #   -c requirements.txt
     #   pandas-stubs
+    #   types-networkx
 pandas-stubs==2.2.3.250308
     # via -r requirements-lint.in
 pyarrow==19.0.1
     # via
     #   -c requirements.txt
     #   pyarrow-stubs
-pyarrow-stubs==19.1
+pyarrow-stubs==19.4
     # via -r requirements-lint.in
 requests==2.32.3
     # via
     #   -c requirements.txt
     #   djangorestframework-stubs
-ruff==0.11.4
+ruff==0.11.11
     # via -r requirements-lint.in
-setuptools==78.1.0
-    # via
-    #   -c requirements.txt
-    #   types-setuptools
 sqlparse==0.5.3
     # via
     #   -c requirements.txt
     #   django
-types-cffi==1.17.0.20250326
+types-cffi==1.17.0.20250523
     # via types-pygit2
 types-factory-boy==0.4.1
     # via -r requirements-lint.in
-types-oauthlib==3.2.0.20250408
+types-networkx==3.4.2.20250523
     # via -r requirements-lint.in
-types-openpyxl==3.1.5.20250306
+types-oauthlib==3.2.0.20250516
+    # via -r requirements-lint.in
+types-openpyxl==3.1.5.20250516
     # via -r requirements-lint.in
 types-orjson==3.6.2
     # via -r requirements-lint.in
 types-pygit2==1.15.0.20250319
     # via -r requirements-lint.in
-types-pytz==2025.2.0.20250326
+types-pytz==2025.2.0.20250516
     # via pandas-stubs
-types-pyyaml==6.0.12.20250402
+types-pyyaml==6.0.12.20250516
     # via
     #   django-stubs
     #   djangorestframework-stubs
-types-requests==2.32.0.20250328
+types-requests==2.32.0.20250515
     # via djangorestframework-stubs
-types-setuptools==78.1.0.20250329
+types-setuptools==80.8.0.20250521
     # via types-cffi
-typing-extensions==4.13.1
+typing-extensions==4.13.2
     # via
     #   -c requirements.txt
     #   celery-types
@@ -114,7 +113,7 @@ tzdata==2025.2
     # via
     #   -c requirements.txt
     #   faker
-urllib3==2.3.0
+urllib3==2.4.0
     # via
     #   -c requirements.txt
     #   requests

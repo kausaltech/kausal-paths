@@ -17,14 +17,14 @@ emission_unit: kt/a
 model_end_year: 2035
 target_year: 2030
 reference_year: 1990
-minimum_historical_year: 2000
+minimum_historical_year: 1990
 maximum_historical_year: 2023
 features:
   baseline_visible_in_graphs: true
   show_accumulated_effects: true
   use_datasets_from_db: true
   show_significant_digits: 3
-  show_explanations: true
+  show_explanations: false
 
 include:
 - file: frameworks/hsy/buildings.yaml
@@ -272,7 +272,7 @@ nodes:
   input_datasets:
   - id: espoo/vaestoennuste
     tags: [baseline]
-    forecast_from: 2023
+    forecast_from: 2025
     column: population
 
 # ----------- Nodes with city-specific adjustments ---------------
@@ -711,24 +711,24 @@ nodes:
     tags: [baseline]
     column: kuorma_autoliikenteen_kerroin
 
-- id: truck_emission_change
-  name_fi: Kuorma-autojen päästöjen muutos
-  name_en: Change in truck emissions
-  name_sv: Förändring i lastbilsutsläpp
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
-  input_nodes:
-  - id: truck_factor
-    tags: [non_additive]
-  - id: environmental_zone_for_trucks
-    to_dimensions:
-    - id: vehicle_type
-      categories: [trucks]
-  output_nodes:
-  - id: road_traffic_emissions
+# - id: truck_emission_change
+#   name_fi: Kuorma-autojen päästöjen muutos
+#   name_en: Change in truck emissions
+#   name_sv: Förändring i lastbilsutsläpp
+#   type: generic.GenericNode
+#   quantity: emissions
+#   unit: kt/a
+#   input_dimensions: [vehicle_type]
+#   output_dimensions: [vehicle_type]
+#   input_nodes:
+#   - id: truck_factor
+#     tags: [non_additive]
+#   # - id: environmental_zone_for_trucks
+#   #   to_dimensions:
+#   #   - id: vehicle_type
+#   #     categories: [trucks]
+#   output_nodes:
+#   - id: road_traffic_emissions
 
 - id: road_traffic_emission_factor_forecast
   name_fi: Tieliikenteen päästökerroinennuste
@@ -988,74 +988,74 @@ actions:
     tags: [non_additive, complement]
     to_dimensions: []
 
-- id: increase_electric_passenger_cars # TODO A slider would be nice.
-  name_fi: Edistämme sähköautoilua
-  name_en: Faster increase in the number of electric passenger cars
-  name_sv: Snabbare ökning av antalet elektriska personbilar
-  description_fi: Sähköhenkilöautojen määrän odotetaan kasvavan nopeasti. Lähtökohdaksi
-    otettiin Sähköautojen latausinfran kehittyminen Espoossa -selvityksen skenaariosta
-    neljä ladattavien henkilöautojen ja muiden henkilöautojen määrät ja osuudet. Täyssähköhenkilöautojen
-    määrän arvioidaan olevan vuonna 2030 70 000 ja vuonna 2035 115 000. Ladattavien
-    hybridihenkilöautojen määrän arvioidaan olevan vuona 2030 14 600 ja vuonna 2035
-    10 000.
-  description_en: The number of electric passenger cars is expected to grow rapidly.
-    The starting point was the number and share of chargeable passenger cars and other
-    passenger cars in scenario four of the report "Development of Electric Vehicle
-    Charging Infrastructure in Espoo". The number of fully electric passenger cars
-    is estimated to be 70,000 in 2030 and 115,000 in 2035. The number of chargeable
-    hybrid passenger cars is estimated to be 14,600 in 2030 and 10,000 in 2035.
-  description_sv: Antalet elektriska personbilar förväntas öka snabbt. Utgångspunkten
-    var antalet och andelen laddningsbara personbilar och andra personbilar i scenario
-    fyra i rapporten "Utveckling av laddningsinfrastruktur för elfordon i Esbo". Antalet
-    helt elektriska personbilar uppskattas till 70 000 år 2030 och 115 000 år 2035.
-    Antalet laddningsbara hybridpersonbilar uppskattas till 14 600 år 2030 och 10
-    000 år 2035.
-  type: simple.GenericAction
-  quantity: number
-  unit: vehicles
-  group: transportation
-  input_dimensions: [energy_carrier, vehicle_type]
-  output_dimensions: [energy_carrier, vehicle_type]
-  input_datasets:
-  - id: espoo/transport
-    forecast_from: 2024
-    tags: [baseline]
-    column: sahkohenkiloautojen_kasvu
-  output_nodes:
-  - id: passenger_cars_by_type
+# - id: increase_electric_passenger_cars # TODO A slider would be nice.
+#   name_fi: Edistämme sähköautoilua
+#   name_en: Faster increase in the number of electric passenger cars
+#   name_sv: Snabbare ökning av antalet elektriska personbilar
+#   description_fi: Sähköhenkilöautojen määrän odotetaan kasvavan nopeasti. Lähtökohdaksi
+#     otettiin Sähköautojen latausinfran kehittyminen Espoossa -selvityksen skenaariosta
+#     neljä ladattavien henkilöautojen ja muiden henkilöautojen määrät ja osuudet. Täyssähköhenkilöautojen
+#     määrän arvioidaan olevan vuonna 2030 70 000 ja vuonna 2035 115 000. Ladattavien
+#     hybridihenkilöautojen määrän arvioidaan olevan vuona 2030 14 600 ja vuonna 2035
+#     10 000.
+#   description_en: The number of electric passenger cars is expected to grow rapidly.
+#     The starting point was the number and share of chargeable passenger cars and other
+#     passenger cars in scenario four of the report "Development of Electric Vehicle
+#     Charging Infrastructure in Espoo". The number of fully electric passenger cars
+#     is estimated to be 70,000 in 2030 and 115,000 in 2035. The number of chargeable
+#     hybrid passenger cars is estimated to be 14,600 in 2030 and 10,000 in 2035.
+#   description_sv: Antalet elektriska personbilar förväntas öka snabbt. Utgångspunkten
+#     var antalet och andelen laddningsbara personbilar och andra personbilar i scenario
+#     fyra i rapporten "Utveckling av laddningsinfrastruktur för elfordon i Esbo". Antalet
+#     helt elektriska personbilar uppskattas till 70 000 år 2030 och 115 000 år 2035.
+#     Antalet laddningsbara hybridpersonbilar uppskattas till 14 600 år 2030 och 10
+#     000 år 2035.
+#   type: simple.GenericAction
+#   quantity: number
+#   unit: vehicles
+#   group: transportation
+#   input_dimensions: [energy_carrier, vehicle_type]
+#   output_dimensions: [energy_carrier, vehicle_type]
+#   input_datasets:
+#   - id: espoo/transport
+#     forecast_from: 2024
+#     tags: [baseline]
+#     column: sahkohenkiloautojen_kasvu
+#   output_nodes:
+#   - id: passenger_cars_by_type
 
-- id: environmental_zone_for_trucks
-  name_fi: Jakeluliikenteen ja kuorma-autojen sähköistymisen nopean kasvun edistäminen
-  name_en: Promoting rapid growth in the electrification of distribution traffic and
-    trucks
-  name_sv: Främja snabb tillväxt i elektrifieringen av distributionstrafik och lastbilar
-  description_fi: Edistetään voimakkaasti fossiilisia polttoaineita käyttävien kuorma-autojen
-    ja jakeluliikenteen siirtymää kohti kestäviä käyttövoimia kuten sähköä, biopolttoaineita
-    ja biokaasua.
-  description_en: Strongly promote the transition of fossil fuel-using trucks and
-    distribution traffic towards sustainable power sources such as electricity, biofuels,
-    and biogas.
-  description_sv: Främja starkt övergången av fossilbränsledrivna lastbilar och distributionstrafik
-    till hållbara kraftkällor som el, biobränslen och biogas.
-  type: simple.AdditiveAction2
-  quantity: fraction
-  unit: dimensionless
-  group: transportation
-  forecast_values: [[2026, 1.0], [2035, 1.0]]
-  input_dataset_processors: [LinearInterpolation]
-  params:
-  - id: multiplier
-    is_customizable: true
-    is_visible: true
-    description_fi: Ympäristövyöhykkeen osuus kuorma-autojen käytöstä
-    description_en: Share of environmental zone in truck usage
-    description_sv: Andel av miljözon i lastbilsanvändning
-    unit: dimensionless
-    values:
-      default: 0.6
-    min_value: 0
-    max_value: 1
-    step: 0.05
+# - id: environmental_zone_for_trucks
+#   name_fi: Jakeluliikenteen ja kuorma-autojen sähköistymisen nopean kasvun edistäminen
+#   name_en: Promoting rapid growth in the electrification of distribution traffic and
+#     trucks
+#   name_sv: Främja snabb tillväxt i elektrifieringen av distributionstrafik och lastbilar
+#   description_fi: Edistetään voimakkaasti fossiilisia polttoaineita käyttävien kuorma-autojen
+#     ja jakeluliikenteen siirtymää kohti kestäviä käyttövoimia kuten sähköä, biopolttoaineita
+#     ja biokaasua.
+#   description_en: Strongly promote the transition of fossil fuel-using trucks and
+#     distribution traffic towards sustainable power sources such as electricity, biofuels,
+#     and biogas.
+#   description_sv: Främja starkt övergången av fossilbränsledrivna lastbilar och distributionstrafik
+#     till hållbara kraftkällor som el, biobränslen och biogas.
+#   type: simple.AdditiveAction2
+#   quantity: fraction
+#   unit: dimensionless
+#   group: transportation
+#   forecast_values: [[2026, 1.0], [2035, 1.0]]
+#   input_dataset_processors: [LinearInterpolation]
+#   params:
+#   - id: multiplier
+#     is_customizable: true
+#     is_visible: true
+#     description_fi: Ympäristövyöhykkeen osuus kuorma-autojen käytöstä
+#     description_en: Share of environmental zone in truck usage
+#     description_sv: Andel av miljözon i lastbilsanvändning
+#     unit: dimensionless
+#     values:
+#       default: 0.6
+#     min_value: 0
+#     max_value: 1
+#     step: 0.05
 
 # OLD ACTIONS
 # ELECTRICITY
@@ -1626,40 +1626,40 @@ actions:
     tags: [non_additive, complement]
     to_dimensions: []
 
-- id: upgrade_car_fleet
-  name_fi: Autokannan nopeampi uudistuminen
-  name_en: Faster renewal of the car fleet
-  name_sv: Snabbare förnyelse av bilbeståndet
-  description_fi: Autokannan nopeamman uudistamisen arvioidaan vähentävän tieliikenteen
-    päästöjä 0.9 %. Kun tämä vaikutus kohdennetaan pelkästään henkilöautojen päästökertoimeen,
-    saadaan päästökertoimen vähenemäksi 234 g/kWh * 0.9 % * (1261 GWh/a / 735 GWh/a)
-    = 3.616 g/kWh.
-  description_en: Faster renewal of the car fleet is estimated to reduce road traffic
-    emissions by 0.9%. By targeting this effect solely on the emission factor of passenger
-    cars, the decrease in the emission factor is calculated as 234 g/kWh * 0.9% *
-    (1261 GWh/a / 735 GWh/a) = 3.616 g/kWh.
-  description_sv: En snabbare förnyelse av bilbeståndet beräknas minska vägtrafikens
-    utsläpp med 0,9 %. Genom att rikta denna effekt enbart mot emissionsfaktorn för
-    personbilar blir minskningen av emissionsfaktorn 234 g/kWh * 0,9 % * (1261 GWh/a
-    / 735 GWh/a) = 3,616 g/kWh.
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: emission_factor
-  unit: g/kWh
-  group: transportation
-  forecast_values: [[2024, 0.0], [2035, 0.0]]
-  output_nodes:
-  - id: road_traffic_emission_factors
-    to_dimensions:
-    - id: vehicle_type
-      categories: [cars]
-    - id: economic_sector
-      categories: [residential]
-  params:
-  - id: target_year_level
-    is_visible: false
-    value: -3.616
-    min_value: -4
-    max_value: -3
+# - id: upgrade_car_fleet
+#   name_fi: Autokannan nopeampi uudistuminen
+#   name_en: Faster renewal of the car fleet
+#   name_sv: Snabbare förnyelse av bilbeståndet
+#   description_fi: Autokannan nopeamman uudistamisen arvioidaan vähentävän tieliikenteen
+#     päästöjä 0.9 %. Kun tämä vaikutus kohdennetaan pelkästään henkilöautojen päästökertoimeen,
+#     saadaan päästökertoimen vähenemäksi 234 g/kWh * 0.9 % * (1261 GWh/a / 735 GWh/a)
+#     = 3.616 g/kWh.
+#   description_en: Faster renewal of the car fleet is estimated to reduce road traffic
+#     emissions by 0.9%. By targeting this effect solely on the emission factor of passenger
+#     cars, the decrease in the emission factor is calculated as 234 g/kWh * 0.9% *
+#     (1261 GWh/a / 735 GWh/a) = 3.616 g/kWh.
+#   description_sv: En snabbare förnyelse av bilbeståndet beräknas minska vägtrafikens
+#     utsläpp med 0,9 %. Genom att rikta denna effekt enbart mot emissionsfaktorn för
+#     personbilar blir minskningen av emissionsfaktorn 234 g/kWh * 0,9 % * (1261 GWh/a
+#     / 735 GWh/a) = 3,616 g/kWh.
+#   type: simple.LinearCumulativeAdditiveAction
+#   quantity: emission_factor
+#   unit: g/kWh
+#   group: transportation
+#   forecast_values: [[2024, 0.0], [2035, 0.0]]
+#   output_nodes:
+#   - id: road_traffic_emission_factors
+#     to_dimensions:
+#     - id: vehicle_type
+#       categories: [cars]
+#     - id: economic_sector
+#       categories: [residential]
+#   params:
+#   - id: target_year_level
+#     is_visible: false
+#     value: -3.616
+#     min_value: -4
+#     max_value: -3
 
 - id: emission_limits_for_cars_and_vans
   name_fi: Henkilö- ja pakettiautojen sitovat päästörajat
@@ -1870,8 +1870,8 @@ scenarios:
 
   - id: replace_fossil_fuels_in_cars.enabled
     value: true
-  - id: upgrade_car_fleet.enabled
-    value: true
+  # - id: upgrade_car_fleet.enabled
+  #   value: true
   - id: emission_limits_for_cars_and_vans.enabled
     value: false
   - id: improve_personal_traffic_efficiency.enabled
@@ -1906,8 +1906,8 @@ scenarios:
     value: hne2030
   - id: replace_fossil_fuels_in_cars.enabled
     value: true
-  - id: upgrade_car_fleet.enabled
-    value: true
+  # - id: upgrade_car_fleet.enabled
+  #   value: true
   - id: emission_limits_for_cars_and_vans.enabled
     value: true
   - id: improve_personal_traffic_efficiency.enabled
@@ -1928,20 +1928,20 @@ scenarios:
   - id: cleaner_electricity_production.enabled
     value: true
 
-- id: pessimistic
-  name_fi: Pessimistinen
-  name_en: Pessimistic
-  name_sv: Pessimistisk
-  all_actions_enabled: false
-  params:
-  - id: scenario_name
-    value: pessimistic
-  - id: change_non_heating_electricity.enabled
-    value: true
-  - id: cleaner_electricity_production.enabled
-    value: true
-  - id: replace_fossil_fuels_in_district_heating.enabled
-    value: false
+# - id: pessimistic
+#   name_fi: Pessimistinen
+#   name_en: Pessimistic
+#   name_sv: Pessimistisk
+#   all_actions_enabled: false
+#   params:
+#   - id: scenario_name
+#     value: pessimistic
+#   - id: change_non_heating_electricity.enabled
+#     value: true
+#   - id: cleaner_electricity_production.enabled
+#     value: true
+#   - id: replace_fossil_fuels_in_district_heating.enabled
+#     value: false
 
 - id: default_old
   name_fi: HNE2030 ennen 2024 lisätoimenpiteitä
@@ -1952,8 +1952,8 @@ scenarios:
     value: hne2030
   - id: replace_fossil_fuels_in_cars.enabled
     value: true
-  - id: upgrade_car_fleet.enabled
-    value: true
+  # - id: upgrade_car_fleet.enabled
+  #   value: true
   - id: emission_limits_for_cars_and_vans.enabled
     value: true
   - id: improve_personal_traffic_efficiency.enabled
@@ -1978,10 +1978,10 @@ scenarios:
     value: false
   - id: biofuel_fraction_demand.enabled
     value: true
-  - id: increase_electric_passenger_cars.enabled
-    value: false
-  - id: environmental_zone_for_trucks.enabled
-    value: false
+  # - id: increase_electric_passenger_cars.enabled
+  #   value: false
+  # - id: environmental_zone_for_trucks.enabled
+  #   value: false
 
 #######################
 # DATA SOURCES

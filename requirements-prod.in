@@ -1,3 +1,5 @@
 -c requirements.txt
 psycopg[c]
 gunicorn[gthread]
+uvicorn[standard]
+uvicorn-worker

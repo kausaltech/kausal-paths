@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import warnings
 from importlib.util import find_spec
 from pathlib import Path
 from threading import ExceptHookArgs
@@ -64,7 +65,7 @@ env = environ.FileAwareEnv(
     MOUNTED_SECRET_PATHS=(list, []),
     REQUEST_LOG_MAX_DAYS=(int, 90),
     REQUEST_LOG_METHODS=(list, ['POST', 'PUT', 'PATCH', 'DELETE']),
-    REQUEST_LOG_IGNORE_PATHS=(list, ['/v1/graphql/']),
+    REQUEST_LOG_IGNORE_PATHS=(list, ['/v1/graphql/', '/o/introspect/']),
     **COMMON_ENV_SCHEMA,
 )
 
@@ -83,6 +84,8 @@ for directory in env('MOUNTED_SECRET_PATHS'):
     set_secret_file_vars(env, directory)
 
 DEBUG = env('DEBUG')
+DEPLOYMENT_TYPE = env('DEPLOYMENT_TYPE')
+SENTRY_DSN = env('SENTRY_DSN')
 ADMIN_BASE_URL = env('ADMIN_BASE_URL')
 ALLOWED_HOSTS = env('ALLOWED_HOSTS') + ['127.0.0.1']  # 127.0.0.1 for, e.g., health check
 INTERNAL_IPS = env.list('INTERNAL_IPS', default=(['127.0.0.1'] if DEBUG else []))  # type: ignore
@@ -163,7 +166,6 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'kausal_common.deployment.middleware.RequestStartMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -173,7 +175,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'wagtail.contrib.redirects.middleware.RedirectMiddleware',
+    'kausal_common.deployment.middleware.RequestStartMiddleware',
     'paths.middleware.RequestMiddleware',
     'admin_site.middleware.AuthExceptionMiddleware',
     'paths.middleware.AdminMiddleware',
@@ -342,6 +344,27 @@ CELERY_WORKER_SEND_TASK_EVENTS = True
 CELERY_RESULT_EXPIRES = 60 * 60  # one hour
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = False
 
+def _get_channel_layer_config() -> dict[str, Any]:
+    if REDIS_URL:
+        return {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [REDIS_URL],
+                "prefix": "paths-%s-asgi" % DEPLOYMENT_TYPE,
+            },
+        }
+    if not DEBUG:
+        warnings.warn("Using in-memory channel layer in non-DEBUG mode. This is not recommended for production.", stacklevel=1)
+    return {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    }
+
+
+CHANNEL_LAYERS = {
+    "default": _get_channel_layer_config(),
+}
+
+
 # Internationalization
 # https://docs.djangoproject.com/en/3.1/topics/i18n/
 
@@ -457,9 +480,6 @@ MEDIA_ROOT = env('MEDIA_ROOT')
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-DEPLOYMENT_TYPE = env('DEPLOYMENT_TYPE')
-SENTRY_DSN = env('SENTRY_DSN')
-
 # Wagtail settings
 
 WAGTAIL_SITE_NAME = PROJECT_NAME
@@ -485,6 +505,12 @@ GITHUB_APP_PRIVATE_KEY = env('GITHUB_APP_PRIVATE_KEY')
 register_common_settings(locals())
 # Put type hints for stuff registered in register_common_settings here because mypy doesn't figure it out
 # ...
+
+ASGI_APPLICATION = 'paths.asgi.application'
+
+if find_spec('daphne') is not None:
+    INSTALLED_APPS.insert(INSTALLED_APPS.index('django.contrib.staticfiles'), 'daphne')
+
 
 if find_spec('kausal_paths_extensions') is not None:
     INSTALLED_APPS.append('kausal_paths_extensions')

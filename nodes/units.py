@@ -26,7 +26,7 @@ from pint.delegates.formatter.plain import PrettyFormatter
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from django.utils.functional import _StrPromise as StrPromise  # pyright: ignore
+    from django_stubs_ext import StrPromise
     from pydantic import GetCoreSchemaHandler
     from pydantic_core import CoreSchema
 
@@ -394,7 +394,9 @@ def add_unit_translations():  # noqa: C901
         {'unit': 'gigaEUR', 'long': _('billion euros'), 'short': _('B€')},
         {'unit': 'solid_cubic_meter', 'long': _('solid m³'), 'short': _('m³ (solid)')},
         {'unit': 'megasolid_cubic_meter', 'long': _('million solid m³'), 'short': _('M m³ (solid)')},
+        {'unit': 'g_co2e', 'long': _('grams CO₂e'), 'short': 'gCO₂e'},
         {'unit': 't_co2e', 'long': _('tonnes CO₂e'), 'short': 'tCO₂e'},
+        {'unit': 'kt_co2e', 'long': _('ktCO₂e'), 'short': 'ktCO₂e'},
         {'unit': 'metric_ton', 'long': _('tonnes'), 'short': 't'},
         {'unit': 'megametric_ton', 'long': _('megatonnes'), 'short': _('Mt')},
         {'unit': 't_ha', 'long': _('1000 hectares'), 'short': '1000 ha'},

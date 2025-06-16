@@ -366,6 +366,8 @@ def _generate_output_data(
 
 
 def _from_node_metric(node: Node, m: NodeMetric, scenarios: Sequence[Scenario]) -> DimensionalMetric:
+    from nodes.gpc import DatasetNode
+
     def make_id(*args: str) -> str:
         return _make_id(node, *args)
 
@@ -398,6 +400,11 @@ def _from_node_metric(node: Node, m: NodeMetric, scenarios: Sequence[Scenario]) 
     else:
         nnode = None
 
+    if isinstance(node, DatasetNode):
+        measure_datapoint_years = node.get_measure_datapoint_years()
+    else:
+        measure_datapoint_years = []
+
     dm = DimensionalMetric(
         id=node.id,
         name=str(node.name),
@@ -409,6 +416,7 @@ def _from_node_metric(node: Node, m: NodeMetric, scenarios: Sequence[Scenario]) 
         stackable=stackable,
         goals=goals,
         unit=df.get_unit(m.column_id),
+        measure_datapoint_years=measure_datapoint_years,
     )
     return dm
 
@@ -529,7 +537,7 @@ def metric_from_visualization(node: Node, visualization: VisualizationNodeOutput
     return dm
 
 
-def from_action_impact(  # noqa: C901
+def from_action_impact(
     action_impact: ActionImpact,
     root: ImpactOverview,
     col: str,
@@ -543,13 +551,10 @@ def from_action_impact(  # noqa: C901
 
     df = action_impact.df
     if col == 'Cost':
+        assert root.cost_node is not None
         dimensions = root.cost_node.output_dimensions.items()
-        if root.invert_cost:
-            df = df.with_columns((pl.col(col) * pl.lit(-1.0)).alias(col))
-    elif col == 'Impact':
-        dimensions = root.impact_node.output_dimensions.items()
-        if root.invert_impact:
-            df = df.with_columns((pl.col(col) * pl.lit(-1.0)).alias(col))
+    elif col == 'Effect':
+        dimensions = root.effect_node.output_dimensions.items()
     else:
         raise ValueError('Unknown column %s' % col)
 

@@ -20,7 +20,7 @@ from common import polars as ppl
 from common.i18n import I18nString, I18nStringInstance, TranslatedString, get_modeltrans_attrs_from_str
 from common.types import Identifier, MixedCaseIdentifier, validate_identifier
 from common.utils import hash_unit
-from nodes.calc import extend_last_historical_value_pl
+from nodes.calc import extend_last_forecast_value_pl, extend_last_historical_value_pl
 from nodes.constants import (
     DEFAULT_METRIC,
     FORECAST_COLUMN,
@@ -982,6 +982,11 @@ class Node:
             # FIXME
             return
 
+        self.validate_dims(df)
+
+    def validate_dims(self, df: ppl.PathsDataFrame) -> None:
+        meta = df.get_meta()
+
         for dim_id, dim in self.output_dimensions.items():
             if dim_id not in meta.primary_keys:
                 raise NodeError(self, "Dimension column '%s' not included in index" % dim_id)
@@ -1011,7 +1016,7 @@ class Node:
         df = self.get_output_pl(target_node, metric)
         return df.to_pandas()
 
-    def _process_edge_output(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912
+    def _process_edge_output(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
         for edge in self.edges:
             if edge.output_node == target_node:
                 break
@@ -1019,83 +1024,15 @@ class Node:
             raise NodeError(self, 'No connection to target node %s' % target_node.id)
 
         for tag in edge.tags:
-            match tag:
-                case 'truncate_beyond_end':
-                    df = df.filter(pl.col(YEAR_COLUMN).le(self.get_end_year()))
-                case 'truncate_before_start':
-                    baseline_year = self.context.instance.reference_year
-                    df = df.filter(pl.col(YEAR_COLUMN).ge(baseline_year))
-                case 'extend_values':
-                    df = extend_last_historical_value_pl(df, self.get_end_year())
-                case 'inventory_only':
-                    df = df.with_columns(  # TODO A non-elegant way to ensure there is at least one historical row.
-                        pl.when(pl.col(FORECAST_COLUMN) & (pl.count() == 1))
-                        .then(pl.lit(value=False))
-                        .otherwise(pl.col(FORECAST_COLUMN))
-                        .alias(FORECAST_COLUMN),
-                    )
-                    df = df.filter(pl.col(FORECAST_COLUMN) == pl.lit(value=False))
-                case 'forecast_only':
-                    df = df.filter(pl.col(FORECAST_COLUMN))
-                case 'arithmetic_inverse':
-                    df = df.multiply_quantity(VALUE_COLUMN, unit_registry('-1 * dimensionless'))
-                case 'geometric_inverse':
-                    df = df.divide_quantity(VALUE_COLUMN, unit_registry('1 * dimensionless'))
-                case 'absolute':
-                    df = df.with_columns(pl.col(VALUE_COLUMN).abs().alias(VALUE_COLUMN))
-                case 'complement':
-                    if not df.get_unit(VALUE_COLUMN).is_compatible_with('dimensionless'):
-                        raise NodeError(
-                            self, 'The unit of node %s must be compatible with dimensionless for taking complement' % self.id,
-                        )
-                    if self.quantity not in ['fraction', 'probability']:
-                        raise NodeError(
-                            self, 'The quantity of node %s must be fraction or probability for taking complement' % self.id,
-                        )
-                    df = df.ensure_unit(VALUE_COLUMN, unit='dimensionless')  # TODO CHECK
-                    df = df.with_columns((pl.lit(1.0) - pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
-                case 'difference':
-                    df = df.diff(VALUE_COLUMN)
-                case 'cumulative':
-                    df = df.cumulate(VALUE_COLUMN)
-                case 'cumulative_product':
-                    df = df.cumprod(VALUE_COLUMN)
-                case 'complement_cumulative_product':
-                    df = df.cumprod(VALUE_COLUMN, complement=True)
-                case 'ratio_to_last_historical_value':
-                    year = cast(int, df.filter(~df[FORECAST_COLUMN])[YEAR_COLUMN].max())
-                    df = self._scale_by_reference_year(df, year)
-                case 'make_nonnegative':
-                    df = df.with_columns(pl.max_horizontal(VALUE_COLUMN, 0.0))
-                case 'make_nonpositive':
-                    df = df.with_columns(pl.min_horizontal(VALUE_COLUMN, 0.0))
-                case 'empty_to_zero':
-                    df = df.with_columns(
-                        pl.when(pl.col(VALUE_COLUMN).is_nan())
-                        .then(pl.lit(0.0))
-                        .otherwise(pl.col(VALUE_COLUMN))
-                        .alias(VALUE_COLUMN),
-                    )
-                case 'expectation':
-                    if UNCERTAINTY_COLUMN in df.columns:
-                        meta = df.get_meta()
-                        cols = [col for col in df.primary_keys if col != UNCERTAINTY_COLUMN]
-                        dfp = df.group_by(cols, maintain_order=True).agg([
-                            pl.col(VALUE_COLUMN).mean().alias(VALUE_COLUMN),
-                            pl.col(FORECAST_COLUMN).any().alias(FORECAST_COLUMN)
-                        ])
-                        dfp = dfp.with_columns(pl.lit('expectation').alias(UNCERTAINTY_COLUMN))
-                        df = ppl.to_ppdf(dfp, meta)
-                case 'ignore_content':
-                    no_effect_value = getattr(self, 'no_effect_value', 0.0)
-                    df = df.with_columns(pl.lit(no_effect_value).alias(VALUE_COLUMN))
-                    df = df.set_unit(VALUE_COLUMN, target_node.unit, force=True)
-                case _:
-                    pass
+            try:
+                edge_function = getattr(self, f'_{tag}')
+                df = edge_function(df, target_node)
+            except AttributeError:
+                continue # Not every tag has a function attached.
 
         return df
 
-    def get_output_pl(
+    def get_output_pl(  # noqa: C901, PLR0912
         self, target_node: Node | None = None, metric: str | None = None, extra_span_desc: str | None = None,
     ) -> ppl.PathsDataFrame:
         perf_cm = self.context.perf_context
@@ -1607,6 +1544,100 @@ class Node:
         df = df.set_unit(VALUE_COLUMN, 'dimensionless')
         return df
 
+    def _absolute(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
+        return df.with_columns(pl.col(VALUE_COLUMN).abs().alias(VALUE_COLUMN))
+
+    def _arithmetic_inverse(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
+        return df.multiply_quantity(VALUE_COLUMN, unit_registry('-1 * dimensionless'))
+
+    def _complement(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
+        if not df.get_unit(VALUE_COLUMN).is_compatible_with('dimensionless'):
+            raise NodeError(
+                self, 'The unit of node %s must be compatible with dimensionless for taking complement' % self.id,
+            )
+        if self.quantity not in ['fraction', 'probability']:
+            raise NodeError(
+                self, 'The quantity of node %s must be fraction or probability for taking complement' % self.id,
+            )
+        df = df.ensure_unit(VALUE_COLUMN, unit='dimensionless')  # TODO CHECK
+        return df.with_columns((pl.lit(1.0) - pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
+
+    def _complement_cumulative_product(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
+        return df.cumprod(VALUE_COLUMN, complement=True)
+
+    def _cumulative(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
+        return df.cumulate(VALUE_COLUMN)
+
+    def _cumulative_product(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
+        return df.cumprod(VALUE_COLUMN)
+
+    def _difference(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
+        return df.diff(VALUE_COLUMN)
+
+    def _empty_to_zero(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
+        return df.with_columns(
+            pl.when(pl.col(VALUE_COLUMN).is_nan())
+            .then(pl.lit(0.0))
+            .otherwise(pl.col(VALUE_COLUMN))
+            .alias(VALUE_COLUMN),
+        )
+
+    def _expectation(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
+        if UNCERTAINTY_COLUMN in df.columns:
+            meta = df.get_meta()
+            cols = [col for col in df.primary_keys if col != UNCERTAINTY_COLUMN]
+            dfp = df.group_by(cols, maintain_order=True).agg([
+                pl.col(VALUE_COLUMN).mean().alias(VALUE_COLUMN),
+                pl.col(FORECAST_COLUMN).any().alias(FORECAST_COLUMN)
+            ])
+            dfp = dfp.with_columns(pl.lit('expectation').alias(UNCERTAINTY_COLUMN))
+            df = ppl.to_ppdf(dfp, meta)
+        return df
+
+    def _extend_values(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
+        return extend_last_historical_value_pl(df, self.get_end_year())
+
+    def _extend_forecast_values(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
+        return extend_last_forecast_value_pl(df, self.get_end_year())
+
+    def _forecast_only(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
+        return df.filter(pl.col(FORECAST_COLUMN))
+
+    def _geometric_inverse(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
+        return df.divide_quantity(VALUE_COLUMN, unit_registry('1 * dimensionless'))
+
+    def _ignore_content(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
+        no_effect_value = getattr(self, 'no_effect_value', 0.0)
+        df = df.with_columns(pl.lit(no_effect_value).alias(VALUE_COLUMN))
+        m = target_node.get_default_output_metric()
+        return df.set_unit(VALUE_COLUMN, m.unit, force=True)
+
+    def _inventory_only(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
+        df = df.with_columns(  # TODO A non-elegant way to ensure there is at least one historical row.
+            pl.when(pl.col(FORECAST_COLUMN) & (pl.count() == 1))
+            .then(pl.lit(value=False))
+            .otherwise(pl.col(FORECAST_COLUMN))
+            .alias(FORECAST_COLUMN),
+        )
+        return df.filter(pl.col(FORECAST_COLUMN) == pl.lit(value=False))
+
+    def _make_nonnegative(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
+        return df.with_columns(pl.max_horizontal(VALUE_COLUMN, 0.0))
+
+    def _make_nonpositive(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
+        return df.with_columns(pl.min_horizontal(VALUE_COLUMN, 0.0))
+
+    def _ratio_to_last_historical_value(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
+        year = cast('int', df.filter(~df[FORECAST_COLUMN])[YEAR_COLUMN].max())
+        return self._scale_by_reference_year(df, year)
+
+    def _truncate_before_start(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
+        baseline_year = self.context.instance.reference_year
+        return df.filter(pl.col(YEAR_COLUMN).ge(baseline_year))
+
+    def _truncate_beyond_end(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
+        return df.filter(pl.col(YEAR_COLUMN).le(self.get_end_year()))
+
     tag_descriptions = {
         'additive': _("Add input node values (even if the units don't match with the node units)."),
         'arithmetic_inverse': _('Take the arithmetic inverse of the values (-x).'),
@@ -1618,6 +1649,7 @@ class Node:
         'empty_to_zero': _('Convert NaNs to zeros.'),
         'expectation': _('Take the expected value over the uncertainty dimension.'),
         'extend_values': _('Extend the last historical values to the remaining missing years.'),
+        'extend_forecast_values': _('Extend the last forecast values to the remaining missing years.'),
         'geometric_inverse': _('Take the geometric inverse of the values (1/x).'),
         'goal': _('The node is used as the goal for the action.'),
         'historical': _('The node is used as the historical starting point.'),

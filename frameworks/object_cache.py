@@ -110,6 +110,9 @@ class MeasureDataPointCache(ModelObjectCache[MeasureDataPoint, MeasureDataPointQ
     def __post_init__(self):
         self._groups['measure'] = ObjectCacheGroup(self, lambda obj: obj.measure_id)
 
+    def filter_by_parent(self, qs: MeasureDataPointQuerySet) -> MeasureDataPointQuerySet:
+        return qs.filter(measure__framework_config=self.parent)
+
     def by_measure(self, measure_id: int) -> list[MeasureDataPoint]:
         return self.get_list_by_group('measure', measure_id)
 

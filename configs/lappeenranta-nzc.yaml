@@ -137,9 +137,7 @@ action_groups:
 
 # - graph_type: cost_benefit
 #   cost_node: discounted_investment
-#   impact_node: discounted_benefits
-#   cost_unit: MEUR
-#   impact_unit: MEUR
+#   effect_node: discounted_benefits
 #   indicator_unit: MEUR
 #   stakeholder_dimension: stakeholder
 #   outcome_dimension: cost_type
@@ -147,23 +145,21 @@ action_groups:
 
 # - graph_type: cost_benefit
 #   cost_node: health_effect_of_active_mobility
-#   impact_node: health_effect_of_active_mobility
-#   cost_unit: case
-#   impact_unit: case
+#   effect_node: health_effect_of_active_mobility
 #   indicator_unit: case
 #   stakeholder_dimension: transport_mode
 #   outcome_dimension: response
 #   label_en: Number of attributable (avoided) deaths
 #   label_fi: Aktiiviseen liikkumiseen liittyvät (vältetyt) tapaukset
 
-# - graph_type: cost_effectiveness
+# - graph_type: cost_efficiency
 #   cost_node: discounted_total_cost
-#   impact_node: aggregated_net_emissions
+#   effect_node: aggregated_net_emissions
 #   invert_cost: true
-#   invert_impact: true
+#   invert_effect: true
 #   indicator_unit: EUR/t
 #   cost_unit: MEUR
-#   impact_unit: kt
+#   effect_unit: kt
 #   plot_limit_for_indicator: 1000
 #   label: Cost efficiency
 

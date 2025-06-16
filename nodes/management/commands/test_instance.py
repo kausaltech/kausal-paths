@@ -92,7 +92,12 @@ class Command(BaseCommand):
                     print(diffs)
 
     def run_aep(self, ctx: Context, aep: ImpactOverview):
-        logger.info('Calculating action afficiency pair: %s:%s' % (aep.cost_node.id, aep.impact_node.id))
+        cn = aep.cost_node
+        if cn:
+            cost_id = cn.id
+        else:
+            cost_id = 'None'
+        logger.info('Calculating impact overview: %s:%s' % (cost_id, aep.effect_node.id))
 
     def check_instance(self, ic: InstanceConfig):
         instance = ic.get_instance()

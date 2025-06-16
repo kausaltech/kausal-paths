@@ -18,45 +18,48 @@ emission_forecast_from: 2023
 emission_dimensions: ['scope', 'ghg']
 features:
   baseline_visible_in_graphs: true
+
 impact_overviews:
-- graph_type: cost_effectiveness
+
+- graph_type: cost_efficiency
   cost_node: discounted_net_costs
-  impact_node: total_emissions
+  effect_node: total_emissions
   invert_cost: false
-  invert_impact: true
+  invert_effect: true
   indicator_unit: EUR/t
   cost_unit: MEUR
-  impact_unit: kt
+  effect_unit: kt
   plot_limit_for_indicator: 1000
   label: Cost effectiveness
-- graph_type: return_of_investment
+
+- graph_type: return_on_investment
   cost_node: discounted_investment_costs
-  impact_node: discounted_net_costs
+  effect_node: discounted_net_costs
   invert_cost: false
-  invert_impact: false
+  invert_effect: false
   indicator_unit: '%'
-  cost_unit: MEUR
-  impact_unit: MEUR
+  # cost_unit: MEUR
+  # effect_unit: MEUR
   label: Return on investment
+
 #- graph_type: cost_benefit
 #  cost_node: test_investments_for_the_city
-#  impact_node: discounted_costs
+#  effect_node: discounted_costs
 #  invert_cost: true
-#  invert_impact: true
+#  invert_effect: true
 #  indicator_unit: MEUR
-#  cost_unit: MEUR
-#  impact_unit: MEUR
+#  effect_unit: MEUR
 #  stakeholder_dimension: stakeholder
 #  outcome_dimension: outcome_of_interest
 #  label: Cost-benefit analysis
+
 #- graph_type: cost_benefit
 #  cost_node: total_discounted_action_costs
-#  impact_node: total_economic_costs
+#  effect_node: total_economic_costs
 #  invert_cost: true
-#  invert_impact: true
+#  invert_effect: true
 #  indicator_unit: MEUR
-#  cost_unit: MEUR
-#  impact_unit: MEUR
+#  effect_unit: MEUR
 #  label: Cost-benefit analysis for the city
 
 params:

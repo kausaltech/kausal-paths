@@ -29,34 +29,34 @@ action_groups:
   color: '#E15759'
 
 impact_overviews:
-- graph_type: cost_effectiveness
+- graph_type: cost_efficiency
   cost_node: net_price
-  impact_node: net_emissions
+  effect_node: net_emissions
   invert_cost: false
-  invert_impact: true
+  invert_effect: true
   indicator_unit: EUR/t
   cost_unit: MEUR
-  impact_unit: kt
+  effect_unit: kt
   plot_limit_for_indicator: 1000000
   label: Cost efficiency
 
 - graph_type: cost_benefit
   cost_node: cost_benefit_analysis
-  impact_node: cost_benefit_analysis
-  cost_unit: kEUR
-  impact_unit: kEUR
+  effect_node: cost_benefit_analysis
+  # cost_unit: kEUR
+  # effect_unit: kEUR
   indicator_unit: kEUR
   outcome_dimension: cost_benefit
   label: Cost-benefit
 
-- graph_type: return_of_investment
+- graph_type: return_on_investment
   cost_node: total_costs
-  impact_node: total_benefits
+  effect_node: total_benefits
   invert_cost: false
-  invert_impact: true
+  invert_effect: true
   indicator_unit: '%'
-  cost_unit: EUR
-  impact_unit: EUR
+  # cost_unit: EUR
+  # effect_unit: EUR
   label: Return on investment
 
 dimensions:

@@ -44,28 +44,29 @@ action_groups:
   name: Draft
 
 # impact_overviews:
+
 # - graph_type: cost_efficiency
 #   cost_node: action_costs
-#   impact_node: total_cost
+#   effect_node: total_cost
 #   invert_cost: false
-#   invert_impact: false
+#   invert_effect: false
 #   indicator_unit: kEUR/Ut
 #   cost_unit: MEUR
-#   impact_unit: Ut
+#   effect_unit: Ut
 #   label_fi: Kokonaishyödyn marginaalikustannus
 #   label: Marginal cost in total utility
+
 # - graph_type: cost_benefit
 #   cost_node: total_cost_costs
-#   impact_node: total_cost_benefits
+#   effect_node: total_cost_benefits
 #   invert_cost: false
-#   invert_impact: true
+#   invert_effect: true
 #   indicator_unit: GEUR
-#   cost_unit: GEUR
-#   impact_unit: GEUR
 #   label_fi: Kustannus-hyötyarvio kokonaisvaikutuksista
 #   label_en: Cost-benefit analysis of total impacts
 #   stakeholder_dimension: stakeholder
 #   outcome_dimension: cost_type
+
 # - graph_type: value_of_information
 #   cost_node: total_economic_cost
 #   cost_unit: EUR

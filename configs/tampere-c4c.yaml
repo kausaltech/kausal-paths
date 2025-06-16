@@ -17,7 +17,7 @@ reference_year: 1990
 minimum_historical_year: 2010
 maximum_historical_year: 2023
 emission_dataset: tampere/scenarios/emissions/bau
-emission_unit: kt/a
+emission_unit: kt_co2e/a
 emission_forecast_from: 2024
 params:
 - id: municipality_name
@@ -27,34 +27,33 @@ features:
   use_datasets_from_db: true
 
 impact_overviews:
-- graph_type: cost_effectiveness
+- graph_type: cost_efficiency
   cost_node: net_cost
-  impact_node: net_emissions
+  effect_node: net_emissions
   invert_cost: false
-  invert_impact: true
-  indicator_unit: EUR/t
+  invert_effect: true
+  indicator_unit: EUR/t_co2e
   cost_unit: EUR
-  impact_unit: t
+  effect_unit: t_co2e
   plot_limit_for_indicator: 50000
   label: Kustannusvaikuttavuus
 
 - graph_type: cost_benefit
   cost_node: cost_benefit_analysis
-  impact_node: cost_benefit_analysis
-  cost_unit: kEUR
-  impact_unit: kEUR
+  effect_node: cost_benefit_analysis
+  # effect_unit: kEUR
   indicator_unit: kEUR
   outcome_dimension: cost_benefit
   label: Cost-benefit
 
-- graph_type: return_of_investment
+- graph_type: return_on_investment
   cost_node: aggregate_total_costs
-  impact_node: aggregate_total_benefits
+  effect_node: aggregate_total_benefits
   invert_cost: false
-  invert_impact: true
+  invert_effect: true
   indicator_unit: '%'
-  cost_unit: EUR
-  impact_unit: EUR
+  # cost_unit: EUR
+  # effect_unit: EUR
   label: Return on investment
 
 action_groups:
@@ -526,6 +525,15 @@ dimensions:
   - id: tramline_3_construction
     label: Ratikan 3 vaihe (2028-2030)
     label_en: Tramline 3 construction (2028-2030)
+  - id: improving_the_service_level_of_public_transport
+    label: Joukkoliikenteen palvelutason nosto
+    label_en: Improving the service level of public transport
+  - id: promoting_walking_and_cycling
+    label: Kävelyn ja pyöräilyn edistäminen
+    label_en: Promoting walking and cycling
+  - id: parking_policy_to_support_sustainable_mobility
+    label: Kestävää liikkumista tukeva pysäköintipolitiikka
+    label_en: Parking policy to support sustainable mobility
 
 emission_sectors:
 - id: net_emissions
@@ -585,7 +593,7 @@ nodes:
   name_en: Solid waste treatment
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [ghg, scope]
   output_dimensions: [ghg, scope]
   input_datasets:
@@ -610,7 +618,7 @@ nodes:
   name_en: Waste water treatment
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [ghg, scope]
   output_dimensions: [ghg, scope]
   input_datasets:
@@ -636,7 +644,7 @@ nodes:
   name_en: Cattle digestion emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [ghg, scope]
   output_dimensions: [ghg, scope]
   input_datasets:
@@ -661,7 +669,7 @@ nodes:
   name_en: Field crops emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [ghg, scope]
   output_dimensions: [ghg, scope]
   input_datasets:
@@ -686,7 +694,7 @@ nodes:
   name_en: Manure treatment emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [ghg, scope]
   output_dimensions: [ghg, scope]
   input_datasets:
@@ -713,7 +721,7 @@ nodes:
   name_en: Heating fuel emission factors
   type: simple.AdditiveNode
   quantity: emission_factor
-  unit: t/GWh
+  unit: t_co2e/GWh
   input_dimensions: [heating, energy_carrier, ghg, scope]
   output_dimensions: [heating, energy_carrier, ghg, scope]
   input_datasets:
@@ -743,7 +751,7 @@ nodes:
   name_en: Heating emission factors
   type: simple.AdditiveNode
   quantity: emission_factor
-  unit: t/GWh
+  unit: t_co2e/GWh
   input_dimensions: [heating, energy_carrier, ghg, scope]
   output_dimensions: [heating, energy_carrier, ghg, scope]
   input_datasets:
@@ -835,7 +843,7 @@ nodes:
   name_en: District heating emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [heating, energy_carrier, ghg, scope]
   output_dimensions: [heating, energy_carrier, ghg, scope]
   output_nodes:
@@ -846,7 +854,7 @@ nodes:
   name_en: Total district heating emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [heating, energy_carrier, ghg, scope]
   output_dimensions: [heating, energy_carrier, ghg, scope]
   input_datasets:
@@ -909,7 +917,7 @@ nodes:
   name_en: Gas heating emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [heating, energy_carrier, ghg, scope]
   output_dimensions: [heating, energy_carrier, ghg, scope]
   output_nodes:
@@ -986,7 +994,7 @@ nodes:
   name_en: Oil heating emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [heating, energy_carrier, ghg, scope]
   output_dimensions: [heating, energy_carrier, ghg, scope]
   output_nodes:
@@ -997,7 +1005,7 @@ nodes:
   name_en: Total oil heating emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [heating, energy_carrier, ghg, scope]
   output_dimensions: [heating, energy_carrier, ghg, scope]
   input_datasets:
@@ -1089,7 +1097,7 @@ nodes:
   name_en: Geothermal heating emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [heating, energy_carrier, ghg, scope]
   output_dimensions: [heating, energy_carrier, ghg, scope]
   output_nodes:
@@ -1100,7 +1108,7 @@ nodes:
   name_en: Total geothermal heating emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [heating, energy_carrier, ghg, scope]
   output_dimensions: [heating, energy_carrier, ghg, scope]
   input_datasets:
@@ -1161,7 +1169,7 @@ nodes:
   name_en: Water-to-air heat pump emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [heating, energy_carrier, ghg, scope]
   output_dimensions: [heating, energy_carrier, ghg, scope]
   output_nodes:
@@ -1238,7 +1246,7 @@ nodes:
   name_en: Direct electric heating emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [heating, energy_carrier, ghg, scope]
   output_dimensions: [heating, energy_carrier, ghg, scope]
   output_nodes:
@@ -1249,7 +1257,7 @@ nodes:
   name_en: Total direct electric heating emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [heating, energy_carrier, ghg, scope]
   output_dimensions: [heating, energy_carrier, ghg, scope]
   input_datasets:
@@ -1337,7 +1345,7 @@ nodes:
   name_en: Industrial electricity emission factors
   type: simple.AdditiveNode
   quantity: emission_factor
-  unit: t/GWh
+  unit: t_co2e/GWh
   input_dimensions: [energy_carrier, ghg, scope]
   output_dimensions: [energy_carrier, ghg, scope]
   input_datasets:
@@ -1360,7 +1368,7 @@ nodes:
   name_en: Industrial electricity emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [energy_carrier, ghg, scope]
   output_dimensions: [energy_carrier, ghg, scope]
   output_nodes:
@@ -1430,7 +1438,7 @@ nodes:
   name_en: Other electricity emission factors
   type: simple.AdditiveNode
   quantity: emission_factor
-  unit: t/GWh
+  unit: t_co2e/GWh
   input_dimensions: [energy_carrier, ghg, scope]
   output_dimensions: [energy_carrier, ghg, scope]
   input_datasets:
@@ -1453,7 +1461,7 @@ nodes:
   name_en: Other electricity emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [energy_carrier, ghg, scope]
   output_dimensions: [energy_carrier, ghg, scope]
   output_nodes:
@@ -1464,7 +1472,7 @@ nodes:
   name_en: Total other electricity emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [energy_carrier, ghg, scope]
   output_dimensions: [energy_carrier, ghg, scope]
   input_datasets:
@@ -1494,7 +1502,7 @@ nodes:
   name_en: Electricity consumption emissions
   color: '#F4D240'
   type: simple.SectorEmissions
-  unit: kt/a
+  unit: kt_co2e/a
   output_nodes:
   - id: net_emissions
 
@@ -1505,7 +1513,7 @@ nodes:
   name_en: On-road transportation emission factors
   type: simple.AdditiveNode
   quantity: emission_factor
-  unit: g/vkm
+  unit: g_co2e/vkm
   input_dimensions: [vehicle_type, ghg, scope]
   output_dimensions: [vehicle_type, ghg, scope]
   input_datasets:
@@ -1528,7 +1536,7 @@ nodes:
   name_en: Rail transportation emission factors
   type: simple.AdditiveNode
   quantity: emission_factor
-  unit: g/vkm
+  unit: g_co2e/vkm
   input_dimensions: [vehicle_type, energy_carrier, ghg, scope]
   output_dimensions: [vehicle_type, energy_carrier, ghg, scope]
   input_datasets:
@@ -1575,7 +1583,7 @@ nodes:
   name_en: Bus emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [vehicle_type, ghg, scope]
   output_dimensions: [vehicle_type, ghg, scope]
   output_nodes:
@@ -1586,7 +1594,7 @@ nodes:
   name_en: Total bus emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [vehicle_type, ghg, scope]
   output_dimensions: [vehicle_type, ghg, scope]
   input_datasets:
@@ -1643,7 +1651,7 @@ nodes:
   name_en: Local train emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [energy_carrier, vehicle_type, ghg, scope]
   output_dimensions: [energy_carrier, vehicle_type, ghg, scope]
   output_nodes:
@@ -1690,7 +1698,7 @@ nodes:
   name_en: Motorcycle emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [vehicle_type, ghg, scope]
   output_dimensions: [vehicle_type, ghg, scope]
   output_nodes:
@@ -1701,7 +1709,7 @@ nodes:
   name_en: Total motorcycle emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [vehicle_type, ghg, scope]
   output_dimensions: [vehicle_type, ghg, scope]
   input_datasets:
@@ -1757,7 +1765,7 @@ nodes:
   name_en: Passenger car emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [vehicle_type, ghg, scope]
   output_dimensions: [vehicle_type, ghg, scope]
   output_nodes:
@@ -1768,7 +1776,7 @@ nodes:
   name_en: Total passenger car emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [vehicle_type, ghg, scope]
   output_dimensions: [vehicle_type, ghg, scope]
   input_datasets:
@@ -1825,7 +1833,7 @@ nodes:
   name_en: Tram emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [energy_carrier, vehicle_type, ghg, scope]
   output_dimensions: [energy_carrier, vehicle_type, ghg, scope]
   output_nodes:
@@ -1872,7 +1880,7 @@ nodes:
   name_en: Truck emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [vehicle_type, ghg, scope]
   output_dimensions: [vehicle_type, ghg, scope]
   output_nodes:
@@ -1883,7 +1891,7 @@ nodes:
   name_en: Total truck emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [vehicle_type, ghg, scope]
   output_dimensions: [vehicle_type, ghg, scope]
   input_datasets:
@@ -1939,7 +1947,7 @@ nodes:
   name_en: Van emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [vehicle_type, ghg, scope]
   output_dimensions: [vehicle_type, ghg, scope]
   output_nodes:
@@ -1950,7 +1958,7 @@ nodes:
   name_en: Total van emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [vehicle_type, ghg, scope]
   output_dimensions: [vehicle_type, ghg, scope]
   input_datasets:
@@ -1982,7 +1990,7 @@ nodes:
   color: '#E8B455'
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [ghg, scope]
   output_dimensions: [ghg, scope]
   input_datasets:
@@ -2248,7 +2256,7 @@ nodes:
   name_en: Shadow cost of carbon
   type: simple.AdditiveNode
   quantity: unit_price
-  unit: EUR/t
+  unit: EUR/t_co2e
   input_dimensions: []
   output_dimensions: []
   forecast_values: [[2024, 148], [2025, 165], [2026, 182], [2027, 199],
@@ -2459,7 +2467,7 @@ nodes:
   name_en: Heating fuel emissions reductions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: t/a
+  unit: t_co2e/a
   input_dimensions: [energy_carrier, ghg, scope]
   output_dimensions: [energy_carrier, ghg, scope]
   output_nodes:
@@ -2477,7 +2485,7 @@ nodes:
   name_en: District heating emissions reductions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: t/a
+  unit: t_co2e/a
   input_dimensions: [energy_carrier, ghg, scope]
   output_dimensions: [energy_carrier, ghg, scope]
   output_nodes:
@@ -2495,7 +2503,7 @@ nodes:
   name_en: Electricity emissions reductions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: t/a
+  unit: t_co2e/a
   input_dimensions: [energy_carrier, ghg, scope]
   output_dimensions: [energy_carrier, ghg, scope]
   output_nodes:
@@ -2513,7 +2521,7 @@ nodes:
   name_en: Energy emissions reductions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: t/a
+  unit: t_co2e/a
   input_dimensions: []
   output_dimensions: []
   output_nodes:
@@ -2529,6 +2537,49 @@ nodes:
   output_dimensions: []
   output_nodes:
   - id: aggregate_total_benefits
+
+# ----- TEMPORARY -------------------------------------------------------------
+
+- id: reduce_electricity_emission_factors
+  name: Reduce electricity emission factors
+  name_en: Reduce electricity emission factors
+  type: simple.FixedMultiplierNode
+  quantity: emission_factor
+  unit: t_co2e/GWh
+  input_dimensions: ['energy_carrier', 'ghg', 'heating']
+  output_dimensions: ['energy_carrier', 'ghg', 'heating']
+  params:
+  - id: multiplier
+    value: 1.0
+    unit: t_co2e/t
+  output_nodes:
+  - id: other_heating_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+    - id: heating
+    - id: scope
+      categories: ['scope2']
+  - id: industrial_electricity_emission_factors
+    from_dimensions:
+    - id: heating
+      categories: ['direct_electric_heat']
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+    - id: scope
+      categories: ['scope2']
+  - id: other_electricity_emission_factors
+    from_dimensions:
+    - id: heating
+      categories: ['direct_electric_heat']
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+    - id: scope
+      categories: ['scope2']
 
 # ----- ACTIONS ---------------------------------------------------------------
 
@@ -2551,7 +2602,7 @@ actions:
       value: change_in_the_propulsion_of_bus_fleet
   output_metrics:
   - id: emissions
-    unit: t/a
+    unit: t_co2e/a
     quantity: emissions
   - id: currency
     unit: EUR/a
@@ -2610,7 +2661,7 @@ actions:
       value: change_in_vehicle_propulsion
   output_metrics:
   - id: emissions
-    unit: t/a
+    unit: t_co2e/a
     quantity: emissions
   - id: currency
     unit: EUR/a
@@ -2658,6 +2709,181 @@ actions:
     - id: vehicle_type
       flatten: true
     - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+
+- id: improving_the_service_level_of_public_transport
+  name: Joukkoliikenteen palvelutason nosto
+  name_en: Improving the service level of public transport
+  type: simple.AdditiveAction
+  group: transportation
+  unit: Mvkm/a
+  quantity: mileage
+  input_dimensions: ['vehicle_type', 'scope']
+  output_dimensions: ['vehicle_type', 'scope']
+  input_datasets:
+  - id: tampere/transportation_actions
+    column: mileage
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: improving_the_service_level_of_public_transport
+    - column: owner
+    - column: ghg
+    - column: cost_type
+  output_nodes:
+  - id: car_kilometers
+
+- id: promoting_walking_and_cycling
+  name: Kävelyn ja pyöräilyn edistäminen
+  name_en: Promoting walking and cycling
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: ['cost_type', 'owner', 'vehicle_type', 'scope']
+  output_dimensions: ['cost_type', 'owner', 'vehicle_type', 'scope']
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: tampere/transportation_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: promoting_walking_and_cycling
+    - column: ghg
+  output_metrics:
+  - id: mileage
+    unit: Mvkm/a
+    quantity: mileage
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: car_kilometers
+    metrics: [mileage]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: scope
+  - id: transportation_price
+    metrics: [currency]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+    - id: vehicle_type
+      categories: [passenger_cars]
+  - id: total_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+
+- id: parking_policy_to_support_sustainable_mobility
+  name: Kestävää liikkumista tukeva pysäköintipolitiikka
+  name_en: Parking policy to support sustainable mobility
+  type: simple.AdditiveAction
+  group: transportation
+  unit: Mvkm/a
+  quantity: mileage
+  input_dimensions: ['vehicle_type', 'scope']
+  output_dimensions: ['vehicle_type', 'scope']
+  input_datasets:
+  - id: tampere/transportation_actions
+    column: mileage
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: parking_policy_to_support_sustainable_mobility
+    - column: owner
+    - column: ghg
+    - column: cost_type
+  output_nodes:
+  - id: car_kilometers
+
+- id: tramline_3_construction
+  name: Ratikan 3 vaihe (2028-2030)
+  name_en: Tramline 3 construction (2028-2030)
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: ['cost_type', 'owner', 'vehicle_type', 'scope']
+  output_dimensions: ['cost_type', 'owner', 'vehicle_type', 'scope']
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: tampere/transportation_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: tramline_3_construction
+    - column: ghg
+  output_metrics:
+  - id: mileage
+    unit: Mvkm/a
+    quantity: mileage
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: car_kilometers
+    metrics: [mileage]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: vehicle_type
+      categories: [passenger_cars]
+    to_dimensions:
+    - id: vehicle_type
+    - id: scope
+  - id: tram_kilometers
+    metrics: [mileage]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: vehicle_type
+      categories: [trams]
+    to_dimensions:
+    - id: vehicle_type
+    - id: scope
+    - id: energy_carrier
+      categories: [electricity]
+  - id: transportation_price
+    metrics: [currency]
+    from_dimensions:
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+    - id: vehicle_type
+  - id: total_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: vehicle_type
       flatten: true
     - id: scope
       flatten: true
@@ -3222,7 +3448,7 @@ actions:
     - column: energy_carrier
   output_metrics:
   - id: emissions
-    unit: t/a
+    unit: t_co2e/a
     quantity: emissions
   - id: currency
     unit: EUR/a
@@ -3286,33 +3512,7 @@ actions:
   - id: gpc/tampere_simple_actions
     forecast_from: 2024
   output_nodes:
-  - id: other_heating_emission_factors
-    to_dimensions:
-    - id: energy_carrier
-    - id: ghg
-    - id: heating
-    - id: scope
-      categories: ['scope2']
-  - id: industrial_electricity_emission_factors
-    from_dimensions:
-    - id: heating
-      categories: ['direct_electric_heat']
-      flatten: true
-    to_dimensions:
-    - id: energy_carrier
-    - id: ghg
-    - id: scope
-      categories: ['scope2']
-  - id: other_electricity_emission_factors
-    from_dimensions:
-    - id: heating
-      categories: ['direct_electric_heat']
-      flatten: true
-    to_dimensions:
-    - id: energy_carrier
-    - id: ghg
-    - id: scope
-      categories: ['scope2']
+  - id: reduce_electricity_emission_factors
 
 # - id: streetlight_replacement_action
 #   name: Streetlight Replacement Detailed Action

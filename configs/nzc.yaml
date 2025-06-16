@@ -163,32 +163,28 @@ action_groups:
 
 # - graph_type: cost_benefit
 #   cost_node: discounted_investment
-#   impact_node: discounted_benefits
-#   cost_unit: MEUR
-#   impact_unit: MEUR
+#   effect_node: discounted_benefits
 #   indicator_unit: MEUR
 #   stakeholder_dimension: stakeholder
 #   outcome_dimension: cost_type
 #   label: Cost-benefit
 
-# - graph_type: return_of_investment
+# - graph_type: return_on_investment
 #   cost_node: discounted_investment_city
-#   impact_node: discounted_benefits_city
+#   effect_node: discounted_benefits_city
 #   invert_cost: false
-#   invert_impact: true
+#   invert_effect: true
 #   indicator_unit: dimensionless
-#   cost_unit: kEUR
-#   impact_unit: kEUR
 #   label: Return on investment for the city with co-benefits
 
-# - graph_type: cost_effectiveness
+# - graph_type: cost_efficiency
 #   cost_node: discounted_total_cost
-#   impact_node: aggregated_net_emissions
+#   effect_node: aggregated_net_emissions
 #   invert_cost: true
-#   invert_impact: true
+#   invert_effect: true
 #   indicator_unit: EUR/t
 #   cost_unit: MEUR
-#   impact_unit: kt
+#   effect_unit: kt
 #   plot_limit_for_indicator: 2000
 #   label: Cost efficiency
 
@@ -1525,7 +1521,7 @@ actions:
   input_dimensions: [energy_carrier, heating_type, fuel_type]
   output_dimensions: [energy_carrier, heating_type, fuel_type]
   input_nodes:
-  - id: heating_fuel_share_historical_district
+  - id: heating_fuel_share_district_historical
     tags: [historical]
   - id: heating_fuel_share_goal
     tags: [goal]

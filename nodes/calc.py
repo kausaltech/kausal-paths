@@ -1,9 +1,15 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import polars as pl
-import pandas as pd
 
 from common import polars as ppl
 
 from .constants import FORECAST_COLUMN, YEAR_COLUMN
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 def nafill_all_forecast_years(df: pd.DataFrame, end_year: int) -> pd.DataFrame:
@@ -20,12 +26,12 @@ def nafill_all_forecast_years(df: pd.DataFrame, end_year: int) -> pd.DataFrame:
 
 def extend_last_historical_value_pl(df: ppl.PathsDataFrame, end_year: int) -> ppl.PathsDataFrame:
     if FORECAST_COLUMN not in df.columns:
-        df = df.with_columns([pl.lit(False).alias(FORECAST_COLUMN)])
+        df = df.with_columns([pl.lit(False).alias(FORECAST_COLUMN)])  # noqa: FBT003
     if all(df[FORECAST_COLUMN]):  # Nothing to extend if there are no historical values
         return df
     df = df.paths.to_wide()
     df = df.paths.make_forecast_rows(end_year)
-    last_hist_year = df.filter(pl.col(FORECAST_COLUMN).eq(False))[YEAR_COLUMN].max()
+    last_hist_year = df.filter(pl.col(FORECAST_COLUMN).eq(False))[YEAR_COLUMN].max()  # noqa: FBT003
     df = df.paths.nafill_pad()
     if last_hist_year is not None:
         fc_cond = pl.col(YEAR_COLUMN) > last_hist_year
@@ -40,6 +46,21 @@ def extend_last_historical_value(df: pd.DataFrame, end_year: int) -> pd.DataFram
     pdf = ppl.from_pandas(df)
     pdf = extend_last_historical_value_pl(pdf, end_year)
     df = pdf.paths.to_pandas()
+    return df
+
+def extend_last_forecast_value_pl(df: ppl.PathsDataFrame, end_year: int) -> ppl.PathsDataFrame:
+    if FORECAST_COLUMN not in df.columns:
+        raise ValueError("There is no FORECAST_COLUMN.")
+    last_forecast_year = df[YEAR_COLUMN].max()
+    df = df.paths.to_wide()
+    df = df.paths.make_forecast_rows(end_year)
+    df = df.paths.nafill_pad()
+    if last_forecast_year is not None:
+        df = df.with_columns(
+            pl.when(pl.col(YEAR_COLUMN) > last_forecast_year)
+            .then(pl.lit(True)).otherwise(pl.col(FORECAST_COLUMN))  # noqa: FBT003
+            .alias(FORECAST_COLUMN))
+    df = df.paths.to_narrow()
     return df
 
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Annotated
 
 import graphene
 import strawberry as sb
@@ -8,31 +8,36 @@ from django.core.exceptions import ValidationError
 from django.utils.translation import gettext as _
 from graphql import DirectiveLocation
 from graphql.error import GraphQLError
-from graphql.type.definition import GraphQLArgument, GraphQLNonNull
-from graphql.type.directives import GraphQLDirective, specified_directives
-from graphql.type.scalars import GraphQLID, GraphQLString
+from strawberry.schema import Schema as StrawberrySchema
 from strawberry.tools import merge_types
 
 from grapple.registry import registry as grapple_registry
 
 from kausal_common.deployment import test_mode_enabled
-from kausal_common.graphene.strawberry_schema import CombinedSchema
 from kausal_common.graphene.version_query import Query as ServerVersionQuery
+from kausal_common.models.types import copy_signature
+from kausal_common.strawberry.schema import LoggingTracingExtension, Schema as UnifiedSchema
 from kausal_common.testing.schema import TestModeMutations
 
 from paths.graphql_types import UnitType
+from paths.schema_context import PathsGraphQLContext
 from paths.utils import validate_unit
 
 from frameworks.schema import Mutations as FrameworksMutations, Query as FrameworksQuery
-from nodes.schema import Mutations as NodesMutations, Query as NodesQuery
+from nodes.schema import (
+    Mutation as NodesMutation,
+    Query as NodesQuery,
+    SBQuery as SBNodesQuery,
+    Subscription as NodesSubscription,
+)
 from pages.schema import Query as PagesQuery
 from params.schema import Mutations as ParamsMutations, Query as ParamsQuery, types as params_types
-from users.schema import Mutations as UsersMutations, Query as UsersQuery
+from users.schema import Query as UsersQuery
 
 if TYPE_CHECKING:
     from kausal_common.graphene import GQLInfo
 
-    from paths.types import GQLInstanceContext
+    from paths.graphql_types import SBInfo
 
     from nodes.units import Unit
 
@@ -40,45 +45,29 @@ if TYPE_CHECKING:
 CO2E = 'CO<sub>2</sub>e'
 
 
-LocaleDirective = GraphQLDirective(
-    name='locale',
-    description='Select locale in which to return data',
-    args={
-        'lang': GraphQLArgument(
-            type_=GraphQLNonNull(GraphQLString),
-            description='Selected language',
-        ),
-    },
+@sb.directive(
     locations=[DirectiveLocation.QUERY, DirectiveLocation.MUTATION],
-)
-
-
-InstanceDirective = GraphQLDirective(
     name='instance',
-    description='Select the Paths instance for the request',
-    args={
-        'hostname': GraphQLArgument(
-            type_=GraphQLString,
-            description='Hostname',
-        ),
-        'identifier': GraphQLArgument(
-            type_=GraphQLID,
-            description='Instance identifier',
-        ),
-        'token': GraphQLArgument(
-            type_=GraphQLString,
-            description='Token for accessing the instance',
-        ),
-    },
-    locations=[DirectiveLocation.QUERY, DirectiveLocation.MUTATION],
+    description='Select the Paths instance for the operation',
 )
+def instance_directive(
+    info: SBInfo,
+    hostname: Annotated[str | None, sb.argument(description='Hostname')],
+    identifier: Annotated[sb.ID | None, sb.argument(description='Instance identifier')],
+    token: Annotated[str | None, sb.argument(description='Token for accessing the instance')],
+):
+    pass
 
 
-class Query(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, ServerVersionQuery, UsersQuery):
+
+class GrapheneQuery(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, ServerVersionQuery, UsersQuery):
     unit = graphene.Field(UnitType, value=graphene.String(required=True))
 
+    class Meta:
+        name = 'Query'
+
     @staticmethod
-    def resolve_unit(root: Query, info: GQLInfo, value: str) -> Unit:
+    def resolve_unit(root: GrapheneQuery, info: GQLInfo, value: str) -> Unit:
         try:
             unit = validate_unit(value)
         except ValidationError:
@@ -86,11 +75,9 @@ class Query(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, ServerVersionQ
         return unit
 
 
-class Mutations(ParamsMutations, NodesMutations, FrameworksMutations, UsersMutations):
+class GrapheneMutations(ParamsMutations, FrameworksMutations):
     pass
 
-
-type SBInfo = sb.Info['GQLInstanceContext']
 
 @sb.input(name='InstanceContext')
 class InstanceContextInput:
@@ -108,51 +95,70 @@ def context_directive(info: SBInfo, input: InstanceContextInput):
     return
 
 
-@sb.type(name='NodeType')
-class SBNode:
-    id: sb.ID
+SBQuery = merge_types('Query', (SBNodesQuery,))
 
 
-@sb.type(name='Query')
-class SBQuery:
-    @sb.field
-    def node(self, info: SBInfo, id: str) -> SBNode:
-        context = info.context.instance.context
-        node = context.get_node(id)
-        return SBNode(id=cast(sb.ID, node.id))
+@sb.type
+class Query(GrapheneQuery, SBQuery):  # type: ignore[valid-type, misc]
+    pass
 
 
-SB_MUTATION_TYPES: list[type] = []
+SB_MUTATION_TYPES: list[type] = [
+    NodesMutation,
+]
 if test_mode_enabled():
     SB_MUTATION_TYPES.append(TestModeMutations)
 
-SBMutation: type | None = None
-if SB_MUTATION_TYPES:
-    SBMutation = merge_types('Mutation', tuple(SB_MUTATION_TYPES))
+SBMutation = merge_types('Mutation', tuple(SB_MUTATION_TYPES))
+
+@sb.type
+class Mutation(GrapheneMutations, SBMutation):  # type: ignore[valid-type, misc]
+    pass
+
+
+Subscription = merge_types('Subscription', (NodesSubscription,))
+
+
+class PathsSchema(UnifiedSchema):
+    @copy_signature(StrawberrySchema.__init__)
+    def __init__(self, *args, **kwargs):
+        from .schema_context import (
+            ActivateInstanceContextExtension,
+            DetermineInstanceContextExtension,
+            PathsExecutionCacheExtension,
+        )
+
+        schema_directives = kwargs.pop('schema_directives', [])
+        schema_directives.extend([
+            context_directive,
+            instance_directive,
+        ])
+        kwargs['schema_directives'] = schema_directives
+        extensions = kwargs.pop('extensions', [])
+        extensions.extend([
+            LoggingTracingExtension(context_class=PathsGraphQLContext),
+            DetermineInstanceContextExtension,
+            PathsExecutionCacheExtension,
+            ActivateInstanceContextExtension,
+        ])
+        kwargs['extensions'] = extensions
+        super().__init__(*args, **kwargs)
 
 
 def generate_strawberry_schema() -> sb.Schema:
     from kausal_common.strawberry.registry import strawberry_types
 
-    sb_schema = sb.Schema(
-        query=SBQuery, mutation=SBMutation, types=strawberry_types, directives=[context_directive]
-    )
-    return sb_schema
-
-
-def generate_schema() -> tuple[sb.Schema, CombinedSchema]:
-    # We generate the Strawberry schema just to be able to utilize the
-    # resolved GraphQL types directly in the Graphene schema.
-    sb_schema = generate_strawberry_schema()
-
-    schema = CombinedSchema(
-        sb_schema=sb_schema,
+    all_types = set(strawberry_types)
+    all_types.update(params_types)
+    all_types.update(list(grapple_registry.models.values()))
+    schema = PathsSchema(
         query=Query,
-        mutation=Mutations,
-        directives=list(specified_directives) + [LocaleDirective, InstanceDirective],
-        types=params_types + list(grapple_registry.models.values()),
+        mutation=Mutation,
+        types=all_types,
+        directives=[context_directive, instance_directive],
+        subscription=Subscription,
     )
-    return sb_schema, schema
+    return schema
 
 
-sb_schema, schema = generate_schema()
+schema = generate_strawberry_schema()

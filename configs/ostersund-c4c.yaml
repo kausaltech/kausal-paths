@@ -31,34 +31,33 @@ action_groups:
   color: '#E15759'
 
 impact_overviews:
-- graph_type: cost_effectiveness
+- graph_type: cost_efficiency
   cost_node: aggregate_net_price
-  impact_node: aggregate_net_emissions
+  effect_node: aggregate_net_emissions
   invert_cost: false
-  invert_impact: true
+  invert_effect: true
   indicator_unit: kSEK/t
   cost_unit: kSEK
-  impact_unit: t
+  effect_unit: t
   plot_limit_for_indicator: 100
   label: Cost efficiency
 
 - graph_type: cost_benefit
   cost_node: cost_benefit_analysis
-  impact_node: cost_benefit_analysis
-  cost_unit: MSEK
-  impact_unit: MSEK
+  effect_node: cost_benefit_analysis
+  # effect_unit: MSEK
   indicator_unit: MSEK
   outcome_dimension: cost_benefit
   label: Cost-benefit
 
-- graph_type: return_of_investment
+- graph_type: return_on_investment
   cost_node: total_costs
-  impact_node: total_benefits
+  effect_node: total_benefits
   invert_cost: false
-  invert_impact: true
+  invert_effect: true
   indicator_unit: '%'
-  cost_unit: kSEK
-  impact_unit: kSEK
+  # cost_unit: kSEK
+  # effect_unit: kSEK
   label: Return on investment
 
 params:

@@ -18,6 +18,8 @@ from nodes.units import Unit, unit_registry
 if TYPE_CHECKING:
     from kausal_common.graphene import GQLInfo
 
+    from paths.schema_context import PathsGraphQLContext
+
 
 locale_cache: dict[str, Locale] = {}
 
@@ -95,3 +97,5 @@ def convert_unit_field(field, registry=None):
     return graphene.Field(
         UnitType, description=get_django_field_description(field), required=not field.null,
     )
+
+type SBInfo = sb.Info['PathsGraphQLContext']

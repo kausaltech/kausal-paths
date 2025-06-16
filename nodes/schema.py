@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import dataclasses
-import logging
+from datetime import datetime  # noqa: TC003
 from typing import TYPE_CHECKING, Annotated, Any, Protocol, cast
 
 import graphene
@@ -15,12 +15,14 @@ import polars as pl
 import sentry_sdk
 from grapple.types.rich_text import RichText
 from grapple.types.streamfield import StreamFieldInterface
+from loguru import logger
 from markdown_it import MarkdownIt
 
 from kausal_common.graphene.utils import create_from_dataclass
 from kausal_common.strawberry.registry import register_strawberry_type
 
-from paths.graphql_helpers import ensure_instance, pass_context
+from paths.const import INSTANCE_CHANGE_GROUP, INSTANCE_CHANGE_TYPE
+from paths.graphql_helpers import ensure_instance, get_instance_context, pass_context
 
 from nodes.node import Node
 from nodes.scenario import Scenario, ScenarioKind as ScenarioKindEnum
@@ -47,14 +49,14 @@ from .models import InstanceConfig
 strawberry = sb
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import AsyncGenerator, Iterable, Sequence
 
     from graphql import GraphQLResolveInfo
     from wagtail.blocks.stream_block import StreamValue
 
     from kausal_common.graphene import GQLInfo
 
-    from paths.graphql_types import UnitType
+    from paths.graphql_types import SBInfo, UnitType
     from paths.types import GQLInstanceContext, GQLInstanceInfo
 
     from common import polars as ppl
@@ -68,7 +70,8 @@ if TYPE_CHECKING:
     from .scenario import Scenario
     from .units import Unit
 
-logger = logging.getLogger(__name__)
+
+logger = logger.bind(name='nodes.schema')
 markdown = MarkdownIt('commonmark', {'html': True})
 
 
@@ -574,7 +577,7 @@ class NodeInterface(graphene.Interface):
         with_scenarios: list[str] | None = None,
         include_scenario_kinds: list[ScenarioKindEnum] | None = None,
     ) -> None | DimensionalMetric:
-        context = info.context.instance.context
+        context = get_instance_context(info)
         extra_scenarios: list[Scenario] = []
         for scenario_id in with_scenarios or []:
             if scenario_id not in context.scenarios:
@@ -594,7 +597,7 @@ class NodeInterface(graphene.Interface):
         try:
             ret = DimensionalMetric.from_node(root, extra_scenarios=extra_scenarios)
         except Exception:
-            logging.exception('Exception while resolving metric_dim for node %s' % root.id)
+            context.log.exception('Exception while resolving metric_dim for node %s' % root.id)
             return None
         return ret
 
@@ -879,10 +882,11 @@ class ScenarioType(graphene.ObjectType):
 
 class ActionImpact(graphene.ObjectType):
     action = graphene.Field(ActionNodeType, required=True)
-    cost_values = graphene.List(YearlyValue, required=True)
-    impact_values = graphene.List(YearlyValue, required=True)
+    cost_values = graphene.List(YearlyValue, required=True, deprecation_reason="Use costDim instead.")
+    impact_values = graphene.List(YearlyValue, required=True, deprecation_reason="Use effectDim instead.")
     cost_dim = graphene.Field(DimensionalMetricType, required=True)
-    impact_dim = graphene.Field(DimensionalMetricType, required=True)
+    impact_dim = graphene.Field(DimensionalMetricType, required=True, deprecation_reason="Use effectDim instead.")
+    effect_dim = graphene.Field(DimensionalMetricType, required=True)
     efficiency_divisor = graphene.Float()  # FIXME AEP depreciated
     unit_adjustment_multiplier = graphene.Float()  # To replace efficiency_divisor
 
@@ -902,42 +906,67 @@ class ImpactOverviewType(graphene.ObjectType):
         required=True,
         deprecation_reason="Use indicatorUnit instead"
     )  # FIXME depreciated
-    indicator_unit = graphene.Field('paths.schema.UnitType', required=True)  # FIXME Is this always needed?
+    indicator_unit = graphene.Field('paths.schema.UnitType', required=True)
     cost_unit = graphene.Field('paths.schema.UnitType', required=True)
     effect_unit = graphene.Field('paths.schema.UnitType', required=True)
     impact_unit = graphene.Field(
         'paths.schema.UnitType',
         required=True,
-        deprecation_reason="Use effectUnit instead")
+        deprecation_reason="Use indicatorUnit instead")
     indicator_cutpoint = graphene.Float()  # For setting decision criterion on the indicator. Uses indicator units
     cost_cutpoint = graphene.Float()  # For setting decision criterion on the cost. Uses cost units
     plot_limit_efficiency = graphene.Float( # FIXME Remove from UI and here.
         deprecation_reason="Use plot_limit_indicator instead"
     )
-    plot_limit_indicator = graphene.Float()
+    plot_limit_indicator = graphene.Float() # FIXME Depreciated
     plot_limit_for_indicator = graphene.Float()
-    invert_cost = graphene.Boolean(required=True)
-    invert_impact = graphene.Boolean(required=True)
+    invert_cost = graphene.Boolean(required=True, deprecation_reason="Not needed") # FIXME Depreciated
+    invert_effect = graphene.Boolean(required=True, deprecation_reason="Not needed") # FIXME Depreciated
+    invert_impact = graphene.Boolean(required=True, deprecation_reason="Not needed")
     label = graphene.String(required=True)
+    cost_label = graphene.String(required=False)
+    effect_label = graphene.String(required=False)
+    indicator_label = graphene.String(required=False)
+    cost_category_label = graphene.String(required=False)
+    effect_category_label = graphene.String(required=False)
+    description = graphene.String(required=False)
     actions = graphene.List(graphene.NonNull(ActionImpact), required=True)
 
     @staticmethod
     def resolve_id(root: ImpactOverview, info: GQLInstanceInfo) -> str:
-        return '%s:%s' % (root.cost_node.id, root.impact_node.id)
+        cost_id = root.cost_node.id if root.cost_node else 'None'
+        return '%s:%s' % (cost_id, root.effect_node.id)
+
+    @staticmethod
+    def resolve_plot_limit_efficiency(root: ImpactOverview, info: GQLInstanceInfo) -> float | None:
+        return root.plot_limit_for_indicator
+
+    @staticmethod
+    def resolve_graph_type(root: ImpactOverview, info: GQLInstanceInfo) -> str:
+        if root.graph_type == 'return_on_investment':
+            graph_type = 'return_of_investment' # FIXME Depreciated, remove when UI accepts 'on'
+        else:
+            graph_type = root.graph_type
+        return graph_type
 
     @staticmethod
     def resolve_actions(root: ImpactOverview, info: GQLInstanceInfo) -> list[dict[str, Any]]:
         all_aes = root.calculate(info.context.instance.context)
         out: list[dict] = []
         for ae in all_aes:
+            if ae.unit_adjustment_multiplier is not None:
+                ed = 1 / ae.unit_adjustment_multiplier
+            else:
+                ed = None
             years = ae.df[YEAR_COLUMN]
             d = dict(
                 action=ae.action,
                 cost_values=[YearlyValue(year, float(val)) for year, val in zip(years, list(ae.df['Cost']), strict=False)],
-                impact_values=[YearlyValue(year, float(val)) for year, val in zip(years, list(ae.df['Impact']), strict=False)],
+                impact_values=[YearlyValue(year, float(val)) for year, val in zip(years, list(ae.df['Effect']), strict=False)],
                 cost_dim=DimensionalMetric.from_action_impact(ae, root, 'Cost'),
-                impact_dim=DimensionalMetric.from_action_impact(ae, root, 'Impact'),
-                efficiency_divisor=ae.efficiency_divisor,
+                impact_dim=DimensionalMetric.from_action_impact(ae, root, 'Effect'), # FIXME Deprecated
+                effect_dim=DimensionalMetric.from_action_impact(ae, root, 'Effect'),
+                efficiency_divisor= ed, # FIXME Depreciated
                 unit_adjustment_multiplier=ae.unit_adjustment_multiplier,
             )
             out.append(d)
@@ -952,12 +981,32 @@ class ImpactOverviewType(graphene.ObjectType):
         return root.indicator_unit
 
     @staticmethod
-    def resolve_effect_unit(root: ImpactOverview, info: GQLInstanceInfo) -> Unit:
-        return root.impact_unit # FIXME Fix also functions in action.py
+    def resolve_cost_unit(root: ImpactOverview, info: GQLInstanceInfo) -> Unit:
+        return root.cost_unit or root.indicator_unit
 
     @staticmethod
-    def resolve_effect_node(root: ImpactOverview, info: GQLInstanceInfo) -> Node:
-        return root.impact_node
+    def resolve_effect_unit(root: ImpactOverview, info: GQLInstanceInfo) -> Unit:
+        return root.effect_unit or root.indicator_unit
+
+    @staticmethod
+    def resolve_impact_unit(root: ImpactOverview, info: GQLInstanceInfo) -> Unit:
+        return root.effect_unit or root.indicator_unit
+
+    @staticmethod
+    def resolve_impact_node(root: ImpactOverview, info: GQLInstanceInfo) -> Node:
+        return root.effect_node
+
+    @staticmethod
+    def resolve_invert_impact(root: ImpactOverview, info: GQLInstanceInfo) -> bool:
+        return False
+
+    @staticmethod
+    def resolve_invert_effect(root: ImpactOverview, info: GQLInstanceInfo) -> bool:
+        return False
+
+    @staticmethod
+    def resolve_invert_cost(root: ImpactOverview, info: GQLInstanceInfo) -> bool:
+        return False
 
 
 class InstanceBasicConfiguration(graphene.ObjectType):
@@ -1017,11 +1066,6 @@ class NormalizationType(graphene.ObjectType):
 
 
 class Query(graphene.ObjectType):
-    available_instances = graphene.List(
-        graphene.NonNull(InstanceBasicConfiguration),
-        hostname=graphene.String(),
-        required=True,
-    )
     instance = graphene.Field(InstanceType, required=True)
     nodes = graphene.List(graphene.NonNull(NodeInterface), required=True)
     node = graphene.Field(
@@ -1116,9 +1160,18 @@ class Query(graphene.ObjectType):
     def resolve_active_normalization(root, info: GQLInstanceInfo, context: Context):
         return context.active_normalization
 
+
+@sb.type
+class SBQuery(Query):
+    @pass_context
+    @sb.field(graphql_type=list[NormalizationType])
+    def active_normalizations(self, info: SBInfo, context: Context) -> list[Normalization]:
+        return list(context.normalizations.values())
+
+    @sb.field(graphql_type=list[InstanceBasicConfiguration])
     @staticmethod
-    def resolve_available_instances(root, info: GQLInfo, hostname: str) -> list[Instance]:
-        qs = InstanceConfig.objects.get_queryset().for_hostname(hostname, request=info.context)
+    def available_instances(info: SBInfo, hostname: str) -> list[Instance]:
+        qs = InstanceConfig.objects.get_queryset().for_hostname(hostname, wildcard_domains=info.context.wildcard_domains)
         instances: list[Instance] = []
         for config in qs:
             instance = config.get_instance()
@@ -1128,15 +1181,44 @@ class Query(graphene.ObjectType):
         return instances
 
 
-class SetNormalizerMutation(graphene.Mutation):
-    class Arguments:
-        id = graphene.ID(required=False)
+@register_strawberry_type
+@sb.type
+class InstanceChange:
+    id: sb.ID
+    identifier: str
+    modified_at: datetime
 
-    ok = graphene.Boolean(required=True)
-    active_normalization = graphene.Field(NormalizationType, required=False)
 
-    @pass_context
-    def mutate(root, info: GQLInstanceInfo, context: Context, id: str | None = None):
+@sb.type
+class Subscription:
+    @sb.subscription(graphql_type=InstanceChange)
+    async def available_instances(self, info: SBInfo) -> AsyncGenerator[InstanceChange]:
+        user = info.context.get_user()
+        logger.debug('New available_instances subscription')
+        ws = info.context.get_ws_consumer()
+        cl = ws.channel_layer
+        assert cl is not None
+        async with ws.listen_to_channel(INSTANCE_CHANGE_TYPE, groups=[INSTANCE_CHANGE_GROUP]) as channel:
+            cl_logger = logger.bind(channel=ws.channel_name)
+            cl_logger.debug('Listening to instance_change channel [%s]' % ws.channel_name)
+            async for msg in channel:
+                cl_logger.debug('Received instance_change message [%s]' % ws.channel_name)
+                ic = await InstanceConfig.objects.qs.filter(pk=msg['pk']).viewable_by(user).afirst()
+                if ic is None:
+                    continue
+                yield InstanceChange(id=sb.ID(str(ic.pk)), identifier=ic.identifier, modified_at=ic.modified_at)
+
+
+@sb.type
+class Mutation:
+    @sb.type
+    class SetNormalizerMutation:
+        ok: bool
+        active_normalizer: Normalization | None = sb.field(graphql_type=NormalizationType)
+
+    @sb.mutation
+    def set_normalizer(self, info: SBInfo, id: sb.ID | None = None) -> Mutation.SetNormalizerMutation:
+        context = get_instance_context(info)
         default = context.default_normalization
         if id:
             normalizer = context.normalizations.get(id)
@@ -1153,8 +1235,4 @@ class SetNormalizerMutation(graphene.Mutation):
             context.setting_storage.set_option('normalizer', id)
         context.set_option('normalizer', id)
 
-        return dict(ok=True, active_normalizer=context.active_normalization)
-
-
-class Mutations(graphene.ObjectType):
-    set_normalizer = SetNormalizerMutation.Field()
+        return Mutation.SetNormalizerMutation(ok=True, active_normalizer=context.active_normalization)

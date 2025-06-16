@@ -19,6 +19,8 @@ reference_year: 2010
 minimum_historical_year: 2010
 maximum_historical_year: 2023
 sample_size: 100
+features:
+  show_explanations: true
 
 action_groups:
 - id: forestry
@@ -58,26 +60,25 @@ action_groups:
 
 impact_overviews:
 
-- graph_type: cost_effectiveness
+- graph_type: cost_efficiency
   cost_node: action_costs
-  impact_node: value_profile
+  effect_node: value_profile
   invert_cost: false
-  invert_impact: false
+  invert_effect: false
   indicator_unit: kEUR/Ut
   cost_unit: MEUR
-  impact_unit: Ut
+  effect_unit: Ut
   plot_limit_for_indicator: 500
   label: Kokonaishyödyn marginaalikustannus
   label_en: Marginal cost in total utility
 
 - graph_type: cost_benefit
   cost_node: action_costs
-  impact_node: euro_utilities
+  effect_node: euro_utilities
   invert_cost: false
-  invert_impact: false
+  invert_effect: false
   indicator_unit: MEUR
-  cost_unit: MEUR
-  impact_unit: MEUR
+  # effect_unit: MEUR
   label: Kustannus-hyötyarvio kokonaisvaikutuksista
   label_en: Cost-benefit analysis of total impacts
 
