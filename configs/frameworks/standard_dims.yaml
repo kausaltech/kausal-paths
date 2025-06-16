@@ -354,6 +354,14 @@ dimensions:
   label_en: Inventory method
   label_de: Bilanzierungsmethode
   categories:
-  - id: eev
-    label_en: EEV
-    label_de: EEV
+  - id: end_energy
+    label_en: End energy
+    label_de: Endenergie (EEV)
+    aliases: [EEV, Endenergie]
+  - id: bisko
+    label_en: BISKO with national mix
+    label_de: BISKO mit Bundesmix
+    aliases: [BISKO]
+  - id: energy_costs
+    label_en: Energy costs
+    label_de: Energiekosten

@@ -15,11 +15,16 @@ from nodes.constants import CURRENCY_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTIT
 
 def extract_metadata_from_file(lines) -> dict[str, str]:
     units = {
-        't CO2äqu': ('t/a', EMISSION_QUANTITY),
-        'MWh': ('MWh/a', ENERGY_QUANTITY),
-        'GWh': ('GWh/a', ENERGY_QUANTITY),
-        'Euro': ('EUR/a', CURRENCY_QUANTITY),
+        'Mt CO2äqu': ('Mt/a','BISKO' , EMISSION_QUANTITY),
+        'kt CO2äqu': ('kt/a','BISKO' , EMISSION_QUANTITY),
+        't CO2äqu': ('t/a','BISKO' , EMISSION_QUANTITY),
+        'kg CO2äqu': ('kg/a','BISKO' , EMISSION_QUANTITY),
+        'GWh': ('GWh/a', 'EEV', ENERGY_QUANTITY),
+        'MWh': ('MWh/a', 'EEV', ENERGY_QUANTITY),
+        'kWh': ('kWh/a', 'EEV', ENERGY_QUANTITY),
+        'Euro': ('EUR/a', 'Energiekosten', CURRENCY_QUANTITY),
     }
+
     def _find_meta(lines, title) -> str:
         for _, line in enumerate(lines):
             meta_line = line.strip()
@@ -33,9 +38,13 @@ def extract_metadata_from_file(lines) -> dict[str, str]:
         return meta
 
     unit = _find_meta(lines, 'Einheit:')
-    unit, quantity = units.get(unit, (unit, ''))
+    unit, method, quantity = units.get(unit, (unit, '', ''))
     weather_correction = _find_meta(lines, 'Witterungskorrektur:')
     inventory_method = _find_meta(lines, 'Bilanzierungsmethode:')
+
+    if inventory_method != method:
+        raise KeyError(f"The method {inventory_method} does not match what was expected ({method}).")
+
     return {
         'unit': unit,
         'quantity': quantity,
@@ -76,7 +85,7 @@ def get_single_ksp_file(input_file) -> pl.DataFrame:
     data_string = ''.join(data_lines)
 
     try:
-        dfpd = pd.read_csv(io.StringIO(data_string), sep=',', encoding='utf-8', quotechar='"')
+        dfpd = pd.read_csv(io.StringIO(data_string), sep=',', encoding='utf-8', quotechar='"', decimal=",")
         df = pl.from_pandas(dfpd)
     except Exception:
         return pl.DataFrame()
@@ -118,7 +127,6 @@ def process_single_ksp_file(input_file) -> pl.DataFrame:
     )
     df = df.with_columns(pl.lit(year).cast(int).alias(YEAR_COLUMN))
 
-    df = df.with_columns(pl.col(VALUE_COLUMN).str.replace_all(',', '.').cast(float).alias(VALUE_COLUMN))
     print(df)
 
     # filename_stem = input_file.stem
@@ -143,12 +151,11 @@ def convert_multiple_energietraeger_files(input_patterns, slice_column, output_f
     all_dataframes = []
 
     for input_file in input_files:
-        try:
-            df = process_single_ksp_file(input_file)
-            if df is not None:
-                all_dataframes.append(df)
-        except Exception:  # noqa: S112
-            continue
+        df = process_single_ksp_file(input_file)
+        if len(df) > 0:
+            all_dataframes.append(df)
+        else:
+            print(f"File {input_file} had no content.")
 
     if not all_dataframes:
         raise ValueError("No valid data found in any input files")
