@@ -539,6 +539,7 @@ emission_sectors:
 - id: net_emissions
   name: Kokonaispäästöt
   name_en: Net emissions
+  order: 1
   is_outcome: true
   target_year_goal: 260
 
@@ -2272,6 +2273,7 @@ nodes:
   unit: EUR/a
   input_dimensions: [cost_type, owner]
   output_dimensions: [cost_type, owner]
+  order: 2
   is_outcome: true
   output_nodes:
   - id: net_cost
@@ -2581,6 +2583,303 @@ nodes:
     - id: scope
       categories: ['scope2']
 
+- id: electrify_public_transportation_emissions
+  name: Vaikutus (Päästöt)
+  name_en: Impact (Emissions)
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  order: 3
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: electrify_public_transportation_currency
+  name: Vaikutus (Kustannus)
+  name_en: Impact (Costs)
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  order: 4
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: change_in_vehicle_propulsion_of_private_cars_emissions
+  name: Vaikutus (Päästöt)
+  name_en: Impact (Emissions)
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  order: 3
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: change_in_vehicle_propulsion_of_private_cars_currency
+  name: Vaikutus (Kustannus)
+  name_en: Impact (Costs)
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  order: 4
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: promoting_walking_and_cycling_mileage
+  name: Vaikutus (Suorite)
+  name_en: Impact (Mileage)
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: Mvkm/a
+  order: 3
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: promoting_walking_and_cycling_currency
+  name: Vaikutus (Kustannus)
+  name_en: Impact (Costs)
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  order: 4
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: tramline_3_construction_car_mileage
+  name: Vaikutus (Suorite, Henkilöauto)
+  name_en: Impact (Car Mileage)
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: Mvkm/a
+  order: 3
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: tramline_3_construction_tram_mileage
+  name: Vaikutus (Suorite, Ratikka)
+  name_en: Impact (Tram Mileage)
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: Mvkm/a
+  order: 4
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: tramline_3_construction_currency
+  name: Vaikutus (Kustannus)
+  name_en: Impact (Costs)
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  order: 5
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: energy_efficiency_renovations_in_buildings_district_heating
+  name: Vaikutus (Energiaa, Kaukolämpö)
+  name_en: Impact (District Heating)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  order: 3
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: energy_efficiency_renovations_in_buildings_electricity
+  name: Vaikutus (Energiaa, Sähkö)
+  name_en: Impact (Electricity)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  order: 4
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: energy_efficiency_renovations_in_buildings_currency
+  name: Vaikutus (Kustannus)
+  name_en: Impact (Costs)
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  order: 5
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: replacing_oil_heating_with_geothermal_fuel_oil
+  name: Vaikutus (Energiaa, Polttoöljy)
+  name_en: Impact (Fuel Oil)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  order: 3
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: replacing_oil_heating_with_geothermal_electricity
+  name: Vaikutus (Energiaa, Sähkö)
+  name_en: Impact (Electricity)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  order: 4
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: replacing_oil_heating_with_geothermal_currency
+  name: Vaikutus (Kustannus)
+  name_en: Impact (Costs)
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  order: 5
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: replace_oil_heating_fuel_oil
+  name: Vaikutus (Energiaa, Polttoöljy)
+  name_en: Impact (Fuel Oil)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  order: 3
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: replace_oil_heating_electricity
+  name: Vaikutus (Energiaa, Sähkö)
+  name_en: Impact (Electricity)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  order: 4
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: replace_oil_heating_currency
+  name: Vaikutus (Kustannus)
+  name_en: Impact (Costs)
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  order: 5
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: build_renewable_electricity_production_energy
+  name: Vaikutus (Energiaa)
+  name_en: Impact (Energy)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  order: 3
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: build_renewable_electricity_production_currency
+  name: Vaikutus (Kustannus)
+  name_en: Impact (Costs)
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  order: 4
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: change_streetlights_to_led_energy
+  name: Vaikutus (Energiaa)
+  name_en: Impact (Energy)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  order: 3
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: change_streetlights_to_led_currency
+  name: Vaikutus (Kustannus)
+  name_en: Impact (Costs)
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  order: 4
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: energy_efficiency_of_new_construction_district_heating
+  name: Vaikutus (Energiaa, Kaukolämpö)
+  name_en: Impact (District Heating)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  order: 3
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: energy_efficiency_of_new_construction_electricity
+  name: Vaikutus (Energiaa, Sähkö)
+  name_en: Impact (Electricity)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  order: 4
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: energy_efficiency_of_new_construction_currency
+  name: Vaikutus (Kustannus)
+  name_en: Impact (Costs)
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  order: 5
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: replacing_fossil_fuels_with_res_in_city_machinery_emissions
+  name: Vaikutus (Päästöt)
+  name_en: Impact (Emissions)
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  order: 3
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: replacing_fossil_fuels_with_res_in_city_machinery_currency
+  name: Vaikutus (Kustannus)
+  name_en: Impact (Costs)
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  order: 4
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
 # ----- ACTIONS ---------------------------------------------------------------
 
 actions:
@@ -2642,6 +2941,32 @@ actions:
     to_dimensions:
     - id: cost_type
     - id: owner
+  - id: electrify_public_transportation_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: electrify_public_transportation_currency
+    metrics: [currency]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
 
 - id: change_in_vehicle_propulsion_of_private_cars
   name: Henkilöautoliikenteen käyttövoimamuutos
@@ -2715,6 +3040,32 @@ actions:
     to_dimensions:
     - id: cost_type
     - id: owner
+  - id: change_in_vehicle_propulsion_of_private_cars_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: change_in_vehicle_propulsion_of_private_cars_currency
+    metrics: [currency]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
 
 - id: improving_the_service_level_of_public_transport
   name: Joukkoliikenteen palvelutason nosto
@@ -2796,6 +3147,28 @@ actions:
     to_dimensions:
     - id: cost_type
     - id: owner
+  - id: promoting_walking_and_cycling_mileage
+    metrics: [mileage]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: promoting_walking_and_cycling_currency
+    metrics: [currency]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    - id: scope
+      flatten: true
 
 - id: parking_policy_to_support_sustainable_mobility
   name: Kestävää liikkumista tukeva pysäköintipolitiikka
@@ -2890,6 +3263,41 @@ actions:
     to_dimensions:
     - id: cost_type
     - id: owner
+  - id: tramline_3_construction_car_mileage
+    metrics: [mileage]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: vehicle_type
+      categories: [passenger_cars]
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: tramline_3_construction_tram_mileage
+    metrics: [mileage]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: vehicle_type
+      categories: [trams]
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: tramline_3_construction_currency
+    metrics: [currency]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    - id: scope
+      flatten: true
 
 - id: energy_efficiency_renovations_in_buildings
   name: Korjausrakentaminen kaupungin kiinteistössä
@@ -2980,6 +3388,47 @@ actions:
     to_dimensions:
     - id: cost_type
     - id: owner
+  - id: energy_efficiency_renovations_in_buildings_district_heating
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      categories: [district_heat]
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: energy_efficiency_renovations_in_buildings_electricity
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: energy_efficiency_renovations_in_buildings_currency
+    metrics: [currency]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
 
 - id: replacing_oil_heating_with_geothermal
   name: Öljylämmityksestä siirtyminen maalämpöihin yksityisomisteisissa rakennuskannassa
@@ -3085,6 +3534,47 @@ actions:
     to_dimensions:
     - id: cost_type
     - id: owner
+  - id: replacing_oil_heating_with_geothermal_fuel_oil
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      categories: [fuel_oil]
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: replacing_oil_heating_with_geothermal_electricity
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: replacing_oil_heating_with_geothermal_currency
+    metrics: [currency]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
 
 - id: replace_oil_heating
   name: Öljylämmityksestä siirtyminen vesi-ilmalämpöpumppuihin ja maalämpöihin kaupungin rakennuskannassa
@@ -3187,6 +3677,47 @@ actions:
     to_dimensions:
     - id: cost_type
     - id: owner
+  - id: replace_oil_heating_fuel_oil
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      categories: [fuel_oil]
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: replace_oil_heating_electricity
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: replace_oil_heating_currency
+    metrics: [currency]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
 
 - id: build_renewable_electricity_production
   name: Hajautettu uusiutuva energia (aurinkosähkö)
@@ -3255,6 +3786,28 @@ actions:
     to_dimensions:
     - id: cost_type
     - id: owner
+  - id: build_renewable_electricity_production_energy
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: build_renewable_electricity_production_currency
+    metrics: [currency]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
 
 - id: change_streetlights_to_led
   name: Katuvalaistuksen vaihtaminen LED-valaisimiksi
@@ -3337,6 +3890,28 @@ actions:
     to_dimensions:
     - id: cost_type
     - id: owner
+  - id: change_streetlights_to_led_energy
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: change_streetlights_to_led_currency
+    metrics: [currency]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
 
 - id: energy_efficiency_of_new_construction
   name: Uusien rakennusten energiatehokkuustoimet
@@ -3427,6 +4002,47 @@ actions:
     to_dimensions:
     - id: cost_type
     - id: owner
+  - id: energy_efficiency_of_new_construction_district_heating
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      categories: [district_heat]
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: energy_efficiency_of_new_construction_electricity
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: energy_efficiency_of_new_construction_currency
+    metrics: [currency]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
 
 - id: replacing_fossil_fuels_with_res_in_city_machinery
   name: Fossiilisista polttoaineista luopuminen kaupungin työkoneissa
@@ -3484,6 +4100,28 @@ actions:
     to_dimensions:
     - id: cost_type
     - id: owner
+  - id: replacing_fossil_fuels_with_res_in_city_machinery_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: replacing_fossil_fuels_with_res_in_city_machinery_currency
+    metrics: [currency]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
 
 - id: shift_to_low_carbon_in_national_electricity_production
   name: Kansallinen sähköntuotanto puhdistuu
