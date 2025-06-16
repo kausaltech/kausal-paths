@@ -242,19 +242,21 @@ nodes:
   name_fi: Henkilöautojen määrä
   name_en: Number of passenger cars
   name_sv: Antal personbilar
-  type: gpc.DatasetNode
+  type: generic.GenericNode
   quantity: number
   unit: vehicles
   input_dimensions: [energy_carrier, vehicle_type]
   output_dimensions: [energy_carrier, vehicle_type]
   input_datasets:
-  - id: gpc/espoo # TODO Use HSY data instead
-    forecast_from: 2024
-    filters:
-    - column: Slice
-      value: transport
-  params:
-    sector: Henkilöautojen määrä
+  - id: espoo/transport
+    tags: [baseline]
+    forecast_from: 2025
+    column: henkiloautojen_maara
+    # filters:
+    # - column: Slice
+    #   value: transport
+  # params:
+  #   sector: Henkilöautojen määrä
 
 - id: car_fuel_by_energy_carrier
   name_fi: Henkilöautojen polttoaineenkulutus energialähteittäin
