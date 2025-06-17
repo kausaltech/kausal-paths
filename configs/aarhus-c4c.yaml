@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://aarhus-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: f6b355114c538f5cd6afd88d52b52f0055fe692b
+  commit: 126c4722881f9c3133b888ddd35b396263b07d32
   dvc_remote: kausal-s3
 name: Aarhus Greenhouse Gas Inventory
 owner: City of Aarhus
@@ -150,6 +150,8 @@ dimensions:
     label: Wood Chips
   - id: wood_pellets
     label: Wood Pellets
+  - id: import_electricity
+    label: Import Electricity
 
 - id: sector
   label: Emission Sector
@@ -472,8 +474,12 @@ nodes:
   input_nodes:
   - id: energy_emission_factors
   - id: electricity_import
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
     to_dimensions:
     - id: energy_carrier
+      categories: [import_electricity]
 
 # ---------- I.3 Manufacturing
 
