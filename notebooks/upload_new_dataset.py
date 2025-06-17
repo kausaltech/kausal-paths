@@ -10,6 +10,7 @@ import dvc_pandas
 import polars as pl
 from dotenv import load_dotenv
 from dvc_pandas import Dataset, DatasetMeta, Repository
+from use_ids import load_yaml_mappings, replace_labels_with_ids  # type: ignore
 
 
 def to_snake_case(string: str) -> str:
@@ -416,13 +417,11 @@ def process_slice(df: pl.DataFrame, slice_name: str, outcsvpath: str, outdvcpath
     df = prepare_for_dvc(df, units)
 
     # 10. Save to CSV if requested
-    if outcsvpath.upper() not in ['N', 'NONE']:
-        save_to_csv(df, outcsvpath, slice_name)
+    save_to_csv(df, outcsvpath, slice_name)
 
     # 11. Push to DVC if requested
-    if outdvcpath.upper() not in ['N', 'NONE']:
-        slice_dvc_path = f"{outdvcpath}/{to_snake_case(slice_name)}"
-        push_to_dvc(df, slice_dvc_path, slice_name, units, description, metrics, language)
+    slice_dvc_path = f"{outdvcpath}/{to_snake_case(slice_name)}"
+    push_to_dvc(df, slice_dvc_path, slice_name, units, description, metrics, language)
 
 
 def main():
@@ -444,6 +443,12 @@ def main():
     if specific_slice:
         if specific_slice == 'plain_csv':
             print("Uploading the csv file as is.")
+            push_to_dvc(full_df, outdvcpath, '', {}, None, [], language)
+        elif specific_slice == 'csv_w_standard_dims': # TODO Metadata gets lost
+            print("Uploading the csv file with standard dimensions.")
+            mappings = load_yaml_mappings()
+            full_df = replace_labels_with_ids(full_df, mappings)
+            save_to_csv(full_df, outcsvpath, '')
             push_to_dvc(full_df, outdvcpath, '', {}, None, [], language)
         else:
             # Process only the specified slice
