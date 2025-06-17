@@ -85,3 +85,4 @@ django-anymail[mailgun]
 django-anymail[sendgrid]
 django-anymail[mailjet]
 asgi_cors
+uvicorn[standard]
