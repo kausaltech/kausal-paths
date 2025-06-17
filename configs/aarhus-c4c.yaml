@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://aarhus-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 685dcf8fec639a31228ecd7d88942b4b48786513
+  commit: f6b355114c538f5cd6afd88d52b52f0055fe692b
   dvc_remote: kausal-s3
 name: Aarhus Greenhouse Gas Inventory
 owner: City of Aarhus
@@ -680,6 +680,33 @@ nodes:
 
 # ----- II Transportation
 
+- id: transportation_energy_biogenic_shares
+  name: Transportation Energy Biogenic Shares
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: ['energy_carrier']
+  output_dimensions: ['energy_carrier']
+  input_datasets:
+  - id: aarhus/biogenic_shares
+    column: fraction
+    forecast_from: 2023
+
+- id: transportation_energy_emission_factors
+  name: Transportation Energy Emission Factors
+  type: simple.MultiplicativeNode
+  quantity: emission_factor
+  unit: t/TJ
+  input_dimensions: ['energy_carrier', 'ghg']
+  output_dimensions: ['energy_carrier', 'ghg']
+  input_nodes:
+  - id: energy_emission_factors
+    tags: [non_additive]
+  - id: transportation_energy_biogenic_shares
+    tags: [complement]
+    to_dimensions:
+    - id: energy_carrier
+
 - id: transportation_emissions
   name: Transportation Emissions
   color: '#E15759'
@@ -774,7 +801,7 @@ nodes:
   input_dimensions: ['energy_carrier', 'owner', 'vehicle_type', 'ghg']
   output_dimensions: ['energy_carrier', 'owner', 'vehicle_type', 'ghg']
   input_nodes:
-  - id: energy_emission_factors
+  - id: transportation_energy_emission_factors
     to_dimensions:
     - id: energy_carrier
     - id: ghg
@@ -840,7 +867,7 @@ nodes:
   input_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
   output_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
   input_nodes:
-  - id: energy_emission_factors
+  - id: transportation_energy_emission_factors
     to_dimensions:
     - id: energy_carrier
     - id: ghg
@@ -861,7 +888,7 @@ nodes:
   input_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
   output_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
   input_nodes:
-  - id: energy_emission_factors
+  - id: transportation_energy_emission_factors
     to_dimensions:
     - id: energy_carrier
     - id: ghg
@@ -882,7 +909,7 @@ nodes:
   input_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
   output_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
   input_nodes:
-  - id: energy_emission_factors
+  - id: transportation_energy_emission_factors
     to_dimensions:
     - id: energy_carrier
     - id: ghg
@@ -903,7 +930,7 @@ nodes:
   input_dimensions: ['vehicle_type', 'energy_carrier', 'ghg']
   output_dimensions: ['vehicle_type', 'energy_carrier', 'ghg']
   input_nodes:
-  - id: energy_emission_factors
+  - id: transportation_energy_emission_factors
     to_dimensions:
     - id: energy_carrier
     - id: ghg
@@ -965,7 +992,7 @@ nodes:
   input_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
   output_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
   input_nodes:
-  - id: energy_emission_factors
+  - id: transportation_energy_emission_factors
     to_dimensions:
     - id: energy_carrier
     - id: ghg
@@ -986,7 +1013,7 @@ nodes:
   input_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
   output_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
   input_nodes:
-  - id: energy_emission_factors
+  - id: transportation_energy_emission_factors
     to_dimensions:
     - id: energy_carrier
     - id: ghg
@@ -1007,7 +1034,7 @@ nodes:
   input_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
   output_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
   input_nodes:
-  - id: energy_emission_factors
+  - id: transportation_energy_emission_factors
     to_dimensions:
     - id: energy_carrier
     - id: ghg
@@ -1028,7 +1055,7 @@ nodes:
   input_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
   output_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
   input_nodes:
-  - id: energy_emission_factors
+  - id: transportation_energy_emission_factors
     to_dimensions:
     - id: energy_carrier
     - id: ghg
@@ -1049,7 +1076,7 @@ nodes:
   input_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
   output_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
   input_nodes:
-  - id: energy_emission_factors
+  - id: transportation_energy_emission_factors
     to_dimensions:
     - id: energy_carrier
     - id: ghg
@@ -1117,7 +1144,7 @@ nodes:
   input_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
   output_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
   input_nodes:
-  - id: energy_emission_factors
+  - id: transportation_energy_emission_factors
     to_dimensions:
     - id: energy_carrier
     - id: ghg
