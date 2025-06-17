@@ -67,7 +67,7 @@ class AdminMiddleware:
             instance_config = await InstanceConfig.objects.filter(id=admin_instance_id).afirst()
 
         adminable_instances = [
-            ic async for ic in InstanceConfig.permission_policy().instances_user_has_any_permission_for(user, ['change'])
+            ic async for ic in InstanceConfig.permission_policy().adminable_instances(user)
             .filter(site__isnull=False)
         ]
         if instance_config is not None and instance_config not in adminable_instances:
