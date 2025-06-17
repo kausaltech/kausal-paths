@@ -133,6 +133,8 @@ cryptography==44.0.2
     #   jwcrypto
     #   pyjwt
     #   social-auth-core
+dal-admin-filters==1.1.0
+    # via -r requirements.in
 decorator==5.2.1
     # via ipython
 defusedxml==0.7.1
@@ -161,6 +163,8 @@ django==5.2
     #   -r requirements.in
     #   channels
     #   django-anymail
+    #   django-appconf
+    #   django-autocomplete-light
     #   django-celery-results
     #   django-cors-headers
     #   django-extensions
@@ -170,6 +174,7 @@ django==5.2
     #   django-oauth-toolkit
     #   django-permissionedforms
     #   django-pydantic-field
+    #   django-reversion
     #   django-storages
     #   django-stubs-ext
     #   django-taggit
@@ -187,6 +192,10 @@ django==5.2
     #   wagtail-localize
 django-anymail==13.0
     # via -r requirements.in
+django-appconf==1.1.0
+    # via django-image-cropping
+django-autocomplete-light==3.12.1
+    # via dal-admin-filters
 django-celery-results==2.6.0
     # via -r requirements.in
 django-cors-headers==4.7.0
@@ -197,6 +206,8 @@ django-extensions==4.1
     # via -r requirements.in
 django-filter==25.1
     # via wagtail
+django-image-cropping==1.7
+    # via -r requirements.in
 django-modelcluster==6.4
     # via wagtail
 django-modeltrans @ https://github.com/kausaltech/django-modeltrans/archive/a734040c3f38c2e404a61dc0be2c017874a9ea45.zip
@@ -206,6 +217,8 @@ django-oauth-toolkit==3.0.1
 django-permissionedforms==0.1
     # via wagtail
 django-pydantic-field==0.3.12
+    # via -r requirements.in
+django-reversion==5.1.0
     # via -r requirements.in
 django-storages==1.14.6
     # via -r requirements.in
@@ -861,6 +874,7 @@ wagtail==6.4.1
     #   wagtail-grapple
     #   wagtail-headless-preview
     #   wagtail-localize
+    #   wagtailgeowidget
 wagtail-color-panel @ https://github.com/torchbox-forks/wagtail-color-panel/archive/refs/tags/v1.6.1+tbx.zip
     # via -r requirements.in
 wagtail-font-awesome-svg==1.0.1
@@ -872,6 +886,8 @@ wagtail-grapple==0.28.0
 wagtail-headless-preview==0.8.0
     # via wagtail-grapple
 wagtail-localize==1.11.3
+    # via -r requirements.in
+wagtailgeowidget==8.2.1
     # via -r requirements.in
 watchfiles==1.0.5
     # via

@@ -86,3 +86,7 @@ django-anymail[sendgrid]
 django-anymail[mailjet]
 asgi_cors
 uvicorn[standard]
+django-image-cropping
+dal_admin_filters
+wagtailgeowidget
+django-reversion
