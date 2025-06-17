@@ -46,6 +46,9 @@ from users.views import change_admin_instance
 from .api_router import router as api_router
 from .graphql_views import PathsGraphQLView
 
+from orgs.autocomplete import OrganizationAutocomplete
+
+
 if TYPE_CHECKING:
     from types import ModuleType
 
@@ -90,6 +93,8 @@ urlpatterns = [
     path('auth/', include(social_urls, namespace='social')),
     path('healthz/', csrf_exempt(health_view), name='healthcheck'),
     path('', include(framework_urls)),
+    re_path(r'^org-autocomplete/$', OrganizationAutocomplete.as_view(), name='organization-autocomplete'),
+
 ]
 
 if settings.DEBUG:
