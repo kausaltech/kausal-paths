@@ -152,7 +152,7 @@ class PathsChooseViewMixin(Generic[_ModelT], AdminInstanceMixin):
         except FieldDoesNotExist:
             field = None
         if field is not None:
-            qs = qs.filter(instance=admin_req(self.request).admin_instance)
+            qs = qs.filter(instance=self.admin_instance)
         return qs
 
 
