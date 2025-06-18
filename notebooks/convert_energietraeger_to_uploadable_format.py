@@ -13,7 +13,7 @@ sys.path.append('..')
 from nodes.constants import CURRENCY_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, VALUE_COLUMN, YEAR_COLUMN
 
 
-def extract_metadata_from_file(lines) -> dict[str, str]:
+def extract_metadata_from_file(df: pl.DataFrame) -> dict[str, str | None]:
     units = {
         'Mt CO2äqu': ('Mt/a','BISKO' , EMISSION_QUANTITY),
         'kt CO2äqu': ('kt/a','BISKO' , EMISSION_QUANTITY),
@@ -25,24 +25,28 @@ def extract_metadata_from_file(lines) -> dict[str, str]:
         'Euro': ('EUR/a', 'Energiekosten', CURRENCY_QUANTITY),
     }
 
-    def _find_meta(lines, title) -> str:
-        for _, line in enumerate(lines):
-            meta_line = line.strip()
-            if meta_line.startswith(title):
-                break
-        parts = meta_line.split(',')
-        if len(parts) > 1:
-            meta = parts[1].strip().strip('"')
-        else:
-            meta = ''
-        return meta
+    def _find_meta(df: pl.DataFrame, title) -> str | None:
+        first_col_name = df.columns[0]
+        second_col_name = df.columns[1] if len(df.columns) > 1 else None
+        for i in range(len(df)):
+            first_col_value = str(df[first_col_name][i]).strip()
+            if first_col_value.startswith(title) and second_col_name is not None:
+                meta = str(df[second_col_name][i]).strip()
+                return meta
+        return None
 
-    unit = _find_meta(lines, 'Einheit:')
-    unit, method, quantity = units.get(unit, (unit, '', ''))
-    weather_correction = _find_meta(lines, 'Witterungskorrektur:')
-    inventory_method = _find_meta(lines, 'Bilanzierungsmethode:')
+    unit = _find_meta(df, 'Einheit:')
+    if unit is not None:
+        unit, method, quantity = units.get(unit, (unit, '', None))
+    else:
+        unit, method, quantity = (None, '', None)
 
-    if inventory_method != method:
+    weather_correction = _find_meta(df, 'Witterungskorrektur:')
+    inventory_method = _find_meta(df, 'Bilanzierungsmethode:')
+    municipality = _find_meta(df, 'Gemeinde:')
+    sector = _find_meta(df, 'Sektoren:')
+
+    if inventory_method is not None and inventory_method != method:
         raise KeyError(f"The method {inventory_method} does not match what was expected ({method}).")
 
     return {
@@ -50,6 +54,8 @@ def extract_metadata_from_file(lines) -> dict[str, str]:
         'quantity': quantity,
         'weather_correction': weather_correction,
         'inventory_method': inventory_method,
+        'municipality': municipality,
+        'sector': sector,
         }
 
 def transform_slice_name(filename_stem) -> str: # TODO This is needed in 1-dimensional tables with several years
@@ -61,84 +67,113 @@ def transform_slice_name(filename_stem) -> str: # TODO This is needed in 1-dimen
 def is_energietraeger_file(filename) -> bool:
     return filename.startswith('energietraeger-')
 
-def get_single_ksp_file(input_file) -> pl.DataFrame:
+def read_csv_fixed_width(input_file, separator) -> pl.DataFrame:
+    """Make the line lengths match data."""
+
     with open(input_file, 'r', encoding='utf-8') as f:  # noqa: PTH123, UP015
         lines = f.readlines()
 
-    meta = extract_metadata_from_file(lines)
-
-    data_start = 2
-    data_end = None
-
+    data_start = None
     for i, line in enumerate(lines):
         line_ = line.strip()
-        if line_.startswith(('Einheit:', 'Witterungskorrektur:', 'Bilanzierungsmethode:')):
-            data_end = i
+        if line_.startswith(('Eingabefeld', 'Energieträger')):
+            data_start = i
+            file_type = line_[0:len('Energieträger')]
             break
 
+    if data_start is None:
+        raise KeyError(f"Cannot figure out data rows in {input_file.stem}")
+    expected_cols = len(lines[data_start].split(separator))
+
+    def _fix(line) -> list:
+        if len(line) < expected_cols:
+            return line + [''] * (expected_cols - len(line))
+        return line[:expected_cols]
+
+    dfpd = pd.read_csv(input_file, sep=separator, encoding='utf-8',
+                    quotechar='"', on_bad_lines=_fix, engine='python', decimal=',',
+                    skiprows=1)
+
+    df = pl.from_pandas(dfpd)
+    df = df.with_columns(pl.lit(file_type).alias('File type'))
+    return df
+
+def get_single_ksp_file(input_file, separator) -> pl.DataFrame:  # noqa: C901
+    if input_file.suffix.lower() in ['.xlsx', '.xls']:
+        df = pl.from_pandas(pd.read_excel(input_file, header=0))
+    else:
+        df = read_csv_fixed_width(input_file, separator)
+
+    meta = extract_metadata_from_file(df)
+
+    data_end = None
+    first_col = df.columns[0]
+
+    for i in range(len(df)):
+        rowname = str(df[first_col][i]).strip()
+        if rowname.startswith(('Einheit:', 'Witterungskorrektur:', 'Bilanzierungsmethode:', 'Gemeinde:', 'Feldtyp')):
+            data_end = i
+            break
     if data_end is None:
-        data_end = len(lines)
+        data_end = len(df)
 
-    data_lines = lines[data_start:data_end]
-
-    import io
-    data_string = ''.join(data_lines)
-
-    try:
-        dfpd = pd.read_csv(io.StringIO(data_string), sep=',', encoding='utf-8', quotechar='"', decimal=",")
-        df = pl.from_pandas(dfpd)
-    except Exception:
-        return pl.DataFrame()
+    df = df.slice(1, data_end - 1)
 
     if len(df) == 0:
         return pl.DataFrame()
 
-    df = df.with_columns(pl.lit(meta['unit']).alias('Unit'))
-    df = df.with_columns(pl.lit(meta['quantity']).alias('Quantity'))
-    df = df.with_columns(pl.lit(meta['weather_correction']).alias('Weather correction'))
-    df = df.with_columns(pl.lit(meta['inventory_method']).alias('Inventory method'))
+    if meta['unit'] is not None:
+        df = df.with_columns(pl.lit(meta['unit']).alias('Unit'))
+    if meta['quantity'] is not None:
+        df = df.with_columns(pl.lit(meta['quantity']).alias('Quantity'))
+    if meta['weather_correction'] is not None:
+        df = df.with_columns(pl.lit(meta['weather_correction']).alias('Weather correction'))
+    if meta['inventory_method'] is not None:
+        df = df.with_columns(pl.lit(meta['inventory_method']).alias('Inventory method'))
+    if meta['sector'] is not None:
+        df = df.with_columns(pl.lit(meta['sector']).alias('Sektoren'))
 
     return df
 
-def process_single_ksp_file(input_file) -> pl.DataFrame:
+def process_single_ksp_file(input_file, separator) -> pl.DataFrame:
     print('Processing file: ', input_file)
-    print(input_file.stem)
-    df = get_single_ksp_file(input_file)
-    print(df)
+    df = get_single_ksp_file(input_file, separator)
 
-    first_col_name = df.columns[0]
+    for col in df.columns:
+        try:
+            year = int(float(col))
+            if 1900 <= year <= 2100:
+                df = df.rename({col: str(year)})
+        except (ValueError, TypeError):
+            continue
 
+    keys = [df.columns[0], 'Quantity', 'Unit', 'Weather correction', 'Inventory method', 'File type', 'Sektoren']
     year_columns = [col for col in df.columns if (col.isdigit() and 1900 <= int(col) <= 2100)]
     if year_columns:
         variable_name = YEAR_COLUMN
     else:
         variable_name = 'Sector'
-        year = str(input_file.stem[-4:])
-        if not year.isdigit():
+        obs_year = str(input_file.stem[-4:])
+        if not obs_year.isdigit():
             raise KeyError("With sektoren-energieträger files, the file name must contain"
                            " the year as the last four characters of the filename.")
-        year_columns = [year]
-    keys = [first_col_name, 'Quantity', 'Unit', 'Weather correction', 'Inventory method']
+        year_columns = [obs_year]
+        df = df.with_columns(pl.lit(obs_year).cast(int).alias(YEAR_COLUMN))
+        keys += [YEAR_COLUMN]
     primary_keys = [col for col in df.columns if col in keys]
     df = df.unpivot(
         index=primary_keys,
         variable_name=variable_name,
         value_name=VALUE_COLUMN,
     )
-    df = df.with_columns(pl.lit(year).cast(int).alias(YEAR_COLUMN))
-
-    print(df)
-
-    # filename_stem = input_file.stem
-    # is_energietraeger = is_energietraeger_file(filename_stem)
-    # slice_value = transform_slice_name(filename_stem)
 
     dim_mappings = load_yaml_mappings()
     df = replace_labels_with_ids(df, dim_mappings)
+    print(df)
     print('Success.')
     return df
 
-def convert_multiple_energietraeger_files(input_patterns, slice_column, output_file):
+def convert_multiple_energietraeger_files(input_patterns, separator, slice_column, output_file):
     input_files = []
     for pattern in input_patterns:
         files = glob.glob(pattern)  # noqa: PTH207
@@ -151,7 +186,7 @@ def convert_multiple_energietraeger_files(input_patterns, slice_column, output_f
     all_dataframes = []
 
     for input_file in input_files:
-        df = process_single_ksp_file(input_file)
+        df = process_single_ksp_file(input_file, separator)
         if len(df) > 0:
             all_dataframes.append(df)
         else:
@@ -160,18 +195,23 @@ def convert_multiple_energietraeger_files(input_patterns, slice_column, output_f
     if not all_dataframes:
         raise ValueError("No valid data found in any input files")
 
-    combined_df = pl.concat(all_dataframes, how='vertical')
-    combined_df = combined_df.filter(~pl.col(VALUE_COLUMN).is_null())
-    combined_df = combined_df.filter(pl.col('sector') != 'total')
-    combined_df = combined_df.with_columns([
+    df = pl.concat(all_dataframes, how='vertical')
+    df = df.with_columns(pl.col(VALUE_COLUMN).cast(pl.Float64, strict=False))
+    df = df.filter(~pl.col(VALUE_COLUMN).is_null())
+    df = df.filter(pl.col('sector') != 'total')
+
+    if slice_column not in df.columns:
+        raise ValueError(f"Slice column {slice_column} not found. Has {df.columns}")
+    df = df.with_columns([
         pl.col(slice_column).alias('Slice'),
         pl.col('Quantity').alias('Metric Group'),
     ])
-    assert isinstance(combined_df, pl.DataFrame)
 
-    combined_df.write_csv(output_file, separator=',',
+    assert isinstance(df, pl.DataFrame)
+
+    df.write_csv(output_file, separator=',',
                       quote_style='necessary', null_value='')
-    print(combined_df)
+    print(df)
 
 def main():
     if len(sys.argv) < 3:
@@ -179,20 +219,17 @@ def main():
               " <slice_column> <output_file>")
         sys.exit(1)
 
-    input_patterns = sys.argv[1:-2]
+    input_patterns = sys.argv[1:-3]
+    separator = sys.argv[-3]
     slice_column = sys.argv[-2]
     output_file = sys.argv[-1]
 
-    try:
-        convert_multiple_energietraeger_files(input_patterns, slice_column, output_file)
-        print('Successfully saved everything to', output_file)
-    except Exception as e:
-        print(f"Error during conversion: {e}")
-        sys.exit(1)
+    convert_multiple_energietraeger_files(input_patterns, separator, slice_column, output_file)
+    print('Successfully saved everything to', output_file)
 
 if __name__ == "__main__":
     main()
 
 # python convert_energietraeger_to_uploadable_format.py "/Users/jouni/Downloads/energie/sektoren-energietraeger_*"
-#   sector energietraeger.csv
+#   "," sector energietraeger.csv
 # python upload_new_dataset.py "energietraeger.csv" ',' NONE potsdam/energie en

@@ -326,7 +326,8 @@ nodes:
   unit: MWh/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
-  # Costs, historical
+
+# Costs, historical
 
 - id: costs_transport_historical
   name: Historische Kosten von Verkehr
