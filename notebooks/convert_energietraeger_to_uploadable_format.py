@@ -10,21 +10,41 @@ from use_ids import load_yaml_mappings, replace_labels_with_ids  # type: ignore
 
 sys.path.append('..')
 
-from nodes.constants import CURRENCY_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, VALUE_COLUMN, YEAR_COLUMN
+from nodes.constants import (
+    CURRENCY_QUANTITY,
+    EMISSION_FACTOR_QUANTITY,
+    EMISSION_QUANTITY,
+    ENERGY_QUANTITY,
+    FLOOR_AREA_QUANTITY,
+    MILEAGE_QUANTITY,
+    NUMBER_QUANTITY,
+    VALUE_COLUMN,
+    YEAR_COLUMN,
+)
 
+UNIT_MAPPING = {
+    'Mt CO2äqu': ('Mt/a', 'BISKO' , EMISSION_QUANTITY),
+    'kt CO2äqu': ('kt/a', 'BISKO' , EMISSION_QUANTITY),
+    't CO2äqu': ('t/a', 'BISKO' , EMISSION_QUANTITY),
+    'kg CO2äqu': ('kg/a', 'BISKO' , EMISSION_QUANTITY),
+    'GWh': ('GWh/a', 'EEV', ENERGY_QUANTITY),
+    'MWh': ('MWh/a', 'EEV', ENERGY_QUANTITY),
+    'kWh': ('kWh/a', 'EEV', ENERGY_QUANTITY),
+    'Euro': ('EUR/a', 'Energiekosten', CURRENCY_QUANTITY),
+    "t CO2-Äqu./MWh": ("t/MWh", 'BISKO', EMISSION_FACTOR_QUANTITY),
+    "t/MWh": ("t/MWh", 'BISKO', EMISSION_FACTOR_QUANTITY),
+    "g CO2-Äqu./Wh": ("g/Wh", 'BISKO', EMISSION_FACTOR_QUANTITY),
+    "GJ": ("GJ/a", 'EEV', ENERGY_QUANTITY),
+    "Anzahl": ("pcs", '', NUMBER_QUANTITY),
+    "Wege/Person/d": ("trips/person/d", '', NUMBER_QUANTITY),
+    "km/Weg": ("km/trip", '', NUMBER_QUANTITY),
+    "%": ("%", '', NUMBER_QUANTITY),
+    "Mio. Fz-km": ("Mvkm", '', MILEAGE_QUANTITY),
+    "Mio. Zug-km": ("Mvkm", '', MILEAGE_QUANTITY),
+    "m²": ("m²", '', FLOOR_AREA_QUANTITY),
+}
 
 def extract_metadata_from_file(df: pl.DataFrame) -> dict[str, str | None]:
-    units = {
-        'Mt CO2äqu': ('Mt/a','BISKO' , EMISSION_QUANTITY),
-        'kt CO2äqu': ('kt/a','BISKO' , EMISSION_QUANTITY),
-        't CO2äqu': ('t/a','BISKO' , EMISSION_QUANTITY),
-        'kg CO2äqu': ('kg/a','BISKO' , EMISSION_QUANTITY),
-        'GWh': ('GWh/a', 'EEV', ENERGY_QUANTITY),
-        'MWh': ('MWh/a', 'EEV', ENERGY_QUANTITY),
-        'kWh': ('kWh/a', 'EEV', ENERGY_QUANTITY),
-        'Euro': ('EUR/a', 'Energiekosten', CURRENCY_QUANTITY),
-    }
-
     def _find_meta(df: pl.DataFrame, title) -> str | None:
         first_col_name = df.columns[0]
         second_col_name = df.columns[1] if len(df.columns) > 1 else None
@@ -37,7 +57,7 @@ def extract_metadata_from_file(df: pl.DataFrame) -> dict[str, str | None]:
 
     unit = _find_meta(df, 'Einheit:')
     if unit is not None:
-        unit, method, quantity = units.get(unit, (unit, '', None))
+        unit, method, quantity = UNIT_MAPPING.get(unit, (unit, '', None))
     else:
         unit, method, quantity = (None, '', None)
 
@@ -98,9 +118,32 @@ def read_csv_fixed_width(input_file, separator) -> pl.DataFrame:
     df = df.with_columns(pl.lit(file_type).alias('File type'))
     return df
 
+def read_xlsx_fixed_width(input_file) -> pl.DataFrame:
+    """Make the line lengths match data."""
+    df = pl.from_pandas(pd.read_excel(input_file, header=0))
+
+    data_start = None
+    first_col = df.columns[0]
+    for i in range(len(df)):
+        rowname = df[first_col][i]
+        if rowname and rowname.startswith(('Eingabefeld', 'Energieträger')):
+            data_start = i
+            file_type = rowname
+            break
+
+    if data_start is None:
+        raise KeyError(f"Cannot figure out data rows in {input_file.stem}")
+
+    heads = list(zip(df.columns, df.row(data_start), strict=True))
+    oldhead = {old: str(new) for old, new in heads if new is not None}
+    newhead = [str(new) for old, new in heads if new is not None]
+    df = df.rename(oldhead).select(newhead).slice(data_start)
+    df = df.with_columns(pl.lit(file_type).alias('File type'))
+    return df
+
 def get_single_ksp_file(input_file, separator) -> pl.DataFrame:  # noqa: C901
     if input_file.suffix.lower() in ['.xlsx', '.xls']:
-        df = pl.from_pandas(pd.read_excel(input_file, header=0))
+        df = read_xlsx_fixed_width(input_file)
     else:
         df = read_csv_fixed_width(input_file, separator)
 
@@ -132,6 +175,33 @@ def get_single_ksp_file(input_file, separator) -> pl.DataFrame:  # noqa: C901
         df = df.with_columns(pl.lit(meta['inventory_method']).alias('Inventory method'))
     if meta['sector'] is not None:
         df = df.with_columns(pl.lit(meta['sector']).alias('Sektoren'))
+
+    return df
+
+def process_explanatory_column(df: pl.DataFrame) -> pl.DataFrame:
+    """Extract units and BISKO."""
+    pattern = r'^(.+?)(?:,\s*BISKO)?\s*\(([^)]+)\)\s*\[([^\]]+)\]$'
+    col = 'Eingabefeld'
+
+    df = df.with_columns([
+        pl.col(col).str.extract(pattern, group_index=1).str.strip_chars().alias('Description'),
+        pl.col(col).str.extract(pattern, group_index=2).str.strip_chars().alias('BISKO code'),
+        pl.col(col).str.extract(pattern, group_index=3).str.strip_chars().alias('Unit'),
+    ])
+
+    def map_unit_info(unit) -> tuple:
+        if unit is None:
+            return (None, None, None)
+
+        mapping = UNIT_MAPPING.get(unit, (unit, '', None))
+        return mapping
+
+    df = df.with_columns([
+        pl.col("Unit").map_elements(lambda x: map_unit_info(x)[0], return_dtype=pl.Utf8).alias("updated_unit"),
+        pl.col("Unit").map_elements(lambda x: map_unit_info(x)[1], return_dtype=pl.Utf8).alias("inventory_method"),
+        pl.col("Unit").map_elements(lambda x: map_unit_info(x)[2], return_dtype=pl.Utf8).alias("Quantity")
+    ])
+    df = df.with_columns(pl.col('updated_unit').alias('Unit')).drop([col, 'updated_unit'])
 
     return df
 
@@ -167,13 +237,16 @@ def process_single_ksp_file(input_file, separator) -> pl.DataFrame:
         value_name=VALUE_COLUMN,
     )
 
+    df = process_explanatory_column(df)
+
     dim_mappings = load_yaml_mappings()
     df = replace_labels_with_ids(df, dim_mappings)
     print(df)
+    print(df.columns)
     print('Success.')
     return df
 
-def convert_multiple_energietraeger_files(input_patterns, separator, slice_column, output_file):
+def convert_multiple_energietraeger_files(input_patterns, separator, slice_column, output_file) -> pl.DataFrame:
     input_files = []
     for pattern in input_patterns:
         files = glob.glob(pattern)  # noqa: PTH207
@@ -181,7 +254,7 @@ def convert_multiple_energietraeger_files(input_patterns, separator, slice_colum
 
     if not input_files:
         print("Input files not found.")
-        return
+        return pl.DataFrame()
 
     all_dataframes = []
 
@@ -198,7 +271,8 @@ def convert_multiple_energietraeger_files(input_patterns, separator, slice_colum
     df = pl.concat(all_dataframes, how='vertical')
     df = df.with_columns(pl.col(VALUE_COLUMN).cast(pl.Float64, strict=False))
     df = df.filter(~pl.col(VALUE_COLUMN).is_null())
-    df = df.filter(pl.col('sector') != 'total')
+    if 'sector' in df.columns:
+        df = df.filter(pl.col('sector') != 'total')
 
     if slice_column not in df.columns:
         raise ValueError(f"Slice column {slice_column} not found. Has {df.columns}")
@@ -208,10 +282,13 @@ def convert_multiple_energietraeger_files(input_patterns, separator, slice_colum
     ])
 
     assert isinstance(df, pl.DataFrame)
+    missing = df.filter(pl.col('Quantity').is_null())['Unit'].unique().to_list()
+    if missing:
+        raise ValueError(f"These units do not have quantities defined: {missing}")
 
     df.write_csv(output_file, separator=',',
                       quote_style='necessary', null_value='')
-    print(df)
+    return df
 
 def main():
     if len(sys.argv) < 3:
@@ -224,7 +301,10 @@ def main():
     slice_column = sys.argv[-2]
     output_file = sys.argv[-1]
 
-    convert_multiple_energietraeger_files(input_patterns, separator, slice_column, output_file)
+    df = convert_multiple_energietraeger_files(input_patterns, separator, slice_column, output_file)
+
+    print(df)
+    print(df.columns)
     print('Successfully saved everything to', output_file)
 
 if __name__ == "__main__":
