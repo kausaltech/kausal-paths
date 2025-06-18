@@ -7,6 +7,7 @@ from wagtail import hooks
 from wagtail.snippets.models import register_snippet
 
 from pages.sitecontent import InstanceSiteContentViewSet
+from paths.context import realm_context
 
 if TYPE_CHECKING:
     from wagtail.models import Page
@@ -19,7 +20,7 @@ if TYPE_CHECKING:
 def filter_pages_to_admin_instance(
     parent_page: Any, pages: PageQuerySet[Page], request: PathsAdminRequest
 ) -> PageQuerySet[Page]:
-    ic = request.admin_instance
+    ic = realm_context.get().realm
     assert ic.site is not None
 
     q = Q()
