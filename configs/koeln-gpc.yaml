@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://koeln-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 230f8801f4a1a660220477709bac5547945bcd70
+  commit: c96cb099ed2443ee185979240aefb32a22eb6708
   dvc_remote: kausal-s3
   # Data from https://docs.google.com/spreadsheets/d/1qUIUgAE1Sqbt6qIClxEypuWRi0GpQQUc/edit?gid=1907288926#gid=1907288926
 name: Demonstration BASIC+ Treibhausgasinventar
@@ -221,12 +221,13 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_datasets:
-  - id: potsdam/energie/municipal_facilities
+  - id: koeln/energy/municipal_facilities
     tags: [baseline]
     column: energy
     filters:
     - column: weather_correction
     - column: inventory_method
+    - column: file_type
   output_nodes: [energy_use]
 
 - id: energy_private_households
@@ -237,12 +238,13 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_datasets:
-  - id: potsdam/energie/private_households
+  - id: koeln/energy/private_households
     tags: [baseline]
     column: energy
     filters:
     - column: weather_correction
     - column: inventory_method
+    - column: file_type
   output_nodes: [energy_use]
 
 - id: energy_industry
@@ -253,12 +255,13 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_datasets:
-  - id: potsdam/energie/industry
+  - id: koeln/energy/industry
     tags: [baseline]
     column: energy
     filters:
     - column: weather_correction
     - column: inventory_method
+    - column: file_type
   output_nodes: [energy_use]
 
 - id: energy_commerce
@@ -269,12 +272,13 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_datasets:
-  - id: potsdam/energie/commerce_trade_services
+  - id: koeln/energy/commerce_trade_services
     tags: [baseline]
     column: energy
     filters:
     - column: weather_correction
     - column: inventory_method
+    - column: file_type
   output_nodes: [energy_use]
 
 - id: energy_use
@@ -284,6 +288,24 @@ nodes:
   unit: MWh/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
+
+# - id: amount_of_households
+#   name: aktivitaten_verkehr_und_gebaude
+#   type: generic.GenericNode
+#   quantity: number
+#   unit: pcs
+#   input_dimensions: [energy_carrier, sector]
+#   output_dimensions: [energy_carrier, sector]
+#   input_datasets:
+#   - id: koeln/aktivitaten_verkehr_und_gebaude
+#     tags: [baseline]
+    # filters:
+    # - column: weather_correction
+    # - column: inventory_method
+
+# emissionsfaktoren_fr_den_verkehr
+# emissionsfaktoren_fr_die_energieerzeugung
+# emissionsfaktoren_fr_die_industrie
 
 # Old nodes
 

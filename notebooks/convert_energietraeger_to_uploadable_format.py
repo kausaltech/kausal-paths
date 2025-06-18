@@ -22,6 +22,13 @@ from nodes.constants import (
     YEAR_COLUMN,
 )
 
+SLICE_NAME_MAPPING = {
+    'datenzeitreihen': "Emissionsfaktoren für die Energieerzeugung",
+    'datenzeitreihen-2': "Emissionsfaktoren für die Industrie",
+    'datenzeitreihen-3': "Emissionsfaktoren für den Verkehr",
+    'datenzeitreihen-4': "Aktivitäten, Verkehr und Gebäude",
+}
+
 UNIT_MAPPING = {
     'Mt CO2äqu': ('Mt/a', 'BISKO' , EMISSION_QUANTITY),
     'kt CO2äqu': ('kt/a', 'BISKO' , EMISSION_QUANTITY),
@@ -42,6 +49,243 @@ UNIT_MAPPING = {
     "Mio. Fz-km": ("Mvkm", '', MILEAGE_QUANTITY),
     "Mio. Zug-km": ("Mvkm", '', MILEAGE_QUANTITY),
     "m²": ("m²", '', FLOOR_AREA_QUANTITY),
+}
+
+CATEGORY_MAPPING = {
+    'energy_carrier': {
+        # Main energy carriers from descriptions
+        'biogas': 'biogas',
+        'biomasse': 'biomass',
+        'feste biomasse': 'biomass',
+        'flüssige biomasse': 'biomass',
+        'geothermie': 'environmental_heat',
+        'erdgas': 'natural_gas',
+        'gas': 'natural_gas',
+        'braunkohle': 'brown_coal',
+        'steinkohle': 'hard_coal',
+        'kohle': 'hard_coal',
+        'heizöl': 'heating_oil',
+        'flüssiggas': 'lpg',
+        'photovoltaik': 'electricity',  # Solar PV generates electricity
+        'wasserkraft': 'electricity',   # Hydro generates electricity
+        'windkraft': 'electricity',     # Wind generates electricity
+        'abfall': 'other_conventional',
+        'abwärme': 'district_heating',  # Waste heat often used for district heating
+        'klärgas': 'biogas',
+        'deponiengas': 'biogas',
+        'grubengas': 'biogas',
+        'strom': 'electricity',
+        'electricity': 'electricity',
+        # Renewable vs conventional categorization
+        'erneuerbare energieträger': 'other_renewables',
+        'erneuerbare': 'other_renewables',
+        'konventionelle energieträger': 'other_conventional',
+        'konventionelle': 'other_conventional',
+        'sonstige erneuerbare': 'other_renewables',
+        'sonstige konventionelle': 'other_conventional',
+    },
+    'fuel_type': {
+        # Fossil vs renewable classification
+        'erneuerbare': 'non_fossil',
+        'erneuerbare energieträger': 'non_fossil',
+        'konventionelle': 'fossil',
+        'konventionelle energieträger': 'fossil',
+        'biogas': 'non_fossil',
+        'biomasse': 'non_fossil',
+        'geothermie': 'non_fossil',
+        'photovoltaik': 'non_fossil',
+        'wasserkraft': 'non_fossil',
+        'windkraft': 'non_fossil',
+        'erdgas': 'fossil',
+        'braunkohle': 'fossil',
+        'steinkohle': 'fossil',
+        'heizöl': 'fossil',
+        'flüssiggas': 'fossil',
+        'abfall': 'mixed',  # Waste can be mixed fossil/non-fossil
+    },
+    'sector': {
+        # Main sectors from descriptions
+        'kraftwerke': 'electricity',
+        'kraftwerk': 'electricity',
+        'stromerzeugung': 'electricity',
+        'stromerzeugungsanlagen': 'electricity',
+        'stromerzeugungsanlage': 'electricity',
+        'wärmeerzeugung': 'buildings',  # Heat generation for buildings
+        'wärmeerzeugungsanlagen': 'buildings',
+        'wärmeerzeugungsanlage': 'buildings',
+        # Transport related (though not in current data)
+        'verkehr': 'transport',
+        'transport': 'transport',
+        # Buildings and heating
+        'gebäude': 'buildings',
+        'heizung': 'buildings',
+        'wärme': 'buildings',
+        # Industry
+        'industrie': 'industry',
+        'industrial': 'industry',
+        # Households
+        'haushalte': 'private_households',
+        'haushalt': 'private_households',
+        'privat': 'private_households',
+        # Commercial
+        'gewerbe': 'commerce_trade_services',
+        'handel': 'commerce_trade_services',
+        'dienstleistung': 'commerce_trade_services',
+        # Municipal
+        'kommunal': 'municipal_facilities',
+        'municipal': 'municipal_facilities',
+        # Waste
+        'abfall': 'waste',
+        'waste': 'waste',
+        # Energy/Electricity
+        'strom': 'electricity',
+        'electricity': 'electricity',
+        'energie': 'electricity',
+    },
+    'ghg': {
+        # All descriptions are about CO2 equivalent
+        'emissionsfaktor': 'co2e',
+        'emission': 'co2e',
+        'co2': 'co2e',
+        'äquivalente': 'co2e',
+        'vorkette': 'co2e',  # Supply chain emissions
+    },
+    'scope': {
+        # Based on emission factor descriptions
+        'vorkette': 'scope3',  # Supply chain = Scope 3
+        'kraftwerke': 'scope1',  # Direct emissions from power plants
+        'stromerzeugung': 'scope2',  # Grid electricity = Scope 2
+        'wärmeerzeugung': 'scope1',  # Direct heat generation
+    },
+    'inventory_method': {
+        # All data appears to be BISKO method
+        'emissionsfaktor': 'bisko',
+        'bisko': 'bisko',
+        'inkl': 'bisko',  # "inkl. Äquivalente und Vorkette" indicates BISKO
+        'äquivalente': 'bisko',
+        'vorkette': 'bisko',
+    },
+    'energy_process': {
+        # Power generation processes
+        'stromerzeugung': 'electricity_generation',
+        'stromerzeugungsanlagen': 'electricity_generation',
+        'stromerzeugungsanlage': 'electricity_generation',
+        'kraftwerke': 'power_plants',
+        'kraftwerk': 'power_plants',
+        # Heat generation processes
+        'wärmeerzeugung': 'heat_generation',
+        'wärmeerzeugungsanlagen': 'heat_generation',
+        'wärmeerzeugungsanlage': 'heat_generation',
+        # Combined heat and power
+        'kraft-wärme-kopplung': 'chp',
+        'kwk': 'chp',
+        'blockheizkraftwerk': 'chp',
+        'bhkw': 'chp',
+    },
+    'household_size': {
+        # Household sizes
+        '1-personen-haushalte': 'single_person',
+        '1-personen': 'single_person',
+        '2-personen-haushalte': 'two_person',
+        '2-personen': 'two_person',
+        '3-personen-haushalte': 'three_person',
+        '3-personen': 'three_person',
+        '4-personen-haushalte': 'four_person',
+        '4-personen': 'four_person',
+        '5-personen-haushalte': 'five_person',
+        '5-personen': 'five_person',
+        'mehr als 5 personen': 'five_plus_person',
+        'haushalte mit mehr als 5 personen': 'five_plus_person',
+    },
+    'trip_type': {
+        # Transport/shipping types
+        'binnenschifffahrt': 'inland_shipping',
+        'flugverkehr': 'aviation',
+        'luftverkehr': 'aviation',
+        'schienengüterverkehr': 'rail_freight',
+        'schienenpersonenfernverkehr': 'long_distance_rail',
+        'schienenpersonennahverkehr': 'local_rail',
+        'straßenverkehr': 'road_transport',
+        'seeverkehr': 'maritime_shipping',
+        'güterverkehr': 'freight_transport',
+        'personenverkehr': 'passenger_transport',
+    },
+    'road_type': {
+        # Road categories
+        'autobahn': 'highway',
+        'außerorts': 'rural_roads',
+        'innerorts': 'urban_roads',
+        'stadtstraße': 'city_streets',
+        'landstraße': 'country_roads',
+        'bundesstraße': 'federal_roads',
+    },
+    'heating_type': {
+        # Heating system types
+        'blockheizung': 'district_heating_local',
+        'einzel- oder mehrraumöfen': 'individual_room_heaters',
+        'einzelöfen': 'individual_heaters',
+        'mehrraumöfen': 'multi_room_heaters',
+        'etagenheizung': 'floor_heating',
+        'fernheizung': 'district_heating',
+        'zentralheizung': 'central_heating',
+        'ohne heizung': 'no_heating',
+        'wärmepumpe': 'heat_pump',
+        'nachtspeicherheizung': 'night_storage_heating',
+        'solarheizung': 'solar_heating',
+    },
+    'building_age': {
+        # Building age categories
+        'vor 1950': 'before_1950',
+        'baujahr vor 1950': 'before_1950',
+        '1950 - 1969': 'age_1950_1969',
+        '1951-1969': 'age_1950_1969',
+        'baujahr 1950 - 1969': 'age_1950_1969',
+        'baujahr 1951-1969': 'age_1950_1969',
+        '1970 - 1989': 'age_1970_1989',
+        '1970-1989': 'age_1970_1989',
+        'baujahr 1970 - 1989': 'age_1970_1989',
+        'baujahr 1970-1989': 'age_1970_1989',
+        'nach 1990': 'after_1990',
+        'baujahr nach 1990': 'after_1990',
+        '1990-2000': 'age_1990_2000',
+        'nach 2000': 'after_2000',
+        '2000-2010': 'age_2000_2010',
+        'nach 2010': 'after_2010',
+    },
+    'building_type': {
+        # Building types by number of units
+        'einer und zwei wohnungen': 'single_two_family',
+        'mit einer und zwei wohnungen': 'single_two_family',
+        '1-2 wohnungen': 'single_two_family',
+        'einfamilienhaus': 'single_family',
+        'zweifamilienhaus': 'two_family',
+        '3-6 wohnungen': 'small_multifamily',
+        'mit 3-6 wohnungen': 'small_multifamily',
+        '7-12 wohnungen': 'medium_multifamily',
+        '13 und mehr wohnungen': 'large_multifamily',
+        '7-12 und 13 und mehr wohnungen': 'large_multifamily',
+        'mit 7-12 und 13 und mehr wohnungen': 'large_multifamily',
+        'mehrfamilienhaus': 'multifamily',
+        'hochhaus': 'high_rise',
+        'reihenhaus': 'row_house',
+        'wohnblock': 'apartment_block',
+    },
+    'vehicle_type': {
+        # Vehicle categories (from your transport data)
+        'pkw': 'passenger_cars',
+        'personenkraftwagen': 'passenger_cars',
+        'lkw': 'trucks',
+        'lastkraftwagen': 'trucks',
+        'leichte nutzfahrzeuge': 'light_commercial',
+        'schwere nutzfahrzeuge': 'heavy_commercial',
+        'bus': 'buses',
+        'busse': 'buses',
+        'motorisierte zweiräder': 'motorcycles',
+        'motorräder': 'motorcycles',
+        'fahrräder': 'bicycles',
+        'züge': 'trains',
+        'schienenfahrzeuge': 'rail_vehicles',
+    }
 }
 
 def extract_metadata_from_file(df: pl.DataFrame) -> dict[str, str | None]:
@@ -205,6 +449,58 @@ def process_explanatory_column(df: pl.DataFrame) -> pl.DataFrame:
 
     return df
 
+def find_category_matches(description: str | None, category_mapping: dict):
+    """Find dimension matches in description text."""
+    # Initialize all dimensions to None
+    matches: dict[str, str | None] = {}
+    for dimension_id in category_mapping.keys():
+        matches[dimension_id] = None
+    if description is None:
+        return matches
+
+    description_lower = description.lower()
+
+    for dimension_id, keyword_mapping in category_mapping.items():
+        for keyword, category_id in keyword_mapping.items():
+            if keyword.lower() in description_lower:
+                matches[dimension_id] = category_id
+                break  # Take first match for each dimension
+
+    return matches
+
+def process_hidden_categories(df: pl.DataFrame, category_mapping: dict) -> pl.DataFrame:
+    """Add dimension columns based on keyword matching."""
+
+    all_dimensions = set(category_mapping.keys())
+    print(all_dimensions)
+    # Apply matching function
+    df = df.with_columns(
+        pl.col("Description").map_elements(
+            lambda x: find_category_matches(x, category_mapping),
+            return_dtype=pl.Struct([pl.Field(dim, pl.Utf8) for dim in all_dimensions])
+        ).alias("category_matches")
+    )
+
+    # Extract each dimension as a separate column
+    for dimension in all_dimensions:
+        df = df.with_columns(
+            pl.col("category_matches").struct.field(dimension).alias(dimension)
+        )
+
+    return df.drop("category_matches")
+
+def create_slice_column(df: pl.DataFrame, input_file, slice_column) -> pl.DataFrame:
+    """Transform filename to slice name according to the rules."""
+    slice_name = SLICE_NAME_MAPPING.get(input_file.stem)
+    if slice_name:
+        df = df.with_columns(pl.lit(slice_name).alias('Slice'))
+    elif slice_column in df.columns:
+        df = df.with_columns(pl.col(slice_column).alias('Slice'))
+    else:
+        raise ValueError(f"Slice column {slice_column} not found. Has {df.columns}")
+    assert isinstance(slice_name, str)
+    return df
+
 def process_single_ksp_file(input_file, separator) -> pl.DataFrame:
     print('Processing file: ', input_file)
     df = get_single_ksp_file(input_file, separator)
@@ -238,6 +534,7 @@ def process_single_ksp_file(input_file, separator) -> pl.DataFrame:
     )
 
     df = process_explanatory_column(df)
+    df = process_hidden_categories(df, CATEGORY_MAPPING)
 
     dim_mappings = load_yaml_mappings()
     df = replace_labels_with_ids(df, dim_mappings)
@@ -260,6 +557,7 @@ def convert_multiple_energietraeger_files(input_patterns, separator, slice_colum
 
     for input_file in input_files:
         df = process_single_ksp_file(input_file, separator)
+        df = create_slice_column(df, input_file, slice_column)
         if len(df) > 0:
             all_dataframes.append(df)
         else:
@@ -274,12 +572,7 @@ def convert_multiple_energietraeger_files(input_patterns, separator, slice_colum
     if 'sector' in df.columns:
         df = df.filter(pl.col('sector') != 'total')
 
-    if slice_column not in df.columns:
-        raise ValueError(f"Slice column {slice_column} not found. Has {df.columns}")
-    df = df.with_columns([
-        pl.col(slice_column).alias('Slice'),
-        pl.col('Quantity').alias('Metric Group'),
-    ])
+    df = df.with_columns(pl.col('Quantity').alias('Metric Group'))
 
     assert isinstance(df, pl.DataFrame)
     missing = df.filter(pl.col('Quantity').is_null())['Unit'].unique().to_list()
