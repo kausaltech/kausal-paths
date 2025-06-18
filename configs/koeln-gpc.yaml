@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://koeln-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: c6008a7246072882f9b376a805dfb1f80b9dc422
+  commit: 230f8801f4a1a660220477709bac5547945bcd70
   dvc_remote: kausal-s3
   # Data from https://docs.google.com/spreadsheets/d/1qUIUgAE1Sqbt6qIClxEypuWRi0GpQQUc/edit?gid=1907288926#gid=1907288926
 name: Demonstration BASIC+ Treibhausgasinventar
@@ -25,6 +25,10 @@ normalizations:
   quantities:
   - id: emissions
     unit: t/cap/a
+
+include:
+- file: frameworks/standard_dims.yaml
+  allow_override: false
 
 params:
 - id: municipality_name
@@ -107,27 +111,19 @@ dimensions:
   - id: privat
     label: Privat
 
-- id: scope
-  label: Scope
-  categories:
-  - id: scope1
-    label: Scope 1
-  - id: scope2
-    label: Scope 2
-
 - id: scenario
   label: Szenario
   categories:
   - id: trend
     label: Trend
   - id: '175'
-    label: '1,75'
+    label: 1,75
 
 emission_sectors:
 - id: net_emissions
   name_de: Netto Emissionen
   name_en: Net emissions
-  is_outcome: true
+  is_outcome: false
   goals:
   - label_de: Emissionen
     label_en: Emissions
@@ -199,6 +195,97 @@ emission_sectors:
       value: 163
 
 nodes:
+
+- id: energy_transport
+  name: Energieverbrauch von Verkehr
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: koeln/energy/transport
+    tags: [baseline]
+    column: energy
+    filters:
+    - column: weather_correction
+    - column: inventory_method
+    - column: file_type
+  output_nodes: [energy_use]
+
+- id: energy_municipal_facilities
+  name: Energieverbrauch von Kommunale Einrichtungen
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: potsdam/energie/municipal_facilities
+    tags: [baseline]
+    column: energy
+    filters:
+    - column: weather_correction
+    - column: inventory_method
+  output_nodes: [energy_use]
+
+- id: energy_private_households
+  name: Energieverbrauch von private Haushalte
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: potsdam/energie/private_households
+    tags: [baseline]
+    column: energy
+    filters:
+    - column: weather_correction
+    - column: inventory_method
+  output_nodes: [energy_use]
+
+- id: energy_industry
+  name: Energieverbrauch von Industrie
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: potsdam/energie/industry
+    tags: [baseline]
+    column: energy
+    filters:
+    - column: weather_correction
+    - column: inventory_method
+  output_nodes: [energy_use]
+
+- id: energy_commerce
+  name: Energieverbrauch von Gewerbe, Handel, Dienstleistungen
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: potsdam/energie/commerce_trade_services
+    tags: [baseline]
+    column: energy
+    filters:
+    - column: weather_correction
+    - column: inventory_method
+  output_nodes: [energy_use]
+
+- id: energy_use
+  name: Energieverbrauch
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+
+# Old nodes
 
 - id: population
   name_en: Inhabitants
@@ -418,6 +505,7 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
+  is_outcome: true
   input_dimensions: [energietrager]
   output_dimensions: [energietrager]
   input_nodes:
