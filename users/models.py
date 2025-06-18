@@ -66,10 +66,6 @@ class User(AbstractUser):
         # correctly, in some places, Django expects this to actually match with field specified in `USERNAME_FIELD`.
         return (self.email,)
 
-    def get_active_instance(self) -> InstanceConfig | None:
-        # TODO
-        return self.selected_instance
-
     def get_adminable_instances(self) -> InstanceConfigQuerySet:
         from nodes.models import InstanceConfig
         return InstanceConfig.permission_policy().adminable_instances(self)
