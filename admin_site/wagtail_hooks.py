@@ -11,6 +11,8 @@ from wagtail.admin.menu import Menu, MenuItem, SubmenuMenuItem
 
 from wagtail_localize.wagtail_hooks import TranslationsReportMenuItem
 
+from paths.context import realm_context
+
 if TYPE_CHECKING:
     from paths.types import PathsAdminRequest
 
@@ -61,7 +63,7 @@ class InstanceChooserMenu(Menu):
             url = reverse('change-admin-instance', kwargs=dict(instance_id=instance.id))
             url += '?admin=wagtail'
             icon_name = ''
-            if instance == request.admin_instance:
+            if instance == realm_context.get().realm:
                 icon_name = 'tick-inverse'
             text = instance.name or instance.identifier
             item = InstanceItem(text, url, icon_name=icon_name)
