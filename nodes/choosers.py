@@ -9,6 +9,7 @@ from generic_chooser.views import ModelChooserMixin, ModelChooserViewSet
 from generic_chooser.widgets import AdminChooser
 
 from nodes.models import NodeConfig
+from paths.context import realm_context
 
 if TYPE_CHECKING:
     from paths.types import PathsAdminRequest
@@ -19,7 +20,7 @@ class NodeChooserMixin(ModelChooserMixin):
     request: PathsAdminRequest
 
     def get_unfiltered_object_list(self):
-        instance = self.request.admin_instance
+        instance = realm_context.get().realm
         objects = NodeConfig.objects.filter(instance=instance)
         if self.order_by:
             if isinstance(self.order_by, str):

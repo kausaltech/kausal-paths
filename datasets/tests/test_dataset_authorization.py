@@ -6,7 +6,6 @@ import pytest
 
 from kausal_common.datasets.models import Dataset, DatasetSchema
 
-from paths.admin_context import set_admin_instance
 from paths.context import RealmContext, realm_context
 
 from admin_site.dataset_admin import DatasetSchemaViewSet
@@ -25,7 +24,6 @@ def get_in_admin_context(rf):
         if not user.selected_instance:
             user.selected_instance = instance_config
             user.save()
-        set_admin_instance(instance_config, request=request)
         ctx = RealmContext(realm = instance_config, user=request.user)
         with realm_context.activate(ctx):
             return view(request, **kwargs)
