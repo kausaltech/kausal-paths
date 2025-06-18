@@ -697,3 +697,232 @@ dimensions:
   - id: energy_costs
     label_en: Energy costs
     label_de: Energiekosten
+
+- id: energy_process
+  label_en: Energy Process
+  label_de: Energieprozess
+  categories:
+  - id: electricity_generation
+    label_en: Electricity Generation
+    label_de: Stromerzeugung
+  - id: power_plants
+    label_en: Power Plants
+    label_de: Kraftwerke
+  - id: heat_generation
+    label_en: Heat Generation
+    label_de: Wärmeerzeugung
+  - id: chp
+    label_en: Combined Heat and Power
+    label_de: Kraft-Wärme-Kopplung
+
+- id: household_size
+  label_en: Household Size
+  label_de: Haushaltsgröße
+  categories:
+  - id: single_person
+    label_en: Single Person Household
+    label_de: 1-Personen-Haushalt
+  - id: two_person
+    label_en: Two Person Household
+    label_de: 2-Personen-Haushalt
+  - id: three_person
+    label_en: Three Person Household
+    label_de: 3-Personen-Haushalt
+  - id: four_person
+    label_en: Four Person Household
+    label_de: 4-Personen-Haushalt
+  - id: five_person
+    label_en: Five Person Household
+    label_de: 5-Personen-Haushalt
+  - id: five_plus_person
+    label_en: Five Plus Person Household
+    label_de: Haushalte mit mehr als 5 Personen
+
+- id: trip_type
+  label_en: Trip Type
+  label_de: Verkehrsart
+  categories:
+  - id: inland_shipping
+    label_en: Inland Shipping
+    label_de: Binnenschifffahrt
+  - id: aviation
+    label_en: Aviation
+    label_de: Flugverkehr
+  - id: rail_freight
+    label_en: Rail Freight
+    label_de: Schienengüterverkehr
+  - id: long_distance_rail
+    label_en: Long Distance Rail
+    label_de: Schienenpersonenfernverkehr
+  - id: local_rail
+    label_en: Local Rail
+    label_de: Schienenpersonennahverkehr
+  - id: road_transport
+    label_en: Road Transport
+    label_de: Straßenverkehr
+  - id: maritime_shipping
+    label_en: Maritime Shipping
+    label_de: Seeverkehr
+  - id: freight_transport
+    label_en: Freight Transport
+    label_de: Güterverkehr
+  - id: passenger_transport
+    label_en: Passenger Transport
+    label_de: Personenverkehr
+
+- id: road_type
+  label_en: Road Type
+  label_de: Straßentyp
+  categories:
+  - id: highway
+    label_en: Highway
+    label_de: Autobahn
+  - id: rural_roads
+    label_en: Rural Roads
+    label_de: Außerorts
+  - id: urban_roads
+    label_en: Urban Roads
+    label_de: Innerorts
+  - id: city_streets
+    label_en: City Streets
+    label_de: Stadtstraße
+  - id: country_roads
+    label_en: Country Roads
+    label_de: Landstraße
+  - id: federal_roads
+    label_en: Federal Roads
+    label_de: Bundesstraße
+
+- id: heating_type
+  label_en: Heating Type
+  label_de: Heizungsart
+  categories:
+  - id: district_heating_local
+    label_en: Local District Heating
+    label_de: Blockheizung
+  - id: individual_room_heaters
+    label_en: Individual Room Heaters
+    label_de: Einzel- oder Mehrraumöfen
+  - id: individual_heaters
+    label_en: Individual Heaters
+    label_de: Einzelöfen
+  - id: multi_room_heaters
+    label_en: Multi-Room Heaters
+    label_de: Mehrraumöfen
+  - id: floor_heating
+    label_en: Floor Heating
+    label_de: Etagenheizung
+  - id: district_heating
+    label_en: District Heating
+    label_de: Fernheizung
+  - id: central_heating
+    label_en: Central Heating
+    label_de: Zentralheizung
+  - id: no_heating
+    label_en: No Heating
+    label_de: Ohne Heizung
+  - id: heat_pump
+    label_en: Heat Pump
+    label_de: Wärmepumpe
+  - id: night_storage_heating
+    label_en: Night Storage Heating
+    label_de: Nachtspeicherheizung
+  - id: solar_heating
+    label_en: Solar Heating
+    label_de: Solarheizung
+
+- id: building_age
+  label_en: Building Age
+  label_de: Baujahr
+  categories:
+  - id: before_1950
+    label_en: Before 1950
+    label_de: Vor 1950
+  - id: age_1950_1969
+    label_en: 1950-1969
+    label_de: 1950-1969
+  - id: age_1970_1989
+    label_en: 1970-1989
+    label_de: 1970-1989
+  - id: after_1990
+    label_en: After 1990
+    label_de: Nach 1990
+  - id: age_1990_2000
+    label_en: 1990-2000
+    label_de: 1990-2000
+  - id: after_2000
+    label_en: After 2000
+    label_de: Nach 2000
+  - id: age_2000_2010
+    label_en: 2000-2010
+    label_de: 2000-2010
+  - id: after_2010
+    label_en: After 2010
+    label_de: Nach 2010
+
+- id: building_type
+  label_en: Building Type
+  label_de: Gebäudetyp
+  categories:
+  - id: single_two_family
+    label_en: Single & Two Family Houses
+    label_de: Ein- und Zweifamilienhäuser
+  - id: single_family
+    label_en: Single Family House
+    label_de: Einfamilienhaus
+  - id: two_family
+    label_en: Two Family House
+    label_de: Zweifamilienhaus
+  - id: small_multifamily
+    label_en: Small Multifamily (3-6 units)
+    label_de: Kleine Mehrfamilienhäuser (3-6 Wohnungen)
+  - id: medium_multifamily
+    label_en: Medium Multifamily (7-12 units)
+    label_de: Mittlere Mehrfamilienhäuser (7-12 Wohnungen)
+  - id: large_multifamily
+    label_en: Large Multifamily (13+ units)
+    label_de: Große Mehrfamilienhäuser (13+ Wohnungen)
+  - id: multifamily
+    label_en: Multifamily House
+    label_de: Mehrfamilienhaus
+  - id: high_rise
+    label_en: High Rise
+    label_de: Hochhaus
+  - id: row_house
+    label_en: Row House
+    label_de: Reihenhaus
+  - id: apartment_block
+    label_en: Apartment Block
+    label_de: Wohnblock
+
+- id: vehicle_type
+  label_en: Vehicle Type
+  label_de: Fahrzeugtyp
+  categories:
+  - id: passenger_cars
+    label_en: Passenger Cars
+    label_de: Personenkraftwagen (PKW)
+  - id: trucks
+    label_en: Trucks
+    label_de: Lastkraftwagen (LKW)
+  - id: light_commercial
+    label_en: Light Commercial Vehicles
+    label_de: Leichte Nutzfahrzeuge
+  - id: heavy_commercial
+    label_en: Heavy Commercial Vehicles
+    label_de: Schwere Nutzfahrzeuge
+  - id: buses
+    label_en: Buses
+    label_de: Busse
+  - id: motorcycles
+    label_en: Motorcycles
+    label_de: Motorisierte Zweiräder
+  - id: bicycles
+    label_en: Bicycles
+    label_de: Fahrräder
+  - id: trains
+    label_en: Trains
+    label_de: Züge
+  - id: rail_vehicles
+    label_en: Rail Vehicles
+    label_de: Schienenfahrzeuge
