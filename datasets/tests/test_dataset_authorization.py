@@ -7,6 +7,7 @@ import pytest
 from kausal_common.datasets.models import Dataset, DatasetSchema
 
 from paths.admin_context import set_admin_instance
+from paths.context import RealmContext, realm_context
 
 from admin_site.dataset_admin import DatasetSchemaViewSet
 from nodes.models import InstanceConfig
@@ -24,7 +25,6 @@ def get_in_admin_context(rf):
         if not user.selected_instance:
             user.selected_instance = instance_config
             user.save()
-        from paths.context import RealmContext, realm_context
         set_admin_instance(instance_config, request=request)
         ctx = RealmContext(realm = instance_config, user=request.user)
         with realm_context.activate(ctx):
@@ -142,7 +142,10 @@ class TestDatasetAdminAuthorization:
                 response = get_in_admin_context(user, view, url, data['instance1'])
             return
 
-        response.render()
+        ctx = RealmContext(realm = data['instance1'], user=user)
+        with realm_context.activate(ctx):
+            response.render()
+
         assert response.status_code == 200
         content = response.content.decode('utf-8')
         for schema_name in expected_schemas:
@@ -236,7 +239,10 @@ class TestDatasetAdminAuthorization:
 
         for instance_key, dataset_key in expected_datasets:
             response = get_in_admin_context(user, view, url, data[instance_key])
-            response.render()
+            ctx = RealmContext(realm = data[instance_key], user=user)
+            with realm_context.activate(ctx):
+                response.render()
+
             assert response.status_code == 200
             content = response.content.decode('utf-8')
 
