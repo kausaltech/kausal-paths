@@ -40,7 +40,7 @@ _M = TypeVar('_M', bound='PermissionedModel')
 _QS = TypeVar('_QS', bound=QuerySet, default=QuerySet[_M])
 
 
-class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, _QS]):
+class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, 'InstanceConfig', _QS]):
     """Permission policy for models that have one or many InstanceConfig objects as scope."""
 
     def __init__(self, model: type[_M]):
