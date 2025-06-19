@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence  # noqa: TCH003
+from django.utils import timezone
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, Self, overload
 
@@ -98,3 +99,10 @@ class User(AbstractUser):
         if not self.is_staff:
             return False
         return True
+
+    def deactivate(self, admin_user):
+        self.is_active = False
+        self.deactivated_by = admin_user
+        self.deactivated_at = timezone.now()
+        self.save()
+

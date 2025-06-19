@@ -10,11 +10,16 @@ from .models import Organization
 class OrganizationAutocomplete(Select2QuerySetView):
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        if not self.request.user.is_authenticated:
+            return Organization.objects.none()
+        qs = Organization.objects.all()
+
         if self.q:
             qs = qs.filter(
+                Q(distinct_name__icontains=self.q) |
                 Q(name__icontains=self.q) |
-                Q(abbreviation__icontains=self.q)
+                Q(internal_abbreviation__icontains=self.q) |
+                Q(abbreviation__icontains=self.q),
             )
         return qs
 

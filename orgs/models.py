@@ -1,4 +1,5 @@
 from django.utils.translation import gettext_lazy as _
+from kausal_common.models.types import MLModelManager
 from kausal_common.organizations.models import (
     BaseOrganization,
     BaseOrganizationClass,
@@ -12,7 +13,7 @@ from modelcluster.models import ClusterableModel
 from modelcluster.fields import ParentalKey
 from django.db import models
 from users.models import User
-
+from typing import ClassVar
 class OrganizationClass(BaseOrganizationClass):
     class Meta:
         verbose_name = _('Organization class')
@@ -45,8 +46,19 @@ class OrganizationQuerySet(BaseOrganizationQuerySet):
         # Users can edit organizations they are metadata admins for
         return self.filter(metadata_admins__user=user)
 
+
+_OrganizationManager = models.Manager.from_queryset(OrganizationQuerySet)
+
+
+class OrganizationManager(MLModelManager['Organization', OrganizationQuerySet], _OrganizationManager): ...
+
+
+del _OrganizationManager
+
 class Organization(BaseOrganization, MP_Node, ClusterableModel):
     node_order_by = ['name']
+
+    objects: ClassVar[OrganizationManager] = OrganizationManager()  # type: ignore[assignment]
 
     class Meta:
         verbose_name = _('Organization')
