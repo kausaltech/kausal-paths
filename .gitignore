@@ -39,3 +39,4 @@ celerybeat-schedule
 .secrets/**
 .prompts/**
 /*.code-workspace
+.Rproj.user

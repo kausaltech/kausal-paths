@@ -321,23 +321,23 @@ var_bins <- list(
 # Function to classify variables
 classify_variables <- function(df) {
   results <- list()
-  
+
   for(col in names(df)) {
     if(is.numeric(df[[col]])) {
       col_data <- df[[col]][!is.na(df[[col]])]  # Remove NAs
-      
+
       # Check if empty after removing NAs
       if(length(col_data) == 0) {
         results[[col]] <- "no_data"
         next
       }
-      
+
       # 1. Check for negative values
       has_negative <- any(col_data < 0, na.rm = TRUE)
-      
+
       # 2. Check for no variation (constant values)
       variance <- var(col_data, na.rm = TRUE)
-      
+
       if(is.na(variance) || variance == 0) {
         results[[col]] <- "no_variation"
       } else if(has_negative) {
@@ -346,7 +346,7 @@ classify_variables <- function(df) {
         # 3 & 4. Classify by variance size
         # You can adjust these thresholds based on your data
         cv <- sd(col_data, na.rm = TRUE) / mean(col_data, na.rm = TRUE)  # Coefficient of variation
-        
+
         if(cv < 0.5) {  # Small relative variation
           results[[col]] <- "small_variance" 
         } else {
@@ -397,40 +397,57 @@ ggplot(df[df$Var %in% var_bins$no_variation , ], aes(x = Value))+geom_histogram(
 library(corrplot)
 library(ggcorrplot)
 
-# Function to analyze dependencies
-analyze_dependencies <- function(df, outcome_vars, determinant_vars) {
-  
+# Function to get correlation table and maybe visualization
+get_correlation_df <- function(
+    df,
+    outcome_vars,
+    determinant_vars,
+    name,
+    visualize = FALSE) {
+
   # Create correlation matrix
-  cor_data <- df[, c(outcome_vars, determinant_vars)]
+  cor_data <- df[, unique(c(outcome_vars, determinant_vars))]
   cor_matrix <- cor(cor_data, use = "pairwise.complete.obs")
 
   # Visualize
-  ggcorrplot(cor_matrix,
-             hc.order = FALSE,
-             type = "full",
-             lab = TRUE,
-             lab_size = 3,
-             title = "Outcome-Determinant Correlations")
-
+  if(visualize) {
+    ggcorrplot(cor_matrix,
+               hc.order = FALSE,
+               type = "full",
+               lab = TRUE,
+               lab_size = 3,
+               title = name)
+}
   cor_long <- melt( # nolint
-    cor_matrix,
-    varnames = c("var1", "var2"),
-    value.name = "correlation")
+                   cor_matrix,
+                   varnames = c("col1", "col2"),
+                   value.name = "correlation")
+  cor_long$Name = name
+
   cor_long <- cor_long %>%
-    filter(var1 != var2) %>% # Remove self-correlations (diagonal) # nolint
-    filter(var1 %in% determinant_vars) %>%
-    filter(var2 %in% outcome_vars)
-  cor_long <- cor_long[order(-cor_long$correlation) , ]
-  cor_long <- unique(cor_long)
-    
+    filter(col1 != col2) %>% # Remove self-correlations (diagonal) # nolint
+    filter(col1 %in% determinant_vars) %>%
+    filter(col2 %in% outcome_vars) %>%
+    # Keep only unique pairs by forcing alphabetical order
+    rowwise() %>% # nolint
+    mutate( # nolint
+      pair_key = paste(
+        sort(c(as.character(col1), as.character(col2))),
+        collapse = "_")
+    ) %>%
+    ungroup() %>% # nolint
+    distinct(pair_key, .keep_all = TRUE) %>% # nolint
+    select(-pair_key) %>% # nolint
+    arrange(desc(abs(correlation))) # nolint
+
   return(cor_long)
 }
 
-# Example usage
-determinant_vars <- c("015 Population", "Pop density", "Year")
+determinant_vars <- c("015 Population", "016 Pop Growth to 2030",
+                      "017 City Area", "Pop density", "Year")
 outcome_vars <- var_bins$large_variance
 
-analyze_dependencies(dfw, outcome_vars, determinant_vars)
+get_correlation_df(dfw, outcome_vars, determinant_vars, "Large variance", TRUE)
 
 # REGRESSION ANALYSIS
 
@@ -439,30 +456,29 @@ library(purrr)
 
 # Function to test multiple determinants against each outcome
 analyze_all_dependencies <- function(df, outcome_vars, determinant_vars) {
-  
+
   results <- list()
-  
+
   for(outcome in outcome_vars) {
     outcome_results <- list()
-    
+
     for(determinant in determinant_vars) {
       # Simple linear regression
       formula_str <- paste0("`", outcome, "` ~ `", determinant, "`")
       print(formula_str)
-      
-        model <- lm(as.formula(formula_str), data = df)
-        model_summary <- tidy(model)
-        
-        outcome_results[[determinant]] <- list(
-          r_squared = summary(model)$r.squared,
-          p_value = model_summary$p.value[2],
-          coefficient = model_summary$estimate[2],
-          significant = model_summary$p.value[2] < 0.05
-        )
+
+      model <- lm(as.formula(formula_str), data = df)
+      model_summary <- tidy(model)
+
+      outcome_results[[determinant]] <- list(
+        r_squared = summary(model)$r.squared,
+        p_value = model_summary$p.value[2],
+        coefficient = model_summary$estimate[2],
+        significant = model_summary$p.value[2] < 0.05
+      )
     }
     results[[outcome]] <- outcome_results
   }
-  
   return(results)
 }
 lmout <- analyze_all_dependencies(dfw, outcome_vars, determinant_vars)
@@ -492,7 +508,7 @@ summarize_dependencies <- function(results) {
             outcome,
             desc(abs(coefficient)))
   summary_df <- summary_df %>% select(-max_coef_in_group) # nolint
-  
+
   return(summary_df)
 }
 
@@ -505,7 +521,7 @@ lmsmall <- summarize_dependencies(lmout)
 lmout <- analyze_all_dependencies(dfw, var_bins$negative_vars, determinant_vars)
 lmneg <- summarize_dependencies(lmout)
 
-############ LOOK AT THE COMPARISONS
+############ LOOK AT THE EUROSTAT, LOCAL, AND CCV COMPARISONS
 
 dfc <- readxl::read_xlsx(file, sheet = "42_cities_EM_PH_Eurostat")
 colnames(dfc)[colnames(dfc) == "...1"] <- "Var"
@@ -539,6 +555,17 @@ dfcw <- dfcl %>%
               names_from = "Source",
               values_from = "value")
 
+# Look at source correlations for each variable
+
+sources <- c("Eurostat", "Local", "CCV")
+
+corr_source <- data.frame()
+for(var in unique(dfcw$Var)) {
+  corr_out <- get_correlation_df(dfcw[dfcw$Var == var , ], sources, sources, var, FALSE)
+  corr_source <- rbind(corr_source, corr_out)
+}
+corr_source <- corr_source[c("Name", "col1", "col2", "correlation")]
+
 my_smooth <- function(data, mapping, ...) {
   ggally_smooth_lm(data, mapping, alpha = 0.5, size = 0.7) +
     coord_cartesian(xlim = data_range, ylim = data_range) # nolint
@@ -562,3 +589,58 @@ for(i in unique(dfcw$Var)) {
           title = i)
   print(g)
 }
+
+dfcw$CCV_abs_error <- dfcw$CCV - dfcw$Local
+dfcw$CCV_rel_error <- dfcw$CCV / dfcw$Local
+dfcw$Eur_abs_error <- dfcw$Eurostat - dfcw$Local
+dfcw$Eur_rel_error <- dfcw$Eurostat / dfcw$Local
+
+ggplot(dfcw[dfcw$Var == var , ], aes(x = Eur_rel_error, y = CCV_rel_error))+geom_point()+
+  labs(
+    title = var
+  )
+
+# Some ideas about further analysis
+# https://chat.kausal.tech/share/YIU5e0W0cetLihgVWDE4L from Claude
+"1. Inter-Method Reliability Analysis
+Logic: If multiple methods are measuring the same underlying phenomenon, 
+they should produce consistent results across cities. High consistency suggests 
+the methods are reliable.
+2. Variance and Consistency Analysis
+Logic: More reliable methods should have stable, predictable variance patterns. 
+Excessive variance might indicate measurement error or sensitivity to irrelevant factors.
+3. Pairwise Method Comparisons
+Logic: Good measurement methods should correlate highly with each other. 
+Large systematic differences between methods suggest one might be biased.
+4. Principal Component Analysis (PCA)
+Logic: If three methods measure the same underlying city characteristic, 
+the first principal component should capture most variance and all methods 
+should load positively on it.
+5. Outlier Detection Analysis
+Logic: Reliable methods should identify similar cities as unusual. 
+If Method A says City X is an outlier but Methods B and C don't, 
+Method A might have measurement issues.
+6. Missing Data Pattern Analysis
+Logic: Systematic missingness patterns might reveal data quality issues. 
+Random missingness is usually less problematic than systematic patterns.
+7. Temporal/Spatial Consistency (not applicable)
+Logic: If you have data over time or space, reliable methods should show 
+consistent patterns. Erratic changes might indicate measurement problems.
+8. External Validation (not possible with current resources)
+Logic: If you can find any external ground truth indicators (even imperfect ones), see which method correlates best with these.
+9. Measurement Error Modeling
+Logic: Use statistical models that treat the true value as unknown and 
+estimate measurement error for each method.
+Overall Strategy:
+No single approach is definitive - you want to look for convergent evidence 
+across multiple approaches. The goal is to build a weight of evidence 
+across different statistical perspectives to identify which 
+measurement approach(es) are most trustworthy for your specific urban analysis context.
+
+Jouni's suggestion:
+First do (5) outlier detection. Some variables may be especially vurnerable to this.
+Then add (6) to check if there are patterns.
+Pairwise method comparison (3) may help understand where there is actual variation 
+between cities and what is just uncertainty in measurements.
+These results hopefully inform what analyses should then be applied.
+"
