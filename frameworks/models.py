@@ -403,6 +403,7 @@ class MeasureTemplate(CacheablePathsModel['FrameworkSpecificCache'], OrderedMode
     year_bound = models.BooleanField(default=False)
     hidden = models.BooleanField(default=False)
     help_text = models.TextField(blank=True, default='')
+    include_in_progress_tracker = models.BooleanField(default=False)
 
     default_value_source = models.TextField(blank=True)
 
@@ -415,7 +416,7 @@ class MeasureTemplate(CacheablePathsModel['FrameworkSpecificCache'], OrderedMode
 
     public_fields: ClassVar = [
         "uuid", "name", "unit", "priority", "min_value", "max_value", "time_series_max", "default_value_source",
-        "year_bound", "hidden", "help_text",
+        "year_bound", "hidden", "help_text", "include_in_progress_tracker",
     ]
 
     objects: ClassVar[MeasureTemplateManager] = MeasureTemplateManager()  # pyright: ignore

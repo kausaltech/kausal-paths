@@ -86,6 +86,7 @@ class MeasureTemplateModel(DjangoDiffModel[MeasureTemplate]):
         'max_value',
         'hidden',
         'help_text',
+        'include_in_progress_tracker',
         'time_series_max',
         'default_value_source',
         'default_data_points',
