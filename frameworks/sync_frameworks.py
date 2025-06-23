@@ -85,6 +85,7 @@ class MeasureTemplateModel(DjangoDiffModel[MeasureTemplate]):
         'min_value',
         'max_value',
         'hidden',
+        'help_text',
         'time_series_max',
         'default_value_source',
         'default_data_points',
