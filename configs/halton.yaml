@@ -111,6 +111,10 @@ dimensions:
     label: Process Water
   - id: storage
     label: Storage
+  - id: biogas_combustion
+    label: Biogas Combustion
+  - id: propane_combustion
+    label: Propane Combustion
 
 - id: energy_carrier
   label: Energy Carrier
@@ -1062,7 +1066,7 @@ nodes:
 # ----- Stationary Combustion
 
 - id: stationary_combustion_emissions
-  name: Stationary Combustion Emissions
+  name: Stationary Combustion Emissions (Scope 1)
   color: '#B07AA1'
   type: simple.AdditiveNode
   quantity: emissions
@@ -1605,7 +1609,7 @@ nodes:
       categories: [public_works]
 
 - id: mobile_combustion_emissions
-  name: Mobile Combustion Emissions
+  name: Mobile Combustion Emissions (Scope 1)
   color: '#E15759'
   type: simple.AdditiveNode
   quantity: emissions
@@ -1626,7 +1630,7 @@ nodes:
 # ----- Purchased Electricity
 
 - id: purchased_electricity_emissions
-  name: Purchased Electricity Emissions
+  name: Purchased Electricity Emissions (Scope 2)
   color: '#F28E2B'
   type: simple.AdditiveNode
   quantity: emissions
@@ -2398,7 +2402,7 @@ nodes:
 # ----- Corporate Waste
 
 - id: corporate_waste_emissions
-  name: Corporate Waste Emissions
+  name: Corporate Waste Emissions (Scope 1)
   color: '#499894'
   type: simple.AdditiveNode
   quantity: emissions
@@ -2650,7 +2654,7 @@ nodes:
 # ----- Biosolids Transportation
 
 - id: biosolids_transportation_emissions
-  name: Biosolids Transportation Emissions
+  name: Biosolids Transportation Emissions (Scope 3)
   color: '#79706E'
   type: simple.AdditiveNode
   quantity: emissions
@@ -2723,7 +2727,7 @@ nodes:
   - id: leased_asset_stationary_fuel_combustion
 
 - id: leased_asset_emissions
-  name: Leased Asset Emissions
+  name: Leased Asset Emissions (Scope 3)
   color: '#D37295'
   type: simple.AdditiveNode
   quantity: emissions
@@ -2866,7 +2870,7 @@ nodes:
   - id: hrps_fleet_fuel_combustion
 
 - id: hrps_emissions
-  name: HRPS Emissions
+  name: HRPS Emissions (Scope 3)
   color: '#59A14F'
   type: simple.AdditiveNode
   quantity: emissions
