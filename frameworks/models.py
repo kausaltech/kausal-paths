@@ -310,10 +310,11 @@ class Section(CacheablePathsModel['SectionCacheData'], MP_Node[SectionQuerySet],
     description = models.TextField(blank=True)
     # validation_rules?
     available_years = ArrayField(models.IntegerField(), null=True, blank=True)
+    max_total= models.FloatField(null=True)
 
     measure_templates: RevMany[MeasureTemplate]
 
-    public_fields: ClassVar = ["identifier", "uuid", "path", "name", "description", "available_years"]
+    public_fields: ClassVar = ["identifier", "uuid", "path", "name", "description", "available_years", "max_total"]
 
     objects: ClassVar[SectionManager] = SectionManager()  # pyright: ignore
     _default_manager: ClassVar[SectionManager]
