@@ -238,7 +238,13 @@ class TestDatasetAdminAuthorization:
             return
 
         for instance_key, dataset_key in expected_datasets:
-            response = get_in_admin_context(user, view, url, data[instance_key])
+            try:
+                response = get_in_admin_context(user, view, url, data[instance_key])
+            except PermissionDenied:
+                assert dataset_key is None
+                continue
+            else:
+                assert dataset_key is not None
             ctx = RealmContext(realm = data[instance_key], user=user)
             with realm_context.activate(ctx):
                 response.render()
