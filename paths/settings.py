@@ -120,6 +120,7 @@ LOGOUT_REDIRECT_URL = '/admin/'
 
 INSTALLED_APPS = [
     'kausal_common',
+    'dal_select2',
     'wagtail.contrib.forms',
     'wagtail.contrib.redirects',
     'wagtail.embeds',
