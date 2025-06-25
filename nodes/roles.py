@@ -36,6 +36,7 @@ class InstanceAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceConfig']
 
     model_perms = AdminRole.model_perms + [
         ('nodes', ('instanceconfig', 'nodeconfig'), ('view', 'change')),
+        ('nodes', ('instancerolegroup',), ALL_MODEL_PERMS),
         ('datasets', ('datasetschema','dataset', 'datapoint'), ALL_MODEL_PERMS),
         ('frameworks', (
             'framework',
