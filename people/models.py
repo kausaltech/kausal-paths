@@ -1,8 +1,47 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, ClassVar, override
+
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
+from modeltrans.manager import MultilingualQuerySet
+
+from kausal_common.models.types import MLModelManager
 from kausal_common.people.models import BasePerson
+
+from orgs.models import Organization
 from users.models import User
 
+if TYPE_CHECKING:
+    from django.db import models
+
+    from paths.types import PathsAdminRequest
+
+    from nodes.models import InstanceConfig
+
+
+class PersonQuerySet(MultilingualQuerySet['Person']):
+    def available_for_instance(self, instance: InstanceConfig):
+        related = Organization.objects.filter(id=instance.organization_id)
+        # TODO: Replace with the following if / when we add `related_organizations` to InstanceConfig
+        # related = Organization.objects.filter(id=instance.organization_id) | instance.related_organizations.all()
+        q = Q(pk__in=[])  # always false; Q() doesn't cut it; https://stackoverflow.com/a/39001190/14595546
+        for org in related:
+            q |= Q(organization__path__startswith=org.path)
+        return self.filter(q)
+
+
+if TYPE_CHECKING:
+    _PersonManager = models.Manager.from_queryset(PersonQuerySet)
+    class PersonManager(MLModelManager['Person', PersonQuerySet], _PersonManager): ...  # pyright: ignore
+    del _PersonManager
+else:
+    PersonManager = MLModelManager.from_queryset(PersonQuerySet)
+
+
 class Person(BasePerson):
+    objects: ClassVar[PersonManager] = PersonManager()  # pyright: ignore
+
     class Meta:
         verbose_name = _('Person')
         verbose_name_plural = _('People')
@@ -15,7 +54,8 @@ class Person(BasePerson):
         # Subclasses can override this to implement actual avatar downloading
         return None
 
-    def get_avatar_url(self, **kwargs) -> str | None:
+    @override
+    def get_avatar_url(self, request: PathsAdminRequest, size: str | None = None) -> str | None:
         # Return the URL of the person's image if it exists
         if self.image:
             return self.image.url
