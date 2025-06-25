@@ -48,7 +48,6 @@ from kausal_common.models.permissions import PermissionedQuerySet
 from kausal_common.models.types import FK, M2M, MLModelManager, RevMany, RevOne, copy_signature
 from kausal_common.models.uuid import UUIDIdentifiedModel
 
-from orgs.models import Organization
 from paths.const import INSTANCE_CHANGE_GROUP, INSTANCE_CHANGE_TYPE
 from paths.types import CacheablePathsModel, PathsModel, PathsQuerySet
 from paths.utils import (
@@ -60,6 +59,7 @@ from paths.utils import (
 )
 
 from common.i18n import get_modeltrans_attrs_from_str
+from orgs.models import Organization
 from pages.blocks import CardListBlock
 
 if TYPE_CHECKING:
@@ -291,6 +291,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     datasets: RevMany[DatasetModel]
     framework_config: RevOne[InstanceConfig, FrameworkConfig]
     framework_config_id: int | None
+    organization_id: int
     site_content: RevOne[InstanceConfig, InstanceSiteContent]
 
     search_fields = [
