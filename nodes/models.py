@@ -19,6 +19,7 @@ from django.db import models, transaction
 from django.db.models import CharField, Q
 from django.utils import timezone
 from django.utils.translation import get_language, gettext, gettext_lazy as _, override
+from modelcluster.fields import ParentalKey
 from modelcluster.models import ClusterableModel
 from modeltrans.fields import TranslationField
 from modeltrans.manager import MultilingualQuerySet
@@ -44,6 +45,7 @@ from kausal_common.datasets.models import (
 from kausal_common.i18n.helpers import convert_language_code
 from kausal_common.models.permission_policy import ModelPermissionPolicy, ParentInheritedPolicy
 from kausal_common.models.permissions import PermissionedQuerySet
+from kausal_common.models.roles import RoleGroup
 from kausal_common.models.types import FK, M2M, MLModelManager, RevMany, RevOne, copy_signature
 from kausal_common.models.uuid import UUIDIdentifiedModel
 
@@ -60,6 +62,7 @@ from paths.utils import (
 from common.i18n import get_modeltrans_attrs_from_str
 from orgs.models import Organization
 from pages.blocks import CardListBlock
+from people.models import Person
 
 if TYPE_CHECKING:
     from django.http import HttpRequest
@@ -77,6 +80,7 @@ if TYPE_CHECKING:
     from users.models import User
 
     from .instance import Instance
+    from .permissions import InstanceRoleGroupPermissionPolicy
 
 
 instance_cache_lock = threading.Lock()
@@ -977,3 +981,104 @@ class NodeDataset(models.Model):
 
     def __str__(self) -> str:
         return f'{self.node.identifier} -> {self.dataset}'
+
+
+class InstanceRoleGroup(PathsModel, ClusterableModel, RoleGroup):
+    instance = models.ForeignKey(InstanceConfig, on_delete=models.CASCADE, related_name='role_groups')
+    name = models.CharField(max_length=150, verbose_name=_('name'))
+    persons: M2M[Person, InstanceRoleGroupPerson] = models.ManyToManyField(
+        Person,
+        through='InstanceRoleGroupPerson',
+        related_name='instance_role_groups',
+    )
+    datasets: M2M[DatasetModel, InstanceRoleGroupDataset] = models.ManyToManyField(
+        DatasetModel,
+        through='InstanceRoleGroupDataset',
+        related_name='instance_role_groups',
+    )
+
+    class Meta:
+        verbose_name = _('Role group')
+        verbose_name_plural = _('Role groups')
+        constraints = (
+            models.UniqueConstraint(
+                fields=['instance', 'name'],
+                name='unique_role_group_name_per_instance',
+            ),
+        )
+
+    @classmethod
+    def permission_policy(cls) -> InstanceRoleGroupPermissionPolicy:
+        from .permissions import InstanceRoleGroupPermissionPolicy
+        return InstanceRoleGroupPermissionPolicy()
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class InstanceRoleGroupPerson(models.Model):
+    group = ParentalKey(
+        InstanceRoleGroup,
+        on_delete=models.CASCADE,
+        related_name='persons_edges',
+        verbose_name=_('group'),
+    )
+    person = models.ForeignKey(
+        Person,
+        on_delete=models.CASCADE,
+        related_name='instance_role_groups_edges',
+        verbose_name=_('person'),
+    )
+
+    class Meta:
+        verbose_name = _('Instance role group person')
+        verbose_name_plural = _('Instance role group persons')
+        constraints = (
+            models.UniqueConstraint(
+                fields=['group', 'person'],
+                name='unique_person_per_instance_role_group',
+            ),
+        )
+
+    def __str__(self) -> str:
+        return f'{self.person} ∈ persons of {self.group}'
+
+
+class InstanceRoleGroupDataset(models.Model):
+    group = ParentalKey(
+        InstanceRoleGroup,
+        on_delete=models.CASCADE,
+        related_name='datasets_edges',
+        verbose_name=_('group'),
+    )
+    dataset = models.ForeignKey(
+        DatasetModel,
+        on_delete=models.CASCADE,
+        related_name='instance_role_groups_edges',
+        verbose_name=_('dataset'),
+    )
+    can_view = models.BooleanField(
+        default=False,
+        verbose_name=_('can view'),
+    )
+    can_edit = models.BooleanField(
+        default=False,
+        verbose_name=_('can edit'),
+    )
+    can_delete = models.BooleanField(
+        default=False,
+        verbose_name=_('can delete'),
+    )
+
+    class Meta:
+        verbose_name = _('Instance role group dataset')
+        verbose_name_plural = _('Instance role group datasets')
+        constraints = (
+            models.UniqueConstraint(
+                fields=['group', 'dataset'],
+                name='unique_dataset_per_instance_role_group',
+            ),
+        )
+
+    def __str__(self) -> str:
+        return f'{self.dataset} ({self.permission.name}) ∈ datasets of {self.group}'
