@@ -34,7 +34,7 @@ class SectionModel(DjangoDiffModel[Section]):
     _model = Section
     _modelname = 'section'
     _identifiers = ('uuid',)
-    _attributes = ('parent', 'identifier', 'name', 'description', 'available_years', 'framework')
+    _attributes = ('parent', 'identifier', 'name', 'description', 'available_years', 'framework', 'max_total')
     _parent_key = 'parent'
     _children = {
         'measure_template': 'measure_templates',
@@ -84,6 +84,9 @@ class MeasureTemplateModel(DjangoDiffModel[MeasureTemplate]):
         'priority',
         'min_value',
         'max_value',
+        'hidden',
+        'help_text',
+        'include_in_progress_tracker',
         'time_series_max',
         'default_value_source',
         'default_data_points',

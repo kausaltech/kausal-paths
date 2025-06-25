@@ -310,10 +310,11 @@ class Section(CacheablePathsModel['SectionCacheData'], MP_Node[SectionQuerySet],
     description = models.TextField(blank=True)
     # validation_rules?
     available_years = ArrayField(models.IntegerField(), null=True, blank=True)
+    max_total= models.FloatField(null=True)
 
     measure_templates: RevMany[MeasureTemplate]
 
-    public_fields: ClassVar = ["identifier", "uuid", "path", "name", "description", "available_years"]
+    public_fields: ClassVar = ["identifier", "uuid", "path", "name", "description", "available_years", "max_total"]
 
     objects: ClassVar[SectionManager] = SectionManager()  # pyright: ignore
     _default_manager: ClassVar[SectionManager]
@@ -401,6 +402,8 @@ class MeasureTemplate(CacheablePathsModel['FrameworkSpecificCache'], OrderedMode
     time_series_max = models.FloatField(null=True, blank=True)
     year_bound = models.BooleanField(default=False)
     hidden = models.BooleanField(default=False)
+    help_text = models.TextField(blank=True, default='')
+    include_in_progress_tracker = models.BooleanField(default=False)
 
     default_value_source = models.TextField(blank=True)
 
@@ -413,7 +416,7 @@ class MeasureTemplate(CacheablePathsModel['FrameworkSpecificCache'], OrderedMode
 
     public_fields: ClassVar = [
         "uuid", "name", "unit", "priority", "min_value", "max_value", "time_series_max", "default_value_source",
-        "year_bound", "hidden",
+        "year_bound", "hidden", "help_text", "include_in_progress_tracker",
     ]
 
     objects: ClassVar[MeasureTemplateManager] = MeasureTemplateManager()  # pyright: ignore
