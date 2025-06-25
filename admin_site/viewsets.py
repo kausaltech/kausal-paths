@@ -9,6 +9,7 @@ from django.core.exceptions import FieldDoesNotExist
 from django.db.models import Model, QuerySet
 from django.forms import BaseModelForm
 from wagtail.admin.forms.models import WagtailAdminModelForm
+from wagtail.admin.ui.tables import BulkActionsCheckboxColumn
 from wagtail.snippets.views.chooser import ChooseResultsView, ChooseView, SnippetChooserViewSet
 from wagtail.snippets.views.snippets import (
     CopyView,
@@ -113,7 +114,15 @@ class PathsCreateView(HideSnippetsFromBreadcrumbsMixin, CreateView[_ModelT, _For
 
 
 class PathsIndexView(HideSnippetsFromBreadcrumbsMixin, IndexView[_ModelT, _QS]):
-    pass
+    def user_can_change_or_delete_model(self) -> bool:
+        return self.permission_policy.user_has_any_permission(self.request.user, ('delete', 'change'))
+
+    @cached_property
+    def columns(self):
+        columns = super().columns
+        if self.user_can_change_or_delete_model():
+            return columns
+        return [c for c in columns if not isinstance(c, BulkActionsCheckboxColumn)]
 
 
 class PathsUsageView(HideSnippetsFromBreadcrumbsMixin, UsageView):
