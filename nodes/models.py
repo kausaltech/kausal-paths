@@ -48,6 +48,7 @@ from kausal_common.models.permissions import PermissionedQuerySet
 from kausal_common.models.types import FK, M2M, MLModelManager, RevMany, RevOne, copy_signature
 from kausal_common.models.uuid import UUIDIdentifiedModel
 
+from orgs.models import Organization
 from paths.const import INSTANCE_CHANGE_GROUP, INSTANCE_CHANGE_TYPE
 from paths.types import CacheablePathsModel, PathsModel, PathsQuerySet
 from paths.utils import (
@@ -238,6 +239,10 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     lead_paragraph_i18n: str | None
     site_url = models.URLField(verbose_name=_('Site URL'), null=True)
     site = models.OneToOneField(Site, null=True, on_delete=models.PROTECT, editable=False, related_name='instance')
+    organization: FK[Organization] = models.ForeignKey(
+        Organization, related_name='instances', on_delete=models.PROTECT, verbose_name=_('organization'),
+        help_text=_('The main organization for the instance'),
+    )
 
     is_protected = models.BooleanField(default=False)
     protection_password = models.CharField(max_length=50, null=True, blank=True)
