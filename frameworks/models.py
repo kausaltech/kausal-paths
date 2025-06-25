@@ -310,7 +310,7 @@ class Section(CacheablePathsModel['SectionCacheData'], MP_Node[SectionQuerySet],
     description = models.TextField(blank=True)
     # validation_rules?
     available_years = ArrayField(models.IntegerField(), null=True, blank=True)
-    max_total= models.FloatField(null=True)
+    max_total = models.FloatField(null=True)
 
     measure_templates: RevMany[MeasureTemplate]
 
