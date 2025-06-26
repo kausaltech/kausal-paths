@@ -62,6 +62,7 @@ class InstanceViewerRole(InstanceGroupMembershipRole, InstanceSpecificRole['Inst
 
     model_perms = [
         ('nodes', ('instanceconfig', 'nodeconfig'), ('view',)),
+        ('datasets', ('datasetschema','dataset', 'datapoint'), ('view',)),
         ('frameworks', (
             'framework', 'frameworkconfig', 'measure', 'measuredatapoint',
         ), ('view',)),

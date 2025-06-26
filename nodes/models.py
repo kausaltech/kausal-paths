@@ -997,6 +997,9 @@ class InstanceRoleGroup(PathsModel, ClusterableModel, RoleGroup):
         related_name='instance_role_groups',
     )
 
+    persons_edges: RevMany[InstanceRoleGroupPerson]
+    datasets_edges: RevMany[InstanceRoleGroupDataset]
+
     class Meta:
         verbose_name = _('Role group')
         verbose_name_plural = _('Role groups')
@@ -1081,4 +1084,15 @@ class InstanceRoleGroupDataset(models.Model):
         )
 
     def __str__(self) -> str:
-        return f'{self.dataset} ({self.permission.name}) ∈ datasets of {self.group}'
+        perms = []
+        if self.can_view:
+            perms.append('view')
+        if self.can_edit:
+            perms.append('edit')
+        if self.can_delete:
+            perms.append('delete')
+        if perms:
+            perms_str = ', '.join(perms)
+        else:
+            perms_str = 'no permissions'
+        return f'{self.dataset} ({perms_str}) ∈ datasets of {self.group}'
