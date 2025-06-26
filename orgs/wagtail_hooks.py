@@ -395,8 +395,12 @@ class OrganizationViewSet(SnippetViewSet):
 
         return buttons
 
+    def get_queryset(self, request):
+        qs = Organization.objects.qs.available_for_instance(request.user.get_active_instance())
+        return qs
+
 # If kausal_watch_extensions is installed, an extended version of the view set is registered there
-if not find_spec('kausal_paths_extensions'):
-    from loguru import logger
-    logger.info("registering org view set")
-    register_snippet(OrganizationViewSet)
+# if not find_spec('kausal_paths_extensions'):
+    # from loguru import logger
+    # logger.info("registering org view set")
+register_snippet(OrganizationViewSet)
