@@ -129,6 +129,17 @@ class DatasetPermissionPolicy(ParentInheritedPolicy[Dataset, DatasetSchema, Data
 
     @override
     def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: Dataset) -> bool:
+        person = user.get_corresponding_person()
+        if person:
+            # If we find an instance role group that grants the permission, return True, otherwise consult parent policy
+            if action == 'view':
+                field = 'can_view'
+            elif action == 'change':
+                field = 'can_edit'
+            elif action == 'delete':
+                field = 'can_delete'
+            if obj.instance_role_groups_edges.filter(group__persons=person).filter(**{field: True}).exists():
+                return True
         parent_obj = self.get_parent_obj(obj)
         return self.parent_policy.user_has_perm(user, action, parent_obj)
 
