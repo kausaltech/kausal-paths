@@ -2,17 +2,18 @@ from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
+
 from dal_select2.views import Select2QuerySetView
 
 from .models import Organization
-
 
 class OrganizationAutocomplete(Select2QuerySetView):
 
     def get_queryset(self):
         if not self.request.user.is_authenticated:
             return Organization.objects.none()
-        qs = Organization.objects.all()
+        qs = Organization.objects.available_for_instance(
+            self.request.user.get_active_instance())
 
         if self.q:
             qs = qs.filter(
