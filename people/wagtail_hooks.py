@@ -33,4 +33,15 @@ class PersonSnippetViewSet(SnippetViewSet):
     list_per_page = 50
 
 
+    class Media:
+        css = {
+            'all': ('dal_select2/css/select2.css',)
+        }
+        js = ('dal_select2/js/select2.js',)
+
+    def get_queryset(self, request):
+        qs = Person.objects.qs.available_for_instance(request.user.get_active_instance())
+        return qs
+
+
 register_snippet(PersonSnippetViewSet)
