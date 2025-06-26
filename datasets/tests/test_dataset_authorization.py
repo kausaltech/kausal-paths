@@ -9,8 +9,10 @@ from kausal_common.datasets.models import Dataset, DatasetSchema
 from paths.admin_context import set_admin_instance
 
 from admin_site.dataset_admin import DatasetSchemaViewSet
-from nodes.models import InstanceConfig
-from nodes.roles import instance_admin_role
+from nodes.models import InstanceConfig, InstanceRoleGroup
+from nodes.roles import instance_admin_role, instance_viewer_role
+from nodes.tests.factories import InstanceConfigFactory
+from people.models import Person
 from users.models import User
 
 
@@ -40,11 +42,11 @@ class TestDatasetAdminAuthorization:
     def setup_test_data(self):
         # Create two instance configs with unique identifiers
         import uuid
-        instance1 = InstanceConfig.objects.create(
+        instance1 = InstanceConfigFactory(
             identifier=f'instance1-{uuid.uuid4().hex[:8]}',
             name='Instance 1',
         )
-        instance2 = InstanceConfig.objects.create(
+        instance2 = InstanceConfigFactory(
             identifier=f'instance2-{uuid.uuid4().hex[:8]}',
             name='Instance 2',
         )
@@ -106,6 +108,35 @@ class TestDatasetAdminAuthorization:
             scope_id=instance2.id,
         )
 
+        # Create instance role groups with different permissions for dataset1, and one user for each group
+        instance_role_group_users = {}
+        for group_identifier, permissions in (
+            ('view_group', {'can_view': True}),
+            ('edit_group', {'can_edit': True}),
+            ('delete_group', {'can_delete': True}),
+            ('unprivileged_group', {}),
+        ):
+            username = f'{group_identifier}_user'
+            group_person = Person.objects.create(
+                email=f'{username}@example.com',
+                organization=instance1.organization,
+                first_name='Foo',
+                last_name='Bar',
+            )
+            group_user = group_person.create_corresponding_user()
+            instance_viewer_role.assign_user(instance1, group_user)
+            group = InstanceRoleGroup.objects.create(
+                instance=instance1,
+                name=f"Dataset 1 group '{group_identifier}'",
+            )
+            group.persons.add(group_person)
+            group.datasets_edges.create(
+                dataset=dataset1,
+                **permissions,
+            )
+            group.save()
+            instance_role_group_users[username] = group_user
+
         return {
             'instance1': instance1,
             'instance2': instance2,
@@ -116,6 +147,7 @@ class TestDatasetAdminAuthorization:
             'schema2': schema2,
             'dataset1': dataset1,
             'dataset2': dataset2,
+            **instance_role_group_users,
         }
 
     @pytest.mark.parametrize(('user_key', 'expected_schemas'), [
@@ -210,12 +242,18 @@ class TestDatasetAdminAuthorization:
         with pytest.raises(PermissionDenied):
             response = get_in_admin_context(user, view, url, data['instance1'], {'pk': schema.id})
 
-    @pytest.mark.parametrize(('user_key', 'expected_datasets'), [
-        ('superuser', [('instance1', 'dataset1'), ('instance2', 'dataset2')]),
-        ('admin_user', [('instance1', 'dataset1'), ('instance2', None)]),
-        ('regular_user', []),  # No datasets
+    @pytest.mark.parametrize(('user_key', 'expect_permission_denied', 'expected_datasets'), [
+        ('superuser', False, [('instance1', 'dataset1'), ('instance2', 'dataset2')]),
+        ('admin_user', False, [('instance1', 'dataset1')]),
+        ('regular_user', True, []),  # No datasets
+        ('view_group_user', False, [('instance1', 'dataset1')]),
+        ('edit_group_user', False, [('instance1', 'dataset1')]),
+        ('delete_group_user', False, [('instance1', 'dataset1')]),
+        ('unprivileged_group_user', False, [('instance1', 'dataset1')]),  # Cannot view, but should be able to list
     ])
-    def test_dataset_index_view(self, client, setup_test_data, user_key, expected_datasets, get_in_admin_context):
+    def test_dataset_index_view(
+        self, client, setup_test_data, user_key, expect_permission_denied, expected_datasets, get_in_admin_context
+    ):
         """Test access to dataset index view."""
         data = setup_test_data
         user = data[user_key]
@@ -229,25 +267,22 @@ class TestDatasetAdminAuthorization:
         view = DatasetViewSet().index_view
         url = reverse('datasets_dataset:list')
 
-        if not expected_datasets:
-            with pytest.raises(PermissionDenied):
-                response = get_in_admin_context(user, view, url, data['instance1'])
-            return
+        for instance_key in ('instance1', 'instance2'):
+            if expect_permission_denied:
+                with pytest.raises(PermissionDenied):
+                    get_in_admin_context(user, view, url, data['instance1'])
+                continue
 
-        for instance_key, dataset_key in expected_datasets:
             response = get_in_admin_context(user, view, url, data[instance_key])
             response.render()
             assert response.status_code == 200
             content = response.content.decode('utf-8')
+            for dataset_key in ('dataset1', 'dataset2'):
+                if (instance_key, dataset_key) in expected_datasets:
+                    assert str(data[dataset_key].schema.name) in content
+                else:
+                    assert str(data[dataset_key].schema.name) not in content
 
-            if dataset_key == 'dataset1':
-                assert str(data['dataset1'].schema.name) in content
-            else:
-                assert str(data['dataset1'].schema.name) not in content
-            if dataset_key == 'dataset2':
-                assert str(data['dataset2'].schema.name) in content
-            else:
-                assert str(data['dataset2'].schema.name) not in content
 
     @pytest.mark.parametrize(('user_key', 'dataset_key', 'access_allowed'), [
         ('superuser', 'dataset1', True),
@@ -256,6 +291,14 @@ class TestDatasetAdminAuthorization:
         ('admin_user', 'dataset2', False),
         ('regular_user', 'dataset1', False),
         ('regular_user', 'dataset2', False),
+        ('view_group_user', 'dataset1', False),
+        ('view_group_user', 'dataset2', False),
+        ('edit_group_user', 'dataset1', True),
+        ('edit_group_user', 'dataset2', False),
+        ('delete_group_user', 'dataset1', False),
+        ('delete_group_user', 'dataset2', False),
+        ('unprivileged_group_user', 'dataset1', False),
+        ('unprivileged_group_user', 'dataset2', False),
     ])
     def test_dataset_edit_view(self, client, setup_test_data, user_key, dataset_key, access_allowed, get_in_admin_context):
         """Test access to dataset edit view."""
@@ -287,6 +330,14 @@ class TestDatasetAdminAuthorization:
         ('admin_user', 'dataset2', False),
         ('regular_user', 'dataset1', False),
         ('regular_user', 'dataset2', False),
+        ('view_group_user', 'dataset1', False),
+        ('view_group_user', 'dataset2', False),
+        ('edit_group_user', 'dataset1', False),
+        ('edit_group_user', 'dataset2', False),
+        ('delete_group_user', 'dataset1', True),
+        ('delete_group_user', 'dataset2', False),
+        ('unprivileged_group_user', 'dataset1', False),
+        ('unprivileged_group_user', 'dataset2', False),
     ])
     def test_dataset_delete_view(self, client, setup_test_data, user_key, dataset_key, access_allowed, get_in_admin_context):
         """Test access to dataset delete view."""
@@ -315,6 +366,10 @@ class TestDatasetAdminAuthorization:
         ('superuser', True),
         ('admin_user', True),
         ('regular_user', False),
+        ('view_group_user', False),
+        ('edit_group_user', False),
+        ('delete_group_user', False),
+        ('unprivileged_group_user', False),
     ])
     def test_dataset_create_view(self, client, setup_test_data, user_key, access_allowed, get_in_admin_context):
         """Test access to dataset create view."""
