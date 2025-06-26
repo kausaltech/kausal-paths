@@ -1,19 +1,30 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, ClassVar
+
+from django.db import models
 from django.utils.translation import gettext_lazy as _
+from modelcluster.fields import ParentalKey
+from modelcluster.models import ClusterableModel
+
+from treebeard.mp_tree import MP_Node
+
 from kausal_common.models.types import MLModelManager
 from kausal_common.organizations.models import (
+    BaseNamespace,
     BaseOrganization,
     BaseOrganizationClass,
-    BaseOrganizationMetadataAdmin,
-    BaseNamespace,
     BaseOrganizationIdentifier,
-    BaseOrganizationQuerySet
+    BaseOrganizationMetadataAdmin,
+    BaseOrganizationQuerySet,
 )
-from treebeard.mp_tree import MP_Node
-from modelcluster.models import ClusterableModel
-from modelcluster.fields import ParentalKey
-from django.db import models
+
 from users.models import User
-from typing import ClassVar
+
+if TYPE_CHECKING:
+    from nodes.models import InstanceConfig
+
+
 class OrganizationClass(BaseOrganizationClass):
     class Meta:
         verbose_name = _('Organization class')
@@ -46,6 +57,13 @@ class OrganizationQuerySet(BaseOrganizationQuerySet):
         # Users can edit organizations they are metadata admins for
         return self.filter(metadata_admins__user=user)
 
+    def available_for_instance(self, instance: InstanceConfig):
+        if not hasattr(instance, 'organization') or not instance.organization:
+            return self.none()
+
+        return self.filter(
+            path__startswith=instance.organization.path
+        )
 
 _OrganizationManager = models.Manager.from_queryset(OrganizationQuerySet)
 
