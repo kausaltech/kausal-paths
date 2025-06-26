@@ -1,4 +1,5 @@
 # Dataset: https://docs.google.com/spreadsheets/d/12_McEL0wQWS0G-0zBYEfnPOBdkdpRd31__qwpqYZ0ZE/edit?gid=0#gid=0
+# Has HS VAA actions https://github.com/kausaltech/kausal-paths/blob/3c2e43903abf655d9c6dcd415c9fa83a942cbaf3/configs/greentransition.yaml
 id: forestry-fi
 default_language: en
 supported_languages: [fi]

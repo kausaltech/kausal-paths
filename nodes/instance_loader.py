@@ -1089,12 +1089,16 @@ class InstanceLoader:
         dataset_repo_config = self.config['dataset_repo']
         repo_url = dataset_repo_config['url']
         commit = dataset_repo_config.get('commit')
-        creds = dvc_pandas.RepositoryCredentials(
-            git_username=os.getenv('DVC_PANDAS_GIT_USERNAME'),
-            git_token=os.getenv('DVC_PANDAS_GIT_TOKEN'),
-            git_ssh_public_key_file=os.getenv('DVC_SSH_PUBLIC_KEY_FILE'),
-            git_ssh_private_key_file=os.getenv('DVC_SSH_PRIVATE_KEY_FILE'),
-        )
+        try:
+            creds = dvc_pandas.RepositoryCredentials(
+                git_username=os.getenv('DVC_PANDAS_GIT_USERNAME'),
+                git_token=os.getenv('DVC_PANDAS_GIT_TOKEN'),
+                git_ssh_public_key_file=os.getenv('DVC_SSH_PUBLIC_KEY_FILE'),
+                git_ssh_private_key_file=os.getenv('DVC_SSH_PRIVATE_KEY_FILE'),
+            )
+        except (TypeError, ValueError, AttributeError, FileNotFoundError) as e:
+            print(f"Warning: Failed to load credentials from environment: {e}")
+            creds = dvc_pandas.RepositoryCredentials()
         dataset_repo = dvc_pandas.Repository(
             repo_url=repo_url,
             dvc_remote=dataset_repo_config.get('dvc_remote'),

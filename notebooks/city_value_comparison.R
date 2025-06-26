@@ -643,4 +643,18 @@ Then add (6) to check if there are patterns.
 Pairwise method comparison (3) may help understand where there is actual variation 
 between cities and what is just uncertainty in measurements.
 These results hopefully inform what analyses should then be applied.
+
+Do value of information analysis to find out
+Which variables are sensitive to uncertainty
+Which actions are sensitive to uncertainty
+Which cities are sensitive to uncertainty.
+
+Do a regression analysis for each variable with determinant variables:
+population size
+population density
+city area
+train connection yes/no
+country
+year
+latitude
 "
