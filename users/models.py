@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from collections.abc import Sequence  # noqa: TCH003
-from django.utils import timezone
+from collections.abc import Sequence  # noqa: TC003
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, Self, overload
 
 from django.db import models
 from django.db.models import Model
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from pydantic import BaseModel, Field
 
@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 
     from frameworks.roles import FrameworkRoleDef
     from nodes.models import InstanceConfig, InstanceConfigQuerySet
+    from people.models import Person
 
 
 class UserFrameworkRole(BaseModel):
@@ -70,6 +71,24 @@ class User(AbstractUser):
     def get_adminable_instances(self) -> InstanceConfigQuerySet:
         from nodes.models import InstanceConfig
         return InstanceConfig.permission_policy().adminable_instances(self)
+
+    def get_corresponding_person(self) -> Person | None:
+        # Copied from KW. We don't have a cache here yet.
+        # cache = self.get_cache()
+        # if hasattr(cache, '_corresponding_person'):
+        #     return cache._corresponding_person
+
+        from people.models import Person
+
+        try:
+            person = self.person
+        except Person.DoesNotExist:
+            person = None
+
+        if person is None:
+            person = Person.objects.filter(email__iexact=self.email).first()
+        # cache._corresponding_person = person
+        return person
 
     @cached_property
     def cgroups(self) -> QS[Group]:
