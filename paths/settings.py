@@ -136,7 +136,6 @@ INSTALLED_APPS = [
     'wagtail.search',
     'wagtail.admin',
     'wagtail',
-    'wagtail.contrib.styleguide',
     'wagtail_localize',
     'wagtail_localize.locales',  # replaces `wagtail.locales`
     'wagtailfontawesomesvg',
@@ -167,6 +166,9 @@ INSTALLED_APPS = [
     'frameworks',
     'request_log',
 ]
+
+if DEBUG:
+    INSTALLED_APPS.append('wagtail.contrib.styleguide')
 
 MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
