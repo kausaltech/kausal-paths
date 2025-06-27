@@ -94,6 +94,10 @@ dimensions:
     label: CO2
   - id: co2e
     label: CO2e
+  - id: ch4
+    label: CH4
+  - id: n2o
+    label: N2O
 
 - id: energy_carrier
   label: Energy Carrier
