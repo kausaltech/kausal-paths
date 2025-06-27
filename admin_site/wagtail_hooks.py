@@ -8,9 +8,8 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from wagtail import hooks
 from wagtail.admin.menu import Menu, MenuItem, SubmenuMenuItem
-from wagtail_localize.wagtail_hooks import TranslationsReportMenuItem
 
-from nodes.models import InstanceConfig
+from wagtail_localize.wagtail_hooks import TranslationsReportMenuItem
 
 if TYPE_CHECKING:
     from paths.types import PathsAdminRequest
