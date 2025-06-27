@@ -8,8 +8,9 @@ from wagtail import hooks
 from generic_chooser.views import ModelChooserMixin, ModelChooserViewSet
 from generic_chooser.widgets import AdminChooser
 
-from nodes.models import NodeConfig
 from paths.context import realm_context
+
+from nodes.models import NodeConfig
 
 if TYPE_CHECKING:
     from paths.types import PathsAdminRequest

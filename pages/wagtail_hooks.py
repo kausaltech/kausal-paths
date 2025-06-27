@@ -6,8 +6,9 @@ from django.db.models import Q
 from wagtail import hooks
 from wagtail.snippets.models import register_snippet
 
-from pages.sitecontent import InstanceSiteContentViewSet
 from paths.context import realm_context
+
+from pages.sitecontent import InstanceSiteContentViewSet
 
 if TYPE_CHECKING:
     from wagtail.models import Page
