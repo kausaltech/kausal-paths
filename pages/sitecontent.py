@@ -9,9 +9,10 @@ from wagtail.admin.panels import FieldPanel
 
 from kausal_common.models.permission_policy import ParentInheritedPolicy
 
+from paths.context import realm_context
+
 from admin_site.viewsets import PathsEditView, PathsViewSet
 from pages.models import InstanceSiteContent
-from paths.context import realm_context
 
 
 class SiteContentPermissionPolicy(ParentInheritedPolicy):

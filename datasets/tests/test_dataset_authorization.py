@@ -12,7 +12,6 @@ from admin_site.dataset_admin import DatasetSchemaViewSet
 from nodes.models import InstanceConfig
 from nodes.roles import instance_admin_role
 from users.models import User
-from paths.context import RealmContext, realm_context
 
 
 @pytest.fixture
