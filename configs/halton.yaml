@@ -13,7 +13,7 @@ target_year: 2024
 model_end_year: 2024
 minimum_historical_year: 2023
 maximum_historical_year: 2023
-emission_unit: kt_co2e/a
+emission_unit: t_co2e/a
 emission_forecast_from: 2024
 emission_dimensions: [department]
 features:
@@ -1070,7 +1070,7 @@ nodes:
   color: '#B07AA1'
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1109,7 +1109,7 @@ nodes:
   short_name: Childcare Centre Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1127,7 +1127,7 @@ nodes:
   short_name: Corporate Office Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1145,7 +1145,7 @@ nodes:
   short_name: LTC Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1163,7 +1163,7 @@ nodes:
   short_name: Operations Centre Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1181,7 +1181,7 @@ nodes:
   short_name: Other Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1199,7 +1199,7 @@ nodes:
   short_name: Corporate Services Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1232,7 +1232,7 @@ nodes:
   short_name: Propane Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1264,7 +1264,7 @@ nodes:
   short_name: WWTP Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1282,7 +1282,7 @@ nodes:
   short_name: WTP Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1300,7 +1300,7 @@ nodes:
   short_name: Pumping Station Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1318,7 +1318,7 @@ nodes:
   short_name: Reservoir Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1336,7 +1336,7 @@ nodes:
   short_name: Equipment Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1354,7 +1354,7 @@ nodes:
   short_name: Other Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1372,7 +1372,7 @@ nodes:
   short_name: Public Works Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1389,7 +1389,7 @@ nodes:
   short_name: Biogas Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_datasets:
@@ -1426,7 +1426,7 @@ nodes:
   short_name: EMS Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1458,7 +1458,7 @@ nodes:
   short_name: Brant Court Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1476,7 +1476,7 @@ nodes:
   short_name: Maurice Drive Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1494,7 +1494,7 @@ nodes:
   short_name: Other Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1512,7 +1512,7 @@ nodes:
   short_name: Walkers Landing Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1530,7 +1530,7 @@ nodes:
   short_name: Woodside Drive Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1548,7 +1548,7 @@ nodes:
   short_name: HCHC Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1580,7 +1580,7 @@ nodes:
   name: EMS Fleet Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [energy_carrier, vehicle_fleet, department]
   output_dimensions: [energy_carrier, vehicle_fleet, department]
   input_nodes:
@@ -1596,7 +1596,7 @@ nodes:
   name: Public Works Fleet Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [energy_carrier, vehicle_fleet, department]
   output_dimensions: [energy_carrier, vehicle_fleet, department]
   input_nodes:
@@ -1613,7 +1613,7 @@ nodes:
   color: '#E15759'
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [energy_carrier, vehicle_fleet, department]
   output_dimensions: [energy_carrier, vehicle_fleet, department]
   input_nodes:
@@ -1634,7 +1634,7 @@ nodes:
   color: '#F28E2B'
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1673,7 +1673,7 @@ nodes:
   short_name: Childcare Centre Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1691,7 +1691,7 @@ nodes:
   short_name: Corporate Office Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1709,7 +1709,7 @@ nodes:
   short_name: LTC Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1727,7 +1727,7 @@ nodes:
   short_name: Operations Centre Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1745,7 +1745,7 @@ nodes:
   short_name: Other Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1763,7 +1763,7 @@ nodes:
   short_name: Corporate Services Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1796,7 +1796,7 @@ nodes:
   short_name: Biosolids Management Centre Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1814,7 +1814,7 @@ nodes:
   short_name: Booster Station Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1832,7 +1832,7 @@ nodes:
   short_name: Bulk Water Station Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1850,7 +1850,7 @@ nodes:
   short_name: Equipment Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1868,7 +1868,7 @@ nodes:
   short_name: Process Water Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1886,7 +1886,7 @@ nodes:
   short_name: Reservoir Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1904,7 +1904,7 @@ nodes:
   short_name: Solid Waste Management Site Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1922,7 +1922,7 @@ nodes:
   short_name: Storage Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1940,7 +1940,7 @@ nodes:
   short_name: Stormwater Pumping Station Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1958,7 +1958,7 @@ nodes:
   short_name: Streetlight & Traffic Light Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1976,7 +1976,7 @@ nodes:
   short_name: WWTP Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -1994,7 +1994,7 @@ nodes:
   short_name: WTP Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -2012,7 +2012,7 @@ nodes:
   short_name: Pumping Station Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -2030,7 +2030,7 @@ nodes:
   short_name: Well Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -2048,7 +2048,7 @@ nodes:
   short_name: Public Works Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -2090,7 +2090,7 @@ nodes:
   short_name: EMS Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -2122,7 +2122,7 @@ nodes:
   short_name: Brant Court Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -2140,7 +2140,7 @@ nodes:
   short_name: Burloak Drive Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -2158,7 +2158,7 @@ nodes:
   short_name: Elm Road Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -2176,7 +2176,7 @@ nodes:
   short_name: Margaret Drive Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -2194,7 +2194,7 @@ nodes:
   short_name: Maurice Drive Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -2212,7 +2212,7 @@ nodes:
   short_name: Walkers Landing Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -2230,7 +2230,7 @@ nodes:
   short_name: Woodside Drive Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -2248,7 +2248,7 @@ nodes:
   short_name: Other Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -2266,7 +2266,7 @@ nodes:
   short_name: HCHC Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -2285,7 +2285,7 @@ nodes:
   name: Process N2O Emissions from Treatment
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, department]
   output_dimensions: [asset, department]
   input_datasets:
@@ -2300,7 +2300,7 @@ nodes:
   name: Process CH4 Emissions from Treatment
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, department]
   output_dimensions: [asset, department]
   input_datasets:
@@ -2315,7 +2315,7 @@ nodes:
   name: Fugitive N2O Emissions from Effluent Discharge
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, department]
   output_dimensions: [asset, department]
   input_datasets:
@@ -2330,7 +2330,7 @@ nodes:
   name: Fugitive CH4 Emissions from Effluent Discharge
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, department]
   output_dimensions: [asset, department]
   input_datasets:
@@ -2345,7 +2345,7 @@ nodes:
   name: Fugitive CH4 Emissions from Anaerobic Digester
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, department]
   output_dimensions: [asset, department]
   input_datasets:
@@ -2361,7 +2361,7 @@ nodes:
   color: '#4E79A7'
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, department]
   output_dimensions: [asset, department]
   input_nodes:
@@ -2381,7 +2381,7 @@ nodes:
   color: '#A0CBE8'
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [emission_source, department]
   output_dimensions: [emission_source, department]
   input_datasets:
@@ -2406,7 +2406,7 @@ nodes:
   color: '#499894'
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, department]
   output_dimensions: [asset, department]
   input_nodes:
@@ -2442,7 +2442,7 @@ nodes:
   short_name: Corporate Office Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, department]
   output_dimensions: [asset, department]
   input_nodes:
@@ -2459,7 +2459,7 @@ nodes:
   short_name: LTC Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, department]
   output_dimensions: [asset, department]
   input_nodes:
@@ -2476,7 +2476,7 @@ nodes:
   short_name: Operations Centre Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, department]
   output_dimensions: [asset, department]
   input_nodes:
@@ -2493,7 +2493,7 @@ nodes:
   short_name: Other Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, department]
   output_dimensions: [asset, department]
   input_nodes:
@@ -2510,7 +2510,7 @@ nodes:
   short_name: Corporate Services Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, department]
   output_dimensions: [asset, department]
   input_nodes:
@@ -2542,7 +2542,7 @@ nodes:
   short_name: Biosolids Management Centre Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, department]
   output_dimensions: [asset, department]
   input_nodes:
@@ -2559,7 +2559,7 @@ nodes:
   short_name: Pumping Station Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, department]
   output_dimensions: [asset, department]
   input_nodes:
@@ -2576,7 +2576,7 @@ nodes:
   short_name: WWTP Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, department]
   output_dimensions: [asset, department]
   input_nodes:
@@ -2593,7 +2593,7 @@ nodes:
   short_name: WTP Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, department]
   output_dimensions: [asset, department]
   input_nodes:
@@ -2610,7 +2610,7 @@ nodes:
   short_name: Public Works Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, department]
   output_dimensions: [asset, department]
   input_nodes:
@@ -2643,7 +2643,7 @@ nodes:
   short_name: EMS Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, department]
   output_dimensions: [asset, department]
   input_nodes:
@@ -2658,7 +2658,7 @@ nodes:
   color: '#79706E'
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, department]
   output_dimensions: [asset, department]
   input_datasets:
@@ -2691,7 +2691,7 @@ nodes:
   short_name: Purchased Electricity Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -2717,7 +2717,7 @@ nodes:
   short_name: Stationary Combustion Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -2731,7 +2731,7 @@ nodes:
   color: '#D37295'
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -2769,7 +2769,7 @@ nodes:
   short_name: Corporate Waste Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, department]
   output_dimensions: [asset, department]
   input_nodes:
@@ -2799,7 +2799,7 @@ nodes:
   short_name: Purchased Electricity Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -2830,7 +2830,7 @@ nodes:
   short_name: Stationary Combustion Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [asset, energy_carrier, department]
   output_dimensions: [asset, energy_carrier, department]
   input_nodes:
@@ -2860,7 +2860,7 @@ nodes:
   short_name: Fleet Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [energy_carrier, vehicle_fleet, department]
   output_dimensions: [energy_carrier, vehicle_fleet, department]
   input_nodes:
@@ -2874,7 +2874,7 @@ nodes:
   color: '#59A14F'
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [department]
   output_dimensions: [department]
   input_nodes:
