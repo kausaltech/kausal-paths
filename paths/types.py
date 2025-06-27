@@ -41,7 +41,6 @@ if TYPE_CHECKING:
 
 
     class PathsAdminRequest(PathsAuthenticatedRequest):
-        admin_instance: InstanceConfig
         _wagtail_site: Site | None
 
 
