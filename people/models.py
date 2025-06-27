@@ -12,6 +12,8 @@ from kausal_common.people.models import BasePerson
 from orgs.models import Organization
 from users.models import User
 
+from wagtail.search import index
+
 if TYPE_CHECKING:
     from django.db import models
 
@@ -42,6 +44,13 @@ else:
 class Person(BasePerson):
     objects: ClassVar[PersonManager] = PersonManager()  # pyright: ignore
 
+    search_fields = BasePerson.search_fields + [
+        index.SearchField('first_name'),
+        index.SearchField('last_name'),
+        index.SearchField('email'),
+        index.SearchField('title'),
+        index.FilterField('path'),
+    ]
     class Meta:
         verbose_name = _('Person')
         verbose_name_plural = _('People')
