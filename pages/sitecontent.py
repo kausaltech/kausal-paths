@@ -1,12 +1,15 @@
+from __future__ import annotations
+
 from typing import Callable
 
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from wagtail.admin.menu import MenuItem
 from wagtail.admin.panels import FieldPanel
-from admin_site.viewsets import PathsViewSet, PathsEditView
+
 from kausal_common.models.permission_policy import ParentInheritedPolicy
 
+from admin_site.viewsets import PathsEditView, PathsViewSet
 from pages.models import InstanceSiteContent
 
 
