@@ -11,6 +11,7 @@ from nodes.models import NodeConfig, NodeConfigQuerySet
 
 class NodeViewSet(PathsViewSet[NodeConfig, NodeConfigQuerySet]):
     model = NodeConfig
+    inspect_view_enabled = True
     icon = 'kausal-node'
     add_to_admin_menu = True
     search_fields = ['name', 'identifier']
