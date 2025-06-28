@@ -63,8 +63,6 @@ impact_overviews:
 - graph_type: cost_efficiency
   cost_node: action_costs
   effect_node: value_profile
-  invert_cost: false
-  invert_effect: false
   indicator_unit: kEUR/Ut
   cost_unit: MEUR
   effect_unit: Ut

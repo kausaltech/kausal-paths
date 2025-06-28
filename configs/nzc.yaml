@@ -159,29 +159,25 @@ action_groups:
 - id: reforestation
   name: 7. Reforestation
 
-# impact_overviews:
+impact_overviews:
 
-# - graph_type: cost_benefit
-#   cost_node: discounted_investment
-#   effect_node: discounted_benefits
-#   indicator_unit: MEUR
-#   stakeholder_dimension: stakeholder
-#   outcome_dimension: cost_type
-#   label: Cost-benefit
+- graph_type: cost_benefit
+  cost_node: discounted_investment
+  effect_node: discounted_benefits
+  indicator_unit: MEUR
+  stakeholder_dimension: stakeholder
+  outcome_dimension: cost_type
+  label: Cost-benefit
 
 # - graph_type: return_on_investment
 #   cost_node: discounted_investment_city
 #   effect_node: discounted_benefits_city
-#   invert_cost: false
-#   invert_effect: true
 #   indicator_unit: dimensionless
 #   label: Return on investment for the city with co-benefits
 
 # - graph_type: cost_efficiency
 #   cost_node: discounted_total_cost
 #   effect_node: aggregated_net_emissions
-#   invert_cost: true
-#   invert_effect: true
 #   indicator_unit: EUR/t
 #   cost_unit: MEUR
 #   effect_unit: kt

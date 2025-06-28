@@ -239,32 +239,40 @@ class ActionNode(Node):
         if not scenario.has_parameter(self.enabled_param):
             scenario.add_parameter(self.enabled_param, scenario.all_actions_enabled)
 
-    def get_value_of_information(self, cost_df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        if UNCERTAINTY_COLUMN not in cost_df.columns:
+    def _get_value_of_information(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        if UNCERTAINTY_COLUMN not in df.columns:
             return ppl.PathsDataFrame() # FIXME Return zero dataframe
-        meta = cost_df.get_meta() # TODO Function not tested yet
-        df = cost_df.filter(pl.col(UNCERTAINTY_COLUMN).ne('median'))
+        meta = df.get_meta() # TODO Function not tested yet
+        df = df.filter(pl.col(UNCERTAINTY_COLUMN).ne('median'))
         last_forecast_year = df.filter(pl.col(FORECAST_COLUMN)).select(YEAR_COLUMN).max()
-        dfp = df.group_by(pl.col(UNCERTAINTY_COLUMN)).agg(pl.sum('Cost'))
+        col = 'Effect'
+        dfp = df.group_by(pl.col(UNCERTAINTY_COLUMN)).agg(pl.sum(col))
 
         dfp = dfp.with_columns([
-            pl.when(pl.col('Cost') > 0.0).then(pl.col('Cost'))
+            pl.when(pl.col(col) > 0.0).then(pl.col(col))
             .otherwise(pl.lit(0.0)).alias('under_knowledge')
         ])
 
         dfp = dfp.select(pl.all().mean())
         dfp = pl.concat([dfp, last_forecast_year], how='horizontal')
         dfp = dfp.with_columns([
-            (pl.col('under_knowledge') - pl.col('Cost')).alias('Cost'),
+            (pl.col('under_knowledge') - pl.col(col)).alias(col),
             pl.lit(value=True).alias(FORECAST_COLUMN),
-            pl.lit(0.0).alias('Effect'),  # Impact is not used with value of information
             pl.lit('expectation').alias(UNCERTAINTY_COLUMN)
         ])
         dfp = dfp.select([YEAR_COLUMN, FORECAST_COLUMN, UNCERTAINTY_COLUMN, 'Cost', 'Effect']) # TODO Do we need this?
-        meta.units['Effect'] = meta.units['Cost']
         df = ppl.to_ppdf(df=dfp, meta=meta)
 
         return df
+
+    def _get_cost_benefit(self, df: ppl.PathsDataFrame, io: ImpactOverview) -> ppl.PathsDataFrame:
+            od = io.outcome_dimension
+            sd = io.stakeholder_dimension
+            if od is not None:
+                assert od in df.dim_ids
+            if sd is not None:
+                assert sd in df.dim_ids
+            return df
 
     def compute_node_impact(self, node: Node, colname: str | None,
                             keepcols: list[str | None]) -> ppl.PathsDataFrame:
@@ -283,43 +291,45 @@ class ActionNode(Node):
         return df
 
     def compute_indicator(self, io: ImpactOverview) -> ppl.PathsDataFrame:
-        # TODO Use indicator_unit in cols
 
         dims = [io.outcome_dimension, io.stakeholder_dimension]
-        if io.cost_node is not None:
-            cost_df = self.compute_node_impact(io.cost_node, 'Cost', dims)
 
         effect_df = self.compute_node_impact(io.effect_node, 'Effect', dims)
 
         if io.graph_type == 'value_of_information':
-            effect_df = self.get_value_of_information(effect_df)
+            effect_df = self._get_value_of_information(effect_df)
 
-        if io.graph_type == 'cost_benefit':
-            od = io.outcome_dimension
-            sd = io.stakeholder_dimension
-            if od is not None:
-                assert od in cost_df.dim_ids
-                assert od in effect_df.dim_ids
-            if sd is not None:
-                assert sd in cost_df.dim_ids
-                assert sd in effect_df.dim_ids
-
-        if io.cost_node is None:
-            df = effect_df.with_columns(pl.lit(0.0).alias('Cost'))
-            df = df.set_unit('Cost', df.get_unit('Effect'))
+        if io.graph_type == 'cost_benefit': # Cost node is None
+            df = self._get_cost_benefit(effect_df, io)
         else:
+            assert io.cost_node is not None
+            cost_df = self.compute_node_impact(io.cost_node, 'Cost', dims)
             df = cost_df.paths.join_over_index(effect_df, how='outer', index_from='union')
-        df = df.with_columns([
-            pl.col('Cost').fill_null(0.0),
-            pl.col('Effect').fill_null(0.0),
-            pl.when(pl.col('Effect').abs() < pl.lit(1e-9)) # TODO Do we still need this?
-            .then(pl.lit(0.0))
-            .otherwise(pl.col('Effect'))
-        ])
-        if io.invert_cost:
-            df = df.with_columns((pl.col('Cost') * pl.lit(-1.0)).alias('Cost'))
+            df = df.with_columns([
+                pl.col('Cost').fill_null(0.0),
+                pl.col('Effect').fill_null(0.0)
+            ])
+            df = df.with_columns([
+                (pl.when(pl.col('Effect').abs() < pl.lit(1e-9)) # TODO Do we still need this?
+                .then(pl.lit(0.0))
+                .otherwise(pl.col('Effect'))).alias('Effect')
+            ])
+
+            if io.invert_cost:
+                df = df.with_columns((pl.col('Cost') * pl.lit(-1.0)).alias('Cost'))
+
         if io.invert_effect:
             df = df.with_columns((pl.col('Effect') * pl.lit(-1.0)).alias('Effect'))
+
+        if io.graph_type in [ # Flip sign for benefit
+            'cost_efficiency',
+            'return_on_investment',
+            'return_on_investment_net',
+            'benefit_cost_ratio']:
+            df = df.with_columns((pl.col('Effect') * pl.lit(-1.0)).alias('Effect'))
+
+        if io.graph_type == 'return_on_investment':
+            df = df.with_columns((pl.col('Effect') - pl.col('Cost')).alias('Effect'))
 
         return df
 
@@ -428,15 +438,18 @@ class ImpactOverview:
         rf = ['effect_node', 'indicator_unit']
         field_lists = {
             'cost_benefit':
-                {'required': [*rf, 'cost_node'],
-                 'forbidden': ['cost_unit', 'effect_unit']},
-            'cost_benefit1':
                 {'required': rf,
-                 'forbidden': ['cost_unit', 'effect_unit', 'cost_node']},
+                 'forbidden': ['cost_unit', 'effect_unit']},
             'cost_efficiency':
                 {'required': [*rf, 'cost_node'],
                  'forbidden': ff},
             'return_on_investment':
+                {'required': rf,
+                 'forbidden': [*ff, 'cost_unit', 'effect_unit']},
+            'return_on_investment_net':
+                {'required': rf,
+                 'forbidden': [*ff, 'cost_unit', 'effect_unit']},
+            'benefit_cost_ratio':
                 {'required': rf,
                  'forbidden': [*ff, 'cost_unit', 'effect_unit']},
             'value_of_information':
@@ -458,15 +471,20 @@ class ImpactOverview:
 
     def _adjust_graph_units(self, df: ppl.PathsDataFrame,
                             is_same_unit: bool) -> ppl.PathsDataFrame:
-        df = df.set_unit('Cost', df.get_unit('Cost') * unit_registry.a, force=True)
+
+        has_cost = 'Cost' in df.columns
+        if has_cost:
+            df = df.set_unit('Cost', df.get_unit('Cost') * unit_registry.a, force=True)
         df = df.set_unit('Effect', df.get_unit('Effect') * unit_registry.a, force=True)
         if is_same_unit:
             cost_unit = effect_unit = self.indicator_unit
         else:
-            cost_unit = self.cost_unit or df.get_unit('Cost')
+            if has_cost:
+                cost_unit = self.cost_unit or df.get_unit('Cost')
             effect_unit = self.effect_unit or df.get_unit('Effect')
 
-        df = df.ensure_unit('Cost', cost_unit)
+        if has_cost:
+            df = df.ensure_unit('Cost', cost_unit)
         df = df.ensure_unit('Effect', effect_unit)
 
         return df
@@ -499,8 +517,9 @@ class ImpactOverview:
         unit_adjustments = {
             'cost_efficiency': {'is_same_unit': False, 'fn': _cea},
             'cost_benefit': {'is_same_unit': True, 'fn': _unity},
-            'cost_benefit1': {'is_same_unit': True, 'fn': _unity},
             'return_on_investment': {'is_same_unit': False, 'fn': _roi},
+            'return_on_investment_net': {'is_same_unit': False, 'fn': _roi},
+            'benefit_cost_ratio': {'is_same_unit': False, 'fn': _roi},
             'value_of_information': {'is_same_unit': True, 'fn': _unity},
             'simple_effect': {'is_same_unit': True, 'fn': _unity},
         }
@@ -548,8 +567,8 @@ class ImpactOverview:
 A discussion started with Claude.
 
 I have class ImpactOverView, which produces graphs from data. Depending on the graph_type,
-different attributes are needed. For example, benefit_cost type needs cost_node but not
-cost_unit, while cost_efficiency needs both and value_of_information neither. So far,
+different attributes are needed. For example, benefit_cost type needs effect_node but not
+effect_unit, while cost_efficiency needs both. So far,
 I have defined the attributes in a static yaml file and tested for compliance in code.
 However, I want to develop a user interface for administrators based on Wagtail. There
 the admin user could create a new ImpactOverview, and, after selecting the graph_type,
