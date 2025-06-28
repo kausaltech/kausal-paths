@@ -10,7 +10,7 @@ name: Hiilineutraali Tampere 2030
 name_en: Carbon-neutral Tampere 2030
 owner: Tampereen kaupunki
 owner_en: City of Tampere
-theme_identifier: tampere-ilmasto
+theme_identifier: fi-tampere
 model_end_year: 2030
 target_year: 2030
 reference_year: 1990
