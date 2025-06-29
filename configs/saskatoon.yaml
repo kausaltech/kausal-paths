@@ -47,8 +47,6 @@ action_groups:
 # - graph_type: cost_efficiency
 #   cost_node: net_cost
 #   effect_node: net_emissions
-#   invert_cost: false
-#   invert_effect: true
 #   indicator_unit: CAD/t
 #   cost_unit: MCAD
 #   effect_unit: kt

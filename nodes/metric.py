@@ -396,7 +396,7 @@ class DimensionalMetric(BaseModel):
     @classmethod
     def from_action_impact(
         cls, action_impact: ActionImpact, root: ImpactOverview, col: str
-    ) -> DimensionalMetric:
+    ) -> DimensionalMetric | None:
         from .metric_gen import from_action_impact
         return from_action_impact(action_impact, root, col)
 

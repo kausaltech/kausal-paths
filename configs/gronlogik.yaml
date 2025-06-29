@@ -46,11 +46,10 @@ action_groups:
   color: '#cccccc'
 
 impact_overviews:
+
 - graph_type: cost_efficiency
   cost_node: discounted_net_cost
   effect_node: net_energy_consumption
-  invert_cost: false
-  invert_effect: true
   indicator_unit: SEK/kWh
   cost_unit: MSEK
   effect_unit: TWh
@@ -58,11 +57,10 @@ impact_overviews:
   label_fi: Energiansäästön marginaalikustannus
   label_en: Marginal cost in energy savings
   label: Marginalnettokostnad för energibesparing
+
 - graph_type: cost_efficiency
   cost_node: discounted_net_cost
   effect_node: net_emissions
-  invert_cost: false
-  invert_effect: true
   indicator_unit: SEK/t
   cost_unit: MSEK
   effect_unit: Mt
@@ -70,11 +68,10 @@ impact_overviews:
   label_fi: Päästövähennysten marginaalikustannus
   label_en: Marginal cost in net emissions
   label: Marginalnettokostnad för utsläppsminskning
+
 - graph_type: cost_efficiency
   cost_node: discounted_net_cost
   effect_node: net_electricity_consumption
-  invert_cost: false
-  invert_effect: true
   indicator_unit: SEK/kWh
   cost_unit: MSEK
   effect_unit: TWh
@@ -82,11 +79,10 @@ impact_overviews:
   label_fi: Sähkönsäästön marginaalikustannus
   label_en: Marginal cost in electricity savings
   label: Marginalnettokostnad för elbesparing
+
 - graph_type: cost_efficiency
   cost_node: cost_per_area
   effect_node: net_electricity_consumption_per_area
-  invert_cost: false
-  invert_effect: true
   indicator_unit: SEK/kWh
   cost_unit: SEK/m**2
   effect_unit: kWh/m**2

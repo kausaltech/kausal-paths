@@ -882,47 +882,24 @@ class ScenarioType(graphene.ObjectType):
 
 class ActionImpact(graphene.ObjectType):
     action = graphene.Field(ActionNodeType, required=True)
-    cost_values = graphene.List(YearlyValue, required=True, deprecation_reason="Use costDim instead.")
-    impact_values = graphene.List(YearlyValue, required=True, deprecation_reason="Use effectDim instead.")
-    cost_dim = graphene.Field(DimensionalMetricType, required=True)
-    impact_dim = graphene.Field(DimensionalMetricType, required=True, deprecation_reason="Use effectDim instead.")
+    cost_values = graphene.List(YearlyValue, required=False, deprecation_reason="Use costDim instead.")
+    impact_values = graphene.List(YearlyValue, required=False, deprecation_reason="Use effectDim instead.")
+    cost_dim = graphene.Field(DimensionalMetricType, required=False)
     effect_dim = graphene.Field(DimensionalMetricType, required=True)
-    efficiency_divisor = graphene.Float()  # FIXME AEP depreciated
-    unit_adjustment_multiplier = graphene.Float()  # To replace efficiency_divisor
+    unit_adjustment_multiplier = graphene.Float()
 
 
 class ImpactOverviewType(graphene.ObjectType):
     id = graphene.ID(required=True)
     graph_type = graphene.String()
-    cost_node = graphene.Field(NodeType, required=True)
+    cost_node = graphene.Field(NodeType, required=False)
     effect_node = graphene.Field(NodeType, required=True)
-    impact_node = graphene.Field(
-        NodeType,
-        required=True,
-        deprecation_reason="Use effectNode instead."
-    )
-    efficiency_unit = graphene.Field(
-        'paths.schema.UnitType',
-        required=True,
-        deprecation_reason="Use indicatorUnit instead"
-    )  # FIXME depreciated
     indicator_unit = graphene.Field('paths.schema.UnitType', required=True)
-    cost_unit = graphene.Field('paths.schema.UnitType', required=True)
-    effect_unit = graphene.Field('paths.schema.UnitType', required=True)
-    impact_unit = graphene.Field(
-        'paths.schema.UnitType',
-        required=True,
-        deprecation_reason="Use indicatorUnit instead")
+    cost_unit = graphene.Field('paths.schema.UnitType', required=False)
+    effect_unit = graphene.Field('paths.schema.UnitType', required=False)
     indicator_cutpoint = graphene.Float()  # For setting decision criterion on the indicator. Uses indicator units
     cost_cutpoint = graphene.Float()  # For setting decision criterion on the cost. Uses cost units
-    plot_limit_efficiency = graphene.Float( # FIXME Remove from UI and here.
-        deprecation_reason="Use plot_limit_indicator instead"
-    )
-    plot_limit_indicator = graphene.Float() # FIXME Depreciated
     plot_limit_for_indicator = graphene.Float()
-    invert_cost = graphene.Boolean(required=True, deprecation_reason="Not needed") # FIXME Depreciated
-    invert_effect = graphene.Boolean(required=True, deprecation_reason="Not needed") # FIXME Depreciated
-    invert_impact = graphene.Boolean(required=True, deprecation_reason="Not needed")
     label = graphene.String(required=True)
     cost_label = graphene.String(required=False)
     effect_label = graphene.String(required=False)
@@ -938,16 +915,14 @@ class ImpactOverviewType(graphene.ObjectType):
         return '%s:%s' % (cost_id, root.effect_node.id)
 
     @staticmethod
-    def resolve_plot_limit_efficiency(root: ImpactOverview, info: GQLInstanceInfo) -> float | None:
-        return root.plot_limit_for_indicator
+    def resolve_graph_type(root: ImpactOverview, info: GQLInstanceInfo) -> str:
+        if root.graph_type in ['benefit_cost_ratio', 'return_on_investment_net']:
+            return 'return_on_investment'
+        return root.graph_type
 
     @staticmethod
-    def resolve_graph_type(root: ImpactOverview, info: GQLInstanceInfo) -> str:
-        if root.graph_type == 'return_on_investment':
-            graph_type = 'return_of_investment' # FIXME Depreciated, remove when UI accepts 'on'
-        else:
-            graph_type = root.graph_type
-        return graph_type
+    def resolve_plot_limit_efficiency(root: ImpactOverview, info: GQLInstanceInfo) -> float | None:
+        return root.plot_limit_for_indicator
 
     @staticmethod
     def resolve_actions(root: ImpactOverview, info: GQLInstanceInfo) -> list[dict[str, Any]]:
@@ -959,26 +934,20 @@ class ImpactOverviewType(graphene.ObjectType):
             else:
                 ed = None
             years = ae.df[YEAR_COLUMN]
+            if 'Cost' in ae.df.columns: # FIXME Depreciated
+                cost_values = [YearlyValue(year, float(val)) for year, val in zip(years, list(ae.df['Cost']), strict=False)]
+            else:
+                cost_values = None
             d = dict(
                 action=ae.action,
-                cost_values=[YearlyValue(year, float(val)) for year, val in zip(years, list(ae.df['Cost']), strict=False)],
+                cost_values=cost_values,
                 impact_values=[YearlyValue(year, float(val)) for year, val in zip(years, list(ae.df['Effect']), strict=False)],
                 cost_dim=DimensionalMetric.from_action_impact(ae, root, 'Cost'),
-                impact_dim=DimensionalMetric.from_action_impact(ae, root, 'Effect'), # FIXME Deprecated
                 effect_dim=DimensionalMetric.from_action_impact(ae, root, 'Effect'),
-                efficiency_divisor= ed, # FIXME Depreciated
                 unit_adjustment_multiplier=ae.unit_adjustment_multiplier,
             )
             out.append(d)
         return out
-
-    @staticmethod
-    def resolve_efficiency_unit(root: ImpactOverview, info: GQLInstanceInfo) -> Unit:  # FIXME depreciated.
-        return root.indicator_unit
-
-    @staticmethod
-    def resolve_indicator_unit(root: ImpactOverview, info: GQLInstanceInfo) -> Unit:
-        return root.indicator_unit
 
     @staticmethod
     def resolve_cost_unit(root: ImpactOverview, info: GQLInstanceInfo) -> Unit:
@@ -987,26 +956,6 @@ class ImpactOverviewType(graphene.ObjectType):
     @staticmethod
     def resolve_effect_unit(root: ImpactOverview, info: GQLInstanceInfo) -> Unit:
         return root.effect_unit or root.indicator_unit
-
-    @staticmethod
-    def resolve_impact_unit(root: ImpactOverview, info: GQLInstanceInfo) -> Unit:
-        return root.effect_unit or root.indicator_unit
-
-    @staticmethod
-    def resolve_impact_node(root: ImpactOverview, info: GQLInstanceInfo) -> Node:
-        return root.effect_node
-
-    @staticmethod
-    def resolve_invert_impact(root: ImpactOverview, info: GQLInstanceInfo) -> bool:
-        return False
-
-    @staticmethod
-    def resolve_invert_effect(root: ImpactOverview, info: GQLInstanceInfo) -> bool:
-        return False
-
-    @staticmethod
-    def resolve_invert_cost(root: ImpactOverview, info: GQLInstanceInfo) -> bool:
-        return False
 
 
 class InstanceBasicConfiguration(graphene.ObjectType):
