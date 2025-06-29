@@ -299,7 +299,8 @@ class ActionNode(Node):
         if io.graph_type == 'value_of_information':
             effect_df = self._get_value_of_information(effect_df)
 
-        if io.graph_type == 'cost_benefit': # Cost node is None
+        no_cost_io = ['cost_benefit', 'simple_effect']
+        if io.graph_type in no_cost_io:
             df = self._get_cost_benefit(effect_df, io)
         else:
             assert io.cost_node is not None
