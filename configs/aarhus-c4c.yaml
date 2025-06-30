@@ -263,6 +263,55 @@ dimensions:
   - id: v24
     label: Other Livestock
 
+- id: action
+  label: Action
+  categories:
+  # ----- Energy
+  - id: biogenic_energy_park_energy
+    label: Biogenic Energy Park (Energy)
+  - id: carbon_capture_and_storage
+    label: Carbon Capture and Storage
+  - id: energy_efficiency_improvements
+    label: Energy Efficiency Improvements
+  - id: energy_efficient_municipal_buildings
+    label: Energy Efficient Municipal Buildings
+  - id: expansion_of_renewable_energy
+    label: Expansion of Renewable Energy
+  - id: green_district_heating_of_the_future
+    label: Green District Heating of the Future
+
+  # ----- Transportation
+  - id: green_mobility_plan
+    label: Green Mobility Plan
+  - id: optimized_and_emission_free_municipal_fleet
+    label: Optimized and Emission Free Municipal Fleet
+  - id: sustainable_air_and_maritime_transport
+    label: Sustainable Air and Maritime Transport
+  - id: sustainable_municipal_facilities
+    label: Sustainable Municipal Facilities
+  - id: zero_emission_municipal_machinery_and_driving
+    label: Zero-emission Municipal Machinery and Driving
+
+  # ----- AFOLU
+  - id: biogenic_energy_park
+    label: Biogenic Energy Park
+  - id: climate_supervision_and_action_plans
+    label: Climate Supervision and Action Plans
+  - id: conversion_to_forestry_and_nature
+    label: Conversion to Forestry and Nature
+  - id: extraction_of_organic_soils
+    label: Extraction of Organic Soils
+  - id: sustainable_soil_management
+    label: Sustainable Soil Management
+
+  # ----- Waste
+  - id: biocover_on_landfills
+    label: Biocover on Landfills
+
+  # ----- IPPU
+  - id: green_materials_in_industry_and_construction
+    label: Green Materials in Industry and Construction
+
 emission_sectors:
 - id: net_emissions
   name: Net Emissions
