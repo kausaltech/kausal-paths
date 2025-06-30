@@ -712,7 +712,7 @@ nodes:
   params:
     sector: Scope of energy carriers
 
-- id: building_heat_energy_use
+- id: building_heat_energy_use # FIXME Merge observed node to this but make scaling first
   name_en: Building heat energy use
   name_fi: Rakennusten lämmitysenergian käyttö
   description_en: Building heat energy consumed for building heating, hot water, and cooking. Note that for heat pumps, this is the amount of heat produced, not the amount of electricity consumed.

@@ -394,7 +394,7 @@ nodes:
   type: simple.AdditiveNode
   quantity: unit_price
   unit: EUR/vkm
-  historical_values: [[2018, 0.32]]
+  historical_values: [[2018, 0.32], [2025, 0.32]]
   # # input_dimensions: [transport_mode, cost_type]
   # # output_dimensions: [transport_mode, cost_type]
   # input_datasets: [nzc/defaults]

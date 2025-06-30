@@ -164,7 +164,7 @@ nodes:
   output_dimensions: [pollutant]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
+    forecast_from: 2025
     filters:
     - column: Transport mode
       value: cars
@@ -215,7 +215,7 @@ nodes:
   output_dimensions: [pollutant, heating_type]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2023
+    forecast_from: 2025
   params:
     sector: Emission factors from heat production
 
@@ -280,7 +280,7 @@ nodes:
   type: simple.AdditiveNode
   quantity: mass
   unit: m**3/person/d
-  historical_values: [[1990, 20], [2023, 20]]
+  historical_values: [[1990, 20], [2025, 20]]
   input_dataset_processors: [LinearInterpolation]
 
 - id: transport_air_pollution_exposure
@@ -585,7 +585,7 @@ nodes:
   output_dimensions: [response]
   input_datasets:
   - id: hia/heat/lappeenranta_active_mobility
-    forecast_from: 2023
+    forecast_from: 2025
   params:
     sector: Case burden
 
