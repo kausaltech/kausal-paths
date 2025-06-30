@@ -46,7 +46,7 @@ from kausal_common.i18n.helpers import convert_language_code
 from kausal_common.models.permission_policy import ModelPermissionPolicy, ParentInheritedPolicy
 from kausal_common.models.permissions import PermissionedQuerySet
 from kausal_common.models.roles import RoleGroup
-from kausal_common.models.types import FK, M2M, MLModelManager, RevMany, RevOne, copy_signature
+from kausal_common.models.types import FK, M2M, MLModelManager, ModelManager, RevMany, RevOne, copy_signature
 from kausal_common.models.uuid import UUIDIdentifiedModel
 
 from paths.const import INSTANCE_CHANGE_GROUP, INSTANCE_CHANGE_TYPE
@@ -983,6 +983,17 @@ class NodeDataset(models.Model):
         return f'{self.node.identifier} -> {self.dataset}'
 
 
+class InstanceRoleGroupQuerySet(PathsQuerySet['InstanceRoleGroup']):
+    pass
+
+
+_InstanceRoleGroupManager = models.Manager.from_queryset(InstanceRoleGroupQuerySet)
+class InstanceRoleGroupManager(ModelManager['InstanceRoleGroup', InstanceRoleGroupQuerySet],
+                               _InstanceRoleGroupManager):  # pyright: ignore
+    """Model manager for InstanceRoleGroup."""
+del _InstanceRoleGroupManager
+
+
 class InstanceRoleGroup(PathsModel, ClusterableModel, RoleGroup):
     instance = models.ForeignKey(InstanceConfig, on_delete=models.CASCADE, related_name='role_groups')
     name = models.CharField(max_length=150, verbose_name=_('name'))
@@ -996,6 +1007,8 @@ class InstanceRoleGroup(PathsModel, ClusterableModel, RoleGroup):
         through='InstanceRoleGroupDataset',
         related_name='instance_role_groups',
     )
+
+    objects: ClassVar[InstanceRoleGroupManager] = InstanceRoleGroupManager()  # pyright: ignore
 
     persons_edges: RevMany[InstanceRoleGroupPerson]
     datasets_edges: RevMany[InstanceRoleGroupDataset]

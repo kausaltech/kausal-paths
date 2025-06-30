@@ -29,5 +29,5 @@ class InstanceRoleGroupPermissionPolicy(InstanceConfigScopedPermissionPolicy[Ins
     def construct_perm_q(self, user: User, action: BaseObjectAction) -> Q | None:
         q = Q(instance_id__in=self.instance_admin_role.get_instances_for_user(user))
         if action == 'view':
-            q = Q(instance_id__in=self.instance_viewer_role.get_instances_for_user(user))
+            q |= Q(instance_id__in=self.instance_viewer_role.get_instances_for_user(user))
         return q
