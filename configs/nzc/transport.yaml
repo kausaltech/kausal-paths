@@ -431,7 +431,7 @@ nodes:
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
-  historical_values: [[2018, 100.0], [2023, 100.0]]
+  historical_values: [[2018, 100.0], [2025, 100.0]]
   input_dataset_processors: [LinearInterpolation]
 
 - id: transport_energy_carrier_shares
