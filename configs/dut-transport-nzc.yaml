@@ -909,7 +909,7 @@ nodes:
 
 # ------------- Electricity ----------
 
-- id: historical_electricity_consumption # TODO Use inner join for multiplication; then drop_nulls is not needed.
+- id: electricity_consumption_historical # TODO Use inner join for multiplication; then drop_nulls is not needed.
   name_en: Historical electricity consumption
   name_fi: Historiallinen sähkönkulutus
   type: gpc.DatasetNode
