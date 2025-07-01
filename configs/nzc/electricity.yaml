@@ -45,7 +45,7 @@ nodes:
     - id: sector
       flatten: true
   params:
-    sector: Total electricity demand within city boundaries # Same as historical_electricity_consumption
+    sector: Total electricity demand within city boundaries # Same as electricity_consumption_historical
     inventory_only: true
 
 - id: total_electricity_production
@@ -118,7 +118,7 @@ nodes:
       categories: [scope2]
     - id: sector
 
-- id: historical_electricity_consumption
+- id: electricity_consumption_historical
   name_en: Historical electricity consumption
   name_fi: historiallinen sähkönkulutus
   type: gpc.DatasetNode
@@ -140,7 +140,7 @@ nodes:
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_nodes:
-  - id: historical_electricity_consumption
+  - id: electricity_consumption_historical
     to_dimensions:
     - id: energy_carrier
   - id: total_electricity_consumption_uncorr
