@@ -992,7 +992,7 @@ nodes:
         flatten: true
     - kind: node
       label: Electrification of light trucks
-      node_id: fully_electric_truck_share
+      node_id: fully_electric_light_truck_share
       desired_outcome: increasing
       scenarios: [default, progress_tracking]
       dimensions:
@@ -1015,7 +1015,7 @@ nodes:
         flatten: true
     - kind: node
       label: Electrification of heavy trucks
-      node_id: fully_electric_truck_share
+      node_id: fully_electric_heavy_truck_share
       desired_outcome: increasing
       scenarios: [default, progress_tracking]
       dimensions:
@@ -1319,7 +1319,14 @@ actions:
   input_nodes:
   - id: fully_electric_truck_share_historical
   output_nodes:
-  - id: fully_electric_truck_share
+  - id: fully_electric_light_truck_share
+    from_dimensions:
+    - id: transport_mode
+      categories: [light_trucks]
+  - id: fully_electric_heavy_truck_share
+    from_dimensions:
+    - id: transport_mode
+      categories: [heavy_trucks]
 
   # ----------- BUILDINGS ---------------
 
