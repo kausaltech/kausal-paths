@@ -1358,7 +1358,14 @@ actions:
   input_nodes:
   - id: fully_electric_truck_share_historical
   output_nodes:
-  - id: fully_electric_truck_share
+  - id: fully_electric_light_truck_share
+    from_dimensions:
+    - id: transport_mode
+      categories: [light_trucks]
+  - id: fully_electric_heavy_truck_share
+    from_dimensions:
+    - id: transport_mode
+      categories: [heavy_trucks]
 
   # ----------- BUILDINGS ---------------
 

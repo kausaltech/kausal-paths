@@ -17,11 +17,11 @@ nodes:
   params:
     sector: Share of fleet fully electric (not including hybrids)
 
-- id: fully_electric_truck_share
-  name_en: Fully electric truck share
-  name_fi: Täyssähkökuorma-autojen osuus
-  description_en: Share of truck fleet fully electric (not including hybrids)
-  description_fi: Täyssähkökuoma-autojen osuus henkilöautokannasta (ei sisällä hybridejä)
+- id: fully_electric_light_truck_share
+  name_en: Fully electric light truck share
+  name_fi: Kevyiden täyssähkökuorma-autojen osuus
+  description_en: Share of light truck fleet fully electric (not including hybrids)
+  description_fi: Kevyiden täyssähkökuoma-autojen osuus henkilöautokannasta (ei sisällä hybridejä)
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
@@ -31,7 +31,26 @@ nodes:
   - id: nzc/defaults
     filters:
     - column: Transport mode
-      values: [light_trucks, heavy_trucks]
+      values: [light_trucks]
+      drop_col: false
+  params:
+    sector: Share of fleet fully electric (not including hybrids)
+
+- id: fully_electric_heavy_truck_share
+  name_en: Fully electric heavy truck share
+  name_fi: Raskaiden täyssähkökuorma-autojen osuus
+  description_en: Share of heavy truck fleet fully electric (not including hybrids)
+  description_fi: Raskaiden täyssähkökuoma-autojen osuus henkilöautokannasta (ei sisällä hybridejä)
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+    filters:
+    - column: Transport mode
+      values: [heavy_trucks]
       drop_col: false
   params:
     sector: Share of fleet fully electric (not including hybrids)
@@ -47,7 +66,8 @@ nodes:
   input_dimensions: [energy_carrier, transport_mode]
   output_dimensions: [energy_carrier, transport_mode]
   input_nodes:
-  - id: fully_electric_truck_share
+  - id: fully_electric_light_truck_share
+  - id: fully_electric_heavy_truck_share
   output_nodes:
   - id: freight_transport_vehicle_kilometres
     to_dimensions:
