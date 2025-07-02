@@ -107,6 +107,22 @@ nodes:
   - id: freight_transport_need
     tags: [non_additive]
 
+- id: freight_transport_need_observed
+  name_en: Freight transport need observed
+  name_fi: Havaittu rahtiliikenteen tarve
+  type: gpc.DatasetNode
+  quantity: freight_mileage
+  unit: Mtkm/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Total transportation need within city - Road freight transport
+    inventory_only: true
+  input_nodes:
+  - id: freight_transport_need_scaled
+    tags: [forecast_only]
+
 - id: average_truck_utilisation_historical
   name_en: Average truck utilisation historical
   name_fi: Kuorma-autojen keskimääräinen käyttöaste historiallisesti
@@ -179,7 +195,7 @@ nodes:
   input_dimensions: [transport_mode, energy_carrier]
   output_dimensions: [transport_mode, energy_carrier]
   input_nodes:
-  - id: freight_transport_need_scaled
+  - id: freight_transport_need_observed
     tags: [non_additive]
     to_dimensions:
     - id: transport_mode

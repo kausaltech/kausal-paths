@@ -712,9 +712,9 @@ nodes:
   params:
     sector: Scope of energy carriers
 
-- id: building_heat_energy_use # FIXME Merge observed node to this but make scaling first
-  name_en: Building heat energy use
-  name_fi: Rakennusten lämmitysenergian käyttö
+- id: building_heat_energy_use_before_obs
+  name_en: Building heat energy use before observations
+  name_fi: Rakennusten lämmitysenergian käyttö ennen havaintoja
   description_en: Building heat energy consumed for building heating, hot water, and cooking. Note that for heat pumps, this is the amount of heat produced, not the amount of electricity consumed.
   description_fi: Rakennusten lämmitykseen, lämpimään veteen ja ruoanlaittoon kulutettu lämmitysenergia. Huomaa, että lämpöpumppujen osalta tämä on tuotetun lämmön määrä, ei kulutetun sähkön määrä.
   type: simple.MultiplicativeNode
@@ -739,6 +739,48 @@ nodes:
     - id: scope
     - id: heating_type
     - id: energy_carrier
+
+- id: building_heat_energy_use_observed
+  name_en: Building heat energy use observed
+  name_fi: Havaittu rakennusten lämmitysenergia
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Total heating demand (space heating + domestic hot water + heat for cooking)
+    inventory_only: true
+  input_nodes:
+  - id: building_heat_energy_use_before_obs
+    tags: [forecast_only]
+    from_dimensions:
+    - id: heating_type
+      flatten: true
+    - id: building_energy_class
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: fuel_type
+      flatten: true
+    - id: scope
+      flatten: true
+
+- id: building_heat_energy_use
+  name_en: Building heat energy use
+  name_fi: Rakennusten lämmitysenergian käyttö
+  description_en: Building heat energy consumed for building heating, hot water, and cooking. Note that for heat pumps, this is the amount of heat produced, not the amount of electricity consumed.
+  description_fi: Rakennusten lämmitykseen, lämpimään veteen ja ruoanlaittoon kulutettu lämmitysenergia. Huomaa, että lämpöpumppujen osalta tämä on tuotetun lämmön määrä, ei kulutetun sähkön määrä.
+  type: generic.GenericNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [heating_type, building_energy_class, energy_carrier, fuel_type, scope]
+  output_dimensions: [heating_type, building_energy_class, energy_carrier, fuel_type, scope]
+  input_nodes:
+  - id: building_heat_energy_use_before_obs
+  - id: building_heat_energy_use_observed
+    tags: [use_as_totals]
+  params:
+    operations: add,use_as_totals
 
 - id: efficiency_of_heat_pumps
   name_en: Efficiency of heat pumps
