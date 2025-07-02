@@ -370,6 +370,8 @@ def push_to_dvc(df: pl.DataFrame, output_path: str, slice_name: str,
         ds.meta.metadata = {}
     ds.meta.metadata['updated_at'] = str(int(time.time()))
 
+    # TODO If pushing fails and you end up having a local commit, you cannot push again.
+    # Then, you can just remove the local cache, e.g. rm -rf /Users/jouni/Library/Caches/dvc-pandas/
     repo.push_dataset(ds)
     print(f'Dataset pushed to DVC at {output_path}')
 

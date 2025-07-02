@@ -831,7 +831,7 @@ nodes:
   params:
     sector: Average Finnish trips by type
 
-- id: passenger_kilometres_data
+- id: passenger_kilometres_historical
   name_en: Passenger kilometres data
   name_fi: Matkakilometrien data
   type: simple.MultiplicativeNode
@@ -854,7 +854,7 @@ nodes:
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_nodes:
-  - id: passenger_kilometres_data
+  - id: passenger_kilometres_historical
   - id: passenger_kilometres_reduced
   - id: passenger_kilometres_switched
 

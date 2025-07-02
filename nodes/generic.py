@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections import defaultdict
 from typing import TYPE_CHECKING, Any, TypedDict
 
 from django.utils.translation import gettext_lazy as _
@@ -62,21 +63,19 @@ class GenericNode(SimpleNode):
             'extend_values': self._operation_extend_values,
             'do_correction': self._operation_do_correction,
             'extrapolate': self._operation_extrapolate,
+            'use_as_totals': self._operation_use_as_totals,
         }
 
     def _get_input_baskets(self, nodes: list[Node]) -> dict[str, list[Node]]:
         """Return a dictionary of node 'baskets' categorized by type."""
-        baskets: dict[str, list[Node]] = {
-            'additive': [],
-            'multiplicative': [],
-            'other': []
-        }
+        baskets: dict[str, list[Node]] = defaultdict(list)
         tag_to_basket = {
             'additive': 'additive',
             'non_additive': 'multiplicative',
             'other_node': 'other',
             'rate': 'other',
             'base': 'other',
+            'use_as_totals': 'use_as_totals',
         }
         # Special tags that should be skipped completely
         skip_tags = {'ignore_content'}
@@ -174,6 +173,40 @@ class GenericNode(SimpleNode):
             if df.select(pl.col(col).is_not_null().any()).item()
         ])
         df = df.paths.to_narrow()
+
+        return df, baskets
+
+    def _operation_use_as_totals(self, df:ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        """Scale the df to match by total the exactly one node in the basket."""
+        if df is None:
+            raise NodeError(self, "Cannot extrapolate because no PathsDataFrame is available.")
+        numtags = baskets.get('use_as_totals') or []
+        if len(numtags) != 1:
+            raise NodeError(
+                self,
+                f"Exactly one input node must have tag 'use_as_totals'. Now there are {len(numtags)}.")
+
+        n: Node = baskets['use_as_totals'][0]
+        dfin = n.get_output_pl(target_node=self, skip_dim_test=True)
+        notdims = [dim for dim in dfin.dim_ids if dim not in dfin.dim_ids]
+        if notdims:
+            raise NodeError(self, f"Input node {n.id} cannot bring in new dimensions but has {notdims}.")
+
+        dims = [dim for dim in df.dim_ids if dim not in dfin.dim_ids]
+        dfsummed = df.paths.sum_over_dims(dims)
+        dfsummed = dfsummed.paths.join_over_index(dfin, how='left')
+        dfsummed = dfsummed.with_columns([
+            (pl.col(VALUE_COLUMN + '_right') / pl.col(VALUE_COLUMN)).alias('ratio')
+        ]).drop([VALUE_COLUMN, VALUE_COLUMN + '_right'])
+
+        df = df.paths.join_over_index(dfsummed, how='left')
+        assert isinstance(df, ppl.PathsDataFrame)
+        df = df.with_columns(pl.col('ratio').fill_null(1.0))
+        df = df.with_columns([
+            (pl.col(VALUE_COLUMN) * pl.col('ratio')).alias(VALUE_COLUMN)
+        ]).drop('ratio')
+
+        baskets['use_as_totals'] = []
 
         return df, baskets
 

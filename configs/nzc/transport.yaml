@@ -314,7 +314,7 @@ nodes:
   input_dimensions: [transport_mode, energy_carrier]
   output_dimensions: [transport_mode, energy_carrier]
   input_nodes:
-  - id: passenger_kilometres
+  - id: passenger_kilometres_observed
     to_dimensions:
     - id: transport_mode
   - id: transport_efficiency
@@ -501,7 +501,7 @@ nodes:
   params:
     sector: Number of passengers per vehicle
 
-- id: passenger_kilometres_data
+- id: passenger_kilometres_historical
   name_en: Passenger kilometres data
   name_fi: Henkilökilometrien data
   type: gpc.DatasetNode
@@ -527,7 +527,7 @@ nodes:
   - id: population
     tags: [ratio_to_last_historical_value, non_additive]
     to_dimensions: []
-  - id: passenger_kilometres_data
+  - id: passenger_kilometres_historical
     tags: [non_additive]
 
 - id: passenger_kilometres_reduced
@@ -603,6 +603,23 @@ nodes:
   - id: passenger_kilometres_switched
   params:
     sector: Transport need
+
+- id: passenger_kilometres_observed
+  name_en: Passenger kilometres, observed
+  name_fi: Henkilökilometrit, havaitut
+  type: gpc.DatasetNode
+  quantity: mileage
+  unit: Mpkm/a
+  input_datasets:
+  - id: nzc/defaults
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: passenger_kilometres
+    tags: [forecast_only]
+  params:
+    sector: Transport need
+    inventory_only: true
 
 - id: motorised_transport_index
   name_en: Motorised transport index
