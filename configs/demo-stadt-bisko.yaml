@@ -70,7 +70,7 @@ impact_overviews:
   outcome_dimension: cost_type
   label_de: Cost-benefit
 
-- graph_type: return_on_investment
+- graph_type: return_on_investment_gross
   cost_node: aggregated_implementation_cost
   effect_node: aggregate_total_cost_wo_impl
   indicator_unit: '%'

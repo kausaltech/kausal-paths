@@ -325,11 +325,11 @@ class ActionNode(Node):
         if io.graph_type in [ # Flip sign for benefit
             'cost_efficiency',
             'return_on_investment',
-            'return_on_investment_net',
+            'return_on_investment_gross',
             'benefit_cost_ratio']:
             df = df.with_columns((pl.col('Effect') * pl.lit(-1.0)).alias('Effect'))
 
-        if io.graph_type == 'return_on_investment':
+        if io.graph_type == 'return_on_investment_gross':
             df = df.with_columns((pl.col('Effect') - pl.col('Cost')).alias('Effect'))
 
         return df
@@ -447,7 +447,7 @@ class ImpactOverview:
             'return_on_investment':
                 {'required': rf,
                  'forbidden': [*ff, 'cost_unit', 'effect_unit']},
-            'return_on_investment_net':
+            'return_on_investment_gross':
                 {'required': rf,
                  'forbidden': [*ff, 'cost_unit', 'effect_unit']},
             'benefit_cost_ratio':
@@ -519,7 +519,7 @@ class ImpactOverview:
             'cost_efficiency': {'is_same_unit': False, 'fn': _cea},
             'cost_benefit': {'is_same_unit': True, 'fn': _unity},
             'return_on_investment': {'is_same_unit': False, 'fn': _roi},
-            'return_on_investment_net': {'is_same_unit': False, 'fn': _roi},
+            'return_on_investment_gross': {'is_same_unit': False, 'fn': _roi},
             'benefit_cost_ratio': {'is_same_unit': False, 'fn': _roi},
             'value_of_information': {'is_same_unit': True, 'fn': _unity},
             'simple_effect': {'is_same_unit': True, 'fn': _unity},

@@ -916,7 +916,7 @@ class ImpactOverviewType(graphene.ObjectType):
 
     @staticmethod
     def resolve_graph_type(root: ImpactOverview, info: GQLInstanceInfo) -> str:
-        if root.graph_type in ['benefit_cost_ratio', 'return_on_investment_net']:
+        if root.graph_type in ['benefit_cost_ratio', 'return_on_investment_gross']:
             return 'return_on_investment'
         return root.graph_type
 

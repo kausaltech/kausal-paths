@@ -54,7 +54,7 @@ impact_overviews:
   label: Benefit-cost ratio
   indicator_label: Values above 1 mean that the benefits are larger than costs.
 
-- graph_type: return_on_investment # Assumes gross benefits; costs will be subtracted.
+- graph_type: return_on_investment_gross # Assumes gross benefits; costs will be subtracted.
   cost_node: total_costs
   effect_node: total_benefits
   indicator_unit: '%'

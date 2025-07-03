@@ -45,7 +45,7 @@ impact_overviews:
   outcome_dimension: cost_benefit
   label: Cost-benefit
 
-- graph_type: return_on_investment
+- graph_type: return_on_investment_gross # Assumes gross benefits; costs will be subtracted.
   cost_node: total_costs
   effect_node: total_benefits
   indicator_unit: '%'
