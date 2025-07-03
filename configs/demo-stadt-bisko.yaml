@@ -46,8 +46,6 @@ impact_overviews:
 - graph_type: cost_efficiency
   cost_node: aggregate_total_cost
   effect_node: aggregate_net_emissions
-  invert_cost: false
-  invert_effect: true
   indicator_unit: EUR/t
   cost_unit: MEUR
   effect_unit: kt
@@ -68,19 +66,14 @@ impact_overviews:
 - graph_type: cost_benefit
   cost_node: total_cost
   effect_node: total_cost
-  # effect_unit: MEUR
   indicator_unit: MEUR
   outcome_dimension: cost_type
   label_de: Cost-benefit
 
-- graph_type: return_on_investment
+- graph_type: return_on_investment_gross
   cost_node: aggregated_implementation_cost
   effect_node: aggregate_total_cost_wo_impl
-  invert_cost: false
-  invert_effect: true
   indicator_unit: '%'
-  # cost_unit: MEUR
-  # effect_unit: MEUR
   label_de: Return on investment
 
 dimensions:

@@ -1,0 +1,13 @@
+nodes:
+
+- id: electric_heating_emission_factor
+  name_fi: Lämmityssähkön päästökerroin
+  name_en: Electric heating emission factor
+  name_sv: Emissionsfaktor för eluppvärmning
+  type: generic.DimensionalSectorEmissionFactor
+  unit: g/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Lämmitys|Sähkölämmitys|_energy_carrier_|*

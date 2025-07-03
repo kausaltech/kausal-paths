@@ -40,3 +40,4 @@ celerybeat-schedule
 .prompts/**
 /*.code-workspace
 .Rproj.user
+.Rhistory

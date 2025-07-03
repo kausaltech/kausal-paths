@@ -48,8 +48,6 @@ action_groups:
 # - graph_type: cost_efficiency
 #   cost_node: action_costs
 #   effect_node: total_cost
-#   invert_cost: false
-#   invert_effect: false
 #   indicator_unit: kEUR/Ut
 #   cost_unit: MEUR
 #   effect_unit: Ut
