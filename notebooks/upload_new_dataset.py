@@ -122,6 +122,36 @@ def extract_units(df: pl.DataFrame, slice_name: str) -> dict:
 
     return units
 
+def extract_units_from_row(df: pl.DataFrame) -> tuple[dict, pl.DataFrame]:
+    """Extract units from the first row if it contains only strings, otherwise treat as data."""
+    units: dict[str, str] = {}
+
+    if df.height == 0:
+        return units, df
+
+    first_row = df.row(0, named=True)
+
+    # Check if the first row contains any numeric values, i.e. is data row
+    has_numeric = False
+    for value in first_row.values():
+        if value is not None:
+            try:
+                float(value)
+                has_numeric = True
+                break
+            except (ValueError, TypeError):
+                continue
+    if has_numeric:
+        return units, df
+    for col_name, unit_value in first_row.items():
+        if unit_value is not None and str(unit_value).strip():
+            units[col_name] = str(unit_value).strip()
+
+    df_cleaned = df.slice(1)
+    df_cleaned = df_cleaned.with_columns([
+        pl.col(col).cast(pl.Float64, strict=False) for col in units.keys()
+    ])
+    return units, df_cleaned
 
 def extract_description(df: pl.DataFrame, slice_name: str) -> str | None:
     """Extract description from the dataframe."""
@@ -444,8 +474,9 @@ def main():
     # Process slices
     if specific_slice:
         if specific_slice == 'plain_csv':
-            print("Uploading the csv file as is.")
-            push_to_dvc(full_df, outdvcpath, '', {}, None, [], language)
+            print("Uploading the csv file as is, but checking for units.")
+            units, full_df = extract_units_from_row(full_df)
+            push_to_dvc(full_df, outdvcpath, '', units, None, [], language)
         elif specific_slice == 'csv_w_standard_dims': # TODO Metadata gets lost
             print("Uploading the csv file with standard dimensions.")
             mappings = load_yaml_mappings()
