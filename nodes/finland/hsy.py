@@ -103,49 +103,61 @@ class HsyNode(Node):
 
     def compute(self) -> ppl.PathsDataFrame:
         muni_name = self.get_global_parameter_value('municipality_name')
+        assert isinstance(muni_name, str)
 
-        df = self.get_input_dataset()
+        df = self.get_input_dataset_pl()
         if 'Kaupunki' in df.columns:
-            df = df.loc[df['Kaupunki'] == muni_name].drop(columns=['Kaupunki'])
+            df = df.filter(pl.col('Kaupunki') == muni_name).drop('Kaupunki')
 
         if 'index' in df.columns:
-            df = df.drop(columns=['index'])
+            df = df.drop('index')
 
-        df = df.rename(columns={
+        df = df.rename({
             'Vuosi': YEAR_COLUMN,
             'Päästöt': EMISSION_QUANTITY,
             'Energiankulutus': ENERGY_QUANTITY,
         })
-        below_zero = (df[EMISSION_QUANTITY] < 0) | (df[ENERGY_QUANTITY] < 0)
-        if len(below_zero):
+        # Handle negative values
+        has_negative = df.filter(
+            (pl.col(EMISSION_QUANTITY) < 0) | (pl.col(ENERGY_QUANTITY) < 0)
+        ).height > 0
+        if has_negative:
             global BELOW_ZERO_WARNED  # noqa: PLW0603
 
             if not BELOW_ZERO_WARNED:
                 self.logger.warning('HSY dataset has negative emissions, filling with zero')
                 BELOW_ZERO_WARNED = True
-            df.loc[below_zero, [EMISSION_QUANTITY, ENERGY_QUANTITY]] = 0
 
-        # Emission factors are calculated later because they cannot be summed
-        df['Sector'] = ''
-        for i in range(1, 5):
-            if i > 1:
-                df['Sector'] += '|'
-            df['Sector'] += df['Sektori%d' % i].astype(str)
+            df = df.with_columns([
+                pl.when(pl.col(EMISSION_QUANTITY) < 0)
+                .then(0)
+                .otherwise(pl.col(EMISSION_QUANTITY))
+                .alias(EMISSION_QUANTITY),
+                pl.when(pl.col(ENERGY_QUANTITY) < 0)
+                .then(0)
+                .otherwise(pl.col(ENERGY_QUANTITY))
+                .alias(ENERGY_QUANTITY)
+            ])
 
-        df = df[[YEAR_COLUMN, EMISSION_QUANTITY, ENERGY_QUANTITY, 'Sector']]
-        df = df.rename(columns=dict(Sector='sector'))
-        df = df.set_index([YEAR_COLUMN, 'sector'])
-        if len(df) == 0:
+        # Create Sector column by concatenating Sektori1-4
+        sector_cols = [f'Sektori{i}' for i in range(1, 6)]
+        df = df.with_columns([
+            pl.concat_str(
+                [pl.col(col).cast(pl.Utf8) for col in sector_cols if col in df.columns],
+                separator='|'
+            ).alias('Sector')
+        ])
+
+        df = df.select([YEAR_COLUMN, EMISSION_QUANTITY, ENERGY_QUANTITY, 'Sector'])
+        df = df.rename({'Sector': 'sector'})
+        df = df.add_to_index('sector')
+
+        if df.height == 0:
             raise NodeError(self, "Municipality %s not found in data" % muni_name)
-        for metric_id, metric in self.output_metrics.items():
-            if hasattr(df[metric_id], 'pint'):
-                df[metric_id] = self.convert_to_unit(df[metric_id], metric.unit)
-            else:
-                df[metric_id] = pd.Series(df[metric_id].values, dtype=f"pint[{metric.unit}]")
 
-        df[FORECAST_COLUMN] = False
-        pdf = ppl.from_pandas(df)
-        return pdf
+        df = df.with_columns([pl.lit(False).alias(FORECAST_COLUMN)])  # noqa: FBT003
+
+        return df
 
     def check(self):
         return

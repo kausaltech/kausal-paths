@@ -772,7 +772,7 @@ nodes:
   output_dimensions: [age, region, species]
   input_nodes:
   - id: age_of_forests
-    tags: [inventory]
+    tags: [inventory_only]
     from_dimensions:
     - id: region
       categories: [uusimaa]

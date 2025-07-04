@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://demo-stadt-bisko.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 839b2d2309f1e7a467b5985caf1e94193580f4ec
+  commit: 6c3aadebc4d0fcf3e4f88507ceeffbb6174273c3
   dvc_remote: kausal-s3
 name_de: Klimaschutz-Monitor Treibhausgasinventar
 owner: Stadt Demo
