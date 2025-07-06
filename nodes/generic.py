@@ -448,9 +448,9 @@ class GenericNode(SimpleNode):
                 raise NodeError(self, f"Unknown operation: {op_name}")
 
             operation_func = self.OPERATIONS[op_name] # TODO Remove OPERATIONS object altogether
-            operation_func = getattr(self, '_operation_' + op_name)
-            if not operation_func:
-                raise NodeError(self, f"Operation {op_name} not recognized.")
+            # operation_func = getattr(self, '_operation_' + op_name)
+            # if not operation_func:
+            #     raise NodeError(self, f"Operation {op_name} not recognized.")
             df, baskets = operation_func(df, baskets, **kwargs)
         if not isinstance(df, ppl.PathsDataFrame):
             raise NodeError(self, "The output is not a PathsDataFrame.")
