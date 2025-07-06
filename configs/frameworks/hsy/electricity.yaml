@@ -47,9 +47,11 @@ nodes:
   input_dimensions: [economic_sector, energy_carrier]
   output_dimensions: [economic_sector, energy_carrier]
   input_nodes:
-  - id: residual_emission_factor
-    to_dimensions:
+  - id: electricity_production_emission_factor
+    from_dimensions:
     - id: energy_carrier
+      flatten: true
+    to_dimensions: []
   - id: non_heating_electricity_energy
   output_nodes:
   - id: net_emissions
@@ -125,14 +127,32 @@ nodes:
   params:
     sector: Sähkö|Kulutussähkö|_energy_carrier_|*
 
-- id: electric_heating_emission_factor
-  name_fi: Lämmityssähkön päästökerroin
-  name_en: Electric heating emission factor
+- id: electric_heating_emission_factor_ratio
+  name_en: Electric heating emission factor ratio
+  name_fi: Lämmityssähkön lisäkerroin
   name_sv: Emissionsfaktor för eluppvärmning
-  type: generic.DimensionalSectorEmissionFactor
+  description_fi: Tämän verran enemmän on lämmityssähkön päästökerroin, koska kulutus
+    painottuu talviaikaan, jolloin on enemmän fossiilista tuotantoa.
+  type: generic.GenericNode
+  quantity: ratio
+  unit: '%'
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: espoo/electricity/lammityssahkon_lisakerroin
+    tags: [baseline]
+    column: lammityssahkon_lisakerroin
+
+- id: electric_heating_emission_factor
+  name_en: Electric heating emission factor
+  name_fi: Lämmityssähkön päästökerroin
+  name_sv: Emissionsfaktor för eluppvärmning
+  type: generic.GenericNode
+  quantity: emission_factor
   unit: g/kWh
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
-  input_nodes: [all_hsy_emissions]
-  params:
-    sector: Lämmitys|Sähkölämmitys|_energy_carrier_|*
+  input_nodes:
+  - id: electricity_production_emission_factor
+    tags: [non_additive]
+  - id: electric_heating_emission_factor_ratio
