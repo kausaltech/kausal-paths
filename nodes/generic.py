@@ -75,6 +75,7 @@ class GenericNode(SimpleNode):
             'use_as_shares': self._operation_use_as_shares,
             'split_by_existing_shares': self._operation_split_by_existing_shares,
             'split_evenly_to_cats': self._operation_split_evenly_to_cats,
+            'skip_dim_test': self._operation_skip_dim_test,
         }
 
     def _get_input_baskets(self, nodes: list[Node]) -> dict[str, list[Node]]:
@@ -90,6 +91,7 @@ class GenericNode(SimpleNode):
             'use_as_shares': 'use_as_shares',
             'split_by_existing_shares': 'split_by_existing_shares',
             'split_evenly_to_cats': 'split_evenly_to_cats',
+            'skip_dim_test': 'skip_dim_test',
         }
         # Special tags that should be skipped completely
         skip_tags = {'ignore_content'}
@@ -190,7 +192,46 @@ class GenericNode(SimpleNode):
 
         return df, baskets
 
+    def _operation_skip_dim_test(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        """Skip dimension test on loading because subsequent opearations will take care of that."""
+        if df is not None:
+            raise NodeError(self, "'skip_dim_test' must be the first of the operations.")
+        operation = 'skip_dim_test'
+        numtags = baskets.get(operation) or []
+        if len(numtags) != 1:
+            raise NodeError(
+                self,
+                f"Exactly one input node must have tag '{operation}'. Now there are {len(numtags)}.")
+
+        n: Node = baskets[operation][0]
+        baskets[operation] = []
+        return n.get_output_pl(target_node=self, skip_dim_test=True), baskets
+
+
     OperationType = Literal['use_as_totals', 'use_as_shares', 'split_by_existing_shares', 'split_evenly_to_cats']
+
+    def _preprocess_for_one(
+            self,
+            df: ppl.PathsDataFrame | None,
+            baskets: dict,
+            operation: OperationType,
+            stackable: bool = True) -> tuple:
+        if df is None:
+            raise NodeError(self, "Cannot operate because no PathsDataFrame is available.")
+        if self.quantity not in STACKABLE_QUANTITIES and stackable:
+            raise NodeError(self, f"Split operations are only allowed for stackable quantities, not {self.quantity}.")
+
+        numtags = baskets.get(operation) or []
+        if len(numtags) != 1:
+            raise NodeError(
+                self,
+                f"Exactly one input node must have tag '{operation}'. Now there are {len(numtags)}.")
+
+        n: Node = baskets[operation][0]
+        baskets[operation] = []
+        df = n.get_output_pl(target_node=self, skip_dim_test=True)
+
+        return df, baskets
 
     def _operation_split_dims(
             self,
@@ -206,21 +247,7 @@ class GenericNode(SimpleNode):
         3) Split by existing shares: node has new dims that are used to split input to new cats. In the end, add input to node.
         4) Split evenly to cats: same as (3) but give evey category equal weight.
         """
-        if df is None:
-            raise NodeError(self, "Cannot operate because no PathsDataFrame is available.")
-        if self.quantity not in STACKABLE_QUANTITIES:
-            raise NodeError(self, f"Split operations are only allowed for stackable quantities, not {self.quantity}.")
-
-        numtags = baskets.get(operation) or []
-        if len(numtags) != 1:
-            raise NodeError(
-                self,
-                f"Exactly one input node must have tag '{operation}'. Now there are {len(numtags)}.")
-
-        n: Node = baskets[operation][0]
-        baskets[operation] = []
-        dfin = n.get_output_pl(target_node=self, skip_dim_test=True)
-
+        dfin, baskets = self._preprocess_for_one(df, baskets, operation)
         use_as = ['use_as_totals', 'use_as_shares']
 
         if operation == 'use_as_shares':
@@ -379,6 +406,15 @@ class GenericNode(SimpleNode):
         df = extend_last_historical_value_pl(df, self.get_end_year())
         return df, baskets
 
+    def _operation_select_priority(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        dfin, baskets = self._preprocess_for_one(df, baskets, 'select_priority', stackable=False)
+        assert isinstance(df, ppl.PathsDataFrame)
+
+        df = df.paths.join_over_index(dfin, how='left')
+        df = (df.with_columns(pl.coalesce([VALUE_COLUMN + '_right', VALUE_COLUMN]).alias(VALUE_COLUMN))
+              .drop(VALUE_COLUMN + '_right'))
+        return df, baskets
+
     # -----------------------------------------------------------------------------------
 
     def compute(self) -> ppl.PathsDataFrame:
@@ -411,7 +447,10 @@ class GenericNode(SimpleNode):
             if op_name not in self.OPERATIONS:
                 raise NodeError(self, f"Unknown operation: {op_name}")
 
-            operation_func = self.OPERATIONS[op_name]
+            operation_func = self.OPERATIONS[op_name] # TODO Remove OPERATIONS object altogether
+            operation_func = getattr(self, '_operation_' + op_name)
+            if not operation_func:
+                raise NodeError(self, f"Operation {op_name} not recognized.")
             df, baskets = operation_func(df, baskets, **kwargs)
         if not isinstance(df, ppl.PathsDataFrame):
             raise NodeError(self, "The output is not a PathsDataFrame.")

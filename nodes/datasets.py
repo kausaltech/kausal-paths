@@ -300,6 +300,8 @@ class DatasetWithFilters(Dataset):
                     df = df.with_columns(pl.lit(cat_id).alias(dim_id)).add_to_index(dim_id)
                 flatten = d.get('flatten', False)
                 if flatten:
+                    if VALUE_COLUMN in df.columns:
+                        df = df.filter(~pl.col(VALUE_COLUMN).is_nan())
                     df = df.paths.sum_over_dims(dim_id)
             if len(df) == 0:
                 print(df_orig)
@@ -336,7 +338,6 @@ class DatasetWithFilters(Dataset):
 
     def _filter_and_process_df(self, context: Context, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         df = self.add_explanation(df)
-        df = self._filter_df(context, df)
         cols = df.columns
 
         if self.column:
@@ -395,6 +396,7 @@ class DatasetWithFilters(Dataset):
             cols.append(FORECAST_COLUMN)
 
         df = df.select(cols)
+        df = self._filter_df(context, df)
         ppl.validate_ppdf(df)
 
         df = self._process_output(df)
