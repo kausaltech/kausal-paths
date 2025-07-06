@@ -142,7 +142,7 @@ nodes:
   output_dimensions: [vehicle_type, economic_sector]
   input_datasets:
   - id: gpc/espoo # TODO Find HSY data instead
-    forecast_from: 2024
+    forecast_from: 2025
   params:
     sector: Tieliikenteen suorite-ennuste
 
@@ -181,11 +181,11 @@ nodes:
   input_dimensions: [vehicle_type]
   output_dimensions: [vehicle_type]
   input_nodes:
-  - id: car_fuel_by_energy_carrier
-    tags: [forecast_only]
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
+  # - id: car_fuel_by_energy_carrier
+  #   tags: [forecast_only]
+  #   from_dimensions:
+  #   - id: energy_carrier
+  #     flatten: true
   - id: road_transport_energy_consumption_historical
     tags: [inventory_only]
     from_dimensions:
