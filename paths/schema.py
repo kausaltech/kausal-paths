@@ -19,6 +19,10 @@ from kausal_common.models.types import copy_signature
 from kausal_common.strawberry.schema import LoggingTracingExtension, Schema as UnifiedSchema
 from kausal_common.testing.schema import TestModeMutations
 
+from kausal_common import graphql_gis  # noqa: F401
+
+from nodes.models import InstanceConfig
+from orgs.models import Organization
 from paths.graphql_types import UnitType
 from paths.schema_context import PathsGraphQLContext
 from paths.utils import validate_unit
@@ -33,6 +37,12 @@ from nodes.schema import (
 from pages.schema import Query as PagesQuery
 from params.schema import Mutations as ParamsMutations, Query as ParamsQuery, types as params_types
 from users.schema import Query as UsersQuery
+from orgs.schema import Query as OrgsQuery, OrganizationNode
+
+from paths.context import realm_context
+
+if True:
+    from kausal_common import graphql_gis  # noqa: F401
 
 if TYPE_CHECKING:
     from kausal_common.graphene import GQLInfo
@@ -60,9 +70,16 @@ def instance_directive(
 
 
 
-class GrapheneQuery(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, ServerVersionQuery, UsersQuery):
+class GrapheneQuery(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, ServerVersionQuery, UsersQuery,
+                    OrgsQuery
+                    ):
     unit = graphene.Field(UnitType, value=graphene.String(required=True))
 
+    instance_organizations = graphene.List(
+        graphene.NonNull(OrganizationNode),
+        instance=graphene.ID(),
+        with_ancestors=graphene.Boolean(default_value=False),
+    )
     class Meta:
         name = 'Query'
 
@@ -73,6 +90,19 @@ class GrapheneQuery(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, Server
         except ValidationError:
             raise GraphQLError(_('Invalid unit'), info.field_nodes) from None
         return unit
+
+    def resolve_instance_organizations(
+        root: GrapheneQuery,
+        info: GQLInfo,
+        instance: str | None,
+        with_ancestors: bool,
+    ) -> list[Organization]:
+        if not instance:
+            instance_obj = realm_context.get().realm
+        else:
+            instance_obj = InstanceConfig.objects.get(identifier=instance)
+        return list(Organization.objects.qs.available_for_instance(instance_obj))
+
 
 
 class GrapheneMutations(ParamsMutations, FrameworksMutations):
