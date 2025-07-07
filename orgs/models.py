@@ -17,6 +17,7 @@ from kausal_common.organizations.models import (
     BaseOrganizationIdentifier,
     BaseOrganizationMetadataAdmin,
     BaseOrganizationQuerySet,
+    Node,
 )
 
 from users.models import User
@@ -73,7 +74,7 @@ class OrganizationManager(MLModelManager['Organization', OrganizationQuerySet], 
 
 del _OrganizationManager
 
-class Organization(BaseOrganization, MP_Node, ClusterableModel):
+class Organization(BaseOrganization, Node[OrganizationQuerySet]):
     node_order_by = ['name']
 
     objects: ClassVar[OrganizationManager] = OrganizationManager()  # type: ignore[assignment]
@@ -89,3 +90,8 @@ class Organization(BaseOrganization, MP_Node, ClusterableModel):
     def get_absolute_url(self):
         from django.urls import reverse
         return reverse('organization-detail', kwargs={'pk': self.pk})
+
+    def initialize_instance_defaults(self, instance: InstanceConfig):
+        assert not self.primary_language
+        self.primary_language = instance.primary_language
+        self.primary_language_lowercase = instance.primary_language.lower()
