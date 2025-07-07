@@ -26,9 +26,9 @@ from users.models import User
 
 from kausal_common.organizations.forms import NodeForm
 from .models import Organization, OrganizationMetadataAdmin
+from orgs.views import OrganizationCreateView
 from kausal_common.organizations.views import (
     CreateChildNodeView,
-    OrganizationCreateView,
     OrganizationDeleteView,
     OrganizationEditView,
     OrganizationIndexView,
@@ -36,6 +36,7 @@ from kausal_common.organizations.views import (
 )
 
 from wagtail.admin.panels import InlinePanel
+
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AnonymousUser
@@ -45,8 +46,9 @@ if TYPE_CHECKING:
     from wagtail.core.models import Model
 
 
-    # from actions.models.plan import Plan
+import logging
 
+logger = logging.getLogger(__name__)
 
 if int(wagtailgeowidget_version.split('.')[0]) >= 7:
     from wagtailgeowidget.panels import GoogleMapsPanel
@@ -153,24 +155,6 @@ class OrganizationForm(NodeForm):
         return result
 
 
-# class InvisiblePlanPanel(FieldPanel):
-#     """
-#     Panel that adds a hidden plan field to the form.
-
-#     The value is set to the user's active plan.
-#     """
-
-#     class BoundPanel(FieldPanel.BoundPanel):
-
-#         def __init__(self, **kwargs):
-#             super().__init__(**kwargs)
-
-#             self.attrs.update({'hidden': 'true'})
-
-#             modified_initial = dict(self.form.initial)
-#             # modified_initial['plan'] = admin_req(self.request).user.get_active_admin_plan()
-#             self.form.initial = modified_initial
-
 
 class OrganizationViewSet(SnippetViewSet):
     model = Organization
@@ -179,14 +163,12 @@ class OrganizationViewSet(SnippetViewSet):
     menu_order = 220
     permission_policy = OrganizationPermissionPolicy(model)
     index_view_class = OrganizationIndexView
-    create_view_class = OrganizationCreateView
+    add_view_class = OrganizationCreateView
     edit_view_class = OrganizationEditView
     delete_view_class = OrganizationDeleteView
     search_fields = ['name', 'abbreviation']
     list_display = ['name', 'parent','abbreviation']
     add_to_admin_menu = True
-    # include_organization_in_active_plan_url_name = 'include_organization_in_active_plan'
-    # exclude_organization_from_active_plan_url_name = 'exclude_organization_from_active_plan'
     add_child_url_name = 'add_child'
 
     basic_panels = [
@@ -236,13 +218,6 @@ class OrganizationViewSet(SnippetViewSet):
         """Generate a class-based view to provide 'add child' functionality."""
         return self.construct_view(CreateChildNodeView, **self.get_add_view_kwargs())
 
-    # @property
-    # def include_organization_in_active_plan_view(self):
-    #     return self.construct_view(SetOrganizationRelatedToActivePlanView, set_related=True)
-
-    # @property
-    # def exclude_organization_from_active_plan_view(self):
-    #     return self.construct_view(SetOrganizationRelatedToActivePlanView, set_related=False)
 
     # FIXME: As of writing this the Wagtail version (6.1.X) we use has a bug
     # which only shows the menu item when user has "add", "change" or "delete"
@@ -263,27 +238,14 @@ class OrganizationViewSet(SnippetViewSet):
             view=self.add_child_view,
             name=self.add_child_url_name,
         )
-        # include_organization_in_active_plan_url = path(
-        #     route=f'{self.include_organization_in_active_plan_url_name}/<str:pk>/',
-        #     view=self.include_organization_in_active_plan_view,
-        #     name=self.include_organization_in_active_plan_url_name,
-        # )
-        # exclude_organization_from_active_plan_url = path(
-        #     route=f'{self.exclude_organization_from_active_plan_url_name}/<str:pk>/',
-        #     view=self.exclude_organization_from_active_plan_view,
-        #     name=self.exclude_organization_from_active_plan_url_name,
-        # )
+
         return urls + [
             add_child_url,
-            # include_organization_in_active_plan_url,
-            # exclude_organization_from_active_plan_url,
         ]
 
     def get_common_view_kwargs(self, **kwargs):
         return super().get_common_view_kwargs(
             add_child_url_name=self.get_url_name(self.add_child_url_name),
-            # include_organization_in_active_plan_url_name=self.get_url_name(self.include_organization_in_active_plan_url_name),
-            # exclude_organization_from_active_plan_url_name=self.get_url_name(self.exclude_organization_from_active_plan_url_name),
             **kwargs,
         )
 
@@ -340,25 +302,6 @@ class OrganizationViewSet(SnippetViewSet):
             attrs={'aria-label': _("Add suborganization")},
         )
 
-    # def _include_organization_in_active_plan_button(self, instance: Organization) -> SnippetListingButton:
-    #     return SnippetListingButton(
-    #         url=reverse(
-    #             self.get_url_name(self.include_organization_in_active_plan_url_name), kwargs={'pk': quote(instance.pk)}
-    #         ),
-    #         label=_("Include in active plan"),
-    #         icon_name='link',
-    #         attrs={'aria-label': _("Include this organization in the active plan")},
-    #     )
-
-    # def _exclude_organization_from_active_plan_button(self, instance: Organization) -> SnippetListingButton:
-    #     return SnippetListingButton(
-    #         url=reverse(
-    #             self.get_url_name(self.exclude_organization_from_active_plan_url_name), kwargs={'pk': quote(instance.pk)}
-    #         ),
-    #         label=_("Exclude from active plan"),
-    #         icon_name='fontawesome-link-slash',
-    #         attrs={'aria-label': _("Exclude this organization from the active plan")},
-        # )
 
     def get_index_view_buttons(self, user: User, instance: Organization, instanceConfig: InstanceConfig):
         """Get the buttons to show in the index view for an organization."""
@@ -385,13 +328,6 @@ class OrganizationViewSet(SnippetViewSet):
         # if user.is_general_admin_for_plan(plan):
         #     buttons.append(self._get_add_child_button(instance))
 
-        # Show "include in / exclude from active plan" button if user has permission and it's a root organization
-        # if instance.pk in instanceConfig.related_organizations.values_list('pk', flat=True):
-        #     change_related_to_plan_button = self._exclude_organization_from_active_plan_button(instance)
-        # else:
-        #     change_related_to_plan_button = self._include_organization_in_active_plan_button(instance)
-        # if instance.user_can_change_related_to_plan(user, plan) and instance.is_root():
-        #     buttons.append(change_related_to_plan_button)
 
         return buttons
 
@@ -400,7 +336,6 @@ class OrganizationViewSet(SnippetViewSet):
         return qs
 
 # If kausal_watch_extensions is installed, an extended version of the view set is registered there
-# if not find_spec('kausal_paths_extensions'):
-    # from loguru import logger
-    # logger.info("registering org view set")
-register_snippet(OrganizationViewSet)
+if not find_spec('kausal_paths_extensions'):
+    register_snippet(OrganizationViewSet)
+# register_snippet(OrganizationViewSet)
