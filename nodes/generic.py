@@ -466,6 +466,8 @@ class GenericNode(SimpleNode):
             unused_str = ", ".join([f"{node_id} ({basket})" for node_id, basket in unused_nodes])
             raise NodeError(self, f"Unused input nodes found after all operations: {unused_str}")
 
+        if VALUE_COLUMN not in df.columns:
+            raise NodeError(self, f"{VALUE_COLUMN} not found, only {df.metric_cols}.")
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
 
         return df
