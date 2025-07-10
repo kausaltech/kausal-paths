@@ -5,14 +5,16 @@ from django.urls import reverse
 import pytest
 
 from kausal_common.datasets.models import Dataset, DatasetSchema
+from kausal_common.users.models import ObjectRole
 
 from paths.admin_context import set_admin_instance
 from paths.context import RealmContext, realm_context
 
 from admin_site.dataset_admin import DatasetSchemaViewSet
 from nodes.models import InstanceConfig
-from nodes.roles import instance_admin_role
-from users.models import User
+from nodes.roles import instance_admin_role, instance_viewer_role
+from nodes.tests.factories import InstanceConfigFactory
+from users.models import DatasetSchemaGroupPermission, DatasetSchemaUserPermission, User, UserGroup
 
 
 @pytest.fixture
@@ -40,11 +42,11 @@ class TestDatasetAdminAuthorization:
     def setup_test_data(self):
         # Create two instance configs with unique identifiers
         import uuid
-        instance1 = InstanceConfig.objects.create(
+        instance1 = InstanceConfigFactory.create(
             identifier=f'instance1-{uuid.uuid4().hex[:8]}',
             name='Instance 1',
         )
-        instance2 = InstanceConfig.objects.create(
+        instance2 = InstanceConfigFactory.create(
             identifier=f'instance2-{uuid.uuid4().hex[:8]}',
             name='Instance 2',
         )
@@ -106,12 +108,52 @@ class TestDatasetAdminAuthorization:
             scope_id=instance2.id,
         )
 
+        # Create users and corresponding roles on schema1
+        schema1_permission_users = {}
+        for username, role in (
+            ('schema1_viewer', ObjectRole.VIEWER),
+            ('schema1_editor', ObjectRole.EDITOR),
+            ('schema1_admin', ObjectRole.ADMIN),
+        ):
+            user = User.objects.create(email=f'{username}@example.com')
+            instance_viewer_role.assign_user(instance1, user)
+            DatasetSchemaUserPermission.objects.create(
+                object=schema1,
+                user=user,
+                role=role,
+            )
+            schema1_permission_users[username] = user
+
+        # Create user groups and corresponding roles and users on schema1
+        schema1_permission_group_users = {}
+        for group_name, role in (
+            ('schema1_viewer_group', ObjectRole.VIEWER),
+            ('schema1_editor_group', ObjectRole.EDITOR),
+            ('schema1_admin_group', ObjectRole.ADMIN),
+        ):
+            group = UserGroup.objects.create(
+                instance=instance1,
+                name=group_name,
+            )
+            username = f'{group_name}_user'
+            user = User.objects.create(email=f'{username}@example.com')
+            group.users.add(user)
+            instance_viewer_role.assign_user(instance1, user)
+            DatasetSchemaGroupPermission.objects.create(
+                object=schema1,
+                group=group,
+                role=role,
+            )
+            schema1_permission_group_users[username] = user
+
         return {
             'instance1': instance1,
             'instance2': instance2,
             'superuser': superuser,
             'admin_user': admin_user,
             'regular_user': regular_user,
+            **schema1_permission_users,
+            **schema1_permission_group_users,
             'schema1': schema1,
             'schema2': schema2,
             'dataset1': dataset1,
@@ -122,6 +164,12 @@ class TestDatasetAdminAuthorization:
         ('superuser', ['Schema 1', 'Schema 2']),
         ('admin_user', ['Schema 1']),
         ('regular_user', []),
+        ('schema1_viewer', ['Schema 1']),
+        ('schema1_editor', ['Schema 1']),
+        ('schema1_admin', ['Schema 1']),
+        ('schema1_viewer_group_user', ['Schema 1']),
+        ('schema1_editor_group_user', ['Schema 1']),
+        ('schema1_admin_group_user', ['Schema 1']),
     ])
     def test_dataset_schema_index_view(self, client, setup_test_data, user_key, expected_schemas, get_in_admin_context):
         """Test access to dataset schema index view."""
@@ -149,10 +197,12 @@ class TestDatasetAdminAuthorization:
         assert response.status_code == 200
         content = response.content.decode('utf-8')
         for schema_name in expected_schemas:
-            assert schema_name in content
+            schema_in_content = schema_name in content
+            assert schema_in_content
         for schema_name in ['Schema 1', 'Schema 2']:
+            schema_in_content = schema_name in content
             if schema_name not in expected_schemas:
-                assert schema_name not in content
+                assert not schema_in_content
 
     @pytest.mark.parametrize(('user_key', 'schema_key', 'access_allowed'), [
         ('superuser', 'schema1', True),
@@ -161,6 +211,18 @@ class TestDatasetAdminAuthorization:
         ('admin_user', 'schema2', False),
         ('regular_user', 'schema1', False),
         ('regular_user', 'schema2', False),
+        ('schema1_viewer', 'schema1', False),
+        ('schema1_viewer', 'schema2', False),
+        ('schema1_editor', 'schema1', True),
+        ('schema1_editor', 'schema2', False),
+        ('schema1_admin', 'schema1', True),
+        ('schema1_admin', 'schema2', False),
+        ('schema1_viewer_group_user', 'schema1', False),
+        ('schema1_viewer_group_user', 'schema2', False),
+        ('schema1_editor_group_user', 'schema1', True),
+        ('schema1_editor_group_user', 'schema2', False),
+        ('schema1_admin_group_user', 'schema1', True),
+        ('schema1_admin_group_user', 'schema2', False),
     ])
     def test_dataset_schema_edit_view(self, client, setup_test_data, user_key, schema_key, access_allowed, get_in_admin_context):
         """Test access to dataset schema edit view."""
@@ -189,6 +251,18 @@ class TestDatasetAdminAuthorization:
         ('admin_user', 'schema2', False),
         ('regular_user', 'schema1', False),
         ('regular_user', 'schema2', False),
+        ('schema1_viewer', 'schema1', False),
+        ('schema1_viewer', 'schema2', False),
+        ('schema1_editor', 'schema1', False),
+        ('schema1_editor', 'schema2', False),
+        ('schema1_admin', 'schema1', True),
+        ('schema1_admin', 'schema2', False),
+        ('schema1_viewer_group_user', 'schema1', False),
+        ('schema1_viewer_group_user', 'schema2', False),
+        ('schema1_editor_group_user', 'schema1', False),
+        ('schema1_editor_group_user', 'schema2', False),
+        ('schema1_admin_group_user', 'schema1', True),
+        ('schema1_admin_group_user', 'schema2', False),
     ])
     def test_dataset_schema_delete_view(
         self, client, setup_test_data, user_key, schema_key, access_allowed, get_in_admin_context
@@ -217,6 +291,12 @@ class TestDatasetAdminAuthorization:
         ('superuser', [('instance1', 'dataset1'), ('instance2', 'dataset2')]),
         ('admin_user', [('instance1', 'dataset1'), ('instance2', None)]),
         ('regular_user', []),  # No datasets
+        ('schema1_viewer', [('instance1', 'dataset1')]),
+        ('schema1_editor', [('instance1', 'dataset1')]),
+        ('schema1_admin', [('instance1', 'dataset1')]),
+        ('schema1_viewer_group_user', [('instance1', 'dataset1')]),
+        ('schema1_editor_group_user', [('instance1', 'dataset1')]),
+        ('schema1_admin_group_user', [('instance1', 'dataset1')]),
     ])
     def test_dataset_index_view(self, client, setup_test_data, user_key, expected_datasets, get_in_admin_context):
         """Test access to dataset index view."""
@@ -252,14 +332,16 @@ class TestDatasetAdminAuthorization:
             assert response.status_code == 200
             content = response.content.decode('utf-8')
 
+            schema1_in_content = str(data['dataset1'].schema.name) in content
             if dataset_key == 'dataset1':
-                assert str(data['dataset1'].schema.name) in content
+                assert schema1_in_content
             else:
-                assert str(data['dataset1'].schema.name) not in content
+                assert not schema1_in_content
+            schema2_in_content = str(data['dataset2'].schema.name) in content
             if dataset_key == 'dataset2':
-                assert str(data['dataset2'].schema.name) in content
+                assert schema2_in_content
             else:
-                assert str(data['dataset2'].schema.name) not in content
+                assert not schema2_in_content
 
     @pytest.mark.parametrize(('user_key', 'dataset_key', 'access_allowed'), [
         ('superuser', 'dataset1', True),
@@ -268,6 +350,18 @@ class TestDatasetAdminAuthorization:
         ('admin_user', 'dataset2', False),
         ('regular_user', 'dataset1', False),
         ('regular_user', 'dataset2', False),
+        ('schema1_viewer', 'dataset1', False),
+        ('schema1_viewer', 'dataset2', False),
+        ('schema1_editor', 'dataset1', True),
+        ('schema1_editor', 'dataset2', False),
+        ('schema1_admin', 'dataset1', True),
+        ('schema1_admin', 'dataset2', False),
+        ('schema1_viewer_group_user', 'dataset1', False),
+        ('schema1_viewer_group_user', 'dataset2', False),
+        ('schema1_editor_group_user', 'dataset1', True),
+        ('schema1_editor_group_user', 'dataset2', False),
+        ('schema1_admin_group_user', 'dataset1', True),
+        ('schema1_admin_group_user', 'dataset2', False),
     ])
     def test_dataset_edit_view(self, client, setup_test_data, user_key, dataset_key, access_allowed, get_in_admin_context):
         """Test access to dataset edit view."""
@@ -299,6 +393,18 @@ class TestDatasetAdminAuthorization:
         ('admin_user', 'dataset2', False),
         ('regular_user', 'dataset1', False),
         ('regular_user', 'dataset2', False),
+        ('schema1_viewer', 'dataset1', False),
+        ('schema1_viewer', 'dataset2', False),
+        ('schema1_editor', 'dataset1', False),
+        ('schema1_editor', 'dataset2', False),
+        ('schema1_admin', 'dataset1', True),
+        ('schema1_admin', 'dataset2', False),
+        ('schema1_viewer_group_user', 'dataset1', False),
+        ('schema1_viewer_group_user', 'dataset2', False),
+        ('schema1_editor_group_user', 'dataset1', False),
+        ('schema1_editor_group_user', 'dataset2', False),
+        ('schema1_admin_group_user', 'dataset1', True),
+        ('schema1_admin_group_user', 'dataset2', False),
     ])
     def test_dataset_delete_view(self, client, setup_test_data, user_key, dataset_key, access_allowed, get_in_admin_context):
         """Test access to dataset delete view."""
