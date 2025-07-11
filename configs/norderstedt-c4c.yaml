@@ -726,6 +726,7 @@ nodes:
     - id: action
       flatten: true
     - id: cost_type
+      categories: [capex_infrastructure]
       flatten: true
     - id: scope
       flatten: true
@@ -754,6 +755,15 @@ nodes:
   input_dimensions: []
   output_dimensions: []
   input_nodes:
+  - id: i22_commercial_and_institutional_grid_energy_price
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      categories: [operations]
+      flatten: true
+    - id: scope
+      flatten: true
   - id: energy_cost_reductions
     from_dimensions:
     - id: cost_type
@@ -799,18 +809,6 @@ nodes:
     to_dimensions:
     - id: scope
     - id: energy_carrier
-  - id: energy_refurbishment_school_building
-    metrics: [energy]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      flatten: true
-    - id: ghg
-      flatten: true
-    to_dimensions:
-    - id: scope
-    - id: energy_carrier
 
 - id: energy_consumption_increases
   name: Energy Consumption Increases
@@ -833,28 +831,17 @@ nodes:
 
 - id: energy_cost_reductions
   name: Energy Cost Reductions
-  type: formula.FormulaNode
+  type: simple.MultiplicativeNode
   quantity: currency
   unit: EUR/a
   input_dimensions: [cost_type, scope, energy_carrier]
   output_dimensions: [cost_type, scope, energy_carrier]
-  params:
-    formula: ((baseline_energy + reduction) * price) + (baseline_energy * baseline_price)
   input_nodes:
-  - id: baseline_energy_consumption
-    tags: [baseline_energy]
-    to_dimensions:
-    - id: energy_carrier
-    - id: scope
   - id: energy_consumption_reductions
-    tags: [reduction]
     to_dimensions:
     - id: energy_carrier
     - id: scope
-  - id: baseline_unit_price
-    tags: [baseline_price, arithmetic_inverse]
   - id: i22_commercial_and_institutional_grid_energy_unit_price
-    tags: [price]
 
 - id: energy_cost_increases
   name: Energy Cost Increases
@@ -869,41 +856,6 @@ nodes:
     - id: energy_carrier
     - id: scope
   - id: i22_commercial_and_institutional_grid_energy_unit_price
-
-- id: baseline_energy_consumption
-  name: Baseline Energy Consumption
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: kWh/a
-  input_dimensions: ['energy_carrier', 'scope']
-  output_dimensions: ['energy_carrier', 'scope']
-  input_datasets:
-  - id: norderstedt/stationary
-    column: energy
-    dropna: true
-    forecast_from: 2024
-    filters:
-    - column: sector
-      value: i22
-    - column: ghg
-    - column: cost_type
-
-- id: baseline_unit_price
-  name: Baseline Unit Price
-  type: simple.AdditiveNode
-  quantity: unit_price
-  unit: EUR/kWh
-  input_dimensions: ['energy_carrier', 'cost_type', 'scope']
-  output_dimensions: ['energy_carrier', 'cost_type', 'scope']
-  input_datasets:
-  - id: norderstedt/stationary
-    column: unit_price
-    dropna: true
-    forecast_from: 2024
-    filters:
-    - column: sector
-      value: i22
-    - column: ghg
 
 actions:
 - id: change_streetlights_to_led
@@ -1020,35 +972,33 @@ actions:
       categories: [energy_refurbishment_school_building]
 
   output_metrics:
-  - id: energy
-    unit: kWh/a
-    quantity: energy
   - id: currency
     unit: EUR/a
     quantity: currency
-  - id: unit_price
-    unit: EUR/kWh
-    quantity: unit_price
-  - id: emission_factor
-    unit: kg/kWh
-    quantity: emission_factor
+  - id: emissions
+    unit: kg/a
+    quantity: emissions
 
   output_nodes:
-  - id: i22_commercial_and_institutional_grid_energy_consumption
-    metrics: [energy]
+  - id: i2_commercial_and_institutional_total_emissions
+    metrics: [emissions]
     from_dimensions:
     - id: action
       flatten: true
     - id: cost_type
       flatten: true
-    - id: ghg
+    - id: scope
       flatten: true
     to_dimensions:
     - id: scope
+      categories: [scope2]
     - id: energy_carrier
+    - id: ghg
   - id: i22_commercial_and_institutional_grid_energy_price
     metrics: [currency]
     from_dimensions:
+    - id: scope
+      flatten: true
     - id: energy_carrier
       flatten: true
     - id: ghg
@@ -1057,28 +1007,7 @@ actions:
     - id: action
     - id: cost_type
     - id: scope
-  - id: i22_commercial_and_institutional_grid_energy_unit_price
-    metrics: [unit_price]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: ghg
-      flatten: true
-    to_dimensions:
-    - id: cost_type
-    - id: scope
-    - id: energy_carrier
-  - id: i22_commercial_and_institutional_grid_energy_emission_factor
-    metrics: [emission_factor]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions:
-    - id: scope
-    - id: energy_carrier
-    - id: ghg
+      categories: [scope2]
 
 
 - id: new_school_building
