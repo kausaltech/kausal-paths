@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://halton.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: db27a66ebbdbd7cc03f6968d39748bb4c91fc26d
+  commit: ec87b6b9a8cf95c8cf41313faca779a88eb9e230
   dvc_remote: kausal-s3
 name: Halton Region Greenhouse Gas Inventory
 owner: Halton Region
@@ -55,6 +55,13 @@ dimensions:
     label: Fugitive CH4 from Effluent Discharge
   - id: chemical_production
     label: Chemical Production
+
+  - id: landfill_gas
+    label: Landfill Gas
+    color: '#9D7660'
+  - id: flare_combustion
+    label: Flare Combustion
+    color: '#D7B5A6'
 
 - id: department
   label: Department
@@ -340,6 +347,8 @@ dimensions:
     label: Solid Waste Management Landfill Site Pump
   - id: solid_waste_management_367_n_service_rd
     label: Solid Waste Management 367 N Service Rd
+  - id: halton_waste_management_site
+    label: Halton Waste Management Site
 
   # ----- Storage
   - id: wastewater_storage_tank
@@ -2381,11 +2390,6 @@ nodes:
   - id: fugitive_n2o_emissions_from_effluent_discharge
   - id: fugitive_ch4_emissions_from_effluent_discharge
   - id: fugitive_ch4_emissions_from_anaerobic_digester
-  output_nodes:
-  - id: net_emissions
-    from_dimensions:
-    - id: asset
-      flatten: true
 
 - id: water_and_wastewater_treatment_emissions_scope_3
   name: Water & Wastewater Treatment Emissions (Scope 3)
@@ -2404,8 +2408,21 @@ nodes:
       categories: [chemical_production]
     - dimension: asset
       flatten: true
-  output_nodes:
-  - id: net_emissions
+
+- id: water_and_wastewater_treatment_emissions
+  name: Water & Wastewater Treatment Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [department, scope]
+  output_dimensions: [department, scope]
+  is_outcome: true
+  input_nodes:
+  - id: water_and_wastewater_treatment_emissions_scope_1
+    from_dimensions:
+    - id: asset
+      flatten: true
+  - id: water_and_wastewater_treatment_emissions_scope_3
     from_dimensions:
     - id: emission_source
       flatten: true
@@ -2913,6 +2930,21 @@ nodes:
       flatten: true
   output_nodes:
   - id: net_emissions
+
+# ----- Landfill Waste
+
+- id: landfill_waste_emissions
+  name: Landfill Waste Emissions (Scope 3)
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [emission_source, asset, department, scope]
+  output_dimensions: [emission_source, asset, department, scope]
+  is_outcome: true
+  input_datasets:
+  - id: halton/landfill_waste
+    column: emissions
+    forecast_from: 2024
 
 pages:
 - id: home
