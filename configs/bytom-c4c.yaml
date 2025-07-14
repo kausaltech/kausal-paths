@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://bytom-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 9aa2a22a731ba675e49e4a16502c84c8954fd184
+  commit: e99c727bcf999073d1b16f0e2d6c806d123c9de3
   dvc_remote: kausal-s3
 name: Bytom Greenhouse Gas Inventory
 owner: City of Bytom
