@@ -120,6 +120,7 @@ LOGOUT_REDIRECT_URL = '/admin/'
 
 INSTALLED_APPS = [
     'kausal_common',
+    'dal',
     'dal_select2',
     'wagtail.contrib.forms',
     'wagtail.contrib.redirects',
@@ -615,3 +616,21 @@ if True:
     init_sentry(SENTRY_DSN, DEPLOYMENT_TYPE)
 
 HOSTNAME_INSTANCE_DOMAINS = env('HOSTNAME_INSTANCE_DOMAINS')
+
+
+#
+# REST Framework
+#
+REST_FRAMEWORK = {
+    'PAGE_SIZE': 200,
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
+    'DEFAULT_PERMISSION_CLASSES': (
+        f'{PROJECT_NAME}.permissions.ReadOnly',
+    ),
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ),
+    'DEFAULT_SCHEMA_CLASS': f'{PROJECT_NAME}.openapi.AutoSchema',
+}
