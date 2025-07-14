@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from frameworks.roles import FrameworkRoleDef
     from nodes.models import InstanceConfig, InstanceConfigQuerySet
     from people.models import Person
+    from orgs.models import Organization
 
 
 class UserFrameworkRole(BaseModel):
@@ -71,6 +72,10 @@ class User(AbstractUser):
     def get_adminable_instances(self) -> InstanceConfigQuerySet:
         from nodes.models import InstanceConfig
         return InstanceConfig.permission_policy().adminable_instances(self)
+
+    def user_is_admin_for_instance(self, instance_config: InstanceConfig) -> bool:
+        from nodes.models import InstanceConfig
+        return InstanceConfig.permission_policy().user_has_permission_for_instance(self, 'change', instance_config)
 
     def get_corresponding_person(self) -> Person | None:
         # Copied from KW. We don't have a cache here yet.
@@ -121,3 +126,21 @@ class User(AbstractUser):
         self.deactivated_at = timezone.now()
         self.save()
 
+    def can_create_organization(self) -> bool:
+        return self.is_staff
+
+    def can_modify_organization(self, organization: Organization) -> bool:
+        return self.is_staff
+
+    def can_delete_organization(self, organization: Organization) -> bool:
+        return self.is_staff
+
+    def can_edit_or_delete_person_within_instance(
+            self, person: Person, instance_config: InstanceConfig) -> bool:
+        return self.is_staff
+
+    def can_create_person(self) -> bool:
+        return self.is_staff
+
+    def can_modify_person(self, person: Person) -> bool:
+        return self.is_staff
