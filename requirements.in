@@ -29,6 +29,7 @@ graphene-django>=3.0
 graphene-django-optimizer
 wagtail-localize>=1.7rc1
 wagtail-grapple
+wagtail-modeladmin
 graphql-core>=3.2.0
 graphql-relay>=3.2.0
 rich
