@@ -303,7 +303,7 @@ class OrganizationViewSet(SnippetViewSet):
         )
 
 
-    def get_index_view_buttons(self, user: User, instance: Organization, instanceConfig: InstanceConfig):
+    def get_index_view_buttons(self, user: User, instance: Organization, instance_config: InstanceConfig):
         """Get the buttons to show in the index view for an organization."""
 
         # The button definitions are done here to allow querying them through
