@@ -9,6 +9,8 @@ from modelcluster.models import ClusterableModel
 
 from treebeard.mp_tree import MP_Node
 
+from paths.context import realm_context
+
 from kausal_common.models.types import MLModelManager
 from kausal_common.organizations.models import (
     BaseNamespace,
@@ -75,8 +77,6 @@ class OrganizationManager(MLModelManager['Organization', OrganizationQuerySet], 
 del _OrganizationManager
 
 class Organization(BaseOrganization, Node[OrganizationQuerySet]):
-    node_order_by = ['name']
-
     objects: ClassVar[OrganizationManager] = OrganizationManager()  # type: ignore[assignment]
 
     class Meta:
@@ -95,3 +95,16 @@ class Organization(BaseOrganization, Node[OrganizationQuerySet]):
         assert not self.primary_language
         self.primary_language = instance.primary_language
         self.primary_language_lowercase = instance.primary_language.lower()
+
+    def get_parent_choices(self, user: User):
+        instance = realm_context.get().realm
+        parent_choices = Organization.objects.qs.available_for_instance(instance).editable_by_user(user)
+
+        # If the parent is not editable, the form would display an empty parent,
+        # leading to the org becoming a root when saved. Prevent this by adding
+        # the parent to the queryset.
+        if (parent := self.get_parent()):
+            parent_choices |= Organization.objects.filter(pk=parent.pk)
+
+        return parent_choices
+
