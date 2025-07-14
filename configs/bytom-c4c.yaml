@@ -770,7 +770,7 @@ nodes:
   - id: i_stationary_emissions
 
 - id: i_stationary_emissions
-  name: I Stationary Emissions
+  name: Stationary Emissions
   type: simple.AdditiveNode
   color: '#4e79a7'
   quantity: emissions
@@ -834,7 +834,7 @@ nodes:
     - id: scope
 
 - id: i_stationary_costs
-  name: I Stationary Costs
+  name: Stationary Costs
   type: simple.AdditiveNode
   color: '#4e79a7'
   quantity: currency
