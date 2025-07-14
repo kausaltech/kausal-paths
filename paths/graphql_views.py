@@ -16,6 +16,7 @@ from paths.schema_context import PathsGraphQLContext
 
 from .graphql_helpers import GraphQLPerfNode
 
+
 if TYPE_CHECKING:
     from django.http import HttpRequest
     from django.http.response import HttpResponse
