@@ -159,7 +159,7 @@ class OrganizationForm(NodeForm):
 class OrganizationViewSet(SnippetViewSet):
     model = Organization
     menu_label = _("Organizations")
-    icon = 'kausal-organization'
+    icon = 'kausal-organisations'
     menu_order = 220
     permission_policy = OrganizationPermissionPolicy(model)
     index_view_class = OrganizationIndexView
