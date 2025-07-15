@@ -22,8 +22,8 @@ if TYPE_CHECKING:
 
     from frameworks.roles import FrameworkRoleDef
     from nodes.models import InstanceConfig, InstanceConfigQuerySet
-    from people.models import Person
     from orgs.models import Organization
+    from people.models import Person
 
 
 class UserFrameworkRole(BaseModel):
