@@ -111,7 +111,7 @@ jobs:
       test_report_url: ${{ steps.upload.outputs.test_report_url }}
 
     container:
-      image: harbor.kausal.tech/library/playwright:v1.46.1
+      image: harbor.kausal.tech/library/playwright:v1.51.1
     env:
       CI: 1
       NEXT_PUBLIC_API_URL: http://localhost:8000/v1
