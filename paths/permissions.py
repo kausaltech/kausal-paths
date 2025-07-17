@@ -5,16 +5,17 @@ from typing_extensions import TypeVar
 
 from django.db.models import QuerySet
 from rest_framework import permissions
-from kausal_common.models.permission_policy import ParentInheritedPolicy
-from orgs.models import Organization
 
-from paths.context import realm_context
+from kausal_common.models.permission_policy import ParentInheritedPolicy
+
+from orgs.models import Organization
 from people.models import Person
 
 if TYPE_CHECKING:
-    from paths.types import PathsModel, PathsAuthenticatedRequest
-    from users.models import User
+    from paths.types import PathsAuthenticatedRequest, PathsModel
+
     from nodes.models import InstanceConfig
+    from users.models import User
 
 _M = TypeVar('_M', bound='PathsModel')
 _QS = TypeVar('_QS', bound=QuerySet, default=QuerySet[_M])
@@ -37,7 +38,6 @@ class ReadOnly(permissions.BasePermission):
 
 
 class OrganizationPermission(permissions.DjangoObjectPermissions):
-    # TODO: Refactor duplicated code with ActionPermission, CategoryPermission, OrganizationPermission and PersonPermission
     def check_permission(self, user: 'users.models.User', perm: str, organization: Organization = None):
         # Check for object permissions first
         if not user.has_perms([perm]):
@@ -66,7 +66,6 @@ class OrganizationPermission(permissions.DjangoObjectPermissions):
         return all(self.check_permission(request.user, perm, obj) for perm in perms)
 
 class PersonPermission(permissions.DjangoObjectPermissions):
-    # TODO: Refactor duplicated code with ActionPermission, CategoryPermission, OrganizationPermission and PersonPermission
     def check_permission(
             self, user: User, perm: str, person: Person = None, instance_config: InstanceConfig = None):
         # Check for object permissions first
@@ -93,17 +92,11 @@ class PersonPermission(permissions.DjangoObjectPermissions):
     def has_permission(self, request: PathsAuthenticatedRequest, view):
         perms = self.get_required_permissions(request.method, Person)
         instance_config = request.user.get_active_instance()
-        for perm in perms:
-            if not self.check_permission(request.user, perm, instance_config=instance_config):
-                return False
-        return True
+        return all(self.check_permission(request.user, perm, instance_config=instance_config) for perm in perms)
 
-    def has_object_permission(self, request, view, obj):
+    def has_object_permission(self, request: PathsAuthenticatedRequest, view, obj):
         perms = self.get_required_object_permissions(request.method, Person)
         instance_config = request.user.get_active_instance()
         if not perms and request.method in permissions.SAFE_METHODS:
             return True
-        for perm in perms:
-            if not self.check_permission(request.user, perm, person=obj, instance_config=instance_config):
-                return False
-        return True
+        return all(self.check_permission(request.user, perm, person=obj, instance_config=instance_config) for perm in perms)

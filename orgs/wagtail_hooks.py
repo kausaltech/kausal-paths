@@ -168,7 +168,7 @@ class OrganizationViewSet(SnippetViewSet):
     delete_view_class = OrganizationDeleteView
     search_fields = ['name', 'abbreviation']
     list_display = ['name', 'parent','abbreviation']
-    add_to_admin_menu = True
+    add_to_admin_menu = False
     add_child_url_name = 'add_child'
 
     basic_panels = [
