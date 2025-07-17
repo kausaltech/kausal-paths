@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from django.utils.translation import gettext_lazy as _
-from wagtail.admin.views.generic.chooser import ChooseResultsView, ChooseView
-from wagtail.admin.viewsets.chooser import ChooserViewSet
+from wagtail.snippets.views.chooser import ChooseResultsView, ChooseView, SnippetChooserViewSet
 
 from kausal_common.people.chooser import BasePersonChooseViewMixin
 
@@ -26,7 +25,7 @@ class PersonChooseResultsView(PersonChooseViewMixin, ChooseResultsView):
     pass
 
 
-class PersonChooserViewSet(ChooserViewSet):
+class PersonChooserViewSet(SnippetChooserViewSet):
     model = Person
     choose_view_class = PersonChooseView
     choose_results_view_class = PersonChooseResultsView

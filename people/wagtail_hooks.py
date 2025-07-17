@@ -19,7 +19,7 @@ class PersonSnippetViewSet(SnippetViewSet):
     menu_label = _('People')
     menu_order = 200
     add_to_admin_menu = False
-    chooser_viewset_class = PersonChooserViewSet  # FIXME: needs snippet chooser view set
+    chooser_viewset_class = PersonChooserViewSet
 
     panels = [
         FieldPanel('first_name'),
