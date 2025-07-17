@@ -4,10 +4,6 @@ from typing import TYPE_CHECKING, ClassVar, Self
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from modelcluster.fields import ParentalKey
-from modelcluster.models import ClusterableModel
-
-from treebeard.mp_tree import MP_Node
 
 from paths.context import realm_context
 
