@@ -20,7 +20,6 @@ from kausal_common.models.permission_policy import ModelPermissionPolicy, Object
 from admin_site.panels import TranslatedFieldPanel
 # from admin_site.utils import admin_req
 # from admin_site.wagtail import CondensedInlinePanel
-from kausal_common.people.chooser import PersonChooser
 from nodes.models import InstanceConfig
 from users.models import User
 
@@ -197,7 +196,7 @@ class OrganizationViewSet(SnippetViewSet):
         #     'organization_plan_admins',
         #     panels=[
         #         InvisiblePlanPanel('plan'),
-        #         FieldPanel('person', widget=PersonChooser),
+        #         FieldPanel('person'),
         #     ],
         #     heading=_("Plan admins"),
         #     help_text=_("People who can edit plan-specific content related to this organization"),
@@ -205,7 +204,7 @@ class OrganizationViewSet(SnippetViewSet):
         CondensedInlinePanel(
             'organization_metadata_admins',
             panels=[
-                FieldPanel('person', widget=PersonChooser),
+                FieldPanel('person'),
             ],
             heading=_("Metadata admins"),
             help_text=_("People who can edit data of this organization and suborganizations but no plan-specific "

@@ -7,15 +7,19 @@ from wagtail.snippets.views.snippets import SnippetViewSet
 
 from dal_select2.widgets import ModelSelect2
 
-from .models import Person
+from people.chooser import PersonChooserViewSet
+from people.models import Person
+
+from . import person_group_admin  # noqa: F401  # pyright: ignore
 
 
 class PersonSnippetViewSet(SnippetViewSet):
     model = Person
+    icon = 'user'
     menu_label = _('People')
-    menu_icon = 'user'
     menu_order = 200
     add_to_admin_menu = False
+    chooser_viewset_class = PersonChooserViewSet  # FIXME: needs snippet chooser view set
 
     panels = [
         FieldPanel('first_name'),
