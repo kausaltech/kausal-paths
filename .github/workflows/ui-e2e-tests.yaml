@@ -73,9 +73,9 @@ jobs:
       ui:
         image: ${{ inputs.ui_image }}
         env:
-          NEXT_PUBLIC_WILDCARD_DOMAINS: localhost
-          NEXT_PUBLIC_DEPLOYMENT_TYPE: testing
-          NEXT_PUBLIC_API_URL: http://localhost:8000/v1
+          WILDCARD_DOMAINS: localhost
+          DEPLOYMENT_TYPE: testing
+          PATHS_BACKEND_URL: http://localhost:8000
           TEST_INSTANCE_IDENTIFIERS: ${{ inputs.instance_identifiers }}
           TEST_PAGE_BASE_URL: 'http://{instanceId}.localhost:3001'
           AUTH_SECRET: abcd
@@ -111,7 +111,7 @@ jobs:
       test_report_url: ${{ steps.upload.outputs.test_report_url }}
 
     container:
-      image: harbor.kausal.tech/library/playwright:v1.46.1
+      image: harbor.kausal.tech/library/playwright:v1.54.1
     env:
       CI: 1
       NEXT_PUBLIC_API_URL: http://localhost:8000/v1
@@ -188,7 +188,9 @@ jobs:
         id: upload
         if: always()
         run: |
-          s3cmd --host ${{ inputs.s3_endpoint }} --host-bucket ${{ inputs.s3_endpoint }} put --recursive playwright-report s3://${{ inputs.s3_bucket }}/${{ inputs.build_id }}/
+          s3cmd --host ${{ inputs.s3_endpoint }} --host-bucket ${{ inputs.s3_endpoint }} \
+            put --no-mime-magic --guess-mime-type --recursive playwright-report \
+              s3://${{ inputs.s3_bucket }}/${{ inputs.build_id }}/
           export TEST_REPORT_URL="https://${{ inputs.s3_endpoint }}/${{ inputs.s3_bucket }}/${{ inputs.build_id }}/playwright-report/index.html"
           echo "test_report_url=${TEST_REPORT_URL}" >> $GITHUB_OUTPUT
           test_report="🔗 [Test report](${TEST_REPORT_URL})"
