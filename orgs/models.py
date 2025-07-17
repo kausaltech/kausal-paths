@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, Self
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -96,14 +96,15 @@ class Organization(BaseOrganization, Node[OrganizationQuerySet]):
         self.primary_language = instance.primary_language
         self.primary_language_lowercase = instance.primary_language.lower()
 
-    def get_parent_choices(self, user: User):
+    @classmethod
+    def get_parent_choices(cls, user: User, obj: Self | None = None) -> OrganizationQuerySet:
         instance = realm_context.get().realm
         parent_choices = Organization.objects.qs.available_for_instance(instance).editable_by_user(user)
 
         # If the parent is not editable, the form would display an empty parent,
         # leading to the org becoming a root when saved. Prevent this by adding
         # the parent to the queryset.
-        if (parent := self.get_parent()):
+        if obj and (parent := obj.get_parent()):
             parent_choices |= Organization.objects.filter(pk=parent.pk)
 
         return parent_choices
