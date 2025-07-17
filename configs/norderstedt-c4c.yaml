@@ -241,27 +241,33 @@ dimensions:
   label: Action
   categories:
   - id: change_streetlights_to_led
-    label: 'Change Streetlights to LED'
+    label: Change Streetlights to LED
   - id: tree_donation
-    label: 'Tree Donation'
+    label: Tree Donation
   - id: reforestation
-    label: 'Reforestation'
+    label: Reforestation
   - id: program_energy_refurbishment_for_private_households
-    label: 'Energy Refurbishment for Private Households'
+    label: Energy Refurbishment for Private Households
   - id: energy_refurbishment_school_building
-    label: 'Energy Refurbishment for School Building'
+    label: Energy Refurbishment for School Building
   - id: new_school_building
-    label: 'New School Building'
+    label: New School Building
   - id: roof_refurbishment_for_public_building
-    label: 'Roof Refurbishment for Public Building'
+    label: Roof Refurbishment for Public Building
   - id: decarbonize_municipal_electricity_corporate
-    label: 'Decarbonize Municipal Electricity (Corporate)'
+    label: Decarbonize Municipal Electricity (Corporate)
   - id: decarbonize_municipal_electricity_community
-    label: 'Decarbonize Municipal Electricity (Community)'
+    label: Decarbonize Municipal Electricity (Community)
   - id: decarbonize_municipal_district_heating_corporate
-    label: 'Decarbonize Municipal District Heating (Corporate)'
+    label: Decarbonize Municipal District Heating (Corporate)
   - id: decarbonize_municipal_district_heating_community
-    label: 'Decarbonize Municipal District Heating (Community)'
+    label: Decarbonize Municipal District Heating (Community)
+  - id: change_traffic_lights_to_led_moorkamp_street
+    label: Change Traffic Lights to LED (Moorkamp Street)
+  - id: change_traffic_lights_to_led_total
+    label: Change Traffic Lights to LED (Total)
+  - id: school_forest_wittmoor
+    label: School Forest "Wittmoor"
 
 - id: cost_benefit
   label: Cost-Benefit
@@ -859,7 +865,7 @@ nodes:
 
 actions:
 - id: change_streetlights_to_led
-  name: Change Streetlights to LED
+  name: Change Street Lights to LED
   type: simple.AdditiveAction
   group: i_stationary
   input_dimensions: ['action', 'cost_type', 'scope', 'energy_carrier']
@@ -907,7 +913,7 @@ actions:
 
 
 - id: program_energy_refurbishment_for_private_households
-  name: Energy Refurbishment for Private Households Program
+  name: Funding Program for Energy Refurbishment
   type: simple.AdditiveAction
   group: i_stationary
   input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
@@ -955,7 +961,7 @@ actions:
 
 
 - id: energy_refurbishment_school_building
-  name: Energy Refurbishment for School Building
+  name: Energy Refurbishment of School Building
   type: simple.AdditiveAction
   group: i_stationary
   input_dimensions: ['action', 'cost_type', 'scope', 'energy_carrier', 'ghg']
@@ -1059,7 +1065,7 @@ actions:
 
 
 - id: reforestation
-  name: Reforestation
+  name: Reforestation "Am wilden Moor"
   type: simple.AdditiveAction
   group: v_afolu
   input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
@@ -1153,7 +1159,7 @@ actions:
 
 
 - id: decarbonize_municipal_electricity_corporate
-  name: Decarbonize Municipal Electricity (Corporate)
+  name: Decarbonization of Electricity (Municipal)
   type: simple.AdditiveAction
   group: i_stationary
   quantity: emissions
@@ -1178,7 +1184,7 @@ actions:
 
 
 - id: decarbonize_municipal_electricity_community
-  name: Decarbonize Municipal Electricity (Community)
+  name: Decarbonization of Electricity (Private)
   type: simple.AdditiveAction
   group: i_stationary
   quantity: emissions
@@ -1203,7 +1209,7 @@ actions:
 
 
 - id: decarbonize_municipal_district_heating_corporate
-  name: Decarbonize Municipal District Heating (Corporate)
+  name: Decarbonization of District Heating (Municipal)
   type: simple.AdditiveAction
   group: i_stationary
   quantity: emissions
@@ -1228,7 +1234,7 @@ actions:
 
 
 - id: decarbonize_municipal_district_heating_community
-  name: Decarbonize Municipal District Heating (Community)
+  name: Decarbonization of District Heating (Private)
   type: simple.AdditiveAction
   group: i_stationary
   quantity: emissions
