@@ -1,12 +1,13 @@
+from __future__ import annotations
+
+from django.utils.translation import gettext_lazy as _
+from wagtail.admin.panels import FieldPanel
 from wagtail.snippets.models import register_snippet
 from wagtail.snippets.views.snippets import SnippetViewSet
-from wagtail.admin.panels import FieldPanel, MultiFieldPanel
-from wagtail.admin.filters import DateRangePickerWidget
-from django.utils.translation import gettext_lazy as _
-
-from .models import Person
 
 from dal_select2.widgets import ModelSelect2
+
+from .models import Person
 
 
 class PersonSnippetViewSet(SnippetViewSet):
@@ -14,7 +15,7 @@ class PersonSnippetViewSet(SnippetViewSet):
     menu_label = _('People')
     menu_icon = 'user'
     menu_order = 200
-    add_to_admin_menu = True
+    add_to_admin_menu = False
 
     panels = [
         FieldPanel('first_name'),
