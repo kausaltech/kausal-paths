@@ -1,18 +1,23 @@
 from __future__ import annotations
 
+# import re
 from typing import TYPE_CHECKING, ClassVar, override
 
 from django.db.models import Q
+from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from modeltrans.manager import MultilingualQuerySet
+from wagtail.search import index
 
+# from easy_thumbnails.files import get_thumbnailer
+from loguru import logger
+
+# from wagtail.images.rect import Rect
 from kausal_common.models.types import MLModelManager
 from kausal_common.people.models import BasePerson
 
 from orgs.models import Organization
 from users.models import User
-
-from wagtail.search import index
 
 if TYPE_CHECKING:
     from django.db import models
@@ -65,10 +70,51 @@ class Person(BasePerson):
 
     @override
     def get_avatar_url(self, request: PathsAdminRequest, size: str | None = None) -> str | None:
+        # from kausal_common.model_images import determine_image_dim
         # Return the URL of the person's image if it exists
-        if self.image:
-            return self.image.url
-        return None
+        if not self.image:
+            return None
+
+        try:
+            with self.image.open():
+                pass
+        except FileNotFoundError:
+            logger.info('Avatar file for %s not found' % self)
+            return None
+
+        # if size is None:
+        url = self.image.url
+        # else:
+        #     m = re.match(r'(\d+)?(x(\d+))?', size)
+        #     if not m:
+        #         raise ValueError('Invalid size argument (should be "<width>x<height>")')
+        #     width, _, height = m.groups()
+
+        #     dim = determine_image_dim(self.image, width, height)
+
+        #     tn_args: dict = {
+        #         'size': dim,
+        #     }
+        #     if self.image_cropping:
+        #         tn_args['focal_point'] = Rect(*[int(x) for x in self.image_cropping.split(',')])
+        #         tn_args['crop'] = 30
+
+        #     out_image = get_thumbnailer(self.image).get_thumbnail(tn_args)
+        #     if out_image is None:
+        #         return None
+        #     url = out_image.url
+
+        # if request:
+        #     url = request.build_absolute_uri(url)
+        return url
+
+
+    def avatar(self, request: PathsAdminRequest | None = None) -> str:
+        avatar_url = self.get_avatar_url(request, size='50x50')
+        if not avatar_url:
+            return ''
+        return format_html('<span class="avatar"><img src="{}" /></span>', avatar_url)
+
 
     def create_corresponding_user(self):
         # Get or create a user based on the person's email

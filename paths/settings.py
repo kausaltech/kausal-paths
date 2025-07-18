@@ -165,6 +165,7 @@ INSTALLED_APPS = [
     'kausal_common.datasets',
     'frameworks',
     'request_log',
+    # 'easy_thumbnails',
 ]
 
 if DEBUG:
