@@ -91,3 +91,6 @@ django-image-cropping
 dal_admin_filters
 wagtailgeowidget
 django-reversion
+willow
+rustface
+easy_thumbnails
