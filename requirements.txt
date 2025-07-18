@@ -89,6 +89,7 @@ certifi==2025.1.31
 cffi==1.17.1
     # via
     #   cryptography
+    #   milksnake
     #   pygit2
     #   pynacl
 channels==4.2.2
@@ -183,6 +184,7 @@ django==5.2
     #   djangorestframework
     #   drf-nested-routers
     #   drf-spectacular
+    #   easy-thumbnails
     #   graphene-django
     #   laces
     #   sentry-sdk
@@ -273,6 +275,8 @@ dvc-studio-client==0.21.0
     # via dvc
 dvc-task==0.40.2
     # via dvc
+easy-thumbnails==2.10
+    # via -r requirements.in
 entrypoints==0.4
     # via gto
 et-xmlfile==2.0.0
@@ -419,6 +423,8 @@ matplotlib-inline==0.1.7
     # via ipython
 mdurl==0.1.2
     # via markdown-it-py
+milksnake==0.1.6
+    # via rustface
 msgpack==1.1.0
     # via channels-redis
 multidict==6.4.3
@@ -547,6 +553,7 @@ pexpect==4.9.0
     # via ipython
 pillow==11.2.1
     # via
+    #   easy-thumbnails
     #   pillow-heif
     #   wagtail
 pillow-heif==0.22.0
@@ -736,6 +743,8 @@ ruamel-yaml==0.18.10
     #   dvc
     #   dvc-pandas
     #   gto
+rustface==0.1.0
+    # via -r requirements.in
 s3cmd==2.4.0
     # via -r requirements.in
 s3fs==2025.3.2
@@ -899,7 +908,9 @@ wcwidth==0.2.13
 websockets==15.0.1
     # via uvicorn
 willow==1.9.0
-    # via wagtail
+    # via
+    #   -r requirements.in
+    #   wagtail
 wrapt==1.17.2
     # via
     #   aiobotocore
