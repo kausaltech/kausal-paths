@@ -687,6 +687,152 @@ actions:
     - id: ghg
 
 
+- id: change_street_lights_to_led_moorkamp_street
+  name: Change Street Lights to LED (Moorkamp Street)
+  type: simple.AdditiveAction
+  group: i_stationary
+  input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
+  output_dimensions: ['action', 'cost_type', 'scope', 'ghg']
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: norderstedt/stationary_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [change_traffic_lights_to_led_moorkamp_street]
+    - column: energy_carrier
+
+  output_metrics:
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  - id: emissions
+    unit: kg/a
+    quantity: emissions
+
+  output_nodes:
+  - id: i_stationary_total_price
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: scope
+  - id: total_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      categories: [capex_infrastructure]
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: ghg
+      flatten: true
+  - id: total_benefits
+    metrics: [currency]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      categories: [opex_infrastructure]
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: ghg
+      flatten: true
+  - id: i_stationary_total_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: ghg
+
+
+- id: change_traffic_lights_to_led_total
+  name: Change Traffic Lights to LED (Total)
+  type: simple.AdditiveAction
+  group: i_stationary
+  input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
+  output_dimensions: ['action', 'cost_type', 'scope', 'ghg']
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: norderstedt/stationary_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [change_traffic_lights_to_led_total]
+    - column: energy_carrier
+
+  output_metrics:
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  - id: emissions
+    unit: kg/a
+    quantity: emissions
+
+  output_nodes:
+  - id: i_stationary_total_price
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: scope
+  - id: total_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      categories: [capex_infrastructure]
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: ghg
+      flatten: true
+  - id: total_benefits
+    metrics: [currency]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      categories: [opex_infrastructure]
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: ghg
+      flatten: true
+  - id: i_stationary_total_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: ghg
+
+
 - id: program_energy_refurbishment_for_private_households
   name: Funding Program for Energy Refurbishment
   type: simple.AdditiveAction
@@ -900,6 +1046,79 @@ actions:
       flatten: true
     - id: energy_carrier
       flatten: true
+
+
+- id: roof_refurbishment_of_public_building
+  name: Roof Refurbishment of Public Building
+  type: simple.AdditiveAction
+  group: i_stationary
+  input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
+  output_dimensions: ['action', 'cost_type', 'scope', 'ghg']
+  params:
+    allow_null_categories: true
+
+  input_datasets:
+  - id: norderstedt/stationary_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [roof_refurbishment_for_public_building]
+    - column: energy_carrier
+
+  output_metrics:
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  - id: emissions
+    unit: kg/a
+    quantity: emissions
+
+  output_nodes:
+  - id: i_stationary_total_price
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: scope
+  - id: total_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      categories: [capex_infrastructure]
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: ghg
+      flatten: true
+  - id: total_benefits
+    metrics: [currency]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      categories: [opex_infrastructure]
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: ghg
+      flatten: true
+  - id: i_stationary_total_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: ghg
 
 
 - id: reforestation
