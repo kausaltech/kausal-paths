@@ -13,7 +13,6 @@ from asgiref.sync import iscoroutinefunction, markcoroutinefunction, sync_to_asy
 
 from kausal_common.users import user_or_none
 
-from paths.admin_context import set_admin_instance
 from paths.context import PathsObjectCache
 
 from nodes.models import InstanceConfig
@@ -114,7 +113,6 @@ class AdminMiddleware:
                 ic.invalidate_cache()
             await sync_to_async(transaction.on_commit)(invalidate_cache)
 
-        set_admin_instance(ic, request=request)
         ctx = RealmContext(realm=ic, user=request.user)
         with realm_context.activate(ctx):
             return await self.get_response(request)

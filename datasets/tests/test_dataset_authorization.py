@@ -6,7 +6,6 @@ import pytest
 
 from kausal_common.datasets.models import Dataset, DatasetSchema
 
-from paths.admin_context import set_admin_instance
 from paths.context import RealmContext, realm_context
 
 from admin_site.dataset_admin import DatasetSchemaViewSet
@@ -22,10 +21,6 @@ def get_in_admin_context(rf):
             kwargs = {}
         request = rf.get(url)
         request.user = user
-        if not user.selected_instance:
-            user.selected_instance = instance_config
-            user.save()
-        set_admin_instance(instance_config, request=request)
         ctx = RealmContext(realm = instance_config, user=request.user)
         with realm_context.activate(ctx):
             return view(request, **kwargs)
@@ -128,11 +123,6 @@ class TestDatasetAdminAuthorization:
         data = setup_test_data
         user = data[user_key]
 
-        # Set the selected instance for the admin user
-        if user_key == 'admin_user':
-            user.selected_instance = data['instance1']
-            user.save()
-
         view = DatasetSchemaViewSet().index_view
         url = reverse('datasets_datasetschema:list')
         if expected_schemas:
@@ -168,11 +158,6 @@ class TestDatasetAdminAuthorization:
         user = data[user_key]
         schema = data[schema_key]
 
-        # Set the selected instance for the admin user
-        if user_key == 'admin_user':
-            user.selected_instance = data['instance1']
-            user.save()
-
         view = DatasetSchemaViewSet().edit_view
         url = reverse('datasets_datasetschema:edit', args=[schema.id])
         if access_allowed:
@@ -198,11 +183,6 @@ class TestDatasetAdminAuthorization:
         user = data[user_key]
         schema = data[schema_key]
 
-        # Set the selected instance for the admin user
-        if user_key == 'admin_user':
-            user.selected_instance = data['instance1']
-            user.save()
-
         view = DatasetSchemaViewSet().delete_view
         url = reverse('datasets_datasetschema:delete', args=[schema.id])
         if access_allowed:
@@ -222,11 +202,6 @@ class TestDatasetAdminAuthorization:
         """Test access to dataset index view."""
         data = setup_test_data
         user = data[user_key]
-
-        # Set the selected instance for the admin user
-        if user_key == 'admin_user':
-            user.selected_instance = data['instance1']
-            user.save()
 
         from kausal_paths_extensions.dataset_editor import DatasetViewSet
         view = DatasetViewSet().index_view
@@ -275,11 +250,6 @@ class TestDatasetAdminAuthorization:
         user = data[user_key]
         dataset = data[dataset_key]
 
-        # Set the selected instance for the admin user
-        if user_key == 'admin_user':
-            user.selected_instance = data['instance1']
-            user.save()
-
         from kausal_paths_extensions.dataset_editor import DatasetViewSet
         view = DatasetViewSet().edit_view
         url = reverse('datasets_dataset:edit', args=[dataset.id])
@@ -305,11 +275,6 @@ class TestDatasetAdminAuthorization:
         data = setup_test_data
         user = data[user_key]
         dataset = data[dataset_key]
-
-        # Set the selected instance for the admin user
-        if user_key == 'admin_user':
-            user.selected_instance = data['instance1']
-            user.save()
 
         from kausal_paths_extensions.dataset_editor import DatasetViewSet
         view = DatasetViewSet().delete_view
@@ -339,13 +304,9 @@ class TestDatasetAdminAuthorization:
         if user_key == 'admin_user':
             instance = data['instance1']
             schema = data['schema1']
-            user.selected_instance = instance
-            user.save()
         else:
             instance = data['instance2']
             schema = data['schema2']
-            user.selected_instance = instance
-            user.save()
 
         from kausal_paths_extensions.dataset_editor import DatasetViewSet
         view = DatasetViewSet().add_view
@@ -369,11 +330,6 @@ class TestDatasetAdminAuthorization:
         """Test access to dataset schema create view."""
         data = setup_test_data
         user = data[user_key]
-
-        # Set the selected instance for the admin user
-        if user_key == 'admin_user':
-            user.selected_instance = data['instance1']
-            user.save()
 
         view = DatasetSchemaViewSet().add_view
         url = reverse('datasets_datasetschema:add')
