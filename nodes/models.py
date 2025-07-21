@@ -33,7 +33,7 @@ from asgiref.sync import sync_to_async
 from channels.consumer import async_to_sync
 from channels.layers import get_channel_layer
 from loguru import logger
-from wagtail_color_panel.fields import ColorField  # type: ignore
+from wagtail_color_panel.fields import ColorField
 
 from kausal_common.datasets.models import (
     Dataset as DatasetModel,
@@ -812,7 +812,7 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
 
     datasets: M2M[DatasetModel, NodeDataset] = models.ManyToManyField(DatasetModel, through='NodeDataset', related_name='nodes')
 
-    color: CharField[str, str] = ColorField(max_length=20, null=True, blank=True)
+    color: CharField[str, str] = ColorField(max_length=20, blank=True)
     input_data = models.JSONField(null=True, editable=False)
     params = models.JSONField(null=True, editable=False)
 
