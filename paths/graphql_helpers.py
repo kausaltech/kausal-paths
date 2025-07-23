@@ -6,10 +6,14 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Concatenate, ParamSpec, TypeVar, cast, overload
 
+import graphene
+from django.utils.module_loading import import_string
 from graphql.error import GraphQLError
 from strawberry.types.field import StrawberryField
 
+from admin_site.viewsets import PathsViewSet, admin_req
 from nodes.instance import Instance
+from paths.graphql_types import AdminButton
 
 if TYPE_CHECKING:
     from paths.types import GQLInstanceInfo
@@ -18,6 +22,8 @@ if TYPE_CHECKING:
     from nodes.instance import Instance
 
     from .graphql_types import SBInfo
+    from kausal_common.graphene import GQLInfo
+    from django.db.models import Model
 
 
 @dataclass(slots=True)
@@ -106,3 +112,33 @@ def get_instance_context(info: InfoType) -> Context:
 def get_instance(info: InfoType) -> Instance:
     instance = _instance_or_bust(info)
     return instance
+
+
+class AdminButtonsMixin:
+    admin_buttons = graphene.List(graphene.NonNull(AdminButton), required=True)
+
+    @staticmethod
+    def resolve_admin_buttons(root: Model, info: GQLInfo) -> list[AdminButton]:
+        if not info.context.user.is_staff:
+            return []
+
+        view_set_class: type[PathsViewSet] = import_string(root.VIEWSET_CLASS)  # type: ignore
+        view_set = view_set_class()
+
+        # if isinstance(view_set.permission_policy, InstanceConfigPermissionPolicy):
+        #     view_set.permission_policy.disable_admin_plan_check()
+
+        if not hasattr(view_set, 'get_index_view_buttons'):
+            raise ValueError(f'get_index_view_buttons method not found for view set {view_set.__class__.__name__}')
+        user = admin_req(info.context).user
+        instance_config = user.get_active_instance()
+        buttons = view_set.get_index_view_buttons(user, root, instance_config)  # type: ignore[attr-defined]
+
+        # TODO: Temporary workaround to support both the new and old attribute
+        # name for icon, making the code work for modeladmin code as well. The
+        # GraphQL queries should be updated to use the new attribute name once
+        # actions have migrated from modeladmin.
+        for button in buttons:
+            button.icon = button.icon_name
+
+        return buttons
