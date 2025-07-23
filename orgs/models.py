@@ -74,7 +74,7 @@ del _OrganizationManager
 
 class Organization(BaseOrganization, Node[OrganizationQuerySet]):
     objects: ClassVar[OrganizationManager] = OrganizationManager()  # type: ignore[assignment]
-
+    VIEWSET_CLASS = 'orgs.wagtail_hooks.OrganizationViewSet'
     class Meta:
         verbose_name = _('Organization')
         verbose_name_plural = _('Organizations')
