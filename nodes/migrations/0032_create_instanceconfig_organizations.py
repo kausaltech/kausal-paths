@@ -22,7 +22,7 @@ def create_dummy_organizations(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('nodes', '0030_nodedataset_nodeconfig_datasets'),
+        ('nodes', '0031_alter_nodeconfig_color'),
         ('orgs', '0002_organizationmetadataadmin_and_more'),
     ]
 
