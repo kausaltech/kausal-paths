@@ -12,6 +12,7 @@ from paths.context import RealmContext, realm_context
 from admin_site.dataset_admin import DatasetSchemaViewSet
 from nodes.models import InstanceConfig
 from nodes.roles import instance_admin_role
+from nodes.tests.factories import InstanceConfigFactory
 from users.models import User
 
 
@@ -40,11 +41,11 @@ class TestDatasetAdminAuthorization:
     def setup_test_data(self):
         # Create two instance configs with unique identifiers
         import uuid
-        instance1 = InstanceConfig.objects.create(
+        instance1 = InstanceConfigFactory(
             identifier=f'instance1-{uuid.uuid4().hex[:8]}',
             name='Instance 1',
         )
-        instance2 = InstanceConfig.objects.create(
+        instance2 = InstanceConfigFactory(
             identifier=f'instance2-{uuid.uuid4().hex[:8]}',
             name='Instance 2',
         )
