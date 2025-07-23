@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://krakow-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 2baa6d4089708c7a4bd65b7cdc780dc605aa59de
+  commit: b46b437334518064b637f280b5d9e0139e007d63
   dvc_remote: kausal-s3
 name: Kraków Greenhouse Gas Inventory
 owner: City of Kraków
@@ -621,6 +621,29 @@ nodes:
 - id: i_stationary_costs
   name: I Stationary Costs
   color: '#4E79A7'
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: zł/a
+  input_dimensions: [action, cost_type, scope, sector]
+  output_dimensions: [action, cost_type, scope, sector]
+  output_nodes:
+  - id: net_costs
+
+# ----- Waste Costs
+
+- id: iii2_biological_waste_costs
+  name: III.2 Biological Waste Costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: zł/a
+  input_dimensions: [action, cost_type, scope, sector]
+  output_dimensions: [action, cost_type, scope, sector]
+  output_nodes:
+  - id: iii_waste_costs
+
+- id: iii_waste_costs
+  name: III Waste Costs
+  color: '#59A14F'
   type: simple.AdditiveNode
   quantity: currency
   unit: zł/a
@@ -1315,6 +1338,38 @@ actions:
     - id: cost_type
       flatten: true
   - id: i2_commercial_and_institutional_costs
+    metrics: [currency]
+
+- id: goz2
+  name: GOZ-2 MINEV project
+  type: simple.AdditiveAction
+  group: waste_management_and_ce
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/waste_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [goz2]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: iii2_biological_waste_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: iii2_biological_waste_costs
     metrics: [currency]
 
 
