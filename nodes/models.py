@@ -348,7 +348,9 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     @classmethod
     def create_for_instance(cls, instance: Instance, **kwargs) -> InstanceConfig:
         assert not cls.objects.filter(identifier=instance.id).exists()
-        return cls.objects.create(identifier=instance.id, site_url=instance.site_url, **kwargs)
+
+        org = Organization.add_root(name=instance.name)
+        return cls.objects.create(identifier=instance.id, site_url=instance.site_url, organization=org, **kwargs)
 
     def has_framework_config(self) -> bool:
         try:
