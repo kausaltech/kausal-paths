@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://krakow-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: b46b437334518064b637f280b5d9e0139e007d63
+  commit: 42eadc2686710713b77e518b600492b97f74b82a
   dvc_remote: kausal-s3
 name: Kraków Greenhouse Gas Inventory
 owner: City of Kraków
@@ -380,6 +380,9 @@ nodes:
       categories: [ii11]
   output_nodes:
   - id: ii1_onroad_transport_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 
 - id: ii12_onroad_transport_grid_energy_emissions
   name: II.1.2 On-Road Transport Grid Energy Emissions
@@ -397,6 +400,9 @@ nodes:
       categories: [ii12]
   output_nodes:
   - id: ii1_onroad_transport_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 
 - id: ii13_onroad_transport_outboundary_td_loss_emissions
   name: II.1.3 On-Road Transport Out-Boundary & Transmission Loss Emissions
@@ -414,19 +420,19 @@ nodes:
       categories: [ii13]
   output_nodes:
   - id: ii1_onroad_transport_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 
 - id: ii1_onroad_transport_emissions
   name: II.1 On-Road Transport Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt_co2e/a
-  input_dimensions: [vehicle_type, scope, sector]
-  output_dimensions: [vehicle_type, scope, sector]
+  input_dimensions: [scope, sector]
+  output_dimensions: [scope, sector]
   output_nodes:
   - id: ii_transportation_emissions
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
 
 - id: ii21_railway_fuel_emissions
   name: II.2.1 Railway Fuel Emissions
@@ -444,6 +450,9 @@ nodes:
       categories: [ii21]
   output_nodes:
   - id: ii2_railway_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 
 - id: ii22_railway_grid_energy_emissions
   name: II.2.2 Railway Grid Energy Emissions
@@ -461,6 +470,9 @@ nodes:
       categories: [ii22]
   output_nodes:
   - id: ii2_railway_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 
 - id: ii23_railway_outboundary_td_loss_emissions
   name: II.2.3 Railway Out-Boundary & Transmission Loss Emissions
@@ -478,19 +490,19 @@ nodes:
       categories: [ii23]
   output_nodes:
   - id: ii2_railway_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 
 - id: ii2_railway_emissions
   name: II.2 Railway Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt_co2e/a
-  input_dimensions: [vehicle_type, scope, sector]
-  output_dimensions: [vehicle_type, scope, sector]
+  input_dimensions: [scope, sector]
+  output_dimensions: [scope, sector]
   output_nodes:
   - id: ii_transportation_emissions
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
 
 - id: ii3_waterborne_transport_emissions
   name: II.3 Waterborne Transport Emissions
@@ -621,6 +633,39 @@ nodes:
 - id: i_stationary_costs
   name: I Stationary Costs
   color: '#4E79A7'
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: zł/a
+  input_dimensions: [action, cost_type, scope, sector]
+  output_dimensions: [action, cost_type, scope, sector]
+  output_nodes:
+  - id: net_costs
+
+# ----- Transportation Costs
+
+- id: ii1_onroad_transport_costs
+  name: II.1 On-Road Transport Costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: zł/a
+  input_dimensions: [action, cost_type, scope, sector]
+  output_dimensions: [action, cost_type, scope, sector]
+  output_nodes:
+  - id: ii_transportation_costs
+
+- id: ii2_railway_costs
+  name: II.2 Railway Costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: zł/a
+  input_dimensions: [action, cost_type, scope, sector]
+  output_dimensions: [action, cost_type, scope, sector]
+  output_nodes:
+  - id: ii_transportation_costs
+
+- id: ii_transportation_costs
+  name: II Transportation Costs
+  color: '#E15759'
   type: simple.AdditiveNode
   quantity: currency
   unit: zł/a
@@ -1305,6 +1350,390 @@ actions:
     - id: cost_type
       flatten: true
   - id: i2_commercial_and_institutional_costs
+    metrics: [currency]
+
+- id: tr2
+  name: TR-2 Project for fast, collision-free rail transport in Kraków (Premetro)
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/transportation_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [tr2]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: ii1_onroad_transport_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: ii1_onroad_transport_costs
+    metrics: [currency]
+
+- id: tr3
+  name: TR-3 Construction of the SKA "Kraków Prądnik Czerwony" railway stop together with a P&R car park, and the construction of an integrated transfer node
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/transportation_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [tr3]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: ii1_onroad_transport_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: ii1_onroad_transport_costs
+    metrics: [currency]
+
+- id: tr4
+  name: TR-4 Construction of cycling routes along the streets Al. Pokoju, Walerego Sławka, Brożka, Nawojki and Jancarza
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/transportation_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [tr4]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: ii1_onroad_transport_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: ii1_onroad_transport_costs
+    metrics: [currency]
+
+- id: tr5
+  name: TR-5 Construction of KST tram line (Krowodrza Górka - Azory district)
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/transportation_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [tr5]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: ii1_onroad_transport_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: ii1_onroad_transport_costs
+    metrics: [currency]
+
+- id: tr6
+  name: TR-6 Development of a tramway fleet to serve the Kraków City Transport system and the development of intelligent transport systems (ITS)
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/transportation_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [tr6]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: ii2_railway_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: ii2_railway_costs
+    metrics: [currency]
+
+- id: tr7
+  name: TR-7 Reconstruction of tram tracks together with turnout nodes and associated infrastructure at Straszewskiego and Karmelicka Street, Starowislna Street
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/transportation_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [tr7]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: ii2_railway_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: ii2_railway_costs
+    metrics: [currency]
+
+- id: tr8
+  name: TR-8 Creation of new charging stations for electric buses
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/transportation_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [tr8]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: ii1_onroad_transport_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: ii1_onroad_transport_costs
+    metrics: [currency]
+
+- id: tr9
+  name: TR-9 Tram energy storage in Districts XI and XII of the City of Kraków
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/transportation_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [tr9]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: ii2_railway_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: ii2_railway_costs
+    metrics: [currency]
+
+- id: tr10
+  name: TR-10 Construction of new tram lines with associated infrastructure
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/transportation_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [tr10]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: ii1_onroad_transport_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: ii1_onroad_transport_costs
+    metrics: [currency]
+
+- id: tr11
+  name: TR-11 Projects and activities related to the development of cycling infrastructure and implementation of the Cycling Policy of the City of Kraków
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/transportation_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [tr11]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: ii1_onroad_transport_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: ii1_onroad_transport_costs
+    metrics: [currency]
+
+- id: tr12
+  name: TR-12 Project SUM - Smooth Shared Urban Mobility
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/transportation_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [tr12]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: ii1_onroad_transport_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: ii1_onroad_transport_costs
+    metrics: [currency]
+
+- id: tr13
+  name: TR-13 Clean Transport Zone
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/transportation_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [tr13]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: ii1_onroad_transport_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: ii1_onroad_transport_costs
     metrics: [currency]
 
 
