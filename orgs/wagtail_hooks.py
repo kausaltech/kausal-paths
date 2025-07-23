@@ -32,7 +32,6 @@ from kausal_common.organizations.views import (
     OrganizationDeleteView,
     OrganizationEditView,
     OrganizationIndexView,
-    # SetOrganizationRelatedToActivePlanView,
 )
 
 from wagtail.admin.panels import InlinePanel
@@ -88,13 +87,11 @@ class OrganizationPermissionPolicy(ModelPermissionPolicy):
 
         if action == 'view':
             return True
-        if action in ('change', 'delete'):
-            return instance.user_can_edit(user)
+        # if action in ('change', 'delete'):
+        #     return user.is_admin_for_instance(instance.instances)
         # if action == 'add':
-        #     return user.is_general_admin_for_plan()
-        # if action == SetOrganizationRelatedToActivePlanView.permission_required:
-        #     plan = user.get_active_admin_plan()
-        #     return instance.user_can_change_related_to_plan(user, plan)
+        #     return user.is_admin_for_instance(instance.instances)
+
 
         return super().user_has_permission_for_instance(user, action, instance)
 
@@ -338,4 +335,4 @@ class OrganizationViewSet(SnippetViewSet):
 # If kausal_watch_extensions is installed, an extended version of the view set is registered there
 if not find_spec('kausal_paths_extensions'):
     register_snippet(OrganizationViewSet)
-# register_snippet(OrganizationViewSet)
+

@@ -37,7 +37,7 @@ from nodes.schema import (
 from pages.schema import Query as PagesQuery
 from params.schema import Mutations as ParamsMutations, Query as ParamsQuery, types as params_types
 from users.schema import Query as UsersQuery
-from orgs.schema import Query as OrgsQuery, OrganizationNode
+from orgs.schema import Query as OrgsQuery, OrganizationNode, Mutation as OrgsMutation
 
 from paths.context import realm_context
 
@@ -105,7 +105,7 @@ class GrapheneQuery(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, Server
 
 
 
-class GrapheneMutations(ParamsMutations, FrameworksMutations):
+class GrapheneMutations(ParamsMutations, FrameworksMutations, OrgsMutation):
     pass
 
 
