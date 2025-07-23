@@ -69,7 +69,7 @@ class Person(BasePerson):
         return None
 
     @override
-    def get_avatar_url(self, request: PathsAdminRequest, size: str | None = None) -> str | None:
+    def get_avatar_url(self, request: PathsAdminRequest | None = None, size: str | None = None) -> str | None:
         # from kausal_common.model_images import determine_image_dim
         # Return the URL of the person's image if it exists
         if not self.image:
