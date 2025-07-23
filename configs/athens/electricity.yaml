@@ -98,7 +98,7 @@ nodes:
       categories: [scope2]
     - id: sector
 
-- id: historical_electricity_consumption
+- id: electricity_consumption_historical
   name_en: Historical electricity consumption
   name_el: Ιστορική κατανάλωση ηλεκτρικής ενέργειας
   type: gpc.DatasetNode
@@ -125,7 +125,7 @@ nodes:
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_nodes:
-  - id: historical_electricity_consumption
+  - id: electricity_consumption_historical
     tags: [progress_tracking]
   - id: total_electricity_consumption
     tags: [decarbonisation_scenario] 
@@ -144,7 +144,7 @@ nodes:
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_nodes:
-  - id: historical_electricity_consumption
+  - id: electricity_consumption_historical
     to_dimensions:
     - id: energy_carrier
   - id: total_electricity_consumption_uncorr

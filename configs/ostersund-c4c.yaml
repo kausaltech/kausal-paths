@@ -386,6 +386,22 @@ dimensions:
   - id: parking_measures
     label: 'Parking Measures'
 
+- id: cost_type
+  label: Cost Type
+  categories:
+  - id: air_pollution_benefit
+    label: Air Pollution Benefit
+  - id: health_benefits
+    label: Health Benefits
+  - id: other_benefits
+    label: Other Benefits
+  - id: investment_cost
+    label: Investment Cost
+  - id: operating_expenditures
+    label: Operating Expenditures
+  - id: co2e_reduction
+    label: CO2e Reduction
+
 emission_sectors:
 - id: net_emissions
   name: Net Emissions

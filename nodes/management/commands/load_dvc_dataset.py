@@ -48,6 +48,7 @@ def get_dimension(instance_config: InstanceConfig, identifier: str) -> Dimension
 @lru_cache
 def get_dimension_category(instance_config: InstanceConfig, dimension_identifier: str, identifier: str) -> DimensionCategory:
     dimension = get_dimension(instance_config, dimension_identifier)
+    print('dimension', dimension, 'identifier:', identifier)
     return DimensionCategory.objects.get(dimension=dimension, identifier=identifier)
 
 

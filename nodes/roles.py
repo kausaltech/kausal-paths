@@ -36,7 +36,7 @@ class InstanceAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceConfig']
 
     model_perms = AdminRole.model_perms + [
         ('nodes', ('instanceconfig', 'nodeconfig'), ('view', 'change')),
-        ('datasets', ('datasetschema','dataset', 'datapoint'), ALL_MODEL_PERMS),
+        ('datasets', ('datasetschema','dataset', 'datapoint', 'datasource', 'datasetsourcereference'), ALL_MODEL_PERMS),
         ('frameworks', (
             'framework',
         ), ('view',)),
@@ -60,6 +60,7 @@ class InstanceViewerRole(InstanceGroupMembershipRole, InstanceSpecificRole['Inst
     instance_group_field_name = 'viewer_group'
 
     model_perms = [
+        ('wagtailadmin', 'admin', ('access',)),
         ('nodes', ('instanceconfig', 'nodeconfig'), ('view',)),
         ('frameworks', (
             'framework', 'frameworkconfig', 'measure', 'measuredatapoint',

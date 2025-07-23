@@ -394,7 +394,7 @@ nodes:
   type: simple.AdditiveNode
   quantity: unit_price
   unit: EUR/vkm
-  historical_values: [[2018, 0.32]]
+  historical_values: [[2018, 0.32], [2025, 0.32]]
   # # input_dimensions: [transport_mode, cost_type]
   # # output_dimensions: [transport_mode, cost_type]
   # input_datasets: [nzc/defaults]
@@ -623,7 +623,7 @@ nodes:
     to_dimensions:
     - id: cost_type
     - id: stakeholder
-  - id: passenger_kilometres
+  - id: passenger_kilometres_observed
     to_dimensions:
     - id: transport_mode
   output_nodes: [transport_cost]
@@ -654,7 +654,7 @@ nodes:
     - id: transport_mode
     - id: cost_type
   - id: walking_cycling_cost_shares
-  - id: passenger_kilometres
+  - id: passenger_kilometres_observed
     to_dimensions:
     - id: transport_mode
   output_nodes: [transport_cost]

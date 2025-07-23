@@ -13,7 +13,7 @@ supported_languages: [es-US]
 site_url: https://longmont-dev.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: f5c57165bb8a2d94c9598c1841c63e072a8c6be7
+  commit: 62daeb4ee13a314f098c0c322e02f6249175315b
   dvc_remote: kausal-s3
 name: 2025 Draft Longmont Greenhouse Gas Inventory
 name_es-US: 2025 Inventario de gases de efecto invernadero de Longmont
@@ -274,15 +274,29 @@ dimensions:
   - id: motorcycle
     label: Motorcycle
     label_es-US: Motocicleta
+    aliases: [MOTORCYCLE]
+  - id: motorhome
+    label: Motorhome
+    aliases: [MOTORHOME]
+  - id: autocycle
+    label: Autocycle
+    aliases: [AUTOCYCLE]
   - id: car
     label: Passenger Car
     label_es-US: Automóvil
+    aliases: [PASSENGER CAR (Total), Passenger Vehicle, passenger_car, passenger_vehicle]
+  - id: truck
+    label: Truck
+    label_es-US: Camión
+    aliases: [TRUCK, heavy_duty_truck, heavy_truck]
   - id: light_duty
     label: Light Duty
     label_es-US: Camión ligero
+    aliases: [Light Truck, light_duty_truck, light_truck]
   - id: bus
     label: Bus
     label_es-US: Autobús
+    aliases: [BUS, heavy_vehicle_bus, heavy_vehiclebus, heavy_truck_bus] # FIXME separate buses and trucks
   - id: single_unit_truck
     label: Single Unit Truck
     label_es-US: Camión de una sola unidad
@@ -419,7 +433,44 @@ dimensions:
     label: Aviation
     label_es-US: Aviación
 
-- id: greenhouse_gases
+- id: ghg
+  label_en: Greenhouse gas
+  label_de: Treibhausgas
+  label_es-US: Gases de efecto invernadero
+  categories:
+  - id: co2e
+    label_en: CO2e
+    label_de: CO2-Äquivalent
+    aliases: [co2_eq, co2eq]
+    label: CO2 equivalent
+    label_es-US: Equivalente de CO2
+  - id: co2
+    label: CO2, fossil
+    label_es-US: CO2, fósil
+    aliases: [co2_fossil]
+  - id: ch4
+    label: CH4
+    label_es-US: CH4
+  - id: n2o
+    label: N2O
+    label_es-US: N2O
+  - id: hfc
+    label: HFC
+    label_es-US: HFC
+  - id: pfc
+    label: PFC
+    label_es-US: PFC
+  - id: sf6
+    label: SF6
+    label_es-US: SF6
+  - id: nf3
+    label: NF3
+    label_es-US: NF3
+  - id: co2_biogen
+    label: CO2, biogen
+    label_es-US: CO2, biógeno
+
+- id: greenhouse_gases # FIXME Merge this to standard dim
   label: Greenhouse gases
   label_es-US: Gases de efecto invernadero
   categories:
@@ -459,22 +510,36 @@ dimensions:
   - id: electricity
     label: Electricity
     label_es-US: Electricidad
+    aliases: [Electric (All Electric estimation done above), electric, all_electric_vehicles,
+      electric_light_duty_vehicle_mpge]
   - id: fuel_oil
     label: Heating oil
     label_es-US: Combustible para calefacción
   - id: petrol
     label: Gasoline
     label_es-US: Gasolina
-    aliases: [Petrol]
+    aliases: [Petrol, gasoline]
   - id: diesel
     label: Diesel
     label_es-US: Diésel
+  - id: bio_diesel
+    label: Bio Diesel
+    label_es-US: Bio Diésel
+    aliases: [biodiesel]
   - id: ethanol
     label: Ethanol
     label_es-US: Etanol
+    aliases: [Ethanol/Gas, ethanolgas]
+  - id: none
+    label: None
+  - id: hybrid
+    label: Hybrid EV
+    label_es-US: Vehículo eléctrico híbrido
+    aliases: [Electric/Gas (Hybrid ONLY), electricgas_hybrid]
   - id: plug_in_hybrid
     label: Plug-in hybrid EV
     label_es-US: Vehículo eléctrico híbrido enchufable
+    aliases: [Electric/Gas (PHEV), electricgas_phev, phev]
   - id: kerosene
     label: Jet fuel
     label_es-US: Combustible para aviones
@@ -484,12 +549,18 @@ dimensions:
   - id: natural_gas
     label: Natural gas
     label_es-US: Gas natural
+    aliases: [cng]
   - id: biogas
     label: biogas
     label_es-US: biogás
   - id: propane
     label: Propane
     label_es-US: Propano
+    aliases: [propane_or_liquefied_natural_gas]
+  - id: butane
+    label: Butane
+    label_es-US: Butano
+    aliases: [Butane/Gas, butanegas]
   - id: district_heat
     label: District heating
     label_es-US: Calefacción urbana
@@ -855,15 +926,15 @@ nodes:
 - id: building_electricity_use_historical
   name: Building electricity use (historical)
   name_es-US: Consumo de electricidad en edificios (histórico)
-  type: buildings.HistoricalNode
+  type: generic.GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
   input_datasets:
   - id: longmont/stationary_energy_consumption
+    tags: [baseline]
     column: electricity
-  input_dataset_processors: [LinearInterpolation]
 
 - id: building_electricity_use_per_resident
   name: Building electricity use per resident
@@ -1565,6 +1636,141 @@ nodes:
 #
 # TRANSPORTATION
 #
+- id: number_of_cars
+  name: Number of cars
+  type: generic.GenericNode
+  quantity: number
+  unit: pcs
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: longmont/longmont_registered_vehicle_data
+    tags: [baseline]
+    column: number_of_registered_vehicles
+
+- id: gpd_distance_miles
+  name: GDP distance miles
+  type: generic.GenericNode
+  quantity: number
+  unit: VMT/a
+  input_datasets:
+  - id: longmont/gpd_distance_miles
+    tags: [baseline]
+    column: mileage
+
+- id: vehicle_mileage_by_type
+  name: Vehicle mileage by type
+  type: generic.GenericNode
+  quantity: mileage
+  unit: VMT/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: number_of_cars
+    tags: [use_as_shares]
+  - id: gpd_distance_miles
+    to_dimensions: []
+  params:
+    operations: add,use_as_shares
+
+- id: electricity_emission_factor2
+  name: Electricity emission factor
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [ghg, energy_carrier]
+  output_dimensions: [ghg, energy_carrier]
+  input_datasets:
+  - id: longmont/electricity_emission_factor_for_transportation
+    tags: [baseline]
+    column: emission_factor
+
+- id: transportation_ch4_emission_factors
+  name: Transportation CH4 and N2O emission factors
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g/VMT
+  input_dimensions: [vehicle_type, energy_carrier, ghg]
+  output_dimensions: [vehicle_type, energy_carrier, ghg]
+  input_datasets:
+  - id: longmont/transportation_emission_factors
+    tags: [baseline]
+    column: emission_factor
+
+- id: transportation_emission_factors
+  name: Transportation emission factors
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t/gal
+  input_dimensions: [ghg, energy_carrier]
+  output_dimensions: [ghg, energy_carrier]
+  input_datasets:
+  - id: longmont/transportation_emission_factors
+    tags: [baseline]
+    column: fuel_emission_factor
+
+- id: transportation_ch4_emissions
+  name: Transportation CH4 and N2O emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [vehicle_type, energy_carrier, ghg]
+  output_dimensions: [vehicle_type, energy_carrier, ghg]
+  input_nodes:
+  - id: vehicle_mileage_by_type
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+  - id: transportation_ch4_emission_factors
+
+- id: vehicle_energy_efficiency
+  name: Vehicle energy efficiency
+  type: generic.GenericNode
+  quantity: energy_factor
+  unit: VMT/gal
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: longmont/vehicle_energy_efficiency
+    tags: [baseline]
+    column: mpg
+
+- id: transportation_emissions2
+  name: Transportation emissions2
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [vehicle_type, energy_carrier, ghg]
+  output_dimensions: [vehicle_type, energy_carrier, ghg]
+  input_nodes:
+  - id: vehicle_mileage_by_type
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+  - id: vehicle_energy_efficiency
+    tags: [geometric_inverse]
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+  - id: transportation_emission_factors
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+  - id: transportation_ch4_emissions
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: emission_scope
+      categories: [scope2] # FIXME
+
+#OLD TRANSPORTATION NODES
 
 - id: transportation_emissions
   name: Transportation emissions

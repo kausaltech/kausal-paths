@@ -435,33 +435,33 @@ class ImpactOverview:
         if self.cost_node is not None and self.cost_node.quantity not in STACKABLE_QUANTITIES:
                 raise Exception(f"Cost node {self.cost_node.id} quantity {self.cost_node.quantity} is not stackable.")
 
-        ff = ['outcome_dimension', 'stakeholder_dimension']
-        rf = ['effect_node', 'indicator_unit']
+        rf = ['effect_node', 'cost_node', 'indicator_unit']
+        ff = ['outcome_dimension', 'stakeholder_dimension', 'cost_unit', 'effect_unit']
         field_lists = {
             'cost_benefit':
-                {'required': rf,
-                 'forbidden': ['cost_unit', 'effect_unit']},
+                {'required': ['effect_node', 'indicator_unit'],
+                 'forbidden': ['cost_node', 'cost_unit', 'effect_unit']},
             'cost_efficiency':
-                {'required': [*rf, 'cost_node'],
-                 'forbidden': ff},
+                {'required': rf,
+                 'forbidden': ['outcome_dimension', 'stakeholder_dimension']},
             'return_on_investment':
                 {'required': rf,
-                 'forbidden': [*ff, 'cost_unit', 'effect_unit']},
+                 'forbidden': ff},
             'return_on_investment_gross':
                 {'required': rf,
-                 'forbidden': [*ff, 'cost_unit', 'effect_unit']},
+                 'forbidden': ff},
             'benefit_cost_ratio':
                 {'required': rf,
-                 'forbidden': [*ff, 'cost_unit', 'effect_unit']},
+                 'forbidden': ff},
             'value_of_information':
-                {'required': rf,
-                 'forbidden': [*ff, 'cost_unit', 'effect_unit', 'cost_node']},
+                {'required': ['effect_node', 'indicator_unit'],
+                 'forbidden': [*ff, 'cost_node']},
             'simple_effect':
-                {'required': rf,
-                 'forbidden': [*ff, 'cost_unit', 'effect_unit', 'cost_node']},
+                {'required': ['effect_node', 'indicator_unit'],
+                 'forbidden': [*ff, 'cost_node']},
         }
-        forbidden_fields = field_lists[self.graph_type]['forbidden']
         required_fields = field_lists[self.graph_type]['required']
+        forbidden_fields = field_lists[self.graph_type]['forbidden']
 
         for field_name, field_value in self.__dict__.items():
             if field_value is not None and field_name in forbidden_fields:

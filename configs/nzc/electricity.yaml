@@ -13,9 +13,9 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
 
-- id: total_electricity_consumption
-  name_en: Total electricity consumption
-  name_fi: Sähkön kokonaiskulutus
+- id: total_electricity_consumption_corr
+  name_en: Total electricity consumption, corrected
+  name_fi: Sähkön kokonaiskulutus, korjattu
   description_en: These consumption values are corrected for actual consumption statistics,
     if the global parameter <i>Statistical correction</i> is turned on.
   description_fi: Nämä kulutusarvot on korjattu todellisten kulutustilastojen mukaan,
@@ -28,6 +28,25 @@ nodes:
   input_nodes:
   - id: total_electricity_consumption_uncorr
     tags: [non_additive]
+
+- id: total_electricity_consumption
+  name_en: Total electricity consumption
+  name_fi: Sähkön kokonaiskulutus
+  type: gpc.DatasetNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets: [nzc/defaults]
+  input_nodes:
+  - id: total_electricity_consumption_corr
+    tags: [forecast_only]
+    from_dimensions:
+    - id: sector
+      flatten: true
+  params:
+    sector: Total electricity demand within city boundaries # Same as electricity_consumption_historical
+    inventory_only: true
 
 - id: total_electricity_production
   name_en: Total electricity production by shares
@@ -44,9 +63,6 @@ nodes:
   input_nodes:
   - id: total_electricity_consumption
     tags: [non_additive]
-    from_dimensions:
-    - id: sector
-      flatten: true
     to_dimensions:
     - id: energy_carrier
   - id: electricity_shares
@@ -67,6 +83,7 @@ nodes:
     to_dimensions:
     - id: energy_carrier
     - id: sector
+      categories: [electricity]
   - id: effective_electricity_emission_factor
     to_dimensions:
     - id: pollutant
@@ -101,7 +118,7 @@ nodes:
       categories: [scope2]
     - id: sector
 
-- id: historical_electricity_consumption
+- id: electricity_consumption_historical
   name_en: Historical electricity consumption
   name_fi: historiallinen sähkönkulutus
   type: gpc.DatasetNode
@@ -123,7 +140,7 @@ nodes:
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_nodes:
-  - id: historical_electricity_consumption
+  - id: electricity_consumption_historical
     to_dimensions:
     - id: energy_carrier
   - id: total_electricity_consumption_uncorr
@@ -134,7 +151,7 @@ nodes:
     to_dimensions:
     - id: energy_carrier
   output_nodes:
-  - id: total_electricity_consumption
+  - id: total_electricity_consumption_corr
     to_dimensions:
     - id: energy_carrier
 
@@ -202,9 +219,6 @@ nodes:
     to_dimensions:
     - id: energy_carrier
   - id: total_electricity_consumption
-    from_dimensions:
-    - id: sector
-      flatten: true
     to_dimensions:
     - id: energy_carrier
     - id: stakeholder
@@ -613,7 +627,7 @@ nodes:
   type: simple.AdditiveNode
   quantity: fraction
   unit: a
-  historical_values: [[2018, 1], [2023, 1]]
+  historical_values: [[2018, 1], [2025, 1]]
 
 - id: electricity_cost
   name_en: Electricity cost

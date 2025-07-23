@@ -63,7 +63,7 @@ result_excels:
   - net_emissions
   - aggregated_cost
   - discounted_cost
-  - passenger_kilometres_data
+  - passenger_kilometres_historical # TODO Should this be _observed?
   - vehicle_kilometres
   - freight_transport_need
   - total_building_heat_energy_use
@@ -514,7 +514,7 @@ nodes:
   type: simple.AdditiveNode
   quantity: fraction
   unit: m**3
-  historical_values: [[2018, 0.0], [2023, 0.0]]
+  historical_values: [[2018, 0.0], [2025, 0.0]]
 
 - id: population
   name: Population
@@ -862,31 +862,6 @@ nodes:
         categories: [local_heating]
         flatten: true
 
-- id: building_heat_energy_use_observed
-  name_en: Building heat energy use observed
-  name_fi: Havaittu rakennusten lämmitysenergia
-  type: gpc.DatasetNode
-  quantity: energy
-  unit: GWh/a
-  input_datasets: [nzc/defaults]
-  params:
-    sector: Total heating demand (space heating + domestic hot water + heat for cooking)
-    inventory_only: true
-  input_nodes:
-  - id: building_heat_energy_use
-    tags: [forecast_only]
-    from_dimensions:
-    - id: heating_type
-      flatten: true
-    - id: building_energy_class
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: fuel_type
-      flatten: true
-    - id: scope
-      flatten: true
-
 - id: electricity_emissions
   name_en: Electricity emissions
   name_fi: Sähköntuotannon päästöt
@@ -921,40 +896,23 @@ nodes:
     children:
     - kind: node
       label: Total electricity consumption
-      node_id: electricity_consumption_observed
+      node_id: total_electricity_consumption
       desired_outcome: decreasing
       scenarios: [default, progress_tracking]
-      dimensions: []
+      dimensions:
+      - id: energy_carrier
+        flatten: true
     - kind: node
       label: Fossil fuel usage in electricity production
-      node_id: electricity_share_fossil
+      node_id: electricity_shares
       desired_outcome: decreasing
       scenarios: [default, progress_tracking]
       dimensions:
       - id: fuel_type
+        categories: [fossil]
         flatten: true
       - id: energy_carrier
         flatten: true
-
-- id: electricity_consumption_observed
-  name_en: Electricity consumption observed
-  name_fi: Havaittu sähkönkulutus
-  type: gpc.DatasetNode
-  quantity: energy
-  unit: GWh/a
-  is_visible: false
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  input_datasets: [nzc/defaults]
-  input_nodes:
-  - id: total_electricity_consumption
-    tags: [forecast_only]
-    from_dimensions:
-    - id: sector
-      flatten: true
-  params:
-    sector: Total electricity demand within city boundaries # Same as historical_electricity_consumption
-    inventory_only: true
 
 - id: freight_transport_emissions
   name_en: Freight transport emissions
@@ -1006,7 +964,7 @@ nodes:
         flatten: true
     - kind: node
       label: Electrification of light trucks
-      node_id: fully_electric_truck_share
+      node_id: fully_electric_light_truck_share
       desired_outcome: increasing
       scenarios: [default, progress_tracking]
       dimensions:
@@ -1029,7 +987,7 @@ nodes:
         flatten: true
     - kind: node
       label: Electrification of heavy trucks
-      node_id: fully_electric_truck_share
+      node_id: fully_electric_heavy_truck_share
       desired_outcome: increasing
       scenarios: [default, progress_tracking]
       dimensions:
@@ -1038,22 +996,6 @@ nodes:
       - id: transport_mode
         categories: [heavy_trucks]
         flatten: true
-
-- id: freight_transport_need_observed
-  name_en: Freight transport need observed
-  name_fi: Havaittu rahtiliikenteen tarve
-  type: gpc.DatasetNode
-  quantity: freight_mileage
-  unit: Mtkm/a
-  input_dimensions: [transport_mode]
-  output_dimensions: [transport_mode]
-  input_datasets: [nzc/defaults]
-  params:
-    sector: Total transportation need within city - Road freight transport # Same as freight_transport_need
-    inventory_only: true
-  input_nodes:
-  - id: freight_transport_need_scaled
-    tags: [forecast_only]
 
 - id: transport_emissions
   name_en: Transport emissions
@@ -1148,23 +1090,6 @@ nodes:
       - id: transport_mode
         categories: [buses]
         flatten: true
-
-- id: passenger_kilometres_observed
-  name_en: Passenger kilometres observed
-  name_fi: Havaitut henkilökilometrit
-  type: gpc.DatasetNode
-  quantity: mileage
-  unit: Mpkm/a
-  input_datasets:
-  - id: nzc/defaults
-  input_dimensions: [transport_mode]
-  output_dimensions: [transport_mode]
-  params:
-    sector: Transport need # Same as in passenger_kilometres_data
-    inventory_only: true
-  input_nodes:
-  - id: passenger_kilometres
-    tags: [forecast_only]
 
 - id: electrification_year_of_transport
   name_en: Electrification year of passenger cars
@@ -1333,7 +1258,14 @@ actions:
   input_nodes:
   - id: fully_electric_truck_share_historical
   output_nodes:
-  - id: fully_electric_truck_share
+  - id: fully_electric_light_truck_share
+    from_dimensions:
+    - id: transport_mode
+      categories: [light_trucks]
+  - id: fully_electric_heavy_truck_share
+    from_dimensions:
+    - id: transport_mode
+      categories: [heavy_trucks]
 
   # ----------- BUILDINGS ---------------
 
@@ -1636,7 +1568,7 @@ actions:
     to_dimensions: []
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2018
+    forecast_from: 2025
   params:
     sector: Reduced CO2e emissions committed by Industry, Agriculture, etc. in Other
       sector

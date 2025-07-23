@@ -49,8 +49,7 @@ tzdata  # needed for pytz
 colormath
 wagtail-font-awesome-svg
 wagtail-generic-chooser
-https://github.com/torchbox-forks/wagtail-color-panel/archive/refs/tags/v1.6.1+tbx.zip
-#wagtail-color-panel
+wagtail-color-panel
 loguru
 gql[requests]
 logfmter

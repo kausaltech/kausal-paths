@@ -1,16 +1,23 @@
+from __future__ import annotations
+
 from typing import Callable
 
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from wagtail.admin.menu import MenuItem
 from wagtail.admin.panels import FieldPanel
-from wagtail.permission_policies.base import ModelPermissionPolicy
-from admin_site.viewsets import PathsViewSet, PathsEditView
 
+from kausal_common.models.permission_policy import ParentInheritedPolicy
+
+from admin_site.viewsets import PathsEditView, PathsViewSet
 from pages.models import InstanceSiteContent
 
 
-class SiteContentPermissionPolicy(ModelPermissionPolicy):
+class SiteContentPermissionPolicy(ParentInheritedPolicy):
+    def __init__(self):
+        from nodes.models import InstanceConfig
+        super().__init__(model=InstanceSiteContent, parent_model=InstanceConfig, parent_field='instance')
+
     def user_has_permission(self, user, action):
         # Disable creating of site content instances
         if action == 'add':
@@ -44,7 +51,7 @@ class InstanceSiteContentModelMenuItem(MenuItem):
 
     def is_shown(self, request):
         user = request.user
-        if user.is_superuser or user.can_access_admin():
+        if user.is_superuser:
             return True
         instance = request.admin_instance
         field = self.get_one_to_one_field(instance)
@@ -88,7 +95,7 @@ class InstanceSiteContentViewSet(PathsViewSet):
 
     @property
     def permission_policy(self):
-        return SiteContentPermissionPolicy(self.model)
+        return SiteContentPermissionPolicy()
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)

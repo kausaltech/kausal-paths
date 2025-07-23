@@ -4,7 +4,7 @@ supported_languages: [sv, en]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: d8b0605dbb2de0ff0bf7263360a0a187fc58903a
+  commit: ccbc7a4943c20b466412bdfdc170ffe0ae42826d
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -18,7 +18,7 @@ model_end_year: 2035
 target_year: 2030
 reference_year: 1990
 minimum_historical_year: 1990
-maximum_historical_year: 2023
+maximum_historical_year: 2024
 features:
   baseline_visible_in_graphs: true
   show_accumulated_effects: true
@@ -87,25 +87,37 @@ params:
 
 dimensions:
 
-- id: scenario
-  label_fi: Skenaario
-  label_en: Scenario
-  label_sv: Scenario
+- id: economic_sector
+  label_fi: Taloussektori
+  label_en: Economic sector
+  label_sv: Ekonomisk sektor
   categories:
-  - id: suomi2035
-    label_fi: Suomi 2035
-    label_en: Finland 2035
-    label_sv: Finland 2035
-    aliases: [baseline]
-  - id: hne2030
-    label_fi: Hiilineutraali Espoo 2030
-    label_en: Carbon-neutral Espoo 2030
-    label_sv: Kolneutralt Esbo 2030
-    aliases: [default]
-  - id: pessimistic
-    label_fi: Pessimistinen
-    label_en: Pessimistic
-    label_sv: Pessimistisk
+  - id: services
+    label_en: Services
+    label_fi: Palvelut
+    label_sv: Tjänster
+  - id: industry
+    label_en: Industry
+    label_fi: Teollisuus
+    label_sv: Industri
+  - id: residential
+    label_en: Residential
+    label_fi: Asuminen
+    label_sv: Bostäder
+  - id: agriculture
+    label_en: Agriculture
+    label_fi: Maatalous
+    label_sv: Jordbruk
+  - id: field_farming
+    label_fi: Peltoviljely
+    aliases: [Pellot]
+    label_en: Field farming
+    label_sv: Åkerbruk
+  - id: cattle_farming
+    label_fi: Kotieläintalous
+    aliases: [Kotieläimet]
+    label_en: Cattle farming
+    label_sv: Boskapsskötsel
 
 - id: energy_carrier
   label_fi: Energialaji
@@ -145,6 +157,34 @@ dimensions:
     label_fi: Muu
     label_en: Other
     label_sv: Annan
+  - id: gasoline
+    label_fi: Bensiini
+    label_en: Gasoline
+    label_sv: Bensin
+  - id: ffv_e85
+    label_fi: FFV (E85 korkeasaosetanoli)
+    label_en: FFV (E85 high ethanol)
+    label_sv: FFV (E85 högetanol)
+  - id: diesel
+    label_fi: Diesel
+    label_en: Diesel
+    label_sv: Diesel
+  - id: biogas
+    label_fi: Biokaasu
+    label_en: Biogas
+    label_sv: Biogas
+  - id: phev_gasoline
+    label_fi: Bensiini + pistoke (PHEV(BE))
+    label_en: Gasoline + plug-in (PHEV)
+    label_sv: Bensin + plugin (PHEV)
+  - id: phev_diesel
+    label_fi: Diesel + pistoke (PHEV(DI))
+    label_en: Diesel + plug-in (PHEV)
+    label_sv: Diesel + plugin (PHEV)
+  - id: hydrogen
+    label_fi: Vety
+    label_en: Hydrogen
+    label_sv: Väte
 
 - id: owner
   label_fi: Omistaja
@@ -176,37 +216,25 @@ dimensions:
     label_en: Microsoft data center
     label_sv: Microsofts datacenter
 
-- id: economic_sector
-  label_fi: Taloussektori
-  label_en: Economic sector
-  label_sv: Ekonomisk sektor
+- id: scenario
+  label_fi: Skenaario
+  label_en: Scenario
+  label_sv: Scenario
   categories:
-  - id: services
-    label_en: Services
-    label_fi: Palvelut
-    label_sv: Tjänster
-  - id: industry
-    label_en: Industry
-    label_fi: Teollisuus
-    label_sv: Industri
-  - id: residential
-    label_en: Residential
-    label_fi: Asuminen
-    label_sv: Bostäder
-  - id: agriculture
-    label_en: Agriculture
-    label_fi: Maatalous
-    label_sv: Jordbruk
-  - id: field_farming
-    label_fi: Peltoviljely
-    aliases: [Pellot]
-    label_en: Field farming
-    label_sv: Åkerbruk
-  - id: cattle_farming
-    label_fi: Kotieläintalous
-    aliases: [Kotieläimet]
-    label_en: Cattle farming
-    label_sv: Boskapsskötsel
+  - id: suomi2035
+    label_fi: Suomi 2035
+    label_en: Finland 2035
+    label_sv: Finland 2035
+    aliases: [baseline]
+  - id: hne2030
+    label_fi: Hiilineutraali Espoo 2030
+    label_en: Carbon-neutral Espoo 2030
+    label_sv: Kolneutralt Esbo 2030
+    aliases: [default]
+  - id: pessimistic
+    label_fi: Pessimistinen
+    label_en: Pessimistic
+    label_sv: Pessimistisk
 
 - id: waste_treatment
   label_fi: Jätteenkäsittely
@@ -436,7 +464,7 @@ nodes:
   - id: espoo/electricity
     tags: [baseline]
     column: ei_lammityssahkon_kulutus_henkea_kohti
-    forecast_from: 2024
+    forecast_from: 2025
 
 - id: non_heating_electricity_energy
   name_en: Non-heating electricity
@@ -522,15 +550,15 @@ nodes:
   unit: GWh/a
   input_dimensions: [economic_sector, energy_carrier]
   output_dimensions: [economic_sector, energy_carrier]
-  output_nodes:
-  - id: non_heating_electricity_energy
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: economic_sector
-    - id: energy_carrier
-      categories: [electricity]
+  # output_nodes:
+  # - id: non_heating_electricity_energy
+  #   from_dimensions:
+  #   - id: energy_carrier
+  #     flatten: true
+  #   to_dimensions:
+  #   - id: economic_sector
+  #   - id: energy_carrier
+  #     categories: [electricity]
 
 # Transport
 
@@ -594,9 +622,104 @@ nodes:
   output_dimensions: [vehicle_type, economic_sector]
   input_datasets:
   - id: espoo/transport
-    forecast_from: 2024
+    forecast_from: 2025
     column: tieliikenteen_suorite_ennuste
     tags: [baseline]
+
+## New road transport model
+
+- id: passenger_car_amounts_in_finland
+  name_fi: Henkilöautojen määrä Suomessa
+  type: generic.GenericNode
+  quantity: number
+  unit: pcs
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  input_datasets:
+  - id: espoo/autokanta
+    forecast_from: 2025
+    column: liikennekaytossa_olevien_autojen_lukumaara
+    tags: [baseline]
+
+- id: nominal_value
+  name_fi: Tekninen arvo laskentaa varten
+  type: simple.AdditiveNode
+  quantity: number
+  unit: dimensionless
+  historical_values: [[1990, 1], [2024, 1]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: passenger_car_shares
+  name_fi: Henkilöautojen osuudet
+  type: generic.GenericNode
+  quantity: number
+  unit: '%'
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  input_nodes:
+  - id: passenger_car_amounts_in_finland
+    tags: [use_as_shares]
+  - id: nominal_value
+    tags: [skip_dim_test]
+  params:
+    operations: skip_dim_test,use_as_shares,add
+
+- id: total_passenger_car_kilometers
+  name_fi: Henkilöautojen kokonaiskilometrit
+  type: generic.GenericNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: espoo/autokanta
+    forecast_from: 2025
+    column: ajoneuvosuorite
+    tags: [baseline]
+
+- id: passenger_car_kilometers
+  name_fi: Henkilöautojen ajokilometrit
+  type: generic.GenericNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  input_nodes:
+  - id: total_passenger_car_kilometers
+    tags: [non_additive]
+    to_dimensions:
+    - id: vehicle_type
+  - id: passenger_car_shares
+
+- id: passenger_car_emission_factors
+  name_fi: Henkilöautojen päästökertoimet
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  input_datasets:
+  - id: espoo/autokanta
+    forecast_from: 2025
+    column: ajoneuvojen_paastokertoimet
+    tags: [baseline]
+
+- id: passenger_car_emissions
+  name_fi: Henkilöautojen päästöt
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  input_nodes:
+  - id: passenger_car_kilometers
+  - id: passenger_car_emission_factors
+  output_nodes:
+  - id: road_traffic_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+
 
 # -------------- Nodes needed for implementing actions ----------------
 
@@ -623,7 +746,7 @@ nodes:
   - id: espoo/building
     tags: [baseline]
     column: kaukolammon_paastokerrointavoite
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: scenario
       ref: scenario_name
@@ -631,8 +754,8 @@ nodes:
 # Electricity
 
 - id: non_heating_electricity_energy_historical
-  name_fi: Kulutussähkön sähkönkulutus (Asuminen), historiallinen
-  name_en: Consumption electricity consumption (Residential), historical
+  name_fi: Kulutussähkön sähkönkulutus, historiallinen
+  name_en: Consumption electricity consumption, historical
   name_sv: Elförbrukning för konsumtionsel (Bostäder), historisk
   type: generic.DimensionalSectorEnergy
   quantity: energy
@@ -741,7 +864,7 @@ nodes:
   output_dimensions: [vehicle_type, economic_sector]
   input_datasets:
   - id: espoo/transport
-    forecast_from: 2024
+    forecast_from: 2025
     tags: [baseline]
     column: tieliikenteen_paastokertoimen_ennuste
 
@@ -759,7 +882,7 @@ nodes:
     sector: Liikenne|Tieliikenne|_vehicle_type_|_economic_sector_
 
 - id: road_traffic_emission_factors  # TODO Update the deviation of other buses from other scenarios
-  name_fi: Tieliikenteen päästökertoimet
+  name_fi: Tieliikenteen päästökertoimet pl henkilöautot
   name_en: Road traffic emission factors
   name_sv: Vägtrafikens utsläppskoefficienter
   type: generic.GenericNode
@@ -770,6 +893,10 @@ nodes:
   input_nodes:
   - id: road_traffic_emission_factors_historical
     tags: [non_additive]
+    from_dimensions:
+    - id: vehicle_type
+      categories: [cars]
+      exclude: true
   # - id: road_traffic_emission_factor_forecast # TODO Solve double counting with biofuel fraction
   #   tags: [forecast_only, non_additive]
   #   to_dimensions:
@@ -797,14 +924,102 @@ nodes:
   name_en: Waste treatment_emissions data, historical
   name_sv: Utsläppdata om avfallsbehandlingen, historisk
   description_fi: Data on saatu Juha Viholaiselta maaliskuussa 2024.
-  type: generic.DimensionalSectorEmissions
+  type: generic.GenericNode
+  quantity: emissions
   unit: kt/a
   input_dimensions: [waste_treatment]
   output_dimensions: [waste_treatment]
+  input_datasets:
+  - id: espoo/jatteenkasittelyn_paastot_ja_ennuste
+    forecast_from: 2025
+    tags: [baseline]
+    column: jatteenkasittelyn_paastot
+
+- id: waste_treatment_emissions
+  name_fi: Jätteenkäsittelyn päästöt
+  name_en: Waste treatment_emissions
+  name_sv: Utsläppdata om avfallsbehandlingen
+  description_fi: Data on saatu Juha Viholaiselta maaliskuussa 2024.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [waste_treatment, economic_sector]
+  output_dimensions: [waste_treatment, economic_sector]
+  input_datasets:
+  - id: espoo/jatteenkasittelyn_paastot_ja_ennuste
+    forecast_from: 2025
+    tags: [baseline]
+    column: jatteenkasittelyn_paastot
+  input_nodes:
+  - id: waste_treatment_emission_shares
+    tags: [use_as_shares]
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
+    - id: waste_treatment
+      flatten: true
+  params:
+    operations: add,use_as_shares
+
+# MODIFIED HSY NODES
+
+- id: waste_treatment_emission_shares
+  name_fi: Jätteiden käsittelyn päästöjakauma
+  name_en: Waste treatment emissions
+  name_sv: Utsläpp från avfallsbehandling
+  description_fi: HSY:n päästötilastoa käytetään eri kategorioiden osuuksien laskemiseen.
+    Varsinen päästöjen suuruus saadaan Espoon kaupungin tietoaineistosta ja ennusteesta.
+  type: generic.DimensionalSectorEmissions
+  unit: kt/a
+  input_dimensions: [waste_treatment, economic_sector]
+  output_dimensions: [waste_treatment, economic_sector]
   input_nodes: [all_hsy_emissions]
   params:
-    sector: Jätteiden käsittely|*|_waste_treatment_|*
+    sector: Jätteiden käsittely|*|_waste_treatment_|_economic_sector_
+    operations: process_sector
 
+- id: use_certified_electricity
+  name_fi: Tunnistetut suuret toimijat käyttävät sertifioitua puhdasta sähköä Espoossa
+  name_en: Identified large actors use certified clean electricity in Espoo
+  name_sv: Identifierade stora aktörer använder certifierad ren el i Esbo
+  description_fi: Suuret toimijat Espoossa käyttävät toiminnassaan sertifioitua puhdasta
+    sähköä. Laskennassa huomioidut toimijat ovat Espoon kaupunki, Espoon Asunnot Oy
+    sekä Microsoftin Hepokorvenkallion datakeskus. Suurten toimijoiden puhtaan sähkön
+    käytön vaikutus on huomioitu myös "jäännöskertoimessa" sähkön päästökertoimessa,
+    jolla on laskettu muu sähkönkulutuksen päästöarvio.
+  description_en: Large actors in Espoo use certified clean electricity in their operations.
+    The actors considered in the calculation are the City of Espoo, Espoon Asunnot
+    Oy, and Microsoft's Hepokorvenkallio data center. The impact of the use of clean
+    electricity by large actors is also considered in the "residual factor" in the
+    emission factor of electricity, which has been used to calculate the emission
+    estimate for other electricity consumption.
+  description_sv: Stora aktörer i Esbo använder certifierad ren elektricitet i sin
+    verksamhet. De aktörer som beaktas i beräkningen är Esbo stad, Espoon Asunnot
+    Oy och Microsofts datacenter i Hepokorvenkallio. Effekten av stora aktörers användning
+    av ren el beaktas också i "restfaktorn" i elens utsläppskoefficient, som har använts
+    för att beräkna utsläppsuppskattningen för annan elanvändning.
+  type: generic.GenericNode
+  quantity: energy
+  unit: GWh/a
+  group: electricity
+  input_dimensions: [energy_carrier] # TODO
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: espoo/electricity
+    column: suurten_toimijoiden_sahkonkulutus
+    tags: [baseline]
+    filters:
+    - dimension: owner
+      flatten: true
+  output_nodes:
+  - id: green_electricity_consumption
+  - id: non_heating_electricity_energy
+    to_dimensions:
+    - id: energy_carrier
+    - id: economic_sector
+      categories: [residential]
 pages:
 - id: home  # The page is not shown
   name_fi: Hiilineutraali Espoo -päästöskenaario
@@ -881,42 +1096,6 @@ actions:
 # New actions decided on 2024-02-01.
 # Electriciy
 
-- id: use_certified_electricity
-  name_fi: Tunnistetut suuret toimijat käyttävät sertifioitua puhdasta sähköä Espoossa
-  name_en: Identified large actors use certified clean electricity in Espoo
-  name_sv: Identifierade stora aktörer använder certifierad ren el i Esbo
-  description_fi: Suuret toimijat Espoossa käyttävät toiminnassaan sertifioitua puhdasta
-    sähköä. Laskennassa huomioidut toimijat ovat Espoon kaupunki, Espoon Asunnot Oy
-    sekä Microsoftin Hepokorvenkallion datakeskus. Suurten toimijoiden puhtaan sähkön
-    käytön vaikutus on huomioitu myös "jäännöskertoimessa" sähkön päästökertoimessa,
-    jolla on laskettu muu sähkönkulutuksen päästöarvio.
-  description_en: Large actors in Espoo use certified clean electricity in their operations.
-    The actors considered in the calculation are the City of Espoo, Espoon Asunnot
-    Oy, and Microsoft's Hepokorvenkallio data center. The impact of the use of clean
-    electricity by large actors is also considered in the "residual factor" in the
-    emission factor of electricity, which has been used to calculate the emission
-    estimate for other electricity consumption.
-  description_sv: Stora aktörer i Esbo använder certifierad ren elektricitet i sin
-    verksamhet. De aktörer som beaktas i beräkningen är Esbo stad, Espoon Asunnot
-    Oy och Microsofts datacenter i Hepokorvenkallio. Effekten av stora aktörers användning
-    av ren el beaktas också i "restfaktorn" i elens utsläppskoefficient, som har använts
-    för att beräkna utsläppsuppskattningen för annan elanvändning.
-  type: simple.GenericAction
-  quantity: energy
-  unit: GWh/a
-  group: electricity
-  input_dimensions: [energy_carrier, owner]
-  output_dimensions: [energy_carrier, owner]
-  input_datasets:
-  - id: espoo/electricity
-    tags: [baseline]
-    column: suurten_toimijoiden_sahkonkulutus
-  output_nodes:
-  - id: green_electricity_consumption
-    from_dimensions:
-    - id: owner
-      flatten: true
-
 - id: increase_solar_electricity_production
   name_fi: Aurinkosähkön tuotannon lisääminen
   name_en: Increasing solar electricity production
@@ -949,27 +1128,27 @@ actions:
 
 # Transport
 
+- id: active_car_shift
+  name_fi: Espoon nopeampi autokannan uudistuminen
+  description: Toimi perustuu arvioon pääkaupunkiseudun nopeammasta autokannan uusiutumisesta
+    verrattuna koko maahan.
+  type: simple.GenericAction
+  quantity: ratio
+  unit: '%'
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  input_datasets:
+  - id: espoo/liikenteen_toimenpiteet
+    column: helsingin_seudun_autokantamuutoksen_ero
+    tags: [baseline]
+    forecast_from: 2025
+  output_nodes:
+  - id: passenger_car_shares
+
 - id: biofuel_fraction_demand
-  name_fi: Jakeluvelvoitteen muutos
-  name_en: Change in distribution obligation
-  name_sv: Ändring i distributionsskyldighet
-  description_fi: Jakeluvelvoitteen muutoksen arvioidaan lisäävän tieliikenteen päästöjä.
-    Jakeluvelvoite on kansallinen toimi, joka ei ole Espoon päätettävissä. Nykyinen
-    jakeluvelvoitteen muutos lisää Espoon alueen päästöjä. Vuodesta 2028 alkaen hallitusohjelmassa
-    ei ole määritetty polttoaineiden bio-osuutta ja laskennassa oletetaan, että bio-osuus
-    on vuodesta 2028 alkaen sama kuin vuonna 2027.
-  description_en: The change in the distribution obligation is estimated to increase
-    road traffic emissions. The distribution obligation is a national measure that
-    is not within Espoo's decision-making power. The current change in the distribution
-    obligation increases emissions in the Espoo area. From 2028 onwards, the government
-    program does not specify the bio-share of fuels, and the calculation assumes that
-    the bio-share will be the same as in 2027 from 2028 onwards.
-  description_sv: Ändringen i distributionsskyldigheten beräknas öka utsläppen från
-    vägtrafiken. Distributionsskyldigheten är en nationell åtgärd som inte ligger
-    inom Esbos beslutanderätt. Den nuvarande ändringen i distributionsskyldigheten
-    ökar utsläppen i Esboområdet. Från och med 2028 specificerar regeringsprogrammet
-    inte bränslets bioandel, och beräkningen antar att bioandelen kommer att vara
-    densamma som 2027 från och med 2028.
+  name_fi: Jakeluvelvoite
+  name_en: Distribution obligation
+  name_sv: Distributionsskyldighet
   type: simple.GenericAction
   quantity: fraction
   unit: '%'
@@ -977,7 +1156,7 @@ actions:
   group: transportation
   input_datasets:
   - id: espoo/transport
-    forecast_from: 2024
+    forecast_from: 2025
     tags: [baseline]
     column: jakeluvelvoite
     filters:
@@ -985,6 +1164,9 @@ actions:
       ref: scenario_name
   output_nodes:
   - id: road_traffic_emission_factors
+    tags: [non_additive, complement]
+    to_dimensions: []
+  - id: passenger_car_emission_factors # TODO Should not affect non-fuel cars types
     tags: [non_additive, complement]
     to_dimensions: []
 
@@ -1018,7 +1200,7 @@ actions:
 #   output_dimensions: [energy_carrier, vehicle_type]
 #   input_datasets:
 #   - id: espoo/transport
-#     forecast_from: 2024
+#     forecast_from: 2025
 #     tags: [baseline]
 #     column: sahkohenkiloautojen_kasvu
 #   output_nodes:
@@ -1101,28 +1283,28 @@ actions:
   output_nodes:
   - id: electricity_production_emission_factor
 
-- id: cleaner_heating_electricity_production
-  name_fi: Kansallinen lämmityssähkön sähköntuotanto puhdistuu
-  name_en: National electric heating electricity production becomes cleaner
-  name_sv: Nationell eluppvärmning elproduktion blir renare
-  type: linear.DatasetReduceAction
-  decision_level: nation
-  quantity: emission_factor
-  unit: t/GWh
-  group: electricity
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  input_nodes:
-  - id: electric_heating_emission_factor_historic
-    tags: [historical]
-    to_dimensions:
-    - id: energy_carrier
-  - id: electricity_production_emission_factor_goal # FIXME Shouldn't this be specific for heating?
-    tags: [goal]
-    to_dimensions:
-    - id: energy_carrier
-  output_nodes:
-  - id: electric_heating_emission_factor
+# - id: cleaner_heating_electricity_production
+#   name_fi: Kansallinen lämmityssähkön sähköntuotanto puhdistuu
+#   name_en: National electric heating electricity production becomes cleaner
+#   name_sv: Nationell eluppvärmning elproduktion blir renare
+#   type: linear.DatasetReduceAction
+#   decision_level: nation
+#   quantity: emission_factor
+#   unit: t/GWh
+#   group: electricity
+#   input_dimensions: [energy_carrier]
+#   output_dimensions: [energy_carrier]
+#   input_nodes:
+#   - id: electric_heating_emission_factor_historic
+#     tags: [historical]
+#     to_dimensions:
+#     - id: energy_carrier
+#   - id: electricity_production_emission_factor_goal # FIXME Shouldn't this be specific for heating?
+#     tags: [goal]
+#     to_dimensions:
+#     - id: energy_carrier
+#   output_nodes:
+#   - id: electric_heating_emission_factor
 
 - id: change_non_heating_electricity
   name_fi: Muutos kulutussähkön käytössä
@@ -1497,8 +1679,6 @@ actions:
   - id: waste_treatment_emissions
     to_dimensions:
     - id: waste_treatment
-    - id: economic_sector
-      categories: [residential]
 
 - id: reduce_agriculture_emissions
   name_fi: Maatalouden päästöt pienenevät
@@ -1584,7 +1764,7 @@ actions:
   input_datasets:
   - id: gpc/espoo # FIXME Use genericnode Instead
     tags: [goal]
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: Scenario
       ref: scenario_name
@@ -1617,12 +1797,15 @@ actions:
   unit: '%'
   group: transportation
   input_datasets:
-  - id: espoo/transport
+  - id: espoo/liikenteen_toimenpiteet
     tags: [baseline]
     column: liikenteen_fossiilisten_polttoaineiden_korvaaminen
-    forecast_from: 2024
+    forecast_from: 2025
   output_nodes:
   - id: road_traffic_emission_factors
+    tags: [non_additive, complement]
+    to_dimensions: []
+  - id: passenger_car_emission_factors
     tags: [non_additive, complement]
     to_dimensions: []
 
@@ -1666,195 +1849,132 @@ actions:
   name_en: Binding emission limits for passenger cars and vans
   name_sv: Bindande utsläppsgränser för person- och skåpbilar
   description_fi: Henkilö- ja pakettiautojen sitovien päästörajojen arvioidaan vähentävän
-    tieliikenteen päästöjä 0.7 %. Kun tämä vaikutus kohdennetaan pelkästään pakettiautojen
-    päästökertoimeen, saadaan päästökertoimen vähenemäksi 229.8 g/kWh * 0.7 % * (1261
-    GWh/a / 114.6 GWh/a) = 17.70 g/kWh.
-  description_en: Binding emission limits for passenger cars and vans are estimated
-    to reduce road traffic emissions by 0.7%. By targeting this effect solely on the
-    emission factor of vans, the decrease in the emission factor is calculated as
-    229.8 g/kWh * 0.7% * (1261 GWh/a / 114.6 GWh/a) =17.70 g/kWh.
-  description_sv: Bindande utsläppsgränser för person- och skåpbilar beräknas minska
-    vägtrafikens utsläpp med 0,7 %. Genom att rikta denna effekt enbart mot emissionsfaktorn
-    för skåpbilar blir minskningen av emissionsfaktorn 229,8 g/kWh * 0,7 % * (1261
-    GWh/a / 114,6 GWh/a) = 17,70 g/kWh.
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: emission_factor
-  unit: g/kWh
+    tieliikenteen päästöjä 0.7 %.
+  type: simple.GenericAction
+  quantity: fraction
+  unit: '%'
   group: transportation
-  forecast_values: [[2024, 0.0], [2035, 0.0]]
   output_nodes:
-  - id: road_traffic_emission_factors
-    to_dimensions:
-    - id: vehicle_type
-      categories: [vans]
-    - id: economic_sector
-      categories: [services]
-  params:
-  - id: target_year_level
-    is_visible: true
-    value: -17.70
-    min_value: -20
-    max_value: -10
+  - id: road_transport_energy_forecast
+    tags: [complement]
+    to_dimensions: []
+  input_datasets:
+  - id: espoo/liikenteen_toimenpiteet
+    tags: [baseline]
+    column: etatyon_lisaaminen
+    forecast_from: 2025
 
 - id: improve_personal_traffic_efficiency
   name_fi: Liikennejärjestelmän tehostaminen
   name_en: Improving the efficiency of the transport system
   name_sv: Effektivisering av trafiksystemet
   description_fi: Liikennejärjestelmän tehostamisen arvioidaan vähentävän tieliikenteen
-    päästöjä 2.8 %. Tämä vastaa energiankulutusta 2.80 % * 1261 GWh/a = 35.31 GWh/a.
-    Tämä kohdennetaan henkilöautoihin.
-  description_en: Improving the efficiency of the transport system is estimated to
-    reduce road traffic emissions by 2.8%. This corresponds to an energy consumption
-    of 2.80% * 1261 GWh/a = 35.31 GWh/a. This is allocated to passenger cars.
-  description_sv: Effektivisering av trafiksystemet beräknas minska vägtrafikens utsläpp
-    med 2,8 %. Detta motsvarar en energiförbrukning på 2,80 % * 1261 GWh/a = 35,31
-    GWh/a. Detta allokeras till personbilar.
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: energy
-  unit: GWh/a
+    päästöjä 2.8 %.
+  type: simple.GenericAction
+  quantity: fraction
+  unit: '%'
   group: transportation
-  forecast_values: [[2024, 0.0], [2035, 0.0]]
   output_nodes:
   - id: road_transport_energy_forecast
-    to_dimensions:
-    - id: vehicle_type
-      categories: [cars]
-    - id: economic_sector
-      categories: [residential]
-  params:
-  - id: target_year_level
-    is_visible: false
-    value: -35.31
-    min_value: -36
-    max_value: -35
+    tags: [complement]
+    to_dimensions: []
+  input_datasets:
+  - id: espoo/liikenteen_toimenpiteet
+    tags: [baseline]
+    column: etatyon_lisaaminen
+    forecast_from: 2025
 
 - id: increase_remote_work
   name_fi: Etätyön lisääminen
   name_en: Increasing remote work
   name_sv: Ökat distansarbete
   description_fi: Etätyön lisäämisen arvioidaan vähentävän tieliikenteen päästöjä
-    0.9 %. Tämä vastaa energiankulutusta 0.9 % * 1261 GWh/a = 11.35 GWh/a. Tämä kohdennetaan
-    henkilöautoihin.
-  description_en: Increasing remote work is estimated to reduce road traffic emissions
-    by 0.9%. This corresponds to an energy consumption of 0.9% * 1261 GWh/a = 11.35
-    GWh/a. This is allocated to passenger cars.
-  description_sv: Ökad distansarbete beräknas minska vägtrafikens utsläpp med 0,9
-    %. Detta motsvarar en energiförbrukning på 0,9 % * 1261 GWh/a = 11,35 GWh/a. Detta
-    allokeras till personbilar.
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: energy
-  unit: GWh/a
+    0.9 %.
+  type: simple.GenericAction
+  quantity: fraction
+  unit: '%'
   group: transportation
-  forecast_values: [[2024, 0.0], [2035, 0.0]]
   output_nodes:
   - id: road_transport_energy_forecast
-    to_dimensions:
-    - id: vehicle_type
-      categories: [cars]
-    - id: economic_sector
-      categories: [residential]
-  params:
-  - id: target_year_level
-    is_visible: false
-    value: -11.35
-    min_value: -12
-    max_value: -11
+    tags: [complement]
+    to_dimensions: []
+  input_datasets:
+  - id: espoo/liikenteen_toimenpiteet
+    tags: [baseline]
+    column: etatyon_lisaaminen
+    forecast_from: 2025
 
-- id: improve_transport_services
-  name_fi: Liikenteen palveluiden edistäminen
-  name_en: Promoting transport services
-  name_sv: Främjande av trafiktjänster
-  description_fi: Liikenteen palveluiden edistämisen arvioidaan vähentävän tieliikenteen
-    päästöjä 0.9 %. Tämä vastaa energiankulutusta 0.9 % * 1261 GWh/a = 11.35 GWh/a.
-    Tämä kohdennetaan henkilöautoihin.
-  description_en: Promoting transport services is estimated to reduce road traffic
-    emissions by 0.9%. This corresponds to an energy consumption of 0.9% * 1261 GWh/a
-    = 11.35 GWh/a. This is allocated to passenger cars.
-  description_sv: Främjande av trafiktjänster beräknas minska vägtrafikens utsläpp
-    med 0,9 %. Detta motsvarar en energiförbrukning på 0,9 % * 1261 GWh/a = 11,35
-    GWh/a. Detta allokeras till personbilar.
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: energy
-  unit: GWh/a
-  group: transportation
-  forecast_values: [[2024, 0.0], [2035, 0.0]]
-  output_nodes:
-  - id: road_transport_energy_forecast
-    to_dimensions:
-    - id: vehicle_type
-      categories: [cars]
-    - id: economic_sector
-      categories: [residential]
-  params:
-  - id: target_year_level
-    is_visible: false
-    value: -11.35
-    min_value: -12
-    max_value: -11
+# - id: improve_transport_services
+#   name_fi: Liikenteen palveluiden edistäminen
+#   name_en: Promoting transport services
+#   name_sv: Främjande av trafiktjänster
+#   description_fi: Liikenteen palveluiden edistämisen arvioidaan vähentävän tieliikenteen
+#     päästöjä 0.9 %. Tämä vastaa energiankulutusta 0.9 % * 1261 GWh/a = 11.35 GWh/a.
+#     Tämä kohdennetaan henkilöautoihin.
+#   description_en: Promoting transport services is estimated to reduce road traffic
+#     emissions by 0.9%. This corresponds to an energy consumption of 0.9% * 1261 GWh/a
+#     = 11.35 GWh/a. This is allocated to passenger cars.
+#   description_sv: Främjande av trafiktjänster beräknas minska vägtrafikens utsläpp
+#     med 0,9 %. Detta motsvarar en energiförbrukning på 0,9 % * 1261 GWh/a = 11,35
+#     GWh/a. Detta allokeras till personbilar.
+#   type: simple.LinearCumulativeAdditiveAction
+#   quantity: energy
+#   unit: GWh/a
+#   group: transportation
+#   forecast_values: [[2025, 0.0], [2035, 0.0]]
+#   output_nodes:
+#   - id: road_transport_energy_forecast
+#     to_dimensions:
+#     - id: vehicle_type
+#       categories: [cars]
+#     - id: economic_sector
+#       categories: [residential]
+#   params:
+#   - id: target_year_level
+#     is_visible: false
+#     value: -11.35
+#     min_value: -12
+#     max_value: -11
 
 - id: trip_aggregation
   name_fi: Yhdistetyt kuljetukset
   name_en: Combined transport
   name_sv: Kombinerade transporter
   description_fi: Kuljetusten yhdistämisen arvioidaan vähentävän tieliikenteen päästöjä
-    0.2 %. Tämä vastaa energiankulutusta 0.2 % * 1261 GWh/a = 2.522 GWh/a. Tämä kohdennetaan
-    henkilöautoihin.
-  description_en: Combining transport is estimated to reduce road traffic emissions
-    by 0.2%. This corresponds to an energy consumption of 0.2% * 1261 GWh/a = 2.522
-    GWh/a. This is allocated to passenger cars.
-  description_sv: Kombinerade transporter beräknas minska vägtrafikens utsläpp med
-    0,2 %. Detta motsvarar en energiförbrukning på 0,2 % * 1261 GWh/a = 2,522 GWh/a.
-    Detta allokeras till personbilar.
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: energy
-  unit: GWh/a
+    0.2 %.
+  type: simple.GenericAction
+  quantity: fraction
+  unit: '%'
   group: transportation
-  forecast_values: [[2024, 0.0], [2035, 0.0]]
   output_nodes:
   - id: road_transport_energy_forecast
-    to_dimensions:
-    - id: vehicle_type
-      categories: [cars]
-    - id: economic_sector
-      categories: [residential]
-  params:
-  - id: target_year_level
-    is_visible: false
-    value: -2.522
-    min_value: -3
-    max_value: -2
+    tags: [complement]
+    to_dimensions: []
+  input_datasets:
+  - id: espoo/liikenteen_toimenpiteet
+    tags: [baseline]
+    column: yhdistetyt_kuljetukset
+    forecast_from: 2025
 
 - id: road_transportation_emission_trade
   name_fi: Tieliikenteen päästökauppa
   name_en: Road traffic emissions trading
   name_sv: Utsläppshandel för vägtrafik
   description_fi: Tieliikenteen päästökaupan arvioidaan vähentävän tieliikenteen päästöjä
-    4.5 %. Tämä vastaa energiankulutusta 4.5 % * 1261 GWh/a = 56.75 GWh/a. Tämä kohdennetaan
-    henkilöautoihin.
-  description_en: Road traffic emissions trading is estimated to reduce road traffic
-    emissions by 4.5%. This corresponds to an energy consumption of 4.5% * 1261 GWh/a
-    = 56.75 GWh/a. This is allocated to passenger cars.
-  description_sv: Utsläppshandel för vägtrafik beräknas minska vägtrafikens utsläpp
-    med 4,5 %. Detta motsvarar en energiförbrukning på 4,5 % * 1261 GWh/a = 56,75
-    GWh/a. Detta allokeras till personbilar.
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: energy
-  unit: GWh/a
+    4.5 %.
+  type: simple.GenericAction
+  quantity: fraction
+  unit: '%'
   group: transportation
-  forecast_values: [[2024, 0.0], [2035, 0.0]]
   output_nodes:
   - id: road_transport_energy_forecast
-    to_dimensions:
-    - id: vehicle_type
-      categories: [cars]
-    - id: economic_sector
-      categories: [residential]
-  params:
-  - id: target_year_level
-    is_visible: false
-    value: -56.75
-    min_value: -57
-    max_value: -56
+    to_dimensions: []
+    tags: [complement]
+  input_datasets:
+  - id: espoo/liikenteen_toimenpiteet
+    tags: [baseline]
+    column: tieliikenteen_paastokauppa
+    forecast_from: 2025
 
 scenarios:
 
@@ -1862,6 +1982,7 @@ scenarios:
   name_fi: Suomi 2035
   name_en: Finland 2035
   name_sv: Finland 2035
+  is_selectable: false
   params:
   - id: scenario_name
     value: suomi2035
@@ -1878,8 +1999,8 @@ scenarios:
     value: true
   - id: increase_remote_work.enabled
     value: false
-  - id: improve_transport_services.enabled
-    value: false
+  # - id: improve_transport_services.enabled
+  #   value: false
   - id: trip_aggregation.enabled
     value: false
   - id: road_transportation_emission_trade.enabled
@@ -1914,8 +2035,8 @@ scenarios:
     value: true
   - id: increase_remote_work.enabled
     value: true
-  - id: improve_transport_services.enabled
-    value: true
+  # - id: improve_transport_services.enabled
+  #   value: true
   - id: trip_aggregation.enabled
     value: true
   - id: road_transportation_emission_trade.enabled
@@ -1960,8 +2081,8 @@ scenarios:
     value: true
   - id: increase_remote_work.enabled
     value: true
-  - id: improve_transport_services.enabled
-    value: true
+  # - id: improve_transport_services.enabled
+  #   value: true
   - id: trip_aggregation.enabled
     value: true
   - id: road_transportation_emission_trade.enabled
@@ -1972,8 +2093,8 @@ scenarios:
     value: true
   - id: cleaner_electricity_production.enabled
     value: true
-  - id: use_certified_electricity.enabled
-    value: false
+  # - id: use_certified_electricity.enabled
+  #   value: false
   - id: increase_solar_electricity_production.enabled
     value: false
   - id: biofuel_fraction_demand.enabled

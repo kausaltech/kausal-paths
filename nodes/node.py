@@ -841,7 +841,11 @@ class Node:
 
         return df
 
-    def _get_output_for_target(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912, PLR0915
+    def _get_output_for_target(  # noqa: C901, PLR0912, PLR0915
+            self, df: ppl.PathsDataFrame,
+            target_node: Node,
+            skip_dim_test: bool = False
+        ) -> ppl.PathsDataFrame:
         for edge in self.edges:
             if edge.output_node == target_node:
                 break
@@ -918,7 +922,7 @@ class Node:
             if df[dim_col].null_count() == df[dim_col].len():
                 df = df.drop(dim_col)
         meta = df.get_meta()
-        if set(meta.dim_ids) != output_dimensions:
+        if set(meta.dim_ids) != output_dimensions and not skip_dim_test:
             print(df)
             out_dims = ', '.join(meta.dim_ids)
             target_in_dims = ', '.join(output_dimensions)
@@ -1033,7 +1037,11 @@ class Node:
         return df
 
     def get_output_pl(  # noqa: C901, PLR0912
-        self, target_node: Node | None = None, metric: str | None = None, extra_span_desc: str | None = None,
+        self,
+        target_node: Node | None = None,
+        metric: str | None = None,
+        extra_span_desc: str | None = None,
+        skip_dim_test: bool = False
     ) -> ppl.PathsDataFrame:
         perf_cm = self.context.perf_context
         span_ctx: AbstractContextManager[None | Span]
@@ -1049,7 +1057,7 @@ class Node:
             )
         with span_ctx as span, perf_cm.exec_node(self) as node_run:
             try:
-                df, cache_res = self._get_output_pl(target_node=target_node, metric=metric)
+                df, cache_res = self._get_output_pl(target_node=target_node, metric=metric, skip_dim_test=skip_dim_test)
             except Exception as e:
                 if isinstance(e, NodeComputationError):
                     e.add_node(self)
@@ -1076,6 +1084,7 @@ class Node:
         self,
         target_node: Node | None = None,
         metric: str | None = None,
+        skip_dim_test: bool = False,
     ) -> tuple[ppl.PathsDataFrame, CacheResult[ppl.PathsDataFrame] | None]:
         use_cache = not (self.disable_cache or self.context.skip_cache)
         cache_res = None
@@ -1121,7 +1130,7 @@ class Node:
             return (df, cache_res)  # FIXME I'd like to comment this out because if metric, to_dimensions is ignored.
 
         if target_node is not None:
-            df = self._get_output_for_target(df, target_node)
+            df = self._get_output_for_target(df, target_node, skip_dim_test=skip_dim_test)
 
         return (df, cache_res)
 

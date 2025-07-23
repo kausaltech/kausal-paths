@@ -26,7 +26,12 @@ from paths.context import realm_context
 from nodes.roles import instance_admin_role, instance_viewer_role
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from django.contrib.auth.models import AnonymousUser
+
     from kausal_common.models.permissions import PermissionedModel
+    from kausal_common.models.roles import InstanceSpecificRole
 
     from nodes.models import InstanceConfig
     from users.models import User
@@ -35,7 +40,7 @@ _M = TypeVar('_M', bound='PermissionedModel')
 _QS = TypeVar('_QS', bound=QuerySet, default=QuerySet[_M])
 
 
-class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, _QS]):
+class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, 'InstanceConfig', _QS]):
     """Permission policy for models that have one or many InstanceConfig objects as scope."""
 
     def __init__(self, model: type[_M]):
@@ -83,6 +88,17 @@ class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, _QS]):
     def construct_perm_q_anon(self, action: BaseObjectAction) -> Q | None:
         return None
 
+    def user_has_any_role_in_active_instance(self, user: User, roles: Sequence[InstanceSpecificRole[InstanceConfig]]) -> bool:
+        if user.is_superuser:
+            return True
+
+        active_instance = realm_context.get().realm
+
+        if active_instance is None:
+            return False
+
+        return any(user.has_instance_role(role, active_instance) for role in roles)
+
 
 class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[DatasetSchema]):
     """Permission policy for DatasetSchema, based on its scope (InstanceConfig)."""
@@ -118,6 +134,19 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
             return admin_q | viewer_q
 
         return admin_q
+
+    def user_has_permission(self, user: User | AnonymousUser, action: str) -> bool:
+        if not self.user_is_authenticated(user):
+            return False
+
+        allowed_roles: list[InstanceSpecificRole[InstanceConfig]] = [self.instance_admin_role]
+        if action == 'view':
+            allowed_roles.append(self.instance_viewer_role)
+
+        return self.user_has_any_role_in_active_instance(user, allowed_roles)
+
+    def user_has_any_permission(self, user: User | AnonymousUser, actions: Sequence[str]) -> bool:
+        return any(self.user_has_permission(user, action) for action in actions)
 
 
 class DatasetPermissionPolicy(ParentInheritedPolicy[Dataset, DatasetSchema, DatasetQuerySet]):

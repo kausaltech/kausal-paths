@@ -9,7 +9,7 @@ from django.utils.translation import gettext_lazy as _
 from wagtail import hooks
 from wagtail.admin.menu import Menu, MenuItem, SubmenuMenuItem
 
-from nodes.models import InstanceConfig
+from wagtail_localize.wagtail_hooks import TranslationsReportMenuItem
 
 if TYPE_CHECKING:
     from paths.types import PathsAdminRequest
@@ -53,7 +53,7 @@ class InstanceItem(MenuItem):
 class InstanceChooserMenu(Menu):
     def menu_items_for_request(self, request: PathsAdminRequest):
         user = request.user
-        instances = InstanceConfig.permission_policy().instances_user_has_any_permission_for(user, ['change'])
+        instances = user.get_adminable_instances()
         if len(instances) < 2:
             return []
         items = []
@@ -82,3 +82,13 @@ hooks.register('register_admin_menu_item', register_instance_chooser)
 @hooks.register('construct_main_menu')
 def hide_snippets_menu_item(request, menu_items):
     menu_items[:] = [item for item in menu_items if item.name != 'snippets']
+
+
+@hooks.register('construct_reports_menu')
+def patch_translations_report_menu_item(request: PathsAdminRequest, menu_items: list):
+    # We don't want to show the Reports menu to people without rights to it.
+    # TranslationsReportMenuItem is always shown by default.
+    # Hide from non-superusers until we know who needs this menu item
+    if getattr(request.user, 'is_superuser', False):
+        return
+    menu_items[:] = [menu_item for menu_item in menu_items if not isinstance(menu_item, TranslationsReportMenuItem)]

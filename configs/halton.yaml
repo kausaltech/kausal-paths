@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://halton.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: b4b1435070b23b8a206e2a0deeb18c1260be8af8
+  commit: ec87b6b9a8cf95c8cf41313faca779a88eb9e230
   dvc_remote: kausal-s3
 name: Halton Region Greenhouse Gas Inventory
 owner: Halton Region
@@ -13,9 +13,9 @@ target_year: 2024
 model_end_year: 2024
 minimum_historical_year: 2023
 maximum_historical_year: 2023
-emission_unit: kt_co2e/a
+emission_unit: t_co2e/a
 emission_forecast_from: 2024
-emission_dimensions: [department]
+emission_dimensions: [department, scope]
 features:
   baseline_visible_in_graphs: false
   use_datasets_from_db: true
@@ -55,6 +55,13 @@ dimensions:
     label: Fugitive CH4 from Effluent Discharge
   - id: chemical_production
     label: Chemical Production
+
+  - id: landfill_gas
+    label: Landfill Gas
+    color: '#9D7660'
+  - id: flare_combustion
+    label: Flare Combustion
+    color: '#D7B5A6'
 
 - id: department
   label: Department
@@ -340,6 +347,8 @@ dimensions:
     label: Solid Waste Management Landfill Site Pump
   - id: solid_waste_management_367_n_service_rd
     label: Solid Waste Management 367 N Service Rd
+  - id: halton_waste_management_site
+    label: Halton Waste Management Site
 
   # ----- Storage
   - id: wastewater_storage_tank
@@ -1001,6 +1010,16 @@ dimensions:
   - id: 3350_fairview_st_unit_9
     label: 3350 Fairview St Unit 9
 
+- id: scope
+  label: Scope
+  categories:
+  - id: scope1
+    label: Scope 1
+  - id: scope2
+    label: Scope 2
+  - id: scope3
+    label: Scope 3
+
 emission_sectors:
 - id: net_emissions
   name: Net Emissions
@@ -1059,6 +1078,7 @@ nodes:
     dropna: true
     forecast_from: 2024
     filters:
+    - column: scope
     - column: department
     - column: asset_class
     - column: asset
@@ -1070,9 +1090,9 @@ nodes:
   color: '#B07AA1'
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: cs_stationary_combustion_emissions
   - id: hchc_stationary_combustion_emissions
@@ -1093,8 +1113,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: fuel_consumption
   unit: m³/a
-  input_dimensions: [asset_class, asset, energy_carrier, department]
-  output_dimensions: [asset_class, asset, energy_carrier, department]
+  input_dimensions: [asset_class, asset, energy_carrier, department, scope]
+  output_dimensions: [asset_class, asset, energy_carrier, department, scope]
   input_datasets:
   - id: halton/stationary_combustion
     column: fuel_consumption
@@ -1109,9 +1129,9 @@ nodes:
   short_name: Childcare Centre Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1127,9 +1147,9 @@ nodes:
   short_name: Corporate Office Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1145,9 +1165,9 @@ nodes:
   short_name: LTC Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1163,9 +1183,9 @@ nodes:
   short_name: Operations Centre Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1181,9 +1201,9 @@ nodes:
   short_name: Other Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1199,9 +1219,9 @@ nodes:
   short_name: Corporate Services Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: childcare_centre_stationary_combustion_emissions
   - id: corporate_office_stationary_combustion_emissions
@@ -1215,8 +1235,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: fuel_consumption
   unit: L/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_datasets:
   - id: halton/other_stationary_combustion
     column: fuel_consumption
@@ -1232,9 +1252,9 @@ nodes:
   short_name: Propane Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: other_fuel_emission_factors
     to_dimensions:
@@ -1248,8 +1268,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: fuel_consumption
   unit: m³/a
-  input_dimensions: [asset_class, asset, energy_carrier, department]
-  output_dimensions: [asset_class, asset, energy_carrier, department]
+  input_dimensions: [asset_class, asset, energy_carrier, department, scope]
+  output_dimensions: [asset_class, asset, energy_carrier, department, scope]
   input_datasets:
   - id: halton/stationary_combustion
     column: fuel_consumption
@@ -1264,9 +1284,9 @@ nodes:
   short_name: WWTP Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1282,9 +1302,9 @@ nodes:
   short_name: WTP Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1300,9 +1320,9 @@ nodes:
   short_name: Pumping Station Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1318,9 +1338,9 @@ nodes:
   short_name: Reservoir Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1336,9 +1356,9 @@ nodes:
   short_name: Equipment Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1354,9 +1374,9 @@ nodes:
   short_name: Other Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1372,9 +1392,9 @@ nodes:
   short_name: Public Works Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: wwtp_stationary_combustion_emissions
   - id: wtp_stationary_combustion_emissions
@@ -1389,9 +1409,9 @@ nodes:
   short_name: Biogas Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_datasets:
   - id: halton/other_stationary_combustion
     column: emissions
@@ -1409,8 +1429,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: fuel_consumption
   unit: m³/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_datasets:
   - id: halton/stationary_combustion
     column: fuel_consumption
@@ -1426,9 +1446,9 @@ nodes:
   short_name: EMS Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1442,8 +1462,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: fuel_consumption
   unit: m³/a
-  input_dimensions: [property, asset, energy_carrier, department]
-  output_dimensions: [property, asset, energy_carrier, department]
+  input_dimensions: [property, asset, energy_carrier, department, scope]
+  output_dimensions: [property, asset, energy_carrier, department, scope]
   input_datasets:
   - id: halton/stationary_combustion
     column: fuel_consumption
@@ -1458,9 +1478,9 @@ nodes:
   short_name: Brant Court Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1476,9 +1496,9 @@ nodes:
   short_name: Maurice Drive Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1494,9 +1514,9 @@ nodes:
   short_name: Other Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1512,9 +1532,9 @@ nodes:
   short_name: Walkers Landing Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1530,9 +1550,9 @@ nodes:
   short_name: Woodside Drive Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -1548,9 +1568,9 @@ nodes:
   short_name: HCHC Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: brant_court_stationary_combustion_emissions
   - id: maurice_drive_stationary_combustion_emissions
@@ -1565,8 +1585,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: fuel_consumption
   unit: L/a
-  input_dimensions: [energy_carrier, department, vehicle_fleet]
-  output_dimensions: [energy_carrier, department, vehicle_fleet]
+  input_dimensions: [energy_carrier, department, vehicle_fleet, scope]
+  output_dimensions: [energy_carrier, department, vehicle_fleet, scope]
   input_datasets:
   - id: halton/mobile_combustion
     column: fuel_consumption
@@ -1580,9 +1600,9 @@ nodes:
   name: EMS Fleet Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [energy_carrier, vehicle_fleet, department]
-  output_dimensions: [energy_carrier, vehicle_fleet, department]
+  unit: t_co2e/a
+  input_dimensions: [energy_carrier, vehicle_fleet, department, scope]
+  output_dimensions: [energy_carrier, vehicle_fleet, department, scope]
   input_nodes:
   - id: other_fuel_emission_factors
     to_dimensions:
@@ -1596,9 +1616,9 @@ nodes:
   name: Public Works Fleet Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [energy_carrier, vehicle_fleet, department]
-  output_dimensions: [energy_carrier, vehicle_fleet, department]
+  unit: t_co2e/a
+  input_dimensions: [energy_carrier, vehicle_fleet, department, scope]
+  output_dimensions: [energy_carrier, vehicle_fleet, department, scope]
   input_nodes:
   - id: other_fuel_emission_factors
     to_dimensions:
@@ -1613,9 +1633,9 @@ nodes:
   color: '#E15759'
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [energy_carrier, vehicle_fleet, department]
-  output_dimensions: [energy_carrier, vehicle_fleet, department]
+  unit: t_co2e/a
+  input_dimensions: [energy_carrier, vehicle_fleet, department, scope]
+  output_dimensions: [energy_carrier, vehicle_fleet, department, scope]
   input_nodes:
   - id: ems_fleet_emissions
   - id: pw_fleet_emissions
@@ -1634,9 +1654,9 @@ nodes:
   color: '#F28E2B'
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: cs_electricity_emissions
   - id: pw_electricity_emissions
@@ -1657,8 +1677,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
-  input_dimensions: [asset_class, asset, energy_carrier, department]
-  output_dimensions: [asset_class, asset, energy_carrier, department]
+  input_dimensions: [asset_class, asset, energy_carrier, department, scope]
+  output_dimensions: [asset_class, asset, energy_carrier, department, scope]
   input_datasets:
   - id: halton/purchased_electricity
     column: energy
@@ -1673,9 +1693,9 @@ nodes:
   short_name: Childcare Centre Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -1691,9 +1711,9 @@ nodes:
   short_name: Corporate Office Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -1709,9 +1729,9 @@ nodes:
   short_name: LTC Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -1727,9 +1747,9 @@ nodes:
   short_name: Operations Centre Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -1745,9 +1765,9 @@ nodes:
   short_name: Other Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -1763,9 +1783,9 @@ nodes:
   short_name: Corporate Services Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: childcare_centre_electricity_emissions
   - id: corporate_office_electricity_emissions
@@ -1780,8 +1800,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
-  input_dimensions: [asset_class, asset, energy_carrier, department]
-  output_dimensions: [asset_class, asset, energy_carrier, department]
+  input_dimensions: [asset_class, asset, energy_carrier, department, scope]
+  output_dimensions: [asset_class, asset, energy_carrier, department, scope]
   input_datasets:
   - id: halton/purchased_electricity
     column: energy
@@ -1796,9 +1816,9 @@ nodes:
   short_name: Biosolids Management Centre Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -1814,9 +1834,9 @@ nodes:
   short_name: Booster Station Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -1832,9 +1852,9 @@ nodes:
   short_name: Bulk Water Station Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -1850,9 +1870,9 @@ nodes:
   short_name: Equipment Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -1868,9 +1888,9 @@ nodes:
   short_name: Process Water Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -1886,9 +1906,9 @@ nodes:
   short_name: Reservoir Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -1904,9 +1924,9 @@ nodes:
   short_name: Solid Waste Management Site Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -1922,9 +1942,9 @@ nodes:
   short_name: Storage Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -1940,9 +1960,9 @@ nodes:
   short_name: Stormwater Pumping Station Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -1958,9 +1978,9 @@ nodes:
   short_name: Streetlight & Traffic Light Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -1976,9 +1996,9 @@ nodes:
   short_name: WWTP Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -1994,9 +2014,9 @@ nodes:
   short_name: WTP Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -2012,9 +2032,9 @@ nodes:
   short_name: Pumping Station Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -2030,9 +2050,9 @@ nodes:
   short_name: Well Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -2048,9 +2068,9 @@ nodes:
   short_name: Public Works Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: biosolids_management_centre_electricity_emissions
   - id: booster_station_electricity_emissions
@@ -2074,8 +2094,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_datasets:
   - id: halton/purchased_electricity
     column: energy
@@ -2090,9 +2110,9 @@ nodes:
   short_name: EMS Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -2106,8 +2126,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
-  input_dimensions: [property, asset, energy_carrier, department]
-  output_dimensions: [property, asset, energy_carrier, department]
+  input_dimensions: [property, asset, energy_carrier, department, scope]
+  output_dimensions: [property, asset, energy_carrier, department, scope]
   input_datasets:
   - id: halton/purchased_electricity
     column: energy
@@ -2122,9 +2142,9 @@ nodes:
   short_name: Brant Court Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -2140,9 +2160,9 @@ nodes:
   short_name: Burloak Drive Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -2158,9 +2178,9 @@ nodes:
   short_name: Elm Road Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -2176,9 +2196,9 @@ nodes:
   short_name: Margaret Drive Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -2194,9 +2214,9 @@ nodes:
   short_name: Maurice Drive Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -2212,9 +2232,9 @@ nodes:
   short_name: Walkers Landing Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -2230,9 +2250,9 @@ nodes:
   short_name: Woodside Drive Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -2248,9 +2268,9 @@ nodes:
   short_name: Other Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -2266,9 +2286,9 @@ nodes:
   short_name: HCHC Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: brant_court_electricity_emissions
   - id: burloak_drive_electricity_emissions
@@ -2285,9 +2305,9 @@ nodes:
   name: Process N2O Emissions from Treatment
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, department]
-  output_dimensions: [asset, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, department, scope]
+  output_dimensions: [asset, department, scope]
   input_datasets:
   - id: halton/wastewater_treatment
     column: emissions
@@ -2300,9 +2320,9 @@ nodes:
   name: Process CH4 Emissions from Treatment
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, department]
-  output_dimensions: [asset, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, department, scope]
+  output_dimensions: [asset, department, scope]
   input_datasets:
   - id: halton/wastewater_treatment
     column: emissions
@@ -2315,9 +2335,9 @@ nodes:
   name: Fugitive N2O Emissions from Effluent Discharge
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, department]
-  output_dimensions: [asset, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, department, scope]
+  output_dimensions: [asset, department, scope]
   input_datasets:
   - id: halton/wastewater_treatment
     column: emissions
@@ -2330,9 +2350,9 @@ nodes:
   name: Fugitive CH4 Emissions from Effluent Discharge
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, department]
-  output_dimensions: [asset, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, department, scope]
+  output_dimensions: [asset, department, scope]
   input_datasets:
   - id: halton/wastewater_treatment
     column: emissions
@@ -2345,9 +2365,9 @@ nodes:
   name: Fugitive CH4 Emissions from Anaerobic Digester
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, department]
-  output_dimensions: [asset, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, department, scope]
+  output_dimensions: [asset, department, scope]
   input_datasets:
   - id: halton/wastewater_treatment
     column: emissions
@@ -2361,29 +2381,24 @@ nodes:
   color: '#4E79A7'
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, department]
-  output_dimensions: [asset, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, department, scope]
+  output_dimensions: [asset, department, scope]
   input_nodes:
   - id: process_n2o_emissions_from_treatment
   - id: process_ch4_emissions_from_treatment
   - id: fugitive_n2o_emissions_from_effluent_discharge
   - id: fugitive_ch4_emissions_from_effluent_discharge
   - id: fugitive_ch4_emissions_from_anaerobic_digester
-  output_nodes:
-  - id: net_emissions
-    from_dimensions:
-    - id: asset
-      flatten: true
 
 - id: water_and_wastewater_treatment_emissions_scope_3
   name: Water & Wastewater Treatment Emissions (Scope 3)
   color: '#A0CBE8'
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [emission_source, department]
-  output_dimensions: [emission_source, department]
+  unit: t_co2e/a
+  input_dimensions: [emission_source, department, scope]
+  output_dimensions: [emission_source, department, scope]
   input_datasets:
   - id: halton/wastewater_treatment
     column: emissions
@@ -2393,8 +2408,21 @@ nodes:
       categories: [chemical_production]
     - dimension: asset
       flatten: true
-  output_nodes:
-  - id: net_emissions
+
+- id: water_and_wastewater_treatment_emissions
+  name: Water & Wastewater Treatment Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [department, scope]
+  output_dimensions: [department, scope]
+  is_outcome: true
+  input_nodes:
+  - id: water_and_wastewater_treatment_emissions_scope_1
+    from_dimensions:
+    - id: asset
+      flatten: true
+  - id: water_and_wastewater_treatment_emissions_scope_3
     from_dimensions:
     - id: emission_source
       flatten: true
@@ -2406,9 +2434,9 @@ nodes:
   color: '#499894'
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, department]
-  output_dimensions: [asset, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, department, scope]
+  output_dimensions: [asset, department, scope]
   input_nodes:
   - id: cs_waste_emissions
   - id: pw_waste_emissions
@@ -2426,8 +2454,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: mass
   unit: t/a
-  input_dimensions: [asset_class, asset, department]
-  output_dimensions: [asset_class, asset, department]
+  input_dimensions: [asset_class, asset, department, scope]
+  output_dimensions: [asset_class, asset, department, scope]
   input_datasets:
   - id: halton/corporate_waste
     column: mass
@@ -2442,9 +2470,9 @@ nodes:
   short_name: Corporate Office Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, department]
-  output_dimensions: [asset, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, department, scope]
+  output_dimensions: [asset, department, scope]
   input_nodes:
   - id: waste_emission_factor
     to_dimensions: []
@@ -2459,9 +2487,9 @@ nodes:
   short_name: LTC Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, department]
-  output_dimensions: [asset, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, department, scope]
+  output_dimensions: [asset, department, scope]
   input_nodes:
   - id: waste_emission_factor
     to_dimensions: []
@@ -2476,9 +2504,9 @@ nodes:
   short_name: Operations Centre Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, department]
-  output_dimensions: [asset, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, department, scope]
+  output_dimensions: [asset, department, scope]
   input_nodes:
   - id: waste_emission_factor
     to_dimensions: []
@@ -2493,9 +2521,9 @@ nodes:
   short_name: Other Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, department]
-  output_dimensions: [asset, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, department, scope]
+  output_dimensions: [asset, department, scope]
   input_nodes:
   - id: waste_emission_factor
     to_dimensions: []
@@ -2510,9 +2538,9 @@ nodes:
   short_name: Corporate Services Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, department]
-  output_dimensions: [asset, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, department, scope]
+  output_dimensions: [asset, department, scope]
   input_nodes:
   - id: corporate_office_waste_emissions
   - id: ltc_waste_emissions
@@ -2526,8 +2554,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: mass
   unit: t/a
-  input_dimensions: [asset_class, asset, department]
-  output_dimensions: [asset_class, asset, department]
+  input_dimensions: [asset_class, asset, department, scope]
+  output_dimensions: [asset_class, asset, department, scope]
   input_datasets:
   - id: halton/corporate_waste
     column: mass
@@ -2542,9 +2570,9 @@ nodes:
   short_name: Biosolids Management Centre Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, department]
-  output_dimensions: [asset, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, department, scope]
+  output_dimensions: [asset, department, scope]
   input_nodes:
   - id: waste_emission_factor
     to_dimensions: []
@@ -2559,9 +2587,9 @@ nodes:
   short_name: Pumping Station Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, department]
-  output_dimensions: [asset, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, department, scope]
+  output_dimensions: [asset, department, scope]
   input_nodes:
   - id: waste_emission_factor
     to_dimensions: []
@@ -2576,9 +2604,9 @@ nodes:
   short_name: WWTP Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, department]
-  output_dimensions: [asset, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, department, scope]
+  output_dimensions: [asset, department, scope]
   input_nodes:
   - id: waste_emission_factor
     to_dimensions: []
@@ -2593,9 +2621,9 @@ nodes:
   short_name: WTP Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, department]
-  output_dimensions: [asset, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, department, scope]
+  output_dimensions: [asset, department, scope]
   input_nodes:
   - id: waste_emission_factor
     to_dimensions: []
@@ -2610,9 +2638,9 @@ nodes:
   short_name: Public Works Emissions
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, department]
-  output_dimensions: [asset, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, department, scope]
+  output_dimensions: [asset, department, scope]
   input_nodes:
   - id: biosolids_management_centre_waste_emissions
   - id: pumping_station_waste_emissions
@@ -2626,8 +2654,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: mass
   unit: t/a
-  input_dimensions: [asset, department]
-  output_dimensions: [asset, department]
+  input_dimensions: [asset, department, scope]
+  output_dimensions: [asset, department, scope]
   input_datasets:
   - id: halton/corporate_waste
     column: mass
@@ -2643,9 +2671,9 @@ nodes:
   short_name: EMS Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, department]
-  output_dimensions: [asset, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, department, scope]
+  output_dimensions: [asset, department, scope]
   input_nodes:
   - id: waste_emission_factor
     to_dimensions: []
@@ -2658,9 +2686,9 @@ nodes:
   color: '#79706E'
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, department]
-  output_dimensions: [asset, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, department, scope]
+  output_dimensions: [asset, department, scope]
   input_datasets:
   - id: halton/biosolids_transportation
     column: emissions
@@ -2678,8 +2706,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_datasets:
   - id: halton/leased_assets
     column: energy
@@ -2691,9 +2719,9 @@ nodes:
   short_name: Purchased Electricity Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -2705,8 +2733,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: fuel_consumption
   unit: m³/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_datasets:
   - id: halton/leased_assets
     column: fuel_consumption
@@ -2717,9 +2745,9 @@ nodes:
   short_name: Stationary Combustion Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -2731,9 +2759,9 @@ nodes:
   color: '#D37295'
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: leased_asset_electricity_emissions
   - id: leased_asset_stationary_combustion_emissions
@@ -2752,8 +2780,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: mass
   unit: t/a
-  input_dimensions: [asset, department]
-  output_dimensions: [asset, department]
+  input_dimensions: [asset, department, scope]
+  output_dimensions: [asset, department, scope]
   input_datasets:
   - id: halton/corporate_waste
     column: mass
@@ -2769,9 +2797,9 @@ nodes:
   short_name: Corporate Waste Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, department]
-  output_dimensions: [asset, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, department, scope]
+  output_dimensions: [asset, department, scope]
   input_nodes:
   - id: waste_emission_factor
     to_dimensions: []
@@ -2782,8 +2810,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_datasets:
   - id: halton/purchased_electricity
     column: energy
@@ -2799,9 +2827,9 @@ nodes:
   short_name: Purchased Electricity Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -2813,8 +2841,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: fuel_consumption
   unit: m³/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_datasets:
   - id: halton/stationary_combustion
     column: fuel_consumption
@@ -2830,9 +2858,9 @@ nodes:
   short_name: Stationary Combustion Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [asset, energy_carrier, department]
-  output_dimensions: [asset, energy_carrier, department]
+  unit: t_co2e/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
   input_nodes:
   - id: natural_gas_emission_factor
     to_dimensions:
@@ -2844,8 +2872,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: fuel_consumption
   unit: L/a
-  input_dimensions: [energy_carrier, vehicle_fleet, department]
-  output_dimensions: [energy_carrier, vehicle_fleet, department]
+  input_dimensions: [energy_carrier, vehicle_fleet, department, scope]
+  output_dimensions: [energy_carrier, vehicle_fleet, department, scope]
   input_datasets:
   - id: halton/mobile_combustion
     column: fuel_consumption
@@ -2860,9 +2888,9 @@ nodes:
   short_name: Fleet Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [energy_carrier, vehicle_fleet, department]
-  output_dimensions: [energy_carrier, vehicle_fleet, department]
+  unit: t_co2e/a
+  input_dimensions: [energy_carrier, vehicle_fleet, department, scope]
+  output_dimensions: [energy_carrier, vehicle_fleet, department, scope]
   input_nodes:
   - id: other_fuel_emission_factors
     to_dimensions:
@@ -2874,9 +2902,9 @@ nodes:
   color: '#59A14F'
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [department]
-  output_dimensions: [department]
+  unit: t_co2e/a
+  input_dimensions: [department, scope]
+  output_dimensions: [department, scope]
   input_nodes:
   - id: hrps_waste_emissions
     from_dimensions:
@@ -2902,6 +2930,21 @@ nodes:
       flatten: true
   output_nodes:
   - id: net_emissions
+
+# ----- Landfill Waste
+
+- id: landfill_waste_emissions
+  name: Landfill Waste Emissions (Scope 3)
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [emission_source, asset, department, scope]
+  output_dimensions: [emission_source, asset, department, scope]
+  is_outcome: true
+  input_datasets:
+  - id: halton/landfill_waste
+    column: emissions
+    forecast_from: 2024
 
 pages:
 - id: home

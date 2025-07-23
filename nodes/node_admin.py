@@ -3,6 +3,7 @@ from __future__ import annotations
 from wagtail import hooks
 from wagtail.admin.panels import FieldPanel, ObjectList, TabbedInterface
 from wagtail.snippets.models import register_snippet
+from wagtail_color_panel.edit_handlers import NativeColorPanel
 
 from admin_site.panels import TranslatedFieldPanel, TranslatedFieldRowPanel
 from admin_site.viewsets import PathsViewSet
@@ -11,6 +12,7 @@ from nodes.models import NodeConfig, NodeConfigQuerySet
 
 class NodeViewSet(PathsViewSet[NodeConfig, NodeConfigQuerySet]):
     model = NodeConfig
+    inspect_view_enabled = True
     icon = 'kausal-node'
     add_to_admin_menu = True
     search_fields = ['name', 'identifier']
@@ -19,7 +21,7 @@ class NodeViewSet(PathsViewSet[NodeConfig, NodeConfigQuerySet]):
     basic_panels = [
         FieldPanel("identifier", read_only=True),
         TranslatedFieldRowPanel("name"),
-        FieldPanel("color"),
+        NativeColorPanel("color"),
         FieldPanel("is_visible"),
         FieldPanel("indicator_node"),
         TranslatedFieldRowPanel("goal"),

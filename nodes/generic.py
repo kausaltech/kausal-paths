@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any, TypedDict
+from collections import defaultdict
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 from django.utils.translation import gettext_lazy as _
 
@@ -15,7 +16,15 @@ from nodes.node import NodeMetric
 from nodes.units import Unit, unit_registry
 from params.param import BoolParameter, NumberParameter, StringParameter
 
-from .constants import EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from .constants import (
+    EMISSION_FACTOR_QUANTITY,
+    EMISSION_QUANTITY,
+    ENERGY_QUANTITY,
+    FORECAST_COLUMN,
+    STACKABLE_QUANTITIES,
+    VALUE_COLUMN,
+    YEAR_COLUMN,
+)
 from .exceptions import NodeError
 from .simple import SimpleNode
 
@@ -62,21 +71,27 @@ class GenericNode(SimpleNode):
             'extend_values': self._operation_extend_values,
             'do_correction': self._operation_do_correction,
             'extrapolate': self._operation_extrapolate,
+            'use_as_totals': self._operation_use_as_totals,
+            'use_as_shares': self._operation_use_as_shares,
+            'split_by_existing_shares': self._operation_split_by_existing_shares,
+            'split_evenly_to_cats': self._operation_split_evenly_to_cats,
+            'skip_dim_test': self._operation_skip_dim_test,
         }
 
     def _get_input_baskets(self, nodes: list[Node]) -> dict[str, list[Node]]:
         """Return a dictionary of node 'baskets' categorized by type."""
-        baskets: dict[str, list[Node]] = {
-            'additive': [],
-            'multiplicative': [],
-            'other': []
-        }
+        baskets: dict[str, list[Node]] = defaultdict(list)
         tag_to_basket = {
             'additive': 'additive',
             'non_additive': 'multiplicative',
             'other_node': 'other',
             'rate': 'other',
             'base': 'other',
+            'use_as_totals': 'use_as_totals',
+            'use_as_shares': 'use_as_shares',
+            'split_by_existing_shares': 'split_by_existing_shares',
+            'split_evenly_to_cats': 'split_evenly_to_cats',
+            'skip_dim_test': 'skip_dim_test',
         }
         # Special tags that should be skipped completely
         skip_tags = {'ignore_content'}
@@ -176,6 +191,115 @@ class GenericNode(SimpleNode):
         df = df.paths.to_narrow()
 
         return df, baskets
+
+    def _operation_skip_dim_test(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        """Skip dimension test on loading because subsequent opearations will take care of that."""
+        if df is not None:
+            raise NodeError(self, "'skip_dim_test' must be the first of the operations.")
+        operation = 'skip_dim_test'
+        numtags = baskets.get(operation) or []
+        if len(numtags) != 1:
+            raise NodeError(
+                self,
+                f"Exactly one input node must have tag '{operation}'. Now there are {len(numtags)}.")
+
+        n: Node = baskets[operation][0]
+        baskets[operation] = []
+        return n.get_output_pl(target_node=self, skip_dim_test=True), baskets
+
+
+    OperationType = Literal['use_as_totals', 'use_as_shares', 'split_by_existing_shares', 'split_evenly_to_cats']
+
+    def _preprocess_for_one(
+            self,
+            df: ppl.PathsDataFrame | None,
+            baskets: dict,
+            operation: OperationType,
+            stackable: bool = True) -> tuple:
+        if df is None:
+            raise NodeError(self, "Cannot operate because no PathsDataFrame is available.")
+        if self.quantity not in STACKABLE_QUANTITIES and stackable:
+            raise NodeError(self, f"Split operations are only allowed for stackable quantities, not {self.quantity}.")
+
+        numtags = baskets.get(operation) or []
+        if len(numtags) != 1:
+            raise NodeError(
+                self,
+                f"Exactly one input node must have tag '{operation}'. Now there are {len(numtags)}.")
+
+        n: Node = baskets[operation][0]
+        baskets[operation] = []
+        df = n.get_output_pl(target_node=self, skip_dim_test=True)
+
+        return df, baskets
+
+    def _operation_split_dims(
+            self,
+            df: ppl.PathsDataFrame | None,
+            baskets: dict,
+            operation: OperationType) -> tuple:
+        """
+        Split operations with different strategies using this base function.
+
+        There are different approaches available with the input and the node that is operated:
+        1) Use as totals: input gives totals to the node.
+        2) Use as shares: input has new dims that are used to split the node to new cats.
+        3) Split by existing shares: node has new dims that are used to split input to new cats. In the end, add input to node.
+        4) Split evenly to cats: same as (3) but give evey category equal weight.
+        """
+        dfin, baskets = self._preprocess_for_one(df, baskets, operation)
+        use_as = ['use_as_totals', 'use_as_shares']
+
+        if operation == 'use_as_shares':
+            splitter = dfin
+            splittee = df
+        else:
+            splitter = df
+            splittee = dfin
+
+        # Validation
+        newdims = [dim for dim in splittee.dim_ids if dim not in splitter.dim_ids]
+        if newdims and operation not in use_as:
+            raise NodeError(self, f"Splittee node {n.id} cannot bring in new dimensions but has {newdims}.")
+
+        dims = [dim for dim in splitter.dim_ids if dim not in splittee.dim_ids]
+        if not dims and not newdims:
+            raise NodeError(self, "No dimensions to split. Remove the split operation if you don't use it.")
+
+        df_summed = splitter.paths.sum_over_dims(dims)
+
+        if operation == 'split_evenly_to_cats':
+            df_summed = df_summed.with_columns(pl.lit(1.0).alias(VALUE_COLUMN))
+
+        df_ratio = splitter.paths.join_over_index(df_summed)
+        df_ratio = df_ratio.divide_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
+        df_ratio = df_ratio.with_columns(
+            pl.when(pl.col(VALUE_COLUMN + '_right') == 0)
+            .then(pl.lit(0.0))
+            .otherwise(pl.col(VALUE_COLUMN))
+            .alias(VALUE_COLUMN)
+        ).drop([VALUE_COLUMN + '_right'])
+
+        # Apply ratios
+        df_scaled = splittee.paths.multiply_with_dims(df_ratio)
+
+        if operation not in use_as:
+            df_scaled = splittee.paths.add_with_dims(df_scaled)
+
+        return df_scaled, baskets
+
+    # Splitting functions
+    def _operation_use_as_totals(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        return self._operation_split_dims(df, baskets, 'use_as_totals')
+
+    def _operation_use_as_shares(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        return self._operation_split_dims(df, baskets, 'use_as_shares')
+
+    def _operation_split_by_existing_shares(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        return self._operation_split_dims(df, baskets, 'split_by_existing_shares')
+
+    def _operation_split_evenly_to_cats(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        return self._operation_split_dims(df, baskets, 'split_evenly_to_cats')
 
     def drop_unnecessary_levels(self, df: ppl.PathsDataFrame, droplist: list) -> ppl.PathsDataFrame:
         # Drop filter levels and empty dimension levels.
@@ -282,6 +406,15 @@ class GenericNode(SimpleNode):
         df = extend_last_historical_value_pl(df, self.get_end_year())
         return df, baskets
 
+    def _operation_select_priority(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        dfin, baskets = self._preprocess_for_one(df, baskets, 'select_priority', stackable=False)
+        assert isinstance(df, ppl.PathsDataFrame)
+
+        df = df.paths.join_over_index(dfin, how='left')
+        df = (df.with_columns(pl.coalesce([VALUE_COLUMN + '_right', VALUE_COLUMN]).alias(VALUE_COLUMN))
+              .drop(VALUE_COLUMN + '_right'))
+        return df, baskets
+
     # -----------------------------------------------------------------------------------
 
     def compute(self) -> ppl.PathsDataFrame:
@@ -314,7 +447,10 @@ class GenericNode(SimpleNode):
             if op_name not in self.OPERATIONS:
                 raise NodeError(self, f"Unknown operation: {op_name}")
 
-            operation_func = self.OPERATIONS[op_name]
+            operation_func = self.OPERATIONS[op_name] # TODO Remove OPERATIONS object altogether
+            # operation_func = getattr(self, '_operation_' + op_name)
+            # if not operation_func:
+            #     raise NodeError(self, f"Operation {op_name} not recognized.")
             df, baskets = operation_func(df, baskets, **kwargs)
         if not isinstance(df, ppl.PathsDataFrame):
             raise NodeError(self, "The output is not a PathsDataFrame.")
@@ -330,6 +466,8 @@ class GenericNode(SimpleNode):
             unused_str = ", ".join([f"{node_id} ({basket})" for node_id, basket in unused_nodes])
             raise NodeError(self, f"Unused input nodes found after all operations: {unused_str}")
 
+        if VALUE_COLUMN not in df.columns:
+            raise NodeError(self, f"{VALUE_COLUMN} not found, only {df.metric_cols}.")
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
 
         return df
