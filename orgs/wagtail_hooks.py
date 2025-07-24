@@ -322,9 +322,8 @@ class OrganizationViewSet(SnippetViewSet):
         # Show "add child" button
         # TODO: allow for organization metadata admins but without the huge
         # amount of db queries that iterating org.user_can_edit entails
-        # if user.is_general_admin_for_plan(plan):
-        #     buttons.append(self._get_add_child_button(instance))
-
+        if user.user_is_admin_for_instance(instance):
+            buttons.append(self._get_add_child_button(instance))
 
         return buttons
 
