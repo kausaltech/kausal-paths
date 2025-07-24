@@ -6,7 +6,7 @@ from factory.django import DjangoModelFactory
 from orgs.models import Organization
 
 
-class OrganizationFactory(DjangoModelFactory):
+class OrganizationFactory(DjangoModelFactory[Organization]):
     class Meta:
         model = Organization
 
