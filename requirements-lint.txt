@@ -4,37 +4,36 @@ asgiref==3.8.1
     # via
     #   -c requirements.txt
     #   django
-    #   django-stubs
 celery-types==0.23.0
     # via -r requirements-lint.in
-certifi==2025.1.31
+certifi==2025.4.26
     # via
     #   -c requirements.txt
     #   requests
-charset-normalizer==3.4.1
+charset-normalizer==3.4.2
     # via
     #   -c requirements.txt
     #   requests
-django==5.2
+django==5.2.2
     # via
     #   -c requirements.txt
     #   django-stubs
     #   django-stubs-ext
-django-stubs==5.1.3
+django-stubs @ https://github.com/typeddjango/django-stubs/archive/c3d0b8286389c0f2e1c1f1673e022aa8b4f21a5d.zip
     # via
     #   -r requirements-lint.in
     #   djangorestframework-stubs
-django-stubs-ext==5.1.3
+django-stubs-ext==5.2.0
     # via
     #   -c requirements.txt
     #   django-stubs
-djangorestframework-stubs==3.15.3
+djangorestframework-stubs==3.16.0
     # via -r requirements-lint.in
 factory-boy==3.3.3
     # via
     #   -c requirements.txt
     #   types-factory-boy
-faker==37.1.0
+faker==37.3.0
     # via
     #   -c requirements.txt
     #   factory-boy
@@ -44,22 +43,26 @@ idna==3.10
     # via
     #   -c requirements.txt
     #   requests
-mypy==1.15.0
+mypy==1.16.0
     # via
     #   -r requirements-lint.in
     #   graphene-stubs
-mypy-baseline==0.7.2
+mypy-baseline==0.7.3
     # via -r requirements-lint.in
 mypy-extensions==1.1.0
     # via mypy
-numpy==2.2.4
+numpy==2.2.6
     # via
     #   -c requirements.txt
     #   pandas-stubs
     #   types-networkx
-pandas-stubs==2.2.3.250308
+pandas-stubs==2.2.3.250527
     # via -r requirements-lint.in
-pyarrow==19.0.1
+pathspec==0.12.1
+    # via
+    #   -c requirements.txt
+    #   mypy
+pyarrow==20.0.0
     # via
     #   -c requirements.txt
     #   pyarrow-stubs
@@ -69,7 +72,7 @@ requests==2.32.3
     # via
     #   -c requirements.txt
     #   djangorestframework-stubs
-ruff==0.11.11
+ruff==0.11.13
     # via -r requirements-lint.in
 sqlparse==0.5.3
     # via
@@ -79,11 +82,11 @@ types-cffi==1.17.0.20250523
     # via types-pygit2
 types-factory-boy==0.4.1
     # via -r requirements-lint.in
-types-networkx==3.4.2.20250523
+types-networkx==3.5.0.20250531
     # via -r requirements-lint.in
 types-oauthlib==3.2.0.20250516
     # via -r requirements-lint.in
-types-openpyxl==3.1.5.20250516
+types-openpyxl==3.1.5.20250602
     # via -r requirements-lint.in
 types-orjson==3.6.2
     # via -r requirements-lint.in
@@ -95,11 +98,11 @@ types-pyyaml==6.0.12.20250516
     # via
     #   django-stubs
     #   djangorestframework-stubs
-types-requests==2.32.0.20250515
+types-requests==2.32.0.20250602
     # via djangorestframework-stubs
-types-setuptools==80.8.0.20250521
+types-setuptools==80.9.0.20250529
     # via types-cffi
-typing-extensions==4.13.2
+typing-extensions==4.14.0
     # via
     #   -c requirements.txt
     #   celery-types

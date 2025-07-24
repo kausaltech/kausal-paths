@@ -71,7 +71,7 @@ class NZCPortalOAuth2(BaseOAuth2):
     AUTHORIZATION_URL = 'https://netzerocities.app/sso/authorize'
     ACCESS_TOKEN_URL = 'https://netzerocities.app/sso/token'  # noqa: S105
     ACCESS_TOKEN_METHOD = 'POST'  # noqa: S105
-    STATE_PARAMETER = 'state'
+    STATE_PARAMETER = 'state'  # type: ignore[assignment]
     REDIRECT_STATE = False
     DEFAULT_SCOPE = ['basic']
     EXTRA_DATA = [
@@ -84,6 +84,7 @@ class NZCPortalOAuth2(BaseOAuth2):
         'cityAdmin': INSTANCE_ADMIN_ROLE,
         'cityEditor': INSTANCE_ADMIN_ROLE,
         'consortiumUser': INSTANCE_ADMIN_ROLE,
+        'otherUser': INSTANCE_ADMIN_ROLE,
         'cityAdvisor': INSTANCE_ADMIN_ROLE,
         'cityUser': INSTANCE_VIEWER_ROLE,
     }

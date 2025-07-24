@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Self, cast
 
 from django.conf import settings
+from django.contrib import admin
 from django.contrib.auth.models import Group
 from django.contrib.postgres.fields import ArrayField
 from django.db import models, transaction
@@ -27,6 +28,7 @@ from treebeard.mp_tree import MP_Node, MP_NodeManager, MP_NodeQuerySet
 from kausal_common.models.modification_tracking import UserModifiableModel
 from kausal_common.models.ordered import OrderedModel
 from kausal_common.models.permission_policy import ModelPermissionPolicy, ModelReadOnlyPolicy, ParentInheritedPolicy
+from kausal_common.models.tree import get_indented_name
 from kausal_common.models.types import FK, M2M, QS, ModelManager, OneToOne, RevManyQS, copy_signature
 from kausal_common.models.uuid import UUIDIdentifiedModel
 from kausal_common.users import UserOrAnon, user_or_none
@@ -41,6 +43,7 @@ if TYPE_CHECKING:
 
     from kausal_common.models.types import RevMany
 
+    from frameworks.permissions import MeasureTemplatePermissionPolicy
     from nodes.gpc import DatasetNode
     from nodes.instance import Instance
     from nodes.models import InstanceConfig
@@ -291,7 +294,7 @@ class SectionQuerySet(MP_NodeQuerySet['Section'], PathsQuerySet['Section']):  # 
         return self.annotate(**{annotation_name: sq})
 
 
-class SectionManager(MP_NodeManager['Section']):
+class SectionManager(MP_NodeManager['Section'], ModelManager['Section', SectionQuerySet]):
     def get_queryset(self) -> SectionQuerySet:
         return SectionQuerySet(Section).order_by('path')
 
@@ -317,7 +320,7 @@ class Section(CacheablePathsModel['SectionCacheData'], MP_Node[SectionQuerySet],
 
     public_fields: ClassVar = ["identifier", "uuid", "path", "name", "description", "available_years", "max_total", "help_text"]
 
-    objects: ClassVar[SectionManager] = SectionManager()  # pyright: ignore
+    objects: ClassVar[SectionManager] = SectionManager()
     _default_manager: ClassVar[SectionManager]
 
     class Meta:
@@ -337,6 +340,10 @@ class Section(CacheablePathsModel['SectionCacheData'], MP_Node[SectionQuerySet],
     def permission_policy(cls) -> SectionPermissionPolicy:
         from .permissions import SectionPermissionPolicy
         return SectionPermissionPolicy()
+
+    @admin.display(description=_("Name"), ordering='name')
+    def indented_name(self) -> str:
+        return get_indented_name(self, html=True)
 
     def print_tree(self, indent: int = 0):
         """Print the subsections and measures in each section as an indented hierarchical tree."""
@@ -362,6 +369,7 @@ class Section(CacheablePathsModel['SectionCacheData'], MP_Node[SectionQuerySet],
             "available_years": self.available_years,
             "parent": str(parent.uuid) if parent else None,
         }
+
 
 
 class MeasurePriority(models.TextChoices):
@@ -432,8 +440,9 @@ class MeasureTemplate(CacheablePathsModel['FrameworkSpecificCache'], OrderedMode
         return self.section.framework
 
     @classmethod
-    def permission_policy(cls) -> ModelReadOnlyPolicy[Self, MeasureTemplateQuerySet]:
-        return ModelReadOnlyPolicy(cls)
+    def permission_policy(cls) -> MeasureTemplatePermissionPolicy:
+        from .permissions import MeasureTemplatePermissionPolicy
+        return MeasureTemplatePermissionPolicy()
 
     def __str__(self):
         return f"{self.section.name} - {self.name}"
@@ -658,13 +667,15 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         mdp_by_uuid: dict[uuid.UUID, MeasureDataPoint] = {
             mdp.mt_uuid: mdp for mdp in mdp_qs  # type: ignore[attr-defined]
         }
+        new_measures: list[Measure] = []
         for mt in mt_qs:
             m = m_by_uuid.get(mt.uuid)
             if m is None:
-                logger.info("Creating measure for %s" % mt)
                 m = Measure(framework_config=self, measure_template=mt)
-                m.save()
-                m_by_uuid[mt.uuid] = m
+                new_measures.append(m)
+
+        if new_measures:
+            Measure.objects.bulk_create(new_measures)
 
         new_mdps: list[MeasureDataPoint] = []
         update_mdps: list[MeasureDataPoint] = []

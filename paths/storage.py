@@ -1,5 +1,7 @@
-from storages.backends.s3boto3 import S3Boto3Storage
-from storages.utils import setting
+from __future__ import annotations
+
+from storages.backends.s3boto3 import S3Boto3Storage  # type: ignore[import-untyped]
+from storages.utils import setting  # type: ignore[import-untyped]
 
 
 class MediaFilesS3Storage(S3Boto3Storage):

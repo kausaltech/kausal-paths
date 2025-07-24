@@ -4,7 +4,7 @@ anyio==4.9.0
     # via
     #   -c requirements.txt
     #   watchfiles
-click==8.1.8
+click==8.2.1
     # via
     #   -c requirements.txt
     #   uvicorn
@@ -24,15 +24,15 @@ idna==3.10
     # via
     #   -c requirements.txt
     #   anyio
-packaging==23.2
+packaging==25.0
     # via
     #   -c requirements.txt
     #   gunicorn
-psycopg==3.2.6
+psycopg==3.2.9
     # via
     #   -c requirements.txt
     #   -r requirements-prod.in
-psycopg-c==3.2.6
+psycopg-c==3.2.9
     # via psycopg
 python-dotenv==1.1.0
     # via

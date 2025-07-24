@@ -12,6 +12,8 @@ from wagtail.admin.menu import Menu, MenuItem, SubmenuMenuItem
 from wagtail_localize.wagtail_hooks import TranslationsReportMenuItem
 
 if TYPE_CHECKING:
+    from django.http.request import HttpRequest
+
     from paths.types import PathsAdminRequest
 
 
@@ -51,7 +53,7 @@ class InstanceItem(MenuItem):
 
 
 class InstanceChooserMenu(Menu):
-    def menu_items_for_request(self, request: PathsAdminRequest):
+    def menu_items_for_request(self, request: HttpRequest):
         user = request.user
         instances = user.get_adminable_instances()
         if len(instances) < 2:

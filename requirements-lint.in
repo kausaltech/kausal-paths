@@ -3,7 +3,7 @@ mypy
 mypy-baseline
 pandas-stubs
 graphene-stubs
-django-stubs
+https://github.com/typeddjango/django-stubs/archive/c3d0b8286389c0f2e1c1f1673e022aa8b4f21a5d.zip
 types-orjson
 djangorestframework-stubs
 ruff

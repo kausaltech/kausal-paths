@@ -27,13 +27,13 @@ cffi==1.17.1
     #   cryptography
 cfgv==3.4.0
     # via pre-commit
-click==8.1.8
+click==8.2.1
     # via
     #   -c requirements.txt
     #   ondivi
 constantly==23.10.4
     # via twisted
-cryptography==44.0.2
+cryptography==45.0.3
     # via
     #   -c requirements.txt
     #   autobahn
@@ -48,7 +48,7 @@ decorator==5.2.1
     #   ipython
 distlib==0.3.9
     # via virtualenv
-django==5.2
+django==5.2.2
     # via
     #   -c requirements-lint.txt
     #   -c requirements.txt
@@ -75,7 +75,7 @@ hyperlink==21.0.0
     # via
     #   autobahn
     #   twisted
-identify==2.6.10
+identify==2.6.12
     # via pre-commit
 idna==3.10
     # via
@@ -89,7 +89,7 @@ inotify==0.2.10
     # via -r requirements-dev.in
 ipdb==0.13.13
     # via -r requirements-dev.in
-ipython==9.1.0
+ipython==9.3.0
     # via
     #   -c requirements.txt
     #   -r requirements-dev.in
@@ -133,7 +133,7 @@ parso==0.8.4
     # via
     #   -c requirements.txt
     #   jedi
-pdbr==0.9.0
+pdbr==0.9.2
     # via -r requirements-dev.in
 pexpect==4.9.0
     # via
@@ -141,7 +141,7 @@ pexpect==4.9.0
     #   ipython
 pip==25.1.1
     # via -r requirements-dev.in
-platformdirs==4.3.7
+platformdirs==4.3.8
     # via
     #   -c requirements.txt
     #   virtualenv
@@ -189,7 +189,7 @@ rich==14.0.0
     #   pdbr
 service-identity==24.2.0
     # via twisted
-setuptools==78.1.0
+setuptools==80.9.0
     # via
     #   -c requirements.txt
     #   autobahn
@@ -218,13 +218,12 @@ twisted==24.11.0
     # via daphne
 txaio==23.1.1
     # via autobahn
-typing-extensions==4.13.2
+typing-extensions==4.14.0
     # via
     #   -c requirements-lint.txt
     #   -c requirements.txt
-    #   pyopenssl
     #   twisted
-uv==0.7.7
+uv==0.7.11
     # via -r requirements-dev.in
 virtualenv==20.31.2
     # via pre-commit

@@ -6,7 +6,7 @@ from __future__ import annotations
 import os
 import sys
 
-from kausal_common.telemetry import init_django_telemetry
+from kausal_common.telemetry.traces import init_django_telemetry
 
 
 def main():

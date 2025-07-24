@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime  # noqa: TCH003
+from datetime import datetime  # noqa: TC003
 from typing import TYPE_CHECKING, Any, TypedDict, cast
 from uuid import UUID, uuid4
 
@@ -108,7 +108,7 @@ class MeasureModel(DjangoDiffModel[Measure]):
     @classmethod
     def get_create_kwargs(cls, adapter: DjangoAdapter, ids: dict, attrs: dict) -> dict:
         kwargs = super().get_create_kwargs(adapter, ids, attrs)
-        fwc_model = cast(FrameworkConfigModel, adapter.get(FrameworkConfigModel, str(kwargs.pop('framework_config'))))
+        fwc_model = cast('FrameworkConfigModel', adapter.get(FrameworkConfigModel, str(kwargs.pop('framework_config'))))
         kwargs['framework_config'] = fwc_model._instance
         mt_uuid: UUID = kwargs.pop('measure_template')
         assert isinstance(adapter, FrameworkConfigDjangoAdapter)
@@ -165,7 +165,7 @@ class FrameworkConfigModel(DjangoDiffModel[FrameworkConfig]):
     @classmethod
     def get_create_kwargs(cls, adapter: DjangoAdapter, ids: dict, attrs: dict) -> dict:
         kwargs = super().get_create_kwargs(adapter, ids, attrs)
-        fw_model = cast(FrameworkModel, adapter.get(FrameworkModel, str(kwargs.pop('framework'))))
+        fw_model = cast('FrameworkModel', adapter.get(FrameworkModel, str(kwargs.pop('framework'))))
         assert fw_model._instance is not None
         kwargs['framework'] = fw_model._instance
         return kwargs

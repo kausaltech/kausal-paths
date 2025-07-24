@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing_extensions import TypeVar
 import uuid
 from typing import TYPE_CHECKING, Any
+from typing_extensions import TypeVar
 
 from django import forms
 from django.conf import settings

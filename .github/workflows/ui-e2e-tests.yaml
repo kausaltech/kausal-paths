@@ -74,13 +74,14 @@ jobs:
         image: ${{ inputs.ui_image }}
         env:
           WILDCARD_DOMAINS: localhost
-          DEPLOYMENT_TYPE: testing
+          DEPLOYMENT_TYPE: ci
           PATHS_BACKEND_URL: http://localhost:8000
           TEST_INSTANCE_IDENTIFIERS: ${{ inputs.instance_identifiers }}
           TEST_PAGE_BASE_URL: 'http://{instanceId}.localhost:3001'
           AUTH_SECRET: abcd
           AUTH_TRUST_HOST: true
           HOSTNAME: 0.0.0.0
+          SENTRY_DSN: ${{ vars.UI_SENTRY_DSN }}
 
       postgres:
         image: postgis/postgis:16-3.4-alpine
@@ -96,6 +97,7 @@ jobs:
         image: ${{ inputs.backend_image }}
         env:
           DATABASE_URL: postgresql://${{env.POSTGRES_USER}}:${{env.POSTGRES_PASSWORD}}@localhost:5432/${{env.POSTGRES_DATABASE}}
+          DEPLOYMENT_TYPE: ci
           REDIS_URL: redis://localhost
           DB_ENDPOINT: localhost:5432
           ALLOWED_HOSTS: localhost

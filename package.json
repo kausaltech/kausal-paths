@@ -18,6 +18,6 @@
   },
   "homepage": "https://github.com/kausaltech/kausal-paths#readme",
   "dependencies": {
-    "mjml": "^4.15.3"
+    "mjml": "^5.0.0-alpha.6"
   }
 }

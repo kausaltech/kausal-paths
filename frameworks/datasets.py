@@ -59,7 +59,7 @@ class FrameworkMeasureDVCDataset(DVCDataset):
             ('MeasureDefaultValue', pl.Float64),
             ('MeasureUnit', pl.String),
         )
-        dpdf = pl.DataFrame(data=list(dps), schema=schema, orient='row')
+        dpdf = ppl.PathsDataFrame(data=list(dps), schema=schema, orient='row')
 
         meta = df.get_meta()
         df_cols = df.columns
