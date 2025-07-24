@@ -8,6 +8,7 @@ from graphene_django.utils.testing import graphql_query
 import pytest
 
 from nodes.scenario import ScenarioKind
+from people.tests.factories import PersonFactory
 
 if TYPE_CHECKING:
     from nodes.context import Context
@@ -20,7 +21,7 @@ else:
             kls.__class_getitem__ = classmethod(lambda cls, *args, **kwargs: cls)  # type: ignore
 
 
-from pytest_factoryboy import register
+from pytest_factoryboy import LazyFixture, register
 
 from nodes.tests.factories import (
     ActionNodeFactory,
@@ -33,6 +34,7 @@ from nodes.tests.factories import (
     ScenarioFactory,
     SimpleNodeFactory,
 )
+from orgs.tests.factories import OrganizationFactory
 from params.tests.factories import BoolParameterFactory, NumberParameterFactory, ParameterFactory, StringParameterFactory
 from users.tests.factories import UserFactory
 
@@ -56,6 +58,8 @@ register(ParameterFactory)
 register(StringParameterFactory)
 register(UserFactory)
 register(InstanceFactory)
+register(PersonFactory, user=LazyFixture(lambda user: user))
+register(OrganizationFactory)
 
 
 @pytest.fixture

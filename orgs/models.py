@@ -104,4 +104,3 @@ class Organization(BaseOrganization, Node[OrganizationQuerySet]):
             parent_choices |= Organization.objects.filter(pk=parent.pk)
 
         return parent_choices
-
