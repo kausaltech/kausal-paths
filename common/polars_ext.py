@@ -259,7 +259,7 @@ class PathsExt:
         other: ppl.PathsDataFrame,
         how: Literal['left', 'outer', 'inner'] = 'left',
         index_from: Literal['left', 'right', 'union'] = 'left',
-    ):
+    ) -> ppl.PathsDataFrame:
         sdf = self._df
         sm = sdf.get_meta()
         om = other.get_meta()

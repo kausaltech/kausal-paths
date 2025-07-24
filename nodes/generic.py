@@ -208,7 +208,13 @@ class GenericNode(SimpleNode):
         return n.get_output_pl(target_node=self, skip_dim_test=True), baskets
 
 
-    OperationType = Literal['use_as_totals', 'use_as_shares', 'split_by_existing_shares', 'split_evenly_to_cats']
+    OperationType = Literal[
+        'use_as_totals',
+        'use_as_shares',
+        'split_by_existing_shares',
+        'split_evenly_to_cats',
+        'select_priority',
+    ]
 
     def _preprocess_for_one(
             self,
@@ -245,7 +251,7 @@ class GenericNode(SimpleNode):
         1) Use as totals: input gives totals to the node.
         2) Use as shares: input has new dims that are used to split the node to new cats.
         3) Split by existing shares: node has new dims that are used to split input to new cats. In the end, add input to node.
-        4) Split evenly to cats: same as (3) but give evey category equal weight.
+        4) Split evenly to cats: same as (3) but give every category equal weight.
         """
         dfin, baskets = self._preprocess_for_one(df, baskets, operation)
         use_as = ['use_as_totals', 'use_as_shares']
@@ -258,9 +264,12 @@ class GenericNode(SimpleNode):
             splittee = dfin
 
         # Validation
+        assert isinstance(splitter, ppl.PathsDataFrame)
+        assert isinstance(splittee, ppl.PathsDataFrame)
+
         newdims = [dim for dim in splittee.dim_ids if dim not in splitter.dim_ids]
         if newdims and operation not in use_as:
-            raise NodeError(self, f"Splittee node {n.id} cannot bring in new dimensions but has {newdims}.")
+            raise NodeError(self, f"Splittee node cannot bring in new dimensions but has {newdims}.")
 
         dims = [dim for dim in splitter.dim_ids if dim not in splittee.dim_ids]
         if not dims and not newdims:
