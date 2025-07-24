@@ -607,7 +607,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
 
         instance_name = '%s: %s' % (framework.name, org_name)
 
-        # Create new organization using treebeard's add_root
+        # Create new organization for instance
         org = Organization.add_root(
             name=instance_name,
             primary_language="en",

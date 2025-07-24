@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 # import re
+import contextlib
+import uuid
 from typing import TYPE_CHECKING, ClassVar, override
 
 from django.db.models import Q
@@ -115,20 +117,46 @@ class Person(BasePerson):
             return ''
         return format_html('<span class="avatar"><img src="{}" /></span>', avatar_url)
 
-
+    @override
     def create_corresponding_user(self):
-        # Get or create a user based on the person's email
-        if not self.email:
-            return None
+        user = self.get_corresponding_user()
+        email = self.email.lower()
+        if user:
+            created = False
+            email_changed = user.email.lower() != email
+            if email_changed:
+                # If we change the email address to that of an existing deactivated user, we need to deactivate the
+                # user with the old email address (done after this returns because it returns a user different from
+                # `self.user`) and re-activate the user with the new email address (done further down in this method).
+                with contextlib.suppress(User.DoesNotExist):
+                    user = User.objects.get(email__iexact=email, is_active=False)
+        else:
+            user = User(
+                email=email,
+                uuid=uuid.uuid4(),
+            )
+            created = True
+            email_changed = False
 
-        user, created = User.objects.get_or_create(
-            email__iexact=self.email,
-            defaults={
-                'email': self.email,
-                'first_name': self.first_name,
-                'last_name': self.last_name,
-            }
-        )
+        if not created and not user.is_active:
+            # Probably the user has been deactivated because the person has been deleted. Reactivate it.
+            user.is_active = True
+            reactivated = True
+        else:
+            reactivated = False
+
+        set_password = created or reactivated or email_changed
+        if set_password:
+            # client = self.get_client_for_email_domain() # TODO: Add this if we implement clients
+            # if client is not None and client.auth_backend:
+            #     user.set_unusable_password()
+            # else:
+            user.set_password(str(uuid.uuid4()))
+
+        user.first_name = self.first_name
+        user.last_name = self.last_name
+        user.email = email
+        user.save()
         return user
 
     def visible_for_user(self, user, **kwargs) -> bool:
