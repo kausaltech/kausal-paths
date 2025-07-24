@@ -127,20 +127,32 @@ class User(AbstractUser):
         self.save()
 
     def can_create_organization(self) -> bool:
+        if self.is_superuser:
+            return True
         return self.is_staff
 
     def can_modify_organization(self, organization: Organization) -> bool:
+        if self.is_superuser:
+            return True
         return self.is_staff
 
     def can_delete_organization(self, organization: Organization) -> bool:
+        if self.is_superuser:
+            return True
         return self.is_staff
 
     def can_edit_or_delete_person_within_instance(
             self, person: Person, instance_config: InstanceConfig) -> bool:
+        if self.is_superuser:
+            return True
         return self.is_staff
 
     def can_create_person(self) -> bool:
+        if self.is_superuser:
+            return True
         return self.is_staff
 
     def can_modify_person(self, person: Person) -> bool:
+        if self.is_superuser:
+            return True
         return self.is_staff
