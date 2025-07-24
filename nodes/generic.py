@@ -779,7 +779,7 @@ class DimensionalSectorNode(GenericNode):
         dimension_map = parsed_sectors['dimensions']
 
         # Filter by sector pattern
-        matching_sectors = df.filter(pl.col('sector').str.contains(full_pattern))
+        matching_sectors = df.filter(pl.col('sector').cast(pl.Utf8).str.contains(full_pattern))
         meta = matching_sectors.get_meta()
 
         if len(matching_sectors) == 0:
@@ -791,7 +791,7 @@ class DimensionalSectorNode(GenericNode):
             for level_idx, dim_name in dimension_map.items():
                 # Split sector and extract the level
                 matching_sectors = matching_sectors.with_columns(
-                    pl.col('sector').str.split('|').list.get(level_idx).alias(dim_name)
+                    pl.col('sector').cast(pl.Utf8).str.split('|').list.get(level_idx).alias(dim_name)
                 )
 
                 # Convert to proper dimension IDs if needed

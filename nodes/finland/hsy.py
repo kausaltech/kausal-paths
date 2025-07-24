@@ -101,6 +101,25 @@ class HsyNode(Node):
         'sector': Dimension(id='hsy_sector', label=TranslatedString(en='HSY emission sector'), is_internal=True)
     }
 
+    # TODO Put this in a better place. Is this needed by nodes in general?
+    def _linear_interpolate(self, df: ppl.PathsDataFrame, year_col: str = YEAR_COLUMN) -> ppl.PathsDataFrame:
+        years = df[year_col].unique().sort()
+        min_year = years.min()
+        assert isinstance(min_year, int)
+        max_year = years.max()
+        assert isinstance(max_year, int)
+        df = df.paths.to_wide()
+        years_df = pl.DataFrame(data=range(min_year, max_year + 1), schema=[year_col])
+        meta = df.get_meta()
+        zdf = years_df.join(df, on=year_col, how='left').sort(year_col)
+        df = ppl.to_ppdf(zdf, meta=meta)
+        cols = [pl.col(col).interpolate() for col in df.metric_cols]
+        if FORECAST_COLUMN in df.columns:
+            cols.append(pl.col(FORECAST_COLUMN).fill_null(strategy='forward'))
+        df = df.with_columns(cols)
+        df = df.paths.to_narrow()
+        return df
+
     def compute(self) -> ppl.PathsDataFrame:
         muni_name = self.get_global_parameter_value('municipality_name')
         assert isinstance(muni_name, str)
@@ -156,6 +175,7 @@ class HsyNode(Node):
             raise NodeError(self, "Municipality %s not found in data" % muni_name)
 
         df = df.with_columns([pl.lit(False).alias(FORECAST_COLUMN)])  # noqa: FBT003
+        df = self._linear_interpolate(df)
 
         return df
 
