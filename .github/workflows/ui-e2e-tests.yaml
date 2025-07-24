@@ -169,17 +169,15 @@ jobs:
         run: |
           mkdir -p coverage-data
           STOP_COVERAGE_QUERY='mutation { testMode { stopCoverageTracking { xml } } }'
-          RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" \
+          curl -s -X POST -H "Content-Type: application/json" \
             -d "{\"query\": \"$STOP_COVERAGE_QUERY\"}" \
-            http://localhost:8000/v1/graphql/)
-          XML_REPORT=$(echo $RESPONSE | jq -r '.data.testMode.stopCoverageTracking.xml')
+            http://localhost:8000/v1/graphql/ > $RUNNER_TEMP/coverage_response.json
+          XML_REPORT=$(jq -r '.data.testMode.stopCoverageTracking.xml' $RUNNER_TEMP/coverage_response.json)
           if [ -z "$XML_REPORT" ] || [ "$XML_REPORT" = "null" ]; then
             echo "Warning: No XML report was generated"
           else
             echo "$XML_REPORT" > coverage-data/coverage.xml
-            COVERAGE_PERCENTAGE=$(grep -o 'line-rate="[0-9.]*"' coverage-data/coverage.xml | head -1 | grep -o '[0-9.]*')
-            COVERAGE_PERCENTAGE=$(echo "$COVERAGE_PERCENTAGE * 100" | bc)
-            echo "Coverage data collected for e2e tests. Test coverage of backend: $COVERAGE_PERCENTAGE%"
+            echo "Coverage data collected for e2e tests."
           fi
         working-directory: ./e2e-tests
         shell: bash
