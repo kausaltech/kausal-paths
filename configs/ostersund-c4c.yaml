@@ -31,11 +31,10 @@ action_groups:
   color: '#E15759'
 
 impact_overviews:
+
 - graph_type: cost_efficiency
   cost_node: aggregate_net_price
   effect_node: aggregate_net_emissions
-  invert_cost: false
-  invert_effect: true
   indicator_unit: kSEK/t
   cost_unit: kSEK
   effect_unit: t
@@ -43,22 +42,30 @@ impact_overviews:
   label: Cost efficiency
 
 - graph_type: cost_benefit
-  cost_node: cost_benefit_analysis
   effect_node: cost_benefit_analysis
-  # effect_unit: MSEK
   indicator_unit: MSEK
   outcome_dimension: cost_benefit
   label: Cost-benefit
 
-- graph_type: return_on_investment
+- graph_type: benefit_cost_ratio # Assumes gross benefits; costs will not be subtracted.
   cost_node: total_costs
   effect_node: total_benefits
-  invert_cost: false
-  invert_effect: true
+  indicator_unit: dimensionless
+  label: Benefit-cost ratio
+  indicator_label: Values above 1 mean that the benefits are larger than costs.
+
+- graph_type: return_on_investment_gross # Assumes gross benefits; costs will be subtracted.
+  cost_node: total_costs
+  effect_node: total_benefits
   indicator_unit: '%'
-  # cost_unit: kSEK
-  # effect_unit: kSEK
   label: Return on investment
+
+- graph_type: simple_effect
+  effect_node: total_benefits
+  indicator_unit: kSEK
+  invert_effect: true
+  label: Total benefits
+  indicator_label: The graph shows total benefits excluding costs.
 
 params:
 - id: electrification_scenario
