@@ -175,7 +175,7 @@ class HsyNode(Node):
             raise NodeError(self, "Municipality %s not found in data" % muni_name)
 
         df = df.with_columns([pl.lit(False).alias(FORECAST_COLUMN)])  # noqa: FBT003
-        df = self._linear_interpolate(df)
+        # df = self._linear_interpolate(df) # FIXME Make the interpolation work without messing with the dataset
 
         return df
 
@@ -280,12 +280,12 @@ class HsyNodeMixin:
 
             # Group by dimensions and year
             group_cols = ['Year'] + list(dimension_map.values())
-            df_xs = df.groupby(group_cols).sum()
+            df_xs = df.groupby(group_cols, observed=True).sum()
 
         elif multi_index:
-            df_xs = df.groupby(['Year', 'sector']).sum()
+            df_xs = df.groupby(['Year', 'sector'], observed=True).sum()
         else:
-            df_xs = df.groupby('Year').sum()
+            df_xs = df.groupby('Year', observed=True).sum()
 
         assert isinstance(df_xs, pd.DataFrame)
         df = df_xs
