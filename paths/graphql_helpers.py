@@ -11,19 +11,22 @@ from django.utils.module_loading import import_string
 from graphql.error import GraphQLError
 from strawberry.types.field import StrawberryField
 
-from admin_site.viewsets import PathsViewSet, admin_req
-from nodes.instance import Instance
 from paths.graphql_types import AdminButton
 
+from admin_site.viewsets import PathsViewSet, admin_req
+from nodes.instance import Instance
+
 if TYPE_CHECKING:
+    from django.db.models import Model
+
+    from kausal_common.graphene import GQLInfo
+
     from paths.types import GQLInstanceInfo
 
     from nodes.context import Context
     from nodes.instance import Instance
 
     from .graphql_types import SBInfo
-    from kausal_common.graphene import GQLInfo
-    from django.db.models import Model
 
 
 @dataclass(slots=True)

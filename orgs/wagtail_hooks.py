@@ -8,7 +8,7 @@ from django.contrib.admin.utils import quote
 from django.core.exceptions import ValidationError
 from django.urls import URLPattern, path, reverse
 from django.utils.translation import gettext_lazy as _, pgettext_lazy
-from wagtail.admin.panels import FieldPanel, ObjectList, TabbedInterface
+from wagtail.admin.panels import FieldPanel, InlinePanel, ObjectList, TabbedInterface
 from wagtail.snippets.models import register_snippet
 from wagtail.snippets.views.snippets import SnippetViewSet
 from wagtail.snippets.widgets import SnippetListingButton
@@ -16,26 +16,23 @@ from wagtail.snippets.widgets import SnippetListingButton
 from wagtailgeowidget import __version__ as wagtailgeowidget_version
 
 from kausal_common.models.permission_policy import ModelPermissionPolicy, ObjectSpecificAction
-
-from admin_site.panels import TranslatedFieldPanel
-# from admin_site.utils import admin_req
-# from admin_site.wagtail import CondensedInlinePanel
-from kausal_common.people.chooser import PersonChooser
-from nodes.models import InstanceConfig
-from users.models import User
-
 from kausal_common.organizations.forms import NodeForm
-from .models import Organization, OrganizationMetadataAdmin
-from orgs.views import OrganizationCreateView
 from kausal_common.organizations.views import (
-    CreateChildNodeView,
     OrganizationDeleteView,
     OrganizationEditView,
     OrganizationIndexView,
 )
 
-from wagtail.admin.panels import InlinePanel
+# from admin_site.utils import admin_req
+# from admin_site.wagtail import CondensedInlinePanel
+from kausal_common.people.chooser import PersonChooser
 
+from admin_site.panels import TranslatedFieldPanel
+from orgs.views import OrganizationCreateView
+from users.models import User
+
+from .models import Organization
+from .views import CreateChildNodeView
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AnonymousUser
@@ -43,6 +40,8 @@ if TYPE_CHECKING:
     from wagtail.admin.menu import MenuItem
     from wagtail.admin.panels.base import Panel
     from wagtail.core.models import Model
+
+    from nodes.models import InstanceConfig
 
 
 import logging
@@ -146,9 +145,9 @@ class OrganizationForm(NodeForm):
     def save(self, *args, **kwargs):
         creating = self.instance._state.adding
         result = super().save(*args, **kwargs)
-        # if creating and self.instance.parent is None:
-        #     # When creating a new root organization make sure the creator retains edit permissions
-        #     self.instance.metadata_admins.add(self.user.person)
+        if creating and self.instance.parent is None:
+            # When creating a new root organization make sure the creator retains edit permissions
+            self.instance.metadata_admins.add(self.user.person) # type: ignore[attr-defined]
         return result
 
 
