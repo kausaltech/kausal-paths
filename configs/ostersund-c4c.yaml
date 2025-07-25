@@ -1858,6 +1858,15 @@ nodes:
       flatten: true
     - id: owner
       flatten: true
+  - id: ii1_onroad_transport_costs_territorial
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: owner
+      flatten: true
   output_nodes:
   - id: cost_benefit_analysis
     to_dimensions:
@@ -1901,6 +1910,15 @@ nodes:
   - id: ii51_offroad_transport_fuel_costs
     tags: [make_nonpositive]
     from_dimensions:
+    - id: scope
+      flatten: true
+    - id: owner
+      flatten: true
+  - id: ii1_onroad_transport_costs_territorial
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
     - id: scope
       flatten: true
     - id: owner
