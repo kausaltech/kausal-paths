@@ -15,7 +15,7 @@ minimum_historical_year: 2010
 maximum_historical_year: 2023
 emission_unit: t/a
 emission_forecast_from: 2024
-emission_dimensions: [owner, ghg]
+emission_dimensions: []
 features:
   baseline_visible_in_graphs: true
   show_significant_digits: 3
@@ -33,7 +33,7 @@ action_groups:
 impact_overviews:
 - graph_type: cost_efficiency
   cost_node: aggregate_net_price
-  effect_node: aggregate_net_emissions
+  effect_node: net_emissions
   invert_cost: false
   invert_effect: true
   indicator_unit: kSEK/t
@@ -406,6 +406,21 @@ nodes:
   input_dimensions: [owner, scope]
   output_dimensions: [owner, scope]
   is_outcome: true
+
+- id: net_emissions_organizational
+  name: Net Emissions (Organizational)
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [owner, ghg]
+  output_dimensions: [owner, ghg]
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: owner
+      flatten: true
+    - id: ghg
+      flatten: true
 
 - id: i1_residential_combustion
   name: I.1 Residential Combustion
@@ -920,7 +935,7 @@ nodes:
   input_dimensions: [owner, energy_carrier, ghg, scope]
   output_dimensions: [owner, energy_carrier, ghg, scope]
   output_nodes:
-  - id: net_emissions
+  - id: net_emissions_organizational
     from_dimensions:
     - id: energy_carrier
       flatten: true
@@ -1009,7 +1024,7 @@ nodes:
   input_dimensions: [owner, ghg]
   output_dimensions: [owner, ghg]
   output_nodes:
-  - id: net_emissions
+  - id: net_emissions_organizational
 
 - id: i_stationary_total_price
   name: I Stationary Total Price
@@ -1098,6 +1113,11 @@ nodes:
              {'year': 2030, 'value': 64.4340334}]
     default: true
     is_main_goal: true
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: ghg
+      flatten: true
 
 - id: i11_residential_fuel_emissions_territorial
   name: I.1.1 Residential Fuel Emissions
@@ -1244,13 +1264,13 @@ nodes:
 
 # ----- Territorial On-Road Transportation
 
-- id: ii11_onroad_transport_fuel_emission_factor_territorial
-  name: II.1.1 On-Road Transport Fuel Emission Factor
+- id: ii1_onroad_transport_emission_factor_territorial
+  name: II.1 On-Road Transport Emission Factor
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/km
-  input_dimensions: [scope, owner, ghg, energy_carrier, vehicle_type]
-  output_dimensions: [scope, owner, ghg, energy_carrier, vehicle_type]
+  input_dimensions: [energy_carrier, vehicle_type, scope, owner, ghg]
+  output_dimensions: [energy_carrier, vehicle_type, scope, owner, ghg]
   input_datasets:
   - id: ostersund/territorial_onroad_transportation
     column: emission_factor
@@ -1262,15 +1282,15 @@ nodes:
     - column: v_electrification_scenario
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: ii11_onroad_transport_fuel_mileage_emissions_territorial
+  - id: ii1_onroad_transport_mileage_emissions_territorial
 
-- id: ii11_onroad_transport_fuel_emissions_territorial
-  name: II.1.1 On-Road Transport Fuel Emissions
+- id: ii1_onroad_transport_emissions_territorial
+  name: II.1 On-Road Transport Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [scope, ghg, vehicle_type]
-  output_dimensions: [scope, ghg, vehicle_type]
+  input_dimensions: [vehicle_type, scope, ghg]
+  output_dimensions: [vehicle_type, scope, ghg]
   input_datasets:
   - id: ostersund/territorial_onroad_transportation
     column: emissions
@@ -1284,15 +1304,15 @@ nodes:
     - column: v_electrification_scenario
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: ii11_onroad_transport_fuel_total_emissions_territorial
+  - id: ii1_onroad_transport_total_emissions_territorial
 
-- id: ii11_onroad_transport_fuel_mileage_territorial
-  name: II.1.1 On-Road Transport Fuel Mileage
+- id: ii1_onroad_transport_mileage_territorial
+  name: II.1 On-Road Transport Mileage
   type: gpc.DatasetNode
   quantity: mileage
   unit: km/a
-  input_dimensions: [energy_carrier, scope, owner, vehicle_type]
-  output_dimensions: [energy_carrier, scope, owner, vehicle_type]
+  input_dimensions: [energy_carrier, vehicle_type, scope, owner]
+  output_dimensions: [energy_carrier, vehicle_type, scope, owner]
   params:
   - id: gpc_sector
     value: II.1.1
@@ -1304,32 +1324,32 @@ nodes:
   - id: gpc/ostersund_territorial
     forecast_from: 2024
   output_nodes:
-  - id: ii11_onroad_transport_fuel_mileage_emissions_territorial
+  - id: ii1_onroad_transport_mileage_emissions_territorial
     to_dimensions:
     - id: energy_carrier
+    - id: vehicle_type
     - id: scope
     - id: owner
-    - id: vehicle_type
-  - id: ii11_onroad_transport_fuel_mileage_mix_territorial
+  - id: ii1_onroad_transport_mileage_mix_territorial
     tags: [activity]
 
-- id: ii11_onroad_transport_fuel_mileage_mix_territorial
-  name: II.1.1 On-Road Transport Fuel Mileage Mix
+- id: ii1_onroad_transport_mileage_mix_territorial
+  name: II.1 On-Road Transport Mileage Mix
   type: simple.MixNode
   quantity: mix
   unit: '%'
-  input_dimensions: [energy_carrier, scope, owner, vehicle_type]
-  output_dimensions: [energy_carrier, scope, owner, vehicle_type]
+  input_dimensions: [energy_carrier, vehicle_type, scope, owner]
+  output_dimensions: [energy_carrier, vehicle_type, scope, owner]
 
-- id: ii11_onroad_transport_fuel_mileage_emissions_territorial
-  name: II.1.1 On-Road Transport Fuel Mileage Emissions
+- id: ii1_onroad_transport_mileage_emissions_territorial
+  name: II.1 On-Road Transport Mileage Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [energy_carrier, owner, vehicle_type, scope, ghg]
-  output_dimensions: [energy_carrier, owner, vehicle_type, scope, ghg]
+  input_dimensions: [energy_carrier, vehicle_type, scope, owner, ghg]
+  output_dimensions: [energy_carrier, vehicle_type, scope, owner, ghg]
   output_nodes:
-  - id: ii11_onroad_transport_fuel_total_emissions_territorial
+  - id: ii1_onroad_transport_total_emissions_territorial
     from_dimensions:
     - id: energy_carrier
       flatten: true
@@ -1603,29 +1623,19 @@ nodes:
   output_nodes:
   - id: net_emissions_territorial
 
-- id: ii11_onroad_transport_fuel_total_emissions_territorial
-  name: II.1.1 On-Road Transport Fuel Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [scope, ghg, vehicle_type]
-  output_dimensions: [scope, ghg, vehicle_type]
-  output_nodes:
-  - id: ii1_onroad_transport_total_emissions_territorial
-
 - id: ii1_onroad_transport_total_emissions_territorial
   name: II.1 On-Road Transport Total Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [scope, ghg, vehicle_type]
-  output_dimensions: [scope, ghg, vehicle_type]
+  input_dimensions: [vehicle_type, scope, ghg]
+  output_dimensions: [vehicle_type, scope, ghg]
   output_nodes:
   - id: ii_transportation_total_emissions_territorial
     from_dimensions:
-    - id: scope
-      flatten: true
     - id: vehicle_type
+      flatten: true
+    - id: scope
       flatten: true
     to_dimensions:
     - id: ghg
@@ -1739,21 +1749,6 @@ nodes:
     - id: ghg
 
 # ----- Aggregates, Costs, & Benefits -----
-
-- id: aggregate_net_emissions
-  name: Aggregate Net Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: []
-  output_dimensions: []
-  input_nodes:
-  - id: net_emissions
-    from_dimensions:
-    - id: owner
-      flatten: true
-    - id: ghg
-      flatten: true
 
 - id: aggregate_net_price
   name: Aggregate Net Price
