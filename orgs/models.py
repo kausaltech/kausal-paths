@@ -5,8 +5,6 @@ from typing import TYPE_CHECKING, ClassVar, Self
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from paths.context import realm_context
-
 from kausal_common.models.types import MLModelManager
 from kausal_common.organizations.models import (
     BaseNamespace,
@@ -18,10 +16,11 @@ from kausal_common.organizations.models import (
     Node,
 )
 
-from users.models import User
+from paths.context import realm_context
 
 if TYPE_CHECKING:
     from nodes.models import InstanceConfig
+    from users.models import User
 
 
 class OrganizationClass(BaseOrganizationClass):
@@ -65,11 +64,7 @@ class OrganizationQuerySet(BaseOrganizationQuerySet):
         )
 
 _OrganizationManager = models.Manager.from_queryset(OrganizationQuerySet)
-
-
 class OrganizationManager(MLModelManager['Organization', OrganizationQuerySet], _OrganizationManager): ...
-
-
 del _OrganizationManager
 
 class Organization(BaseOrganization, Node[OrganizationQuerySet]):

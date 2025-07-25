@@ -13,36 +13,31 @@ from strawberry.tools import merge_types
 
 from grapple.registry import registry as grapple_registry
 
+from kausal_common import graphql_gis  # noqa: F401
 from kausal_common.deployment import test_mode_enabled
 from kausal_common.graphene.version_query import Query as ServerVersionQuery
 from kausal_common.models.types import copy_signature
 from kausal_common.strawberry.schema import LoggingTracingExtension, Schema as UnifiedSchema
 from kausal_common.testing.schema import TestModeMutations
 
-from kausal_common import graphql_gis  # noqa: F401
-
-from nodes.models import InstanceConfig
-from orgs.models import Organization
+from paths.context import realm_context
 from paths.graphql_types import UnitType
 from paths.schema_context import PathsGraphQLContext
 from paths.utils import validate_unit
 
 from frameworks.schema import Mutations as FrameworksMutations, Query as FrameworksQuery
+from nodes.models import InstanceConfig
 from nodes.schema import (
     Mutation as NodesMutation,
     Query as NodesQuery,
     SBQuery as SBNodesQuery,
     Subscription as NodesSubscription,
 )
+from orgs.models import Organization
+from orgs.schema import Mutation as OrgsMutation, OrganizationNode, Query as OrgsQuery
 from pages.schema import Query as PagesQuery
 from params.schema import Mutations as ParamsMutations, Query as ParamsQuery, types as params_types
 from users.schema import Query as UsersQuery
-from orgs.schema import Query as OrgsQuery, OrganizationNode, Mutation as OrgsMutation
-
-from paths.context import realm_context
-
-if True:
-    from kausal_common import graphql_gis  # noqa: F401
 
 if TYPE_CHECKING:
     from kausal_common.graphene import GQLInfo
@@ -91,6 +86,7 @@ class GrapheneQuery(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, Server
             raise GraphQLError(_('Invalid unit'), info.field_nodes) from None
         return unit
 
+    @staticmethod
     def resolve_instance_organizations(
         root: GrapheneQuery,
         info: GQLInfo,
