@@ -15,7 +15,7 @@ minimum_historical_year: 2010
 maximum_historical_year: 2023
 emission_unit: t/a
 emission_forecast_from: 2024
-emission_dimensions: ['owner', 'ghg']
+emission_dimensions: [owner, ghg]
 features:
   baseline_visible_in_graphs: true
   show_significant_digits: 3
@@ -45,7 +45,6 @@ impact_overviews:
 - graph_type: cost_benefit
   cost_node: cost_benefit_analysis
   effect_node: cost_benefit_analysis
-  # effect_unit: MSEK
   indicator_unit: MSEK
   outcome_dimension: cost_benefit
   label: Cost-benefit
@@ -56,8 +55,6 @@ impact_overviews:
   invert_cost: false
   invert_effect: true
   indicator_unit: '%'
-  # cost_unit: kSEK
-  # effect_unit: kSEK
   label: Return on investment
 
 params:
@@ -75,115 +72,115 @@ dimensions:
   label: Scope
   categories:
   - id: scope1
-    label: 'Scope 1'
+    label: Scope 1
   - id: scope2
-    label: 'Scope 2'
+    label: Scope 2
   - id: scope3
-    label: 'Scope 3'
+    label: Scope 3
 
 - id: product_type
   label: Product Type
   categories:
   - id: fluorinated_gases
-    label: 'Fluorinated Gases'
+    label: Fluorinated Gases
   - id: nitrous_oxide
-    label: 'Nitrous Oxide'
+    label: Nitrous Oxide
   - id: other
-    label: 'Other'
+    label: Other
 
 - id: energy_carrier
   label: Energy Carrier
   categories:
   - id: alkylate_gasoline
-    label: 'Alkylate Gasoline'
+    label: Alkylate Gasoline
   - id: aviation_gasoline
-    label: 'Aviation Gasoline'
+    label: Aviation Gasoline
   - id: biogas
-    label: 'Biogas'
+    label: Biogas
   - id: diesel
-    label: 'Diesel'
+    label: Diesel
   - id: district_heat
-    label: 'District Heat'
+    label: District Heat
   - id: electricity
-    label: 'Electricity'
+    label: Electricity
   - id: ethanol
-    label: 'Ethanol'
+    label: Ethanol
   - id: fuel_oil
-    label: 'Fuel Oil'
+    label: Fuel Oil
   - id: gasoline
-    label: 'Gasoline'
+    label: Gasoline
   - id: gasoline_electricity
-    label: 'Gasoline/Electricity'
+    label: Gasoline/Electricity
 
 - id: ghg
   label: GHG
   categories:
   - id: co2
-    label: 'CO2'
+    label: CO2
   - id: co2e
-    label: 'CO2e'
+    label: CO2e
 
 - id: owner
   label: Owner
   categories:
   - id: municipal
-    label: 'Municipal'
+    label: Municipal
   - id: private
-    label: 'Private'
+    label: Private
 
 - id: business_travel_type
   label: Business Travel Type
   categories:
   - id: private_car
-    label: 'Private Car'
+    label: Private Car
   - id: rental_car
-    label: 'Rental Car'
+    label: Rental Car
 
 - id: building_type
   label: Building Type
   categories:
   - id: apartment_building
-    label: 'Apartment Building'
+    label: Apartment Building
   - id: commercial
-    label: 'Commercial'
+    label: Commercial
   - id: commercial_and_public
-    label: 'Commercial & Public'
+    label: Commercial & Public
   - id: detached_house
-    label: 'Detached House'
+    label: Detached House
   - id: holiday_home
-    label: 'Holiday Home'
+    label: Holiday Home
   - id: public
-    label: 'Public'
+    label: Public
 
 - id: equipment_type
   label: Equipment Type
   categories:
   - id: agriculture_and_forestry
-    label: 'Agriculture & Forestry'
+    label: Agriculture & Forestry
   - id: commercial_and_public_activities
-    label: 'Commercial & Public Activities'
+    label: Commercial & Public Activities
   - id: household_work_machines
-    label: 'Household Work Machines'
+    label: Household Work Machines
   - id: industry_and_construction_sector_
-    label: 'Industry & Construction Sector '
+    label: Industry & Construction Sector
   - id: other
-    label: 'Other'
+    label: Other
   - id: snowmobiles_and_atvs
-    label: 'Snowmobiles & ATVs'
+    label: Snowmobiles & ATVs
 
 - id: vehicle_type
   label: Vehicle Type
   categories:
   - id: buses
-    label: 'Buses'
+    label: Buses
   - id: motorcycles
-    label: 'Motorcycles'
+    label: Motorcycles
   - id: passenger_cars
-    label: 'Passenger Cars'
+    label: Passenger Cars
   - id: trucks
-    label: 'Trucks'
+    label: Trucks
   - id: vans
-    label: 'Vans'
+    label: Vans
 
 - id: cost_benefit
   label: Cost-Benefit
@@ -197,187 +194,187 @@ dimensions:
   label: Electrification Scenario
   categories:
   - id: '1'
-    label: 'Low'
+    label: Low
   - id: '2'
-    label: 'Medium'
+    label: Medium
   - id: '3'
-    label: 'High'
+    label: High
 
 - id: sector
   label: GPC Sector
   categories:
   - id: i
-    label: 'I Stationary'
+    label: I Stationary
   - id: i1
-    label: 'I.1 Residential'
+    label: I.1 Residential
   - id: i11
-    label: 'I.1.1 Residential Fuel'
+    label: I.1.1 Residential Fuel
   - id: i12
-    label: 'I.1.2 Residential Grid Energy'
+    label: I.1.2 Residential Grid Energy
   - id: i13
-    label: 'I.1.3 Residential T & D Loss'
+    label: I.1.3 Residential T & D Loss
   - id: i2
-    label: 'I.2 Commercial & Institutional'
+    label: I.2 Commercial & Institutional
   - id: i21
-    label: 'I.2.1 Commercial & Institutional Fuel'
+    label: I.2.1 Commercial & Institutional Fuel
   - id: i22
-    label: 'I.2.2 Commercial & Institutional Grid Energy'
+    label: I.2.2 Commercial & Institutional Grid Energy
   - id: i23
-    label: 'I.2.3 Commercial & Institutional T & D Loss'
+    label: I.2.3 Commercial & Institutional T & D Loss
   - id: i3
-    label: 'I.3 Manufacturing'
+    label: I.3 Manufacturing
   - id: i31
-    label: 'I.3.1 Manufacturing Fuel'
+    label: I.3.1 Manufacturing Fuel
   - id: i32
-    label: 'I.3.2 Manufacturing Grid Energy'
+    label: I.3.2 Manufacturing Grid Energy
   - id: i33
-    label: 'I.3.3 Manufacturing T & D Loss'
+    label: I.3.3 Manufacturing T & D Loss
   - id: i4
-    label: 'I.4 Energy'
+    label: I.4 Energy
   - id: i41
-    label: 'I.4.1 Energy Fuel'
+    label: I.4.1 Energy Fuel
   - id: i42
-    label: 'I.4.2 Energy Grid Energy'
+    label: I.4.2 Energy Grid Energy
   - id: i43
-    label: 'I.4.3 Energy T & D Loss'
+    label: I.4.3 Energy T & D Loss
   - id: i5
-    label: 'I.5 Ag, Forestry, & Fishing'
+    label: I.5 Ag, Forestry, & Fishing
   - id: i51
-    label: 'I.5.1 Ag, Forestry, & Fishing Fuel'
+    label: I.5.1 Ag, Forestry, & Fishing Fuel
   - id: i52
-    label: 'I.5.2 Ag, Forestry, & Fishing Grid Energy'
+    label: I.5.2 Ag, Forestry, & Fishing Grid Energy
   - id: i53
-    label: 'I.5.3 Ag, Forestry, & Fishing T & D Loss'
+    label: I.5.3 Ag, Forestry, & Fishing T & D Loss
   - id: i6
-    label: 'I.6 Non-Specified'
+    label: I.6 Non-Specified
   - id: i61
-    label: 'I.6.1 Non-Specified Fuel'
+    label: I.6.1 Non-Specified Fuel
   - id: i62
-    label: 'I.6.2 Non-Specified Grid Energy'
+    label: I.6.2 Non-Specified Grid Energy
   - id: i63
-    label: 'I.6.3 Non-Specified T & D Loss'
+    label: I.6.3 Non-Specified T & D Loss
   - id: i7
-    label: 'I.7 Fugitive Coal'
+    label: I.7 Fugitive Coal
   - id: i71
-    label: 'I.7.1 Fugitive Coal'
+    label: I.7.1 Fugitive Coal
   - id: i8
-    label: 'I.8 Fugitive Oil & Natural Gas'
+    label: I.8 Fugitive Oil & Natural Gas
   - id: i81
-    label: 'I.8.1 Fugitive Oil & Natural Gas'
+    label: I.8.1 Fugitive Oil & Natural Gas
   - id: ii
-    label: 'II Transportation'
+    label: II Transportation
   - id: ii1
-    label: 'II.1 On-Road Transport'
+    label: II.1 On-Road Transport
   - id: ii11
-    label: 'II.1.1 On-Road Transport Fuel'
+    label: II.1.1 On-Road Transport Fuel
   - id: ii12
-    label: 'II.1.2 On-Road Transport Grid Energy'
+    label: II.1.2 On-Road Transport Grid Energy
   - id: ii13
-    label: 'II.1.3 On-Road Transport Outside City, T & D Loss'
+    label: II.1.3 On-Road Transport Outside City, T & D Loss
   - id: ii2
-    label: 'II.2 Railway'
+    label: II.2 Railway
   - id: ii21
-    label: 'II.2.1 Railway Fuel'
+    label: II.2.1 Railway Fuel
   - id: ii22
-    label: 'II.2.2 Railway Grid Energy'
+    label: II.2.2 Railway Grid Energy
   - id: ii23
-    label: 'II.2.3 Railway Outside City, T & D Loss'
+    label: II.2.3 Railway Outside City, T & D Loss
   - id: ii3
-    label: 'II.3 Waterborne'
+    label: II.3 Waterborne
   - id: ii31
-    label: 'II.3.1 Waterborne Fuel'
+    label: II.3.1 Waterborne Fuel
   - id: ii32
-    label: 'II.3.2 Waterborne Grid Energy'
+    label: II.3.2 Waterborne Grid Energy
   - id: ii33
-    label: 'II.3.3 Waterborne Outside City, T & D Loss'
+    label: II.3.3 Waterborne Outside City, T & D Loss
   - id: ii4
-    label: 'II.4 Aviation'
+    label: II.4 Aviation
   - id: ii41
-    label: 'II.4.1 Aviation Fuel'
+    label: II.4.1 Aviation Fuel
   - id: ii42
-    label: 'II.4.2 Aviation Grid Energy'
+    label: II.4.2 Aviation Grid Energy
   - id: ii43
-    label: 'II.4.3 Aviation Outside City, T & D Loss'
+    label: II.4.3 Aviation Outside City, T & D Loss
   - id: ii5
-    label: 'II.5 Off-Road Transport'
+    label: II.5 Off-Road Transport
   - id: ii51
-    label: 'II.5.1 Off-Road Transport Fuel'
+    label: II.5.1 Off-Road Transport Fuel
   - id: ii52
-    label: 'II.5.2 Off-Road Transport Grid Energy'
+    label: II.5.2 Off-Road Transport Grid Energy
   - id: ii53
-    label: 'II.5.3 Off-Road Transport Outside City, T & D Loss'
+    label: II.5.3 Off-Road Transport Outside City, T & D Loss
   - id: iii
-    label: 'III Waste'
+    label: III Waste
   - id: iii1
-    label: 'III.1 Solid Waste'
+    label: III.1 Solid Waste
   - id: iii11
-    label: 'III.1.1 Solid Waste Disposed in City'
+    label: III.1.1 Solid Waste Disposed in City
   - id: iii12
-    label: 'III.1.2 Solid Waste Disposed Outside City'
+    label: III.1.2 Solid Waste Disposed Outside City
   - id: iii2
-    label: 'III.2 Biological Waste'
+    label: III.2 Biological Waste
   - id: iii21
-    label: 'III.2.1 Biological Waste Treated in City'
+    label: III.2.1 Biological Waste Treated in City
   - id: iii22
-    label: 'III.2.2 Biological Waste Treated Outside City'
+    label: III.2.2 Biological Waste Treated Outside City
   - id: iii3
-    label: 'III.3 Incineration'
+    label: III.3 Incineration
   - id: iii31
-    label: 'III.3.1 Incineration in City'
+    label: III.3.1 Incineration in City
   - id: iii32
-    label: 'III.3.2 Incineration Outside City'
+    label: III.3.2 Incineration Outside City
   - id: iii4
-    label: 'III.4 Wastewater'
+    label: III.4 Wastewater
   - id: iii41
-    label: 'III.4.1 Wastewater Treated in City'
+    label: III.4.1 Wastewater Treated in City
   - id: iii42
-    label: 'III.4.2 Wastewater Treated Outside City'
+    label: III.4.2 Wastewater Treated Outside City
   - id: iv
-    label: 'IV IPPU'
+    label: IV IPPU
   - id: iv1
-    label: 'IV.1 Industrial Processes'
+    label: IV.1 Industrial Processes
   - id: iv2
-    label: 'IV.2 Product Use'
+    label: IV.2 Product Use
   - id: v
-    label: 'V AFOLU'
+    label: V AFOLU
   - id: v1
-    label: 'V.1 Livestock'
+    label: V.1 Livestock
   - id: v2
-    label: 'V.2 Land'
+    label: V.2 Land
   - id: v3
-    label: 'V.3 Aggregate Sources'
+    label: V.3 Aggregate Sources
 
 - id: action
   label: Action
   categories:
   - id: electrify_light_work_machines
-    label: 'Electrify Light Work Machines'
+    label: Electrify Light Work Machines
   - id: fossilfree_car_rental_agreement
-    label: 'Fossil-Free Car Rental Agreement'
+    label: Fossil-Free Car Rental Agreement
   - id: offset_flight_emissions_with_green_aviation_fuel
-    label: 'Offset Flight Emissions with Green Aviation Fuel'
+    label: Offset Flight Emissions with Green Aviation Fuel
   - id: phase_out_private_cars_in_service
-    label: 'Phase out Private Cars in Service'
+    label: Phase out Private Cars in Service
   - id: procure_renewable_energy_in_machine_services
-    label: 'Procure Renewable Energy in Machine Services'
+    label: Procure Renewable Energy in Machine Services
   - id: procure_renewable_energy_in_transport_services
-    label: 'Procure Renewable Energy in Transport Services'
+    label: Procure Renewable Energy in Transport Services
   - id: replace_city_fleet_with_electric_vehicles
-    label: 'Replace City Fleet with Electric Vehicles'
+    label: Replace City Fleet with Electric Vehicles
   - id: replace_diesel_with_hvo100_in_m_s_thomee
-    label: 'Replace Diesel with HVO100 in M/S Thomée'
+    label: Replace Diesel with HVO100 in M/S Thomée
   - id: replace_fuel_oil_heating_with_geothermal
-    label: 'Replace Fuel Oil Heating with Geothermal'
+    label: Replace Fuel Oil Heating with Geothermal
   - id: zeroemission_factor_for_district_heating
-    label: 'Zero-Emission Factor for District Heating'
+    label: Zero-Emission Factor for District Heating
   - id: bicycle_and_pedestrian_infrastructure_measures
-    label: 'Bicycle and Pedestrian Infrastructure Measures'
+    label: Bicycle and Pedestrian Infrastructure Measures
   - id: public_transport_infrastructure_measures
-    label: 'Public Transport Infrastructure Measures'
+    label: Public Transport Infrastructure Measures
   - id: mobility_management
-    label: 'Mobility Management'
+    label: Mobility Management
   - id: parking_measures
-    label: 'Parking Measures'
+    label: Parking Measures
 
 - id: cost_type
   label: Cost Type
@@ -406,8 +403,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: kSEK/a
-  input_dimensions: ['owner', 'scope']
-  output_dimensions: ['owner', 'scope']
+  input_dimensions: [owner, scope]
+  output_dimensions: [owner, scope]
   is_outcome: true
 
 - id: i1_residential_combustion
@@ -415,8 +412,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: fuel_consumption
   unit: l/a
-  input_dimensions: ['energy_carrier', 'owner', 'scope']
-  output_dimensions: ['energy_carrier', 'owner', 'scope']
+  input_dimensions: [energy_carrier, owner, scope]
+  output_dimensions: [energy_carrier, owner, scope]
   input_datasets:
   - id: ostersund/organizational_stationary
     column: fuel_consumption
@@ -439,23 +436,18 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
-  output_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
+  input_dimensions: [owner, energy_carrier, ghg, scope]
+  output_dimensions: [owner, energy_carrier, ghg, scope]
   output_nodes:
   - id: i_stationary_total_emissions
-    to_dimensions:
-    - id: owner
-    - id: energy_carrier
-    - id: ghg
-    - id: scope
 
 - id: i1_residential_emission_factor
   name: I.1 Residential Emission Factor
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/l
-  input_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
-  output_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
+  input_dimensions: [energy_carrier, ghg, owner, scope]
+  output_dimensions: [energy_carrier, ghg, owner, scope]
   input_datasets:
   - id: ostersund/organizational_stationary
     column: emission_factor_fuel
@@ -467,19 +459,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: i1_residential_combustion_emissions
-    to_dimensions:
-    - id: energy_carrier
-    - id: ghg
-    - id: owner
-    - id: scope
 
 - id: i1_residential_price
   name: I.1 Residential Price
   type: simple.AdditiveNode
   quantity: currency
   unit: kSEK/a
-  input_dimensions: ['owner', 'scope']
-  output_dimensions: ['owner', 'scope']
+  input_dimensions: [owner, scope]
+  output_dimensions: [owner, scope]
   input_datasets:
   - id: ostersund/organizational_stationary
     column: currency
@@ -493,17 +480,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: i_stationary_total_price
-    to_dimensions:
-    - id: owner
-    - id: scope
 
 - id: i42_energy_grid_energy_consumption
   name: I.4.2 Energy Grid Energy Consumption
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
-  input_dimensions: ['energy_carrier', 'owner', 'scope']
-  output_dimensions: ['energy_carrier', 'owner', 'scope']
+  input_dimensions: [energy_carrier, owner, scope]
+  output_dimensions: [energy_carrier, owner, scope]
   input_datasets:
   - id: ostersund/organizational_stationary
     column: energy
@@ -526,23 +510,18 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energy_carrier', 'owner', 'ghg', 'scope']
-  output_dimensions: ['energy_carrier', 'owner', 'ghg', 'scope']
+  input_dimensions: [energy_carrier, owner, ghg, scope]
+  output_dimensions: [energy_carrier, owner, ghg, scope]
   output_nodes:
   - id: i4_energy_total_emissions
-    to_dimensions:
-    - id: owner
-    - id: energy_carrier
-    - id: ghg
-    - id: scope
 
 - id: i42_energy_grid_energy_emission_factor
   name: I.4.2 Energy Grid Energy Emission Factor
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: t/GWh
-  input_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
-  output_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
+  input_dimensions: [energy_carrier, ghg, owner, scope]
+  output_dimensions: [energy_carrier, ghg, owner, scope]
   input_datasets:
   - id: ostersund/organizational_stationary
     column: emission_factor_energy
@@ -554,19 +533,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: i42_energy_grid_energy_consumption_emissions
-    to_dimensions:
-    - id: energy_carrier
-    - id: ghg
-    - id: owner
-    - id: scope
 
 - id: ii11_onroad_transport_fuel_combustion
   name: II.1.1 On-Road Transport Fuel Combustion
   type: simple.AdditiveNode
   quantity: fuel_consumption
   unit: l/a
-  input_dimensions: ['owner', 'scope', 'energy_carrier']
-  output_dimensions: ['owner', 'scope', 'energy_carrier']
+  input_dimensions: [owner, scope, energy_carrier]
+  output_dimensions: [owner, scope, energy_carrier]
   input_datasets:
   - id: ostersund/organizational_onroad_transportation
     column: fuel_consumption
@@ -589,8 +563,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
-  output_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
+  input_dimensions: [owner, energy_carrier, ghg, scope]
+  output_dimensions: [owner, energy_carrier, ghg, scope]
   output_nodes:
   - id: ii1_onroad_transport_total_emissions
     from_dimensions:
@@ -606,8 +580,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/l
-  input_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
-  output_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
+  input_dimensions: [energy_carrier, ghg, owner, scope]
+  output_dimensions: [energy_carrier, ghg, owner, scope]
   input_datasets:
   - id: ostersund/organizational_onroad_transportation
     column: emission_factor
@@ -619,19 +593,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii11_onroad_transport_fuel_combustion_emissions
-    to_dimensions:
-    - id: energy_carrier
-    - id: ghg
-    - id: owner
-    - id: scope
 
 - id: ii11_onroad_transport_fuel_price
   name: II.1.1 On-Road Transport Fuel Price
   type: simple.AdditiveNode
   quantity: currency
   unit: kSEK/a
-  input_dimensions: ['owner', 'scope']
-  output_dimensions: ['owner', 'scope']
+  input_dimensions: [owner, scope]
+  output_dimensions: [owner, scope]
   input_datasets:
   - id: ostersund/organizational_onroad_transportation
     column: currency
@@ -645,17 +614,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii1_onroad_transport_total_price
-    to_dimensions:
-    - id: owner
-    - id: scope
 
 - id: ii13_onroad_transport_indirect_emissions
   name: II.1.3 On-Road Transport Indirect Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['owner', 'ghg', 'scope']
-  output_dimensions: ['owner', 'ghg', 'scope']
+  input_dimensions: [owner, ghg, scope]
+  output_dimensions: [owner, ghg, scope]
   input_datasets:
   - id: ostersund/organizational_onroad_transportation
     column: emissions
@@ -668,18 +634,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii1_onroad_transport_total_emissions
-    to_dimensions:
-    - id: owner
-    - id: ghg
-    - id: scope
 
 - id: ii31_waterborne_fuel_combustion
   name: II.3.1 Waterborne Fuel Combustion
   type: simple.AdditiveNode
   quantity: fuel_consumption
   unit: l/a
-  input_dimensions: ['energy_carrier', 'owner', 'scope']
-  output_dimensions: ['energy_carrier', 'owner', 'scope']
+  input_dimensions: [energy_carrier, owner, scope]
+  output_dimensions: [energy_carrier, owner, scope]
   input_datasets:
   - id: ostersund/organizational_other_transportation
     column: fuel_consumption
@@ -703,23 +665,18 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
-  output_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
+  input_dimensions: [owner, energy_carrier, ghg, scope]
+  output_dimensions: [owner, energy_carrier, ghg, scope]
   output_nodes:
   - id: ii3_waterborne_total_emissions
-    to_dimensions:
-    - id: owner
-    - id: energy_carrier
-    - id: ghg
-    - id: scope
 
 - id: ii31_waterborne_fuel_emission_factor
   name: II.3.1 Waterborne Fuel Emission Factor
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/l
-  input_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
-  output_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
+  input_dimensions: [energy_carrier, ghg, owner, scope]
+  output_dimensions: [energy_carrier, ghg, owner, scope]
   input_datasets:
   - id: ostersund/organizational_other_transportation
     column: emission_factor
@@ -732,19 +689,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii31_waterborne_fuel_combustion_emissions
-    to_dimensions:
-    - id: energy_carrier
-    - id: ghg
-    - id: owner
-    - id: scope
 
 - id: ii31_waterborne_fuel_price
   name: II.3.1 Waterborne Fuel Price
   type: simple.AdditiveNode
   quantity: currency
   unit: kSEK/a
-  input_dimensions: ['owner', 'scope']
-  output_dimensions: ['owner', 'scope']
+  input_dimensions: [owner, scope]
+  output_dimensions: [owner, scope]
   input_datasets:
   - id: ostersund/organizational_other_transportation
     column: currency
@@ -759,17 +711,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii3_waterborne_total_price
-    to_dimensions:
-    - id: owner
-    - id: scope
 
 - id: ii41_aviation_fuel_emissions
   name: II.4.1 Aviation Fuel Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
-  output_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
+  input_dimensions: [energy_carrier, ghg, owner, scope]
+  output_dimensions: [energy_carrier, ghg, owner, scope]
   input_datasets:
   - id: ostersund/organizational_other_transportation
     column: emissions
@@ -782,32 +731,24 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii4_aviation_total_emissions
-    to_dimensions:
-    - id: energy_carrier
-    - id: ghg
-    - id: owner
-    - id: scope
 
 - id: ii41_aviation_fuel_price
   name: II.4.1 Aviation Fuel Price
   type: simple.AdditiveNode
   quantity: currency
   unit: kSEK/a
-  input_dimensions: ['owner', 'scope']
-  output_dimensions: ['owner', 'scope']
+  input_dimensions: [owner, scope]
+  output_dimensions: [owner, scope]
   output_nodes:
   - id: ii4_aviation_total_price
-    to_dimensions:
-    - id: owner
-    - id: scope
 
 - id: ii51_offroad_transport_fuel_combustion
   name: II.5.1 Off-Road Transport Fuel Combustion
   type: simple.AdditiveNode
   quantity: fuel_consumption
   unit: l/a
-  input_dimensions: ['energy_carrier', 'owner', 'scope']
-  output_dimensions: ['energy_carrier', 'owner', 'scope']
+  input_dimensions: [energy_carrier, owner, scope]
+  output_dimensions: [energy_carrier, owner, scope]
   input_datasets:
   - id: ostersund/organizational_other_transportation
     column: fuel_consumption
@@ -831,23 +772,18 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energy_carrier', 'owner', 'ghg', 'scope']
-  output_dimensions: ['energy_carrier', 'owner', 'ghg', 'scope']
+  input_dimensions: [energy_carrier, owner, ghg, scope]
+  output_dimensions: [energy_carrier, owner, ghg, scope]
   output_nodes:
   - id: ii5_offroad_transport_total_emissions
-    to_dimensions:
-    - id: owner
-    - id: energy_carrier
-    - id: ghg
-    - id: scope
 
 - id: ii51_offroad_transport_fuel_emission_factor
   name: II.5.1 Off-Road Transport Fuel Emission Factor
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/l
-  input_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
-  output_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
+  input_dimensions: [energy_carrier, ghg, owner, scope]
+  output_dimensions: [energy_carrier, ghg, owner, scope]
   input_datasets:
   - id: ostersund/organizational_other_transportation
     column: emission_factor
@@ -860,19 +796,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii51_offroad_transport_fuel_combustion_emissions
-    to_dimensions:
-    - id: energy_carrier
-    - id: ghg
-    - id: owner
-    - id: scope
 
 - id: ii51_offroad_transport_fuel_price
   name: II.5.1 Off-Road Transport Fuel Price
   type: simple.AdditiveNode
   quantity: currency
   unit: kSEK/a
-  input_dimensions: ['owner', 'scope']
-  output_dimensions: ['owner', 'scope']
+  input_dimensions: [owner, scope]
+  output_dimensions: [owner, scope]
   input_datasets:
   - id: ostersund/organizational_other_transportation
     column: currency
@@ -887,17 +818,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii5_offroad_transport_total_price
-    to_dimensions:
-    - id: owner
-    - id: scope
 
 - id: ii53_offroad_transport_indirect_combustion
   name: II.5.3 Off-Road Transport Indirect Combustion
   type: simple.AdditiveNode
   quantity: fuel_consumption
   unit: l/a
-  input_dimensions: ['energy_carrier', 'owner', 'scope']
-  output_dimensions: ['energy_carrier', 'owner', 'scope']
+  input_dimensions: [energy_carrier, owner, scope]
+  output_dimensions: [energy_carrier, owner, scope]
   input_datasets:
   - id: ostersund/organizational_other_transportation
     column: fuel_consumption
@@ -921,23 +849,18 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energy_carrier', 'owner', 'ghg', 'scope']
-  output_dimensions: ['energy_carrier', 'owner', 'ghg', 'scope']
+  input_dimensions: [energy_carrier, owner, ghg, scope]
+  output_dimensions: [energy_carrier, owner, ghg, scope]
   output_nodes:
   - id: ii5_offroad_transport_total_emissions
-    to_dimensions:
-    - id: owner
-    - id: energy_carrier
-    - id: ghg
-    - id: scope
 
 - id: ii53_offroad_transport_indirect_emission_factor
   name: II.5.3 Off-Road Transport Indirect Emission Factor
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/l
-  input_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
-  output_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
+  input_dimensions: [energy_carrier, ghg, owner, scope]
+  output_dimensions: [energy_carrier, ghg, owner, scope]
   input_datasets:
   - id: ostersund/organizational_other_transportation
     column: emission_factor
@@ -950,19 +873,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii53_offroad_transport_indirect_combustion_emissions
-    to_dimensions:
-    - id: energy_carrier
-    - id: ghg
-    - id: owner
-    - id: scope
 
 - id: ii_transportation_emissions
   name: II Transportation Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['business_travel_type', 'owner', 'ghg']
-  output_dimensions: ['business_travel_type', 'owner', 'ghg']
+  input_dimensions: [business_travel_type, owner, ghg]
+  output_dimensions: [business_travel_type, owner, ghg]
   input_datasets:
   - id: ostersund/organizational_other_transportation
     column: emissions
@@ -988,15 +906,10 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energy_carrier', 'owner', 'ghg', 'scope']
-  output_dimensions: ['energy_carrier', 'owner', 'ghg', 'scope']
+  input_dimensions: [energy_carrier, owner, ghg, scope]
+  output_dimensions: [energy_carrier, owner, ghg, scope]
   output_nodes:
   - id: i_stationary_total_emissions
-    to_dimensions:
-    - id: owner
-    - id: energy_carrier
-    - id: ghg
-    - id: scope
 
 - id: i_stationary_total_emissions
   name: I Stationary Total Emissions
@@ -1004,8 +917,8 @@ nodes:
   color: '#4e79a7'
   quantity: emissions
   unit: t/a
-  input_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
-  output_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
+  input_dimensions: [owner, energy_carrier, ghg, scope]
+  output_dimensions: [owner, energy_carrier, ghg, scope]
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -1022,8 +935,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['owner', 'ghg', 'scope']
-  output_dimensions: ['owner', 'ghg', 'scope']
+  input_dimensions: [owner, ghg, scope]
+  output_dimensions: [owner, ghg, scope]
   output_nodes:
   - id: ii_transportation_total_emissions
     from_dimensions:
@@ -1038,8 +951,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
-  output_dimensions: ['owner', 'energy_carrier', 'ghg', 'scope']
+  input_dimensions: [owner, energy_carrier, ghg, scope]
+  output_dimensions: [owner, energy_carrier, ghg, scope]
   output_nodes:
   - id: ii_transportation_total_emissions
     from_dimensions:
@@ -1056,8 +969,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
-  output_dimensions: ['energy_carrier', 'ghg', 'owner', 'scope']
+  input_dimensions: [energy_carrier, ghg, owner, scope]
+  output_dimensions: [energy_carrier, ghg, owner, scope]
   output_nodes:
   - id: ii_transportation_total_emissions
     from_dimensions:
@@ -1074,8 +987,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energy_carrier', 'owner', 'ghg', 'scope']
-  output_dimensions: ['energy_carrier', 'owner', 'ghg', 'scope']
+  input_dimensions: [energy_carrier, owner, ghg, scope]
+  output_dimensions: [energy_carrier, owner, ghg, scope]
   output_nodes:
   - id: ii_transportation_total_emissions
     from_dimensions:
@@ -1093,13 +1006,10 @@ nodes:
   color: '#e15759'
   quantity: emissions
   unit: t/a
-  input_dimensions: ['owner', 'ghg']
-  output_dimensions: ['owner', 'ghg']
+  input_dimensions: [owner, ghg]
+  output_dimensions: [owner, ghg]
   output_nodes:
   - id: net_emissions
-    to_dimensions:
-    - id: owner
-    - id: ghg
 
 - id: i_stationary_total_price
   name: I Stationary Total Price
@@ -1107,65 +1017,50 @@ nodes:
   color: '#4e79a7'
   quantity: currency
   unit: kSEK/a
-  input_dimensions: ['owner', 'scope']
-  output_dimensions: ['owner', 'scope']
+  input_dimensions: [owner, scope]
+  output_dimensions: [owner, scope]
   output_nodes:
   - id: net_price
-    to_dimensions:
-    - id: owner
-    - id: scope
 
 - id: ii1_onroad_transport_total_price
   name: II.1 On-Road Transport Total Price
   type: simple.AdditiveNode
   quantity: currency
   unit: kSEK/a
-  input_dimensions: ['owner', 'scope']
-  output_dimensions: ['owner', 'scope']
+  input_dimensions: [owner, scope]
+  output_dimensions: [owner, scope]
   output_nodes:
   - id: ii_transportation_total_price
-    to_dimensions:
-    - id: owner
-    - id: scope
 
 - id: ii3_waterborne_total_price
   name: II.3 Waterborne Total Price
   type: simple.AdditiveNode
   quantity: currency
   unit: kSEK/a
-  input_dimensions: ['owner', 'scope']
-  output_dimensions: ['owner', 'scope']
+  input_dimensions: [owner, scope]
+  output_dimensions: [owner, scope]
   output_nodes:
   - id: ii_transportation_total_price
-    to_dimensions:
-    - id: owner
-    - id: scope
 
 - id: ii4_aviation_total_price
   name: II.4 Aviation Total Price
   type: simple.AdditiveNode
   quantity: currency
   unit: kSEK/a
-  input_dimensions: ['owner', 'scope']
-  output_dimensions: ['owner', 'scope']
+  input_dimensions: [owner, scope]
+  output_dimensions: [owner, scope]
   output_nodes:
   - id: ii_transportation_total_price
-    to_dimensions:
-    - id: owner
-    - id: scope
 
 - id: ii5_offroad_transport_total_price
   name: II.5 Off-Road Transport Total Price
   type: simple.AdditiveNode
   quantity: currency
   unit: kSEK/a
-  input_dimensions: ['owner', 'scope']
-  output_dimensions: ['owner', 'scope']
+  input_dimensions: [owner, scope]
+  output_dimensions: [owner, scope]
   output_nodes:
   - id: ii_transportation_total_price
-    to_dimensions:
-    - id: owner
-    - id: scope
 
 - id: ii_transportation_total_price
   name: II Transportation Total Price
@@ -1173,13 +1068,10 @@ nodes:
   color: '#e15759'
   quantity: currency
   unit: kSEK/a
-  input_dimensions: ['owner', 'scope']
-  output_dimensions: ['owner', 'scope']
+  input_dimensions: [owner, scope]
+  output_dimensions: [owner, scope]
   output_nodes:
   - id: net_price
-    to_dimensions:
-    - id: owner
-    - id: scope
 
 # ----- Territorial Emissions -----
 
@@ -1188,8 +1080,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
   goals:
   - label: GHG Budget (Paris Agreement)
     values: [{'year': 2019, 'value': 165.0033694},
@@ -1212,8 +1104,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['scope', 'owner', 'ghg', 'energy_carrier']
-  output_dimensions: ['scope', 'owner', 'ghg', 'energy_carrier']
+  input_dimensions: [scope, owner, ghg, energy_carrier]
+  output_dimensions: [scope, owner, ghg, energy_carrier]
   input_datasets:
   - id: ostersund/territorial_stationary
     column: emissions
@@ -1240,8 +1132,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['scope', 'ghg', 'building_type']
-  output_dimensions: ['scope', 'ghg', 'building_type']
+  input_dimensions: [scope, ghg, building_type]
+  output_dimensions: [scope, ghg, building_type]
   input_datasets:
   - id: ostersund/territorial_stationary
     column: emissions
@@ -1267,8 +1159,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['scope', 'ghg', 'building_type']
-  output_dimensions: ['scope', 'ghg', 'building_type']
+  input_dimensions: [scope, ghg, building_type]
+  output_dimensions: [scope, ghg, building_type]
   input_datasets:
   - id: ostersund/territorial_stationary
     column: emissions
@@ -1282,18 +1174,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: i2_commercial_and_institutional_total_emissions_territorial
-    to_dimensions:
-    - id: scope
-    - id: ghg
-    - id: building_type
 
 - id: i22_commercial_and_institutional_grid_energy_emissions_territorial
   name: I.2.2 Commercial & Institutional Grid Energy Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['scope', 'ghg', 'building_type']
-  output_dimensions: ['scope', 'ghg', 'building_type']
+  input_dimensions: [scope, ghg, building_type]
+  output_dimensions: [scope, ghg, building_type]
   input_datasets:
   - id: ostersund/territorial_stationary
     column: emissions
@@ -1307,18 +1195,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: i2_commercial_and_institutional_total_emissions_territorial
-    to_dimensions:
-    - id: scope
-    - id: ghg
-    - id: building_type
 
 - id: i3_manufacturing_emissions_territorial
   name: I.3 Manufacturing Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
   input_datasets:
   - id: ostersund/territorial_stationary
     column: emissions
@@ -1334,16 +1218,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: i_stationary_total_emissions_territorial
-    to_dimensions:
-    - id: ghg
 
 - id: i5_ag_forestry_and_fishing_emissions_territorial
   name: I.5 Ag, Forestry, & Fishing Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
   input_datasets:
   - id: ostersund/territorial_stationary
     column: emissions
@@ -1359,16 +1241,16 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: i_stationary_total_emissions_territorial
-    to_dimensions:
-    - id: ghg
+
+# ----- Territorial On-Road Transportation
 
 - id: ii11_onroad_transport_fuel_emission_factor_territorial
   name: II.1.1 On-Road Transport Fuel Emission Factor
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/km
-  input_dimensions: ['scope', 'owner', 'ghg', 'energy_carrier', 'vehicle_type']
-  output_dimensions: ['scope', 'owner', 'ghg', 'energy_carrier', 'vehicle_type']
+  input_dimensions: [scope, owner, ghg, energy_carrier, vehicle_type]
+  output_dimensions: [scope, owner, ghg, energy_carrier, vehicle_type]
   input_datasets:
   - id: ostersund/territorial_onroad_transportation
     column: emission_factor
@@ -1381,20 +1263,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii11_onroad_transport_fuel_mileage_emissions_territorial
-    to_dimensions:
-    - id: scope
-    - id: owner
-    - id: ghg
-    - id: energy_carrier
-    - id: vehicle_type
 
 - id: ii11_onroad_transport_fuel_emissions_territorial
   name: II.1.1 On-Road Transport Fuel Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['scope', 'ghg', 'vehicle_type']
-  output_dimensions: ['scope', 'ghg', 'vehicle_type']
+  input_dimensions: [scope, ghg, vehicle_type]
+  output_dimensions: [scope, ghg, vehicle_type]
   input_datasets:
   - id: ostersund/territorial_onroad_transportation
     column: emissions
@@ -1409,18 +1285,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii11_onroad_transport_fuel_total_emissions_territorial
-    to_dimensions:
-    - id: scope
-    - id: ghg
-    - id: vehicle_type
 
 - id: ii11_onroad_transport_fuel_mileage_territorial
   name: II.1.1 On-Road Transport Fuel Mileage
   type: gpc.DatasetNode
   quantity: mileage
   unit: km/a
-  input_dimensions: ['energy_carrier', 'scope', 'owner', 'vehicle_type']
-  output_dimensions: ['energy_carrier', 'scope', 'owner', 'vehicle_type']
+  input_dimensions: [energy_carrier, scope, owner, vehicle_type]
+  output_dimensions: [energy_carrier, scope, owner, vehicle_type]
   params:
   - id: gpc_sector
     value: II.1.1
@@ -1440,27 +1312,22 @@ nodes:
     - id: vehicle_type
   - id: ii11_onroad_transport_fuel_mileage_mix_territorial
     tags: [activity]
-    to_dimensions:
-    - id: energy_carrier
-    - id: scope
-    - id: owner
-    - id: vehicle_type
 
 - id: ii11_onroad_transport_fuel_mileage_mix_territorial
   name: II.1.1 On-Road Transport Fuel Mileage Mix
   type: simple.MixNode
   quantity: mix
   unit: '%'
-  input_dimensions: ['energy_carrier', 'scope', 'owner', 'vehicle_type']
-  output_dimensions: ['energy_carrier', 'scope', 'owner', 'vehicle_type']
+  input_dimensions: [energy_carrier, scope, owner, vehicle_type]
+  output_dimensions: [energy_carrier, scope, owner, vehicle_type]
 
 - id: ii11_onroad_transport_fuel_mileage_emissions_territorial
   name: II.1.1 On-Road Transport Fuel Mileage Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'owner', 'vehicle_type', 'scope', 'ghg']
-  output_dimensions: ['energy_carrier', 'owner', 'vehicle_type', 'scope', 'ghg']
+  input_dimensions: [energy_carrier, owner, vehicle_type, scope, ghg]
+  output_dimensions: [energy_carrier, owner, vehicle_type, scope, ghg]
   output_nodes:
   - id: ii11_onroad_transport_fuel_total_emissions_territorial
     from_dimensions:
@@ -1473,13 +1340,15 @@ nodes:
     - id: scope
     - id: ghg
 
+# -----
+
 - id: ii2_railway_emissions_territorial
   name: II.2 Railway Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
   input_datasets:
   - id: ostersund/territorial_other_transportation
     column: emissions
@@ -1493,16 +1362,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii_transportation_total_emissions_territorial
-    to_dimensions:
-    - id: ghg
 
 - id: ii3_waterborne_emissions_territorial
   name: II.3 Waterborne Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
   input_datasets:
   - id: ostersund/territorial_other_transportation
     column: emissions
@@ -1516,16 +1383,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii_transportation_total_emissions_territorial
-    to_dimensions:
-    - id: ghg
 
 - id: ii4_aviation_emissions_territorial
   name: II.4 Aviation Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
   input_datasets:
   - id: ostersund/territorial_other_transportation
     column: emissions
@@ -1539,16 +1404,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii_transportation_total_emissions_territorial
-    to_dimensions:
-    - id: ghg
 
 - id: ii51_offroad_transport_fuel_emissions_territorial
   name: II.5.1 Off-Road Transport Fuel Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['scope', 'ghg', 'equipment_type']
-  output_dimensions: ['scope', 'ghg', 'equipment_type']
+  input_dimensions: [scope, ghg, equipment_type]
+  output_dimensions: [scope, ghg, equipment_type]
   input_datasets:
   - id: ostersund/territorial_other_transportation
     column: emissions
@@ -1560,18 +1423,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: ii5_offroad_transport_total_emissions_territorial
-    to_dimensions:
-    - id: scope
-    - id: ghg
-    - id: equipment_type
 
 - id: iii11_solid_waste_disposed_in_city_emissions_territorial
   name: III.1.1 Solid Waste Disposed in City Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
+  input_dimensions: [scope, ghg]
+  output_dimensions: [scope, ghg]
   input_datasets:
   - id: ostersund/territorial_waste
     column: emissions
@@ -1583,17 +1442,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: iii1_solid_waste_total_emissions_territorial
-    to_dimensions:
-    - id: scope
-    - id: ghg
 
 - id: iii21_biological_waste_treated_in_city_emissions_territorial
   name: III.2.1 Biological Waste Treated in City Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
+  input_dimensions: [scope, ghg]
+  output_dimensions: [scope, ghg]
   input_datasets:
   - id: ostersund/territorial_waste
     column: emissions
@@ -1605,17 +1461,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: iii2_biological_waste_total_emissions_territorial
-    to_dimensions:
-    - id: scope
-    - id: ghg
 
 - id: iii41_wastewater_treated_in_city_emissions_territorial
   name: III.4.1 Wastewater Treated in City Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
+  input_dimensions: [scope, ghg]
+  output_dimensions: [scope, ghg]
   input_datasets:
   - id: ostersund/territorial_waste
     column: emissions
@@ -1627,17 +1480,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: iii4_wastewater_total_emissions_territorial
-    to_dimensions:
-    - id: scope
-    - id: ghg
 
 - id: iv2_product_use_emissions_territorial
   name: IV.2 Product Use Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['scope', 'product_type', 'ghg']
-  output_dimensions: ['scope', 'product_type', 'ghg']
+  input_dimensions: [scope, product_type, ghg]
+  output_dimensions: [scope, product_type, ghg]
   input_datasets:
   - id: ostersund/territorial_ippu_and_afolu
     column: emissions
@@ -1649,18 +1499,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: iv_ippu_total_emissions_territorial
-    to_dimensions:
-    - id: scope
-    - id: product_type
-    - id: ghg
 
 - id: v1_livestock_emissions_territorial
   name: V.1 Livestock Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
+  input_dimensions: [scope, ghg]
+  output_dimensions: [scope, ghg]
   input_datasets:
   - id: ostersund/territorial_ippu_and_afolu
     column: emissions
@@ -1673,17 +1519,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: v_afolu_total_emissions_territorial
-    to_dimensions:
-    - id: scope
-    - id: ghg
 
 - id: v2_land_emissions_territorial
   name: V.2 Land Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
+  input_dimensions: [scope, ghg]
+  output_dimensions: [scope, ghg]
   input_datasets:
   - id: ostersund/territorial_ippu_and_afolu
     column: emissions
@@ -1696,17 +1539,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: v_afolu_total_emissions_territorial
-    to_dimensions:
-    - id: scope
-    - id: ghg
 
 - id: v3_aggregate_sources_emissions_territorial
   name: V.3 Aggregate Sources Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
+  input_dimensions: [scope, ghg]
+  output_dimensions: [scope, ghg]
   input_datasets:
   - id: ostersund/territorial_ippu_and_afolu
     column: emissions
@@ -1719,17 +1559,14 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: v_afolu_total_emissions_territorial
-    to_dimensions:
-    - id: scope
-    - id: ghg
 
 - id: i1_residential_total_emissions_territorial
   name: I.1 Residential Total Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
+  input_dimensions: [scope, ghg]
+  output_dimensions: [scope, ghg]
   output_nodes:
   - id: i_stationary_total_emissions_territorial
     from_dimensions:
@@ -1743,8 +1580,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['scope', 'building_type', 'ghg']
-  output_dimensions: ['scope', 'building_type', 'ghg']
+  input_dimensions: [scope, building_type, ghg]
+  output_dimensions: [scope, building_type, ghg]
   output_nodes:
   - id: i_stationary_total_emissions_territorial
     from_dimensions:
@@ -1761,34 +1598,28 @@ nodes:
   color: '#4e79a7'
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
   output_nodes:
   - id: net_emissions_territorial
-    to_dimensions:
-    - id: ghg
 
 - id: ii11_onroad_transport_fuel_total_emissions_territorial
   name: II.1.1 On-Road Transport Fuel Total Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['scope', 'ghg', 'vehicle_type']
-  output_dimensions: ['scope', 'ghg', 'vehicle_type']
+  input_dimensions: [scope, ghg, vehicle_type]
+  output_dimensions: [scope, ghg, vehicle_type]
   output_nodes:
   - id: ii1_onroad_transport_total_emissions_territorial
-    to_dimensions:
-    - id: scope
-    - id: ghg
-    - id: vehicle_type
 
 - id: ii1_onroad_transport_total_emissions_territorial
   name: II.1 On-Road Transport Total Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['scope', 'ghg', 'vehicle_type']
-  output_dimensions: ['scope', 'ghg', 'vehicle_type']
+  input_dimensions: [scope, ghg, vehicle_type]
+  output_dimensions: [scope, ghg, vehicle_type]
   output_nodes:
   - id: ii_transportation_total_emissions_territorial
     from_dimensions:
@@ -1804,8 +1635,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['scope', 'ghg', 'equipment_type']
-  output_dimensions: ['scope', 'ghg', 'equipment_type']
+  input_dimensions: [scope, ghg, equipment_type]
+  output_dimensions: [scope, ghg, equipment_type]
   output_nodes:
   - id: ii_transportation_total_emissions_territorial
     from_dimensions:
@@ -1822,51 +1653,40 @@ nodes:
   color: '#e15759'
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
   output_nodes:
   - id: net_emissions_territorial
-    to_dimensions:
-    - id: ghg
 
 - id: iii1_solid_waste_total_emissions_territorial
   name: III.1 Solid Waste Total Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
+  input_dimensions: [scope, ghg]
+  output_dimensions: [scope, ghg]
   output_nodes:
   - id: iii_waste_total_emissions_territorial
-    to_dimensions:
-    - id: scope
-    - id: ghg
 
 - id: iii2_biological_waste_total_emissions_territorial
   name: III.2 Biological Waste Total Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
+  input_dimensions: [scope, ghg]
+  output_dimensions: [scope, ghg]
   output_nodes:
   - id: iii_waste_total_emissions_territorial
-    to_dimensions:
-    - id: scope
-    - id: ghg
 
 - id: iii4_wastewater_total_emissions_territorial
   name: III.4 Wastewater Total Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
+  input_dimensions: [scope, ghg]
+  output_dimensions: [scope, ghg]
   output_nodes:
   - id: iii_waste_total_emissions_territorial
-    to_dimensions:
-    - id: scope
-    - id: ghg
 
 - id: iii_waste_total_emissions_territorial
   name: III Waste Total Emissions
@@ -1874,8 +1694,8 @@ nodes:
   color: '#59A14F'
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
+  input_dimensions: [scope, ghg]
+  output_dimensions: [scope, ghg]
   output_nodes:
   - id: net_emissions_territorial
     from_dimensions:
@@ -1890,8 +1710,8 @@ nodes:
   color: '#F28E2B'
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['scope', 'product_type', 'ghg']
-  output_dimensions: ['scope', 'product_type', 'ghg']
+  input_dimensions: [scope, product_type, ghg]
+  output_dimensions: [scope, product_type, ghg]
   output_nodes:
   - id: net_emissions_territorial
     from_dimensions:
@@ -1908,8 +1728,8 @@ nodes:
   color: '#B07AA1'
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
+  input_dimensions: [scope, ghg]
+  output_dimensions: [scope, ghg]
   output_nodes:
   - id: net_emissions_territorial
     from_dimensions:
@@ -2059,8 +1879,8 @@ actions:
   name: Electrify Light Work Machines
   type: simple.AdditiveAction
   group: transportation
-  input_dimensions: ['scope', 'energy_carrier', 'owner']
-  output_dimensions: ['scope', 'energy_carrier', 'owner']
+  input_dimensions: [scope, energy_carrier, owner]
+  output_dimensions: [scope, energy_carrier, owner]
   params:
     allow_null_categories: true
   input_datasets:
@@ -2082,10 +1902,6 @@ actions:
   output_nodes:
   - id: ii51_offroad_transport_fuel_combustion
     metrics: [fuel_consumption]
-    to_dimensions:
-    - id: scope
-    - id: energy_carrier
-    - id: owner
   - id: ii51_offroad_transport_fuel_price
     metrics: [currency]
     from_dimensions:
@@ -2102,8 +1918,8 @@ actions:
   group: transportation
   unit: kt/a
   quantity: emissions
-  input_dimensions: ['business_travel_type', 'owner', 'ghg']
-  output_dimensions: ['business_travel_type', 'owner', 'ghg']
+  input_dimensions: [business_travel_type, owner, ghg]
+  output_dimensions: [business_travel_type, owner, ghg]
   input_datasets:
   - id: ostersund/organizational_other_transportation_actions
     column: emissions
@@ -2116,18 +1932,14 @@ actions:
     - column: energy_carrier
   output_nodes:
   - id: ii_transportation_emissions
-    to_dimensions:
-    - id: business_travel_type
-    - id: owner
-    - id: ghg
 
 # Zeros II.4.1 aviation gasoline emissions from 2025.
 - id: offset_flight_emissions_with_green_aviation_fuel
   name: Offset Flight Emissions with Green Aviation Fuel
   type: simple.AdditiveAction
   group: transportation
-  input_dimensions: ['scope', 'energy_carrier', 'ghg', 'owner']
-  output_dimensions: ['scope', 'energy_carrier', 'ghg', 'owner']
+  input_dimensions: [scope, energy_carrier, ghg, owner]
+  output_dimensions: [scope, energy_carrier, ghg, owner]
   params:
     allow_null_categories: true
   input_datasets:
@@ -2148,11 +1960,6 @@ actions:
   output_nodes:
   - id: ii41_aviation_fuel_emissions
     metrics: [emissions]
-    to_dimensions:
-    - id: scope
-    - id: energy_carrier
-    - id: ghg
-    - id: owner
   - id: ii41_aviation_fuel_price
     metrics: [currency]
     from_dimensions:
@@ -2169,8 +1976,8 @@ actions:
   name: Phase out Private Cars in Service
   type: simple.AdditiveAction
   group: transportation
-  input_dimensions: ['business_travel_type', 'owner', 'ghg', 'scope']
-  output_dimensions: ['business_travel_type', 'owner', 'ghg', 'scope']
+  input_dimensions: [business_travel_type, owner, ghg, scope]
+  output_dimensions: [business_travel_type, owner, ghg, scope]
   params:
     allow_null_categories: true
   input_datasets:
@@ -2216,8 +2023,8 @@ actions:
   group: transportation
   unit: kt/a
   quantity: emissions
-  input_dimensions: ['scope', 'energy_carrier', 'ghg', 'owner']
-  output_dimensions: ['scope', 'energy_carrier', 'ghg', 'owner']
+  input_dimensions: [scope, energy_carrier, ghg, owner]
+  output_dimensions: [scope, energy_carrier, ghg, owner]
   input_datasets:
   - id: ostersund/organizational_other_transportation_actions
     column: emissions
@@ -2229,11 +2036,6 @@ actions:
     - column: business_travel_type
   output_nodes:
   - id: ii53_offroad_transport_indirect_combustion_emissions
-    to_dimensions:
-    - id: scope
-    - id: energy_carrier
-    - id: ghg
-    - id: owner
 
 # Zeros II.1.3 emissions from 2025.
 - id: procure_renewable_energy_in_direct_transport_services
@@ -2242,8 +2044,8 @@ actions:
   group: transportation
   unit: kt/a
   quantity: emissions
-  input_dimensions: ['scope', 'ghg', 'owner']
-  output_dimensions: ['scope', 'ghg', 'owner']
+  input_dimensions: [scope, ghg, owner]
+  output_dimensions: [scope, ghg, owner]
   input_datasets:
   - id: ostersund/organizational_onroad_transportation_actions
     column: emissions
@@ -2255,18 +2057,14 @@ actions:
     - column: energy_carrier
   output_nodes:
   - id: ii13_onroad_transport_indirect_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-    - id: owner
 
 # Zeros II.1.1 fuel consumption from 2025.
 - id: replace_city_fleet_with_electric_vehicles
   name: Replace City Fleet with Electric Vehicles
   type: simple.AdditiveAction
   group: transportation
-  input_dimensions: ['scope', 'energy_carrier', 'owner']
-  output_dimensions: ['scope', 'energy_carrier', 'owner']
+  input_dimensions: [scope, energy_carrier, owner]
+  output_dimensions: [scope, energy_carrier, owner]
   params:
     allow_null_categories: true
   input_datasets:
@@ -2287,10 +2085,6 @@ actions:
   output_nodes:
   - id: ii11_onroad_transport_fuel_combustion
     metrics: [fuel_consumption]
-    to_dimensions:
-    - id: scope
-    - id: energy_carrier
-    - id: owner
   - id: ii11_onroad_transport_fuel_price
     metrics: [currency]
     from_dimensions:
@@ -2305,8 +2099,8 @@ actions:
   name: Replace Diesel with HVO100 in M/S Thomée
   type: simple.AdditiveAction
   group: transportation
-  input_dimensions: ['scope', 'energy_carrier', 'owner']
-  output_dimensions: ['scope', 'energy_carrier', 'owner']
+  input_dimensions: [scope, energy_carrier, owner]
+  output_dimensions: [scope, energy_carrier, owner]
   params:
     allow_null_categories: true
   input_datasets:
@@ -2328,10 +2122,6 @@ actions:
   output_nodes:
   - id: ii31_waterborne_fuel_combustion
     metrics: [fuel_consumption]
-    to_dimensions:
-    - id: scope
-    - id: energy_carrier
-    - id: owner
   - id: ii31_waterborne_fuel_price
     metrics: [currency]
     from_dimensions:
@@ -2346,8 +2136,8 @@ actions:
   name: Replace Fuel Oil Heating with Geothermal
   type: simple.AdditiveAction
   group: stationary
-  input_dimensions: ['scope', 'energy_carrier', 'owner']
-  output_dimensions: ['scope', 'energy_carrier', 'owner']
+  input_dimensions: [scope, energy_carrier, owner]
+  output_dimensions: [scope, energy_carrier, owner]
   params:
     allow_null_categories: true
   input_datasets:
@@ -2368,10 +2158,6 @@ actions:
   output_nodes:
   - id: i1_residential_combustion
     metrics: [fuel_consumption]
-    to_dimensions:
-    - id: scope
-    - id: energy_carrier
-    - id: owner
   - id: i1_residential_price
     metrics: [currency]
     from_dimensions:
@@ -2388,8 +2174,8 @@ actions:
   group: stationary
   unit: t/a
   quantity: emissions
-  input_dimensions: ['energy_carrier', 'owner', 'ghg', 'scope']
-  output_dimensions: ['energy_carrier', 'owner', 'ghg', 'scope']
+  input_dimensions: [energy_carrier, owner, ghg, scope]
+  output_dimensions: [energy_carrier, owner, ghg, scope]
   input_datasets:
   - id: ostersund/organizational_stationary_actions
     column: emissions
@@ -2400,11 +2186,6 @@ actions:
       value: zeroemission_factor_for_district_heating
   output_nodes:
   - id: i42_energy_grid_energy_consumption_emissions
-    to_dimensions:
-    - id: energy_carrier
-    - id: owner
-    - id: ghg
-    - id: scope
 
 pages:
 - id: home
