@@ -1,11 +1,11 @@
-from django.contrib.gis.db.models.functions import Distance
-from django.contrib.gis.geos import Point
+from __future__ import annotations
+
 from django.db.models import Q
-from django.utils.translation import gettext_lazy as _
 
 from dal_select2.views import Select2QuerySetView
 
 from .models import Organization
+
 
 class OrganizationAutocomplete(Select2QuerySetView):
 
