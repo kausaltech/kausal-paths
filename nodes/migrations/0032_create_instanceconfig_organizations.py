@@ -4,8 +4,8 @@ from treebeard.mp_tree import MP_Node
 
 
 def create_dummy_organizations(apps, schema_editor):
-    InstanceConfig = apps.get_model('nodes', 'instanceconfig')  # noqa:N806
-    Organization = apps.get_model('orgs', 'organization')  # noqa:N806
+    InstanceConfig = apps.get_model('nodes', 'instanceconfig')
+    Organization = apps.get_model('orgs', 'organization')
     if Organization.objects.exists():
         raise Exception("Cannot create dummy organizations because some organizations already exist.")
     for index, instance in enumerate(InstanceConfig.objects.all(), 1):

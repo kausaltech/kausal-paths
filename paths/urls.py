@@ -41,14 +41,13 @@ from kausal_common.deployment.health_check_view import health_view
 from admin_site import urls as admin_urls
 from frameworks.urls import urlpatterns as framework_urls
 from nodes.api import all_routers as nodes_routers
-from users.views import change_admin_instance
 from orgs.api import all_views as org_views
+from orgs.autocomplete import OrganizationAutocomplete
 from people.api import all_views as people_views
+from users.views import change_admin_instance
+
 from .api_router import router as api_router
 from .graphql_views import PathsGraphQLView
-
-from orgs.autocomplete import OrganizationAutocomplete
-
 
 if TYPE_CHECKING:
     from types import ModuleType

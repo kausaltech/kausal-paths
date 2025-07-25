@@ -38,7 +38,7 @@ class ReadOnly(permissions.BasePermission):
 
 
 class OrganizationPermission(permissions.DjangoObjectPermissions):
-    def check_permission(self, user: 'users.models.User', perm: str, organization: Organization = None):
+    def check_permission(self, user: User, perm: str, organization: Organization = None):
         # Check for object permissions first
         if not user.has_perms([perm]):
             return False
