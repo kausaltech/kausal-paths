@@ -248,7 +248,7 @@ class DatasetNode(AdditiveNode):
                 self.global_parameters.append(col[2:])
                 val = '%i' % round(cast('float', self.get_global_parameter_value(col[2:], required=True)))
 
-            df = df.filter(pl.col(col) == val).drop(col)
+            df = df.filter(pl.col(col) == val)
 
         return df
 
