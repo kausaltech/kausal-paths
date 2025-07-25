@@ -29,6 +29,7 @@ graphene-django>=3.0
 graphene-django-optimizer
 wagtail-localize>=1.7rc1
 wagtail-grapple
+wagtail-modeladmin
 graphql-core>=3.2.0
 graphql-relay>=3.2.0
 rich
@@ -85,3 +86,10 @@ django-anymail[sendgrid]
 django-anymail[mailjet]
 asgi_cors
 uvicorn[standard]
+django-image-cropping
+dal_admin_filters
+wagtailgeowidget
+django-reversion
+willow
+rustface
+easy_thumbnails

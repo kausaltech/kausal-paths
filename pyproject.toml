@@ -77,6 +77,10 @@ module = [
   "permissionedforms.*",
   "diffsync.*",
   "channels.*",
+  "rustface.*",
+  "willow.*",
+  "dal.*",
+  "dal_select2.*",
 ]
 ignore_missing_imports = true
 
