@@ -60,12 +60,12 @@ impact_overviews:
   indicator_unit: '%'
   label: Return on investment
 
-- graph_type: simple_effect
-  effect_node: total_benefits
-  indicator_unit: kSEK
-  invert_effect: true
-  label: Total benefits
-  indicator_label: The graph shows total benefits excluding costs.
+# - graph_type: simple_effect
+#   effect_node: total_benefits
+#   indicator_unit: kSEK
+#   invert_effect: true
+#   label: Total benefits
+#   indicator_label: The graph shows total benefits excluding costs.
 
 params:
 - id: electrification_scenario
