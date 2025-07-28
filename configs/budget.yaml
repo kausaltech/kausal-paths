@@ -59,7 +59,6 @@ impact_overviews:
   cost_node: total_discounted_economic_costs
   effect_node: net_emissions
   invert_cost: true
-  invert_effect: true
   indicator_unit: kEUR/t
   cost_unit: MEUR
   effect_unit: t
@@ -68,19 +67,12 @@ impact_overviews:
 - graph_type: return_on_investment
   cost_node: total_discounted_action_costs
   effect_node: total_discounted_economic_costs
-  invert_cost: false
-  invert_effect: false
   indicator_unit: '%'
-  # cost_unit: MEUR
-  # effect_unit: MEUR
   label: Return on investment
 - graph_type: cost_benefit
   cost_node: test_investments_for_the_city
   effect_node: discounted_costs
-  invert_cost: true
-  invert_effect: true
   indicator_unit: MEUR
-  # effect_unit: MEUR
   stakeholder_dimension: stakeholder
   outcome_dimension: outcome_of_interest
   label: Cost-benefit analysis
@@ -90,7 +82,6 @@ impact_overviews:
   invert_cost: true
   invert_effect: true
   indicator_unit: MEUR
-  # effect_unit: MEUR
 #  stakeholder_dimension: stakeholder
 #  outcome_dimension: outcome_of_interest
   label: Cost-benefit analysis for the city

@@ -541,7 +541,7 @@ def from_action_impact(
     action_impact: ActionImpact,
     root: ImpactOverview,
     col: str,
-) -> DimensionalMetric:
+) -> DimensionalMetric | None:
     import pandas as pd
 
     action = action_impact.action
@@ -550,13 +550,12 @@ def from_action_impact(
         return ':'.join([action.id, *args])
 
     df = action_impact.df
-    if col == 'Cost':
-        assert root.cost_node is not None
-        dimensions = root.cost_node.output_dimensions.items()
-    elif col == 'Effect':
-        dimensions = root.effect_node.output_dimensions.items()
-    else:
-        raise ValueError('Unknown column %s' % col)
+    if col not in df.columns:
+        return None
+
+    dim_id_potential = [root.outcome_dimension, root.stakeholder_dimension]
+    dim_potential = root.effect_node.output_dimensions.items()
+    dimensions = [(dim_id, dim) for dim_id, dim in dim_potential if dim_id in dim_id_potential]
 
     dims: list[MetricDimension] = []
 
