@@ -9,7 +9,7 @@ from django.utils.translation import gettext_lazy as _
 from graphene_django.converter import convert_choices_to_named_enum_with_descriptions
 from modelcluster.fields import ParentalKey
 from wagtail import blocks
-from wagtail.admin.forms import WagtailAdminPageForm
+from wagtail.admin.forms.pages import WagtailAdminPageForm
 from wagtail.admin.panels import (
     FieldPanel,
     MultiFieldPanel,
@@ -20,11 +20,14 @@ from wagtail.models import Page, Site
 from wagtail.query import PageQuerySet
 
 from grapple.models import GraphQLBoolean, GraphQLField, GraphQLStreamfield, GraphQLString
+from wagtail_color_panel.edit_handlers import NativeColorPanel
+from wagtail_color_panel.fields import ColorField
 
 from kausal_common.models.types import PageModelManager
 
 from nodes.blocks import OutcomeBlock
 from nodes.models import InstanceConfig, NodeConfig
+from pages.blocks import DashboardCardBlock
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -149,7 +152,7 @@ class InstanceRootPage(PathsPage):
         ('outcome', OutcomeBlock()),
     ], block_counts={
         'outcome': {'min_num': 1, 'max_num': 1},
-    }, use_json_field=True)
+    })
 
     content_panels = [
         *PathsPage.content_panels,
@@ -163,7 +166,7 @@ class StaticPage(PathsPage):
     body = StreamField([
         ('paragraph', blocks.RichTextBlock(label=_('Paragraph'))),
         ('outcome', OutcomeBlock()),
-    ], blank=True, null=True, use_json_field=True)
+    ], blank=True, null=True)
 
     content_panels = [
         *PathsPage.content_panels,
@@ -256,6 +259,28 @@ class ActionListPage(PathsPage):
         verbose_name_plural = _('Action list pages')
 
 
+class DashboardPage(PathsPage):
+    background_color = ColorField(blank=True, verbose_name=_('Background color'))
+    dashboard_cards = StreamField(block_types=[('card', DashboardCardBlock())])
+
+    content_panels = [
+        *PathsPage.content_panels,
+        NativeColorPanel('background_color'),
+        FieldPanel('dashboard_cards'),
+    ]
+
+    graphql_fields = PathsPage.graphql_fields + [
+        GraphQLString('background_color'),
+        GraphQLStreamfield('dashboard_cards'),
+    ]
+
+    parent_page_type = [InstanceRootPage]
+
+    class Meta:  # pyright: ignore
+        verbose_name = _('Dashboard page')
+        verbose_name_plural = _('Dashboard pages')
+
+
 class InstanceSiteContentManager(models.Manager):
     def get_by_natural_key(self, instance_identifier):
         instance = InstanceConfig.objects.get_by_natural_key(instance_identifier)
@@ -276,7 +301,6 @@ class InstanceSiteContent(models.Model):
             ),
         ],
         block_counts={'title': {'max_num': 1}, 'paragraph': {'max_num': 1}},
-        use_json_field=True,
         blank=True,
         verbose_name=_('Introductory content'),
     )
