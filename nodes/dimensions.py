@@ -149,7 +149,7 @@ class Dimension(I18nBaseModel):
     def series_to_ids_pl(self, s: pl.Series, allow_null=False) -> pl.Series:
         name = s.name
         if not allow_null and s.null_count():
-            raise Exception("Series contains NaNs")
+            raise Exception(f"Series {self.id} contains NaNs: {s}")
         s = s.cast(str).str.strip_chars()
         cat_map = self.labels_to_ids()
         labels = list(cat_map.keys())
