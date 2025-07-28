@@ -62,6 +62,7 @@ env = environ.FileAwareEnv(
     NZCPORTAL_CLIENT_SECRET=(str, ''),
     GITHUB_APP_ID=(str, ''),
     GITHUB_APP_PRIVATE_KEY=(str, ''),
+    GOOGLE_MAPS_V3_APIKEY=(str, ''),
     MOUNTED_SECRET_PATHS=(list, []),
     REQUEST_LOG_MAX_DAYS=(int, 90),
     REQUEST_LOG_METHODS=(list, ['POST', 'PUT', 'PATCH', 'DELETE']),
@@ -618,6 +619,7 @@ if True:
 
 HOSTNAME_INSTANCE_DOMAINS = env('HOSTNAME_INSTANCE_DOMAINS')
 
+GOOGLE_MAPS_V3_APIKEY = env('GOOGLE_MAPS_V3_APIKEY')
 
 #
 # REST Framework
