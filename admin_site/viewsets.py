@@ -32,8 +32,9 @@ from users.models import User
 
 if TYPE_CHECKING:
     from django.http import HttpRequest
-    from wagtail.admin.panels.group import ObjectList
     from wagtail.permission_policies.base import BasePermissionPolicy
+
+    from kausal_common.users import UserOrAnon
 
     from paths.types import PathsAdminRequest
 
@@ -72,7 +73,7 @@ def user_has_permission(
     if isinstance(user, AnonymousUser):
         return False
     return permission_policy.user_has_permission_for_instance(
-        user, permission, obj
+        cast('UserOrAnon', user), permission, obj
     )
 
 
@@ -192,11 +193,11 @@ class PathsViewSet(Generic[_ModelT, _QS, _FormT], SnippetViewSet[_ModelT, _FormT
         from paths.context import realm_context
         return realm_context.get().realm
 
-    @cached_property
+    @cached_property[str]
     def url_prefix(self) -> str:
         return f"{self.app_label}/{self.model_name}"
 
-    @cached_property
+    @cached_property[str]
     def url_namespace(self) -> str:
         return f"{self.app_label}_{self.model_name}"
 
@@ -218,7 +219,7 @@ class PathsViewSet(Generic[_ModelT, _QS, _FormT], SnippetViewSet[_ModelT, _FormT
             qs = qs.within_realm(self.admin_instance)
         return cast('_QS', qs)
 
-    def get_edit_handler(self) -> ObjectList | None:
+    def get_edit_handler(self):
         return super().get_edit_handler()
 
     def get_form_class(self, for_update: bool = False):

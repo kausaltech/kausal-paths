@@ -9,13 +9,15 @@ from wagtail.admin.forms import WagtailAdminModelForm
 
 from kausal_common.i18n.helpers import convert_language_code
 
+from users.models import User
+
 if TYPE_CHECKING:
     from django.db.models import Model
 
     from nodes.models import InstanceConfig
 
 
-class PathsAdminModelForm(WagtailAdminModelForm):
+class PathsAdminModelForm[M: Model](WagtailAdminModelForm[M, User]):
     admin_instance: InstanceConfig | None = None
 
     def prune_i18n_fields(self):

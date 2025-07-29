@@ -132,7 +132,7 @@ class MeasureTemplateModel(DjangoDiffModel[MeasureTemplate]):
     @classmethod
     def get_create_kwargs(cls, adapter: DjangoAdapter, ids: dict, attrs: dict) -> dict:
         kwargs = super().get_create_kwargs(adapter, ids, attrs)
-        sec = cast(SectionModel, adapter.get(SectionModel, str(kwargs.pop('section'))))
+        sec = cast('SectionModel', adapter.get(SectionModel, str(kwargs.pop('section'))))
         assert sec._instance_pk is not None
         kwargs['section_id'] = sec._instance_pk
         return kwargs
