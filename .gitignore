@@ -41,3 +41,4 @@ celerybeat-schedule
 /*.code-workspace
 .Rproj.user
 .Rhistory
+*.egg-info/
