@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, TypeGuard
 
-from django.db.models import Q
-
 from kausal_common.models.permission_policy import BaseObjectAction, ModelPermissionPolicy, ModelReadOnlyPolicy
 
 from paths.const import INSTANCE_ADMIN_ROLE
@@ -13,6 +11,8 @@ from users.models import User
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from django.db.models import Q
+
     from kausal_common.models.permissions import PermissionedModel
     from kausal_common.users import UserOrAnon
 
@@ -21,6 +21,8 @@ if TYPE_CHECKING:
         FrameworkConfig,
         FrameworkConfigQuerySet,
         FrameworkQuerySet,
+        MeasureTemplate,
+        MeasureTemplateQuerySet,
         Section,
         SectionQuerySet,
     )
@@ -47,6 +49,12 @@ class SectionPermissionPolicy(ModelReadOnlyPolicy['Section', 'SectionQuerySet'])
     def __init__(self):
         from .models import Section
         super().__init__(Section)
+
+
+class MeasureTemplatePermissionPolicy(ModelReadOnlyPolicy['MeasureTemplate', 'MeasureTemplateQuerySet']):
+    def __init__(self):
+        from .models import MeasureTemplate
+        super().__init__(MeasureTemplate)
 
 
 class FrameworkConfigPermissionPolicy(
