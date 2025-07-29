@@ -550,11 +550,12 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
                     print('Updating category %s' % cat.id)
                     cat_obj.save()
 
-        for cat_obj in cats.values():
-            if cat_obj.pk in found_cats:
-                continue
-            print("Deleting stale category %s" % cat_obj)
-            cat_obj.delete()
+        if delete_stale:
+            for cat_obj in cats.values():
+                if cat_obj.pk in found_cats:
+                    continue
+                print("Deleting stale category %s" % cat_obj)
+                cat_obj.delete()
 
     def sync_dimension(self, dim: NodeDimension, update_existing=False, delete_stale=False) -> DatasetDimensionModel:
         scope = DimensionScope.objects.filter(
