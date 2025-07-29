@@ -105,7 +105,7 @@ class PathsGraphQLHTTPConsumer(SyncGraphQLHTTPConsumer[PathsGraphQLContext]):
 
 
 class PathsGraphQLView(GraphQLView[PathsGraphQLContext]):
-    context_class = PathsGraphQLContext
+    context_class: type[PathsGraphQLContext] = PathsGraphQLContext
 
     def __init__(self):
         from .schema import schema

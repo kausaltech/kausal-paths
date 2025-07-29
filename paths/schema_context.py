@@ -14,7 +14,7 @@ import sentry_sdk
 from loguru import logger
 
 from kausal_common.strawberry.context import GraphQLContext
-from kausal_common.strawberry.schema import ExecutionCacheExtension, GraphQLPerfNode, SchemaExtension
+from kausal_common.strawberry.schema import AuthenticationExtension, ExecutionCacheExtension, GraphQLPerfNode, SchemaExtension
 
 from paths.context import PathsObjectCache
 
@@ -51,7 +51,7 @@ class PathsGraphQLContext[InstanceType: Instance | None = Instance | None](Graph
 
 
 class PathsSchemaExtension(SchemaExtension[PathsGraphQLContext]):
-    context_class = PathsGraphQLContext
+    context_class: type[PathsGraphQLContext[Instance | None]] = PathsGraphQLContext
 
 
 class DetermineInstanceContextExtension(PathsSchemaExtension):
@@ -298,7 +298,7 @@ class ActivateInstanceContextExtension(PathsSchemaExtension):
 
 
 class PathsExecutionCacheExtension(ExecutionCacheExtension[PathsGraphQLContext]):
-    context_class = PathsGraphQLContext
+    context_class: type[PathsGraphQLContext[Instance | None]] = PathsGraphQLContext
 
     def get_cache_key_parts(self) -> list[str] | None:
         exec_ctx = self.get_context()
@@ -316,3 +316,7 @@ class PathsExecutionCacheExtension(ExecutionCacheExtension[PathsGraphQLContext])
                 return None
             parts.append(session_key)
         return parts
+
+
+class PathsAuthenticationExtension(AuthenticationExtension[PathsGraphQLContext]):
+    context_class: type[PathsGraphQLContext[Instance | None]] = PathsGraphQLContext

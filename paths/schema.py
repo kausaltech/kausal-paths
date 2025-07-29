@@ -125,6 +125,7 @@ class PathsSchema(UnifiedSchema):
         from .schema_context import (
             ActivateInstanceContextExtension,
             DetermineInstanceContextExtension,
+            PathsAuthenticationExtension,
             PathsExecutionCacheExtension,
         )
 
@@ -140,6 +141,7 @@ class PathsSchema(UnifiedSchema):
             DetermineInstanceContextExtension,
             PathsExecutionCacheExtension,
             ActivateInstanceContextExtension,
+            PathsAuthenticationExtension,
         ])
         kwargs['extensions'] = extensions
         super().__init__(*args, **kwargs)
