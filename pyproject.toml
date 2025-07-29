@@ -6,6 +6,88 @@ build-backend = "setuptools.build_meta"
 name = "kausal-paths"
 requires-python = ">= 3.13"
 dynamic = ["version"]
+dependencies = [
+    "asgi-cors",
+    "babel",
+    "celery",
+    "channels",
+    "channels-redis",
+    "colored",
+    "colormath",
+    "diffsync",
+    "django",
+    "django-anymail[mailgun,mailjet,sendgrid]",
+    "django-celery-results",
+    "django-cors-headers",
+    "django-environ",
+    "django-extensions",
+    "django-modeltrans",
+    "django-oauth-toolkit",
+    "django-pydantic-field",
+    "django-storages",
+    "django-stubs-ext",
+    "djangorestframework",
+    "drf-nested-routers",
+    "drf-spectacular",
+    "dvc-pandas",
+    "factory-boy",
+    "gql[requests]",
+    "graphene-django",
+    "graphene-django-optimizer",
+    "graphene-pydantic",
+    "graphql-core",
+    "graphql-relay",
+    "ipython",
+    "llvmlite",
+    "logfmter",
+    "loguru",
+    "nanoid==2.0.0",
+    "numba",
+    "openpyxl",
+    "opentelemetry-exporter-otlp-proto-http",
+    "opentelemetry-exporter-prometheus>=0.55b1",
+    "opentelemetry-instrumentation-django",
+    "opentelemetry-instrumentation-psycopg",
+    "opentelemetry-instrumentation-redis",
+    "opentelemetry-instrumentation-threading",
+    "opentelemetry-sdk",
+    "orjson",
+    "pandas",
+    "pint",
+    "pint-pandas",
+    "polars",
+    "psycopg[pool]",
+    "pycryptodome",
+    "pydantic",
+    "pydantic-extra-types",
+    "pygithub",
+    "pygments-graphql",
+    "pytest-cov",
+    "pytest-django",
+    "pytest-factoryboy",
+    "pytest-html",
+    "python-dotenv",
+    "recursive-diff",
+    "redis",
+    "rich",
+    "ruamel-yaml",
+    "s3cmd",
+    "sentry-sdk[django,opentelemetry]",
+    "social-auth-app-django",
+    "strawberry-graphql",
+    "strawberry-graphql-django",
+    "tzdata",
+    "uuid-utils",
+    "uvicorn",
+    "wagtail<7.0",
+    "wagtail-color-panel",
+    "wagtail-font-awesome-svg",
+    "wagtail-generic-chooser",
+    "wagtail-grapple",
+    "wagtail-localize",
+    "watchfiles",
+    "xxhash",
+]
 
 [tool.pip-tools]
 
@@ -26,10 +108,10 @@ plugins = [
   "mypy_django_plugin.main",
   "numpy.typing.mypy_plugin",
   "pydantic.mypy",
-  "strawberry.ext.mypy_plugin"
+  "strawberry.ext.mypy_plugin",
 ]
 mypy_path = "$MYPY_CONFIG_FILE_DIR/kausal_common/typings"
-exclude = ['^Attic/', '/migrations/', '^local_settings\.py', '^\.*env*']
+exclude = ['^Attic/', '/migrations/', '^local_settings\.py', '^\.*env*', '^kausal_common/typings/django-stubs']
 check_untyped_defs = true
 sqlite_cache = true
 cache_fine_grained = true
@@ -127,6 +209,7 @@ django_settings_module = "paths.settings"
 
 [tool.setuptools]
 include-package-data = false
+py-modules = []
 
 [tool.setuptools.dynamic]
 dependencies = { file = [
@@ -139,3 +222,71 @@ optional-dependencies.dev = { file = [
 ] }
 optional-dependencies.lint = { file = ["requirements-lint.txt"] }
 optional-dependencies.prod = { file = ["requirements-prod.txt"] }
+
+[tool.uv]
+environments = [
+  "sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "sys_platform == 'darwin' and platform_machine == 'arm64'",
+]
+
+[tool.uv.sources]
+django-modeltrans = { url = "https://github.com/kausaltech/django-modeltrans/archive/a734040c3f38c2e404a61dc0be2c017874a9ea45.zip" }
+
+[[tool.uv.index]]
+url = "https://pypi.kausal.tech/"
+
+[dependency-groups]
+dev = [
+    "basedpyright",
+    "daphne",
+    "django-debug-toolbar",
+    "inotify",
+    "ipdb",
+    "ipython",
+    "line-profiler",
+    "ondivi",
+    "pdbr[ipython]",
+    "pip",
+    "plotext",
+    "pre-commit",
+    "uv",
+    "viztracer",
+]
+kausal = [
+    "kausal-paths-extensions>=0.6.36",
+]
+lint = [
+    "celery-types",
+    "django-stubs",
+    "djangorestframework-stubs",
+    "graphene-stubs",
+    "mypy",
+    "mypy-baseline",
+    "pandas-stubs",
+    "pyarrow-stubs",
+    "ruff",
+    "types-factory-boy",
+    "types-networkx",
+    "types-oauthlib",
+    "types-openpyxl",
+    "types-orjson",
+    "types-pygit2",
+]
+notebook = [
+    "altair",
+    "great-tables",
+    "ipympl",
+    "jedi-language-server",
+    "jupyterlab",
+    "jupyterlab-lsp",
+    "plotly",
+    "pyright",
+    "seaborn[stats]",
+    "strawberry-graphql[cli]",
+]
+prod = [
+    "gunicorn[gthread]",
+    "psycopg[c]",
+    "uvicorn-worker",
+    "uvicorn[standard]",
+]
