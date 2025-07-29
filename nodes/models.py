@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 
 from django.conf import settings
 from django.contrib.auth.models import Group
+from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
@@ -273,6 +274,11 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
 
     objects: ClassVar[InstanceConfigManager] = InstanceConfigManager()
 
+    dataset_schema_scopes = GenericRelation(
+        'datasets.DatasetSchemaScope', related_query_name='instance_config',
+        content_type_field='scope_content_type', object_id_field='scope_id',
+    )
+
     # Type annotations
     nodes: RevMany[NodeConfig]
     hostnames: RevMany[InstanceHostname]
@@ -492,6 +498,8 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         return root
 
     def sync_nodes(self, update_existing=False, delete_stale=False, overwrite=False):
+        from nodes.datasets import DBDataset
+
         instance = self.get_instance()
         node_configs = {n.identifier: n for n in self.nodes.all()}
         found_nodes = set()
@@ -501,7 +509,9 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
                 node_config = NodeConfig(instance=self, **node.as_node_config_attributes())
                 self.log.info("Creating node config for node %s" % node.id)
                 node_config.save()
-                node_config.update_relations_from_node(node)
+                has_db_datasets = any(isinstance(ds, DBDataset) for ds in node.input_dataset_instances)
+                if has_db_datasets:
+                    node_config.update_relations_from_node(node)
                 node.database_id = node_config.pk
             else:
                 found_nodes.add(node.id)
@@ -836,6 +846,8 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
         index.SearchField('identifier'),
         index.FilterField('instance'),
     ]
+    search_auto_update = False
+    wagtail_reference_index_ignore = True
 
     objects: ClassVar[NodeConfigManager] = NodeConfigManager()  # pyright: ignore
 
