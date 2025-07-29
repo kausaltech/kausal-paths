@@ -15,16 +15,14 @@ minimum_historical_year: 2018
 maximum_historical_year: 2023
 emission_unit: kt_co2e/a
 emission_forecast_from: 2024
-emission_dimensions: [scope, sector]
+emission_dimensions: []
 features:
   baseline_visible_in_graphs: true
 
 impact_overviews:
 - graph_type: cost_efficiency
   cost_node: aggregate_net_costs
-  effect_node: aggregate_net_emissions
-  invert_cost: false
-  invert_effect: true
+  effect_node: net_emissions
   indicator_unit: zł/t_co2e
   cost_unit: zł
   effect_unit: t_co2e
@@ -361,6 +359,11 @@ nodes:
   output_dimensions: [scope, sector]
   output_nodes:
   - id: net_emissions
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: sector
+      flatten: true
 
 # ----- Transportation Emissions
 
@@ -562,6 +565,11 @@ nodes:
   output_dimensions: [scope, sector]
   output_nodes:
   - id: net_emissions
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: sector
+      flatten: true
 
 # ----- Waste Emissions
 
@@ -607,6 +615,11 @@ nodes:
   output_dimensions: [scope, sector]
   output_nodes:
   - id: net_emissions
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: sector
+      flatten: true
 
 # ----- Stationary Costs
 
@@ -704,26 +717,10 @@ nodes:
   unit: zł/a
   input_dimensions: [action, cost_type, scope, sector]
   output_dimensions: [action, cost_type, scope, sector]
-
-# ----- Cost Efficiency
-
-- id: aggregate_net_emissions
-  name: Net Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: []
-  output_dimensions: []
-  input_nodes:
-  - id: net_emissions
-    from_dimensions:
-    - id: scope
-      flatten: true
-    - id: sector
-      flatten: true
+  is_outcome: true
 
 - id: aggregate_net_costs
-  name: Net Costs
+  name: Net costs
   type: simple.AdditiveNode
   quantity: currency
   unit: zł/a
@@ -1096,7 +1093,7 @@ actions:
     metrics: [currency]
 
 - id: e5
-  name: E-5 Construction of photovoltaic farms by Krakow Municipal Holding
+  name: E-5 Construction of photovoltaic farms by Kraków Municipal Holding
   type: simple.AdditiveAction
   group: electricity
   input_dimensions: [action, sector, scope, cost_type]
@@ -1849,5 +1846,5 @@ scenarios:
 
 - id: default
   default: true
-  name: Climate Action Plan
+  name: Climate City Contract
   all_actions_enabled: true
