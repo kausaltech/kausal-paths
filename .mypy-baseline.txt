@@ -1,323 +1,260 @@
-paths/storage.py:1: error: Skipping analyzing "storages.backends.s3boto3": module is installed, but missing library stubs or py.typed marker  [import-untyped]
-paths/storage.py:2: error: Skipping analyzing "storages.utils": module is installed, but missing library stubs or py.typed marker  [import-untyped]
-kausal_common/typings/celery/app/__init__.pyi:5: error: Module "celery.app.utils" has no attribute "AppPickler"  [attr-defined]
-notebooks/mcda.py:4: error: Library stubs not installed for "scipy.optimize"  [import-untyped]
-notebooks/mcda.py:4: note: Hint: "python3 -m pip install scipy-stubs"
-notebooks/mcda.py:4: note: (or run "mypy --install-types" to install all missing stub packages)
-notebooks/fetch_dataset.py:50: error: Item "None" of "str | None" has no attribute "strip"  [union-attr]
-notebooks/fetch_dataset.py:63: error: Unsupported operand types for + ("str" and "None")  [operator]
-notebooks/fetch_dataset.py:63: note: Right operand is of type "str | None"
-notebooks/fetch_dataset.py:64: error: Unsupported operand types for + ("str" and "None")  [operator]
-notebooks/fetch_dataset.py:64: note: Right operand is of type "str | None"
-notebooks/C4C-YAML.py:321: error: "Sequence[str]" has no attribute "append"  [attr-defined]
-notebooks/C4C-YAML.py:336: error: "Sequence[str]" has no attribute "append"  [attr-defined]
-notebooks/C4C-YAML.py:372: error: "Sequence[str]" has no attribute "append"  [attr-defined]
-notebooks/C4C-YAML.py:387: error: "Sequence[str]" has no attribute "append"  [attr-defined]
-notebooks/C4C-YAML.py:397: error: Invalid index type "Collection[Any]" for "dict[str, str]"; expected type "str"  [index]
-notebooks/C4C-YAML.py:400: error: Value of type "Collection[Any]" is not indexable  [index]
-notebooks/C4C-YAML.py:401: error: "Collection[Any]" has no attribute "__delitem__"  [attr-defined]
-notebooks/C4C-YAML.py:403: error: Value of type "Collection[Any]" is not indexable  [index]
-notebooks/C4C-YAML.py:404: error: Value of type "Collection[Any]" is not indexable  [index]
-notebooks/C4C-YAML.py:410: error: Value of type "Collection[Any]" is not indexable  [index]
-notebooks/C4C-YAML.py:411: error: Value of type "Collection[Any]" is not indexable  [index]
-notebooks/C4C-YAML.py:417: error: Value of type "Collection[Any]" is not indexable  [index]
-notebooks/C4C-YAML.py:419: error: Value of type "Collection[Any]" is not indexable  [index]
-notebooks/C4C-YAML.py:420: error: Value of type "Collection[Any]" is not indexable  [index]
-notebooks/C4C-YAML.py:421: error: Value of type "Collection[Any]" is not indexable  [index]
-notebooks/C4C-YAML.py:425: error: Invalid index type "Collection[Any]" for "dict[str, str]"; expected type "str"  [index]
-notebooks/C4C-YAML.py:427: error: Value of type "Collection[Any]" is not indexable  [index]
-notebooks/C4C-YAML.py:428: error: "Collection[Any]" has no attribute "__delitem__"  [attr-defined]
-notebooks/C4C-YAML.py:430: error: Value of type "Collection[Any]" is not indexable  [index]
-notebooks/C4C-YAML.py:431: error: Value of type "Collection[Any]" is not indexable  [index]
-notebooks/C4C-YAML.py:433: error: Value of type "Collection[Any]" is not indexable  [index]
-notebooks/C4C-YAML.py:435: error: Value of type "Collection[Any]" is not indexable  [index]
-notebooks/C4C-YAML.py:436: error: Value of type "Collection[Any]" is not indexable  [index]
-notebooks/C4C-YAML.py:473: error: Invalid index type "Sequence[str]" for "dict[str, str]"; expected type "str"  [index]
-notebooks/C4C-YAML.py:481: error: Incompatible types in assignment (expression has type "dict[Any, dict[str, Any]]", variable has type "list[Collection[Any]]")  [assignment]
-notebooks/C4C-YAML.py:482: error: "list[Collection[Any]]" has no attribute "keys"  [attr-defined]
-notebooks/C4C-YAML.py:499: error: Incompatible types in assignment (expression has type "dict[Any, dict[str, Any]]", variable has type "bool")  [assignment]
-notebooks/C4C-YAML.py:504: error: Value of type "bool" is not indexable  [index]
-notebooks/push_data.py:47: error: Value of type "Collection[str]" is not indexable  [index]
-notebooks/push_data.py:48: error: Value of type "Collection[str]" is not indexable  [index]
-notebooks/push_data.py:49: error: Value of type "Collection[str]" is not indexable  [index]
-notebooks/push_data.py:50: error: Value of type "Collection[str]" is not indexable  [index]
-notebooks/push_data.py:55: error: Argument 1 to "dict" has incompatible type "Collection[str]"; expected "Iterable[tuple[str, Any]]"  [arg-type]
-notebooks/C4C-Push.py:12: error: Unexpected keyword argument "identifier" for "Dataset"  [call-arg]
-notebooks/C4C-Push.py:12: error: Argument 1 to "Dataset" has incompatible type "pandas.core.frame.DataFrame"; expected "polars.dataframe.frame.DataFrame | None"  [arg-type]
-notebooks/C4C-Dataset-Baseline.py:138: error: Incompatible types in assignment (expression has type "list[Any]", variable has type "bool")  [assignment]
-notebooks/C4C-Dataset-Baseline.py:157: error: Incompatible types in assignment (expression has type "list[Any]", variable has type "bool")  [assignment]
-notebooks/C4C-Dataset-Baseline.py:164: error: Unsupported right operand type for in ("Literal[True]")  [operator]
-notebooks/C4C-Dataset-Baseline.py:287: error: Argument 1 to "DataFrame" has incompatible type "polars.dataframe.frame.DataFrame"; expected "Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any] | pandas.core.frame.DataFrame | dict[Any, Any] | Iterable[Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any] | tuple[Hashable, Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any]] | dict[Any, Any]] | None"  [arg-type]
-notebooks/C4C-Dataset-Baseline.py:287: note: Following member(s) of "DataFrame" have conflicts:
-notebooks/C4C-Dataset-Baseline.py:287: note: Expected:
-notebooks/C4C-Dataset-Baseline.py:287: note: def __iter__(self) -> Iterator[Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any] | tuple[Hashable, Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any]] | dict[Any, Any]]
-notebooks/C4C-Dataset-Baseline.py:287: note: Got:
-notebooks/C4C-Dataset-Baseline.py:287: note: def __iter__(self) -> Iterator[Series]
-notebooks/C4C-Dataset-Baseline.py:290: error: Argument 1 to "DataFrame" has incompatible type "polars.dataframe.frame.DataFrame"; expected "Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any] | pandas.core.frame.DataFrame | dict[Any, Any] | Iterable[Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any] | tuple[Hashable, Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any]] | dict[Any, Any]] | None"  [arg-type]
-notebooks/C4C-Dataset-Baseline.py:290: note: Following member(s) of "DataFrame" have conflicts:
-notebooks/C4C-Dataset-Baseline.py:290: note: Expected:
-notebooks/C4C-Dataset-Baseline.py:290: note: def __iter__(self) -> Iterator[Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any] | tuple[Hashable, Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any]] | dict[Any, Any]]
-notebooks/C4C-Dataset-Baseline.py:290: note: Got:
-notebooks/C4C-Dataset-Baseline.py:290: note: def __iter__(self) -> Iterator[Series]
-notebooks/C4C-Dataset-Baseline.py:292: error: Unexpected keyword argument "identifier" for "Dataset"  [call-arg]
-notebooks/C4C-Dataset-Baseline.py:292: error: Argument 1 to "Dataset" has incompatible type "pandas.core.frame.DataFrame"; expected "polars.dataframe.frame.DataFrame | None"  [arg-type]
-notebooks/C4C-Dataset-Actions.py:139: error: Argument 1 to "DataFrame" has incompatible type "polars.dataframe.frame.DataFrame"; expected "Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any] | pandas.core.frame.DataFrame | dict[Any, Any] | Iterable[Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any] | tuple[Hashable, Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any]] | dict[Any, Any]] | None"  [arg-type]
-notebooks/C4C-Dataset-Actions.py:139: note: Following member(s) of "DataFrame" have conflicts:
-notebooks/C4C-Dataset-Actions.py:139: note: Expected:
-notebooks/C4C-Dataset-Actions.py:139: note: def __iter__(self) -> Iterator[Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any] | tuple[Hashable, Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any]] | dict[Any, Any]]
-notebooks/C4C-Dataset-Actions.py:139: note: Got:
-notebooks/C4C-Dataset-Actions.py:139: note: def __iter__(self) -> Iterator[Series]
-notebooks/C4C-Dataset-Actions.py:142: error: Argument 1 to "DataFrame" has incompatible type "polars.dataframe.frame.DataFrame"; expected "Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any] | pandas.core.frame.DataFrame | dict[Any, Any] | Iterable[Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any] | tuple[Hashable, Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any]] | dict[Any, Any]] | None"  [arg-type]
-notebooks/C4C-Dataset-Actions.py:142: note: Following member(s) of "DataFrame" have conflicts:
-notebooks/C4C-Dataset-Actions.py:142: note: Expected:
-notebooks/C4C-Dataset-Actions.py:142: note: def __iter__(self) -> Iterator[Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any] | tuple[Hashable, Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any]] | dict[Any, Any]]
-notebooks/C4C-Dataset-Actions.py:142: note: Got:
-notebooks/C4C-Dataset-Actions.py:142: note: def __iter__(self) -> Iterator[Series]
-kausal_common/typings/wagtail/blocks/stream_block.pyi:70: error: Cannot override class variable (previously declared on base class "Block") with instance variable  [misc]
-kausal_common/typings/wagtail/blocks/list_block.pyi:67: error: Cannot override class variable (previously declared on base class "Block") with instance variable  [misc]
-common/polars.py:622: error: Argument 1 to "list" has incompatible type "list[Hashable]"; expected "Iterable[str]"  [arg-type]
-common/polars.py:624: error: List item 0 has incompatible type "Hashable"; expected "str"  [list-item]
-nodes/excel_results.py:485: error: Argument "format" to "InstanceResultExcel" has incompatible type "str | None"; expected "str"  [arg-type]
-kausal_common/typings/wagtail/admin/filters.pyi:4: error: Module "wagtail.admin.widgets" has no attribute "AdminDateInput"  [attr-defined]
-kausal_common/typings/wagtail/admin/filters.pyi:4: error: Module "wagtail.admin.widgets" has no attribute "BooleanRadioSelect"  [attr-defined]
-kausal_common/typings/wagtail/admin/filters.pyi:4: error: Module "wagtail.admin.widgets" has no attribute "FilteredSelect"  [attr-defined]
-kausal_common/typings/wagtail/admin/filters.pyi:11: error: Skipping analyzing "django_filters": module is installed, but missing library stubs or py.typed marker  [import-untyped]
-kausal_common/typings/wagtail/admin/filters.pyi:13: error: Skipping analyzing "django_filters.widgets": module is installed, but missing library stubs or py.typed marker  [import-untyped]
-paths/utils.py:61: error: Incompatible return value type (got "Field | None", expected "Field")  [return-value]
-paths/utils.py:61: note: Error code "return-value" not covered by "type: ignore" comment
-nodes/simple.py:173: error: No overload variant of "get_parameter_value" of "Node" matches argument types "str", "bool", "bool"  [call-overload]
-nodes/simple.py:173: note: Possible overload variants:
-nodes/simple.py:173: note: def get_parameter_value(self, id: str, *, required: Literal[True] = ..., units: Literal[True]) -> Quantity
-nodes/simple.py:173: note: def get_parameter_value(self, id: str, *, required: Literal[False], units: Literal[True]) -> Quantity | None
-nodes/simple.py:173: note: def get_parameter_value(self, id: str, *, required: Literal[False], units: Literal[False] = ...) -> object | None
-nodes/simple.py:173: note: def get_parameter_value(self, id: str, *, required: bool = ..., units: Literal[False] = ...) -> object
-nodes/simple.py:694: error: Argument 1 of "perform_operation" is incompatible with supertype "MultiplicativeNode"; supertype defines the argument type as "Sequence[Node | None]"  [override]
-nodes/simple.py:694: note: This violates the Liskov substitution principle
-nodes/simple.py:694: note: See https://mypy.readthedocs.io/en/stable/common_issues.html#incompatible-overrides
-nodes/simple.py:741: error: Incompatible types in assignment (expression has type "PathsDataFrame", variable has type "list[PathsDataFrame]")  [assignment]
-nodes/simple.py:742: error: Argument 1 to "join_over_index" of "PathsExt" has incompatible type "list[PathsDataFrame]"; expected "PathsDataFrame"  [arg-type]
-nodes/simple.py:921: error: No overload variant of "int" matches argument type "object"  [call-overload]
-nodes/simple.py:921: note: Possible overload variants:
-nodes/simple.py:921: note: def int(str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc = ..., /) -> int
-nodes/simple.py:921: note: def int(str | bytes | bytearray, /, base: SupportsIndex) -> int
-pages/models.py:163: error: StreamField is nullable but its generic get type parameter is not optional  [misc]
-nodes/actions/shift.py:105: error: Argument 1 to "MultiIndex" has incompatible type "list[Iterable[Any]]"; expected "Sequence[SequenceNotStr[Hashable]]"  [arg-type]
-nodes/actions/parent.py:75: error: Item "None" of "Unit | None" has no attribute "is_compatible_with"  [union-attr]
-nodes/actions/linear.py:83: error: Argument 1 to "MultiIndex" has incompatible type "list[Iterable[Any]]"; expected "Sequence[SequenceNotStr[Hashable]]"  [arg-type]
-paths/graphql_helpers.py:35: error: Incompatible return value type (got "Instance | None", expected "Instance")  [return-value]
-kausal_paths_extensions/auth_support/redirect_uri.py:19: error: Argument 1 to "for_hostname" of "InstanceConfigQuerySet" has incompatible type "str | None"; expected "str"  [arg-type]
-nodes/schema.py:420: error: Pydantic plugin not installed, please add pydantic.mypy your mypy.ini plugins  [misc]
-paths/schema_context.py:54: error: Incompatible types in assignment (expression has type "type[PathsGraphQLContext[InstanceType]]", base class "SchemaExtension" defined the type as "type[PathsGraphQLContext[Instance | None]]")  [assignment]
-paths/schema_context.py:301: error: Incompatible types in assignment (expression has type "type[PathsGraphQLContext[InstanceType]]", base class "SchemaExtension" defined the type as "type[PathsGraphQLContext[Instance | None]]")  [assignment]
-paths/authentication.py:13: error: Return type "str | None" of "authenticate" incompatible with return type "tuple[Any, Any] | None" in supertype "rest_framework.authentication.BaseAuthentication"  [override]
-paths/tests/settings.py:3: error: Need type annotation for "INSTANCE_LOADER_CONFIG" (hint: "INSTANCE_LOADER_CONFIG: <type> | None = ...")  [var-annotated]
-pages/apps.py:32: error: Module "wagtail.admin.forms" has no attribute "account"  [attr-defined]
-optimizer/optimize.py:20: error: Library stubs not installed for "scipy"  [import-untyped]
-optimizer/optimize.py:29: error: Module "nodes" has no attribute "Node"  [attr-defined]
-nodes/values.py:85: error: Name "df" already defined on line 0  [no-redef]
-nodes/values.py:101: error: Argument 1 to "join_and_sum" has incompatible type "PathsDataFrame | None"; expected "PathsDataFrame"  [arg-type]
-nodes/values.py:102: error: Incompatible return value type (got "PathsDataFrame | None", expected "PathsDataFrame")  [return-value]
-nodes/values.py:125: error: Incompatible types in assignment (expression has type "PlainQuantity[Any]", variable has type "Quantity")  [assignment]
-nodes/values.py:162: error: Incompatible types in assignment (expression has type "object", variable has type "float")  [assignment]
-nodes/kpr.py:10: error: Incompatible types in assignment (expression has type "str", base class "Node" defined the type as "Unit | None")  [assignment]
-nodes/kpr.py:22: error: Signature of "compute" incompatible with supertype "nodes.simple.SectorEmissions"  [override]
-nodes/kpr.py:22: note: Superclass:
-nodes/kpr.py:22: note: def compute(self) -> PathsDataFrame
-nodes/kpr.py:22: note: Subclass:
-nodes/kpr.py:22: note: def compute(self, context: Context) -> Any
-nodes/kpr.py:22: error: Signature of "compute" incompatible with supertype "nodes.simple.AdditiveNode"  [override]
-nodes/kpr.py:22: note: Superclass:
-nodes/kpr.py:22: note: def compute(self) -> PathsDataFrame
-nodes/kpr.py:22: note: Subclass:
-nodes/kpr.py:22: note: def compute(self, context: Context) -> Any
-nodes/kpr.py:22: error: Signature of "compute" incompatible with supertype "nodes.node.Node"  [override]
-nodes/kpr.py:22: note: Superclass:
-nodes/kpr.py:22: note: def compute(self) -> DataFrame | PathsDataFrame
-nodes/kpr.py:22: note: Subclass:
-nodes/kpr.py:22: note: def compute(self, context: Context) -> Any
-nodes/kpr.py:25: error: Argument 1 to "add_nodes" of "AdditiveNode" has incompatible type "Context"; expected "DataFrame | None"  [arg-type]
-nodes/kpr.py:25: error: Argument 2 to "add_nodes" of "AdditiveNode" has incompatible type "None"; expected "list[Node]"  [arg-type]
-nodes/kpr.py:25: error: Argument 3 to "add_nodes" of "AdditiveNode" has incompatible type "list[Node]"; expected "str | None"  [arg-type]
-nodes/kpr.py:27: error: No overload variant of "get_input_dataset" of "Node" matches argument type "Context"  [call-overload]
-nodes/kpr.py:27: note: Possible overload variants:
-nodes/kpr.py:27: note: def get_input_dataset(self, required: Literal[True] = ...) -> DataFrame
-nodes/kpr.py:27: note: def get_input_dataset(self, required: Literal[False]) -> DataFrame | None
-nodes/kpr.py:42: error: Argument 1 to "add_nodes" of "AdditiveNode" has incompatible type "Context"; expected "DataFrame | None"  [arg-type]
-nodes/kpr.py:42: error: Argument 2 to "add_nodes" of "AdditiveNode" has incompatible type "DataFrame"; expected "list[Node]"  [arg-type]
-nodes/kpr.py:42: error: Argument 3 to "add_nodes" of "AdditiveNode" has incompatible type "list[Node]"; expected "str | None"  [arg-type]
-nodes/formula.py:91: error: Incompatible types in assignment (expression has type "PlainQuantity[Any]", variable has type "Quantity")  [assignment]
-nodes/formula.py:219: error: Argument 1 to "evaluate_formula" of "FormulaNode" has incompatible type "object"; expected "str"  [arg-type]
-nodes/finland/syke.py:35: error: Argument "label" to "Dimension" has incompatible type "dict[str, str]"; expected "TranslatedString | str"  [arg-type]
-nodes/finland/syke.py:104: error: No overload variant of "astype" of "Series" matches argument type "str"  [call-overload]
-nodes/finland/syke.py:104: note: Possible overload variants:
-nodes/finland/syke.py:104: note: def astype(self, dtype: Literal['bool', 'boolean', '?', 'b1', 'bool_', 'bool[pyarrow]', 'boolean[pyarrow]'] | type[builtins.bool] | BooleanDtype | type[numpy.bool[builtins.bool]], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[bool]
-nodes/finland/syke.py:104: note: def astype(self, dtype: Literal['int', 'Int8', 'Int16', 'Int32', 'Int64', 'b', 'i1', 'int8', 'byte', 'h', 'i2', 'int16', 'short', 'i', 'i4', 'int32', 'intc', 'l', 'i8', 'int64', 'int_', 'long', 'q', 'longlong', 'p', 'intp', 'int8[pyarrow]', 'int16[pyarrow]', 'int32[pyarrow]', 'int64[pyarrow]', 'UInt8', 'UInt16', 'UInt32', 'UInt64', 'B', 'u1', 'uint8', 'ubyte', 'H', 'u2', 'uint16', 'ushort', 'I', 'u4', 'uint32', 'uintc', 'L', 'u8', 'uint', 'ulong', 'uint64', 'Q', 'ulonglong', 'P', 'uintp', 'uint8[pyarrow]', 'uint16[pyarrow]', 'uint32[pyarrow]', 'uint64[pyarrow]'] | type[int] | Int8Dtype | Int16Dtype | Int32Dtype | Int64Dtype | <12 more items>, copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[int]
-nodes/finland/syke.py:104: note: def astype(self, dtype: Literal['str', 'string', 'U', 'str_', 'str0', 'unicode', 'unicode_', 'string[pyarrow]'] | type[str] | StringDtype | type[str_], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[str]
-nodes/finland/syke.py:104: note: def astype(self, dtype: Literal['bytes', 'S', 'bytes_', 'bytes0', 'string_', 'binary[pyarrow]'] | type[bytes] | type[bytes_], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[bytes]
-nodes/finland/syke.py:104: note: def astype(self, dtype: Literal['float', 'Float32', 'Float64', 'e', 'f2', '<f2', 'float16', 'half', 'f', 'f4', 'float32', 'single', 'd', 'f8', 'float64', 'double', 'float_', 'g', 'f16', 'float128', 'longdouble', 'longfloat', 'float[pyarrow]', 'double[pyarrow]', 'float16[pyarrow]', 'float32[pyarrow]', 'float64[pyarrow]'] | type[float] | Float32Dtype | Float64Dtype | type[floating[_16Bit]] | type[floating[_32Bit]] | type[floating[_64Bit]] | type[floating[_128Bit]], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[float]
-nodes/finland/syke.py:104: note: def astype(self, dtype: Literal['complex', 'F', 'c8', 'complex64', 'csingle', 'singlecomplex', 'D', 'c16', 'complex128', 'cdouble', 'cfloat', 'complex_', 'G', 'c32', 'complex256', 'clongdouble', 'clongfloat', 'longcomplex'] | type[complex] | type[complexfloating[_32Bit, _32Bit]] | type[complexfloating[_64Bit, _64Bit]] | type[complexfloating[_128Bit, _128Bit]], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[complex]
-nodes/finland/syke.py:104: note: def astype(self, dtype: Literal['timedelta64[Y]', 'timedelta64[M]', 'timedelta64[W]', 'timedelta64[D]', 'timedelta64[h]', 'timedelta64[m]', 'timedelta64[s]', 'timedelta64[ms]', 'timedelta64[us]', 'timedelta64[μs]', 'timedelta64[ns]', 'timedelta64[ps]', 'timedelta64[fs]', 'timedelta64[as]', 'm8[Y]', 'm8[M]', 'm8[W]', 'm8[D]', 'm8[h]', 'm8[m]', 'm8[s]', 'm8[ms]', 'm8[us]', 'm8[μs]', 'm8[ns]', 'm8[ps]', 'm8[fs]', 'm8[as]', '<m8[Y]', '<m8[M]', '<m8[W]', '<m8[D]', '<m8[h]', '<m8[m]', '<m8[s]', '<m8[ms]', '<m8[us]', '<m8[μs]', '<m8[ns]', '<m8[ps]', '<m8[fs]', '<m8[as]', 'duration[s][pyarrow]', 'duration[ms][pyarrow]', 'duration[us][pyarrow]', 'duration[ns][pyarrow]'], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> TimedeltaSeries
-nodes/finland/syke.py:104: note: def astype(self, dtype: Literal['datetime64[Y]', 'datetime64[M]', 'datetime64[W]', 'datetime64[D]', 'datetime64[h]', 'datetime64[m]', 'datetime64[s]', 'datetime64[ms]', 'datetime64[us]', 'datetime64[μs]', 'datetime64[ns]', 'datetime64[ps]', 'datetime64[fs]', 'datetime64[as]', 'M8[Y]', 'M8[M]', 'M8[W]', 'M8[D]', 'M8[h]', 'M8[m]', 'M8[s]', 'M8[ms]', 'M8[us]', 'M8[μs]', 'M8[ns]', 'M8[ps]', 'M8[fs]', 'M8[as]', '<M8[Y]', '<M8[M]', '<M8[W]', '<M8[D]', '<M8[h]', '<M8[m]', '<M8[s]', '<M8[ms]', '<M8[us]', '<M8[μs]', '<M8[ns]', '<M8[ps]', '<M8[fs]', '<M8[as]', 'date32[pyarrow]', 'date64[pyarrow]', 'timestamp[s][pyarrow]', 'timestamp[ms][pyarrow]', 'timestamp[us][pyarrow]', 'timestamp[ns][pyarrow]'], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> TimestampSeries
-nodes/finland/syke.py:104: note: def astype(self, dtype: CategoricalDtype | Literal['category'], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[CategoricalDtype]
-nodes/finland/syke.py:104: note: def astype(self, dtype: Literal['object', 'O', 'V', 'void', 'void0'] | type[object] | type[object_] | type[void] | ExtensionDtype | dtype[generic[Any]], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[Any]
-nodes/finland/syke.py:115: error: Incompatible types in assignment (expression has type "str", base class "Node" defined the type as "Unit | None")  [assignment]
-nodes/finland/syke.py:139: error: Incompatible types in assignment (expression has type "DataFrame | Series[Any]", variable has type "DataFrame")  [assignment]
-nodes/emissions/__init__.py:23: error: List item 0 has incompatible type "range"; expected "SequenceNotStr[Hashable] | Series[Any] | Index[Any]"  [list-item]
-nodes/emissions/__init__.py:23: note: Following member(s) of "range" have conflicts:
-nodes/emissions/__init__.py:23: note: Expected:
-nodes/emissions/__init__.py:23: note: def index(self, Any, int = ..., int = ..., /) -> int
-nodes/emissions/__init__.py:23: note: Got:
-nodes/emissions/__init__.py:23: note: def index(self, int, /) -> int
-nodes/emissions/__init__.py:23: error: List item 1 has incompatible type "set[str]"; expected "SequenceNotStr[Hashable] | Series[Any] | Index[Any]"  [list-item]
-nodes/actions/simple.py:62: error: Unsupported left operand type for + ("Sequence[Parameter[Any]]")  [operator]
-nodes/actions/simple.py:96: error: Unsupported operand types for / ("object" and "int")  [operator]
-nodes/actions/simple.py:131: error: No overload variant of "int" matches argument type "object"  [call-overload]
-nodes/actions/simple.py:131: note: Possible overload variants:
-nodes/actions/simple.py:131: note: def int(str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc = ..., /) -> int
-nodes/actions/simple.py:131: note: def int(str | bytes | bytearray, /, base: SupportsIndex) -> int
-nodes/actions/simple.py:140: error: No overload variant of "__setitem__" of "_LocIndexerFrame" matches argument types "tuple[int, str]", "object"  [call-overload]
-nodes/actions/simple.py:140: note: Possible overload variants:
-nodes/actions/simple.py:140: note: def [ScalarT: str | bytes | date | datetime | timedelta | <7 more items> | complex | integer[Any] | floating[Any] | complexfloating[Any, Any]] __setitem__(self, Series[builtins.bool] | ndarray[tuple[int, ...], dtype[numpy.bool[builtins.bool]]] | list[builtins.bool] | str | str_ | <9 more items>, str | bytes | date | datetime | timedelta | <19 more items> | None, /) -> None
-nodes/actions/simple.py:140: note: def __setitem__(self, tuple[tuple[Index[Any] | Series[builtins.bool] | ndarray[tuple[int, ...], dtype[numpy.bool[builtins.bool]]] | list[builtins.bool] | str | bytes | date | datetime | timedelta | <7 more items> | complex | integer[Any] | floating[Any] | complexfloating[Any, Any] | list[Any] | slice[Any, Any, Any] | tuple[str | bytes | date | datetime | timedelta | <7 more items> | complex | integer[Any] | floating[Any] | complexfloating[Any, Any], ...], ...], Hashable], str | bytes | date | datetime | timedelta | <18 more items> | None, /) -> None
-nodes/actions/simple.py:142: error: Invalid index type "tuple[range, str]" for "_LocIndexerFrame[DataFrame]"; expected type "Series[builtins.bool] | ndarray[tuple[int, ...], dtype[numpy.bool[builtins.bool]]] | list[builtins.bool] | str | str_ | <9 more items>"  [index]
-nodes/actions/simple.py:192: error: No overload variant of "int" matches argument type "object"  [call-overload]
-nodes/actions/simple.py:192: note: Possible overload variants:
-nodes/actions/simple.py:192: note: def int(str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc = ..., /) -> int
-nodes/actions/simple.py:192: note: def int(str | bytes | bytearray, /, base: SupportsIndex) -> int
-nodes/actions/simple.py:195: error: No overload variant of "int" matches argument type "object"  [call-overload]
-nodes/actions/simple.py:195: note: Possible overload variants:
-nodes/actions/simple.py:195: note: def int(str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc = ..., /) -> int
-nodes/actions/simple.py:195: note: def int(str | bytes | bytearray, /, base: SupportsIndex) -> int
-nodes/actions/simple.py:202: error: Argument 1 to "select_category" of "PathsDataFrame" has incompatible type "object"; expected "str"  [arg-type]
-nodes/actions/simple.py:202: error: Argument 2 to "select_category" of "PathsDataFrame" has incompatible type "object"; expected "str | None"  [arg-type]
-nodes/actions/simple.py:202: error: Argument 6 to "select_category" of "PathsDataFrame" has incompatible type "object"; expected "bool | None"  [arg-type]
-nodes/actions/simple.py:208: error: Definition of "compute" in base class "ActionNode" is incompatible with definition in base class "DatasetNode"  [misc]
-nodes/actions/simple.py:208: error: Definition of "compute" in base class "ActionNode" is incompatible with definition in base class "AdditiveNode"  [misc]
-nodes/actions/simple.py:220: error: No overload variant of "int" matches argument type "object"  [call-overload]
-nodes/actions/simple.py:220: note: Possible overload variants:
-nodes/actions/simple.py:220: note: def int(str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc = ..., /) -> int
-nodes/actions/simple.py:220: note: def int(str | bytes | bytearray, /, base: SupportsIndex) -> int
-nodes/actions/simple.py:223: error: No overload variant of "int" matches argument type "object"  [call-overload]
-nodes/actions/simple.py:223: note: Possible overload variants:
-nodes/actions/simple.py:223: note: def int(str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc = ..., /) -> int
-nodes/actions/simple.py:223: note: def int(str | bytes | bytearray, /, base: SupportsIndex) -> int
-nodes/actions/simple.py:230: error: Argument 1 to "select_category" of "PathsDataFrame" has incompatible type "object"; expected "str"  [arg-type]
-nodes/actions/simple.py:230: error: Argument 2 to "select_category" of "PathsDataFrame" has incompatible type "object"; expected "str | None"  [arg-type]
-nodes/actions/simple.py:230: error: Argument 6 to "select_category" of "PathsDataFrame" has incompatible type "object"; expected "bool | None"  [arg-type]
-nodes/actions/kpr.py:11: error: Incompatible types in assignment (expression has type "str", base class "Node" defined the type as "Unit | None")  [assignment]
-nodes/actions/kpr.py:28: error: Signature of "compute_effect" incompatible with supertype "nodes.actions.action.ActionNode"  [override]
-nodes/actions/kpr.py:28: note: Superclass:
-nodes/actions/kpr.py:28: note: def compute_effect(self) -> DataFrame | PathsDataFrame
-nodes/actions/kpr.py:28: note: Subclass:
-nodes/actions/kpr.py:28: note: def compute_effect(self, context: Context) -> DataFrame
-nodes/actions/kpr.py:29: error: No overload variant of "get_input_dataset" of "Node" matches argument type "Context"  [call-overload]
-nodes/actions/kpr.py:29: note: Possible overload variants:
-nodes/actions/kpr.py:29: note: def get_input_dataset(self, required: Literal[True] = ...) -> DataFrame
-nodes/actions/kpr.py:29: note: def get_input_dataset(self, required: Literal[False]) -> DataFrame | None
-nodes/actions/kpr.py:57: error: Unsupported operand types for * ("object" and "int")  [operator]
-nodes/actions/energy_saving.py:5: error: Skipping analyzing "numba": module is installed, but missing library stubs or py.typed marker  [import-untyped]
-nodes/actions/energy_saving.py:133: error: "LEDRetrofitAction" has no attribute "get_model_end_year"  [attr-defined]
-nodes/actions/energy_saving.py:151: error: Incompatible types in assignment (expression has type "Series[Any]", variable has type "DataFrame")  [assignment]
-nodes/actions/energy_saving.py:160: error: Unsupported left operand type for + ("object")  [operator]
-nodes/actions/energy_saving.py:167: error: No overload variant of "astype" of "Series" matches argument type "str"  [call-overload]
-nodes/actions/energy_saving.py:167: note: Possible overload variants:
-nodes/actions/energy_saving.py:167: note: def astype(self, dtype: Literal['bool', 'boolean', '?', 'b1', 'bool_', 'bool[pyarrow]', 'boolean[pyarrow]'] | type[builtins.bool] | BooleanDtype | type[numpy.bool[builtins.bool]], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[bool]
-nodes/actions/energy_saving.py:167: note: def astype(self, dtype: Literal['int', 'Int8', 'Int16', 'Int32', 'Int64', 'b', 'i1', 'int8', 'byte', 'h', 'i2', 'int16', 'short', 'i', 'i4', 'int32', 'intc', 'l', 'i8', 'int64', 'int_', 'long', 'q', 'longlong', 'p', 'intp', 'int8[pyarrow]', 'int16[pyarrow]', 'int32[pyarrow]', 'int64[pyarrow]', 'UInt8', 'UInt16', 'UInt32', 'UInt64', 'B', 'u1', 'uint8', 'ubyte', 'H', 'u2', 'uint16', 'ushort', 'I', 'u4', 'uint32', 'uintc', 'L', 'u8', 'uint', 'ulong', 'uint64', 'Q', 'ulonglong', 'P', 'uintp', 'uint8[pyarrow]', 'uint16[pyarrow]', 'uint32[pyarrow]', 'uint64[pyarrow]'] | type[int] | Int8Dtype | Int16Dtype | Int32Dtype | Int64Dtype | <12 more items>, copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[int]
-nodes/actions/energy_saving.py:167: note: def astype(self, dtype: Literal['str', 'string', 'U', 'str_', 'str0', 'unicode', 'unicode_', 'string[pyarrow]'] | type[str] | StringDtype | type[str_], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[str]
-nodes/actions/energy_saving.py:167: note: def astype(self, dtype: Literal['bytes', 'S', 'bytes_', 'bytes0', 'string_', 'binary[pyarrow]'] | type[bytes] | type[bytes_], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[bytes]
-nodes/actions/energy_saving.py:167: note: def astype(self, dtype: Literal['float', 'Float32', 'Float64', 'e', 'f2', '<f2', 'float16', 'half', 'f', 'f4', 'float32', 'single', 'd', 'f8', 'float64', 'double', 'float_', 'g', 'f16', 'float128', 'longdouble', 'longfloat', 'float[pyarrow]', 'double[pyarrow]', 'float16[pyarrow]', 'float32[pyarrow]', 'float64[pyarrow]'] | type[float] | Float32Dtype | Float64Dtype | type[floating[_16Bit]] | type[floating[_32Bit]] | type[floating[_64Bit]] | type[floating[_128Bit]], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[float]
-nodes/actions/energy_saving.py:167: note: def astype(self, dtype: Literal['complex', 'F', 'c8', 'complex64', 'csingle', 'singlecomplex', 'D', 'c16', 'complex128', 'cdouble', 'cfloat', 'complex_', 'G', 'c32', 'complex256', 'clongdouble', 'clongfloat', 'longcomplex'] | type[complex] | type[complexfloating[_32Bit, _32Bit]] | type[complexfloating[_64Bit, _64Bit]] | type[complexfloating[_128Bit, _128Bit]], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[complex]
-nodes/actions/energy_saving.py:167: note: def astype(self, dtype: Literal['timedelta64[Y]', 'timedelta64[M]', 'timedelta64[W]', 'timedelta64[D]', 'timedelta64[h]', 'timedelta64[m]', 'timedelta64[s]', 'timedelta64[ms]', 'timedelta64[us]', 'timedelta64[μs]', 'timedelta64[ns]', 'timedelta64[ps]', 'timedelta64[fs]', 'timedelta64[as]', 'm8[Y]', 'm8[M]', 'm8[W]', 'm8[D]', 'm8[h]', 'm8[m]', 'm8[s]', 'm8[ms]', 'm8[us]', 'm8[μs]', 'm8[ns]', 'm8[ps]', 'm8[fs]', 'm8[as]', '<m8[Y]', '<m8[M]', '<m8[W]', '<m8[D]', '<m8[h]', '<m8[m]', '<m8[s]', '<m8[ms]', '<m8[us]', '<m8[μs]', '<m8[ns]', '<m8[ps]', '<m8[fs]', '<m8[as]', 'duration[s][pyarrow]', 'duration[ms][pyarrow]', 'duration[us][pyarrow]', 'duration[ns][pyarrow]'], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> TimedeltaSeries
-nodes/actions/energy_saving.py:167: note: def astype(self, dtype: Literal['datetime64[Y]', 'datetime64[M]', 'datetime64[W]', 'datetime64[D]', 'datetime64[h]', 'datetime64[m]', 'datetime64[s]', 'datetime64[ms]', 'datetime64[us]', 'datetime64[μs]', 'datetime64[ns]', 'datetime64[ps]', 'datetime64[fs]', 'datetime64[as]', 'M8[Y]', 'M8[M]', 'M8[W]', 'M8[D]', 'M8[h]', 'M8[m]', 'M8[s]', 'M8[ms]', 'M8[us]', 'M8[μs]', 'M8[ns]', 'M8[ps]', 'M8[fs]', 'M8[as]', '<M8[Y]', '<M8[M]', '<M8[W]', '<M8[D]', '<M8[h]', '<M8[m]', '<M8[s]', '<M8[ms]', '<M8[us]', '<M8[μs]', '<M8[ns]', '<M8[ps]', '<M8[fs]', '<M8[as]', 'date32[pyarrow]', 'date64[pyarrow]', 'timestamp[s][pyarrow]', 'timestamp[ms][pyarrow]', 'timestamp[us][pyarrow]', 'timestamp[ns][pyarrow]'], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> TimestampSeries
-nodes/actions/energy_saving.py:167: note: def astype(self, dtype: CategoricalDtype | Literal['category'], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[CategoricalDtype]
-nodes/actions/energy_saving.py:167: note: def astype(self, dtype: Literal['object', 'O', 'V', 'void', 'void0'] | type[object] | type[object_] | type[void] | ExtensionDtype | dtype[generic[Any]], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[Any]
-nodes/actions/energy_saving.py:176: error: Argument 1 to "astype" of "DataFrame" has incompatible type "Literal['pint[EUR/a]']"; expected "Literal['bool', 'boolean', '?', 'b1', 'bool_', 'bool[pyarrow]', 'boolean[pyarrow]', 'int', 'Int8', 'Int16', 'Int32', 'Int64', 'b', 'i1', 'int8', 'byte', 'h', 'i2', 'int16', 'short', 'i', 'i4', 'int32', 'intc', 'l', 'i8', 'int64', 'int_', 'long', 'q', 'longlong', 'p', 'intp', 'int8[pyarrow]', 'int16[pyarrow]', 'int32[pyarrow]', 'int64[pyarrow]', 'UInt8', 'UInt16', 'UInt32', 'UInt64', 'B', 'u1', 'uint8', 'ubyte', 'H', 'u2', 'uint16', 'ushort', 'I', 'u4', 'uint32', 'uintc', 'L', 'u8', 'uint', 'ulong', 'uint64', 'Q', 'ulonglong', 'P', 'uintp', 'uint8[pyarrow]', 'uint16[pyarrow]', 'uint32[pyarrow]', 'uint64[pyarrow]', 'str', 'string', 'U', 'str_', 'str0', 'unicode', 'unicode_', 'string[pyarrow]', 'bytes', 'S', 'bytes_', 'bytes0', 'string_', 'binary[pyarrow]', 'float', 'Float32', 'Float64', 'e', 'f2', '<f2', 'float16', 'half', 'f', 'f4', 'float32', 'single', 'd', 'f8', 'float64', 'double', 'float_', 'g', 'f16', 'float128', 'longdouble', 'longfloat', 'float[pyarrow]', 'double[pyarrow]', 'float16[pyarrow]', 'float32[pyarrow]', 'float64[pyarrow]', 'complex', 'F', 'c8', 'complex64', 'csingle', 'singlecomplex', 'D', 'c16', 'complex128', 'cdouble', 'cfloat', 'complex_', 'G', 'c32', 'complex256', 'clongdouble', 'clongfloat', 'longcomplex', 'timedelta64[Y]', 'timedelta64[M]', 'timedelta64[W]', 'timedelta64[D]', 'timedelta64[h]', 'timedelta64[m]', 'timedelta64[s]', 'timedelta64[ms]', 'timedelta64[us]', 'timedelta64[μs]', 'timedelta64[ns]', 'timedelta64[ps]', 'timedelta64[fs]', 'timedelta64[as]', 'm8[Y]', 'm8[M]', 'm8[W]', 'm8[D]', 'm8[h]', 'm8[m]', 'm8[s]', 'm8[ms]', 'm8[us]', 'm8[μs]', 'm8[ns]', 'm8[ps]', 'm8[fs]', 'm8[as]', '<m8[Y]', '<m8[M]', '<m8[W]', '<m8[D]', '<m8[h]', '<m8[m]', '<m8[s]', '<m8[ms]', '<m8[us]', '<m8[μs]', '<m8[ns]', '<m8[ps]', '<m8[fs]', '<m8[as]', 'duration[s][pyarrow]', 'duration[ms][pyarrow]', 'duration[us][pyarrow]', 'duration[ns][pyarrow]', 'datetime64[Y]', 'datetime64[M]', 'datetime64[W]', 'datetime64[D]', 'datetime64[h]', 'datetime64[m]', 'datetime64[s]', 'datetime64[ms]', 'datetime64[us]', 'datetime64[μs]', 'datetime64[ns]', 'datetime64[ps]', 'datetime64[fs]', 'datetime64[as]', 'M8[Y]', 'M8[M]', 'M8[W]', 'M8[D]', 'M8[h]', 'M8[m]', 'M8[s]', 'M8[ms]', 'M8[us]', 'M8[μs]', 'M8[ns]', 'M8[ps]', 'M8[fs]', 'M8[as]', '<M8[Y]', '<M8[M]', '<M8[W]', '<M8[D]', '<M8[h]', '<M8[m]', '<M8[s]', '<M8[ms]', '<M8[us]', '<M8[μs]', '<M8[ns]', '<M8[ps]', '<M8[fs]', '<M8[as]', 'date32[pyarrow]', 'date64[pyarrow]', 'timestamp[s][pyarrow]', 'timestamp[ms][pyarrow]', 'timestamp[us][pyarrow]', 'timestamp[ns][pyarrow]', 'category', 'object', 'O', 'V', 'void', 'void0'] | type[builtins.bool] | BooleanDtype | type[numpy.bool[builtins.bool]] | type[int] | Int8Dtype | <39 more items>"  [arg-type]
-nodes/actions/energy_saving.py:185: error: Argument 1 to "astype" of "DataFrame" has incompatible type "Literal['pint[EUR/a]']"; expected "Literal['bool', 'boolean', '?', 'b1', 'bool_', 'bool[pyarrow]', 'boolean[pyarrow]', 'int', 'Int8', 'Int16', 'Int32', 'Int64', 'b', 'i1', 'int8', 'byte', 'h', 'i2', 'int16', 'short', 'i', 'i4', 'int32', 'intc', 'l', 'i8', 'int64', 'int_', 'long', 'q', 'longlong', 'p', 'intp', 'int8[pyarrow]', 'int16[pyarrow]', 'int32[pyarrow]', 'int64[pyarrow]', 'UInt8', 'UInt16', 'UInt32', 'UInt64', 'B', 'u1', 'uint8', 'ubyte', 'H', 'u2', 'uint16', 'ushort', 'I', 'u4', 'uint32', 'uintc', 'L', 'u8', 'uint', 'ulong', 'uint64', 'Q', 'ulonglong', 'P', 'uintp', 'uint8[pyarrow]', 'uint16[pyarrow]', 'uint32[pyarrow]', 'uint64[pyarrow]', 'str', 'string', 'U', 'str_', 'str0', 'unicode', 'unicode_', 'string[pyarrow]', 'bytes', 'S', 'bytes_', 'bytes0', 'string_', 'binary[pyarrow]', 'float', 'Float32', 'Float64', 'e', 'f2', '<f2', 'float16', 'half', 'f', 'f4', 'float32', 'single', 'd', 'f8', 'float64', 'double', 'float_', 'g', 'f16', 'float128', 'longdouble', 'longfloat', 'float[pyarrow]', 'double[pyarrow]', 'float16[pyarrow]', 'float32[pyarrow]', 'float64[pyarrow]', 'complex', 'F', 'c8', 'complex64', 'csingle', 'singlecomplex', 'D', 'c16', 'complex128', 'cdouble', 'cfloat', 'complex_', 'G', 'c32', 'complex256', 'clongdouble', 'clongfloat', 'longcomplex', 'timedelta64[Y]', 'timedelta64[M]', 'timedelta64[W]', 'timedelta64[D]', 'timedelta64[h]', 'timedelta64[m]', 'timedelta64[s]', 'timedelta64[ms]', 'timedelta64[us]', 'timedelta64[μs]', 'timedelta64[ns]', 'timedelta64[ps]', 'timedelta64[fs]', 'timedelta64[as]', 'm8[Y]', 'm8[M]', 'm8[W]', 'm8[D]', 'm8[h]', 'm8[m]', 'm8[s]', 'm8[ms]', 'm8[us]', 'm8[μs]', 'm8[ns]', 'm8[ps]', 'm8[fs]', 'm8[as]', '<m8[Y]', '<m8[M]', '<m8[W]', '<m8[D]', '<m8[h]', '<m8[m]', '<m8[s]', '<m8[ms]', '<m8[us]', '<m8[μs]', '<m8[ns]', '<m8[ps]', '<m8[fs]', '<m8[as]', 'duration[s][pyarrow]', 'duration[ms][pyarrow]', 'duration[us][pyarrow]', 'duration[ns][pyarrow]', 'datetime64[Y]', 'datetime64[M]', 'datetime64[W]', 'datetime64[D]', 'datetime64[h]', 'datetime64[m]', 'datetime64[s]', 'datetime64[ms]', 'datetime64[us]', 'datetime64[μs]', 'datetime64[ns]', 'datetime64[ps]', 'datetime64[fs]', 'datetime64[as]', 'M8[Y]', 'M8[M]', 'M8[W]', 'M8[D]', 'M8[h]', 'M8[m]', 'M8[s]', 'M8[ms]', 'M8[us]', 'M8[μs]', 'M8[ns]', 'M8[ps]', 'M8[fs]', 'M8[as]', '<M8[Y]', '<M8[M]', '<M8[W]', '<M8[D]', '<M8[h]', '<M8[m]', '<M8[s]', '<M8[ms]', '<M8[us]', '<M8[μs]', '<M8[ns]', '<M8[ps]', '<M8[fs]', '<M8[as]', 'date32[pyarrow]', 'date64[pyarrow]', 'timestamp[s][pyarrow]', 'timestamp[ms][pyarrow]', 'timestamp[us][pyarrow]', 'timestamp[ns][pyarrow]', 'category', 'object', 'O', 'V', 'void', 'void0'] | type[builtins.bool] | BooleanDtype | type[numpy.bool[builtins.bool]] | type[int] | Int8Dtype | <39 more items>"  [arg-type]
-kausal_common/storage/storage_classes.py:9: error: Skipping analyzing "storages.backends.s3boto3": module is installed, but missing library stubs or py.typed marker  [import-untyped]
-kausal_common/storage/storage_classes.py:10: error: Skipping analyzing "storages.utils": module is installed, but missing library stubs or py.typed marker  [import-untyped]
-kausal_common/debugging/vscode.py:5: error: Skipping analyzing "debugpy": module is installed, but missing library stubs or py.typed marker  [import-untyped]
-kausal_common/debugging/vscode.py:5: note: See https://mypy.readthedocs.io/en/stable/running_mypy.html#missing-imports
-admin_site/auth_backends.py:74: error: Incompatible types in assignment (expression has type "str", base class "BaseOAuth2" defined the type as "bool")  [assignment]
-nodes/costs.py:113: error: Dict entry 0 has incompatible type "str": "PlainUnit"; expected "str": "Unit"  [dict-item]
-nodes/costs.py:124: error: Incompatible types in assignment (expression has type "int | float | Decimal | date | time | timedelta | str | bytes | list[Any] | None", variable has type "int | None")  [assignment]
-nodes/costs.py:124: note: Items in the first union not in the second: "float", "Decimal", "date", "time", "timedelta", "str", "bytes", "list[Any]"
-nodes/costs.py:126: error: No overload variant of "__sub__" of "date" matches argument type "int"  [operator]
-nodes/costs.py:126: note: Possible overload variants:
-nodes/costs.py:126: note: def __sub__(self, datetime, /) -> Never
-nodes/costs.py:126: note: def __sub__(self, date, /) -> timedelta
-nodes/costs.py:126: note: def __sub__(self, timedelta, /) -> date
-nodes/costs.py:126: error: Unsupported operand types for - ("time" and "int")  [operator]
-nodes/costs.py:126: error: Unsupported operand types for - ("str" and "int")  [operator]
-nodes/costs.py:126: error: Unsupported operand types for - ("bytes" and "int")  [operator]
-nodes/costs.py:126: error: Unsupported operand types for - ("list[Any]" and "int")  [operator]
-nodes/costs.py:126: error: Unsupported operand types for - ("None" and "int")  [operator]
-nodes/costs.py:126: note: Left operand is of type "int | float | Decimal | date | time | timedelta | str | bytes | list[Any] | None"
-nodes/costs.py:126: error: Incompatible types in assignment (expression has type "int | float | Decimal | Any", variable has type "int | None")  [assignment]
-nodes/costs.py:126: error: Unsupported operand types for - ("timedelta" and "int")  [operator]
-nodes/costs.py:171: error: Item "None" of "Quantity | None" has no attribute "to"  [union-attr]
-nodes/costs.py:253: error: Argument 3 to "add_nodes_pl" of "Node" has incompatible type "object"; expected "str | None"  [arg-type]
-nodes/costs.py:256: error: Argument 3 to "add_nodes_pl" of "Node" has incompatible type "object"; expected "str | None"  [arg-type]
-nodes/costs.py:304: error: Argument 1 to "range" has incompatible type "int | float | Decimal | date | time | timedelta | str | bytes | list[Any] | None"; expected "SupportsIndex"  [arg-type]
-nodes/buildings.py:104: error: Incompatible types in assignment (expression has type "DataFrame", variable has type "PathsDataFrame | None")  [assignment]
-nodes/buildings.py:107: error: Item "None" of "PathsDataFrame | None" has no attribute "ensure_unit"  [union-attr]
-nodes/buildings.py:151: error: Argument 1 to "include_custom_dimension" of "FloorAreaNode" has incompatible type "PathsDataFrame | None"; expected "PathsDataFrame"  [arg-type]
-nodes/tests/factories.py:118: error: Argument "unit" to "FixedDataset" has incompatible type "str"; expected "Unit"  [arg-type]
-nodes/tests/factories.py:155: error: Need type annotation for "context"  [var-annotated]
-nodes/tests/factories.py:162: error: Need type annotation for "base_scenario"  [var-annotated]
-nodes/management/commands/load_dvc_dataset.py:218: error: Cannot instantiate abstract class "DatasetMetric" with abstract attribute "permission_policy"  [abstract]
-nodes/management/commands/load_dvc_dataset.py:248: error: Cannot instantiate abstract class "Dimension" with abstract attribute "permission_policy"  [abstract]
-nodes/management/commands/load_dvc_dataset.py:273: error: Cannot instantiate abstract class "DimensionCategory" with abstract attribute "permission_policy"  [abstract]
-nodes/finland/__init__.py:4: error: Type of __all__ must be "Sequence[str]", not "list[type[Population]]"  [misc]
-nodes/actions/values.py:58: error: "Parameter[Any]" has no attribute "min_value"  [attr-defined]
-nodes/actions/values.py:59: error: "Parameter[Any]" has no attribute "max_value"  [attr-defined]
-nodes/actions/values.py:60: error: Incompatible types in assignment (expression has type "int", variable has type "Parameter[Any]")  [assignment]
-nodes/actions/values.py:89: error: Unsupported left operand type for + ("Sequence[Parameter[Any]]")  [operator]
-nodes/actions/values.py:111: error: No overload variant of "int" matches argument type "object"  [call-overload]
-nodes/actions/values.py:111: note: Possible overload variants:
-nodes/actions/values.py:111: note: def int(str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc = ..., /) -> int
-nodes/actions/values.py:111: note: def int(str | bytes | bytearray, /, base: SupportsIndex) -> int
-nodes/actions/values.py:118: error: Unsupported operand types for * ("Expr" and "object")  [operator]
-kausal_paths_extensions/management/commands/extract_transifex.py:134: error: Need type annotation for "rest"  [var-annotated]
-kausal_paths_extensions/management/commands/export_syke_indicators.py:87: error: Incompatible types in assignment (expression has type "list[dict[str, Any]]", target has type "Collection[str]")  [assignment]
-kausal_paths_extensions/management/commands/export_syke_indicators.py:92: error: Item "None" of "DataFrame | None" has no attribute "to_pandas"  [union-attr]
-kausal_paths_extensions/management/commands/export_syke_indicators.py:111: error: "Command" has no attribute "MUNI_IDS"  [attr-defined]
-kausal_common/typings/reversion/__init__.pyi:1: error: Cannot find implementation or library stub for module named "reversion.errors"  [import-not-found]
-kausal_common/datasets/tests/factories.py:37: error: Need type annotation for "dimension"  [var-annotated]
-kausal_common/datasets/tests/factories.py:45: error: Need type annotation for "schema"  [var-annotated]
-kausal_common/datasets/tests/factories.py:53: error: Need type annotation for "schema"  [var-annotated]
-kausal_common/datasets/tests/factories.py:61: error: Need type annotation for "dataset"  [var-annotated]
-kausal_common/datasets/tests/factories.py:62: error: Need type annotation for "metric"  [var-annotated]
-kausal_common/datasets/tests/factories.py:73: error: "PostGeneration[DataPointFactory, Any]" has no attribute "add"  [attr-defined]
-admin_site/wagtail_hooks.py:46: error: "Menu" has no attribute "active_menu_items"  [attr-defined]
-admin_site/wagtail_hooks.py:54: error: Argument 1 of "menu_items_for_request" is incompatible with supertype "wagtail.admin.menu.Menu"; supertype defines the argument type as "HttpRequest"  [override]
-admin_site/wagtail_hooks.py:54: note: This violates the Liskov substitution principle
-admin_site/wagtail_hooks.py:54: note: See https://mypy.readthedocs.io/en/stable/common_issues.html#incompatible-overrides
-admin_site/urls.py:5: error: Module "wagtail.admin" has no attribute "urls"  [attr-defined]
-params/tests/factories.py:18: error: Need type annotation for "context"  [var-annotated]
-kausal_paths_extensions/management/commands/export_hsy_indicators.py:6: error: Incompatible types in assignment (expression has type "str", base class "Command" defined the type as "Path")  [assignment]
-params/tests/test_schema.py:114: error: "NumberParameterFactory" has no attribute "global_id"  [attr-defined]
-params/tests/test_schema.py:119: error: "NumberParameterFactory" has no attribute "global_id"  [attr-defined]
-params/tests/test_schema.py:120: error: "NumberParameterFactory" has no attribute "value"  [attr-defined]
-params/tests/test_schema.py:151: error: "StringParameterFactory" has no attribute "global_id"  [attr-defined]
-params/tests/test_schema.py:156: error: "StringParameterFactory" has no attribute "global_id"  [attr-defined]
-params/tests/test_schema.py:157: error: "StringParameterFactory" has no attribute "value"  [attr-defined]
-kausal_paths_extensions/auth/tasks.py:8: error: No overload variant of "register_cleanup_task" matches argument type "Schedule"  [call-overload]
-kausal_paths_extensions/auth/tasks.py:8: note: Possible overload variants:
-kausal_paths_extensions/auth/tasks.py:8: note: def register_cleanup_taskaseSchedule | float | Schedule, /) -> Callable[[T], T]
-kausal_paths_extensions/auth/tasks.py:8: note: def register_cleanup_taskaseSchedule | float | Schedule, /, task: Callable[[], None] | Any) -> None
-admin_site/viewsets.py:75: error: Argument 1 to "user_has_permission_for_instance" of "ModelPermissionPolicy" has incompatible type "AbstractBaseUser"; expected "User | AnonymousUser"  [arg-type]
-admin_site/viewsets.py:121: error: Cannot override writeable attribute with read-only property  [override]
-admin_site/viewsets.py:196: error: Cannot override writeable attribute with read-only property  [override]
-admin_site/viewsets.py:200: error: Cannot override writeable attribute with read-only property  [override]
-admin_site/viewsets.py:222: error: Incompatible return value type (got "ObjectList[Model, WagtailAdminModelForm[Model, AbstractBaseUser]] | TabbedInterface[Model, WagtailAdminModelForm[Model, AbstractBaseUser]] | None", expected "ObjectList[Model, WagtailAdminModelForm[Model, AbstractBaseUser]] | None")  [return-value]
-kausal_common/datasets/sync.py:254: error: Cannot instantiate abstract class "DatasetSchemaDimension" with abstract attributes "__rich_repr__", "__str__" and "permission_policy"  [abstract]
-kausal_paths_extensions/dataset_editor.py:118: error: "DatasetAdminView" has no attribute "form"  [attr-defined]
-kausal_paths_extensions/dataset_editor.py:151: error: Incompatible return value type (got "type[Any]", expected "Model")  [return-value]
-kausal_paths_extensions/dataset_editor.py:192: error: "Model" has no attribute "_default_manager"  [attr-defined]
-kausal_paths_extensions/dataset_editor.py:218: error: Item "None" of "DatasetSchema | None" has no attribute "delete"  [union-attr]
-admin_site/dataset_admin.py:88: error: Name "form_class.Meta" is not defined  [name-defined]
-paths/graphql_views.py:108: error: Incompatible types in assignment (expression has type "type[PathsGraphQLContext[InstanceType]]", base class "GraphQLView" defined the type as "type[PathsGraphQLContext[Instance | None]]")  [assignment]
-kausal_common/datasets/api.py:103: error: Item "None" of "DatasetSchema | None" has no attribute "time_resolution"  [union-attr]
-kausal_common/datasets/api.py:103: error: Item "None" of "DatasetSchema | None" has no attribute "TimeResolution"  [union-attr]
-kausal_common/datasets/api.py:161: error: Incompatible types in assignment (expression has type "Any | AnonymousUser", variable has type "User | Combinable | None")  [assignment]
-kausal_common/datasets/api.py:474: error: Incompatible type for lookup 'scope_id': (got "str | None", expected "str | int")  [misc]
+kausal_common/typings/celery/app/__init__.pyi:0: error: Module "celery.app.utils" has no attribute "AppPickler"  [attr-defined]
+notebooks/mcda.py:0: error: Library stubs not installed for "scipy.optimize"  [import-untyped]
+notebooks/mcda.py:0: note: Hint: "python3 -m pip install scipy-stubs"
+notebooks/mcda.py:0: note: (or run "mypy --install-types" to install all missing stub packages)
+notebooks/fetch_dataset.py:0: error: Item "None" of "str | None" has no attribute "strip"  [union-attr]
+notebooks/fetch_dataset.py:0: error: Unsupported operand types for + ("str" and "None")  [operator]
+notebooks/fetch_dataset.py:0: note: Right operand is of type "str | None"
+notebooks/fetch_dataset.py:0: error: Unsupported operand types for + ("str" and "None")  [operator]
+notebooks/fetch_dataset.py:0: note: Right operand is of type "str | None"
+notebooks/C4C-YAML.py:0: error: "Sequence[str]" has no attribute "append"  [attr-defined]
+notebooks/C4C-YAML.py:0: error: "Sequence[str]" has no attribute "append"  [attr-defined]
+notebooks/C4C-YAML.py:0: error: "Sequence[str]" has no attribute "append"  [attr-defined]
+notebooks/C4C-YAML.py:0: error: "Sequence[str]" has no attribute "append"  [attr-defined]
+notebooks/C4C-YAML.py:0: error: Invalid index type "Collection[Any]" for "dict[str, str]"; expected type "str"  [index]
+notebooks/C4C-YAML.py:0: error: Value of type "Collection[Any]" is not indexable  [index]
+notebooks/C4C-YAML.py:0: error: "Collection[Any]" has no attribute "__delitem__"  [attr-defined]
+notebooks/C4C-YAML.py:0: error: Value of type "Collection[Any]" is not indexable  [index]
+notebooks/C4C-YAML.py:0: error: Value of type "Collection[Any]" is not indexable  [index]
+notebooks/C4C-YAML.py:0: error: Value of type "Collection[Any]" is not indexable  [index]
+notebooks/C4C-YAML.py:0: error: Value of type "Collection[Any]" is not indexable  [index]
+notebooks/C4C-YAML.py:0: error: Value of type "Collection[Any]" is not indexable  [index]
+notebooks/C4C-YAML.py:0: error: Value of type "Collection[Any]" is not indexable  [index]
+notebooks/C4C-YAML.py:0: error: Value of type "Collection[Any]" is not indexable  [index]
+notebooks/C4C-YAML.py:0: error: Value of type "Collection[Any]" is not indexable  [index]
+notebooks/C4C-YAML.py:0: error: Invalid index type "Collection[Any]" for "dict[str, str]"; expected type "str"  [index]
+notebooks/C4C-YAML.py:0: error: Value of type "Collection[Any]" is not indexable  [index]
+notebooks/C4C-YAML.py:0: error: "Collection[Any]" has no attribute "__delitem__"  [attr-defined]
+notebooks/C4C-YAML.py:0: error: Value of type "Collection[Any]" is not indexable  [index]
+notebooks/C4C-YAML.py:0: error: Value of type "Collection[Any]" is not indexable  [index]
+notebooks/C4C-YAML.py:0: error: Value of type "Collection[Any]" is not indexable  [index]
+notebooks/C4C-YAML.py:0: error: Value of type "Collection[Any]" is not indexable  [index]
+notebooks/C4C-YAML.py:0: error: Value of type "Collection[Any]" is not indexable  [index]
+notebooks/C4C-YAML.py:0: error: Invalid index type "Sequence[str]" for "dict[str, str]"; expected type "str"  [index]
+notebooks/C4C-YAML.py:0: error: Incompatible types in assignment (expression has type "dict[Any, dict[str, Any]]", variable has type "list[Collection[Any]]")  [assignment]
+notebooks/C4C-YAML.py:0: error: "list[Collection[Any]]" has no attribute "keys"  [attr-defined]
+notebooks/C4C-YAML.py:0: error: Incompatible types in assignment (expression has type "dict[Any, dict[str, Any]]", variable has type "bool")  [assignment]
+notebooks/C4C-YAML.py:0: error: Value of type "bool" is not indexable  [index]
+notebooks/push_data.py:0: error: Value of type "Collection[str]" is not indexable  [index]
+notebooks/push_data.py:0: error: Value of type "Collection[str]" is not indexable  [index]
+notebooks/push_data.py:0: error: Value of type "Collection[str]" is not indexable  [index]
+notebooks/push_data.py:0: error: Value of type "Collection[str]" is not indexable  [index]
+notebooks/push_data.py:0: error: Argument 1 to "dict" has incompatible type "Collection[str]"; expected "Iterable[tuple[str, Any]]"  [arg-type]
+notebooks/C4C-Dataset-Baseline.py:0: error: Incompatible types in assignment (expression has type "list[Any]", variable has type "bool")  [assignment]
+notebooks/C4C-Dataset-Baseline.py:0: error: Incompatible types in assignment (expression has type "list[Any]", variable has type "bool")  [assignment]
+notebooks/C4C-Dataset-Baseline.py:0: error: Unsupported right operand type for in ("Literal[True]")  [operator]
+notebooks/C4C-Dataset-Baseline.py:0: error: Argument 1 to "DataFrame" has incompatible type "polars.dataframe.frame.DataFrame"; expected "Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any] | pandas.core.frame.DataFrame | dict[Any, Any] | Iterable[Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any] | tuple[Hashable, Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any]] | dict[Any, Any]] | None"  [arg-type]
+notebooks/C4C-Dataset-Baseline.py:0: note: Following member(s) of "DataFrame" have conflicts:
+notebooks/C4C-Dataset-Baseline.py:0: note: Expected:
+notebooks/C4C-Dataset-Baseline.py:0: note: def __iter__(self) -> Iterator[Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any] | tuple[Hashable, Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any]] | dict[Any, Any]]
+notebooks/C4C-Dataset-Baseline.py:0: note: Got:
+notebooks/C4C-Dataset-Baseline.py:0: note: def __iter__(self) -> Iterator[Series]
+notebooks/C4C-Dataset-Baseline.py:0: error: Argument 1 to "DataFrame" has incompatible type "polars.dataframe.frame.DataFrame"; expected "Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any] | pandas.core.frame.DataFrame | dict[Any, Any] | Iterable[Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any] | tuple[Hashable, Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any]] | dict[Any, Any]] | None"  [arg-type]
+notebooks/C4C-Dataset-Baseline.py:0: note: Following member(s) of "DataFrame" have conflicts:
+notebooks/C4C-Dataset-Baseline.py:0: note: Expected:
+notebooks/C4C-Dataset-Baseline.py:0: note: def __iter__(self) -> Iterator[Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any] | tuple[Hashable, Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any]] | dict[Any, Any]]
+notebooks/C4C-Dataset-Baseline.py:0: note: Got:
+notebooks/C4C-Dataset-Baseline.py:0: note: def __iter__(self) -> Iterator[Series]
+notebooks/C4C-Dataset-Baseline.py:0: error: Unexpected keyword argument "identifier" for "Dataset"  [call-arg]
+notebooks/C4C-Dataset-Baseline.py:0: error: Argument 1 to "Dataset" has incompatible type "pandas.core.frame.DataFrame"; expected "polars.dataframe.frame.DataFrame | None"  [arg-type]
+notebooks/C4C-Dataset-Actions.py:0: error: Argument 1 to "DataFrame" has incompatible type "polars.dataframe.frame.DataFrame"; expected "Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any] | pandas.core.frame.DataFrame | dict[Any, Any] | Iterable[Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any] | tuple[Hashable, Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any]] | dict[Any, Any]] | None"  [arg-type]
+notebooks/C4C-Dataset-Actions.py:0: note: Following member(s) of "DataFrame" have conflicts:
+notebooks/C4C-Dataset-Actions.py:0: note: Expected:
+notebooks/C4C-Dataset-Actions.py:0: note: def __iter__(self) -> Iterator[Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any] | tuple[Hashable, Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any]] | dict[Any, Any]]
+notebooks/C4C-Dataset-Actions.py:0: note: Got:
+notebooks/C4C-Dataset-Actions.py:0: note: def __iter__(self) -> Iterator[Series]
+notebooks/C4C-Dataset-Actions.py:0: error: Argument 1 to "DataFrame" has incompatible type "polars.dataframe.frame.DataFrame"; expected "Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any] | pandas.core.frame.DataFrame | dict[Any, Any] | Iterable[Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any] | tuple[Hashable, Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any]] | dict[Any, Any]] | None"  [arg-type]
+notebooks/C4C-Dataset-Actions.py:0: note: Following member(s) of "DataFrame" have conflicts:
+notebooks/C4C-Dataset-Actions.py:0: note: Expected:
+notebooks/C4C-Dataset-Actions.py:0: note: def __iter__(self) -> Iterator[Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any] | tuple[Hashable, Sequence[Any] | ndarray[Any, Any] | Series[Any] | Index[Any]] | dict[Any, Any]]
+notebooks/C4C-Dataset-Actions.py:0: note: Got:
+notebooks/C4C-Dataset-Actions.py:0: note: def __iter__(self) -> Iterator[Series]
+kausal_common/typings/wagtail/blocks/stream_block.pyi:0: error: Cannot override class variable (previously declared on base class "Block") with instance variable  [misc]
+kausal_common/typings/wagtail/blocks/list_block.pyi:0: error: Cannot override class variable (previously declared on base class "Block") with instance variable  [misc]
+common/polars.py:0: error: Argument 1 to "list" has incompatible type "list[Hashable]"; expected "Iterable[str]"  [arg-type]
+common/polars.py:0: error: List item 0 has incompatible type "Hashable"; expected "str"  [list-item]
+nodes/excel_results.py:0: error: Argument "format" to "InstanceResultExcel" has incompatible type "str | None"; expected "str"  [arg-type]
+kausal_common/typings/wagtail/admin/filters.pyi:0: error: Module "wagtail.admin.widgets" has no attribute "AdminDateInput"  [attr-defined]
+kausal_common/typings/wagtail/admin/filters.pyi:0: error: Module "wagtail.admin.widgets" has no attribute "BooleanRadioSelect"  [attr-defined]
+kausal_common/typings/wagtail/admin/filters.pyi:0: error: Module "wagtail.admin.widgets" has no attribute "FilteredSelect"  [attr-defined]
+kausal_common/typings/wagtail/admin/filters.pyi:0: error: Skipping analyzing "django_filters": module is installed, but missing library stubs or py.typed marker  [import-untyped]
+kausal_common/typings/wagtail/admin/filters.pyi:0: error: Skipping analyzing "django_filters.widgets": module is installed, but missing library stubs or py.typed marker  [import-untyped]
+paths/utils.py:0: error: Incompatible return value type (got "Field | None", expected "Field")  [return-value]
+paths/utils.py:0: note: Error code "return-value" not covered by "type: ignore" comment
+pages/models.py:0: error: StreamField is nullable but its generic get type parameter is not optional  [misc]
+nodes/actions/shift.py:0: error: Argument 1 to "MultiIndex" has incompatible type "list[Iterable[Any]]"; expected "Sequence[SequenceNotStr[Hashable]]"  [arg-type]
+nodes/actions/parent.py:0: error: Item "None" of "Unit | None" has no attribute "is_compatible_with"  [union-attr]
+nodes/actions/linear.py:0: error: Argument 1 to "MultiIndex" has incompatible type "list[Iterable[Any]]"; expected "Sequence[SequenceNotStr[Hashable]]"  [arg-type]
+paths/graphql_helpers.py:0: error: Incompatible return value type (got "Instance | None", expected "Instance")  [return-value]
+kausal_paths_extensions/auth_support/redirect_uri.py:0: error: Argument 1 to "for_hostname" of "InstanceConfigQuerySet" has incompatible type "str | None"; expected "str"  [arg-type]
+nodes/schema.py:0: error: Pydantic plugin not installed, please add pydantic.mypy your mypy.ini plugins  [misc]
+paths/schema_context.py:0: error: Incompatible types in assignment (expression has type "type[PathsGraphQLContext[InstanceType]]", base class "SchemaExtension" defined the type as "type[PathsGraphQLContext[Instance | None]]")  [assignment]
+paths/schema_context.py:0: error: Incompatible types in assignment (expression has type "type[PathsGraphQLContext[InstanceType]]", base class "SchemaExtension" defined the type as "type[PathsGraphQLContext[Instance | None]]")  [assignment]
+paths/authentication.py:0: error: Return type "str | None" of "authenticate" incompatible with return type "tuple[Any, Any] | None" in supertype "rest_framework.authentication.BaseAuthentication"  [override]
+paths/tests/settings.py:0: error: Need type annotation for "INSTANCE_LOADER_CONFIG" (hint: "INSTANCE_LOADER_CONFIG: <type> | None = ...")  [var-annotated]
+pages/apps.py:0: error: Module "wagtail.admin.forms" has no attribute "account"  [attr-defined]
+optimizer/optimize.py:0: error: Library stubs not installed for "scipy"  [import-untyped]
+optimizer/optimize.py:0: error: Module "nodes" has no attribute "Node"  [attr-defined]
+nodes/values.py:0: error: Name "df" already defined on line 0  [no-redef]
+nodes/values.py:0: error: Argument 1 to "join_and_sum" has incompatible type "PathsDataFrame | None"; expected "PathsDataFrame"  [arg-type]
+nodes/values.py:0: error: Incompatible return value type (got "PathsDataFrame | None", expected "PathsDataFrame")  [return-value]
+nodes/values.py:0: error: Incompatible types in assignment (expression has type "PlainQuantity[Any]", variable has type "Quantity")  [assignment]
+nodes/values.py:0: error: Incompatible types in assignment (expression has type "object", variable has type "float")  [assignment]
+nodes/kpr.py:0: error: Incompatible types in assignment (expression has type "str", base class "Node" defined the type as "Unit | None")  [assignment]
+nodes/kpr.py:0: error: Signature of "compute" incompatible with supertype "nodes.simple.SectorEmissions"  [override]
+nodes/kpr.py:0: note: Superclass:
+nodes/kpr.py:0: note: def compute(self) -> PathsDataFrame
+nodes/kpr.py:0: note: Subclass:
+nodes/kpr.py:0: note: def compute(self, context: Context) -> Any
+nodes/kpr.py:0: error: Signature of "compute" incompatible with supertype "nodes.simple.AdditiveNode"  [override]
+nodes/kpr.py:0: note: Superclass:
+nodes/kpr.py:0: note: def compute(self) -> PathsDataFrame
+nodes/kpr.py:0: note: Subclass:
+nodes/kpr.py:0: note: def compute(self, context: Context) -> Any
+nodes/kpr.py:0: error: Signature of "compute" incompatible with supertype "nodes.node.Node"  [override]
+nodes/kpr.py:0: note: Superclass:
+nodes/kpr.py:0: note: def compute(self) -> DataFrame | PathsDataFrame
+nodes/kpr.py:0: note: Subclass:
+nodes/kpr.py:0: note: def compute(self, context: Context) -> Any
+nodes/kpr.py:0: error: Argument 1 to "add_nodes" of "AdditiveNode" has incompatible type "Context"; expected "DataFrame | None"  [arg-type]
+nodes/kpr.py:0: error: Argument 2 to "add_nodes" of "AdditiveNode" has incompatible type "None"; expected "list[Node]"  [arg-type]
+nodes/kpr.py:0: error: Argument 3 to "add_nodes" of "AdditiveNode" has incompatible type "list[Node]"; expected "str | None"  [arg-type]
+nodes/kpr.py:0: error: No overload variant of "get_input_dataset" of "Node" matches argument type "Context"  [call-overload]
+nodes/kpr.py:0: note: Possible overload variants:
+nodes/kpr.py:0: note: def get_input_dataset(self, required: Literal[True] = ...) -> DataFrame
+nodes/kpr.py:0: note: def get_input_dataset(self, required: Literal[False]) -> DataFrame | None
+nodes/kpr.py:0: error: Argument 1 to "add_nodes" of "AdditiveNode" has incompatible type "Context"; expected "DataFrame | None"  [arg-type]
+nodes/kpr.py:0: error: Argument 2 to "add_nodes" of "AdditiveNode" has incompatible type "DataFrame"; expected "list[Node]"  [arg-type]
+nodes/kpr.py:0: error: Argument 3 to "add_nodes" of "AdditiveNode" has incompatible type "list[Node]"; expected "str | None"  [arg-type]
+nodes/formula.py:0: error: Incompatible types in assignment (expression has type "PlainQuantity[Any]", variable has type "Quantity")  [assignment]
+nodes/formula.py:0: error: Argument 1 to "evaluate_formula" of "FormulaNode" has incompatible type "object"; expected "str"  [arg-type]
+nodes/finland/syke.py:0: error: Argument "label" to "Dimension" has incompatible type "dict[str, str]"; expected "TranslatedString | str"  [arg-type]
+nodes/finland/syke.py:0: error: No overload variant of "astype" of "Series" matches argument type "str"  [call-overload]
+nodes/finland/syke.py:0: note: Possible overload variants:
+nodes/finland/syke.py:0: note: def astype(self, dtype: Literal['bool', 'boolean', '?', 'b1', 'bool_', 'bool[pyarrow]', 'boolean[pyarrow]'] | type[builtins.bool] | BooleanDtype | type[numpy.bool[builtins.bool]], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[bool]
+nodes/finland/syke.py:0: note: def astype(self, dtype: Literal['int', 'Int8', 'Int16', 'Int32', 'Int64', 'b', 'i1', 'int8', 'byte', 'h', 'i2', 'int16', 'short', 'i', 'i4', 'int32', 'intc', 'l', 'i8', 'int64', 'int_', 'long', 'q', 'longlong', 'p', 'intp', 'int8[pyarrow]', 'int16[pyarrow]', 'int32[pyarrow]', 'int64[pyarrow]', 'UInt8', 'UInt16', 'UInt32', 'UInt64', 'B', 'u1', 'uint8', 'ubyte', 'H', 'u2', 'uint16', 'ushort', 'I', 'u4', 'uint32', 'uintc', 'L', 'u8', 'uint', 'ulong', 'uint64', 'Q', 'ulonglong', 'P', 'uintp', 'uint8[pyarrow]', 'uint16[pyarrow]', 'uint32[pyarrow]', 'uint64[pyarrow]'] | type[int] | Int8Dtype | Int16Dtype | Int32Dtype | Int64Dtype | <12 more items>, copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[int]
+nodes/finland/syke.py:0: note: def astype(self, dtype: Literal['str', 'string', 'U', 'str_', 'str0', 'unicode', 'unicode_', 'string[pyarrow]'] | type[str] | StringDtype | type[str_], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[str]
+nodes/finland/syke.py:0: note: def astype(self, dtype: Literal['bytes', 'S', 'bytes_', 'bytes0', 'string_', 'binary[pyarrow]'] | type[bytes] | type[bytes_], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[bytes]
+nodes/finland/syke.py:0: note: def astype(self, dtype: Literal['float', 'Float32', 'Float64', 'e', 'f2', '<f2', 'float16', 'half', 'f', 'f4', 'float32', 'single', 'd', 'f8', 'float64', 'double', 'float_', 'g', 'f16', 'float128', 'longdouble', 'longfloat', 'float[pyarrow]', 'double[pyarrow]', 'float16[pyarrow]', 'float32[pyarrow]', 'float64[pyarrow]'] | type[float] | Float32Dtype | Float64Dtype | type[floating[_16Bit]] | type[floating[_32Bit]] | type[floating[_64Bit]] | type[floating[_128Bit]], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[float]
+nodes/finland/syke.py:0: note: def astype(self, dtype: Literal['complex', 'F', 'c8', 'complex64', 'csingle', 'singlecomplex', 'D', 'c16', 'complex128', 'cdouble', 'cfloat', 'complex_', 'G', 'c32', 'complex256', 'clongdouble', 'clongfloat', 'longcomplex'] | type[complex] | type[complexfloating[_32Bit, _32Bit]] | type[complexfloating[_64Bit, _64Bit]] | type[complexfloating[_128Bit, _128Bit]], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[complex]
+nodes/finland/syke.py:0: note: def astype(self, dtype: Literal['timedelta64[Y]', 'timedelta64[M]', 'timedelta64[W]', 'timedelta64[D]', 'timedelta64[h]', 'timedelta64[m]', 'timedelta64[s]', 'timedelta64[ms]', 'timedelta64[us]', 'timedelta64[μs]', 'timedelta64[ns]', 'timedelta64[ps]', 'timedelta64[fs]', 'timedelta64[as]', 'm8[Y]', 'm8[M]', 'm8[W]', 'm8[D]', 'm8[h]', 'm8[m]', 'm8[s]', 'm8[ms]', 'm8[us]', 'm8[μs]', 'm8[ns]', 'm8[ps]', 'm8[fs]', 'm8[as]', '<m8[Y]', '<m8[M]', '<m8[W]', '<m8[D]', '<m8[h]', '<m8[m]', '<m8[s]', '<m8[ms]', '<m8[us]', '<m8[μs]', '<m8[ns]', '<m8[ps]', '<m8[fs]', '<m8[as]', 'duration[s][pyarrow]', 'duration[ms][pyarrow]', 'duration[us][pyarrow]', 'duration[ns][pyarrow]'], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> TimedeltaSeries
+nodes/finland/syke.py:0: note: def astype(self, dtype: Literal['datetime64[Y]', 'datetime64[M]', 'datetime64[W]', 'datetime64[D]', 'datetime64[h]', 'datetime64[m]', 'datetime64[s]', 'datetime64[ms]', 'datetime64[us]', 'datetime64[μs]', 'datetime64[ns]', 'datetime64[ps]', 'datetime64[fs]', 'datetime64[as]', 'M8[Y]', 'M8[M]', 'M8[W]', 'M8[D]', 'M8[h]', 'M8[m]', 'M8[s]', 'M8[ms]', 'M8[us]', 'M8[μs]', 'M8[ns]', 'M8[ps]', 'M8[fs]', 'M8[as]', '<M8[Y]', '<M8[M]', '<M8[W]', '<M8[D]', '<M8[h]', '<M8[m]', '<M8[s]', '<M8[ms]', '<M8[us]', '<M8[μs]', '<M8[ns]', '<M8[ps]', '<M8[fs]', '<M8[as]', 'date32[pyarrow]', 'date64[pyarrow]', 'timestamp[s][pyarrow]', 'timestamp[ms][pyarrow]', 'timestamp[us][pyarrow]', 'timestamp[ns][pyarrow]'], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> TimestampSeries
+nodes/finland/syke.py:0: note: def astype(self, dtype: CategoricalDtype | Literal['category'], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[CategoricalDtype]
+nodes/finland/syke.py:0: note: def astype(self, dtype: Literal['object', 'O', 'V', 'void', 'void0'] | type[object] | type[object_] | type[void] | ExtensionDtype | dtype[generic[Any]], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[Any]
+nodes/finland/syke.py:0: error: Incompatible types in assignment (expression has type "str", base class "Node" defined the type as "Unit | None")  [assignment]
+nodes/finland/syke.py:0: error: Incompatible types in assignment (expression has type "DataFrame | Series[Any]", variable has type "DataFrame")  [assignment]
+nodes/emissions/__init__.py:0: error: List item 0 has incompatible type "range"; expected "SequenceNotStr[Hashable] | Series[Any] | Index[Any]"  [list-item]
+nodes/emissions/__init__.py:0: note: Following member(s) of "range" have conflicts:
+nodes/emissions/__init__.py:0: note: Expected:
+nodes/emissions/__init__.py:0: note: def index(self, Any, int = ..., int = ..., /) -> int
+nodes/emissions/__init__.py:0: note: Got:
+nodes/emissions/__init__.py:0: note: def index(self, int, /) -> int
+nodes/emissions/__init__.py:0: error: List item 1 has incompatible type "set[str]"; expected "SequenceNotStr[Hashable] | Series[Any] | Index[Any]"  [list-item]
+nodes/actions/simple.py:0: error: No overload variant of "__setitem__" of "_LocIndexerFrame" matches argument types "tuple[int, str]", "object"  [call-overload]
+nodes/actions/simple.py:0: note: Possible overload variants:
+nodes/actions/simple.py:0: note: def [ScalarT: str | bytes | date | datetime | timedelta | <7 more items> | complex | integer[Any] | floating[Any] | complexfloating[Any, Any]] __setitem__(self, Series[builtins.bool] | ndarray[tuple[int, ...], dtype[numpy.bool[builtins.bool]]] | list[builtins.bool] | str | str_ | <9 more items>, str | bytes | date | datetime | timedelta | <19 more items> | None, /) -> None
+nodes/actions/simple.py:0: note: def __setitem__(self, tuple[tuple[Index[Any] | Series[builtins.bool] | ndarray[tuple[int, ...], dtype[numpy.bool[builtins.bool]]] | list[builtins.bool] | str | bytes | date | datetime | timedelta | <7 more items> | complex | integer[Any] | floating[Any] | complexfloating[Any, Any] | list[Any] | slice[Any, Any, Any] | tuple[str | bytes | date | datetime | timedelta | <7 more items> | complex | integer[Any] | floating[Any] | complexfloating[Any, Any], ...], ...], Hashable], str | bytes | date | datetime | timedelta | <18 more items> | None, /) -> None
+nodes/actions/simple.py:0: error: Invalid index type "tuple[range, str]" for "_LocIndexerFrame[DataFrame]"; expected type "Series[builtins.bool] | ndarray[tuple[int, ...], dtype[numpy.bool[builtins.bool]]] | list[builtins.bool] | str | str_ | <9 more items>"  [index]
+nodes/actions/kpr.py:0: error: Incompatible types in assignment (expression has type "str", base class "Node" defined the type as "Unit | None")  [assignment]
+nodes/actions/kpr.py:0: error: Signature of "compute_effect" incompatible with supertype "nodes.actions.action.ActionNode"  [override]
+nodes/actions/kpr.py:0: note: Superclass:
+nodes/actions/kpr.py:0: note: def compute_effect(self) -> DataFrame | PathsDataFrame
+nodes/actions/kpr.py:0: note: Subclass:
+nodes/actions/kpr.py:0: note: def compute_effect(self, context: Context) -> DataFrame
+nodes/actions/kpr.py:0: error: No overload variant of "get_input_dataset" of "Node" matches argument type "Context"  [call-overload]
+nodes/actions/kpr.py:0: note: Possible overload variants:
+nodes/actions/kpr.py:0: note: def get_input_dataset(self, required: Literal[True] = ...) -> DataFrame
+nodes/actions/kpr.py:0: note: def get_input_dataset(self, required: Literal[False]) -> DataFrame | None
+nodes/actions/kpr.py:0: error: Unsupported operand types for * ("object" and "int")  [operator]
+nodes/actions/energy_saving.py:0: error: Skipping analyzing "numba": module is installed, but missing library stubs or py.typed marker  [import-untyped]
+nodes/actions/energy_saving.py:0: error: "LEDRetrofitAction" has no attribute "get_model_end_year"  [attr-defined]
+nodes/actions/energy_saving.py:0: error: Incompatible types in assignment (expression has type "Series[Any]", variable has type "DataFrame")  [assignment]
+nodes/actions/energy_saving.py:0: error: Unsupported left operand type for + ("object")  [operator]
+nodes/actions/energy_saving.py:0: error: No overload variant of "astype" of "Series" matches argument type "str"  [call-overload]
+nodes/actions/energy_saving.py:0: note: Possible overload variants:
+nodes/actions/energy_saving.py:0: note: def astype(self, dtype: Literal['bool', 'boolean', '?', 'b1', 'bool_', 'bool[pyarrow]', 'boolean[pyarrow]'] | type[builtins.bool] | BooleanDtype | type[numpy.bool[builtins.bool]], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[bool]
+nodes/actions/energy_saving.py:0: note: def astype(self, dtype: Literal['int', 'Int8', 'Int16', 'Int32', 'Int64', 'b', 'i1', 'int8', 'byte', 'h', 'i2', 'int16', 'short', 'i', 'i4', 'int32', 'intc', 'l', 'i8', 'int64', 'int_', 'long', 'q', 'longlong', 'p', 'intp', 'int8[pyarrow]', 'int16[pyarrow]', 'int32[pyarrow]', 'int64[pyarrow]', 'UInt8', 'UInt16', 'UInt32', 'UInt64', 'B', 'u1', 'uint8', 'ubyte', 'H', 'u2', 'uint16', 'ushort', 'I', 'u4', 'uint32', 'uintc', 'L', 'u8', 'uint', 'ulong', 'uint64', 'Q', 'ulonglong', 'P', 'uintp', 'uint8[pyarrow]', 'uint16[pyarrow]', 'uint32[pyarrow]', 'uint64[pyarrow]'] | type[int] | Int8Dtype | Int16Dtype | Int32Dtype | Int64Dtype | <12 more items>, copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[int]
+nodes/actions/energy_saving.py:0: note: def astype(self, dtype: Literal['str', 'string', 'U', 'str_', 'str0', 'unicode', 'unicode_', 'string[pyarrow]'] | type[str] | StringDtype | type[str_], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[str]
+nodes/actions/energy_saving.py:0: note: def astype(self, dtype: Literal['bytes', 'S', 'bytes_', 'bytes0', 'string_', 'binary[pyarrow]'] | type[bytes] | type[bytes_], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[bytes]
+nodes/actions/energy_saving.py:0: note: def astype(self, dtype: Literal['float', 'Float32', 'Float64', 'e', 'f2', '<f2', 'float16', 'half', 'f', 'f4', 'float32', 'single', 'd', 'f8', 'float64', 'double', 'float_', 'g', 'f16', 'float128', 'longdouble', 'longfloat', 'float[pyarrow]', 'double[pyarrow]', 'float16[pyarrow]', 'float32[pyarrow]', 'float64[pyarrow]'] | type[float] | Float32Dtype | Float64Dtype | type[floating[_16Bit]] | type[floating[_32Bit]] | type[floating[_64Bit]] | type[floating[_128Bit]], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[float]
+nodes/actions/energy_saving.py:0: note: def astype(self, dtype: Literal['complex', 'F', 'c8', 'complex64', 'csingle', 'singlecomplex', 'D', 'c16', 'complex128', 'cdouble', 'cfloat', 'complex_', 'G', 'c32', 'complex256', 'clongdouble', 'clongfloat', 'longcomplex'] | type[complex] | type[complexfloating[_32Bit, _32Bit]] | type[complexfloating[_64Bit, _64Bit]] | type[complexfloating[_128Bit, _128Bit]], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[complex]
+nodes/actions/energy_saving.py:0: note: def astype(self, dtype: Literal['timedelta64[Y]', 'timedelta64[M]', 'timedelta64[W]', 'timedelta64[D]', 'timedelta64[h]', 'timedelta64[m]', 'timedelta64[s]', 'timedelta64[ms]', 'timedelta64[us]', 'timedelta64[μs]', 'timedelta64[ns]', 'timedelta64[ps]', 'timedelta64[fs]', 'timedelta64[as]', 'm8[Y]', 'm8[M]', 'm8[W]', 'm8[D]', 'm8[h]', 'm8[m]', 'm8[s]', 'm8[ms]', 'm8[us]', 'm8[μs]', 'm8[ns]', 'm8[ps]', 'm8[fs]', 'm8[as]', '<m8[Y]', '<m8[M]', '<m8[W]', '<m8[D]', '<m8[h]', '<m8[m]', '<m8[s]', '<m8[ms]', '<m8[us]', '<m8[μs]', '<m8[ns]', '<m8[ps]', '<m8[fs]', '<m8[as]', 'duration[s][pyarrow]', 'duration[ms][pyarrow]', 'duration[us][pyarrow]', 'duration[ns][pyarrow]'], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> TimedeltaSeries
+nodes/actions/energy_saving.py:0: note: def astype(self, dtype: Literal['datetime64[Y]', 'datetime64[M]', 'datetime64[W]', 'datetime64[D]', 'datetime64[h]', 'datetime64[m]', 'datetime64[s]', 'datetime64[ms]', 'datetime64[us]', 'datetime64[μs]', 'datetime64[ns]', 'datetime64[ps]', 'datetime64[fs]', 'datetime64[as]', 'M8[Y]', 'M8[M]', 'M8[W]', 'M8[D]', 'M8[h]', 'M8[m]', 'M8[s]', 'M8[ms]', 'M8[us]', 'M8[μs]', 'M8[ns]', 'M8[ps]', 'M8[fs]', 'M8[as]', '<M8[Y]', '<M8[M]', '<M8[W]', '<M8[D]', '<M8[h]', '<M8[m]', '<M8[s]', '<M8[ms]', '<M8[us]', '<M8[μs]', '<M8[ns]', '<M8[ps]', '<M8[fs]', '<M8[as]', 'date32[pyarrow]', 'date64[pyarrow]', 'timestamp[s][pyarrow]', 'timestamp[ms][pyarrow]', 'timestamp[us][pyarrow]', 'timestamp[ns][pyarrow]'], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> TimestampSeries
+nodes/actions/energy_saving.py:0: note: def astype(self, dtype: CategoricalDtype | Literal['category'], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[CategoricalDtype]
+nodes/actions/energy_saving.py:0: note: def astype(self, dtype: Literal['object', 'O', 'V', 'void', 'void0'] | type[object] | type[object_] | type[void] | ExtensionDtype | dtype[generic[Any]], copy: bool = ..., errors: Literal['ignore', 'raise'] = ...) -> Series[Any]
+nodes/actions/energy_saving.py:0: error: Argument 1 to "astype" of "DataFrame" has incompatible type "Literal['pint[EUR/a]']"; expected "Literal['bool', 'boolean', '?', 'b1', 'bool_', 'bool[pyarrow]', 'boolean[pyarrow]', 'int', 'Int8', 'Int16', 'Int32', 'Int64', 'b', 'i1', 'int8', 'byte', 'h', 'i2', 'int16', 'short', 'i', 'i4', 'int32', 'intc', 'l', 'i8', 'int64', 'int_', 'long', 'q', 'longlong', 'p', 'intp', 'int8[pyarrow]', 'int16[pyarrow]', 'int32[pyarrow]', 'int64[pyarrow]', 'UInt8', 'UInt16', 'UInt32', 'UInt64', 'B', 'u1', 'uint8', 'ubyte', 'H', 'u2', 'uint16', 'ushort', 'I', 'u4', 'uint32', 'uintc', 'L', 'u8', 'uint', 'ulong', 'uint64', 'Q', 'ulonglong', 'P', 'uintp', 'uint8[pyarrow]', 'uint16[pyarrow]', 'uint32[pyarrow]', 'uint64[pyarrow]', 'str', 'string', 'U', 'str_', 'str0', 'unicode', 'unicode_', 'string[pyarrow]', 'bytes', 'S', 'bytes_', 'bytes0', 'string_', 'binary[pyarrow]', 'float', 'Float32', 'Float64', 'e', 'f2', '<f2', 'float16', 'half', 'f', 'f4', 'float32', 'single', 'd', 'f8', 'float64', 'double', 'float_', 'g', 'f16', 'float128', 'longdouble', 'longfloat', 'float[pyarrow]', 'double[pyarrow]', 'float16[pyarrow]', 'float32[pyarrow]', 'float64[pyarrow]', 'complex', 'F', 'c8', 'complex64', 'csingle', 'singlecomplex', 'D', 'c16', 'complex128', 'cdouble', 'cfloat', 'complex_', 'G', 'c32', 'complex256', 'clongdouble', 'clongfloat', 'longcomplex', 'timedelta64[Y]', 'timedelta64[M]', 'timedelta64[W]', 'timedelta64[D]', 'timedelta64[h]', 'timedelta64[m]', 'timedelta64[s]', 'timedelta64[ms]', 'timedelta64[us]', 'timedelta64[μs]', 'timedelta64[ns]', 'timedelta64[ps]', 'timedelta64[fs]', 'timedelta64[as]', 'm8[Y]', 'm8[M]', 'm8[W]', 'm8[D]', 'm8[h]', 'm8[m]', 'm8[s]', 'm8[ms]', 'm8[us]', 'm8[μs]', 'm8[ns]', 'm8[ps]', 'm8[fs]', 'm8[as]', '<m8[Y]', '<m8[M]', '<m8[W]', '<m8[D]', '<m8[h]', '<m8[m]', '<m8[s]', '<m8[ms]', '<m8[us]', '<m8[μs]', '<m8[ns]', '<m8[ps]', '<m8[fs]', '<m8[as]', 'duration[s][pyarrow]', 'duration[ms][pyarrow]', 'duration[us][pyarrow]', 'duration[ns][pyarrow]', 'datetime64[Y]', 'datetime64[M]', 'datetime64[W]', 'datetime64[D]', 'datetime64[h]', 'datetime64[m]', 'datetime64[s]', 'datetime64[ms]', 'datetime64[us]', 'datetime64[μs]', 'datetime64[ns]', 'datetime64[ps]', 'datetime64[fs]', 'datetime64[as]', 'M8[Y]', 'M8[M]', 'M8[W]', 'M8[D]', 'M8[h]', 'M8[m]', 'M8[s]', 'M8[ms]', 'M8[us]', 'M8[μs]', 'M8[ns]', 'M8[ps]', 'M8[fs]', 'M8[as]', '<M8[Y]', '<M8[M]', '<M8[W]', '<M8[D]', '<M8[h]', '<M8[m]', '<M8[s]', '<M8[ms]', '<M8[us]', '<M8[μs]', '<M8[ns]', '<M8[ps]', '<M8[fs]', '<M8[as]', 'date32[pyarrow]', 'date64[pyarrow]', 'timestamp[s][pyarrow]', 'timestamp[ms][pyarrow]', 'timestamp[us][pyarrow]', 'timestamp[ns][pyarrow]', 'category', 'object', 'O', 'V', 'void', 'void0'] | type[builtins.bool] | BooleanDtype | type[numpy.bool[builtins.bool]] | type[int] | Int8Dtype | <39 more items>"  [arg-type]
+nodes/actions/energy_saving.py:0: error: Argument 1 to "astype" of "DataFrame" has incompatible type "Literal['pint[EUR/a]']"; expected "Literal['bool', 'boolean', '?', 'b1', 'bool_', 'bool[pyarrow]', 'boolean[pyarrow]', 'int', 'Int8', 'Int16', 'Int32', 'Int64', 'b', 'i1', 'int8', 'byte', 'h', 'i2', 'int16', 'short', 'i', 'i4', 'int32', 'intc', 'l', 'i8', 'int64', 'int_', 'long', 'q', 'longlong', 'p', 'intp', 'int8[pyarrow]', 'int16[pyarrow]', 'int32[pyarrow]', 'int64[pyarrow]', 'UInt8', 'UInt16', 'UInt32', 'UInt64', 'B', 'u1', 'uint8', 'ubyte', 'H', 'u2', 'uint16', 'ushort', 'I', 'u4', 'uint32', 'uintc', 'L', 'u8', 'uint', 'ulong', 'uint64', 'Q', 'ulonglong', 'P', 'uintp', 'uint8[pyarrow]', 'uint16[pyarrow]', 'uint32[pyarrow]', 'uint64[pyarrow]', 'str', 'string', 'U', 'str_', 'str0', 'unicode', 'unicode_', 'string[pyarrow]', 'bytes', 'S', 'bytes_', 'bytes0', 'string_', 'binary[pyarrow]', 'float', 'Float32', 'Float64', 'e', 'f2', '<f2', 'float16', 'half', 'f', 'f4', 'float32', 'single', 'd', 'f8', 'float64', 'double', 'float_', 'g', 'f16', 'float128', 'longdouble', 'longfloat', 'float[pyarrow]', 'double[pyarrow]', 'float16[pyarrow]', 'float32[pyarrow]', 'float64[pyarrow]', 'complex', 'F', 'c8', 'complex64', 'csingle', 'singlecomplex', 'D', 'c16', 'complex128', 'cdouble', 'cfloat', 'complex_', 'G', 'c32', 'complex256', 'clongdouble', 'clongfloat', 'longcomplex', 'timedelta64[Y]', 'timedelta64[M]', 'timedelta64[W]', 'timedelta64[D]', 'timedelta64[h]', 'timedelta64[m]', 'timedelta64[s]', 'timedelta64[ms]', 'timedelta64[us]', 'timedelta64[μs]', 'timedelta64[ns]', 'timedelta64[ps]', 'timedelta64[fs]', 'timedelta64[as]', 'm8[Y]', 'm8[M]', 'm8[W]', 'm8[D]', 'm8[h]', 'm8[m]', 'm8[s]', 'm8[ms]', 'm8[us]', 'm8[μs]', 'm8[ns]', 'm8[ps]', 'm8[fs]', 'm8[as]', '<m8[Y]', '<m8[M]', '<m8[W]', '<m8[D]', '<m8[h]', '<m8[m]', '<m8[s]', '<m8[ms]', '<m8[us]', '<m8[μs]', '<m8[ns]', '<m8[ps]', '<m8[fs]', '<m8[as]', 'duration[s][pyarrow]', 'duration[ms][pyarrow]', 'duration[us][pyarrow]', 'duration[ns][pyarrow]', 'datetime64[Y]', 'datetime64[M]', 'datetime64[W]', 'datetime64[D]', 'datetime64[h]', 'datetime64[m]', 'datetime64[s]', 'datetime64[ms]', 'datetime64[us]', 'datetime64[μs]', 'datetime64[ns]', 'datetime64[ps]', 'datetime64[fs]', 'datetime64[as]', 'M8[Y]', 'M8[M]', 'M8[W]', 'M8[D]', 'M8[h]', 'M8[m]', 'M8[s]', 'M8[ms]', 'M8[us]', 'M8[μs]', 'M8[ns]', 'M8[ps]', 'M8[fs]', 'M8[as]', '<M8[Y]', '<M8[M]', '<M8[W]', '<M8[D]', '<M8[h]', '<M8[m]', '<M8[s]', '<M8[ms]', '<M8[us]', '<M8[μs]', '<M8[ns]', '<M8[ps]', '<M8[fs]', '<M8[as]', 'date32[pyarrow]', 'date64[pyarrow]', 'timestamp[s][pyarrow]', 'timestamp[ms][pyarrow]', 'timestamp[us][pyarrow]', 'timestamp[ns][pyarrow]', 'category', 'object', 'O', 'V', 'void', 'void0'] | type[builtins.bool] | BooleanDtype | type[numpy.bool[builtins.bool]] | type[int] | Int8Dtype | <39 more items>"  [arg-type]
+kausal_paths_extensions/wagtail_admin.py:0: error: "PathsAdminRequest" has no attribute "admin_instance"  [attr-defined]
+kausal_common/debugging/vscode.py:0: error: Skipping analyzing "debugpy": module is installed, but missing library stubs or py.typed marker  [import-untyped]
+kausal_common/debugging/vscode.py:0: note: See https://mypy.readthedocs.io/en/stable/running_mypy.html#missing-imports
+admin_site/auth_backends.py:0: error: Incompatible types in assignment (expression has type "str", base class "BaseOAuth2" defined the type as "bool")  [assignment]
+nodes/costs.py:0: error: Dict entry 0 has incompatible type "str": "PlainUnit"; expected "str": "Unit"  [dict-item]
+nodes/costs.py:0: error: Incompatible types in assignment (expression has type "int | float | Decimal | date | time | timedelta | str | bytes | list[Any] | None", variable has type "int | None")  [assignment]
+nodes/costs.py:0: note: Items in the first union not in the second: "float", "Decimal", "date", "time", "timedelta", "str", "bytes", "list[Any]"
+nodes/costs.py:0: error: No overload variant of "__sub__" of "date" matches argument type "int"  [operator]
+nodes/costs.py:0: note: Possible overload variants:
+nodes/costs.py:0: note: def __sub__(self, datetime, /) -> Never
+nodes/costs.py:0: note: def __sub__(self, date, /) -> timedelta
+nodes/costs.py:0: note: def __sub__(self, timedelta, /) -> date
+nodes/costs.py:0: error: Unsupported operand types for - ("time" and "int")  [operator]
+nodes/costs.py:0: error: Unsupported operand types for - ("str" and "int")  [operator]
+nodes/costs.py:0: error: Unsupported operand types for - ("bytes" and "int")  [operator]
+nodes/costs.py:0: error: Unsupported operand types for - ("list[Any]" and "int")  [operator]
+nodes/costs.py:0: error: Unsupported operand types for - ("None" and "int")  [operator]
+nodes/costs.py:0: note: Left operand is of type "int | float | Decimal | date | time | timedelta | str | bytes | list[Any] | None"
+nodes/costs.py:0: error: Incompatible types in assignment (expression has type "int | float | Decimal | Any", variable has type "int | None")  [assignment]
+nodes/costs.py:0: error: Unsupported operand types for - ("timedelta" and "int")  [operator]
+nodes/costs.py:0: error: Item "None" of "Quantity | None" has no attribute "to"  [union-attr]
+nodes/costs.py:0: error: Argument 3 to "add_nodes_pl" of "Node" has incompatible type "object"; expected "str | None"  [arg-type]
+nodes/costs.py:0: error: Argument 3 to "add_nodes_pl" of "Node" has incompatible type "object"; expected "str | None"  [arg-type]
+nodes/costs.py:0: error: Argument 1 to "range" has incompatible type "int | float | Decimal | date | time | timedelta | str | bytes | list[Any] | None"; expected "SupportsIndex"  [arg-type]
+nodes/buildings.py:0: error: Incompatible types in assignment (expression has type "DataFrame", variable has type "PathsDataFrame | None")  [assignment]
+nodes/buildings.py:0: error: Item "None" of "PathsDataFrame | None" has no attribute "ensure_unit"  [union-attr]
+nodes/buildings.py:0: error: Argument 1 to "include_custom_dimension" of "FloorAreaNode" has incompatible type "PathsDataFrame | None"; expected "PathsDataFrame"  [arg-type]
+nodes/tests/factories.py:0: error: Argument "unit" to "FixedDataset" has incompatible type "str"; expected "Unit"  [arg-type]
+nodes/tests/factories.py:0: error: Need type annotation for "context"  [var-annotated]
+nodes/tests/factories.py:0: error: Need type annotation for "base_scenario"  [var-annotated]
+nodes/management/commands/load_dvc_dataset.py:0: error: Cannot instantiate abstract class "DatasetMetric" with abstract attribute "permission_policy"  [abstract]
+nodes/management/commands/load_dvc_dataset.py:0: error: Cannot instantiate abstract class "Dimension" with abstract attribute "permission_policy"  [abstract]
+nodes/management/commands/load_dvc_dataset.py:0: error: Cannot instantiate abstract class "DimensionCategory" with abstract attribute "permission_policy"  [abstract]
+nodes/finland/__init__.py:0: error: Type of __all__ must be "Sequence[str]", not "list[type[Population]]"  [misc]
+kausal_paths_extensions/management/commands/extract_transifex.py:0: error: Need type annotation for "rest"  [var-annotated]
+kausal_paths_extensions/management/commands/export_syke_indicators.py:0: error: Incompatible types in assignment (expression has type "list[dict[str, Any]]", target has type "Collection[str]")  [assignment]
+kausal_paths_extensions/management/commands/export_syke_indicators.py:0: error: Item "None" of "DataFrame | None" has no attribute "to_pandas"  [union-attr]
+kausal_paths_extensions/management/commands/export_syke_indicators.py:0: error: "Command" has no attribute "MUNI_IDS"  [attr-defined]
+kausal_common/typings/reversion/__init__.pyi:0: error: Cannot find implementation or library stub for module named "reversion.errors"  [import-not-found]
+kausal_common/datasets/tests/factories.py:0: error: Need type annotation for "dimension"  [var-annotated]
+kausal_common/datasets/tests/factories.py:0: error: Need type annotation for "schema"  [var-annotated]
+kausal_common/datasets/tests/factories.py:0: error: Need type annotation for "schema"  [var-annotated]
+kausal_common/datasets/tests/factories.py:0: error: Need type annotation for "dataset"  [var-annotated]
+kausal_common/datasets/tests/factories.py:0: error: Need type annotation for "metric"  [var-annotated]
+kausal_common/datasets/tests/factories.py:0: error: "PostGeneration[DataPointFactory, Any]" has no attribute "add"  [attr-defined]
+admin_site/urls.py:0: error: Module "wagtail.admin" has no attribute "urls"  [attr-defined]
+params/tests/factories.py:0: error: Need type annotation for "context"  [var-annotated]
+kausal_paths_extensions/management/commands/export_hsy_indicators.py:0: error: Incompatible types in assignment (expression has type "str", base class "Command" defined the type as "Path")  [assignment]
+params/tests/test_schema.py:0: error: "NumberParameterFactory" has no attribute "global_id"  [attr-defined]
+params/tests/test_schema.py:0: error: "NumberParameterFactory" has no attribute "global_id"  [attr-defined]
+params/tests/test_schema.py:0: error: "NumberParameterFactory" has no attribute "value"  [attr-defined]
+params/tests/test_schema.py:0: error: "StringParameterFactory" has no attribute "global_id"  [attr-defined]
+params/tests/test_schema.py:0: error: "StringParameterFactory" has no attribute "global_id"  [attr-defined]
+params/tests/test_schema.py:0: error: "StringParameterFactory" has no attribute "value"  [attr-defined]
+kausal_paths_extensions/auth/tasks.py:0: error: No overload variant of "register_cleanup_task" matches argument type "Schedule"  [call-overload]
+kausal_paths_extensions/auth/tasks.py:0: note: Possible overload variants:
+kausal_paths_extensions/auth/tasks.py:0: note: def register_cleanup_taskaseSchedule | float | Schedule, /) -> Callable[[T], T]
+kausal_paths_extensions/auth/tasks.py:0: note: def register_cleanup_taskaseSchedule | float | Schedule, /, task: Callable[[], None] | Any) -> None
+admin_site/viewsets.py:0: error: Argument 1 to "user_has_permission_for_instance" of "ModelPermissionPolicy" has incompatible type "AbstractBaseUser"; expected "User | AnonymousUser"  [arg-type]
+admin_site/viewsets.py:0: error: Cannot override writeable attribute with read-only property  [override]
+admin_site/viewsets.py:0: error: Cannot override writeable attribute with read-only property  [override]
+admin_site/viewsets.py:0: error: Cannot override writeable attribute with read-only property  [override]
+admin_site/viewsets.py:0: error: Incompatible return value type (got "ObjectList[Model, WagtailAdminModelForm[Model, AbstractBaseUser]] | TabbedInterface[Model, WagtailAdminModelForm[Model, AbstractBaseUser]] | None", expected "ObjectList[Model, WagtailAdminModelForm[Model, AbstractBaseUser]] | None")  [return-value]
+kausal_common/datasets/sync.py:0: error: Cannot instantiate abstract class "DatasetSchemaDimension" with abstract attributes "__rich_repr__", "__str__" and "permission_policy"  [abstract]
+kausal_paths_extensions/dataset_editor.py:0: error: "DatasetAdminView" has no attribute "form"  [attr-defined]
+kausal_paths_extensions/dataset_editor.py:0: error: Incompatible return value type (got "type[Any]", expected "Model")  [return-value]
+kausal_paths_extensions/dataset_editor.py:0: error: "Model" has no attribute "_default_manager"  [attr-defined]
+kausal_paths_extensions/dataset_editor.py:0: error: Item "None" of "DatasetSchema | None" has no attribute "delete"  [union-attr]
+admin_site/dataset_admin.py:0: error: Name "form_class.Meta" is not defined  [name-defined]
+paths/graphql_views.py:0: error: Incompatible types in assignment (expression has type "type[PathsGraphQLContext[InstanceType]]", base class "GraphQLView" defined the type as "type[PathsGraphQLContext[Instance | None]]")  [assignment]
+kausal_common/datasets/api.py:0: error: Item "None" of "DatasetSchema | None" has no attribute "time_resolution"  [union-attr]
+kausal_common/datasets/api.py:0: error: Item "None" of "DatasetSchema | None" has no attribute "TimeResolution"  [union-attr]
+kausal_common/datasets/api.py:0: error: Incompatible types in assignment (expression has type "Any | AnonymousUser", variable has type "User | Combinable | None")  [assignment]
+kausal_common/datasets/api.py:0: error: Incompatible type for lookup 'scope_id': (got "str | None", expected "str | int")  [misc]

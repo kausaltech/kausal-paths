@@ -144,8 +144,11 @@ class ActionNode(Node):
     def compute_effect(self) -> pd.DataFrame | ppl.PathsDataFrame:
         raise Exception('Implement in subclass')
 
-    def compute(self) -> pd.DataFrame | ppl.PathsDataFrame:
-        return self.compute_effect()
+    def compute(self) -> ppl.PathsDataFrame:
+        df = self.compute_effect()
+        if isinstance(df, pd.DataFrame):
+            df = ppl.from_pandas(df)
+        return df
 
     def compute_impact(self, target_node: Node) -> ppl.PathsDataFrame:
         from_baseline: bool | None = cast(

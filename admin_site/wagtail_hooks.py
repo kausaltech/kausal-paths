@@ -11,9 +11,13 @@ from wagtail.admin.menu import Menu, MenuItem, SubmenuMenuItem
 
 from wagtail_localize.wagtail_hooks import TranslationsReportMenuItem
 
+from kausal_common.users import user_or_bust
+
 from paths.context import realm_context
 
 if TYPE_CHECKING:
+    from django.http.request import HttpRequest
+
     from paths.types import PathsAdminRequest
 
 
@@ -44,23 +48,20 @@ class InstanceChooserMenuItem(SubmenuMenuItem):
             return True
         return False
 
-    def is_active(self, request):
-        return bool(self.menu.active_menu_items(request))
-
 
 class InstanceItem(MenuItem):
     pass
 
 
 class InstanceChooserMenu(Menu):
-    def menu_items_for_request(self, request: PathsAdminRequest):
-        user = request.user
+    def menu_items_for_request(self, request: HttpRequest):
+        user = user_or_bust(request.user)
         instances = user.get_adminable_instances()
         if len(instances) < 2:
             return []
         items = []
         for instance in instances:
-            url = reverse('change-admin-instance', kwargs=dict(instance_id=instance.id))
+            url = reverse('change-admin-instance', kwargs=dict(instance_id=instance.pk))
             url += '?admin=wagtail'
             icon_name = ''
             if instance == realm_context.get().realm:

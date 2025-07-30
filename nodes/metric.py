@@ -276,7 +276,7 @@ class MetricDimension(BaseModel):
 
         color_counts = Counter(cat.color.lower() for cat in self.categories if cat.color is not None)
         color_map: dict[str, list[str]] = {}
-        LAB_Kn = 18  # noqa: N806
+        LAB_Kn = 18
         for color, count in color_counts.items():
             if count == 1:
                 continue

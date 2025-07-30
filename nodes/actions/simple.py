@@ -59,7 +59,10 @@ class AdditiveAction(ActionNode):
 
 
 class AdditiveAction2(AdditiveAction, SimpleNode):  # FIXME Merge with AdditiveAction
-    allowed_parameters = AdditiveAction.allowed_parameters + SimpleNode.allowed_parameters
+    allowed_parameters = [
+        *AdditiveAction.allowed_parameters,
+        *SimpleNode.allowed_parameters
+    ]
 
     def compute_effect(self):
         df = super().compute_effect()
@@ -93,6 +96,7 @@ class CumulativeAdditiveAction(ActionNode):
 
             target_year_ratio = self.get_parameter_value('target_year_ratio', required=False)
             if target_year_ratio is not None:
+                assert isinstance(target_year_ratio, (float, int))
                 val *= target_year_ratio / 100
 
             df[col] = val
@@ -126,7 +130,7 @@ class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
     def compute_effect(self):
         df = self.get_input_dataset()
         start_year = df.index.min()
-        delay = self.get_parameter_value('action_delay', required=False)
+        delay = self.get_parameter_value_float('action_delay', required=False)
         if delay is not None:
             start_year = start_year + int(delay)
         target_year = self.get_target_year()
@@ -185,16 +189,12 @@ class TrajectoryAction(ActionNode):
     ]
     def compute_effect(self):
         df = self.get_input_dataset_pl()
-        dim_id = self.get_parameter_value('dimension', required=True)
-        cat_id = self.get_parameter_value('category', required=False)
-        cat_no = self.get_parameter_value('category_number', units=False, required=False)
-        if cat_no is not None:
-            cat_no = int(cat_no)
-        year = self.get_parameter_value('baseline_year', units=False, required=False)
-        if year is not None:
-            year = int(year)
+        dim_id = self.get_parameter_value_str('dimension', required=True)
+        cat_id = self.get_parameter_value_str('category', required=False)
+        cat_no = self.get_parameter_value_int('category_number', required=False)
+        year = self.get_parameter_value_int('baseline_year', required=False)
         level = self.get_parameter_value('baseline_year_level', units=True, required=False)
-        keep = self.get_parameter_value('keep_dimension', required=False)
+        keep = self.get_typed_parameter_value('keep_dimension', bool, required=False)
         if not self.is_enabled():
             cat_id = 'baseline'  # FIXME Generalize this
             cat_no = None
@@ -209,20 +209,19 @@ class GpcTrajectoryAction(TrajectoryAction, DatasetNode):
     explanation = _("""
     GpcTrajectoryAction is a trajectory action that uses the DatasetNode to fetch the dataset.
     """)
-    allowed_parameters = TrajectoryAction.allowed_parameters + DatasetNode.allowed_parameters
+    allowed_parameters = [
+        *TrajectoryAction.allowed_parameters,
+        *DatasetNode.allowed_parameters
+    ]
 
     def compute_effect(self):
         df = DatasetNode.compute(self)
-        dim_id = self.get_parameter_value('dimension', required=True)
-        cat_id = self.get_parameter_value('category', required=False)
-        cat_no = self.get_parameter_value('category_number', units=False, required=False)
-        if cat_no is not None:
-            cat_no = int(cat_no)
-        year = self.get_parameter_value('baseline_year', units=False, required=False)
-        if year is not None:
-            year = int(year)
-        level = self.get_parameter_value('baseline_year_level', units=True, required=False)
-        keep = self.get_parameter_value('keep_dimension', required=False)
+        dim_id = self.get_parameter_value_str('dimension', required=True)
+        cat_id = self.get_parameter_value_str('category', required=False)
+        cat_no = self.get_parameter_value_int('category_number', required=False)
+        year = self.get_parameter_value_int('baseline_year', required=False)
+        level = self.get_parameter_value_float('baseline_year_level', units=True, required=False)
+        keep = self.get_typed_parameter_value('keep_dimension', bool, required=False)
         if not self.is_enabled():
             cat_id = 'baseline'  # FIXME Generalize this
             cat_no = None

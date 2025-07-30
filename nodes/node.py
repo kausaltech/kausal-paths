@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import typing
 from contextlib import AbstractContextManager, nullcontext
 from typing import Any, ClassVar, Literal, Self, cast, overload
@@ -553,6 +554,9 @@ class Node:
     @overload
     def get_parameter_value(self, id: str, *, required: bool = True, units: Literal[False] = False) -> object: ...
 
+    @overload
+    def get_parameter_value(self, id: str, *, required: bool, units: bool) -> object | None: ...
+
     def get_parameter_value(self, id: str, *, required: bool = True, units: bool = False) -> object | None:
         param = self.get_parameter(id, required=required)
         if param is None:
@@ -602,6 +606,40 @@ class Node:
 
     def get_parameter_value_str(self, param_id: str, *, required: bool = True) -> str | None:
         return self.get_typed_parameter_value(param_id, str, required=required)
+
+
+    @overload
+    def get_parameter_value_int(self, param_id: str, *, required: Literal[True] = True) -> int: ...
+    @overload
+    def get_parameter_value_int(self, param_id: str, *, required: Literal[False]) -> int | None: ...
+
+    def get_parameter_value_int(self, param_id: str, *, required: bool = True) -> int | None:
+        ret = self.get_parameter_value(param_id, required=required)
+        if ret is None:
+            return None
+        if isinstance(ret, float):
+            return int(ret)
+        assert isinstance(ret, int)
+        return ret
+
+
+    @overload
+    def get_parameter_value_float(self, param_id: str, *, required: bool = True, units: Literal[True]) -> Quantity: ...
+    @overload
+    def get_parameter_value_float(self, param_id: str, *, required: bool = True, units: Literal[False] = False) -> float: ...
+    @overload
+    def get_parameter_value_float(self, param_id: str, *, required: bool, units: bool) -> Quantity | float | None: ...
+
+    def get_parameter_value_float(self, param_id: str, *, required: bool = True, units: bool = False) -> float | Quantity | None:
+        ret = self.get_parameter_value(param_id, required=required, units=units)
+        if ret is None:
+            return None
+        if isinstance(ret, Quantity):
+            return ret
+        if isinstance(ret, int):
+            return float(ret)
+        assert isinstance(ret, float)
+        return ret
 
     @overload
     def get_global_parameter_value(self, id: str, *, required: Literal[True] = True, units: Literal[True]) -> Quantity: ...
@@ -1532,7 +1570,7 @@ class Node:
         dm = DimensionalMetric.from_node(self)
         if dm is not None:
             for v in dm.values:
-                if v is float('nan'):
+                if math.isnan(v):
                     raise NodeError(self, 'Output metric has NaNs')
 
     def _scale_by_reference_year(self, df: ppl.PathsDataFrame, year: int | None = None) -> ppl.PathsDataFrame:
