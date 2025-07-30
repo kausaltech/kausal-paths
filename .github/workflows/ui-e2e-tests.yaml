@@ -111,29 +111,26 @@ jobs:
 
     outputs:
       test_report_url: ${{ steps.upload.outputs.test_report_url }}
+      coverage_uploaded: ${{ steps.upload-coverage.outcome == 'success' }}
 
     container:
       image: harbor.kausal.tech/library/playwright:v1.54.1
     env:
       CI: 1
-      NEXT_PUBLIC_API_URL: http://localhost:8000/v1
+      PATHS_BACKEND_URL: http://localhost:8000
     steps:
       - name: Check out code
         uses: actions/checkout@v4
         with:
           repository: ${{ inputs.ui_repo }}
           ref: ${{ inputs.ui_repo_ref }}
+          submodules: recursive
 
       - name: Install dependencies
         env:
           NPM_REGISTRY_SERVER: ${{ inputs.ui_npm_registry_server }}
           NPM_TOKEN: ${{  secrets.NPM_TOKEN }}
-        run: |
-          if [ ! -z "${NPM_REGISTRY_SERVER}" ] && [ ! -z "${NPM_TOKEN}" ]; then
-            npm set "$(echo ${NPM_REGISTRY_SERVER} | sed -e 's/https://')/:_authToken=${NPM_TOKEN}"
-            echo "Using custom registry at: ${NPM_REGISTRY_SERVER}" ; \
-          fi
-          npm ci
+        run: npm ci
         working-directory: ./e2e-tests
 
       - name: Wait for backend to get ready
@@ -146,12 +143,17 @@ jobs:
         shell: bash
 
       - name: Start coverage tracking
+        continue-on-error: true
+        id: start-coverage
         run: |
+          set -x
           START_COVERAGE_QUERY='mutation { testMode { startCoverageTracking } }'
-          RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" \
+          mkdir -p ${{ runner.temp }}
+          start_coverage_fn=${{ runner.temp }}/start-coverage-result.json
+          curl -s -X POST -H "Content-Type: application/json" \
             -d "{\"query\": \"$START_COVERAGE_QUERY\"}" \
-            http://localhost:8000/v1/graphql/)
-          START_RESULT=$(echo $RESPONSE | jq -r '.data.testMode.startCoverageTracking')
+            http://localhost:8000/v1/graphql/ > $start_coverage_fn
+          START_RESULT=$(jq -r '.data.testMode.startCoverageTracking' $start_coverage_fn)
           if [ "$START_RESULT" = "true" ]; then
             echo "Coverage tracking started successfully"
           else
@@ -167,22 +169,14 @@ jobs:
         working-directory: ./e2e-tests
 
       - name: Stop coverage tracking and collect data
-        if: always() && !cancelled()
+        if: always() && !cancelled() && steps.start-coverage.outcome == 'success'
         run: |
           mkdir -p coverage-data
           STOP_COVERAGE_QUERY='mutation { testMode { stopCoverageTracking { xml } } }'
-          RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" \
+          curl -s -X POST -H "Content-Type: application/json" \
             -d "{\"query\": \"$STOP_COVERAGE_QUERY\"}" \
-            http://localhost:8000/v1/graphql/)
-          XML_REPORT=$(echo $RESPONSE | jq -r '.data.testMode.stopCoverageTracking.xml')
-          if [ -z "$XML_REPORT" ] || [ "$XML_REPORT" = "null" ]; then
-            echo "Warning: No XML report was generated"
-          else
-            echo "$XML_REPORT" > coverage-data/coverage.xml
-            COVERAGE_PERCENTAGE=$(grep -o 'line-rate="[0-9.]*"' coverage-data/coverage.xml | head -1 | grep -o '[0-9.]*')
-            COVERAGE_PERCENTAGE=$(echo "$COVERAGE_PERCENTAGE * 100" | bc)
-            echo "Coverage data collected for e2e tests. Test coverage of backend: $COVERAGE_PERCENTAGE%"
-          fi
+            http://localhost:8000/v1/graphql/ > ${{ runner.temp }}/stop-coverage-result.json
+          jq -r '.data.testMode.stopCoverageTracking.xml' ${{ runner.temp }}/stop-coverage-result.json > coverage-data/coverage.xml
         working-directory: ./e2e-tests
         shell: bash
 
@@ -215,6 +209,7 @@ jobs:
 
       - name: Upload coverage report as artifact
         if: always() && !cancelled()
+        id: upload-coverage
         uses: actions/upload-artifact@v4
         with:
           name: backend-coverage
@@ -225,7 +220,7 @@ jobs:
     name: Upload coverage report to Codecov
     needs: e2e_test
     runs-on: ubuntu-latest
-    if: always() && !cancelled()
+    if: always() && !cancelled() && needs.e2e_test.outputs.coverage_uploaded == 'true'
     steps:
       - uses: actions/checkout@v4
         with:
