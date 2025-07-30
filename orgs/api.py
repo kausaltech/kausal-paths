@@ -70,7 +70,3 @@ class OrganizationViewSet(HandleProtectedErrorMixin, BulkModelViewSet):
         available_organizations = Organization.objects.available_for_instance(instance)
         logger.debug(f"available_organizations: {available_organizations}")
         return available_organizations
-
-
-
-
