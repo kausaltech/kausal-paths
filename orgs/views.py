@@ -5,9 +5,10 @@ from typing import TYPE_CHECKING
 from kausal_common.organizations.views import (
     CreateChildNodeView as BaseCreateChildNodeView,
     OrganizationCreateView as BaseOrganizationCreateView,
+    OrganizationIndexView as BaseOrganizationIndexView,
 )
 
-from admin_site.viewsets import PathsCreateView
+from admin_site.viewsets import PathsCreateView, admin_req
 from orgs.models import Organization
 
 if TYPE_CHECKING:
@@ -56,3 +57,10 @@ class CreateChildNodeView(BaseCreateChildNodeView):
             instance.initialize_instance_defaults(instance_config)
 
         return instance
+
+class OrganizationIndexView(BaseOrganizationIndexView):
+    def get_list_more_buttons(self, instance: Organization):
+        assert self.view_set is not None
+        user = admin_req(self.request).user
+        active_instance = user.get_active_instance()
+        return self.view_set.get_index_view_buttons(user, instance, active_instance)
