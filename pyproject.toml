@@ -89,16 +89,28 @@ dependencies = [
     "xxhash",
 ]
 
+[project.optional-dependencies]
+kausal = [
+    "kausal-paths-extensions>=0.6.37",
+]
+
 [tool.pip-tools]
 
 [tool.pep8]
 max-line-length = "120"
 ignore = "E309"
 
+[[tool.uv.index]]
+url = "https://pypi.kausal.tech/"
+
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "paths.tests.settings"
 norecursedirs = ["node_modules", "data", ".git", "venv", "Attic"]
 filterwarnings = ["ignore::DeprecationWarning:graphene"]
+
+[[tool.uv.index]]
+url = "https://pypi.org/simple"
+default = true
 
 [tool.ruff]
 extend = './kausal_common/configs/ruff.toml'
@@ -232,9 +244,6 @@ environments = [
 [tool.uv.sources]
 django-modeltrans = { url = "https://github.com/kausaltech/django-modeltrans/archive/a734040c3f38c2e404a61dc0be2c017874a9ea45.zip" }
 
-[[tool.uv.index]]
-url = "https://pypi.kausal.tech/"
-
 [dependency-groups]
 dev = [
     "basedpyright",
@@ -251,9 +260,6 @@ dev = [
     "pre-commit",
     "uv",
     "viztracer",
-]
-kausal = [
-    "kausal-paths-extensions>=0.6.36",
 ]
 lint = [
     "celery-types",

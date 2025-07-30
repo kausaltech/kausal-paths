@@ -2511,6 +2511,11 @@ dependencies = [
     { name = "xxhash", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
 
+[package.optional-dependencies]
+kausal = [
+    { name = "kausal-paths-extensions", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "basedpyright", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
@@ -2527,9 +2532,6 @@ dev = [
     { name = "pre-commit", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "uv", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "viztracer", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
-]
-kausal = [
-    { name = "kausal-paths-extensions", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
 lint = [
     { name = "celery-types", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
@@ -2600,6 +2602,7 @@ requires-dist = [
     { name = "graphql-core" },
     { name = "graphql-relay" },
     { name = "ipython" },
+    { name = "kausal-paths-extensions", marker = "extra == 'kausal'", specifier = ">=0.6.37" },
     { name = "llvmlite" },
     { name = "logfmter" },
     { name = "loguru" },
@@ -2650,6 +2653,7 @@ requires-dist = [
     { name = "watchfiles" },
     { name = "xxhash" },
 ]
+provides-extras = ["kausal"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -2668,7 +2672,6 @@ dev = [
     { name = "uv" },
     { name = "viztracer" },
 ]
-kausal = [{ name = "kausal-paths-extensions", specifier = ">=0.6.36" }]
 lint = [
     { name = "celery-types" },
     { name = "django-stubs" },

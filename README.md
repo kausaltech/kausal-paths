@@ -16,7 +16,19 @@ source .venv/bin/activate
 Install the required Python packages:
 
 ```shell
-uv sync --group dev --group lint --group prod
+uv sync --all-groups
+```
+
+If you have access to the Kausal private extensions, you should configure the PyPI index URL in your `.envrc` file:
+
+```shell
+export UV_INDEX=https://...@pypi.kausal.tech
+```
+
+Then install the dependencies like this:
+
+```shell
+uv sync --all-groups --extra kausal
 ```
 
 > _Note for macOS users: If you run into issues installing python-snappy, install it separately first_

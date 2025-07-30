@@ -52,7 +52,7 @@ jobs:
         env:
           UV_EXTRA_INDEX_URL: ${{ secrets.EXTRA_PYPI_INDEX }}
         run: |
-          uv sync --group lint --group kausal
+          uv sync --group lint --extra kausal
 
       - name: Determine Reviewdog context
         id: reviewdog_context
