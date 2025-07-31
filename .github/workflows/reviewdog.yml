@@ -40,13 +40,13 @@ jobs:
             ${{ runner.os }}-${{ hashFiles('uv.lock', 'pyproject.toml') }}
             ${{ runner.os }}
 
-      - uses: awalsh128/cache-apt-pkgs-action@latest
-        with:
-          packages: libproj-dev gdal-bin
-          version: 1.0
+      # - uses: awalsh128/cache-apt-pkgs-action@latest
+      #   with:
+      #     packages: libproj-dev gdal-bin
+      #     version: 1.0
 
-      # - name: Install deb dependencies
-      #   run: sudo apt update && sudo apt install --no-install-recommends -y libproj-dev gdal-bin
+      - name: Install deb dependencies
+        run: sudo apt update && sudo apt install --no-install-recommends -y libproj-dev gdal-bin
 
       - name: Install Python dependencies
         env:
