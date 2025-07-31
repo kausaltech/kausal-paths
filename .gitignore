@@ -42,3 +42,6 @@ celerybeat-schedule
 .Rproj.user
 .Rhistory
 *.egg-info/
+/.tags
+/reset-db.sh
+/*.dump
