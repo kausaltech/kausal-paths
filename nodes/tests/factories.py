@@ -79,7 +79,7 @@ class InstanceConfigFactory(DjangoModelFactory[InstanceConfig]):
     lead_title = "lead title"
     lead_paragraph = "Lead paragraph"
     instance: SubFactory[str, Instance] = SubFactory(InstanceFactory, id=SelfAttribute('..identifier'))
-    organization = SubFactory(OrganizationFactory)
+    organization = SubFactory(OrganizationFactory)  # type: ignore[var-annotated]
 
     @classmethod
     def create(cls, **kwargs: Any) -> InstanceConfig:
