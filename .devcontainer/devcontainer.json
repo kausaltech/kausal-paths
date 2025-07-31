@@ -7,7 +7,7 @@
     "type=volume,target=${containerWorkspaceFolder}/.venv"
   ],
   "onCreateCommand": "[ -d ${containerWorkspaceFolder}/.venv ] && sudo chown vscode ${containerWorkspaceFolder}/.venv || true",
-  "updateContentCommand": "uv sync",
+  "updateContentCommand": "uv sync && [ -d ${containerWorkspaceFolder}/kausal_common/__init__.py ] || git submodule update --init --recursive",
   "customizations": {
     "vscode": {
       "settings": {
@@ -28,6 +28,16 @@
         "redhat.vscode-yaml",
         "johnpapa.vscode-peacock"
       ]
+    },
+    "codespaces": {
+      "repositories": {
+        "kausaltech/kausal-backend-common": {
+          "permissions": {
+            "contents": "write",
+            "pull_requests": "write"
+          }
+        }
+      }
     }
   }
 }
