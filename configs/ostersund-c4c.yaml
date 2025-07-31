@@ -2311,6 +2311,55 @@ actions:
     - id: owner
     - id: scope
 
+- id: public_transport_infrastructure_measures
+  name: Public Transport Infrastructure Measures
+  type: simple.AdditiveAction
+  group: transportation_territorial
+  input_dimensions: [vehicle_type, cost_type, energy_carrier, owner, scope, v_electrification_scenario]
+  output_dimensions: [vehicle_type, cost_type, energy_carrier, owner, scope, v_electrification_scenario]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: ostersund/territorial_onroad_transportation_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: public_transport_infrastructure_measures
+    - column: ghg
+  output_metrics:
+  - id: Mileage
+    unit: km/a
+    quantity: mileage
+  - id: currency
+    unit: kSEK/a
+    quantity: currency
+  output_nodes:
+  - id: ii1_onroad_transport_mileage_territorial
+    metrics: [Mileage]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+    - id: owner
+    - id: scope
+    - id: v_electrification_scenario
+  - id: ii1_onroad_transport_costs_territorial
+    metrics: [currency]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: v_electrification_scenario
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+    - id: scope
+
 pages:
 - id: home
   name: Östersund Greenhouse Gas Inventory
