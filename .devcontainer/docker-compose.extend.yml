@@ -1,0 +1,7 @@
+services:
+  app:
+    build:
+      dockerfile: .devcontainer/Dockerfile
+    volumes:
+      - .:/workspace:cached
+    command: /bin/sh -c "while sleep 600; do :; done"

@@ -1,13 +1,24 @@
 {
   "name": "kausal-paths",
-  "build": {
-    "dockerfile": "Dockerfile"
-  },
+  //"build": {
+  //  "dockerfile": "Dockerfile"
+  //},
+  "dockerComposeFile": [
+    "../docker-compose.yml",
+    "docker-compose.extend.yml"
+  ],
+  "service": "app",
+  "shutdownAction": "stopCompose",
+  "workspaceFolder": "/workspace",
   "mounts": [
     "type=volume,target=${containerWorkspaceFolder}/.venv"
   ],
   "onCreateCommand": "[ -d ${containerWorkspaceFolder}/.venv ] && sudo chown vscode ${containerWorkspaceFolder}/.venv || true",
   "updateContentCommand": "uv sync && [ -d ${containerWorkspaceFolder}/kausal_common/__init__.py ] || git submodule update --init --recursive",
+  "containerEnv": {
+    "DEBUG": "1",
+    "KUBERNETES_LOGGING": "0"
+  },
   "customizations": {
     "vscode": {
       "settings": {
