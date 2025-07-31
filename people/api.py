@@ -3,16 +3,17 @@ from __future__ import annotations
 from rest_framework import exceptions
 
 from kausal_common.api.bulk import BulkModelViewSet
-from kausal_common.api.utils import register_view
+from kausal_common.api.utils import RegisteredAPIView, register_view
 from kausal_common.model_images import ModelWithImageViewMixin
 from kausal_common.people.api import PersonSerializer
+from kausal_common.users import user_or_none
 
 from paths import permissions
 
 from nodes.models import InstanceConfig
 from people.models import Person
 
-all_views = []
+all_views: list[RegisteredAPIView] = []
 
 @register_view
 class PersonViewSet(ModelWithImageViewMixin, BulkModelViewSet):
@@ -53,7 +54,7 @@ class PersonViewSet(ModelWithImageViewMixin, BulkModelViewSet):
             raise exceptions.NotFound(detail="InstanceConfig not found") from e
 
     def user_is_authorized_for_instance(self, instance):
-        user = self.request.user
+        user = user_or_none(self.request.user)
 
         return (
             user is not None
