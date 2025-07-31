@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from rest_framework import exceptions, serializers
 
-from loguru import logger
-
 from kausal_common.api.bulk import BulkListSerializer, BulkModelViewSet
 from kausal_common.api.exceptions import HandleProtectedErrorMixin
 from kausal_common.api.tree import TreebeardModelSerializerMixin
