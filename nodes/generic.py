@@ -92,6 +92,7 @@ class GenericNode(SimpleNode):
             'split_by_existing_shares': 'split_by_existing_shares',
             'split_evenly_to_cats': 'split_evenly_to_cats',
             'skip_dim_test': 'skip_dim_test',
+            'coalesce': 'coalesce',
         }
         # Special tags that should be skipped completely
         skip_tags = {'ignore_content'}
@@ -1162,6 +1163,37 @@ class ThresholdNode(GenericNode):
         super().__init__(*args, **kwargs)
         # Register threshold operation
         self.OPERATIONS['apply_threshold'] = self._operation_apply_threshold
+
+
+class CoalesceNode(GenericNode):
+    explanation = _(
+        """Coalesces the empty values with the values from the node with the tag 'coalesce'."""
+    )
+    DEFAULT_OPERATIONS = 'multiply,coalesce,add'
+
+    def _operation_coalesce(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        """Coalesce the two dataframes."""
+        if df is None:
+            raise NodeError(self, "Cannot apply coalesce because no PathsDataFrame is available.")
+
+        nodes = baskets.get('coalesce', [])
+        baskets['coalesce'] = []
+        if len(nodes) != 1:
+            raise NodeError(self, "There must be exactly one input node with tag 'coalesce'.")
+
+        df_co = nodes[0].get_output_pl(target_node=self)
+        df = df.paths.join_over_index(df_co, how='outer', index_from='union')
+        df = df.with_columns(
+            pl.coalesce([pl.col(VALUE_COLUMN), pl.col(VALUE_COLUMN + '_right')])
+            .alias(VALUE_COLUMN)
+        ).drop(VALUE_COLUMN + '_right')
+
+        return df, baskets
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Register threshold operation
+        self.OPERATIONS['coalesce'] = self._operation_coalesce
 
 
 class CohortNode(GenericNode):
