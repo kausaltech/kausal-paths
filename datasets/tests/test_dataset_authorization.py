@@ -36,11 +36,11 @@ class TestDatasetAdminAuthorization:
     def setup_test_data(self):
         # Create two instance configs with unique identifiers
         import uuid
-        instance1 = InstanceConfigFactory(
+        instance1 = InstanceConfigFactory.create(
             identifier=f'instance1-{uuid.uuid4().hex[:8]}',
             name='Instance 1',
         )
-        instance2 = InstanceConfigFactory(
+        instance2 = InstanceConfigFactory.create(
             identifier=f'instance2-{uuid.uuid4().hex[:8]}',
             name='Instance 2',
         )

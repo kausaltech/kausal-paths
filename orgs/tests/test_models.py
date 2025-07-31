@@ -7,10 +7,10 @@ pytestmark = pytest.mark.django_db
 
 
 def test_organization_queryset_editable_by_user_metadata_admin_suborg(person):
-    organization = OrganizationFactory()
-    sub_org = OrganizationFactory(parent=organization)
+    organization = OrganizationFactory.create()
+    sub_org = OrganizationFactory.create(parent=organization)
     sub_org.metadata_admins.add(person)
-    editable_orgs = Organization.objects.editable_by_user(person.user)
+    editable_orgs = Organization.objects.qs.editable_by_user(person.user)
     assert sub_org in editable_orgs
     assert organization not in editable_orgs
 
@@ -24,7 +24,7 @@ def test_organization_queryset_available_for_instance(instance_config):
     instance_org.refresh_from_db()
     sub_org1 = OrganizationFactory(parent=instance_config.organization)
     OrganizationFactory(parent=org) # sub_org2
-    result = list(Organization.objects.available_for_instance(instance_config))
+    result = list(Organization.objects.qs.available_for_instance(instance_config))
     assert result == [instance_org, sub_org1]
     # instance.related_organizations.add(org) # TODO: Add this if we implement related_organizations
     # result = set(Organization.objects.available_for_instance(instance_config))
