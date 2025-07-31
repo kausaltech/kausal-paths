@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from abc import abstractmethod
+from contextlib import nullcontext
 from typing import TYPE_CHECKING
 
 import graphene
@@ -15,6 +17,7 @@ from wagtail_color_panel.blocks import NativeColorBlock
 
 from nodes.blocks import NodeChooserBlock
 from nodes.constants import VALUE_COLUMN, YEAR_COLUMN
+from nodes.metric import DimensionalMetric
 
 if TYPE_CHECKING:
     from paths.types import GQLInstanceInfo
@@ -85,6 +88,7 @@ class NodeProgressBarBlock(ProgressBarBlock):
     graphql_fields = ProgressBarBlock.graphql_fields + [
         GraphQLField('node', 'nodes.schema.NodeType', required=True),  # pyright: ignore
         GraphQLField('unit', 'paths.schema.UnitType', required=True),  # pyright: ignore
+        GraphQLFloat('value', required=False),
     ]
 
     def clean(self, value):
@@ -114,14 +118,48 @@ class NodeProgressBarBlock(ProgressBarBlock):
 
     def unit(self, info: GQLInstanceInfo, values: dict) -> Unit:
         node = self.node(info, values)
-        return node.single_metric_unit
+        dm = self._dimensional_metric(node)
+        return dm.unit
+
+    @abstractmethod
+    def value(self, info: GQLInstanceInfo, values: dict) -> float | None:
+        raise NotImplementedError("Implement in subclass")
+
+    def _dimensional_metric(self, node: Node, scenario: Scenario | None = None) -> DimensionalMetric:
+        context = scenario.override() if scenario else nullcontext()
+        with context:
+            dm = DimensionalMetric.from_node(node)
+        if not dm:
+            raise ValueError("Could not obtain dimensional metric from node")
+        return dm
+
+    def _value_for_year(self, node: Node, year: int, scenario: Scenario | None = None) -> float | None:
+        dm = self._dimensional_metric(node, scenario)
+        df = dm.to_df()
+        df = df.filter(pl.col(YEAR_COLUMN) == year)
+        df = df.paths.sum_over_dims()
+        if df.is_empty():
+            return None
+        assert len(df) == 1
+        return df.item(0, VALUE_COLUMN)
+
+    def _goal_for_year(self, node: Node, year: int, goal_index: int | None) -> float | None:
+        if goal_index is None:
+            goal_index = 0
+        dm = self._dimensional_metric(node)
+        if goal_index < 0 or goal_index >= len(dm.goals):
+            raise ValueError("Goal index is invalid")
+        goal = dm.goals[goal_index]
+        year_values = (v for v in goal.values if v.year == year)
+        try:
+            return next(iter(year_values)).value
+        except StopIteration:
+            return None
 
 
 @register_streamfield_block
 class GoalProgressBarBlock(NodeProgressBarBlock):
-    graphql_fields = NodeProgressBarBlock.graphql_fields + [
-        GraphQLFloat('value', required=False),
-    ]
+    goal_index = blocks.IntegerBlock(required=False, min_value=0)  # which goal to use for goal progress bars
 
     def clean(self, value):
         from nodes.models import NodeConfig
@@ -132,37 +170,26 @@ class GoalProgressBarBlock(NodeProgressBarBlock):
         assert isinstance(node_config, NodeConfig)
         node = node_config.get_node()
         assert node  # ensured by NodeProgressBarBlock.clean()
+        goal_index = cleaned_data.get('goal_index')
         if not node.goals or not node.goals.root:
             errors['node_config'] = ValidationError(_("This node has no goals."))
-        elif len(node.goals.root) > 1:
-            errors['node_config'] = ValidationError(_("This node has more than one goal."))
+        elif goal_index is not None and goal_index >= len(node.goals.root):
+            errors['goal_index'] = ValidationError(_("This goal index is invalid."))
         if errors:
             raise blocks.StructBlockValidationError(errors)
         return cleaned_data
 
     def value(self, info: GQLInstanceInfo, values: dict) -> float | None:
         node = self.node(info, values)
-        if not node.goals or not node.goals.root:
-            return None
-        if len(node.goals.root) > 1:
-            raise ValueError("Node has more than one goal")
         target_year = node.get_target_year()
         if target_year is None:
             raise ValueError("Node has no target year")
-        goal = node.goals.root[0]
-        target_year_values = (v for v in goal.get_values() if v.year == target_year)
-        try:
-            return next(iter(target_year_values)).value
-        except StopIteration:
-            return None
+        goal_index = values.get('goal_index')
+        return self._goal_for_year(node, target_year, goal_index)
 
 
 @register_streamfield_block
 class ReferenceProgressBarBlock(NodeProgressBarBlock):
-    graphql_fields = NodeProgressBarBlock.graphql_fields + [
-        GraphQLFloat('value', required=False),
-    ]
-
     def clean(self, value):
         from nodes.models import NodeConfig
 
@@ -183,41 +210,31 @@ class ReferenceProgressBarBlock(NodeProgressBarBlock):
         reference_year = info.context.instance.reference_year
         if reference_year is None:
             raise ValueError("Instance has no reference year")
-        df = node.get_output_pl()
-        df = df.paths.sum_over_dims()
-        df = df.filter(pl.col(YEAR_COLUMN) == reference_year)
-        if df.is_empty():
-            return None
-        if len(df) > 1:
-            raise ValueError(f"Node output contains multiple rows for year {reference_year}")
-        return df.item(0, VALUE_COLUMN)
+        return self._value_for_year(node, reference_year)
 
 
 @register_streamfield_block
 class CurrentProgressBarBlock(NodeProgressBarBlock):
-    graphql_fields = NodeProgressBarBlock.graphql_fields + [
-        GraphQLFloat('value', required=False),
-    ]
-
     def value(self, info: GQLInstanceInfo, values: dict) -> float | None:
         node = self.node(info, values)
-        df = node.get_output_pl()
-        last_historical_year = df.paths.get_last_historical_year()
-        df = df.filter(pl.col(YEAR_COLUMN) == last_historical_year)
-        if df.is_empty():
+        dm  = self._dimensional_metric(node)
+        if dm.forecast_from is None:
             return None
-        if len(df) > 1:
-            raise ValueError(f"Node output contains multiple rows for year {last_historical_year}")
-        return df.item(0, VALUE_COLUMN)
+        try:
+            last_historical_year = max(y for y in dm.years if y < dm.forecast_from)
+        except ValueError:  # no historical years, or forecast_from is None
+            return None
+        return self._value_for_year(node, last_historical_year)
 
 
 @register_streamfield_block
 class ScenarioProgressBarBlock(NodeProgressBarBlock):
     scenario_identifier = blocks.CharBlock(required=True)  # FIXME: choice block? But where to get the choices?
+    goal_index = blocks.IntegerBlock(required=False, min_value=0)  # which goal to use for goal_value
 
     graphql_fields = NodeProgressBarBlock.graphql_fields + [
         GraphQLField('scenario', 'nodes.schema.ScenarioType', required=True),  # pyright: ignore
-        GraphQLFloat('value', required=False),
+        GraphQLFloat('goal_value', required=False),
     ]
 
     def clean(self, value):
@@ -229,6 +246,11 @@ class ScenarioProgressBarBlock(NodeProgressBarBlock):
         assert isinstance(node_config, NodeConfig)
         node = node_config.get_node()
         assert node  # ensured by NodeProgressBarBlock.clean()
+        goal_index = cleaned_data.get('goal_index')
+        if not node.goals or not node.goals.root:
+            errors['node_config'] = ValidationError(_("This node has no goals."))
+        elif goal_index is not None and goal_index >= len(node.goals.root):
+            errors['goal_index'] = ValidationError(_("This goal index is invalid."))
         scenario_identifier = cleaned_data['scenario_identifier']
         if scenario_identifier not in node.context.scenarios:
             errors['scenario_identifier'] = ValidationError(
@@ -244,51 +266,31 @@ class ScenarioProgressBarBlock(NodeProgressBarBlock):
         assert info.context.instance == node.context.instance
         return node.context.get_scenario(scenario_identifier)
 
-    # TODO: We'll also need to expose the goal year value for node (dotted line)
-
     def value(self, info: GQLInstanceInfo, values: dict) -> float | None:
         node = self.node(info, values)
         target_year = node.get_target_year()
         if target_year is None:
             raise ValueError("Node has no target year")
         scenario = self.scenario(info, values)
-        with scenario.override():
-            df = node.get_output_pl()
-        df = df.filter(pl.col(YEAR_COLUMN) == target_year)
-        if df.is_empty():
-            return None
-        if len(df) > 1:
-            raise ValueError(f"Node output contains multiple rows for year {target_year}")
-        return df.item(0, VALUE_COLUMN)
+        return self._value_for_year(node, target_year, scenario)
 
-
-@register_streamfield_block
-class ProgressVisualizationBlock(blocks.StructBlock):
-    progress_bars = blocks.StreamBlock([
-        ('goal_progress_bar', GoalProgressBarBlock()),
-        ('reference_progress_bar', ReferenceProgressBarBlock()),
-        ('current_progress_bar', CurrentProgressBarBlock()),
-        ('scenario_progress_bar', ScenarioProgressBarBlock()),
-    ])
-
-    graphql_fields = [
-        GraphQLStreamfield('progress_bars', required=True),
-    ]
+    def goal_value(self, info: GQLInstanceInfo, values: dict) -> float | None:
+        node = self.node(info, values)
+        target_year = node.get_target_year()
+        if target_year is None:
+            raise ValueError("Node has no target year")
+        goal_index = values.get('goal_index')
+        return self._goal_for_year(node, target_year, goal_index)
 
 
 # class EmissionSourcesVisualizationBlock(blocks.StructBlock):
 #     title = blocks.CharBlock()
 #     # TODO: Other fields
+#     # should normally use net emissions node
 #
 #     graphql_fields = [
 #         GraphQLString('title', required=True),
 #     ]
-
-
-@register_streamfield_block
-class VisualizationBlock(blocks.StreamBlock):
-    progress = ProgressVisualizationBlock()
-    # emission_sources = EmissionSourcesVisualizationBlock()  # TODO
 
 
 @register_streamfield_block
@@ -309,13 +311,19 @@ class DashboardCardBlock(blocks.StructBlock):
     title = blocks.CharBlock()
     description = blocks.CharBlock(required=False)
     image = ImageChooserBlock(required=False)
-    visualization = VisualizationBlock()
+    visualizations = blocks.StreamBlock([
+        ('goal_progress_bar', GoalProgressBarBlock()),
+        ('reference_progress_bar', ReferenceProgressBarBlock()),
+        ('current_progress_bar', CurrentProgressBarBlock()),
+        ('scenario_progress_bar', ScenarioProgressBarBlock()),
+        # ('emission_sources', EmissionSourcesVisualizationBlock()),
+    ])
     call_to_action = CallToActionBlock()
 
     graphql_fields = [
         GraphQLString('title', required=True),
         GraphQLString('description'),
         GraphQLString('image'),
-        GraphQLStreamfield('visualization', required=True),
+        GraphQLStreamfield('visualizations', required=True),
         GraphQLBlockField('call_to_action', CallToActionBlock, is_list=False, required=True),
     ]
