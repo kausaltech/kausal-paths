@@ -8,10 +8,10 @@ from kausal_common.organizations.views import (
     OrganizationIndexView as BaseOrganizationIndexView,
 )
 
+from paths.context import realm_context
+
 from admin_site.viewsets import PathsCreateView, admin_req
 from orgs.models import Organization
-
-from paths.context import realm_context
 
 if TYPE_CHECKING:
     from django.db.models import Model
