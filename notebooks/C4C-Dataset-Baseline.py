@@ -289,6 +289,6 @@ if outdvcpath.upper() not in ['N', 'NONE']:
     valuecols = list(set(dfmain.columns) - set(indexcols))
     pdframe = pd.DataFrame(dfmain.select(valuecols), index = pdindex, columns = valuecols)
 
-    ds = Dataset(pdframe, identifier = outdvcpath)
-    repo = Repository(repo_url = 'git@github.com:kausaltech/dvctest.git', dvc_remote = 'kausal-s3')
-    repo.push_dataset(ds)
+    # ds = Dataset(pdframe, identifier = outdvcpath)
+    # repo = Repository(repo_url = 'git@github.com:kausaltech/dvctest.git', dvc_remote = 'kausal-s3')
+    # repo.push_dataset(ds)

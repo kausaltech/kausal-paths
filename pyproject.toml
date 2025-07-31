@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "kausal-paths"
 requires-python = ">= 3.13"
-dynamic = ["version"]
+version = "1.0.0"
 dependencies = [
   "asgi-cors",
   "babel",
@@ -98,9 +98,6 @@ kausal = ["kausal-paths-extensions>=0.6.37"]
 max-line-length = "120"
 ignore = "E309"
 
-[[tool.uv.index]]
-url = "https://pypi.kausal.tech/"
-
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "paths.tests.settings"
 norecursedirs = ["node_modules", "data", ".git", "venv", "Attic"]
@@ -108,7 +105,11 @@ filterwarnings = ["ignore::DeprecationWarning:graphene"]
 
 [[tool.uv.index]]
 url = "https://pypi.org/simple"
-default = true
+
+[[tool.uv.index]]
+name = "kausal"
+url = "https://pypi.kausal.tech"
+authenticate = "always"
 
 [tool.ruff]
 extend = './kausal_common/configs/ruff.toml'
@@ -242,21 +243,24 @@ optional-dependencies.prod = { file = ["requirements-prod.txt"] }
 
 [tool.uv]
 environments = [
-  "sys_platform == 'linux' and platform_machine == 'x86_64'",
-  "sys_platform == 'darwin' and platform_machine == 'arm64'",
+  "python_full_version >= '3.13' and sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "python_full_version >= '3.13' and sys_platform == 'darwin' and platform_machine == 'arm64'",
 ]
 
 [tool.uv.sources]
 django-modeltrans = { url = "https://github.com/kausaltech/django-modeltrans/archive/a734040c3f38c2e404a61dc0be2c017874a9ea45.zip" }
+kausal-paths-extensions = { index = "kausal"}
 
 [dependency-groups]
 dev = [
   "basedpyright",
   "daphne",
+  "debugpy>=1.8.15",
   "django-debug-toolbar",
   "inotify",
   "ipdb",
   "ipython",
+  "libcst>=1.8.2",
   "line-profiler",
   "ondivi",
   "pdbr[ipython]",
@@ -265,6 +269,8 @@ dev = [
   "pre-commit",
   "uv",
   "viztracer",
+  {include-group = "lint"},
+  {include-group = "prod"},
 ]
 lint = [
   "celery-types",
