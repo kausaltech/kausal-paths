@@ -56,17 +56,13 @@ class OrganizationViewSet(HandleProtectedErrorMixin, BulkModelViewSet):
         return [permission() for permission in permission_classes]
 
     def get_queryset(self):
-
-        from loguru import logger
         queryset = super().get_queryset()
         instance_identifier = self.request.query_params.get('instance', None)
         if instance_identifier is None:
             return queryset
         try:
-            logger.debug(f"Getting organizations for instance {instance_identifier}")
             instance = InstanceConfig.objects.get(identifier=instance_identifier)
         except InstanceConfig.DoesNotExist as e:
             raise exceptions.NotFound(detail="Instance not found") from e
         available_organizations = Organization.objects.available_for_instance(instance)
-        logger.debug(f"available_organizations: {available_organizations}")
         return available_organizations
