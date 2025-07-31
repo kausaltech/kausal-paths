@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from rest_framework import exceptions, serializers
 
+from loguru import logger
+
 from kausal_common.api.bulk import BulkListSerializer, BulkModelViewSet
 from kausal_common.api.exceptions import HandleProtectedErrorMixin
 from kausal_common.api.tree import TreebeardModelSerializerMixin
-from kausal_common.api.utils import register_view
+from kausal_common.api.utils import RegisteredAPIView, register_view
 from kausal_common.models.general import public_fields
 
 from paths import permissions
@@ -13,12 +15,12 @@ from paths import permissions
 from nodes.models import InstanceConfig
 from orgs.models import Organization
 
-all_views = []
+all_views: list[RegisteredAPIView] = []
 
 class OrganizationSerializer(TreebeardModelSerializerMixin, serializers.ModelSerializer):
     uuid = serializers.UUIDField(required=False)
 
-    class Meta:
+    class Meta:  # type: ignore[override]
         model = Organization
         list_serializer_class = BulkListSerializer
         fields = public_fields(Organization)
@@ -64,5 +66,5 @@ class OrganizationViewSet(HandleProtectedErrorMixin, BulkModelViewSet):
             instance = InstanceConfig.objects.get(identifier=instance_identifier)
         except InstanceConfig.DoesNotExist as e:
             raise exceptions.NotFound(detail="Instance not found") from e
-        available_organizations = Organization.objects.available_for_instance(instance)
+        available_organizations = Organization.objects.qs.available_for_instance(instance)
         return available_organizations
