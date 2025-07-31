@@ -13,7 +13,7 @@ supported_languages: [es-US]
 site_url: https://longmont-dev.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: b80073e2447288f12b9f61909e8758744a55252b
+  commit: 42fc57a41b6a4c0dcc3829460ec46ce99e99f344
   dvc_remote: kausal-s3
 name: 2025 Draft Longmont Greenhouse Gas Inventory
 name_es-US: 2025 Inventario de gases de efecto invernadero de Longmont
@@ -520,6 +520,21 @@ dimensions:
     label: Informational only
     order: -1
 
+- id: service
+  label: Service
+  categories:
+  - id: rtd_bus_activity
+    label: RTD Bus activity
+    aliases: [RTD Bus Activitiy 2023, RTD Bus Activitiy, rtd_bus_activitiy, rtd_bus_activitiy_2023]
+  - id: flexride
+    label: Flexride
+    aliases: [FlexRide 2023, flexride_2023]
+  - id: flex_route
+    label: FLEX Route
+    aliases: [FLEX Route (Fort Collins to Boulder), flex_route_fort_collins_to_boulder]
+  - id: via_ride_service_shuttles
+    label: Via Ride Service Shuttles
+
 - id: site
   label: Production or consumption site
   label_es-US: Sitio de producción o consumo
@@ -569,6 +584,9 @@ dimensions:
     label: Truck
     label_es-US: Camión
     aliases: [TRUCK, heavy_duty_truck, heavy_truck]
+  - id: heavy_vehicle
+    label_en: Heavy Vehicle
+    aliases: [heavy_vehicle_bus, heavy_vehiclebus, heavy_truck_bus]
   - id: light_duty
     label: Light Duty
     label_es-US: Camión ligero
@@ -576,7 +594,7 @@ dimensions:
   - id: bus
     label: Bus
     label_es-US: Autobús
-    aliases: [BUS, heavy_vehicle_bus, heavy_vehiclebus, heavy_truck_bus] # FIXME separate buses and trucks
+    aliases: [BUS]
   - id: single_unit_truck
     label: Single Unit Truck
     label_es-US: Camión de una sola unidad
@@ -1777,7 +1795,7 @@ nodes:
   input_dimensions: [service, vehicle_type, energy_carrier]
   output_dimensions: [service, vehicle_type, energy_carrier]
   input_datasets:
-  - id: longmont/transit_vmt
+  - id: longmont/transit_data
     tags: [baseline]
     forecast_from: 2025
     column: transit_vmt
@@ -1790,7 +1808,7 @@ nodes:
   input_dimensions: [service, vehicle_type, energy_carrier]
   output_dimensions: [service, vehicle_type, energy_carrier]
   input_datasets:
-  - id: longmont/transit_percentage_attributable_to_longmont
+  - id: longmont/transit_data
     tags: [baseline]
     forecast_from: 2025
     column: percent_attributable
@@ -1803,7 +1821,7 @@ nodes:
   input_dimensions: [service, vehicle_type, energy_carrier]
   output_dimensions: [service, vehicle_type, energy_carrier]
   input_datasets:
-  - id: longmont/transit_mpg
+  - id: longmont/transit_data
     tags: [baseline]
     forecast_from: 2025
     column: transit_mpg
@@ -1830,8 +1848,17 @@ nodes:
   output_dimensions: [service, vehicle_type, energy_carrier, ghg]
   input_nodes:
   - id: transit_fuel_use
+    to_dimensions:
+    - id: service
+    - id: vehicle_type
+    - id: energy_carrier
   - id: transportation_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
   - id: global_warming_potential_100a2
+    to_dimensions:
+    - id: ghg
   output_nodes:
   - id: road_transportation_emissions2
     from_dimensions:
@@ -1840,6 +1867,7 @@ nodes:
     to_dimensions:
     - id: vehicle_type
     - id: energy_carrier
+    - id: ghg
 
 # Railways
 
@@ -1860,9 +1888,7 @@ nodes:
   name: Proportion of Rail Lines in Longmont
   type: generic.GenericNode
   quantity: emissions
-  unit: t/a
-  input_dimensions: [ghg]
-  output_dimensions: [ghg]
+  unit: '%'
   input_datasets:
   - id: longmont/total_railway_ghg_emissions_boulder_county
     tags: [baseline]
@@ -1879,6 +1905,7 @@ nodes:
   input_nodes:
   - id: total_railway_ghg_emissions_boulder_county
   - id: proportion_of_rail_lines_in_longmont
+    to_dimensions: []
   - id: global_warming_potential_100a2
   output_nodes:
   - id: transportation_emissions2

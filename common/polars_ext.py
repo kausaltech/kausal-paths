@@ -66,6 +66,15 @@ class PathsExt:
         if not dim_ids:
             return df
 
+        if YEAR_COLUMN in df.columns:
+            dim_cols = [*dim_ids, YEAR_COLUMN]
+        else:
+            dim_cols = dim_ids
+        dup = df.select(dim_cols).is_duplicated()
+        if any(dup):
+            print(df.filter(dup))
+            raise ValueError("Dataframe has duplicate rows.")
+
         def format_col(dim: str) -> pl.Expr:
             if only_category_names:
                 return pl.col(dim)
