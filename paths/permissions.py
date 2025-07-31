@@ -8,6 +8,8 @@ from rest_framework import permissions
 
 from kausal_common.models.permission_policy import ParentInheritedPolicy
 
+from paths.context import realm_context
+
 from orgs.models import Organization
 from people.models import Person
 
@@ -91,12 +93,12 @@ class PersonPermission(permissions.DjangoObjectPermissions):
 
     def has_permission(self, request: PathsAuthenticatedRequest, view):
         perms = self.get_required_permissions(request.method, Person)
-        instance_config = request.user.get_active_instance()
+        instance_config = realm_context.get().realm
         return all(self.check_permission(request.user, perm, instance_config=instance_config) for perm in perms)
 
     def has_object_permission(self, request: PathsAuthenticatedRequest, view, obj):
         perms = self.get_required_object_permissions(request.method, Person)
-        instance_config = request.user.get_active_instance()
+        instance_config = realm_context.get().realm
         if not perms and request.method in permissions.SAFE_METHODS:
             return True
         return all(self.check_permission(request.user, perm, person=obj, instance_config=instance_config) for perm in perms)
