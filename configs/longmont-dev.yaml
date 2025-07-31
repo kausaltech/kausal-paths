@@ -13,7 +13,7 @@ supported_languages: [es-US]
 site_url: https://longmont-dev.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 7e2480842a4fcbcf7eaefbc5115554b1a9d01026
+  commit: b80073e2447288f12b9f61909e8758744a55252b
   dvc_remote: kausal-s3
 name: 2025 Draft Longmont Greenhouse Gas Inventory
 name_es-US: 2025 Inventario de gases de efecto invernadero de Longmont
@@ -386,6 +386,8 @@ dimensions:
   - id: waste
     label: Waste
     label_es-US: Desechos
+  - id: mixed
+    label: Mixed
 
 - id: ghg
   label_en: Greenhouse gas
@@ -1596,9 +1598,21 @@ nodes:
     - id: emission_sectors
     - id: greenhouse_gases
 
+# TEMPORARY
+
+- id: net_emissions2
+  name: Net emissions2
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [scope]
+  output_dimensions: [scope]
+
 #
 # NEW TRANSPORTATION
 #
+# Road transportation
+
 - id: number_of_cars
   name: Number of cars
   type: generic.GenericNode
@@ -1701,8 +1715,8 @@ nodes:
     tags: [baseline]
     column: mpg
 
-- id: transportation_emissions2
-  name: Transportation emissions2
+- id: road_transportation_emissions2
+  name: Road transportation emissions2
   type: generic.GenericNode
   quantity: emissions
   unit: kt_co2e/a
@@ -1727,10 +1741,24 @@ nodes:
     - id: ghg
   - id: transportation_ch4_emissions
   output_nodes:
-  - id: net_emissions2
+  - id: transportation_emissions2
     from_dimensions:
     - id: vehicle_type
       flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+
+- id: transportation_emissions2
+  name: Transportation emissions2
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  output_nodes:
+  - id: net_emissions2
+    from_dimensions:
     - id: energy_carrier
       flatten: true
     - id: ghg
@@ -1739,15 +1767,125 @@ nodes:
     - id: scope
       categories: [scope1] # FIXME
 
-# TEMPORARY
+# Transit
 
-- id: net_emissions2
-  name: Net emissions2
-  type: simple.AdditiveNode
+- id: total_transit_vmt
+  name: Total transit VMT
+  type: generic.GenericNode
+  quantity: mileage
+  unit: VMT/a
+  input_dimensions: [service, vehicle_type, energy_carrier]
+  output_dimensions: [service, vehicle_type, energy_carrier]
+  input_datasets:
+  - id: longmont/transit_vmt
+    tags: [baseline]
+    forecast_from: 2025
+    column: transit_vmt
+
+- id: transit_percentage_attributable_to_longmont
+  name: Transit percentage attributable to Longmont
+  type: generic.GenericNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [service, vehicle_type, energy_carrier]
+  output_dimensions: [service, vehicle_type, energy_carrier]
+  input_datasets:
+  - id: longmont/transit_percentage_attributable_to_longmont
+    tags: [baseline]
+    forecast_from: 2025
+    column: percent_attributable
+
+- id: transit_mpg
+  name: Transit MPG
+  type: generic.GenericNode
+  quantity: mileage
+  unit: VMT/gal
+  input_dimensions: [service, vehicle_type, energy_carrier]
+  output_dimensions: [service, vehicle_type, energy_carrier]
+  input_datasets:
+  - id: longmont/transit_mpg
+    tags: [baseline]
+    forecast_from: 2025
+    column: transit_mpg
+
+- id: transit_fuel_use
+  name: Transit fuel use
+  type: generic.GenericNode
+  quantity: energy
+  unit: gal/a
+  input_dimensions: [service, vehicle_type, energy_carrier]
+  output_dimensions: [service, vehicle_type, energy_carrier]
+  input_nodes:
+  - id: total_transit_vmt
+  - id: transit_percentage_attributable_to_longmont
+  - id: transit_mpg
+    tags: [geometric_inverse]
+
+- id: transit_co2_emissions
+  name: Transit CO2 emissions
+  type: generic.GenericNode
   quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [scope]
-  output_dimensions: [scope]
+  unit: t_co2e/a
+  input_dimensions: [service, vehicle_type, energy_carrier, ghg]
+  output_dimensions: [service, vehicle_type, energy_carrier, ghg]
+  input_nodes:
+  - id: transit_fuel_use
+  - id: transportation_emission_factors
+  - id: global_warming_potential_100a2
+  output_nodes:
+  - id: road_transportation_emissions2
+    from_dimensions:
+    - id: service
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+
+# Railways
+
+- id: total_railway_ghg_emissions_boulder_county
+  name: Total Railway GHG Emissions Boulder County
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
+  input_datasets:
+  - id: longmont/total_railway_ghg_emissions_boulder_county
+    tags: [baseline]
+    forecast_from: 2025
+    column: railway_emissions
+
+- id: proportion_of_rail_lines_in_longmont
+  name: Proportion of Rail Lines in Longmont
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
+  input_datasets:
+  - id: longmont/total_railway_ghg_emissions_boulder_county
+    tags: [baseline]
+    forecast_from: 2025
+    column: proportion_of_rail_lines_in_longmont
+
+- id: railway_emissions
+  name: Railway emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
+  input_nodes:
+  - id: total_railway_ghg_emissions_boulder_county
+  - id: proportion_of_rail_lines_in_longmont
+  - id: global_warming_potential_100a2
+  output_nodes:
+  - id: transportation_emissions2
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+      categories: [mixed]
 
 # AVIATION
 
@@ -1808,8 +1946,6 @@ nodes:
     to_dimensions:
     - id: energy_carrier
     - id: ghg
-    - id: vehicle_type
-      categories: [aviation]
 
 # WASTE
 
@@ -2159,14 +2295,14 @@ nodes:
   unit: t_co2e/a
   input_dimensions: [ghg]
   output_dimensions: [ghg]
-  # output_nodes:
-  # - id: net_emissions
-  #   from_dimensions:
-  #   - id: ghg
-  #     flatten: true
-  #   to_dimensions:
-  #   - id: emission_scope
-  #     categories: [scope1]
+  output_nodes:
+  - id: net_emissions2
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: scope
+      categories: [scope1]
 
 #OLD TRANSPORTATION NODES
 
