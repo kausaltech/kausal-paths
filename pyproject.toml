@@ -78,7 +78,7 @@ dependencies = [
   "strawberry-graphql-django",
   "tzdata",
   "uuid-utils",
-  "uvicorn",
+  "uvicorn[standard]",
   "wagtail<7.0",
   "wagtail-color-panel",
   "wagtail-font-awesome-svg",
@@ -229,18 +229,6 @@ django_settings_module = "paths.settings"
 include-package-data = false
 py-modules = []
 
-[tool.setuptools.dynamic]
-dependencies = { file = [
-  "requirements.txt",
-  "kausal_common/requirements-common.txt",
-] }
-optional-dependencies.dev = { file = [
-  "requirements-dev.txt",
-  "requirements-lint.txt",
-] }
-optional-dependencies.lint = { file = ["requirements-lint.txt"] }
-optional-dependencies.prod = { file = ["requirements-prod.txt"] }
-
 [tool.uv]
 environments = [
   "python_full_version >= '3.13' and sys_platform == 'linux' and platform_machine == 'x86_64'",
@@ -270,7 +258,6 @@ dev = [
   "uv",
   "viztracer",
   {include-group = "lint"},
-  {include-group = "prod"},
 ]
 lint = [
   "celery-types",
@@ -305,5 +292,4 @@ prod = [
   "gunicorn[gthread]",
   "psycopg[c]",
   "uvicorn-worker",
-  "uvicorn[standard]",
 ]

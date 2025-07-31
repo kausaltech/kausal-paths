@@ -1,0 +1,33 @@
+{
+  "name": "kausal-paths",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "mounts": [
+    "type=volume,target=${containerWorkspaceFolder}/.venv"
+  ],
+  "onCreateCommand": "[ -d ${containerWorkspaceFolder}/.venv ] && sudo chown vscode ${containerWorkspaceFolder}/.venv || true",
+  "updateContentCommand": "uv sync",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.defaultInterpreterPath": "${containerWorkspaceFolder}/.venv/bin/python",
+        "python.terminal.activateEnvInCurrentTerminal": true
+      },
+      "extensions": [
+        "ms-toolsai.jupyter",
+        "samuelcolvin.jinjahtml",
+        "tamasfe.even-better-toml",
+        "github.vscode-github-actions",
+        "eamodio.gitlens",
+        "GraphQL.vscode-graphql-syntax",
+        "VisualStudioExptTeam.vscodeintellicode",
+        "ms-python.mypy-type-checker",
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "redhat.vscode-yaml",
+        "johnpapa.vscode-peacock"
+      ]
+    }
+  }
+}
