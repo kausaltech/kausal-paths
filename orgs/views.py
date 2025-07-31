@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from django.db.models import Model
 
 
-class OrganizationCreateView(BaseOrganizationCreateView, PathsCreateView):
+class OrganizationCreateView(BaseOrganizationCreateView, PathsCreateView[Organization]):
 
     def initialize_instance(self, instance: Model) -> None:
         """
