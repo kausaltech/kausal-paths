@@ -2574,6 +2574,7 @@ dependencies = [
     { name = "wagtail-generic-chooser", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "wagtail-grapple", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "wagtail-localize", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
+    { name = "wagtail-modeladmin", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "wagtailgeowidget", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "watchfiles", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "willow", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
@@ -2739,6 +2740,7 @@ requires-dist = [
     { name = "wagtail-generic-chooser" },
     { name = "wagtail-grapple" },
     { name = "wagtail-localize" },
+    { name = "wagtail-modeladmin", specifier = ">=2.2.0" },
     { name = "wagtailgeowidget", specifier = ">=8.2.1" },
     { name = "watchfiles" },
     { name = "willow", specifier = ">=1.9.0" },
@@ -5592,6 +5594,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/6f/80/2a2385da7611b82d65a1f20c2e2c92aa5a11d72c8d5dfa58048978ee81f7/wagtail_localize-1.12.2.tar.gz", hash = "sha256:a2006793571ae35d3118f091f25c5072eb501a30911b17d98fad028162b63902", size = 283749, upload-time = "2025-07-14T15:46:05.149Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ca/1c/59232a830bbe073f3091e03203021a0711424448c3860c20040748939d00/wagtail_localize-1.12.2-py3-none-any.whl", hash = "sha256:42d4a3b6eafac30c87740f8d914da3f9587ec57f934872bde93a42edce449e8e", size = 508608, upload-time = "2025-07-14T15:46:03.295Z" },
+]
+
+[[package]]
+name = "wagtail-modeladmin"
+version = "2.2.0"
+source = { registry = "https://pypi.kausal.tech/" }
+dependencies = [
+    { name = "wagtail", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/44/72/e687aa58e21708655ceaa731586803031385be82eea0876e4268665e8dc4/wagtail_modeladmin-2.2.0.tar.gz", hash = "sha256:41e12f9a79f8c1595fce73bd6b51007422f258089564f9df8e09a82246a8e133", size = 140057, upload-time = "2025-04-25T12:17:26.925Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0b/29/0f5f4e7ce521836092ad878d032410dd7563e1ac2b06af0deb9e19032ef0/wagtail_modeladmin-2.2.0-py3-none-any.whl", hash = "sha256:60ea08b128761b5b6a1cbfe3c8ab828fba13e41ff3d7563a0b8c62c8fe36c4ce", size = 265632, upload-time = "2025-04-25T12:17:25.538Z" },
 ]
 
 [[package]]

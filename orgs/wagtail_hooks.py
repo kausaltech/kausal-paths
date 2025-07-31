@@ -27,6 +27,8 @@ from kausal_common.organizations.views import (
 # from admin_site.wagtail import CondensedInlinePanel
 from kausal_common.people.chooser import PersonChooser
 
+from paths.context import realm_context
+
 from admin_site.panels import TranslatedFieldPanel
 from orgs.views import OrganizationCreateView
 from users.models import User
@@ -327,7 +329,8 @@ class OrganizationViewSet(SnippetViewSet):
         return buttons
 
     def get_queryset(self, request):
-        qs = Organization.objects.qs.available_for_instance(request.user.get_active_instance())
+        active_instance = realm_context.get().realm
+        qs = Organization.objects.qs.available_for_instance(active_instance)
         return qs
 
 # If kausal_watch_extensions is installed, an extended version of the view set is registered there

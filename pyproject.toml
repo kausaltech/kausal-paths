@@ -89,6 +89,7 @@ dependencies = [
   "wagtail-generic-chooser",
   "wagtail-grapple",
   "wagtail-localize",
+  "wagtail-modeladmin>=2.2.0",
   "wagtailgeowidget>=8.2.1",
   "watchfiles",
   "willow>=1.9.0",

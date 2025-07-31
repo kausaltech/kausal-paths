@@ -15,13 +15,13 @@ def test_person_query_set_available_for_instance_unrelated(instance_config):
 
 
 def test_person_query_set_available_for_instance_instance_organization(instance_config):
-    person = PersonFactory(organization=instance_config.organization)
+    person = PersonFactory.create(organization=instance_config.organization)
     assert person in Person.objects.qs.available_for_instance(instance_config)
 
 
 def test_person_query_set_available_for_instance_instance_organization_descendant(instance_config):
     org = OrganizationFactory(parent=instance_config.organization)
-    person = PersonFactory(organization=org)
+    person = PersonFactory.create(organization=org)
     assert person in Person.objects.qs.available_for_instance(instance_config)
 
 # TODO: Add this if we implement related_organizations
@@ -41,8 +41,8 @@ def test_person_query_set_available_for_instance_instance_organization_descendan
 
 
 def test_non_superuser_cannot_get_permissions_to_delete_person_or_deactivate_user(instance_config):
-    normal_user = UserFactory()
-    person = PersonFactory()
+    normal_user = UserFactory.create()
+    person = PersonFactory.create()
 
     assert person.user is not None
     assert person.user.pk is not None
@@ -51,8 +51,8 @@ def test_non_superuser_cannot_get_permissions_to_delete_person_or_deactivate_use
 
 
 def test_superuser_can_get_permissions_to_delete_person_or_deactivate_user(instance_config):
-    superuser = UserFactory(is_superuser=True)
-    person = PersonFactory()
+    superuser = UserFactory.create(is_superuser=True)
+    person = PersonFactory.create()
 
     assert person.user is not None
     assert person.user.pk is not None
@@ -63,6 +63,7 @@ def test_person_change_email_changes_user_email():
     email = 'foo@example.com'
     person = PersonFactory.create(email=email)
     user = person.user
+    assert user is not None
     assert person.email == email
     assert user.email == email
     email = 'bar@example.com'
@@ -78,8 +79,9 @@ def test_person_change_email_resets_password():
     old_email = 'old@example.com'
     new_email = 'new@example.com'
     password = 'foo' # noqa: S105
-    person = PersonFactory(email=old_email)
+    person = PersonFactory.create(email=old_email)
     user = person.user
+    assert user is not None
     user.set_password(password)
     user.save()
     assert user.check_password(password)

@@ -134,8 +134,8 @@ class AdminButtonsMixin:
         if not hasattr(view_set, 'get_index_view_buttons'):
             raise ValueError(f'get_index_view_buttons method not found for view set {view_set.__class__.__name__}')
         user = admin_req(info.context).user
-        instance_config = user.get_active_instance()
-        buttons = view_set.get_index_view_buttons(user, root, instance_config)  # type: ignore[attr-defined]
+        active_instance = info.context.instance_config
+        buttons = view_set.get_index_view_buttons(user, root, active_instance)  # type: ignore[attr-defined]
 
         # TODO: Temporary workaround to support both the new and old attribute
         # name for icon, making the code work for modeladmin code as well. The

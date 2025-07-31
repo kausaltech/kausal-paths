@@ -8,6 +8,9 @@ from wagtail.snippets.views.snippets import SnippetViewSet
 
 from dal_select2.widgets import ModelSelect2
 
+from paths.context import realm_context
+
+from . import chooser  # noqa: F401
 from .models import Person
 
 
@@ -45,7 +48,8 @@ class PersonSnippetViewSet(SnippetViewSet):
         js = ('dal_select2/js/select2.js',)
 
     def get_queryset(self, request):
-        qs = Person.objects.qs.available_for_instance(request.user.get_active_instance())
+        active_instance = realm_context.get().realm
+        qs = Person.objects.qs.available_for_instance(active_instance)
         return qs
 
 
