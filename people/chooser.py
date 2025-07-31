@@ -9,11 +9,13 @@ from kausal_common.people.chooser import (
     PersonModelChooserCreateTabMixin as BasePersonModelChooserCreateTabMixin,
 )
 
+from paths.context import realm_context
+
 
 class PersonChooserMixin(BasePersonChooserMixin):
 
     def get_object_list(self, search_term=None, **kwargs):
-        admin_instance = self.request.user.get_active_instance() # type: ignore[attr-defined]
+        admin_instance = realm_context.get().realm
         object_list = self.get_unfiltered_object_list().available_for_instance(admin_instance)
 
         # Workaround to prevent Wagtail from looking for `path` (from Organization) in the search fields for Person
@@ -27,7 +29,7 @@ class PersonChooserMixin(BasePersonChooserMixin):
 
 class PersonModelChooserCreateTabMixin(BasePersonModelChooserCreateTabMixin):
     def get_initial(self):
-        admin_instance = self.request.user.get_active_instance() # type: ignore[attr-defined]
+        admin_instance = realm_context.get().realm
         return {'instance': admin_instance}
 
 

@@ -11,6 +11,8 @@ from kausal_common.organizations.views import (
 from admin_site.viewsets import PathsCreateView, admin_req
 from orgs.models import Organization
 
+from paths.context import realm_context
+
 if TYPE_CHECKING:
     from django.db.models import Model
 
@@ -62,5 +64,6 @@ class OrganizationIndexView(BaseOrganizationIndexView):
     def get_list_more_buttons(self, instance: Organization):
         assert self.view_set is not None
         user = admin_req(self.request).user
-        active_instance = user.get_active_instance()
+        active_instance = realm_context.get().realm
+
         return self.view_set.get_index_view_buttons(user, instance, active_instance)
