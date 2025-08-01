@@ -16,6 +16,7 @@ from nodes.models import InstanceConfig, NodeConfig
 from nodes.node import Node
 from nodes.scenario import CustomScenario, Scenario, ScenarioKind
 from nodes.simple import SimpleNode
+from orgs.tests.factories import OrganizationFactory
 
 
 class ContextFactory(Factory[Context]):
@@ -78,6 +79,7 @@ class InstanceConfigFactory(DjangoModelFactory[InstanceConfig]):
     lead_title = "lead title"
     lead_paragraph = "Lead paragraph"
     instance: SubFactory[str, Instance] = SubFactory(InstanceFactory, id=SelfAttribute('..identifier'))
+    organization = SubFactory(OrganizationFactory)  # type: ignore[var-annotated]
 
     @classmethod
     def create(cls, **kwargs: Any) -> InstanceConfig:

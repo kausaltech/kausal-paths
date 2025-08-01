@@ -1,8 +1,10 @@
-from factory.django import DjangoModelFactory
 from factory import Sequence
+from factory.django import DjangoModelFactory
+
+from users.models import User
 
 
-class UserFactory(DjangoModelFactory):
+class UserFactory(DjangoModelFactory[User]):
     class Meta:
         model = 'users.User'
         django_get_or_create = ('username',)
