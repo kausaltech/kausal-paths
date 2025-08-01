@@ -188,6 +188,7 @@ module = [
   "wagtail_localize.*",
   "wagtail.*",
   "willow.*",
+  "wagtailgeowidget.*",
 ]
 ignore_missing_imports = true
 
