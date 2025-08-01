@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from rest_framework import exceptions, serializers
 
 from kausal_common.api.bulk import BulkListSerializer, BulkModelViewSet
@@ -12,6 +14,9 @@ from paths import permissions
 
 from nodes.models import InstanceConfig
 from orgs.models import Organization
+
+if TYPE_CHECKING:
+    from rest_framework.permissions import BasePermission
 
 all_views: list[RegisteredAPIView] = []
 
@@ -49,6 +54,7 @@ class OrganizationViewSet(HandleProtectedErrorMixin, BulkModelViewSet):
         return self.bulk_update(request, *args, **kwargs)
 
     def get_permissions(self):
+        permission_classes: list[type[BasePermission]]
         if self.action == 'list':
             permission_classes = [permissions.ReadOnly]
         else:
