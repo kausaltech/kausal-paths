@@ -1402,11 +1402,10 @@ nodes:
   - id: reservoir_stationary_combustion_emissions
   - id: equipment_stationary_combustion_emissions
   - id: other_pw_stationary_combustion_emissions
-  - id: biogas_stationary_combustion_emissions
 
 - id: biogas_stationary_combustion_emissions
-  name: Biogas Stationary Combustion Emissions
-  short_name: Biogas Emissions
+  name: Biogas Stationary Combustion Emissions (Scope 1)
+  color: '#B6992D'
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
@@ -2426,6 +2425,16 @@ nodes:
     from_dimensions:
     - id: emission_source
       flatten: true
+  - id: biosolids_transportation_emissions
+    from_dimensions:
+    - id: asset
+      flatten: true
+  - id: biogas_stationary_combustion_emissions
+    from_dimensions:
+    - id: asset
+      flatten: true
+    - id: energy_carrier
+      flatten: true
 
 # ----- Corporate Waste
 
@@ -2693,11 +2702,6 @@ nodes:
   - id: halton/biosolids_transportation
     column: emissions
     forecast_from: 2024
-  output_nodes:
-  - id: net_emissions
-    from_dimensions:
-    - id: asset
-      flatten: true
 
 # ----- Leased Assets
 
