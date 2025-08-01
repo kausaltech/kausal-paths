@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, cast
+
 from rest_framework import exceptions
 
 from kausal_common.api.bulk import BulkModelViewSet
@@ -11,7 +13,10 @@ from kausal_common.users import user_or_none
 from paths import permissions
 
 from nodes.models import InstanceConfig
-from people.models import Person
+from people.models import Person, PersonQuerySet
+
+if TYPE_CHECKING:
+    from rest_framework.permissions import BasePermission
 
 all_views: list[RegisteredAPIView] = []
 
@@ -37,6 +42,7 @@ class PersonViewSet(ModelWithImageViewMixin, BulkModelViewSet):
         instance.delete_and_deactivate_corresponding_user(acting_admin_user)
 
     def get_permissions(self):
+        permission_classes: list[type[BasePermission]]
         if self.action == 'list':
             permission_classes = [permissions.ReadOnly]
         else:
@@ -73,7 +79,7 @@ class PersonViewSet(ModelWithImageViewMixin, BulkModelViewSet):
         return context
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = cast('PersonQuerySet', super().get_queryset())
         instance = self.get_instance()
         if instance is None:
             return queryset

@@ -13,16 +13,14 @@ from strawberry.types.field import StrawberryField
 
 from paths.graphql_types import AdminButton
 
-from admin_site.viewsets import PathsViewSet, admin_req
 from nodes.instance import Instance
 
 if TYPE_CHECKING:
     from django.db.models import Model
 
-    from kausal_common.graphene import GQLInfo
+    from paths.types import GQLInstanceInfo, PathsGQLInfo
 
-    from paths.types import GQLInstanceInfo
-
+    from admin_site.viewsets import PathsViewSet
     from nodes.context import Context
     from nodes.instance import Instance
 
@@ -121,7 +119,7 @@ class AdminButtonsMixin:
     admin_buttons = graphene.List(graphene.NonNull(AdminButton), required=True)
 
     @staticmethod
-    def resolve_admin_buttons(root: Model, info: GQLInfo) -> list[AdminButton]:
+    def resolve_admin_buttons(root: Model, info: PathsGQLInfo) -> list[AdminButton]:
         if not info.context.user.is_staff:
             return []
 
@@ -133,7 +131,7 @@ class AdminButtonsMixin:
 
         if not hasattr(view_set, 'get_index_view_buttons'):
             raise ValueError(f'get_index_view_buttons method not found for view set {view_set.__class__.__name__}')
-        user = admin_req(info.context).user
+        user = info.context.user
         active_instance = info.context.instance_config
         buttons = view_set.get_index_view_buttons(user, root, active_instance)  # type: ignore[attr-defined]
 
