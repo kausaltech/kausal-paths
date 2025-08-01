@@ -37,7 +37,6 @@ impact_overviews:
   label: Kustannusvaikuttavuus
 
 - graph_type: cost_benefit
-  cost_node: cost_benefit_analysis
   effect_node: cost_benefit_analysis
   indicator_unit: kEUR
   outcome_dimension: cost_benefit
@@ -710,37 +709,7 @@ nodes:
 
 # ----- BUILDING HEATING ------------------------------------------------------
 
-- id: heating_fuel_emission_factors
-  name: Lämmityspolttoaineen päästökerroin
-  name_en: Heating fuel emission factors
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: t_co2e/GWh
-  input_dimensions: [heating, energy_carrier, ghg, scope]
-  output_dimensions: [heating, energy_carrier, ghg, scope]
-  input_datasets:
-  - id: tampere/stationary
-    column: emission_factor
-    dropna: true
-    forecast_from: 2024
-    filters:
-    - column: sector
-      value: i11
-    - column: owner
-    - column: cost_type
-  output_nodes:
-  - id: gas_heating_emissions
-  - id: oil_heating_emissions
-  - id: heating_fuel_emissions_reductions
-    from_dimensions:
-    - id: heating
-      flatten: true
-    to_dimensions:
-    - id: energy_carrier
-    - id: ghg
-    - id: scope
-
-- id: other_heating_emission_factors
+- id: heating_emission_factors
   name: Lämmityspäästökerroin
   name_en: Heating emission factors
   type: simple.AdditiveNode
@@ -755,18 +724,20 @@ nodes:
     forecast_from: 2024
     filters:
     - column: sector
-      value: i12
+      values: [i11, i12]
     - column: owner
     - column: cost_type
   output_nodes:
+  - id: gas_heating_emissions
+  - id: oil_heating_emissions
   - id: direct_electric_heating_emissions
   - id: district_heating_emissions
   - id: geothermal_heating_emissions
   - id: water_to_air_heat_pump_emissions
-  - id: district_heating_emissions_reductions
+  - id: heating_emissions_impacts
     from_dimensions:
     - id: heating
-      categories: [district_heat]
+      categories: [district_heat, fuel_oil, natural_gas]
       flatten: true
     to_dimensions:
     - id: energy_carrier
@@ -1158,6 +1129,35 @@ nodes:
     - id: energy_carrier
     - id: scope
 
+- id: water_to_air_heat_pump_electricity_consumption_price
+  name: Vesi-ilmalämpöpumpun sähkönkulutuksen kustannukset
+  name_en: Water-to-air heat pump electricity consumption cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [heating, energy_carrier, scope, owner, cost_type]
+  output_dimensions: [heating, energy_carrier, scope, owner, cost_type]
+  input_nodes:
+  - id: water_to_air_heat_pump_electricity_consumption
+    to_dimensions:
+    - id: heating
+    - id: energy_carrier
+    - id: scope
+  - id: energy_unit_prices
+    to_dimensions:
+    - id: energy_carrier
+    - id: owner
+    - id: cost_type
+  output_nodes:
+  - id: building_heating_price
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+
 - id: water_to_air_heat_pump_emissions
   name: Vesi-ilmalämpöpumpun päästöt
   name_en: Water-to-air heat pump emissions
@@ -1448,7 +1448,7 @@ nodes:
     - column: cost_type
   output_nodes:
   - id: other_electricity_emissions
-  - id: electricity_emissions_reductions
+  - id: electricity_emissions_impacts
 
 - id: other_electricity_emissions
   name: Muun sähkönkulutuksen päästöt
@@ -1524,6 +1524,7 @@ nodes:
   - id: car_emissions
   - id: truck_emissions
   - id: van_emissions
+  - id: onroad_emissions_impacts
 
 - id: rail_transportation_emission_factors
   name: Rautatieliikenteen päästökertoimet
@@ -1544,6 +1545,10 @@ nodes:
   output_nodes:
   - id: local_train_emissions
   - id: tram_emissions
+  - id: rail_emissions_impacts
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
 
 # ----- Buses
 
@@ -2244,6 +2249,7 @@ nodes:
     - column: heating
   output_nodes:
   - id: energy_cost_reductions
+  - id: energy_cost_increases
 
 - id: carbon_unit_price
   name: Shadow cost of carbon
@@ -2257,6 +2263,11 @@ nodes:
     [2028, 216], [2029, 233], [2030, 250]]
   output_nodes:
   - id: energy_emissions_cost_reductions
+  - id: energy_emissions_cost_increases
+  - id: transport_emissions_cost_reductions
+  - id: transport_emissions_cost_increases
+  - id: emissions_cost_reductions
+  - id: emissions_cost_increases
 
 - id: net_price
   name: Kokonaiskustannus
@@ -2338,6 +2349,8 @@ nodes:
 
 # ----- COSTS & BENEFITS ------------------------------------------------------
 
+# ----- Direct
+
 - id: total_costs
   name: Total costs
   name_en: Total costs
@@ -2409,9 +2422,11 @@ nodes:
   input_dimensions: [cost_benefit]
   output_dimensions: [cost_benefit]
 
-- id: energy_consumption_reductions
-  name: Energy consumption reductions
-  name_en: Energy consumption reductions
+# ----- Energy
+
+- id: energy_consumption_impacts
+  name: Energy consumption impacts
+  name_en: Energy consumption impacts
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
@@ -2419,21 +2434,20 @@ nodes:
   output_dimensions: [energy_carrier]
   output_nodes:
   - id: energy_cost_reductions
+    tags: [make_nonpositive]
     to_dimensions:
     - id: energy_carrier
-  - id: heating_fuel_emissions_reductions
+  - id: energy_cost_increases
+    tags: [make_nonnegative]
+    to_dimensions:
+    - id: energy_carrier
+  - id: heating_emissions_impacts
     from_dimensions:
     - id: energy_carrier
-      categories: [fuel_oil, natural_gas]
+      categories: [district_heat, fuel_oil, natural_gas]
     to_dimensions:
     - id: energy_carrier
-  - id: district_heating_emissions_reductions
-    from_dimensions:
-    - id: energy_carrier
-      categories: [district_heat]
-    to_dimensions:
-    - id: energy_carrier
-  - id: electricity_emissions_reductions
+  - id: electricity_emissions_impacts
     from_dimensions:
     - id: energy_carrier
       categories: [electricity]
@@ -2457,27 +2471,26 @@ nodes:
     - id: owner
     - id: cost_type
 
-- id: heating_fuel_emissions_reductions
-  name: Heating fuel emissions reductions
-  name_en: Heating fuel emissions reductions
+- id: energy_cost_increases
+  name: Energy cost increases
+  name_en: Energy cost increases
   type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: [energy_carrier, ghg, scope]
-  output_dimensions: [energy_carrier, ghg, scope]
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [energy_carrier, owner, cost_type]
+  output_dimensions: [energy_carrier, owner, cost_type]
   output_nodes:
-  - id: energy_emissions_reductions
+  - id: total_costs
     from_dimensions:
     - id: energy_carrier
       flatten: true
-    - id: ghg
-      flatten: true
-    - id: scope
-      flatten: true
+    to_dimensions:
+    - id: owner
+    - id: cost_type
 
-- id: district_heating_emissions_reductions
-  name: District heating emissions reductions
-  name_en: District heating emissions reductions
+- id: heating_emissions_impacts
+  name: Heating fuel emissions impacts
+  name_en: Heating fuel emissions impacts
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
@@ -2485,17 +2498,13 @@ nodes:
   output_dimensions: [energy_carrier, ghg, scope]
   output_nodes:
   - id: energy_emissions_reductions
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    - id: ghg
-      flatten: true
-    - id: scope
-      flatten: true
+    tags: [make_nonpositive]
+  - id: energy_emissions_increases
+    tags: [make_nonnegative]
 
-- id: electricity_emissions_reductions
-  name: Electricity emissions reductions
-  name_en: Electricity emissions reductions
+- id: electricity_emissions_impacts
+  name: Electricity emissions impacts
+  name_en: Electricity emissions impacts
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
@@ -2503,13 +2512,9 @@ nodes:
   output_dimensions: [energy_carrier, ghg, scope]
   output_nodes:
   - id: energy_emissions_reductions
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    - id: ghg
-      flatten: true
-    - id: scope
-      flatten: true
+    tags: [make_nonpositive]
+  - id: energy_emissions_increases
+    tags: [make_nonnegative]
 
 - id: energy_emissions_reductions
   name: Energy emissions reductions
@@ -2517,10 +2522,17 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: []
-  output_dimensions: []
+  input_dimensions: [energy_carrier, ghg, scope]
+  output_dimensions: [energy_carrier, ghg, scope]
   output_nodes:
   - id: energy_emissions_cost_reductions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
 
 - id: energy_emissions_cost_reductions
   name: Energy emissions cost reductions
@@ -2532,6 +2544,183 @@ nodes:
   output_dimensions: []
   output_nodes:
   - id: aggregate_total_benefits
+
+- id: energy_emissions_increases
+  name: Energy emissions increases
+  name_en: Energy emissions increases
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [energy_carrier, ghg, scope]
+  output_dimensions: [energy_carrier, ghg, scope]
+  output_nodes:
+  - id: energy_emissions_cost_increases
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+
+- id: energy_emissions_cost_increases
+  name: Energy emissions cost increases
+  name_en: Energy emissions cost increases
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: []
+  output_dimensions: []
+  output_nodes:
+  - id: aggregate_total_costs
+
+# ----- Mileage
+
+- id: transport_kilometer_impacts
+  name: Kilometer impacts
+  name_en: Kilometer impacts
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  output_nodes:
+  - id: onroad_emissions_impacts
+    from_dimensions:
+    - id: vehicle_type
+      categories: [passenger_cars, buses, motorcycles, trucks, vans]
+    to_dimensions:
+    - id: vehicle_type
+  - id: rail_emissions_impacts
+    from_dimensions:
+    - id: vehicle_type
+      categories: [local_trains, trams]
+    to_dimensions:
+    - id: vehicle_type
+
+- id: onroad_emissions_impacts
+  name: On-road emissions impacts
+  name_en: On-road emissions impacts
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [vehicle_type, ghg, scope]
+  output_dimensions: [vehicle_type, ghg, scope]
+  output_nodes:
+  - id: transport_emissions_reductions
+    tags: [make_nonpositive]
+  - id: transport_emissions_increases
+    tags: [make_nonnegative]
+
+- id: rail_emissions_impacts
+  name: Rail emissions impacts
+  name_en: Rail emissions impacts
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [vehicle_type, ghg, scope]
+  output_dimensions: [vehicle_type, ghg, scope]
+  output_nodes:
+  - id: transport_emissions_reductions
+    tags: [make_nonpositive]
+  - id: transport_emissions_increases
+    tags: [make_nonnegative]
+
+- id: transport_emissions_reductions
+  name: Transport emissions reductions
+  name_en: Transport emissions reductions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [vehicle_type, ghg, scope]
+  output_dimensions: [vehicle_type, ghg, scope]
+  output_nodes:
+  - id: transport_emissions_cost_reductions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+
+- id: transport_emissions_increases
+  name: Transport emissions increases
+  name_en: Transport emissions increases
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [vehicle_type, ghg, scope]
+  output_dimensions: [vehicle_type, ghg, scope]
+  output_nodes:
+  - id: transport_emissions_cost_increases
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+
+- id: transport_emissions_cost_reductions
+  name: Transport emissions cost reductions
+  name_en: Transport emissions cost reductions
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: []
+  output_dimensions: []
+  output_nodes:
+  - id: aggregate_total_benefits
+
+- id: transport_emissions_cost_increases
+  name: Transport emissions cost increases
+  name_en: Transport emissions cost increases
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: []
+  output_dimensions: []
+  output_nodes:
+  - id: aggregate_total_costs
+
+# ----- Emissions
+
+- id: emissions_impacts
+  name: Emissions impacts
+  name_en: Emissions impacts
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: []
+  output_dimensions: []
+  output_nodes:
+  - id: emissions_cost_reductions
+    tags: [make_nonpositive]
+  - id: emissions_cost_increases
+    tags: [make_nonnegative]
+
+- id: emissions_cost_reductions
+  name: Emissions cost reductions
+  name_en: Emissions cost reductions
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: []
+  output_dimensions: []
+  output_nodes:
+  - id: aggregate_total_benefits
+
+- id: emissions_cost_increases
+  name: Emissions cost increases
+  name_en: Emissions cost increases
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: []
+  output_dimensions: []
+  output_nodes:
+  - id: aggregate_total_costs
 
 # ----- TEMPORARY -------------------------------------------------------------
 
@@ -2548,7 +2737,7 @@ nodes:
     value: 1.0
     unit: t_co2e/t
   output_nodes:
-  - id: other_heating_emission_factors
+  - id: heating_emission_factors
     to_dimensions:
     - id: energy_carrier
     - id: ghg
@@ -2911,6 +3100,19 @@ actions:
     - id: vehicle_type
     - id: ghg
     - id: scope
+  - id: emissions_impacts
+    metrics: [emissions]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
   - id: transportation_price
     metrics: [currency]
     from_dimensions:
@@ -2922,8 +3124,22 @@ actions:
     - id: cost_type
     - id: owner
     - id: vehicle_type
+  - id: total_costs
+    metrics: [currency]
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
   - id: total_benefits
     metrics: [currency]
+    tags: [make_nonpositive]
     from_dimensions:
     - id: vehicle_type
       flatten: true
@@ -2996,6 +3212,19 @@ actions:
     - id: vehicle_type
     - id: ghg
     - id: scope
+  - id: emissions_impacts
+    metrics: [emissions]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
   - id: transportation_price
     metrics: [currency]
     from_dimensions:
@@ -3082,6 +3311,10 @@ actions:
     - column: cost_type
   output_nodes:
   - id: car_kilometers
+  - id: transport_kilometer_impacts
+    from_dimensions:
+    - id: scope
+      flatten: true
 
 - id: promoting_walking_and_cycling
   name: Kävelyn ja pyöräilyn edistäminen
@@ -3118,6 +3351,17 @@ actions:
     to_dimensions:
     - id: vehicle_type
     - id: scope
+  - id: transport_kilometer_impacts
+    metrics: [mileage]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
   - id: transportation_price
     metrics: [currency]
     from_dimensions:
@@ -3132,6 +3376,18 @@ actions:
       categories: [passenger_cars]
   - id: total_costs
     metrics: [currency]
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
     from_dimensions:
     - id: vehicle_type
       flatten: true
@@ -3185,6 +3441,10 @@ actions:
     - column: cost_type
   output_nodes:
   - id: car_kilometers
+  - id: transport_kilometer_impacts
+    from_dimensions:
+    - id: scope
+      flatten: true
 
 - id: tramline_3_construction
   name: Ratikan 3 vaihe (2028-2030)
@@ -3237,6 +3497,17 @@ actions:
     - id: scope
     - id: energy_carrier
       categories: [electricity]
+  - id: transport_kilometer_impacts
+    metrics: [mileage]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
   - id: transportation_price
     metrics: [currency]
     from_dimensions:
@@ -3248,6 +3519,18 @@ actions:
     - id: vehicle_type
   - id: total_costs
     metrics: [currency]
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
     from_dimensions:
     - id: vehicle_type
       flatten: true
@@ -3344,7 +3627,7 @@ actions:
     to_dimensions:
     - id: energy_carrier
     - id: scope
-  - id: energy_consumption_reductions
+  - id: energy_consumption_impacts
     metrics: [energy]
     from_dimensions:
     - id: cost_type
@@ -3371,6 +3654,20 @@ actions:
     - id: owner
   - id: total_costs
     metrics: [currency]
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
     from_dimensions:
     - id: heating
       flatten: true
@@ -3461,7 +3758,7 @@ actions:
     - id: heating
     - id: energy_carrier
     - id: scope
-  - id: energy_consumption_reductions
+  - id: energy_consumption_impacts
     metrics: [energy]
     from_dimensions:
     - id: cost_type
@@ -3501,6 +3798,7 @@ actions:
     - id: owner
   - id: total_costs
     metrics: [currency]
+    tags: [make_nonnegative]
     from_dimensions:
     - id: heating
       flatten: true
@@ -3508,13 +3806,12 @@ actions:
       flatten: true
     - id: scope
       flatten: true
-    - id: cost_type
-      categories: [investment]
     to_dimensions:
     - id: cost_type
     - id: owner
   - id: total_benefits
     metrics: [currency]
+    tags: [make_nonpositive]
     from_dimensions:
     - id: heating
       flatten: true
@@ -3522,8 +3819,6 @@ actions:
       flatten: true
     - id: scope
       flatten: true
-    - id: cost_type
-      categories: [operations]
     to_dimensions:
     - id: cost_type
     - id: owner
@@ -3607,7 +3902,7 @@ actions:
     - id: heating
     - id: energy_carrier
     - id: scope
-  - id: energy_consumption_reductions
+  - id: energy_consumption_impacts
     metrics: [energy]
     from_dimensions:
     - id: cost_type
@@ -3660,6 +3955,20 @@ actions:
     - id: owner
   - id: total_costs
     metrics: [currency]
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
     from_dimensions:
     - id: heating
       flatten: true
@@ -3748,7 +4057,7 @@ actions:
     to_dimensions:
     - id: energy_carrier
     - id: scope
-  - id: energy_consumption_reductions
+  - id: energy_consumption_impacts
     metrics: [energy]
     from_dimensions:
     - id: cost_type
@@ -3771,6 +4080,18 @@ actions:
     - id: owner
   - id: total_costs
     metrics: [currency]
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
     from_dimensions:
     - id: energy_carrier
       flatten: true
@@ -3838,7 +4159,7 @@ actions:
     to_dimensions:
     - id: energy_carrier
     - id: scope
-  - id: energy_consumption_reductions
+  - id: energy_consumption_impacts
     metrics: [energy]
     from_dimensions:
     - id: cost_type
@@ -3861,9 +4182,8 @@ actions:
     - id: owner
   - id: total_costs
     metrics: [currency]
+    tags: [make_nonnegative]
     from_dimensions:
-    - id: cost_type
-      categories: ['investment']
     - id: energy_carrier
       flatten: true
     - id: scope
@@ -3873,9 +4193,8 @@ actions:
     - id: owner
   - id: total_benefits
     metrics: [currency]
+    tags: [make_nonpositive]
     from_dimensions:
-    - id: cost_type
-      categories: ['maintenance']
     - id: energy_carrier
       flatten: true
     - id: scope
@@ -3958,7 +4277,7 @@ actions:
     to_dimensions:
     - id: energy_carrier
     - id: scope
-  - id: energy_consumption_reductions
+  - id: energy_consumption_impacts
     metrics: [energy]
     from_dimensions:
     - id: cost_type
@@ -3985,6 +4304,20 @@ actions:
     - id: owner
   - id: total_costs
     metrics: [currency]
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
     from_dimensions:
     - id: heating
       flatten: true
@@ -4073,6 +4406,17 @@ actions:
     to_dimensions:
     - id: ghg
     - id: scope
+  - id: emissions_impacts
+    metrics: [emissions]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
   - id: industry_and_machinery_price
     metrics: [currency]
     from_dimensions:
@@ -4085,6 +4429,18 @@ actions:
     - id: owner
   - id: total_costs
     metrics: [currency]
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
     from_dimensions:
     - id: ghg
       flatten: true
