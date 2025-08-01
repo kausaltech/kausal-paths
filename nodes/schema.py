@@ -429,6 +429,13 @@ class VisualizationGroup(VisualizationEntry):  # type: ignore[override]
 ScenarioKind = graphene.Enum.from_enum(ScenarioKindEnum)
 
 
+@register_strawberry_type
+@sb.type
+class ScenarioValue:
+    scenario: ScenarioType
+    value: float | None
+
+
 class NodeInterface(graphene.Interface):
     id = graphene.ID(required=True)
     name = graphene.String(required=True)
