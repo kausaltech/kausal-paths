@@ -436,6 +436,14 @@ class ScenarioValue:
     value: float | None
 
 
+@register_strawberry_type
+@sb.type
+class MetricDimensionCategoryValue:
+    dimension: MetricDimensionType
+    category: MetricDimensionCategoryType
+    value: float | None
+
+
 class NodeInterface(graphene.Interface):
     id = graphene.ID(required=True)
     name = graphene.String(required=True)

@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
     from nodes.node import Node
     from nodes.scenario import Scenario
-    from nodes.schema import ScenarioValue
+    from nodes.schema import MetricDimensionCategoryValue, ScenarioValue
     from nodes.units import Unit
 
 
@@ -99,24 +99,29 @@ class CurrentProgressBarBlock(ProgressBarBlock):
 
 @register_streamfield_block
 class ScenarioProgressBarBlock(ProgressBarBlock):
-    scenario_identifier = blocks.CharBlock(required=True)  # FIXME: choice block? But where to get the choices?
+    scenario_id = blocks.CharBlock(required=True)  # FIXME: choice block? But where to get the choices?
 
     graphql_fields = ProgressBarBlock.graphql_fields + [
-        GraphQLString('scenario_identifier', required=True),
+        GraphQLString('scenario_id', required=True),
     ]
 
     # TODO Validate that the scenario identifier actually exists in the instance.
     # However, for this we'd need access to the node (from the parent block) here, which seems to be difficult.
 
 
-# class EmissionSourcesVisualizationBlock(blocks.StructBlock):
-#     title = blocks.CharBlock()
-#     # TODO: Other fields
-#     # should normally use net emissions node
-#
-#     graphql_fields = [
-#         GraphQLString('title', required=True),
-#     ]
+@register_streamfield_block
+class DimensionVisualizationBlock(blocks.StructBlock):
+    title = blocks.CharBlock()
+    dimension_id = blocks.CharBlock(required=True)  # FIXME: choice block? But where to get the choices?
+    # Actually dimension_id refers to the "original ID" of the dimension
+
+    # TODO Validate that the dimension id actually exists in the instance.
+    # However, for this we'd need access to the node (from the parent block) here, which seems to be difficult.
+
+    graphql_fields = [
+        GraphQLString('title', required=True),
+        GraphQLString('dimension_id', required=True),
+    ]
 
 
 @register_streamfield_block
@@ -144,7 +149,9 @@ class DashboardCardBlock(blocks.StructBlock):
         ('reference_progress_bar', ReferenceProgressBarBlock()),
         ('current_progress_bar', CurrentProgressBarBlock()),
         ('scenario_progress_bar', ScenarioProgressBarBlock()),
-        # ('emission_sources', EmissionSourcesVisualizationBlock()),
+        ('dimension', DimensionVisualizationBlock(
+            label=_("Dimension visualization"), help_text=_("Visualize the categories of a dimension")
+        )),
     ])
     call_to_action = CallToActionBlock()
 
@@ -158,6 +165,12 @@ class DashboardCardBlock(blocks.StructBlock):
         GraphQLFloat('reference_year_value', required=False),
         GraphQLFloat('last_historical_year_value', required=False),
         GraphQLField('scenario_values', 'nodes.schema.ScenarioValue', is_list=True, required=True),  # pyright: ignore
+        GraphQLField(
+            'metric_dimension_category_values',
+            'nodes.schema.MetricDimensionCategoryValue',  # pyright: ignore
+            is_list=True,
+            required=False,  # can be null if there is no historical data
+        ),
         GraphQLStreamfield('visualizations', required=True),
         GraphQLBlockField('call_to_action', CallToActionBlock, is_list=False, required=True),
     ]
@@ -221,11 +234,8 @@ class DashboardCardBlock(blocks.StructBlock):
     def last_historical_year_value(self, info: GQLInstanceInfo, values: dict) -> float | None:
         node = self.node(info, values)
         dm  = self._dimensional_metric(node)
-        if dm.forecast_from is None:
-            return None
-        try:
-            last_historical_year = max(y for y in dm.years if y < dm.forecast_from)
-        except ValueError:  # no historical years, or forecast_from is None
+        last_historical_year = self._last_historical_year(dm)
+        if last_historical_year is None:
             return None
         return self._value_for_year(node, last_historical_year)
 
@@ -243,6 +253,39 @@ class DashboardCardBlock(blocks.StructBlock):
             )
             for s in node.context.scenarios.values()
         ]
+
+    def metric_dimension_category_values(
+        self, info: GQLInstanceInfo, values: dict
+    ) -> Iterable[MetricDimensionCategoryValue] | None:
+        """
+        Return the value for each dimension and each category for the node's target year.
+
+        Returns None if there is no historical data.
+        """
+        from nodes.schema import MetricDimensionCategoryValue
+        node = self.node(info, values)
+        dm = self._dimensional_metric(node)
+        year = self._last_historical_year(dm)
+        if year is None:
+            return None
+        result = []
+        df = dm.to_df()
+        df = df.filter(pl.col(YEAR_COLUMN) == year)
+        for dimension in dm.dimensions:
+            for category in dimension.categories:
+                cat_df = df.copy()
+                cat_df = cat_df.filter(pl.col(dimension.original_id) == category.original_id)
+                cat_df = cat_df.paths.sum_over_dims()  # may sum over categories from other dimensions
+                if cat_df.is_empty():
+                    continue  # Can this be? Handle this better?
+                assert len(cat_df) == 1
+                value = cat_df.item(0, VALUE_COLUMN)
+                result.append(MetricDimensionCategoryValue(
+                    dimension=dimension,  # pyright: ignore[reportArgumentType]
+                    category=category,  # pyright: ignore[reportArgumentType]
+                    value=value,
+                ))
+        return result
 
     def _dimensional_metric(self, node: Node, scenario: Scenario | None = None) -> DimensionalMetric:
         context = scenario.override() if scenario else nullcontext()
@@ -274,3 +317,12 @@ class DashboardCardBlock(blocks.StructBlock):
             return None
         assert len(df) == 1
         return df.item(0, VALUE_COLUMN)
+
+    def _last_historical_year(self, dimensional_metric: DimensionalMetric) -> int | None:
+        dm = dimensional_metric
+        if dm.forecast_from is None:
+            return None
+        try:
+            return max(y for y in dm.years if y < dm.forecast_from)
+        except ValueError:  # no historical years, or forecast_from is None
+            return None
