@@ -148,6 +148,8 @@ def print_db_datasets():
             elif isinstance(ds, DVCDataset):
                 dvc_datasets.setdefault(ds.id, (ds, []))[1].append(node)
     print('Datasets in use:')
+    commit = context.dataset_repo.target_commit_id
+    print(f"Commit: {commit}")
     table = Table()
     table.add_column('Source')
     table.add_column('Dataset ID')
