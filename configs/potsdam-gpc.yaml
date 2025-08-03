@@ -701,7 +701,8 @@ nodes:
 ##### COSTS
 
 - id: energy_prices
-  name: Energy prices
+  name_de: Energiepreise
+  name_en: Energy prices
   type: generic.GenericNode
   quantity: unit_price
   unit: EUR/MWh
@@ -713,7 +714,7 @@ nodes:
 
 
 - id: total_energy_costs
-  name: Endenergiekosten Gesamt
+  name_de: Endenergiekosten Gesamt
   name_en: Final Energy Costs Over All Sectors
   type: generic.GenericNode
   quantity: currency
