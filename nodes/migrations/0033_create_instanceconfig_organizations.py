@@ -1,5 +1,4 @@
-import django.db.models.deletion
-from django.db import migrations, models
+from django.db import migrations
 from treebeard.mp_tree import MP_Node
 
 
@@ -22,15 +21,9 @@ def create_dummy_organizations(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('nodes', '0031_alter_nodeconfig_color'),
-        ('orgs', '0002_organizationmetadataadmin_and_more'),
+        ('nodes', '0032_add_instanceconfig_organization'),
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='instanceconfig',
-            name='organization',
-            field=models.ForeignKey(null=True, blank=True, on_delete=django.db.models.deletion.PROTECT, to='orgs.organization'),
-        ),
         migrations.RunPython(create_dummy_organizations),
     ]
