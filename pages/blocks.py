@@ -11,7 +11,7 @@ from wagtail.images.blocks import ImageChooserBlock
 
 import polars as pl
 from grapple.helpers import register_streamfield_block
-from grapple.models import GraphQLField, GraphQLFloat, GraphQLStreamfield, GraphQLString
+from grapple.models import GraphQLField, GraphQLFloat, GraphQLImage, GraphQLStreamfield, GraphQLString
 from wagtail_color_panel.blocks import NativeColorBlock
 
 from nodes.blocks import NodeChooserBlock
@@ -158,7 +158,7 @@ class DashboardCardBlock(blocks.StructBlock):
     graphql_fields = [
         GraphQLString('title', required=True),
         GraphQLString('description'),
-        GraphQLString('image'),
+        GraphQLImage('image'),
         GraphQLField('node', 'nodes.schema.NodeType', required=True),  # pyright: ignore
         GraphQLField('unit', 'paths.schema.UnitType', required=True),  # pyright: ignore
         GraphQLFloat('goal_value', required=False),
