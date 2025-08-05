@@ -301,7 +301,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     l_methanol = 15.6 MJ
     kg_wood = 18.0 MJ
     kg_peat = 12.8 MJ
-    """  # noqa: N806
+    """
 
     for line in DEFINITIONS.strip().splitlines():
         s = line.strip()
@@ -401,6 +401,7 @@ def add_unit_translations():  # noqa: C901
         {'unit': 'metric_ton', 'long': _('tonnes'), 'short': 't'},
         {'unit': 'megametric_ton', 'long': _('megatonnes'), 'short': _('Mt')},
         {'unit': 't_ha', 'long': _('1000 hectares'), 'short': '1000 ha'},
+        {'unit': 'megavkm', 'long': _('Million vehicle-km'), 'short': 'M vkm'},
     ]
     #set_one('cap', pgettext_lazy('capita short', 'cap'))
 

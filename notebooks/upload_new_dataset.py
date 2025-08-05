@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import argparse
 import os
 import re
-import sys
 import warnings
+
+# from pathlib import Path
 from typing import Any
 
+# import chardet
 import dvc_pandas
 import polars as pl
 from dotenv import load_dotenv
@@ -25,10 +28,19 @@ def to_snake_case(string: str) -> str:
     return s
 
 
-def load_data(file_path: str, separator: str) -> pl.DataFrame:
+def load_data(file_path: str, separator: str, encoding: str) -> pl.DataFrame:
     """Load CSV data from file."""
-    return pl.read_csv(file_path, separator=separator, infer_schema_length=1000)
+    # return pl.read_csv(file_path, separator=separator, infer_schema_length=1000)
 
+    try:
+        print(f"trying {encoding}")
+        return pl.read_csv(file_path, separator=separator,
+                            infer_schema_length=1000, encoding=encoding)
+    except pl.exceptions.ComputeError as e:
+        print(f"encooding {encoding} failed.")
+        print(e)
+
+    raise Exception(f"Could not read {file_path} with any encoding")
 
 def validate_required_columns(df: pl.DataFrame) -> None:
     """Validate that required columns exist in the dataframe."""
@@ -38,75 +50,76 @@ def validate_required_columns(df: pl.DataFrame) -> None:
     if missing_columns:
         raise ValueError(f"Missing required columns: {', '.join(missing_columns)}")
 
-    if not any(col in df.columns for col in ['Metric Group', 'Metric', 'Sector']):
-        raise ValueError("Missing metric group column. Dataset must contain either 'Metric Group', 'Metric', or 'Sector' column.")
+    if not any(col in df.columns for col in ['Metric', 'Sector']):
+        raise ValueError("Missing metric column. Dataset must contain either 'Metric', or 'Sector' column.")
 
 
-def determine_metric_group_column(df: pl.DataFrame) -> str:
+def determine_metric_column(df: pl.DataFrame) -> str:
     """Determine which column to use for metrics."""
-    if 'Metric Group' in df.columns:
-        return 'Metric Group'
     if 'Metric' in df.columns:
         return 'Metric'  # backward compatibility
     if 'Sector' in df.columns:
         return 'Sector'  # legacy support
     if 'sector' in df.columns:
         return 'sector'  # legacy support
-    raise ValueError("No metric group column found. DataFrame must contain 'Metric Group', 'Metric', or 'Sector' column.")
+    raise ValueError("No metric column found. DataFrame must contain 'Metric', or 'Sector' column.")
 
 
-def create_metric_col(df: pl.DataFrame, metric_group: str) -> pl.DataFrame:
+def create_metric_col(df: pl.DataFrame, metric_col: str) -> pl.DataFrame:
     """
-    Create metric labels from metric group and quantity.
+    Create metric labels from metric and quantity.
 
     Uses the simplest combination of columns that maintains uniqueness.
     """
     # Get the full unique count with all columns
-    full_unique = df.select([metric_group, 'Quantity', 'Unit']).unique()
-    full_count = len(full_unique)
+    if metric_col != 'Metric':
+        df.rename({metric_col: 'Metric'})
+    unique_metrics = df.select(['Metric', 'Quantity', 'Unit']).unique()
+    if len(unique_metrics) != len(df.select('Metric').unique()):
+        raise ValueError(f"Column {metric_col} contains duplicate values. Please check the data.")
 
-    # Try combinations in order of simplicity
-    cols_to_use = [metric_group]
-    if len(df.select(cols_to_use).unique()) != full_count:
-        cols_to_use.append('Quantity')
-        if len(df.select(cols_to_use).unique()) != full_count:
-            cols_to_use.append('Unit')
+    # # Try combinations in order of simplicity
+    # cols_to_use = [metric_col]
+    # if len(df.select(cols_to_use).unique()) != full_count:
+    #     cols_to_use.append('Quantity')
+    #     if len(df.select(cols_to_use).unique()) != full_count:
+    #         cols_to_use.append('Unit')
 
-    # Create the label by joining the selected columns with spaces
-    df = df.with_columns(
-        pl.concat_str([
-            pl.col(col)
-            for col in cols_to_use
-        ], separator=" ").alias('metric_col')
-    ).drop(metric_group)
+    # # Create the label by joining the selected columns with spaces
+    # df = df.with_columns(
+    #     pl.concat_str([
+    #         pl.col(col)
+    #         for col in cols_to_use
+    #     ], separator=" ").alias('metric_col')
+    # ).drop(metric_col)
 
     # Convert metric_col to snake_case
-    df = df.with_columns(
-        pl.col('metric_col').map_elements(to_snake_case, return_dtype=pl.Utf8).alias('metric_col')
-    )
+    df = df.with_columns([
+        pl.col('Metric').map_elements(to_snake_case, return_dtype=pl.Utf8).alias('metric_col')
+    ])
 
     return df
 
 
-def split_by_slice(df: pl.DataFrame) -> dict[str, pl.DataFrame]:
-    """Split the dataframe into separate dataframes by Slice."""
-    slices = {}
+def split_by_dataset(df: pl.DataFrame) -> dict[str, pl.DataFrame]:
+    """Split the dataframe into separate dataframes by Dataset."""
+    datasets = {}
 
-    if 'Slice' in df.columns:
-        unique_slices = df.select('Slice').unique().to_series(0).to_list()
+    if 'Dataset' in df.columns:
+        unique_datasets = df.select('Dataset').unique().to_series(0).to_list()
     else:
-        raise ValueError("If specific_slice is not defined, there must be column Slice.")
+        raise ValueError("If specific_dataset is not defined, there must be column Dataset.")
 
-    for slice_name in unique_slices:
-        if slice_name is not None:
-            slice_df = df.filter(pl.col('Slice') == slice_name).drop('Slice')
-            slices[slice_name] = slice_df
-            print(f"Created dataset for slice: {slice_name} with {len(slice_df)} rows")
+    for dataset_name in unique_datasets:
+        if dataset_name is not None:
+            dataset_df = df.filter(pl.col('Dataset') == dataset_name).drop('Dataset')
+            datasets[dataset_name] = dataset_df
+            print(f"Created dataset for dataset: {dataset_name} with {len(dataset_df)} rows")
 
-    return slices
+    return datasets
 
 
-def extract_units(df: pl.DataFrame, slice_name: str) -> dict:
+def extract_units(df: pl.DataFrame, dataset_name: str) -> dict:
     """Extract units from the dataframe using metric labels."""
     units = {}
 
@@ -153,7 +166,7 @@ def extract_units_from_row(df: pl.DataFrame) -> tuple[dict, pl.DataFrame]:
     ])
     return units, df_cleaned
 
-def extract_description(df: pl.DataFrame, slice_name: str) -> str | None:
+def extract_description(df: pl.DataFrame, dataset_name: str) -> str | None:
     """Extract description from the dataframe."""
     description = None # FIXME Does not show up in admin UI.
     if 'Description' in df.columns:
@@ -192,15 +205,16 @@ def extract_metrics(df: pl.DataFrame, language: str) -> list:
     metrics = []
 
     # Use the already created metric labels
-    unique_metrics = df.select(['metric_col', 'Quantity']).unique()
+    unique_metrics = df.select(['metric_col', 'Metric', 'Quantity']).unique()
 
     for row in unique_metrics.iter_rows(named=True):
-        metric_name = row['metric_col']
+        metric_id = row['metric_col']
+        metric_name = row['Metric']
         quantity = row['Quantity']
 
         if metric_name and quantity:
             metrics.append({
-                "id": to_snake_case(metric_name),
+                "id": to_snake_case(metric_id),
                 "quantity": to_snake_case(quantity),
                 "label": {language: metric_name},
             })
@@ -211,7 +225,7 @@ def extract_metrics(df: pl.DataFrame, language: str) -> list:
 def clean_dataframe(df: pl.DataFrame) -> pl.DataFrame:
     """Remove metadata columns and empty columns."""
     # 1. Drop metadata columns that are now in metadata but keep CompoundID
-    metadata_columns = ['Unit', 'Description']
+    metadata_columns = ['Unit', 'Description', 'Metric']
     for col in metadata_columns:
         if col in df.columns:
             df = df.drop(col)
@@ -281,7 +295,7 @@ def pivot_by_compound_id(df: pl.DataFrame) -> pl.DataFrame:
     # Ensure no null metric labels
     df = df.with_columns(
         pl.when(pl.col('metric_col').is_null())
-          .then(pl.lit("unknown"))
+          .then(pl.lit('Value'))
           .otherwise(pl.col('metric_col'))
           .alias('metric_col')
     )
@@ -296,6 +310,17 @@ def pivot_by_compound_id(df: pl.DataFrame) -> pl.DataFrame:
             UserWarning,
             stacklevel=2
         )
+
+    # Check for duplicates in the combination of index + pivot columns
+    duplicate_check_cols = dim_cols + ["metric_col"]
+    duplicates_mask = df.select(duplicate_check_cols).is_duplicated()
+
+    if duplicates_mask.any():
+        print("Duplicates found:")
+        duplicates = df.filter(duplicates_mask)
+        print(duplicates)
+        print(duplicates.columns)
+        raise ValueError("Stopping execution due to unexpected duplicates")
 
     result_df = df.pivot(
         values="Value",
@@ -319,16 +344,20 @@ def prepare_for_dvc(df: pl.DataFrame, units: dict) -> pl.DataFrame:
     columns = df.columns
     metrics = list(units.keys())
     new_columns = [col if col in metrics + ['Year'] else to_snake_case(col) for col in columns]
+    print(columns, new_columns)
 
     # Rename columns
     df = df.rename(dict(zip(columns, new_columns, strict=False)))
 
     # Convert string values in columns to snake case
-    for col in new_columns:
+    cols = [col for col in new_columns if col not in ['metric']]
+    for col in cols:
         if col not in metrics + ['Year']:
             if df[col].dtype != pl.Utf8:
                 print(df)
+                print(units)
                 raise ValueError(f"Column {col} does not contain strings.")
+            print('column to convert', col)
             df = df.with_columns(
                 pl.col(col).map_elements(to_snake_case, return_dtype=pl.Utf8).alias(col)
             )
@@ -336,19 +365,19 @@ def prepare_for_dvc(df: pl.DataFrame, units: dict) -> pl.DataFrame:
     return df
 
 
-def save_to_csv(df: pl.DataFrame, file_path: str, slice_name: str) -> None:
+def save_to_csv(df: pl.DataFrame, file_path: str, dataset_name: str) -> None:
     """Save dataframe to CSV if a path is provided."""
     if file_path.upper() not in ['N', 'NONE']:
-        # Create a unique filename for each slice
+        # Create a unique filename for each dataset
         file_name, file_ext = os.path.splitext(file_path)  # noqa: PTH122
-        slice_file_path = f"{file_name}_{to_snake_case(slice_name)}{file_ext}"
+        dataset_file_path = f"{file_name}_{to_snake_case(dataset_name)}{file_ext}"
 
-        df.write_csv(slice_file_path)
+        df.write_csv(dataset_file_path)
         print(df)
-        print(f'Data saved to {slice_file_path}')
+        print(f'Data saved to {dataset_file_path}')
 
 
-def push_to_dvc(df: pl.DataFrame, output_path: str, slice_name: str,
+def push_to_dvc(df: pl.DataFrame, output_path: str, dataset_name: str,
                 units: dict, description: str | None, metrics: list,
                 language: str) -> None:
     """Push dataset to DVC repository."""
@@ -360,8 +389,8 @@ def push_to_dvc(df: pl.DataFrame, output_path: str, slice_name: str,
 
     # Build metadata
     metadata: dict[str, Any] = {
-        'name': {language: slice_name},
-        'identifier': to_snake_case(slice_name),
+        'name': {language: dataset_name},
+        'identifier': to_snake_case(dataset_name),
     }
     if description:
         metadata['description'] = {language: description}
@@ -406,26 +435,31 @@ def push_to_dvc(df: pl.DataFrame, output_path: str, slice_name: str,
     print(f'Dataset pushed to DVC at {output_path}')
 
 
-def process_slice(df: pl.DataFrame, slice_name: str, outcsvpath: str, outdvcpath: str, language: str) -> None:
-    """Process a single slice of data."""
-    print(f"\n==== Processing slice: {slice_name} ====")
+def process_dataset(df: pl.DataFrame, dataset_name: str, outcsvpath: str, outdvcpath: str, language: str) -> None:
+    """Process a single dataset of data."""
+    print(f"\n==== Processing dataset: {dataset_name} ====\n")
+
+    if len(df) == 0:
+        print(f"Dataset {dataset_name} has no data. Skipping.")
+        return
 
     # 1. Validate required columns
     validate_required_columns(df)
 
     # 2. Determine which column to use for metrics
-    metric_group = determine_metric_group_column(df)
-    print(f"Using '{metric_group}' as the metric group column")
+    metric_col = determine_metric_column(df)
+    print(f"Using '{metric_col}' as the metric column.")
 
     # 3. Create metric labels
-    df = create_metric_col(df, metric_group)
+    df = create_metric_col(df, metric_col)
 
     # 4. Extract metadata using metric labels
-    units = extract_units(df, slice_name)
+    units = extract_units(df, dataset_name)
     metrics = extract_metrics(df, language)
-    description = extract_description(df, slice_name)
+    description = extract_description(df, dataset_name)
     print(f"Units: {units}")
     print(f"Metrics: {len(metrics)} entries")
+    print(metrics)
     if description:
         print("Description extracted")
 
@@ -449,52 +483,93 @@ def process_slice(df: pl.DataFrame, slice_name: str, outcsvpath: str, outdvcpath
     df = prepare_for_dvc(df, units)
 
     # 10. Save to CSV if requested
-    save_to_csv(df, outcsvpath, slice_name)
+    save_to_csv(df, outcsvpath, dataset_name)
 
     # 11. Push to DVC if requested
-    slice_dvc_path = f"{outdvcpath}/{to_snake_case(slice_name)}"
-    push_to_dvc(df, slice_dvc_path, slice_name, units, description, metrics, language)
+    dataset_dvc_path = f"{outdvcpath}/{to_snake_case(dataset_name)}"
+    push_to_dvc(df, dataset_dvc_path, dataset_name, units, description, metrics, language)
 
 
 def main():
-    """Process and convert data for all slices."""
+    """Process and convert data for all datasets."""
     load_dotenv()
 
-    # Get command line arguments
-    incsvpath = sys.argv[1]
-    incsvsep = sys.argv[2]
-    outcsvpath = sys.argv[3]
-    outdvcpath = sys.argv[4]
-    language = sys.argv[5]
-    specific_slice = sys.argv[6] if len(sys.argv) > 6 else None
+    # Set up argument parser
+    parser = argparse.ArgumentParser(description="Process and convert data for all datasets")
+
+    # Required arguments
+    parser.add_argument('--input-csv', '-i',
+                       required=True,
+                       help='Input CSV file path')
+
+    parser.add_argument('--output-dvc', '-d',
+                       required=True,
+                       help='Output DVC file path')
+
+    # Arguments with defaults
+    parser.add_argument('--output-csv', '-o',
+                       required=False,
+                       default='NONE',
+                       help='Output CSV file path')
+
+    parser.add_argument('--csv-separator', '-s',
+                       default=',',
+                       choices=[',', ';', '\t', '|'],
+                       help='CSV separator (default: comma)')
+
+    parser.add_argument('--encoding',
+                        default='utf-8',
+                        choices=['utf-8', 'cp1252', 'latin-1'],
+                        help='CSV file encoding (default: utf-8)')
+
+    parser.add_argument('--language', '-l',
+                       default='en',
+                       help='Language code (default: en)')
+
+    parser.add_argument('--dataset',
+                       default=None,
+                       help='Process only specific dataset (optional)')
+
+    # Parse arguments
+    args = parser.parse_args()
+
+    # Use the parsed arguments
+    incsvpath = args.input_csv
+    incsvsep = args.csv_separator
+    outcsvpath = args.output_csv
+    outdvcpath = args.output_dvc
+    language = args.language
+    specific_dataset = args.dataset
+    encoding = args.encoding
 
     # Load data
-    full_df = load_data(incsvpath, incsvsep)
+    full_df = load_data(incsvpath, incsvsep, encoding)
 
-    # Process slices
-    if specific_slice:
-        if specific_slice == 'plain_csv':
+    # Process datasets
+    if specific_dataset:
+        if specific_dataset == 'plain_csv':
             print("Uploading the csv file as is, but checking for units.")
             units, full_df = extract_units_from_row(full_df)
             push_to_dvc(full_df, outdvcpath, '', units, None, [], language)
-        elif specific_slice == 'csv_w_standard_dims': # TODO Metadata gets lost
+        elif specific_dataset == 'csv_w_standard_dims': # TODO Metadata gets lost
             print("Uploading the csv file with standard dimensions.")
             mappings = load_yaml_mappings()
             full_df = replace_labels_with_ids(full_df, mappings)
             save_to_csv(full_df, outcsvpath, '')
             push_to_dvc(full_df, outdvcpath, '', {}, None, [], language)
         else:
-            # Process only the specified slice
-            print(f"Processing only slice: {specific_slice}")
-            slice_df = full_df.filter(pl.col('Slice') == specific_slice).drop('Slice') if 'Slice' in full_df.columns else full_df
-            process_slice(slice_df, specific_slice, outcsvpath, outdvcpath, language)
+            # Process only the specified
+            print(f"Processing only dataset: {specific_dataset}")
+            d = 'Dataset'
+            dataset_df = full_df.filter(pl.col(d) == specific_dataset).drop(d) if d in full_df.columns else full_df
+            process_dataset(dataset_df, specific_dataset, outcsvpath, outdvcpath, language)
     else:
-        # Process all slices
-        slice_dfs = split_by_slice(full_df)
-        print(f"Found {len(slice_dfs)} slices to process")
+        # Process all datasets
+        dataset_dfs = split_by_dataset(full_df)
+        print(f"Found {len(dataset_dfs)} datasets to process")
 
-        for slice_name, slice_df in slice_dfs.items():
-            process_slice(slice_df, slice_name, outcsvpath, outdvcpath, language)
+        for dataset_name, dataset_df in dataset_dfs.items():
+            process_dataset(dataset_df, dataset_name, outcsvpath, outdvcpath, language)
 
 
 if __name__ == "__main__":
