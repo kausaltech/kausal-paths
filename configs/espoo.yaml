@@ -4,7 +4,7 @@ supported_languages: [sv, en]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 42fc57a41b6a4c0dcc3829460ec46ce99e99f344
+  commit: 830cc1df5616f8171f3bb4f2fc88cd65946e1c4d
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -1737,33 +1737,18 @@ actions:
   name_fi: Maatalouden päästöt pienenevät
   name_en: Agriculture emissions are reduced
   name_sv: Utsläppen från jordbruket minskar
-  description_fi: Pessimistinessä skenaariossa päästöjen oletetaan pysyvän 
-    muuttumattomana aikavälillä 2021-2035. Suomi 2035 - ja HNE2030-skenaarioissa
-    päästöjen oletetaan laskevan 11 prosenttia vuoden 2020 tasosta vuoteen 2035 
-    mennessä. Muutos sijoitetaan peltojen päästöihin, joka on suurin osasektori.
-  description_en: In the pessimistic scenario, emissions are expected to remain 
-    unchanged between 2021 and 2035. In the Finland 2035 and Carbon-neutral 
-    Espoo 2030 scenarios, emissions are expected to decrease by 11% from the 
-    2020 level by 2035.
-  description_sv: I det pessimistiska scenariot antas utsläppen förbli 
-    oförändrade under perioden 2021–2035. I scenarierna Finland 2035 och HNE2030
-    antas utsläppen sjunka med 11 procent jämfört med nivån 2020 fram till 2035.
-  type: simple.LinearCumulativeAdditiveAction
-  quantity: emissions
-  unit: kt/a
+  type: simple.GenericAction
+  quantity: fraction
+  unit: '%'
   group: other
-  forecast_values: [[2024, 0.0], [2035, 0.0]]
   output_nodes:
   - id: agriculture_emissions
-    to_dimensions:
-    - id: economic_sector
-      categories: [field_farming]
-  params:
-  - id: target_year_level
-    value: -0.1079092776
-    min_value: -0.2
-    max_value: 0
-    is_visible: false
+    tags: [arithmetic_inverse, complement, non_additive]
+    to_dimensions: []
+  input_datasets:
+  - id: espoo/maatalouden_toimet
+    tags: [baseline]
+    column: maatalouden_paastovahennys
 
 - id: reduce_machinery_emissions
   name_fi: Teollisuuden ja työkoneiden päästöt pienenevät
