@@ -2248,17 +2248,6 @@ nodes:
   unit: EUR/kWh
   input_dimensions: [energy_carrier, owner, cost_type]
   output_dimensions: [energy_carrier, owner, cost_type]
-  input_datasets:
-  - id: tampere/stationary
-    column: unit_price
-    dropna: true
-    forecast_from: 2024
-    filters:
-    - column: sector
-      value: i
-    - column: scope
-    - column: ghg
-    - column: heating
   output_nodes:
   - id: energy_cost_reductions
     to_dimensions:
@@ -4732,6 +4721,132 @@ actions:
     forecast_from: 2024
   output_nodes:
   - id: reduce_electricity_emission_factors
+
+- id: parameter_district_heating_price
+  name: Kaukolämmön hinta
+  name_en: District heating price
+  type: simple.ParameterAction
+  group: parameters
+  unit: EUR/MWh
+  quantity: unit_price
+  input_dimensions: []
+  output_dimensions: []
+  params:
+  - id: from_value
+    value: 93.9
+    min_value: 90.0
+    max_value: 110.0
+    step: 0.1
+    unit: EUR/MWh
+    description: Kaukolämmön hinta
+    description_en: District heating price
+  - id: percent_change
+    value: 1.0
+    min_value: -5.0
+    max_value: 5.0
+    step: 0.1
+    unit: '%/a'
+    description: Hinnan muutos
+    description_en: Price change
+  - id: default_value
+    value: 93.9
+    unit: EUR/MWh
+  - id: default_change
+    value: 1.0
+    unit: '%/a'
+  output_nodes:
+  - id: energy_unit_prices
+    to_dimensions:
+    - id: energy_carrier
+      categories: [district_heat]
+    - id: owner
+      categories: [private]
+    - id: cost_type
+      categories: [energy]
+
+- id: parameter_electricity_price
+  name: Sähkön hinta
+  name_en: Electricity price
+  type: simple.ParameterAction
+  group: parameters
+  unit: EUR/kWh
+  quantity: unit_price
+  input_dimensions: []
+  output_dimensions: []
+  params:
+  - id: from_value
+    value: 0.18
+    min_value: 0.05
+    max_value: 0.4
+    step: 0.01
+    unit: EUR/kWh
+    description: Sähkön hinta
+    description_en: Electricity price
+  - id: percent_change
+    value: 1.0
+    min_value: -5.0
+    max_value: 5.0
+    step: 0.1
+    unit: '%/a'
+    description: Hinnan muutos
+    description_en: Price change
+  - id: default_value
+    value: 0.18
+    unit: EUR/kWh
+  - id: default_change
+    value: 1.0
+    unit: '%/a'
+  output_nodes:
+  - id: energy_unit_prices
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: owner
+      categories: [private]
+    - id: cost_type
+      categories: [energy]
+
+- id: parameter_oil_price
+  name: Öljyn hinta
+  name_en: Oil price
+  type: simple.ParameterAction
+  group: parameters
+  unit: EUR/kWh
+  quantity: unit_price
+  input_dimensions: []
+  output_dimensions: []
+  params:
+  - id: from_value
+    value: 0.145
+    min_value: 0.1
+    max_value: 0.2
+    step: 0.01
+    unit: EUR/kWh
+    description: Öljyn hinta
+    description_en: Oil price
+  - id: percent_change
+    value: 1.0
+    min_value: -5.0
+    max_value: 5.0
+    step: 0.1
+    unit: '%/a'
+    description: Hinnan muutos
+    description_en: Price change
+  - id: default_value
+    value: 0.145
+    unit: EUR/kWh
+  - id: default_change
+    value: 1.0
+    unit: '%/a'
+  output_nodes:
+  - id: energy_unit_prices
+    to_dimensions:
+    - id: energy_carrier
+      categories: [fuel_oil]
+    - id: owner
+      categories: [private]
+    - id: cost_type
+      categories: [energy]
 
 # - id: streetlight_replacement_action
 #   name: Streetlight Replacement Detailed Action
