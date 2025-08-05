@@ -13,6 +13,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='instanceconfig',
             name='organization',
-            field=models.ForeignKey(null=True, blank=True, on_delete=django.db.models.deletion.PROTECT, to='orgs.organization'),
+            field=models.ForeignKey(help_text='The main organization for the instance', null=True, on_delete=django.db.models.deletion.PROTECT, related_name='instances', to='orgs.organization', verbose_name='organization'),
+
         ),
     ]

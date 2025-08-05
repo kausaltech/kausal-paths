@@ -239,8 +239,8 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     lead_paragraph_i18n: str | None
     site_url = models.URLField(verbose_name=_('Site URL'), null=True)
     site = models.OneToOneField(Site, null=True, on_delete=models.PROTECT, editable=False, related_name='instance')
-    organization: FK[Organization] = models.ForeignKey(
-        Organization, related_name='instances', on_delete=models.PROTECT, verbose_name=_('organization'),
+    organization: FK[Organization | None] = models.ForeignKey(
+        Organization, null=True, related_name='instances', on_delete=models.PROTECT, verbose_name=_('organization'),
         help_text=_('The main organization for the instance'),
     )
 
