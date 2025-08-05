@@ -444,6 +444,20 @@ class MetricDimensionCategoryValue:
     value: float | None
 
 
+@register_strawberry_type
+@sb.type
+class ActionImpactType:
+    action: ActionNodeType
+    value: float
+
+
+@register_strawberry_type
+@sb.type
+class ScenarioActionImpacts:
+    scenario: ScenarioType
+    impacts: list[ActionImpactType]
+
+
 class NodeInterface(graphene.Interface):
     id = graphene.ID(required=True)
     name = graphene.String(required=True)

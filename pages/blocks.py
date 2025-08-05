@@ -15,7 +15,7 @@ from grapple.models import GraphQLField, GraphQLFloat, GraphQLImage, GraphQLStre
 from wagtail_color_panel.blocks import NativeColorBlock
 
 from nodes.blocks import NodeChooserBlock
-from nodes.constants import VALUE_COLUMN, YEAR_COLUMN
+from nodes.constants import IMPACT_COLUMN, IMPACT_GROUP, VALUE_COLUMN, YEAR_COLUMN
 from nodes.metric import DimensionalMetric
 
 if TYPE_CHECKING:
@@ -23,9 +23,10 @@ if TYPE_CHECKING:
 
     from paths.types import GQLInstanceInfo
 
+    from nodes.actions.action import ActionNode
     from nodes.node import Node
     from nodes.scenario import Scenario
-    from nodes.schema import MetricDimensionCategoryValue, ScenarioValue
+    from nodes.schema import ActionImpactType, MetricDimensionCategoryValue, ScenarioActionImpacts, ScenarioValue
     from nodes.units import Unit
 
 
@@ -125,6 +126,17 @@ class DimensionVisualizationBlock(blocks.StructBlock):
 
 
 @register_streamfield_block
+class ActionImpactVisualizationBlock(blocks.StructBlock):
+    title = blocks.CharBlock()
+    scenario_id = blocks.CharBlock(required=True)  # FIXME: choice block? But where to get the choices?
+
+    graphql_fields = [
+        GraphQLString('title', required=True),
+        GraphQLString('scenario_id', required=True),
+    ]
+
+
+@register_streamfield_block
 class CallToActionBlock(blocks.StructBlock):
     title = blocks.CharBlock(label=_('Title'))
     content = blocks.CharBlock(label=_('Content'), required=False)
@@ -152,6 +164,9 @@ class DashboardCardBlock(blocks.StructBlock):
         ('dimension', DimensionVisualizationBlock(
             label=_("Dimension visualization"), help_text=_("Visualize the categories of a dimension")
         )),
+        ('action_impact', ActionImpactVisualizationBlock(
+            label=_("Action impact visualization"), help_text=_("Visualize the impact of actions in a scenario")
+        )),
     ])
     call_to_action = CallToActionBlock()
 
@@ -170,6 +185,12 @@ class DashboardCardBlock(blocks.StructBlock):
             'nodes.schema.MetricDimensionCategoryValue',  # pyright: ignore
             is_list=True,
             required=False,  # can be null if there is no historical data
+        ),
+        GraphQLField(
+            'scenario_action_impacts',
+            'nodes.schema.ScenarioActionImpacts',  # pyright: ignore
+            is_list=True,
+            required=True,
         ),
         GraphQLStreamfield('visualizations', required=True),
         GraphQLBlockField('call_to_action', CallToActionBlock, is_list=False, required=True),
@@ -287,6 +308,23 @@ class DashboardCardBlock(blocks.StructBlock):
                 ))
         return result
 
+    def scenario_action_impacts(
+        self, info: GQLInstanceInfo, values: dict
+    ) -> Iterable[ScenarioActionImpacts]:
+        """Return the impact of each action in the node's target year for each scenario."""
+        from nodes.schema import ScenarioActionImpacts
+        node = self.node(info, values)
+        target_year = node.get_target_year()
+        if target_year is None:
+            raise ValueError("Node has no target year")
+        return [
+            ScenarioActionImpacts(
+                scenario=scenario,  # pyright: ignore[reportArgumentType]
+                impacts=[self._impact_for_action(action, node, target_year) for action in node.context.get_actions()],
+            )
+            for scenario in node.context.scenarios.values()
+        ]
+
     def _dimensional_metric(self, node: Node, scenario: Scenario | None = None) -> DimensionalMetric:
         context = scenario.override() if scenario else nullcontext()
         with context:
@@ -326,3 +364,19 @@ class DashboardCardBlock(blocks.StructBlock):
             return max(y for y in dm.years if y < dm.forecast_from)
         except ValueError:  # no historical years, or forecast_from is None
             return None
+
+    def _impact_for_action(self, action: ActionNode, node: Node, year: int) -> ActionImpactType:
+        from nodes.schema import ActionImpactType
+        df = action.compute_impact(node)
+        df = df.filter(pl.col(IMPACT_COLUMN) == IMPACT_GROUP).drop(IMPACT_COLUMN)
+        df = df.filter(pl.col(YEAR_COLUMN) == year)
+        df = df.paths.sum_over_dims()
+        # Normalize
+        active_normalization = node.context.active_normalization
+        metric = node.get_default_output_metric()
+        if active_normalization and active_normalization.get_normalized_unit(metric) is not None:
+            _, df = active_normalization.normalize_output(metric, df)
+        return ActionImpactType(
+            action=action,  # pyright: ignore[reportArgumentType]
+            value=df.item(0, VALUE_COLUMN),
+        )
