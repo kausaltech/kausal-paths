@@ -231,7 +231,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     """Metadata for one Paths computational model instance."""
 
     identifier = IdentifierField(max_length=100, unique=True, validators=[InstanceIdentifierValidator()])
-    name = models.CharField(max_length=150, verbose_name=_('name'))
+    name = models.CharField(max_length=150, verbose_name=_('name'), unique=True)
     lead_title = models.CharField(blank=True, max_length=100, verbose_name=_('Lead title'))
     lead_title_i18n: str
     lead_paragraph = RichTextField[str | None, str | None](null=True, blank=True, verbose_name=_('Lead paragraph'))
