@@ -118,7 +118,9 @@ class InstanceConfigQuerySet(MultilingualQuerySet['InstanceConfig'], Permissione
 
 _InstanceConfigManager = models.Manager.from_queryset(InstanceConfigQuerySet)
 
-class InstanceConfigManager(MLModelManager['InstanceConfig', InstanceConfigQuerySet], _InstanceConfigManager):  # pyright: ignore[reportIncompatibleMethodOverride]
+class InstanceConfigManager(  # pyright: ignore[reportIncompatibleMethodOverride]
+    MLModelManager['InstanceConfig', InstanceConfigQuerySet], _InstanceConfigManager
+):
     def get_by_natural_key(self, identifier: str) -> InstanceConfig:
         return self.get(identifier=identifier)
 del _InstanceConfigManager
@@ -246,9 +248,17 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     modified_at = models.DateTimeField(auto_now=True)
     cache_invalidated_at = models.DateTimeField(default=timezone.now)
 
-    primary_language = models.CharField[str, str](max_length=8, choices=get_supported_languages, default=get_default_language)  # type: ignore[arg-type]
+    primary_language = models.CharField[str, str](
+        max_length=8,
+        choices=get_supported_languages,  # type: ignore[arg-type]
+        default=get_default_language
+    )
     other_languages = ChoiceArrayField(
-        models.CharField(max_length=8, choices=get_supported_languages, default=get_default_language),  # type: ignore[arg-type]
+        models.CharField(
+            max_length=8,
+            choices=get_supported_languages,  # type: ignore[arg-type]
+            default=get_default_language
+        ),
         default=list,
     )
 
