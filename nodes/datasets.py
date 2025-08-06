@@ -269,16 +269,23 @@ class DatasetWithFilters(Dataset):
                 vals = d.get('values', [])
                 ref = d.get('ref', None)
                 drop = d.get('drop_col', True)
+                exclude = d.get('exclude', False)
+                mask = None
                 if vals:
-                    df = df.filter(pl.col(col).is_in(vals))
+                    mask = pl.col(col).is_in(vals)
                 if val:
-                    df = df.filter(pl.col(col) == val)
+                    mask = pl.col(col) == val
                 if ref:
                     pval = context.get_parameter_value(ref, required=True)
                     if isinstance(pval, float):
                         pval = int(pval)
                     val = str(pval)
-                    df = df.filter(pl.col(col) == val)
+                    mask = pl.col(col) == val
+                if mask is not None:
+                    if exclude:
+                        mask = ~mask
+                    df = df.filter(mask)
+
                 if drop:
                     df = df.drop(col)
             elif 'dimension' in d:
@@ -303,6 +310,24 @@ class DatasetWithFilters(Dataset):
                     if VALUE_COLUMN in df.columns:
                         df = df.filter(~pl.col(VALUE_COLUMN).is_nan())
                     df = df.paths.sum_over_dims(dim_id)
+            elif 'rename_col' in d:
+                col = d['rename_col']
+                val = d.get('value', None)
+                print(f'renaming column {col} to {val}.')
+                if col not in df.columns:
+                    raise NameError(self, f"Column {col} not found. Available columns are {df.columns}")
+                if val:
+                    df = df.rename({col: val})
+            elif 'rename_item' in d:
+                old = d['rename_item'].split('|')
+                if len(old) != 2:
+                    raise ValueError(self, f"Rename item must have format 'col|item', now it is '{d['rename_item']}'.")
+                col = old[0]
+                item = old[1]
+                new_item = d.get('value', None)
+                print(f'renaming item {item} with {new_item} on column {col}.')
+                df = df.with_columns(pl.col(col).str.replace_all(re.escape(item), new_item))
+
             if len(df) == 0:
                 print(df_orig)
                 print(self.filters)
@@ -380,7 +405,7 @@ class DatasetWithFilters(Dataset):
                 )
                 df = df.with_columns(pl.col(YEAR_COLUMN).cast(int).alias(YEAR_COLUMN))
 
-                # Duplicates may occur when baseline year overlaps with existing data points.
+                # FIXME Duplicates may occur when baseline year overlaps with existing data points.
                 meta = df.get_meta()
                 df = ppl.to_ppdf(df.unique(subset=meta.primary_keys, keep='last', maintain_order=True), meta=meta)
 
@@ -584,33 +609,19 @@ class GenericDataset(DVCDataset):
     def convert_names_to_ids(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
         exset = {YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN, UNCERTAINTY_COLUMN, 'Unit', 'UUID'}
         exset |= {col for col in df.columns if col.startswith(f"{VALUE_COLUMN}_")}
-        exset |= set(df.get_meta().units.keys())
+        exset |= set(df.metric_cols)
+        cols = list(set(df.columns) - exset)
 
         # Convert index level names from labels to IDs.
         collookup = {}
-        for col in list(set(df.columns) - exset):
+        for col in cols:
             collookup[col] = col.lower().translate(self.characterlookup)
         df = df.rename(collookup)
 
-        # Convert levels within each index level from labels to IDs.
-        if 'scope' in df.columns:
-            catlookup = {}
-            for cat in df['scope'].unique():
-                catlookup[cat] = cat.lower().replace(' ', '').replace('.', '')
-            df = df.with_columns(df['scope'].replace(catlookup))
-            exset.add('scope')
-
-        for col in list(set(df.columns) - exset):
-            catlookup = {}
-            for cat in df[col].unique().drop_nulls():
-                catlookup[cat] = cat.lower().translate(self.characterlookup)
-            df = df.with_columns(df[col].replace(catlookup))
-
+        for col in cols:
             if col in context.dimensions:
-                for cat in context.dimensions[col].categories:
-                    if cat.aliases:
-                        df = df.with_columns(context.dimensions[col].series_to_ids_pl(df[col]))
-                        break
+                df = df.with_columns(context.dimensions[col].series_to_ids_pl(df[col]))
+
         return df
 
     # -----------------------------------------------------------------------------------
@@ -681,6 +692,9 @@ class GenericDataset(DVCDataset):
         if self.interpolate:
             df = self._linear_interpolate(df)
 
+        new_dims = [col for col, dtype in zip(df.columns, df.dtypes, strict=False)
+           if dtype in [pl.Utf8, pl.Categorical]]
+        df = df.add_to_index([dim for dim in new_dims if dim not in df.dim_ids])
         df = extend_last_historical_value_pl(df, end_year=context.instance.model_end_year)
 
         # Finalize processing
