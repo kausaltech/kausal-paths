@@ -806,7 +806,7 @@ wheels = [
 [[package]]
 name = "dal-admin-filters"
 version = "1.1.0"
-source = { registry = "https://pypi.kausal.tech/" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "django-autocomplete-light", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
@@ -938,7 +938,7 @@ wheels = [
 [[package]]
 name = "django-appconf"
 version = "1.1.0"
-source = { registry = "https://pypi.kausal.tech/" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "django", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
@@ -950,7 +950,7 @@ wheels = [
 [[package]]
 name = "django-autocomplete-light"
 version = "3.12.1"
-source = { registry = "https://pypi.kausal.tech/" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "django", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
@@ -1031,7 +1031,7 @@ wheels = [
 [[package]]
 name = "django-image-cropping"
 version = "1.7"
-source = { registry = "https://pypi.kausal.tech/" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "django-appconf", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
@@ -1462,7 +1462,7 @@ wheels = [
 [[package]]
 name = "easy-thumbnails"
 version = "2.10"
-source = { registry = "https://pypi.kausal.tech/" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "django", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "pillow", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
@@ -2819,15 +2819,15 @@ prod = [
 
 [[package]]
 name = "kausal-paths-extensions"
-version = "0.6.37"
+version = "0.6.38.dev1"
 source = { registry = "https://pypi.kausal.tech/" }
 dependencies = [
     { name = "django", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "pygithub", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
-sdist = { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.6.37.tar.gz", hash = "md5:4eb8aad46d6d3cf440d787bfb8a6a9d4" }
+sdist = { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.6.38.dev1.tar.gz", hash = "sha256:81e60a98f28eb1c4583a75f7fca2807fe41a2f086890eaad8f535c8ca3d6b00d" }
 wheels = [
-    { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.6.37-py3-none-any.whl", hash = "md5:24f6f360b4da7d9c0b39944a83ff28db" },
+    { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.6.38.dev1-py3-none-any.whl", hash = "sha256:ab6c0bf7ffe9e0119f5d9444ed4a60f2ffea529e0889cb7a89aa94a7413758ca" },
 ]
 
 [[package]]
@@ -3039,7 +3039,7 @@ wheels = [
 [[package]]
 name = "milksnake"
 version = "0.1.6"
-source = { registry = "https://pypi.kausal.tech/" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cffi", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
@@ -4674,7 +4674,7 @@ wheels = [
 [[package]]
 name = "rustface"
 version = "0.1.0"
-source = { registry = "https://pypi.kausal.tech/" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "milksnake", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
@@ -5599,7 +5599,7 @@ wheels = [
 [[package]]
 name = "wagtail-modeladmin"
 version = "2.2.0"
-source = { registry = "https://pypi.kausal.tech/" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "wagtail", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
@@ -5611,7 +5611,7 @@ wheels = [
 [[package]]
 name = "wagtailgeowidget"
 version = "8.2.1"
-source = { registry = "https://pypi.kausal.tech/" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "wagtail", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
