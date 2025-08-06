@@ -66,6 +66,15 @@ class PathsExt:
         if not dim_ids:
             return df
 
+        if YEAR_COLUMN in df.columns:
+            dim_cols = [*dim_ids, YEAR_COLUMN]
+        else:
+            dim_cols = dim_ids
+        dup = df.select(dim_cols).is_duplicated()
+        if any(dup):
+            print(df.filter(dup))
+            raise ValueError("Dataframe has duplicate rows.")
+
         def format_col(dim: str) -> pl.Expr:
             if only_category_names:
                 return pl.col(dim)
@@ -181,11 +190,13 @@ class PathsExt:
         return ppl.to_ppdf(df, meta=meta)
 
     def make_forecast_rows(self, end_year: int) -> ppl.PathsDataFrame:
-        df = self._df
-        if isinstance(df, ppl.PathsDataFrame):
-            meta = df.get_meta()
+        pdf = self._df
+        if isinstance(pdf, ppl.PathsDataFrame):
+            meta = pdf.get_meta()
+            df = pl.DataFrame(pdf._df)
         else:
             meta = None
+            df = pdf
         y = df[YEAR_COLUMN]
         if y.n_unique() != len(y):
             raise Exception("DataFrame has duplicated years")
@@ -198,7 +209,7 @@ class PathsExt:
                 last_hist_year = df[YEAR_COLUMN].max()
         assert isinstance(last_hist_year, int)
         if last_hist_year >= end_year:
-            return df
+            return ppl.to_ppdf(df, meta=meta)
         years = pl.DataFrame(data=range(last_hist_year + 1, end_year + 1), schema=[YEAR_COLUMN])
         if len(years):
             df2 = df.join(years, on=YEAR_COLUMN, how='outer', coalesce=True).sort(YEAR_COLUMN)
@@ -259,7 +270,7 @@ class PathsExt:
         other: ppl.PathsDataFrame,
         how: Literal['left', 'outer', 'inner'] = 'left',
         index_from: Literal['left', 'right', 'union'] = 'left',
-    ):
+    ) -> ppl.PathsDataFrame:
         sdf = self._df
         sm = sdf.get_meta()
         om = other.get_meta()

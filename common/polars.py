@@ -1,4 +1,3 @@
-# ruff: noqa: ANN401
 from __future__ import annotations
 
 import re
@@ -11,11 +10,13 @@ from typing_extensions import deprecated
 import polars as pl
 from polars._utils.parse import parse_into_list_of_expressions
 
+from kausal_common.models.types import copy_signature
+
 from nodes.constants import FORECAST_COLUMN, TIME_INTERVAL, VALUE_COLUMN, YEAR_COLUMN
 from nodes.units import Quantity, Unit, unit_registry
 
 if typing.TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Iterable, Sequence
+    from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 
     import numpy as np
     import pandas as pd
@@ -74,6 +75,13 @@ class PathsDataFrame(pl.DataFrame):
     _primary_keys: list[str]
     _explanation:  list[str]
     paths: PathsExt
+
+    @copy_signature(pl.DataFrame.__init__)
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self._units = {}
+        self._primary_keys = []
+        self._explanation = []
 
     @classmethod
     def _from_pydf(cls, py_df: PyDataFrame, meta: DataFrameMeta | None = None) -> PathsDataFrame:
@@ -140,7 +148,7 @@ class PathsDataFrame(pl.DataFrame):
         df = super().filter(*predicates, **constraints)
         return to_ppdf(df, meta=meta)
 
-    def rename(self, mapping: dict[str, str] | Callable[[str], str], *, strict: bool = True) -> PathsDataFrame:
+    def rename(self, mapping: Mapping[str, str] | Callable[[str], str], *, strict: bool = True) -> PathsDataFrame:
         meta = self.get_meta()
         units = dict(meta.units)
         primary_keys = list(meta.primary_keys)
@@ -252,6 +260,35 @@ class PathsDataFrame(pl.DataFrame):
         )
         return PathsDataFrame._from_pydf(df._df, meta=self.get_meta())
 
+    def join(
+        self,
+        other: pl.DataFrame | PathsDataFrame,
+        on: str | pl.Expr | Sequence[str | pl.Expr] | None = None,
+        how: pl.JoinStrategy = "inner",
+        *,
+        left_on: str | pl.Expr | Sequence[str | pl.Expr] | None = None,
+        right_on: str | pl.Expr | Sequence[str | pl.Expr] | None = None,
+        suffix: str = "_right",
+        validate: pl.JoinValidation = "m:m",
+        nulls_equal: bool = False,
+        coalesce: bool | None = None,
+        maintain_order: pl.MaintainOrderJoin | None = None,
+    ) -> pl.DataFrame:
+        plain_df = pl.DataFrame(self._df)
+        df = plain_df.join(
+            other,
+            on,
+            how,
+            left_on=left_on,
+            right_on=right_on,
+            suffix=suffix,
+            validate=validate,
+            nulls_equal=nulls_equal,
+            coalesce=coalesce,
+            maintain_order=maintain_order,
+        )
+        return df
+
     def get_meta(self) -> DataFrameMeta:
         explanation_list = getattr(self, '_explanation', [])
         meta = DataFrameMeta(
@@ -287,7 +324,7 @@ class PathsDataFrame(pl.DataFrame):
         return PathsDataFrame._from_pydf(self._df, meta=meta)
 
     def multiply_cols(self, cols: list[str], out_col: str, out_unit: Unit | None = None) -> PathsDataFrame:
-        res_unit = cast(Unit, reduce(lambda x, y: x * y, [self._units[col] for col in cols]))  # pyright: ignore
+        res_unit = cast('Unit', reduce(lambda x, y: x * y, [self._units[col] for col in cols]))  # pyright: ignore
         s = reduce(lambda x, y: x * y, [self[col] for col in cols])
         df = self.with_columns([s.alias(out_col)])
         df._units[out_col] = res_unit
@@ -304,7 +341,7 @@ class PathsDataFrame(pl.DataFrame):
         return df
 
     def divide_cols(self, cols: list[str], out_col: str, out_unit: Unit | None = None) -> PathsDataFrame:
-        res_unit = cast(Unit, reduce(lambda x, y: x / y, [self._units[col] for col in cols]))  # pyright: ignore
+        res_unit = cast('Unit', reduce(lambda x, y: x / y, [self._units[col] for col in cols]))  # pyright: ignore
         s = reduce(lambda x, y: x / y, [self[col] for col in cols])
         df = self.with_columns([s.alias(out_col)])
         df._units[out_col] = res_unit
@@ -313,7 +350,7 @@ class PathsDataFrame(pl.DataFrame):
         return df
 
     def divide_quantity(self, col: str, quantity: Quantity, out_unit: Unit | None = None) -> PathsDataFrame:
-        res_unit = cast(Unit, quantity.units / self._units[col])
+        res_unit = cast('Unit', quantity.units / self._units[col])
         df = self.with_columns((pl.lit(quantity.m) / pl.col(col)).alias(col))
         df._units[col] = res_unit
         if out_unit:
@@ -393,7 +430,7 @@ class PathsDataFrame(pl.DataFrame):
     def diff(self, col: str, n: int = 1) -> PathsDataFrame:
         meta = self.get_meta()
         unit = unit_registry(TIME_INTERVAL)
-        meta.units[col] = cast(Unit, meta.units[col] / unit)
+        meta.units[col] = cast('Unit', meta.units[col] / unit)
 
         df = self.paths.to_wide()
         for df_col in df.columns:
@@ -619,9 +656,11 @@ def from_pandas(df: pd.DataFrame) -> PathsDataFrame:
             df[col] = df[col].pint.m
 
     if isinstance(df.index, pd.MultiIndex):
-        primary_keys = list(df.index.names)
+        primary_keys = [str(x) for x in df.index.names]
     else:
-        primary_keys = [df.index.name]
+        name = df.index.name
+        assert name is not None
+        primary_keys = [str(name)]
 
     pldf = PathsDataFrame(df.reset_index())
     #for col in primary_keys:

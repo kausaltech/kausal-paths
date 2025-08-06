@@ -258,9 +258,12 @@ class GenericNode(SimpleNode):
             splittee = dfin
 
         # Validation
+        assert isinstance(splitter, ppl.PathsDataFrame)
+        assert isinstance(splittee, ppl.PathsDataFrame)
+
         newdims = [dim for dim in splittee.dim_ids if dim not in splitter.dim_ids]
         if newdims and operation not in use_as:
-            raise NodeError(self, f"Splittee node {n.id} cannot bring in new dimensions but has {newdims}.")
+            raise NodeError(self, f"Splittee node cannot bring in new dimensions but has {newdims}.")
 
         dims = [dim for dim in splitter.dim_ids if dim not in splittee.dim_ids]
         if not dims and not newdims:
@@ -779,7 +782,7 @@ class DimensionalSectorNode(GenericNode):
         dimension_map = parsed_sectors['dimensions']
 
         # Filter by sector pattern
-        matching_sectors = df.filter(pl.col('sector').str.contains(full_pattern))
+        matching_sectors = df.filter(pl.col('sector').cast(pl.Utf8).str.contains(full_pattern))
         meta = matching_sectors.get_meta()
 
         if len(matching_sectors) == 0:
@@ -791,7 +794,7 @@ class DimensionalSectorNode(GenericNode):
             for level_idx, dim_name in dimension_map.items():
                 # Split sector and extract the level
                 matching_sectors = matching_sectors.with_columns(
-                    pl.col('sector').str.split('|').list.get(level_idx).alias(dim_name)
+                    pl.col('sector').cast(pl.Utf8).str.split('|').list.get(level_idx).alias(dim_name)
                 )
 
                 # Convert to proper dimension IDs if needed
@@ -1153,6 +1156,37 @@ class ThresholdNode(GenericNode):
         super().__init__(*args, **kwargs)
         # Register threshold operation
         self.OPERATIONS['apply_threshold'] = self._operation_apply_threshold
+
+
+class CoalesceNode(GenericNode):
+    explanation = _(
+        """Coalesces the empty values with the values from the node with the tag 'coalesce'."""
+    )
+    DEFAULT_OPERATIONS = 'multiply,coalesce,add'
+
+    def _operation_coalesce(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        """Coalesce the two dataframes."""
+        if df is None:
+            raise NodeError(self, "Cannot apply coalesce because no PathsDataFrame is available.")
+
+        nodes = baskets.get('coalesce', [])
+        baskets['coalesce'] = []
+        if len(nodes) != 1:
+            raise NodeError(self, "There must be exactly one input node with tag 'coalesce'.")
+
+        df_co = nodes[0].get_output_pl(target_node=self)
+        df = df.paths.join_over_index(df_co, how='outer', index_from='union')
+        df = df.with_columns(
+            pl.coalesce([pl.col(VALUE_COLUMN), pl.col(VALUE_COLUMN + '_right')])
+            .alias(VALUE_COLUMN)
+        ).drop(VALUE_COLUMN + '_right')
+
+        return df, baskets
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Register threshold operation
+        self.OPERATIONS['coalesce'] = self._operation_coalesce
 
 
 class CohortNode(GenericNode):

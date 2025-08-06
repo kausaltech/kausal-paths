@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://potsdam-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 8f32b3bb952f873b9b241316a15198b246688d57
+  commit: 271d18ad087105c679fdc23ff3470c87a746526e
   dvc_remote: kausal-s3
 name: Klimaschutz-Monitor-Potsdam Treibhausgasinventar
 owner: Stadt Potsdam
@@ -12,9 +12,9 @@ theme_identifier: de-potsdam
 target_year: 2045
 model_end_year: 2050
 minimum_historical_year: 1995
-maximum_historical_year: 2022
+maximum_historical_year: 2024
 emission_unit: kt/a
-emission_forecast_from: 2023
+emission_forecast_from: 2025
 emission_dimensions: [energietrager, scope, ghg]
 features:
   baseline_visible_in_graphs: true
@@ -55,51 +55,66 @@ dimensions:
   - id: strom
     label_en: Electricity
     label_de: Strom
+    aliases: [electricity]
   - id: fahrstrom
     label_en: Traction Power
     label_de: Fahrstrom
   - id: heizstrom
     label_en: Heating Electricity
     label_de: Heizstrom
+    aliases: [heating_electricity]
   - id: fernwarme
     label_en: District Heating
     label_de: Fernwärme
+    aliases: [district_heating]
   - id: nahwarme
     label_en: Local Heating
     label_de: Nahwärme
+    aliases: [local_heating]
   - id: gas
     label_en: Gas
     label_de: Gas
+    aliases: [natural_gas]
   - id: biogas
     label_en: Biogas
     label_de: Biogas
+    aliases: [cng_bio]
   - id: heizol
     label_en: Heating Oil
     label_de: Heizöl
+    aliases: [heating_oil]
   - id: kohle
     label_en: Coal
     label_de: Kohle
+    aliases: [hard_coal]
   - id: biomasse
     label_en: Biomass
     label_de: Biomasse
+    aliases: [biomass]
   - id: solarthermie
     label_en: Solar Thermal
     label_de: Solarthermie
+    aliases: [solar_thermal]
   - id: umweltwarme
     label_en: Ambient Heat
     label_de: Umweltwärme
+    aliases: [environmental_heat]
   - id: benzin_fossil
     label_en: Fossil Gasoline
     label_de: Benzin fossil
+    aliases: [petrol]
   - id: benzin_biogen
     label_en: Biogenic Gasoline
     label_de: Benzin biogen
+    aliases: [bio_petrol]
   - id: diesel_fossil
     label_en: Fossil Diesel
     label_de: Diesel fossil
+    aliases: [diesel]
   - id: diesel_biogen
     label_en: Biogenic Diesel
     label_de: Diesel biogen
+    aliases: [biodiesel]
   - id: cng_fossil
     label_en: Fossil CNG (Compressed Natural Gas)
     label_de: CNG fossil
@@ -109,6 +124,12 @@ dimensions:
   - id: wasserstoff
     label_en: Hydrogen
     label_de: Wasserstoff
+  - id: other_conventional
+    label: Other conventional
+    aliases: [other_conventional]
+  - id: total
+    label: Total
+    aliases: [total]
 
 
 emission_sectors:
@@ -144,429 +165,12 @@ nodes:
   - id: do_correction
     ref: weather_correction
   output_nodes:
-  - id: energy_private_households
+  - id: i11_residential_fuel_consumption
     tags: [non_additive]
     to_dimensions: []
-
-# Emissions, historical
-
-- id: emissions_transport_historical
-  name: Historische Emissionen von Verkehr
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_datasets:
-  - id: potsdam/emissionen/transport
-    tags: [baseline]
-    column: emissions
-    filters:
-    - column: weather_correction
-    - column: inventory_method
-  output_nodes: [emissions_historical]
-
-- id: emissions_municipal_facilities_historical
-  name: Historische Emissionen von Kommunale Einrichtungen
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_datasets:
-  - id: potsdam/emissionen/municipal_facilities
-    tags: [baseline]
-    column: emissions
-    filters:
-    - column: weather_correction
-    - column: inventory_method
-  output_nodes: [emissions_historical]
-
-- id: emissions_private_haouseholds_historical
-  name: Historische Emissionen von private Haushalte
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_datasets:
-  - id: potsdam/emissionen/private_households
-    tags: [baseline]
-    column: emissions
-    filters:
-    - column: weather_correction
-    - column: inventory_method
-  output_nodes: [emissions_historical]
-
-- id: emissions_industry_historical
-  name: Historische Emissionen von Industrie
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_datasets:
-  - id: potsdam/emissionen/industry
-    tags: [baseline]
-    column: emissions
-    filters:
-    - column: weather_correction
-    - column: inventory_method
-  output_nodes: [emissions_historical]
-
-- id: emissions_commerce_historical
-  name: Historische Emissionen von Gewerbe, Handel, Dienstleistungen
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_datasets:
-  - id: potsdam/emissionen/commerce_trade_services
-    tags: [baseline]
-    column: emissions
-    filters:
-    - column: weather_correction
-    - column: inventory_method
-  output_nodes: [emissions_historical]
-
-- id: emissions_historical
-  name: Historische Emissionen
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  # energy
-
-- id: energy_transport
-  name: Energieverbrauch von Verkehr
-  type: generic.GenericNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_datasets:
-  - id: potsdam/energie/transport
-    tags: [baseline]
-    column: energy
-    filters:
-    - column: weather_correction
-    - column: inventory_method
-  output_nodes: [energy_use]
-
-- id: energy_municipal_facilities
-  name: Energieverbrauch von Kommunale Einrichtungen
-  type: generic.GenericNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_datasets:
-  - id: potsdam/energie/municipal_facilities
-    tags: [baseline]
-    column: energy
-    filters:
-    - column: weather_correction
-    - column: inventory_method
-  output_nodes: [energy_use]
-
-- id: energy_private_households
-  name: Energieverbrauch von private Haushalte
-  type: generic.GenericNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_datasets:
-  - id: potsdam/energie/private_households
-    tags: [baseline]
-    column: energy
-    filters:
-    - column: weather_correction
-    - column: inventory_method
-  output_nodes: [energy_use]
-
-- id: energy_industry
-  name: Energieverbrauch von Industrie
-  type: generic.GenericNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_datasets:
-  - id: potsdam/energie/industry
-    tags: [baseline]
-    column: energy
-    filters:
-    - column: weather_correction
-    - column: inventory_method
-  output_nodes: [energy_use]
-
-- id: energy_commerce
-  name: Energieverbrauch von Gewerbe, Handel, Dienstleistungen
-  type: generic.GenericNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_datasets:
-  - id: potsdam/energie/commerce_trade_services
-    tags: [baseline]
-    column: energy
-    filters:
-    - column: weather_correction
-    - column: inventory_method
-  output_nodes: [energy_use]
-
-- id: energy_use
-  name: Energieverbrauch
-  type: generic.GenericNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-
-# Costs, historical
-
-- id: costs_transport_historical
-  name: Historische Kosten von Verkehr
-  type: generic.GenericNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_datasets:
-  - id: potsdam/kosten/transport
-    tags: [baseline]
-    column: currency
-    filters:
-    - column: weather_correction
-    - column: inventory_method
-  output_nodes: [costs_historical]
-
-- id: costs_municipal_facilities_historical
-  name: Historische Kosten von Kommunale Einrichtungen
-  type: generic.GenericNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_datasets:
-  - id: potsdam/kosten/municipal_facilities
-    tags: [baseline]
-    column: currency
-    filters:
-    - column: weather_correction
-    - column: inventory_method
-  output_nodes: [costs_historical]
-
-- id: costs_private_haouseholds_historical
-  name: Historische Kosten von private Haushalte
-  type: generic.GenericNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_datasets:
-  - id: potsdam/kosten/private_households
-    tags: [baseline]
-    column: currency
-    filters:
-    - column: weather_correction
-    - column: inventory_method
-  output_nodes: [costs_historical]
-
-- id: costs_industry_historical
-  name: Historische Kosten von Industrie
-  type: generic.GenericNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_datasets:
-  - id: potsdam/kosten/industry
-    tags: [baseline]
-    column: currency
-    filters:
-    - column: weather_correction
-    - column: inventory_method
-  output_nodes: [costs_historical]
-
-- id: costs_commerce_historical
-  name: Historische Kosten von Gewerbe, Handel, Dienstleistungen
-  type: generic.GenericNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_datasets:
-  - id: potsdam/kosten/commerce_trade_services
-    tags: [baseline]
-    forecast_from: 2023
-    column: currency
-    filters:
-    - column: weather_correction
-    - column: inventory_method
-  output_nodes: [costs_historical]
-
-- id: costs_historical
-  name: Historische Kosten
-  type: generic.GenericNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-# Emission factors and unit costs
-
-- id: emission_factors
-  name: Emissionfaktoren
-  type: generic.GenericNode
-  quantity: emission_factor
-  unit: g/kWh
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_nodes:
-  - id: emissions_historical
-  - id: energy_use
-    tags: [geometric_inverse]
-  params:
-    operations: multiply, inventory_only, extrapolate, add
-
-- id: energy_prices
-  name: Energiepreis
-  type: generic.GenericNode
-  quantity: unit_price
-  unit: EUR/MWh
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_nodes:
-  - id: costs_historical
-  - id: energy_use
-    tags: [geometric_inverse]
-  params:
-    operations: multiply, inventory_only, extrapolate, add
-
-# Calculated emissions
-
-- id: emissions_transport
-  name: Emissionen von Verkehr
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_nodes: [emission_factors, energy_transport]
-  output_nodes: [net_emissions2]
-
-- id: emissions_municipal_facilities
-  name: Emissionen von Kommunale Einrichtungen
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_nodes: [emission_factors, energy_municipal_facilities]
-  output_nodes: [net_emissions2]
-
-- id: emissions_private_haouseholds
-  name: Emissionen von private Haushalte
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_nodes: [emission_factors, energy_private_households]
-  output_nodes: [net_emissions2]
-
-- id: emissions_industry
-  name: Emissionen von Industrie
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_nodes: [emission_factors, energy_industry]
-  output_nodes: [net_emissions2]
-
-- id: emissions_commerce
-  name: Emissionen von Gewerbe, Handel, Dienstleistungen
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_nodes: [emission_factors, energy_commerce]
-  output_nodes: [net_emissions2]
-
-- id: net_emissions2
-  name: Emissionen
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  # Calculated costs
-
-- id: costs_transport
-  name: Kosten von Verkehr
-  type: generic.GenericNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_nodes: [energy_prices, energy_commerce]
-  output_nodes: [total_costs]
-
-- id: costs_municipal_facilities
-  name: Kosten von Kommunale Einrichtungen
-  type: generic.GenericNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_nodes: [energy_prices, energy_commerce]
-  output_nodes: [total_costs]
-
-- id: costs_private_haouseholds
-  name: Kosten von private Haushalte
-  type: generic.GenericNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_nodes: [energy_prices, energy_commerce]
-  output_nodes: [total_costs]
-
-- id: costs_industry
-  name: Kosten von Industrie
-  type: generic.GenericNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_nodes: [energy_prices, energy_commerce]
-  output_nodes: [total_costs]
-
-- id: costs_commerce
-  name: Kosten von Gewerbe, Handel, Dienstleistungen
-  type: generic.GenericNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_nodes: [energy_prices, energy_commerce]
-  output_nodes: [total_costs]
-
-- id: total_costs
-  name: Kosten
-  type: generic.GenericNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-
-    # Old nodes
+  - id: i12_residential_grid_energy_consumption
+    tags: [non_additive]
+    to_dimensions: []
 
 - id: i11_residential_fuel_consumption
   name: Endenergieverbrauch Wärmesektor
@@ -1094,6 +698,37 @@ nodes:
   input_dimensions: [energietrager, scope]
   output_dimensions: [energietrager, scope]
 
+##### COSTS
+
+- id: energy_prices
+  name: Energy prices
+  type: generic.GenericNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: [energietrager, sector]
+  output_dimensions: [energietrager, sector]
+  input_datasets:
+  - id: potsdam/energy_prices
+    tags: [baseline]
+
+
+- id: total_energy_costs
+  name: Endenergiekosten Gesamt
+  name_en: Final Energy Costs Over All Sectors
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [energietrager, sector]
+  output_dimensions: [energietrager, sector]
+  input_nodes:
+  - id: total_energy_consumption
+    from_dimensions:
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: energietrager
+  - id: energy_prices
+
 actions:
 
 - id: i11_residential_fuel_consumption_action
@@ -1113,7 +748,7 @@ actions:
   input_datasets:
   - id: gpc/potsdam_master_plan_actions
     tags: [baseline]
-    forecast_from: 2022
+    forecast_from: 2025
     column: energy
     filters:
     - column: sector
@@ -1138,7 +773,7 @@ actions:
   input_datasets:
   - id: gpc/potsdam_master_plan_actions
     tags: [baseline]
-    forecast_from: 2022
+    forecast_from: 2025
     column: emission_factor
     filters:
     - column: sector
@@ -1159,7 +794,7 @@ actions:
   input_datasets:
   - id: gpc/potsdam_master_plan_actions
     tags: [baseline]
-    forecast_from: 2022
+    forecast_from: 2025
     column: energy
     filters:
     - column: sector
@@ -1184,7 +819,7 @@ actions:
   input_datasets:
   - id: gpc/potsdam_master_plan_actions
     tags: [baseline]
-    forecast_from: 2022
+    forecast_from: 2025
     column: emission_factor
     filters:
     - column: sector
@@ -1208,7 +843,7 @@ actions:
   input_datasets:
   - id: gpc/potsdam_master_plan_actions
     tags: [baseline]
-    forecast_from: 2022
+    forecast_from: 2025
     column: energy
     filters:
     - column: sector
@@ -1236,7 +871,7 @@ actions:
   input_datasets:
   - id: gpc/potsdam_master_plan_actions
     tags: [baseline]
-    forecast_from: 2022
+    forecast_from: 2025
     column: emission_factor
     filters:
     - column: sector
@@ -1260,7 +895,7 @@ actions:
   input_datasets:
   - id: gpc/potsdam_master_plan_actions
     tags: [baseline]
-    forecast_from: 2022
+    forecast_from: 2025
     column: energy
     filters:
     - column: sector
@@ -1280,7 +915,7 @@ actions:
   input_datasets:
   - id: gpc/potsdam_master_plan_actions
     tags: [baseline]
-    forecast_from: 2022
+    forecast_from: 2025
     column: emission_factor
     filters:
     - column: sector
@@ -1299,7 +934,7 @@ actions:
   input_datasets:
   - id: gpc/potsdam_master_plan_actions
     tags: [baseline]
-    forecast_from: 2022
+    forecast_from: 2025
     column: energy
     filters:
     - column: sector
@@ -1318,7 +953,7 @@ actions:
   input_datasets:
   - id: gpc/potsdam_master_plan_actions
     tags: [baseline]
-    forecast_from: 2022
+    forecast_from: 2025
     column: emission_factor
     filters:
     - column: sector

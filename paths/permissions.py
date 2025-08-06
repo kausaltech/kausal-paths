@@ -8,6 +8,8 @@ from rest_framework import permissions
 
 from kausal_common.models.permission_policy import ParentInheritedPolicy
 
+from paths.context import realm_context
+
 from orgs.models import Organization
 from people.models import Person
 
@@ -38,18 +40,18 @@ class ReadOnly(permissions.BasePermission):
 
 
 class OrganizationPermission(permissions.DjangoObjectPermissions):
-    def check_permission(self, user: 'users.models.User', perm: str, organization: Organization = None):
+    def check_permission(self, user: User, perm: str, organization: Organization | None = None):
         # Check for object permissions first
         if not user.has_perms([perm]):
             return False
         if perm == 'orgs.change_organization':
-            if not user.can_modify_organization(organization=organization):
+            if not organization or not user.can_modify_organization(organization=organization):
                 return False
         elif perm == 'orgs.add_organization':
             if not user.can_create_organization():
                 return False
         elif perm == 'orgs.delete_organization':
-            if not user.can_delete_organization():
+            if not organization or not user.can_delete_organization(organization=organization):
                 return False
         else:
             return False
@@ -91,12 +93,12 @@ class PersonPermission(permissions.DjangoObjectPermissions):
 
     def has_permission(self, request: PathsAuthenticatedRequest, view):
         perms = self.get_required_permissions(request.method, Person)
-        instance_config = request.user.get_active_instance()
+        instance_config = realm_context.get().realm
         return all(self.check_permission(request.user, perm, instance_config=instance_config) for perm in perms)
 
     def has_object_permission(self, request: PathsAuthenticatedRequest, view, obj):
         perms = self.get_required_object_permissions(request.method, Person)
-        instance_config = request.user.get_active_instance()
+        instance_config = realm_context.get().realm
         if not perms and request.method in permissions.SAFE_METHODS:
             return True
         return all(self.check_permission(request.user, perm, person=obj, instance_config=instance_config) for perm in perms)

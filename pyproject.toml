@@ -5,7 +5,99 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "kausal-paths"
 requires-python = ">= 3.13"
-dynamic = ["version"]
+version = "1.0.0"
+dependencies = [
+  "asgi-cors",
+  "babel",
+  "celery",
+  "channels",
+  "channels-redis",
+  "colored",
+  "colormath",
+  "dal-admin-filters>=1.1.0",
+  "diffsync",
+  "django",
+  "django-anymail[mailgun,mailjet,sendgrid]",
+  "django-celery-results",
+  "django-cors-headers",
+  "django-environ",
+  "django-extensions",
+  "django-image-cropping>=1.7",
+  "django-modeltrans",
+  "django-oauth-toolkit",
+  "django-pydantic-field",
+  "django-storages",
+  "django-stubs-ext",
+  "djangorestframework",
+  "drf-nested-routers",
+  "drf-spectacular",
+  "dvc-pandas",
+  "easy-thumbnails>=2.10",
+  "factory-boy",
+  "gql[requests]",
+  "graphene-django",
+  "graphene-django-optimizer",
+  "graphene-pydantic",
+  "graphql-core",
+  "graphql-relay",
+  "ipython",
+  "llvmlite",
+  "logfmter",
+  "loguru",
+  "nanoid==2.0.0",
+  "numba",
+  "openpyxl",
+  "opentelemetry-exporter-otlp-proto-http",
+  "opentelemetry-exporter-prometheus>=0.55b1",
+  "opentelemetry-instrumentation-django",
+  "opentelemetry-instrumentation-psycopg",
+  "opentelemetry-instrumentation-redis",
+  "opentelemetry-instrumentation-threading",
+  "opentelemetry-sdk",
+  "orjson",
+  "pandas",
+  "pint",
+  "pint-pandas",
+  "polars",
+  "psycopg[pool]",
+  "pycryptodome",
+  "pydantic",
+  "pydantic-extra-types",
+  "pygithub",
+  "pygments-graphql",
+  "pytest-cov",
+  "pytest-django",
+  "pytest-factoryboy",
+  "pytest-html",
+  "python-dotenv",
+  "recursive-diff",
+  "redis",
+  "rich",
+  "ruamel-yaml",
+  "rustface>=0.1.0",
+  "s3cmd",
+  "sentry-sdk[django,opentelemetry]",
+  "social-auth-app-django",
+  "strawberry-graphql",
+  "strawberry-graphql-django",
+  "tzdata",
+  "uuid-utils",
+  "uvicorn[standard]",
+  "wagtail<7.0",
+  "wagtail-color-panel",
+  "wagtail-font-awesome-svg",
+  "wagtail-generic-chooser",
+  "wagtail-grapple",
+  "wagtail-localize",
+  "wagtail-modeladmin>=2.2.0",
+  "wagtailgeowidget>=8.2.1",
+  "watchfiles",
+  "willow>=1.9.0",
+  "xxhash",
+]
+
+[project.optional-dependencies]
+kausal = ["kausal-paths-extensions>=0.6.37"]
 
 [tool.pip-tools]
 
@@ -18,6 +110,14 @@ DJANGO_SETTINGS_MODULE = "paths.tests.settings"
 norecursedirs = ["node_modules", "data", ".git", "venv", "Attic"]
 filterwarnings = ["ignore::DeprecationWarning:graphene"]
 
+[[tool.uv.index]]
+url = "https://pypi.org/simple"
+
+[[tool.uv.index]]
+name = "kausal"
+url = "https://pypi.kausal.tech"
+authenticate = "always"
+
 [tool.ruff]
 extend = './kausal_common/configs/ruff.toml'
 
@@ -26,10 +126,16 @@ plugins = [
   "mypy_django_plugin.main",
   "numpy.typing.mypy_plugin",
   "pydantic.mypy",
-  "strawberry.ext.mypy_plugin"
+  "strawberry.ext.mypy_plugin",
 ]
 mypy_path = "$MYPY_CONFIG_FILE_DIR/kausal_common/typings"
-exclude = ['^Attic/', '/migrations/', '^local_settings\.py', '^\.*env*']
+exclude = [
+  '^Attic/',
+  '/migrations/',
+  '^local_settings\.py',
+  '^\.*env*',
+  '^kausal_common/typings/django-stubs',
+]
 check_untyped_defs = true
 sqlite_cache = true
 cache_fine_grained = true
@@ -41,48 +147,54 @@ always_false = ['IS_WATCH']
 
 [[tool.mypy.overrides]]
 module = [
+  "appdirs.*",
+  "channels.*",
   "colored.*",
+  "dal.*",
+  "dal_select2.*",
+  "diffsync.*",
   "dvc_pandas.*",
+  "dvc.*",
+  "environ.*",
+  "environ.*",
   "factory.*",
-  "pint.*",
-  "pint_pandas.*",
-  "oauth2_provider.*",
-  "modelcluster.*",
-  "modeltrans.*",
-  "wagtail.*",
-  "networkx.*",
-  "plotext.*",
+  "generic_chooser.*",
   "graphene_django.*",
   "grapple.*",
-  "generic_chooser.*",
+  "gunicorn.*",
+  "gunicorn.*",
+  "laces.*",
+  "modelcluster.*",
+  "modeltrans.*",
   "nanoid.*",
+  "networkx.*",
+  "oauth2_provider.*",
+  "permissionedforms.*",
+  "pint_pandas.*",
+  "pint.*",
+  "plotext.*",
+  "plotly.*",
+  "polars.polars.*",
+  "psutil.*",
+  "rest_framework_nested.*",
+  "rustface.*",
   "social_core.*",
   "social_django.*",
-  "plotly.*",
-  "rest_framework_nested.*",
-  "environ.*",
-  "wagtail_color_panel.*",
-  "polars.polars.*",
-  "gunicorn.*",
+  "storages.*",
+  "taggit.*",
   "uwsgi.*",
   "uwsgidecorators.*",
-  "psutil.*",
-  "gunicorn.*",
-  "environ.*",
-  "dvc.*",
-  "appdirs.*",
+  "wagtail_color_panel.*",
   "wagtail_localize.*",
-  "laces.*",
-  "taggit.*",
-  "permissionedforms.*",
-  "diffsync.*",
-  "channels.*",
+  "wagtail.*",
+  "willow.*",
+  "wagtailgeowidget.*",
 ]
 ignore_missing_imports = true
 
 [tool.mypy-baseline]
 baseline_path = ".mypy-baseline.txt"
-preserve_position = true
+preserve_position = false
 
 [tool.pydantic-mypy]
 init_typed = true
@@ -127,15 +239,69 @@ django_settings_module = "paths.settings"
 
 [tool.setuptools]
 include-package-data = false
+py-modules = []
 
-[tool.setuptools.dynamic]
-dependencies = { file = [
-  "requirements.txt",
-  "kausal_common/requirements-common.txt",
-] }
-optional-dependencies.dev = { file = [
-  "requirements-dev.txt",
-  "requirements-lint.txt",
-] }
-optional-dependencies.lint = { file = ["requirements-lint.txt"] }
-optional-dependencies.prod = { file = ["requirements-prod.txt"] }
+[tool.uv]
+environments = [
+  "python_full_version >= '3.13' and sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "python_full_version >= '3.13' and sys_platform == 'darwin' and platform_machine == 'arm64'",
+]
+
+[tool.uv.sources]
+django-modeltrans = { url = "https://github.com/kausaltech/django-modeltrans/archive/a734040c3f38c2e404a61dc0be2c017874a9ea45.zip" }
+kausal-paths-extensions = { index = "kausal"}
+
+[dependency-groups]
+dev = [
+  "basedpyright",
+  "daphne",
+  "debugpy>=1.8.15",
+  "django-debug-toolbar",
+  "inotify",
+  "ipdb",
+  "ipython",
+  "libcst>=1.8.2",
+  "line-profiler",
+  "ondivi",
+  "pdbr[ipython]",
+  "pip",
+  "plotext",
+  "pre-commit",
+  "uv",
+  "viztracer",
+  {include-group = "lint"},
+]
+lint = [
+  "celery-types",
+  "django-stubs",
+  "djangorestframework-stubs",
+  "graphene-stubs",
+  "mypy",
+  "mypy-baseline",
+  "pandas-stubs",
+  "pyarrow-stubs",
+  "ruff",
+  "types-factory-boy",
+  "types-networkx",
+  "types-oauthlib",
+  "types-openpyxl",
+  "types-orjson",
+  "types-pygit2",
+]
+notebook = [
+  "altair",
+  "great-tables",
+  "ipympl",
+  "jedi-language-server",
+  "jupyterlab",
+  "jupyterlab-lsp",
+  "plotly",
+  "pyright",
+  "seaborn[stats]",
+  "strawberry-graphql[cli]",
+]
+prod = [
+  "gunicorn[gthread]",
+  "psycopg[c]",
+  "uvicorn-worker",
+]

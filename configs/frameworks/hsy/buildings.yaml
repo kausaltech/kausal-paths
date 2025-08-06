@@ -243,13 +243,63 @@ nodes:
   - building_floor_area_existing
   - building_floor_area_new
 
+- id: geothermal_correction
+  name_fi: Maalämmön korjaus (COP-luku)
+  name_en: Geothermal correction (COP value)
+  type: simple.AdditiveNode
+  quantity: ratio
+  unit: dimensionless
+  historical_values: [[1990, 3], [2018, 3], [2019, 1], [2024, 1]]  # FIXME Move to DB
+  input_dataset_processors: [LinearInterpolation]
+
+- id: corrected_geothermal_statistics
+  name_fi: Korjattu maalämmön tilasto
+  name_en: Corrected geothermal statistics
+  description_fi: HSY:n tilastot vuoteen 2018 asti sisältävät lämmitykseen käytetyn energian maalämmön osalta. Vuodesta 2019 lähtien lukema tarkoittaa lämpöpumpun käyttämiseen kulutetun sähkön määrän, joka on noin kolmasosa tuotetusta lämmöstä. Tämä tilastomuutos korjataan tällä solmulla. <br/>Tämä malli tarkastelee sähkönkulutusta.
+  type: generic.GenericNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [building_heat_source, building_use]
+  output_dimensions: [building_heat_source, building_use]
+  input_nodes:
+  - id: building_heat_statistics_pre
+    tags: [non_additive]
+    from_dimensions:
+    - id: building_heat_source
+      categories: [geothermal]
+  - id: geothermal_correction
+    tags: [geometric_inverse]
+    to_dimensions: []
+
+- id: building_heat_statistics_pre
+  name_fi: Rakennuskannan lämmönkulutustilasto ennen maalämpökorjausta
+  name_en: Building stock heat consumption statistics
+  name_sv: Statistik över värmeförbrukning i byggnadsbeståndet
+  type: generic.DimensionalSectorEnergy
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [building_heat_source, building_use]
+  output_dimensions: [building_heat_source, building_use]
+  input_nodes: [all_hsy_emissions]
+  params:
+    sector: Lämmitys|*|_building_heat_source_|_building_use_
+
 - id: building_heat_statistics
-  type: finland.hsy.HsyBuildingHeatConsumption
   name_fi: Rakennuskannan lämmönkulutustilasto
   name_en: Building stock heat consumption statistics
   name_sv: Statistik över värmeförbrukning i byggnadsbeståndet
-  tags: [historical_heat]
-  input_nodes: [all_hsy_emissions]
+  type: generic.GenericNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [building_heat_source, building_use]
+  output_dimensions: [building_heat_source, building_use]
+  input_nodes:
+  - id: building_heat_statistics_pre
+    from_dimensions:
+    - id: building_heat_source
+      categories: [geothermal]
+      exclude: true
+  - id: corrected_geothermal_statistics
 
 - id: building_heat_per_floor_area_new
   name_fi: Ominaislämmönkulutus uudessa rakennuskannassa
@@ -281,7 +331,7 @@ nodes:
     - id: building_use
     - id: building_heat_source
 
-- id: building_heat_per_floor_area
+- id: building_heat_per_floor_area  # FIXME Suggested replacement below but calculates wrong.
   name_fi: Rakennusten lämmitys per ala
   name_en: Building heating per floor area
   name_sv: Byggnadsuppvärmning per våningsyta
@@ -291,23 +341,37 @@ nodes:
   input_dimensions: [building_use, building_heat_source]
   output_dimensions: [building_use, building_heat_source]
   input_nodes: 
-  - building_heat_statistics
-  - building_floor_area_existing
+  - id: building_heat_statistics
+  - id: building_floor_area_existing
+
+# - id: building_heat_per_floor_area
+#   name_fi: Rakennusten lämmitys per ala
+#   name_en: Building heating per floor area
+#   name_sv: Byggnadsuppvärmning per våningsyta
+#   type: generic.GenericNode
+#   quantity: consumption_factor
+#   unit: kWh/a/m**2
+#   input_dimensions: [building_use, building_heat_source]
+#   output_dimensions: [building_use, building_heat_source]
+#   input_nodes: 
+#   - id: building_heat_statistics
+#   - id: building_floor_area_existing
+#     tags: [geometric_inverse]
 
 - id: building_heat_consumption_existing
   name_fi: Nykyisen rakennuskannan lämmönkulutus
   name_en: Heat consumption of existing building stock
   name_sv: Värmeförbrukning i befintligt byggnadsbestånd
-  type: finland.hsy.MultiplicativeWithDataBackup
+  type: generic.CoalesceNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [building_heat_source, building_use]
   output_dimensions: [building_heat_source, building_use]
   input_nodes: 
-  - building_heat_per_floor_area
-  - building_floor_area_existing
+  - id: building_heat_per_floor_area
+  - id: building_floor_area_existing
   - id: building_heat_statistics
-    tags: [data_node]
+    tags: [coalesce]
 
 - id: building_heat_consumption
   name_fi: Koko rakennuskannan lämmönkulutus

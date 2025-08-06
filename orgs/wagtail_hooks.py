@@ -8,7 +8,7 @@ from django.contrib.admin.utils import quote
 from django.core.exceptions import ValidationError
 from django.urls import URLPattern, path, reverse
 from django.utils.translation import gettext_lazy as _, pgettext_lazy
-from wagtail.admin.panels import FieldPanel, ObjectList, TabbedInterface
+from wagtail.admin.panels import FieldPanel, InlinePanel, ObjectList, TabbedInterface
 from wagtail.snippets.models import register_snippet
 from wagtail.snippets.views.snippets import SnippetViewSet
 from wagtail.snippets.widgets import SnippetListingButton
@@ -16,26 +16,25 @@ from wagtail.snippets.widgets import SnippetListingButton
 from wagtailgeowidget import __version__ as wagtailgeowidget_version
 
 from kausal_common.models.permission_policy import ModelPermissionPolicy, ObjectSpecificAction
-
-from admin_site.panels import TranslatedFieldPanel
-# from admin_site.utils import admin_req
-# from admin_site.wagtail import CondensedInlinePanel
-from nodes.models import InstanceConfig
-from users.models import User
-
 from kausal_common.organizations.forms import NodeForm
-from .models import Organization, OrganizationMetadataAdmin
-from orgs.views import OrganizationCreateView
 from kausal_common.organizations.views import (
-    CreateChildNodeView,
     OrganizationDeleteView,
     OrganizationEditView,
     OrganizationIndexView,
-    # SetOrganizationRelatedToActivePlanView,
 )
 
-from wagtail.admin.panels import InlinePanel
+# from admin_site.utils import admin_req
+# from admin_site.wagtail import CondensedInlinePanel
+from kausal_common.people.chooser import PersonChooser
 
+from paths.context import realm_context
+
+from admin_site.panels import TranslatedFieldPanel
+from orgs.views import OrganizationCreateView
+from users.models import User
+
+from .models import Organization
+from .views import CreateChildNodeView
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AnonymousUser
@@ -43,6 +42,8 @@ if TYPE_CHECKING:
     from wagtail.admin.menu import MenuItem
     from wagtail.admin.panels.base import Panel
     from wagtail.core.models import Model
+
+    from nodes.models import InstanceConfig
 
 
 import logging
@@ -87,13 +88,11 @@ class OrganizationPermissionPolicy(ModelPermissionPolicy):
 
         if action == 'view':
             return True
-        if action in ('change', 'delete'):
-            return instance.user_can_edit(user)
+        # if action in ('change', 'delete'):
+        #     return user.is_admin_for_instance(instance.instances)
         # if action == 'add':
-        #     return user.is_general_admin_for_plan()
-        # if action == SetOrganizationRelatedToActivePlanView.permission_required:
-        #     plan = user.get_active_admin_plan()
-        #     return instance.user_can_change_related_to_plan(user, plan)
+        #     return user.is_admin_for_instance(instance.instances)
+
 
         return super().user_has_permission_for_instance(user, action, instance)
 
@@ -148,9 +147,9 @@ class OrganizationForm(NodeForm):
     def save(self, *args, **kwargs):
         creating = self.instance._state.adding
         result = super().save(*args, **kwargs)
-        # if creating and self.instance.parent is None:
-        #     # When creating a new root organization make sure the creator retains edit permissions
-        #     self.instance.metadata_admins.add(self.user.person)
+        if creating and self.instance.parent is None:
+            # When creating a new root organization make sure the creator retains edit permissions
+            self.instance.metadata_admins.add(self.user.person) # type: ignore[attr-defined]
         return result
 
 
@@ -196,7 +195,7 @@ class OrganizationViewSet(SnippetViewSet):
         #     'organization_plan_admins',
         #     panels=[
         #         InvisiblePlanPanel('plan'),
-        #         FieldPanel('person'),
+        #         FieldPanel('person', widget=PersonChooser),
         #     ],
         #     heading=_("Plan admins"),
         #     help_text=_("People who can edit plan-specific content related to this organization"),
@@ -204,7 +203,7 @@ class OrganizationViewSet(SnippetViewSet):
         CondensedInlinePanel(
             'organization_metadata_admins',
             panels=[
-                FieldPanel('person'),
+                FieldPanel('person', widget=PersonChooser),
             ],
             heading=_("Metadata admins"),
             help_text=_("People who can edit data of this organization and suborganizations but no plan-specific "
@@ -324,17 +323,17 @@ class OrganizationViewSet(SnippetViewSet):
         # Show "add child" button
         # TODO: allow for organization metadata admins but without the huge
         # amount of db queries that iterating org.user_can_edit entails
-        # if user.is_general_admin_for_plan(plan):
-        #     buttons.append(self._get_add_child_button(instance))
-
+        if user.user_is_admin_for_instance(instance):
+            buttons.append(self._get_add_child_button(instance))
 
         return buttons
 
     def get_queryset(self, request):
-        qs = Organization.objects.qs.available_for_instance(request.user.get_active_instance())
+        active_instance = realm_context.get().realm
+        qs = Organization.objects.qs.available_for_instance(active_instance)
         return qs
 
 # If kausal_watch_extensions is installed, an extended version of the view set is registered there
 if not find_spec('kausal_paths_extensions'):
     register_snippet(OrganizationViewSet)
-# register_snippet(OrganizationViewSet)
+

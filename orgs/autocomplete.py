@@ -1,26 +1,30 @@
-from django.contrib.gis.db.models.functions import Distance
-from django.contrib.gis.geos import Point
+from __future__ import annotations
+
 from django.db.models import Q
-from django.utils.translation import gettext_lazy as _
 
 from dal_select2.views import Select2QuerySetView
 
+from kausal_common.users import user_or_none
+
+from paths.context import realm_context
+
 from .models import Organization
 
-class OrganizationAutocomplete(Select2QuerySetView):
 
+class OrganizationAutocomplete(Select2QuerySetView):
     def get_queryset(self):
-        if not self.request.user.is_authenticated:
+        user = user_or_none(self.request.user)
+        ic = realm_context.get().realm
+        if not user:
             return Organization.objects.none()
-        qs = Organization.objects.available_for_instance(
-            self.request.user.get_active_instance())
+        qs = Organization.objects.qs.available_for_instance(ic)
 
         if self.q:
             qs = qs.filter(
-                Q(distinct_name__icontains=self.q) |
-                Q(name__icontains=self.q) |
-                Q(internal_abbreviation__icontains=self.q) |
-                Q(abbreviation__icontains=self.q),
+                Q(distinct_name__icontains=self.q)
+                | Q(name__icontains=self.q)
+                | Q(internal_abbreviation__icontains=self.q)
+                | Q(abbreviation__icontains=self.q),
             )
         return qs
 

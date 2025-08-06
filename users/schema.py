@@ -32,6 +32,10 @@ class UserType(DjangoObjectType):
         fields = ('id', 'email', 'first_name', 'last_name')
 
     @staticmethod
+    def resolve_id(root: User, info: GQLInfo) -> str:
+        return str(root.uuid)
+
+    @staticmethod
     def resolve_framework_roles(root: User, info: GQLInfo) -> Sequence[FrameworkRoleDef]:
         return root.extra.framework_roles
 

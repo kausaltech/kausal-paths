@@ -9,14 +9,33 @@ Kausal Paths is a tool for predicting the future emissions of cities based on hi
 In the project root directory, create and activate a Python virtual environment:
 
 ```shell
-python3 -m venv venv
-source venv/bin/activate
+uv venv
+source .venv/bin/activate
 ```
 
 Install the required Python packages:
 
 ```shell
-pip install -r requirements.txt
+uv sync
+```
+
+If you have access to the Kausal private extensions, you should configure the PyPI index URL in your `.envrc` file:
+
+```shell
+export UV_INDEX_KAUSAL_USERNAME=...
+export UV_INDEX_KAUSAL_PASSWORD=...
+```
+
+Then install the dependencies like this:
+
+```shell
+uv sync --extra kausal
+```
+
+If you need to run Jupyter notebooks, include the `notebook` dependency group:
+
+```shell
+uv sync --group notebook --extra kausal
 ```
 
 > _Note for macOS users: If you run into issues installing python-snappy, install it separately first_

@@ -1019,7 +1019,7 @@ nodes:
     to_dimensions:
     - id: energy_carrier
     - id: economic_sector
-      categories: [residential]
+      categories: [industry]
 pages:
 - id: home  # The page is not shown
   name_fi: Hiilineutraali Espoo -päästöskenaario

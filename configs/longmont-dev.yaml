@@ -110,30 +110,119 @@ action_groups:
   name_es-US: Tendencias más allá de nuestro control
 
 dimensions:
-- id: emission_scope
-  label: Emission scopes
-  label_es-US: Alcances de emisión
+
+- id: action
+  label: Actions affecting nodes
+  label_es-US: Acciones que afectan a los nodos
   categories:
-  - id: scope1
-    label: Scope 1
-    label_es-US: Alcance 1
-    color: '#0f05a0'
-    order: 0
-  - id: scope2
-    label: Scope 2
-    label_es-US: Alcance 2
-    color: '#30505e'
-    order: 1
-  - id: scope3
-    label: Scope 3
-    label_es-US: Alcance 3
-    color: '#6496ff'
-    order: 2
-  - id: negative_emissions
-    label: Negative emissions
-    label_es-US: Emisiones negativas
-    color: '#F7A5AF'
-    order: -1
+  - id: none
+    label: No actions taken
+    label_es-US: No se han tomado medidas
+  - id: updated_building_code
+    label: Use updated building code
+    label_es-US: Utilizar código de construcción actualizado
+  - id: updated_building_code_residential
+    label: Use updated building code, residential
+    label_es-US: Utilizar código de construcción actualizado, residencial
+  - id: updated_building_code_commercial
+    label: Use updated building code, commercial
+    label_es-US: Utilizar código de construcción actualizado, comercial
+  - id: develop_beyond_building_code
+    label: Develop beyond building code
+    label_es-US: Desarrollar más allá del código de construcción
+  - id: benchmark_energy_use
+    label: Report and benchmark energy use
+    label_es-US: Reportar y crear estándares de uso de energía
+
+- id: action_change
+  label: Changes caused by actions
+  label_es-US: Cambios causados ​​por acciones
+  categories:
+  - id: triggered
+    label: Fraction triggered to change
+    label_es-US: Fracción activada para cambiar
+  - id: compliant
+    label: Fraction compliant with criteria
+    label_es-US: Fracción que cumple con los criterios
+  - id: improvement
+    label: Relative improvement
+    label_es-US: Mejora relativa
+
+- id: airport
+  label: Airport
+  categories:
+  - id: vance_brand_airport
+    label: Vance Brand Airport
+  - id: denver_international_airport
+    label: Denver International Airport
+
+- id: building_energy_class
+  label: Building energy class
+  label_es-US: Clase energética del edificio
+  categories:
+  - id: all
+    label: All buildings, baseline
+    label_es-US: Todos los edificios, referencia
+  - id: regular
+    label: Regular old buildings
+    label_es-US: Edificios antiguos habituales
+  - id: renovated
+    label: Renovated old buildings
+    label_es-US: Edificios antiguos renovados
+  - id: compliant
+    label: New code-compliant buildings
+    label_es-US: Nuevos edificios que cumplen con el código
+  - id: non_compliant
+    label: New buildings not compliant with code
+    label_es-US: Nuevos edificios que no cumplen con el código
+  - id: existing
+    label: Existing building stock
+    label_es-US: Parque de edificios existente
+  - id: new
+    label: Building stock to be built
+    label_es-US: Parque de edificios a construir
+
+- id: electricity_source
+  label: Electricity source
+  label_es-US: Fuente de electricidad
+  categories:
+  - id: hydro
+    label: Hydropower
+    label_es-US: Energía hidroeléctrica
+  - id: nuclear
+    label: Nuclear power
+    label_es-US: Energía nuclear
+  - id: natural_gas
+    label: Natural gas
+    label_es-US: Gas natural
+  - id: solar
+    label: Solar
+    label_es-US: Solar
+  - id: biogas
+    label: Biogas
+    label_es-US: Biogás
+  - id: waste
+    label: Waste incineration
+    label_es-US: Incineración de residuos
+  - id: wind
+    label: Wind
+    label_es-US: Eólica
+  - id: wood
+    label: Wood
+    label_es-US: Madera
+  - id: fuel_oil
+    label: Heating oil
+    label_es-US: Combustible para calefacción
+  - id: import
+    label: European import  # Many categories originally come from Zuerich. Should we clean up?
+    label_es-US: Importación europea
+    aliases:
+    - UCTE-Mix / ENTSO-E Mix
+    - Nicht deklariert (UCTE)
+    - Nicht deklariert (UCTE-Mix)
+  - id: subsidized
+    label: Subsidized electricity
+    label_es-US: Electricidad subvencionada
 
 - id: emission_sectors
   label: Emission sectors
@@ -221,55 +310,261 @@ dimensions:
     label: Other consumption
     label_es-US: Otros consumos
 
+- id: energy_carrier
+  label: Energy carrier
+  label_es-US: Vector energético
+  categories:
+  - id: electricity
+    label: Electricity
+    label_es-US: Electricidad
+    aliases: [Electric (All Electric estimation done above), electric, all_electric_vehicles,
+      electric_light_duty_vehicle_mpge]
+  - id: fuel_oil
+    label: Heating oil
+    label_es-US: Combustible para calefacción
+  - id: petrol
+    label: Gasoline
+    label_es-US: Gasolina
+    aliases: [Petrol, gasoline]
+  - id: diesel
+    label: Diesel
+    label_es-US: Diésel
+  - id: bio_diesel
+    label: Bio Diesel
+    label_es-US: Bio Diésel
+    aliases: [biodiesel]
+  - id: ethanol
+    label: Ethanol
+    label_es-US: Etanol
+    aliases: [Ethanol/Gas, ethanolgas]
+  - id: none
+    label: None
+  - id: hybrid
+    label: Hybrid EV
+    label_es-US: Vehículo eléctrico híbrido
+    aliases: [Electric/Gas (Hybrid ONLY), electricgas_hybrid]
+  - id: plug_in_hybrid
+    label: Plug-in hybrid EV
+    label_es-US: Vehículo eléctrico híbrido enchufable
+    aliases: [Electric/Gas (PHEV), electricgas_phev, phev]
+  - id: kerosene
+    label: Jet fuel
+    label_es-US: Combustible para aviones
+    aliases: [jet_fuel]
+  - id: aviation_gasoline
+    label: Aviation gasoline
+    label_es-US: Gasolina de aviación
+  - id: motor_gasoline
+    label: Motor gasoline
+  - id: natural_gas
+    label: Natural gas
+    label_es-US: Gas natural
+    aliases: [cng]
+  - id: biogas
+    label: biogas
+    label_es-US: biogás
+  - id: propane
+    label: Propane
+    label_es-US: Propano
+    aliases: [propane_or_liquefied_natural_gas]
+  - id: butane
+    label: Butane
+    label_es-US: Butano
+    aliases: [Butane/Gas, butanegas]
+  - id: district_heat
+    label: District heating
+    label_es-US: Calefacción urbana
+  - id: wood
+    label: Wood
+    label_es-US: Madera
+  - id: environmental_heat
+    label: Environmental heat
+    label_es-US: Calor ambiental
+  - id: solar_collectors
+    label: Solar thermal collectors
+    label_es-US: Colectores solares térmicos
+  - id: waste
+    label: Waste
+    label_es-US: Desechos
+  - id: mixed
+    label: Mixed
+
+- id: ghg
+  label_en: Greenhouse gas
+  label_de: Treibhausgas
+  label_es-US: Gases de efecto invernadero
+  categories:
+  - id: co2e
+    label_en: CO2e
+    label_de: CO2-Äquivalent
+    aliases: [co2_eq, co2eq]
+    label: CO2 equivalent
+    label_es-US: Equivalente de CO2
+  - id: co2
+    label: CO2, fossil
+    label_es-US: CO2, fósil
+    aliases: [co2_fossil]
+  - id: ch4
+    label: CH4
+    label_es-US: CH4
+  - id: n2o
+    label: N2O
+    label_es-US: N2O
+  - id: hfc
+    label: HFC
+    label_es-US: HFC
+  - id: pfc
+    label: PFC
+    label_es-US: PFC
+  - id: sf6
+    label: SF6
+    label_es-US: SF6
+  - id: nf3
+    label: NF3
+    label_es-US: NF3
+  - id: r_134a
+    label: R-134A
+  - id: co2_biogen
+    label: CO2, biogen
+    label_es-US: CO2, biógeno
+
+- id: greenhouse_gases # FIXME Merge this to standard dim
+  label: Greenhouse gases
+  label_es-US: Gases de efecto invernadero
+  categories:
+  - id: co2_eq
+    label: CO2 equivalent
+    label_es-US: Equivalente de CO2
+  - id: co2
+    label: CO2, fossil
+    label_es-US: CO2, fósil
+    aliases: [co2_fossil]
+  - id: ch4
+    label: CH4
+    label_es-US: CH4
+  - id: n2o
+    label: N2O
+    label_es-US: N2O
+  - id: hfc
+    label: HFC
+    label_es-US: HFC
+  - id: pfc
+    label: PFC
+    label_es-US: PFC
+  - id: sf6
+    label: SF6
+    label_es-US: SF6
+  - id: nf3
+    label: NF3
+    label_es-US: NF3
+  - id: co2_biogen
+    label: CO2, biogen
+    label_es-US: CO2, biógeno
+
+- id: emission_scope
+  label: Emission scopes
+  label_es-US: Alcances de emisión
+  categories:
+  - id: scope1
+    label: Scope 1
+    label_es-US: Alcance 1
+    color: '#0f05a0'
+    order: 0
+  - id: scope2
+    label: Scope 2
+    label_es-US: Alcance 2
+    color: '#30505e'
+    order: 1
+  - id: scope3
+    label: Scope 3
+    label_es-US: Alcance 3
+    color: '#6496ff'
+    order: 2
+  - id: negative_emissions
+    label: Negative emissions
+    label_es-US: Emisiones negativas
+    color: '#F7A5AF'
+    order: -2
+  - id: informational
+    label: Informational only
+    order: -1
+
+- id: scope # FIXME Merge the two dimensions
+  label: Emission scopes
+  label_es-US: Alcances de emisión
+  categories:
+  - id: scope1
+    label: Scope 1
+    label_es-US: Alcance 1
+    aliases: ['1']
+    color: '#0f05a0'
+    order: 0
+  - id: scope2
+    label: Scope 2
+    label_es-US: Alcance 2
+    aliases: ['2']
+    color: '#30505e'
+    order: 1
+  - id: scope3
+    label: Scope 3
+    label_es-US: Alcance 3
+    aliases: ['3']
+    color: '#6496ff'
+    order: 2
+  - id: negative_emissions
+    label: Negative emissions
+    label_es-US: Emisiones negativas
+    color: '#F7A5AF'
+    order: -2
+  - id: informational
+    label: Informational only
+    order: -1
+
+- id: service
+  label: Service
+  categories:
+  - id: rtd_bus_activity
+    label: RTD Bus activity
+    aliases: [RTD Bus Activitiy 2023, RTD Bus Activitiy, rtd_bus_activitiy, rtd_bus_activitiy_2023]
+  - id: flexride
+    label: Flexride
+    aliases: [FlexRide 2023, flexride_2023]
+  - id: flex_route
+    label: FLEX Route
+    aliases: [FLEX Route (Fort Collins to Boulder), flex_route_fort_collins_to_boulder]
+  - id: via_ride_service_shuttles
+    label: Via Ride Service Shuttles
+
+- id: site
+  label: Production or consumption site
+  label_es-US: Sitio de producción o consumo
+  categories:
+  - id: longmont_power
+    label: Longmont Power
+    label_es-US: Longmont Power
+  - id: xcel_energy
+    label: Xcel Energy
+    label_es-US: Xcel Energy
+  - id: various
+    label: Various
+    label_es-US: Varios
+  - id: home
+    label: Home
+    label_es-US: Inicio
+
+- id: source
+  label: Source
+  categories:
+  - id: iclei
+    label: ICLEI
+  - id: epa
+    label: EPA
+  - id: climate_registry
+    label: Climate Registry
+
 - id: vehicle_type
   label: Vehicle type
   label_es-US: Tipo de vehículo
-  groups:
-  - id: cars
-    label: Cars
-    label_es-US: Automóviles
-    id_match: ^car_.+
-  - id: motorcycles
-    label: Motorcycles
-    label_es-US: Motocicletas
-    id_match: ^motorbike_.+
-  - id: buses
-    label: Local buses
-    label_es-US: Autobuses locales
-    id_match: ^buses_.+
-  - id: trolleybuses
-    label: Trolley buses
-    label_es-US: Trolebuses
-    id_match: ^trolley.*
-  - id: coaches
-    label: Coaches
-    label_es-US: Autobuses de largas distancias
-    id_match: ^coach_.+
-  - id: lorries
-    label: Lorries
-    label_es-US: Camiones
-    id_match: ^lorry_.+
-  - id: vans
-    label: Vans
-    label_es-US: Furgonetas
-    id_match: ^van_.+
-  - id: rail
-    label: Rail transport
-    label_es-US: Transporte ferroviario
-    id_match: ^(tram|small_railways|rail).*
-  - id: maritime
-    label: Maritime transport
-    label_es-US: Transporte marítimo
-    id_match: ^.*_ship_.*
-  - id: mobility_outside_city
-    label: Mobility ourside the city
-    label_es-US: Movilidad fuera de la ciudad
-    id_match: ^mobility_outside_city
-  - id: aviation
-    label: Aviation
-    label_es-US: Aviación
-    id_match: ^aviation
-
   categories:
   - id: motorcycle
     label: Motorcycle
@@ -303,102 +598,6 @@ dimensions:
   - id: combination_unit_truck
     label: Combination Unit Truck
     label_es-US: Camión de unidad combinada
-  - id: car_petrol
-    label: Passenger cars / Petrol
-    label_es-US: Automóviles / Gasolina
-  - id: car_diesel
-    label: Passenger cars / Diesel
-    label_es-US: Automóviles / Diésel
-  - id: car_natural_gas_biogas
-    label: Passenger cars / Natural gas / biogas
-    label_es-US: Automóviles / Gas natural / Biogás
-  - id: car_ethanol
-    label: Passenger cars / Ethanol
-    label_es-US: Automóviles / Etanol
-  - id: car_e85
-    label: Passenger cars / E85
-    label_es-US: Automóviles / E85
-  - id: car_plugin_hybrid
-    label: Passenger cars / Plug-in hybrid
-    label_es-US: Automóviles / Híbrido enchufable
-  - id: car_batteryelectric
-    label: Passenger cars / Battery-Electric
-    label_es-US: Automóviles / Batería eléctrica
-  - id: car_fuel_cell
-    label: Passenger cars / Fuel cell
-    label_es-US: Automóviles / Pila de combustible
-  - id: motorbike_petrol_4stroke
-    label: Motorbikes / Petrol 4-stroke engine
-    label_es-US: Motos / Motor de gasolina de cuatro tiempos
-  - id: motorbike_petrol_2stroke
-    label: Motorbikes / Petrol 2-stroke engine
-    label_es-US: Motos / Motor de gasolina de dos tiempos
-  - id: motorbike_batteryelectric
-    label: Motorbikes / Battery-Electric
-    label_es-US: Motos / Batería eléctrica
-  - id: buses_diesel
-    label: Regular buses / Diesel
-    label_es-US: Autobuses habituales / Diésel
-  - id: buses_diesel_hybrid
-    label: Regular buses / Diesel hybrid
-    label_es-US: Autobuses habituales / Híbrido diésel
-  - id: buses_diesel_plugin_hybrid
-    label: Regular buses / Diesel plug-in hybrid
-    label_es-US: Autobuses habituales / Híbrido diésel enchufable
-  - id: buses_batteryelectric
-    label: Regular buses / Battery-Electric
-    label_es-US: Autobuses habituales / Batería eléctrica
-  - id: buses_fuel_cell
-    label: Regular buses / Fuel cell
-    label_es-US: Autobuses habituales / Pila de combustible
-  - id: trolley
-    label: Trolley buses
-    label_es-US: Trolebuses
-  - id: coach_diesel
-    label: Coaches / Diesel
-    label_es-US: Autobuses de largas distancias / Diésel
-  - id: coach_natural_gas_biogas
-    label: Coaches / Natural gas/Biogas
-    label_es-US: Autobuses de largas distancias / Gas natural / Biogás
-  - id: coach_battery_electric
-    label: Coaches / Battery-Electric
-    label_es-US: Autobuses de largas distancias / Batería eléctrica
-  - id: coach_fuel_cell
-    label: Coaches / Fuel cell
-    label_es-US: Autobuses de largas distancias / Pila de combustible
-  - id: lorry_diesel
-    label: Lorries / Diesel
-    label_es-US: Camiones / Diésel
-  - id: lorry_natural_gas_biogas
-    label: Lorries / Natural gas/Biogas
-    label_es-US: Camiones / Gas natural / Biogás
-  - id: lorry_diesel_plugin_hybrid
-    label: Lorries / Diesel plug-in hybrid
-    label_es-US: Camiones / Híbrido diésel enchufable
-  - id: lorry_battery_electric
-    label: Lorries / Battery-Electric
-    label_es-US: Camiones / Batería eléctrica
-  - id: lorry_fuel_cell
-    label: Lorries / Fuel cell
-    label_es-US: Camiones / Pila de combustible
-  - id: van_petrol
-    label: Vans / Petrol
-    label_es-US: Furgonetas / Gasolina
-  - id: van_diesel
-    label: Van / Diesel
-    label_es-US: Furgoneta / Diésel
-  - id: van_natural_gas_biogas
-    label: Van / Natural gas/Biogas
-    label_es-US: Furgoneta / Gas natural / Biogás
-  - id: van_diesel_plugin_hybrid
-    label: Van / Plug-in hybrid
-    label_es-US: Furgoneta / Híbrido enchufable
-  - id: van_battery_electric
-    label: Van / Battery-Electric
-    label_es-US: Furgoneta / Batería eléctrica
-  - id: van_fuel_cell
-    label: Van / Fuel cell
-    label_es-US: Furgoneta / Pila de combustible
   - id: tram
     label: Tram
     label_es-US: Tranvía
@@ -637,7 +836,7 @@ dimensions:
     label_es-US: Inicio
 
 - id: waste
-  label: Waste type
+  label: Waste component
   label_es-US: Tipo de residuo
   categories:
   - id: landfilled
@@ -652,70 +851,55 @@ dimensions:
   - id: wastewater
     label: Wastewater
     label_es-US: Aguas residuales
-
-- id: building_energy_class
-  label: Building energy class
-  label_es-US: Clase energética del edificio
-  categories:
-  - id: all
-    label: All buildings, baseline
-    label_es-US: Todos los edificios, referencia
-  - id: regular
-    label: Regular old buildings
-    label_es-US: Edificios antiguos habituales
-  - id: renovated
-    label: Renovated old buildings
-    label_es-US: Edificios antiguos renovados
-  - id: compliant
-    label: New code-compliant buildings
-    label_es-US: Nuevos edificios que cumplen con el código
-  - id: non_compliant
-    label: New buildings not compliant with code
-    label_es-US: Nuevos edificios que no cumplen con el código
-  - id: existing
-    label: Existing building stock
-    label_es-US: Parque de edificios existente
-  - id: new
-    label: Building stock to be built
-    label_es-US: Parque de edificios a construir
-
-- id: action
-  label: Actions affecting nodes
-  label_es-US: Acciones que afectan a los nodos
-  categories:
-  - id: none
-    label: No actions taken
-    label_es-US: No se han tomado medidas
-  - id: updated_building_code
-    label: Use updated building code
-    label_es-US: Utilizar código de construcción actualizado
-  - id: updated_building_code_residential
-    label: Use updated building code, residential
-    label_es-US: Utilizar código de construcción actualizado, residencial
-  - id: updated_building_code_commercial
-    label: Use updated building code, commercial
-    label_es-US: Utilizar código de construcción actualizado, comercial
-  - id: develop_beyond_building_code
-    label: Develop beyond building code
-    label_es-US: Desarrollar más allá del código de construcción
-  - id: benchmark_energy_use
-    label: Report and benchmark energy use
-    label_es-US: Reportar y crear estándares de uso de energía
-
-- id: action_change
-  label: Changes caused by actions
-  label_es-US: Cambios causados ​​por acciones
-  categories:
-  - id: triggered
-    label: Fraction triggered to change
-    label_es-US: Fracción activada para cambiar
-  - id: compliant
-    label: Fraction compliant with criteria
-    label_es-US: Fracción que cumple con los criterios
-  - id: improvement
-    label: Relative improvement
-    label_es-US: Mejora relativa
-
+  - id: msw
+    label: MSW
+  - id: newspaper
+    label: Newspaper
+  - id: paper
+    label: Paper
+    aliases: [Office paper, office_paper]
+  - id: corrugated_containers
+    label: Corrugated containers
+  - id: magazines
+    label: Magazines/third-class mail
+    aliases: [magazinesthird_class_mail]
+  - id: food_scraps
+    label: Food scraps
+  - id: grass
+    label: Grass
+  - id: leaves
+    label: Leaves
+  - id: branches
+    label: Branches
+  - id: dimensional_lumber
+    label: Dimensional lumber
+    aliases: [Wood (dimensional lumber), wood_dimensional_lumber]
+  - id: cardboard
+    label: Cardboard
+  - id: metal
+    label: Metal
+    aliases: [Metals (mixed), metals_mixed]
+  - id: mixed_recyclables
+    label: Mixed recyclables
+  - id: plastics
+    label: Plastics
+    aliases: [plastic]
+  - id: glass
+    label: Glass
+    aliases: [glass_]
+  - id: construction_demolition
+    label: C&D
+    aliases: [cd]
+  - id: organics
+    label: Organics
+  - id: hazardous_waste
+    label: Hazardous Waste (Diverted)
+    aliases: [hazardous_waste_diverted]
+  - id: problem_materials
+    label: Problem Materials
+    aliases: [problem_materials_]
+  - id: other
+    label: Other
 
 params:
 - id: municipality_name
@@ -842,7 +1026,7 @@ emission_sectors:
   name: Aviation emissions
   name_es-US: Emisiones de la aviación
   category: aviation
-  part_of: transportation_emissions
+  # part_of: transportation_emissions
   input_dataset_processors: [LinearInterpolation]
 
 - id: railways_emissions
@@ -892,10 +1076,9 @@ nodes:
   type: simple.AdditiveNode
   quantity: population
   unit: cap
-  historical_values: [[2010, 86270], [2016, 92858], [2017, 94461], [2018, 96398],
-    [2019, 96577], [2020, 99129], [2021, 99629]]
-  forecast_values: [[2022, 101517], [2023, 102711], [2024, 103906], [2025, 105100],
-    [2030, 111072], [2035, 117045], [2040, 120006], [2045, 123042], [2050, 126156]]
+  input_datasets:
+  - id: longmont/population
+    column: population
   input_dataset_processors: [LinearInterpolation]
 
 - id: global_warming_potential_100a
@@ -1633,8 +1816,18 @@ nodes:
     - id: emission_sectors
     - id: greenhouse_gases
 
+# TEMPORARY
+
+- id: net_emissions2
+  name: Net emissions2
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [scope]
+  output_dimensions: [scope]
+
 #
-# TRANSPORTATION
+# NEW TRANSPORTATION
 #
 - id: number_of_cars
   name: Number of cars
@@ -1767,8 +1960,554 @@ nodes:
     - id: ghg
       flatten: true
     to_dimensions:
-    - id: emission_scope
-      categories: [scope2] # FIXME
+    - id: scope
+      categories: [scope1] # FIXME
+
+# Transit
+
+- id: total_transit_vmt
+  name: Total transit VMT
+  type: generic.GenericNode
+  quantity: mileage
+  unit: VMT/a
+  input_dimensions: [service, vehicle_type, energy_carrier]
+  output_dimensions: [service, vehicle_type, energy_carrier]
+  input_datasets:
+  - id: longmont/transit_data
+    tags: [baseline]
+    forecast_from: 2025
+    column: transit_vmt
+
+- id: transit_percentage_attributable_to_longmont
+  name: Transit percentage attributable to Longmont
+  type: generic.GenericNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [service, vehicle_type, energy_carrier]
+  output_dimensions: [service, vehicle_type, energy_carrier]
+  input_datasets:
+  - id: longmont/transit_data
+    tags: [baseline]
+    forecast_from: 2025
+    column: percent_attributable
+
+- id: transit_mpg
+  name: Transit MPG
+  type: generic.GenericNode
+  quantity: mileage
+  unit: VMT/gal
+  input_dimensions: [service, vehicle_type, energy_carrier]
+  output_dimensions: [service, vehicle_type, energy_carrier]
+  input_datasets:
+  - id: longmont/transit_data
+    tags: [baseline]
+    forecast_from: 2025
+    column: transit_mpg
+
+- id: transit_fuel_use
+  name: Transit fuel use
+  type: generic.GenericNode
+  quantity: energy
+  unit: gal/a
+  input_dimensions: [service, vehicle_type, energy_carrier]
+  output_dimensions: [service, vehicle_type, energy_carrier]
+  input_nodes:
+  - id: total_transit_vmt
+  - id: transit_percentage_attributable_to_longmont
+  - id: transit_mpg
+    tags: [geometric_inverse]
+
+- id: transit_co2_emissions
+  name: Transit CO2 emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [service, vehicle_type, energy_carrier, ghg]
+  output_dimensions: [service, vehicle_type, energy_carrier, ghg]
+  input_nodes:
+  - id: transit_fuel_use
+    to_dimensions:
+    - id: service
+    - id: vehicle_type
+    - id: energy_carrier
+  - id: transportation_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+  - id: global_warming_potential_100a2
+    to_dimensions:
+    - id: ghg
+  output_nodes:
+  - id: road_transportation_emissions2
+    from_dimensions:
+    - id: service
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+    - id: ghg
+
+# Railways
+
+- id: total_railway_ghg_emissions_boulder_county
+  name: Total Railway GHG Emissions Boulder County
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
+  input_datasets:
+  - id: longmont/total_railway_ghg_emissions_boulder_county
+    tags: [baseline]
+    forecast_from: 2025
+    column: railway_emissions
+
+- id: proportion_of_rail_lines_in_longmont
+  name: Proportion of Rail Lines in Longmont
+  type: generic.GenericNode
+  quantity: emissions
+  unit: '%'
+  input_datasets:
+  - id: longmont/total_railway_ghg_emissions_boulder_county
+    tags: [baseline]
+    forecast_from: 2025
+    column: proportion_of_rail_lines_in_longmont
+
+- id: railway_emissions
+  name: Railway emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
+  input_nodes:
+  - id: total_railway_ghg_emissions_boulder_county
+  - id: proportion_of_rail_lines_in_longmont
+    to_dimensions: []
+  - id: global_warming_potential_100a2
+  output_nodes:
+  - id: transportation_emissions2
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+      categories: [mixed]
+
+# AVIATION
+
+- id: aviation_fuel_usage
+  name: Aviation fuel usage
+  type: generic.GenericNode
+  quantity: energy
+  unit: gal/a
+  input_dimensions: [energy_carrier, airport, scope]
+  output_dimensions: [energy_carrier, airport, scope]
+  input_datasets:
+  - id: longmont/aviation_data
+    tags: [baseline]
+    column: total_fuel_used
+
+- id: aviation_fuel_emission_factors
+  name: Aviation fuel emission factors
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g/gal
+  input_dimensions: [energy_carrier, ghg, source]
+  output_dimensions: [energy_carrier, ghg, source]
+  input_datasets:
+  - id: longmont/aviation_data
+    tags: [baseline]
+    column: fuel_emission_factors
+
+- id: aviation_emissions2
+  name: Aviation emissions 2
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [airport, energy_carrier, ghg, scope]
+  output_dimensions: [airport, energy_carrier, ghg, scope]
+  input_nodes:
+  - id: aviation_fuel_usage
+    to_dimensions:
+    - id: energy_carrier
+    - id: airport
+    - id: scope
+  - id: aviation_fuel_emission_factors
+    from_dimensions:
+    - id: source
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+  - id: global_warming_potential_100a2
+    to_dimensions:
+    - id: ghg
+  output_nodes:
+  - id: transportation_emissions2
+    from_dimensions:
+    - id: airport
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+
+# WASTE
+
+- id: waste_emission_factors
+  name: Waste emission factors
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t/short_ton
+  input_dimensions: [waste, ghg]
+  output_dimensions: [waste, ghg]
+  input_datasets:
+  - id: longmont/waste_emission_factors
+    tags: [baseline]
+    column: waste_emission_factor
+
+- id: gas_collection_rate
+  name: Gas collection rate
+  type: generic.GenericNode
+  quantity: fraction
+  unit: '%'
+  input_datasets:
+  - id: longmont/waste_data
+    tags: [baseline]
+    column: gas_collection_rate
+
+- id: waste_landfilled
+  name: Waste landfilled
+  type: generic.GenericNode
+  quantity: mass
+  unit: short_ton/a
+  input_dimensions: [scope, waste]
+  output_dimensions: [scope, waste]
+  input_datasets:
+  - id: longmont/waste_data
+    tags: [baseline]
+    column: waste_landfilled
+
+- id: msw_characterization
+  name: MSW characterization
+  type: generic.GenericNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [waste]
+  output_dimensions: [waste]
+  input_datasets:
+  - id: longmont/waste_characterization
+    tags: [baseline]
+    column: msw_characterization
+
+- id: landfilled_waste_emissions
+  name: Landfilled waste emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [scope, waste, ghg]
+  output_dimensions: [scope, waste, ghg]
+  input_nodes:
+  - id: waste_landfilled
+    tags: [non_additive]
+    from_dimensions:
+    - id: waste
+      flatten: true
+    to_dimensions:
+    - id: scope
+  - id: msw_characterization
+    to_dimensions:
+    - id: waste
+  - id: waste_emission_factors
+    to_dimensions:
+    - id: waste
+    - id: ghg
+  - id: gas_collection_rate
+    tags: [complement]
+    to_dimensions: []
+  - id: global_warming_potential_100a2
+    to_dimensions:
+    - id: ghg
+  output_nodes:
+  - id: waste_emissions2
+    from_dimensions:
+    - id: waste
+      flatten: true
+
+- id: composted_waste_emission_factor
+  name: Composted waste emission factor
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t/short_ton
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
+  input_datasets:
+  - id: longmont/waste_emission_factors
+    tags: [baseline]
+    column: composting_emission_factor
+
+- id: waste_composted
+  name: Waste composted
+  type: generic.GenericNode
+  quantity: mass
+  unit: short_ton/a
+  input_dimensions: [scope]
+  output_dimensions: [scope]
+  input_datasets:
+  - id: longmont/waste_data
+    tags: [baseline]
+    column: waste_composted
+
+- id: composted_waste_emissions
+  name: Composted waste emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [scope, ghg]
+  output_dimensions: [scope, ghg]
+  input_nodes:
+  - id: composted_waste_emission_factor
+    to_dimensions:
+    - id: ghg
+  - id: waste_composted
+    tags: [non_additive]
+    to_dimensions:
+    - id: scope
+  - id: global_warming_potential_100a2
+    to_dimensions:
+    - id: ghg
+  output_nodes:
+  - id: waste_emissions2
+
+- id: informational_composting_emission_factor
+  name: Informational composting emission factor
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t/short_ton
+  input_dimensions: [scope, ghg]
+  output_dimensions: [scope, ghg]
+  input_datasets:
+  - id: longmont/waste_emission_factors
+    tags: [baseline]
+    column: informational_composting_emission_factor
+
+- id: informational_composting_emission_reduction
+  name: Informational composting emission reduction
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [scope, ghg]
+  output_dimensions: [scope, ghg]
+  input_nodes:
+  - id: informational_composting_emission_factor
+    to_dimensions:
+    - id: ghg
+    - id: scope
+  - id: waste_composted
+    tags: [non_additive]
+    from_dimensions:
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: scope
+      categories: [informational]
+  - id: global_warming_potential_100a2
+    to_dimensions:
+    - id: ghg
+  output_nodes:
+  - id: waste_emissions2
+
+- id: waste_recycled
+  name: Waste recycled
+  type: generic.GenericNode
+  quantity: mass
+  unit: short_ton/a
+  input_dimensions: [scope]
+  output_dimensions: [scope]
+  input_datasets:
+  - id: longmont/waste_data
+    tags: [baseline]
+    column: waste_recycled
+
+- id: recycling_characterization
+  name: Recycling characterization
+  type: generic.GenericNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [waste]
+  output_dimensions: [waste]
+  input_datasets:
+  - id: longmont/waste_characterization
+    tags: [baseline]
+    column: recycling_characterization
+
+- id: recycling_instead_of_virgin
+  name: Recycling instead of virgin materials
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t/short_ton
+  input_dimensions: [waste, ghg]
+  output_dimensions: [waste, ghg]
+  input_datasets:
+  - id: longmont/waste_emission_factors
+    tags: [baseline]
+    column: recycling_instead_of_virgin
+
+- id: landfill_gas_collection
+  name: Landfill gas collection factor
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t/short_ton
+  input_dimensions: [waste, ghg]
+  output_dimensions: [waste, ghg]
+  input_datasets:
+  - id: longmont/waste_emission_factors
+    tags: [baseline]
+    column: landfill_gas_collection
+
+- id: recycling_emission_factor
+  name: Recycling emission factor
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t/short_ton
+  input_dimensions: [waste, ghg]
+  output_dimensions: [waste, ghg]
+  input_nodes:
+  - id: recycling_instead_of_virgin
+  - id: landfill_gas_collection
+
+- id: recycling_emission_reduction
+  name: Recycling emission reduction
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [scope, ghg, waste]
+  output_dimensions: [scope, ghg, waste]
+  input_nodes:
+  - id: recycling_emission_factor
+    to_dimensions:
+    - id: ghg
+    - id: waste
+  - id: waste_recycled
+    tags: [non_additive]
+    to_dimensions:
+    - id: scope
+  - id: recycling_characterization
+    to_dimensions:
+    - id: waste
+  - id: global_warming_potential_100a2
+    to_dimensions:
+    - id: ghg
+  output_nodes:
+  - id: waste_emissions2
+    from_dimensions:
+    - id: waste
+      flatten: true
+
+- id: global_warming_potential_100a2
+  name: Global warming potential2
+  type: generic.GenericNode
+  quantity: ratio
+  unit: t_co2e/t
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
+  input_datasets:
+  - id: longmont/global_warming_potentials
+    tags: [baseline]
+    column: global_warming_potential
+
+- id: waste_emissions2
+  name: Waste emissions2
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [scope, ghg]
+  output_dimensions: [scope, ghg]
+  output_nodes:
+  - id: net_emissions2
+    from_dimensions:
+    - id: ghg
+      flatten: true
+
+# IPPU
+
+- id: commercial_air_conditioned_square_footage
+  name: Commercial air-conditioned square footage
+  type: generic.GenericNode
+  quantity: floor_area
+  unit: sq_ft
+  input_datasets:
+  - id: longmont/ippu
+    tags: [baseline]
+    column: commercial_square_footage_air_conditioned
+
+- id: square_feet_per_ton_of_cooling
+  name: Square feet per ton of cooling
+  type: generic.GenericNode
+  quantity: floor_area
+  unit: sq_ft/refrigeration_ton
+  input_datasets:
+  - id: longmont/ippu
+    tags: [baseline]
+    column: square_feet_per_ton_of_cooling
+
+- id: amount_of_refrigerant
+  name: Amount of refrigerant
+  type: generic.GenericNode
+  quantity: mass
+  unit: kg/refrigeration_ton
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
+  input_datasets:
+  - id: longmont/ippu
+    tags: [baseline]
+    column: amount_of_refrigerant
+
+- id: refrigerant_loss
+  name: Refrigerant loss
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: '%/a'
+  input_datasets:
+  - id: longmont/ippu
+    tags: [baseline]
+    column: estimated_refrigerant_loss
+
+- id: refrigerant_emissions
+  name: Refrigerant emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
+  input_nodes:
+  - id: commercial_air_conditioned_square_footage
+    to_dimensions: []
+  - id: square_feet_per_ton_of_cooling
+    tags: [geometric_inverse]
+    to_dimensions: []
+  - id: amount_of_refrigerant
+  - id: refrigerant_loss
+    to_dimensions: []
+  - id: global_warming_potential_100a2
+  output_nodes:
+  - id: ippu_emissions2
+
+- id: ippu_emissions2
+  name: IPPU emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
+  output_nodes:
+  - id: net_emissions2
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: scope
+      categories: [scope1]
 
 #OLD TRANSPORTATION NODES
 

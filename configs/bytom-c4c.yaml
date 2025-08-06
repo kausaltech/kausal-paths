@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://bytom-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: de1db5ccf2bd54e42beb1c245f9ea888b3fa9ef7
+  commit: e99c727bcf999073d1b16f0e2d6c806d123c9de3
   dvc_remote: kausal-s3
 name: Bytom Greenhouse Gas Inventory
 owner: City of Bytom
@@ -15,7 +15,7 @@ minimum_historical_year: 2010
 maximum_historical_year: 2023
 emission_unit: t/a
 emission_forecast_from: 2024
-emission_dimensions: ['ghg']
+emission_dimensions: [ghg]
 features:
   baseline_visible_in_graphs: true
   use_datasets_from_db: true
@@ -25,211 +25,138 @@ dimensions:
   label: Energy Carrier
   categories:
   - id: district_heat
-    label: 'District Heat'
+    label: District Heat
   - id: electricity
-    label: 'Electricity'
+    label: Electricity
   - id: natural_gas
-    label: 'Natural Gas'
+    label: Natural Gas
 
 - id: heating
   label: Heating
   categories:
   - id: central_heating_msc
-    label: 'Central Heating (MSC)'
+    label: Central Heating (MSC)
   - id: coal_stove_heating
-    label: 'Coal Stove Heating'
+    label: Coal Stove Heating
   - id: electric_heating
-    label: 'Electric Heating'
+    label: Electric Heating
   - id: gas_heating
-    label: 'Gas Heating'
+    label: Gas Heating
 
 - id: owner
   label: Owner
   categories:
-  - id: citizens
-    label: 'Citizens'
   - id: communal_district_heating_company
-    label: 'Communal District Heating Company'
+    label: Communal District Heating Company
   - id: municipal
-    label: 'Municipal'
-  - id: private
-    label: 'Private'
+    label: Municipal
+  - id: municipal_streetlighting
+    label: Municipal (Streetlighting)
+  - id: private_commercial
+    label: Private (Commercial)
+  - id: private_manufacturing
+    label: Private (Manufacturing)
+  - id: private_residential
+    label: Private (Residential)
 
 - id: scope
   label: Scope
   categories:
   - id: scope1
-    label: 'Scope 1'
+    label: Scope 1
   - id: scope2
-    label: 'Scope 2'
+    label: Scope 2
   - id: scope3
-    label: 'Scope 3'
+    label: Scope 3
 
 - id: source
   label: Source
   categories:
   - id: households
-    label: 'Households'
+    label: Households
   - id: other_consumers
-    label: 'Other Consumers'
+    label: Other Consumers
 
 - id: ghg
   label: GHG
   categories:
   - id: ch4
-    label: 'CH4'
+    label: CH4
   - id: co2
-    label: 'CO2'
+    label: CO2
 
 - id: sector
-  label: GPC Sector
+  label: Emission Sector
   categories:
+  # ----- Stationary
   - id: i
-    label: 'I Stationary'
+    label: Stationary
   - id: i1
-    label: 'I.1 Residential'
+    label: Electricity Consumption
   - id: i11
-    label: 'I.1.1 Residential Fuel'
+    label: Low-voltage
   - id: i12
-    label: 'I.1.2 Residential Grid Energy'
+    label: Medium-voltage
   - id: i13
-    label: 'I.1.3 Residential T & D Loss'
+    label: High-voltage
   - id: i2
-    label: 'I.2 Commercial & Institutional'
+    label: Other Energy Consumption
   - id: i21
-    label: 'I.2.1 Commercial & Institutional Fuel'
+    label: Natural Gas
   - id: i22
-    label: 'I.2.2 Commercial & Institutional Grid Energy'
+    label: District Heating
   - id: i23
-    label: 'I.2.3 Commercial & Institutional T & D Loss'
-  - id: i3
-    label: 'I.3 Manufacturing'
-  - id: i31
-    label: 'I.3.1 Manufacturing Fuel'
-  - id: i32
-    label: 'I.3.2 Manufacturing Grid Energy'
-  - id: i33
-    label: 'I.3.3 Manufacturing T & D Loss'
-  - id: i4
-    label: 'I.4 Energy'
-  - id: i41
-    label: 'I.4.1 Energy Fuel'
-  - id: i42
-    label: 'I.4.2 Energy Grid Energy'
-  - id: i43
-    label: 'I.4.3 Energy T & D Loss'
-  - id: i5
-    label: 'I.5 Ag, Forestry, & Fishing'
-  - id: i51
-    label: 'I.5.1 Ag, Forestry, & Fishing Fuel'
-  - id: i52
-    label: 'I.5.2 Ag, Forestry, & Fishing Grid Energy'
-  - id: i53
-    label: 'I.5.3 Ag, Forestry, & Fishing T & D Loss'
-  - id: i6
-    label: 'I.6 Non-Specified'
-  - id: i61
-    label: 'I.6.1 Non-Specified Fuel'
-  - id: i62
-    label: 'I.6.2 Non-Specified Grid Energy'
-  - id: i63
-    label: 'I.6.3 Non-Specified T & D Loss'
-  - id: i7
-    label: 'I.7 Fugitive Coal'
-  - id: i71
-    label: 'I.7.1 Fugitive Coal'
-  - id: i8
-    label: 'I.8 Fugitive Oil & Natural Gas'
-  - id: i81
-    label: 'I.8.1 Fugitive Oil & Natural Gas'
+    label: Heating Stoves
+
+  # ----- Transportation
   - id: ii
-    label: 'II Transportation'
+    label: Transportation
   - id: ii1
-    label: 'II.1 On-Road Transport'
-  - id: ii11
-    label: 'II.1.1 On-Road Transport Fuel'
-  - id: ii12
-    label: 'II.1.2 On-Road Transport Grid Energy'
-  - id: ii13
-    label: 'II.1.3 On-Road Transport Outside City, T & D Loss'
+    label: On-Road Transport
   - id: ii2
-    label: 'II.2 Railway'
-  - id: ii21
-    label: 'II.2.1 Railway Fuel'
-  - id: ii22
-    label: 'II.2.2 Railway Grid Energy'
-  - id: ii23
-    label: 'II.2.3 Railway Outside City, T & D Loss'
+    label: Railway
   - id: ii3
-    label: 'II.3 Waterborne'
-  - id: ii31
-    label: 'II.3.1 Waterborne Fuel'
-  - id: ii32
-    label: 'II.3.2 Waterborne Grid Energy'
-  - id: ii33
-    label: 'II.3.3 Waterborne Outside City, T & D Loss'
+    label: Waterborne
   - id: ii4
-    label: 'II.4 Aviation'
-  - id: ii41
-    label: 'II.4.1 Aviation Fuel'
-  - id: ii42
-    label: 'II.4.2 Aviation Grid Energy'
-  - id: ii43
-    label: 'II.4.3 Aviation Outside City, T & D Loss'
+    label: Aviation
   - id: ii5
-    label: 'II.5 Off-Road Transport'
-  - id: ii51
-    label: 'II.5.1 Off-Road Transport Fuel'
-  - id: ii52
-    label: 'II.5.2 Off-Road Transport Grid Energy'
-  - id: ii53
-    label: 'II.5.3 Off-Road Transport Outside City, T & D Loss'
+    label: Off-Road Transport
+
+  # ----- Waste
   - id: iii
-    label: 'III Waste'
+    label: Waste
   - id: iii1
-    label: 'III.1 Solid Waste'
-  - id: iii11
-    label: 'III.1.1 Solid Waste Disposed in City'
-  - id: iii12
-    label: 'III.1.2 Solid Waste Disposed Outside City'
+    label: Solid Waste
   - id: iii2
-    label: 'III.2 Biological Waste'
-  - id: iii21
-    label: 'III.2.1 Biological Waste Treated in City'
-  - id: iii22
-    label: 'III.2.2 Biological Waste Treated Outside City'
+    label: Biological Waste
   - id: iii3
-    label: 'III.3 Incineration'
-  - id: iii31
-    label: 'III.3.1 Incineration in City'
-  - id: iii32
-    label: 'III.3.2 Incineration Outside City'
+    label: Incineration
   - id: iii4
-    label: 'III.4 Wastewater'
-  - id: iii41
-    label: 'III.4.1 Wastewater Treated in City'
-  - id: iii42
-    label: 'III.4.2 Wastewater Treated Outside City'
+    label: Wastewater
+
+  # ----- IPPU
   - id: iv
-    label: 'IV IPPU'
+    label: IPPU
   - id: iv1
-    label: 'IV.1 Industrial Processes'
+    label: Industrial Processes
   - id: iv2
-    label: 'IV.2 Product Use'
+    label: Product Use
+
+  # ----- AFOLU
   - id: v
-    label: 'V AFOLU'
+    label: AFOLU
   - id: v1
-    label: 'V.1 Livestock'
+    label: Livestock
   - id: v2
-    label: 'V.2 Land'
+    label: Land
   - id: v3
-    label: 'V.3 Aggregate Sources'
+    label: Aggregate Sources
 
 - id: action
   label: Action
   categories:
   - id: replace_coal_stove_heating_in_municipal_buildings
-    label: 'Replace Coal Stove Heating in Municipal Buildings'
+    label: Replace Coal Stove Heating in Municipal Buildings
 
 emission_sectors:
 - id: net_emissions
@@ -237,456 +164,420 @@ emission_sectors:
   is_outcome: true
 
 nodes:
-- id: net_price
-  name: Net Price
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: PLN/a
-  input_dimensions: ['scope']
-  output_dimensions: ['scope']
-  is_outcome: true
+# ----- Residential Natural Gas
 
-- id: i11_residential_fuel_consumption
-  name: I.1.1 Residential Fuel Consumption
+- id: i21_residential_natural_gas_consumption
+  name: Residential Natural Gas Consumption
   type: simple.AdditiveNode
   quantity: fuel_consumption
   unit: m³/a
-  input_dimensions: ['energy_carrier', 'owner', 'scope']
-  output_dimensions: ['energy_carrier', 'owner', 'scope']
+  input_dimensions: [energy_carrier, owner, scope]
+  output_dimensions: [energy_carrier, owner, scope]
   input_datasets:
   - id: bytom/stationary
     column: fuel_consumption
     dropna: true
     filters:
     - column: sector
-      value: i11
+      value: i21
     - column: ghg
     - column: heating
   output_nodes:
-  - id: i11_residential_fuel_consumption_emissions
+  - id: i21_residential_natural_gas_emissions
     to_dimensions:
     - id: energy_carrier
     - id: owner
     - id: scope
 
-- id: i11_residential_fuel_consumption_emissions
-  name: I.1.1 Residential Fuel Consumption Emissions
+- id: i21_residential_natural_gas_emissions
+  name: Residential Natural Gas Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['owner', 'energy_carrier', 'scope', 'ghg']
-  output_dimensions: ['owner', 'energy_carrier', 'scope', 'ghg']
+  input_dimensions: [owner, energy_carrier, scope, ghg]
+  output_dimensions: [owner, energy_carrier, scope, ghg]
   output_nodes:
-  - id: i1_residential_total_emissions
+  - id: i21_natural_gas_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
     to_dimensions:
     - id: owner
-    - id: energy_carrier
     - id: scope
     - id: ghg
 
-- id: i11_residential_fuel_emission_factor
-  name: I.1.1 Residential Fuel Emission Factor
+- id: i21_residential_natural_gas_emission_factor
+  name: Residential Natural Gas Emission Factor
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/m³
-  input_dimensions: ['energy_carrier', 'owner', 'scope', 'ghg']
-  output_dimensions: ['energy_carrier', 'owner', 'scope', 'ghg']
+  input_dimensions: [energy_carrier, owner, scope, ghg]
+  output_dimensions: [energy_carrier, owner, scope, ghg]
   input_datasets:
   - id: bytom/stationary
     column: emission_factor_fuel
     dropna: true
     filters:
     - column: sector
+      value: i21
+    - column: heating
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: i21_residential_natural_gas_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: owner
+    - id: scope
+    - id: ghg
+
+# ----- Low-Voltage
+
+- id: i11_low_voltage_electricity_consumption
+  name: Low-voltage Electricity Consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [energy_carrier, owner, scope]
+  output_dimensions: [energy_carrier, owner, scope]
+  input_datasets:
+  - id: bytom/stationary
+    column: energy
+    dropna: true
+    filters:
+    - column: sector
+      value: i11
+    - column: ghg
+    - column: heating
+  output_nodes:
+  - id: i11_low_voltage_electricity_emissions
+    to_dimensions:
+    - id: energy_carrier
+    - id: owner
+    - id: scope
+
+- id: i11_low_voltage_electricity_emissions
+  name: Low-voltage Electricity Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [owner, energy_carrier, scope, ghg]
+  output_dimensions: [owner, energy_carrier, scope, ghg]
+  output_nodes:
+  - id: i1_electricity_emissions
+    to_dimensions:
+    - id: owner
+    - id: energy_carrier
+    - id: scope
+    - id: ghg
+
+- id: i11_low_voltage_electricity_emission_factor
+  name: Low-voltage Electricity Emission Factor
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: kg/MWh
+  input_dimensions: [energy_carrier, owner, scope, ghg]
+  output_dimensions: [energy_carrier, owner, scope, ghg]
+  input_datasets:
+  - id: bytom/stationary
+    column: emission_factor_energy
+    dropna: true
+    filters:
+    - column: sector
       value: i11
     - column: heating
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: i11_residential_fuel_consumption_emissions
-    to_dimensions:
-    - id: energy_carrier
-    - id: owner
-    - id: scope
-    - id: ghg
+  - id: i11_low_voltage_electricity_emissions
 
-- id: i12_residential_grid_energy_consumption
-  name: I.1.2 Residential Grid Energy Consumption
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: kWh/a
-  input_dimensions: ['energy_carrier', 'owner', 'scope']
-  output_dimensions: ['energy_carrier', 'owner', 'scope']
-  input_datasets:
-  - id: bytom/stationary
-    column: energy
-    dropna: true
-    filters:
-    - column: sector
-      value: i12
-    - column: ghg
-    - column: heating
-  output_nodes:
-  - id: i12_residential_grid_energy_consumption_emissions
-    to_dimensions:
-    - id: energy_carrier
-    - id: owner
-    - id: scope
+# ----- Commercial Medium-Voltage
 
-- id: i12_residential_grid_energy_consumption_emissions
-  name: I.1.2 Residential Grid Energy Consumption Emissions
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['owner', 'energy_carrier', 'scope', 'ghg']
-  output_dimensions: ['owner', 'energy_carrier', 'scope', 'ghg']
-  output_nodes:
-  - id: i1_residential_total_emissions
-    to_dimensions:
-    - id: owner
-    - id: energy_carrier
-    - id: scope
-    - id: ghg
-
-- id: i12_residential_grid_energy_emission_factor
-  name: I.1.2 Residential Grid Energy Emission Factor
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: kg/MWh
-  input_dimensions: ['energy_carrier', 'owner', 'scope', 'ghg']
-  output_dimensions: ['energy_carrier', 'owner', 'scope', 'ghg']
-  input_datasets:
-  - id: bytom/stationary
-    column: emission_factor_energy
-    dropna: true
-    filters:
-    - column: sector
-      value: i12
-    - column: heating
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - id: i12_residential_grid_energy_consumption_emissions
-    to_dimensions:
-    - id: energy_carrier
-    - id: owner
-    - id: scope
-    - id: ghg
-
-- id: i22_commercial_and_institutional_grid_energy_consumption
-  name: I.2.2 Commercial & Institutional Grid Energy Consumption
+- id: i12_commercial_electricity_consumption
+  name: Commercial Electricity Consumption
   type: simple.AdditiveNode
   quantity: energy
   unit: MWh/a
-  input_dimensions: ['energy_carrier', 'scope']
-  output_dimensions: ['energy_carrier', 'scope']
+  input_dimensions: [energy_carrier, owner, scope]
+  output_dimensions: [energy_carrier, owner, scope]
   input_datasets:
   - id: bytom/stationary
     column: energy
     dropna: true
     filters:
     - column: sector
-      value: i22
+      value: i12
     - column: ghg
-    - column: owner
     - column: heating
   output_nodes:
-  - id: i22_commercial_and_institutional_grid_energy_consumption_emissions
+  - id: i12_commercial_electricity_emissions
     to_dimensions:
     - id: energy_carrier
+    - id: owner
     - id: scope
 
-- id: i22_commercial_and_institutional_grid_energy_consumption_emissions
-  name: I.2.2 Commercial & Institutional Grid Energy Consumption Emissions
+- id: i12_commercial_electricity_emissions
+  name: Commercial Electricity Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energy_carrier', 'scope', 'ghg']
-  output_dimensions: ['energy_carrier', 'scope', 'ghg']
+  input_dimensions: [owner, energy_carrier, scope, ghg]
+  output_dimensions: [owner, energy_carrier, scope, ghg]
   output_nodes:
-  - id: i2_commercial_and_institutional_total_emissions
-    to_dimensions:
-    - id: energy_carrier
-    - id: scope
-    - id: ghg
+  - id: i12_medium_voltage_electricity_emissions
 
-- id: i22_commercial_and_institutional_grid_energy_emission_factor
-  name: I.2.2 Commercial & Institutional Grid Energy Emission Factor
+- id: i12_commercial_electricity_emission_factor
+  name: Commercial Electricity Emission Factor
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/MWh
-  input_dimensions: ['energy_carrier', 'scope', 'ghg']
-  output_dimensions: ['energy_carrier', 'scope', 'ghg']
+  input_dimensions: [energy_carrier, owner, scope, ghg]
+  output_dimensions: [energy_carrier, owner, scope, ghg]
   input_datasets:
   - id: bytom/stationary
     column: emission_factor_energy
     dropna: true
     filters:
     - column: sector
-      value: i22
-    - column: owner
+      value: i12
+    - dimension: owner
+      categories: [private_commercial]
     - column: heating
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: i22_commercial_and_institutional_grid_energy_consumption_emissions
-    to_dimensions:
-    - id: energy_carrier
-    - id: scope
-    - id: ghg
+  - id: i12_commercial_electricity_emissions
 
-- id: i31_manufacturing_fuel_emissions
-  name: I.3.1 Manufacturing Fuel Emissions
+# ----- Manufacturing Natural Gas
+
+- id: i21_manufacturing_natural_gas_emissions
+  name: Manufacturing Natural Gas Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['owner', 'scope', 'ghg']
-  output_dimensions: ['owner', 'scope', 'ghg']
+  input_dimensions: [owner, scope, ghg]
+  output_dimensions: [owner, scope, ghg]
   input_datasets:
   - id: bytom/stationary
     column: emissions
     dropna: true
     filters:
     - column: sector
-      value: i31
+      value: i21
     - column: energy_carrier
     - column: heating
   output_nodes:
-  - id: i3_manufacturing_total_emissions
-    to_dimensions:
-    - id: owner
-    - id: scope
-    - id: ghg
+  - id: i21_natural_gas_emissions
 
-- id: i42_energy_grid_energy_consumption
-  name: I.4.2 Energy Grid Energy Consumption
+# ----- Streetlights
+
+- id: i12_streetlight_electricity_consumption
+  name: Streetlight Electricity Consumption
   type: simple.MultiplicativeNode
   quantity: energy
   unit: kWh/a
-  input_dimensions: ['energy_carrier', 'scope']
-  output_dimensions: ['energy_carrier', 'scope']
+  input_dimensions: [energy_carrier, owner, scope]
+  output_dimensions: [energy_carrier, owner, scope]
   output_nodes:
-  - id: i42_energy_grid_energy_consumption_emissions
+  - id: i12_streetlight_electricity_emissions
     to_dimensions:
     - id: energy_carrier
+    - id: owner
     - id: scope
-  - id: i42_energy_grid_energy_consumption_price
+  - id: i12_streetlight_electricity_costs
     to_dimensions:
     - id: energy_carrier
+    - id: owner
     - id: scope
 
-- id: i42_energy_grid_energy_consumption_emissions
-  name: I.4.2 Energy Grid Energy Consumption Emissions
+- id: i12_streetlight_electricity_emissions
+  name: Streetlight Electricity Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energy_carrier', 'scope', 'ghg']
-  output_dimensions: ['energy_carrier', 'scope', 'ghg']
+  input_dimensions: [owner, energy_carrier, scope, ghg]
+  output_dimensions: [owner, energy_carrier, scope, ghg]
   output_nodes:
-  - id: i4_energy_total_emissions
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: scope
-    - id: ghg
+  - id: i12_medium_voltage_electricity_emissions
 
-- id: i42_energy_grid_energy_consumption_price
-  name: I.4.2 Energy Grid Energy Consumption Price
+- id: i12_streetlight_electricity_costs
+  name: Streetlight Electricity Costs
   type: simple.MultiplicativeNode
   quantity: currency
   unit: PLN/a
-  input_dimensions: ['energy_carrier', 'scope']
-  output_dimensions: ['energy_carrier', 'scope']
+  input_dimensions: [owner, energy_carrier, scope]
+  output_dimensions: [owner, energy_carrier, scope]
   output_nodes:
-  - id: i42_energy_grid_energy_total_price
+  - id: i12_medium_voltage_electricity_costs
     from_dimensions:
+    - id: owner
+      flatten: true
     - id: energy_carrier
       flatten: true
     to_dimensions:
     - id: scope
 
-- id: i42_energy_grid_energy_emission_factor
-  name: I.4.2 Energy Grid Energy Emission Factor
+- id: i12_streetlight_electricity_emission_factor
+  name: Streetlight Electricity Emission Factor
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/kWh
-  input_dimensions: ['energy_carrier', 'scope', 'ghg']
-  output_dimensions: ['energy_carrier', 'scope', 'ghg']
+  input_dimensions: [energy_carrier, owner, scope, ghg]
+  output_dimensions: [energy_carrier, owner, scope, ghg]
   input_datasets:
   - id: bytom/stationary
     column: emission_factor_energy
     dropna: true
     filters:
     - column: sector
-      value: i42
-    - column: owner
+      value: i12
+    - dimension: owner
+      categories: [municipal_streetlighting]
     - column: heating
   output_nodes:
-  - id: i42_energy_grid_energy_consumption_emissions
-    to_dimensions:
-    - id: energy_carrier
-    - id: scope
-    - id: ghg
+  - id: i12_streetlight_electricity_emissions
 
-- id: i42_energy_grid_energy_energy_factor
-  name: I.4.2 Energy Grid Energy Energy Factor
+- id: i12_streetlight_electricity_factor
+  name: Streetlight Electricity Factor
   type: simple.AdditiveNode
   quantity: energy_factor
   unit: kWh/count/a
-  input_dimensions: ['energy_carrier', 'scope']
-  output_dimensions: ['energy_carrier', 'scope']
+  input_dimensions: [energy_carrier, owner, scope]
+  output_dimensions: [energy_carrier, owner, scope]
   input_datasets:
   - id: bytom/stationary
     column: energy_factor
     dropna: true
     filters:
     - column: sector
-      value: i42
+      value: i12
     - column: ghg
-    - column: owner
     - column: heating
   output_nodes:
-  - id: i42_energy_grid_energy_consumption
+  - id: i12_streetlight_electricity_consumption
     tags: [non_additive]
-    to_dimensions:
-    - id: energy_carrier
-    - id: scope
 
-- id: i42_energy_grid_energy_number
-  name: I.4.2 Energy Grid Energy Number
+- id: i12_streetlight_counts
+  name: Streetlight Counts
   type: simple.AdditiveNode
   quantity: number
   unit: count
-  input_dimensions: ['scope']
-  output_dimensions: ['scope']
+  input_dimensions: [scope]
+  output_dimensions: [scope]
   input_datasets:
   - id: bytom/stationary
     column: number
     dropna: true
     filters:
     - column: sector
-      value: i42
+      value: i12
     - column: energy_carrier
     - column: ghg
     - column: owner
     - column: heating
   output_nodes:
-  - id: i42_energy_grid_energy_consumption
+  - id: i12_streetlight_electricity_consumption
     to_dimensions:
     - id: scope
 
-- id: i42_energy_grid_energy_price
-  name: I.4.2 Energy Grid Energy Price
+- id: i12_streetlight_costs
+  name: Streetlight Costs
   type: simple.AdditiveNode
   quantity: currency
   unit: PLN/a
-  input_dimensions: ['scope']
-  output_dimensions: ['scope']
+  input_dimensions: [scope]
+  output_dimensions: [scope]
   input_datasets:
   - id: bytom/stationary
     column: currency
     dropna: true
     filters:
     - column: sector
-      value: i42
+      value: i12
     - column: energy_carrier
     - column: ghg
     - column: owner
     - column: heating
   output_nodes:
-  - id: i42_energy_grid_energy_total_price
+  - id: i12_medium_voltage_electricity_costs
     to_dimensions:
     - id: scope
 
-- id: i42_energy_grid_energy_total_price
-  name: I.4.2 Energy Grid Energy Total Price
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: PLN/a
-  input_dimensions: ['scope']
-  output_dimensions: ['scope']
-  output_nodes:
-  - id: i4_energy_total_price
-    to_dimensions:
-    - id: scope
-
-- id: i42_energy_grid_energy_unit_price
-  name: I.4.2 Energy Grid Energy Unit Price
+- id: i12_streetlight_electricity_unit_price
+  name: Streetlight Electricity Unit Price
   type: simple.AdditiveNode
   quantity: unit_price
   unit: PLN/kWh
-  input_dimensions: ['energy_carrier', 'scope']
-  output_dimensions: ['energy_carrier', 'scope']
+  input_dimensions: [energy_carrier, scope]
+  output_dimensions: [energy_carrier, scope]
   input_datasets:
   - id: bytom/stationary
     column: unit_price
     dropna: true
     filters:
     - column: sector
-      value: i42
+      value: i12
     - column: ghg
     - column: owner
     - column: heating
   output_nodes:
-  - id: i42_energy_grid_energy_consumption_price
+  - id: i12_streetlight_electricity_costs
     to_dimensions:
     - id: energy_carrier
     - id: scope
 
-- id: i43_energy_t_and_d_loss_emission_factor
-  name: I.4.3 Energy T & D Loss Emission Factor
+# ----- Heating Stoves
+
+- id: i23_heating_stove_emission_factors
+  name: Heating Stove Emission Factors
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/count/a
-  input_dimensions: ['heating', 'scope', 'ghg']
-  output_dimensions: ['heating', 'scope', 'ghg']
+  input_dimensions: [heating, scope, ghg]
+  output_dimensions: [heating, scope, ghg]
   input_datasets:
   - id: bytom/stationary
     column: emission_factor_number
     dropna: true
     filters:
     - column: sector
-      value: i43
+      value: i23
     - column: energy_carrier
     - column: owner
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: i43_energy_t_and_d_loss_number_emissions
+  - id: i23_heating_stove_emissions
     tags: [non_additive]
-    to_dimensions:
-    - id: heating
-    - id: scope
-    - id: ghg
 
-- id: i43_energy_t_and_d_loss_number
-  name: I.4.3 Energy T & D Loss Number
+- id: i23_heating_stove_counts
+  name: Heating Stove Counts
   type: simple.AdditiveNode
   quantity: number
   unit: count
-  input_dimensions: ['heating', 'scope']
-  output_dimensions: ['heating', 'scope']
+  input_dimensions: [heating, scope]
+  output_dimensions: [heating, scope]
   input_datasets:
   - id: bytom/stationary
     column: number
     dropna: true
     filters:
     - column: sector
-      value: i43
+      value: i23
     - column: energy_carrier
     - column: ghg
     - column: owner
   output_nodes:
-  - id: i43_energy_t_and_d_loss_number_emissions
+  - id: i23_heating_stove_emissions
     to_dimensions:
     - id: heating
     - id: scope
 
-- id: i43_energy_t_and_d_loss_number_emissions
-  name: I.4.3 Energy T & D Loss Number Emissions
+- id: i23_heating_stove_emissions
+  name: Heating Stove Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['scope', 'ghg', 'heating']
-  output_dimensions: ['scope', 'ghg', 'heating']
+  input_dimensions: [heating, scope, ghg]
+  output_dimensions: [heating, scope, ghg]
   output_nodes:
-  - id: i4_energy_total_emissions
+  - id: i2_other_energy_emissions
     from_dimensions:
     - id: heating
       flatten: true
@@ -694,88 +585,84 @@ nodes:
     - id: scope
     - id: ghg
 
-- id: i43_energy_t_and_d_loss_price
-  name: I.4.3 Energy T & D Loss Price
+- id: i23_heating_stove_costs
+  name: Heating Stove Costs
   type: simple.AdditiveNode
   quantity: currency
   unit: PLN/a
-  input_dimensions: ['heating', 'scope']
-  output_dimensions: ['heating', 'scope']
+  input_dimensions: [heating, scope]
+  output_dimensions: [heating, scope]
   output_nodes:
-  - id: i4_energy_total_price
-    from_dimensions:
-    - id: heating
-      flatten: true
-    to_dimensions:
-    - id: scope
+  - id: i2_other_energy_costs
 
-- id: iii21_biological_waste_treated_in_city_emission_factor
-  name: III.2.1 Biological Waste Treated in City Emission Factor
+# ----- Waste
+
+- id: iii2_biological_waste_emission_factor
+  name: Biological Waste Emission Factor
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/Mg
-  input_dimensions: ['owner', 'scope', 'ghg']
-  output_dimensions: ['owner', 'scope', 'ghg']
+  input_dimensions: [owner, scope, ghg]
+  output_dimensions: [owner, scope, ghg]
   input_datasets:
   - id: bytom/waste
     column: emission_factor_mass
     dropna: true
     filters:
     - column: sector
-      value: iii21
+      value: iii2
     - column: source
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: iii21_biological_waste_treated_in_city_mass_emissions
-    to_dimensions:
-    - id: owner
-    - id: scope
-    - id: ghg
+  - id: iii2_biological_waste_emissions
 
-- id: iii21_biological_waste_treated_in_city_mass
-  name: III.2.1 Biological Waste Treated in City Mass
+- id: iii2_biological_waste_mass
+  name: Biological Waste Mass
   type: simple.AdditiveNode
   quantity: mass
   unit: Mg/a
-  input_dimensions: ['owner', 'scope']
-  output_dimensions: ['owner', 'scope']
+  input_dimensions: [owner, scope]
+  output_dimensions: [owner, scope]
   input_datasets:
   - id: bytom/waste
     column: mass
     dropna: true
     filters:
     - column: sector
-      value: iii21
+      value: iii2
     - column: ghg
     - column: source
   output_nodes:
-  - id: iii21_biological_waste_treated_in_city_mass_emissions
+  - id: iii2_biological_waste_emissions
     tags: [non_additive]
     to_dimensions:
     - id: owner
     - id: scope
 
-- id: iii21_biological_waste_treated_in_city_mass_emissions
-  name: III.2.1 Biological Waste Treated in City Mass Emissions
+- id: iii2_biological_waste_emissions
+  name: Biological Waste Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['owner', 'scope', 'ghg']
-  output_dimensions: ['owner', 'scope', 'ghg']
+  input_dimensions: [owner, scope, ghg]
+  output_dimensions: [owner, scope, ghg]
   output_nodes:
-  - id: iii2_biological_waste_total_emissions
-    to_dimensions:
+  - id: iii_waste_emissions
+    from_dimensions:
     - id: owner
+      flatten: true
     - id: scope
+      flatten: true
+    to_dimensions:
     - id: ghg
 
 - id: iii4_wastewater_emission_factor
-  name: III.4 Wastewater Emission Factor
+  name: Wastewater Emission Factor
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/m³
-  input_dimensions: ['source', 'ghg']
-  output_dimensions: ['source', 'ghg']
+  input_dimensions: [source, ghg]
+  output_dimensions: [source, ghg]
   input_datasets:
   - id: bytom/waste
     column: emission_factor_volume
@@ -787,18 +674,15 @@ nodes:
     - column: owner
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: iii4_wastewater_volume_emissions
-    to_dimensions:
-    - id: source
-    - id: ghg
+  - id: iii4_wastewater_emissions
 
 - id: iii4_wastewater_volume
-  name: III.4 Wastewater Volume
+  name: Wastewater Volume
   type: simple.AdditiveNode
   quantity: volume
   unit: m³/a
-  input_dimensions: ['source']
-  output_dimensions: ['source']
+  input_dimensions: [source]
+  output_dimensions: [source]
   input_datasets:
   - id: bytom/waste
     column: volume
@@ -810,32 +694,46 @@ nodes:
     - column: ghg
     - column: owner
   output_nodes:
-  - id: iii4_wastewater_volume_emissions
+  - id: iii4_wastewater_emissions
     to_dimensions:
     - id: source
 
-- id: iii4_wastewater_volume_emissions
-  name: III.4 Wastewater Volume Emissions
+- id: iii4_wastewater_emissions
+  name: Wastewater Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['source', 'ghg']
-  output_dimensions: ['source', 'ghg']
+  input_dimensions: [source, ghg]
+  output_dimensions: [source, ghg]
   output_nodes:
-  - id: iii4_wastewater_total_emissions
-    to_dimensions:
+  - id: iii_waste_emissions
+    from_dimensions:
     - id: source
+      flatten: true
+    to_dimensions:
     - id: ghg
 
-- id: i1_residential_total_emissions
-  name: I.1 Residential Total Emissions
+# ----- Total Emissions
+
+- id: i12_medium_voltage_electricity_emissions
+  name: Medium-voltage Electricity Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energy_carrier', 'scope', 'ghg', 'owner']
-  output_dimensions: ['energy_carrier', 'scope', 'ghg', 'owner']
+  input_dimensions: [owner, energy_carrier, scope, ghg]
+  output_dimensions: [owner, energy_carrier, scope, ghg]
   output_nodes:
-  - id: i_stationary_total_emissions
+  - id: i1_electricity_emissions
+
+- id: i1_electricity_emissions
+  name: Electricity Consumption Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [owner, energy_carrier, scope, ghg]
+  output_dimensions: [owner, energy_carrier, scope, ghg]
+  output_nodes:
+  - id: i_stationary_emissions
     from_dimensions:
     - id: energy_carrier
       flatten: true
@@ -845,31 +743,15 @@ nodes:
     - id: scope
     - id: ghg
 
-- id: i2_commercial_and_institutional_total_emissions
-  name: I.2 Commercial & Institutional Total Emissions
+- id: i21_natural_gas_emissions
+  name: Natural Gas Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['energy_carrier', 'scope', 'ghg']
-  output_dimensions: ['energy_carrier', 'scope', 'ghg']
+  input_dimensions: [owner, scope, ghg]
+  output_dimensions: [owner, scope, ghg]
   output_nodes:
-  - id: i_stationary_total_emissions
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
-- id: i3_manufacturing_total_emissions
-  name: I.3 Manufacturing Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['owner', 'scope', 'ghg']
-  output_dimensions: ['owner', 'scope', 'ghg']
-  output_nodes:
-  - id: i_stationary_total_emissions
+  - id: i2_other_energy_emissions
     from_dimensions:
     - id: owner
       flatten: true
@@ -877,39 +759,24 @@ nodes:
     - id: scope
     - id: ghg
 
-- id: i4_energy_total_emissions
-  name: I.4 Energy Total Emissions
+- id: i2_other_energy_emissions
+  name: Other Energy Consumption Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
+  input_dimensions: [scope, ghg]
+  output_dimensions: [scope, ghg]
   output_nodes:
-  - id: i_stationary_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
+  - id: i_stationary_emissions
 
-- id: i4_energy_total_price
-  name: I.4 Energy Total Price
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: PLN/a
-  input_dimensions: ['scope']
-  output_dimensions: ['scope']
-  output_nodes:
-  - id: i_stationary_total_price
-    to_dimensions:
-    - id: scope
-
-- id: i_stationary_total_emissions
-  name: I Stationary Total Emissions
+- id: i_stationary_emissions
+  name: Stationary Emissions
   type: simple.AdditiveNode
   color: '#4e79a7'
   quantity: emissions
   unit: t/a
-  input_dimensions: ['scope', 'ghg']
-  output_dimensions: ['scope', 'ghg']
+  input_dimensions: [scope, ghg]
+  output_dimensions: [scope, ghg]
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -918,71 +785,81 @@ nodes:
     to_dimensions:
     - id: ghg
 
-- id: i_stationary_total_price
-  name: I Stationary Total Price
-  type: simple.AdditiveNode
-  color: '#4e79a7'
-  quantity: currency
-  unit: PLN/a
-  input_dimensions: ['scope']
-  output_dimensions: ['scope']
-  output_nodes:
-  - id: net_price
-    to_dimensions:
-    - id: scope
-
-- id: iii2_biological_waste_total_emissions
-  name: III.2 Biological Waste Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['owner', 'scope', 'ghg']
-  output_dimensions: ['owner', 'scope', 'ghg']
-  output_nodes:
-  - id: iii_waste_total_emissions
-    from_dimensions:
-    - id: owner
-      flatten: true
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: ghg
-
-- id: iii4_wastewater_total_emissions
-  name: III.4 Wastewater Total Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['source', 'ghg']
-  output_dimensions: ['source', 'ghg']
-  output_nodes:
-  - id: iii_waste_total_emissions
-    from_dimensions:
-    - id: source
-      flatten: true
-    to_dimensions:
-    - id: ghg
-
-- id: iii_waste_total_emissions
-  name: III Waste Total Emissions
+- id: iii_waste_emissions
+  name: Waste Emissions
   type: simple.AdditiveNode
   color: '#59A14F'
   quantity: emissions
   unit: t/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
   output_nodes:
   - id: net_emissions
+
+# ----- Total Costs
+
+- id: i12_medium_voltage_electricity_costs
+  name: Medium-voltage Electricity Costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: PLN/a
+  input_dimensions: [scope]
+  output_dimensions: [scope]
+  output_nodes:
+  - id: i1_electricity_costs
+
+- id: i1_electricity_costs
+  name: Electricity Costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: PLN/a
+  input_dimensions: [scope]
+  output_dimensions: [scope]
+  output_nodes:
+  - id: i_stationary_costs
+
+- id: i2_other_energy_costs
+  name: Other Energy Costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: PLN/a
+  input_dimensions: [heating, scope]
+  output_dimensions: [heating, scope]
+  output_nodes:
+  - id: i_stationary_costs
+    from_dimensions:
+    - id: heating
+      flatten: true
     to_dimensions:
-    - id: ghg
+    - id: scope
+
+- id: i_stationary_costs
+  name: Stationary Costs
+  type: simple.AdditiveNode
+  color: '#4e79a7'
+  quantity: currency
+  unit: PLN/a
+  input_dimensions: [scope]
+  output_dimensions: [scope]
+  output_nodes:
+  - id: net_costs
+
+- id: net_costs
+  name: Net Costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: PLN/a
+  input_dimensions: [scope]
+  output_dimensions: [scope]
+  is_outcome: true
 
 actions:
 - id: replace_coal_stove_heating_in_buildings_belonging_to_the_municipality_100
   name: Replace Coal Stove Heating in Buildings Belonging to the Municipality (100%)
   type: simple.AdditiveAction
   color: '#4e79a7'
-  input_dimensions: ['scope', 'heating']
-  output_dimensions: ['scope', 'heating']
+  input_dimensions: [scope, heating]
+  output_dimensions: [scope, heating]
   params:
     allow_null_categories: true
 
@@ -1003,13 +880,13 @@ actions:
     quantity: currency
 
   output_nodes:
-  - id: i43_energy_t_and_d_loss_number
+  - id: i23_heating_stove_counts
     metrics: [number]
     tags: [cumulative]
     to_dimensions:
     - id: scope
     - id: heating
-  - id: i43_energy_t_and_d_loss_price
+  - id: i23_heating_stove_costs
     metrics: [currency]
     to_dimensions:
     - id: scope

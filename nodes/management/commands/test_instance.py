@@ -124,13 +124,13 @@ class Command(BaseCommand):
 
         start_from = options['start_from']
         for iid in instance_ids:
-            if options['skip'] and iid in options['skip']:
-                continue
             if start_from:
                 if iid == start_from:
                     start_from = None
                 else:
                     continue
+            if options['skip'] and iid in options['skip']:
+                continue
             ic = InstanceConfig.objects.get(identifier=iid)
             if ic.has_framework_config():
                 continue

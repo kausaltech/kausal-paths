@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import TYPE_CHECKING, cast
 
 import pandas as pd
@@ -9,10 +8,13 @@ import polars as pl
 
 import common.polars as ppl
 from nodes.calc import extend_last_historical_value, extend_last_historical_value_pl
-from nodes.constants import CONSUMPTION_FACTOR_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.constants import CONSUMPTION_FACTOR_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
 from nodes.node import Node, NodeMetric
 from nodes.simple import AdditiveNode, DivisiveNode, SimpleNode
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 INDUSTRY_USES = """
 Teollisuuden ja kaivannaistoiminnan rakennukset
@@ -191,128 +193,6 @@ class FutureBuildingStock(SimpleNode):
         assert isinstance(df, pd.DataFrame)
         # self.add_nodes(df, nodes)  FIXME
 
-        return df
-
-
-class BuildingHeatPredict(Node):
-    output_metrics = {
-        HEAT_CONSUMPTION: NodeMetric(unit='GWh/a', quantity=ENERGY_QUANTITY)
-    }
-    output_dimension_ids = [
-        'building_heat_source',
-        'building_use',
-    ]
-
-    def compute(self) -> pd.DataFrame:
-        # First compute GWh / m2
-        area_node = self.get_input_node(quantity=FLOOR_AREA)
-        area_df = area_node.get_output()
-        area_df = area_df.sort_index()
-
-        heat_node = self.get_input_node(quantity=ENERGY_QUANTITY)
-        heat_df = heat_node.get_output()
-        assert isinstance(heat_df.index, pd.MultiIndex)
-        heat_df.index = heat_df.index.reorder_levels(area_df.index.names)
-        df = heat_df.sort_index()
-        df = df.rename(columns={VALUE_COLUMN: 'HeatConsumption'})
-        heat_dt = df.dtypes['HeatConsumption']
-
-        df['Area'] = area_df[VALUE_COLUMN]
-        area_dt = area_df.dtypes[VALUE_COLUMN]
-        df[FORECAST_COLUMN] |= area_df[FORECAST_COLUMN]
-        last_hist_year = df.loc[~df[FORECAST_COLUMN]].index.get_level_values(YEAR_COLUMN).max()
-
-        # Calculate heat consumption per area
-        rows = ~df[FORECAST_COLUMN]
-
-        s = (df.loc[rows, 'HeatConsumption'] / df.loc[rows, 'Area']).dropna()
-        dt = s.dtype
-        pa_df = s.unstack(self.output_dimension_ids)  # type: ignore
-        pa_df = pa_df.rolling(window=5).mean().astype(dt)
-
-        """
-            df = df.loc[rows].dropna()
-            df = df.drop(columns=FORECAST_COLUMN)
-            df = df.unstack(self.output_dimension_ids)
-            df = df.loc[(df.index >= last_hist_year - 12) & (df.index <= last_hist_year)]
-            df = df.diff().cumsum().dropna()
-            df = df.stack(self.output_dimension_ids)
-            df['PerArea'] = df['HeatConsumption'].astype(heat_dt) / df['Area'].astype(area_dt)
-            self.print(df['PerArea'].unstack(self.output_dimension_ids).astype('pint[kWh/a/m**2]'))
-            exit()
-        """
-
-        s = pa_df.stack(self.output_dimension_ids)  # type: ignore
-        s = s.astype(dt)
-        s.index = s.index.reorder_levels(heat_df.index.names)  # type: ignore
-        df['PerArea'] = s
-        df['PerArea'] = df['PerArea'].ffill()
-
-        rows = df[FORECAST_COLUMN]
-        df.loc[rows, 'HeatConsumption'] = df.loc[rows, 'Area'] * df.loc[rows, 'PerArea']
-        df = df[['HeatConsumption', FORECAST_COLUMN]].rename(columns=dict(HeatConsumption=VALUE_COLUMN))
-        return df
-
-
-class BuildingHeatPerAreaOld(Node): # FIXME Not used. Remove
-    output_metrics = {
-        HEAT_CONSUMPTION: NodeMetric(unit='kWh/a/m**2', quantity=ENERGY_QUANTITY)
-    }
-    output_dimension_ids = [
-        'building_heat_source',
-        'building_use',
-    ]
-
-    def compute(self) -> pd.DataFrame:
-        # First compute GWh / m2
-        area_node = self.get_input_node(quantity=FLOOR_AREA)
-        area_df = area_node.get_output()
-        area_df = area_df.sort_index()
-
-        heat_node = self.get_input_node(quantity=ENERGY_QUANTITY)
-        heat_df = heat_node.get_output()
-        assert isinstance(heat_df.index, pd.MultiIndex)
-        heat_df.index = heat_df.index.reorder_levels(area_df.index.names)
-        df = heat_df.sort_index()
-        df = df.rename(columns={VALUE_COLUMN: 'HeatConsumption'})
-        heat_dt = df.dtypes['HeatConsumption']  # noqa: F841
-
-        df['Area'] = area_df[VALUE_COLUMN]
-        area_dt = area_df.dtypes[VALUE_COLUMN]  # noqa: F841
-        df[FORECAST_COLUMN] |= area_df[FORECAST_COLUMN]
-        last_hist_year = df.loc[~df[FORECAST_COLUMN]].index.get_level_values(YEAR_COLUMN).max()  # noqa: F841
-
-        # Calculate heat consumption per area
-        rows = ~df[FORECAST_COLUMN]
-
-        s = (df.loc[rows, 'HeatConsumption'] / df.loc[rows, 'Area']).dropna()
-        dt = s.dtype
-        pa_df = s.unstack(self.output_dimension_ids)  # type: ignore
-        pa_df = pa_df.rolling(window=5).mean().astype(dt)
-
-        """
-            df = df.loc[rows].dropna()
-            df = df.drop(columns=FORECAST_COLUMN)
-            df = df.unstack(self.output_dimension_ids)
-            df = df.loc[(df.index >= last_hist_year - 12) & (df.index <= last_hist_year)]
-            df = df.diff().cumsum().dropna()
-            df = df.stack(self.output_dimension_ids)
-            df['PerArea'] = df['HeatConsumption'].astype(heat_dt) / df['Area'].astype(area_dt)
-            self.print(df['PerArea'].unstack(self.output_dimension_ids).astype('pint[kWh/a/m**2]'))
-            exit()
-        """
-
-        s = pa_df.stack(self.output_dimension_ids)  # type: ignore  # noqa: PD013
-        s = s.astype(dt)
-        s.index = s.index.reorder_levels(heat_df.index.names)  # type: ignore
-        df['PerArea'] = s
-        df['PerArea'] = df['PerArea'].ffill()
-        # FIXME Oil heating (services) gets wrongly copied to all future years. PathsDataFrames should be used.
-        df['PerArea'] = self.ensure_output_unit(df['PerArea'])
-
-#        rows = df[FORECAST_COLUMN]
-#        df.loc[rows, 'PerArea'] = df.loc[rows, 'PerArea']
-        df = df[['PerArea', FORECAST_COLUMN]].rename(columns=dict(PerArea=VALUE_COLUMN))
         return df
 
 

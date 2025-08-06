@@ -1,0 +1,188 @@
+id: finland-syke
+default_language: fi
+supported_languages: [en]
+frameworks: [syke]
+site_url: https://finland-syke.paths.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: f47b07dcbd11c67003bba576beb71b46d91b6f2e
+name: Suomen energia- ja ilmastostrategia 2025
+name_en: Finnish energy and climate strategy 2025
+owner: Kausal Oy
+owner_en: Kausal Ltd
+theme_identifier: default
+emission_unit: Mt/a
+target_year: 2035
+reference_year: 2005
+minimum_historical_year: 2005
+maximum_historical_year: 2024
+params:
+- id: municipality_name
+  value: Tampere
+- id: extend_historical_values
+  value: true
+
+action_groups:
+- id: emission_trade
+  name: Energiapolitiikka ja päästökauppa (Taulukko 1)
+- id: load_sharing
+  name: Taakanjakosektorin toimet (Taulukko 2)
+- id: land_use
+  name: Maankäyttösektorin toimet (Taulukko 3)
+
+emission_sectors:
+- id: net_emissions
+  name: Kokonaispäästöt (scope 1+2)
+  name_en: Net emissions (scope 1+2)
+  is_outcome: true
+  target_year_goal: 0
+
+nodes:
+- id: population
+  type: finland.Population
+  name: Väestö
+
+- id: all_alas_emissions
+  type: finland.syke.AlasNode
+  name: SYKE:n ALaS-päästöinventaario
+  params:
+    region: Suomi
+
+actions:
+
+# Taulukko 1
+
+- id: negative_emission_actions
+  name: Negatiivisten päästöjen edistäminen
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: Mt/a
+  group: emission_trade
+  input_dataset_processors: [LinearInterpolation]
+  forecast_values: [[2025, 0.0], [2030, -0.6], [2035, -2.7], [2040, 3.0], [2050, 14]]
+  output_nodes: [road_transport_emissions]
+
+# Taulukko 2
+
+- id: transport_actions
+  name: Liikennetoimet
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: Mt/a
+  group: load_sharing
+  input_dataset_processors: [LinearInterpolation]
+  forecast_values: [[2025, 0.0], [2030, -0.24], [2035, -0.24]]
+  output_nodes: [road_transport_emissions]
+
+- id: agriculture_actions
+  name: Maatalouden toimet
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: Mt/a
+  group: load_sharing
+  input_dataset_processors: [LinearInterpolation]
+  forecast_values: [[2025, 0.0], [2030, -0.12], [2035, -0.12]]
+  output_nodes: [agriculture_emissions]
+
+- id: separate_heating_emissions
+  name: Erillislämmitystoimet
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: Mt/a
+  group: load_sharing
+  input_dataset_processors: [LinearInterpolation]
+  forecast_values: [[2025, 0.0], [2030, -0.12], [2035, -0.12]]
+  output_nodes: [building_heating_emissions]
+
+- id: machinery_actions
+  name: Työkonetoimet
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: Mt/a
+  group: load_sharing
+  input_dataset_processors: [LinearInterpolation]
+  forecast_values: [[2025, 0.0], [2030, -0.13], [2035, -0.13]]
+  output_nodes: [machinery_emissions]
+
+- id: waste_incineration_actions
+  name: Jätteenpolton toimet
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: Mt/a
+  group: load_sharing
+  input_dataset_processors: [LinearInterpolation]
+  forecast_values: [[2025, 0.0], [2030, -0.34], [2035, -0.34]]
+  output_nodes: [waste_treatment_emissions]
+
+- id: lulucf_actions
+  name: Maankäyttösektorin toimet
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: Mt/a
+  group: load_sharing
+  input_dataset_processors: [LinearInterpolation]
+  forecast_values: [[2025, 0.0], [2030, -0.3], [2035, -0.5]]
+  output_nodes: [agriculture_emissions]
+
+# Taulukko 3
+
+- id: forest_renewal_actions
+  name: Metsänuudistustoimet
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: Mt/a
+  group: land_use
+  input_dataset_processors: [LinearInterpolation]
+  forecast_values: [[2025, 0.0], [2035, -7.0]]
+  output_nodes: [agriculture_emissions]
+
+- id: forest_damage_actions
+  name: Metsätuhojen ennaltaehkäisy
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: Mt/a
+  group: land_use
+  input_dataset_processors: [LinearInterpolation]
+  forecast_values: [[2025, 0.0], [2035, -6.0]]
+  output_nodes: [agriculture_emissions]
+
+- id: forest_fertilizing_actions
+  name: Metsälannoituksen edistäminen
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: Mt/a
+  group: land_use
+  input_dataset_processors: [LinearInterpolation]
+  forecast_values: [[2025, 0.0], [2035, -0.5]]
+  output_nodes: [agriculture_emissions]
+
+- id: forest_increasing_actions
+  name: Metsäalan lisäämistoimet
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: Mt/a
+  group: land_use
+  input_dataset_processors: [LinearInterpolation]
+  forecast_values: [[2025, 0.0], [2035, -0.5]]
+  output_nodes: [agriculture_emissions]
+
+pages:
+- id: home
+  name: Suomen energia- ja ilmastostrategia 2025 (luonnos)
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Suomen päästöskenaariot
+  lead_title_en: Finnish emission scenarios
+  lead_paragraph: Suomen päästöskenaariot Orpon hallituksen energia- ja ilmastostrategialuonnoksen (4.7.2025) mukaan.
+
+scenarios:
+- id: baseline
+  name: Nykykehitys
+  name_en: Baseline
+
+- id: default
+  default: true
+  name: Energia- ja ilmastostrategia
+  name_en: Energy and climate strategy
+  all_actions_enabled: true

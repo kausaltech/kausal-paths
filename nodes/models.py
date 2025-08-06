@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 
 from django.conf import settings
 from django.contrib.auth.models import Group
+from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
@@ -33,7 +34,7 @@ from asgiref.sync import sync_to_async
 from channels.consumer import async_to_sync
 from channels.layers import get_channel_layer
 from loguru import logger
-from wagtail_color_panel.fields import ColorField  # type: ignore
+from wagtail_color_panel.fields import ColorField
 
 from kausal_common.datasets.models import (
     Dataset as DatasetModel,
@@ -238,8 +239,8 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     lead_paragraph_i18n: str | None
     site_url = models.URLField(verbose_name=_('Site URL'), null=True)
     site = models.OneToOneField(Site, null=True, on_delete=models.PROTECT, editable=False, related_name='instance')
-    organization: FK[Organization] = models.ForeignKey(
-        Organization, related_name='instances', on_delete=models.PROTECT, verbose_name=_('organization'),
+    organization: FK[Organization | None] = models.ForeignKey(
+        Organization, null=True, related_name='instances', on_delete=models.PROTECT, verbose_name=_('organization'),
         help_text=_('The main organization for the instance'),
     )
 
@@ -277,6 +278,11 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     i18n = TranslationField(fields=('name', 'lead_title', 'lead_paragraph'))
 
     objects: ClassVar[InstanceConfigManager] = InstanceConfigManager()
+
+    dataset_schema_scopes = GenericRelation(
+        'datasets.DatasetSchemaScope', related_query_name='instance_config',
+        content_type_field='scope_content_type', object_id_field='scope_id',
+    )
 
     # Type annotations
     nodes: RevMany[NodeConfig]
@@ -342,7 +348,9 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     @classmethod
     def create_for_instance(cls, instance: Instance, **kwargs) -> InstanceConfig:
         assert not cls.objects.filter(identifier=instance.id).exists()
-        return cls.objects.create(identifier=instance.id, site_url=instance.site_url, **kwargs)
+
+        org = Organization.add_root(name=instance.name)
+        return cls.objects.create(identifier=instance.id, site_url=instance.site_url, organization=org, **kwargs)
 
     def has_framework_config(self) -> bool:
         try:
@@ -498,6 +506,8 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         return root
 
     def sync_nodes(self, update_existing=False, delete_stale=False, overwrite=False):
+        from nodes.datasets import DBDataset
+
         instance = self.get_instance()
         node_configs = {n.identifier: n for n in self.nodes.all()}
         found_nodes = set()
@@ -507,7 +517,9 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
                 node_config = NodeConfig(instance=self, **node.as_node_config_attributes())
                 self.log.info("Creating node config for node %s" % node.id)
                 node_config.save()
-                node_config.update_relations_from_node(node)
+                has_db_datasets = any(isinstance(ds, DBDataset) for ds in node.input_dataset_instances)
+                if has_db_datasets:
+                    node_config.update_relations_from_node(node)
                 node.database_id = node_config.pk
             else:
                 found_nodes.add(node.id)
@@ -556,11 +568,12 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
                     print('Updating category %s' % cat.id)
                     cat_obj.save()
 
-        for cat_obj in cats.values():
-            if cat_obj.pk in found_cats:
-                continue
-            print("Deleting stale category %s" % cat_obj)
-            cat_obj.delete()
+        if delete_stale:
+            for cat_obj in cats.values():
+                if cat_obj.pk in found_cats:
+                    continue
+                print("Deleting stale category %s" % cat_obj)
+                cat_obj.delete()
 
     def sync_dimension(self, dim: NodeDimension, update_existing=False, delete_stale=False) -> DatasetDimensionModel:
         scope = DimensionScope.objects.filter(
@@ -818,7 +831,7 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
 
     datasets: M2M[DatasetModel, NodeDataset] = models.ManyToManyField(DatasetModel, through='NodeDataset', related_name='nodes')
 
-    color: CharField[str, str] = ColorField(max_length=20, null=True, blank=True)
+    color: CharField[str, str] = ColorField(max_length=20, blank=True)
     input_data = models.JSONField(null=True, editable=False)
     params = models.JSONField(null=True, editable=False)
 
@@ -841,6 +854,8 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
         index.SearchField('identifier'),
         index.FilterField('instance'),
     ]
+    search_auto_update = False
+    wagtail_reference_index_ignore = True
 
     objects: ClassVar[NodeConfigManager] = NodeConfigManager()  # pyright: ignore
 

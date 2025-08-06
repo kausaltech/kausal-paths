@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from typing import type_check_only
 
     from graphql import GraphQLResolveInfo
+    from rest_framework.request import Request as APIRequest
     from wagtail.models import Site
 
     from kausal_common.deployment.types import LoggedHttpRequest
@@ -41,11 +42,10 @@ if TYPE_CHECKING:
 
 
     class PathsAdminRequest(PathsAuthenticatedRequest):
-        admin_instance: InstanceConfig
         _wagtail_site: Site | None
 
 
-    class PathsAPIRequest(PathsAuthenticatedRequest):
+    class PathsAPIRequest(APIRequest):
         wildcard_domains: list[str] | None
 
 
@@ -83,7 +83,7 @@ if TYPE_CHECKING:
 
     @type_check_only
     class PathsGQLInfo(CommonGQLInfo):  # pyright: ignore[reportGeneralTypeIssues]
-        context: PathsGraphQLContext
+        context: PathsGraphQLContext  # pyright: ignore
 
     @type_check_only
     class GQLInstanceContext(PathsGQLContext):  # pyright: ignore
@@ -92,7 +92,7 @@ if TYPE_CHECKING:
 
     @type_check_only
     class GQLInstanceInfo(GraphQLResolveInfo):
-        context: PathsGraphQLContext[Instance]
+        context: PathsGraphQLContext[Instance]  # pyright: ignore
 
 
 class CacheablePathsModel[CacheT](CacheableModel[CacheT], PathsModel):

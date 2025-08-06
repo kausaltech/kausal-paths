@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import functools
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from django.utils.translation import gettext_lazy as _
 
@@ -691,10 +691,12 @@ class MultiplyLastNode2(MultiplicativeNode):  # FIXME Remove, when you clean Lon
 
     operation_label = 'multiplication'
 
-    def perform_operation(self, nodes: list[Node], outputs: list[ppl.PathsDataFrame]) -> ppl.PathsDataFrame:
+    def perform_operation(self, nodes: Sequence[Node | None], outputs: list[ppl.PathsDataFrame]) -> ppl.PathsDataFrame:
         for n in nodes:
+            assert n is not None
             assert n.unit is not None
         assert self.unit is not None
+        nodes = cast('list[Node]', nodes)
 
         output_unit = functools.reduce(lambda x, y: x * y, [n.unit for n in nodes])  # type: ignore
         assert output_unit is not None
@@ -737,8 +739,8 @@ class MultiplyLastNode2(MultiplicativeNode):  # FIXME Remove, when you clean Lon
             df_add = extend_last_historical_value_pl(df_add, self.get_end_year())
         df_add = self.add_nodes_pl(df_add, additive_nodes)
 
-        df_mult = [n.get_output_pl() for n in operation_nodes]
-        df_mult = self.perform_operation(operation_nodes, df_mult)
+        mult_dfs = [n.get_output_pl() for n in operation_nodes]
+        df_mult = self.perform_operation(operation_nodes, mult_dfs)
         df = df_add.paths.join_over_index(df_mult, how='left', index_from='union')  # FIXME This was how='outer' but why?
         df = df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
         df = df.drop(VALUE_COLUMN + '_right')
@@ -915,8 +917,9 @@ class RelativeYearScaledNode(AdditiveNode):
     ]
     def compute(self) -> ppl.PathsDataFrame:
         df = AdditiveNode.compute(self)
-        year = self.get_parameter_value('reference_year', required=False)
+        year = self.get_parameter_value_int('reference_year', required=False)
         if not year:
             year = self.context.instance.reference_year
-        df = self._scale_by_reference_year(df, int(year))
+            assert year is not None
+        df = self._scale_by_reference_year(df, year)
         return df

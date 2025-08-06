@@ -276,7 +276,7 @@ class MetricDimension(BaseModel):
 
         color_counts = Counter(cat.color.lower() for cat in self.categories if cat.color is not None)
         color_map: dict[str, list[str]] = {}
-        LAB_Kn = 18  # noqa: N806
+        LAB_Kn = 18
         for color, count in color_counts.items():
             if count == 1:
                 continue
@@ -396,7 +396,7 @@ class DimensionalMetric(BaseModel):
     @classmethod
     def from_action_impact(
         cls, action_impact: ActionImpact, root: ImpactOverview, col: str
-    ) -> DimensionalMetric:
+    ) -> DimensionalMetric | None:
         from .metric_gen import from_action_impact
         return from_action_impact(action_impact, root, col)
 

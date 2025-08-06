@@ -1,0 +1,1850 @@
+id: krakow-c4c
+default_language: en
+supported_languages: []
+site_url: https://krakow-c4c.paths.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: 42eadc2686710713b77e518b600492b97f74b82a
+  dvc_remote: kausal-s3
+name: Kraków Greenhouse Gas Inventory
+owner: City of Kraków
+theme_identifier: eu-climate-4-cast
+target_year: 2030
+model_end_year: 2030
+minimum_historical_year: 2018
+maximum_historical_year: 2023
+emission_unit: kt_co2e/a
+emission_forecast_from: 2024
+emission_dimensions: []
+features:
+  baseline_visible_in_graphs: true
+
+impact_overviews:
+- graph_type: cost_efficiency
+  cost_node: aggregate_net_costs
+  effect_node: net_emissions
+  indicator_unit: zł/t_co2e
+  cost_unit: zł
+  effect_unit: t_co2e
+  plot_limit_for_indicator: 50000
+  label: Cost efficiency
+
+action_groups:
+- id: buildings_and_heating
+  name: Buildings & Heating
+  color: '#B07AA1'
+- id: electricity
+  name: Electricity
+  color: '#F28E2B'
+- id: transportation
+  name: Transportation
+  color: '#E15759'
+- id: waste_management_and_ce
+  name: Waste Management & CE
+  color: '#59A14F'
+- id: other
+  name: Other
+  color: '#BAB0AC'
+
+dimensions:
+- id: scope
+  label: Scope
+  categories:
+  - id: scope1
+    label: Scope 1
+  - id: scope2
+    label: Scope 2
+  - id: scope3
+    label: Scope 3
+
+- id: vehicle_type
+  label: Vehicle Type
+  categories:
+  - id: buses
+    label: Buses
+  - id: local_trains
+    label: Local Trains
+  - id: passenger_cars
+    label: Passenger Cars
+  - id: trams
+    label: Trams
+  - id: trucks
+    label: Trucks
+
+- id: cost_type
+  label: Cost Type
+  categories:
+  - id: investment
+    label: Investment
+
+- id: sector
+  label: GPC Sector
+  categories:
+  - id: i
+    label: I Stationary
+  - id: i1
+    label: I.1 Residential
+  - id: i11
+    label: I.1.1 Residential Fuel
+  - id: i12
+    label: I.1.2 Residential Grid Energy
+  - id: i13
+    label: I.1.3 Residential T & D Loss
+  - id: i2
+    label: I.2 Commercial & Institutional
+  - id: i21
+    label: I.2.1 Commercial & Institutional Fuel
+  - id: i22
+    label: I.2.2 Commercial & Institutional Grid Energy
+  - id: i23
+    label: I.2.3 Commercial & Institutional T & D Loss
+  - id: i3
+    label: I.3 Manufacturing
+  - id: i31
+    label: I.3.1 Manufacturing Fuel
+  - id: i32
+    label: I.3.2 Manufacturing Grid Energy
+  - id: i33
+    label: I.3.3 Manufacturing T & D Loss
+  - id: i4
+    label: I.4 Energy
+  - id: i41
+    label: I.4.1 Energy Fuel
+  - id: i42
+    label: I.4.2 Energy Grid Energy
+  - id: i43
+    label: I.4.3 Energy T & D Loss
+  - id: i5
+    label: I.5 Ag, Forestry, & Fishing
+  - id: i51
+    label: I.5.1 Ag, Forestry, & Fishing Fuel
+  - id: i52
+    label: I.5.2 Ag, Forestry, & Fishing Grid Energy
+  - id: i53
+    label: I.5.3 Ag, Forestry, & Fishing T & D Loss
+  - id: i6
+    label: I.6 Non-Specified
+  - id: i61
+    label: I.6.1 Non-Specified Fuel
+  - id: i62
+    label: I.6.2 Non-Specified Grid Energy
+  - id: i63
+    label: I.6.3 Non-Specified T & D Loss
+  - id: i7
+    label: I.7 Fugitive Coal
+  - id: i71
+    label: I.7.1 Fugitive Coal
+  - id: i8
+    label: I.8 Fugitive Oil & Natural Gas
+  - id: i81
+    label: I.8.1 Fugitive Oil & Natural Gas
+  - id: ii
+    label: II Transportation
+  - id: ii1
+    label: II.1 On-Road Transport
+  - id: ii11
+    label: II.1.1 On-Road Transport Fuel
+  - id: ii12
+    label: II.1.2 On-Road Transport Grid Energy
+  - id: ii13
+    label: II.1.3 On-Road Transport Outside City, T & D Loss
+  - id: ii2
+    label: II.2 Railway
+  - id: ii21
+    label: II.2.1 Railway Fuel
+  - id: ii22
+    label: II.2.2 Railway Grid Energy
+  - id: ii23
+    label: II.2.3 Railway Outside City, T & D Loss
+  - id: ii3
+    label: II.3 Waterborne
+  - id: ii31
+    label: II.3.1 Waterborne Fuel
+  - id: ii32
+    label: II.3.2 Waterborne Grid Energy
+  - id: ii33
+    label: II.3.3 Waterborne Outside City, T & D Loss
+  - id: ii4
+    label: II.4 Aviation
+  - id: ii41
+    label: II.4.1 Aviation Fuel
+  - id: ii42
+    label: II.4.2 Aviation Grid Energy
+  - id: ii43
+    label: II.4.3 Aviation Outside City, T & D Loss
+  - id: ii5
+    label: II.5 Off-Road Transport
+  - id: ii51
+    label: II.5.1 Off-Road Transport Fuel
+  - id: ii52
+    label: II.5.2 Off-Road Transport Grid Energy
+  - id: ii53
+    label: II.5.3 Off-Road Transport Outside City, T & D Loss
+  - id: iii
+    label: III Waste
+  - id: iii1
+    label: III.1 Solid Waste
+  - id: iii11
+    label: III.1.1 Solid Waste Disposed in City
+  - id: iii12
+    label: III.1.2 Solid Waste Disposed Outside City
+  - id: iii2
+    label: III.2 Biological Waste
+  - id: iii21
+    label: III.2.1 Biological Waste Treated in City
+  - id: iii22
+    label: III.2.2 Biological Waste Treated Outside City
+  - id: iii3
+    label: III.3 Incineration
+  - id: iii31
+    label: III.3.1 Incineration in City
+  - id: iii32
+    label: III.3.2 Incineration Outside City
+  - id: iii4
+    label: III.4 Wastewater
+  - id: iii41
+    label: III.4.1 Wastewater Treated in City
+  - id: iii42
+    label: III.4.2 Wastewater Treated Outside City
+  - id: iv
+    label: IV IPPU
+  - id: iv1
+    label: IV.1 Industrial Processes
+  - id: iv2
+    label: IV.2 Product Use
+  - id: v
+    label: V AFOLU
+  - id: v1
+    label: V.1 Livestock
+  - id: v2
+    label: V.2 Land
+  - id: v3
+    label: V.3 Aggregate Sources
+
+- id: action
+  label: Action
+  categories:
+  - id: bic1
+    label: BIC-1
+  - id: bic2
+    label: BIC-2
+  - id: bic3
+    label: BIC-3
+  - id: bic4
+    label: BIC-4
+  - id: bic5
+    label: BIC-5
+  - id: bic6
+    label: BIC-6
+  - id: bic7
+    label: BIC-7
+  - id: bic8
+    label: BIC-8
+  - id: e1
+    label: E-1
+  - id: e2
+    label: E-2
+  - id: e4
+    label: E-4
+  - id: e5
+    label: E-5
+  - id: e6
+    label: E-6
+  - id: e7
+    label: E-7
+  - id: e8
+    label: E-8
+  - id: e10
+    label: E-10
+  - id: e11
+    label: E-11
+  - id: e12
+    label: E-12
+  - id: goz1
+    label: GOZ-1
+  - id: goz2
+    label: GOZ-2
+  - id: i1__i5
+    label: I-1 - I-5
+  - id: tr1
+    label: TR-1
+  - id: tr2
+    label: TR-2
+  - id: tr3
+    label: TR-3
+  - id: tr4
+    label: TR-4
+  - id: tr5
+    label: TR-5
+  - id: tr6
+    label: TR-6
+  - id: tr7
+    label: TR-7
+  - id: tr8
+    label: TR-8
+  - id: tr9
+    label: TR-9
+  - id: tr10
+    label: TR-10
+  - id: tr11
+    label: TR-11
+  - id: tr12
+    label: TR-12
+  - id: tr13
+    label: TR-13
+
+emission_sectors:
+- id: net_emissions
+  name: Net Emissions
+  is_outcome: true
+
+nodes:
+# ----- Stationary Emissions
+
+- id: i1_residential_emissions
+  name: I.1 Residential Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [scope, sector]
+  output_dimensions: [scope, sector]
+  input_datasets:
+  - id: krakow/stationary
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [i11, i12, i13]
+  output_nodes:
+  - id: i_stationary_emissions
+
+- id: i2_commercial_and_institutional_emissions
+  name: I.2 Commercial & Institutional Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [scope, sector]
+  output_dimensions: [scope, sector]
+  input_datasets:
+  - id: krakow/stationary
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [i21, i22, i23]
+  output_nodes:
+  - id: i_stationary_emissions
+
+- id: i4_energy_emissions
+  name: I.4 Energy Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [scope, sector]
+  output_dimensions: [scope, sector]
+  input_datasets:
+  - id: krakow/stationary
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [i41]
+  output_nodes:
+  - id: i_stationary_emissions
+
+- id: i_stationary_emissions
+  name: I Stationary Emissions
+  color: '#4E79A7'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [scope, sector]
+  output_dimensions: [scope, sector]
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: sector
+      flatten: true
+
+# ----- Transportation Emissions
+
+- id: ii11_onroad_transport_fuel_emissions
+  name: II.1.1 On-Road Transport Fuel Emissions
+  short_name: II.1.1 Fuel Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [vehicle_type, scope, sector]
+  output_dimensions: [vehicle_type, scope, sector]
+  input_datasets:
+  - id: krakow/transportation
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [ii11]
+  output_nodes:
+  - id: ii1_onroad_transport_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+- id: ii12_onroad_transport_grid_energy_emissions
+  name: II.1.2 On-Road Transport Grid Energy Emissions
+  short_name: II.1.2 Grid Energy Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [vehicle_type, scope, sector]
+  output_dimensions: [vehicle_type, scope, sector]
+  input_datasets:
+  - id: krakow/transportation
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [ii12]
+  output_nodes:
+  - id: ii1_onroad_transport_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+- id: ii13_onroad_transport_outboundary_td_loss_emissions
+  name: II.1.3 On-Road Transport Out-Boundary & Transmission Loss Emissions
+  short_name: II.1.3 Out-Boundary & Transmission Loss Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [vehicle_type, scope, sector]
+  output_dimensions: [vehicle_type, scope, sector]
+  input_datasets:
+  - id: krakow/transportation
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [ii13]
+  output_nodes:
+  - id: ii1_onroad_transport_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+- id: ii1_onroad_transport_emissions
+  name: II.1 On-Road Transport Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [scope, sector]
+  output_dimensions: [scope, sector]
+  output_nodes:
+  - id: ii_transportation_emissions
+
+- id: ii21_railway_fuel_emissions
+  name: II.2.1 Railway Fuel Emissions
+  short_name: II.2.1 Fuel Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [vehicle_type, scope, sector]
+  output_dimensions: [vehicle_type, scope, sector]
+  input_datasets:
+  - id: krakow/transportation
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [ii21]
+  output_nodes:
+  - id: ii2_railway_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+- id: ii22_railway_grid_energy_emissions
+  name: II.2.2 Railway Grid Energy Emissions
+  short_name: II.2.2 Grid Energy Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [vehicle_type, scope, sector]
+  output_dimensions: [vehicle_type, scope, sector]
+  input_datasets:
+  - id: krakow/transportation
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [ii22]
+  output_nodes:
+  - id: ii2_railway_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+- id: ii23_railway_outboundary_td_loss_emissions
+  name: II.2.3 Railway Out-Boundary & Transmission Loss Emissions
+  short_name: II.2.3 Out-Boundary & Transmission Loss Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [vehicle_type, scope, sector]
+  output_dimensions: [vehicle_type, scope, sector]
+  input_datasets:
+  - id: krakow/transportation
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [ii23]
+  output_nodes:
+  - id: ii2_railway_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+
+- id: ii2_railway_emissions
+  name: II.2 Railway Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [scope, sector]
+  output_dimensions: [scope, sector]
+  output_nodes:
+  - id: ii_transportation_emissions
+
+- id: ii3_waterborne_transport_emissions
+  name: II.3 Waterborne Transport Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [scope, sector]
+  output_dimensions: [scope, sector]
+  input_datasets:
+  - id: krakow/transportation
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [ii31]
+  output_nodes:
+  - id: ii_transportation_emissions
+
+- id: ii4_aviation_emissions
+  name: II.4 Aviation Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [scope, sector]
+  output_dimensions: [scope, sector]
+  input_datasets:
+  - id: krakow/transportation
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [ii41]
+  output_nodes:
+  - id: ii_transportation_emissions
+
+- id: ii5_offroad_transport_emissions
+  name: II.5 Off-Road Transport Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [scope, sector]
+  output_dimensions: [scope, sector]
+  input_datasets:
+  - id: krakow/transportation
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [ii51]
+  output_nodes:
+  - id: ii_transportation_emissions
+
+- id: ii_transportation_emissions
+  name: II Transportation Emissions
+  color: '#E15759'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [scope, sector]
+  output_dimensions: [scope, sector]
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: sector
+      flatten: true
+
+# ----- Waste Emissions
+
+- id: iii2_biological_waste_emissions
+  name: III.2 Biological Waste Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [scope, sector]
+  output_dimensions: [scope, sector]
+  input_datasets:
+  - id: krakow/waste
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [iii21, iii22]
+  output_nodes:
+  - id: iii_waste_emissions
+
+- id: iii4_wastewater_emissions
+  name: III.4 Wastewater Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [scope, sector]
+  output_dimensions: [scope, sector]
+  input_datasets:
+  - id: krakow/waste
+    column: emissions
+    filters:
+    - dimension: sector
+      categories: [iii41]
+  output_nodes:
+  - id: iii_waste_emissions
+
+- id: iii_waste_emissions
+  name: III Waste Emissions
+  color: '#59A14F'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [scope, sector]
+  output_dimensions: [scope, sector]
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: sector
+      flatten: true
+
+# ----- Stationary Costs
+
+- id: i1_residential_costs
+  name: I.1 Residential Costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: zł/a
+  input_dimensions: [action, cost_type, scope, sector]
+  output_dimensions: [action, cost_type, scope, sector]
+  output_nodes:
+  - id: i_stationary_costs
+
+- id: i2_commercial_and_institutional_costs
+  name: I.2 Commercial & Institutional Costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: zł/a
+  input_dimensions: [action, cost_type, scope, sector]
+  output_dimensions: [action, cost_type, scope, sector]
+  output_nodes:
+  - id: i_stationary_costs
+
+- id: i_stationary_costs
+  name: I Stationary Costs
+  color: '#4E79A7'
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: zł/a
+  input_dimensions: [action, cost_type, scope, sector]
+  output_dimensions: [action, cost_type, scope, sector]
+  output_nodes:
+  - id: net_costs
+
+# ----- Transportation Costs
+
+- id: ii1_onroad_transport_costs
+  name: II.1 On-Road Transport Costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: zł/a
+  input_dimensions: [action, cost_type, scope, sector]
+  output_dimensions: [action, cost_type, scope, sector]
+  output_nodes:
+  - id: ii_transportation_costs
+
+- id: ii2_railway_costs
+  name: II.2 Railway Costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: zł/a
+  input_dimensions: [action, cost_type, scope, sector]
+  output_dimensions: [action, cost_type, scope, sector]
+  output_nodes:
+  - id: ii_transportation_costs
+
+- id: ii_transportation_costs
+  name: II Transportation Costs
+  color: '#E15759'
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: zł/a
+  input_dimensions: [action, cost_type, scope, sector]
+  output_dimensions: [action, cost_type, scope, sector]
+  output_nodes:
+  - id: net_costs
+
+# ----- Waste Costs
+
+- id: iii2_biological_waste_costs
+  name: III.2 Biological Waste Costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: zł/a
+  input_dimensions: [action, cost_type, scope, sector]
+  output_dimensions: [action, cost_type, scope, sector]
+  output_nodes:
+  - id: iii_waste_costs
+
+- id: iii_waste_costs
+  name: III Waste Costs
+  color: '#59A14F'
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: zł/a
+  input_dimensions: [action, cost_type, scope, sector]
+  output_dimensions: [action, cost_type, scope, sector]
+  output_nodes:
+  - id: net_costs
+
+- id: net_costs
+  name: Net Costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: zł/a
+  input_dimensions: [action, cost_type, scope, sector]
+  output_dimensions: [action, cost_type, scope, sector]
+  is_outcome: true
+
+- id: aggregate_net_costs
+  name: Net costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: zł/a
+  input_dimensions: []
+  output_dimensions: []
+  input_nodes:
+  - id: net_costs
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: sector
+      flatten: true
+
+actions:
+- id: bic1
+  name: BIC-1 Programme of thermal modernisation of single-family buildings for the City of Kraków
+  type: simple.AdditiveAction
+  group: buildings_and_heating
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/stationary_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [bic1]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: i1_residential_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: i1_residential_costs
+    metrics: [currency]
+
+- id: bic2
+  name: BIC-2 Thermomodernisation of educational buildings of the Municipality of Kraków
+  type: simple.AdditiveAction
+  group: buildings_and_heating
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/stationary_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [bic2]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: i1_residential_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: i1_residential_costs
+    metrics: [currency]
+
+- id: bic3
+  name: BIC-3 Thermomodernisation of municipal buildings, public buildings and the Municipal Social Welfare Centre in Kraków
+  type: simple.AdditiveAction
+  group: buildings_and_heating
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/stationary_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [bic3]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: i1_residential_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: i1_residential_costs
+    metrics: [currency]
+
+- id: bic4
+  name: BIC-4 Renewable energy system for residential heating and energy generation, and modernisation of buildings and premises owned by ZBK
+  type: simple.AdditiveAction
+  group: buildings_and_heating
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/stationary_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [bic4]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: i1_residential_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: i1_residential_costs
+    metrics: [currency]
+
+- id: bic5
+  name: BIC-5 Use of waste heat at the Płaszów Treatment Plant
+  type: simple.AdditiveAction
+  group: buildings_and_heating
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/stationary_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [bic5]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: i2_commercial_and_institutional_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: i2_commercial_and_institutional_costs
+    metrics: [currency]
+
+- id: bic6
+  name: BIC-6 Construction of heat pump fed by municipal wastewater
+  type: simple.AdditiveAction
+  group: buildings_and_heating
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/stationary_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [bic6]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: i2_commercial_and_institutional_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: i2_commercial_and_institutional_costs
+    metrics: [currency]
+
+- id: bic7
+  name: BIC-7 Implementation of a local energy programme based on heat pumps with a capacity of approximately 1 MW
+  type: simple.AdditiveAction
+  group: buildings_and_heating
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/stationary_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [bic7]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: i2_commercial_and_institutional_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: i2_commercial_and_institutional_costs
+    metrics: [currency]
+
+- id: bic8
+  name: BIC-8 Project NEEST - NetZero Emission and Environmentally Sustainable Territories
+  type: simple.AdditiveAction
+  group: buildings_and_heating
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/stationary_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [bic8]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: i1_residential_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: i1_residential_costs
+    metrics: [currency]
+
+
+- id: e1
+  name: E-1 Programme for the development of RES in the Municipality of Kraków
+  type: simple.AdditiveAction
+  group: electricity
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/stationary_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [e1]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: i2_commercial_and_institutional_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: i2_commercial_and_institutional_costs
+    metrics: [currency]
+
+- id: e2
+  name: E-2 Programme for the development of renewable energy sources in the Municipality of Kraków
+  type: simple.AdditiveAction
+  group: electricity
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/stationary_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [e2]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: i1_residential_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: i1_residential_costs
+    metrics: [currency]
+
+- id: e4
+  name: E-4 Construction of a photovoltaic installation at the Barycz landfill site
+  type: simple.AdditiveAction
+  group: electricity
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/stationary_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [e4]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: i2_commercial_and_institutional_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: i2_commercial_and_institutional_costs
+    metrics: [currency]
+
+- id: e5
+  name: E-5 Construction of photovoltaic farms by Kraków Municipal Holding
+  type: simple.AdditiveAction
+  group: electricity
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/stationary_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [e5]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: i2_commercial_and_institutional_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: i2_commercial_and_institutional_costs
+    metrics: [currency]
+
+- id: e6
+  name: E-6 Construction of a photovoltaic farm at the Raba Water Treatment Plant
+  type: simple.AdditiveAction
+  group: electricity
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/stationary_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [e6]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: i2_commercial_and_institutional_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: i2_commercial_and_institutional_costs
+    metrics: [currency]
+
+- id: e7
+  name: E-7 Construction of new CHP systems
+  type: simple.AdditiveAction
+  group: electricity
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/stationary_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [e7]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: i2_commercial_and_institutional_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: i2_commercial_and_institutional_costs
+    metrics: [currency]
+
+- id: e8
+  name: E-8 Construction of photovoltaic farms and local installations by MPEC
+  type: simple.AdditiveAction
+  group: electricity
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/stationary_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [e8]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: i2_commercial_and_institutional_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: i2_commercial_and_institutional_costs
+    metrics: [currency]
+
+- id: e10
+  name: E-10 Installation of two cogeneration units at the Płaszów Treatment Plant
+  type: simple.AdditiveAction
+  group: electricity
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/stationary_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [e10]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: i2_commercial_and_institutional_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: i2_commercial_and_institutional_costs
+    metrics: [currency]
+
+- id: e11
+  name: E-11 Modernisation of road lighting in Kraków
+  type: simple.AdditiveAction
+  group: electricity
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/stationary_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [e11]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: i2_commercial_and_institutional_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: i2_commercial_and_institutional_costs
+    metrics: [currency]
+
+- id: e12
+  name: E-12 ATELIER project - AmsTErdam and BiLbao cItizen drivEn smaRt cities
+  type: simple.AdditiveAction
+  group: electricity
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/stationary_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [e12]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: i2_commercial_and_institutional_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: i2_commercial_and_institutional_costs
+    metrics: [currency]
+
+
+- id: tr1
+  name: TR-1 Participation in the SmartEPC project
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/stationary_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [tr1]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: i2_commercial_and_institutional_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: i2_commercial_and_institutional_costs
+    metrics: [currency]
+
+- id: tr2
+  name: TR-2 Project for fast, collision-free rail transport in Kraków (Premetro)
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/transportation_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [tr2]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: ii1_onroad_transport_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: ii1_onroad_transport_costs
+    metrics: [currency]
+
+- id: tr3
+  name: TR-3 Construction of the SKA "Kraków Prądnik Czerwony" railway stop together with a P&R car park, and the construction of an integrated transfer node
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/transportation_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [tr3]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: ii1_onroad_transport_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: ii1_onroad_transport_costs
+    metrics: [currency]
+
+- id: tr4
+  name: TR-4 Construction of cycling routes along the streets Al. Pokoju, Walerego Sławka, Brożka, Nawojki and Jancarza
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/transportation_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [tr4]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: ii1_onroad_transport_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: ii1_onroad_transport_costs
+    metrics: [currency]
+
+- id: tr5
+  name: TR-5 Construction of KST tram line (Krowodrza Górka - Azory district)
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/transportation_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [tr5]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: ii1_onroad_transport_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: ii1_onroad_transport_costs
+    metrics: [currency]
+
+- id: tr6
+  name: TR-6 Development of a tramway fleet to serve the Kraków City Transport system and the development of intelligent transport systems (ITS)
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/transportation_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [tr6]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: ii2_railway_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: ii2_railway_costs
+    metrics: [currency]
+
+- id: tr7
+  name: TR-7 Reconstruction of tram tracks together with turnout nodes and associated infrastructure at Straszewskiego and Karmelicka Street, Starowislna Street
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/transportation_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [tr7]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: ii2_railway_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: ii2_railway_costs
+    metrics: [currency]
+
+- id: tr8
+  name: TR-8 Creation of new charging stations for electric buses
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/transportation_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [tr8]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: ii1_onroad_transport_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: ii1_onroad_transport_costs
+    metrics: [currency]
+
+- id: tr9
+  name: TR-9 Tram energy storage in Districts XI and XII of the City of Kraków
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/transportation_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [tr9]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: ii2_railway_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: ii2_railway_costs
+    metrics: [currency]
+
+- id: tr10
+  name: TR-10 Construction of new tram lines with associated infrastructure
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/transportation_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [tr10]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: ii1_onroad_transport_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: ii1_onroad_transport_costs
+    metrics: [currency]
+
+- id: tr11
+  name: TR-11 Projects and activities related to the development of cycling infrastructure and implementation of the Cycling Policy of the City of Kraków
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/transportation_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [tr11]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: ii1_onroad_transport_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: ii1_onroad_transport_costs
+    metrics: [currency]
+
+- id: tr12
+  name: TR-12 Project SUM - Smooth Shared Urban Mobility
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/transportation_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [tr12]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: ii1_onroad_transport_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: ii1_onroad_transport_costs
+    metrics: [currency]
+
+- id: tr13
+  name: TR-13 Clean Transport Zone
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/transportation_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [tr13]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: ii1_onroad_transport_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: ii1_onroad_transport_costs
+    metrics: [currency]
+
+
+- id: goz1
+  name: GOZ-1 Construction of a recycling system for biodegradable waste and in the process of composting and fermentation - electricity and biogas production
+  type: simple.AdditiveAction
+  group: waste_management_and_ce
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/stationary_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [goz1]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: i2_commercial_and_institutional_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: i2_commercial_and_institutional_costs
+    metrics: [currency]
+
+- id: goz2
+  name: GOZ-2 MINEV project
+  type: simple.AdditiveAction
+  group: waste_management_and_ce
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/waste_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [goz2]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: iii2_biological_waste_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: iii2_biological_waste_costs
+    metrics: [currency]
+
+
+- id: i1__i5
+  name: I-1 to I-5 Green spaces, urban forests, biologically active area and green infrastructure
+  type: simple.AdditiveAction
+  group: other
+  input_dimensions: [action, sector, scope, cost_type]
+  output_dimensions: [action, sector, scope, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: krakow/stationary_actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [i1__i5]
+  output_metrics:
+  - id: emissions
+    unit: kt_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: zł/a
+    quantity: currency
+  output_nodes:
+  - id: i2_commercial_and_institutional_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: i2_commercial_and_institutional_costs
+    metrics: [currency]
+
+pages:
+- id: home
+  name: Kraków Greenhouse Gas Inventory
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Kraków Climate-4-CAST Decision Support Tool
+  lead_paragraph: Greenhouse gas inventory (2018-2023) and forecast (2024-2030) for the City of Kraków.
+
+scenarios:
+- id: baseline
+  name: Business as Usual
+
+- id: default
+  default: true
+  name: Climate City Contract
+  all_actions_enabled: true

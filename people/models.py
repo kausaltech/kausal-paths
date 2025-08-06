@@ -1,20 +1,23 @@
 from __future__ import annotations
 
+# import re
+import contextlib
+import uuid
 from typing import TYPE_CHECKING, ClassVar, override
 
 from django.db import models
 from django.db.models import Q
+from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
-from modelcluster.fields import ParentalKey
-from modelcluster.models import ClusterableModel
 from modeltrans.manager import MultilingualQuerySet
 from wagtail.search import index
 
-from kausal_common.datasets.models import DatasetSchema
-from kausal_common.models.types import FK, M2M, MLModelManager, ModelManager
-from kausal_common.people.models import BasePerson, create_permission_membership_models
+# from easy_thumbnails.files import get_thumbnailer
+from loguru import logger
 
-from paths.types import PathsModel, PathsQuerySet
+# from wagtail.images.rect import Rect
+from kausal_common.models.types import MLModelManager
+from kausal_common.people.models import BasePerson
 
 from orgs.models import Organization
 from users.models import User
@@ -23,8 +26,6 @@ if TYPE_CHECKING:
     from paths.types import PathsAdminRequest
 
     from nodes.models import InstanceConfig
-
-    from .permissions import PersonGroupPermissionPolicy
 
 
 class PersonQuerySet(MultilingualQuerySet['Person']):
@@ -69,25 +70,92 @@ class Person(BasePerson):
         return None
 
     @override
-    def get_avatar_url(self, request: PathsAdminRequest, size: str | None = None) -> str | None:
+    def get_avatar_url(self, request: PathsAdminRequest | None = None, size: str | None = None) -> str | None:
+        # from kausal_common.model_images import determine_image_dim
         # Return the URL of the person's image if it exists
-        if self.image:
-            return self.image.url
-        return None
-
-    def create_corresponding_user(self):
-        # Get or create a user based on the person's email
-        if not self.email:
+        if not self.image:
             return None
 
-        user, created = User.objects.get_or_create(
-            email__iexact=self.email,
-            defaults={
-                'email': self.email,
-                'first_name': self.first_name,
-                'last_name': self.last_name,
-            }
-        )
+        try:
+            with self.image.open():
+                pass
+        except FileNotFoundError:
+            logger.info('Avatar file for %s not found' % self)
+            return None
+
+        # if size is None:
+        url = self.image.url
+        # else:
+        #     m = re.match(r'(\d+)?(x(\d+))?', size)
+        #     if not m:
+        #         raise ValueError('Invalid size argument (should be "<width>x<height>")')
+        #     width, _, height = m.groups()
+
+        #     dim = determine_image_dim(self.image, width, height)
+
+        #     tn_args: dict = {
+        #         'size': dim,
+        #     }
+        #     if self.image_cropping:
+        #         tn_args['focal_point'] = Rect(*[int(x) for x in self.image_cropping.split(',')])
+        #         tn_args['crop'] = 30
+
+        #     out_image = get_thumbnailer(self.image).get_thumbnail(tn_args)
+        #     if out_image is None:
+        #         return None
+        #     url = out_image.url
+
+        # if request:
+        #     url = request.build_absolute_uri(url)
+        return url
+
+
+    def avatar(self, request: PathsAdminRequest | None = None) -> str:
+        avatar_url = self.get_avatar_url(request, size='50x50')
+        if not avatar_url:
+            return ''
+        return format_html('<span class="avatar"><img src="{}" /></span>', avatar_url)
+
+    @override
+    def create_corresponding_user(self):
+        user = self.get_corresponding_user()
+        email = self.email.lower()
+        if user:
+            created = False
+            email_changed = user.email.lower() != email
+            if email_changed:
+                # If we change the email address to that of an existing deactivated user, we need to deactivate the
+                # user with the old email address (done after this returns because it returns a user different from
+                # `self.user`) and re-activate the user with the new email address (done further down in this method).
+                with contextlib.suppress(User.DoesNotExist):
+                    user = User.objects.get(email__iexact=email, is_active=False)
+        else:
+            user = User(
+                email=email,
+                uuid=uuid.uuid4(),
+            )
+            created = True
+            email_changed = False
+
+        if not created and not user.is_active:
+            # Probably the user has been deactivated because the person has been deleted. Reactivate it.
+            user.is_active = True
+            reactivated = True
+        else:
+            reactivated = False
+
+        set_password = created or reactivated or email_changed
+        if set_password:
+            # client = self.get_client_for_email_domain() # TODO: Add this if we implement clients
+            # if client is not None and client.auth_backend:
+            #     user.set_unusable_password()
+            # else:
+            user.set_password(str(uuid.uuid4()))
+
+        user.first_name = self.first_name
+        user.last_name = self.last_name
+        user.email = email
+        user.save()
         return user
 
     def visible_for_user(self, user, **kwargs) -> bool:

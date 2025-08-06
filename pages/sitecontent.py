@@ -9,6 +9,8 @@ from wagtail.admin.panels import FieldPanel
 
 from kausal_common.models.permission_policy import ParentInheritedPolicy
 
+from paths.context import realm_context
+
 from admin_site.viewsets import PathsEditView, PathsViewSet
 from pages.models import InstanceSiteContent
 
@@ -44,7 +46,7 @@ class InstanceSiteContentModelMenuItem(MenuItem):
     def render_component(self, request):
         # When clicking the menu item, use the edit view instead of the index view.
         link_menu_item = super().render_component(request)
-        instance = request.admin_instance
+        instance = realm_context.get().realm
         field = self.get_one_to_one_field(instance)
         link_menu_item.url = reverse(self.view_set.get_url_name('edit'), kwargs={'pk': field.pk})
         return link_menu_item
@@ -53,7 +55,7 @@ class InstanceSiteContentModelMenuItem(MenuItem):
         user = request.user
         if user.is_superuser:
             return True
-        instance = request.admin_instance
+        instance = realm_context.get().realm
         field = self.get_one_to_one_field(instance)
         return self.view_set.permission_policy.user_has_permission_for_instance(request.user, 'change', field)
 
@@ -99,7 +101,7 @@ class InstanceSiteContentViewSet(PathsViewSet):
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        qs = qs.filter(instance=request.admin_instance)
+        qs = qs.filter(instance=realm_context.get().realm)
         return qs
 
     def get_menu_item(self, order=None):
