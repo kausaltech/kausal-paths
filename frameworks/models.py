@@ -617,10 +617,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         instance_name = '%s: %s' % (framework.name, org_name)
 
         # Create new organization for instance
-        org = Organization.add_root(
-            name=instance_name,
-            primary_language="en",
-        )
+        org = Organization.objects.get(name="NetZeroCities")
 
         ic = InstanceConfig.objects.create(
             name=instance_name,
