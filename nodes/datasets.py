@@ -257,82 +257,100 @@ class DatasetWithFilters(Dataset):
 
         return df
 
-    def _filter_df(self, context: Context, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912
+    def _filter_df(self, context: Context, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         if not self.filters:
             return df
 
         df_orig = df
         for d in self.filters:
             if 'column' in d:
-                col = d['column']
-                val = d.get('value', None)
-                vals = d.get('values', [])
-                ref = d.get('ref', None)
-                drop = d.get('drop_col', True)
-                exclude = d.get('exclude', False)
-                mask = None
-                if vals:
-                    mask = pl.col(col).is_in(vals)
-                if val:
-                    mask = pl.col(col) == val
-                if ref:
-                    pval = context.get_parameter_value(ref, required=True)
-                    if isinstance(pval, float):
-                        pval = int(pval)
-                    val = str(pval)
-                    mask = pl.col(col) == val
-                if mask is not None:
-                    if exclude:
-                        mask = ~mask
-                    df = df.filter(mask)
-
-                if drop:
-                    df = df.drop(col)
+                df = self._column_filter(df, d, context)
             elif 'dimension' in d:
-                dim_id = d['dimension']
-                if 'groups' in d:
-                    dim = context.dimensions[dim_id]
-                    grp_ids = d['groups']
-                    grp_s = dim.ids_to_groups(dim.series_to_ids_pl(df[dim_id]))
-                    df = df.filter(grp_s.is_in(grp_ids))
-                elif 'categories' in d:
-                    cat_ids = d['categories']
-                    df = df.filter(pl.col(dim_id).is_in(cat_ids))
-                elif 'assign_category' in d:
-                    cat_id = d['assign_category']
-                    if dim_id in context.dimensions:
-                        dim = context.dimensions[dim_id]
-                        assert dim_id not in df.dim_ids
-                        assert cat_id in dim.cat_map
-                    df = df.with_columns(pl.lit(cat_id).alias(dim_id)).add_to_index(dim_id)
-                flatten = d.get('flatten', False)
-                if flatten:
-                    if VALUE_COLUMN in df.columns:
-                        df = df.filter(~pl.col(VALUE_COLUMN).is_nan())
-                    df = df.paths.sum_over_dims(dim_id)
+                df = self._dimension_filter(df, d, context)
             elif 'rename_col' in d:
-                col = d['rename_col']
-                val = d.get('value', None)
-                print(f'renaming column {col} to {val}.')
-                if col not in df.columns:
-                    raise NameError(self, f"Column {col} not found. Available columns are {df.columns}")
-                if val:
-                    df = df.rename({col: val})
+                df = self._rename_col_filter(df, d)
             elif 'rename_item' in d:
-                old = d['rename_item'].split('|')
-                if len(old) != 2:
-                    raise ValueError(self, f"Rename item must have format 'col|item', now it is '{d['rename_item']}'.")
-                col = old[0]
-                item = old[1]
-                new_item = d.get('value', None)
-                print(f'renaming item {item} with {new_item} on column {col}.')
-                df = df.with_columns(pl.col(col).str.replace_all(re.escape(item), new_item))
+                df = self._rename_item_filter(df, d)
 
             if len(df) == 0:
                 print(df_orig)
                 print(self.filters)
                 raise ValueError("Nothing left after filtering. See original dataset above.")
 
+        return df
+
+    def _column_filter(self, df: ppl.PathsDataFrame, d: dict, context: Context) -> ppl.PathsDataFrame:
+        col = d['column']
+        val = d.get('value')
+        vals = d.get('values', [])
+        ref = d.get('ref')
+        drop = d.get('drop_col', True)
+        exclude = d.get('exclude', False)
+        mask = None
+        if vals:
+            mask = pl.col(col).is_in(vals)
+        if val:
+            mask = pl.col(col) == val
+        if ref:
+            pval = context.get_parameter_value(ref, required=True)
+            if isinstance(pval, float):
+                pval = int(pval)
+            val = str(pval)
+            mask = pl.col(col) == val
+        if mask is not None:
+            if exclude:
+                mask = ~mask
+            df = df.filter(mask)
+
+        if drop:
+            df = df.drop(col)
+        return df
+
+    def _dimension_filter(self, df: ppl.PathsDataFrame, d: dict, context: Context) -> ppl.PathsDataFrame:
+        dim_id = d['dimension']
+        if 'groups' in d:
+            dim = context.dimensions[dim_id]
+            grp_ids = d['groups']
+            grp_s = dim.ids_to_groups(dim.series_to_ids_pl(df[dim_id]))
+            df = df.filter(grp_s.is_in(grp_ids))
+        elif 'categories' in d:
+            cat_ids = d['categories']
+            df = df.filter(pl.col(dim_id).is_in(cat_ids))
+        elif 'assign_category' in d:
+            cat_id = d['assign_category']
+            if dim_id in context.dimensions:
+                dim = context.dimensions[dim_id]
+                assert dim_id not in df.dim_ids
+                assert cat_id in dim.cat_map
+            df = df.with_columns(pl.lit(cat_id).alias(dim_id)).add_to_index(dim_id)
+        flatten = d.get('flatten', False)
+        if flatten:
+            if VALUE_COLUMN in df.columns:
+                df = df.filter(~pl.col(VALUE_COLUMN).is_nan())
+            df = df.paths.sum_over_dims(dim_id)
+        return df
+
+    def _rename_col_filter(self, df: ppl.PathsDataFrame, d: dict) -> ppl.PathsDataFrame:
+        col = d['rename_col']
+        val = d.get('value')
+        print(f'renaming column {col} to {val}.')
+        if col not in df.columns:
+            raise NameError(self, f"Column {col} not found. Available columns are {df.columns}")
+        if val:
+            df = df.rename({col: val})
+        return df
+
+    def _rename_item_filter(self, df: ppl.PathsDataFrame, d: dict) -> ppl.PathsDataFrame:
+        old = d['rename_item'].split('|')
+        if len(old) != 2:
+            raise ValueError(self, f"Rename item must have format 'col|item', now it is '{d['rename_item']}'.")
+        col = old[0]
+        item = old[1]
+        new_item = d.get('value', '')
+        if new_item == '':
+            raise ValueError(self, "rename_item must have value.")
+        print(f'renaming item {item} with {new_item} on column {col}.')
+        df = df.with_columns(pl.col(col).str.replace_all(re.escape(item), new_item))
         return df
 
     def add_explanation(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:

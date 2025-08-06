@@ -160,7 +160,7 @@ class Dimension(I18nBaseModel):
         if df['id'].null_count() > s.null_count():
             missing_cats = df.filter(pl.col('id').is_null())['cat'].unique()
             # FIXME: `missing_cats` should not contain those items that were already in `s`.
-            raise Exception("Some dimension categories failed to convert (%s)" % ', '.join(missing_cats))
+            raise Exception(f"Some dimension {self.id} categories failed to convert: `{'`, `'.join(missing_cats)}`")
         ret = df['id'].cast(pl.Categorical)
         if name:
             ret = ret.alias(name)
