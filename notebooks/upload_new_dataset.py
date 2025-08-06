@@ -344,7 +344,6 @@ def prepare_for_dvc(df: pl.DataFrame, units: dict) -> pl.DataFrame:
     columns = df.columns
     metrics = list(units.keys())
     new_columns = [col if col in metrics + ['Year'] else to_snake_case(col) for col in columns]
-    print(columns, new_columns)
 
     # Rename columns
     df = df.rename(dict(zip(columns, new_columns, strict=False)))

@@ -20,6 +20,7 @@ emission_dimensions: [energietrager, scope, ghg]
 features:
   baseline_visible_in_graphs: true
   use_datasets_from_db: true
+  show_explanations: true
 params:
 - id: weather_correction
   label_de: Wetterkorrektur durchführen?

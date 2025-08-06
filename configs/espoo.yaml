@@ -4,7 +4,7 @@ supported_languages: [sv, en]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 830cc1df5616f8171f3bb4f2fc88cd65946e1c4d
+  commit: b39c8ea31cd0a99c3f4f4cfdb6becff84bfd283c
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -87,6 +87,112 @@ params:
 
 dimensions:
 
+- id: building_class
+  label_fi: Rakennustyyppi
+  label_en: Building class
+  label_sv: Byggnadsklass
+  categories:
+  - id: commercial_spaces
+    label_en: Commercial spaces
+    label_fi: Liiketilat
+    aliases: [päivittäistavarakauppa, tilaa vaativa kauppa, erikoiskauppa, 
+        erikoispalvelut]
+    label_sv: Affärslokaler
+  - id: office_buildings
+    label_en: Office buildings
+    label_fi: Toimistorakennukset
+    label_sv: Kontorsbyggnader
+  - id: public_buildings
+    label_en: Public buildings
+    label_fi: Julkiset rakennukset
+    label_sv: Offentliga byggnader
+  - id: industrial_buildings
+    label_en: Industrial buildings
+    label_fi: Teollisuuskiinteistöt
+    label_sv: Industribyggnader
+  - id: residential_buildings
+    label_en: Residential buildings
+    label_fi: Asuinrakennukset
+  - id: residential_buildings_total
+    label_en: Residential buildings total
+    label_fi: Asuinrakennukset yhteensä
+    label_sv: Bostadsbyggnader totalt
+  - id: single_family_houses
+    label_en: Single-family and semi-detached houses
+    label_fi: Omakoti- ja paritalot
+    label_sv: Småhus och parhus
+  - id: row_houses
+    label_en: Row houses
+    label_fi: Rivitalot
+    label_sv: Radhus
+  - id: apartment_buildings
+    label_en: Apartment buildings
+    label_fi: Kerrostalot
+    label_sv: Flervåningshus
+  - id: dormitory_buildings
+    label_en: Dormitory buildings and special group residential buildings
+    label_fi: Asuntolarakennukset ja erityisryhmien asuinrakennukset
+    label_sv: Kollektivhus och specialgruppers bostadsbyggnader
+  - id: commercial_buildings
+    label_en: Commercial buildings
+    label_fi: Liikerakennukset
+    label_sv: Affärsbyggnader
+  - id: transport_buildings
+    label_en: Transport buildings
+    label_fi: Liikenteen rakennukset
+    label_sv: Trafikbyggnader
+  - id: healthcare_buildings
+    label_en: Healthcare buildings
+    label_fi: Hoitoalan rakennukset
+    label_sv: Vårdbyggnader
+  - id: assembly_buildings
+    label_en: Assembly buildings
+    label_fi: Kokoontumisrakennukset
+    label_sv: Samlingslokaler
+  - id: educational_buildings
+    label_en: Educational buildings
+    label_fi: Opetusrakennukset
+    label_sv: Undervisningsbyggnader
+  - id: industrial_mining_buildings
+    label_en: Industrial and mining buildings
+    label_fi: Teollisuuden ja kaivannaistoiminnan rakennukset
+    label_sv: Industri- och gruvbyggnader
+  - id: energy_supply_buildings
+    label_en: Energy supply buildings
+    label_fi: Energiahuoltorakennukset
+    label_sv: Energiförsörjningsbyggnader
+  - id: municipal_engineering_buildings
+    label_en: Municipal engineering buildings
+    label_fi: Yhdyskuntatekniikan rakennukset
+    label_sv: Samhällstekniska byggnader
+  - id: warehouse_buildings
+    label_en: Warehouse buildings
+    label_fi: Varastorakennukset
+    label_sv: Lagerbyggnader
+  - id: emergency_services_buildings
+    label_en: Emergency services buildings
+    label_fi: Pelastustoimen rakennukset
+    label_sv: Räddningstjänstbyggnader
+  - id: other_buildings
+    label_en: Other buildings
+    label_fi: Muut rakennukset
+    label_sv: Övriga byggnader
+
+- id: building_heating
+  label_en: Building heating
+  label_fi: Rakennuksen lämmitystapa
+  categories:
+  - id: direct_electricity
+    label_fi: Suora sähkölämmitys
+  - id: oven_heating
+    label_fi: Uuni- tai kaminalämmitys
+  - id: central_heating
+    label_fi: Keskuslämmitys
+  - id: other_or_unknown
+    label_fi: Muu tai tuntematon
+  - id: total
+    label_fi: Yhteensä
+
 - id: economic_sector
   label_fi: Taloussektori
   label_en: Economic sector
@@ -128,6 +234,7 @@ dimensions:
     label_fi: Kaukolämpö
     label_en: District heat
     label_sv: Fjärrvärme
+    aliases: [Kauko- tai aluelämpö]
   - id: electricity
     label_fi: Sähkö
     label_en: Electricity
@@ -141,6 +248,7 @@ dimensions:
     label_fi: Polttoöljy
     label_en: Fuel oil
     label_sv: Brännolja
+    aliases: ['Öljy, kaasu']
   - id: natural_gas
     label_fi: Maakaasu
     label_en: Natural gas
@@ -185,6 +293,19 @@ dimensions:
     label_fi: Vety
     label_en: Hydrogen
     label_sv: Väte
+  - id: coal
+    label_fi: Kivihiili
+    label_en: Coal
+    label_sv: Kol
+  - id: wood_peat
+    label_fi: Puu, turve
+    label_en: Wood, peat
+  - id: geothermal
+    label_fi: Maalämpö
+    label_en: Geothermal
+  - id: other_unknown
+    label_fi: Muu tai tuntematon
+    label_en: Other or unknown
 
 - id: owner
   label_fi: Omistaja
@@ -351,6 +472,210 @@ nodes:
     filters:
     - column: Alue
       value: Espoo
+
+## New building model
+
+- id: building_floor_area
+  name: Rakennusala
+  type: generic.GenericNode
+  quantity: floor_area
+  unit: m**2
+  input_dimensions: [building_class, energy_carrier, building_heating]
+  output_dimensions: [building_class, energy_carrier, building_heating]
+  input_datasets:
+  - id: helsinki/aluesarjat/02um_rakennukset_lammitys
+    tags: baseline
+    filters:
+    - column: Alue
+      value: Espoo
+    - column: Tiedot
+      value: Kerrosala (m2)
+      drop_col: false
+    - column: Rakennuksen käyttötarkoitus
+      values: [Asuinrakennukset yhteensä, Rakennukset yhteensä]
+      exclude: true
+      drop_col: false
+    - column: Rakennuksen lämmitystapa
+      value: Yhteensä
+      exclude: true
+      drop_col: false
+    - column: Rakennuksen lämmitysaine
+      value: Yhteensä
+      exclude: true
+      drop_col: false
+    - rename_col: Tiedot
+      value: Unit
+    - rename_item: Unit|Kerrosala (m2)
+      value: m**2
+    - rename_col: Rakennuksen käyttötarkoitus
+      value: building_class
+    - rename_col: Rakennuksen lämmitystapa
+      value: building_heating
+    - rename_col: Rakennuksen lämmitysaine
+      value: energy_carrier
+    - rename_col: Vuosi
+      value: Year
+
+- id: new_non_residential_floor_area
+  name_fi: Uusi muun kuin asuinrakennuskannan ala
+  type: generic.GenericNode
+  quantity: floor_area
+  unit: m**2
+  input_dimensions: [building_class, energy_carrier, building_heating, building_use]
+  output_dimensions: [building_class, energy_carrier, building_heating, building_use]
+  input_nodes:
+  - id: building_floor_area
+    tags: [non_additive]
+    to_dimensions:
+    - id: building_class
+    - id: energy_carrier
+    - id: building_heating
+  - id: building_type_index
+    from_dimensions:
+    - id: building_use
+      categories: [residence]
+      exclude: true
+    to_dimensions:
+    - id: building_class
+    - id: building_use
+  - id: new_building_construction
+    to_dimensions:
+    - id: building_class
+
+- id: new_building_construction
+  name_fi: Uusien ei-asuinrakennusten rakentaminen
+  type: generic.GenericNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [building_class]
+  output_dimensions: [building_class]
+  input_datasets:
+  - id: espoo/rakennuskannan_toimet
+    tags: [baseline]
+    column: kerrosalan_kasvu
+    forecast_from: 2024
+
+- id: building_type_index
+  name_fi: Rakennustyyppi-indeksi
+  type: generic.GenericNode
+  quantity: ratio
+  unit: dimensionless
+  input_dimensions: [building_class, building_use]
+  output_dimensions: [building_class, building_use]
+  input_datasets:
+  - id: espoo/rakennustyypit_ja_kaytto
+    tags: [baseline]
+    column: rakennustyypit_ja_kaytto
+
+- id: living_space
+  name_fi: Asumisväljyys
+  type: generic.GenericNode
+  quantity: floor_area
+  unit: m**2/cap
+  input_dimensions: [building_use]
+  output_dimensions: [building_use]
+  input_datasets:
+  - id: espoo/rakennuskannan_toimet
+    tags: [baseline]
+    column: asumisvaljyys
+
+- id: gross_per_net_floor_area
+  name_fi: Kerrosala per huoneistoala
+  type: generic.GenericNode
+  quantity: ratio
+  unit: m**2/m**2
+  input_datasets:
+  - id: espoo/rakennuskannan_toimet
+    tags: [baseline]
+    column: kerrosala_per_huoneistoala
+
+- id: gross_area_per_capita
+  name_fi: Kerrosala per asukas
+  type: generic.GenericNode
+  quantity: floor_area
+  unit: m**2/cap
+  input_dimensions: [building_use]
+  output_dimensions: [building_use]
+  input_nodes:
+  - id: living_space
+    tags: [non_additive]
+  - id: gross_per_net_floor_area
+    to_dimensions: []
+
+- id: total_residential_floor_area
+  name_fi: Asuinrakennuskannan ala
+  type: generic.GenericNode
+  quantity: floor_area
+  unit: m**2
+  input_dimensions: [building_class, energy_carrier, building_use]
+  output_dimensions: [building_class, energy_carrier, building_use]
+  input_nodes:
+  - id: gross_area_per_capita
+    to_dimensions:
+    - id: building_use
+  - id: population
+    to_dimensions: []
+  - id: building_type_index
+    to_dimensions:
+    - id: building_class
+    - id: building_use
+  - id: building_floor_area
+    tags: [use_as_shares]
+    from_dimensions:
+    - id: building_heating
+      flatten: true
+    to_dimensions:
+    - id: building_class
+    - id: energy_carrier
+  params:
+    operations: multiply,use_as_shares,add
+
+- id: new_residential_floor_area
+  name_fi: Uusi asuinrakennuskannan ala
+  type: generic.GenericNode
+  quantity: floor_area
+  unit: m**2
+  input_dimensions: [building_class, energy_carrier, building_use]
+  output_dimensions: [building_class, energy_carrier, building_use]
+  input_nodes:
+  - id: total_residential_floor_area
+    tags: [forecast_only, difference]
+  - id: year_multiplier
+    to_dimensions: []
+
+- id: year_multiplier
+  name_fi: Vuosikerroin (tekninen)
+  type: simple.AdditiveNode
+  quantity: ratio
+  unit: a
+  historical_values: [[1990, 1.0], [2024, 1.0]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: total_building_area
+  name_fi: Rakennuskannan kokonaisala
+  type: generic.GenericNode
+  quantity: floor_area
+  unit: m**2
+  input_dimensions: [building_class, energy_carrier, building_use]
+  output_dimensions: [building_class, energy_carrier, building_use]
+  input_nodes:
+  - id: new_non_residential_floor_area
+    from_dimensions:
+    - id: building_heating
+      flatten: true
+  - id: new_residential_floor_area
+  - id: building_floor_area
+    tags: [non_additive]
+    from_dimensions:
+    - id: building_heating
+      flatten: true
+    to_dimensions:
+    - id: building_class
+    - id: energy_carrier
+  - id: building_type_index
+    to_dimensions:
+    - id: building_class
+    - id: building_use
 
 - id: building_floor_area_new
   name_fi: Uuden rakennuskannan kerrosala

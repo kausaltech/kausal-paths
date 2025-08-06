@@ -1659,6 +1659,13 @@ class Node:
         m = target_node.get_default_output_metric()
         return df.set_unit(VALUE_COLUMN, m.unit, force=True)
 
+    def _indifferent_history_ratio(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
+        return df.with_columns(
+            pl.when(pl.col(FORECAST_COLUMN))
+            .then(pl.col(VALUE_COLUMN))
+            .otherwise(pl.lit(1.0)).alias(VALUE_COLUMN)
+        )
+
     def _inventory_only(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
         df = df.with_columns(  # TODO A non-elegant way to ensure there is at least one historical row.
             pl.when(pl.col(FORECAST_COLUMN) & (pl.count() == 1))
