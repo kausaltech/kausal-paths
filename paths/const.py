@@ -7,8 +7,10 @@ INSTANCE_HOSTNAME_HEADER = 'x-paths-instance-hostname'
 
 FRAMEWORK_ADMIN_ROLE = 'framework-admin'
 FRAMEWORK_VIEWER_ROLE = 'framework-viewer'
+INSTANCE_SUPER_ADMIN_ROLE = 'instance-super-admin'
 INSTANCE_ADMIN_ROLE = 'instance-admin'
 INSTANCE_VIEWER_ROLE = 'instance-viewer'
+INSTANCE_REVIEWER_ROLE = 'instance-reviewer'
 
 MODEL_CALC_OP = 'model.calculate'
 MODEL_CACHE_OP = 'model.cache'

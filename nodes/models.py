@@ -130,10 +130,12 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any
     def __init__(self):
         from frameworks.roles import framework_admin_role, framework_viewer_role
 
-        from .roles import instance_admin_role, instance_viewer_role
+        from .roles import instance_super_admin_role, instance_admin_role, instance_viewer_role, instance_reviewer_role
 
+        self.super_admin_role = instance_super_admin_role
         self.admin_role = instance_admin_role
         self.viewer_role = instance_viewer_role
+        self.reviewer_role = instance_reviewer_role
         self.fw_admin_role = framework_admin_role
         self.fw_viewer_role = framework_viewer_role
         super().__init__(InstanceConfig)
@@ -267,11 +269,21 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         null=True,
     )
     viewer_group_id: int | None
+    reviewer_group: FK[Group | None] = models.ForeignKey(
+        Group, on_delete=models.PROTECT, editable=False, related_name='reviewer_instances',
+        null=True,
+    )
+    reviewer_group_id: int | None
     admin_group: FK[Group | None] = models.ForeignKey(
         Group, on_delete=models.PROTECT, editable=False, related_name='admin_instances',
         null=True,
     )
     admin_group_id: int | None
+    super_admin_group: FK[Group | None] = models.ForeignKey(
+        Group, on_delete=models.PROTECT, editable=False, related_name='super_admin_instances',
+        null=True,
+    )
+    super_admin_group_id: int | None
 
     """
     model_cache = JSONField[InstanceModelCache | None, InstanceModelCache | None](
@@ -701,6 +713,10 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         pp = self.permission_policy()
         pp.admin_role.create_or_update_instance_group(self)
         pp.viewer_role.create_or_update_instance_group(self)
+        # For now, try not to proliferate the group count for NZC instances
+        if not self.has_framework_config() or self.framework_config.framework.identifier != 'nzc':
+            pp.super_admin_role.create_or_update_instance_group(self)
+            pp.reviewer_role.create_or_update_instance_group(self)
 
         root_page = self._create_default_pages()
         if self.site is None and self.site_url is not None:
