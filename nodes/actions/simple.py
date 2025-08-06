@@ -7,6 +7,7 @@ from django.utils.translation import gettext_lazy as _
 
 import polars as pl
 
+from common import polars as ppl
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
 from nodes.generic import GenericNode
 from nodes.gpc import DatasetNode
@@ -229,4 +230,39 @@ class GpcTrajectoryAction(TrajectoryAction, DatasetNode):
         df = df.select_category(dim_id, cat_id, cat_no, year, level, keep)
         assert self.unit is not None
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
+        return df
+
+
+class ParameterAction(ActionNode):
+    allowed_parameters = [
+        *ActionNode.allowed_parameters,
+        NumberParameter('from_value', description='Starting parameter value', is_customizable=True),
+        NumberParameter('percent_change', description='Annual percent change in parameter value', is_customizable=True),
+        NumberParameter('default_value', description='Default parameter value', is_customizable=False),
+        NumberParameter('default_change', description='Default annual percent change in parameter value', is_customizable=False),
+    ]
+
+    def compute_effect(self):
+        fromyear = self.context.instance.maximum_historical_year + 1  # type: ignore
+        toyear = self.context.instance.target_year + 1
+
+        if self.is_enabled():
+            fromvalue = self.get_parameter_value('from_value', required=True)
+            percentchange = self.get_parameter_value('percent_change', required=True)
+        else:
+            fromvalue = self.get_parameter_value('default_value', required=True)
+            percentchange = self.get_parameter_value('default_change', required=True)
+
+        percentchange = 1.0 + (percentchange / 100.0)  # type: ignore
+
+        df = pl.DataFrame(
+            {'Year': range(fromyear, toyear)}
+        ).with_columns(
+            (pl.lit(fromvalue) * pl.lit(percentchange) ** (pl.col('Year') - fromyear)).alias('Value'),
+            pl.lit(True).alias('Forecast')  # noqa: FBT003
+        )
+
+        meta = ppl.DataFrameMeta(units={'Value': self.unit}, primary_keys=['Year'])  # type: ignore
+        df = ppl.to_ppdf(df, meta=meta)
+
         return df
