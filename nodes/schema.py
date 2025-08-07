@@ -434,6 +434,7 @@ ScenarioKind = graphene.Enum.from_enum(ScenarioKindEnum)
 class ScenarioValue:
     scenario: ScenarioType
     value: float | None
+    year: int
 
 
 @register_strawberry_type
@@ -442,6 +443,7 @@ class MetricDimensionCategoryValue:
     dimension: MetricDimensionType
     category: MetricDimensionCategoryType
     value: float | None
+    year: int
 
 
 @register_strawberry_type
@@ -449,6 +451,7 @@ class MetricDimensionCategoryValue:
 class ActionImpactType:
     action: ActionNodeType
     value: float
+    year: int
 
 
 @register_strawberry_type

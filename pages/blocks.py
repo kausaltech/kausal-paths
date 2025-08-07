@@ -77,9 +77,9 @@ class ProgressBarBlock(blocks.StructBlock):
 
     graphql_fields = [
         GraphQLString('title', required=True),
-        GraphQLString('description'),
+        GraphQLString('description', required=True),
         GraphQLString('chart_label', required=True),
-        GraphQLString('color'),
+        GraphQLString('color', required=True),
     ]
 
 
@@ -111,10 +111,13 @@ class ScenarioProgressBarBlock(ProgressBarBlock):
 
 
 @register_streamfield_block
-class DimensionVisualizationBlock(blocks.StructBlock):
+class CategoryBreakdownBlock(blocks.StructBlock):
     title = blocks.CharBlock()
-    dimension_id = blocks.CharBlock(required=True)  # FIXME: choice block? But where to get the choices?
-    # Actually dimension_id refers to the "original ID" of the dimension
+    # TODO: dimension_id should be a choice block. Need to implement some way of getting the choices.
+    dimension_id = blocks.CharBlock(
+        required=False,
+        help_text=_("Break down the given dimension into its categories. If empty, break down into input nodes."),
+    )
 
     # TODO Validate that the dimension id actually exists in the instance.
     # However, for this we'd need access to the node (from the parent block) here, which seems to be difficult.
@@ -126,9 +129,10 @@ class DimensionVisualizationBlock(blocks.StructBlock):
 
 
 @register_streamfield_block
-class ActionImpactVisualizationBlock(blocks.StructBlock):
+class ActionImpactBlock(blocks.StructBlock):
     title = blocks.CharBlock()
-    scenario_id = blocks.CharBlock(required=True)  # FIXME: choice block? But where to get the choices?
+    # TODO: scenario_id should be a choice block. Need to implement some way of getting the choices.
+    scenario_id = blocks.CharBlock(required=True)
 
     graphql_fields = [
         GraphQLString('title', required=True),
@@ -144,7 +148,7 @@ class CallToActionBlock(blocks.StructBlock):
 
     graphql_fields = [
         GraphQLString('title', required=True),
-        GraphQLString('content'),
+        GraphQLString('content', required=True),
         GraphQLString('link_url', required=True),
     ]
 
@@ -161,19 +165,19 @@ class DashboardCardBlock(blocks.StructBlock):
         ('reference_progress_bar', ReferenceProgressBarBlock()),
         ('current_progress_bar', CurrentProgressBarBlock()),
         ('scenario_progress_bar', ScenarioProgressBarBlock()),
-        ('dimension', DimensionVisualizationBlock(
-            label=_("Dimension visualization"), help_text=_("Visualize the categories of a dimension")
+        ('category_breakdown', CategoryBreakdownBlock(
+            label=_("Category breakdown"), help_text=_("Break down the value into its components")
         )),
-        ('action_impact', ActionImpactVisualizationBlock(
-            label=_("Action impact visualization"), help_text=_("Visualize the impact of actions in a scenario")
+        ('action_impact', ActionImpactBlock(
+            label=_("Action impact"), help_text=_("Visualize the impact of actions in a scenario")
         )),
     ])
     call_to_action = CallToActionBlock()
 
     graphql_fields = [
         GraphQLString('title', required=True),
-        GraphQLString('description'),
-        GraphQLImage('image'),
+        GraphQLString('description', required=True),
+        GraphQLImage('image', required=False),
         GraphQLField('node', 'nodes.schema.NodeType', required=True),  # pyright: ignore
         GraphQLField('unit', 'paths.schema.UnitType', required=True),  # pyright: ignore
         GraphQLFloat('goal_value', required=False),
@@ -270,6 +274,7 @@ class DashboardCardBlock(blocks.StructBlock):
         return [
             ScenarioValue(
                 scenario=s,  # pyright: ignore[reportArgumentType]
+                year=target_year,
                 value=self._value_for_year(node, target_year, s),
             )
             for s in node.context.scenarios.values()
@@ -305,6 +310,7 @@ class DashboardCardBlock(blocks.StructBlock):
                     dimension=dimension,  # pyright: ignore[reportArgumentType]
                     category=category,  # pyright: ignore[reportArgumentType]
                     value=value,
+                    year=year,
                 ))
         return result
 
@@ -379,4 +385,5 @@ class DashboardCardBlock(blocks.StructBlock):
         return ActionImpactType(
             action=action,  # pyright: ignore[reportArgumentType]
             value=df.item(0, VALUE_COLUMN),
+            year=year,
         )
