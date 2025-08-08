@@ -18,6 +18,7 @@ x-django-environment: &django-environment
   INTERNAL_IPS:
   SENTRY_DSN:
   SECRET_KEY:
+  GOOGLE_MAPS_V3_APIKEY:
   AWS_ACCESS_KEY_ID:
   AWS_SECRET_ACCESS_KEY:
   KUBERNETES_LOGGING: 1
