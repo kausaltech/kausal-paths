@@ -9,6 +9,8 @@ from django.db import models
 from django.db.models import Q
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
+from modelcluster.fields import ParentalKey
+from modelcluster.models import ClusterableModel
 from modeltrans.manager import MultilingualQuerySet
 from wagtail.search import index
 
@@ -16,8 +18,11 @@ from wagtail.search import index
 from loguru import logger
 
 # from wagtail.images.rect import Rect
-from kausal_common.models.types import MLModelManager
-from kausal_common.people.models import BasePerson
+from kausal_common.datasets.models import DatasetSchema
+from kausal_common.models.types import FK, M2M, MLModelManager, ModelManager
+from kausal_common.people.models import BasePerson, create_permission_membership_models
+
+from paths.types import PathsModel, PathsQuerySet
 
 from orgs.models import Organization
 from users.models import User
@@ -26,6 +31,7 @@ if TYPE_CHECKING:
     from paths.types import PathsAdminRequest
 
     from nodes.models import InstanceConfig
+    from people.permissions import PersonGroupPermissionPolicy
 
 
 class PersonQuerySet(MultilingualQuerySet['Person']):

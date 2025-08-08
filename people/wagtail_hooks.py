@@ -23,7 +23,7 @@ class PersonSnippetViewSet(SnippetViewSet):
     menu_icon = 'user'
     menu_order = 200
     add_to_admin_menu = False
-    chooser_viewset_class = PersonChooserViewSet
+    chooser_viewset_class = chooser.PersonChooserViewSet
 
     panels = [
         FieldPanel('first_name'),
