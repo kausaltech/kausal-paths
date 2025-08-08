@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('datasets', '0017_datasetsourcereference_uuid'),
-        ('nodes', '0032_alter_instanceconfig_organization'),
+        ('nodes', '0032_add_instanceconfig_organization'),
         ('people', '0001_initial'),
     ]
 
