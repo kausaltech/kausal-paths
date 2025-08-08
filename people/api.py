@@ -7,7 +7,7 @@ from rest_framework import exceptions
 from kausal_common.api.bulk import BulkModelViewSet
 from kausal_common.api.utils import RegisteredAPIView, register_view
 from kausal_common.model_images import ModelWithImageViewMixin
-from kausal_common.people.api import PersonSerializer
+from kausal_common.people.api import PersonSerializer as BasePersonSerializer
 from kausal_common.users import user_or_none
 
 from paths import permissions
@@ -19,6 +19,13 @@ if TYPE_CHECKING:
     from rest_framework.permissions import BasePermission
 
 all_views: list[RegisteredAPIView] = []
+
+class PersonSerializer(BasePersonSerializer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.context.get('authorized_for_instance') is None:
+            self.fields.pop('email')
+
 
 @register_view
 class PersonViewSet(ModelWithImageViewMixin, BulkModelViewSet):
