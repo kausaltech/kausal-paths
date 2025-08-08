@@ -6,7 +6,7 @@ dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 6c3aadebc4d0fcf3e4f88507ceeffbb6174273c3
   dvc_remote: kausal-s3
-name_de: München Demo Klimaschutz-Monitor Treibhausgasinventar
+name_de: M-Stadt Klimaschutz-Monitor Treibhausgasinventar
 owner: Stadt Demo
 theme_identifier: default
 target_year: 2045
@@ -1350,7 +1350,7 @@ actions:
     Die aktuelle Produktion im Jahr 2020 beträgt etwa 0,2 GWh. Das ungenutzte Potenzial
     auf den Dächern von Gebäuden liegt laut kommunaler Bilanz Erneuerbare Energien
     2016 bei 800-900 GWh (ohne Berücksichtigung aller Restriktionen).</br><h3>Details</h3>Siehe
-    <a 
+    <a
     href="https://sunnydale.test.kausal.tech/de/climate/actions/E1">Photovoltaikstromerzeugung,
     Klimaplan</a>.
   type: simple.LinearCumulativeAdditiveAction
