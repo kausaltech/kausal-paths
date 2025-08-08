@@ -14,7 +14,9 @@ from orgs.models import Organization
 from people.models import Person
 
 if TYPE_CHECKING:
-    from paths.types import PathsAuthenticatedRequest, PathsModel
+    from rest_framework.request import Request
+
+    from paths.types import PathsModel
 
     from nodes.models import InstanceConfig
     from users.models import User
@@ -57,7 +59,9 @@ class OrganizationPermission(permissions.DjangoObjectPermissions):
             return False
         return True
 
-    def has_permission(self, request: PathsAuthenticatedRequest, view):
+    def has_permission(self, request: Request, view):
+        if not request.method:
+            return False
         perms = self.get_required_permissions(request.method, Organization)
         return all(self.check_permission(request.user, perm) for perm in perms)
 
@@ -69,14 +73,15 @@ class OrganizationPermission(permissions.DjangoObjectPermissions):
 
 class PersonPermission(permissions.DjangoObjectPermissions):
     def check_permission(
-            self, user: User, perm: str, person: Person = None, instance_config: InstanceConfig = None):
+            self, user: User, perm: str, person: Person | None = None, instance_config: InstanceConfig | None = None):
         # Check for object permissions first
         if not user.has_perms([perm]):
             return False
         if perm == 'people.change_person':
-            if not user.can_modify_person(person=person):
+            if person is None:
                 return False
-        elif perm == 'people.add_person':
+            return user.can_modify_person(person=person)
+        if perm == 'people.add_person':
             if not user.can_create_person():
                 return False
         elif perm == 'people.delete_person':
@@ -85,18 +90,21 @@ class PersonPermission(permissions.DjangoObjectPermissions):
                 if not user.is_superuser:
                     return False
             # Does the user have deletion rights to this person in this plan
-            elif not user.can_edit_or_delete_person_within_instance(person, instance_config=instance_config):
+            elif not instance_config or not user.can_edit_or_delete_person_within_instance(
+                    person, instance_config=instance_config):
                 return False
         else:
             return False
         return True
 
-    def has_permission(self, request: PathsAuthenticatedRequest, view):
+    def has_permission(self, request: Request, view):
+        if not request.method:
+            return False
         perms = self.get_required_permissions(request.method, Person)
         instance_config = realm_context.get().realm
         return all(self.check_permission(request.user, perm, instance_config=instance_config) for perm in perms)
 
-    def has_object_permission(self, request: PathsAuthenticatedRequest, view, obj):
+    def has_object_permission(self, request: Request, view, obj):
         perms = self.get_required_object_permissions(request.method, Person)
         instance_config = realm_context.get().realm
         if not perms and request.method in permissions.SAFE_METHODS:
