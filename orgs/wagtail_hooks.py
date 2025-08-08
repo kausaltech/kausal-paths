@@ -45,7 +45,6 @@ if TYPE_CHECKING:
 
     from nodes.models import InstanceConfig
 
-
 import logging
 
 logger = logging.getLogger(__name__)
@@ -336,4 +335,3 @@ class OrganizationViewSet(SnippetViewSet):
 # If kausal_watch_extensions is installed, an extended version of the view set is registered there
 if not find_spec('kausal_paths_extensions'):
     register_snippet(OrganizationViewSet)
-

@@ -13,7 +13,7 @@ supported_languages: [es-US]
 site_url: https://longmont-dev.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 62daeb4ee13a314f098c0c322e02f6249175315b
+  commit: 42fc57a41b6a4c0dcc3829460ec46ce99e99f344
   dvc_remote: kausal-s3
 name: 2025 Draft Longmont Greenhouse Gas Inventory
 name_es-US: 2025 Inventario de gases de efecto invernadero de Longmont
@@ -584,6 +584,9 @@ dimensions:
     label: Truck
     label_es-US: Camión
     aliases: [TRUCK, heavy_duty_truck, heavy_truck]
+  - id: heavy_vehicle
+    label_en: Heavy Vehicle
+    aliases: [heavy_vehicle_bus, heavy_vehiclebus, heavy_truck_bus]
   - id: light_duty
     label: Light Duty
     label_es-US: Camión ligero
@@ -591,7 +594,7 @@ dimensions:
   - id: bus
     label: Bus
     label_es-US: Autobús
-    aliases: [BUS, heavy_vehicle_bus, heavy_vehiclebus, heavy_truck_bus] # FIXME separate buses and trucks
+    aliases: [BUS]
   - id: single_unit_truck
     label: Single Unit Truck
     label_es-US: Camión de una sola unidad
@@ -631,209 +634,6 @@ dimensions:
   - id: aviation
     label: Aviation
     label_es-US: Aviación
-
-- id: ghg
-  label_en: Greenhouse gas
-  label_de: Treibhausgas
-  label_es-US: Gases de efecto invernadero
-  categories:
-  - id: co2e
-    label_en: CO2e
-    label_de: CO2-Äquivalent
-    aliases: [co2_eq, co2eq]
-    label: CO2 equivalent
-    label_es-US: Equivalente de CO2
-  - id: co2
-    label: CO2, fossil
-    label_es-US: CO2, fósil
-    aliases: [co2_fossil]
-  - id: ch4
-    label: CH4
-    label_es-US: CH4
-  - id: n2o
-    label: N2O
-    label_es-US: N2O
-  - id: hfc
-    label: HFC
-    label_es-US: HFC
-  - id: pfc
-    label: PFC
-    label_es-US: PFC
-  - id: sf6
-    label: SF6
-    label_es-US: SF6
-  - id: nf3
-    label: NF3
-    label_es-US: NF3
-  - id: co2_biogen
-    label: CO2, biogen
-    label_es-US: CO2, biógeno
-
-- id: greenhouse_gases # FIXME Merge this to standard dim
-  label: Greenhouse gases
-  label_es-US: Gases de efecto invernadero
-  categories:
-  - id: co2_eq
-    label: CO2 equivalent
-    label_es-US: Equivalente de CO2
-  - id: co2
-    label: CO2, fossil
-    label_es-US: CO2, fósil
-    aliases: [co2_fossil]
-  - id: ch4
-    label: CH4
-    label_es-US: CH4
-  - id: n2o
-    label: N2O
-    label_es-US: N2O
-  - id: hfc
-    label: HFC
-    label_es-US: HFC
-  - id: pfc
-    label: PFC
-    label_es-US: PFC
-  - id: sf6
-    label: SF6
-    label_es-US: SF6
-  - id: nf3
-    label: NF3
-    label_es-US: NF3
-  - id: co2_biogen
-    label: CO2, biogen
-    label_es-US: CO2, biógeno
-
-- id: energy_carrier
-  label: Energy carrier
-  label_es-US: Vector energético
-  categories:
-  - id: electricity
-    label: Electricity
-    label_es-US: Electricidad
-    aliases: [Electric (All Electric estimation done above), electric, all_electric_vehicles,
-      electric_light_duty_vehicle_mpge]
-  - id: fuel_oil
-    label: Heating oil
-    label_es-US: Combustible para calefacción
-  - id: petrol
-    label: Gasoline
-    label_es-US: Gasolina
-    aliases: [Petrol, gasoline]
-  - id: diesel
-    label: Diesel
-    label_es-US: Diésel
-  - id: bio_diesel
-    label: Bio Diesel
-    label_es-US: Bio Diésel
-    aliases: [biodiesel]
-  - id: ethanol
-    label: Ethanol
-    label_es-US: Etanol
-    aliases: [Ethanol/Gas, ethanolgas]
-  - id: none
-    label: None
-  - id: hybrid
-    label: Hybrid EV
-    label_es-US: Vehículo eléctrico híbrido
-    aliases: [Electric/Gas (Hybrid ONLY), electricgas_hybrid]
-  - id: plug_in_hybrid
-    label: Plug-in hybrid EV
-    label_es-US: Vehículo eléctrico híbrido enchufable
-    aliases: [Electric/Gas (PHEV), electricgas_phev, phev]
-  - id: kerosene
-    label: Jet fuel
-    label_es-US: Combustible para aviones
-  - id: aviation_gasoline
-    label: Aviation gasoline
-    label_es-US: Gasolina de aviación
-  - id: natural_gas
-    label: Natural gas
-    label_es-US: Gas natural
-    aliases: [cng]
-  - id: biogas
-    label: biogas
-    label_es-US: biogás
-  - id: propane
-    label: Propane
-    label_es-US: Propano
-    aliases: [propane_or_liquefied_natural_gas]
-  - id: butane
-    label: Butane
-    label_es-US: Butano
-    aliases: [Butane/Gas, butanegas]
-  - id: district_heat
-    label: District heating
-    label_es-US: Calefacción urbana
-  - id: wood
-    label: Wood
-    label_es-US: Madera
-  - id: environmental_heat
-    label: Environmental heat
-    label_es-US: Calor ambiental
-  - id: solar_collectors
-    label: Solar thermal collectors
-    label_es-US: Colectores solares térmicos
-  - id: waste
-    label: Waste
-    label_es-US: Desechos
-
-- id: electricity_source
-  label: Electricity source
-  label_es-US: Fuente de electricidad
-  categories:
-  - id: hydro
-    label: Hydropower
-    label_es-US: Energía hidroeléctrica
-  - id: nuclear
-    label: Nuclear power
-    label_es-US: Energía nuclear
-  - id: natural_gas
-    label: Natural gas
-    label_es-US: Gas natural
-  - id: solar
-    label: Solar
-    label_es-US: Solar
-  - id: biogas
-    label: Biogas
-    label_es-US: Biogás
-  - id: waste
-    label: Waste incineration
-    label_es-US: Incineración de residuos
-  - id: wind
-    label: Wind
-    label_es-US: Eólica
-  - id: wood
-    label: Wood
-    label_es-US: Madera
-  - id: fuel_oil
-    label: Heating oil
-    label_es-US: Combustible para calefacción
-  - id: import
-    label: European import  # Many categories originally come from Zuerich. Should we clean up?
-    label_es-US: Importación europea
-    aliases:
-    - UCTE-Mix / ENTSO-E Mix
-    - Nicht deklariert (UCTE)
-    - Nicht deklariert (UCTE-Mix)
-  - id: subsidized
-    label: Subsidized electricity
-    label_es-US: Electricidad subvencionada
-
-- id: site
-  label: Production or consumption site
-  label_es-US: Sitio de producción o consumo
-  categories:
-  - id: longmont_power
-    label: Longmont Power
-    label_es-US: Longmont Power
-  - id: xcel_energy
-    label: Xcel Energy
-    label_es-US: Xcel Energy
-  - id: various
-    label: Various
-    label_es-US: Varios
-  - id: home
-    label: Home
-    label_es-US: Inicio
 
 - id: waste
   label: Waste component
@@ -1829,11 +1629,13 @@ nodes:
 #
 # NEW TRANSPORTATION
 #
+# Road transportation
+
 - id: number_of_cars
   name: Number of cars
   type: generic.GenericNode
   quantity: number
-  unit: pcs
+  unit: v
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
@@ -1906,7 +1708,7 @@ nodes:
   name: Transportation CH4 and N2O emissions
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [vehicle_type, energy_carrier, ghg]
   output_dimensions: [vehicle_type, energy_carrier, ghg]
   input_nodes:
@@ -1915,6 +1717,9 @@ nodes:
     - id: vehicle_type
     - id: energy_carrier
   - id: transportation_ch4_emission_factors
+  - id: global_warming_potential_100a2
+    to_dimensions:
+    - id: ghg
 
 - id: vehicle_energy_efficiency
   name: Vehicle energy efficiency
@@ -1928,11 +1733,11 @@ nodes:
     tags: [baseline]
     column: mpg
 
-- id: transportation_emissions2
-  name: Transportation emissions2
+- id: road_transportation_emissions2
+  name: Road transportation emissions2
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: kt_co2e/a
   input_dimensions: [vehicle_type, energy_carrier, ghg]
   output_dimensions: [vehicle_type, energy_carrier, ghg]
   input_nodes:
@@ -1949,12 +1754,29 @@ nodes:
     to_dimensions:
     - id: ghg
     - id: energy_carrier
+  - id: global_warming_potential_100a2
+    to_dimensions:
+    - id: ghg
   - id: transportation_ch4_emissions
   output_nodes:
-  - id: net_emissions
+  - id: transportation_emissions2
     from_dimensions:
     - id: vehicle_type
       flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+
+- id: transportation_emissions2
+  name: Transportation emissions2
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  output_nodes:
+  - id: net_emissions2
+    from_dimensions:
     - id: energy_carrier
       flatten: true
     - id: ghg

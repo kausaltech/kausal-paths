@@ -68,6 +68,8 @@ class OrganizationManager(MLModelManager['Organization', OrganizationQuerySet], 
 del _OrganizationManager
 
 class Organization(BaseOrganization, Node[OrganizationQuerySet]):
+    node_order_by = ['name']
+
     objects: ClassVar[OrganizationManager] = OrganizationManager()  # type: ignore[assignment]
     VIEWSET_CLASS = 'orgs.wagtail_hooks.OrganizationViewSet'
     class Meta:
