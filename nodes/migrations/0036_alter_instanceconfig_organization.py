@@ -5,7 +5,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('nodes', '0033_create_instanceconfig_organizations'),
+        ('nodes', '0035_create_instanceconfig_organizations'),
     ]
 
     operations = [

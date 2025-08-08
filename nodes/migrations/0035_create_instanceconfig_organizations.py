@@ -36,7 +36,7 @@ def create_initial_organizations(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('nodes', '0032_add_instanceconfig_organization'),
+        ('nodes', '0034_add_instanceconfig_organization'),
     ]
 
     operations = [

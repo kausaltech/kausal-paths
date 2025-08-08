@@ -5,7 +5,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('nodes', '0031_alter_nodeconfig_color'),
+        ('nodes', '0033_alter_instanceconfig_name'),
         ('orgs', '0002_organizationmetadataadmin_and_more'),
     ]
 
