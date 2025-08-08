@@ -13,6 +13,7 @@ from strawberry.tools import merge_types
 
 from grapple.registry import registry as grapple_registry
 
+from kausal_common import graphql_gis  # noqa: F401
 from kausal_common.deployment import test_mode_enabled
 from kausal_common.graphene.version_query import Query as ServerVersionQuery
 from kausal_common.models.types import copy_signature
@@ -37,9 +38,6 @@ from orgs.schema import Mutation as OrgsMutation, OrganizationNode, Query as Org
 from pages.schema import Query as PagesQuery
 from params.schema import Mutations as ParamsMutations, Query as ParamsQuery, types as params_types
 from users.schema import Query as UsersQuery
-
-if True:
-    from kausal_common import graphql_gis  # noqa: F401
 
 if TYPE_CHECKING:
     from kausal_common.graphene import GQLInfo

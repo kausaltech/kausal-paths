@@ -42,13 +42,9 @@ from admin_site import urls as admin_urls
 from frameworks.urls import urlpatterns as framework_urls
 from nodes.api import all_routers as nodes_routers
 from users.views import change_admin_instance
-from orgs.api import all_views as org_views
-from people.api import all_views as people_views
+
 from .api_router import router as api_router
 from .graphql_views import PathsGraphQLView
-
-from orgs.autocomplete import OrganizationAutocomplete
-
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -63,11 +59,6 @@ except ImportError:
 for prefix, viewset, basename in datasets_api_root_router.registry:
     api_router.register(prefix, viewset, basename=basename)
 
-for view in org_views + people_views:
-    basename = view.get('basename') or api_router.get_default_basename(view['class'])
-    if api_router.is_already_registered(basename):
-        continue
-    api_router.register(view['name'], view['class'], basename=view.get('basename'))
 api_urls = [
     path(r'', include(api_router.urls)),
     *[path(r'', include(r.urls)) for r in nodes_routers],
@@ -99,8 +90,6 @@ urlpatterns = [
     path('auth/', include(social_urls, namespace='social')),
     path('healthz/', csrf_exempt(health_view), name='healthcheck'),
     path('', include(framework_urls)),
-    re_path(r'^org-autocomplete/$', OrganizationAutocomplete.as_view(), name='organization-autocomplete'),
-
 ]
 
 if settings.DEBUG:

@@ -15,7 +15,6 @@ from django_pydantic_field import SchemaField
 from .base import AbstractUser, UserManager
 
 if TYPE_CHECKING:
-
     from django.contrib.auth.models import Group
 
     from kausal_common.models.roles import InstanceSpecificRole, UserPermissionCache
@@ -63,8 +62,6 @@ class User(AbstractUser):
     REQUIRED_FIELDS = []
 
     autocomplete_search_field = 'email'
-
-    person: Person
 
     def natural_key(self) -> tuple[str]:
         # If we don't override this, it will use `get_username()`, which may not always return the email field. The

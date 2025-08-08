@@ -10,12 +10,16 @@ from dal_select2.widgets import ModelSelect2
 
 from paths.context import realm_context
 
-from . import chooser  # noqa: F401
+from . import (
+    chooser,
+    person_group_admin,  # noqa: F401  # pyright: ignore
+)
 from .models import Person
 
 
 class AvatarWidget(AdminFileWidget):
     template_name = 'kausal_common/people/avatar_widget.html'
+
 
 class PersonSnippetViewSet(SnippetViewSet):
     model = Person
