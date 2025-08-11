@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import graphene
 from django.forms import ValidationError
@@ -26,7 +26,16 @@ if TYPE_CHECKING:
     from nodes.actions.action import ActionNode
     from nodes.node import Node
     from nodes.scenario import Scenario
-    from nodes.schema import ActionImpactType, MetricDimensionCategoryValue, ScenarioActionImpacts, ScenarioValue
+    from nodes.schema import (
+        ActionImpactType,
+        ActionNodeType,
+        MetricDimensionCategoryType,
+        MetricDimensionCategoryValue,
+        MetricDimensionType,
+        ScenarioActionImpacts,
+        ScenarioType,
+        ScenarioValue,
+    )
     from nodes.units import Unit
 
 
@@ -50,7 +59,7 @@ def build_block_type(cls: type, type_prefix: str, interfaces: tuple[graphene.Int
 
 class GraphQLBlockField(GraphQLField):
     def __init__(self, field_name: str, block_cls: type[blocks.Block], *, required: bool | None = None, **kwargs):
-        def build_type():
+        def build_type() -> type:
             return build_block_type(block_cls, '', interfaces=())
 
         super().__init__(field_name, build_type, required=required, **kwargs)  # type: ignore
@@ -273,7 +282,7 @@ class DashboardCardBlock(blocks.StructBlock):
             raise ValueError("Node has no target year")
         return [
             ScenarioValue(
-                scenario=s,  # pyright: ignore[reportArgumentType]
+                scenario=cast('ScenarioType', s),
                 year=target_year,
                 value=self._value_for_year(node, target_year, s),
             )
@@ -307,8 +316,8 @@ class DashboardCardBlock(blocks.StructBlock):
                 assert len(cat_df) == 1
                 value = cat_df.item(0, VALUE_COLUMN)
                 result.append(MetricDimensionCategoryValue(
-                    dimension=dimension,  # pyright: ignore[reportArgumentType]
-                    category=category,  # pyright: ignore[reportArgumentType]
+                    dimension=cast('MetricDimensionType', dimension),  # pyright: ignore[reportArgumentType]
+                    category=cast('MetricDimensionCategoryType', category),  # pyright: ignore[reportArgumentType]
                     value=value,
                     year=year,
                 ))
@@ -325,7 +334,7 @@ class DashboardCardBlock(blocks.StructBlock):
             raise ValueError("Node has no target year")
         return [
             ScenarioActionImpacts(
-                scenario=scenario,  # pyright: ignore[reportArgumentType]
+                scenario=cast('ScenarioType', scenario),
                 impacts=[self._impact_for_action(action, node, target_year) for action in node.context.get_actions()],
             )
             for scenario in node.context.scenarios.values()
@@ -383,7 +392,7 @@ class DashboardCardBlock(blocks.StructBlock):
         if active_normalization and active_normalization.get_normalized_unit(metric) is not None:
             _, df = active_normalization.normalize_output(metric, df)
         return ActionImpactType(
-            action=action,  # pyright: ignore[reportArgumentType]
+            action=cast('ActionNodeType', action),
             value=df.item(0, VALUE_COLUMN),
             year=year,
         )
