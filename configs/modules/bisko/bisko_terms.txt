@@ -1,0 +1,64 @@
+BISKO (Municipal CO2 Balancing System) - Complete Terms and Abbreviations List
+
+Administrative Terms
+- AGS: Amtlicher Gemeindeschlüssel (Official municipality code)
+- Gemeindename: Municipality name
+- Kreis: District/County
+- Bilanzjahr: Balance/accounting year
+- Jahr: Year
+- Gebietsstand: Territory status
+- BISKO: Bilanzierungs-Systematik Kommunal (Municipal CO2 Balancing System)
+
+Vehicle Categories (Fz-Kat = Fahrzeugkategorie)
+- MZR: Motorisierte Zweiräder (Motorized two-wheelers - motorcycles, mopeds)
+- Pkw: Personenkraftwagen (Passenger cars)
+- LNF: Leichte Nutzfahrzeuge (Light commercial vehicles)
+- Lkw: Lastkraftwagen (Trucks/Heavy goods vehicles)
+- Bus: Linien- und Reisebus (Scheduled and touring buses)
+- Linienbus: Scheduled/public transit buses
+- Reisebus: Tour/charter buses
+- Tram: Trams/Streetcars
+- SSU: Schienengebundener Stadtverkehr inkl. U-Bahn (Rail-bound urban transport including subway)
+
+Road Categories (SK = Straßenkategorie)
+- AB: Autobahn (Highway/Motorway)
+- AO: Außerorts (Out-of-town/Rural roads)
+- IO: Innerorts (Within town/Urban roads)
+- alle: All road types
+
+Rail Transport Categories
+- SPNV: Schienenpersonennahverkehr (Regional rail passenger transport)
+- SPFV: Schienenpersonenfernverkehr (Long-distance rail passenger transport)
+- SGV: Schienengüterverkehr (Rail freight transport)
+
+Other Transport Modes
+- Binnenschiff: Inland shipping/waterway transport
+- Luft (LTO): Air transport (LTO = Landing and Take-Off cycle)
+
+Fuel/Energy Types (Treibstoff)
+- Benzin fossil: Fossil gasoline/petrol
+- Benzin Bio: Bio-gasoline
+- Diesel fossil: Fossil diesel
+- Diesel Bio: Biodiesel
+- Erdgas: Natural gas (CNG)
+- Biogas: Biogas
+- LPG: Liquefied Petroleum Gas (Autogas)
+- Strom: Electricity
+- Kerosin: Kerosene/Jet fuel
+
+Propulsion Types
+- Elektro: Electric
+- Diesel: Diesel
+
+Units of Measurement
+- Mio. Fz-km: Million vehicle-kilometers
+- Mio. Zug-km: Million train-kilometers
+- MWh: Megawatt hours
+- Gesamt: Total
+
+Key German Terms
+- Gemeindefeine Fahrleistungen: Municipal-specific driving performance
+- Straßenverkehr: Road traffic
+- Endenergieverbräuche: Final energy consumption
+- Schiene, Wasser, Luft: Rail, water, air (transport modes)
+- Antriebsart: Drive/propulsion type
