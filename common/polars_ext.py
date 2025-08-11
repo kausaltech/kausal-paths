@@ -481,3 +481,11 @@ class PathsExt:
             year = [year]
         df = self._df.filter(pl.col(YEAR_COLUMN).is_in(year))
         print(df)
+
+    def get_last_historical_year(self) -> int | None:
+        df = self._df
+        max_year = df.filter(~pl.col(FORECAST_COLUMN))[YEAR_COLUMN].max()
+        if not max_year:
+            return None
+        assert isinstance(max_year, int)
+        return max_year

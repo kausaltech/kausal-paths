@@ -773,26 +773,6 @@ class Node:
     def output_nodes(self) -> list[Node]:
         return [edge.output_node for edge in self.edges if edge.input_node == self]
 
-    def get_last_historical_year(self) -> int | None:
-        year = getattr(self, '_last_historical_year', None)
-        if year is not None:
-            return year
-
-        if len(self.input_dataset_instances) != 1:  # FIXME What's the point here?
-            return None
-        ds = self.input_dataset_instances[0]
-        df = ds.get_copy(self.context)
-        if FORECAST_COLUMN not in df:
-            return None
-
-        year = df.filter(~df[FORECAST_COLUMN])[YEAR_COLUMN].max()
-        if year is None:
-            return None
-        year = int(year)  # type: ignore
-
-        self._last_historical_year = year
-        return year
-
     @overload
     def get_default_output_metric(self, required: Literal[True] = True) -> NodeMetric: ...
 

@@ -429,6 +429,38 @@ class VisualizationGroup(VisualizationEntry):  # type: ignore[override]
 ScenarioKind = graphene.Enum.from_enum(ScenarioKindEnum)
 
 
+@register_strawberry_type
+@sb.type
+class ScenarioValue:
+    scenario: ScenarioType
+    value: float | None
+    year: int
+
+
+@register_strawberry_type
+@sb.type
+class MetricDimensionCategoryValue:
+    dimension: MetricDimensionType
+    category: MetricDimensionCategoryType
+    value: float | None
+    year: int
+
+
+@register_strawberry_type
+@sb.type
+class ActionImpactType:
+    action: ActionNodeType
+    value: float
+    year: int
+
+
+@register_strawberry_type
+@sb.type
+class ScenarioActionImpacts:
+    scenario: ScenarioType
+    impacts: list[ActionImpactType]
+
+
 class NodeInterface(graphene.Interface):
     id = graphene.ID(required=True)
     name = graphene.String(required=True)
