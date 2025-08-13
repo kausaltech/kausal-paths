@@ -13,7 +13,7 @@ supported_languages: [es-US]
 site_url: https://longmont-dev.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 42fc57a41b6a4c0dcc3829460ec46ce99e99f344
+  commit: 4caadc8fa723423480e24460659137dea875d34d
   dvc_remote: kausal-s3
 name: 2025 Draft Longmont Greenhouse Gas Inventory
 name_es-US: 2025 Inventario de gases de efecto invernadero de Longmont
@@ -317,8 +317,8 @@ dimensions:
   - id: electricity
     label: Electricity
     label_es-US: Electricidad
-    aliases: [Electric (All Electric estimation done above), electric, all_electric_vehicles,
-      electric_light_duty_vehicle_mpge]
+    aliases: [Electric (All Electric estimation done above), electric, 
+        all_electric_vehicles, electric_light_duty_vehicle_mpge]
   - id: fuel_oil
     label: Heating oil
     label_es-US: Combustible para calefacción
@@ -528,13 +528,15 @@ dimensions:
   categories:
   - id: rtd_bus_activity
     label: RTD Bus activity
-    aliases: [RTD Bus Activitiy 2023, RTD Bus Activitiy, rtd_bus_activitiy, rtd_bus_activitiy_2023]
+    aliases: [RTD Bus Activitiy 2023, RTD Bus Activitiy, rtd_bus_activitiy, 
+        rtd_bus_activitiy_2023]
   - id: flexride
     label: Flexride
     aliases: [FlexRide 2023, flexride_2023]
   - id: flex_route
     label: FLEX Route
-    aliases: [FLEX Route (Fort Collins to Boulder), flex_route_fort_collins_to_boulder]
+    aliases: [FLEX Route (Fort Collins to Boulder), 
+        flex_route_fort_collins_to_boulder]
   - id: via_ride_service_shuttles
     label: Via Ride Service Shuttles
 
@@ -582,7 +584,8 @@ dimensions:
   - id: car
     label: Passenger Car
     label_es-US: Automóvil
-    aliases: [PASSENGER CAR (Total), Passenger Vehicle, passenger_car, passenger_vehicle]
+    aliases: [PASSENGER CAR (Total), Passenger Vehicle, passenger_car, 
+        passenger_vehicle]
   - id: truck
     label: Truck
     label_es-US: Camión
@@ -709,15 +712,16 @@ params:
   value: longmont
 - id: all_in_investment
   label: All investments happen on the first year (not continuously)
-  label_es-US: Todas las inversiones se hacen durante el primer año (no de manera
-    continua)
+  label_es-US: Todas las inversiones se hacen durante el primer año (no de 
+    manera continua)
   is_customizable: false
   value: false
 - id: discount_rate
   label: Discount rate (%/year)
   label_es-US: Tasa de descuento (% al año)
   description: Speed of value decrease for monetary variables
-  description_es-US: Velocidad de disminución del valor de las variables monetarias
+  description_es-US: Velocidad de disminución del valor de las variables 
+    monetarias
   is_customizable: false
   value: 3.5
   min_value: 0
@@ -748,10 +752,10 @@ emission_sectors:
     default: true
     is_main_goal: true
   is_outcome: true
-  description: <p>Greenhouse gas emissions</p><p><b>Unit:</b> t/yr. = metric tons
-    per year</b></p>
-  description_es-US: <p>Emisiones de gases de efecto invernadero</p><p><b>Unidad:</b>
-    t/año = toneladas métricas al año</b></p>
+  description: <p>Greenhouse gas emissions</p><p><b>Unit:</b> t/yr. = metric 
+    tons per year</b></p>
+  description_es-US: <p>Emisiones de gases de efecto 
+    invernadero</p><p><b>Unidad:</b> t/año = toneladas métricas al año</b></p>
 
 # Sector emissions
 
@@ -778,7 +782,8 @@ emission_sectors:
 
 - id: afolu_emissions
   name: Agriculture, forestry, and other land use emissions
-  name_es-US: Emisiones de la agricultura, la silvicultura y otros usos del suelo
+  name_es-US: Emisiones de la agricultura, la silvicultura y otros usos del 
+    suelo
   category: afolu
   part_of: net_emissions
   color: '#5D9C6F'
@@ -858,23 +863,27 @@ nodes:
 - id: population
   name: Inhabitants
   name_es-US: Habitantes
-  description: Population estimates from several sources. (a) 2016 - 2020 population
-    estimates came from the Colorado Demography Office. Spreadsheet on file. (b) According
-    to Longmont's Envision Plan (2016), Longmont's population is expected to grow
-    by 24,165 residents from 2016 numbers by 2035. Population figures between 2021
-    and 2035 assume a linear increase. (c) Population estimates between 2036 and 2050
-    are based off the estimated annual population increase rate for Boulder County
-    between 2035 and 2050. This rate is 0.501%. Raw data was taken from <a href="https://demography.dola.colorado.gov/assets/html/county.html">Colorado
+  description: Population estimates from several sources. (a) 2016 - 2020 
+    population estimates came from the Colorado Demography Office. Spreadsheet 
+    on file. (b) According to Longmont's Envision Plan (2016), Longmont's 
+    population is expected to grow by 24,165 residents from 2016 numbers by 
+    2035. Population figures between 2021 and 2035 assume a linear increase. (c)
+    Population estimates between 2036 and 2050 are based off the estimated 
+    annual population increase rate for Boulder County between 2035 and 2050. 
+    This rate is 0.501%. Raw data was taken from <a 
+    href="https://demography.dola.colorado.gov/assets/html/county.html">Colorado
     Department of Local Affairs</a>.
-  description_es-US: Estimaciones de población de varias fuentes. (a) Las estimaciones
-    de población de 2016 a 2020 provienen de la Oficina de Demografía de Colorado.
-    Hoja de cálculo en el archivo. (b) Según el Plan Envision de Longmont (2016),
-    se espera que para el año 2035 la población de Longmont crezca en 24.165 residentes
-    con respecto a las cifras de 2016. Las cifras de población entre los años 2021
-    y 2035 suponen un crecimiento lineal. (c) Las estimaciones de población entre
-    los años 2036 y 2050 se basan en la tasa de aumento anual de la población estimada
-    para el condado de Boulder entre los años 2035 y 2050. Esta tasa es del 0,501
-    %. Los datos sin procesar se obtuvieron del <a href="https://demography.dola.colorado.gov/assets/html/county.html">Departamento
+  description_es-US: Estimaciones de población de varias fuentes. (a) Las 
+    estimaciones de población de 2016 a 2020 provienen de la Oficina de 
+    Demografía de Colorado. Hoja de cálculo en el archivo. (b) Según el Plan 
+    Envision de Longmont (2016), se espera que para el año 2035 la población de 
+    Longmont crezca en 24.165 residentes con respecto a las cifras de 2016. Las 
+    cifras de población entre los años 2021 y 2035 suponen un crecimiento 
+    lineal. (c) Las estimaciones de población entre los años 2036 y 2050 se 
+    basan en la tasa de aumento anual de la población estimada para el condado 
+    de Boulder entre los años 2035 y 2050. Esta tasa es del 0,501 %. Los datos 
+    sin procesar se obtuvieron del <a 
+    href="https://demography.dola.colorado.gov/assets/html/county.html">Departamento
     de Asuntos Locales de Colorado</a>.
   type: simple.AdditiveNode
   quantity: population
@@ -996,15 +1005,15 @@ nodes:
 - id: affected_square_footage
   name: Building square footage affected by actions
   name_es-US: Metros cuadrados del edificio afectados por acciones
-  description: Building square footeage affected by actions on each year. Fraction
-    of compliant buildings is already taken into account here. Note that these values
-    are not additive, as several actions may affect the same buildings. Those buildings
-    that are not affected are not shown here.
-  description_es-US: Metros cuadrados del edificio afectados por acciones en cada
-    año. Aquí ya se tiene en cuenta la fracción de edificios que cumplen la normativa.
-    Tenga en cuenta que estos valores no se pueden sumar, ya que varias acciones pueden
-    afectar a los mismos edificios. Los edificios que no se ven afectados no se muestran
-    aquí.
+  description: Building square footeage affected by actions on each year. 
+    Fraction of compliant buildings is already taken into account here. Note 
+    that these values are not additive, as several actions may affect the same 
+    buildings. Those buildings that are not affected are not shown here.
+  description_es-US: Metros cuadrados del edificio afectados por acciones en 
+    cada año. Aquí ya se tiene en cuenta la fracción de edificios que cumplen la
+    normativa. Tenga en cuenta que estos valores no se pueden sumar, ya que 
+    varias acciones pueden afectar a los mismos edificios. Los edificios que no 
+    se ven afectados no se muestran aquí.
   type: buildings.FloorAreaNode
   quantity: floor_area
   unit: ft^2
@@ -1033,8 +1042,8 @@ nodes:
 
 - id: natural_gas_eui_improvement
   name: Energy use intensity EUI improvement for natural gas
-  name_es-US: Mejora de la intensidad del consumo de energía (EUI, por sus siglas
-    en inglés) para el gas natural
+  name_es-US: Mejora de la intensidad del consumo de energía (EUI, por sus 
+    siglas en inglés) para el gas natural
   type: buildings.CfNode
   quantity: consumption_factor
   unit: therm/ft**2/a
@@ -1097,8 +1106,8 @@ nodes:
 
 - id: electricity_eui_improvement
   name: Energy use intensity EUI improvement for electricity
-  name_es-US: Mejora de la intensidad del consumo de energía (EUI, por sus siglas
-    en inglés) para la electricidad
+  name_es-US: Mejora de la intensidad del consumo de energía (EUI, por sus 
+    siglas en inglés) para la electricidad
   type: buildings.CfNode
   quantity: consumption_factor
   unit: kWh/ft**2/a
@@ -1161,8 +1170,8 @@ nodes:
 
 - id: building_natural_gas_eui
   name: Energy use intensity EUI baseline for natural gas
-  name_es-US: Referencia de intensidad del consumo de energía (EUI, por sus siglas
-    en inglés) para el gas natural
+  name_es-US: Referencia de intensidad del consumo de energía (EUI, por sus 
+    siglas en inglés) para el gas natural
   type: simple.AdditiveNode
   quantity: consumption_factor
   unit: therm/ft**2/a
@@ -1178,10 +1187,10 @@ nodes:
 - id: building_electricity_use
   name: Building electricity use
   name_es-US: Consumo de electricidad en edificios
-  description: <b>Unit:</b> GWh/yr. = gigawatt-hours per year = million kilowatt-hours
-    per year.
-  description_es-US: <b>Unidad:</b> GWh/año = gigavatios hora al año = millones de
-    kilovatios hora al año.
+  description: <b>Unit:</b> GWh/yr. = gigawatt-hours per year = million 
+    kilowatt-hours per year.
+  description_es-US: <b>Unidad:</b> GWh/año = gigavatios hora al año = millones 
+    de kilovatios hora al año.
   type: simple.MultiplyLastNode
   quantity: energy
   unit: GWh/a
@@ -1206,10 +1215,10 @@ nodes:
 - id: electricity_use
   name: Electricity use
   name_es-US: Consumo de electricidad
-  description: <b>Unit:</b> GWh/yr. = gigawatt-hours per year = million kilowatt-hours
-    per year.
-  description_es-US: <b>Unidad:</b> GWh/año = gigavatios hora al año = millones de
-    kilovatios hora al año.
+  description: <b>Unit:</b> GWh/yr. = gigawatt-hours per year = million 
+    kilowatt-hours per year.
+  description_es-US: <b>Unidad:</b> GWh/año = gigavatios hora al año = millones 
+    de kilovatios hora al año.
   type: simple.MultiplyLastNode2
   quantity: energy
   unit: GWh/a
@@ -1235,8 +1244,8 @@ nodes:
 
 - id: building_electricity_eui
   name: Energy use intensity EUI baseline for electricity
-  name_es-US: Referencia de intensidad del consumo de energía (EUI, por sus siglas
-    en inglés) para la electricidad
+  name_es-US: Referencia de intensidad del consumo de energía (EUI, por sus 
+    siglas en inglés) para la electricidad
   type: simple.AdditiveNode
   quantity: consumption_factor
   unit: kWh/ft**2/a
@@ -1312,7 +1321,8 @@ nodes:
 
 - id: electricity_replacing_natural_gas_residential
   name: Electricity that replaces natural gas in residential buildings
-  name_es-US: Electricidad que reemplaza al gas natural en edificios residenciales
+  name_es-US: Electricidad que reemplaza al gas natural en edificios 
+    residenciales
   type: simple.FixedMultiplierNode
   quantity: energy
   unit: kWh/a
@@ -1740,7 +1750,7 @@ nodes:
   name: Road transportation emissions2
   type: generic.GenericNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [vehicle_type, energy_carrier, ghg]
   output_dimensions: [vehicle_type, energy_carrier, ghg]
   input_nodes:
@@ -1947,7 +1957,7 @@ nodes:
   name: Aviation emissions 2
   type: generic.GenericNode
   quantity: emissions
-  unit: kt_co2e/a
+  unit: t_co2e/a
   input_dimensions: [airport, energy_carrier, ghg, scope]
   output_dimensions: [airport, energy_carrier, ghg, scope]
   input_nodes:
@@ -2422,10 +2432,10 @@ nodes:
 - id: total_vehicle_miles_traveled
   name: Total combustion engine vehicle miles traveled
   name_es-US: Millas totales recorridas por vehículos con motor de combustión
-  description: <p><b>Unit:</b> Mmi/yr. = million miles per year (possibly cap. = per
-    capita)</p>
-  description_es-US: <p><b>Unidad:</b> Mmi/año = millones de millas al año (posiblemente
-    cap. = per cápita)</p>
+  description: <p><b>Unit:</b> Mmi/yr. = million miles per year (possibly cap. =
+    per capita)</p>
+  description_es-US: <p><b>Unidad:</b> Mmi/año = millones de millas al año 
+    (posiblemente cap. = per cápita)</p>
   type: simple.MultiplicativeNode
   quantity: mileage
   unit: Mmiles/a
@@ -2541,8 +2551,9 @@ nodes:
   type: simple.AdditiveNode
   quantity: number
   unit: trip/inhabitant/a
-  historical_values: [[2016, 1.101064], [2017, 1.101064], [2018, 1.101064], [2019,
-      1.101064], [2020, 1.101064], [2021, 1.101064], [2022, 1.101064], [2023, 0]]
+  historical_values: [[2016, 1.101064], [2017, 1.101064], [2018, 1.101064], [
+        2019, 1.101064], [2020, 1.101064], [2021, 1.101064], [2022, 1.101064], [
+        2023, 0]]
 
 - id: ridership_program
   name: Ridership from Ride Free program
@@ -2556,7 +2567,8 @@ nodes:
 
 - id: vmt_change_due_to_public_transportation
   name: Change in vehicle miles traveled due to public transportation
-  name_es-US: Cambio en las millas recorridas por vehículos debido al transporte público
+  name_es-US: Cambio en las millas recorridas por vehículos debido al transporte
+    público
   type: simple.FixedMultiplierNode
   quantity: mileage
   unit: miles/a
@@ -2575,12 +2587,13 @@ nodes:
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
-  historical_values: [[2016, 10.0], [2017, 10], [2018, 10], [2019, 10], [2020, 10],
-    [2021, 10]]
+  historical_values: [[2016, 10.0], [2017, 10], [2018, 10], [2019, 10], [2020, 
+        10], [2021, 10]]
 
 - id: vmt_change_from_active_transportation
   name: Change in vehicle miles traveled due to active transportation
-  name_es-US: Cambio en las millas recorridas por vehículos debido al transporte activo
+  name_es-US: Cambio en las millas recorridas por vehículos debido al transporte
+    activo
   type: simple.ImprovementNode
   quantity: mileage
   unit: dimensionless
@@ -2593,10 +2606,10 @@ nodes:
 - id: public_transportation_change
   name: Public transportation change by last-mile actions
   name_es-US: Cambio de transporte público por acciones de última milla
-  description: This is an intermediate node converting the action into a relative
-    amount of trips (business-as-usual = 1).
-  description_es-US: Este es un nodo intermedio que convierte la acción en una cantidad
-    relativa de viajes (situación normal = 1).
+  description: This is an intermediate node converting the action into a 
+    relative amount of trips (business-as-usual = 1).
+  description_es-US: Este es un nodo intermedio que convierte la acción en una 
+    cantidad relativa de viajes (situación normal = 1).
   type: simple.ImprovementNode2
   quantity: ratio
   unit: dimensionless
@@ -2606,15 +2619,17 @@ nodes:
 - id: public_transportation_trips_per_person
   name: Public transportation trips per person
   name_es-US: Viajes en transporte público por persona
-  description: Without further actions, the number of public transportation trips
-    per person is assumed to be constant and at the level of 2017.
-  description_es-US: Sin más acciones; se supone que la cantidad de viajes en transporte
-    público por persona es constante y se encuentra en el nivel de 2017.
+  description: Without further actions, the number of public transportation 
+    trips per person is assumed to be constant and at the level of 2017.
+  description_es-US: Sin más acciones; se supone que la cantidad de viajes en 
+    transporte público por persona es constante y se encuentra en el nivel de 
+    2017.
   type: simple.FixedMultiplierNode
   quantity: number
   unit: trips/inhabitant/a
-  historical_values: [[2016, 5.890474806], [2017, 5.890474806], [2018, 5.906333777],
-    [2019, 5.922192747], [2020, 5.938051718], [2021, 5.953910689]]
+  historical_values: [[2016, 5.890474806], [2017, 5.890474806], [2018, 
+        5.906333777], [2019, 5.922192747], [2020, 5.938051718], [2021, 
+        5.953910689]]
   input_nodes:
   - public_transportation_change
   params:
@@ -2667,8 +2682,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
-  historical_values: [[2016, 22.1], [2017, 22.1], [2018, 27.2], [2019, 27.2], [2020,
-      31.1], [2021, 35.0]]
+  historical_values: [[2016, 22.1], [2017, 22.1], [2018, 27.2], [2019, 27.2], [
+        2020, 31.1], [2021, 35.0]]
 
 - id: waste_diversion
   name: Fraction of non-diverted waste
@@ -2738,8 +2753,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
-  historical_values: [[2016, 0], [2017, 0], [2018, 2], [2019, 5], [2020, 7], [2021,
-      9]]
+  historical_values: [[2016, 0], [2017, 0], [2018, 2], [2019, 5], [2020, 7], [
+        2021, 9]]
 
 - id: smart_grid_improvement
   name: Relative improvement due to smart grid implementation
@@ -2747,8 +2762,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
-  historical_values: [[2016, 0], [2017, 0], [2018, 0], [2019, 0], [2020, 0], [2021,
-      0]]
+  historical_values: [[2016, 0], [2017, 0], [2018, 0], [2019, 0], [2020, 0], [
+        2021, 0]]
 
 - id: smart_grid_benefits
   name: Smart grid action benefits
@@ -2772,21 +2787,21 @@ nodes:
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
-  historical_values: [[2016, 0.0], [2017, 0], [2018, 0], [2019, 0], [2020, 0], [2021,
-      0], [2022, 0]]
+  historical_values: [[2016, 0.0], [2017, 0], [2018, 0], [2019, 0], [2020, 0], [
+        2021, 0], [2022, 0]]
 
 - id: transmission_loss_work_benefits
   name: Improvements due to transmission loss work
   name_es-US: Mejoras debido al trabajo de pérdida de transmisión
-  description: Relative change of electricity use compared with the business as usual
-    (baseline = 1).
-  description_es-US: Cambio relativo del consumo de electricidad en comparación con
-    el consumo normal (referencia = 1).
+  description: Relative change of electricity use compared with the business as 
+    usual (baseline = 1).
+  description_es-US: Cambio relativo del consumo de electricidad en comparación 
+    con el consumo normal (referencia = 1).
   type: simple.ImprovementNode
   quantity: fraction
   unit: dimensionless
-  historical_values: [[2016, 1.0], [2017, 1], [2018, 1], [2019, 1], [2020, 1], [2021,
-      1], [2022, 1]]
+  historical_values: [[2016, 1.0], [2017, 1], [2018, 1], [2019, 1], [2020, 1], [
+        2021, 1], [2022, 1]]
   input_nodes:
   - id: transmission_loss_change
     tags: [non_additive]
@@ -2990,7 +3005,8 @@ actions:
 
 - id: longmont_power_renewables
   name: 90% renewable electric energy supply by 2030
-  name_es-US: Un 90 % de suministro de energía eléctrica renovable para el año 2030
+  name_es-US: Un 90 % de suministro de energía eléctrica renovable para el año 
+    2030
   description: "<p>On January 9th, 2018, City Council passed a <a href=\"http://www.longmontcolorado.gov/home/showpublisheddocument/24804/636728893554700000\"\
     >resolution</a> to commit Longmont to 100% renewable electric energy supply by
     2030.</p> <p>This action only models to 90% as according to latte River Power
@@ -3029,8 +3045,8 @@ actions:
 
 - id: longmont_power_renewables_additional
   name: Additional 10% renewable electric energy supply by 2030
-  name_es-US: Suministro adicional de energía eléctrica renovable del 10 % para el
-    año 2030
+  name_es-US: Suministro adicional de energía eléctrica renovable del 10 % para 
+    el año 2030
   description: "<p>On January 9th, 2018, City Council passed a <a href=\"http://www.longmontcolorado.gov/home/showpublisheddocument/24804/636728893554700000\"\
     >resolution</a> to commit Longmont to 100% renewable electric energy supply by
     2030.</p> <p>This action models the additional 10% renewable energy to meet City
@@ -3121,7 +3137,8 @@ actions:
 
 - id: reduce_transmission_distribution_losses
   name: Encourage practices that reduce transmission and distribution losses
-  name_es-US: Fomentar prácticas que reduzcan las pérdidas de transmisión y distribución
+  name_es-US: Fomentar prácticas que reduzcan las pérdidas de transmisión y 
+    distribución
   description: '<p>Reduce electric grid transmission and distribution losses through
     grid management such as distributed voltage optimization.</p> <p>Track Implementation:
     <ul><li><a href="https://indicators.longmontcolorado.gov/carr/actions/RE.5">Climate
@@ -3150,9 +3167,10 @@ actions:
         amount: 0.0
 
 - id: vehicle_incentives
-  name: Increase electric vehicles through vehicle incentives and improved infrastructure
-  name_es-US: Aumentar el uso de vehículos eléctricos a través de incentivos e infraestructura
-    mejorada
+  name: Increase electric vehicles through vehicle incentives and improved 
+    infrastructure
+  name_es-US: Aumentar el uso de vehículos eléctricos a través de incentivos e 
+    infraestructura mejorada
   description: '<p>Transition 30% of all vehicles registered within the City to zero-emissions
     by 2030, and near-100% of all vehicles by 2050 as stated in the <a href="https://www.longmontcolorado.gov/home/showpublisheddocument/34513/637685042384830000">2021
     GoEV Resolution.</a></p> <p>Track Implementation: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/T-4">Sustainability
@@ -3177,8 +3195,8 @@ actions:
 
 - id: increase_access_of_public_transit
   name: Address barriers to increase access and use of public transit
-  name_es-US: Abordar los obstáculos para aumentar el acceso y el uso del transporte
-    público
+  name_es-US: Abordar los obstáculos para aumentar el acceso y el uso del 
+    transporte público
   description: '<p>Address barriers to increase access and use of public transit,
     especially for underserved communities.</p> <p>Track Implementation: <ul><li><a
     href="https://indicators.longmontcolorado.gov/transportation">Equitable Carbon-Free
@@ -3207,9 +3225,10 @@ actions:
   - free_rides_per_person
 
 - id: multimodal_transportation_system
-  name: Develop multimodal transportation system / bicycle and pedestrian improvements
-  name_es-US: Desarrollar un sistema de transporte multimodal y mejoras para ciclistas
-    y peatones
+  name: Develop multimodal transportation system / bicycle and pedestrian 
+    improvements
+  name_es-US: Desarrollar un sistema de transporte multimodal y mejoras para 
+    ciclistas y peatones
   description: "<p>Pursue all elements of Longmont's multimodal transportation plan.
     This action specifically models from actively reduce greenhouse gas emissions
     through bicycle and pedestrian improvements.</p> <p>Track Implementation: <ul><li><a
@@ -3312,12 +3331,12 @@ actions:
 - id: mpg_trend
   name: Miles per gallon increasing trend
   name_es-US: Tendencia al aumento de las millas recorridas por galón
-  description: The model assumes that internal combustion vehicles that use gasoline
-    and diesel will become more efficient, increase miles traveled per gallon, over
-    time.
-  description_es-US: El modelo supone que, con el tiempo, los vehículos de combustión
-    interna que usan gasolina y diésel serán más eficientes y aumentarán las millas
-    recorridas por galón.
+  description: The model assumes that internal combustion vehicles that use 
+    gasoline and diesel will become more efficient, increase miles traveled per 
+    gallon, over time.
+  description_es-US: El modelo supone que, con el tiempo, los vehículos de 
+    combustión interna que usan gasolina y diésel serán más eficientes y 
+    aumentarán las millas recorridas por galón.
   type: simple.AdditiveAction
   quantity: fuel_consumption
   unit: miles/gallon
@@ -3332,12 +3351,12 @@ actions:
 - id: vmt_per_vehicle_trend
   name: Vehicle miles per vehicle trend
   name_es-US: Tendencia de millas recorridas por vehículo
-  description: <p>The model assumes that overtime there will be a decrease in the
-    annual miles traveled per vehicle.</p> <p><b>Unit:</b> mi/(yr. v) = miles per
-    year per vehicle</p>
-  description_es-US: <p>El modelo supone que con el tiempo se producirá una disminución
-    de las millas anuales recorridas por vehículo.</p> <p><b>Unidad:</b> mi/(a.v)
-    = millas anuales por vehículo</p>
+  description: <p>The model assumes that overtime there will be a decrease in 
+    the annual miles traveled per vehicle.</p> <p><b>Unit:</b> mi/(yr. v) = 
+    miles per year per vehicle</p>
+  description_es-US: <p>El modelo supone que con el tiempo se producirá una 
+    disminución de las millas anuales recorridas por vehículo.</p> 
+    <p><b>Unidad:</b> mi/(a.v) = millas anuales por vehículo</p>
   type: simple.AdditiveAction
   quantity: mileage
   unit: miles/vehicle/a
@@ -3352,11 +3371,11 @@ actions:
 - id: electric_vehicle_efficiency_trend
   name: Electric vehicle efficiency trend
   name_es-US: Tendencia de la eficiencia de los vehículos eléctricos
-  description: The model assumes that electric vehicles will become more efficient,
-    increase in miles traveled per kilowatt hour of energy, overtime.
-  description_es-US: El modelo supone que, con el tiempo, los vehículos eléctricos
-    serán más eficientes y aumentarán los kilómetros recorridos por kilovatio hora
-    de energía.
+  description: The model assumes that electric vehicles will become more 
+    efficient, increase in miles traveled per kilowatt hour of energy, overtime.
+  description_es-US: El modelo supone que, con el tiempo, los vehículos 
+    eléctricos serán más eficientes y aumentarán los kilómetros recorridos por 
+    kilovatio hora de energía.
   type: simple.AdditiveAction
   quantity: fuel_consumption
   unit: kWh/mile
@@ -3371,12 +3390,13 @@ actions:
 - id: energy_use_intensity_trend
   name: Energy use intensity trend
   name_es-US: Tendencia de la intensidad del uso de la energía
-  description: This action describes the assumed improvement in the energy use intensity
-    for the baseline scenario, i.e. changes that will occur anyway without any activity
-    from the city.
-  description_es-US: Esta acción describe la mejora supuesta en la intensidad del
-    uso de la energía para el escenario de referencia, es decir, los cambios que se
-    producirán de todos modos sin intervención alguna por parte de la ciudad.
+  description: This action describes the assumed improvement in the energy use 
+    intensity for the baseline scenario, i.e. changes that will occur anyway 
+    without any activity from the city.
+  description_es-US: Esta acción describe la mejora supuesta en la intensidad 
+    del uso de la energía para el escenario de referencia, es decir, los cambios
+    que se producirán de todos modos sin intervención alguna por parte de la 
+    ciudad.
   type: energy_saving.EnergyAction
   quantity: consumption_factor
   group: trend
