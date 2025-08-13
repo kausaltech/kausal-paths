@@ -7,6 +7,7 @@ from django.utils.translation import gettext_lazy as _
 import polars as pl
 
 from common import polars as ppl
+from nodes.actions.action import ActionNode
 from nodes.calc import extend_last_historical_value_pl
 from nodes.constants import FORECAST_COLUMN, UNCERTAINTY_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
@@ -356,6 +357,62 @@ class DatasetNode(AdditiveNode):
                 continue
             years.update(node._get_dataset_measure_datapoint_years())
         return sorted(years)
+
+    def _get_dataset_measure_datapoint_numbers(self) -> pl.DataFrame | None:
+        """Get the years with measure data points from the input datasets and upstream nodes."""
+
+        # FIXME: This should probably be in the future "datapoint metadata" column instead.
+
+        df = self.get_filtered_dataset_df()
+        if 'FromMeasureDataPoint' in df.columns and 'UUID' in df.columns: # FIXME Double counting with historical, goals etc.
+            dfpl = (
+                df.filter(pl.col('UUID').is_not_null())
+                .group_by(pl.col(YEAR_COLUMN))
+                .agg(pl.col('FromMeasureDataPoint').any().alias('Measure'))
+            )
+            print('Node with possible observations:', self.id)
+            return dfpl
+        return None
+
+    def get_measure_datapoint_numbers(self) -> pl.DataFrame | None:
+        all_dfs = []
+        if isinstance(self, DatasetNode):
+            years = self._get_dataset_measure_datapoint_numbers()
+            if years is not None:
+                all_dfs.append(years)
+        upstream_nodes = self.get_upstream_nodes()
+        for node in upstream_nodes:
+            if not isinstance(node, DatasetNode):
+                continue
+            if isinstance(node, ActionNode):
+                continue
+            years = node._get_dataset_measure_datapoint_numbers()
+            if years is not None:
+                all_dfs.append(years)
+        if not all_dfs:
+            return None
+
+        df = pl.concat(all_dfs)
+        min_year = df.select(pl.col("Year").min()).item()
+        max_year = df.select(pl.col("Year").max()).item()
+        year_range = list(range(min_year, max_year + 1))
+
+        complete_dfs = []
+        year_df = pl.DataFrame({"Year": year_range})
+
+        for dff in all_dfs:
+            # Left join to ensure all years are present
+            complete_df = year_df.join(dff, on="Year", how="left")
+            complete_dfs.append(complete_df)
+
+        combined = pl.concat(complete_dfs)
+
+        combined = combined.group_by("Year").agg([
+            pl.len().alias("Nodes"),
+            pl.col("Measure").sum().alias("Observed"),
+            ((~pl.col("Measure")) | pl.col("Measure").is_null()).sum().alias("Missing")
+        ])
+        return combined
 
     def compute(self) -> ppl.PathsDataFrame:
         df = self.get_gpc_dataset()

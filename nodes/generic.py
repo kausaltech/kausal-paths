@@ -12,6 +12,7 @@ import polars as pl
 from common import polars as ppl
 from nodes.actions import ActionNode
 from nodes.calc import extend_last_historical_value_pl
+from nodes.gpc import DatasetNode
 from nodes.node import NodeMetric
 from nodes.units import Unit, unit_registry
 from params.param import BoolParameter, NumberParameter, StringParameter
@@ -424,6 +425,63 @@ class GenericNode(SimpleNode):
         df = (df.with_columns(pl.coalesce([VALUE_COLUMN + '_right', VALUE_COLUMN]).alias(VALUE_COLUMN))
               .drop(VALUE_COLUMN + '_right'))
         return df, baskets
+
+    # -----------------------------------------------------------------------------------
+
+    def get_measure_datapoint_years(self) -> list[int]:
+        years = set[int]([])
+        if isinstance(self, DatasetNode):
+            years = set[int](self._get_dataset_measure_datapoint_years())
+
+        upstream_nodes = self.get_upstream_nodes()
+        for node in upstream_nodes:
+            if not isinstance(node, DatasetNode):
+                continue
+            if isinstance(node, ActionNode):
+                continue
+            years.update(node._get_dataset_measure_datapoint_years())
+
+        return sorted(years)
+
+    def get_measure_datapoint_numbers(self) -> pl.DataFrame | None: # FIXME Combine this with function in DatasetNode
+        all_dfs = []
+        if isinstance(self, DatasetNode):
+            years = self._get_dataset_measure_datapoint_numbers()
+            if years is not None:
+                all_dfs.append(years)
+        upstream_nodes = self.get_upstream_nodes()
+        for node in upstream_nodes:
+            if not isinstance(node, DatasetNode):
+                continue
+            if isinstance(node, ActionNode):
+                continue
+            years = node._get_dataset_measure_datapoint_numbers()
+            if years is not None:
+                all_dfs.append(years)
+        if not all_dfs:
+            return None
+
+        df = pl.concat(all_dfs)
+        min_year = df.select(pl.col("Year").min()).item()
+        max_year = df.select(pl.col("Year").max()).item()
+        year_range = list(range(min_year, max_year + 1))
+
+        complete_dfs = []
+        year_df = pl.DataFrame({"Year": year_range})
+
+        for dff in all_dfs:
+            # Left join to ensure all years are present
+            complete_df = year_df.join(dff, on="Year", how="left")
+            complete_dfs.append(complete_df)
+
+        combined = pl.concat(complete_dfs)
+
+        combined = combined.group_by("Year").agg([
+            pl.len().alias("Nodes"),
+            pl.col("Measure").sum().alias("Observed"),
+            ((~pl.col("Measure")) | pl.col("Measure").is_null()).sum().alias("Missing")
+        ])
+        return combined
 
     # -----------------------------------------------------------------------------------
 

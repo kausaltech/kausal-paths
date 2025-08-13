@@ -1,4 +1,3 @@
-# ruff: noqa: ANN401
 from __future__ import annotations
 
 from dataclasses import KW_ONLY, dataclass, field
@@ -142,9 +141,10 @@ class VisualizationNodeOutput(VisualizationEntry):
         return metric
 
     def get_measure_datapoint_years(self, node: Node) -> list[int]:
-        from nodes.gpc import DatasetNode
-
-        if isinstance(node, DatasetNode):
+        if hasattr(node, 'get_measure_datapoint_years'):
+            print('test for datapoints in node', node.id)
+            if hasattr(node, 'get_measure_datapoint_numbers'):
+                print(node.get_measure_datapoint_numbers())
             return node.get_measure_datapoint_years()
         return []
 
