@@ -11,6 +11,7 @@ owner: City of Riga
 theme_identifier: eu-climate-4-cast
 target_year: 2030
 model_end_year: 2030
+reference_year: 2015
 minimum_historical_year: 2015
 maximum_historical_year: 2022
 emission_unit: t/a

@@ -11,6 +11,7 @@ owner: Halton Region
 theme_identifier: ca-halton
 target_year: 2024
 model_end_year: 2024
+reference_year: 2023
 minimum_historical_year: 2023
 maximum_historical_year: 2023
 emission_unit: t_co2e/a

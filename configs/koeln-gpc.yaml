@@ -12,6 +12,7 @@ owner: Köln Stadt
 theme_identifier: de-koeln
 target_year: 2035
 model_end_year: 2050
+reference_year: 2008
 minimum_historical_year: 2008
 maximum_historical_year: 2021
 emission_unit: kt/a

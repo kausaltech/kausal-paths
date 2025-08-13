@@ -12,6 +12,7 @@ owner: City of Athens
 theme_identifier: gr-arsinoe
 target_year: 2030
 model_end_year: 2030
+reference_year: 2014
 minimum_historical_year: 2014
 maximum_historical_year: 2021
 emission_unit: kt/a

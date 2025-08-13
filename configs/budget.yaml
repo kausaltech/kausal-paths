@@ -12,6 +12,7 @@ owner: Kausal Ltd
 theme_identifier: eu-climate-4-cast
 target_year: 2030
 model_end_year: 2040
+reference_year: 2010
 minimum_historical_year: 2010
 maximum_historical_year: 2023
 emission_unit: kt/a

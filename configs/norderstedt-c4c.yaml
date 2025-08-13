@@ -11,6 +11,7 @@ owner: City of Norderstedt
 theme_identifier: eu-climate-4-cast
 target_year: 2040
 model_end_year: 2040
+reference_year: 2020
 minimum_historical_year: 2020
 maximum_historical_year: 2023
 emission_unit: t/a

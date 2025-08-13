@@ -12,6 +12,7 @@ owner: Kausal
 theme_identifier: default
 target_year: 2035
 model_end_year: 2035
+reference_year: 2020
 minimum_historical_year: 2020
 maximum_historical_year: 2023
 emission_unit: kt/a

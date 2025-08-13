@@ -15,6 +15,7 @@ owner: City of Demonstration
 theme_identifier: eu-netzerocities
 target_year: 2030
 model_end_year: 2060
+reference_year: 2018
 minimum_historical_year: 2018
 maximum_historical_year: 2020
 emission_unit: kt/a
@@ -1191,6 +1192,7 @@ actions:
   output_dimensions: [energy_carrier, transport_mode]
   input_datasets:
   - id: nzc/defaults
+    forecast_from: 2020
   params:
     sector: Expected procurement schedule for buses
   output_nodes:

@@ -12,6 +12,7 @@ owner_en: City of Saskatoon
 theme_identifier: ca-saskatoon
 target_year: 2050
 model_end_year: 2050
+reference_year: 2014
 minimum_historical_year: 2014
 maximum_historical_year: 2023
 emission_unit: t/a

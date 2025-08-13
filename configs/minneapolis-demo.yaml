@@ -11,6 +11,7 @@ owner: City of Minneapolis
 theme_identifier: us-minneapolis
 target_year: 2035
 model_end_year: 2050
+reference_year: 2006
 minimum_historical_year: 2006
 maximum_historical_year: 2021
 emission_unit: kt_co2e/a

@@ -11,6 +11,7 @@ owner_en: City of Hollywood
 theme_identifier: us-fl-hollywood
 target_year: 2021
 model_end_year: 2021
+reference_year: 2019
 minimum_historical_year: 2019
 maximum_historical_year: 2021
 emission_unit: t/a

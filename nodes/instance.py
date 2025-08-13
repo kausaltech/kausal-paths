@@ -102,7 +102,7 @@ class Instance:
     site_url: str | None = None
     """The URL for the main deployment of thepublic UI for this instance."""
 
-    reference_year: int | None = None
+    reference_year: int
     """Reference (or baseline) year for the instance."""
 
     minimum_historical_year: int

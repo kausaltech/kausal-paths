@@ -11,6 +11,7 @@ owner: Stadt Potsdam
 theme_identifier: de-potsdam
 target_year: 2045
 model_end_year: 2050
+reference_year: 1995
 minimum_historical_year: 1995
 maximum_historical_year: 2024
 emission_unit: kt/a
