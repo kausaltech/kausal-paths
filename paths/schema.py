@@ -16,7 +16,8 @@ from grapple.registry import registry as grapple_registry
 from kausal_common.deployment import test_mode_enabled
 from kausal_common.graphene.version_query import Query as ServerVersionQuery
 from kausal_common.models.types import copy_signature
-from kausal_common.strawberry.schema import LoggingTracingExtension, Schema as UnifiedSchema
+from kausal_common.strawberry.extensions import LoggingTracingExtension
+from kausal_common.strawberry.schema import Schema as UnifiedSchema
 from kausal_common.testing.schema import TestModeMutations
 
 from paths.graphql_types import UnitType

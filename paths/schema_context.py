@@ -14,7 +14,7 @@ import sentry_sdk
 from loguru import logger
 
 from kausal_common.strawberry.context import GraphQLContext
-from kausal_common.strawberry.schema import AuthenticationExtension, ExecutionCacheExtension, GraphQLPerfNode, SchemaExtension
+from kausal_common.strawberry.extensions import AuthenticationExtension, ExecutionCacheExtension, GraphQLPerfNode, SchemaExtension
 
 from paths.context import PathsObjectCache
 
