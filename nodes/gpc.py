@@ -7,6 +7,7 @@ from django.utils.translation import gettext_lazy as _
 import polars as pl
 
 from common import polars as ppl
+from nodes.actions.action import ActionNode
 from nodes.calc import extend_last_historical_value_pl
 from nodes.constants import FORECAST_COLUMN, UNCERTAINTY_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
@@ -348,14 +349,62 @@ class DatasetNode(AdditiveNode):
             return df.filter(pl.col('FromMeasureDataPoint'))[YEAR_COLUMN].unique().sort().to_list()
         return []
 
-    def get_measure_datapoint_years(self) -> list[int]:
-        years = set[int](self._get_dataset_measure_datapoint_years())
+    # def get_measure_datapoint_years(self) -> list[int]:
+    #     years = set[int](self._get_dataset_measure_datapoint_years())
+    #     upstream_nodes = self.get_upstream_nodes()
+    #     for node in upstream_nodes:
+    #         if not isinstance(node, DatasetNode):
+    #             continue
+    #         years.update(node._get_dataset_measure_datapoint_years())
+    #     return sorted(years)
+
+    def _get_dataset_measure_datapoint_numbers(self) -> pl.DataFrame | None:
+        """Get the years with measure data points from the input datasets and upstream nodes."""
+
+        # FIXME: This should probably be in the future "datapoint metadata" column instead.
+
+        df = self.get_filtered_dataset_df()
+        if 'FromMeasureDataPoint' in df.columns and 'UUID' in df.columns: # FIXME Double counting with historical, goals etc.
+            dfpl = (
+                df.filter(pl.col('UUID').is_not_null())
+                .group_by([YEAR_COLUMN, 'UUID'])
+                .agg(pl.col('FromMeasureDataPoint').any().alias('Measure'))
+            )
+            print('Node with possible observations:', self.id)
+            print(dfpl)
+            return dfpl
+        return None
+
+    # FIXME Wrong functionality now. We need to find each upstream node that can have
+    # observations for a UUID, now gets also _historical nodes etc.
+    # FIXME Also, we need to locate the code in a good place, now double code in GenericNode.
+    def get_measure_datapoint_numbers(self) -> pl.DataFrame | None:
+        all_dfs = []
+        if isinstance(self, DatasetNode):
+            years = self._get_dataset_measure_datapoint_numbers()
+            if years is not None:
+                all_dfs.append(years)
         upstream_nodes = self.get_upstream_nodes()
         for node in upstream_nodes:
             if not isinstance(node, DatasetNode):
                 continue
-            years.update(node._get_dataset_measure_datapoint_years())
-        return sorted(years)
+            if isinstance(node, ActionNode):
+                continue
+            years = node._get_dataset_measure_datapoint_numbers()
+            if years is not None:
+                all_dfs.append(years)
+        if not all_dfs:
+            return None
+
+        df: pl.DataFrame = pl.concat(all_dfs)
+
+        df = df.group_by([YEAR_COLUMN, 'UUID']).agg([
+            pl.len().alias("Nodes"),
+            pl.col("Measure").sum().alias("Observed"),
+            ((~pl.col("Measure")) | pl.col("Measure").is_null()).sum().alias("Missing")
+        ])
+        df = df.sort(['UUID', YEAR_COLUMN])
+        return df
 
     def compute(self) -> ppl.PathsDataFrame:
         df = self.get_gpc_dataset()

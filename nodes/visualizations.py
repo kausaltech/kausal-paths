@@ -1,4 +1,3 @@
-# ruff: noqa: ANN401
 from __future__ import annotations
 
 from dataclasses import KW_ONLY, dataclass, field
@@ -24,6 +23,7 @@ from paths.pydantic import (
 
 from common.i18n import I18nBaseModel, I18nStringInstance
 from nodes.constants import VALUE_COLUMN
+from nodes.simple import SimpleNode
 
 if TYPE_CHECKING:
     from common.polars import PathsDataFrame
@@ -142,9 +142,10 @@ class VisualizationNodeOutput(VisualizationEntry):
         return metric
 
     def get_measure_datapoint_years(self, node: Node) -> list[int]:
-        from nodes.gpc import DatasetNode
-
-        if isinstance(node, DatasetNode):
+        if isinstance(node, SimpleNode):
+            # print('test for datapoints in node', node.id)
+            # if hasattr(node, 'get_measure_datapoint_numbers'):
+            #     print(node.get_measure_datapoint_numbers()) # FIXME Start using the number of observations in visualizations
             return node.get_measure_datapoint_years()
         return []
 

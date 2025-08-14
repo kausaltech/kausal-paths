@@ -829,14 +829,44 @@ nodes:
     label: Drivers of building emissions
     children:
     - kind: node
-      label: Heating demand
-      node_id: building_heat_energy_use_observed
+      label: Total heating demand
+      node_id: building_heat_energy_use
       desired_outcome: decreasing
       scenarios: [default, progress_tracking]
-      dimensions: []
+      dimensions:
+      - id: energy_carrier
+        flatten: true
+      - id: heating_type
+        flatten: true
+      - id: scope
+        flatten: true
+      - id: fuel_type
+        flatten: true
+      - id: building_energy_class
+        flatten: true
+  - kind: group
+    label: District heating
+    children:
+    - kind: node
+      label: District heating demand
+      node_id: building_heat_energy_use
+      desired_outcome: increasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: energy_carrier
+        flatten: true
+      - id: heating_type
+        categories: [district_heating]
+        flatten: true
+      - id: scope
+        flatten: true
+      - id: fuel_type
+        flatten: true
+      - id: building_energy_class
+        flatten: true
     - kind: node
       label: Fossil fuel usage in district heating
-      node_id: heating_fuel_share
+      node_id: heating_fuel_share_district
       desired_outcome: decreasing
       scenarios: [default, progress_tracking]
       dimensions:
@@ -848,9 +878,29 @@ nodes:
       - id: heating_type
         categories: [district_heating]
         flatten: true
+  - kind: group
+    label: Local heating
+    children:
+    - kind: node
+      label: Local heating demand
+      node_id: building_heat_energy_use
+      desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: energy_carrier
+        flatten: true
+      - id: heating_type
+        categories: [local_heating]
+        flatten: true
+      - id: scope
+        flatten: true
+      - id: fuel_type
+        flatten: true
+      - id: building_energy_class
+        flatten: true
     - kind: node
       label: Fossil fuel usage in local heating
-      node_id: heating_fuel_share
+      node_id: heating_fuel_share_local
       desired_outcome: decreasing
       scenarios: [default, progress_tracking]
       dimensions:
