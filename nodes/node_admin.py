@@ -3,9 +3,11 @@ from __future__ import annotations
 from wagtail import hooks
 from wagtail.admin.panels import FieldPanel, ObjectList, TabbedInterface
 from wagtail.snippets.models import register_snippet
+
 from wagtail_color_panel.edit_handlers import NativeColorPanel
 
-from admin_site.panels import TranslatedFieldPanel, TranslatedFieldRowPanel
+from kausal_common.i18n.panels import TranslatedFieldPanel, TranslatedFieldRowPanel
+
 from admin_site.viewsets import PathsViewSet
 from nodes.models import NodeConfig, NodeConfigQuerySet
 
