@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Unpack, cast
 
 from django.conf import settings
@@ -11,6 +10,8 @@ from modeltrans.utils import build_localized_fieldname
 from wagtail.admin.panels import FieldPanel, FieldRowPanel, MultiFieldPanel, Panel
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator, Sequence
+
     from wagtail.admin.panels.field_panel import WidgetOverrideType
     from wagtail.admin.panels.group import PanelGroupInitArgs
 
@@ -26,7 +27,7 @@ def insert_model_translation_panels(model: Model, panels: Sequence[Panel], insta
     out = []
 
     field_map: dict[str, dict[str, TranslatedVirtualField]] = {}
-    for f in cast(Sequence[TranslatedVirtualField], i18n_field.get_translated_fields()):
+    for f in cast('Iterator[TranslatedVirtualField]', i18n_field.get_translated_fields()):
         lang = cast(str, f.language)
         field_map.setdefault(f.original_name, {})[lang] = f # type: ignore
 
