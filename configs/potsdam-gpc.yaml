@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://potsdam-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 271d18ad087105c679fdc23ff3470c87a746526e
+  commit: 7371c5b2ce1d9d8e2ed4ab0ccd76aedaf09028db
   dvc_remote: kausal-s3
 name: Klimaschutz-Monitor-Potsdam Treibhausgasinventar
 owner: Stadt Potsdam
@@ -46,8 +46,102 @@ action_groups:
 - id: afolu
   name: AFOLU
   color: '#cccccc'
+- id: heat_generation_networks
+  name: Ausbau Erneuerbare Energien in der Wärmeerzeugung (Wärmenetze)
+  name_en: Expansion of Renewable Energy in Heat Generation (District Heating)
+  color: '#D4691A'
+- id: heat_generation_individual
+  name: Ausbau Erneuerbare Energien in der Wärmeerzeugung (Einzelversorgung)
+  name_en: Expansion of Renewable Energy in Heat Generation (Individual Supply)
+  color: '#FF8C42'
+- id: heat_consumption_networks
+  name: Änderung im Wärmeverbrauch (Wärmenetze)
+  name_en: Changes in Heat Consumption (District Heating)
+  color: '#B85450'
+- id: heat_consumption_individual
+  name: Änderung im Wärmeverbrauch (Einzelversorgung)
+  name_en: Changes in Heat Consumption (Individual Supply)
+  color: '#E67E22'
+- id: electricity_generation
+  name: Ausbau Erneuerbare Energien in der Stromerzeugung
+  name_en: Expansion of Renewable Energy in Electricity Generation
+  color: '#007C78'
+- id: electricity_consumption
+  name: Änderung im Stromverbrauch
+  name_en: Changes in Electricity Consumption
+  color: '#00A693'
+- id: transport_energy_expansion
+  name: Ausbau Erneuerbare Energien im Verkehr
+  name_en: Expansion of Renewable Energy in Transport
+  color: '#0505A0'
+- id: transport_consumption
+  name: Änderung im Energieverbrauch im Verkehr
+  name_en: Changes in Energy Consumption in Transport
+  color: '#2E4BC6'
 
 dimensions:
+
+- id: decision
+  label_en: Decision
+  label_de: Entscheidung
+  categories:
+  - id: ewp_fernwaerme_bis_2030
+    label_en: 1st Action Package EWP District Heating until 2030
+    label_de: 1. Maßnahmepaket EWP Fernwärme bis 2030
+  - id: ausbau_waermenetze_2030_2045
+    label_en: Further expansion of heating networks 2030-2045 to 100% renewable 
+      generation
+    label_de: weiterer Ausbau der Wärmenetze 2030-2045 auf 100% Erneuerbare 
+      Erzeugung
+  - id: ee_ausbau_masterplan_2045
+    label_en: RE expansion according to Masterplan 100% Climate Protection until
+      2045
+    label_de: EE-Ausbau laut Masterplan 100% Klimaschutz bis 2045
+  - id: ee_ausbau_masterplan_kwp
+    label_en: RE expansion Masterplan and additionally KWP
+    label_de: EE-Ausbau Masterplan und zusätzlich KWP
+  - id: ausbau_waermenetze_kwp_ausbaugebiete
+    label_en: Expansion of heating networks until 2045 (KWP expansion areas)
+    label_de: Ausbau der Wärmenetze bis 2045 (KWP-Ausbaugebiete)
+  - id: ausbau_waermenetze_kwp_pruefgebiete
+    label_en: Expansion of heating networks until 2045 (additionally KWP test 
+      areas)
+    label_de: Ausbau der Wärmenetze bis 2045 (zusätzlich KWP-Prüfgebiete)
+  - id: reduktion_dezentral_waerme_ersatz
+    label_en: Reduction of decentralized heat consumption through replacement 
+      with heating networks
+    label_de: Reduktion des dezentralen Wärmeverbrauchs durch Ersatz mit 
+      Wärmenetzen
+  - id: reduktion_dezentral_waerme_sanierung
+    label_en: Reduction of decentralized heat consumption through building 
+      renovation
+    label_de: Reduktion des dezentralen Wärmeverbrauchs durch Gebäudesanierung
+  - id: ausbau_pv_dachanlagen
+    label_en: Expansion of PV rooftop systems according to Masterplan
+    label_de: Ausbau PV Dachanlagen laut Masterplan
+  - id: ausbau_freiflaechenanlagen
+    label_en: Expansion of ground-mounted systems according to Masterplan
+    label_de: Ausbau Freiflächenanlagen laut Masterplan
+  - id: potential_windkraftanlagen
+    label_en: Wind power plant potential (assumption 8 plants)
+    label_de: Potential Windkraftanlagen (Annahme 8 Anlagen)
+  - id: reduktion_stromverbrauch_hh_gewerbe
+    label_en: Reduction of electricity consumption households and commercial
+    label_de: Reduktion Stromverbrauch HH und Gewerbe
+  - id: verbesserter_bundesmix
+    label_en: Improved federal grid mix for residual electricity demand
+    label_de: Verbesserter Bundesmix für Reststrombedarf
+  - id: ee_strom_elektromobilitaet
+    label_en: Use of RE electricity for e-mobility and tram (according to 
+      Masterplan)
+    label_de: Nutzung EE-Strom für Elektromobiltät und Straßenbahn (laut 
+      Masterplan)
+  - id: ersatz_fossiler_brennstoffe
+    label_en: Replacement of fossil fuels with electricity and e-fuels
+    label_de: Ersatz fossiler brennstoffe durch Strom und E-Fuels
+  - id: reduktion_energieverbrauch_binnenverkehr
+    label_en: Reduction of total energy consumption local transport
+    label_de: Reduktion Gesamtenergieverbrauch Binnenverkehr
 
 - id: energietrager
   label_en: Energy Carriers
@@ -733,14 +827,276 @@ nodes:
 
 actions:
 
+# NEW ACTIONS from action impact 250801.xlsx
+# https://docs.google.com/spreadsheets/d/15aMuO2-GmvYw8IXe3pgSN6LvfdEqDPI6/edit?gid=2009060009#gid=2009060009
+
+- id: ewp_fernwaerme_bis_2030
+  name_de: 1. Maßnahmepaket EWP (Energiewende-Programm) Fernwärme bis 2030
+  name_en: 1st Action Package EWP (Energy Transition Program) District Heating until 2030
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat_generation_networks
+  input_datasets:
+  - id: potsdam/action_impact
+    tags: [baseline]
+    forecast_from: 2025
+    column: action_impact
+    filters:
+    - column: decision
+      value: ewp_fernwaerme_bis_2030
+
+- id: ausbau_waermenetze_2030_2045
+  name_de: weiterer Ausbau der Wärmenetze 2030-2045 auf 100% Erneuerbare Erzeugung
+  name_en: Further expansion of heating networks 2030-2045 to 100% renewable generation
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat_generation_networks
+  input_datasets:
+  - id: potsdam/action_impact
+    tags: [baseline]
+    forecast_from: 2025
+    column: action_impact
+    filters:
+    - column: decision
+      value: ausbau_waermenetze_2030_2045
+
+- id: ee_ausbau_masterplan_2045
+  name_de: EE-Ausbau laut Masterplan 100% Klimaschutz bis 2045
+  name_en: RE expansion according to Masterplan 100% Climate Protection until 2045
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat_generation_individual
+  input_datasets:
+  - id: potsdam/action_impact
+    tags: [baseline]
+    forecast_from: 2025
+    column: action_impact
+    filters:
+    - column: decision
+      value: ee_ausbau_masterplan_2045
+
+- id: ee_ausbau_masterplan_kwp
+  name_de: EE-Ausbau Masterplan und zusätzlich KWP (Kommunale Wärmeplanung)
+  name_en: RE expansion Masterplan and additionally KWP (Municipal Heat Planning)
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat_generation_individual
+  input_datasets:
+  - id: potsdam/action_impact
+    tags: [baseline]
+    forecast_from: 2025
+    column: action_impact
+    filters:
+    - column: decision
+      value: ee_ausbau_masterplan_kwp
+
+- id: ausbau_waermenetze_kwp_ausbaugebiete
+  name_de: Ausbau der Wärmenetze bis 2045 (KWP-Ausbaugebiete)
+  name_en: Expansion of heating networks until 2045 (KWP expansion areas)
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat_consumption_networks
+  input_datasets:
+  - id: potsdam/action_impact
+    tags: [baseline]
+    forecast_from: 2025
+    column: action_impact
+    filters:
+    - column: decision
+      value: ausbau_waermenetze_kwp_ausbaugebiete
+
+- id: ausbau_waermenetze_kwp_pruefgebiete
+  name_de: Ausbau der Wärmenetze bis 2045 (zusätzlich KWP-Prüfgebiete)
+  name_en: Expansion of heating networks until 2045 (additionally KWP test areas)
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat_consumption_networks
+  input_datasets:
+  - id: potsdam/action_impact
+    tags: [baseline]
+    forecast_from: 2025
+    column: action_impact
+    filters:
+    - column: decision
+      value: ausbau_waermenetze_kwp_pruefgebiete
+
+- id: reduktion_dezentral_waerme_ersatz
+  name_de: Reduktion des dezentralen Wärmeverbrauchs durch Ersatz mit Wärmenetzen
+  name_en: Reduction of decentralized heat consumption through replacement with heating networks
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat_consumption_individual
+  input_datasets:
+  - id: potsdam/action_impact
+    tags: [baseline]
+    forecast_from: 2025
+    column: action_impact
+    filters:
+    - column: decision
+      value: reduktion_dezentral_waerme_ersatz
+
+- id: reduktion_dezentral_waerme_sanierung
+  name_de: Reduktion des dezentralen Wärmeverbrauchs durch Gebäudesanierung
+  name_en: Reduction of decentralized heat consumption through building renovation
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat_consumption_individual
+  input_datasets:
+  - id: potsdam/action_impact
+    tags: [baseline]
+    forecast_from: 2025
+    column: action_impact
+    filters:
+    - column: decision
+      value: reduktion_dezentral_waerme_sanierung
+
+- id: ausbau_pv_dachanlagen
+  name_de: Ausbau PV Dachanlagen laut Masterplan
+  name_en: Expansion of PV rooftop systems according to Masterplan
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: electricity_generation
+  input_datasets:
+  - id: potsdam/action_impact
+    tags: [baseline]
+    forecast_from: 2025
+    column: action_impact
+    filters:
+    - column: decision
+      value: ausbau_pv_dachanlagen
+
+- id: ausbau_freiflaechenanlagen
+  name_de: Ausbau Freiflächenanlagen laut Masterplan
+  name_en: Expansion of ground-mounted systems according to Masterplan
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: electricity_generation
+  input_datasets:
+  - id: potsdam/action_impact
+    tags: [baseline]
+    forecast_from: 2025
+    column: action_impact
+    filters:
+    - column: decision
+      value: ausbau_freiflaechenanlagen
+
+- id: potential_windkraftanlagen
+  name_de: Potential Windkraftanlagen (Annahme 8 Anlagen)
+  name_en: Wind power plant potential (assumption 8 plants)
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: electricity_generation
+  input_datasets:
+  - id: potsdam/action_impact
+    tags: [baseline]
+    forecast_from: 2025
+    column: action_impact
+    filters:
+    - column: decision
+      value: potential_windkraftanlagen
+
+- id: reduktion_stromverbrauch_hh_gewerbe
+  name_de: Reduktion Stromverbrauch HH und Gewerbe
+  name_en: Reduction of electricity consumption households and commercial
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: electricity_consumption
+  input_datasets:
+  - id: potsdam/action_impact
+    tags: [baseline]
+    forecast_from: 2025
+    column: action_impact
+    filters:
+    - column: decision
+      value: reduktion_stromverbrauch_hh_gewerbe
+
+- id: verbesserter_bundesmix
+  name_de: Verbesserter Bundesmix für Reststrombedarf
+  name_en: Improved federal grid mix for residual electricity demand
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: electricity_consumption
+  input_datasets:
+  - id: potsdam/action_impact
+    tags: [baseline]
+    forecast_from: 2025
+    column: action_impact
+    filters:
+    - column: decision
+      value: verbesserter_bundesmix
+
+- id: ee_strom_elektromobilitaet
+  name_de: Nutzung EE-Strom für Elektromobiltät und Straßenbahn (laut Masterplan)
+  name_en: Use of RE electricity for e-mobility and tram (according to Masterplan)
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: transport_energy_expansion
+  input_datasets:
+  - id: potsdam/action_impact
+    tags: [baseline]
+    forecast_from: 2025
+    column: action_impact
+    filters:
+    - column: decision
+      value: ee_strom_elektromobilitaet
+
+- id: ersatz_fossiler_brennstoffe
+  name_de: Ersatz fossiler brennstoffe durch Strom und E-Fuels
+  name_en: Replacement of fossil fuels with electricity and e-fuels
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: transport_energy_expansion
+  input_datasets:
+  - id: potsdam/action_impact
+    tags: [baseline]
+    forecast_from: 2025
+    column: action_impact
+    filters:
+    - column: decision
+      value: ersatz_fossiler_brennstoffe
+
+- id: reduktion_energieverbrauch_binnenverkehr
+  name_de: Reduktion Gesamtenergieverbrauch Binnenverkehr
+  name_en: Reduction of total energy consumption local transport
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: transport_consumption
+  input_datasets:
+  - id: potsdam/action_impact
+    tags: [baseline]
+    forecast_from: 2025
+    column: action_impact
+    filters:
+    - column: decision
+      value: reduktion_energieverbrauch_binnenverkehr
+
+# OLD ACTIONS
+
 - id: i11_residential_fuel_consumption_action
   name: Reduktion im Verbrauch von Wärmeenergieträgern (außer Fernwärme)
-  description: Durch den prognostizierten starken Zuzug in die Landeshauptstadt wird
-    auch der Bedarf nach Wärmeenergie steigen. Durch Maßnahmen zur Gebäudesanierung
-    und hohen energetischen Standards im Neubau sollte jedoch eine deutliche Reduktion
-    pro Quadratmeter erfolgen. In Summe sollte der Verbrauch von dezentralen Wärmeenergieträgern
-    (ohne Fernwärme) bis zum Jahr 2045 um ca. 30% im Vergleich zum Jahr 2020 reduziert
-    werden. Der Fernwärmeverbrauch sollte durch Ausbau und Verdichtung hingegen leicht
+  description: Durch den prognostizierten starken Zuzug in die Landeshauptstadt 
+    wird auch der Bedarf nach Wärmeenergie steigen. Durch Maßnahmen zur 
+    Gebäudesanierung und hohen energetischen Standards im Neubau sollte jedoch 
+    eine deutliche Reduktion pro Quadratmeter erfolgen. In Summe sollte der 
+    Verbrauch von dezentralen Wärmeenergieträgern (ohne Fernwärme) bis zum Jahr 
+    2045 um ca. 30% im Vergleich zum Jahr 2020 reduziert werden. Der 
+    Fernwärmeverbrauch sollte durch Ausbau und Verdichtung hingegen leicht 
     steigen (siehe Maßnahme 1.3).
   type: simple.GenericAction
   quantity: energy
@@ -759,13 +1115,15 @@ actions:
   - id: i11_residential_fuel_consumption
 
 - id: i11_residential_fuel_emission_factor_action
-  name: Umsetzung drastische CO2-Reduktion von Wärmeenergieträgern ( außer Fernwärme)
-  description: Die Verringerung des Wärmenergieverbrauchs ist eine Seite der Medaille.
-    Die andere ist die deutliche Reduzierung der Treibhausgasemissionen je eingesetzter
-    Kilowattstunde. Kern der Potsdamer Strategie ist die langfristige Abkehr von fossilen
-    Brennstoffen, insbesondere vom Erdgas. Die Substitution sollte v.a. durch Wärmepumpen,
-    Fernwärme, kleine Nahwärmenetze und – in geringeren Mengen – grünen Gasen und
-    Wasserstoff erfolgen.
+  name: Umsetzung drastische CO2-Reduktion von Wärmeenergieträgern ( außer 
+    Fernwärme)
+  description: Die Verringerung des Wärmenergieverbrauchs ist eine Seite der 
+    Medaille. Die andere ist die deutliche Reduzierung der 
+    Treibhausgasemissionen je eingesetzter Kilowattstunde. Kern der Potsdamer 
+    Strategie ist die langfristige Abkehr von fossilen Brennstoffen, 
+    insbesondere vom Erdgas. Die Substitution sollte v.a. durch Wärmepumpen, 
+    Fernwärme, kleine Nahwärmenetze und – in geringeren Mengen – grünen Gasen 
+    und Wasserstoff erfolgen.
   type: simple.GenericAction
   quantity: emission_factor
   unit: t/MWh
@@ -784,10 +1142,11 @@ actions:
 
 - id: i12_residential_grid_energy_consumption_action
   name: Ausbau der Fernwärme
-  description: Der Ausbau der Fernwärme ist ein wichtiger Baustein in der Potsdamer
-    Klimaschutzstrategie. Hier lassen sich zentral emissionsarme Technologien effizienter
-    umsetzen, etwa die Tiefe Geothermie. Die Abnahmestellen sollten daher deutlich
-    steigen und die Erzeugung – trotz verringerter Verbräuche pro m² - insgesamt steigen.
+  description: Der Ausbau der Fernwärme ist ein wichtiger Baustein in der 
+    Potsdamer Klimaschutzstrategie. Hier lassen sich zentral emissionsarme 
+    Technologien effizienter umsetzen, etwa die Tiefe Geothermie. Die 
+    Abnahmestellen sollten daher deutlich steigen und die Erzeugung – trotz 
+    verringerter Verbräuche pro m² - insgesamt steigen.
   type: simple.GenericAction
   quantity: energy
   unit: MWh/a
@@ -829,14 +1188,16 @@ actions:
   output_nodes: [i12_residential_grid_energy_emission_factor]
 
 - id: i42_energy_grid_energy_consumption_action
-  name: Reduktion des Stromverbrauch in Haushalten und Gewerbe (ohne Heiz- und Mobilitätsstrom)
-  description: Der Stromverbrauch in diesem Bereich sollte deutlich reduziert werden,
-    von heute ca. 525.000 MWh auf ca. 375.000 MWh bzw. pro Einwohner von 2.800 kWh
-    auf 1.700 kWh pro Jahr. Dafür sind eine Vielzahl kleinteiliger Maßnahmen nötig,
-    z.B. Klimaneutralitätskonzepte für große Unternehmen und Institutionen der Stadt
-    (SPSG, Landesliegenschaften, Medienbranche u.a.); das Ausrollen von Smart- Metering;
-    Energieeffizienznetzwerke der Wirtschaft; Energieberatung und Kampagnen; Anreize
-    für effiziente Haushaltsgeräte sowie permanente Öffentlichkeitsarbeit.
+  name: Reduktion des Stromverbrauch in Haushalten und Gewerbe (ohne Heiz- und 
+    Mobilitätsstrom)
+  description: Der Stromverbrauch in diesem Bereich sollte deutlich reduziert 
+    werden, von heute ca. 525.000 MWh auf ca. 375.000 MWh bzw. pro Einwohner von
+    2.800 kWh auf 1.700 kWh pro Jahr. Dafür sind eine Vielzahl kleinteiliger 
+    Maßnahmen nötig, z.B. Klimaneutralitätskonzepte für große Unternehmen und 
+    Institutionen der Stadt (SPSG, Landesliegenschaften, Medienbranche u.a.); 
+    das Ausrollen von Smart- Metering; Energieeffizienznetzwerke der Wirtschaft;
+    Energieberatung und Kampagnen; Anreize für effiziente Haushaltsgeräte sowie 
+    permanente Öffentlichkeitsarbeit.
   type: simple.GenericAction
   quantity: energy
   unit: MWh/a
@@ -854,17 +1215,19 @@ actions:
 
 - id: i42_energy_grid_energy_emission_factor_action
   name: Ausbau erneuerbarer Energien in der Stromerzeugung
-  description: Strom wird künftig als Energieträger noch wichtiger als er es heute
-    bereits ist. Auch Wärmeenergie und Mobilität sollen zum Teil darüber gedeckt werden.
-    Umso wichtiger ist es die Erzeugung soweit möglich auf Erneuerbare Energie umzustellen.<br>
-    Potsdam als städtischer Raum kann v.a. Dachflächen für die Photovoltaik nutzen.
-    Das Potential liegt bei ca. 170 Gigawattstunden pro Jahr. Bisher werden lediglich
-    ca. 20 MWh erzeugt. In den ländlichen Ortsteilen sind auch große Freiflächenanlagen
-    möglich. 2017 wurde das Potential auf ca. 140 GWh geschätzt. Durch die Weiterentwicklung
-    der Technik dürfte es heute noch etwas höher liegen. Derzeit sind Anlagen u.a.
-    in Satzkorn in Planung.<br> Durch das Wind-an-Land-Gesetz von 2023 gibt es mittlerweile
-    auch theoretisch die Möglichkeit der Windenergienutzung in Potsdam. Die planerischen
-    Hürden sind hier sehr hoch, werden jedoch ebenfalls geprüft.
+  description: Strom wird künftig als Energieträger noch wichtiger als er es 
+    heute bereits ist. Auch Wärmeenergie und Mobilität sollen zum Teil darüber 
+    gedeckt werden. Umso wichtiger ist es die Erzeugung soweit möglich auf 
+    Erneuerbare Energie umzustellen.<br> Potsdam als städtischer Raum kann v.a. 
+    Dachflächen für die Photovoltaik nutzen. Das Potential liegt bei ca. 170 
+    Gigawattstunden pro Jahr. Bisher werden lediglich ca. 20 MWh erzeugt. In den
+    ländlichen Ortsteilen sind auch große Freiflächenanlagen möglich. 2017 wurde
+    das Potential auf ca. 140 GWh geschätzt. Durch die Weiterentwicklung der 
+    Technik dürfte es heute noch etwas höher liegen. Derzeit sind Anlagen u.a. 
+    in Satzkorn in Planung.<br> Durch das Wind-an-Land-Gesetz von 2023 gibt es 
+    mittlerweile auch theoretisch die Möglichkeit der Windenergienutzung in 
+    Potsdam. Die planerischen Hürden sind hier sehr hoch, werden jedoch 
+    ebenfalls geprüft.
   type: simple.GenericAction
   quantity: emission_factor
   unit: t/MWh
@@ -882,13 +1245,13 @@ actions:
 
 - id: ii11_onroad_transport_fuel_consumption_action
   name: Reduzierung Gesamtenergieverbrauchs im BInnenverkehr
-  description: Die Umstellung der Mobilität auf elektrische Antriebe und fossilfreie
-    Brennstoffe sind nur die halbe Miete zur Erreichung der Klimaschutzziele. Der
-    Energieeinsatz sollte bis 2045 etwa halbiert werden im Vergleich zu 2020. Zum
-    Teil wird dies durch die höhere Effizienz von Elektromotoren erreicht werden können.
-    Einen wesentlichen Teil sollte jedoch die deutliche Erhöhung des Umweltverbundes
-    (Fuß, Rad, ÖPNV) haben, da hier Energie ganz eingespart oder pro Kopf effizienter
-    eingesetzt wird.
+  description: Die Umstellung der Mobilität auf elektrische Antriebe und 
+    fossilfreie Brennstoffe sind nur die halbe Miete zur Erreichung der 
+    Klimaschutzziele. Der Energieeinsatz sollte bis 2045 etwa halbiert werden im
+    Vergleich zu 2020. Zum Teil wird dies durch die höhere Effizienz von 
+    Elektromotoren erreicht werden können. Einen wesentlichen Teil sollte jedoch
+    die deutliche Erhöhung des Umweltverbundes (Fuß, Rad, ÖPNV) haben, da hier 
+    Energie ganz eingespart oder pro Kopf effizienter eingesetzt wird.
   type: simple.GenericAction
   quantity: energy
   unit: MWh/a
@@ -906,9 +1269,10 @@ actions:
 
 - id: ii11_onroad_transport_fuel_emission_factor_action
   name: Zunahme der Anteile emissionsarmer Brennstoffe und der Elektromobilität
-  description: Insbesondere die verbleibenden Anteile des Motorisierten Individualverkehrs
-    (MIV) sollten durch Elektromobilität und – in geringerem Umfang – durch synthetische
-    Treibstoffe und effiziente Erdgasnutzung gedeckt werden.
+  description: Insbesondere die verbleibenden Anteile des Motorisierten 
+    Individualverkehrs (MIV) sollten durch Elektromobilität und – in geringerem 
+    Umfang – durch synthetische Treibstoffe und effiziente Erdgasnutzung gedeckt
+    werden.
   type: simple.GenericAction
   quantity: emission_factor
   unit: t/MWh
@@ -926,8 +1290,8 @@ actions:
 
 - id: ii12_onroad_transport_grid_energy_consumption_action
   name: Erhöhung des Anteils des stromgebundenen ÖPNV und der Elektromobilität
-  description: Das Straßenbahnnetz soll ausgebaut und eine hohe Auslastung erreicht
-    werden. Auch der MIV soll zunehmend elektrifiziert werden.
+  description: Das Straßenbahnnetz soll ausgebaut und eine hohe Auslastung 
+    erreicht werden. Auch der MIV soll zunehmend elektrifiziert werden.
   type: simple.GenericAction
   quantity: energy
   unit: MWh/a
@@ -945,8 +1309,9 @@ actions:
 
 - id: ii12_onroad_transport_grid_energy_emission_factor_action
   name: Strom aus erneuerbaren Energien für ÖPNV und Elektromobilität
-  description: Wie unter Maßnahme 2.2 beschrieben, sollte auch der Strombedarf der
-    Mobilität soweit möglich aus lokalen Erneuerbaren Quellen gedeckt werden.
+  description: Wie unter Maßnahme 2.2 beschrieben, sollte auch der Strombedarf 
+    der Mobilität soweit möglich aus lokalen Erneuerbaren Quellen gedeckt 
+    werden.
   type: simple.GenericAction
   quantity: emission_factor
   unit: t/MWh
@@ -969,11 +1334,12 @@ pages:
   type: emission
   outcome_node: net_emissions
   lead_title: Potsdam Zielwerte Klimaschutz
-  lead_paragraph: Die Treibhausgasemissionen in Potsdam sinken kontinuierlich, pro
-    Kopf relativ deutlich. In der Vergangenheit konnten die Minderungsziele weitgehend
-    erreicht werden. Die hier abgebildeten Ziele des Masterplan 100% Klimaschutz sind
-    jedoch noch ambitionierter als die bisherigen. Der Ausschlag nach unten im Jahr
-    2020 dürfte auf die Maßnahmen zur Covid19-Pandemie zurückzuführen sein.
+  lead_paragraph: Die Treibhausgasemissionen in Potsdam sinken kontinuierlich, 
+    pro Kopf relativ deutlich. In der Vergangenheit konnten die Minderungsziele 
+    weitgehend erreicht werden. Die hier abgebildeten Ziele des Masterplan 100% 
+    Klimaschutz sind jedoch noch ambitionierter als die bisherigen. Der 
+    Ausschlag nach unten im Jahr 2020 dürfte auf die Maßnahmen zur 
+    Covid19-Pandemie zurückzuführen sein.
 
 scenarios:
 - id: baseline
