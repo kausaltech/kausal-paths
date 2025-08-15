@@ -4,7 +4,7 @@ supported_languages: [sv, en]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: b39c8ea31cd0a99c3f4f4cfdb6becff84bfd283c
+  commit: 6640eababa3fc95ca737d55944953853e893efaf
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -270,7 +270,7 @@ dimensions:
     label_en: Gasoline
     label_sv: Bensin
   - id: ffv_e85
-    label_fi: FFV (E85 korkeasaosetanoli)
+    label_fi: FFV (E85 korkeaseosetanoli)
     label_en: FFV (E85 high ethanol)
     label_sv: FFV (E85 högetanol)
   - id: diesel
@@ -336,6 +336,9 @@ dimensions:
     label_fi: Microsoftin datakeskus
     label_en: Microsoft data center
     label_sv: Microsofts datacenter
+  - id: caruna_grid
+    label_fi: Carunan jakeluverkko
+    label_en: Caruna distribution network
 
 - id: scenario
   label_fi: Skenaario
@@ -521,8 +524,10 @@ nodes:
   type: generic.GenericNode
   quantity: floor_area
   unit: m**2
-  input_dimensions: [building_class, energy_carrier, building_heating, building_use]
-  output_dimensions: [building_class, energy_carrier, building_heating, building_use]
+  input_dimensions: [building_class, energy_carrier, building_heating, 
+      building_use]
+  output_dimensions: [building_class, energy_carrier, building_heating, 
+      building_use]
   input_nodes:
   - id: building_floor_area
     tags: [non_additive]
@@ -651,6 +656,18 @@ nodes:
   historical_values: [[1990, 1.0], [2024, 1.0]]
   input_dataset_processors: [LinearInterpolation]
 
+- id: energy_and_heating_index
+  name_fi: Energialajin ja lämmitystavan indeksi
+  type: generic.GenericNode
+  quantity: ratio
+  unit: dimensionless
+  input_dimensions: [building_heat_source, energy_carrier]
+  output_dimensions: [building_heat_source, energy_carrier]
+  input_datasets:
+  - id: espoo/energialaji_ja_lammitystapa
+    tags: [baseline]
+    column: energialaji_ja_lammitystapa
+
 - id: total_building_area
   name_fi: Rakennuskannan kokonaisala
   type: generic.GenericNode
@@ -663,7 +680,15 @@ nodes:
     from_dimensions:
     - id: building_heating
       flatten: true
+    to_dimensions:
+    - id: building_class
+    - id: building_use
+    - id: energy_carrier
   - id: new_residential_floor_area
+    to_dimensions:
+    - id: building_class
+    - id: building_use
+    - id: energy_carrier
   - id: building_floor_area
     tags: [non_additive]
     from_dimensions:
@@ -676,6 +701,27 @@ nodes:
     to_dimensions:
     - id: building_class
     - id: building_use
+
+- id: total_building_area2
+  name_fi: Rakennuskannan kokonaisala
+  type: generic.GenericNode
+  quantity: floor_area
+  unit: m**2
+  input_dimensions: [energy_carrier, building_use, building_heat_source]
+  output_dimensions: [energy_carrier, building_use, building_heat_source]
+  input_nodes:
+  - id: total_building_area
+    tags: [non_additive]
+    from_dimensions:
+    - id: building_class
+      flatten: true
+    to_dimensions:
+    - id: building_use
+    - id: energy_carrier
+  - id: energy_and_heating_index
+    to_dimensions:
+    - id: building_heat_source
+    - id: energy_carrier
 
 - id: building_floor_area_new
   name_fi: Uuden rakennuskannan kerrosala
@@ -2040,8 +2086,6 @@ actions:
   name_fi: Jätteiden käsittelyn päästöt pienenevät
   name_en: Waste treatment emissions are reduced
   name_sv: Utsläppen från avfallsbehandlingen minskar
-  description_fi: Kaikki päästövähennykset kohdennetaan asumiseen tällä 
-    hetkellä.
   type: linear.DatasetReduceAction
   quantity: emissions
   unit: kt/a
@@ -2325,25 +2369,25 @@ actions:
     column: yhdistetyt_kuljetukset
     forecast_from: 2025
 
-- id: road_transportation_emission_trade
-  name_fi: Tieliikenteen päästökauppa
-  name_en: Road traffic emissions trading
-  name_sv: Utsläppshandel för vägtrafik
-  description_fi: Tieliikenteen päästökaupan arvioidaan vähentävän tieliikenteen
-    päästöjä 4.5 %.
-  type: simple.GenericAction
-  quantity: fraction
-  unit: '%'
-  group: transportation
-  output_nodes:
-  - id: road_transport_energy_forecast
-    to_dimensions: []
-    tags: [complement]
-  input_datasets:
-  - id: espoo/liikenteen_toimenpiteet
-    tags: [baseline]
-    column: tieliikenteen_paastokauppa
-    forecast_from: 2025
+# - id: road_transportation_emission_trade
+#   name_fi: Tieliikenteen päästökauppa
+#   name_en: Road traffic emissions trading
+#   name_sv: Utsläppshandel för vägtrafik
+#   description_fi: Tieliikenteen päästökaupan arvioidaan vähentävän tieliikenteen
+#     päästöjä 4.5 %.
+#   type: simple.GenericAction
+#   quantity: fraction
+#   unit: '%'
+#   group: transportation
+#   output_nodes:
+#   - id: road_transport_energy_forecast
+#     to_dimensions: []
+#     tags: [complement]
+#   input_datasets:
+#   - id: espoo/liikenteen_toimenpiteet
+#     tags: [baseline]
+#     column: tieliikenteen_paastokauppa
+#     forecast_from: 2025
 
 scenarios:
 
@@ -2372,8 +2416,8 @@ scenarios:
   #   value: false
   - id: trip_aggregation.enabled
     value: false
-  - id: road_transportation_emission_trade.enabled
-    value: true
+  # - id: road_transportation_emission_trade.enabled
+  #   value: true
   - id: biofuel_fraction_demand.enabled
     value: true
   - id: replace_fossil_fuels_in_district_heating.enabled
@@ -2408,8 +2452,8 @@ scenarios:
   #   value: true
   - id: trip_aggregation.enabled
     value: true
-  - id: road_transportation_emission_trade.enabled
-    value: true
+  # - id: road_transportation_emission_trade.enabled
+  #   value: true
   - id: replace_fossil_fuels_in_district_heating.enabled
     value: true
 
@@ -2454,8 +2498,8 @@ scenarios:
   #   value: true
   - id: trip_aggregation.enabled
     value: true
-  - id: road_transportation_emission_trade.enabled
-    value: true
+  # - id: road_transportation_emission_trade.enabled
+  #   value: true
   - id: replace_fossil_fuels_in_district_heating.enabled
     value: true
   - id: change_non_heating_electricity.enabled

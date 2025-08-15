@@ -5,7 +5,7 @@ frameworks: [syke]
 site_url: https://finland-syke.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: f47b07dcbd11c67003bba576beb71b46d91b6f2e
+  commit: ca39b27a4138af0ec9ed25c9536905c62b3f4cdb
 name: Suomen energia- ja ilmastostrategia 2025
 name_en: Finnish energy and climate strategy 2025
 owner: Kausal Oy
@@ -21,6 +21,8 @@ params:
   value: Tampere
 - id: extend_historical_values
   value: true
+- id: selected_framework
+  value: Kaikki ALas-päästöt
 
 action_groups:
 - id: emission_trade
@@ -29,6 +31,40 @@ action_groups:
   name: Taakanjakosektorin toimet (Taulukko 2)
 - id: land_use
   name: Maankäyttösektorin toimet (Taulukko 3)
+
+dimensions:
+
+- id: alas_sector
+  label: ALas-päästösektori
+  categories:
+  - id: waste_management
+    label: Jätteiden käsittely
+  - id: agriculture
+    label: Maatalous
+  - id: f_gases
+    label: F-kaasut
+  - id: non_heating_electricity
+    label: Kulutussähkö
+  - id: machinery
+    label: Työkoneet
+  - id: district_heating
+    label: Kaukolämpö
+  - id: other_heating
+    label: Muu lämmitys
+  - id: rail_transport
+    label: Raideliikenne
+  - id: electric_heating
+    label: Sähkölämmitys
+  - id: industry
+    label: Teollisuus
+  - id: road_transport
+    label: Tieliikenne
+  - id: emission_compensation
+    label: Päästöhyvitykset
+  - id: water_transport
+    label: Vesiliikenne
+  - id: oil_heating
+    label: Öljylämmitys
 
 emission_sectors:
 - id: net_emissions
@@ -48,6 +84,37 @@ nodes:
   params:
     region: Suomi
 
+- id: all_alas_emissions2
+  name: Kokonaispäästöt Syken ALas-mallin mukaan
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt/a
+  input_dimensions: [alas_sector]
+  output_dimensions: [alas_sector]
+  input_datasets:
+  - id: syke/alas_emissions
+    tags: [baseline]
+    filters:
+    - column: kuntanumero
+    - column: maakunta
+    - column: muni
+    - column: hinku-laskenta
+    - column: päästökauppa
+    - column: taso_2
+    - column: taso_4
+    - column: taso_5
+    - column: kunta
+    - column: ktCO2e_tuuli
+    - column: energiankulutus
+    - rename_col: vuosi
+      value: Year
+    - rename_col: ktCO2e
+      value: Value
+    - rename_col: taso_3
+      value: alas_sector
+    - dimension: taso_1
+      flatten: true
+
 actions:
 
 # Taulukko 1
@@ -59,7 +126,8 @@ actions:
   unit: Mt/a
   group: emission_trade
   input_dataset_processors: [LinearInterpolation]
-  forecast_values: [[2025, 0.0], [2030, -0.6], [2035, -2.7], [2040, 3.0], [2050, 14]]
+  forecast_values: [[2025, 0.0], [2030, -0.6], [2035, -2.7], [2040, 3.0], [2050, 
+        14]]
   output_nodes: [road_transport_emissions]
 
 # Taulukko 2
@@ -114,17 +182,17 @@ actions:
   forecast_values: [[2025, 0.0], [2030, -0.34], [2035, -0.34]]
   output_nodes: [waste_treatment_emissions]
 
+# Taulukko 3
+
 - id: lulucf_actions
-  name: Maankäyttösektorin toimet
+  name: Turvepeltojen kosteikkotoimet
   type: simple.AdditiveAction
   quantity: emissions
   unit: Mt/a
-  group: load_sharing
+  group: land_use
   input_dataset_processors: [LinearInterpolation]
   forecast_values: [[2025, 0.0], [2030, -0.3], [2035, -0.5]]
   output_nodes: [agriculture_emissions]
-
-# Taulukko 3
 
 - id: forest_renewal_actions
   name: Metsänuudistustoimet
@@ -138,6 +206,19 @@ actions:
 
 - id: forest_damage_actions
   name: Metsätuhojen ennaltaehkäisy
+  description: '<b>A. Metsätuhojen seurannan ja ennakoinnin parantaminen</b>: Varaudutaan
+    ilmastonmuutoksen myötä lisääntyviin mäntyjenkuolemiin. Lehtipuiden kasvattamisen
+    mahdollistava riistapolitiikka ja hirvieläinkantojen rajoittaminen sekä paikkatiedon
+    hyödyntäminen alemman hirvituhoriskin alueiden tunnistamisessa. Selvitetään sekametsien
+    ja jatkuvapeitteisen metsänkasvatuksen tuhoriskit. </br><b>B. Valmius- ja elpymissuunnittelu</b>:
+    Kehitetään metsätuhojen varautumissuunnitelman toimenpiteitä mm. kirjanpainajatuhoien
+    varalle. Edistetään viranomaisyhteistyötä. </br><b>C. Informaatio-ohjauksen lisääminen</b>:
+    Edistetään metsätuhoihin liittyvää neuvontaa ja viestintää metsänomistajille ja
+    lisätään metsäalan toimijoiden osaamista aiheesta. Metsänomistajia informoidaan
+    hyönteistuhoista riskiperusteisesti perustuen hyönteistuhoilmoituksiin. Toteutetaan
+    alueellinen riskinarviointi, kootaan tuhotieto, riskikohteet ja tietoaineistot
+    yhteen paikkaan. Kehitetään osaamista tyvitervastaudin tunnistamiseen ja torjuntaan
+    koulutuksen sekä viestinnän keinoin.'
   type: simple.AdditiveAction
   quantity: emissions
   unit: Mt/a
@@ -174,7 +255,8 @@ pages:
   outcome_node: net_emissions
   lead_title: Suomen päästöskenaariot
   lead_title_en: Finnish emission scenarios
-  lead_paragraph: Suomen päästöskenaariot Orpon hallituksen energia- ja ilmastostrategialuonnoksen (4.7.2025) mukaan.
+  lead_paragraph: Suomen päästöskenaariot Orpon hallituksen energia- ja 
+    ilmastostrategialuonnoksen (4.7.2025) mukaan.
 
 scenarios:
 - id: baseline

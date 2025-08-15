@@ -18,6 +18,7 @@ dimensions:
     label_fi: Sähkölämmitys
     label_en: Electric heating
     label_sv: Eluppvärmning
+    aliases: [direct_electricity]
   - id: geothermal
     label_fi: Maalämpö
     label_en: Geothermal heat

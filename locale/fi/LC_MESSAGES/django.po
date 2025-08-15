@@ -1228,6 +1228,14 @@ msgstr ""
 msgid "tonnes"
 msgstr ""
 
+#: nodes/units.py
+msgid "vkm"
+msgstr "ajoneuvo-km"
+
+#: nodes/units.py
+msgid "M vkm"
+msgstr "M ajoneuvo-km"
+
 #: nodes/values.py
 msgid ""
 "\n"

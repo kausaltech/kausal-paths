@@ -401,7 +401,8 @@ def add_unit_translations():  # noqa: C901
         {'unit': 'metric_ton', 'long': _('tonnes'), 'short': 't'},
         {'unit': 'megametric_ton', 'long': _('megatonnes'), 'short': _('Mt')},
         {'unit': 't_ha', 'long': _('1000 hectares'), 'short': '1000 ha'},
-        {'unit': 'megavkm', 'long': _('Million vehicle-km'), 'short': 'M vkm'},
+        {'unit': 'vkm', 'long': _('vehicle-km'), 'short': _('vkm')},
+        {'unit': 'megavkm', 'long': _('Million vehicle-km'), 'short': _('M vkm')},
     ]
     #set_one('cap', pgettext_lazy('capita short', 'cap'))
 
