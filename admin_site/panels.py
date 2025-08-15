@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence, Unpack, cast
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, Unpack, cast
 
 from django.conf import settings
 from django.db.models import Model
