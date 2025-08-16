@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://potsdam-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 7371c5b2ce1d9d8e2ed4ab0ccd76aedaf09028db
+  commit: 9dc4eeb94d6836ba18eb679a2549fef92013183e
   dvc_remote: kausal-s3
 name: Klimaschutz-Monitor-Potsdam Treibhausgasinventar
 owner: Stadt Potsdam
@@ -20,6 +20,7 @@ emission_dimensions: [energietrager, scope, ghg]
 features:
   baseline_visible_in_graphs: true
   use_datasets_from_db: true
+  show_explanations: true
 
 include:
 - file: frameworks/standard_dims.yaml
@@ -85,61 +86,61 @@ dimensions:
   label_en: Decision
   label_de: Entscheidung
   categories:
-  - id: ewp_fernwaerme_bis_2030
+  - id: district_heating_until_2030
     label_en: 1st Action Package EWP District Heating until 2030
     label_de: 1. Maßnahmepaket EWP Fernwärme bis 2030
-  - id: ausbau_waermenetze_2030_2045
+  - id: district_heating_2030_2045
     label_en: Further expansion of heating networks 2030-2045 to 100% renewable 
       generation
     label_de: weiterer Ausbau der Wärmenetze 2030-2045 auf 100% Erneuerbare 
       Erzeugung
-  - id: ee_ausbau_masterplan_2045
-    label_en: RE expansion according to Masterplan 100% Climate Protection until
-      2045
+  - id: re_expansion_masterplan_2045
+    label_en: Renewable energy expansion according to Masterplan 100% Climate 
+      Protection until 2045
     label_de: EE-Ausbau laut Masterplan 100% Klimaschutz bis 2045
-  - id: ee_ausbau_masterplan_kwp
-    label_en: RE expansion Masterplan and additionally KWP
+  - id: re_expansion_masterplan_kwp
+    label_en: Renewable energy expansion Masterplan and additionally KWP
     label_de: EE-Ausbau Masterplan und zusätzlich KWP
-  - id: ausbau_waermenetze_kwp_ausbaugebiete
+  - id: district_heating_kwp_expansion_areas
     label_en: Expansion of heating networks until 2045 (KWP expansion areas)
     label_de: Ausbau der Wärmenetze bis 2045 (KWP-Ausbaugebiete)
-  - id: ausbau_waermenetze_kwp_pruefgebiete
+  - id: district_heating_kwp_test_areas
     label_en: Expansion of heating networks until 2045 (additionally KWP test 
       areas)
     label_de: Ausbau der Wärmenetze bis 2045 (zusätzlich KWP-Prüfgebiete)
-  - id: reduktion_dezentral_waerme_ersatz
+  - id: decentralized_heat_reduction_replacement
     label_en: Reduction of decentralized heat consumption through replacement 
       with heating networks
     label_de: Reduktion des dezentralen Wärmeverbrauchs durch Ersatz mit 
       Wärmenetzen
-  - id: reduktion_dezentral_waerme_sanierung
+  - id: decentralized_heat_reduction_renovation
     label_en: Reduction of decentralized heat consumption through building 
       renovation
     label_de: Reduktion des dezentralen Wärmeverbrauchs durch Gebäudesanierung
-  - id: ausbau_pv_dachanlagen
+  - id: pv_rooftop_expansion
     label_en: Expansion of PV rooftop systems according to Masterplan
     label_de: Ausbau PV Dachanlagen laut Masterplan
-  - id: ausbau_freiflaechenanlagen
+  - id: ground_mounted_pv_expansion
     label_en: Expansion of ground-mounted systems according to Masterplan
     label_de: Ausbau Freiflächenanlagen laut Masterplan
-  - id: potential_windkraftanlagen
+  - id: wind_power_potential
     label_en: Wind power plant potential (assumption 8 plants)
     label_de: Potential Windkraftanlagen (Annahme 8 Anlagen)
-  - id: reduktion_stromverbrauch_hh_gewerbe
+  - id: electricity_consumption_reduction
     label_en: Reduction of electricity consumption households and commercial
     label_de: Reduktion Stromverbrauch HH und Gewerbe
-  - id: verbesserter_bundesmix
+  - id: improved_federal_grid_mix
     label_en: Improved federal grid mix for residual electricity demand
     label_de: Verbesserter Bundesmix für Reststrombedarf
-  - id: ee_strom_elektromobilitaet
-    label_en: Use of RE electricity for e-mobility and tram (according to 
+  - id: re_electricity_emobility
+    label_en: Use of renewable electricity for e-mobility and tram (according to
       Masterplan)
     label_de: Nutzung EE-Strom für Elektromobiltät und Straßenbahn (laut 
       Masterplan)
-  - id: ersatz_fossiler_brennstoffe
+  - id: fossil_fuel_replacement
     label_en: Replacement of fossil fuels with electricity and e-fuels
     label_de: Ersatz fossiler brennstoffe durch Strom und E-Fuels
-  - id: reduktion_energieverbrauch_binnenverkehr
+  - id: local_transport_energy_reduction
     label_en: Reduction of total energy consumption local transport
     label_de: Reduktion Gesamtenergieverbrauch Binnenverkehr
 
@@ -665,15 +666,18 @@ nodes:
 
 - id: zero_emission_electricity_production
   name: Zero-emission electricity production
-  description: There are several sources of zero-emission electricity. This is the sum of that production, given as emission savings reachable because of this production replaces electricity with normal emission factor.
+  description: There are several sources of zero-emission electricity. This is 
+    the sum of that production, given as emission savings reachable because of 
+    this production replaces electricity with normal emission factor.
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
 
 - id: corrected_electricity_emission_factor
   name: Corrected electricity emission factor
-  description: An action (A) has a known effect on the result (R) via one multiplier (M1).</br>
-    As R = M1 * M2, with action R + A = M1' * M2 <=> M1' = (M1 * M2 + A) / M2 = M1 + A / M2.
+  description: An action (A) has a known effect on the result (R) via one 
+    multiplier (M1).</br> As R = M1 * M2, with action R + A = M1' * M2 <=> M1' =
+    (M1 * M2 + A) / M2 = M1 + A / M2.
   type: generic.GenericNode
   quantity: emission_factor
   unit: g/kWh
@@ -732,7 +736,8 @@ actions:
 
 - id: district_heating_until_2030
   name_de: 1. Maßnahmepaket EWP (Energiewende-Programm) Fernwärme bis 2030
-  name_en: 1st Action Package EWP (Energy Transition Program) District Heating until 2030
+  name_en: 1st Action Package EWP (Energy Transition Program) District Heating 
+    until 2030
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -744,11 +749,13 @@ actions:
     column: action_impact
     filters:
     - column: decision
-      value: ewp_fernwaerme_bis_2030
+      value: district_heating_until_2030
 
 - id: district_heating_2030_2045
-  name_de: weiterer Ausbau der Wärmenetze 2030-2045 auf 100% Erneuerbare Erzeugung
-  name_en: Further expansion of heating networks 2030-2045 to 100% renewable generation
+  name_de: weiterer Ausbau der Wärmenetze 2030-2045 auf 100% Erneuerbare 
+    Erzeugung
+  name_en: Further expansion of heating networks 2030-2045 to 100% renewable 
+    generation
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -760,11 +767,12 @@ actions:
     column: action_impact
     filters:
     - column: decision
-      value: ausbau_waermenetze_2030_2045
+      value: district_heating_2030_2045
 
 - id: re_expansion_masterplan_2045
   name_de: EE-Ausbau laut Masterplan 100% Klimaschutz bis 2045
-  name_en: RE expansion according to Masterplan 100% Climate Protection until 2045
+  name_en: RE expansion according to Masterplan 100% Climate Protection until 
+    2045
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -776,11 +784,12 @@ actions:
     column: action_impact
     filters:
     - column: decision
-      value: ee_ausbau_masterplan_2045
+      value: re_expansion_masterplan_2045
 
-- id: ee_ausbau_masterplan_kwp
+- id: re_expansion_masterplan_kwp
   name_de: EE-Ausbau Masterplan und zusätzlich KWP (Kommunale Wärmeplanung)
-  name_en: RE expansion Masterplan and additionally KWP (Municipal Heat Planning)
+  name_en: RE expansion Masterplan and additionally KWP (Municipal Heat 
+    Planning)
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -792,9 +801,9 @@ actions:
     column: action_impact
     filters:
     - column: decision
-      value: ee_ausbau_masterplan_kwp
+      value: re_expansion_masterplan_kwp
 
-- id: ausbau_waermenetze_kwp_ausbaugebiete
+- id: district_heating_kwp_expansion_areas
   name_de: Ausbau der Wärmenetze bis 2045 (KWP-Ausbaugebiete)
   name_en: Expansion of heating networks until 2045 (KWP expansion areas)
   type: simple.GenericAction
@@ -808,11 +817,12 @@ actions:
     column: action_impact
     filters:
     - column: decision
-      value: ausbau_waermenetze_kwp_ausbaugebiete
+      value: district_heating_kwp_expansion_areas
 
-- id: ausbau_waermenetze_kwp_pruefgebiete
+- id: district_heating_kwp_test_areas
   name_de: Ausbau der Wärmenetze bis 2045 (zusätzlich KWP-Prüfgebiete)
-  name_en: Expansion of heating networks until 2045 (additionally KWP test areas)
+  name_en: Expansion of heating networks until 2045 (additionally KWP test 
+    areas)
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -824,11 +834,13 @@ actions:
     column: action_impact
     filters:
     - column: decision
-      value: ausbau_waermenetze_kwp_pruefgebiete
+      value: district_heating_kwp_test_areas
 
-- id: reduktion_dezentral_waerme_ersatz
-  name_de: Reduktion des dezentralen Wärmeverbrauchs durch Ersatz mit Wärmenetzen
-  name_en: Reduction of decentralized heat consumption through replacement with heating networks
+- id: decentralized_heat_reduction_replacement
+  name_de: Reduktion des dezentralen Wärmeverbrauchs durch Ersatz mit 
+    Wärmenetzen
+  name_en: Reduction of decentralized heat consumption through replacement with 
+    heating networks
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -840,11 +852,12 @@ actions:
     column: action_impact
     filters:
     - column: decision
-      value: reduktion_dezentral_waerme_ersatz
+      value: decentralized_heat_reduction_replacement
 
-- id: reduktion_dezentral_waerme_sanierung
+- id: decentralized_heat_reduction_renovation
   name_de: Reduktion des dezentralen Wärmeverbrauchs durch Gebäudesanierung
-  name_en: Reduction of decentralized heat consumption through building renovation
+  name_en: Reduction of decentralized heat consumption through building 
+    renovation
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -856,9 +869,9 @@ actions:
     column: action_impact
     filters:
     - column: decision
-      value: reduktion_dezentral_waerme_sanierung
+      value: decentralized_heat_reduction_renovation
 
-- id: ausbau_pv_dachanlagen
+- id: pv_rooftop_expansion
   name_de: Ausbau PV Dachanlagen laut Masterplan
   name_en: Expansion of PV rooftop systems according to Masterplan
   type: simple.GenericAction
@@ -872,11 +885,11 @@ actions:
     column: action_impact
     filters:
     - column: decision
-      value: ausbau_pv_dachanlagen
+      value: pv_rooftop_expansion
   output_nodes:
   - id: zero_emission_electricity_production
 
-- id: ausbau_freiflaechenanlagen
+- id: ground_mounted_pv_expansion
   name_de: Ausbau Freiflächenanlagen laut Masterplan
   name_en: Expansion of ground-mounted systems according to Masterplan
   type: simple.GenericAction
@@ -890,11 +903,11 @@ actions:
     column: action_impact
     filters:
     - column: decision
-      value: ausbau_freiflaechenanlagen
+      value: ground_mounted_pv_expansion
   output_nodes:
   - id: zero_emission_electricity_production
 
-- id: potential_windkraftanlagen
+- id: wind_power_potential
   name_de: Potential Windkraftanlagen (Annahme 8 Anlagen)
   name_en: Wind power plant potential (assumption 8 plants)
   type: simple.GenericAction
@@ -908,11 +921,11 @@ actions:
     column: action_impact
     filters:
     - column: decision
-      value: potential_windkraftanlagen
+      value: wind_power_potential
   output_nodes:
   - id: zero_emission_electricity_production
 
-- id: reduktion_stromverbrauch_hh_gewerbe
+- id: electricity_consumption_reduction
   name_de: Reduktion Stromverbrauch HH und Gewerbe
   name_en: Reduction of electricity consumption households and commercial
   type: simple.GenericAction
@@ -926,9 +939,9 @@ actions:
     column: action_impact
     filters:
     - column: decision
-      value: reduktion_stromverbrauch_hh_gewerbe
+      value: electricity_consumption_reduction
 
-- id: verbesserter_bundesmix
+- id: improved_federal_grid_mix
   name_de: Verbesserter Bundesmix für Reststrombedarf
   name_en: Improved federal grid mix for residual electricity demand
   type: simple.GenericAction
@@ -942,11 +955,13 @@ actions:
     column: action_impact
     filters:
     - column: decision
-      value: verbesserter_bundesmix
+      value: improved_federal_grid_mix
 
-- id: ee_strom_elektromobilitaet
-  name_de: Nutzung EE-Strom für Elektromobiltät und Straßenbahn (laut Masterplan)
-  name_en: Use of RE electricity for e-mobility and tram (according to Masterplan)
+- id: re_electricity_emobility
+  name_de: Nutzung EE-Strom für Elektromobiltät und Straßenbahn (laut 
+    Masterplan)
+  name_en: Use of RE electricity for e-mobility and tram (according to 
+    Masterplan)
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -958,9 +973,9 @@ actions:
     column: action_impact
     filters:
     - column: decision
-      value: ee_strom_elektromobilitaet
+      value: re_electricity_emobility
 
-- id: ersatz_fossiler_brennstoffe
+- id: fossil_fuel_replacement
   name_de: Ersatz fossiler brennstoffe durch Strom und E-Fuels
   name_en: Replacement of fossil fuels with electricity and e-fuels
   type: simple.GenericAction
@@ -974,9 +989,9 @@ actions:
     column: action_impact
     filters:
     - column: decision
-      value: ersatz_fossiler_brennstoffe
+      value: fossil_fuel_replacement
 
-- id: reduktion_energieverbrauch_binnenverkehr
+- id: local_transport_energy_reduction
   name_de: Reduktion Gesamtenergieverbrauch Binnenverkehr
   name_en: Reduction of total energy consumption local transport
   type: simple.GenericAction
@@ -990,7 +1005,7 @@ actions:
     column: action_impact
     filters:
     - column: decision
-      value: reduktion_energieverbrauch_binnenverkehr
+      value: local_transport_energy_reduction
 
 # OLD ACTIONS
 
@@ -1248,10 +1263,124 @@ pages:
     Covid19-Pandemie zurückzuführen sein.
 
 scenarios:
+
 - id: baseline
   name: Business as Usual
 
 - id: default
   default: true
   name: Klimaschutzplan
-  all_actions_enabled: true
+  params:
+  # New actions on
+  - id: district_heating_until_2030.enabled
+    value: true
+  - id: district_heating_2030_2045.enabled
+    value: true
+  - id: re_expansion_masterplan_2045.enabled
+    value: true
+  - id: re_expansion_masterplan_kwp.enabled
+    value: true
+  - id: district_heating_kwp_expansion_areas.enabled
+    value: true
+  - id: district_heating_kwp_test_areas.enabled
+    value: true
+  - id: decentralized_heat_reduction_replacement.enabled
+    value: true
+  - id: decentralized_heat_reduction_renovation.enabled
+    value: true
+  - id: pv_rooftop_expansion.enabled
+    value: true
+  - id: ground_mounted_pv_expansion.enabled
+    value: true
+  - id: wind_power_potential.enabled
+    value: true
+  - id: electricity_consumption_reduction.enabled
+    value: true
+  - id: improved_federal_grid_mix.enabled
+    value: true
+  - id: re_electricity_emobility.enabled
+    value: true
+  - id: fossil_fuel_replacement.enabled
+    value: true
+  - id: local_transport_energy_reduction.enabled
+    value: true
+  # Old actions off
+  - id: i11_residential_fuel_consumption_action.enabled
+    value: false
+  - id: i11_residential_fuel_emission_factor_action.enabled
+    value: false
+  - id: i12_residential_grid_energy_consumption_action.enabled
+    value: false
+  - id: i12_residential_grid_energy_emission_factor_action.enabled
+    value: false
+  - id: i42_energy_grid_energy_consumption_action.enabled
+    value: false
+  - id: i42_energy_grid_energy_emission_factor_action.enabled
+    value: false
+  - id: ii11_onroad_transport_fuel_consumption_action.enabled
+    value: false
+  - id: ii11_onroad_transport_fuel_emission_factor_action.enabled
+    value: false
+  - id: ii12_onroad_transport_grid_energy_consumption_action.enabled
+    value: false
+  - id: ii12_onroad_transport_grid_energy_emission_factor_action.enabled
+    value: false
+
+- id: old_action_plan
+  default: false
+  name: Alte Klimaschutzplan
+  params:
+  # New actions off
+  - id: district_heating_until_2030.enabled
+    value: false
+  - id: district_heating_2030_2045.enabled
+    value: false
+  - id: re_expansion_masterplan_2045.enabled
+    value: false
+  - id: re_expansion_masterplan_kwp.enabled
+    value: false
+  - id: district_heating_kwp_expansion_areas.enabled
+    value: false
+  - id: district_heating_kwp_test_areas.enabled
+    value: false
+  - id: decentralized_heat_reduction_replacement.enabled
+    value: false
+  - id: decentralized_heat_reduction_renovation.enabled
+    value: false
+  - id: pv_rooftop_expansion.enabled
+    value: false
+  - id: ground_mounted_pv_expansion.enabled
+    value: false
+  - id: wind_power_potential.enabled
+    value: false
+  - id: electricity_consumption_reduction.enabled
+    value: false
+  - id: improved_federal_grid_mix.enabled
+    value: false
+  - id: re_electricity_emobility.enabled
+    value: false
+  - id: fossil_fuel_replacement.enabled
+    value: false
+  - id: local_transport_energy_reduction.enabled
+    value: false
+  # Old actions on
+  - id: i11_residential_fuel_consumption_action.enabled
+    value: true
+  - id: i11_residential_fuel_emission_factor_action.enabled
+    value: true
+  - id: i12_residential_grid_energy_consumption_action.enabled
+    value: true
+  - id: i12_residential_grid_energy_emission_factor_action.enabled
+    value: true
+  - id: i42_energy_grid_energy_consumption_action.enabled
+    value: true
+  - id: i42_energy_grid_energy_emission_factor_action.enabled
+    value: true
+  - id: ii11_onroad_transport_fuel_consumption_action.enabled
+    value: true
+  - id: ii11_onroad_transport_fuel_emission_factor_action.enabled
+    value: true
+  - id: ii12_onroad_transport_grid_energy_consumption_action.enabled
+    value: true
+  - id: ii12_onroad_transport_grid_energy_emission_factor_action.enabled
+    value: true
