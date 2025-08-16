@@ -26,10 +26,10 @@ from kausal_common.organizations.views import (
 # from admin_site.utils import admin_req
 # from admin_site.wagtail import CondensedInlinePanel
 from kausal_common.people.chooser import PersonChooser
+from kausal_common.i18n.panels import TranslatedFieldPanel
 
 from paths.context import realm_context
 
-from admin_site.panels import TranslatedFieldPanel
 from orgs.views import OrganizationCreateView
 from users.models import User
 
@@ -336,4 +336,3 @@ class OrganizationViewSet(SnippetViewSet):
 # If kausal_watch_extensions is installed, an extended version of the view set is registered there
 if not find_spec('kausal_paths_extensions'):
     register_snippet(OrganizationViewSet)
-
