@@ -297,7 +297,7 @@ nodes:
   input_dimensions: [energietrager, scope, ghg]
   output_dimensions: [energietrager, scope, ghg]
   output_nodes:
-  - id: i11_residential_fuel_total_emissions
+  - id: i_stationary_total_emissions
     to_dimensions:
     - id: energietrager
     - id: scope
@@ -355,7 +355,7 @@ nodes:
   input_dimensions: [energietrager, scope, ghg]
   output_dimensions: [energietrager, scope, ghg]
   output_nodes:
-  - id: i12_residential_grid_energy_total_emissions
+  - id: i_stationary_total_emissions
     to_dimensions:
     - id: energietrager
     - id: scope
@@ -413,8 +413,14 @@ nodes:
   unit: kt/a
   input_dimensions: [energietrager, scope, ghg]
   output_dimensions: [energietrager, scope, ghg]
+  input_nodes:
+  - id: corrected_electricity_emission_factor
+    to_dimensions:
+    - id: ghg
+    - id: energietrager
+    - id: scope
   output_nodes:
-  - id: i42_energy_grid_energy_total_emissions
+  - id: i4_energy_total_emissions
     to_dimensions:
     - id: energietrager
     - id: scope
@@ -436,12 +442,6 @@ nodes:
     filters:
     - column: sector
       value: i42
-  output_nodes:
-  - id: i42_energy_grid_energy_consumption_emissions
-    to_dimensions:
-    - id: ghg
-    - id: energietrager
-    - id: scope
 
 # TODO: Should we use these local emission factors instead of national emission
 # factors as defined in node i42_energy_grid_energy_emission_factor?
@@ -498,7 +498,7 @@ nodes:
   input_dimensions: [energietrager, scope, ghg]
   output_dimensions: [energietrager, scope, ghg]
   output_nodes:
-  - id: ii11_onroad_transport_fuel_total_emissions
+  - id: ii_transportation_total_emissions
     to_dimensions:
     - id: energietrager
     - id: scope
@@ -557,7 +557,7 @@ nodes:
   input_dimensions: [energietrager, scope, ghg]
   output_dimensions: [energietrager, scope, ghg]
   output_nodes:
-  - id: ii12_onroad_transport_grid_energy_total_emissions
+  - id: ii_transportation_total_emissions
     to_dimensions:
     - id: energietrager
     - id: scope
@@ -586,63 +586,6 @@ nodes:
     - id: energietrager
     - id: scope
 
-- id: i11_residential_fuel_total_emissions
-  name: Emissionen aus Wärmeenergie (ohne Fernwärme)
-  name_en: Emissions from Heating Energy (i.p. incl. ALL; district too)
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [energietrager, scope, ghg]
-  output_dimensions: [energietrager, scope, ghg]
-  output_nodes:
-  - id: i1_residential_total_emissions
-    to_dimensions:
-    - id: energietrager
-    - id: scope
-    - id: ghg
-
-- id: i12_residential_grid_energy_total_emissions
-  name: Emissionen aus Fernwärme
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [energietrager, scope, ghg]
-  output_dimensions: [energietrager, scope, ghg]
-  output_nodes:
-  - id: i1_residential_total_emissions
-    to_dimensions:
-    - id: energietrager
-    - id: scope
-    - id: ghg
-
-- id: i1_residential_total_emissions
-  name: Gesamtemissionen Wärmesektor
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [energietrager, scope, ghg]
-  output_dimensions: [energietrager, scope, ghg]
-  output_nodes:
-  - id: i_stationary_total_emissions
-    to_dimensions:
-    - id: energietrager
-    - id: scope
-    - id: ghg
-
-- id: i42_energy_grid_energy_total_emissions
-  name: Gesamtemissionen Stromsektor
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [energietrager, scope, ghg]
-  output_dimensions: [energietrager, scope, ghg]
-  output_nodes:
-  - id: i4_energy_total_emissions
-    to_dimensions:
-    - id: energietrager
-    - id: scope
-    - id: ghg
-
 - id: i4_energy_total_emissions
   name: Gesamtemissionen Stromsektor
   name_en: Emissions Electricity Sector
@@ -670,50 +613,6 @@ nodes:
   output_dimensions: [energietrager, scope, ghg]
   output_nodes:
   - id: net_emissions
-    to_dimensions:
-    - id: energietrager
-    - id: scope
-    - id: ghg
-
-- id: ii11_onroad_transport_fuel_total_emissions
-  name: Emissionen aus Brennstoffverbrauch Verkehr
-  name_en: Emissions from Fuel Consumption Traffic
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [energietrager, scope, ghg]
-  output_dimensions: [energietrager, scope, ghg]
-  output_nodes:
-  - id: ii1_onroad_transport_total_emissions
-    to_dimensions:
-    - id: energietrager
-    - id: scope
-    - id: ghg
-
-- id: ii12_onroad_transport_grid_energy_total_emissions
-  name: Emissionen aus Stromverbrauch ÖPNV
-  name_en: Emissions from Electricity Public Transport
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [energietrager, scope, ghg]
-  output_dimensions: [energietrager, scope, ghg]
-  output_nodes:
-  - id: ii1_onroad_transport_total_emissions
-    to_dimensions:
-    - id: energietrager
-    - id: scope
-    - id: ghg
-
-- id: ii1_onroad_transport_total_emissions
-  name: Gesamtemissionen Verkehrssektor
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [energietrager, scope, ghg]
-  output_dimensions: [energietrager, scope, ghg]
-  output_nodes:
-  - id: ii_transportation_total_emissions
     to_dimensions:
     - id: energietrager
     - id: scope
@@ -793,6 +692,38 @@ nodes:
   input_dimensions: [energietrager, scope]
   output_dimensions: [energietrager, scope]
 
+# Corrected multipliers affected by actions
+
+- id: zero_emission_electricity_production
+  name: Zero-emission electricity production
+  description: There are several sources of zero-emission electricity. This is the sum of that production, given as emission savings reachable because of this production replaces electricity with normal emission factor.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+
+- id: corrected_electricity_emission_factor
+  name: Corrected electricity emission factor
+  description: An action (A) has a known effect on the result (R) via one multiplier (M1).</br>
+    As R = M1 * M2, with action R + A = M1' * M2 <=> M1' = (M1 * M2 + A) / M2 = M1 + A / M2.
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [ghg, energietrager, scope]
+  output_dimensions: [ghg, energietrager, scope]
+  input_nodes:
+  - id: i42_energy_grid_energy_emission_factor
+  - id: i42_energy_grid_energy_consumption
+    tags: [geometric_inverse]
+    to_dimensions:
+    - id: energietrager
+    - id: scope
+  - id: zero_emission_electricity_production
+    tags: [arithmetic_inverse]
+    to_dimensions:
+    - id: ghg
+      categories: [co2e]
+
+
 ##### COSTS
 
 - id: energy_prices
@@ -830,7 +761,7 @@ actions:
 # NEW ACTIONS from action impact 250801.xlsx
 # https://docs.google.com/spreadsheets/d/15aMuO2-GmvYw8IXe3pgSN6LvfdEqDPI6/edit?gid=2009060009#gid=2009060009
 
-- id: ewp_fernwaerme_bis_2030
+- id: district_heating_until_2030
   name_de: 1. Maßnahmepaket EWP (Energiewende-Programm) Fernwärme bis 2030
   name_en: 1st Action Package EWP (Energy Transition Program) District Heating until 2030
   type: simple.GenericAction
@@ -846,7 +777,7 @@ actions:
     - column: decision
       value: ewp_fernwaerme_bis_2030
 
-- id: ausbau_waermenetze_2030_2045
+- id: district_heating_2030_2045
   name_de: weiterer Ausbau der Wärmenetze 2030-2045 auf 100% Erneuerbare Erzeugung
   name_en: Further expansion of heating networks 2030-2045 to 100% renewable generation
   type: simple.GenericAction
@@ -862,7 +793,7 @@ actions:
     - column: decision
       value: ausbau_waermenetze_2030_2045
 
-- id: ee_ausbau_masterplan_2045
+- id: re_expansion_masterplan_2045
   name_de: EE-Ausbau laut Masterplan 100% Klimaschutz bis 2045
   name_en: RE expansion according to Masterplan 100% Climate Protection until 2045
   type: simple.GenericAction
@@ -973,6 +904,8 @@ actions:
     filters:
     - column: decision
       value: ausbau_pv_dachanlagen
+  output_nodes:
+  - id: zero_emission_electricity_production
 
 - id: ausbau_freiflaechenanlagen
   name_de: Ausbau Freiflächenanlagen laut Masterplan
@@ -989,6 +922,8 @@ actions:
     filters:
     - column: decision
       value: ausbau_freiflaechenanlagen
+  output_nodes:
+  - id: zero_emission_electricity_production
 
 - id: potential_windkraftanlagen
   name_de: Potential Windkraftanlagen (Annahme 8 Anlagen)
@@ -1005,6 +940,8 @@ actions:
     filters:
     - column: decision
       value: potential_windkraftanlagen
+  output_nodes:
+  - id: zero_emission_electricity_production
 
 - id: reduktion_stromverbrauch_hh_gewerbe
   name_de: Reduktion Stromverbrauch HH und Gewerbe
