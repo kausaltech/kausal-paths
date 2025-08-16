@@ -56,7 +56,6 @@ class Person(BasePerson):
         index.SearchField('last_name'),
         index.SearchField('email'),
         index.SearchField('title'),
-        index.FilterField('path'),
     ]
     class Meta:
         verbose_name = _('Person')
