@@ -2,15 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, override
 
-from modeltrans.conf import get_available_languages
-from modeltrans.translator import get_i18n_field
-from modeltrans.utils import build_localized_fieldname
-from wagtail.admin.forms import WagtailAdminModelForm
-
-from kausal_common.i18n.helpers import convert_language_code
 from kausal_common.i18n.forms import LanguageAwareAdminModelForm
-
-from users.models import User
+from kausal_common.i18n.helpers import convert_language_code
 
 if TYPE_CHECKING:
     from django.db.models import Model
