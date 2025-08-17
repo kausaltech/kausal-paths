@@ -71,44 +71,15 @@ class Person(BasePerson):
 
     @override
     def get_avatar_url(self, request: PathsAdminRequest | None = None, size: str | None = None) -> str | None:
-        # from kausal_common.model_images import determine_image_dim
-        # Return the URL of the person's image if it exists
         if not self.image:
             return None
-
         try:
             with self.image.open():
                 pass
         except FileNotFoundError:
             logger.info('Avatar file for %s not found' % self)
             return None
-
-        # if size is None:
-        url = self.image.url
-        # else:
-        #     m = re.match(r'(\d+)?(x(\d+))?', size)
-        #     if not m:
-        #         raise ValueError('Invalid size argument (should be "<width>x<height>")')
-        #     width, _, height = m.groups()
-
-        #     dim = determine_image_dim(self.image, width, height)
-
-        #     tn_args: dict = {
-        #         'size': dim,
-        #     }
-        #     if self.image_cropping:
-        #         tn_args['focal_point'] = Rect(*[int(x) for x in self.image_cropping.split(',')])
-        #         tn_args['crop'] = 30
-
-        #     out_image = get_thumbnailer(self.image).get_thumbnail(tn_args)
-        #     if out_image is None:
-        #         return None
-        #     url = out_image.url
-
-        # if request:
-        #     url = request.build_absolute_uri(url)
-        return url
-
+        return self.image.url
 
     def avatar(self, request: PathsAdminRequest | None = None) -> str:
         avatar_url = self.get_avatar_url(request, size='50x50')
