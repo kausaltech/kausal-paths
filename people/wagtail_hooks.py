@@ -7,6 +7,7 @@ from wagtail.snippets.models import register_snippet
 from wagtail.snippets.views.snippets import SnippetViewSet
 
 from dal_select2.widgets import ModelSelect2
+from wagtail.admin.menu import AdminOnlyMenuItem
 
 from paths.context import realm_context
 
@@ -21,8 +22,9 @@ class PersonSnippetViewSet(SnippetViewSet):
     model = Person
     menu_label = _('People')
     menu_icon = 'user'
-    menu_order = 200
-    add_to_admin_menu = False
+    menu_order = 300
+    add_to_admin_menu = True
+    menu_item_class = AdminOnlyMenuItem  # TODO: remove this line once permission policies are ready
 
     panels = [
         FieldPanel('first_name'),
@@ -35,7 +37,6 @@ class PersonSnippetViewSet(SnippetViewSet):
             widget=ModelSelect2(url='organization-autocomplete'),
         ),
     ]
-
 
     search_fields = ['first_name', 'last_name', 'email', 'title']
     list_per_page = 50

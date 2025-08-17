@@ -8,6 +8,7 @@ from django.contrib.admin.utils import quote
 from django.core.exceptions import ValidationError
 from django.urls import URLPattern, path, reverse
 from django.utils.translation import gettext_lazy as _, pgettext_lazy
+from wagtail.admin.menu import AdminOnlyMenuItem
 from wagtail.admin.panels import FieldPanel, InlinePanel, ObjectList, TabbedInterface
 from wagtail.snippets.models import register_snippet
 from wagtail.snippets.views.snippets import SnippetViewSet
@@ -158,7 +159,7 @@ class OrganizationViewSet(SnippetViewSet):
     model = Organization
     menu_label = _("Organizations")
     icon = 'kausal-organisations'
-    menu_order = 220
+    menu_order = 301
     permission_policy = OrganizationPermissionPolicy(model)
     index_view_class = OrganizationIndexView
     add_view_class = OrganizationCreateView
@@ -166,7 +167,8 @@ class OrganizationViewSet(SnippetViewSet):
     delete_view_class = OrganizationDeleteView
     search_fields = ['name', 'abbreviation']
     list_display = ['name', 'parent','abbreviation']
-    add_to_admin_menu = False
+    add_to_admin_menu = True
+    menu_item_class = AdminOnlyMenuItem  # TODO: remove this line once permission policies are ready
     add_child_url_name = 'add_child'
 
     basic_panels = [
@@ -215,19 +217,6 @@ class OrganizationViewSet(SnippetViewSet):
     def add_child_view(self):
         """Generate a class-based view to provide 'add child' functionality."""
         return self.construct_view(CreateChildNodeView, **self.get_add_view_kwargs())
-
-
-    # FIXME: As of writing this the Wagtail version (6.1.X) we use has a bug
-    # which only shows the menu item when user has "add", "change" or "delete"
-    # permission, while "view" should be enough. (See
-    # https://github.com/wagtail/wagtail/blob/747d70e0656b86e3e8c8d123ecae82fa61cd1438/wagtail/admin/viewsets/model.py#L521C16-L521C58
-    # for the specific line of code). This seems to be fixed version 6.2.X
-    # forward, so when upgraded to Wagtail 6.2.X this workaround should be safe
-    # to delete.
-    def get_menu_item(self, order: int | None = None) -> MenuItem:
-        menu_item = super().get_menu_item(order)
-        menu_item.is_shown = lambda request: True  # type: ignore[method-assign]  # noqa: ARG005
-        return menu_item
 
     def get_urlpatterns(self) -> list[URLPattern]:
         urls =  super().get_urlpatterns()
