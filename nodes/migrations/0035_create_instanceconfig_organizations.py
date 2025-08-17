@@ -26,6 +26,16 @@ def create_initial_organizations(apps, schema_editor):
         path=MP_Node._get_path('', 1, 2),  # type: ignore
     )
 
+    # The following is not used for InstanceConfigs but as a fallback organization
+    # for persons
+    Organization.objects.create(
+        name="Default Organization",
+        depth=1,
+        numchild=0,
+        primary_language='en',
+        path=MP_Node._get_path('', 1, 3),  # type: ignore
+    )
+
     for instance in InstanceConfig.objects.all():
         has_framework = FrameworkConfig.objects.filter(instance_config=instance).exists()
         if has_framework:
