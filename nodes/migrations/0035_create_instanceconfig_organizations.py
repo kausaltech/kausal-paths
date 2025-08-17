@@ -14,6 +14,7 @@ def create_initial_organizations(apps, schema_editor):
         name="Kausal",
         depth=1,
         numchild=0,
+        primary_language='en',
         path=MP_Node._get_path('', 1, 1),  # type: ignore
     )
 
@@ -21,6 +22,7 @@ def create_initial_organizations(apps, schema_editor):
         name="NetZeroCities",
         depth=1,
         numchild=0,
+        primary_language='en',
         path=MP_Node._get_path('', 1, 2),  # type: ignore
     )
 
