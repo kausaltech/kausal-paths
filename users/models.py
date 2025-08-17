@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from collections.abc import Sequence  # noqa: TCH003
+from collections.abc import Sequence  # noqa: TC003
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, Self, overload
 
 from django.db import models
 from django.db.models import Model
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from pydantic import BaseModel, Field
 
@@ -21,6 +22,8 @@ if TYPE_CHECKING:
 
     from frameworks.roles import FrameworkRoleDef
     from nodes.models import InstanceConfig, InstanceConfigQuerySet
+    from orgs.models import Organization
+    from people.models import Person
 
 
 class UserFrameworkRole(BaseModel):
@@ -59,6 +62,8 @@ class User(AbstractUser):
 
     autocomplete_search_field = 'email'
 
+    person: Person
+
     def natural_key(self) -> tuple[str]:
         # If we don't override this, it will use `get_username()`, which may not always return the email field. The
         # manager's `get_by_natural_key()`, on the other hand, will expect that the natural key is the email field since
@@ -69,6 +74,28 @@ class User(AbstractUser):
     def get_adminable_instances(self) -> InstanceConfigQuerySet:
         from nodes.models import InstanceConfig
         return InstanceConfig.permission_policy().adminable_instances(self)
+
+    def user_is_admin_for_instance(self, instance_config: InstanceConfig) -> bool:
+        from nodes.models import InstanceConfig
+        return InstanceConfig.permission_policy().user_has_permission_for_instance(self, 'change', instance_config)
+
+    def get_corresponding_person(self) -> Person | None:
+        # Copied from KW. We don't have a cache here yet.
+        # cache = self.get_cache()
+        # if hasattr(cache, '_corresponding_person'):
+        #     return cache._corresponding_person
+
+        from people.models import Person
+
+        try:
+            person = self.person
+        except Person.DoesNotExist:
+            person = None
+
+        if person is None:
+            person = Person.objects.filter(email__iexact=self.email).first()
+        # cache._corresponding_person = person
+        return person
 
     @cached_property
     def cgroups(self) -> QS[Group]:
@@ -94,3 +121,28 @@ class User(AbstractUser):
         if not self.is_staff:
             return False
         return True
+
+    def deactivate(self, admin_user):
+        self.is_active = False
+        self.deactivated_by = admin_user
+        self.deactivated_at = timezone.now()
+        self.save()
+
+    def can_create_organization(self) -> bool:
+        return self.is_superuser
+
+    def can_modify_organization(self, organization: Organization) -> bool:
+        return self.is_superuser
+
+    def can_delete_organization(self, organization: Organization) -> bool:
+        return self.is_superuser
+
+    def can_edit_or_delete_person_within_instance(
+            self, person: Person, instance_config: InstanceConfig) -> bool:
+        return self.is_superuser
+
+    def can_create_person(self) -> bool:
+        return self.is_superuser
+
+    def can_modify_person(self, person: Person) -> bool:
+        return self.is_superuser

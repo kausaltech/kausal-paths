@@ -99,3 +99,12 @@ def convert_unit_field(field, registry=None):
     )
 
 type SBInfo = sb.Info['PathsGraphQLContext']
+
+
+class AdminButton(graphene.ObjectType):
+    url = graphene.String(required=True)
+    label = graphene.String(required=True)
+    classname = graphene.String(required=True)
+    title = graphene.String(required=False)
+    target = graphene.String(required=False)
+    icon = graphene.String(required=False)

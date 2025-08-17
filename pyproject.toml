@@ -14,6 +14,7 @@ dependencies = [
   "channels-redis",
   "colored",
   "colormath",
+  "dal-admin-filters>=1.1.0",
   "diffsync",
   "django",
   "django-anymail[mailgun,mailjet,sendgrid]",
@@ -21,6 +22,7 @@ dependencies = [
   "django-cors-headers",
   "django-environ",
   "django-extensions",
+  "django-image-cropping>=1.7",
   "django-modeltrans",
   "django-oauth-toolkit",
   "django-pydantic-field",
@@ -30,6 +32,7 @@ dependencies = [
   "drf-nested-routers",
   "drf-spectacular",
   "dvc-pandas",
+  "easy-thumbnails>=2.10",
   "factory-boy",
   "gql[requests]",
   "graphene-django",
@@ -71,6 +74,7 @@ dependencies = [
   "redis",
   "rich",
   "ruamel-yaml",
+  "rustface>=0.1.0",
   "s3cmd",
   "sentry-sdk[django,opentelemetry]",
   "social-auth-app-django",
@@ -85,7 +89,10 @@ dependencies = [
   "wagtail-generic-chooser",
   "wagtail-grapple",
   "wagtail-localize",
+  "wagtail-modeladmin>=2.2.0",
+  "wagtailgeowidget>=8.2.1",
   "watchfiles",
+  "willow>=1.9.0",
   "xxhash",
 ]
 
@@ -143,6 +150,8 @@ module = [
   "appdirs.*",
   "channels.*",
   "colored.*",
+  "dal.*",
+  "dal_select2.*",
   "diffsync.*",
   "dvc_pandas.*",
   "dvc.*",
@@ -168,6 +177,7 @@ module = [
   "polars.polars.*",
   "psutil.*",
   "rest_framework_nested.*",
+  "rustface.*",
   "social_core.*",
   "social_django.*",
   "storages.*",
@@ -177,6 +187,8 @@ module = [
   "wagtail_color_panel.*",
   "wagtail_localize.*",
   "wagtail.*",
+  "willow.*",
+  "wagtailgeowidget.*",
 ]
 ignore_missing_imports = true
 

@@ -612,11 +612,21 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         target_year: int | None = None, user: UserOrAnon | None = None,
     ) -> FrameworkConfig:
         from nodes.models import InstanceConfig
+        from orgs.models import Organization
+
+        instance_name = '%s: %s' % (framework.name, org_name)
+
+        # Create new organization for instance
+        org = Organization.objects.get(name="NetZeroCities")
 
         ic = InstanceConfig.objects.create(
-            name='%s: %s' % (framework.name, org_name), identifier=instance_identifier,
-            primary_language="en", other_languages=[],
+            name=instance_name,
+            identifier=instance_identifier,
+            primary_language="en",
+            other_languages=[],
+            organization=org,
         )
+
         pp = cls.permission_policy()
         if pp.user_is_authenticated(user):
             extra = cls.permission_policy().get_create_defaults(user, framework)

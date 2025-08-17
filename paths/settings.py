@@ -62,6 +62,7 @@ env = environ.FileAwareEnv(
     NZCPORTAL_CLIENT_SECRET=(str, ''),
     GITHUB_APP_ID=(str, ''),
     GITHUB_APP_PRIVATE_KEY=(str, ''),
+    GOOGLE_MAPS_V3_APIKEY=(str, ''),
     MOUNTED_SECRET_PATHS=(list, []),
     REQUEST_LOG_MAX_DAYS=(int, 90),
     REQUEST_LOG_METHODS=(list, ['POST', 'PUT', 'PATCH', 'DELETE']),
@@ -120,6 +121,8 @@ LOGOUT_REDIRECT_URL = '/admin/'
 
 INSTALLED_APPS = [
     'kausal_common',
+    'dal',
+    'dal_select2',
     'wagtail.contrib.forms',
     'wagtail.contrib.redirects',
     'wagtail.embeds',
@@ -143,7 +146,8 @@ INSTALLED_APPS = [
     'modelcluster',
     'grapple',
     'graphene_django',
-
+    'people.apps.PeopleConfig',
+    'orgs.apps.OrganizationsConfig',
     'social_django',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -162,6 +166,7 @@ INSTALLED_APPS = [
     'kausal_common.datasets',
     'frameworks',
     'request_log',
+    # 'easy_thumbnails',
 ]
 
 if DEBUG:
@@ -613,3 +618,22 @@ if True:
     init_sentry(SENTRY_DSN, DEPLOYMENT_TYPE)
 
 HOSTNAME_INSTANCE_DOMAINS = env('HOSTNAME_INSTANCE_DOMAINS')
+
+GOOGLE_MAPS_V3_APIKEY = env('GOOGLE_MAPS_V3_APIKEY')
+
+#
+# REST Framework
+#
+REST_FRAMEWORK = {
+    'PAGE_SIZE': 200,
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
+    'DEFAULT_PERMISSION_CLASSES': (
+        f'{PROJECT_NAME}.permissions.ReadOnly',
+    ),
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ),
+    'DEFAULT_SCHEMA_CLASS': f'{PROJECT_NAME}.openapi.AutoSchema',
+}
