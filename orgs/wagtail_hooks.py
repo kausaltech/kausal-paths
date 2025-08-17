@@ -64,11 +64,10 @@ class OrganizationPermissionPolicy(ModelPermissionPolicy):
 
     def user_has_permission(self, user: User | AnonymousUser, action: str) -> bool:
         assert isinstance(user, User)
-
         if user.is_superuser:
             return True
-        if action == 'view':
-            return True
+        # if action == 'view':
+        #     return True
         # TODO: The following is the old logic, which we may reinstate when we
         # thought about how to handle permissions best.
         # person = user.get_corresponding_person()
@@ -83,12 +82,9 @@ class OrganizationPermissionPolicy(ModelPermissionPolicy):
 
     def user_has_permission_for_instance(self, user: User | AnonymousUser, action: str, instance: Organization) -> bool:
         assert isinstance(user, User)
-
         if user.is_superuser:
             return True
 
-        if action == 'view':
-            return True
         # if action in ('change', 'delete'):
         #     return user.is_admin_for_instance(instance.instances)
         # if action == 'add':
@@ -98,19 +94,21 @@ class OrganizationPermissionPolicy(ModelPermissionPolicy):
         return super().user_has_permission_for_instance(user, action, instance)
 
     def anon_has_perm(self, action: ObjectSpecificAction, obj: Any) -> bool:
-        raise NotImplementedError
+        return False
 
     def construct_perm_q(self, user: User, action: ObjectSpecificAction) -> Q | None:
-        raise NotImplementedError
+        if user.is_superuser:
+            return Q()
+        return Q(pk__in=[])
 
     def construct_perm_q_anon(self, action: ObjectSpecificAction) -> Q | None:
-        raise NotImplementedError
+        return Q(pk__in=[])
 
     def user_can_create(self, user: User, context: Any) -> bool:
-        raise NotImplementedError
+        return user.is_superuser
 
     def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: Any) -> bool:
-        raise NotImplementedError
+        return user.is_superuser
 
 
 class OrganizationForm(NodeForm):
