@@ -59,6 +59,7 @@ from paths.utils import (
 )
 
 from common.i18n import get_modeltrans_attrs_from_str
+from orgs.models import Organization
 from pages.blocks import CardListBlock
 
 if TYPE_CHECKING:
@@ -238,6 +239,10 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     lead_paragraph_i18n: str | None
     site_url = models.URLField(verbose_name=_('Site URL'), null=True)
     site = models.OneToOneField(Site, null=True, on_delete=models.PROTECT, editable=False, related_name='instance')
+    organization: FK[Organization] = models.ForeignKey(
+        Organization, related_name='instances', on_delete=models.PROTECT, verbose_name=_('organization'),
+        help_text=_('The main organization for the instance'),
+    )
 
     is_protected = models.BooleanField(default=False)
     protection_password = models.CharField(max_length=50, null=True, blank=True)
@@ -286,6 +291,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     datasets: RevMany[DatasetModel]
     framework_config: RevOne[InstanceConfig, FrameworkConfig]
     framework_config_id: int | None
+    organization_id: int
     site_content: RevOne[InstanceConfig, InstanceSiteContent]
 
     search_fields = [
@@ -342,7 +348,9 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     @classmethod
     def create_for_instance(cls, instance: Instance, **kwargs) -> InstanceConfig:
         assert not cls.objects.filter(identifier=instance.id).exists()
-        return cls.objects.create(identifier=instance.id, site_url=instance.site_url, **kwargs)
+
+        org = Organization.objects.get(name="Kausal") # TODO: Define the organization better when we have a better idea?
+        return cls.objects.create(identifier=instance.id, site_url=instance.site_url, organization=org, **kwargs)
 
     def has_framework_config(self) -> bool:
         try:
