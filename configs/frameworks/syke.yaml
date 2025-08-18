@@ -657,7 +657,7 @@ nodes:
   name: Laidunnuksen päästöt
   output_nodes: [livestock_emissions]
   params:
-    sector: Maatalous|Maatalous|Maatalous|Kotieläimet|Laidunnus+HINKU
+    sector: Maatalous|Maatalous|Maatalous|Peltoviljely|Laidunnus+HINKU
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: manure_treatment_emissions
@@ -758,8 +758,7 @@ nodes:
   name: Muiden F-kaasujen lähteiden päästöt
   output_nodes: [f_gases_emissions]
   params:
-    sector: Teollisuusprosessit|F-kaasut|F-kaasut|Muut F-kaasujen
-      lähteet|Muut F-kaasujen lähteet+HINKU
+    sector: Teollisuusprosessit|F-kaasut|F-kaasut|Muut F-kaasujen lähteet|Muut F-kaasujen lähteet+HINKU
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 
@@ -768,6 +767,6 @@ nodes:
   output_nodes: [net_emissions]
   color: '#7570b3'
   params:
-    sector: Kompensaatiot|Kompensaatiot|Tuulivoima|Tuulivoima|Tuulivoima+HINKU
+    sector: Kompensaatiot|Kompensaatiot|Päästöhyvitykset|Tuulivoima|Tuulivoima+HINKU
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
