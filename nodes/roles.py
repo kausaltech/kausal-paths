@@ -12,6 +12,7 @@ from kausal_common.models.roles import (
     register_role,
 )
 from paths.const import (
+    INSTANCE_SUPER_ADMIN_ROLE,
     INSTANCE_ADMIN_ROLE,
     INSTANCE_REVIEWER_ROLE,
     INSTANCE_VIEWER_ROLE,
@@ -37,10 +38,41 @@ class InstanceGroupMembershipRole(InstanceFieldGroupRole['InstanceConfig']):
         return obj.site
 
 
+class InstanceSuperAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceConfig']):
+    id = INSTANCE_SUPER_ADMIN_ROLE
+    name = _("Super Admin")
+    group_name = "Super Admins"
+    instance_group_field_name = 'super_admin_group'
+
+    model_perms = AdminRole.model_perms + [
+        ('nodes', ('instanceconfig', 'nodeconfig'), ('view', 'change')),
+        ('datasets', ('datasetschema','dataset', 'datapoint', 'datasource', 'datasetsourcereference'), ALL_MODEL_PERMS),
+        ('frameworks', (
+            'framework',
+        ), ('view',)),
+        ('frameworks', (
+            'frameworkconfig', 'measure', 'measuredatapoint',
+        ), ALL_MODEL_PERMS),
+        ('people', (
+            'person',
+        ), ALL_MODEL_PERMS),
+        ('orgs', (
+            'organization',
+        ), ALL_MODEL_PERMS),
+    ]
+
+    def get_existing_instance_group(self, obj: InstanceConfig) -> Group | None:
+        return obj.super_admin_group
+
+    def update_instance_group(self, obj: InstanceConfig, group: Group | None):
+        obj.super_admin_group = group
+        obj.save(update_fields=[self.instance_group_field_name])
+
+
 class InstanceAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceConfig']):
     id = INSTANCE_ADMIN_ROLE
-    name = _("General admin")
-    group_name = "General admins"
+    name = _("Admin")
+    group_name = "Admins"
     instance_group_field_name = 'admin_group'
 
     model_perms = AdminRole.model_perms + [
@@ -65,7 +97,7 @@ class InstanceAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceConfig']
 class InstanceViewerRole(InstanceGroupMembershipRole, InstanceSpecificRole['InstanceConfig']):
     id = INSTANCE_VIEWER_ROLE
     name = _('Viewer')
-    group_name = "Viewer"
+    group_name = "Viewers"
     instance_group_field_name = 'viewer_group'
 
     model_perms = [
@@ -106,10 +138,12 @@ class InstanceReviewerRole(InstanceGroupMembershipRole, InstanceSpecificRole['In
         obj.save(update_fields=[self.instance_group_field_name])
 
 
+instance_super_admin_role = InstanceSuperAdminRole()
 instance_admin_role = InstanceAdminRole()
 instance_viewer_role = InstanceViewerRole()
 instance_reviewer_role = InstanceReviewerRole()
 
+register_role(instance_super_admin_role)
 register_role(instance_admin_role)
 register_role(instance_viewer_role)
 register_role(instance_reviewer_role)
