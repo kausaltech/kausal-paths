@@ -4,7 +4,6 @@ import glob
 import sys
 from pathlib import Path
 
-import pandas as pd
 import polars as pl
 from use_ids import load_yaml_mappings, replace_labels_with_ids  # type: ignore
 
@@ -22,11 +21,26 @@ from nodes.constants import (
     YEAR_COLUMN,
 )
 
-SLICE_NAME_MAPPING = {
+ENDROWS = ( # Rows that are after the data block
+    'Gesamt',
+    'Gesamt mit Annahmen (2023)',
+    'Einheit:',
+    'Witterungskorrektur:',
+    'Bilanzierungsmethode:',
+    'Gemeinde:',
+    'Feldtyp'
+)
+
+DATASET_NAME_MAPPING = {
     'datenzeitreihen': "Emissionsfaktoren für die Energieerzeugung",
     'datenzeitreihen-2': "Emissionsfaktoren für die Industrie",
     'datenzeitreihen-3': "Emissionsfaktoren für den Verkehr",
     'datenzeitreihen-4': "Aktivitäten, Verkehr und Gebäude",
+    'energietraeger_Verkehr': "Alle historischen Energie",
+    'energietraeger_HH': "Alle historischen Energie",
+    'energietraeger_KE': "Alle historischen Energie",
+    'energietraeger_IND': "Alle historischen Energie",
+    'energietraeger_GHD': "Alle historischen Energie",
 }
 
 UNIT_MAPPING = {
@@ -266,7 +280,11 @@ def extract_metadata_from_file(df: pl.DataFrame) -> dict[str, str | None]:
         for i in range(len(df)):
             first_col_value = str(df[first_col_name][i]).strip()
             if first_col_value.startswith(title) and second_col_name is not None:
-                meta = str(df[second_col_name][i]).strip()
+                second_col_value = str(df[second_col_name][i]).strip()
+                if second_col_value == 'None':
+                    meta = first_col_value[len(title):].strip()
+                else:
+                    meta = second_col_value
                 return meta
         return None
 
@@ -293,7 +311,7 @@ def extract_metadata_from_file(df: pl.DataFrame) -> dict[str, str | None]:
         'sector': sector,
         }
 
-def transform_slice_name(filename_stem) -> str: # TODO This is needed in 1-dimensional tables with several years
+def transform_dataset_name(filename_stem) -> str: # TODO This is needed in 1-dimensional tables with several years
     if filename_stem.startswith('energietraeger-'):
         suffix = filename_stem[len('energietraeger-'):]
         return f"Energieverbrauch nach Energieträgern, {suffix}"
@@ -305,7 +323,7 @@ def is_energietraeger_file(filename) -> bool:
 def read_csv_fixed_width(input_file, separator) -> pl.DataFrame:
     """Make the line lengths match data."""
 
-    with open(input_file, 'r', encoding='utf-8') as f:  # noqa: PTH123, UP015
+    with open(input_file, encoding='utf-8') as f:  # noqa: PTH123
         lines = f.readlines()
 
     data_start = None
@@ -318,41 +336,101 @@ def read_csv_fixed_width(input_file, separator) -> pl.DataFrame:
 
     if data_start is None:
         raise KeyError(f"Cannot figure out data rows in {input_file.stem}")
-    expected_cols = len(lines[data_start].split(separator))
 
-    def _fix(line) -> list:
-        if len(line) < expected_cols:
-            return line + [''] * (expected_cols - len(line))
-        return line[:expected_cols]
+    # Get expected column count from header
+    header_line = lines[data_start].strip()
+    expected_cols = len(header_line.split(separator))
 
-    dfpd = pd.read_csv(input_file, sep=separator, encoding='utf-8',
-                    quotechar='"', on_bad_lines=_fix, engine='python', decimal=',',
-                    skiprows=1)
+    # Process all lines (header + data) to fix width
+    processed_lines = []
+    for line in lines[data_start:]:
+        if not line.strip():  # Skip empty lines
+            continue
 
-    df = pl.from_pandas(dfpd)
+        cols = line.split(separator)
+        # Fix line length
+        if len(cols) < expected_cols:
+            cols = cols + [''] * (expected_cols - len(cols))
+        else:
+            cols = cols[:expected_cols]
+
+        processed_lines.append(separator.join(cols))
+
+    # Write to temporary file or use StringIO with polars
+    from io import StringIO
+    csv_content = '\n'.join(processed_lines)
+
+    df = pl.read_csv(
+        StringIO(csv_content),
+        separator=separator,
+        encoding='utf-8',
+        quote_char='"',
+        decimal_comma=True
+    )
+
     df = df.with_columns(pl.lit(file_type).alias('File type'))
     return df
 
 def read_xlsx_fixed_width(input_file) -> pl.DataFrame:
     """Make the line lengths match data."""
-    df = pl.from_pandas(pd.read_excel(input_file, header=0))
 
+    from openpyxl import load_workbook
+
+    # Read with openpyxl to preserve order
+    wb = load_workbook(input_file, data_only=True)
+    ws = wb.active
+
+    # Convert to list of lists, preserving order
+    data = []
+    assert ws is not None
+    for row in ws.iter_rows(values_only=True):
+        data.append(list(row))  # noqa: PERF401
+
+    # Create polars DataFrame
+    if data:
+        # Use first row as temporary column names
+        max_cols = max(len(row) for row in data)
+        temp_cols = [f"col_{i}" for i in range(max_cols)]
+
+        # Pad shorter rows
+        padded_data = [list(row) + [None] * (max_cols - len(row)) for row in data]
+
+        df = pl.DataFrame(padded_data, schema=temp_cols, orient="row")
+    else:
+        raise ValueError("No data found in Excel file")
+
+    # Rest of your logic remains the same
     data_start = None
     first_col = df.columns[0]
     for i in range(len(df)):
         rowname = df[first_col][i]
-        if rowname and rowname.startswith(('Eingabefeld', 'Energieträger')):
+        if rowname and str(rowname).startswith(('Eingabefeld', 'Energieträger')):
             data_start = i
-            file_type = rowname
+            file_type = str(rowname)
             break
 
     if data_start is None:
         raise KeyError(f"Cannot figure out data rows in {input_file.stem}")
 
-    heads = list(zip(df.columns, df.row(data_start), strict=True))
-    oldhead = {old: str(new) for old, new in heads if new is not None}
-    newhead = [str(new) for old, new in heads if new is not None]
-    df = df.rename(oldhead).select(newhead).slice(data_start)
+    # Get the header row values
+    header_row = df.row(data_start)
+
+    # Create mapping and keep_columns
+    rename_mapping = {}
+    keep_columns = []
+
+    for i, (old_col, new_name) in enumerate(zip(df.columns, header_row, strict=False)):  # noqa: B007
+        if new_name is not None and str(new_name).strip():
+            new_name_str = str(new_name).strip()
+            rename_mapping[old_col] = new_name_str
+            keep_columns.append(new_name_str)
+
+    df = (df
+          .rename(rename_mapping)
+          .select(keep_columns)
+          .slice(data_start + 1)
+         )
+
     df = df.with_columns(pl.lit(file_type).alias('File type'))
     return df
 
@@ -369,7 +447,7 @@ def get_single_ksp_file(input_file, separator) -> pl.DataFrame:  # noqa: C901
 
     for i in range(len(df)):
         rowname = str(df[first_col][i]).strip()
-        if rowname.startswith(('Einheit:', 'Witterungskorrektur:', 'Bilanzierungsmethode:', 'Gemeinde:', 'Feldtyp')):
+        if rowname.startswith(ENDROWS):
             data_end = i
             break
     if data_end is None:
@@ -397,6 +475,9 @@ def process_explanatory_column(df: pl.DataFrame) -> pl.DataFrame:
     """Extract units and BISKO."""
     pattern = r'^(.+?)(?:,\s*BISKO)?\s*\(([^)]+)\)\s*\[([^\]]+)\]$'
     col = 'Eingabefeld'
+
+    if col not in df.columns:
+        return df
 
     df = df.with_columns([
         pl.col(col).str.extract(pattern, group_index=1).str.strip_chars().alias('Description'),
@@ -442,6 +523,9 @@ def find_category_matches(description: str | None, category_mapping: dict):
 def process_hidden_categories(df: pl.DataFrame, category_mapping: dict) -> pl.DataFrame:
     """Add dimension columns based on keyword matching."""
 
+    if 'Description' not in df.columns:
+        return df
+
     all_dimensions = set(category_mapping.keys())
     print(all_dimensions)
     # Apply matching function
@@ -460,16 +544,16 @@ def process_hidden_categories(df: pl.DataFrame, category_mapping: dict) -> pl.Da
 
     return df.drop("category_matches")
 
-def create_slice_column(df: pl.DataFrame, input_file, slice_column) -> pl.DataFrame:
-    """Transform filename to slice name according to the rules."""
-    slice_name = SLICE_NAME_MAPPING.get(input_file.stem)
-    if slice_name:
-        df = df.with_columns(pl.lit(slice_name).alias('Slice'))
-    elif slice_column in df.columns:
-        df = df.with_columns(pl.col(slice_column).alias('Slice'))
+def create_dataset_column(df: pl.DataFrame, input_file, dataset_column) -> pl.DataFrame:
+    """Transform filename to dataset name according to the rules."""
+    dataset_name = DATASET_NAME_MAPPING.get(input_file.stem)
+    if dataset_name:
+        df = df.with_columns(pl.lit(dataset_name).alias('Dataset'))
+    elif dataset_column in df.columns:
+        df = df.with_columns(pl.col(dataset_column).alias('Dataset'))
     else:
-        raise ValueError(f"Slice column {slice_column} not found. Has {df.columns}")
-    assert isinstance(slice_name, str)
+        raise ValueError(f"Dataset column {dataset_column} not found. Has {df.columns}")
+    # assert isinstance(dataset_name, str)
     return df
 
 def process_single_ksp_file(input_file, separator) -> pl.DataFrame:
@@ -514,7 +598,7 @@ def process_single_ksp_file(input_file, separator) -> pl.DataFrame:
     print('Success.')
     return df
 
-def convert_multiple_energietraeger_files(input_patterns, separator, slice_column, output_file) -> pl.DataFrame:
+def convert_multiple_energietraeger_files(input_patterns, separator, dataset_column, output_file) -> pl.DataFrame:
     input_files = []
     for pattern in input_patterns:
         files = glob.glob(pattern)  # noqa: PTH207
@@ -528,7 +612,7 @@ def convert_multiple_energietraeger_files(input_patterns, separator, slice_colum
 
     for input_file in input_files:
         df = process_single_ksp_file(input_file, separator)
-        df = create_slice_column(df, input_file, slice_column)
+        df = create_dataset_column(df, input_file, dataset_column)
         if len(df) > 0:
             all_dataframes.append(df)
         else:
@@ -543,7 +627,7 @@ def convert_multiple_energietraeger_files(input_patterns, separator, slice_colum
     if 'sector' in df.columns:
         df = df.filter(pl.col('sector') != 'total')
 
-    df = df.with_columns(pl.col('Quantity').alias('Metric Group'))
+    df = df.with_columns(pl.col('Quantity').alias('Metric'))
 
     assert isinstance(df, pl.DataFrame)
     missing = df.filter(pl.col('Quantity').is_null())['Unit'].unique().to_list()
@@ -557,15 +641,15 @@ def convert_multiple_energietraeger_files(input_patterns, separator, slice_colum
 def main():
     if len(sys.argv) < 3:
         print("Usage: python convert_energietraeger_to_uploadable_format.py <input_pattern1> [input_pattern2] ..."
-              " <slice_column> <output_file>")
+              " <dataset_column> <output_file>")
         sys.exit(1)
 
     input_patterns = sys.argv[1:-3]
     separator = sys.argv[-3]
-    slice_column = sys.argv[-2]
+    dataset_column = sys.argv[-2]
     output_file = sys.argv[-1]
 
-    df = convert_multiple_energietraeger_files(input_patterns, separator, slice_column, output_file)
+    df = convert_multiple_energietraeger_files(input_patterns, separator, dataset_column, output_file)
 
     print(df)
     print(df.columns)
