@@ -145,11 +145,13 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any
         from frameworks.roles import framework_admin_role, framework_viewer_role
 
         from .roles import (
+            instance_super_admin_role,
             instance_admin_role,
             instance_reviewer_role,
             instance_viewer_role,
         )
 
+        self.super_admin_role = instance_super_admin_role
         self.admin_role = instance_admin_role
         self.viewer_role = instance_viewer_role
         self.reviewer_role = instance_reviewer_role
@@ -177,17 +179,18 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any
         return user.has_instance_role(self.fw_viewer_role, obj.framework_config.framework)
 
     def construct_perm_q(self, user: User, action: ObjectSpecificAction, include_implicit_public: bool = True) -> models.Q | None:
+        is_super_admin = self.super_admin_role.role_q(user)
         is_admin = self.admin_role.role_q(user)
         is_viewer = self.viewer_role.role_q(user)
         is_reviewer = self.reviewer_role.role_q(user)
         is_fw_admin = self.fw_admin_role.role_q(user, prefix='framework_config__framework')
         is_fw_viewer = self.fw_viewer_role.role_q(user, prefix='framework_config__framework')
         if action == 'view':
-            q = is_viewer | is_reviewer | is_admin | is_fw_admin | is_fw_viewer
+            q = is_viewer | is_reviewer | is_super_admin | is_admin | is_fw_admin | is_fw_viewer
             if include_implicit_public:
                 q |= Q(framework_config__isnull=True)
             return q
-        return is_admin | is_fw_admin
+        return is_super_admin | is_admin | is_fw_admin
 
     def construct_perm_q_anon(self, action: BaseObjectAction) -> Q | None:
         if action == 'view':
@@ -306,6 +309,11 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         null=True,
     )
     admin_group_id: int | None
+    super_admin_group: FK[Group | None] = models.ForeignKey(
+        Group, on_delete=models.PROTECT, editable=False, related_name='super_admin_instances',
+        null=True,
+    )
+    super_admin_group_id: int | None
 
     """
     model_cache = JSONField[InstanceModelCache | None, InstanceModelCache | None](
@@ -739,7 +747,11 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         pp = self.permission_policy()
         pp.admin_role.create_or_update_instance_group(self)
         pp.viewer_role.create_or_update_instance_group(self)
-        pp.reviewer_role.create_or_update_instance_group(self)
+
+        # For now, try not to proliferate the group count for NZC instances
+        if not self.has_framework_config() or self.framework_config.framework.identifier != 'nzc':
+            pp.reviewer_role.create_or_update_instance_group(self)
+            pp.super_admin_role.create_or_update_instance_group(self)
 
         root_page = self._create_default_pages()
         if self.site is None and self.site_url is not None:
