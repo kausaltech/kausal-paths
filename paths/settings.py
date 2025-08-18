@@ -140,6 +140,7 @@ INSTALLED_APPS = [
     'wagtail_localize',
     'wagtail_localize.locales',  # replaces `wagtail.locales`
     'wagtailfontawesomesvg',
+    'wagtailgeowidget',
     'wagtail_color_panel',
     'generic_chooser',
     'taggit',
