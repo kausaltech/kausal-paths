@@ -1525,6 +1525,7 @@ actions:
   type: simple.GenericAction
   quantity: fraction
   unit: '%'
+  group: transportation
   input_datasets:
   - id: espoo/priorisoidut_toimet
     tags: [baseline]
@@ -1552,6 +1553,7 @@ actions:
   type: simple.GenericAction
   quantity: fraction
   unit: '%'
+  group: transportation
   input_datasets:
   - id: espoo/priorisoidut_toimet
     tags: [baseline]
