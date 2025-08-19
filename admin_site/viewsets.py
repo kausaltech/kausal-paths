@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, cast, override
 from typing_extensions import TypeVar
 
 from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
@@ -13,7 +13,6 @@ from wagtail.admin.ui.tables import BulkActionsCheckboxColumn
 from wagtail.snippets.views.chooser import ChooseResultsView, ChooseView, SnippetChooserViewSet
 from wagtail.snippets.views.snippets import (
     CopyView,
-    CreateView,
     DeleteView,
     EditView,
     HistoryView,
@@ -24,6 +23,7 @@ from wagtail.snippets.views.snippets import (
 )
 
 from kausal_common.admin_site.mixins import HideSnippetsFromBreadcrumbsMixin
+from kausal_common.admin_site.permissioned_views import PermissionedCreateView
 from kausal_common.models.permission_policy import ModelPermissionPolicy
 from kausal_common.models.permissions import PermissionedModel
 
@@ -106,12 +106,16 @@ class PathsDeleteView(DeleteView[_ModelT, _FormT], AdminInstanceMixin):
         )
 
 
-class PathsCreateView(HideSnippetsFromBreadcrumbsMixin, CreateView[_ModelT, _FormT], AdminInstanceMixin):
+class PathsCreateView(PermissionedCreateView, AdminInstanceMixin):
     def get_form_kwargs(self):
         return {
             **super().get_form_kwargs(),
             'admin_instance': self.admin_instance,
         }
+
+    @override
+    def get_create_context(self) -> InstanceConfig:
+        return self.admin_instance
 
 
 class PathsIndexView(HideSnippetsFromBreadcrumbsMixin, IndexView[_ModelT, _QS]):
