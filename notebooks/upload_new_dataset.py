@@ -501,12 +501,12 @@ def main():
                        required=True,
                        help='Input CSV file path')
 
-    parser.add_argument('--output-dvc', '-d',
+    parser.add_argument('--output-dvc', '-o',
                        required=True,
                        help='Output DVC file path')
 
     # Arguments with defaults
-    parser.add_argument('--output-csv', '-o',
+    parser.add_argument('--output-csv', '-c',
                        required=False,
                        default='NONE',
                        help='Output CSV file path')
@@ -516,7 +516,7 @@ def main():
                        choices=[',', ';', '\t', '|'],
                        help='CSV separator (default: comma)')
 
-    parser.add_argument('--encoding',
+    parser.add_argument('--encoding', '-e',
                         default='utf-8',
                         choices=['utf-8', 'cp1252', 'latin-1'],
                         help='CSV file encoding (default: utf-8)')
@@ -525,7 +525,7 @@ def main():
                        default='en',
                        help='Language code (default: en)')
 
-    parser.add_argument('--dataset',
+    parser.add_argument('--dataset', '-d',
                        default=None,
                        help='Process only specific dataset (optional)')
 

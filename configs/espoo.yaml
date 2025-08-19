@@ -4,7 +4,7 @@ supported_languages: [sv, en]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 6640eababa3fc95ca737d55944953853e893efaf
+  commit: 850a8d14d928d496260ebfa0ab50ac2be5106b2b
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -1027,7 +1027,7 @@ nodes:
   input_dimensions: [energy_carrier, vehicle_type]
   output_dimensions: [energy_carrier, vehicle_type]
   input_datasets:
-  - id: espoo/autokanta
+  - id: espoo/autojen_lukumaara
     forecast_from: 2025
     column: liikennekaytossa_olevien_autojen_lukumaara
     tags: [baseline]
@@ -1063,7 +1063,7 @@ nodes:
   input_dimensions: [vehicle_type]
   output_dimensions: [vehicle_type]
   input_datasets:
-  - id: espoo/autokanta
+  - id: espoo/ajoneuvosuorite
     forecast_from: 2025
     column: ajoneuvosuorite
     tags: [baseline]
@@ -1090,7 +1090,7 @@ nodes:
   input_dimensions: [energy_carrier, vehicle_type]
   output_dimensions: [energy_carrier, vehicle_type]
   input_datasets:
-  - id: espoo/autokanta
+  - id: espoo/ajoneuvojen_paastokertoimet
     forecast_from: 2025
     column: ajoneuvojen_paastokertoimet
     tags: [baseline]
