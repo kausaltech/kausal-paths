@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import sys
 import warnings
 from importlib.util import find_spec
@@ -22,15 +21,6 @@ from kausal_common.deployment.http import get_allowed_cors_headers
 from kausal_common.sentry.init import init_sentry
 
 from .const import INSTANCE_HOSTNAME_HEADER, INSTANCE_IDENTIFIER_HEADER
-
-# GDAL Configuration
-GDAL_LIBRARY_PATH = '/Applications/Postgres.app/Contents/Versions/14/lib/libgdal.dylib'
-GEOS_LIBRARY_PATH = '/Applications/Postgres.app/Contents/Versions/14/lib/libgeos_c.dylib'
-
-# Also set these in os.environ to make sure they're available
-os.environ['GDAL_LIBRARY_PATH'] = GDAL_LIBRARY_PATH
-os.environ['GEOS_LIBRARY_PATH'] = GEOS_LIBRARY_PATH
-os.environ['PROJ_LIB'] = '/Applications/Postgres.app/Contents/Versions/14/share/proj'
 
 PROJECT_NAME = 'paths'
 
