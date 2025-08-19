@@ -1539,33 +1539,33 @@ actions:
     tags: [arithmetic_inverse, complement]
     to_dimensions: []
 
-- id: prioritised_actions_on_emission_factor
-  name: Priorisoidut päästökertoimeen liittyvät toimet
-  description: 'Priorisoituja toimenpiteitä ja niiden arvioituja päästövaikutuksia (yhteensä -4,5 %):<ul>
-    <li>Kehitämme sähköautojen latausinfraa kaupungissa * , *** : -1 %</li>
-    <li>Kehitämme sähköautojen latausmahdollisuuksia Espoon Asuntojen kiinteistöissä *** : -0,5 %</li>
-    <li>Jakeluliikenteen ja kuorma-autojen sähköistymisen nopean kasvun edistäminen * , **** : -1,5 %</li>
-    <li>Kehitämme uusiutuvien polttoaineiden jakeluinfraa * , *** : -1 %</li>
-    <li>Tehostamme vähäpäästöistä kaupunkilogistiikkaa **** : -0,5 %</li></ul>
-    * Osittain päällekkäinen toimenpide fossiilittoman liikenteen tiekartan toimenpidekokonaisuuksien kanssa</br>
-    *** Arvioitu henkilöautojen käyttövoimamuutokseen tähtäävien toimenpiteiden yhteisvaikutuksena sähköautojen osuuden lisääntyvän 5 %-yks. jolloin kokonaispäästövaikutus yht. n. -3 %</br>
-    **** Arvioitu tavaraliikenteen käyttövoimamuutokseen tähtäävien toimenpiteiden seurauksena sähköisten pakettiautojen ja raskaan liikenteen ajoneuvojen osuuden kasvavan yht. 5 %-yks., jolloin kokonaispäästövaikutus yht. n. -2 %'
-  type: simple.GenericAction
-  quantity: fraction
-  unit: '%'
-  group: transportation
-  input_datasets:
-  - id: espoo/priorisoidut_toimet
-    tags: [baseline]
-    forecast_from: 2024
-    column: paastokerroin
-  output_nodes:
-  - id: road_traffic_emission_factors
-    tags: [arithmetic_inverse, complement]
-    to_dimensions: []
-  - id: passenger_car_emission_factors
-    tags: [arithmetic_inverse, complement]
-    to_dimensions: []
+# - id: prioritised_actions_on_emission_factor
+#   name: Priorisoidut päästökertoimeen liittyvät toimet
+#   description: 'Priorisoituja toimenpiteitä ja niiden arvioituja päästövaikutuksia (yhteensä -4,5 %):<ul>
+#     <li>Kehitämme sähköautojen latausinfraa kaupungissa * , *** : -1 %</li>
+#     <li>Kehitämme sähköautojen latausmahdollisuuksia Espoon Asuntojen kiinteistöissä *** : -0,5 %</li>
+#     <li>Jakeluliikenteen ja kuorma-autojen sähköistymisen nopean kasvun edistäminen * , **** : -1,5 %</li>
+#     <li>Kehitämme uusiutuvien polttoaineiden jakeluinfraa * , *** : -1 %</li>
+#     <li>Tehostamme vähäpäästöistä kaupunkilogistiikkaa **** : -0,5 %</li></ul>
+#     * Osittain päällekkäinen toimenpide fossiilittoman liikenteen tiekartan toimenpidekokonaisuuksien kanssa</br>
+#     *** Arvioitu henkilöautojen käyttövoimamuutokseen tähtäävien toimenpiteiden yhteisvaikutuksena sähköautojen osuuden lisääntyvän 5 %-yks. jolloin kokonaispäästövaikutus yht. n. -3 %</br>
+#     **** Arvioitu tavaraliikenteen käyttövoimamuutokseen tähtäävien toimenpiteiden seurauksena sähköisten pakettiautojen ja raskaan liikenteen ajoneuvojen osuuden kasvavan yht. 5 %-yks., jolloin kokonaispäästövaikutus yht. n. -2 %'
+#   type: simple.GenericAction
+#   quantity: fraction
+#   unit: '%'
+#   group: transportation
+#   input_datasets:
+#   - id: espoo/priorisoidut_toimet
+#     tags: [baseline]
+#     forecast_from: 2024
+#     column: paastokerroin
+#   output_nodes:
+#   - id: road_traffic_emission_factors
+#     tags: [arithmetic_inverse, complement]
+#     to_dimensions: []
+#   - id: passenger_car_emission_factors
+#     tags: [arithmetic_inverse, complement]
+#     to_dimensions: []
 
 # Transport
 
@@ -1750,7 +1750,7 @@ actions:
 #     - id: energy_carrier
 #   output_nodes:
 #   - id: electric_heating_emission_factor
-
+  
 - id: change_non_heating_electricity
   name_fi: Muutos kulutussähkön käytössä
   name_en: Change in household electricity use
