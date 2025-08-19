@@ -1,5 +1,12 @@
 BISKO (Municipal CO2 Balancing System) - Complete Terms and Abbreviations List
 
+Sectors
+- HH: Private Haushalte (Private households)
+- IND: Industrie (Industry)
+- GHD: Gewerbe, Handel, Dienstleistungen (Commerce, trade, services)
+- KE: Kommunale Einrichtungen (Municipal facilities)
+- Verkehr: Verkehr (Transport)
+
 Administrative Terms
 - AGS: Amtlicher Gemeindeschlüssel (Official municipality code)
 - Gemeindename: Municipality name

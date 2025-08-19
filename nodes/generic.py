@@ -75,7 +75,10 @@ class GenericNode(SimpleNode):
             'use_as_shares': self._operation_use_as_shares,
             'split_by_existing_shares': self._operation_split_by_existing_shares,
             'split_evenly_to_cats': self._operation_split_evenly_to_cats,
+            'add_to_existing_dims': self._operation_add_to_existing_dims,
+            'add_from_incoming_dims': self._operation_add_from_incoming_dims,
             'skip_dim_test': self._operation_skip_dim_test,
+            'drop_nans': self._operation_drop_nans,
         }
 
     def _get_input_baskets(self, nodes: list[Node]) -> dict[str, list[Node]]:
@@ -91,6 +94,8 @@ class GenericNode(SimpleNode):
             'use_as_shares': 'use_as_shares',
             'split_by_existing_shares': 'split_by_existing_shares',
             'split_evenly_to_cats': 'split_evenly_to_cats',
+            'add_to_existing_dims': 'add_to_existing_dims',
+            'add_from_incoming_dims': 'add_from_incoming_dims',
             'skip_dim_test': 'skip_dim_test',
             'coalesce': 'coalesce',
         }
@@ -208,6 +213,10 @@ class GenericNode(SimpleNode):
         baskets[operation] = []
         return n.get_output_pl(target_node=self, skip_dim_test=True), baskets
 
+    def _operation_drop_nans(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        """Drop NaN cells in long format."""
+        assert isinstance(df, ppl.PathsDataFrame)
+        return df.filter(pl.col(VALUE_COLUMN).is_not_nan()), baskets
 
     OperationType = Literal[
         'use_as_totals',
@@ -215,6 +224,8 @@ class GenericNode(SimpleNode):
         'split_by_existing_shares',
         'split_evenly_to_cats',
         'select_priority',
+        'add_to_existing_dims',
+        'add_from_incoming_dims',
     ]
 
     def _preprocess_for_one(
@@ -253,11 +264,18 @@ class GenericNode(SimpleNode):
         2) Use as shares: input has new dims that are used to split the node to new cats.
         3) Split by existing shares: node has new dims that are used to split input to new cats. In the end, add input to node.
         4) Split evenly to cats: same as (3) but give every category equal weight.
+        5) Add to existing dims: input is non-stackable and is added to all new dimensions in node.
+        6) Add from incoming dims: node is non-stackable and is added to all new dimensions in input.
         """
-        dfin, baskets = self._preprocess_for_one(df, baskets, operation)
+        add_non_stackables = ['add_to_existing_dims', 'add_from_incoming_dims']
+        if operation in add_non_stackables:
+            stackable = False
+        else:
+            stackable = True
+        dfin, baskets = self._preprocess_for_one(df, baskets, operation, stackable=stackable)
         use_as = ['use_as_totals', 'use_as_shares']
 
-        if operation == 'use_as_shares':
+        if operation in ['use_as_shares', 'add_from_incoming_dims']:
             splitter = dfin
             splittee = df
         else:
@@ -275,6 +293,14 @@ class GenericNode(SimpleNode):
         dims = [dim for dim in splitter.dim_ids if dim not in splittee.dim_ids]
         if not dims and not newdims:
             raise NodeError(self, "No dimensions to split. Remove the split operation if you don't use it.")
+
+        if operation in add_non_stackables:
+            df_unity = splitter.with_columns(pl.lit(1.0).alias(VALUE_COLUMN))
+            df_unity = df_unity.set_unit(VALUE_COLUMN, 'dimensionless', force=True)
+            df_added = splittee.paths.multiply_with_dims(df_unity)
+            df_added = df_added.paths.add_with_dims(splitter)
+
+            return df_added, baskets
 
         df_summed = splitter.paths.sum_over_dims(dims)
 
@@ -310,6 +336,14 @@ class GenericNode(SimpleNode):
 
     def _operation_split_evenly_to_cats(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
         return self._operation_split_dims(df, baskets, 'split_evenly_to_cats')
+
+    def _operation_add_to_existing_dims(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        return self._operation_split_dims(df, baskets, 'add_to_existing_dims')
+
+    def _operation_add_from_incoming_dims(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        if self.quantity in STACKABLE_QUANTITIES:
+            raise NodeError(self, f"Node cannot have stackable quantity but has {self.quantity}.")
+        return self._operation_split_dims(df, baskets, 'add_from_incoming_dims')
 
     def drop_unnecessary_levels(self, df: ppl.PathsDataFrame, droplist: list) -> ppl.PathsDataFrame:
         # Drop filter levels and empty dimension levels.

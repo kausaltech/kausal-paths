@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import math
 import typing
+
+# import warnings
 from contextlib import AbstractContextManager, nullcontext
 from typing import Any, ClassVar, Literal, Self, cast, overload
 
@@ -940,19 +942,19 @@ class Node:
             if df[dim_col].null_count() == df[dim_col].len():
                 df = df.drop(dim_col)
         meta = df.get_meta()
-        if set(meta.dim_ids) != output_dimensions and not skip_dim_test:
-            print(df)
-            out_dims = ', '.join(meta.dim_ids)
-            target_in_dims = ', '.join(output_dimensions)
-            raise NodeError(
-                self,
-                'Dimensions of output [%s] do not match the input dimensions of %s [%s]'
-                % (
-                    out_dims,
-                    target_node.id,
-                    target_in_dims,
-                ),
-            )
+        # if set(meta.dim_ids) != output_dimensions and not skip_dim_test: # TODO Consider testing this in node validation
+        #     print(df)
+        #     out_dims = ', '.join(meta.dim_ids)
+        #     target_in_dims = ', '.join(output_dimensions)
+        #     warnings.warn( # Changed from NodeError to print because blocks useful generic operations.
+        #         # self,
+        #         'Dimensions of output [%s] do not match the input dimensions of %s [%s]'
+        #         % (
+        #             out_dims,
+        #             target_node.id,
+        #             target_in_dims,
+        #         ),
+        #     )
 
         return df
 

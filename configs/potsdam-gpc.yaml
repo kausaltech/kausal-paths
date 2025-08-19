@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://potsdam-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 9dc4eeb94d6836ba18eb679a2549fef92013183e
+  commit: 4f7c9c75b7bb0f418f6c10ce84b34d3c0e92f0f6
   dvc_remote: kausal-s3
 name: Klimaschutz-Monitor-Potsdam Treibhausgasinventar
 owner: Stadt Potsdam
@@ -24,8 +24,7 @@ features:
 
 include:
 - file: frameworks/standard_dims.yaml
-  allow_override: false
-
+  allow_override: true
 
 params:
 - id: weather_correction
@@ -37,15 +36,19 @@ params:
 action_groups:
 - id: stationary
   name: Wärme
+  name_en: Heat
   color: '#989898'
 - id: electricity
   name: Strom
+  name_en: Electricity
   color: '#007C78'
 - id: transport
   name: Verkehr
+  name_en: Transport
   color: '#0505A0'
 - id: afolu
   name: AFOLU
+  name_en: AFOLU
   color: '#cccccc'
 - id: heat_generation_networks
   name: Ausbau Erneuerbare Energien in der Wärmeerzeugung (Wärmenetze)
@@ -143,6 +146,9 @@ dimensions:
   - id: local_transport_energy_reduction
     label_en: Reduction of total energy consumption local transport
     label_de: Reduktion Gesamtenergieverbrauch Binnenverkehr
+  - id: baseline
+    label_en: Baseline
+    label_de: Baseline
 
 - id: energietrager
   label_en: Energy Carriers
@@ -151,7 +157,7 @@ dimensions:
   - id: strom
     label_en: Electricity
     label_de: Strom
-    aliases: [electricity]
+    aliases: [electricity, strom_fahrstrom]
   - id: fahrstrom
     label_en: Traction Power
     label_de: Fahrstrom
@@ -183,6 +189,9 @@ dimensions:
     label_en: Coal
     label_de: Kohle
     aliases: [hard_coal]
+  - id: brown_coal
+    label_en: Brown coal
+    label_de: Braunkohle
   - id: biomasse
     label_en: Biomass
     label_de: Biomasse
@@ -195,6 +204,9 @@ dimensions:
     label_en: Ambient Heat
     label_de: Umweltwärme
     aliases: [environmental_heat]
+  - id: other_renewables
+    label_en: Other renewables
+    label_de: Sonstige erneuerbare Energien
   - id: benzin_fossil
     label_en: Fossil Gasoline
     label_de: Benzin fossil
@@ -207,6 +219,9 @@ dimensions:
     label_en: Fossil Diesel
     label_de: Diesel fossil
     aliases: [diesel]
+  - id: kerosene
+    label_de: Kerosene
+    label_en: Kerosene
   - id: diesel_biogen
     label_en: Biogenic Diesel
     label_de: Diesel biogen
@@ -221,12 +236,13 @@ dimensions:
     label_en: Hydrogen
     label_de: Wasserstoff
   - id: other_conventional
-    label: Other conventional
+    label_en: Other conventional
+    label_de: Sonstige konventionelle Energien
     aliases: [other_conventional]
   - id: total
-    label: Total
+    label_en: Total
+    label_de: Gesamt
     aliases: [total]
-
 
 emission_sectors:
 
@@ -245,6 +261,7 @@ emission_sectors:
 nodes:
 - id: weather_correction
   name: Witterungsbereinigung
+  name_en: Weather Correction
   type: generic.GenericNode
   quantity: ratio
   unit: dimensionless
@@ -292,6 +309,7 @@ nodes:
 
 - id: heating_fuel_emissions
   name: Emissionen aus Wärmeenergie (ohne Fernwärme)
+  name_en: Emissions from Heat Energy (excluding District Heating)
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
@@ -329,6 +347,7 @@ nodes:
 
 - id: heating_grid_energy_consumption
   name: Netzenergieverbrauch Wohngebäude
+  name_en: Grid Energy Consumption Residential Buildings
   type: generic.GenericNode
   quantity: energy
   unit: MWh/a
@@ -350,6 +369,7 @@ nodes:
 
 - id: heating_grid_emissions
   name: Emissionen aus Fernwärme
+  name_en: Emissions from District Heating
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
@@ -364,6 +384,7 @@ nodes:
 
 - id: heating_grid_emission_factor
   name: Emissionsfaktor Netzenergieverbrauch Wohngebäude
+  name_en: Emission Factor Grid Energy Consumption Residential Buildings
   type: generic.GenericNode
   quantity: emission_factor
   unit: t/MWh
@@ -400,12 +421,6 @@ nodes:
     filters:
     - column: sector
       value: i42
-  output_nodes:
-  - total_energy_consumption
-  - id: electricity_emissions
-    to_dimensions:
-    - id: energietrager
-    - id: scope
 
 - id: electricity_emissions
   name: Emissionen aus Stromverbrauch (ohne Heizstrom)
@@ -420,6 +435,10 @@ nodes:
   - id: corrected_electricity_emission_factor
     to_dimensions:
     - id: ghg
+    - id: energietrager
+    - id: scope
+  - id: corrected_electricity_use
+    to_dimensions:
     - id: energietrager
     - id: scope
   output_nodes:
@@ -464,12 +483,6 @@ nodes:
     filters:
     - column: sector
       value: i42
-  # output_nodes:
-  # - id: electricity_emissions
-  #   to_dimensions:
-  #   - id: ghg
-  #   - id: energietrager
-  #   - id: scope
 
 - id: transport_fuel_consumption
   name: Brennstoffverbrauch Verkehr
@@ -487,19 +500,26 @@ nodes:
     filters:
     - column: sector
       value: ii11
-  output_nodes:
-  - id: transport_fuel_emissions
-    to_dimensions:
-    - id: energietrager
-    - id: scope
 
 - id: transport_fuel_emissions
   name: Emissionen aus Brennstoffverbrauch Verkehr
+  name_en: Emissions from Fuel Consumption Traffic
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [energietrager, scope, ghg]
   output_dimensions: [energietrager, scope, ghg]
+  input_nodes:
+  - id: corrected_transport_emission_factor
+    to_dimensions:
+    - id: ghg
+    - id: energietrager
+    - id: scope
+  - id: corrected_transport_fuel_use
+    to_dimensions:
+    - id: energietrager
+    - id: scope
+    - id: ghg
   output_nodes:
   - id: transport_emissions
     to_dimensions:
@@ -512,7 +532,7 @@ nodes:
   name_en: Emission Factor Fuels Traffic
   type: generic.GenericNode
   quantity: emission_factor
-  unit: t/MWh
+  unit: g/kWh
   input_dimensions: [ghg, energietrager, scope]
   output_dimensions: [ghg, energietrager, scope]
   input_datasets:
@@ -523,12 +543,6 @@ nodes:
     filters:
     - column: sector
       value: ii11
-  output_nodes:
-  - id: transport_fuel_emissions
-    to_dimensions:
-    - id: ghg
-    - id: energietrager
-    - id: scope
 
 - id: transport_electricity_consumption
   name: Stromverbrauch ÖPNV
@@ -554,6 +568,7 @@ nodes:
 
 - id: transport_electricity_emissions
   name: Emissionen aus Stromverbrauch ÖPNV
+  name_en: Emissions from Electricity Consumption Public Transport
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
@@ -623,6 +638,7 @@ nodes:
 
 - id: i_stationary_energy
   name: Stationärer Energieverbrauch
+  name_en: Stationary Energy Consumption
   type: simple.AdditiveNode
   quantity: energy
   unit: MWh/a
@@ -643,8 +659,11 @@ nodes:
   input_dimensions: [energietrager, scope]
   output_dimensions: [energietrager, scope]
   input_nodes:
-  - transport_electricity_consumption
-  - transport_fuel_consumption
+  - id: transport_electricity_consumption
+  - id: corrected_transport_fuel_use
+    from_dimensions:
+    - id: ghg
+      flatten: true
   output_nodes:
   - total_energy_consumption
   params:
@@ -662,27 +681,249 @@ nodes:
   input_dimensions: [energietrager, scope]
   output_dimensions: [energietrager, scope]
 
+- id: district_heating_energy
+  name: Fernwärmeenergie
+  name_en: District heating energy
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energietrager]
+  output_dimensions: [sector, energietrager]
+  input_datasets:
+  - id: potsdam/alle_historischen_energie
+    tags: [baseline]
+    forecast_from: 2025
+    column: energy
+    filters:
+    - column: file_type
+    - column: weather_correction
+    - column: inventory_method
+    - rename_col: energy_carrier
+      value: energietrager
+    - column: energietrager
+      values: [district_heating]
+      drop_col: false
+
+- id: district_heating_emissions
+  name: Fernwärmeemissionen
+  name_en: District heating emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [sector, energietrager]
+  output_dimensions: [sector, energietrager]
+  input_nodes:
+  - id: district_heating_energy
+  - id: corrected_district_heating_emission_factor
+  output_nodes:
+  - id: heating_emissions2
+
+- id: local_heating_energy
+  name: Lokale Wärmeenergie
+  name_en: Local heating energy
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energietrager]
+  output_dimensions: [sector, energietrager]
+  input_datasets:
+  - id: potsdam/alle_historischen_energie
+    tags: [baseline]
+    forecast_from: 2025
+    column: energy
+    filters:
+    - column: file_type
+    - column: weather_correction
+    - column: inventory_method
+    - rename_col: energy_carrier
+      value: energietrager
+    - column: energietrager
+      values: [district_heating]
+      exclude: true
+      drop_col: false
+    - column: sector
+      value: transport
+      exclude: true
+      drop_col: false
+
+- id: local_heating_emissions
+  name: Lokale Wärmeemissionen
+  name_en: Local heating emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [sector, energietrager]
+  output_dimensions: [sector, energietrager]
+  input_nodes:
+  - id: local_heating_energy
+  - id: corrected_local_heating_emission_factor
+  output_nodes:
+  - id: heating_emissions2
+
+- id: heating_emissions2
+  name: Wärmeemissionen2
+  name_en: Heating emissions2
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [sector, energietrager]
+  output_dimensions: [sector, energietrager]
+  output_nodes:
+  - id: net_emissions2
+
+- id: net_emissions2
+  name: Nettoemissionen2
+  name_en: Net emissions2
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [sector, energietrager]
+  output_dimensions: [sector, energietrager]
+  is_outcome: true
+
 # Corrected multipliers affected by actions
 
-- id: zero_emission_electricity_production
-  name: Zero-emission electricity production
-  description: There are several sources of zero-emission electricity. This is 
-    the sum of that production, given as emission savings reachable because of 
-    this production replaces electricity with normal emission factor.
+- id: low_emission_district_heating_production
+  name: Emissionsarme Fernwärmeerzeugung
+  name_en: Low-emission district heating production
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [sector, energietrager]
+  output_dimensions: [sector, energietrager]
+  input_datasets:
+  - id: potsdam/action_baseline
+    tags: [baseline]
+    column: baseline
+    filters:
+    - column: decision
+  input_nodes:
+  - id: district_heating_energy
+    tags: [use_as_shares]
+  params:
+    operations: add,use_as_shares
+
+- id: low_emission_local_heating_production
+  name: Emissionsarme lokale Wärmeerzeugung
+  name_en: Low-emission local heating production
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [sector, energietrager]
+  output_dimensions: [sector, energietrager]
+  input_datasets:
+  - id: potsdam/action_baseline
+    tags: [baseline]
+    column: baseline
+    filters:
+    - column: decision
+  input_nodes:
+  - id: local_heating_energy
+    tags: [use_as_shares]
+  params:
+    operations: add,use_as_shares
+
+- id: low_energy_district_heating
+  name: Energiesparende Fernwärme
+  name_en: Low-energy district heating
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+
+- id: low_energy_local_heating
+  name: Energiesparende lokale Wärme
+  name_en: Low-energy local heating
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+
+- id: corrected_district_heating_emission_factor
+  name: Korrigierter Fernwärme-Emissionsfaktor
+  name_en: Corrected district heating emission factor
+  description: Eine Maßnahme (A) hat eine bekannte Auswirkung auf das Ergebnis (R) über einen Multiplikator (M1).</br> Da R = M1 * M2, mit Maßnahme R + A = M1' * M2 <=> M1' = (M1 * M2 + A) / M2 = M1 + A / M2.
+  description_en: An action (A) has a known effect on the result (R) via one multiplier (M1).</br> As R = M1 * M2, with action R + A = M1' * M2 <=> M1' = (M1 * M2 + A) / M2 = M1 + A / M2.
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [sector, energietrager]
+  output_dimensions: [sector, energietrager]
+  input_nodes:
+  - id: heating_grid_emission_factor
+    tags: [add_to_existing_dims]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: energietrager
+  - id: district_heating_energy
+    tags: [geometric_inverse]
+    to_dimensions:
+    - id: energietrager
+    - id: sector
+  - id: low_emission_district_heating_production
+    tags: [arithmetic_inverse]
+    to_dimensions:
+    - id: energietrager
+    - id: sector
+  params:
+    operations: multiply,add_to_existing_dims
+
+- id: corrected_local_heating_emission_factor
+  name: Korrigierter lokaler Wärme-Emissionsfaktor
+  name_en: Corrected local heating emission factor
+  description: Eine Maßnahme (A) hat eine bekannte Auswirkung auf das Ergebnis (R) über einen Multiplikator (M1).</br> Da R = M1 * M2, mit Maßnahme R + A = M1' * M2 <=> M1' = (M1 * M2 + A) / M2 = M1 + A / M2.
+  description_en: An action (A) has a known effect on the result (R) via one multiplier (M1).</br> As R = M1 * M2, with action R + A = M1' * M2 <=> M1' = (M1 * M2 + A) / M2 = M1 + A / M2.
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [sector, energietrager]
+  output_dimensions: [sector, energietrager]
+  input_nodes:
+  - id: heating_fuel_emission_factor
+    tags: [add_to_existing_dims]
+    from_dimensions:
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: energietrager
+  - id: local_heating_energy
+    tags: [geometric_inverse]
+    to_dimensions:
+    - id: energietrager
+    - id: sector
+  - id: low_emission_local_heating_production
+    tags: [arithmetic_inverse]
+    to_dimensions:
+    - id: energietrager
+    - id: sector
+  params:
+    operations: multiply,add_to_existing_dims,drop_nans
+
+# Electricity
+
+- id: low_emission_electricity_production
+  name: Emissionsarme Stromerzeugung
+  name_en: Low-emission electricity production
+  description: Es gibt mehrere Quellen für emissionsfreie Stromerzeugung und die Verbesserung des nationalen Strommixes. Dies ist die Summe dieser Produktion, angegeben als Emissionseinsparungen, die durch diese Produktion erreicht werden können, da sie Strom mit normalem Emissionsfaktor ersetzt.
+  description_en: There are several sources of zero-emission electricity and cleaning of national electricity. This is the sum of that production, given as emission savings reachable because of this production replaces electricity with normal emission factor.
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
 
 - id: corrected_electricity_emission_factor
-  name: Corrected electricity emission factor
-  description: An action (A) has a known effect on the result (R) via one 
-    multiplier (M1).</br> As R = M1 * M2, with action R + A = M1' * M2 <=> M1' =
-    (M1 * M2 + A) / M2 = M1 + A / M2.
+  name: Korrigierter Strom-Emissionsfaktor
+  name_en: Corrected electricity emission factor
+  description: Eine Maßnahme (A) hat eine bekannte Auswirkung auf das Ergebnis (R) über einen Multiplikator (M1).</br> Da R = M1 * M2, mit Maßnahme R + A = M1' * M2 <=> M1' = (M1 * M2 + A) / M2 = M1 + A / M2.
+  description_en: An action (A) has a known effect on the result (R) via one multiplier (M1).</br> As R = M1 * M2, with action R + A = M1' * M2 <=> M1' = (M1 * M2 + A) / M2 = M1 + A / M2.
   type: generic.GenericNode
   quantity: emission_factor
   unit: g/kWh
-  input_dimensions: [ghg, energietrager, scope]
-  output_dimensions: [ghg, energietrager, scope]
+  input_dimensions: [energietrager, scope, ghg]
+  output_dimensions: [energietrager, scope, ghg]
   input_nodes:
   - id: electricity_emission_factor
   - id: electricity_consumption
@@ -690,17 +931,163 @@ nodes:
     to_dimensions:
     - id: energietrager
     - id: scope
-  - id: zero_emission_electricity_production
+  - id: low_emission_electricity_production
     tags: [arithmetic_inverse]
     to_dimensions:
     - id: ghg
       categories: [co2e]
 
+- id: low_use_electricity
+  name: Stromverbrauchsreduzierung
+  name_en: Low-use electricity reduction
+  description: Es gibt Quellen für die Reduzierung des Stromverbrauchs. Dies ist die Summe dieser Reduzierung, angegeben als Emissionseinsparungen, die durch diese verringerte Nutzung erreicht werden können.
+  description_en: There are sources of electricity use reduction. This is the sum of that reduction, given as emission savings reachable because of this reduced use.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+
+- id: corrected_electricity_use
+  name: Korrigierter Stromverbrauch
+  name_en: Corrected electricity use
+  description: Eine Maßnahme (A) hat eine bekannte Auswirkung auf das Ergebnis (R) über einen Multiplikator (M1).</br> Da R = M1 * M2, mit Maßnahme R + A = M1' * M2 <=> M1' = (M1 * M2 + A) / M2 = M1 + A / M2.
+  description_en: An action (A) has a known effect on the result (R) via one multiplier (M1).</br> As R = M1 * M2, with action R + A = M1' * M2 <=> M1' = (M1 * M2 + A) / M2 = M1 + A / M2.
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energietrager, scope]
+  output_dimensions: [energietrager, scope]
+  input_nodes:
+  - id: corrected_electricity_emission_factor
+    tags: [geometric_inverse]
+    from_dimensions:
+    - id: ghg
+      categories: [co2e]
+      flatten: true
+  - id: electricity_consumption
+    to_dimensions:
+    - id: energietrager
+    - id: scope
+  - id: low_use_electricity
+    tags: [arithmetic_inverse]
+    to_dimensions: []
+  output_nodes:
+  - id: total_energy_consumption
+
+- id: low_emission_transport
+  name: Emissionsarmer Verkehr
+  name_en: Low-emission transport
+  description: Es gibt mehrere Quellen für emissionsarmen Verkehr. Dies ist die Summe dieser Produktion, angegeben als Emissionseinsparungen, die durch diesen Verkehr erreicht werden können, da er Verkehr mit normalem Emissionsfaktor ersetzt.
+  description_en: There are several sources of low-emission transport available. This is the sum of that production, given as emission savings reachable because of this transport replaces that with normal emission factor.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+
+- id: energy_saving_fuel_shares
+  name: Energiesparende Brennstoffanteile
+  name_en: Energy saving fuel shares
+  description: Da die Änderungen im Kraftstoffverbrauch als Gesamtemissionsänderungen beschrieben werden, müssen wir die Gesamteinsparung auf einige Energieträger aufteilen. Dies geschieht entsprechend diesen Anteilen, die nominale Anteile der häufigsten Energieträger sind.
+  description_en: As the fuel use changes are described as total emissions changes, we need to split the total saving to some energy carriers. This is done according to these shares, which are nominal shares across the most common energy carriers.
+  type: generic.GenericNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [energietrager]
+  output_dimensions: [energietrager]
+  input_datasets:
+  - id: potsdam/energieanteile_der_verbesserung
+    tags: [baseline]
+    column: energieanteile
+
+# TODO This intermediate node is needed because adding nodes with mismatching dims is not allowed.
+- id: low_emission_transport_split
+  name: Emissionsarmer Verkehr aufgeteilt in Kategorien
+  name_en: Low emission transport split into categories
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energietrager, scope]
+  output_dimensions: [energietrager, scope]
+  input_nodes:
+  - id: energy_saving_fuel_shares
+    tags: [use_as_shares]
+    to_dimensions:
+    - id: energietrager
+    - id: scope
+      categories: [scope1]
+  - id: low_emission_transport
+    tags: [skip_dim_test]
+  params:
+    operations: skip_dim_test,use_as_shares
+
+- id: corrected_transport_emission_factor
+  name: Korrigierter Verkehrs-Emissionsfaktor
+  name_en: Corrected transport emission factor
+  description: Eine Maßnahme (A) hat eine bekannte Auswirkung auf das Ergebnis (R) über einen Multiplikator (M1).</br> Da R = M1 * M2, mit Maßnahme R + A = M1' * M2 <=> M1' = (M1 * M2 + A) / M2 = M1 + A / M2.
+  description_en: An action (A) has a known effect on the result (R) via one multiplier (M1).</br> As R = M1 * M2, with action R + A = M1' * M2 <=> M1' = (M1 * M2 + A) / M2 = M1 + A / M2.
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [energietrager, scope, ghg]
+  output_dimensions: [energietrager, scope, ghg]
+  input_nodes:
+  - id: transport_fuel_emission_factor
+  - id: transport_fuel_consumption
+    tags: [geometric_inverse]
+    to_dimensions:
+    - id: energietrager
+    - id: scope
+  - id: low_emission_transport_split
+    tags: [arithmetic_inverse]
+    to_dimensions:
+    - id: energietrager
+    - id: scope
+    - id: ghg
+      categories: [co2e]
+
+- id: low_fuel_transport
+  name: Kraftstoffarmer Verkehr
+  name_en: Low-fuel transport
+  description: Es gibt Möglichkeiten, den Kraftstoffverbrauch im Verkehr zu reduzieren. Dies ist die Summe dieser Reduzierung, angegeben als Emissionseinsparungen, die durch diese Änderung im Verkehr erreicht werden können.
+  description_en: There are ways to reduce fuel use in transport. This is the sum of that reduction, given as emission savings reachable because of this change in transport.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energietrager, scope]
+  output_dimensions: [energietrager, scope]
+  input_nodes:
+  - id: transport_fuel_consumption
+    tags: [use_as_shares]
+  params:
+    operations: skip_dim_test,use_as_shares
+
+- id: corrected_transport_fuel_use
+  name: Korrigierter Verkehrs-Kraftstoffverbrauch
+  name_en: Corrected transport fuel use
+  description: Eine Maßnahme (A) hat eine bekannte Auswirkung auf das Ergebnis (R) über einen Multiplikator (M1).</br> Da R = M1 * M2, mit Maßnahme R + A = M1' * M2 <=> M1' = (M1 * M2 + A) / M2 = M1 + A / M2.
+  description_en: An action (A) has a known effect on the result (R) via one multiplier (M1).</br> As R = M1 * M2, with action R + A = M1' * M2 <=> M1' = (M1 * M2 + A) / M2 = M1 + A / M2.
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energietrager, scope, ghg]
+  output_dimensions: [energietrager, scope, ghg]
+  input_nodes:
+  - id: corrected_transport_emission_factor
+    tags: [geometric_inverse]
+  - id: transport_fuel_consumption
+    to_dimensions:
+    - id: energietrager
+    - id: scope
+    - id: ghg
+      categories: [co2e]
+  - id: low_fuel_transport
+    tags: [arithmetic_inverse]
+    to_dimensions:
+    - id: energietrager
+    - id: scope
 
 ##### COSTS
 
 - id: energy_prices
-  name_de: Energiepreise
+  name: Energiepreise
   name_en: Energy prices
   type: generic.GenericNode
   quantity: unit_price
@@ -711,9 +1098,8 @@ nodes:
   - id: potsdam/energy_prices
     tags: [baseline]
 
-
 - id: total_energy_costs
-  name_de: Endenergiekosten Gesamt
+  name: Endenergiekosten Gesamt
   name_en: Final Energy Costs Over All Sectors
   type: generic.GenericNode
   quantity: currency
@@ -735,9 +1121,8 @@ actions:
 # https://docs.google.com/spreadsheets/d/15aMuO2-GmvYw8IXe3pgSN6LvfdEqDPI6/edit?gid=2009060009#gid=2009060009
 
 - id: district_heating_until_2030
-  name_de: 1. Maßnahmepaket EWP (Energiewende-Programm) Fernwärme bis 2030
-  name_en: 1st Action Package EWP (Energy Transition Program) District Heating 
-    until 2030
+  name: 1. Maßnahmepaket EWP (Energiewende-Programm) Fernwärme bis 2030
+  name_en: 1st Action Package EWP (Energy Transition Program) District Heating until 2030
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -750,12 +1135,13 @@ actions:
     filters:
     - column: decision
       value: district_heating_until_2030
+  output_nodes:
+  - id: low_emission_district_heating_production
+    to_dimensions: []
 
 - id: district_heating_2030_2045
-  name_de: weiterer Ausbau der Wärmenetze 2030-2045 auf 100% Erneuerbare 
-    Erzeugung
-  name_en: Further expansion of heating networks 2030-2045 to 100% renewable 
-    generation
+  name: Weiterer Ausbau der Wärmenetze 2030-2045 auf 100% Erneuerbare Erzeugung
+  name_en: Further expansion of heating networks 2030-2045 to 100% renewable generation
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -768,11 +1154,13 @@ actions:
     filters:
     - column: decision
       value: district_heating_2030_2045
+  output_nodes:
+  - id: low_emission_district_heating_production
+    to_dimensions: []
 
 - id: re_expansion_masterplan_2045
-  name_de: EE-Ausbau laut Masterplan 100% Klimaschutz bis 2045
-  name_en: RE expansion according to Masterplan 100% Climate Protection until 
-    2045
+  name: EE-Ausbau laut Masterplan 100% Klimaschutz bis 2045
+  name_en: RE expansion according to Masterplan 100% Climate Protection until 2045
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -785,11 +1173,12 @@ actions:
     filters:
     - column: decision
       value: re_expansion_masterplan_2045
+  output_nodes:
+  - id: low_emission_local_heating_production
 
 - id: re_expansion_masterplan_kwp
-  name_de: EE-Ausbau Masterplan und zusätzlich KWP (Kommunale Wärmeplanung)
-  name_en: RE expansion Masterplan and additionally KWP (Municipal Heat 
-    Planning)
+  name: EE-Ausbau Masterplan und zusätzlich KWP (Kommunale Wärmeplanung)
+  name_en: RE expansion Masterplan and additionally KWP (Municipal Heat Planning)
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -802,9 +1191,11 @@ actions:
     filters:
     - column: decision
       value: re_expansion_masterplan_kwp
+  output_nodes:
+  - id: low_emission_local_heating_production
 
 - id: district_heating_kwp_expansion_areas
-  name_de: Ausbau der Wärmenetze bis 2045 (KWP-Ausbaugebiete)
+  name: Ausbau der Wärmenetze bis 2045 (KWP-Ausbaugebiete)
   name_en: Expansion of heating networks until 2045 (KWP expansion areas)
   type: simple.GenericAction
   quantity: emissions
@@ -818,11 +1209,12 @@ actions:
     filters:
     - column: decision
       value: district_heating_kwp_expansion_areas
+  output_nodes:
+  - id: low_energy_district_heating
 
 - id: district_heating_kwp_test_areas
-  name_de: Ausbau der Wärmenetze bis 2045 (zusätzlich KWP-Prüfgebiete)
-  name_en: Expansion of heating networks until 2045 (additionally KWP test 
-    areas)
+  name: Ausbau der Wärmenetze bis 2045 (zusätzlich KWP-Prüfgebiete)
+  name_en: Expansion of heating networks until 2045 (additionally KWP test areas)
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -835,12 +1227,12 @@ actions:
     filters:
     - column: decision
       value: district_heating_kwp_test_areas
+  output_nodes:
+  - id: low_energy_district_heating
 
 - id: decentralized_heat_reduction_replacement
-  name_de: Reduktion des dezentralen Wärmeverbrauchs durch Ersatz mit 
-    Wärmenetzen
-  name_en: Reduction of decentralized heat consumption through replacement with 
-    heating networks
+  name: Reduktion des dezentralen Wärmeverbrauchs durch Ersatz mit Wärmenetzen
+  name_en: Reduction of decentralized heat consumption through replacement with heating networks
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -853,11 +1245,12 @@ actions:
     filters:
     - column: decision
       value: decentralized_heat_reduction_replacement
+  output_nodes:
+  - id: low_energy_local_heating
 
 - id: decentralized_heat_reduction_renovation
-  name_de: Reduktion des dezentralen Wärmeverbrauchs durch Gebäudesanierung
-  name_en: Reduction of decentralized heat consumption through building 
-    renovation
+  name: Reduktion des dezentralen Wärmeverbrauchs durch Gebäudesanierung
+  name_en: Reduction of decentralized heat consumption through building renovation
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -870,9 +1263,11 @@ actions:
     filters:
     - column: decision
       value: decentralized_heat_reduction_renovation
+  output_nodes:
+  - id: low_energy_local_heating
 
 - id: pv_rooftop_expansion
-  name_de: Ausbau PV Dachanlagen laut Masterplan
+  name: Ausbau PV Dachanlagen laut Masterplan
   name_en: Expansion of PV rooftop systems according to Masterplan
   type: simple.GenericAction
   quantity: emissions
@@ -887,10 +1282,10 @@ actions:
     - column: decision
       value: pv_rooftop_expansion
   output_nodes:
-  - id: zero_emission_electricity_production
+  - id: low_emission_electricity_production
 
 - id: ground_mounted_pv_expansion
-  name_de: Ausbau Freiflächenanlagen laut Masterplan
+  name: Ausbau Freiflächenanlagen laut Masterplan
   name_en: Expansion of ground-mounted systems according to Masterplan
   type: simple.GenericAction
   quantity: emissions
@@ -905,10 +1300,10 @@ actions:
     - column: decision
       value: ground_mounted_pv_expansion
   output_nodes:
-  - id: zero_emission_electricity_production
+  - id: low_emission_electricity_production
 
 - id: wind_power_potential
-  name_de: Potential Windkraftanlagen (Annahme 8 Anlagen)
+  name: Potential Windkraftanlagen (Annahme 8 Anlagen)
   name_en: Wind power plant potential (assumption 8 plants)
   type: simple.GenericAction
   quantity: emissions
@@ -923,10 +1318,10 @@ actions:
     - column: decision
       value: wind_power_potential
   output_nodes:
-  - id: zero_emission_electricity_production
+  - id: low_emission_electricity_production
 
 - id: electricity_consumption_reduction
-  name_de: Reduktion Stromverbrauch HH und Gewerbe
+  name: Reduktion Stromverbrauch HH und Gewerbe
   name_en: Reduction of electricity consumption households and commercial
   type: simple.GenericAction
   quantity: emissions
@@ -940,9 +1335,11 @@ actions:
     filters:
     - column: decision
       value: electricity_consumption_reduction
+  output_nodes:
+  - id: low_use_electricity
 
 - id: improved_federal_grid_mix
-  name_de: Verbesserter Bundesmix für Reststrombedarf
+  name: Verbesserter Bundesmix für Reststrombedarf
   name_en: Improved federal grid mix for residual electricity demand
   type: simple.GenericAction
   quantity: emissions
@@ -956,12 +1353,12 @@ actions:
     filters:
     - column: decision
       value: improved_federal_grid_mix
+  output_nodes:
+  - id: low_emission_electricity_production
 
 - id: re_electricity_emobility
-  name_de: Nutzung EE-Strom für Elektromobiltät und Straßenbahn (laut 
-    Masterplan)
-  name_en: Use of RE electricity for e-mobility and tram (according to 
-    Masterplan)
+  name: Nutzung EE-Strom für Elektromobiltät und Straßenbahn (laut Masterplan)
+  name_en: Use of RE electricity for e-mobility and tram (according to Masterplan)
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -974,9 +1371,11 @@ actions:
     filters:
     - column: decision
       value: re_electricity_emobility
+  output_nodes:
+  - id: low_emission_transport
 
 - id: fossil_fuel_replacement
-  name_de: Ersatz fossiler brennstoffe durch Strom und E-Fuels
+  name: Ersatz fossiler brennstoffe durch Strom und E-Fuels
   name_en: Replacement of fossil fuels with electricity and e-fuels
   type: simple.GenericAction
   quantity: emissions
@@ -990,9 +1389,11 @@ actions:
     filters:
     - column: decision
       value: fossil_fuel_replacement
+  output_nodes:
+  - id: low_emission_transport
 
 - id: local_transport_energy_reduction
-  name_de: Reduktion Gesamtenergieverbrauch Binnenverkehr
+  name: Reduktion Gesamtenergieverbrauch Binnenverkehr
   name_en: Reduction of total energy consumption local transport
   type: simple.GenericAction
   quantity: emissions
@@ -1006,19 +1407,17 @@ actions:
     filters:
     - column: decision
       value: local_transport_energy_reduction
+  output_nodes:
+  - id: low_fuel_transport
+    tags: [skip_dim_test] # Possible here because only one action to split
 
 # OLD ACTIONS
 
 - id: i11_residential_fuel_consumption_action
   name: Reduktion im Verbrauch von Wärmeenergieträgern (außer Fernwärme)
-  description: Durch den prognostizierten starken Zuzug in die Landeshauptstadt 
-    wird auch der Bedarf nach Wärmeenergie steigen. Durch Maßnahmen zur 
-    Gebäudesanierung und hohen energetischen Standards im Neubau sollte jedoch 
-    eine deutliche Reduktion pro Quadratmeter erfolgen. In Summe sollte der 
-    Verbrauch von dezentralen Wärmeenergieträgern (ohne Fernwärme) bis zum Jahr 
-    2045 um ca. 30% im Vergleich zum Jahr 2020 reduziert werden. Der 
-    Fernwärmeverbrauch sollte durch Ausbau und Verdichtung hingegen leicht 
-    steigen (siehe Maßnahme 1.3).
+  name_en: Reduction in consumption of heating energy carriers (excluding district heating)
+  description: Durch den prognostizierten starken Zuzug in die Landeshauptstadt wird auch der Bedarf nach Wärmeenergie steigen. Durch Maßnahmen zur Gebäudesanierung und hohen energetischen Standards im Neubau sollte jedoch eine deutliche Reduktion pro Quadratmeter erfolgen. In Summe sollte der Verbrauch von dezentralen Wärmeenergieträgern (ohne Fernwärme) bis zum Jahr 2045 um ca. 30% im Vergleich zum Jahr 2020 reduziert werden. Der Fernwärmeverbrauch sollte durch Ausbau und Verdichtung hingegen leicht steigen (siehe Maßnahme 1.3).
+  description_en: Due to the predicted strong population growth in the state capital, the demand for heating energy will also increase. However, through building renovation measures and high energy standards in new construction, a significant reduction per square meter should be achieved. In total, the consumption of decentralized heating energy carriers (excluding district heating) should be reduced by about 30% by 2045 compared to 2020. District heating consumption should increase slightly through expansion and densification (see measure 1.3).
   type: simple.GenericAction
   quantity: energy
   unit: MWh/a
@@ -1036,15 +1435,10 @@ actions:
   - id: heating_fuel_consumption
 
 - id: i11_residential_fuel_emission_factor_action
-  name: Umsetzung drastische CO2-Reduktion von Wärmeenergieträgern ( außer 
-    Fernwärme)
-  description: Die Verringerung des Wärmenergieverbrauchs ist eine Seite der 
-    Medaille. Die andere ist die deutliche Reduzierung der 
-    Treibhausgasemissionen je eingesetzter Kilowattstunde. Kern der Potsdamer 
-    Strategie ist die langfristige Abkehr von fossilen Brennstoffen, 
-    insbesondere vom Erdgas. Die Substitution sollte v.a. durch Wärmepumpen, 
-    Fernwärme, kleine Nahwärmenetze und – in geringeren Mengen – grünen Gasen 
-    und Wasserstoff erfolgen.
+  name: Umsetzung drastische CO2-Reduktion von Wärmeenergieträgern (außer Fernwärme)
+  name_en: Implementation of drastic CO2 reduction of heating energy carriers (excluding district heating)
+  description: Die Verringerung des Wärmenergieverbrauchs ist eine Seite der Medaille. Die andere ist die deutliche Reduzierung der Treibhausgasemissionen je eingesetzter Kilowattstunde. Kern der Potsdamer Strategie ist die langfristige Abkehr von fossilen Brennstoffen, insbesondere vom Erdgas. Die Substitution sollte v.a. durch Wärmepumpen, Fernwärme, kleine Nahwärmenetze und – in geringeren Mengen – grünen Gasen und Wasserstoff erfolgen.
+  description_en: The reduction of heating energy consumption is one side of the coin. The other is the significant reduction of greenhouse gas emissions per kilowatt hour used. The core of Potsdam's strategy is the long-term shift away from fossil fuels, especially natural gas. The substitution should be achieved primarily through heat pumps, district heating, small local heating networks and – in smaller quantities – green gases and hydrogen.
   type: simple.GenericAction
   quantity: emission_factor
   unit: t/MWh
@@ -1063,11 +1457,9 @@ actions:
 
 - id: i12_residential_grid_energy_consumption_action
   name: Ausbau der Fernwärme
-  description: Der Ausbau der Fernwärme ist ein wichtiger Baustein in der 
-    Potsdamer Klimaschutzstrategie. Hier lassen sich zentral emissionsarme 
-    Technologien effizienter umsetzen, etwa die Tiefe Geothermie. Die 
-    Abnahmestellen sollten daher deutlich steigen und die Erzeugung – trotz 
-    verringerter Verbräuche pro m² - insgesamt steigen.
+  name_en: Expansion of district heating
+  description: Der Ausbau der Fernwärme ist ein wichtiger Baustein in der Potsdamer Klimaschutzstrategie. Hier lassen sich zentral emissionsarme Technologien effizienter umsetzen, etwa die Tiefe Geothermie. Die Abnahmestellen sollten daher deutlich steigen und die Erzeugung – trotz verringerter Verbräuche pro m² - insgesamt steigen.
+  description_en: The expansion of district heating is an important building block in Potsdam's climate protection strategy. Low-emission technologies can be implemented more efficiently centrally, such as deep geothermal energy. The delivery points should therefore increase significantly and generation – despite reduced consumption per m² – should increase overall.
   type: simple.GenericAction
   quantity: energy
   unit: MWh/a
@@ -1086,13 +1478,9 @@ actions:
 
 - id: i12_residential_grid_energy_emission_factor_action
   name: Umsetzung drastische CO2-Reduktion in der Fernwärmeerzeugung
-  description: 'Der Emissionsfaktor der Potsdamer Fernwärme liegt derzeit bei ca.
-    155g/kWh und soll bis zum Jahr 2025 auf ca. 50g/kWh sinken. Zum Vergleich: Erdgas
-    in der Wärmenutzung erzeugt ca. 250g/kWh, Biogas 110g/kWh und Solarthermie 25g/kWh
-    (jeweils einschließlich CO2-Äquivalenten und Vorkettenemissionen). Das Ziel für
-    die Fernwärme soll erreicht werden, indem Umweltwärme und Power-to-Heat stark
-    ausgebaut und Kraft-Wärme-Kopplungsanlagen zunehmend mit emissionsärmeren Brennstoffen,
-    etwa Wasserstoff, betrieben werden.'
+  name_en: Implementation of drastic CO2 reduction in district heating generation
+  description: 'Der Emissionsfaktor der Potsdamer Fernwärme liegt derzeit bei ca. 155g/kWh und soll bis zum Jahr 2025 auf ca. 50g/kWh sinken. Zum Vergleich: Erdgas in der Wärmenutzung erzeugt ca. 250g/kWh, Biogas 110g/kWh und Solarthermie 25g/kWh (jeweils einschließlich CO2-Äquivalenten und Vorkettenemissionen). Das Ziel für die Fernwärme soll erreicht werden, indem Umweltwärme und Power-to-Heat stark ausgebaut und Kraft-Wärme-Kopplungsanlagen zunehmend mit emissionsärmeren Brennstoffen, etwa Wasserstoff, betrieben werden.'
+  description_en: 'The emission factor of Potsdam district heating is currently around 155g/kWh and should decrease to around 50g/kWh by 2025. For comparison: natural gas in heating use generates around 250g/kWh, biogas 110g/kWh and solar thermal 25g/kWh (each including CO2 equivalents and upstream emissions). The goal for district heating should be achieved by strongly expanding environmental heat and power-to-heat and increasingly operating combined heat and power plants with lower-emission fuels, such as hydrogen.'
   type: simple.GenericAction
   quantity: emission_factor
   unit: t/MWh
@@ -1109,16 +1497,10 @@ actions:
   output_nodes: [heating_grid_emission_factor]
 
 - id: i42_energy_grid_energy_consumption_action
-  name: Reduktion des Stromverbrauch in Haushalten und Gewerbe (ohne Heiz- und 
-    Mobilitätsstrom)
-  description: Der Stromverbrauch in diesem Bereich sollte deutlich reduziert 
-    werden, von heute ca. 525.000 MWh auf ca. 375.000 MWh bzw. pro Einwohner von
-    2.800 kWh auf 1.700 kWh pro Jahr. Dafür sind eine Vielzahl kleinteiliger 
-    Maßnahmen nötig, z.B. Klimaneutralitätskonzepte für große Unternehmen und 
-    Institutionen der Stadt (SPSG, Landesliegenschaften, Medienbranche u.a.); 
-    das Ausrollen von Smart- Metering; Energieeffizienznetzwerke der Wirtschaft;
-    Energieberatung und Kampagnen; Anreize für effiziente Haushaltsgeräte sowie 
-    permanente Öffentlichkeitsarbeit.
+  name: Reduktion des Stromverbrauch in Haushalten und Gewerbe (ohne Heiz- und Mobilitätsstrom)
+  name_en: Reduction of electricity consumption in households and commerce (excluding heating and mobility electricity)
+  description: Der Stromverbrauch in diesem Bereich sollte deutlich reduziert werden, von heute ca. 525.000 MWh auf ca. 375.000 MWh bzw. pro Einwohner von 2.800 kWh auf 1.700 kWh pro Jahr. Dafür sind eine Vielzahl kleinteiliger Maßnahmen nötig, z.B. Klimaneutralitätskonzepte für große Unternehmen und Institutionen der Stadt (SPSG, Landesliegenschaften, Medienbranche u.a.); das Ausrollen von Smart- Metering; Energieeffizienznetzwerke der Wirtschaft; Energieberatung und Kampagnen; Anreize für effiziente Haushaltsgeräte sowie permanente Öffentlichkeitsarbeit.
+  description_en: Electricity consumption in this area should be significantly reduced, from today's approximately 525,000 MWh to approximately 375,000 MWh or per inhabitant from 2,800 kWh to 1,700 kWh per year. This requires a variety of small-scale measures, e.g. climate neutrality concepts for large companies and institutions in the city (SPSG, state properties, media industry, etc.); the rollout of smart metering; energy efficiency networks in business; energy consulting and campaigns; incentives for efficient household appliances as well as permanent public relations work.
   type: simple.GenericAction
   quantity: energy
   unit: MWh/a
@@ -1136,19 +1518,9 @@ actions:
 
 - id: i42_energy_grid_energy_emission_factor_action
   name: Ausbau erneuerbarer Energien in der Stromerzeugung
-  description: Strom wird künftig als Energieträger noch wichtiger als er es 
-    heute bereits ist. Auch Wärmeenergie und Mobilität sollen zum Teil darüber 
-    gedeckt werden. Umso wichtiger ist es die Erzeugung soweit möglich auf 
-    Erneuerbare Energie umzustellen.<br> Potsdam als städtischer Raum kann v.a. 
-    Dachflächen für die Photovoltaik nutzen. Das Potential liegt bei ca. 170 
-    Gigawattstunden pro Jahr. Bisher werden lediglich ca. 20 MWh erzeugt. In den
-    ländlichen Ortsteilen sind auch große Freiflächenanlagen möglich. 2017 wurde
-    das Potential auf ca. 140 GWh geschätzt. Durch die Weiterentwicklung der 
-    Technik dürfte es heute noch etwas höher liegen. Derzeit sind Anlagen u.a. 
-    in Satzkorn in Planung.<br> Durch das Wind-an-Land-Gesetz von 2023 gibt es 
-    mittlerweile auch theoretisch die Möglichkeit der Windenergienutzung in 
-    Potsdam. Die planerischen Hürden sind hier sehr hoch, werden jedoch 
-    ebenfalls geprüft.
+  name_en: Expansion of renewable energies in electricity generation
+  description: Strom wird künftig als Energieträger noch wichtiger als er es heute bereits ist. Auch Wärmeenergie und Mobilität sollen zum Teil darüber gedeckt werden. Umso wichtiger ist es die Erzeugung soweit möglich auf Erneuerbare Energie umzustellen.<br> Potsdam als städtischer Raum kann v.a. Dachflächen für die Photovoltaik nutzen. Das Potential liegt bei ca. 170 Gigawattstunden pro Jahr. Bisher werden lediglich ca. 20 MWh erzeugt. In den ländlichen Ortsteilen sind auch große Freiflächenanlagen möglich. 2017 wurde das Potential auf ca. 140 GWh geschätzt. Durch die Weiterentwicklung der Technik dürfte es heute noch etwas höher liegen. Derzeit sind Anlagen u.a. in Satzkorn in Planung.<br> Durch das Wind-an-Land-Gesetz von 2023 gibt es mittlerweile auch theoretisch die Möglichkeit der Windenergienutzung in Potsdam. Die planerischen Hürden sind hier sehr hoch, werden jedoch ebenfalls geprüft.
+  description_en: Electricity as an energy carrier will be even more important in the future than it already is today. Heating energy and mobility should also be partially covered by it. It is therefore all the more important to convert generation to renewable energy as much as possible.<br> Potsdam as an urban area can primarily use rooftop areas for photovoltaics. The potential is around 170 gigawatt hours per year. So far, only around 20 MWh is generated. Large ground-mounted systems are also possible in rural districts. In 2017, the potential was estimated at around 140 GWh. Due to technological development, it is likely to be somewhat higher today. Systems are currently being planned in Satzkorn, among other places.<br> The Onshore Wind Energy Act of 2023 now also theoretically provides the possibility of using wind energy in Potsdam. The planning hurdles are very high here, but are also being examined.
   type: simple.GenericAction
   quantity: emission_factor
   unit: t/MWh
@@ -1165,14 +1537,10 @@ actions:
   output_nodes: [electricity_emission_factor]
 
 - id: ii11_onroad_transport_fuel_consumption_action
-  name: Reduzierung Gesamtenergieverbrauchs im BInnenverkehr
-  description: Die Umstellung der Mobilität auf elektrische Antriebe und 
-    fossilfreie Brennstoffe sind nur die halbe Miete zur Erreichung der 
-    Klimaschutzziele. Der Energieeinsatz sollte bis 2045 etwa halbiert werden im
-    Vergleich zu 2020. Zum Teil wird dies durch die höhere Effizienz von 
-    Elektromotoren erreicht werden können. Einen wesentlichen Teil sollte jedoch
-    die deutliche Erhöhung des Umweltverbundes (Fuß, Rad, ÖPNV) haben, da hier 
-    Energie ganz eingespart oder pro Kopf effizienter eingesetzt wird.
+  name: Reduzierung Gesamtenergieverbrauchs im Binnenverkehr
+  name_en: Reduction of total energy consumption in local transport
+  description: Die Umstellung der Mobilität auf elektrische Antriebe und fossilfreie Brennstoffe sind nur die halbe Miete zur Erreichung der Klimaschutzziele. Der Energieeinsatz sollte bis 2045 etwa halbiert werden im Vergleich zu 2020. Zum Teil wird dies durch die höhere Effizienz von Elektromotoren erreicht werden können. Einen wesentlichen Teil sollte jedoch die deutliche Erhöhung des Umweltverbundes (Fuß, Rad, ÖPNV) haben, da hier Energie ganz eingespart oder pro Kopf effizienter eingesetzt wird.
+  description_en: Converting mobility to electric drives and fossil-free fuels is only half the battle for achieving climate protection goals. Energy use should be roughly halved by 2045 compared to 2020. This can be partially achieved through the higher efficiency of electric motors. However, a significant part should be the substantial increase in sustainable transport modes (walking, cycling, public transport), as energy is completely saved or used more efficiently per capita here.
   type: simple.GenericAction
   quantity: energy
   unit: MWh/a
@@ -1190,10 +1558,9 @@ actions:
 
 - id: ii11_onroad_transport_fuel_emission_factor_action
   name: Zunahme der Anteile emissionsarmer Brennstoffe und der Elektromobilität
-  description: Insbesondere die verbleibenden Anteile des Motorisierten 
-    Individualverkehrs (MIV) sollten durch Elektromobilität und – in geringerem 
-    Umfang – durch synthetische Treibstoffe und effiziente Erdgasnutzung gedeckt
-    werden.
+  name_en: Increase in the share of low-emission fuels and electromobility
+  description: Insbesondere die verbleibenden Anteile des Motorisierten Individualverkehrs (MIV) sollten durch Elektromobilität und – in geringerem Umfang – durch synthetische Treibstoffe und effiziente Erdgasnutzung gedeckt werden.
+  description_en: In particular, the remaining shares of motorized individual transport (MIT) should be covered by electromobility and – to a lesser extent – by synthetic fuels and efficient natural gas use.
   type: simple.GenericAction
   quantity: emission_factor
   unit: t/MWh
@@ -1211,8 +1578,9 @@ actions:
 
 - id: ii12_onroad_transport_grid_energy_consumption_action
   name: Erhöhung des Anteils des stromgebundenen ÖPNV und der Elektromobilität
-  description: Das Straßenbahnnetz soll ausgebaut und eine hohe Auslastung 
-    erreicht werden. Auch der MIV soll zunehmend elektrifiziert werden.
+  name_en: Increasing the share of electricity-based public transport and electromobility
+  description: Das Straßenbahnnetz soll ausgebaut und eine hohe Auslastung erreicht werden. Auch der MIV soll zunehmend elektrifiziert werden.
+  description_en: The tram network should be expanded and high capacity utilization achieved. Motorized individual transport should also be increasingly electrified.
   type: simple.GenericAction
   quantity: energy
   unit: MWh/a
@@ -1230,9 +1598,9 @@ actions:
 
 - id: ii12_onroad_transport_grid_energy_emission_factor_action
   name: Strom aus erneuerbaren Energien für ÖPNV und Elektromobilität
-  description: Wie unter Maßnahme 2.2 beschrieben, sollte auch der Strombedarf 
-    der Mobilität soweit möglich aus lokalen Erneuerbaren Quellen gedeckt 
-    werden.
+  name_en: Electricity from renewable energies for public transport and electromobility
+  description: Wie unter Maßnahme 2.2 beschrieben, sollte auch der Strombedarf der Mobilität soweit möglich aus lokalen Erneuerbaren Quellen gedeckt werden.
+  description_en: As described under measure 2.2, the electricity demand for mobility should also be covered from local renewable sources as much as possible.
   type: simple.GenericAction
   quantity: emission_factor
   unit: t/MWh
@@ -1251,31 +1619,29 @@ actions:
 pages:
 - id: home
   name: Klimaschutz-Monitor Potsdam Treibhausgasinventar
+  name_en: Climate Protection Monitor Potsdam Greenhouse Gas Inventory
   path: /
   type: emission
   outcome_node: net_emissions
   lead_title: Potsdam Zielwerte Klimaschutz
-  lead_paragraph: Die Treibhausgasemissionen in Potsdam sinken kontinuierlich, 
-    pro Kopf relativ deutlich. In der Vergangenheit konnten die Minderungsziele 
-    weitgehend erreicht werden. Die hier abgebildeten Ziele des Masterplan 100% 
-    Klimaschutz sind jedoch noch ambitionierter als die bisherigen. Der 
-    Ausschlag nach unten im Jahr 2020 dürfte auf die Maßnahmen zur 
-    Covid19-Pandemie zurückzuführen sein.
+  lead_paragraph: Die Treibhausgasemissionen in Potsdam sinken kontinuierlich, pro Kopf relativ deutlich. In der Vergangenheit konnten die Minderungsziele weitgehend erreicht werden. Die hier abgebildeten Ziele des Masterplan 100% Klimaschutz sind jedoch noch ambitionierter als die bisherigen. Der Ausschlag nach unten im Jahr 2020 dürfte auf die Maßnahmen zur Covid19-Pandemie zurückzuführen sein.
 
 scenarios:
 
 - id: baseline
   name: Business as Usual
+  # name_en: Business as Usual
 
 - id: default
   default: true
   name: Klimaschutzplan
+  # name_en: Climate Protection Plan
   params:
   # New actions on
   - id: district_heating_until_2030.enabled
     value: true
   - id: district_heating_2030_2045.enabled
-    value: true
+    value: false
   - id: re_expansion_masterplan_2045.enabled
     value: true
   - id: re_expansion_masterplan_kwp.enabled
@@ -1299,7 +1665,7 @@ scenarios:
   - id: improved_federal_grid_mix.enabled
     value: true
   - id: re_electricity_emobility.enabled
-    value: true
+    value: false
   - id: fossil_fuel_replacement.enabled
     value: true
   - id: local_transport_energy_reduction.enabled
@@ -1329,6 +1695,7 @@ scenarios:
 - id: old_action_plan
   default: false
   name: Alte Klimaschutzplan
+  # name_en: Old Climate Protection Plan
   params:
   # New actions off
   - id: district_heating_until_2030.enabled
