@@ -9,16 +9,14 @@ from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.urls import URLPattern, path, reverse
 from django.utils.translation import gettext_lazy as _, pgettext_lazy
-from wagtail.admin.menu import AdminOnlyMenuItem
+from wagtail.admin.menu import MenuItem
 from wagtail.admin.panels import FieldPanel, InlinePanel, ObjectList, TabbedInterface
 from wagtail.snippets.models import register_snippet
-from wagtail.snippets.views.snippets import SnippetViewSet
 from wagtail.snippets.widgets import SnippetListingButton
 
 from wagtailgeowidget import __version__ as wagtailgeowidget_version
 
 from kausal_common.i18n.panels import TranslatedFieldPanel
-from kausal_common.models.permission_policy import ModelPermissionPolicy, ObjectSpecificAction
 from kausal_common.organizations.forms import NodeForm
 from kausal_common.organizations.views import (
     OrganizationDeleteView,
@@ -32,6 +30,8 @@ from kausal_common.people.chooser import PersonChooser
 
 from paths.context import realm_context
 
+from admin_site.viewsets import PathsViewSet
+from nodes.roles import instance_super_admin_role
 from orgs.views import OrganizationCreateView
 from users.models import User
 
@@ -59,57 +59,6 @@ else:
 class CondensedInlinePanel[M: Model, RelatedM: Model](InlinePanel[M, RelatedM]):
     pass
 
-class OrganizationPermissionPolicy(ModelPermissionPolicy):
-
-    def user_has_permission(self, user: User | AnonymousUser, action: str) -> bool:
-        assert isinstance(user, User)
-        if user.is_superuser:
-            return True
-        # if action == 'view':
-        #     return True
-        # TODO: The following is the old logic, which we may reinstate when we
-        # thought about how to handle permissions best.
-        # person = user.get_corresponding_person()
-        # return person and person.metadata_adminable_organizations.exists()
-        # For now we allow general admins (for any plan) to create organizations.
-        # if action == 'add':
-        #     return user.is_general_admin_for_plan()
-        # We cannot know if the user has other permissions to the instance
-        # without knowing the instance. user_has_permission should be overridden
-        # in relevant places to call user_has_permission_for_instance
-        return False
-
-    def user_has_permission_for_instance(self, user: User | AnonymousUser, action: str, instance: Organization) -> bool:
-        assert isinstance(user, User)
-        if user.is_superuser:
-            return True
-
-        # if action in ('change', 'delete'):
-        #     return user.is_admin_for_instance(instance.instances)
-        # if action == 'add':
-        #     return user.is_admin_for_instance(instance.instances)
-
-
-        return super().user_has_permission_for_instance(user, action, instance)
-
-    def anon_has_perm(self, action: ObjectSpecificAction, obj: Any) -> bool:
-        return False
-
-    def construct_perm_q(self, user: User, action: ObjectSpecificAction) -> Q | None:
-        if user.is_superuser:
-            return Q()
-        return Q(pk__in=[])
-
-    def construct_perm_q_anon(self, action: ObjectSpecificAction) -> Q | None:
-        return Q(pk__in=[])
-
-    def user_can_create(self, user: User, context: Any) -> bool:
-        return user.is_superuser
-
-    def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: Any) -> bool:
-        return user.is_superuser
-
-
 class OrganizationForm(NodeForm):
     user: User
 
@@ -121,26 +70,15 @@ class OrganizationForm(NodeForm):
 
     def clean_parent(self):
         parent = super().clean_parent()
-        if self.instance._state.adding:
+        if parent is not None:
             return parent
-        # If a user has edit access to an organization only because they can edit an ancestor, prevent them from losing
-        # edit rights by moving it to a parent which they cannot edit (or make it a root). For now, only allow
-        # superusers to set roots. (Only editable organizations are avaible as parent choices anyway.)
-        if parent is None and not self.user.is_superuser:
-            # On the other hand, allow direct metadata admins of a top level organizations to save the org when editing
-            # if (
-            #     self.instance.parent is None and
-            #     OrganizationMetadataAdmin.objects
-            #         .filter(person=self.user.person)
-            #         .filter(organization=self.instance)
-            #         .exists()
-            # ):
-            #     return parent
-            # For now, allow for general plan admins
-            # if self.instance.parent is None and self.user.is_general_admin_for_plan():
-            #     return parent
+
+        if self.instance._state.adding:
             raise ValidationError(_("Creating organizations without a parent not allowed."), code='invalid_parent')
-        return parent
+
+        if self.instance.parent is None:
+            return parent
+        raise ValidationError(_("Removing parent from organization is not allowed."), code='invalid_parent')
 
     def save(self, *args, **kwargs):
         creating = self.instance._state.adding
@@ -152,12 +90,18 @@ class OrganizationForm(NodeForm):
 
 
 
-class OrganizationViewSet(SnippetViewSet):
+class OrganizationMenuItem(MenuItem):
+    def is_shown(self, request):
+        user = request.user
+        active_instance = realm_context.get().realm
+        return user.is_superuser or user.has_instance_role(instance_super_admin_role, active_instance)
+
+
+class OrganizationViewSet(PathsViewSet):
     model = Organization
     menu_label = _("Organizations")
     icon = 'kausal-organisations'
     menu_order = 301
-    permission_policy = OrganizationPermissionPolicy(model)
     index_view_class = OrganizationIndexView
     add_view_class = OrganizationCreateView
     edit_view_class = OrganizationEditView
@@ -165,7 +109,7 @@ class OrganizationViewSet(SnippetViewSet):
     search_fields = ['name', 'abbreviation']
     list_display = ['name', 'parent','abbreviation']
     add_to_admin_menu = True
-    menu_item_class = AdminOnlyMenuItem  # TODO: remove this line once permission policies are ready
+    menu_item_class = OrganizationMenuItem
     add_child_url_name = 'add_child'
 
     basic_panels = [
@@ -309,7 +253,8 @@ class OrganizationViewSet(SnippetViewSet):
         # Show "add child" button
         # TODO: allow for organization metadata admins but without the huge
         # amount of db queries that iterating org.user_can_edit entails
-        if user.user_is_admin_for_instance(instance):
+        pp = Organization.permission_policy()
+        if pp.user_can_create(user, instance_config):
             buttons.append(self._get_add_child_button(instance))
 
         return buttons
