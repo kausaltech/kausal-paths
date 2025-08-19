@@ -23,7 +23,7 @@ from kausal_common.models.permissions import PermissionedQuerySet
 
 from paths.context import realm_context
 
-from nodes.roles import instance_admin_role, instance_viewer_role
+from nodes.roles import instance_super_admin_role, instance_admin_role, instance_viewer_role
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -48,6 +48,7 @@ class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, 'InstanceCo
 
         self.model = model
         self.instance_admin_role = instance_admin_role
+        self.instance_super_admin_role = instance_super_admin_role
         self.instance_viewer_role = instance_viewer_role
         self.ic_model = InstanceConfig
         super().__init__(model)
@@ -82,7 +83,7 @@ class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, 'InstanceCo
 
     @override
     def user_can_create(self, user: User, context: InstanceConfig) -> bool:
-        return user.has_instance_role(self.instance_admin_role, context)
+        return user.is_superuser or user.has_instance_role(self.instance_admin_role, context)
 
     @override
     def construct_perm_q_anon(self, action: BaseObjectAction) -> Q | None:
@@ -139,7 +140,7 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
         if not self.user_is_authenticated(user):
             return False
 
-        allowed_roles: list[InstanceSpecificRole[InstanceConfig]] = [self.instance_admin_role]
+        allowed_roles: list[InstanceSpecificRole[InstanceConfig]] = [self.instance_admin_role, self.instance_super_admin_role]
         if action == 'view':
             allowed_roles.append(self.instance_viewer_role)
 
