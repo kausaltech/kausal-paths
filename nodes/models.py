@@ -713,13 +713,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         return home_page
 
     def create_default_content(self):
-        pp = self.permission_policy()
-        pp.admin_role.create_or_update_instance_group(self)
-        pp.viewer_role.create_or_update_instance_group(self)
-        # For now, try not to proliferate the group count for NZC instances
-        if not self.has_framework_config() or self.framework_config.framework.identifier != 'nzc':
-            pp.super_admin_role.create_or_update_instance_group(self)
-
+        self.create_or_update_instance_groups()
         root_page = self._create_default_pages()
         if self.site is None and self.site_url is not None:
             o = urlparse(self.site_url)
@@ -727,6 +721,14 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
             site.save()
             self.site = site
             self.save(update_fields=['site'])
+
+    def create_or_update_instance_groups(self):
+        pp = self.permission_policy()
+        pp.admin_role.create_or_update_instance_group(self)
+        pp.viewer_role.create_or_update_instance_group(self)
+        # For now, try not to proliferate the group count for NZC instances
+        if not self.has_framework_config() or self.framework_config.framework.identifier != 'nzc':
+            pp.super_admin_role.create_or_update_instance_group(self)
 
     def invalidate_cache(self, save: bool = True):
         self.cache_invalidated_at = timezone.now()
