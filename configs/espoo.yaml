@@ -4,7 +4,7 @@ supported_languages: [sv, en]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 850a8d14d928d496260ebfa0ab50ac2be5106b2b
+  commit: 1cc7f4a234978a2f00a274cb7648979333624dda
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -447,34 +447,19 @@ nodes:
 # Buildings
 
 - id: building_floor_area_existing
-  type: finland.aluesarjat.BuildingStock # FIXME Use SectorNode instead. Fix the future doubling.
   name_fi: Nykyisen rakennuskannan kerrosala
   name_en: Floor area of existing building stock
   name_sv: Våningsytan i det nuvarande byggnadsbeståndet
-  description_fi: Kerrosalasta oletetaan, että vanha rakennuskanta säilyy 
-    aikavälillä 2021-2035 ja uudisrakennukset vastaavat rakennuskannan lisäystä.
-    Asumisväljyyden oletetaan pysyvän muuttumattomana. Muiden kuin 
-    asuinrakennusten osalta kerrosalan arvioidaan kehittyvän Uudenmaan kasvun 
-    vaihtoehdot-selvityksen oletusten mukaisesti.
-  description_en: In the pessimistic scenario, changes in the floor area of the 
-    building stock will not affect the expected emissions development; instead, 
-    the calculation is based on the development of per capita emissions and the 
-    trend realised in 2017–2021 as well as the development of the population. 
-    The Finland 2035 and Carbon-neutral Espoo 2030 scenarios assume that the old
-    building stock will be preserved in 2021–2035 and new buildings will 
-    correspond to the increase in the building stock.
-  description_sv: I det pessimistiska scenariot påverkar förändringarna i 
-    byggnadsbeståndets våningsyta inte den antagna utsläppsutvecklingen, utan 
-    beräkningen grundar sig på utvecklingen av utsläppen per invånare och den 
-    realiserade trenden under perioden 2017–2021 samt befolkningsutvecklingen. I
-    scenarierna Finland 2035 och HNE2030 antas att det gamla byggnadsbeståndet 
-    bevaras under perioden 2021–2035 och nybyggnaderna motsvarar ökningen av 
-    byggnadsbeståndet.
-  input_datasets:
-  - id: helsinki/aluesarjat/02um_rakennukset_lammitys
-    filters:
-    - column: Alue
-      value: Espoo
+  type: generic.GenericNode
+  quantity: floor_area
+  unit: m**2
+  input_dimensions: [building_heat_source, building_use]
+  output_dimensions: [building_heat_source, building_use]
+  input_nodes:
+  - id: total_building_area2
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
 
 ## New building model
 
@@ -703,7 +688,7 @@ nodes:
     - id: building_use
 
 - id: total_building_area2
-  name_fi: Rakennuskannan kokonaisala
+  name_fi: Rakennuskannan kokonaisala indeksoituna
   type: generic.GenericNode
   quantity: floor_area
   unit: m**2
@@ -1522,6 +1507,64 @@ actions:
     - id: economic_sector
       categories: [services]
 
+# BULK TRANSPORT ACTIONS
+
+- id: prioritised_actions_on_activity
+  name: Priorisoidut suoritteeseen liittyvät toimet
+  description: 'Priorisoituja toimenpiteitä ja niiden arvioituja päästövaikutuksia (yhteensä -8,2 %):<ul>
+    <li>Parannamme kävelyn olosuhteita * : -1 % (Laskettu automatkojen korvaamisen potentiaalina)</li>
+    <li>Parannamme pyöräilyn olosuhteita * : -1 % (Laskettu automatkojen korvaamisen potentiaalina)</li>
+    <li>Kehitämme liityntäpysäköintiä ** : -0,5 %</li>
+    <li>Varmistamme joukkoliikenteen sujuvuuden * : -0,1 % (Joukkoliikenteen liikennevaloetuuksien vaikutus päästöihin arvioidaan hyvin vähäiseksi)</li>
+    <li>Lisäämme sähköbussien määrää Espoossa: -3,5 % (Arvioitu oletuksella, että HSL:n kaikki bussit nollapäästöisiä v. 2030)</li>
+    <li>Tehostamme pysäköintiä: -0,5 % (Yhteiskäyttöauto voi parhaassa tapauksessa korvata 5-15 autoa. Vaikutus suoritteeseen arvioidaan kuitenkin vähäiseksi. Maksullisen pysäköinnin vaikutus arvioitu lisätoimenpiteissä. Muilla pysäköinnin tehostamistoimenpiteillä arvioitu olevan pieni vaikutus.)</li>
+    <li>Vähennämme liikenteen päästöjä lisäämällä etätyötä sekä palveluita * : -1,4 % (Laskettu Helmet-mallinnuksen ja fossiilittoman liikenteen tiekartan laskelmien keskiarvona)</li>
+    <li>Kehitämme kaupunkipyöräjärjestelmää * , ** : -0,2 %</li></ul>
+    * Osittain päällekkäinen toimenpide fossiilittoman liikenteen tiekartan toimenpidekokonaisuuksien kanssa</br>
+    ** Arvioitu kulkutapajakauman muutokseen tähtäävien toimenpiteiden henkilöauton kulkutapaosuutta vähentäväksi (lyhyen tähtäimen) vaikutukseksi 3 %-yks, jolloin kokonaispäästövaikutus yht. n. -2 %</br>'
+  type: simple.GenericAction
+  quantity: fraction
+  unit: '%'
+  input_datasets:
+  - id: espoo/priorisoidut_toimet
+    tags: [baseline]
+    forecast_from: 2024
+    column: aktiviteetti
+  output_nodes:
+  - id: passenger_car_kilometers
+    tags: [arithmetic_inverse, complement]
+    to_dimensions: []
+  - id: road_transport_energy_consumption
+    tags: [arithmetic_inverse, complement]
+    to_dimensions: []
+
+- id: prioritised_actions_on_emission_factor
+  name: Priorisoidut päästökertoimeen liittyvät toimet
+  description: 'Priorisoituja toimenpiteitä ja niiden arvioituja päästövaikutuksia (yhteensä -4,5 %):<ul>
+    <li>Kehitämme sähköautojen latausinfraa kaupungissa * , *** : -1 %</li>
+    <li>Kehitämme sähköautojen latausmahdollisuuksia Espoon Asuntojen kiinteistöissä *** : -0,5 %</li>
+    <li>Jakeluliikenteen ja kuorma-autojen sähköistymisen nopean kasvun edistäminen * , **** : -1,5 %</li>
+    <li>Kehitämme uusiutuvien polttoaineiden jakeluinfraa * , *** : -1 %</li>
+    <li>Tehostamme vähäpäästöistä kaupunkilogistiikkaa **** : -0,5 %</li></ul>
+    * Osittain päällekkäinen toimenpide fossiilittoman liikenteen tiekartan toimenpidekokonaisuuksien kanssa</br>
+    *** Arvioitu henkilöautojen käyttövoimamuutokseen tähtäävien toimenpiteiden yhteisvaikutuksena sähköautojen osuuden lisääntyvän 5 %-yks. jolloin kokonaispäästövaikutus yht. n. -3 %</br>
+    **** Arvioitu tavaraliikenteen käyttövoimamuutokseen tähtäävien toimenpiteiden seurauksena sähköisten pakettiautojen ja raskaan liikenteen ajoneuvojen osuuden kasvavan yht. 5 %-yks., jolloin kokonaispäästövaikutus yht. n. -2 %'
+  type: simple.GenericAction
+  quantity: fraction
+  unit: '%'
+  input_datasets:
+  - id: espoo/priorisoidut_toimet
+    tags: [baseline]
+    forecast_from: 2024
+    column: paastokerroin
+  output_nodes:
+  - id: road_traffic_emission_factors
+    tags: [arithmetic_inverse, complement]
+    to_dimensions: []
+  - id: passenger_car_emission_factors
+    tags: [arithmetic_inverse, complement]
+    to_dimensions: []
+
 # Transport
 
 - id: active_car_shift
@@ -1531,6 +1574,7 @@ actions:
   type: simple.GenericAction
   quantity: ratio
   unit: '%'
+  group: transportation
   input_dimensions: [energy_carrier, vehicle_type]
   output_dimensions: [energy_carrier, vehicle_type]
   input_datasets:

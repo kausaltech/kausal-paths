@@ -175,7 +175,7 @@ nodes:
   name_fi: Tieliikenteen energiankulutus
   name_en: Road transport energy consumption
   name_sv: Vägtrafikens energiförbrukning 
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [vehicle_type]
@@ -201,6 +201,8 @@ nodes:
       exclude: true
     - id: economic_sector
       flatten: true
+  params:
+    operations: add,multiply
 
 - id: road_traffic_emissions
   name_fi: Tieliikenteen päästöt
