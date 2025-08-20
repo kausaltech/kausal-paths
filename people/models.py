@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-# import re
 import contextlib
 import uuid
 from typing import TYPE_CHECKING, ClassVar, override
@@ -15,6 +14,7 @@ from wagtail.search import index
 from loguru import logger
 
 # from wagtail.images.rect import Rect
+from kausal_common.models.permissions import PermissionedModel
 from kausal_common.models.types import MLModelManager
 from kausal_common.people.models import BasePerson
 
@@ -23,6 +23,8 @@ from users.models import User
 
 if TYPE_CHECKING:
     from django.db import models
+
+    from kausal_common.models.permission_policy import ModelPermissionPolicy
 
     from paths.types import PathsAdminRequest
 
@@ -48,7 +50,7 @@ else:
     PersonManager = MLModelManager.from_queryset(PersonQuerySet)
 
 
-class Person(BasePerson):
+class Person(PermissionedModel, BasePerson):
     objects: ClassVar[PersonManager] = PersonManager()  # pyright: ignore
 
     search_fields = BasePerson.search_fields + [
@@ -144,3 +146,8 @@ class Person(BasePerson):
             return True
 
         return False
+
+    @classmethod
+    def permission_policy(cls) -> ModelPermissionPolicy:
+        from .permission_policy import PersonPermissionPolicy
+        return PersonPermissionPolicy()
