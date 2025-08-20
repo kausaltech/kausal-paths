@@ -72,6 +72,8 @@ class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, 'InstanceCo
         # Check if user is admin for any of the instances
         if user.has_instance_role(self.instance_admin_role, active_instance):
             return True
+        if user.has_instance_role(self.instance_super_admin_role, active_instance):
+            return True
         # For view permission, check if user is a viewer for any of the instances
         if action == 'view':
             return user.has_instance_role(self.instance_viewer_role, active_instance)
@@ -83,7 +85,12 @@ class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, 'InstanceCo
 
     @override
     def user_can_create(self, user: User, context: InstanceConfig) -> bool:
-        return user.is_superuser or user.has_instance_role(self.instance_admin_role, context)
+        return (
+            user.is_superuser or
+            user.has_instance_role(self.instance_admin_role, context) or
+            user.has_instance_role(self.instance_super_admin_role, context)
+        )
+
 
     @override
     def construct_perm_q_anon(self, action: BaseObjectAction) -> Q | None:
@@ -127,14 +134,19 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
             scopes__scope_id__in=self.instance_admin_role.get_instances_for_user(user)
         )
 
+        super_admin_q = Q(
+            scopes__scope_content_type=ic_content_type,
+            scopes__scope_id__in=self.instance_super_admin_role.get_instances_for_user(user)
+        )
+
         if action == 'view':
             viewer_q = Q(
                 scopes__scope_content_type=ic_content_type,
                 scopes__scope_id__in=self.instance_viewer_role.get_instances_for_user(user)
             )
-            return admin_q | viewer_q
+            return super_admin_q | admin_q | viewer_q
 
-        return admin_q
+        return super_admin_q | admin_q
 
     def user_has_permission(self, user: User | AnonymousUser, action: str) -> bool:
         if not self.user_is_authenticated(user):
@@ -216,11 +228,16 @@ class DataSourcePermissionPolicy(InstanceConfigScopedPermissionPolicy[DataSource
             scope_id__in=self.instance_admin_role.get_instances_for_user(user)
         )
 
+        super_admin_q = Q(
+            scope_content_type=ic_content_type,
+            scope_id__in=self.instance_admin_role.get_instances_for_user(user)
+        )
+
         if action == 'view':
             viewer_q = Q(
                 scope_content_type=ic_content_type,
                 scope_id__in=self.instance_viewer_role.get_instances_for_user(user)
             )
-            return admin_q | viewer_q
+            return super_admin_q | admin_q | viewer_q
 
-        return admin_q
+        return super_admin_q | admin_q
