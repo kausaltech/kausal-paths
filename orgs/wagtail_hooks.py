@@ -9,7 +9,6 @@ from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.urls import URLPattern, path, reverse
 from django.utils.translation import gettext_lazy as _, pgettext_lazy
-from wagtail.admin.menu import MenuItem
 from wagtail.admin.panels import FieldPanel, InlinePanel, ObjectList, TabbedInterface
 from wagtail.snippets.models import register_snippet
 from wagtail.snippets.widgets import SnippetListingButton
@@ -30,8 +29,8 @@ from kausal_common.people.chooser import PersonChooser
 
 from paths.context import realm_context
 
+from admin_site.utils import SuperAdminOnlyMenuItem
 from admin_site.viewsets import PathsViewSet
-from nodes.roles import instance_super_admin_role
 from orgs.views import OrganizationCreateView
 from users.models import User
 
@@ -39,9 +38,8 @@ from .models import Organization
 from .views import CreateChildNodeView
 
 if TYPE_CHECKING:
-    from django.contrib.auth.models import AnonymousUser
+    from django.db.models import Model
     from wagtail.admin.panels.base import Panel
-    from wagtail.core.models import Model
 
     from nodes.models import InstanceConfig
 
@@ -90,13 +88,6 @@ class OrganizationForm(NodeForm):
 
 
 
-class OrganizationMenuItem(MenuItem):
-    def is_shown(self, request):
-        user = request.user
-        active_instance = realm_context.get().realm
-        return user.is_superuser or user.has_instance_role(instance_super_admin_role, active_instance)
-
-
 class OrganizationViewSet(PathsViewSet):
     model = Organization
     menu_label = _("Organizations")
@@ -109,7 +100,7 @@ class OrganizationViewSet(PathsViewSet):
     search_fields = ['name', 'abbreviation']
     list_display = ['name', 'parent','abbreviation']
     add_to_admin_menu = True
-    menu_item_class = OrganizationMenuItem
+    menu_item_class = SuperAdminOnlyMenuItem
     add_child_url_name = 'add_child'
 
     basic_panels = [

@@ -11,6 +11,9 @@ from dal_select2.widgets import ModelSelect2
 
 from paths.context import realm_context
 
+from admin_site.utils import SuperAdminOnlyMenuItem
+from admin_site.viewsets import PathsViewSet
+
 from . import chooser  # noqa: F401
 from .models import Person
 
@@ -18,13 +21,13 @@ from .models import Person
 class AvatarWidget(AdminFileWidget):
     template_name = 'kausal_common/people/avatar_widget.html'
 
-class PersonSnippetViewSet(SnippetViewSet):
+class PersonSnippetViewSet(PathsViewSet):
     model = Person
     menu_label = _('People')
     menu_icon = 'user'
     menu_order = 300
     add_to_admin_menu = True
-    menu_item_class = AdminOnlyMenuItem  # TODO: remove this line once permission policies are ready
+    menu_item_class = SuperAdminOnlyMenuItem
 
     panels = [
         FieldPanel('first_name'),
