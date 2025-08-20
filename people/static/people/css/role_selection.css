@@ -1,0 +1,67 @@
+/* Role selection styling - integrates with Wagtail's panel system */
+.role-selection-panel .help-text {
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+    font-style: italic;
+}
+
+.role-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.role-option {
+    border: 1px solid;
+    border-radius: var(--w-border-radius-default, 4px);
+    transition: border-color 0.2s ease;
+}
+
+.role-option:hover {
+    border-color: var(--w-color-primary, #007cba);
+}
+
+.role-option-label {
+    display: flex;
+    align-items: flex-start;
+    padding: 1rem;
+    cursor: pointer;
+    margin: 0;
+}
+
+.role-option input[type="radio"] {
+    margin: 0.25rem 0.75rem 0 0;
+    flex-shrink: 0;
+    accent-color: var(--w-color-primary, #007cba);
+}
+
+.role-text-content {
+    flex: 1;
+    margin: 5px 0;
+}
+
+.role-label {
+    font-weight: 600;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.role-description {
+    font-size: 0.875rem;
+    display: block;
+}
+
+.role-option:has(input[type="radio"]:checked) {
+    border-color: var(--w-color-primary, #007cba);
+}
+
+.role-option:has(input[type="radio"]:checked) .role-label {
+}
+
+.role-option:has(input[type="radio"]:checked) .role-description {
+}
+
+/* Fallback for browsers that don't support :has() */
+.role-option input[type="radio"]:checked {
+    accent-color: var(--w-color-primary, #007cba);
+}

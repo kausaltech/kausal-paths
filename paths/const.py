@@ -11,6 +11,8 @@ INSTANCE_SUPER_ADMIN_ROLE = 'instance-super-admin'
 INSTANCE_ADMIN_ROLE = 'instance-admin'
 INSTANCE_VIEWER_ROLE = 'instance-viewer'
 
+NONE_ROLE = 'none'
+
 MODEL_CALC_OP = 'model.calculate'
 MODEL_CACHE_OP = 'model.cache'
 NODE_CALC_OP = 'node.calculate'

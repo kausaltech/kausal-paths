@@ -2,10 +2,8 @@ from __future__ import annotations
 
 from django.contrib.admin.widgets import AdminFileWidget
 from django.utils.translation import gettext_lazy as _
-from wagtail.admin.menu import AdminOnlyMenuItem
 from wagtail.admin.panels import FieldPanel
 from wagtail.snippets.models import register_snippet
-from wagtail.snippets.views.snippets import SnippetViewSet
 
 from dal_select2.widgets import ModelSelect2
 
@@ -15,11 +13,13 @@ from admin_site.utils import SuperAdminOnlyMenuItem
 from admin_site.viewsets import PathsViewSet
 
 from . import chooser  # noqa: F401
+from .forms import PersonForm
 from .models import Person
 
 
 class AvatarWidget(AdminFileWidget):
     template_name = 'kausal_common/people/avatar_widget.html'
+
 
 class PersonSnippetViewSet(PathsViewSet):
     model = Person
@@ -28,6 +28,7 @@ class PersonSnippetViewSet(PathsViewSet):
     menu_order = 300
     add_to_admin_menu = True
     menu_item_class = SuperAdminOnlyMenuItem
+    form_class: PersonForm
 
     panels = [
         FieldPanel('first_name'),
@@ -55,6 +56,9 @@ class PersonSnippetViewSet(PathsViewSet):
         active_instance = realm_context.get().realm
         qs = Person.objects.qs.available_for_instance(active_instance)
         return qs
+
+    def get_form_class(self, for_update=False):
+        return PersonForm
 
 
 register_snippet(PersonSnippetViewSet)

@@ -1,0 +1,12 @@
+{% load i18n %}
+<div class="role-option">
+    <label for="{{ widget.attrs.id }}" class="role-option-label">
+        <input type="{{ widget.type }}" name="{{ widget.name }}" value="{{ widget.value|default_if_none:'' }}"{% include "django/forms/widgets/attrs.html" %}{% if widget.attrs.checked %} checked{% endif %} id="{{ widget.attrs.id }}_{{ forloop.counter0 }}">
+        <div class="role-text-content">
+            <span class="role-label">{{ widget.label }}</span>
+            <span class="role-description">
+              {{ widget.help_text }}
+            </span>
+        </div>
+    </label>
+</div>

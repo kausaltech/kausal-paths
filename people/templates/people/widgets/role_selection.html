@@ -1,0 +1,27 @@
+{% load wagtailadmin_tags i18n %}
+<div class="w-form-width">
+
+{% panel heading_size="label" heading=widget.label|default:"Instance Role" icon="user" classname="role-selection-panel" %}
+    {% if widget.help_text %}
+      {% if widget.emphasize_help_text %}
+        {% help_block status="info" %}
+          <p>{{ widget.help_text }}</p>
+        {% endhelp_block %}
+      {% else %}
+        <div class="help-text">{{ widget.help_text }}</div>
+      {% endif %}
+    {% endif %}
+    {% if widget.show_options %}
+      <div class="role-options">
+          {% for group, options, index in widget.optgroups %}
+              {% for option in options %}
+                  {% include option.template_name with widget=option %}
+              {% endfor %}
+          {% endfor %}
+      </div>
+    {% else %}
+      <input type="hidden" name="{{ widget.name }}" value="none" />
+    {% endif %}
+
+{% endpanel %}
+</div>
