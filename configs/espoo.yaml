@@ -1569,23 +1569,23 @@ actions:
 
 # Transport
 
-- id: active_car_shift
-  name_fi: Espoon nopeampi autokannan uudistuminen
-  description: Toimi perustuu arvioon pääkaupunkiseudun nopeammasta autokannan 
-    uusiutumisesta verrattuna koko maahan.
-  type: simple.GenericAction
-  quantity: ratio
-  unit: '%'
-  group: transportation
-  input_dimensions: [energy_carrier, vehicle_type]
-  output_dimensions: [energy_carrier, vehicle_type]
-  input_datasets:
-  - id: espoo/liikenteen_toimenpiteet
-    column: helsingin_seudun_autokantamuutoksen_ero
-    tags: [baseline]
-    forecast_from: 2025
-  output_nodes:
-  - id: passenger_car_shares
+# - id: active_car_shift
+#   name_fi: Espoon nopeampi autokannan uudistuminen
+#   description: Toimi perustuu arvioon pääkaupunkiseudun nopeammasta autokannan 
+#     uusiutumisesta verrattuna koko maahan.
+#   type: simple.GenericAction
+#   quantity: ratio
+#   unit: '%'
+#   group: transportation
+#   input_dimensions: [energy_carrier, vehicle_type]
+#   output_dimensions: [energy_carrier, vehicle_type]
+#   input_datasets:
+#   - id: espoo/liikenteen_toimenpiteet
+#     column: helsingin_seudun_autokantamuutoksen_ero
+#     tags: [baseline]
+#     forecast_from: 2025
+#   output_nodes:
+#   - id: passenger_car_shares
 
 - id: biofuel_fraction_demand
   name_fi: Jakeluvelvoite
@@ -1750,7 +1750,7 @@ actions:
 #     - id: energy_carrier
 #   output_nodes:
 #   - id: electric_heating_emission_factor
-  
+
 - id: change_non_heating_electricity
   name_fi: Muutos kulutussähkön käytössä
   name_en: Change in household electricity use
@@ -2240,33 +2240,33 @@ actions:
 # Road traffic
 #
 
-- id: replace_fossil_fuels_in_cars
-  name_fi: Fossiilisten polttoaineiden korvaaminen
-  name_en: Replacing fossil fuels
-  name_sv: Ersättning av fossila bränslen
-  description_fi: HUOM! Tämä toimenpide korvattaneen jakeluvelvoitteen 
-    muutostoimenpiteellä. Fossiilisten polttoaineiden korvaamisen arvioidaan 
-    vähentävän tieliikenteen päästöjä 0.9 %.
-  description_en: Replacing fossil fuels is estimated to reduce road traffic 
-    emissions by 0.9%.
-  description_sv: Ersättning av fossila bränslen beräknas minska vägtrafikens 
-    utsläpp med 0,9 %.
-  type: simple.GenericAction
-  quantity: fraction
-  unit: '%'
-  group: transportation
-  input_datasets:
-  - id: espoo/liikenteen_toimenpiteet
-    tags: [baseline]
-    column: liikenteen_fossiilisten_polttoaineiden_korvaaminen
-    forecast_from: 2025
-  output_nodes:
-  - id: road_traffic_emission_factors
-    tags: [non_additive, complement]
-    to_dimensions: []
-  - id: passenger_car_emission_factors
-    tags: [non_additive, complement]
-    to_dimensions: []
+# - id: replace_fossil_fuels_in_cars
+#   name_fi: Fossiilisten polttoaineiden korvaaminen
+#   name_en: Replacing fossil fuels
+#   name_sv: Ersättning av fossila bränslen
+#   description_fi: HUOM! Tämä toimenpide korvattaneen jakeluvelvoitteen 
+#     muutostoimenpiteellä. Fossiilisten polttoaineiden korvaamisen arvioidaan 
+#     vähentävän tieliikenteen päästöjä 0.9 %.
+#   description_en: Replacing fossil fuels is estimated to reduce road traffic 
+#     emissions by 0.9%.
+#   description_sv: Ersättning av fossila bränslen beräknas minska vägtrafikens 
+#     utsläpp med 0,9 %.
+#   type: simple.GenericAction
+#   quantity: fraction
+#   unit: '%'
+#   group: transportation
+#   input_datasets:
+#   - id: espoo/liikenteen_toimenpiteet
+#     tags: [baseline]
+#     column: liikenteen_fossiilisten_polttoaineiden_korvaaminen
+#     forecast_from: 2025
+#   output_nodes:
+#   - id: road_traffic_emission_factors
+#     tags: [non_additive, complement]
+#     to_dimensions: []
+#   - id: passenger_car_emission_factors
+#     tags: [non_additive, complement]
+#     to_dimensions: []
 
 # - id: upgrade_car_fleet
 #   name_fi: Autokannan nopeampi uudistuminen
@@ -2303,25 +2303,25 @@ actions:
 #     min_value: -4
 #     max_value: -3
 
-- id: emission_limits_for_cars_and_vans
-  name_fi: Henkilö- ja pakettiautojen sitovat päästörajat
-  name_en: Binding emission limits for passenger cars and vans
-  name_sv: Bindande utsläppsgränser för person- och skåpbilar
-  description_fi: Henkilö- ja pakettiautojen sitovien päästörajojen arvioidaan 
-    vähentävän tieliikenteen päästöjä 0.7 %.
-  type: simple.GenericAction
-  quantity: fraction
-  unit: '%'
-  group: transportation
-  output_nodes:
-  - id: road_transport_energy_forecast
-    tags: [complement]
-    to_dimensions: []
-  input_datasets:
-  - id: espoo/liikenteen_toimenpiteet
-    tags: [baseline]
-    column: etatyon_lisaaminen
-    forecast_from: 2025
+# - id: emission_limits_for_cars_and_vans
+#   name_fi: Henkilö- ja pakettiautojen sitovat päästörajat
+#   name_en: Binding emission limits for passenger cars and vans
+#   name_sv: Bindande utsläppsgränser för person- och skåpbilar
+#   description_fi: Henkilö- ja pakettiautojen sitovien päästörajojen arvioidaan 
+#     vähentävän tieliikenteen päästöjä 0.7 %.
+#   type: simple.GenericAction
+#   quantity: fraction
+#   unit: '%'
+#   group: transportation
+#   output_nodes:
+#   - id: road_transport_energy_forecast
+#     tags: [complement]
+#     to_dimensions: []
+#   input_datasets:
+#   - id: espoo/liikenteen_toimenpiteet
+#     tags: [baseline]
+#     column: etatyon_lisaaminen
+#     forecast_from: 2025
 
 - id: improve_personal_traffic_efficiency
   name_fi: Liikennejärjestelmän tehostaminen
@@ -2395,25 +2395,25 @@ actions:
 #     min_value: -12
 #     max_value: -11
 
-- id: trip_aggregation
-  name_fi: Yhdistetyt kuljetukset
-  name_en: Combined transport
-  name_sv: Kombinerade transporter
-  description_fi: Kuljetusten yhdistämisen arvioidaan vähentävän tieliikenteen 
-    päästöjä 0.2 %.
-  type: simple.GenericAction
-  quantity: fraction
-  unit: '%'
-  group: transportation
-  output_nodes:
-  - id: road_transport_energy_forecast
-    tags: [complement]
-    to_dimensions: []
-  input_datasets:
-  - id: espoo/liikenteen_toimenpiteet
-    tags: [baseline]
-    column: yhdistetyt_kuljetukset
-    forecast_from: 2025
+# - id: trip_aggregation
+#   name_fi: Yhdistetyt kuljetukset
+#   name_en: Combined transport
+#   name_sv: Kombinerade transporter
+#   description_fi: Kuljetusten yhdistämisen arvioidaan vähentävän tieliikenteen 
+#     päästöjä 0.2 %.
+#   type: simple.GenericAction
+#   quantity: fraction
+#   unit: '%'
+#   group: transportation
+#   output_nodes:
+#   - id: road_transport_energy_forecast
+#     tags: [complement]
+#     to_dimensions: []
+#   input_datasets:
+#   - id: espoo/liikenteen_toimenpiteet
+#     tags: [baseline]
+#     column: yhdistetyt_kuljetukset
+#     forecast_from: 2025
 
 # - id: road_transportation_emission_trade
 #   name_fi: Tieliikenteen päästökauppa
@@ -2448,20 +2448,20 @@ scenarios:
   - id: cleaner_electricity_production.enabled
     value: true
 
-  - id: replace_fossil_fuels_in_cars.enabled
-    value: true
+  # - id: replace_fossil_fuels_in_cars.enabled
+  #   value: true
   # - id: upgrade_car_fleet.enabled
   #   value: true
-  - id: emission_limits_for_cars_and_vans.enabled
-    value: false
+  # - id: emission_limits_for_cars_and_vans.enabled
+  #   value: false
   - id: improve_personal_traffic_efficiency.enabled
     value: true
   - id: increase_remote_work.enabled
     value: false
   # - id: improve_transport_services.enabled
   #   value: false
-  - id: trip_aggregation.enabled
-    value: false
+  # - id: trip_aggregation.enabled
+  #   value: false
   # - id: road_transportation_emission_trade.enabled
   #   value: true
   - id: biofuel_fraction_demand.enabled
@@ -2484,20 +2484,20 @@ scenarios:
   params:
   - id: scenario_name
     value: hne2030
-  - id: replace_fossil_fuels_in_cars.enabled
-    value: true
+  # - id: replace_fossil_fuels_in_cars.enabled
+  #   value: true
   # - id: upgrade_car_fleet.enabled
   #   value: true
-  - id: emission_limits_for_cars_and_vans.enabled
-    value: true
+  # - id: emission_limits_for_cars_and_vans.enabled
+  #   value: true
   - id: improve_personal_traffic_efficiency.enabled
     value: true
   - id: increase_remote_work.enabled
     value: true
   # - id: improve_transport_services.enabled
   #   value: true
-  - id: trip_aggregation.enabled
-    value: true
+  # - id: trip_aggregation.enabled
+  #   value: true
   # - id: road_transportation_emission_trade.enabled
   #   value: true
   - id: replace_fossil_fuels_in_district_heating.enabled
@@ -2530,20 +2530,20 @@ scenarios:
   params:
   - id: scenario_name
     value: hne2030
-  - id: replace_fossil_fuels_in_cars.enabled
-    value: true
+  # - id: replace_fossil_fuels_in_cars.enabled
+  #   value: true
   # - id: upgrade_car_fleet.enabled
   #   value: true
-  - id: emission_limits_for_cars_and_vans.enabled
-    value: true
+  # - id: emission_limits_for_cars_and_vans.enabled
+  #   value: true
   - id: improve_personal_traffic_efficiency.enabled
     value: true
   - id: increase_remote_work.enabled
     value: true
   # - id: improve_transport_services.enabled
   #   value: true
-  - id: trip_aggregation.enabled
-    value: true
+  # - id: trip_aggregation.enabled
+  #   value: true
   # - id: road_transportation_emission_trade.enabled
   #   value: true
   - id: replace_fossil_fuels_in_district_heating.enabled
