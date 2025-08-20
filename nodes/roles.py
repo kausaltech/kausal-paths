@@ -31,6 +31,9 @@ class InstanceGroupMembershipRole(InstanceFieldGroupRole['InstanceConfig']):
 class InstanceSuperAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceConfig']):
     id = INSTANCE_SUPER_ADMIN_ROLE
     name = _("Super Admin")
+    description = _(
+        'Full administrative access to the instance, also for managing people and organizations'
+    )
     group_name = "Super Admins"
     instance_group_field_name = 'super_admin_group'
 
@@ -62,6 +65,9 @@ class InstanceSuperAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceCon
 class InstanceAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceConfig']):
     id = INSTANCE_ADMIN_ROLE
     name = _("Admin")
+    description = _(
+        'Administrative access to the instance without permissions to manage people and organizations'
+    )
     group_name = "Admins"
     instance_group_field_name = 'admin_group'
 
@@ -87,6 +93,9 @@ class InstanceAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceConfig']
 class InstanceViewerRole(InstanceGroupMembershipRole, InstanceSpecificRole['InstanceConfig']):
     id = INSTANCE_VIEWER_ROLE
     name = _('Viewer')
+    description = _(
+        'Read-only access to instance data'
+    )
     group_name = "Viewers"
     instance_group_field_name = 'viewer_group'
 

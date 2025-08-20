@@ -141,7 +141,7 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any
         super().__init__(InstanceConfig)
 
     def is_admin(self, user: User, obj: InstanceConfig) -> bool:
-        return user.has_instance_role(self.admin_role, obj)
+        return user.has_instance_role(self.admin_role, obj) or user.has_instance_role(self.super_admin_role, obj)
 
     def is_viewer(self, user: User, obj: InstanceConfig) -> bool:
         return user.has_instance_role(self.viewer_role, obj)
