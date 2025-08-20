@@ -12,6 +12,10 @@ from pydantic import BaseModel, Field
 
 from django_pydantic_field import SchemaField
 
+from kausal_common.models.roles import role_registry
+
+from paths.const import NONE_ROLE
+
 from .base import AbstractUser, UserManager
 
 if TYPE_CHECKING:
@@ -114,6 +118,37 @@ class User(AbstractUser):
 
     def has_instance_role(self, role: str | InstanceSpecificRole[Any], obj: Model) -> bool:
         return self.perms.has_instance_role(role, obj)
+
+    def get_role_for_instance(self, active_instance: InstanceConfig) -> InstanceSpecificRole[InstanceConfig] | None:
+        user_groups = set(self.groups.all())
+        for role in role_registry.get_all_roles():
+            model_meta = role.model._meta
+            app_label, object_name = (model_meta.app_label, model_meta.object_name)
+            if (app_label, object_name) != ('nodes', 'InstanceConfig'):
+                continue
+            group = role.get_existing_instance_group(active_instance)
+            if group and group in user_groups:
+                return role
+        return None
+
+    def sync_instance_groups_with_role(self, role_id: str, instance: InstanceConfig) -> None:
+        """
+        Verify that the user has exactly the instance role group corresponding to this role_id.
+
+        Only modifies group memberships of groups connected to active_instance.
+        """
+        for role_obj in role_registry.get_all_roles():
+            group = role_obj.get_existing_instance_group(instance)
+            if group:
+                self.groups.remove(group)
+
+        if role_id == NONE_ROLE:
+            return
+
+        role_obj = role_registry.get_role(role_id)
+        group = role_obj.get_existing_instance_group(instance)
+        if group:
+            self.groups.add(group)
 
     def can_access_admin(self) -> bool:
         if not self.is_active:
