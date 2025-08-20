@@ -330,7 +330,7 @@ if args.check:
     context.cache.prefix = old_cache_prefix
 
 
-if args.update_instance:
+if args.update_instance or args.update_nodes:
     try:
         instance_obj = update_instance()
     except Exception as e:
