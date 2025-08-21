@@ -9,7 +9,7 @@ from django_stubs_ext import StrOrPromise
 
 from kausal_common.models.roles import role_registry
 
-from paths.const import NONE_ROLE
+from paths.const import INSTANCE_SUPER_ADMIN_ROLE, NONE_ROLE
 from paths.context import realm_context
 
 from admin_site.forms import PathsAdminModelForm
@@ -35,13 +35,30 @@ class PersonForm(PathsAdminModelForm):
         model = Person
         fields = ['first_name', 'last_name', 'email', 'title', 'image', 'organization', 'role']
 
+    def clean_role(self):
+        role_id = self.cleaned_data['role']
+        if role_id == INSTANCE_SUPER_ADMIN_ROLE:
+            return role_id
+
+        # We are changing to some other role than instance super admin.
+        # Verify we are not removing the last instance super admin.
+        super_admin_role = role_registry.get_role(INSTANCE_SUPER_ADMIN_ROLE)
+        super_admin_group = super_admin_role.get_existing_instance_group(self.active_instance)
+        if (
+            super_admin_group in self.instance.user.groups.all() and
+            super_admin_group.user_set.count() == 1
+        ):
+            raise forms.ValidationError(
+                _('Removing the last Super Admin of an instance is not permitted')
+            )
+        return role_id
+
     def save(self, commit=True) -> Person:
         """Save the person and process role assignment."""
         role = self.cleaned_data.pop('role')
         instance = super().save(commit=commit)
         if commit and role is not None:
             self.sync_user_groups_with_role(instance, role, self.active_instance)
-
         return instance
 
     def sync_user_groups_with_role(self, person: Person, role_id: str, active_instance: InstanceConfig) -> None:
@@ -90,9 +107,11 @@ class PersonForm(PathsAdminModelForm):
         else:
             disable_role_options = False
             disable_reason = None
+
         self.fields['role'].widget = RoleSelectionWidget(
             help_text=help_text,
             label=field_label,
+            errors=self.errors.get('role'),
             choices=choices,
             disable_role_options=disable_role_options,
             disable_reason=disable_reason,

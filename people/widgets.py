@@ -12,6 +12,8 @@ from paths.const import NONE_ROLE
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+    from django.forms.utils import ErrorList
+
     from django_stubs_ext import StrOrPromise
 
 
@@ -28,6 +30,7 @@ class RoleSelectionWidget(forms.RadioSelect):
         disable_role_options: bool = False,
         disable_reason: StrOrPromise | None = None,
         label: StrOrPromise | None = None,
+        errors: ErrorList | None = None,
         attrs=None
     ):
         assert choices is not None
@@ -35,6 +38,7 @@ class RoleSelectionWidget(forms.RadioSelect):
         self.disable_reason = disable_reason
         self.help_text = help_text
         self.label = label
+        self.errors = errors
         super().__init__({'help_text': help_text}, choices)
 
     class Media:

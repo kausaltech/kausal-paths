@@ -11,6 +11,15 @@
         <div class="help-text">{{ widget.help_text }}</div>
       {% endif %}
     {% endif %}
+    {% if widget.errors %}
+      {% help_block status="critical" %}
+        <p>
+          {% for error in widget.errors %}
+            {{ error }}
+          {% endfor %}
+        </p>
+      {% endhelp_block %}
+    {% endif %}
     {% if widget.show_options %}
       <div class="role-options">
           {% for group, options, index in widget.optgroups %}
