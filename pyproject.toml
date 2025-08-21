@@ -74,7 +74,6 @@ dependencies = [
   "redis",
   "rich",
   "ruamel-yaml",
-  "rustface>=0.1.0",
   "s3cmd",
   "sentry-sdk[django,opentelemetry]",
   "social-auth-app-django",
@@ -209,30 +208,32 @@ exclude = [
   '**/node_modules',
   '.*',
 ]
+defineConstant = { 'IS_PATHS' = true, 'IS_WATCH' = false }
 deprecateTypingAliases = true
-reportAttributeAccessIssue = "warning"
-reportUnsafeMultipleInheritance = false
-reportUnknownMemberType = false
-reportUnknownVariableType = false
-reportUnannotatedClassAttribute = false
-reportIgnoreCommentWithoutRule = false
-reportUnusedImport = false
 enableTypeIgnoreComments = true
-reportUnnecessaryTypeIgnoreComment = false
+reportMissingTypeStubs = "information"
 reportUnusedCallResult = false
-reportImplicitOverride = false
+reportAttributeAccessIssue = "error"
 reportUnknownParameterType = false
+reportUnknownMemberType = false
+reportUnknownArgumentType = false
 reportMissingParameterType = false
-reportMissingTypeArgument = false
+reportImportCycles = false
+reportUnannotatedClassAttribute = false
+reportUnknownVariableType = false
+reportImplicitOverride = false
+reportUnsafeMultipleInheritance = "information"
+reportUnnecessaryIsInstance = false
+reportUnnecessaryComparison = "information"
+reportIgnoreCommentWithoutRule = false
 reportUninitializedInstanceVariable = false
 reportIncompatibleMethodOverride = false
-reportMissingSuperCall = false
-reportUnknownArgumentType = false
-reportMissingTypeStubs = false
-reportImplicitStringConcatenation = false
-reportUnusedParameter = false
+reportIncompatibleVariableOverride = false
+reportExplicitAny = false
+reportPrivateImportUsage = false
+reportPrivateUsage = false
+reportUnreachable = false
 reportAny = false
-defineConstant = { 'IS_PATHS' = true, 'IS_WATCH' = false }
 
 [tool.django-stubs]
 django_settings_module = "paths.settings"
@@ -303,5 +304,6 @@ notebook = [
 prod = [
   "gunicorn[gthread]",
   "psycopg[c]",
+  "rustface>=0.1.0",
   "uvicorn-worker",
 ]
