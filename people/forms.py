@@ -7,7 +7,7 @@ from django.utils.text import format_lazy
 from django.utils.translation import gettext_lazy as _
 from django_stubs_ext import StrOrPromise
 
-from kausal_common.models.roles import role_registry
+from kausal_common.models.roles import InstanceSpecificRole, role_registry
 
 from paths.const import INSTANCE_SUPER_ADMIN_ROLE, NONE_ROLE
 from paths.context import realm_context
@@ -25,6 +25,7 @@ if typing.TYPE_CHECKING:
 
 class PersonForm(PathsAdminModelForm):
     """Custom form for Person instances with role selection."""
+    active_instance: InstanceConfig
 
     role = forms.CharField(
         label=_('Permissions'),
@@ -76,6 +77,19 @@ class PersonForm(PathsAdminModelForm):
             return NONE_ROLE
         return role.id
 
+    def get_role_choices(self) -> list[tuple[str, _StrPromise]]:
+        def group_exists(role: InstanceSpecificRole[typing.Any]) -> bool:
+            return (
+                role.model == InstanceConfig and
+                role.get_existing_instance_group(self.active_instance) is not None
+            )
+
+        roles = role_registry.get_all_roles()
+        choices: list[tuple[str, _StrPromise]] = [
+            (r.id, r.name) for r in roles if group_exists(r)
+        ]
+        return choices + [(NONE_ROLE, _('None'))]
+
     def __init__(self, *args, **kwargs):
         self.active_instance = realm_context.get().realm
 
@@ -93,14 +107,11 @@ class PersonForm(PathsAdminModelForm):
             'Select a role for this person within {instance_name}'
         ), instance_name=instance_name)
         field_label: StrOrPromise = self.fields['role'].label or ''
-        roles = role_registry.get_all_roles()
-        choices: list[tuple[str, _StrPromise]] = [
-            (r.id, r.name) for r in roles if r.model == InstanceConfig
-        ] + [(NONE_ROLE, _('None'))]
+
         if is_superuser:
             disable_role_options = True
             disable_reason = _(
-                'The person has global superuser rights. '
+                'The person is a superuser in the system. '
                 'No individual permissions within an instance are required '
                 'since the person can access all data within all instances.'
             )
@@ -112,7 +123,7 @@ class PersonForm(PathsAdminModelForm):
             help_text=help_text,
             label=field_label,
             errors=self.errors.get('role'),
-            choices=choices,
+            choices=self.get_role_choices(),
             disable_role_options=disable_role_options,
             disable_reason=disable_reason,
         )
