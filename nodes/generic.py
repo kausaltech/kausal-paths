@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, Literal, TypedDict
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypedDict
 
 from django.utils.translation import gettext_lazy as _
 
@@ -31,6 +31,8 @@ from .simple import SimpleNode
 if TYPE_CHECKING:
     from collections.abc import Callable
     from typing import Any
+
+    from params import Parameter
 
     from .node import Node
 
@@ -1624,3 +1626,101 @@ class CohortNode(GenericNode):
         # Aggregate back to age groups
         return self.aggregate_to_age_groups(results, age_groups)
 
+
+# This node class is copied from DatasetReduceAction
+# TODO Both classes should be streamlined and chopped into smaller functions that both use.
+class DatasetReduceNode(GenericNode):
+    explanation = _("""
+    Receive goal input from a dataset or node and cause a linear effect.
+
+    The output will be a time series with the difference to the
+    last historical value of the input node.
+
+    The goal input can also be relative (for e.g. percentage
+    reductions), in which case the input will be treated as
+    a multiplier.
+    """)
+
+    allowed_parameters: ClassVar[list[Parameter]] = [
+        BoolParameter(local_id='relative_goal'),
+    ]
+
+    def compute(self) -> ppl.PathsDataFrame:  # noqa: PLR0915
+        n = self.get_input_node(tag='historical', required=False)
+        if n is None:
+            df = self.get_input_dataset_pl(tag='historical')
+            if FORECAST_COLUMN not in df.columns:
+                df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
+            assert len(df.metric_cols) == 1
+            df = df.rename({df.metric_cols[0]: VALUE_COLUMN})
+        else:
+            df = n.get_output_pl(target_node=self)
+            df = df.filter(~pl.col(FORECAST_COLUMN))  # FIXME FOR DIFF
+
+        max_hist_year = df[YEAR_COLUMN].max()
+        df = df.filter(pl.col(YEAR_COLUMN) == max_hist_year)
+
+        goal_input_df = self.get_input_dataset_pl(tag='goal', required=False)
+        if goal_input_df is None:
+            goal_input_node = self.get_input_node(tag='goal', required=True)
+            goal_input_df = goal_input_node.get_output_pl(target_node=self)
+        assert goal_input_df is not None
+        gdf = goal_input_df
+
+        gdf = gdf.paths.cast_index_to_str()
+        df = df.paths.cast_index_to_str()
+
+        if not set(gdf.dim_ids).issubset(set(self.input_dimensions.keys())):
+            raise NodeError(self, "Dimension mismatch to input nodes")
+
+        # Filter historical data with only the categories that are
+        # specified in the goal dataset.
+
+        exprs = [pl.col(dim_id).is_in(gdf[dim_id].unique()) for dim_id in gdf.dim_ids]
+        if exprs:
+            df = df.filter(pl.all_horizontal(exprs))
+
+        end_year = self.get_end_year()
+        assert len(gdf.metric_cols) == 1
+        gdf = (
+            gdf.rename({gdf.metric_cols[0]: VALUE_COLUMN})
+            .with_columns(pl.lit(True).alias(FORECAST_COLUMN))  # noqa: FBT003
+        )
+
+        is_mult = self.get_parameter_value('relative_goal', required=False)
+        if is_mult:
+            # If the goal series is relative (i.e. a multiplier), transform
+            # it into absolute values by multiplying with the last historical values.
+            gdf = gdf.rename({VALUE_COLUMN: 'Multiplier'})
+            hdf = df.drop(YEAR_COLUMN)
+            metric_cols = [m.column_id for m in self.output_metrics.values()]
+            hdf = hdf.rename({m: 'Historical%s' % m for m in metric_cols})
+            gdf = gdf.paths.join_over_index(hdf, how='outer', index_from='union')
+            gdf = gdf.filter(~pl.all_horizontal([pl.col('Historical%s' % col).is_null() for col in metric_cols]))
+            for m in self.output_metrics.values():
+                col = m.column_id
+                gdf = gdf.multiply_cols(['Multiplier', 'Historical%s' % col], col, out_unit=m.unit)
+                gdf = gdf.with_columns(pl.col(col).fill_nan(None))
+            gdf = gdf.select_metrics(metric_cols)
+
+        df = df.paths.to_wide()
+        gdf = gdf.paths.to_wide()
+
+        meta = df.get_meta()
+        gdf = gdf.filter(pl.col(YEAR_COLUMN) > max_hist_year)
+        df = ppl.to_ppdf(pl.concat([df, gdf], how='diagonal'), meta=meta)
+        df = df.paths.make_forecast_rows(end_year=self.get_end_year())
+        df = df.with_columns([pl.col(m).interpolate() for m in df.metric_cols])
+
+        # Change the time series to be a difference to the last historical
+        # year.
+        exprs = [pl.col(m) - pl.first(m) for m in df.metric_cols]
+        df = df.select([YEAR_COLUMN, FORECAST_COLUMN, *exprs])
+        df = df.filter(pl.col(FORECAST_COLUMN))
+        df = df.filter(pl.col(YEAR_COLUMN).lt(end_year + 1))
+        df = df.paths.to_narrow()
+        for m in self.output_metrics.values(): # TODO Not sure that multimetric functionalities are needed.
+            if m.column_id not in df.metric_cols:
+                raise NodeError(self, "Metric column '%s' not found in output" % m.column_id)
+            df = df.ensure_unit(m.column_id, m.unit)
+        return df
