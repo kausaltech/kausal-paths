@@ -5,17 +5,18 @@ frameworks: [syke]
 site_url: https://finland-syke.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ca39b27a4138af0ec9ed25c9536905c62b3f4cdb
+  commit: 3460dc512d4bf5b084a42dcf2414738508399296
 name: Suomen energia- ja ilmastostrategia 2025
 name_en: Finnish energy and climate strategy 2025
 owner: Kausal Oy
 owner_en: Kausal Ltd
 theme_identifier: default
 emission_unit: Mt/a
-target_year: 2035
+target_year: 2055
 reference_year: 2005
 minimum_historical_year: 2005
 maximum_historical_year: 2024
+model_end_year: 2055
 params:
 - id: municipality_name
   value: Tampere
@@ -31,6 +32,10 @@ action_groups:
   name: Taakanjakosektorin toimet (Taulukko 2)
 - id: land_use
   name: Maankäyttösektorin toimet (Taulukko 3)
+- id: wem_actions
+  name: KAISU3 ilman lisätoimia (WEM)
+- id: wam_actions
+  name: KAISU3 lisätoimin (WAM)
 
 dimensions:
 
@@ -66,12 +71,104 @@ dimensions:
   - id: oil_heating
     label: Öljylämmitys
 
+- id: kaisu3_sector
+  label: Kaisu3-päästösektori
+  categories:
+  - id: fuel_burning_emissions
+    label: 1A Polttoaineiden polton päästöt
+    aliases: [1a_polttoaineiden_polton_paastot]
+  - id: energy_industry
+    label: 1A1 Energiateollisuus
+    aliases: [1a1_energiateollisuus]
+  - id: industry_and_construction
+    label: 1A2 Teollisuus ja rakentaminen
+    aliases: [1a2_teollisuus_ja_rakentaminen]
+  - id: domestic_transport
+    label: 1A3 Kotimaan liikenne
+    aliases: [1a3_kotimaan_liikenne]
+  - id: other_sectors
+    label: 1A4 Muut sektorit
+    aliases: [1a4_muut_sektorit]
+  - id: other_fuel_use
+    label: 1A5 Muu polttoainekäyttö
+    aliases: [1a5_muu_polttoainekaytto]
+  - id: fuel_evaporation_emissions
+    label: 1B Polttoaineiden haihtumapäästöt
+    aliases: [1b_polttoaineiden_haihtumapaaστot]
+  - id: industrial_processes_and_product_use
+    label: 2 Teollisuusprosessit ja tuotekäyttö
+    aliases: [2_teollisuusprosessit_ja_tuotekaytto]
+  - id: mineral_industry
+    label: 2A Mineraaliteollisuus
+    aliases: [2a_mineraaliteollisuus]
+  - id: chemical_industry
+    label: 2B Kemianteollisuus
+    aliases: [2b_kemianteollisuus]
+  - id: metal_industry
+    label: 2C Metalliteollisuus
+    aliases: [2c_metalliteollisuus]
+  - id: non_energy_use
+    label: 2D Muu kuin energiakäyttö
+    aliases: [2d_muu_kuin_energiakaytto]
+  - id: f_gases
+    label: 2F F-kaasut
+    aliases: [2f_f-kaasut]
+  - id: agriculture
+    label: 3 Maatalous
+    aliases: [3_maatalous]
+  - id: livestock_digestion
+    label: 3A Kotieläinten ruoansulatus
+    aliases: [3a_kotielainten_ruoansulatus]
+  - id: manure_management
+    label: 3B Lannankäsittely
+    aliases: [3b_lannankasittely]
+  - id: agricultural_land
+    label: 3D Maatalousmaat
+    aliases: [3d_maatalousmaat]
+  - id: crop_residue_burning
+    label: 3F Kasvintähteiden poltto pellolla
+    aliases: [3f_kasvintahteiden_poltto_pellolla]
+  - id: liming
+    label: 3G Kalkitus
+    aliases: [3g_kalkitus]
+  - id: urea_application
+    label: 3H Urean levitys
+    aliases: [3h_urean_levitys]
+  - id: waste_treatment
+    label: 5 Jätteiden käsittely
+    aliases: [5_jatteiden_kasittely]
+  - id: waste_landfill_disposal
+    label: 5A Jätteiden kaatopaikkasijoitus
+    aliases: [5a_jatteiden_kaatopaikkasijoitus]
+  - id: biological_waste_treatment
+    label: 5B Jätteiden biologinen käsittely
+    aliases: [5b_jatteiden_biologinen_kasittely]
+  - id: wastewater_treatment
+    label: 5D Jätevesien puhdistus
+    aliases: [5d_jatevesien_puhdistus]
+  - id: indirect_co2_emissions
+    label: Epäsuorat CO2 päästöt
+    aliases: [epasuorat_co2_paastot]
+  - id: total_excl_lulucf
+    label: Yhteensä pl. LULUCF-sektori
+    aliases: [yhteensa_pl_lulucf-sektori]
+
 emission_sectors:
+
 - id: net_emissions
   name: Kokonaispäästöt (scope 1+2)
   name_en: Net emissions (scope 1+2)
   is_outcome: true
-  target_year_goal: 0
+  goals:
+  - label: Hiilineutraalisuustavoite 2035
+    default: true
+    is_main_goal: true
+    linear_interpolation: true
+    values:
+    - year: 2025
+      value: 36.0
+    - year: 2035
+      value: 0
 
 nodes:
 - id: population
@@ -115,7 +212,533 @@ nodes:
     - dimension: taso_1
       flatten: true
 
+# Historical nodes for comparison
+
+- id: electricity_emissions_historical
+  name: Historialliset kulutussähkön päästöt
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt/a
+  input_datasets:
+  - id: syke/alas_emissions
+    tags: [baseline]
+    filters:
+    - column: kuntanumero
+    - column: maakunta
+    - column: muni
+    - column: hinku-laskenta
+    - column: päästökauppa
+    - column: taso_2
+    - column: taso_3
+      value: Kulutussähkö
+    - column: taso_4
+    - column: taso_5
+    - column: kunta
+    - column: ktCO2e_tuuli
+    - column: energiankulutus
+    - rename_col: vuosi
+      value: Year
+    - rename_col: ktCO2e
+      value: Value
+    - dimension: taso_1
+      flatten: true
+
+- id: heating_emissions_historical
+  name: Historialliset lämmityksen päästöt
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt/a
+  input_datasets:
+  - id: syke/alas_emissions
+    tags: [baseline]
+    filters:
+    - column: kuntanumero
+    - column: maakunta
+    - column: muni
+    - column: hinku-laskenta
+    - column: päästökauppa
+    - column: taso_2
+      value: Rakennusten lämmitys
+    - column: taso_3
+    - column: taso_4
+    - column: taso_5
+    - column: kunta
+    - column: ktCO2e_tuuli
+    - column: energiankulutus
+    - rename_col: vuosi
+      value: Year
+    - rename_col: ktCO2e
+      value: Value
+    - dimension: taso_1
+      flatten: true
+
+- id: industrial_emissions_historical
+  name: Historialliset teollisuuden päästöt
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt/a
+  input_datasets:
+  - id: syke/alas_emissions
+    tags: [baseline]
+    filters:
+    - column: kuntanumero
+    - column: maakunta
+    - column: muni
+    - column: hinku-laskenta
+    - column: päästökauppa
+    - column: taso_2
+      value: Teollisuus ja työkoneet
+    - column: taso_3
+    - column: taso_4
+    - column: taso_5
+    - column: kunta
+    - column: ktCO2e_tuuli
+    - column: energiankulutus
+    - rename_col: vuosi
+      value: Year
+    - rename_col: ktCO2e
+      value: Value
+    - dimension: taso_1
+      flatten: true
+
+- id: transport_emissions_historical
+  name: Historialliset liikenteen päästöt
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt/a
+  input_datasets:
+  - id: syke/alas_emissions
+    tags: [baseline]
+    filters:
+    - column: kuntanumero
+    - column: maakunta
+    - column: muni
+    - column: hinku-laskenta
+    - column: päästökauppa
+    - column: taso_2
+      value: Liikenne
+    - column: taso_3
+    - column: taso_4
+    - column: taso_5
+    - column: kunta
+    - column: ktCO2e_tuuli
+    - column: energiankulutus
+    - rename_col: vuosi
+      value: Year
+    - rename_col: ktCO2e
+      value: Value
+    - dimension: taso_1
+      flatten: true
+
+- id: f_gas_emissions_historical
+  name: Historialliset F-kasujen päästöt
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt/a
+  input_datasets:
+  - id: syke/alas_emissions
+    tags: [baseline]
+    filters:
+    - column: kuntanumero
+    - column: maakunta
+    - column: muni
+    - column: hinku-laskenta
+    - column: päästökauppa
+    - column: taso_2
+    - column: taso_3
+      value: F-kaasut
+    - column: taso_4
+    - column: taso_5
+    - column: kunta
+    - column: ktCO2e_tuuli
+    - column: energiankulutus
+    - rename_col: vuosi
+      value: Year
+    - rename_col: ktCO2e
+      value: Value
+    - dimension: taso_1
+      flatten: true
+
+- id: agriculture_emissions_historical
+  name: Historialliset maatalouden päästöt
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt/a
+  input_datasets:
+  - id: syke/alas_emissions
+    tags: [baseline]
+    filters:
+    - column: kuntanumero
+    - column: maakunta
+    - column: muni
+    - column: hinku-laskenta
+    - column: päästökauppa
+    - column: taso_2
+    - column: taso_3
+      value: Maatalous
+    - column: taso_4
+    - column: taso_5
+    - column: kunta
+    - column: ktCO2e_tuuli
+    - column: energiankulutus
+    - rename_col: vuosi
+      value: Year
+    - rename_col: ktCO2e
+      value: Value
+    - dimension: taso_1
+      flatten: true
+
+- id: waste_management_emissions_historical
+  name: Historialliset jätteiden käsittelyn päästöt
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt/a
+  input_datasets:
+  - id: syke/alas_emissions
+    tags: [baseline]
+    filters:
+    - column: kuntanumero
+    - column: maakunta
+    - column: muni
+    - column: hinku-laskenta
+    - column: päästökauppa
+    - column: taso_2
+    - column: taso_3
+      value: Jätteiden käsittely
+    - column: taso_4
+    - column: taso_5
+    - column: kunta
+    - column: ktCO2e_tuuli
+    - column: energiankulutus
+    - rename_col: vuosi
+      value: Year
+    - rename_col: ktCO2e
+      value: Value
+    - dimension: taso_1
+      flatten: true
+
+# WEM TREND NODES
+
+- id: electricity_trend_wem
+  name: Kulutussähkön WEM-trendi
+  type: generic.DatasetReduceNode
+  quantity: emissions
+  unit: Mt/a
+  group: wem_actions
+  input_datasets:
+  - id: vtt/kaisu3/kaisu3_scenario_emissions
+    tags: [goal]
+    column: kulutussahko
+    forecast_from: 2025
+    filters:
+    - column: scenario
+      value: wem
+    - dimension: kaisu3_sector
+      flatten: true
+  input_nodes:
+  - id: electricity_emissions_historical
+    tags: [historical]
+  output_nodes:
+  - id: consumer_electricity_emissions
+
+- id: heating_trend_wem
+  name: Lämmityksen WEM-trendi
+  type: generic.DatasetReduceNode
+  quantity: emissions
+  unit: Mt/a
+  group: wem_actions
+  input_datasets:
+  - id: vtt/kaisu3/kaisu3_scenario_emissions
+    tags: [goal]
+    column: lammitys
+    forecast_from: 2025
+    filters:
+    - column: scenario
+      value: wem
+    - dimension: kaisu3_sector
+      flatten: true
+  input_nodes:
+  - id: heating_emissions_historical
+    tags: [historical]
+  output_nodes:
+  - id: building_heating_emissions
+
+- id: industrial_trend_wem
+  name: Teollisuuden WEM-trendi
+  type: generic.DatasetReduceNode
+  quantity: emissions
+  unit: Mt/a
+  group: wem_actions
+  input_datasets:
+  - id: vtt/kaisu3/kaisu3_scenario_emissions
+    tags: [goal]
+    column: teollisuus
+    forecast_from: 2025
+    filters:
+    - column: scenario
+      value: wem
+    - dimension: kaisu3_sector
+      flatten: true
+  input_nodes:
+  - id: industrial_emissions_historical
+    tags: [historical]
+  output_nodes:
+  - id: industry_emissions
+
+- id: transport_trend_wem
+  name: Liikenteen WEM-trendi
+  type: generic.DatasetReduceNode
+  quantity: emissions
+  unit: Mt/a
+  group: wem_actions
+  input_datasets:
+  - id: vtt/kaisu3/kaisu3_scenario_emissions
+    tags: [goal]
+    column: liikenne
+    forecast_from: 2025
+    filters:
+    - column: scenario
+      value: wem
+    - dimension: kaisu3_sector
+      flatten: true
+  input_nodes:
+  - id: transport_emissions_historical
+    tags: [historical]
+  output_nodes:
+  - id: transport_emissions
+
+- id: f_gas_trend_wem
+  name: F-kaasujen WEM-trendi
+  type: generic.DatasetReduceNode
+  quantity: emissions
+  unit: Mt/a
+  group: wem_actions
+  input_datasets:
+  - id: vtt/kaisu3/kaisu3_scenario_emissions
+    tags: [goal]
+    column: f_kaasut
+    forecast_from: 2025
+    filters:
+    - column: scenario
+      value: wem
+    - dimension: kaisu3_sector
+      flatten: true
+  input_nodes:
+  - id: f_gas_emissions_historical
+    tags: [historical]
+  output_nodes:
+  - id: f_gases_emissions
+
+- id: agriculture_trend_wem
+  name: Maatalouden WEM-trendi
+  type: generic.DatasetReduceNode
+  quantity: emissions
+  unit: Mt/a
+  group: wem_actions
+  input_datasets:
+  - id: vtt/kaisu3/kaisu3_scenario_emissions
+    tags: [goal]
+    column: maatalous
+    forecast_from: 2025
+    filters:
+    - column: scenario
+      value: wem
+    - dimension: kaisu3_sector
+      flatten: true
+  input_nodes:
+  - id: agriculture_emissions_historical
+    tags: [historical]
+  output_nodes:
+  - id: agriculture_emissions
+
+- id: waste_management_trend_wem
+  name: Jätteiden käsittelyn WEM-trendi
+  type: generic.DatasetReduceNode
+  quantity: emissions
+  unit: Mt/a
+  group: wem_actions
+  input_datasets:
+  - id: vtt/kaisu3/kaisu3_scenario_emissions
+    tags: [goal]
+    column: jatteiden_kasittely
+    forecast_from: 2025
+    filters:
+    - column: scenario
+      value: wem
+    - dimension: kaisu3_sector
+      flatten: true
+  input_nodes:
+  - id: waste_management_emissions_historical
+    tags: [historical]
+  output_nodes:
+  - id: waste_treatment_emissions
+
 actions:
+
+# KAISU3 WAM Actions
+
+- id: electricity_emissions_wam
+  name: Kulutussähkön WAM-päästöt
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: Mt/a
+  group: wam_actions
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: vtt/kaisu3/kaisu3_scenario_emissions
+    tags: [goal]
+    column: kulutussahko
+    forecast_from: 2025
+    filters:
+    - column: scenario
+      value: wam_impakti
+    - dimension: kaisu3_sector
+      flatten: true
+  input_nodes:
+  - id: electricity_emissions_historical
+    tags: [historical]
+  output_nodes:
+  - id: consumer_electricity_emissions
+
+- id: heating_emissions_wam
+  name: Lämmityksen WAM-päästöt
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: Mt/a
+  group: wam_actions
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: vtt/kaisu3/kaisu3_scenario_emissions
+    tags: [goal]
+    column: lammitys
+    forecast_from: 2025
+    filters:
+    - column: scenario
+      value: wam_impakti
+    - dimension: kaisu3_sector
+      flatten: true
+  input_nodes:
+  - id: heating_emissions_historical
+    tags: [historical]
+  output_nodes:
+  - id: building_heating_emissions
+
+- id: industrial_emissions_wam
+  name: Teollisuuden WAM-päästöt
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: Mt/a
+  group: wam_actions
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: vtt/kaisu3/kaisu3_scenario_emissions
+    tags: [goal]
+    column: teollisuus
+    forecast_from: 2025
+    filters:
+    - column: scenario
+      value: wam_impakti
+    - dimension: kaisu3_sector
+      flatten: true
+  input_nodes:
+  - id: industrial_emissions_historical
+    tags: [historical]
+  output_nodes:
+  - id: industry_emissions
+
+- id: transport_emissions_wam
+  name: Liikenteen WAM-päästöt
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: Mt/a
+  group: wam_actions
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: vtt/kaisu3/kaisu3_scenario_emissions
+    tags: [goal]
+    column: liikenne
+    forecast_from: 2025
+    filters:
+    - column: scenario
+      value: wam_impakti
+    - dimension: kaisu3_sector
+      flatten: true
+  input_nodes:
+  - id: transport_emissions_historical
+    tags: [historical]
+  output_nodes:
+  - id: transport_emissions
+
+- id: f_gas_emissions_wam
+  name: F-kaasujen WAM-päästöt
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: Mt/a
+  group: wam_actions
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: vtt/kaisu3/kaisu3_scenario_emissions
+    tags: [goal]
+    column: f_kaasut
+    forecast_from: 2025
+    filters:
+    - column: scenario
+      value: wam_impakti
+    - dimension: kaisu3_sector
+      flatten: true
+  input_nodes:
+  - id: f_gas_emissions_historical
+    tags: [historical]
+  output_nodes:
+  - id: f_gases_emissions
+
+- id: agriculture_emissions_wam
+  name: Maatalouden WAM-päästöt
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: Mt/a
+  group: wam_actions
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: vtt/kaisu3/kaisu3_scenario_emissions
+    tags: [goal]
+    column: maatalous
+    forecast_from: 2025
+    filters:
+    - column: scenario
+      value: wam_impakti
+    - dimension: kaisu3_sector
+      flatten: true
+  input_nodes:
+  - id: agriculture_emissions_historical
+    tags: [historical]
+  output_nodes:
+  - id: agriculture_emissions
+
+- id: waste_management_emissions_wam
+  name: Jätteiden käsittelyn WAM-päästöt
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: Mt/a
+  group: wam_actions
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: vtt/kaisu3/kaisu3_scenario_emissions
+    tags: [goal]
+    column: jatteiden_kasittely
+    forecast_from: 2025
+    filters:
+    - column: scenario
+      value: wam_impakti
+    - dimension: kaisu3_sector
+      flatten: true
+  input_nodes:
+  - id: waste_management_emissions_historical
+    tags: [historical]
+  output_nodes:
+  - id: waste_treatment_emissions
+
+# Government energy and climate action plan
 
 # Taulukko 1
 
@@ -126,8 +749,8 @@ actions:
   unit: Mt/a
   group: emission_trade
   input_dataset_processors: [LinearInterpolation]
-  forecast_values: [[2025, 0.0], [2030, -0.6], [2035, -2.7], [2040, 3.0], [2050, 
-        14]]
+  forecast_values: [[2025, 0.0], [2030, -0.6], [2035, -2.7], [2040, -3.0], [2050,
+      -14], [2055, -14]]
   output_nodes: [road_transport_emissions]
 
 # Taulukko 2
@@ -139,7 +762,7 @@ actions:
   unit: Mt/a
   group: load_sharing
   input_dataset_processors: [LinearInterpolation]
-  forecast_values: [[2025, 0.0], [2030, -0.24], [2035, -0.24]]
+  forecast_values: [[2025, 0.0], [2030, -0.24], [2035, -0.24], [2055, -0.24]]
   output_nodes: [road_transport_emissions]
 
 - id: agriculture_actions
@@ -149,7 +772,7 @@ actions:
   unit: Mt/a
   group: load_sharing
   input_dataset_processors: [LinearInterpolation]
-  forecast_values: [[2025, 0.0], [2030, -0.12], [2035, -0.12]]
+  forecast_values: [[2025, 0.0], [2030, -0.12], [2035, -0.12], [2055, -0.12]]
   output_nodes: [agriculture_emissions]
 
 - id: separate_heating_emissions
@@ -159,7 +782,7 @@ actions:
   unit: Mt/a
   group: load_sharing
   input_dataset_processors: [LinearInterpolation]
-  forecast_values: [[2025, 0.0], [2030, -0.12], [2035, -0.12]]
+  forecast_values: [[2025, 0.0], [2030, -0.12], [2035, -0.12], [2055, -0.12]]
   output_nodes: [building_heating_emissions]
 
 - id: machinery_actions
@@ -169,7 +792,7 @@ actions:
   unit: Mt/a
   group: load_sharing
   input_dataset_processors: [LinearInterpolation]
-  forecast_values: [[2025, 0.0], [2030, -0.13], [2035, -0.13]]
+  forecast_values: [[2025, 0.0], [2030, -0.13], [2035, -0.13], [2055, -0.13]]
   output_nodes: [machinery_emissions]
 
 - id: waste_incineration_actions
@@ -179,7 +802,7 @@ actions:
   unit: Mt/a
   group: load_sharing
   input_dataset_processors: [LinearInterpolation]
-  forecast_values: [[2025, 0.0], [2030, -0.34], [2035, -0.34]]
+  forecast_values: [[2025, 0.0], [2030, -0.34], [2035, -0.34], [2055, -0.34]]
   output_nodes: [waste_treatment_emissions]
 
 # Taulukko 3
@@ -191,7 +814,7 @@ actions:
   unit: Mt/a
   group: land_use
   input_dataset_processors: [LinearInterpolation]
-  forecast_values: [[2025, 0.0], [2030, -0.3], [2035, -0.5]]
+  forecast_values: [[2025, 0.0], [2030, -0.3], [2035, -0.5], [2055, -0.5]]
   output_nodes: [agriculture_emissions]
 
 - id: forest_renewal_actions
@@ -201,7 +824,7 @@ actions:
   unit: Mt/a
   group: land_use
   input_dataset_processors: [LinearInterpolation]
-  forecast_values: [[2025, 0.0], [2035, -7.0]]
+  forecast_values: [[2025, 0.0], [2035, -7.0], [2055, -7.0]]
   output_nodes: [agriculture_emissions]
 
 - id: forest_damage_actions
@@ -224,7 +847,7 @@ actions:
   unit: Mt/a
   group: land_use
   input_dataset_processors: [LinearInterpolation]
-  forecast_values: [[2025, 0.0], [2035, -6.0]]
+  forecast_values: [[2025, 0.0], [2035, -6.0], [2055, -6.0]]
   output_nodes: [agriculture_emissions]
 
 - id: forest_fertilizing_actions
@@ -234,7 +857,7 @@ actions:
   unit: Mt/a
   group: land_use
   input_dataset_processors: [LinearInterpolation]
-  forecast_values: [[2025, 0.0], [2035, -0.5]]
+  forecast_values: [[2025, 0.0], [2035, -0.5], [2055, -0.5]]
   output_nodes: [agriculture_emissions]
 
 - id: forest_increasing_actions
@@ -244,7 +867,7 @@ actions:
   unit: Mt/a
   group: land_use
   input_dataset_processors: [LinearInterpolation]
-  forecast_values: [[2025, 0.0], [2035, -0.5]]
+  forecast_values: [[2025, 0.0], [2035, -0.5], [2055, -0.5]]
   output_nodes: [agriculture_emissions]
 
 pages:
@@ -259,12 +882,136 @@ pages:
     ilmastostrategialuonnoksen (4.7.2025) mukaan.
 
 scenarios:
+- id: no_change
+  name: Ei muutosta
+  name_en: No change
+  all_actions_enabled: false
+
+- id: govt_plan
+  name: Hallituksen energia- ja ilmastostrategia
+  name_en: Energy and climate strategy
+  params:
+  # Government Actions
+  - id: negative_emission_actions.enabled
+    value: true
+  - id: transport_actions.enabled
+    value: true
+  - id: agriculture_actions.enabled
+    value: true
+  - id: separate_heating_emissions.enabled
+    value: true
+  - id: machinery_actions.enabled
+    value: true
+  - id: waste_incineration_actions.enabled
+    value: true
+  - id: lulucf_actions.enabled
+    value: true
+  - id: forest_renewal_actions.enabled
+    value: true
+  - id: forest_damage_actions.enabled
+    value: true
+  - id: forest_fertilizing_actions.enabled
+    value: true
+  - id: forest_increasing_actions.enabled
+    value: true
+  # WAM Actions
+  - id: electricity_emissions_wam.enabled
+    value: false
+  - id: heating_emissions_wam.enabled
+    value: false
+  - id: industrial_emissions_wam.enabled
+    value: false
+  - id: transport_emissions_wam.enabled
+    value: false
+  - id: f_gas_emissions_wam.enabled
+    value: false
+  - id: agriculture_emissions_wam.enabled
+    value: false
+  - id: waste_management_emissions_wam.enabled
+    value: false
+
 - id: baseline
-  name: Nykykehitys
-  name_en: Baseline
+  name: Kaisu3-trendi (WEM)
+  params:
+  # GOVERNMENT Energy and climate strategy
+  - id: negative_emission_actions.enabled
+    value: false
+  - id: transport_actions.enabled
+    value: false
+  - id: agriculture_actions.enabled
+    value: false
+  - id: separate_heating_emissions.enabled
+    value: false
+  - id: machinery_actions.enabled
+    value: false
+  - id: waste_incineration_actions.enabled
+    value: false
+  - id: lulucf_actions.enabled
+    value: false
+  - id: forest_renewal_actions.enabled
+    value: false
+  - id: forest_damage_actions.enabled
+    value: false
+  - id: forest_fertilizing_actions.enabled
+    value: false
+  - id: forest_increasing_actions.enabled
+    value: false
+  # WAM Actions
+  - id: electricity_emissions_wam.enabled
+    value: false
+  - id: heating_emissions_wam.enabled
+    value: false
+  - id: industrial_emissions_wam.enabled
+    value: false
+  - id: transport_emissions_wam.enabled
+    value: false
+  - id: f_gas_emissions_wam.enabled
+    value: false
+  - id: agriculture_emissions_wam.enabled
+    value: false
+  - id: waste_management_emissions_wam.enabled
+    value: false
 
 - id: default
+  name: Kaisu3 lisätoimin (WAM)
   default: true
-  name: Energia- ja ilmastostrategia
-  name_en: Energy and climate strategy
-  all_actions_enabled: true
+  params:
+  # GOVERNMENT Energy and climate strategy
+  - id: negative_emission_actions.enabled
+    value: false
+  - id: transport_actions.enabled
+    value: false
+  - id: agriculture_actions.enabled
+    value: false
+  - id: separate_heating_emissions.enabled
+    value: false
+  - id: machinery_actions.enabled
+    value: false
+  - id: waste_incineration_actions.enabled
+    value: false
+  - id: lulucf_actions.enabled
+    value: false
+  - id: forest_renewal_actions.enabled
+    value: false
+  - id: forest_damage_actions.enabled
+    value: false
+  - id: forest_fertilizing_actions.enabled
+    value: false
+  - id: forest_increasing_actions.enabled
+    value: false
+  # WAM Actions
+  - id: electricity_emissions_wam.enabled
+    value: true
+  - id: heating_emissions_wam.enabled
+    value: true
+  - id: industrial_emissions_wam.enabled
+    value: true
+  - id: transport_emissions_wam.enabled
+    value: true
+  - id: f_gas_emissions_wam.enabled
+    value: true
+  - id: agriculture_emissions_wam.enabled
+    value: true
+  - id: waste_management_emissions_wam.enabled
+    value: true
+
