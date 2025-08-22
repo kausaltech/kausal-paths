@@ -4,7 +4,7 @@ supported_languages: [sv, en]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 1cc7f4a234978a2f00a274cb7648979333624dda
+  commit: 428b6c0879a556b5659117c27bdeb53b408799fd
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -84,6 +84,11 @@ params:
   value: Espoo
 - id: scenario_name
   value: default
+- id: statistical_correction
+  label: Onko vihreä sähkö päästötöntä?
+  value: false
+  is_visible: true
+  is_customizable: true
 
 dimensions:
 
@@ -192,6 +197,17 @@ dimensions:
     label_fi: Muu tai tuntematon
   - id: total
     label_fi: Yhteensä
+
+- id: do_correction
+  label_fi: Vihreän sähkön korjaus
+  label_en: Green electricity correction
+  categories:
+  - id: do
+    label_fi: Vihreä sähkö on päästötöntä
+    label_en: Do
+  - id: dont
+    label_fi: Vihreä sähkö on normaalipäästöistä
+    label_en: Don't do
 
 - id: economic_sector
   label_fi: Taloussektori
@@ -1400,7 +1416,9 @@ nodes:
     - id: energy_carrier
     - id: economic_sector
       categories: [industry]
+
 pages:
+
 - id: home  # The page is not shown
   name_fi: Hiilineutraali Espoo -päästöskenaario
   name_en: Carbon-neutral Espoo emission scenario
@@ -1511,17 +1529,24 @@ actions:
 
 - id: prioritised_actions_on_activity
   name: Priorisoidut suoritteeseen liittyvät toimet
-  description: 'Priorisoituja toimenpiteitä ja niiden arvioituja päästövaikutuksia (yhteensä -8,2 %):<ul>
-    <li>Parannamme kävelyn olosuhteita * : -1 % (Laskettu automatkojen korvaamisen potentiaalina)</li>
-    <li>Parannamme pyöräilyn olosuhteita * : -1 % (Laskettu automatkojen korvaamisen potentiaalina)</li>
-    <li>Kehitämme liityntäpysäköintiä ** : -0,5 %</li>
-    <li>Varmistamme joukkoliikenteen sujuvuuden * : -0,1 % (Joukkoliikenteen liikennevaloetuuksien vaikutus päästöihin arvioidaan hyvin vähäiseksi)</li>
-    <li>Lisäämme sähköbussien määrää Espoossa: -3,5 % (Arvioitu oletuksella, että HSL:n kaikki bussit nollapäästöisiä v. 2030)</li>
-    <li>Tehostamme pysäköintiä: -0,5 % (Yhteiskäyttöauto voi parhaassa tapauksessa korvata 5-15 autoa. Vaikutus suoritteeseen arvioidaan kuitenkin vähäiseksi. Maksullisen pysäköinnin vaikutus arvioitu lisätoimenpiteissä. Muilla pysäköinnin tehostamistoimenpiteillä arvioitu olevan pieni vaikutus.)</li>
-    <li>Vähennämme liikenteen päästöjä lisäämällä etätyötä sekä palveluita * : -1,4 % (Laskettu Helmet-mallinnuksen ja fossiilittoman liikenteen tiekartan laskelmien keskiarvona)</li>
-    <li>Kehitämme kaupunkipyöräjärjestelmää * , ** : -0,2 %</li></ul>
-    * Osittain päällekkäinen toimenpide fossiilittoman liikenteen tiekartan toimenpidekokonaisuuksien kanssa</br>
-    ** Arvioitu kulkutapajakauman muutokseen tähtäävien toimenpiteiden henkilöauton kulkutapaosuutta vähentäväksi (lyhyen tähtäimen) vaikutukseksi 3 %-yks, jolloin kokonaispäästövaikutus yht. n. -2 %</br>'
+  description: 'Priorisoituja toimenpiteitä ja niiden arvioituja päästövaikutuksia
+    (yhteensä -8,2 %):<ul> <li>Parannamme kävelyn olosuhteita * : -1 % (Laskettu automatkojen
+    korvaamisen potentiaalina)</li> <li>Parannamme pyöräilyn olosuhteita * : -1 %
+    (Laskettu automatkojen korvaamisen potentiaalina)</li> <li>Kehitämme liityntäpysäköintiä
+    ** : -0,5 %</li> <li>Varmistamme joukkoliikenteen sujuvuuden * : -0,1 % (Joukkoliikenteen
+    liikennevaloetuuksien vaikutus päästöihin arvioidaan hyvin vähäiseksi)</li> <li>Lisäämme
+    sähköbussien määrää Espoossa: -3,5 % (Arvioitu oletuksella, että HSL:n kaikki
+    bussit nollapäästöisiä v. 2030)</li> <li>Tehostamme pysäköintiä: -0,5 % (Yhteiskäyttöauto
+    voi parhaassa tapauksessa korvata 5-15 autoa. Vaikutus suoritteeseen arvioidaan
+    kuitenkin vähäiseksi. Maksullisen pysäköinnin vaikutus arvioitu lisätoimenpiteissä.
+    Muilla pysäköinnin tehostamistoimenpiteillä arvioitu olevan pieni vaikutus.)</li>
+    <li>Vähennämme liikenteen päästöjä lisäämällä etätyötä sekä palveluita * : -1,4
+    % (Laskettu Helmet-mallinnuksen ja fossiilittoman liikenteen tiekartan laskelmien
+    keskiarvona)</li> <li>Kehitämme kaupunkipyöräjärjestelmää * , ** : -0,2 %</li></ul>
+    * Osittain päällekkäinen toimenpide fossiilittoman liikenteen tiekartan toimenpidekokonaisuuksien
+    kanssa</br> ** Arvioitu kulkutapajakauman muutokseen tähtäävien toimenpiteiden
+    henkilöauton kulkutapaosuutta vähentäväksi (lyhyen tähtäimen) vaikutukseksi 3
+    %-yks, jolloin kokonaispäästövaikutus yht. n. -2 %</br>'
   type: simple.GenericAction
   quantity: fraction
   unit: '%'

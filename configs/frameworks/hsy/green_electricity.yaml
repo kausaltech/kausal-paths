@@ -61,13 +61,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: ratio
   unit: dimensionless
-  historical_values: [[1990, 1.0], [2024, 1.0], [2025, 0.0]]
+  historical_values: [[1990, 1.0], [2035, 1.0]]
   input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - id: residual_emission_factor_ratio
-    to_dimensions:
-    - id: energy_carrier
-      categories: [electricity]
 
 - id: residual_emission_factor_ratio
   name_fi: Jäännöspäästökertoimen suhde
@@ -79,25 +74,41 @@ nodes:
     detailed description from the residual emission factor page.
   description_sv: Restfaktorn för utsläpp i förhållande till den totala utsläppsfaktorn. Se en mer
     detaljerad beskrivning från sidan för restfaktorn för utsläpp.
-  type: generic.GenericNode
-  quantity: emission_factor
+  type: generic.CoalesceNode
+  quantity: ratio
   unit: dimensionless
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
   input_nodes:
   - id: total_electricity_consumption
-    to_dimensions:
+    from_dimensions:
     - id: energy_carrier
+      flatten: true
   - id: non_green_electricity_consumption
     tags: [geometric_inverse]
     from_dimensions:
     - id: energy_carrier
       flatten: true
-    to_dimensions: []
-  output_nodes:
-  - id: residual_emission_factor
+  - id: indifference_ratio
+    tags: [coalesce]
+  params:
+    operations: multiply,coalesce
+
+- id: emission_factor_ratio
+  name_fi: Päästökerroinsuhde
+  type: generic.GenericNode
+  quantity: ratio
+  unit: dimensionless
+  input_dimensions: [do_correction]
+  output_dimensions: [do_correction]
+  input_nodes:
+  - id: indifference_ratio
     to_dimensions:
-    - id: energy_carrier
+    - id: do_correction
+      categories: [dont]
+  - id: residual_emission_factor_ratio
+    to_dimensions:
+    - id: do_correction
+      categories: [do]
+
 
 # - id: solar_electricity_emissions # TODO It would be better to calculate actual emissions rather than reductions
 #   name_fi: Aurinkosähkön päästöt

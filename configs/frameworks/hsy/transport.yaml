@@ -328,9 +328,12 @@ nodes:
   input_dimensions: [vehicle_type, economic_sector]
   output_dimensions: [vehicle_type, economic_sector]
   input_nodes:
-  - id: electricity_production_emission_factor
+  - id: residual_emission_factor
     from_dimensions:
     - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+    - id: do_correction
       flatten: true
     to_dimensions: []
   - id: rail_transport_energy

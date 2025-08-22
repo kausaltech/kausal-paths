@@ -47,11 +47,12 @@ nodes:
   input_dimensions: [economic_sector, energy_carrier]
   output_dimensions: [economic_sector, energy_carrier]
   input_nodes:
-  - id: electricity_production_emission_factor
+  - id: residual_emission_factor
     from_dimensions:
-    - id: energy_carrier
+    - id: do_correction
       flatten: true
-    to_dimensions: []
+    to_dimensions:
+    - id: energy_carrier
   - id: non_heating_electricity_energy
   output_nodes:
   - id: net_emissions
@@ -78,13 +79,24 @@ nodes:
   params:
     sector: Sähkön kysyntäennuste (TWh)
 
+- id: green_electricity_index
+  name: Vihreä sähkön indeksi
+  type: generic.GenericNode
+  quantity: ratio
+  unit: dimensionless
+  input_dimensions: [energy_carrier, do_correction]
+  output_dimensions: [energy_carrier, do_correction]
+  input_datasets:
+  - id: espoo/vihrean_sahkon_indeksi
+    tags: [baseline]
+    column: vihrea_sahko_paastotonta
+
 - id: residual_emission_factor
-  name_fi: Jäännöspäästökerroin
-  name_en: Residual emission factor
+  name_fi: Päästökerroin sähkölajeittain
+  name_en: Emission factor by electricity type
   name_sv: Residual emissionsfaktor
-  description_fi: Jäännöspäästökerroin koskee sitä osaa sähkönkulutuksesta, joka ei ole
-    vihreää. Kokonaispäästökertoimesta on siis otettu pois päästöttämän vihreän sähkön
-    osuus, jolloin jäljelle jäävä kerroin on hieman suurempi.
+  description_fi: Tämä päästökerroin tarkastelee erikseen vihreää ja muuta sähköä. Kokonaispäästökertoimesta on siis otettu pois päästöttämän vihreän sähkön
+    osuus, jolloin jäljelle jäävä kerroin on hieman suurempi. Toisaalta parametrin avulla voi säätää vihreän sähkön päästökertoimen samaksi kuin muillakin.
   description_en: The residual emission factor applies to the part of electricity consumption
     that is not green. The share of emission-free green electricity has been subtracted from the
     total emission factor, resulting in a slightly higher remaining factor.
@@ -94,13 +106,25 @@ nodes:
   type: generic.GenericNode
   quantity: emission_factor
   unit: kg/MWh
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
+  input_dimensions: [energy_carrier, do_correction]
+  output_dimensions: [energy_carrier, do_correction]
   input_nodes:
   - id: electricity_production_emission_factor
     tags: [non_additive]
-    to_dimensions:
+    from_dimensions:
     - id: energy_carrier
+      flatten: true
+  - id: emission_factor_ratio
+    to_dimensions:
+    - id: do_correction
+  - id: green_electricity_index
+  params:
+  - id: operations
+    value: multiply,select_variant
+  - id: categories
+    value: do_correction:do
+  - id: do_correction
+    ref: statistical_correction
 
 - id: non_heating_electricity_energy
   name_fi: Kulutussähkön sähkönkulutus
@@ -153,7 +177,10 @@ nodes:
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_nodes:
-  - id: electricity_production_emission_factor
+  - id: residual_emission_factor
     tags: [non_additive]
+    from_dimensions:
+    - id: do_correction
+      flatten: true
   - id: electric_heating_emission_factor_ratio
     tags: [arithmetic_inverse, complement]
