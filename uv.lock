@@ -2559,7 +2559,6 @@ dependencies = [
     { name = "redis", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "rich", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "ruamel-yaml", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
-    { name = "rustface", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "s3cmd", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "sentry-sdk", extra = ["django", "opentelemetry"], marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "social-auth-app-django", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
@@ -2652,6 +2651,7 @@ notebook = [
 prod = [
     { name = "gunicorn", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "psycopg", extra = ["c"], marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
+    { name = "rustface", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "uvicorn-worker", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
 
@@ -2725,7 +2725,6 @@ requires-dist = [
     { name = "redis" },
     { name = "rich" },
     { name = "ruamel-yaml" },
-    { name = "rustface", specifier = ">=0.1.0" },
     { name = "s3cmd" },
     { name = "sentry-sdk", extras = ["django", "opentelemetry"] },
     { name = "social-auth-app-django" },
@@ -2814,6 +2813,7 @@ notebook = [
 prod = [
     { name = "gunicorn", extras = ["gthread"] },
     { name = "psycopg", extras = ["c"] },
+    { name = "rustface", specifier = ">=0.1.0" },
     { name = "uvicorn-worker" },
 ]
 
