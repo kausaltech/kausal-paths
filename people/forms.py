@@ -38,6 +38,8 @@ class PersonForm(PathsAdminModelForm):
 
     def clean_role(self):
         role_id = self.cleaned_data['role']
+        if self.instance is None or self.instance.user is None:
+            return role_id
         if role_id == INSTANCE_SUPER_ADMIN_ROLE:
             return role_id
 
