@@ -130,7 +130,7 @@ jobs:
         env:
           NPM_REGISTRY_SERVER: ${{ inputs.ui_npm_registry_server }}
           NPM_TOKEN: ${{  secrets.NPM_TOKEN }}
-        run: npm ci
+        run: corepack enable pnpm && pnpm install --frozen-lockfile
         working-directory: ./e2e-tests
 
       - name: Wait for backend to get ready
