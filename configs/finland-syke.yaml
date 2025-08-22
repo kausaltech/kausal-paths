@@ -5,16 +5,16 @@ frameworks: [syke]
 site_url: https://finland-syke.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 3460dc512d4bf5b084a42dcf2414738508399296
+  commit: ff6e6095dd9bc101885be778ed2a55a6bb7478dd
 name: Suomen energia- ja ilmastostrategia 2025
 name_en: Finnish energy and climate strategy 2025
 owner: Kausal Oy
 owner_en: Kausal Ltd
 theme_identifier: default
 emission_unit: Mt/a
-target_year: 2055
-reference_year: 2005
-minimum_historical_year: 2005
+target_year: 2035
+reference_year: 2010
+minimum_historical_year: 2010
 maximum_historical_year: 2024
 model_end_year: 2055
 params:
@@ -152,6 +152,15 @@ dimensions:
   - id: total_excl_lulucf
     label: Yhteensä pl. LULUCF-sektori
     aliases: [yhteensa_pl_lulucf-sektori]
+  - id: forests_and_wood_products
+    label: Metsämaa ja puutuotteet
+    aliases: [metsamaa_ja_puutuotteet]
+  - id: other_lulucf
+    label: Muu maankäyttösektori (LULUCF)
+    aliases: [muu_lulucf]
+  - id: ccs_and_beccs
+    label: Hiilidioksidin talteenotto (BECCS)
+    aliases: [ccs_ja_beccs]
 
 emission_sectors:
 
@@ -573,6 +582,65 @@ nodes:
   output_nodes:
   - id: waste_treatment_emissions
 
+# Emissions from Fig 4 in energy and climate strategy
+
+- id: forests_and_wood_products
+  name: Metsämaa ja puutuotteet
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt/a
+  group: wem_actions
+  input_datasets:
+  - id: vtt/kaisu3/kaisu3_scenario_emissions
+    tags: [baseline]
+    column: metsamaa_ja_puutuotteet
+    forecast_from: 2025
+    filters:
+    - column: scenario
+      value: wem
+    - dimension: kaisu3_sector
+      flatten: true
+  output_nodes:
+  - id: net_emissions
+
+- id: other_lulucf
+  name: Muu maankäyttö (LULUCF)
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt/a
+  group: wem_actions
+  input_datasets:
+  - id: vtt/kaisu3/kaisu3_scenario_emissions
+    tags: [baseline]
+    column: muu_lulucf
+    forecast_from: 2025
+    filters:
+    - column: scenario
+      value: wem
+    - dimension: kaisu3_sector
+      flatten: true
+  output_nodes:
+  - id: net_emissions
+
+- id: ccs_and_beccs
+  name: Bioenergian ja muu hiilidioksidin talteenotto
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt/a
+  group: wem_actions
+  input_datasets:
+  - id: vtt/kaisu3/kaisu3_scenario_emissions
+    tags: [baseline]
+    column: ccs_ja_beccs
+    forecast_from: 2025
+    filters:
+    - column: scenario
+      value: wem
+    - dimension: kaisu3_sector
+      flatten: true
+  output_nodes:
+  - id: net_emissions
+
 actions:
 
 # KAISU3 WAM Actions
@@ -882,13 +950,14 @@ pages:
     ilmastostrategialuonnoksen (4.7.2025) mukaan.
 
 scenarios:
-- id: no_change
-  name: Ei muutosta
+- id: baseline
+  name: Kaisu3-trendi (WEM)
   name_en: No change
   all_actions_enabled: false
 
-- id: govt_plan
-  name: Hallituksen energia- ja ilmastostrategia
+- id: default
+  default: true
+  name: Energia- ja ilmastostrategialuonnos
   name_en: Energy and climate strategy
   params:
   # Government Actions
@@ -930,51 +999,8 @@ scenarios:
   - id: waste_management_emissions_wam.enabled
     value: false
 
-- id: baseline
-  name: Kaisu3-trendi (WEM)
-  params:
-  # GOVERNMENT Energy and climate strategy
-  - id: negative_emission_actions.enabled
-    value: false
-  - id: transport_actions.enabled
-    value: false
-  - id: agriculture_actions.enabled
-    value: false
-  - id: separate_heating_emissions.enabled
-    value: false
-  - id: machinery_actions.enabled
-    value: false
-  - id: waste_incineration_actions.enabled
-    value: false
-  - id: lulucf_actions.enabled
-    value: false
-  - id: forest_renewal_actions.enabled
-    value: false
-  - id: forest_damage_actions.enabled
-    value: false
-  - id: forest_fertilizing_actions.enabled
-    value: false
-  - id: forest_increasing_actions.enabled
-    value: false
-  # WAM Actions
-  - id: electricity_emissions_wam.enabled
-    value: false
-  - id: heating_emissions_wam.enabled
-    value: false
-  - id: industrial_emissions_wam.enabled
-    value: false
-  - id: transport_emissions_wam.enabled
-    value: false
-  - id: f_gas_emissions_wam.enabled
-    value: false
-  - id: agriculture_emissions_wam.enabled
-    value: false
-  - id: waste_management_emissions_wam.enabled
-    value: false
-
-- id: default
+- id: kaisu_wam
   name: Kaisu3 lisätoimin (WAM)
-  default: true
   params:
   # GOVERNMENT Energy and climate strategy
   - id: negative_emission_actions.enabled
