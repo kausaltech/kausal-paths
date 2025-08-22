@@ -128,6 +128,7 @@ class Person(PermissionedModel, BasePerson):
         user.first_name = self.first_name
         user.last_name = self.last_name
         user.email = email
+        user.is_staff = True
         user.save()
         return user
 
