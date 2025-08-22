@@ -2691,7 +2691,7 @@ requires-dist = [
     { name = "graphql-core" },
     { name = "graphql-relay" },
     { name = "ipython" },
-    { name = "kausal-paths-extensions", marker = "extra == 'kausal'", specifier = ">=0.6.38", index = "https://pypi.kausal.tech/" },
+    { name = "kausal-paths-extensions", marker = "extra == 'kausal'", specifier = ">=0.6.39", index = "https://pypi.kausal.tech/" },
     { name = "llvmlite" },
     { name = "logfmter" },
     { name = "loguru" },
@@ -2819,15 +2819,15 @@ prod = [
 
 [[package]]
 name = "kausal-paths-extensions"
-version = "0.6.38"
+version = "0.6.39"
 source = { registry = "https://pypi.kausal.tech/" }
 dependencies = [
     { name = "django", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "pygithub", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
-sdist = { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.6.38.tar.gz", hash = "sha256:3237554f51656737456cf50ff4e17156a5e08e83cf924cb69b57084b0418b714" }
+sdist = { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.6.39.tar.gz", hash = "sha256:6a2d932e53967e421513728f5fd17c59a1df052335474398ed7e2aa34f9f4ab6" }
 wheels = [
-    { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.6.38-py3-none-any.whl", hash = "sha256:6932fbf62edbdf9abfaf688d53f10f8d1fb244cd9f456c578fbd9b8895bcd1bd" },
+    { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.6.39-py3-none-any.whl", hash = "sha256:5f9d399ea4620c5f77275926dba5eca712bd9b5599b11425660fe9e741e7c86d" },
 ]
 
 [[package]]
