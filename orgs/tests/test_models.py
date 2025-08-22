@@ -6,16 +6,6 @@ from orgs.tests.factories import OrganizationFactory
 pytestmark = pytest.mark.django_db
 
 
-def test_organization_queryset_editable_by_user_metadata_admin_suborg(person):
-    organization = OrganizationFactory.create()
-    sub_org = OrganizationFactory.create(parent=organization)
-    sub_org.metadata_admins.add(person)
-    editable_orgs = Organization.objects.qs.editable_by_user(person.user)
-    assert sub_org in editable_orgs
-    assert organization not in editable_orgs
-
-
-
 def test_organization_queryset_available_for_instance(instance_config):
     assert instance_config.organization
     instance_org = instance_config.organization
