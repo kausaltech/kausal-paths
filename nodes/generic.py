@@ -51,11 +51,11 @@ class GenericNode(SimpleNode):
         *SimpleNode.allowed_parameters,
         StringParameter(local_id='operations', label='Comma-separated list of operations to execute in order'),
         StringParameter(local_id='categories', label='Dimension and categories to select'),
-        NumberParameter(local_id='selected_number', label='Number of the selected stakeholder'),
-        BoolParameter(local_id='do_correction', label='Correct heating energy by weather?'),
+        NumberParameter(local_id='selected_number', label='Number of the selected category'),
+        BoolParameter(local_id='do_correction', label='Correct values with a correction factor?'),
     ]
     # Class-level default operations
-    DEFAULT_OPERATIONS = 'multiply,add,other,apply_multiplier'
+    DEFAULT_OPERATIONS = 'multiply,add,other,apply_multiplier' # FIXME Remove other,apply_multiplier from the default
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -415,6 +415,11 @@ class GenericNode(SimpleNode):
                 raise ValueError(
                     f"Categories {invalid_cats} not found in dimension '{dim}'. Valid categories are: {unique_values}"
                 )
+
+            do = self.get_typed_parameter_value('do_correction', bool, required=False)
+            if do is not None:
+                condition = pl.col(dim).is_in(cat_list)
+                return df.filter(condition if do else ~condition), baskets
 
             val = self.get_parameter_value('selected_number', required=True)
             if isinstance(val, (int, float)):
