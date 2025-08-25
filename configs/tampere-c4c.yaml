@@ -71,36 +71,8 @@ action_groups:
   color: '#999999'
 
 dimensions:
-- id: tram_phase
-  label: Ratikan vaihe
-  label_en: Tram phase
-  categories:
-  - id: phase1
-    label: Vaihe 1
-    label_en: Phase 1
-  - id: phase2
-    label: Vaihe 2
-    label_en: Phase 2
-  - id: phase3
-    label: Vaihe 3
-    label_en: Phase 3
-
-- id: vehicle
-  label: Ajoneuvo
-  label_en: Vehicle
-  categories:
-  - id: tram
-    label: Ratikka
-    label_en: Tram
-  - id: car
-    label: Henkilöauto
-    label_en: Car
-  - id: bus
-    label: Bussi
-    label_en: Bus
-
 - id: vehicle_type
-  label: Vehicle type
+  label: Ajoneuvotyyppi
   label_en: Vehicle type
   categories:
   - id: buses
@@ -108,7 +80,7 @@ dimensions:
     label_en: Buses
   - id: local_trains
     label: Paikallisjuna
-    label_en: Local Trains
+    label_en: Local trains
   - id: motorcycles
     label: Moottoripyörä
     label_en: Motorcycles
@@ -125,50 +97,6 @@ dimensions:
     label: Pakettiauto
     label_en: Vans
 
-- id: road_type
-  label: Road type
-  label_en: Road type
-  categories:
-  - id: streets
-    label: Katuajo
-    label_en: Streets
-  - id: roads
-    label: Maantieajo
-    label_en: Roads
-
-- id: energy_consumption
-  label: Energiankulutus
-  label_en: Energy consumption
-  categories:
-  - id: district_heating
-    label: Kaukolämpö
-    label_en: District heating
-  - id: other_electricity
-    label: Kuluttajasähkö
-    label_en: Consumer electricity
-  - id: direct_electric_heating
-    label: Suora sähkölämmitys
-    label_en: Direct electric heating
-  - id: oil_heating
-    label: Öljylämmitys
-    label_en: Oil heating
-  - id: geothermal_heating_electricity
-    label: Maalämmön sähkö
-    label_en: Geothermal heating electricity
-
-- id: fuel
-  label: Polttoaine
-  label_en: Fuel
-  categories:
-  - id: diesel_fossil
-    label: Diesel (fossiilinen)
-  - id: diesel_renewable
-    label: Diesel (uusiutuva)
-  - id: gasoline
-    label: Bensiini
-  - id: fuel_oil
-    label: Kevyt polttoöljy
-
 - id: streetlight_type
   label: Streetlight Type
   categories:
@@ -178,7 +106,8 @@ dimensions:
     label: LED
 
 - id: cost_type
-  label: Cost Type
+  label: Kustannustyyppi
+  label_en: Cost type
   categories:
   - id: investment
     label: Investment
@@ -236,7 +165,8 @@ dimensions:
     label: CO2e
 
 - id: owner
-  label: Owner
+  label: Omistaja
+  label_en: Owner
   categories:
   - id: municipal
     label: Municipal
@@ -2261,7 +2191,7 @@ nodes:
     - id: cost_type
 
 - id: carbon_unit_price
-  name: Shadow cost of carbon
+  name: Hiilen varjohinta
   name_en: Shadow cost of carbon
   type: simple.AdditiveNode
   quantity: unit_price
@@ -2361,7 +2291,7 @@ nodes:
 # ----- Direct
 
 - id: total_costs
-  name: Total costs
+  name: Kokonaiskustannukset
   name_en: Total costs
   type: simple.AdditiveNode
   quantity: currency
@@ -2380,7 +2310,7 @@ nodes:
     to_dimensions: []
 
 - id: aggregate_total_costs
-  name: Aggregate total costs
+  name: Kustannusten kokonaismäärä
   name_en: Aggregate total costs
   type: simple.AdditiveNode
   quantity: currency
@@ -2394,7 +2324,7 @@ nodes:
       categories: [cost]
 
 - id: total_benefits
-  name: Total benefits
+  name: Kokonaishyödyt
   name_en: Total benefits
   type: simple.AdditiveNode
   quantity: currency
@@ -2413,7 +2343,7 @@ nodes:
     to_dimensions: []
 
 - id: aggregate_total_benefits
-  name: Aggregate total benefits
+  name: Hyötyjen kokonaismäärä
   name_en: Aggregate total benefits
   type: simple.AdditiveNode
   quantity: currency
@@ -2427,7 +2357,7 @@ nodes:
       categories: [benefit]
 
 - id: cost_benefit_analysis
-  name: Cost-benefit analysis
+  name: Kustannukset ja hyödyt
   name_en: Cost-benefit analysis
   type: simple.AdditiveNode
   quantity: currency
@@ -2536,7 +2466,7 @@ nodes:
     tags: [make_nonnegative]
 
 - id: energy_emissions_reductions
-  name: Energy emissions reductions
+  name: Energian päästövähennykset
   name_en: Energy emissions reductions
   type: simple.AdditiveNode
   quantity: emissions
@@ -2556,7 +2486,7 @@ nodes:
       flatten: true
 
 - id: energy_emissions_cost_reductions
-  name: Energy emissions cost reductions
+  name: Energian päästöjen kustannussäästöt
   name_en: Energy emissions cost reductions
   type: simple.MultiplicativeNode
   quantity: currency
