@@ -28,14 +28,19 @@ params:
 action_groups:
 - id: emission_trade
   name: Energiapolitiikka ja päästökauppa (Taulukko 1)
+  name_en: Energy policy and emission trade (Table 1)
 - id: load_sharing
   name: Taakanjakosektorin toimet (Taulukko 2)
+  name_en: Load sharing sector actions (Table 2)
 - id: land_use
   name: Maankäyttösektorin toimet (Taulukko 3)
+  name_en: Land use sector actions (Table 3)
 - id: wem_actions
   name: KAISU3 ilman lisätoimia (WEM)
+  name_en: Kaisu3 with existing measures
 - id: wam_actions
   name: KAISU3 lisätoimin (WAM)
+  name_en: Kaisu3 with additional measures
 
 dimensions:
 
