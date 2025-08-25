@@ -459,7 +459,7 @@ nodes:
   output_dimensions: [vehicle_type]
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
-  - zuerich/vehicle_mileage
+  - id: zuerich/vehicle_mileage
   params:
     inventory_only: true
 
@@ -472,7 +472,7 @@ nodes:
   output_dimensions: [transport_mode]
   type: simple.AdditiveNode
   input_datasets:
-  - zuerich/transport_occupancy_factor
+  - id: zuerich/transport_occupancy_factor
 
 - id: passenger_kilometers_historical
   name_de: Personenkilometer (historisch)
@@ -657,7 +657,7 @@ nodes:
   allow_nulls: true
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
-  - zuerich/fuel_consumption_factor
+  - id: zuerich/fuel_consumption_factor
 
 - id: transport_fuel_factor
   name_de: Verkehr Kraftstofffaktor
@@ -784,7 +784,7 @@ nodes:
   - id: public_transport_electricity_production_mix
     tags: mix
   input_datasets:
-  - zuerich/electricity_consumption_emission_factor
+  - id: zuerich/electricity_consumption_emission_factor
   input_dimensions: [electricity_source]
   output_dimensions: [emission_scope]
 
@@ -1255,9 +1255,9 @@ nodes:
   name_de: Public transport electricity production mix
   output_dimensions: [electricity_source]
   input_datasets:
-  - zuerich/transport_electricity_production_mix
-  - zuerich/subsidized_transport_electricity_production_mix
-  - zuerich/transport_externally_supplied_electricity
+  - id: zuerich/transport_electricity_production_mix
+  - id: zuerich/subsidized_transport_electricity_production_mix
+  - id: zuerich/transport_externally_supplied_electricity
   input_nodes:
   - id: public_transport_electricity_consumption
     tags: [consumption]

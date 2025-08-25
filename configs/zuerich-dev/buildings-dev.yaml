@@ -281,7 +281,7 @@ nodes:
   input_dimensions: [building_other_emission_sources, energy_carrier]
   output_dimensions: [building_other_emission_sources, energy_carrier]
   input_datasets:
-  - zuerich/other_building_emission_source_fuel_use
+  - id: zuerich/other_building_emission_source_fuel_use
   input_nodes:
   - id: gas_network_mix
     tags: [gas_mix, non_additive]
@@ -301,7 +301,7 @@ nodes:
   input_dimensions: [building_other_emission_sources, energy_carrier, greenhouse_gases]
   output_dimensions: [building_other_emission_sources, energy_carrier, greenhouse_gases]
   input_datasets:
-  - zuerich/other_building_emission_source_emission_factors
+  - id: zuerich/other_building_emission_source_emission_factors
   input_dataset_processors: [LinearInterpolation]
 
 - id: building_primary_energy_consumption
@@ -575,7 +575,7 @@ nodes:
   quantity: emission_factor
   unit: g/kWh
   input_datasets:
-  - zuerich/buildings_energy_consumption_emission_factor_revised
+  - id: zuerich/buildings_energy_consumption_emission_factor
   output_dimensions: [energy_carrier, emission_scope]
 
 - id: building_energy_consumption_emission_factor
