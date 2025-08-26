@@ -13,10 +13,10 @@ target_year: 2035
 model_end_year: 2035
 reference_year: 2018
 minimum_historical_year: 2018
-maximum_historical_year: 2022
+maximum_historical_year: 2023
 emission_unit: kt/a
-emission_forecast_from: 2023
-emission_dimensions: ['ghg']
+emission_forecast_from: 2024
+emission_dimensions: [ghg]
 features:
   baseline_visible_in_graphs: false
   use_datasets_from_db: true
@@ -79,14 +79,6 @@ dimensions:
     label: Digestion
   - id: housing_manure_storage
     label: Housing & Manure Storage
-
-- id: cost_type
-  label: Cost Type
-  categories:
-  - id: climate_change
-    label: 'Climate Change'
-  - id: energy_costs
-    label: 'Energy Costs'
 
 - id: ghg
   label: GHG
@@ -325,12 +317,12 @@ nodes:
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: t/TJ
-  input_dimensions: ['energy_carrier', 'ghg']
-  output_dimensions: ['energy_carrier', 'ghg']
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
   input_datasets:
   - id: aarhus/emission_factors__energy
     column: emission_factor
-    forecast_from: 2023
+    forecast_from: 2024
 
 # ----- I Energy
 
@@ -340,8 +332,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'ghg']
-  output_dimensions: ['energy_carrier', 'ghg']
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
   input_nodes:
   - id: chp_emissions
   - id: electricity_emissions
@@ -361,12 +353,12 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy
   unit: TJ/a
-  input_dimensions: ['energy_carrier']
-  output_dimensions: ['energy_carrier']
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
   input_datasets:
   - id: aarhus/combined_heat_and_power
     column: energy
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: sector
       value: i11
@@ -377,8 +369,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'ghg']
-  output_dimensions: ['energy_carrier', 'ghg']
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
   input_nodes:
   - id: energy_emission_factors
   - id: chp_district_heat_energy_consumption
@@ -390,12 +382,12 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy
   unit: TJ/a
-  input_dimensions: ['energy_carrier']
-  output_dimensions: ['energy_carrier']
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
   input_datasets:
   - id: aarhus/combined_heat_and_power
     column: energy
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: sector
       value: i12
@@ -406,8 +398,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'ghg']
-  output_dimensions: ['energy_carrier', 'ghg']
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
   input_nodes:
   - id: energy_emission_factors
   - id: chp_electricity_generation_energy_consumption
@@ -419,12 +411,12 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy_factor
   unit: TJ/TJ
-  input_dimensions: ['energy_carrier']
-  output_dimensions: ['energy_carrier']
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
   input_datasets:
   - id: aarhus/combined_heat_and_power
     column: energy_factor
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: sector
       value: i12
@@ -434,8 +426,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: energy
   unit: TJ/a
-  input_dimensions: ['energy_carrier']
-  output_dimensions: ['energy_carrier']
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
   input_nodes:
   - id: chp_electricity_generation_energy_factors
   - id: chp_electricity_generation_energy_consumption
@@ -446,8 +438,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'ghg']
-  output_dimensions: ['energy_carrier', 'ghg']
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
   input_nodes:
   - id: chp_district_heat_emissions
   - id: chp_electricity_generation_emissions
@@ -459,12 +451,12 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy
   unit: TJ/a
-  input_dimensions: ['energy_carrier']
-  output_dimensions: ['energy_carrier']
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
   input_datasets:
   - id: aarhus/electricity
     column: energy
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: sector
       value: i21
@@ -475,12 +467,12 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy
   unit: TJ/a
-  input_dimensions: ['energy_usage', 'energy_carrier']
-  output_dimensions: ['energy_usage', 'energy_carrier']
+  input_dimensions: [energy_usage, energy_carrier]
+  output_dimensions: [energy_usage, energy_carrier]
   input_datasets:
   - id: aarhus/electricity
     column: energy
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: sector
       value: i22
@@ -490,8 +482,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy
   unit: TJ/a
-  input_dimensions: ['energy_carrier']
-  output_dimensions: ['energy_carrier']
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
   input_nodes:
   - id: electricity_demand
     from_dimensions:
@@ -523,8 +515,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'ghg']
-  output_dimensions: ['energy_carrier', 'ghg']
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
   input_nodes:
   - id: energy_emission_factors
   - id: electricity_import
@@ -542,12 +534,12 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy
   unit: TJ/a
-  input_dimensions: ['energy_carrier']
-  output_dimensions: ['energy_carrier']
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
   input_datasets:
   - id: aarhus/manufacturing
     column: energy
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: sector
 
@@ -556,8 +548,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'ghg']
-  output_dimensions: ['energy_carrier', 'ghg']
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
   input_nodes:
   - id: energy_emission_factors
   - id: manufacturing_energy_consumption
@@ -571,12 +563,12 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy
   unit: TJ/a
-  input_dimensions: ['energy_carrier', 'sector']
-  output_dimensions: ['energy_carrier', 'sector']
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
   input_datasets:
   - id: aarhus/other_energy
     column: energy
-    forecast_from: 2023
+    forecast_from: 2024
 
 - id: other_energy_heating_emissions
   name: Other Energy Heating Emissions
@@ -584,8 +576,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'ghg']
-  output_dimensions: ['energy_carrier', 'ghg']
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
   input_nodes:
   - id: energy_emission_factors
   - id: other_energy_consumption
@@ -602,8 +594,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'ghg']
-  output_dimensions: ['energy_carrier', 'ghg']
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
   input_nodes:
   - id: energy_emission_factors
   - id: other_energy_consumption
@@ -619,8 +611,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'ghg']
-  output_dimensions: ['energy_carrier', 'ghg']
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
   input_nodes:
   - id: other_energy_heating_emissions
   - id: other_energy_consumption_emissions
@@ -633,12 +625,12 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'ghg']
-  output_dimensions: ['energy_carrier', 'ghg']
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
   input_datasets:
   - id: aarhus/nonroad_energy
     column: emissions
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: sector
       value: i51
@@ -649,12 +641,12 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'ghg']
-  output_dimensions: ['energy_carrier', 'ghg']
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
   input_datasets:
   - id: aarhus/nonroad_energy
     column: emissions
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: sector
       value: i52
@@ -665,12 +657,12 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'ghg']
-  output_dimensions: ['energy_carrier', 'ghg']
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
   input_datasets:
   - id: aarhus/nonroad_energy
     column: emissions
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: sector
       value: i53
@@ -681,12 +673,12 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'ghg']
-  output_dimensions: ['energy_carrier', 'ghg']
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
   input_datasets:
   - id: aarhus/nonroad_energy
     column: emissions
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: sector
       value: i54
@@ -697,12 +689,12 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'ghg']
-  output_dimensions: ['energy_carrier', 'ghg']
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
   input_datasets:
   - id: aarhus/nonroad_energy
     column: emissions
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: sector
       value: i55
@@ -713,12 +705,12 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'ghg']
-  output_dimensions: ['energy_carrier', 'ghg']
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
   input_datasets:
   - id: aarhus/nonroad_energy
     column: emissions
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: sector
       value: i56
@@ -728,8 +720,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'ghg']
-  output_dimensions: ['energy_carrier', 'ghg']
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
   input_nodes:
   - id: nonroad_energy_agriculture_emissions
   - id: nonroad_energy_forestry_emissions
@@ -745,20 +737,20 @@ nodes:
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
-  input_dimensions: ['energy_carrier']
-  output_dimensions: ['energy_carrier']
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
   input_datasets:
   - id: aarhus/biogenic_shares
     column: fraction
-    forecast_from: 2023
+    forecast_from: 2024
 
 - id: transportation_energy_emission_factors
   name: Transportation Energy Emission Factors
   type: simple.MultiplicativeNode
   quantity: emission_factor
   unit: t/TJ
-  input_dimensions: ['energy_carrier', 'ghg']
-  output_dimensions: ['energy_carrier', 'ghg']
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
   input_nodes:
   - id: energy_emission_factors
     tags: [non_additive]
@@ -773,8 +765,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['vehicle_type', 'energy_carrier', 'ghg']
-  output_dimensions: ['vehicle_type', 'energy_carrier', 'ghg']
+  input_dimensions: [vehicle_type, energy_carrier, ghg]
+  output_dimensions: [vehicle_type, energy_carrier, ghg]
   input_nodes:
   - id: onroad_transport_emissions
   - id: rail_transport_emissions
@@ -795,8 +787,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['vehicle_type', 'energy_carrier', 'ghg']
-  output_dimensions: ['vehicle_type', 'energy_carrier', 'ghg']
+  input_dimensions: [vehicle_type, energy_carrier, ghg]
+  output_dimensions: [vehicle_type, energy_carrier, ghg]
   input_nodes:
   - id: onroad_transport_bus_emissions
     from_dimensions:
@@ -814,12 +806,12 @@ nodes:
   type: simple.AdditiveNode
   quantity: mileage
   unit: km/a
-  input_dimensions: ['energy_carrier', 'owner', 'vehicle_type']
-  output_dimensions: ['energy_carrier', 'owner', 'vehicle_type']
+  input_dimensions: [energy_carrier, owner, vehicle_type]
+  output_dimensions: [energy_carrier, owner, vehicle_type]
   input_datasets:
   - id: aarhus/onroad_transportation
     column: mileage
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: sector
     - dimension: vehicle_type
@@ -830,12 +822,12 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy_factor
   unit: MJ/km
-  input_dimensions: ['energy_carrier', 'owner', 'vehicle_type']
-  output_dimensions: ['energy_carrier', 'owner', 'vehicle_type']
+  input_dimensions: [energy_carrier, owner, vehicle_type]
+  output_dimensions: [energy_carrier, owner, vehicle_type]
   input_datasets:
   - id: aarhus/onroad_transportation
     column: energy_factor
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: sector
     - dimension: vehicle_type
@@ -846,8 +838,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: energy
   unit: TJ/a
-  input_dimensions: ['energy_carrier', 'owner', 'vehicle_type']
-  output_dimensions: ['energy_carrier', 'owner', 'vehicle_type']
+  input_dimensions: [energy_carrier, owner, vehicle_type]
+  output_dimensions: [energy_carrier, owner, vehicle_type]
   input_nodes:
   - id: onroad_transport_bus_mileage
   - id: onroad_transport_bus_energy_factors
@@ -858,8 +850,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'owner', 'vehicle_type', 'ghg']
-  output_dimensions: ['energy_carrier', 'owner', 'vehicle_type', 'ghg']
+  input_dimensions: [energy_carrier, owner, vehicle_type, ghg]
+  output_dimensions: [energy_carrier, owner, vehicle_type, ghg]
   input_nodes:
   - id: transportation_energy_emission_factors
     to_dimensions:
@@ -878,12 +870,12 @@ nodes:
   type: simple.AdditiveNode
   quantity: mileage
   unit: km/a
-  input_dimensions: ['vehicle_type', 'energy_carrier']
-  output_dimensions: ['vehicle_type', 'energy_carrier']
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
   - id: aarhus/onroad_transportation
     column: mileage
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: sector
     - column: owner
@@ -895,12 +887,12 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy_factor
   unit: MJ/km
-  input_dimensions: ['vehicle_type', 'energy_carrier']
-  output_dimensions: ['vehicle_type', 'energy_carrier']
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
   - id: aarhus/onroad_transportation
     column: energy_factor
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: sector
     - column: owner
@@ -912,8 +904,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: energy
   unit: TJ/a
-  input_dimensions: ['vehicle_type', 'energy_carrier']
-  output_dimensions: ['vehicle_type', 'energy_carrier']
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
   input_nodes:
   - id: onroad_transport_vehicle_mileage
   - id: onroad_transport_vehicle_energy_factors
@@ -924,8 +916,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
-  output_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
+  input_dimensions: [energy_carrier, vehicle_type, ghg]
+  output_dimensions: [energy_carrier, vehicle_type, ghg]
   input_nodes:
   - id: transportation_energy_emission_factors
     to_dimensions:
@@ -945,8 +937,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
-  output_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
+  input_dimensions: [energy_carrier, vehicle_type, ghg]
+  output_dimensions: [energy_carrier, vehicle_type, ghg]
   input_nodes:
   - id: transportation_energy_emission_factors
     to_dimensions:
@@ -966,8 +958,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
-  output_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
+  input_dimensions: [energy_carrier, vehicle_type, ghg]
+  output_dimensions: [energy_carrier, vehicle_type, ghg]
   input_nodes:
   - id: transportation_energy_emission_factors
     to_dimensions:
@@ -987,8 +979,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['vehicle_type', 'energy_carrier', 'ghg']
-  output_dimensions: ['vehicle_type', 'energy_carrier', 'ghg']
+  input_dimensions: [vehicle_type, energy_carrier, ghg]
+  output_dimensions: [vehicle_type, energy_carrier, ghg]
   input_nodes:
   - id: transportation_energy_emission_factors
     to_dimensions:
@@ -1009,12 +1001,12 @@ nodes:
   type: simple.AdditiveNode
   quantity: mileage
   unit: km/a
-  input_dimensions: ['vehicle_type', 'energy_carrier']
-  output_dimensions: ['vehicle_type', 'energy_carrier']
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
   - id: aarhus/rail_transportation
     column: mileage
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: sector
 
@@ -1023,12 +1015,12 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy_factor
   unit: MJ/km
-  input_dimensions: ['vehicle_type', 'energy_carrier']
-  output_dimensions: ['vehicle_type', 'energy_carrier']
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
   - id: aarhus/rail_transportation
     column: energy_factor
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: sector
 
@@ -1037,8 +1029,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: energy
   unit: TJ/a
-  input_dimensions: ['vehicle_type', 'energy_carrier']
-  output_dimensions: ['vehicle_type', 'energy_carrier']
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
   input_nodes:
   - id: rail_transport_mileage
   - id: rail_transport_energy_factors
@@ -1049,8 +1041,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
-  output_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
+  input_dimensions: [energy_carrier, vehicle_type, ghg]
+  output_dimensions: [energy_carrier, vehicle_type, ghg]
   input_nodes:
   - id: transportation_energy_emission_factors
     to_dimensions:
@@ -1070,8 +1062,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
-  output_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
+  input_dimensions: [energy_carrier, vehicle_type, ghg]
+  output_dimensions: [energy_carrier, vehicle_type, ghg]
   input_nodes:
   - id: transportation_energy_emission_factors
     to_dimensions:
@@ -1091,8 +1083,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
-  output_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
+  input_dimensions: [energy_carrier, vehicle_type, ghg]
+  output_dimensions: [energy_carrier, vehicle_type, ghg]
   input_nodes:
   - id: transportation_energy_emission_factors
     to_dimensions:
@@ -1112,8 +1104,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
-  output_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
+  input_dimensions: [energy_carrier, vehicle_type, ghg]
+  output_dimensions: [energy_carrier, vehicle_type, ghg]
   input_nodes:
   - id: transportation_energy_emission_factors
     to_dimensions:
@@ -1133,8 +1125,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
-  output_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
+  input_dimensions: [energy_carrier, vehicle_type, ghg]
+  output_dimensions: [energy_carrier, vehicle_type, ghg]
   input_nodes:
   - id: transportation_energy_emission_factors
     to_dimensions:
@@ -1153,8 +1145,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['vehicle_type', 'energy_carrier', 'ghg']
-  output_dimensions: ['vehicle_type', 'energy_carrier', 'ghg']
+  input_dimensions: [vehicle_type, energy_carrier, ghg]
+  output_dimensions: [vehicle_type, energy_carrier, ghg]
   input_nodes:
   - id: rail_transport_regional_train_emissions
   - id: rail_transport_inter_city_train_emissions
@@ -1169,12 +1161,12 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
-  output_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
+  input_dimensions: [energy_carrier, vehicle_type, ghg]
+  output_dimensions: [energy_carrier, vehicle_type, ghg]
   input_datasets:
   - id: aarhus/waterborne_transportation
     column: emissions
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: sector
     - dimension: ghg
@@ -1187,12 +1179,12 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy
   unit: TJ/a
-  input_dimensions: ['energy_carrier', 'vehicle_type']
-  output_dimensions: ['energy_carrier', 'vehicle_type']
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
   input_datasets:
   - id: aarhus/aviation
     column: energy
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: sector
 
@@ -1201,8 +1193,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
-  output_dimensions: ['energy_carrier', 'vehicle_type', 'ghg']
+  input_dimensions: [energy_carrier, vehicle_type, ghg]
+  output_dimensions: [energy_carrier, vehicle_type, ghg]
   input_nodes:
   - id: transportation_energy_emission_factors
     to_dimensions:
@@ -1221,12 +1213,12 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['sector', 'ghg']
-  output_dimensions: ['sector', 'ghg']
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
   input_datasets:
   - id: aarhus/waste
     column: emissions
-    forecast_from: 2023
+    forecast_from: 2024
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -1241,12 +1233,12 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['sector', 'ghg']
-  output_dimensions: ['sector', 'ghg']
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
   input_datasets:
   - id: aarhus/ippu
     column: emissions
-    forecast_from: 2023
+    forecast_from: 2024
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -1261,8 +1253,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['sector', 'ghg']
-  output_dimensions: ['sector', 'ghg']
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
   input_nodes:
   - id: land_emissions
   - id: livestock_emissions
@@ -1282,26 +1274,26 @@ nodes:
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: t/ha/a
-  input_dimensions: ['sector', 'ghg']
-  output_dimensions: ['sector', 'ghg']
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
   input_datasets:
   - id: aarhus/land
     column: emission_factor
     dropna: true
-    forecast_from: 2023
+    forecast_from: 2024
 
 - id: land_areas
   name: Land Areas
   type: simple.AdditiveNode
   quantity: area
   unit: ha
-  input_dimensions: ['sector']
-  output_dimensions: ['sector']
+  input_dimensions: [sector]
+  output_dimensions: [sector]
   input_datasets:
   - id: aarhus/land
     column: area
     dropna: true
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: ghg
 
@@ -1310,8 +1302,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['sector', 'ghg']
-  output_dimensions: ['sector', 'ghg']
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
   input_nodes:
   - id: land_emission_factors
   - id: land_areas
@@ -1327,8 +1319,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['sector', 'ghg']
-  output_dimensions: ['sector', 'ghg']
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
   input_nodes:
   - id: land_emission_factors
   - id: land_areas
@@ -1344,8 +1336,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['sector', 'ghg']
-  output_dimensions: ['sector', 'ghg']
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
   input_nodes:
   - id: land_emission_factors
   - id: land_areas
@@ -1361,8 +1353,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['sector', 'ghg']
-  output_dimensions: ['sector', 'ghg']
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
   input_nodes:
   - id: land_emission_factors
   - id: land_areas
@@ -1377,8 +1369,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['sector', 'ghg']
-  output_dimensions: ['sector', 'ghg']
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
   input_nodes:
   - id: organic_soils_cultivation_emissions
   - id: organic_soils_permanent_grass_emissions
@@ -1389,8 +1381,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['sector', 'ghg']
-  output_dimensions: ['sector', 'ghg']
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
   input_nodes:
   - id: land_emission_factors
   - id: land_areas
@@ -1405,8 +1397,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['sector', 'ghg']
-  output_dimensions: ['sector', 'ghg']
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
   input_nodes:
   - id: cultivation_emissions
   - id: organic_soils_emissions
@@ -1419,26 +1411,26 @@ nodes:
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/count/a
-  input_dimensions: ['sector', 'emission_source', 'ghg']
-  output_dimensions: ['sector', 'emission_source', 'ghg']
+  input_dimensions: [sector, emission_source, ghg]
+  output_dimensions: [sector, emission_source, ghg]
   input_datasets:
   - id: aarhus/livestock
     column: emission_factor
     dropna: true
-    forecast_from: 2023
+    forecast_from: 2024
 
 - id: livestock_counts
   name: Livestock Counts
   type: simple.AdditiveNode
   quantity: number
   unit: count
-  input_dimensions: ['sector']
-  output_dimensions: ['sector']
+  input_dimensions: [sector]
+  output_dimensions: [sector]
   input_datasets:
   - id: aarhus/livestock
     column: number
     dropna: true
-    forecast_from: 2023
+    forecast_from: 2024
     filters:
     - column: emission_source
     - column: ghg
@@ -1448,8 +1440,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: ['sector', 'emission_source', 'ghg']
-  output_dimensions: ['sector', 'emission_source', 'ghg']
+  input_dimensions: [sector, emission_source, ghg]
+  output_dimensions: [sector, emission_source, ghg]
   input_nodes:
   - id: livestock_emission_factors
     tags: [non_additive]
