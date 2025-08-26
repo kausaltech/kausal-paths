@@ -3,9 +3,12 @@ from __future__ import annotations
 import typing
 
 from django import forms
+from django.contrib.admin.widgets import AdminFileWidget
 from django.utils.text import format_lazy
 from django.utils.translation import gettext_lazy as _
 from django_stubs_ext import StrOrPromise
+
+from dal import autocomplete
 
 from kausal_common.models.roles import InstanceSpecificRole, role_registry
 
@@ -14,6 +17,7 @@ from paths.context import realm_context
 
 from admin_site.forms import PathsAdminModelForm
 from nodes.models import InstanceConfig
+from orgs.models import Organization
 
 from .models import Person
 from .widgets import RoleSelectionWidget
@@ -23,8 +27,13 @@ if typing.TYPE_CHECKING:
     from django_stubs_ext import StrOrPromise
 
 
+class AvatarWidget(AdminFileWidget):
+    template_name = 'kausal_common/people/avatar_widget.html'
+
+
 class PersonForm(PathsAdminModelForm):
     """Custom form for Person instances with role selection."""
+
     active_instance: InstanceConfig
 
     role = forms.CharField(
@@ -32,6 +41,11 @@ class PersonForm(PathsAdminModelForm):
         help_text=_('Select the role for this person in the current instance'),
         required=True,
     )
+
+    organization = forms.ModelChoiceField(
+        queryset=Organization.objects.none()
+    )
+
     class Meta:
         model = Person
         fields = ['first_name', 'last_name', 'email', 'title', 'image', 'organization', 'role']
@@ -129,3 +143,9 @@ class PersonForm(PathsAdminModelForm):
             disable_role_options=disable_role_options,
             disable_reason=disable_reason,
         )
+
+        self.fields['organization'].widget = autocomplete.ModelSelect2(
+            url='organization-autocomplete',
+            choices=self.fields['organization'].choices
+        )
+        self.fields['image'].widget = AvatarWidget()
