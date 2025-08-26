@@ -123,6 +123,7 @@ INSTALLED_APPS = [
     'kausal_common',
     'dal',
     'dal_select2',
+    'dal_admin_filters',
     'wagtail.contrib.forms',
     'wagtail.contrib.redirects',
     'wagtail.embeds',

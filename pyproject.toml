@@ -18,6 +18,7 @@ dependencies = [
   "diffsync",
   "django",
   "django-anymail[mailgun,mailjet,sendgrid]",
+  "django-autocomplete-light>=3.12.1",
   "django-celery-results",
   "django-cors-headers",
   "django-environ",
