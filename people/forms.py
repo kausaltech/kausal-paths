@@ -42,10 +42,6 @@ class PersonForm(PathsAdminModelForm):
         required=True,
     )
 
-    organization = forms.ModelChoiceField(
-        queryset=Organization.objects.none()
-    )
-
     class Meta:
         model = Person
         fields = ['first_name', 'last_name', 'email', 'title', 'image', 'organization', 'role']
