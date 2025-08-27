@@ -78,14 +78,6 @@ class OrganizationForm(NodeForm):
             return parent
         raise ValidationError(_("Removing parent from organization is not allowed."), code='invalid_parent')
 
-    def save(self, *args, **kwargs):
-        creating = self.instance._state.adding
-        result = super().save(*args, **kwargs)
-        if creating and self.instance.parent is None:
-            # When creating a new root organization make sure the creator retains edit permissions
-            self.instance.metadata_admins.add(self.user.person) # type: ignore[attr-defined]
-        return result
-
 
 
 class OrganizationViewSet(PathsViewSet):
