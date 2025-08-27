@@ -12,7 +12,6 @@ from kausal_common.organizations.models import (
     BaseOrganization,
     BaseOrganizationClass,
     BaseOrganizationIdentifier,
-    BaseOrganizationMetadataAdmin,
     BaseOrganizationQuerySet,
     Node,
 )
@@ -30,11 +29,6 @@ class OrganizationClass(BaseOrganizationClass):
     class Meta:
         verbose_name = _('Organization class')
         verbose_name_plural = _('Organization classes')
-
-class OrganizationMetadataAdmin(BaseOrganizationMetadataAdmin):
-    class Meta:
-        verbose_name = _('Organization metadata admin')
-        verbose_name_plural = _('Organization metadata admins')
 
 class Namespace(BaseNamespace):
     class Meta:
