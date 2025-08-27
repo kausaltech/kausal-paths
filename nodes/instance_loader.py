@@ -25,6 +25,7 @@ from common.i18n import TranslatedString, gettext_lazy as _, set_default_languag
 from nodes.actions import ActionNode
 from nodes.constants import DecisionLevel
 from nodes.exceptions import NodeError
+from nodes.explanations import NodeExplanationSystem
 from nodes.normalization import Normalization
 from pages.config import pages_from_config
 
@@ -425,6 +426,29 @@ class InstanceLoader:
         }
         return TranslatedString(**langs, default_language=self.default_language)
 
+    # def create_node_from_config(config: dict) -> Node:
+    #     explanation_system = NodeExplanationSystem()
+
+    #     # Validate first
+    #     validation_results = explanation_system.validate_config(config)
+    #     if explanation_system.has_errors(validation_results):
+    #         error_messages = [r.message for r in validation_results if r.level == 'error']
+    #         raise ConfigurationError(f"Invalid node config: {'; '.join(error_messages)}")
+
+    #     # Generate explanations
+    #     explanation_html = explanation_system.generate_explanation(config)
+
+    #     # Create node with explanations
+    #     node = Node(**config)
+    #     node.explanation = ["<ul>"] + explanation_html + ["</ul>"]
+
+    #     # Log warnings
+    #     warnings = [r.message for r in validation_results if r.level == 'warning']
+    #     for warning in warnings:
+    #         logger.warning(f"Node {config.get('id', 'unknown')}: {warning}")
+
+    #     return node
+
     def _make_node_datasets(self, config: dict, node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912
         from nodes.datasets import DBDataset, DVCDataset, FixedDataset, GenericDataset
         from nodes.generic import GenericNode
@@ -735,18 +759,12 @@ class InstanceLoader:
             node = self.make_node(node_class, nc, yaml_lc=getattr(nc, 'lc', None))
             self.context.add_node(node)
 
-    def generate_nodes_from_emission_sectors(self):
-        from nodes.simple import SectorEmissions
-
-        node_class = self.import_class(
-            'SectorEmissions',
-            'nodes.simple',
-            allowed_classes=[SectorEmissions],
-        )
+    def prepare_emission_sectors(self):
         dataset_id = self.config.get('emission_dataset')
         emission_unit = self.config.get('emission_unit')
         assert emission_unit is not None
         emission_unit = self.context.unit_registry.parse_units(emission_unit)
+        emission_sectors = []
 
         for ec in self.config.get('emission_sectors', []):
             parent_id = ec.pop('part_of', None)
@@ -772,6 +790,20 @@ class InstanceLoader:
                 params=dict(category=data_category) if data_category else [],
                 **ec,
             )
+            emission_sectors.append(nc)
+
+        return emission_sectors, ec
+
+    def generate_nodes_from_emission_sectors(self):
+        from nodes.simple import SectorEmissions
+
+        node_class = self.import_class(
+            'SectorEmissions',
+            'nodes.simple',
+            allowed_classes=[SectorEmissions],
+        )
+        emission_sectors, ec = self.prepare_emission_sectors()
+        for nc in emission_sectors:
             node = self.make_node(node_class, nc, yaml_lc=getattr(ec, 'lc', None))
             self.context.add_node(node)
 
@@ -1071,7 +1103,7 @@ class InstanceLoader:
         ds_objs = DBDatasetModel.mgr.qs.for_instance_config(ic).only('uuid', 'identifier', 'last_modified_at') # type: ignore
         self.db_datasets = {ds.identifier: ds for ds in ds_objs}
 
-    def _init_instance(self) -> None:  # noqa: PLR0915
+    def _init_instance(self) -> None:  # noqa: C901, PLR0915
         import dvc_pandas
 
         from nodes.actions.action import ActionGroup
@@ -1176,6 +1208,29 @@ class InstanceLoader:
                 sample_size=sample_size,
             )
         self.instance.set_context(self.context)
+
+        all_nodes = []
+        nodes = config.get('nodes')
+        assert isinstance(nodes, list)
+        all_nodes.extend(nodes)
+        all_actions = config.get('actions')
+        if all_actions is not None:
+            all_nodes.extend(all_actions)
+        emission_sectors, ec = self.prepare_emission_sectors()
+        if emission_sectors is not None:
+            for es in emission_sectors:
+                es['type'] = 'simple.SectorEmissions'
+            all_nodes.extend(emission_sectors)
+
+        explanation_system = NodeExplanationSystem()
+        validation = explanation_system.validate_all_nodes(all_nodes)
+        print(explanation_system.has_errors(validation))
+            # ds_expl = NodeExplanationSystem.generate_explanation(ds)
+            # ds_expl = [f"<li><i>{ds_id}</i>"] + ds_expl + ['</li>']
+            # ds_obj.explanation.extend(ds_expl)
+            # ds_expl = ["<li><i>Values are given in the yaml file of the instance.</i></li>"]
+            # fds.explanation.extend(ds_expl)
+        # print(dataset.explanation for dataset in datasets)
 
         # Store input and output node configs for each created node, to be used in setup_edges().
         self._input_nodes = {}

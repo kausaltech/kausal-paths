@@ -1049,7 +1049,7 @@ class Node:
 
         for tag in edge.tags:
             try:
-                edge_function = getattr(self, f'_{tag}')
+                edge_function = getattr(self, f'_{tag}') # FIXME Bad practice to make functions out of text.
                 df = edge_function(df, target_node)
             except AttributeError:
                 continue # Not every tag has a function attached.

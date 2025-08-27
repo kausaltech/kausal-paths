@@ -353,6 +353,7 @@ class DatasetWithFilters(Dataset):
         df = df.with_columns(pl.col(col).str.replace_all(re.escape(item), new_item))
         return df
 
+    # FIXME Remove this when instance_loader._make_dataset_explanation() works
     def add_explanation(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         dataset_html = df.explanation
         dataset_html.append(f"<li><i>{self.id}</i>")
