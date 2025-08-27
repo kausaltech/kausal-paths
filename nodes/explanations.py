@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from common.i18n import gettext as _
 
@@ -35,20 +35,33 @@ TAG_DESCRIPTIONS = {
     'truncate_beyond_end': _('Truncate values beyond the model end year. There may be some from data'),
 }
 
-NODE_CLASS_DESCRIPTIONS = { # FIXME Make descriptions concise.
-    'AdditiveAction': _("""Simple action that produces an additive change to a value."""),
-    'AdditiveNode': _(
+
+@dataclass
+class NodeInfo:
+    description: str
+    deprecated: bool = False
+
+# FIXME Make descriptions concise.
+NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
+    'AdditiveAction': NodeInfo(_("""Simple action that produces an additive change to a value.""")),
+    'AdditiveNode': NodeInfo(_(
         """This is an Additive Node. It performs a simple addition of inputs.
-        Missing values are assumed to be zero."""),
-    'AttributableFractionRR': _(
+        Missing values are assumed to be zero.""")),
+    'AlasEmissions': NodeInfo(
+        _("""AlasEmissions is a specified node to handle emissions from the ALas model by Syke."""),
+        deprecated=True),
+    'AlasNode': NodeInfo(
+        _("""AlasNode is a specified node to handle data from the ALas model by Syke."""),
+        deprecated=True),
+    'AttributableFractionRR': NodeInfo(_(
         """
         Calculate attributable fraction when the ERF function is relative risk.
 
         AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result
         is smaller than 0, we should use r instead. It can be converted from the result:
         r/(r+1)=s <=> r=s/(1-s)
-        """),
-    'AssociationNode': _(
+        """)),
+    'AssociationNode': NodeInfo(_(
         """
         Association nodes connect to their upstream nodes in a loose way:
         Their values follow the relative changes of the input nodes but
@@ -57,8 +70,8 @@ NODE_CLASS_DESCRIPTIONS = { # FIXME Make descriptions concise.
         Fractions 1..3 can be used to tell how much the input node should adjust
         the output node. The default relation is "increase", if "decrease" is used,
         that must be explicitly said in the tags.
-        """),
-    'BuildingEnergySavingAction': _(
+        """)),
+    'BuildingEnergySavingAction': NodeInfo(_(
         """
         Action that has an energy saving effect on building stock (per floor area).
 
@@ -66,10 +79,10 @@ NODE_CLASS_DESCRIPTIONS = { # FIXME Make descriptions concise.
         not per RENOVATEABLE building floor area. This is useful because
         the costs and savings from total renovations sum up to a meaningful
         impact on nodes that are given per floor area.
-        """),
-    'BuildingEnergySavingActionUs': _(
-        """BuildingEnergySavingAction with U.S. units and natural gas instead of heat."""),
-    'CfFloorAreaAction': _(
+        """)),
+    'BuildingEnergySavingActionUs': NodeInfo(_(
+        """BuildingEnergySavingAction with U.S. units and natural gas instead of heat.""")),
+    'CfFloorAreaAction': NodeInfo(_(
         """
         Action that has an energy saving effect on building stock (per floor area).
 
@@ -82,18 +95,18 @@ NODE_CLASS_DESCRIPTIONS = { # FIXME Make descriptions concise.
         # fraction of existing buildings triggering code updates
         # compliance of new buildings to the more active regulations
         # improvement in energy consumption factor
-        """),
-    'CoalesceNode': _(
-        """Coalesces the empty values with the values from the node with the tag 'coalesce'."""
-    ),
-    'CohortNode': _(
+        """)),
+    'CoalesceNode': NodeInfo(_(
+        """Coalesces the empty values with the values from the node with the tag 'coalesce'.""")),
+    'CohortNode': NodeInfo(_(
         """
         Cohort node takes in initial age structure (inventory) and follows the cohort in time as it ages.
 
         Harvest describes how much is removed from the cohort.
-        """),
-    'CumulativeAdditiveAction': _("""Additive action where the effect is cumulative and remains in the future."""),
-    'DatasetDifferenceAction': _(
+        """)),
+    'CumulativeAdditiveAction': NodeInfo(_(
+        """Additive action where the effect is cumulative and remains in the future.""")),
+    'DatasetDifferenceAction': NodeInfo(_(
         """
         Receive goal input from a dataset or node and cause an effect.
 
@@ -103,8 +116,8 @@ NODE_CLASS_DESCRIPTIONS = { # FIXME Make descriptions concise.
         The goal input can also be relative (for e.g. percentage
         reductions), in which case the input will be treated as
         a multiplier.
-        """),
-    'DatasetDifferenceAction2': _(
+        """)),
+    'DatasetDifferenceAction2': NodeInfo(_(
         """
         Receive goal input from a dataset or node and cause an effect.
 
@@ -114,11 +127,13 @@ NODE_CLASS_DESCRIPTIONS = { # FIXME Make descriptions concise.
         The goal input can also be relative (for e.g. percentage
         reductions), in which case the input will be treated as
         a multiplier.
-        """),
-    'DatasetNode': _(
-        """This is a DatasetNode. It takes in a specifically formatted dataset and converts the relevant part into a node output.""",  # noqa: E501
-    ),
-    'DatasetReduceAction': _(
+        """)),
+    'DatasetNode': NodeInfo(_(
+        """
+        This is a DatasetNode. It takes in a specifically formatted dataset and
+        converts the relevant part into a node output.
+        """)),
+    'DatasetReduceAction': NodeInfo(_(
         """
         Receive goal input from a dataset or node and cause a linear effect.
 
@@ -128,8 +143,8 @@ NODE_CLASS_DESCRIPTIONS = { # FIXME Make descriptions concise.
         The goal input can also be relative (for e.g. percentage
         reductions), in which case the input will be treated as
         a multiplier.
-        """),
-    'DatasetReduceNode': _(
+        """)),
+    'DatasetReduceNode': NodeInfo(_(
         """
         Receive goal input from a dataset or node and cause a linear effect.
 
@@ -139,83 +154,82 @@ NODE_CLASS_DESCRIPTIONS = { # FIXME Make descriptions concise.
         The goal input can also be relative (for e.g. percentage
         reductions), in which case the input will be treated as
         a multiplier.
-        """),
-    'DatasetRelationAction': _(
+        """)),
+    'DatasetRelationAction': NodeInfo(_(
         """
         ActionRelationshipNode enforces a logical relationship with another action node.
 
         This node monitors an upstream action node (A) and automatically sets its own
         enabled state (B) according to the relationship specified in the edge tags.
-        """),
-    'DilutionNode': _(
+        """)),
+    'DilutionNode': NodeInfo(_(
         """
         This is Dilution Node. It has exactly four input nodes which are marked by tags: 1) existing is the current,
         non-diluted variable. 2) Incoming is the variable which diluted the existing one with its different values. 3)
         Removing is the fraction that is removed from the existing stock each year. 4) Incoming is the ratio compared
         with the existing stock that is inserted into the system. (Often the removed and incoming values are the same,
         and then the stock size remains constant.)
-        """),
-    'DimensionalSectorEmissionFactor': _(
-        "Filters emissions and energy according to the <i>sector</i> parameter and calculates emission factor."),
-    'DimensionalSectorEmissions': _("Filters emissions according to the <i>sector</i> parameter."),
-    'DimensionalSectorEnergy': _("Filters energy use according to the <i>sector</i> parameter."),
-    'DimensionalSectorNode': _(
-        "Reads in a dataset and filters and interprets its content according to the <i>sector</i> parameter."),
-    'EnergyAction': _("""Simple action with several energy metrics."""),
-    'ExponentialNode': _(
+        """)),
+    'DimensionalSectorEmissionFactor': NodeInfo(_(
+        "Filters emissions and energy according to the <i>sector</i> parameter and calculates emission factor.")),
+    'DimensionalSectorEmissions': NodeInfo(_("Filters emissions according to the <i>sector</i> parameter.")),
+    'DimensionalSectorEnergy': NodeInfo(_("Filters energy use according to the <i>sector</i> parameter.")),
+    'DimensionalSectorNode': NodeInfo(_(
+        "Reads in a dataset and filters and interprets its content according to the <i>sector</i> parameter.")),
+    'EnergyAction': NodeInfo(_("""Simple action with several energy metrics.""")),
+    'ExponentialNode': NodeInfo(_(
         """
         This is Exponential Node.
         Takes in either input nodes as AdditiveNode, or builds a dataframe from current_value.
         Builds an exponential multiplier based on annual_change and multiplies the VALUE_COLUMN.
         Optionally, touches also historical values.
         Parameter is_decreasing_rate is used to give discount rates instead.
-        """),
-    'FillNewCategoryNode': _(
+        """)),
+    'FillNewCategoryNode': NodeInfo(_(
         """This is a Fill New Category Node. It behaves like Additive Node, but in the end of computation
         it creates a new category such that the values along that dimension sum up to 1. The input nodes
         must have a dimensionless unit. The new category in an existing dimension is given as parameter
         'new_category' in format 'dimension:category
-        """),
-    'FixedMultiplierNode': _(
-        """This is a Fixed Multiplier Node. It multiplies a single input node with a parameter."""),
-    'FloorAreaNode': _('Floor area node takes in actions and calculates the floor area impacted.'),
-    'FormulaNode': _('This is a Formula Node. It uses a specified formula to calculate the output.'),
-    'GenericNode': _("Multiply input nodes whose unit does not match the output. Add the rest."),
-    'GpcTrajectoryAction': _(
+        """)),
+    'FixedMultiplierNode': NodeInfo(_(
+        """This is a Fixed Multiplier Node. It multiplies a single input node with a parameter.""")),
+    'FloorAreaNode': NodeInfo(_('Floor area node takes in actions and calculates the floor area impacted.')),
+    'FormulaNode': NodeInfo(_('This is a Formula Node. It uses a specified formula to calculate the output.')),
+    'GenericNode': NodeInfo(_("Multiply input nodes whose unit does not match the output. Add the rest.")),
+    'GpcTrajectoryAction': NodeInfo(_(
         """
         GpcTrajectoryAction is a trajectory action that uses the DatasetNode to fetch the dataset.
-        """),
-    'InternalGrowthModel': _(
+        """)),
+    'InternalGrowthModel': NodeInfo(_(
         """
         Calculates internal growth of e.g. a forest, accounting for forest cuts. Takes in additive and
         non-additive nodes and a dataset.
         Parameter annual_change is used where the rate node(s) have null values.
-        """),
-    'IterativeNode2': _( # FIXME Remove old
+        """)),
+    'IterativeNode2': NodeInfo(_(
         """
         This is IterativeNode. It calculates one year at a time based on previous year's value and inputs and outputs.
         In addition, it must have a feedback loop (otherwise it makes no sense to use this node class), which is given
         as a growth rate per year from the previous year's value.
-        """),
-    'IterativeNode': _(
+        """), deprecated=True),  # FIXME Remove old
+    'IterativeNode': NodeInfo(_(
         """
         This is generic IterativeNode for calculating values year by year.
         It calculates one year at a time based on previous year's value and inputs and outputs
         starting from the first forecast year. In addition, it must have a feedback loop (otherwise it makes
         no sense to use this node class), which is given as a growth rate per year from the previous year's value.
-        """),
-    'LeverNode': _(
-        """LeverNode replaces the upstream computation completely, if the lever is enabled."""
-    ),
-    'LinearCumulativeAdditiveAction': _(
+        """)),
+    'LeverNode': NodeInfo(_(
+        """LeverNode replaces the upstream computation completely, if the lever is enabled.""")),
+    'LinearCumulativeAdditiveAction': NodeInfo(_(
         """
         Cumulative additive action where a yearly target is set and the effect is linear.
         This can be modified with these parameters:
         target_year_level is the value to be reached at the target year.
         action_delay is the year when the implementation of the action starts.
         multiplier scales the size of the impact (useful between scenarios).
-        """),
-    'LogicalNode': _( # FIXME There are several versions. Remove redundant.
+        """)),
+    'LogicalNode': NodeInfo(_(
         """
         LogicalNode processes logical inputs (values 0 or 1).
 
@@ -224,9 +238,8 @@ NODE_CLASS_DESCRIPTIONS = { # FIXME Make descriptions concise.
 
         AND operations are performed first, then OR operations. For more complex
         logical structures, use several subsequent nodes.
-        """
-    ),
-    'LogitNode': _(
+        """), deprecated=True),  # FIXME There are several versions. Remove redundant.
+    'LogitNode': NodeInfo(_(
         """
         LogitNode gives a probability of event given a baseline and several determinants.
 
@@ -237,15 +250,15 @@ NODE_CLASS_DESCRIPTIONS = { # FIXME Make descriptions concise.
         The node expects that a comes from dataset and sum_i(b_i * X_i,) is given by the input nodes
         when operated with the GenericNode compute(). The probability is calculated as
         ln(y / (1 - y)) = b <=> y = 1 / (1 + exp(-b)).
-        """
-    ),
-    'MultiplicativeNode': _(
+        """)),
+    'MultiplicativeNode': NodeInfo(_(
         """This is a Multiplicative Node. It multiplies nodes together with potentially adding other input nodes.
 
         Multiplication and addition is determined based on the input node units.
-        """),
-    'ReduceAction': _("""Define action with parameters <i>reduce</i> and <i>multiplier</i>."""),
-    'SCurveAction': _(
+        """)),
+    'Population': NodeInfo(_("Population is a specific node about Finnish population."), deprecated=True),
+    'ReduceAction': NodeInfo(_("""Define action with parameters <i>reduce</i> and <i>multiplier</i>.""")),
+    'SCurveAction': NodeInfo(_(
         """
         This is S Curve Action. It calculates non-linear effect with two parameters,
         max_impact = A and max_year (year when 98 per cent of the impact has occurred).
@@ -254,27 +267,44 @@ NODE_CLASS_DESCRIPTIONS = { # FIXME Make descriptions concise.
         S-curve y = A/(1+exp(-k*(x-x0)). A is the maximum value, k is the steepness
         of the curve, and x0 is the midpoint year.
         Newton-Raphson method is used to numerically estimate slope and medeian year.
-        """),
-    'SectorEmissions': _("SectorEmissions is like AdditiveNode. It is used when creating nodes from emission_sectors."),
-    'ThresholdNode': _( # FIXME Several versions. Remove redundant.
+        """)),
+    'SectorEmissions': NodeInfo(_(
+        "SectorEmissions is like AdditiveNode. It is used when creating nodes from emission_sectors.")),
+    'ThresholdNode': NodeInfo(_(
         """
         ThresholdNode computes a preliminary result using standard GenericNode operations.
 
         After computation, it returns True (1) if the result is greater than or equal to
         the threshold parameter, otherwise False (0).
-        """
-    ),
-    'TrajectoryAction': _(
+        """), deprecated=True),
+    'TrajectoryAction': NodeInfo(_(
         """
         TrajectoryAction uses select_category() to select a category from a dimension
         and then possibly do some relative or absolute conversions.
-        """),
-    'WeightedSumNode': _(
+        """)),
+    'WeightedSumNode': NodeInfo(_(
         """
         WeightedSumNode: Combines additive inputs using weights from a multidimensional weights DataFrame.
-        """
-    ),
+        """)),
 }
+
+
+@dataclass
+class GraphRepresentation:
+    """Normalized representation of the complete node graph."""
+
+    nodes: dict[str, dict]  # node_id -> node_config
+    inputs: dict[str, list[str]]  # node_id -> list of input_node_ids
+    outputs: dict[str, list[str]]  # node_id -> list of output_node_ids
+    edges: dict[tuple, dict]  # (from_node, to_node) -> edge_properties
+
+
+@dataclass
+class ValidationResult:
+    method: str
+    is_valid: bool
+    level: Literal['error', 'warning', 'info']
+    message: str
 
 
 class GraphBuilder:
@@ -341,6 +371,7 @@ class NodeExplanationSystem:
     def __init__(self):
         self.rules = [
             DatasetRule(),
+            NodeClassRule(),
             # CategoryRetentionRule(),
             # OperationBasketRule(),
             # UnitCompatibilityRule(),
@@ -370,39 +401,58 @@ class NodeExplanationSystem:
             # Run all validation rules
             node_results = []
             for rule in self.rules:
-                results = rule.validate(node_config)
-                node_results.extend(results)
+                if isinstance(node_config, dict):
+                    results = rule.validate(node_config)
+                    node_results.extend(results)
 
             all_results[node_id] = node_results
 
         return all_results
 
-    def generate_explanation(self, config: dict | str | None) -> list[str]:
+    def generate_all_explanations(self, all_node_configs: list[dict[str, Any]]) -> dict[str, list[str]]:
+        """Generate explanations for all nodes."""
+
+        all_results = {}
+
+        for node_config in all_node_configs:
+            node_id = node_config['id']
+
+            # Run all explanation rules
+            node_results = []
+            for rule in self.rules:
+                if isinstance(node_config, dict):
+                    results = rule.explain(node_config)
+                    node_results.extend(results)
+
+            all_results[node_id] = node_results
+
+        return all_results
+
+    def generate_explanation(self, node_config: dict) -> list[str]:
         """Generate explanation from all rules."""
         explanations = []
         # # Start with the explanation text # FIXME Requires access to node.py to collect node class explanations.
         # if self.explanation:
         #     html.append(f"<p>{self.explanation}")
 
-        if isinstance(config, dict):
-            params: dict | None = config.get('params')
-            if params is not None and 'operations' in params.keys():
-                operations = params.get('operations')
-                explanations.append(f"The order of operations is {operations}.</p>")
+        params: dict | None = node_config.get('params')
+        if params is not None and 'operations' in params.keys():
+            operations = params.get('operations')
+            explanations.append(f"The order of operations is {operations}.</p>")
 
         for rule in self.rules:
-            explanation = rule.explain(config)
+            explanation = rule.explain(node_config)
             if explanation:
                 explanations.append(f"<li>{explanation}</li>")
 
         return explanations
 
-    def validate_config(self, config: dict | str | None) -> list[ValidationResult]:
+    def validate_config(self, node_config: dict) -> list[ValidationResult]:
         """Validate config using all rules."""
         all_results = []
 
         for rule in self.rules:
-            results = rule.validate(config)
+            results = rule.validate(node_config)
             all_results.extend(results)
 
         return all_results
@@ -410,19 +460,28 @@ class NodeExplanationSystem:
     def has_errors(self, validation_results: dict[str, list[ValidationResult]]) -> bool:
         """Check if any validation results are errors."""
         return any(
-            any(rule.level == 'error' and not rule.is_valid for rule in node)
-            for node in validation_results.values()
+            any(rule.level == 'error' and not rule.is_valid for rule in node_rules)
+            for node_rules in validation_results.values()
         )
 
+    def show_messages(
+            self,
+            validation_results: dict[str, list[ValidationResult]],
+            level: Literal['error', 'warning', 'info'] = 'error'
+        ) -> dict[str, list[ValidationResult]]:
+        """Show all validation results that have messages worse than level."""
 
-@dataclass
-class GraphRepresentation:
-    """Normalized representation of the complete node graph."""
+        severity = {'error': 3, 'warning': 2, 'info': 1}
+        min_severity = severity[level]
 
-    nodes: dict[str, dict]  # node_id -> node_config
-    inputs: dict[str, list[str]]  # node_id -> list of input_node_ids
-    outputs: dict[str, list[str]]  # node_id -> list of output_node_ids
-    edges: dict[tuple, dict]  # (from_node, to_node) -> edge_properties
+        messages: dict[str, list[ValidationResult]] = {}
+        for node, node_rules in validation_results.items():
+            messages[node] = []
+            for rule in node_rules:
+                if severity[rule.level] >= min_severity and not rule.is_valid:
+                    messages[node].append(rule)
+
+        return {node_id: message for node_id, message in messages.items() if len(message) > 0}
 
 
 class GraphValidator:
@@ -499,76 +558,165 @@ class GraphValidator:
         return any(node_id not in visited and visit_iterative(node_id) for node_id in graph.nodes)
 
 
-@dataclass
-class ValidationResult:
-    method: str
-    is_valid: bool
-    level: str  # 'error', 'warning', 'info'
-    message: str
-
-
 class ValidationRule(ABC):
     """Base class for validation rules that also generate explanations."""
 
     @abstractmethod
-    def explain(self, config: dict | str | None) -> list[str]:
+    def explain(self, node_config: dict) -> list[str]:
         """Generate explanation text from node config."""
         pass
 
     @abstractmethod
-    def validate(self, config: dict | str | None) -> list[ValidationResult]:
+    def validate(self, node_config: dict) -> list[ValidationResult]:
         """Validate the node configuration."""
         pass
 
+
+class NodeClassRule(ValidationRule):
+
+    def explain(self, node_config: dict) -> list[str]:
+        html: list[str] = []
+
+        typ = node_config.get('type')
+        if isinstance(typ, str):
+            typ = typ.split('.')[-1]
+            desc = NODE_CLASS_DESCRIPTIONS.get(typ)
+            if desc:
+                html.append(desc.description)
+
+        return html
+
+    def validate(self, node_config: dict) -> list[ValidationResult]:
+        results: list[ValidationResult] = []
+
+        typ = node_config.get('type')
+        if isinstance(typ, str):
+            typ = typ.split('.')[-1]
+
+            if typ not in NODE_CLASS_DESCRIPTIONS.keys():
+                results.append(ValidationResult(
+                    method='node_class_rule',
+                    is_valid=False,
+                    level='warning',
+                    message=f'Node class {typ} does not have a description.'
+                ))
+
+            elif NODE_CLASS_DESCRIPTIONS[typ].deprecated:
+                results.append(ValidationResult(
+                    method='node_depreciation_rule',
+                    is_valid=False,
+                    level='warning',
+                    message=f'Node class {typ} is depreciated.'
+                ))
+
+        return results
+
 class DatasetRule(ValidationRule):
 
-    def explain(self, config: dict | str | None) -> list[str]:
+    def explain(self, node_config: dict) -> list[str]:
         dataset_html: list[str] = []
-        if config is None or isinstance(config, str):
+
+        input_datasets = node_config.get('input_datasets', [])
+
+        if not input_datasets:
             return dataset_html
 
-        col = config.get('column')
-        if col is not None:
-            dataset_html.append('<li>' + str(_('Is using column: ')) + col + '</li>')
-        year = config.get('forecast_from')
-        if year is not None:
-            dataset_html.append('<li>' + str(_('Has forecast values from: ')) + str(year) + '</li>')
-        dropna = config.get('dropna')
-        if dropna is not None and dropna:
-            dataset_html.append('<li>' + str(_('Rows with missing valuesa are dropped.')) + '</li>')
+        dataset_html.append("<li>Datasets:")
+        dataset_html.append("<ul>")
 
-        filters = config.get('filters')
-        if filters is not None: # FIXME Translations should happen on usage, not on creation.
-            dataset_html.append(str(_(" has the following filters:")))
-            dataset_html.append("<ul>")
-            filter_text = _("Filter")
-            filter_no = 1
-            for filter_dict in filters:
-                dataset_html.append(f"<li>{filter_text} {filter_no}")
-                if isinstance(filter_dict, dict):
-                    dataset_html.append("<ul>")
-                    for key, value in filter_dict.items():
-                        v = str(value) # FIXME Should understand i18n category names.
-                        dataset_html.append(f"<li><strong>{key}:</strong> {v}</li>")
-                    dataset_html.append("</ul>")
-                dataset_html.append("</li>")
-                filter_no += 1
-            dataset_html.append("</ul>")
+        for dataset_config in input_datasets:
+            dataset_html.extend(self._explain_single_dataset(dataset_config))
+
+        dataset_html.append("</ul>")
         dataset_html.append("</li>")
 
         return dataset_html
 
-    def validate(self, config: dict | str | None) -> list[ValidationResult]:
-        results: list[ValidationResult] = []
-        if config is None:
-            return results
+    def _explain_single_dataset(self, dataset_config: dict) -> list[str]:
+        """Explain a single dataset configuration."""
+        html = []
 
-        results.append(ValidationResult(
-            method='dataset_test',
-            is_valid=True,
-            level='info',
-            message="There are no validation for datasets yet."
-        ))
+        col = dataset_config.get('column')
+        if col is not None:
+            html.append(f'<li>{_("Is using column: ")}{col}</li>')
+
+        year = dataset_config.get('forecast_from')
+        if year is not None:
+            html.append(f'<li>{_("Has forecast values from: ")}{year}</li>')
+
+        dropna = dataset_config.get('dropna')
+        if dropna:
+            html.append(f'<li>{_("Rows with missing values are dropped.")}</li>')
+
+        # Handle filters
+        filters = dataset_config.get('filters')
+        if filters:
+            html.extend(self._explain_filters(filters))
+
+        return html
+
+    def _explain_filters(self, filters: list[dict]) -> list[str]:
+        """Explain dataset filters."""
+        html = [f"<li>{_('Has the following filters:')}<ul>"]
+
+        for i, filter_dict in enumerate(filters, 1):
+            html.append(f"<li>{_('Filter')} {i}")
+            if isinstance(filter_dict, dict):
+                html.append("<ul>")
+                for key, value in filter_dict.items():
+                    html.append(f"<li><strong>{key}:</strong> {value}</li>")
+                html.append("</ul>")
+            html.append("</li>")
+
+        html.append("</ul></li>")
+        return html
+
+    def validate(self, node_config: dict) -> list[ValidationResult]:
+        results: list[ValidationResult] = []
+
+        input_datasets = node_config.get('input_datasets', [])
+
+        for i, dataset_config in enumerate(input_datasets):
+            dataset_results = self._validate_single_dataset(dataset_config, i)
+            results.extend(dataset_results)
+
+        return results
+
+    def _validate_single_dataset(self, dataset_config: dict, index: int) -> list[ValidationResult]:
+        """Validate a single dataset configuration."""
+        results = []
+
+        # Check for required fields
+        if 'id' not in dataset_config:
+            results.append(ValidationResult(
+                method='dataset_id_check',
+                is_valid=False,
+                level='error',
+                message=f"Dataset {index} is missing required 'id' field"
+            ))
+
+        # Validate column specification
+        if 'column' in dataset_config:
+            column = dataset_config['column']
+            if not isinstance(column, str) or not column.strip():
+                results.append(ValidationResult(
+                    method='dataset_column_check',
+                    is_valid=False,
+                    level='error',
+                    message=f"Dataset {index} has invalid column specification: {column}"
+                ))
+
+        # Validate forecast_from year
+        if 'forecast_from' in dataset_config:
+            year = dataset_config['forecast_from']
+            if not isinstance(year, int) or year < 1900 or year > 2100:
+                results.append(ValidationResult(
+                    method='dataset_forecast_year_check',
+                    is_valid=False,
+                    level='warning',
+                    message=f"Dataset {index} has questionable forecast year: {year}"
+                ))
+
         return results
 
 
