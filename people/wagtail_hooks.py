@@ -6,11 +6,19 @@ from wagtail.snippets.models import register_snippet
 from paths.context import realm_context
 
 from admin_site.utils import SuperAdminOnlyMenuItem
-from admin_site.viewsets import PathsViewSet
+from admin_site.viewsets import PathsIndexView, PathsViewSet
 
 from . import chooser  # noqa: F401
 from .forms import PersonForm
 from .models import Person
+
+
+class PersonIndexView(PathsIndexView[Person]):
+    def search_queryset(self, queryset):
+       # Workaround to prevent Wagtail from looking for `path` (from Organization) in the search fields for Person
+        queryset = Person.objects.filter(id__in=queryset)
+
+        return super().search_queryset(queryset)
 
 
 class PersonSnippetViewSet(PathsViewSet):
@@ -24,6 +32,7 @@ class PersonSnippetViewSet(PathsViewSet):
     search_fields = ['first_name', 'last_name', 'email', 'title']
     list_per_page = 50
     list_display =  ['avatar', 'first_name', 'last_name', 'email', 'organization', 'title']
+    index_view_class = PersonIndexView
 
     def get_queryset(self, request):
         active_instance = realm_context.get().realm
