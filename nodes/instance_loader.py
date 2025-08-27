@@ -1224,16 +1224,9 @@ class InstanceLoader:
 
         explanation_system = NodeExplanationSystem()
         validation = explanation_system.validate_all_nodes(all_nodes)
-        # print(validation)
-        print(explanation_system.show_messages(validation, level='error'))
 
-        ds_expl = explanation_system.generate_all_explanations(all_nodes)
-        print(ds_expl)
-        # ds_expl = [f"<li><i>{ds_id}</i>"] + ds_expl + ['</li>']
-        # ds_obj.explanation.extend(ds_expl)
-        # ds_expl = ["<li><i>Values are given in the yaml file of the instance.</i></li>"]
-        # fds.explanation.extend(ds_expl)
-        # print(dataset.explanation for dataset in datasets)
+        print(explanation_system.show_messages(validation, level='info', valid_also=True))
+        print(explanation_system.generate_all_explanations(all_nodes))
 
         # Store input and output node configs for each created node, to be used in setup_edges().
         self._input_nodes = {}

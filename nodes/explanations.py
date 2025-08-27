@@ -370,8 +370,9 @@ class GraphBuilder:
 class NodeExplanationSystem:
     def __init__(self):
         self.rules = [
-            DatasetRule(),
             NodeClassRule(),
+            DatasetRule(),
+            EdgeRule(),
             # CategoryRetentionRule(),
             # OperationBasketRule(),
             # UnitCompatibilityRule(),
@@ -394,7 +395,7 @@ class NodeExplanationSystem:
             return {node['id']: [graph_error] for node in all_node_configs}
 
         # Step 2: Validate each node with complete graph context
-        all_results = {}
+        all_results: dict[str, list] = {}
 
         for node_id, node_config in graph.nodes.items():
 
@@ -467,7 +468,8 @@ class NodeExplanationSystem:
     def show_messages(
             self,
             validation_results: dict[str, list[ValidationResult]],
-            level: Literal['error', 'warning', 'info'] = 'error'
+            level: Literal['error', 'warning', 'info'] = 'error',
+            valid_also: bool = False,
         ) -> dict[str, list[ValidationResult]]:
         """Show all validation results that have messages worse than level."""
 
@@ -478,7 +480,7 @@ class NodeExplanationSystem:
         for node, node_rules in validation_results.items():
             messages[node] = []
             for rule in node_rules:
-                if severity[rule.level] >= min_severity and not rule.is_valid:
+                if severity[rule.level] >= min_severity and (not rule.is_valid or valid_also):
                     messages[node].append(rule)
 
         return {node_id: message for node_id, message in messages.items() if len(message) > 0}
@@ -621,11 +623,14 @@ class DatasetRule(ValidationRule):
         if not input_datasets:
             return dataset_html
 
-        dataset_html.append("<li>Datasets:")
+        dataset_html.append(f"<li>{_('Datasets')}:")
         dataset_html.append("<ul>")
 
         for dataset_config in input_datasets:
-            dataset_html.extend(self._explain_single_dataset(dataset_config))
+            if isinstance(dataset_config, dict):
+                dataset_html.extend(self._explain_single_dataset(dataset_config))
+            else:
+                dataset_html.append(dataset_config)
 
         dataset_html.append("</ul>")
         dataset_html.append("</li>")
@@ -634,7 +639,7 @@ class DatasetRule(ValidationRule):
 
     def _explain_single_dataset(self, dataset_config: dict) -> list[str]:
         """Explain a single dataset configuration."""
-        html = []
+        html = [f"<li>{_('Has identifier')}: {dataset_config['id']}</li>"]
 
         col = dataset_config.get('column')
         if col is not None:
@@ -677,8 +682,9 @@ class DatasetRule(ValidationRule):
         input_datasets = node_config.get('input_datasets', [])
 
         for i, dataset_config in enumerate(input_datasets):
-            dataset_results = self._validate_single_dataset(dataset_config, i)
-            results.extend(dataset_results)
+            if isinstance(dataset_config, dict):
+                dataset_results = self._validate_single_dataset(dataset_config, i)
+                results.extend(dataset_results)
 
         return results
 
@@ -837,108 +843,96 @@ class DatasetRule(ValidationRule):
 #             html.append(f"<p>{'The formula is:'}</p>")
 #             html.append(f"<pre>{formula}</pre>")
 
-#         # # Handle input nodes # FIXME Add operations when the buckets is a node attribute.
-#         # operation_nodes = [getattr(n, 'translated_name', n.name) for n in self.input_nodes]
-#         # if operation_nodes:
-#         #     html.append(f"<p>{'The node has the following input nodes:'}</p>")
-#         #     html.append("<ul>")
-#         #     html.extend([f"<li>{node_name}</li>" for node_name in operation_nodes])
-#         #     html.append("</ul>")
-#         # else:
-#         #     html.append(f"<p>{'The node does not have input nodes.'}</p>")
 
+class EdgeRule(ValidationRule):
 
-#         # Add datasets information
-#         dataset_html = []
-#         if self.input_dataset_instances:
-#             df = self.get_output_pl()
-#             dataset_html.append(f"<p>{'The node has the following datasets:'}</p>")
-#             dataset_html.append("<ul>")
-#             dataset_html.extend(df.explanation)
-#             dataset_html.append("</ul>")
+    def explain(self, node_config: dict) -> list[str]:
+        html = []
+        txt = _('The input nodes are processed in the following way before using as input for calculations in this node:')
+        html.append(f"<p>{txt}</p>")
+        html.append("<ul>")  # Start the main list for nodes
+        edge_html0 = html.copy()
 
-#         edge_html = self.get_edge_explanation()
-#         # Combine all parts
-#         if edge_html:
-#             html.extend(edge_html)
-#         if dataset_html:
-#             html.extend(dataset_html)
+        tag_html: list[str] = []
+        from_html: list[str] = []
+        to_html: list[str] = []
 
-#         return "".join(html)
+        for input_node in node_config.get('input_nodes', []):
 
-#     def get_edge_explanation(self):
-#         edge_html = []
-#         edge_html.append(f"<p>{
-#             'The input nodes are processed in the following way before using as input for calculations in this node:'
-#         }</p>")
-#         edge_html.append("<ul>")  # Start the main list for nodes
-#         edge_html0 = edge_html.copy()
+            tag_html.extend(self.get_explanation_for_tag(input_node))
+            from_html.extend(self.get_explanation_for_edge_from(input_node))
+            to_html.extend(self.get_explanation_for_edge_to(input_node))
 
-#         for node in self.input_nodes:
-#             for edge in node.edges:
-#                 if edge.output_node != self:
-#                     continue
+        if tag_html or from_html or to_html:
 
-#                 tag_html = self.get_explanation_for_edge_tag(edge)
-#                 from_html = self.get_explanation_for_edge_from(edge)
-#                 to_html = self.get_explanation_for_edge_to(edge)
+            node_name = input_node.get('name')
+            if node_name:
+                html.append(f"<li>{_('Node')} <i>{node_name}</i>:")
+            else:
+                html.append(f"<li>{_('Node with identifier')} <i>{input_node['id']}</i>:")
 
-#             if tag_html or from_html or to_html:
+            # Create a list item for the node with nested list
+            html.append("<ul>")  # Start nested list for this node
+            html.extend(tag_html)
+            html.extend(from_html)
+            html.extend(to_html)
+            html.append("</ul>")  # Close node's nested list
+            html.append("</li>")  # Close node list item
 
-#                 node_name = getattr(node, 'translated_name', node.name)
+        if html == edge_html0:
+            return []
+        html.append("</ul>")  # Close main nodes list
+        return html
 
-#                 # Create a list item for the node with nested list
-#                 edge_html.append(f"<li>{'Node'} <i>{node_name}</i>:")
-#                 edge_html.append("<ul>")  # Start nested list for this node
-#                 edge_html.extend(tag_html)
-#                 edge_html.extend(from_html)
-#                 edge_html.extend(to_html)
-#                 edge_html.append("</ul>")  # Close node's nested list
-#                 edge_html.append("</li>")  # Close node list item
+    def get_explanation_for_tag(self, node: dict | str) -> list[str]:
+        html: list[str] = []
+        if isinstance(node, str):
+            return html
 
-#         if edge_html == edge_html0:
-#             return []
-#         edge_html.append("</ul>")  # Close main nodes list
-#         return edge_html
+        for tag in node.get('tags', []):
+            description = TAG_DESCRIPTIONS.get(tag, f"{_('The tag')} <i>{tag}</i> {_('is given.')}")
+            html.append(f"<li>{description}</li>")
+        return html
 
-#     def get_explanation_for_edge_tag(self, edge):
-#         edge_html = []
-#         # Process edge tags using the lookup dictionary
-#         if edge.tags:
-#             for tag in edge.tags:
-#                 description = TAG_DESCRIPTIONS.get(tag, _('The tag <i>"%s"</i> is given.') % tag)
-#                 edge_html.append(f"<li>{description}</li>")
-#         return edge_html
+    def get_explanation_for_edge_from(self, node: dict | str) -> list[str]:
+        edge_html: list[str] = []
+        if isinstance(node, str):
+            return edge_html
 
-#     def get_explanation_for_edge_from(self, edge):
-#         edge_html = []
-#         from_dims = edge.from_dimensions
-#         if from_dims is not None:
-#             for dim in from_dims:
-#                 dimlabel = self.context.dimensions[dim].label
-#                 cats = [str(cat.label) for cat in from_dims[dim].categories]
+        for dim in node.get('from_dimensions', []):
+            dimlabel = dim.get('id')
+            cats = dim.get('categories', [])
 
-#                 if cats:
-#                     do = _('exclude') if from_dims[dim].exclude else _('include')
-#                     edge_html.append(
-#                         f"<li>{_('From dimension <i>%s</i>, %s categories: <i>%s</i>.') % (dimlabel, do, ', '.join(cats))}</li>"
-#                     )
+            if cats:
+                do = _('exclude') if dim.get('exclude', False) else _('include')
+                edge_html.append(
+                    f"<li>{_('From dimension')} <i>{dimlabel}</i>, {do} categories: <i>{', '.join(cats)}</i>.</li>"
+                )
 
-#                 if from_dims[dim].flatten:
-#                     edge_html.append(f"<li>{_('Sum over dimension <i>%s</i>.') % dimlabel}</li>")
-#         return edge_html
+            if dim.get('flatten', False):
+                edge_html.append(f"<li>{_('Sum over dimension')} <i>dimlabel</i></li>")
+        return edge_html
 
-#     def get_explanation_for_edge_to(self, edge):
-#         edge_html = []
-#         to_dims = edge.to_dimensions
-#         if to_dims is not None:
-#             for dim in to_dims:
-#                 dimlabel = self.context.dimensions[dim].label
-#                 cats = [str(cat.label) for cat in to_dims[dim].categories]
+    def get_explanation_for_edge_to(self, node: dict | str) -> list[str]:
+        edge_html: list[str] = []
+        if isinstance(node, str):
+            return edge_html
 
-#                 if cats:
-#                     cat_str = ', '.join(cats)
-#                     edge_html.append(
-#                        f"<li>{_('Categorize the values to <i>%s</i> in a new dimension <i>%s</i>.') % (cat_str, dimlabel)}</li>"
-#                     )
-#         return edge_html
+        for dim in node.get('to_dimensions', []):
+            dimlabel = dim.get('id')
+            cats = dim.get('categories', [])
+
+            if cats:
+                cat_str = ', '.join(cats)
+                edge_html.append(
+                    f"<li>{_('Categorize the values to')} <i>{cat_str}</i> in a new dimension <i>{dimlabel}</i>.</li>"
+                    )
+        return edge_html
+
+    def validate(self, node_config: dict) -> list[ValidationResult]:
+        return [ValidationResult(
+            method='edge_rule',
+            is_valid=True,
+            level='info',
+            message='There is no validation rule for edges.'
+        )]
