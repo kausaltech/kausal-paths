@@ -22,6 +22,7 @@ from orgs.models import Organization
 from users.models import User
 
 if TYPE_CHECKING:
+    from django.core.checks import CheckMessage
     from django.db import models
 
     from paths.types import PathsAdminRequest
@@ -56,6 +57,7 @@ class Person(BasePerson):
         index.SearchField('last_name'),
         index.SearchField('email'),
         index.SearchField('title'),
+        index.FilterField('path'), # TODO: Not sure why this is needed for search to work
     ]
     class Meta:
         verbose_name = _('Person')
@@ -86,6 +88,15 @@ class Person(BasePerson):
         if not avatar_url:
             return ''
         return format_html('<span class="avatar"><img src="{}" /></span>', avatar_url)
+
+    @classmethod
+    def check(cls, **kwargs) -> list[CheckMessage]:
+        errors = super().check(**kwargs)
+        # Suppress the specific warning about the 'path' field on Person model. See search_fields.
+        for error in errors[:]:
+            if error.id == 'wagtailsearch.W004' and 'path' in str(error):
+                errors.remove(error)
+        return errors
 
     @override
     def create_corresponding_user(self):
