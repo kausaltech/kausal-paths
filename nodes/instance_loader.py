@@ -1222,11 +1222,11 @@ class InstanceLoader:
                 es['type'] = 'simple.SectorEmissions'
             all_nodes.extend(emission_sectors)
 
-        explanation_system = NodeExplanationSystem()
-        validation = explanation_system.validate_all_nodes(all_nodes)
+        # explanation_system = NodeExplanationSystem()
+        # validation = explanation_system.validate_all_nodes(all_nodes)
 
-        print(explanation_system.show_messages(validation, level='info', valid_also=True))
-        print(explanation_system.generate_all_explanations(all_nodes))
+        # print(explanation_system.show_messages(validation, level='info', valid_also=True))
+        # print(explanation_system.generate_all_explanations(all_nodes))
 
         # Store input and output node configs for each created node, to be used in setup_edges().
         self._input_nodes = {}
