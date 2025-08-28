@@ -10,6 +10,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Self, TypedDict, cast
 from urllib.parse import urlparse
 
+import sentry_sdk
+from asgiref.sync import sync_to_async
+from channels.consumer import async_to_sync
+from channels.layers import get_channel_layer
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.contenttypes.fields import GenericRelation
@@ -19,7 +23,9 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import models, transaction
 from django.db.models import CharField, Q
 from django.utils import timezone
-from django.utils.translation import get_language, gettext, gettext_lazy as _, override
+from django.utils.translation import get_language, gettext, override
+from django.utils.translation import gettext_lazy as _
+from loguru import logger
 from modelcluster.models import ClusterableModel
 from modeltrans.fields import TranslationField
 from modeltrans.manager import MultilingualQuerySet
@@ -28,26 +34,36 @@ from wagtail.fields import RichTextField, StreamField
 from wagtail.models import Locale, Page, RevisionMixin
 from wagtail.models.sites import Site
 from wagtail.search import index
-
-import sentry_sdk
-from asgiref.sync import sync_to_async
-from channels.consumer import async_to_sync
-from channels.layers import get_channel_layer
-from loguru import logger
 from wagtail_color_panel.fields import ColorField
 
+from common.i18n import get_modeltrans_attrs_from_str
 from kausal_common.datasets.models import (
     Dataset as DatasetModel,
+)
+from kausal_common.datasets.models import (
     Dimension as DatasetDimensionModel,
+)
+from kausal_common.datasets.models import (
     DimensionCategory,
     DimensionScope,
 )
 from kausal_common.i18n.helpers import convert_language_code
-from kausal_common.models.permission_policy import ModelPermissionPolicy, ParentInheritedPolicy
+from kausal_common.models.permission_policy import (
+    ModelPermissionPolicy,
+    ParentInheritedPolicy,
+)
 from kausal_common.models.permissions import PermissionedQuerySet
-from kausal_common.models.types import FK, M2M, MLModelManager, RevMany, RevOne, copy_signature
+from kausal_common.models.types import (
+    FK,
+    M2M,
+    MLModelManager,
+    RevMany,
+    RevOne,
+    copy_signature,
+)
 from kausal_common.models.uuid import UUIDIdentifiedModel
-
+from orgs.models import Organization
+from pages.blocks import CardListBlock
 from paths.const import INSTANCE_CHANGE_GROUP, INSTANCE_CHANGE_TYPE
 from paths.types import CacheablePathsModel, PathsModel, PathsQuerySet
 from paths.utils import (
@@ -58,19 +74,16 @@ from paths.utils import (
     get_supported_languages,
 )
 
-from common.i18n import get_modeltrans_attrs_from_str
-from orgs.models import Organization
-from pages.blocks import CardListBlock
-
 if TYPE_CHECKING:
     from django.http import HttpRequest
-
     from loguru import Logger
 
-    from kausal_common.models.permission_policy import BaseObjectAction, ObjectSpecificAction
-    from kausal_common.users import UserOrAnon
-
     from frameworks.models import FrameworkConfig
+    from kausal_common.models.permission_policy import (
+        BaseObjectAction,
+        ObjectSpecificAction,
+    )
+    from kausal_common.users import UserOrAnon
     from nodes.dimensions import Dimension as NodeDimension
     from nodes.node import Node
     from pages.config import OutcomePage as OutcomePageConfig
@@ -129,10 +142,15 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any
     def __init__(self):
         from frameworks.roles import framework_admin_role, framework_viewer_role
 
-        from .roles import instance_admin_role, instance_viewer_role
+        from .roles import (
+            instance_admin_role,
+            instance_reviewer_role,
+            instance_viewer_role,
+        )
 
         self.admin_role = instance_admin_role
         self.viewer_role = instance_viewer_role
+        self.reviewer_role = instance_reviewer_role
         self.fw_admin_role = framework_admin_role
         self.fw_viewer_role = framework_viewer_role
         super().__init__(InstanceConfig)
@@ -142,6 +160,9 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any
 
     def is_viewer(self, user: User, obj: InstanceConfig) -> bool:
         return user.has_instance_role(self.viewer_role, obj)
+
+    def is_reviewer(self, user: User, obj: InstanceConfig) -> bool:
+        return user.has_instance_role(self.reviewer_role, obj)
 
     def is_framework_admin(self, user: User, obj: InstanceConfig) -> bool:
         if not obj.has_framework_config():
@@ -156,10 +177,11 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any
     def construct_perm_q(self, user: User, action: ObjectSpecificAction, include_implicit_public: bool = True) -> models.Q | None:
         is_admin = self.admin_role.role_q(user)
         is_viewer = self.viewer_role.role_q(user)
+        is_reviewer = self.reviewer_role.role_q(user)
         is_fw_admin = self.fw_admin_role.role_q(user, prefix='framework_config__framework')
         is_fw_viewer = self.fw_viewer_role.role_q(user, prefix='framework_config__framework')
         if action == 'view':
-            q = is_viewer | is_admin | is_fw_admin | is_fw_viewer
+            q = is_viewer | is_reviewer | is_admin | is_fw_admin | is_fw_viewer
             if include_implicit_public:
                 q |= Q(framework_config__isnull=True)
             return q
@@ -190,6 +212,8 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any
             if self.anon_has_perm('view', obj):
                 return True
             if self.is_viewer(user, obj):
+                return True
+            if self.is_reviewer(user, obj):
                 return True
             if self.is_framework_viewer(user, obj):
                 return True
@@ -262,6 +286,11 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         null=True,
     )
     viewer_group_id: int | None
+    reviewer_group: FK[Group | None] = models.ForeignKey(
+        Group, on_delete=models.PROTECT, editable=False, related_name='reviewer_instances',
+        null=True
+    )
+    reviewer_group_id: int | None
     admin_group: FK[Group | None] = models.ForeignKey(
         Group, on_delete=models.PROTECT, editable=False, related_name='admin_instances',
         null=True,
@@ -335,6 +364,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         pp = self.permission_policy()
         pp.admin_role.delete_instance_group(self)
         pp.viewer_role.delete_instance_group(self)
+        pp.reviewer_role.delete_instance_group(self)
         self.nodes.all().delete()
         super().delete(**kwargs)
 
@@ -699,6 +729,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         pp = self.permission_policy()
         pp.admin_role.create_or_update_instance_group(self)
         pp.viewer_role.create_or_update_instance_group(self)
+        pp.reviewer_role.create_or_update_instance_group(self)
 
         root_page = self._create_default_pages()
         if self.site is None and self.site_url is not None:

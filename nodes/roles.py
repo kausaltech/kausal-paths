@@ -4,9 +4,18 @@ from typing import TYPE_CHECKING
 
 from django.utils.translation import gettext_lazy as _
 
-from kausal_common.models.roles import ALL_MODEL_PERMS, AdminRole, InstanceFieldGroupRole, InstanceSpecificRole, register_role
-
-from paths.const import INSTANCE_ADMIN_ROLE, INSTANCE_VIEWER_ROLE
+from kausal_common.models.roles import (
+    ALL_MODEL_PERMS,
+    AdminRole,
+    InstanceFieldGroupRole,
+    InstanceSpecificRole,
+    register_role,
+)
+from paths.const import (
+    INSTANCE_ADMIN_ROLE,
+    INSTANCE_REVIEWER_ROLE,
+    INSTANCE_VIEWER_ROLE,
+)
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import Group
@@ -75,8 +84,32 @@ class InstanceViewerRole(InstanceGroupMembershipRole, InstanceSpecificRole['Inst
         obj.save(update_fields=[self.instance_group_field_name])
 
 
+class InstanceReviewerRole(InstanceGroupMembershipRole, InstanceSpecificRole['InstanceConfig']):
+    id = INSTANCE_REVIEWER_ROLE
+    name = _('Reviewer')
+    group_name = "Reviewers"
+    instance_group_field_name = 'reviewer_group'
+
+    model_perms = [
+        ('wagtailadmin', 'admin', ('access',)),
+        ('nodes', ('instanceconfig', 'nodeconfig'), ('view',)),
+        ('frameworks', (
+            'framework', 'frameworkconfig', 'measure', 'measuredatapoint',
+        ), ('view',)),
+    ]
+
+    def get_existing_instance_group(self, obj: InstanceConfig) -> Group | None:
+        return obj.reviewer_group
+
+    def update_instance_group(self, obj: InstanceConfig, group: Group | None):
+        obj.reviewer_group = group
+        obj.save(update_fields=[self.instance_group_field_name])
+
+
 instance_admin_role = InstanceAdminRole()
 instance_viewer_role = InstanceViewerRole()
+instance_reviewer_role = InstanceReviewerRole()
 
 register_role(instance_admin_role)
 register_role(instance_viewer_role)
+register_role(instance_reviewer_role)
