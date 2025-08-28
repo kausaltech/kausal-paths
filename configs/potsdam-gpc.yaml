@@ -10,7 +10,7 @@ supported_languages: []
 site_url: https://potsdam-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 07e0912cdc4a0c0792f3ad0c67229d1ed84fd4fc
+  commit: 39f61ddfb9d99d426b90ae6bef63c73c9063ef06
   dvc_remote: kausal-s3
 name: Klimaschutz-Monitor-Potsdam Treibhausgasinventar
 owner: Stadt Potsdam
@@ -96,20 +96,28 @@ dimensions:
   label_de: Entscheidung
   categories:
   - id: district_heating_until_2030
-    label_en: 1st Action Package EWP District Heating until 2030
-    label_de: 1. Maßnahmepaket EWP Fernwärme bis 2030
-  - id: district_heating_2030_2045
-    label_en: Further expansion of heating networks 2030-2045 to 100% renewable 
-      generation
-    label_de: weiterer Ausbau der Wärmenetze 2030-2045 auf 100% Erneuerbare 
-      Erzeugung
+    label_en: Action Package EWP District Heating until 2030 (min. 30% RE)
+    label_de: Maßnahmepaket EWP Fernwärme bis 2030 (min. 30% EE)
+  - id: district_heating_2030_2040
+    label_en: Further EWP district heating measures 2030-2040 (+ further 50% RE 
+      = 80% RE)
+    label_de: weitere Maßnahmen EWP Fernwärme 2030-2040 (+ weitere 50% EE = 80% 
+      EE)
+  - id: district_heating_2040_2045
+    label_en: Further EWP district heating measures 2040-2045 (+ further 20% RE 
+      = 100% RE)
+    label_de: weitere Maßnahmen EWP Fernwärme 2040-2045 (+ weitere 20% EE = 100%
+      EE)
+  - id: local_heating_networks_2045
+    label_en: Local heating network measures until 2045 (100% RE)
+    label_de: Maßnahmen Nahwärmenetze bis 2045 (100% EE)
   - id: re_expansion_masterplan_2045
-    label_en: Renewable energy expansion according to Masterplan 100% Climate 
-      Protection until 2045
+    label_en: RE expansion according to Masterplan 100% Climate Protection until
+      2045
     label_de: EE-Ausbau laut Masterplan 100% Klimaschutz bis 2045
   - id: re_expansion_masterplan_kwp
-    label_en: Renewable energy expansion Masterplan and additionally KWP
-    label_de: EE-Ausbau Masterplan und zusätzlich KWP
+    label_en: RE expansion according to KWP (additional to Masterplan target)
+    label_de: EE-Ausbau laut KWP (zusätzlich zu Masterplanziel)
   - id: district_heating_kwp_expansion_areas
     label_en: Expansion of heating networks until 2045 (KWP expansion areas)
     label_de: Ausbau der Wärmenetze bis 2045 (KWP-Ausbaugebiete)
@@ -122,10 +130,15 @@ dimensions:
       with heating networks
     label_de: Reduktion des dezentralen Wärmeverbrauchs durch Ersatz mit 
       Wärmenetzen
+  - id: district_heating_reduction_renovation
+    label_en: Reduction of heat consumption through building renovation (local 
+      and district heating areas)
+    label_de: Reduktion des Wärmeverbrauchs durch Gebäudesanierung (Nah- und 
+      Fernwärmegebiete)
   - id: decentralized_heat_reduction_renovation
-    label_en: Reduction of decentralized heat consumption through building 
-      renovation
-    label_de: Reduktion des dezentralen Wärmeverbrauchs durch Gebäudesanierung
+    label_en: Reduction of heat consumption through building renovation 
+      (decentralized)
+    label_de: Reduktion des Wärmeverbrauchs durch Gebäudesanierung (dezentral)
   - id: pv_rooftop_expansion
     label_en: Expansion of PV rooftop systems according to Masterplan
     label_de: Ausbau PV Dachanlagen laut Masterplan
@@ -141,14 +154,9 @@ dimensions:
   - id: improved_federal_grid_mix
     label_en: Improved federal grid mix for residual electricity demand
     label_de: Verbesserter Bundesmix für Reststrombedarf
-  - id: re_electricity_emobility
-    label_en: Use of renewable electricity for e-mobility and tram (according to
-      Masterplan)
-    label_de: Nutzung EE-Strom für Elektromobiltät und Straßenbahn (laut 
-      Masterplan)
   - id: fossil_fuel_replacement
-    label_en: Replacement of fossil fuels with electricity and e-fuels
-    label_de: Ersatz fossiler brennstoffe durch Strom und E-Fuels
+    label_en: Replacement of fossil fuels with RE electricity and e-fuels
+    label_de: Ersatz fossiler brennstoffe durch EE-Strom und E-Fuels
   - id: local_transport_energy_reduction
     label_en: Reduction of total energy consumption local transport
     label_de: Reduktion Gesamtenergieverbrauch Binnenverkehr
@@ -1041,9 +1049,8 @@ actions:
 # https://docs.google.com/spreadsheets/d/15aMuO2-GmvYw8IXe3pgSN6LvfdEqDPI6/edit?gid=2009060009#gid=2009060009
 
 - id: district_heating_until_2030
-  name: 1. Maßnahmepaket EWP (Energiewende-Programm) Fernwärme bis 2030
-  name_en: 1st Action Package EWP (Energy Transition Program) District Heating 
-    until 2030
+  name: Maßnahmepaket EWP Fernwärme bis 2030 (min. 30% EE)
+  name_en: Action Package EWP District Heating until 2030 (min. 30% RE)
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -1060,10 +1067,10 @@ actions:
   - id: low_emission_district_heating_production
     to_dimensions: []
 
-- id: district_heating_2030_2045
-  name: Weiterer Ausbau der Wärmenetze 2030-2045 auf 100% Erneuerbare Erzeugung
-  name_en: Further expansion of heating networks 2030-2045 to 100% renewable 
-    generation
+- id: district_heating_2030_2040
+  name: weitere Maßnahmen EWP Fernwärme 2030-2040 (+ weitere 50% EE = 80% EE)
+  name_en: Further EWP district heating measures 2030-2040 (+ further 50% RE = 
+    80% RE)
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -1075,7 +1082,46 @@ actions:
     column: action_impact
     filters:
     - column: decision
-      value: district_heating_2030_2045
+      value: district_heating_2030_2040
+  output_nodes:
+  - id: low_emission_district_heating_production
+    to_dimensions: []
+
+- id: district_heating_2040_2045
+  name: weitere Maßnahmen EWP Fernwärme 2040-2045 (+ weitere 20% EE = 100% EE)
+  name_en: Further EWP district heating measures 2040-2045 (+ further 20% RE = 
+    100% RE)
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat_generation_networks
+  input_datasets:
+  - id: potsdam/action_impact
+    tags: [baseline]
+    forecast_from: 2025
+    column: action_impact
+    filters:
+    - column: decision
+      value: district_heating_2040_2045
+  output_nodes:
+  - id: low_emission_district_heating_production
+    to_dimensions: []
+
+- id: local_heating_networks_2045
+  name: Maßnahmen Nahwärmenetze bis 2045 (100% EE)
+  name_en: Local heating network measures until 2045 (100% RE)
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat_generation_networks
+  input_datasets:
+  - id: potsdam/action_impact
+    tags: [baseline]
+    forecast_from: 2025
+    column: action_impact
+    filters:
+    - column: decision
+      value: local_heating_networks_2045
   output_nodes:
   - id: low_emission_district_heating_production
     to_dimensions: []
@@ -1100,9 +1146,8 @@ actions:
   - id: low_emission_local_heating_production
 
 - id: re_expansion_masterplan_kwp
-  name: EE-Ausbau Masterplan und zusätzlich KWP (Kommunale Wärmeplanung)
-  name_en: RE expansion Masterplan and additionally KWP (Municipal Heat 
-    Planning)
+  name: EE-Ausbau laut KWP (zusätzlich zu Masterplanziel)
+  name_en: RE expansion according to KWP (additional to Masterplan target)
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -1174,10 +1219,30 @@ actions:
   output_nodes:
   - id: low_energy_local_heating
 
+- id: district_heating_reduction_renovation
+  name: Reduktion des Wärmeverbrauchs durch Gebäudesanierung (Nah- und 
+    Fernwärmegebiete)
+  name_en: Reduction of heat consumption through building renovation (local and 
+    district heating areas)
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat_consumption_networks
+  input_datasets:
+  - id: potsdam/action_impact
+    tags: [baseline]
+    forecast_from: 2025
+    column: action_impact
+    filters:
+    - column: decision
+      value: district_heating_reduction_renovation
+  output_nodes:
+  - id: low_energy_district_heating
+
 - id: decentralized_heat_reduction_renovation
-  name: Reduktion des dezentralen Wärmeverbrauchs durch Gebäudesanierung
-  name_en: Reduction of decentralized heat consumption through building 
-    renovation
+  name: Reduktion des Wärmeverbrauchs durch Gebäudesanierung (dezentral)
+  name_en: Reduction of heat consumption through building renovation 
+    (decentralized)
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -1283,28 +1348,9 @@ actions:
   output_nodes:
   - id: low_emission_electricity_production
 
-- id: re_electricity_emobility
-  name: Nutzung EE-Strom für Elektromobiltät und Straßenbahn (laut Masterplan)
-  name_en: Use of RE electricity for e-mobility and tram (according to 
-    Masterplan)
-  type: simple.GenericAction
-  quantity: emissions
-  unit: kt/a
-  group: transport_energy_expansion
-  input_datasets:
-  - id: potsdam/action_impact
-    tags: [baseline]
-    forecast_from: 2025
-    column: action_impact
-    filters:
-    - column: decision
-      value: re_electricity_emobility
-  output_nodes:
-  - id: low_emission_transport
-
 - id: fossil_fuel_replacement
-  name: Ersatz fossiler brennstoffe durch Strom und E-Fuels
-  name_en: Replacement of fossil fuels with electricity and e-fuels
+  name: Ersatz fossiler brennstoffe durch EE-Strom und E-Fuels
+  name_en: Replacement of fossil fuels with RE electricity and e-fuels
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
