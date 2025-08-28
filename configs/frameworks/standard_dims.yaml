@@ -34,6 +34,7 @@ dimensions:
   - id: transport
     label_en: Transport
     label_de: Verkehr
+    aliases: [verkehr]
   - id: buildings
     label_en: Buildings & Heating
     label_de: Gebäude & Heizung
@@ -52,6 +53,7 @@ dimensions:
   - id: electricity
     label_en: Electricity
     label_de: Strom
+    aliases: [strom]
   - id: waste
     label_en: Waste
     label_de: Abfall
@@ -61,6 +63,10 @@ dimensions:
   - id: total
     label_en: Total
     label_de: Gesamt
+  - id: heating
+    label_en: Heating
+    label_de: Wärme
+    aliases: [warme]
 
 - id: gpc_sector
   label_en: GPC Sector
