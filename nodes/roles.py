@@ -4,9 +4,18 @@ from typing import TYPE_CHECKING
 
 from django.utils.translation import gettext_lazy as _
 
-from kausal_common.models.roles import ALL_MODEL_PERMS, AdminRole, InstanceFieldGroupRole, InstanceSpecificRole, register_role
-
-from paths.const import INSTANCE_ADMIN_ROLE, INSTANCE_VIEWER_ROLE, INSTANCE_REVIEWER_ROLE
+from kausal_common.models.roles import (
+    ALL_MODEL_PERMS,
+    AdminRole,
+    InstanceFieldGroupRole,
+    InstanceSpecificRole,
+    register_role,
+)
+from paths.const import (
+    INSTANCE_ADMIN_ROLE,
+    INSTANCE_REVIEWER_ROLE,
+    INSTANCE_VIEWER_ROLE,
+)
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import Group
