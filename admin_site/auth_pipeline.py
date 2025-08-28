@@ -4,7 +4,13 @@ from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
-from paths.const import FRAMEWORK_ADMIN_ROLE, FRAMEWORK_VIEWER_ROLE, INSTANCE_ADMIN_ROLE, INSTANCE_VIEWER_ROLE
+from paths.const import (
+    FRAMEWORK_ADMIN_ROLE,
+    FRAMEWORK_VIEWER_ROLE,
+    INSTANCE_ADMIN_ROLE,
+    INSTANCE_VIEWER_ROLE,
+    INSTANCE_REVIEWER_ROLE,
+)
 
 from frameworks.models import FrameworkConfig
 
@@ -20,7 +26,7 @@ def assign_roles(
 ) -> None:
     from frameworks.models import Framework
     from frameworks.roles import framework_admin_role, framework_viewer_role
-    from nodes.roles import instance_admin_role, instance_viewer_role
+    from nodes.roles import instance_admin_role, instance_viewer_role, instance_reviewer_role
 
     framework_roles: list[FrameworkRoleDef] = details.get('framework_roles', [])
     if user is None or not framework_roles:
@@ -42,7 +48,7 @@ def assign_roles(
             framework_admin_role.assign_user(framework_object, user)
         elif role.role_id == FRAMEWORK_VIEWER_ROLE:
             framework_viewer_role.assign_user(framework_object, user)
-        elif role.role_id in (INSTANCE_ADMIN_ROLE, INSTANCE_VIEWER_ROLE):
+        elif role.role_id in (INSTANCE_ADMIN_ROLE, INSTANCE_VIEWER_ROLE, INSTANCE_REVIEWER_ROLE):
             framework_configs = FrameworkConfig.objects.filter(
                 framework=framework_object, organization_identifier=role.org_id
             ).exclude(organization_identifier__isnull=True)
@@ -53,6 +59,8 @@ def assign_roles(
                     instance_admin_role.assign_user(instance_config, user)
                 elif role.role_id == INSTANCE_VIEWER_ROLE:
                     instance_viewer_role.assign_user(instance_config, user)
+                elif role.role_id == INSTANCE_REVIEWER_ROLE:
+                    instance_reviewer_role.assign_user(instance_config, user)
 
             if not framework_configs:
                 logger.info("Framework config for org UID '%s' does not yet exist" % (role.org_id))
