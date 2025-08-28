@@ -2,19 +2,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, TypeGuard
 
-from kausal_common.models.permission_policy import BaseObjectAction, ModelPermissionPolicy, ModelReadOnlyPolicy
-
+from kausal_common.models.permission_policy import (
+    BaseObjectAction,
+    ModelPermissionPolicy,
+    ModelReadOnlyPolicy,
+)
 from paths.const import INSTANCE_ADMIN_ROLE
-
 from users.models import User
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from django.db.models import Q
-
-    from kausal_common.models.permissions import PermissionedModel
-    from kausal_common.users import UserOrAnon
 
     from frameworks.models import (  # noqa: F401
         Framework,
@@ -26,6 +25,8 @@ if TYPE_CHECKING:
         Section,
         SectionQuerySet,
     )
+    from kausal_common.models.permissions import PermissionedModel
+    from kausal_common.users import UserOrAnon
     from users.models import User
 
 
@@ -66,7 +67,11 @@ class FrameworkConfigPermissionPolicy(
 
     def __init__(self):
         from nodes.models import InstanceConfig
-        from nodes.roles import instance_admin_role, instance_viewer_role, instance_reviewer_role
+        from nodes.roles import (
+            instance_admin_role,
+            instance_reviewer_role,
+            instance_viewer_role,
+        )
 
         from .models import Framework, FrameworkConfig
         from .roles import framework_admin_role, framework_viewer_role
