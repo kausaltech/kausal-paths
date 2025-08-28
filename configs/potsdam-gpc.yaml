@@ -1362,39 +1362,6 @@ scenarios:
 
 - id: default
   default: true
+  all_actions_enabled: true
   name: Klimaschutzplan
   # name_en: Climate Protection Plan
-  params:
-  # New actions on
-  - id: district_heating_until_2030.enabled
-    value: true
-  - id: district_heating_2030_2045.enabled
-    value: false
-  - id: re_expansion_masterplan_2045.enabled
-    value: true
-  - id: re_expansion_masterplan_kwp.enabled
-    value: true
-  - id: district_heating_kwp_expansion_areas.enabled
-    value: true
-  - id: district_heating_kwp_test_areas.enabled
-    value: true
-  - id: decentralized_heat_reduction_replacement.enabled
-    value: true
-  - id: decentralized_heat_reduction_renovation.enabled
-    value: true
-  - id: pv_rooftop_expansion.enabled
-    value: true
-  - id: ground_mounted_pv_expansion.enabled
-    value: true
-  - id: wind_power_potential.enabled
-    value: true
-  - id: electricity_consumption_reduction.enabled
-    value: true
-  - id: improved_federal_grid_mix.enabled
-    value: true
-  - id: re_electricity_emobility.enabled
-    value: false
-  - id: fossil_fuel_replacement.enabled
-    value: true
-  - id: local_transport_energy_reduction.enabled
-    value: true
