@@ -2,6 +2,9 @@
 # Trend-Szenario and MASTERPLAN-Szenario are taken from Zielwerte Masterplan V3.4
 #  https://docs.google.com/spreadsheets/d/1KRb2OxOsz9DHG31R6KkE5pxQqz9MUcwF/edit?gid=1016792586#gid=1016792586
 # Comparison: Sheets Kerndaten and action add have identical data. Only the calculated values differ. --> Use Kerndaten.
+# The new action impacts from action impact 20250815.xlsx are used.
+# https://docs.google.com/spreadsheets/d/1pW5Un-rUGLyM8FbMdsRELq4W9Q_ZNx_b/edit?gid=1524147948#gid=1524147948
+# Comparison showed that energietraeger_GHD.xlsx and other 4 energy files from KlimaSchutz-Planer are very close although not identical to Zielwerte Masterplan V3.4.xlsx. So, the Masterplan data is now used.
 
 
 id: potsdam-gpc
@@ -10,7 +13,7 @@ supported_languages: []
 site_url: https://potsdam-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 39f61ddfb9d99d426b90ae6bef63c73c9063ef06
+  commit: f68fb08a0049c7b6b772275d2fe0bf2bc014139e
   dvc_remote: kausal-s3
 name: Klimaschutz-Monitor-Potsdam Treibhausgasinventar
 owner: Stadt Potsdam
@@ -258,6 +261,23 @@ dimensions:
     label_de: Gesamt
     aliases: [total]
 
+- id: scenario
+  label_de: Szenario
+  label_en: Scenario
+  categories:
+  - id: trend_scenario
+    label_de: Trend-Szenario
+    label_en: Trend scenario
+    aliases: [trend_szenario]
+  - id: masterplan_scenario
+    label_de: Masterplan-Szenario
+    label_en: Masterplan scenario
+    aliases: [masterplan_szenario]
+  - id: actual
+    label_de: Aktual
+    label_en: Actual
+    aliases: [aktual]
+
 nodes:
 
 - id: weather_correction
@@ -287,7 +307,7 @@ nodes:
   #   to_dimensions: []
 
 - id: masterplan_scenario_energy
-  name: Masterplan-Szenario energie
+  name: Masterplan-Szenario Energie
   name_en: Masterplan scenario energy
   type: generic.GenericNode
   quantity: energy
@@ -304,7 +324,7 @@ nodes:
       values: [masterplan_szenario, aktual]
 
 - id: trend_scenario_energy
-  name: Trend-Szenario energie
+  name: Trend-Szenario Energie
   name_en: Trend scenario energy
   type: generic.GenericNode
   quantity: energy
@@ -321,8 +341,8 @@ nodes:
       values: [trend_szenario, aktual]
 
 - id: scenario_difference_energy
-  name: Masterplan-Szenario energie
-  name_en: Scenario difference energy
+  name: Szenariounterschied für Energie
+  name_en: Scenario difference for energy
   type: generic.GenericNode
   quantity: energy
   unit: MWh/a
@@ -333,52 +353,97 @@ nodes:
   - id: trend_scenario_energy
     tags: [arithmetic_inverse]
 
-- id: masterplan_scenario_emissions
-  name: Masterplan-Szenario emissionen
-  name_en: Masterplan scenario emissions
+- id: sector_index
+  name: Sektor Index
+  name_en: Sector index
   type: generic.GenericNode
-  quantity: emissions
-  unit: t/a
+  quantity: ratio
+  unit: dimensionless
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: potsdam/szenarien
+  - id: potsdam/sector_index
     tags: [baseline]
-    forecast_from: 2024
-    column: emissions
-    filters:
-    - column: scenario
-      values: [masterplan_szenario, aktual]
+    column: sector_index
 
-- id: trend_scenario_emissions
-  name: Trend-Szenario emissionen
-  name_en: Trend scenario emissions
+- id: ksp_difference_energy
+  name: KSP-unterschied für Energie
+  name_en: KSP difference for energy
   type: generic.GenericNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: potsdam/szenarien
-    tags: [baseline]
-    forecast_from: 2024
-    column: emissions
-    filters:
-    - column: scenario
-      values: [trend_szenario, aktual]
-
-- id: scenario_difference_emissions
-  name: Masterplan-Szenario emissionen
-  name_en: Scenario difference emissions
-  type: generic.GenericNode
-  quantity: emissions
-  unit: t/a
+  quantity: energy
+  unit: MWh/a
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_nodes:
-  - id: masterplan_scenario_emissions
-  - id: trend_scenario_emissions
+  - id: ksp_energy
+  - id: trend_scenario_energy
     tags: [arithmetic_inverse]
+
+- id: scenario_difference_emission_factor
+  name: Szenariounterschied für Emissionfaktor
+  name_en: Scenario difference for emission factor
+  type: generic.GenericNode
+  quantity: energy
+  unit: t/MWh
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: masterplan_scenario_emission_factor
+  - id: trend_scenario_emission_factor
+    tags: [arithmetic_inverse]
+
+- id: scenario_emissions
+  name: Szenario Emissionen
+  name_en: Scenario emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [sector, energy_carrier, scenario]
+  output_dimensions: [sector, energy_carrier, scenario]
+  input_datasets:
+  - id: potsdam/szenarien
+    tags: [baseline]
+    forecast_from: 2024
+    column: emissions
+
+
+- id: masterplan_scenario_emission_factor
+  name: Masterplan-Szenario Emissionfaktor
+  name_en: Masterplan scenario emission factor
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t/MWh
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: scenario_emissions
+    from_dimensions:
+    - id: scenario
+      categories: [masterplan_scenario]
+      flatten: true
+  - id: masterplan_scenario_energy
+    tags: [geometric_inverse]
+  params:
+    operations: multiply,drop_nans,drop_infs
+
+- id: trend_scenario_emission_factor
+  name: Trend-Szenario Emissionfaktor
+  name_en: Trend scenario emission factor
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t/MWh
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: scenario_emissions
+    from_dimensions:
+    - id: scenario
+      categories: [trend_scenario]
+      flatten: true
+  - id: trend_scenario_energy
+    tags: [geometric_inverse]
+  params:
+    operations: multiply,drop_nans,drop_infs
 
 - id: heating_fuel_emission_factor
   name: Emissionsfaktor Wärmeenergie
@@ -484,6 +549,27 @@ nodes:
     - column: sector
       value: ii11
 
+- id: transport_fuel_consumption2
+  name: Brennstoffverbrauch Verkehr
+  name_en: Fuel Consumption Traffic
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: potsdam/alle_historischen_energie
+    forecast_from: 2024
+    tags: [baseline]
+    column: energy
+    filters:
+    - column: file_type
+    - column: weather_correction
+    - column: inventory_method
+    - dimensions:
+      - id: sector
+        categories: [transport]
+
 - id: transport_fuel_emissions
   name: Emissionen aus Brennstoffverbrauch Verkehr
   name_en: Emissions from Fuel Consumption Traffic
@@ -573,6 +659,28 @@ nodes:
     - column: energietrager
       values: [district_heating]
       drop_col: false
+
+- id: ksp_energy
+  name: KSP energie
+  name_en: KSP energy
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: potsdam/alle_historischen_energie
+    tags: [baseline]
+    forecast_from: 2025
+    column: energy
+    filters:
+    - column: file_type
+    - column: weather_correction
+    - column: inventory_method
+    - dimension: sector
+      flatten: true
+  input_nodes:
+  - id: sector_index
 
 - id: district_heating_emissions
   name: Fernwärmeemissionen

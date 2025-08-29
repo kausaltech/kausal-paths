@@ -522,7 +522,7 @@ dimensions:
   - id: driving_electricity
     label_en: Driving electricity
     label_de: Fahrstrom
-    aliases: [fahrstrom]
+    aliases: [fahrstrom, strom_fahrstrom]
   - id: heating_electricity
     label_en: Heating electricity
     label_de: Heizstrom
