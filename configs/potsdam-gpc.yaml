@@ -13,7 +13,7 @@ supported_languages: []
 site_url: https://potsdam-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: f68fb08a0049c7b6b772275d2fe0bf2bc014139e
+  commit: 6456b8fe0ed435069c4847f0c56dd6ffae72733f
   dvc_remote: kausal-s3
 name: Klimaschutz-Monitor-Potsdam Treibhausgasinventar
 owner: Stadt Potsdam
@@ -814,6 +814,15 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
+  output_nodes:
+  - id: scenario_emissions
+    to_dimensions:
+    - id: scenario
+      categories: [masterplan_scenario]
+    - id: energy_carrier
+      categories: [district_heating]
+    - id: sector
+      categories: [heating]
 
 - id: low_energy_local_heating
   name: Energiesparende lokale Wärme
@@ -1069,6 +1078,44 @@ nodes:
     - id: scope
     - id: ghg
       categories: [co2e]
+
+- id: corrected_emission_factor
+  name: Korrigierter Emissionsfaktor
+  name_en: Corrected emission factor
+  description: Eine Maßnahme (A) hat eine bekannte Auswirkung auf das Ergebnis 
+    (R) über einen Multiplikator (M1).</br> Da R = M1 * M2, mit Maßnahme R + A =
+    M1' * M2 <=> M1' = (M1 * M2 + A) / M2 = M1 + A / M2.
+  description_en: An action (A) has a known effect on the result (R) via one 
+    multiplier (M1).</br> As R = M1 * M2, with action R + A = M1' * M2 <=> M1' =
+    (M1 * M2 + A) / M2 = M1 + A / M2.
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: trend_scenario_emission_factor
+  - id: masterplan_scenario_energy
+    tags: [geometric_inverse]
+  - id: scenario_emissions
+    from_dimensions:
+    - id: scenario
+      categories: [masterplan_scenario, actual]
+      flatten: true
+  params:
+    operations: multiply,add,drop_infs
+
+- id: corrected_emissions
+  name: Korrigierter Emissionen
+  name_en: Corrected emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: trend_scenario_energy
+  - id: corrected_emission_factor
 
 - id: low_fuel_transport
   name: Kraftstoffarmer Verkehr
