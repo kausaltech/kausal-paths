@@ -5,7 +5,11 @@
 # The new action impacts from action impact 20250815.xlsx are used.
 # https://docs.google.com/spreadsheets/d/1pW5Un-rUGLyM8FbMdsRELq4W9Q_ZNx_b/edit?gid=1524147948#gid=1524147948
 # Comparison showed that energietraeger_GHD.xlsx and other 4 energy files from KlimaSchutz-Planer are very close although not identical to Zielwerte Masterplan V3.4.xlsx. So, the Masterplan data is now used.
-
+# Procedure:
+# 1 Sum up all action impacts as emissions. Plain GenericNode
+# 2 Split the total impact to sectors or energy carriers by using the default scenario variable. Total impact has tag skip_dim_test, scenario variable has tag use_as_shares.
+# 3 Compute the impact in correct units by dividiing the emission impact by energy or emission factor.
+# 4 Add the scenario emission factor or energy, respectively.
 
 id: potsdam-gpc
 default_language: de
@@ -25,7 +29,7 @@ minimum_historical_year: 1995
 maximum_historical_year: 2024
 emission_unit: kt/a
 emission_forecast_from: 2025
-emission_dimensions: [energietrager, scope, ghg]
+emission_dimensions: [energy_carrier, sector]
 features:
   baseline_visible_in_graphs: true
   use_datasets_from_db: true
@@ -340,18 +344,18 @@ nodes:
     - column: scenario
       values: [trend_szenario, aktual]
 
-- id: scenario_difference_energy
-  name: Szenariounterschied für Energie
-  name_en: Scenario difference for energy
-  type: generic.GenericNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_nodes:
-  - id: masterplan_scenario_energy
-  - id: trend_scenario_energy
-    tags: [arithmetic_inverse]
+# - id: scenario_difference_energy
+#   name: Szenariounterschied für Energie
+#   name_en: Scenario difference for energy
+#   type: generic.GenericNode
+#   quantity: energy
+#   unit: MWh/a
+#   input_dimensions: [sector, energy_carrier]
+#   output_dimensions: [sector, energy_carrier]
+#   input_nodes:
+#   - id: masterplan_scenario_energy
+#   - id: trend_scenario_energy
+#     tags: [arithmetic_inverse]
 
 - id: sector_index
   name: Sektor Index
@@ -366,31 +370,18 @@ nodes:
     tags: [baseline]
     column: sector_index
 
-- id: ksp_difference_energy
-  name: KSP-unterschied für Energie
-  name_en: KSP difference for energy
-  type: generic.GenericNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_nodes:
-  - id: ksp_energy
-  - id: trend_scenario_energy
-    tags: [arithmetic_inverse]
-
-- id: scenario_difference_emission_factor
-  name: Szenariounterschied für Emissionfaktor
-  name_en: Scenario difference for emission factor
-  type: generic.GenericNode
-  quantity: energy
-  unit: t/MWh
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_nodes:
-  - id: masterplan_scenario_emission_factor
-  - id: trend_scenario_emission_factor
-    tags: [arithmetic_inverse]
+# - id: scenario_difference_emission_factor
+#   name: Szenariounterschied für Emissionfaktor
+#   name_en: Scenario difference for emission factor
+#   type: generic.GenericNode
+#   quantity: energy
+#   unit: t/MWh
+#   input_dimensions: [sector, energy_carrier]
+#   output_dimensions: [sector, energy_carrier]
+#   input_nodes:
+#   - id: masterplan_scenario_emission_factor
+#   - id: trend_scenario_emission_factor
+#     tags: [arithmetic_inverse]
 
 - id: scenario_emissions
   name: Szenario Emissionen
@@ -405,7 +396,6 @@ nodes:
     tags: [baseline]
     forecast_from: 2024
     column: emissions
-
 
 - id: masterplan_scenario_emission_factor
   name: Masterplan-Szenario Emissionfaktor
@@ -445,110 +435,6 @@ nodes:
   params:
     operations: multiply,drop_nans,drop_infs
 
-- id: heating_fuel_emission_factor
-  name: Emissionsfaktor Wärmeenergie
-  name_en: Emission Factor Heating Energy
-  type: generic.GenericNode
-  quantity: emission_factor
-  unit: t/MWh
-  input_dimensions: [ghg, energietrager, scope]
-  output_dimensions: [energietrager, ghg, scope]
-  input_datasets:
-  - id: gpc/potsdam
-    forecast_from: 2023
-    tags: [baseline]
-    column: emission_factor
-    filters:
-    - column: sector
-      value: i11
-
-- id: heating_grid_emission_factor
-  name: Emissionsfaktor Netzenergieverbrauch Wohngebäude
-  name_en: Emission Factor Grid Energy Consumption Residential Buildings
-  type: generic.GenericNode
-  quantity: emission_factor
-  unit: t/MWh
-  input_dimensions: [ghg, energietrager, scope]
-  output_dimensions: [ghg, energietrager, scope]
-  input_datasets:
-  - id: gpc/potsdam
-    forecast_from: 2023
-    tags: [baseline]
-    column: emission_factor
-    filters:
-    - column: sector
-      value: i12
-
-- id: electricity_consumption
-  name: Stromverbrauch (ohne Heizstrom)
-  name_en: Electricity Consumption (without heating)
-  type: generic.GenericNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [energietrager, scope]
-  output_dimensions: [energietrager, scope]
-  input_datasets:
-  - id: gpc/potsdam
-    forecast_from: 2023
-    tags: [baseline]
-    column: energy
-    filters:
-    - column: sector
-      value: i42
-
-- id: electricity_emission_factor
-  name: Emissionsfaktor Strom
-  name_en: Emission Factor Electricity
-  type: generic.GenericNode
-  quantity: emission_factor
-  unit: t/MWh
-  input_dimensions: [ghg, energietrager, scope]
-  output_dimensions: [ghg, energietrager, scope]
-  input_datasets:
-  - id: gpc/potsdam
-    forecast_from: 2023
-    tags: [baseline]
-    column: emission_factor
-    filters:
-    - column: sector
-      value: i42
-
-# TODO: Should we use these local emission factors instead of national emission
-# factors as defined in node electricity_emission_factor?
-- id: local_electricity_emission_factor
-  name: Lokaler Emissionsfaktor Strom
-  name_en: Emission Factor Local Electricity Production
-  type: generic.GenericNode
-  quantity: emission_factor
-  unit: t/MWh
-  input_dimensions: [ghg, energietrager, scope]
-  output_dimensions: [ghg, energietrager, scope]
-  input_datasets:
-  - id: gpc/potsdam
-    forecast_from: 2023
-    tags: [baseline]
-    column: emission_factor
-    filters:
-    - column: sector
-      value: i42
-
-- id: transport_fuel_consumption
-  name: Brennstoffverbrauch Verkehr
-  name_en: Fuel Consumption Traffic
-  type: generic.GenericNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [energietrager, scope]
-  output_dimensions: [energietrager, scope]
-  input_datasets:
-  - id: gpc/potsdam
-    forecast_from: 2023
-    tags: [baseline]
-    column: energy
-    filters:
-    - column: sector
-      value: ii11
-
 - id: transport_fuel_consumption2
   name: Brennstoffverbrauch Verkehr
   name_en: Fuel Consumption Traffic
@@ -570,384 +456,7 @@ nodes:
       - id: sector
         categories: [transport]
 
-- id: transport_fuel_emissions
-  name: Emissionen aus Brennstoffverbrauch Verkehr
-  name_en: Emissions from Fuel Consumption Traffic
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [energietrager, scope, ghg]
-  output_dimensions: [energietrager, scope, ghg]
-  input_nodes:
-  - id: corrected_transport_emission_factor
-    to_dimensions:
-    - id: ghg
-    - id: energietrager
-    - id: scope
-  - id: corrected_transport_fuel_use
-    to_dimensions:
-    - id: energietrager
-    - id: scope
-    - id: ghg
-
-- id: transport_fuel_emission_factor
-  name: Emissionsfaktor Brennstoffverbrauch Verkehr
-  name_en: Emission Factor Fuels Traffic
-  type: generic.GenericNode
-  quantity: emission_factor
-  unit: g/kWh
-  input_dimensions: [ghg, energietrager, scope]
-  output_dimensions: [ghg, energietrager, scope]
-  input_datasets:
-  - id: gpc/potsdam
-    forecast_from: 2023
-    tags: [baseline]
-    column: emission_factor
-    filters:
-    - column: sector
-      value: ii11
-
-- id: on_road_transport_energy_consumption
-  name: Endenergieverbrauch Verkehr
-  name_en: Final Energy Traffic
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [energietrager, scope]
-  output_dimensions: [energietrager, scope]
-  input_nodes:
-  - id: corrected_transport_fuel_use
-    from_dimensions:
-    - id: ghg
-      flatten: true
-  output_nodes:
-  - total_energy_consumption
-  params:
-  - id: drop_nulls
-    value: true
-  - id: drop_nans
-    value: true
-
-- id: total_energy_consumption
-  name: Endenergieverbraucht Gesamt
-  name_en: Final Energy Consumption Over All Sectors
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [energietrager, scope]
-  output_dimensions: [energietrager, scope]
-
-- id: district_heating_energy
-  name: Fernwärmeenergie
-  name_en: District heating energy
-  type: generic.GenericNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [sector, energietrager]
-  output_dimensions: [sector, energietrager]
-  input_datasets:
-  - id: potsdam/alle_historischen_energie
-    tags: [baseline]
-    forecast_from: 2025
-    column: energy
-    filters:
-    - column: file_type
-    - column: weather_correction
-    - column: inventory_method
-    - rename_col: energy_carrier
-      value: energietrager
-    - column: energietrager
-      values: [district_heating]
-      drop_col: false
-
-- id: ksp_energy
-  name: KSP energie
-  name_en: KSP energy
-  type: generic.GenericNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: potsdam/alle_historischen_energie
-    tags: [baseline]
-    forecast_from: 2025
-    column: energy
-    filters:
-    - column: file_type
-    - column: weather_correction
-    - column: inventory_method
-    - dimension: sector
-      flatten: true
-  input_nodes:
-  - id: sector_index
-
-- id: district_heating_emissions
-  name: Fernwärmeemissionen
-  name_en: District heating emissions
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [sector, energietrager]
-  output_dimensions: [sector, energietrager]
-  input_nodes:
-  - id: district_heating_energy
-  - id: corrected_district_heating_emission_factor
-  output_nodes:
-  - id: heating_emissions
-
-- id: local_heating_energy
-  name: Lokale Wärmeenergie
-  name_en: Local heating energy
-  type: generic.GenericNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [sector, energietrager]
-  output_dimensions: [sector, energietrager]
-  input_datasets:
-  - id: potsdam/alle_historischen_energie
-    tags: [baseline]
-    forecast_from: 2025
-    column: energy
-    filters:
-    - column: file_type
-    - column: weather_correction
-    - column: inventory_method
-    - rename_col: energy_carrier
-      value: energietrager
-    - column: energietrager
-      values: [district_heating]
-      exclude: true
-      drop_col: false
-    - column: sector
-      value: transport
-      exclude: true
-      drop_col: false
-
-- id: local_heating_emissions
-  name: Lokale Wärmeemissionen
-  name_en: Local heating emissions
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [sector, energietrager]
-  output_dimensions: [sector, energietrager]
-  input_nodes:
-  - id: local_heating_energy
-  - id: corrected_local_heating_emission_factor
-  output_nodes:
-  - id: heating_emissions
-
-- id: heating_emissions
-  name: Wärmeemissionen
-  name_en: Heating emissions
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [sector, energietrager]
-  output_dimensions: [sector, energietrager]
-  output_nodes:
-  - id: net_emissions
-
-- id: net_emissions
-  name: Nettoemissionen2
-  name_en: Net emissions2
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [sector, energietrager]
-  output_dimensions: [sector, energietrager]
-  is_outcome: true
-  goals:
-  - label_de: Ziel Netto-Emissionen
-    default: true
-    is_main_goal: true
-    values:
-    - year: 2030
-      value: 551
-
-# Corrected multipliers affected by actions
-
-- id: low_emission_district_heating_production
-  name: Emissionsarme Fernwärmeerzeugung
-  name_en: Low-emission district heating production
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [sector, energietrager]
-  output_dimensions: [sector, energietrager]
-  input_datasets:
-  - id: potsdam/action_baseline
-    tags: [baseline]
-    column: baseline
-  input_nodes:
-  - id: district_heating_energy
-    tags: [use_as_shares]
-  params:
-    operations: add,use_as_shares
-
-- id: low_emission_local_heating_production
-  name: Emissionsarme lokale Wärmeerzeugung
-  name_en: Low-emission local heating production
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [sector, energietrager]
-  output_dimensions: [sector, energietrager]
-  input_datasets:
-  - id: potsdam/action_baseline
-    tags: [baseline]
-    column: baseline
-  input_nodes:
-  - id: local_heating_energy
-    tags: [use_as_shares]
-  params:
-    operations: add,use_as_shares
-
-- id: low_energy_district_heating
-  name: Energiesparende Fernwärme
-  name_en: Low-energy district heating
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  output_nodes:
-  - id: scenario_emissions
-    to_dimensions:
-    - id: scenario
-      categories: [masterplan_scenario]
-    - id: energy_carrier
-      categories: [district_heating]
-    - id: sector
-      categories: [heating]
-
-- id: low_energy_local_heating
-  name: Energiesparende lokale Wärme
-  name_en: Low-energy local heating
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-
-- id: corrected_district_heating_emission_factor
-  name: Korrigierter Fernwärme-Emissionsfaktor
-  name_en: Corrected district heating emission factor
-  description: Eine Maßnahme (A) hat eine bekannte Auswirkung auf das Ergebnis 
-    (R) über einen Multiplikator (M1).</br> Da R = M1 * M2, mit Maßnahme R + A =
-    M1' * M2 <=> M1' = (M1 * M2 + A) / M2 = M1 + A / M2.
-  description_en: An action (A) has a known effect on the result (R) via one 
-    multiplier (M1).</br> As R = M1 * M2, with action R + A = M1' * M2 <=> M1' =
-    (M1 * M2 + A) / M2 = M1 + A / M2.
-  type: generic.GenericNode
-  quantity: emission_factor
-  unit: g/kWh
-  input_dimensions: [sector, energietrager]
-  output_dimensions: [sector, energietrager]
-  input_nodes:
-  - id: heating_grid_emission_factor
-    tags: [add_to_existing_dims]
-    from_dimensions:
-    - id: ghg
-      flatten: true
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: energietrager
-  - id: district_heating_energy
-    tags: [geometric_inverse]
-    to_dimensions:
-    - id: energietrager
-    - id: sector
-  - id: low_emission_district_heating_production
-    tags: [arithmetic_inverse]
-    to_dimensions:
-    - id: energietrager
-    - id: sector
-  params:
-    operations: multiply,add_to_existing_dims
-
-- id: corrected_local_heating_emission_factor
-  name: Korrigierter lokaler Wärme-Emissionsfaktor
-  name_en: Corrected local heating emission factor
-  description: Eine Maßnahme (A) hat eine bekannte Auswirkung auf das Ergebnis 
-    (R) über einen Multiplikator (M1).</br> Da R = M1 * M2, mit Maßnahme R + A =
-    M1' * M2 <=> M1' = (M1 * M2 + A) / M2 = M1 + A / M2.
-  description_en: An action (A) has a known effect on the result (R) via one 
-    multiplier (M1).</br> As R = M1 * M2, with action R + A = M1' * M2 <=> M1' =
-    (M1 * M2 + A) / M2 = M1 + A / M2.
-  type: generic.GenericNode
-  quantity: emission_factor
-  unit: g/kWh
-  input_dimensions: [sector, energietrager]
-  output_dimensions: [sector, energietrager]
-  input_nodes:
-  - id: heating_fuel_emission_factor
-    tags: [add_to_existing_dims]
-    from_dimensions:
-    - id: ghg
-      flatten: true
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: energietrager
-  - id: local_heating_energy
-    tags: [geometric_inverse]
-    to_dimensions:
-    - id: energietrager
-    - id: sector
-  - id: low_emission_local_heating_production
-    tags: [arithmetic_inverse]
-    to_dimensions:
-    - id: energietrager
-    - id: sector
-  params:
-    operations: multiply,add_to_existing_dims,drop_nans
-
 # Electricity
-
-- id: low_emission_electricity_production
-  name: Emissionsarme Stromerzeugung
-  name_en: Low-emission electricity production
-  description: Es gibt mehrere Quellen für emissionsfreie Stromerzeugung und die
-    Verbesserung des nationalen Strommixes. Dies ist die Summe dieser 
-    Produktion, angegeben als Emissionseinsparungen, die durch diese Produktion 
-    erreicht werden können, da sie Strom mit normalem Emissionsfaktor ersetzt.
-  description_en: There are several sources of zero-emission electricity and 
-    cleaning of national electricity. This is the sum of that production, given 
-    as emission savings reachable because of this production replaces 
-    electricity with normal emission factor.
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_datasets:
-  - id: potsdam/action_baseline
-    tags: [baseline]
-    column: baseline
-
-- id: corrected_electricity_emission_factor
-  name: Korrigierter Strom-Emissionsfaktor
-  name_en: Corrected electricity emission factor
-  description: Eine Maßnahme (A) hat eine bekannte Auswirkung auf das Ergebnis 
-    (R) über einen Multiplikator (M1).</br> Da R = M1 * M2, mit Maßnahme R + A =
-    M1' * M2 <=> M1' = (M1 * M2 + A) / M2 = M1 + A / M2.
-  description_en: An action (A) has a known effect on the result (R) via one 
-    multiplier (M1).</br> As R = M1 * M2, with action R + A = M1' * M2 <=> M1' =
-    (M1 * M2 + A) / M2 = M1 + A / M2.
-  type: generic.GenericNode
-  quantity: emission_factor
-  unit: g/kWh
-  input_dimensions: [energietrager, scope, ghg]
-  output_dimensions: [energietrager, scope, ghg]
-  input_nodes:
-  - id: electricity_emission_factor
-  # - id: electricity_consumption
-  #   tags: [geometric_inverse]
-  #   to_dimensions:
-  #   - id: energietrager
-  #   - id: scope
-  # - id: low_emission_electricity_production
-  #   tags: [arithmetic_inverse]
-  #   to_dimensions:
-  #   - id: ghg
-  #     categories: [co2e]
 
 - id: low_use_electricity
   name: Stromverbrauchsreduzierung
@@ -961,123 +470,10 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-
-- id: corrected_electricity_use
-  name: Korrigierter Stromverbrauch
-  name_en: Corrected electricity use
-  description: Eine Maßnahme (A) hat eine bekannte Auswirkung auf das Ergebnis 
-    (R) über einen Multiplikator (M1).</br> Da R = M1 * M2, mit Maßnahme R + A =
-    M1' * M2 <=> M1' = (M1 * M2 + A) / M2 = M1 + A / M2.
-  description_en: An action (A) has a known effect on the result (R) via one 
-    multiplier (M1).</br> As R = M1 * M2, with action R + A = M1' * M2 <=> M1' =
-    (M1 * M2 + A) / M2 = M1 + A / M2.
-  type: generic.GenericNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [energietrager, scope]
-  output_dimensions: [energietrager, scope]
-  input_nodes:
-  - id: corrected_electricity_emission_factor
-    tags: [geometric_inverse]
-    from_dimensions:
-    - id: ghg
-      categories: [co2e]
-      flatten: true
-  - id: electricity_consumption
-    to_dimensions:
-    - id: energietrager
-    - id: scope
-  - id: low_use_electricity
-    tags: [arithmetic_inverse]
-    to_dimensions: []
-  output_nodes:
-  - id: total_energy_consumption
-
-- id: low_emission_transport
-  name: Emissionsarmer Verkehr
-  name_en: Low-emission transport
-  description: Es gibt mehrere Quellen für emissionsarmen Verkehr. Dies ist die 
-    Summe dieser Produktion, angegeben als Emissionseinsparungen, die durch 
-    diesen Verkehr erreicht werden können, da er Verkehr mit normalem 
-    Emissionsfaktor ersetzt.
-  description_en: There are several sources of low-emission transport available.
-    This is the sum of that production, given as emission savings reachable 
-    because of this transport replaces that with normal emission factor.
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-
-- id: energy_saving_fuel_shares
-  name: Energiesparende Brennstoffanteile
-  name_en: Energy saving fuel shares
-  description: Da die Änderungen im Kraftstoffverbrauch als 
-    Gesamtemissionsänderungen beschrieben werden, müssen wir die 
-    Gesamteinsparung auf einige Energieträger aufteilen. Dies geschieht 
-    entsprechend diesen Anteilen, die nominale Anteile der häufigsten 
-    Energieträger sind.
-  description_en: As the fuel use changes are described as total emissions 
-    changes, we need to split the total saving to some energy carriers. This is 
-    done according to these shares, which are nominal shares across the most 
-    common energy carriers.
-  type: generic.GenericNode
-  quantity: fraction
-  unit: dimensionless
-  input_dimensions: [energietrager]
-  output_dimensions: [energietrager]
   input_datasets:
-  - id: potsdam/energieanteile_der_verbesserung
+  - id: potsdam/action_baseline
     tags: [baseline]
-    column: energieanteile
-
-# TODO This intermediate node is needed because adding nodes with mismatching dims is not allowed.
-- id: low_emission_transport_split
-  name: Emissionsarmer Verkehr aufgeteilt in Kategorien
-  name_en: Low emission transport split into categories
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [energietrager, scope]
-  output_dimensions: [energietrager, scope]
-  input_nodes:
-  - id: energy_saving_fuel_shares
-    tags: [use_as_shares]
-    to_dimensions:
-    - id: energietrager
-    - id: scope
-      categories: [scope1]
-  - id: low_emission_transport
-    tags: [skip_dim_test]
-  params:
-    operations: skip_dim_test,use_as_shares
-
-- id: corrected_transport_emission_factor
-  name: Korrigierter Verkehrs-Emissionsfaktor
-  name_en: Corrected transport emission factor
-  description: Eine Maßnahme (A) hat eine bekannte Auswirkung auf das Ergebnis 
-    (R) über einen Multiplikator (M1).</br> Da R = M1 * M2, mit Maßnahme R + A =
-    M1' * M2 <=> M1' = (M1 * M2 + A) / M2 = M1 + A / M2.
-  description_en: An action (A) has a known effect on the result (R) via one 
-    multiplier (M1).</br> As R = M1 * M2, with action R + A = M1' * M2 <=> M1' =
-    (M1 * M2 + A) / M2 = M1 + A / M2.
-  type: generic.GenericNode
-  quantity: emission_factor
-  unit: g/kWh
-  input_dimensions: [energietrager, scope, ghg]
-  output_dimensions: [energietrager, scope, ghg]
-  input_nodes:
-  - id: transport_fuel_emission_factor
-  - id: transport_fuel_consumption
-    tags: [geometric_inverse]
-    to_dimensions:
-    - id: energietrager
-    - id: scope
-  - id: low_emission_transport_split
-    tags: [arithmetic_inverse]
-    to_dimensions:
-    - id: energietrager
-    - id: scope
-    - id: ghg
-      categories: [co2e]
+    column: baseline
 
 - id: corrected_emission_factor
   name: Korrigierter Emissionsfaktor
@@ -1117,86 +513,127 @@ nodes:
   - id: trend_scenario_energy
   - id: corrected_emission_factor
 
-- id: low_fuel_transport
-  name: Kraftstoffarmer Verkehr
-  name_en: Low-fuel transport
-  description: Es gibt Möglichkeiten, den Kraftstoffverbrauch im Verkehr zu 
-    reduzieren. Dies ist die Summe dieser Reduzierung, angegeben als 
-    Emissionseinsparungen, die durch diese Änderung im Verkehr erreicht werden 
-    können.
-  description_en: There are ways to reduce fuel use in transport. This is the 
-    sum of that reduction, given as emission savings reachable because of this 
-    change in transport.
+##### COSTS
+
+# - id: energy_prices
+#   name: Energiepreise
+#   name_en: Energy prices
+#   type: generic.GenericNode
+#   quantity: unit_price
+#   unit: EUR/MWh
+#   input_dimensions: [sector, energy_carrier]
+#   output_dimensions: [sector, energy_carrier]
+#   input_datasets:
+#   - id: potsdam/energy_prices
+#     tags: [baseline]
+
+# - id: total_energy_costs
+#   name: Endenergiekosten Gesamt
+#   name_en: Final Energy Costs Over All Sectors
+#   type: generic.GenericNode
+#   quantity: currency
+#   unit: MEUR/a
+#   input_nodes:
+#   - id: masterplan_scenario_energy
+#   - id: energy_prices
+
+# SUMMRY IMPACTS
+
+- id: heat_generation_networks
+  name: Ausbau Erneuerbare Energien in der Wärmeerzeugung (Wärmenetze)
+  name_en: Expansion of Renewable Energy in Heat Generation (District Heating)
+  color: '#D4691A'
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [energietrager, scope]
-  output_dimensions: [energietrager, scope]
-  input_nodes:
-  - id: transport_fuel_consumption
-    tags: [use_as_shares]
-  params:
-    operations: skip_dim_test,use_as_shares
-
-- id: corrected_transport_fuel_use
-  name: Korrigierter Verkehrs-Kraftstoffverbrauch
-  name_en: Corrected transport fuel use
-  description: Eine Maßnahme (A) hat eine bekannte Auswirkung auf das Ergebnis 
-    (R) über einen Multiplikator (M1).</br> Da R = M1 * M2, mit Maßnahme R + A =
-    M1' * M2 <=> M1' = (M1 * M2 + A) / M2 = M1 + A / M2.
-  description_en: An action (A) has a known effect on the result (R) via one 
-    multiplier (M1).</br> As R = M1 * M2, with action R + A = M1' * M2 <=> M1' =
-    (M1 * M2 + A) / M2 = M1 + A / M2.
-  type: generic.GenericNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [energietrager, scope, ghg]
-  output_dimensions: [energietrager, scope, ghg]
-  input_nodes:
-  - id: corrected_transport_emission_factor
-    tags: [geometric_inverse]
-  - id: transport_fuel_consumption
-    to_dimensions:
-    - id: energietrager
-    - id: scope
-    - id: ghg
-      categories: [co2e]
-  - id: low_fuel_transport
-    tags: [arithmetic_inverse]
-    to_dimensions:
-    - id: energietrager
-    - id: scope
-
-##### COSTS
-
-- id: energy_prices
-  name: Energiepreise
-  name_en: Energy prices
-  type: generic.GenericNode
-  quantity: unit_price
-  unit: EUR/MWh
-  input_dimensions: [sector, energietrager]
-  output_dimensions: [sector, energietrager]
   input_datasets:
-  - id: potsdam/energy_prices
+  - id: potsdam/action_baseline
     tags: [baseline]
+    column: baseline
 
-- id: total_energy_costs
-  name: Endenergiekosten Gesamt
-  name_en: Final Energy Costs Over All Sectors
+- id: heat_generation_individual
+  name: Ausbau Erneuerbare Energien in der Wärmeerzeugung (Einzelversorgung)
+  name_en: Expansion of Renewable Energy in Heat Generation (Individual Supply)
+  color: '#FF8C42'
   type: generic.GenericNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [energietrager, sector]
-  output_dimensions: [energietrager, sector]
-  input_nodes:
-  - id: total_energy_consumption
-    from_dimensions:
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: energietrager
-  - id: energy_prices
+  quantity: emissions
+  unit: kt/a
+  input_datasets:
+  - id: potsdam/action_baseline
+    tags: [baseline]
+    column: baseline
+
+- id: heat_consumption_networks
+  name: Änderung im Wärmeverbrauch (Wärmenetze)
+  name_en: Changes in Heat Consumption (District Heating)
+  color: '#B85450'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_datasets:
+  - id: potsdam/action_baseline
+    tags: [baseline]
+    column: baseline
+
+- id: heat_consumption_individual
+  name: Änderung im Wärmeverbrauch (Einzelversorgung)
+  name_en: Changes in Heat Consumption (Individual Supply)
+  color: '#E67E22'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_datasets:
+  - id: potsdam/action_baseline
+    tags: [baseline]
+    column: baseline
+
+- id: electricity_generation
+  name: Ausbau Erneuerbare Energien in der Stromerzeugung
+  name_en: Expansion of Renewable Energy in Electricity Generation
+  color: '#007C78'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_datasets:
+  - id: potsdam/action_baseline
+    tags: [baseline]
+    column: baseline
+
+- id: electricity_consumption
+  name: Änderung im Stromverbrauch
+  name_en: Changes in Electricity Consumption
+  color: '#00A693'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_datasets:
+  - id: potsdam/action_baseline
+    tags: [baseline]
+    column: baseline
+
+- id: transport_energy_expansion
+  name: Ausbau Erneuerbare Energien im Verkehr
+  name_en: Expansion of Renewable Energy in Transport
+  color: '#0505A0'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_datasets:
+  - id: potsdam/action_baseline
+    tags: [baseline]
+    column: baseline
+
+- id: transport_consumption
+  name: Änderung im Energieverbrauch im Verkehr
+  name_en: Changes in Energy Consumption in Transport
+  color: '#2E4BC6'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_datasets:
+  - id: potsdam/action_baseline
+    tags: [baseline]
+    column: baseline
 
 actions:
 
@@ -1219,7 +656,7 @@ actions:
     - column: decision
       value: district_heating_until_2030
   output_nodes:
-  - id: low_emission_district_heating_production
+  - id: heat_generation_networks
     to_dimensions: []
 
 - id: district_heating_2030_2040 # Split by energy carrier and sector. Affect emission factor
@@ -1239,7 +676,7 @@ actions:
     - column: decision
       value: district_heating_2030_2040
   output_nodes:
-  - id: low_emission_district_heating_production
+  - id: heat_generation_networks
     to_dimensions: []
 
 - id: district_heating_2040_2045 # Split by energy carrier and sector. Affect emission factor
@@ -1259,7 +696,7 @@ actions:
     - column: decision
       value: district_heating_2040_2045
   output_nodes:
-  - id: low_emission_district_heating_production
+  - id: heat_generation_networks
     to_dimensions: []
 
 - id: local_heating_networks_2045 # Split by energy carrier and sector. Affect emission factor
@@ -1278,7 +715,7 @@ actions:
     - column: decision
       value: local_heating_networks_2045
   output_nodes:
-  - id: low_emission_district_heating_production
+  - id: heat_generation_networks
     to_dimensions: []
 
 - id: re_expansion_masterplan_2045 # Split by energy carrier and sector. Affect emission factor
@@ -1298,7 +735,7 @@ actions:
     - column: decision
       value: re_expansion_masterplan_2045
   output_nodes:
-  - id: low_emission_local_heating_production
+  - id: heat_generation_individual
 
 - id: re_expansion_masterplan_kwp # Split by energy carrier and sector. Affect emission factor
   name: EE-Ausbau laut KWP (zusätzlich zu Masterplanziel)
@@ -1316,7 +753,7 @@ actions:
     - column: decision
       value: re_expansion_masterplan_kwp
   output_nodes:
-  - id: low_emission_local_heating_production
+  - id: heat_generation_individual
 
 - id: district_heating_reduction_renovation # Split by sector. Affect distric heating emission factor
   name: Reduktion des Wärmeverbrauchs durch Gebäudesanierung (Nah- und 
@@ -1336,7 +773,7 @@ actions:
     - column: decision
       value: district_heating_reduction_renovation
   output_nodes:
-  - id: low_energy_district_heating
+  - id: heat_consumption_networks
 
 - id: decentralized_heat_reduction_renovation # Split by energy carrier and sector. Affect energy
   name: Reduktion des Wärmeverbrauchs durch Gebäudesanierung (dezentral)
@@ -1355,7 +792,7 @@ actions:
     - column: decision
       value: decentralized_heat_reduction_renovation
   output_nodes:
-  - id: low_energy_local_heating
+  - id: heat_consumption_individual
 
 - id: pv_rooftop_expansion # Split by sector. Affect electricity emission factor Alternative: reduce electricity consumption
   name: Ausbau PV Dachanlagen laut Masterplan
@@ -1373,7 +810,7 @@ actions:
     - column: decision
       value: pv_rooftop_expansion
   output_nodes:
-  - id: low_emission_electricity_production
+  - id: electricity_generation
 
 - id: ground_mounted_pv_expansion # Split by sector. Affect electricity emission factor
   name: Ausbau Freiflächenanlagen laut Masterplan
@@ -1391,7 +828,7 @@ actions:
     - column: decision
       value: ground_mounted_pv_expansion
   output_nodes:
-  - id: low_emission_electricity_production
+  - id: electricity_generation
 
 - id: wind_power_potential # Split by sector. Affect electricity emission factor
   name: Potential Windkraftanlagen (Annahme 8 Anlagen)
@@ -1409,7 +846,7 @@ actions:
     - column: decision
       value: wind_power_potential
   output_nodes:
-  - id: low_emission_electricity_production
+  - id: electricity_generation
 
 - id: electricity_consumption_reduction # Split by sector, Affect electricity
   name: Reduktion Stromverbrauch HH und Gewerbe
@@ -1427,7 +864,7 @@ actions:
     - column: decision
       value: electricity_consumption_reduction
   output_nodes:
-  - id: low_use_electricity
+  - id: electricity_consumption
 
 - id: improved_federal_grid_mix # Split by sector. Affect electricity emission factor
   name: Verbesserter Bundesmix für Reststrombedarf
@@ -1445,7 +882,7 @@ actions:
     - column: decision
       value: improved_federal_grid_mix
   output_nodes:
-  - id: low_emission_electricity_production
+  - id: electricity_generation
 
 - id: fossil_fuel_replacement # ?? Optimize?
   name: Ersatz fossiler brennstoffe durch EE-Strom und E-Fuels
@@ -1463,7 +900,7 @@ actions:
     - column: decision
       value: fossil_fuel_replacement
   output_nodes:
-  - id: low_emission_transport
+  - id: transport_energy_expansion
 
 - id: local_transport_energy_reduction # Split by energy carrier, affect energy
   name: Reduktion Gesamtenergieverbrauch Binnenverkehr
@@ -1481,8 +918,7 @@ actions:
     - column: decision
       value: local_transport_energy_reduction
   output_nodes:
-  - id: low_fuel_transport
-    tags: [skip_dim_test] # Possible here because only one action to split
+  - id: transport_consumption
 
 pages:
 - id: home
