@@ -112,7 +112,6 @@ class OrganizationViewSet(PathsViewSet):
         ),
         # FieldPanel('logo'),
         TranslatedFieldPanel('abbreviation'),
-        FieldPanel('internal_abbreviation'),
         # Don't allow editing identifiers at this point
         # CondensedInlinePanel('identifiers', panels=[
         #     FieldPanel('namespace'),
