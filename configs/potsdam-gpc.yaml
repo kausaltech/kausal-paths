@@ -18,7 +18,7 @@ supported_languages: []
 site_url: https://potsdam-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: dd231bcc7c29305b37309232d58623d84cd4e9f7
+  commit: b5c49954d267477c7cd4c058ce495c4af941cb70
   dvc_remote: kausal-s3
 name: Klimaschutz-Monitor-Potsdam Treibhausgasinventar
 owner: Stadt Potsdam
@@ -189,6 +189,102 @@ dimensions:
     label_en: Actual
     aliases: [aktual]
 
+# Temporarily return energietrager
+
+- id: energietrager
+  label_en: Energy Carriers
+  label_de: Energieträger
+  categories:
+  - id: strom
+    label_en: Electricity
+    label_de: Strom
+    aliases: [electricity, strom_fahrstrom]
+  - id: fahrstrom
+    label_en: Traction Power
+    label_de: Fahrstrom
+  - id: heizstrom
+    label_en: Heating Electricity
+    label_de: Heizstrom
+    aliases: [heating_electricity]
+  - id: fernwarme
+    label_en: District Heating
+    label_de: Fernwärme
+    aliases: [district_heating]
+  - id: nahwarme
+    label_en: Local Heating
+    label_de: Nahwärme
+    aliases: [local_heating]
+  - id: gas
+    label_en: Gas
+    label_de: Gas
+    aliases: [natural_gas]
+  - id: biogas
+    label_en: Biogas
+    label_de: Biogas
+    aliases: [cng_bio]
+  - id: heizol
+    label_en: Heating Oil
+    label_de: Heizöl
+    aliases: [heating_oil]
+  - id: kohle
+    label_en: Coal
+    label_de: Kohle
+    aliases: [hard_coal]
+  - id: brown_coal
+    label_en: Brown coal
+    label_de: Braunkohle
+  - id: biomasse
+    label_en: Biomass
+    label_de: Biomasse
+    aliases: [biomass]
+  - id: solarthermie
+    label_en: Solar Thermal
+    label_de: Solarthermie
+    aliases: [solar_thermal]
+  - id: umweltwarme
+    label_en: Ambient Heat
+    label_de: Umweltwärme
+    aliases: [environmental_heat]
+  - id: other_renewables
+    label_en: Other renewables
+    label_de: Sonstige erneuerbare Energien
+  - id: benzin_fossil
+    label_en: Fossil Gasoline
+    label_de: Benzin fossil
+    aliases: [petrol]
+  - id: benzin_biogen
+    label_en: Biogenic Gasoline
+    label_de: Benzin biogen
+    aliases: [bio_petrol]
+  - id: diesel_fossil
+    label_en: Fossil Diesel
+    label_de: Diesel fossil
+    aliases: [diesel]
+  - id: kerosene
+    label_de: Kerosene
+    label_en: Kerosene
+  - id: diesel_biogen
+    label_en: Biogenic Diesel
+    label_de: Diesel biogen
+    aliases: [biodiesel]
+  - id: cng_fossil
+    label_en: Fossil CNG (Compressed Natural Gas)
+    label_de: CNG fossil
+  - id: lpg
+    label_en: LPG (Liquefied Petroleum Gas)
+    label_de: LPG
+  - id: wasserstoff
+    label_en: Hydrogen
+    label_de: Wasserstoff
+  - id: other_conventional
+    label_en: Other conventional
+    label_de: Sonstige konventionelle Energien
+    aliases: [other_conventional]
+  - id: total
+    label_en: Total
+    label_de: Gesamt
+    aliases: [total]
+
 emission_sectors:
 
 - id: net_emissions
@@ -301,6 +397,21 @@ nodes:
     - column: scenario
       values: [trend_szenario, aktual]
 
+- id: trend_scenario_emission_factor
+  name: Trend-Szenario Emissionfaktor
+  name_en: Trend scenario emission factor
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: trend_scenario_emissions
+  - id: trend_scenario_energy
+    tags: [geometric_inverse]
+  params:
+    operations: multiply,drop_nans
+
 - id: sector_index
   name: Sektor Index
   name_en: Sector index
@@ -332,7 +443,8 @@ nodes:
       values: [masterplan_szenario, aktual]
 
 - id: emission_change_due_to_energy
-  name: Emission change due to energy
+  name: Emissionsänderung durch Energieeinsparung
+  name_en: Emission change due to energy
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
@@ -340,7 +452,8 @@ nodes:
   output_dimensions: [sector, energy_carrier]
 
 - id: emission_change_due_to_ef
-  name: Emission change due to emission factor
+  name: Emissionsänderung durch Emissionsfaktor
+  name_en: Emission change due to emission factor
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
@@ -363,7 +476,8 @@ nodes:
     operations: multiply,drop_nans,drop_infs
 
 - id: emission_factor_correction
-  name: Emission factor correction
+  name: Emissionsfaktor-Korrektur
+  name_en: Emission factor correction
   type: generic.GenericNode
   quantity: emission_factor
   unit: g/kWh
@@ -385,11 +499,12 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: scenario_emission_factor
+  - id: trend_scenario_emission_factor
   - id: emission_factor_correction
 
 - id: energy_correction
-  name: Energy correction
+  name: Energie-Korrektur
+  name_en: Energy correction
   type: generic.GenericNode
   quantity: energy
   unit: MWh/a
@@ -401,14 +516,15 @@ nodes:
   - id: emission_change_due_to_energy
 
 - id: corrected_energy
-  name: Corrected energy
+  name: Korrigierte Energie
+  name_en: Corrected energy
   type: generic.GenericNode
   quantity: energy
   unit: MWh/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: scenario_energy
+  - id: trend_scenario_energy
   - id: energy_correction
 
 - id: corrected_emissions
@@ -425,6 +541,21 @@ nodes:
 
 ##### COSTS
 
+# - id: total_energy_costs
+#   name: Energiepreise
+#   name_en: Total cost
+#   type: generic.GenericNode
+#   quantity: unit_price
+#   unit: EUR/MWh
+#   input_dimensions: [energietrager]
+#   output_dimensions: [energietrager]
+#   input_datasets:
+#   - id: potsdam/energy_prices
+#     tags: [baseline]
+#     filters:
+#     - dimension: sector
+#       flatten: true
+
 # - id: energy_prices
 #   name: Energiepreise
 #   name_en: Energy prices
@@ -436,6 +567,9 @@ nodes:
 #   input_datasets:
 #   - id: potsdam/energy_prices
 #     tags: [baseline]
+#     filters:
+#     - rename_col: energietrager
+#       value: energy_carrier
 
 # - id: total_energy_costs
 #   name: Endenergiekosten Gesamt
@@ -874,3 +1008,77 @@ scenarios:
   params:
   - id: re_expansion_masterplan_2045.enabled
     value: false
+
+- id: emission_factors_only
+  name: Nur Emissionsfaktor-Maßnahmen
+  # name_en: Emission Factor Actions Only
+  params:
+  # Enable emission-factor-based actions
+  - id: district_heating_until_2030.enabled
+    value: true
+  - id: district_heating_2030_2040.enabled
+    value: true
+  - id: district_heating_2040_2045.enabled
+    value: true
+  - id: local_heating_networks_2045.enabled
+    value: true
+  - id: re_expansion_masterplan_2045.enabled
+    value: true
+  - id: re_expansion_masterplan_kwp.enabled
+    value: true
+  - id: pv_rooftop_expansion.enabled
+    value: true
+  - id: ground_mounted_pv_expansion.enabled
+    value: true
+  - id: wind_power_potential.enabled
+    value: true
+  - id: improved_federal_grid_mix.enabled
+    value: true
+  - id: fossil_fuel_replacement.enabled
+    value: true
+  # Disable energy-based actions
+  - id: district_heating_reduction_renovation.enabled
+    value: false
+  - id: decentralized_heat_reduction_renovation.enabled
+    value: false
+  - id: electricity_consumption_reduction.enabled
+    value: false
+  - id: local_transport_energy_reduction.enabled
+    value: false
+
+- id: energy_savings_only
+  name: Nur Energieeinspar-Maßnahmen
+  # name_en: Energy Savings Actions Only
+  params:
+  # Disable emission-factor-based actions
+  - id: district_heating_until_2030.enabled
+    value: false
+  - id: district_heating_2030_2040.enabled
+    value: false
+  - id: district_heating_2040_2045.enabled
+    value: false
+  - id: local_heating_networks_2045.enabled
+    value: false
+  - id: re_expansion_masterplan_2045.enabled
+    value: false
+  - id: re_expansion_masterplan_kwp.enabled
+    value: false
+  - id: pv_rooftop_expansion.enabled
+    value: false
+  - id: ground_mounted_pv_expansion.enabled
+    value: false
+  - id: wind_power_potential.enabled
+    value: false
+  - id: improved_federal_grid_mix.enabled
+    value: false
+  - id: fossil_fuel_replacement.enabled
+    value: false
+  # Enable energy-based actions
+  - id: district_heating_reduction_renovation.enabled
+    value: true
+  - id: decentralized_heat_reduction_renovation.enabled
+    value: true
+  - id: electricity_consumption_reduction.enabled
+    value: true
+  - id: local_transport_energy_reduction.enabled
+    value: true
