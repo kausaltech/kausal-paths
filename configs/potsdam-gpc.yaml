@@ -72,14 +72,14 @@ action_groups:
   name: Ausbau Erneuerbare Energien in der Wärmeerzeugung (Einzelversorgung)
   name_en: Expansion of Renewable Energy in Heat Generation (Individual Supply)
   color: '#FF8C42'
-- id: heat_consumption_networks
+- id: heat_consumption
   name: Änderung im Wärmeverbrauch (Wärmenetze)
   name_en: Changes in Heat Consumption (District Heating)
   color: '#B85450'
-- id: heat_consumption_individual
-  name: Änderung im Wärmeverbrauch (Einzelversorgung)
-  name_en: Changes in Heat Consumption (Individual Supply)
-  color: '#E67E22'
+# - id: heat_consumption_individual
+#   name: Änderung im Wärmeverbrauch (Einzelversorgung)
+#   name_en: Changes in Heat Consumption (Individual Supply)
+#   color: '#E67E22'
 - id: electricity_generation
   name: Ausbau Erneuerbare Energien in der Stromerzeugung
   name_en: Expansion of Renewable Energy in Electricity Generation
@@ -189,16 +189,40 @@ dimensions:
     label_en: Actual
     aliases: [aktual]
 
-nodes:
+emission_sectors:
 
 - id: net_emissions
   name: Net Emissionen
-  type: simple.SectorEmissions
-  quantity: emissions
-  unit: kt/a
   is_outcome: true
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
+
+- id: electricity_emissions
+  name: Strom Emissionen
+  part_of: net_emissions
+  input_nodes:
+  - id: corrected_emissions
+    from_dimensions:
+    - id: sector
+      categories: [electricity]
+
+- id: heating_emissions
+  name: Wärme Emissionen
+  part_of: net_emissions
+  input_nodes:
+  - id: corrected_emissions
+    from_dimensions:
+    - id: sector
+      categories: [heating]
+
+- id: transport_emissions
+  name: Verkehr Emissionen
+  part_of: net_emissions
+  input_nodes:
+  - id: corrected_emissions
+    from_dimensions:
+    - id: sector
+      categories: [transport]
+
+nodes:
 
 - id: weather_correction
   name: Witterungsbereinigung
@@ -307,9 +331,16 @@ nodes:
     - column: scenario
       values: [masterplan_szenario, aktual]
 
-- id: scenario_emissions
-  name: Emission Change
-  name_en: Emission Change
+- id: emission_change_due_to_energy
+  name: Emission change due to energy
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+
+- id: emission_change_due_to_ef
+  name: Emission change due to emission factor
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
@@ -341,7 +372,7 @@ nodes:
   input_nodes:
   - id: scenario_energy
     tags: [geometric_inverse]
-  - id: scenario_emissions
+  - id: emission_change_due_to_ef
   params:
     operations: multiply,drop_infs
 
@@ -357,6 +388,29 @@ nodes:
   - id: scenario_emission_factor
   - id: emission_factor_correction
 
+- id: energy_correction
+  name: Energy correction
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: scenario_emission_factor
+    tags: [geometric_inverse]
+  - id: emission_change_due_to_energy
+
+- id: corrected_energy
+  name: Corrected energy
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: scenario_energy
+  - id: energy_correction
+
 - id: corrected_emissions
   name: Korrigierter Emissionen
   name_en: Corrected emissions
@@ -366,10 +420,8 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: scenario_energy
+  - id: corrected_energy
   - id: corrected_emission_factor
-  output_nodes:
-  - id: net_emissions
 
 ##### COSTS
 
@@ -404,13 +456,13 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  # output_nodes:
-  # - id: masterplan_scenario_energy
-  #   to_dimensions:
-  #   - id: sector
-  #     categories: [heating]
+  output_nodes:
+  - id: emission_change_due_to_ef
+    to_dimensions:
+    - id: sector
+      categories: [heating]
+    - id: energy_carrier
+      categories: [district_heating]
 
 - id: heat_generation_individual
   name: Ausbau Erneuerbare Energien in der Wärmeerzeugung (Einzelversorgung)
@@ -419,51 +471,28 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  input_datasets:
-  - id: potsdam/action_baseline
-    tags: [baseline]
-    column: baseline
+  output_nodes:
+  - id: emission_change_due_to_ef
+    to_dimensions:
+    - id: sector
+      categories: [heating]
+    - id: energy_carrier
+      categories: [district_heating]
 
-- id: heat_consumption_networks
+- id: heat_consumption
   name: Änderung im Wärmeverbrauch (Wärmenetze)
   name_en: Changes in Heat Consumption (District Heating)
   color: '#B85450'
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  # input_dimensions: [energy_carrier, sector]
-  # output_dimensions: [energy_carrier, sector]
-  # input_datasets:
-  # - id: potsdam/action_baseline
-  #   tags: [baseline]
-  #   column: baseline
-  # input_nodes:
-  # - id: masterplan_scenario_energy
-  #   tags: [use_as_shares]
-  #   from_dimensions:
-  #   - id: sector
-  #     categories: [heating]
-  # params:
-  #   operations: skip_dim_test,use_as_shares
   output_nodes:
-  - id: scenario_emissions
+  - id: emission_change_due_to_energy
     to_dimensions:
-    - id: energy_carrier
-      categories: [district_heating]
     - id: sector
       categories: [heating]
-
-- id: heat_consumption_individual
-  name: Änderung im Wärmeverbrauch (Einzelversorgung)
-  name_en: Changes in Heat Consumption (Individual Supply)
-  color: '#E67E22'
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_datasets:
-  - id: potsdam/action_baseline
-    tags: [baseline]
-    column: baseline
+    - id: energy_carrier
+      categories: [natural_gas]
 
 - id: electricity_generation
   name: Ausbau Erneuerbare Energien in der Stromerzeugung
@@ -472,10 +501,13 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  input_datasets:
-  - id: potsdam/action_baseline
-    tags: [baseline]
-    column: baseline
+  output_nodes:
+  - id: emission_change_due_to_ef
+    to_dimensions:
+    - id: sector
+      categories: [electricity]
+    - id: energy_carrier
+      categories: [electricity]
 
 - id: electricity_consumption
   name: Änderung im Stromverbrauch
@@ -484,10 +516,13 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  input_datasets:
-  - id: potsdam/action_baseline
-    tags: [baseline]
-    column: baseline
+  output_nodes:
+  - id: emission_change_due_to_energy
+    to_dimensions:
+    - id: sector
+      categories: [electricity]
+    - id: energy_carrier
+      categories: [electricity]
 
 - id: transport_energy_expansion
   name: Ausbau Erneuerbare Energien im Verkehr
@@ -496,10 +531,13 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  input_datasets:
-  - id: potsdam/action_baseline
-    tags: [baseline]
-    column: baseline
+  output_nodes:
+  - id: emission_change_due_to_ef
+    to_dimensions:
+    - id: sector
+      categories: [transport]
+    - id: energy_carrier
+      categories: [diesel]
 
 - id: transport_consumption
   name: Änderung im Energieverbrauch im Verkehr
@@ -508,10 +546,13 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  input_datasets:
-  - id: potsdam/action_baseline
-    tags: [baseline]
-    column: baseline
+  output_nodes:
+  - id: emission_change_due_to_energy
+    to_dimensions:
+    - id: sector
+      categories: [transport]
+    - id: energy_carrier
+      categories: [diesel]
 
 actions:
 
@@ -535,9 +576,6 @@ actions:
       value: district_heating_until_2030
   output_nodes:
   - id: heat_generation_networks
-    to_dimensions:
-    - id: energy_carrier
-      categories: [district_heating]
 
 - id: district_heating_2030_2040 # Split by energy carrier and sector. Affect emission factor
   name: weitere Maßnahmen EWP Fernwärme 2030-2040 (+ weitere 50% EE = 80% EE)
@@ -557,9 +595,6 @@ actions:
       value: district_heating_2030_2040
   output_nodes:
   - id: heat_generation_networks
-    to_dimensions:
-    - id: energy_carrier
-      categories: [district_heating]
 
 - id: district_heating_2040_2045 # Split by energy carrier and sector. Affect emission factor
   name: weitere Maßnahmen EWP Fernwärme 2040-2045 (+ weitere 20% EE = 100% EE)
@@ -579,9 +614,6 @@ actions:
       value: district_heating_2040_2045
   output_nodes:
   - id: heat_generation_networks
-    to_dimensions:
-    - id: energy_carrier
-      categories: [district_heating]
 
 - id: local_heating_networks_2045 # Split by energy carrier and sector. Affect emission factor
   name: Maßnahmen Nahwärmenetze bis 2045 (100% EE)
@@ -600,9 +632,6 @@ actions:
       value: local_heating_networks_2045
   output_nodes:
   - id: heat_generation_networks
-    to_dimensions:
-    - id: energy_carrier
-      categories: [district_heating]
 
 - id: re_expansion_masterplan_2045 # Split by energy carrier and sector. Affect emission factor
   name: EE-Ausbau laut Masterplan 100% Klimaschutz bis 2045
@@ -649,7 +678,7 @@ actions:
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
-  group: heat_consumption_networks
+  group: heat_consumption
   input_datasets:
   - id: potsdam/action_impact
     tags: [baseline]
@@ -659,8 +688,7 @@ actions:
     - column: decision
       value: district_heating_reduction_renovation
   output_nodes:
-  - id: heat_consumption_networks
-    # tags: [skip_dim_test]
+  - id: heat_consumption
 
 - id: decentralized_heat_reduction_renovation # Split by energy carrier and sector. Affect energy
   name: Reduktion des Wärmeverbrauchs durch Gebäudesanierung (dezentral)
@@ -669,7 +697,7 @@ actions:
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
-  group: heat_consumption_individual
+  group: heat_consumption
   input_datasets:
   - id: potsdam/action_impact
     tags: [baseline]
@@ -679,7 +707,7 @@ actions:
     - column: decision
       value: decentralized_heat_reduction_renovation
   output_nodes:
-  - id: heat_consumption_individual
+  - id: heat_consumption
 
 - id: pv_rooftop_expansion # Split by sector. Affect electricity emission factor Alternative: reduce electricity consumption
   name: Ausbau PV Dachanlagen laut Masterplan
