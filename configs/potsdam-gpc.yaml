@@ -6,8 +6,9 @@
 # https://docs.google.com/spreadsheets/d/1pW5Un-rUGLyM8FbMdsRELq4W9Q_ZNx_b/edit?gid=1524147948#gid=1524147948
 # Comparison showed that energietraeger_GHD.xlsx and other 4 energy files from KlimaSchutz-Planer are very close although not identical to Zielwerte Masterplan V3.4.xlsx. So, the Masterplan data is now used.
 # Procedure:
+# Use the Actual values when available and Masterplan Scenario values for forecasts.
 # 1 Sum up all action impacts as emissions. Plain GenericNode
-# 2 Split the total impact to sectors or energy carriers by using the default scenario variable. Total impact has tag skip_dim_test, scenario variable has tag use_as_shares.
+# 2 Split the total impact to sectors or energy carriers by using the Masterplan scenario variable. Total impact has tag skip_dim_test, scenario variable has tag use_as_shares.
 # 3 Compute the impact in correct units by dividiing the emission impact by energy or emission factor.
 # 4 Add the scenario emission factor or energy, respectively.
 
@@ -171,100 +172,6 @@ dimensions:
     label_en: Baseline
     label_de: Baseline
 
-- id: energietrager
-  label_en: Energy Carriers
-  label_de: Energieträger
-  categories:
-  - id: strom
-    label_en: Electricity
-    label_de: Strom
-    aliases: [electricity, strom_fahrstrom]
-  - id: fahrstrom
-    label_en: Traction Power
-    label_de: Fahrstrom
-  - id: heizstrom
-    label_en: Heating Electricity
-    label_de: Heizstrom
-    aliases: [heating_electricity]
-  - id: fernwarme
-    label_en: District Heating
-    label_de: Fernwärme
-    aliases: [district_heating]
-  - id: nahwarme
-    label_en: Local Heating
-    label_de: Nahwärme
-    aliases: [local_heating]
-  - id: gas
-    label_en: Gas
-    label_de: Gas
-    aliases: [natural_gas]
-  - id: biogas
-    label_en: Biogas
-    label_de: Biogas
-    aliases: [cng_bio]
-  - id: heizol
-    label_en: Heating Oil
-    label_de: Heizöl
-    aliases: [heating_oil]
-  - id: kohle
-    label_en: Coal
-    label_de: Kohle
-    aliases: [hard_coal]
-  - id: brown_coal
-    label_en: Brown coal
-    label_de: Braunkohle
-  - id: biomasse
-    label_en: Biomass
-    label_de: Biomasse
-    aliases: [biomass]
-  - id: solarthermie
-    label_en: Solar Thermal
-    label_de: Solarthermie
-    aliases: [solar_thermal]
-  - id: umweltwarme
-    label_en: Ambient Heat
-    label_de: Umweltwärme
-    aliases: [environmental_heat]
-  - id: other_renewables
-    label_en: Other renewables
-    label_de: Sonstige erneuerbare Energien
-  - id: benzin_fossil
-    label_en: Fossil Gasoline
-    label_de: Benzin fossil
-    aliases: [petrol]
-  - id: benzin_biogen
-    label_en: Biogenic Gasoline
-    label_de: Benzin biogen
-    aliases: [bio_petrol]
-  - id: diesel_fossil
-    label_en: Fossil Diesel
-    label_de: Diesel fossil
-    aliases: [diesel]
-  - id: kerosene
-    label_de: Kerosene
-    label_en: Kerosene
-  - id: diesel_biogen
-    label_en: Biogenic Diesel
-    label_de: Diesel biogen
-    aliases: [biodiesel]
-  - id: cng_fossil
-    label_en: Fossil CNG (Compressed Natural Gas)
-    label_de: CNG fossil
-  - id: lpg
-    label_en: LPG (Liquefied Petroleum Gas)
-    label_de: LPG
-  - id: wasserstoff
-    label_en: Hydrogen
-    label_de: Wasserstoff
-  - id: other_conventional
-    label_en: Other conventional
-    label_de: Sonstige konventionelle Energien
-    aliases: [other_conventional]
-  - id: total
-    label_en: Total
-    label_de: Gesamt
-    aliases: [total]
-
 - id: scenario
   label_de: Szenario
   label_en: Scenario
@@ -283,6 +190,15 @@ dimensions:
     aliases: [aktual]
 
 nodes:
+
+- id: net_emissions
+  name: Net Emissionen
+  type: simple.SectorEmissions
+  quantity: emissions
+  unit: kt/a
+  is_outcome: true
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
 
 - id: weather_correction
   name: Witterungsbereinigung
@@ -310,9 +226,9 @@ nodes:
   #   tags: [non_additive]
   #   to_dimensions: []
 
-- id: masterplan_scenario_energy
-  name: Masterplan-Szenario Energie
-  name_en: Masterplan scenario energy
+- id: scenario_energy
+  name: Szenario Energie Daten
+  name_en: Scenario energy data
   type: generic.GenericNode
   quantity: energy
   unit: MWh/a
@@ -344,18 +260,22 @@ nodes:
     - column: scenario
       values: [trend_szenario, aktual]
 
-# - id: scenario_difference_energy
-#   name: Szenariounterschied für Energie
-#   name_en: Scenario difference for energy
-#   type: generic.GenericNode
-#   quantity: energy
-#   unit: MWh/a
-#   input_dimensions: [sector, energy_carrier]
-#   output_dimensions: [sector, energy_carrier]
-#   input_nodes:
-#   - id: masterplan_scenario_energy
-#   - id: trend_scenario_energy
-#     tags: [arithmetic_inverse]
+- id: trend_scenario_emissions
+  name: Trend-Szenario Emissionen
+  name_en: Trend scenario emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: potsdam/szenarien
+    tags: [baseline]
+    forecast_from: 2024
+    column: emissions
+    filters:
+    - column: scenario
+      values: [trend_szenario, aktual]
 
 - id: sector_index
   name: Sektor Index
@@ -370,136 +290,72 @@ nodes:
     tags: [baseline]
     column: sector_index
 
-# - id: scenario_difference_emission_factor
-#   name: Szenariounterschied für Emissionfaktor
-#   name_en: Scenario difference for emission factor
-#   type: generic.GenericNode
-#   quantity: energy
-#   unit: t/MWh
-#   input_dimensions: [sector, energy_carrier]
-#   output_dimensions: [sector, energy_carrier]
-#   input_nodes:
-#   - id: masterplan_scenario_emission_factor
-#   - id: trend_scenario_emission_factor
-#     tags: [arithmetic_inverse]
-
-- id: scenario_emissions
-  name: Szenario Emissionen
+- id: scenario_emissions_data
+  name: Masterplan-Szenario Emissionen Daten
   name_en: Scenario emissions
   type: generic.GenericNode
   quantity: emissions
-  unit: t/a
-  input_dimensions: [sector, energy_carrier, scenario]
-  output_dimensions: [sector, energy_carrier, scenario]
+  unit: kt/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: potsdam/szenarien
     tags: [baseline]
     forecast_from: 2024
     column: emissions
-
-- id: masterplan_scenario_emission_factor
-  name: Masterplan-Szenario Emissionfaktor
-  name_en: Masterplan scenario emission factor
-  type: generic.GenericNode
-  quantity: emission_factor
-  unit: t/MWh
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_nodes:
-  - id: scenario_emissions
-    from_dimensions:
-    - id: scenario
-      categories: [masterplan_scenario]
-      flatten: true
-  - id: masterplan_scenario_energy
-    tags: [geometric_inverse]
-  params:
-    operations: multiply,drop_nans,drop_infs
-
-- id: trend_scenario_emission_factor
-  name: Trend-Szenario Emissionfaktor
-  name_en: Trend scenario emission factor
-  type: generic.GenericNode
-  quantity: emission_factor
-  unit: t/MWh
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_nodes:
-  - id: scenario_emissions
-    from_dimensions:
-    - id: scenario
-      categories: [trend_scenario]
-      flatten: true
-  - id: trend_scenario_energy
-    tags: [geometric_inverse]
-  params:
-    operations: multiply,drop_nans,drop_infs
-
-- id: transport_fuel_consumption2
-  name: Brennstoffverbrauch Verkehr
-  name_en: Fuel Consumption Traffic
-  type: generic.GenericNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_datasets:
-  - id: potsdam/alle_historischen_energie
-    forecast_from: 2024
-    tags: [baseline]
-    column: energy
     filters:
-    - column: file_type
-    - column: weather_correction
-    - column: inventory_method
-    - dimensions:
-      - id: sector
-        categories: [transport]
+    - column: scenario
+      values: [masterplan_szenario, aktual]
 
-# Electricity
-
-- id: low_use_electricity
-  name: Stromverbrauchsreduzierung
-  name_en: Low-use electricity reduction
-  description: Es gibt Quellen für die Reduzierung des Stromverbrauchs. Dies ist
-    die Summe dieser Reduzierung, angegeben als Emissionseinsparungen, die durch
-    diese verringerte Nutzung erreicht werden können.
-  description_en: There are sources of electricity use reduction. This is the 
-    sum of that reduction, given as emission savings reachable because of this 
-    reduced use.
+- id: scenario_emissions
+  name: Emission Change
+  name_en: Emission Change
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  input_datasets:
-  - id: potsdam/action_baseline
-    tags: [baseline]
-    column: baseline
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
 
-- id: corrected_emission_factor
-  name: Korrigierter Emissionsfaktor
-  name_en: Corrected emission factor
-  description: Eine Maßnahme (A) hat eine bekannte Auswirkung auf das Ergebnis 
-    (R) über einen Multiplikator (M1).</br> Da R = M1 * M2, mit Maßnahme R + A =
-    M1' * M2 <=> M1' = (M1 * M2 + A) / M2 = M1 + A / M2.
-  description_en: An action (A) has a known effect on the result (R) via one 
-    multiplier (M1).</br> As R = M1 * M2, with action R + A = M1' * M2 <=> M1' =
-    (M1 * M2 + A) / M2 = M1 + A / M2.
+- id: scenario_emission_factor
+  name: Szenario Emissionfaktor
+  name_en: Scenario emission factor
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t/MWh
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: scenario_emissions_data
+  - id: scenario_energy
+    tags: [geometric_inverse]
+  params:
+    operations: multiply,drop_nans,drop_infs
+
+- id: emission_factor_correction
+  name: Emission factor correction
   type: generic.GenericNode
   quantity: emission_factor
   unit: g/kWh
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: trend_scenario_emission_factor
-  - id: masterplan_scenario_energy
+  - id: scenario_energy
     tags: [geometric_inverse]
   - id: scenario_emissions
-    from_dimensions:
-    - id: scenario
-      categories: [masterplan_scenario, actual]
-      flatten: true
   params:
-    operations: multiply,add,drop_infs
+    operations: multiply,drop_infs
+
+- id: corrected_emission_factor
+  name: Korrigierter Emissionsfaktor
+  name_en: Corrected emission factor
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: scenario_emission_factor
+  - id: emission_factor_correction
 
 - id: corrected_emissions
   name: Korrigierter Emissionen
@@ -510,8 +366,10 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: trend_scenario_energy
+  - id: scenario_energy
   - id: corrected_emission_factor
+  output_nodes:
+  - id: net_emissions
 
 ##### COSTS
 
@@ -537,7 +395,7 @@ nodes:
 #   - id: masterplan_scenario_energy
 #   - id: energy_prices
 
-# SUMMRY IMPACTS
+# SUMMARY IMPACTS
 
 - id: heat_generation_networks
   name: Ausbau Erneuerbare Energien in der Wärmeerzeugung (Wärmenetze)
@@ -546,10 +404,13 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  input_datasets:
-  - id: potsdam/action_baseline
-    tags: [baseline]
-    column: baseline
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  # output_nodes:
+  # - id: masterplan_scenario_energy
+  #   to_dimensions:
+  #   - id: sector
+  #     categories: [heating]
 
 - id: heat_generation_individual
   name: Ausbau Erneuerbare Energien in der Wärmeerzeugung (Einzelversorgung)
@@ -570,10 +431,27 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  input_datasets:
-  - id: potsdam/action_baseline
-    tags: [baseline]
-    column: baseline
+  # input_dimensions: [energy_carrier, sector]
+  # output_dimensions: [energy_carrier, sector]
+  # input_datasets:
+  # - id: potsdam/action_baseline
+  #   tags: [baseline]
+  #   column: baseline
+  # input_nodes:
+  # - id: masterplan_scenario_energy
+  #   tags: [use_as_shares]
+  #   from_dimensions:
+  #   - id: sector
+  #     categories: [heating]
+  # params:
+  #   operations: skip_dim_test,use_as_shares
+  output_nodes:
+  - id: scenario_emissions
+    to_dimensions:
+    - id: energy_carrier
+      categories: [district_heating]
+    - id: sector
+      categories: [heating]
 
 - id: heat_consumption_individual
   name: Änderung im Wärmeverbrauch (Einzelversorgung)
@@ -657,7 +535,9 @@ actions:
       value: district_heating_until_2030
   output_nodes:
   - id: heat_generation_networks
-    to_dimensions: []
+    to_dimensions:
+    - id: energy_carrier
+      categories: [district_heating]
 
 - id: district_heating_2030_2040 # Split by energy carrier and sector. Affect emission factor
   name: weitere Maßnahmen EWP Fernwärme 2030-2040 (+ weitere 50% EE = 80% EE)
@@ -677,7 +557,9 @@ actions:
       value: district_heating_2030_2040
   output_nodes:
   - id: heat_generation_networks
-    to_dimensions: []
+    to_dimensions:
+    - id: energy_carrier
+      categories: [district_heating]
 
 - id: district_heating_2040_2045 # Split by energy carrier and sector. Affect emission factor
   name: weitere Maßnahmen EWP Fernwärme 2040-2045 (+ weitere 20% EE = 100% EE)
@@ -697,7 +579,9 @@ actions:
       value: district_heating_2040_2045
   output_nodes:
   - id: heat_generation_networks
-    to_dimensions: []
+    to_dimensions:
+    - id: energy_carrier
+      categories: [district_heating]
 
 - id: local_heating_networks_2045 # Split by energy carrier and sector. Affect emission factor
   name: Maßnahmen Nahwärmenetze bis 2045 (100% EE)
@@ -716,7 +600,9 @@ actions:
       value: local_heating_networks_2045
   output_nodes:
   - id: heat_generation_networks
-    to_dimensions: []
+    to_dimensions:
+    - id: energy_carrier
+      categories: [district_heating]
 
 - id: re_expansion_masterplan_2045 # Split by energy carrier and sector. Affect emission factor
   name: EE-Ausbau laut Masterplan 100% Klimaschutz bis 2045
@@ -774,6 +660,7 @@ actions:
       value: district_heating_reduction_renovation
   output_nodes:
   - id: heat_consumption_networks
+    # tags: [skip_dim_test]
 
 - id: decentralized_heat_reduction_renovation # Split by energy carrier and sector. Affect energy
   name: Reduktion des Wärmeverbrauchs durch Gebäudesanierung (dezentral)
