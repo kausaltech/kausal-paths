@@ -31,6 +31,7 @@ class FrameworkGroupMembershipRole(InstanceFieldGroupRole['Framework', 'Framewor
 class FrameworkAdminRole(FrameworkGroupMembershipRole, AdminRole['Framework']):
     id = FRAMEWORK_ADMIN_ROLE
     name = _("Framework admins")
+    description = _('Administrative access to the instance without permissions to manage people and organizations')
     group_name = "Framework admins"
     instance_group_field_name = 'admin_group'
 
@@ -58,6 +59,9 @@ class FrameworkAdminRole(FrameworkGroupMembershipRole, AdminRole['Framework']):
 class FrameworkViewerRole(FrameworkGroupMembershipRole, InstanceSpecificRole['Framework']):
     id = FRAMEWORK_VIEWER_ROLE
     name = _("Framework viewers")
+    description = _(
+        'Read-only access to instance data'
+    )
     group_name = "Framework viewers"
     instance_group_field_name = 'viewer_group'
 
