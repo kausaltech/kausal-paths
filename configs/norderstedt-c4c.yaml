@@ -1,12 +1,13 @@
 id: norderstedt-c4c
-default_language: en
-supported_languages: []
+default_language: de
+supported_languages: [en]
 site_url: https://norderstedt-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 39e1d6015ab1f42a18eefca81a6720c3706d3616
+  commit: 0eb2d7a0333a050663c538863a1d41ce8299c032
   dvc_remote: kausal-s3
-name: Norderstedt Greenhouse Gas Inventory
+name: Treibhausgasbilanz Norderstedt
+name_en: Norderstedt Greenhouse Gas Inventory
 owner: City of Norderstedt
 theme_identifier: eu-climate-4-cast
 target_year: 2040
@@ -14,222 +15,128 @@ model_end_year: 2040
 reference_year: 2020
 minimum_historical_year: 2020
 maximum_historical_year: 2023
-emission_unit: t/a
+emission_unit: t_co2e/a
 emission_forecast_from: 2024
 emission_dimensions: []
 features:
   baseline_visible_in_graphs: true
   use_datasets_from_db: true
 
-action_groups:
-- id: i_stationary
-  name: Stationary
-  color: '#4e79a7'
-- id: v_afolu
-  name: AFOLU
-  color: '#b07aa1'
+# action_groups:
+# - id: i_stationary
+#   name: Stationary
+#   color: '#4e79a7'
+# - id: v_afolu
+#   name: AFOLU
+#   color: '#b07aa1'
 
-impact_overviews:
-- graph_type: cost_efficiency
-  cost_node: aggregate_net_price
-  effect_node: net_emissions
-  indicator_unit: EUR/t
-  cost_unit: MEUR
-  effect_unit: t
-  plot_limit_for_indicator: 20000
-  label: Cost efficiency
+# impact_overviews:
+# - graph_type: cost_efficiency
+#   cost_node: aggregate_net_price
+#   effect_node: net_emissions
+#   indicator_unit: EUR/t
+#   cost_unit: MEUR
+#   effect_unit: t
+#   plot_limit_for_indicator: 20000
+#   label: Cost efficiency
 
-- graph_type: cost_benefit
-  cost_node: cost_benefit_analysis
-  effect_node: cost_benefit_analysis
-  indicator_unit: kEUR
-  outcome_dimension: cost_benefit
-  label: Cost-benefit
+# - graph_type: cost_benefit
+#   cost_node: cost_benefit_analysis
+#   effect_node: cost_benefit_analysis
+#   indicator_unit: kEUR
+#   outcome_dimension: cost_benefit
+#   label: Cost-benefit
 
-- graph_type: return_on_investment_gross # Assumes gross benefits; costs will be subtracted
-  cost_node: total_costs
-  effect_node: total_benefits
-  indicator_unit: '%'
-  label: Return on investment
+# - graph_type: return_on_investment_gross # Assumes gross benefits; costs will be subtracted
+#   cost_node: total_costs
+#   effect_node: total_benefits
+#   indicator_unit: '%'
+#   label: Return on investment
 
 dimensions:
-- id: scope
-  label: Scope
-  categories:
-  - id: scope1
-    label: 'Scope 1'
-  - id: scope2
-    label: 'Scope 2'
-
-- id: ghg
-  label: GHG
-  categories:
-  - id: co2
-    label: 'CO2'
-
-- id: energy_carrier
-  label: Energy Carrier
-  categories:
-  - id: electricity
-    label: 'Electricity'
-  - id: electricity_and_heating_existing_buildings
-    label: Electricity & Heating (Existing Buildings)
-  - id: electricity_and_heating_new_buildings
-    label: Electricity & Heating (New Buildings)
-
 - id: cost_type
   label: Cost Type
   categories:
   - id: operations
-    label: 'Operations'
+    label: Operations
   - id: capex_infrastructure
-    label: 'Capex, Infrastructure'
+    label: Capex, Infrastructure
   - id: opex_infrastructure
-    label: 'Opex, Infrastructure'
+    label: Opex, Infrastructure
 
 - id: sector
-  label: GPC Sector
+  label: Sektor
+  label_en: Sector
   categories:
   - id: i
-    label: 'I Stationary'
+    label: Stationäre Energie
+    label_en: Stationary Energy
   - id: i1
-    label: 'I.1 Residential'
-  - id: i11
-    label: 'I.1.1 Residential Fuel'
-  - id: i12
-    label: 'I.1.2 Residential Grid Energy'
-  - id: i13
-    label: 'I.1.3 Residential T & D Loss'
+    label: Private Haushalte
+    label_en: Private Households
   - id: i2
-    label: 'I.2 Commercial & Institutional'
-  - id: i21
-    label: 'I.2.1 Commercial & Institutional Fuel'
-  - id: i22
-    label: 'I.2.2 Commercial & Institutional Grid Energy'
-  - id: i23
-    label: 'I.2.3 Commercial & Institutional T & D Loss'
+    label: Kleingewerbe
+    label_en: Small Businesses and Industries
   - id: i3
-    label: 'I.3 Manufacturing'
-  - id: i31
-    label: 'I.3.1 Manufacturing Fuel'
-  - id: i32
-    label: 'I.3.2 Manufacturing Grid Energy'
-  - id: i33
-    label: 'I.3.3 Manufacturing T & D Loss'
+    label: Großverbaucher und Industrie
+    label_en: Manufacturing and Industry
   - id: i4
-    label: 'I.4 Energy'
+    label: Stadtverwaltung stationäre Energie
+    label_en: City Administration Stationary Energy
   - id: i41
-    label: 'I.4.1 Energy Fuel'
+    label: Strom städtische Gebäude
+    label_en: Electricity in Municipal Buildings
   - id: i42
-    label: 'I.4.2 Energy Grid Energy'
+    label: Wärme städtische Gebäude (Strom und Fernwärme)
+    label_en: Electric and District Heat in Municipal Buildings
   - id: i43
-    label: 'I.4.3 Energy T & D Loss'
-  - id: i5
-    label: 'I.5 Ag, Forestry, & Fishing'
-  - id: i51
-    label: 'I.5.1 Ag, Forestry, & Fishing Fuel'
-  - id: i52
-    label: 'I.5.2 Ag, Forestry, & Fishing Grid Energy'
-  - id: i53
-    label: 'I.5.3 Ag, Forestry, & Fishing T & D Loss'
-  - id: i6
-    label: 'I.6 Non-Specified'
-  - id: i61
-    label: 'I.6.1 Non-Specified Fuel'
-  - id: i62
-    label: 'I.6.2 Non-Specified Grid Energy'
-  - id: i63
-    label: 'I.6.3 Non-Specified T & D Loss'
-  - id: i7
-    label: 'I.7 Fugitive Coal'
-  - id: i71
-    label: 'I.7.1 Fugitive Coal'
-  - id: i8
-    label: 'I.8 Fugitive Oil & Natural Gas'
-  - id: i81
-    label: 'I.8.1 Fugitive Oil & Natural Gas'
+    label: Wärme städtische Gebäude (fossil)
+    label_en: Fossil Fuel Heat in Municipal Buildings
   - id: ii
-    label: 'II Transportation'
+    label: Verkehr
+    label_en: Transportation
   - id: ii1
-    label: 'II.1 On-Road Transport'
-  - id: ii11
-    label: 'II.1.1 On-Road Transport Fuel'
-  - id: ii12
-    label: 'II.1.2 On-Road Transport Grid Energy'
-  - id: ii13
-    label: 'II.1.3 On-Road Transport Outside City, T & D Loss'
+    label: Alltagsmobilität MIV
+    label_en: 'Everyday Mobility: Motorised Private Transport'
   - id: ii2
-    label: 'II.2 Railway'
-  - id: ii21
-    label: 'II.2.1 Railway Fuel'
-  - id: ii22
-    label: 'II.2.2 Railway Grid Energy'
-  - id: ii23
-    label: 'II.2.3 Railway Outside City, T & D Loss'
+    label: Alltagsmobilität ÖPNV
+    label_en: 'Everyday Mobility: Public Transport'
   - id: ii3
-    label: 'II.3 Waterborne'
-  - id: ii31
-    label: 'II.3.1 Waterborne Fuel'
-  - id: ii32
-    label: 'II.3.2 Waterborne Grid Energy'
-  - id: ii33
-    label: 'II.3.3 Waterborne Outside City, T & D Loss'
+    label: Inlandreiseverkehr (MIV+ÖPNV)
+    label_en: Domestic Travel
   - id: ii4
-    label: 'II.4 Aviation'
-  - id: ii41
-    label: 'II.4.1 Aviation Fuel'
-  - id: ii42
-    label: 'II.4.2 Aviation Grid Energy'
-  - id: ii43
-    label: 'II.4.3 Aviation Outside City, T & D Loss'
+    label: Flüge
+    label_en: Air Travel
   - id: ii5
-    label: 'II.5 Off-Road Transport'
-  - id: ii51
-    label: 'II.5.1 Off-Road Transport Fuel'
-  - id: ii52
-    label: 'II.5.2 Off-Road Transport Grid Energy'
-  - id: ii53
-    label: 'II.5.3 Off-Road Transport Outside City, T & D Loss'
+    label: LKW-Verkehre
+    label_en: HGV Traffic
+  - id: ii6
+    label: Stadtverwaltung Verkehr
+    label_en: City Administration Transport
+  - id: ii61
+    label: Kommunaler Fuhrpark (Kraftstoffe fossil)
+    label_en: Municipal Fleet (Fossil Fuels)
   - id: iii
-    label: 'III Waste'
+    label: Abfall
+    label_en: Waste
   - id: iii1
-    label: 'III.1 Solid Waste'
-  - id: iii11
-    label: 'III.1.1 Solid Waste Disposed in City'
-  - id: iii12
-    label: 'III.1.2 Solid Waste Disposed Outside City'
+    label: Abfälle
+    label_en: Waste
   - id: iii2
-    label: 'III.2 Biological Waste'
-  - id: iii21
-    label: 'III.2.1 Biological Waste Treated in City'
-  - id: iii22
-    label: 'III.2.2 Biological Waste Treated Outside City'
-  - id: iii3
-    label: 'III.3 Incineration'
-  - id: iii31
-    label: 'III.3.1 Incineration in City'
-  - id: iii32
-    label: 'III.3.2 Incineration Outside City'
-  - id: iii4
-    label: 'III.4 Wastewater'
-  - id: iii41
-    label: 'III.4.1 Wastewater Treated in City'
-  - id: iii42
-    label: 'III.4.2 Wastewater Treated Outside City'
-  - id: iv
-    label: 'IV IPPU'
-  - id: iv1
-    label: 'IV.1 Industrial Processes'
-  - id: iv2
-    label: 'IV.2 Product Use'
+    label: Abwasser
+    label_en: Wastewater
   - id: v
-    label: 'V AFOLU'
+    label: Landnutzung
+    label_en: Land Use
   - id: v1
-    label: 'V.1 Livestock'
+    label: Landwirtschaft
+    label_en: Agriculture
   - id: v2
-    label: 'V.2 Land'
+    label: Naturnahe Flächen
+    label_en: Semi-Natural Areas
   - id: v3
-    label: 'V.3 Aggregate Sources'
+    label: Senken
+    label_en: Sinks
 
 - id: action
   label: Action
@@ -264,310 +171,306 @@ dimensions:
     label: School Forest "Wittmoor"
 
 - id: cost_benefit
-  label: Cost-Benefit
+  label: Kosten-Nutzen
+  label_en: Cost-Benefit
   categories:
   - id: cost
-    label: 'Cost'
+    label: Kosten
+    label_en: Costs
   - id: benefit
-    label: 'Benefit'
+    label: Nutzen
+    label_en: Benefits
 
 emission_sectors:
 - id: net_emissions
-  name: Net Emissions
+  name: Nettoemissionen
+  name_en: Net Emissions
+  is_outcome: true
+
+- id: net_emissions_city_administration
+  name: Nettoemissionen (Stadtverwaltung)
+  name_en: Net Emissions (City Administration)
   is_outcome: true
 
 nodes:
-- id: net_price
-  name: Net Price
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: EUR/a
-  input_dimensions: ['cost_type', 'scope']
-  output_dimensions: ['cost_type', 'scope']
-  is_outcome: true
+# ----- Emissions
 
-- id: i22_commercial_and_institutional_grid_energy_emission_factor
-  name: I.2.2 Commercial & Institutional Grid Energy Emission Factor
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: kg/kWh
-  input_dimensions: ['energy_carrier', 'scope', 'ghg']
-  output_dimensions: ['energy_carrier', 'scope', 'ghg']
-  input_datasets:
-  - id: norderstedt/stationary
-    column: emission_factor
-    dropna: true
-    forecast_from: 2024
-    filters:
-    - column: sector
-      value: i22
-    - column: cost_type
-  output_nodes:
-  - id: i_stationary_energy_consumption_emissions
-    to_dimensions:
-    - id: energy_carrier
-    - id: scope
-    - id: ghg
-
-- id: i22_commercial_and_institutional_grid_energy_unit_price
-  name: I.2.2 Commercial & Institutional Grid Energy Unit Price
-  type: simple.AdditiveNode
-  quantity: unit_price
-  unit: EUR/kWh
-  input_dimensions: ['energy_carrier', 'cost_type', 'scope']
-  output_dimensions: ['energy_carrier', 'cost_type', 'scope']
-  input_datasets:
-  - id: norderstedt/stationary
-    column: unit_price
-    dropna: true
-    forecast_from: 2024
-    filters:
-    - column: sector
-      value: i22
-    - column: ghg
-  output_nodes:
-  - id: i_stationary_energy_consumption_price
-    to_dimensions:
-    - id: scope
-    - id: energy_carrier
-    - id: cost_type
-
-- id: v2_land_emissions
-  name: V.2 Land Emissions
+# ---------- Stationary Energy
+- id: i1_private_household_emissions
+  name: Private Haushalte
+  name_en: Private Households
   type: simple.AdditiveNode
   quantity: emissions
-  unit: t/a
-  input_dimensions: ['ghg', 'scope']
-  output_dimensions: ['ghg', 'scope']
-  output_nodes:
-  - id: v_afolu_total_emissions
-    from_dimensions:
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: ghg
-
-- id: v2_land_price
-  name: V.2 Land Price
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: EUR/a
-  input_dimensions: ['action', 'cost_type', 'scope']
-  output_dimensions: ['action', 'cost_type', 'scope']
-  output_nodes:
-  - id: v_afolu_total_price
-    to_dimensions:
-    - id: action
-    - id: cost_type
-    - id: scope
-
-- id: i_stationary_total_emissions
-  name: I Stationary Total Emissions
-  type: simple.AdditiveNode
-  color: '#4e79a7'
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
-  input_datasets:
-  - id: norderstedt/stationary
-    column: emissions
-    dropna: true
-    forecast_from: 2024
-    filters:
-    - column: sector
-      value: i
-    - column: scope
-    - column: energy_carrier
-    - column: cost_type
-  output_nodes:
-  - id: net_emissions
-    from_dimensions:
-    - id: ghg
-      flatten: true
-
-- id: i_stationary_energy_consumption
-  name: I Stationary Energy Consumption
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: kWh/a
-  input_dimensions: ['energy_carrier', 'scope', 'action']
-  output_dimensions: ['energy_carrier', 'scope', 'action']
-  output_nodes:
-  - id: i_stationary_energy_consumption_emissions
-    tags: [non_additive]
-    to_dimensions:
-    - id: energy_carrier
-    - id: scope
-    - id: action
-  - id: i_stationary_energy_consumption_price
-    tags: [non_additive]
-    to_dimensions:
-    - id: energy_carrier
-    - id: scope
-    - id: action
-
-- id: i_stationary_energy_consumption_emissions
-  name: I Stationary Energy Consumption Emissions
-  type: simple.MultiplicativeNode
-  quantity: energy
-  unit: t/a
-  input_dimensions: ['energy_carrier', 'scope', 'action', 'ghg']
-  output_dimensions: ['energy_carrier', 'scope', 'action', 'ghg']
-  output_nodes:
-  - id: i_stationary_total_emissions
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    - id: scope
-      flatten: true
-    - id: action
-      flatten: true
-
-- id: i_stationary_energy_consumption_price
-  name: I Stationary Energy Consumption Price
-  type: simple.MultiplicativeNode
-  quantity: energy
-  unit: EUR/a
-  input_dimensions: ['energy_carrier', 'cost_type', 'scope', 'action']
-  output_dimensions: ['energy_carrier', 'cost_type', 'scope', 'action']
-  output_nodes:
-  - id: i_stationary_total_price
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-
-- id: ii_transportation_total_emissions
-  name: II Transportation Total Emissions
-  type: simple.AdditiveNode
-  color: '#e15759'
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
-  input_datasets:
-  - id: norderstedt/transportation
-    column: emissions
-    dropna: true
-    forecast_from: 2024
-    filters:
-    - column: sector
-      value: ii
-  output_nodes:
-  - id: net_emissions
-    from_dimensions:
-    - id: ghg
-      flatten: true
-
-- id: iii_waste_total_emissions
-  name: III Waste Total Emissions
-  type: simple.AdditiveNode
-  color: '#59a14f'
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
-  input_datasets:
-  - id: norderstedt/waste
-    column: emissions
-    dropna: true
-    forecast_from: 2024
-    filters:
-    - column: sector
-      value: iii
-  output_nodes:
-  - id: net_emissions
-    from_dimensions:
-    - id: ghg
-      flatten: true
-
-- id: v_afolu_emissions
-  name: V AFOLU Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
-  input_datasets:
-  - id: norderstedt/afolu
-    column: emissions
-    dropna: true
-    forecast_from: 2024
-    filters:
-    - column: sector
-      value: v
-  output_nodes:
-  - id: v_afolu_total_emissions
-    to_dimensions:
-    - id: ghg
-
-- id: v_afolu_total_emissions
-  name: V AFOLU Total Emissions
-  type: simple.AdditiveNode
-  color: '#b07aa1'
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
-  output_nodes:
-  - id: net_emissions
-    from_dimensions:
-    - id: ghg
-      flatten: true
-
-- id: v_afolu_total_price
-  name: V AFOLU Total Price
-  type: simple.AdditiveNode
-  color: '#b07aa1'
-  quantity: currency
-  unit: EUR/a
-  input_dimensions: ['action', 'cost_type', 'scope']
-  output_dimensions: ['action', 'cost_type', 'scope']
-  output_nodes:
-  - id: net_price
-    from_dimensions:
-    - id: action
-      flatten: true
-    to_dimensions:
-    - id: cost_type
-    - id: scope
-
-- id: i_stationary_total_price
-  name: I Stationary Total Price
-  type: simple.AdditiveNode
-  color: '#4e79a7'
-  quantity: currency
-  unit: EUR/a
-  input_dimensions: ['action', 'cost_type', 'scope']
-  output_dimensions: ['action', 'cost_type', 'scope']
-  output_nodes:
-  - id: net_price
-    from_dimensions:
-    - id: action
-      flatten: true
-    to_dimensions:
-    - id: cost_type
-    - id: scope
-
-# ----- COSTS & BENEFITS ------------------------------------------------------
-
-- id: aggregate_net_price
-  name: Net Cost
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MEUR/a
+  unit: t_co2e/a
   input_dimensions: []
   output_dimensions: []
-  input_nodes:
-  - id: net_price
-    from_dimensions:
-    - id: cost_type
-      flatten: true
-    - id: scope
-      flatten: true
+  input_datasets:
+  - id: norderstedt/baseline
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: i1
+  output_nodes:
+  - id: i_stationary_energy_emissions
 
+- id: i2_small_business_and_industry_emissions
+  name: Kleingewerbe
+  name_en: Small Businesses and Industries
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: norderstedt/baseline
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: i2
+  output_nodes:
+  - id: i_stationary_energy_emissions
+
+- id: i3_manufacturing_and_industry_emissions
+  name: Großverbaucher und Industrie
+  name_en: Manufacturing and Industry
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: norderstedt/baseline
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: i3
+  output_nodes:
+  - id: i_stationary_energy_emissions
+
+- id: i4_city_administration_emissions
+  name: Stadtverwaltung stationäre Energie
+  name_en: City Administration Stationary Energy
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_datasets:
+  - id: norderstedt/baseline
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - dimension: sector
+      categories: [i41, i42, i43]
+  output_nodes:
+  - id: i_stationary_energy_emissions
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions: []
+  - id: net_emissions_city_administration
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions: []
+
+- id: i_stationary_energy_emissions
+  name: Stationäre Energie
+  name_en: Stationary Energy
+  color: '#4E79A7'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: []
+  output_dimensions: []
+  output_nodes:
+  - id: net_emissions
+
+# ---------- Transportation
+- id: ii1_private_transport_emissions
+  name: Alltagsmobilität MIV
+  name_en: 'Everyday Mobility: Motorised Private Transport'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: norderstedt/baseline
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii1
+  output_nodes:
+  - id: ii_transportation_emissions
+
+- id: ii2_public_transport_emissions
+  name: Alltagsmobilität ÖPNV
+  name_en: 'Everyday Mobility: Public Transport'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: norderstedt/baseline
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii2
+  output_nodes:
+  - id: ii_transportation_emissions
+
+- id: ii3_domestic_travel_emissions
+  name: Inlandreiseverkehr (MIV+ÖPNV)
+  name_en: Domestic Travel
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: norderstedt/baseline
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii3
+  output_nodes:
+  - id: ii_transportation_emissions
+
+- id: ii4_air_travel_emissions
+  name: Flüge
+  name_en: Air Travel
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: norderstedt/baseline
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii4
+  output_nodes:
+  - id: ii_transportation_emissions
+
+- id: ii5_hgv_traffic_emissions
+  name: LKW-Verkehre
+  name_en: HGV Traffic
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: norderstedt/baseline
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii5
+  output_nodes:
+  - id: ii_transportation_emissions
+
+- id: ii6_city_administration_emissions
+  name: Stadtverwaltung Verkehr
+  name_en: City Administration Transport
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_datasets:
+  - id: norderstedt/baseline
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - dimension: sector
+      categories: [ii61]
+  output_nodes:
+  - id: ii_transportation_emissions
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions: []
+  - id: net_emissions_city_administration
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions: []
+
+- id: ii_transportation_emissions
+  name: Verkehr
+  name_en: Transportation
+  color: '#E15759'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: []
+  output_dimensions: []
+  output_nodes:
+  - id: net_emissions
+
+# ---------- Waste
+- id: iii_waste_emissions
+  name: Abfall
+  name_en: Waste
+  color: '#59A14F'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_datasets:
+  - id: norderstedt/baseline
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - dimension: sector
+      categories: [iii1, iii2]
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions: []
+
+# ---------- Land Use
+- id: v_land_use_emissions
+  name: Landnutzung
+  name_en: Land Use
+  color: '#B07AA1'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_datasets:
+  - id: norderstedt/baseline
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - dimension: sector
+      categories: [v1, v2, v3]
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions: []
+
+# ----- Costs & Benefits
 - id: total_costs
-  name: Total Costs
+  name: Gesamtkosten
+  name_en: Total Costs
   type: simple.AdditiveNode
   quantity: currency
   unit: EUR/a
@@ -575,7 +478,8 @@ nodes:
   output_dimensions: []
 
 - id: total_benefits
-  name: Total Benefits
+  name: Gesamtnutzen
+  name_en: Total Benefits
   type: simple.AdditiveNode
   quantity: currency
   unit: EUR/a
@@ -583,8 +487,8 @@ nodes:
   output_dimensions: []
 
 - id: cost_benefit_analysis
-  name: Cost-benefit analysis
-  name_en: Cost-benefit analysis
+  name: Kosten-Nutzen-Analyse
+  name_en: Cost-Benefit Analysis
   type: simple.AdditiveNode
   quantity: currency
   unit: EUR/a
@@ -600,746 +504,745 @@ nodes:
     - id: cost_benefit
       categories: [benefit]
 
-actions:
-- id: change_streetlights_to_led
-  name: Change Street Lights to LED
-  type: simple.AdditiveAction
-  group: i_stationary
-  input_dimensions: ['action', 'cost_type', 'scope', 'energy_carrier', 'ghg']
-  output_dimensions: ['action', 'cost_type', 'scope', 'energy_carrier', 'ghg']
-  params:
-    allow_null_categories: true
+# actions:
+# - id: change_streetlights_to_led
+#   name: Change Street Lights to LED
+#   type: simple.AdditiveAction
+#   group: i_stationary
+#   input_dimensions: ['action', 'cost_type', 'scope', 'energy_carrier', 'ghg']
+#   output_dimensions: ['action', 'cost_type', 'scope', 'energy_carrier', 'ghg']
+#   params:
+#     allow_null_categories: true
 
-  input_datasets:
-  - id: norderstedt/stationary_actions
-    forecast_from: 2024
-    filters:
-    - column: sector
-    - dimension: action
-      categories: [change_streetlights_to_led]
+#   input_datasets:
+#   - id: norderstedt/stationary_actions
+#     forecast_from: 2024
+#     filters:
+#     - column: sector
+#     - dimension: action
+#       categories: [change_streetlights_to_led]
 
-  output_metrics:
-  - id: currency
-    unit: EUR/a
-    quantity: currency
-  - id: emissions
-    unit: kg/a
-    quantity: emissions
+#   output_metrics:
+#   - id: currency
+#     unit: EUR/a
+#     quantity: currency
+#   - id: emissions
+#     unit: kg/a
+#     quantity: emissions
 
-  output_nodes:
-  - id: i_stationary_total_price
-    metrics: [currency]
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    - id: ghg
-      flatten: true
-    to_dimensions:
-    - id: action
-    - id: cost_type
-    - id: scope
-  - id: total_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      categories: [capex_infrastructure]
-      flatten: true
-    - id: scope
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: ghg
-      flatten: true
-  - id: total_benefits
-    metrics: [currency]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      categories: [opex_infrastructure]
-      flatten: true
-    - id: scope
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: ghg
-      flatten: true
-  - id: i_stationary_total_emissions
-    metrics: [emissions]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      flatten: true
-    - id: scope
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: ghg
-
-
-- id: change_street_lights_to_led_moorkamp_street
-  name: Change Street Lights to LED (Moorkamp Street)
-  type: simple.AdditiveAction
-  group: i_stationary
-  input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
-  output_dimensions: ['action', 'cost_type', 'scope', 'ghg']
-  params:
-    allow_null_categories: true
-
-  input_datasets:
-  - id: norderstedt/stationary_actions
-    forecast_from: 2024
-    filters:
-    - column: sector
-    - dimension: action
-      categories: [change_traffic_lights_to_led_moorkamp_street]
-    - column: energy_carrier
-
-  output_metrics:
-  - id: currency
-    unit: EUR/a
-    quantity: currency
-  - id: emissions
-    unit: kg/a
-    quantity: emissions
-
-  output_nodes:
-  - id: i_stationary_total_price
-    metrics: [currency]
-    from_dimensions:
-    - id: ghg
-      flatten: true
-    to_dimensions:
-    - id: action
-    - id: cost_type
-    - id: scope
-  - id: total_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      categories: [capex_infrastructure]
-      flatten: true
-    - id: scope
-      flatten: true
-    - id: ghg
-      flatten: true
-  - id: total_benefits
-    metrics: [currency]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      categories: [opex_infrastructure]
-      flatten: true
-    - id: scope
-      flatten: true
-    - id: ghg
-      flatten: true
-  - id: i_stationary_total_emissions
-    metrics: [emissions]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      flatten: true
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: ghg
+#   output_nodes:
+#   - id: i_stationary_total_price
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: energy_carrier
+#       flatten: true
+#     - id: ghg
+#       flatten: true
+#     to_dimensions:
+#     - id: action
+#     - id: cost_type
+#     - id: scope
+#   - id: total_costs
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: action
+#       flatten: true
+#     - id: cost_type
+#       categories: [capex_infrastructure]
+#       flatten: true
+#     - id: scope
+#       flatten: true
+#     - id: energy_carrier
+#       flatten: true
+#     - id: ghg
+#       flatten: true
+#   - id: total_benefits
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: action
+#       flatten: true
+#     - id: cost_type
+#       categories: [opex_infrastructure]
+#       flatten: true
+#     - id: scope
+#       flatten: true
+#     - id: energy_carrier
+#       flatten: true
+#     - id: ghg
+#       flatten: true
+#   - id: i_stationary_total_emissions
+#     metrics: [emissions]
+#     from_dimensions:
+#     - id: action
+#       flatten: true
+#     - id: cost_type
+#       flatten: true
+#     - id: scope
+#       flatten: true
+#     - id: energy_carrier
+#       flatten: true
+#     to_dimensions:
+#     - id: ghg
 
 
-- id: change_traffic_lights_to_led_total
-  name: Change Traffic Lights to LED (Total)
-  type: simple.AdditiveAction
-  group: i_stationary
-  input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
-  output_dimensions: ['action', 'cost_type', 'scope', 'ghg']
-  params:
-    allow_null_categories: true
+# - id: change_street_lights_to_led_moorkamp_street
+#   name: Change Street Lights to LED (Moorkamp Street)
+#   type: simple.AdditiveAction
+#   group: i_stationary
+#   input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
+#   output_dimensions: ['action', 'cost_type', 'scope', 'ghg']
+#   params:
+#     allow_null_categories: true
 
-  input_datasets:
-  - id: norderstedt/stationary_actions
-    forecast_from: 2024
-    filters:
-    - column: sector
-    - dimension: action
-      categories: [change_traffic_lights_to_led_total]
-    - column: energy_carrier
+#   input_datasets:
+#   - id: norderstedt/stationary_actions
+#     forecast_from: 2024
+#     filters:
+#     - column: sector
+#     - dimension: action
+#       categories: [change_traffic_lights_to_led_moorkamp_street]
+#     - column: energy_carrier
 
-  output_metrics:
-  - id: currency
-    unit: EUR/a
-    quantity: currency
-  - id: emissions
-    unit: kg/a
-    quantity: emissions
+#   output_metrics:
+#   - id: currency
+#     unit: EUR/a
+#     quantity: currency
+#   - id: emissions
+#     unit: kg/a
+#     quantity: emissions
 
-  output_nodes:
-  - id: i_stationary_total_price
-    metrics: [currency]
-    from_dimensions:
-    - id: ghg
-      flatten: true
-    to_dimensions:
-    - id: action
-    - id: cost_type
-    - id: scope
-  - id: total_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      categories: [capex_infrastructure]
-      flatten: true
-    - id: scope
-      flatten: true
-    - id: ghg
-      flatten: true
-  - id: total_benefits
-    metrics: [currency]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      categories: [opex_infrastructure]
-      flatten: true
-    - id: scope
-      flatten: true
-    - id: ghg
-      flatten: true
-  - id: i_stationary_total_emissions
-    metrics: [emissions]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      flatten: true
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: ghg
-
-
-- id: program_energy_refurbishment_for_private_households
-  name: Funding Program for Energy Refurbishment
-  type: simple.AdditiveAction
-  group: i_stationary
-  input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
-  output_dimensions: ['action', 'cost_type', 'scope', 'ghg']
-  params:
-    allow_null_categories: true
-
-  input_datasets:
-  - id: norderstedt/stationary_actions
-    forecast_from: 2024
-    filters:
-    - column: sector
-    - dimension: action
-      categories: [program_energy_refurbishment_for_private_households]
-    - column: energy_carrier
-
-  output_metrics:
-  - id: emissions
-    unit: kg/a
-    quantity: emissions
-  - id: currency
-    unit: EUR/a
-    quantity: currency
-
-  output_nodes:
-  - id: i_stationary_total_emissions
-    metrics: [emissions]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      flatten: true
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i_stationary_total_price
-    metrics: [currency]
-    from_dimensions:
-    - id: ghg
-      flatten: true
-    to_dimensions:
-    - id: action
-    - id: cost_type
-    - id: scope
-  - id: total_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      categories: [capex_infrastructure]
-      flatten: true
-    - id: scope
-      flatten: true
-    - id: ghg
-      flatten: true
-  - id: total_benefits
-    metrics: [currency]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      categories: [operations]
-      flatten: true
-    - id: scope
-      flatten: true
-    - id: ghg
-      flatten: true
+#   output_nodes:
+#   - id: i_stationary_total_price
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: ghg
+#       flatten: true
+#     to_dimensions:
+#     - id: action
+#     - id: cost_type
+#     - id: scope
+#   - id: total_costs
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: action
+#       flatten: true
+#     - id: cost_type
+#       categories: [capex_infrastructure]
+#       flatten: true
+#     - id: scope
+#       flatten: true
+#     - id: ghg
+#       flatten: true
+#   - id: total_benefits
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: action
+#       flatten: true
+#     - id: cost_type
+#       categories: [opex_infrastructure]
+#       flatten: true
+#     - id: scope
+#       flatten: true
+#     - id: ghg
+#       flatten: true
+#   - id: i_stationary_total_emissions
+#     metrics: [emissions]
+#     from_dimensions:
+#     - id: action
+#       flatten: true
+#     - id: cost_type
+#       flatten: true
+#     - id: scope
+#       flatten: true
+#     to_dimensions:
+#     - id: ghg
 
 
-- id: energy_refurbishment_school_building
-  name: Energy Refurbishment of School Building
-  type: simple.AdditiveAction
-  group: i_stationary
-  input_dimensions: ['action', 'cost_type', 'scope', 'energy_carrier', 'ghg']
-  output_dimensions: ['action', 'cost_type', 'scope', 'energy_carrier', 'ghg']
-  params:
-    allow_null_categories: true
+# - id: change_traffic_lights_to_led_total
+#   name: Change Traffic Lights to LED (Total)
+#   type: simple.AdditiveAction
+#   group: i_stationary
+#   input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
+#   output_dimensions: ['action', 'cost_type', 'scope', 'ghg']
+#   params:
+#     allow_null_categories: true
 
-  input_datasets:
-  - id: norderstedt/stationary_actions
-    forecast_from: 2024
-    filters:
-    - column: sector
-    - dimension: action
-      categories: [energy_refurbishment_school_building]
+#   input_datasets:
+#   - id: norderstedt/stationary_actions
+#     forecast_from: 2024
+#     filters:
+#     - column: sector
+#     - dimension: action
+#       categories: [change_traffic_lights_to_led_total]
+#     - column: energy_carrier
 
-  output_metrics:
-  - id: currency
-    unit: EUR/a
-    quantity: currency
-  - id: emissions
-    unit: kg/a
-    quantity: emissions
+#   output_metrics:
+#   - id: currency
+#     unit: EUR/a
+#     quantity: currency
+#   - id: emissions
+#     unit: kg/a
+#     quantity: emissions
 
-  output_nodes:
-  - id: i_stationary_total_emissions
-    metrics: [emissions]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      flatten: true
-    - id: scope
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i_stationary_total_price
-    metrics: [currency]
-    from_dimensions:
-    - id: scope
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: ghg
-      flatten: true
-    to_dimensions:
-    - id: action
-    - id: cost_type
-    - id: scope
-      categories: [scope2]
-  - id: total_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      categories: [capex_infrastructure]
-      flatten: true
-    - id: scope
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: ghg
-      flatten: true
-  - id: total_benefits
-    metrics: [currency]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      categories: [operations]
-      flatten: true
-    - id: scope
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: ghg
-      flatten: true
+#   output_nodes:
+#   - id: i_stationary_total_price
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: ghg
+#       flatten: true
+#     to_dimensions:
+#     - id: action
+#     - id: cost_type
+#     - id: scope
+#   - id: total_costs
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: action
+#       flatten: true
+#     - id: cost_type
+#       categories: [capex_infrastructure]
+#       flatten: true
+#     - id: scope
+#       flatten: true
+#     - id: ghg
+#       flatten: true
+#   - id: total_benefits
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: action
+#       flatten: true
+#     - id: cost_type
+#       categories: [opex_infrastructure]
+#       flatten: true
+#     - id: scope
+#       flatten: true
+#     - id: ghg
+#       flatten: true
+#   - id: i_stationary_total_emissions
+#     metrics: [emissions]
+#     from_dimensions:
+#     - id: action
+#       flatten: true
+#     - id: cost_type
+#       flatten: true
+#     - id: scope
+#       flatten: true
+#     to_dimensions:
+#     - id: ghg
 
 
-- id: new_school_building
-  name: New School Building
-  type: simple.AdditiveAction
-  group: i_stationary
-  input_dimensions: ['action', 'cost_type', 'scope', 'energy_carrier']
-  output_dimensions: ['action', 'cost_type', 'scope', 'energy_carrier']
-  params:
-    allow_null_categories: true
+# - id: program_energy_refurbishment_for_private_households
+#   name: Funding Program for Energy Refurbishment
+#   type: simple.AdditiveAction
+#   group: i_stationary
+#   input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
+#   output_dimensions: ['action', 'cost_type', 'scope', 'ghg']
+#   params:
+#     allow_null_categories: true
 
-  input_datasets:
-  - id: norderstedt/stationary_actions
-    forecast_from: 2024
-    filters:
-    - column: sector
-    - dimension: action
-      categories: [new_school_building]
-    - column: ghg
+#   input_datasets:
+#   - id: norderstedt/stationary_actions
+#     forecast_from: 2024
+#     filters:
+#     - column: sector
+#     - dimension: action
+#       categories: [program_energy_refurbishment_for_private_households]
+#     - column: energy_carrier
 
-  output_metrics:
-  - id: energy
-    unit: kWh/a
-    quantity: energy
-  - id: currency
-    unit: EUR/a
-    quantity: currency
+#   output_metrics:
+#   - id: emissions
+#     unit: kg/a
+#     quantity: emissions
+#   - id: currency
+#     unit: EUR/a
+#     quantity: currency
 
-  output_nodes:
-  - id: i_stationary_energy_consumption
-    metrics: [energy]
-    from_dimensions:
-    - id: cost_type
-      flatten: true
-    to_dimensions:
-    - id: action
-    - id: scope
-    - id: energy_carrier
-  - id: i_stationary_total_price
-    metrics: [currency]
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: action
-    - id: cost_type
-    - id: scope
-  - id: total_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      categories: [capex_infrastructure]
-      flatten: true
-    - id: scope
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-
-
-- id: roof_refurbishment_of_public_building
-  name: Roof Refurbishment of Public Building
-  type: simple.AdditiveAction
-  group: i_stationary
-  input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
-  output_dimensions: ['action', 'cost_type', 'scope', 'ghg']
-  params:
-    allow_null_categories: true
-
-  input_datasets:
-  - id: norderstedt/stationary_actions
-    forecast_from: 2024
-    filters:
-    - column: sector
-    - dimension: action
-      categories: [roof_refurbishment_for_public_building]
-    - column: energy_carrier
-
-  output_metrics:
-  - id: currency
-    unit: EUR/a
-    quantity: currency
-  - id: emissions
-    unit: kg/a
-    quantity: emissions
-
-  output_nodes:
-  - id: i_stationary_total_price
-    metrics: [currency]
-    from_dimensions:
-    - id: ghg
-      flatten: true
-    to_dimensions:
-    - id: action
-    - id: cost_type
-    - id: scope
-  - id: total_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      categories: [capex_infrastructure]
-      flatten: true
-    - id: scope
-      flatten: true
-    - id: ghg
-      flatten: true
-  - id: total_benefits
-    metrics: [currency]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      categories: [opex_infrastructure]
-      flatten: true
-    - id: scope
-      flatten: true
-    - id: ghg
-      flatten: true
-  - id: i_stationary_total_emissions
-    metrics: [emissions]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      flatten: true
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: ghg
+#   output_nodes:
+#   - id: i_stationary_total_emissions
+#     metrics: [emissions]
+#     from_dimensions:
+#     - id: action
+#       flatten: true
+#     - id: cost_type
+#       flatten: true
+#     - id: scope
+#       flatten: true
+#     to_dimensions:
+#     - id: ghg
+#   - id: i_stationary_total_price
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: ghg
+#       flatten: true
+#     to_dimensions:
+#     - id: action
+#     - id: cost_type
+#     - id: scope
+#   - id: total_costs
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: action
+#       flatten: true
+#     - id: cost_type
+#       categories: [capex_infrastructure]
+#       flatten: true
+#     - id: scope
+#       flatten: true
+#     - id: ghg
+#       flatten: true
+#   - id: total_benefits
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: action
+#       flatten: true
+#     - id: cost_type
+#       categories: [operations]
+#       flatten: true
+#     - id: scope
+#       flatten: true
+#     - id: ghg
+#       flatten: true
 
 
-- id: reforestation
-  name: Reforestation "Am wilden Moor"
-  type: simple.AdditiveAction
-  group: v_afolu
-  input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
-  output_dimensions: ['action', 'cost_type', 'scope', 'ghg']
-  params:
-    allow_null_categories: true
+# - id: energy_refurbishment_school_building
+#   name: Energy Refurbishment of School Building
+#   type: simple.AdditiveAction
+#   group: i_stationary
+#   input_dimensions: ['action', 'cost_type', 'scope', 'energy_carrier', 'ghg']
+#   output_dimensions: ['action', 'cost_type', 'scope', 'energy_carrier', 'ghg']
+#   params:
+#     allow_null_categories: true
 
-  input_datasets:
-  - id: norderstedt/afolu_actions
-    forecast_from: 2024
-    filters:
-    - column: sector
-    - dimension: action
-      categories: [reforestation]
+#   input_datasets:
+#   - id: norderstedt/stationary_actions
+#     forecast_from: 2024
+#     filters:
+#     - column: sector
+#     - dimension: action
+#       categories: [energy_refurbishment_school_building]
 
-  output_metrics:
-  - id: emissions
-    unit: kg/a
-    quantity: emissions
-  - id: currency
-    unit: EUR/a
-    quantity: currency
+#   output_metrics:
+#   - id: currency
+#     unit: EUR/a
+#     quantity: currency
+#   - id: emissions
+#     unit: kg/a
+#     quantity: emissions
 
-  output_nodes:
-  - id: v2_land_emissions
-    metrics: [emissions]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions:
-    - id: scope
-    - id: ghg
-  - id: v2_land_price
-    metrics: [currency]
-    from_dimensions:
-    - id: ghg
-      flatten: true
-    to_dimensions:
-    - id: action
-    - id: cost_type
-    - id: scope
-
-
-- id: tree_donation
-  name: Tree Donation
-  type: simple.AdditiveAction
-  group: v_afolu
-  input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
-  output_dimensions: ['action', 'cost_type', 'scope', 'ghg']
-  params:
-    allow_null_categories: true
-
-  input_datasets:
-  - id: norderstedt/afolu_actions
-    forecast_from: 2024
-    filters:
-    - column: sector
-    - dimension: action
-      categories: [tree_donation]
-
-  output_metrics:
-  - id: emissions
-    unit: kg/a
-    quantity: emissions
-  - id: currency
-    unit: EUR/a
-    quantity: currency
-
-  output_nodes:
-  - id: v2_land_emissions
-    metrics: [emissions]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions:
-    - id: scope
-    - id: ghg
-  - id: v2_land_price
-    metrics: [currency]
-    from_dimensions:
-    - id: ghg
-      flatten: true
-    to_dimensions:
-    - id: action
-    - id: cost_type
-    - id: scope
+#   output_nodes:
+#   - id: i_stationary_total_emissions
+#     metrics: [emissions]
+#     from_dimensions:
+#     - id: action
+#       flatten: true
+#     - id: cost_type
+#       flatten: true
+#     - id: scope
+#       flatten: true
+#     - id: energy_carrier
+#       flatten: true
+#     to_dimensions:
+#     - id: ghg
+#   - id: i_stationary_total_price
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: scope
+#       flatten: true
+#     - id: energy_carrier
+#       flatten: true
+#     - id: ghg
+#       flatten: true
+#     to_dimensions:
+#     - id: action
+#     - id: cost_type
+#     - id: scope
+#       categories: [scope2]
+#   - id: total_costs
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: action
+#       flatten: true
+#     - id: cost_type
+#       categories: [capex_infrastructure]
+#       flatten: true
+#     - id: scope
+#       flatten: true
+#     - id: energy_carrier
+#       flatten: true
+#     - id: ghg
+#       flatten: true
+#   - id: total_benefits
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: action
+#       flatten: true
+#     - id: cost_type
+#       categories: [operations]
+#       flatten: true
+#     - id: scope
+#       flatten: true
+#     - id: energy_carrier
+#       flatten: true
+#     - id: ghg
+#       flatten: true
 
 
-- id: school_forest_wittmoor
-  name: School Forest "Wittmoor"
-  type: simple.AdditiveAction
-  group: v_afolu
-  quantity: emissions
-  unit: kg/a
-  input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
-  output_dimensions: ['action', 'cost_type', 'scope', 'ghg']
-  params:
-    allow_null_categories: true
+# - id: new_school_building
+#   name: New School Building
+#   type: simple.AdditiveAction
+#   group: i_stationary
+#   input_dimensions: ['action', 'cost_type', 'scope', 'energy_carrier']
+#   output_dimensions: ['action', 'cost_type', 'scope', 'energy_carrier']
+#   params:
+#     allow_null_categories: true
 
-  input_datasets:
-  - id: norderstedt/afolu_actions
-    column: emissions
-    forecast_from: 2024
-    filters:
-    - column: sector
-    - dimension: action
-      categories: [school_forest_wittmoor]
+#   input_datasets:
+#   - id: norderstedt/stationary_actions
+#     forecast_from: 2024
+#     filters:
+#     - column: sector
+#     - dimension: action
+#       categories: [new_school_building]
+#     - column: ghg
 
-  output_nodes:
-  - id: v2_land_emissions
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions:
-    - id: scope
-    - id: ghg
+#   output_metrics:
+#   - id: energy
+#     unit: kWh/a
+#     quantity: energy
+#   - id: currency
+#     unit: EUR/a
+#     quantity: currency
 
-
-- id: decarbonize_municipal_electricity_corporate
-  name: Decarbonization of Electricity (Municipal)
-  type: simple.AdditiveAction
-  group: i_stationary
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
-  input_datasets:
-  - id: norderstedt/stationary_actions
-    column: emissions
-    forecast_from: 2024
-    filters:
-    - column: sector
-    - column: action
-      value: decarbonize_municipal_electricity_corporate
-    - column: scope
-    - column: cost_type
-    - column: energy_carrier
-  output_nodes:
-  - id: i_stationary_total_emissions
-    to_dimensions:
-    - id: ghg
-
-
-- id: decarbonize_municipal_electricity_community
-  name: Decarbonization of Electricity (Private)
-  type: simple.AdditiveAction
-  group: i_stationary
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
-  input_datasets:
-  - id: norderstedt/stationary_actions
-    column: emissions
-    forecast_from: 2024
-    filters:
-    - column: sector
-    - column: action
-      value: decarbonize_municipal_electricity_community
-    - column: scope
-    - column: cost_type
-    - column: energy_carrier
-  output_nodes:
-  - id: i_stationary_total_emissions
-    to_dimensions:
-    - id: ghg
+#   output_nodes:
+#   - id: i_stationary_energy_consumption
+#     metrics: [energy]
+#     from_dimensions:
+#     - id: cost_type
+#       flatten: true
+#     to_dimensions:
+#     - id: action
+#     - id: scope
+#     - id: energy_carrier
+#   - id: i_stationary_total_price
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: energy_carrier
+#       flatten: true
+#     to_dimensions:
+#     - id: action
+#     - id: cost_type
+#     - id: scope
+#   - id: total_costs
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: action
+#       flatten: true
+#     - id: cost_type
+#       categories: [capex_infrastructure]
+#       flatten: true
+#     - id: scope
+#       flatten: true
+#     - id: energy_carrier
+#       flatten: true
 
 
-- id: decarbonize_municipal_district_heating_corporate
-  name: Decarbonization of District Heating (Municipal)
-  type: simple.AdditiveAction
-  group: i_stationary
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
-  input_datasets:
-  - id: norderstedt/stationary_actions
-    column: emissions
-    forecast_from: 2024
-    filters:
-    - column: sector
-    - column: action
-      value: decarbonize_municipal_district_heating_corporate
-    - column: scope
-    - column: cost_type
-    - column: energy_carrier
-  output_nodes:
-  - id: i_stationary_total_emissions
-    to_dimensions:
-    - id: ghg
+# - id: roof_refurbishment_of_public_building
+#   name: Roof Refurbishment of Public Building
+#   type: simple.AdditiveAction
+#   group: i_stationary
+#   input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
+#   output_dimensions: ['action', 'cost_type', 'scope', 'ghg']
+#   params:
+#     allow_null_categories: true
+
+#   input_datasets:
+#   - id: norderstedt/stationary_actions
+#     forecast_from: 2024
+#     filters:
+#     - column: sector
+#     - dimension: action
+#       categories: [roof_refurbishment_for_public_building]
+#     - column: energy_carrier
+
+#   output_metrics:
+#   - id: currency
+#     unit: EUR/a
+#     quantity: currency
+#   - id: emissions
+#     unit: kg/a
+#     quantity: emissions
+
+#   output_nodes:
+#   - id: i_stationary_total_price
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: ghg
+#       flatten: true
+#     to_dimensions:
+#     - id: action
+#     - id: cost_type
+#     - id: scope
+#   - id: total_costs
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: action
+#       flatten: true
+#     - id: cost_type
+#       categories: [capex_infrastructure]
+#       flatten: true
+#     - id: scope
+#       flatten: true
+#     - id: ghg
+#       flatten: true
+#   - id: total_benefits
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: action
+#       flatten: true
+#     - id: cost_type
+#       categories: [opex_infrastructure]
+#       flatten: true
+#     - id: scope
+#       flatten: true
+#     - id: ghg
+#       flatten: true
+#   - id: i_stationary_total_emissions
+#     metrics: [emissions]
+#     from_dimensions:
+#     - id: action
+#       flatten: true
+#     - id: cost_type
+#       flatten: true
+#     - id: scope
+#       flatten: true
+#     to_dimensions:
+#     - id: ghg
 
 
-- id: decarbonize_municipal_district_heating_community
-  name: Decarbonization of District Heating (Private)
-  type: simple.AdditiveAction
-  group: i_stationary
-  quantity: emissions
-  unit: t/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
-  input_datasets:
-  - id: norderstedt/stationary_actions
-    column: emissions
-    forecast_from: 2024
-    filters:
-    - column: sector
-    - column: action
-      value: decarbonize_municipal_district_heating_community
-    - column: scope
-    - column: cost_type
-    - column: energy_carrier
-  output_nodes:
-  - id: i_stationary_total_emissions
-    to_dimensions:
-    - id: ghg
+# - id: reforestation
+#   name: Reforestation "Am wilden Moor"
+#   type: simple.AdditiveAction
+#   group: v_afolu
+#   input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
+#   output_dimensions: ['action', 'cost_type', 'scope', 'ghg']
+#   params:
+#     allow_null_categories: true
 
+#   input_datasets:
+#   - id: norderstedt/afolu_actions
+#     forecast_from: 2024
+#     filters:
+#     - column: sector
+#     - dimension: action
+#       categories: [reforestation]
+
+#   output_metrics:
+#   - id: emissions
+#     unit: kg/a
+#     quantity: emissions
+#   - id: currency
+#     unit: EUR/a
+#     quantity: currency
+
+#   output_nodes:
+#   - id: v2_land_emissions
+#     metrics: [emissions]
+#     from_dimensions:
+#     - id: action
+#       flatten: true
+#     - id: cost_type
+#       flatten: true
+#     to_dimensions:
+#     - id: scope
+#     - id: ghg
+#   - id: v2_land_price
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: ghg
+#       flatten: true
+#     to_dimensions:
+#     - id: action
+#     - id: cost_type
+#     - id: scope
+
+
+# - id: tree_donation
+#   name: Tree Donation
+#   type: simple.AdditiveAction
+#   group: v_afolu
+#   input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
+#   output_dimensions: ['action', 'cost_type', 'scope', 'ghg']
+#   params:
+#     allow_null_categories: true
+
+#   input_datasets:
+#   - id: norderstedt/afolu_actions
+#     forecast_from: 2024
+#     filters:
+#     - column: sector
+#     - dimension: action
+#       categories: [tree_donation]
+
+#   output_metrics:
+#   - id: emissions
+#     unit: kg/a
+#     quantity: emissions
+#   - id: currency
+#     unit: EUR/a
+#     quantity: currency
+
+#   output_nodes:
+#   - id: v2_land_emissions
+#     metrics: [emissions]
+#     from_dimensions:
+#     - id: action
+#       flatten: true
+#     - id: cost_type
+#       flatten: true
+#     to_dimensions:
+#     - id: scope
+#     - id: ghg
+#   - id: v2_land_price
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: ghg
+#       flatten: true
+#     to_dimensions:
+#     - id: action
+#     - id: cost_type
+#     - id: scope
+
+
+# - id: school_forest_wittmoor
+#   name: School Forest "Wittmoor"
+#   type: simple.AdditiveAction
+#   group: v_afolu
+#   quantity: emissions
+#   unit: kg/a
+#   input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
+#   output_dimensions: ['action', 'cost_type', 'scope', 'ghg']
+#   params:
+#     allow_null_categories: true
+
+#   input_datasets:
+#   - id: norderstedt/afolu_actions
+#     column: emissions
+#     forecast_from: 2024
+#     filters:
+#     - column: sector
+#     - dimension: action
+#       categories: [school_forest_wittmoor]
+
+#   output_nodes:
+#   - id: v2_land_emissions
+#     from_dimensions:
+#     - id: action
+#       flatten: true
+#     - id: cost_type
+#       flatten: true
+#     to_dimensions:
+#     - id: scope
+#     - id: ghg
+
+
+# - id: decarbonize_municipal_electricity_corporate
+#   name: Decarbonization of Electricity (Municipal)
+#   type: simple.AdditiveAction
+#   group: i_stationary
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: ['ghg']
+#   output_dimensions: ['ghg']
+#   input_datasets:
+#   - id: norderstedt/stationary_actions
+#     column: emissions
+#     forecast_from: 2024
+#     filters:
+#     - column: sector
+#     - column: action
+#       value: decarbonize_municipal_electricity_corporate
+#     - column: scope
+#     - column: cost_type
+#     - column: energy_carrier
+#   output_nodes:
+#   - id: i_stationary_total_emissions
+#     to_dimensions:
+#     - id: ghg
+
+
+# - id: decarbonize_municipal_electricity_community
+#   name: Decarbonization of Electricity (Private)
+#   type: simple.AdditiveAction
+#   group: i_stationary
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: ['ghg']
+#   output_dimensions: ['ghg']
+#   input_datasets:
+#   - id: norderstedt/stationary_actions
+#     column: emissions
+#     forecast_from: 2024
+#     filters:
+#     - column: sector
+#     - column: action
+#       value: decarbonize_municipal_electricity_community
+#     - column: scope
+#     - column: cost_type
+#     - column: energy_carrier
+#   output_nodes:
+#   - id: i_stationary_total_emissions
+#     to_dimensions:
+#     - id: ghg
+
+
+# - id: decarbonize_municipal_district_heating_corporate
+#   name: Decarbonization of District Heating (Municipal)
+#   type: simple.AdditiveAction
+#   group: i_stationary
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: ['ghg']
+#   output_dimensions: ['ghg']
+#   input_datasets:
+#   - id: norderstedt/stationary_actions
+#     column: emissions
+#     forecast_from: 2024
+#     filters:
+#     - column: sector
+#     - column: action
+#       value: decarbonize_municipal_district_heating_corporate
+#     - column: scope
+#     - column: cost_type
+#     - column: energy_carrier
+#   output_nodes:
+#   - id: i_stationary_total_emissions
+#     to_dimensions:
+#     - id: ghg
+
+
+# - id: decarbonize_municipal_district_heating_community
+#   name: Decarbonization of District Heating (Private)
+#   type: simple.AdditiveAction
+#   group: i_stationary
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: ['ghg']
+#   output_dimensions: ['ghg']
+#   input_datasets:
+#   - id: norderstedt/stationary_actions
+#     column: emissions
+#     forecast_from: 2024
+#     filters:
+#     - column: sector
+#     - column: action
+#       value: decarbonize_municipal_district_heating_community
+#     - column: scope
+#     - column: cost_type
+#     - column: energy_carrier
+#   output_nodes:
+#   - id: i_stationary_total_emissions
+#     to_dimensions:
+#     - id: ghg
 
 pages:
 - id: home
