@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://norderstedt-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 0eb2d7a0333a050663c538863a1d41ce8299c032
+  commit: c35b834c43c6b1be7fd2eab872d1f4499415977a
   dvc_remote: kausal-s3
 name: Treibhausgasbilanz Norderstedt
 name_en: Norderstedt Greenhouse Gas Inventory
@@ -22,23 +22,29 @@ features:
   baseline_visible_in_graphs: true
   use_datasets_from_db: true
 
-# action_groups:
-# - id: i_stationary
-#   name: Stationary
-#   color: '#4e79a7'
-# - id: v_afolu
-#   name: AFOLU
-#   color: '#b07aa1'
+action_groups:
+- id: stationary_energy
+  name: Stationäre Energie
+  name_en: Stationary Energy
+  color: '#4E79A7'
+- id: land_use
+  name: Landnutzung
+  name_en: Land Use
+  color: '#B07AA1'
+- id: trends
+  name: Trends
+  name_en: Trends
+  color: '#F28E2B'
 
-# impact_overviews:
-# - graph_type: cost_efficiency
-#   cost_node: aggregate_net_price
-#   effect_node: net_emissions
-#   indicator_unit: EUR/t
-#   cost_unit: MEUR
-#   effect_unit: t
-#   plot_limit_for_indicator: 20000
-#   label: Cost efficiency
+impact_overviews:
+- graph_type: cost_efficiency
+  cost_node: net_costs
+  effect_node: net_emissions
+  indicator_unit: EUR/t_co2e
+  cost_unit: EUR
+  effect_unit: t_co2e
+  plot_limit_for_indicator: 1000000
+  label: Cost efficiency
 
 # - graph_type: cost_benefit
 #   cost_node: cost_benefit_analysis
@@ -169,6 +175,8 @@ dimensions:
     label: Change Traffic Lights to LED (Total)
   - id: school_forest_wittmoor
     label: School Forest "Wittmoor"
+  - id: energy_refurbishment_of_kindergarten
+    label: Energy Refurbishment of Kindergarten
 
 - id: cost_benefit
   label: Kosten-Nutzen
@@ -183,8 +191,8 @@ dimensions:
 
 emission_sectors:
 - id: net_emissions
-  name: Nettoemissionen
-  name_en: Net Emissions
+  name: Nettoemissionen (Gesamtstadt)
+  name_en: Net Emissions (Territorial)
   is_outcome: true
 
 - id: net_emissions_city_administration
@@ -253,6 +261,7 @@ nodes:
 - id: i4_city_administration_emissions
   name: Stadtverwaltung stationäre Energie
   name_en: City Administration Stationary Energy
+  color: '#4E79A7'
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
@@ -383,6 +392,7 @@ nodes:
 - id: ii6_city_administration_emissions
   name: Stadtverwaltung Verkehr
   name_en: City Administration Transport
+  color: '#E15759'
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
@@ -468,6 +478,63 @@ nodes:
     to_dimensions: []
 
 # ----- Costs & Benefits
+- id: i4_city_administration_costs
+  name: Stadtverwaltung stationäre Energie
+  name_en: City Administration Stationary Energy
+  color: '#4E79A7'
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [cost_type, action]
+  output_dimensions: [cost_type, action]
+  output_nodes:
+  - id: i_stationary_energy_costs
+
+- id: i_stationary_energy_costs
+  name: Stationäre Energie
+  name_en: Stationary Energy
+  color: '#4E79A7'
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [cost_type, action]
+  output_dimensions: [cost_type, action]
+  output_nodes:
+  - id: net_costs
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: action
+      flatten: true
+    to_dimensions: []
+
+- id: v_land_use_costs
+  name: Landnutzung
+  name_en: Land Use
+  color: '#B07AA1'
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [cost_type, action]
+  output_dimensions: [cost_type, action]
+  output_nodes:
+  - id: net_costs
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: action
+      flatten: true
+    to_dimensions: []
+
+- id: net_costs
+  name: Nettokosten
+  name_en: Net Costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: []
+  output_dimensions: []
+
 - id: total_costs
   name: Gesamtkosten
   name_en: Total Costs
@@ -504,7 +571,7 @@ nodes:
     - id: cost_benefit
       categories: [benefit]
 
-# actions:
+actions:
 # - id: change_streetlights_to_led
 #   name: Change Street Lights to LED
 #   type: simple.AdditiveAction
@@ -1018,231 +1085,258 @@ nodes:
 #     to_dimensions:
 #     - id: ghg
 
+- id: energy_refurbishment_of_kindergarten
+  name: Energetische Sanierung des Kindergartens (Tannenhofstraße)
+  name_en: Energy Refurbishment of Kindergarten (Tannenhofstraße)
+  type: simple.AdditiveAction
+  group: stationary_energy
+  input_dimensions: [action, sector, cost_type]
+  output_dimensions: [action, sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: norderstedt/actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [energy_refurbishment_of_kindergarten]
+  output_metrics:
+  - id: emissions
+    unit: kg_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: i4_city_administration_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: sector
+  - id: i4_city_administration_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+  - id: total_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
 
-# - id: reforestation
-#   name: Reforestation "Am wilden Moor"
-#   type: simple.AdditiveAction
-#   group: v_afolu
-#   input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
-#   output_dimensions: ['action', 'cost_type', 'scope', 'ghg']
-#   params:
-#     allow_null_categories: true
+- id: reforestation
+  name: Wiederaufforstung "Am wilden Moor"
+  name_en: Reforestation "Am wilden Moor"
+  type: simple.AdditiveAction
+  group: land_use
+  input_dimensions: [action, sector, cost_type]
+  output_dimensions: [action, sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: norderstedt/actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [reforestation]
+  output_metrics:
+  - id: emissions
+    unit: kg_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: v_land_use_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: sector
+  - id: v_land_use_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+  - id: total_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
 
-#   input_datasets:
-#   - id: norderstedt/afolu_actions
-#     forecast_from: 2024
-#     filters:
-#     - column: sector
-#     - dimension: action
-#       categories: [reforestation]
+- id: tree_donation
+  name: Baumspende
+  name_en: Tree Donation
+  type: simple.AdditiveAction
+  group: land_use
+  input_dimensions: [action, sector, cost_type]
+  output_dimensions: [action, sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: norderstedt/actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [tree_donation]
+  output_metrics:
+  - id: emissions
+    unit: kg_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: v_land_use_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: sector
+  - id: v_land_use_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+  - id: total_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
 
-#   output_metrics:
-#   - id: emissions
-#     unit: kg/a
-#     quantity: emissions
-#   - id: currency
-#     unit: EUR/a
-#     quantity: currency
+- id: school_forest_wittmoor
+  name: Schulwald "Wittmoor"
+  name_en: School Forest "Wittmoor"
+  type: simple.AdditiveAction
+  group: land_use
+  quantity: emissions
+  unit: kg_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_datasets:
+  - id: norderstedt/actions
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: school_forest_wittmoor
+    - column: cost_type
+  output_nodes:
+  - id: v_land_use_emissions
 
-#   output_nodes:
-#   - id: v2_land_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: action
-#       flatten: true
-#     - id: cost_type
-#       flatten: true
-#     to_dimensions:
-#     - id: scope
-#     - id: ghg
-#   - id: v2_land_price
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: ghg
-#       flatten: true
-#     to_dimensions:
-#     - id: action
-#     - id: cost_type
-#     - id: scope
+- id: decarbonize_municipal_electricity_corporate
+  name: Stromdekarbonisierung (Stadtverwaltung)
+  name_en: Decarbonisation of Electricity (Municipal)
+  type: simple.AdditiveAction
+  group: trends
+  quantity: emissions
+  unit: kg_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_datasets:
+  - id: norderstedt/actions
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: decarbonize_municipal_electricity_corporate
+    - column: cost_type
+  output_nodes:
+  - id: i4_city_administration_emissions
 
+- id: decarbonize_municipal_electricity_community
+  name: Stromdekarbonisierung (Gesamtstadt)
+  name_en: Decarbonisation of Electricity (Private)
+  type: simple.AdditiveAction
+  group: trends
+  quantity: emissions
+  unit: kg_co2e/a
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: norderstedt/actions
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: decarbonize_municipal_electricity_community
+    - column: sector
+    - column: cost_type
+  output_nodes:
+  - id: i1_private_household_emissions
 
-# - id: tree_donation
-#   name: Tree Donation
-#   type: simple.AdditiveAction
-#   group: v_afolu
-#   input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
-#   output_dimensions: ['action', 'cost_type', 'scope', 'ghg']
-#   params:
-#     allow_null_categories: true
+- id: decarbonize_municipal_district_heating_corporate
+  name: Fernwärmedekarbonisierung (Stadtverwaltung)
+  name_en: Decarbonization of District Heating (Municipal)
+  type: simple.AdditiveAction
+  group: trends
+  quantity: emissions
+  unit: kg_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_datasets:
+  - id: norderstedt/actions
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: decarbonize_municipal_district_heating_corporate
+    - column: cost_type
+  output_nodes:
+  - id: i4_city_administration_emissions
 
-#   input_datasets:
-#   - id: norderstedt/afolu_actions
-#     forecast_from: 2024
-#     filters:
-#     - column: sector
-#     - dimension: action
-#       categories: [tree_donation]
-
-#   output_metrics:
-#   - id: emissions
-#     unit: kg/a
-#     quantity: emissions
-#   - id: currency
-#     unit: EUR/a
-#     quantity: currency
-
-#   output_nodes:
-#   - id: v2_land_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: action
-#       flatten: true
-#     - id: cost_type
-#       flatten: true
-#     to_dimensions:
-#     - id: scope
-#     - id: ghg
-#   - id: v2_land_price
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: ghg
-#       flatten: true
-#     to_dimensions:
-#     - id: action
-#     - id: cost_type
-#     - id: scope
-
-
-# - id: school_forest_wittmoor
-#   name: School Forest "Wittmoor"
-#   type: simple.AdditiveAction
-#   group: v_afolu
-#   quantity: emissions
-#   unit: kg/a
-#   input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
-#   output_dimensions: ['action', 'cost_type', 'scope', 'ghg']
-#   params:
-#     allow_null_categories: true
-
-#   input_datasets:
-#   - id: norderstedt/afolu_actions
-#     column: emissions
-#     forecast_from: 2024
-#     filters:
-#     - column: sector
-#     - dimension: action
-#       categories: [school_forest_wittmoor]
-
-#   output_nodes:
-#   - id: v2_land_emissions
-#     from_dimensions:
-#     - id: action
-#       flatten: true
-#     - id: cost_type
-#       flatten: true
-#     to_dimensions:
-#     - id: scope
-#     - id: ghg
-
-
-# - id: decarbonize_municipal_electricity_corporate
-#   name: Decarbonization of Electricity (Municipal)
-#   type: simple.AdditiveAction
-#   group: i_stationary
-#   quantity: emissions
-#   unit: t/a
-#   input_dimensions: ['ghg']
-#   output_dimensions: ['ghg']
-#   input_datasets:
-#   - id: norderstedt/stationary_actions
-#     column: emissions
-#     forecast_from: 2024
-#     filters:
-#     - column: sector
-#     - column: action
-#       value: decarbonize_municipal_electricity_corporate
-#     - column: scope
-#     - column: cost_type
-#     - column: energy_carrier
-#   output_nodes:
-#   - id: i_stationary_total_emissions
-#     to_dimensions:
-#     - id: ghg
-
-
-# - id: decarbonize_municipal_electricity_community
-#   name: Decarbonization of Electricity (Private)
-#   type: simple.AdditiveAction
-#   group: i_stationary
-#   quantity: emissions
-#   unit: t/a
-#   input_dimensions: ['ghg']
-#   output_dimensions: ['ghg']
-#   input_datasets:
-#   - id: norderstedt/stationary_actions
-#     column: emissions
-#     forecast_from: 2024
-#     filters:
-#     - column: sector
-#     - column: action
-#       value: decarbonize_municipal_electricity_community
-#     - column: scope
-#     - column: cost_type
-#     - column: energy_carrier
-#   output_nodes:
-#   - id: i_stationary_total_emissions
-#     to_dimensions:
-#     - id: ghg
-
-
-# - id: decarbonize_municipal_district_heating_corporate
-#   name: Decarbonization of District Heating (Municipal)
-#   type: simple.AdditiveAction
-#   group: i_stationary
-#   quantity: emissions
-#   unit: t/a
-#   input_dimensions: ['ghg']
-#   output_dimensions: ['ghg']
-#   input_datasets:
-#   - id: norderstedt/stationary_actions
-#     column: emissions
-#     forecast_from: 2024
-#     filters:
-#     - column: sector
-#     - column: action
-#       value: decarbonize_municipal_district_heating_corporate
-#     - column: scope
-#     - column: cost_type
-#     - column: energy_carrier
-#   output_nodes:
-#   - id: i_stationary_total_emissions
-#     to_dimensions:
-#     - id: ghg
-
-
-# - id: decarbonize_municipal_district_heating_community
-#   name: Decarbonization of District Heating (Private)
-#   type: simple.AdditiveAction
-#   group: i_stationary
-#   quantity: emissions
-#   unit: t/a
-#   input_dimensions: ['ghg']
-#   output_dimensions: ['ghg']
-#   input_datasets:
-#   - id: norderstedt/stationary_actions
-#     column: emissions
-#     forecast_from: 2024
-#     filters:
-#     - column: sector
-#     - column: action
-#       value: decarbonize_municipal_district_heating_community
-#     - column: scope
-#     - column: cost_type
-#     - column: energy_carrier
-#   output_nodes:
-#   - id: i_stationary_total_emissions
-#     to_dimensions:
-#     - id: ghg
+- id: decarbonize_municipal_district_heating_community
+  name: Fernwärmedekarbonisierung (Gesamtstadt)
+  name_en: Decarbonization of District Heating (Private)
+  type: simple.AdditiveAction
+  group: trends
+  quantity: emissions
+  unit: kg_co2e/a
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: norderstedt/actions
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: decarbonize_municipal_district_heating_community
+    - column: sector
+    - column: cost_type
+  output_nodes:
+  - id: i1_private_household_emissions
 
 pages:
 - id: home
