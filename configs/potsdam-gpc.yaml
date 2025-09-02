@@ -18,7 +18,7 @@ supported_languages: []
 site_url: https://potsdam-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: b5c49954d267477c7cd4c058ce495c4af941cb70
+  commit: fdaf2a0f2d801272be27284aa2dcf097ffe63327
   dvc_remote: kausal-s3
 name: Klimaschutz-Monitor-Potsdam Treibhausgasinventar
 owner: Stadt Potsdam
@@ -189,107 +189,18 @@ dimensions:
     label_en: Actual
     aliases: [aktual]
 
-# Temporarily return energietrager
-
-- id: energietrager
-  label_en: Energy Carriers
-  label_de: Energieträger
-  categories:
-  - id: strom
-    label_en: Electricity
-    label_de: Strom
-    aliases: [electricity, strom_fahrstrom]
-  - id: fahrstrom
-    label_en: Traction Power
-    label_de: Fahrstrom
-  - id: heizstrom
-    label_en: Heating Electricity
-    label_de: Heizstrom
-    aliases: [heating_electricity]
-  - id: fernwarme
-    label_en: District Heating
-    label_de: Fernwärme
-    aliases: [district_heating]
-  - id: nahwarme
-    label_en: Local Heating
-    label_de: Nahwärme
-    aliases: [local_heating]
-  - id: gas
-    label_en: Gas
-    label_de: Gas
-    aliases: [natural_gas]
-  - id: biogas
-    label_en: Biogas
-    label_de: Biogas
-    aliases: [cng_bio]
-  - id: heizol
-    label_en: Heating Oil
-    label_de: Heizöl
-    aliases: [heating_oil]
-  - id: kohle
-    label_en: Coal
-    label_de: Kohle
-    aliases: [hard_coal]
-  - id: brown_coal
-    label_en: Brown coal
-    label_de: Braunkohle
-  - id: biomasse
-    label_en: Biomass
-    label_de: Biomasse
-    aliases: [biomass]
-  - id: solarthermie
-    label_en: Solar Thermal
-    label_de: Solarthermie
-    aliases: [solar_thermal]
-  - id: umweltwarme
-    label_en: Ambient Heat
-    label_de: Umweltwärme
-    aliases: [environmental_heat]
-  - id: other_renewables
-    label_en: Other renewables
-    label_de: Sonstige erneuerbare Energien
-  - id: benzin_fossil
-    label_en: Fossil Gasoline
-    label_de: Benzin fossil
-    aliases: [petrol]
-  - id: benzin_biogen
-    label_en: Biogenic Gasoline
-    label_de: Benzin biogen
-    aliases: [bio_petrol]
-  - id: diesel_fossil
-    label_en: Fossil Diesel
-    label_de: Diesel fossil
-    aliases: [diesel]
-  - id: kerosene
-    label_de: Kerosene
-    label_en: Kerosene
-  - id: diesel_biogen
-    label_en: Biogenic Diesel
-    label_de: Diesel biogen
-    aliases: [biodiesel]
-  - id: cng_fossil
-    label_en: Fossil CNG (Compressed Natural Gas)
-    label_de: CNG fossil
-  - id: lpg
-    label_en: LPG (Liquefied Petroleum Gas)
-    label_de: LPG
-  - id: wasserstoff
-    label_en: Hydrogen
-    label_de: Wasserstoff
-  - id: other_conventional
-    label_en: Other conventional
-    label_de: Sonstige konventionelle Energien
-    aliases: [other_conventional]
-  - id: total
-    label_en: Total
-    label_de: Gesamt
-    aliases: [total]
-
 emission_sectors:
 
 - id: net_emissions
   name: Net Emissionen
   is_outcome: true
+  goals:
+  - label_de: Ziel Netto-Emissionen
+    default: true
+    is_main_goal: true
+    values:
+    - year: 2030
+      value: 551
 
 - id: electricity_emissions
   name: Strom Emissionen
@@ -541,45 +452,37 @@ nodes:
 
 ##### COSTS
 
-# - id: total_energy_costs
-#   name: Energiepreise
-#   name_en: Total cost
-#   type: generic.GenericNode
-#   quantity: unit_price
-#   unit: EUR/MWh
-#   input_dimensions: [energietrager]
-#   output_dimensions: [energietrager]
-#   input_datasets:
-#   - id: potsdam/energy_prices
-#     tags: [baseline]
-#     filters:
-#     - dimension: sector
-#       flatten: true
+- id: energy_prices
+  name: Energiepreise
+  name_en: Energy prices
+  type: generic.GenericNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: potsdam/energiepreis
+    tags: [baseline]
+    column: energiepreis
+    filters:
+    - column: sector
+      values: [verkehr, private_haushalte]
+      drop_col: false # If you turn this true, you can check for duplicates.
 
-# - id: energy_prices
-#   name: Energiepreise
-#   name_en: Energy prices
-#   type: generic.GenericNode
-#   quantity: unit_price
-#   unit: EUR/MWh
-#   input_dimensions: [sector, energy_carrier]
-#   output_dimensions: [sector, energy_carrier]
-#   input_datasets:
-#   - id: potsdam/energy_prices
-#     tags: [baseline]
-#     filters:
-#     - rename_col: energietrager
-#       value: energy_carrier
-
-# - id: total_energy_costs
-#   name: Endenergiekosten Gesamt
-#   name_en: Final Energy Costs Over All Sectors
-#   type: generic.GenericNode
-#   quantity: currency
-#   unit: MEUR/a
-#   input_nodes:
-#   - id: masterplan_scenario_energy
-#   - id: energy_prices
+- id: total_energy_costs
+  name: Endenergiekosten Gesamt
+  name_en: Final Energy Costs Over All Sectors
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: corrected_energy
+  - id: energy_prices
+    from_dimensions:
+    - id: sector
+      flatten: true
 
 # SUMMARY IMPACTS
 
@@ -605,13 +508,21 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  output_nodes:
-  - id: emission_change_due_to_ef
-    to_dimensions:
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: scenario_energy
+    tags: [use_as_shares]
+    from_dimensions:
     - id: sector
       categories: [heating]
     - id: energy_carrier
-      categories: [district_heating]
+      categories: [district_heating, solar_thermal, biogas, biomass] #, local_heating, environmental_heat]
+      exclude: true
+  params:
+    operations: add,use_as_shares
+  output_nodes:
+  - id: emission_change_due_to_ef
 
 - id: heat_consumption
   name: Änderung im Wärmeverbrauch (Wärmenetze)
@@ -620,13 +531,18 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  output_nodes:
-  - id: emission_change_due_to_energy
-    to_dimensions:
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: scenario_energy
+    tags: [use_as_shares]
+    from_dimensions:
     - id: sector
       categories: [heating]
-    - id: energy_carrier
-      categories: [natural_gas]
+  params:
+    operations: add,use_as_shares
+  output_nodes:
+  - id: emission_change_due_to_energy
 
 - id: electricity_generation
   name: Ausbau Erneuerbare Energien in der Stromerzeugung
@@ -665,13 +581,18 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  output_nodes:
-  - id: emission_change_due_to_ef
-    to_dimensions:
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: scenario_energy
+    tags: [use_as_shares]
+    from_dimensions:
     - id: sector
       categories: [transport]
-    - id: energy_carrier
-      categories: [diesel]
+  params:
+    operations: add,use_as_shares
+  output_nodes:
+  - id: emission_change_due_to_ef
 
 - id: transport_consumption
   name: Änderung im Energieverbrauch im Verkehr
@@ -680,13 +601,18 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  output_nodes:
-  - id: emission_change_due_to_energy
-    to_dimensions:
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: scenario_energy
+    tags: [use_as_shares]
+    from_dimensions:
     - id: sector
       categories: [transport]
-    - id: energy_carrier
-      categories: [diesel]
+  params:
+    operations: add,use_as_shares
+  output_nodes:
+  - id: emission_change_due_to_energy
 
 actions:
 
