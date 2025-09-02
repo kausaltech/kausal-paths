@@ -30,7 +30,7 @@ class AvatarWidget(AdminFileWidget):
     template_name = 'kausal_common/people/avatar_widget.html'
 
 
-class PersonForm(PathsAdminModelForm):
+class PersonForm(PathsAdminModelForm[Person]):
     """Custom form for Person instances with role selection."""
 
     active_instance: InstanceConfig
@@ -38,6 +38,12 @@ class PersonForm(PathsAdminModelForm):
     role = forms.CharField(
         label=_('Permissions'),
         help_text=_('Select the role for this person in the current instance'),
+        required=True,
+    )
+
+    organization = forms.ChoiceField(
+        label=_('Organization'),
+        help_text=_('Select the organization this person belongs to.'),
         required=True,
     )
 
@@ -57,6 +63,7 @@ class PersonForm(PathsAdminModelForm):
         super_admin_role = role_registry.get_role(INSTANCE_SUPER_ADMIN_ROLE)
         super_admin_group = super_admin_role.get_existing_instance_group(self.active_instance)
         if (
+            super_admin_group is not None and
             super_admin_group in self.instance.user.groups.all() and
             super_admin_group.user_set.count() == 1
         ):
@@ -109,7 +116,7 @@ class PersonForm(PathsAdminModelForm):
         if self.instance and self.instance.pk:
             current_role = self.get_current_role(self.instance, self.active_instance)
             self.initial['role'] = current_role
-            if self.instance.user.is_superuser:
+            if self.instance.user is not None and self.instance.user.is_superuser:
                 is_superuser = True
 
         assert self.active_instance
@@ -138,9 +145,9 @@ class PersonForm(PathsAdminModelForm):
             disable_role_options=disable_role_options,
             disable_reason=disable_reason,
         )
-
+        org_field: forms.ChoiceField = typing.cast('forms.ChoiceField', self.fields['organization'])
         self.fields['organization'].widget = autocomplete.ModelSelect2(
             url='organization-autocomplete',
-            choices=self.fields['organization'].choices
+            choices=org_field,
         )
         self.fields['image'].widget = AvatarWidget()
