@@ -468,7 +468,7 @@ nodes:
     column: energiepreis
     filters:
     - column: sector
-      values: [verkehr, private_haushalte]
+      values: [transport, private_households]
       drop_col: false # If you turn this true, you can check for duplicates.
 
 - id: total_energy_costs
