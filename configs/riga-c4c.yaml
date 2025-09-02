@@ -40,15 +40,15 @@ action_groups:
   name_lv: Daudzdzīvokļu ēkas
   color: '#B07AA1'
 
-# impact_overviews:
-# - graph_type: cost_efficiency
-#   cost_node: net_price
-#   effect_node: net_emissions
-#   indicator_unit: EUR/t
-#   cost_unit: MEUR
-#   effect_unit: kt
-#   plot_limit_for_indicator: 1000000
-#   label: Cost efficiency
+impact_overviews:
+- graph_type: cost_efficiency
+  cost_node: net_costs
+  effect_node: net_emissions
+  indicator_unit: EUR/t_co2e
+  cost_unit: MEUR
+  effect_unit: kt_co2e
+  plot_limit_for_indicator: 1000000
+  label: Cost efficiency
 
 # - graph_type: cost_benefit
 #   cost_node: cost_benefit_analysis

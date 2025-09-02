@@ -2,19 +2,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, TypeGuard
 
-from kausal_common.models.permission_policy import BaseObjectAction, ModelPermissionPolicy, ModelReadOnlyPolicy
-
+from kausal_common.models.permission_policy import (
+    BaseObjectAction,
+    ModelPermissionPolicy,
+    ModelReadOnlyPolicy,
+)
 from paths.const import INSTANCE_ADMIN_ROLE
-
 from users.models import User
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from django.db.models import Q
-
-    from kausal_common.models.permissions import PermissionedModel
-    from kausal_common.users import UserOrAnon
 
     from frameworks.models import (  # noqa: F401
         Framework,
@@ -26,6 +25,8 @@ if TYPE_CHECKING:
         Section,
         SectionQuerySet,
     )
+    from kausal_common.models.permissions import PermissionedModel
+    from kausal_common.users import UserOrAnon
     from users.models import User
 
 
@@ -66,7 +67,11 @@ class FrameworkConfigPermissionPolicy(
 
     def __init__(self):
         from nodes.models import InstanceConfig
-        from nodes.roles import instance_admin_role, instance_viewer_role
+        from nodes.roles import (
+            instance_admin_role,
+            instance_reviewer_role,
+            instance_viewer_role,
+        )
 
         from .models import Framework, FrameworkConfig
         from .roles import framework_admin_role, framework_viewer_role
@@ -75,6 +80,7 @@ class FrameworkConfigPermissionPolicy(
         self.framework_viewer_role = framework_viewer_role
         self.realm_admin_role = instance_admin_role
         self.realm_viewer_role = instance_viewer_role
+        self.realm_reviewer_role = instance_reviewer_role
         self.ic_pp = InstanceConfig.permission_policy()
         self.fw_pp = Framework.permission_policy()
         super().__init__(FrameworkConfig)
@@ -86,8 +92,9 @@ class FrameworkConfigPermissionPolicy(
             return fw_admin_q
         realm_admin_q = self.realm_admin_role.role_q(user, prefix='instance_config')
         realm_viewer_q = self.realm_viewer_role.role_q(user, prefix='instance_config')
+        realm_reviewer_q = self.realm_reviewer_role.role_q(user, prefix='instance_config')
         if action == 'view':
-            return fw_admin_q | fw_viewer_q | realm_admin_q | realm_viewer_q
+            return fw_admin_q | fw_viewer_q | realm_admin_q | realm_viewer_q | realm_reviewer_q
         return fw_admin_q | realm_admin_q
 
     def construct_perm_q_anon(self, action: BaseObjectAction) -> Q | None:
@@ -107,8 +114,9 @@ class FrameworkConfigPermissionPolicy(
         is_fw_viewer = user.has_instance_role(self.framework_viewer_role, fw)
         is_realm_admin = user.has_instance_role(self.realm_admin_role, ic)
         is_realm_viewer = user.has_instance_role(self.realm_viewer_role, ic)
+        is_realm_reviewer = user.has_instance_role(self.realm_reviewer_role, ic)
         if action == 'view':
-            return is_realm_viewer or is_realm_admin or is_fw_viewer
+            return is_realm_viewer or is_realm_reviewer or is_realm_admin or is_fw_viewer
         return is_realm_admin
 
     def get_create_defaults(self, user: User, context: Framework) -> dict[str, str | None]:
