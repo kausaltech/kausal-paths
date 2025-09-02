@@ -13,7 +13,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from django.forms.utils import ErrorList
-
     from django_stubs_ext import StrOrPromise
 
 

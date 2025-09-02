@@ -17,7 +17,6 @@ from paths.context import realm_context
 
 from admin_site.forms import PathsAdminModelForm
 from nodes.models import InstanceConfig
-from orgs.models import Organization
 
 from .models import Person
 from .widgets import RoleSelectionWidget

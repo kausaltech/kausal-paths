@@ -22,6 +22,7 @@ from paths.context import realm_context
 if TYPE_CHECKING:
     from nodes.models import InstanceConfig
     from users.models import User
+
     from .permission_policy import OrganizationPermissionPolicy
 
 
