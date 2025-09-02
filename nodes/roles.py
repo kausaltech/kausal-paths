@@ -11,10 +11,11 @@ from kausal_common.models.roles import (
     InstanceSpecificRole,
     register_role,
 )
+
 from paths.const import (
-    INSTANCE_SUPER_ADMIN_ROLE,
     INSTANCE_ADMIN_ROLE,
     INSTANCE_REVIEWER_ROLE,
+    INSTANCE_SUPER_ADMIN_ROLE,
     INSTANCE_VIEWER_ROLE,
 )
 

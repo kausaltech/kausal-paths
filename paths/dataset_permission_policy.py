@@ -20,13 +20,15 @@ from kausal_common.models.permission_policy import (
     ParentInheritedPolicy,
 )
 from kausal_common.models.permissions import PermissionedQuerySet
+
+from paths.context import realm_context
+
 from nodes.roles import (
-    instance_super_admin_role,
     instance_admin_role,
     instance_reviewer_role,
+    instance_super_admin_role,
     instance_viewer_role,
 )
-from paths.context import realm_context
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -35,6 +37,7 @@ if TYPE_CHECKING:
 
     from kausal_common.models.permissions import PermissionedModel
     from kausal_common.models.roles import InstanceSpecificRole
+
     from nodes.models import InstanceConfig
     from users.models import User
 
