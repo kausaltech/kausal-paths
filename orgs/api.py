@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 all_views: list[RegisteredAPIView] = []
 
-class OrganizationSerializer(TreebeardModelSerializerMixin, serializers.ModelSerializer):
+class OrganizationSerializer(TreebeardModelSerializerMixin[Organization], serializers.ModelSerializer[Organization]):
     uuid = serializers.UUIDField(required=False)
 
     class Meta:  # type: ignore[override]

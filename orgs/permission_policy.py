@@ -19,9 +19,10 @@ if TYPE_CHECKING:
 class OrganizationPermissionPolicy(ModelPermissionPolicy[Organization]):
 
     def __init__(self):
+        org_class: type[Organization] = Organization
         from nodes.roles import instance_super_admin_role
         self.super_admin_role = instance_super_admin_role
-        super().__init__(Organization)
+        super().__init__(org_class)
 
     @override
     def construct_perm_q(self, user: User, action: ObjectSpecificAction) -> Q | None:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, Self
+from typing import TYPE_CHECKING, ClassVar, Self, override
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -76,8 +76,10 @@ class Organization(PermissionedModel, BaseOrganization, Node[OrganizationQuerySe
         verbose_name_plural = _('Organizations')
         ordering = ['name']
 
-    def __str__(self):
-        return self.name
+    @override
+    def __rich_repr__(self):
+        yield 'name', self.name
+        yield 'uuid', self.uuid
 
     def get_absolute_url(self):
         from django.urls import reverse

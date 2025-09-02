@@ -23,10 +23,9 @@ from users.models import User
 
 if TYPE_CHECKING:
     from django.db import models
+    from django.http import HttpRequest
 
     from kausal_common.models.permission_policy import ModelPermissionPolicy
-
-    from paths.types import PathsAdminRequest
 
     from nodes.models import InstanceConfig
 
@@ -66,13 +65,19 @@ class Person(PermissionedModel, BasePerson):
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
 
+    def __rich_repr__(self):
+        yield 'first_name', self.first_name
+        yield 'last_name', self.last_name
+        yield 'email', self.email
+
+
     def download_avatar(self):
         # Since this is a base implementation, we'll return None
         # Subclasses can override this to implement actual avatar downloading
         return None
 
     @override
-    def get_avatar_url(self, request: PathsAdminRequest | None = None, size: str | None = None) -> str | None:
+    def get_avatar_url(self, request: HttpRequest | None = None, size: str | None = None) -> str | None:
         if not self.image:
             return None
         try:
@@ -83,7 +88,7 @@ class Person(PermissionedModel, BasePerson):
             return None
         return self.image.url
 
-    def avatar(self, request: PathsAdminRequest | None = None) -> str:
+    def avatar(self, request: HttpRequest | None = None) -> str:
         avatar_url = self.get_avatar_url(request, size='50x50')
         if not avatar_url:
             return ''
