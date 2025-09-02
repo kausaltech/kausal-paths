@@ -129,6 +129,7 @@ class InstanceViewerRole(InstanceGroupMembershipRole, InstanceSpecificRole['Inst
 class InstanceReviewerRole(InstanceGroupMembershipRole, InstanceSpecificRole['InstanceConfig']):
     id = INSTANCE_REVIEWER_ROLE
     name = _('Reviewer')
+    description = _('Ability to write review comments and read-only access to instance data')
     group_name = "Reviewers"
     instance_group_field_name = 'reviewer_group'
 
