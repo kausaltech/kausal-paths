@@ -274,7 +274,7 @@ nodes:
     column: energy
     filters:
     - column: scenario
-      values: [masterplan_szenario, aktual]
+      values: [masterplan_scenario, actual]
 
 - id: trend_scenario_energy
   name: Trend-Szenario Energie
@@ -291,7 +291,7 @@ nodes:
     column: energy
     filters:
     - column: scenario
-      values: [trend_szenario, aktual]
+      values: [trend_scenario, actual]
 
 - id: trend_scenario_emissions
   name: Trend-Szenario Emissionen
@@ -308,7 +308,7 @@ nodes:
     column: emissions
     filters:
     - column: scenario
-      values: [trend_szenario, aktual]
+      values: [trend_scenario, actual]
 
 - id: trend_scenario_emission_factor
   name: Trend-Szenario Emissionfaktor
@@ -353,7 +353,7 @@ nodes:
     column: emissions
     filters:
     - column: scenario
-      values: [masterplan_szenario, aktual]
+      values: [masterplan_scenario, actual]
 
 - id: emission_change_due_to_energy
   name: Emissionsänderung durch Energieeinsparung
