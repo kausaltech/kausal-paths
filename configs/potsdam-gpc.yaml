@@ -6,11 +6,11 @@
 # https://docs.google.com/spreadsheets/d/1pW5Un-rUGLyM8FbMdsRELq4W9Q_ZNx_b/edit?gid=1524147948#gid=1524147948
 # Comparison showed that energietraeger_GHD.xlsx and other 4 energy files from KlimaSchutz-Planer are very close although not identical to Zielwerte Masterplan V3.4.xlsx. So, the Masterplan data is now used.
 # Procedure:
-# Use the Actual values when available and Masterplan Scenario values for forecasts.
+# Use the Actual values when available and Trend Scenario values for forecasts.
 # 1 Sum up all action impacts as emissions. Plain GenericNode
-# 2 Split the total impact to sectors or energy carriers by using the Masterplan scenario variable. Total impact has tag skip_dim_test, scenario variable has tag use_as_shares.
+# 2 Split the total impact to energy carriers by using the Trend scenario energy variable with tag use_as_shares.
 # 3 Compute the impact in correct units by dividiing the emission impact by energy or emission factor.
-# 4 Add the scenario emission factor or energy, respectively.
+# 4 Add the impact to the Trend scenario emission factor or energy, respectively.
 
 id: potsdam-gpc
 default_language: de
@@ -18,7 +18,7 @@ supported_languages: []
 site_url: https://potsdam-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: fdaf2a0f2d801272be27284aa2dcf097ffe63327
+  commit: 317cd5e61b71472f70823c064c46307f3e454744
   dvc_remote: kausal-s3
 name: Klimaschutz-Monitor-Potsdam Treibhausgasinventar
 owner: Stadt Potsdam
@@ -192,7 +192,8 @@ dimensions:
 emission_sectors:
 
 - id: net_emissions
-  name: Net Emissionen
+  name: Netto-Emissionen
+  name_en: Net emissions
   is_outcome: true
   goals:
   - label_de: Ziel Netto-Emissionen
@@ -203,8 +204,10 @@ emission_sectors:
       value: 551
 
 - id: electricity_emissions
-  name: Strom Emissionen
+  name: Strom-Emissionen
+  name_en: Electricity emissions
   part_of: net_emissions
+  color: '#2B729C'
   input_nodes:
   - id: corrected_emissions
     from_dimensions:
@@ -212,8 +215,10 @@ emission_sectors:
       categories: [electricity]
 
 - id: heating_emissions
-  name: Wärme Emissionen
+  name: Wärme-Emissionen
+  name_en: Heating emissions
   part_of: net_emissions
+  color: '#9C2B54'
   input_nodes:
   - id: corrected_emissions
     from_dimensions:
@@ -221,8 +226,10 @@ emission_sectors:
       categories: [heating]
 
 - id: transport_emissions
-  name: Verkehr Emissionen
+  name: Verkehr-Emissionen
+  name_en: Transport emissions
   part_of: net_emissions
+  color: '#299575'
   input_nodes:
   - id: corrected_emissions
     from_dimensions:
@@ -237,25 +244,20 @@ nodes:
   type: generic.GenericNode
   quantity: ratio
   unit: dimensionless
+  input_dimensions: [sector]
+  output_dimensions: [sector]
   input_datasets:
-  - id: gpc/potsdam
-    forecast_from: 2023
+  - id: potsdam/witterungsbereinigung
+    forecast_from: 2024
     tags: [baseline]
-    column: weather_correction
-    filters:
-    - column: scope
+    column: witterungsbereinigung
   params:
   - id: operations
     value: do_correction
   - id: do_correction
     ref: weather_correction
-  # output_nodes:
-  # - id: heating_fuel_consumption
-  #   tags: [non_additive]
-  #   to_dimensions: []
-  # - id: heating_grid_energy_consumption
-  #   tags: [non_additive]
-  #   to_dimensions: []
+  output_nodes:
+  - id: trend_scenario_energy
 
 - id: scenario_energy
   name: Szenario Energie Daten
@@ -338,7 +340,7 @@ nodes:
 
 - id: scenario_emissions_data
   name: Masterplan-Szenario Emissionen Daten
-  name_en: Scenario emissions
+  name_en: Masterplan scenario emissions data
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
@@ -395,7 +397,7 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: scenario_energy
+  - id: trend_scenario_energy
     tags: [geometric_inverse]
   - id: emission_change_due_to_ef
   params:
@@ -422,7 +424,7 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: scenario_emission_factor
+  - id: trend_scenario_emission_factor
     tags: [geometric_inverse]
   - id: emission_change_due_to_energy
 
@@ -439,7 +441,7 @@ nodes:
   - id: energy_correction
 
 - id: corrected_emissions
-  name: Korrigierter Emissionen
+  name: Korrigierte Emissionen
   name_en: Corrected emissions
   type: generic.GenericNode
   quantity: emissions
@@ -511,7 +513,7 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: scenario_energy
+  - id: trend_scenario_energy
     tags: [use_as_shares]
     from_dimensions:
     - id: sector
@@ -534,7 +536,7 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: scenario_energy
+  - id: trend_scenario_energy
     tags: [use_as_shares]
     from_dimensions:
     - id: sector
@@ -584,7 +586,7 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: scenario_energy
+  - id: trend_scenario_energy
     tags: [use_as_shares]
     from_dimensions:
     - id: sector
@@ -604,7 +606,7 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: scenario_energy
+  - id: trend_scenario_energy
     tags: [use_as_shares]
     from_dimensions:
     - id: sector
@@ -619,7 +621,7 @@ actions:
 # NEW ACTIONS from action impact 250801.xlsx
 # https://docs.google.com/spreadsheets/d/15aMuO2-GmvYw8IXe3pgSN6LvfdEqDPI6/edit?gid=2009060009#gid=2009060009
 
-- id: district_heating_until_2030 # Split by energy carrier and sector. Affect emission factor
+- id: district_heating_until_2030
   name: Maßnahmepaket EWP Fernwärme bis 2030 (min. 30% EE)
   name_en: Action Package EWP District Heating until 2030 (min. 30% RE)
   type: simple.GenericAction
@@ -637,7 +639,7 @@ actions:
   output_nodes:
   - id: heat_generation_networks
 
-- id: district_heating_2030_2040 # Split by energy carrier and sector. Affect emission factor
+- id: district_heating_2030_2040
   name: weitere Maßnahmen EWP Fernwärme 2030-2040 (+ weitere 50% EE = 80% EE)
   name_en: Further EWP district heating measures 2030-2040 (+ further 50% RE = 
     80% RE)
@@ -656,7 +658,7 @@ actions:
   output_nodes:
   - id: heat_generation_networks
 
-- id: district_heating_2040_2045 # Split by energy carrier and sector. Affect emission factor
+- id: district_heating_2040_2045
   name: weitere Maßnahmen EWP Fernwärme 2040-2045 (+ weitere 20% EE = 100% EE)
   name_en: Further EWP district heating measures 2040-2045 (+ further 20% RE = 
     100% RE)
@@ -675,7 +677,7 @@ actions:
   output_nodes:
   - id: heat_generation_networks
 
-- id: local_heating_networks_2045 # Split by energy carrier and sector. Affect emission factor
+- id: local_heating_networks_2045
   name: Maßnahmen Nahwärmenetze bis 2045 (100% EE)
   name_en: Local heating network measures until 2045 (100% RE)
   type: simple.GenericAction
@@ -693,7 +695,7 @@ actions:
   output_nodes:
   - id: heat_generation_networks
 
-- id: re_expansion_masterplan_2045 # Split by energy carrier and sector. Affect emission factor
+- id: re_expansion_masterplan_2045
   name: EE-Ausbau laut Masterplan 100% Klimaschutz bis 2045
   name_en: RE expansion according to Masterplan 100% Climate Protection until 
     2045
@@ -712,7 +714,7 @@ actions:
   output_nodes:
   - id: heat_generation_individual
 
-- id: re_expansion_masterplan_kwp # Split by energy carrier and sector. Affect emission factor
+- id: re_expansion_masterplan_kwp
   name: EE-Ausbau laut KWP (zusätzlich zu Masterplanziel)
   name_en: RE expansion according to KWP (additional to Masterplan target)
   type: simple.GenericAction
@@ -730,7 +732,7 @@ actions:
   output_nodes:
   - id: heat_generation_individual
 
-- id: district_heating_reduction_renovation # Split by sector. Affect distric heating emission factor
+- id: district_heating_reduction_renovation
   name: Reduktion des Wärmeverbrauchs durch Gebäudesanierung (Nah- und 
     Fernwärmegebiete)
   name_en: Reduction of heat consumption through building renovation (local and 
@@ -750,7 +752,7 @@ actions:
   output_nodes:
   - id: heat_consumption
 
-- id: decentralized_heat_reduction_renovation # Split by energy carrier and sector. Affect energy
+- id: decentralized_heat_reduction_renovation
   name: Reduktion des Wärmeverbrauchs durch Gebäudesanierung (dezentral)
   name_en: Reduction of heat consumption through building renovation 
     (decentralized)
@@ -769,7 +771,7 @@ actions:
   output_nodes:
   - id: heat_consumption
 
-- id: pv_rooftop_expansion # Split by sector. Affect electricity emission factor Alternative: reduce electricity consumption
+- id: pv_rooftop_expansion
   name: Ausbau PV Dachanlagen laut Masterplan
   name_en: Expansion of PV rooftop systems according to Masterplan
   type: simple.GenericAction
@@ -787,7 +789,7 @@ actions:
   output_nodes:
   - id: electricity_generation
 
-- id: ground_mounted_pv_expansion # Split by sector. Affect electricity emission factor
+- id: ground_mounted_pv_expansion
   name: Ausbau Freiflächenanlagen laut Masterplan
   name_en: Expansion of ground-mounted systems according to Masterplan
   type: simple.GenericAction
@@ -805,7 +807,7 @@ actions:
   output_nodes:
   - id: electricity_generation
 
-- id: wind_power_potential # Split by sector. Affect electricity emission factor
+- id: wind_power_potential
   name: Potential Windkraftanlagen (Annahme 8 Anlagen)
   name_en: Wind power plant potential (assumption 8 plants)
   type: simple.GenericAction
@@ -823,7 +825,7 @@ actions:
   output_nodes:
   - id: electricity_generation
 
-- id: electricity_consumption_reduction # Split by sector, Affect electricity
+- id: electricity_consumption_reduction
   name: Reduktion Stromverbrauch HH und Gewerbe
   name_en: Reduction of electricity consumption households and commercial
   type: simple.GenericAction
@@ -841,7 +843,7 @@ actions:
   output_nodes:
   - id: electricity_consumption
 
-- id: improved_federal_grid_mix # Split by sector. Affect electricity emission factor
+- id: improved_federal_grid_mix
   name: Verbesserter Bundesmix für Reststrombedarf
   name_en: Improved federal grid mix for residual electricity demand
   type: simple.GenericAction
@@ -859,7 +861,7 @@ actions:
   output_nodes:
   - id: electricity_generation
 
-- id: fossil_fuel_replacement # ?? Optimize?
+- id: fossil_fuel_replacement
   name: Ersatz fossiler brennstoffe durch EE-Strom und E-Fuels
   name_en: Replacement of fossil fuels with RE electricity and e-fuels
   type: simple.GenericAction
@@ -877,7 +879,7 @@ actions:
   output_nodes:
   - id: transport_energy_expansion
 
-- id: local_transport_energy_reduction # Split by energy carrier, affect energy
+- id: local_transport_energy_reduction
   name: Reduktion Gesamtenergieverbrauch Binnenverkehr
   name_en: Reduction of total energy consumption local transport
   type: simple.GenericAction
