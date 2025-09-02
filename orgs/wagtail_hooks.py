@@ -78,14 +78,6 @@ class OrganizationForm(NodeForm):
             return parent
         raise ValidationError(_("Removing parent from organization is not allowed."), code='invalid_parent')
 
-    def save(self, *args, **kwargs):
-        creating = self.instance._state.adding
-        result = super().save(*args, **kwargs)
-        if creating and self.instance.parent is None:
-            # When creating a new root organization make sure the creator retains edit permissions
-            self.instance.metadata_admins.add(self.user.person) # type: ignore[attr-defined]
-        return result
-
 
 
 class OrganizationViewSet(PathsViewSet):
@@ -124,27 +116,6 @@ class OrganizationViewSet(PathsViewSet):
         GoogleMapsPanel('location', permission='superuser'),
     ]
 
-    permissions_panels: list[Panel] = [
-        # CondensedInlinePanel(
-        #     'organization_plan_admins',
-        #     panels=[
-        #         InvisiblePlanPanel('plan'),
-        #         FieldPanel('person', widget=PersonChooser),
-        #     ],
-        #     heading=_("Plan admins"),
-        #     help_text=_("People who can edit plan-specific content related to this organization"),
-        # ),
-        CondensedInlinePanel(
-            'organization_metadata_admins',
-            panels=[
-                FieldPanel('person', widget=PersonChooser),
-            ],
-            heading=_("Metadata admins"),
-            help_text=_("People who can edit data of this organization and suborganizations but no plan-specific "
-                        "content"),
-        ),
-    ]
-
     @property
     def add_child_view(self):
         """Generate a class-based view to provide 'add child' functionality."""
@@ -171,7 +142,6 @@ class OrganizationViewSet(PathsViewSet):
     def get_edit_handler(self):
         tabs = [
             ObjectList(self.basic_panels, heading=_('Basic information')),
-            ObjectList(self.permissions_panels, heading=_('Permissions')),
         ]
         return TabbedInterface(tabs, base_form_class=OrganizationForm).bind_to_model(self.model)
 
