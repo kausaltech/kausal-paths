@@ -23,7 +23,12 @@ from kausal_common.models.permissions import PermissionedQuerySet
 
 from paths.context import realm_context
 
-from nodes.roles import instance_admin_role, instance_viewer_role
+from nodes.roles import (
+    instance_admin_role,
+    instance_reviewer_role,
+    instance_super_admin_role,
+    instance_viewer_role,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -48,7 +53,9 @@ class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, 'InstanceCo
 
         self.model = model
         self.instance_admin_role = instance_admin_role
+        self.instance_super_admin_role = instance_super_admin_role
         self.instance_viewer_role = instance_viewer_role
+        self.instance_reviewer_role = instance_reviewer_role
         self.ic_model = InstanceConfig
         super().__init__(model)
 
@@ -71,9 +78,14 @@ class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, 'InstanceCo
         # Check if user is admin for any of the instances
         if user.has_instance_role(self.instance_admin_role, active_instance):
             return True
-        # For view permission, check if user is a viewer for any of the instances
+        if user.has_instance_role(self.instance_super_admin_role, active_instance):
+            return True
+        # For view permission, check if user is a viewer or reviewer for any of the instances
         if action == 'view':
-            return user.has_instance_role(self.instance_viewer_role, active_instance)
+            return any((
+                user.has_instance_role(self.instance_viewer_role, active_instance),
+                user.has_instance_role(self.instance_reviewer_role, active_instance),
+            ))
         return False
 
     @override
@@ -82,7 +94,12 @@ class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, 'InstanceCo
 
     @override
     def user_can_create(self, user: User, context: InstanceConfig) -> bool:
-        return user.has_instance_role(self.instance_admin_role, context)
+        return (
+            user.is_superuser or
+            user.has_instance_role(self.instance_admin_role, context) or
+            user.has_instance_role(self.instance_super_admin_role, context)
+        )
+
 
     @override
     def construct_perm_q_anon(self, action: BaseObjectAction) -> Q | None:
@@ -126,22 +143,34 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
             scopes__scope_id__in=self.instance_admin_role.get_instances_for_user(user)
         )
 
+        super_admin_q = Q(
+            scopes__scope_content_type=ic_content_type,
+            scopes__scope_id__in=self.instance_super_admin_role.get_instances_for_user(user)
+        )
+
         if action == 'view':
             viewer_q = Q(
                 scopes__scope_content_type=ic_content_type,
                 scopes__scope_id__in=self.instance_viewer_role.get_instances_for_user(user)
             )
-            return admin_q | viewer_q
+            reviewer_q = Q(
+                scopes__scope_content_type=ic_content_type,
+                scopes__scope_id__in=self.instance_reviewer_role.get_instances_for_user(user)
+            )
+            return super_admin_q | admin_q | viewer_q | reviewer_q
 
-        return admin_q
+        return super_admin_q | admin_q
 
     def user_has_permission(self, user: User | AnonymousUser, action: str) -> bool:
         if not self.user_is_authenticated(user):
             return False
 
-        allowed_roles: list[InstanceSpecificRole[InstanceConfig]] = [self.instance_admin_role]
+        allowed_roles: list[InstanceSpecificRole[InstanceConfig]] = [self.instance_admin_role, self.instance_super_admin_role]
         if action == 'view':
             allowed_roles.append(self.instance_viewer_role)
+            allowed_roles.append(self.instance_reviewer_role)
+        if action == 'review':
+            allowed_roles.append(self.instance_reviewer_role)
 
         return self.user_has_any_role_in_active_instance(user, allowed_roles)
 
@@ -168,6 +197,9 @@ class DatasetPermissionPolicy(ParentInheritedPolicy[Dataset, DatasetSchema, Data
     @override
     def user_can_create(self, user: User, context: DatasetSchema) -> bool:
         return self.parent_policy.user_has_perm(user, 'change', context)
+
+    def user_can_review(self, user: User) -> bool:
+        return self.parent_policy.user_has_permission(user, 'review')
 
 
 class DataPointPermissionPolicy(ParentInheritedPolicy[DataPoint, Dataset, PermissionedQuerySet[DataPoint]]):
@@ -215,11 +247,21 @@ class DataSourcePermissionPolicy(InstanceConfigScopedPermissionPolicy[DataSource
             scope_id__in=self.instance_admin_role.get_instances_for_user(user)
         )
 
+        super_admin_q = Q(
+            scope_content_type=ic_content_type,
+            scope_id__in=self.instance_admin_role.get_instances_for_user(user)
+        )
+
         if action == 'view':
             viewer_q = Q(
                 scope_content_type=ic_content_type,
                 scope_id__in=self.instance_viewer_role.get_instances_for_user(user)
             )
-            return admin_q | viewer_q
 
-        return admin_q
+            reviewer_q = Q(
+                scope_content_type=ic_content_type,
+                scope_id__in=self.instance_reviewer_role.get_instances_for_user(user)
+            )
+            return super_admin_q | admin_q | viewer_q | reviewer_q
+
+        return super_admin_q | admin_q

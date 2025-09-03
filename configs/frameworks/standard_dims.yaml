@@ -34,24 +34,30 @@ dimensions:
   - id: transport
     label_en: Transport
     label_de: Verkehr
+    aliases: [verkehr]
   - id: buildings
     label_en: Buildings & Heating
     label_de: Gebäude & Heizung
   - id: private_households
     label_en: Private Households
     label_de: Private Haushalte
+    aliases: [private_haushalte]
   - id: municipal_facilities
     label_en: Municipal Facilities
     label_de: Kommunale Einrichtungen
+    aliases: [kommunale_einrichtungen]
   - id: commerce_trade_services
     label_en: Commerce, Trade & Services
     label_de: Gewerbe, Handel, Dienstleistungen
+    aliases: [gewerbe_handel_dienstleistungen]
   - id: industry
     label_en: Industry
     label_de: Industrie
+    aliases: [industrie]
   - id: electricity
     label_en: Electricity
     label_de: Strom
+    aliases: [strom]
   - id: waste
     label_en: Waste
     label_de: Abfall
@@ -61,6 +67,10 @@ dimensions:
   - id: total
     label_en: Total
     label_de: Gesamt
+  - id: heating
+    label_en: Heating
+    label_de: Wärme
+    aliases: [warme]
 
 - id: gpc_sector
   label_en: GPC Sector
@@ -460,7 +470,7 @@ dimensions:
   - id: petrol
     label_en: Petrol
     label_de: Benzin
-    aliases: [benzin_fossil]
+    aliases: [benzin_fossil, benzin]
   - id: bio_petrol
     label_en: Bio petrol
     label_de: Biobenzin
@@ -476,6 +486,7 @@ dimensions:
   - id: kerosene
     label_en: Kerosene
     label_de: Kerosin
+    aliases: [kerosin]
   - id: heating_oil
     label_en: Heating oil
     label_de: Heizöl
@@ -483,11 +494,11 @@ dimensions:
   - id: natural_gas
     label_en: Natural gas
     label_de: Erdgas
-    aliases: [gas]
+    aliases: [gas, erdgas]
   - id: lpg
     label_en: LPG (Liquefied petroleum gas)
     label_de: Flüssiggas
-    aliases: [LPG]
+    aliases: [LPG, flssiggas]
   - id: cng_fossil
     label_en: CNG fossil
     label_de: CNG fossil
@@ -501,10 +512,11 @@ dimensions:
   - id: hard_coal
     label_en: Hard coal
     label_de: Steinkohle
-    aliases: [kohle]
+    aliases: [kohle, steinkohle]
   - id: brown_coal
     label_en: Brown coal / Lignite
     label_de: Braunkohle
+    aliases: [braunkohle]
   - id: biomass
     label_en: Biomass
     label_de: Biomasse
@@ -516,7 +528,7 @@ dimensions:
   - id: driving_electricity
     label_en: Driving electricity
     label_de: Fahrstrom
-    aliases: [fahrstrom]
+    aliases: [fahrstrom, strom_fahrstrom]
   - id: heating_electricity
     label_en: Heating electricity
     label_de: Heizstrom
@@ -544,9 +556,11 @@ dimensions:
   - id: other_renewables
     label_en: Other renewables
     label_de: Sonstige Erneuerbare
+    aliases: [sonstige_erneuerbare]
   - id: other_conventional
     label_en: Other conventional
     label_de: Sonstige Konventionelle
+    aliases: [sonstige_konventionelle]
 
 - id: fuel_type
   label_en: Fuel type

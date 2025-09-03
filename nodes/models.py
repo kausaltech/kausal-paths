@@ -43,9 +43,19 @@ from kausal_common.datasets.models import (
     DimensionScope,
 )
 from kausal_common.i18n.helpers import convert_language_code
-from kausal_common.models.permission_policy import ModelPermissionPolicy, ParentInheritedPolicy
+from kausal_common.models.permission_policy import (
+    ModelPermissionPolicy,
+    ParentInheritedPolicy,
+)
 from kausal_common.models.permissions import PermissionedQuerySet
-from kausal_common.models.types import FK, M2M, MLModelManager, RevMany, RevOne, copy_signature
+from kausal_common.models.types import (
+    FK,
+    M2M,
+    MLModelManager,
+    RevMany,
+    RevOne,
+    copy_signature,
+)
 from kausal_common.models.uuid import UUIDIdentifiedModel
 
 from paths.const import INSTANCE_CHANGE_GROUP, INSTANCE_CHANGE_TYPE
@@ -67,7 +77,10 @@ if TYPE_CHECKING:
 
     from loguru import Logger
 
-    from kausal_common.models.permission_policy import BaseObjectAction, ObjectSpecificAction
+    from kausal_common.models.permission_policy import (
+        BaseObjectAction,
+        ObjectSpecificAction,
+    )
     from kausal_common.users import UserOrAnon
 
     from frameworks.models import FrameworkConfig
@@ -119,7 +132,9 @@ class InstanceConfigQuerySet(MultilingualQuerySet['InstanceConfig'], Permissione
 
 _InstanceConfigManager = models.Manager.from_queryset(InstanceConfigQuerySet)
 
-class InstanceConfigManager(MLModelManager['InstanceConfig', InstanceConfigQuerySet], _InstanceConfigManager):  # pyright: ignore[reportIncompatibleMethodOverride]
+class InstanceConfigManager(  # pyright: ignore[reportIncompatibleMethodOverride]
+    MLModelManager['InstanceConfig', InstanceConfigQuerySet], _InstanceConfigManager
+):
     def get_by_natural_key(self, identifier: str) -> InstanceConfig:
         return self.get(identifier=identifier)
 del _InstanceConfigManager
@@ -129,19 +144,29 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any
     def __init__(self):
         from frameworks.roles import framework_admin_role, framework_viewer_role
 
-        from .roles import instance_admin_role, instance_viewer_role
+        from .roles import (
+            instance_admin_role,
+            instance_reviewer_role,
+            instance_super_admin_role,
+            instance_viewer_role,
+        )
 
+        self.super_admin_role = instance_super_admin_role
         self.admin_role = instance_admin_role
         self.viewer_role = instance_viewer_role
+        self.reviewer_role = instance_reviewer_role
         self.fw_admin_role = framework_admin_role
         self.fw_viewer_role = framework_viewer_role
         super().__init__(InstanceConfig)
 
     def is_admin(self, user: User, obj: InstanceConfig) -> bool:
-        return user.has_instance_role(self.admin_role, obj)
+        return user.has_instance_role(self.admin_role, obj) or user.has_instance_role(self.super_admin_role, obj)
 
     def is_viewer(self, user: User, obj: InstanceConfig) -> bool:
         return user.has_instance_role(self.viewer_role, obj)
+
+    def is_reviewer(self, user: User, obj: InstanceConfig) -> bool:
+        return user.has_instance_role(self.reviewer_role, obj)
 
     def is_framework_admin(self, user: User, obj: InstanceConfig) -> bool:
         if not obj.has_framework_config():
@@ -154,16 +179,18 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any
         return user.has_instance_role(self.fw_viewer_role, obj.framework_config.framework)
 
     def construct_perm_q(self, user: User, action: ObjectSpecificAction, include_implicit_public: bool = True) -> models.Q | None:
+        is_super_admin = self.super_admin_role.role_q(user)
         is_admin = self.admin_role.role_q(user)
         is_viewer = self.viewer_role.role_q(user)
+        is_reviewer = self.reviewer_role.role_q(user)
         is_fw_admin = self.fw_admin_role.role_q(user, prefix='framework_config__framework')
         is_fw_viewer = self.fw_viewer_role.role_q(user, prefix='framework_config__framework')
         if action == 'view':
-            q = is_viewer | is_admin | is_fw_admin | is_fw_viewer
+            q = is_viewer | is_reviewer | is_super_admin | is_admin | is_fw_admin | is_fw_viewer
             if include_implicit_public:
                 q |= Q(framework_config__isnull=True)
             return q
-        return is_admin | is_fw_admin
+        return is_super_admin | is_admin | is_fw_admin
 
     def construct_perm_q_anon(self, action: BaseObjectAction) -> Q | None:
         if action == 'view':
@@ -190,6 +217,8 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any
             if self.anon_has_perm('view', obj):
                 return True
             if self.is_viewer(user, obj):
+                return True
+            if self.is_reviewer(user, obj):
                 return True
             if self.is_framework_viewer(user, obj):
                 return True
@@ -251,9 +280,17 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
     modified_at = models.DateTimeField(auto_now=True)
     cache_invalidated_at = models.DateTimeField(default=timezone.now)
 
-    primary_language = models.CharField[str, str](max_length=8, choices=get_supported_languages, default=get_default_language)  # type: ignore[arg-type]
+    primary_language = models.CharField[str, str](
+        max_length=8,
+        choices=get_supported_languages,  # type: ignore[arg-type]
+        default=get_default_language
+    )
     other_languages = ChoiceArrayField(
-        models.CharField(max_length=8, choices=get_supported_languages, default=get_default_language),  # type: ignore[arg-type]
+        models.CharField(
+            max_length=8,
+            choices=get_supported_languages,  # type: ignore[arg-type]
+            default=get_default_language
+        ),
         default=list,
     )
 
@@ -262,11 +299,21 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         null=True,
     )
     viewer_group_id: int | None
+    reviewer_group: FK[Group | None] = models.ForeignKey(
+        Group, on_delete=models.PROTECT, editable=False, related_name='reviewer_instances',
+        null=True
+    )
+    reviewer_group_id: int | None
     admin_group: FK[Group | None] = models.ForeignKey(
         Group, on_delete=models.PROTECT, editable=False, related_name='admin_instances',
         null=True,
     )
     admin_group_id: int | None
+    super_admin_group: FK[Group | None] = models.ForeignKey(
+        Group, on_delete=models.PROTECT, editable=False, related_name='super_admin_instances',
+        null=True,
+    )
+    super_admin_group_id: int | None
 
     """
     model_cache = JSONField[InstanceModelCache | None, InstanceModelCache | None](
@@ -335,6 +382,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         pp = self.permission_policy()
         pp.admin_role.delete_instance_group(self)
         pp.viewer_role.delete_instance_group(self)
+        pp.reviewer_role.delete_instance_group(self)
         self.nodes.all().delete()
         super().delete(**kwargs)
 
@@ -696,10 +744,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
         return home_page
 
     def create_default_content(self):
-        pp = self.permission_policy()
-        pp.admin_role.create_or_update_instance_group(self)
-        pp.viewer_role.create_or_update_instance_group(self)
-
+        self.create_or_update_instance_groups()
         root_page = self._create_default_pages()
         if self.site is None and self.site_url is not None:
             o = urlparse(self.site_url)
@@ -707,6 +752,15 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
             site.save()
             self.site = site
             self.save(update_fields=['site'])
+
+    def create_or_update_instance_groups(self):
+        pp = self.permission_policy()
+        pp.admin_role.create_or_update_instance_group(self)
+        pp.viewer_role.create_or_update_instance_group(self)
+        # For now, try not to proliferate the group count for NZC instances
+        if not self.has_framework_config() or self.framework_config.framework.identifier != 'nzc':
+            pp.reviewer_role.create_or_update_instance_group(self)
+            pp.super_admin_role.create_or_update_instance_group(self)
 
     def invalidate_cache(self, save: bool = True):
         self.cache_invalidated_at = timezone.now()

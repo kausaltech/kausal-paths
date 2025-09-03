@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 
 def initialize_notebook_env():
-    from IPython import get_ipython  # pyright: ignore
+    from IPython import get_ipython
 
     path = Path(__file__).parent.parent
     if not (path / Path('manage.py')).exists():
@@ -27,9 +27,9 @@ def initialize_notebook_env():
     assert ip is not None
     assert ip.extension_manager is not None
     if 'IPython.extensions.autoreload' not in ip.extension_manager.loaded:
-        ip.magic(r'%reload_ext autoreload')
-        ip.magic(r'%autoreload 2')
-    ip.magic(r'%matplotlib ipympl')
+        ip.run_line_magic(magic_name='reload_ext', line='autoreload')
+        ip.run_line_magic(magic_name='autoreload', line='2')
+    ip.run_line_magic(magic_name='matplotlib', line='ipympl')
 
     os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "1"
 

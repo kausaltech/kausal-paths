@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-# import re
 import contextlib
 import uuid
 from typing import TYPE_CHECKING, ClassVar, override
@@ -15,6 +14,7 @@ from wagtail.search import index
 from loguru import logger
 
 # from wagtail.images.rect import Rect
+from kausal_common.models.permissions import PermissionedModel
 from kausal_common.models.types import MLModelManager
 from kausal_common.people.models import BasePerson
 
@@ -23,8 +23,9 @@ from users.models import User
 
 if TYPE_CHECKING:
     from django.db import models
+    from django.http import HttpRequest
 
-    from paths.types import PathsAdminRequest
+    from kausal_common.models.permission_policy import ModelPermissionPolicy
 
     from nodes.models import InstanceConfig
 
@@ -48,7 +49,7 @@ else:
     PersonManager = MLModelManager.from_queryset(PersonQuerySet)
 
 
-class Person(BasePerson):
+class Person(PermissionedModel, BasePerson):
     objects: ClassVar[PersonManager] = PersonManager()  # pyright: ignore
 
     search_fields = BasePerson.search_fields + [
@@ -64,13 +65,19 @@ class Person(BasePerson):
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
 
+    def __rich_repr__(self):
+        yield 'first_name', self.first_name
+        yield 'last_name', self.last_name
+        yield 'email', self.email
+
+
     def download_avatar(self):
         # Since this is a base implementation, we'll return None
         # Subclasses can override this to implement actual avatar downloading
         return None
 
     @override
-    def get_avatar_url(self, request: PathsAdminRequest | None = None, size: str | None = None) -> str | None:
+    def get_avatar_url(self, request: HttpRequest | None = None, size: str | None = None) -> str | None:
         if not self.image:
             return None
         try:
@@ -81,7 +88,7 @@ class Person(BasePerson):
             return None
         return self.image.url
 
-    def avatar(self, request: PathsAdminRequest | None = None) -> str:
+    def avatar(self, request: HttpRequest | None = None) -> str:
         avatar_url = self.get_avatar_url(request, size='50x50')
         if not avatar_url:
             return ''
@@ -126,6 +133,7 @@ class Person(BasePerson):
         user.first_name = self.first_name
         user.last_name = self.last_name
         user.email = email
+        user.is_staff = True
         user.save()
         return user
 
@@ -144,3 +152,8 @@ class Person(BasePerson):
             return True
 
         return False
+
+    @classmethod
+    def permission_policy(cls) -> ModelPermissionPolicy:
+        from .permission_policy import PersonPermissionPolicy
+        return PersonPermissionPolicy()

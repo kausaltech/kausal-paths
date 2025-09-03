@@ -81,6 +81,7 @@ class GenericNode(SimpleNode):
             'add_from_incoming_dims': self._operation_add_from_incoming_dims,
             'skip_dim_test': self._operation_skip_dim_test,
             'drop_nans': self._operation_drop_nans,
+            'drop_infs': self._operation_drop_infs,
         }
 
     def _get_input_baskets(self, nodes: list[Node]) -> dict[str, list[Node]]:
@@ -219,6 +220,11 @@ class GenericNode(SimpleNode):
         """Drop NaN cells in long format."""
         assert isinstance(df, ppl.PathsDataFrame)
         return df.filter(pl.col(VALUE_COLUMN).is_not_nan()), baskets
+
+    def _operation_drop_infs(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        """Drop Inf cells in long format."""
+        assert isinstance(df, ppl.PathsDataFrame)
+        return df.filter(pl.col(VALUE_COLUMN).is_finite()), baskets
 
     OperationType = Literal[
         'use_as_totals',

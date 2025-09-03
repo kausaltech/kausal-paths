@@ -18,6 +18,7 @@ dependencies = [
   "diffsync",
   "django",
   "django-anymail[mailgun,mailjet,sendgrid]",
+  "django-autocomplete-light>=3.12.1",
   "django-celery-results",
   "django-cors-headers",
   "django-environ",
@@ -96,7 +97,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-kausal = ["kausal-paths-extensions>=0.6.38"]
+kausal = ["kausal-paths-extensions>=0.6.39"]
 
 [tool.pip-tools]
 

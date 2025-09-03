@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, Self
+from typing import TYPE_CHECKING, ClassVar, Self, override
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from kausal_common.models.permissions import PermissionedModel
 from kausal_common.models.types import MLModelManager
 from kausal_common.organizations.models import (
     BaseNamespace,
     BaseOrganization,
     BaseOrganizationClass,
     BaseOrganizationIdentifier,
-    BaseOrganizationMetadataAdmin,
     BaseOrganizationQuerySet,
     Node,
 )
@@ -22,16 +22,13 @@ if TYPE_CHECKING:
     from nodes.models import InstanceConfig
     from users.models import User
 
+    from .permission_policy import OrganizationPermissionPolicy
+
 
 class OrganizationClass(BaseOrganizationClass):
     class Meta:
         verbose_name = _('Organization class')
         verbose_name_plural = _('Organization classes')
-
-class OrganizationMetadataAdmin(BaseOrganizationMetadataAdmin):
-    class Meta:
-        verbose_name = _('Organization metadata admin')
-        verbose_name_plural = _('Organization metadata admins')
 
 class Namespace(BaseNamespace):
     class Meta:
@@ -45,15 +42,13 @@ class OrganizationIdentifier(BaseOrganizationIdentifier):
 
 class OrganizationQuerySet(BaseOrganizationQuerySet):
     def editable_by_user(self, user):
-        if not user.is_authenticated:
-            return self.none()
-
         # Superusers can edit all organizations
         if user.is_superuser:
             return self.all()
-
-        # Users can edit organizations they are metadata admins for
-        return self.filter(metadata_admins__user=user)
+        pp = Organization.permission_policy()
+        if not user.is_authenticated:
+            return self.filter(pp.construct_perm_q_anon('change') or models.Q(pk__in=[]))
+        return self.filter(pp.construct_perm_q(user, 'change') or models.Q(pk__in=[]))
 
     def available_for_instance(self, instance: InstanceConfig):
         if not hasattr(instance, 'organization') or not instance.organization:
@@ -67,7 +62,7 @@ _OrganizationManager = models.Manager.from_queryset(OrganizationQuerySet)
 class OrganizationManager(MLModelManager['Organization', OrganizationQuerySet], _OrganizationManager): ...
 del _OrganizationManager
 
-class Organization(BaseOrganization, Node[OrganizationQuerySet]):
+class Organization(PermissionedModel, BaseOrganization, Node[OrganizationQuerySet]):
     objects: ClassVar[OrganizationManager] = OrganizationManager()  # type: ignore[assignment]
     VIEWSET_CLASS = 'orgs.wagtail_hooks.OrganizationViewSet'
     class Meta:
@@ -75,8 +70,10 @@ class Organization(BaseOrganization, Node[OrganizationQuerySet]):
         verbose_name_plural = _('Organizations')
         ordering = ['name']
 
-    def __str__(self):
-        return self.name
+    @override
+    def __rich_repr__(self):
+        yield 'name', self.name
+        yield 'uuid', self.uuid
 
     def get_absolute_url(self):
         from django.urls import reverse
@@ -86,6 +83,11 @@ class Organization(BaseOrganization, Node[OrganizationQuerySet]):
         assert not self.primary_language
         self.primary_language = instance.primary_language
         self.primary_language_lowercase = instance.primary_language.lower()
+
+    @classmethod
+    def permission_policy(cls) -> OrganizationPermissionPolicy:
+        from .permission_policy import OrganizationPermissionPolicy
+        return OrganizationPermissionPolicy()
 
     @classmethod
     def get_parent_choices(cls, user: User, obj: Self | None = None) -> OrganizationQuerySet:
@@ -98,4 +100,6 @@ class Organization(BaseOrganization, Node[OrganizationQuerySet]):
         if obj and (parent := obj.get_parent()):
             parent_choices |= Organization.objects.filter(pk=parent.pk)
 
+        if obj:
+            return parent_choices.exclude(pk=obj.pk)
         return parent_choices

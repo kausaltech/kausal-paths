@@ -16,7 +16,7 @@ from wagtail_color_panel.blocks import NativeColorBlock
 
 from nodes.blocks import NodeChooserBlock
 from nodes.constants import IMPACT_COLUMN, IMPACT_GROUP, VALUE_COLUMN, YEAR_COLUMN
-from nodes.metric import DimensionalMetric
+from nodes.metric import DimensionalMetric, MetricYearlyGoal
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -189,7 +189,13 @@ class DashboardCardBlock(blocks.StructBlock):
         GraphQLImage('image', required=False),
         GraphQLField('node', 'nodes.schema.NodeType', required=True),  # pyright: ignore
         GraphQLField('unit', 'paths.schema.UnitType', required=True),  # pyright: ignore
-        GraphQLFloat('goal_value', required=False),
+        GraphQLFloat('goal_value', required=False, deprecation_reason="Use goalValues instead"),
+        GraphQLField(
+            'goal_values',
+            'nodes.schema.MetricYearlyGoalType',  # pyright: ignore
+            is_list=True,
+            required=True,
+        ),
         GraphQLFloat('reference_year_value', required=False),
         GraphQLFloat('last_historical_year_value', required=False),
         GraphQLField('scenario_values', 'nodes.schema.ScenarioValue', is_list=True, required=True),  # pyright: ignore
@@ -256,7 +262,13 @@ class DashboardCardBlock(blocks.StructBlock):
         if target_year is None:
             raise ValueError("Node has no target year")
         goal_index = values.get('goal_index')
-        return self._goal_for_year(node, target_year, goal_index)
+        return self._goal_value_for_year(node, target_year, goal_index)
+
+    def goal_values(self, info: GQLInstanceInfo, values: dict) -> list[MetricYearlyGoal]:
+        """Return the values for all years for the chosen goal."""
+        node = self.node(info, values)
+        goal_index = values.get('goal_index')
+        return self._goal_values(node, goal_index)
 
     def reference_year_value(self, info: GQLInstanceInfo, values: dict) -> float | None:
         node = self.node(info, values)
@@ -348,14 +360,18 @@ class DashboardCardBlock(blocks.StructBlock):
             raise ValueError("Could not obtain dimensional metric from node")
         return dm
 
-    def _goal_for_year(self, node: Node, year: int, goal_index: int | None) -> float | None:
+    def _goal_values(self, node: Node, goal_index: int | None) -> list[MetricYearlyGoal]:
         if goal_index is None:
             goal_index = 0
         dm = self._dimensional_metric(node)
         if goal_index < 0 or goal_index >= len(dm.goals):
             raise ValueError("Goal index is invalid")
         goal = dm.goals[goal_index]
-        year_values = (v for v in goal.values if v.year == year)
+        return goal.values
+
+    def _goal_value_for_year(self, node: Node, year: int, goal_index: int | None) -> float | None:
+        values = self._goal_values(node, goal_index)
+        year_values = (v for v in values if v.year == year)
         try:
             return next(iter(year_values)).value
         except StopIteration:
