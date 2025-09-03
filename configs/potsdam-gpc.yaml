@@ -23,7 +23,7 @@ dataset_repo:
 name: Klimaschutz-Monitor-Potsdam Treibhausgasinventar
 owner: Stadt Potsdam
 theme_identifier: de-potsdam
-target_year: 2045
+target_year: 2050
 model_end_year: 2050
 reference_year: 1995
 minimum_historical_year: 1995
@@ -199,9 +199,14 @@ emission_sectors:
   - label_de: Ziel Netto-Emissionen
     default: true
     is_main_goal: true
+    linear_interpolation: true
     values:
     - year: 2030
-      value: 551
+      value: 483.061
+    - year: 2040
+      value: 296.472
+    - year: 2050
+      value: 118.335
 
 - id: electricity_emissions
   name: Strom-Emissionen
