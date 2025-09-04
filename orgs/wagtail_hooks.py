@@ -99,11 +99,11 @@ class OrganizationViewSet(PathsViewSet):
         TranslatedFieldPanel('name'),
         FieldPanel(
             # virtual field, needs to be specified in the form
-            'parent', heading=pgettext_lazy('organization', 'Parent'),
+            'parent', heading=pgettext_lazy('organization', 'Part of'),
+            help_text=pgettext_lazy('organization', 'Pick the main organization that this organization is part of'),
         ),
         # FieldPanel('logo'),
         TranslatedFieldPanel('abbreviation'),
-        FieldPanel('internal_abbreviation'),
         # Don't allow editing identifiers at this point
         # CondensedInlinePanel('identifiers', panels=[
         #     FieldPanel('namespace'),
