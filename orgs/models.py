@@ -75,6 +75,9 @@ class Organization(PermissionedModel, BaseOrganization, Node[OrganizationQuerySe
         yield 'name', self.name
         yield 'uuid', self.uuid
 
+    def __str__(self):
+        return self.name
+
     def get_absolute_url(self):
         from django.urls import reverse
         return reverse('organization-detail', kwargs={'pk': self.pk})
