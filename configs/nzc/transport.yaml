@@ -419,7 +419,7 @@ nodes:
     - id: transport_mode
       categories: [buses]
   - id: vehicle_kilometres_per_bus
-    tags: [geometric_inverse, extend_values]
+    tags: [geometric_inverse, extend_values, extend_forecast_values]
     to_dimensions:
     - id: transport_mode
 
