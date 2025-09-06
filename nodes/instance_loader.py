@@ -765,6 +765,7 @@ class InstanceLoader:
         assert emission_unit is not None
         emission_unit = self.context.unit_registry.parse_units(emission_unit)
         emission_sectors = []
+        ecs = []
 
         for ec in self.config.get('emission_sectors', []):
             parent_id = ec.pop('part_of', None)
@@ -791,8 +792,9 @@ class InstanceLoader:
                 **ec,
             )
             emission_sectors.append(nc)
+            ecs.append(ec)
 
-        return emission_sectors, ec
+        return emission_sectors, ecs
 
     def generate_nodes_from_emission_sectors(self):
         from nodes.simple import SectorEmissions
