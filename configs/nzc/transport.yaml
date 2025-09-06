@@ -308,7 +308,7 @@ nodes:
 - id: vehicle_kilometres
   name_en: Vehicle kilometres
   name_fi: Ajoneuvokilometrit
-  type: simple.MultiplicativeNode
+  type: generic.GenericNode
   quantity: mileage
   unit: Mvkm/a
   input_dimensions: [transport_mode, energy_carrier]
@@ -322,6 +322,8 @@ nodes:
     - id: transport_mode
     tags: [geometric_inverse]
   - id: transport_energy_carrier_shares
+  params:
+    operations: multiply,drop_infs,drop_nans
 
 - id: fully_electric_vehicle_share_historical
   name_en: Fully electric vehicle share historical

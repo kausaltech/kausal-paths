@@ -163,8 +163,7 @@ action_groups:
 impact_overviews:
 
 - graph_type: cost_benefit
-  cost_node: discounted_investment
-  effect_node: discounted_benefits
+  effect_node: discounted_cost
   indicator_unit: MEUR
   stakeholder_dimension: stakeholder
   outcome_dimension: cost_type
