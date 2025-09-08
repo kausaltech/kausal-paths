@@ -759,13 +759,18 @@ class InstanceLoader:
             node = self.make_node(node_class, nc, yaml_lc=getattr(nc, 'lc', None))
             self.context.add_node(node)
 
-    def prepare_emission_sectors(self):
+    def generate_nodes_from_emission_sectors(self):
+        from nodes.simple import SectorEmissions
+
+        node_class = self.import_class(
+            'SectorEmissions',
+            'nodes.simple',
+            allowed_classes=[SectorEmissions],
+        )
         dataset_id = self.config.get('emission_dataset')
         emission_unit = self.config.get('emission_unit')
         assert emission_unit is not None
         emission_unit = self.context.unit_registry.parse_units(emission_unit)
-        emission_sectors = []
-        ecs = []
 
         for ec in self.config.get('emission_sectors', []):
             parent_id = ec.pop('part_of', None)
@@ -791,21 +796,6 @@ class InstanceLoader:
                 params=dict(category=data_category) if data_category else [],
                 **ec,
             )
-            emission_sectors.append(nc)
-            ecs.append(ec)
-
-        return emission_sectors, ecs
-
-    def generate_nodes_from_emission_sectors(self):
-        from nodes.simple import SectorEmissions
-
-        node_class = self.import_class(
-            'SectorEmissions',
-            'nodes.simple',
-            allowed_classes=[SectorEmissions],
-        )
-        emission_sectors, ec = self.prepare_emission_sectors()
-        for nc in emission_sectors:
             node = self.make_node(node_class, nc, yaml_lc=getattr(ec, 'lc', None))
             self.context.add_node(node)
 
@@ -1211,18 +1201,18 @@ class InstanceLoader:
             )
         self.instance.set_context(self.context)
 
-        all_nodes = []
-        nodes = config.get('nodes')
-        assert isinstance(nodes, list)
-        all_nodes.extend(nodes)
-        all_actions = config.get('actions')
-        if all_actions is not None:
-            all_nodes.extend(all_actions)
-        emission_sectors, ec = self.prepare_emission_sectors()
-        if emission_sectors is not None:
-            for es in emission_sectors:
-                es['type'] = 'simple.SectorEmissions'
-            all_nodes.extend(emission_sectors)
+        # all_nodes = []
+        # nodes = config.get('nodes')
+        # assert isinstance(nodes, list)
+        # all_nodes.extend(nodes)
+        # all_actions = config.get('actions')
+        # if all_actions is not None:
+        #     all_nodes.extend(all_actions)
+        # emission_sectors = self.prepare_emission_sectors()
+        # if emission_sectors is not None:
+        #     for es in emission_sectors:
+        #         es['type'] = 'simple.SectorEmissions'
+        #     all_nodes.extend(emission_sectors)
 
         # explanation_system = NodeExplanationSystem()
         # validation = explanation_system.validate_all_nodes(all_nodes)
