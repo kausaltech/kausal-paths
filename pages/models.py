@@ -260,16 +260,22 @@ class ActionListPage(PathsPage):
 
 
 class DashboardPage(PathsPage):
+    lead_title = models.CharField(blank=True, max_length=100, verbose_name=_('Lead title'))
+    lead_paragraph = RichTextField(blank=True, verbose_name=_('Lead paragraph'))
     background_color = ColorField(blank=True, verbose_name=_('Background color'))
     dashboard_cards = StreamField(block_types=[('card', DashboardCardBlock())])
 
     content_panels = [
         *PathsPage.content_panels,
+        FieldPanel('lead_title'),
+        FieldPanel('lead_paragraph'),
         NativeColorPanel('background_color'),
         FieldPanel('dashboard_cards'),
     ]
 
     graphql_fields = PathsPage.graphql_fields + [
+        GraphQLString('lead_title'),
+        GraphQLString('lead_paragraph'),
         GraphQLString('background_color'),
         GraphQLStreamfield('dashboard_cards'),
     ]
