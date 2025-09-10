@@ -1086,7 +1086,7 @@ actions:
 #     - id: ghg
 
 - id: energy_refurbishment_of_kindergarten
-  name: Energetische Sanierung des Kindergartens (Tannenhofstraße)
+  name: Energetische Sanierung Kindertagesstätte (Tannenhofstraße)
   name_en: Energy Refurbishment of Kindergarten (Tannenhofstraße)
   type: simple.AdditiveAction
   group: stationary_energy
@@ -1136,7 +1136,7 @@ actions:
       flatten: true
 
 - id: reforestation
-  name: Wiederaufforstung "Am wilden Moor"
+  name: Aufforstung "Am wilden Moor"
   name_en: Reforestation "Am wilden Moor"
   type: simple.AdditiveAction
   group: land_use
@@ -1186,7 +1186,7 @@ actions:
       flatten: true
 
 - id: tree_donation
-  name: Baumspende
+  name: Baumschenkung
   name_en: Tree Donation
   type: simple.AdditiveAction
   group: land_use
@@ -1236,8 +1236,8 @@ actions:
       flatten: true
 
 - id: school_forest_wittmoor
-  name: Schulwald "Wittmoor"
-  name_en: School Forest "Wittmoor"
+  name: Baumpflanzungen an der Schule "Wittmoor"
+  name_en: Tree Planting at the School "Wittmoor"
   type: simple.AdditiveAction
   group: land_use
   quantity: emissions
@@ -1257,7 +1257,7 @@ actions:
   - id: v_land_use_emissions
 
 - id: decarbonize_municipal_electricity_corporate
-  name: Stromdekarbonisierung (Stadtverwaltung)
+  name: Dekarbonisierung Strom (Stadtverwaltung)
   name_en: Decarbonisation of Electricity (Municipal)
   type: simple.AdditiveAction
   group: trends
@@ -1277,8 +1277,8 @@ actions:
   - id: i4_city_administration_emissions
 
 - id: decarbonize_municipal_electricity_community
-  name: Stromdekarbonisierung (Gesamtstadt)
-  name_en: Decarbonisation of Electricity (Private)
+  name: Dekarbonisierung Strom (Stadtwerke-Kunden)
+  name_en: Decarbonisation of Electricity (Customers of Local Energy Provider)
   type: simple.AdditiveAction
   group: trends
   quantity: emissions
@@ -1298,8 +1298,8 @@ actions:
   - id: i1_private_household_emissions
 
 - id: decarbonize_municipal_district_heating_corporate
-  name: Fernwärmedekarbonisierung (Stadtverwaltung)
-  name_en: Decarbonization of District Heating (Municipal)
+  name: Dekarbonisierung Fernwärme (Stadtverwaltung)
+  name_en: Decarbonisation of District Heating (Municipal)
   type: simple.AdditiveAction
   group: trends
   quantity: emissions
@@ -1318,8 +1318,8 @@ actions:
   - id: i4_city_administration_emissions
 
 - id: decarbonize_municipal_district_heating_community
-  name: Fernwärmedekarbonisierung (Gesamtstadt)
-  name_en: Decarbonization of District Heating (Private)
+  name: Dekarbonisierung Fernwärme (Stadtwerke-Kunden)
+  name_en: Decarbonisation of District Heating (Customers of Local Energy Provider)
   type: simple.AdditiveAction
   group: trends
   quantity: emissions
