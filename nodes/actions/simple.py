@@ -40,6 +40,66 @@ class GenericAction(GenericNode, ActionNode):
         return self.compute_effect()
 
 
+
+class EnergyNode(GenericAction):
+    allowed_parameters = [
+        *GenericAction.allowed_parameters,
+        NumberParameter(local_id='petrol'),
+        NumberParameter(local_id='diesel'),
+        NumberParameter(local_id='electricity'),
+        NumberParameter(local_id='driving_electricity'),
+        NumberParameter(local_id='heating_electricity'),
+        NumberParameter(local_id='district_heating'),
+        NumberParameter(local_id='local_heating'),
+        NumberParameter(local_id='natural_gas'),
+        NumberParameter(local_id='biogas'),
+        NumberParameter(local_id='heaing_oil'),
+        NumberParameter(local_id='hard_coal'),
+        NumberParameter(local_id='biomass'),
+        NumberParameter(local_id='solar_thermal'),
+        NumberParameter(local_id='environmental_heat'),
+        NumberParameter(local_id='bio_petrol'),
+        NumberParameter(local_id='biodiesel'),
+        NumberParameter(local_id='cng_fossil'),
+        NumberParameter(local_id='lpg'),
+        NumberParameter(local_id='hydrogen'),
+    ]
+
+    def compute(self)-> ppl.PathsDataFrame:
+        df = self.get_input_dataset_pl()
+        ecs = [
+            'petrol',
+            'diesel',
+            'electricity',
+            'driving_electricity',
+            'heating_electricity',
+            'district_heating',
+            'local_heating',
+            'natural_gas',
+            'biogas',
+            'heaing_oil',
+            'hard_coal',
+            'biomass',
+            'solar_thermal',
+            'environmental_heat',
+            'bio_petrol',
+            'biodiesel',
+            'cng_fossil',
+            'lpg',
+            'hydrogen',
+        ]
+        for ec in ecs:
+            v = self.get_parameter_value_float(ec, required=False)
+            df = df.with_columns(
+                pl.when(pl.col('energy_carrier') == ec)
+                .then(pl.col(VALUE_COLUMN) * v)
+                .otherwise(pl.col(VALUE_COLUMN))
+                .alias(VALUE_COLUMN)
+            )
+
+        return df
+
+
 class AdditiveAction(ActionNode):
     explanation = _("""Simple action that produces an additive change to a value.""")
     no_effect_value = 0.0

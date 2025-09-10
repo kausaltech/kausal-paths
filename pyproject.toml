@@ -76,6 +76,8 @@ dependencies = [
   "rich",
   "ruamel-yaml",
   "s3cmd",
+  "scipy>=1.16.1",
+  "scipy-stubs>=1.16.1.1",
   "sentry-sdk[django,opentelemetry]",
   "social-auth-app-django",
   "strawberry-graphql",
@@ -111,15 +113,15 @@ norecursedirs = ["node_modules", "data", ".git", "venv", "Attic"]
 filterwarnings = ["ignore::DeprecationWarning:graphene"]
 
 [[tool.uv.index]]
-url = "https://pypi.org/simple"
-
-[[tool.uv.index]]
 name = "kausal"
-url = "https://pypi.kausal.tech"
+url = "https://pypi.kausal.tech/"
 authenticate = "always"
 
 [tool.ruff]
 extend = './kausal_common/configs/ruff.toml'
+
+[[tool.uv.index]]
+url = "https://pypi.org/simple"
 
 [tool.mypy]
 plugins = [

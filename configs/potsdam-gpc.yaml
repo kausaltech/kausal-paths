@@ -274,7 +274,7 @@ nodes:
     column: energy
     filters:
     - column: scenario
-      values: [masterplan_scenario, actual]
+      values: [masterplan_szenario, aktual]
 
 - id: trend_scenario_energy
   name: Trend-Szenario Energie
@@ -291,7 +291,7 @@ nodes:
     column: energy
     filters:
     - column: scenario
-      values: [trend_scenario, actual]
+      values: [trend_szenario, aktual]
 
 - id: trend_scenario_emissions
   name: Trend-Szenario Emissionen
@@ -308,7 +308,7 @@ nodes:
     column: emissions
     filters:
     - column: scenario
-      values: [trend_scenario, actual]
+      values: [trend_szenario, aktual]
 
 - id: trend_scenario_emission_factor
   name: Trend-Szenario Emissionfaktor
@@ -353,7 +353,7 @@ nodes:
     column: emissions
     filters:
     - column: scenario
-      values: [masterplan_scenario, actual]
+      values: [masterplan_szenario, aktual]
 
 - id: emission_change_due_to_energy
   name: Emissionsänderung durch Energieeinsparung
@@ -414,6 +414,8 @@ nodes:
   input_nodes:
   - id: trend_scenario_emission_factor
   - id: emission_factor_correction
+  params:
+    operations: add,multiply
 
 - id: energy_correction
   name: Energie-Korrektur
@@ -616,7 +618,122 @@ nodes:
   output_nodes:
   - id: emission_change_due_to_energy
 
+- id: emission_difference
+  name: Emission difference
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: sector
+      flatten: true
+  - id: scenario_emissions_data
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: sector
+      flatten: true
+
 actions:
+
+- id: multiplier
+  name: Multiplier
+  type: simple.EnergyNode
+  quantity: ratio
+  unit: dimensionless
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: potsdam/sector_index
+    tags: [baseline]
+    column: sector_index
+    forecast_from: 2025
+    filters:
+    - dimension: sector
+      flatten: true
+  params:
+  - id: operations
+    value: find_energy_multipliers
+  - id: petrol
+    value: 1
+    min_value: 0
+    max_value: 10
+  - id: diesel  
+    value: 1
+    min_value: 0
+    max_value: 10
+  - id: electricity  
+    value: 1
+    min_value: 0
+    max_value: 10
+  - id: driving_electricity  
+    value: 1
+    min_value: 0
+    max_value: 10
+  - id: heating_electricity  
+    value: 1
+    min_value: 0
+    max_value: 10
+  - id: district_heating  
+    value: 1
+    min_value: 0
+    max_value: 10
+  - id: local_heating  
+    value: 1
+    min_value: 0
+    max_value: 10
+  - id: natural_gas  
+    value: 1
+    min_value: 0
+    max_value: 10
+  - id: biogas  
+    value: 1
+    min_value: 0
+    max_value: 10
+  - id: heaing_oil  
+    value: 1
+    min_value: 0
+    max_value: 10
+  - id: hard_coal  
+    value: 1
+    min_value: 0
+    max_value: 10
+  - id: biomass  
+    value: 1
+    min_value: 0
+    max_value: 10
+  - id: solar_thermal  
+    value: 1
+    min_value: 0
+    max_value: 10
+  - id: environmental_heat  
+    value: 1
+    min_value: 0
+    max_value: 10
+  - id: bio_petrol  
+    value: 1
+    min_value: 0
+    max_value: 10
+  - id: biodiesel  
+    value: 1
+    min_value: 0
+    max_value: 10
+  - id: cng_fossil  
+    value: 1
+    min_value: 0
+    max_value: 10
+  - id: lpg  
+    value: 1
+    min_value: 0
+    max_value: 10
+  - id: hydrogen  
+    value: 2
+    min_value: 0
+    max_value: 10
+  output_nodes:
+  - id: corrected_emission_factor
 
 # NEW ACTIONS from action impact 250801.xlsx
 # https://docs.google.com/spreadsheets/d/15aMuO2-GmvYw8IXe3pgSN6LvfdEqDPI6/edit?gid=2009060009#gid=2009060009
