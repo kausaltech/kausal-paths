@@ -1664,11 +1664,11 @@ actions:
           energy_carrier: biogas_import
           emission_scope: scope1
       amounts:
-      - year: 2027
-        amount: 0
-      - year: 2028
-        amount: -182.18
       - year: 2029
+        amount: 0
+      - year: 2030
+        amount: -182.18
+      - year: 2031
         amount: 0
 
 - id: buses_use_synthetic_diesel
