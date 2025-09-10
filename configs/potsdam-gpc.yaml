@@ -205,7 +205,7 @@ emission_sectors:
       value: 483.061
     - year: 2040
       value: 296.472
-    - year: 2050
+    - year: 2045
       value: 118.335
 
 - id: electricity_emissions
