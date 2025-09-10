@@ -58,9 +58,11 @@ def determine_metric_column(df: pl.DataFrame) -> str:
     """Determine which column to use for metrics."""
     if 'Metric' in df.columns:
         return 'Metric'  # backward compatibility
-    if 'Quantity' in df.columns:
-        return 'Quantity'
-    raise ValueError("No metric column found. DataFrame must contain 'Metric', 'Sector', 'Quantity' column.")
+    if 'Sector' in df.columns:
+        return 'Sector'  # legacy support
+    if 'sector' in df.columns:
+        return 'sector'  # legacy support
+    raise ValueError("No metric column found. DataFrame must contain 'Metric', or 'Sector' column.")
 
 
 def create_metric_col(df: pl.DataFrame, metric_col: str) -> pl.DataFrame:
@@ -70,13 +72,26 @@ def create_metric_col(df: pl.DataFrame, metric_col: str) -> pl.DataFrame:
     Uses the simplest combination of columns that maintains uniqueness.
     """
     # Get the full unique count with all columns
-    if metric_col == 'Quantity':
-        df = df.with_columns(pl.col('Quantity').alias('Metric'))
-    elif metric_col != 'Metric':
+    if metric_col != 'Metric':
         df.rename({metric_col: 'Metric'})
     unique_metrics = df.select(['Metric', 'Quantity', 'Unit']).unique()
     if len(unique_metrics) != len(df.select('Metric').unique()):
         raise ValueError(f"Column {metric_col} contains duplicate values. Please check the data.")
+
+    # # Try combinations in order of simplicity
+    # cols_to_use = [metric_col]
+    # if len(df.select(cols_to_use).unique()) != full_count:
+    #     cols_to_use.append('Quantity')
+    #     if len(df.select(cols_to_use).unique()) != full_count:
+    #         cols_to_use.append('Unit')
+
+    # # Create the label by joining the selected columns with spaces
+    # df = df.with_columns(
+    #     pl.concat_str([
+    #         pl.col(col)
+    #         for col in cols_to_use
+    #     ], separator=" ").alias('metric_col')
+    # ).drop(metric_col)
 
     # Convert metric_col to snake_case
     df = df.with_columns([
