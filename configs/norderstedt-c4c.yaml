@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://norderstedt-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: c35b834c43c6b1be7fd2eab872d1f4499415977a
+  commit: 78304a4b7c1bf9a1fdf8e882bc9c11d87853bf37
   dvc_remote: kausal-s3
 name: Treibhausgasbilanz Norderstedt
 name_en: Norderstedt Greenhouse Gas Inventory
@@ -651,152 +651,105 @@ actions:
 #     to_dimensions:
 #     - id: ghg
 
+- id: change_street_lights_to_led_moorkamp_street
+  name: Umstellung der Ampeln auf LED (Moorkamp Straße)
+  name_en: Change Traffic Lights to LED (Moorkamp Street)
+  type: simple.AdditiveAction
+  group: stationary_energy
+  input_dimensions: [action, sector, cost_type]
+  output_dimensions: [action, sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: norderstedt/actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [change_traffic_lights_to_led_moorkamp_street]
+  output_metrics:
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  - id: emissions
+    unit: kg_co2e/a
+    quantity: emissions
+  output_nodes:
+  - id: i4_city_administration_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: sector
+  - id: i4_city_administration_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+  - id: total_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
 
-# - id: change_street_lights_to_led_moorkamp_street
-#   name: Change Street Lights to LED (Moorkamp Street)
-#   type: simple.AdditiveAction
-#   group: i_stationary
-#   input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
-#   output_dimensions: ['action', 'cost_type', 'scope', 'ghg']
-#   params:
-#     allow_null_categories: true
-
-#   input_datasets:
-#   - id: norderstedt/stationary_actions
-#     forecast_from: 2024
-#     filters:
-#     - column: sector
-#     - dimension: action
-#       categories: [change_traffic_lights_to_led_moorkamp_street]
-#     - column: energy_carrier
-
-#   output_metrics:
-#   - id: currency
-#     unit: EUR/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kg/a
-#     quantity: emissions
-
-#   output_nodes:
-#   - id: i_stationary_total_price
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: ghg
-#       flatten: true
-#     to_dimensions:
-#     - id: action
-#     - id: cost_type
-#     - id: scope
-#   - id: total_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: action
-#       flatten: true
-#     - id: cost_type
-#       categories: [capex_infrastructure]
-#       flatten: true
-#     - id: scope
-#       flatten: true
-#     - id: ghg
-#       flatten: true
-#   - id: total_benefits
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: action
-#       flatten: true
-#     - id: cost_type
-#       categories: [opex_infrastructure]
-#       flatten: true
-#     - id: scope
-#       flatten: true
-#     - id: ghg
-#       flatten: true
-#   - id: i_stationary_total_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: action
-#       flatten: true
-#     - id: cost_type
-#       flatten: true
-#     - id: scope
-#       flatten: true
-#     to_dimensions:
-#     - id: ghg
-
-
-# - id: change_traffic_lights_to_led_total
-#   name: Change Traffic Lights to LED (Total)
-#   type: simple.AdditiveAction
-#   group: i_stationary
-#   input_dimensions: ['action', 'cost_type', 'scope', 'ghg']
-#   output_dimensions: ['action', 'cost_type', 'scope', 'ghg']
-#   params:
-#     allow_null_categories: true
-
-#   input_datasets:
-#   - id: norderstedt/stationary_actions
-#     forecast_from: 2024
-#     filters:
-#     - column: sector
-#     - dimension: action
-#       categories: [change_traffic_lights_to_led_total]
-#     - column: energy_carrier
-
-#   output_metrics:
-#   - id: currency
-#     unit: EUR/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kg/a
-#     quantity: emissions
-
-#   output_nodes:
-#   - id: i_stationary_total_price
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: ghg
-#       flatten: true
-#     to_dimensions:
-#     - id: action
-#     - id: cost_type
-#     - id: scope
-#   - id: total_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: action
-#       flatten: true
-#     - id: cost_type
-#       categories: [capex_infrastructure]
-#       flatten: true
-#     - id: scope
-#       flatten: true
-#     - id: ghg
-#       flatten: true
-#   - id: total_benefits
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: action
-#       flatten: true
-#     - id: cost_type
-#       categories: [opex_infrastructure]
-#       flatten: true
-#     - id: scope
-#       flatten: true
-#     - id: ghg
-#       flatten: true
-#   - id: i_stationary_total_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: action
-#       flatten: true
-#     - id: cost_type
-#       flatten: true
-#     - id: scope
-#       flatten: true
-#     to_dimensions:
-#     - id: ghg
-
+- id: change_traffic_lights_to_led_total
+  name: Umstellung der Ampeln auf LED (total)
+  name_en: Change Traffic Lights to LED (Total)
+  type: simple.AdditiveAction
+  group: stationary_energy
+  input_dimensions: [action, sector, cost_type]
+  output_dimensions: [action, sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: norderstedt/actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [change_traffic_lights_to_led_total]
+  output_metrics:
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  - id: emissions
+    unit: kg_co2e/a
+    quantity: emissions
+  output_nodes:
+  - id: i4_city_administration_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: sector
+  - id: i4_city_administration_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+  - id: total_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: sector
+      flatten: true
+    - id: cost_type
+      flatten: true
 
 # - id: program_energy_refurbishment_for_private_households
 #   name: Funding Program for Energy Refurbishment
