@@ -459,37 +459,37 @@ nodes:
 
 ##### COSTS
 
-- id: energy_prices
-  name: Energiepreise
-  name_en: Energy prices
-  type: generic.GenericNode
-  quantity: unit_price
-  unit: EUR/MWh
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_datasets:
-  - id: potsdam/energiepreis
-    tags: [baseline]
-    column: energiepreis
-    filters:
-    - column: sector
-      values: [transport, private_households]
-      drop_col: false # If you turn this true, you can check for duplicates.
+# - id: energy_prices
+#   name: Energiepreise
+#   name_en: Energy prices
+#   type: generic.GenericNode
+#   quantity: unit_price
+#   unit: EUR/MWh
+#   input_dimensions: [energy_carrier, sector]
+#   output_dimensions: [energy_carrier, sector]
+#   input_datasets:
+#   - id: potsdam/energiepreis
+#     tags: [baseline]
+#     column: energiepreis
+#     filters:
+#     - column: sector
+#       values: [transport, private_households]
+#       drop_col: false # If you turn this true, you can check for duplicates.
 
-- id: total_energy_costs
-  name: Endenergiekosten Gesamt
-  name_en: Final Energy Costs Over All Sectors
-  type: generic.GenericNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_nodes:
-  - id: corrected_energy
-  - id: energy_prices
-    from_dimensions:
-    - id: sector
-      flatten: true
+# - id: total_energy_costs
+#   name: Endenergiekosten Gesamt
+#   name_en: Final Energy Costs Over All Sectors
+#   type: generic.GenericNode
+#   quantity: currency
+#   unit: MEUR/a
+#   input_dimensions: [sector, energy_carrier]
+#   output_dimensions: [sector, energy_carrier]
+#   input_nodes:
+#   - id: corrected_energy
+#   - id: energy_prices
+#     from_dimensions:
+#     - id: sector
+#       flatten: true
 
 # SUMMARY IMPACTS
 
@@ -904,12 +904,12 @@ actions:
 
 pages:
 - id: home
-  name: Klimaschutz-Monitor Potsdam Treibhausgasinventar
+  name: Klima-Monitor-Potsdam Treibhausgasinventar
   name_en: Climate Protection Monitor Potsdam Greenhouse Gas Inventory
   path: /
   type: emission
   outcome_node: net_emissions
-  lead_title: Potsdam Zielwerte Klimaschutz
+  lead_title: Klima-Monitor-Potsdam Treibhausgasinventar
   lead_paragraph: Die Treibhausgasemissionen in Potsdam sinken kontinuierlich, 
     pro Kopf relativ deutlich. In der Vergangenheit konnten die Minderungsziele 
     weitgehend erreicht werden. Die hier abgebildeten Ziele des Masterplan 100% 
