@@ -276,7 +276,7 @@ nodes:
   - id: potsdam/scenario/energie
     tags: [baseline]
     forecast_from: 2024
-    column: energy
+    column: energie
     filters:
     - column: scenario
       values: [masterplan_scenario, actual]
@@ -293,7 +293,7 @@ nodes:
   - id: potsdam/scenario/energie
     tags: [baseline]
     forecast_from: 2024
-    column: energy
+    column: energie
     filters:
     - column: scenario
       values: [trend_scenario, actual]
@@ -310,7 +310,7 @@ nodes:
   - id: potsdam/scenario/emissionen
     tags: [baseline]
     forecast_from: 2024
-    column: emissions
+    column: emissionen
     filters:
     - column: scenario
       values: [trend_scenario, actual]
@@ -355,7 +355,7 @@ nodes:
   - id: potsdam/scenario/emissionen
     tags: [baseline]
     forecast_from: 2024
-    column: emissions
+    column: emissionen
     filters:
     - column: scenario
       values: [masterplan_scenario, actual]
