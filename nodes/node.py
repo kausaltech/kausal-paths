@@ -694,7 +694,8 @@ class Node:
 
             df = ds.get_copy(self.context)
             if df.paths.index_has_duplicates():
-                raise NodeError(self, 'Input dataset has duplicate index rows')
+                print(df.paths.duplicated_index_rows())
+                raise NodeError(self, 'Input dataset has duplicate index rows. See rows above.')
             assert isinstance(df, ppl.PathsDataFrame)
             dfs.append(df)
 
