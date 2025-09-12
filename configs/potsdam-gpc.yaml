@@ -18,7 +18,7 @@ supported_languages: []
 site_url: https://potsdam-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 317cd5e61b71472f70823c064c46307f3e454744
+  commit: 24fcfa5d80717c760d67588c7a60d8d29f1a76fd
   dvc_remote: kausal-s3
 name: Klima-Monitor-Potsdam
 owner: Stadt Potsdam
@@ -273,7 +273,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: potsdam/szenarien
+  - id: potsdam/scenario/energie
     tags: [baseline]
     forecast_from: 2024
     column: energy
@@ -290,7 +290,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: potsdam/szenarien
+  - id: potsdam/scenario/energie
     tags: [baseline]
     forecast_from: 2024
     column: energy
@@ -307,7 +307,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: potsdam/szenarien
+  - id: potsdam/scenario/emissionen
     tags: [baseline]
     forecast_from: 2024
     column: emissions
@@ -352,7 +352,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: potsdam/szenarien
+  - id: potsdam/scenario/emissionen
     tags: [baseline]
     forecast_from: 2024
     column: emissions
