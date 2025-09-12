@@ -474,7 +474,7 @@ dimensions:
   - id: bio_petrol
     label_en: Bio petrol
     label_de: Biobenzin
-    aliases: [benzin_biogen]
+    aliases: [benzin_biogen, biobenzin]
   - id: diesel
     label_en: Diesel
     label_de: Diesel
