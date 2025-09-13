@@ -18,7 +18,7 @@ supported_languages: []
 site_url: https://potsdam-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 24fcfa5d80717c760d67588c7a60d8d29f1a76fd
+  commit: 4a4d3adc781706715d7d88afcd0881d0cc2bb3e5
   dvc_remote: kausal-s3
 name: Klima-Monitor-Potsdam
 owner: Stadt Potsdam
@@ -272,14 +272,18 @@ nodes:
   unit: MWh/a
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
+  params:
+    operations: get_datasets
   input_datasets:
   - id: potsdam/scenario/energie
-    tags: [baseline]
+    forecast_from: 2024
+    column: energie
+  - id: potsdam/scenario/trend_und_masterplan_szenarien
     forecast_from: 2024
     column: energie
     filters:
     - column: scenario
-      values: [masterplan_scenario, actual]
+      values: [masterplan_scenario]
 
 - id: trend_scenario_energy
   name: Trend-Szenario Energie
@@ -289,14 +293,18 @@ nodes:
   unit: MWh/a
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
+  params:
+    operations: get_datasets,multiply
   input_datasets:
   - id: potsdam/scenario/energie
-    tags: [baseline]
+    forecast_from: 2024
+    column: energie
+  - id: potsdam/scenario/trend_und_masterplan_szenarien
     forecast_from: 2024
     column: energie
     filters:
     - column: scenario
-      values: [trend_scenario, actual]
+      values: [trend_scenario]
 
 - id: trend_scenario_emissions
   name: Trend-Szenario Emissionen
@@ -306,14 +314,18 @@ nodes:
   unit: kt/a
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
+  params:
+    operations: get_datasets
   input_datasets:
   - id: potsdam/scenario/emissionen
-    tags: [baseline]
     forecast_from: 2024
     column: emissionen
+  - id: potsdam/scenario/trend_und_masterplan_szenarien
+    column: emissionen
+    forecast_from: 2024
     filters:
     - column: scenario
-      values: [trend_scenario, actual]
+      values: [trend_scenario]
 
 - id: trend_scenario_emission_factor
   name: Trend-Szenario Emissionfaktor
@@ -351,14 +363,18 @@ nodes:
   unit: kt/a
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
+  params:
+    operations: get_datasets
   input_datasets:
   - id: potsdam/scenario/emissionen
-    tags: [baseline]
+    forecast_from: 2024
+    column: emissionen
+  - id: potsdam/scenario/trend_und_masterplan_szenarien
     forecast_from: 2024
     column: emissionen
     filters:
     - column: scenario
-      values: [masterplan_scenario, actual]
+      values: [masterplan_scenario]
 
 - id: emission_change_due_to_energy
   name: Emissionsänderung durch Energieeinsparung
