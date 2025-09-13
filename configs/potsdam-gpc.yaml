@@ -18,7 +18,7 @@ supported_languages: []
 site_url: https://potsdam-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 4a4d3adc781706715d7d88afcd0881d0cc2bb3e5
+  commit: 84228c0284ca88912e48d695a4e3e4068c91c578
   dvc_remote: kausal-s3
 name: Klima-Monitor-Potsdam
 owner: Stadt Potsdam
