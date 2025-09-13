@@ -235,6 +235,7 @@ class GenericNode(SimpleNode):
             dfs.append(df)
         out = dfs.pop()
         for d in dfs:
+            out = out.select(d.columns)
             out = out.paths.concat_vertical(d)
         assert isinstance(out, ppl.PathsDataFrame)
         out = self.add_missing_years(out)
