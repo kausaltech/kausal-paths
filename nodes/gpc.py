@@ -254,7 +254,7 @@ class DatasetNode(AdditiveNode):
         return df
 
     # -----------------------------------------------------------------------------------
-    def add_missing_years(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+    def add_missing_years(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame: # TODO Make this generic
         # Add forecast column if needed.
         if FORECAST_COLUMN not in df.columns:
             df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))

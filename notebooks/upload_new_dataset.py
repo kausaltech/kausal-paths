@@ -510,6 +510,10 @@ def process_dataset(
 
     # 9. Prepare for DVC (standardize column names)
     if context:
+        dims = [dim for dim in dim_ids if dim != YEAR_COLUMN]
+        cols = {col: to_snake_case(col) for col in dims}
+        df = df.rename(cols)
+        print('Changed these column names:', cols)
         df = convert_names_to_cats(df, units, context)
     else:
         df = prepare_for_dvc(df, units)
