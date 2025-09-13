@@ -44,14 +44,13 @@ impact_overviews:
   cost_unit: EUR
   effect_unit: t_co2e
   plot_limit_for_indicator: 1000000
-  label: Cost efficiency
+  label: Kosteneffizienz
 
-# - graph_type: cost_benefit
-#   cost_node: cost_benefit_analysis
-#   effect_node: cost_benefit_analysis
-#   indicator_unit: kEUR
-#   outcome_dimension: cost_benefit
-#   label: Cost-benefit
+- graph_type: cost_benefit
+  effect_node: cost_benefit_analysis
+  indicator_unit: kEUR
+  outcome_dimension: cost_benefit
+  label: Cost-benefit
 
 # - graph_type: return_on_investment_gross # Assumes gross benefits; costs will be subtracted
 #   cost_node: total_costs
@@ -555,8 +554,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: EUR/a
-  input_dimensions: []
-  output_dimensions: []
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
 
 - id: total_benefits
   name: Gesamtnutzen
@@ -564,8 +563,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: EUR/a
-  input_dimensions: []
-  output_dimensions: []
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
 
 - id: cost_benefit_analysis
   name: Kosten-Nutzen-Analyse
@@ -577,10 +576,16 @@ nodes:
   output_dimensions: [cost_benefit]
   input_nodes:
   - id: total_costs
+    from_dimensions:
+    - id: cost_type
+      flatten: true
     to_dimensions:
     - id: cost_benefit
       categories: [cost]
   - id: total_benefits
+    from_dimensions:
+    - id: cost_type
+      flatten: true
     to_dimensions:
     - id: cost_benefit
       categories: [benefit]
@@ -628,13 +633,24 @@ actions:
     - id: cost_type
   - id: total_costs
     metrics: [currency]
+    tags: [make_nonnegative]
     from_dimensions:
     - id: action
       flatten: true
     - id: sector
       flatten: true
+    to_dimensions:
     - id: cost_type
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: action
       flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: cost_type
 
 - id: change_street_lights_to_led_moorkamp_street
   name: Umstellung der Ampeln auf LED (Moorkamp Straße)
@@ -678,13 +694,24 @@ actions:
     - id: cost_type
   - id: total_costs
     metrics: [currency]
+    tags: [make_nonnegative]
     from_dimensions:
     - id: action
       flatten: true
     - id: sector
       flatten: true
+    to_dimensions:
     - id: cost_type
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: action
       flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: cost_type
 
 - id: change_traffic_lights_to_led_first_half
   name: Umstellung der Ampeln auf LED (erste Hälfte)
@@ -728,13 +755,24 @@ actions:
     - id: cost_type
   - id: total_costs
     metrics: [currency]
+    tags: [make_nonnegative]
     from_dimensions:
     - id: action
       flatten: true
     - id: sector
       flatten: true
+    to_dimensions:
     - id: cost_type
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: action
       flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: cost_type
 
 - id: change_traffic_lights_to_led_total
   name: Umstellung der Ampeln auf LED (total)
@@ -778,13 +816,24 @@ actions:
     - id: cost_type
   - id: total_costs
     metrics: [currency]
+    tags: [make_nonnegative]
     from_dimensions:
     - id: action
       flatten: true
     - id: sector
       flatten: true
+    to_dimensions:
     - id: cost_type
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: action
       flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: cost_type
 
 - id: program_energy_refurbishment_for_private_households
   name: Förderprogramm zur energetischen Sanierung
@@ -822,12 +871,20 @@ actions:
     metrics: [currency]
   - id: total_costs
     metrics: [currency]
+    tags: [make_nonnegative]
     from_dimensions:
     - id: action
       flatten: true
+    to_dimensions:
     - id: cost_type
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: action
       flatten: true
-    to_dimensions: []
+    to_dimensions:
+    - id: cost_type
 
 # - id: energy_refurbishment_school_building
 #   name: Energy Refurbishment of School Building
@@ -1005,13 +1062,24 @@ actions:
     - id: cost_type
   - id: total_costs
     metrics: [currency]
+    tags: [make_nonnegative]
     from_dimensions:
     - id: action
       flatten: true
     - id: sector
       flatten: true
+    to_dimensions:
     - id: cost_type
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: action
       flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: cost_type
 
 - id: energy_refurbishment_of_kindergarten
   name: Energetische Sanierung Kindertagesstätte (Tannenhofstraße)
@@ -1055,13 +1123,24 @@ actions:
     - id: cost_type
   - id: total_costs
     metrics: [currency]
+    tags: [make_nonnegative]
     from_dimensions:
     - id: action
       flatten: true
     - id: sector
       flatten: true
+    to_dimensions:
     - id: cost_type
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: action
       flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: cost_type
 
 - id: reforestation
   name: Aufforstung "Am wilden Moor"
@@ -1105,13 +1184,24 @@ actions:
     - id: cost_type
   - id: total_costs
     metrics: [currency]
+    tags: [make_nonnegative]
     from_dimensions:
     - id: action
       flatten: true
     - id: sector
       flatten: true
+    to_dimensions:
     - id: cost_type
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: action
       flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: cost_type
 
 - id: tree_donation
   name: Baumschenkung
@@ -1155,13 +1245,24 @@ actions:
     - id: cost_type
   - id: total_costs
     metrics: [currency]
+    tags: [make_nonnegative]
     from_dimensions:
     - id: action
       flatten: true
     - id: sector
       flatten: true
+    to_dimensions:
     - id: cost_type
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: action
       flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: cost_type
 
 - id: school_forest_wittmoor
   name: Baumpflanzungen an der Schule "Wittmoor"
