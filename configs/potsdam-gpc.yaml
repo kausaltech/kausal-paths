@@ -18,12 +18,12 @@ supported_languages: []
 site_url: https://potsdam-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 317cd5e61b71472f70823c064c46307f3e454744
+  commit: 24fcfa5d80717c760d67588c7a60d8d29f1a76fd
   dvc_remote: kausal-s3
-name: Klimaschutz-Monitor-Potsdam Treibhausgasinventar
+name: Klima-Monitor-Potsdam
 owner: Stadt Potsdam
 theme_identifier: de-potsdam
-target_year: 2045
+target_year: 2030
 model_end_year: 2050
 reference_year: 1995
 minimum_historical_year: 1995
@@ -199,9 +199,14 @@ emission_sectors:
   - label_de: Ziel Netto-Emissionen
     default: true
     is_main_goal: true
+    linear_interpolation: true
     values:
     - year: 2030
-      value: 551
+      value: 483.061
+    - year: 2040
+      value: 296.472
+    - year: 2045
+      value: 118.335
 
 - id: electricity_emissions
   name: Strom-Emissionen
@@ -268,10 +273,10 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: potsdam/szenarien
+  - id: potsdam/scenario/energie
     tags: [baseline]
     forecast_from: 2024
-    column: energy
+    column: energie
     filters:
     - column: scenario
       values: [masterplan_scenario, actual]
@@ -285,10 +290,10 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: potsdam/szenarien
+  - id: potsdam/scenario/energie
     tags: [baseline]
     forecast_from: 2024
-    column: energy
+    column: energie
     filters:
     - column: scenario
       values: [trend_scenario, actual]
@@ -302,10 +307,10 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: potsdam/szenarien
+  - id: potsdam/scenario/emissionen
     tags: [baseline]
     forecast_from: 2024
-    column: emissions
+    column: emissionen
     filters:
     - column: scenario
       values: [trend_scenario, actual]
@@ -347,10 +352,10 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: potsdam/szenarien
+  - id: potsdam/scenario/emissionen
     tags: [baseline]
     forecast_from: 2024
-    column: emissions
+    column: emissionen
     filters:
     - column: scenario
       values: [masterplan_scenario, actual]
@@ -454,37 +459,37 @@ nodes:
 
 ##### COSTS
 
-- id: energy_prices
-  name: Energiepreise
-  name_en: Energy prices
-  type: generic.GenericNode
-  quantity: unit_price
-  unit: EUR/MWh
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_datasets:
-  - id: potsdam/energiepreis
-    tags: [baseline]
-    column: energiepreis
-    filters:
-    - column: sector
-      values: [transport, private_households]
-      drop_col: false # If you turn this true, you can check for duplicates.
+# - id: energy_prices
+#   name: Energiepreise
+#   name_en: Energy prices
+#   type: generic.GenericNode
+#   quantity: unit_price
+#   unit: EUR/MWh
+#   input_dimensions: [energy_carrier, sector]
+#   output_dimensions: [energy_carrier, sector]
+#   input_datasets:
+#   - id: potsdam/energiepreis
+#     tags: [baseline]
+#     column: energiepreis
+#     filters:
+#     - column: sector
+#       values: [transport, private_households]
+#       drop_col: false # If you turn this true, you can check for duplicates.
 
-- id: total_energy_costs
-  name: Endenergiekosten Gesamt
-  name_en: Final Energy Costs Over All Sectors
-  type: generic.GenericNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_nodes:
-  - id: corrected_energy
-  - id: energy_prices
-    from_dimensions:
-    - id: sector
-      flatten: true
+# - id: total_energy_costs
+#   name: Endenergiekosten Gesamt
+#   name_en: Final Energy Costs Over All Sectors
+#   type: generic.GenericNode
+#   quantity: currency
+#   unit: MEUR/a
+#   input_dimensions: [sector, energy_carrier]
+#   output_dimensions: [sector, energy_carrier]
+#   input_nodes:
+#   - id: corrected_energy
+#   - id: energy_prices
+#     from_dimensions:
+#     - id: sector
+#       flatten: true
 
 # SUMMARY IMPACTS
 
@@ -899,12 +904,12 @@ actions:
 
 pages:
 - id: home
-  name: Klimaschutz-Monitor Potsdam Treibhausgasinventar
+  name: Klima-Monitor-Potsdam Treibhausgasinventar
   name_en: Climate Protection Monitor Potsdam Greenhouse Gas Inventory
   path: /
   type: emission
   outcome_node: net_emissions
-  lead_title: Potsdam Zielwerte Klimaschutz
+  lead_title: Klima-Monitor-Potsdam Treibhausgasinventar
   lead_paragraph: Die Treibhausgasemissionen in Potsdam sinken kontinuierlich, 
     pro Kopf relativ deutlich. In der Vergangenheit konnten die Minderungsziele 
     weitgehend erreicht werden. Die hier abgebildeten Ziele des Masterplan 100% 

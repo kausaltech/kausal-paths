@@ -17,6 +17,7 @@ from paths.context import realm_context
 
 from admin_site.forms import PathsAdminModelForm
 from nodes.models import InstanceConfig
+from orgs.models import Organization
 
 from .models import Person
 from .widgets import RoleSelectionWidget
@@ -41,9 +42,10 @@ class PersonForm(PathsAdminModelForm[Person]):
         required=True,
     )
 
-    organization = forms.ChoiceField(
+    organization = forms.ModelChoiceField(
         label=_('Organization'),
         help_text=_('Select the organization this person belongs to.'),
+        queryset=Organization.objects.all(),
         required=True,
     )
 
@@ -145,9 +147,9 @@ class PersonForm(PathsAdminModelForm[Person]):
             disable_role_options=disable_role_options,
             disable_reason=disable_reason,
         )
-        org_field: forms.ChoiceField = typing.cast('forms.ChoiceField', self.fields['organization'])
+        org_field: forms.ChoiceField = typing.cast('forms.ModelChoiceField', self.fields['organization'])
         self.fields['organization'].widget = autocomplete.ModelSelect2(
             url='organization-autocomplete',
-            choices=org_field,
+            choices=org_field.choices,
         )
         self.fields['image'].widget = AvatarWidget()
