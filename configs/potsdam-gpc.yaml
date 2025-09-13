@@ -278,7 +278,7 @@ nodes:
   - id: potsdam/scenario/energie
     forecast_from: 2024
     column: energie
-  - id: potsdam/scenario/trend_und_masterplan_szenarien
+  - id: potsdam/scenario/energieszenarien
     forecast_from: 2024
     column: energie
     filters:
@@ -299,7 +299,7 @@ nodes:
   - id: potsdam/scenario/energie
     forecast_from: 2024
     column: energie
-  - id: potsdam/scenario/trend_und_masterplan_szenarien
+  - id: potsdam/scenario/energieszenarien
     forecast_from: 2024
     column: energie
     filters:
@@ -320,7 +320,7 @@ nodes:
   - id: potsdam/scenario/emissionen
     forecast_from: 2024
     column: emissionen
-  - id: potsdam/scenario/trend_und_masterplan_szenarien
+  - id: potsdam/scenario/emissionsszenarien
     column: emissionen
     forecast_from: 2024
     filters:
@@ -369,7 +369,7 @@ nodes:
   - id: potsdam/scenario/emissionen
     forecast_from: 2024
     column: emissionen
-  - id: potsdam/scenario/trend_und_masterplan_szenarien
+  - id: potsdam/scenario/emissionsszenarien
     forecast_from: 2024
     column: emissionen
     filters:
