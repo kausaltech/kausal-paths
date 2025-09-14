@@ -340,7 +340,7 @@ nodes:
   - id: trend_scenario_energy
     tags: [geometric_inverse]
   params:
-    operations: multiply,drop_nans
+    operations: multiply,drop_nans,drop_infs
 
 - id: sector_index
   name: Sektor Index
@@ -466,7 +466,7 @@ nodes:
   name_en: Corrected emissions
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
