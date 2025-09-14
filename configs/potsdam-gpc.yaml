@@ -34,7 +34,7 @@ emission_dimensions: [energy_carrier, sector]
 features:
   baseline_visible_in_graphs: true
   use_datasets_from_db: true
-  show_explanations: true
+  show_explanations: false
 
 include:
 - file: frameworks/standard_dims.yaml
@@ -466,7 +466,7 @@ nodes:
   name_en: Corrected emissions
   type: generic.GenericNode
   quantity: emissions
-  unit: t/a
+  unit: kt/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
