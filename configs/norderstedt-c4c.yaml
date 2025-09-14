@@ -50,7 +50,7 @@ impact_overviews:
   effect_node: cost_benefit_analysis
   indicator_unit: kEUR
   outcome_dimension: cost_benefit
-  label: Cost-benefit
+  label: Kosten-Nutzen
 
 # - graph_type: return_on_investment_gross # Assumes gross benefits; costs will be subtracted
 #   cost_node: total_costs
@@ -60,14 +60,17 @@ impact_overviews:
 
 dimensions:
 - id: cost_type
-  label: Cost Type
+  label: Kostenart
+  label_en: Cost Type
   categories:
   - id: operations
     label: Operations
   - id: capex_infrastructure
-    label: Capex, Infrastructure
+    label: Investitionsausgaben
+    label_en: Capex, Infrastructure
   - id: opex_infrastructure
-    label: Opex, Infrastructure
+    label: Betriebskosten
+    label_en: Opex, Infrastructure
 
 - id: sector
   label: Sektor
@@ -144,41 +147,61 @@ dimensions:
     label_en: Sinks
 
 - id: action
-  label: Action
+  label: Maßnahme
+  label_en: Action
   categories:
-  - id: change_streetlights_to_led
-    label: Change Streetlights to LED
-  - id: tree_donation
-    label: Tree Donation
-  - id: reforestation
-    label: Reforestation
-  - id: program_energy_refurbishment_for_private_households
-    label: Energy Refurbishment for Private Households
-  - id: energy_refurbishment_school_building
-    label: Energy Refurbishment for School Building
-  - id: new_school_building
-    label: New School Building
+  # ----- Stationary Energy
   - id: roof_refurbishment_for_public_building
-    label: Roof Refurbishment for Public Building
-  - id: decarbonize_municipal_electricity_corporate
-    label: Decarbonize Municipal Electricity (Corporate)
-  - id: decarbonize_municipal_electricity_community
-    label: Decarbonize Municipal Electricity (Community)
-  - id: decarbonize_municipal_district_heating_corporate
-    label: Decarbonize Municipal District Heating (Corporate)
-  - id: decarbonize_municipal_district_heating_community
-    label: Decarbonize Municipal District Heating (Community)
-  - id: change_traffic_lights_to_led_moorkamp_street
-    label: Change Traffic Lights to LED (Moorkamp Street)
-  - id: change_traffic_lights_to_led_total
-    label: Change Traffic Lights to LED (Total)
-  - id: school_forest_wittmoor
-    label: School Forest "Wittmoor"
+    label: Dachsanierung eines öffentlichen Gebäudes
+    label_en: Roof Refurbishment of Public Building
   - id: energy_refurbishment_of_kindergarten
-    label: Energy Refurbishment of Kindergarten
+    label: Energetische Sanierung Kindertagesstätte
+    label_en: Energy Refurbishment of Kindergarten
+  - id: program_energy_refurbishment_for_private_households
+    label: Förderprogramm zur energetischen Sanierung
+    label_en: Subsidy Program for Energy Refurbishment
   - id: change_traffic_lights_to_led_first_half
     label: Umstellung der Ampeln auf LED (erste Hälfte)
     label_en: Change Traffic Lights to LED (First Half)
+  - id: change_traffic_lights_to_led_moorkamp_street
+    label: Umstellung der Ampeln auf LED (Moorkamp Straße)
+    label_en: Change Traffic Lights to LED (Moorkamp Street)
+  - id: change_traffic_lights_to_led_total
+    label: Umstellung der Ampeln auf LED (total)
+    label_en: Change Traffic Lights to LED (Total)
+  - id: change_streetlights_to_led
+    label: Umstellung der Straßenbeleuchtung auf LED (total)
+    label_en: Change Street Lights to LED (Total)
+
+  # ----- Land Use
+  - id: reforestation
+    label: Aufforstung "Am wilden Moor"
+    label_en: Reforestation "Am wilden Moor"
+  - id: school_forest_wittmoor
+    label: Baumpflanzungen an der Schule "Wittmoor"
+    label_en: Tree Planting at the School "Wittmoor"
+  - id: tree_donation
+    label: Baumschenkung
+    label_en: Tree Donation
+
+  # ----- Trends
+  - id: decarbonize_municipal_district_heating_corporate
+    label: Dekarbonisierung Fernwärme (Stadtverwaltung)
+    label_en: Decarbonisation of District Heating (Municipal)
+  - id: decarbonize_municipal_district_heating_community
+    label: Dekarbonisierung Fernwärme (Stadtwerke-Kunden)
+    label_en: Decarbonisation of District Heating (Customers)
+  - id: decarbonize_municipal_electricity_corporate
+    label: Dekarbonisierung Strom (Stadtverwaltung)
+    label_en: Decarbonisation of Electricity (Municipal)
+  - id: decarbonize_municipal_electricity_community
+    label: Dekarbonisierung Strom (Stadtwerke-Kunden)
+    label_en: Decarbonisation of Electricity (Customers)
+
+  # - id: energy_refurbishment_school_building
+  #   label: Energy Refurbishment for School Building
+  # - id: new_school_building
+  #   label: New School Building
 
 - id: cost_benefit
   label: Kosten-Nutzen
@@ -591,435 +614,7 @@ nodes:
       categories: [benefit]
 
 actions:
-- id: change_streetlights_to_led
-  name: Umstellung der Straßenbeleuchtung auf LED (total)
-  name_en: Change Street Lights to LED (Total)
-  type: simple.AdditiveAction
-  group: stationary_energy
-  input_dimensions: [action, sector, cost_type]
-  output_dimensions: [action, sector, cost_type]
-  params:
-    allow_null_categories: true
-  input_datasets:
-  - id: norderstedt/actions
-    forecast_from: 2024
-    filters:
-    - dimension: action
-      categories: [change_streetlights_to_led]
-  output_metrics:
-  - id: currency
-    unit: EUR/a
-    quantity: currency
-  - id: emissions
-    unit: kg_co2e/a
-    quantity: emissions
-  output_nodes:
-  - id: i4_city_administration_emissions
-    metrics: [emissions]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions:
-    - id: sector
-  - id: i4_city_administration_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: sector
-      flatten: true
-    to_dimensions:
-    - id: action
-    - id: cost_type
-  - id: total_costs
-    metrics: [currency]
-    tags: [make_nonnegative]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: sector
-      flatten: true
-    to_dimensions:
-    - id: cost_type
-  - id: total_benefits
-    metrics: [currency]
-    tags: [make_nonpositive]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: sector
-      flatten: true
-    to_dimensions:
-    - id: cost_type
-
-- id: change_street_lights_to_led_moorkamp_street
-  name: Umstellung der Ampeln auf LED (Moorkamp Straße)
-  name_en: Change Traffic Lights to LED (Moorkamp Street)
-  type: simple.AdditiveAction
-  group: stationary_energy
-  input_dimensions: [action, sector, cost_type]
-  output_dimensions: [action, sector, cost_type]
-  params:
-    allow_null_categories: true
-  input_datasets:
-  - id: norderstedt/actions
-    forecast_from: 2024
-    filters:
-    - dimension: action
-      categories: [change_traffic_lights_to_led_moorkamp_street]
-  output_metrics:
-  - id: currency
-    unit: EUR/a
-    quantity: currency
-  - id: emissions
-    unit: kg_co2e/a
-    quantity: emissions
-  output_nodes:
-  - id: i4_city_administration_emissions
-    metrics: [emissions]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions:
-    - id: sector
-  - id: i4_city_administration_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: sector
-      flatten: true
-    to_dimensions:
-    - id: action
-    - id: cost_type
-  - id: total_costs
-    metrics: [currency]
-    tags: [make_nonnegative]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: sector
-      flatten: true
-    to_dimensions:
-    - id: cost_type
-  - id: total_benefits
-    metrics: [currency]
-    tags: [make_nonpositive]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: sector
-      flatten: true
-    to_dimensions:
-    - id: cost_type
-
-- id: change_traffic_lights_to_led_first_half
-  name: Umstellung der Ampeln auf LED (erste Hälfte)
-  name_en: Change Traffic Lights to LED (First Half)
-  type: simple.AdditiveAction
-  group: stationary_energy
-  input_dimensions: [action, sector, cost_type]
-  output_dimensions: [action, sector, cost_type]
-  params:
-    allow_null_categories: true
-  input_datasets:
-  - id: norderstedt/actions
-    forecast_from: 2024
-    filters:
-    - dimension: action
-      categories: [change_traffic_lights_to_led_first_half]
-  output_metrics:
-  - id: currency
-    unit: EUR/a
-    quantity: currency
-  - id: emissions
-    unit: kg_co2e/a
-    quantity: emissions
-  output_nodes:
-  - id: i4_city_administration_emissions
-    metrics: [emissions]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions:
-    - id: sector
-  - id: i4_city_administration_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: sector
-      flatten: true
-    to_dimensions:
-    - id: action
-    - id: cost_type
-  - id: total_costs
-    metrics: [currency]
-    tags: [make_nonnegative]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: sector
-      flatten: true
-    to_dimensions:
-    - id: cost_type
-  - id: total_benefits
-    metrics: [currency]
-    tags: [make_nonpositive]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: sector
-      flatten: true
-    to_dimensions:
-    - id: cost_type
-
-- id: change_traffic_lights_to_led_total
-  name: Umstellung der Ampeln auf LED (total)
-  name_en: Change Traffic Lights to LED (Total)
-  type: simple.AdditiveAction
-  group: stationary_energy
-  input_dimensions: [action, sector, cost_type]
-  output_dimensions: [action, sector, cost_type]
-  params:
-    allow_null_categories: true
-  input_datasets:
-  - id: norderstedt/actions
-    forecast_from: 2024
-    filters:
-    - dimension: action
-      categories: [change_traffic_lights_to_led_total]
-  output_metrics:
-  - id: currency
-    unit: EUR/a
-    quantity: currency
-  - id: emissions
-    unit: kg_co2e/a
-    quantity: emissions
-  output_nodes:
-  - id: i4_city_administration_emissions
-    metrics: [emissions]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions:
-    - id: sector
-  - id: i4_city_administration_costs
-    metrics: [currency]
-    from_dimensions:
-    - id: sector
-      flatten: true
-    to_dimensions:
-    - id: action
-    - id: cost_type
-  - id: total_costs
-    metrics: [currency]
-    tags: [make_nonnegative]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: sector
-      flatten: true
-    to_dimensions:
-    - id: cost_type
-  - id: total_benefits
-    metrics: [currency]
-    tags: [make_nonpositive]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: sector
-      flatten: true
-    to_dimensions:
-    - id: cost_type
-
-- id: program_energy_refurbishment_for_private_households
-  name: Förderprogramm zur energetischen Sanierung
-  name_en: Subsidy Program for Energy Refurbishment
-  type: simple.AdditiveAction
-  group: stationary_energy
-  input_dimensions: [action, cost_type]
-  output_dimensions: [action, cost_type]
-  params:
-    allow_null_categories: true
-  input_datasets:
-  - id: norderstedt/actions
-    forecast_from: 2024
-    filters:
-    - column: sector
-    - dimension: action
-      categories: [program_energy_refurbishment_for_private_households]
-  output_metrics:
-  - id: emissions
-    unit: kg_co2e/a
-    quantity: emissions
-  - id: currency
-    unit: EUR/a
-    quantity: currency
-  output_nodes:
-  - id: i1_private_household_emissions
-    metrics: [emissions]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      flatten: true
-    to_dimensions: []
-  - id: i1_private_household_costs
-    metrics: [currency]
-  - id: total_costs
-    metrics: [currency]
-    tags: [make_nonnegative]
-    from_dimensions:
-    - id: action
-      flatten: true
-    to_dimensions:
-    - id: cost_type
-  - id: total_benefits
-    metrics: [currency]
-    tags: [make_nonpositive]
-    from_dimensions:
-    - id: action
-      flatten: true
-    to_dimensions:
-    - id: cost_type
-
-# - id: energy_refurbishment_school_building
-#   name: Energy Refurbishment of School Building
-#   type: simple.AdditiveAction
-#   group: i_stationary
-#   input_dimensions: ['action', 'cost_type', 'scope', 'energy_carrier', 'ghg']
-#   output_dimensions: ['action', 'cost_type', 'scope', 'energy_carrier', 'ghg']
-#   params:
-#     allow_null_categories: true
-#   input_datasets:
-#   - id: norderstedt/stationary_actions
-#     forecast_from: 2024
-#     filters:
-#     - column: sector
-#     - dimension: action
-#       categories: [energy_refurbishment_school_building]
-#   output_metrics:
-#   - id: currency
-#     unit: EUR/a
-#     quantity: currency
-#   - id: emissions
-#     unit: kg/a
-#     quantity: emissions
-#   output_nodes:
-#   - id: i_stationary_total_emissions
-#     metrics: [emissions]
-#     from_dimensions:
-#     - id: action
-#       flatten: true
-#     - id: cost_type
-#       flatten: true
-#     - id: scope
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     to_dimensions:
-#     - id: ghg
-#   - id: i_stationary_total_price
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: scope
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: ghg
-#       flatten: true
-#     to_dimensions:
-#     - id: action
-#     - id: cost_type
-#     - id: scope
-#       categories: [scope2]
-#   - id: total_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: action
-#       flatten: true
-#     - id: cost_type
-#       categories: [capex_infrastructure]
-#       flatten: true
-#     - id: scope
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: ghg
-#       flatten: true
-#   - id: total_benefits
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: action
-#       flatten: true
-#     - id: cost_type
-#       categories: [operations]
-#       flatten: true
-#     - id: scope
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: ghg
-#       flatten: true
-
-# - id: new_school_building
-#   name: New School Building
-#   type: simple.AdditiveAction
-#   group: i_stationary
-#   input_dimensions: ['action', 'cost_type', 'scope', 'energy_carrier']
-#   output_dimensions: ['action', 'cost_type', 'scope', 'energy_carrier']
-#   params:
-#     allow_null_categories: true
-#   input_datasets:
-#   - id: norderstedt/stationary_actions
-#     forecast_from: 2024
-#     filters:
-#     - column: sector
-#     - dimension: action
-#       categories: [new_school_building]
-#     - column: ghg
-#   output_metrics:
-#   - id: energy
-#     unit: kWh/a
-#     quantity: energy
-#   - id: currency
-#     unit: EUR/a
-#     quantity: currency
-#   output_nodes:
-#   - id: i_stationary_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: cost_type
-#       flatten: true
-#     to_dimensions:
-#     - id: action
-#     - id: scope
-#     - id: energy_carrier
-#   - id: i_stationary_total_price
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: energy_carrier
-#       flatten: true
-#     to_dimensions:
-#     - id: action
-#     - id: cost_type
-#     - id: scope
-#   - id: total_costs
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: action
-#       flatten: true
-#     - id: cost_type
-#       categories: [capex_infrastructure]
-#       flatten: true
-#     - id: scope
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-
+# ----- Stationary Energy
 - id: roof_refurbishment_of_public_building
   name: Dachsanierung eines öffentlichen Gebäudes
   name_en: Roof Refurbishment of Public Building
@@ -1142,11 +737,62 @@ actions:
     to_dimensions:
     - id: cost_type
 
-- id: reforestation
-  name: Aufforstung "Am wilden Moor"
-  name_en: Reforestation "Am wilden Moor"
+- id: program_energy_refurbishment_for_private_households
+  name: Förderprogramm zur energetischen Sanierung
+  name_en: Subsidy Program for Energy Refurbishment
   type: simple.AdditiveAction
-  group: land_use
+  group: stationary_energy
+  input_dimensions: [action, cost_type]
+  output_dimensions: [action, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: norderstedt/actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [program_energy_refurbishment_for_private_households]
+  output_metrics:
+  - id: emissions
+    unit: kg_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: i1_private_household_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions: []
+  - id: i1_private_household_costs
+    metrics: [currency]
+  - id: total_costs
+    metrics: [currency]
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: action
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: action
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+
+- id: change_traffic_lights_to_led_first_half
+  name: Umstellung der Ampeln auf LED (erste Hälfte)
+  name_en: Change Traffic Lights to LED (First Half)
+  type: simple.AdditiveAction
+  group: stationary_energy
   input_dimensions: [action, sector, cost_type]
   output_dimensions: [action, sector, cost_type]
   params:
@@ -1156,16 +802,16 @@ actions:
     forecast_from: 2024
     filters:
     - dimension: action
-      categories: [reforestation]
+      categories: [change_traffic_lights_to_led_first_half]
   output_metrics:
-  - id: emissions
-    unit: kg_co2e/a
-    quantity: emissions
   - id: currency
     unit: EUR/a
     quantity: currency
+  - id: emissions
+    unit: kg_co2e/a
+    quantity: emissions
   output_nodes:
-  - id: v_land_use_emissions
+  - id: i4_city_administration_emissions
     metrics: [emissions]
     from_dimensions:
     - id: action
@@ -1174,7 +820,7 @@ actions:
       flatten: true
     to_dimensions:
     - id: sector
-  - id: v_land_use_costs
+  - id: i4_city_administration_costs
     metrics: [currency]
     from_dimensions:
     - id: sector
@@ -1203,9 +849,327 @@ actions:
     to_dimensions:
     - id: cost_type
 
-- id: tree_donation
-  name: Baumschenkung
-  name_en: Tree Donation
+- id: change_street_lights_to_led_moorkamp_street
+  name: Umstellung der Ampeln auf LED (Moorkamp Straße)
+  name_en: Change Traffic Lights to LED (Moorkamp Street)
+  type: simple.AdditiveAction
+  group: stationary_energy
+  input_dimensions: [action, sector, cost_type]
+  output_dimensions: [action, sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: norderstedt/actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [change_traffic_lights_to_led_moorkamp_street]
+  output_metrics:
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  - id: emissions
+    unit: kg_co2e/a
+    quantity: emissions
+  output_nodes:
+  - id: i4_city_administration_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: sector
+  - id: i4_city_administration_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+  - id: total_costs
+    metrics: [currency]
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+
+- id: change_traffic_lights_to_led_total
+  name: Umstellung der Ampeln auf LED (total)
+  name_en: Change Traffic Lights to LED (Total)
+  type: simple.AdditiveAction
+  group: stationary_energy
+  input_dimensions: [action, sector, cost_type]
+  output_dimensions: [action, sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: norderstedt/actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [change_traffic_lights_to_led_total]
+  output_metrics:
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  - id: emissions
+    unit: kg_co2e/a
+    quantity: emissions
+  output_nodes:
+  - id: i4_city_administration_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: sector
+  - id: i4_city_administration_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+  - id: total_costs
+    metrics: [currency]
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+
+- id: change_streetlights_to_led
+  name: Umstellung der Straßenbeleuchtung auf LED (total)
+  name_en: Change Street Lights to LED (Total)
+  type: simple.AdditiveAction
+  group: stationary_energy
+  input_dimensions: [action, sector, cost_type]
+  output_dimensions: [action, sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: norderstedt/actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [change_streetlights_to_led]
+  output_metrics:
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  - id: emissions
+    unit: kg_co2e/a
+    quantity: emissions
+  output_nodes:
+  - id: i4_city_administration_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: sector
+  - id: i4_city_administration_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+  - id: total_costs
+    metrics: [currency]
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+
+# - id: energy_refurbishment_school_building
+#   name: Energy Refurbishment of School Building
+#   type: simple.AdditiveAction
+#   group: i_stationary
+#   input_dimensions: [action, cost_type, scope, energy_carrier, ghg]
+#   output_dimensions: [action, cost_type, scope, energy_carrier, ghg]
+#   params:
+#     allow_null_categories: true
+#   input_datasets:
+#   - id: norderstedt/stationary_actions
+#     forecast_from: 2024
+#     filters:
+#     - column: sector
+#     - dimension: action
+#       categories: [energy_refurbishment_school_building]
+#   output_metrics:
+#   - id: currency
+#     unit: EUR/a
+#     quantity: currency
+#   - id: emissions
+#     unit: kg/a
+#     quantity: emissions
+#   output_nodes:
+#   - id: i_stationary_total_emissions
+#     metrics: [emissions]
+#     from_dimensions:
+#     - id: action
+#       flatten: true
+#     - id: cost_type
+#       flatten: true
+#     - id: scope
+#       flatten: true
+#     - id: energy_carrier
+#       flatten: true
+#     to_dimensions:
+#     - id: ghg
+#   - id: i_stationary_total_price
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: scope
+#       flatten: true
+#     - id: energy_carrier
+#       flatten: true
+#     - id: ghg
+#       flatten: true
+#     to_dimensions:
+#     - id: action
+#     - id: cost_type
+#     - id: scope
+#       categories: [scope2]
+#   - id: total_costs
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: action
+#       flatten: true
+#     - id: cost_type
+#       categories: [capex_infrastructure]
+#       flatten: true
+#     - id: scope
+#       flatten: true
+#     - id: energy_carrier
+#       flatten: true
+#     - id: ghg
+#       flatten: true
+#   - id: total_benefits
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: action
+#       flatten: true
+#     - id: cost_type
+#       categories: [operations]
+#       flatten: true
+#     - id: scope
+#       flatten: true
+#     - id: energy_carrier
+#       flatten: true
+#     - id: ghg
+#       flatten: true
+
+# - id: new_school_building
+#   name: New School Building
+#   type: simple.AdditiveAction
+#   group: i_stationary
+#   input_dimensions: [action, cost_type, scope, energy_carrier]
+#   output_dimensions: [action, cost_type, scope, energy_carrier]
+#   params:
+#     allow_null_categories: true
+#   input_datasets:
+#   - id: norderstedt/stationary_actions
+#     forecast_from: 2024
+#     filters:
+#     - column: sector
+#     - dimension: action
+#       categories: [new_school_building]
+#     - column: ghg
+#   output_metrics:
+#   - id: energy
+#     unit: kWh/a
+#     quantity: energy
+#   - id: currency
+#     unit: EUR/a
+#     quantity: currency
+#   output_nodes:
+#   - id: i_stationary_energy_consumption
+#     metrics: [energy]
+#     from_dimensions:
+#     - id: cost_type
+#       flatten: true
+#     to_dimensions:
+#     - id: action
+#     - id: scope
+#     - id: energy_carrier
+#   - id: i_stationary_total_price
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: energy_carrier
+#       flatten: true
+#     to_dimensions:
+#     - id: action
+#     - id: cost_type
+#     - id: scope
+#   - id: total_costs
+#     metrics: [currency]
+#     from_dimensions:
+#     - id: action
+#       flatten: true
+#     - id: cost_type
+#       categories: [capex_infrastructure]
+#       flatten: true
+#     - id: scope
+#       flatten: true
+#     - id: energy_carrier
+#       flatten: true
+
+# ----- Land Use
+- id: reforestation
+  name: Aufforstung "Am wilden Moor"
+  name_en: Reforestation "Am wilden Moor"
   type: simple.AdditiveAction
   group: land_use
   input_dimensions: [action, sector, cost_type]
@@ -1217,7 +1181,7 @@ actions:
     forecast_from: 2024
     filters:
     - dimension: action
-      categories: [tree_donation]
+      categories: [reforestation]
   output_metrics:
   - id: emissions
     unit: kg_co2e/a
@@ -1285,47 +1249,68 @@ actions:
   output_nodes:
   - id: v_land_use_emissions
 
-- id: decarbonize_municipal_electricity_corporate
-  name: Dekarbonisierung Strom (Stadtverwaltung)
-  name_en: Decarbonisation of Electricity (Municipal)
+- id: tree_donation
+  name: Baumschenkung
+  name_en: Tree Donation
   type: simple.AdditiveAction
-  group: trends
-  quantity: emissions
-  unit: kg_co2e/a
-  input_dimensions: [sector]
-  output_dimensions: [sector]
+  group: land_use
+  input_dimensions: [action, sector, cost_type]
+  output_dimensions: [action, sector, cost_type]
+  params:
+    allow_null_categories: true
   input_datasets:
   - id: norderstedt/actions
-    column: emissions
     forecast_from: 2024
     filters:
-    - column: action
-      value: decarbonize_municipal_electricity_corporate
-    - column: cost_type
+    - dimension: action
+      categories: [tree_donation]
+  output_metrics:
+  - id: emissions
+    unit: kg_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: EUR/a
+    quantity: currency
   output_nodes:
-  - id: i4_city_administration_emissions
+  - id: v_land_use_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: sector
+  - id: v_land_use_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+  - id: total_costs
+    metrics: [currency]
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: cost_type
 
-- id: decarbonize_municipal_electricity_community
-  name: Dekarbonisierung Strom (Stadtwerke-Kunden)
-  name_en: Decarbonisation of Electricity (Customers of Local Energy Provider)
-  type: simple.AdditiveAction
-  group: trends
-  quantity: emissions
-  unit: kg_co2e/a
-  input_dimensions: []
-  output_dimensions: []
-  input_datasets:
-  - id: norderstedt/actions
-    column: emissions
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: decarbonize_municipal_electricity_community
-    - column: sector
-    - column: cost_type
-  output_nodes:
-  - id: i1_private_household_emissions
-
+# ----- Trends
 - id: decarbonize_municipal_district_heating_corporate
   name: Dekarbonisierung Fernwärme (Stadtverwaltung)
   name_en: Decarbonisation of District Heating (Municipal)
@@ -1362,6 +1347,47 @@ actions:
     filters:
     - column: action
       value: decarbonize_municipal_district_heating_community
+    - column: sector
+    - column: cost_type
+  output_nodes:
+  - id: i1_private_household_emissions
+
+- id: decarbonize_municipal_electricity_corporate
+  name: Dekarbonisierung Strom (Stadtverwaltung)
+  name_en: Decarbonisation of Electricity (Municipal)
+  type: simple.AdditiveAction
+  group: trends
+  quantity: emissions
+  unit: kg_co2e/a
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_datasets:
+  - id: norderstedt/actions
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: decarbonize_municipal_electricity_corporate
+    - column: cost_type
+  output_nodes:
+  - id: i4_city_administration_emissions
+
+- id: decarbonize_municipal_electricity_community
+  name: Dekarbonisierung Strom (Stadtwerke-Kunden)
+  name_en: Decarbonisation of Electricity (Customers of Local Energy Provider)
+  type: simple.AdditiveAction
+  group: trends
+  quantity: emissions
+  unit: kg_co2e/a
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: norderstedt/actions
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: decarbonize_municipal_electricity_community
     - column: sector
     - column: cost_type
   output_nodes:
