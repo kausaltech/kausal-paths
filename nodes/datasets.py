@@ -267,8 +267,8 @@ class DatasetWithFilters(Dataset):
                 df = self._column_filter(df, d, context)
             elif 'dimension' in d:
                 df = self._dimension_filter(df, d, context)
-            elif 'rename_col' in d:
-                df = self._rename_col_filter(df, d)
+            # elif 'rename_col' in d:
+            #     df = self._rename_col_filter(df, d)
             elif 'rename_item' in d:
                 df = self._rename_item_filter(df, d)
 
@@ -379,13 +379,18 @@ class DatasetWithFilters(Dataset):
 
         return df
 
-    def _filter_and_process_df(self, context: Context, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+    def _filter_and_process_df(self, context: Context, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:  # noqa: C901
         df = self.add_explanation(df)
+        if self.filters is not None:
+            for d in self.filters:
+                if 'rename_col' in d:
+                    df = self._rename_col_filter(df, d)
+
         cols = df.columns
 
         if self.column:
             if self.column not in cols:
-                available = ', '.join(cols)  # type: ignore
+                available = ', '.join(cols)
                 raise Exception(
                     "Column '%s' not found in dataset '%s'. Available columns: %s"
                     % (
