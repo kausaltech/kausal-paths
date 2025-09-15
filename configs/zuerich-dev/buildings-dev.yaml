@@ -76,58 +76,8 @@ dimensions:
     label: Nicht-Wohnen
     label_en: Non-residential
 
-
 nodes:
-- id: residential_building_area_per_resident
-  type: simple.DivisiveNode
-  quantity: per_capita
-  unit: m**2/cap
-  name_de: Geschossfläche Wohnen pro Einwohner*in
-  name_en: Residential building area per resident
-  input_nodes:
-  - id: building_floor_area_historical
-    from_dimensions:
-    - id: building_use
-      categories: [residential]
-      flatten: true
-  - id: population
-  params:
-    only_historical: true
-    extend_rows: true
-
-- id: residential_building_area
-  name_de: Geschossfläche Wohnen
-  name_en: Building floor area Residential
-  type: simple.MultiplicativeNode
-  quantity: floor_area
-  unit: Msqm
-  input_nodes: [residential_building_area_per_resident, population]
-
-- id: nonresidential_building_area_per_job
-  type: simple.DivisiveNode
-  quantity: per_capita
-  unit: m**2/cap
-  name_de: Geschossfläche Nicht-Wohnen pro Vollzeitäquivalent
-  name_en: Non-residential building area per full-time equivalent
-  input_nodes:
-  - id: building_floor_area_historical
-    from_dimensions:
-    - id: building_use
-      categories: [nonresidential]
-      flatten: true
-  - id: number_of_jobs
-  params:
-    only_historical: true
-    extend_rows: true
-
-- id: nonresidential_building_area
-  name_de: Geschossfläche Nicht-Wohnen
-  name_en: Non-residential building floor area
-  type: simple.MultiplicativeNode
-  quantity: floor_area
-  unit: Msqm
-  input_nodes: [nonresidential_building_area_per_job, number_of_jobs]
-
+# ----- Building Floor Area
 - id: building_floor_area_historical
   name_de: Geschossfläche (historisch)
   name_en: Building floor area (historical)
@@ -136,27 +86,66 @@ nodes:
   unit: Msqm
   input_dimensions: [building_use_extended]
   output_dimensions: [building_use]
-  input_datasets: [zuerich/building_floor_area]
+  input_datasets:
+  - id: zuerich/building_floor_area
   input_dataset_processors: [LinearInterpolation]
 
-- id: building_floor_area
-  name_de: Geschossfläche
-  name_en: Building floor area
-  type: simple.AdditiveNode
-  quantity: floor_area
-  unit: m**2
+- id: normalized_building_floor_area_historical
+  name_de: Normalized building floor area (historical)
+  name_en: Normalized building floor area (historical)
+  type: formula.FormulaNode
+  quantity: per_capita
+  unit: m**2/cap
   input_dimensions: [building_use]
   output_dimensions: [building_use]
+  params:
+    formula: building_floor_area_historical / (population + number_of_jobs)
+    extend_last_historical_value: true
   input_nodes:
-  - id: residential_building_area
+  - id: building_floor_area_historical
+  - id: population
     to_dimensions:
     - id: building_use
       categories: [residential]
-  - id: nonresidential_building_area
+  - id: number_of_jobs
     to_dimensions:
     - id: building_use
       categories: [nonresidential]
 
+- id: normalized_building_floor_area
+  name_de: Normalized building floor area
+  name_en: Normalized building floor area
+  type: simple.AdditiveNode
+  quantity: per_capita
+  unit: m**2/cap
+  input_dimensions: [building_use]
+  output_dimensions: [building_use]
+  input_nodes:
+  - id: normalized_building_floor_area_historical
+
+- id: building_floor_area
+  name_de: Geschossfläche
+  name_en: Building floor area
+  type: formula.FormulaNode
+  quantity: floor_area
+  unit: m**2
+  input_dimensions: [building_use]
+  output_dimensions: [building_use]
+  params:
+    formula: normalized_building_floor_area * (population + number_of_jobs)
+    extend_last_historical_value: true
+  input_nodes:
+  - id: normalized_building_floor_area
+  - id: population
+    to_dimensions:
+    - id: building_use
+      categories: [residential]
+  - id: number_of_jobs
+    to_dimensions:
+    - id: building_use
+      categories: [nonresidential]
+
+# -----
 - id: building_heat_consumption_historical
   name_de: Wärmebedarf (historisch)
   name_en: Building heat consumption (historical)
@@ -665,22 +654,23 @@ nodes:
   order: 1
 
 - id: building_fgas_emissions
-  name_en: F-gas emissions from buildings
   name_de: Treibhausgasemissionen F-Gase Gebäude
-  type: simple.SectorEmissions
-  short_name_en: F-gases
+  name_en: F-gas emissions from buildings
   short_name_de: F-Gase
+  short_name_en: F-gases
+  type: simple.AdditiveNode
+  quantity: emissions
   unit: kt/a
+  input_dimensions: [emission_scope]
   output_dimensions: [emission_scope]
-  output_nodes: [building_emissions]
   input_datasets:
   - id: zuerich/emissions
-    tags: [emissions]
     filters:
-    - dimension: emission_sectors
-      categories: [fgases_buildings]
-      flatten: true
+    - column: emission_sectors
+      value: fgases_buildings
   input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: building_emissions
 
 # ----- New & Renovated Building Emissions -----
 

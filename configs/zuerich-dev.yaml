@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://zuerich-dev.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ac6b7c0e3e4361d7719e6907a9ffa4c5888f4cdd
+  commit: d7bf5e7d2b3c468c65ba4b6315ce1e35220a835b
   dvc_remote: kausal-s3-private
   default_path: zuerich
 name_en: Net Zero Cockpit
@@ -64,10 +64,6 @@ action_groups:
 - id: other
   name: Andere
   name_en: Other
-  color: '#cccccc'
-- id: optional
-  name: Options
-  name_en: Options
   color: '#cccccc'
 
 dimensions:
@@ -362,7 +358,7 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: zuerich/population
-    forecast_from: 2024
+    forecast_from: 2025
 
 - id: number_of_jobs
   name_de: Beschäftigungsentwicklung (Vollzeitäquivalente)
@@ -1083,41 +1079,19 @@ actions:
     der Temperatur um 1°C 6% der Wärmeenergie eingespart wer-den. Neben der Energiespar-Kampagne
     im Jahr 2022 bestehen aktuell keine Mass-nahmen, zur suffizienten Nutzung der
     Wärmeenergie.
-  type: linear.ReduceAction
+  type: linear.DatasetReduceAction
   quantity: per_capita
-  output_nodes:
-  - id: residential_building_area_per_resident
-  - id: nonresidential_building_area_per_job
   unit: m**2/cap
-  params:
-  - id: reduce
-    unit: m**2/cap
-    is_customizable: false
-    value:
-    - target:
-        node: residential_building_area_per_resident
-      amounts:
-      - year: 2024
-        amount: -0.04
-      - year: 2028
-        amount: -0.2
-      - year: 2030
-        amount: -0.3
-      - year: 2035
-        amount: -0.3
-      - year: 2040
-        amount: 0
-    - target:
-        node: nonresidential_building_area_per_job
-      amounts:
-      - year: 2024
-        amount: -0.0214285714
-      - year: 2030
-        amount: -0.15
-      - year: 2035
-        amount: -0.15
-      - year: 2040
-        amount: -0.15
+  input_dimensions: [building_use]
+  output_dimensions: [building_use]
+  input_datasets:
+  - id: zuerich/building_floor_area_goals
+    tags: [goal]
+  input_nodes:
+  - id: normalized_building_floor_area_historical
+    tags: [historical]
+  output_nodes:
+  - id: normalized_building_floor_area
 
 - id: optimize_building_technology
   name_en: Optimal/efficient use and operation of building technology
