@@ -422,7 +422,7 @@ nodes:
     tags: [geometric_inverse]
   - id: emission_change_due_to_ef
   params:
-    operations: multiply,drop_infs
+    operations: multiply,drop_nans,drop_infs
 
 - id: corrected_emission_factor
   name: Korrigierter Emissionsfaktor
@@ -448,6 +448,8 @@ nodes:
   - id: trend_scenario_emission_factor
     tags: [geometric_inverse]
   - id: emission_change_due_to_energy
+  params:
+    operations: multiply,drop_nans,drop_infs
 
 - id: corrected_energy
   name: Korrigierte Energie
