@@ -32,6 +32,10 @@ dimensions:
     label: Fernwärme
     label_en: District heating
     color: '#009655'
+  - id: district_heat_concessionary
+    label: Fernwärme konzessionierte Wärmeverbunde
+    label_en: District heating concessionary networks
+    color: '#009655'
   - id: heat_pumps
     label: Wärmepumpe
     label_en: Heat pumps
@@ -175,9 +179,9 @@ nodes:
   output_dimensions: [building_use]
   input_nodes:
   - id: building_heat_consumption_historical
+    tags: [consumption]
     to_dimensions:
     - id: heating_system
-    tags: [consumption]
   - id: building_floor_area
     tags: [floor_area]
     to_dimensions:
