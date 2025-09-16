@@ -1727,5 +1727,5 @@ include:
     node_group: Mobility
   - file: zuerich-dev/electricity-dev.yaml
     node_group: Electricity
-  - file: zuerich/energy.yaml
+  - file: zuerich-dev/energy-dev.yaml
     node_group: Energy
