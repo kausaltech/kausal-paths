@@ -76,10 +76,10 @@ action_groups:
   name: Änderung im Wärmeverbrauch (Wärmenetze)
   name_en: Changes in Heat Consumption (District Heating)
   color: '#B85450'
-# - id: heat_consumption_individual
-#   name: Änderung im Wärmeverbrauch (Einzelversorgung)
-#   name_en: Changes in Heat Consumption (Individual Supply)
-#   color: '#E67E22'
+- id: heat_consumption_individual
+  name: Änderung im Wärmeverbrauch (Einzelversorgung)
+  name_en: Changes in Heat Consumption (Individual Supply)
+  color: '#E67E22'
 - id: electricity_generation
   name: Ausbau Erneuerbare Energien in der Stromerzeugung
   name_en: Expansion of Renewable Energy in Electricity Generation
@@ -782,7 +782,7 @@ actions:
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
-  group: heat_consumption
+  group: heat_consumption_individual
   input_datasets:
   - id: potsdam/action_impact
     tags: [baseline]
@@ -958,7 +958,7 @@ scenarios:
   all_actions_enabled: true
   params:
   - id: re_expansion_masterplan_2045.enabled
-    value: false
+    value: true
 
 - id: emission_factors_only
   name: Nur Emissionsfaktor-Maßnahmen
