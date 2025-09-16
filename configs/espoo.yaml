@@ -490,27 +490,8 @@ nodes:
   - id: helsinki/aluesarjat/02um_rakennukset_lammitys
     tags: baseline
     filters:
-    - column: Alue
-      value: Espoo
-    - column: Tiedot
-      value: Kerrosala (m2)
-      drop_col: false
-    - column: Rakennuksen käyttötarkoitus
-      values: [Asuinrakennukset yhteensä, Rakennukset yhteensä]
-      exclude: true
-      drop_col: false
-    - column: Rakennuksen lämmitystapa
-      value: Yhteensä
-      exclude: true
-      drop_col: false
-    - column: Rakennuksen lämmitysaine
-      value: Yhteensä
-      exclude: true
-      drop_col: false
     - rename_col: Tiedot
       value: Unit
-    - rename_item: Unit|Kerrosala (m2)
-      value: m**2
     - rename_col: Rakennuksen käyttötarkoitus
       value: building_class
     - rename_col: Rakennuksen lämmitystapa
@@ -519,6 +500,25 @@ nodes:
       value: energy_carrier
     - rename_col: Vuosi
       value: Year
+    - column: Alue
+      value: Espoo
+    - column: Unit
+      value: Kerrosala (m2)
+      drop_col: false
+    - rename_item: Unit|Kerrosala (m2)
+      value: m**2
+    - column: building_class
+      values: [Asuinrakennukset yhteensä, Rakennukset yhteensä]
+      exclude: true
+      drop_col: false
+    - column: building_heating
+      value: Yhteensä
+      exclude: true
+      drop_col: false
+    - column: energy_carrier
+      value: Yhteensä
+      exclude: true
+      drop_col: false
 
 - id: new_non_residential_floor_area
   name_fi: Uusi muun kuin asuinrakennuskannan ala
