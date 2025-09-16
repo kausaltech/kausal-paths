@@ -4,7 +4,7 @@ supported_languages: [sv, en]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 428b6c0879a556b5659117c27bdeb53b408799fd
+  commit: ad87fbd0868257633d36c439e1eed5feae6869cd
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -1554,7 +1554,7 @@ actions:
   input_datasets:
   - id: espoo/priorisoidut_toimet
     tags: [baseline]
-    forecast_from: 2024
+    forecast_from: 2025
     column: aktiviteetti
   output_nodes:
   - id: passenger_car_kilometers
