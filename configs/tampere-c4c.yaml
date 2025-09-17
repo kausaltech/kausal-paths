@@ -4671,7 +4671,7 @@ actions:
     description: Kaukolämmön hinta
     description_en: District heating price
   - id: percent_change
-    value: 1.0
+    value: 0.0
     min_value: -5.0
     max_value: 5.0
     step: 0.1
@@ -4682,7 +4682,7 @@ actions:
     value: 93.9
     unit: EUR/MWh
   - id: default_change
-    value: 1.0
+    value: 0.0
     unit: '%/a'
   output_nodes:
   - id: energy_unit_prices
@@ -4713,7 +4713,7 @@ actions:
     description: Sähkön hinta
     description_en: Electricity price
   - id: percent_change
-    value: 1.0
+    value: 0.0
     min_value: -5.0
     max_value: 5.0
     step: 0.1
@@ -4724,7 +4724,7 @@ actions:
     value: 0.18
     unit: EUR/kWh
   - id: default_change
-    value: 1.0
+    value: 0.0
     unit: '%/a'
   output_nodes:
   - id: energy_unit_prices
@@ -4755,7 +4755,7 @@ actions:
     description: Öljyn hinta
     description_en: Oil price
   - id: percent_change
-    value: 1.0
+    value: 0.0
     min_value: -5.0
     max_value: 5.0
     step: 0.1
@@ -4766,7 +4766,7 @@ actions:
     value: 0.145
     unit: EUR/kWh
   - id: default_change
-    value: 1.0
+    value: 0.0
     unit: '%/a'
   output_nodes:
   - id: energy_unit_prices
