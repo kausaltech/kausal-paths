@@ -11,6 +11,9 @@ dimensions:
     label: Heizöl EL
     label_en: Heating oil
     color: '#B23A01'
+  - id: fuel_cell
+    label: Brennstoffzelle
+    label_en: Fuel cell
   - id: petrol
     label: Benzin
     label_en: Petrol
