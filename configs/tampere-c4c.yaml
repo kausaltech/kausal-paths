@@ -117,6 +117,15 @@ dimensions:
     label: Maintenance
   - id: operations
     label: Operations
+  - id: tax_impact
+    label: Verovaikutus
+    label_en: Tax impact
+  - id: value_added
+    label: Arvonlisä
+    label_en: Value added
+  - id: gross_output
+    label: Tuotosvaikutus
+    label_en: Gross output
 
 - id: energy_carrier
   label: Energian kantaja
@@ -169,9 +178,23 @@ dimensions:
   label_en: Owner
   categories:
   - id: municipal
-    label: Municipal
+    label: Kaupunki
+    label_en: Municipal
   - id: private
-    label: Private
+    label: Yksityinen
+    label_en: Private
+  - id: region
+    label: Seutu
+    label_en: Region
+  - id: subsidiary
+    label: Tytäryhtiö
+    label_en: Subsidiary
+  - id: state
+    label: Valtio
+    label_en: State
+  - id: society
+    label: Yhteiskunta
+    label_en: Society
 
 - id: scope
   label: Scope
