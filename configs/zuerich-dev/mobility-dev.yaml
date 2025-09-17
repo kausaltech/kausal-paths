@@ -353,36 +353,38 @@ dimensions:
 
 nodes:
 - id: transportation_emissions
-  name_en: Transportation emissions
   name_de: Treibhausgasemissionen Mobilität
+  name_en: Transportation emissions
   short_name_de: Mobilität
   short_name_en: Transportation
+  color: '#687400'
+  order: 2
+  type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  type: simple.SectorEmissions
-  color: '#687400'
   input_dimensions: [emission_scope]
   output_dimensions: [emission_scope]
-  output_nodes: [net_emissions]
-  order: 2
+  output_nodes:
+  - id: net_emissions
 
 - id: transportation_fgas_emissions
-  name_en: F-gas emissions from mobility
   name_de: Treibhausgasemissionen F-Gase Mobilität
-  type: simple.SectorEmissions
-  short_name_en: F-gases
+  name_en: F-gas emissions from mobility
   short_name_de: F-Gase
+  short_name_en: F-gases
+  type: simple.AdditiveNode
+  quantity: emissions
   unit: kt/a
+  input_dimensions: [emission_scope]
   output_dimensions: [emission_scope]
-  output_nodes: [transportation_emissions]
   input_datasets:
-  - id: zuerich/emissions
-    tags: [emissions]
+  - id: zuerich/fgas_emissions
     filters:
-    - dimension: emission_sectors
-      categories: [fgases_transportation]
-      flatten: true
+    - column: emission_sectors
+      value: fgases_transportation
   input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: transportation_emissions
 
 # ----- Infrastructure & Supply Chain Emissions -----
 
