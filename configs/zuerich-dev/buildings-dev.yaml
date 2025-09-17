@@ -620,7 +620,6 @@ nodes:
     from_dimensions:
     - id: energy_carrier
       flatten: true
-  - id: net_emissions_2kw
 
 - id: building_emissions
   name_en: Building emissions
@@ -648,6 +647,7 @@ nodes:
   output_dimensions: [emission_scope]
   input_datasets:
   - id: zuerich/fgas_emissions
+    forecast_from: 2025
     filters:
     - column: emission_sectors
       value: fgases_buildings

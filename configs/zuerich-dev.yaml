@@ -16,9 +16,9 @@ target_year: 2040
 model_end_year: 2040
 reference_year: 2010
 minimum_historical_year: 2010
-maximum_historical_year: 2020
+maximum_historical_year: 2024
 emission_unit: kt/a
-emission_forecast_from: 2024
+emission_forecast_from: 2025
 emission_dimensions: [emission_scope]
 emission_dataset: zuerich/emissions
 emission_sector_dimension: emission_sectors
@@ -485,29 +485,6 @@ nodes:
     - id: vehicle_type
       categories: [off_non_road]
 
-- id: non_road_machinery_emissions_2kw
-  name_de: Treibhausgasemissionen Baumaschinen und Spezialfahrzeuge (2000-Watt)
-  name_en: Building machine and special vehicle emissions (2000-Watt)
-  short_name_de: Non-Road Maschinen
-  short_name_en: Non-road machinery
-  type: ch.zuerich.TransportEmissions2kW
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [emission_scope, energy_carrier, non_road_machinery]
-  output_dimensions: [emission_scope, energy_carrier, non_road_machinery]
-  input_nodes:
-  - id: non_road_machinery_emissions
-    tags: [emissions]
-  - id: non_road_machinery_end_energy_consumption
-    tags: [consumption]
-    to_dimensions:
-    - id: energy_carrier
-    - id: non_road_machinery
-  - id: transport_emission_factor_2kw
-    tags: [emission_factors]
-    to_dimensions:
-    - id: energy_carrier
-
 # ----- Agriculture Emissions -----
 
 - id: afolu_emissions
@@ -711,15 +688,6 @@ nodes:
   unit: GWh/a
   input_dimensions: [energy_carrier, renewable_energy]
   output_dimensions: [energy_carrier, renewable_energy]
-
-- id: net_emissions_2kw
-  name_de: Treibhausgasemissionen (2000-Watt)
-  name_en: Greenhouse gas emissions (2000-watt)
-  type: simple.SectorEmissions
-  unit: kt/a
-  input_dimensions: [energy_carrier, emission_scope]
-  output_dimensions: [energy_carrier, emission_scope]
-  is_outcome: true
 
 - id: percent_renewable_end_energy_consumption
   name_en: Renewable component of total end energy consumption
