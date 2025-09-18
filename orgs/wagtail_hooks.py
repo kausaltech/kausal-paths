@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Any
 
 from django.contrib.admin.utils import quote
 from django.core.exceptions import ValidationError
-from django.db.models import Q
 from django.urls import URLPattern, path, reverse
 from django.utils.translation import gettext_lazy as _, pgettext_lazy
 from wagtail.admin.panels import FieldPanel, InlinePanel, ObjectList, TabbedInterface
@@ -25,8 +24,6 @@ from kausal_common.organizations.views import (
 
 # from admin_site.utils import admin_req
 # from admin_site.wagtail import CondensedInlinePanel
-from kausal_common.people.chooser import PersonChooser
-
 from paths.context import realm_context
 
 from admin_site.utils import SuperAdminOnlyMenuItem
@@ -39,7 +36,6 @@ from .views import CreateChildNodeView
 
 if TYPE_CHECKING:
     from django.db.models import Model
-    from wagtail.admin.panels.base import Panel
 
     from nodes.models import InstanceConfig
 
