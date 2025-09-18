@@ -479,6 +479,12 @@ dimensions:
   - id: parking_policy_to_support_sustainable_mobility
     label: Kestävää liikkumista tukeva pysäköintipolitiikka
     label_en: Parking policy to support sustainable mobility
+  - id: solar_power_in_municipal_building_stock
+    label: Solar power in municipal building stock
+  - id: geothermal_and_awhps_in_municipal_building_stock
+    label: Geothermal and AWHPs in municipal building stock
+  - id: aahps_in_municipal_building_stock
+    label: AAHPs in municipal building stock
 
 emission_sectors:
 - id: net_emissions
