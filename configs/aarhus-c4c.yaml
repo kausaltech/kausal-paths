@@ -4,14 +4,14 @@ supported_languages: []
 site_url: https://aarhus-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 126c4722881f9c3133b888ddd35b396263b07d32
+  commit: b80d83118bf5302c8607057fb0792a662164090d
   dvc_remote: kausal-s3
 name: Aarhus Greenhouse Gas Inventory
 owner: City of Aarhus
 theme_identifier: eu-climate-4-cast
 target_year: 2035
 model_end_year: 2035
-reference_year: 2018
+reference_year: 1990
 minimum_historical_year: 2018
 maximum_historical_year: 2023
 emission_unit: kt/a
@@ -19,7 +19,7 @@ emission_forecast_from: 2024
 emission_dimensions: [ghg]
 features:
   baseline_visible_in_graphs: false
-  use_datasets_from_db: true
+  use_datasets_from_db: false
 
 dimensions:
 - id: energy_usage
@@ -209,6 +209,10 @@ dimensions:
     label: Wastewater
   - id: iv
     label: IPPU
+  - id: iv1
+    label: 'IPPU: Industrial Processes'
+  - id: iv2
+    label: 'IPPU: Product Use'
   - id: v
     label: AFOLU
   - id: v1
@@ -1219,6 +1223,7 @@ nodes:
   - id: aarhus/waste
     column: emissions
     forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -1239,6 +1244,7 @@ nodes:
   - id: aarhus/ippu
     column: emissions
     forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -1299,11 +1305,22 @@ nodes:
 
 - id: cultivation_emissions
   name: Cultivation Emissions
-  type: simple.MultiplicativeNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [sector, ghg]
   output_dimensions: [sector, ghg]
+  params:
+    formula: (land_areas * land_emission_factors) + reference
+  input_datasets:
+  - id: aarhus/land
+    tags: [reference]
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - dimension: sector
+      categories: [v11]
   input_nodes:
   - id: land_emission_factors
   - id: land_areas
@@ -1316,11 +1333,22 @@ nodes:
 - id: organic_soils_cultivation_emissions
   name: Organic Soils Cultivation Emissions
   short_name: Cultivation Emissions
-  type: simple.MultiplicativeNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [sector, ghg]
   output_dimensions: [sector, ghg]
+  params:
+    formula: (land_areas * land_emission_factors) + reference
+  input_datasets:
+  - id: aarhus/land
+    tags: [reference]
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - dimension: sector
+      categories: [v121]
   input_nodes:
   - id: land_emission_factors
   - id: land_areas
@@ -1333,11 +1361,22 @@ nodes:
 - id: organic_soils_permanent_grass_emissions
   name: Organic Soils Permanent Grass Emissions
   short_name: Permanent Grass Emissions
-  type: simple.MultiplicativeNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [sector, ghg]
   output_dimensions: [sector, ghg]
+  params:
+    formula: (land_areas * land_emission_factors) + reference
+  input_datasets:
+  - id: aarhus/land
+    tags: [reference]
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - dimension: sector
+      categories: [v122]
   input_nodes:
   - id: land_emission_factors
   - id: land_areas
@@ -1437,14 +1476,21 @@ nodes:
 
 - id: livestock_emissions
   name: Livestock Emissions
-  type: simple.MultiplicativeNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [sector, emission_source, ghg]
   output_dimensions: [sector, emission_source, ghg]
+  params:
+    formula: (livestock_counts * livestock_emission_factors) + reference
+  input_datasets:
+  - id: aarhus/livestock
+    tags: [reference]
+    column: emissions
+    dropna: true
+    forecast_from: 2024
   input_nodes:
   - id: livestock_emission_factors
-    tags: [non_additive]
   - id: livestock_counts
     to_dimensions:
     - id: sector
