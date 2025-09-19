@@ -65,13 +65,11 @@ class PersonForm(PathsAdminModelForm[Person]):
         super_admin_role = role_registry.get_role(INSTANCE_SUPER_ADMIN_ROLE)
         super_admin_group = super_admin_role.get_existing_instance_group(self.active_instance)
         if (
-            super_admin_group is not None and
-            super_admin_group in self.instance.user.groups.all() and
-            super_admin_group.user_set.count() == 1
+            super_admin_group is not None
+            and super_admin_group in self.instance.user.groups.all()
+            and super_admin_group.user_set.count() == 1
         ):
-            raise forms.ValidationError(
-                _('Removing the last Super Admin of an instance is not permitted')
-            )
+            raise forms.ValidationError(_('Removing the last Super Admin of an instance is not permitted'))
         return role_id
 
     def save(self, commit=True) -> Person:
@@ -99,15 +97,10 @@ class PersonForm(PathsAdminModelForm[Person]):
 
     def get_role_choices(self) -> list[tuple[str, _StrPromise]]:
         def group_exists(role: InstanceSpecificRole[typing.Any]) -> bool:
-            return (
-                role.model == InstanceConfig and
-                role.get_existing_instance_group(self.active_instance) is not None
-            )
+            return role.model == InstanceConfig and role.get_existing_instance_group(self.active_instance) is not None
 
         roles = role_registry.get_all_roles()
-        choices: list[tuple[str, _StrPromise]] = [
-            (r.id, r.name) for r in roles if group_exists(r)
-        ]
+        choices: list[tuple[str, _StrPromise]] = [(r.id, r.name) for r in roles if group_exists(r)]
         return choices + [(NONE_ROLE, _('None'))]
 
     def __init__(self, *args, **kwargs):
@@ -123,9 +116,9 @@ class PersonForm(PathsAdminModelForm[Person]):
 
         assert self.active_instance
         instance_name = self.active_instance.name
-        help_text: StrOrPromise = format_lazy(_(
-            'Select a role for this person within {instance_name}'
-        ), instance_name=instance_name)
+        help_text: StrOrPromise = format_lazy(
+            _('Select a role for this person within {instance_name}'), instance_name=instance_name
+        )
         field_label: StrOrPromise = self.fields['role'].label or ''
 
         if is_superuser:

@@ -1,6 +1,6 @@
 import pytest
-from nodes.scenario import Scenario
 
+from nodes.scenario import Scenario
 from params.param import ValidationError
 
 pytestmark = pytest.mark.django_db
@@ -18,6 +18,7 @@ def test_parameter_add_scenario_setting_twice(parameter, scenario):
     with pytest.raises(Exception):
         parameter.add_scenario_setting(scenario, 'bar')
 """
+
 
 def test_parameter_global_id_global_param(parameter):
     assert parameter.global_id == parameter.local_id

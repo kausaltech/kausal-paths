@@ -46,6 +46,7 @@ type InfoType = GQLInstanceInfo | SBInfo
 
 type AnyResolver[**P, R, I: InfoType] = Callable[Concatenate[Any, I, P], R]
 
+
 def ensure_instance[**P, R, I: InfoType](method: AnyResolver[P, R, I]) -> AnyResolver[P, R, I]:
     """Wrap a class method to ensure instance is specified when the method is called."""
 
@@ -66,10 +67,12 @@ type ResolverWithContext[**P, R, I: InfoType] = Callable[Concatenate[Any, I, Con
 @overload
 def pass_context(method_or_field: StrawberryField) -> StrawberryField: ...
 
+
 @overload
 def pass_context[**P, R, I: InfoType](
     method_or_field: ResolverWithContext[P, R, I],
 ) -> Callable[Concatenate[Any, I, P], R]: ...
+
 
 def pass_context[**P, R, I: InfoType](
     method_or_field: ResolverWithContext[P, R, I] | StrawberryField,

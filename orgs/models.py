@@ -30,15 +30,18 @@ class OrganizationClass(BaseOrganizationClass):
         verbose_name = _('Organization class')
         verbose_name_plural = _('Organization classes')
 
+
 class Namespace(BaseNamespace):
     class Meta:
         verbose_name = _('Namespace')
         verbose_name_plural = _('Namespaces')
 
+
 class OrganizationIdentifier(BaseOrganizationIdentifier):
     class Meta:
         verbose_name = _('Organization identifier')
         verbose_name_plural = _('Organization identifiers')
+
 
 class OrganizationQuerySet(BaseOrganizationQuerySet):
     def editable_by_user(self, user):
@@ -54,17 +57,22 @@ class OrganizationQuerySet(BaseOrganizationQuerySet):
         if not hasattr(instance, 'organization') or not instance.organization:
             return self.none()
 
-        return self.filter(
-            path__startswith=instance.organization.path
-        )
+        return self.filter(path__startswith=instance.organization.path)
+
 
 _OrganizationManager = models.Manager.from_queryset(OrganizationQuerySet)
+
+
 class OrganizationManager(MLModelManager['Organization', OrganizationQuerySet], _OrganizationManager): ...
+
+
 del _OrganizationManager
+
 
 class Organization(PermissionedModel, BaseOrganization, Node[OrganizationQuerySet]):
     objects: ClassVar[OrganizationManager] = OrganizationManager()  # type: ignore[assignment]
     VIEWSET_CLASS = 'orgs.wagtail_hooks.OrganizationViewSet'
+
     class Meta:
         verbose_name = _('Organization')
         verbose_name_plural = _('Organizations')
@@ -80,6 +88,7 @@ class Organization(PermissionedModel, BaseOrganization, Node[OrganizationQuerySe
 
     def get_absolute_url(self):
         from django.urls import reverse
+
         return reverse('organization-detail', kwargs={'pk': self.pk})
 
     def initialize_instance_defaults(self, instance: InstanceConfig):
@@ -90,6 +99,7 @@ class Organization(PermissionedModel, BaseOrganization, Node[OrganizationQuerySe
     @classmethod
     def permission_policy(cls) -> OrganizationPermissionPolicy:
         from .permission_policy import OrganizationPermissionPolicy
+
         return OrganizationPermissionPolicy()
 
     @classmethod

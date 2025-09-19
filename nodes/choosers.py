@@ -39,7 +39,7 @@ class NodeChooserViewSet(ModelChooserViewSet):
 
     icon = 'circle-nodes'
     model = NodeConfig
-    page_title = _("Choose a node")
+    page_title = _('Choose a node')
     per_page = 30
     fields = ['name', 'identifier']
 

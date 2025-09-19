@@ -1,19 +1,31 @@
-from typing import cast
-import polars as pl
-from common import polars as ppl
+from __future__ import annotations
 
+from typing import cast
+
+import polars as pl
+
+from common import polars as ppl
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
-from nodes.node import NodeMetric, NodeError, Node
-from nodes.simple import AdditiveNode, MultiplicativeNode, SimpleNode, MixNode
-from nodes.constants import CONSUMPTION_FACTOR_QUANTITY, DEFAULT_METRIC, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN, POPULATION_QUANTITY, VALUE_COLUMN, YEAR_COLUMN, MILEAGE_QUANTITY
+from nodes.constants import (
+    CONSUMPTION_FACTOR_QUANTITY,
+    DEFAULT_METRIC,
+    EMISSION_FACTOR_QUANTITY,
+    EMISSION_QUANTITY,
+    ENERGY_QUANTITY,
+    FORECAST_COLUMN,
+    MILEAGE_QUANTITY,
+    POPULATION_QUANTITY,
+    VALUE_COLUMN,
+    YEAR_COLUMN,
+)
+from nodes.node import Node, NodeError, NodeMetric
+from nodes.simple import AdditiveNode, MixNode, MultiplicativeNode, SimpleNode
 from nodes.units import Unit
 from params.param import BoolParameter
 
 
 class BuildingEnergy(AdditiveNode):
-    output_metrics = {
-        ENERGY_QUANTITY: NodeMetric(unit='GWh/a', quantity=ENERGY_QUANTITY)
-    }
+    output_metrics = {ENERGY_QUANTITY: NodeMetric(unit='GWh/a', quantity=ENERGY_QUANTITY)}
     output_dimension_ids = [
         'energy_carrier',
     ]
@@ -35,10 +47,7 @@ class BuildingEnergy(AdditiveNode):
         output_unit = m.unit
 
         df = df.ensure_unit(col, output_unit)
-        df = df.with_columns([
-            pl.col(col).alias(VALUE_COLUMN),
-            pl.lit(False).alias(FORECAST_COLUMN)
-        ])
+        df = df.with_columns([pl.col(col).alias(VALUE_COLUMN), pl.lit(False).alias(FORECAST_COLUMN)])
         df = df.select([YEAR_COLUMN, *meta.dim_ids, VALUE_COLUMN, FORECAST_COLUMN])
 
         odf = self.get_input_dataset_pl('other_fuel_use')
@@ -59,9 +68,7 @@ class BuildingFloorAreaHistorical(Node):
     def compute(self) -> ppl.PathsDataFrame:
         df = self.get_input_dataset_pl()
         df = df.with_columns(
-            pl.col('building_use_extended').replace(
-                'residential', 'residential', default='nonresidential'
-            ).alias('building_use')
+            pl.col('building_use_extended').replace('residential', 'residential', default='nonresidential').alias('building_use')
         )
         df = df.add_to_index('building_use')
         df = df.paths.sum_over_dims(['building_use_extended'])
@@ -82,10 +89,12 @@ class BuildingHeatHistorical(Node):
         edf = edf.paths.to_wide(only_category_names=True)
         edf = edf.paths.join_over_index(cop_df)
         gas_cols = [col for col in ('natural_gas', 'biogas', 'biogas_import') if col in edf.columns]
-        edf = edf.with_columns([
-            pl.sum_horizontal(gas_cols).alias('natural_gas'),
-            (pl.col('environmental_heat') / (1 - 1/pl.col('HeatPumpCOP'))).alias('heat_pumps'),
-        ])
+        edf = edf.with_columns(
+            [
+                pl.sum_horizontal(gas_cols).alias('natural_gas'),
+                (pl.col('environmental_heat') / (1 - 1 / pl.col('HeatPumpCOP'))).alias('heat_pumps'),
+            ]
+        )
         edf = edf.set_unit('heat_pumps', edf.get_unit('environmental_heat'))
         gas_cols.remove('natural_gas')
         edf = edf.drop(['HeatPumpCOP', *gas_cols, 'environmental_heat'])
@@ -131,17 +140,21 @@ class BuildingHeatPerArea(Node):
 
         # Residential buildings use about 8 % more heat per area
         edf = df.select_metrics(['Energy']).paths.to_wide(only_category_names=True)
-        edf = edf.with_columns([
-            (pl.col('residential') * (1 + 0.03)).alias('residential_new'),
-        ])
-        edf = edf.with_columns([
-            (pl.col('nonresidential') - (pl.col('residential_new') - pl.col('residential'))).alias('nonresidential_new')
-        ])
+        edf = edf.with_columns(
+            [
+                (pl.col('residential') * (1 + 0.03)).alias('residential_new'),
+            ]
+        )
+        edf = edf.with_columns(
+            [(pl.col('nonresidential') - (pl.col('residential_new') - pl.col('residential'))).alias('nonresidential_new')]
+        )
         edf = edf.set_unit('nonresidential_new', edf.get_unit('residential'))
-        edf = edf.drop(['residential', 'nonresidential']).rename({
-            'residential_new': 'Energy@building_use:residential',
-            'nonresidential_new': 'Energy@building_use:nonresidential',
-        })
+        edf = edf.drop(['residential', 'nonresidential']).rename(
+            {
+                'residential_new': 'Energy@building_use:residential',
+                'nonresidential_new': 'Energy@building_use:nonresidential',
+            }
+        )
         edf = edf.paths.to_narrow()
         df = df.select_metrics(['Area']).paths.join_over_index(edf)
         m = self.get_default_output_metric()
@@ -254,9 +267,11 @@ class BuildingHeatByCarrier(Node):
             drop_cols.append('Share:%s' % col)
         edf = edf.drop([*drop_cols, 'natural_gas_heat'])
         edf = edf.divide_cols(['heat_pumps', 'HeatPumpCOP'], 'electricity', out_unit=edf.get_unit('heat_pumps'))
-        edf = edf.with_columns([
-            (pl.col('heat_pumps') - pl.col('electricity')).alias('environmental_heat'),
-        ])
+        edf = edf.with_columns(
+            [
+                (pl.col('heat_pumps') - pl.col('electricity')).alias('environmental_heat'),
+            ]
+        )
         edf = edf.set_unit('environmental_heat', edf.get_unit('heat_pumps'))
         edf = edf.drop(['HeatPumpCOP', 'heat_pumps'])
         renames = {col: 'Value@energy_carrier:%s' % col for col in edf.metric_cols}
@@ -266,52 +281,53 @@ class BuildingHeatByCarrier(Node):
 
 class ElectricityProductionMix(MixNode):
     def compute(self) -> ppl.PathsDataFrame:
-        external_df = (
-            self.get_input_dataset_pl(tag='external_supply')
-                .rename({'energy': 'ExternalEnergy'})
-        )
+        external_df = self.get_input_dataset_pl(tag='external_supply').rename({'energy': 'ExternalEnergy'})
 
         energy_node = self.get_input_node(tag='consumption')
         energy_df = (
             energy_node.get_output_pl(target_node=self)
-                       .filter(~pl.col(FORECAST_COLUMN))
-                       .rename({energy_node.get_default_output_metric().column_id: 'TotalEnergy'})
-                       .paths.join_over_index(external_df)
+            .filter(~pl.col(FORECAST_COLUMN))
+            .rename({energy_node.get_default_output_metric().column_id: 'TotalEnergy'})
+            .paths.join_over_index(external_df)
         )
 
         energy_unit = energy_df.get_unit('TotalEnergy')
         energy_df = (
             energy_df.ensure_unit('ExternalEnergy', energy_unit)
-                     .with_columns((pl.col('TotalEnergy') - pl.col('ExternalEnergy')).alias('InternalEnergy'))
-                     .with_columns((pl.col('ExternalEnergy') / pl.col('TotalEnergy')).alias('ExternalTotal'))
-                     .with_columns((pl.col('InternalEnergy') / pl.col('TotalEnergy')).alias('InternalTotal'))
-                     .select([YEAR_COLUMN, FORECAST_COLUMN, 'ExternalTotal', 'InternalTotal'])
+            .with_columns((pl.col('TotalEnergy') - pl.col('ExternalEnergy')).alias('InternalEnergy'))
+            .with_columns((pl.col('ExternalEnergy') / pl.col('TotalEnergy')).alias('ExternalTotal'))
+            .with_columns((pl.col('InternalEnergy') / pl.col('TotalEnergy')).alias('InternalTotal'))
+            .select([YEAR_COLUMN, FORECAST_COLUMN, 'ExternalTotal', 'InternalTotal'])
         )
 
         mix_df = self.get_input_dataset_pl(tag='general_mix')
 
         subsidized_df = (
             mix_df.filter(pl.col('electricity_source') == pl.lit('subsidized'))
-                  .select([YEAR_COLUMN, 'share'])
-                  .rename({'share': 'SubsidizedTotal'})
+            .select([YEAR_COLUMN, 'share'])
+            .rename({'share': 'SubsidizedTotal'})
         )
 
         mix_df = (
             mix_df.filter(pl.col('electricity_source') != pl.lit('subsidized'))
-                  .rename({'share': 'InternalPercent'})
-                  .paths.join_over_index(subsidized_df)
-                  .paths.join_over_index(self.get_input_dataset_pl(tag='subsidized_mix'))
-                  .rename({'share': 'SubsidizedPercent'})
-                  .paths.join_over_index(self.get_input_dataset_pl(tag='external_mix'))
-                  .rename({'share': 'ExternalPercent'})
-                  .paths.join_over_index(energy_df)
-                  .with_columns(
-                      (((pl.col('InternalPercent') + (pl.col('SubsidizedPercent') * (pl.col('SubsidizedTotal') / 100))) *
-                        pl.col('InternalTotal')) +
-                       (pl.col('ExternalPercent') * pl.col('ExternalTotal'))).alias(VALUE_COLUMN)
-                  )
-                  .set_unit(VALUE_COLUMN, '%')
-                  .select([YEAR_COLUMN, FORECAST_COLUMN, 'electricity_source', VALUE_COLUMN])
+            .rename({'share': 'InternalPercent'})
+            .paths.join_over_index(subsidized_df)
+            .paths.join_over_index(self.get_input_dataset_pl(tag='subsidized_mix'))
+            .rename({'share': 'SubsidizedPercent'})
+            .paths.join_over_index(self.get_input_dataset_pl(tag='external_mix'))
+            .rename({'share': 'ExternalPercent'})
+            .paths.join_over_index(energy_df)
+            .with_columns(
+                (
+                    (
+                        (pl.col('InternalPercent') + (pl.col('SubsidizedPercent') * (pl.col('SubsidizedTotal') / 100)))
+                        * pl.col('InternalTotal')
+                    )
+                    + (pl.col('ExternalPercent') * pl.col('ExternalTotal'))
+                ).alias(VALUE_COLUMN)
+            )
+            .set_unit(VALUE_COLUMN, '%')
+            .select([YEAR_COLUMN, FORECAST_COLUMN, 'electricity_source', VALUE_COLUMN])
         )
 
         mix_df = extend_last_historical_value_pl(mix_df, self.get_end_year())
@@ -352,9 +368,8 @@ class ElectricityProductionMixLegacy(MixNode):
         gdf = gdf.paths.join_over_index(sdf.select([YEAR_COLUMN, es_dim, 'SubsidizedEnergy']))
         gdf = gdf.with_columns([pl.col('TotalEnergy') + pl.col('SubsidizedEnergy').fill_null(0)])
 
-        idf = (df
-            .select([YEAR_COLUMN, 'ExtEnergy', pl.lit('import').alias(es_dim)])
-            .replace_meta(ppl.DataFrameMeta(units={'ExtEnergy': energy_unit}, primary_keys=[YEAR_COLUMN, es_dim]))
+        idf = df.select([YEAR_COLUMN, 'ExtEnergy', pl.lit('import').alias(es_dim)]).replace_meta(
+            ppl.DataFrameMeta(units={'ExtEnergy': energy_unit}, primary_keys=[YEAR_COLUMN, es_dim])
         )
 
         gdf = gdf.paths.join_over_index(idf)
@@ -400,23 +415,20 @@ class GasGridMixin(Node):
         def fc_only(col: str):
             own_supply = (1 - zdf['GridShare']) * pl.col(col)
             grid_supply = zdf['GridShare'] * zdf[col] * pl.col('all_gas')
-            return (
-                pl.when(pl.col(FORECAST_COLUMN))
-                .then(own_supply + grid_supply)
-                .otherwise(pl.col(col))
-                .fill_nan(0.0).alias(col)
-            )
+            return pl.when(pl.col(FORECAST_COLUMN)).then(own_supply + grid_supply).otherwise(pl.col(col)).fill_nan(0.0).alias(col)
 
         cols = ('natural_gas', 'biogas', 'biogas_import')
         for col in cols:
             if col not in df.columns:
                 df = df.with_columns(pl.lit(0.0).alias(col)).set_unit(col, df.get_unit('all_gas'))
 
-        df = df.with_columns([
-            fc_only('natural_gas'),
-            fc_only('biogas'),
-            fc_only('biogas_import'),
-        ])
+        df = df.with_columns(
+            [
+                fc_only('natural_gas'),
+                fc_only('biogas'),
+                fc_only('biogas_import'),
+            ]
+        )
         df = df.drop('all_gas')
 
         m = self.get_default_output_metric()
@@ -425,9 +437,7 @@ class GasGridMixin(Node):
 
 
 class DistrictHeatProductionMix(MixNode, GasGridMixin):
-    allowed_parameters = MixNode.allowed_parameters + [
-        BoolParameter('use_gas_network', label='District heat uses gas grid mix')
-    ]
+    allowed_parameters = MixNode.allowed_parameters + [BoolParameter('use_gas_network', label='District heat uses gas grid mix')]
 
     def compute(self) -> ppl.PathsDataFrame:
         mix_df = self.get_input_dataset_pl()
@@ -465,20 +475,16 @@ class GasGridNode(AdditiveNode, GasGridMixin):
         other_dim_cats = df.select(other_dims).unique()
         dfs = []
         for row in other_dim_cats.iter_rows():
-            filters = [pl.col(dim).eq(cat) for dim, cat in zip(other_dims, row)]
+            filters = [pl.col(dim).eq(cat) for dim, cat in zip(other_dims, row, strict=False)]
             fdf = df.filter(pl.all_horizontal(filters)).drop(other_dims)
-            fdf = self.use_gas_grid(fdf).with_columns([
-                pl.lit(cat).alias(dim) for dim, cat in zip(other_dims, row)
-            ])
+            fdf = self.use_gas_grid(fdf).with_columns([pl.lit(cat).alias(dim) for dim, cat in zip(other_dims, row, strict=False)])
             dfs.append(fdf)
         df = ppl.to_ppdf(pl.concat(dfs), meta=meta)
         return df
 
 
 class EnergyProductionEmissionFactor(AdditiveNode):
-    output_metrics = {
-        EMISSION_FACTOR_QUANTITY: NodeMetric(unit='g/kWh', quantity=EMISSION_FACTOR_QUANTITY)
-    }
+    output_metrics = {EMISSION_FACTOR_QUANTITY: NodeMetric(unit='g/kWh', quantity=EMISSION_FACTOR_QUANTITY)}
     default_unit = 'g/kWh'
 
     def compute(self) -> ppl.PathsDataFrame:
@@ -495,7 +501,7 @@ class EnergyProductionEmissionFactor(AdditiveNode):
 
         ef_df = self.get_input_dataset_pl()
         if len(self.input_dimensions) != 1:
-            raise NodeError(self, "Must have exactly 1 input dimensions (%d given)" % len(self.input_dimensions))
+            raise NodeError(self, 'Must have exactly 1 input dimensions (%d given)' % len(self.input_dimensions))
 
         es_dim_id, es_dim = list(self.input_dimensions.items())[0]
         ef_df = ef_df.with_columns([es_dim.series_to_ids_pl(ef_df[es_dim_id])])
@@ -512,10 +518,12 @@ class EnergyProductionEmissionFactor(AdditiveNode):
 
         if ccs_df is not None:
             df = df.paths.join_over_index(ccs_df).with_columns(pl.col('CCS').fill_null(0.0))
-            #df = df.multiply_cols(['EF', 'CCS'], 'EFRemaining', out_unit=df.get_unit('EF'))
+            # df = df.multiply_cols(['EF', 'CCS'], 'EFRemaining', out_unit=df.get_unit('EF'))
             df = df.with_columns(
                 pl.when(pl.col('energy_carrier').eq('natural_gas') & pl.col('emission_scope').eq('scope1'))
-                    .then(pl.col('EF') * (1 - pl.col('CCS'))).otherwise(pl.col('EF')).alias('EF')
+                .then(pl.col('EF') * (1 - pl.col('CCS')))
+                .otherwise(pl.col('EF'))
+                .alias('EF')
             )
 
         df = mix_df.paths.join_over_index(df, index_from='union')
@@ -549,10 +557,12 @@ class EmissionFactor(Node):
 
         dim = self.input_dimensions['energy_carrier']
         ids = dim.series_to_ids_pl(df[dim.id]).cast(pl.Utf8)
-        df = df.with_columns([
-            ids.alias(dim.id).cast(str),
-            pl.lit(False).alias(FORECAST_COLUMN),
-        ])
+        df = df.with_columns(
+            [
+                ids.alias(dim.id).cast(str),
+                pl.lit(False).alias(FORECAST_COLUMN),
+            ]
+        )
 
         df = df.rename({metric_col: VALUE_COLUMN}).drop_nulls()
         meta = df.get_meta()
@@ -572,7 +582,7 @@ class EmissionFactor(Node):
         if df.paths.index_has_duplicates():
             dupes = df.group_by(df._primary_keys).agg(pl.count()).filter(pl.col('count') > 1)
             self.print(dupes)
-            raise NodeError(self, "Duplicate rows detected")
+            raise NodeError(self, 'Duplicate rows detected')
         return df
 
 
@@ -592,7 +602,7 @@ class EmissionFactorActivity(Node):
         df = edf.paths.join_over_index(fdf, index_from='union')
         if df['EF'].has_validity():
             self.print(df.filter(pl.col('EF').is_null()))
-            raise NodeError(self, "Emission factor not found for some categories")
+            raise NodeError(self, 'Emission factor not found for some categories')
 
         m = self.get_default_output_metric()
         df = df.multiply_cols(['Energy', 'EF'], m.column_id)
@@ -625,11 +635,13 @@ class ToPerCapita(Node):
         meta = act_df.get_meta()
         df = ppl.to_ppdf(act_df.join(pop_df, on=YEAR_COLUMN, how='left'), meta=meta)
 
-        pc_unit = cast(Unit, act_df.get_unit('Value') / pop_df.get_unit('Pop'))
-        df = df.with_columns([
-            (pl.col(VALUE_COLUMN) / pl.col('Pop')).alias('PerCapita'),
-            (pl.col(FORECAST_COLUMN) | pl.col(FORECAST_COLUMN + '_right')).alias(FORECAST_COLUMN)
-        ])
+        pc_unit = cast('Unit', act_df.get_unit('Value') / pop_df.get_unit('Pop'))
+        df = df.with_columns(
+            [
+                (pl.col(VALUE_COLUMN) / pl.col('Pop')).alias('PerCapita'),
+                (pl.col(FORECAST_COLUMN) | pl.col(FORECAST_COLUMN + '_right')).alias(FORECAST_COLUMN),
+            ]
+        )
         df = df.set_unit('PerCapita', pc_unit)
         output_unit = self.output_metrics[DEFAULT_METRIC].unit
         df = df.ensure_unit('PerCapita', output_unit)
@@ -641,19 +653,16 @@ class ToPerCapita(Node):
             ndf = ndf.ensure_unit(VALUE_COLUMN, output_unit)
             df = ppl.to_ppdf(df.join(ndf, on=YEAR_COLUMN, how='left'), meta=meta)
             other = df[VALUE_COLUMN + '_right'].fill_null(0)
-            df = df.with_columns([
-                pl.col(VALUE_COLUMN) + other,
-                pl.col(FORECAST_COLUMN) | pl.col(FORECAST_COLUMN + '_right').fill_null(False)
-            ])
+            df = df.with_columns(
+                [pl.col(VALUE_COLUMN) + other, pl.col(FORECAST_COLUMN) | pl.col(FORECAST_COLUMN + '_right').fill_null(False)]
+            )
             df = df.select([YEAR_COLUMN, VALUE_COLUMN, FORECAST_COLUMN])
         df = ppl.to_ppdf(df, meta=meta)
         return df
 
 
 class VehicleDatasetNode(AdditiveNode):  # Based on BuildingEnergy.
-    output_metrics = {
-        MILEAGE_QUANTITY: NodeMetric(unit='km/a', quantity=MILEAGE_QUANTITY)
-    }
+    output_metrics = {MILEAGE_QUANTITY: NodeMetric(unit='km/a', quantity=MILEAGE_QUANTITY)}
     output_dimension_ids = [
         'vehicle_type',
     ]
@@ -680,10 +689,7 @@ class VehicleDatasetNode(AdditiveNode):  # Based on BuildingEnergy.
         output_unit = m.unit
 
         df = df.ensure_unit(col, output_unit)
-        df = df.with_columns([
-            pl.col(col).alias(VALUE_COLUMN),
-            pl.lit(False).alias(FORECAST_COLUMN)
-        ]).drop_nulls()
+        df = df.with_columns([pl.col(col).alias(VALUE_COLUMN), pl.lit(False).alias(FORECAST_COLUMN)]).drop_nulls()
         df = df.select([YEAR_COLUMN, *meta.dim_ids, VALUE_COLUMN, FORECAST_COLUMN])
         # df = df.set_unit(VALUE_COLUMN, output_unit)
 
@@ -715,9 +721,7 @@ class PassengerKilometers(Node):
     input_dimension_ids = [
         'vehicle_type',
     ]
-    output_dimension_ids = [
-        'transport_mode'
-    ]
+    output_dimension_ids = ['transport_mode']
 
     def compute(self) -> ppl.PathsDataFrame:
         vnode = self.get_input_node(tag='vehicle_mileage')
@@ -727,11 +731,9 @@ class PassengerKilometers(Node):
 
         tm_dim = self.output_dimensions[self.output_dimension_ids[0]]
         vt_dim = self.input_dimensions[self.input_dimension_ids[0]]
-        vdf = vdf.with_columns([
-            vt_dim.ids_to_groups(pl.col(vt_dim.id)).alias('vehicle_group')
-        ])
-        vdf = (vdf
-            .with_columns(tm_dim.series_to_ids_pl(vdf['vehicle_group']).alias('transport_mode'))
+        vdf = vdf.with_columns([vt_dim.ids_to_groups(pl.col(vt_dim.id)).alias('vehicle_group')])
+        vdf = (
+            vdf.with_columns(tm_dim.series_to_ids_pl(vdf['vehicle_group']).alias('transport_mode'))
             .drop('vehicle_group')
             .add_to_index('transport_mode')
         )
@@ -778,11 +780,9 @@ class VehicleKilometersPerInhabitant(Node):
         tm_dim = self.context.dimensions['transport_mode']
         vt_dim = self.context.dimensions['vehicle_type']
 
-        mdf = mdf.with_columns([
-            vt_dim.ids_to_groups(pl.col(vt_dim.id)).alias('vehicle_group')
-        ])
-        mdf = (mdf
-            .with_columns(tm_dim.series_to_ids_pl(mdf['vehicle_group']).alias('transport_mode'))
+        mdf = mdf.with_columns([vt_dim.ids_to_groups(pl.col(vt_dim.id)).alias('vehicle_group')])
+        mdf = (
+            mdf.with_columns(tm_dim.series_to_ids_pl(mdf['vehicle_group']).alias('transport_mode'))
             .drop('vehicle_group')
             .add_to_index('transport_mode')
         )
@@ -802,17 +802,10 @@ class VehicleEngineTypeSplit(MixNode):
         mnode = self.get_input_node(tag='mileage')
         mdf = mnode.get_output_pl(target_node=self)
         dim = self.input_dimensions['vehicle_type']
-        mdf = (
-            mdf.with_columns(dim.ids_to_groups(pl.col('vehicle_type')).alias('group'))
-            .add_to_index('group')
-        )
+        mdf = mdf.with_columns(dim.ids_to_groups(pl.col('vehicle_type')).alias('group')).add_to_index('group')
         mdf = mdf.paths.calculate_shares(VALUE_COLUMN, 'Share', over_dims=['vehicle_type'])
         m = self.get_default_output_metric()
-        mdf = (
-            mdf.select_metrics(['Share'])
-            .rename(dict(Share=m.column_id))
-            .ensure_unit(m.column_id, m.unit)
-        )
+        mdf = mdf.select_metrics(['Share']).rename(dict(Share=m.column_id)).ensure_unit(m.column_id, m.unit)
         nodes = list(self.input_nodes)
         nodes.remove(mnode)
         df = mdf.with_columns(pl.lit(False).alias(FORECAST_COLUMN))
@@ -849,7 +842,9 @@ class VehicleMileage(Node):
         vt_dim = self.context.dimensions['vehicle_type']
         tm_dim = self.context.dimensions['transport_mode']
         etdf = etdf.with_columns(vt_dim.ids_to_groups(pl.col('vehicle_type')).alias('vehicle_group'))
-        etdf = etdf.with_columns(tm_dim.series_to_ids_pl(etdf['vehicle_group']).alias('transport_mode')).add_to_index('transport_mode')
+        etdf = etdf.with_columns(tm_dim.series_to_ids_pl(etdf['vehicle_group']).alias('transport_mode')).add_to_index(
+            'transport_mode'
+        )
         df = etdf.paths.join_over_index(mdf)
         df = df.multiply_cols(['TotalMileage', 'EngineTypeShare'], 'Mileage', out_unit=m.unit)
         df = df.select([YEAR_COLUMN, 'vehicle_type', FORECAST_COLUMN, pl.col('Mileage').alias(m.column_id)])
@@ -862,10 +857,12 @@ class TransportFuelFactor(AdditiveNode):
         'Electricity': NodeMetric(unit='kWh/vkm', quantity=CONSUMPTION_FACTOR_QUANTITY),
     }
     output_dimension_ids = [
-        'energy_carrier', 'vehicle_type',
+        'energy_carrier',
+        'vehicle_type',
     ]
     input_dimension_ids = [
-        'energy_carrier', 'vehicle_type',
+        'energy_carrier',
+        'vehicle_type',
     ]
 
     def compute(self) -> ppl.PathsDataFrame:
@@ -881,7 +878,7 @@ class TransportFuelFactor(AdditiveNode):
         for col, m in (('electricity', e_m), ('fuel', f_m)):
             u = df.get_unit(col)
             if 'vehicle' not in u.dimensionality:
-                df = df.set_unit(col, cast(Unit, u / v_unit), force=True)
+                df = df.set_unit(col, cast('Unit', u / v_unit), force=True)
             df = df.ensure_unit(col, m.unit).rename({col: m.column_id})
             df = df.with_columns(pl.col(m.column_id).fill_nan(None))
             exprs.append(pl.col(m.column_id).is_null() | pl.col(m.column_id).eq(0.0))
@@ -893,9 +890,7 @@ class TransportFuelFactor(AdditiveNode):
 
 
 class TransportEmissionFactor(Node):
-    output_dimension_ids = [
-        'emission_scope', 'vehicle_type', 'energy_carrier'
-    ]
+    output_dimension_ids = ['emission_scope', 'vehicle_type', 'energy_carrier']
 
     def compute(self) -> ppl.PathsDataFrame:
         ef_node = self.get_input_node(tag='general_electricity_ef')
@@ -910,9 +905,12 @@ class TransportEmissionFactor(Node):
         edf = ecdf.paths.join_over_index(efdf, index_from='union')
         edf = edf.multiply_cols(['EC', 'EEF'], 'EF', m.unit)
         # We only have CO2e for electricity, so pretend that it's just CO2 for now
-        edf = edf.with_columns([
-            pl.lit('co2').alias('greenhouse_gases'), pl.lit('electricity').alias('energy_carrier'),
-        ]).add_to_index(['greenhouse_gases', 'energy_carrier'])
+        edf = edf.with_columns(
+            [
+                pl.lit('co2').alias('greenhouse_gases'),
+                pl.lit('electricity').alias('energy_carrier'),
+            ]
+        ).add_to_index(['greenhouse_gases', 'energy_carrier'])
         edf = edf.select_metrics(['EF'])
 
         fef_node = self.get_input_node(tag='fuel_emission_factor')
@@ -954,9 +952,7 @@ class TransportEmissionsForFuel(AdditiveNode):
         tr_node = self.get_input_node(tag='tank_respiration', required=False)
         if tr_node is not None:
             trdf = (
-                tr_node.get_output_pl(target_node=self)
-                .rename({VALUE_COLUMN: 'TR'})
-                .ensure_unit('TR', df.get_unit(m.column_id))
+                tr_node.get_output_pl(target_node=self).rename({VALUE_COLUMN: 'TR'}).ensure_unit('TR', df.get_unit(m.column_id))
             )
             df = df.paths.join_over_index(trdf, how='outer')
             df = df.with_columns(pl.col(m.column_id).fill_null(0) + pl.col('TR').fill_null(0)).drop('TR')
@@ -989,10 +985,14 @@ class TransportElectricity(AdditiveNode):
 
 class TransportEmissions(MultiplicativeNode):
     input_dimension_ids = [
-        'emission_scope', 'vehicle_type', 'energy_carrier',
+        'emission_scope',
+        'vehicle_type',
+        'energy_carrier',
     ]
     output_dimension_ids = [
-        'emission_scope', 'vehicle_type', 'energy_carrier',
+        'emission_scope',
+        'vehicle_type',
+        'energy_carrier',
     ]
     default_unit = 'kt/a'
     quantity = 'emissions'
@@ -1007,7 +1007,7 @@ class TransportEmissions2kW(Node):
     def compute(self):
         enode = self.get_input_node(tag='emissions')
         edf = enode.get_output_pl(target_node=self)
-        edf = edf.with_columns(emission_scope = pl.col('emission_scope').cast(pl.Categorical))
+        edf = edf.with_columns(emission_scope=pl.col('emission_scope').cast(pl.Categorical))
         edf = edf.rename({VALUE_COLUMN: 'emissions'})
 
         cnode = self.get_input_node(tag='consumption')
@@ -1022,16 +1022,19 @@ class TransportEmissions2kW(Node):
         cdf = cdf.paths.join_over_index(fdf)
         cdf = cdf.multiply_cols(['consumption', 'factor'], 'emissions_total')
 
-        df = edf.filter((pl.col('energy_carrier') == 'electricity') |
-                        (pl.col('emission_scope') == 'scope1'))
+        df = edf.filter((pl.col('energy_carrier') == 'electricity') | (pl.col('emission_scope') == 'scope1'))
 
         edf = edf.filter(pl.col('emission_scope') == 'scope1')
         edf = edf.paths.join_over_index(cdf)
 
         edf = edf.subtract_cols(['emissions_total', 'emissions'], 'emissions_2kw')
-        edf = edf.with_columns(emissions_2kw = pl.when(pl.col('emissions_2kw') < 0).then(0)
-                                                 .when(pl.col('emissions_2kw').is_null()).then(0)
-                                                 .otherwise(pl.col('emissions_2kw')))
+        edf = edf.with_columns(
+            emissions_2kw=pl.when(pl.col('emissions_2kw') < 0)
+            .then(0)
+            .when(pl.col('emissions_2kw').is_null())
+            .then(0)
+            .otherwise(pl.col('emissions_2kw'))
+        )
 
         # print('emissions: %s' % edf._units['emissions'])
         # print('consumption: %s' % edf._units['consumption'])
@@ -1040,7 +1043,7 @@ class TransportEmissions2kW(Node):
         # print('emissions_2kw: %s' % edf._units['emissions_2kw'])
 
         edf = edf.drop(['consumption', 'factor', 'emissions_total', 'emissions'])
-        edf = edf.with_columns(emission_scope = pl.lit('scope3').cast(pl.Categorical))
+        edf = edf.with_columns(emission_scope=pl.lit('scope3').cast(pl.Categorical))
 
         edf = edf.rename({'emissions_2kw': VALUE_COLUMN})
         df = df.rename({'emissions': VALUE_COLUMN})
@@ -1086,7 +1089,7 @@ class WasteIncinerationEmissions(SimpleNode):
         if fdf is None:
             raise NodeError(self, "Dataset with 'share_of_fossil_co2' not found")
         if efdf is None:
-            raise NodeError(self, "Dataset with emission factors not found")
+            raise NodeError(self, 'Dataset with emission factors not found')
 
         amount_node = self.get_input_node(tag='amount')
         adf = amount_node.get_output_pl(target_node=self)
@@ -1094,12 +1097,9 @@ class WasteIncinerationEmissions(SimpleNode):
         if not efdf.has_unit('emission_factor'):
             efdf = efdf.set_unit('emission_factor', 'dimensionless')
         efdf = extend_last_historical_value_pl(efdf, self.get_end_year())
-        df = (
-            adf.paths.join_over_index(efdf, how='left', index_from='union')
-        )
-        df = (
-            df.multiply_cols([VALUE_COLUMN, 'emission_factor'], 'Emissions')
-            .select([*df.get_meta().primary_keys, FORECAST_COLUMN, 'Emissions'])
+        df = adf.paths.join_over_index(efdf, how='left', index_from='union')
+        df = df.multiply_cols([VALUE_COLUMN, 'emission_factor'], 'Emissions').select(
+            [*df.get_meta().primary_keys, FORECAST_COLUMN, 'Emissions']
         )
 
         fdf = extend_last_historical_value_pl(fdf, self.get_end_year())
@@ -1114,7 +1114,8 @@ class WasteIncinerationEmissions(SimpleNode):
 
         fossil = zdf.select_metrics(['fossil']).rename({'fossil': 'Emissions'})
         biogen = (
-            zdf.select_metrics(['biogen']).rename({'biogen': 'Emissions'})
+            zdf.select_metrics(['biogen'])
+            .rename({'biogen': 'Emissions'})
             .with_columns(pl.lit('co2_biogen', dtype=pl.Categorical).alias('greenhouse_gases'))
         )
 
@@ -1136,16 +1137,20 @@ class SewageSludgeProcessingEmissions(SimpleNode):
         df = df.paths.join_over_index(cdf)
         # df = df.with_columns(pl.lit('scope1').alias('emission_scope')).add_to_index('emission_scope')
 
-        df = df.with_columns([
-            pl.when(
-                pl.col('greenhouse_gases').eq('co2_biogen')
-            ).then(pl.col('emissions') * pl.col('CCSShare') * -1).otherwise(pl.col('emissions')),
-            pl.col('greenhouse_gases').cast(pl.String).replace({'co2_biogen': 'co2'}),
-        ]).drop('CCSShare')
+        df = df.with_columns(
+            [
+                pl.when(pl.col('greenhouse_gases').eq('co2_biogen'))
+                .then(pl.col('emissions') * pl.col('CCSShare') * -1)
+                .otherwise(pl.col('emissions')),
+                pl.col('greenhouse_gases').cast(pl.String).replace({'co2_biogen': 'co2'}),
+            ]
+        ).drop('CCSShare')
 
-        df = df.with_columns([
-            pl.col('greenhouse_gases').replace('co2', 'negative_emissions', default='scope1').alias('emission_scope'),
-        ]).add_to_index('emission_scope')
+        df = df.with_columns(
+            [
+                pl.col('greenhouse_gases').replace('co2', 'negative_emissions', default='scope1').alias('emission_scope'),
+            ]
+        ).add_to_index('emission_scope')
         df = convert_to_co2e(df, 'greenhouse_gases')
 
         m = self.get_default_output_metric()

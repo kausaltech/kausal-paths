@@ -38,9 +38,14 @@ def format_unit(unit: Unit, long: bool = False, html: bool = False) -> str:  # n
         formatter = unit_registry.html_formatter
     else:
         formatter = unit_registry.pretty_formatter  # type: ignore
-    #fmt = 'Zh' if html else 'Zp'
+    # fmt = 'Zh' if html else 'Zp'
     f = formatter.format_unit(
-        unit, uspec='Z', sort_func=None, use_plural=not long, length='long' if long else 'short', locale=locale,
+        unit,
+        uspec='Z',
+        sort_func=None,
+        use_plural=not long,
+        length='long' if long else 'short',
+        locale=locale,
     )
     if not long:
         if f == 't/a/cap':
@@ -92,11 +97,15 @@ class UnitType:
         #     parent, uspec='Z', sort_func=None, use_plural=True, length='short', locale='en'
         # )
 
+
 @convert_django_field.register(UnitField)  # pyright: ignore
 def convert_unit_field(field, registry=None):
     return graphene.Field(
-        UnitType, description=get_django_field_description(field), required=not field.null,
+        UnitType,
+        description=get_django_field_description(field),
+        required=not field.null,
     )
+
 
 type SBInfo = sb.Info['PathsGraphQLContext']
 

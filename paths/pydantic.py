@@ -1,4 +1,3 @@
-# ruff: noqa: ANN401
 from __future__ import annotations
 
 from collections.abc import Hashable
@@ -6,7 +5,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Annotated, Any, TypeVar
 
 from pydantic import AfterValidator, Field
-
 from pydantic_core import PydanticCustomError
 
 if TYPE_CHECKING:
@@ -19,13 +17,14 @@ if TYPE_CHECKING:
 
 T = TypeVar('T', bound=Hashable)
 
+
 def _validate_unique_list(v: list[T]) -> list[T]:
     if len(v) != len(set(v)):
         raise PydanticCustomError('unique_list', 'List must be unique')
     return v
 
-UniqueList = Annotated[list[T], AfterValidator(_validate_unique_list), Field(json_schema_extra={'uniqueItems': True})]
 
+UniqueList = Annotated[list[T], AfterValidator(_validate_unique_list), Field(json_schema_extra={'uniqueItems': True})]
 
 
 @dataclass(slots=True)
@@ -75,8 +74,6 @@ def validate_scenario_id(v: str, info: ValidationInfo) -> str:
     if v not in context.scenarios:
         raise ValueError(f'Scenario with id {v} not found')
     return v
-
-
 
 
 def validate_node_output_metric_id(v: str, info: ValidationInfo) -> str:

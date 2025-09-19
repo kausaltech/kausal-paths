@@ -384,20 +384,21 @@ class DimensionalMetric(BaseModel):
         extra_scenarios: Sequence[Scenario] = (),
     ) -> DimensionalMetric | None:
         from .metric_gen import metric_from_node
+
         with sentry_sdk.start_span(name='Metric from node %s' % node.id, op='model.metric'):
             return metric_from_node(node, metric, extra_scenarios)
 
     @classmethod
     def from_visualization(cls, node: Node, visualization: VisualizationNodeOutput) -> DimensionalMetric | None:
         from .metric_gen import metric_from_visualization
+
         with sentry_sdk.start_span(name='Metric from node %s visualization' % node.id, op='model.metric'):
             return metric_from_visualization(node, visualization)
 
     @classmethod
-    def from_action_impact(
-        cls, action_impact: ActionImpact, root: ImpactOverview, col: str
-    ) -> DimensionalMetric | None:
+    def from_action_impact(cls, action_impact: ActionImpact, root: ImpactOverview, col: str) -> DimensionalMetric | None:
         from .metric_gen import from_action_impact
+
         return from_action_impact(action_impact, root, col)
 
     def get_dimension(self, dim_id: str) -> MetricDimension:
@@ -426,17 +427,20 @@ class DimensionalMetric(BaseModel):
             dim = self.get_dimension(dim_id)
             scale = alt.Scale(domain=dim.get_original_cat_ids(), range=[cat.color or '' for cat in dim.categories])
             color = alt.Color(field=dim.original_id, type='nominal', scale=scale)
-            other_dims = [d for d in df.dim_ids if d not in(dim.original_id, YEAR_COLUMN)]
+            other_dims = [d for d in df.dim_ids if d not in (dim.original_id, YEAR_COLUMN)]
             if other_dims:
                 df = df.paths.sum_over_dims(other_dims)
             kwargs['color'] = color
         else:
             color = None
-        chart = alt.Chart(df).mark_bar().encode(
-            x=x, y=y, **kwargs
-        ).properties(
-            title=self.name,
-            width=width,
+        chart = (
+            alt.Chart(df)
+            .mark_bar()
+            .encode(x=x, y=y, **kwargs)
+            .properties(
+                title=self.name,
+                width=width,
+            )
         )
         return chart.interactive()
 

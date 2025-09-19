@@ -45,7 +45,7 @@ class Command(BaseCommand):
 
         if existing_framework:
             if force:
-                self.stdout.write(self.style.WARNING(f"Deleting existing framework: {existing_framework.name}"))
+                self.stdout.write(self.style.WARNING(f'Deleting existing framework: {existing_framework.name}'))
                 existing_framework.delete()
             else:
                 self.stderr.write(
@@ -61,7 +61,7 @@ class Command(BaseCommand):
             result_excel_url=framework_data.get('result_excel_url'),
             result_excel_node_ids=framework_data.get('result_excel_node_ids'),
         )
-        self.stdout.write(self.style.SUCCESS(f"Created new framework: {fw.name}"))
+        self.stdout.write(self.style.SUCCESS(f'Created new framework: {fw.name}'))
         root_section = fw.create_root_section()
 
         # Import sections and measures
@@ -124,4 +124,4 @@ class Command(BaseCommand):
         with file_path.open('w') as file:
             json.dump(data, file, indent=2)
 
-        self.stdout.write(self.style.SUCCESS(f"Successfully exported framework data to {file_path}"))
+        self.stdout.write(self.style.SUCCESS(f'Successfully exported framework data to {file_path}'))

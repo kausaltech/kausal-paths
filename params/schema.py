@@ -26,7 +26,7 @@ class ResolveDefaultValueMixin:
 
 
 class ParameterInterface(graphene.Interface):
-    id = graphene.ID(required=True, description="Global ID for the parameter in the instance")
+    id = graphene.ID(required=True, description='Global ID for the parameter in the instance')
     local_id = graphene.ID(required=False, description="ID of parameter in the node's namespace")
     label = graphene.String(required=False)
     description = graphene.String(required=False)
@@ -107,17 +107,21 @@ class SetParameterMutation(graphene.Mutation):
     @ensure_instance
     @staticmethod
     def mutate(
-        root, info: GQLInstanceInfo, id: str, number_value: float | None = None,
-        bool_value: bool | None = None, string_value: str | None = None
+        root,
+        info: GQLInstanceInfo,
+        id: str,
+        number_value: float | None = None,
+        bool_value: bool | None = None,
+        string_value: str | None = None,
     ) -> SetParameterMutation:
         context = info.context.instance.context
         try:
             param = context.get_parameter(id)
         except KeyError:
-            raise GraphQLError("Parameter %s does not exist", info.field_nodes) from None
+            raise GraphQLError('Parameter %s does not exist', info.field_nodes) from None
 
         if not param.is_customizable:
-            raise GraphQLError("Parameter %s is not customizable", info.field_nodes)
+            raise GraphQLError('Parameter %s is not customizable', info.field_nodes)
 
         parameter_values = {
             NumberParameter: (number_value, 'numberValue'),
@@ -138,7 +142,7 @@ class SetParameterMutation(graphene.Mutation):
             if issubclass(param_type, klasses):
                 break
         else:
-            raise Exception("Attempting to mutate an unsupported parameter class: %s" % type(param))
+            raise Exception('Attempting to mutate an unsupported parameter class: %s' % type(param))
 
         if value is None:
             raise GraphQLError("You must specify '%s' for '%s'" % (attr_name, param.global_id), info.field_nodes)
@@ -146,7 +150,7 @@ class SetParameterMutation(graphene.Mutation):
         del parameter_values[klasses]
         for v, _ in parameter_values.values():
             if v is not None:
-                raise GraphQLError("Only one type of value allowed", info.field_nodes)
+                raise GraphQLError('Only one type of value allowed', info.field_nodes)
 
         try:
             value = param.clean(value)
@@ -245,13 +249,8 @@ class Query(graphene.ObjectType):
             if not param.is_visible:
                 return None
         except KeyError:
-            raise GraphQLError(f"Parameter {id} does not exist", info.field_nodes) from None
+            raise GraphQLError(f'Parameter {id} does not exist', info.field_nodes) from None
         return param
 
 
-types = [
-    BoolParameterType,
-    NumberParameterType,
-    StringParameterType,
-    UnknownParameterType
-]
+types = [BoolParameterType, NumberParameterType, StringParameterType, UnknownParameterType]

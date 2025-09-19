@@ -17,19 +17,11 @@ class PriorityNode(AdditiveAction):
     allowed_parameters: ClassVar[list[Parameter]] = [
         StringParameter(
             local_id='endorsers',
-            label=TranslatedString(en="Identifiers for people that endorse this priority"),  # FIXME Should be a list
-            is_customizable=True
+            label=TranslatedString(en='Identifiers for people that endorse this priority'),  # FIXME Should be a list
+            is_customizable=True,
         ),
-        StringParameter(
-            local_id='action_id',
-            label=TranslatedString(en="Action to be prioritized"),
-            is_customizable=True
-        ),
-        BoolParameter(
-            local_id='priority',
-            label=TranslatedString(en='Should the action be implemented?'),
-            is_customizable=True
-        )
+        StringParameter(local_id='action_id', label=TranslatedString(en='Action to be prioritized'), is_customizable=True),
+        BoolParameter(local_id='priority', label=TranslatedString(en='Should the action be implemented?'), is_customizable=True),
     ]
 
 
@@ -45,11 +37,7 @@ class Hypothesis(AdditiveAction):
     """
 
     allowed_parameters: ClassVar[list[Parameter]] = [
-        NumberParameter(
-            local_id='hypothesis_number',
-            label=TranslatedString(en='Number of hypothesis'),
-            is_customizable=True
-        )
+        NumberParameter(local_id='hypothesis_number', label=TranslatedString(en='Number of hypothesis'), is_customizable=True)
     ]
 
     def compute_effect(self) -> ppl.PathsDataFrame:
@@ -68,10 +56,9 @@ class Hypothesis(AdditiveAction):
             n = df['hypothesis'].unique().len()
 
             df = df.paths.sum_over_dims('hypothesis')
-            df = df.with_columns([
-                (pl.col(VALUE_COLUMN) / pl.lit(n)).alias(VALUE_COLUMN),
-                pl.lit('equal_weight').alias('hypothesis')
-            ])
+            df = df.with_columns(
+                [(pl.col(VALUE_COLUMN) / pl.lit(n)).alias(VALUE_COLUMN), pl.lit('equal_weight').alias('hypothesis')]
+            )
 
         else:
             df = df.filter(pl.col('hypothesis').eq(pl.lit('hypothesis_' + str(hp))))
@@ -92,19 +79,13 @@ class BudgetingAction(AdditiveAction):
 
     output_metrics = {
         DEFAULT_METRIC: NodeMetric(unit='pcs', quantity='number', column_id='number'),
-        'cost': NodeMetric(unit='kEUR/a', quantity='currency', column_id='currency')
+        'cost': NodeMetric(unit='kEUR/a', quantity='currency', column_id='currency'),
     }
     allowed_parameters: ClassVar[list[Parameter]] = [
         *AdditiveAction.allowed_parameters,
+        NumberParameter(local_id='scale_by', label=TranslatedString(en='Scale the action by this number'), is_customizable=True),
         NumberParameter(
-            local_id='scale_by',
-            label=TranslatedString(en='Scale the action by this number'),
-            is_customizable=True
-        ),
-        NumberParameter(
-            local_id='postpone_by',
-            label=TranslatedString(en='Postpone the action by this many years'),
-            is_customizable=True
+            local_id='postpone_by', label=TranslatedString(en='Postpone the action by this many years'), is_customizable=True
         ),
     ]
 

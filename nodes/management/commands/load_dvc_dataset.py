@@ -38,9 +38,9 @@ if TYPE_CHECKING:
 @lru_cache
 def get_dimension(instance_config: InstanceConfig, identifier: str) -> Dimension:
     scope = DimensionScope.objects.get(
-            scope_content_type=ContentType.objects.get_for_model(instance_config),
-            scope_id=instance_config.pk,
-            identifier=identifier,
+        scope_content_type=ContentType.objects.get_for_model(instance_config),
+        scope_id=instance_config.pk,
+        identifier=identifier,
     )
     return scope.dimension
 
@@ -62,8 +62,11 @@ class Command(BaseCommand):
         parser.add_argument('instance', metavar='INSTANCE_ID', type=str, nargs=1)
         parser.add_argument('datasets', metavar='DATASET_ID', type=str, nargs='*')
         parser.add_argument('--all', action='store_true', help='Sync all datasets')
-        parser.add_argument('--ignore-prefix', action='append',
-                           help='Ignore datasets with IDs starting with the specified prefix. Can be used multiple times.')
+        parser.add_argument(
+            '--ignore-prefix',
+            action='append',
+            help='Ignore datasets with IDs starting with the specified prefix. Can be used multiple times.',
+        )
         parser.add_argument('--force', action='store_true')
 
     def sync_dataset(self, instance_config: InstanceConfig, ctx: Context, ds_id: str, force: bool = False):
@@ -88,7 +91,7 @@ class Command(BaseCommand):
                 schema = dataset.schema
                 assert schema is not None
                 if schema.datasets.count() > 1:
-                    print("Dataset exists already, but schema is linked to other datasets as well. Aborting.")
+                    print('Dataset exists already, but schema is linked to other datasets as well. Aborting.')
                     return
                 print(f"Deleting existing dataset '{dataset}'")
                 dataset.delete()
@@ -166,11 +169,7 @@ class Command(BaseCommand):
         return schema
 
     def create_data_points(
-        self,
-        instance_config: InstanceConfig,
-        df: ppl.PathsDataFrame,
-        dataset: Dataset,
-        metrics: dict[str, DatasetMetric]
+        self, instance_config: InstanceConfig, df: ppl.PathsDataFrame, dataset: Dataset, metrics: dict[str, DatasetMetric]
     ):
         meta = df.get_meta()
         table = JSONDataset.serialize_df(df)
@@ -196,7 +195,7 @@ class Command(BaseCommand):
                     if dim_cat_identifier:
                         cat = get_dimension_category(instance_config, dimension, dim_cat_identifier)
                         data_point.dimension_categories.add(cat)
-        print(f"Created {num_created} data points")
+        print(f'Created {num_created} data points')
 
     def rename_value_columns(self, df: ppl.PathsDataFrame):
         meta = df.get_meta()
@@ -210,7 +209,7 @@ class Command(BaseCommand):
                     df = df.rename({col: YEAR_COLUMN})
             else:
                 print(df)
-                raise Exception(f"Unknown column {col}")
+                raise Exception(f'Unknown column {col}')
 
     def create_metric(
         self, col: str, unit: Unit, schema: DatasetSchema, default_language: str, label_i18n: dict[str, str] | None
@@ -236,7 +235,7 @@ class Command(BaseCommand):
             return self.create_dimension(schema, instance_config, default_language, spec)
         print(
             f"There is already a dimension with identifier '{spec.id}' for '{instance_config}'; skipping creation of "
-            f"Dimension, DimensionCategory and DimensionScope instances and linking the existing dimension to the "
+            f'Dimension, DimensionCategory and DimensionScope instances and linking the existing dimension to the '
             f"schema '{schema}'"
         )
         DatasetSchemaDimension.objects.create(schema=schema, dimension=existing_scope.dimension)
@@ -284,7 +283,7 @@ class Command(BaseCommand):
         ctx = ic.get_instance().context
         if not options['datasets']:
             if not options['all']:
-                print("Available datasets:")
+                print('Available datasets:')
                 dvc_dataset_ids = sorted(ctx.get_all_dvc_dataset_ids())
                 for ds_id in dvc_dataset_ids:
                     print(ds_id)
@@ -301,18 +300,17 @@ class Command(BaseCommand):
         normalized_prefixes = []
         for prefix in ignore_prefixes:
             if not prefix.endswith('/'):
-                normalized_prefixes.append(f"{prefix}/")
+                normalized_prefixes.append(f'{prefix}/')
             else:
                 normalized_prefixes.append(prefix)
 
         if normalized_prefixes:
-            filtered_ds_ids = [ds_id for ds_id in ds_ids
-                              if not any(ds_id.startswith(prefix) for prefix in normalized_prefixes)]
+            filtered_ds_ids = [ds_id for ds_id in ds_ids if not any(ds_id.startswith(prefix) for prefix in normalized_prefixes)]
 
             ignored_count = len(ds_ids) - len(filtered_ds_ids)
             if ignored_count > 0:
                 display_prefixes = [p[:-1] for p in normalized_prefixes]
-                print(f"Ignoring {ignored_count} dataset(s) with prefix(es): {', '.join(display_prefixes)}")
+                print(f'Ignoring {ignored_count} dataset(s) with prefix(es): {", ".join(display_prefixes)}')
 
             ds_ids = filtered_ds_ids
 

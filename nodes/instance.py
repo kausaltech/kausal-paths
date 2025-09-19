@@ -86,10 +86,10 @@ class Instance:
     """
 
     id: str
-    "The globally unique identifier for the instance."
+    'The globally unique identifier for the instance.'
 
     name: TranslatedString
-    "The human-readable name of the instance."
+    'The human-readable name of the instance.'
 
     owner: TranslatedString
     """The owner of the instance (e.g. "City of Sunnydale")."""
@@ -194,6 +194,7 @@ class Instance:
 
     def update_dataset_repo_commit(self, commit_id: str):
         from ruamel.yaml import YAML as RuamelYAML  # noqa: N811
+
         yaml = RuamelYAML()
 
         assert self.yaml_file_path is not None

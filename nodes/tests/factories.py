@@ -30,16 +30,14 @@ class ContextFactory(Factory[Context]):
     target_year = 2030
 
     @classmethod
-    def create(cls, **kwargs: Any) -> Context:  # noqa: ANN401
+    def create(cls, **kwargs: Any) -> Context:
         return super().create(**kwargs)
 
     @post_generation
     @staticmethod
     def post(obj: Context, create: bool, extracted, **kwargs) -> None:
         obj.instance.set_context(obj)
-        default_scenario = ScenarioFactory.create(
-            id='default', kind=ScenarioKind.DEFAULT, context=obj, all_actions_enabled=True
-        )
+        default_scenario = ScenarioFactory.create(id='default', kind=ScenarioKind.DEFAULT, context=obj, all_actions_enabled=True)
         obj.add_scenario(default_scenario)
         obj.activate_scenario(obj.get_default_scenario())
 
@@ -61,7 +59,7 @@ class InstanceFactory(Factory[Instance]):
     # content_refreshed_at: Optional[datetime] = field(init=False)
 
     @classmethod
-    def create(cls, **kwargs: Any) -> Instance:  # noqa: ANN401
+    def create(cls, **kwargs: Any) -> Instance:
         ret = super().create(**kwargs)
         return ret
 
@@ -70,27 +68,30 @@ class InstanceFactory(Factory[Instance]):
     def post(obj: Instance, create: bool, extracted, **kwargs):
         obj.modified_at = datetime.now(UTC) + timedelta(hours=1)
 
+
 class InstanceConfigFactory(DjangoModelFactory[InstanceConfig]):
     class Meta:
         model = InstanceConfig
         exclude = ('instance',)
 
     identifier = Sequence(lambda i: f'ic{i}')
-    lead_title = "lead title"
-    lead_paragraph = "Lead paragraph"
+    lead_title = 'lead title'
+    lead_paragraph = 'Lead paragraph'
     instance: SubFactory[str, Instance] = SubFactory(InstanceFactory, id=SelfAttribute('..identifier'))
     organization = SubFactory(OrganizationFactory)  # type: ignore[var-annotated]
 
     @classmethod
     def create(cls, **kwargs: Any) -> InstanceConfig:
-        instance = kwargs.get('instance', None)
+        instance = kwargs.get('instance')
         obj: InstanceConfig = super().create(**kwargs)
         if instance:
             from nodes.models import _pytest_instances
+
             # For tests we want to avoid reading a YAML file to configure the Instance
             _pytest_instances[instance.id] = instance
 
         return obj
+
 
 class NodeConfigFactory(DjangoModelFactory):
     class Meta:
@@ -98,9 +99,9 @@ class NodeConfigFactory(DjangoModelFactory):
 
     instance: SubFactory[Any, InstanceConfig] = SubFactory(InstanceConfigFactory)
     identifier = Sequence(lambda i: f'nodeconfig{i}')
-    name = "name"
-    short_description = "short description"
-    description = "description"
+    name = 'name'
+    short_description = 'short description'
+    description = 'description'
 
 
 class NodeFactory(Factory[Node]):
@@ -115,13 +116,15 @@ class NodeFactory(Factory[Node]):
     unit = unit_registry('kWh').units
     quantity = 'energy'
     goals = [dict(values=[dict(year=2035, value=500)])]
-    input_datasets = [FixedDataset(
-        id='test',
-        unit='kWh',
-        historical=[(2020, 1.23)],
-        forecast=[(2021, 2.34)],
-        tags=[],
-    )]
+    input_datasets = [
+        FixedDataset(
+            id='test',
+            unit='kWh',
+            historical=[(2020, 1.23)],
+            forecast=[(2021, 2.34)],
+            tags=[],
+        )
+    ]
 
     @post_generation
     @staticmethod

@@ -8,8 +8,6 @@ from django.utils.translation import gettext_lazy as _
 from wagtail.admin.forms.models import WagtailAdminModelForm
 from wagtail.snippets.models import register_snippet
 
-from kausal_paths_extensions.dataset_editor import DatasetViewSet
-
 from kausal_common.datasets.config import dataset_config
 from kausal_common.datasets.models import (
     Dataset,
@@ -21,6 +19,7 @@ from kausal_common.datasets.models import (
 from paths.context import realm_context
 
 from admin_site.viewsets import PathsCreateView, PathsViewSet
+from kausal_paths_extensions.dataset_editor import DatasetViewSet
 from users.models import User
 
 if TYPE_CHECKING:
@@ -43,13 +42,11 @@ class DatasetSchemaCreateView(PathsCreateView[DatasetSchema, WagtailAdminModelFo
         callback = getattr(dataset_config, 'SCHEMA_DEFAULT_SCOPE_FUNCTION', None)
         if callback is not None:
             default_scope_model_instance = callback()
-            DatasetSchemaScope.objects.create(
-                schema=instance,
-                scope=default_scope_model_instance
-            )
+            DatasetSchemaScope.objects.create(schema=instance, scope=default_scope_model_instance)
             if dataset_config.SCHEMA_HAS_SINGLE_DATASET:
                 Dataset.objects.get_or_create(schema=instance, defaults={'scope': default_scope_model_instance})
         return instance
+
 
 class DatasetSchemaFormWithDimensionFormSet(BaseInlineFormSet):
     active_instance: InstanceConfig
@@ -71,6 +68,7 @@ class DatasetSchemaFormWithDimensionFormSet(BaseInlineFormSet):
                 scopes__in=DimensionScope.objects.get_queryset().for_instance_config(self.active_instance)
             )
 
+
 class DatasetSchemaViewSet(PathsViewSet):
     model = DatasetSchema
     icon = 'table'
@@ -84,21 +82,25 @@ class DatasetSchemaViewSet(PathsViewSet):
 
     def get_form_class(self, for_update=False):
         form_class = super().get_form_class(for_update)
+
         class DatasetSchemaWithDimensionForm(form_class):  # type: ignore[valid-type, misc]
             class Meta(form_class.Meta):
                 model = DatasetSchema
                 fields = form_class.Meta.fields
                 formsets = getattr(form_class.Meta, 'formsets', {}).copy()
-                formsets.update({
-                    'dimensions': {
-                        'formset': DatasetSchemaFormWithDimensionFormSet,
-                        'fields': ['dimension'],
-                        'min_num': 0,
-                        'validate_min': False,
-                        'can_order': False,
+                formsets.update(
+                    {
+                        'dimensions': {
+                            'formset': DatasetSchemaFormWithDimensionFormSet,
+                            'fields': ['dimension'],
+                            'min_num': 0,
+                            'validate_min': False,
+                            'can_order': False,
+                        }
                     }
-                })
+                )
 
         return DatasetSchemaWithDimensionForm
+
 
 register_snippet(DatasetSchemaViewSet)

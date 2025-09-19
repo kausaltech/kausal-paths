@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 
 policy = PagePermissionPolicy()
 
+
 class PathsPageType(GrapplePageType):
     show_in_footer = graphene.Boolean()
 
@@ -78,11 +79,12 @@ class Query:
 
 def monkeypatch_grapple():
     from grapple.registry import registry
+
     # Monkeypatch resolvers to ensure we don't traverse outside
     # of site pages.
     # Replace Grapple-generated PageTypes with our own
     registry.pages[OutcomePage] = OutcomePageType
-    #registry.pages[ActionListPage] = ActionListPageType
+    # registry.pages[ActionListPage] = ActionListPageType
 
 
 monkeypatch_grapple()

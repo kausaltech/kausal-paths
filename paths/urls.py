@@ -17,6 +17,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -35,7 +36,7 @@ from social_django import urls as social_urls
 
 from kausal_common.datasets.api import all_routers as datasets_api_nested_routers, router as datasets_api_root_router
 
-#from strawberry.django.views import GraphQLView
+# from strawberry.django.views import GraphQLView
 from kausal_common.deployment.health_check_view import health_view
 
 from admin_site import urls as admin_urls
@@ -77,11 +78,13 @@ urlpatterns = [
     # For anything not caught by a more specific rule above, hand over to
     # Wagtail's serving mechanism
     path('pages/', include(wagtail_urls)),
-
-    path('v1/graphql/docs/', TemplateView.as_view(
-        template_name='graphql-voyager.html',
-    ), name='graphql-voyager'),
-
+    path(
+        'v1/graphql/docs/',
+        TemplateView.as_view(
+            template_name='graphql-voyager.html',
+        ),
+        name='graphql-voyager',
+    ),
     path('v1/graphql/', csrf_exempt(PathsGraphQLView.as_view()), name='graphql'),
     path('v1/', include(api_urls)),
     path('v1/schema/', SpectacularAPIView.as_view(urlconf=api_urls), name='schema'),
@@ -93,12 +96,12 @@ urlpatterns = [
 ]
 
 if settings.DEBUG:
-    #from kausal_common.debugging.memory import memory_trace
+    # from kausal_common.debugging.memory import memory_trace
 
-    #from debugging.views import memory_tracker
+    # from debugging.views import memory_tracker
 
-    #urlpatterns.append(path('debug/memory/', csrf_exempt(memory_trace)))
-    #urlpatterns.append(path('debug/memory-tracker/', csrf_exempt(memory_tracker)))
+    # urlpatterns.append(path('debug/memory/', csrf_exempt(memory_trace)))
+    # urlpatterns.append(path('debug/memory-tracker/', csrf_exempt(memory_tracker)))
     pass
 
 if kpe_urls is not None:

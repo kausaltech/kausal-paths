@@ -6,7 +6,7 @@ from .forms import UserCreationForm, UserEditForm
 
 
 class UserViewSet(WagtailUserViewSet):
-    template_prefix = "users/"
+    template_prefix = 'users/'
 
     def get_form_class(self, for_update=False):
         if for_update:

@@ -148,8 +148,12 @@ class InstanceYAMLConfig:
                         nc['input_datasets'][i]['id'] = dataset_map.get(ds_id, ds_id)
 
         self._merge_config(
-            existing, newconf, entity_type=entity_type, apply_group=apply_group,
-            config_path=config_path, allow_override=allow_override
+            existing,
+            newconf,
+            entity_type=entity_type,
+            apply_group=apply_group,
+            config_path=config_path,
+            allow_override=allow_override,
         )
 
     def _merge_config(
@@ -228,16 +232,30 @@ class InstanceYAMLConfig:
                 idata = yaml.load(f)
             meta.add_dependency(ifn)
             self._merge_include_config(
-                nodes, idata.get('nodes', []), 'Node', apply_group=apply_group, config_path=ifn,
-                allow_override=allow_override, dataset_replacements=dataset_replacements
+                nodes,
+                idata.get('nodes', []),
+                'Node',
+                apply_group=apply_group,
+                config_path=ifn,
+                allow_override=allow_override,
+                dataset_replacements=dataset_replacements,
             )
             self._merge_include_config(
-                dimensions, idata.get('dimensions', []), 'Dimension', apply_group=apply_group,
-                config_path=None, allow_override=allow_override
+                dimensions,
+                idata.get('dimensions', []),
+                'Dimension',
+                apply_group=apply_group,
+                config_path=None,
+                allow_override=allow_override,
             )
             self._merge_include_config(
-                actions, idata.get('actions', []), 'Action', apply_group=apply_group,
-                config_path=None, allow_override=allow_override, dataset_replacements=dataset_replacements
+                actions,
+                idata.get('actions', []),
+                'Action',
+                apply_group=apply_group,
+                config_path=None,
+                allow_override=allow_override,
+                dataset_replacements=dataset_replacements,
             )
 
         # Make sure that assignment works even if they are originally empty.
@@ -868,8 +886,7 @@ class InstanceLoader:
         if fwc is None:
             return
         years = (
-            MeasureDataPoint.objects
-            .filter(measure__framework_config=fwc)
+            MeasureDataPoint.objects.filter(measure__framework_config=fwc)
             .filter(value__isnull=False)
             .order_by()
             .values_list('year', flat=True)
@@ -1063,12 +1080,13 @@ class InstanceLoader:
         from kausal_common.datasets.models import Dataset as DBDatasetModel
 
         from nodes.models import InstanceConfig
+
         try:
             ic = self.instance.config
         except InstanceConfig.DoesNotExist:
             self.db_datasets = {}
             return
-        ds_objs = DBDatasetModel.mgr.qs.for_instance_config(ic).only('uuid', 'identifier', 'last_modified_at') # type: ignore
+        ds_objs = DBDatasetModel.mgr.qs.for_instance_config(ic).only('uuid', 'identifier', 'last_modified_at')  # type: ignore
         self.db_datasets = {ds.identifier: ds for ds in ds_objs}
 
     def _init_instance(self) -> None:  # noqa: PLR0915
@@ -1126,7 +1144,7 @@ class InstanceLoader:
             site_url = self.config.get('site_url')
             reference_year = self.config.get('reference_year')
             if reference_year is None:
-                raise ValueError(self, "Reference year must be given for the instance.")
+                raise ValueError(self, 'Reference year must be given for the instance.')
         else:
             from frameworks.models import MeasureDataPoint
 

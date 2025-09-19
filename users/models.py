@@ -39,22 +39,28 @@ class UserExtra(BaseModel):
     framework_roles: Sequence[FrameworkRoleDef] = Field(default_factory=list)
 
     def set_framework_role(self, role: FrameworkRoleDef):
-        self.framework_roles = list(filter(
-            lambda role: role.framework_id != role.framework_id,
-            self.framework_roles,
-        ))
+        self.framework_roles = list(
+            filter(
+                lambda role: role.framework_id != role.framework_id,
+                self.framework_roles,
+            )
+        )
         self.framework_roles.append(role)
 
     @classmethod
     def get_default(cls) -> Self:
         from frameworks.roles import FrameworkRoleDef  # noqa: F401
+
         cls.model_rebuild()
         return cls()
 
 
 class User(AbstractUser):
     selected_instance: FK[InstanceConfig | None] = models.ForeignKey(
-        'nodes.InstanceConfig', null=True, blank=True, on_delete=models.SET_NULL,
+        'nodes.InstanceConfig',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
     )
     email = models.EmailField(_('email address'), unique=True)
     extra: UserExtra = SchemaField(schema=UserExtra, default=UserExtra.get_default)
@@ -77,10 +83,12 @@ class User(AbstractUser):
 
     def get_adminable_instances(self) -> InstanceConfigQuerySet:
         from nodes.models import InstanceConfig
+
         return InstanceConfig.permission_policy().adminable_instances(self)
 
     def user_is_admin_for_instance(self, instance_config: InstanceConfig) -> bool:
         from nodes.models import InstanceConfig
+
         return InstanceConfig.permission_policy().user_has_permission_for_instance(self, 'change', instance_config)
 
     def get_corresponding_person(self) -> Person | None:
@@ -108,6 +116,7 @@ class User(AbstractUser):
     @cached_property
     def perms(self) -> UserPermissionCache:
         from kausal_common.models.roles import UserPermissionCache
+
         return UserPermissionCache(self)
 
     @overload
@@ -172,8 +181,7 @@ class User(AbstractUser):
     def can_delete_organization(self, organization: Organization) -> bool:
         return self.is_superuser
 
-    def can_edit_or_delete_person_within_instance(
-            self, person: Person, instance_config: InstanceConfig) -> bool:
+    def can_edit_or_delete_person_within_instance(self, person: Person, instance_config: InstanceConfig) -> bool:
         return self.is_superuser
 
     def can_create_person(self) -> bool:

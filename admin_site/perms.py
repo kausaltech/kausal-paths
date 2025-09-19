@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING
 
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
@@ -34,7 +34,7 @@ def _model_perms(app_label: str, models: str | Sequence[str], perms: Sequence[st
     return (app_label, ['%s_%s' % (p, m) for p in perms for m in models])
 
 
-def _join_perms(model_perms: list[Tuple[str, Sequence[str]]]):
+def _join_perms(model_perms: list[tuple[str, Sequence[str]]]):
     out: dict[str, set[str]] = {}
     for app_label, perms in model_perms:
         out[app_label] = out.get(app_label, set()).union(set(perms))
@@ -51,9 +51,7 @@ class Role:
 
     @cached_property
     def perms(self):
-        perms = Permission.objects\
-            .filter(content_type__app_label__in=self.model_perms.keys())\
-            .select_related('content_type')
+        perms = Permission.objects.filter(content_type__app_label__in=self.model_perms.keys()).select_related('content_type')
         by_app: dict[str, dict[str, Permission]] = {}
         for perm in perms:
             ct = perm.content_type
@@ -62,7 +60,7 @@ class Role:
         return by_app
 
     def get_group_name(self, instance: InstanceConfig) -> str:
-        return '%s %s' % (instance.name,self.group_name)
+        return '%s %s' % (instance.name, self.group_name)
 
     def _update_model_perms(self, group: Group, instance: InstanceConfig):
         old_perms = set(list(group.permissions.all()))
@@ -87,18 +85,18 @@ class Role:
         root_page = instance.site.root_page
         grp_perms = root_page.group_permissions.filter(group=group)
         old_perms = set(grp_perms.values_list('permission', flat=True))
-        new_perms = set(Permission.objects.filter(
-            **filt,
-            codename__in=self.page_perms
-        ))
+        new_perms = set(Permission.objects.filter(**filt, codename__in=self.page_perms))
         if old_perms != new_perms:
             instance.log.info('Setting new %s page permissions' % self.group_name)
             grp_perms.delete()
-            objs = [GroupPagePermission(
-                group=group,
-                page=root_page,
-                permission=perm,
-            ) for perm in new_perms]
+            objs = [
+                GroupPagePermission(
+                    group=group,
+                    page=root_page,
+                    permission=perm,
+                )
+                for perm in new_perms
+            ]
             GroupPagePermission.objects.bulk_create(objs)
 
     def create_group(self, instance: InstanceConfig):
@@ -124,18 +122,30 @@ class Role:
 
 class AdminRole(Role):
     id = 'admin'
-    name = _("General admin")
-    group_name = "General admins"
+    name = _('General admin')
+    group_name = 'General admins'
 
-    model_perms = _join_perms([
-        _model_perms('wagtailadmin', 'admin', ('access',)),
-        _model_perms('wagtailcore', 'collection', ALL_MODEL_PERMS),
-        _model_perms('wagtailimages', 'image', ALL_MODEL_PERMS),
-        _model_perms('nodes', ('instanceconfig', 'nodeconfig'), ('view', 'change')),
-        _model_perms('datasets', (
-            'dataset', 'datasetcomment', 'datasetdimension', 'datasetdimensionselectedcategory',
-            'datasetmetric', 'datasetsourcereference', 'dimension', 'dimensioncategory',
-        ), ALL_MODEL_PERMS),
-    ])
+    model_perms = _join_perms(
+        [
+            _model_perms('wagtailadmin', 'admin', ('access',)),
+            _model_perms('wagtailcore', 'collection', ALL_MODEL_PERMS),
+            _model_perms('wagtailimages', 'image', ALL_MODEL_PERMS),
+            _model_perms('nodes', ('instanceconfig', 'nodeconfig'), ('view', 'change')),
+            _model_perms(
+                'datasets',
+                (
+                    'dataset',
+                    'datasetcomment',
+                    'datasetdimension',
+                    'datasetdimensionselectedcategory',
+                    'datasetmetric',
+                    'datasetsourcereference',
+                    'dimension',
+                    'dimensioncategory',
+                ),
+                ALL_MODEL_PERMS,
+            ),
+        ]
+    )
 
     page_perms = set(PAGE_PERMISSION_CODENAMES)

@@ -65,10 +65,7 @@ def instance_directive(
     pass
 
 
-
-class GrapheneQuery(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, ServerVersionQuery, UsersQuery,
-                    OrgsQuery
-                    ):
+class GrapheneQuery(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, ServerVersionQuery, UsersQuery, OrgsQuery):
     unit = graphene.Field(UnitType, value=graphene.String(required=True))
 
     instance_organizations = graphene.List(
@@ -76,6 +73,7 @@ class GrapheneQuery(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, Server
         instance=graphene.ID(),
         with_ancestors=graphene.Boolean(default_value=False),
     )
+
     class Meta:
         name = 'Query'
 
@@ -99,7 +97,6 @@ class GrapheneQuery(NodesQuery, ParamsQuery, PagesQuery, FrameworksQuery, Server
         else:
             instance_obj = InstanceConfig.objects.get(identifier=instance)
         return list(Organization.objects.qs.available_for_instance(instance_obj))
-
 
 
 class GrapheneMutations(ParamsMutations, FrameworksMutations, OrgsMutation):
@@ -138,6 +135,7 @@ if test_mode_enabled():
 
 SBMutation = merge_types('Mutation', tuple(SB_MUTATION_TYPES))
 
+
 @sb.type
 class Mutation(GrapheneMutations, SBMutation):  # type: ignore[valid-type, misc]
     pass
@@ -157,19 +155,23 @@ class PathsSchema(UnifiedSchema):
         )
 
         schema_directives = kwargs.pop('schema_directives', [])
-        schema_directives.extend([
-            context_directive,
-            instance_directive,
-        ])
+        schema_directives.extend(
+            [
+                context_directive,
+                instance_directive,
+            ]
+        )
         kwargs['schema_directives'] = schema_directives
         extensions = kwargs.pop('extensions', [])
-        extensions.extend([
-            LoggingTracingExtension(context_class=PathsGraphQLContext),
-            DetermineInstanceContextExtension,
-            PathsExecutionCacheExtension,
-            ActivateInstanceContextExtension,
-            PathsAuthenticationExtension,
-        ])
+        extensions.extend(
+            [
+                LoggingTracingExtension(context_class=PathsGraphQLContext),
+                DetermineInstanceContextExtension,
+                PathsExecutionCacheExtension,
+                ActivateInstanceContextExtension,
+                PathsAuthenticationExtension,
+            ]
+        )
         kwargs['extensions'] = extensions
         super().__init__(*args, **kwargs)
 

@@ -55,7 +55,9 @@ class SectionModel(DjangoDiffModel[Section]):
         plain_fields = list(cls._django_fields.plain_fields.keys())
         plain_fields.remove('framework')
         sections = qs_base.annotate_parent_field('parent', 'uuid', min_depth=2).values(
-            *plain_fields, 'parent', _instance_pk=F('pk'),
+            *plain_fields,
+            'parent',
+            _instance_pk=F('pk'),
         )
         return sections
 
@@ -240,7 +242,7 @@ class FrameworkDjangoAdapter(DjangoAdapter, FrameworkAdapter):
                 if src_fw is None:
                     continue
                 if str(fw.uuid) != str(src_fw.uuid):
-                    logger.warning("Changing Framework %s UUID from %s to %s" % (fw.identifier, fw.uuid, src_fw.uuid))
+                    logger.warning('Changing Framework %s UUID from %s to %s' % (fw.identifier, fw.uuid, src_fw.uuid))
                     self._change_fw_uuid(fw, src_fw.uuid)
         return super().diff_from(source, diff_class, flags, callback)
 

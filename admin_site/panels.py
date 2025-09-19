@@ -10,8 +10,6 @@ if TYPE_CHECKING:
 
     from django.db.models import Model
     from modeltrans.fields import TranslatedVirtualField
-    from wagtail.admin.panels.field_panel import WidgetOverrideType
-    from wagtail.admin.panels.group import PanelGroupInitArgs
 
     from nodes.models import InstanceConfig
 
@@ -26,8 +24,8 @@ def insert_model_translation_panels(model: Model, panels: Sequence[Panel], insta
 
     field_map: dict[str, dict[str, TranslatedVirtualField]] = {}
     for f in cast('Iterator[TranslatedVirtualField]', i18n_field.get_translated_fields()):
-        lang = cast(str, f.language)
-        field_map.setdefault(f.original_name, {})[lang] = f # type: ignore
+        lang = cast('str', f.language)
+        field_map.setdefault(f.original_name, {})[lang] = f  # type: ignore
 
     for p in panels:
         out.append(p)
@@ -43,5 +41,5 @@ def insert_model_translation_panels(model: Model, panels: Sequence[Panel], insta
             tf = t_fields.get(lang_code)
             if not tf:
                 continue
-            out.append(type(p)(tf.name)) # type: ignore
+            out.append(type(p)(tf.name))  # type: ignore
     return out

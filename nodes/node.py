@@ -261,7 +261,7 @@ class Node:
     input_dimension_ids: list[str] = []
     "References to the dimensions that this node's input must contain (typically set in a class)."
 
-    explanation: str | I18nString = "Text about the node class missing."
+    explanation: str | I18nString = 'Text about the node class missing.'
     'Textual explanation about what the node computes (typicallly set in a class).'
 
     # set if this node has a specific goal for the simulation target year
@@ -277,42 +277,42 @@ class Node:
     """
 
     input_datasets: list[str]
-    "List of input dataset identifiers for the node."
+    'List of input dataset identifiers for the node.'
     input_dataset_instances: list[Dataset]
-    "List of input dataset instances for the node."
+    'List of input dataset instances for the node.'
 
     edges: list[Edge]
-    "List of edges that connect this node to other nodes, both input and output."
+    'List of edges that connect this node to other nodes, both input and output.'
 
     global_parameters: list[str] = []
     "List of identifiers for global parameters that affect the node's output."
 
     parameters: dict[str, Parameter]
-    "Parameters with their values."
+    'Parameters with their values.'
 
     allowed_parameters: ClassVar[Sequence[Parameter]]
-    "All allowed parameters for this node class."
+    'All allowed parameters for this node class.'
 
     _baseline_values: ppl.PathsDataFrame | None
-    "Cached output for the node in the baseline scenario."
+    'Cached output for the node in the baseline scenario.'
 
     _last_historical_year: int | None
     "Cached last historical year for in the node's output."
 
     context: Context
-    "Computation context."
+    'Computation context.'
 
     hasher: NodeHasher
-    "Cache helper for the node."
+    'Cache helper for the node.'
 
     logger: loguru.Logger
-    "Logger for the node."
+    'Logger for the node.'
 
     debug: bool = False
-    "If debug mode is enabled for the node. Will print extra debug information."
+    'If debug mode is enabled for the node. Will print extra debug information.'
 
     disable_cache: bool = False
-    "If caching should be disabled for this node. Used for debugging."
+    'If caching should be disabled for this node. Used for debugging.'
 
     config_location: ConfigLocation | None = None
     """Location of the node configuration in a YAML file"""
@@ -609,7 +609,6 @@ class Node:
     def get_parameter_value_str(self, param_id: str, *, required: bool = True) -> str | None:
         return self.get_typed_parameter_value(param_id, str, required=required)
 
-
     @overload
     def get_parameter_value_int(self, param_id: str, *, required: Literal[True] = True) -> int: ...
     @overload
@@ -623,7 +622,6 @@ class Node:
             return int(ret)
         assert isinstance(ret, int)
         return ret
-
 
     @overload
     def get_parameter_value_float(self, param_id: str, *, required: bool = True, units: Literal[True]) -> Quantity: ...
@@ -863,10 +861,8 @@ class Node:
         return df
 
     def _get_output_for_target(  # noqa: C901, PLR0912, PLR0915
-            self, df: ppl.PathsDataFrame,
-            target_node: Node,
-            skip_dim_test: bool = False
-        ) -> ppl.PathsDataFrame:
+        self, df: ppl.PathsDataFrame, target_node: Node, skip_dim_test: bool = False
+    ) -> ppl.PathsDataFrame:
         for edge in self.edges:
             if edge.output_node == target_node:
                 break
@@ -1053,7 +1049,7 @@ class Node:
                 edge_function = getattr(self, f'_{tag}')
                 df = edge_function(df, target_node)
             except AttributeError:
-                continue # Not every tag has a function attached.
+                continue  # Not every tag has a function attached.
 
         return df
 
@@ -1062,7 +1058,7 @@ class Node:
         target_node: Node | None = None,
         metric: str | None = None,
         extra_span_desc: str | None = None,
-        skip_dim_test: bool = False
+        skip_dim_test: bool = False,
     ) -> ppl.PathsDataFrame:
         perf_cm = self.context.perf_context
         span_ctx: AbstractContextManager[None | Span]
@@ -1074,7 +1070,9 @@ class Node:
             else:
                 span_name = '%s:get' % self.id
             span_ctx = self.context.start_span(
-                span_name, op=NODE_CALC_OP, attributes=dict(node_id=self.id, node_class=self.__class__.__name__),
+                span_name,
+                op=NODE_CALC_OP,
+                attributes=dict(node_id=self.id, node_class=self.__class__.__name__),
             )
         with span_ctx as span, perf_cm.exec_node(self) as node_run:
             try:
@@ -1494,13 +1492,13 @@ class Node:
         return df
 
     def multiply_nodes_pl(
-            self,
-            df: ppl.PathsDataFrame | None,
-            nodes: list[Node],
-            metric: str | None = None,
-            unit: Unit | None = None,
-            start_from_year: int | None = None,
-        ) -> ppl.PathsDataFrame | None:
+        self,
+        df: ppl.PathsDataFrame | None,
+        nodes: list[Node],
+        metric: str | None = None,
+        unit: Unit | None = None,
+        start_from_year: int | None = None,
+    ) -> ppl.PathsDataFrame | None:
         """Multiply outputs from the given nodes using inner join and union of dimensions."""
         if len(nodes) == 0:
             if df is None:
@@ -1583,11 +1581,13 @@ class Node:
     def _complement(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
         if not df.get_unit(VALUE_COLUMN).is_compatible_with('dimensionless'):
             raise NodeError(
-                self, 'The unit of node %s must be compatible with dimensionless for taking complement' % self.id,
+                self,
+                'The unit of node %s must be compatible with dimensionless for taking complement' % self.id,
             )
         if self.quantity not in ['fraction', 'probability']:
             raise NodeError(
-                self, 'The quantity of node %s must be fraction or probability for taking complement' % self.id,
+                self,
+                'The quantity of node %s must be fraction or probability for taking complement' % self.id,
             )
         df = df.ensure_unit(VALUE_COLUMN, unit='dimensionless')  # TODO CHECK
         return df.with_columns((pl.lit(1.0) - pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
@@ -1606,20 +1606,16 @@ class Node:
 
     def _empty_to_zero(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
         return df.with_columns(
-            pl.when(pl.col(VALUE_COLUMN).is_nan())
-            .then(pl.lit(0.0))
-            .otherwise(pl.col(VALUE_COLUMN))
-            .alias(VALUE_COLUMN),
+            pl.when(pl.col(VALUE_COLUMN).is_nan()).then(pl.lit(0.0)).otherwise(pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN),
         )
 
     def _expectation(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
         if UNCERTAINTY_COLUMN in df.columns:
             meta = df.get_meta()
             cols = [col for col in df.primary_keys if col != UNCERTAINTY_COLUMN]
-            dfp = df.group_by(cols, maintain_order=True).agg([
-                pl.col(VALUE_COLUMN).mean().alias(VALUE_COLUMN),
-                pl.col(FORECAST_COLUMN).any().alias(FORECAST_COLUMN)
-            ])
+            dfp = df.group_by(cols, maintain_order=True).agg(
+                [pl.col(VALUE_COLUMN).mean().alias(VALUE_COLUMN), pl.col(FORECAST_COLUMN).any().alias(FORECAST_COLUMN)]
+            )
             dfp = dfp.with_columns(pl.lit('expectation').alias(UNCERTAINTY_COLUMN))
             df = ppl.to_ppdf(dfp, meta)
         return df
@@ -1644,9 +1640,7 @@ class Node:
 
     def _indifferent_history_ratio(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
         return df.with_columns(
-            pl.when(pl.col(FORECAST_COLUMN))
-            .then(pl.col(VALUE_COLUMN))
-            .otherwise(pl.lit(1.0)).alias(VALUE_COLUMN)
+            pl.when(pl.col(FORECAST_COLUMN)).then(pl.col(VALUE_COLUMN)).otherwise(pl.lit(1.0)).alias(VALUE_COLUMN)
         )
 
     def _inventory_only(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
@@ -1711,17 +1705,17 @@ class Node:
 
         # Start with the explanation text
         if self.explanation:
-            html.append(f"<p>{self.explanation}")
+            html.append(f'<p>{self.explanation}')
         if 'operations' in self.parameters.keys():
             operations = self.get_parameter_value_str('operations', required=False)
-            html.append(f"_(The order of operations is) {operations}.")
-        html.append("</p>")
+            html.append(f'_(The order of operations is) {operations}.')
+        html.append('</p>')
 
         # Add formula if available # TODO Also describe other parameters.
         if 'formula' in self.parameters.keys():
             formula = self.get_parameter_value_str('formula', required=False)
-            html.append(f"<p>{_('The formula is:')}</p>")
-            html.append(f"<pre>{formula}</pre>")
+            html.append(f'<p>{_("The formula is:")}</p>')
+            html.append(f'<pre>{formula}</pre>')
 
         # # Handle input nodes # FIXME Add operations when the buckets is a node attribute.
         # operation_nodes = [getattr(n, 'translated_name', n.name) for n in self.input_nodes]
@@ -1733,15 +1727,14 @@ class Node:
         # else:
         #     html.append(f"<p>{_('The node does not have input nodes.')}</p>")
 
-
         # Add datasets information
         dataset_html = []
         if self.input_dataset_instances:
             df = self.get_output_pl()
-            dataset_html.append(f"<p>{_('The node has the following datasets:')}</p>")
-            dataset_html.append("<ul>")
+            dataset_html.append(f'<p>{_("The node has the following datasets:")}</p>')
+            dataset_html.append('<ul>')
             dataset_html.extend(df.explanation)
-            dataset_html.append("</ul>")
+            dataset_html.append('</ul>')
 
         edge_html = self.get_edge_explanation()
         # Combine all parts
@@ -1750,14 +1743,16 @@ class Node:
         if dataset_html:
             html.extend(dataset_html)
 
-        return "".join(html)
+        return ''.join(html)
 
     def get_edge_explanation(self):
         edge_html = []
-        edge_html.append(f"<p>{_(
-            'The input nodes are processed in the following way before using as input for calculations in this node:'
-        )}</p>")
-        edge_html.append("<ul>")  # Start the main list for nodes
+        edge_html.append(
+            f'<p>{
+                _("The input nodes are processed in the following way before using as input for calculations in this node:")
+            }</p>'
+        )
+        edge_html.append('<ul>')  # Start the main list for nodes
         edge_html0 = edge_html.copy()
 
         for node in self.input_nodes:
@@ -1770,21 +1765,20 @@ class Node:
                 to_html = self.get_explanation_for_edge_to(edge)
 
             if tag_html or from_html or to_html:
-
                 node_name = getattr(node, 'translated_name', node.name)
 
                 # Create a list item for the node with nested list
-                edge_html.append(f"<li>{_('Node')} <i>{node_name}</i>:")
-                edge_html.append("<ul>")  # Start nested list for this node
+                edge_html.append(f'<li>{_("Node")} <i>{node_name}</i>:')
+                edge_html.append('<ul>')  # Start nested list for this node
                 edge_html.extend(tag_html)
                 edge_html.extend(from_html)
                 edge_html.extend(to_html)
-                edge_html.append("</ul>")  # Close node's nested list
-                edge_html.append("</li>")  # Close node list item
+                edge_html.append('</ul>')  # Close node's nested list
+                edge_html.append('</li>')  # Close node list item
 
         if edge_html == edge_html0:
             return []
-        edge_html.append("</ul>")  # Close main nodes list
+        edge_html.append('</ul>')  # Close main nodes list
         return edge_html
 
     def get_explanation_for_edge_tag(self, edge):
@@ -1793,7 +1787,7 @@ class Node:
         if edge.tags:
             for tag in edge.tags:
                 description = self.tag_descriptions.get(tag, _('The tag <i>"%s"</i> is given.') % tag)
-                edge_html.append(f"<li>{description}</li>")
+                edge_html.append(f'<li>{description}</li>')
         return edge_html
 
     def get_explanation_for_edge_from(self, edge):
@@ -1807,11 +1801,11 @@ class Node:
                 if cats:
                     do = _('exclude') if from_dims[dim].exclude else _('include')
                     edge_html.append(
-                        f"<li>{_('From dimension <i>%s</i>, %s categories: <i>%s</i>.') % (dimlabel, do, ', '.join(cats))}</li>"
+                        f'<li>{_("From dimension <i>%s</i>, %s categories: <i>%s</i>.") % (dimlabel, do, ", ".join(cats))}</li>'
                     )
 
                 if from_dims[dim].flatten:
-                    edge_html.append(f"<li>{_('Sum over dimension <i>%s</i>.') % dimlabel}</li>")
+                    edge_html.append(f'<li>{_("Sum over dimension <i>%s</i>.") % dimlabel}</li>')
         return edge_html
 
     def get_explanation_for_edge_to(self, edge):
@@ -1825,6 +1819,6 @@ class Node:
                 if cats:
                     cat_str = ', '.join(cats)
                     edge_html.append(
-                        f"<li>{_('Categorize the values to <i>%s</i> in a new dimension <i>%s</i>.') % (cat_str, dimlabel)}</li>"
+                        f'<li>{_("Categorize the values to <i>%s</i> in a new dimension <i>%s</i>.") % (cat_str, dimlabel)}</li>'
                     )
         return edge_html

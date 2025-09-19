@@ -32,20 +32,22 @@ class DatasetAction(ActionNode, DatasetNode):
             df = df.with_columns(pl.lit(self.no_effect_value).alias(VALUE_COLUMN))
 
         assert self.unit is not None
-        df = df.ensure_unit(VALUE_COLUMN, self.unit) # TODO Use get_unit() instead
+        df = df.ensure_unit(VALUE_COLUMN, self.unit)  # TODO Use get_unit() instead
         return df
 
     def compute(self) -> ppl.PathsDataFrame:
         return self.compute_effect()
 
+
 class DatasetAction2(DatasetAction):
     pass
+
 
 class DatasetActionMFM(DatasetAction):
     allowed_parameters = [
         StringParameter('action', description='Action name in GPC dataset', is_customizable=False),
         NumberParameter('target_value', description='Target action impact value', is_customizable=True),
-        StringParameter('target_metric', description='Target action metric id', is_customizable=False)
+        StringParameter('target_metric', description='Target action metric id', is_customizable=False),
     ]
     allow_null_categories = True
     no_effect_value = 0.0
@@ -53,8 +55,7 @@ class DatasetActionMFM(DatasetAction):
     def compute_effect(self) -> ppl.PathsDataFrame:
         # Perform initial filtering of GPC dataset.
         df = self.get_input_dataset_pl()
-        df = df.filter((pl.col(VALUE_COLUMN).is_not_null()) &
-                       (pl.col('Action') == self.get_parameter_value('action')))
+        df = df.filter((pl.col(VALUE_COLUMN).is_not_null()) & (pl.col('Action') == self.get_parameter_value('action')))
 
         # Drop filter level and empty dimension levels, convert names to IDs.
         df = self.drop_unnecessary_levels(df, droplist=['Action'])
@@ -113,9 +114,9 @@ class DatasetActionMFM(DatasetAction):
 
             for col in list(set(mdf.columns) - {YEAR_COLUMN}):
                 if self.is_enabled() and isinstance(tvalue, float) and tmetric == mid:
-                    mdf = mdf.with_columns(pl.when(pl.col(YEAR_COLUMN) == yearrange[-1])
-                                             .then(pl.lit(tvalue))
-                                             .otherwise(pl.col(col)).alias(col))
+                    mdf = mdf.with_columns(
+                        pl.when(pl.col(YEAR_COLUMN) == yearrange[-1]).then(pl.lit(tvalue)).otherwise(pl.col(col)).alias(col)
+                    )
 
                 mdf = mdf.with_columns(pl.col(col).interpolate())
 
@@ -131,17 +132,18 @@ class DatasetActionMFM(DatasetAction):
 
         # Add forecast.
         jdf = jdf.paths.join_over_index(fcdf, how='left')
-        return(jdf)
+        return jdf
 
     def compute(self) -> ppl.PathsDataFrame:
         return self.compute_effect()
+
 
 class StockReplacementAction(DatasetAction):
     allowed_parameters = [
         StringParameter('sector', description='GPC sector', is_customizable=False),
         StringParameter('action', description='Detailed action module', is_customizable=False),
         NumberParameter('investment_value', description='Maximum annual investment', is_customizable=True),
-        StringParameter('investment_units', description='Investment units', is_customizable=False)
+        StringParameter('investment_units', description='Investment units', is_customizable=False),
     ]
     allow_null_categories = True
 
@@ -188,8 +190,10 @@ class StockReplacementAction(DatasetAction):
                 # Warn about negative stock units, but assume this occurs only due to floating-
                 # point errors, and correct to zero.
                 if stock[key][-1] < 0.0:
-                    print("Warning: Negative stock units with key '%s' in module year %i: %0.10f" %
-                          (key, len(stock[key]), stock[key][-1]))
+                    print(
+                        "Warning: Negative stock units with key '%s' in module year %i: %0.10f"
+                        % (key, len(stock[key]), stock[key][-1])
+                    )
                     stock[key][-1] = 0.0
 
         return stock
@@ -217,9 +221,11 @@ class StockReplacementAction(DatasetAction):
         df = self.get_input_dataset_pl()
         sector = str(self.get_parameter_value('sector'))
 
-        df = df.filter((pl.col(VALUE_COLUMN).is_not_null()) &
-                       (pl.col('Sector') == sector) &
-                       (pl.col('Action') == self.get_parameter_value('action')))
+        df = df.filter(
+            (pl.col(VALUE_COLUMN).is_not_null())
+            & (pl.col('Sector') == sector)
+            & (pl.col('Action') == self.get_parameter_value('action'))
+        )
 
         df = self.drop_unnecessary_levels(df, droplist=['Sector', 'Action'])
         df = self.convert_names_to_ids(df)
@@ -251,7 +257,7 @@ class StockReplacementAction(DatasetAction):
                 investunits = self.get_parameter_value('investment_units', required=True)
                 p['investment'] = p['investment'].with_columns(
                     pl.when(pl.col(FORECAST_COLUMN)).then(pl.lit(investval)).otherwise(pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN),
-                    pl.when(pl.col(FORECAST_COLUMN)).then(pl.lit(investunits)).otherwise(pl.col('Unit')).alias('Unit')
+                    pl.when(pl.col(FORECAST_COLUMN)).then(pl.lit(investunits)).otherwise(pl.col('Unit')).alias('Unit'),
                 )
         else:
             p['investment'] = p['investment'].with_columns(pl.lit(0.0).alias(VALUE_COLUMN))
@@ -351,9 +357,12 @@ class StockReplacementAction(DatasetAction):
 
             # -------------------------------------------------------------------------------------
             # ...write the actual value invested to the investment DF.
-            p['investment'] = p['investment'].with_columns(pl.when(pl.col(YEAR_COLUMN) == yearlist[i])
-                                                             .then(pl.lit(repcount * irepcost))
-                                                             .otherwise(pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
+            p['investment'] = p['investment'].with_columns(
+                pl.when(pl.col(YEAR_COLUMN) == yearlist[i])
+                .then(pl.lit(repcount * irepcost))
+                .otherwise(pl.col(VALUE_COLUMN))
+                .alias(VALUE_COLUMN)
+            )
 
             if yearlist[i] < yearlist[-1]:
                 for key in list(stock.keys()):
@@ -396,6 +405,7 @@ class StockReplacementAction(DatasetAction):
         base = base.paths.join_over_index(p['investment'], how='outer')
         return base
 
+
 class SCurveAction(DatasetAction):
     explanation = _(
         """
@@ -406,7 +416,8 @@ class SCurveAction(DatasetAction):
         S-curve y = A/(1+exp(-k*(x-x0)). A is the maximum value, k is the steepness
         of the curve, and x0 is the midpoint year.
         Newton-Raphson method is used to numerically estimate slope and medeian year.
-        """)
+        """
+    )
     allowed_parameters = DatasetAction2.allowed_parameters
 
     no_effect_value = 0.0
@@ -422,22 +433,16 @@ class SCurveAction(DatasetAction):
 
         for __ in range(max_iter):
             # Residual vector F
-            f = np.array([
-                k * (x1 - x0) - z1,
-                k * (x2 - x0) - z2
-            ])
+            f = np.array([k * (x1 - x0) - z1, k * (x2 - x0) - z2])
 
             # Jacobian matrix J
-            j = np.array([
-                [x1 - x0, -k],
-                [x2 - x0, -k]
-            ])
+            j = np.array([[x1 - x0, -k], [x2 - x0, -k]])
 
             # Check for singularity
             det = np.linalg.det(j)
             if np.abs(det) < 1e-10:
                 print('y1, y2, x1, x2, a:', y1, y2, x1, x2, a)
-                raise ValueError("Jacobian is singular; adjust initial guesses.")
+                raise ValueError('Jacobian is singular; adjust initial guesses.')
 
             # Newton-Raphson update
             delta = np.linalg.solve(j, -f)
@@ -450,18 +455,14 @@ class SCurveAction(DatasetAction):
 
             k, x0 = k_new, x0_new
 
-        print("Warning: Did not converge within max iterations.")
+        print('Warning: Did not converge within max iterations.')
         return k, x0
 
     def apply_scurve_parameters(self, df: ppl.PathsDataFrame, params: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         index_columns = [col for col in params.primary_keys if col in df.primary_keys and col != YEAR_COLUMN]
         assert len(index_columns) > 0, f'There must be at least one primary key in node {self.id} for SCurveAction.'
         out = df.copy()
-        out = out.with_columns([
-            pl.lit(None).alias('slope'),
-            pl.lit(None).alias('x0'),
-            pl.lit(None).alias('ymax')
-        ])
+        out = out.with_columns([pl.lit(None).alias('slope'), pl.lit(None).alias('x0'), pl.lit(None).alias('ymax')])
         indices = params.select(index_columns).unique()
         for row in indices.rows():
             filter_dict = {col: row[indices.columns.index(col)] for col in index_columns}
@@ -516,17 +517,12 @@ class SCurveAction(DatasetAction):
 
         df = self.apply_scurve_parameters(df, params)
 
-        df = df.with_columns((
-                (pl.col('ymax'))
-                / (pl.lit(1.0) + (-pl.col('slope') * (pl.col(YEAR_COLUMN) - pl.col('x0'))).exp())
-                )
-            .alias('out'))
+        df = df.with_columns(
+            ((pl.col('ymax')) / (pl.lit(1.0) + (-pl.col('slope') * (pl.col(YEAR_COLUMN) - pl.col('x0'))).exp())).alias('out')
+        )
 
         df = df.set_unit('out', df.get_unit(VALUE_COLUMN))
-        df = df.with_columns((
-            pl.when(pl.col(FORECAST_COLUMN))
-            .then(pl.col('out'))
-            .otherwise(pl.col(VALUE_COLUMN))).alias('out'))
+        df = df.with_columns((pl.when(pl.col(FORECAST_COLUMN)).then(pl.col('out')).otherwise(pl.col(VALUE_COLUMN))).alias('out'))
         df = df.subtract_cols(['out', VALUE_COLUMN], VALUE_COLUMN)
         assert self.unit is not None, 'Node {self.id} must have unit defined.'
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
@@ -558,7 +554,7 @@ class DatasetDifferenceAction2(DatasetAction):
         filter_categories = self.get_parameter_value('filter_categories', required=False)
         keep_dimension = self.get_parameter_value('keep_dimension', required=False)
         if filter_categories:
-            assert isinstance(filter_categories, str), "filter_categories must be a string"
+            assert isinstance(filter_categories, str), 'filter_categories must be a string'
             dim = filter_categories.split(':')[0]
             cats = filter_categories.split(':')[1].split(',')
             if dim in df.dim_ids:
@@ -614,7 +610,7 @@ class DatasetDifferenceAction2(DatasetAction):
         df = df.paths.cast_index_to_str()
 
         if not set(gdf.dim_ids).issubset(set(self.input_dimensions.keys())):
-            raise NodeError(self, "Dimension mismatch to input nodes")
+            raise NodeError(self, 'Dimension mismatch to input nodes')
 
         # Filter historical data with only the categories that are
         # specified in the goal dataset.
@@ -675,9 +671,7 @@ class DatasetDifferenceAction2(DatasetAction):
                 raise NodeError(self, "Metric column '%s' not found in output")
             if not self.is_enabled():
                 # Replace non-null columns with 0 when action is not enabled
-                df = df.with_columns(
-                    pl.when(pl.col(m.column_id).is_null()).then(None).otherwise(0.0).alias(m.column_id)
-                )
+                df = df.with_columns(pl.when(pl.col(m.column_id).is_null()).then(None).otherwise(0.0).alias(m.column_id))
             df = df.ensure_unit(m.column_id, m.unit)
 
         return df
@@ -702,30 +696,26 @@ class DatasetRelationAction(DatasetAction, GenericNode):
     RELATIONSHIP_BEHAVIOR = {
         # Format: 'name': (if_a_true, if_a_false, description)
         # if_a_true/if_a_false can be: True, False, or None (meaning "no change")
-
         # Core logical relationships
         'copy': (True, False, "B equals A (B copies A's state)"),
-        'not': (False, True, "B equals NOT A (B is the opposite of A)"),
-        'always_true': (True, True, "B is always enabled regardless of A"),
-        'always_false': (False, False, "B is always disabled regardless of A"),
-
+        'not': (False, True, 'B equals NOT A (B is the opposite of A)'),
+        'always_true': (True, True, 'B is always enabled regardless of A'),
+        'always_false': (False, False, 'B is always disabled regardless of A'),
         # Named logical relationships (common in digital logic)
-        'and': (True, False, "If A is enabled, B is enabled; otherwise B is disabled"),
-        'or': (None, True, "If A is disabled, B is enabled; otherwise no change"),
-        'nand': (False, None, "If A is enabled, B is disabled; otherwise no change"),
+        'and': (True, False, 'If A is enabled, B is enabled; otherwise B is disabled'),
+        'or': (None, True, 'If A is disabled, B is enabled; otherwise no change'),
+        'nand': (False, None, 'If A is enabled, B is disabled; otherwise no change'),
         'nor': (False, False, "B is disabled regardless of A's state"),
-        'xor': (False, True, "B is enabled if and only if A is disabled"),
-        'xnor': (True, False, "B is enabled if and only if A is enabled"),
-
+        'xor': (False, True, 'B is enabled if and only if A is disabled'),
+        'xnor': (True, False, 'B is enabled if and only if A is enabled'),
         # Implication relationships
-        'implication': (True, None, "If A is enabled, B must be enabled; otherwise no change"),
-        'reverse_implication': (None, False, "If A is disabled, B must be disabled; otherwise no change"),
-
+        'implication': (True, None, 'If A is enabled, B must be enabled; otherwise no change'),
+        'reverse_implication': (None, False, 'If A is disabled, B must be disabled; otherwise no change'),
         # Inhibition relationships
-        'inhibit': (False, None, "If A is enabled, B is disabled; otherwise no change"),
-        'enable': (True, None, "If A is enabled, B is enabled; otherwise no change"),
-        'block': (None, False, "If A is disabled, B is disabled; otherwise no change"),
-        'allow': (None, True, "If A is disabled, B is enabled; otherwise no change"),
+        'inhibit': (False, None, 'If A is enabled, B is disabled; otherwise no change'),
+        'enable': (True, None, 'If A is enabled, B is enabled; otherwise no change'),
+        'block': (None, False, 'If A is disabled, B is disabled; otherwise no change'),
+        'allow': (None, True, 'If A is disabled, B is enabled; otherwise no change'),
     }
 
     def _find_relationship_from_tags(self, node: ActionNode) -> str | None:
@@ -758,7 +748,7 @@ class DatasetRelationAction(DatasetAction, GenericNode):
 
         # Validate there's exactly one input node in 'other' basket
         if len(baskets['other']) != 1:
-            raise NodeError(self, "Relationship node requires exactly one upstream action node.")
+            raise NodeError(self, 'Relationship node requires exactly one upstream action node.')
 
         # Get the upstream action node
         action_a: ActionNode = baskets['other'][0]
@@ -767,9 +757,8 @@ class DatasetRelationAction(DatasetAction, GenericNode):
         relationship = self._find_relationship_from_tags(action_a)
 
         if not relationship:
-            valid_relationships = ", ".join(self.RELATIONSHIP_BEHAVIOR.keys())
-            raise NodeError(self,
-                f"No relationship tag found for action {action_a}. Valid options are: {valid_relationships}")
+            valid_relationships = ', '.join(self.RELATIONSHIP_BEHAVIOR.keys())
+            raise NodeError(self, f'No relationship tag found for action {action_a}. Valid options are: {valid_relationships}')
 
         # Get the behavior rules for this relationship
         if_a_true, if_a_false, _ = self.RELATIONSHIP_BEHAVIOR[relationship]

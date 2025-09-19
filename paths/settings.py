@@ -131,7 +131,7 @@ INSTALLED_APPS = [
     'admin_site',  # must be before wagtail.admin
     'users',  # must be before wagtail.users
     # 'wagtail.users',  # this should be removed in favour of the custom app config
-    "paths.apps.CustomUsersAppConfig",  # a custom app config for the wagtail.users app
+    'paths.apps.CustomUsersAppConfig',  # a custom app config for the wagtail.users app
     'wagtail.snippets',
     'wagtail.documents',
     'wagtail.images',
@@ -188,7 +188,7 @@ MIDDLEWARE = [
     'paths.middleware.RequestMiddleware',
     'admin_site.middleware.AuthExceptionMiddleware',
     'paths.middleware.AdminMiddleware',
-    'kausal_common.logging.request_log.middleware.LogUnsafeRequestMiddleware', # use middleware from kausal_common, no additions
+    'kausal_common.logging.request_log.middleware.LogUnsafeRequestMiddleware',  # use middleware from kausal_common, no additions
 ]
 
 ROOT_URLCONF = f'{PROJECT_NAME}.urls'
@@ -295,10 +295,14 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r'^https://([a-z0-9-_]+\.)*kausal\.tech$',
     r'^https://([a-z0-9-_]+\.)*kausal\.dev$',
 ]
-CORS_ALLOW_HEADERS = list(default_cors_headers) + get_allowed_cors_headers() + [
-    INSTANCE_IDENTIFIER_HEADER,
-    INSTANCE_HOSTNAME_HEADER,
-]
+CORS_ALLOW_HEADERS = (
+    list(default_cors_headers)
+    + get_allowed_cors_headers()
+    + [
+        INSTANCE_IDENTIFIER_HEADER,
+        INSTANCE_HOSTNAME_HEADER,
+    ]
+)
 CORS_ALLOW_CREDENTIALS = True
 CORS_PREFLIGHT_MAX_AGE = 3600
 CORS_ALLOW_ALL_ORIGINS = True
@@ -353,24 +357,25 @@ CELERY_WORKER_SEND_TASK_EVENTS = True
 CELERY_RESULT_EXPIRES = 60 * 60  # one hour
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = False
 
+
 def _get_channel_layer_config() -> dict[str, Any]:
     if REDIS_URL:
         return {
-            "BACKEND": "channels_redis.core.RedisChannelLayer",
-            "CONFIG": {
-                "hosts": [REDIS_URL],
-                "prefix": "paths-%s-asgi" % DEPLOYMENT_TYPE,
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [REDIS_URL],
+                'prefix': 'paths-%s-asgi' % DEPLOYMENT_TYPE,
             },
         }
     if not DEBUG:
-        warnings.warn("Using in-memory channel layer in non-DEBUG mode. This is not recommended for production.", stacklevel=1)
+        warnings.warn('Using in-memory channel layer in non-DEBUG mode. This is not recommended for production.', stacklevel=1)
     return {
-        "BACKEND": "channels.layers.InMemoryChannelLayer",
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
     }
 
 
 CHANNEL_LAYERS = {
-    "default": _get_channel_layer_config(),
+    'default': _get_channel_layer_config(),
 }
 
 
@@ -630,9 +635,7 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 200,
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
-    'DEFAULT_PERMISSION_CLASSES': (
-        f'{PROJECT_NAME}.permissions.ReadOnly',
-    ),
+    'DEFAULT_PERMISSION_CLASSES': (f'{PROJECT_NAME}.permissions.ReadOnly',),
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework.authentication.TokenAuthentication',
         'rest_framework.authentication.SessionAuthentication',

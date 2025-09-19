@@ -23,7 +23,7 @@ class PersonSnippetViewSet(PathsViewSet):
     form_class: PersonForm
     search_fields = ['first_name', 'last_name', 'email', 'title']
     list_per_page = 50
-    list_display =  ['avatar', 'first_name', 'last_name', 'email', 'organization', 'title']
+    list_display = ['avatar', 'first_name', 'last_name', 'email', 'organization', 'title']
 
     def get_queryset(self, request):
         active_instance = realm_context.get().realm

@@ -10,7 +10,7 @@ import yaml
 def load_yaml_mappings(yaml_file_path: str | None = None) -> dict[str, dict[str, str]]:
     """Load YAML file and create label-to-ID mappings for dimensions."""
     if yaml_file_path is None:
-        yaml_path = Path("../configs/frameworks/standard_dims.yaml")
+        yaml_path = Path('../configs/frameworks/standard_dims.yaml')
     else:
         yaml_path = Path(yaml_file_path)
 
@@ -45,8 +45,10 @@ def load_yaml_mappings(yaml_file_path: str | None = None) -> dict[str, dict[str,
 
     return mappings
 
-def replace_labels_with_ids(df: pl.DataFrame, mappings: dict[str, dict[str, str]],
-                               column_mappings: dict[str, str] | None = None) -> pl.DataFrame:
+
+def replace_labels_with_ids(
+    df: pl.DataFrame, mappings: dict[str, dict[str, str]], column_mappings: dict[str, str] | None = None
+) -> pl.DataFrame:
     """More comprehensive replacement using map_dict for better performance."""
     if column_mappings is None:
         dim_cols = [(dim, col) for dim in mappings.keys() for col in mappings[dim].keys() if col in df.columns]
@@ -57,7 +59,7 @@ def replace_labels_with_ids(df: pl.DataFrame, mappings: dict[str, dict[str, str]
     df_updated = df.clone()
 
     for dim_id, col_name in dim_cols:
-        print("Replacing labels with mappings on column:", col_name)
+        print('Replacing labels with mappings on column:', col_name)
         # for label, id_val in mappings[dim_id].items():
         #     print(f"  '{label}' -> '{id_val}'")
 
@@ -66,16 +68,15 @@ def replace_labels_with_ids(df: pl.DataFrame, mappings: dict[str, dict[str, str]
             return label_map.get(value, value)
 
         # Use map_elements for direct mapping
-        df_updated = df_updated.with_columns(
-            pl.col(col_name).map_elements(_mapping_fun, return_dtype=pl.Utf8).alias(col_name)
-        )
+        df_updated = df_updated.with_columns(pl.col(col_name).map_elements(_mapping_fun, return_dtype=pl.Utf8).alias(col_name))
         df_updated = df_updated.rename({col_name: dim_id})
 
     return df_updated
 
+
 def main():
     if len(sys.argv) != 3:
-        print("Usage: python use_ids.py <input_file> <output_file>")
+        print('Usage: python use_ids.py <input_file> <output_file>')
         sys.exit(1)
 
     input_file = sys.argv[1]
@@ -91,7 +92,8 @@ def main():
     df = replace_labels_with_ids(df, mappings)
 
     df.write_csv(output_file)
-    print(f"Processed {input_file} -> {output_file}")
+    print(f'Processed {input_file} -> {output_file}')
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     main()

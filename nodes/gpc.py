@@ -232,9 +232,9 @@ class DatasetNode(AdditiveNode):
 
     # -----------------------------------------------------------------------------------
     def select_variant(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        cats = self.get_parameter_value_str('categories', required=False) # FIXME merge with select_category and category_filter
+        cats = self.get_parameter_value_str('categories', required=False)  # FIXME merge with select_category and category_filter
         if cats:
-            for subcat in cats.split('/'): # TODO Should we use ',' everywhere?
+            for subcat in cats.split('/'):  # TODO Should we use ',' everywhere?
                 dim, cat = subcat.split(':')
                 df = df.filter(pl.col(dim) == cat)
 
@@ -254,7 +254,7 @@ class DatasetNode(AdditiveNode):
         return df
 
     # -----------------------------------------------------------------------------------
-    def add_missing_years(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame: # TODO Make this generic
+    def add_missing_years(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:  # TODO Make this generic
         # Add forecast column if needed.
         if FORECAST_COLUMN not in df.columns:
             df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
@@ -275,7 +275,7 @@ class DatasetNode(AdditiveNode):
 
             df = df.with_columns(pl.col(FORECAST_COLUMN).fill_null(strategy='backward'))
 
-        df = df.filter(pl.col(YEAR_COLUMN) <= self.context.model_end_year) # TODO Should we truncate pre-historic years
+        df = df.filter(pl.col(YEAR_COLUMN) <= self.context.model_end_year)  # TODO Should we truncate pre-historic years
         df = df.paths.to_narrow()
         return df
 
@@ -284,11 +284,9 @@ class DatasetNode(AdditiveNode):
         if self.get_parameter_value('crop_to_model_range', required=False):
             baseline_year = self.context.instance.reference_year
             end_year = self.context.model_end_year
-            df = df.filter(
-                (pl.col(YEAR_COLUMN).ge(baseline_year)) &
-                (pl.col(YEAR_COLUMN).le(end_year))
-            )
+            df = df.filter((pl.col(YEAR_COLUMN).ge(baseline_year)) & (pl.col(YEAR_COLUMN).le(end_year)))
         return df
+
     # -----------------------------------------------------------------------------------
     def add_and_multiply_input_nodes(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         # Add and multiply input nodes as tagged.
@@ -318,7 +316,8 @@ class DatasetNode(AdditiveNode):
                     pl.when(pl.col(YEAR_COLUMN) < start_from_year)
                     .then(pl.lit(False))  # noqa: FBT003
                     .otherwise(pl.col(FORECAST_COLUMN))
-                    .alias(FORECAST_COLUMN))
+                    .alias(FORECAST_COLUMN)
+                )
             df = df.paths.join_over_index(mult, how='outer', index_from='union')
 
             df = df.multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN).drop(
@@ -330,7 +329,7 @@ class DatasetNode(AdditiveNode):
     def get_correct_baseline(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         if self.get_global_parameter_value('measure_data_baseline_year_only', required=False):
             filt = (pl.col(YEAR_COLUMN) == self.context.instance.reference_year) | (
-                pl.col(YEAR_COLUMN) > self.context.instance.maximum_historical_year # TODO Not fully sure about this logic
+                pl.col(YEAR_COLUMN) > self.context.instance.maximum_historical_year  # TODO Not fully sure about this logic
             )
             if FORECAST_COLUMN in df.columns:
                 filt |= pl.col(FORECAST_COLUMN)
@@ -364,7 +363,7 @@ class DatasetNode(AdditiveNode):
         # FIXME: This should probably be in the future "datapoint metadata" column instead.
 
         df = self.get_filtered_dataset_df()
-        if 'FromMeasureDataPoint' in df.columns and 'UUID' in df.columns: # FIXME Double counting with historical, goals etc.
+        if 'FromMeasureDataPoint' in df.columns and 'UUID' in df.columns:  # FIXME Double counting with historical, goals etc.
             dfpl = (
                 df.filter(pl.col('UUID').is_not_null())
                 .group_by([YEAR_COLUMN, 'UUID'])
@@ -398,11 +397,13 @@ class DatasetNode(AdditiveNode):
 
         df: pl.DataFrame = pl.concat(all_dfs)
 
-        df = df.group_by([YEAR_COLUMN, 'UUID']).agg([
-            pl.len().alias("Nodes"),
-            pl.col("Measure").sum().alias("Observed"),
-            ((~pl.col("Measure")) | pl.col("Measure").is_null()).sum().alias("Missing")
-        ])
+        df = df.group_by([YEAR_COLUMN, 'UUID']).agg(
+            [
+                pl.len().alias('Nodes'),
+                pl.col('Measure').sum().alias('Observed'),
+                ((~pl.col('Measure')) | pl.col('Measure').is_null()).sum().alias('Missing'),
+            ]
+        )
         df = df.sort(['UUID', YEAR_COLUMN])
         return df
 
@@ -429,17 +430,18 @@ class DatasetNode(AdditiveNode):
         df = df.ensure_unit(VALUE_COLUMN, self.unit)  # type: ignore
         return df
 
+
 class DatasetPlusOneNode(DatasetNode):
     """Used for action goal setting when reference year + 1 data is needed."""
 
     def get_correct_baseline(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         if self.get_global_parameter_value('measure_data_baseline_year_only', required=False):
             filt = (pl.col(YEAR_COLUMN) == self.context.instance.reference_year) | (
-                pl.col(YEAR_COLUMN) > self.context.instance.maximum_historical_year # TODO Not fully sure about this logic
+                pl.col(YEAR_COLUMN) > self.context.instance.maximum_historical_year  # TODO Not fully sure about this logic
             )
             refyear = self.context.instance.reference_year
             if isinstance(refyear, int):
-                filt |= (pl.col(YEAR_COLUMN) == refyear + 1) # Needed by some actions
+                filt |= pl.col(YEAR_COLUMN) == refyear + 1  # Needed by some actions
             if FORECAST_COLUMN in df.columns:
                 filt |= pl.col(FORECAST_COLUMN)
             df = df.filter(filt)

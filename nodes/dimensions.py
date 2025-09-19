@@ -35,6 +35,7 @@ class DimensionCategoryGroup(BaseModel):
         re.match(v, '')
         return v
 
+
 class DimensionCategory(I18nBaseModel):
     id: Identifier
     label: I18nStringInstance
@@ -97,12 +98,12 @@ class Dimension(I18nBaseModel):
 
     def get(self, cat_id: str) -> DimensionCategory:
         if cat_id not in self._cat_map:
-            raise KeyError("Dimension %s: category %s not found" % (self.id, cat_id))
+            raise KeyError('Dimension %s: category %s not found' % (self.id, cat_id))
         return self._cat_map[cat_id]
 
     def get_cats_for_group(self, group_id: str) -> list[DimensionCategory]:
         if group_id not in self._group_map:
-            raise KeyError("Dimension %s: group %s not found" % (self.id, group_id))
+            raise KeyError('Dimension %s: group %s not found' % (self.id, group_id))
         grp = self._group_map[group_id]
         return [cat for cat in self.categories if cat._group == grp]
 
@@ -117,19 +118,19 @@ class Dimension(I18nBaseModel):
         for cat in self.categories:
             for label in cat.all_labels():
                 if label in all_labels:
-                    raise Exception("Dimension %s: duplicate label %s" % (self.id, label))
+                    raise Exception('Dimension %s: duplicate label %s' % (self.id, label))
                 all_labels[label] = cat.id
         return all_labels
 
     def series_to_ids(self, s: pd.Series) -> pd.Series:
         if s.hasnans:
-            raise Exception("Series contains NaNs")
+            raise Exception('Series contains NaNs')
         cat_map = self.labels_to_ids()
         s = s.str.strip()
         cs = s.map(cat_map)
         if cs.hasnans:
             missing_cats = s[~s.isin(cat_map)].unique()
-            raise Exception("Some dimension categories failed to convert (%s)" % ', '.join(missing_cats))
+            raise Exception('Some dimension categories failed to convert (%s)' % ', '.join(missing_cats))
         return cs
 
     @overload
@@ -142,14 +143,14 @@ class Dimension(I18nBaseModel):
         id_map = {}
         for cat in self.categories:
             if not cat._group:
-                raise Exception("Category %s does not have a group" % cat.id)
+                raise Exception('Category %s does not have a group' % cat.id)
             id_map[cat.id] = cat._group.id
         return expr.cast(pl.Utf8).replace(id_map)
 
     def series_to_ids_pl(self, s: pl.Series, allow_null=False) -> pl.Series:
         name = s.name
         if not allow_null and s.null_count():
-            raise Exception(f"Series {self.id} contains NaNs: {s}")
+            raise Exception(f'Series {self.id} contains NaNs: {s}')
         s = s.cast(str).str.strip_chars()
         cat_map = self.labels_to_ids()
         labels = list(cat_map.keys())
@@ -160,7 +161,7 @@ class Dimension(I18nBaseModel):
         if df['id'].null_count() > s.null_count():
             missing_cats = df.filter(pl.col('id').is_null())['cat'].unique()
             # FIXME: `missing_cats` should not contain those items that were already in `s`.
-            raise Exception(f"Some dimension {self.id} categories failed to convert: `{'`, `'.join(missing_cats)}`")
+            raise Exception(f'Some dimension {self.id} categories failed to convert: `{"`, `".join(missing_cats)}`')
         ret = df['id'].cast(pl.Categorical)
         if name:
             ret = ret.alias(name)
@@ -172,11 +173,13 @@ class Dimension(I18nBaseModel):
         if self.mtime_hash is not None:
             self._hash = self.mtime_hash.encode('ascii')
             return self._hash
-        data = self.model_dump_json(exclude={
-            'label': True,
-            'categories': {'__all__': {'label'}},
-            'groups': {'__all__': {'label'}},
-        })
+        data = self.model_dump_json(
+            exclude={
+                'label': True,
+                'categories': {'__all__': {'label'}},
+                'groups': {'__all__': {'label'}},
+            }
+        )
         h = xxhash.xxh64()
         h.update(data.encode('utf8'))
         self._hash = h.digest()

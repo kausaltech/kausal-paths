@@ -12,5 +12,5 @@ class PersonFactory(DjangoModelFactory[Person]):
     first_name = 'John'
     last_name = 'Frum'
     email = Sequence(lambda i: f'person{i}@example.com')
-    organization = SubFactory(OrganizationFactory) # type: ignore[var-annotated]
-    user: None # will be created by Person.save() because it calls Person.create_corresponding_user()
+    organization = SubFactory(OrganizationFactory)  # type: ignore[var-annotated]
+    user: None  # will be created by Person.save() because it calls Person.create_corresponding_user()

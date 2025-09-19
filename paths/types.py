@@ -32,18 +32,16 @@ if TYPE_CHECKING:
 
 
 if TYPE_CHECKING:
+
     class PathsRequest(LoggedHttpRequest):
         user: UserOrAnon  # type: ignore[override, assignment]
         cache: PathsObjectCache
 
-
     class PathsAuthenticatedRequest(PathsRequest):
         user: User  # type: ignore[override]
 
-
     class PathsAdminRequest(PathsAuthenticatedRequest):
         _wagtail_site: Site | None
-
 
     class PathsAPIRequest(APIRequest):
         wildcard_domains: list[str] | None
@@ -53,6 +51,7 @@ class PathsModel(PermissionedModel):
     if TYPE_CHECKING:
         Meta: Any
     else:
+
         class Meta:
             abstract = True
 
@@ -73,6 +72,7 @@ class PathsQuerySet[M: PathsModel](PermissionedQuerySet[M]):
 
 
 if TYPE_CHECKING:
+
     @type_check_only
     class PathsGQLContext(CommonGQLContext):  # pyright: ignore[reportGeneralTypeIssues]
         graphql_operation_name: str | None

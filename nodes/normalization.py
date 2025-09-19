@@ -45,20 +45,14 @@ class Normalization:
             if to_metric.quantity == q.id:
                 break
         else:
-            raise Exception("Unable to denormalize")
+            raise Exception('Unable to denormalize')
         assert YEAR_COLUMN in df.primary_keys
         assert df.get_unit(to_metric.column_id) == q.unit
 
         ndf = self.normalizer_node.get_output_pl()
-        ndf = (
-            ndf.filter(pl.col(YEAR_COLUMN).is_in(df[YEAR_COLUMN]))
-            .select([YEAR_COLUMN, pl.col(VALUE_COLUMN).alias('_N')])
-        )
+        ndf = ndf.filter(pl.col(YEAR_COLUMN).is_in(df[YEAR_COLUMN])).select([YEAR_COLUMN, pl.col(VALUE_COLUMN).alias('_N')])
         df = df.paths.join_over_index(ndf, how='left')
-        df = (
-            df.multiply_cols([to_metric.column_id, '_N'], to_metric.column_id, to_metric.unit)
-            .drop('_N')
-        )
+        df = df.multiply_cols([to_metric.column_id, '_N'], to_metric.column_id, to_metric.unit).drop('_N')
         return df
 
     def get_normalized_unit(self, metric: NodeMetric) -> Unit | None:
@@ -85,22 +79,15 @@ class Normalization:
 
         normalized_unit = self.get_normalized_unit(metric)
         if normalized_unit is None:
-            self.normalizer_node.warning("Metric unit %s is incompatible with normalization" % metric.unit)
+            self.normalizer_node.warning('Metric unit %s is incompatible with normalization' % metric.unit)
             return nop()
         if YEAR_COLUMN not in df.primary_keys:
-            self.normalizer_node.warning("Year column not in dataframe")
+            self.normalizer_node.warning('Year column not in dataframe')
             return nop()
 
         ndf = self.normalizer_node.get_output_pl()
-        ndf = (
-            ndf.filter(pl.col(YEAR_COLUMN).is_in(df[YEAR_COLUMN]))
-            .select([YEAR_COLUMN, pl.col(VALUE_COLUMN).alias('_N')])
-        )
+        ndf = ndf.filter(pl.col(YEAR_COLUMN).is_in(df[YEAR_COLUMN])).select([YEAR_COLUMN, pl.col(VALUE_COLUMN).alias('_N')])
         df = df.paths.join_over_index(ndf, how='left')
-        df = (
-            df.divide_cols([metric.column_id, '_N'], metric.column_id)
-            .drop('_N')
-            .ensure_unit(metric.column_id, q.unit)
-        )
+        df = df.divide_cols([metric.column_id, '_N'], metric.column_id).drop('_N').ensure_unit(metric.column_id, q.unit)
 
         return (self.normalizer_node, df)

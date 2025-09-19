@@ -8,6 +8,7 @@ if TYPE_CHECKING:
 
 type NodeErrorCode = Literal['hash_error', 'computation_error', 'no_default_unit_error']
 
+
 class NodeError(Exception):
     error_code: ClassVar[NodeErrorCode | None] = None
     node_paths: list[str] = []
@@ -29,6 +30,7 @@ class NodeError(Exception):
             msg += '\nNode dependency path: %s' % self.get_dependency_path()
         return msg
 
+
 class NodeHashingError(NodeError):
     error_code = 'hash_error'
 
@@ -41,5 +43,5 @@ class NodeMissingDefaultUnitError(NodeError):
     error_code = 'no_default_unit_error'
 
     def __init__(self, node: Node):
-        msg = "Node does not have a default unit"
+        msg = 'Node does not have a default unit'
         super().__init__(node, msg)

@@ -53,6 +53,7 @@ def admin_req(request: HttpRequest) -> PathsAdminRequest:
 class PathsModelForm[M: Model](WagtailAdminModelForm[M, User]):
     pass
 
+
 _FormT = TypeVar('_FormT', bound=BaseModelForm[Any], default=PathsModelForm[_ModelT])
 
 
@@ -60,31 +61,22 @@ class AdminInstanceMixin:
     @property
     def admin_instance(self) -> InstanceConfig:
         from paths.context import realm_context
+
         return realm_context.get().realm
 
 
 def user_has_permission(
-    permission_policy: BasePermissionPolicy,
-    user: AbstractBaseUser | AnonymousUser,
-    permission: str,
-    obj: Model
+    permission_policy: BasePermissionPolicy, user: AbstractBaseUser | AnonymousUser, permission: str, obj: Model
 ) -> bool:
     assert isinstance(permission_policy, ModelPermissionPolicy)
     if isinstance(user, AnonymousUser):
         return False
-    return permission_policy.user_has_permission_for_instance(
-        cast('UserOrAnon', user), permission, obj
-    )
+    return permission_policy.user_has_permission_for_instance(cast('UserOrAnon', user), permission, obj)
 
 
 class PathsEditView(HideSnippetsFromBreadcrumbsMixin, EditView[_ModelT, _FormT], AdminInstanceMixin):
     def user_has_permission(self, permission):
-        return user_has_permission(
-            self.permission_policy,
-            self.request.user,
-            permission,
-            self.object
-        )
+        return user_has_permission(self.permission_policy, self.request.user, permission, self.object)
 
     def get_editing_sessions(self):
         return None
@@ -98,12 +90,7 @@ class PathsEditView(HideSnippetsFromBreadcrumbsMixin, EditView[_ModelT, _FormT],
 
 class PathsDeleteView(DeleteView[_ModelT, _FormT], AdminInstanceMixin):
     def user_has_permission(self, permission):
-        return user_has_permission(
-            self.permission_policy,
-            self.request.user,
-            permission,
-            self.object
-        )
+        return user_has_permission(self.permission_policy, self.request.user, permission, self.object)
 
 
 class PathsCreateView(PermissionedCreateView, AdminInstanceMixin):
@@ -195,15 +182,16 @@ class PathsViewSet(Generic[_ModelT, _QS, _FormT], SnippetViewSet[_ModelT, _FormT
     @property
     def admin_instance(self) -> InstanceConfig:
         from paths.context import realm_context
+
         return realm_context.get().realm
 
     @cached_property[str]
     def url_prefix(self) -> str:
-        return f"{self.app_label}/{self.model_name}"
+        return f'{self.app_label}/{self.model_name}'
 
     @cached_property[str]
     def url_namespace(self) -> str:
-        return f"{self.app_label}_{self.model_name}"
+        return f'{self.app_label}_{self.model_name}'
 
     @property
     def permission_policy(self):

@@ -46,7 +46,7 @@ class Scenario:
             yield param, val
 
     @contextmanager
-    def override(self, set_active: bool = False) -> Generator[None, None, None]:
+    def override(self, set_active: bool = False) -> Generator[None]:
         old_vals: dict[str, Any] = {}
 
         old_scenario = self.context.active_scenario

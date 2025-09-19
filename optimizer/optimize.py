@@ -1,36 +1,34 @@
 from __future__ import annotations
-from contextlib import contextmanager
-from io import StringIO
-import math
-from typing import TYPE_CHECKING
-import polars as pl
 
+import math
+from dataclasses import dataclass
+from functools import partial
+from io import StringIO
+from typing import TYPE_CHECKING, Callable
+
+from pydantic import BaseModel
+
+import networkx as nx
+import numpy as np
+import polars as pl
 from rich import print
 from rich.syntax import Syntax
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
-from ruamel.yaml.scalarfloat import ScalarFloat
-
-from dataclasses import dataclass
-import numpy as np
-from functools import cached_property, partial, wraps
-from typing import Callable, Tuple
-import networkx as nx
-from pydantic import BaseModel
 from scipy import optimize
 
+from common import polars as ppl
+from nodes.actions.shift import ShiftAction, ShiftParameterValue
 from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
 from nodes.instance import Instance
 from nodes.simple import MixNode
-from nodes.actions.shift import ShiftAction, ShiftParameterValue
-from common import polars as ppl
 
 if TYPE_CHECKING:
     from nodes import Node
-    from nodes.context import Context
-    from nodes.actions.shift import ShiftAmount
-    from params import Parameter
     from nodes.actions import ActionNode
+    from nodes.actions.shift import ShiftAmount
+    from nodes.context import Context
+    from params import Parameter
 
 
 yaml = YAML()
@@ -40,7 +38,7 @@ yaml = YAML()
 class OptimizeParameterEntry:
     id: str
     x0: float
-    bounds: Tuple[float, float]
+    bounds: tuple[float, float]
     xstep: float
     set_value: Callable
     finalize: Callable | None
@@ -65,14 +63,14 @@ class OptimizeParameter:
         self.entries = []
 
     def set_source_value(self, start: ShiftAmount | None, end: ShiftAmount, new_val: float):
-        #new_val = round(float(new_val), 3)
+        # new_val = round(float(new_val), 3)
         if start is not None:
             start.source_amount = new_val
             # print('%s: set source %d from %f to %f' % (self.action.id, id(start), start.source_amount, new_val))
         end.source_amount = new_val
 
     def set_dest_value(self, start: ShiftAmount | None, end: ShiftAmount, idx: int, new_val: float):
-        #new_val = round(float(new_val), 1)
+        # new_val = round(float(new_val), 1)
         if start is not None:
             start.dest_amounts[idx] = new_val
         end.dest_amounts[idx] = new_val
@@ -89,7 +87,7 @@ class OptimizeParameter:
 
         # remove all the values after our start year
         for eidx, entry in enumerate(value.root):
-            entry.amounts = list(sorted([a for a in entry.amounts if a.year <= start_year], key=lambda x: x.year))
+            entry.amounts = sorted([a for a in entry.amounts if a.year <= start_year], key=lambda x: x.year)
             start = entry.amounts[-1]
             if start.year != start_year:
                 start = entry.amounts[-1].model_copy()
@@ -101,16 +99,16 @@ class OptimizeParameter:
             x0 = start.source_amount
             if start.source_amount < 0:
                 bounds = (-100, 0)
-                #x0 = -0.1
+                # x0 = -0.1
             else:
                 bounds = (0, 100)
-                #x0 = 0.1
+                # x0 = 0.1
 
             id_prefix = '%d+%d-%d' % (start.year, end.year, eidx)
 
             # First the source values
             e = OptimizeParameterEntry(
-                id="%s-source" % (id_prefix),
+                id='%s-source' % (id_prefix),
                 # x0=start.source_amount,
                 x0=x0,
                 bounds=bounds,
@@ -135,7 +133,7 @@ class OptimizeParameter:
                 else:
                     finalize = None
                 e = OptimizeParameterEntry(
-                    id="%s-dest-%d" % (id_prefix, idx),
+                    id='%s-dest-%d' % (id_prefix, idx),
                     x0=x0,
                     bounds=(0, 100),
                     xstep=0.01,
@@ -155,7 +153,7 @@ class OptimizeParameter:
             return val
 
         for entry in out:
-            amounts = entry["amounts"]  # pyright: ignore
+            amounts = entry['amounts']  # pyright: ignore
             for idx, amt in enumerate(list(amounts)):
                 src = round(amt['source_amount'], 3)
                 amt['source_amount'] = format_num(src, prec=3)
@@ -183,11 +181,11 @@ class OptimizeParameter:
 
     def save(self, param_cfg: dict):
         for pc in param_cfg:
-            if pc["id"] == "shift":
+            if pc['id'] == 'shift':
                 break
         else:
             raise Exception("Action %s does not have 'shift' param" % self.action.id)
-        pc["value"] = self.to_yaml_dict()
+        pc['value'] = self.to_yaml_dict()
 
 
 class OptimizeParameterSet:
@@ -207,39 +205,39 @@ class OptimizeParameterSet:
         self.frozen = True
 
     @property
-    def x0(self) -> Tuple[float, ...]:
+    def x0(self) -> tuple[float, ...]:
         return tuple(e.x0 for param in self.params for e in param.entries)
 
     @property
-    def bounds(self) -> Tuple[Tuple[float, ...], Tuple[float, ...]]:
+    def bounds(self) -> tuple[tuple[float, ...], tuple[float, ...]]:
         lower = tuple(e.bounds[0] for param in self.params for e in param.entries)
         upper = tuple(e.bounds[1] for param in self.params for e in param.entries)
         return (lower, upper)
 
     @property
-    def value_setters(self) -> Tuple[Callable, ...]:
+    def value_setters(self) -> tuple[Callable, ...]:
         return tuple(e.set_value for param in self.params for e in param.entries)
 
     @property
-    def xstep(self) -> Tuple[float, ...]:
+    def xstep(self) -> tuple[float, ...]:
         return tuple(e.xstep for param in self.params for e in param.entries)
 
     @property
-    def finalizers(self) -> Tuple[Callable, ...]:
+    def finalizers(self) -> tuple[Callable, ...]:
         return tuple(e.finalize for param in self.params for e in param.entries if e.finalize is not None)
 
     def set_values(self, vals: np.ndarray):
-        for val, set_value in zip(vals, self.value_setters):  # pyright: ignore
+        for val, set_value in zip(vals, self.value_setters, strict=False):  # pyright: ignore
             set_value(float(val))
         for finalize in self.finalizers:  # pyright: ignore
             finalize()
 
     def print(self):
-        from rich.table import Table
         from rich.console import Console
+        from rich.table import Table
 
         table = Table()
-        for col in ("Action", "Param", "x0", "bounds", "step"):
+        for col in ('Action', 'Param', 'x0', 'bounds', 'step'):
             table.add_column(col)
         for param in self.params:
             for e in param.entries:
@@ -249,21 +247,21 @@ class OptimizeParameterSet:
 
     def save_to_yaml(self, instance: Instance):
         assert instance.yaml_file_path
-        cfg = yaml.load(open(instance.yaml_file_path, "r", encoding="utf8"))
+        cfg = yaml.load(open(instance.yaml_file_path, encoding='utf8'))
         main = cfg
-        if "instance" in cfg:
-            main = cfg["instance"]
-        acts = main["actions"]
-        acts_by_id = {act["id"]: act for act in acts}
+        if 'instance' in cfg:
+            main = cfg['instance']
+        acts = main['actions']
+        acts_by_id = {act['id']: act for act in acts}
 
         for param in self.params:
             act_cfg = acts_by_id[param.action.id]
-            param_cfg = act_cfg["params"]
+            param_cfg = act_cfg['params']
             print(param_cfg)
             param.save(param_cfg)
             print(param_cfg)
 
-        with open(instance.yaml_file_path, "w", encoding="utf8") as f:
+        with open(instance.yaml_file_path, 'w', encoding='utf8') as f:
             yaml.dump(cfg, f)
 
     def print_params(self):
@@ -272,10 +270,7 @@ class OptimizeParameterSet:
         out = []
         for param in self.params:
             d = param.to_yaml_dict()
-            out.append(dict(
-                id=param.action.id,
-                params=[dict(id='shift', value=d)]
-            ))
+            out.append(dict(id=param.action.id, params=[dict(id='shift', value=d)]))
 
         string_stream = StringIO()
         yaml.dump(out, string_stream)
@@ -286,10 +281,7 @@ class OptimizeParameterSet:
 
 
 class Optimizer:
-    def __init__(
-            self, context: Context, outcome_node: Node, goal_df: ppl.PathsDataFrame,
-            action_nodes: list[ActionNode]
-        ):
+    def __init__(self, context: Context, outcome_node: Node, goal_df: ppl.PathsDataFrame, action_nodes: list[ActionNode]):
         self.context = context
         self.outcome_node = outcome_node
 
@@ -301,14 +293,15 @@ class Optimizer:
         self.action_nodes = action_nodes
         self.outcome_cols = outcome_cols
 
-    def compute_and_compare(
-        self, x: np.ndarray, year: int, goal: np.ndarray, params: OptimizeParameterSet
-    ):
+    def compute_and_compare(self, x: np.ndarray, year: int, goal: np.ndarray, params: OptimizeParameterSet):
         params.set_values(x)
 
         df = (
-            self.outcome_node.compute().paths.to_wide(only_category_names=True).lazy()
-            .drop(FORECAST_COLUMN).filter(pl.col(YEAR_COLUMN) == year)
+            self.outcome_node.compute()
+            .paths.to_wide(only_category_names=True)
+            .lazy()
+            .drop(FORECAST_COLUMN)
+            .filter(pl.col(YEAR_COLUMN) == year)
             .drop(YEAR_COLUMN)
             .collect()
         )
@@ -336,7 +329,7 @@ class Optimizer:
                 bounds=params.bounds,
                 diff_step=params.xstep,
                 max_nfev=500,
-                method="trf",
+                method='trf',
                 kwargs=dict(
                     goal=goal,
                     year=target_year,
@@ -357,15 +350,13 @@ class Optimizer:
         params = OptimizeParameterSet()
         path_nodes = set()
         for act in self.action_nodes:
-            all_paths = list(nx.all_simple_paths(
-                ctx.node_graph, source=act.id, target=self.outcome_node.id
-            ))
-            assert len(all_paths)
+            all_paths = list(nx.all_simple_paths(ctx.node_graph, source=act.id, target=self.outcome_node.id))
+            assert all_paths
             for path in all_paths:
                 path_nodes.update(path)
 
             assert isinstance(act, ShiftAction)
-            param = act.get_parameter("shift")
+            param = act.get_parameter('shift')
             opt = OptimizeParameter(act, param)
             params.add(opt)
 
@@ -397,17 +388,18 @@ class Optimizer:
             out_df = self.outcome_node.compute()
             unit = self.outcome_node.get_default_output_metric().unit
             df = (
-                out_df
-                .paths.to_wide(only_category_names=True)
+                out_df.paths.to_wide(only_category_names=True)
                 .filter(pl.col(YEAR_COLUMN).is_in(self.goal_df[YEAR_COLUMN]))
                 .drop(FORECAST_COLUMN)
                 .with_columns(pl.lit('After').alias('Optimize'))
             )
             gdf = self.goal_df.with_columns(pl.lit('Before').alias('Optimize'))
             df = ppl.to_ppdf(pl.concat([gdf, df]), meta=df.get_meta())
-            df = df.with_columns(
-                pl.sum_horizontal(df.metric_cols).alias("Sum")
-            ).set_unit('Sum', unit).select_metrics([*self.outcome_cols, 'Sum'])
+            df = (
+                df.with_columns(pl.sum_horizontal(df.metric_cols).alias('Sum'))
+                .set_unit('Sum', unit)
+                .select_metrics([*self.outcome_cols, 'Sum'])
+            )
             print(df)
         finally:
             params.restore()

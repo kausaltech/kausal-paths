@@ -23,7 +23,7 @@ class AzureADAuth(AzureADTenantOAuth2):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.strategy.request is not None:
-            #self.client = Client.objects.for_request(self.strategy.request).first()
+            # self.client = Client.objects.for_request(self.strategy.request).first()
             pass
         self.client = None
 
@@ -94,7 +94,7 @@ class NZCPortalOAuth2(BaseOAuth2):
 
     def _get_user_details(self, response: dict[str, Any]) -> dict[str, Any]:
         # FIXME: Remove later
-        logger.debug("User details: %s" % response)
+        logger.debug('User details: %s' % response)
 
         user_type = response.get('userType')
         org_slug = response.get('userCity')
@@ -108,7 +108,7 @@ class NZCPortalOAuth2(BaseOAuth2):
             org_slug=org_slug,
             org_id=org_id,
         )
-        logger.debug("Determined role: %s" % repr(role))
+        logger.debug('Determined role: %s' % repr(role))
         return {
             'email': self.canonize_email(response['Mail']),
             'first_name': response.get('FirstName'),
@@ -138,10 +138,12 @@ class NZCPortalOAuth2(BaseOAuth2):
 
     def auth_complete_params(self, state=None):
         params = super().auth_complete_params(state)
-        params.update({
-            'grant_type': 'authorization_code',
-            'redirect_uri': self.get_redirect_uri(),
-        })
+        params.update(
+            {
+                'grant_type': 'authorization_code',
+                'redirect_uri': self.get_redirect_uri(),
+            }
+        )
         return params
 
     def get_key_and_secret(self):
