@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://aarhus-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: b80d83118bf5302c8607057fb0792a662164090d
+  commit: 0a505af327a232a969e3d9fe9c77777782a7cec1
   dvc_remote: kausal-s3
 name: Aarhus Greenhouse Gas Inventory
 owner: City of Aarhus
@@ -56,6 +56,8 @@ dimensions:
   - id: vans
     label: Vans
 
+  - id: rail
+    label: Rail
   - id: high_speed_trains
     label: High-speed Trains
   - id: inter_city_trains
@@ -117,6 +119,8 @@ dimensions:
     label: Fuel Oil
   - id: gasoline
     label: Gasoline
+  - id: gasoline_hybrid
+    label: Gasoline Hybrid
   - id: jp_1_jp_4
     label: JP-1 & JP-4
   - id: liquefied_petroleum_gas
@@ -156,11 +160,11 @@ dimensions:
   - id: i
     label: I Energy
   - id: i1
-    label: I.1 Combined Heat & Power (CHP)
+    label: Combined Heat & Power (CHP)
   - id: i11
-    label: 'I.1.1 CHP: District Heat'
+    label: 'CHP: District Heat'
   - id: i12
-    label: 'I.1.2 CHP: Electricity Generation'
+    label: 'CHP: Electricity Generation'
   - id: i2
     label: I.2 Electricity
   - id: i21
@@ -340,6 +344,9 @@ nodes:
   output_dimensions: [energy_carrier, ghg]
   input_nodes:
   - id: chp_emissions
+    from_dimensions:
+    - id: sector
+      flatten: true
   - id: electricity_emissions
   - id: manufacturing_emissions
   - id: other_energy_emissions
@@ -357,15 +364,17 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy
   unit: TJ/a
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
   input_datasets:
   - id: aarhus/combined_heat_and_power
     column: energy
+    dropna: true
     forecast_from: 2024
     filters:
-    - column: sector
-      value: i11
+    - dimension: sector
+      category: [i11]
+    - column: ghg
 
 - id: chp_district_heat_emissions
   name: CHP District Heat Emissions
@@ -373,28 +382,34 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [energy_carrier, ghg]
-  output_dimensions: [energy_carrier, ghg]
+  input_dimensions: [energy_carrier, ghg, sector]
+  output_dimensions: [energy_carrier, ghg, sector]
   input_nodes:
   - id: energy_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
   - id: chp_district_heat_energy_consumption
     to_dimensions:
     - id: energy_carrier
+    - id: sector
 
 - id: chp_electricity_generation_energy_consumption
   name: CHP Electricity Generation Energy Consumption
   type: simple.AdditiveNode
   quantity: energy
   unit: TJ/a
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
   input_datasets:
   - id: aarhus/combined_heat_and_power
     column: energy
+    dropna: true
     forecast_from: 2024
     filters:
-    - column: sector
-      value: i12
+    - dimension: sector
+      categories: [i12]
+    - column: ghg
 
 - id: chp_electricity_generation_emissions
   name: CHP Electricity Generation Emissions
@@ -402,13 +417,17 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [energy_carrier, ghg]
-  output_dimensions: [energy_carrier, ghg]
+  input_dimensions: [energy_carrier, ghg, sector]
+  output_dimensions: [energy_carrier, ghg, sector]
   input_nodes:
   - id: energy_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
   - id: chp_electricity_generation_energy_consumption
     to_dimensions:
     - id: energy_carrier
+    - id: sector
 
 - id: chp_electricity_generation_energy_factors
   name: CHP Electricity Generation Energy Factors
@@ -420,10 +439,12 @@ nodes:
   input_datasets:
   - id: aarhus/combined_heat_and_power
     column: energy_factor
+    dropna: true
     forecast_from: 2024
     filters:
     - column: sector
       value: i12
+    - column: ghg
 
 - id: chp_electricity_generation_energy_production
   name: CHP Electricity Generation Energy Production
@@ -436,14 +457,22 @@ nodes:
   - id: chp_electricity_generation_energy_factors
   - id: chp_electricity_generation_energy_consumption
     tags: [non_additive]
+    from_dimensions:
+    - id: sector
+      flatten: true
 
 - id: chp_emissions
   name: Combined Heat & Power (CHP) Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [energy_carrier, ghg]
-  output_dimensions: [energy_carrier, ghg]
+  input_dimensions: [sector, energy_carrier, ghg]
+  output_dimensions: [sector, energy_carrier, ghg]
+  input_datasets:
+  - id: aarhus/combined_heat_and_power
+    column: emissions
+    dropna: true
+    forecast_from: 2024
   input_nodes:
   - id: chp_district_heat_emissions
   - id: chp_electricity_generation_emissions
@@ -497,6 +526,8 @@ nodes:
     from_dimensions:
     - id: energy_carrier
       categories: [electricity]
+    - id: sector
+      flatten: true
   - id: chp_electricity_generation_energy_production
     tags: [arithmetic_inverse]
     from_dimensions:
@@ -815,9 +846,11 @@ nodes:
   input_datasets:
   - id: aarhus/onroad_transportation
     column: mileage
+    dropna: true
     forecast_from: 2024
     filters:
     - column: sector
+    - column: ghg
     - dimension: vehicle_type
       categories: [buses]
 
@@ -831,9 +864,11 @@ nodes:
   input_datasets:
   - id: aarhus/onroad_transportation
     column: energy_factor
+    dropna: true
     forecast_from: 2024
     filters:
     - column: sector
+    - column: ghg
     - dimension: vehicle_type
       categories: [buses]
 
@@ -851,11 +886,23 @@ nodes:
 - id: onroad_transport_bus_emissions
   name: On-Road Transport Bus Emissions
   short_name: Bus Emissions
-  type: simple.MultiplicativeNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [energy_carrier, owner, vehicle_type, ghg]
   output_dimensions: [energy_carrier, owner, vehicle_type, ghg]
+  params:
+    formula: (onroad_transport_bus_energy_consumption * transportation_energy_emission_factors) + reference
+  input_datasets:
+  - id: aarhus/onroad_transportation
+    tags: [reference]
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: vehicle_type
+      categories: [buses]
   input_nodes:
   - id: transportation_energy_emission_factors
     to_dimensions:
@@ -879,10 +926,12 @@ nodes:
   input_datasets:
   - id: aarhus/onroad_transportation
     column: mileage
+    dropna: true
     forecast_from: 2024
     filters:
     - column: sector
     - column: owner
+    - column: ghg
     - dimension: vehicle_type
       categories: [cycling, mopeds, motorcycles, passenger_cars, trucks, vans]
 
@@ -896,10 +945,12 @@ nodes:
   input_datasets:
   - id: aarhus/onroad_transportation
     column: energy_factor
+    dropna: true
     forecast_from: 2024
     filters:
     - column: sector
     - column: owner
+    - column: ghg
     - dimension: vehicle_type
       categories: [cycling, mopeds, motorcycles, passenger_cars, trucks, vans]
 
@@ -917,11 +968,24 @@ nodes:
 - id: onroad_transport_passenger_car_emissions
   name: On-Road Transport Passenger Car Emissions
   short_name: Passenger Car Emissions
-  type: simple.MultiplicativeNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [energy_carrier, vehicle_type, ghg]
   output_dimensions: [energy_carrier, vehicle_type, ghg]
+  params:
+    formula: (onroad_transport_vehicle_energy_consumption * transportation_energy_emission_factors) + reference
+  input_datasets:
+  - id: aarhus/onroad_transportation
+    tags: [reference]
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: owner
+    - dimension: vehicle_type
+      categories: [passenger_cars]
   input_nodes:
   - id: transportation_energy_emission_factors
     to_dimensions:
@@ -929,6 +993,8 @@ nodes:
     - id: ghg
   - id: onroad_transport_vehicle_energy_consumption
     from_dimensions:
+    - id: energy_carrier
+      categories: [gasoline, diesel, electricity]
     - id: vehicle_type
       categories: [passenger_cars]
     to_dimensions:
@@ -938,11 +1004,24 @@ nodes:
 - id: onroad_transport_truck_emissions
   name: On-Road Transport Truck Emissions
   short_name: Truck Emissions
-  type: simple.MultiplicativeNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [energy_carrier, vehicle_type, ghg]
   output_dimensions: [energy_carrier, vehicle_type, ghg]
+  params:
+    formula: (onroad_transport_vehicle_energy_consumption * transportation_energy_emission_factors) + reference
+  input_datasets:
+  - id: aarhus/onroad_transportation
+    tags: [reference]
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: owner
+    - dimension: vehicle_type
+      categories: [trucks]
   input_nodes:
   - id: transportation_energy_emission_factors
     to_dimensions:
@@ -959,11 +1038,24 @@ nodes:
 - id: onroad_transport_van_emissions
   name: On-Road Transport Van Emissions
   short_name: Van Emissions
-  type: simple.MultiplicativeNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [energy_carrier, vehicle_type, ghg]
   output_dimensions: [energy_carrier, vehicle_type, ghg]
+  params:
+    formula: (onroad_transport_vehicle_energy_consumption * transportation_energy_emission_factors) + reference
+  input_datasets:
+  - id: aarhus/onroad_transportation
+    tags: [reference]
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: owner
+    - dimension: vehicle_type
+      categories: [vans]
   input_nodes:
   - id: transportation_energy_emission_factors
     to_dimensions:
@@ -971,6 +1063,8 @@ nodes:
     - id: ghg
   - id: onroad_transport_vehicle_energy_consumption
     from_dimensions:
+    - id: energy_carrier
+      categories: [gasoline, diesel, electricity]
     - id: vehicle_type
       categories: [vans]
     to_dimensions:
@@ -980,11 +1074,24 @@ nodes:
 - id: onroad_transport_other_emissions
   name: On-Road Transport Bicycle, Moped & Motorcycle Emissions
   short_name: Bicycle, Moped & Motorcycle Emissions
-  type: simple.MultiplicativeNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [vehicle_type, energy_carrier, ghg]
   output_dimensions: [vehicle_type, energy_carrier, ghg]
+  params:
+    formula: (onroad_transport_vehicle_energy_consumption * transportation_energy_emission_factors) + reference
+  input_datasets:
+  - id: aarhus/onroad_transportation
+    tags: [reference]
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: owner
+    - dimension: vehicle_type
+      categories: [cycling, mopeds, motorcycles]
   input_nodes:
   - id: transportation_energy_emission_factors
     to_dimensions:
@@ -1010,9 +1117,11 @@ nodes:
   input_datasets:
   - id: aarhus/rail_transportation
     column: mileage
+    dropna: true
     forecast_from: 2024
     filters:
     - column: sector
+    - column: ghg
 
 - id: rail_transport_energy_factors
   name: Rail Transport Energy Factors
@@ -1024,9 +1133,11 @@ nodes:
   input_datasets:
   - id: aarhus/rail_transportation
     column: energy_factor
+    dropna: true
     forecast_from: 2024
     filters:
     - column: sector
+    - column: ghg
 
 - id: rail_transport_energy_consumption
   name: Rail Transport Energy Consumption
@@ -1151,6 +1262,13 @@ nodes:
   unit: kt/a
   input_dimensions: [vehicle_type, energy_carrier, ghg]
   output_dimensions: [vehicle_type, energy_carrier, ghg]
+  input_datasets:
+  - id: aarhus/rail_transportation
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
   input_nodes:
   - id: rail_transport_regional_train_emissions
   - id: rail_transport_inter_city_train_emissions
