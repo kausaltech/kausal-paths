@@ -19,7 +19,7 @@ else:
     # These classes need to support the generics syntax
     for kls in (Factory, SubFactory):
         if not hasattr(kls, '__class_getitem__'):
-            kls.__class_getitem__ = classmethod(lambda cls, *args, **kwargs: cls)  # type: ignore
+            kls.__class_getitem__ = classmethod(lambda cls, *_args, **_kwargs: cls)  # type: ignore
 
 
 from pytest_factoryboy import LazyFixture, register
@@ -85,7 +85,7 @@ def additive_action(context: Context, instance):
 
 @pytest.fixture
 def scenario(context):
-    """Does not notify any nodes of the scenario's creation."""
+    """Do not notify any nodes of the scenario's creation."""
     scenario = ScenarioFactory()
     context.add_scenario(scenario)
     return scenario
@@ -99,14 +99,14 @@ def simple_node(context):
 
 @pytest.fixture(autouse=True)  # autouse=True since InstanceMiddleware requires a default scenario
 def default_scenario(instance: Instance, context):
-    """Adds default scenario but doesn't notify any nodes of its creation."""
+    """Add default scenario but do not notify any nodes of its creation."""
     assert context == instance.context
     return context.get_default_scenario()
 
 
 @pytest.fixture
 def baseline_scenario(instance: Instance):
-    """Adds baseline scenario but doesn't notify any nodes of its creation."""
+    """Add baseline scenario but do not notify any nodes of its creation."""
     context = instance.context
     scenario = ScenarioFactory.create(id='baseline', all_actions_enabled=True, context=context, kind=ScenarioKind.BASELINE)
     context.add_scenario(scenario)
@@ -134,7 +134,7 @@ def instance_config(instance: Instance):
 
 @pytest.fixture
 def graphql_client_query(client, instance_config, settings):
-    def func(*args, **kwargs):
+    def func(*args, **kwargs):  # noqa: ANN202
         # In tests, only headers that start with `HTTP_` are used, but in production the header names are taken verbatim
         assert not settings.INSTANCE_IDENTIFIER_HEADER.startswith('HTTP_')
         headers = {
@@ -149,7 +149,7 @@ def graphql_client_query(client, instance_config, settings):
 def graphql_client_query_data(graphql_client_query):
     """Make a GraphQL request, make sure the `error` field is not present and return the `data` field."""
 
-    def func(*args, **kwargs):
+    def func(*args, **kwargs):  # noqa: ANN202
         response = graphql_client_query(*args, **kwargs)
         content = json.loads(response.content)
         assert 'errors' not in content

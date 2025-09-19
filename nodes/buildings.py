@@ -120,6 +120,8 @@ class FloorAreaNode(MultiplicativeNode):  # FIXME Rebuild this with modern tools
 
 class CfNode(FloorAreaNode):
     """
+    Describe the energy saving caused by the action.
+
     Consumption factor (CF) describes the energy saving caused by the action.
     There must be at least one action of type energy_saving.CfFloorAreaAction.
     """
