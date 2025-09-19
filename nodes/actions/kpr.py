@@ -1,10 +1,14 @@
-from params.param import NumberParameter
+from __future__ import annotations
+
 import pandas as pd
-from nodes.context import Context
-from . import ActionNode as BaseActionNode
-from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
-from params import StringParameter
+
 from common.i18n import TranslatedString
+from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
+from nodes.context import Context
+from params import StringParameter
+from params.param import NumberParameter
+
+from . import ActionNode as BaseActionNode
 
 
 class ActionNode(BaseActionNode):
@@ -13,16 +17,10 @@ class ActionNode(BaseActionNode):
     input_datasets = ['kpr/indicator_results']
 
     allowed_parameters = [
-        StringParameter(
-            local_id='panorama_id',
-            label=TranslatedString(en="Node ID in Panorama"),
-            is_customizable=False
-        ),
+        StringParameter(local_id='panorama_id', label=TranslatedString(en='Node ID in Panorama'), is_customizable=False),
         NumberParameter(
-            local_id='panorama_reduction_mton',
-            label=TranslatedString(en="Panorama reduction potential"),
-            is_customizable=False
-        )
+            local_id='panorama_reduction_mton', label=TranslatedString(en='Panorama reduction potential'), is_customizable=False
+        ),
     ]
 
     def compute_effect(self, context: Context) -> pd.DataFrame:

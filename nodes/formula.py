@@ -1,5 +1,9 @@
+from __future__ import annotations
+
 import ast
-from typing import Any, Callable, TypeAlias, TypeVar, NamedTuple
+from typing import Any, Callable, NamedTuple, TypeAlias, TypeVar
+
+from django.utils.translation import gettext_lazy as _
 
 import polars as pl
 
@@ -8,9 +12,8 @@ from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
 from nodes.units import Quantity
 from params.param import BoolParameter, StringParameter
-from .node import Node
-from django.utils.translation import gettext_lazy as _
 
+from .node import Node
 
 PDF: TypeAlias = ppl.PathsDataFrame
 EvalConst: TypeAlias = float
@@ -32,10 +35,7 @@ BinomRightDF: TypeAlias = Callable[[Quantity, PDF], PDF]
 
 class FormulaNode(Node):  # FIXME The formula is not commutative, i.e. a * b != b * a with some dimensions
     explanation = _('This is a Formula Node. It uses a specified formula to calculate the output.')
-    allowed_parameters = [
-        StringParameter(local_id='formula'),
-        BoolParameter(local_id='extend_last_historical_value')
-    ]
+    allowed_parameters = [StringParameter(local_id='formula'), BoolParameter(local_id='extend_last_historical_value')]
 
     def eval_expression(self, expr: ast.Expression, vars: EvalVars) -> EvalOutput:
         return self.eval_tree(expr.body, vars)
@@ -57,8 +57,13 @@ class FormulaNode(Node):  # FIXME The formula is not commutative, i.e. a * b != 
         return df
 
     def apply_binom(
-        self, left: EvalOutput, right: EvalOutput, both_df: BinomBothDF, left_df: BinomLeftDF,
-        right_df: BinomRightDF, both_quantity: BinomBothQuantity
+        self,
+        left: EvalOutput,
+        right: EvalOutput,
+        both_df: BinomBothDF,
+        left_df: BinomLeftDF,
+        right_df: BinomRightDF,
+        both_quantity: BinomBothQuantity,
     ) -> EvalOutput:
         if isinstance(left, PDF) and isinstance(right, PDF):
             return both_df(left, right)
@@ -66,18 +71,17 @@ class FormulaNode(Node):  # FIXME The formula is not commutative, i.e. a * b != 
         if isinstance(left, PDF):
             assert isinstance(right, Quantity)
             return left_df(left, right)
-        elif isinstance(right, PDF):
+        if isinstance(right, PDF):
             assert isinstance(left, Quantity)
             return right_df(left, right)
-        else:
-            return both_quantity(right, left)
+        return both_quantity(right, left)
 
     def apply_binom_commutative(
-            self, left: EvalOutput, right: EvalOutput, both_df: BinomBothDF, one_df: BinomLeftDF,
-            both_quantity: BinomBothQuantity
+        self, left: EvalOutput, right: EvalOutput, both_df: BinomBothDF, one_df: BinomLeftDF, both_quantity: BinomBothQuantity
     ) -> EvalOutput:
         def right_df(val: Quantity, df: PDF):
             return one_df(df, val)
+
         return self.apply_binom(left, right, both_df, one_df, right_df, both_quantity)
 
     def apply_add(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
@@ -87,14 +91,17 @@ class FormulaNode(Node):  # FIXME The formula is not commutative, i.e. a * b != 
             df = df1.paths.join_over_index(r, how='outer')
             df = df.with_columns(pl.col(VALUE_COLUMN).fill_null(0) + pl.col('_Right').fill_null(0)).drop('_Right')
             return df
+
         def one_df(df: PDF, val: Quantity):
             val = val.to(df.get_unit(VALUE_COLUMN))
             df = df.with_columns(pl.col(VALUE_COLUMN) + val)
             return df
+
         def both_quantity(val1: Quantity, val2: Quantity):
             out = left + right
             assert isinstance(out, Quantity)
             return out
+
         return self.apply_binom_commutative(left, right, both_df, one_df, both_quantity)
 
     def apply_mul(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
@@ -103,15 +110,18 @@ class FormulaNode(Node):  # FIXME The formula is not commutative, i.e. a * b != 
             df = df1.paths.join_over_index(r, index_from='union')
             df = df.multiply_cols([VALUE_COLUMN, '_Right'], VALUE_COLUMN).drop('_Right')
             return df
+
         def one_df(df: PDF, val: Quantity):
             df_unit = df.get_unit(VALUE_COLUMN)
             df = df.with_columns(pl.col(VALUE_COLUMN) * val)
             df = df.set_unit(VALUE_COLUMN, df_unit * val.units)
             return df
+
         def both_quantity(val1: Quantity, val2: Quantity):
             out = val1 + val2
             assert isinstance(out, Quantity)
             return out
+
         return self.apply_binom_commutative(left, right, both_df, one_df, both_quantity)
 
     def apply_div(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
@@ -120,26 +130,30 @@ class FormulaNode(Node):  # FIXME The formula is not commutative, i.e. a * b != 
             df = df1.paths.join_over_index(r)
             df = df.divide_cols([VALUE_COLUMN, '_Right'], VALUE_COLUMN).drop('_Right')
             return df
+
         def left_df(df: PDF, val: Quantity):
             df_unit = df.get_unit(VALUE_COLUMN)
             df = df.with_columns(pl.col(VALUE_COLUMN) / val.m)
             df = df.set_unit(VALUE_COLUMN, df_unit / val.units, force=True)
             return df
+
         def right_df(val: Quantity, df: PDF):
             df_unit = df.get_unit(VALUE_COLUMN)
             df = df.with_columns(val / pl.col(VALUE_COLUMN))
             df = df.set_unit(VALUE_COLUMN, val.units / df_unit)
             return df
+
         def both_quantity(val1: Quantity, val2: Quantity):
             out = val1 / val2
             assert isinstance(out, Quantity)
             return out
+
         return self.apply_binom(left, right, both_df, left_df, right_df, both_quantity)
 
     def eval_binop(self, node: ast.BinOp, vars: EvalVars) -> EvalOutput:
         OPERATIONS: dict[type, Callable[[EvalOutput, EvalOutput], EvalOutput]] = {
             ast.Add: self.apply_add,
-            #ast.Sub: operator.sub,
+            # ast.Sub: operator.sub,
             ast.Mult: self.apply_mul,
             ast.Div: self.apply_div,
         }
@@ -175,7 +189,7 @@ class FormulaNode(Node):  # FIXME The formula is not commutative, i.e. a * b != 
             zdf = df.fill_null(0)
             df = ppl.to_ppdf(zdf, meta=meta).paths.to_narrow()
         else:
-            raise NotImplementedError("Unknown function: %s" % func)
+            raise NotImplementedError('Unknown function: %s' % func)
         return df
 
     def eval_tree(self, tree: ast.AST, vars: EvalVars) -> EvalOutput:
@@ -185,7 +199,7 @@ class FormulaNode(Node):  # FIXME The formula is not commutative, i.e. a * b != 
             ast.Name: self.eval_name,
             ast.BinOp: self.eval_binop,
             ast.Call: self.eval_call,
-            #ast.UnaryOp: self.eval_unaryop,
+            # ast.UnaryOp: self.eval_unaryop,
         }
 
         for ast_type, evaluator in EVALUATORS.items():
@@ -195,7 +209,7 @@ class FormulaNode(Node):  # FIXME The formula is not commutative, i.e. a * b != 
         raise KeyError(tree)
 
     def evaluate_formula(self, formula: str, vars: EvalVars) -> PDF:
-        tree = ast.parse(formula, "<string>", mode="eval")
+        tree = ast.parse(formula, '<string>', mode='eval')
         ret = self.eval_tree(tree, vars)
         assert isinstance(ret, PDF)
         return ret

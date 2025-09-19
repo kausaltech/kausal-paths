@@ -914,8 +914,8 @@ class ScenarioType(graphene.ObjectType):
 
 class ActionImpact(graphene.ObjectType):
     action = graphene.Field(ActionNodeType, required=True)
-    cost_values = graphene.List(YearlyValue, required=False, deprecation_reason="Use costDim instead.")
-    impact_values = graphene.List(YearlyValue, required=False, deprecation_reason="Use effectDim instead.")
+    cost_values = graphene.List(YearlyValue, required=False, deprecation_reason='Use costDim instead.')
+    impact_values = graphene.List(YearlyValue, required=False, deprecation_reason='Use effectDim instead.')
     cost_dim = graphene.Field(DimensionalMetricType, required=False)
     effect_dim = graphene.Field(DimensionalMetricType, required=True)
     unit_adjustment_multiplier = graphene.Float()
@@ -966,7 +966,7 @@ class ImpactOverviewType(graphene.ObjectType):
             else:
                 ed = None
             years = ae.df[YEAR_COLUMN]
-            if 'Cost' in ae.df.columns: # FIXME Depreciated
+            if 'Cost' in ae.df.columns:  # FIXME Depreciated
                 cost_values = [YearlyValue(year, float(val)) for year, val in zip(years, list(ae.df['Cost']), strict=False)]
             else:
                 cost_values = None
@@ -1060,9 +1060,7 @@ class Query(graphene.ObjectType):
     )
     action = graphene.Field(ActionNodeType, id=graphene.ID(required=True))
     action_efficiency_pairs = graphene.List(
-        graphene.NonNull(ImpactOverviewType),
-        required=True,
-        deprecation_reason="Use impactOverviews instead"
+        graphene.NonNull(ImpactOverviewType), required=True, deprecation_reason='Use impactOverviews instead'
     )
     impact_overviews = graphene.List(graphene.NonNull(ImpactOverviewType), required=True)
     scenarios = graphene.List(graphene.NonNull(ScenarioType), required=True)

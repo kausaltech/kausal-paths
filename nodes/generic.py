@@ -45,7 +45,7 @@ class GenericNode(SimpleNode):
     Each operation works on its corresponding basket of nodes.
     """
 
-    explanation = _("Multiply input nodes whose unit does not match the output. Add the rest.")
+    explanation = _('Multiply input nodes whose unit does not match the output. Add the rest.')
 
     allowed_parameters = [
         *SimpleNode.allowed_parameters,
@@ -55,7 +55,7 @@ class GenericNode(SimpleNode):
         BoolParameter(local_id='do_correction', label='Correct values with a correction factor?'),
     ]
     # Class-level default operations
-    DEFAULT_OPERATIONS = 'multiply,add,other,apply_multiplier' # FIXME Remove other,apply_multiplier from the default
+    DEFAULT_OPERATIONS = 'multiply,add,other,apply_multiplier'  # FIXME Remove other,apply_multiplier from the default
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -63,7 +63,7 @@ class GenericNode(SimpleNode):
         self.default_operations = self.DEFAULT_OPERATIONS
 
         # Operation registry
-        self.OPERATIONS: dict[str, Callable[..., tuple[Any, Any]]]  = {
+        self.OPERATIONS: dict[str, Callable[..., tuple[Any, Any]]] = {
             'add': self._operation_add,
             'add_from_incoming_dims': self._operation_add_from_incoming_dims,
             'add_to_existing_dims': self._operation_add_to_existing_dims,
@@ -123,7 +123,7 @@ class GenericNode(SimpleNode):
                     break
 
             if not assigned:
-                df = node.get_output_pl(target_node=self) # Works with multi-metric nodes.
+                df = node.get_output_pl(target_node=self)  # Works with multi-metric nodes.
                 df_unit = df.get_unit(VALUE_COLUMN)
                 if self.is_compatible_unit(self.unit, df_unit):
                     baskets['additive'].append(node)
@@ -142,7 +142,7 @@ class GenericNode(SimpleNode):
                 nodes=nodes,
                 metric=kwargs.get('metric'),
                 unit=kwargs.get('unit'),
-                start_from_year=kwargs.get('start_from_year')
+                start_from_year=kwargs.get('start_from_year'),
             )
             baskets['multiplicative'] = []
         return df, baskets
@@ -159,7 +159,7 @@ class GenericNode(SimpleNode):
                 node_multipliers=kwargs.get('node_multipliers'),
                 unit=kwargs.get('unit'),
                 start_from_year=kwargs.get('start_from_year'),
-                ignore_unit=True
+                ignore_unit=True,
             )
             baskets['additive'] = []
         return df, baskets
@@ -173,7 +173,7 @@ class GenericNode(SimpleNode):
     def _operation_apply_multiplier(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
         """Apply the node's multiplier parameter to the dataframe."""
         if df is None:
-            raise NodeError(self, "Cannot apply multiplier because no PathsDataFrame is available.")
+            raise NodeError(self, 'Cannot apply multiplier because no PathsDataFrame is available.')
         mult = self.get_parameter_value('multiplier', required=False, units=True)
         if mult:
             df = df.multiply_quantity(VALUE_COLUMN, mult)
@@ -182,22 +182,22 @@ class GenericNode(SimpleNode):
     def _operation_extrapolate(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
         """Replace NaNs and Nulls by extrapolating from existing values."""
         if df is None:
-            raise NodeError(self, "Cannot extrapolate because no PathsDataFrame is available.")
+            raise NodeError(self, 'Cannot extrapolate because no PathsDataFrame is available.')
 
         df = df.paths.to_wide()
-        df = df.with_columns([
-            pl.col(col)
-            .map_elements(lambda x: None if (x is not None and np.isnan(x)) else x, return_dtype=pl.Float64)
-            .interpolate(method='linear')
-            .forward_fill()
-            .backward_fill()
-            .alias(col)
-            for col in df.columns if col in df.metric_cols
-        ])
-        df = df.select([
-            col for col in df.columns
-            if df.select(pl.col(col).is_not_null().any()).item()
-        ])
+        df = df.with_columns(
+            [
+                pl.col(col)
+                .map_elements(lambda x: None if (x is not None and np.isnan(x)) else x, return_dtype=pl.Float64)
+                .interpolate(method='linear')
+                .forward_fill()
+                .backward_fill()
+                .alias(col)
+                for col in df.columns
+                if col in df.metric_cols
+            ]
+        )
+        df = df.select([col for col in df.columns if df.select(pl.col(col).is_not_null().any()).item()])
         df = df.paths.to_narrow()
 
         return df, baskets
@@ -209,9 +209,7 @@ class GenericNode(SimpleNode):
         operation = 'skip_dim_test'
         numtags = baskets.get(operation) or []
         if len(numtags) != 1:
-            raise NodeError(
-                self,
-                f"Exactly one input node must have tag '{operation}'. Now there are {len(numtags)}.")
+            raise NodeError(self, f"Exactly one input node must have tag '{operation}'. Now there are {len(numtags)}.")
 
         n: Node = baskets[operation][0]
         baskets[operation] = []
@@ -252,21 +250,16 @@ class GenericNode(SimpleNode):
     ]
 
     def _preprocess_for_one(
-            self,
-            df: ppl.PathsDataFrame | None,
-            baskets: dict,
-            operation: OperationType,
-            stackable: bool = True) -> tuple:
+        self, df: ppl.PathsDataFrame | None, baskets: dict, operation: OperationType, stackable: bool = True
+    ) -> tuple:
         if df is None:
-            raise NodeError(self, "Cannot operate because no PathsDataFrame is available.")
+            raise NodeError(self, 'Cannot operate because no PathsDataFrame is available.')
         if self.quantity not in STACKABLE_QUANTITIES and stackable:
-            raise NodeError(self, f"Split operations are only allowed for stackable quantities, not {self.quantity}.")
+            raise NodeError(self, f'Split operations are only allowed for stackable quantities, not {self.quantity}.')
 
         numtags = baskets.get(operation) or []
         if len(numtags) != 1:
-            raise NodeError(
-                self,
-                f"Exactly one input node must have tag '{operation}'. Now there are {len(numtags)}.")
+            raise NodeError(self, f"Exactly one input node must have tag '{operation}'. Now there are {len(numtags)}.")
 
         n: Node = baskets[operation][0]
         baskets[operation] = []
@@ -274,11 +267,7 @@ class GenericNode(SimpleNode):
 
         return df, baskets
 
-    def _operation_split_dims(
-            self,
-            df: ppl.PathsDataFrame | None,
-            baskets: dict,
-            operation: OperationType) -> tuple:
+    def _operation_split_dims(self, df: ppl.PathsDataFrame | None, baskets: dict, operation: OperationType) -> tuple:
         """
         Split operations with different strategies using this base function.
 
@@ -311,7 +300,7 @@ class GenericNode(SimpleNode):
 
         newdims = [dim for dim in splittee.dim_ids if dim not in splitter.dim_ids]
         if newdims and operation not in use_as:
-            raise NodeError(self, f"Splittee node cannot bring in new dimensions but has {newdims}.")
+            raise NodeError(self, f'Splittee node cannot bring in new dimensions but has {newdims}.')
 
         dims = [dim for dim in splitter.dim_ids if dim not in splittee.dim_ids]
         if not dims and not newdims:
@@ -333,10 +322,7 @@ class GenericNode(SimpleNode):
         df_ratio = splitter.paths.join_over_index(df_summed)
         df_ratio = df_ratio.divide_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], VALUE_COLUMN)
         df_ratio = df_ratio.with_columns(
-            pl.when(pl.col(VALUE_COLUMN + '_right') == 0)
-            .then(pl.lit(0.0))
-            .otherwise(pl.col(VALUE_COLUMN))
-            .alias(VALUE_COLUMN)
+            pl.when(pl.col(VALUE_COLUMN + '_right') == 0).then(pl.lit(0.0)).otherwise(pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN)
         ).drop([VALUE_COLUMN + '_right'])
 
         # Apply ratios
@@ -365,7 +351,7 @@ class GenericNode(SimpleNode):
 
     def _operation_add_from_incoming_dims(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
         if self.quantity in STACKABLE_QUANTITIES:
-            raise NodeError(self, f"Node cannot have stackable quantity but has {self.quantity}.")
+            raise NodeError(self, f'Node cannot have stackable quantity but has {self.quantity}.')
         return self._operation_split_dims(df, baskets, 'add_from_incoming_dims')
 
     def drop_unnecessary_levels(self, df: ppl.PathsDataFrame, droplist: list) -> ppl.PathsDataFrame:
@@ -446,7 +432,7 @@ class GenericNode(SimpleNode):
             if isinstance(val, (int, float)):
                 idx = round(val)
                 if idx < 0 or idx >= len(cat_list):
-                    raise ValueError(f"Selected number {val} is out of range for categories {cat_list}")
+                    raise ValueError(f'Selected number {val} is out of range for categories {cat_list}')
                 cat = cat_list[idx]
             else:
                 cat = cat_list[0]  # Default to first category if no selection
@@ -483,8 +469,9 @@ class GenericNode(SimpleNode):
         assert isinstance(df, ppl.PathsDataFrame)
 
         df = df.paths.join_over_index(dfin, how='left')
-        df = (df.with_columns(pl.coalesce([VALUE_COLUMN + '_right', VALUE_COLUMN]).alias(VALUE_COLUMN))
-              .drop(VALUE_COLUMN + '_right'))
+        df = df.with_columns(pl.coalesce([VALUE_COLUMN + '_right', VALUE_COLUMN]).alias(VALUE_COLUMN)).drop(
+            VALUE_COLUMN + '_right'
+        )
         return df, baskets
 
     # -----------------------------------------------------------------------------------
@@ -506,49 +493,42 @@ class GenericNode(SimpleNode):
         # Track original node counts for validation
         original_node_counts = {basket: len(nodes) for basket, nodes in baskets.items()}
 
-        kwargs = {
-            'metric': None,
-            'unit': self.unit,
-            'start_from_year': None,
-            'keep_nodes': False,
-            'node_multipliers': None
-        }
+        kwargs = {'metric': None, 'unit': self.unit, 'start_from_year': None, 'keep_nodes': False, 'node_multipliers': None}
 
         # Apply operations in sequence
         for op_name in operations:
             if op_name not in self.OPERATIONS:
-                raise NodeError(self, f"Unknown operation: {op_name}")
+                raise NodeError(self, f'Unknown operation: {op_name}')
 
-            operation_func = self.OPERATIONS[op_name] # TODO Remove OPERATIONS object altogether
+            operation_func = self.OPERATIONS[op_name]  # TODO Remove OPERATIONS object altogether
             # operation_func = getattr(self, '_operation_' + op_name)
             # if not operation_func:
             #     raise NodeError(self, f"Operation {op_name} not recognized.")
             df, baskets = operation_func(df, baskets, **kwargs)
         if not isinstance(df, ppl.PathsDataFrame):
-            raise NodeError(self, "The output is not a PathsDataFrame.")
+            raise NodeError(self, 'The output is not a PathsDataFrame.')
 
         # Validate that all nodes were used
         unused_nodes = [
             (node.id, basket)
             for basket, nodes in baskets.items()
             if nodes and original_node_counts.get(basket, 0) > 0
-            for node in nodes]
+            for node in nodes
+        ]
 
         if unused_nodes:
-            unused_str = ", ".join([f"{node_id} ({basket})" for node_id, basket in unused_nodes])
-            raise NodeError(self, f"Unused input nodes found after all operations: {unused_str}")
+            unused_str = ', '.join([f'{node_id} ({basket})' for node_id, basket in unused_nodes])
+            raise NodeError(self, f'Unused input nodes found after all operations: {unused_str}')
 
         if VALUE_COLUMN not in df.columns:
-            raise NodeError(self, f"{VALUE_COLUMN} not found, only {df.metric_cols}.")
+            raise NodeError(self, f'{VALUE_COLUMN} not found, only {df.metric_cols}.')
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
 
         return df
 
 
 class LeverNode(GenericNode):
-    explanation = _(
-        """LeverNode replaces the upstream computation completely, if the lever is enabled."""
-    )
+    explanation = _("""LeverNode replaces the upstream computation completely, if the lever is enabled.""")
     allowed_parameters = [
         *GenericNode.allowed_parameters,
         StringParameter(local_id='new_category'),
@@ -568,7 +548,7 @@ class LeverNode(GenericNode):
         lever = lever_nodes[0]
 
         if not isinstance(lever, ActionNode):
-            raise NodeError(self, f"Lever {lever} must be an action.")
+            raise NodeError(self, f'Lever {lever} must be an action.')
 
         # If lever is not enabled, return original dataframe
         if not lever.is_enabled():
@@ -579,15 +559,15 @@ class LeverNode(GenericNode):
         dfl = dfl.ensure_unit(VALUE_COLUMN, df.get_unit(VALUE_COLUMN))
         out = df.paths.join_over_index(dfl, how='left', index_from='left')
         out = out.with_columns(
-            (pl.when(pl.col(FORECAST_COLUMN))
-            .then(pl.col(VALUE_COLUMN + '_right'))
-            .otherwise(pl.col(VALUE_COLUMN))).alias(VALUE_COLUMN)
+            (pl.when(pl.col(FORECAST_COLUMN)).then(pl.col(VALUE_COLUMN + '_right')).otherwise(pl.col(VALUE_COLUMN))).alias(
+                VALUE_COLUMN
+            )
         )
         out = out.drop(VALUE_COLUMN + '_right')
 
         if len(df) != len(out):
-            s = f"({len(out)} rows) as the affected node {self.id} ({len(df)} rows)."
-            raise NodeError(self, f"Lever {lever.id} must result in the same structure {s}")
+            s = f'({len(out)} rows) as the affected node {self.id} ({len(df)} rows).'
+            raise NodeError(self, f'Lever {lever.id} must result in the same structure {s}')
 
         return out, baskets
 
@@ -656,7 +636,7 @@ class WeightedSumNode(GenericNode):
 
         node_weights = node_weights.drop(metrics)
         if not valid_metric:
-            raise NodeError(self, f"No valid metric column found for weight dataset for node {node.id}")
+            raise NodeError(self, f'No valid metric column found for weight dataset for node {node.id}')
 
         # Create a version with this metric renamed to VALUE_COLUMN
         if valid_metric != VALUE_COLUMN:
@@ -674,7 +654,7 @@ class WeightedSumNode(GenericNode):
         # Process each unique node in the weights dataframe
         for node_id in weights_df['node'].unique():
             if node_id not in node_map:
-                self.logger.warning(f"Node {node_id} not found in additive nodes")
+                self.logger.warning(f'Node {node_id} not found in additive nodes')
                 continue
 
             # Get node and its weights
@@ -703,8 +683,7 @@ class WeightedSumNode(GenericNode):
         additive_nodes = baskets['additive']
         if not additive_nodes:
             raise NodeError(
-                self,
-                "If node contains weights, it must contain additive input nodes (typically with tag 'additive')."
+                self, "If node contains weights, it must contain additive input nodes (typically with tag 'additive')."
             )
 
         # Process all weighted nodes
@@ -713,7 +692,7 @@ class WeightedSumNode(GenericNode):
         # FIXME Must get a result.
         # FIXME Also, must use df for non-weighted addition.
         if result is None:
-            self.logger.warning(f"No matching nodes found in weights DataFrame for {self.id}")
+            self.logger.warning(f'No matching nodes found in weights DataFrame for {self.id}')
             return df, baskets
 
         # Remove processed nodes from additive basket (to prevent double-counting)
@@ -750,20 +729,16 @@ class LogitNode(WeightedSumNode):
         # Get observations dataset
         df_obs = self.get_input_dataset_pl(tag='observations', required=False)
         if df_obs is None:
-            raise NodeError(self, f"LogitNode {self.id} must have one dataset for baseline values.")
+            raise NodeError(self, f'LogitNode {self.id} must have one dataset for baseline values.')
 
         # Validate and transform observations to logit space
         df_obs = df_obs.ensure_unit(VALUE_COLUMN, 'dimensionless')
-        test = df_obs.with_columns(
-            (pl.lit(0.0) < pl.col(VALUE_COLUMN)) & (pl.col(VALUE_COLUMN) < pl.lit(1.0))
-        )['literal'].all()
+        test = df_obs.with_columns((pl.lit(0.0) < pl.col(VALUE_COLUMN)) & (pl.col(VALUE_COLUMN) < pl.lit(1.0)))['literal'].all()
 
         if not test:
-            raise NodeError(self, f"All values in {self.id} must be between 0 and 1, exclusive.")
+            raise NodeError(self, f'All values in {self.id} must be between 0 and 1, exclusive.')
 
-        df_obs = df_obs.with_columns(
-            (pl.col(VALUE_COLUMN) / (pl.lit(1.0) - pl.col(VALUE_COLUMN))).log().alias(VALUE_COLUMN)
-        )
+        df_obs = df_obs.with_columns((pl.col(VALUE_COLUMN) / (pl.lit(1.0) - pl.col(VALUE_COLUMN))).log().alias(VALUE_COLUMN))
 
         # Join observations with weighted sum
         df = df.paths.join_over_index(df_obs, how='outer', index_from='left')
@@ -790,16 +765,12 @@ class SectorParseResult(TypedDict):
 
 
 class DimensionalSectorNode(GenericNode):
-    explanation = _("Reads in a dataset and filters and interprets its content according to the <i>sector</i> parameter.")
+    explanation = _('Reads in a dataset and filters and interprets its content according to the <i>sector</i> parameter.')
     default_unit = 'kt/a'
     quantity = EMISSION_QUANTITY
     allowed_parameters = [
         *GenericNode.allowed_parameters,
-        StringParameter(
-            local_id='sector',
-            label='Sector path in HSY emission database',
-            is_customizable=False
-        ),
+        StringParameter(local_id='sector', label='Sector path in HSY emission database', is_customizable=False),
     ]
 
     def parse_dimension_names_from_sector_string(self, sector_name: str) -> SectorParseResult:
@@ -823,11 +794,7 @@ class DimensionalSectorNode(GenericNode):
         full_pattern = r'\|'.join(filter_pattern)
         return {'pattern': full_pattern, 'dimensions': dimension_map}
 
-    def process_sector_data_pl(
-        self,
-        df: ppl.PathsDataFrame,
-        columns: str | list[str]
-    ) -> ppl.PathsDataFrame:
+    def process_sector_data_pl(self, df: ppl.PathsDataFrame, columns: str | list[str]) -> ppl.PathsDataFrame:
         """
         Process sector data from a polars DataFrame.
 
@@ -875,9 +842,7 @@ class DimensionalSectorNode(GenericNode):
 
             # Group by dimensions and year
             group_cols = [YEAR_COLUMN] + list(dimension_map.values())
-            result = matching_sectors.group_by(group_cols).agg([
-                pl.sum(col).alias(col) for col in columns
-            ])
+            result = matching_sectors.group_by(group_cols).agg([pl.sum(col).alias(col) for col in columns])
 
             # Add dimension columns to index
             result = ppl.to_ppdf(result, meta)
@@ -885,9 +850,7 @@ class DimensionalSectorNode(GenericNode):
                 result = result.add_to_index(dim_name)
         else:
             # No dimensions, just group by year
-            result = matching_sectors.group_by(YEAR_COLUMN).agg([
-                pl.sum(col).alias(col) for col in columns
-            ])
+            result = matching_sectors.group_by(YEAR_COLUMN).agg([pl.sum(col).alias(col) for col in columns])
             result = ppl.to_ppdf(result, meta)
 
         # Add forecast column if not present
@@ -899,7 +862,7 @@ class DimensionalSectorNode(GenericNode):
     def _operation_process_sector(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
         """Process the sector data from HSY nodes."""
         if df is not None:
-            raise NodeError(self, "process_sector must be the first operation, so df must be None.") # TODO Could be relaxed
+            raise NodeError(self, 'process_sector must be the first operation, so df must be None.')  # TODO Could be relaxed
         if len(baskets['other']) != 1:
             raise NodeError(self, "The node must have exactly one 'other_node' input.")
 
@@ -927,7 +890,7 @@ class DimensionalSectorNode(GenericNode):
 
 
 class DimensionalSectorEmissions(DimensionalSectorNode):
-    explanation = _("Filters emissions according to the <i>sector</i> parameter.")
+    explanation = _('Filters emissions according to the <i>sector</i> parameter.')
     default_unit = 'kt/a'
     quantity = EMISSION_QUANTITY
 
@@ -938,7 +901,7 @@ class DimensionalSectorEmissions(DimensionalSectorNode):
 
 
 class DimensionalSectorEnergy(DimensionalSectorNode):
-    explanation = _("Filters energy use according to the <i>sector</i> parameter.")
+    explanation = _('Filters energy use according to the <i>sector</i> parameter.')
     default_unit = 'GWh/a'
     quantity = ENERGY_QUANTITY
 
@@ -949,14 +912,14 @@ class DimensionalSectorEnergy(DimensionalSectorNode):
 
 
 class DimensionalSectorEmissionFactor(DimensionalSectorNode):
-    explanation = _("Filters emissions and energy according to the <i>sector</i> parameter and calculates emission factor.")
+    explanation = _('Filters emissions and energy according to the <i>sector</i> parameter and calculates emission factor.')
     default_unit = 'g/kWh'
     quantity = EMISSION_FACTOR_QUANTITY
 
     def _operation_process_emission_factor(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
         """Calculate emission factors from energy and emission data."""
         if df is not None:
-            raise NodeError(self, "process_sector must be the first operation, so df must be None.") # TODO Could be relaxed
+            raise NodeError(self, 'process_sector must be the first operation, so df must be None.')  # TODO Could be relaxed
         if len(baskets['other']) != 1:
             raise NodeError(self, "The node must have exactly one 'other_node' input.")
 
@@ -989,7 +952,8 @@ class IterativeNode(GenericNode):
         It calculates one year at a time based on previous year's value and inputs and outputs
         starting from the first forecast year. In addition, it must have a feedback loop (otherwise it makes
         no sense to use this node class), which is given as a growth rate per year from the previous year's value.
-        """)
+        """
+    )
 
     def _get_other_node(self, tag: str, baskets: dict) -> Node:
         """Get and validate a required node from 'other' basket."""
@@ -1043,7 +1007,7 @@ class IterativeNode(GenericNode):
         # Find historical and forecast boundary
         historical_df = df_out.filter(~pl.col(FORECAST_COLUMN))
         if len(historical_df) == 0:
-            raise NodeError(self, "IterativeNode must have historical values.")
+            raise NodeError(self, 'IterativeNode must have historical values.')
 
         # Get years needed for iteration
         last_historical_year = historical_df[YEAR_COLUMN].sort().last()
@@ -1056,24 +1020,19 @@ class IterativeNode(GenericNode):
 
         keep_cols = [YEAR_COLUMN, FORECAST_COLUMN, VALUE_COLUMN] + df_out.dim_ids
         # First add all historical data to our result (unchanged)
-        processed_years[last_historical_year] = (
-            df_out.filter(pl.col(YEAR_COLUMN) <= last_historical_year)
-            .select(keep_cols))
+        processed_years[last_historical_year] = df_out.filter(pl.col(YEAR_COLUMN) <= last_historical_year).select(keep_cols)
 
         # Process each forecast year sequentially
         for forecast_year in range(int(last_historical_year) + 1, int(end_year) + 1):
             # Get previous year's data
             prev_year = forecast_year - 1
-            prev_year_data = (
-                processed_years[prev_year]
-                .filter(pl.col(YEAR_COLUMN) == prev_year)
-                .drop(YEAR_COLUMN))
+            prev_year_data = processed_years[prev_year].filter(pl.col(YEAR_COLUMN) == prev_year).drop(YEAR_COLUMN)
 
             # Get current year's changes and rates
             current_year_data = df_out.filter(pl.col(YEAR_COLUMN) == forecast_year)
 
             if len(current_year_data) == 0:
-                raise NodeError(self, f"Year {forecast_year} is missing in the input data")
+                raise NodeError(self, f'Year {forecast_year} is missing in the input data')
 
             # Create a new dataframe for the current year by joining with previous year
             # Use outer join to ensure we process all dimension combinations
@@ -1081,12 +1040,14 @@ class IterativeNode(GenericNode):
             result_year = result_year.rename({VALUE_COLUMN + '_right': 'prev_value'})
 
             # Now calculate the new values with a vectorized operation on all dimensions
-            result_year = result_year.with_columns([
-                # New value = (prev_value + changes) * rate
-                ((pl.col('prev_value').fill_null(0.0) +
-                pl.col('changes').fill_null(0.0)) *
-                pl.col('rate').fill_null(1.0)).alias(VALUE_COLUMN)
-            ])
+            result_year = result_year.with_columns(
+                [
+                    # New value = (prev_value + changes) * rate
+                    (
+                        (pl.col('prev_value').fill_null(0.0) + pl.col('changes').fill_null(0.0)) * pl.col('rate').fill_null(1.0)
+                    ).alias(VALUE_COLUMN)
+                ]
+            )
 
             # Add the needed columns to our processed years
             processed_years[forecast_year] = result_year.select(keep_cols)
@@ -1135,14 +1096,11 @@ class LogicalNode(GenericNode):
     def _operation_normalize_logical(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
         """Normalize values to be exactly 0 or 1, handling potential floating-point imprecisions."""
         if df is None:
-            raise NodeError(self, "Cannot normalize logical values because no PathsDataFrame is available.")
+            raise NodeError(self, 'Cannot normalize logical values because no PathsDataFrame is available.')
 
         # Normalize values: anything close to 1 or greater becomes 1, anything else becomes 0
         df = df.with_columns(
-            pl.when(pl.col(VALUE_COLUMN) >= (1.0 - self.LOGICAL_EPSILON))
-            .then(1.0)
-            .otherwise(0.0)
-            .alias(VALUE_COLUMN)
+            pl.when(pl.col(VALUE_COLUMN) >= (1.0 - self.LOGICAL_EPSILON)).then(1.0).otherwise(0.0).alias(VALUE_COLUMN)
         )
 
         return df, baskets
@@ -1153,17 +1111,12 @@ class LogicalNode(GenericNode):
             df = node.get_output_pl(target_node=self)
 
             # Check if values are approximately 0 or 1 using Polars expressions
-            is_approx_zero = (pl.col(VALUE_COLUMN).abs() < self.LOGICAL_EPSILON)
-            is_approx_one = (pl.col(VALUE_COLUMN).abs() - 1.0 < self.LOGICAL_EPSILON)
-            valid_values = df.with_columns(
-                (is_approx_zero | is_approx_one).alias("is_valid")
-            )
+            is_approx_zero = pl.col(VALUE_COLUMN).abs() < self.LOGICAL_EPSILON
+            is_approx_one = pl.col(VALUE_COLUMN).abs() - 1.0 < self.LOGICAL_EPSILON
+            valid_values = df.with_columns((is_approx_zero | is_approx_one).alias('is_valid'))
 
-            if not valid_values["is_valid"].all():
-                raise NodeError(
-                    self,
-                    f"Input node {node.id} contains values that are not logical (must be approximately 0 or 1)"
-                )
+            if not valid_values['is_valid'].all():
+                raise NodeError(self, f'Input node {node.id} contains values that are not logical (must be approximately 0 or 1)')
 
     def compute(self) -> ppl.PathsDataFrame:
         """Override compute to validate inputs before processing."""
@@ -1188,9 +1141,7 @@ class ThresholdNode(GenericNode):
     allowed_parameters = [
         *GenericNode.allowed_parameters,
         NumberParameter(
-            local_id='threshold',
-            label='Gives 1 (True) if the preliminary output is >= threshold',
-            is_customizable=True
+            local_id='threshold', label='Gives 1 (True) if the preliminary output is >= threshold', is_customizable=True
         ),
     ]
     quantity = 'fraction'
@@ -1202,7 +1153,7 @@ class ThresholdNode(GenericNode):
     def _operation_apply_threshold(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
         """Apply threshold to the computed values, converting to 0/1."""
         if df is None:
-            raise NodeError(self, "Cannot apply threshold because no PathsDataFrame is available.")
+            raise NodeError(self, 'Cannot apply threshold because no PathsDataFrame is available.')
 
         threshold = self.get_parameter_value('threshold', units=True, required=True)
         # Ensure the dataframe has the same unit as the threshold
@@ -1228,15 +1179,13 @@ class ThresholdNode(GenericNode):
 
 
 class CoalesceNode(GenericNode):
-    explanation = _(
-        """Coalesces the empty values with the values from the node with the tag 'coalesce'."""
-    )
+    explanation = _("""Coalesces the empty values with the values from the node with the tag 'coalesce'.""")
     DEFAULT_OPERATIONS = 'multiply,coalesce,add'
 
     def _operation_coalesce(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
         """Coalesce the two dataframes."""
         if df is None:
-            raise NodeError(self, "Cannot apply coalesce because no PathsDataFrame is available.")
+            raise NodeError(self, 'Cannot apply coalesce because no PathsDataFrame is available.')
 
         nodes = baskets.get('coalesce', [])
         baskets['coalesce'] = []
@@ -1245,10 +1194,9 @@ class CoalesceNode(GenericNode):
 
         df_co = nodes[0].get_output_pl(target_node=self)
         df = df.paths.join_over_index(df_co, how='outer', index_from='union')
-        df = df.with_columns(
-            pl.coalesce([pl.col(VALUE_COLUMN), pl.col(VALUE_COLUMN + '_right')])
-            .alias(VALUE_COLUMN)
-        ).drop(VALUE_COLUMN + '_right')
+        df = df.with_columns(pl.coalesce([pl.col(VALUE_COLUMN), pl.col(VALUE_COLUMN + '_right')]).alias(VALUE_COLUMN)).drop(
+            VALUE_COLUMN + '_right'
+        )
 
         return df, baskets
 
@@ -1260,17 +1208,18 @@ class CoalesceNode(GenericNode):
 
 class CohortNode(GenericNode):
     explanation = _(
-    """
+        """
     Cohort node take in initial age structure (inventory) and follows the cohort in time as it ages.
 
     Harvest describes how much is removed from the cohort.
-    """)
+    """
+    )
 
     output_metrics = {
-         'hectares': NodeMetric('t_ha', 'area'),
-         'total_volume': NodeMetric('m3_solid', 'volume'),
-         'harvest_volume': NodeMetric('m3_solid/a', 'volume'),
-         'natural_mortality': NodeMetric('m3_solid/a', 'volume'),
+        'hectares': NodeMetric('t_ha', 'area'),
+        'total_volume': NodeMetric('m3_solid', 'volume'),
+        'harvest_volume': NodeMetric('m3_solid/a', 'volume'),
+        'natural_mortality': NodeMetric('m3_solid/a', 'volume'),
     }
     # allowed_parameters = [
     #     *GenericNode.allowed_parameters,
@@ -1282,7 +1231,7 @@ class CohortNode(GenericNode):
         """Create a transition matrix with age-specific harvest probabilities."""
         # This method is fine as is - no changes needed
         # Ensure we have the right number of probabilities
-        assert len(harvest_probabilities) == n_ages, "Must provide harvest probability for each age group"
+        assert len(harvest_probabilities) == n_ages, 'Must provide harvest probability for each age group'
 
         # Create transition matrix
         transition_matrix = np.zeros((n_ages, n_ages))
@@ -1293,7 +1242,8 @@ class CohortNode(GenericNode):
 
             # Sanity check on probability
             assert 0 <= harvest_prob <= 1, (
-                f"Harvest probability must be between 0 and 1, got {harvest_prob} for age {current_age}")
+                f'Harvest probability must be between 0 and 1, got {harvest_prob} for age {current_age}'
+            )
 
             # Probability of being harvested (moves to age 0)
             if harvest_prob > 0:
@@ -1309,14 +1259,7 @@ class CohortNode(GenericNode):
 
         return transition_matrix
 
-    def simulate_age_dynamics(
-            self,
-            initial_ages,
-            years,
-            harvest_probabilities,
-            growth_curve,
-            mortality_rate_fn
-        ):
+    def simulate_age_dynamics(self, initial_ages, years, harvest_probabilities, growth_curve, mortality_rate_fn):
         """
         Core simulation function handling pure age dynamics and returning a DataFrame.
 
@@ -1358,7 +1301,7 @@ class CohortNode(GenericNode):
             transition_matrix = self.get_transition_matrix(n_ages, harvest_probabilities)
 
             # Calculate pre-transition state
-            pre_hectares = hectares[year_idx-1].copy()
+            pre_hectares = hectares[year_idx - 1].copy()
 
             # Track harvest volume by age class
             for age in range(n_ages):
@@ -1404,7 +1347,7 @@ class CohortNode(GenericNode):
                     'hectares': hectares[year_idx, age],
                     'total_volume': total_volume,
                     'harvest_volume': harvest_volume[year_idx, age],
-                    'natural_mortality': natural_mortality[year_idx, age]
+                    'natural_mortality': natural_mortality[year_idx, age],
                 }
 
                 results_data.append(row)
@@ -1412,12 +1355,7 @@ class CohortNode(GenericNode):
         # Create and return DataFrame without dimension data
         return pl.DataFrame(results_data)
 
-    def simulate_cohort(
-            self,
-            initial_year: ppl.PathsDataFrame,
-            years: range,
-            max_age: int = 161
-        ):
+    def simulate_cohort(self, initial_year: ppl.PathsDataFrame, years: range, max_age: int = 161):
         """
         Simulate forest development for all dimension combinations.
 
@@ -1436,7 +1374,7 @@ class CohortNode(GenericNode):
 
         """
         if len(initial_year.dim_ids) < 2:
-            raise NodeError(self, "CohortNode must receive at least one dimension in addition to Age.")
+            raise NodeError(self, 'CohortNode must receive at least one dimension in addition to Age.')
         # Process each dimension combination separately
         all_results = []
 
@@ -1445,11 +1383,7 @@ class CohortNode(GenericNode):
 
         for combo in dim_combinations.iter_rows(named=True):
             # Extract data for this combination of dimensions
-            combo_data = initial_year.filter(
-                pl.all_horizontal(
-                    pl.col(dim) == combo[dim] for dim in dim_combinations.columns
-                )
-            )
+            combo_data = initial_year.filter(pl.all_horizontal(pl.col(dim) == combo[dim] for dim in dim_combinations.columns))
 
             # Create array of hectares by age and harvest probabilities
             initial_ages = np.zeros(max_age)
@@ -1469,13 +1403,7 @@ class CohortNode(GenericNode):
             mortality_rate_fn = params['mortality_rates']
 
             # Run core simulation without dimension data
-            sim_results = self.simulate_age_dynamics(
-                initial_ages,
-                years,
-                harvest_probabilities,
-                growth_curve,
-                mortality_rate_fn
-            )
+            sim_results = self.simulate_age_dynamics(initial_ages, years, harvest_probabilities, growth_curve, mortality_rate_fn)
 
             # Add dimension data to results
             for dim in dim_combinations.columns:
@@ -1514,20 +1442,10 @@ class CohortNode(GenericNode):
 
         """
         # Site factors for growth - use region if available, otherwise default
-        site_factors = {
-            "herb-rich": 1.3,
-            "fresh": 1.0,
-            "sub-dry": 0.7,
-            "dry": 0.5
-        }
+        site_factors = {'herb-rich': 1.3, 'fresh': 1.0, 'sub-dry': 0.7, 'dry': 0.5}
 
         # Species factors for growth - use species if available, otherwise default
-        species_factors = {
-            "pine": 1.0,
-            "spruce": 1.2,
-            "birch": 0.8,
-            "other": 0.7
-        }
+        species_factors = {'pine': 1.0, 'spruce': 1.2, 'birch': 0.8, 'other': 0.7}
 
         # Get region and species from combo if available, otherwise use defaults
         region = combo.get('region', 'unknown')
@@ -1543,23 +1461,23 @@ class CohortNode(GenericNode):
 
         # Create mortality rate function - could be customized based on other dimensions
         def mortality_rates(age: int) -> float:
-            return 0.005 + 0.0005 * age/10
+            return 0.005 + 0.0005 * age / 10
 
         # Build parameter dictionary - include all combo items for reference
         params = {
             **combo,  # Include all dimension values
             'max_age': max_age,
             'growth_curve': growth_curve,
-            'mortality_rates': mortality_rates
+            'mortality_rates': mortality_rates,
         }
 
         return params
 
     def expand_to_annual_ages(
-            self,
-            forest_df: ppl.PathsDataFrame,
-            age_groups: list[tuple],
-        ) -> ppl.PathsDataFrame:
+        self,
+        forest_df: ppl.PathsDataFrame,
+        age_groups: list[tuple],
+    ) -> ppl.PathsDataFrame:
         """Convert aggregated age group data to annual age classes."""
         annual_data = []
         meta = forest_df.get_meta()
@@ -1581,12 +1499,14 @@ class CohortNode(GenericNode):
             hectares_per_year = hectares / years_in_group
 
             for age in range(age_start, age_end + 1):
-                annual_data.append({  # noqa: PERF401
-                    **{k: v for k, v in record.items() if k not in {'age', VALUE_COLUMN, VALUE_COLUMN + '_right'}},
-                    'annual_age': age,
-                    'hectares': hectares_per_year, # Initial_year
-                    'harvest_probability': record[VALUE_COLUMN + '_right'], # Harvest_probability
-                })
+                annual_data.append(
+                    {
+                        **{k: v for k, v in record.items() if k not in {'age', VALUE_COLUMN, VALUE_COLUMN + '_right'}},
+                        'annual_age': age,
+                        'hectares': hectares_per_year,  # Initial_year
+                        'harvest_probability': record[VALUE_COLUMN + '_right'],  # Harvest_probability
+                    }
+                )
 
         new_keys = {VALUE_COLUMN: 'hectares', VALUE_COLUMN + '_right': 'harvest_probability'}
 
@@ -1594,31 +1514,25 @@ class CohortNode(GenericNode):
             if old_key in meta.units:
                 meta.units[new_key] = meta.units.pop(old_key)
 
-
         out = pl.DataFrame(annual_data)
         meta.primary_keys = [col for col in out.columns if col in meta.primary_keys + ['annual_age']]
         out = ppl.to_ppdf(out, meta=meta)
 
         return out
 
-    def aggregate_to_age_groups(
-            self,
-            annual_results: ppl.PathsDataFrame,
-            age_groups: list) -> ppl.PathsDataFrame:
+    def aggregate_to_age_groups(self, annual_results: ppl.PathsDataFrame, age_groups: list) -> ppl.PathsDataFrame:
         """Aggregate annual age results back to original age groups."""
 
-        def find_age_group(age: int) -> str: #, age_groups: list[tuple[int, int]]) -> str:
+        def find_age_group(age: int) -> str:  # , age_groups: list[tuple[int, int]]) -> str:
             for start, end in age_groups:
                 if start <= age <= end:
-                    return f"{start}"
+                    return f'{start}'
 
             # If no range matches, return the start of the last group
-            return f"{age_groups[-1][0]}"
+            return f'{age_groups[-1][0]}'
 
         # Add age group ID
-        df = annual_results.with_columns([
-            pl.col('annual_age').map_elements(find_age_group, return_dtype=pl.Utf8).alias('age')
-        ])
+        df = annual_results.with_columns([pl.col('annual_age').map_elements(find_age_group, return_dtype=pl.Utf8).alias('age')])
         df = df.add_to_index('age')
         df = df.with_columns((pl.col(YEAR_COLUMN) > pl.col(YEAR_COLUMN).min()).alias(FORECAST_COLUMN))
         df = df.paths.sum_over_dims('annual_age')
@@ -1627,8 +1541,7 @@ class CohortNode(GenericNode):
 
     def compute(self) -> ppl.PathsDataFrame:
         # Define age groups
-        age_groups = [(0,0), (1,20), (21,40), (41,60), (61,80), (81,100),
-                    (101,120), (121,140), (141,160)]
+        age_groups = [(0, 0), (1, 20), (21, 40), (41, 60), (61, 80), (81, 100), (101, 120), (121, 140), (141, 160)]
 
         # Define simulation years
         years = range(2022, 2050)
@@ -1697,7 +1610,7 @@ class DatasetReduceNode(GenericNode):
         df = df.paths.cast_index_to_str()
 
         if not set(gdf.dim_ids).issubset(set(self.input_dimensions.keys())):
-            raise NodeError(self, "Dimension mismatch to input nodes")
+            raise NodeError(self, 'Dimension mismatch to input nodes')
 
         # Filter historical data with only the categories that are
         # specified in the goal dataset.
@@ -1709,8 +1622,7 @@ class DatasetReduceNode(GenericNode):
         end_year = self.get_end_year()
         assert len(gdf.metric_cols) == 1
         gdf = (
-            gdf.rename({gdf.metric_cols[0]: VALUE_COLUMN})
-            .with_columns(pl.lit(True).alias(FORECAST_COLUMN))  # noqa: FBT003
+            gdf.rename({gdf.metric_cols[0]: VALUE_COLUMN}).with_columns(pl.lit(True).alias(FORECAST_COLUMN))  # noqa: FBT003
         )
 
         is_mult = self.get_parameter_value('relative_goal', required=False)
@@ -1745,7 +1657,7 @@ class DatasetReduceNode(GenericNode):
         df = df.filter(pl.col(FORECAST_COLUMN))
         df = df.filter(pl.col(YEAR_COLUMN).lt(end_year + 1))
         df = df.paths.to_narrow()
-        for m in self.output_metrics.values(): # TODO Not sure that multimetric functionalities are needed.
+        for m in self.output_metrics.values():  # TODO Not sure that multimetric functionalities are needed.
             if m.column_id not in df.metric_cols:
                 raise NodeError(self, "Metric column '%s' not found in output" % m.column_id)
             df = df.ensure_unit(m.column_id, m.unit)

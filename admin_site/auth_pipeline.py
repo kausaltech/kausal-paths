@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
-from frameworks.models import FrameworkConfig
 from paths.const import (
     FRAMEWORK_ADMIN_ROLE,
     FRAMEWORK_VIEWER_ROLE,
@@ -12,6 +11,8 @@ from paths.const import (
     INSTANCE_REVIEWER_ROLE,
     INSTANCE_VIEWER_ROLE,
 )
+
+from frameworks.models import FrameworkConfig
 
 if TYPE_CHECKING:
     from social_django import BaseAuth
@@ -21,7 +22,11 @@ if TYPE_CHECKING:
 
 
 def assign_roles(
-    *, backend: type[BaseAuth], user: User | None, details: dict[str, Any], **kwargs,
+    *,
+    backend: type[BaseAuth],
+    user: User | None,
+    details: dict[str, Any],
+    **kwargs,
 ) -> None:
     from frameworks.models import Framework
     from frameworks.roles import framework_admin_role, framework_viewer_role

@@ -1,8 +1,11 @@
-import json
-from django.core.management.base import BaseCommand, CommandParser
-from frameworks.models import Framework, Section, MeasureTemplate, MeasurePriority
-from nodes.units import unit_registry
+from __future__ import annotations
 
+import json
+
+from django.core.management.base import BaseCommand, CommandParser
+
+from frameworks.models import Framework, MeasurePriority, MeasureTemplate, Section
+from nodes.units import unit_registry
 
 UNIT_CONVERSION_MAP = {
     'Capita': 'cap',
@@ -33,7 +36,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         # Load JSON data
-        with open(options['file'], 'r') as file:
+        with open(options['file']) as file:
             data = json.load(file)
 
         # Create or get the Framework
@@ -48,16 +51,12 @@ class Command(BaseCommand):
         fw.root_section = root_section
         fw.save()
 
-        dc_section = root_section.add_child(instance=Section(
-            framework=fw,
-            name='%s Data Collection' % name,
-            identifier='data_collection'
-        ))
-        fa_section = root_section.add_child(instance=Section(
-            framework=fw,
-            name='%s Future Assumptions' % name,
-            identifier='future_assumptions'
-        ))
+        dc_section = root_section.add_child(
+            instance=Section(framework=fw, name='%s Data Collection' % name, identifier='data_collection')
+        )
+        fa_section = root_section.add_child(
+            instance=Section(framework=fw, name='%s Future Assumptions' % name, identifier='future_assumptions')
+        )
         # Process the data
         self.process_items(data['dataCollection']['items'], dc_section)
         self.process_items(data['futureAssumptions']['items'], fa_section)
@@ -101,11 +100,13 @@ class Command(BaseCommand):
                     section = parent
                 else:
                     # Create a Section
-                    section = parent.add_child(instance=Section(
-                        framework=parent.framework,
-                        name=item['label'],
-                        available_years=None,
-                    ))
+                    section = parent.add_child(
+                        instance=Section(
+                            framework=parent.framework,
+                            name=item['label'],
+                            available_years=None,
+                        )
+                    )
                 if 'items' in item:
                     self.process_items(item['items'], section)
             else:
@@ -114,7 +115,6 @@ class Command(BaseCommand):
     def get_priority(self, priority_str):
         if priority_str == 'HIGH':
             return MeasurePriority.HIGH
-        elif priority_str == 'LOW':
+        if priority_str == 'LOW':
             return MeasurePriority.LOW
-        else:
-            return MeasurePriority.MEDIUM
+        return MeasurePriority.MEDIUM

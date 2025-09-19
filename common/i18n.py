@@ -38,6 +38,7 @@ except ImproperlyConfigured:
 local = threading.local()
 local.default_language = DEFAULT_LANGUAGE
 
+
 @contextmanager
 def set_default_language(lang: str):
     old = getattr(local, 'default_language', DEFAULT_LANGUAGE)
@@ -46,6 +47,7 @@ def set_default_language(lang: str):
         yield
     finally:
         local.default_language = old
+
 
 def get_default_language() -> str | None:
     return getattr(local, 'default_language', DEFAULT_LANGUAGE)
@@ -86,7 +88,7 @@ class TranslatedString:
             lang, _ = dl.split('-')
             if lang in self.i18n:
                 return self.i18n[lang]
-        raise Exception("Default translation not available for: %s" % self.default_language)
+        raise Exception('Default translation not available for: %s' % self.default_language)
 
     def all(self) -> list[str]:
         unique_vals = set(self.i18n.values())
@@ -140,10 +142,13 @@ class TranslatedString:
 
     @classmethod
     def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: GetCoreSchemaHandler,
+        cls,
+        source_type: Any,
+        handler: GetCoreSchemaHandler,
     ) -> CoreSchema:
         def validate(v) -> TranslatedString:
             return cls.validate(v)
+
         from_str_schema = core_schema.chain_schema(
             [
                 core_schema.str_schema(),
@@ -152,10 +157,12 @@ class TranslatedString:
         )
         return core_schema.json_or_python_schema(
             json_schema=from_str_schema,
-            python_schema=core_schema.union_schema([
-                core_schema.is_instance_schema(cls),
-                from_str_schema,
-            ]),
+            python_schema=core_schema.union_schema(
+                [
+                    core_schema.is_instance_schema(cls),
+                    from_str_schema,
+                ]
+            ),
             serialization=core_schema.plain_serializer_function_ser_schema(
                 lambda instance: str(instance),
             ),
@@ -163,16 +170,16 @@ class TranslatedString:
 
 
 def get_modeltrans_attrs_from_str(
-    s: str | TranslatedString, field_name: str, default_lang: str,
+    s: str | TranslatedString,
+    field_name: str,
+    default_lang: str,
 ) -> tuple[str, dict[str, str]]:
     i18n = {}
     default_lang = convert_language_code(default_lang, 'kausal')
 
     if isinstance(s, TranslatedString):
         translations = {
-            f'{field_name}_{convert_language_code(lang, "modeltrans")}': v
-            for lang, v in s.i18n.items()
-            if lang != default_lang
+            f'{field_name}_{convert_language_code(lang, "modeltrans")}': v for lang, v in s.i18n.items() if lang != default_lang
         }
         i18n.update(translations)
 
@@ -195,7 +202,9 @@ def get_modeltrans_attrs_from_str(
 
 
 def get_translated_string_from_modeltrans(
-    obj: Model, field_name: str, primary_language: str,
+    obj: Model,
+    field_name: str,
+    primary_language: str,
 ) -> TranslatedString:
     val = getattr(obj, field_name)
     langs = {}
@@ -231,7 +240,7 @@ def validate_translated_string(cls: type[BaseModel], field_name: str, obj: dict)
         return TranslatedString(**field_val)
     else:
         if default_language is None:
-            raise Exception("default_language is None")
+            raise Exception('default_language is None')
         assert default_language is not None
         if field_val is not None:
             raise TypeError('%s: Invalid type: %s' % (field_name, type(field_val)))

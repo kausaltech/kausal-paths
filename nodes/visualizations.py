@@ -135,6 +135,7 @@ class VisualizationNodeOutput(VisualizationEntry):
 
     def get_metric_data(self, node: Node) -> DimensionalMetric | None:
         from nodes.metric import DimensionalMetric
+
         assert node.id == self.node_id
         metric = DimensionalMetric.from_visualization(node, self)
         if metric is None:

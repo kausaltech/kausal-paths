@@ -45,18 +45,18 @@ class PathsExt:
         dim_ids = sorted(meta.dim_ids)
         metric_cols = list(meta.units.keys())
         if not metric_cols:
-            raise Exception("No metric columns in DF")
+            raise Exception('No metric columns in DF')
 
         if only_category_names and len(metric_cols) > 1:
-            raise Exception("When only_category_names=True, only one metric supported")
+            raise Exception('When only_category_names=True, only one metric supported')
 
         if only_category_names and len(dim_ids) != 1:
-            raise Exception("When only_category_names=True, must have exactly one dimension")
+            raise Exception('When only_category_names=True, must have exactly one dimension')
 
         dim_casts = []
         for col in dim_ids + metric_cols:
             if col not in df.columns:
-                raise Exception("Column %s from metadata is not present in DF" % col)
+                raise Exception('Column %s from metadata is not present in DF' % col)
             if col in dim_ids and df.schema[col] == pl.Categorical:
                 dim_casts.append(pl.col(col).cast(pl.Utf8))
         if dim_casts:
@@ -73,7 +73,7 @@ class PathsExt:
         dup = df.select(dim_cols).is_duplicated()
         if any(dup):
             print(df.filter(dup))
-            raise ValueError("Dataframe has duplicate rows.")
+            raise ValueError('Dataframe has duplicate rows.')
 
         def format_col(dim: str) -> pl.Expr:
             if only_category_names:
@@ -85,11 +85,11 @@ class PathsExt:
                 return '%s' % col
             return '%s@%s' % (metric_col, col)
 
-        df = df.with_columns([
-            pl.concat_list([
-                format_col(dim) for dim in dim_ids
-            ]).list.join('/').alias('_dims'),
-        ])
+        df = df.with_columns(
+            [
+                pl.concat_list([format_col(dim) for dim in dim_ids]).list.join('/').alias('_dims'),
+            ]
+        )
         mdf = None
         units = {}
         index_cols = [YEAR_COLUMN]
@@ -114,14 +114,10 @@ class PathsExt:
             else:
                 if FORECAST_COLUMN in index_cols:
                     tdf = tdf.drop(FORECAST_COLUMN)
-                mdf = mdf.join(tdf, on=YEAR_COLUMN) # type: ignore
+                mdf = mdf.join(tdf, on=YEAR_COLUMN)  # type: ignore
         assert mdf is not None
         mdf = mdf.sort(YEAR_COLUMN)
-        meta2 = ppl.DataFrameMeta(
-            units=units,
-            primary_keys=[YEAR_COLUMN],
-            explanation=explanation
-        )
+        meta2 = ppl.DataFrameMeta(units=units, primary_keys=[YEAR_COLUMN], explanation=explanation)
         return ppl.PathsDataFrame._from_pydf(
             mdf._df,
             meta=meta2,
@@ -174,12 +170,20 @@ class PathsExt:
         meta.units = units
         meta.primary_keys = primary_keys
 
-        tdf = df.melt(id_vars=id_cols).with_columns([
-            pl.col('variable').str.split('@').alias('_tmp'),
-        ]).with_columns([
-            pl.col('_tmp').list.first().alias('Metric'),
-            pl.col('_tmp').list.last().str.split('/').alias('_dims'),
-        ])
+        tdf = (
+            df.melt(id_vars=id_cols)
+            .with_columns(
+                [
+                    pl.col('variable').str.split('@').alias('_tmp'),
+                ]
+            )
+            .with_columns(
+                [
+                    pl.col('_tmp').list.first().alias('Metric'),
+                    pl.col('_tmp').list.last().str.split('/').alias('_dims'),
+                ]
+            )
+        )
         df = ppl.to_ppdf(tdf)
         first = df['_dims'][0]
         dim_ids = [x.split(':')[0] for x in first]
@@ -199,7 +203,7 @@ class PathsExt:
             df = pdf
         y = df[YEAR_COLUMN]
         if y.n_unique() != len(y):
-            raise Exception("DataFrame has duplicated years")
+            raise Exception('DataFrame has duplicated years')
 
         if FORECAST_COLUMN not in df.columns:
             last_hist_year = y.max()
@@ -213,10 +217,14 @@ class PathsExt:
         years = pl.DataFrame(data=range(last_hist_year + 1, end_year + 1), schema=[YEAR_COLUMN])
         if len(years):
             df2 = df.join(years, on=YEAR_COLUMN, how='outer', coalesce=True).sort(YEAR_COLUMN)
-            df2 = df2.with_columns([
-                pl.when(pl.col(YEAR_COLUMN) > last_hist_year).then(pl.lit(value=True))\
-                    .otherwise(pl.col(FORECAST_COLUMN)).alias(FORECAST_COLUMN),
-            ])
+            df2 = df2.with_columns(
+                [
+                    pl.when(pl.col(YEAR_COLUMN) > last_hist_year)
+                    .then(pl.lit(value=True))
+                    .otherwise(pl.col(FORECAST_COLUMN))
+                    .alias(FORECAST_COLUMN),
+                ]
+            )
         return ppl.to_ppdf(df2, meta=meta)
 
     def nafill_pad(self) -> ppl.PathsDataFrame:
@@ -229,7 +237,7 @@ class PathsExt:
         df = self._df
         y = df[YEAR_COLUMN]
         if y.n_unique() != len(y):
-            raise Exception("DataFrame has duplicated years")
+            raise Exception('DataFrame has duplicated years')
 
         meta = df.get_meta()
         zdf = df.fill_null(strategy='forward')
@@ -246,7 +254,7 @@ class PathsExt:
         if dims is None:
             dims = meta.dim_ids
         elif isinstance(dims, str):
-            dims =  [dims]
+            dims = [dims]
         remaining_keys = list(meta.primary_keys)
         for dim in dims:
             remaining_keys.remove(dim)
@@ -259,10 +267,16 @@ class PathsExt:
             if dt.is_numeric():
                 sum_cols.append(col)
 
-        zdf = df.group_by(remaining_keys).agg([
-            *[pl.sum(col).alias(col) for col in sum_cols],
-            *fc,
-        ]).sort(remaining_keys)
+        zdf = (
+            df.group_by(remaining_keys)
+            .agg(
+                [
+                    *[pl.sum(col).alias(col) for col in sum_cols],
+                    *fc,
+                ]
+            )
+            .sort(remaining_keys)
+        )
         return ppl.to_ppdf(zdf, meta=meta)
 
     def join_over_index(  # noqa: C901, PLR0912
@@ -278,9 +292,9 @@ class PathsExt:
         join_on = list(set(sm.primary_keys) & set(om.primary_keys))
         if not len(join_on):  # noqa: PLC1802
             if len(other) == 1:  # A single value copied to all rows
-                #df = sdf.with_columns(other).paths._df
-                raise Exception("invalid access")
-            raise ValueError("No shared primary keys between joined DFs")
+                # df = sdf.with_columns(other).paths._df
+                raise Exception('invalid access')
+            raise ValueError('No shared primary keys between joined DFs')
 
         for col in join_on:
             sdt = sdf[col].dtype
@@ -293,9 +307,11 @@ class PathsExt:
         fc_right = '%s_right' % FORECAST_COLUMN
         meta = sm.copy()
         if FORECAST_COLUMN in df.columns and fc_right in df.columns:
-            df = df.with_columns([
-                pl.col(FORECAST_COLUMN).fill_null(value=False) | pl.col(fc_right).fill_null(value=False),
-            ])
+            df = df.with_columns(
+                [
+                    pl.col(FORECAST_COLUMN).fill_null(value=False) | pl.col(fc_right).fill_null(value=False),
+                ]
+            )
             df = df.drop(fc_right)
         for col in om.metric_cols:
             col_right = '%s_right' % col
@@ -316,19 +332,14 @@ class PathsExt:
         out = ppl.to_ppdf(df, meta=meta)
         if out.paths.index_has_duplicates():
             print(out)
-            raise ValueError("Resulting DF has duplicated rows")
+            raise ValueError('Resulting DF has duplicated rows')
         return out
 
     def duplicated_index_rows(self) -> pl.DataFrame:
         df = self._df
         assert df._primary_keys
         ldf = df.lazy()
-        dupes = (
-            ldf.group_by(df._primary_keys)
-            .agg(pl.count())
-            .filter(pl.col('count') > 1)
-            .collect()
-        )
+        dupes = ldf.group_by(df._primary_keys).agg(pl.count()).filter(pl.col('count') > 1).collect()
         return dupes
 
     def index_has_duplicates(self) -> bool:
@@ -349,49 +360,35 @@ class PathsExt:
             df = df.with_columns(cast_exprs)
         return df
 
-    def add_with_dims(
-            self,
-            odf: ppl.PathsDataFrame,
-            how: Literal['left', 'inner', 'outer'] = 'outer'
-        ) -> ppl.PathsDataFrame:
+    def add_with_dims(self, odf: ppl.PathsDataFrame, how: Literal['left', 'inner', 'outer'] = 'outer') -> ppl.PathsDataFrame:
         """Add two PathsDataFrames with dimension awareness."""
         df = self._df
         if len(df.metric_cols) != 1 or len(odf.metric_cols) != 1:
-            raise Exception("Currently adding only one metric column is supported.")
+            raise Exception('Currently adding only one metric column is supported.')
         val_col = df.metric_cols[0]
 
         if set(df.dim_ids) != set(odf.dim_ids):
-            raise ValueError(f"Dimensions must match for addition: {df.dim_ids} vs {odf.dim_ids}.")
+            raise ValueError(f'Dimensions must match for addition: {df.dim_ids} vs {odf.dim_ids}.')
 
         # Ensure same unit for addition
         output_unit = df.get_unit(val_col)
         odf = odf.ensure_unit(val_col, output_unit)
 
         # For addition: how='outer', index_from='left' because we want all rows but not new dimensions
-        jdf = df.paths.join_over_index(
-            odf,
-            how=how,
-            index_from='left'
-        )
+        jdf = df.paths.join_over_index(odf, how=how, index_from='left')
 
-        jdf = jdf.with_columns([
-            (pl.col(val_col).fill_null(0.0) + pl.col(f"{val_col}_right").fill_null(0.0)).alias(val_col)
-        ])
+        jdf = jdf.with_columns([(pl.col(val_col).fill_null(0.0) + pl.col(f'{val_col}_right').fill_null(0.0)).alias(val_col)])
 
         cols = [YEAR_COLUMN, FORECAST_COLUMN, val_col] + df.dim_ids
         jdf = jdf.select([col for col in cols if col in jdf.columns])
 
         return jdf
 
-    def multiply_with_dims(
-            self,
-            odf: ppl.PathsDataFrame,
-            how: Literal['left', 'inner', 'outer'] = 'inner'
-        ) -> ppl.PathsDataFrame:
+    def multiply_with_dims(self, odf: ppl.PathsDataFrame, how: Literal['left', 'inner', 'outer'] = 'inner') -> ppl.PathsDataFrame:
         """Multiply two PathsDataFrames, handling dimensions and units properly."""
         df = self._df
         if len(df.metric_cols) != 1 or len(odf.metric_cols) != 1:
-            raise Exception("Currently multiplying only one metric column is supported.")
+            raise Exception('Currently multiplying only one metric column is supported.')
         val_col = df.metric_cols[0]
 
         left_unit = df.get_unit(val_col)
@@ -401,15 +398,13 @@ class PathsExt:
         all_dims = list(set(df.dim_ids) | set(odf.dim_ids)) + [YEAR_COLUMN]
 
         # For multiplication: how='inner', index_from='union' to ensure both factors and include all dimensions
-        jdf = df.paths.join_over_index(
-            odf,
-            how=how,
-            index_from='union'
-        )
+        jdf = df.paths.join_over_index(odf, how=how, index_from='union')
 
-        jdf = jdf.with_columns([
-            (pl.col(val_col) * pl.col(f"{val_col}_right")).alias(val_col) # null factor must give null
-        ])
+        jdf = jdf.with_columns(
+            [
+                (pl.col(val_col) * pl.col(f'{val_col}_right')).alias(val_col)  # null factor must give null
+            ]
+        )
 
         new_units = meta.units.copy()
         new_units[val_col] = output_unit
@@ -423,7 +418,7 @@ class PathsExt:
     def add_df(self, odf: ppl.PathsDataFrame, how: Literal['left', 'outer'] = 'left') -> ppl.PathsDataFrame:
         df = self._df
         if len(self._df.metric_cols) != 1 or len(odf.metric_cols) != 1:
-            raise Exception("Currently adding only one metric column is supported")
+            raise Exception('Currently adding only one metric column is supported')
         out_col = df.metric_cols[0]
         input_col = odf.metric_cols[0]
         odf = odf.ensure_unit(input_col, df.get_unit(out_col)).rename({input_col: '_Right'})
@@ -437,7 +432,7 @@ class PathsExt:
         df_cols = set(df.columns)
         other_cols = set(other.columns)
         if df_cols != other_cols:
-            raise Exception("Mismatching columns: %s vs. %s" % (df_cols, other_cols))
+            raise Exception('Mismatching columns: %s vs. %s' % (df_cols, other_cols))
         cast_exprs = []
         for col in df_cols:
             if df.schema[col] != other.schema[col]:
@@ -456,7 +451,7 @@ class PathsExt:
         df = ppl.to_ppdf(zdf, meta=meta)
 
         if df.paths.index_has_duplicates():
-            raise Exception("Concatenation resulted in duplicated index rows")
+            raise Exception('Concatenation resulted in duplicated index rows')
 
         return df
 

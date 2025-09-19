@@ -33,6 +33,7 @@ DEBUG_CACHE_MISSES: bool = os.environ.get('DEBUG_CACHE_MISSES', '0') == '1'
 
 class_fname_cache: dict[type, str] = {}
 
+
 @dataclass(slots=True)
 class HashingState:
     """
@@ -61,6 +62,7 @@ class HashingState:
     Tracks which datasets each node uses so that cache prefetching can be
     optimized and dataset changes can trigger appropriate cache invalidation.
     """
+
 
 type NodeHasherFuncT[**P, R] = Callable[Concatenate[NodeHasher, P], R]
 
@@ -113,6 +115,7 @@ class NodeHasher:
             The wrapped function that catches exceptions and converts them to NodeHashingError
 
         """
+
         @wraps(func)
         def report_error(*args, **kwargs) -> Any:
             _rich_traceback_omit = True
@@ -123,7 +126,8 @@ class NodeHasher:
                 if isinstance(e, NodeHashingError):
                     e.add_node(node)
                     raise
-                raise NodeHashingError(args[0], "Unable to hash node") from e
+                raise NodeHashingError(args[0], 'Unable to hash node') from e
+
         return cast('NodeHasherFuncT[P, R]', report_error)
 
     def _get_cached_hash(self) -> bytes | None:
@@ -205,7 +209,7 @@ class NodeHasher:
             if isinstance(e, NodeHashingError):
                 e.add_node(self.node)
                 raise
-            raise NodeHashingError(self.node, "Unable to hash node") from e
+            raise NodeHashingError(self.node, 'Unable to hash node') from e
         return ret
 
     def is_run_cached(self) -> bool:
@@ -295,7 +299,7 @@ class NodeHasher:
                 else:
                     cache_parts.append((typ, part, base64.b64encode(val).decode('ascii')))
             except Exception:
-                self.node.logger.error("Unable to hash node: %s %s (value %r)" % (typ, part, val))
+                self.node.logger.error('Unable to hash node: %s %s (value %r)' % (typ, part, val))
                 raise
             h.update(val)
 
@@ -427,7 +431,6 @@ class NodeHasher:
             all_dataset_keys.update(dataset_keys)
         cache.prefetch_keys(keys=all_dataset_keys)
 
-
     def get_cached_output(self) -> CacheResult[PathsDataFrame]:
         """
         Retrieve cached output for this node if available.
@@ -449,7 +452,7 @@ class NodeHasher:
         if not cache_res.is_hit:
             self._prefetch_from_state(context=self.node.context, state=state)
             if DEBUG_CACHE_MISSES:
-                self.node.logger.debug("Cache miss for node %s" % self.node.id)
+                self.node.logger.debug('Cache miss for node %s' % self.node.id)
 
         out = cache_res.obj
 

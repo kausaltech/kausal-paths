@@ -67,12 +67,8 @@ HEAT_CONSUMPTION = 'heat_consumption'
 
 
 class BuildingStock(AdditiveNode):
-    output_metrics = {
-        FLOOR_AREA: NodeMetric(unit='m**2', quantity='floor_area')
-    }
-    input_datasets = [
-        'helsinki/aluesarjat/02um_rakennukset_lammitys'
-    ]
+    output_metrics = {FLOOR_AREA: NodeMetric(unit='m**2', quantity='floor_area')}
+    input_datasets = ['helsinki/aluesarjat/02um_rakennukset_lammitys']
     output_dimension_ids = [
         'building_heat_source',
         'building_use',
@@ -89,20 +85,16 @@ class BuildingStock(AdditiveNode):
         if 'Alue' in df.columns:
             df = df.loc[df.Alue == muni]
         df = df.loc[
-            (df.Tiedot == 'Kerrosala (m2)') &
-            (df['Rakennuksen käyttötarkoitus'] != 'Asuinrakennukset yhteensä') &
-            (df['Rakennuksen käyttötarkoitus'] != 'Rakennukset yhteensä') &
-            (df['Rakennuksen lämmitysaine'] != 'Yhteensä')
+            (df.Tiedot == 'Kerrosala (m2)')
+            & (df['Rakennuksen käyttötarkoitus'] != 'Asuinrakennukset yhteensä')
+            & (df['Rakennuksen käyttötarkoitus'] != 'Rakennukset yhteensä')
+            & (df['Rakennuksen lämmitysaine'] != 'Yhteensä')
         ]
 
         hs_dim = self.output_dimensions['building_heat_source']
-        df[hs_dim.id] = hs_dim.series_to_ids(
-            df['Rakennuksen lämmitysaine'].map(HEAT_SOURCE_MAP)
-        )
+        df[hs_dim.id] = hs_dim.series_to_ids(df['Rakennuksen lämmitysaine'].map(HEAT_SOURCE_MAP))
         use_dim = self.output_dimensions['building_use']
-        df[use_dim.id] = use_dim.series_to_ids(
-            df['Rakennuksen käyttötarkoitus'].map(BUILDING_USE_MAP)
-        )
+        df[use_dim.id] = use_dim.series_to_ids(df['Rakennuksen käyttötarkoitus'].map(BUILDING_USE_MAP))
 
         df[YEAR_COLUMN] = df['Vuosi'].astype(int)
         m = self.output_metrics[FLOOR_AREA]
@@ -127,9 +119,7 @@ class FutureBuildingStock(SimpleNode):
     (unless floor area decreases) and assume the same ratio will hold in the future.
     """
 
-    output_metrics = {
-        FLOOR_AREA: NodeMetric(unit='m**2', quantity='floor_area')
-    }
+    output_metrics = {FLOOR_AREA: NodeMetric(unit='m**2', quantity='floor_area')}
     input_dimension_ids = [
         'building_heat_source',
         'building_use',
@@ -162,7 +152,7 @@ class FutureBuildingStock(SimpleNode):
         pop = df.pop('PopDiff').astype(pop_dt)
         pc_dt = pint_pandas.PintType(area_dt.units / pop_dt.units)
         for col in list(df.columns):
-            df[col] = (df[col].astype(area_dt) / pop)
+            df[col] = df[col].astype(area_dt) / pop
 
         total_sum = df.sum(axis=1).astype(pc_dt)
         # Remove the building types that have been decreasing
@@ -174,7 +164,7 @@ class FutureBuildingStock(SimpleNode):
         area_per_new_cap_df = df.mul(total_sum, axis=0)
 
         # Now look into the future
-        pop_diff = pop_df.loc[pop_df.index >= last_hist_year, VALUE_COLUMN].diff().dropna() # type: ignore
+        pop_diff = pop_df.loc[pop_df.index >= last_hist_year, VALUE_COLUMN].diff().dropna()  # type: ignore
         df = area_per_new_cap_df
         future_index = pd.RangeIndex(last_hist_year + 1, self.context.model_end_year + 1, name=YEAR_COLUMN)
         df = df.reindex(df.index.append(future_index))
@@ -197,9 +187,7 @@ class FutureBuildingStock(SimpleNode):
 
 
 class BuildingHeatPerArea(DivisiveNode):
-    output_metrics = {
-        HEAT_CONSUMPTION: NodeMetric(unit='kWh/a/m**2', quantity=CONSUMPTION_FACTOR_QUANTITY)
-    }
+    output_metrics = {HEAT_CONSUMPTION: NodeMetric(unit='kWh/a/m**2', quantity=CONSUMPTION_FACTOR_QUANTITY)}
     output_dimension_ids = [
         'building_heat_source',
         'building_use',
@@ -217,7 +205,7 @@ class BuildingHeatPerArea(DivisiveNode):
             non_additive_node = ''
         for node in self.input_nodes:
             if node.unit is None:
-                raise NodeError(self, "Input node %s does not have a unit" % str(node))
+                raise NodeError(self, 'Input node %s does not have a unit' % str(node))
             if node.id == non_additive_node:
                 operation_nodes.append(node)
             elif self.is_compatible_unit(node.unit, self.unit):
@@ -226,7 +214,7 @@ class BuildingHeatPerArea(DivisiveNode):
                 operation_nodes.append(node)
 
         if len(operation_nodes) != 2:
-            raise NodeError(self, "Must receive exactly two inputs to operate %s on" % self.operation_label)
+            raise NodeError(self, 'Must receive exactly two inputs to operate %s on' % self.operation_label)
 
         n1, n2 = operation_nodes
         df1 = n1.get_output_pl(target_node=self)
@@ -258,7 +246,7 @@ class BuildingHeatPerArea(DivisiveNode):
 
         return df
 
-    def compute_old(self) -> ppl.PathsDataFrame: # FIXME Not used. Remove
+    def compute_old(self) -> ppl.PathsDataFrame:  # FIXME Not used. Remove
         df = super().compute()
         df = df.with_columns(pl.col(VALUE_COLUMN).fill_nan(None)).drop_nulls()
         df = df.filter(~pl.col(FORECAST_COLUMN))  # FIXME forgets added nodes

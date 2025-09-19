@@ -13,7 +13,6 @@ from paths.context import realm_context
 
 
 class PersonChooserMixin(BasePersonChooserMixin):
-
     def get_object_list(self, search_term=None, **kwargs):
         admin_instance = realm_context.get().realm
         object_list = self.get_unfiltered_object_list().available_for_instance(admin_instance)
@@ -26,6 +25,7 @@ class PersonChooserMixin(BasePersonChooserMixin):
             object_list = search_backend.autocomplete(search_term, object_list)
 
         return object_list
+
 
 class PersonModelChooserCreateTabMixin(BasePersonModelChooserCreateTabMixin):
     def get_initial(self):

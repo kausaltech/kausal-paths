@@ -27,7 +27,8 @@ class AttributableFractionRR(DatasetNode):
         AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result
         is smaller than 0, we should use r instead. It can be converted from the result:
         r/(r+1)=s <=> r=s/(1-s)
-        """)
+        """
+    )
 
     def compute(self):
         df = self.get_gpc_dataset()
@@ -65,13 +66,14 @@ class AttributableFractionRR(DatasetNode):
 
         frexposed = 1  # FIXME Make an input node
 
-        r = dfn.with_columns([
-            (pl.lit(frexposed) * (pl.col(VALUE_COLUMN) - pl.lit(1.0))).alias(VALUE_COLUMN)])
-        r = r.with_columns([
-            (pl.col(VALUE_COLUMN) / (pl.col(VALUE_COLUMN) + pl.lit(1.0))).alias(VALUE_COLUMN)])
+        r = dfn.with_columns([(pl.lit(frexposed) * (pl.col(VALUE_COLUMN) - pl.lit(1.0))).alias(VALUE_COLUMN)])
+        r = r.with_columns([(pl.col(VALUE_COLUMN) / (pl.col(VALUE_COLUMN) + pl.lit(1.0))).alias(VALUE_COLUMN)])
         r = r.with_columns(
-            pl.when(pl.col(VALUE_COLUMN).ge(pl.lit(0.0))).then(pl.col(VALUE_COLUMN))
-            .otherwise(pl.col(VALUE_COLUMN) / (pl.lit(1.0) - pl.col(VALUE_COLUMN))).alias(VALUE_COLUMN))
+            pl.when(pl.col(VALUE_COLUMN).ge(pl.lit(0.0)))
+            .then(pl.col(VALUE_COLUMN))
+            .otherwise(pl.col(VALUE_COLUMN) / (pl.lit(1.0) - pl.col(VALUE_COLUMN)))
+            .alias(VALUE_COLUMN)
+        )
 
         return r
 
@@ -80,79 +82,79 @@ class AttributableFractionRR(DatasetNode):
 
 # Outdated treatment of exposure-response functions. Use as inspiration.
 
-            # if erf_type == 'unit risk':
-            #     slope = check_erf_units(route + '_m1')
-            #     threshold = check_erf_units(route + '_p1')
-            #     target_population = unit_registry('1 person')
-            #     out = (exposure - threshold) * slope * frexposed * p_illness
-            #     out = (out / target_population / period) / incidence
+# if erf_type == 'unit risk':
+#     slope = check_erf_units(route + '_m1')
+#     threshold = check_erf_units(route + '_p1')
+#     target_population = unit_registry('1 person')
+#     out = (exposure - threshold) * slope * frexposed * p_illness
+#     out = (out / target_population / period) / incidence
 
-            # elif erf_type == 'step function':
-            #     lower = check_erf_units(route + '_p1')
-            #     upper = check_erf_units(route + '_p1_2')
-            #     target_population = unit_registry('1 person')
-            #     out = (exposure >= lower) * 1
-            #     out = (out * (exposure <= upper) * -1 + 1) * frexposed * p_illness
-            #     out = (out / target_population / period) / incidence
+# elif erf_type == 'step function':
+#     lower = check_erf_units(route + '_p1')
+#     upper = check_erf_units(route + '_p1_2')
+#     target_population = unit_registry('1 person')
+#     out = (exposure >= lower) * 1
+#     out = (out * (exposure <= upper) * -1 + 1) * frexposed * p_illness
+#     out = (out / target_population / period) / incidence
 
-            # elif erf_type == 'relative risk':
-            #     beta = check_erf_units(route + '_m1')
-            #     threshold = check_erf_units(route + '_p1')
-            #     out = exposure - threshold
-            #     # out[VALUE_COLUMN] = np.where(  # FIXME
-            #     #     out[VALUE_COLUMN] < unit_registry('0 mg/kg/d'),
-            #     #     out[VALUE_COLUMN] * 0,
-            #     #     out[VALUE_COLUMN])
-            #     out = (out * beta).exp()
-            #     out = postprocess_relative(rr=out, frexposed=frexposed)
+# elif erf_type == 'relative risk':
+#     beta = check_erf_units(route + '_m1')
+#     threshold = check_erf_units(route + '_p1')
+#     out = exposure - threshold
+#     # out[VALUE_COLUMN] = np.where(  # FIXME
+#     #     out[VALUE_COLUMN] < unit_registry('0 mg/kg/d'),
+#     #     out[VALUE_COLUMN] * 0,
+#     #     out[VALUE_COLUMN])
+#     out = (out * beta).exp()
+#     out = postprocess_relative(rr=out, frexposed=frexposed)
 
-            # elif erf_type == 'linear relative':
-            #     k = check_erf_units(route + '_m1')
-            #     threshold = check_erf_units(route + '_p1')
-            #     out = exposure - threshold
-            #     # out[VALUE_COLUMN] = np.where(  # FIXME
-            #     #     out[VALUE_COLUMN] < unit_registry('0 mg/kg/d'),
-            #     #     out[VALUE_COLUMN] * 0,
-            #     #     out[VALUE_COLUMN])
-            #     out = out * k
-            #     out = postprocess_relative(rr=out + 1, frexposed=frexposed)
+# elif erf_type == 'linear relative':
+#     k = check_erf_units(route + '_m1')
+#     threshold = check_erf_units(route + '_p1')
+#     out = exposure - threshold
+#     # out[VALUE_COLUMN] = np.where(  # FIXME
+#     #     out[VALUE_COLUMN] < unit_registry('0 mg/kg/d'),
+#     #     out[VALUE_COLUMN] * 0,
+#     #     out[VALUE_COLUMN])
+#     out = out * k
+#     out = postprocess_relative(rr=out + 1, frexposed=frexposed)
 
-            # elif erf_type == 'relative Hill':
-            #     Imax = check_erf_units(route + '_p0')
-            #     ed50 = check_erf_units(route + '_p1')
-            #     out = (exposure * Imax) / (exposure + ed50) + 1
-            #     out = postprocess_relative(rr=out, frexposed=frexposed)
+# elif erf_type == 'relative Hill':
+#     Imax = check_erf_units(route + '_p0')
+#     ed50 = check_erf_units(route + '_p1')
+#     out = (exposure * Imax) / (exposure + ed50) + 1
+#     out = postprocess_relative(rr=out, frexposed=frexposed)
 
-            # elif erf_type == 'beta poisson approximation':
-            #     p1 = check_erf_units(route + '_p0')
-            #     p2 = check_erf_units(route + '_p1')
-            #     out = (exposure / p2 + 1) ** (p1 * -1) * -1 + 1
-            #     out = out * frexposed * p_illness
+# elif erf_type == 'beta poisson approximation':
+#     p1 = check_erf_units(route + '_p0')
+#     p2 = check_erf_units(route + '_p1')
+#     out = (exposure / p2 + 1) ** (p1 * -1) * -1 + 1
+#     out = out * frexposed * p_illness
 
-            # elif erf_type == 'exact beta poisson':
-            #     p1 = check_erf_units(route + '_p0_2')
-            #     p2 = check_erf_units(route + '_p0')
-            #     # Remove unit: exposure is an absolute number of microbes ingested
-            #     s = exposure[VALUE_COLUMN].pint.to('cfu/d')
-            #     s = s / unit_registry('cfu/d')
-            #     exposure[VALUE_COLUMN] = s
-            #     out = (exposure * p1 / (p1 + p2) * -1).exp() * -1 + 1
-            #     out = out * frexposed * p_illness
+# elif erf_type == 'exact beta poisson':
+#     p1 = check_erf_units(route + '_p0_2')
+#     p2 = check_erf_units(route + '_p0')
+#     # Remove unit: exposure is an absolute number of microbes ingested
+#     s = exposure[VALUE_COLUMN].pint.to('cfu/d')
+#     s = s / unit_registry('cfu/d')
+#     exposure[VALUE_COLUMN] = s
+#     out = (exposure * p1 / (p1 + p2) * -1).exp() * -1 + 1
+#     out = out * frexposed * p_illness
 
-            # elif erf_type == 'exponential':
-            #     k = check_erf_units(route + '_m1')
-            #     out = (exposure * k * -1).exp() * -1 + 1
-            #     out = out * frexposed * p_illness
+# elif erf_type == 'exponential':
+#     k = check_erf_units(route + '_m1')
+#     out = (exposure * k * -1).exp() * -1 + 1
+#     out = out * frexposed * p_illness
 
-            # elif erf_type == 'polynomial':
-            #     threshold = check_erf_units(route + '_p1')
-            #     p0 = check_erf_units(route + '_p0')
-            #     p1 = check_erf_units(route + '_m1')
-            #     p2 = check_erf_units(route + '_m2')
-            #     p3 = check_erf_units(route + '_m3')
-            #     x = exposure - threshold
-            #     out = x ** 3 * p3 + x ** 2 * p2 + x * p1 + p0
-            #     out = out * frexposed * p_illness
+# elif erf_type == 'polynomial':
+#     threshold = check_erf_units(route + '_p1')
+#     p0 = check_erf_units(route + '_p0')
+#     p1 = check_erf_units(route + '_m1')
+#     p2 = check_erf_units(route + '_m2')
+#     p3 = check_erf_units(route + '_m3')
+#     x = exposure - threshold
+#     out = x ** 3 * p3 + x ** 2 * p2 + x * p1 + p0
+#     out = out * frexposed * p_illness
 
-            # else:
-            #     out = exposure / exposures
+# else:
+#     out = exposure / exposures

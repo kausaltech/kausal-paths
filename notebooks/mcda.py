@@ -28,15 +28,17 @@ def normalize_matrix(matrix, criteria_types):
             norm_matrix[:, j] = col / np.sqrt(np.sum(col**2))
 
         # If it's a cost criterion, invert the values
-        if criteria_types[j] == "cost":
+        if criteria_types[j] == 'cost':
             norm_matrix[:, j] = 1 - norm_matrix[:, j]
 
     return norm_matrix
+
 
 def compute_weighted_matrix(norm_matrix, weights):
     """Apply weights to the normalized matrix."""
     weighted_matrix = norm_matrix * weights
     return weighted_matrix
+
 
 def compute_concordance_matrix(weighted_matrix):
     """Compute the concordance matrix."""
@@ -49,6 +51,7 @@ def compute_concordance_matrix(weighted_matrix):
                 concordance_matrix[i, j] = np.sum(weighted_matrix[i] >= weighted_matrix[j])
 
     return concordance_matrix / weighted_matrix.shape[1]  # Normalize by number of criteria
+
 
 def compute_discordance_matrix(weighted_matrix):
     """Compute the discordance matrix."""
@@ -63,6 +66,7 @@ def compute_discordance_matrix(weighted_matrix):
 
     return discordance_matrix
 
+
 def electre_decision(concordance_matrix, discordance_matrix, c_threshold=0.5, d_threshold=0.5):
     """Determine the outranking relationships based on thresholds."""
     num_alternatives = concordance_matrix.shape[0]
@@ -74,6 +78,7 @@ def electre_decision(concordance_matrix, discordance_matrix, c_threshold=0.5, d_
                 outranking_matrix[i, j] = 1
 
     return outranking_matrix
+
 
 def constraint_function(D):  # noqa: N803
     """Constraints: Study budget limit and dependencies between decisions."""
@@ -102,15 +107,18 @@ def constraint_function(D):  # noqa: N803
 
     return [budget_constraint] + dependency_constraints + exclusivity_constraints + synergy_constraints
 
+
 # Define constraints
-constraints = ({'type': 'ineq', 'fun': constraint_function})
+constraints = {'type': 'ineq', 'fun': constraint_function}
 
 # Example Decision Matrix (Alternatives x Criteria)
-decision_matrix = np.array([
-    [50, 2000, 100000],  # Bus
-    [100, 500, 500000],  # Subway
-    [20, 50, 50000]      # Bikes
-])
+decision_matrix = np.array(
+    [
+        [50, 2000, 100000],  # Bus
+        [100, 500, 500000],  # Subway
+        [20, 50, 50000],  # Bikes
+    ]
+)
 
 # Criteria Weights
 weights = np.array([0.4, 0.3, 0.3])
@@ -129,11 +137,12 @@ discordance_matrix = compute_discordance_matrix(weighted_matrix)
 outranking_matrix = electre_decision(concordance_matrix, discordance_matrix)
 
 # Display Results
-print("Concordance Matrix:\n", concordance_matrix)
-print("Discordance Matrix:\n", discordance_matrix)
-print("Outranking Matrix:\n", outranking_matrix)
+print('Concordance Matrix:\n', concordance_matrix)
+print('Discordance Matrix:\n', discordance_matrix)
+print('Outranking Matrix:\n', outranking_matrix)
 
 # TOPSIS
+
 
 def determine_ideal_solutions(weighted_matrix):
     """Determine the ideal (best) and anti-ideal (worst) solutions."""
@@ -141,15 +150,18 @@ def determine_ideal_solutions(weighted_matrix):
     anti_ideal_solution = np.min(weighted_matrix, axis=0)
     return ideal_solution, anti_ideal_solution
 
+
 def compute_distances(weighted_matrix, ideal_solution, anti_ideal_solution):
     """Compute the Euclidean distance from each alternative to the ideal and anti-ideal solutions."""
     d_plus = np.sqrt(np.sum((weighted_matrix - ideal_solution) ** 2, axis=1))
     d_minus = np.sqrt(np.sum((weighted_matrix - anti_ideal_solution) ** 2, axis=1))
     return d_plus, d_minus
 
+
 def compute_relative_closeness(d_plus, d_minus):
     """Compute the relative closeness to the ideal solution."""
     return d_minus / (d_plus + d_minus)
+
 
 # Normalize and Weight
 decision_matrix_norm = normalize_matrix(decision_matrix, criteria_types)
@@ -168,12 +180,12 @@ relative_closeness = compute_relative_closeness(d_plus, d_minus)
 ranking = np.argsort(relative_closeness)[::-1]  # Sort descending
 
 # Display Results
-print("Ideal Solution:", ideal_solution)
-print("Anti-Ideal Solution:", anti_ideal_solution)
-print("Distances to Ideal:", d_plus)
-print("Distances to Anti-Ideal:", d_minus)
-print("Relative Closeness Scores:", relative_closeness)
-print("Ranking of Alternatives:", ranking + 1)  # Adding 1 to match human indexing
+print('Ideal Solution:', ideal_solution)
+print('Anti-Ideal Solution:', anti_ideal_solution)
+print('Distances to Ideal:', d_plus)
+print('Distances to Anti-Ideal:', d_minus)
+print('Relative Closeness Scores:', relative_closeness)
+print('Ranking of Alternatives:', ranking + 1)  # Adding 1 to match human indexing
 
 # Find interactions between actions
 
@@ -181,11 +193,16 @@ print("Ranking of Alternatives:", ranking + 1)  # Adding 1 to match human indexi
 # Define an example objective function F(D)
 def objective_function(D):  # noqa: N803
     """Complex model where F(D) naturally includes interactions."""
-    D = np.array(D)  # noqa: N806
-    return -(100 * D[0] + 150 * D[1] + 120 * D[2]  # Base contributions
-             + 50 * D[0] * D[1]  # Synergy between D0 & D1
-             - 40 * D[1] * D[2]  # Antagonism between D1 & D2
-             + 30 * D[0] * D[2])  # Weak synergy between D0 & D2
+    D = np.array(D)
+    return -(
+        100 * D[0]
+        + 150 * D[1]
+        + 120 * D[2]  # Base contributions
+        + 50 * D[0] * D[1]  # Synergy between D0 & D1
+        - 40 * D[1] * D[2]  # Antagonism between D1 & D2
+        + 30 * D[0] * D[2]
+    )  # Weak synergy between D0 & D2
+
 
 # Define constraints (budget, dependencies, etc.)
 budget = 100
@@ -198,7 +215,7 @@ D_init = np.random.randint(0, 2, size=3)  # noqa: NPY002
 constraints = {'type': 'ineq', 'fun': constraint_function}
 
 # Run full optimization
-full_opt = minimize(objective_function, D_init, constraints=constraints, method='SLSQP', bounds=[(0, 1)]*3)
+full_opt = minimize(objective_function, D_init, constraints=constraints, method='SLSQP', bounds=[(0, 1)] * 3)
 F_full = -full_opt.fun
 D_full = np.round(full_opt.x)
 
@@ -207,28 +224,28 @@ F_single = []
 for i in range(3):
     D_test = np.zeros(3)  # Only one action at a time
     D_test[i] = 1
-    result = minimize(objective_function, D_test, constraints=constraints, method='SLSQP', bounds=[(0, 1)]*3)
+    result = minimize(objective_function, D_test, constraints=constraints, method='SLSQP', bounds=[(0, 1)] * 3)
     F_single.append(-result.fun)
 
 # Run pairwise optimizations to detect interactions
 F_pairwise = np.zeros((3, 3))
 for i in range(3):
-    for j in range(i+1, 3):
+    for j in range(i + 1, 3):
         D_test = np.zeros(3)
         D_test[i] = 1
         D_test[j] = 1
-        result = minimize(objective_function, D_test, constraints=constraints, method='SLSQP', bounds=[(0, 1)]*3)
+        result = minimize(objective_function, D_test, constraints=constraints, method='SLSQP', bounds=[(0, 1)] * 3)
         F_pairwise[i, j] = -result.fun
 
 # Compute synergy/antagonism scores
 S_matrix = np.zeros((3, 3))
 for i in range(3):
-    for j in range(i+1, 3):
+    for j in range(i + 1, 3):
         S_matrix[i, j] = F_pairwise[i, j] - (F_single[i] + F_single[j])
 
 # Print results
-print("Full optimization decision:", D_full)
-print("Full optimization benefit:", F_full)
-print("\nIndividual benefits:", F_single)
-print("\nPairwise benefits:\n", F_pairwise)
-print("\nSynergy/Antagonism Matrix:\n", S_matrix)
+print('Full optimization decision:', D_full)
+print('Full optimization benefit:', F_full)
+print('\nIndividual benefits:', F_single)
+print('\nPairwise benefits:\n', F_pairwise)
+print('\nSynergy/Antagonism Matrix:\n', S_matrix)

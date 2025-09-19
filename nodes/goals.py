@@ -121,7 +121,6 @@ class NodeGoalsEntry(I18nBaseModel):
             unit = m.unit
         return goal_norm, unit
 
-
     def _get_values_df(self) -> ppl.PathsDataFrame:
         context = self._node.context
         goal_norm, unit = self.get_normalization_info()
@@ -137,13 +136,10 @@ class NodeGoalsEntry(I18nBaseModel):
             years = range(df[YEAR_COLUMN].min(), df[YEAR_COLUMN].max() + 1)  # type: ignore
             ydf = ppl.to_ppdf(
                 pl.DataFrame(years, schema=[YEAR_COLUMN], orient='row'),
-                meta=ppl.DataFrameMeta(primary_keys=[YEAR_COLUMN], units={})
+                meta=ppl.DataFrameMeta(primary_keys=[YEAR_COLUMN], units={}),
             )
             df = df.paths.join_over_index(ydf, how='outer', index_from='left')
-            df = df.with_columns([
-                pl.col(VALUE_COLUMN).interpolate(),
-                pl.col('IsInterpolated').fill_null(value=True)
-            ])
+            df = df.with_columns([pl.col(VALUE_COLUMN).interpolate(), pl.col('IsInterpolated').fill_null(value=True)])
 
         if context.active_normalization:
             _, df = context.active_normalization.normalize_output(m, df)
@@ -177,9 +173,13 @@ class NodeGoalsEntry(I18nBaseModel):
         df = df.paths.join_over_index(gdf).sort(YEAR_COLUMN)
         out = [
             GoalActualValue(
-                year=row[YEAR_COLUMN], actual=row[m.column_id], is_forecast=row[FORECAST_COLUMN],
-                is_interpolated=row['IsInterpolated'], goal=row['Goal'],
-            ) for row in df.to_dicts()
+                year=row[YEAR_COLUMN],
+                actual=row[m.column_id],
+                is_forecast=row[FORECAST_COLUMN],
+                is_interpolated=row['IsInterpolated'],
+                goal=row['Goal'],
+            )
+            for row in df.to_dicts()
         ]
         return out
 
@@ -196,7 +196,6 @@ class NodeGoals(RootModel):
         self._node = node
         for ge in self.root:
             ge.set_node(node)
-
 
     @model_validator(mode='after')
     def validate_unique(self):

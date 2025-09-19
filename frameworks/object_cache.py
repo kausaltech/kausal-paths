@@ -82,11 +82,13 @@ class MeasureTemplateCache(ModelObjectCache[MeasureTemplate, MeasureTemplateQuer
 
 
 @dataclass
-class MeasureTemplateDefaultDataPointCache(ModelObjectCache[
-    MeasureTemplateDefaultDataPoint,
-    MeasureTemplateDefaultDataPointQuerySet,
-    Framework,
-]):
+class MeasureTemplateDefaultDataPointCache(
+    ModelObjectCache[
+        MeasureTemplateDefaultDataPoint,
+        MeasureTemplateDefaultDataPointQuerySet,
+        Framework,
+    ]
+):
     @property
     def model(self):
         return MeasureTemplateDefaultDataPoint

@@ -43,7 +43,9 @@ class PersonQuerySet(MultilingualQuerySet['Person']):
 
 if TYPE_CHECKING:
     _PersonManager = models.Manager.from_queryset(PersonQuerySet)
+
     class PersonManager(MLModelManager['Person', PersonQuerySet], _PersonManager): ...  # pyright: ignore
+
     del _PersonManager
 else:
     PersonManager = MLModelManager.from_queryset(PersonQuerySet)
@@ -58,18 +60,18 @@ class Person(PermissionedModel, BasePerson):
         index.SearchField('email'),
         index.SearchField('title'),
     ]
+
     class Meta:
         verbose_name = _('Person')
         verbose_name_plural = _('People')
 
     def __str__(self):
-        return f"{self.first_name} {self.last_name}"
+        return f'{self.first_name} {self.last_name}'
 
     def __rich_repr__(self):
         yield 'first_name', self.first_name
         yield 'last_name', self.last_name
         yield 'email', self.email
-
 
     def download_avatar(self):
         # Since this is a base implementation, we'll return None
@@ -156,4 +158,5 @@ class Person(PermissionedModel, BasePerson):
     @classmethod
     def permission_policy(cls) -> ModelPermissionPolicy:
         from .permission_policy import PersonPermissionPolicy
+
         return PersonPermissionPolicy()

@@ -21,48 +21,48 @@ from nodes.constants import (
     YEAR_COLUMN,
 )
 
-ENDROWS = ( # Rows that are after the data block
+ENDROWS = (  # Rows that are after the data block
     'Gesamt',
     'Gesamt mit Annahmen (2023)',
     'Einheit:',
     'Witterungskorrektur:',
     'Bilanzierungsmethode:',
     'Gemeinde:',
-    'Feldtyp'
+    'Feldtyp',
 )
 
 DATASET_NAME_MAPPING = {
-    'datenzeitreihen': "Emissionsfaktoren für die Energieerzeugung",
-    'datenzeitreihen-2': "Emissionsfaktoren für die Industrie",
-    'datenzeitreihen-3': "Emissionsfaktoren für den Verkehr",
-    'datenzeitreihen-4': "Aktivitäten, Verkehr und Gebäude",
-    'energietraeger_Verkehr': "Alle historischen Energie",
-    'energietraeger_HH': "Alle historischen Energie",
-    'energietraeger_KE': "Alle historischen Energie",
-    'energietraeger_IND': "Alle historischen Energie",
-    'energietraeger_GHD': "Alle historischen Energie",
+    'datenzeitreihen': 'Emissionsfaktoren für die Energieerzeugung',
+    'datenzeitreihen-2': 'Emissionsfaktoren für die Industrie',
+    'datenzeitreihen-3': 'Emissionsfaktoren für den Verkehr',
+    'datenzeitreihen-4': 'Aktivitäten, Verkehr und Gebäude',
+    'energietraeger_Verkehr': 'Alle historischen Energie',
+    'energietraeger_HH': 'Alle historischen Energie',
+    'energietraeger_KE': 'Alle historischen Energie',
+    'energietraeger_IND': 'Alle historischen Energie',
+    'energietraeger_GHD': 'Alle historischen Energie',
 }
 
 UNIT_MAPPING = {
-    'Mt CO2äqu': ('Mt/a', 'BISKO' , EMISSION_QUANTITY),
-    'kt CO2äqu': ('kt/a', 'BISKO' , EMISSION_QUANTITY),
-    't CO2äqu': ('t/a', 'BISKO' , EMISSION_QUANTITY),
-    'kg CO2äqu': ('kg/a', 'BISKO' , EMISSION_QUANTITY),
+    'Mt CO2äqu': ('Mt/a', 'BISKO', EMISSION_QUANTITY),
+    'kt CO2äqu': ('kt/a', 'BISKO', EMISSION_QUANTITY),
+    't CO2äqu': ('t/a', 'BISKO', EMISSION_QUANTITY),
+    'kg CO2äqu': ('kg/a', 'BISKO', EMISSION_QUANTITY),
     'GWh': ('GWh/a', 'EEV', ENERGY_QUANTITY),
     'MWh': ('MWh/a', 'EEV', ENERGY_QUANTITY),
     'kWh': ('kWh/a', 'EEV', ENERGY_QUANTITY),
     'Euro': ('EUR/a', 'Energiekosten', CURRENCY_QUANTITY),
-    "t CO2-Äqu./MWh": ("t/MWh", 'BISKO', EMISSION_FACTOR_QUANTITY),
-    "t/MWh": ("t/MWh", 'BISKO', EMISSION_FACTOR_QUANTITY),
-    "g CO2-Äqu./Wh": ("g/Wh", 'BISKO', EMISSION_FACTOR_QUANTITY),
-    "GJ": ("GJ/a", 'EEV', ENERGY_QUANTITY),
-    "Anzahl": ("pcs", '', NUMBER_QUANTITY),
-    "Wege/Person/d": ("trips/person/d", '', NUMBER_QUANTITY),
-    "km/Weg": ("km/trip", '', NUMBER_QUANTITY),
-    "%": ("%", '', NUMBER_QUANTITY),
-    "Mio. Fz-km": ("Mvkm", '', MILEAGE_QUANTITY),
-    "Mio. Zug-km": ("Mvkm", '', MILEAGE_QUANTITY),
-    "m²": ("m²", '', FLOOR_AREA_QUANTITY),
+    't CO2-Äqu./MWh': ('t/MWh', 'BISKO', EMISSION_FACTOR_QUANTITY),
+    't/MWh': ('t/MWh', 'BISKO', EMISSION_FACTOR_QUANTITY),
+    'g CO2-Äqu./Wh': ('g/Wh', 'BISKO', EMISSION_FACTOR_QUANTITY),
+    'GJ': ('GJ/a', 'EEV', ENERGY_QUANTITY),
+    'Anzahl': ('pcs', '', NUMBER_QUANTITY),
+    'Wege/Person/d': ('trips/person/d', '', NUMBER_QUANTITY),
+    'km/Weg': ('km/trip', '', NUMBER_QUANTITY),
+    '%': ('%', '', NUMBER_QUANTITY),
+    'Mio. Fz-km': ('Mvkm', '', MILEAGE_QUANTITY),
+    'Mio. Zug-km': ('Mvkm', '', MILEAGE_QUANTITY),
+    'm²': ('m²', '', FLOOR_AREA_QUANTITY),
 }
 
 CATEGORY_MAPPING = {
@@ -270,8 +270,9 @@ CATEGORY_MAPPING = {
         'pkw': 'passenger_cars',
         'lkw': 'trucks',
         'bus': 'buses',
-    }
+    },
 }
+
 
 def extract_metadata_from_file(df: pl.DataFrame) -> dict[str, str | None]:
     def _find_meta(df: pl.DataFrame, title) -> str | None:
@@ -282,7 +283,7 @@ def extract_metadata_from_file(df: pl.DataFrame) -> dict[str, str | None]:
             if first_col_value.startswith(title) and second_col_name is not None:
                 second_col_value = str(df[second_col_name][i]).strip()
                 if second_col_value == 'None':
-                    meta = first_col_value[len(title):].strip()
+                    meta = first_col_value[len(title) :].strip()
                 else:
                     meta = second_col_value
                 return meta
@@ -300,7 +301,7 @@ def extract_metadata_from_file(df: pl.DataFrame) -> dict[str, str | None]:
     sector = _find_meta(df, 'Sektoren:')
 
     if inventory_method is not None and inventory_method != method:
-        raise KeyError(f"The method {inventory_method} does not match what was expected ({method}).")
+        raise KeyError(f'The method {inventory_method} does not match what was expected ({method}).')
 
     return {
         'unit': unit,
@@ -309,16 +310,19 @@ def extract_metadata_from_file(df: pl.DataFrame) -> dict[str, str | None]:
         'inventory_method': inventory_method,
         'municipality': municipality,
         'sector': sector,
-        }
+    }
 
-def transform_dataset_name(filename_stem) -> str: # TODO This is needed in 1-dimensional tables with several years
+
+def transform_dataset_name(filename_stem) -> str:  # TODO This is needed in 1-dimensional tables with several years
     if filename_stem.startswith('energietraeger-'):
-        suffix = filename_stem[len('energietraeger-'):]
-        return f"Energieverbrauch nach Energieträgern, {suffix}"
+        suffix = filename_stem[len('energietraeger-') :]
+        return f'Energieverbrauch nach Energieträgern, {suffix}'
     return filename_stem
+
 
 def is_energietraeger_file(filename) -> bool:
     return filename.startswith('energietraeger-')
+
 
 def read_csv_fixed_width(input_file, separator) -> pl.DataFrame:
     """Make the line lengths match data."""
@@ -331,11 +335,11 @@ def read_csv_fixed_width(input_file, separator) -> pl.DataFrame:
         line_ = line.strip()
         if line_.startswith(('Eingabefeld', 'Energieträger')):
             data_start = i
-            file_type = line_[0:len('Energieträger')]
+            file_type = line_[0 : len('Energieträger')]
             break
 
     if data_start is None:
-        raise KeyError(f"Cannot figure out data rows in {input_file.stem}")
+        raise KeyError(f'Cannot figure out data rows in {input_file.stem}')
 
     # Get expected column count from header
     header_line = lines[data_start].strip()
@@ -358,18 +362,14 @@ def read_csv_fixed_width(input_file, separator) -> pl.DataFrame:
 
     # Write to temporary file or use StringIO with polars
     from io import StringIO
+
     csv_content = '\n'.join(processed_lines)
 
-    df = pl.read_csv(
-        StringIO(csv_content),
-        separator=separator,
-        encoding='utf-8',
-        quote_char='"',
-        decimal_comma=True
-    )
+    df = pl.read_csv(StringIO(csv_content), separator=separator, encoding='utf-8', quote_char='"', decimal_comma=True)
 
     df = df.with_columns(pl.lit(file_type).alias('File type'))
     return df
+
 
 def read_xlsx_fixed_width(input_file) -> pl.DataFrame:
     """Make the line lengths match data."""
@@ -390,14 +390,14 @@ def read_xlsx_fixed_width(input_file) -> pl.DataFrame:
     if data:
         # Use first row as temporary column names
         max_cols = max(len(row) for row in data)
-        temp_cols = [f"col_{i}" for i in range(max_cols)]
+        temp_cols = [f'col_{i}' for i in range(max_cols)]
 
         # Pad shorter rows
         padded_data = [list(row) + [None] * (max_cols - len(row)) for row in data]
 
-        df = pl.DataFrame(padded_data, schema=temp_cols, orient="row")
+        df = pl.DataFrame(padded_data, schema=temp_cols, orient='row')
     else:
-        raise ValueError("No data found in Excel file")
+        raise ValueError('No data found in Excel file')
 
     # Rest of your logic remains the same
     data_start = None
@@ -410,7 +410,7 @@ def read_xlsx_fixed_width(input_file) -> pl.DataFrame:
             break
 
     if data_start is None:
-        raise KeyError(f"Cannot figure out data rows in {input_file.stem}")
+        raise KeyError(f'Cannot figure out data rows in {input_file.stem}')
 
     # Get the header row values
     header_row = df.row(data_start)
@@ -425,14 +425,11 @@ def read_xlsx_fixed_width(input_file) -> pl.DataFrame:
             rename_mapping[old_col] = new_name_str
             keep_columns.append(new_name_str)
 
-    df = (df
-          .rename(rename_mapping)
-          .select(keep_columns)
-          .slice(data_start + 1)
-         )
+    df = df.rename(rename_mapping).select(keep_columns).slice(data_start + 1)
 
     df = df.with_columns(pl.lit(file_type).alias('File type'))
     return df
+
 
 def get_single_ksp_file(input_file, separator) -> pl.DataFrame:  # noqa: C901
     if input_file.suffix.lower() in ['.xlsx', '.xls']:
@@ -471,6 +468,7 @@ def get_single_ksp_file(input_file, separator) -> pl.DataFrame:  # noqa: C901
 
     return df
 
+
 def process_explanatory_column(df: pl.DataFrame) -> pl.DataFrame:
     """Extract units and BISKO."""
     pattern = r'^(.+?)(?:,\s*BISKO)?\s*\(([^)]+)\)\s*\[([^\]]+)\]$'
@@ -479,11 +477,13 @@ def process_explanatory_column(df: pl.DataFrame) -> pl.DataFrame:
     if col not in df.columns:
         return df
 
-    df = df.with_columns([
-        pl.col(col).str.extract(pattern, group_index=1).str.strip_chars().alias('Description'),
-        pl.col(col).str.extract(pattern, group_index=2).str.strip_chars().alias('BISKO code'),
-        pl.col(col).str.extract(pattern, group_index=3).str.strip_chars().alias('Unit'),
-    ])
+    df = df.with_columns(
+        [
+            pl.col(col).str.extract(pattern, group_index=1).str.strip_chars().alias('Description'),
+            pl.col(col).str.extract(pattern, group_index=2).str.strip_chars().alias('BISKO code'),
+            pl.col(col).str.extract(pattern, group_index=3).str.strip_chars().alias('Unit'),
+        ]
+    )
 
     def map_unit_info(unit) -> tuple:
         if unit is None:
@@ -492,14 +492,17 @@ def process_explanatory_column(df: pl.DataFrame) -> pl.DataFrame:
         mapping = UNIT_MAPPING.get(unit, (unit, '', None))
         return mapping
 
-    df = df.with_columns([
-        pl.col("Unit").map_elements(lambda x: map_unit_info(x)[0], return_dtype=pl.Utf8).alias("updated_unit"),
-        pl.col("Unit").map_elements(lambda x: map_unit_info(x)[1], return_dtype=pl.Utf8).alias("inventory_method"),
-        pl.col("Unit").map_elements(lambda x: map_unit_info(x)[2], return_dtype=pl.Utf8).alias("Quantity")
-    ])
+    df = df.with_columns(
+        [
+            pl.col('Unit').map_elements(lambda x: map_unit_info(x)[0], return_dtype=pl.Utf8).alias('updated_unit'),
+            pl.col('Unit').map_elements(lambda x: map_unit_info(x)[1], return_dtype=pl.Utf8).alias('inventory_method'),
+            pl.col('Unit').map_elements(lambda x: map_unit_info(x)[2], return_dtype=pl.Utf8).alias('Quantity'),
+        ]
+    )
     df = df.with_columns(pl.col('updated_unit').alias('Unit')).drop([col, 'updated_unit'])
 
     return df
+
 
 def find_category_matches(description: str | None, category_mapping: dict):
     """Find dimension matches in description text."""
@@ -520,6 +523,7 @@ def find_category_matches(description: str | None, category_mapping: dict):
 
     return matches
 
+
 def process_hidden_categories(df: pl.DataFrame, category_mapping: dict) -> pl.DataFrame:
     """Add dimension columns based on keyword matching."""
 
@@ -530,19 +534,20 @@ def process_hidden_categories(df: pl.DataFrame, category_mapping: dict) -> pl.Da
     print(all_dimensions)
     # Apply matching function
     df = df.with_columns(
-        pl.col("Description").map_elements(
+        pl.col('Description')
+        .map_elements(
             lambda x: find_category_matches(x, category_mapping),
-            return_dtype=pl.Struct([pl.Field(dim, pl.Utf8) for dim in all_dimensions])
-        ).alias("category_matches")
+            return_dtype=pl.Struct([pl.Field(dim, pl.Utf8) for dim in all_dimensions]),
+        )
+        .alias('category_matches')
     )
 
     # Extract each dimension as a separate column
     for dimension in all_dimensions:
-        df = df.with_columns(
-            pl.col("category_matches").struct.field(dimension).alias(dimension)
-        )
+        df = df.with_columns(pl.col('category_matches').struct.field(dimension).alias(dimension))
 
-    return df.drop("category_matches")
+    return df.drop('category_matches')
+
 
 def create_dataset_column(df: pl.DataFrame, input_file, dataset_column) -> pl.DataFrame:
     """Transform filename to dataset name according to the rules."""
@@ -552,9 +557,10 @@ def create_dataset_column(df: pl.DataFrame, input_file, dataset_column) -> pl.Da
     elif dataset_column in df.columns:
         df = df.with_columns(pl.col(dataset_column).alias('Dataset'))
     else:
-        raise ValueError(f"Dataset column {dataset_column} not found. Has {df.columns}")
+        raise ValueError(f'Dataset column {dataset_column} not found. Has {df.columns}')
     # assert isinstance(dataset_name, str)
     return df
+
 
 def process_single_ksp_file(input_file, separator) -> pl.DataFrame:
     print('Processing file: ', input_file)
@@ -576,8 +582,10 @@ def process_single_ksp_file(input_file, separator) -> pl.DataFrame:
         variable_name = 'Sector'
         obs_year = str(input_file.stem[-4:])
         if not obs_year.isdigit():
-            raise KeyError("With sektoren-energieträger files, the file name must contain"
-                           " the year as the last four characters of the filename.")
+            raise KeyError(
+                'With sektoren-energieträger files, the file name must contain'
+                ' the year as the last four characters of the filename.'
+            )
         year_columns = [obs_year]
         df = df.with_columns(pl.lit(obs_year).cast(int).alias(YEAR_COLUMN))
         keys += [YEAR_COLUMN]
@@ -598,6 +606,7 @@ def process_single_ksp_file(input_file, separator) -> pl.DataFrame:
     print('Success.')
     return df
 
+
 def convert_multiple_energietraeger_files(input_patterns, separator, dataset_column, output_file) -> pl.DataFrame:
     input_files = []
     for pattern in input_patterns:
@@ -605,7 +614,7 @@ def convert_multiple_energietraeger_files(input_patterns, separator, dataset_col
         input_files.extend([Path(f) for f in files])
 
     if not input_files:
-        print("Input files not found.")
+        print('Input files not found.')
         return pl.DataFrame()
 
     all_dataframes = []
@@ -616,10 +625,10 @@ def convert_multiple_energietraeger_files(input_patterns, separator, dataset_col
         if len(df) > 0:
             all_dataframes.append(df)
         else:
-            print(f"File {input_file} had no content.")
+            print(f'File {input_file} had no content.')
 
     if not all_dataframes:
-        raise ValueError("No valid data found in any input files")
+        raise ValueError('No valid data found in any input files')
 
     df = pl.concat(all_dataframes, how='vertical')
     df = df.with_columns(pl.col(VALUE_COLUMN).cast(pl.Float64, strict=False))
@@ -632,16 +641,18 @@ def convert_multiple_energietraeger_files(input_patterns, separator, dataset_col
     assert isinstance(df, pl.DataFrame)
     missing = df.filter(pl.col('Quantity').is_null())['Unit'].unique().to_list()
     if missing:
-        raise ValueError(f"These units do not have quantities defined: {missing}")
+        raise ValueError(f'These units do not have quantities defined: {missing}')
 
-    df.write_csv(output_file, separator=',',
-                      quote_style='necessary', null_value='')
+    df.write_csv(output_file, separator=',', quote_style='necessary', null_value='')
     return df
+
 
 def main():
     if len(sys.argv) < 3:
-        print("Usage: python convert_energietraeger_to_uploadable_format.py <input_pattern1> [input_pattern2] ..."
-              " <dataset_column> <output_file>")
+        print(
+            'Usage: python convert_energietraeger_to_uploadable_format.py <input_pattern1> [input_pattern2] ...'
+            ' <dataset_column> <output_file>'
+        )
         sys.exit(1)
 
     input_patterns = sys.argv[1:-3]
@@ -655,7 +666,8 @@ def main():
     print(df.columns)
     print('Successfully saved everything to', output_file)
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     main()
 
 # python convert_energietraeger_to_uploadable_format.py "/Users/jouni/Downloads/energie/sektoren-energietraeger_*"

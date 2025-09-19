@@ -78,11 +78,13 @@ class AlasNode(Node):
                 print('vain päästökauppa')
                 df = df[df['päästökauppa']]
 
-        df = df.rename(columns={
-            'vuosi': YEAR_COLUMN,
-            emission_field: EMISSION_QUANTITY,
-            'energiankulutus': ENERGY_QUANTITY,
-        })
+        df = df.rename(
+            columns={
+                'vuosi': YEAR_COLUMN,
+                emission_field: EMISSION_QUANTITY,
+                'energiankulutus': ENERGY_QUANTITY,
+            }
+        )
         df[EMISSION_FACTOR_QUANTITY] = df[EMISSION_QUANTITY] / df[ENERGY_QUANTITY].replace(0, np.nan)
 
         df['Sector'] = ''
@@ -96,7 +98,7 @@ class AlasNode(Node):
         df = df[[YEAR_COLUMN, EMISSION_QUANTITY, ENERGY_QUANTITY, EMISSION_FACTOR_QUANTITY, 'Sector']]
         df = df.set_index([YEAR_COLUMN, 'Sector']).sort_index()
         if len(df) == 0:
-            raise NodeError(self, "Municipality %s not found in data" % muni_name)
+            raise NodeError(self, 'Municipality %s not found in data' % muni_name)
         for metric_id, metric in self.output_metrics.items():
             if hasattr(df[metric_id], 'pint'):
                 df[metric_id] = self.convert_to_unit(df[metric_id], metric.unit)
@@ -152,6 +154,6 @@ class AlasEmissions(Node):
         df[FORECAST_COLUMN] = False
 
         if self.get_global_parameter_value('extend_historical_values', required=False):
-            df.index = df.index.astype(dtype='int64') # TODO Could update this function to polars
+            df.index = df.index.astype(dtype='int64')  # TODO Could update this function to polars
             df = extend_last_historical_value(df, self.get_end_year())
         return df

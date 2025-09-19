@@ -1,10 +1,12 @@
-import pytest
 from django.utils.translation import get_language
+
+import pytest
+
 from nodes.actions.simple import AdditiveAction
 from nodes.context import Context
+from nodes.metric import Metric
 from nodes.scenario import Scenario
 from nodes.tests.factories import ActionNodeFactory, NodeConfigFactory, NodeFactory
-from nodes.metric import Metric
 from nodes.units import unit_registry
 
 pytestmark = pytest.mark.django_db
@@ -12,7 +14,7 @@ pytestmark = pytest.mark.django_db
 
 def test_instance_type(graphql_client_query_data, instance, instance_config):
     data = graphql_client_query_data(
-        '''
+        """
         query {
           instance {
             __typename
@@ -27,7 +29,7 @@ def test_instance_type(graphql_client_query_data, instance, instance_config):
             leadParagraph
           }
         }
-        '''
+        """
     )
     expected = {
         'instance': {
@@ -47,16 +49,13 @@ def test_instance_type(graphql_client_query_data, instance, instance_config):
 
 
 def test_forecast_metric_type(
-    graphql_client_query_data,
-    additive_action: AdditiveAction,
-    context: Context,
-    baseline_scenario: Scenario
+    graphql_client_query_data, additive_action: AdditiveAction, context: Context, baseline_scenario: Scenario
 ):
     context.generate_baseline_values()
     metric = Metric.from_node(additive_action)
     assert metric is not None
     data = graphql_client_query_data(
-        '''
+        """
         query($id: ID!) {
           node(id: $id) {
             metric {
@@ -89,27 +88,38 @@ def test_forecast_metric_type(
             }
           }
         }
-        ''',
-        variables={'id': additive_action.id}
+        """,
+        variables={'id': additive_action.id},
     )
-    expected_historical_values = [{
-        '__typename': 'YearlyValue',
-        'year': yearly_value.year,
-        'value': yearly_value.value,
-    } for yearly_value in metric.get_historical_values()]
-    expected_forecast_values = [{
-        '__typename': 'YearlyValue',
-        'year': yearly_value.year,
-        'value': yearly_value.value,
-    } for yearly_value in metric.get_forecast_values()]
-    expected_baseline_forecast_values = [{
-        '__typename': 'YearlyValue',
-        'year': yearly_value.year,
-        'value': yearly_value.value,
-    } for yearly_value in metric.get_baseline_forecast_values()]
+    expected_historical_values = [
+        {
+            '__typename': 'YearlyValue',
+            'year': yearly_value.year,
+            'value': yearly_value.value,
+        }
+        for yearly_value in metric.get_historical_values()
+    ]
+    expected_forecast_values = [
+        {
+            '__typename': 'YearlyValue',
+            'year': yearly_value.year,
+            'value': yearly_value.value,
+        }
+        for yearly_value in metric.get_forecast_values()
+    ]
+    expected_baseline_forecast_values = [
+        {
+            '__typename': 'YearlyValue',
+            'year': yearly_value.year,
+            'value': yearly_value.value,
+        }
+        for yearly_value in metric.get_baseline_forecast_values()
+    ]
 
     assert metric.unit is not None
-    unit_pretty_short = unit_registry.pretty_formatter.format_unit(metric.unit, locale=get_language(), length='short', use_plural=False)
+    unit_pretty_short = unit_registry.pretty_formatter.format_unit(
+        metric.unit, locale=get_language(), length='short', use_plural=False
+    )
 
     expected = {
         'node': {
@@ -144,7 +154,8 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
     additive_action.add_output_node(output_node)
     upstream_action = ActionNodeFactory.create(context=ctx)
     input_node.add_input_node(upstream_action)
-    data = graphql_client_query_data("""
+    data = graphql_client_query_data(
+        """
         query($id: ID!) {
           node(id: $id) {
             __typename
@@ -202,7 +213,9 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
             }
           }
         }
-    """, variables={'id': additive_action.id})
+    """,
+        variables={'id': additive_action.id},
+    )
 
     expected = {
         'node': {
@@ -210,36 +223,46 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
             'id': additive_action.id,
             'name': str(additive_action.name),
             'color': additive_action.color,
-            'unit': {
-                '__typename': 'UnitType'
-            },
+            'unit': {'__typename': 'UnitType'},
             'quantity': additive_action.quantity,
-            'goals': [{
-                '__typename': 'NodeGoal',
-                'year': g.year,
-                'value': g.value,
-            } for g in additive_action.goals.get_dimensionless().values],
+            'goals': [
+                {
+                    '__typename': 'NodeGoal',
+                    'year': g.year,
+                    'value': g.value,
+                }
+                for g in additive_action.goals.get_dimensionless().values
+            ],
             'isAction': True,
             'decisionLevel': additive_action.decision_level.name,
-            'inputNodes': [{
-                '__typename': 'Node',
-                'id': input_node.id,
-            }],
-            'outputNodes': [{
-                '__typename': 'Node',
-                'id': output_node.id,
-            }],
-            'downstreamNodes': [{
-                '__typename': 'Node',
-                'id': output_node.id,
-            }],
-            'upstreamNodes': [{
-                '__typename': 'Node',
-                'id': input_node.id,
-            }, {
-                '__typename': 'ActionNode',
-                'id': upstream_action.id,
-            }],
+            'inputNodes': [
+                {
+                    '__typename': 'Node',
+                    'id': input_node.id,
+                }
+            ],
+            'outputNodes': [
+                {
+                    '__typename': 'Node',
+                    'id': output_node.id,
+                }
+            ],
+            'downstreamNodes': [
+                {
+                    '__typename': 'Node',
+                    'id': output_node.id,
+                }
+            ],
+            'upstreamNodes': [
+                {
+                    '__typename': 'Node',
+                    'id': input_node.id,
+                },
+                {
+                    '__typename': 'ActionNode',
+                    'id': upstream_action.id,
+                },
+            ],
             # 'upstreamActions': [{
             #     '__typename': 'NodeType',
             #     'id': upstream_action.id,
@@ -252,10 +275,12 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
                 '__typename': 'ForecastMetricType',
                 'id': f'{additive_action.id}-{additive_action.id}-impact',
             },
-            'parameters': [{
-                '__typename': 'BoolParameterType',
-                'id': additive_action.enabled_param.global_id,
-            }],
+            'parameters': [
+                {
+                    '__typename': 'BoolParameterType',
+                    'id': additive_action.enabled_param.global_id,
+                }
+            ],
             'shortDescription': '<p>%s</p>\n' % str(additive_action.description),
             'description': None,
         }
@@ -266,7 +291,7 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
 def test_scenario_type(graphql_client_query_data, context, scenario):
     is_active = scenario == context.active_scenario
     data = graphql_client_query_data(
-        '''
+        """
         query($id: ID!) {
           scenario(id: $id) {
             __typename
@@ -276,8 +301,8 @@ def test_scenario_type(graphql_client_query_data, context, scenario):
             isDefault
           }
         }
-        ''',
-        variables={'id': scenario.id}
+        """,
+        variables={'id': scenario.id},
     )
     expected = {
         'scenario': {

@@ -23,13 +23,21 @@ class OrganizationForm(BaseOrganizationForm):
 
 
 class OrganizationNode(BaseOrganizationNode, AdminButtonsMixin):
-
     class Meta:
         model = Organization
         abstract = False
         fields = [
-            'id', 'abbreviation', 'name', 'description', 'url', 'email', 'classification', 'distinct_name', 'location',
+            'id',
+            'abbreviation',
+            'name',
+            'description',
+            'url',
+            'email',
+            'classification',
+            'distinct_name',
+            'location',
         ]
+
 
 class Query:
     organization = graphene.Field(OrganizationNode, id=graphene.ID(required=True))
@@ -38,17 +46,21 @@ class Query:
     def resolve_organization(root, info, id: str) -> Organization:
         return Organization.objects.get(id=id)
 
+
 class CreateOrganizationMutation(BaseCreateOrganizationMutation):
     class Meta:
         form_class = OrganizationForm
+
 
 class UpdateOrganizationMutation(BaseUpdateOrganizationMutation):
     class Meta:
         form_class = OrganizationForm
 
+
 class DeleteOrganizationMutation(BaseDeleteOrganizationMutation):
     class Meta:
         model = Organization
+
 
 class Mutation(BaseMutation):
     create_organization = CreateOrganizationMutation.Field()

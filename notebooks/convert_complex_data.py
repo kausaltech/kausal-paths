@@ -17,23 +17,25 @@ class ColumnSpec:
     dimension2: str = ''
     dimension3: str = ''
 
+
 @dataclass
 class DatasetSchema:
     """Generic schema for peculiar datasets with implicit structure."""
 
     row_identifier_name: str
     identifier_mappings: dict[str, dict[str, Any]]  # identifier -> additional attributes
-    dimension_names: list[str] # Names for 0-3 categories that are actually used
+    dimension_names: list[str]  # Names for 0-3 categories that are actually used
     column_specs: dict[int, ColumnSpec]  # column_number -> what it contains
     skip_rows: int = 1  # Skip explanation/header rows
     identifier_column: int = 0  # Column with row identifiers (0-based)
-    has_header: bool = False # Skip header row by default, use technical col names.
+    has_header: bool = False  # Skip header row by default, use technical col names.
 
     def __post_init__(self):
         if self.identifier_mappings is None:
             self.identifier_mappings = {}
         if self.column_specs is None:
             self.column_specs = {}
+
 
 class DatasetTransformer:
     """Transforms peculiar CSV datasets into normalized format."""
@@ -51,9 +53,7 @@ class DatasetTransformer:
         )
 
         # Extract identifiers from specified column
-        identifiers = df.select(
-            pl.col(f'column_{self.schema.identifier_column + 1}').alias('identifier')
-        ).to_series()
+        identifiers = df.select(pl.col(f'column_{self.schema.identifier_column + 1}').alias('identifier')).to_series()
 
         # Transform to long format
         result_rows = []
@@ -70,7 +70,6 @@ class DatasetTransformer:
                 try:
                     value = df.item(row_idx, col_num)
                     if value is not None and str(value).strip() != '':
-
                         # Build result row
                         row_data = {
                             self.schema.row_identifier_name: str(identifier),
@@ -80,7 +79,7 @@ class DatasetTransformer:
                             'Dimension1': col_spec.dimension1,
                             'Dimension2': col_spec.dimension2,
                             'Dimension3': col_spec.dimension3,
-                            'Value': float(value)
+                            'Value': float(value),
                         }
 
                         # Add any additional attributes from identifier mapping
@@ -95,8 +94,8 @@ class DatasetTransformer:
 
         dim_placeholders = ['Dimension1', 'Dimension2', 'Dimension3']
         new_dims = self.schema.dimension_names
-        drop_dims = dim_placeholders[len(new_dims):]
-        old_dims = dim_placeholders[:len(new_dims)]
+        drop_dims = dim_placeholders[len(new_dims) :]
+        old_dims = dim_placeholders[: len(new_dims)]
         result_df = result_df.drop(drop_dims)
         result_df = result_df.rename(dict(zip(old_dims, new_dims, strict=False)))
 
@@ -111,8 +110,9 @@ class DatasetTransformer:
             'dimension2': list(set(spec.dimension2 for spec in self.schema.column_specs.values())),
             'dimension3': list(set(spec.dimension3 for spec in self.schema.column_specs.values())),
             'years': sorted(set(spec.year for spec in self.schema.column_specs.values())),
-            'identifiers': len(self.schema.identifier_mappings)
+            'identifiers': len(self.schema.identifier_mappings),
         }
+
 
 # Adjust this function to your case-specific needs.
 # In addition to input and output file paths, there should not be a need to adjust anything else.
@@ -193,8 +193,9 @@ def create_dataset_schema() -> DatasetSchema:
         identifier_mappings=identifier_mappings,
         column_specs=column_specs,
         row_identifier_name='Energy carrier',
-        dimension_names=['Scenario']
+        dimension_names=['Scenario'],
     )
+
 
 # Usage example
 def main():
@@ -206,11 +207,12 @@ def main():
     file_path = '/Users/jouni/Downloads/Zielwerte Masterplan V3.4.xlsx - potsdam.csv'
     result_df = transformer.load_and_transform(file_path)
 
-    print("Summary:", transformer.get_summary())
+    print('Summary:', transformer.get_summary())
     print(result_df)
 
     # Save result
     result_df.write_csv('normalized_data.csv')
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     main()

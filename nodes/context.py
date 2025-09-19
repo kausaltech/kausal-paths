@@ -403,6 +403,7 @@ class Context:
     def get_parameter(self, param_id: str, *, required: bool = True) -> Parameter | None:
         if self.check_mode:
             from nodes.exceptions import NodeError
+
             frame = inspect.currentframe()
             if frame is not None:
                 node = self._get_caller_node(frame)
@@ -517,6 +518,7 @@ class Context:
         (Redis) with one request.
         """
         from nodes.node_cache import NodeHasher
+
         NodeHasher.prefetch_nodes(context=self, nodes=nodes)
 
     def generate_baseline_values(self):

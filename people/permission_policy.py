@@ -17,9 +17,9 @@ if TYPE_CHECKING:
 
 
 class PersonPermissionPolicy(ModelPermissionPolicy[Person]):
-
     def __init__(self):
         from nodes.roles import instance_super_admin_role
+
         self.super_admin_role = instance_super_admin_role
         super().__init__(Person)
 
@@ -63,9 +63,7 @@ class PersonPermissionPolicy(ModelPermissionPolicy[Person]):
         organization = obj.organization
         ancestors = organization.get_ancestors()
         instance_configs_with_organization = InstanceConfig.objects.filter(organization__in=[organization] + list(ancestors))
-        return any(
-            user.has_instance_role(self.super_admin_role, instance) for instance in instance_configs_with_organization
-        )
+        return any(user.has_instance_role(self.super_admin_role, instance) for instance in instance_configs_with_organization)
 
     @override
     def anon_has_perm(self, action: ObjectSpecificAction, obj: Person) -> bool:
@@ -75,6 +73,7 @@ class PersonPermissionPolicy(ModelPermissionPolicy[Person]):
     @override
     def is_create_context_valid(self, context: CreateContext) -> TypeGuard[InstanceConfig]:
         from nodes.models import InstanceConfig
+
         return isinstance(context, InstanceConfig)
 
     @override

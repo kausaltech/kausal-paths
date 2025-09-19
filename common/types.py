@@ -15,6 +15,7 @@ IdentifierAdapter = TypeAdapter(Identifier)
 @overload
 def validate_identifier(s: str, mixed: Literal[True]) -> MixedCaseIdentifier: ...
 
+
 @overload
 def validate_identifier(s: str, mixed: Literal[False] = ...) -> Identifier: ...
 

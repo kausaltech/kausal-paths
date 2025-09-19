@@ -54,7 +54,7 @@ class Command(BaseCommand):
 
     def run_nodes(self, ctx: Context):
         for node in ctx.nodes.values():
-            logger.info("Checking node {node}", node=node.id)
+            logger.info('Checking node {node}', node=node.id)
             try:
                 node.check()
             except NodeError as e:
@@ -64,7 +64,8 @@ class Command(BaseCommand):
                     console.print(tb)
                     logger.error(
                         'Error in instance {instance}\nNode dependency path: {dep_path}',
-                        instance=ctx.instance.id, dep_path=e.get_dependency_path()
+                        instance=ctx.instance.id,
+                        dep_path=e.get_dependency_path(),
                     )
                     exit(1)
                 raise
@@ -73,22 +74,22 @@ class Command(BaseCommand):
                 df = node.get_output_pl()
                 out = JSONDataset.serialize_df(df)
                 fn = self.store / ('%s-%s.json' % (ctx.instance.id, node.id))
-                logger.info("Storing output to %s" % fn)
+                logger.info('Storing output to %s' % fn)
                 with fn.open('w') as f:
                     json.dump(out, f, indent=2)
             elif self.compare:
                 fn = self.compare / ('%s-%s.json' % (ctx.instance.id, node.id))
                 if not fn.exists():
-                    logger.warning("Skipping compare for %s" % fn)
+                    logger.warning('Skipping compare for %s' % fn)
                     continue
-                logger.info("Comparing output to %s" % fn)
+                logger.info('Comparing output to %s' % fn)
                 with fn.open('r') as f:
                     data = json.load(f)
                 df = node.get_output_pl()
                 df_ser = JSONDataset.serialize_df(df)
                 diffs = list(recursive_diff(make_comparable(data), make_comparable(df_ser)))
                 if diffs:
-                    logger.error("Instance %s, node %s differs" % (ctx.instance.id, node.id))
+                    logger.error('Instance %s, node %s differs' % (ctx.instance.id, node.id))
                     print(diffs)
 
     def run_aep(self, ctx: Context, aep: ImpactOverview):
@@ -134,5 +135,5 @@ class Command(BaseCommand):
             ic = InstanceConfig.objects.get(identifier=iid)
             if ic.has_framework_config():
                 continue
-            logger.info("Checking instance %s" % iid)
+            logger.info('Checking instance %s' % iid)
             self.check_instance(ic)

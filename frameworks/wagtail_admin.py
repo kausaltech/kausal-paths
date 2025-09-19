@@ -23,12 +23,11 @@ class SectionForm(PathsAdminModelForm[Section]):
     model = Section
 
 
-
 class SectionViewSet(PathsViewSet[Section, SectionQuerySet]):
     model = Section
     icon = 'folder-open-1'
-    choose_one_text = _("Choose a section")
-    choose_another_text = _("Choose another section")
+    choose_one_text = _('Choose a section')
+    choose_another_text = _('Choose another section')
     list_display = [
         'indented_name',
     ]
@@ -47,7 +46,7 @@ class MeasureTemplateViewSet(PathsViewSet[MeasureTemplate, QuerySet]):
     model = MeasureTemplate
     icon = 'kausal-plans'
     form_fields = ['name', 'priority', 'min_value', 'max_value', 'hidden']
-    menu_label = _("Measure templates")
+    menu_label = _('Measure templates')
     list_display = [
         'name',
         'section',
@@ -74,8 +73,8 @@ class MeasureTemplateViewSet(PathsViewSet[MeasureTemplate, QuerySet]):
 
 
 class FrameworksViewSetGroup(ViewSetGroup):
-    menu_label = "Frameworks"
-    menu_icon = "folder-inverse"
+    menu_label = 'Frameworks'
+    menu_icon = 'folder-inverse'
     menu_order = 200
     items = (SectionViewSet(), MeasureTemplateViewSet())
 

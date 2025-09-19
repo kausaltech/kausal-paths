@@ -68,18 +68,23 @@ parser.add_argument('--update-instance', action='store_true', help='update an ex
 parser.add_argument('--update-nodes', action='store_true', help='update existing NodeConfig instances')
 parser.add_argument('--overwrite', action='store_true', help='Overwrite contents in the database')
 parser.add_argument('--delete-stale-nodes', action='store_true', help='delete NodeConfig instances that no longer exist')
-parser.add_argument('--print-impact-overviews', action='store_true',
-                    help='calculate and print impact overviews (previously action efficiencies)')
+parser.add_argument(
+    '--print-impact-overviews', action='store_true', help='calculate and print impact overviews (previously action efficiencies)'
+)
 parser.add_argument('--show-perf', action='store_true', help='show performance info')
 parser.add_argument('--profile', action='store_true', help='profile computation performance')
 parser.add_argument('--disable-ext-cache', action='store_true', help='disable external cache')
 parser.add_argument('--cache-benchmark', action='store_true', help='Perform cache benchmarks')
 parser.add_argument('--generate-result-excel', type=str, metavar='FILENAME', help='Create an Excel file from model outputs')
-parser.add_argument('--format', choices=['long', 'wide'], default='long',
-                   help="""
+parser.add_argument(
+    '--format',
+    choices=['long', 'wide'],
+    default='long',
+    help="""
                    Excel output format (default: long). Originally, long was used for climate city contracts,
                    wide for GPC datasets.
-                   """)
+                   """,
+)
 
 # parser.add_argument('--sync', action='store_true', help='sync db to node contents')
 args = parser.parse_args()
@@ -133,6 +138,7 @@ else:
         context = loader.context
         instance = loader.instance
 
+
 def print_db_datasets():
     from nodes.datasets import DBDataset, DVCDataset
 
@@ -149,7 +155,7 @@ def print_db_datasets():
                 dvc_datasets.setdefault(ds.id, (ds, []))[1].append(node)
     print('Datasets in use:')
     commit = context.dataset_repo.target_commit_id
-    print(f"Commit: {commit}")
+    print(f'Commit: {commit}')
     table = Table()
     table.add_column('Source')
     table.add_column('Dataset ID')
@@ -272,7 +278,7 @@ if args.scenario:
 if args.list_params:
     context.print_all_parameters()
 
-#with root_span.start_child(name='load-dvc-datasets', op='function'):
+# with root_span.start_child(name='load-dvc-datasets', op='function'):
 #    context.load_all_dvc_datasets()
 
 for node_id in args.debug_nodes or []:
@@ -366,10 +372,7 @@ def generate_result_excel():
             if ic is None:
                 raise Exception("Instance '%s' not found" % instance.id)
             out = InstanceResultExcel.create_for_instance(
-                ic=instance_obj,
-                existing_wb=existing_wb,
-                context=context,
-                format=args.format
+                ic=instance_obj, existing_wb=existing_wb, context=context, format=args.format
             )
         else:
             excel_res = instance.result_excels[0]
@@ -389,7 +392,7 @@ for node_id in args.node or []:
             node = context.get_node(node_id)
         with start_span(name='run-node', op='function'), context.run(), start_span(name='print-output', op='function'):
             node.print_output(filters=all_filters or None)
-                # node.plot_output(filters=all_filters or None)
+            # node.plot_output(filters=all_filters or None)
 
     if isinstance(node, ActionNode):
         output_nodes = node.output_nodes
@@ -426,7 +429,7 @@ def round_quantity(e: Quantity):
 
 if args.print_impact_overviews:
 
-    def print_impact_overviews(): # FIXME Adjust to be functional sith different types of impact overviews
+    def print_impact_overviews():  # FIXME Adjust to be functional sith different types of impact overviews
         pc = PerfCounter('Impact overviews')
         for aep in context.impact_overviews:
             cn = aep.cost_node

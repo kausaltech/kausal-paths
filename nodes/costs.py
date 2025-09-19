@@ -19,7 +19,9 @@ from .simple import AdditiveNode, SimpleNode
 
 class SelectiveNode(AdditiveNode):
     global_parameters: list[str] = [
-        'include_co2', 'include_health', 'include_el_avoided',
+        'include_co2',
+        'include_health',
+        'include_el_avoided',
     ]
 
     def compute(self) -> ppl.PathsDataFrame:
@@ -102,14 +104,16 @@ class ExponentialNode(AdditiveNode):
             current_year = self.context.instance.maximum_historical_year
             end_year = self.context.instance.model_end_year
 
-            df = pl.DataFrame({
-                YEAR_COLUMN: range(start_year, end_year + 1)
-            })
-            df = df.with_columns([
-                pl.when(pl.col(YEAR_COLUMN) > pl.lit(current_year))
-                .then(pl.lit(True)).otherwise(pl.lit(False)).alias(FORECAST_COLUMN),  # noqa: FBT003
-                pl.lit(current_value).alias(VALUE_COLUMN),
-            ])
+            df = pl.DataFrame({YEAR_COLUMN: range(start_year, end_year + 1)})
+            df = df.with_columns(
+                [
+                    pl.when(pl.col(YEAR_COLUMN) > pl.lit(current_year))
+                    .then(pl.lit(True))
+                    .otherwise(pl.lit(False))
+                    .alias(FORECAST_COLUMN),
+                    pl.lit(current_value).alias(VALUE_COLUMN),
+                ]
+            )
             meta = ppl.DataFrameMeta(units={VALUE_COLUMN: unit}, primary_keys=[YEAR_COLUMN])
             df = ppl.to_ppdf(df, meta=meta)
 
@@ -131,18 +135,11 @@ class ExponentialNode(AdditiveNode):
         if self.get_parameter_value('is_decreasing_rate', required=False):
             base_value = 1 / base_value
 
-        df = df.with_columns(
-            (pl.col(YEAR_COLUMN) - pl.lit(current_year)).alias('power')
-        )
+        df = df.with_columns((pl.col(YEAR_COLUMN) - pl.lit(current_year)).alias('power'))
         if not self.get_parameter_value('touch_historical_values', required=False):
-            df = df.with_columns(
-                pl.when(pl.col('power') < pl.lit(0)).then(pl.lit(0))
-                .otherwise(pl.col('power')).alias('power')
-            )
+            df = df.with_columns(pl.when(pl.col('power') < pl.lit(0)).then(pl.lit(0)).otherwise(pl.col('power')).alias('power'))
 
-        df = df.with_columns(
-            (pl.lit(base_value) ** pl.col('power') * pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN)
-        ).drop('power')
+        df = df.with_columns((pl.lit(base_value) ** pl.col('power') * pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN)).drop('power')
 
         return df
 
@@ -154,11 +151,11 @@ class InternalGrowthNode(ExponentialNode):
     Parameter annual_change is used where the rate node(s) have null values.
     """)
 
-#    output_metrics = {  # FIXME Causes an unknown error but not critical yet.
-#        DEFAULT_METRIC: NodeMetric('Mt/a', 'mass', column_id=VALUE_COLUMN),
-#        'Reductions': NodeMetric('Mt/a', 'mass', column_id='Reductions'),
-#        'Annual_change': NodeMetric('', 'fraction', 'base_value')
-#    }
+    #    output_metrics = {  # FIXME Causes an unknown error but not critical yet.
+    #        DEFAULT_METRIC: NodeMetric('Mt/a', 'mass', column_id=VALUE_COLUMN),
+    #        'Reductions': NodeMetric('Mt/a', 'mass', column_id='Reductions'),
+    #        'Annual_change': NodeMetric('', 'fraction', 'base_value')
+    #    }
 
     def compute(self):
         df = self.get_input_dataset_pl()
@@ -175,23 +172,32 @@ class InternalGrowthNode(ExponentialNode):
         df_add = df_add.ensure_unit(VALUE_COLUMN, self.unit * unit_registry.parse_units('1/a'))
         df = df.paths.join_over_index(df_add, how='outer')
 
-        df = df.with_columns([  # FIXME Fails if there are missing years
-            pl.lit(base_value).alias('base_value'),
-            pl.col('Value_right').shift(1).alias('Value_right'),
-            pl.col('Value').shift(1).alias('Previous')
-            ])
+        df = df.with_columns(
+            [  # FIXME Fails if there are missing years
+                pl.lit(base_value).alias('base_value'),
+                pl.col('Value_right').shift(1).alias('Value_right'),
+                pl.col('Value').shift(1).alias('Previous'),
+            ]
+        )
         for year in df[YEAR_COLUMN]:  # FIXME Fails if multiple dimensions
             if df.filter(pl.col(YEAR_COLUMN) == year)[VALUE_COLUMN].is_null()[0]:
-                df = df.with_columns([
-                    pl.when(pl.col(YEAR_COLUMN).eq(year))
-                    .then((pl.col('Previous') + pl.col('Value_right')) * pl.col('base_value'))
-                    .otherwise(pl.col('Value')).alias('Value')])
                 df = df.with_columns(
-                    pl.when(pl.col(YEAR_COLUMN).eq(year+1)).then(pl.col('Value').shift(1))
-                    .otherwise(pl.col('Previous')).alias('Previous'))
+                    [
+                        pl.when(pl.col(YEAR_COLUMN).eq(year))
+                        .then((pl.col('Previous') + pl.col('Value_right')) * pl.col('base_value'))
+                        .otherwise(pl.col('Value'))
+                        .alias('Value')
+                    ]
+                )
+                df = df.with_columns(
+                    pl.when(pl.col(YEAR_COLUMN).eq(year + 1))
+                    .then(pl.col('Value').shift(1))
+                    .otherwise(pl.col('Previous'))
+                    .alias('Previous')
+                )
 
-#        df = df.drop(['Previous', 'Value_right', 'base_value'])
-#        df = df.rename({'Value_right': 'Reductions'})
+        #        df = df.drop(['Previous', 'Value_right', 'base_value'])
+        #        df = df.rename({'Value_right': 'Reductions'})
         return df
 
 
@@ -256,22 +262,26 @@ class EnergyCostNode(AdditiveNode):
             df = self.add_nodes_pl(None, self.input_nodes, metric)
 
         meta = df.get_meta()
-        df = df.with_columns([
-            pl.col(VALUE_COLUMN).alias('EnergyPrice'),
-            (pl.col(VALUE_COLUMN) * added_value_tax).alias('AddedValueTax'),
-            pl.lit(network_price).alias('NetworkPrice'),
-            pl.lit(handling_fee).alias('HandlingFee'),
-            pl.lit(certificate).alias('Certificate'),
-            pl.lit(energy_tax).alias('EnergyTax'),
-        ])
-        meta.units.update(dict(
-            EnergyPrice=meta.units[VALUE_COLUMN],
-            AddedValueTax=meta.units[VALUE_COLUMN],
-            NetworkPrice=net_pt,
-            HandlingFee=han_pt,
-            Certificate=cer_pt,
-            EnergyTax=ene_pt,
-        ))
+        df = df.with_columns(
+            [
+                pl.col(VALUE_COLUMN).alias('EnergyPrice'),
+                (pl.col(VALUE_COLUMN) * added_value_tax).alias('AddedValueTax'),
+                pl.lit(network_price).alias('NetworkPrice'),
+                pl.lit(handling_fee).alias('HandlingFee'),
+                pl.lit(certificate).alias('Certificate'),
+                pl.lit(energy_tax).alias('EnergyTax'),
+            ]
+        )
+        meta.units.update(
+            dict(
+                EnergyPrice=meta.units[VALUE_COLUMN],
+                AddedValueTax=meta.units[VALUE_COLUMN],
+                NetworkPrice=net_pt,
+                HandlingFee=han_pt,
+                Certificate=cer_pt,
+                EnergyTax=ene_pt,
+            )
+        )
         df = ppl.to_ppdf(df=df, meta=meta)
 
         if include_energy_taxes:
@@ -280,9 +290,7 @@ class EnergyCostNode(AdditiveNode):
             cols = ['NetworkPrice']
 
         add_expr = functools.reduce(lambda x, y: x + y, [pl.col(x) for x in cols])
-        df = df.with_columns([
-            (pl.col(VALUE_COLUMN) + add_expr).alias(VALUE_COLUMN)
-        ])
+        df = df.with_columns([(pl.col(VALUE_COLUMN) + add_expr).alias(VALUE_COLUMN)])
         return df
 
 
@@ -291,10 +299,10 @@ class DilutionNode(SimpleNode):
     This is Dilution Node. It has exactly four input nodes which are marked by tags: 1) existing is the current, non-diluted variable. 2) Incoming is the variable which diluted the existing one with its different values. 3) Removing is the fraction that is removed from the existing stock each year. 4) Incoming is the ratio compared with the existing stock that is inserted into the system. (Often the removed and incoming values are the same, and then the stock size remains constant.)
     """)  # noqa: E501
 
-    def compute(self)-> ppl.PathsDataFrame:
+    def compute(self) -> ppl.PathsDataFrame:
         dfs = {}
         for tag in ['existing', 'incoming', 'removing', 'inserting']:
-            dfs[tag] = self.get_input_node(tag = tag).get_output_pl(target_node = self)
+            dfs[tag] = self.get_input_node(tag=tag).get_output_pl(target_node=self)
 
         jdf = dfs['incoming'].rename({VALUE_COLUMN: 'incoming'})
         for tag in ['removing', 'inserting']:
@@ -306,15 +314,18 @@ class DilutionNode(SimpleNode):
             ydf = ydf.with_columns(pl.lit(year + 1).alias(YEAR_COLUMN))
 
             ydf = ydf.paths.join_over_index(jdf)
-            ydf = ydf.with_columns(((pl.col(VALUE_COLUMN) * (pl.lit(1.0) - pl.col('removing'))) +
-                                    (pl.col('incoming') * pl.col('inserting'))).alias(VALUE_COLUMN))
+            ydf = ydf.with_columns(
+                ((pl.col(VALUE_COLUMN) * (pl.lit(1.0) - pl.col('removing'))) + (pl.col('incoming') * pl.col('inserting'))).alias(
+                    VALUE_COLUMN
+                )
+            )
 
             df = df.paths.concat_vertical(ydf.drop('incoming', 'removing', 'inserting'))
 
         return df
 
 
-class IterativeNode(AdditiveNode): #, DatasetNode):
+class IterativeNode(AdditiveNode):  # , DatasetNode):
     explanation = _("""
         This is IterativeNode. It calculates one year at a time based on previous year's value and inputs and outputs. In addition, it must have a feedback loop (otherwise it makes no sense to use this node class), which is given as a growth rate per year from the previous year's value.
         """)  # noqa: E501
@@ -346,7 +357,9 @@ class IterativeNode(AdditiveNode): #, DatasetNode):
             df = df.with_columns(
                 pl.when(pl.col(VALUE_COLUMN).cum_count() == i + 1)
                 .then((df[VALUE_COLUMN][i - 1] + df['changes'][i]) * df['rate'][i])
-                .otherwise(pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
+                .otherwise(pl.col(VALUE_COLUMN))
+                .alias(VALUE_COLUMN)
+            )
 
         df = df.drop(['rate', 'changes'])
         return df

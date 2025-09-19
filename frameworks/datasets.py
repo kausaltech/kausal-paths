@@ -99,14 +99,21 @@ class FrameworkMeasureDVCDataset(DVCDataset):
                 ],
             )
 
-        jdf = jdf.with_columns([
-            pl.when(pl.col('NrSectorYears') == 1).then(
-                pl.coalesce(['MeasureYear', YEAR_COLUMN]),
-            ).otherwise(pl.col(YEAR_COLUMN)).alias(YEAR_COLUMN),
-            pl.coalesce(['MeasureValue', 'MeasureDefaultValue', 'Value']).alias('Value'),
-            pl.coalesce(['MeasureUnit', 'Unit']).alias('Unit'),
-            (pl.col('MeasureValue').is_not_null() | pl.col('MeasureDefaultValue').is_not_null()).alias('FromMeasureDataPoint')
-        ])
+        jdf = jdf.with_columns(
+            [
+                pl.when(pl.col('NrSectorYears') == 1)
+                .then(
+                    pl.coalesce(['MeasureYear', YEAR_COLUMN]),
+                )
+                .otherwise(pl.col(YEAR_COLUMN))
+                .alias(YEAR_COLUMN),
+                pl.coalesce(['MeasureValue', 'MeasureDefaultValue', 'Value']).alias('Value'),
+                pl.coalesce(['MeasureUnit', 'Unit']).alias('Unit'),
+                (pl.col('MeasureValue').is_not_null() | pl.col('MeasureDefaultValue').is_not_null()).alias(
+                    'FromMeasureDataPoint'
+                ),
+            ]
+        )
         df = ppl.to_ppdf(jdf.select([*df_cols, 'FromMeasureDataPoint']), meta=meta)
         return df
 

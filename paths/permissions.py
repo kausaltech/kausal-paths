@@ -36,6 +36,7 @@ class PathsParentPolicy(ParentInheritedPolicy[_M, _ParentM, _QS]):
 class PathsAPIPermission(permissions.DjangoModelPermissions):
     pass
 
+
 class ReadOnly(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.method in permissions.SAFE_METHODS
@@ -71,9 +72,11 @@ class OrganizationPermission(permissions.DjangoObjectPermissions):
             return True
         return all(self.check_permission(request.user, perm, obj) for perm in perms)
 
+
 class PersonPermission(permissions.DjangoObjectPermissions):
     def check_permission(
-            self, user: User, perm: str, person: Person | None = None, instance_config: InstanceConfig | None = None):
+        self, user: User, perm: str, person: Person | None = None, instance_config: InstanceConfig | None = None
+    ):
         # Check for object permissions first
         if not user.has_perms([perm]):
             return False
@@ -91,7 +94,8 @@ class PersonPermission(permissions.DjangoObjectPermissions):
                     return False
             # Does the user have deletion rights to this person in this plan
             elif not instance_config or not user.can_edit_or_delete_person_within_instance(
-                    person, instance_config=instance_config):
+                person, instance_config=instance_config
+            ):
                 return False
         else:
             return False

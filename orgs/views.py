@@ -18,7 +18,6 @@ if TYPE_CHECKING:
 
 
 class OrganizationCreateView(BaseOrganizationCreateView, PathsCreateView):
-
     def initialize_instance(self, instance: Model) -> None:
         """
         Initialize the instance with plan defaults.
@@ -55,10 +54,12 @@ class CreateChildNodeView(BaseCreateChildNodeView):
         # Initialize the instance with defaults
         if hasattr(instance, 'initialize_instance_defaults'):
             from paths.context import realm_context
+
             instance_config = realm_context.get().realm
             instance.initialize_instance_defaults(instance_config)
 
         return instance
+
 
 class OrganizationIndexView(BaseOrganizationIndexView):
     def get_list_more_buttons(self, instance: Organization):

@@ -20,25 +20,22 @@ def change_admin_instance(request: PathsAdminRequest, instance_id):
         instance_id = request.POST.get('instance', None)
 
     if instance_id is None:
-        return HttpResponseBadRequest("No instance given")
+        return HttpResponseBadRequest('No instance given')
     try:
         instance_id = int(instance_id)
     except ValueError:
-        return HttpResponseBadRequest("Invalid instance id")
+        return HttpResponseBadRequest('Invalid instance id')
 
     user = request.user
     adminable_instances = user.get_adminable_instances()
     try:
         user.selected_instance = next(i for i in adminable_instances if i.pk == instance_id)
     except StopIteration:
-        return HttpResponseBadRequest("Invalid instance ID")
+        return HttpResponseBadRequest('Invalid instance ID')
     user.save(update_fields=['selected_instance'])
     request.session['admin_instance'] = instance_id
 
-    redirect_to = request.POST.get(
-        REDIRECT_FIELD_NAME,
-        request.GET.get(REDIRECT_FIELD_NAME, '')
-    )
+    redirect_to = request.POST.get(REDIRECT_FIELD_NAME, request.GET.get(REDIRECT_FIELD_NAME, ''))
     if redirect_to:
         url_is_safe = url_has_allowed_host_and_scheme(
             url=redirect_to,

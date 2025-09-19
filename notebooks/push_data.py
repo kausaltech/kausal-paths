@@ -26,7 +26,7 @@ settings = {
             'value_column': 'Rakennukset',
             'previous_version': {
                 'path': 'https://s3.kausal.tech/datasets/',
-                'etag': 'a5aab9b6851f1faaff9bfa7dce89c7e9', # (from dvctest repo)
+                'etag': 'a5aab9b6851f1faaff9bfa7dce89c7e9',  # (from dvctest repo)
                 'key': 'a5/aab9b6851f1faaff9bfa7dce89c7e9',
             },
             'column_types': {
@@ -50,10 +50,7 @@ df = pl.read_csv(
     quote_char=str(dataset_settings['metadata']['quote_char']),
 )
 
-metas = DatasetMeta(
-    identifier=str(dataset_settings['identifier']),
-    metadata=dict(dataset_settings['metadata'])
-)
+metas = DatasetMeta(identifier=str(dataset_settings['identifier']), metadata=dict(dataset_settings['metadata']))
 
 creds = RepositoryCredentials(
     git_username=os.getenv('DVC_PANDAS_GIT_USERNAME'),

@@ -24,7 +24,6 @@ class FloorAreaNode(MultiplicativeNode):  # FIXME Rebuild this with modern tools
     output_dimension_ids = ['action', 'building_energy_class', 'emission_sectors']  # FIXME Generalise and remove emission_sectors
     input_dimension_ids = ['building_energy_class', 'emission_sectors']
 
-
     def include_custom_dimension(self, df: ppl.PathsDataFrame):  # Dimension must be explained in column name in the right syntax
         df = df.paths.to_wide()  # Make column names consistent
         for s in df.columns:
@@ -56,9 +55,8 @@ class FloorAreaNode(MultiplicativeNode):  # FIXME Rebuild this with modern tools
         flhv = flhv.rename({flhv.metric_cols[0]: 'floor_old'})
         df_bau = df.paths.join_over_index(flhv.drop([YEAR_COLUMN, FORECAST_COLUMN]))
         df_bau = df_bau.with_columns(
-            pl.when(pl.col(FORECAST_COLUMN)).then(pl.col('floor_old'))
-            .otherwise(pl.col(VALUE_COLUMN)).alias('floor_old')
-            )
+            pl.when(pl.col(FORECAST_COLUMN)).then(pl.col('floor_old')).otherwise(pl.col(VALUE_COLUMN)).alias('floor_old')
+        )
         df_bau = df_bau.with_columns((pl.col(VALUE_COLUMN) - pl.col('floor_old')).alias('floor_new'))
         # FIXME Bubblegum fix for wrong unit treatment in diff:
         df_bau = df_bau.set_unit('floor_new', df_bau.get_unit('floor_old') * unit_registry(TIME_INTERVAL))
@@ -67,17 +65,19 @@ class FloorAreaNode(MultiplicativeNode):  # FIXME Rebuild this with modern tools
 
         # Add or update dimension building_energy_class
         if 'building_energy_class' in df.dim_ids:
-            df_bau = df_bau.with_columns((
-                pl.when(pl.col('building_energy_class')
-                        .eq('existing')).then(pl.col('floor_old'))
-                        .otherwise(pl.col('floor_new')).alias('floor_old')))
+            df_bau = df_bau.with_columns(
+
+                    pl.when(pl.col('building_energy_class').eq('existing'))
+                    .then(pl.col('floor_old'))
+                    .otherwise(pl.col('floor_new'))
+                    .alias('floor_old')
+
+            )
             df_bau = df_bau.drop('floor_new')
             df_bau = df_bau.rename({'floor_old': 'floor_area'})
         else:
             col = 'floor_area@building_energy_class:'
-            df_bau = df_bau.rename({
-                'floor_old': col + 'existing',
-                'floor_new': col + 'new'})
+            df_bau = df_bau.rename({'floor_old': col + 'existing', 'floor_new': col + 'new'})
             df_bau = self.include_custom_dimension(df_bau)
 
         df_out = None
@@ -87,9 +87,14 @@ class FloorAreaNode(MultiplicativeNode):  # FIXME Rebuild this with modern tools
             df = df.ensure_unit('compliant', 'dimensionless')
 
             df = df.paths.join_over_index(df_bau)
-            df = df.with_columns((
-                pl.when(pl.col('building_energy_class').eq(pl.lit('new')))
-                .then(pl.lit(1.0)).otherwise(pl.col('triggered')).alias('triggered')))
+            df = df.with_columns(
+
+                    pl.when(pl.col('building_energy_class').eq(pl.lit('new')))
+                    .then(pl.lit(1.0))
+                    .otherwise(pl.col('triggered'))
+                    .alias('triggered')
+
+            )
 
             df = df.multiply_cols(['floor_area', 'triggered', 'compliant'], 'floor_area')
 
@@ -114,10 +119,11 @@ class FloorAreaNode(MultiplicativeNode):  # FIXME Rebuild this with modern tools
 
 
 class CfNode(FloorAreaNode):
-    '''
+    """
     Consumption factor (CF) describes the energy saving caused by the action.
     There must be at least one action of type energy_saving.CfFloorAreaAction.
-    '''
+    """
+
     output_dimension_ids = ['action', 'building_energy_class', 'emission_sectors']
     input_dimension_ids = ['building_energy_class', 'emission_sectors']
 
@@ -169,20 +175,21 @@ class CfNode(FloorAreaNode):
 
 
 class EnergyNode(MultiplicativeNode):
-    '''
+    """
     Takes the floor area and consumption factor categorized by building energy class and action.
 
     This energy saving is accumulated over time to reflect the situation that
     the energy use of a building stays constant after renovation.
     However, accumulation can be prevented by using the parameter not_cumulated.
-    '''
+    """
 
     allowed_parameters = MultiplicativeNode.allowed_parameters + [
         StringParameter(
             local_id='not_cumulated',
             description='Action that is not cumulated',
             is_customizable=False,
-        )]
+        )
+    ]
 
     input_dimension_ids = ['action', 'building_energy_class', 'emission_sectors']
     output_dimension_ids = ['action', 'building_energy_class', 'emission_sectors']
@@ -197,8 +204,9 @@ class EnergyNode(MultiplicativeNode):
             df = df.with_columns(  # FIXME fails to pick non-cumulated action
                 pl.when(pl.col('action') == not_cumulated)
                 .then(pl.col(VALUE_COLUMN))
-                .otherwise(pl.col('cumulated')).alias(VALUE_COLUMN)
-                )
+                .otherwise(pl.col('cumulated'))
+                .alias(VALUE_COLUMN)
+            )
 
         df = df.drop(['cumulated'])
 
@@ -218,6 +226,7 @@ class CCSNode(SimpleNode):
         NumberParameter('capture_efficiency', unit_str='%', is_customizable=True),
         NumberParameter('storage_efficiency', unit_str='%', is_customizable=True),
     ]
+
     def compute(self) -> ppl.PathsDataFrame:
         df = self.get_input_node(tag='emissions').get_output_pl(target_node=self)
         df = df.rename({VALUE_COLUMN: 'Emissions'})
@@ -231,38 +240,38 @@ class CCSNode(SimpleNode):
         capt_eff = self.get_parameter_value('capture_efficiency', units=True).to('dimensionless').m
         df = df.multiply_cols(['Emissions', 'CCSShare'], 'Captured')
         df = df.with_columns(
-            pl.when(pl.col('greenhouse_gases').is_in(('co2', 'co2_biogen')))
-                .then(pl.col('Captured') * capt_eff).otherwise(0.0)
+            pl.when(pl.col('greenhouse_gases').is_in(('co2', 'co2_biogen'))).then(pl.col('Captured') * capt_eff).otherwise(0.0)
         )
 
         storage_eff = self.get_parameter_value('storage_efficiency', units=True).to('dimensionless').m
         u = df.get_unit('Captured')
-        df = df.with_columns([
-            (pl.col('Captured') * storage_eff).alias('Stored'),
-            (pl.col('Emissions') - pl.col('Captured')).alias('Remaining'),
-        ]).with_columns([
-            (pl.col('Captured') - pl.col('Stored')).alias('StorageLoss')
-        ]).set_unit('Remaining', u).set_unit('StorageLoss', u)
+        df = (
+            df.with_columns(
+                [
+                    (pl.col('Captured') * storage_eff).alias('Stored'),
+                    (pl.col('Emissions') - pl.col('Captured')).alias('Remaining'),
+                ]
+            )
+            .with_columns([(pl.col('Captured') - pl.col('Stored')).alias('StorageLoss')])
+            .set_unit('Remaining', u)
+            .set_unit('StorageLoss', u)
+        )
 
         m = self.get_default_output_metric()
-        rdf = (
-            df.select_metrics('Remaining', rename=m.column_id)
-            .with_columns(pl.lit('scope1').alias('emission_scope'))
-        )
+        rdf = df.select_metrics('Remaining', rename=m.column_id).with_columns(pl.lit('scope1').alias('emission_scope'))
         sdf = (
-            df.select_metrics('Stored', rename=m.column_id).filter(
-                pl.col('greenhouse_gases').eq('co2_biogen')
-            ).with_columns([
-                pl.lit('negative_emissions').alias('emission_scope'),
-                # use co2 to be able to convert to GWP
-                pl.lit('co2', dtype=pl.Categorical).alias('greenhouse_gases'),
-                (-pl.col(m.column_id)).alias(m.column_id)
-            ])
+            df.select_metrics('Stored', rename=m.column_id)
+            .filter(pl.col('greenhouse_gases').eq('co2_biogen'))
+            .with_columns(
+                [
+                    pl.lit('negative_emissions').alias('emission_scope'),
+                    # use co2 to be able to convert to GWP
+                    pl.lit('co2', dtype=pl.Categorical).alias('greenhouse_gases'),
+                    (-pl.col(m.column_id)).alias(m.column_id),
+                ]
+            )
         )
-        ldf = (
-            df.select_metrics('StorageLoss', rename=m.column_id)
-            .with_columns(pl.lit('scope3').alias('emission_scope'))
-        )
+        ldf = df.select_metrics('StorageLoss', rename=m.column_id).with_columns(pl.lit('scope3').alias('emission_scope'))
 
         df = ppl.to_ppdf(pl.concat([rdf, sdf, ldf]), rdf.get_meta()).add_to_index('emission_scope')
         df = convert_to_co2e(df, 'greenhouse_gases')

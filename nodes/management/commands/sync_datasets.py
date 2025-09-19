@@ -18,10 +18,15 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser: CommandParser):
         parser.add_argument(
-            'action', type=str, choices=['import', 'export'], help='Action to perform',
+            'action',
+            type=str,
+            choices=['import', 'export'],
+            help='Action to perform',
         )
         parser.add_argument(
-            'instance', type=str, help='Instance identifier',
+            'instance',
+            type=str,
+            help='Instance identifier',
         )
         parser.add_argument('file', type=Path, help='JSON file to read from or write to')
         parser.add_argument('--dry-run', '-N', action='store_true', help='Only show the changes that would be made')
@@ -35,7 +40,7 @@ class Command(BaseCommand):
         self.yes = options['yes']
 
         instance_identifier = options['instance']
-        #if action in ('export', 'export_configs', 'import_configs') and not instance_identifier:
+        # if action in ('export', 'export_configs', 'import_configs') and not instance_identifier:
         #    self.stderr.write(self.style.ERROR('Instance identifier is required for the subaction'))
         #    exit(1)
 
@@ -61,7 +66,7 @@ class Command(BaseCommand):
             dj.load()
             dj.sync_from(js)
             if self.dry_run:
-                self.stderr.write(self.style.WARNING("Dry run requested; no changes done."))
+                self.stderr.write(self.style.WARNING('Dry run requested; no changes done.'))
                 dj.rollback()
 
     def export_data(self, file_path: Path, instance_identifier: str):
@@ -71,17 +76,17 @@ class Command(BaseCommand):
             self.stderr.write(self.style.ERROR(f"Instance with identifier '{instance_identifier}' not found"))
             return
 
-        #ct = ContentType.objects.get_for_model(ic)
+        # ct = ContentType.objects.get_for_model(ic)
         dj = DatasetDjangoAdapter(ic)
         with dj.start():
             dj.load()
 
         if self.dry_run:
-            self.stderr.write(self.style.WARNING("Dry run requested; no changes done."))
+            self.stderr.write(self.style.WARNING('Dry run requested; no changes done.'))
             exit(0)
 
         dj.save_json(file_path)
-        self.stdout.write(self.style.SUCCESS(f"Successfully exported datasets to {file_path}"))
+        self.stdout.write(self.style.SUCCESS(f'Successfully exported datasets to {file_path}'))
 
     def export_configs(self, file_path: Path, instance_identifier: str):
         try:
@@ -95,9 +100,9 @@ class Command(BaseCommand):
             dj.load()
 
         if self.dry_run:
-            self.stderr.write(self.style.WARNING("Dry run requested; no changes done."))
+            self.stderr.write(self.style.WARNING('Dry run requested; no changes done.'))
             exit(0)
 
         dj.save_json(file_path)
 
-        self.stdout.write(self.style.SUCCESS(f"Successfully exported framework data to {file_path}"))
+        self.stdout.write(self.style.SUCCESS(f'Successfully exported framework data to {file_path}'))

@@ -15,7 +15,7 @@ from grapple.utils import resolve_queryset
 if TYPE_CHECKING:
     from paths.graphql_helpers import GQLInstanceInfo
 
-    #from .models import PathsPage
+    # from .models import PathsPage
 
 
 def get_page_interface() -> type[PageInterface]:
@@ -44,18 +44,10 @@ class PageInterface(graphene.Interface):
     last_published_at = graphene.DateTime()
 
     parent = graphene.Field(get_page_interface)
-    children = QuerySetList(
-        graphene.NonNull(get_page_interface), enable_search=True, required=True
-    )
-    siblings = QuerySetList(
-        graphene.NonNull(get_page_interface), enable_search=True, required=True
-    )
-    descendants = QuerySetList(
-        graphene.NonNull(get_page_interface), enable_search=True, required=True
-    )
-    ancestors = QuerySetList(
-        graphene.NonNull(get_page_interface), enable_search=True, required=True
-    )
+    children = QuerySetList(graphene.NonNull(get_page_interface), enable_search=True, required=True)
+    siblings = QuerySetList(graphene.NonNull(get_page_interface), enable_search=True, required=True)
+    descendants = QuerySetList(graphene.NonNull(get_page_interface), enable_search=True, required=True)
+    ancestors = QuerySetList(graphene.NonNull(get_page_interface), enable_search=True, required=True)
 
     search_score = graphene.Float()
 
@@ -66,14 +58,13 @@ class PageInterface(graphene.Interface):
         otherwise use base page type.
         """
         from grapple.types.pages import Page
+
         return registry.pages.get(type(instance), Page)
 
     @staticmethod
     def resolve_content_type(root, info, **kwargs):
         root.content_type = ContentType.objects.get_for_model(root)
-        return (
-            f"{root.content_type.app_label}.{root.content_type.model_class().__name__}"
-        )
+        return f'{root.content_type.app_label}.{root.content_type.model_class().__name__}'
 
     @staticmethod
     def resolve_page_type(root, info, **kwargs):
@@ -85,9 +76,7 @@ class PageInterface(graphene.Interface):
         Resolves a list of live children of this page.
         Docs: https://docs.wagtail.io/en/stable/reference/pages/queryset_reference.html#examples
         """
-        return resolve_queryset(
-            root.get_children().live().public().specific(), info, **kwargs
-        )
+        return resolve_queryset(root.get_children().live().public().specific(), info, **kwargs)
 
     @staticmethod
     def resolve_descendants(root, info, **kwargs):
@@ -95,9 +84,7 @@ class PageInterface(graphene.Interface):
         Resolves a list of nodes pointing to the current page’s descendants.
         Docs: https://docs.wagtail.io/en/stable/reference/pages/model_reference.html#wagtail.models.Page.get_descendants
         """
-        return resolve_queryset(
-            root.get_descendants().live().public().specific(), info, **kwargs
-        )
+        return resolve_queryset(root.get_descendants().live().public().specific(), info, **kwargs)
 
     def resolve_seo_title(self, info, **kwargs):
         """
@@ -109,7 +96,7 @@ class PageInterface(graphene.Interface):
         """
         Get page's search score, will be None if not in a search context.
         """
-        return getattr(self, "search_score", None)
+        return getattr(self, 'search_score', None)
 
     @staticmethod
     def resolve_parent(root, info: GQLInstanceInfo, **kwargs):
@@ -122,9 +109,7 @@ class PageInterface(graphene.Interface):
 
     @staticmethod
     def resolve_ancestors(root, info: GQLInstanceInfo, **kwargs):
-        return resolve_queryset(
-            root.get_ancestors().live().public().specific().filter(depth__gte=2), info, **kwargs
-        )
+        return resolve_queryset(root.get_ancestors().live().public().specific().filter(depth__gte=2), info, **kwargs)
 
     @staticmethod
     def resolve_siblings(root, info: GQLInstanceInfo, **kwargs):

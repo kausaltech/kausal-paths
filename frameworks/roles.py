@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 class FrameworkGroupMembershipRole(InstanceFieldGroupRole['Framework', 'FrameworkQuerySet']):
     def __init__(self):
         from .models import Framework
+
         super().__init__(Framework)
 
     def get_instance_site(self, obj: Framework) -> Site | None:
@@ -30,9 +31,9 @@ class FrameworkGroupMembershipRole(InstanceFieldGroupRole['Framework', 'Framewor
 
 class FrameworkAdminRole(FrameworkGroupMembershipRole, AdminRole['Framework']):
     id = FRAMEWORK_ADMIN_ROLE
-    name = _("Framework admins")
+    name = _('Framework admins')
     description = _('Administrative access to the instance without permissions to manage people and organizations')
-    group_name = "Framework admins"
+    group_name = 'Framework admins'
     instance_group_field_name = 'admin_group'
 
     model_perms = InstanceAdminRole.model_perms + [
@@ -58,11 +59,9 @@ class FrameworkAdminRole(FrameworkGroupMembershipRole, AdminRole['Framework']):
 
 class FrameworkViewerRole(FrameworkGroupMembershipRole, InstanceSpecificRole['Framework']):
     id = FRAMEWORK_VIEWER_ROLE
-    name = _("Framework viewers")
-    description = _(
-        'Read-only access to instance data'
-    )
-    group_name = "Framework viewers"
+    name = _('Framework viewers')
+    description = _('Read-only access to instance data')
+    group_name = 'Framework viewers'
     instance_group_field_name = 'viewer_group'
 
     model_perms = [

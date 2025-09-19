@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
 all_views: list[RegisteredAPIView] = []
 
+
 class PersonSerializer(BasePersonSerializer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -64,7 +65,7 @@ class PersonViewSet(ModelWithImageViewMixin, BulkModelViewSet):
         try:
             return InstanceConfig.objects.get(identifier=instance_identifier)
         except InstanceConfig.DoesNotExist as e:
-            raise exceptions.NotFound(detail="InstanceConfig not found") from e
+            raise exceptions.NotFound(detail='InstanceConfig not found') from e
 
     def user_is_authorized_for_instance(self, instance):
         user = user_or_none(self.request.user)
@@ -91,5 +92,5 @@ class PersonViewSet(ModelWithImageViewMixin, BulkModelViewSet):
         if instance is None:
             return queryset
         if not self.user_is_authorized_for_instance(instance):
-            raise exceptions.PermissionDenied(detail="Not authorized")
+            raise exceptions.PermissionDenied(detail='Not authorized')
         return queryset.available_for_instance(instance)

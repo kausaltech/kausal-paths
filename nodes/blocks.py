@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
-from wagtail.blocks import StructBlock, ChooserBlock
+from wagtail.blocks import ChooserBlock, StructBlock
 
 
 class NodeChooserBlock(ChooserBlock):
@@ -10,11 +12,13 @@ class NodeChooserBlock(ChooserBlock):
     @cached_property
     def target_model(self):
         from .models import NodeConfig
+
         return NodeConfig
 
     @cached_property
     def widget(self):
         from .choosers import NodeChooser
+
         return NodeChooser()
 
     def get_form_state(self, value):
@@ -22,4 +26,4 @@ class NodeChooserBlock(ChooserBlock):
 
 
 class OutcomeBlock(StructBlock):
-    outcome_node = NodeChooserBlock(label=_("Outcome node"))
+    outcome_node = NodeChooserBlock(label=_('Outcome node'))

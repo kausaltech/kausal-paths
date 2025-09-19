@@ -76,11 +76,8 @@ class ParentActionNode(ActionNode):
             if rnu and (root_node.id != self.id):  # FIXME Quickfix done. But this can produce unintended results
                 break
         else:
-            raise NodeError(self, "Unable to find unit-compatible root node")
+            raise NodeError(self, 'Unable to find unit-compatible root node')
         # g = self.context.node_graph
         # acts = list(filter(lambda x: root_node.id in nx.descendants(g, x.id), self.subactions))
-        df = (
-            self.compute_impact(root_node)
-                .filter(pl.col(IMPACT_COLUMN) == IMPACT_GROUP).drop(IMPACT_COLUMN)
-        )
+        df = self.compute_impact(root_node).filter(pl.col(IMPACT_COLUMN) == IMPACT_GROUP).drop(IMPACT_COLUMN)
         return df

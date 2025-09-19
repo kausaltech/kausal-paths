@@ -88,12 +88,12 @@ class InstanceResultExcel(I18nBaseModel):
         if self.node_ids is not None:
             for node_id in self.node_ids:
                 if node_id not in ctx.nodes:
-                    raise KeyError(f"Node {node_id} not found.")
+                    raise KeyError(f'Node {node_id} not found.')
         if self.action_ids is not None:
             actions = {n.id for n in ctx.get_actions()}
             for action_id in self.action_ids:
                 if action_id not in actions:
-                    raise KeyError(f"Action {action_id} not found.")
+                    raise KeyError(f'Action {action_id} not found.')
 
     def _output_node_long(
         self,
@@ -194,38 +194,32 @@ class InstanceResultExcel(I18nBaseModel):
         grouping_cols = df.dim_ids if df.dim_ids else ['_dummy_group']
 
         # Create forecast_from values
-        forecast_from_df = (df
-            .filter(pl.col(FORECAST_COLUMN))
-            .group_by(grouping_cols)
-            .agg(
-                pl.col(YEAR_COLUMN).min().alias('Forecast_from')
-            )
+        forecast_from_df = (
+            df.filter(pl.col(FORECAST_COLUMN)).group_by(grouping_cols).agg(pl.col(YEAR_COLUMN).min().alias('Forecast_from'))
         )
 
-        dfout: pl.DataFrame = df.join(
-            forecast_from_df,
-            on=grouping_cols,
-            how='left'
-        ).drop('_dummy_group')  # Remove the dummy column after join
+        dfout: pl.DataFrame = df.join(forecast_from_df, on=grouping_cols, how='left').drop(
+            '_dummy_group'
+        )  # Remove the dummy column after join
 
-        dfout = dfout.select([
+        dfout = dfout.select(
+            [
                 *[col_map[col_id].alias(col_id) for col_id in col_map.keys()],
                 pl.col(YEAR_COLUMN),
                 pl.col(VALUE_COLUMN),
-                pl.col(FORECAST_COLUMN)
-            ]).pivot(  # type: ignore[call-arg]
-                values=VALUE_COLUMN,
-                index=[*col_map.keys()],  # Now includes Forecast_from
-                columns=YEAR_COLUMN,
-                maintain_order=True,
-                aggregate_function='first'
-            )
+                pl.col(FORECAST_COLUMN),
+            ]
+        ).pivot(  # type: ignore[call-arg]
+            values=VALUE_COLUMN,
+            index=[*col_map.keys()],  # Now includes Forecast_from
+            columns=YEAR_COLUMN,
+            maintain_order=True,
+            aggregate_function='first',
+        )
 
-        dfout = dfout.with_columns([
-            pl.col(col).cast(pl.String, strict=False).fill_null(".")
-            for col in dfout.columns
-            if col in dim_ids
-        ])
+        dfout = dfout.with_columns(
+            [pl.col(col).cast(pl.String, strict=False).fill_null('.') for col in dfout.columns if col in dim_ids]
+        )
         for col in cols:
             if str(col) not in dfout.columns:
                 dfout = dfout.with_columns(pl.lit(None).alias(str(col)))
@@ -442,8 +436,7 @@ class InstanceResultExcel(I18nBaseModel):
                 if self.format == 'wide':
                     self._output_node_wide(sheet=ds, node=node, dim_ids=dim_ids, cols=cols)
                 else:
-                    self._output_node_long(context, wb, ds, node, dim_ids=dim_ids,
-                                  actions=actions, aseq=aseq)
+                    self._output_node_long(context, wb, ds, node, dim_ids=dim_ids, actions=actions, aseq=aseq)
         ds.freeze_panes = ds['B2']
 
         ds.column_dimensions['A'].width = 20
@@ -459,7 +452,10 @@ class InstanceResultExcel(I18nBaseModel):
 
     @classmethod
     def create_for_instance(
-        cls, ic: InstanceConfig, existing_wb: Path | str | None = None, context: Context | None = None,
+        cls,
+        ic: InstanceConfig,
+        existing_wb: Path | str | None = None,
+        context: Context | None = None,
         format: str | None = None,
     ) -> BytesIO:
         if context is None:
@@ -473,7 +469,7 @@ class InstanceResultExcel(I18nBaseModel):
         else:
             if (
                 not ic.has_framework_config()
-                or not (fw := ic.framework_config.framework).result_excel_url # type: ignore
+                or not (fw := ic.framework_config.framework).result_excel_url  # type: ignore
                 or not fw.result_excel_node_ids
             ):
                 raise ExportNotSupportedError("Framework '%s' doesn't support generating result files" % instance.id)

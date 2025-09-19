@@ -62,9 +62,8 @@ def _get_output_with_baseline(node: Node, filters: list[str] | None):
 
     if node._baseline_values is not None:
         m = node.output_metrics[DEFAULT_METRIC]
-        df = (
-            df.with_columns(node._baseline_values[m.column_id].alias(BASELINE_VALUE_COLUMN))
-            .set_unit(BASELINE_VALUE_COLUMN, node._baseline_values.get_unit(m.column_id))
+        df = df.with_columns(node._baseline_values[m.column_id].alias(BASELINE_VALUE_COLUMN)).set_unit(
+            BASELINE_VALUE_COLUMN, node._baseline_values.get_unit(m.column_id)
         )
 
         if norm:
@@ -73,6 +72,7 @@ def _get_output_with_baseline(node: Node, filters: list[str] | None):
             _, df = norm.normalize_output(m, df)
 
     return df
+
 
 def print_node_output(node: Node, only_years: list[int] | None = None, filters: list[str] | None = None):
     df = _get_output_with_baseline(node, filters)

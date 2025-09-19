@@ -24,9 +24,11 @@ if TYPE_CHECKING:
 def global_admin_css():
     return format_html('<link rel="stylesheet" href="{}">', static('css/admin-styles.css'))
 
+
 hooks.register('insert_global_admin_css', global_admin_css)
 
-@hooks.register("register_icons")
+
+@hooks.register('register_icons')
 def register_icons(icons):
     return icons + [
         'wagtailadmin/icons/kausal-node.svg',
@@ -38,7 +40,7 @@ def register_icons(icons):
         'wagtailadmin/icons/kausal-plans.svg',
         'wagtailadmin/icons/kausal-spreadsheets.svg',
         'wagtailadmin/icons/kausal-categories.svg',
-        'wagtailadmin/icons/kausal-attributes.svg'
+        'wagtailadmin/icons/kausal-attributes.svg',
     ]
 
 
@@ -76,11 +78,11 @@ instance_chooser = InstanceChooserMenu(None)
 
 
 def register_instance_chooser():
-    return InstanceChooserMenuItem(
-        _('Choose instance'), instance_chooser, icon_name='home', order=9000
-    )
+    return InstanceChooserMenuItem(_('Choose instance'), instance_chooser, icon_name='home', order=9000)
+
 
 hooks.register('register_admin_menu_item', register_instance_chooser)
+
 
 @hooks.register('construct_main_menu')
 def hide_snippets_menu_item(request, menu_items):

@@ -17,10 +17,7 @@ def discover_parameter_types():
 
     all_params = {}
 
-    base_classes = {
-        x for x in param_base.__dict__.values()
-        if inspect.isclass(x) and issubclass(x, param_base.Parameter)
-    }
+    base_classes = {x for x in param_base.__dict__.values() if inspect.isclass(x) and issubclass(x, param_base.Parameter)}
 
     for p in pkgs:
         if p.name in ('%s.discover' % this_pkg, '%s.param' % this_pkg):
@@ -38,7 +35,7 @@ def discover_parameter_types():
             if param_id is None:
                 continue
             if param_id in all_params:
-                raise Exception("Module %s has duplicated parameter id: %s" % (p.name, param_id))
+                raise Exception('Module %s has duplicated parameter id: %s' % (p.name, param_id))
             all_params[param_id] = attr
 
     return all_params

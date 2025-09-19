@@ -16,7 +16,6 @@ from paths.schema_context import PathsGraphQLContext
 
 from .graphql_helpers import GraphQLPerfNode
 
-
 if TYPE_CHECKING:
     from django.http import HttpRequest
     from django.http.response import HttpResponse
@@ -49,6 +48,7 @@ def _arg_value(arg, variable_vals) -> Any:
 logger = logger.bind(markup=True)
 
 GRAPHQL_CAPTURE_QUERIES = env_bool('GRAPHQL_CAPTURE_QUERIES', default=False)
+
 
 # FIXME: Not used anywhere; any code worth keeping?
 class PathsExecutionContext(ExecutionContext):
@@ -110,6 +110,7 @@ class PathsGraphQLView(GraphQLView[PathsGraphQLContext]):
 
     def __init__(self):
         from .schema import schema
+
         super().__init__(schema=schema)
 
     def get_context(self, request: HttpRequest, response: HttpResponse) -> PathsGraphQLContext:

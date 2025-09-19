@@ -16,15 +16,13 @@ from nodes.constants import (
     EMISSION_QUANTITY,
     ENERGY_QUANTITY,
     FORECAST_COLUMN,
-    PER_CAPITA_QUANTITY,
     VALUE_COLUMN,
     YEAR_COLUMN,
 )
 from nodes.dimensions import Dimension
 from nodes.exceptions import NodeError
 from nodes.node import Node, NodeMetric
-from nodes.simple import AdditiveNode, MultiplicativeNode
-from params import NumberParameter, Parameter, StringParameter
+from params import Parameter, StringParameter
 
 if typing.TYPE_CHECKING:
     from collections.abc import Callable
@@ -33,27 +31,27 @@ BELOW_ZERO_WARNED = False
 
 
 P = ParamSpec('P')  # For parameters
-R = TypeVar('R')    # For return type
+R = TypeVar('R')  # For return type
+
 
 def deprecated(alternative: str) -> Callable[[Callable[P, R]], Callable[P, R]]:
     def decorator(func: Callable[P, R]) -> Callable[P, R]:
         @wraps(func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             warnings.warn(
-                f"{func.__name__} is deprecated and will be removed in future versions. "
-                f"Use {alternative} instead.",
+                f'{func.__name__} is deprecated and will be removed in future versions. Use {alternative} instead.',
                 DeprecationWarning,
-                stacklevel=2
+                stacklevel=2,
             )
             return func(*args, **kwargs)
+
         return wrapper
+
     return decorator
 
 
 class AluesarjatNode(Node):
-    input_datasets = [
-        'helsinki/aluesarjat/02um_rakennukset_lammitys'
-    ]
+    input_datasets = ['helsinki/aluesarjat/02um_rakennukset_lammitys']
     global_parameters = ['municipality_name']
     output_metrics = {
         VALUE_COLUMN: NodeMetric(unit='m**2', quantity='area'),
@@ -76,7 +74,7 @@ class AluesarjatNode(Node):
                 df[metric_id] = self.convert_to_unit(df[metric_id], metric.unit)
             else:
                 # Convert to pint unit directly rather than using astype
-                df[metric_id] = pd.Series(df[metric_id].values, dtype=f"pint[{metric.unit}]")
+                df[metric_id] = pd.Series(df[metric_id].values, dtype=f'pint[{metric.unit}]')
 
         dimensions = ['Rakennuksen käyttötarkoitus', 'Rakennuksen lämmitystapa', 'Rakennuksen lämmitysaine']
         df['Dimension'] = ''
@@ -97,9 +95,7 @@ class HsyNode(Node):
         EMISSION_QUANTITY: NodeMetric(unit='kt/a', quantity=EMISSION_QUANTITY),
         ENERGY_QUANTITY: NodeMetric(unit='GWh/a', quantity=ENERGY_QUANTITY),
     }
-    output_dimensions = {
-        'sector': Dimension(id='hsy_sector', label=TranslatedString(en='HSY emission sector'), is_internal=True)
-    }
+    output_dimensions = {'sector': Dimension(id='hsy_sector', label=TranslatedString(en='HSY emission sector'), is_internal=True)}
 
     # TODO Put this in a better place. Is this needed by nodes in general?
     def _linear_interpolate(self, df: ppl.PathsDataFrame, year_col: str = YEAR_COLUMN) -> ppl.PathsDataFrame:
@@ -131,15 +127,15 @@ class HsyNode(Node):
         if 'index' in df.columns:
             df = df.drop('index')
 
-        df = df.rename({
-            'Vuosi': YEAR_COLUMN,
-            'Päästöt': EMISSION_QUANTITY,
-            'Energiankulutus': ENERGY_QUANTITY,
-        })
+        df = df.rename(
+            {
+                'Vuosi': YEAR_COLUMN,
+                'Päästöt': EMISSION_QUANTITY,
+                'Energiankulutus': ENERGY_QUANTITY,
+            }
+        )
         # Handle negative values
-        has_negative = df.filter(
-            (pl.col(EMISSION_QUANTITY) < 0) | (pl.col(ENERGY_QUANTITY) < 0)
-        ).height > 0
+        has_negative = df.filter((pl.col(EMISSION_QUANTITY) < 0) | (pl.col(ENERGY_QUANTITY) < 0)).height > 0
         if has_negative:
             global BELOW_ZERO_WARNED  # noqa: PLW0603
 
@@ -147,32 +143,29 @@ class HsyNode(Node):
                 self.logger.warning('HSY dataset has negative emissions, filling with zero')
                 BELOW_ZERO_WARNED = True
 
-            df = df.with_columns([
-                pl.when(pl.col(EMISSION_QUANTITY) < 0)
-                .then(0)
-                .otherwise(pl.col(EMISSION_QUANTITY))
-                .alias(EMISSION_QUANTITY),
-                pl.when(pl.col(ENERGY_QUANTITY) < 0)
-                .then(0)
-                .otherwise(pl.col(ENERGY_QUANTITY))
-                .alias(ENERGY_QUANTITY)
-            ])
+            df = df.with_columns(
+                [
+                    pl.when(pl.col(EMISSION_QUANTITY) < 0).then(0).otherwise(pl.col(EMISSION_QUANTITY)).alias(EMISSION_QUANTITY),
+                    pl.when(pl.col(ENERGY_QUANTITY) < 0).then(0).otherwise(pl.col(ENERGY_QUANTITY)).alias(ENERGY_QUANTITY),
+                ]
+            )
 
         # Create Sector column by concatenating Sektori1-4
         sector_cols = [f'Sektori{i}' for i in range(1, 6)]
-        df = df.with_columns([
-            pl.concat_str(
-                [pl.col(col).cast(pl.Utf8) for col in sector_cols if col in df.columns],
-                separator='|'
-            ).alias('Sector')
-        ])
+        df = df.with_columns(
+            [
+                pl.concat_str([pl.col(col).cast(pl.Utf8) for col in sector_cols if col in df.columns], separator='|').alias(
+                    'Sector'
+                )
+            ]
+        )
 
         df = df.select([YEAR_COLUMN, EMISSION_QUANTITY, ENERGY_QUANTITY, 'Sector'])
         df = df.rename({'Sector': 'sector'})
         df = df.add_to_index('sector')
 
         if df.height == 0:
-            raise NodeError(self, "Municipality %s not found in data" % muni_name)
+            raise NodeError(self, 'Municipality %s not found in data' % muni_name)
 
         df = df.with_columns([pl.lit(False).alias(FORECAST_COLUMN)])  # noqa: FBT003
         df = self._linear_interpolate(df)
@@ -190,11 +183,7 @@ class SectorParseResult(TypedDict):
 
 class HsyNodeMixin:
     allowed_parameters: ClassVar[list[Parameter]] = [
-        StringParameter(
-            local_id='sector',
-            label='Sector path in HSY emission database',
-            is_customizable=False
-        ),
+        StringParameter(local_id='sector', label='Sector path in HSY emission database', is_customizable=False),
     ]
 
     def parse_dimension_names_from_sector_string(self, sector_name: str) -> SectorParseResult:
@@ -219,10 +208,7 @@ class HsyNodeMixin:
         return {'pattern': full_pattern, 'dimensions': dimension_map}
 
     def get_sector2(
-        self: Node | HsyNodeMixin,
-        columns: str | list[str],
-        sector: str | None = None,
-        multi_index: bool = False
+        self: Node | HsyNodeMixin, columns: str | list[str], sector: str | None = None, multi_index: bool = False
     ) -> tuple[pd.DataFrame, list[Node]]:
         """
         Get sector data with dimensional support.
@@ -246,7 +232,7 @@ class HsyNodeMixin:
             if isinstance(node, HsyNode):
                 break
         else:
-            raise NodeError(self, "HsyNode not configured as an input node")
+            raise NodeError(self, 'HsyNode not configured as an input node')
 
         nodes.remove(node)
         df = node.get_output()
@@ -300,9 +286,8 @@ class HsyNodeMixin:
 
     @deprecated(alternative='get_sector2')
     def get_sector(
-        self, columns: str | list[str],
-        sector: str | None = None,
-        multi_index: bool = False) -> tuple[pd.DataFrame, list[Node]]:
+        self, columns: str | list[str], sector: str | None = None, multi_index: bool = False
+    ) -> tuple[pd.DataFrame, list[Node]]:
         """
         Get sector data using simple string matching (deprecated).
 
@@ -322,7 +307,7 @@ class HsyNodeMixin:
             if isinstance(node, HsyNode):
                 break
         else:
-            raise NodeError(self, "HsyNode not configured as an input node")
+            raise NodeError(self, 'HsyNode not configured as an input node')
 
         # Remove the HsyNode from the list of nodes to be added together
         nodes.remove(node)

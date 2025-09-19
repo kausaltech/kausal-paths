@@ -10,9 +10,9 @@ class OrganizationFactory(DjangoModelFactory[Organization]):
     class Meta:
         model = Organization
 
-    name = Sequence(lambda i: f"Organization {i}")
+    name = Sequence(lambda i: f'Organization {i}')
     abbreviation = Sequence(lambda i: f'org{i}')
-    description = RichText("<p>Description</p>")
+    description = RichText('<p>Description</p>')
     url = 'https://example.org'
 
     @classmethod

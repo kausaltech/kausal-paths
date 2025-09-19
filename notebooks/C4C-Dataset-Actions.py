@@ -16,12 +16,10 @@ incsvsep = sys.argv[2]
 outcsvpath = sys.argv[3]
 outdvcpath = sys.argv[4]
 
-unitreplace = [['tCO2e', 't'],
-               ['p-km', 'pkm'], ['Mkm', 'Gm'],
-               ['€', 'EUR']]
+unitreplace = [['tCO2e', 't'], ['p-km', 'pkm'], ['Mkm', 'Gm'], ['€', 'EUR']]
 
 # ---------------------------------------------------------------------------------------
-df = pl.read_csv(incsvpath, separator = incsvsep, infer_schema_length = 1000)
+df = pl.read_csv(incsvpath, separator=incsvsep, infer_schema_length=1000)
 
 # Drop columns from 'droplist' if present, and empty columns.
 droplist = ['Description']
@@ -71,7 +69,7 @@ else:
 unitcol = df.select('Unit').to_series(0).to_list()
 for ur in unitreplace:
     unitcol = [x.replace(ur[0], ur[1]) for x in unitcol]
-df = df.with_columns(pl.Series(name = 'Unit', values = unitcol))
+df = df.with_columns(pl.Series(name='Unit', values=unitcol))
 
 # Replace scope numbers with labels. Detailed actions have no 'Scope' column.
 if 'Scope' in df.columns:
@@ -82,21 +80,23 @@ if 'Scope' in df.columns:
             labels.append('Scope %i' % x)
         else:
             labels.append(x)
-    df = df.with_columns(pl.Series(name = 'Scope', values = labels))
+    df = df.with_columns(pl.Series(name='Scope', values=labels))
 
 # ---------------------------------------------------------------------------------------
 if 'Value' in df.columns and 'Year' in df.columns:  # If dataset is already in long format
     dfmain = df
     dims = [d for d in dims if d not in ['Year', 'Value']]
 else:  # TODO update this for probabilistic data, see branch feature/probability
-    dfmain = df.head(1).select(context).with_columns([
-        (pl.lit('0.0').alias('Value').cast(pl.String)),
-        (pl.lit(0).alias('Year').cast(pl.Int64))
-    ]).clear()
+    dfmain = (
+        df.head(1)
+        .select(context)
+        .with_columns([(pl.lit('0.0').alias('Value').cast(pl.String)), (pl.lit(0).alias('Year').cast(pl.Int64))])
+        .clear()
+    )
     # This is needed for probabilistic strings.
     df = df.with_columns([pl.col(col).cast(pl.String) for col in values])
 
-    df = df.with_row_index(name = 'Index')
+    df = df.with_row_index(name='Index')
     for i in range(len(df)):
         print('Row %i of %i' % ((i + 1), len(df)))
         for y in values:
@@ -109,13 +109,12 @@ else:  # TODO update this for probabilistic data, see branch feature/probability
             if mframe['Value'][0] is not None and mframe['Value'][0] not in ['.', '-']:
                 # mframe = mframe.with_columns(pl.col('Value').cast(pl.Float64))
                 dfmain = pl.concat([dfmain, mframe], rechunk=False)
-    dfmain = dfmain.rechunk()   # This helped speed a bit.
+    dfmain = dfmain.rechunk()  # This helped speed a bit.
 
 if 'Is_action' in dfmain.columns:
-    dfmain = dfmain.with_columns([pl.when(
-        (pl.col('Is_action')) &
-        (pl.col('Year').eq(0))
-    ).then(pl.lit(None)).otherwise(pl.col('UUID')).alias('UUID')])
+    dfmain = dfmain.with_columns(
+        [pl.when((pl.col('Is_action')) & (pl.col('Year').eq(0))).then(pl.lit(None)).otherwise(pl.col('UUID')).alias('UUID')]
+    )
     dfmain = dfmain.drop('Is_action')
 
 try:
@@ -134,12 +133,12 @@ if outdvcpath.upper() not in ['N', 'NONE']:
 
     indexcols = list(dims)
     indexcols.extend(['Year'])
-    if 'Quantity' in dfmain.columns:   # Detailed actions have no 'Quantity' column.
+    if 'Quantity' in dfmain.columns:  # Detailed actions have no 'Quantity' column.
         indexcols.extend(['Quantity'])
-    pdindex = pd.MultiIndex.from_frame(pd.DataFrame(dfmain.select(indexcols).fill_null('.'), columns = indexcols))
+    pdindex = pd.MultiIndex.from_frame(pd.DataFrame(dfmain.select(indexcols).fill_null('.'), columns=indexcols))
 
     valuecols = list(set(dfmain.columns) - set(indexcols))
-    pdframe = pd.DataFrame(dfmain.select(valuecols), index = pdindex, columns = valuecols)
+    pdframe = pd.DataFrame(dfmain.select(valuecols), index=pdindex, columns=valuecols)
 
     pl_df = pl.from_pandas(pdframe.reset_index())
     meta = DatasetMeta(identifier=outdvcpath, index_columns=indexcols)

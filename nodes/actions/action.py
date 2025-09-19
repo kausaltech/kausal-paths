@@ -152,7 +152,8 @@ class ActionNode(Node):
 
     def compute_impact(self, target_node: Node) -> ppl.PathsDataFrame:
         from_baseline: bool | None = cast(
-            'bool', self.get_global_parameter_value('action_impact_from_baseline', required=False) or False,
+            'bool',
+            self.get_global_parameter_value('action_impact_from_baseline', required=False) or False,
         )
 
         was_enabled = self.is_enabled()
@@ -244,57 +245,52 @@ class ActionNode(Node):
 
     def _get_value_of_information(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         if UNCERTAINTY_COLUMN not in df.columns:
-            return ppl.PathsDataFrame() # FIXME Return zero dataframe
-        meta = df.get_meta() # TODO Function not tested yet
+            return ppl.PathsDataFrame()  # FIXME Return zero dataframe
+        meta = df.get_meta()  # TODO Function not tested yet
         df = df.filter(pl.col(UNCERTAINTY_COLUMN).ne('median'))
         last_forecast_year = df.filter(pl.col(FORECAST_COLUMN)).select(YEAR_COLUMN).max()
         col = 'Effect'
         dfp = df.group_by(pl.col(UNCERTAINTY_COLUMN)).agg(pl.sum(col))
 
-        dfp = dfp.with_columns([
-            pl.when(pl.col(col) > 0.0).then(pl.col(col))
-            .otherwise(pl.lit(0.0)).alias('under_knowledge')
-        ])
+        dfp = dfp.with_columns([pl.when(pl.col(col) > 0.0).then(pl.col(col)).otherwise(pl.lit(0.0)).alias('under_knowledge')])
 
         dfp = dfp.select(pl.all().mean())
         dfp = pl.concat([dfp, last_forecast_year], how='horizontal')
-        dfp = dfp.with_columns([
-            (pl.col('under_knowledge') - pl.col(col)).alias(col),
-            pl.lit(value=True).alias(FORECAST_COLUMN),
-            pl.lit('expectation').alias(UNCERTAINTY_COLUMN)
-        ])
-        dfp = dfp.select([YEAR_COLUMN, FORECAST_COLUMN, UNCERTAINTY_COLUMN, 'Cost', 'Effect']) # TODO Do we need this?
+        dfp = dfp.with_columns(
+            [
+                (pl.col('under_knowledge') - pl.col(col)).alias(col),
+                pl.lit(value=True).alias(FORECAST_COLUMN),
+                pl.lit('expectation').alias(UNCERTAINTY_COLUMN),
+            ]
+        )
+        dfp = dfp.select([YEAR_COLUMN, FORECAST_COLUMN, UNCERTAINTY_COLUMN, 'Cost', 'Effect'])  # TODO Do we need this?
         df = ppl.to_ppdf(df=dfp, meta=meta)
 
         return df
 
     def _get_cost_benefit(self, df: ppl.PathsDataFrame, io: ImpactOverview) -> ppl.PathsDataFrame:
-            od = io.outcome_dimension
-            sd = io.stakeholder_dimension
-            if od is not None:
-                assert od in df.dim_ids
-            if sd is not None:
-                assert sd in df.dim_ids
-            return df
+        od = io.outcome_dimension
+        sd = io.stakeholder_dimension
+        if od is not None:
+            assert od in df.dim_ids
+        if sd is not None:
+            assert sd in df.dim_ids
+        return df
 
-    def compute_node_impact(self, node: Node, colname: str | None,
-                            keepcols: list[str | None]) -> ppl.PathsDataFrame:
+    def compute_node_impact(self, node: Node, colname: str | None, keepcols: list[str | None]) -> ppl.PathsDataFrame:
         df = self.compute_impact(node)
         m = node.get_default_output_metric()
-        df = (
-            df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
-        )
+        df = df.filter(pl.col(IMPACT_COLUMN).eq(IMPACT_GROUP)).drop(IMPACT_COLUMN)
         df = df.select([*df.primary_keys, FORECAST_COLUMN, pl.col(m.column_id)])
         if colname is not None:
             df = df.rename({m.column_id: colname})
         if keepcols is not None:
             dropcols = [col for col in df.dim_ids if col not in keepcols]
-            df = df.paths.sum_over_dims(dropcols) # FIXME Dims used later but they are summed over.
+            df = df.paths.sum_over_dims(dropcols)  # FIXME Dims used later but they are summed over.
 
         return df
 
     def compute_indicator(self, io: ImpactOverview) -> ppl.PathsDataFrame:
-
         dims = [io.outcome_dimension, io.stakeholder_dimension]
 
         effect_df = self.compute_node_impact(io.effect_node, 'Effect', dims)
@@ -309,15 +305,16 @@ class ActionNode(Node):
             assert io.cost_node is not None
             cost_df = self.compute_node_impact(io.cost_node, 'Cost', dims)
             df = cost_df.paths.join_over_index(effect_df, how='outer', index_from='union')
-            df = df.with_columns([
-                pl.col('Cost').fill_null(0.0),
-                pl.col('Effect').fill_null(0.0)
-            ])
-            df = df.with_columns([
-                (pl.when(pl.col('Effect').abs() < pl.lit(1e-9)) # TODO Do we still need this?
-                .then(pl.lit(0.0))
-                .otherwise(pl.col('Effect'))).alias('Effect')
-            ])
+            df = df.with_columns([pl.col('Cost').fill_null(0.0), pl.col('Effect').fill_null(0.0)])
+            df = df.with_columns(
+                [
+                    (
+                        pl.when(pl.col('Effect').abs() < pl.lit(1e-9))  # TODO Do we still need this?
+                        .then(pl.lit(0.0))
+                        .otherwise(pl.col('Effect'))
+                    ).alias('Effect')
+                ]
+            )
 
             if io.invert_cost:
                 df = df.with_columns((pl.col('Cost') * pl.lit(-1.0)).alias('Cost'))
@@ -325,11 +322,12 @@ class ActionNode(Node):
         if io.invert_effect:
             df = df.with_columns((pl.col('Effect') * pl.lit(-1.0)).alias('Effect'))
 
-        if io.graph_type in [ # Flip sign for benefit
+        if io.graph_type in [  # Flip sign for benefit
             'cost_efficiency',
             'return_on_investment',
             'return_on_investment_gross',
-            'benefit_cost_ratio']:
+            'benefit_cost_ratio',
+        ]:
             df = df.with_columns((pl.col('Effect') * pl.lit(-1.0)).alias('Effect'))
 
         if io.graph_type == 'return_on_investment_gross':
@@ -432,50 +430,36 @@ class ImpactOverview:
         return aep
 
     def validate(self):
-
         if self.effect_node.quantity not in STACKABLE_QUANTITIES:
-            raise Exception(f"Effect node {self.effect_node.id} quantity {self.effect_node.quantity} is not stackable.")
+            raise Exception(f'Effect node {self.effect_node.id} quantity {self.effect_node.quantity} is not stackable.')
         if self.cost_node is not None and self.cost_node.quantity not in STACKABLE_QUANTITIES:
-                raise Exception(f"Cost node {self.cost_node.id} quantity {self.cost_node.quantity} is not stackable.")
+            raise Exception(f'Cost node {self.cost_node.id} quantity {self.cost_node.quantity} is not stackable.')
 
         rf = ['effect_node', 'cost_node', 'indicator_unit']
         ff = ['outcome_dimension', 'stakeholder_dimension', 'cost_unit', 'effect_unit']
         field_lists = {
-            'cost_benefit':
-                {'required': ['effect_node', 'indicator_unit'],
-                 'forbidden': ['cost_node', 'cost_unit', 'effect_unit']},
-            'cost_efficiency':
-                {'required': rf,
-                 'forbidden': ['outcome_dimension', 'stakeholder_dimension']},
-            'return_on_investment':
-                {'required': rf,
-                 'forbidden': ff},
-            'return_on_investment_gross':
-                {'required': rf,
-                 'forbidden': ff},
-            'benefit_cost_ratio':
-                {'required': rf,
-                 'forbidden': ff},
-            'value_of_information':
-                {'required': ['effect_node', 'indicator_unit'],
-                 'forbidden': [*ff, 'cost_node']},
-            'simple_effect':
-                {'required': ['effect_node', 'indicator_unit'],
-                 'forbidden': [*ff, 'cost_node']},
+            'cost_benefit': {
+                'required': ['effect_node', 'indicator_unit'],
+                'forbidden': ['cost_node', 'cost_unit', 'effect_unit'],
+            },
+            'cost_efficiency': {'required': rf, 'forbidden': ['outcome_dimension', 'stakeholder_dimension']},
+            'return_on_investment': {'required': rf, 'forbidden': ff},
+            'return_on_investment_gross': {'required': rf, 'forbidden': ff},
+            'benefit_cost_ratio': {'required': rf, 'forbidden': ff},
+            'value_of_information': {'required': ['effect_node', 'indicator_unit'], 'forbidden': [*ff, 'cost_node']},
+            'simple_effect': {'required': ['effect_node', 'indicator_unit'], 'forbidden': [*ff, 'cost_node']},
         }
         required_fields = field_lists[self.graph_type]['required']
         forbidden_fields = field_lists[self.graph_type]['forbidden']
 
         for field_name, field_value in self.__dict__.items():
             if field_value is not None and field_name in forbidden_fields:
-                print(f"Field '{field_name}' must not be used for graph type '{self.graph_type}'") # TODO raise ValueError
+                print(f"Field '{field_name}' must not be used for graph type '{self.graph_type}'")  # TODO raise ValueError
 
             if field_value is None and field_name in required_fields:
-                print(f"Field '{field_name}' must be given for graph type '{self.graph_type}'") # TODO raise ValueError
+                print(f"Field '{field_name}' must be given for graph type '{self.graph_type}'")  # TODO raise ValueError
 
-    def _adjust_graph_units(self, df: ppl.PathsDataFrame,
-                            is_same_unit: bool) -> ppl.PathsDataFrame:
-
+    def _adjust_graph_units(self, df: ppl.PathsDataFrame, is_same_unit: bool) -> ppl.PathsDataFrame:
         has_cost = 'Cost' in df.columns
         if has_cost:
             df = df.set_unit('Cost', df.get_unit('Cost') * unit_registry.a, force=True)
@@ -494,16 +478,13 @@ class ImpactOverview:
         return df
 
     def _get_unit_adjustment_function(self) -> tuple[Callable[[ppl.PathsDataFrame], float], bool]:
-
         def _cea(df: ppl.PathsDataFrame) -> float:
             uam = 1 * df.get_unit('Cost') / df.get_unit('Effect') / self.indicator_unit
             assert isinstance(uam, Quantity)
             try:
                 return uam.to('dimensionless').m
             except pint.DimensionalityError as e:
-                raise Exception(
-                    f"Indicator unit {self.indicator_unit} is not compatible with Cost / Effect."
-                ) from e
+                raise Exception(f'Indicator unit {self.indicator_unit} is not compatible with Cost / Effect.') from e
 
         def _roi(df: ppl.PathsDataFrame) -> float:
             uam = 1 * df.get_unit('Effect') / df.get_unit('Cost') / self.indicator_unit
@@ -511,9 +492,7 @@ class ImpactOverview:
             try:
                 return uam.to('dimensionless').m
             except pint.DimensionalityError as e:
-                raise Exception(
-                    f"Indicator unit {self.indicator_unit} is not compatible with Effect / Cost."
-                ) from e
+                raise Exception(f'Indicator unit {self.indicator_unit} is not compatible with Effect / Cost.') from e
 
         def _unity(df: ppl.PathsDataFrame) -> float:
             return 1.0
@@ -530,13 +509,11 @@ class ImpactOverview:
 
         is_same_unit = unit_adjustments[self.graph_type]['is_same_unit']
         assert isinstance(is_same_unit, bool)
-        unit_adjustment_function = cast('Callable[[ppl.PathsDataFrame], float]',
-                              unit_adjustments[self.graph_type]['fn'])
+        unit_adjustment_function = cast('Callable[[ppl.PathsDataFrame], float]', unit_adjustments[self.graph_type]['fn'])
 
         return unit_adjustment_function, is_same_unit
 
     def calculate_iter(self, context: Context, actions: Iterable[ActionNode] | None = None) -> Iterator[ActionImpact]:
-
         if actions is None:
             actions = list(context.get_actions())
 
@@ -545,7 +522,7 @@ class ImpactOverview:
         for action in actions:
             if not action.is_connected_to(self.effect_node):
                 continue
-            if not action.is_enabled(): # Inactive actions would give false zeros
+            if not action.is_enabled():  # Inactive actions would give false zeros
                 continue
 
             df = action.compute_indicator(self)
@@ -566,6 +543,7 @@ class ImpactOverview:
     def calculate(self, context: Context, actions: Iterable[ActionNode] | None = None) -> list[ActionImpact]:
         out = list(self.calculate_iter(context, actions))
         return out
+
 
 """
 A discussion started with Claude.

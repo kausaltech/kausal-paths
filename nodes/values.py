@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from .node import Node
 
 
-class UtilityNode(AdditiveNode): # FIXME Use generic.WeightedSumNode instead
+class UtilityNode(AdditiveNode):  # FIXME Use generic.WeightedSumNode instead
     """
     Utility nodes take in outcome nodes and value weight parameters.
 
@@ -70,7 +70,7 @@ class UtilityNode(AdditiveNode): # FIXME Use generic.WeightedSumNode instead
         NumberParameter(
             local_id='legality_weight',
             is_customizable=True,
-        )
+        ),
     ]
 
     def weighted_impact(self, weight, quantity=None, tag=None):
@@ -79,13 +79,16 @@ class UtilityNode(AdditiveNode): # FIXME Use generic.WeightedSumNode instead
             return None
         nodes = self.get_input_nodes(quantity=quantity, tag=tag)
         if not len(nodes):
-            raise NodeError(self, "Tag %s not found in the inputs nodes" % tag)
+            raise NodeError(self, 'Tag %s not found in the inputs nodes' % tag)
 
         df = self.add_nodes_pl(None, nodes, unit=nodes[0].unit)
         df: ppl.PathsDataFrame = df.multiply_quantity(VALUE_COLUMN, w)
         if not self.is_compatible_unit(df.get_unit(VALUE_COLUMN), self.unit):
-            raise NodeError(self, "Node(s) %s and their weight result in an incompatible unit %s, should be %s." % (
-                nodes, df.get_unit(VALUE_COLUMN), self.unit))
+            raise NodeError(
+                self,
+                'Node(s) %s and their weight result in an incompatible unit %s, should be %s.'
+                % (nodes, df.get_unit(VALUE_COLUMN), self.unit),
+            )
         return df
 
     def sum_dfs(self, dfs: list[ppl.PathsDataFrame | None]) -> ppl.PathsDataFrame:
@@ -117,15 +120,13 @@ class UtilityNode(AdditiveNode): # FIXME Use generic.WeightedSumNode instead
             self.weighted_impact('equity_weight', tag='equity'),
             self.weighted_impact('purity_weight', tag='purity'),
             self.weighted_impact('biodiversity_weight', tag='biodiversity'),
-            self.weighted_impact('legality_weight', tag='legality')
+            self.weighted_impact('legality_weight', tag='legality'),
         ]
         df = self.sum_dfs(dfs)
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
         th = self.get_parameter_value('impact_threshold', required=True, units=True)
         th = th.to(df.get_unit(VALUE_COLUMN))
-        df = df.with_columns([(
-            pl.col(VALUE_COLUMN) - pl.lit(th.m)).alias(VALUE_COLUMN)
-        ])
+        df = df.with_columns([(pl.col(VALUE_COLUMN) - pl.lit(th.m)).alias(VALUE_COLUMN)])
 
         df = self.maybe_drop_nulls(df)
         return df
@@ -145,7 +146,7 @@ class AssociationNode(SimpleNode):  # FIXME Use ignore_content operation instead
     allowed_parameters = MultiplicativeNode.allowed_parameters + [
         NumberParameter(local_id='fraction1', label='Fraction for node 1', is_customizable=False),
         NumberParameter(local_id='fraction2', label='Fraction for node 2', is_customizable=False),
-        NumberParameter(local_id='fraction3', label='Fraction for node 3', is_customizable=False)
+        NumberParameter(local_id='fraction3', label='Fraction for node 3', is_customizable=False),
     ]
 
     def compute(self) -> ppl.PathsDataFrame:
@@ -154,7 +155,7 @@ class AssociationNode(SimpleNode):  # FIXME Use ignore_content operation instead
         for edge in self.edges:
             if edge.output_node is self:
                 node = edge.input_node
-                m = VALUE_COLUMN # = node.get_default_output_metric().column_id
+                m = VALUE_COLUMN  # = node.get_default_output_metric().column_id
 
                 fraction = 0.1  # Default fraction of the output node's output
                 for fr in ['fraction1', 'fraction2', 'fraction3']:
@@ -178,15 +179,13 @@ class AssociationNode(SimpleNode):  # FIXME Use ignore_content operation instead
                 dfn = node.get_output_pl(target_node=self)
                 df = df.paths.join_over_index(dfn, how='outer', index_from='union')
                 df = df.with_columns(pl.col(m + '_right').fill_null(0))
-                df = df.with_columns(
-                    pl.col(m) + pl.lit(multiplier) * pl.col(m + '_right').alias(m)
-                    ).drop(m + '_right')
+                df = df.with_columns(pl.col(m) + pl.lit(multiplier) * pl.col(m + '_right').alias(m)).drop(m + '_right')
 
         df = self.maybe_drop_nulls(df)
         return df
 
 
-class LogicalNode(SimpleNode): # TODO Make a generic node operation instead
+class LogicalNode(SimpleNode):  # TODO Make a generic node operation instead
     # TODO Create a sticky_switch parameter: if the value changes, the change will be permanent.
     explanation = _(
         """
@@ -207,10 +206,9 @@ class LogicalNode(SimpleNode): # TODO Make a generic node operation instead
 
     def _validate_input(self, df: ppl.PathsDataFrame) -> None:
         if not df[VALUE_COLUMN].is_in([0, 1]).all():
-            raise ValueError("Input values must be either 0 or 1")
+            raise ValueError('Input values must be either 0 or 1')
 
-    def _process_nodes(self, df: ppl.PathsDataFrame | None, nodes: list[Node],
-                       boolean_and: bool) -> ppl.PathsDataFrame | None:
+    def _process_nodes(self, df: ppl.PathsDataFrame | None, nodes: list[Node], boolean_and: bool) -> ppl.PathsDataFrame | None:
         if nodes:
             for n in nodes:
                 df2 = n.get_output_pl(target_node=self)
@@ -220,22 +218,19 @@ class LogicalNode(SimpleNode): # TODO Make a generic node operation instead
                 elif boolean_and:
                     df = df.paths.join_over_index(df2, how='inner', index_from='union')
                     assert df is not None
-                    df = df.with_columns([
-                        pl.col(VALUE_COLUMN) * pl.col(VALUE_COLUMN + '_right')
-                    ]).drop(VALUE_COLUMN + '_right')
+                    df = df.with_columns([pl.col(VALUE_COLUMN) * pl.col(VALUE_COLUMN + '_right')]).drop(VALUE_COLUMN + '_right')
                 else:
                     df = df.paths.join_over_index(df2, how='outer', index_from='union')
                     assert df is not None
-                    df = df.with_columns(
-                        pl.max_horizontal(
-                            pl.col([VALUE_COLUMN, VALUE_COLUMN + '_right']).fill_null(0.0)
-                    )).drop(VALUE_COLUMN + '_right')
+                    df = df.with_columns(pl.max_horizontal(pl.col([VALUE_COLUMN, VALUE_COLUMN + '_right']).fill_null(0.0))).drop(
+                        VALUE_COLUMN + '_right'
+                    )
 
         return df
 
     def compute(self) -> ppl.PathsDataFrame:
         if not self.input_nodes:
-            raise ValueError("LogicalNode requires at least one input node")
+            raise ValueError('LogicalNode requires at least one input node')
         and_nodes: list[Node] = []
         or_nodes: list[Node] = []
         df: ppl.PathsDataFrame | None = None
@@ -257,7 +252,7 @@ class LogicalNode(SimpleNode): # TODO Make a generic node operation instead
         return df
 
 
-class ThresholdNode(AdditiveNode): # TODO Create a generic node operation instead.
+class ThresholdNode(AdditiveNode):  # TODO Create a generic node operation instead.
     explanation = _(
         """
         ThresholdNode computes the preliminary result like a regular AdditiveNode.
@@ -268,9 +263,7 @@ class ThresholdNode(AdditiveNode): # TODO Create a generic node operation instea
     allowed_parameters = [
         *AdditiveNode.allowed_parameters,
         NumberParameter(
-            local_id='threshold',
-            label='Gives 1 (True) if the preliminary output is >= threshold',
-            is_customizable=True
+            local_id='threshold', label='Gives 1 (True) if the preliminary output is >= threshold', is_customizable=True
         ),
     ]
     quantity = 'fraction'
@@ -281,11 +274,7 @@ class ThresholdNode(AdditiveNode): # TODO Create a generic node operation instea
         threshold = self.get_parameter_value('threshold', units=True, required=True)
         u = str(threshold.units)
         df = df.ensure_unit(VALUE_COLUMN, u)
-        df = df.with_columns([
-            pl.when(pl.col(VALUE_COLUMN) >= pl.lit(threshold.m))
-            .then(1.0)
-            .otherwise(0.0).alias(VALUE_COLUMN)
-        ])
+        df = df.with_columns([pl.when(pl.col(VALUE_COLUMN) >= pl.lit(threshold.m)).then(1.0).otherwise(0.0).alias(VALUE_COLUMN)])
         df = df.clear_unit(VALUE_COLUMN).set_unit(VALUE_COLUMN, 'dimensionless')
 
         return df

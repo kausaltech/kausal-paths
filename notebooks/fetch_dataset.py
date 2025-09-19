@@ -28,18 +28,18 @@ def fetch_and_process_dataset(ekey, output_filename):
                 key = key_element.text
                 if ekey == key:
                     found = True
-                    print(f"Found direct key match: {key}")
-                    
+                    print(f'Found direct key match: {key}')
+
                     try:
-                        print(f"Reading parquet file from: {path + key}")
+                        print(f'Reading parquet file from: {path + key}')
                         df = pl.read_parquet(path + key)
 
-                        print(f"Saving dataframe to: {output_filename}")
+                        print(f'Saving dataframe to: {output_filename}')
                         df.write_csv(output_filename)
-                        print(f"Successfully saved dataframe to {output_filename}")
+                        print(f'Successfully saved dataframe to {output_filename}')
                         return True  # noqa: TRY300
                     except Exception as e:
-                        print(f"Error processing parquet file: {e}")
+                        print(f'Error processing parquet file: {e}')
                         return False
 
         # If no direct key match, search for matching ETag in Contents elements
@@ -54,21 +54,21 @@ def fetch_and_process_dataset(ekey, output_filename):
                         key_element = content.find('.//{*}Key')
                         if key_element is not None:
                             key = key_element.text
-                            print(f"Found matching dataset with Key: {key}")
+                            print(f'Found matching dataset with Key: {key}')
                     else:
                         key = 'files/md5/' + ekey[:2] + '/' + ekey[2:]
                         print(f"Didn't find key but trying with {key}.")
 
                     try:
-                        print(f"Reading parquet file from: {path + key}")
+                        print(f'Reading parquet file from: {path + key}')
                         df = pl.read_parquet(path + key)
 
-                        print(f"Saving dataframe to: {output_filename}")
+                        print(f'Saving dataframe to: {output_filename}')
                         df.write_csv(output_filename)
-                        print(f"Successfully saved dataframe to {output_filename}")
+                        print(f'Successfully saved dataframe to {output_filename}')
                         return True  # noqa: TRY300
                     except Exception as e:
-                        print(f"Error processing parquet file: {e}")
+                        print(f'Error processing parquet file: {e}')
                         return False
 
         if not found:
@@ -76,11 +76,12 @@ def fetch_and_process_dataset(ekey, output_filename):
         return found  # noqa: TRY300
 
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching dataset: {e}")
+        print(f'Error fetching dataset: {e}')
         return False
     except ET.ParseError as e:
-        print(f"Error parsing XML: {e}")
+        print(f'Error parsing XML: {e}')
         return False
+
 
 def main():
     parser = argparse.ArgumentParser(description='Fetch dataset by ekey and save as CSV.')
@@ -90,5 +91,6 @@ def main():
 
     fetch_and_process_dataset(args.ekey, args.output)
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     main()

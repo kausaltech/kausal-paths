@@ -19,7 +19,6 @@ all_routers = []
 
 
 class InstanceSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = InstanceConfig
         fields = ['id', 'identifier', 'name']

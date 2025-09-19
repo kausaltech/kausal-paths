@@ -24,17 +24,17 @@ class LoginMethodThrottle(UserRateThrottle):
 def check_login_method(request):
     d = request.data
     if not d or not isinstance(d, dict):
-        msg = _("Invalid email address")
-        raise ValidationError(dict(detail=msg, code="invalid_email"))
+        msg = _('Invalid email address')
+        raise ValidationError(dict(detail=msg, code='invalid_email'))
 
     email = d.get('email', '').strip().lower()
     if not email:
-        msg = _("Invalid email address")
-        raise ValidationError(dict(detail=msg, code="invalid_email"))
+        msg = _('Invalid email address')
+        raise ValidationError(dict(detail=msg, code='invalid_email'))
     user = User.objects.filter(email__iexact=email).first()
     if user is None:
-        msg = _("No user found with this email address. Ask your administrator to create an account for you.")
-        raise ValidationError(dict(detail=msg, code="no_user"))
+        msg = _('No user found with this email address. Ask your administrator to create an account for you.')
+        raise ValidationError(dict(detail=msg, code='no_user'))
 
     next_url_input = d.get('next')
     resolved = None
@@ -42,16 +42,14 @@ def check_login_method(request):
         next_url = urlparse(next_url_input)
         resolved = resolve(next_url.path)
 
-    destination_is_public_site = resolved and (
-        resolved.url_name == 'authorize' and 'oauth2_provider' in resolved.app_names
-    )
+    destination_is_public_site = resolved and (resolved.url_name == 'authorize' and 'oauth2_provider' in resolved.app_names)
 
     if not destination_is_public_site and not user.can_access_admin():
-        msg = _("This user does not have access to admin.")
-        raise ValidationError(dict(detail=msg, code="no_admin_access"))
+        msg = _('This user does not have access to admin.')
+        raise ValidationError(dict(detail=msg, code='no_admin_access'))
 
     if user.has_usable_password():
         method = 'password'
     else:
         method = 'azure_ad'
-    return Response({"method": method})
+    return Response({'method': method})
