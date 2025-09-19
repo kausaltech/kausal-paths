@@ -398,7 +398,221 @@ dimensions:
     label_en: Sewage sludge composting
     label_sv: Kompostering av avloppsslam
 
+- id: emission_sector
+  label_fi: Päästösektori
+  label_en: Emission sector
+  label_sv: Utsläppssektor
+  categories:
+  - id: district_heating
+    label_fi: Kaukolämpö
+    label_en: District heating
+    label_sv: Fjärrvärme
+  - id: oil_heating
+    label_fi: Öljylämmitys
+    label_en: Oil heating
+    label_sv: Oljeuppvärmning
+  - id: electric_heating
+    label_fi: Sähkölämmitys
+    label_en: Electric heating
+    label_sv: Eluppvärmning
+  - id: geothermal_heating
+    label_fi: Maalämpö
+  - id: non_heating_electricity
+    label_fi: Kulutussähkö
+    label_en: Consumption electricity
+    label_sv: Konsumtionsel
+  - id: transportation
+    label_fi: Liikenne
+    label_en: Transportation
+    label_sv: Trafik
+  - id: industry_and_machinery
+    label_fi: Teollisuus ja työkoneet
+    label_en: Industry and machinery
+    label_sv: Industri och arbetsmaskiner
+  - id: waste_treatment
+    label_fi: Jätteiden käsittely
+    label_en: Waste treatment
+    label_sv: Avfallsbehandling
+  - id: agriculture
+    label_fi: Maatalous
+    label_en: Agriculture
+    label_sv: Jordbruk
+  - id: fields
+    label_fi: Pellot
+    label_en: Fields
+    label_sv: Åkrar
+  - id: cattle_farming
+    label_fi: Kotieläimet
+    label_en: Livestock
+    label_sv: Boskap
+  - id: machinery
+    label_fi: Työkoneet
+    label_en: Machinery
+    label_sv: Arbetsmaskiner
+  - id: industry
+    label_fi: Teollisuus
+    label_en: Industry
+    label_sv: Industri
+    aliases: [Prosessit]
+  - id: industry_fuels
+    label_fi: Teollisuuden polttoaineet
+    label_en: Industrial fuels
+    label_sv: Industriella bränslen
+    aliases: [Polttoaineet]
+  - id: landfills
+    label_fi: Kaatopaikka
+    label_en: Landfills
+    label_sv: Deponier
+  - id: biowaste_composting
+    label_fi: Biojätteen kompostointi
+    label_en: Biowaste composting
+    label_sv: Kompostering av bioavfall
+  - id: waste_water_treatment
+    label_fi: Jäteveden käsittely
+    label_en: Wastewater treatment
+    label_sv: Avloppsvattenbehandling
+  - id: sludge_composting
+    label_fi: Jätevesilietteen kompostointi
+    label_en: Sewage sludge composting
+    label_sv: Kompostering av avloppsslam
+  - id: cars
+    aliases: [passenger_cars]
+    label_fi: Henkilöautot
+    label_en: Cars
+    label_sv: Personbilar
+  - id: electric_vehicles
+    label_fi: Sähköautot
+    label_en: Electric vehicles
+    label_sv: Elbilar
+  - id: hybrid_vehicles
+    label_fi: Hybridit
+    label_en: Hybrid vehicles
+    label_sv: Hybridbilar
+  - id: buses
+    label_fi: Bussit
+    label_en: Buses
+    label_sv: Bussar
+    aliases: [Linja-autot]
+  - id: buses_hsl
+    label_fi: Bussit, HSL
+    label_en: Buses, HSL
+    label_sv: Bussar, HRT
+  - id: buses_other
+    label_fi: Bussit, muu
+    label_en: Buses, other
+    label_sv: Bussar, övriga
+  - id: local_trains
+    label_fi: Lähijunat
+    aliases: [Paikallisjunat]
+    label_en: Commuter trains
+    label_sv: Pendeltåg
+  - id: motorcycles
+    label_fi: Moottoripyörät
+    label_en: Motorcycles
+    label_sv: Motorcyklar
+  - id: trams
+    label_fi: Raitiovaunut
+    aliases: [Ratikat]
+    label_en: Trams
+    label_sv: Spårvagnar
+  - id: metros
+    label_fi: Metrot
+    aliases: [Metro, metro]
+    label_en: Metro
+    label_sv: Tunnelbana
+  - id: trucks
+    label_fi: Kuorma-autot
+    label_en: Trucks
+    label_sv: Lastbilar
+    aliases: [Lorries]
+  - id: vans
+    label_fi: Pakettiautot
+    label_en: Vans
+    label_sv: Paketbilar
+  - id: undefined
+    label_fi: Ei määritelty
+    label_en: Undefined
+    label_sv: Odefinierad
+  - id: leasure_boats
+    label_fi: Huviveneet
+    label_en: Leisure boats
+    label_sv: Fritidsbåtar
+  - id: professional_boats
+    label_fi: Ammattiveneet
+    label_en: Professional boats
+    label_sv: Yrkesfartyg
+  - id: passenger_ships
+    label_fi: Matkustajalaivat
+    label_en: Passenger ships
+    label_sv: Passagerarfartyg
+  - id: cargo_ships
+    label_fi: Rahtilaivat
+    label_en: Cargo ships
+    label_sv: Lastfartyg
+
 nodes:
+
+# GENERIC HSY NODES
+
+- id: hsy_emissions
+  name: HSY-päästöt
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sector, economic_sector]
+  output_dimensions: [emission_sector, economic_sector]
+  input_datasets:
+  - id: hsy/pks_khk_paastot
+    tags: [baseline]
+    column: Päästöt
+    filters:
+    - rename_col: Sektori3
+      value: emission_sector
+    - rename_col: Sektori4
+      value: economic_sector
+    - rename_col: Vuosi
+      value: Year
+    - column: Kaupunki
+      ref: municipality_name
+    - column: Sektori1
+    - column: Sektori2
+
+- id: hsy_energy
+  name: HSY-energiankulutus
+  type: generic.GenericNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [emission_sector, economic_sector]
+  output_dimensions: [emission_sector, economic_sector]
+  input_datasets:
+  - id: hsy/pks_khk_paastot
+    tags: [baseline]
+    column: Energiankulutus
+    filters:
+    - rename_col: Sektori3
+      value: emission_sector
+    - rename_col: Sektori4
+      value: economic_sector
+    - rename_col: Vuosi
+      value: Year
+    - column: Kaupunki
+      ref: municipality_name
+    - column: Sektori1
+    - column: Sektori2
+
+- id: hsy_emission_factor
+  name: HSY-päästökerroin
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [emission_sector, economic_sector]
+  output_dimensions: [emission_sector, economic_sector]
+  input_nodes:
+  - id: hsy_emissions
+  - id: hsy_energy
+    tags: [geometric_inverse]
+  params:
+    operations: multiply,drop_nans,drop_infs
 
 # City nodes
 
