@@ -20,21 +20,21 @@ if TYPE_CHECKING:
 ALL_MODEL_PERMS = ('view', 'change', 'delete', 'add')
 
 
-def _get_perm_objs(model, perms):
+def _get_perm_objs(model, perms) -> list[Permission]:
     content_type = ContentType.objects.get_for_model(model)
     perms = ['%s_%s' % (x, model._meta.model_name) for x in perms]
     perm_objs = Permission.objects.filter(content_type=content_type, codename__in=perms)
     return list(perm_objs)
 
 
-def _model_perms(app_label: str, models: str | Sequence[str], perms: Sequence[str]):
+def _model_perms(app_label: str, models: str | Sequence[str], perms: Sequence[str]) -> tuple[str, list[str]]:
     if isinstance(models, str):
         models = [models]
 
     return (app_label, ['%s_%s' % (p, m) for p in perms for m in models])
 
 
-def _join_perms(model_perms: list[tuple[str, Sequence[str]]]):
+def _join_perms(model_perms: list[tuple[str, Sequence[str]]]) -> dict[str, set[str]]:
     out: dict[str, set[str]] = {}
     for app_label, perms in model_perms:
         out[app_label] = out.get(app_label, set()).union(set(perms))
@@ -62,8 +62,8 @@ class Role:
     def get_group_name(self, instance: InstanceConfig) -> str:
         return '%s %s' % (instance.name, self.group_name)
 
-    def _update_model_perms(self, group: Group, instance: InstanceConfig):
-        old_perms = set(list(group.permissions.all()))
+    def _update_model_perms(self, group: Group, instance: InstanceConfig) -> None:
+        old_perms = set(group.permissions.all())
         new_perms = set()
         for app_label, perms in self.model_perms.items():
             for p in list(perms):
@@ -74,7 +74,7 @@ class Role:
             group.permissions.set(new_perms)
 
     @transaction.atomic()
-    def _update_page_perms(self, group: Group, instance: InstanceConfig):
+    def _update_page_perms(self, group: Group, instance: InstanceConfig) -> None:
         if instance.site is None:
             return
 

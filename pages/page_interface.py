@@ -54,8 +54,9 @@ class PageInterface(graphene.Interface):
     @classmethod
     def resolve_type(cls, instance, info, **kwargs):
         """
-        If model has a custom Graphene Node type in registry then use it,
-        otherwise use base page type.
+        Use custom Graphene Node type in registry if model has it.
+
+        Otherwise use base page type.
         """
         from grapple.types.pages import Page
 
@@ -73,7 +74,8 @@ class PageInterface(graphene.Interface):
     @staticmethod
     def resolve_children(root, info, **kwargs):
         """
-        Resolves a list of live children of this page.
+        Resolve a list of live children of this page.
+
         Docs: https://docs.wagtail.io/en/stable/reference/pages/queryset_reference.html#examples
         """
         return resolve_queryset(root.get_children().live().public().specific(), info, **kwargs)
@@ -81,21 +83,18 @@ class PageInterface(graphene.Interface):
     @staticmethod
     def resolve_descendants(root, info, **kwargs):
         """
-        Resolves a list of nodes pointing to the current page’s descendants.
+        Resolve a list of nodes pointing to the current page's descendants.
+
         Docs: https://docs.wagtail.io/en/stable/reference/pages/model_reference.html#wagtail.models.Page.get_descendants
         """
         return resolve_queryset(root.get_descendants().live().public().specific(), info, **kwargs)
 
     def resolve_seo_title(self, info, **kwargs):
-        """
-        Get page's SEO title. Fallback to a normal page's title if absent.
-        """
+        """Get page's SEO title. Fallback to a normal page's title if absent."""
         return self.seo_title or self.title
 
     def resolve_search_score(self, info, **kwargs):
-        """
-        Get page's search score, will be None if not in a search context.
-        """
+        """Get page's search score, will be None if not in a search context."""
         return getattr(self, 'search_score', None)
 
     @staticmethod
