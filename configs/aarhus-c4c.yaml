@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://aarhus-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 0a505af327a232a969e3d9fe9c77777782a7cec1
+  commit: d03e253e8b43c69aa438e32b419f510434b5c8fd
   dvc_remote: kausal-s3
 name: Aarhus Greenhouse Gas Inventory
 owner: City of Aarhus
@@ -574,17 +574,29 @@ nodes:
   input_datasets:
   - id: aarhus/manufacturing
     column: energy
+    dropna: true
     forecast_from: 2024
     filters:
     - column: sector
+    - column: ghg
 
 - id: manufacturing_emissions
   name: Manufacturing Emissions
-  type: simple.MultiplicativeNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
+  params:
+    formula: (manufacturing_energy_consumption * energy_emission_factors) + reference
+  input_datasets:
+  - id: aarhus/manufacturing
+    tags: [reference]
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
   input_nodes:
   - id: energy_emission_factors
   - id: manufacturing_energy_consumption
@@ -1306,17 +1318,30 @@ nodes:
   input_datasets:
   - id: aarhus/aviation
     column: energy
+    dropna: true
     forecast_from: 2024
     filters:
     - column: sector
+    - column: ghg
 
 - id: aviation_emissions
   name: Aviation Emissions
-  type: simple.MultiplicativeNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [energy_carrier, vehicle_type, ghg]
   output_dimensions: [energy_carrier, vehicle_type, ghg]
+
+  params:
+    formula: (aviation_energy_consumption * transportation_energy_emission_factors) + reference
+  input_datasets:
+  - id: aarhus/aviation
+    tags: [reference]
+    column: emissions
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
   input_nodes:
   - id: transportation_energy_emission_factors
     to_dimensions:
