@@ -19,10 +19,10 @@ reference_year: 1990
 minimum_historical_year: 1990
 maximum_historical_year: 2024
 features:
-  baseline_visible_in_graphs: true
+  baseline_visible_in_graphs: false
   show_accumulated_effects: true
-  use_datasets_from_db: true
-  show_significant_digits: 3
+  use_datasets_from_db: false
+  show_significant_digits: 4
   show_explanations: true
 
 params:
@@ -425,14 +425,20 @@ scenarios:
   - id: municipality_name
     value: Espoo
 
-- id: vantaa
-  name_fi: Vantaan päästöt
+- id: helsinki
+  name_fi: Helsingin päästöt
   params:
   - id: municipality_name
-    value: Vantaa
+    value: Helsinki
 
 - id: kauniainen
   name_fi: Kauniaisten päästöt
   params:
   - id: municipality_name
     value: Kauniainen
+
+- id: vantaa
+  name_fi: Vantaan päästöt
+  params:
+  - id: municipality_name
+    value: Vantaa
