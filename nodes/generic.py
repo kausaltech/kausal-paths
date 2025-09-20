@@ -64,24 +64,25 @@ class GenericNode(SimpleNode):
 
         # Operation registry
         self.OPERATIONS: dict[str, Callable[..., tuple[Any, Any]]]  = {
-            'multiply': self._operation_multiply,
             'add': self._operation_add,
-            'other': self._operation_other,
-            'apply_multiplier': self._operation_apply_multiplier,
-            'select_variant': self._operation_select_variant,
-            'inventory_only': self._operation_inventory_only,
-            'extend_values': self._operation_extend_values,
-            'do_correction': self._operation_do_correction,
-            'extrapolate': self._operation_extrapolate,
-            'use_as_totals': self._operation_use_as_totals,
-            'use_as_shares': self._operation_use_as_shares,
-            'split_by_existing_shares': self._operation_split_by_existing_shares,
-            'split_evenly_to_cats': self._operation_split_evenly_to_cats,
-            'add_to_existing_dims': self._operation_add_to_existing_dims,
             'add_from_incoming_dims': self._operation_add_from_incoming_dims,
-            'skip_dim_test': self._operation_skip_dim_test,
+            'add_to_existing_dims': self._operation_add_to_existing_dims,
+            'apply_multiplier': self._operation_apply_multiplier,
+            'do_correction': self._operation_do_correction,
             'drop_nans': self._operation_drop_nans,
             'drop_infs': self._operation_drop_infs,
+            'extend_values': self._operation_extend_values,
+            'extrapolate': self._operation_extrapolate,
+            'get_datasets': self._operation_get_datasets,
+            'inventory_only': self._operation_inventory_only,
+            'multiply': self._operation_multiply,
+            'other': self._operation_other,
+            'select_variant': self._operation_select_variant,
+            'skip_dim_test': self._operation_skip_dim_test,
+            'split_by_existing_shares': self._operation_split_by_existing_shares,
+            'split_evenly_to_cats': self._operation_split_evenly_to_cats,
+            'use_as_totals': self._operation_use_as_totals,
+            'use_as_shares': self._operation_use_as_shares,
         }
 
     def _get_input_baskets(self, nodes: list[Node]) -> dict[str, list[Node]]:
@@ -225,6 +226,20 @@ class GenericNode(SimpleNode):
         """Drop Inf cells in long format."""
         assert isinstance(df, ppl.PathsDataFrame)
         return df.filter(pl.col(VALUE_COLUMN).is_finite()), baskets
+
+    def _operation_get_datasets(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        dfs = self.get_input_datasets_pl()
+        if not dfs:
+            return df, baskets
+        if df is not None:
+            dfs.append(df)
+        out = dfs.pop()
+        for d in dfs:
+            out = out.select(d.columns)
+            out = out.paths.concat_vertical(d)
+        assert isinstance(out, ppl.PathsDataFrame)
+        out = self.add_missing_years(out)
+        return out, baskets
 
     OperationType = Literal[
         'use_as_totals',

@@ -18,7 +18,7 @@ supported_languages: []
 site_url: https://potsdam-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 24fcfa5d80717c760d67588c7a60d8d29f1a76fd
+  commit: 84228c0284ca88912e48d695a4e3e4068c91c578
   dvc_remote: kausal-s3
 name: Klima-Monitor-Potsdam
 owner: Stadt Potsdam
@@ -34,7 +34,7 @@ emission_dimensions: [energy_carrier, sector]
 features:
   baseline_visible_in_graphs: true
   use_datasets_from_db: true
-  show_explanations: true
+  show_explanations: false
 
 include:
 - file: frameworks/standard_dims.yaml
@@ -76,10 +76,10 @@ action_groups:
   name: Änderung im Wärmeverbrauch (Wärmenetze)
   name_en: Changes in Heat Consumption (District Heating)
   color: '#B85450'
-# - id: heat_consumption_individual
-#   name: Änderung im Wärmeverbrauch (Einzelversorgung)
-#   name_en: Changes in Heat Consumption (Individual Supply)
-#   color: '#E67E22'
+- id: heat_consumption_individual
+  name: Änderung im Wärmeverbrauch (Einzelversorgung)
+  name_en: Changes in Heat Consumption (Individual Supply)
+  color: '#E67E22'
 - id: electricity_generation
   name: Ausbau Erneuerbare Energien in der Stromerzeugung
   name_en: Expansion of Renewable Energy in Electricity Generation
@@ -272,14 +272,18 @@ nodes:
   unit: MWh/a
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
+  params:
+    operations: get_datasets
   input_datasets:
   - id: potsdam/scenario/energie
-    tags: [baseline]
+    forecast_from: 2024
+    column: energie
+  - id: potsdam/scenario/energieszenarien
     forecast_from: 2024
     column: energie
     filters:
     - column: scenario
-      values: [masterplan_scenario, actual]
+      values: [masterplan_scenario]
 
 - id: trend_scenario_energy
   name: Trend-Szenario Energie
@@ -289,14 +293,18 @@ nodes:
   unit: MWh/a
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
+  params:
+    operations: get_datasets,multiply
   input_datasets:
   - id: potsdam/scenario/energie
-    tags: [baseline]
+    forecast_from: 2024
+    column: energie
+  - id: potsdam/scenario/energieszenarien
     forecast_from: 2024
     column: energie
     filters:
     - column: scenario
-      values: [trend_scenario, actual]
+      values: [trend_scenario]
 
 - id: trend_scenario_emissions
   name: Trend-Szenario Emissionen
@@ -306,14 +314,18 @@ nodes:
   unit: kt/a
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
+  params:
+    operations: get_datasets
   input_datasets:
   - id: potsdam/scenario/emissionen
-    tags: [baseline]
     forecast_from: 2024
     column: emissionen
+  - id: potsdam/scenario/emissionsszenarien
+    column: emissionen
+    forecast_from: 2024
     filters:
     - column: scenario
-      values: [trend_scenario, actual]
+      values: [trend_scenario]
 
 - id: trend_scenario_emission_factor
   name: Trend-Szenario Emissionfaktor
@@ -328,7 +340,7 @@ nodes:
   - id: trend_scenario_energy
     tags: [geometric_inverse]
   params:
-    operations: multiply,drop_nans
+    operations: multiply,drop_nans,drop_infs
 
 - id: sector_index
   name: Sektor Index
@@ -351,14 +363,18 @@ nodes:
   unit: kt/a
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
+  params:
+    operations: get_datasets
   input_datasets:
   - id: potsdam/scenario/emissionen
-    tags: [baseline]
+    forecast_from: 2024
+    column: emissionen
+  - id: potsdam/scenario/emissionsszenarien
     forecast_from: 2024
     column: emissionen
     filters:
     - column: scenario
-      values: [masterplan_scenario, actual]
+      values: [masterplan_scenario]
 
 - id: emission_change_due_to_energy
   name: Emissionsänderung durch Energieeinsparung
@@ -406,7 +422,7 @@ nodes:
     tags: [geometric_inverse]
   - id: emission_change_due_to_ef
   params:
-    operations: multiply,drop_infs
+    operations: multiply,drop_nans,drop_infs
 
 - id: corrected_emission_factor
   name: Korrigierter Emissionsfaktor
@@ -432,6 +448,8 @@ nodes:
   - id: trend_scenario_emission_factor
     tags: [geometric_inverse]
   - id: emission_change_due_to_energy
+  params:
+    operations: multiply,drop_nans,drop_infs
 
 - id: corrected_energy
   name: Korrigierte Energie
@@ -450,7 +468,7 @@ nodes:
   name_en: Corrected emissions
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
@@ -764,7 +782,7 @@ actions:
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
-  group: heat_consumption
+  group: heat_consumption_individual
   input_datasets:
   - id: potsdam/action_impact
     tags: [baseline]
@@ -940,7 +958,7 @@ scenarios:
   all_actions_enabled: true
   params:
   - id: re_expansion_masterplan_2045.enabled
-    value: false
+    value: true
 
 - id: emission_factors_only
   name: Nur Emissionsfaktor-Maßnahmen

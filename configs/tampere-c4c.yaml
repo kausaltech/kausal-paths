@@ -117,6 +117,15 @@ dimensions:
     label: Maintenance
   - id: operations
     label: Operations
+  - id: tax_impact
+    label: Verovaikutus
+    label_en: Tax impact
+  - id: value_added
+    label: Arvonlisä
+    label_en: Value added
+  - id: gross_output
+    label: Tuotosvaikutus
+    label_en: Gross output
 
 - id: energy_carrier
   label: Energian kantaja
@@ -169,9 +178,23 @@ dimensions:
   label_en: Owner
   categories:
   - id: municipal
-    label: Municipal
+    label: Kaupunki
+    label_en: Municipal
   - id: private
-    label: Private
+    label: Yksityinen
+    label_en: Private
+  - id: region
+    label: Seutu
+    label_en: Region
+  - id: subsidiary
+    label: Tytäryhtiö
+    label_en: Subsidiary
+  - id: state
+    label: Valtio
+    label_en: State
+  - id: society
+    label: Yhteiskunta
+    label_en: Society
 
 - id: scope
   label: Scope
@@ -456,6 +479,12 @@ dimensions:
   - id: parking_policy_to_support_sustainable_mobility
     label: Kestävää liikkumista tukeva pysäköintipolitiikka
     label_en: Parking policy to support sustainable mobility
+  - id: solar_power_in_municipal_building_stock
+    label: Solar power in municipal building stock
+  - id: geothermal_and_awhps_in_municipal_building_stock
+    label: Geothermal and AWHPs in municipal building stock
+  - id: aahps_in_municipal_building_stock
+    label: AAHPs in municipal building stock
 
 emission_sectors:
 - id: net_emissions
@@ -4671,7 +4700,7 @@ actions:
     description: Kaukolämmön hinta
     description_en: District heating price
   - id: percent_change
-    value: 1.0
+    value: 0.0
     min_value: -5.0
     max_value: 5.0
     step: 0.1
@@ -4682,7 +4711,7 @@ actions:
     value: 93.9
     unit: EUR/MWh
   - id: default_change
-    value: 1.0
+    value: 0.0
     unit: '%/a'
   output_nodes:
   - id: energy_unit_prices
@@ -4713,7 +4742,7 @@ actions:
     description: Sähkön hinta
     description_en: Electricity price
   - id: percent_change
-    value: 1.0
+    value: 0.0
     min_value: -5.0
     max_value: 5.0
     step: 0.1
@@ -4724,7 +4753,7 @@ actions:
     value: 0.18
     unit: EUR/kWh
   - id: default_change
-    value: 1.0
+    value: 0.0
     unit: '%/a'
   output_nodes:
   - id: energy_unit_prices
@@ -4755,7 +4784,7 @@ actions:
     description: Öljyn hinta
     description_en: Oil price
   - id: percent_change
-    value: 1.0
+    value: 0.0
     min_value: -5.0
     max_value: 5.0
     step: 0.1
@@ -4766,7 +4795,7 @@ actions:
     value: 0.145
     unit: EUR/kWh
   - id: default_change
-    value: 1.0
+    value: 0.0
     unit: '%/a'
   output_nodes:
   - id: energy_unit_prices

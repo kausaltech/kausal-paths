@@ -4,16 +4,30 @@ import argparse
 import os
 import re
 import warnings
+from dataclasses import asdict, dataclass
 
 # from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+import django
 
 # import chardet
 import dvc_pandas
 import polars as pl
 from dotenv import load_dotenv
 from dvc_pandas import Dataset, DatasetMeta, Repository
-from use_ids import load_yaml_mappings, replace_labels_with_ids  # type: ignore
+
+# Set the Django settings module
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'paths.settings')
+
+# Configure Django
+django.setup()
+
+from nodes.constants import VALUE_COLUMN, YEAR_COLUMN  # noqa: E402, F401  # pyright: ignore[reportUnusedImport]
+from notebooks.notebook_support import get_context  # noqa: E402
+
+if TYPE_CHECKING:
+    from nodes.context import Context
 
 
 def to_snake_case(string: str) -> str:
@@ -58,11 +72,9 @@ def determine_metric_column(df: pl.DataFrame) -> str:
     """Determine which column to use for metrics."""
     if 'Metric' in df.columns:
         return 'Metric'  # backward compatibility
-    if 'Sector' in df.columns:
-        return 'Sector'  # legacy support
-    if 'sector' in df.columns:
-        return 'sector'  # legacy support
-    raise ValueError("No metric column found. DataFrame must contain 'Metric', or 'Sector' column.")
+    if 'Quantity' in df.columns:
+        return 'Quantity'
+    raise ValueError("No metric column found. DataFrame must contain 'Metric', 'Sector', 'Quantity' column.")
 
 
 def create_metric_col(df: pl.DataFrame, metric_col: str) -> pl.DataFrame:
@@ -72,26 +84,13 @@ def create_metric_col(df: pl.DataFrame, metric_col: str) -> pl.DataFrame:
     Uses the simplest combination of columns that maintains uniqueness.
     """
     # Get the full unique count with all columns
-    if metric_col != 'Metric':
+    if metric_col == 'Quantity':
+        df = df.with_columns(pl.col('Quantity').alias('Metric'))
+    elif metric_col != 'Metric':
         df.rename({metric_col: 'Metric'})
     unique_metrics = df.select(['Metric', 'Quantity', 'Unit']).unique()
     if len(unique_metrics) != len(df.select('Metric').unique()):
         raise ValueError(f"Column {metric_col} contains duplicate values. Please check the data.")
-
-    # # Try combinations in order of simplicity
-    # cols_to_use = [metric_col]
-    # if len(df.select(cols_to_use).unique()) != full_count:
-    #     cols_to_use.append('Quantity')
-    #     if len(df.select(cols_to_use).unique()) != full_count:
-    #         cols_to_use.append('Unit')
-
-    # # Create the label by joining the selected columns with spaces
-    # df = df.with_columns(
-    #     pl.concat_str([
-    #         pl.col(col)
-    #         for col in cols_to_use
-    #     ], separator=" ").alias('metric_col')
-    # ).drop(metric_col)
 
     # Convert metric_col to snake_case
     df = df.with_columns([
@@ -119,7 +118,7 @@ def split_by_dataset(df: pl.DataFrame) -> dict[str, pl.DataFrame]:
     return datasets
 
 
-def extract_units(df: pl.DataFrame, dataset_name: str) -> dict:
+def extract_units(df: pl.DataFrame) -> dict[str, str]:
     """Extract units from the dataframe using metric labels."""
     units = {}
 
@@ -135,7 +134,7 @@ def extract_units(df: pl.DataFrame, dataset_name: str) -> dict:
 
     return units
 
-def extract_units_from_row(df: pl.DataFrame) -> tuple[dict, pl.DataFrame]:
+def extract_units_from_row(df: pl.DataFrame) -> tuple[dict[str, str], pl.DataFrame]:
     """Extract units from the first row if it contains only strings, otherwise treat as data."""
     units: dict[str, str] = {}
 
@@ -166,7 +165,7 @@ def extract_units_from_row(df: pl.DataFrame) -> tuple[dict, pl.DataFrame]:
     ])
     return units, df_cleaned
 
-def extract_description(df: pl.DataFrame, dataset_name: str) -> str | None:
+def extract_description(df: pl.DataFrame) -> str | None:
     """Extract description from the dataframe."""
     description = None # FIXME Does not show up in admin UI.
     if 'Description' in df.columns:
@@ -200,7 +199,14 @@ def extract_description(df: pl.DataFrame, dataset_name: str) -> str | None:
     return description
 
 
-def extract_metrics(df: pl.DataFrame, language: str) -> list:
+@dataclass
+class MetricData:
+    id: str
+    quantity: str
+    label: dict[str, str]
+
+
+def extract_metrics(df: pl.DataFrame, language: str) -> list[MetricData]:
     """Extract metrics from the dataframe using metric labels."""
     metrics = []
 
@@ -213,11 +219,11 @@ def extract_metrics(df: pl.DataFrame, language: str) -> list:
         quantity = row['Quantity']
 
         if metric_name and quantity:
-            metrics.append({
-                "id": to_snake_case(metric_id),
-                "quantity": to_snake_case(quantity),
-                "label": {language: metric_name},
-            })
+            metrics.append(MetricData(
+                id = to_snake_case(metric_id),
+                quantity = to_snake_case(quantity),
+                label = {language: metric_name}
+            ))
 
     return metrics
 
@@ -304,9 +310,9 @@ def pivot_by_compound_id(df: pl.DataFrame) -> pl.DataFrame:
     try:
         df = df.with_columns(pl.col('Value').cast(pl.Float64))
     except ValueError:
-        warnings.warn(
-            "Some values could not be converted to float and will be kept as strings. "
-            "This is normal for some datasets that contain non-numeric values.",
+        warnings.warn(' '.join(  # noqa: FLY002
+            ["Some values could not be converted to float and will be kept as strings.",
+            "This is normal for some datasets that contain non-numeric values."]),
             UserWarning,
             stacklevel=2
         )
@@ -338,7 +344,7 @@ def check_for_duplicates(df: pl.DataFrame) -> bool:
     return True  # Has duplicates
 
 
-def prepare_for_dvc(df: pl.DataFrame, units: dict) -> pl.DataFrame:
+def prepare_for_dvc(df: pl.DataFrame, units: dict[str, str]) -> pl.DataFrame:
     """Prepare dataframe for DVC by standardizing column names."""
     # Standardize column names (except 'Year')
     columns = df.columns
@@ -364,21 +370,38 @@ def prepare_for_dvc(df: pl.DataFrame, units: dict) -> pl.DataFrame:
     return df
 
 
-def save_to_csv(df: pl.DataFrame, file_path: str, dataset_name: str) -> None:
+def convert_names_to_cats(df: pl.DataFrame, units: dict[str, str], context: Context) -> pl.DataFrame:
+    cols = [col for col in df.columns if col not in [*units.keys(), YEAR_COLUMN]]
+    for col in cols:
+        col_low = col.lower()
+        if col_low in context.dimensions:
+            df = df.rename({col: col_low})
+            df = df.with_columns(context.dimensions[col_low].series_to_ids_pl(df[col_low]))
+        else:
+            print(f'Warning: could not find {col} from the dimensions of {context.instance.id}')
+    return df
+
+
+def save_to_csv(df: pl.DataFrame, file_stem: str, dataset_name: str) -> None:
     """Save dataframe to CSV if a path is provided."""
-    if file_path.upper() not in ['N', 'NONE']:
+    if file_stem.upper() not in ['N', 'NONE']:
         # Create a unique filename for each dataset
-        file_name, file_ext = os.path.splitext(file_path)  # noqa: PTH122
-        dataset_file_path = f"{file_name}_{to_snake_case(dataset_name)}{file_ext}"
+        dataset_file_path = f"{file_stem}_{to_snake_case(dataset_name)}.csv"
 
         df.write_csv(dataset_file_path)
         print(df)
         print(f'Data saved to {dataset_file_path}')
 
 
-def push_to_dvc(df: pl.DataFrame, output_path: str, dataset_name: str,
-                units: dict, description: str | None, metrics: list,
-                language: str) -> None:
+def push_to_dvc(
+        df: pl.DataFrame,
+        output_path: str,
+        dataset_name: str,
+        units: dict[str, str],
+        description: str | None,
+        metrics: list[MetricData],
+        language: str
+    ) -> None:
     """Push dataset to DVC repository."""
     if output_path.upper() in ['N', 'NONE']:
         return
@@ -394,7 +417,7 @@ def push_to_dvc(df: pl.DataFrame, output_path: str, dataset_name: str,
     if description:
         metadata['description'] = {language: description}
     if metrics:
-        metadata['metrics'] = metrics
+        metadata['metrics'] = [asdict(metric) for metric in metrics]
 
     # Create dataset metadata
     meta = DatasetMeta(
@@ -434,7 +457,14 @@ def push_to_dvc(df: pl.DataFrame, output_path: str, dataset_name: str,
     print(f'Dataset pushed to DVC at {output_path}')
 
 
-def process_dataset(df: pl.DataFrame, dataset_name: str, outcsvpath: str, outdvcpath: str, language: str) -> None:
+def process_dataset(
+        df: pl.DataFrame,
+        dataset_name: str,
+        outcsvpath: str,
+        outdvcpath: str,
+        language: str,
+        context: Context | None
+    ) -> None:
     """Process a single dataset of data."""
     print(f"\n==== Processing dataset: {dataset_name} ====\n")
 
@@ -453,9 +483,9 @@ def process_dataset(df: pl.DataFrame, dataset_name: str, outcsvpath: str, outdvc
     df = create_metric_col(df, metric_col)
 
     # 4. Extract metadata using metric labels
-    units = extract_units(df, dataset_name)
+    units = extract_units(df)
     metrics = extract_metrics(df, language)
-    description = extract_description(df, dataset_name)
+    description = extract_description(df)
     print(f"Units: {units}")
     print(f"Metrics: {len(metrics)} entries")
     print(metrics)
@@ -479,14 +509,23 @@ def process_dataset(df: pl.DataFrame, dataset_name: str, outcsvpath: str, outdvc
         print("Warning: Dataframe contains duplicate rows")
 
     # 9. Prepare for DVC (standardize column names)
-    df = prepare_for_dvc(df, units)
+    if context:
+        dims = [dim for dim in dim_ids if dim != YEAR_COLUMN]
+        cols = {col: to_snake_case(col) for col in dims}
+        df = df.rename(cols)
+        print('Changed these column names:', cols)
+        df = convert_names_to_cats(df, units, context)
+    else:
+        df = prepare_for_dvc(df, units)
 
     # 10. Save to CSV if requested
-    save_to_csv(df, outcsvpath, dataset_name)
+    if outcsvpath:
+        save_to_csv(df, outcsvpath, dataset_name)
 
     # 11. Push to DVC if requested
-    dataset_dvc_path = f"{outdvcpath}/{to_snake_case(dataset_name)}"
-    push_to_dvc(df, dataset_dvc_path, dataset_name, units, description, metrics, language)
+    if outdvcpath:
+        dataset_dvc_path = f"{outdvcpath}/{to_snake_case(dataset_name)}"
+        push_to_dvc(df, dataset_dvc_path, dataset_name, units, description, metrics, language)
 
 
 def main():
@@ -502,14 +541,15 @@ def main():
                        help='Input CSV file path')
 
     parser.add_argument('--output-dvc', '-o',
-                       required=True,
+                       required=False,
+                       default=None,
                        help='Output DVC file path')
 
     # Arguments with defaults
     parser.add_argument('--output-csv', '-c',
                        required=False,
                        default='NONE',
-                       help='Output CSV file path')
+                       help='Output CSV file stem')
 
     parser.add_argument('--csv-separator', '-s',
                        default=',',
@@ -529,6 +569,10 @@ def main():
                        default=None,
                        help='Process only specific dataset (optional)')
 
+    parser.add_argument('--instance', '-n',
+                       default=None,
+                       help='Use dimensions and categories from an instance')
+
     # Parse arguments
     args = parser.parse_args()
 
@@ -540,6 +584,9 @@ def main():
     language = args.language
     specific_dataset = args.dataset
     encoding = args.encoding
+    instance = args.instance
+
+    context = get_context(instance)
 
     # Load data
     full_df = load_data(incsvpath, incsvsep, encoding)
@@ -550,25 +597,19 @@ def main():
             print("Uploading the csv file as is, but checking for units.")
             units, full_df = extract_units_from_row(full_df)
             push_to_dvc(full_df, outdvcpath, '', units, None, [], language)
-        elif specific_dataset == 'csv_w_standard_dims': # TODO Metadata gets lost
-            print("Uploading the csv file with standard dimensions.")
-            mappings = load_yaml_mappings()
-            full_df = replace_labels_with_ids(full_df, mappings)
-            save_to_csv(full_df, outcsvpath, '')
-            push_to_dvc(full_df, outdvcpath, '', {}, None, [], language)
         else:
             # Process only the specified
             print(f"Processing only dataset: {specific_dataset}")
             d = 'Dataset'
             dataset_df = full_df.filter(pl.col(d) == specific_dataset).drop(d) if d in full_df.columns else full_df
-            process_dataset(dataset_df, specific_dataset, outcsvpath, outdvcpath, language)
+            process_dataset(dataset_df, specific_dataset, outcsvpath, outdvcpath, language, context)
     else:
         # Process all datasets
         dataset_dfs = split_by_dataset(full_df)
         print(f"Found {len(dataset_dfs)} datasets to process")
 
         for dataset_name, dataset_df in dataset_dfs.items():
-            process_dataset(dataset_df, dataset_name, outcsvpath, outdvcpath, language)
+            process_dataset(dataset_df, dataset_name, outcsvpath, outdvcpath, language, context)
 
 
 if __name__ == "__main__":
