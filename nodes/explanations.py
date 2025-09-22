@@ -569,6 +569,22 @@ class NodeClassRule(ValidationRule):
             desc = NODE_CLASS_DESCRIPTIONS.get(typ)
             if desc:
                 html.append(desc.description)
+        if 'params' in node_config:
+            params = node_config['params']
+            if isinstance(params, dict):
+                for id, v in params.items():
+                    if id == 'operations':
+                        html.append(f"<li>{_('The order of operations is')} {v}.</li>")
+                    elif id == 'formula':
+                        html.append(f"<li>{_('Has formula')} {v}</li>")
+                    else:
+                        html.append(f"<li>{_('Has parameter')} {id} {_('with value')} {v}.")
+
+            if isinstance(params, list):
+                for param in params:
+                    id = param.get('id')
+                    v = param.get('value')
+                    html.append(f"<li>{_('Has parameter')} {id} {_('with value')} {v}.")
 
         return html
 
@@ -888,37 +904,28 @@ class DatasetRule(ValidationRule):
 class EdgeRule(ValidationRule):
 
     def explain(self, node_config: dict, context: Context) -> list[str]:
-        html = []
         txt = _('The input nodes are processed in the following way before using as input for calculations in this node:')
-        html.append(f"<p>{txt}</p>")
-        html.append("<ul>")  # Start the main list for nodes
+        html = [f"<p>{txt}<ul>"]  # Start the main list for nodes
         edge_html0 = html.copy()
 
-        tag_html: list[str] = []
-        from_html: list[str] = []
-        to_html: list[str] = []
+        for input_node in node_config.get('input_nodes', {}):
 
-        for input_node in node_config.get('input_nodes', []):
+            tag_html = self.get_explanation_for_tag(input_node)
+            tag_html.extend(self.get_explanation_for_edge_from(input_node))
+            tag_html.extend(self.get_explanation_for_edge_to(input_node))
 
-            tag_html.extend(self.get_explanation_for_tag(input_node))
-            from_html.extend(self.get_explanation_for_edge_from(input_node))
-            to_html.extend(self.get_explanation_for_edge_to(input_node))
+            if tag_html:
 
-        if tag_html or from_html or to_html:
+                node_name = input_node.get('name')
+                if node_name:
+                    html.append(f"<li>{_('Node')} <i>{node_name}</i>:")
+                else:
+                    html.append(f"<li>{_('Node with identifier')} <i>{input_node['id']}</i>:")
 
-            node_name = input_node.get('name')
-            if node_name:
-                html.append(f"<li>{_('Node')} <i>{node_name}</i>:")
-            else:
-                html.append(f"<li>{_('Node with identifier')} <i>{input_node['id']}</i>:")
-
-            # Create a list item for the node with nested list
-            html.append("<ul>")  # Start nested list for this node
-            html.extend(tag_html)
-            html.extend(from_html)
-            html.extend(to_html)
-            html.append("</ul>")  # Close node's nested list
-            html.append("</li>")  # Close node list item
+                # Create a list item for the node with nested list
+                html.append("<ul>")  # Start nested list for this node
+                html.extend(tag_html)
+                html.append("</ul></li>")  # Close node list item
 
         if html == edge_html0:
             return []
@@ -931,7 +938,7 @@ class EdgeRule(ValidationRule):
             return html
 
         for tag in node.get('tags', []):
-            description = TAG_DESCRIPTIONS.get(tag, f"{_('The tag')} <i>{tag}</i> {_('is given.')}")
+            description = TAG_DESCRIPTIONS.get(tag, f"{_('Has tag')} <i>{tag}.</i>")
             html.append(f"<li>{description}</li>")
         return html
 
@@ -951,7 +958,7 @@ class EdgeRule(ValidationRule):
                 )
 
             if dim.get('flatten', False):
-                edge_html.append(f"<li>{_('Sum over dimension')} <i>dimlabel</i></li>")
+                edge_html.append(f"<li>{_('Sum over dimension')} <i>{dimlabel}</i></li>")
         return edge_html
 
     def get_explanation_for_edge_to(self, node: dict | str) -> list[str]:
