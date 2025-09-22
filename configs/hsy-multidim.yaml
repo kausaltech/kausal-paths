@@ -27,8 +27,10 @@ features:
 
 params:
 - id: municipality_name
+  label: Municipality name
   value: Espoo
 - id: scenario_name
+  label: Scenario name
   value: default
 
 dimensions:

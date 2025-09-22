@@ -1704,7 +1704,14 @@ class Node:
         'truncate_beyond_end': _('Truncate values beyond the model end year. There may be some from data'),
     }
 
-    def get_explanation(self):
+    def get_explanation(self) -> str:
+        nes = self.context.node_explanation_system
+        explanation = nes.explanations.get(self.id)
+        if explanation is None:
+            return ''
+        return ''.join(explanation)
+
+    def get_explanation2(self):
         """Generate an HTML explanation of this node's processing logic and inputs."""
 
         html = []

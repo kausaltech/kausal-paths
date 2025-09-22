@@ -333,7 +333,6 @@ class DatasetWithFilters(Dataset):
     def _rename_col_filter(self, df: ppl.PathsDataFrame, d: dict) -> ppl.PathsDataFrame:
         col = d['rename_col']
         val = d.get('value')
-        print(f'renaming column {col} to {val}.')
         if col not in df.columns:
             raise NameError(self, f"Column {col} not found. Available columns are {df.columns}")
         if val:
@@ -349,7 +348,6 @@ class DatasetWithFilters(Dataset):
         new_item = d.get('value', '')
         if new_item == '':
             raise ValueError(self, "rename_item must have value.")
-        print(f'renaming item {item} with {new_item} on column {col}.')
         df = df.with_columns(pl.col(col).str.replace_all(re.escape(item), new_item))
         return df
 

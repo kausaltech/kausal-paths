@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from common.i18n import gettext as _
+
+if TYPE_CHECKING:
+    from nodes.context import Context
 
 TAG_DESCRIPTIONS = {
     'additive': _("Add input node values (even if the units don't match with the node units)."),
@@ -16,8 +19,8 @@ TAG_DESCRIPTIONS = {
     'difference': _('Take the difference over time (i.e. annual changes)'),
     'empty_to_zero': _('Convert NaNs to zeros.'),
     'expectation': _('Take the expected value over the uncertainty dimension.'),
-    'extend_values': _('Extend the last historical values to the remaining missing years.'),
     'extend_forecast_values': _('Extend the last forecast values to the remaining missing years.'),
+    'extend_values': _('Extend the last historical values to the remaining missing years.'),
     'geometric_inverse': _('Take the geometric inverse of the values (1/x).'),
     'goal': _('The node is used as the goal for the action.'),
     'historical': _('The node is used as the historical starting point.'),
@@ -368,6 +371,13 @@ class GraphBuilder:
 
 
 class NodeExplanationSystem:
+
+    explanations: dict[str, list[str]]
+
+    validations: dict[str, list[ValidationResult]]
+
+    context: Context
+
     def __init__(self):
         self.rules = [
             NodeClassRule(),
@@ -395,7 +405,7 @@ class NodeExplanationSystem:
             return {node['id']: [graph_error] for node in all_node_configs}
 
         # Step 2: Validate each node with complete graph context
-        all_results: dict[str, list] = {}
+        all_results: dict[str, list[ValidationResult]] = {}
 
         for node_id, node_config in graph.nodes.items():
 
@@ -403,11 +413,12 @@ class NodeExplanationSystem:
             node_results = []
             for rule in self.rules:
                 if isinstance(node_config, dict):
-                    results = rule.validate(node_config)
+                    results = rule.validate(node_config, self.context)
                     node_results.extend(results)
 
             all_results[node_id] = node_results
 
+        self.validations = all_results
         return all_results
 
     def generate_all_explanations(self, all_node_configs: list[dict[str, Any]]) -> dict[str, list[str]]:
@@ -422,44 +433,17 @@ class NodeExplanationSystem:
             node_results = []
             for rule in self.rules:
                 if isinstance(node_config, dict):
-                    results = rule.explain(node_config)
+                    results = rule.explain(node_config, self.context)
                     node_results.extend(results)
 
             all_results[node_id] = node_results
 
+        self.explanations = all_results
         return all_results
 
-    def generate_explanation(self, node_config: dict) -> list[str]:
-        """Generate explanation from all rules."""
-        explanations = []
-        # # Start with the explanation text # FIXME Requires access to node.py to collect node class explanations.
-        # if self.explanation:
-        #     html.append(f"<p>{self.explanation}")
-
-        params: dict | None = node_config.get('params')
-        if params is not None and 'operations' in params.keys():
-            operations = params.get('operations')
-            explanations.append(f"The order of operations is {operations}.</p>")
-
-        for rule in self.rules:
-            explanation = rule.explain(node_config)
-            if explanation:
-                explanations.append(f"<li>{explanation}</li>")
-
-        return explanations
-
-    def validate_config(self, node_config: dict) -> list[ValidationResult]:
-        """Validate config using all rules."""
-        all_results = []
-
-        for rule in self.rules:
-            results = rule.validate(node_config)
-            all_results.extend(results)
-
-        return all_results
-
-    def has_errors(self, validation_results: dict[str, list[ValidationResult]]) -> bool:
+    def has_errors(self) -> bool:
         """Check if any validation results are errors."""
+        validation_results = self.validations
         return any(
             any(rule.level == 'error' and not rule.is_valid for rule in node_rules)
             for node_rules in validation_results.values()
@@ -467,12 +451,12 @@ class NodeExplanationSystem:
 
     def show_messages(
             self,
-            validation_results: dict[str, list[ValidationResult]],
             level: Literal['error', 'warning', 'info'] = 'error',
             valid_also: bool = False,
         ) -> dict[str, list[ValidationResult]]:
         """Show all validation results that have messages worse than level."""
 
+        validation_results = self.validations
         severity = {'error': 3, 'warning': 2, 'info': 1}
         min_severity = severity[level]
 
@@ -564,19 +548,19 @@ class ValidationRule(ABC):
     """Base class for validation rules that also generate explanations."""
 
     @abstractmethod
-    def explain(self, node_config: dict) -> list[str]:
+    def explain(self, node_config: dict, context: Context) -> list[str]:
         """Generate explanation text from node config."""
         pass
 
     @abstractmethod
-    def validate(self, node_config: dict) -> list[ValidationResult]:
+    def validate(self, node_config: dict, context: Context) -> list[ValidationResult]:
         """Validate the node configuration."""
         pass
 
 
 class NodeClassRule(ValidationRule):
 
-    def explain(self, node_config: dict) -> list[str]:
+    def explain(self, node_config: dict, context: Context) -> list[str]:
         html: list[str] = []
 
         typ = node_config.get('type')
@@ -588,7 +572,7 @@ class NodeClassRule(ValidationRule):
 
         return html
 
-    def validate(self, node_config: dict) -> list[ValidationResult]:
+    def validate(self, node_config: dict, context: Context) -> list[ValidationResult]:
         results: list[ValidationResult] = []
 
         typ = node_config.get('type')
@@ -615,7 +599,7 @@ class NodeClassRule(ValidationRule):
 
 class DatasetRule(ValidationRule):
 
-    def explain(self, node_config: dict) -> list[str]:
+    def explain(self, node_config: dict, context: Context) -> list[str]:
         dataset_html: list[str] = []
 
         input_datasets = node_config.get('input_datasets', [])
@@ -623,12 +607,12 @@ class DatasetRule(ValidationRule):
         if not input_datasets:
             return dataset_html
 
-        dataset_html.append(f"<li>{_('Datasets')}:")
+        dataset_html.append(f"<br>{_('Datasets')}:")
         dataset_html.append("<ul>")
 
         for dataset_config in input_datasets:
             if isinstance(dataset_config, dict):
-                dataset_html.extend(self._explain_single_dataset(dataset_config))
+                dataset_html.extend(self._explain_single_dataset(dataset_config, context))
             else:
                 dataset_html.append(dataset_config)
 
@@ -637,13 +621,15 @@ class DatasetRule(ValidationRule):
 
         return dataset_html
 
-    def _explain_single_dataset(self, dataset_config: dict) -> list[str]:
+    def _explain_single_dataset(self, dataset_config: dict, context: Context) -> list[str]:
         """Explain a single dataset configuration."""
-        html = [f"<li>{_('Has identifier')}: {dataset_config['id']}</li>"]
+        if isinstance(dataset_config, str):
+            return [f"<li>{_('Dataset with identifier')} {dataset_config}</li>"]
+        html = [f"<li>{_('Dataset with identifier')} {dataset_config['id']}<ul>"]
 
         col = dataset_config.get('column')
         if col is not None:
-            html.append(f'<li>{_("Is using column: ")}{col}</li>')
+            html.append(f'<li>{_("Uses column: ")}{col}</li>')
 
         year = dataset_config.get('forecast_from')
         if year is not None:
@@ -656,27 +642,82 @@ class DatasetRule(ValidationRule):
         # Handle filters
         filters = dataset_config.get('filters')
         if filters:
-            html.extend(self._explain_filters(filters))
+            html.extend(self._explain_filters(filters, context))
 
         return html
 
-    def _explain_filters(self, filters: list[dict]) -> list[str]:
+    def _explain_filters(self, filters: list[dict], context: Context) -> list[str]:
         """Explain dataset filters."""
-        html = [f"<li>{_('Has the following filters:')}<ul>"]
+        html = []
+        renames = [rename for rename in filters if 'rename_col' in rename]
+        if renames:
+            html.append(f"<li>{_('Renames the following columns:')}<ul>")
+            for d in renames:
+                col = d['rename_col']
+                val = d.get('value', '')
+                html.append(f'<li>Column {col} to {val}.</li>')
+            html.append('</ul></li>')
+        true_filters = [d for d in filters if 'rename_col' not in d]
+        if true_filters:
+            html.append(f"<li>{_('Has the following filters:')}<ol>")
+            for d in true_filters:
+                if 'column' in d:
+                    html.append(self._explain_column_filters(d, context))
+                if 'dimension' in d:
+                    html.append(self._explain_dim_filters(d, context))
+                if 'rename_item' in d:
+                    html.append(self._explain_rename_item_filters(d))
 
-        for i, filter_dict in enumerate(filters, 1):
-            html.append(f"<li>{_('Filter')} {i}")
-            if isinstance(filter_dict, dict):
-                html.append("<ul>")
-                for key, value in filter_dict.items():
-                    html.append(f"<li><strong>{key}:</strong> {value}</li>")
-                html.append("</ul>")
-            html.append("</li>")
-
-        html.append("</ul></li>")
+        html.append("</ol></li>")
         return html
 
-    def validate(self, node_config: dict) -> list[ValidationResult]:
+    def _explain_column_filters(self, d: dict[str, Any], context: Context) -> str:
+        col = d['column']
+        v: str = d.get('value', '')
+        vals: list[str] = d.get('values', [])
+        ref: str = d.get('ref', '')
+        if v:
+            vals.append(v)
+        if ref:
+            param = context.global_parameters[ref]
+            vals.append(f"{_('global parameter')} {param.label}")
+        drop: bool = d.get('drop_col', True)
+        then = _(' Then drop the column.') if drop else ''
+        exclude: bool = d.get('exclude', False)
+        do = _('by excluding') if exclude else _('by including')
+        if ''.join(vals):
+            return f"<li>{_('Filter column')} {col} {do} {', '.join(vals)}.{then}</li>"
+        return f"<li>{_('Drop column')} {col}.</li>"
+
+    def _explain_dim_filters(self, d: dict[str, Any], context: Context) -> str:
+        dim_id = d['dimension']
+        dim = context.dimensions[dim_id]
+        if 'assign_category' in d:
+            cat_id = d['assign_category']
+            dim = context.dimensions[dim_id]
+            return f"{_('Assign dataset to category')} {dim.categories[cat_id]} {_('on dimension')} {dim.label}"
+
+        if 'groups' in d:
+            grp_ids = d['groups']
+            items = [str(group.label) for group in dim.groups if group.id in grp_ids]
+        elif 'categories' in d:
+            cat_ids = d['categories']
+            items = [str(cat.label) for cat in dim.categories if cat.id in cat_ids]
+        else:
+            items = []
+        out = f"{_('Filter dimension')} {dim.label} {_('by category')} {', '.join(items)}."
+        if  d.get('flatten', False):
+            out = f"{out} {_('Then, sum the dimension up.')}"
+        return out
+
+    def _explain_rename_item_filters(self, d: dict[str, Any]) -> str:
+        old = d['rename_item'].split('|')
+        col = old[0]
+        item = old[1]
+        new_item = d.get('value', '')
+        return f"_('Rename item') {item} {_('with name')} {new_item} {_('on column')} {col}."
+
+    def validate(self, node_config: dict, context: Context) -> list[ValidationResult]:
         results: list[ValidationResult] = []
 
         input_datasets = node_config.get('input_datasets', [])
@@ -709,7 +750,7 @@ class DatasetRule(ValidationRule):
                     method='dataset_column_check',
                     is_valid=False,
                     level='error',
-                    message=f"Dataset {index} has invalid column specification: {column}"
+                    message=f"Dataset {index} is missing column: {column}"
                 ))
 
         # Validate forecast_from year
@@ -846,7 +887,7 @@ class DatasetRule(ValidationRule):
 
 class EdgeRule(ValidationRule):
 
-    def explain(self, node_config: dict) -> list[str]:
+    def explain(self, node_config: dict, context: Context) -> list[str]:
         html = []
         txt = _('The input nodes are processed in the following way before using as input for calculations in this node:')
         html.append(f"<p>{txt}</p>")
@@ -929,7 +970,7 @@ class EdgeRule(ValidationRule):
                     )
         return edge_html
 
-    def validate(self, node_config: dict) -> list[ValidationResult]:
+    def validate(self, node_config: dict, context: Context) -> list[ValidationResult]:
         return [ValidationResult(
             method='edge_rule',
             is_valid=True,

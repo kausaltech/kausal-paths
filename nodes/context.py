@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     import networkx  # noqa: ICN001
     from rich.repr import RichReprResult
 
+    from nodes.explanations import NodeExplanationSystem
     from params import Parameter
     from params.storage import SettingStorage
 
@@ -77,6 +78,9 @@ class Context:
 
     global_parameters: dict[str, Parameter]
     """Global parameters not specific to any individual node."""
+
+    node_explanation_system: NodeExplanationSystem
+    """Explanations and validations for nodes and node graph."""
 
     scenarios: dict[str, Scenario]
     """All scenarios in the context keyed by the scenario identifier."""

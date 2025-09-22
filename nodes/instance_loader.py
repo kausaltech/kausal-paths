@@ -426,29 +426,6 @@ class InstanceLoader:
         }
         return TranslatedString(**langs, default_language=self.default_language)
 
-    # def create_node_from_config(config: dict) -> Node:
-    #     explanation_system = NodeExplanationSystem()
-
-    #     # Validate first
-    #     validation_results = explanation_system.validate_config(config)
-    #     if explanation_system.has_errors(validation_results):
-    #         error_messages = [r.message for r in validation_results if r.level == 'error']
-    #         raise ConfigurationError(f"Invalid node config: {'; '.join(error_messages)}")
-
-    #     # Generate explanations
-    #     explanation_html = explanation_system.generate_explanation(config)
-
-    #     # Create node with explanations
-    #     node = Node(**config)
-    #     node.explanation = ["<ul>"] + explanation_html + ["</ul>"]
-
-    #     # Log warnings
-    #     warnings = [r.message for r in validation_results if r.level == 'warning']
-    #     for warning in warnings:
-    #         logger.warning(f"Node {config.get('id', 'unknown')}: {warning}")
-
-    #     return node
-
     def _make_node_datasets(self, config: dict, node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912
         from nodes.datasets import DBDataset, DVCDataset, FixedDataset, GenericDataset
         from nodes.generic import GenericNode
@@ -462,6 +439,9 @@ class InstanceLoader:
         # might.
         if ds_config is None:
             ds_config = getattr(node_class, 'input_datasets', [])
+        elif isinstance(ds_config, list):
+            import copy
+            ds_config = copy.deepcopy(ds_config)
 
         ds_interpolate = False
         idp_confs = config.get('input_dataset_processors', [])
@@ -1027,6 +1007,28 @@ class InstanceLoader:
             n_id = n.normalizer_node.id
             self.context.add_normalization(n_id, n)
 
+    def setup_explanations(self):
+        config = self.config
+        nodes = config.get('nodes')
+        assert isinstance(nodes, list)
+
+        all_nodes = [] # FIXME Or collect from context?
+        all_nodes.extend(nodes)
+        all_actions = config.get('actions')
+        if all_actions is not None:
+            all_nodes.extend(all_actions)
+        # emission_sectors = self.prepare_emission_sectors() # FIXME Bring back emission_sectors
+        # if emission_sectors is not None:
+        #     for es in emission_sectors:
+        #         es['type'] = 'simple.SectorEmissions'
+        #     all_nodes.extend(emission_sectors)
+
+        nes = NodeExplanationSystem()
+        nes.context = self.context
+        nes.validate_all_nodes(all_nodes)
+        nes.generate_all_explanations(all_nodes)
+        self.context.node_explanation_system = nes
+
     @classmethod
     def from_dict_config(cls, config: dict, fw_config: FrameworkConfig | None = None) -> Self:
         yaml_path = config.get('yaml_file_path')
@@ -1201,25 +1203,6 @@ class InstanceLoader:
             )
         self.instance.set_context(self.context)
 
-        # all_nodes = []
-        # nodes = config.get('nodes')
-        # assert isinstance(nodes, list)
-        # all_nodes.extend(nodes)
-        # all_actions = config.get('actions')
-        # if all_actions is not None:
-        #     all_nodes.extend(all_actions)
-        # emission_sectors = self.prepare_emission_sectors()
-        # if emission_sectors is not None:
-        #     for es in emission_sectors:
-        #         es['type'] = 'simple.SectorEmissions'
-        #     all_nodes.extend(emission_sectors)
-
-        # explanation_system = NodeExplanationSystem()
-        # validation = explanation_system.validate_all_nodes(all_nodes)
-
-        # print(explanation_system.show_messages(validation, level='info', valid_also=True))
-        # print(explanation_system.generate_all_explanations(all_nodes))
-
         # Store input and output node configs for each created node, to be used in setup_edges().
         self._input_nodes = {}
         self._output_nodes = {}
@@ -1238,6 +1221,7 @@ class InstanceLoader:
         self.setup_scenarios()
         self.setup_normalizations()
         self.setup_node_visualizations()
+        self.setup_explanations()
 
         for scenario in self.context.scenarios.values():
             if scenario.default:
