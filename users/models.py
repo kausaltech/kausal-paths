@@ -119,6 +119,10 @@ class User(AbstractUser):
     def has_instance_role(self, role: str | InstanceSpecificRole[Any], obj: Model) -> bool:
         return self.perms.has_instance_role(role, obj)
 
+    def has_instance_role_with_id(self, role_id: str, obj: Model) -> bool:
+        role = role_registry.get_role(role_id)
+        return self.has_instance_role(role, obj)
+
     def get_role_for_instance(self, active_instance: InstanceConfig) -> InstanceSpecificRole[InstanceConfig] | None:
         user_groups = set(self.groups.all())
         for role in role_registry.get_all_roles():
