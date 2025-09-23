@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from abc import abstractmethod
+from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Any, TypeGuard, TypeVar, override
 
 from django.contrib.contenttypes.models import ContentType
@@ -8,6 +8,7 @@ from django.db.models import Q, QuerySet
 
 from kausal_common.datasets.models import (
     DataPoint,
+    DataPointComment,
     Dataset,
     DatasetQuerySet,
     DatasetSchema,
@@ -20,14 +21,12 @@ from kausal_common.models.permission_policy import (
     ParentInheritedPolicy,
 )
 from kausal_common.models.permissions import PermissionedQuerySet
+from kausal_common.models.roles import role_registry
 
 from paths.context import realm_context
 
 from nodes.roles import (
-    instance_admin_role,
-    instance_reviewer_role,
-    instance_super_admin_role,
-    instance_viewer_role,
+    InstanceGroupMembershipRole,
 )
 
 if TYPE_CHECKING:
@@ -45,19 +44,35 @@ _M = TypeVar('_M', bound='PermissionedModel')
 _QS = TypeVar('_QS', bound=QuerySet, default=QuerySet[_M])
 
 
-class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, 'InstanceConfig', _QS]):
+def get_instance_config_content_type() -> ContentType:
+    """Get the ContentType for InstanceConfig, cached for performance."""
+    from nodes.models import InstanceConfig
+    return ContentType.objects.get_for_model(InstanceConfig)
+
+
+class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, 'InstanceConfig', _QS], metaclass=ABCMeta):
     """Permission policy for models that have one or many InstanceConfig objects as scope."""
 
-    def __init__(self, model: type[_M]):
-        from nodes.models import InstanceConfig
+    roles: dict[str, InstanceGroupMembershipRole]
+    models: type[_M]
 
+    def __init__(self, model: type[_M]):
         self.model = model
-        self.instance_admin_role = instance_admin_role
-        self.instance_super_admin_role = instance_super_admin_role
-        self.instance_viewer_role = instance_viewer_role
-        self.instance_reviewer_role = instance_reviewer_role
-        self.ic_model = InstanceConfig
+        self._role_registry = role_registry
         super().__init__(model)
+
+    def get_role(self, role_id: str) -> InstanceGroupMembershipRole:
+        role = self._role_registry.get_role(role_id)
+        if not isinstance(role, InstanceGroupMembershipRole):
+            raise TypeError('Currently only InstanceGroupMembershipRoles supported')
+        return role
+
+    def get_role_specific_q(self, user: User, role_id: str) -> Q:
+        ic_content_type = get_instance_config_content_type()
+        return Q(
+            scope_content_type=ic_content_type,
+            scope_id__in=self.get_role(role_id).get_instances_for_user(user)
+        )
 
     @override
     def is_create_context_valid(self, context: Any) -> TypeGuard[InstanceConfig]:
@@ -74,17 +89,16 @@ class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, 'InstanceCo
         instance_ids = self.get_instance_configs_for_obj(obj)
         if active_instance is None or active_instance.pk not in instance_ids:
             return False
-        # TODO HERE
         # Check if user is admin for any of the instances
-        if user.has_instance_role(self.instance_admin_role, active_instance):
+        if user.has_instance_role_with_id('instance-admin', active_instance):
             return True
-        if user.has_instance_role(self.instance_super_admin_role, active_instance):
+        if user.has_instance_role_with_id('instance-super-admin', active_instance):
             return True
         # For view permission, check if user is a viewer or reviewer for any of the instances
         if action == 'view':
             return any((
-                user.has_instance_role(self.instance_viewer_role, active_instance),
-                user.has_instance_role(self.instance_reviewer_role, active_instance),
+                user.has_instance_role_with_id('instance-viewer', active_instance),
+                user.has_instance_role_with_id('instance-reviewer', active_instance),
             ))
         return False
 
@@ -96,8 +110,8 @@ class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, 'InstanceCo
     def user_can_create(self, user: User, context: InstanceConfig) -> bool:
         return (
             user.is_superuser or
-            user.has_instance_role(self.instance_admin_role, context) or
-            user.has_instance_role(self.instance_super_admin_role, context)
+            user.has_instance_role_with_id('instance-admin', context) or
+            user.has_instance_role_with_id('instance-super-admin', context)
         )
 
 
@@ -127,8 +141,7 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
     @override
     def get_instance_configs_for_obj(self, obj: DatasetSchema) -> list[int]:
         """Get IDs of all InstanceConfigs this schema is scoped for."""
-        from nodes.models import InstanceConfig
-        ic_content_type = ContentType.objects.get_for_model(InstanceConfig)
+        ic_content_type = get_instance_config_content_type()
         return list(obj.scopes.filter(
             scope_content_type=ic_content_type
         ).values_list('scope_id', flat=True))
@@ -140,22 +153,22 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
 
         admin_q = Q(
             scopes__scope_content_type=ic_content_type,
-            scopes__scope_id__in=self.instance_admin_role.get_instances_for_user(user)
+            scopes__scope_id__in=self.get_role('instance-admin').get_instances_for_user(user)
         )
 
         super_admin_q = Q(
             scopes__scope_content_type=ic_content_type,
-            scopes__scope_id__in=self.instance_super_admin_role.get_instances_for_user(user)
+            scopes__scope_id__in=self.get_role('instance-super-admin').get_instances_for_user(user)
         )
 
         if action == 'view':
             viewer_q = Q(
                 scopes__scope_content_type=ic_content_type,
-                scopes__scope_id__in=self.instance_viewer_role.get_instances_for_user(user)
+                scopes__scope_id__in=self.get_role('instance-viewer').get_instances_for_user(user)
             )
             reviewer_q = Q(
                 scopes__scope_content_type=ic_content_type,
-                scopes__scope_id__in=self.instance_reviewer_role.get_instances_for_user(user)
+                scopes__scope_id__in=self.get_role('instance-reviewer').get_instances_for_user(user)
             )
             return super_admin_q | admin_q | viewer_q | reviewer_q
 
@@ -165,12 +178,15 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
         if not self.user_is_authenticated(user):
             return False
 
-        allowed_roles: list[InstanceSpecificRole[InstanceConfig]] = [self.instance_admin_role, self.instance_super_admin_role]
+        allowed_roles: list[InstanceSpecificRole[InstanceConfig]] = [
+            self.get_role('instance-admin'),
+            self.get_role('instance-super-admin')
+        ]
         if action == 'view':
-            allowed_roles.append(self.instance_viewer_role)
-            allowed_roles.append(self.instance_reviewer_role)
+            allowed_roles.append(self.get_role('instance-viewer'))
+            allowed_roles.append(self.get_role('instance-reviewer'))
         if action == 'review':
-            allowed_roles.append(self.instance_reviewer_role)
+            allowed_roles.append(self.get_role('instance-reviewer'))
 
         return self.user_has_any_role_in_active_instance(user, allowed_roles)
 
@@ -231,37 +247,49 @@ class DataSourcePermissionPolicy(InstanceConfigScopedPermissionPolicy[DataSource
 
     @override
     def get_instance_configs_for_obj(self, obj: DataSource) -> list[int]:
-        from nodes.models import InstanceConfig
-        ic_content_type = ContentType.objects.get_for_model(InstanceConfig)
+        ic_content_type = get_instance_config_content_type()
         if obj.scope_content_type != ic_content_type:
             return []
         return [obj.scope_id]
 
     @override
     def construct_perm_q(self, user: User, action: BaseObjectAction) -> Q | None:
-        from nodes.models import InstanceConfig
-        ic_content_type = ContentType.objects.get_for_model(InstanceConfig)
-
-        admin_q = Q(
-            scope_content_type=ic_content_type,
-            scope_id__in=self.instance_admin_role.get_instances_for_user(user)
-        )
-
-        super_admin_q = Q(
-            scope_content_type=ic_content_type,
-            scope_id__in=self.instance_admin_role.get_instances_for_user(user)
-        )
+        admin_q = self.get_role_specific_q(user, 'instance-admin')
+        super_admin_q = self.get_role_specific_q(user, 'instance-super-admin')
+        viewer_q = self.get_role_specific_q(user, 'instance-viewer')
+        reviewer_q = self.get_role_specific_q(user, 'instance-reviewer')
 
         if action == 'view':
-            viewer_q = Q(
-                scope_content_type=ic_content_type,
-                scope_id__in=self.instance_viewer_role.get_instances_for_user(user)
-            )
-
-            reviewer_q = Q(
-                scope_content_type=ic_content_type,
-                scope_id__in=self.instance_reviewer_role.get_instances_for_user(user)
-            )
             return super_admin_q | admin_q | viewer_q | reviewer_q
+        return super_admin_q | admin_q
 
+
+class DataPointCommentPermissionPolicy(InstanceConfigScopedPermissionPolicy[DataPointComment]):
+    """
+    Permission policy for comments.
+
+    Otherwise follows the InstanceConfig policy but reviewers have permissions to create comments and modify their own comments.
+
+    """
+
+    def __init__(self):
+        super().__init__(DataPointComment)
+
+    @override
+    def get_instance_configs_for_obj(self, obj: DataPointComment) -> list[int]:
+        ic_content_type = get_instance_config_content_type()
+        if obj.data_point.dataset.scope_content_type != ic_content_type:
+            return []
+        return [obj.data_point.dataset.scope_id]
+
+    @override
+    def construct_perm_q(self, user: User, action: BaseObjectAction) -> Q | None:
+        admin_q = self.get_role_specific_q(user, 'instance-admin')
+        super_admin_q = self.get_role_specific_q(user, 'instance-super-admin')
+        reviewer_q = self.get_role_specific_q(user, 'instance-reviewer')
+        viewer_q = self.get_role_specific_q(user, 'instance-viewer')
+        if action == 'view':
+            return super_admin_q | admin_q | viewer_q | reviewer_q
+        if action == 'add':
+            return super_admin_q | admin_q | reviewer_q
         return super_admin_q | admin_q
