@@ -351,35 +351,7 @@ class DatasetWithFilters(Dataset):
         df = df.with_columns(pl.col(col).str.replace_all(re.escape(item), new_item))
         return df
 
-    # FIXME Remove this when instance_loader._make_dataset_explanation() works
-    def add_explanation(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        dataset_html = df.explanation
-        dataset_html.append(f"<li><i>{self.id}</i>")
-        if hasattr(self, 'filters') and isinstance(self.filters, list) and self.filters:
-            dataset_html.append(_(" has the following filters:"))
-            dataset_html.append("<ul>")
-
-            filter_text = _("Filter")
-            filter_no = 1
-            for filter_dict in self.filters:
-                dataset_html.append(f"<li>{filter_text} {filter_no}")
-                if isinstance(filter_dict, dict):
-                    dataset_html.append("<ul>")
-                    for key, value in filter_dict.items():
-                        v = str(value)
-                        dataset_html.append(f"<li><strong>{key}:</strong> {v}</li>")
-                    dataset_html.append("</ul>")
-                dataset_html.append("</li>")
-                filter_no += 1
-            dataset_html.append("</ul>")
-        dataset_html.append("</li>")
-
-        df = df.with_explanation([str(item) for item in dataset_html])
-
-        return df
-
     def _filter_and_process_df(self, context: Context, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:  # noqa: C901
-        df = self.add_explanation(df)
         if self.filters is not None:
             for d in self.filters:
                 if 'rename_col' in d:

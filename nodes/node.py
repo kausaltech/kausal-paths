@@ -261,7 +261,7 @@ class Node:
     input_dimension_ids: list[str] = []
     "References to the dimensions that this node's input must contain (typically set in a class)."
 
-    explanation: str | I18nString = "Text about the node class missing."
+    explanation: str | I18nString = "Text about the node class missing." # FIXME Remove attribute as redundant
     'Textual explanation about what the node computes (typicallly set in a class).'
 
     # set if this node has a specific goal for the simulation target year
@@ -1681,4 +1681,3 @@ class Node:
         if explanation is None:
             return ''
         return ''.join(explanation)
-

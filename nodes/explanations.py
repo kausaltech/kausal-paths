@@ -584,7 +584,7 @@ class NodeClassRule(ValidationRule):
                 for param in params:
                     id = param.get('id')
                     v = param.get('value')
-                    html.append(f"<li>{_('Has parameter')} {id} {_('with value')} {v}.")
+                    html.append(f"<li>{_('Has the parameter')} {id} {_('with value')} {v}.") # FIXME id
 
         return html
 
