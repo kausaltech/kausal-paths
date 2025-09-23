@@ -33,12 +33,11 @@ from wagtail.documents import urls as wagtaildocs_urls  # type: ignore[attr-defi
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 from social_django import urls as social_urls
 
-from kausal_common.datasets.api import all_routers as datasets_api_nested_routers, router as datasets_api_root_router
-
 #from strawberry.django.views import GraphQLView
 from kausal_common.deployment.health_check_view import health_view
 
 from admin_site import urls as admin_urls
+from datasets.api import nested_routers as datasets_api_nested_routers, router as datasets_api_root_router
 from frameworks.urls import urlpatterns as framework_urls
 from nodes.api import all_routers as nodes_routers
 from users.views import change_admin_instance
