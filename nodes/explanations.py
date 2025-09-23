@@ -6,8 +6,26 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from common.i18n import gettext as _
 
+from .units import unit_registry
+
 if TYPE_CHECKING:
     from nodes.context import Context
+
+TAG_TO_BASKET = {
+    'additive': 'additive', # FIXME Values should be translatable because they are used in explanations
+    'non_additive': 'multiplicative',
+    'other_node': 'other',
+    'rate': 'other',
+    'base': 'other',
+    'use_as_totals': 'use_as_totals',
+    'use_as_shares': 'use_as_shares',
+    'split_by_existing_shares': 'split_by_existing_shares',
+    'split_evenly_to_cats': 'split_evenly_to_cats',
+    'add_to_existing_dims': 'add_to_existing_dims',
+    'add_from_incoming_dims': 'add_from_incoming_dims',
+    'skip_dim_test': 'skip_dim_test',
+    'coalesce': 'coalesce',
+}
 
 TAG_DESCRIPTIONS = {
     'additive': _("Add input node values (even if the units don't match with the node units)."),
@@ -372,9 +390,13 @@ class GraphBuilder:
 
 class NodeExplanationSystem:
 
+    graph: GraphRepresentation
+
     explanations: dict[str, list[str]]
 
     validations: dict[str, list[ValidationResult]]
+
+    baskets: dict[str, dict[str, list[str]]]
 
     context: Context
 
@@ -383,17 +405,20 @@ class NodeExplanationSystem:
             NodeClassRule(),
             DatasetRule(),
             EdgeRule(),
+            BasketRule(),
             # CategoryRetentionRule(),
             # OperationBasketRule(),
             # UnitCompatibilityRule(),
         ]
 
-    def validate_all_nodes(self, all_node_configs: list[dict[str, Any]]) -> dict[str, list[ValidationResult]]:
+    def generate_graph(self, all_node_configs: list[dict[str, Any]]) -> NodeExplanationSystem:
         """Validate all nodes with complete graph information."""
+        all_results: dict[str, list[ValidationResult]] = {}
 
         # Step 1: Build complete graph representation
         try:
             graph = GraphBuilder.build_graph(all_node_configs)
+            self.graph = graph
         except KeyError as e:
             # Return graph-level errors for all nodes
             graph_error = ValidationResult(
@@ -402,12 +427,16 @@ class NodeExplanationSystem:
                 level='error',
                 message=str(e)
             )
-            return {node['id']: [graph_error] for node in all_node_configs}
+            all_results = {node['id']: [graph_error] for node in all_node_configs}
+            self.validations = all_results
+        return self
 
-        # Step 2: Validate each node with complete graph context
+    def validate_all_nodes(self) -> dict[str, list[ValidationResult]]:
+        """Validate all nodes with complete graph information."""
         all_results: dict[str, list[ValidationResult]] = {}
 
-        for node_id, node_config in graph.nodes.items():
+        # Step 2: Validate each node with complete graph context
+        for node_id, node_config in self.graph.nodes.items():
 
             # Run all validation rules
             node_results = []
@@ -421,13 +450,14 @@ class NodeExplanationSystem:
         self.validations = all_results
         return all_results
 
-    def generate_all_explanations(self, all_node_configs: list[dict[str, Any]]) -> dict[str, list[str]]:
+    def generate_all_explanations(self) -> dict[str, list[str]]:
         """Generate explanations for all nodes."""
 
         all_results = {}
+        all_node_configs = self.graph.nodes
 
-        for node_config in all_node_configs:
-            node_id = node_config['id']
+        for node_id, node_config in all_node_configs.items():
+            # node_id = node_config['id'] if isinstance(node_config, dict) else node_config
 
             # Run all explanation rules
             node_results = []
@@ -439,7 +469,46 @@ class NodeExplanationSystem:
             all_results[node_id] = node_results
 
         self.explanations = all_results
+        print(all_results)
         return all_results
+
+    def get_input_baskets(self) -> dict[str, dict[str, list[str]]]:
+        """Return a dictionary of node 'baskets' categorized by type."""
+        baskets: dict[str, dict[str, list[str]]] = {}
+        # Special tags that should be skipped completely
+        skip_tags = {'ignore_content'}
+
+        for node_id, node_config in self.graph.nodes.items():
+            baskets[node_id] = {}
+
+            # Categorize nodes by tags
+            assert isinstance(node_config, dict)
+            for input_node in node_config.get('input_nodes', []):
+                # input_node = self.graph.nodes[input_id]
+                if 'tags' in input_node:
+                    if any(tag in input_node['tags'] for tag in skip_tags): #  or tag in node.tags
+                        continue
+
+                    assigned = False
+                    input_id = input_node['id']
+                    for tag, basket in TAG_TO_BASKET.items():
+                        if tag in input_node['tags']: # or tag in node.tags:
+                            if basket not in baskets[node_id]:
+                                baskets[node_id][basket] = []
+                            baskets[node_id][basket].append(input_id)
+                            assigned = True
+
+                    if not assigned:
+                        node_unit = node_config.get('unit') # Does not Work with multi-metric nodes.
+                        input_unit = input_node.get('unit')
+                        if node_unit is not None and input_unit is not None:
+                            n_dim = unit_registry(node_unit).dimensionality
+                            i_dim = unit_registry(input_unit).dimensionality
+                            basket = 'additive' if n_dim == i_dim else 'multiplicative'
+                            baskets[node_id][basket].append(input_id)
+
+        self.baskets = baskets
+        return baskets
 
     def has_errors(self) -> bool:
         """Check if any validation results are errors."""
@@ -557,6 +626,45 @@ class ValidationRule(ABC):
         """Validate the node configuration."""
         pass
 
+    def get_param(self, node_config: dict[str, Any], param_id: str) -> str:
+        if 'params' not in node_config:
+            return ''
+        params = node_config['params']
+        if isinstance(params, dict):
+            for id, v in params.items():
+                if id == param_id:
+                    return v
+        else:
+            for param in params:
+                assert isinstance(param, dict)
+                v = param.get('value')
+                u = param.get('unit', '')
+                return f"{v} {u}"
+        return ''
+
+    def get_all_params(self, node_config: dict[str, Any], drop: list[str]) -> list[list[str] | None]:
+        out = []
+        if 'params' not in node_config:
+            return out
+        params = node_config['params']
+        if isinstance(params, dict):
+            for id, v in params.items():
+                # print(id, v)
+                if id in drop:
+                    continue
+                out.append([id, v])
+        else: # Assumes list of dicts
+            for param in params:
+                assert isinstance(param, dict)
+                id = param.get('id')
+                v = param.get('value')
+                u = param.get('unit', '')
+                print(node_config)
+                print(id, v, u, drop)
+                if id in drop:
+                    continue
+                out.append([id, f"{v} {u}"])
+        return out
 
 class NodeClassRule(ValidationRule):
 
@@ -569,22 +677,16 @@ class NodeClassRule(ValidationRule):
             desc = NODE_CLASS_DESCRIPTIONS.get(typ)
             if desc:
                 html.append(desc.description)
-        if 'params' in node_config:
-            params = node_config['params']
-            if isinstance(params, dict):
-                for id, v in params.items():
-                    if id == 'operations':
-                        html.append(f"<li>{_('The order of operations is')} {v}.</li>")
-                    elif id == 'formula':
-                        html.append(f"<li>{_('Has formula')} {v}</li>")
-                    else:
-                        html.append(f"<li>{_('Has parameter')} {id} {_('with value')} {v}.")
-
-            if isinstance(params, list):
-                for param in params:
-                    id = param.get('id')
-                    v = param.get('value')
-                    html.append(f"<li>{_('Has the parameter')} {id} {_('with value')} {v}.") # FIXME id
+        operations = self.get_param(node_config, 'operations')
+        formula = self.get_param(node_config, 'formula')
+        other = self.get_all_params(node_config, drop = ['operations', 'formula'])
+        if operations:
+                html.append(f"<li>{_('The order of operations is')} {operations}.</li>")
+        if formula:
+                html.append(f"<li>{_('Has formula')} {formula}</li>")
+        if other:
+            for p in other:
+                html.append(f"<li>{_('Has parameter')} {p[0]} {_('with value')} {p[1]}.")  # noqa: PERF401
 
         return html
 
@@ -938,6 +1040,8 @@ class EdgeRule(ValidationRule):
             return html
 
         for tag in node.get('tags', []):
+            if tag in TAG_TO_BASKET.keys(): # These show up in basket explanations
+                continue
             description = TAG_DESCRIPTIONS.get(tag, f"{_('Has tag')} <i>{tag}.</i>")
             html.append(f"<li>{description}</li>")
         return html
@@ -983,4 +1087,31 @@ class EdgeRule(ValidationRule):
             is_valid=True,
             level='info',
             message='There is no validation rule for edges.'
+        )]
+
+
+class BasketRule(ValidationRule):
+
+    def explain(self, node: dict | str, context: Context) -> list[str]:
+        baskets = context.node_explanation_system.baskets
+        node_id = node if isinstance(node, str) else node['id']
+        html = []
+        if baskets.get(node_id, {}):
+            html.append("The inputs are used for operations in this order:<ol>")
+            operations = ''
+            if isinstance(node, dict):
+                operations = self.get_param(node, 'operations')
+            if not operations:
+                operations = context.nodes[node_id].DEFAULT_OPERATIONS
+            for basket, nodes in baskets.get(node_id, {}).items():
+                html.append(f"<li>{_('These nodes are')} {basket}: <i>{', '.join(nodes)}</i>.</li>")
+            html.append('</ol>')
+        return html
+
+    def validate(self, node_config: dict, context: Context) -> list[ValidationResult]:
+        return [ValidationResult(
+            method='basket_rule',
+            is_valid=True,
+            level='info',
+            message='There is no validation rule for baskets.'
         )]

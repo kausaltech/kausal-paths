@@ -317,6 +317,9 @@ class Node:
     config_location: ConfigLocation | None = None
     """Location of the node configuration in a YAML file"""
 
+    DEFAULT_OPERATIONS = 'multiply,add'
+    "Ordering of operations. Relevant for basket explanations."
+
     def __post_init__(self): ...
 
     def finalize_init(self):
@@ -460,6 +463,8 @@ class Node:
         self.is_visible = is_visible
         self.is_outcome = is_outcome
         self.minimum_year = minimum_year
+        self.default_operations = self.DEFAULT_OPERATIONS
+
         if goals is not None:
             self.goals = NodeGoals.model_validate(goals)
         elif target_year_goal is not None:
@@ -1677,7 +1682,5 @@ class Node:
 
     def get_explanation(self) -> str:
         nes = self.context.node_explanation_system
-        explanation = nes.explanations.get(self.id)
-        if explanation is None:
-            return ''
+        explanation = nes.explanations.get(self.id, [])
         return ''.join(explanation)

@@ -1007,7 +1007,7 @@ class InstanceLoader:
             n_id = n.normalizer_node.id
             self.context.add_normalization(n_id, n)
 
-    def setup_explanations(self):
+    def setup_validations(self):
         config = self.config
         nodes = config.get('nodes')
         assert isinstance(nodes, list)
@@ -1017,17 +1017,23 @@ class InstanceLoader:
         all_actions = config.get('actions')
         if all_actions is not None:
             all_nodes.extend(all_actions)
-        # emission_sectors = self.prepare_emission_sectors() # FIXME Bring back emission_sectors
-        # if emission_sectors is not None:
-        #     for es in emission_sectors:
-        #         es['type'] = 'simple.SectorEmissions'
-        #     all_nodes.extend(emission_sectors)
+
+        emission_sectors = config.get('emission_sectors')
+        if emission_sectors is not None:
+            for es in emission_sectors:
+                es['type'] = 'simple.SectorEmissions'
+                es['unit'] = config.get('emission_unit')
+                es['input_dimensions'] = config.get('emission_dimensions')
+                es['output_dimensions'] = config.get('emission_dimensions')
+                all_nodes.append(es)
 
         nes = NodeExplanationSystem()
         nes.context = self.context
-        nes.validate_all_nodes(all_nodes)
-        nes.generate_all_explanations(all_nodes)
+        nes.generate_graph(all_nodes)
         self.context.node_explanation_system = nes
+        nes.validate_all_nodes()
+        nes.get_input_baskets()
+        nes.generate_all_explanations()
 
     @classmethod
     def from_dict_config(cls, config: dict, fw_config: FrameworkConfig | None = None) -> Self:
@@ -1221,7 +1227,7 @@ class InstanceLoader:
         self.setup_scenarios()
         self.setup_normalizations()
         self.setup_node_visualizations()
-        self.setup_explanations()
+        self.setup_validations() # FIXME You must create the graph in the beginning
 
         for scenario in self.context.scenarios.values():
             if scenario.default:
