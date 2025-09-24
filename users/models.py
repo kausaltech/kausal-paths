@@ -14,7 +14,7 @@ from django_pydantic_field import SchemaField
 
 from kausal_common.models.roles import role_registry
 
-from paths.const import NONE_ROLE
+from paths.const import NONE_ROLE, PathsRoleIdentifier
 
 from .base import AbstractUser, UserManager
 
@@ -114,12 +114,12 @@ class User(AbstractUser):
     def has_instance_role[M: Model](self, role: InstanceSpecificRole[M], obj: M) -> bool: ...
 
     @overload
-    def has_instance_role(self, role: str, obj: Model) -> bool: ...
+    def has_instance_role(self, role: PathsRoleIdentifier, obj: Model) -> bool: ...
 
-    def has_instance_role(self, role: str | InstanceSpecificRole[Any], obj: Model) -> bool:
+    def has_instance_role(self, role: PathsRoleIdentifier | InstanceSpecificRole[Any], obj: Model) -> bool:
         return self.perms.has_instance_role(role, obj)
 
-    def has_instance_role_with_id(self, role_id: str, obj: Model) -> bool:
+    def has_instance_role_with_id(self, role_id: PathsRoleIdentifier, obj: Model) -> bool:
         role = role_registry.get_role(role_id)
         return self.has_instance_role(role, obj)
 
@@ -135,7 +135,7 @@ class User(AbstractUser):
                 return role
         return None
 
-    def sync_instance_groups_with_role(self, role_id: str, instance: InstanceConfig) -> None:
+    def sync_instance_groups_with_role(self, role_id: PathsRoleIdentifier, instance: InstanceConfig) -> None:
         """
         Verify that the user has exactly the instance role group corresponding to this role_id.
 
