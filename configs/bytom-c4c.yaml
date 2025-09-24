@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://bytom-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: e99c727bcf999073d1b16f0e2d6c806d123c9de3
+  commit: b93ea7c0f0eb088c37e16a9bbf364aa0c398910b
   dvc_remote: kausal-s3
 name: Bytom Greenhouse Gas Inventory
 owner: City of Bytom
@@ -85,6 +85,20 @@ dimensions:
     label: CH4
   - id: co2
     label: CO2
+
+- id: vehicle_type
+  label: Vehicle Type
+  categories:
+  - id: buses
+    label: Buses
+  - id: passenger_cars
+    label: Passenger Cars
+  - id: rail
+    label: Rail (Passenger and Freight)
+  - id: trams
+    label: Trams
+  - id: urban_fleet
+    label: Urban Fleet
 
 - id: sector
   label: Emission Sector
@@ -596,6 +610,40 @@ nodes:
   output_nodes:
   - id: i2_other_energy_costs
 
+# ----- Transportation
+
+- id: ii1_onroad_transport_emissions
+  name: On-Road Transport Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [vehicle_type, ghg]
+  output_dimensions: [vehicle_type, ghg]
+  input_datasets:
+  - id: bytom/transportation
+    column: emissions
+    filters:
+    - column: sector
+      value: ii1
+  output_nodes:
+  - id: ii_transportation_emissions
+
+- id: ii2_rail_emissions
+  name: Rail Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [vehicle_type, ghg]
+  output_dimensions: [vehicle_type, ghg]
+  input_datasets:
+  - id: bytom/transportation
+    column: emissions
+    filters:
+    - column: sector
+      value: ii2
+  output_nodes:
+  - id: ii_transportation_emissions
+
 # ----- Waste
 
 - id: iii2_biological_waste_emission_factor
@@ -785,6 +833,20 @@ nodes:
       flatten: true
     to_dimensions:
     - id: ghg
+
+- id: ii_transportation_emissions
+  name: Transportation Emissions
+  type: simple.AdditiveNode
+  color: '#E15759'
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [vehicle_type, ghg]
+  output_dimensions: [vehicle_type, ghg]
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
 
 - id: iii_waste_emissions
   name: Waste Emissions
