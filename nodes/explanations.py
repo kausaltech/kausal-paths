@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
 from common.i18n import gettext as _
@@ -314,10 +314,10 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
 class GraphRepresentation:
     """Normalized representation of the complete node graph."""
 
-    nodes: dict[str, dict]  # node_id -> node_config
-    inputs: dict[str, list[str]]  # node_id -> list of input_node_ids
-    outputs: dict[str, list[str]]  # node_id -> list of output_node_ids
-    edges: dict[tuple, dict]  # (from_node, to_node) -> edge_properties
+    nodes: dict[str, dict[str, Any]] = field(default_factory=dict)  # node_id -> node_config
+    inputs: dict[str, list[str]] = field(default_factory=dict)  # node_id -> list of input_node_ids
+    outputs: dict[str, list[str]] = field(default_factory=dict)  # node_id -> list of output_node_ids
+    edges: dict[tuple[str, str], dict[str, any]] = field(default_factory=dict)  # (from_node, to_node) -> edge_properties
 
 
 @dataclass
@@ -388,19 +388,22 @@ class GraphBuilder:
         raise ValueError(f"Invalid input specification: {input_spec}")
 
 
+@dataclass
 class NodeExplanationSystem:
-
-    graph: GraphRepresentation
-
-    explanations: dict[str, list[str]]
-
-    validations: dict[str, list[ValidationResult]]
-
-    baskets: dict[str, dict[str, list[str]]]
 
     context: Context
 
-    def __init__(self):
+    graph: GraphRepresentation = field(init=False)
+
+    all_node_configs: InitVar[list[dict[str, Any]]]
+
+    explanations: dict[str, list[str]] = field(default_factory=dict)
+
+    validations: dict[str, list[ValidationResult]] = field(default_factory=dict)
+
+    baskets: dict[str, dict[str, list[str]]] = field(default_factory=dict)
+
+    def __post_init__(self, all_node_configs: list[dict[str, Any]]):
         self.rules = [
             NodeClassRule(),
             DatasetRule(),
@@ -410,9 +413,13 @@ class NodeExplanationSystem:
             # OperationBasketRule(),
             # UnitCompatibilityRule(),
         ]
+        self.generate_graph(all_node_configs)
 
-    def generate_graph(self, all_node_configs: list[dict[str, Any]]) -> NodeExplanationSystem:
+    def generate_graph(self, node_configs: list[dict[str, Any]]) -> NodeExplanationSystem:
         """Validate all nodes with complete graph information."""
+
+        import copy
+        all_node_configs = copy.deepcopy(node_configs)
         all_results: dict[str, list[ValidationResult]] = {}
 
         # Step 1: Build complete graph representation
@@ -429,6 +436,8 @@ class NodeExplanationSystem:
             )
             all_results = {node['id']: [graph_error] for node in all_node_configs}
             self.validations = all_results
+            self.graph = GraphRepresentation()
+
         return self
 
     def validate_all_nodes(self) -> dict[str, list[ValidationResult]]:
@@ -469,7 +478,6 @@ class NodeExplanationSystem:
             all_results[node_id] = node_results
 
         self.explanations = all_results
-        print(all_results)
         return all_results
 
     def get_input_baskets(self) -> dict[str, dict[str, list[str]]]:
@@ -639,7 +647,8 @@ class ValidationRule(ABC):
                 assert isinstance(param, dict)
                 v = param.get('value')
                 u = param.get('unit', '')
-                return f"{v} {u}"
+                if 'id' in param and param['id'] == param_id:
+                    return f"{v} {u}"
         return ''
 
     def get_all_params(self, node_config: dict[str, Any], drop: list[str]) -> list[list[str] | None]:
@@ -649,7 +658,6 @@ class ValidationRule(ABC):
         params = node_config['params']
         if isinstance(params, dict):
             for id, v in params.items():
-                # print(id, v)
                 if id in drop:
                     continue
                 out.append([id, v])
@@ -659,8 +667,6 @@ class ValidationRule(ABC):
                 id = param.get('id')
                 v = param.get('value')
                 u = param.get('unit', '')
-                print(node_config)
-                print(id, v, u, drop)
                 if id in drop:
                     continue
                 out.append([id, f"{v} {u}"])
@@ -686,7 +692,7 @@ class NodeClassRule(ValidationRule):
                 html.append(f"<li>{_('Has formula')} {formula}</li>")
         if other:
             for p in other:
-                html.append(f"<li>{_('Has parameter')} {p[0]} {_('with value')} {p[1]}.")  # noqa: PERF401
+                html.append(f"<li>{_('Has parameter')} <i>{p[0]}</i> {_('with value')} {p[1]}.")  # noqa: PERF401
 
         return html
 

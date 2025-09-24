@@ -1682,5 +1682,7 @@ class Node:
 
     def get_explanation(self) -> str:
         nes = self.context.node_explanation_system
+        if nes is None:
+            return ''
         explanation = nes.explanations.get(self.id, [])
         return ''.join(explanation)

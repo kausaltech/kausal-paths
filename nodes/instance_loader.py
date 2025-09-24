@@ -751,17 +751,22 @@ class InstanceLoader:
         emission_unit = self.config.get('emission_unit')
         assert emission_unit is not None
         emission_unit = self.context.unit_registry.parse_units(emission_unit)
+        dims = self.config.get('emission_dimensions', [])
 
         for ec in self.config.get('emission_sectors', []):
+            assert isinstance(ec, dict)
             parent_id = ec.pop('part_of', None)
             data_col = ec.pop('column', None)
             data_category = ec.pop('category', None)
+            unit = ec.pop('unit', emission_unit)
+            dim_i = ec.pop('input_dimensions', dims)
+            dim_o = ec.pop('output_dimensions', dims)
             if 'name_en' in ec and 'emissions' not in ec['name_en']:
                 ec['name_en'] += ' emissions'
             nc = dict(
                 output_nodes=[parent_id] if parent_id else [],
-                input_dimensions=self.config.get('emission_dimensions', []),
-                output_dimensions=self.config.get('emission_dimensions', []),
+                input_dimensions=dim_i,
+                output_dimensions=dim_o,
                 input_datasets=[
                     dict(
                         id=dataset_id,
@@ -772,7 +777,7 @@ class InstanceLoader:
                 ]
                 if data_col or data_category
                 else [],
-                unit=emission_unit,
+                unit=unit,
                 params=dict(category=data_category) if data_category else [],
                 **ec,
             )
@@ -1007,7 +1012,7 @@ class InstanceLoader:
             n_id = n.normalizer_node.id
             self.context.add_normalization(n_id, n)
 
-    def setup_validations(self):
+    def setup_validation_graph(self):
         config = self.config
         nodes = config.get('nodes')
         assert isinstance(nodes, list)
@@ -1027,10 +1032,12 @@ class InstanceLoader:
                 es['output_dimensions'] = config.get('emission_dimensions')
                 all_nodes.append(es)
 
-        nes = NodeExplanationSystem()
-        nes.context = self.context
-        nes.generate_graph(all_nodes)
+        nes = NodeExplanationSystem(self.context, all_nodes)
         self.context.node_explanation_system = nes
+
+    def setup_validations(self):
+        nes = self.context.node_explanation_system
+        assert nes is not None
         nes.validate_all_nodes()
         nes.get_input_baskets()
         nes.generate_all_explanations()
@@ -1216,6 +1223,7 @@ class InstanceLoader:
         self._scenario_values = {}
         self._node_visualizations = {}
         self.db_datasets = {}
+        self.setup_validation_graph()
         self.setup_dimensions()
         self.generate_nodes_from_emission_sectors()
         self.setup_global_parameters()
@@ -1227,7 +1235,7 @@ class InstanceLoader:
         self.setup_scenarios()
         self.setup_normalizations()
         self.setup_node_visualizations()
-        self.setup_validations() # FIXME You must create the graph in the beginning
+        self.setup_validations()
 
         for scenario in self.context.scenarios.values():
             if scenario.default:

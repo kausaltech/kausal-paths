@@ -219,6 +219,7 @@ class Context:
             redis_url=os.getenv('REDIS_URL'),
             base_logger=self.log,
         )
+        self.node_explanation_system: NodeExplanationSystem | None = None
         if env_bool('DISABLE_PATHS_MODEL_CACHE', default=False):
             self.skip_cache = True
         super().__init__()
