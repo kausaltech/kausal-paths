@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://aarhus-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: d03e253e8b43c69aa438e32b419f510434b5c8fd
+  commit: 8294f4e5b1c82e81f085555f07ef4047c48bc6af
   dvc_remote: kausal-s3
 name: Aarhus Greenhouse Gas Inventory
 owner: City of Aarhus
@@ -20,6 +20,11 @@ emission_dimensions: [ghg]
 features:
   baseline_visible_in_graphs: false
   use_datasets_from_db: false
+
+action_groups:
+- id: transportation
+  name: Transportation
+  color: '#E15759'
 
 dimensions:
 - id: energy_usage
@@ -806,6 +811,52 @@ nodes:
     to_dimensions:
     - id: energy_carrier
 
+- id: transportation_mileage_emission_factors
+  name: Transportation Mileage Emission Factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/km
+  input_dimensions: [vehicle_type, energy_carrier, ghg]
+  output_dimensions: [vehicle_type, energy_carrier, ghg]
+  input_datasets:
+  - id: aarhus/emission_factors__transportation
+    column: emission_factor
+    forecast_from: 2024
+    filters:
+    - dimension: vehicle_type
+      categories: [cycling, mopeds, motorcycles, passenger_cars, trucks, vans]
+    - column: owner
+
+- id: gasoline_hybrid_shares
+  name: Transportation Energy Hybrid Shares
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: aarhus/gasoline_hybrid_shares
+    column: fraction
+    forecast_from: 2024
+
+- id: gasoline_hybrid_emission_factors
+  name: Gasoline Hybrid Emission Factors
+  type: simple.MultiplicativeNode
+  quantity: emission_factor
+  unit: t/TJ
+  input_dimensions: [vehicle_type, energy_carrier, ghg]
+  output_dimensions: [vehicle_type, energy_carrier, ghg]
+  input_nodes:
+  - id: energy_emission_factors
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+  - id: gasoline_hybrid_shares
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+
 - id: transportation_emissions
   name: Transportation Emissions
   color: '#E15759'
@@ -904,8 +955,10 @@ nodes:
   input_dimensions: [energy_carrier, owner, vehicle_type, ghg]
   output_dimensions: [energy_carrier, owner, vehicle_type, ghg]
   params:
-    formula: (onroad_transport_bus_energy_consumption * transportation_energy_emission_factors) + reference
+    formula: (energy_consumption * nonhybrid_emission_factors) +
+             (mileage * ch4_n2o_emission_factors) + reference
   input_datasets:
+  # ----- Reference
   - id: aarhus/onroad_transportation
     tags: [reference]
     column: emissions
@@ -915,16 +968,38 @@ nodes:
     - column: sector
     - dimension: vehicle_type
       categories: [buses]
+  # ----- CH4 & N2O Emission Factors
+  - id: aarhus/emission_factors__transportation
+    tags: [ch4_n2o_emission_factors]
+    column: emission_factor
+    forecast_from: 2024
+    filters:
+    - dimension: vehicle_type
+      categories: [buses]
   input_nodes:
-  - id: transportation_energy_emission_factors
-    to_dimensions:
+  # ----- Mileage
+  - id: onroad_transport_bus_mileage
+    tags: [mileage]
+    from_dimensions:
     - id: energy_carrier
-    - id: ghg
-  - id: onroad_transport_bus_energy_consumption
+      categories: [diesel]
     to_dimensions:
     - id: energy_carrier
     - id: owner
     - id: vehicle_type
+  # ----- Energy Consumption
+  - id: onroad_transport_bus_energy_consumption
+    tags: [energy_consumption]
+    to_dimensions:
+    - id: energy_carrier
+    - id: owner
+    - id: vehicle_type
+  # ----- Non-Hybrid Emission Factors
+  - id: transportation_energy_emission_factors
+    tags: [nonhybrid_emission_factors]
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
 
 # --------------- Other Vehicles
 
@@ -986,7 +1061,9 @@ nodes:
   input_dimensions: [energy_carrier, vehicle_type, ghg]
   output_dimensions: [energy_carrier, vehicle_type, ghg]
   params:
-    formula: (onroad_transport_vehicle_energy_consumption * transportation_energy_emission_factors) + reference
+    formula: (nonhybrid_emission_factors * energy_consumption) +
+             (hybrid_emission_factors * energy_consumption) +
+             (ch4_n2o_emission_factors * mileage) + reference
   input_datasets:
   - id: aarhus/onroad_transportation
     tags: [reference]
@@ -999,19 +1076,49 @@ nodes:
     - dimension: vehicle_type
       categories: [passenger_cars]
   input_nodes:
-  - id: transportation_energy_emission_factors
+  # ----- Mileage
+  - id: onroad_transport_vehicle_mileage
+    tags: [mileage]
     to_dimensions:
     - id: energy_carrier
-    - id: ghg
+    - id: vehicle_type
+  # ----- Energy Consumption
   - id: onroad_transport_vehicle_energy_consumption
+    tags: [energy_consumption]
     from_dimensions:
-    - id: energy_carrier
-      categories: [gasoline, diesel, electricity]
     - id: vehicle_type
       categories: [passenger_cars]
     to_dimensions:
     - id: energy_carrier
     - id: vehicle_type
+  # ----- Non-Hybrid Emission Factors
+  - id: transportation_energy_emission_factors
+    tags: [nonhybrid_emission_factors]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [gasoline, diesel, electricity]
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+  # ----- Hybrid Emission Factors
+  - id: gasoline_hybrid_emission_factors
+    tags: [hybrid_emission_factors]
+    from_dimensions:
+    - id: vehicle_type
+      categories: [passenger_cars]
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+      categories: [gasoline_hybrid]
+    - id: ghg
+  # ----- CH4 & N2O Emission Factors
+  - id: transportation_mileage_emission_factors
+    tags: [ch4_n2o_emission_factors]
+    from_dimensions:
+    - id: vehicle_type
+      categories: [passenger_cars]
 
 - id: onroad_transport_truck_emissions
   name: On-Road Transport Truck Emissions
@@ -1022,7 +1129,8 @@ nodes:
   input_dimensions: [energy_carrier, vehicle_type, ghg]
   output_dimensions: [energy_carrier, vehicle_type, ghg]
   params:
-    formula: (onroad_transport_vehicle_energy_consumption * transportation_energy_emission_factors) + reference
+    formula: (energy_consumption * nonhybrid_emission_factors) +
+             (mileage * ch4_n2o_emission_factors) + reference
   input_datasets:
   - id: aarhus/onroad_transportation
     tags: [reference]
@@ -1035,17 +1143,35 @@ nodes:
     - dimension: vehicle_type
       categories: [trucks]
   input_nodes:
-  - id: transportation_energy_emission_factors
+  # ----- Mileage
+  - id: onroad_transport_vehicle_mileage
+    tags: [mileage]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [diesel]
+    - id: vehicle_type
+      categories: [trucks]
     to_dimensions:
     - id: energy_carrier
-    - id: ghg
+    - id: vehicle_type
+  # ----- Energy Consumption
   - id: onroad_transport_vehicle_energy_consumption
+    tags: [energy_consumption]
     from_dimensions:
     - id: vehicle_type
       categories: [trucks]
     to_dimensions:
     - id: energy_carrier
     - id: vehicle_type
+  # ----- Non-Hybrid Emission Factors
+  - id: transportation_energy_emission_factors
+    tags: [nonhybrid_emission_factors]
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+  # ----- CH4 & N2O Emission Factors
+  - id: transportation_mileage_emission_factors
+    tags: [ch4_n2o_emission_factors]
 
 - id: onroad_transport_van_emissions
   name: On-Road Transport Van Emissions
@@ -1056,7 +1182,9 @@ nodes:
   input_dimensions: [energy_carrier, vehicle_type, ghg]
   output_dimensions: [energy_carrier, vehicle_type, ghg]
   params:
-    formula: (onroad_transport_vehicle_energy_consumption * transportation_energy_emission_factors) + reference
+    formula: (nonhybrid_emission_factors * energy_consumption) +
+             (hybrid_emission_factors * energy_consumption) +
+             (ch4_n2o_emission_factors * mileage) + reference
   input_datasets:
   - id: aarhus/onroad_transportation
     tags: [reference]
@@ -1069,19 +1197,49 @@ nodes:
     - dimension: vehicle_type
       categories: [vans]
   input_nodes:
-  - id: transportation_energy_emission_factors
+  # ----- Mileage
+  - id: onroad_transport_vehicle_mileage
+    tags: [mileage]
     to_dimensions:
     - id: energy_carrier
-    - id: ghg
+    - id: vehicle_type
+  # ----- Energy Consumption
   - id: onroad_transport_vehicle_energy_consumption
+    tags: [energy_consumption]
     from_dimensions:
-    - id: energy_carrier
-      categories: [gasoline, diesel, electricity]
     - id: vehicle_type
       categories: [vans]
     to_dimensions:
     - id: energy_carrier
     - id: vehicle_type
+  # ----- Non-Hybrid Emission Factors
+  - id: transportation_energy_emission_factors
+    tags: [nonhybrid_emission_factors]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [gasoline, diesel, electricity]
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+  # ----- Hybrid Emission Factors
+  - id: gasoline_hybrid_emission_factors
+    tags: [hybrid_emission_factors]
+    from_dimensions:
+    - id: vehicle_type
+      categories: [vans]
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+      categories: [gasoline_hybrid]
+    - id: ghg
+  # ----- CH4 & N2O Emission Factors
+  - id: transportation_mileage_emission_factors
+    tags: [ch4_n2o_emission_factors]
+    from_dimensions:
+    - id: vehicle_type
+      categories: [vans]
 
 - id: onroad_transport_other_emissions
   name: On-Road Transport Bicycle, Moped & Motorcycle Emissions
@@ -1092,7 +1250,8 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier, ghg]
   output_dimensions: [vehicle_type, energy_carrier, ghg]
   params:
-    formula: (onroad_transport_vehicle_energy_consumption * transportation_energy_emission_factors) + reference
+    formula: (energy_consumption * nonhybrid_emission_factors) +
+             (mileage * ch4_n2o_emission_factors) + reference
   input_datasets:
   - id: aarhus/onroad_transportation
     tags: [reference]
@@ -1105,17 +1264,33 @@ nodes:
     - dimension: vehicle_type
       categories: [cycling, mopeds, motorcycles]
   input_nodes:
-  - id: transportation_energy_emission_factors
+  # ----- Mileage
+  - id: onroad_transport_vehicle_mileage
+    tags: [mileage]
+    from_dimensions:
+    - id: vehicle_type
+      categories: [mopeds, motorcycles]
     to_dimensions:
     - id: energy_carrier
-    - id: ghg
+    - id: vehicle_type
+  # ----- Energy Consumption
   - id: onroad_transport_vehicle_energy_consumption
+    tags: [energy_consumption]
     from_dimensions:
     - id: vehicle_type
       categories: [cycling, mopeds, motorcycles]
     to_dimensions:
     - id: energy_carrier
     - id: vehicle_type
+  # ----- Non-Hybrid Emission Factors
+  - id: transportation_energy_emission_factors
+    tags: [nonhybrid_emission_factors]
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+  # ----- CH4 & N2O Emission Factors
+  - id: transportation_mileage_emission_factors
+    tags: [ch4_n2o_emission_factors]
 
 # ---------- II.2 Rail Transportation
 
@@ -1331,7 +1506,6 @@ nodes:
   unit: kt/a
   input_dimensions: [energy_carrier, vehicle_type, ghg]
   output_dimensions: [energy_carrier, vehicle_type, ghg]
-
   params:
     formula: (aviation_energy_consumption * transportation_energy_emission_factors) + reference
   input_datasets:
@@ -1637,6 +1811,46 @@ nodes:
   - id: livestock_counts
     to_dimensions:
     - id: sector
+
+actions:
+
+- id: green_mobility_plan
+  name: Green Mobility Plan
+  group: transportation
+  type: simple.AdditiveAction
+  quantity: mileage
+  unit: km/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: aarhus/transportation_actions
+    column: mileage
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: green_mobility_plan
+  output_nodes:
+  - id: onroad_transport_vehicle_mileage
+
+- id: optimized_and_emission_free_municipal_fleet
+  name: Optimized and Emission Free Municipal Fleet
+  group: transportation
+  type: simple.AdditiveAction
+  quantity: mileage
+  unit: km/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: aarhus/transportation_actions
+    column: mileage
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: optimized_and_emission_free_municipal_fleet
+  output_nodes:
+  - id: onroad_transport_vehicle_mileage
 
 pages:
 - id: home

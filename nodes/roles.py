@@ -154,7 +154,8 @@ instance_admin_role = InstanceAdminRole()
 instance_viewer_role = InstanceViewerRole()
 instance_reviewer_role = InstanceReviewerRole()
 
+# Roles registered from most permissions to least permissions to have them in sensible order when listed
 register_role(instance_super_admin_role)
 register_role(instance_admin_role)
-register_role(instance_viewer_role)
 register_role(instance_reviewer_role)
+register_role(instance_viewer_role)
