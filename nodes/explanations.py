@@ -12,19 +12,23 @@ if TYPE_CHECKING:
     from nodes.context import Context
 
 TAG_TO_BASKET = {
-    'additive': 'additive', # FIXME Values should be translatable because they are used in explanations
-    'non_additive': 'multiplicative',
+    'additive': 'add', # FIXME Values should be translatable because they are used in explanations
+    'add_from_incoming_dims': 'add_from_incoming_dims',
+    'add_to_existing_dims': 'add_to_existing_dims',
+    # These operations only handle existing df and do not take new inputs:
+    # apply_multipliet, do_correction, drop_nand, drop_infs, extend_values, extrapolate
+    # [get_datasets: generalize to use the port theory]
+    # inventory_only, other, select_variant
+    'coalesce': 'coalesce',
+    'non_additive': 'multiply',
     'other_node': 'other',
     'rate': 'other',
     'base': 'other',
-    'use_as_totals': 'use_as_totals',
-    'use_as_shares': 'use_as_shares',
+    'skip_dim_test': 'skip_dim_test',
     'split_by_existing_shares': 'split_by_existing_shares',
     'split_evenly_to_cats': 'split_evenly_to_cats',
-    'add_to_existing_dims': 'add_to_existing_dims',
-    'add_from_incoming_dims': 'add_from_incoming_dims',
-    'skip_dim_test': 'skip_dim_test',
-    'coalesce': 'coalesce',
+    'use_as_shares': 'use_as_shares',
+    'use_as_totals': 'use_as_totals',
 }
 
 TAG_DESCRIPTIONS = {
@@ -491,29 +495,33 @@ class NodeExplanationSystem:
 
             # Categorize nodes by tags
             assert isinstance(node_config, dict)
-            for input_node in node_config.get('input_nodes', []):
-                # input_node = self.graph.nodes[input_id]
+            for input_n in node_config.get('input_nodes', []):
+                basket = 'unknown'
+                input_id = input_n if not isinstance(input_n, dict) else input_n['id']
+                input_node = self.graph.nodes[input_id]
+                assigned = False
                 if 'tags' in input_node:
                     if any(tag in input_node['tags'] for tag in skip_tags): #  or tag in node.tags
-                        continue
+                        basket = 'skip'
 
-                    assigned = False
-                    input_id = input_node['id']
-                    for tag, basket in TAG_TO_BASKET.items():
-                        if tag in input_node['tags']: # or tag in node.tags:
-                            if basket not in baskets[node_id]:
-                                baskets[node_id][basket] = []
-                            baskets[node_id][basket].append(input_id)
+                    for tag, basket in TAG_TO_BASKET.items():  # noqa: B007
+                        if tag in input_node['tags']: # TODO or tag in node.tags:
                             assigned = True
+                            break
 
-                    if not assigned:
-                        node_unit = node_config.get('unit') # Does not Work with multi-metric nodes.
-                        input_unit = input_node.get('unit')
-                        if node_unit is not None and input_unit is not None:
-                            n_dim = unit_registry(node_unit).dimensionality
-                            i_dim = unit_registry(input_unit).dimensionality
-                            basket = 'additive' if n_dim == i_dim else 'multiplicative'
-                            baskets[node_id][basket].append(input_id)
+                if not assigned:
+                    node_unit = node_config.get('unit') # FIXME Does not Work with multi-metric nodes.
+                    input_unit = input_node.get('unit') if isinstance(input_node, dict) else None
+                    if node_unit is None or input_unit is None:
+                        basket = 'unknown'
+                    else:
+                        n_dim = unit_registry(node_unit).dimensionality
+                        i_dim = unit_registry(input_unit).dimensionality
+                        basket = 'add' if n_dim == i_dim else 'multiply'
+
+                if basket not in baskets[node_id]:
+                    baskets[node_id][basket] = []
+                baskets[node_id][basket].append(input_id)
 
         self.baskets = baskets
         return baskets
@@ -1098,20 +1106,37 @@ class EdgeRule(ValidationRule):
 
 class BasketRule(ValidationRule):
 
-    def explain(self, node: dict | str, context: Context) -> list[str]:
-        baskets = context.node_explanation_system.baskets
-        node_id = node if isinstance(node, str) else node['id']
-        html = []
-        if baskets.get(node_id, {}):
-            html.append("The inputs are used for operations in this order:<ol>")
-            operations = ''
-            if isinstance(node, dict):
-                operations = self.get_param(node, 'operations')
-            if not operations:
-                operations = context.nodes[node_id].DEFAULT_OPERATIONS
-            for basket, nodes in baskets.get(node_id, {}).items():
-                html.append(f"<li>{_('These nodes are')} {basket}: <i>{', '.join(nodes)}</i>.</li>")
+    def explain(self, node_config: dict | str, context: Context) -> list[str]:
+        assert isinstance(node_config, dict)
+        node_id = node_config['id']
+
+        nes = context.node_explanation_system
+        assert nes is not None
+        baskets = nes.baskets[node_id]
+        html: list[str] = []
+        if not baskets:
+            return html
+
+        html.append("The inputs are used for operations in this order:<ol>")
+        operation_list = self.get_param(nes.graph.nodes[node_id], 'operations')
+        if not operation_list:
+            operation_list = context.nodes[node_id].DEFAULT_OPERATIONS
+        operations = operation_list.split(',')
+
+        for operation in operations:
+            input_nodes = baskets.get(operation, [])
+            if input_nodes:
+                html.append(f"<li>{_('Operation')} {operation}: <i>{', '.join(input_nodes)}</i>.</li>")
+        html.append('</ol>')
+
+        remaining_baskets = [basket for basket in baskets.keys() if basket not in operations]
+        if remaining_baskets:
+            html.append("These groups are left over without an operation:<ol>")
+            for basket in remaining_baskets:
+                input_nodes = baskets.get(basket, [])
+                html.append(f"<li>{_('Group')} {basket}: <i>{', '.join(input_nodes)}</i>.</li>")
             html.append('</ol>')
+
         return html
 
     def validate(self, node_config: dict, context: Context) -> list[ValidationResult]:
@@ -1121,3 +1146,5 @@ class BasketRule(ValidationRule):
             level='info',
             message='There is no validation rule for baskets.'
         )]
+        # Each input node must belong to some basket
+        # If an input node belongs to the unknown basket, give a warning
