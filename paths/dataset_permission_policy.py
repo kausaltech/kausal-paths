@@ -38,6 +38,8 @@ if TYPE_CHECKING:
     from kausal_common.models.roles import InstanceSpecificRole
 
     from nodes.models import InstanceConfig
+    from paths.const import InstanceRoleIdentifier
+
     from users.models import User
 
 _M = TypeVar('_M', bound='PermissionedModel')
@@ -61,13 +63,13 @@ class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, 'InstanceCo
         self._role_registry = role_registry
         super().__init__(model)
 
-    def get_role(self, role_id: str) -> InstanceGroupMembershipRole:
+    def get_role(self, role_id: InstanceRoleIdentifier) -> InstanceGroupMembershipRole:
         role = self._role_registry.get_role(role_id)
         if not isinstance(role, InstanceGroupMembershipRole):
             raise TypeError('Currently only InstanceGroupMembershipRoles supported')
         return role
 
-    def get_role_specific_q(self, user: User, role_id: str) -> Q:
+    def get_instanceconfig_scope_q_for_role(self, user: User, role_id: InstanceRoleIdentifier) -> Q:
         ic_content_type = get_instance_config_content_type()
         return Q(
             scope_content_type=ic_content_type,
@@ -254,10 +256,10 @@ class DataSourcePermissionPolicy(InstanceConfigScopedPermissionPolicy[DataSource
 
     @override
     def construct_perm_q(self, user: User, action: BaseObjectAction) -> Q | None:
-        admin_q = self.get_role_specific_q(user, 'instance-admin')
-        super_admin_q = self.get_role_specific_q(user, 'instance-super-admin')
-        viewer_q = self.get_role_specific_q(user, 'instance-viewer')
-        reviewer_q = self.get_role_specific_q(user, 'instance-reviewer')
+        admin_q = self.get_instanceconfig_scope_q_for_role(user, 'instance-admin')
+        super_admin_q = self.get_instanceconfig_scope_q_for_role(user, 'instance-super-admin')
+        viewer_q = self.get_instanceconfig_scope_q_for_role(user, 'instance-viewer')
+        reviewer_q = self.get_instanceconfig_scope_q_for_role(user, 'instance-reviewer')
 
         if action == 'view':
             return super_admin_q | admin_q | viewer_q | reviewer_q
@@ -284,10 +286,10 @@ class DataPointCommentPermissionPolicy(InstanceConfigScopedPermissionPolicy[Data
 
     @override
     def construct_perm_q(self, user: User, action: BaseObjectAction) -> Q | None:
-        admin_q = self.get_role_specific_q(user, 'instance-admin')
-        super_admin_q = self.get_role_specific_q(user, 'instance-super-admin')
-        reviewer_q = self.get_role_specific_q(user, 'instance-reviewer')
-        viewer_q = self.get_role_specific_q(user, 'instance-viewer')
+        admin_q = self.get_instanceconfig_scope_q_for_role(user, 'instance-admin')
+        super_admin_q = self.get_instanceconfig_scope_q_for_role(user, 'instance-super-admin')
+        reviewer_q = self.get_instanceconfig_scope_q_for_role(user, 'instance-reviewer')
+        viewer_q = self.get_instanceconfig_scope_q_for_role(user, 'instance-viewer')
         if action == 'view':
             return super_admin_q | admin_q | viewer_q | reviewer_q
         if action == 'add':
