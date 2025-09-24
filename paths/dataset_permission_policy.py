@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, TypeGuard, TypeVar, override
 
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q, QuerySet
+from rest_framework.views import APIView
 
 from kausal_common.datasets.models import (
     DataPoint,
@@ -25,6 +26,7 @@ from kausal_common.models.roles import role_registry
 
 from paths.context import realm_context
 
+from nodes.models import InstanceConfig
 from nodes.roles import (
     InstanceGroupMembershipRole,
 )
@@ -37,7 +39,6 @@ if TYPE_CHECKING:
     from kausal_common.models.permissions import PermissionedModel
     from kausal_common.models.roles import InstanceSpecificRole
 
-    from nodes.models import InstanceConfig
     from paths.const import InstanceRoleIdentifier
 
     from users.models import User
@@ -87,21 +88,30 @@ class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, 'InstanceCo
 
     @override
     def user_has_perm(self, user: User, action: BaseObjectAction, obj: _M) -> bool:
-        active_instance = realm_context.get().realm
+        try:
+            # Realm context only works in admin context, not for REST API
+            active_instance = realm_context.get().realm
+        except LookupError:
+            active_instance = None
         instance_ids = self.get_instance_configs_for_obj(obj)
-        if active_instance is None or active_instance.pk not in instance_ids:
-            return False
-        # Check if user is admin for any of the instances
-        if user.has_instance_role_with_id('instance-admin', active_instance):
-            return True
-        if user.has_instance_role_with_id('instance-super-admin', active_instance):
-            return True
-        # For view permission, check if user is a viewer or reviewer for any of the instances
-        if action == 'view':
-            return any((
-                user.has_instance_role_with_id('instance-viewer', active_instance),
-                user.has_instance_role_with_id('instance-reviewer', active_instance),
-            ))
+        if active_instance is None:
+            instances = InstanceConfig.objects.filter(pk__in=instance_ids)
+        else:
+            if active_instance.pk not in instance_ids:
+                return False
+            instances = [active_instance]
+        for instance in instances:
+            # Check if user is admin for any of the instances
+            if user.has_instance_role_with_id('instance-admin', instance):
+                return True
+            if user.has_instance_role_with_id('instance-super-admin', instance):
+               return True
+            # For view permission, check if user is a viewer or reviewer for any of the instances
+            if action == 'view':
+               return any((
+                   user.has_instance_role_with_id('instance-viewer', instance),
+                   user.has_instance_role_with_id('instance-reviewer', instance),
+               ))
         return False
 
     @override
@@ -152,28 +162,19 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
     def construct_perm_q(self, user: User, action: BaseObjectAction) -> Q | None:
         from nodes.models import InstanceConfig
         ic_content_type = ContentType.objects.get_for_model(InstanceConfig)
+        def make_q(role: InstanceRoleIdentifier):
+            return Q(
+                scopes__scope_content_type=ic_content_type,
+                scopes__scope_id__in=self.get_role(role).get_instances_for_user(user)
 
-        admin_q = Q(
-            scopes__scope_content_type=ic_content_type,
-            scopes__scope_id__in=self.get_role('instance-admin').get_instances_for_user(user)
-        )
-
-        super_admin_q = Q(
-            scopes__scope_content_type=ic_content_type,
-            scopes__scope_id__in=self.get_role('instance-super-admin').get_instances_for_user(user)
-        )
+            )
+        super_admin_q = make_q('instance-super-admin')
+        admin_q = make_q('instance-admin')
+        reviewer_q = make_q('instance-reviewer')
+        viewer_q = make_q('instance-viewer')
 
         if action == 'view':
-            viewer_q = Q(
-                scopes__scope_content_type=ic_content_type,
-                scopes__scope_id__in=self.get_role('instance-viewer').get_instances_for_user(user)
-            )
-            reviewer_q = Q(
-                scopes__scope_content_type=ic_content_type,
-                scopes__scope_id__in=self.get_role('instance-reviewer').get_instances_for_user(user)
-            )
             return super_admin_q | admin_q | viewer_q | reviewer_q
-
         return super_admin_q | admin_q
 
     def user_has_permission(self, user: User | AnonymousUser, action: str) -> bool:
@@ -266,32 +267,30 @@ class DataSourcePermissionPolicy(InstanceConfigScopedPermissionPolicy[DataSource
         return super_admin_q | admin_q
 
 
-class DataPointCommentPermissionPolicy(InstanceConfigScopedPermissionPolicy[DataPointComment]):
-    """
-    Permission policy for comments.
-
-    Otherwise follows the InstanceConfig policy but reviewers have permissions to create comments and modify their own comments.
-
-    """
+class DataPointCommentPermissionPolicy(ParentInheritedPolicy[DataPointComment, Dataset, PermissionedQuerySet[DataPointComment]]):
+    """Permission policy for DataPointComment, inheriting from Dataset."""
 
     def __init__(self):
-        super().__init__(DataPointComment)
+        from kausal_common.datasets.models import DataPointComment, Dataset
+        super().__init__(DataPointComment, Dataset, 'dataset')
 
     @override
-    def get_instance_configs_for_obj(self, obj: DataPointComment) -> list[int]:
-        ic_content_type = get_instance_config_content_type()
-        if obj.data_point.dataset.scope_content_type != ic_content_type:
-            return []
-        return [obj.data_point.dataset.scope_id]
+    def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: DataPointComment) -> bool:
+        parent_obj = self.get_parent_obj(obj)
+        return self.parent_policy.user_has_perm(user, action, parent_obj)
 
     @override
-    def construct_perm_q(self, user: User, action: BaseObjectAction) -> Q | None:
-        admin_q = self.get_instanceconfig_scope_q_for_role(user, 'instance-admin')
-        super_admin_q = self.get_instanceconfig_scope_q_for_role(user, 'instance-super-admin')
-        reviewer_q = self.get_instanceconfig_scope_q_for_role(user, 'instance-reviewer')
-        viewer_q = self.get_instanceconfig_scope_q_for_role(user, 'instance-viewer')
-        if action == 'view':
-            return super_admin_q | admin_q | viewer_q | reviewer_q
-        if action == 'add':
-            return super_admin_q | admin_q | reviewer_q
-        return super_admin_q | admin_q
+    def anon_has_perm(self, action: BaseObjectAction, obj: DataPointComment) -> bool:
+        return False
+
+    @override
+    def user_can_create(self, user: User, context: APIView) -> bool:
+        view = context
+        dataset_uuid = view.kwargs['dataset_uuid']
+        dataset = Dataset.objects.get(uuid=dataset_uuid)
+        user_can_change_dataset = self.parent_policy.user_has_perm(user, 'change', dataset)
+        instance_config_in_scope = dataset.scope
+        if not isinstance(instance_config_in_scope, InstanceConfig):
+            raise TypeError('Only InstanceConfigs supported as Dataset scopes in paths.')
+        user_is_reviewer_in_instance = user.has_instance_role_with_id('instance-reviewer', instance_config_in_scope)
+        return user_can_change_dataset or user_is_reviewer_in_instance
