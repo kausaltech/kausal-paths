@@ -35,3 +35,4 @@ SCHEMA_PERMISSION_POLICY: str = 'paths.dataset_permission_policy.DatasetSchemaPe
 DATASET_PERMISSION_POLICY: str = 'paths.dataset_permission_policy.DatasetPermissionPolicy'
 DATA_POINT_PERMISSION_POLICY: str = 'paths.dataset_permission_policy.DataPointPermissionPolicy'
 DATA_SOURCE_PERMISSION_POLICY: str = 'paths.dataset_permission_policy.DataSourcePermissionPolicy'
+DATA_POINT_COMMENT_PERMISSION_POLICY: str = 'paths.dataset_permission_policy.DataPointCommentPermissionPolicy'
