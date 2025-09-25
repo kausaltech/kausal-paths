@@ -86,6 +86,14 @@ hooks.register('register_admin_menu_item', register_instance_chooser)
 def hide_snippets_menu_item(request, menu_items):
     menu_items[:] = [item for item in menu_items if item.name != 'snippets']
 
+@hooks.register('construct_main_menu')
+def hide_reports_menu_item(request, menu_items):
+    # Hide reports menu item, because the reports Wagtail automatically generates
+    # are not scoped to the instance. If needed, the reports could be customised,
+    # look for more info in Wagtail docs:
+    # https://docs.wagtail.org/en/v6.4.2/extending/adding_reports.html
+    menu_items[:] = [item for item in menu_items if item.name != 'reports']
+
 
 @hooks.register('construct_reports_menu')
 def patch_translations_report_menu_item(request: PathsAdminRequest, menu_items: list):
