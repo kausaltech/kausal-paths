@@ -1,290 +1,285 @@
+# A previous version collected the data directly from the production instances via API.
+# https://github.com/kausaltech/kausal-paths/blob/6471f1c860aa86e177290f80bced9435113e4ea6/nodes/management/commands/collect_city_data.py
+
+# ruff: noqa: F401
 from __future__ import annotations
 
-import argparse
-import asyncio
-import itertools
+# import argparse
 import os
 import sys
+from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # noqa: PTH100, PTH120
-import aiohttp
+import django
+from django.conf import settings  # pyright: ignore[reportUnusedImport]
+
+# import altair as alt
 import polars as pl
 import yaml
-from dotenv import load_dotenv
 
-from common import polars as ppl
-from nodes.constants import VALUE_COLUMN, YEAR_COLUMN
-from nodes.units import unit_registry
+# from great_tables import GT
 
-load_dotenv()
+# # Allow Django to run in async environments (like Jupyter)
+# os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
 
-def parse_args():
-    parser = argparse.ArgumentParser(description='Collect city data from GraphQL API')
-    parser.add_argument('--input', required=True, help="""
-        YAML file containing instances, nodes with target units, and postprocessor function (optional)""")
-    parser.add_argument('--output', required=True, help='Base name for output CSV files')
-    return parser.parse_args()
+# Set the Django settings module
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'paths.settings')
 
-def read_config(yaml_file):
-    config = yaml.safe_load(Path(yaml_file).open('r'))  # noqa: SIM115
-    return config
+# Configure Django
+django.setup()
 
-async def fetch_node_data(session, url, instance_id, node_id):
-    print(f"Processing data for {instance_id}, node {node_id}")
+from common import polars as ppl  # noqa: E402
+from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN  # noqa: E402
+from nodes.exceptions import NodeComputationError  # noqa: E402
+from nodes.units import Quantity, unit_registry  # noqa: E402
+from notebooks.notebook_support import get_context, get_nodes  # noqa: E402
 
-    session_token = os.getenv('AUTHJS_SESSION_TOKEN')
-    csrf_token = os.getenv('AUTHJS_CSRF_TOKEN')
-    csrf_token_django = os.getenv('CSRFTOKEN')
+# initialize_notebook_env()
 
-    query = """
-    query GetNodeValues($nodeId: ID!, $instanceId: ID!)
-        @instance(identifier: $instanceId) {
-        instance {
-            referenceYear
-            targetYear
-        }
-        node(id: $nodeId) {
-            id
-            unit {
-                short
-                # standard # TODO After these changes have been deployed
-            }
-            metricDim {
-                forecastFrom
-                dimensions {
-                    originalId
-                    kind
-                    categories {
-                        originalId
-                    }
-                }
-                years
-                values
-            }
-        }
-    }
-    """
+if TYPE_CHECKING:
+    from common.polars import PathsDataFrame
 
-    base_url = '/'.join(url.split('/')[:-2])  # Get base URL without /v1/graphql/
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:134.0) Gecko/20100101 Firefox/134.0',
-        'Accept': 'application/json, multipart/mixed',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'content-type': 'application/json',
-        'Origin': base_url,
-        'Referer': url,
-        'Connection': 'keep-alive',
-        'Cookie': f'csrftoken={csrf_token_django}; authjs.session-token={session_token}; authjs.csrf-token={csrf_token}',
-        'X-CSRFToken': f'{csrf_token}'
-    }
+# config_file = '../netzeroplanner-framework-config/emission_potential.yaml'
 
-    payload = {
-        'query': query,
-        'variables': {
-            'nodeId': node_id,
-            'instanceId': instance_id,
-        },
-        'operationName': 'GetNodeValues'
-    }
+@dataclass
+class NodeData:
+    """Individual node with its dataframe."""
 
-    async with session.post(
-        url,
-        json=payload,
-        headers=headers
-    ) as response:
-        if response.status != 200:
-            print(f"Error {response.status}")
-            print(await response.text())
+    id: str
+    df: ppl.PathsDataFrame
+
+
+@dataclass
+class InstanceData:
+    """Instance containing multiple nodes."""
+
+    id: str
+    target_year: int
+    nodes: list[NodeData] = field(default_factory=list)
+
+    def add_node(self, node_id: str, df: ppl.PathsDataFrame) -> NodeData:
+        """Add a node to this instance."""
+
+        node = NodeData(id=node_id, df=df)
+        self.nodes.append(node)
+        return node
+
+    def get_node_df(self, node_id: str) -> ppl.PathsDataFrame | None:
+        """Get a specific node df by id."""
+
+        node = next((node for node in self.nodes if node.id == node_id), None)
+        if node is None:
             return None
-        return await response.json()
+        return node.df
 
-async def fetch_all_instances(url, instances, node_ids):
-    async with aiohttp.ClientSession() as session:
-        tasks = [
-            fetch_node_data(session, url, instance, node_id)
-            for instance in instances
-            for node_id in node_ids
-        ]
+    def update_node_df(self, node_id: str, df: ppl.PathsDataFrame) -> InstanceData:
+        node = next((node for node in self.nodes if node.id == node_id), None)
+        assert node is not None
+        node.df = df
+        return self
 
-        results = await asyncio.gather(*tasks)
 
-    return dict(zip(
-        [(instance, node_id) for instance in instances for node_id in node_ids],
-        results,
-        strict=False
-    ))
+@dataclass
+class DataCollection:
+    """Main container for all dc."""
 
-def create_dataframe(data, processor, node_str, target_unit):
-    if data is None:
-        print("No data received")
-        return None
+    output_path: str
+    output_date: str
+    processors: list[str]
+    logs: list[str]
+    instances: list[InstanceData]
+    summaries: list[InstanceData]
+    target_units: dict[str, str]
 
-    print(f"Node {node_str} has {len(data['data']['node']['metricDim']['values'])} values")
+    def add_instance(self, instance_id: str, target_year: int) -> InstanceData:
+        """Add a new instance."""
+        instance = InstanceData(id=instance_id, target_year=target_year)
+        self.instances.append(instance)
+        return instance
 
-    dims = data['data']['node']['metricDim']['dimensions']
-    years = data['data']['node']['metricDim']['years']
-    values = data['data']['node']['metricDim']['values']
-    forecast_from = data['data']['node']['metricDim']['forecastFrom']
-    unit_str = data['data']['node']['unit']['short']
-    reference_year = data['data']['instance']['referenceYear']
-    target_year = data['data']['instance']['targetYear']
+    def get_instance(self, instance_id: str) -> InstanceData | None:
+        """Get a specific instance by id."""
 
-    map_units = { # Needed until the standard unit is available
-        '1.0 kt/v': '1.0 kt/a',
-        'kt/v': 'kt/a',
-        'Einw.': 'cap',
-        'as.': 'cap',
-        'tCO₂e/yr': 't/a',
-    }
-    unit_str = map_units.get(unit_str, unit_str)
-    unit = unit_registry(unit_str)
+        return next((inst for inst in self.instances if inst.id == instance_id), None)
 
-    if forecast_from is None:
-        forecast_from = max(years) if years else None  # Only historical values
-    if forecast_from is not None:
-        forecast_from -= 1
-    if reference_year is not None:
-        forecast_from = reference_year
+    def read_config(self, yaml_file):
+        config = yaml.safe_load(Path(yaml_file).open('r'))  # noqa: SIM115
+        return config
 
-    dim_names = [dim['originalId'] for dim in dims]
-    # Create lists of categories for each dimension
-    dim_categories = [
-        [cat['originalId'] for cat in dim['categories']]
-        for dim in dims
-    ]
-
-    # Create all combinations of dimension categories
-    combinations = list(itertools.product(*dim_categories))
-
-    # Create rows for DataFrame
-    rows = []
-    value_index = 0
-
-    for combo in combinations:
-        for year in years:
-            if value_index < len(values):
-                row = {
-                    **{dim_names[i]: combo[i] for i in range(len(dims))},  # Using actual dimension names
-                    YEAR_COLUMN: year,
-                    VALUE_COLUMN: values[value_index],
-                }
-                rows.append(row)
-                value_index += 1
-
-    meta = ppl.DataFrameMeta(
-        units={VALUE_COLUMN: unit},
-        primary_keys=dim_names + [YEAR_COLUMN]
-        )
-    df = ppl.to_ppdf(pl.DataFrame(rows), meta)
-    df = df.ensure_unit(VALUE_COLUMN, target_unit)
-    df = postprocess_data[processor](df, forecast_from, target_year)
-
-    return df
-
-def emission_targets(df, reference_year, target_year):
-    meta = df.get_meta()
-    df = (
-        df.filter(pl.col(YEAR_COLUMN).is_in([reference_year, target_year]))
-        .group_by(pl.col([YEAR_COLUMN])).agg(pl.col(VALUE_COLUMN).sum())
-        .sort(by=[YEAR_COLUMN])
-    )
-    df = df.with_columns(
-            pl.when(pl.col(YEAR_COLUMN) == reference_year)
+    def find_target_values(self) -> DataCollection:
+        for instance in self.instances:
+            for node in instance.nodes:
+                df: ppl.PathsDataFrame = node.df
+                meta = df.get_meta()
+                target_year = instance.target_year
+                obs_year = df.filter(~pl.col(FORECAST_COLUMN))[YEAR_COLUMN].max()
+                df = (
+                    df.filter(pl.col(YEAR_COLUMN).is_in([obs_year, target_year]))
+                    .sort(by=[YEAR_COLUMN])
+                )
+                df = df.with_columns(
+                    pl.when(pl.col(YEAR_COLUMN) == obs_year)
                     .then(pl.lit('newest'))
                     .otherwise(pl.lit('target'))
                     .alias('param')
-        )
-    df = ppl.to_ppdf(df, meta)
-    return df
+                )
+                df = ppl.to_ppdf(df, meta).add_to_index('param')
+                instance.update_node_df(node.id, df)
+        return self
 
-def no_processing(df, reference_year, target_year):
-    return df
+    def convert_to_target_units(self) -> DataCollection:
+        multipliers: dict[str, Quantity] = {
+            'kt_co2e/a': unit_registry('1 * kt/kt_co2e'),
+        }
+        for instance in self.instances:
+            for node in instance.nodes:
+                df: PathsDataFrame = node.df
+                df_unit = df.get_meta().units[VALUE_COLUMN]
+                for from_unit, to_unit in multipliers.items():
+                    if df_unit.is_compatible_with(from_unit):
+                        df = df.multiply_quantity(VALUE_COLUMN, to_unit)
+                df = df.ensure_unit(VALUE_COLUMN, self.target_units[node.id])
+                instance.update_node_df(node.id, df)
+        return self
 
-postprocess_data = {
-    'emission_targets': emission_targets,
-    'none': no_processing,
-}
+    def sum_over_dims(self) -> DataCollection:
+        for instance in self.instances:
+            for node in instance.nodes:
+                df = node.df
+                dropcols = [dim for dim in df.primary_keys if dim != YEAR_COLUMN]
+                df = df.paths.sum_over_dims(dropcols)
+                instance.update_node_df(node_id=node.id, df=df)
+        return self
 
-async def main():
-    """
-    Collect data from several Kausal Paths instances.
+    def sum_over_instances(self) -> DataCollection:
+        # node_ids = list({node.id for instance in dc.instances for node in instance.nodes})
+        summary = InstanceData(id='sum_over_instances', target_year=0)
+        for instance in self.instances:
+            for node in instance.nodes:
+                df: PathsDataFrame = node.df
+                df = (df
+                    .with_columns(pl.lit(instance.id).alias('Instance'))
+                    .add_to_index('Instance')
+                )
+                sum_df: PathsDataFrame | None = summary.get_node_df(node.id)
+                if sum_df is None:
+                    summary.add_node(node.id, df)
+                elif set(sum_df.primary_keys) == set(df.primary_keys):
+                    summary.update_node_df(node.id, sum_df.paths.concat_vertical(df))
+                else:
+                    print(df.head())
+                    print(sum_df.head())
+                    self.logs.append("".join([
+                        f"Node {node.id} has primary keys {df.primary_keys} in instance {instance.id}",
+                        f" but expected {sum_df.primary_keys}. Ignore the node in sum."]))
+        for node in summary.nodes:
+            total = node.df.paths.sum_over_dims(['Instance', YEAR_COLUMN])
+            total = total.with_columns([
+                pl.lit('TOTAL').alias('Instance'),
+                pl.lit(0).alias(YEAR_COLUMN)]).add_to_index(['Instance', YEAR_COLUMN])
+            assert set(node.df.columns) == set(total.columns)
+            total = total.select(node.df.columns)
+            summary.update_node_df(node.id, node.df.paths.concat_vertical(total))
+        self.summaries.append(summary)
 
-    Typical command:
-    python ./notebooks/collect_city_data.py
-        --input ../netzeroplanner-framework-config/emission_potential.yaml
-        --output notebooks/emission_data
-    """
-    args = parse_args()
-    config = read_config(args.input)
-    processor = config.get('processor', 'none')
-    instances = config['instances']
-    node_ids = [node['id'] for node in config['nodes']]
-    url = config['url']
-    output_base = args.output
+        return self
 
-    results = await fetch_all_instances(url, instances, node_ids)
+    def report_log(self) -> None:
+        self.logs.append(f"Saving log file to {self.output_path}log.txt")
+        out = ["During processing, the following things happened:"]
+        out.extend(self.logs)
+        outtext = '\n'.join(out)
+        date = str(datetime.now().strftime("%Y-%m-%d"))  # noqa: DTZ005
+        with open(f'{self.output_path}log_{date}.txt', 'w') as f:  # noqa: PTH123
+            f.write(outtext)
+        print(outtext)
 
-    # Create a dictionary to store DataFrames by node
-    node_dfs: dict[str, list[ppl.PathsDataFrame]] = {}
+    def save_summaries(self) -> DataCollection:
+        self.logs.append("Saving summaries about:")
+        output_path = self.output_path
+        date = str(datetime.now().strftime("%Y-%m-%d"))  # noqa: DTZ005
+        for summary in self.summaries:
+            self.logs.append(f"- {summary.id}:")
+            for node in summary.nodes:
+                unit = self.target_units[node.id].replace('/', '-')
+                output_file = f"{output_path}{summary.id}_{node.id}_{unit}_{date}.csv"
+                node.df.write_csv(output_file)
+                self.logs.append(f"  - Saved nodes {node.id} in {output_file}.")
+        return self
 
-    for (instance, node_id), data in results.items():
-        # Find the target unit for this node
-        target_unit = next((node['target_unit'] for node in config['nodes'] if node['id'] == node_id), None)
+    def no_processing(self) -> DataCollection:
+        return self
 
-        if data is None:
-            print(f"    WARNING: Data cannot be collected for {node_id} in instance {instance}.")
-            continue
-        if data['data']['node'] is None:
-            print(f"    WARNING: Node {node_id} does not exist in instance {instance}.")
-            continue
+    def __init__(self, config_file: str):
+        config = self.read_config(config_file)
+        processors = config.get('processors', [])
+        output_path = config.get('output_path', '')
+        output_date: str = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))  # noqa: DTZ005
 
-        instance_df = create_dataframe(data, processor, f'{instance} {node_id}', target_unit)
+        self.output_path = output_path
+        self.output_date = output_date
+        self.processors = processors
+        self.instances = []
+        self.summaries = []
+        self.target_units = {node['id']: node['target_unit'] for node in config['nodes'] }
+        self.logs = [f"Collect data from {config_file}."]
 
-        # Add instance column
-        if instance_df is not None:
-            # Add instance and node columns
-            instance_df = instance_df.with_columns([
-                pl.lit(instance).alias('instance'),
-                pl.lit(node_id).alias('node'),
-                pl.lit(target_unit).alias('unit')
-            ])
+        instances = config['instances']
+        # instances = instances[0:10] # Used to simplify testing
+        node_ids = [node['id'] for node in config['nodes']]
 
-            # Add to the node_dfs dictionary
-            if node_id not in node_dfs:
-                node_dfs[node_id] = []
-            node_dfs[node_id].append(instance_df)
-
-    # Process each node separately
-    for node_id, dfs in node_dfs.items():
-        if dfs:
+        for instance_id in instances:
             try:
-                # Concatenate all instances for this node
-                node_df = pl.concat(dfs, how='vertical')
+                context = get_context(instance_id)
+            except FileNotFoundError:
+                self.logs.append(f"Instance {instance_id} not found. Skipping.")
+                continue
 
-                # Create summary rows for this node (sum across all instances)
-                summary_rows = (
-                    node_df
-                    .group_by([col for col in node_df.columns if col not in ['instance', VALUE_COLUMN, YEAR_COLUMN]]
-                    )
-                    .agg([pl.col(VALUE_COLUMN).sum().alias(VALUE_COLUMN),
-                        pl.lit(None).alias(YEAR_COLUMN)])
-                    .with_columns(pl.lit('ALL').alias('instance'))
-                ).select(node_df.columns)
+            nodes = get_nodes(instance_id)
+            target_year = context.target_year
+            instance = self.add_instance(instance_id=instance_id, target_year=target_year)
+            for node_id in node_ids:
+                node = nodes.get(node_id)
+                if node is None:
+                    self.logs.append(f"Node {node_id} not found in instance {instance.id}.")
+                    continue
+                try:
+                    df = node.get_output_pl()
+                    instance.add_node(node_id=node_id, df=df)
+                except (ValueError, NodeComputationError):
+                    self.logs.append(f"Node {node_id} in instance {instance.id} gave and error and is skipped.")
+                    continue
 
-                final_node_df = pl.concat([node_df, summary_rows], how='vertical')
+    def process_data(self) -> DataCollection:
 
-                # Save to a node-specific CSV file
-                output_file = f"{output_base}_{node_id.replace('.', '_')}.csv"
-                print(f"Saving node {node_id} to {output_file}")
-                final_node_df.write_csv(output_file)
+        PROCESS_DATA = {
+            'convert_to_target_units': self.convert_to_target_units,
+            'find_target_values': self.find_target_values,
+            'save_summaries': self.save_summaries,
+            'sum_over_dims': self.sum_over_dims,
+            'sum_over_instances': self.sum_over_instances,
+            'none': self.no_processing,
+        }
+        dc = self
+        for processor in dc.processors:
+            if processor not in PROCESS_DATA.keys():
+                dc.logs.append(f"Processor {processor} is not defined. Ignoring.")
+                continue
+            dc.logs.append(f"Processing {processor} ...")
+            dc = PROCESS_DATA[processor]()
+        return dc
 
-            except Exception as e:
-                print(f"Error processing node {node_id}: {e}")
-        else:
-            print(f"No data for node {node_id}")
 
-    return True
+def main():
+
+    config_file = sys.argv[1]
+
+    dc = DataCollection(config_file=config_file)
+    dc = dc.process_data()
+
+    dc.report_log()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
