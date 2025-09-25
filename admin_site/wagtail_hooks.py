@@ -84,6 +84,10 @@ hooks.register('register_admin_menu_item', register_instance_chooser)
 
 @hooks.register('construct_main_menu')
 def hide_snippets_menu_item(request, menu_items):
+    # Hide snippets menu item, because the word "snippet" is just confusing in
+    # our use case and grouping up all snippets (almost all our adminable models
+    # are implemented as snippets) under one menu item does not bring any value
+    # to us.
     menu_items[:] = [item for item in menu_items if item.name != 'snippets']
 
 @hooks.register('construct_main_menu')
