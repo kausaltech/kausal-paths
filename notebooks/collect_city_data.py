@@ -1,3 +1,6 @@
+# A previous version collected the data directly from the production instances via API.
+# https://github.com/kausaltech/kausal-paths/blob/6471f1c860aa86e177290f80bced9435113e4ea6/nodes/management/commands/collect_city_data.py
+
 # ruff: noqa: F401
 from __future__ import annotations
 
