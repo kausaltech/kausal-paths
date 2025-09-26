@@ -26,6 +26,7 @@ from .constants import (
     YEAR_COLUMN,
 )
 from .exceptions import NodeError
+from .explanations import TAG_TO_BASKET
 from .simple import SimpleNode
 
 if TYPE_CHECKING:
@@ -88,21 +89,6 @@ class GenericNode(SimpleNode):
     def _get_input_baskets(self, nodes: list[Node]) -> dict[str, list[Node]]:
         """Return a dictionary of node 'baskets' categorized by type."""
         baskets: dict[str, list[Node]] = defaultdict(list)
-        tag_to_basket = {
-            'additive': 'additive',
-            'non_additive': 'multiplicative',
-            'other_node': 'other',
-            'rate': 'other',
-            'base': 'other',
-            'use_as_totals': 'use_as_totals',
-            'use_as_shares': 'use_as_shares',
-            'split_by_existing_shares': 'split_by_existing_shares',
-            'split_evenly_to_cats': 'split_evenly_to_cats',
-            'add_to_existing_dims': 'add_to_existing_dims',
-            'add_from_incoming_dims': 'add_from_incoming_dims',
-            'skip_dim_test': 'skip_dim_test',
-            'coalesce': 'coalesce',
-        }
         # Special tags that should be skipped completely
         skip_tags = {'ignore_content'}
 
@@ -116,7 +102,7 @@ class GenericNode(SimpleNode):
                 continue
 
             assigned = False
-            for tag, basket in tag_to_basket.items():
+            for tag, basket in TAG_TO_BASKET.items():
                 if tag in edge.tags or tag in node.tags:
                     baskets[basket].append(node)
                     assigned = True
@@ -126,16 +112,16 @@ class GenericNode(SimpleNode):
                 df = node.get_output_pl(target_node=self) # Works with multi-metric nodes.
                 df_unit = df.get_unit(VALUE_COLUMN)
                 if self.is_compatible_unit(self.unit, df_unit):
-                    baskets['additive'].append(node)
+                    baskets['add'].append(node)
                 else:
-                    baskets['multiplicative'].append(node)
+                    baskets['multiply'].append(node)
 
         return baskets
 
     # Operation wrapper functions
     def _operation_multiply(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
-        """Multiply all nodes in the multiplicative basket."""
-        nodes = baskets['multiplicative']
+        """Multiply all nodes in the multiply basket."""
+        nodes = baskets['multiply']
         if nodes and len(nodes) > 0:
             df = self.multiply_nodes_pl(
                 df=df,
@@ -144,12 +130,12 @@ class GenericNode(SimpleNode):
                 unit=kwargs.get('unit'),
                 start_from_year=kwargs.get('start_from_year')
             )
-            baskets['multiplicative'] = []
+            baskets['multiply'] = []
         return df, baskets
 
     def _operation_add(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
-        """Add all nodes in the additive basket."""
-        nodes = baskets['additive']
+        """Add all nodes in the add basket."""
+        nodes = baskets['add']
         if nodes and len(nodes) > 0:
             df = self.add_nodes_pl(
                 df=df,
@@ -161,7 +147,7 @@ class GenericNode(SimpleNode):
                 start_from_year=kwargs.get('start_from_year'),
                 ignore_unit=True
             )
-            baskets['additive'] = []
+            baskets['add'] = []
         return df, baskets
 
     def _operation_other(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
@@ -699,8 +685,8 @@ class WeightedSumNode(GenericNode):
         if weights_df is None:
             return df, baskets
 
-        # Focus specifically on nodes in the additive basket
-        additive_nodes = baskets['additive']
+        # Focus specifically on nodes in the add basket
+        additive_nodes = baskets['add']
         if not additive_nodes:
             raise NodeError(
                 self,
@@ -716,10 +702,10 @@ class WeightedSumNode(GenericNode):
             self.logger.warning(f"No matching nodes found in weights DataFrame for {self.id}")
             return df, baskets
 
-        # Remove processed nodes from additive basket (to prevent double-counting)
+        # Remove processed nodes from add basket (to prevent double-counting)
         processed_nodes = [node for node in additive_nodes if node.id in weights_df['node'].unique()]
         for node in processed_nodes:
-            baskets['additive'].remove(node)
+            baskets['add'].remove(node)
 
         return result, baskets
 

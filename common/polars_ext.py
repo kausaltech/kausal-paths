@@ -38,7 +38,6 @@ class PathsExt:
         """Project the DataFrame wide (dimension categories become columns) and group by year."""
 
         df = self._df
-        explanation = df.explanation
 
         if meta is None:
             meta = df.get_meta()
@@ -120,7 +119,6 @@ class PathsExt:
         meta2 = ppl.DataFrameMeta(
             units=units,
             primary_keys=[YEAR_COLUMN],
-            explanation=explanation
         )
         return ppl.PathsDataFrame._from_pydf(
             mdf._df,

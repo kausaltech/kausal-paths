@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     import networkx  # noqa: ICN001
     from rich.repr import RichReprResult
 
+    from nodes.explanations import NodeExplanationSystem
     from params import Parameter
     from params.storage import SettingStorage
 
@@ -77,6 +78,9 @@ class Context:
 
     global_parameters: dict[str, Parameter]
     """Global parameters not specific to any individual node."""
+
+    node_explanation_system: NodeExplanationSystem
+    """Explanations and validations for nodes and node graph."""
 
     scenarios: dict[str, Scenario]
     """All scenarios in the context keyed by the scenario identifier."""
@@ -215,6 +219,7 @@ class Context:
             redis_url=os.getenv('REDIS_URL'),
             base_logger=self.log,
         )
+        self.node_explanation_system: NodeExplanationSystem | None = None
         if env_bool('DISABLE_PATHS_MODEL_CACHE', default=False):
             self.skip_cache = True
         super().__init__()

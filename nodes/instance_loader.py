@@ -25,6 +25,7 @@ from common.i18n import TranslatedString, gettext_lazy as _, set_default_languag
 from nodes.actions import ActionNode
 from nodes.constants import DecisionLevel
 from nodes.exceptions import NodeError
+from nodes.explanations import NodeExplanationSystem
 from nodes.normalization import Normalization
 from pages.config import pages_from_config
 
@@ -438,6 +439,9 @@ class InstanceLoader:
         # might.
         if ds_config is None:
             ds_config = getattr(node_class, 'input_datasets', [])
+        elif isinstance(ds_config, list):
+            import copy
+            ds_config = copy.deepcopy(ds_config)
 
         ds_interpolate = False
         idp_confs = config.get('input_dataset_processors', [])
@@ -747,17 +751,22 @@ class InstanceLoader:
         emission_unit = self.config.get('emission_unit')
         assert emission_unit is not None
         emission_unit = self.context.unit_registry.parse_units(emission_unit)
+        dims = self.config.get('emission_dimensions', [])
 
         for ec in self.config.get('emission_sectors', []):
+            assert isinstance(ec, dict)
             parent_id = ec.pop('part_of', None)
             data_col = ec.pop('column', None)
             data_category = ec.pop('category', None)
+            unit = ec.pop('unit', emission_unit)
+            dim_i = ec.pop('input_dimensions', dims)
+            dim_o = ec.pop('output_dimensions', dims)
             if 'name_en' in ec and 'emissions' not in ec['name_en']:
                 ec['name_en'] += ' emissions'
             nc = dict(
                 output_nodes=[parent_id] if parent_id else [],
-                input_dimensions=self.config.get('emission_dimensions', []),
-                output_dimensions=self.config.get('emission_dimensions', []),
+                input_dimensions=dim_i,
+                output_dimensions=dim_o,
                 input_datasets=[
                     dict(
                         id=dataset_id,
@@ -768,7 +777,7 @@ class InstanceLoader:
                 ]
                 if data_col or data_category
                 else [],
-                unit=emission_unit,
+                unit=unit,
                 params=dict(category=data_category) if data_category else [],
                 **ec,
             )
@@ -1003,6 +1012,36 @@ class InstanceLoader:
             n_id = n.normalizer_node.id
             self.context.add_normalization(n_id, n)
 
+    def setup_validation_graph(self):
+        config = self.config
+        nodes = config.get('nodes')
+        assert isinstance(nodes, list)
+
+        all_nodes = [] # FIXME Or collect from context?
+        all_nodes.extend(nodes)
+        all_actions = config.get('actions')
+        if all_actions is not None:
+            all_nodes.extend(all_actions)
+
+        emission_sectors = config.get('emission_sectors')
+        if emission_sectors is not None:
+            for es in emission_sectors:
+                es['type'] = 'simple.SectorEmissions'
+                es['unit'] = config.get('emission_unit')
+                es['input_dimensions'] = config.get('emission_dimensions')
+                es['output_dimensions'] = config.get('emission_dimensions')
+                all_nodes.append(es)
+
+        nes = NodeExplanationSystem(self.context, all_nodes)
+        self.context.node_explanation_system = nes
+
+    def setup_validations(self):
+        nes = self.context.node_explanation_system
+        assert nes is not None
+        nes.generate_validations()
+        nes.generate_input_baskets()
+        nes.generate_explanations()
+
     @classmethod
     def from_dict_config(cls, config: dict, fw_config: FrameworkConfig | None = None) -> Self:
         yaml_path = config.get('yaml_file_path')
@@ -1071,7 +1110,7 @@ class InstanceLoader:
         ds_objs = DBDatasetModel.mgr.qs.for_instance_config(ic).only('uuid', 'identifier', 'last_modified_at') # type: ignore
         self.db_datasets = {ds.identifier: ds for ds in ds_objs}
 
-    def _init_instance(self) -> None:  # noqa: PLR0915
+    def _init_instance(self) -> None:  # noqa: C901, PLR0915
         import dvc_pandas
 
         from nodes.actions.action import ActionGroup
@@ -1184,6 +1223,7 @@ class InstanceLoader:
         self._scenario_values = {}
         self._node_visualizations = {}
         self.db_datasets = {}
+        self.setup_validation_graph()
         self.setup_dimensions()
         self.generate_nodes_from_emission_sectors()
         self.setup_global_parameters()
@@ -1195,6 +1235,7 @@ class InstanceLoader:
         self.setup_scenarios()
         self.setup_normalizations()
         self.setup_node_visualizations()
+        self.setup_validations()
 
         for scenario in self.context.scenarios.values():
             if scenario.default:

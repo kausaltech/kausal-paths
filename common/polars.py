@@ -31,7 +31,6 @@ if typing.TYPE_CHECKING:
 class DataFrameMeta:
     units: dict[str, Unit]
     primary_keys: list[str]
-    explanation: list[str] = field(default_factory=list)
 
     @classmethod
     def get_dim_ids(cls, pks: list[str]) -> list[str]:
@@ -52,7 +51,6 @@ class DataFrameMeta:
         return DataFrameMeta(
             units=self.units.copy(),
             primary_keys=self.primary_keys.copy(),
-            explanation = self.explanation.copy()
         )
 
     def serialize(self) -> dict[str, Any]:
@@ -100,7 +98,6 @@ class PathsDataFrame(pl.DataFrame):
             if col in df.columns:
                 df._primary_keys.append(col)
 
-        df._explanation = meta.explanation.copy() if meta.explanation else []
         validate_ppdf(df)
 
         return df
@@ -116,20 +113,6 @@ class PathsDataFrame(pl.DataFrame):
     @property
     def metric_cols(self) -> list[str]:
         return list(self._units.keys())
-
-    @property
-    def explanation(self) -> list:
-        """Get the explanation from attribute (for consistency)."""
-        if not hasattr(self, '_explanation'):
-            self._explanation = []
-        return self._explanation
-
-    def with_explanation(self, explanation: list) -> PathsDataFrame:
-        """Return a new PathsDataFrame with the updated explanation."""
-        meta = self.get_meta()
-        meta.explanation = explanation.copy()
-        df = self.replace_meta(meta)
-        return df
 
     def replace_meta(self, meta: DataFrameMeta):
         return self._from_pydf(self._df, meta=meta)
@@ -290,11 +273,9 @@ class PathsDataFrame(pl.DataFrame):
         return df
 
     def get_meta(self) -> DataFrameMeta:
-        explanation_list = getattr(self, '_explanation', [])
         meta = DataFrameMeta(
             units=self._units.copy(),
             primary_keys=self._primary_keys.copy(),
-            explanation=explanation_list.copy()
         )
         return meta
 
@@ -624,18 +605,11 @@ def to_ppdf(df: pl.DataFrame | PathsDataFrame, meta: DataFrameMeta | None = None
         validate_ppdf(df)
         return df
 
-    source_explanation = []
-    if isinstance(df, PathsDataFrame) and hasattr(df, '_explanation'):
-        source_explanation = df._explanation.copy() if df._explanation else []
-
     if meta is None:
         meta = DataFrameMeta(
             units={},
             primary_keys=[],
-            explanation=source_explanation
         )
-    elif source_explanation and not meta.explanation:
-        meta.explanation = source_explanation
 
     pdf = PathsDataFrame._from_pydf(df._df, meta=meta)
     validate_ppdf(pdf)
@@ -678,7 +652,7 @@ def from_dvc_dataset(ds: DVCDataset):
         for col, unit in ds.units.items():
             units[col] = unit_registry.parse_units(unit)
     primary_keys = ds.index_columns or []
-    pldf = PathsDataFrame._from_pydf(ds.df._df, meta=DataFrameMeta(units, primary_keys, explanation=[]))  # pyright: ignore[reportPrivateUsage]
+    pldf = PathsDataFrame._from_pydf(ds.df._df, meta=DataFrameMeta(units, primary_keys))
     return pldf
 
 
