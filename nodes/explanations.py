@@ -69,9 +69,7 @@ class NodeInfo:
 # FIXME Make descriptions concise.
 NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
     'AdditiveAction': NodeInfo(_("""Simple action that produces an additive change to a value.""")),
-    'AdditiveNode': NodeInfo(_(
-        """This is an Additive Node. It performs a simple addition of inputs.
-        Missing values are assumed to be zero.""")),
+    'AdditiveNode': NodeInfo(_("")),
     'AlasEmissions': NodeInfo(
         _("""AlasEmissions is a specified node to handle emissions from the ALas model by Syke."""),
         deprecated=True),
@@ -220,7 +218,7 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         """This is a Fixed Multiplier Node. It multiplies a single input node with a parameter.""")),
     'FloorAreaNode': NodeInfo(_('Floor area node takes in actions and calculates the floor area impacted.')),
     'FormulaNode': NodeInfo(_('This is a Formula Node. It uses a specified formula to calculate the output.')),
-    'GenericNode': NodeInfo(_("Multiply input nodes whose unit does not match the output. Add the rest.")),
+    'GenericNode': NodeInfo(_("")),
     'GpcTrajectoryAction': NodeInfo(_(
         """
         GpcTrajectoryAction is a trajectory action that uses the DatasetNode to fetch the dataset.
@@ -276,11 +274,7 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         when operated with the GenericNode compute(). The probability is calculated as
         ln(y / (1 - y)) = b <=> y = 1 / (1 + exp(-b)).
         """)),
-    'MultiplicativeNode': NodeInfo(_(
-        """This is a Multiplicative Node. It multiplies nodes together with potentially adding other input nodes.
-
-        Multiplication and addition is determined based on the input node units.
-        """)),
+    'MultiplicativeNode': NodeInfo(_("")),
     'Population': NodeInfo(_("Population is a specific node about Finnish population."), deprecated=True),
     'ReduceAction': NodeInfo(_("""Define action with parameters <i>reduce</i> and <i>multiplier</i>.""")),
     'SCurveAction': NodeInfo(_(
@@ -293,8 +287,7 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         of the curve, and x0 is the midpoint year.
         Newton-Raphson method is used to numerically estimate slope and medeian year.
         """)),
-    'SectorEmissions': NodeInfo(_(
-        "SectorEmissions is like AdditiveNode. It is used when creating nodes from emission_sectors.")),
+    'SectorEmissions': NodeInfo(_("")),
     'ThresholdNode': NodeInfo(_(
         """
         ThresholdNode computes a preliminary result using standard GenericNode operations.
@@ -444,7 +437,7 @@ class NodeExplanationSystem:
 
         return self
 
-    def validate_all_nodes(self) -> dict[str, list[ValidationResult]]:
+    def generate_validations(self) -> dict[str, list[ValidationResult]]:
         """Validate all nodes with complete graph information."""
         all_results: dict[str, list[ValidationResult]] = {}
 
@@ -463,7 +456,7 @@ class NodeExplanationSystem:
         self.validations = all_results
         return all_results
 
-    def generate_all_explanations(self) -> dict[str, list[str]]:
+    def generate_explanations(self) -> dict[str, list[str]]:
         """Generate explanations for all nodes."""
 
         all_results = {}
@@ -484,7 +477,7 @@ class NodeExplanationSystem:
         self.explanations = all_results
         return all_results
 
-    def get_input_baskets(self) -> dict[str, dict[str, list[str]]]:
+    def generate_input_baskets(self) -> dict[str, dict[str, list[str]]]:
         """Return a dictionary of node 'baskets' categorized by type."""
         baskets: dict[str, dict[str, list[str]]] = {}
         # Special tags that should be skipped completely
@@ -495,19 +488,19 @@ class NodeExplanationSystem:
 
             # Categorize nodes by tags
             assert isinstance(node_config, dict)
-            for input_n in node_config.get('input_nodes', []):
+            for input_id in self.graph.inputs.get(node_id, []):
                 basket = 'unknown'
-                input_id = input_n if not isinstance(input_n, dict) else input_n['id']
                 input_node = self.graph.nodes[input_id]
                 assigned = False
                 if 'tags' in input_node:
                     if any(tag in input_node['tags'] for tag in skip_tags): #  or tag in node.tags
                         basket = 'skip'
-
-                    for tag, basket in TAG_TO_BASKET.items():  # noqa: B007
-                        if tag in input_node['tags']: # TODO or tag in node.tags:
-                            assigned = True
-                            break
+                        assigned = True
+                    else:
+                        for tag, basket in TAG_TO_BASKET.items():  # noqa: B007
+                            if tag in input_node['tags']: # TODO or tag in node.tags:
+                                assigned = True
+                                break
 
                 if not assigned:
                     node_unit = node_config.get('unit') # FIXME Does not Work with multi-metric nodes.
@@ -690,7 +683,7 @@ class NodeClassRule(ValidationRule):
             typ = typ.split('.')[-1]
             desc = NODE_CLASS_DESCRIPTIONS.get(typ)
             if desc:
-                html.append(desc.description)
+                html.append(f"{desc.description}<br>")
         operations = self.get_param(node_config, 'operations')
         formula = self.get_param(node_config, 'formula')
         other = self.get_all_params(node_config, drop = ['operations', 'formula'])
@@ -1020,9 +1013,23 @@ class DatasetRule(ValidationRule):
 class EdgeRule(ValidationRule):
 
     def explain(self, node_config: dict, context: Context) -> list[str]:
-        txt = _('The input nodes are processed in the following way before using as input for calculations in this node:')
+        txt = _('The inputs are processed in the following way before using for calculations in this node:')
         html = [f"<p>{txt}<ul>"]  # Start the main list for nodes
         edge_html0 = html.copy()
+
+        def _get_node_name_text(node_id: str, context: Context) -> str:
+            langs = ['']
+            langs.append(f'_{context.instance.default_language}')
+            langs.extend([f'_{lang}' for lang in context.instance.supported_languages])
+            nes = context.node_explanation_system
+            assert nes is not None
+            print(nes.graph.nodes)
+            node = nes.graph.nodes[node_id]
+            for lang in langs:
+                key = f'name{lang}'
+                if node.get(key):
+                    return f"{_('Node')} <i>{node[key]}</i>"
+            return f"{_('Node with identifier')} <i>{node_id}</i>"
 
         for input_node in node_config.get('input_nodes', {}):
 
@@ -1031,13 +1038,9 @@ class EdgeRule(ValidationRule):
             tag_html.extend(self.get_explanation_for_edge_to(input_node))
 
             if tag_html:
-
-                node_name = input_node.get('name')
-                if node_name:
-                    html.append(f"<li>{_('Node')} <i>{node_name}</i>:")
-                else:
-                    html.append(f"<li>{_('Node with identifier')} <i>{input_node['id']}</i>:")
-
+                input_id = input_node if not isinstance(input_node, dict) else input_node['id']
+                txt = _get_node_name_text(input_id, context)
+                html.append(f"<li>{txt}:")
                 # Create a list item for the node with nested list
                 html.append("<ul>")  # Start nested list for this node
                 html.extend(tag_html)

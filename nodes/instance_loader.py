@@ -1038,9 +1038,9 @@ class InstanceLoader:
     def setup_validations(self):
         nes = self.context.node_explanation_system
         assert nes is not None
-        nes.validate_all_nodes()
-        nes.get_input_baskets()
-        nes.generate_all_explanations()
+        nes.generate_validations()
+        nes.generate_input_baskets()
+        nes.generate_explanations()
 
     @classmethod
     def from_dict_config(cls, config: dict, fw_config: FrameworkConfig | None = None) -> Self:
