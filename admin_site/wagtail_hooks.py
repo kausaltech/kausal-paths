@@ -84,7 +84,19 @@ hooks.register('register_admin_menu_item', register_instance_chooser)
 
 @hooks.register('construct_main_menu')
 def hide_snippets_menu_item(request, menu_items):
+    # Hide snippets menu item, because the word "snippet" is just confusing in
+    # our use case and grouping up all snippets (almost all our adminable models
+    # are implemented as snippets) under one menu item does not bring any value
+    # to us.
     menu_items[:] = [item for item in menu_items if item.name != 'snippets']
+
+@hooks.register('construct_main_menu')
+def hide_reports_menu_item(request, menu_items):
+    # Hide reports menu item, because the reports Wagtail automatically generates
+    # are not scoped to the instance. If needed, the reports could be customised,
+    # look for more info in Wagtail docs:
+    # https://docs.wagtail.org/en/v6.4.2/extending/adding_reports.html
+    menu_items[:] = [item for item in menu_items if item.name != 'reports']
 
 
 @hooks.register('construct_reports_menu')
