@@ -28,7 +28,52 @@
     { once: true, passive: true },
   );
 
+  const userFoundText = "{% trans 'Your Kausal Paths admin portal has moved.' %}";
+const redirectingText = "{% trans 'Redirecting to {url} in {count} seconds...' %}";
+const goNowText = "{% trans 'Go Now' %}";
+
+function showClusterRedirectNotice(clusterResult) {
+    const clusterUrl = clusterResult.cluster_url;
+    const redirectUrl = `${clusterUrl}/admin/`;
+
+    const redirectUrlWithState = `${redirectUrl}#from-redirect`;
+
+    let countdown = 10;
+
+    $('.messages').empty().append(`
+        <ul>
+            <li class="success">
+                <strong>${userFoundText}</strong><br>
+                ${redirectingText.replace('{url}', `<a href="${redirectUrlWithState}" target="_blank">${redirectUrl}</a>`).replace('{count}', `<span id="countdown">${countdown}</span>`)}<br><br>
+                <button onclick="window.location.href='${redirectUrlWithState}'" class="button button-small button-secondary">${goNowText}</button>
+            </li>
+        </ul>
+    `);
+
+    const timer = setInterval(() => {
+        countdown--;
+        const countdownElement = document.getElementById('countdown');
+        if (countdownElement) {
+            countdownElement.textContent = countdown;
+        }
+        if (countdown <= 0) {
+            clearInterval(timer);
+            window.location.href = redirectUrlWithState;
+        }
+    }, 1000);
+}
   $(function() {
+    if (window.location.hash === '#from-redirect') {
+        $('.messages').empty().append(`
+            <ul>
+                <li class="success">
+                    <strong>{% trans "You were successfully redirected" %}</strong><br>
+                    {% trans "Please bookmark this page for future use." %}
+                </li>
+            </ul>
+        `);
+        window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+    }
       const setError = (detail) => {
           $('.messages').empty().append(`<ul><li class="error">${detail}</li></ul>`);
       };
@@ -103,7 +148,14 @@
               setTimeout(() => { window.cancelSpinner() }, 50);
               return;
           }
-          const { method } = resp;
+          const { method, cluster_redirect, cluster_url } = resp;
+            // If we are redirecting to another cluster, we hide the submit button and the email field
+            if (cluster_redirect) {
+                $('button[type="submit"]').hide();
+                $('#id_username').closest('.w-field__wrapper').hide();
+                showClusterRedirectNotice({ cluster_url });
+                return;
+            }
           if (!method) {
               setUnknownError();
               return;
