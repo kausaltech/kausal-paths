@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import dataclasses
+import re
 from datetime import datetime  # noqa: TC003
 from typing import TYPE_CHECKING, Annotated, Any, Protocol, cast
 
@@ -474,6 +475,10 @@ class NodeInterface(graphene.Interface):
     goals = graphene.List(graphene.NonNull(NodeGoal), active_goal=graphene.ID(required=False), required=True)
     is_action = graphene.Boolean(required=True, deprecation_reason='Use __typeName instead')
     explanation = graphene.String(required=False)
+    node_type = graphene.String(required=True)
+    tags = graphene.List(graphene.String)
+    input_dimensions = graphene.List(graphene.String)
+    output_dimensions = graphene.List(graphene.String)
 
     visualizations = graphene.List(graphene.NonNull(VisualizationEntry), required=False)
 
@@ -672,6 +677,26 @@ class NodeInterface(graphene.Interface):
         #     return None
         # return expand_db_html(nc.description_i18n)
         return root.get_explanation()
+
+    @staticmethod
+    def resolve_node_type(root: Node, info: GQLInstanceInfo) -> str:
+        typ = str(type(root))
+        typstr = re.search(r"'([^']*)'", typ)
+        if typstr is not None:
+            return typstr.group(1)
+        return ''
+
+    @staticmethod
+    def resolve_tags(root: Node, info: GQLInstanceInfo) -> list[str]:
+        return list(root.tags)
+
+    @staticmethod
+    def resolve_input_dimensions(root: Node, info: GQLInstanceInfo) -> list[str]:
+        return list(root.input_dimensions.keys())
+
+    @staticmethod
+    def resolve_output_dimensions(root: Node, info: GQLInstanceInfo) -> list[str]:
+        return list(root.output_dimensions.keys())
 
     @staticmethod
     def resolve_body(root: Node, _info: GQLInstanceInfo) -> StreamValue | None:
