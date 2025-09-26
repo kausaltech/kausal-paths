@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://aarhus-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 46495c38ae3a72df829334b6c638e2909e832e18
+  commit: 7a09068e2daeae84988d20a1d207898c019361a5
   dvc_remote: kausal-s3
 name: Aarhus Greenhouse Gas Inventory
 owner: City of Aarhus
@@ -28,6 +28,12 @@ action_groups:
 - id: transportation
   name: Transportation
   color: '#E15759'
+- id: waste
+  name: Waste
+  color: '#59A14F'
+- id: ippu
+  name: Industrial Process & Product Use
+  color: '#F28E2B'
 - id: afolu
   name: Agriculture, Forestry & Other Land Use
   color: '#B07AA1'
@@ -264,6 +270,8 @@ dimensions:
     label: 'Forestry: Permanent Forest'
   - id: v132
     label: 'Forestry: Afforestation'
+  - id: v133
+    label: 'Forestry: New Forest'
   - id: v2
     label: Livestock
   - id: v21
@@ -384,7 +392,7 @@ nodes:
     forecast_from: 2024
     filters:
     - dimension: sector
-      category: [i11]
+      categories: [i11]
     - column: ghg
 
 - id: chp_district_heat_emissions
@@ -2000,6 +2008,44 @@ actions:
   output_nodes:
   - id: waterborne_transport_energy_consumption
   - id: aviation_energy_consumption
+
+# ----- Waste
+- id: biocover_on_landfills
+  name: Biocover on Landfills
+  group: waste
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
+  input_datasets:
+  - id: aarhus/waste_actions
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: biocover_on_landfills
+  output_nodes:
+  - id: waste_emissions
+
+# ----- IPPU
+- id: green_materials_in_industry_and_construction
+  name: Green Materials in Industry and Construction
+  group: ippu
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
+  input_datasets:
+  - id: aarhus/ippu_actions
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: green_materials_in_industry_and_construction
+  output_nodes:
+  - id: ippu_emissions
 
 # ----- AFOLU
 - id: climate_supervision_and_action_plans
