@@ -119,6 +119,10 @@ class User(AbstractUser):
     def has_instance_role(self, role: PathsRoleIdentifier | InstanceSpecificRole[Any], obj: Model) -> bool:
         return self.perms.has_instance_role(role, obj)
 
+    def has_instance_role_in_any_instance(self, role_id: PathsRoleIdentifier) -> bool:
+        role = role_registry.get_role(role_id)
+        return self.perms.has_instance_role_in_any_instance(role)
+
     def has_instance_role_with_id(self, role_id: PathsRoleIdentifier, obj: Model) -> bool:
         role = role_registry.get_role(role_id)
         return self.has_instance_role(role, obj)
