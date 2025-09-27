@@ -13,7 +13,7 @@ supported_languages: [es-US]
 site_url: https://longmont-dev.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 4caadc8fa723423480e24460659137dea875d34d
+  commit: d8d0ab790fe745d4a09a70b0abbc7a6bc09eda49
   dvc_remote: kausal-s3
 name: 2025 Draft Longmont Greenhouse Gas Inventory
 name_es-US: 2025 Inventario de gases de efecto invernadero de Longmont
@@ -228,6 +228,10 @@ dimensions:
 - id: emission_sectors
   label: Emission sectors
   label_es-US: Sectores de emisión
+  # groups: # FIXME Make the groups work prperly
+  # - id: streetlights_and_internal_operations
+  #   label: Streetlights and iinternal operations
+  #   label_es-US: Alumbrado público e operaciones internas
   categories:
   - id: stationary_energy
     label: Stationary energy
@@ -241,9 +245,15 @@ dimensions:
   - id: commercial_industrial_energy
     label: Commercial and industrial energy
     label_es-US: Energía comercial e industrial
+    aliases: [commercial_energy]
   - id: streetlights
     label: Streetlights
     label_es-US: Alumbrado público
+    # group: streetlights_and_internal_operations
+  - id: internal_operations
+    label: Internal operations
+    label_es-US: Operaciones internas
+    # group: streetlights_and_internal_operations
   - id: stationary_electricity
     label: Total electricity
     label_es-US: Electricidad total
@@ -548,6 +558,9 @@ dimensions:
   - id: longmont_power
     label: Longmont Power
     label_es-US: Longmont Power
+  - id: platte_river_power_authority
+    label_en: Platte River Power Authority
+    label_es-US: Platte River Power Authority
   - id: xcel_energy
     label: Xcel Energy
     label_es-US: Xcel Energy
@@ -737,6 +750,12 @@ params:
   min_value: 0
   max_value: 2
   unit: '%/a'
+- id: weather_correction
+  label: Include reductions?
+  label_es-US: ¿Incluir reducciones de emisiones?
+  value: false
+  is_visible: true
+  is_customizable: true
 
 emission_sectors:
 - id: net_emissions
@@ -903,6 +922,79 @@ nodes:
   output_dimensions: [greenhouse_gases]
   input_dataset_processors: [LinearInterpolation]
   historical_values: [[1990, 1], [2021, 1]]
+
+# Avoided emissions
+
+- id: avoided_emissions
+  name: Avoided emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_nodes:
+  - id: informational_composting_emission_reduction
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: ghg
+      flatten: true
+  - id: recycling_emission_reduction
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: waste
+      flatten: true
+
+- id: avoided_emissions_if_included
+  name: Avoided emissions if included
+  description: Conditional amount of emissions that can be avoided by composting and recycling. You can change the setting from the scenario editing panel. By default, these reductions are not included in total emissions. But they can be seen on their own page "Avoided emissions".
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_nodes:
+  - id: informational_composting_emission_reduction
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: ghg
+      flatten: true
+  - id: recycling_emission_reduction
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: waste
+      flatten: true
+  - id: exclude_reductions
+    tags: [complement]
+  params:
+    operations: add,multiply
+  output_nodes:
+  - id: waste_emissions2
+    to_dimensions:
+    - id: scope
+      categories: [scope3]
+    - id: ghg
+      categories: [co2e]
+
+- id: exclude_reductions
+  name: Exclude reductions
+  name_es-US: Excluir reducciones de emisiones
+  type: generic.GenericNode
+  quantity: fraction
+  unit: dimensionless
+  input_datasets:
+  - id: longmont/technical_data
+    forecast_from: 2024
+    tags: [baseline]
+    column: ratio
+  params:
+  - id: operations
+    value: do_correction
+  - id: do_correction
+    ref: weather_correction
 
 #
 # STATIONARY

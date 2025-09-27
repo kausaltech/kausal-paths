@@ -501,22 +501,21 @@ def process_dataset(
 
     # 7. Pivot by compound ID
     df = pivot_by_compound_id(df)
-    dim_ids = [s for s in df.columns if s not in units.keys()]
-    print(f"Data pivoted by compound identifiers with dimension columns: {dim_ids}")
 
     # 8. Check for issues
     if check_for_duplicates(df):
         print("Warning: Dataframe contains duplicate rows")
 
     # 9. Prepare for DVC (standardize column names)
+    df = prepare_for_dvc(df, units)
+    dim_ids = [s for s in df.columns if s not in units.keys()]
+    print(f"Data pivoted by compound identifiers with dimension columns: {dim_ids}")
     if context:
-        dims = [dim for dim in dim_ids if dim != YEAR_COLUMN]
-        cols = {col: to_snake_case(col) for col in dims}
-        df = df.rename(cols)
-        print('Changed these column names:', cols)
+        # dims = [dim for dim in dim_ids if dim != YEAR_COLUMN]
+        # cols = {col: to_snake_case(col) for col in dims}
+        # df = df.rename(cols)
+        # print('Changed these column names:', cols)
         df = convert_names_to_cats(df, units, context)
-    else:
-        df = prepare_for_dvc(df, units)
 
     # 10. Save to CSV if requested
     if outcsvpath:

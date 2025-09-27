@@ -1023,7 +1023,6 @@ class EdgeRule(ValidationRule):
             langs.extend([f'_{lang}' for lang in context.instance.supported_languages])
             nes = context.node_explanation_system
             assert nes is not None
-            print(nes.graph.nodes)
             node = nes.graph.nodes[node_id]
             for lang in langs:
                 key = f'name{lang}'
