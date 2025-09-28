@@ -816,6 +816,8 @@ class DatasetRule(ValidationRule):
 
     def _explain_dim_filters(self, d: dict[str, Any], context: Context) -> str:
         dim_id = d['dimension']
+        if dim_id not in context.dimensions and d.get('flatten'):
+            return f"Drop column {dim_id} by summing up." # Dimension rather than column filter is used to sum up duplicate rows.
         dim = context.dimensions[dim_id]
         if 'assign_category' in d:
             cat_id = d['assign_category']
