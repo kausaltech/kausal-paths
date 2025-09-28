@@ -1017,12 +1017,16 @@ nodes:
   type: generic.GenericNode
   quantity: energy
   unit: GWh/a
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
+  input_dimensions: [emission_sectors, site]
+  output_dimensions: [emission_sectors, site]
   input_datasets:
   - id: longmont/stationary_energy_consumption
     tags: [baseline]
     column: electricity
+    filters:
+    - column: energy_carrier
+      value: electricity
+
 
 - id: building_electricity_use_per_resident
   name: Building electricity use per resident
@@ -1032,6 +1036,9 @@ nodes:
   unit: GWh/a/cap
   input_nodes:
   - id: building_electricity_use_historical
+    from_dimensions:
+    - id: site
+      flatten: true
   - id: population
     to_dimensions: []
   input_dimensions: [emission_sectors]
@@ -1059,11 +1066,14 @@ nodes:
   type: buildings.HistoricalNode
   quantity: energy
   unit: Mtherm/a
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
+  input_dimensions: [emission_sectors, site]
+  output_dimensions: [emission_sectors, site]
   input_datasets:
   - id: longmont/stationary_energy_consumption
     column: natural_gas
+    filters:
+    - column: energy_carrier
+      value: natural_gas
   input_dataset_processors: [LinearInterpolation]
 
 - id: building_natural_gas_use_per_resident
@@ -1074,6 +1084,9 @@ nodes:
   unit: Mtherm/a/cap
   input_nodes:
   - id: building_natural_gas_use_historical
+    from_dimensions:
+    - id: site
+      flatten: true
   - id: population
     to_dimensions: []
   input_dimensions: [emission_sectors]
@@ -1326,14 +1339,11 @@ nodes:
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: t/MWh
+  input_dimensions: [ghg, site]
+  output_dimensions: [ghg, site]
   input_datasets:
   - id: longmont/electricity_emission_factor
-    filters:
-    - column: site
-      value: longmont_power
   input_dataset_processors: [LinearInterpolation]
-  input_dimensions: [greenhouse_gases]
-  output_dimensions: [greenhouse_gases]
 
 - id: building_electricity_eui
   name: Energy use intensity EUI baseline for electricity
@@ -1393,20 +1403,23 @@ nodes:
   quantity: emissions
   unit: t/a
   color: '#4d9870'
-  output_dimensions: [greenhouse_gases, emission_sectors]
+  output_dimensions: [ghg, emission_sectors, site]
   input_nodes:
   - id: electricity_use
     to_dimensions:
     - id: emission_sectors
   - id: electricity_emission_factor
     to_dimensions:
-    - id: greenhouse_gases
+    - id: ghg
+    - id: site
   output_nodes:
   - id: building_emissions
     from_dimensions:
-    - id: greenhouse_gases
+    - id: ghg
       flatten: true
     - id: emission_sectors
+      flatten: true
+    - id: site
       flatten: true
     to_dimensions:
     - id: emission_scope
@@ -1708,19 +1721,18 @@ nodes:
   type: simple.EmissionFactorActivity
   quantity: emissions
   unit: t/a
+  input_dimensions: [emission_sectors, ghg, site]
+  output_dimensions: [emission_sectors, ghg, site]
   input_nodes:
   - id: electricity_losses
     to_dimensions:
     - id: emission_sectors
   - id: electricity_emission_factor
     to_dimensions:
-    - id: greenhouse_gases
-  output_dimensions: [emission_sectors, greenhouse_gases]
+    - id: ghg
+    - id: site
   output_nodes:
   - id: electricity_consumption_emissions
-    to_dimensions:
-    - id: emission_sectors
-    - id: greenhouse_gases
 
 # TEMPORARY
 
@@ -2580,8 +2592,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [greenhouse_gases]
-  output_dimensions: [greenhouse_gases]
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
   input_nodes:
   - id: vehicle_electricity_use
     from_dimensions:
@@ -2589,12 +2601,15 @@ nodes:
       flatten: true
     to_dimensions: []
   - id: electricity_emission_factor
+    from_dimensions:
+    - id: site
+      flatten: true
     to_dimensions:
-    - id: greenhouse_gases
+    - id: ghg
   output_nodes:
   - id: on_road_transportation_emissions
     from_dimensions:
-    - id: greenhouse_gases
+    - id: ghg
       flatten: true
     to_dimensions:
     - id: emission_scope
@@ -3133,8 +3148,10 @@ actions:
   output_nodes:
   - id: electricity_emission_factor
     to_dimensions:
-    - id: greenhouse_gases
+    - id: ghg
       categories: [co2]
+    - id: site
+      categories: [platte_river_power_authority]
 
 - id: longmont_power_renewables_additional
   name: Additional 10% renewable electric energy supply by 2030
@@ -3167,7 +3184,12 @@ actions:
   unit: t/MWh
   group: electric_grid
   output_nodes:
-  - electricity_emission_factor
+  - id: electricity_emission_factor
+    to_dimensions:
+    - id: ghg
+      categories: [co2]
+    - id: site
+      categories: [platte_river_power_authority]
   params:
   - id: reduce
     unit: t/MWh
@@ -3175,8 +3197,9 @@ actions:
     value:
     - target:
         node: electricity_emission_factor
-        categories:
-          greenhouse_gases: co2
+        # categories:
+        #   ghg: co2
+        #   site: platte_river_power_authority
       amounts:
       - year: 2023
         amount: -0.0107  # 0.867 / 8
