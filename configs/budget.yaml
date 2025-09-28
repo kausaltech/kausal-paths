@@ -1085,7 +1085,7 @@ nodes:
 ##  input_nodes:
 ##  - id: person_mileage_car
 ##  - id: vehicle_load
-##    metric: car
+##    metrics: [car]
 
 - id: vehicle_load
   name: Persons in vehicle

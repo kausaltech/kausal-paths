@@ -1,3 +1,5 @@
+# Data 2025-09-27 from https://docs.google.com/spreadsheets/d/1gWkGv6aCt1Zl2pZhH33kOugdPWWokBT-/edit?gid=1709772016#gid=1709772016
+
 # Development needs:
 # - Make multipliers datasets instead so that the admin user can reach them (1 wd)
 # - Move all data from code to dataset (1 wd)
@@ -13,7 +15,7 @@ supported_languages: [es-US]
 site_url: https://longmont-dev.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: d8d0ab790fe745d4a09a70b0abbc7a6bc09eda49
+  commit: 2529818198eb3110f58c554f827af8bc23097960
   dvc_remote: kausal-s3
 name: 2025 Draft Longmont Greenhouse Gas Inventory
 name_es-US: 2025 Inventario de gases de efecto invernadero de Longmont
@@ -948,7 +950,10 @@ nodes:
 
 - id: avoided_emissions_if_included
   name: Avoided emissions if included
-  description: Conditional amount of emissions that can be avoided by composting and recycling. You can change the setting from the scenario editing panel. By default, these reductions are not included in total emissions. But they can be seen on their own page "Avoided emissions".
+  description: Conditional amount of emissions that can be avoided by composting
+    and recycling. You can change the setting from the scenario editing panel. 
+    By default, these reductions are not included in total emissions. But they 
+    can be seen on their own page "Avoided emissions".
   type: generic.GenericNode
   quantity: emissions
   unit: t_co2e/a
@@ -3179,10 +3184,15 @@ actions:
     de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/indicators/1674">Indicador
     de energía renovable</a></li> <li><a href="https://www.longmontcolorado.gov/departments/departments-e-m/longmont-power-communications/electric-service/renewable-energy">Energía
     renovable de Longmont</a></li></ul></p>'
-  type: linear.ReduceAction
+  type: simple.GenericAction
   quantity: emission_factor
   unit: t/MWh
   group: electric_grid
+  input_datasets:
+  - id: longmont/energy_vehicle_and_waste_actions
+    tags: [baseline]
+    column: longmont_power_renewables_additional
+    forecast_from: 2023
   output_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -3190,23 +3200,6 @@ actions:
       categories: [co2]
     - id: site
       categories: [platte_river_power_authority]
-  params:
-  - id: reduce
-    unit: t/MWh
-    is_customizable: false
-    value:
-    - target:
-        node: electricity_emission_factor
-        # categories:
-        #   ghg: co2
-        #   site: platte_river_power_authority
-      amounts:
-      - year: 2023
-        amount: -0.0107  # 0.867 / 8
-      - year: 2030
-        amount: -0.0107
-      - year: 2031
-        amount: 0
 
 - id: smart_grid_projects
   name: Accelerate and implement smart grid projects
@@ -3220,36 +3213,41 @@ actions:
     en tiempo real, precios dinámicos, etc.</p> <p>Seguimiento de la aplicación: <ul><li><a
     href="https://indicators.longmontcolorado.gov/sustainability/actions/E-7">Estrategia
     del Plan de Sustentabilidad E-7</a></li></ul>'
-  type: linear.ReduceAction
-  quantity: ratio
-  unit: '%'
+  type: simple.AdditiveAction
   group: electric_grid
+  output_metrics:
+  - id: participation_smart_grid
+    quantity: ratio
+    unit: '%'
+  - id: smart_grid_improvement
+    quantity: ratio
+    unit: '%'
+  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: longmont/energy_vehicle_and_waste_actions
+    # columns: [participation_smart_grid, smart_grid_improvement]
+    forecast_from: 2023
+    filters:
+    - column: efficiency_works_program
+    - column: replace_natural_gas_residential
+    - column: replace_natural_gas_commercial
+    - column: longmont_power_renewables
+    - column: longmont_power_renewables_additional
+    - column: reduce_transmission_distribution_losses
+    - column: vehicle_incentives
+    - column: last_mile_connections
+    - column: increase_waste_diversion
+    - column: mpg_trend
+    - column: vmt_per_vehicle_trend
+    - column: electric_vehicle_efficiency_trend
+    - column: increase_access_of_public_transit
+    - column: multimodal_transportation_system
+    - column: leak_detection
   output_nodes:
   - id: participation_smart_grid
+    metrics: [participation_smart_grid]
   - id: smart_grid_improvement
-  params:
-  - id: reduce
-    unit: '%'
-    is_customizable: false
-    value:
-    - target:
-        node: participation_smart_grid
-      amounts:
-      - year: 2022
-        amount: 2.675  # (30-9)/8
-      - year: 2029
-        amount: 2.675
-      - year: 2030
-        amount: 0
-    - target:
-        node: smart_grid_improvement
-      amounts:
-      - year: 2022
-        amount: 3.3
-      - year: 2024
-        amount: 3.3
-      - year: 2025
-        amount: 0
+    metrics: [smart_grid_improvement]
 
 - id: reduce_transmission_distribution_losses
   name: Encourage practices that reduce transmission and distribution losses
@@ -3263,24 +3261,17 @@ actions:
     red eléctrica mediante la gestión de la red, como la optimización de la tensión
     distribuida.</p> <p>Seguimiento de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/carr/actions/RE.5">Informe
     de recomendaciones de acción climática RE.5</a></li></ul></p>'
-  type: linear.ReduceAction
+  type: simple.GenericAction
   quantity: ratio
   unit: '%'
   group: electric_grid
+  input_datasets:
+  - id: longmont/energy_vehicle_and_waste_actions
+    tags: [baseline]
+    column: reduce_transmission_distribution_losses
+    forecast_from: 2023
   output_nodes:
   - id: transmission_loss_change
-  params:
-  - id: reduce
-    unit: '%'
-    is_customizable: false
-    value:
-    - target:
-        node: transmission_loss_change
-      amounts:
-      - year: 2023
-        amount: 1.5
-      - year: 2024
-        amount: 0.0
 
 - id: vehicle_incentives
   name: Increase electric vehicles through vehicle incentives and improved 
@@ -3331,12 +3322,15 @@ actions:
     T-7</a></li> <li><a href="https://indicators.longmontcolorado.gov/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system">Principio
     rector de Envision Longmont: un sistema de transporte completo, equilibrado y
     conectado</a></li></ul></p>'
-  type: simple.AdditiveAction
+  type: simple.GenericAction
   quantity: number
   unit: trip/inhabitant/a
   group: transportation
-  forecast_values: [[2023, 1.101064], [2050, 1.101064]]
-  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: longmont/energy_vehicle_and_waste_actions
+    tags: [baseline]
+    column: increase_access_of_public_transit
+    forecast_from: 2023
   output_nodes:
   - free_rides_per_person
 
@@ -3359,12 +3353,15 @@ actions:
     de ruta de transporte equitativo y libre de carbono</a></li> <li><a href="https://indicators.longmontcolorado.gov/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system">Principio
     rector de Envision Longmont: un sistema de transporte completo, equilibrado y
     conectado</a></li></ul></p>'
-  type: simple.AdditiveAction
+  type: simple.GenericAction
   quantity: fraction
   unit: '%'
   group: transportation
-  forecast_values: [[2023, 0], [2050, 15]]
-  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: longmont/energy_vehicle_and_waste_actions
+    tags: [baseline]
+    column: multimodal_transportation_system
+    forecast_from: 2023
   output_nodes:
   - modal_share_of_active_transportation
 
@@ -3385,12 +3382,13 @@ actions:
     de ruta de transporte equitativo y libre de carbono</a></li> <ul><li><a href="https://indicators.longmontcolorado.gov/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system">Principio
     rector de Envision Longmont: un sistema de transporte completo, equilibrado y
     conectado</a></li></ul></p>'
-  type: simple.AdditiveAction
+  type: simple.GenericAction
   quantity: fraction
   unit: '%'
   group: transportation
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
+    tags: [baseline]
     forecast_from: 2022
     column: last_mile_connections
   output_nodes:
@@ -3410,11 +3408,15 @@ actions:
     y distribución de gas natural. En la actualidad, la ciudad no tiene sitios activos
     de petróleo y gas.</p> <p>Seguimiento de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/topic-area/aq-air-quality">Estrategias
     de calidad del aire del Plan de Sustentabilidad</a></li></ul></p>'
-  type: simple.AdditiveAction
+  type: simple.GenericAction
   quantity: emissions
   unit: t/a
   group: oil_and_gas
-  forecast_values: [[2023, 0], [2050, 0]]
+  input_datasets:
+  - id: longmont/energy_vehicle_and_waste_actions
+    tags: [baseline]
+    forecast_from: 2022
+    column: leak_detection
   output_nodes:
   - id: leakage_from_oil_and_gas_wells_emissions
     to_dimensions:
