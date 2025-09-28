@@ -2475,6 +2475,7 @@ nodes:
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/gal
+  input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - longmont/emission_factor_fuels
   input_dimensions: [energy_carrier, greenhouse_gases]
