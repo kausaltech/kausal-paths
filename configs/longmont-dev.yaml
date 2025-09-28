@@ -15,7 +15,7 @@ supported_languages: [es-US]
 site_url: https://longmont-dev.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 2529818198eb3110f58c554f827af8bc23097960
+  commit: 65ce03515acaaee801ffcb5645c3de39a01d6f26
   dvc_remote: kausal-s3
 name: 2025 Draft Longmont Greenhouse Gas Inventory
 name_es-US: 2025 Inventario de gases de efecto invernadero de Longmont
