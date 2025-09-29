@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Any, TypeGuard, TypeVar, override
+from typing import TYPE_CHECKING, Any, TypeGuard, TypeVar, cast, final, override
 
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q, QuerySet
-from rest_framework.views import APIView
 
 from kausal_common.datasets.models import (
     DataPoint,
@@ -32,18 +31,21 @@ from nodes.roles import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Iterable, Sequence
 
     from django.contrib.auth.models import AnonymousUser
+    from django.db.models import Model
 
     from kausal_common.models.permissions import PermissionedModel
     from kausal_common.models.roles import InstanceSpecificRole
 
     from paths.const import InstanceRoleIdentifier
+    from paths.permissions import CreateContext
 
     from users.models import User
 
 _M = TypeVar('_M', bound='PermissionedModel')
+_CCTX = TypeVar('_CCTX', bound='Model | None')  # create context
 _QS = TypeVar('_QS', bound=QuerySet, default=QuerySet[_M])
 
 
@@ -53,7 +55,7 @@ def get_instance_config_content_type() -> ContentType:
     return ContentType.objects.get_for_model(InstanceConfig)
 
 
-class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, 'InstanceConfig', _QS], metaclass=ABCMeta):
+class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, _CCTX, _QS], metaclass=ABCMeta):
     """Permission policy for models that have one or many InstanceConfig objects as scope."""
 
     roles: dict[str, InstanceGroupMembershipRole]
@@ -78,9 +80,9 @@ class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, 'InstanceCo
         )
 
     @override
-    def is_create_context_valid(self, context: Any) -> TypeGuard[InstanceConfig]:
-        from nodes.models import InstanceConfig
-        return isinstance(context, InstanceConfig)
+    @abstractmethod
+    def is_create_context_valid(self, context: Any) -> TypeGuard[_CCTX]:
+        pass
 
     @abstractmethod
     def get_instance_configs_for_obj(self, obj: _M) -> list[int]:
@@ -94,6 +96,7 @@ class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, 'InstanceCo
         except LookupError:
             active_instance = None
         instance_ids = self.get_instance_configs_for_obj(obj)
+        instances: Iterable[InstanceConfig]
         if active_instance is None:
             instances = InstanceConfig.objects.filter(pk__in=instance_ids)
         else:
@@ -119,11 +122,11 @@ class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, 'InstanceCo
         return False
 
     @override
-    def user_can_create(self, user: User, context: InstanceConfig) -> bool:
+    def user_can_create(self, user: User, context: _CCTX) -> bool:
         return (
             user.is_superuser or
-            user.has_instance_role_with_id('instance-admin', context) or
-            user.has_instance_role_with_id('instance-super-admin', context)
+            user.has_instance_role_in_any_instance('instance-admin') or
+            user.has_instance_role_in_any_instance('instance-super-admin')
         )
 
 
@@ -136,19 +139,19 @@ class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, 'InstanceCo
             return True
 
         active_instance = realm_context.get().realm
-
-        if active_instance is None:
-            return False
-
         return any(user.has_instance_role(role, active_instance) for role in roles)
 
 
-class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[DatasetSchema]):
+@final
+class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[DatasetSchema, None]):
     """Permission policy for DatasetSchema, based on its scope (InstanceConfig)."""
 
     def __init__(self):
         from kausal_common.datasets.models import DatasetSchema  # TODO why import here?
         super().__init__(DatasetSchema)
+
+    def is_create_context_valid(self, context: Any) -> TypeGuard[None]:
+        return context is None
 
     @override
     def get_instance_configs_for_obj(self, obj: DatasetSchema) -> list[int]:
@@ -176,6 +179,10 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
         if action == 'view':
             return super_admin_q | admin_q | viewer_q | reviewer_q
         return super_admin_q | admin_q
+
+    @override
+    def user_can_create(self, user: User, context: None) -> bool:
+        return super().user_can_create(user, context)
 
     def user_has_permission(self, user: User | AnonymousUser, action: str) -> bool:
         if not self.user_is_authenticated(user):
@@ -220,6 +227,9 @@ class DatasetPermissionPolicy(ParentInheritedPolicy[Dataset, DatasetSchema, Data
     def user_can_review(self, user: User) -> bool:
         return self.parent_policy.user_has_permission(user, 'review')
 
+    def is_create_context_valid(self, context: Any) -> TypeGuard[DatasetSchema]:
+        return isinstance(context, DatasetSchema)
+
 
 class DataPointPermissionPolicy(ParentInheritedPolicy[DataPoint, Dataset, PermissionedQuerySet[DataPoint]]):
     """Permission policy for DataPoint, inheriting from Dataset."""
@@ -241,8 +251,11 @@ class DataPointPermissionPolicy(ParentInheritedPolicy[DataPoint, Dataset, Permis
     def user_can_create(self, user: User, context: Dataset) -> bool:
         return self.parent_policy.user_has_perm(user, 'change', context)
 
+    def is_create_context_valid(self, context: Any) -> TypeGuard[Dataset]:
+        return isinstance(context, Dataset)
 
-class DataSourcePermissionPolicy(InstanceConfigScopedPermissionPolicy[DataSource]):
+
+class DataSourcePermissionPolicy(InstanceConfigScopedPermissionPolicy[DataSource, None]):
     """Permission policy for DataSource, based on its scope (InstanceConfig)."""
 
     def __init__(self):
@@ -266,13 +279,17 @@ class DataSourcePermissionPolicy(InstanceConfigScopedPermissionPolicy[DataSource
             return super_admin_q | admin_q | viewer_q | reviewer_q
         return super_admin_q | admin_q
 
+    def is_create_context_valid(self, context: Any) -> TypeGuard[None]:
+        return context is None
 
-class DataPointCommentPermissionPolicy(ParentInheritedPolicy[DataPointComment, Dataset, PermissionedQuerySet[DataPointComment]]):
+
+class DataPointCommentPermissionPolicy(
+        ParentInheritedPolicy[DataPointComment, DataPoint, PermissionedQuerySet[DataPointComment]]
+):
     """Permission policy for DataPointComment, inheriting from Dataset."""
 
     def __init__(self):
-        from kausal_common.datasets.models import DataPointComment, Dataset
-        super().__init__(DataPointComment, Dataset, 'dataset')
+        super().__init__(DataPointComment, DataPoint, 'data_point')
 
     @override
     def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: DataPointComment) -> bool:
@@ -284,13 +301,16 @@ class DataPointCommentPermissionPolicy(ParentInheritedPolicy[DataPointComment, D
         return False
 
     @override
-    def user_can_create(self, user: User, context: APIView) -> bool:
-        view = context
-        dataset_uuid = view.kwargs['dataset_uuid']
-        dataset = Dataset.objects.get(uuid=dataset_uuid)
-        user_can_change_dataset = self.parent_policy.user_has_perm(user, 'change', dataset)
+    def is_create_context_valid(self, context: Any) -> TypeGuard[DataPoint]:
+        return isinstance(context, DataPoint)
+
+    @override
+    def user_can_create(self, user: User, context: CreateContext) -> bool:
+        data_point: DataPoint = cast('DataPoint', context)
+        dataset = data_point.dataset
         instance_config_in_scope = dataset.scope
         if not isinstance(instance_config_in_scope, InstanceConfig):
-            raise TypeError('Only InstanceConfigs supported as Dataset scopes in paths.')
-        user_is_reviewer_in_instance = user.has_instance_role_with_id('instance-reviewer', instance_config_in_scope)
-        return user_can_change_dataset or user_is_reviewer_in_instance
+            raise TypeError('Only InstanceConfigs supported as Dataset scopes in Paths.')
+        user_has_reviewer_role_in_instance = user.has_instance_role_with_id('instance-reviewer', instance_config_in_scope)
+        user_can_create_datapoint = self.parent_policy.user_can_create(user, dataset)
+        return user_can_create_datapoint or user_has_reviewer_role_in_instance
