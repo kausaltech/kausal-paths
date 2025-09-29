@@ -4,1181 +4,314 @@ supported_languages: []
 site_url: https://surrey.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 4c127696d81fe4da13303b25488ede6db8691a81
+  commit: 7226a1e64fb77fec9b35a173820729b65cf90d3e
   dvc_remote: kausal-s3
 name: Emissions Inventory and Forecast Tool
 owner: City of Surrey
 theme_identifier: ca-surrey
 target_year: 2050
 model_end_year: 2050
-reference_year: 2007
-minimum_historical_year: 2007
+reference_year: 2010
+minimum_historical_year: 2010
 maximum_historical_year: 2021
 emission_unit: t_co2e/a
 emission_forecast_from: 2022
-emission_dimensions: ['scope', 'ghg']
+emission_dimensions: [ghg]
 features:
   baseline_visible_in_graphs: true
-  use_datasets_from_db: true
+  use_datasets_from_db: false
 
 action_groups:
-- id: stationary
-  name: Stationary
-  color: '#6EC0C7'
-- id: transportation
-  name: Transportation
+- id: on_road_transportation
+  name: On-road transportation
   color: '#B93F40'
-- id: waste
-  name: Waste
+- id: buildings
+  name: Buildings
+  color: '#6EC0C7'
+- id: other
+  name: Other
   color: '#C4D652'
 
 dimensions:
-- id: vehicle_type
-  label: Vehicle type
-  categories:
-  - id: heavyduty_diesel_vehicles
-    label: 'Heavy-duty diesel vehicles'
-  - id: heavyduty_gasoline_vehicles
-    label: 'Heavy-duty gasoline vehicles'
-  - id: lightduty_diesel_trucks
-    label: 'Light-duty diesel trucks'
-  - id: lightduty_diesel_vehicles
-    label: 'Light-duty diesel vehicles'
-  - id: lightduty_gasoline_trucks
-    label: 'Light-duty gasoline trucks'
-  - id: lightduty_gasoline_vehicles
-    label: 'Light-duty gasoline vehicles'
-  - id: motorcycles
-    label: 'Motorcycles'
-  - id: propane_and_natural_gas_vehicles
-    label: 'Propane and natural gas vehicles'
-  - id: public_transit
-    label: 'Public transit'
-  - id: zero_emissions_heavyduty_vehicles
-    label: 'Zero emissions heavy-duty vehicles'
-  - id: zero_emissions_lightduty_trucks
-    label: 'Zero emissions light-duty trucks'
-  - id: zero_emissions_lightduty_vehicles
-    label: 'Zero emissions light-duty vehicles'
-  - id: zero_emissions_motorcycles
-    label: 'Zero emissions motorcycles'
-
-- id: scope
-  label: Scope
-  categories:
-  - id: scope1
-    label: 'Scope 1'
-  - id: scope2
-    label: 'Scope 2'
-  - id: scope3
-    label: 'Scope 3'
-
-- id: equipment_type
-  label: Equipment type
-  categories:
-  - id: airport_equipment
-    label: 'Airport equipment'
-  - id: commercial_equipment
-    label: 'Commercial equipment'
-  - id: construction_equipment
-    label: 'Construction equipment'
-  - id: industrial_equipment
-    label: 'Industrial equipment'
-  - id: lawn_and_garden_equipment_commercial
-    label: 'Lawn & garden equipment (commercial)'
-  - id: lawn_and_garden_equipment_residential
-    label: 'Lawn & garden equipment (residential)'
-  - id: railroad_equipment
-    label: 'Railroad equipment'
-
-- id: residential_building_type
-  label: Residential building type
-  categories:
-  - id: high_rise_apartment
-    label: 'High rise apartment'
-  - id: low_rise_apartment
-    label: 'Low rise apartment'
-  - id: mobile_house
-    label: 'Mobile house'
-  - id: one_family_dwelling
-    label: 'One family dwelling'
-  - id: townhouse
-    label: 'Townhouse'
-  - id: two_family_dwelling
-    label: 'Two family dwelling'
-
 - id: ghg
-  label: GHG
+  label: Greenhouse gas
   categories:
-  - id: biogenic_co2
-    label: 'Biogenic CO2'
-  - id: ch4
-    label: 'CH4'
-  - id: co2
-    label: 'CO2'
   - id: co2e
-    label: 'CO2e'
-  - id: n2o
-    label: 'N2O'
-
-- id: waterborne_type
-  label: Waterborne type
-  categories:
-  - id: merchant_bulk
-    label: 'Merchant bulk'
-  - id: merchant_container
-    label: 'Merchant container'
-  - id: merchant_other
-    label: 'Merchant other'
-  - id: pleasure_craft
-    label: 'Pleasure craft'
-  - id: tanker
-    label: 'Tanker'
-
-- id: industry_type
-  label: Industry type
-  categories:
-  - id: industry__chemical
-    label: 'Industry - chemical'
-  - id: industry__metal_fabrication
-    label: 'Industry - metal fabrication'
-  - id: industry__mineral
-    label: 'Industry - mineral'
-  - id: industry__miscellaneous
-    label: 'Industry - miscellaneous'
-  - id: industry__petroleum
-    label: 'Industry - petroleum'
-  - id: industry__wood
-    label: 'Industry - wood'
-
-- id: ici_subsector
-  label: ICI subsector
-  categories:
-  - id: commercial
-    label: 'Commercial'
-  - id: industrial
-    label: 'Industrial'
-  - id: institutional
-    label: 'Institutional'
-
-- id: rail_type
-  label: Rail type
-  categories:
-  - id: freight_rail
-    label: 'Freight rail'
-  - id: passenger_rail
-    label: 'Passenger rail'
+    label: CO2e
 
 - id: sector
-  label: GPC Sector
+  label: Sector
   categories:
-  - id: i
-    label: 'I Stationary'
-  - id: i1
-    label: 'I.1 Residential'
-  - id: i11
-    label: 'I.1.1 Residential Fuel'
-  - id: i12
-    label: 'I.1.2 Residential Grid Energy'
-  - id: i13
-    label: 'I.1.3 Residential T & D Loss'
-  - id: i2
-    label: 'I.2 Commercial & Institutional'
-  - id: i21
-    label: 'I.2.1 Commercial & Institutional Fuel'
-  - id: i22
-    label: 'I.2.2 Commercial & Institutional Grid Energy'
-  - id: i23
-    label: 'I.2.3 Commercial & Institutional T & D Loss'
-  - id: i3
-    label: 'I.3 Manufacturing'
-  - id: i31
-    label: 'I.3.1 Manufacturing Fuel'
-  - id: i32
-    label: 'I.3.2 Manufacturing Grid Energy'
-  - id: i33
-    label: 'I.3.3 Manufacturing T & D Loss'
-  - id: i4
-    label: 'I.4 Energy'
-  - id: i41
-    label: 'I.4.1 Energy Fuel'
-  - id: i42
-    label: 'I.4.2 Energy Grid Energy'
-  - id: i43
-    label: 'I.4.3 Energy T & D Loss'
-  - id: i5
-    label: 'I.5 Ag, Forestry, & Fishing'
-  - id: i51
-    label: 'I.5.1 Ag, Forestry, & Fishing Fuel'
-  - id: i52
-    label: 'I.5.2 Ag, Forestry, & Fishing Grid Energy'
-  - id: i53
-    label: 'I.5.3 Ag, Forestry, & Fishing T & D Loss'
-  - id: i6
-    label: 'I.6 Non-Specified'
-  - id: i61
-    label: 'I.6.1 Non-Specified Fuel'
-  - id: i62
-    label: 'I.6.2 Non-Specified Grid Energy'
-  - id: i63
-    label: 'I.6.3 Non-Specified T & D Loss'
-  - id: i7
-    label: 'I.7 Fugitive Coal'
-  - id: i71
-    label: 'I.7.1 Fugitive Coal'
-  - id: i8
-    label: 'I.8 Fugitive Oil & Natural Gas'
-  - id: i81
-    label: 'I.8.1 Fugitive Oil & Natural Gas'
-  - id: ii
-    label: 'II Transportation'
-  - id: ii1
-    label: 'II.1 On-Road Transport'
-  - id: ii11
-    label: 'II.1.1 On-Road Transport Fuel'
-  - id: ii12
-    label: 'II.1.2 On-Road Transport Grid Energy'
-  - id: ii13
-    label: 'II.1.3 On-Road Transport Outside City, T & D Loss'
-  - id: ii2
-    label: 'II.2 Railway'
-  - id: ii21
-    label: 'II.2.1 Railway Fuel'
-  - id: ii22
-    label: 'II.2.2 Railway Grid Energy'
-  - id: ii23
-    label: 'II.2.3 Railway Outside City, T & D Loss'
-  - id: ii3
-    label: 'II.3 Waterborne'
-  - id: ii31
-    label: 'II.3.1 Waterborne Fuel'
-  - id: ii32
-    label: 'II.3.2 Waterborne Grid Energy'
-  - id: ii33
-    label: 'II.3.3 Waterborne Outside City, T & D Loss'
-  - id: ii4
-    label: 'II.4 Aviation'
-  - id: ii41
-    label: 'II.4.1 Aviation Fuel'
-  - id: ii42
-    label: 'II.4.2 Aviation Grid Energy'
-  - id: ii43
-    label: 'II.4.3 Aviation Outside City, T & D Loss'
-  - id: ii5
-    label: 'II.5 Off-Road Transport'
-  - id: ii51
-    label: 'II.5.1 Off-Road Transport Fuel'
-  - id: ii52
-    label: 'II.5.2 Off-Road Transport Grid Energy'
-  - id: ii53
-    label: 'II.5.3 Off-Road Transport Outside City, T & D Loss'
-  - id: iii
-    label: 'III Waste'
-  - id: iii1
-    label: 'III.1 Solid Waste'
-  - id: iii11
-    label: 'III.1.1 Solid Waste Disposed in City'
-  - id: iii12
-    label: 'III.1.2 Solid Waste Disposed Outside City'
-  - id: iii2
-    label: 'III.2 Biological Waste'
-  - id: iii21
-    label: 'III.2.1 Biological Waste Treated in City'
-  - id: iii22
-    label: 'III.2.2 Biological Waste Treated Outside City'
-  - id: iii3
-    label: 'III.3 Incineration'
-  - id: iii31
-    label: 'III.3.1 Incineration in City'
-  - id: iii32
-    label: 'III.3.2 Incineration Outside City'
-  - id: iii4
-    label: 'III.4 Wastewater'
-  - id: iii41
-    label: 'III.4.1 Wastewater Treated in City'
-  - id: iii42
-    label: 'III.4.2 Wastewater Treated Outside City'
-  - id: iv
-    label: 'IV IPPU'
-  - id: iv1
-    label: 'IV.1 Industrial Processes'
-  - id: iv2
-    label: 'IV.2 Product Use'
-  - id: v
-    label: 'V AFOLU'
-  - id: v1
-    label: 'V.1 Livestock'
-  - id: v2
-    label: 'V.2 Land'
-  - id: v3
-    label: 'V.3 Aggregate Sources'
+  - id: medium_and_heavy_duty_vehicles
+    label: Medium and heavy-duty vehicles
+  - id: light_duty_vehicles
+    label: Light-duty vehicles
+  - id: transit
+    label: Transit
+  - id: residential
+    label: Residential
+  - id: institutional_commercial_and_industrial
+    label: Institutional, commercial and industrial
+  - id: solid_waste
+    label: Solid waste
+  - id: non_road_equipment
+    label: Non-road equipment
+  - id: industry
+    label: Industry
+  - id: airport
+    label: Airport
+  - id: rail_transportation
+    label: Rail transportation
 
 - id: action
   label: Action
   categories:
   - id: bc_hydro_renewable_electricity
-    label: 'BC Hydro renewable electricity'
+    label: BC Hydro renewable electricity
   - id: building_retrofits
-    label: 'Building retrofits'
+    label: Building retrofits
   - id: clean_ldvs
-    label: 'Clean LDVs'
+    label: Clean LDVs
   - id: clean_mhdvs
-    label: 'Clean MHDVs'
+    label: Clean MHDVs
   - id: clean_transportation_fuels
-    label: 'Clean transportation fuels'
+    label: Clean transportation fuels
   - id: land_use_and_15minute_neighborhoods_b
-    label: 'Land use & 15-minute neighborhoods (B)'
+    label: Land use & 15-minute neighborhoods (B)
   - id: land_use_and_15minute_neighborhoods_t
-    label: 'Land use & 15-minute neighborhoods (T)'
+    label: Land use & 15-minute neighborhoods (T)
   - id: mhdv_technology
-    label: 'MHDV technology'
+    label: MHDV technology
   - id: new_construction
-    label: 'New construction'
+    label: New construction
   - id: renewable_natural_gas
-    label: 'Renewable natural gas'
+    label: Renewable natural gas
   - id: roadway_management
-    label: 'Roadway management'
+    label: Roadway management
   - id: waste_reduction_and_diversion
-    label: 'Waste reduction & diversion'
+    label: Waste reduction & diversion
   - id: zeroemission_vehicles_zevs
-    label: 'Zero-emission vehicles (ZEVs)'
+    label: Zero-emission vehicles (ZEVs)
 
 emission_sectors:
 - id: net_emissions
   name: Net Emissions
+  is_outcome: true
 
 nodes:
-# ----- Detailed Inventory -----
-- id: i11_residential_fuel_emissions
-  name: Residential fuel emissions
+- id: medium_and_heavy_duty_vehicle_emissions
+  name: Medium and heavy-duty vehicle emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: ['residential_building_type', 'ghg', 'scope']
-  output_dimensions: ['residential_building_type', 'ghg', 'scope']
-  params:
-    inventory_only: true
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
   input_datasets:
-  - id: surrey/stationary_inventory
+  - id: surrey/emissions_forecast_baseline
+    forecast_from: 2022
     filters:
     - column: sector
-      value: i11
-    - column: ici_subsector
-    - column: industry_type
-    - column: equipment_type
+      value: medium_and_heavy_duty_vehicles
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: i1_residential_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: residential_building_type
-    - id: ghg
+  - id: on_road_transportation_emissions
 
-- id: i12_residential_grid_energy_emissions
-  name: Residential grid energy emissions
+- id: light_duty_vehicle_emissions
+  name: Light-duty vehicle emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: ['residential_building_type', 'ghg', 'scope']
-  output_dimensions: ['residential_building_type', 'ghg', 'scope']
-  params:
-    inventory_only: true
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
   input_datasets:
-  - id: surrey/stationary_inventory
+  - id: surrey/emissions_forecast_baseline
+    forecast_from: 2022
     filters:
     - column: sector
-      value: i12
-    - column: ici_subsector
-    - column: industry_type
-    - column: equipment_type
+      value: light_duty_vehicles
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: i1_residential_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: residential_building_type
-    - id: ghg
+  - id: on_road_transportation_emissions
 
-- id: i21_commercial_and_institutional_fuel_emissions
-  name: Commercial & institutional fuel emissions
+- id: transit_emissions
+  name: Transit emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: ['ici_subsector', 'ghg', 'scope']
-  output_dimensions: ['ici_subsector', 'ghg', 'scope']
-  params:
-    inventory_only: true
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
   input_datasets:
-  - id: surrey/stationary_inventory
+  - id: surrey/emissions_forecast_baseline
+    forecast_from: 2022
     filters:
     - column: sector
-      value: i21
-    - column: residential_building_type
-    - column: industry_type
-    - column: equipment_type
+      value: transit
+  input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: i2_commercial_and_institutional_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-    - id: ici_subsector
+  - id: on_road_transportation_emissions
 
-- id: i22_commercial_and_institutional_grid_energy_emissions
-  name: Commercial & institutional grid energy emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['ici_subsector', 'ghg', 'scope']
-  output_dimensions: ['ici_subsector', 'ghg', 'scope']
-  params:
-    inventory_only: true
-  input_datasets:
-  - id: surrey/stationary_inventory
-    filters:
-    - column: sector
-      value: i22
-    - column: residential_building_type
-    - column: industry_type
-    - column: equipment_type
-  output_nodes:
-  - id: i2_commercial_and_institutional_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-    - id: ici_subsector
-
-- id: i31_manufacturing_fuel_emissions
-  name: Manufacturing fuel emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['industry_type', 'ghg', 'scope']
-  output_dimensions: ['industry_type', 'ghg', 'scope']
-  params:
-    inventory_only: true
-  input_datasets:
-  - id: surrey/stationary_inventory
-    filters:
-    - column: sector
-      value: i31
-    - column: residential_building_type
-    - column: ici_subsector
-    - column: equipment_type
-  output_nodes:
-  - id: i3_manufacturing_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-    - id: industry_type
-
-- id: i51_ag_forestry_and_fishing_fuel_emissions
-  name: Ag, forestry, & fishing fuel emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['ghg', 'scope']
-  output_dimensions: ['ghg', 'scope']
-  params:
-    inventory_only: true
-  input_datasets:
-  - id: surrey/stationary_inventory
-    filters:
-    - column: sector
-      value: i51
-    - column: residential_building_type
-    - column: ici_subsector
-    - column: industry_type
-    - column: equipment_type
-  output_nodes:
-  - id: i5_ag_forestry_and_fishing_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
-- id: i61_nonspecified_fuel_emissions
-  name: Non-specified fuel emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['equipment_type', 'ghg', 'scope']
-  output_dimensions: ['equipment_type', 'ghg', 'scope']
-  params:
-    inventory_only: true
-  input_datasets:
-  - id: surrey/stationary_inventory
-    filters:
-    - column: sector
-      value: i61
-    - column: residential_building_type
-    - column: ici_subsector
-    - column: industry_type
-  output_nodes:
-  - id: i6_nonspecified_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: equipment_type
-    - id: ghg
-
-- id: ii11_onroad_transport_fuel_emissions
-  name: On-road transport fuel emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['vehicle_type', 'ghg', 'scope']
-  output_dimensions: ['vehicle_type', 'ghg', 'scope']
-  params:
-    inventory_only: true
-  input_datasets:
-  - id: surrey/onroad_transportation_inventory
-    filters:
-    - column: sector
-      value: ii11
-  output_nodes:
-  - id: ii1_onroad_transport_total_emissions
-    to_dimensions:
-    - id: vehicle_type
-    - id: scope
-    - id: ghg
-
-- id: ii12_onroad_transport_grid_energy_emissions
-  name: On-road transport grid energy emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['vehicle_type', 'ghg', 'scope']
-  output_dimensions: ['vehicle_type', 'ghg', 'scope']
-  params:
-    inventory_only: true
-  input_datasets:
-  - id: surrey/onroad_transportation_inventory
-    filters:
-    - column: sector
-      value: ii12
-  output_nodes:
-  - id: ii1_onroad_transport_total_emissions
-    to_dimensions:
-    - id: vehicle_type
-    - id: scope
-    - id: ghg
-
-- id: ii13_onroad_transport_outside_city_t_and_d_loss_emissions
-  name: On-road transport outside city, T & D loss emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['vehicle_type', 'ghg', 'scope']
-  output_dimensions: ['vehicle_type', 'ghg', 'scope']
-  params:
-    inventory_only: true
-  input_datasets:
-  - id: surrey/onroad_transportation_inventory
-    filters:
-    - column: sector
-      value: ii13
-  output_nodes:
-  - id: ii1_onroad_transport_total_emissions
-    to_dimensions:
-    - id: vehicle_type
-    - id: scope
-    - id: ghg
-
-- id: ii21_railway_fuel_emissions
-  name: Railway fuel emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['rail_type', 'ghg', 'scope']
-  output_dimensions: ['rail_type', 'ghg', 'scope']
-  params:
-    inventory_only: true
-  input_datasets:
-  - id: surrey/other_transportation_inventory
-    filters:
-    - column: sector
-      value: ii21
-    - column: equipment_type
-    - column: waterborne_type
-  output_nodes:
-  - id: ii2_railway_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-    - id: rail_type
-
-- id: ii31_waterborne_fuel_emissions
-  name: Waterborne fuel emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['waterborne_type', 'ghg', 'scope']
-  output_dimensions: ['waterborne_type', 'ghg', 'scope']
-  params:
-    inventory_only: true
-  input_datasets:
-  - id: surrey/other_transportation_inventory
-    filters:
-    - column: sector
-      value: ii31
-    - column: equipment_type
-    - column: rail_type
-  output_nodes:
-  - id: ii3_waterborne_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-    - id: waterborne_type
-
-- id: ii41_aviation_fuel_emissions
-  name: Aviation fuel emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['ghg', 'scope']
-  output_dimensions: ['ghg', 'scope']
-  params:
-    inventory_only: true
-  input_datasets:
-  - id: surrey/other_transportation_inventory
-    filters:
-    - column: sector
-      value: ii41
-    - column: equipment_type
-    - column: rail_type
-    - column: waterborne_type
-  output_nodes:
-  - id: ii4_aviation_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
-- id: ii51_offroad_transport_fuel_emissions
-  name: Off-road transport fuel emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['equipment_type', 'ghg', 'scope']
-  output_dimensions: ['equipment_type', 'ghg', 'scope']
-  params:
-    inventory_only: true
-  input_datasets:
-  - id: surrey/other_transportation_inventory
-    filters:
-    - column: sector
-      value: ii51
-    - column: rail_type
-    - column: waterborne_type
-  output_nodes:
-  - id: ii5_offroad_transport_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: equipment_type
-    - id: ghg
-
-- id: iii12_solid_waste_disposed_outside_city_emissions
-  name: Solid waste disposed outside city emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['ghg', 'scope']
-  output_dimensions: ['ghg', 'scope']
-  params:
-    inventory_only: true
-  input_datasets:
-  - id: surrey/waste_inventory
-    filters:
-    - column: sector
-      value: iii12
-  output_nodes:
-  - id: iii1_solid_waste_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
-- id: iii22_biological_waste_treated_outside_city_emissions
-  name: Biological waste treated outside city emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['ghg', 'scope']
-  output_dimensions: ['ghg', 'scope']
-  params:
-    inventory_only: true
-  input_datasets:
-  - id: surrey/waste_inventory
-    filters:
-    - column: sector
-      value: iii22
-  output_nodes:
-  - id: iii2_biological_waste_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
-- id: iii42_wastewater_treated_outside_city_emissions
-  name: Wastewater treated outside city emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['ghg', 'scope']
-  output_dimensions: ['ghg', 'scope']
-  params:
-    inventory_only: true
-  input_datasets:
-  - id: surrey/waste_inventory
-    filters:
-    - column: sector
-      value: iii42
-  output_nodes:
-  - id: iii4_wastewater_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
-- id: i1_residential_total_emissions
-  name: Residential total emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['residential_building_type', 'ghg', 'scope']
-  output_dimensions: ['residential_building_type', 'ghg', 'scope']
-  output_nodes:
-  - id: i_stationary_total_emissions
-    from_dimensions:
-    - id: residential_building_type
-      flatten: true
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
-- id: i2_commercial_and_institutional_total_emissions
-  name: Commercial & institutional total emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['ici_subsector', 'ghg', 'scope']
-  output_dimensions: ['ici_subsector', 'ghg', 'scope']
-  output_nodes:
-  - id: i_stationary_total_emissions
-    from_dimensions:
-    - id: ici_subsector
-      flatten: true
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
-- id: i3_manufacturing_total_emissions
-  name: Manufacturing total emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['industry_type', 'ghg', 'scope']
-  output_dimensions: ['industry_type', 'ghg', 'scope']
-  output_nodes:
-  - id: i_stationary_total_emissions
-    from_dimensions:
-    - id: industry_type
-      flatten: true
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
-- id: i5_ag_forestry_and_fishing_total_emissions
-  name: Ag, forestry, & fishing total emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['ghg', 'scope']
-  output_dimensions: ['ghg', 'scope']
-  output_nodes:
-  - id: i_stationary_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
-- id: i6_nonspecified_total_emissions
-  name: Non-specified total emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['equipment_type', 'ghg', 'scope']
-  output_dimensions: ['equipment_type', 'ghg', 'scope']
-  output_nodes:
-  - id: i_stationary_total_emissions
-    from_dimensions:
-    - id: equipment_type
-      flatten: true
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
-- id: i_stationary_total_emissions
-  name: Stationary total emissions
-  color: '#6EC0C7'
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['ghg', 'scope']
-  output_dimensions: ['ghg', 'scope']
-  output_nodes:
-  - id: net_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
-- id: ii1_onroad_transport_total_emissions
-  name: On-road transport total emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['vehicle_type', 'ghg', 'scope']
-  output_dimensions: ['vehicle_type', 'ghg', 'scope']
-  output_nodes:
-  - id: ii_transportation_total_emissions
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
-- id: ii2_railway_total_emissions
-  name: Railway total emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['rail_type', 'ghg', 'scope']
-  output_dimensions: ['rail_type', 'ghg', 'scope']
-  output_nodes:
-  - id: ii_transportation_total_emissions
-    from_dimensions:
-    - id: rail_type
-      flatten: true
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
-- id: ii3_waterborne_total_emissions
-  name: Waterborne total emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['waterborne_type', 'ghg', 'scope']
-  output_dimensions: ['waterborne_type', 'ghg', 'scope']
-  output_nodes:
-  - id: ii_transportation_total_emissions
-    from_dimensions:
-    - id: waterborne_type
-      flatten: true
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
-- id: ii4_aviation_total_emissions
-  name: Aviation total emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['ghg', 'scope']
-  output_dimensions: ['ghg', 'scope']
-  output_nodes:
-  - id: ii_transportation_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
-- id: ii5_offroad_transport_total_emissions
-  name: Off-road transport total emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['equipment_type', 'ghg', 'scope']
-  output_dimensions: ['equipment_type', 'ghg', 'scope']
-  output_nodes:
-  - id: ii_transportation_total_emissions
-    from_dimensions:
-    - id: equipment_type
-      flatten: true
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
-- id: ii_transportation_total_emissions
-  name: Transportation total emissions
-  color: '#B93F40'
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['ghg', 'scope']
-  output_dimensions: ['ghg', 'scope']
-  output_nodes:
-  - id: net_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
-- id: iii1_solid_waste_total_emissions
-  name: Solid waste total emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['ghg', 'scope']
-  output_dimensions: ['ghg', 'scope']
-  output_nodes:
-  - id: iii_waste_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
-- id: iii2_biological_waste_total_emissions
-  name: Biological waste total emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['ghg', 'scope']
-  output_dimensions: ['ghg', 'scope']
-  output_nodes:
-  - id: iii_waste_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
-- id: iii4_wastewater_total_emissions
-  name: Wastewater total emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['ghg', 'scope']
-  output_dimensions: ['ghg', 'scope']
-  output_nodes:
-  - id: iii_waste_total_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
-- id: iii_waste_total_emissions
-  name: Waste total emissions
-  color: '#C4D652'
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['ghg', 'scope']
-  output_dimensions: ['ghg', 'scope']
-  output_nodes:
-  - id: net_emissions
-    to_dimensions:
-    - id: scope
-    - id: ghg
-
-# ----- Generalized Inventory & Forecast -----
-- id: i1_residential_emissions
+- id: residential_emissions
   name: Residential emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
   input_datasets:
   - id: surrey/emissions_forecast_baseline
     forecast_from: 2022
     filters:
     - column: sector
-      value: i1
+      value: residential
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: i_stationary_emissions
-    to_dimensions:
-    - id: ghg
+  - id: building_emissions
 
-- id: i2_commercial_and_institutional_emissions
-  name: Commercial & institutional emissions
+- id: institutional_commercial_and_industrial_emissions
+  name: Institutional, commercial and industrial emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
   input_datasets:
   - id: surrey/emissions_forecast_baseline
     forecast_from: 2022
     filters:
     - column: sector
-      value: i2
+      value: institutional_commercial_and_industrial
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: i_stationary_emissions
-    to_dimensions:
-    - id: ghg
+  - id: building_emissions
 
-- id: i3_manufacturing_emissions
-  name: Manufacturing emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
-  input_datasets:
-  - id: surrey/emissions_forecast_baseline
-    forecast_from: 2022
-    filters:
-    - column: sector
-      value: i3
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - id: i_stationary_emissions
-    to_dimensions:
-    - id: ghg
-
-- id: i5_ag_forestry_and_fishing_emissions
-  name: Ag, forestry, & fishing emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
-  input_datasets:
-  - id: surrey/emissions_forecast_baseline
-    forecast_from: 2022
-    filters:
-    - column: sector
-      value: i5
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - id: i_stationary_emissions
-    to_dimensions:
-    - id: ghg
-
-- id: i6_nonspecified_emissions
-  name: Non-specified emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
-  input_datasets:
-  - id: surrey/emissions_forecast_baseline
-    forecast_from: 2022
-    filters:
-    - column: sector
-      value: i6
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - id: i_stationary_emissions
-    to_dimensions:
-    - id: ghg
-
-- id: i_stationary_emissions
-  name: Stationary emissions
-  color: '#6EC0C7'
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
-  output_nodes:
-  - id: net_emissions_forecast
-    to_dimensions:
-    - id: ghg
-
-- id: ii1_onroad_transport_emissions
-  name: On-road transport emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
-  input_datasets:
-  - id: surrey/emissions_forecast_baseline
-    forecast_from: 2022
-    filters:
-    - column: sector
-      value: ii1
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - id: ii_transportation_emissions
-    to_dimensions:
-    - id: ghg
-
-- id: ii2_railway_emissions
-  name: Railway emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
-  input_datasets:
-  - id: surrey/emissions_forecast_baseline
-    forecast_from: 2022
-    filters:
-    - column: sector
-      value: ii2
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - id: ii_transportation_emissions
-    to_dimensions:
-    - id: ghg
-
-- id: ii_transportation_emissions
-  name: Transportation emissions
-  color: '#B93F40'
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
-  output_nodes:
-  - id: net_emissions_forecast
-    to_dimensions:
-    - id: ghg
-
-- id: iii1_solid_waste_emissions
+- id: solid_waste_emissions
   name: Solid waste emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
   input_datasets:
   - id: surrey/emissions_forecast_baseline
     forecast_from: 2022
     filters:
     - column: sector
-      value: iii1
+      value: solid_waste
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: iii_waste_emissions
-    to_dimensions:
-    - id: ghg
+  - id: other_emissions
 
-- id: iii_waste_emissions
-  name: Waste emissions
+- id: non_road_equipment_emissions
+  name: Non-road equipment emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
+  input_datasets:
+  - id: surrey/emissions_forecast_baseline
+    forecast_from: 2022
+    filters:
+    - column: sector
+      value: non_road_equipment
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: other_emissions
+
+- id: industry_emissions
+  name: Industry emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
+  input_datasets:
+  - id: surrey/emissions_forecast_baseline
+    forecast_from: 2022
+    filters:
+    - column: sector
+      value: industry
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: other_emissions
+
+- id: airport_emissions
+  name: Airport emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
+  input_datasets:
+  - id: surrey/emissions_forecast_baseline
+    forecast_from: 2022
+    filters:
+    - column: sector
+      value: airport
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: other_emissions
+
+- id: rail_transportation_emissions
+  name: Rail transportation emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
+  input_datasets:
+  - id: surrey/emissions_forecast_baseline
+    forecast_from: 2022
+    filters:
+    - column: sector
+      value: rail_transportation
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: other_emissions
+
+- id: building_emissions
+  name: Building emissions
+  color: '#6EC0C7'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
+  output_nodes:
+  - id: net_emissions
+
+- id: on_road_transportation_emissions
+  name: On-road transportation emissions
+  color: '#B93F40'
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
+  output_nodes:
+  - id: net_emissions
+
+- id: other_emissions
+  name: Other emissions
   color: '#C4D652'
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
   output_nodes:
-  - id: net_emissions_forecast
-    to_dimensions:
-    - id: ghg
-
-- id: net_emissions_forecast
-  name: Net emissions forecast
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: ['ghg']
-  output_dimensions: ['ghg']
-  is_outcome: true
-
+  - id: net_emissions
 
 actions:
 - id: bc_hydro_renewable_electricity
   name: BC Hydro renewable electricity
   description: Decarbonize the BC Hydro electrical grid with renewable energy.
-  group: stationary
+  group: buildings
   type: simple.AdditiveAction
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: ['sector', 'ghg']
-  output_dimensions: ['sector', 'ghg']
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
   input_datasets:
   - id: surrey/emissions_forecast_actions
     column: emissions
@@ -1188,58 +321,56 @@ actions:
       value: bc_hydro_renewable_electricity
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: i1_residential_emissions
+  - id: medium_and_heavy_duty_vehicle_emissions
     from_dimensions:
     - id: sector
-      categories: [i1]
+      categories: [medium_and_heavy_duty_vehicles]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i2_commercial_and_institutional_emissions
+  - id: light_duty_vehicle_emissions
     from_dimensions:
     - id: sector
-      categories: [i2]
+      categories: [light_duty_vehicles]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i6_nonspecified_emissions
+  - id: transit_emissions
     from_dimensions:
     - id: sector
-      categories: [i6]
+      categories: [transit]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: ii1_onroad_transport_emissions
+  - id: residential_emissions
     from_dimensions:
     - id: sector
-      categories: [ii1]
+      categories: [residential]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: ii2_railway_emissions
+  - id: institutional_commercial_and_industrial_emissions
     from_dimensions:
     - id: sector
-      categories: [ii2]
+      categories: [institutional_commercial_and_industrial]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: iii1_solid_waste_emissions
+  - id: solid_waste_emissions
     from_dimensions:
     - id: sector
-      categories: [iii1]
+      categories: [solid_waste]
       flatten: true
-    to_dimensions:
-    - id: ghg
+  - id: non_road_equipment_emissions
+    from_dimensions:
+    - id: sector
+      categories: [non_road_equipment]
+      flatten: true
+  - id: rail_transportation_emissions
+    from_dimensions:
+    - id: sector
+      categories: [rail_transportation]
+      flatten: true
 
 - id: building_retrofits
   name: Building retrofits
   description: Rapidly implement fuel-switching retrofits to existing buildings.
-  group: stationary
+  group: buildings
   type: simple.AdditiveAction
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: ['sector', 'ghg']
-  output_dimensions: ['sector', 'ghg']
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
   input_datasets:
   - id: surrey/emissions_forecast_actions
     column: emissions
@@ -1249,58 +380,56 @@ actions:
       value: building_retrofits
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: i1_residential_emissions
+  - id: medium_and_heavy_duty_vehicle_emissions
     from_dimensions:
     - id: sector
-      categories: [i1]
+      categories: [medium_and_heavy_duty_vehicles]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i2_commercial_and_institutional_emissions
+  - id: light_duty_vehicle_emissions
     from_dimensions:
     - id: sector
-      categories: [i2]
+      categories: [light_duty_vehicles]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i6_nonspecified_emissions
+  - id: transit_emissions
     from_dimensions:
     - id: sector
-      categories: [i6]
+      categories: [transit]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: ii1_onroad_transport_emissions
+  - id: residential_emissions
     from_dimensions:
     - id: sector
-      categories: [ii1]
+      categories: [residential]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: ii2_railway_emissions
+  - id: institutional_commercial_and_industrial_emissions
     from_dimensions:
     - id: sector
-      categories: [ii2]
+      categories: [institutional_commercial_and_industrial]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: iii1_solid_waste_emissions
+  - id: solid_waste_emissions
     from_dimensions:
     - id: sector
-      categories: [iii1]
+      categories: [solid_waste]
       flatten: true
-    to_dimensions:
-    - id: ghg
+  - id: non_road_equipment_emissions
+    from_dimensions:
+    - id: sector
+      categories: [non_road_equipment]
+      flatten: true
+  - id: rail_transportation_emissions
+    from_dimensions:
+    - id: sector
+      categories: [rail_transportation]
+      flatten: true
 
 - id: clean_ldvs
   name: Clean LDVs
   description: Improve fuel efficiency in light-duty vehicles (LDVs).
-  group: transportation
+  group: on_road_transportation
   type: simple.AdditiveAction
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: ['sector', 'ghg']
-  output_dimensions: ['sector', 'ghg']
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
   input_datasets:
   - id: surrey/emissions_forecast_actions
     column: emissions
@@ -1310,58 +439,56 @@ actions:
       value: clean_ldvs
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: i1_residential_emissions
+  - id: medium_and_heavy_duty_vehicle_emissions
     from_dimensions:
     - id: sector
-      categories: [i1]
+      categories: [medium_and_heavy_duty_vehicles]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i2_commercial_and_institutional_emissions
+  - id: light_duty_vehicle_emissions
     from_dimensions:
     - id: sector
-      categories: [i2]
+      categories: [light_duty_vehicles]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i6_nonspecified_emissions
+  - id: transit_emissions
     from_dimensions:
     - id: sector
-      categories: [i6]
+      categories: [transit]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: ii1_onroad_transport_emissions
+  - id: residential_emissions
     from_dimensions:
     - id: sector
-      categories: [ii1]
+      categories: [residential]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: ii2_railway_emissions
+  - id: institutional_commercial_and_industrial_emissions
     from_dimensions:
     - id: sector
-      categories: [ii2]
+      categories: [institutional_commercial_and_industrial]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: iii1_solid_waste_emissions
+  - id: solid_waste_emissions
     from_dimensions:
     - id: sector
-      categories: [iii1]
+      categories: [solid_waste]
       flatten: true
-    to_dimensions:
-    - id: ghg
+  - id: non_road_equipment_emissions
+    from_dimensions:
+    - id: sector
+      categories: [non_road_equipment]
+      flatten: true
+  - id: rail_transportation_emissions
+    from_dimensions:
+    - id: sector
+      categories: [rail_transportation]
+      flatten: true
 
 - id: clean_mhdvs
   name: Clean MHDVs
   description: Improve fuel efficiency in medium and heavy-duty vehicles (MHDVs).
-  group: transportation
+  group: on_road_transportation
   type: simple.AdditiveAction
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: ['sector', 'ghg']
-  output_dimensions: ['sector', 'ghg']
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
   input_datasets:
   - id: surrey/emissions_forecast_actions
     column: emissions
@@ -1371,58 +498,56 @@ actions:
       value: clean_mhdvs
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: i1_residential_emissions
+  - id: medium_and_heavy_duty_vehicle_emissions
     from_dimensions:
     - id: sector
-      categories: [i1]
+      categories: [medium_and_heavy_duty_vehicles]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i2_commercial_and_institutional_emissions
+  - id: light_duty_vehicle_emissions
     from_dimensions:
     - id: sector
-      categories: [i2]
+      categories: [light_duty_vehicles]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i6_nonspecified_emissions
+  - id: transit_emissions
     from_dimensions:
     - id: sector
-      categories: [i6]
+      categories: [transit]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: ii1_onroad_transport_emissions
+  - id: residential_emissions
     from_dimensions:
     - id: sector
-      categories: [ii1]
+      categories: [residential]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: ii2_railway_emissions
+  - id: institutional_commercial_and_industrial_emissions
     from_dimensions:
     - id: sector
-      categories: [ii2]
+      categories: [institutional_commercial_and_industrial]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: iii1_solid_waste_emissions
+  - id: solid_waste_emissions
     from_dimensions:
     - id: sector
-      categories: [iii1]
+      categories: [solid_waste]
       flatten: true
-    to_dimensions:
-    - id: ghg
+  - id: non_road_equipment_emissions
+    from_dimensions:
+    - id: sector
+      categories: [non_road_equipment]
+      flatten: true
+  - id: rail_transportation_emissions
+    from_dimensions:
+    - id: sector
+      categories: [rail_transportation]
+      flatten: true
 
 - id: clean_transportation_fuels
   name: Clean transportation fuels
   description: Transition to renewable fuels for transportation.
-  group: transportation
+  group: on_road_transportation
   type: simple.AdditiveAction
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: ['sector', 'ghg']
-  output_dimensions: ['sector', 'ghg']
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
   input_datasets:
   - id: surrey/emissions_forecast_actions
     column: emissions
@@ -1432,58 +557,56 @@ actions:
       value: clean_transportation_fuels
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: i1_residential_emissions
+  - id: medium_and_heavy_duty_vehicle_emissions
     from_dimensions:
     - id: sector
-      categories: [i1]
+      categories: [medium_and_heavy_duty_vehicles]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i2_commercial_and_institutional_emissions
+  - id: light_duty_vehicle_emissions
     from_dimensions:
     - id: sector
-      categories: [i2]
+      categories: [light_duty_vehicles]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i6_nonspecified_emissions
+  - id: transit_emissions
     from_dimensions:
     - id: sector
-      categories: [i6]
+      categories: [transit]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: ii1_onroad_transport_emissions
+  - id: residential_emissions
     from_dimensions:
     - id: sector
-      categories: [ii1]
+      categories: [residential]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: ii2_railway_emissions
+  - id: institutional_commercial_and_industrial_emissions
     from_dimensions:
     - id: sector
-      categories: [ii2]
+      categories: [institutional_commercial_and_industrial]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: iii1_solid_waste_emissions
+  - id: solid_waste_emissions
     from_dimensions:
     - id: sector
-      categories: [iii1]
+      categories: [solid_waste]
       flatten: true
-    to_dimensions:
-    - id: ghg
+  - id: non_road_equipment_emissions
+    from_dimensions:
+    - id: sector
+      categories: [non_road_equipment]
+      flatten: true
+  - id: rail_transportation_emissions
+    from_dimensions:
+    - id: sector
+      categories: [rail_transportation]
+      flatten: true
 
 - id: land_use_and_15minute_neighborhoods_b
   name: Land use & 15-minute neighborhoods (B)
   description: Adopt 50x50 and develop 15-minute neighborhoods (B).
-  group: stationary
+  group: buildings
   type: simple.AdditiveAction
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: ['sector', 'ghg']
-  output_dimensions: ['sector', 'ghg']
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
   input_datasets:
   - id: surrey/emissions_forecast_actions
     column: emissions
@@ -1493,58 +616,56 @@ actions:
       value: land_use_and_15minute_neighborhoods_b
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: i1_residential_emissions
+  - id: medium_and_heavy_duty_vehicle_emissions
     from_dimensions:
     - id: sector
-      categories: [i1]
+      categories: [medium_and_heavy_duty_vehicles]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i2_commercial_and_institutional_emissions
+  - id: light_duty_vehicle_emissions
     from_dimensions:
     - id: sector
-      categories: [i2]
+      categories: [light_duty_vehicles]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i6_nonspecified_emissions
+  - id: transit_emissions
     from_dimensions:
     - id: sector
-      categories: [i6]
+      categories: [transit]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: ii1_onroad_transport_emissions
+  - id: residential_emissions
     from_dimensions:
     - id: sector
-      categories: [ii1]
+      categories: [residential]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: ii2_railway_emissions
+  - id: institutional_commercial_and_industrial_emissions
     from_dimensions:
     - id: sector
-      categories: [ii2]
+      categories: [institutional_commercial_and_industrial]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: iii1_solid_waste_emissions
+  - id: solid_waste_emissions
     from_dimensions:
     - id: sector
-      categories: [iii1]
+      categories: [solid_waste]
       flatten: true
-    to_dimensions:
-    - id: ghg
+  - id: non_road_equipment_emissions
+    from_dimensions:
+    - id: sector
+      categories: [non_road_equipment]
+      flatten: true
+  - id: rail_transportation_emissions
+    from_dimensions:
+    - id: sector
+      categories: [rail_transportation]
+      flatten: true
 
 - id: land_use_and_15minute_neighborhoods_t
   name: Land use & 15-minute neighborhoods (T)
   description: Adopt 50x50 and develop 15-minute neighborhoods (T).
-  group: transportation
+  group: on_road_transportation
   type: simple.AdditiveAction
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: ['sector', 'ghg']
-  output_dimensions: ['sector', 'ghg']
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
   input_datasets:
   - id: surrey/emissions_forecast_actions
     column: emissions
@@ -1554,58 +675,56 @@ actions:
       value: land_use_and_15minute_neighborhoods_t
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: i1_residential_emissions
+  - id: medium_and_heavy_duty_vehicle_emissions
     from_dimensions:
     - id: sector
-      categories: [i1]
+      categories: [medium_and_heavy_duty_vehicles]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i2_commercial_and_institutional_emissions
+  - id: light_duty_vehicle_emissions
     from_dimensions:
     - id: sector
-      categories: [i2]
+      categories: [light_duty_vehicles]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i6_nonspecified_emissions
+  - id: transit_emissions
     from_dimensions:
     - id: sector
-      categories: [i6]
+      categories: [transit]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: ii1_onroad_transport_emissions
+  - id: residential_emissions
     from_dimensions:
     - id: sector
-      categories: [ii1]
+      categories: [residential]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: ii2_railway_emissions
+  - id: institutional_commercial_and_industrial_emissions
     from_dimensions:
     - id: sector
-      categories: [ii2]
+      categories: [institutional_commercial_and_industrial]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: iii1_solid_waste_emissions
+  - id: solid_waste_emissions
     from_dimensions:
     - id: sector
-      categories: [iii1]
+      categories: [solid_waste]
       flatten: true
-    to_dimensions:
-    - id: ghg
+  - id: non_road_equipment_emissions
+    from_dimensions:
+    - id: sector
+      categories: [non_road_equipment]
+      flatten: true
+  - id: rail_transportation_emissions
+    from_dimensions:
+    - id: sector
+      categories: [rail_transportation]
+      flatten: true
 
 - id: mhdv_technology
   name: MHDV technology
   description: Transition medium and heavy-duty vehicles (MHDVs) to ZEVs.
-  group: transportation
+  group: on_road_transportation
   type: simple.AdditiveAction
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: ['sector', 'ghg']
-  output_dimensions: ['sector', 'ghg']
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
   input_datasets:
   - id: surrey/emissions_forecast_actions
     column: emissions
@@ -1615,58 +734,56 @@ actions:
       value: mhdv_technology
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: i1_residential_emissions
+  - id: medium_and_heavy_duty_vehicle_emissions
     from_dimensions:
     - id: sector
-      categories: [i1]
+      categories: [medium_and_heavy_duty_vehicles]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i2_commercial_and_institutional_emissions
+  - id: light_duty_vehicle_emissions
     from_dimensions:
     - id: sector
-      categories: [i2]
+      categories: [light_duty_vehicles]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i6_nonspecified_emissions
+  - id: transit_emissions
     from_dimensions:
     - id: sector
-      categories: [i6]
+      categories: [transit]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: ii1_onroad_transport_emissions
+  - id: residential_emissions
     from_dimensions:
     - id: sector
-      categories: [ii1]
+      categories: [residential]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: ii2_railway_emissions
+  - id: institutional_commercial_and_industrial_emissions
     from_dimensions:
     - id: sector
-      categories: [ii2]
+      categories: [institutional_commercial_and_industrial]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: iii1_solid_waste_emissions
+  - id: solid_waste_emissions
     from_dimensions:
     - id: sector
-      categories: [iii1]
+      categories: [solid_waste]
       flatten: true
-    to_dimensions:
-    - id: ghg
+  - id: non_road_equipment_emissions
+    from_dimensions:
+    - id: sector
+      categories: [non_road_equipment]
+      flatten: true
+  - id: rail_transportation_emissions
+    from_dimensions:
+    - id: sector
+      categories: [rail_transportation]
+      flatten: true
 
 - id: new_construction
   name: New construction
   description: Building new zero-GHG residential and ICI buildings.
-  group: stationary
+  group: buildings
   type: simple.AdditiveAction
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: ['sector', 'ghg']
-  output_dimensions: ['sector', 'ghg']
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
   input_datasets:
   - id: surrey/emissions_forecast_actions
     column: emissions
@@ -1676,58 +793,56 @@ actions:
       value: new_construction
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: i1_residential_emissions
+  - id: medium_and_heavy_duty_vehicle_emissions
     from_dimensions:
     - id: sector
-      categories: [i1]
+      categories: [medium_and_heavy_duty_vehicles]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i2_commercial_and_institutional_emissions
+  - id: light_duty_vehicle_emissions
     from_dimensions:
     - id: sector
-      categories: [i2]
+      categories: [light_duty_vehicles]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i6_nonspecified_emissions
+  - id: transit_emissions
     from_dimensions:
     - id: sector
-      categories: [i6]
+      categories: [transit]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: ii1_onroad_transport_emissions
+  - id: residential_emissions
     from_dimensions:
     - id: sector
-      categories: [ii1]
+      categories: [residential]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: ii2_railway_emissions
+  - id: institutional_commercial_and_industrial_emissions
     from_dimensions:
     - id: sector
-      categories: [ii2]
+      categories: [institutional_commercial_and_industrial]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: iii1_solid_waste_emissions
+  - id: solid_waste_emissions
     from_dimensions:
     - id: sector
-      categories: [iii1]
+      categories: [solid_waste]
       flatten: true
-    to_dimensions:
-    - id: ghg
+  - id: non_road_equipment_emissions
+    from_dimensions:
+    - id: sector
+      categories: [non_road_equipment]
+      flatten: true
+  - id: rail_transportation_emissions
+    from_dimensions:
+    - id: sector
+      categories: [rail_transportation]
+      flatten: true
 
 - id: renewable_natural_gas
   name: Renewable natural gas
   description: Shift from fossil to renewable natural gas.
-  group: stationary
+  group: buildings
   type: simple.AdditiveAction
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: ['sector', 'ghg']
-  output_dimensions: ['sector', 'ghg']
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
   input_datasets:
   - id: surrey/emissions_forecast_actions
     column: emissions
@@ -1737,58 +852,56 @@ actions:
       value: renewable_natural_gas
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: i1_residential_emissions
+  - id: medium_and_heavy_duty_vehicle_emissions
     from_dimensions:
     - id: sector
-      categories: [i1]
+      categories: [medium_and_heavy_duty_vehicles]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i2_commercial_and_institutional_emissions
+  - id: light_duty_vehicle_emissions
     from_dimensions:
     - id: sector
-      categories: [i2]
+      categories: [light_duty_vehicles]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i6_nonspecified_emissions
+  - id: transit_emissions
     from_dimensions:
     - id: sector
-      categories: [i6]
+      categories: [transit]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: ii1_onroad_transport_emissions
+  - id: residential_emissions
     from_dimensions:
     - id: sector
-      categories: [ii1]
+      categories: [residential]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: ii2_railway_emissions
+  - id: institutional_commercial_and_industrial_emissions
     from_dimensions:
     - id: sector
-      categories: [ii2]
+      categories: [institutional_commercial_and_industrial]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: iii1_solid_waste_emissions
+  - id: solid_waste_emissions
     from_dimensions:
     - id: sector
-      categories: [iii1]
+      categories: [solid_waste]
       flatten: true
-    to_dimensions:
-    - id: ghg
+  - id: non_road_equipment_emissions
+    from_dimensions:
+    - id: sector
+      categories: [non_road_equipment]
+      flatten: true
+  - id: rail_transportation_emissions
+    from_dimensions:
+    - id: sector
+      categories: [rail_transportation]
+      flatten: true
 
 - id: roadway_management
   name: Roadway management
   description: Manage roadways for transportation emissions reductions.
-  group: transportation
+  group: on_road_transportation
   type: simple.AdditiveAction
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: ['sector', 'ghg']
-  output_dimensions: ['sector', 'ghg']
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
   input_datasets:
   - id: surrey/emissions_forecast_actions
     column: emissions
@@ -1798,58 +911,56 @@ actions:
       value: roadway_management
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: i1_residential_emissions
+  - id: medium_and_heavy_duty_vehicle_emissions
     from_dimensions:
     - id: sector
-      categories: [i1]
+      categories: [medium_and_heavy_duty_vehicles]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i2_commercial_and_institutional_emissions
+  - id: light_duty_vehicle_emissions
     from_dimensions:
     - id: sector
-      categories: [i2]
+      categories: [light_duty_vehicles]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i6_nonspecified_emissions
+  - id: transit_emissions
     from_dimensions:
     - id: sector
-      categories: [i6]
+      categories: [transit]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: ii1_onroad_transport_emissions
+  - id: residential_emissions
     from_dimensions:
     - id: sector
-      categories: [ii1]
+      categories: [residential]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: ii2_railway_emissions
+  - id: institutional_commercial_and_industrial_emissions
     from_dimensions:
     - id: sector
-      categories: [ii2]
+      categories: [institutional_commercial_and_industrial]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: iii1_solid_waste_emissions
+  - id: solid_waste_emissions
     from_dimensions:
     - id: sector
-      categories: [iii1]
+      categories: [solid_waste]
       flatten: true
-    to_dimensions:
-    - id: ghg
+  - id: non_road_equipment_emissions
+    from_dimensions:
+    - id: sector
+      categories: [non_road_equipment]
+      flatten: true
+  - id: rail_transportation_emissions
+    from_dimensions:
+    - id: sector
+      categories: [rail_transportation]
+      flatten: true
 
 - id: waste_reduction_and_diversion
   name: Waste reduction & diversion
   description: Reduce and divert waste to landfills.
-  group: waste
+  group: other
   type: simple.AdditiveAction
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: ['sector', 'ghg']
-  output_dimensions: ['sector', 'ghg']
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
   input_datasets:
   - id: surrey/emissions_forecast_actions
     column: emissions
@@ -1859,58 +970,56 @@ actions:
       value: waste_reduction_and_diversion
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: i1_residential_emissions
+  - id: medium_and_heavy_duty_vehicle_emissions
     from_dimensions:
     - id: sector
-      categories: [i1]
+      categories: [medium_and_heavy_duty_vehicles]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i2_commercial_and_institutional_emissions
+  - id: light_duty_vehicle_emissions
     from_dimensions:
     - id: sector
-      categories: [i2]
+      categories: [light_duty_vehicles]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i6_nonspecified_emissions
+  - id: transit_emissions
     from_dimensions:
     - id: sector
-      categories: [i6]
+      categories: [transit]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: ii1_onroad_transport_emissions
+  - id: residential_emissions
     from_dimensions:
     - id: sector
-      categories: [ii1]
+      categories: [residential]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: ii2_railway_emissions
+  - id: institutional_commercial_and_industrial_emissions
     from_dimensions:
     - id: sector
-      categories: [ii2]
+      categories: [institutional_commercial_and_industrial]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: iii1_solid_waste_emissions
+  - id: solid_waste_emissions
     from_dimensions:
     - id: sector
-      categories: [iii1]
+      categories: [solid_waste]
       flatten: true
-    to_dimensions:
-    - id: ghg
+  - id: non_road_equipment_emissions
+    from_dimensions:
+    - id: sector
+      categories: [non_road_equipment]
+      flatten: true
+  - id: rail_transportation_emissions
+    from_dimensions:
+    - id: sector
+      categories: [rail_transportation]
+      flatten: true
 
 - id: zeroemission_vehicles_zevs
   name: Zero-emission vehicles (ZEVs)
   description: Adopt policies and regulations facilitating a transition to ZEVs.
-  group: transportation
+  group: on_road_transportation
   type: simple.AdditiveAction
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: ['sector', 'ghg']
-  output_dimensions: ['sector', 'ghg']
+  input_dimensions: [sector, ghg]
+  output_dimensions: [sector, ghg]
   input_datasets:
   - id: surrey/emissions_forecast_actions
     column: emissions
@@ -1920,55 +1029,53 @@ actions:
       value: zeroemission_vehicles_zevs
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: i1_residential_emissions
+  - id: medium_and_heavy_duty_vehicle_emissions
     from_dimensions:
     - id: sector
-      categories: [i1]
+      categories: [medium_and_heavy_duty_vehicles]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i2_commercial_and_institutional_emissions
+  - id: light_duty_vehicle_emissions
     from_dimensions:
     - id: sector
-      categories: [i2]
+      categories: [light_duty_vehicles]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: i6_nonspecified_emissions
+  - id: transit_emissions
     from_dimensions:
     - id: sector
-      categories: [i6]
+      categories: [transit]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: ii1_onroad_transport_emissions
+  - id: residential_emissions
     from_dimensions:
     - id: sector
-      categories: [ii1]
+      categories: [residential]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: ii2_railway_emissions
+  - id: institutional_commercial_and_industrial_emissions
     from_dimensions:
     - id: sector
-      categories: [ii2]
+      categories: [institutional_commercial_and_industrial]
       flatten: true
-    to_dimensions:
-    - id: ghg
-  - id: iii1_solid_waste_emissions
+  - id: solid_waste_emissions
     from_dimensions:
     - id: sector
-      categories: [iii1]
+      categories: [solid_waste]
       flatten: true
-    to_dimensions:
-    - id: ghg
+  - id: non_road_equipment_emissions
+    from_dimensions:
+    - id: sector
+      categories: [non_road_equipment]
+      flatten: true
+  - id: rail_transportation_emissions
+    from_dimensions:
+    - id: sector
+      categories: [rail_transportation]
+      flatten: true
 
 pages:
 - id: home
   name: Surrey Greenhouse Gas Inventory
   path: /
   type: emission
-  outcome_node: net_emissions_forecast
+  outcome_node: net_emissions
   lead_title: Surrey Greenhouse Gas Inventory & Forecast
   lead_paragraph: Greenhouse gas inventory (2007-2021) and forecast (2022-2050) for the City of Surrey.
 
