@@ -749,8 +749,8 @@ class DatasetRule(ValidationRule):
     def _explain_single_dataset(self, dataset_config: dict, context: Context) -> list[str]:
         """Explain a single dataset configuration."""
         if isinstance(dataset_config, str):
-            return [f"<li>{_('Dataset with identifier')} {dataset_config}</li>"]
-        html = [f"<li>{_('Dataset with identifier')} {dataset_config['id']}<ul>"]
+            return [f"<li>{_('Dataset with identifier')} <i>{dataset_config}</i></li>"]
+        html = [f"<li>{_('Dataset with identifier')} <i>{dataset_config['id']}</i><ul>"]
 
         col = dataset_config.get('column')
         if col is not None:
@@ -780,23 +780,23 @@ class DatasetRule(ValidationRule):
             for d in renames:
                 col = d['rename_col']
                 val = d.get('value', '')
-                html.append(f'<li>Column {col} to {val}.</li>')
+                html.append(f'<li>Column <i>{col}</i> to <i>{val}</i>.</li>')
             html.append('</ul></li>')
         true_filters = [d for d in filters if 'rename_col' not in d]
         if true_filters:
             html.append(f"<li>{_('Has the following filters:')}<ol>")
             for d in true_filters:
                 if 'column' in d:
-                    html.append(self._explain_column_filters(d, context))
+                    html.append(self._explain_column_filter(d, context))
                 if 'dimension' in d:
-                    html.append(self._explain_dim_filters(d, context))
+                    html.append(self._explain_dim_filter(d, context))
                 if 'rename_item' in d:
-                    html.append(self._explain_rename_item_filters(d))
+                    html.append(self._explain_rename_item_filter(d))
 
         html.append("</ol></li>")
         return html
 
-    def _explain_column_filters(self, d: dict[str, Any], context: Context) -> str:
+    def _explain_column_filter(self, d: dict[str, Any], context: Context) -> str:
         col = d['column']
         v: str = d.get('value', '')
         vals: list[str] = d.get('values', [])
@@ -807,21 +807,26 @@ class DatasetRule(ValidationRule):
             param = context.global_parameters[ref]
             vals.append(f"{_('global parameter')} {param.label}")
         drop: bool = d.get('drop_col', True)
-        then = _(' Then drop the column.') if drop else ''
         exclude: bool = d.get('exclude', False)
         do = _('by excluding') if exclude else _('by including')
         if ''.join(vals):
-            return f"<li>{_('Filter column')} {col} {do} {', '.join(vals)}.{then}</li>"
-        return f"<li>{_('Drop column')} {col}.</li>"
+            out = f"<li>{_('Filter column')} <i>{col}</i>) {do} <i>{', '.join(vals)}</i>.</li>"
+        else:
+            out = ''
+        if  d.get('flatten', False):
+            out = f"{out}<li>{_('Sum up column')} <i>{col}</i>.</li>"
+        elif drop:
+            out = f"{out}<li>{_(' Drop column')} <i>{col}</i>.</li>"
+        return out
 
-    def _explain_dim_filters(self, d: dict[str, Any], context: Context) -> str:
-        return '' # FIXME HOTFIX
+    def _explain_dim_filter(self, d: dict[str, Any], context: Context) -> str:
         dim_id = d['dimension']
         dim = context.dimensions[dim_id]
         if 'assign_category' in d:
             cat_id = d['assign_category']
             dim = context.dimensions[dim_id]
-            return f"{_('Assign dataset to category')} {dim.categories[cat_id]} {_('on dimension')} {dim.label}"
+            cat_label = next(str(cat.label) for cat in dim.categories if cat.id == cat_id)
+            return f"<li>{_('Assign dataset to category')} <i>{cat_label}</i> {_('on dimension')} <i>{dim.label}</i>.</li>"
 
         if 'groups' in d:
             grp_ids = d['groups']
@@ -832,19 +837,19 @@ class DatasetRule(ValidationRule):
         else:
             items = []
         if items:
-            out = f"{_('Filter dimension')} {dim.label} {_('by category')} {', '.join(items)}. "
+            out = f"<li>{_('Filter dimension')} <i>{dim.label}</i> {_('by category')} <i>{', '.join(items)}</i>. </li>"
         else:
             out = ''
         if  d.get('flatten', False):
-            out = f"{out}{_('Sum up the dimension')} <i>{dim.label}</i>."
+            out = f"{out}<li>{_('Sum up the dimension')} <i>{dim.label}</i>.</li>"
         return out
 
-    def _explain_rename_item_filters(self, d: dict[str, Any]) -> str:
+    def _explain_rename_item_filter(self, d: dict[str, Any]) -> str:
         old = d['rename_item'].split('|')
         col = old[0]
         item = old[1]
         new_item = d.get('value', '')
-        return f"_('Rename item') {item} {_('with name')} {new_item} {_('on column')} {col}."
+        return f"_('Rename item') <i>{item}</i> {_('with name')} <i>{new_item}</i> {_('on column')} <i>{col}</i>."
 
     def validate(self, node_config: dict, context: Context) -> list[ValidationResult]:
         results: list[ValidationResult] = []
