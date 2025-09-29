@@ -1122,7 +1122,7 @@ actions:
       - categories:
           transport_mode: rail_passenger
       amounts:
-      - year: 2024
+      - year: 2025
         source_amount: -0.27
         dest_amounts: [27.3, 13.9, 58.8]
       - year: 2039
@@ -1154,7 +1154,7 @@ actions:
       - categories:
           transport_mode: bicycle
       amounts:
-      - year: 2024
+      - year: 2025
         source_amount: -0.73
         dest_amounts: [100]
       - year: 2039
@@ -1426,7 +1426,7 @@ actions:
     - target:
         node: solid_waste_incineration_ccs_share
       amounts:
-      - year: 2024
+      - year: 2025
         amount: 0
       - year: 2034
         amount: 0
@@ -1452,7 +1452,7 @@ actions:
     - target:
         node: sewage_sludge_processing_ccs_share
       amounts:
-      - year: 2024
+      - year: 2025
         amount: 0
       - year: 2028
         amount: 0
