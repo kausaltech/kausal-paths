@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://aarhus-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 7a09068e2daeae84988d20a1d207898c019361a5
+  commit: 64d12900bcf8454e60e03d1f220160d2b3c96bf0
   dvc_remote: kausal-s3
 name: Aarhus Greenhouse Gas Inventory
 owner: City of Aarhus
@@ -1673,7 +1673,7 @@ nodes:
   input_dimensions: [sector, ghg]
   output_dimensions: [sector, ghg]
   params:
-    formula: (land_areas * land_emission_factors) + reference + climate_supervision_and_action_plans
+    formula: (land_areas * land_emission_factors) + reference + biogenic_energy_park + climate_supervision_and_action_plans
   input_datasets:
   - id: aarhus/land
     tags: [reference]
@@ -1844,7 +1844,7 @@ nodes:
   input_dimensions: [sector, emission_source, ghg]
   output_dimensions: [sector, emission_source, ghg]
   params:
-    formula: (livestock_counts * livestock_emission_factors) + reference
+    formula: (livestock_counts * livestock_emission_factors) + reference + biogenic_energy_park
   input_datasets:
   - id: aarhus/livestock
     tags: [reference]
@@ -1859,6 +1859,37 @@ nodes:
 
 actions:
 # ----- Energy
+- id: energy_efficiency_improvements
+  name: Energy Efficiency Improvements
+  group: energy
+  type: simple.AdditiveAction
+  quantity: energy
+  unit: TJ/a
+  input_dimensions: [energy_carrier, energy_usage, sector]
+  output_dimensions: [energy_carrier, energy_usage, sector]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/energy_actions
+    column: energy
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: energy_efficiency_improvements
+    - column: ghg
+  output_nodes:
+  - id: chp_district_heat_energy_consumption
+    from_dimensions:
+    - id: energy_usage
+      flatten: true
+    - id: sector
+      categories: [i11]
+  - id: electricity_demand
+    from_dimensions:
+    - id: sector
+      categories: [i22]
+      flatten: true
+
 - id: energy_efficient_municipal_buildings
   name: Energy Efficient Municipal Buildings
   group: energy
@@ -1903,6 +1934,41 @@ actions:
     - id: sector
       categories: [i41]
 
+- id: expansion_of_renewable_energy
+  name: Expansion of Renewable Energy
+  group: energy
+  type: simple.AdditiveAction
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/energy_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: expansion_of_renewable_energy
+    - column: energy_usage
+    - column: ghg
+  output_metrics:
+  - id: energy
+    unit: TJ/a
+    quantity: energy
+  - id: area
+    unit: ha
+    quantity: area
+  output_nodes:
+  - id: renewable_electricity_generation
+    metrics: [energy]
+    from_dimensions:
+    - id: sector
+      flatten: true
+  - id: land_areas
+    metrics: [area]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+
 - id: green_district_heating_of_the_future
   name: Green District Heating of the Future
   group: energy
@@ -1946,6 +2012,26 @@ actions:
     - column: sector
     - column: action
       value: sustainable_municipal_facilities
+    - column: energy_usage
+  output_nodes:
+  - id: energy_emissions
+
+- id: zero_emission_municipal_machinery_and_driving
+  name: Zero-emission Municipal Machinery and Driving
+  group: energy
+  type: simple.AdditiveAction
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  input_datasets:
+  - id: aarhus/energy_actions
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: zero_emission_municipal_machinery_and_driving
     - column: energy_usage
   output_nodes:
   - id: energy_emissions
@@ -2009,6 +2095,25 @@ actions:
   - id: waterborne_transport_energy_consumption
   - id: aviation_energy_consumption
 
+- id: sustainable_soil_management
+  name: Sustainable Soil Management
+  group: transportation
+  type: simple.AdditiveAction
+  quantity: mileage
+  unit: km/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: aarhus/transportation_actions
+    column: mileage
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: sustainable_soil_management
+  output_nodes:
+  - id: onroad_transport_vehicle_mileage
+
 # ----- Waste
 - id: biocover_on_landfills
   name: Biocover on Landfills
@@ -2048,6 +2153,48 @@ actions:
   - id: ippu_emissions
 
 # ----- AFOLU
+- id: biogenic_energy_park
+  name: Biogenic Energy Park
+  group: afolu
+  type: simple.AdditiveAction
+  input_dimensions: [sector, emission_source, ghg]
+  output_dimensions: [sector, emission_source, ghg]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/afolu_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: biogenic_energy_park
+  output_metrics:
+  - id: emissions
+    unit: t/a
+    quantity: emissions
+  - id: area
+    unit: ha
+    quantity: area
+  output_nodes:
+  - id: livestock_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: sector
+      categories: [v21, v22, v23, v24]
+  - id: cultivation_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: sector
+      categories: [v111]
+    - id: emission_source
+      flatten: true
+  - id: land_areas
+    metrics: [area]
+    from_dimensions:
+    - id: emission_source
+      flatten: true
+    - id: ghg
+      flatten: true
+
 - id: climate_supervision_and_action_plans
   name: Climate Supervision and Action Plans
   group: afolu
@@ -2063,8 +2210,49 @@ actions:
     filters:
     - column: action
       value: climate_supervision_and_action_plans
+    - column: emission_source
   output_nodes:
   - id: cultivation_emissions
+
+- id: conversion_to_forestry_and_nature
+  name: Conversion to Forestry and Nature
+  group: afolu
+  type: simple.AdditiveAction
+  quantity: area
+  unit: ha
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_datasets:
+  - id: aarhus/afolu_actions
+    column: area
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: conversion_to_forestry_and_nature
+    - column: emission_source
+    - column: ghg
+  output_nodes:
+  - id: land_areas
+
+- id: extraction_of_organic_soils
+  name: Extraction of Organic Soils
+  group: afolu
+  type: simple.AdditiveAction
+  quantity: area
+  unit: ha
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_datasets:
+  - id: aarhus/afolu_actions
+    column: area
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: extraction_of_organic_soils
+    - column: emission_source
+    - column: ghg
+  output_nodes:
+  - id: land_areas
 
 pages:
 - id: home
