@@ -815,6 +815,7 @@ class DatasetRule(ValidationRule):
         return f"<li>{_('Drop column')} {col}.</li>"
 
     def _explain_dim_filters(self, d: dict[str, Any], context: Context) -> str:
+        return '' # FIXME HOTFIX
         dim_id = d['dimension']
         dim = context.dimensions[dim_id]
         if 'assign_category' in d:
