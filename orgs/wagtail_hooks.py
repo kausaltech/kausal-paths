@@ -221,6 +221,6 @@ class OrganizationViewSet(PathsViewSet):
         qs = Organization.objects.qs.available_for_instance(active_instance)
         return qs
 
-# If kausal_watch_extensions is installed, an extended version of the view set is registered there
+# If kausal_paths_extensions is installed, an extended version of the view set is registered there
 if not find_spec('kausal_paths_extensions'):
     register_snippet(OrganizationViewSet)
