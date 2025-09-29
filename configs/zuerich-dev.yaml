@@ -1009,32 +1009,19 @@ actions:
     effizient genutzt wird. Während das kantonale Energiegesetz die Anforderungen
     an Neubauten und Ersatzneubauten festlegt, gibt es aktuell keine regulativen Anforderungen
     zur Beschleunigung der Sanierung von Bestandesbauten.
-  type: linear.ReduceAction
+  type: linear.DatasetReduceAction
   quantity: energy_per_area
+  unit: kWh/m**2/a
+  input_dimensions: [building_use]
+  output_dimensions: [building_use]
+  input_datasets:
+  - id: zuerich/building_heat_per_area_goals
+    tags: [goal]
+  input_nodes:
+  - id: building_heat_per_area_historical
+    tags: [historical]
   output_nodes:
   - id: building_heat_per_area
-  unit: kWh/m**2/a
-  params:
-  - id: reduce
-    unit: kWh/m**2/a
-    is_customizable: false
-    value:
-    - target:
-        categories:
-          building_use: residential
-      amounts:
-      - year: 2024
-        amount: -1.344844
-      - year: 2040
-        amount: -1.344844
-    - target:
-        categories:
-          building_use: nonresidential
-      amounts:
-      - year: 2024
-        amount: -1.350181
-      - year: 2040
-        amount: -1.350181
 
 - id: more_efficient_building_use
   name_en: More efficient building use
@@ -1060,38 +1047,6 @@ actions:
     tags: [historical]
   output_nodes:
   - id: normalized_building_floor_area
-
-- id: optimize_building_technology
-  name_en: Optimal/efficient use and operation of building technology
-  name_de: Optimaler/effizienter Einsatz und Betrieb der Gebäudetechnik
-  parent: reduce_building_heat_demand
-  group: buildings
-  type: linear.ReduceAction
-  quantity: energy_per_area
-  output_nodes:
-  - id: building_heat_per_area
-  unit: kWh/m**2/a
-  params:
-  - id: reduce
-    unit: kWh/m**2/a
-    is_customizable: false
-    value:
-    - target:
-        categories:
-          building_use: residential
-      amounts:
-      - year: 2024
-        amount: 0
-      - year: 2040
-        amount: 0
-    - target:
-        categories:
-          building_use: nonresidential
-      amounts:
-      - year: 2024
-        amount: 0
-      - year: 2040
-        amount: 0
 
 #
 # Massnahmenpaket 3: Vermeidung von Verkehrsaufkommen

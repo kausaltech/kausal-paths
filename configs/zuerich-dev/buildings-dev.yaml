@@ -169,9 +169,9 @@ nodes:
       flatten: true
     to_dimensions: []
 
-- id: building_heat_per_area
-  name_de: Spezifischer Wärmebedarf Gebäude pro m2 Geschossfläche
-  name_en: Heat energy demand of buildings per area
+- id: building_heat_per_area_historical
+  name_de: Spezifischer Wärmebedarf Gebäude pro m2 Geschossfläche (historisch)
+  name_en: Heat energy demand of buildings per area (historical)
   type: ch.zuerich.BuildingHeatPerArea
   quantity: energy_per_area
   unit: kWh/m**2/a
@@ -186,6 +186,17 @@ nodes:
     tags: [floor_area]
     to_dimensions:
     - id: building_use
+
+- id: building_heat_per_area
+  name_de: Spezifischer Wärmebedarf Gebäude pro m2 Geschossfläche
+  name_en: Heat energy demand of buildings per area
+  type: simple.AdditiveNode
+  quantity: energy_per_area
+  unit: kWh/m**2/a
+  input_dimensions: [building_use]
+  output_dimensions: [building_use]
+  input_nodes:
+  - id: building_heat_per_area_historical
 
 - id: building_heat_demand
   name_de: Wärmebedarf Gebäude
