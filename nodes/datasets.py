@@ -286,6 +286,7 @@ class DatasetWithFilters(Dataset):
         ref = d.get('ref')
         drop = d.get('drop_col', True)
         exclude = d.get('exclude', False)
+        flatten = d.get('flatten', False)
         mask = None
         if vals:
             mask = pl.col(col).is_in(vals)
@@ -302,7 +303,12 @@ class DatasetWithFilters(Dataset):
                 mask = ~mask
             df = df.filter(mask)
 
-        if drop:
+        if flatten:
+            if VALUE_COLUMN in df.columns:
+                df = df.filter(~pl.col(VALUE_COLUMN).is_nan())
+            df = df.paths.sum_over_dims(col)
+
+        elif drop:
             df = df.drop(col)
         return df
 

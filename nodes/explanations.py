@@ -816,8 +816,6 @@ class DatasetRule(ValidationRule):
 
     def _explain_dim_filters(self, d: dict[str, Any], context: Context) -> str:
         dim_id = d['dimension']
-        if dim_id not in context.dimensions and d.get('flatten'):
-            return f"Drop column {dim_id} by summing up." # Dimension rather than column filter is used to sum up duplicate rows.
         dim = context.dimensions[dim_id]
         if 'assign_category' in d:
             cat_id = d['assign_category']
@@ -832,9 +830,12 @@ class DatasetRule(ValidationRule):
             items = [str(cat.label) for cat in dim.categories if cat.id in cat_ids]
         else:
             items = []
-        out = f"{_('Filter dimension')} {dim.label} {_('by category')} {', '.join(items)}."
+        if items:
+            out = f"{_('Filter dimension')} {dim.label} {_('by category')} {', '.join(items)}. "
+        else:
+            out = ''
         if  d.get('flatten', False):
-            out = f"{out} {_('Then, sum the dimension up.')}"
+            out = f"{out}{_('Sum up the dimension')} <i>{dim.label}</i>."
         return out
 
     def _explain_rename_item_filters(self, d: dict[str, Any]) -> str:

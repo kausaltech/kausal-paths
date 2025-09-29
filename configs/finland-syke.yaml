@@ -242,7 +242,7 @@ nodes:
       value: Value
     - rename_col: taso_3
       value: alas_sector
-    - dimension: taso_1
+    - column: taso_1
       flatten: true
 
 # Historical nodes for comparison
@@ -274,7 +274,7 @@ nodes:
       value: Year
     - rename_col: ktCO2e
       value: Value
-    - dimension: taso_1
+    - column: taso_1
       flatten: true
 
 - id: heating_emissions_historical
@@ -304,7 +304,7 @@ nodes:
       value: Year
     - rename_col: ktCO2e
       value: Value
-    - dimension: taso_1
+    - column: taso_1
       flatten: true
 
 - id: industrial_emissions_historical
@@ -334,7 +334,7 @@ nodes:
       value: Year
     - rename_col: ktCO2e
       value: Value
-    - dimension: taso_1
+    - column: taso_1
       flatten: true
 
 - id: transport_emissions_historical
@@ -364,7 +364,7 @@ nodes:
       value: Year
     - rename_col: ktCO2e
       value: Value
-    - dimension: taso_1
+    - column: taso_1
       flatten: true
 
 - id: f_gas_emissions_historical
@@ -394,7 +394,7 @@ nodes:
       value: Year
     - rename_col: ktCO2e
       value: Value
-    - dimension: taso_1
+    - column: taso_1
       flatten: true
 
 - id: agriculture_emissions_historical
@@ -424,7 +424,7 @@ nodes:
       value: Year
     - rename_col: ktCO2e
       value: Value
-    - dimension: taso_1
+    - column: taso_1
       flatten: true
 
 - id: waste_management_emissions_historical
@@ -454,7 +454,7 @@ nodes:
       value: Year
     - rename_col: ktCO2e
       value: Value
-    - dimension: taso_1
+    - column: taso_1
       flatten: true
 
 # WEM TREND NODES
