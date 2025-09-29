@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import override
+from typing import TYPE_CHECKING, override
 
 from rest_framework.routers import DefaultRouter, SimpleRouter
 
@@ -20,14 +20,26 @@ from kausal_common.datasets.api import (
     DimensionCategoryViewSet as BaseDimensionCategoryViewSet,
     DimensionViewSet as BaseDimensionViewSet,
 )
-from kausal_common.datasets.models import DataPointComment
+from kausal_common.datasets.models import DataPoint, DataPointComment
+
+if TYPE_CHECKING:
+    from rest_framework.views import APIView
+
+
+class DataPointCommentPermission(PermissionPolicyDRFPermission[DataPointComment, DataPoint]):
+    class Meta:
+        model = DataPointComment
+
+    def get_create_context_from_api_view(self, view: APIView) -> DataPoint:
+        data_point_uuid = view.kwargs['datapoint_uuid']
+        return DataPoint.objects.get(uuid=data_point_uuid)
 
 
 class DataPointCommentViewSet(BaseDataPointCommentViewSet):
     @override
     def get_permissions(self):
         """Instantiate and return the list of permissions that this view requires."""
-        return [PermissionPolicyDRFPermission(model=DataPointComment)]
+        return [DataPointCommentPermission()]
 
 
 class DataPointSourceReferenceViewSet(BaseDataPointSourceReferenceViewSet):
