@@ -10,7 +10,7 @@ from kausal_common.organizations.views import (
 
 from paths.context import realm_context
 
-from admin_site.viewsets import PathsCreateView, admin_req
+from admin_site.viewsets import PathsCreateView, PathsIndexView, admin_req
 from orgs.models import Organization
 
 if TYPE_CHECKING:
@@ -60,7 +60,7 @@ class CreateChildNodeView(BaseCreateChildNodeView):
 
         return instance
 
-class OrganizationIndexView(BaseOrganizationIndexView):
+class OrganizationIndexView(BaseOrganizationIndexView, PathsIndexView):
     def get_list_more_buttons(self, instance: Organization):
         assert self.view_set is not None
         user = admin_req(self.request).user
