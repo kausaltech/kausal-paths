@@ -28,8 +28,8 @@
     { once: true, passive: true },
   );
 
-  const userFoundText = "{% trans 'Your Kausal Paths admin portal has moved.' %}";
-const redirectingText = "{% trans 'Redirecting to {url} in {count} seconds...' %}";
+const userFoundText = "{% trans 'Your Kausal Paths admin portal has moved.' %}";
+const redirectingText = "{% trans 'Redirecting to {url} in {count}&nbsp;seconds...' %}";
 const goNowText = "{% trans 'Go Now' %}";
 
 function showClusterRedirectNotice(clusterResult) {
@@ -40,14 +40,10 @@ function showClusterRedirectNotice(clusterResult) {
 
     let countdown = 10;
 
-    $('.messages').empty().append(`
-        <ul>
-            <li class="success">
-                <strong>${userFoundText}</strong><br>
-                ${redirectingText.replace('{url}', `<a href="${redirectUrlWithState}" target="_blank">${redirectUrl}</a>`).replace('{count}', `<span id="countdown">${countdown}</span>`)}<br><br>
-                <button onclick="window.location.href='${redirectUrlWithState}'" class="button button-small button-secondary">${goNowText}</button>
-            </li>
-        </ul>
+    $('.messages').replaceWith(`
+        <strong>${userFoundText}</strong><br>
+        ${redirectingText.replace('{url}', `<a href="${redirectUrlWithState}">${redirectUrl}</a>`).replace('{count}', `<span id="countdown">${countdown}</span>`)}<br><br>
+        <button onclick="window.location.href='${redirectUrlWithState}'" class="button button-small button-secondary">${goNowText}</button>
     `);
 
     const timer = setInterval(() => {
