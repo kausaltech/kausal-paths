@@ -8,6 +8,7 @@ from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
 from django.core.exceptions import FieldDoesNotExist
 from django.db.models import Model, QuerySet
 from django.forms import BaseModelForm
+from django.utils.translation import gettext_lazy
 from wagtail.admin.forms.models import WagtailAdminModelForm
 from wagtail.admin.ui.tables import BulkActionsCheckboxColumn
 from wagtail.snippets.views.chooser import ChooseResultsView, ChooseView, SnippetChooserViewSet
@@ -129,6 +130,18 @@ class PathsIndexView(HideSnippetsFromBreadcrumbsMixin, IndexView[_ModelT, _QS]):
             return columns
         return [c for c in columns if not isinstance(c, BulkActionsCheckboxColumn)]
 
+    def get_list_more_buttons(self, instance):
+        buttons = super().get_list_more_buttons(instance)
+
+        # Change "Inspect" to "View"
+        for button in buttons:
+            if hasattr(button, 'label') and button.label == gettext_lazy("Inspect"):
+                button.label = gettext_lazy("View")
+                button.priority = 5
+                break
+
+        return buttons
+
 
 class PathsUsageView(HideSnippetsFromBreadcrumbsMixin, UsageView):
     pass
@@ -143,7 +156,7 @@ class PathsCopyView(HideSnippetsFromBreadcrumbsMixin, CopyView[_ModelT, _FormT])
 
 
 class PathsInspectView(HideSnippetsFromBreadcrumbsMixin, InspectView):
-    pass
+    page_title = gettext_lazy("View")
 
 
 class PathsChooseViewMixin(Generic[_ModelT], AdminInstanceMixin):
