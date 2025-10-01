@@ -663,52 +663,52 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
     def create_measure_defaults(self, defaults: dict[str, float] | None = None):
         if not defaults:
             defaults = {}
-        fw = self.framework
-        mt_qs = fw.measure_templates()
-        m_qs = self.measures.filter(measure_template__in=mt_qs)
-        m_by_uuid: dict[uuid.UUID, Measure] = {
-            m.mt_uuid: m for m in m_qs.annotate(mt_uuid=F('measure_template__uuid'))  # type: ignore[attr-defined]
+        framework = self.framework
+        measure_templates_qs = framework.measure_templates()
+        measures_qs = self.measures.filter(measure_template__in=measure_templates_qs)
+        measure_by_uuid: dict[uuid.UUID, Measure] = {
+            m.mt_uuid: m for m in measures_qs.annotate(mt_uuid=F('measure_template__uuid'))  # type: ignore[attr-defined]
         }
         year = self.baseline_year
-        mdp_qs = (
-            MeasureDataPoint.objects.get_queryset().filter(year=year, measure__in=m_qs)
+        measure_data_points_qs = (
+            MeasureDataPoint.objects.get_queryset().filter(year=year, measure__in=measures_qs)
             .annotate(mt_uuid=F('measure__measure_template__uuid'))
         )
-        mdp_by_uuid: dict[uuid.UUID, MeasureDataPoint] = {
-            mdp.mt_uuid: mdp for mdp in mdp_qs  # type: ignore[attr-defined]
+        measure_data_point_by_uuid: dict[uuid.UUID, MeasureDataPoint] = {
+            mdp.mt_uuid: mdp for mdp in measure_data_points_qs  # type: ignore[attr-defined]
         }
         new_measures: list[Measure] = []
-        for mt in mt_qs:
-            m = m_by_uuid.get(mt.uuid)
-            if m is None:
-                m = Measure(framework_config=self, measure_template=mt)
-                new_measures.append(m)
+        for measure_template in measure_templates_qs:
+            measure = measure_by_uuid.get(measure_template.uuid)
+            if measure is None:
+                measure = Measure(framework_config=self, measure_template=measure_template)
+                new_measures.append(measure)
 
         if new_measures:
             Measure.objects.bulk_create(new_measures)
 
-        new_mdps: list[MeasureDataPoint] = []
-        update_mdps: list[MeasureDataPoint] = []
+        new_measure_data_points: list[MeasureDataPoint] = []
+        update_measure_data_points: list[MeasureDataPoint] = []
 
-        for mt in mt_qs:
-            mdp = mdp_by_uuid.get(mt.uuid)
-            m = m_by_uuid[mt.uuid]
-            default_value = defaults.get(str(mt.uuid))
-            if mdp is None:
-                mdp = MeasureDataPoint(
-                    measure=m,
+        for measure_template in measure_templates_qs:
+            measure_data_point = measure_data_point_by_uuid.get(measure_template.uuid)
+            measure = measure_by_uuid[measure_template.uuid]
+            default_value = defaults.get(str(measure_template.uuid))
+            if measure_data_point is None:
+                measure_data_point = MeasureDataPoint(
+                    measure=measure,
                     year=year,
                     default_value=default_value,
                     value=None,
                 )
-                new_mdps.append(mdp)
+                new_measure_data_points.append(measure_data_point)
             else:
-                mdp.default_value = default_value
-                update_mdps.append(mdp)
-        if new_mdps:
-            MeasureDataPoint.objects.bulk_create(new_mdps)
-        if update_mdps:
-            MeasureDataPoint.objects.bulk_update(update_mdps, fields=['default_value'])
+                measure_data_point.default_value = default_value
+                update_measure_data_points.append(measure_data_point)
+        if new_measure_data_points:
+            MeasureDataPoint.objects.bulk_create(new_measure_data_points)
+        if update_measure_data_points:
+            MeasureDataPoint.objects.bulk_update(update_measure_data_points, fields=['default_value'])
 
     def create_model_instance(self, ic: InstanceConfig) -> Instance:
         from nodes.instance_loader import InstanceLoader
