@@ -1,0 +1,511 @@
+dimensions:
+
+- id: economic_sector
+  label: Taloussektori
+  label_en: Economic sector
+  categories:
+  - id: vehicle_air_conditioning
+    label: Ajoneuvojen ilmastointilaitteet
+    label_en: Vehicle air conditioning systems
+    label_sv: Luftkonditionering i fordon
+  - id: residential
+    label: Asuminen
+    label_en: Residential
+    label_sv: Boende
+  - id: diesel
+    label: Diesel
+    label_en: Diesel
+    label_sv: Diesel
+  - id: enteric_fermentation
+    label: Eläinten ruuansulatus
+    label_en: Enteric fermentation
+    label_sv: Djurens matsmältning
+  - id: inorganic_fertilizers
+    label: Epäorgaaniset lannoitteet
+    label_en: Inorganic fertilizers
+    label_sv: Oorganiska gödselmedel
+  - id: passenger_cars
+    label: Henkilöautot
+    label_en: Passenger cars
+    label_sv: Personbilar
+  - id: recreational_boats
+    label: Huviveneet
+    label_en: Recreational boats
+    label_sv: Fritidsbåtar
+  - id: mining_industrial_machinery
+    label: Kaivos- ja teollisuustyökoneet
+    label_en: Mining and industrial machinery
+    label_sv: Gruv- och industrimaskiner
+  - id: fishing_vessels
+    label: Kalastusalukset
+    label_en: Fishing vessels
+    label_sv: Fiskefartyg
+  - id: commercial_kitchen_cooling
+    label: Kaupan ja ammattikeittiöiden kylmälaitteet
+    label_en: Commercial and professional kitchen refrigeration
+    label_sv: Kyl- och frysutrustning i butiker och storkök
+  - id: trucks
+    label: Kuorma-autot
+    label_en: Trucks
+    label_sv: Lastbilar
+  - id: grazing
+    label: Laidunnus
+    label_en: Grazing
+    label_sv: Bete
+  - id: manure_management
+    label: Lannankäsittely
+    label_en: Manure management
+    label_sv: Gödselhantering
+  - id: ferries
+    label: Lautat ja lossit
+    label_en: Ferries
+    label_sv: Färjor
+  - id: buses
+    label: Linja-autot
+    label_en: Buses
+    label_sv: Bussar
+  - id: transit_traffic
+    label: Läpiajoliikenne
+    label_en: Transit traffic
+    label_sv: Genomfartstrafik
+  - id: local_trains
+    label: Lähijunat
+    label_en: Local trains
+    label_sv: Närtrafiktåg
+  - id: agricultural_forestry_machinery
+    label: Maa- ja metsätalouskoneet
+    label_en: Agricultural and forestry machinery
+    label_sv: Jord- och skogsbruksmaskiner
+  - id: agriculture
+    label: Maatalous
+    label_en: Agriculture
+    label_sv: Jordbruk
+  - id: soil
+    label: Maaperä
+    label_en: Soil
+    label_sv: Jordmån
+  - id: passenger_transport
+    label: Matkustajaliikenne
+    label_en: Passenger transport
+    label_sv: Passagerartrafik
+  - id: metro_tram
+    label: Metrot ja raitiovaunut
+    label_en: Metro and trams
+    label_sv: Tunnelbanor och spårvagnar
+  - id: motorcycles_mopeds
+    label: Moottoripyörät ja mopot
+    label_en: Motorcycles and mopeds
+    label_sv: Motorcyklar och mopeder
+  - id: other_fgas_sources
+    label: Muut F-kaasujen lähteet
+    label_en: Other F-gas sources
+    label_sv: Övriga F-gaskällor
+  - id: other_work_machinery
+    label: Muut työkoneet
+    label_en: Other work machinery
+    label_sv: Övriga arbetsmaskiner
+  - id: other_cropland_emissions
+    label: Muut viljelysmaiden päästöt
+    label_en: Other cropland emissions
+    label_sv: Övriga utsläpp från åkermark
+  - id: organic_fertilizers
+    label: Orgaaniset lannoitteet
+    label_en: Organic fertilizers
+    label_sv: Organiska gödselmedel
+  - id: vans
+    label: Pakettiautot
+    label_en: Vans
+    label_sv: Paketbilar
+  - id: services
+    label: Palvelut
+    label_en: Services
+    label_sv: Tjänster
+  - id: building_air_conditioning
+    label: Rakennusten ilmastointilaitteet
+    label_en: Building air conditioning systems
+    label_sv: Luftkonditionering i byggnader
+  - id: construction_machinery
+    label: Rakennustyökoneet
+    label_en: Construction machinery
+    label_sv: Byggmaskiner
+  - id: electricity
+    label: Sähkö
+    label_en: Electricity
+    label_sv: Elektricitet
+  - id: freight_transport
+    label: Tavaraliikenne
+    label_en: Freight transport
+    label_sv: Godstrafik
+  - id: industrial_fuels
+    label: Teollisuuden polttoaineet
+    label_en: Industrial fuels
+    label_sv: Industriella bränslen
+  - id: industry
+    label: Teollisuus
+    label_en: Industry
+    label_sv: Industri
+  - id: road_machinery
+    label: Tietyökoneet
+    label_en: Road machinery
+    label_sv: Vägmaskiner
+  - id: wind_power
+    label: Tuulivoima
+    label_en: Wind power
+    label_sv: Vindkraft
+  - id: work_vessels
+    label: Työveneet ja alukset
+    label_en: Work boats and vessels
+    label_sv: Arbetsbåtar och fartyg
+  - id: municipal_waste
+    label: Yhdyskuntajäte
+    label_en: Municipal waste
+    label_sv: Samhällsavfall
+
+- id: subsector
+  label: Alasektori
+  label_en: Subsector
+  categories:
+  - id: vehicle_air_conditioning
+    label: Ajoneuvojen ilmastointilaitteet
+    label_en: Vehicle air conditioning systems
+    label_sv: Luftkonditionering i fordon
+  - id: passenger_traffic
+    label: Henkilöraideliikenne
+    label_en: Passenger rail traffic
+    label_sv: Persontågtrafik
+    aliases: [Henkilöliikenne]
+  - id: recreational_boats
+    label: Huviveneet
+    label_en: Recreational boats
+    label_sv: Fritidsbåtar
+  - id: wastewater_treatment
+    label: Jätevesien puhdistus
+    label_en: Wastewater treatment
+    label_sv: Avloppsvattenrening
+  - id: landfills
+    label: Kaatopaikat
+    label_en: Landfills
+    label_sv: Avstjälpningsplatser
+  - id: streets
+    label: Kadut
+    label_en: Streets
+    label_sv: Gator
+  - id: district_heating
+    label: Kaukolämpö
+    label_en: District heating
+    label_sv: Fjärrvärme
+  - id: commercial_kitchen_cooling
+    label: Kaupan ja ammattikeittiöiden kylmälaitteet
+    label_en: Commercial and professional kitchen refrigeration
+    label_sv: Kyl- och frysutrustning i butiker och storkök
+  - id: composting
+    label: Kompostointi
+    label_en: Composting
+    label_sv: Kompostering
+  - id: livestock
+    label: Kotieläimet
+    label_en: Livestock
+    label_sv: Husdjur
+  - id: electricity_consumption
+    label: Kulutussähkö
+    label_en: Electricity consumption
+    label_sv: Elförbrukning
+  - id: ships
+    label: Laivat
+    label_en: Ships
+    label_sv: Fartyg
+  - id: transit_traffic
+    label: Läpiajoliikenne
+    label_en: Transit traffic
+    label_sv: Genomfartstrafik
+  - id: local_traffic
+    label: Lähiraideliikenne
+    label_en: Local rail traffic
+    label_sv: Lokaltågtrafik
+    aliases: [Lähiliikenne]
+  - id: ground_source_heat
+    label: Maalämpö
+    label_en: Ground source heat
+    label_sv: Jordvärme
+  - id: motorcycles_mopeds
+    label: Moottoripyörät ja mopot
+    label_en: Motorcycles and mopeds
+    label_sv: Motorcyklar och mopeder
+  - id: other_fgas_sources
+    label: Muut F-kaasujen lähteet
+    label_en: Other F-gas sources
+    label_sv: Övriga F-gaskällor
+  - id: other_heating
+    label: Muu lämmitys
+    label_en: Other heating
+    label_sv: Annan uppvärmning
+  - id: anaerobic_digestion
+    label: Mädätys
+    label_en: Anaerobic digestion
+    label_sv: Rötning
+  - id: oil_heating
+    label: Öljylämmitys
+    label_en: Oil heating
+    label_sv: Oljeuppvärmning
+  - id: crop_cultivation
+    label: Peltoviljely
+    label_en: Crop cultivation
+    label_sv: Åkerodling
+  - id: wood_heating
+    label: Puulämmitys
+    label_en: Wood heating
+    label_sv: Veduppvärmning
+  - id: building_air_conditioning
+    label: Rakennusten ilmastointilaitteet
+    label_en: Building air conditioning systems
+    label_sv: Luftkonditionering i byggnader
+  - id: electric_heating
+    label: Sähkölämmitys
+    label_en: Electric heating
+    label_sv: Eluppvärmning
+  - id: freight_traffic
+    label: Tavararaideliikenne
+    label_en: Freight rail traffic
+    label_sv: Godstågtrafik
+    aliases: [Tavaraliikenne]
+  - id: industry
+    label: Teollisuus
+    label_en: Industry
+    label_sv: Industri
+  - id: roads
+    label: Tiet
+    label_en: Roads
+    label_sv: Vägar
+  - id: wind_power
+    label: Tuulivoima
+    label_en: Wind power
+    label_sv: Vindkraft
+  - id: work_machinery
+    label: Työkoneet
+    label_en: Work machinery
+    label_sv: Arbetsmaskiner
+  - id: work_vessels
+    label: Työveneet
+    label_en: Work boats
+    label_sv: Arbetsbåtar
+
+nodes:
+
+- id: all_alas_emissions
+  name: Kokonaispäästöt Syken ALas-mallin mukaan
+  name_en: Total emissions according to SYKE ALas model
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt/a
+  input_dimensions: [subsector, economic_sector]
+  output_dimensions: [subsector, economic_sector]
+
+- id: f_gases_emissions
+  name: F-kaasujen päästöt
+  name_en: F-gases emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt/a
+  input_dimensions: [subsector, economic_sector]
+  output_dimensions: [subsector, economic_sector]
+  input_datasets:
+  - id: syke/alas_emissions
+    tags: [baseline]
+    filters:
+    - rename_col: vuosi
+      value: Year
+    - rename_col: ktCO2e
+      value: Value
+    - rename_col: taso_4
+      value: subsector
+    - rename_col: taso_5
+      value: economic_sector
+    - column: kuntanumero
+    - column: maakunta
+    - column: muni
+    - column: hinku-laskenta
+    - column: päästökauppa
+    - column: taso_2
+    - column: taso_3
+      value: F-kaasut
+    - column: kunta
+    - column: ktCO2e_tuuli
+    - column: energiankulutus
+    - column: taso_1
+      flatten: true
+  output_nodes: [all_alas_emissions]
+
+- id: waste_management_emissions
+  name: Jätteiden käsittelyn päästöt
+  name_en: Waste management emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt/a
+  input_dimensions: [subsector, economic_sector]
+  output_dimensions: [subsector, economic_sector]
+  input_datasets:
+  - id: syke/alas_emissions
+    tags: [baseline]
+    filters:
+    - rename_col: vuosi
+      value: Year
+    - rename_col: ktCO2e
+      value: Value
+    - rename_col: taso_4
+      value: subsector
+    - rename_col: taso_5
+      value: economic_sector
+    - column: kuntanumero
+    - column: maakunta
+    - column: muni
+    - column: hinku-laskenta
+    - column: päästökauppa
+    - column: taso_2
+    - column: taso_3
+      value: Jätteiden käsittely
+    - column: kunta
+    - column: ktCO2e_tuuli
+    - column: energiankulutus
+    - column: taso_1
+      flatten: true
+  output_nodes: [all_alas_emissions]
+
+- id: building_heating_emissions
+  name: Rakennusten lämmityksen päästöt
+  name_en: Building heating emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt/a
+  input_dimensions: [subsector, economic_sector]
+  output_dimensions: [subsector, economic_sector]
+  input_datasets:
+  - id: syke/alas_emissions
+    tags: [baseline]
+    filters:
+    - rename_col: vuosi
+      value: Year
+    - rename_col: ktCO2e
+      value: Value
+    - rename_col: taso_4
+      value: subsector
+    - rename_col: taso_5
+      value: economic_sector
+    - column: kuntanumero
+    - column: maakunta
+    - column: muni
+    - column: hinku-laskenta
+    - column: päästökauppa
+    - column: taso_2
+      value: Rakennusten lämmitys
+    - column: taso_3
+    - column: kunta
+    - column: ktCO2e_tuuli
+    - column: energiankulutus
+    - column: taso_1
+      flatten: true
+  output_nodes: [all_alas_emissions]
+
+- id: consumer_electricity_emissions
+  name: Kulutussähkön päästöt
+  name_en: Consumer electricity emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt/a
+  input_dimensions: [subsector, economic_sector]
+  output_dimensions: [subsector, economic_sector]
+  input_datasets:
+  - id: syke/alas_emissions
+    tags: [baseline]
+    filters:
+    - rename_col: vuosi
+      value: Year
+    - rename_col: ktCO2e
+      value: Value
+    - rename_col: taso_4
+      value: subsector
+    - rename_col: taso_5
+      value: economic_sector
+    - column: kuntanumero
+    - column: maakunta
+    - column: muni
+    - column: hinku-laskenta
+    - column: päästökauppa
+    - column: taso_2
+    - column: taso_3
+      value: Kulutussähkö
+    - column: kunta
+    - column: ktCO2e_tuuli
+    - column: energiankulutus
+    - column: taso_1
+      flatten: true
+  output_nodes: [all_alas_emissions]
+
+- id: agriculture_emissions
+  name: Maatalouden päästöt
+  name_en: agriculture_emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt/a
+  input_dimensions: [subsector, economic_sector]
+  output_dimensions: [subsector, economic_sector]
+  input_datasets:
+  - id: syke/alas_emissions
+    tags: [baseline]
+    filters:
+    - rename_col: vuosi
+      value: Year
+    - rename_col: ktCO2e
+      value: Value
+    - rename_col: taso_4
+      value: subsector
+    - rename_col: taso_5
+      value: economic_sector
+    - column: kuntanumero
+    - column: maakunta
+    - column: muni
+    - column: hinku-laskenta
+    - column: päästökauppa
+    - column: taso_2
+    - column: taso_3
+      value: Maatalous
+    - column: kunta
+    - column: ktCO2e_tuuli
+    - column: energiankulutus
+    - column: taso_1
+      flatten: true
+  output_nodes: [all_alas_emissions]
+
+- id: transport_emissions
+  name: Liikenteen päästöt
+  name_en: Transport emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt/a
+  input_dimensions: [subsector, economic_sector]
+  output_dimensions: [subsector, economic_sector]
+  input_datasets:
+  - id: syke/alas_emissions
+    tags: [baseline]
+    filters:
+    - rename_col: vuosi
+      value: Year
+    - rename_col: ktCO2e
+      value: Value
+    - rename_col: taso_4
+      value: subsector
+    - rename_col: taso_5
+      value: economic_sector
+    - column: kuntanumero
+    - column: maakunta
+    - column: muni
+    - column: hinku-laskenta
+    - column: päästökauppa
+    - column: taso_2
+      value: Liikenne
+    - column: taso_3
+    - column: kunta
+    - column: ktCO2e_tuuli
+    - column: energiankulutus
+    - column: taso_1
+      flatten: true
+  output_nodes: [all_alas_emissions]
