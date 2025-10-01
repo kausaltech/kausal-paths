@@ -71,7 +71,7 @@ class InstanceFeatures:
     use_datasets_from_db: bool = False
     """Whether to use datasets from the database instead of the .parquet files."""
 
-    show_explanations: bool = False
+    show_explanations: bool = False # TODO Not needed any more?
     """Whether to show node explanation in the slot for description (under the graph)."""
 
 

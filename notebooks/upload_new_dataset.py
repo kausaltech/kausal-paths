@@ -511,10 +511,6 @@ def process_dataset(
     dim_ids = [s for s in df.columns if s not in units.keys()]
     print(f"Data pivoted by compound identifiers with dimension columns: {dim_ids}")
     if context:
-        # dims = [dim for dim in dim_ids if dim != YEAR_COLUMN]
-        # cols = {col: to_snake_case(col) for col in dims}
-        # df = df.rename(cols)
-        # print('Changed these column names:', cols)
         df = convert_names_to_cats(df, units, context)
 
     # 10. Save to CSV if requested

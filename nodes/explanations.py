@@ -810,7 +810,7 @@ class DatasetRule(ValidationRule):
         exclude: bool = d.get('exclude', False)
         do = _('by excluding') if exclude else _('by including')
         if ''.join(vals):
-            out = f"<li>{_('Filter column')} <i>{col}</i>) {do} <i>{', '.join(vals)}</i>.</li>"
+            out = f"<li>{_('Filter column')} <i>{col}</i> {do} <i>{', '.join(vals)}</i>.</li>"
         else:
             out = ''
         if  d.get('flatten', False):
