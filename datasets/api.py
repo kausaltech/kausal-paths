@@ -20,7 +20,7 @@ from kausal_common.datasets.api import (
     DimensionCategoryViewSet as BaseDimensionCategoryViewSet,
     DimensionViewSet as BaseDimensionViewSet,
 )
-from kausal_common.datasets.models import DataPoint, DataPointComment
+from kausal_common.datasets.models import DataPoint, DataPointComment, Dataset, DatasetSourceReference
 
 if TYPE_CHECKING:
     from rest_framework.views import APIView
@@ -38,12 +38,22 @@ class DataPointCommentPermission(PermissionPolicyDRFPermission[DataPointComment,
 class DataPointCommentViewSet(BaseDataPointCommentViewSet):
     @override
     def get_permissions(self):
-        """Instantiate and return the list of permissions that this view requires."""
         return [DataPointCommentPermission()]
 
 
+class DatasetSourceReferencePermission(PermissionPolicyDRFPermission[DatasetSourceReference, Dataset]):
+    class Meta:
+        model = DatasetSourceReference
+
+    def get_create_context_from_api_view(self, view: APIView) -> Dataset:
+        dataset_uuid = view.kwargs['dataset_uuid']
+        return Dataset.objects.get(uuid=dataset_uuid)
+
+
 class DataPointSourceReferenceViewSet(BaseDataPointSourceReferenceViewSet):
-    pass
+    @override
+    def get_permissions(self):
+        return [DatasetSourceReferencePermission()]
 
 
 class DataPointViewSet(BaseDataPointViewSet):
