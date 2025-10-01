@@ -13,6 +13,7 @@ from kausal_common.datasets.models import (
     DatasetQuerySet,
     DatasetSchema,
     DataSource,
+    DatasetSourceReference,
 )
 from kausal_common.models.permission_policy import (
     BaseObjectAction,
@@ -286,7 +287,7 @@ class DataSourcePermissionPolicy(InstanceConfigScopedPermissionPolicy[DataSource
 class DataPointCommentPermissionPolicy(
         ParentInheritedPolicy[DataPointComment, DataPoint, PermissionedQuerySet[DataPointComment]]
 ):
-    """Permission policy for DataPointComment, inheriting from Dataset."""
+    """Permission policy for DataPointComment, delegating to DataPoint."""
 
     def __init__(self):
         super().__init__(DataPointComment, DataPoint, 'data_point')
@@ -314,3 +315,33 @@ class DataPointCommentPermissionPolicy(
         user_has_reviewer_role_in_instance = user.has_instance_role_with_id('instance-reviewer', instance_config_in_scope)
         user_can_create_datapoint = self.parent_policy.user_can_create(user, dataset)
         return user_can_create_datapoint or user_has_reviewer_role_in_instance
+
+
+class DatasetSourceReferencePermissionPolicy(
+        ParentInheritedPolicy[DatasetSourceReference, Dataset, PermissionedQuerySet[DatasetSourceReference]]
+):
+    """Permission policy for DatasetSourceReference, delegating to DataSet."""
+
+    def __init__(self):
+        super().__init__(DatasetSourceReference, Dataset, 'dataset')
+
+    @override
+    def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: DatasetSourceReference) -> bool:
+        parent_obj = self.get_parent_obj(obj)
+        return self.parent_policy.user_has_perm(user, action, parent_obj)
+
+    @override
+    def anon_has_perm(self, action: BaseObjectAction, obj: DatasetSourceReference) -> bool:
+        return False
+
+    @override
+    def is_create_context_valid(self, context: Any) -> TypeGuard[Dataset]:
+        return isinstance(context, Dataset)
+
+    @override
+    def user_can_create(self, user: User, context: CreateContext) -> bool:
+        dataset: Dataset = cast('Dataset', context)
+        instance_config_in_scope = dataset.scope
+        if not isinstance(instance_config_in_scope, InstanceConfig):
+            raise TypeError('Only InstanceConfigs supported as Dataset scopes in Paths.')
+        return self.parent_policy.user_has_perm(user, 'change', dataset)

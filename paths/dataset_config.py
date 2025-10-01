@@ -31,8 +31,10 @@ SCHEMA_HAS_SINGLE_DATASET: bool = True
 SCHEMA_DEFAULT_SCOPE_FUNCTION: Callable[[], Model] | None = schema_default_scope
 SHOW_DATASETS_IN_MENU: bool = True
 SHOW_SCHEMAS_IN_MENU: bool = False
+
 SCHEMA_PERMISSION_POLICY: str = 'paths.dataset_permission_policy.DatasetSchemaPermissionPolicy'
 DATASET_PERMISSION_POLICY: str = 'paths.dataset_permission_policy.DatasetPermissionPolicy'
 DATA_POINT_PERMISSION_POLICY: str = 'paths.dataset_permission_policy.DataPointPermissionPolicy'
 DATA_SOURCE_PERMISSION_POLICY: str = 'paths.dataset_permission_policy.DataSourcePermissionPolicy'
 DATA_POINT_COMMENT_PERMISSION_POLICY: str = 'paths.dataset_permission_policy.DataPointCommentPermissionPolicy'
+DATASET_SOURCE_REFERENCE_PERMISSION_POLICY: str = 'paths.dataset_permission_policy.DatasetSourceReferencePermissionPolicy'
