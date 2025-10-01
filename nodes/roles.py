@@ -50,7 +50,13 @@ class InstanceSuperAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceCon
 
     model_perms = AdminRole.model_perms + [
         ('nodes', ('instanceconfig', 'nodeconfig'), ('view', 'change')),
-        ('datasets', ('datasetschema','dataset', 'datapoint', 'datasource', 'datasetsourcereference'), ALL_MODEL_PERMS),
+        ('datasets', (
+         'datasetschema','dataset',
+          'datapoint',
+          'datasource',
+          'datasetsourcereference',
+          'datapointcomment'
+        ), ALL_MODEL_PERMS),
         ('frameworks', (
             'framework',
         ), ('view',)),
@@ -84,7 +90,14 @@ class InstanceAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceConfig']
 
     model_perms = AdminRole.model_perms + [
         ('nodes', ('instanceconfig', 'nodeconfig'), ('view', 'change')),
-        ('datasets', ('datasetschema','dataset', 'datapoint', 'datasource', 'datasetsourcereference'), ALL_MODEL_PERMS),
+        ('datasets', (
+            'datasetschema',
+            'dataset',
+            'datapoint',
+            'datasource',
+            'datasetsourcereference',
+            'datapointcomment'
+        ), ALL_MODEL_PERMS),
         ('frameworks', (
             'framework',
         ), ('view',)),
@@ -136,6 +149,7 @@ class InstanceReviewerRole(InstanceGroupMembershipRole, InstanceSpecificRole['In
     model_perms = [
         ('wagtailadmin', 'admin', ('access',)),
         ('nodes', ('instanceconfig', 'nodeconfig'), ('view',)),
+        ('datasets', ('datapointcomment'), ('add',)),
         ('frameworks', (
             'framework', 'frameworkconfig', 'measure', 'measuredatapoint',
         ), ('view',)),
