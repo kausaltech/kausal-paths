@@ -682,6 +682,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             measure = measure_by_uuid.get(measure_template.uuid)
             if measure is None:
                 measure = Measure(framework_config=self, measure_template=measure_template)
+                measure_by_uuid[measure_template.uuid] = measure
                 new_measures.append(measure)
 
         if new_measures:
