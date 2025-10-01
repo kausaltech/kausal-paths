@@ -51,11 +51,12 @@ class InstanceSuperAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceCon
     model_perms = AdminRole.model_perms + [
         ('nodes', ('instanceconfig', 'nodeconfig'), ('view', 'change')),
         ('datasets', (
-         'datasetschema','dataset',
-          'datapoint',
-          'datasource',
-          'datasetsourcereference',
-          'datapointcomment'
+            'datasetschema',
+            'dataset',
+            'datapoint',
+            'datasource',
+            'datasetsourcereference',
+            'datapointcomment'
         ), ALL_MODEL_PERMS),
         ('frameworks', (
             'framework',
