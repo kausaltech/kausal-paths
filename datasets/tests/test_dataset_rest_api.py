@@ -17,6 +17,7 @@ def api_client():
     pytest.param('superuser', ['Schema 1', 'Schema 2', 'Unused schema'], id='superuser'),
     pytest.param('admin_user', ['Schema 1', 'Unused schema'], id='admin_user'),
     pytest.param('super_admin_user', ['Schema 1', 'Unused schema'], id='super_admin_user'),
+    pytest.param('reviewer_user', ['Schema 1', 'Unused schema'], id='reviewer_user'),
     pytest.param('regular_user', [], id='regular_user'),
 ])
 def test_dataset_schema_list(api_client, dataset_test_data, user_key, expected_schemas):
@@ -51,6 +52,8 @@ def test_dataset_schema_list(api_client, dataset_test_data, user_key, expected_s
     ('admin_user', 'schema2', False),
     ('super_admin_user', 'schema1', True),
     ('super_admin_user', 'schema2', False),
+    ('reviewer_user', 'schema1', True),
+    ('reviewer_user', 'schema2', False),
     ('regular_user', 'schema1', False),
     ('regular_user', 'schema2', False),
 ])
@@ -77,6 +80,8 @@ def test_dataset_schema_retrieve(api_client, dataset_test_data, user_key, schema
     ('admin_user', 'schema2', False),
     ('super_admin_user', 'schema1', True),
     ('super_admin_user', 'schema2', False),
+    ('reviewer_user', 'schema1', False),
+    ('reviewer_user', 'schema2', False),
     ('regular_user', 'schema1', False),
     ('regular_user', 'schema2', False),
 ])
@@ -104,11 +109,14 @@ def test_dataset_schema_update(api_client, dataset_test_data, user_key, schema_k
     ('admin_user', 'schema2', False, True),
     ('super_admin_user', 'schema1', True, True),
     ('super_admin_user', 'schema2', False, True),
+    ('reviewer_user', 'schema1', False, True),
+    ('reviewer_user', 'schema2', False, True),
     ('regular_user', 'schema1', False, True),
     ('regular_user', 'schema2', False, True),
     ('superuser', 'unused_schema', True, False),
     ('admin_user', 'unused_schema', True, False),
     ('super_admin_user', 'unused_schema', True, False),
+    ('reviewer_user', 'unused_schema', False, False),
     ('regular_user', 'unused_schema', False, False),
 
 ])
@@ -139,6 +147,7 @@ def test_dataset_schema_delete(
     ('superuser', True),
     ('admin_user', True),
     ('super_admin_user', True),
+    ('reviewer_user', False),
     ('regular_user', False),
 ])
 def test_dataset_schema_create(api_client, dataset_test_data, user_key, access_allowed):
@@ -157,14 +166,14 @@ def test_dataset_schema_create(api_client, dataset_test_data, user_key, access_a
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize('user_key', ['superuser', 'admin_user', 'super_admin_user', 'regular_user'])
+@pytest.mark.parametrize('user_key', ['superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'regular_user'])
 def test_dataset_list(api_client, dataset_test_data, user_key):
     user = dataset_test_data[user_key]
     api_client.force_authenticate(user=user)
 
     if user_key == 'superuser':
         expected_datasets = ['dataset1', 'dataset2']
-    elif user_key in ['admin_user', 'super_admin_user']:
+    elif user_key in ['admin_user', 'super_admin_user', 'reviewer_user']:
         expected_datasets = ['dataset1']
     else:
         expected_datasets = []
@@ -193,6 +202,8 @@ def test_dataset_list(api_client, dataset_test_data, user_key):
     ('admin_user', 'dataset2', False),
     ('super_admin_user', 'dataset1', True),
     ('super_admin_user', 'dataset2', False),
+    ('reviewer_user', 'dataset1', True),
+    ('reviewer_user', 'dataset2', False),
     ('regular_user', 'dataset1', False),
     ('regular_user', 'dataset2', False),
 ])
@@ -219,6 +230,8 @@ def test_dataset_retrieve(api_client, dataset_test_data, user_key, dataset_key, 
     ('admin_user', 'dataset2', False),
     ('super_admin_user', 'dataset1', True),
     ('super_admin_user', 'dataset2', False),
+    ('reviewer_user', 'dataset1', False),
+    ('reviewer_user', 'dataset2', False),
     ('regular_user', 'dataset1', False),
     ('regular_user', 'dataset2', False),
 ])
@@ -244,6 +257,8 @@ def test_dataset_update(api_client, dataset_test_data, user_key, dataset_key, ac
     ('admin_user', 'dataset2', False),
     ('super_admin_user', 'dataset1', True),
     ('super_admin_user', 'dataset2', False),
+    ('reviewer_user', 'dataset1', False),
+    ('reviewer_user', 'dataset2', False),
     ('regular_user', 'dataset1', False),
     ('regular_user', 'dataset2', False),
 ])
@@ -265,13 +280,14 @@ def test_dataset_delete(api_client, dataset_test_data, user_key, dataset_key, ac
     ('superuser', True),
     ('admin_user', True),
     ('super_admin_user', True),
+    ('reviewer_user', False),
     ('regular_user', False),
 ])
 def test_dataset_create(api_client, dataset_test_data, user_key, access_allowed):
     user = dataset_test_data[user_key]
     api_client.force_authenticate(user=user)
 
-    if user_key in ['admin_user', 'super_admin_user']:
+    if user_key in ['admin_user', 'super_admin_user', 'reviewer_user']:
         schema = dataset_test_data['schema1']
         instance = dataset_test_data['instance1']
     else:
