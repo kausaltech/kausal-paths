@@ -1,10 +1,25 @@
 from __future__ import annotations
 
+from datetime import date
+
 from django.contrib.contenttypes.models import ContentType
 
 import pytest
 
-from kausal_common.datasets.models import Dataset, DatasetSchema, DatasetSchemaScope
+from kausal_common.datasets.models import (
+    DataPoint,
+    DataPointComment,
+    Dataset,
+    DatasetMetric,
+    DatasetSchema,
+    DatasetSchemaDimension,
+    DatasetSchemaScope,
+    DatasetSourceReference,
+    DataSource,
+    Dimension,
+    DimensionCategory,
+    DimensionScope,
+)
 
 from nodes.models import InstanceConfig
 from nodes.roles import instance_admin_role, instance_reviewer_role, instance_super_admin_role, instance_viewer_role
@@ -102,6 +117,81 @@ def dataset_test_data():
         scope_id=instance2.pk,
     )
 
+    metric1 = DatasetMetric.objects.create(
+        schema=schema1,
+        label='Metric 1',
+        unit='kg',
+        order=0,
+    )
+    metric2 = DatasetMetric.objects.create(
+        schema=schema2,
+        label='Metric 2',
+        unit='liters',
+        order=0,
+    )
+
+    dimension1 = Dimension.objects.create(
+        name='Test Dimension',
+    )
+    DimensionScope.objects.create(
+        dimension=dimension1,
+        scope_content_type=content_type,
+        scope_id=instance1.pk,
+    )
+
+    dimension_category1 = DimensionCategory.objects.create(
+        dimension=dimension1,
+        label='Category A',
+        order=0,
+    )
+
+    DatasetSchemaDimension.objects.create(dimension=dimension1, schema=schema1)
+
+    data_point1 = DataPoint.objects.create(
+        dataset=dataset1,
+        date=date(2023, 1, 1),
+        metric=metric1,
+        value=100.50,
+        created_by=admin_user,
+        last_modified_by=admin_user,
+    )
+    data_point1.dimension_categories.add(dimension_category1)
+
+    data_point2 = DataPoint.objects.create(
+        dataset=dataset2,
+        date=date(2023, 1, 1),
+        metric=metric2,
+        value=200.75,
+        created_by=superuser,
+        last_modified_by=superuser,
+    )
+
+    data_source1 = DataSource.objects.create(
+        scope_content_type=content_type,
+        scope_id=instance1.pk,
+        name='Test Data Source 1',
+        authority='Authority 1',
+    )
+    data_source2 = DataSource.objects.create(
+        scope_content_type=content_type,
+        scope_id=instance2.pk,
+        name='Test Data Source 2',
+        authority='Authority 2',
+    )
+
+    comment1 = DataPointComment.objects.create(
+        data_point=data_point1,
+        text='Test comment',
+        type=DataPointComment.CommentType.PLAIN,
+        created_by=admin_user,
+        last_modified_by=admin_user,
+    )
+
+    source_ref1 = DatasetSourceReference.objects.create(
+        dataset=dataset1,
+        data_source=data_source1,
+    )
+
     return {
         'instance1': instance1,
         'instance2': instance2,
@@ -116,6 +206,16 @@ def dataset_test_data():
         'dataset1': dataset1,
         'dataset2': dataset2,
         'unused_schema': unused_schema,
+        'metric1': metric1,
+        'metric2': metric2,
+        'dimension1': dimension1,
+        'dimension_category1': dimension_category1,
+        'data_point1': data_point1,
+        'data_point2': data_point2,
+        'data_source1': data_source1,
+        'data_source2': data_source2,
+        'comment1': comment1,
+        'source_ref1': source_ref1,
     }
 
 

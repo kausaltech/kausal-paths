@@ -91,6 +91,8 @@ class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, _CCTX, _QS]
 
     @override
     def user_has_perm(self, user: User, action: BaseObjectAction, obj: _M) -> bool:
+        if user.is_superuser:
+            return True
         try:
             # Realm context only works in admin context, not for REST API
             active_instance = realm_context.get().realm
@@ -324,6 +326,14 @@ class DatasetSourceReferencePermissionPolicy(
 
     def __init__(self):
         super().__init__(DatasetSourceReference, Dataset, 'dataset')
+
+    @override
+    def get_parent_obj(self, obj: DatasetSourceReference) -> Dataset:
+        if obj.data_point:
+            return obj.data_point.dataset
+        if obj.dataset is None:
+            raise ValueError('Invalid dataset source reference')
+        return obj.dataset
 
     @override
     def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: DatasetSourceReference) -> bool:
