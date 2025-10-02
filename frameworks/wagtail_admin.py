@@ -39,6 +39,9 @@ class SectionViewSet(PathsViewSet[Section, SectionQuerySet]):
     ]
     menu_item_class = AdminOnlyMenuItem
 
+    # This viewset is added to a group menu item, so no need to add it twice
+    add_to_admin_menu = False
+
     def get_queryset(self, request: HttpRequest) -> SectionQuerySet:
         return super().get_queryset(request).filter(depth__gte=2)
 
@@ -60,6 +63,9 @@ class MeasureTemplateViewSet(PathsViewSet[MeasureTemplate, QuerySet]):
     search_fields = ['name', 'section__name', 'uuid']
     inspect_view_enabled = False
     copy_view_enabled = False
+
+    # This viewset is added to a group menu item, so no need to add it twice
+    add_to_admin_menu = False
 
     menu_item_class = AdminOnlyMenuItem
 
