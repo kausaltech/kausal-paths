@@ -18,6 +18,7 @@ def api_client():
     pytest.param('admin_user', ['Schema 1', 'Unused schema'], id='admin_user'),
     pytest.param('super_admin_user', ['Schema 1', 'Unused schema'], id='super_admin_user'),
     pytest.param('reviewer_user', ['Schema 1', 'Unused schema'], id='reviewer_user'),
+    pytest.param('viewer_user', ['Schema 1', 'Unused schema'], id='viewer_user'),
     pytest.param('regular_user', [], id='regular_user'),
 ])
 def test_dataset_schema_list(api_client, dataset_test_data, user_key, expected_schemas):
@@ -38,10 +39,9 @@ def test_dataset_schema_list(api_client, dataset_test_data, user_key, expected_s
             if schema_name not in expected_schemas:
                 assert schema_name not in schema_names
     else:
-        assert response.status_code in [200, 403]
-        if response.status_code == 200:
-            data = response.json()
-            assert len(data) == 0
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 0
 
 
 @pytest.mark.django_db
@@ -54,6 +54,8 @@ def test_dataset_schema_list(api_client, dataset_test_data, user_key, expected_s
     ('super_admin_user', 'schema2', False),
     ('reviewer_user', 'schema1', True),
     ('reviewer_user', 'schema2', False),
+    ('viewer_user', 'schema1', True),
+    ('viewer_user', 'schema2', False),
     ('regular_user', 'schema1', False),
     ('regular_user', 'schema2', False),
 ])
@@ -82,6 +84,8 @@ def test_dataset_schema_retrieve(api_client, dataset_test_data, user_key, schema
     ('super_admin_user', 'schema2', False),
     ('reviewer_user', 'schema1', False),
     ('reviewer_user', 'schema2', False),
+    ('viewer_user', 'schema1', False),
+    ('viewer_user', 'schema2', False),
     ('regular_user', 'schema1', False),
     ('regular_user', 'schema2', False),
 ])
@@ -111,12 +115,15 @@ def test_dataset_schema_update(api_client, dataset_test_data, user_key, schema_k
     ('super_admin_user', 'schema2', False, True),
     ('reviewer_user', 'schema1', False, True),
     ('reviewer_user', 'schema2', False, True),
+    ('viewer_user', 'schema1', False, True),
+    ('viewer_user', 'schema2', False, True),
     ('regular_user', 'schema1', False, True),
     ('regular_user', 'schema2', False, True),
     ('superuser', 'unused_schema', True, False),
     ('admin_user', 'unused_schema', True, False),
     ('super_admin_user', 'unused_schema', True, False),
     ('reviewer_user', 'unused_schema', False, False),
+    ('viewer_user', 'unused_schema', False, False),
     ('regular_user', 'unused_schema', False, False),
 
 ])
@@ -148,6 +155,7 @@ def test_dataset_schema_delete(
     ('admin_user', True),
     ('super_admin_user', True),
     ('reviewer_user', False),
+    ('viewer_user', False),
     ('regular_user', False),
 ])
 def test_dataset_schema_create(api_client, dataset_test_data, user_key, access_allowed):
@@ -166,14 +174,16 @@ def test_dataset_schema_create(api_client, dataset_test_data, user_key, access_a
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize('user_key', ['superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'regular_user'])
+@pytest.mark.parametrize('user_key', [
+    'superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user', 'regular_user'
+])
 def test_dataset_list(api_client, dataset_test_data, user_key):
     user = dataset_test_data[user_key]
     api_client.force_authenticate(user=user)
 
     if user_key == 'superuser':
         expected_datasets = ['dataset1', 'dataset2']
-    elif user_key in ['admin_user', 'super_admin_user', 'reviewer_user']:
+    elif user_key in ['admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user']:
         expected_datasets = ['dataset1']
     else:
         expected_datasets = []
@@ -188,10 +198,9 @@ def test_dataset_list(api_client, dataset_test_data, user_key):
         for uuid in dataset_uuids:
             assert uuid in result_uuids
     else:
-        assert response.status_code in [200, 403]
-        if response.status_code == 200:
-            data = response.json()
-            assert len(data) == 0
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 0
 
 
 @pytest.mark.django_db
@@ -204,6 +213,8 @@ def test_dataset_list(api_client, dataset_test_data, user_key):
     ('super_admin_user', 'dataset2', False),
     ('reviewer_user', 'dataset1', True),
     ('reviewer_user', 'dataset2', False),
+    ('viewer_user', 'dataset1', True),
+    ('viewer_user', 'dataset2', False),
     ('regular_user', 'dataset1', False),
     ('regular_user', 'dataset2', False),
 ])
@@ -232,6 +243,8 @@ def test_dataset_retrieve(api_client, dataset_test_data, user_key, dataset_key, 
     ('super_admin_user', 'dataset2', False),
     ('reviewer_user', 'dataset1', False),
     ('reviewer_user', 'dataset2', False),
+    ('viewer_user', 'dataset1', False),
+    ('viewer_user', 'dataset2', False),
     ('regular_user', 'dataset1', False),
     ('regular_user', 'dataset2', False),
 ])
@@ -259,6 +272,8 @@ def test_dataset_update(api_client, dataset_test_data, user_key, dataset_key, ac
     ('super_admin_user', 'dataset2', False),
     ('reviewer_user', 'dataset1', False),
     ('reviewer_user', 'dataset2', False),
+    ('viewer_user', 'dataset1', False),
+    ('viewer_user', 'dataset2', False),
     ('regular_user', 'dataset1', False),
     ('regular_user', 'dataset2', False),
 ])
@@ -281,13 +296,14 @@ def test_dataset_delete(api_client, dataset_test_data, user_key, dataset_key, ac
     ('admin_user', True),
     ('super_admin_user', True),
     ('reviewer_user', False),
+    ('viewer_user', False),
     ('regular_user', False),
 ])
 def test_dataset_create(api_client, dataset_test_data, user_key, access_allowed):
     user = dataset_test_data[user_key]
     api_client.force_authenticate(user=user)
 
-    if user_key in ['admin_user', 'super_admin_user', 'reviewer_user']:
+    if user_key in ['admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user']:
         schema = dataset_test_data['schema1']
         instance = dataset_test_data['instance1']
     else:
