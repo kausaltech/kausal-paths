@@ -7,7 +7,7 @@ import pytest
 from kausal_common.datasets.models import Dataset, DatasetSchema, DatasetSchemaScope
 
 from nodes.models import InstanceConfig
-from nodes.roles import instance_admin_role, instance_reviewer_role, instance_super_admin_role
+from nodes.roles import instance_admin_role, instance_reviewer_role, instance_super_admin_role, instance_viewer_role
 from nodes.tests.factories import InstanceConfigFactory
 from paths.context import RealmContext, realm_context
 from users.models import User
@@ -50,6 +50,13 @@ def dataset_test_data():
         password='password',
     )
     instance_reviewer_role.assign_user(instance1, reviewer_user)
+
+    viewer_user = User.objects.create_user(
+        username='viewer',
+        email='viewer@example.com',
+        password='password',
+    )
+    instance_viewer_role.assign_user(instance1, viewer_user)
 
     regular_user = User.objects.create_user(
         username='regular',
@@ -102,6 +109,7 @@ def dataset_test_data():
         'admin_user': admin_user,
         'super_admin_user': super_admin_user,
         'reviewer_user': reviewer_user,
+        'viewer_user': viewer_user,
         'regular_user': regular_user,
         'schema1': schema1,
         'schema2': schema2,
