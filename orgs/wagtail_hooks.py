@@ -85,8 +85,8 @@ class OrganizationViewSet(PathsViewSet):
     add_view_class = OrganizationCreateView
     edit_view_class = OrganizationEditView
     delete_view_class = OrganizationDeleteView
-    search_fields = ['name', 'abbreviation']
-    list_display = ['name', 'parent','abbreviation']
+    search_fields = ['name']
+    list_display = ['name', 'parent']
     add_to_admin_menu = True
     menu_item_class = SuperAdminOnlyMenuItem
     add_child_url_name = 'add_child'
@@ -99,7 +99,6 @@ class OrganizationViewSet(PathsViewSet):
             help_text=pgettext_lazy('organization', 'Pick the main organization that this organization is part of'),
         ),
         # FieldPanel('logo'),
-        TranslatedFieldPanel('abbreviation'),
         # Don't allow editing identifiers at this point
         # CondensedInlinePanel('identifiers', panels=[
         #     FieldPanel('namespace'),
@@ -221,6 +220,6 @@ class OrganizationViewSet(PathsViewSet):
         qs = Organization.objects.qs.available_for_instance(active_instance)
         return qs
 
-# If kausal_watch_extensions is installed, an extended version of the view set is registered there
+# If kausal_paths_extensions is installed, an extended version of the view set is registered there
 if not find_spec('kausal_paths_extensions'):
     register_snippet(OrganizationViewSet)
