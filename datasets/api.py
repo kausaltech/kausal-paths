@@ -56,6 +56,12 @@ class DataPointSourceReferenceViewSet(BaseDataPointSourceReferenceViewSet):
         return [DatasetSourceReferencePermission()]
 
 
+class DatasetSourceReferenceViewSet(BaseDatasetSourceReferenceViewSet):
+    @override
+    def get_permissions(self):
+        return [DatasetSourceReferencePermission()]
+
+
 class DataPointViewSet(BaseDataPointViewSet):
     pass
 
@@ -69,10 +75,6 @@ class DatasetMetricViewSet(BaseDatasetMetricViewSet):
 
 
 class DatasetSchemaViewSet(BaseDatasetSchemaViewSet):
-    pass
-
-
-class DatasetSourceReferenceViewSet(BaseDatasetSourceReferenceViewSet):
     pass
 
 
