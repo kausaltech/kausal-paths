@@ -284,10 +284,20 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     solid_cubic_meter = 1 m**3 = m3_solid
     Mpkm = 1e6 * pkm
     CO2e = [co2e]
+    @alias CO2e = Co2e = co2e
+    @alias CO2e = CO2eq = Co2eq = co2eq
     kt_co2e = kilotonne * CO2e
+    @alias kt_co2e = ktco2e = kt_Co2e = ktCo2e = kt_CO2e = ktCO2e
+    @alias kt_co2e = kt_co2eq = ktco2eq = kt_Co2eq = ktCo2eq = kt_CO2eq = ktCO2eq
     t_co2e = tonne * CO2e
+    @alias t_co2e = tco2e = t_Co2e = tCo2e = t_CO2e = tCO2e
+    @alias t_co2e = t_co2eq = tco2eq = t_Co2eq = tCo2eq = t_CO2eq = tCO2eq
     kg_co2e = kg * CO2e
+    @alias kg_co2e = kgco2e = kg_Co2e = kgCo2e = kg_CO2e = kgCO2e
+    @alias kg_co2e = kg_co2eq = kgco2eq = kg_Co2eq = kgCo2eq = kg_CO2eq = kgCO2eq
     g_co2e = g * CO2e
+    @alias g_co2e = gco2e = g_Co2e = gCo2e = g_CO2e = gCO2e
+    @alias g_co2e = g_co2eq = gco2eq = g_Co2eq = gCo2eq = g_CO2eq = gCO2eq
     utility = [utility] = Ut
     m3_natural_gas = 36.4 MJ  # https://en.wikipedia.org/wiki/Energy_density
     kg_propane = 49.6 MJ
