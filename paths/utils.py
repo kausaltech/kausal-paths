@@ -66,6 +66,10 @@ def validate_unit(s: str):
 
     from nodes.context import unit_registry
 
+    # To be more user-friendly, let the user use spaces instead of underscores when naming units.
+    # Pint units use underscores so convert any spaces to underscores here
+    s = s.replace(" ", "_")
+
     try:
         unit = unit_registry.parse_units(s)
     except UndefinedUnitError as e:
