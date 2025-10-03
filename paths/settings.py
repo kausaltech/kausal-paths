@@ -67,6 +67,7 @@ env = environ.FileAwareEnv(
     REQUEST_LOG_MAX_DAYS=(int, 90),
     REQUEST_LOG_METHODS=(list, ['POST', 'PUT', 'PATCH', 'DELETE']),
     REQUEST_LOG_IGNORE_PATHS=(list, ['/v1/graphql/', '/o/introspect/']),
+    PATHS_BACKEND_REGION_URLS=(list, []),
     **COMMON_ENV_SCHEMA,
 )
 
@@ -510,6 +511,8 @@ WATCH_DEFAULT_API_BASE_URL = env('WATCH_DEFAULT_API_BASE_URL')
 # Information needed to authentiacte as a GitHub App
 GITHUB_APP_ID = env('GITHUB_APP_ID')
 GITHUB_APP_PRIVATE_KEY = env('GITHUB_APP_PRIVATE_KEY')
+
+PATHS_BACKEND_REGION_URLS = env('PATHS_BACKEND_REGION_URLS')
 
 register_common_settings(locals())
 # Put type hints for stuff registered in register_common_settings here because mypy doesn't figure it out

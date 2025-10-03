@@ -26,6 +26,7 @@ x-django-environment: &django-environment
   REQUEST_LOG_MAX_DAYS:
   REQUEST_LOG_METHODS:
   REQUEST_LOG_IGNORE_PATHS:
+  PATHS_BACKEND_REGION_URLS:
 
 x-django-build: &django-build
   context: .
