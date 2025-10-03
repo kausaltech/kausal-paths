@@ -23,7 +23,7 @@ from common import polars as ppl
 from common.i18n import I18nString, I18nStringInstance, TranslatedString, get_modeltrans_attrs_from_str
 from common.types import Identifier, MixedCaseIdentifier, validate_identifier
 from common.utils import hash_unit
-from nodes.calc import extend_last_forecast_value_pl, extend_last_historical_value_pl
+from nodes.calc import extend_last_forecast_value_pl, extend_last_historical_value_pl, extend_to_history_pl
 from nodes.constants import (
     DEFAULT_METRIC,
     FORECAST_COLUMN,
@@ -1585,6 +1585,19 @@ class Node:
     def _arithmetic_inverse(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
         return df.multiply_quantity(VALUE_COLUMN, unit_registry('-1 * dimensionless'))
 
+    def _bring_to_maximum_historical_year(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
+        max_year = self.context.instance.maximum_historical_year
+        if max_year is None:
+            return df
+        is_forecast = False
+        df = df.with_columns(
+            pl.when(pl.col(YEAR_COLUMN) <= max_year)
+            .then(pl.lit(is_forecast))
+            .otherwise(pl.col(FORECAST_COLUMN))
+            .alias(FORECAST_COLUMN)
+        )
+        return df.multiply_quantity(VALUE_COLUMN, unit_registry('-1 * dimensionless'))
+
     def _complement(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
         if not df.get_unit(VALUE_COLUMN).is_compatible_with('dimensionless'):
             raise NodeError(
@@ -1634,6 +1647,10 @@ class Node:
 
     def _extend_forecast_values(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
         return extend_last_forecast_value_pl(df, self.get_end_year())
+
+    def _extend_to_history(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
+        start_year = self.context.instance.minimum_historical_year
+        return extend_to_history_pl(df, start_year)
 
     def _forecast_only(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
         return df.filter(pl.col(FORECAST_COLUMN))

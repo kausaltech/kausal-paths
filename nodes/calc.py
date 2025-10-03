@@ -63,6 +63,20 @@ def extend_last_forecast_value_pl(df: ppl.PathsDataFrame, end_year: int) -> ppl.
     df = df.paths.to_narrow()
     return df
 
+def extend_to_history_pl(df: ppl.PathsDataFrame, start_year: int) -> ppl.PathsDataFrame:
+    if FORECAST_COLUMN not in df.columns:
+        raise ValueError("There is no FORECAST_COLUMN.")
+    end_year = df[YEAR_COLUMN].max()
+    assert isinstance(end_year, int)
+    df_year = ppl.PathsDataFrame(pl.int_range(start_year, end_year + 1, eager=True).alias(YEAR_COLUMN)).add_to_index(YEAR_COLUMN)
+    df = df.paths.to_wide()
+    df = df.paths.join_over_index(df_year, how='outer')
+    df = df.with_columns(
+        pl.all().fill_null(strategy='backward')
+    )
+    df = df.paths.to_narrow()
+    return df
+
 
 AR5GWP100 = {
     'co2_eq': 1.0,

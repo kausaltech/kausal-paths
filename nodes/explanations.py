@@ -27,6 +27,7 @@ TAG_TO_BASKET = {
     'skip_dim_test': 'skip_dim_test',
     'split_by_existing_shares': 'split_by_existing_shares',
     'split_evenly_to_cats': 'split_evenly_to_cats',
+    'threshold': 'apply_threshold',
     'use_as_shares': 'use_as_shares',
     'use_as_totals': 'use_as_totals',
 }
@@ -34,6 +35,7 @@ TAG_TO_BASKET = {
 TAG_DESCRIPTIONS = {
     'additive': _("Add input node values (even if the units don't match with the node units)."),
     'arithmetic_inverse': _('Take the arithmetic inverse of the values (-x).'),
+    'bring_to_maximum_historical_year': _('Makes all years up to maximum historical year non-forecasts.'),
     'complement': _('Take the complement of the dimensionless values (1-x).'),
     'complement_cumulative_product': _('Take the cumulative product of the dimensionless complement values over time.'),
     'cumulative': _('Take the cumulative sum over time.'),
@@ -42,6 +44,7 @@ TAG_DESCRIPTIONS = {
     'empty_to_zero': _('Convert NaNs to zeros.'),
     'expectation': _('Take the expected value over the uncertainty dimension.'),
     'extend_forecast_values': _('Extend the last forecast values to the remaining missing years.'),
+    'extend_to_history': _('Extend the first values to the years after the minimum historical year.'),
     'extend_values': _('Extend the last historical values to the remaining missing years.'),
     'geometric_inverse': _('Take the geometric inverse of the values (1/x).'),
     'goal': _('The node is used as the goal for the action.'),
