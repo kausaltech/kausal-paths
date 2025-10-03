@@ -6,6 +6,7 @@ import pytest
 
 from datasets.tests.fixtures import *
 
+pytestmark = pytest.mark.django_db()
 
 @pytest.fixture
 def api_client():
@@ -482,7 +483,7 @@ def test_datapoint_comment_retrieve(api_client, dataset_test_data, user_key, acc
         data = response.json()
         assert data['uuid'] == str(comment.uuid)
     else:
-        assert response.status_code in [403, 404]
+        assert response.status_code == 403
 
 
 @pytest.mark.django_db
@@ -539,7 +540,7 @@ def test_datapoint_comment_delete(api_client, dataset_test_data, user_key, acces
     if access_allowed:
         assert response.status_code == 204
     else:
-        assert response.status_code in [403, 404]
+        assert response.status_code == 403
 
 
 @pytest.mark.django_db
@@ -583,7 +584,7 @@ def test_dataset_source_reference_retrieve_via_dataset(api_client, dataset_test_
         data = response.json()
         assert data['uuid'] == str(source_ref.uuid)
     else:
-        assert response.status_code in [403, 404]
+        assert response.status_code == 403
 
 
 @pytest.mark.django_db
@@ -634,4 +635,109 @@ def test_dataset_source_reference_delete_via_dataset(api_client, dataset_test_da
     if access_allowed:
         assert response.status_code == 204
     else:
-        assert response.status_code in [403, 404]
+        assert response.status_code == 403
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize('user_key', [
+    'superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user', 'regular_user'
+])
+def test_dataset_source_reference_list_via_datapoint(api_client, dataset_test_data, user_key):
+    user = dataset_test_data[user_key]
+    datapoint = dataset_test_data['data_point1']
+    dataset = datapoint.dataset
+    api_client.force_authenticate(user=user)
+
+    response = api_client.get(f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/')
+
+    if user_key in ['superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user']:
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+    else:
+        assert response.status_code in [200, 403]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(('user_key', 'access_allowed'), [
+    ('superuser', True),
+    ('admin_user', True),
+    ('super_admin_user', True),
+    ('reviewer_user', True),
+    ('viewer_user', True),
+    ('regular_user', False),
+])
+def test_dataset_source_reference_retrieve_via_datapoint(api_client, dataset_test_data, user_key, access_allowed):
+    user = dataset_test_data[user_key]
+    source_ref = dataset_test_data['source_ref_on_datapoint']
+    datapoint = dataset_test_data['data_point1']
+    dataset = datapoint.dataset
+    api_client.force_authenticate(user=user)
+
+    response = api_client.get(f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/{source_ref.uuid}/')
+
+    if access_allowed:
+        assert response.status_code == 200, response.json()
+        data = response.json()
+        assert data['uuid'] == str(source_ref.uuid)
+    else:
+        assert response.status_code == 403
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(('user_key', 'access_allowed'), [
+    ('superuser', True),
+    ('admin_user', True),
+    ('super_admin_user', True),
+    ('reviewer_user', False),
+    ('viewer_user', False),
+    ('regular_user', False),
+])
+def test_dataset_source_reference_create_via_datapoint(api_client, dataset_test_data, user_key, access_allowed):
+    user = dataset_test_data[user_key]
+    datapoint = dataset_test_data['data_point1']
+    dataset = datapoint.dataset
+    data_source = dataset_test_data['data_source1']
+    api_client.force_authenticate(user=user)
+
+    create_data = {
+        'data_source': str(data_source.uuid),
+    }
+    response = api_client.post(
+        f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/',
+        create_data,
+        format='json'
+    )
+
+    if access_allowed:
+        assert response.status_code == 201, response.json()
+        data = response.json()
+        assert data['data_source'] == str(data_source.uuid)
+    else:
+        assert response.status_code == 403
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(('user_key', 'access_allowed'), [
+    ('superuser', True),
+    ('admin_user', True),
+    ('super_admin_user', True),
+    ('reviewer_user', False),
+    ('viewer_user', False),
+    ('regular_user', False),
+])
+def test_dataset_source_reference_delete_via_datapoint(api_client, dataset_test_data, user_key, access_allowed):
+    user = dataset_test_data[user_key]
+    source_ref = dataset_test_data['source_ref_on_datapoint']
+    datapoint = dataset_test_data['data_point1']
+    dataset = datapoint.dataset
+    api_client.force_authenticate(user=user)
+
+    response = api_client.delete(
+        f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/{source_ref.uuid}/'
+    )
+
+    if access_allowed:
+        assert response.status_code == 204, response.json()
+    else:
+        assert response.status_code == 403
