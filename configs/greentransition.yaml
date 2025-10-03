@@ -1047,6 +1047,7 @@ nodes:
   goals:
   - is_main_goal: true
     default: true
+    linear_interpolation: true
     label: Public transportation
     values:
     - year: 2025
