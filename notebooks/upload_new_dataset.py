@@ -64,9 +64,6 @@ def validate_required_columns(df: pl.DataFrame) -> None:
     if missing_columns:
         raise ValueError(f"Missing required columns: {', '.join(missing_columns)}")
 
-    if not any(col in df.columns for col in ['Metric', 'Sector']):
-        raise ValueError("Missing metric column. Dataset must contain either 'Metric', or 'Sector' column.")
-
 
 def determine_metric_column(df: pl.DataFrame) -> str:
     """Determine which column to use for metrics."""
@@ -103,15 +100,16 @@ def create_metric_col(df: pl.DataFrame, metric_col: str) -> pl.DataFrame:
 def split_by_dataset(df: pl.DataFrame) -> dict[str, pl.DataFrame]:
     """Split the dataframe into separate dataframes by Dataset."""
     datasets = {}
+    d = 'Dataset'
 
-    if 'Dataset' in df.columns:
-        unique_datasets = df.select('Dataset').unique().to_series(0).to_list()
+    if d in df.columns:
+        unique_datasets = df.select(d).unique().to_series(0).to_list()
     else:
-        raise ValueError("If specific_dataset is not defined, there must be column Dataset.")
+        raise ValueError(f"Argument 'dataset' must be defined unless you use dataset names from column '{d}'.")
 
     for dataset_name in unique_datasets:
         if dataset_name is not None:
-            dataset_df = df.filter(pl.col('Dataset') == dataset_name).drop('Dataset')
+            dataset_df = df.filter(pl.col(d) == dataset_name).drop(d)
             datasets[dataset_name] = dataset_df
             print(f"Created dataset for dataset: {dataset_name} with {len(dataset_df)} rows")
 
@@ -355,17 +353,17 @@ def prepare_for_dvc(df: pl.DataFrame, units: dict[str, str]) -> pl.DataFrame:
     df = df.rename(dict(zip(columns, new_columns, strict=False)))
 
     # Convert string values in columns to snake case
-    cols = [col for col in new_columns if col not in ['metric']]
-    for col in cols:
-        if col not in metrics + ['Year']:
-            if df[col].dtype != pl.Utf8:
-                print(df)
-                print(units)
-                raise ValueError(f"Column {col} does not contain strings.")
-            print('column to convert', col)
-            df = df.with_columns(
-                pl.col(col).map_elements(to_snake_case, return_dtype=pl.Utf8).alias(col)
-            )
+    # cols = [col for col in new_columns if col not in ['metric']]
+    # for col in cols:
+    #     if col not in metrics + ['Year']:
+    #         if df[col].dtype != pl.Utf8:
+    #             print(df)
+    #             print(units)
+    #             raise ValueError(f"Column {col} does not contain strings.")
+    #         print('column to convert', col)
+    #         df = df.with_columns(
+    #             pl.col(col).map_elements(to_snake_case, return_dtype=pl.Utf8).alias(col)
+    #         )
 
     return df
 
@@ -375,6 +373,9 @@ def convert_names_to_cats(df: pl.DataFrame, units: dict[str, str], context: Cont
     for col in cols:
         col_low = col.lower()
         if col_low in context.dimensions:
+            df = df.with_columns(
+                pl.col(col).map_elements(to_snake_case, return_dtype=pl.Utf8).alias(col)
+            )
             df = df.rename({col: col_low})
             df = df.with_columns(context.dimensions[col_low].series_to_ids_pl(df[col_low]))
         else:
@@ -510,7 +511,7 @@ def process_dataset(
     df = prepare_for_dvc(df, units)
     dim_ids = [s for s in df.columns if s not in units.keys()]
     print(f"Data pivoted by compound identifiers with dimension columns: {dim_ids}")
-    if context:
+    if context is not None:
         df = convert_names_to_cats(df, units, context)
 
     # 10. Save to CSV if requested
@@ -565,6 +566,7 @@ def main():
                        help='Process only specific dataset (optional)')
 
     parser.add_argument('--instance', '-n',
+                       required=False,
                        default=None,
                        help='Use dimensions and categories from an instance')
 
@@ -581,7 +583,7 @@ def main():
     encoding = args.encoding
     instance = args.instance
 
-    context = get_context(instance)
+    context = get_context(instance) if instance is not None else None
 
     # Load data
     full_df = load_data(incsvpath, incsvsep, encoding)
@@ -593,11 +595,15 @@ def main():
             units, full_df = extract_units_from_row(full_df)
             push_to_dvc(full_df, outdvcpath, '', units, None, [], language)
         else:
-            # Process only the specified
-            print(f"Processing only dataset: {specific_dataset}")
             d = 'Dataset'
-            dataset_df = full_df.filter(pl.col(d) == specific_dataset).drop(d) if d in full_df.columns else full_df
-            process_dataset(dataset_df, specific_dataset, outcsvpath, outdvcpath, language, context)
+            if d in full_df.columns:
+                # Process only the specified
+                print(f"Processing only dataset: {specific_dataset}")
+                dataset_df = full_df.filter(pl.col(d) == specific_dataset).drop(d)
+                process_dataset(dataset_df, specific_dataset, outcsvpath, outdvcpath, language, context)
+            else:
+                print(f"No '{d}' column, treating the whole table as one dataset '{specific_dataset}'.")
+                process_dataset(full_df, specific_dataset, outcsvpath, outdvcpath, language, context)
     else:
         # Process all datasets
         dataset_dfs = split_by_dataset(full_df)
