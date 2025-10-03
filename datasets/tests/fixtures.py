@@ -192,6 +192,11 @@ def dataset_test_data():
         data_source=data_source1,
     )
 
+    source_ref_on_datapoint = DatasetSourceReference.objects.create(
+        data_point=data_point1,
+        data_source=data_source1,
+    )
+
     return {
         'instance1': instance1,
         'instance2': instance2,
@@ -216,6 +221,7 @@ def dataset_test_data():
         'data_source2': data_source2,
         'comment1': comment1,
         'source_ref1': source_ref1,
+        'source_ref_on_datapoint': source_ref_on_datapoint,
     }
 
 
