@@ -1185,22 +1185,35 @@ class ThresholdNode(GenericNode):
     # Small epsilon for float comparisons
     LOGICAL_EPSILON = 1e-6
 
-    def _operation_apply_threshold(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+    def _operation_apply_threshold(self, df: ppl.PathsDataFrame | None, baskets: dict[str, list[Node]], **_kwargs) -> tuple:
         """Apply threshold to the computed values, converting to 0/1."""
         if df is None:
             raise NodeError(self, "Cannot apply threshold because no PathsDataFrame is available.")
 
-        threshold = self.get_parameter_value('threshold', units=True, required=True)
+        threshold = self.get_parameter_value('threshold', units=True, required=False)
+        if threshold is not None:
+            df = df.with_columns(pl.lit(threshold.m).alias('threshold'))
+            unit = str(threshold.units)
+            df = df.set_unit('threshold', unit)
+        else:
+            if 'apply_threshold' in baskets:
+                assert len(baskets['apply_threshold']) == 1
+                df_th = baskets['apply_threshold'].pop().get_output_pl(target_node=self)
+            else:
+                df_th = self.get_input_dataset_pl(tag='threshold')
+            df = df.paths.join_over_index(df_th)
+            df = df.rename({VALUE_COLUMN + '_right': 'threshold'})
+            unit = str(df.get_unit('threshold'))
         # Ensure the dataframe has the same unit as the threshold
-        df = df.ensure_unit(VALUE_COLUMN, str(threshold.units))
+        df = df.ensure_unit(VALUE_COLUMN, unit)
 
         # Apply the threshold with a small epsilon for float comparison
         df = df.with_columns(
-            pl.when(pl.col(VALUE_COLUMN) >= (pl.lit(threshold.m) - self.LOGICAL_EPSILON))
+            pl.when(pl.col(VALUE_COLUMN) >= (pl.col('threshold') - self.LOGICAL_EPSILON))
             .then(1.0)
             .otherwise(0.0)
             .alias(VALUE_COLUMN)
-        )
+        ).drop('threshold')
 
         # Set unit to dimensionless since we now have logical values
         df = df.clear_unit(VALUE_COLUMN).set_unit(VALUE_COLUMN, 'dimensionless')
