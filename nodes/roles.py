@@ -127,6 +127,14 @@ class InstanceViewerRole(InstanceGroupMembershipRole, InstanceSpecificRole['Inst
     model_perms = [
         ('wagtailadmin', 'admin', ('access',)),
         ('nodes', ('instanceconfig', 'nodeconfig'), ('view',)),
+        ('datasets', (
+            'datasetschema',
+            'dataset',
+            'datapoint',
+            'datasource',
+            'datasetsourcereference',
+            'datapointcomment'
+        ), ('view',)),
         ('frameworks', (
             'framework', 'frameworkconfig', 'measure', 'measuredatapoint',
         ), ('view',)),
@@ -151,6 +159,14 @@ class InstanceReviewerRole(InstanceGroupMembershipRole, InstanceSpecificRole['In
         ('wagtailadmin', 'admin', ('access',)),
         ('nodes', ('instanceconfig', 'nodeconfig'), ('view',)),
         ('datasets', ('datapointcomment'), ('add',)),
+        ('datasets', (
+            'datasetschema',
+            'dataset',
+            'datapoint',
+            'datasource',
+            'datasetsourcereference',
+            'datapointcomment'
+        ), ('view',)),
         ('frameworks', (
             'framework', 'frameworkconfig', 'measure', 'measuredatapoint',
         ), ('view',)),
