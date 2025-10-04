@@ -161,7 +161,7 @@ class GenericNode(SimpleNode):
         if df is None:
             raise NodeError(self, "Cannot apply multiplier because no PathsDataFrame is available.")
         mult = self.get_parameter_value('multiplier', required=False, units=True)
-        if mult:
+        if mult is not None:
             df = df.multiply_quantity(VALUE_COLUMN, mult)
         return df, baskets
 
