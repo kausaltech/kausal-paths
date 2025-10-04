@@ -12,8 +12,8 @@ from kausal_common.datasets.models import (
     Dataset,
     DatasetQuerySet,
     DatasetSchema,
-    DataSource,
     DatasetSourceReference,
+    DataSource,
 )
 from kausal_common.models.permission_policy import (
     BaseObjectAction,
