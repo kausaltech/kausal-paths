@@ -20,7 +20,7 @@ from kausal_common.datasets.api import (
     DimensionCategoryViewSet as BaseDimensionCategoryViewSet,
     DimensionViewSet as BaseDimensionViewSet,
 )
-from kausal_common.datasets.models import DataPoint, DataPointComment, Dataset, DatasetSourceReference
+from kausal_common.datasets.models import DataPoint, DataPointComment, Dataset, DatasetSchema, DatasetSourceReference
 
 if TYPE_CHECKING:
     from rest_framework.views import APIView
@@ -74,8 +74,18 @@ class DatasetMetricViewSet(BaseDatasetMetricViewSet):
     pass
 
 
+class DatasetSchemaPermission(PermissionPolicyDRFPermission[DatasetSchema, None]):
+    class Meta:
+        model = DatasetSchema
+
+    def get_create_context_from_api_view(self, view: APIView) -> None:
+        return None
+
+
 class DatasetSchemaViewSet(BaseDatasetSchemaViewSet):
-    pass
+    @override
+    def get_permissions(self):
+        return [DatasetSchemaPermission()]
 
 
 class DatasetViewSet(BaseDatasetViewSet):
