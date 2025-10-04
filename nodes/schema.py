@@ -672,6 +672,8 @@ class NodeInterface(graphene.Interface):
 
     @staticmethod
     def resolve_explanation(root: Node, info: GQLInstanceInfo) -> str | None:
+        if info.context.instance.features.show_explanations:
+            return None
         return root.get_explanation()
 
     @staticmethod
