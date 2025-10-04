@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
+from django.contrib.auth.models import Group
 from django.contrib.contenttypes.models import ContentType
 
 import pytest
@@ -21,16 +22,18 @@ from kausal_common.datasets.models import (
     DimensionScope,
 )
 
+from paths.context import RealmContext, realm_context
+
 from nodes.models import InstanceConfig
 from nodes.roles import instance_admin_role, instance_reviewer_role, instance_super_admin_role, instance_viewer_role
 from nodes.tests.factories import InstanceConfigFactory
-from paths.context import RealmContext, realm_context
 from users.models import User
 
 
-@pytest.fixture
-def dataset_test_data():
-    import uuid
+@pytest.fixture(scope='module')
+def dataset_test_data(django_db_setup, django_db_blocker):
+  import uuid
+  with django_db_blocker.unblock():
     instance1 = InstanceConfigFactory.create(
         identifier=f'instance1-{uuid.uuid4().hex[:8]}',
         name='Instance 1',
@@ -197,7 +200,7 @@ def dataset_test_data():
         data_source=data_source1,
     )
 
-    return {
+    result = {
         'instance1': instance1,
         'instance2': instance2,
         'superuser': superuser,
@@ -223,7 +226,11 @@ def dataset_test_data():
         'source_ref1': source_ref1,
         'source_ref_on_datapoint': source_ref_on_datapoint,
     }
-
+    yield result
+    with django_db_blocker.unblock():
+        to_delete = list(reversed(result.values())) + list(Group.objects.all())
+        for o in to_delete:
+            o.delete()
 
 @pytest.fixture
 def get_in_admin_context(rf):
