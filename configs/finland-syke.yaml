@@ -264,37 +264,46 @@ emission_sectors:
 
 - id: consumer_electricity_emissions
   name: Kulutussähkön päästöt
+  name_en: Consumer electricity emissions
   part_of: net_emissions
   color: '#7fc97f'
 - id: building_heating_emissions
   name: Rakennusten lämmityksen päästöt
+  name_en: Building heating emissions
   part_of: net_emissions
   color: '#beaed4'
 - id: transport_emissions
   name: Liikenteen päästöt
+  name_en: Traffic emissions
   part_of: net_emissions
   color: '#fdc086'
 - id: road_transport_emissions
   name: Tieliikenteen päästöt
+  name_en: Road traffic emissions
   part_of: transport_emissions
 - id: industry_emissions
   name: Teollisuuden polttoaineenkulutuksen päästöt
+  name_en: Industrial fuel use emissions
   part_of: net_emissions
   color: '#ffff99'
 - id: machinery_emissions
   name: Työkoneiden päästöt
+  name_en: Machinery emissions
   part_of: net_emissions
   color: '#386cb0'
 - id: agriculture_emissions
   name: Maatalouden päästöt
+  name_en: Agriculture emissions
   part_of: net_emissions
   color: '#f0027f'
 - id: waste_treatment_emissions
   name: Jätteiden käsittelyn päästöt
+  name_en: Waste management emissions
   part_of: net_emissions
   color: '#bf5b17'
 - id: f_gases_emissions
   name: F-kaasujen päästöt
+  name_en: F gas emissions
   part_of: net_emissions
   color: '#666666'
 
@@ -774,6 +783,7 @@ nodes:
 
 - id: forest_emission_targets_must_be_reasonable
   name: Metsien päästötavoitteita pitää kohtuullistaa
+  name_en: Forest emission goals must be made reasonable
   type: generic.GenericNode
   quantity: argument
   unit: dimensionless
@@ -786,22 +796,24 @@ nodes:
   output_nodes:
   - id: forests_and_wood_products
     tags: [ignore_content]
-  - id: set_forest_emission_target
+  - id: set_forest_emission_goal
     tags: [ignore_content]
 
 - id: forest_emission_targets_reached
   name: Saavutetaanko metsien päästötavoitteet?
+  name_en: Are forest emission goals reached?
   type: generic.ThresholdNode
   quantity: utility
   unit: dimensionless
   input_nodes:
   - id: forests_and_wood_products
     tags: [forecast_only, arithmetic_inverse, additive]
-  - id: set_forest_emission_target
+  - id: set_forest_emission_goal
     tags: [arithmetic_inverse, threshold]
 
 - id: forest_growth
   name: Metsien kasvu
+  name_en: Forest growth
   type: generic.GenericNode
   quantity: volume
   unit: Mm3_solid/a
@@ -817,6 +829,7 @@ nodes:
 
 - id: forest_actions
   name: Metsätoimet
+  name_en: Forest actions
   type: generic.GenericNode
   quantity: volume
   unit: Mm3_solid/a
@@ -830,6 +843,7 @@ nodes:
 
 - id: gross_carbon_capture_in_forest
   name: Hiilen kokonaissidonta metsissä
+  name_en: Total carbon sink in forests
   description: Kiintokuutiometri puuta painaa noin 520 kg/k-m3 ja puussa on 
     hiiltä kutakuinkin samassa suhteessa kuin selluloosassa (C6H12O6)n eli 6 * 
     12/(6 * 12 + 12 * 1 + 6 * 16) = 40 %, joten alkuainehiiltä on 209 kg/k-m3. 
@@ -848,6 +862,7 @@ nodes:
 
 - id: wood_emission_factor
   name: Puun päästökerroin
+  name_en: Wood emission factor
   type: generic.GenericNode
   quantity: emission_factor
   unit: kg/m3_solid
@@ -866,6 +881,7 @@ nodes:
 
 - id: carbon_emissions_in_forest_soil
   name: Metsän maaperän hiilipäästö
+  name_en: Carbon emissions in forest soil
   type: generic.GenericNode
   quantity: emissions
   unit: Mt/a
@@ -884,6 +900,7 @@ nodes:
 
 - id: wood_use
   name: Puun käyttö Suomessa
+  name_en: Wood use in Finland
   type: generic.GenericNode
   quantity: volume
   unit: Mm3_solid/a
@@ -906,6 +923,7 @@ nodes:
 
 - id: wood_use_emissions
   name: Puun käytön päästöt
+  name_em: Wood use emissions
   type: generic.GenericNode
   quantity: emissions
   unit: Mt/a
@@ -918,6 +936,7 @@ nodes:
 
 - id: forestry_economics
   name: Metsätalous
+  name_en: Forestry economics
   type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
@@ -930,6 +949,7 @@ nodes:
 
 - id: forestry_unit_price
   name: Metsätuotteiden yksikköhinnat
+  name_en: Forestry unit prices
   description: Yksinkertaisuuden vuoksi oletetaan, että vain raakapuulla on 
     arvoa ja sivuvirrat tulevat siinä ohessa.
   type: generic.GenericNode
@@ -952,6 +972,7 @@ nodes:
 
 - id: forestry_income_shares
   name: Metsätalouden tulojen osuudet
+  name_en: Forestry income shares
   type: generic.GenericNode
   quantity: fraction
   unit: '%'
@@ -965,6 +986,7 @@ nodes:
 
 - id: forestry_income
   name: Metsäteollisuuden tuotot
+  name_en: Forestry income
   description: Tulos liioittelee metsäteollisuuden tuottoja, joska yksikköhintaa
     laskettaessa oletettiin sivuvirtojen olevan arvottomia mutta tuottoja 
     laskettaessa niiden oletetaan olevan yhtä arvokkaita kuin raakapuu.
@@ -981,7 +1003,7 @@ nodes:
     to_dimensions:
     - id: stakeholder
   output_nodes:
-  - id: forestry_cost
+  - id: forestry_costs
     from_dimensions:
     - id: economic_sector
       flatten: true
@@ -999,99 +1021,102 @@ nodes:
   params:
     sector: CO2 market price
 
-- id: carbon_capture_income
-  name: Hiilinielutulo metsänomistajalle
+- id: carbon_sink_costs
+  name: Hiilinielutulo
+  name_en: Carbon sink costs
   type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
-  input_dimensions: [stakeholder]
-  output_dimensions: [stakeholder]
   input_nodes:
   - id: forests_and_wood_products
-    to_dimensions:
-    - id: stakeholder
-      categories: [forest_owner]
   - id: co2_market_price
     from_dimensions:
     - id: stakeholder
       flatten: true
     to_dimensions: []
   output_nodes:
-  - id: forestry_cost
+  - id: forestry_costs
+    tags: [non_additive]
+    to_dimensions:
+    - id: stakeholder
+      categories: [forest_owner]
 
-- id: forestry_cost
+- id: forestry_costs
   name: Metsätalouden kustannus
+  name_en: Forestry costs
   type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [stakeholder]
   output_dimensions: [stakeholder]
 
-- id: forest_owner_cost
+- id: forest_owner_costs
   name: Metsänomistajan kustannus
+  name_en: Forest owner costs
   type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [stakeholder]
   output_dimensions: [stakeholder]
   input_nodes:
-  - id: forestry_cost
+  - id: forestry_costs
     from_dimensions:
     - id: stakeholder
       categories: [forest_owner]
-  output_nodes: [total_cost]
+  output_nodes: [total_costs]
 
-- id: forest_industry_cost
+- id: forest_industry_costs
   name: Metsäteollisuuden kustannus
+  name_en: Forest industry costs
   type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [stakeholder]
   output_dimensions: [stakeholder]
   input_nodes:
-  - id: forestry_cost
+  - id: forestry_costs
     from_dimensions:
     - id: stakeholder
       categories: [industry]
-  output_nodes: [total_cost]
+  output_nodes: [total_costs]
 
-- id: societal_cost
+- id: societal_costs
   name: Yhteiskunnallinen kustannus
+  name_en: Societal costs
   type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [stakeholder]
   output_dimensions: [stakeholder]
   input_nodes:
-  - id: forestry_cost
+  - id: forestry_costs
     from_dimensions:
     - id: stakeholder
       categories: [state]
-  - id: carbon_capture_income
-    from_dimensions:
-    - id: stakeholder
-      flatten: true
+  - id: carbon_sink_costs
     to_dimensions:
     - id: stakeholder
       categories: [state]
-  output_nodes: [total_cost]
+  output_nodes: [total_costs]
 
-- id: other_stakeholder_cost
+- id: other_stakeholder_costs
   name: Muiden sidosryhmien kustannus
+  name_en: Other stakeholder costs
   type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
   input_dimensions: [stakeholder]
   output_dimensions: [stakeholder]
   input_nodes:
-  - id: forestry_cost
+  - id: forestry_costs
     from_dimensions:
     - id: stakeholder
       categories: [other_consumers]
-  output_nodes: [total_cost]
+  output_nodes: [total_costs]
 
-- id: total_cost
+- id: total_costs
   name: Kokonaiskustannus
+  name_en: Total costs
   type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
@@ -1101,8 +1126,9 @@ nodes:
 
 actions:
 
-- id: set_forest_emission_target
+- id: set_forest_emission_goal
   name: Aseta metsien päästötavoite
+  name_en: Set forest emission goal
   type: simple.GenericAction
   quantity: emissions
   unit: Mt/a
@@ -1299,6 +1325,7 @@ actions:
 
 - id: emission_trade_system_in_forestry
   name: Metsäpäästökauppa
+  name_en: Emission trade system in forestry
   type: simple.GenericAction
   quantity: fraction
   unit: dimensionless
@@ -1308,10 +1335,11 @@ actions:
     tags: [baseline]
     column: metsapaastokauppa
     forecast_from: 2025
-  output_nodes: [carbon_capture_income]
+  output_nodes: [forestry_costs]
 
 - id: protect_the_forest
   name: Suojele metsää
+  name_en: Protect the forest
   type: simple.GenericAction
   quantity: volume
   unit: Mm3_solid/a
@@ -1329,6 +1357,8 @@ actions:
     min_value: 0.0
     max_value: 50.0
     unit: Mm3_solid/a
+    label: Suojelun määrä kiintokuutioina
+    label_en: Amount of protection as solid m3
     is_customizable: true
     is_visible: true
   output_nodes:
