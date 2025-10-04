@@ -14,35 +14,27 @@ def api_client():
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'expected_schemas'), [
-    pytest.param('superuser', ['Schema 1', 'Schema 2', 'Unused schema'], id='superuser'),
-    pytest.param('admin_user', ['Schema 1', 'Unused schema'], id='admin_user'),
-    pytest.param('super_admin_user', ['Schema 1', 'Unused schema'], id='super_admin_user'),
-    pytest.param('reviewer_user', ['Schema 1', 'Unused schema'], id='reviewer_user'),
-    pytest.param('viewer_user', ['Schema 1', 'Unused schema'], id='viewer_user'),
-    pytest.param('regular_user', [], id='regular_user'),
+@pytest.mark.parametrize(('user_key', 'has_access', 'expected_schemas'), [
+    pytest.param('superuser', True, {'Schema 1', 'Schema 2', 'Unused schema'}, id='superuser'),
+    pytest.param('super_admin_user', True, {'Schema 1', 'Unused schema'}, id='super_admin_user'),
+    pytest.param('admin_user', True, {'Schema 1', 'Unused schema'}, id='admin_user'),
+    pytest.param('reviewer_user', True, {'Schema 1', 'Unused schema'}, id='reviewer_user'),
+    pytest.param('viewer_user', True, {'Schema 1', 'Unused schema'}, id='viewer_user'),
+    pytest.param('regular_user', False, set(), id='regular_user'),
 ])
-def test_dataset_schema_list(api_client, dataset_test_data, user_key, expected_schemas):
+def test_dataset_schema_list(api_client, dataset_test_data, user_key, has_access, expected_schemas):
     user = dataset_test_data[user_key]
     api_client.force_authenticate(user=user)
-
     response = api_client.get('/v1/dataset_schemas/')
 
-    all_schema_names = ['Schema 1', 'Schema 2', 'Unused schema']
+    if has_access is False:
+        assert response.status_code == 403
+        return
+    assert response.status_code == 200
 
-    if expected_schemas:
-        assert response.status_code == 200
-        data = response.json()
-        schema_names = [schema['name'] for schema in data]
-        for schema_name in expected_schemas:
-            assert schema_name in schema_names
-        for schema_name in all_schema_names:
-            if schema_name not in expected_schemas:
-                assert schema_name not in schema_names
-    else:
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data) == 0
+    data = response.json()
+    data_schemas = set(schema['name'] for schema in data)
+    assert data_schemas == expected_schemas
 
 
 @pytest.mark.django_db
