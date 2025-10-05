@@ -1124,6 +1124,30 @@ nodes:
   input_dimensions: [stakeholder]
   output_dimensions: [stakeholder]
 
+- id: climate_law_goal_reached
+  name: Ilmastolain tavoite saavutettu
+  name_en: Climate law goal reached
+  type: generic.ThresholdNode
+  quantity: fraction
+  unit: dimensionless
+  is_outcome: true
+  input_nodes:
+  - id: net_emissions
+    tags: [arithmetic_inverse, additive]
+  params:
+  - id: threshold
+    value: 0
+    unit: Mt/a
+  goals:
+  - label: Ilmastolain tavoite saavutettu
+    label_en: Climate law requirement achieved
+    default: true
+    is_main_goal: true
+    linear_interpolation: true
+    values:
+    - year: 2035
+      value: 0
+
 actions:
 
 - id: set_forest_emission_goal
