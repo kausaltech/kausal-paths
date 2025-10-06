@@ -753,8 +753,8 @@ params:
   max_value: 2
   unit: '%/a'
 - id: weather_correction
-  label: Include reductions?
-  label_es-US: ¿Incluir reducciones de emisiones?
+  label: Included Avoided emissions
+  label_es-US: Emisiones evitadas incluidas
   value: false
   is_visible: true
   is_customizable: true
