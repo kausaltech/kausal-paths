@@ -175,21 +175,20 @@ def test_dataset_list(api_client, dataset_test_data, user_key):
     api_client.force_authenticate(user=user)
 
     if user_key == 'superuser':
-        expected_datasets = ['dataset1', 'dataset2']
+        expected_datasets = {'dataset1', 'dataset2'}
     elif user_key in ['admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user']:
-        expected_datasets = ['dataset1']
+        expected_datasets = {'dataset1'}
     else:
-        expected_datasets = []
+        expected_datasets = {}
 
     response = api_client.get('/v1/datasets/')
 
     if expected_datasets:
         assert response.status_code == 200
         data = response.json()
-        dataset_uuids = [str(dataset_test_data[key].uuid) for key in expected_datasets]
-        result_uuids = [d['uuid'] for d in data]
-        for uuid in dataset_uuids:
-            assert uuid in result_uuids
+        dataset_uuids = set(str(dataset_test_data[key].uuid) for key in expected_datasets)
+        result_uuids = set(d['uuid'] for d in data)
+        assert dataset_uuids == result_uuids
     else:
         assert response.status_code == 200
         data = response.json()
