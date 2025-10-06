@@ -38,33 +38,35 @@ def test_dataset_schema_list(api_client, dataset_test_data, user_key, has_access
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'schema_key', 'access_allowed'), [
-    ('superuser', 'schema1', True),
-    ('superuser', 'schema2', True),
-    ('admin_user', 'schema1', True),
-    ('admin_user', 'schema2', False),
-    ('super_admin_user', 'schema1', True),
-    ('super_admin_user', 'schema2', False),
-    ('reviewer_user', 'schema1', True),
-    ('reviewer_user', 'schema2', False),
-    ('viewer_user', 'schema1', True),
-    ('viewer_user', 'schema2', False),
-    ('regular_user', 'schema1', False),
-    ('regular_user', 'schema2', False),
+@pytest.mark.parametrize(('user_key', 'schema_key', 'access_allowed', 'should_be_found'), [
+    ('superuser', 'schema1', True, True),
+    ('superuser', 'schema2', True, True),
+    ('admin_user', 'schema1', True, True),
+    ('admin_user', 'schema2', True, False),
+    ('super_admin_user', 'schema1', True, True),
+    ('super_admin_user', 'schema2', True, False),
+    ('reviewer_user', 'schema1', True, True),
+    ('reviewer_user', 'schema2', True, False),
+    ('viewer_user', 'schema1', True, True),
+    ('viewer_user', 'schema2', True, False),
+    ('regular_user', 'schema1', False, False),
+    ('regular_user', 'schema2', False, False),
 ])
-def test_dataset_schema_retrieve(api_client, dataset_test_data, user_key, schema_key, access_allowed):
+def test_dataset_schema_retrieve(api_client, dataset_test_data, user_key, schema_key, access_allowed, should_be_found):
     user = dataset_test_data[user_key]
     schema = dataset_test_data[schema_key]
     api_client.force_authenticate(user=user)
 
     response = api_client.get(f'/v1/dataset_schemas/{schema.uuid}/')
 
-    if access_allowed:
+    if access_allowed and should_be_found:
         assert response.status_code == 200
         data = response.json()
         assert data['uuid'] == str(schema.uuid)
+    elif access_allowed and should_be_found is False:
+        assert response.status_code == 404
     else:
-        assert response.status_code in [403, 404]
+        assert response.status_code == 403
 
 
 @pytest.mark.django_db
