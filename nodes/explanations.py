@@ -32,6 +32,23 @@ TAG_TO_BASKET = {
     'use_as_totals': 'use_as_totals',
 }
 
+BASKET_DISPLAY_NAMES = {
+    'add': _('addition'),
+    'add_from_incoming_dims': _('addition from incoming dimensions'),
+    'add_to_existing_dims': _('addition to existing dimensions'),
+    'coalesce': _('coalescing'),
+    'multiply': _('multiplication'),
+    'other': _('other operations'),
+    'skip_dim_test': _('skip dimension test'),
+    'split_by_existing_shares': _('split by existing shares'),
+    'split_evenly_to_cats': _('split evenly to categories'),
+    'apply_threshold': _('apply threshold'),
+    'use_as_shares': _('use as shares'),
+    'use_as_totals': _('use as totals'),
+    'unknown': _('unknown operation'),
+    'skip': _('skip'),
+}
+
 TAG_DESCRIPTIONS = {
     'additive': _("Add input node values (even if the units don't match with the node units)."),
     'arithmetic_inverse': _('Take the arithmetic inverse of the values (-x).'),
@@ -222,6 +239,7 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
     'FloorAreaNode': NodeInfo(_('Floor area node takes in actions and calculates the floor area impacted.')),
     'FormulaNode': NodeInfo(_('This is a Formula Node. It uses a specified formula to calculate the output.')),
     'GenericNode': NodeInfo(_("")),
+    'GenericAction': NodeInfo(_("Action with GenericNode properties.")),
     'GpcTrajectoryAction': NodeInfo(_(
         """
         GpcTrajectoryAction is a trajectory action that uses the DatasetNode to fetch the dataset.
@@ -307,6 +325,7 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         """
         WeightedSumNode: Combines additive inputs using weights from a multidimensional weights DataFrame.
         """)),
+    'Unknown': NodeInfo(_("Node class does not have description."))
 }
 
 
@@ -685,8 +704,9 @@ class NodeClassRule(ValidationRule):
         if isinstance(typ, str):
             typ = typ.split('.')[-1]
             desc = NODE_CLASS_DESCRIPTIONS.get(typ)
-            if desc:
-                html.append(f"{desc.description}<br>")
+            if desc is None:
+                desc = NODE_CLASS_DESCRIPTIONS['Unknown']
+            html.append(f"{desc.description}<ul>")
         operations = self.get_param(node_config, 'operations')
         formula = self.get_param(node_config, 'formula')
         other = self.get_all_params(node_config, drop = ['operations', 'formula'])
@@ -698,6 +718,7 @@ class NodeClassRule(ValidationRule):
             for p in other:
                 html.append(f"<li>{_('Has parameter')} <i>{p[0]}</i> {_('with value')} {p[1]}.")  # noqa: PERF401
 
+        html.append('</ul>')
         return html
 
     def validate(self, node_config: dict, context: Context) -> list[ValidationResult]:
@@ -735,8 +756,7 @@ class DatasetRule(ValidationRule):
         if not input_datasets:
             return dataset_html
 
-        dataset_html.append(f"<br>{_('Datasets')}:")
-        dataset_html.append("<ul>")
+        dataset_html.append(f"{_('Datasets')}:<ul>")
 
         for dataset_config in input_datasets:
             if isinstance(dataset_config, dict):
@@ -745,7 +765,6 @@ class DatasetRule(ValidationRule):
                 dataset_html.append(dataset_config)
 
         dataset_html.append("</ul>")
-        dataset_html.append("</li>")
 
         return dataset_html
 
@@ -772,6 +791,7 @@ class DatasetRule(ValidationRule):
         if filters:
             html.extend(self._explain_filters(filters, context))
 
+        html.append('</ul></li>')
         return html
 
     def _explain_filters(self, filters: list[dict], context: Context) -> list[str]:
@@ -783,7 +803,7 @@ class DatasetRule(ValidationRule):
             for d in renames:
                 col = d['rename_col']
                 val = d.get('value', '')
-                html.append(f'<li>Column <i>{col}</i> to <i>{val}</i>.</li>')
+                html.append(f'<li>{col} &rarr; {val}.</li>')
             html.append('</ul></li>')
         true_filters = [d for d in filters if 'rename_col' not in d]
         if true_filters:
@@ -796,7 +816,7 @@ class DatasetRule(ValidationRule):
                 if 'rename_item' in d:
                     html.append(self._explain_rename_item_filter(d))
 
-        html.append("</ol></li>")
+            html.append("</ol></li>")
         return html
 
     def _explain_column_filter(self, d: dict[str, Any], context: Context) -> str:
@@ -1045,8 +1065,8 @@ class EdgeRule(ValidationRule):
         for input_node in node_config.get('input_nodes', {}):
 
             tag_html = self.get_explanation_for_tag(input_node)
-            tag_html.extend(self.get_explanation_for_edge_from(input_node))
-            tag_html.extend(self.get_explanation_for_edge_to(input_node))
+            tag_html.extend(self.get_explanation_for_edge_from(input_node, context))
+            tag_html.extend(self.get_explanation_for_edge_to(input_node, context))
 
             if tag_html:
                 input_id = input_node if not isinstance(input_node, dict) else input_node['id']
@@ -1074,38 +1094,47 @@ class EdgeRule(ValidationRule):
             html.append(f"<li>{description}</li>")
         return html
 
-    def get_explanation_for_edge_from(self, node: dict | str) -> list[str]:
+    def get_explanation_for_edge_from(self, node: dict | str, context: Context) -> list[str]:
         edge_html: list[str] = []
         if isinstance(node, str):
             return edge_html
 
         for dim in node.get('from_dimensions', []):
-            dimlabel = dim.get('id')
+            dimlabel = str(context.dimensions[dim['id']])
             cats = dim.get('categories', [])
 
             if cats:
                 do = _('exclude') if dim.get('exclude', False) else _('include')
+                category_dict = {cat.id: cat for cat in context.dimensions[dim['id']].categories}
+                cats_str = ', '.join([str(category_dict[c].label) for c in cats])
                 edge_html.append(
-                    f"<li>{_('From dimension')} <i>{dimlabel}</i>, {do} categories: <i>{', '.join(cats)}</i>.</li>"
+                    _("<li>From dimension <i>%(dim)s</i>, %(action)s categories: <i>%(cats)s</i></li>") % {
+                        'dim': dimlabel,
+                        'action': do,
+                        'cats': cats_str
+                    }
                 )
 
             if dim.get('flatten', False):
-                edge_html.append(f"<li>{_('Sum over dimension')} <i>{dimlabel}</i></li>")
+                edge_html.append(
+                    _("<li>Sum over dimension <i>%(dim)s</i></li>") % {'dim': dimlabel}
+                )
         return edge_html
 
-    def get_explanation_for_edge_to(self, node: dict | str) -> list[str]:
+    def get_explanation_for_edge_to(self, node: dict | str, context: Context) -> list[str]:
         edge_html: list[str] = []
         if isinstance(node, str):
             return edge_html
 
         for dim in node.get('to_dimensions', []):
-            dimlabel = dim.get('id')
+            dimlabel = str(context.dimensions[dim['id']])
             cats = dim.get('categories', [])
 
             if cats:
-                cat_str = ', '.join(cats)
+                category_dict = {cat.id: cat for cat in context.dimensions[dim['id']].categories}
+                cats_str = ', '.join([str(category_dict[c].label) for c in cats])
                 edge_html.append(
-                    f"<li>{_('Categorize the values to')} <i>{cat_str}</i> in a new dimension <i>{dimlabel}</i>.</li>"
+                    f"<li>{_('Categorize the values to')} <i>{cats_str}</i> in a new dimension <i>{dimlabel}</i>.</li>"
                     )
         return edge_html
 
@@ -1131,24 +1160,30 @@ class BasketRule(ValidationRule):
         if not baskets:
             return html
 
-        html.append("The inputs are used for operations in this order:<ol>")
+        html.append(_("The inputs are used for operations in this order:") + "<ol>")
         operation_list = self.get_param(nes.graph.nodes[node_id], 'operations')
         if not operation_list:
             operation_list = context.nodes[node_id].DEFAULT_OPERATIONS
-        operations = operation_list.split(',')
+        operations = [o.strip() for o in operation_list.split(',')]
 
         for operation in operations:
             input_nodes = baskets.get(operation, [])
             if input_nodes:
-                html.append(f"<li>{_('Operation')} {operation}: <i>{', '.join(input_nodes)}</i>.</li>")
+                op_display = BASKET_DISPLAY_NAMES.get(operation, operation)
+                html.append(f"<li>{_('Operation %(op)s with nodes:') % {'op': op_display}}<ul>")
+                nodes_str = '</li><li>'.join(str(context.nodes[n].name) for n in input_nodes)
+                html.append(f"<li>{nodes_str}</li></ul></li>")
         html.append('</ol>')
 
         remaining_baskets = [basket for basket in baskets.keys() if basket not in operations]
         if remaining_baskets:
-            html.append("These groups are left over without an operation:<ol>")
+            html.append(_("These groups are left over without an operation:") + "<ol>")
             for basket in remaining_baskets:
                 input_nodes = baskets.get(basket, [])
-                html.append(f"<li>{_('Group')} {basket}: <i>{', '.join(input_nodes)}</i>.</li>")
+                basket_display = BASKET_DISPLAY_NAMES.get(basket, basket)
+                nodes_str = '</li><li>'.join(input_nodes)
+                html.append(f"<li>{_('Group %(basket)s with nodes:') % {'basket': basket_display}}</ul>")
+                html.append(f"<li>{nodes_str}</li></ul></li>")
             html.append('</ol>')
 
         return html
