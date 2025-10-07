@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, override
 
+from rest_framework import serializers
 from rest_framework.routers import DefaultRouter, SimpleRouter
 
 from rest_framework_nested.routers import NestedSimpleRouter
@@ -62,8 +63,18 @@ class DatasetSourceReferenceViewSet(BaseDatasetSourceReferenceViewSet):
         return [DatasetSourceReferencePermission()]
 
 
+class DataPointPermission(PermissionPolicyDRFPermission[DataPoint, Dataset]):
+    class Meta:
+        model = DataPoint
+
+    @override
+    def get_create_context_from_api_view(self, view: APIView) -> Dataset:
+        return Dataset.objects.get(uuid=view.kwargs['dataset_uuid'])
+
 class DataPointViewSet(BaseDataPointViewSet):
-    pass
+    @override
+    def get_permissions(self):
+        return [DataPointPermission()]
 
 
 class DatasetCommentsViewSet(BaseDatasetCommentsViewSet):
@@ -88,8 +99,21 @@ class DatasetSchemaViewSet(BaseDatasetSchemaViewSet):
         return [DatasetSchemaPermission()]
 
 
+class DatasetPermission(PermissionPolicyDRFPermission[Dataset, DatasetSchema]):
+    class Meta:
+        model = Dataset
+
+    def get_create_context_from_api_view(self, view: APIView) -> DatasetSchema:
+        schema_uuid = view.request.data['schema']
+        try:
+            return DatasetSchema.objects.get(uuid=schema_uuid)
+        except DatasetSchema.DoesNotExist as e:
+            raise serializers.ValidationError('DatasetSchema not found') from e
+
 class DatasetViewSet(BaseDatasetViewSet):
-    pass
+    @override
+    def get_permissions(self):
+        return [DatasetPermission()]
 
 
 class DataSourceViewSet(BaseDataSourceViewSet):
