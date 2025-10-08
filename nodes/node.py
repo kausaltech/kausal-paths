@@ -1596,7 +1596,7 @@ class Node:
             .otherwise(pl.col(FORECAST_COLUMN))
             .alias(FORECAST_COLUMN)
         )
-        return df.multiply_quantity(VALUE_COLUMN, unit_registry('-1 * dimensionless'))
+        return df
 
     def _complement(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
         if not df.get_unit(VALUE_COLUMN).is_compatible_with('dimensionless'):
