@@ -454,7 +454,7 @@ class NodeExplanationSystem:
                 message=str(e)
             )
             all_results = {node['id']: [graph_error] for node in all_node_configs}
-            self.validations = all_results
+            self.validations = all_results # FIXME edge dimensions don't end up here if 'output_nodes' used.(?)
             self.graph = GraphRepresentation()
 
         return self
@@ -1100,7 +1100,7 @@ class EdgeRule(ValidationRule):
             return edge_html
 
         for dim in node.get('from_dimensions', []):
-            dimlabel = str(context.dimensions[dim['id']])
+            dimlabel = str(context.dimensions[dim['id']].label)
             cats = dim.get('categories', [])
 
             if cats:
@@ -1127,7 +1127,7 @@ class EdgeRule(ValidationRule):
             return edge_html
 
         for dim in node.get('to_dimensions', []):
-            dimlabel = str(context.dimensions[dim['id']])
+            dimlabel = str(context.dimensions[dim['id']].label)
             cats = dim.get('categories', [])
 
             if cats:
@@ -1182,7 +1182,7 @@ class BasketRule(ValidationRule):
                 input_nodes = baskets.get(basket, [])
                 basket_display = BASKET_DISPLAY_NAMES.get(basket, basket)
                 nodes_str = '</li><li>'.join(input_nodes)
-                html.append(f"<li>{_('Group %(basket)s with nodes:') % {'basket': basket_display}}</ul>")
+                html.append(f"<li>{_('Group %(basket)s with nodes:') % {'basket': basket_display}}<ul>")
                 html.append(f"<li>{nodes_str}</li></ul></li>")
             html.append('</ol>')
 

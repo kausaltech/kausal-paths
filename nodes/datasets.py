@@ -71,6 +71,10 @@ class Dataset(ABC):
         return 'ds:%s:%s' % (self.id, ds_hash)
 
     def _linear_interpolate(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        if YEAR_COLUMN not in df.columns:
+            raise ValueError(
+                f"'{YEAR_COLUMN}' does not exist in dataset '{self.id}'. Available columns: {', '.join(df.columns)}."
+            )
         years = df[YEAR_COLUMN].unique().sort()
         min_year = years.min()
         assert isinstance(min_year, int)
