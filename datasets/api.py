@@ -22,8 +22,10 @@ from kausal_common.datasets.api import (
     DimensionViewSet as BaseDimensionViewSet,
 )
 from kausal_common.datasets.models import DataPoint, DataPointComment, Dataset, DatasetSchema, DatasetSourceReference
+from kausal_common.users import user_or_none
 
 if TYPE_CHECKING:
+    from rest_framework.request import Request
     from rest_framework.views import APIView
 
 
@@ -77,10 +79,6 @@ class DataPointViewSet(BaseDataPointViewSet):
         return [DataPointPermission()]
 
 
-class DatasetCommentsViewSet(BaseDatasetCommentsViewSet):
-    pass
-
-
 class DatasetMetricViewSet(BaseDatasetMetricViewSet):
     pass
 
@@ -110,10 +108,37 @@ class DatasetPermission(PermissionPolicyDRFPermission[Dataset, DatasetSchema]):
         except DatasetSchema.DoesNotExist as e:
             raise serializers.ValidationError('DatasetSchema not found') from e
 
+
 class DatasetViewSet(BaseDatasetViewSet):
     @override
     def get_permissions(self):
         return [DatasetPermission()]
+
+
+class DatasetCommentPermission(PermissionPolicyDRFPermission[DataPointComment, None]):
+    class Meta:
+        model = DataPoint
+
+    def has_permission(self, request: Request, view: APIView):
+        dataset_uuid = view.kwargs['dataset_uuid']
+        dataset = Dataset.objects.get(uuid=dataset_uuid)
+        pp = dataset.permission_policy()
+        user = user_or_none(request.user)
+        if not user:
+            return False
+        action = self.http_method_to_django_action(request.method)
+        if action != 'view':
+            return True  # We want to return 405 instead of 403
+        return pp.user_has_any_permission_for_instance(user, ['view'], dataset)
+
+    def get_create_context_from_api_view(self, view: APIView) -> None:
+        return None
+
+
+class DatasetCommentsViewSet(BaseDatasetCommentsViewSet):
+    @override
+    def get_permissions(self):
+        return[DatasetCommentPermission()]
 
 
 class DataSourceViewSet(BaseDataSourceViewSet):
