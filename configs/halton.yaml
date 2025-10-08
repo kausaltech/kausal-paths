@@ -656,6 +656,8 @@ dimensions:
     label: Milton EMS Station
   - id: oakville_ems_station
     label: Oakville EMS Station
+  - id: blair_road_ems_station
+    label: Blair Road EMS Station
 
   # ----- HRPS
   - id: regional_headquarters
@@ -682,6 +684,8 @@ dimensions:
     label: 238 Woodside Dr
   - id: 260_woodside_dr
     label: 260 Woodside Dr
+  - id: rotary_gardens
+    label: Rotary Gardens
   - id: abbeyview
     label: Abbeyview
   - id: aldershot_village_seniors_residence
@@ -968,6 +972,10 @@ dimensions:
     label: 550 Ontario St S
   - id: wesley_emergency_shelter
     label: Wesley Emergency Shelter
+  - id: wesley_house
+    label: Wesley House
+  - id: bethany_place
+    label: Bethany Place
   - id: adult_daycare
     label: Adult Daycare
   - id: 52_steeles_ave
