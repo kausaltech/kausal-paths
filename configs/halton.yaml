@@ -976,6 +976,8 @@ dimensions:
     label: Holmesway Dr
 
   # ----- Other
+  - id: halton_traffic_courthouse
+    label: Halton Traffic Courthouse
   - id: 550_ontario_st_s
     label: 550 Ontario St S
   - id: wesley_emergency_shelter
@@ -1562,8 +1564,8 @@ nodes:
       flatten: true
 
 - id: woodside_drive_stationary_combustion_emissions
-  name: Woodside Drive Stationary Combustion Emissions
-  short_name: Woodside Drive Emissions
+  name: Rotary Gardens Stationary Combustion Emissions
+  short_name: Rotary Gardens Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
