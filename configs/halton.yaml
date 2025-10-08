@@ -2405,23 +2405,23 @@ nodes:
   - id: fugitive_ch4_emissions_from_effluent_discharge
   - id: fugitive_ch4_emissions_from_anaerobic_digester
 
-- id: water_and_wastewater_treatment_emissions_scope_3
-  name: Water & Wastewater Treatment Emissions (Scope 3)
-  color: '#A0CBE8'
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: [emission_source, department, scope]
-  output_dimensions: [emission_source, department, scope]
-  input_datasets:
-  - id: halton/wastewater_treatment
-    column: emissions
-    forecast_from: 2024
-    filters:
-    - dimension: emission_source
-      categories: [chemical_production]
-    - dimension: asset
-      flatten: true
+# - id: water_and_wastewater_treatment_emissions_scope_3
+#   name: Water & Wastewater Treatment Emissions (Scope 3)
+#   color: '#A0CBE8'
+#   type: simple.AdditiveNode
+#   quantity: emissions
+#   unit: t_co2e/a
+#   input_dimensions: [emission_source, department, scope]
+#   output_dimensions: [emission_source, department, scope]
+#   input_datasets:
+#   - id: halton/wastewater_treatment
+#     column: emissions
+#     forecast_from: 2024
+#     filters:
+#     - dimension: emission_source
+#       categories: [chemical_production]
+#     - dimension: asset
+#       flatten: true
 
 - id: water_and_wastewater_treatment_emissions
   name: Water & Wastewater Treatment Emissions
@@ -2436,10 +2436,10 @@ nodes:
     from_dimensions:
     - id: asset
       flatten: true
-  - id: water_and_wastewater_treatment_emissions_scope_3
-    from_dimensions:
-    - id: emission_source
-      flatten: true
+  # - id: water_and_wastewater_treatment_emissions_scope_3
+  #   from_dimensions:
+  #   - id: emission_source
+  #     flatten: true
   - id: biosolids_transportation_emissions
     from_dimensions:
     - id: asset
