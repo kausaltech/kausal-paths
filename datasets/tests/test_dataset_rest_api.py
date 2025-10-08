@@ -70,21 +70,21 @@ def test_dataset_schema_retrieve(api_client, dataset_test_data, user_key, schema
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'schema_key', 'access_allowed'), [
-    ('superuser', 'schema1', True),
-    ('superuser', 'schema2', True),
-    ('admin_user', 'schema1', True),
-    ('admin_user', 'schema2', False),
-    ('super_admin_user', 'schema1', True),
-    ('super_admin_user', 'schema2', False),
-    ('reviewer_user', 'schema1', False),
-    ('reviewer_user', 'schema2', False),
-    ('viewer_user', 'schema1', False),
-    ('viewer_user', 'schema2', False),
-    ('regular_user', 'schema1', False),
-    ('regular_user', 'schema2', False),
+@pytest.mark.parametrize(('user_key', 'schema_key', 'access_allowed', 'should_be_found'), [
+    ('superuser', 'schema1', True, True),
+    ('superuser', 'schema2', True, True),
+    ('admin_user', 'schema1', True, True),
+    ('admin_user', 'schema2', True, False),
+    ('super_admin_user', 'schema1', True, True),
+    ('super_admin_user', 'schema2', True, False),
+    ('reviewer_user', 'schema1', False, False),
+    ('reviewer_user', 'schema2', False, False),
+    ('viewer_user', 'schema1', False, False),
+    ('viewer_user', 'schema2', False, False),
+    ('regular_user', 'schema1', False, False),
+    ('regular_user', 'schema2', False, False),
 ])
-def test_dataset_schema_update(api_client, dataset_test_data, user_key, schema_key, access_allowed):
+def test_dataset_schema_update(api_client, dataset_test_data, user_key, schema_key, access_allowed, should_be_found):
     user = dataset_test_data[user_key]
     schema = dataset_test_data[schema_key]
     api_client.force_authenticate(user=user)
@@ -92,34 +92,37 @@ def test_dataset_schema_update(api_client, dataset_test_data, user_key, schema_k
     update_data = {'name_en': 'Updated Schema Name'}
     response = api_client.patch(f'/v1/dataset_schemas/{schema.uuid}/', update_data, format='json')
 
-    if access_allowed:
+    if access_allowed and should_be_found:
         assert response.status_code == 200
         data = response.json()
         assert data['name'] == 'Updated Schema Name'
+        # TODO test schema is there
+    elif access_allowed and should_be_found is False:
+        assert response.status_code == 404
     else:
-        assert response.status_code in [403, 404]
+        assert response.status_code == 403
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'schema_key', 'access_allowed', 'has_linked_objects'), [
-    ('superuser', 'schema1', True, True),
-    ('superuser', 'schema2', True, True),
-    ('admin_user', 'schema1', True, True),
-    ('admin_user', 'schema2', False, True),
-    ('super_admin_user', 'schema1', True, True),
-    ('super_admin_user', 'schema2', False, True),
-    ('reviewer_user', 'schema1', False, True),
-    ('reviewer_user', 'schema2', False, True),
-    ('viewer_user', 'schema1', False, True),
-    ('viewer_user', 'schema2', False, True),
-    ('regular_user', 'schema1', False, True),
-    ('regular_user', 'schema2', False, True),
-    ('superuser', 'unused_schema', True, False),
-    ('admin_user', 'unused_schema', True, False),
-    ('super_admin_user', 'unused_schema', True, False),
-    ('reviewer_user', 'unused_schema', False, False),
-    ('viewer_user', 'unused_schema', False, False),
-    ('regular_user', 'unused_schema', False, False),
+@pytest.mark.parametrize(('user_key', 'schema_key', 'access_allowed', 'should_be_found', 'has_linked_objects'), [
+    ('superuser', 'schema1', True, True, True),
+    ('superuser', 'schema2', True, True, True),
+    ('admin_user', 'schema1', True, True, True),
+    ('admin_user', 'schema2', True, False, True),
+    ('super_admin_user', 'schema1', True, True, True),
+    ('super_admin_user', 'schema2', True, False, True),
+    ('reviewer_user', 'schema1', False, False, True),
+    ('reviewer_user', 'schema2', False, False, True),
+    ('viewer_user', 'schema1', False, False, True),
+    ('viewer_user', 'schema2', False, False, True),
+    ('regular_user', 'schema1', False, False, True),
+    ('regular_user', 'schema2', False, False, True),
+    ('superuser', 'unused_schema', True, True, False),
+    ('admin_user', 'unused_schema', True, True, False),
+    ('super_admin_user', 'unused_schema', True, True, False),
+    ('reviewer_user', 'unused_schema', False, False, False),
+    ('viewer_user', 'unused_schema', False, False, False),
+    ('regular_user', 'unused_schema', False, False, False),
 
 ])
 def test_dataset_schema_delete(
@@ -128,6 +131,7 @@ def test_dataset_schema_delete(
     user_key,
     schema_key,
     access_allowed,
+    should_be_found,
     has_linked_objects,
 ):
     user = dataset_test_data[user_key]
@@ -137,11 +141,17 @@ def test_dataset_schema_delete(
     response = api_client.delete(f'/v1/dataset_schemas/{schema.uuid}/')
 
     if not access_allowed:
-        assert response.status_code in [403, 404]
-    elif has_linked_objects:
+        assert response.status_code == 403
+        return
+
+    if should_be_found and has_linked_objects:
         assert response.status_code == 400
-    else:
+    elif should_be_found and not has_linked_objects:
         assert response.status_code == 204
+    else:
+        assert response.status_code == 404
+
+     # TODO test deleted
 
 
 @pytest.mark.django_db
@@ -164,6 +174,7 @@ def test_dataset_schema_create(api_client, dataset_test_data, user_key, access_a
         assert response.status_code == 201
         data = response.json()
         assert data['name'] == 'New Schema'
+        # TODO TEST SCHEMA IS THERE
     else:
         assert response.status_code == 403
 
@@ -254,7 +265,7 @@ def test_dataset_update(api_client, dataset_test_data, user_key, dataset_key, ac
     if access_allowed:
         assert response.status_code == 200
     else:
-        assert response.status_code in [403, 404]
+        assert response.status_code in [403, 404]  # TODO
 
 
 @pytest.mark.django_db
@@ -282,7 +293,7 @@ def test_dataset_delete(api_client, dataset_test_data, user_key, dataset_key, ac
     if access_allowed:
         assert response.status_code == 204
     else:
-        assert response.status_code in [403, 404]
+        assert response.status_code in [403, 404]  # TODO
 
 
 @pytest.mark.django_db
@@ -336,7 +347,7 @@ def test_datapoint_list(api_client, dataset_test_data, user_key):
         data = response.json()
         assert 'results' in data  # TODO a bit lacking in actual testing
     else:
-        assert response.status_code in [200, 403]
+        assert response.status_code in [200, 403]  # TODO
         if response.status_code == 200:
             data = response.json()
             assert len(data['results']) == 0
@@ -402,7 +413,7 @@ def test_datapoint_create(api_client, dataset_test_data, user_key, access_allowe
     if access_allowed:
         assert response.status_code == 201
         data = response.json()
-        assert data['value'] == 150.0
+        assert data['value'] == 150.0  # TODO test object is there
     else:
         assert response.status_code == 403
 
@@ -433,7 +444,7 @@ def test_datapoint_delete(api_client, dataset_test_data, user_key, datapoint_key
     if access_allowed:
         assert response.status_code == 204
     else:
-        assert response.status_code in [403, 404]
+        assert response.status_code in [403, 404]  # TODO
 
 
 @pytest.mark.django_db
@@ -453,7 +464,7 @@ def test_datapoint_comment_list(api_client, dataset_test_data, user_key):
         data = response.json()
         assert isinstance(data, list)
     else:
-        assert response.status_code in [200, 403]
+        assert response.status_code in [200, 403]  # TODO
 
 
 @pytest.mark.django_db
@@ -557,7 +568,7 @@ def test_dataset_source_reference_list_via_dataset(api_client, dataset_test_data
         data = response.json()
         assert isinstance(data, list)
     else:
-        assert response.status_code in [200, 403]
+        assert response.status_code in [200, 403]  # TODO
 
 
 @pytest.mark.django_db
@@ -655,7 +666,7 @@ def test_dataset_source_reference_list_via_datapoint(api_client, dataset_test_da
         data = response.json()
         assert isinstance(data, list)
     else:
-        assert response.status_code in [200, 403]
+        assert response.status_code in [200, 403]  # TODO
 
 
 @pytest.mark.django_db
