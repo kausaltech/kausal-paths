@@ -839,3 +839,118 @@ def test_dataset_source_reference_delete_via_datapoint(api_client, dataset_test_
         assert response.status_code == 204, response.json()
     else:
         assert response.status_code == 403
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(('user_key', 'schema_key', 'access_allowed', 'should_be_found'), [
+    ('superuser', 'schema1', True, True),
+    ('superuser', 'schema2', True, True),
+    ('admin_user', 'schema1', True, True),
+    ('admin_user', 'schema2', True, False),
+    ('super_admin_user', 'schema1', True, True),
+    ('super_admin_user', 'schema2', True, False),
+    ('reviewer_user', 'schema1', True, True),
+    ('reviewer_user', 'schema2', True, False),
+    ('viewer_user', 'schema1', True, True),
+    ('viewer_user', 'schema2', True, False),
+    ('regular_user', 'schema1', False, False),
+    ('regular_user', 'schema2', False, False),
+])
+def test_dataset_metric_list(api_client, dataset_test_data, user_key, schema_key, access_allowed, should_be_found):
+    user = dataset_test_data[user_key]
+    schema = dataset_test_data[schema_key]
+    api_client.force_authenticate(user=user)
+
+    response = api_client.get(f'/v1/dataset_schemas/{schema.uuid}/metrics/')
+
+    if access_allowed and should_be_found:
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+    elif access_allowed and not should_be_found:
+        assert response.status_code == 404
+    else:
+        assert response.status_code == 403
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(('user_key', 'metric_key', 'access_allowed', 'should_be_found'), [
+    ('superuser', 'metric1', True, True),
+    ('superuser', 'metric2', True, True),
+    ('admin_user', 'metric1', True, True),
+    ('admin_user', 'metric2', True, False),
+    ('super_admin_user', 'metric1', True, True),
+    ('super_admin_user', 'metric2', True, False),
+    ('reviewer_user', 'metric1', True, True),
+    ('reviewer_user', 'metric2', True, False),
+    ('viewer_user', 'metric1', True, True),
+    ('viewer_user', 'metric2', True, False),
+    ('regular_user', 'metric1', False, False),
+    ('regular_user', 'metric2', False, False),
+])
+def test_dataset_metric_retrieve(api_client, dataset_test_data, user_key, metric_key, access_allowed, should_be_found):
+    user = dataset_test_data[user_key]
+    metric = dataset_test_data[metric_key]
+    schema = metric.schema
+    api_client.force_authenticate(user=user)
+
+    response = api_client.get(f'/v1/dataset_schemas/{schema.uuid}/metrics/{metric.uuid}/')
+
+    if access_allowed and should_be_found:
+        assert response.status_code == 200
+        data = response.json()
+        assert data['uuid'] == str(metric.uuid)
+    elif access_allowed and not should_be_found:
+        assert response.status_code == 404
+    else:
+        assert response.status_code == 403
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize('user_key', [
+    'superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user', 'regular_user'
+])
+def test_dataset_metric_create(api_client, dataset_test_data, user_key):
+    user = dataset_test_data[user_key]
+    schema = dataset_test_data['schema1']
+    api_client.force_authenticate(user=user)
+
+    create_data = {
+        'label': 'New Metric',
+        'unit': 'tons',
+        'order': 1,
+    }
+    response = api_client.post(f'/v1/dataset_schemas/{schema.uuid}/metrics/', create_data, format='json')
+
+    assert response.status_code == 405
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize('user_key', [
+    'superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user', 'regular_user'
+])
+def test_dataset_metric_update(api_client, dataset_test_data, user_key):
+    user = dataset_test_data[user_key]
+    metric = dataset_test_data['metric1']
+    schema = metric.schema
+    api_client.force_authenticate(user=user)
+
+    update_data = {'label': 'Updated Metric'}
+    response = api_client.patch(f'/v1/dataset_schemas/{schema.uuid}/metrics/{metric.uuid}/', update_data, format='json')
+
+    assert response.status_code == 405
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize('user_key', [
+    'superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user', 'regular_user'
+])
+def test_dataset_metric_delete(api_client, dataset_test_data, user_key):
+    user = dataset_test_data[user_key]
+    metric = dataset_test_data['metric1']
+    schema = metric.schema
+    api_client.force_authenticate(user=user)
+
+    response = api_client.delete(f'/v1/dataset_schemas/{schema.uuid}/metrics/{metric.uuid}/')
+
+    assert response.status_code == 405
