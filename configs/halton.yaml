@@ -153,6 +153,8 @@ dimensions:
     label: HRPS Fleet (Visa)
   - id: pw_fleet
     label: PW Fleet
+  - id: nonfleet_equipment
+    label: Non-fleet Equipment
 
 - id: vehicle_type
   label: Vehicle Type
@@ -194,6 +196,10 @@ dimensions:
     label: Childcare Centre Maple
   - id: childcare_centre_hrc
     label: Childcare Centre HRC
+  - id: regional_day_care_margaret
+    label: Regional Day Care Margaret
+  - id: regional_day_care_sedgewick
+    label: Regional Day Care Sedgewick
 
   # ----- Corporate Office
   - id: north_service_road_offices
