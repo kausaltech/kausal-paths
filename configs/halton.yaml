@@ -235,17 +235,17 @@ dimensions:
   - id: biosolids_management_centre
     label: Biosolids Management Centre
   - id: mh_lystuk
-    label: MH Lystuk
+    label: MH Lystek
   - id: mh_mineland
     label: MH Mineland
   - id: mh_agriculture_outside
     label: MH Agriculture Outside
   - id: sw_lystuk
-    label: SW Lystuk
+    label: SKY Lystek
   - id: sw_mineland
-    label: SW Mineland
+    label: SKY Mineland
   - id: sw_agriculture_outside
-    label: SW Agriculture Outside
+    label: SKY Agriculture Outside
   - id: bmc_oak_se
     label: BMC Oak SE
   - id: bmc_oak_sw
@@ -258,6 +258,8 @@ dimensions:
     label: BMC Agriculture Outside
   - id: bmc_agriculture_inside
     label: BMC Agriculture Inside
+  - id: sky_bmc
+    label: SKY BMC
 
   # ----- Booster Station
   - id: bs_1326_dundas_st
