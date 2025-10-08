@@ -240,21 +240,21 @@ def test_dataset_retrieve(api_client, dataset_test_data, user_key, dataset_key, 
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'dataset_key', 'access_allowed'), [
-    ('superuser', 'dataset1', True),
-    ('superuser', 'dataset2', True),
-    ('admin_user', 'dataset1', True),
-    ('admin_user', 'dataset2', False),
-    ('super_admin_user', 'dataset1', True),
-    ('super_admin_user', 'dataset2', False),
-    ('reviewer_user', 'dataset1', False),
-    ('reviewer_user', 'dataset2', False),
-    ('viewer_user', 'dataset1', False),
-    ('viewer_user', 'dataset2', False),
-    ('regular_user', 'dataset1', False),
-    ('regular_user', 'dataset2', False),
+@pytest.mark.parametrize(('user_key', 'dataset_key', 'should_be_found', 'access_allowed'), [
+    ('superuser', 'dataset1', True, True),
+    ('superuser', 'dataset2', True, True),
+    ('admin_user', 'dataset1', True, True),
+    ('admin_user', 'dataset2', False, True),
+    ('super_admin_user', 'dataset1', True, True),
+    ('super_admin_user', 'dataset2', False, True),
+    ('reviewer_user', 'dataset1', False, False),
+    ('reviewer_user', 'dataset2', False, False),
+    ('viewer_user', 'dataset1', False, False),
+    ('viewer_user', 'dataset2', False, False),
+    ('regular_user', 'dataset1', False, False),
+    ('regular_user', 'dataset2', False, False),
 ])
-def test_dataset_update(api_client, dataset_test_data, user_key, dataset_key, access_allowed):
+def test_dataset_update(api_client, dataset_test_data, user_key, dataset_key, should_be_found, access_allowed):
     user = dataset_test_data[user_key]
     dataset = dataset_test_data[dataset_key]
     api_client.force_authenticate(user=user)
@@ -262,38 +262,42 @@ def test_dataset_update(api_client, dataset_test_data, user_key, dataset_key, ac
     update_data = {}
     response = api_client.patch(f'/v1/datasets/{dataset.uuid}/', update_data, format='json')
 
-    if access_allowed:
+    if access_allowed and should_be_found:
         assert response.status_code == 200
+    elif access_allowed and not should_be_found:
+        assert response.status_code == 404
     else:
-        assert response.status_code in [403, 404]  # TODO
+        assert response.status_code == 403
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'dataset_key', 'access_allowed'), [
-    ('superuser', 'dataset1', True),
-    ('superuser', 'dataset2', True),
-    ('admin_user', 'dataset1', True),
-    ('admin_user', 'dataset2', False),
-    ('super_admin_user', 'dataset1', True),
-    ('super_admin_user', 'dataset2', False),
-    ('reviewer_user', 'dataset1', False),
-    ('reviewer_user', 'dataset2', False),
-    ('viewer_user', 'dataset1', False),
-    ('viewer_user', 'dataset2', False),
-    ('regular_user', 'dataset1', False),
-    ('regular_user', 'dataset2', False),
+@pytest.mark.parametrize(('user_key', 'dataset_key', 'access_allowed', 'should_be_found'), [
+    ('superuser', 'dataset1', True, True),
+    ('superuser', 'dataset2', True, True),
+    ('admin_user', 'dataset1', True, True),
+    ('admin_user', 'dataset2', True, False),
+    ('super_admin_user', 'dataset1', True, True),
+    ('super_admin_user', 'dataset2', True, False),
+    ('reviewer_user', 'dataset1', False, False),
+    ('reviewer_user', 'dataset2', False, False),
+    ('viewer_user', 'dataset1', False, False),
+    ('viewer_user', 'dataset2', False, False),
+    ('regular_user', 'dataset1', False, False),
+    ('regular_user', 'dataset2', False, False),
 ])
-def test_dataset_delete(api_client, dataset_test_data, user_key, dataset_key, access_allowed):
+def test_dataset_delete(api_client, dataset_test_data, user_key, dataset_key, access_allowed, should_be_found):
     user = dataset_test_data[user_key]
     dataset = dataset_test_data[dataset_key]
     api_client.force_authenticate(user=user)
 
     response = api_client.delete(f'/v1/datasets/{dataset.uuid}/')
 
-    if access_allowed:
+    if access_allowed and should_be_found:
         assert response.status_code == 204
+    elif access_allowed and not should_be_found:
+        assert response.status_code == 404
     else:
-        assert response.status_code in [403, 404]  # TODO
+        assert response.status_code == 403
 
 
 @pytest.mark.django_db
@@ -332,25 +336,29 @@ def test_dataset_create(api_client, dataset_test_data, user_key, access_allowed)
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize('user_key', [
-    'superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user', 'regular_user'
+@pytest.mark.parametrize(('user_key', 'access_allowed', 'should_be_found'), [
+    ('superuser', True, True),
+    ('admin_user', True, True),
+    ('super_admin_user', True, True),
+    ('reviewer_user', True, True),
+    ('viewer_user', True, True),
+    ('regular_user', False, False),
 ])
-def test_datapoint_list(api_client, dataset_test_data, user_key):
+def test_datapoint_list(api_client, dataset_test_data, user_key, access_allowed, should_be_found):
     user = dataset_test_data[user_key]
     dataset = dataset_test_data['dataset1']
     api_client.force_authenticate(user=user)
 
     response = api_client.get(f'/v1/datasets/{dataset.uuid}/data_points/')
 
-    if user_key in ['superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user']:
+    if access_allowed and should_be_found:
         assert response.status_code == 200
         data = response.json()
-        assert 'results' in data  # TODO a bit lacking in actual testing
+        assert 'results' in data
+    elif access_allowed and not should_be_found:
+        assert response.status_code == 404
     else:
-        assert response.status_code in [200, 403]  # TODO
-        if response.status_code == 200:
-            data = response.json()
-            assert len(data['results']) == 0
+        assert response.status_code == 403
 
 
 @pytest.mark.django_db
@@ -419,21 +427,21 @@ def test_datapoint_create(api_client, dataset_test_data, user_key, access_allowe
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'datapoint_key', 'access_allowed'), [
-    ('superuser', 'data_point1', True),
-    ('superuser', 'data_point2', True),
-    ('admin_user', 'data_point1', True),
-    ('admin_user', 'data_point2', False),
-    ('super_admin_user', 'data_point1', True),
-    ('super_admin_user', 'data_point2', False),
-    ('reviewer_user', 'data_point1', False),
-    ('reviewer_user', 'data_point2', False),
-    ('viewer_user', 'data_point1', False),
-    ('viewer_user', 'data_point2', False),
-    ('regular_user', 'data_point1', False),
-    ('regular_user', 'data_point2', False),
+@pytest.mark.parametrize(('user_key', 'datapoint_key', 'access_allowed', 'should_be_found'), [
+    ('superuser', 'data_point1', True, True),
+    ('superuser', 'data_point2', True, True),
+    ('admin_user', 'data_point1', True, True),
+    ('admin_user', 'data_point2', True, False),
+    ('super_admin_user', 'data_point1', True, True),
+    ('super_admin_user', 'data_point2', True, False),
+    ('reviewer_user', 'data_point1', False, False),
+    ('reviewer_user', 'data_point2', False, False),
+    ('viewer_user', 'data_point1', False, False),
+    ('viewer_user', 'data_point2', False, False),
+    ('regular_user', 'data_point1', False, False),
+    ('regular_user', 'data_point2', False, False),
 ])
-def test_datapoint_delete(api_client, dataset_test_data, user_key, datapoint_key, access_allowed):
+def test_datapoint_delete(api_client, dataset_test_data, user_key, datapoint_key, access_allowed, should_be_found):
     user = dataset_test_data[user_key]
     datapoint = dataset_test_data[datapoint_key]
     dataset = datapoint.dataset
@@ -441,17 +449,24 @@ def test_datapoint_delete(api_client, dataset_test_data, user_key, datapoint_key
 
     response = api_client.delete(f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/')
 
-    if access_allowed:
+    if access_allowed and should_be_found:
         assert response.status_code == 204
+    elif access_allowed and not should_be_found:
+        assert response.status_code == 404
     else:
-        assert response.status_code in [403, 404]  # TODO
+        assert response.status_code == 403
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize('user_key', [
-    'superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user', 'regular_user'
+@pytest.mark.parametrize(('user_key', 'access_allowed', 'should_be_found'), [
+    ('superuser', True, True),
+    ('admin_user', True, True),
+    ('super_admin_user', True, True),
+    ('reviewer_user', True, True),
+    ('viewer_user', True, True),
+    ('regular_user', False, False),
 ])
-def test_datapoint_comment_list(api_client, dataset_test_data, user_key):
+def test_datapoint_comment_list(api_client, dataset_test_data, user_key, access_allowed, should_be_found):
     user = dataset_test_data[user_key]
     datapoint = dataset_test_data['data_point1']
     dataset = datapoint.dataset
@@ -459,12 +474,14 @@ def test_datapoint_comment_list(api_client, dataset_test_data, user_key):
 
     response = api_client.get(f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/comments/')
 
-    if user_key in ['superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user']:
+    if access_allowed and should_be_found:
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
+    elif access_allowed and not should_be_found:
+        assert response.status_code == 404
     else:
-        assert response.status_code in [200, 403]  # TODO
+        assert response.status_code == 403
 
 
 @pytest.mark.django_db
@@ -553,22 +570,29 @@ def test_datapoint_comment_delete(api_client, dataset_test_data, user_key, acces
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize('user_key', [
-    'superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user', 'regular_user'
+@pytest.mark.parametrize(('user_key', 'access_allowed', 'should_be_found'), [
+    ('superuser', True, True),
+    ('admin_user', True, True),
+    ('super_admin_user', True, True),
+    ('reviewer_user', True, True),
+    ('viewer_user', True, True),
+    ('regular_user', False, False),
 ])
-def test_dataset_source_reference_list_via_dataset(api_client, dataset_test_data, user_key):
+def test_dataset_source_reference_list_via_dataset(api_client, dataset_test_data, user_key, access_allowed, should_be_found):
     user = dataset_test_data[user_key]
     dataset = dataset_test_data['dataset1']
     api_client.force_authenticate(user=user)
 
     response = api_client.get(f'/v1/datasets/{dataset.uuid}/sources/')
 
-    if user_key in ['superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user']:
+    if access_allowed and should_be_found:
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
+    elif access_allowed and not should_be_found:
+        assert response.status_code == 404
     else:
-        assert response.status_code in [200, 403]  # TODO
+        assert response.status_code == 403
 
 
 @pytest.mark.django_db
@@ -650,10 +674,15 @@ def test_dataset_source_reference_delete_via_dataset(api_client, dataset_test_da
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize('user_key', [
-    'superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user', 'regular_user'
+@pytest.mark.parametrize(('user_key', 'access_allowed', 'should_be_found'), [
+    ('superuser', True, True),
+    ('admin_user', True, True),
+    ('super_admin_user', True, True),
+    ('reviewer_user', True, True),
+    ('viewer_user', True, True),
+    ('regular_user', False, False),
 ])
-def test_dataset_source_reference_list_via_datapoint(api_client, dataset_test_data, user_key):
+def test_dataset_source_reference_list_via_datapoint(api_client, dataset_test_data, user_key, access_allowed, should_be_found):
     user = dataset_test_data[user_key]
     datapoint = dataset_test_data['data_point1']
     dataset = datapoint.dataset
@@ -661,12 +690,14 @@ def test_dataset_source_reference_list_via_datapoint(api_client, dataset_test_da
 
     response = api_client.get(f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/')
 
-    if user_key in ['superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user']:
+    if access_allowed and should_be_found:
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
+    elif access_allowed and not should_be_found:
+        assert response.status_code == 404
     else:
-        assert response.status_code in [200, 403]  # TODO
+        assert response.status_code == 403
 
 
 @pytest.mark.django_db
