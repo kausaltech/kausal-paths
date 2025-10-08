@@ -34,7 +34,10 @@ class SectionModel(DjangoDiffModel[Section]):
     _model = Section
     _modelname = 'section'
     _identifiers = ('uuid',)
-    _attributes = ('parent', 'identifier', 'name', 'description', 'available_years', 'framework', 'max_total', 'help_text')
+    _attributes = (
+        'parent', 'identifier', 'name', 'description', 'available_years', 'framework', 'min_total', 'max_total',
+        'help_text', 'influencing_measure_templates',
+    )
     _parent_key = 'parent'
     _children = {
         'measure_template': 'measure_templates',
@@ -45,6 +48,7 @@ class SectionModel(DjangoDiffModel[Section]):
     parent: UUID | None
     children: list[UUID] = Field(default_factory=list)
     measure_templates: list[str] = Field(default_factory=list)
+    influencing_measure_templates: list[UUID] = Field(default_factory=list)
 
     @classmethod
     def get_queryset(cls, fw: Framework) -> QuerySet[Section, dict[str, Any]]:
@@ -54,10 +58,42 @@ class SectionModel(DjangoDiffModel[Section]):
             qs_base = fw.root_section.get_descendants().order_by('path')
         plain_fields = list(cls._django_fields.plain_fields.keys())
         plain_fields.remove('framework')
+        plain_fields.remove('influencing_measure_templates')
+        influencing_mts = (
+            MeasureTemplate.objects.filter(
+                influenced_sections=OuterRef('pk'),
+            ).values_list('uuid', flat=True)
+        )
         sections = qs_base.annotate_parent_field('parent', 'uuid', min_depth=2).values(
             *plain_fields, 'parent', _instance_pk=F('pk'),
-        )
+        ).annotate(influencing_measure_templates=ArraySubquery(influencing_mts))
         return sections
+
+    @classmethod
+    def create_related(cls, adapter: DjangoAdapter, _ids: dict, attrs: dict, instance: Section, /) -> None:
+        """Handle M2M relationship after section is created."""
+        influencing_mt_uuids = attrs.get('influencing_measure_templates')
+        if not influencing_mt_uuids:
+            return
+
+        # Get the MeasureTemplate instances by UUID
+        mt_ids = []
+        for mt_uuid in influencing_mt_uuids:
+            mt_model = adapter.get(MeasureTemplateModel, str(mt_uuid))
+            assert mt_model._instance_pk
+            mt_ids.append(mt_model._instance_pk)
+
+        instance.influencing_measure_templates.set(
+            MeasureTemplate.objects.filter(pk__in=mt_ids)
+        )
+
+    def update_related(self, obj: Section, attrs: dict) -> None:
+        influencing_measure_templates = attrs.get('influencing_measure_templates')
+        if influencing_measure_templates is None:
+            return
+        obj.influencing_measure_templates.clear()
+        assert isinstance(self.adapter, DjangoAdapter)
+        self.create_related(self.adapter, {}, attrs, obj)
 
     @classmethod
     def get_mpnode_root_instance(cls, instance: Section) -> Section | None:
@@ -71,6 +107,11 @@ class SectionModel(DjangoDiffModel[Section]):
         fw = adapter.get(FrameworkModel, fw_id)
         fw_obj = fw.get_django_instance()
         kwargs['framework'] = fw_obj
+        return kwargs
+
+    def get_update_kwargs(self, attrs: dict) -> dict:
+        kwargs = super().get_update_kwargs(attrs)
+        kwargs.pop('influencing_measure_templates', None)
         return kwargs
 
 

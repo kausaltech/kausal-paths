@@ -313,12 +313,20 @@ class Section(CacheablePathsModel['SectionCacheData'], MP_Node[SectionQuerySet],
     description = models.TextField(blank=True)
     # validation_rules?
     available_years = ArrayField(models.IntegerField(), null=True, blank=True)
+    min_total = models.FloatField(null=True)
     max_total = models.FloatField(null=True)
     help_text = models.TextField(blank=True, default='')
 
     measure_templates: RevMany[MeasureTemplate]
+    influencing_measure_templates: M2M[MeasureTemplate, Any] = models.ManyToManyField(
+        'frameworks.MeasureTemplate',
+        related_name='influenced_sections',
+    )
 
-    public_fields: ClassVar = ["identifier", "uuid", "path", "name", "description", "available_years", "max_total", "help_text"]
+    public_fields: ClassVar = [
+        "identifier", "uuid", "path", "name", "description", "available_years", "min_total", "max_total", "help_text",
+        "influencing_measure_templates",
+    ]
 
     objects: ClassVar[SectionManager] = SectionManager()
     _default_manager: ClassVar[SectionManager]
