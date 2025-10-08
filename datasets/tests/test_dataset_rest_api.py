@@ -570,6 +570,54 @@ def test_datapoint_comment_delete(api_client, dataset_test_data, user_key, acces
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(('user_key', 'dataset_key', 'should_be_found'), [
+    ('superuser', 'dataset1', True),
+    ('superuser', 'dataset2', True),
+    ('admin_user', 'dataset1', True),
+    ('admin_user', 'dataset2', False),
+    ('super_admin_user', 'dataset1', True),
+    ('super_admin_user', 'dataset2', False),
+    ('reviewer_user', 'dataset1', True),
+    ('reviewer_user', 'dataset2', False),
+    ('viewer_user', 'dataset1', True),
+    ('viewer_user', 'dataset2', False),
+    ('regular_user', 'dataset1', False),
+    ('regular_user', 'dataset2', False),
+])
+def test_dataset_comment_list(api_client, dataset_test_data, user_key, dataset_key, should_be_found):
+    user = dataset_test_data[user_key]
+    dataset = dataset_test_data[dataset_key]
+    api_client.force_authenticate(user=user)
+
+    response = api_client.get(f'/v1/datasets/{dataset.uuid}/comments/')
+
+    if should_be_found:
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+    else:
+        assert response.status_code == 403
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize('user_key', [
+    'superuser', 'admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user', 'regular_user'
+])
+def test_dataset_comment_create(api_client, dataset_test_data, user_key):
+    user = dataset_test_data[user_key]
+    dataset = dataset_test_data['dataset1']
+    api_client.force_authenticate(user=user)
+
+    create_data = {
+        'text': 'New test comment',
+        'type': 'plain',
+    }
+    response = api_client.post(f'/v1/datasets/{dataset.uuid}/comments/', create_data, format='json')
+
+    assert response.status_code == 405
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize(('user_key', 'access_allowed', 'should_be_found'), [
     ('superuser', True, True),
     ('admin_user', True, True),
