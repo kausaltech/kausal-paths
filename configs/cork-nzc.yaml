@@ -3,7 +3,7 @@ default_language: en
 site_url: https://cork-nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: eeb432c13f39a05c477864253a87271de4e3a8cb
+  commit: 50f4e4d29f08b5ca76c41605856c28fe3dd99ffa
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory for Cork
 owner: City of Cork
@@ -355,8 +355,13 @@ dimensions:
     label_en: Work days lost
     color: '#1f78b4'
   - id: physical_activity
-    label: Fyysinen aktiivisuus
+    label_fi: Fyysinen aktiivisuus
+    label_en: Physical activity
     color: '#b2df8a'
+  - id: renovation_capex
+    label_en: Renovation CAPEX
+  - id: public_building_opex
+    label_en: Public Building OPEX
 
 - id: aggregated_cost_type
   label: Aggregated cost type
@@ -612,6 +617,103 @@ nodes:
     - id: sector
       flatten: true
 
+# ------------- Building nodes
+
+- id: public_building_floor_area
+  name: Public building floor area
+  type: generic.GenericNode
+  quantity: floor_area
+  unit: m**2
+  input_datasets:
+  - id: cork/public_building_data
+    tags: [baseline]
+    column: floor_area
+    forecast_from: 2025
+    filters:
+    - column: source
+    - column: building
+      flatten: true
+
+- id: renovation_prices
+  name: Renovation prices
+  type: generic.GenericNode
+  quantity: unit_price
+  unit: EUR/m**2
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
+  input_datasets:
+  - id: cork/renovation_prices
+    tags: [baseline]
+    column: renovation_unit_price
+    forecast_from: 2025
+    filters:
+    - column: source
+
+- id: emissions_saved_in_residential_retrofit
+  name: Emissions saved in residential retrofit
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e
+  input_datasets:
+  - id: cork/cost_data
+    tags: [baseline]
+    column: emissions_saved_residential_retrofit
+    forecast_from: 2025
+    filters:
+    - column: source
+
+- id: costs_in_residential_retrofit
+  name: Costs in residential retrofit
+  type: generic.GenericNode
+  quantity: emissions
+  unit: EUR
+  input_datasets:
+  - id: cork/cost_data
+    tags: [baseline]
+    column: residential_capex_opex_estimates
+    forecast_from: 2025
+    filters:
+    - column: source
+
+- id: cost_efficiency_in_residential_retrofit
+  name: Cost efficiency in residential retrofit
+  type: generic.GenericNode
+  quantity: unit_price
+  unit: EUR/t_co2e
+  input_nodes:
+  - id: costs_in_residential_retrofit
+  - id: emissions_saved_in_residential_retrofit
+    tags: [geometric_inverse]
+
+- id: inflation
+  name: Inflation
+  type: generic.GenericNode
+  quantity: fraction
+  unit: '%/a'
+  input_datasets:
+  - id: cork/cost_data
+    tags: [baseline]
+    column: inflation
+    forecast_from: 2025
+    filters:
+    - column: source
+
+- id: renovation_costs
+  name: Renovation_costs
+  type: generic.GenericNode
+  quantity: currency
+  unit: EUR
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
+  input_nodes:
+  - id: public_building_floor_area
+  - id: renovation_prices
+  # - id: inflation
+  #   tags: [arithmetic_inverse, complement]
+
+# Emissions saved Residential Retrofit
+# Residential CAPEX & OPEX Estimates
+# Inflation
 # ------------- Jobs -----------------
 
 - id: total_jobs_created

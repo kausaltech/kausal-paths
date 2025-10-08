@@ -47,21 +47,26 @@ dimensions:
     label_fi: Infektio
     label_en: Infection
   - id: physical_activity
-    label: Fyysinen aktiivisuus
+    label_fi: Fyysinen aktiivisuus
+    label_en: Physical activity
     color: '#b2df8a'
   - id: air_pollution
-    label: Ilmansaastealtistus liikenteessä
+    label_fi: Ilmansaastealtistus liikenteessä
+    label_en: Air pollution exposure in traffic
     color: '#33a02c'
   - id: crash_risk
-    label: Liikenneonnettomuus
+    label_fi: Liikenneonnettomuus
+    label_en: Traffic accident
     color: '#fb9a99'
   - id: noise
     label_en: Noise
     label_fi: Melu
   - id: carbon_emissions
-    label: Hiilidioksidipäästöt
+    label_fi: Hiilidioksidipäästöt
+    label_en: Carbon diozide emissions
   - id: nzp_response
-    label: NZP-vaste
+    label_fi: NZP-vaste
+    label_en: NZP response
     color: '#e31a1c'
 
 - id: emission_height
