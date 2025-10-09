@@ -842,7 +842,7 @@ def test_dataset_source_reference_delete_via_datapoint(api_client, dataset_test_
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'schema_key', 'access_allowed', 'should_be_found'), [
+@pytest.mark.parametrize(('user_key', 'schema_key', 'access_allowed', 'schema_should_be_found'), [
     ('superuser', 'schema1', True, True),
     ('superuser', 'schema2', True, True),
     ('admin_user', 'schema1', True, True),
@@ -856,18 +856,18 @@ def test_dataset_source_reference_delete_via_datapoint(api_client, dataset_test_
     ('regular_user', 'schema1', False, False),
     ('regular_user', 'schema2', False, False),
 ])
-def test_dataset_metric_list(api_client, dataset_test_data, user_key, schema_key, access_allowed, should_be_found):
+def test_dataset_metric_list(api_client, dataset_test_data, user_key, schema_key, access_allowed, schema_should_be_found):
     user = dataset_test_data[user_key]
     schema = dataset_test_data[schema_key]
     api_client.force_authenticate(user=user)
 
     response = api_client.get(f'/v1/dataset_schemas/{schema.uuid}/metrics/')
 
-    if access_allowed and should_be_found:
+    if access_allowed and schema_should_be_found:
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
-    elif access_allowed and not should_be_found:
+    elif access_allowed and not schema_should_be_found:
         assert response.status_code == 404
     else:
         assert response.status_code == 403
