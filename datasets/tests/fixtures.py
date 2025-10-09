@@ -175,6 +175,12 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         name='Test Data Source 1',
         authority='Authority 1',
     )
+    data_source1_alternative = DataSource.objects.create(
+        scope_content_type=content_type,
+        scope_id=instance1.pk,
+        name='Test Data Source 1 Alternative',
+        authority='Authority 1',
+    )
     data_source2 = DataSource.objects.create(
         scope_content_type=content_type,
         scope_id=instance2.pk,
@@ -239,6 +245,7 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         'data_point1': data_point1,
         'data_point2': data_point2,
         'data_source1': data_source1,
+        'data_source1_alternative': data_source1_alternative,
         'data_source2': data_source2,
         'comment1': comment1,
         'comment2': comment2,
