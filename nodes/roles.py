@@ -56,7 +56,8 @@ class InstanceSuperAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceCon
             'datapoint',
             'datasource',
             'datasetsourcereference',
-            'datapointcomment'
+            'datapointcomment',
+            'datasetmetric',
         ), ALL_MODEL_PERMS),
         ('frameworks', (
             'framework',
@@ -97,7 +98,8 @@ class InstanceAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceConfig']
             'datapoint',
             'datasource',
             'datasetsourcereference',
-            'datapointcomment'
+            'datapointcomment',
+            'datasetmetric',
         ), ALL_MODEL_PERMS),
         ('frameworks', (
             'framework',
@@ -133,7 +135,8 @@ class InstanceViewerRole(InstanceGroupMembershipRole, InstanceSpecificRole['Inst
             'datapoint',
             'datasource',
             'datasetsourcereference',
-            'datapointcomment'
+            'datapointcomment',
+            'datasetmetric',
         ), ('view',)),
         ('frameworks', (
             'framework', 'frameworkconfig', 'measure', 'measuredatapoint',
@@ -165,7 +168,8 @@ class InstanceReviewerRole(InstanceGroupMembershipRole, InstanceSpecificRole['In
             'datapoint',
             'datasource',
             'datasetsourcereference',
-            'datapointcomment'
+            'datapointcomment',
+            'datasetmetric',
         ), ('view',)),
         ('frameworks', (
             'framework', 'frameworkconfig', 'measure', 'measuredatapoint',
