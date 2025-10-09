@@ -10,6 +10,7 @@ from kausal_common.datasets.models import (
     DataPoint,
     DataPointComment,
     Dataset,
+    DatasetMetric,
     DatasetQuerySet,
     DatasetSchema,
     DatasetSourceReference,
@@ -229,6 +230,30 @@ class DatasetPermissionPolicy(ParentInheritedPolicy[Dataset, DatasetSchema, Data
 
     def user_can_review(self, user: User) -> bool:
         return self.parent_policy.user_has_permission(user, 'review')
+
+    def is_create_context_valid(self, context: Any) -> TypeGuard[DatasetSchema]:
+        return isinstance(context, DatasetSchema)
+
+
+class DatasetMetricPermissionPolicy(ParentInheritedPolicy[DatasetMetric, DatasetSchema, PermissionedQuerySet[DatasetMetric]]):
+    """Permission policy for DatasetMetric, inheriting from its schema."""
+
+    def __init__(self):
+        from kausal_common.datasets.models import DatasetMetric, DatasetSchema
+        super().__init__(DatasetMetric, DatasetSchema, 'schema')
+
+    @override
+    def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: DatasetMetric) -> bool:
+        parent_obj = self.get_parent_obj(obj)
+        return self.parent_policy.user_has_perm(user, action, parent_obj)
+
+    @override
+    def anon_has_perm(self, action: BaseObjectAction, obj: DatasetMetric) -> bool:
+        return False
+
+    @override
+    def user_can_create(self, user: User, context: DatasetSchema) -> bool:
+        return self.parent_policy.user_has_perm(user, 'change', context)
 
     def is_create_context_valid(self, context: Any) -> TypeGuard[DatasetSchema]:
         return isinstance(context, DatasetSchema)

@@ -38,3 +38,4 @@ DATA_POINT_PERMISSION_POLICY: str = 'paths.dataset_permission_policy.DataPointPe
 DATA_SOURCE_PERMISSION_POLICY: str = 'paths.dataset_permission_policy.DataSourcePermissionPolicy'
 DATA_POINT_COMMENT_PERMISSION_POLICY: str = 'paths.dataset_permission_policy.DataPointCommentPermissionPolicy'
 DATASET_SOURCE_REFERENCE_PERMISSION_POLICY: str = 'paths.dataset_permission_policy.DatasetSourceReferencePermissionPolicy'
+DATASET_METRIC_PERMISSION_POLICY: str = 'paths.dataset_permission_policy.DatasetMetricPermissionPolicy'
