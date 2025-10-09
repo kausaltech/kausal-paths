@@ -1100,6 +1100,8 @@ class EdgeRule(ValidationRule):
             return edge_html
 
         for dim in node.get('from_dimensions', []):
+            if 'id' not in dim:
+                return edge_html
             dimlabel = str(context.dimensions[dim['id']].label)
             cats = dim.get('categories', [])
 
@@ -1127,6 +1129,8 @@ class EdgeRule(ValidationRule):
             return edge_html
 
         for dim in node.get('to_dimensions', []):
+            if 'id' not in dim:
+                return edge_html
             dimlabel = str(context.dimensions[dim['id']].label)
             cats = dim.get('categories', [])
 
