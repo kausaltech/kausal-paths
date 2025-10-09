@@ -190,6 +190,14 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         last_modified_by=admin_user,
     )
 
+    comment2 = DataPointComment.objects.create(
+        data_point=data_point2,
+        text='Test comment 2',
+        type=DataPointComment.CommentType.PLAIN,
+        created_by=superuser,
+        last_modified_by=superuser,
+    )
+
     source_ref1 = DatasetSourceReference.objects.create(
         dataset=dataset1,
         data_source=data_source1,
@@ -198,6 +206,11 @@ def dataset_test_data(django_db_setup, django_db_blocker):
     source_ref_on_datapoint = DatasetSourceReference.objects.create(
         data_point=data_point1,
         data_source=data_source1,
+    )
+
+    source_ref_on_datapoint2 = DatasetSourceReference.objects.create(
+        data_point=data_point2,
+        data_source=data_source2,
     )
 
     source_ref2 = DatasetSourceReference.objects.create(
@@ -228,8 +241,10 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         'data_source1': data_source1,
         'data_source2': data_source2,
         'comment1': comment1,
+        'comment2': comment2,
         'source_ref1': source_ref1,
         'source_ref_on_datapoint': source_ref_on_datapoint,
+        'source_ref_on_datapoint2': source_ref_on_datapoint2,
         'source_ref2': source_ref2,
     }
     yield result
