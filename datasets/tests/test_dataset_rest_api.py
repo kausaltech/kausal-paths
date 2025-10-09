@@ -553,9 +553,9 @@ def test_datapoint_comment_retrieve(api_client, dataset_test_data, user_key, com
     ('admin_user', 'data_point2', 404),
     ('super_admin_user', 'data_point2', 404),
     ('reviewer_user', 'data_point2', 404),
-    ('viewer_user', 'data_point2', 404),
 
-    # No access to endpoint
+    # No access to endpoint / method
+    ('viewer_user', 'data_point2', 403),
     ('regular_user', 'data_point1', 403),
     ('regular_user', 'data_point2', 403),
 ])
@@ -597,10 +597,10 @@ def test_datapoint_comment_create(api_client, dataset_test_data, user_key, data_
     # No access to comment2 (parent not visible)
     ('admin_user', 'comment2', 404),
     ('super_admin_user', 'comment2', 404),
-    ('reviewer_user', 'comment2', 404),
-    ('viewer_user', 'comment2', 404),
 
-    # No access to endpoint
+    # No access to endpoint / method
+    ('reviewer_user', 'comment2', 403),
+    ('viewer_user', 'comment2', 403),
     ('regular_user', 'comment1', 403),
     ('regular_user', 'comment2', 403),
 ])
@@ -748,10 +748,10 @@ def test_dataset_source_reference_retrieve_via_dataset(api_client, dataset_test_
     # No access to dataset2 (parent not visible)
     ('admin_user', 'dataset2', 404),
     ('super_admin_user', 'dataset2', 404),
-    ('reviewer_user', 'dataset2', 404),
-    ('viewer_user', 'dataset2', 404),
 
     # No access to endpoint
+    ('reviewer_user', 'dataset2', 403),
+    ('viewer_user', 'dataset2', 403),
     ('regular_user', 'dataset1', 403),
     ('regular_user', 'dataset2', 403),
 ])
@@ -789,10 +789,10 @@ def test_dataset_source_reference_create_via_dataset(api_client, dataset_test_da
     # No access to source_ref2 (parent not visible)
     ('admin_user', 'source_ref2', 404),
     ('super_admin_user', 'source_ref2', 404),
-    ('reviewer_user', 'source_ref2', 404),
-    ('viewer_user', 'source_ref2', 404),
 
     # No access to endpoint
+    ('reviewer_user', 'source_ref2', 403),
+    ('viewer_user', 'source_ref2', 403),
     ('regular_user', 'source_ref1', 403),
     ('regular_user', 'source_ref2', 403),
 ])
@@ -902,10 +902,10 @@ def test_dataset_source_reference_retrieve_via_datapoint(
     # No access to data_point2 (parent not visible)
     ('admin_user', 'data_point2', 404),
     ('super_admin_user', 'data_point2', 404),
-    ('reviewer_user', 'data_point2', 404),
-    ('viewer_user', 'data_point2', 404),
 
     # No access to endpoint
+    ('reviewer_user', 'data_point2', 403),
+    ('viewer_user', 'data_point2', 403),
     ('regular_user', 'data_point1', 403),
     ('regular_user', 'data_point2', 403),
 ])
@@ -931,33 +931,18 @@ def test_dataset_source_reference_create_via_datapoint(api_client, dataset_test_
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'source_ref_key', 'expected_status'), [
-    # Access to source_ref_on_datapoint (on data_point1, instance1)
-    ('superuser', 'source_ref_on_datapoint', 204),
-    ('admin_user', 'source_ref_on_datapoint', 204),
-    ('super_admin_user', 'source_ref_on_datapoint', 204),
-
-    # Access to source_ref_on_datapoint2 (on data_point2, instance2)
-    ('superuser', 'source_ref_on_datapoint2', 204),
-
-    # No delete access to source_ref_on_datapoint
-    ('reviewer_user', 'source_ref_on_datapoint', 403),
-    ('viewer_user', 'source_ref_on_datapoint', 403),
-
-    # No access to source_ref_on_datapoint2 (parent not visible)
-    ('admin_user', 'source_ref_on_datapoint2', 404),
-    ('super_admin_user', 'source_ref_on_datapoint2', 404),
-    ('reviewer_user', 'source_ref_on_datapoint2', 404),
-    ('viewer_user', 'source_ref_on_datapoint2', 404),
-
-    # No access to endpoint
-    ('regular_user', 'source_ref_on_datapoint', 403),
-    ('regular_user', 'source_ref_on_datapoint2', 403),
+@pytest.mark.parametrize(('user_key', 'expected_status'), [
+    ('superuser', 204),
+    ('admin_user', 204),
+    ('super_admin_user', 204),
+    ('reviewer_user', 403),
+    ('viewer_user', 403),
+    ('regular_user', 403),
 ])
-def test_dataset_source_reference_delete_via_datapoint(api_client, dataset_test_data, user_key, source_ref_key, expected_status):
+def test_dataset_source_reference_delete_via_datapoint(api_client, dataset_test_data, user_key, expected_status):
     user = dataset_test_data[user_key]
-    source_ref = dataset_test_data[source_ref_key]
-    datapoint = source_ref.data_point
+    source_ref = dataset_test_data['source_ref_on_datapoint']
+    datapoint = dataset_test_data['data_point1']
     dataset = datapoint.dataset
     api_client.force_authenticate(user=user)
 
