@@ -8,7 +8,7 @@ from rest_framework.routers import DefaultRouter, SimpleRouter
 
 from rest_framework_nested.routers import NestedSimpleRouter
 
-from kausal_common.api.permissions import PermissionPolicyDRFPermission
+from kausal_common.api.permissions import NestedResourcePermissionPolicyDRFPermission, PermissionPolicyDRFPermission
 from kausal_common.datasets.api import (
     DataPointCommentViewSet as BaseDataPointCommentViewSet,
     DataPointSourceReferenceViewSet as BaseDataPointSourceReferenceViewSet,
@@ -73,9 +73,12 @@ class DatasetSourceReferenceViewSet(BaseDatasetSourceReferenceViewSet):
         return [DatasetSourceReferencePermission()]
 
 
-class DataPointPermission(PermissionPolicyDRFPermission[DataPoint, Dataset]):
+class DataPointPermission(NestedResourcePermissionPolicyDRFPermission[DataPoint, Dataset, Dataset]):
     class Meta:
         model = DataPoint
+        view_kwargs_parent_key = 'dataset_uuid'
+        nested_parent_model = Dataset
+        nested_parent_key_field = 'uuid'
 
     @override
     def get_create_context_from_api_view(self, view: APIView) -> Dataset:
@@ -87,27 +90,13 @@ class DataPointViewSet(BaseDataPointViewSet):
         return [DataPointPermission()]
 
 
-class DatasetMetricPermission(PermissionPolicyDRFPermission[DatasetMetric, None]):
+class DatasetMetricPermission(NestedResourcePermissionPolicyDRFPermission[DatasetMetric, None, DatasetSchema]):
     class Meta:
         model = DatasetMetric
-
-    def has_permission(self, request: Request, view: APIView):
-        schema_uuid = view.kwargs['datasetschema_uuid']
-        schema = DatasetSchema.objects.get(uuid=schema_uuid)
-        pp = schema.permission_policy()
-        user = user_or_none(request.user)
-        if not user:
-            return False
-        action = self.http_method_to_django_action(request.method)
-        if request.method is None:
-            raise ValueError('No method supplied')
-        if action != 'view':
-            raise MethodNotAllowed(request.method)
-        if not super().has_permission(request, view):
-            return False
-        if not pp.user_has_any_permission_for_instance(user, ['view'], schema):
-            raise NotFound()
-        return True
+        view_kwargs_parent_key = 'datasetschema_uuid'
+        nested_parent_model = DatasetSchema
+        nested_parent_key_field = 'uuid'
+        allowed_actions = { 'view' }
 
     def get_create_context_from_api_view(self, view: APIView) -> None:
         return None
@@ -151,21 +140,13 @@ class DatasetViewSet(BaseDatasetViewSet):
         return [DatasetPermission()]
 
 
-class DatasetCommentPermission(PermissionPolicyDRFPermission[DataPointComment, None]):
+class DatasetCommentPermission(NestedResourcePermissionPolicyDRFPermission[DataPointComment, None, Dataset]):
     class Meta:
-        model = DataPoint
-
-    def has_permission(self, request: Request, view: APIView):
-        dataset_uuid = view.kwargs['dataset_uuid']
-        dataset = Dataset.objects.get(uuid=dataset_uuid)
-        pp = dataset.permission_policy()
-        user = user_or_none(request.user)
-        if not user:
-            return False
-        action = self.http_method_to_django_action(request.method)
-        if action != 'view':
-            return True  # We want to return 405 instead of 403
-        return pp.user_has_any_permission_for_instance(user, ['view'], dataset)
+        model = DataPointComment
+        view_kwargs_parent_key = 'dataset_uuid'
+        nested_parent_model = Dataset
+        nested_parent_key_field = 'uuid'
+        allowed_actions = {'view'}
 
     def get_create_context_from_api_view(self, view: APIView) -> None:
         return None

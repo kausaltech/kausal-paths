@@ -200,6 +200,11 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         data_source=data_source1,
     )
 
+    source_ref2 = DatasetSourceReference.objects.create(
+        dataset=dataset2,
+        data_source=data_source2,
+    )
+
     result = {
         'instance1': instance1,
         'instance2': instance2,
@@ -225,6 +230,7 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         'comment1': comment1,
         'source_ref1': source_ref1,
         'source_ref_on_datapoint': source_ref_on_datapoint,
+        'source_ref2': source_ref2,
     }
     yield result
     with django_db_blocker.unblock():
