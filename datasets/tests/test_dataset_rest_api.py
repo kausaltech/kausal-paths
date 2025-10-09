@@ -465,12 +465,25 @@ def test_datapoint_delete(api_client, dataset_test_data, user_key, datapoint_key
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(('user_key', 'data_point_key', 'expected_status'), [
+    # Access to data_point1 (instance1)
     ('superuser', 'data_point1', 200),
     ('admin_user', 'data_point1', 200),
     ('super_admin_user', 'data_point1', 200),
     ('reviewer_user', 'data_point1', 200),
     ('viewer_user', 'data_point1', 200),
-    ('regular_user', 'data_point1', 403)
+
+    # Access to data_point2 (instance2)
+    ('superuser', 'data_point2', 200),
+
+    # No access to data_point2 (parent not visible)
+    ('admin_user', 'data_point2', 404),
+    ('super_admin_user', 'data_point2', 404),
+    ('reviewer_user', 'data_point2', 404),
+    ('viewer_user', 'data_point2', 404),
+
+    # No access to endpoint
+    ('regular_user', 'data_point1', 403),
+    ('regular_user', 'data_point2', 403),
 ])
 def test_datapoint_comment_list(api_client, dataset_test_data, user_key, data_point_key, expected_status):
     user = dataset_test_data[user_key]
@@ -487,12 +500,25 @@ def test_datapoint_comment_list(api_client, dataset_test_data, user_key, data_po
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(('user_key', 'comment_key', 'expected_status'), [
+    # Access to comment1 (on data_point1, instance1)
     ('superuser', 'comment1', 200),
     ('admin_user', 'comment1', 200),
     ('super_admin_user', 'comment1', 200),
     ('reviewer_user', 'comment1', 200),
     ('viewer_user', 'comment1', 200),
-    ('regular_user', 'comment1', 403)
+
+    # Access to comment2 (on data_point2, instance2)
+    ('superuser', 'comment2', 200),
+
+    # No access to comment2 (parent not visible)
+    ('admin_user', 'comment2', 404),
+    ('super_admin_user', 'comment2', 404),
+    ('reviewer_user', 'comment2', 404),
+    ('viewer_user', 'comment2', 404),
+
+    # No access to endpoint
+    ('regular_user', 'comment1', 403),
+    ('regular_user', 'comment2', 403),
 ])
 def test_datapoint_comment_retrieve(api_client, dataset_test_data, user_key, comment_key, expected_status):
     user = dataset_test_data[user_key]
@@ -511,12 +537,27 @@ def test_datapoint_comment_retrieve(api_client, dataset_test_data, user_key, com
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(('user_key', 'data_point_key', 'expected_status'), [
+    # Access to data_point1 (instance1)
     ('superuser', 'data_point1', 201),
     ('admin_user', 'data_point1', 201),
     ('super_admin_user', 'data_point1', 201),
     ('reviewer_user', 'data_point1', 201),
+
+    # Access to data_point2 (instance2)
+    ('superuser', 'data_point2', 201),
+
+    # No write access to data_point1
     ('viewer_user', 'data_point1', 403),
-    ('regular_user', 'data_point1', 403)
+
+    # No access to data_point2 (parent not visible)
+    ('admin_user', 'data_point2', 404),
+    ('super_admin_user', 'data_point2', 404),
+    ('reviewer_user', 'data_point2', 404),
+    ('viewer_user', 'data_point2', 404),
+
+    # No access to endpoint
+    ('regular_user', 'data_point1', 403),
+    ('regular_user', 'data_point2', 403),
 ])
 def test_datapoint_comment_create(api_client, dataset_test_data, user_key, data_point_key, expected_status):
     user = dataset_test_data[user_key]
@@ -541,12 +582,27 @@ def test_datapoint_comment_create(api_client, dataset_test_data, user_key, data_
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(('user_key', 'comment_key', 'expected_status'), [
+    # Access to comment1 (on data_point1, instance1)
     ('superuser', 'comment1', 204),
     ('admin_user', 'comment1', 204),
     ('super_admin_user', 'comment1', 204),
+
+    # Access to comment2 (on data_point2, instance2)
+    ('superuser', 'comment2', 204),
+
+    # No delete access to comment1
     ('reviewer_user', 'comment1', 403),
     ('viewer_user', 'comment1', 403),
-    ('regular_user', 'comment1', 403)
+
+    # No access to comment2 (parent not visible)
+    ('admin_user', 'comment2', 404),
+    ('super_admin_user', 'comment2', 404),
+    ('reviewer_user', 'comment2', 404),
+    ('viewer_user', 'comment2', 404),
+
+    # No access to endpoint
+    ('regular_user', 'comment1', 403),
+    ('regular_user', 'comment2', 403),
 ])
 def test_datapoint_comment_delete(api_client, dataset_test_data, user_key, comment_key, expected_status):
     user = dataset_test_data[user_key]
@@ -606,12 +662,25 @@ def test_dataset_comment_create(api_client, dataset_test_data, user_key):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(('user_key', 'dataset_key', 'expected_status'), [
+    # Access to dataset1 (instance1)
     ('superuser', 'dataset1', 200),
     ('admin_user', 'dataset1', 200),
     ('super_admin_user', 'dataset1', 200),
     ('reviewer_user', 'dataset1', 200),
     ('viewer_user', 'dataset1', 200),
+
+    # Access to dataset2 (instance2)
+    ('superuser', 'dataset2', 200),
+
+    # No access to dataset2 (parent not visible)
+    ('admin_user', 'dataset2', 404),
+    ('super_admin_user', 'dataset2', 404),
+    ('reviewer_user', 'dataset2', 404),
+    ('viewer_user', 'dataset2', 404),
+
+    # No access to endpoint
     ('regular_user', 'dataset1', 403),
+    ('regular_user', 'dataset2', 403),
 ])
 def test_dataset_source_reference_list_via_dataset(api_client, dataset_test_data, user_key, dataset_key, expected_status):
     user = dataset_test_data[user_key]
@@ -628,12 +697,25 @@ def test_dataset_source_reference_list_via_dataset(api_client, dataset_test_data
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(('user_key', 'source_ref_key', 'expected_status'), [
+    # Access to source_ref1 (on dataset1, instance1)
     ('superuser', 'source_ref1', 200),
     ('admin_user', 'source_ref1', 200),
     ('super_admin_user', 'source_ref1', 200),
     ('reviewer_user', 'source_ref1', 200),
     ('viewer_user', 'source_ref1', 200),
+
+    # Access to source_ref2 (on dataset2, instance2)
+    ('superuser', 'source_ref2', 200),
+
+    # No access to source_ref2 (parent not visible)
+    ('admin_user', 'source_ref2', 404),
+    ('super_admin_user', 'source_ref2', 404),
+    ('reviewer_user', 'source_ref2', 404),
+    ('viewer_user', 'source_ref2', 404),
+
+    # No access to endpoint
     ('regular_user', 'source_ref1', 403),
+    ('regular_user', 'source_ref2', 403),
 ])
 def test_dataset_source_reference_retrieve_via_dataset(api_client, dataset_test_data, user_key, source_ref_key, expected_status):
     user = dataset_test_data[user_key]
@@ -650,18 +732,33 @@ def test_dataset_source_reference_retrieve_via_dataset(api_client, dataset_test_
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'expected_status'), [
-    ('superuser', 201),
-    ('admin_user', 201),
-    ('super_admin_user', 201),
-    ('reviewer_user', 403),
-    ('viewer_user', 403),
-    ('regular_user', 403),
+@pytest.mark.parametrize(('user_key', 'dataset_key', 'expected_status'), [
+    # Access to dataset1 (instance1)
+    ('superuser', 'dataset1', 201),
+    ('admin_user', 'dataset1', 201),
+    ('super_admin_user', 'dataset1', 201),
+
+    # Access to dataset2 (instance2)
+    ('superuser', 'dataset2', 201),
+
+    # No write access to dataset1
+    ('reviewer_user', 'dataset1', 403),
+    ('viewer_user', 'dataset1', 403),
+
+    # No access to dataset2 (parent not visible)
+    ('admin_user', 'dataset2', 404),
+    ('super_admin_user', 'dataset2', 404),
+    ('reviewer_user', 'dataset2', 404),
+    ('viewer_user', 'dataset2', 404),
+
+    # No access to endpoint
+    ('regular_user', 'dataset1', 403),
+    ('regular_user', 'dataset2', 403),
 ])
-def test_dataset_source_reference_create_via_dataset(api_client, dataset_test_data, user_key, expected_status):
+def test_dataset_source_reference_create_via_dataset(api_client, dataset_test_data, user_key, dataset_key, expected_status):
     user = dataset_test_data[user_key]
-    dataset = dataset_test_data['dataset1']
-    data_source = dataset_test_data['data_source1']
+    dataset = dataset_test_data[dataset_key]
+    data_source = dataset_test_data['data_source1'] if dataset_key == 'dataset1' else dataset_test_data['data_source2']
     api_client.force_authenticate(user=user)
 
     create_data = {
@@ -676,17 +773,32 @@ def test_dataset_source_reference_create_via_dataset(api_client, dataset_test_da
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'expected_status'), [
-    ('superuser', 204),
-    ('admin_user', 204),
-    ('super_admin_user', 204),
-    ('reviewer_user', 403),
-    ('viewer_user', 403),
-    ('regular_user', 403),
+@pytest.mark.parametrize(('user_key', 'source_ref_key', 'expected_status'), [
+    # Access to source_ref1 (on dataset1, instance1)
+    ('superuser', 'source_ref1', 204),
+    ('admin_user', 'source_ref1', 204),
+    ('super_admin_user', 'source_ref1', 204),
+
+    # Access to source_ref2 (on dataset2, instance2)
+    ('superuser', 'source_ref2', 204),
+
+    # No delete access to source_ref1
+    ('reviewer_user', 'source_ref1', 403),
+    ('viewer_user', 'source_ref1', 403),
+
+    # No access to source_ref2 (parent not visible)
+    ('admin_user', 'source_ref2', 404),
+    ('super_admin_user', 'source_ref2', 404),
+    ('reviewer_user', 'source_ref2', 404),
+    ('viewer_user', 'source_ref2', 404),
+
+    # No access to endpoint
+    ('regular_user', 'source_ref1', 403),
+    ('regular_user', 'source_ref2', 403),
 ])
-def test_dataset_source_reference_delete_via_dataset(api_client, dataset_test_data, user_key, expected_status):
+def test_dataset_source_reference_delete_via_dataset(api_client, dataset_test_data, user_key, source_ref_key, expected_status):
     user = dataset_test_data[user_key]
-    source_ref = dataset_test_data['source_ref1']
+    source_ref = dataset_test_data[source_ref_key]
     dataset = source_ref.dataset
     api_client.force_authenticate(user=user)
 
@@ -695,17 +807,30 @@ def test_dataset_source_reference_delete_via_dataset(api_client, dataset_test_da
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'expected_status'), [
-    ('superuser', 200),
-    ('admin_user', 200),
-    ('super_admin_user', 200),
-    ('reviewer_user', 200),
-    ('viewer_user', 200),
-    ('regular_user', 403),
+@pytest.mark.parametrize(('user_key', 'data_point_key', 'expected_status'), [
+    # Access to data_point1 (instance1)
+    ('superuser', 'data_point1', 200),
+    ('admin_user', 'data_point1', 200),
+    ('super_admin_user', 'data_point1', 200),
+    ('reviewer_user', 'data_point1', 200),
+    ('viewer_user', 'data_point1', 200),
+
+    # Access to data_point2 (instance2)
+    ('superuser', 'data_point2', 200),
+
+    # No access to data_point2 (parent not visible)
+    ('admin_user', 'data_point2', 404),
+    ('super_admin_user', 'data_point2', 404),
+    ('reviewer_user', 'data_point2', 404),
+    ('viewer_user', 'data_point2', 404),
+
+    # No access to endpoint
+    ('regular_user', 'data_point1', 403),
+    ('regular_user', 'data_point2', 403),
 ])
-def test_dataset_source_reference_list_via_datapoint(api_client, dataset_test_data, user_key, expected_status):
+def test_dataset_source_reference_list_via_datapoint(api_client, dataset_test_data, user_key, data_point_key, expected_status):
     user = dataset_test_data[user_key]
-    datapoint = dataset_test_data['data_point1']
+    datapoint = dataset_test_data[data_point_key]
     dataset = datapoint.dataset
     api_client.force_authenticate(user=user)
 
@@ -718,23 +843,37 @@ def test_dataset_source_reference_list_via_datapoint(api_client, dataset_test_da
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'expected_status'), [
-    ('superuser', 200),
-    ('admin_user', 200),
-    ('super_admin_user', 200),
-    ('reviewer_user', 200),
-    ('viewer_user', 200),
-    ('regular_user', 403),
+@pytest.mark.parametrize(('user_key', 'source_ref_key', 'expected_status'), [
+    # Access to source_ref_on_datapoint (on data_point1, instance1)
+    ('superuser', 'source_ref_on_datapoint', 200),
+    ('admin_user', 'source_ref_on_datapoint', 200),
+    ('super_admin_user', 'source_ref_on_datapoint', 200),
+    ('reviewer_user', 'source_ref_on_datapoint', 200),
+    ('viewer_user', 'source_ref_on_datapoint', 200),
+
+    # Access to source_ref_on_datapoint2 (on data_point2, instance2)
+    ('superuser', 'source_ref_on_datapoint2', 200),
+
+    # No access to source_ref_on_datapoint2 (parent not visible)
+    ('admin_user', 'source_ref_on_datapoint2', 404),
+    ('super_admin_user', 'source_ref_on_datapoint2', 404),
+    ('reviewer_user', 'source_ref_on_datapoint2', 404),
+    ('viewer_user', 'source_ref_on_datapoint2', 404),
+
+    # No access to endpoint
+    ('regular_user', 'source_ref_on_datapoint', 403),
+    ('regular_user', 'source_ref_on_datapoint2', 403),
 ])
 def test_dataset_source_reference_retrieve_via_datapoint(
     api_client,
     dataset_test_data,
     user_key,
+    source_ref_key,
     expected_status
 ):
     user = dataset_test_data[user_key]
-    source_ref = dataset_test_data['source_ref_on_datapoint']
-    datapoint = dataset_test_data['data_point1']
+    source_ref = dataset_test_data[source_ref_key]
+    datapoint = source_ref.data_point
     dataset = datapoint.dataset
     api_client.force_authenticate(user=user)
 
@@ -747,19 +886,34 @@ def test_dataset_source_reference_retrieve_via_datapoint(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'expected_status'), [
-    ('superuser', 201),
-    ('admin_user', 201),
-    ('super_admin_user', 201),
-    ('reviewer_user', 403),
-    ('viewer_user', 403),
-    ('regular_user', 403),
+@pytest.mark.parametrize(('user_key', 'data_point_key', 'expected_status'), [
+    # Access to data_point1 (instance1)
+    ('superuser', 'data_point1', 201),
+    ('admin_user', 'data_point1', 201),
+    ('super_admin_user', 'data_point1', 201),
+
+    # Access to data_point2 (instance2)
+    ('superuser', 'data_point2', 201),
+
+    # No write access to data_point1
+    ('reviewer_user', 'data_point1', 403),
+    ('viewer_user', 'data_point1', 403),
+
+    # No access to data_point2 (parent not visible)
+    ('admin_user', 'data_point2', 404),
+    ('super_admin_user', 'data_point2', 404),
+    ('reviewer_user', 'data_point2', 404),
+    ('viewer_user', 'data_point2', 404),
+
+    # No access to endpoint
+    ('regular_user', 'data_point1', 403),
+    ('regular_user', 'data_point2', 403),
 ])
-def test_dataset_source_reference_create_via_datapoint(api_client, dataset_test_data, user_key, expected_status):
+def test_dataset_source_reference_create_via_datapoint(api_client, dataset_test_data, user_key, data_point_key, expected_status):
     user = dataset_test_data[user_key]
-    datapoint = dataset_test_data['data_point1']
+    datapoint = dataset_test_data[data_point_key]
     dataset = datapoint.dataset
-    data_source = dataset_test_data['data_source1']
+    data_source = dataset_test_data['data_source1'] if data_point_key == 'data_point1' else dataset_test_data['data_source2']
     api_client.force_authenticate(user=user)
 
     create_data = {
@@ -777,18 +931,33 @@ def test_dataset_source_reference_create_via_datapoint(api_client, dataset_test_
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'expected_status'), [
-    ('superuser', 204),
-    ('admin_user', 204),
-    ('super_admin_user', 204),
-    ('reviewer_user', 403),
-    ('viewer_user', 403),
-    ('regular_user', 403),
+@pytest.mark.parametrize(('user_key', 'source_ref_key', 'expected_status'), [
+    # Access to source_ref_on_datapoint (on data_point1, instance1)
+    ('superuser', 'source_ref_on_datapoint', 204),
+    ('admin_user', 'source_ref_on_datapoint', 204),
+    ('super_admin_user', 'source_ref_on_datapoint', 204),
+
+    # Access to source_ref_on_datapoint2 (on data_point2, instance2)
+    ('superuser', 'source_ref_on_datapoint2', 204),
+
+    # No delete access to source_ref_on_datapoint
+    ('reviewer_user', 'source_ref_on_datapoint', 403),
+    ('viewer_user', 'source_ref_on_datapoint', 403),
+
+    # No access to source_ref_on_datapoint2 (parent not visible)
+    ('admin_user', 'source_ref_on_datapoint2', 404),
+    ('super_admin_user', 'source_ref_on_datapoint2', 404),
+    ('reviewer_user', 'source_ref_on_datapoint2', 404),
+    ('viewer_user', 'source_ref_on_datapoint2', 404),
+
+    # No access to endpoint
+    ('regular_user', 'source_ref_on_datapoint', 403),
+    ('regular_user', 'source_ref_on_datapoint2', 403),
 ])
-def test_dataset_source_reference_delete_via_datapoint(api_client, dataset_test_data, user_key, expected_status):
+def test_dataset_source_reference_delete_via_datapoint(api_client, dataset_test_data, user_key, source_ref_key, expected_status):
     user = dataset_test_data[user_key]
-    source_ref = dataset_test_data['source_ref_on_datapoint']
-    datapoint = dataset_test_data['data_point1']
+    source_ref = dataset_test_data[source_ref_key]
+    datapoint = source_ref.data_point
     dataset = datapoint.dataset
     api_client.force_authenticate(user=user)
 
