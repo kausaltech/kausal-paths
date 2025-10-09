@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, override
 
 from rest_framework import serializers
+from rest_framework.exceptions import MethodNotAllowed, NotFound
 from rest_framework.routers import DefaultRouter, SimpleRouter
 
 from rest_framework_nested.routers import NestedSimpleRouter
@@ -21,7 +22,14 @@ from kausal_common.datasets.api import (
     DimensionCategoryViewSet as BaseDimensionCategoryViewSet,
     DimensionViewSet as BaseDimensionViewSet,
 )
-from kausal_common.datasets.models import DataPoint, DataPointComment, Dataset, DatasetSchema, DatasetSourceReference
+from kausal_common.datasets.models import (
+    DataPoint,
+    DataPointComment,
+    Dataset,
+    DatasetMetric,
+    DatasetSchema,
+    DatasetSourceReference,
+)
 from kausal_common.users import user_or_none
 
 if TYPE_CHECKING:
@@ -79,8 +87,36 @@ class DataPointViewSet(BaseDataPointViewSet):
         return [DataPointPermission()]
 
 
+class DatasetMetricPermission(PermissionPolicyDRFPermission[DatasetMetric, None]):
+    class Meta:
+        model = DatasetMetric
+
+    def has_permission(self, request: Request, view: APIView):
+        schema_uuid = view.kwargs['datasetschema_uuid']
+        schema = DatasetSchema.objects.get(uuid=schema_uuid)
+        pp = schema.permission_policy()
+        user = user_or_none(request.user)
+        if not user:
+            return False
+        action = self.http_method_to_django_action(request.method)
+        if request.method is None:
+            raise ValueError('No method supplied')
+        if action != 'view':
+            raise MethodNotAllowed(request.method)
+        if not super().has_permission(request, view):
+            return False
+        if not pp.user_has_any_permission_for_instance(user, ['view'], schema):
+            raise NotFound()
+        return True
+
+    def get_create_context_from_api_view(self, view: APIView) -> None:
+        return None
+
+
 class DatasetMetricViewSet(BaseDatasetMetricViewSet):
-    pass
+    @override
+    def get_permissions(self):
+        return [DatasetMetricPermission()]
 
 
 class DatasetSchemaPermission(PermissionPolicyDRFPermission[DatasetSchema, None]):
