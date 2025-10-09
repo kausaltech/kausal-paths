@@ -37,10 +37,14 @@ if TYPE_CHECKING:
     from rest_framework.views import APIView
 
 
-class DataPointCommentPermission(PermissionPolicyDRFPermission[DataPointComment, DataPoint]):
+class DataPointCommentPermission(NestedResourcePermissionPolicyDRFPermission[DataPointComment, DataPoint, DataPoint]):
     class Meta:
         model = DataPointComment
+        view_kwargs_parent_key = 'datapoint_uuid'
+        nested_parent_model = DataPoint
+        nested_parent_key_field = 'uuid'
 
+    @override
     def get_create_context_from_api_view(self, view: APIView) -> DataPoint:
         data_point_uuid = view.kwargs['datapoint_uuid']
         return DataPoint.objects.get(uuid=data_point_uuid)
@@ -52,19 +56,37 @@ class DataPointCommentViewSet(BaseDataPointCommentViewSet):
         return [DataPointCommentPermission()]
 
 
-class DatasetSourceReferencePermission(PermissionPolicyDRFPermission[DatasetSourceReference, Dataset]):
+class DatasetSourceReferencePermission(NestedResourcePermissionPolicyDRFPermission[DatasetSourceReference, Dataset, Dataset]):
     class Meta:
         model = DatasetSourceReference
+        view_kwargs_parent_key = 'dataset_uuid'
+        nested_parent_model = Dataset
+        nested_parent_key_field = 'uuid'
 
+    @override
     def get_create_context_from_api_view(self, view: APIView) -> Dataset:
         dataset_uuid = view.kwargs['dataset_uuid']
         return Dataset.objects.get(uuid=dataset_uuid)
 
 
+class DataPointSourceReferencePermission(NestedResourcePermissionPolicyDRFPermission[DatasetSourceReference, Dataset, DataPoint]):
+    class Meta:
+        model = DatasetSourceReference
+        view_kwargs_parent_key = 'datapoint_uuid'
+        nested_parent_model = DataPoint
+        nested_parent_key_field = 'uuid'
+
+    @override
+    def get_create_context_from_api_view(self, view: APIView) -> Dataset:
+        datapoint_uuid = view.kwargs['datapoint_uuid']
+        datapoint = DataPoint.objects.get(uuid=datapoint_uuid)
+        return datapoint.dataset
+
+
 class DataPointSourceReferenceViewSet(BaseDataPointSourceReferenceViewSet):
     @override
     def get_permissions(self):
-        return [DatasetSourceReferencePermission()]
+        return [DataPointSourceReferencePermission()]
 
 
 class DatasetSourceReferenceViewSet(BaseDatasetSourceReferenceViewSet):
