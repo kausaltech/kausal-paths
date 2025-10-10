@@ -1,11 +1,8 @@
 ## Description
 Brief description of the changes made in this PR.
 
-## Type of Change
-- [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] Documentation update
+## Screenshots/Videos (if applicable)
+Add screenshots or videos demonstrating the changes if applicable.
 
 ## Related issue
 E.g. Link to asana, sentry, slack thread etc.
@@ -13,9 +10,15 @@ E.g. Link to asana, sentry, slack thread etc.
 ## Requirements, dependencies and related PRs
 Describe or link possible requirements, dependencies and related PRs here
 
+## Additional Notes
+Any additional information that reviewers should know about this PR.
+
 ------
 
 ## ✅ Pre-Merge Checklist
+
+### Type of Change
+- [ ] Set the PR's label to match the nature of this change
 
 ### Testing
 - [ ] **Built Unit tests** (unit tests added/updated)
@@ -30,7 +33,7 @@ Describe or link possible requirements, dependencies and related PRs here
 - [ ] **Accessibility** standards met (WCAG compliance, screen reader support)
 
 ### Dependencies
-- [ ] **Dependencies are merged** (if applicable. If the change depends on other PR's e.g. kausal_common)
+- [ ] **Dependencies are merged** (if applicable. If the change depends on other PRs e.g. kausal_common)
 
 -----
 
