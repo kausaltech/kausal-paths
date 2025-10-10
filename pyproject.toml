@@ -132,6 +132,7 @@ mypy_path = "$MYPY_CONFIG_FILE_DIR/kausal_common/typings"
 exclude = [
   '^Attic/',
   '/migrations/',
+  '^notebooks/',  
   '^local_settings\.py',
   '^\.*env*',
   '^kausal_common/typings/django-stubs',

@@ -50,7 +50,15 @@ class InstanceSuperAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceCon
 
     model_perms = AdminRole.model_perms + [
         ('nodes', ('instanceconfig', 'nodeconfig'), ('view', 'change')),
-        ('datasets', ('datasetschema','dataset', 'datapoint', 'datasource', 'datasetsourcereference'), ALL_MODEL_PERMS),
+        ('datasets', (
+            'datasetschema',
+            'dataset',
+            'datapoint',
+            'datasource',
+            'datasetsourcereference',
+            'datapointcomment',
+            'datasetmetric',
+        ), ALL_MODEL_PERMS),
         ('frameworks', (
             'framework',
         ), ('view',)),
@@ -84,7 +92,15 @@ class InstanceAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceConfig']
 
     model_perms = AdminRole.model_perms + [
         ('nodes', ('instanceconfig', 'nodeconfig'), ('view', 'change')),
-        ('datasets', ('datasetschema','dataset', 'datapoint', 'datasource', 'datasetsourcereference'), ALL_MODEL_PERMS),
+        ('datasets', (
+            'datasetschema',
+            'dataset',
+            'datapoint',
+            'datasource',
+            'datasetsourcereference',
+            'datapointcomment',
+            'datasetmetric',
+        ), ALL_MODEL_PERMS),
         ('frameworks', (
             'framework',
         ), ('view',)),
@@ -113,6 +129,15 @@ class InstanceViewerRole(InstanceGroupMembershipRole, InstanceSpecificRole['Inst
     model_perms = [
         ('wagtailadmin', 'admin', ('access',)),
         ('nodes', ('instanceconfig', 'nodeconfig'), ('view',)),
+        ('datasets', (
+            'datasetschema',
+            'dataset',
+            'datapoint',
+            'datasource',
+            'datasetsourcereference',
+            'datapointcomment',
+            'datasetmetric',
+        ), ('view',)),
         ('frameworks', (
             'framework', 'frameworkconfig', 'measure', 'measuredatapoint',
         ), ('view',)),
@@ -136,6 +161,16 @@ class InstanceReviewerRole(InstanceGroupMembershipRole, InstanceSpecificRole['In
     model_perms = [
         ('wagtailadmin', 'admin', ('access',)),
         ('nodes', ('instanceconfig', 'nodeconfig'), ('view',)),
+        ('datasets', ('datapointcomment'), ('add',)),
+        ('datasets', (
+            'datasetschema',
+            'dataset',
+            'datapoint',
+            'datasource',
+            'datasetsourcereference',
+            'datapointcomment',
+            'datasetmetric',
+        ), ('view',)),
         ('frameworks', (
             'framework', 'frameworkconfig', 'measure', 'measuredatapoint',
         ), ('view',)),
