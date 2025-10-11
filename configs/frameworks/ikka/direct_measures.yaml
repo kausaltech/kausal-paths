@@ -1,0 +1,3967 @@
+# Data from https://drive.google.com/drive/u/0/folders/19UUut58R5ZZu4cAfETWz1f-npCFjVhUw
+# Katalog für Maßnahmen und Instrumente im kommunalen Klimaschutz. Ifeu, Heidelberg, März 2025 (Version 2)
+
+# ============================================
+# IKKA DIRECT MEASURES - COMPLETE DEFINITION
+# Based on: Section 3.1 (Tables 32-37)
+# ============================================
+
+# ----- REUSABLE BAU MODEL DEFINITIONS -----
+bau_models:
+
+- id: pv_generation_model
+  description: "Photovoltaic electricity generation and grid displacement"
+  
+  state_variables:
+  - id: pv_capacity_installed
+    unit: kWp
+    initial_value: 0
+    accumulation: cumulative
+    inflow: new_installations
+  
+  flow_variables:
+  - id: annual_electricity_generated
+    unit: kWh/year
+    formula: "pv_capacity_installed * $irradiation * $performance_ratio"
+  
+  - id: grid_displacement_emissions_avoided
+    unit: tCO2e/year
+    formula: "annual_electricity_generated * $ef_displacement / 1000"
+  
+  emission_outputs:
+  - id: upstream_pv_production
+    formula: "new_installations * $upstream_pv / 1000"
+    classification:
+      bisko: false
+      upstream: true
+      one_time: true
+  
+  - id: operational_avoidance
+    formula: "grid_displacement_emissions_avoided"
+    classification:
+      bisko: false
+      upstream: false
+
+- id: wind_generation_model
+  description: "Wind power electricity generation and grid displacement"
+  
+  state_variables:
+  - id: wind_capacity_installed
+    unit: kW
+    initial_value: 0
+    accumulation: cumulative
+    inflow: new_installations
+  
+  flow_variables:
+  - id: annual_electricity_generated
+    unit: kWh/year
+    formula: "wind_capacity_installed * $full_load_hours_wind"
+  
+  - id: grid_displacement_emissions_avoided
+    unit: tCO2e/year
+    formula: "annual_electricity_generated * $ef_displacement / 1000"
+  
+  emission_outputs:
+  - id: upstream_wind_production
+    formula: "new_installations * $upstream_wind / 1000"
+    classification:
+      bisko: false
+      upstream: true
+      one_time: true
+  
+  - id: operational_avoidance
+    formula: "grid_displacement_emissions_avoided"
+    classification:
+      bisko: false
+      upstream: false
+
+- id: renewable_generation_generic_model
+  description: "Generic renewable electricity generation (hydro, geothermal)"
+  
+  state_variables:
+  - id: capacity_installed
+    unit: kW
+    initial_value: 0
+    accumulation: cumulative
+    inflow: new_installations
+  
+  flow_variables:
+  - id: annual_electricity_generated
+    unit: kWh/year
+    formula: "capacity_installed * $full_load_hours"
+  
+  - id: grid_displacement_emissions_avoided
+    unit: tCO2e/year
+    formula: "annual_electricity_generated * $ef_displacement / 1000"
+  
+  emission_outputs:
+  - id: upstream_plant_production
+    formula: "new_installations * $upstream_plant / 1000"
+    classification:
+      bisko: false
+      upstream: true
+      one_time: true
+  
+  - id: operational_avoidance
+    formula: "grid_displacement_emissions_avoided"
+    classification:
+      bisko: false
+      upstream: false
+
+- id: chp_generation_model
+  description: "Combined heat and power plant with exergy allocation"
+  
+  flow_variables:
+  - id: fuel_input_kwh
+    unit: kWh/year
+    formula: "heat_output / $efficiency_heat + electricity_output / $efficiency_electricity"
+  
+  - id: electricity_output
+    unit: kWh/year
+    source: user_input
+  
+  - id: heat_output
+    unit: kWh/year
+    source: user_input
+  
+  - id: total_emissions_before_allocation
+    unit: tCO2e/year
+    formula: "fuel_input * $ef_fuel / 1000"
+  
+  - id: electricity_emissions_allocated
+    unit: tCO2e/year
+    formula: "total_emissions * (electricity_output * $exergy_electricity) / (electricity_output * $exergy_electricity + heat_output * $exergy_heat)"
+  
+  - id: heat_emissions_allocated
+    unit: tCO2e/year
+    formula: "total_emissions * (heat_output * $exergy_heat) / (electricity_output * $exergy_electricity + heat_output * $exergy_heat)"
+  
+  emission_outputs:
+  - id: operational_chp_emissions
+    formula: "total_emissions_before_allocation"
+    classification:
+      bisko: true
+      upstream: false
+
+- id: green_electricity_procurement_model
+  description: "Green electricity tariff with additionality"
+  
+  flow_variables:
+  - id: electricity_consumed
+    unit: kWh/year
+    source: user_input
+  
+  - id: emissions_avoided_through_additionality
+    unit: tCO2e/year
+    formula: "electricity_consumed * $green_tariff_additionality_factor * $ef_displacement / 1000"
+    note: "Only counts if tariff has proven additional capacity"
+  
+  emission_outputs:
+  - id: operational_avoidance
+    formula: "emissions_avoided_through_additionality"
+    classification:
+      bisko: false
+      note: "Additional renewable capacity, not in BISKO"
+
+- id: lighting_efficiency_model
+  description: "Replacement of inefficient lighting with LED"
+  
+  flow_variables:
+  - id: number_of_lights_replaced
+    unit: count/year
+    source: user_input
+  
+  - id: electricity_saved_per_light
+    unit: kWh/year
+    formula: "(power_before - power_after) * $operating_hours / 1000"
+  
+  - id: total_electricity_saved
+    unit: kWh/year
+    formula: "number_of_lights_replaced * electricity_saved_per_light * (1 + $control_system_savings)"
+  
+  - id: emissions_reduced
+    unit: tCO2e/year
+    formula: "total_electricity_saved * $ef_grid / 1000"
+  
+  emission_outputs:
+  - id: upstream_led_net
+    formula: "(number_of_lights_replaced * $upstream_led - number_of_lights_replaced * $upstream_old_lamp) / 1000"
+    classification:
+      bisko: false
+      upstream: true
+      one_time: true
+  
+  - id: operational_savings
+    formula: "emissions_reduced"
+    classification:
+      bisko: true
+      upstream: false
+
+- id: electricity_behavioral_savings_model
+  description: "Behavioral electricity savings without investment"
+  
+  flow_variables:
+  - id: baseline_electricity_consumption
+    unit: kWh/year
+    source: user_input
+  
+  - id: electricity_saved
+    unit: kWh/year
+    formula: "baseline_electricity_consumption * $behavioral_savings_rate"
+  
+  - id: emissions_reduced
+    unit: tCO2e/year
+    formula: "electricity_saved * $ef_grid / 1000"
+  
+  emission_outputs:
+  - id: operational_savings
+    formula: "emissions_reduced"
+    classification:
+      bisko: true
+      upstream: false
+      note: "No upstream - pure behavioral change"
+
+- id: electricity_efficiency_investment_model
+  description: "Low-investment efficiency measures (not major equipment)"
+  
+  flow_variables:
+  - id: baseline_electricity_consumption
+    unit: kWh/year
+    source: user_input
+  
+  - id: electricity_saved
+    unit: kWh/year
+    formula: "baseline_electricity_consumption * $efficiency_savings_rate"
+  
+  - id: emissions_reduced
+    unit: tCO2e/year
+    formula: "electricity_saved * $ef_grid / 1000"
+  
+  emission_outputs:
+  - id: upstream_devices
+    formula: "baseline_electricity_consumption * $upstream_devices_per_kwh / 1000"
+    classification:
+      bisko: false
+      upstream: true
+      one_time: true
+      note: "Timers, power strips, sensors, etc."
+  
+  - id: operational_savings
+    formula: "emissions_reduced"
+    classification:
+      bisko: true
+      upstream: false
+
+- id: decentralized_heating_replacement_model
+  description: "Replacement of fossil heating with climate-friendly system"
+  
+  flow_variables:
+  - id: heat_demand
+    unit: kWh/year
+    source: user_input
+  
+  - id: final_energy_before
+    unit: kWh/year
+    formula: "heat_demand / $efficiency_before"
+  
+  - id: final_energy_after
+    unit: kWh/year
+    formula: "heat_demand / $efficiency_after"
+  
+  - id: emissions_before
+    unit: tCO2e/year
+    formula: "final_energy_before * $ef_fuel_before / 1000"
+  
+  - id: emissions_after
+    unit: tCO2e/year
+    formula: "final_energy_after * $ef_fuel_after / 1000"
+  
+  - id: emissions_reduced
+    unit: tCO2e/year
+    formula: "emissions_before - emissions_after"
+  
+  emission_outputs:
+  - id: upstream_heating_system
+    formula: "$upstream_heating_system_new - $upstream_heating_system_old"
+    classification:
+      bisko: false
+      upstream: true
+      one_time: true
+  
+  - id: operational_reduction
+    formula: "emissions_reduced"
+    classification:
+      bisko: true
+      upstream: false
+      breakdown:
+        direct_combustion: "emissions_before * $direct_combustion_share"
+        fuel_upstream: "emissions_before * (1 - $direct_combustion_share)"
+
+- id: district_heating_connection_model
+  description: "Connection to district heating network"
+  
+  flow_variables:
+  - id: heat_demand
+    unit: kWh/year
+    source: user_input
+  
+  - id: final_energy_before
+    unit: kWh/year
+    formula: "heat_demand / $efficiency_before"
+  
+  - id: final_energy_after
+    unit: kWh/year
+    formula: "heat_demand"
+    note: "District heating delivered as heat, efficiency = 1.0"
+  
+  - id: emissions_before
+    unit: tCO2e/year
+    formula: "final_energy_before * $ef_fuel_before / 1000"
+  
+  - id: emissions_after
+    unit: tCO2e/year
+    formula: "final_energy_after * $ef_district_heating_local / 1000"
+    note: "Uses LOCAL emission factor specific to municipal DH network"
+  
+  - id: emissions_reduced
+    unit: tCO2e/year
+    formula: "emissions_before - emissions_after"
+  
+  emission_outputs:
+  - id: upstream_connection
+    formula: "$upstream_district_heating_connection"
+    classification:
+      bisko: false
+      upstream: true
+      one_time: true
+  
+  - id: operational_reduction
+    formula: "emissions_reduced"
+    classification:
+      bisko: true
+      upstream: false
+      note: "Fully visible - local DH factor used in BISKO"
+
+- id: building_renovation_model
+  description: "Building envelope renovation with heat demand reduction"
+  
+  state_variables:
+  - id: building_area_renovated
+    unit: m²
+    initial_value: 0
+    accumulation: cumulative
+  
+  flow_variables:
+  - id: heat_demand_before
+    unit: kWh/year
+    formula: "building_area * $heat_intensity_before"
+  
+  - id: heat_demand_after
+    unit: kWh/year
+    formula: "building_area * $heat_intensity_after"
+  
+  - id: heat_saved
+    unit: kWh/year
+    formula: "heat_demand_before - heat_demand_after"
+  
+  - id: final_energy_saved
+    unit: kWh/year
+    formula: "heat_saved / $heating_efficiency"
+  
+  - id: emissions_reduced
+    unit: tCO2e/year
+    formula: "final_energy_saved * $ef_fuel / 1000"
+  
+  emission_outputs:
+  - id: upstream_renovation_materials
+    formula: "building_area * $upstream_renovation_per_m2 / 1000"
+    classification:
+      bisko: false
+      upstream: true
+      one_time: true
+  
+  - id: operational_savings
+    formula: "emissions_reduced"
+    classification:
+      bisko: true
+      upstream: false
+
+- id: building_renovation_plus_heating_model
+  description: "Combined building renovation and heating system replacement"
+  
+  flow_variables:
+  - id: heat_demand_before
+    unit: kWh/year
+    formula: "building_area * $heat_intensity_before"
+  
+  - id: heat_demand_after
+    unit: kWh/year
+    formula: "building_area * $heat_intensity_after"
+  
+  - id: final_energy_before
+    unit: kWh/year
+    formula: "heat_demand_before / $efficiency_before"
+  
+  - id: final_energy_after
+    unit: kWh/year
+    formula: "heat_demand_after / $efficiency_after"
+  
+  - id: emissions_before
+    unit: tCO2e/year
+    formula: "final_energy_before * $ef_fuel_before / 1000"
+  
+  - id: emissions_after
+    unit: tCO2e/year
+    formula: "final_energy_after * $ef_fuel_after / 1000"
+  
+  - id: emissions_reduced
+    unit: tCO2e/year
+    formula: "emissions_before - emissions_after"
+  
+  derived_variables:
+  - id: efficiency_contribution
+    formula: "(heat_demand_after / $efficiency_before * $ef_fuel_before - heat_demand_after / $efficiency_after * $ef_fuel_after) / 1000"
+    note: "Heating system improvement on reduced demand"
+  
+  - id: sufficiency_contribution
+    formula: "((heat_demand_before - heat_demand_after) / $efficiency_after * $ef_fuel_after) / 1000"
+    note: "Demand reduction from better envelope"
+  
+  emission_outputs:
+  - id: upstream_renovation_and_heating
+    formula: "(building_area * $upstream_renovation_per_m2 + $upstream_heating_system) / 1000"
+    classification:
+      bisko: false
+      upstream: true
+      one_time: true
+  
+  - id: operational_reduction
+    formula: "emissions_reduced"
+    classification:
+      bisko: true
+      upstream: false
+
+- id: new_building_construction_model
+  description: "New building construction with efficiency standard"
+  
+  flow_variables:
+  - id: new_floor_area
+    unit: m²/year
+    formula: "new_units * $avg_unit_area"
+  
+  - id: annual_heat_demand_new_buildings
+    unit: kWh/year
+    formula: "new_floor_area * $heat_intensity_standard"
+  
+  - id: final_energy_heating
+    unit: kWh/year
+    formula: "annual_heat_demand_new_buildings / $heating_efficiency"
+  
+  - id: heating_emissions
+    unit: tCO2e/year
+    formula: "final_energy_heating * $ef_fuel / 1000"
+  
+  state_variables:
+  - id: cumulative_construction_emissions
+    unit: tCO2e
+    accumulation: cumulative
+    inflow: construction_emissions_annual
+  
+  - id: construction_emissions_annual
+    unit: tCO2e/year
+    formula: "new_floor_area * $construction_ef / 1000"
+  
+  emission_outputs:
+  - id: upstream_construction
+    formula: "construction_emissions_annual"
+    classification:
+      bisko: false
+      upstream: true
+      one_time_per_building: true
+  
+  - id: operational_heating
+    formula: "heating_emissions"
+    classification:
+      bisko: true
+      upstream: false
+
+- id: vehicle_fleet_electrification_model
+  description: "Replacement of combustion vehicles with electric vehicles"
+  
+  state_variables:
+  - id: ev_count
+    unit: vehicles
+    initial_value: 0
+    accumulation: stock
+    inflow: new_ev_purchases
+    outflow: ev_retirements
+  
+  - id: ice_count
+    unit: vehicles
+    initial_value: user_input
+    accumulation: stock
+    inflow: new_ice_purchases
+    outflow: ice_retirements
+  
+  flow_variables:
+  - id: ice_fuel_consumption
+    unit: liters/year
+    formula: "ice_count * $annual_mileage * $fuel_consumption_per_100km / 100"
+  
+  - id: ev_electricity_consumption
+    unit: kWh/year
+    formula: "ev_count * $annual_mileage * $electricity_consumption_per_100km / 100"
+  
+  - id: ice_emissions
+    unit: tCO2e/year
+    formula: "ice_fuel_consumption * $ef_fuel / 1000"
+  
+  - id: ev_emissions
+    unit: tCO2e/year
+    formula: "ev_electricity_consumption * $ef_grid / 1000"
+  
+  - id: total_fleet_emissions
+    unit: tCO2e/year
+    formula: "ice_emissions + ev_emissions"
+  
+  derived_variables:
+  - id: emissions_within_territory
+    unit: tCO2e/year
+    formula: "total_fleet_emissions * $share_within_municipality"
+  
+  - id: emissions_outside_territory
+    unit: tCO2e/year
+    formula: "total_fleet_emissions * (1 - $share_within_municipality)"
+  
+  emission_outputs:
+  - id: upstream_vehicles
+    formula: "(new_ev_purchases * $upstream_ev - new_ice_purchases * $upstream_ice) / 1000"
+    classification:
+      bisko: false
+      upstream: true
+      one_time_per_vehicle: true
+  
+  - id: operational_bisko
+    formula: "emissions_within_territory"
+    classification:
+      bisko: true
+      upstream: false
+  
+  - id: operational_non_bisko
+    formula: "emissions_outside_territory"
+    classification:
+      bisko: false
+      upstream: false
+
+- id: modal_shift_model
+  description: "Shift from car to sustainable transport modes"
+  
+  flow_variables:
+  - id: total_person_km
+    unit: person-km/year
+    formula: "persons * $avg_trip_distance * $trips_per_person_year"
+  
+  - id: person_km_by_mode
+    unit: person-km/year
+    by_mode: [car, public_transport, bike, walk]
+    formula: "total_person_km * modal_split[mode]"
+  
+  - id: emissions_by_mode
+    unit: tCO2e/year
+    formula: "person_km_by_mode[mode] * $emission_intensity[mode] / 1000000"
+  
+  - id: total_transport_emissions
+    unit: tCO2e/year
+    formula: "sum(emissions_by_mode)"
+  
+  derived_variables:
+  - id: emissions_within_territory
+    formula: "total_transport_emissions * $share_local_trips"
+  
+  - id: emissions_outside_territory
+    formula: "total_transport_emissions * (1 - $share_local_trips)"
+  
+  emission_outputs:
+  - id: operational_bisko
+    formula: "emissions_within_territory"
+    classification:
+      bisko: true
+      upstream: false
+  
+  - id: operational_non_bisko
+    formula: "emissions_outside_territory"
+    classification:
+      bisko: false
+      upstream: false
+
+- id: canteen_menu_conversion_model
+  description: "Conversion to climate-friendly food in canteens"
+  
+  flow_variables:
+  - id: annual_meals_served
+    unit: meals/year
+    formula: "persons * $meals_per_person_year"
+  
+  - id: emissions_per_meal_before
+    unit: kg CO2e/meal
+    formula: "$ef_meal_type_before"
+  
+  - id: emissions_per_meal_after
+    unit: kg CO2e/meal
+    formula: "$ef_meal_type_after"
+  
+  - id: total_emissions_before
+    unit: tCO2e/year
+    formula: "annual_meals_served * emissions_per_meal_before / 1000"
+  
+  - id: total_emissions_after
+    unit: tCO2e/year
+    formula: "annual_meals_served * emissions_per_meal_after / 1000"
+  
+  - id: emissions_reduced
+    unit: tCO2e/year
+    formula: "total_emissions_before - total_emissions_after"
+  
+  derived_variables:
+  - id: emissions_from_local_agriculture
+    formula: "total_emissions_before * $local_food_share"
+  
+  - id: emissions_from_imported_food
+    formula: "total_emissions_before * (1 - $local_food_share)"
+  
+  emission_outputs:
+  - id: operational_bisko
+    formula: "emissions_reduced * $local_food_share_after"
+    classification:
+      bisko: true
+      upstream: false
+      note: "Only local agriculture portion"
+  
+  - id: operational_non_bisko
+    formula: "emissions_reduced * (1 - $local_food_share_after)"
+    classification:
+      bisko: false
+      upstream: false
+      note: "Food produced elsewhere - appears in other BISKO inventories"
+
+- id: tree_planting_sequestration_model
+  description: "Carbon sequestration through tree planting"
+  
+  state_variables:
+  - id: trees_by_age_class
+    unit: count
+    by_age: [0-10, 10-20, 20-40, 40-60, 60+]
+    accumulation: aging_chain
+  
+  flow_variables:
+  - id: annual_sequestration
+    unit: tCO2e/year
+    formula: "sum(trees_by_age[age] * $sequestration_rate[age]) / 1000"
+    note: "Sequestration increases as trees mature"
+  
+  emission_outputs:
+  - id: upstream_planting
+    formula: "new_trees_planted * $upstream_planting / 1000"
+    classification:
+      bisko: false
+      upstream: true
+      one_time: true
+  
+  - id: carbon_sequestration
+    formula: "annual_sequestration"
+    classification:
+      bisko: false
+      note: "Nature-based removal, not yet in standard BISKO"
+      permanence_risk: medium
+
+- id: organic_soil_rewetting_model
+  description: "Rewetting of drained organic soils to reduce emissions"
+  
+  flow_variables:
+  - id: area_rewetted
+    unit: ha
+    source: user_input
+  
+  - id: emissions_before_drained
+    unit: tCO2e/year
+    formula: "area_rewetted * $emission_factor_drained_soil"
+  
+  - id: emissions_after_rewetted
+    unit: tCO2e/year
+    formula: "area_rewetted * $emission_factor_rewetted_soil"
+  
+  - id: emissions_reduced
+    unit: tCO2e/year
+    formula: "emissions_before - emissions_after"
+  
+  emission_outputs:
+  - id: operational_reduction
+    formula: "emissions_reduced"
+    classification:
+      bisko: false
+      note: "Land use emissions - future BISKO extension"
+
+- id: afforestation_model
+  description: "Afforestation of open spaces for carbon sequestration"
+  
+  state_variables:
+  - id: forest_area_by_age
+    unit: ha
+    by_age: [0-10, 10-20, 20-40, 40+]
+    accumulation: aging_chain
+  
+  flow_variables:
+  - id: annual_sequestration
+    unit: tCO2e/year
+    formula: "sum(forest_area_by_age[age] * $sequestration_rate_forest[age])"
+  
+  emission_outputs:
+  - id: carbon_sequestration
+    formula: "annual_sequestration"
+    classification:
+      bisko: false
+      note: "Nature-based removal, not yet in BISKO"
+
+- id: waste_avoidance_model
+  description: "Reduction of residual waste generation"
+  
+  flow_variables:
+  - id: residual_waste_generated
+    unit: tonnes/year
+    formula: "population * $waste_per_capita"
+  
+  - id: waste_treatment_emissions
+    unit: tCO2e/year
+    formula: "residual_waste_generated * $ef_waste_treatment"
+  
+  - id: avoided_production_emissions
+    unit: tCO2e/year
+    formula: "residual_waste_generated * $ef_avoided_production"
+    note: "Emissions avoided by not producing the products that became waste"
+  
+  emission_outputs:
+  - id: operational_bisko
+    formula: "waste_treatment_emissions"
+    classification:
+      bisko: true
+      note: "Local waste treatment"
+  
+  - id: operational_non_bisko
+    formula: "avoided_production_emissions"
+    classification:
+      bisko: false
+      note: "Production mostly elsewhere"
+
+- id: water_consumption_reduction_model
+  description: "Reduction of water and wastewater"
+  
+  flow_variables:
+  - id: water_consumption
+    unit: m³/year
+    formula: "population * $water_per_capita"
+  
+  - id: water_supply_energy
+    unit: kWh/year
+    formula: "water_consumption * $energy_water_supply_per_m3"
+  
+  - id: wastewater_treatment_energy
+    unit: kWh/year
+    formula: "water_consumption * $energy_wastewater_treatment_per_m3"
+  
+  - id: total_energy
+    unit: kWh/year
+    formula: "water_supply_energy + wastewater_treatment_energy"
+  
+  - id: emissions
+    unit: tCO2e/year
+    formula: "total_energy * $ef_grid / 1000"
+  
+  emission_outputs:
+  - id: operational_bisko
+    formula: "emissions"
+    classification:
+      bisko: true
+      note: "Energy for local water/wastewater treatment"
+
+- id: paper_consumption_model
+  description: "Switch to recycled paper or reduction"
+  
+  flow_variables:
+  - id: paper_consumed
+    unit: tonnes/year
+    source: user_input
+  
+  - id: emissions_before
+    unit: tCO2e/year
+    formula: "paper_consumed * $ef_virgin_paper"
+  
+  - id: emissions_after
+    unit: tCO2e/year
+    formula: "paper_consumed * $ef_recycled_paper"
+  
+  - id: emissions_reduced
+    unit: tCO2e/year
+    formula: "emissions_before - emissions_after"
+  
+  emission_outputs:
+  - id: operational_non_bisko
+    formula: "emissions_reduced"
+    classification:
+      bisko: false
+      note: "Paper production elsewhere"
+
+
+# ============================================
+# DIRECT MEASURES - ELECTRICITY (Table 32)
+# ============================================
+direct_measures:
+
+# ----- Electricity Generation -----
+- id: DS1
+  name_de: "Stromerzeugung – Photovoltaik"
+  name_en: "Electricity Generation – Photovoltaics"
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+  
+  bau_model_ref: pv_generation_model
+  
+  intervention:
+    description: "Installation of photovoltaic rooftop systems on municipal buildings"
+    parameter_changes:
+    - target: new_installations
+      mechanism: "Direct municipal investment"
+      value_source: user_input
+      input_id: capacity_kwp
+    temporal_pattern:
+      type: one_time
+      note: "Capacity added once, generates for lifetime"
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+    attribution: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "grid_displacement_emissions_avoided"
+      unit: tCO2e/year
+    - id: lifetime_ghg_reduction
+      formula: "annual_ghg_reduction * $lifetime_pv * $grid_decarbonization_factor"
+      unit: tCO2e
+    breakdown:
+      bisko_share: 0.0
+      non_bisko_share: 1.0
+      operational: "grid_displacement_emissions_avoided"
+      upstream: "upstream_pv_production"
+    metadata:
+      uncertainty: "±15%"
+      climate_payback_formula: "upstream_pv_production / annual_ghg_reduction"
+  
+  user_inputs:
+  - id: capacity_kwp
+    label_de: "Installierte PV-Leistung"
+    label_en: "Installed PV capacity"
+    type: number
+    unit: kWp
+    required: true
+    validation: {min: 0}
+  - id: installation_year
+    label_de: "Jahr der Installation"
+    label_en: "Installation year"
+    type: year
+    required: true
+  
+  parameters_required:
+  - irradiation
+  - performance_ratio
+  - ef_displacement
+  - upstream_pv
+  - lifetime_pv
+  - grid_decarbonization_factor
+
+- id: DS2
+  name_de: "Stromerzeugung – Windkraft"
+  name_en: "Electricity Generation – Wind Power"
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+  
+  bau_model_ref: wind_generation_model
+  
+  intervention:
+    description: "Installation of wind turbines"
+    parameter_changes:
+    - target: new_installations
+      mechanism: "Direct municipal investment or municipal utility"
+      value_source: user_input
+      input_id: capacity_kw
+    temporal_pattern:
+      type: one_time
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "grid_displacement_emissions_avoided"
+      unit: tCO2e/year
+    - id: lifetime_ghg_reduction
+      formula: "annual_ghg_reduction * $lifetime_wind * $grid_decarbonization_factor"
+      unit: tCO2e
+    breakdown:
+      bisko_share: 0.0
+      non_bisko_share: 1.0
+      operational: "grid_displacement_emissions_avoided"
+      upstream: "upstream_wind_production"
+    metadata:
+      uncertainty: "±20%"
+  
+  user_inputs:
+  - id: capacity_kw
+    label_de: "Installierte Windkraftleistung"
+    label_en: "Installed wind power capacity"
+    type: number
+    unit: kW
+    required: true
+    validation: {min: 0}
+  - id: installation_year
+    type: year
+    required: true
+  
+  parameters_required:
+  - full_load_hours_wind
+  - ef_displacement
+  - upstream_wind
+  - lifetime_wind
+  - grid_decarbonization_factor
+
+- id: DS3
+  name_de: "Stromerzeugung – Wasserkraft"
+  name_en: "Electricity Generation – Hydropower"
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+  
+  bau_model_ref: renewable_generation_generic_model
+  
+  intervention:
+    description: "Installation or upgrade of hydropower plant"
+    parameter_changes:
+    - target: new_installations
+      value_source: user_input
+      input_id: capacity_kw
+    temporal_pattern:
+      type: one_time
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "grid_displacement_emissions_avoided"
+      unit: tCO2e/year
+    - id: lifetime_ghg_reduction
+      formula: "annual_ghg_reduction * $lifetime_hydro * $grid_decarbonization_factor"
+      unit: tCO2e
+    breakdown:
+      bisko_share: 0.0
+      non_bisko_share: 1.0
+      operational: "grid_displacement_emissions_avoided"
+      upstream: "upstream_plant_production"
+  
+  user_inputs:
+  - id: capacity_kw
+    label_de: "Installierte Wasserkraftleistung"
+    label_en: "Installed hydropower capacity"
+    type: number
+    unit: kW
+    required: true
+  - id: installation_year
+    type: year
+    required: true
+  
+  parameters_required:
+  - full_load_hours_hydro
+  - ef_displacement
+  - upstream_hydro
+  - lifetime_hydro
+  - grid_decarbonization_factor
+
+- id: DS4
+  name_de: "Stromerzeugung – Geothermie"
+  name_en: "Electricity Generation – Geothermal"
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+  
+  bau_model_ref: renewable_generation_generic_model
+  
+  intervention:
+    description: "Installation of geothermal power plant"
+    parameter_changes:
+    - target: new_installations
+      value_source: user_input
+      input_id: capacity_kw
+    temporal_pattern:
+      type: one_time
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "grid_displacement_emissions_avoided"
+      unit: tCO2e/year
+    - id: lifetime_ghg_reduction
+      formula: "annual_ghg_reduction * $lifetime_geothermal * $grid_decarbonization_factor"
+      unit: tCO2e
+    breakdown:
+      bisko_share: 0.0
+      non_bisko_share: 1.0
+      operational: "grid_displacement_emissions_avoided"
+      upstream: "upstream_plant_production"
+  
+  user_inputs:
+  - id: capacity_kw
+    label_de: "Installierte Geothermieleistung"
+    label_en: "Installed geothermal capacity"
+    type: number
+    unit: kW
+    required: true
+  - id: installation_year
+    type: year
+    required: true
+  
+  parameters_required:
+  - full_load_hours_geothermal
+  - ef_displacement
+  - upstream_geothermal
+  - lifetime_geothermal
+  - grid_decarbonization_factor
+
+- id: DS5
+  name_de: "Stromerzeugung Heizkraftwerke (inkl. KWK)"
+  name_en: "Electricity Generation Combined Heat and Power Plants"
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+  
+  bau_model_ref: chp_generation_model
+  
+  intervention:
+    description: "Installation or fuel conversion of CHP plant"
+    parameter_changes:
+    - target: fuel_type
+      mechanism: "Switch to lower-emission fuel"
+      value_source: user_input
+      input_id: fuel_type_new
+    temporal_pattern:
+      type: one_time
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "electricity_emissions_allocated_before - electricity_emissions_allocated_after"
+      unit: tCO2e/year
+      note: "Exergy-allocated to electricity portion"
+    breakdown:
+      bisko_share: 1.0
+      note: "CHP emissions allocated exergetically in BISKO"
+  
+  user_inputs:
+  - id: electricity_output_kwh_year
+    label_de: "Jährliche Stromerzeugung"
+    label_en: "Annual electricity generation"
+    type: number
+    unit: kWh/year
+    required: true
+  - id: heat_output_kwh_year
+    label_de: "Jährliche Wärmeerzeugung"
+    label_en: "Annual heat generation"
+    type: number
+    unit: kWh/year
+    required: true
+  - id: fuel_type_before
+    type: choice
+    choices: [natural_gas, biomass, biogas, waste]
+  - id: fuel_type_after
+    type: choice
+    choices: [natural_gas, biomass, biogas, waste]
+  
+  parameters_required:
+  - efficiency_heat
+  - efficiency_electricity
+  - ef_fuel
+  - exergy_electricity
+  - exergy_heat
+
+- id: DS6
+  name_de: "Strombezug – Ökostrom"
+  name_en: "Electricity Supply – Green Electricity"
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+  
+  bau_model_ref: green_electricity_procurement_model
+  
+  intervention:
+    description: "Switch to green electricity tariff with additionality guarantee"
+    parameter_changes:
+    - target: green_tariff_active
+      value_source: user_input
+      input_id: has_additionality_guarantee
+    temporal_pattern:
+      type: ongoing
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_avoided_through_additionality"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 0.0
+      non_bisko_share: 1.0
+      note: "Only counted if tariff has proven additionality (new capacity)"
+  
+  user_inputs:
+  - id: electricity_consumption_kwh_year
+    label_de: "Jährlicher Stromverbrauch"
+    label_en: "Annual electricity consumption"
+    type: number
+    unit: kWh/year
+    required: true
+  - id: has_additionality_guarantee
+    label_de: "Tarif garantiert Zusätzlichkeit"
+    label_en: "Tariff guarantees additionality"
+    type: boolean
+    required: true
+    note: "If false, GHG reduction = 0"
+  
+  parameters_required:
+  - green_tariff_additionality_factor
+  - ef_displacement
+
+# ----- Street and Building Lighting -----
+- id: DS7
+  name_de: "Stromverbrauch – Umstellung Straßenbeleuchtung"
+  name_en: "Electricity Consumption – Street Lighting Conversion"
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+  
+  bau_model_ref: lighting_efficiency_model
+  
+  intervention:
+    description: "Replacement of street lighting with LED and control systems"
+    parameter_changes:
+    - target: power_after
+      value_source: user_input
+    temporal_pattern:
+      type: one_time
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+      non_bisko_share: 0.0
+      operational: "emissions_reduced"
+      upstream: "upstream_led_net"
+  
+  user_inputs:
+  - id: number_of_lights
+    label_de: "Anzahl Leuchten"
+    label_en: "Number of lights"
+    type: number
+    unit: count
+    required: true
+  - id: power_before_w
+    label_de: "Leistung vorher (W)"
+    label_en: "Power before (W)"
+    type: number
+    unit: W
+    required: true
+  - id: power_after_w
+    label_de: "Leistung nachher (W)"
+    label_en: "Power after (W)"
+    type: number
+    unit: W
+    required: true
+  - id: has_control_system
+    label_de: "Mit Regelungssystem"
+    label_en: "With control system"
+    type: boolean
+    default: false
+  
+  parameters_required:
+  - operating_hours_street_lighting
+  - control_system_savings
+  - ef_grid
+  - upstream_led
+  - upstream_old_lamp
+  - lifetime_led
+
+- id: DS8
+  name_de: "Stromverbrauch – Umstellung Beleuchtung (Büro)"
+  name_en: "Electricity Consumption – Lighting Conversion (Office)"
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+  
+  bau_model_ref: lighting_efficiency_model
+  
+  intervention:
+    description: "Replacement of office lighting with LED"
+    parameter_changes:
+    - target: power_after
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+  
+  user_inputs:
+  - id: number_of_lights
+    label_de: "Anzahl Leuchten"
+    label_en: "Number of lights"
+    type: number
+    unit: count
+    required: true
+  - id: power_before_w
+    type: number
+    unit: W
+    required: true
+  - id: power_after_w
+    type: number
+    unit: W
+    required: true
+  
+  parameters_required:
+  - operating_hours_office
+  - ef_grid
+  - upstream_led
+  - upstream_old_lamp
+  - lifetime_led
+
+- id: DS9
+  name_de: "Stromverbrauch – Umstellung Beleuchtung (Sporthallen)"
+  name_en: "Electricity Consumption – Lighting Conversion (Sports Halls)"
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+  
+  bau_model_ref: lighting_efficiency_model
+  
+  intervention:
+    description: "Replacement of sports hall lighting with LED"
+    parameter_changes:
+    - target: power_after
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+  
+  user_inputs:
+  - id: number_of_lights
+    type: number
+    unit: count
+    required: true
+  - id: power_before_w
+    type: number
+    unit: W
+    required: true
+  - id: power_after_w
+    type: number
+    unit: W
+    required: true
+  
+  parameters_required:
+  - operating_hours_sports_hall
+  - ef_grid
+  - upstream_led
+  - upstream_old_lamp
+  - lifetime_led
+
+- id: DS10
+  name_de: "Stromverbrauch – Umstellung Beleuchtung (Sportplätze)"
+  name_en: "Electricity Consumption – Lighting Conversion (Sports Fields)"
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+  
+  bau_model_ref: lighting_efficiency_model
+  
+  intervention:
+    description: "Replacement of sports field lighting with LED"
+    parameter_changes:
+    - target: power_after
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+  
+  user_inputs:
+  - id: number_of_lights
+    type: number
+    unit: count
+    required: true
+  - id: power_before_w
+    type: number
+    unit: W
+    required: true
+  - id: power_after_w
+    type: number
+    unit: W
+    required: true
+  
+  parameters_required:
+  - operating_hours_sports_field
+  - ef_grid
+  - upstream_led
+  - upstream_old_lamp
+  - lifetime_led
+
+- id: DS11
+  name_de: "Stromverbrauch – Verhaltensänderungen Gewerbe/Verwaltung"
+  name_en: "Electricity Consumption – Behavioral Changes Commercial/Administration"
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+  
+  bau_model_ref: electricity_behavioral_savings_model
+  
+  intervention:
+    description: "Behavioral changes in electricity use (lighting, devices, HVAC)"
+    parameter_changes:
+    - target: behavioral_savings_rate
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+      upstream: 0
+      note: "Pure behavioral change, no upstream emissions"
+  
+  user_inputs:
+  - id: baseline_electricity_kwh_year
+    label_de: "Ausgangsstromverbrauch"
+    label_en: "Baseline electricity consumption"
+    type: number
+    unit: kWh/year
+    required: true
+  - id: savings_rate_percent
+    label_de: "Erwartete Einsparungsrate"
+    label_en: "Expected savings rate"
+    type: percentage
+    required: true
+    default_parameter: behavioral_savings_rate_admin
+    validation: {min: 0, max: 0.30}
+  
+  parameters_required:
+  - behavioral_savings_rate_admin
+  - ef_grid
+
+- id: DS12
+  name_de: "Stromverbrauch – Effizienz und Verhaltensmaßnahmen private Haushalte"
+  name_en: "Electricity Consumption – Efficiency and Behavioral Measures Private Households"
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+  
+  bau_model_ref: electricity_behavioral_savings_model
+  
+  intervention:
+    description: "Behavioral changes in household electricity use"
+    parameter_changes:
+    - target: behavioral_savings_rate
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+  
+  user_inputs:
+  - id: baseline_electricity_kwh_year
+    type: number
+    unit: kWh/year
+    required: true
+  - id: savings_rate_percent
+    type: percentage
+    required: true
+    default_parameter: behavioral_savings_rate_households
+    validation: {min: 0, max: 0.25}
+  
+  parameters_required:
+  - behavioral_savings_rate_households
+  - ef_grid
+
+- id: DS13
+  name_de: "Stromverbrauch – Gering- und nicht-investive Maßnahmen Gewerbe/Verwaltung (Einzelmaßnahmen)"
+  name_en: "Electricity Consumption – Low and Non-Investment Measures Commercial/Administration (Individual Measures)"
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+  
+  bau_model_ref: electricity_efficiency_investment_model
+  
+  intervention:
+    description: "Low-cost efficiency investments (motion sensors, power strips, timers)"
+    parameter_changes:
+    - target: efficiency_savings_rate
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+      upstream: "upstream_devices"
+  
+  user_inputs:
+  - id: baseline_electricity_kwh_year
+    type: number
+    unit: kWh/year
+    required: true
+  - id: savings_rate_percent
+    type: percentage
+    required: true
+    default_parameter: low_investment_savings_rate_admin
+    validation: {min: 0, max: 0.20}
+  
+  parameters_required:
+  - low_investment_savings_rate_admin
+  - ef_grid
+  - upstream_devices_per_kwh
+
+- id: DS14
+  name_de: "Stromverbrauch – Gering- und nicht-investive Maßnahmen Gewerbe/Verwaltung (alle Bereiche)"
+  name_en: "Electricity Consumption – Low and Non-Investment Measures Commercial/Administration (All Areas)"
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+  
+  bau_model_ref: electricity_efficiency_investment_model
+  
+  intervention:
+    description: "Comprehensive low-cost efficiency program across all administrative areas"
+    parameter_changes:
+    - target: efficiency_savings_rate
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+  
+  user_inputs:
+  - id: baseline_electricity_kwh_year
+    type: number
+    unit: kWh/year
+    required: true
+  - id: savings_rate_percent
+    type: percentage
+    required: true
+    default_parameter: low_investment_savings_rate_admin_comprehensive
+  
+  parameters_required:
+  - low_investment_savings_rate_admin_comprehensive
+  - ef_grid
+  - upstream_devices_per_kwh
+
+- id: DS15
+  name_de: "Stromverbrauch – Gering- und nicht-investive Maßnahmen Haushalte"
+  name_en: "Electricity Consumption – Low and Non-Investment Measures Households"
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+  
+  bau_model_ref: electricity_efficiency_investment_model
+  
+  intervention:
+    description: "Low-cost efficiency measures in households"
+    parameter_changes:
+    - target: efficiency_savings_rate
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+  
+  user_inputs:
+  - id: baseline_electricity_kwh_year
+    type: number
+    unit: kWh/year
+    required: true
+  - id: savings_rate_percent
+    type: percentage
+    required: true
+    default_parameter: low_investment_savings_rate_households
+  
+  parameters_required:
+  - low_investment_savings_rate_households
+  - ef_grid
+  - upstream_devices_per_kwh
+
+- id: DS16
+  name_de: "Stromverbrauch – Raumlufttechnischen Anlagen"
+  name_en: "Electricity Consumption – Air Conditioning Systems"
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+  
+  bau_model_ref: electricity_efficiency_investment_model
+  
+  intervention:
+    description: "Replacement with energy-efficient HVAC systems"
+    parameter_changes:
+    - target: efficiency_savings_rate
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+      upstream: "upstream_devices"
+  
+  user_inputs:
+  - id: baseline_electricity_kwh_year
+    label_de: "Stromverbrauch RLT-Anlagen"
+    label_en: "HVAC electricity consumption"
+    type: number
+    unit: kWh/year
+    required: true
+  - id: savings_rate_percent
+    type: percentage
+    required: true
+    default_parameter: hvac_efficiency_improvement
+  
+  parameters_required:
+  - hvac_efficiency_improvement
+  - ef_grid
+  - upstream_hvac_per_kwh
+
+- id: DS17
+  name_de: "Stromverbrauch – Energieeffizienz Rechenzentren"
+  name_en: "Electricity Consumption – Energy Efficiency Data Centers"
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+  
+  bau_model_ref: electricity_efficiency_investment_model
+  
+  intervention:
+    description: "Energy efficiency improvements in data centers (cooling, ventilation, dehumidification)"
+    parameter_changes:
+    - target: efficiency_savings_rate
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+  
+  user_inputs:
+  - id: baseline_electricity_kwh_year
+    label_de: "Stromverbrauch Rechenzentrum"
+    label_en: "Data center electricity consumption"
+    type: number
+    unit: kWh/year
+    required: true
+  - id: savings_rate_percent
+    type: percentage
+    required: true
+    default_parameter: datacenter_efficiency_improvement
+  
+  parameters_required:
+  - datacenter_efficiency_improvement
+  - ef_grid
+  - upstream_datacenter_equipment
+
+- id: DS18
+  name_de: "Stromverbrauch – Effiziente Geräte für Information, Kommunikation, Technik Gewerbe"
+  name_en: "Electricity Consumption – Efficient Devices for ICT Commercial"
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+  
+  bau_model_ref: electricity_efficiency_investment_model
+  
+  intervention:
+    description: "Replacement of IT equipment with energy-efficient devices"
+    parameter_changes:
+    - target: efficiency_savings_rate
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+      upstream: "upstream_devices"
+  
+  user_inputs:
+  - id: baseline_electricity_kwh_year
+    label_de: "Stromverbrauch IT-Geräte"
+    label_en: "IT equipment electricity consumption"
+    type: number
+    unit: kWh/year
+    required: true
+  - id: savings_rate_percent
+    type: percentage
+    required: true
+    default_parameter: ict_efficiency_improvement_commercial
+  
+  parameters_required:
+  - ict_efficiency_improvement_commercial
+  - ef_grid
+  - upstream_ict_devices
+
+- id: DS19
+  name_de: "Stromverbrauch – Effiziente Geräte für Information, Kommunikation, Technik Haushalte"
+  name_en: "Electricity Consumption – Efficient Devices for ICT Households"
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+  
+  bau_model_ref: electricity_efficiency_investment_model
+  
+  intervention:
+    description: "Replacement of household IT equipment with energy-efficient devices"
+    parameter_changes:
+    - target: efficiency_savings_rate
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+  
+  user_inputs:
+  - id: baseline_electricity_kwh_year
+    type: number
+    unit: kWh/year
+    required: true
+  - id: savings_rate_percent
+    type: percentage
+    required: true
+    default_parameter: ict_efficiency_improvement_households
+  
+  parameters_required:
+  - ict_efficiency_improvement_households
+  - ef_grid
+  - upstream_ict_devices
+
+
+# ============================================
+# DIRECT MEASURES - HEAT (Table 33)
+# ============================================
+
+- id: DW1
+  name_de: "Klimafreundliche Wärmeerzeugung (dezentral) Gewerbe/Verwaltung"
+  name_en: "Climate-Friendly Heat Generation (Decentralized) Commercial/Administration"
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+  
+  bau_model_ref: decentralized_heating_replacement_model
+  
+  intervention:
+    description: "Replacement of fossil heating with climate-friendly system (e.g., heat pump)"
+    parameter_changes:
+    - target: efficiency_after
+      value_source: user_input
+    - target: ef_fuel_after
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+      operational: "emissions_reduced"
+      upstream: "upstream_heating_system"
+      splits:
+        direct_combustion: "emissions_before * $direct_combustion_share"
+        fuel_upstream: "emissions_before * (1 - $direct_combustion_share)"
+  
+  user_inputs:
+  - id: heat_demand_kwh_year
+    label_de: "Jährlicher Wärmebedarf"
+    label_en: "Annual heat demand"
+    type: number
+    unit: kWh/year
+    required: true
+  - id: fuel_type_before
+    label_de: "Energieträger vorher"
+    label_en: "Fuel type before"
+    type: choice
+    choices: [natural_gas, heating_oil, electricity_direct, coal, biomass]
+    required: true
+  - id: heating_system_after
+    label_de: "Heizsystem nachher"
+    label_en: "Heating system after"
+    type: choice
+    choices: [air_source_heat_pump, ground_source_heat_pump, biomass_boiler, pellet_boiler, solar_thermal_plus_backup]
+    required: true
+  
+  parameters_required:
+  - efficiency_before
+  - efficiency_after
+  - ef_fuel_before
+  - ef_fuel_after
+  - upstream_heating_system_new
+  - upstream_heating_system_old
+  - direct_combustion_share
+  - lifetime_heating_system
+
+- id: DW2
+  name_de: "Klimafreundliche Wärmeerzeugung (dezentral) Haushalte"
+  name_en: "Climate-Friendly Heat Generation (Decentralized) Households"
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+  
+  bau_model_ref: decentralized_heating_replacement_model
+  
+  intervention:
+    description: "Household heating replacement with climate-friendly system"
+    parameter_changes:
+    - target: efficiency_after
+      value_source: user_input
+    - target: ef_fuel_after
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+  
+  user_inputs:
+  - id: heat_demand_kwh_year
+    type: number
+    unit: kWh/year
+    required: true
+  - id: fuel_type_before
+    type: choice
+    choices: [natural_gas, heating_oil, electricity_direct, coal, biomass]
+    required: true
+  - id: heating_system_after
+    type: choice
+    choices: [air_source_heat_pump, ground_source_heat_pump, biomass_boiler, pellet_boiler, solar_thermal_plus_backup]
+    required: true
+  
+  parameters_required:
+  - efficiency_before
+  - efficiency_after
+  - ef_fuel_before
+  - ef_fuel_after
+  - upstream_heating_system_new
+  - upstream_heating_system_old
+  - lifetime_heating_system
+
+- id: DW3
+  name_de: "Klimafreundliche Wärmeerzeugung (dezentral-zentral) Gewerbe/Verwaltung"
+  name_en: "Climate-Friendly Heat Generation (Decentralized-Centralized) Commercial/Administration"
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+  
+  bau_model_ref: district_heating_connection_model
+  
+  intervention:
+    description: "Connection to district heating network"
+    parameter_changes:
+    - target: heating_source
+      mechanism: "Switch from individual heating to district heating"
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+      note: "Local DH emission factor used in BISKO"
+  
+  user_inputs:
+  - id: heat_demand_kwh_year
+    type: number
+    unit: kWh/year
+    required: true
+  - id: fuel_type_before
+    type: choice
+    choices: [natural_gas, heating_oil, electricity_direct, coal]
+    required: true
+  - id: district_heating_emission_factor
+    label_de: "Emissionsfaktor Fernwärme (lokal)"
+    label_en: "District heating emission factor (local)"
+    type: number
+    unit: kg CO2e/kWh
+    required: true
+    note: "Use municipality-specific DH emission factor"
+  
+  parameters_required:
+  - efficiency_before
+  - ef_fuel_before
+  - upstream_district_heating_connection
+  - lifetime_district_heating_connection
+
+- id: DW4
+  name_de: "Klimafreundliche Wärmeerzeugung (dezentral-zentral) Haushalte"
+  name_en: "Climate-Friendly Heat Generation (Decentralized-Centralized) Households"
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+  
+  bau_model_ref: district_heating_connection_model
+  
+  intervention:
+    description: "Household connection to district heating network"
+    parameter_changes:
+    - target: heating_source
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+  
+  user_inputs:
+  - id: heat_demand_kwh_year
+    type: number
+    unit: kWh/year
+    required: true
+  - id: fuel_type_before
+    type: choice
+    choices: [natural_gas, heating_oil, electricity_direct, coal]
+    required: true
+  - id: district_heating_emission_factor
+    type: number
+    unit: kg CO2e/kWh
+    required: true
+  
+  parameters_required:
+  - efficiency_before
+  - ef_fuel_before
+  - upstream_district_heating_connection
+  - lifetime_district_heating_connection
+
+- id: DW5
+  name_de: "Wärmeverbrauch – Verhaltensänderungen Gewerbe/Verwaltung"
+  name_en: "Heat Consumption – Behavioral Changes Commercial/Administration"
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+  
+  bau_model_ref: electricity_behavioral_savings_model
+  
+  intervention:
+    description: "Behavioral changes in heating (lower temperature, proper ventilation)"
+    parameter_changes:
+    - target: behavioral_savings_rate
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+      upstream: 0
+  
+  user_inputs:
+  - id: baseline_heat_kwh_year
+    label_de: "Ausgangswärmeverbrauch"
+    label_en: "Baseline heat consumption"
+    type: number
+    unit: kWh/year
+    required: true
+  - id: fuel_type
+    type: choice
+    choices: [natural_gas, heating_oil, district_heating, electricity]
+    required: true
+  - id: savings_rate_percent
+    type: percentage
+    required: true
+    default_parameter: behavioral_heat_savings_admin
+  
+  parameters_required:
+  - behavioral_heat_savings_admin
+  - ef_fuel
+  - heating_efficiency
+
+- id: DW6
+  name_de: "Wärmeverbrauch – Verhaltensänderungen private Haushalte"
+  name_en: "Heat Consumption – Behavioral Changes Private Households"
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+  
+  bau_model_ref: electricity_behavioral_savings_model
+  
+  intervention:
+    description: "Behavioral changes in household heating"
+    parameter_changes:
+    - target: behavioral_savings_rate
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+  
+  user_inputs:
+  - id: baseline_heat_kwh_year
+    type: number
+    unit: kWh/year
+    required: true
+  - id: fuel_type
+    type: choice
+    choices: [natural_gas, heating_oil, district_heating, electricity]
+    required: true
+  - id: savings_rate_percent
+    type: percentage
+    required: true
+    default_parameter: behavioral_heat_savings_households
+  
+  parameters_required:
+  - behavioral_heat_savings_households
+  - ef_fuel
+  - heating_efficiency
+
+- id: DW7
+  name_de: "Wärmeverbrauch – Gering- und nicht-investive Maßnahmen Gewerbe/Verwaltung"
+  name_en: "Heat Consumption – Low and Non-Investment Measures Commercial/Administration"
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+  
+  bau_model_ref: electricity_efficiency_investment_model
+  
+  intervention:
+    description: "Low-cost heating efficiency measures (distribution, DHW, controls, boiler)"
+    parameter_changes:
+    - target: efficiency_savings_rate
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+  
+  user_inputs:
+  - id: baseline_heat_kwh_year
+    type: number
+    unit: kWh/year
+    required: true
+  - id: fuel_type
+    type: choice
+    choices: [natural_gas, heating_oil, district_heating]
+    required: true
+  - id: savings_rate_percent
+    type: percentage
+    required: true
+    default_parameter: low_investment_heat_savings_admin
+  
+  parameters_required:
+  - low_investment_heat_savings_admin
+  - ef_fuel
+  - upstream_heat_controls
+
+- id: DW8
+  name_de: "Wärmeverbrauch – Gering- und nicht-investive Maßnahmen private Haushalte"
+  name_en: "Heat Consumption – Low and Non-Investment Measures Private Households"
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+  
+  bau_model_ref: electricity_efficiency_investment_model
+  
+  intervention:
+    description: "Low-cost heating efficiency in households"
+    parameter_changes:
+    - target: efficiency_savings_rate
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+  
+  user_inputs:
+  - id: baseline_heat_kwh_year
+    type: number
+    unit: kWh/year
+    required: true
+  - id: fuel_type
+    type: choice
+    choices: [natural_gas, heating_oil, district_heating]
+    required: true
+  - id: savings_rate_percent
+    type: percentage
+    required: true
+    default_parameter: low_investment_heat_savings_households
+  
+  parameters_required:
+  - low_investment_heat_savings_households
+  - ef_fuel
+  - upstream_heat_controls
+
+- id: DW9
+  name_de: "Gebäude – Sanierung und Heizungstausch eines Verwaltungsgebäudes"
+  name_en: "Building – Renovation and Heating Replacement of Administrative Building"
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+  
+  bau_model_ref: building_renovation_plus_heating_model
+  
+  intervention:
+    description: "Comprehensive renovation with heating system replacement"
+    parameter_changes:
+    - target: heat_intensity_after
+      value_source: user_input
+    - target: heating_system_after
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+      operational: "emissions_reduced"
+      upstream: "upstream_renovation_and_heating"
+      contribution_by_approach:
+        efficiency: "efficiency_contribution"
+        sufficiency: "sufficiency_contribution"
+  
+  user_inputs:
+  - id: building_area_m2
+    label_de: "Gebäudefläche"
+    label_en: "Building area"
+    type: number
+    unit: m²
+    required: true
+  - id: heat_intensity_before_kwh_m2_year
+    label_de: "Wärmebedarf vorher"
+    label_en: "Heat demand before"
+    type: number
+    unit: kWh/m²/year
+    required: true
+  - id: heat_intensity_after_kwh_m2_year
+    label_de: "Wärmebedarf nachher"
+    label_en: "Heat demand after"
+    type: number
+    unit: kWh/m²/year
+    required: true
+  - id: fuel_type_before
+    type: choice
+    choices: [natural_gas, heating_oil, district_heating, electricity]
+    required: true
+  - id: heating_system_after
+    type: choice
+    choices: [air_source_heat_pump, ground_source_heat_pump, district_heating, biomass_boiler]
+    required: true
+  
+  parameters_required:
+  - efficiency_before
+  - efficiency_after
+  - ef_fuel_before
+  - ef_fuel_after
+  - upstream_renovation_per_m2
+  - upstream_heating_system
+  - lifetime_renovation
+
+- id: DW10
+  name_de: "Gebäude – Sanierung und Heizungstausch eines Schulgebäudes"
+  name_en: "Building – Renovation and Heating Replacement of School Building"
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+  
+  bau_model_ref: building_renovation_plus_heating_model
+  
+  intervention:
+    description: "School building renovation with heating replacement"
+    parameter_changes:
+    - target: heat_intensity_after
+      value_source: user_input
+    - target: heating_system_after
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+  
+  user_inputs:
+  - id: building_area_m2
+    type: number
+    unit: m²
+    required: true
+  - id: heat_intensity_before_kwh_m2_year
+    type: number
+    unit: kWh/m²/year
+    required: true
+  - id: heat_intensity_after_kwh_m2_year
+    type: number
+    unit: kWh/m²/year
+    required: true
+  - id: fuel_type_before
+    type: choice
+    choices: [natural_gas, heating_oil, district_heating]
+    required: true
+  - id: heating_system_after
+    type: choice
+    choices: [air_source_heat_pump, ground_source_heat_pump, district_heating]
+    required: true
+  
+  parameters_required:
+  - efficiency_before
+  - efficiency_after
+  - ef_fuel_before
+  - ef_fuel_after
+  - upstream_renovation_per_m2
+  - upstream_heating_system
+  - lifetime_renovation
+
+- id: DW11
+  name_de: "Gebäude – Sanierung und Heizungstausch einer Kita"
+  name_en: "Building – Renovation and Heating Replacement of Kindergarten"
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+  
+  bau_model_ref: building_renovation_plus_heating_model
+  
+  intervention:
+    description: "Kindergarten renovation with heating replacement"
+    parameter_changes:
+    - target: heat_intensity_after
+      value_source: user_input
+    - target: heating_system_after
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+  
+  user_inputs:
+  - id: building_area_m2
+    type: number
+    unit: m²
+    required: true
+  - id: heat_intensity_before_kwh_m2_year
+    type: number
+    unit: kWh/m²/year
+    required: true
+  - id: heat_intensity_after_kwh_m2_year
+    type: number
+    unit: kWh/m²/year
+    required: true
+  - id: fuel_type_before
+    type: choice
+    choices: [natural_gas, heating_oil, district_heating]
+    required: true
+  - id: heating_system_after
+    type: choice
+    choices: [air_source_heat_pump, ground_source_heat_pump, district_heating]
+    required: true
+  
+  parameters_required:
+  - efficiency_before
+  - efficiency_after
+  - ef_fuel_before
+  - ef_fuel_after
+  - upstream_renovation_per_m2
+  - upstream_heating_system
+  - lifetime_renovation
+
+- id: DW12
+  name_de: "Gebäude – Sanierung und Heizungstausch einer Turnhalle"
+  name_en: "Building – Renovation and Heating Replacement of Gymnasium"
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+  
+  bau_model_ref: building_renovation_plus_heating_model
+  
+  intervention:
+    description: "Gymnasium renovation with heating replacement"
+    parameter_changes:
+    - target: heat_intensity_after
+      value_source: user_input
+    - target: heating_system_after
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+  
+  user_inputs:
+  - id: building_area_m2
+    type: number
+    unit: m²
+    required: true
+  - id: heat_intensity_before_kwh_m2_year
+    type: number
+    unit: kWh/m²/year
+    required: true
+  - id: heat_intensity_after_kwh_m2_year
+    type: number
+    unit: kWh/m²/year
+    required: true
+  - id: fuel_type_before
+    type: choice
+    choices: [natural_gas, heating_oil, district_heating]
+    required: true
+  - id: heating_system_after
+    type: choice
+    choices: [air_source_heat_pump, ground_source_heat_pump, district_heating]
+    required: true
+  
+  parameters_required:
+  - efficiency_before
+  - efficiency_after
+  - ef_fuel_before
+  - ef_fuel_after
+  - upstream_renovation_per_m2
+  - upstream_heating_system
+  - lifetime_renovation
+
+- id: DW13
+  name_de: "Gebäude – Sanierung und Heizungstausch eines Einfamilienhauses"
+  name_en: "Building – Renovation and Heating Replacement of Single-Family House"
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+  
+  bau_model_ref: building_renovation_plus_heating_model
+  
+  intervention:
+    description: "Single-family house renovation with heating replacement"
+    parameter_changes:
+    - target: heat_intensity_after
+      value_source: user_input
+    - target: heating_system_after
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+  
+  user_inputs:
+  - id: building_area_m2
+    type: number
+    unit: m²
+    required: true
+  - id: heat_intensity_before_kwh_m2_year
+    type: number
+    unit: kWh/m²/year
+    required: true
+  - id: heat_intensity_after_kwh_m2_year
+    type: number
+    unit: kWh/m²/year
+    required: true
+  - id: fuel_type_before
+    type: choice
+    choices: [natural_gas, heating_oil, district_heating, electricity]
+    required: true
+  - id: heating_system_after
+    type: choice
+    choices: [air_source_heat_pump, ground_source_heat_pump, district_heating, pellet_boiler]
+    required: true
+  
+  parameters_required:
+  - efficiency_before
+  - efficiency_after
+  - ef_fuel_before
+  - ef_fuel_after
+  - upstream_renovation_per_m2
+  - upstream_heating_system
+  - lifetime_renovation
+
+- id: DW14
+  name_de: "Gebäude – Sanierung und Heizungstausch eines Reihenhauses"
+  name_en: "Building – Renovation and Heating Replacement of Townhouse"
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+  
+  bau_model_ref: building_renovation_plus_heating_model
+  
+  intervention:
+    description: "Townhouse renovation with heating replacement"
+    parameter_changes:
+    - target: heat_intensity_after
+      value_source: user_input
+    - target: heating_system_after
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+  
+  user_inputs:
+  - id: building_area_m2
+    type: number
+    unit: m²
+    required: true
+  - id: heat_intensity_before_kwh_m2_year
+    type: number
+    unit: kWh/m²/year
+    required: true
+  - id: heat_intensity_after_kwh_m2_year
+    type: number
+    unit: kWh/m²/year
+    required: true
+  - id: fuel_type_before
+    type: choice
+    choices: [natural_gas, heating_oil, district_heating]
+    required: true
+  - id: heating_system_after
+    type: choice
+    choices: [air_source_heat_pump, ground_source_heat_pump, district_heating]
+    required: true
+  
+  parameters_required:
+  - efficiency_before
+  - efficiency_after
+  - ef_fuel_before
+  - ef_fuel_after
+  - upstream_renovation_per_m2
+  - upstream_heating_system
+  - lifetime_renovation
+
+- id: DW15
+  name_de: "Gebäude – Sanierung und Heizungstausch eines Mehrfamilienhauses"
+  name_en: "Building – Renovation and Heating Replacement of Multi-Family House"
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+  
+  bau_model_ref: building_renovation_plus_heating_model
+  
+  intervention:
+    description: "Multi-family house renovation with heating replacement"
+    parameter_changes:
+    - target: heat_intensity_after
+      value_source: user_input
+    - target: heating_system_after
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+  
+  user_inputs:
+  - id: building_area_m2
+    type: number
+    unit: m²
+    required: true
+  - id: heat_intensity_before_kwh_m2_year
+    type: number
+    unit: kWh/m²/year
+    required: true
+  - id: heat_intensity_after_kwh_m2_year
+    type: number
+    unit: kWh/m²/year
+    required: true
+  - id: fuel_type_before
+    type: choice
+    choices: [natural_gas, heating_oil, district_heating]
+    required: true
+  - id: heating_system_after
+    type: choice
+    choices: [air_source_heat_pump, district_heating, biomass_boiler]
+    required: true
+  
+  parameters_required:
+  - efficiency_before
+  - efficiency_after
+  - ef_fuel_before
+  - ef_fuel_after
+  - upstream_renovation_per_m2
+  - upstream_heating_system
+  - lifetime_renovation
+
+- id: DW16
+  name_de: "Gebäude – Sanierung und Heizungstausch eines Groß-Mehrfamilienhauses"
+  name_en: "Building – Renovation and Heating Replacement of Large Multi-Family House"
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+  
+  bau_model_ref: building_renovation_plus_heating_model
+  
+  intervention:
+    description: "Large multi-family house renovation with heating replacement"
+    parameter_changes:
+    - target: heat_intensity_after
+      value_source: user_input
+    - target: heating_system_after
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+  
+  user_inputs:
+  - id: building_area_m2
+    type: number
+    unit: m²
+    required: true
+  - id: heat_intensity_before_kwh_m2_year
+    type: number
+    unit: kWh/m²/year
+    required: true
+  - id: heat_intensity_after_kwh_m2_year
+    type: number
+    unit: kWh/m²/year
+    required: true
+  - id: fuel_type_before
+    type: choice
+    choices: [natural_gas, heating_oil, district_heating]
+    required: true
+  - id: heating_system_after
+    type: choice
+    choices: [district_heating, air_source_heat_pump]
+    required: true
+  
+  parameters_required:
+  - efficiency_before
+  - efficiency_after
+  - ef_fuel_before
+  - ef_fuel_after
+  - upstream_renovation_per_m2
+  - upstream_heating_system
+  - lifetime_renovation
+
+- id: DW17
+  name_de: "Gebäude – Neubau eines Verwaltungsgebäudes"
+  name_en: "Building – New Construction of Administrative Building"
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+  
+  bau_model_ref: new_building_construction_model
+  
+  intervention:
+    description: "New administrative building exceeding legal minimum standards"
+    parameter_changes:
+    - target: heat_intensity_standard
+      mechanism: "Higher efficiency standard than GEG minimum"
+      value_source: user_input
+    - target: construction_ef
+      mechanism: "Eco-optimized building materials"
+      value_source: user_input
+    temporal_pattern:
+      type: one_time_construction
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "heating_emissions_reference - heating_emissions_climate_variant"
+      unit: tCO2e/year
+      note: "Compared to GEG minimum standard"
+    - id: additional_construction_emissions
+      formula: "construction_emissions_climate - construction_emissions_reference"
+      unit: tCO2e
+      note: "May be positive (penalty) if higher standard uses more materials"
+    breakdown:
+      bisko_share_operational: 1.0
+      bisko_share_construction: 0.0
+      note: "Construction emissions not in BISKO, heating emissions are"
+  
+  user_inputs:
+  - id: building_area_m2
+    type: number
+    unit: m²
+    required: true
+  - id: heat_intensity_climate_kwh_m2_year
+    label_de: "Wärmebedarf Klimaschutz-Variante"
+    label_en: "Heat demand climate variant"
+    type: number
+    unit: kWh/m²/year
+    required: true
+  - id: construction_emission_factor_climate
+    label_de: "Bau-Emissionsfaktor Klimaschutz-Variante"
+    label_en: "Construction emission factor climate variant"
+    type: number
+    unit: kg CO2e/m²
+    required: true
+  - id: heating_system
+    type: choice
+    choices: [air_source_heat_pump, ground_source_heat_pump, district_heating]
+    required: true
+  - id: construction_year
+    type: year
+    required: true
+  
+  parameters_required:
+  - heat_intensity_geg_minimum
+  - construction_ef_geg_minimum
+  - ef_fuel_after
+  - heating_efficiency
+  - lifetime_building
+
+- id: DW18
+  name_de: "Gebäude – Neubau eines Schulgebäudes"
+  name_en: "Building – New Construction of School Building"
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+  
+  bau_model_ref: new_building_construction_model
+  
+  intervention:
+    description: "New school building exceeding legal standards"
+    parameter_changes:
+    - target: heat_intensity_standard
+      value_source: user_input
+    - target: construction_ef
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "heating_emissions_reference - heating_emissions_climate_variant"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share_operational: 1.0
+      bisko_share_construction: 0.0
+  
+  user_inputs:
+  - id: building_area_m2
+    type: number
+    unit: m²
+    required: true
+  - id: heat_intensity_climate_kwh_m2_year
+    type: number
+    unit: kWh/m²/year
+    required: true
+  - id: construction_emission_factor_climate
+    type: number
+    unit: kg CO2e/m²
+    required: true
+  - id: heating_system
+    type: choice
+    choices: [air_source_heat_pump, district_heating]
+    required: true
+  
+  parameters_required:
+  - heat_intensity_geg_minimum
+  - construction_ef_geg_minimum
+  - ef_fuel_after
+  - heating_efficiency
+  - lifetime_building
+
+- id: DW19
+  name_de: "Gebäude – Neubau einer Kita"
+  name_en: "Building – New Construction of Kindergarten"
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+  
+  bau_model_ref: new_building_construction_model
+  
+  intervention:
+    description: "New kindergarten exceeding legal standards"
+    parameter_changes:
+    - target: heat_intensity_standard
+      value_source: user_input
+    - target: construction_ef
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "heating_emissions_reference - heating_emissions_climate_variant"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share_operational: 1.0
+      bisko_share_construction: 0.0
+  
+  user_inputs:
+  - id: building_area_m2
+    type: number
+    unit: m²
+    required: true
+  - id: heat_intensity_climate_kwh_m2_year
+    type: number
+    unit: kWh/m²/year
+    required: true
+  - id: construction_emission_factor_climate
+    type: number
+    unit: kg CO2e/m²
+    required: true
+  - id: heating_system
+    type: choice
+    choices: [air_source_heat_pump, district_heating]
+    required: true
+  
+  parameters_required:
+  - heat_intensity_geg_minimum
+  - construction_ef_geg_minimum
+  - ef_fuel_after
+  - heating_efficiency
+  - lifetime_building
+
+- id: DW20
+  name_de: "Gebäude – Neubau einer Turnhalle"
+  name_en: "Building – New Construction of Gymnasium"
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+  
+  bau_model_ref: new_building_construction_model
+  
+  intervention:
+    description: "New gymnasium exceeding legal standards"
+    parameter_changes:
+    - target: heat_intensity_standard
+      value_source: user_input
+    - target: construction_ef
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "heating_emissions_reference - heating_emissions_climate_variant"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share_operational: 1.0
+      bisko_share_construction: 0.0
+  
+  user_inputs:
+  - id: building_area_m2
+    type: number
+    unit: m²
+    required: true
+  - id: heat_intensity_climate_kwh_m2_year
+    type: number
+    unit: kWh/m²/year
+    required: true
+  - id: construction_emission_factor_climate
+    type: number
+    unit: kg CO2e/m²
+    required: true
+  - id: heating_system
+    type: choice
+    choices: [air_source_heat_pump, district_heating]
+    required: true
+  
+  parameters_required:
+  - heat_intensity_geg_minimum
+  - construction_ef_geg_minimum
+  - ef_fuel_after
+  - heating_efficiency
+  - lifetime_building
+
+- id: DW21
+  name_de: "Gebäude – Neubau eines Einfamilienhauses"
+  name_en: "Building – New Construction of Single-Family House"
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+  
+  bau_model_ref: new_building_construction_model
+  
+  intervention:
+    description: "New single-family house exceeding legal standards"
+    parameter_changes:
+    - target: heat_intensity_standard
+      value_source: user_input
+    - target: construction_ef
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "heating_emissions_reference - heating_emissions_climate_variant"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share_operational: 1.0
+      bisko_share_construction: 0.0
+  
+  user_inputs:
+  - id: building_area_m2
+    type: number
+    unit: m²
+    required: true
+  - id: heat_intensity_climate_kwh_m2_year
+    type: number
+    unit: kWh/m²/year
+    required: true
+  - id: construction_emission_factor_climate
+    type: number
+    unit: kg CO2e/m²
+    required: true
+  - id: heating_system
+    type: choice
+    choices: [air_source_heat_pump, ground_source_heat_pump, pellet_boiler]
+    required: true
+  
+  parameters_required:
+  - heat_intensity_geg_minimum
+  - construction_ef_geg_minimum
+  - ef_fuel_after
+  - heating_efficiency
+  - lifetime_building
+
+- id: DW22
+  name_de: "Gebäude – Neubau eines Reihenhauses"
+  name_en: "Building – New Construction of Townhouse"
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+  
+  bau_model_ref: new_building_construction_model
+  
+  intervention:
+    description: "New townhouse exceeding legal standards"
+    parameter_changes:
+    - target: heat_intensity_standard
+      value_source: user_input
+    - target: construction_ef
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "heating_emissions_reference - heating_emissions_climate_variant"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share_operational: 1.0
+      bisko_share_construction: 0.0
+  
+  user_inputs:
+  - id: building_area_m2
+    type: number
+    unit: m²
+    required: true
+  - id: heat_intensity_climate_kwh_m2_year
+    type: number
+    unit: kWh/m²/year
+    required: true
+  - id: construction_emission_factor_climate
+    type: number
+    unit: kg CO2e/m²
+    required: true
+  - id: heating_system
+    type: choice
+    choices: [air_source_heat_pump, district_heating]
+    required: true
+  
+  parameters_required:
+  - heat_intensity_geg_minimum
+  - construction_ef_geg_minimum
+  - ef_fuel_after
+  - heating_efficiency
+  - lifetime_building
+
+- id: DW23
+  name_de: "Gebäude – Neubau eines Mehrfamilienhauses"
+  name_en: "Building – New Construction of Multi-Family House"
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+  
+  bau_model_ref: new_building_construction_model
+  
+  intervention:
+    description: "New multi-family house exceeding legal standards"
+    parameter_changes:
+    - target: heat_intensity_standard
+      value_source: user_input
+    - target: construction_ef
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "heating_emissions_reference - heating_emissions_climate_variant"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share_operational: 1.0
+      bisko_share_construction: 0.0
+  
+  user_inputs:
+  - id: building_area_m2
+    type: number
+    unit: m²
+    required: true
+  - id: heat_intensity_climate_kwh_m2_year
+    type: number
+    unit: kWh/m²/year
+    required: true
+  - id: construction_emission_factor_climate
+    type: number
+    unit: kg CO2e/m²
+    required: true
+  - id: heating_system
+    type: choice
+    choices: [district_heating, air_source_heat_pump]
+    required: true
+  
+  parameters_required:
+  - heat_intensity_geg_minimum
+  - construction_ef_geg_minimum
+  - ef_fuel_after
+  - heating_efficiency
+  - lifetime_building
+
+- id: DW24
+  name_de: "Gebäude – Neubau eines Groß-Mehrfamilienhauses"
+  name_en: "Building – New Construction of Large Multi-Family House"
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+  
+  bau_model_ref: new_building_construction_model
+  
+  intervention:
+    description: "New large multi-family house exceeding legal standards"
+    parameter_changes:
+    - target: heat_intensity_standard
+      value_source: user_input
+    - target: construction_ef
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "heating_emissions_reference - heating_emissions_climate_variant"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share_operational: 1.0
+      bisko_share_construction: 0.0
+  
+  user_inputs:
+  - id: building_area_m2
+    type: number
+    unit: m²
+    required: true
+  - id: heat_intensity_climate_kwh_m2_year
+    type: number
+    unit: kWh/m²/year
+    required: true
+  - id: construction_emission_factor_climate
+    type: number
+    unit: kg CO2e/m²
+    required: true
+  - id: heating_system
+    type: choice
+    choices: [district_heating, air_source_heat_pump]
+    required: true
+  
+  parameters_required:
+  - heat_intensity_geg_minimum
+  - construction_ef_geg_minimum
+  - ef_fuel_after
+  - heating_efficiency
+  - lifetime_building
+
+
+# ============================================
+# DIRECT MEASURES - MOBILITY (Table 34)
+# ============================================
+
+- id: DM1
+  name_de: "Pkw – Antriebswechsel"
+  name_en: "Car – Drive Transition"
+  strategy_id: M0
+  instrument_id: D
+  table_number: 34
+  
+  bau_model_ref: vehicle_fleet_electrification_model
+  
+  intervention:
+    description: "Replacement of combustion engine vehicles with electric vehicles"
+    parameter_changes:
+    - target: new_ev_purchases
+      mechanism: "Purchase BEV instead of ICE"
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "(ice_emissions - ev_emissions) * vehicles_replaced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: "emissions_within_territory"
+      non_bisko_share: "emissions_outside_territory"
+      upstream: "upstream_vehicles"
+    metadata:
+      climate_payback_formula: "upstream_vehicles / annual_ghg_reduction"
+  
+  user_inputs:
+  - id: vehicles_replaced
+    label_de: "Anzahl ersetzter Fahrzeuge"
+    label_en: "Number of vehicles replaced"
+    type: number
+    unit: vehicles
+    required: true
+  - id: vehicle_category
+    label_de: "Fahrzeugkategorie"
+    label_en: "Vehicle category"
+    type: choice
+    choices: [compact, midsize, suv, van]
+    required: true
+  - id: annual_mileage_km
+    label_de: "Jährliche Fahrleistung"
+    label_en: "Annual mileage"
+    type: number
+    unit: km/year
+    required: true
+  - id: share_within_municipality
+    label_de: "Anteil innerhalb Kommune"
+    label_en: "Share within municipality"
+    type: percentage
+    required: true
+    default: 0.90
+    note: "For BISKO allocation"
+  
+  parameters_required:
+  - fuel_consumption_ice_per_100km
+  - electricity_consumption_ev_per_100km
+  - ef_fuel_ice
+  - ef_grid
+  - upstream_ev
+  - upstream_ice
+  - lifetime_vehicle
+  - grid_decarbonization_factor
+
+- id: DM2
+  name_de: "Bus – Antriebswechsel"
+  name_en: "Bus – Drive Transition"
+  strategy_id: M0
+  instrument_id: D
+  table_number: 34
+  
+  bau_model_ref: vehicle_fleet_electrification_model
+  
+  intervention:
+    description: "Replacement of diesel buses with electric buses"
+    parameter_changes:
+    - target: new_ev_purchases
+      mechanism: "Purchase electric/hydrogen buses"
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "(ice_emissions - ev_emissions) * buses_replaced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: "emissions_within_territory"
+      non_bisko_share: "emissions_outside_territory"
+      upstream: "upstream_vehicles"
+  
+  user_inputs:
+  - id: buses_replaced
+    label_de: "Anzahl ersetzter Busse"
+    label_en: "Number of buses replaced"
+    type: number
+    unit: vehicles
+    required: true
+  - id: bus_type
+    type: choice
+    choices: [city_bus_12m, city_bus_18m, regional_bus]
+    required: true
+  - id: annual_mileage_km
+    type: number
+    unit: km/year
+    required: true
+  - id: propulsion_type_new
+    label_de: "Antriebsart neu"
+    label_en: "Propulsion type new"
+    type: choice
+    choices: [battery_electric, hydrogen_fuel_cell, overhead_line]
+    required: true
+  
+  parameters_required:
+  - fuel_consumption_diesel_bus_per_100km
+  - electricity_consumption_electric_bus_per_100km
+  - hydrogen_consumption_per_100km
+  - ef_diesel
+  - ef_grid
+  - ef_hydrogen
+  - upstream_electric_bus
+  - upstream_diesel_bus
+  - lifetime_bus
+  - share_within_municipality
+
+- id: DM3
+  name_de: "Pendelwege – Vermeidung/Verlagerung"
+  name_en: "Commuting – Avoidance/Modal Shift"
+  strategy_id: M0
+  instrument_id: D
+  table_number: 34
+  
+  bau_model_ref: modal_shift_model
+  
+  intervention:
+    description: "Avoidance through home office and modal shift to sustainable transport"
+    parameter_changes:
+    - target: modal_split
+      mechanism: "Home office policy and sustainable transport promotion"
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "total_transport_emissions_before - total_transport_emissions_after"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: "emissions_within_territory"
+      non_bisko_share: "emissions_outside_territory"
+      by_strategy:
+        avoidance: "emissions from reduced trips"
+        modal_shift: "emissions from mode change"
+  
+  user_inputs:
+  - id: employees
+    label_de: "Anzahl Mitarbeitende"
+    label_en: "Number of employees"
+    type: number
+    unit: persons
+    required: true
+  - id: modal_split_before_car
+    label_de: "Modal Split vorher - Auto"
+    label_en: "Modal split before - car"
+    type: percentage
+    required: true
+  - id: modal_split_before_pt
+    label_de: "Modal Split vorher - ÖPNV"
+    label_en: "Modal split before - public transport"
+    type: percentage
+    required: true
+  - id: modal_split_before_active
+    label_de: "Modal Split vorher - Rad/Fuß"
+    label_en: "Modal split before - bike/walk"
+    type: percentage
+    required: true
+  - id: modal_split_after_car
+    label_de: "Modal Split nachher - Auto"
+    label_en: "Modal split after - car"
+    type: percentage
+    required: true
+  - id: modal_split_after_pt
+    label_de: "Modal Split nachher - ÖPNV"
+    label_en: "Modal split after - public transport"
+    type: percentage
+    required: true
+  - id: modal_split_after_active
+    label_de: "Modal Split nachher - Rad/Fuß"
+    label_en: "Modal split after - bike/walk"
+    type: percentage
+    required: true
+  - id: home_office_share
+    label_de: "Anteil Homeoffice"
+    label_en: "Home office share"
+    type: percentage
+    required: true
+    default: 0.05
+  
+  parameters_required:
+  - avg_commute_distance_km
+  - work_days_per_year
+  - emission_intensity_car
+  - emission_intensity_pt
+  - emission_intensity_bike_walk
+  - share_local_trips
+  - upstream_infrastructure_qualitative
+
+- id: DM4
+  name_de: "Dienstwege und -reisen – Vermeidung/Verlagerung"
+  name_en: "Official Trips and Travel – Avoidance/Modal Shift"
+  strategy_id: M0
+  instrument_id: D
+  table_number: 34
+  
+  bau_model_ref: modal_shift_model
+  
+  intervention:
+    description: "Avoidance and modal shift of official trips"
+    parameter_changes:
+    - target: modal_split
+      mechanism: "Video conferencing and sustainable transport policy"
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "total_transport_emissions_before - total_transport_emissions_after"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: "emissions_within_territory"
+      non_bisko_share: "emissions_outside_territory"
+  
+  user_inputs:
+  - id: employees
+    type: number
+    unit: persons
+    required: true
+  - id: avg_trips_per_employee_year
+    label_de: "Dienstreisen pro Mitarbeiter/Jahr"
+    label_en: "Official trips per employee/year"
+    type: number
+    unit: trips/year
+    required: true
+  - id: avg_trip_distance_km
+    type: number
+    unit: km
+    required: true
+  - id: modal_split_before_car
+    type: percentage
+    required: true
+  - id: modal_split_before_pt
+    type: percentage
+    required: true
+  - id: modal_split_before_plane
+    label_de: "Modal Split vorher - Flugzeug"
+    label_en: "Modal split before - plane"
+    type: percentage
+    required: true
+  - id: modal_split_after_car
+    type: percentage
+    required: true
+  - id: modal_split_after_pt
+    type: percentage
+    required: true
+  - id: modal_split_after_plane
+    type: percentage
+    required: true
+  - id: trips_avoided_share
+    label_de: "Anteil vermiedener Reisen"
+    label_en: "Share of avoided trips"
+    type: percentage
+    required: true
+  
+  parameters_required:
+  - emission_intensity_car_business
+  - emission_intensity_train
+  - emission_intensity_plane
+  - share_local_trips
+
+
+# ============================================
+# DIRECT MEASURES - FOOD & LAND USE (Table 35)
+# ============================================
+
+- id: DEL1
+  name_de: "Ernährung – Umstellung (Mensa)"
+  name_en: "Food – Conversion (Canteen)"
+  strategy_id: EL0
+  instrument_id: D
+  table_number: 35
+  
+  bau_model_ref: canteen_menu_conversion_model
+  
+  intervention:
+    description: "Conversion to vegetarian/vegan, seasonal, regional, reduced food waste"
+    parameter_changes:
+    - target: ef_meal_type_after
+      mechanism: "Menu changes toward plant-based, seasonal, regional"
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: "emissions_reduced * $local_food_share_after"
+      non_bisko_share: "emissions_reduced * (1 - $local_food_share_after)"
+      note: "Most food production outside municipality"
+  
+  user_inputs:
+  - id: persons_served
+    label_de: "Anzahl Personen"
+    label_en: "Number of persons served"
+    type: number
+    unit: persons
+    required: true
+  - id: meals_per_person_year
+    label_de: "Mahlzeiten pro Person/Jahr"
+    label_en: "Meals per person/year"
+    type: number
+    unit: meals/year
+    required: true
+  - id: menu_type_before
+    label_de: "Menütyp vorher"
+    label_en: "Menu type before"
+    type: choice
+    choices: [mixed_diet_meat_heavy, mixed_diet_average, vegetarian, vegan]
+    required: true
+  - id: menu_type_after
+    label_de: "Menütyp nachher"
+    label_en: "Menu type after"
+    type: choice
+    choices: [mixed_diet_average, vegetarian, vegan, climate_optimized]
+    required: true
+  - id: regional_share_after
+    label_de: "Regionalanteil nachher"
+    label_en: "Regional share after"
+    type: percentage
+    required: true
+  - id: food_waste_reduction
+    label_de: "Reduktion Lebensmittelverschwendung"
+    label_en: "Food waste reduction"
+    type: percentage
+    required: true
+    default: 0.0
+  
+  parameters_required:
+  - ef_meal_type_before
+  - ef_meal_type_after
+  - local_food_share_before
+  - local_food_share_after
+
+- id: DEL2
+  name_de: "Grünflächen – Baumpflanzung"
+  name_en: "Green Spaces – Tree Planting"
+  strategy_id: EL0
+  instrument_id: D
+  table_number: 35
+  
+  bau_model_ref: tree_planting_sequestration_model
+  
+  intervention:
+    description: "Planting of urban trees for carbon sequestration"
+    parameter_changes:
+    - target: new_trees_planted
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_sequestration_year_1
+      formula: "annual_sequestration[age_0_10]"
+      unit: tCO2e/year
+      note: "Sequestration in first year (low)"
+    - id: average_annual_sequestration
+      formula: "sum(annual_sequestration[all_ages]) / $lifetime_urban_tree"
+      unit: tCO2e/year
+      note: "Average over full lifetime"
+    - id: lifetime_total_sequestration
+      formula: "sum_over_lifetime(annual_sequestration)"
+      unit: tCO2e
+    breakdown:
+      bisko_share: 0.0
+      non_bisko_share: 1.0
+      note: "Nature-based removal, not yet in standard BISKO"
+      permanence_risk: "medium"
+  
+  user_inputs:
+  - id: trees_planted
+    label_de: "Anzahl gepflanzte Bäume"
+    label_en: "Number of trees planted"
+    type: number
+    unit: trees
+    required: true
+  - id: species_mix
+    label_de: "Artenzusammensetzung"
+    label_en: "Species composition"
+    type: choice
+    choices: [mixed_native, oak_dominated, linden_dominated]
+    required: true
+  - id: planting_year
+    type: year
+    required: true
+  
+  parameters_required:
+  - sequestration_rate_age_0_10
+  - sequestration_rate_age_10_20
+  - sequestration_rate_age_20_40
+  - sequestration_rate_age_40_60
+  - sequestration_rate_age_60_plus
+  - lifetime_urban_tree
+  - upstream_planting
+  - mortality_rate
+
+- id: DEL3
+  name_de: "Landnutzung – Wiedervernässung organischer Böden"
+  name_en: "Land Use – Rewetting of Organic Soils"
+  strategy_id: EL0
+  instrument_id: D
+  table_number: 35
+  
+  bau_model_ref: organic_soil_rewetting_model
+  
+  intervention:
+    description: "Rewetting of drained peatlands and organic soils"
+    parameter_changes:
+    - target: area_rewetted
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 0.0
+      non_bisko_share: 1.0
+      note: "Land use emissions - future BISKO extension"
+  
+  user_inputs:
+  - id: area_rewetted_ha
+    label_de: "Wiedervernässte Fläche"
+    label_en: "Area rewetted"
+    type: number
+    unit: ha
+    required: true
+  - id: previous_use
+    label_de: "Vorherige Nutzung"
+    label_en: "Previous use"
+    type: choice
+    choices: [intensive_agriculture, extensive_agriculture, drained_forest, grassland]
+    required: true
+  - id: future_use
+    label_de: "Zukünftige Nutzung"
+    label_en: "Future use"
+    type: choice
+    choices: [rewetted_no_use, paludiculture, wet_grassland]
+    required: true
+  
+  parameters_required:
+  - emission_factor_drained_soil
+  - emission_factor_rewetted_soil
+  - rewetting_establishment_period_years
+
+- id: DEL4
+  name_de: "Landnutzung – Aufforstung Freiflächen"
+  name_en: "Land Use – Afforestation of Open Spaces"
+  strategy_id: EL0
+  instrument_id: D
+  table_number: 35
+  
+  bau_model_ref: afforestation_model
+  
+  intervention:
+    description: "Afforestation of unused or degraded land"
+    parameter_changes:
+    - target: forest_area_new
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_sequestration_developing
+      formula: "annual_sequestration"
+      unit: tCO2e/year
+      note: "Increases as forest matures"
+    - id: lifetime_total_sequestration
+      formula: "sum_over_lifetime(annual_sequestration)"
+      unit: tCO2e
+    breakdown:
+      bisko_share: 0.0
+      non_bisko_share: 1.0
+      note: "Nature-based removal, not yet in BISKO"
+      additionality: "Only counts if previously non-forest land"
+  
+  user_inputs:
+  - id: area_afforested_ha
+    label_de: "Aufgeforstete Fläche"
+    label_en: "Area afforested"
+    type: number
+    unit: ha
+    required: true
+  - id: previous_land_use
+    label_de: "Vorherige Landnutzung"
+    label_en: "Previous land use"
+    type: choice
+    choices: [degraded_land, former_agriculture, unsealed_brownfield]
+    required: true
+    note: "Must be additional - not replacing existing forest"
+  - id: forest_type
+    label_de: "Waldtyp"
+    label_en: "Forest type"
+    type: choice
+    choices: [mixed_native_species, coniferous, deciduous]
+    required: true
+  
+  parameters_required:
+  - sequestration_rate_forest_age_0_10
+  - sequestration_rate_forest_age_10_20
+  - sequestration_rate_forest_age_20_40
+  - sequestration_rate_forest_age_40_plus
+  - lifetime_forest_evaluation
+  - upstream_afforestation
+
+- id: DEL5
+  name_de: "Landnutzung – Nachhaltige Waldbewirtschaftung"
+  name_en: "Land Use – Sustainable Forest Management"
+  strategy_id: EL0
+  instrument_id: D
+  table_number: 35
+  
+  bau_model_ref: afforestation_model
+  
+  intervention:
+    description: "Conversion to near-natural forest management"
+    parameter_changes:
+    - target: sequestration_rate
+      mechanism: "Improved management increases carbon storage"
+      value_source: parameter_lookup
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_additional_sequestration
+      formula: "(sequestration_sustainable - sequestration_conventional) * forest_area"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 0.0
+      non_bisko_share: 1.0
+      note: "Land use - future BISKO extension"
+  
+  user_inputs:
+  - id: forest_area_ha
+    label_de: "Waldfläche unter nachhaltiger Bewirtschaftung"
+    label_en: "Forest area under sustainable management"
+    type: number
+    unit: ha
+    required: true
+  - id: forest_age_class
+    label_de: "Altersklasse"
+    label_en: "Age class"
+    type: choice
+    choices: [young_0_40, mature_40_80, old_growth_80_plus]
+    required: true
+  
+  parameters_required:
+  - sequestration_sustainable_management
+  - sequestration_conventional_management
+  - management_transition_period_years
+
+
+# ============================================
+# DIRECT MEASURES - WASTE & WASTEWATER (Table 36)
+# ============================================
+
+- id: DAW1
+  name_de: "Restmüll – Vermeidung"
+  name_en: "Residual Waste – Avoidance"
+  strategy_id: AW0
+  instrument_id: D
+  table_number: 36
+  
+  bau_model_ref: waste_avoidance_model
+  
+  intervention:
+    description: "Reduction of residual waste through recycling and avoidance"
+    parameter_changes:
+    - target: waste_per_capita
+      mechanism: "Waste reduction campaign, better separation"
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "waste_treatment_emissions + avoided_production_emissions"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: "waste_treatment_emissions"
+      non_bisko_share: "avoided_production_emissions"
+      note: "Treatment local (BISKO), production mostly elsewhere (non-BISKO)"
+  
+  user_inputs:
+  - id: population
+    label_de: "Betroffene Bevölkerung"
+    label_en: "Affected population"
+    type: number
+    unit: persons
+    required: true
+  - id: waste_per_capita_before_kg_year
+    label_de: "Restmüll pro Kopf vorher"
+    label_en: "Residual waste per capita before"
+    type: number
+    unit: kg/person/year
+    required: true
+  - id: waste_per_capita_after_kg_year
+    label_de: "Restmüll pro Kopf nachher"
+    label_en: "Residual waste per capita after"
+    type: number
+    unit: kg/person/year
+    required: true
+  
+  parameters_required:
+  - ef_waste_treatment
+  - ef_avoided_production
+  - waste_treatment_mix_incineration
+  - waste_treatment_mix_landfill
+
+- id: DAW2
+  name_de: "Trinkwasserbezug"
+  name_en: "Drinking Water Supply"
+  strategy_id: AW0
+  instrument_id: D
+  table_number: 36
+  
+  bau_model_ref: water_consumption_reduction_model
+  
+  intervention:
+    description: "Switch from bottled water to tap water"
+    parameter_changes:
+    - target: bottled_water_consumption
+      mechanism: "Eliminate bottled water, use tap water"
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_bottled - emissions_tap"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: "emissions_tap * $local_treatment_share"
+      non_bisko_share: "emissions_bottled - (emissions_tap * $local_treatment_share)"
+      note: "Bottled water production and transport mostly non-BISKO"
+  
+  user_inputs:
+  - id: persons
+    type: number
+    unit: persons
+    required: true
+  - id: bottled_water_liters_per_person_year
+    label_de: "Flaschenwasser pro Person/Jahr"
+    label_en: "Bottled water per person/year"
+    type: number
+    unit: liters/year
+    required: true
+  - id: water_source
+    label_de: "Wasserherkunft"
+    label_en: "Water source"
+    type: choice
+    choices: [local, regional_less_100km, national, imported]
+    required: true
+  - id: bottle_type
+    label_de: "Flaschentyp"
+    label_en: "Bottle type"
+    type: choice
+    choices: [glass_reusable, glass_single_use, pet_single_use]
+    required: true
+  
+  parameters_required:
+  - ef_bottled_water_by_source
+  - ef_tap_water
+  - local_treatment_share
+
+- id: DAW3
+  name_de: "Wasserverbrauch – Vermeidung"
+  name_en: "Water Consumption – Avoidance"
+  strategy_id: AW0
+  instrument_id: D
+  table_number: 36
+  
+  bau_model_ref: water_consumption_reduction_model
+  
+  intervention:
+    description: "Reduction of water and wastewater through efficiency measures"
+    parameter_changes:
+    - target: water_per_capita
+      mechanism: "Water-saving fixtures, behavioral change"
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 1.0
+      note: "Energy for local water/wastewater treatment"
+  
+  user_inputs:
+  - id: population
+    type: number
+    unit: persons
+    required: true
+  - id: water_per_capita_before_m3_year
+    label_de: "Wasserverbrauch pro Kopf vorher"
+    label_en: "Water consumption per capita before"
+    type: number
+    unit: m³/year
+    required: true
+  - id: water_per_capita_after_m3_year
+    label_de: "Wasserverbrauch pro Kopf nachher"
+    label_en: "Water consumption per capita after"
+    type: number
+    unit: m³/year
+    required: true
+  
+  parameters_required:
+  - energy_water_supply_per_m3
+  - energy_wastewater_treatment_per_m3
+  - ef_grid
+
+
+# ============================================
+# DIRECT MEASURES - CONSUMPTION (Table 37)
+# ============================================
+
+- id: DK1
+  name_de: "Papiernutzung – Recyclingpapier"
+  name_en: "Paper Use – Recycled Paper"
+  strategy_id: K0
+  instrument_id: D
+  table_number: 37
+  
+  bau_model_ref: paper_consumption_model
+  
+  intervention:
+    description: "Switch to recycled paper or reduction of paper consumption"
+    parameter_changes:
+    - target: paper_type
+      mechanism: "Procurement policy for recycled paper"
+      value_source: user_input
+    - target: paper_consumed
+      mechanism: "Digitalization, reduced printing"
+      value_source: user_input
+  
+  adoption:
+    type: direct_control
+    factor: 1.0
+  
+  outputs:
+    primary:
+    - id: annual_ghg_reduction
+      formula: "emissions_reduced"
+      unit: tCO2e/year
+    breakdown:
+      bisko_share: 0.0
+      non_bisko_share: 1.0
+      note: "Paper production outside municipality"
+  
+  user_inputs:
+  - id: paper_consumed_tonnes_year
+    label_de: "Papierverbrauch"
+    label_en: "Paper consumption"
+    type: number
+    unit: tonnes/year
+    required: true
+  - id: paper_type_before
+    label_de: "Papiertyp vorher"
+    label_en: "Paper type before"
+    type: choice
+    choices: [virgin_paper, recycled_paper, mixed]
+    required: true
+  - id: paper_type_after
+    label_de: "Papiertyp nachher"
+    label_en: "Paper type after"
+    type: choice
+    choices: [recycled_paper, reduced_consumption]
+    required: true
+  - id: consumption_reduction_percent
+    label_de: "Verbrauchsreduktion"
+    label_en: "Consumption reduction"
+    type: percentage
+    required: true
+    default: 0.0
+  
+  parameters_required:
+  - ef_virgin_paper
+  - ef_recycled_paper

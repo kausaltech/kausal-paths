@@ -1,0 +1,3041 @@
+# Data from https://drive.google.com/drive/u/0/folders/19UUut58R5ZZu4cAfETWz1f-npCFjVhUw
+# Katalog für Maßnahmen und Instrumente im kommunalen Klimaschutz. Ifeu, Heidelberg, März 2025 (Version 2)
+
+# IKKA STRATEGIES
+
+action_groups:
+# Übergreifende Klimaschutzaspekte
+- id: cross_cutting_climate_protection
+  name_en: Cross-cutting Climate Protection Aspects
+  name_de: Übergreifende Klimaschutzaspekte
+  color: '#7C3AED'
+
+# Strom (Electricity)
+- id: renewable_electricity_small_decentralized
+  name_en: Renewable Electricity Generation through Small Decentralized Plants
+  name_de: Erneuerbare Stromerzeugung durch kleine dezentrale Anlagen
+  color: '#F59E0B'
+
+- id: renewable_electricity_large_scale
+  name_en: Renewable Electricity Generation in Open Spaces
+  name_de: Erneuerbare Stromerzeugung in der Fläche
+  color: '#D97706'
+
+- id: renewable_electricity_power_plants
+  name_en: Renewable Electricity Generation through Power Plants
+  name_de: Erneuerbare Stromerzeugung durch Kraftwerke
+  color: '#B45309'
+
+- id: electricity_savings_households
+  name_en: Electricity Savings in Households
+  name_de: Stromeinsparung durch Haushalte
+  color: '#FCD34D'
+
+- id: electricity_savings_commercial
+  name_en: Electricity Savings in Commercial Sector
+  name_de: Stromeinsparung im Gewerbesektor
+  color: '#FDE68A'
+
+- id: electricity_savings_industry
+  name_en: Electricity Savings in Industry
+  name_de: Stromeinsparung in der Industrie
+  color: '#FEF3C7'
+
+# Wärme (Heat)
+- id: heat_source_development_district_heating
+  name_en: Heat Source Development for District Heating Networks
+  name_de: Wärmequellenerschließung für Wärmenetze
+  color: '#EF4444'
+
+- id: district_heating_expansion_densification
+  name_en: Expansion and Densification of District Heating Networks
+  name_de: Erweiterung und Verdichtung der Wärmenetze
+  color: '#DC2626'
+
+- id: heat_behavior_change_households
+  name_en: Behavioral Change in Heat Consumption in Households
+  name_de: Verhaltensänderung beim Wärmeverbrauch in Haushalten
+  color: '#B91C1C'
+
+- id: decentralized_heating_replacement_households
+  name_en: Decentralized Heating Replacement in Households
+  name_de: Dezentraler Heizungstausch in Haushalten
+  color: '#F87171'
+
+- id: residential_building_renovation
+  name_en: Residential Building Renovation
+  name_de: Sanierung Wohngebäude
+  color: '#FCA5A5'
+
+- id: decentralized_heating_replacement_commercial
+  name_en: Decentralized Heating Replacement in Commercial Sector
+  name_de: Dezentraler Heizungstausch im Gewerbe
+  color: '#FEE2E2'
+
+- id: efficient_heat_use_commercial
+  name_en: Efficient Heat Use in Commercial Sector
+  name_de: Effiziente Wärmenutzung im Gewerbe
+  color: '#FB923C'
+
+- id: efficient_heat_use_industry
+  name_en: Efficient Heat Use in Industrial Sector
+  name_de: Effiziente Wärmenutzung im Industriesektor
+  color: '#FDBA74'
+
+- id: new_residential_construction
+  name_en: New Residential Building Construction
+  name_de: Neubau Wohngebäude
+  color: '#FED7AA'
+
+- id: new_commercial_industrial_construction
+  name_en: New Commercial/Industrial Construction
+  name_de: Neubau Gewerbe/Industrie
+  color: '#FFEDD5'
+
+# Mobilität (Mobility)
+- id: drive_transition_motorized_individual_transport
+  name_en: Drive Transition – Motorized Individual Transport
+  name_de: Antriebswende – Motorisierter Individualverkehr
+  color: '#3B82F6'
+
+- id: drive_transition_freight_transport
+  name_en: Drive Transition – Freight Transport
+  name_de: Antriebswende – Güterverkehr
+  color: '#2563EB'
+
+- id: drive_transition_bus
+  name_en: Drive Transition – Bus
+  name_de: Antriebswende – Bus
+  color: '#1D4ED8'
+
+- id: mobility_transition_local_mobility
+  name_en: Mobility Transition – Local Mobility
+  name_de: Mobilitätswende – Nahmobilität
+  color: '#60A5FA'
+
+- id: mobility_transition_regional_mobility
+  name_en: Mobility Transition – Regional Mobility
+  name_de: Mobilitätswende – Regionale Mobilität
+  color: '#93C5FD'
+
+- id: mobility_transition_freight_transport
+  name_en: Mobility Transition – Freight Transport
+  name_de: Mobilitätswende – Güterverkehr
+  color: '#DBEAFE'
+
+# Ernährung & Landnutzung (Food & Land Use)
+- id: food_and_nutrition
+  name_en: Food & Nutrition
+  name_de: Ernährung & Lebensmittel
+  color: '#10B981'
+
+- id: rewetting_organic_soils
+  name_en: Rewetting of Organic Soils
+  name_de: Wiedervernässung organischer Böden
+  color: '#059669'
+
+- id: afforestation_sustainable_forestry
+  name_en: Afforestation & Sustainable Forest Management
+  name_de: Aufforstung & nachhaltige Bewirtschaftung von Wäldern
+  color: '#047857'
+
+# Abfall & (Ab-)Wasser (Waste & Wastewater)
+- id: waste_reduction_plant_efficiency
+  name_en: Waste Reduction & Plant Efficiency
+  name_de: Abfallreduktion & Anlageneffizienz
+  color: '#8B5CF6'
+
+- id: water_wastewater_reduction_plant_efficiency
+  name_en: Water/Wastewater Reduction & Plant Efficiency
+  name_de: Wasser-/Abwasserreduktion & Anlageneffizienz
+  color: '#A78BFA'
+
+# Konsum (Consumption)
+- id: climate_friendly_consumption_behavior
+  name_en: Climate-Friendly Consumption Behavior of Population
+  name_de: Klimafreundlicheres Konsumverhalten der Bevölkerung
+  color: '#EC4899'
+
+# Verwaltung (Administration)
+- id: ghg_neutral_administration_scope_1_2
+  name_en: GHG-Neutral Administration (Direct Influence via Scope 1 and 2)
+  name_de: THG-neutrale Verwaltung (direkte Einflussbereiche über Scope 1 und Scope 2)
+  color: '#6366F1'
+
+- id: ghg_neutral_administration_scope_3
+  name_en: GHG-Neutral Administration (Indirect Influence via Scope 3)
+  name_de: THG-neutrale Verwaltung (indirekter Einflussbereich über Scope 3)
+  color: '#818CF8'
+
+# IKKA Framework Definition
+# Based on: "Katalog für Maßnahmen und Instrumente im kommunalen Klimaschutz" (März 2025)
+
+# ===== ACTION FIELDS (Handlungsfelder) =====
+action_fields:
+- id: UE
+  name_de: Übergreifende Klimaschutzaspekte
+  name_en: Cross-cutting Climate Protection Aspects
+  color: '#7C3AED'
+
+- id: S
+  name_de: Strom
+  name_en: Electricity
+  color: '#F59E0B'
+
+- id: W
+  name_de: Wärme
+  name_en: Heat
+  color: '#EF4444'
+
+- id: M
+  name_de: Mobilität
+  name_en: Mobility
+  color: '#3B82F6'
+
+- id: EL
+  name_de: Ernährung & Landnutzung
+  name_en: Food & Land Use
+  color: '#10B981'
+
+- id: AW
+  name_de: Abfall & (Ab-)Wasser
+  name_en: Waste & Wastewater
+  color: '#8B5CF6'
+
+- id: K
+  name_de: Konsum
+  name_en: Consumption
+  color: '#EC4899'
+
+- id: V
+  name_de: Verwaltung
+  name_en: Administration
+  color: '#6366F1'
+
+
+# ===== INSTRUMENTS =====
+instruments:
+- id: R
+  name_de: Regulierung
+  name_en: Regulation
+  description_de: Kommunale Vorgaben und rechtliche Instrumente
+  description_en: Municipal regulations and legal instruments
+
+- id: F
+  name_de: Fiskalische Anreize
+  name_en: Fiscal Incentives
+  description_de: Finanzielle Förderungen und Anreize
+  description_en: Financial subsidies and incentives
+
+- id: V
+  name_de: Versorgung
+  name_en: Provision/Supply
+  description_de: Bereitstellung von Infrastruktur und Dienstleistungen
+  description_en: Provision of infrastructure and services
+
+- id: I
+  name_de: Information
+  name_en: Information
+  description_de: Informations- und Beratungsangebote
+  description_en: Information and consulting services
+
+- id: D
+  name_de: Direkt
+  name_en: Direct
+  description_de: Direkte Maßnahmen der Kommunalverwaltung
+  description_en: Direct measures by municipal administration
+
+- id: G
+  name_de: Grundlage
+  name_en: Foundation
+  description_de: Grundlagen- und Rahmensetzende Maßnahmen
+  description_en: Foundation and framework-setting measures
+
+
+# ===== STRATEGIES (31 total) =====
+strategies:
+# Übergreifende Klimaschutzaspekte (1 strategy)
+- id: UE1
+  name_de: Übergreifende Klimaschutzaspekte
+  name_en: Cross-cutting Climate Protection Aspects
+  action_field_id: UE
+  table_number: 1
+  available_instruments: [R, F, I]  # No V available per Table 1
+
+# Strom (7 strategies)
+- id: S1
+  name_de: Erneuerbare Stromerzeugung durch kleine dezentrale Anlagen
+  name_en: Renewable Electricity Generation through Small Decentralized Plants
+  action_field_id: S
+  table_number: 2
+  available_instruments: [R, F, V, I]
+
+- id: S2
+  name_de: Erneuerbare Stromerzeugung in der Fläche
+  name_en: Renewable Electricity Generation in Open Spaces
+  action_field_id: S
+  table_number: 3
+  available_instruments: [R, V, I]  # No F per Table 3
+
+- id: S3
+  name_de: Erneuerbare Stromerzeugung durch Kraftwerke
+  name_en: Renewable Electricity Generation through Power Plants
+  action_field_id: S
+  table_number: 4
+  available_instruments: [R, V, I]  # No F per Table 4
+
+- id: S4
+  name_de: Stromeinsparung durch Haushalte
+  name_en: Electricity Savings in Households
+  action_field_id: S
+  table_number: 5
+  available_instruments: [F, I]  # No R, V per Table 5
+
+- id: S5
+  name_de: Stromeinsparung im Gewerbesektor
+  name_en: Electricity Savings in Commercial Sector
+  action_field_id: S
+  table_number: 6
+  available_instruments: [F, I]  # No R, V per Table 6
+
+- id: S6
+  name_de: Stromeinsparung in der Industrie
+  name_en: Electricity Savings in Industry
+  action_field_id: S
+  table_number: 7
+  available_instruments: [F, I]  # No R, V per Table 7
+
+- id: S0
+  name_de: Direkte Maßnahme (Strom)
+  name_en: Direct Measure (Electricity)
+  action_field_id: S
+  table_number: 32
+  available_instruments: [D]
+
+# Wärme (10 strategies)
+- id: W1
+  name_de: Wärmequellenerschließung für Wärmenetze
+  name_en: Heat Source Development for District Heating Networks
+  action_field_id: W
+  table_number: 8
+  available_instruments: [R, F, V, I]
+
+- id: W2
+  name_de: Erweiterung und Verdichtung der Wärmenetze
+  name_en: Expansion and Densification of District Heating Networks
+  action_field_id: W
+  table_number: 9
+  available_instruments: [R, F, V, I]
+
+- id: W3
+  name_de: Verhaltensänderung beim Wärmeverbrauch in Haushalten
+  name_en: Behavioral Change in Heat Consumption in Households
+  action_field_id: W
+  table_number: 10
+  available_instruments: [F, I]  # No R, V per Table 10
+
+- id: W4
+  name_de: Dezentraler Heizungstausch in Haushalten
+  name_en: Decentralized Heating Replacement in Households
+  action_field_id: W
+  table_number: 11
+  available_instruments: [F, V, I]  # No R per Table 11
+
+- id: W5
+  name_de: Sanierung Wohngebäude
+  name_en: Residential Building Renovation
+  action_field_id: W
+  table_number: 12
+  available_instruments: [F, V, I]  # No R per Table 12
+
+- id: W6
+  name_de: Dezentraler Heizungstausch im Gewerbe
+  name_en: Decentralized Heating Replacement in Commercial Sector
+  action_field_id: W
+  table_number: 13
+  available_instruments: [F, V, I]  # No R per Table 13
+
+- id: W7
+  name_de: Effiziente Wärmenutzung im Gewerbe
+  name_en: Efficient Heat Use in Commercial Sector
+  action_field_id: W
+  table_number: 14
+  available_instruments: [F, I]  # No R, V per Table 14
+
+- id: W8
+  name_de: Effiziente Wärmenutzung im Industriesektor
+  name_en: Efficient Heat Use in Industrial Sector
+  action_field_id: W
+  table_number: 15
+  available_instruments: [F, V, I]  # No R per Table 15
+
+- id: W10
+  name_de: Neubau Wohngebäude
+  name_en: New Residential Building Construction
+  action_field_id: W
+  table_number: 16
+  available_instruments: [R, F, V, I]
+
+- id: W11
+  name_de: Neubau Gewerbe/Industrie
+  name_en: New Commercial/Industrial Construction
+  action_field_id: W
+  table_number: 17
+  available_instruments: [R, V, I]  # No F per Table 17
+
+- id: W0
+  name_de: Direkte Maßnahme (Wärme)
+  name_en: Direct Measure (Heat)
+  action_field_id: W
+  table_number: 33
+  available_instruments: [D]
+
+# Mobilität (6 strategies + direct)
+- id: M1
+  name_de: Antriebswende – Motorisierter Individualverkehr
+  name_en: Drive Transition – Motorized Individual Transport
+  action_field_id: M
+  table_number: 18
+  available_instruments: [F, V, I]  # No R per Table 18
+
+- id: M2
+  name_de: Antriebswende – Güterverkehr
+  name_en: Drive Transition – Freight Transport
+  action_field_id: M
+  table_number: 19
+  available_instruments: [R, F, V, I]
+
+- id: M3
+  name_de: Antriebswende – Bus
+  name_en: Drive Transition – Bus
+  action_field_id: M
+  table_number: 20
+  available_instruments: [R, F, V]  # No I per Table 20
+
+- id: M4
+  name_de: Mobilitätswende – Nahmobilität
+  name_en: Mobility Transition – Local Mobility
+  action_field_id: M
+  table_number: 21
+  available_instruments: [R, F, V, I]
+
+- id: M5
+  name_de: Mobilitätswende – Regionale Mobilität
+  name_en: Mobility Transition – Regional Mobility
+  action_field_id: M
+  table_number: 22
+  available_instruments: [R, F, V, I]
+
+- id: M6
+  name_de: Mobilitätswende – Güterverkehr
+  name_en: Mobility Transition – Freight Transport
+  action_field_id: M
+  table_number: 23
+  available_instruments: [R, F, V, I]
+
+- id: M0
+  name_de: Direkte Maßnahme (Mobilität)
+  name_en: Direct Measure (Mobility)
+  action_field_id: M
+  table_number: 34
+  available_instruments: [D]
+
+# Ernährung & Landnutzung (3 strategies + direct)
+- id: EL1
+  name_de: Ernährung & Lebensmittel
+  name_en: Food & Nutrition
+  action_field_id: EL
+  table_number: 24
+  available_instruments: [F, V, I]  # No R per Table 24
+
+- id: EL2
+  name_de: Wiedervernässung organischer Böden
+  name_en: Rewetting of Organic Soils
+  action_field_id: EL
+  table_number: 25
+  available_instruments: [R, F, I]  # No V per Table 25
+
+- id: EL3
+  name_de: Aufforstung & nachhaltige Bewirtschaftung von Wäldern
+  name_en: Afforestation & Sustainable Forest Management
+  action_field_id: EL
+  table_number: 26
+  available_instruments: [R, F, I]  # No V per Table 26
+
+- id: EL0
+  name_de: Direkte Maßnahme (Ernährung & Landnutzung)
+  name_en: Direct Measure (Food & Land Use)
+  action_field_id: EL
+  table_number: 35
+  available_instruments: [D]
+
+# Abfall & (Ab-)Wasser (2 strategies + direct)
+- id: AW1
+  name_de: Abfallreduktion & Anlageneffizienz
+  name_en: Waste Reduction & Plant Efficiency
+  action_field_id: AW
+  table_number: 27
+  available_instruments: [R, F, V, I]
+
+- id: AW2
+  name_de: Wasser-/Abwasserreduktion & Anlageneffizienz
+  name_en: Water/Wastewater Reduction & Plant Efficiency
+  action_field_id: AW
+  table_number: 28
+  available_instruments: [R, F, V, I]
+
+- id: AW0
+  name_de: Direkte Maßnahme (Abfall & (Ab-)Wasser)
+  name_en: Direct Measure (Waste & Wastewater)
+  action_field_id: AW
+  table_number: 36
+  available_instruments: [D]
+
+# Konsum (1 strategy + direct)
+- id: K1
+  name_de: Klimafreundlicheres Konsumverhalten der Bevölkerung
+  name_en: Climate-Friendly Consumption Behavior of Population
+  action_field_id: K
+  table_number: 29
+  available_instruments: [F, V, I]  # No R per Table 29
+
+- id: K0
+  name_de: Direkte Maßnahme (Konsum)
+  name_en: Direct Measure (Consumption)
+  action_field_id: K
+  table_number: 37
+  available_instruments: [D]
+
+# Verwaltung (2 strategies, no separate direct as most measures are admin-related)
+- id: V1
+  name_de: THG-neutrale Verwaltung (direkte Einflussbereiche über Scope 1 und Scope 2)
+  name_en: GHG-Neutral Administration (Direct Influence via Scope 1 and 2)
+  action_field_id: V
+  table_number: 30
+  available_instruments: [R, F, V, I]
+
+- id: V2
+  name_de: THG-neutrale Verwaltung (indirekter Einflussbereich über Scope 3)
+  name_en: GHG-Neutral Administration (Indirect Influence via Scope 3)
+  action_field_id: V
+  table_number: 31
+  available_instruments: [R, F, V, I]
+
+
+# ===== MEASURES =====
+
+# ----- INDIRECT MEASURES (Section 3.2) -----
+
+# Table 38: Übergreifende Klimaschutzaspekte (Indirect)
+indirect_measures:
+
+- id: IUE1R1
+  name_de: Klimaschutz als Handlungsmaxime in der Verwaltung
+  name_en: Climate Protection as Guiding Principle in Administration
+  strategy_id: UE1
+  instrument_id: R
+  table_number: 38
+
+- id: IUE1R2
+  name_de: Klimawirkungsprüfung von kommunalen Beschlüssen
+  name_en: Climate Impact Assessment of Municipal Decisions
+  strategy_id: UE1
+  instrument_id: R
+  table_number: 38
+
+- id: IUE1F1
+  name_de: Klimaschutz im kommunalen Haushalt etablieren
+  name_en: Establish Climate Protection in Municipal Budget
+  strategy_id: UE1
+  instrument_id: F
+  table_number: 38
+
+- id: IUE1F2
+  name_de: Ergänzende Finanzierung über Klimafonds
+  name_en: Additional Financing via Climate Fund
+  strategy_id: UE1
+  instrument_id: F
+  table_number: 38
+
+- id: IUE1I1
+  name_de: Berufliche Klimaschutz-Weiterbildung
+  name_en: Professional Climate Protection Training
+  strategy_id: UE1
+  instrument_id: I
+  table_number: 38
+
+- id: IUE1I2
+  name_de: Klimaschutz durch Umweltbildung
+  name_en: Climate Protection through Environmental Education
+  strategy_id: UE1
+  instrument_id: I
+  table_number: 38
+
+- id: IUE1I3
+  name_de: Öffentlichkeitsarbeit zur allgemeinen Information und Sensibilisierung für den Klimaschutz
+  name_en: Public Relations for General Information and Climate Protection Awareness
+  strategy_id: UE1
+  instrument_id: I
+  table_number: 38
+
+- id: IUE1I4
+  name_de: Vernetzung lokaler Akteure*Akteurinnen
+  name_en: Networking of Local Actors
+  strategy_id: UE1
+  instrument_id: I
+  table_number: 38
+
+- id: IUE1I5
+  name_de: Interkommunale Vernetzung
+  name_en: Intermunicipal Networking
+  strategy_id: UE1
+  instrument_id: I
+  table_number: 38
+
+# Table 39: Erneuerbare Stromerzeugung durch kleine dezentrale Anlagen (Indirect)
+- id: IS1R1
+  name_de: Photovoltaik-Pflicht im Neubau
+  name_en: Photovoltaic Requirement in New Construction
+  strategy_id: S1
+  instrument_id: R
+  table_number: 39
+
+- id: IS1R2
+  name_de: Photovoltaik auf Dächern der kommunalen Unternehmen
+  name_en: Photovoltaics on Roofs of Municipal Companies
+  strategy_id: S1
+  instrument_id: R
+  table_number: 39
+
+- id: IS1F1
+  name_de: Ergänzende Förderung für Photovoltaik-Dachanlagen
+  name_en: Supplementary Funding for Rooftop Photovoltaic Systems
+  strategy_id: S1
+  instrument_id: F
+  table_number: 39
+
+- id: IS1F2
+  name_de: Förderung innovativer Photovoltaik-Anlagen
+  name_en: Funding for Innovative Photovoltaic Systems
+  strategy_id: S1
+  instrument_id: F
+  table_number: 39
+
+- id: IS1F3
+  name_de: Förderung von Photovoltaik-Beratungen
+  name_en: Funding for Photovoltaic Consultations
+  strategy_id: S1
+  instrument_id: F
+  table_number: 39
+
+- id: IS1V1
+  name_de: Entwicklung von Photovoltaik-Angebots-Paketen
+  name_en: Development of Photovoltaic Offer Packages
+  strategy_id: S1
+  instrument_id: V
+  table_number: 39
+
+- id: IS1V2
+  name_de: Vorantreiben der Stromnetzentwicklung
+  name_en: Advancing Electricity Grid Development
+  strategy_id: S1
+  instrument_id: V
+  table_number: 39
+
+- id: IS1V3
+  name_de: Contracting-Angebote für Photovoltaik-Anlagen (über die Stadtwerke)
+  name_en: Contracting Offers for Photovoltaic Systems (via Municipal Utilities)
+  strategy_id: S1
+  instrument_id: V
+  table_number: 39
+
+- id: IS1V4
+  name_de: Unterstützung von Bürgerenergiegenossenschaften bei Photovoltaik
+  name_en: Support for Community Energy Cooperatives for Photovoltaics
+  strategy_id: S1
+  instrument_id: V
+  table_number: 39
+
+- id: IS1V5
+  name_de: Initiierung der Installation von Photovoltaik-Anlagen auf kommunalen Dächern
+  name_en: Initiating Installation of Photovoltaic Systems on Municipal Roofs
+  strategy_id: S1
+  instrument_id: V
+  table_number: 39
+
+- id: IS1V6
+  name_de: Initiierung von Photovoltaik-Pilotprojekten
+  name_en: Initiating Photovoltaic Pilot Projects
+  strategy_id: S1
+  instrument_id: V
+  table_number: 39
+
+- id: IS1I1
+  name_de: Vor-Ort-Beratungen für Bürger*innen und Unternehmen zum Thema Photovoltaik
+  name_en: On-Site Consultations for Citizens and Companies on Photovoltaics
+  strategy_id: S1
+  instrument_id: I
+  table_number: 39
+
+- id: IS1I2
+  name_de: Bereitstellung eines Solarkatasters
+  name_en: Provision of a Solar Cadastre
+  strategy_id: S1
+  instrument_id: I
+  table_number: 39
+
+- id: IS1I3
+  name_de: Vernetzung von Handwerker*innen und Solarakteur*innen zum Thema Photovoltaik
+  name_en: Networking of Craftspeople and Solar Actors on Photovoltaics
+  strategy_id: S1
+  instrument_id: I
+  table_number: 39
+
+- id: IS1I4
+  name_de: Anlaufstelle für Bürger*innen und Unternehmen zum Thema Photovoltaik
+  name_en: Contact Point for Citizens and Companies on Photovoltaics
+  strategy_id: S1
+  instrument_id: I
+  table_number: 39
+
+- id: IS1I5
+  name_de: Interaktive Angebote zum Thema Photovoltaik
+  name_en: Interactive Offers on Photovoltaics
+  strategy_id: S1
+  instrument_id: I
+  table_number: 39
+
+- id: IS1I6
+  name_de: Informationsveranstaltung zum Thema Photovoltaik
+  name_en: Information Event on Photovoltaics
+  strategy_id: S1
+  instrument_id: I
+  table_number: 39
+
+- id: IS1I7
+  name_de: Initiierende Informationsbereitstellung zum Thema Photovoltaik
+  name_en: Initiating Information Provision on Photovoltaics
+  strategy_id: S1
+  instrument_id: I
+  table_number: 39
+
+- id: IS1I8
+  name_de: Interkommunale Wettbewerbe zum Photovoltaik-Ausbau
+  name_en: Intermunicipal Competitions for Photovoltaic Expansion
+  strategy_id: S1
+  instrument_id: I
+  table_number: 39
+
+# Table 40: Erneuerbare Stromerzeugung in der Fläche (Indirect)
+- id: IS2R1
+  name_de: Erneuerbaren-freundliche Flächenplanung
+  name_en: Renewable-Friendly Spatial Planning
+  strategy_id: S2
+  instrument_id: R
+  table_number: 40
+
+- id: IS2R2
+  name_de: Kommunale Freiflächen-Photovoltaik-/Wind-Strategie
+  name_en: Municipal Open-Space Photovoltaic/Wind Strategy
+  strategy_id: S2
+  instrument_id: R
+  table_number: 40
+
+- id: IS2V1
+  name_de: Initiierung der Errichtung von Windkraftanlagen (über die Stadtwerke)
+  name_en: Initiating Construction of Wind Turbines (via Municipal Utilities)
+  strategy_id: S2
+  instrument_id: V
+  table_number: 40
+
+- id: IS2V2
+  name_de: Initiierung der Errichtung von Freiflächen-Photovoltaik (über die Stadtwerke)
+  name_en: Initiating Construction of Open-Space Photovoltaics (via Municipal Utilities)
+  strategy_id: S2
+  instrument_id: V
+  table_number: 40
+
+- id: IS2V3
+  name_de: Unterstützung von Bürgerenergiegenossenschaften bei Windkraft und Freiflächen-Photovoltaik
+  name_en: Support for Community Energy Cooperatives for Wind and Open-Space PV
+  strategy_id: S2
+  instrument_id: V
+  table_number: 40
+
+- id: IS2V4
+  name_de: Entwicklung eines regionalen Stromprodukts (über die Stadtwerke)
+  name_en: Development of Regional Electricity Product (via Municipal Utilities)
+  strategy_id: S2
+  instrument_id: V
+  table_number: 40
+
+- id: IS2I1
+  name_de: Bereitstellung eines Solarkatasters
+  name_en: Provision of Solar Cadastre
+  strategy_id: S2
+  instrument_id: I
+  table_number: 40
+
+- id: IS2I2
+  name_de: Bereitstellung eines Windkatasters
+  name_en: Provision of Wind Cadastre
+  strategy_id: S2
+  instrument_id: I
+  table_number: 40
+
+- id: IS2I3
+  name_de: Austauschformate für verschiedene Akteure*Akteurinnen zur Planung und Projektentwicklung von Photovoltaik-Freiflächenanlagen und Windkraft
+  name_en: Exchange Formats for Various Actors for Planning and Project Development of Open-Space PV and Wind Power
+  strategy_id: S2
+  instrument_id: I
+  table_number: 40
+
+- id: IS2I4
+  name_de: Informationsbereitstellung zu geplanten Freiflächen-Photovoltaik und Windkraft
+  name_en: Information Provision on Planned Open-Space PV and Wind Power
+  strategy_id: S2
+  instrument_id: I
+  table_number: 40
+
+# Table 41: Erneuerbare Stromerzeugung durch Kraftwerke (Indirect)
+- id: IS3R1
+  name_de: Erneuerbare Kraftwerksstrategie (Stadtwerke)
+  name_en: Renewable Power Plant Strategy (Municipal Utilities)
+  strategy_id: S3
+  instrument_id: R
+  table_number: 41
+
+- id: IS3V1
+  name_de: Erneuerbarer Kraftwerksbau (über die Stadtwerke)
+  name_en: Renewable Power Plant Construction (via Municipal Utilities)
+  strategy_id: S3
+  instrument_id: V
+  table_number: 41
+
+- id: IS3V2
+  name_de: Entwicklung eines regionalen Stromprodukts (über die Stadtwerke)
+  name_en: Development of Regional Electricity Product (via Municipal Utilities)
+  strategy_id: S3
+  instrument_id: V
+  table_number: 41
+
+- id: IS3I1
+  name_de: Austauschformate zur Transformation des lokalen Kraftwerksparks
+  name_en: Exchange Formats for Transformation of Local Power Plant Portfolio
+  strategy_id: S3
+  instrument_id: I
+  table_number: 41
+
+# Table 42: Stromeinsparung durch Haushalte (Indirect)
+- id: IS4F1
+  name_de: Förderung von Haushalten im Bereich Stromeffizienz
+  name_en: Funding for Households in Electricity Efficiency
+  strategy_id: S4
+  instrument_id: F
+  table_number: 42
+
+- id: IS4F2
+  name_de: Förderung der Stromsparberatung für Haushalte
+  name_en: Funding for Electricity Saving Consultation for Households
+  strategy_id: S4
+  instrument_id: F
+  table_number: 42
+
+- id: IS4I1
+  name_de: Vor-Ort-Energieberatungen für Haushalte
+  name_en: On-Site Energy Consultations for Households
+  strategy_id: S4
+  instrument_id: I
+  table_number: 42
+
+- id: IS4I2
+  name_de: Anlaufstelle für Bürger*innen zum Thema Stromeinsparung in Haushalten
+  name_en: Contact Point for Citizens on Electricity Savings in Households
+  strategy_id: S4
+  instrument_id: I
+  table_number: 42
+
+- id: IS4I3
+  name_de: Informationsveranstaltung zum Thema Stromeinsparung
+  name_en: Information Event on Electricity Savings
+  strategy_id: S4
+  instrument_id: I
+  table_number: 42
+
+- id: IS4I4
+  name_de: Initiierende Informationsbereitstellung zur Stromeinsparung in Haushalten
+  name_en: Initiating Information Provision on Electricity Savings in Households
+  strategy_id: S4
+  instrument_id: I
+  table_number: 42
+
+# Table 43: Stromeinsparung im Gewerbesektor (Indirect)
+- id: IS5F1
+  name_de: Förderung von Gewerbeunternehmen im Bereich Stromeffizienz
+  name_en: Funding for Commercial Enterprises in Electricity Efficiency
+  strategy_id: S5
+  instrument_id: F
+  table_number: 43
+
+- id: IS5F2
+  name_de: Förderung einer Energieeffizienzberatung für Gewerbetriebe
+  name_en: Funding for Energy Efficiency Consultation for Commercial Enterprises
+  strategy_id: S5
+  instrument_id: F
+  table_number: 43
+
+- id: IS5I1
+  name_de: Energieeffizienz-Schulungen für Unternehmen
+  name_en: Energy Efficiency Training for Companies
+  strategy_id: S5
+  instrument_id: I
+  table_number: 43
+
+- id: IS5I2
+  name_de: Vor-Ort-Energieberatungen für das Gewerbe
+  name_en: On-Site Energy Consultations for Commercial Sector
+  strategy_id: S5
+  instrument_id: I
+  table_number: 43
+
+- id: IS5I3
+  name_de: Vernetzung im Gewerbe zum Thema Energieeffizienz
+  name_en: Networking in Commercial Sector on Energy Efficiency
+  strategy_id: S5
+  instrument_id: I
+  table_number: 43
+
+- id: IS5I4
+  name_de: Anlaufstelle zum Thema Energieeffizienz für das Gewerbe
+  name_en: Contact Point on Energy Efficiency for Commercial Sector
+  strategy_id: S5
+  instrument_id: I
+  table_number: 43
+
+- id: IS5I5
+  name_de: Energieeffizienzwettbewerbe zur Stromreduktion im Gewerbe
+  name_en: Energy Efficiency Competitions for Electricity Reduction in Commercial Sector
+  strategy_id: S5
+  instrument_id: I
+  table_number: 43
+
+- id: IS5I6
+  name_de: Informationsbereitstellung zu Stromeinsparungen im Gewerbe
+  name_en: Information Provision on Electricity Savings in Commercial Sector
+  strategy_id: S5
+  instrument_id: I
+  table_number: 43
+
+# Table 44: Stromeinsparung in der Industrie (Indirect)
+- id: IS6F1
+  name_de: Förderung einer Energieeffizienzberatung für Industriebetriebe mit Wärmebezug
+  name_en: Funding for Energy Efficiency Consultation for Industrial Enterprises with Heat Use
+  strategy_id: S6
+  instrument_id: F
+  table_number: 44
+
+- id: IS6I1
+  name_de: Energieeffizienz-Schulungen für Industriebetriebe
+  name_en: Energy Efficiency Training for Industrial Enterprises
+  strategy_id: S6
+  instrument_id: I
+  table_number: 44
+
+- id: IS6I2
+  name_de: Vor-Ort-Energieberatungen für die Industrie
+  name_en: On-Site Energy Consultations for Industry
+  strategy_id: S6
+  instrument_id: I
+  table_number: 44
+
+- id: IS6I3
+  name_de: Vernetzung der Industrie zum Thema Energieeffizienz
+  name_en: Networking of Industry on Energy Efficiency
+  strategy_id: S6
+  instrument_id: I
+  table_number: 44
+
+- id: IS6I4
+  name_de: Energieeffizienzwettbewerbe zur Stromreduktion in der Industrie
+  name_en: Energy Efficiency Competitions for Electricity Reduction in Industry
+  strategy_id: S6
+  instrument_id: I
+  table_number: 44
+
+# Table 45: Wärmequellenerschließung für Wärmenetze (Indirect)
+- id: IW1R1
+  name_de: Beschluss für erneuerbare Wärmeerzeugungsstrategie
+  name_en: Resolution for Renewable Heat Generation Strategy
+  strategy_id: W1
+  instrument_id: R
+  table_number: 45
+
+- id: IW1R2
+  name_de: Klimafreundliche Flächennutzungsplanung für Wärmequellen
+  name_en: Climate-Friendly Land Use Planning for Heat Sources
+  strategy_id: W1
+  instrument_id: R
+  table_number: 45
+
+- id: IW1F1
+  name_de: Investitionszuschüsse zur Erschließung zentraler Wärmequellen
+  name_en: Investment Subsidies for Development of Central Heat Sources
+  strategy_id: W1
+  instrument_id: F
+  table_number: 45
+
+- id: IW1V1
+  name_de: Erschließung von erneuerbaren Energiequellen für Wärmenetze (über die Stadtwerke)
+  name_en: Development of Renewable Energy Sources for District Heating (via Municipal Utilities)
+  strategy_id: W1
+  instrument_id: V
+  table_number: 45
+
+- id: IW1I1
+  name_de: Vor-Ort-Analyse für potenzielle Wärmequellen
+  name_en: On-Site Analysis for Potential Heat Sources
+  strategy_id: W1
+  instrument_id: I
+  table_number: 45
+
+- id: IW1I2
+  name_de: Vernetzung zum Thema Wärmeversorgung
+  name_en: Networking on Heat Supply
+  strategy_id: W1
+  instrument_id: I
+  table_number: 45
+
+- id: IW1I3
+  name_de: Austausch zwischen Anlagenbetreiber*innen und Bürger*innen zum Thema Wärmeversorgung
+  name_en: Exchange between Plant Operators and Citizens on Heat Supply
+  strategy_id: W1
+  instrument_id: I
+  table_number: 45
+
+# Table 46: Erweiterung und Verdichtung der Wärmenetze (Indirect)
+- id: IW2R1
+  name_de: Anschluss- und Benutzungszwang für Fernwärme im Bestand
+  name_en: Connection and Usage Obligation for District Heating in Existing Buildings
+  strategy_id: W2
+  instrument_id: R
+  table_number: 46
+
+- id: IW2R2
+  name_de: Beschluss für die Vereinfachung von Vorgaben für den Ausbau von Fernwärme
+  name_en: Resolution for Simplification of Requirements for District Heating Expansion
+  strategy_id: W2
+  instrument_id: R
+  table_number: 46
+
+- id: IW2R3
+  name_de: Beschluss einer Fernwärmeanschlusspflicht für kommunale Unternehmen
+  name_en: Resolution for District Heating Connection Obligation for Municipal Companies
+  strategy_id: W2
+  instrument_id: R
+  table_number: 46
+
+- id: IW2R4
+  name_de: Anschluss- und Benutzungszwang für Fernwärme im Neubau
+  name_en: Connection and Usage Obligation for District Heating in New Construction
+  strategy_id: W2
+  instrument_id: R
+  table_number: 46
+
+- id: IW2F1
+  name_de: Anschlussprämie bei Anschluss an das Fernwärmenetz
+  name_en: Connection Bonus for Connection to District Heating Network
+  strategy_id: W2
+  instrument_id: F
+  table_number: 46
+
+- id: IW2V1
+  name_de: Ausbau des Fernwärmenetzes (über die Stadtwerke)
+  name_en: Expansion of District Heating Network (via Municipal Utilities)
+  strategy_id: W2
+  instrument_id: V
+  table_number: 46
+
+- id: IW2V2
+  name_de: Neubau von Niedrigtemperaturnetzen (über die Stadtwerke)
+  name_en: Construction of Low-Temperature Networks (via Municipal Utilities)
+  strategy_id: W2
+  instrument_id: V
+  table_number: 46
+
+- id: IW2V3
+  name_de: Ausbau von Nahwärmenetzen (über die Stadtwerke)
+  name_en: Expansion of Local Heating Networks (via Municipal Utilities)
+  strategy_id: W2
+  instrument_id: V
+  table_number: 46
+
+- id: IW2V4
+  name_de: Initiierung zum Anschluss kommunaler Unternehmen an das Fernwärmenetz
+  name_en: Initiating Connection of Municipal Companies to District Heating Network
+  strategy_id: W2
+  instrument_id: V
+  table_number: 46
+
+- id: IW2I1
+  name_de: Anlaufstelle für eine Beratung zum Thema Fernwärme
+  name_en: Contact Point for Consultation on District Heating
+  strategy_id: W2
+  instrument_id: I
+  table_number: 46
+
+- id: IW2I2
+  name_de: Austauschformate zwischen Akteuren*Akteurinnen zum Thema Fernwärmeversorgung
+  name_en: Exchange Formats between Actors on District Heating Supply
+  strategy_id: W2
+  instrument_id: I
+  table_number: 46
+
+- id: IW2I3
+  name_de: Informationsbereitstellung für Gebäudeeigentümer*innen zum Thema Fernwärme
+  name_en: Information Provision for Building Owners on District Heating
+  strategy_id: W2
+  instrument_id: I
+  table_number: 46
+
+- id: IW2I4
+  name_de: Bereitstellung eines Fernwärmekatasters
+  name_en: Provision of District Heating Cadastre
+  strategy_id: W2
+  instrument_id: I
+  table_number: 46
+
+- id: IW2I5
+  name_de: Informationsveranstaltung für Gebäudeeigentümer*innen zum Thema Fernwärme
+  name_en: Information Event for Building Owners on District Heating
+  strategy_id: W2
+  instrument_id: I
+  table_number: 46
+
+# Table 47: Verhaltensänderung beim Wärmeverbrauch in Haushalten (Indirect)
+- id: IW3F1
+  name_de: Förderung für suffiziente Wohnraumgestaltung
+  name_en: Funding for Sufficient Housing Design
+  strategy_id: W3
+  instrument_id: F
+  table_number: 47
+
+- id: IW3I1
+  name_de: Vor-Ort-Beratung zum Thema suffizienter Wohnraum
+  name_en: On-Site Consultation on Sufficient Housing
+  strategy_id: W3
+  instrument_id: I
+  table_number: 47
+
+- id: IW3I2
+  name_de: Anlaufstelle zum Thema Verhaltensänderung beim Wärmeverbrauch für Bürger*innen
+  name_en: Contact Point on Behavioral Change in Heat Consumption for Citizens
+  strategy_id: W3
+  instrument_id: I
+  table_number: 47
+
+- id: IW3I3
+  name_de: Online-Börse für Wohnungstausch, -teilung, Vermietung, Umzug
+  name_en: Online Platform for Apartment Exchange, Sharing, Rental, Moving
+  strategy_id: W3
+  instrument_id: I
+  table_number: 47
+
+- id: IW3I4
+  name_de: Wettbewerbe/Mitmachangebote zum Thema Wärmeeinsparung durch Verhaltensänderung
+  name_en: Competitions/Participation Offers on Heat Savings through Behavioral Change
+  strategy_id: W3
+  instrument_id: I
+  table_number: 47
+
+- id: IW3I5
+  name_de: Informationsveranstaltung zum Thema Wärmeverbrauch
+  name_en: Information Event on Heat Consumption
+  strategy_id: W3
+  instrument_id: I
+  table_number: 47
+
+- id: IW3I6
+  name_de: Informationsbereitstellung zum Thema Wärmeverbrauch
+  name_en: Information Provision on Heat Consumption
+  strategy_id: W3
+  instrument_id: I
+  table_number: 47
+
+# Table 48: Dezentraler Heizungstausch in Haushalten (Indirect)
+- id: IW4F1
+  name_de: Förderung von erneuerbarer Wärme im Wohnungsbau
+  name_en: Funding for Renewable Heat in Residential Construction
+  strategy_id: W4
+  instrument_id: F
+  table_number: 48
+
+- id: IW4F2
+  name_de: Förderung einer Vor-Ort-Beratung für Haushalte zum Thema Heizungstausch
+  name_en: Funding for On-Site Consultation for Households on Heating Replacement
+  strategy_id: W4
+  instrument_id: F
+  table_number: 48
+
+- id: IW4F3
+  name_de: Förderung von innovativen Wärmeprojekten im Wohnungsbau
+  name_en: Funding for Innovative Heat Projects in Residential Construction
+  strategy_id: W4
+  instrument_id: F
+  table_number: 48
+
+- id: IW4V1
+  name_de: One-Stop-Shop für den Heizungstausch in Wohngebäuden
+  name_en: One-Stop Shop for Heating Replacement in Residential Buildings
+  strategy_id: W4
+  instrument_id: V
+  table_number: 48
+
+- id: IW4V2
+  name_de: Contracting-Angebot für den Heizungstausch in Wohngebäuden (über die Stadtwerke)
+  name_en: Contracting Offer for Heating Replacement in Residential Buildings (via Municipal Utilities)
+  strategy_id: W4
+  instrument_id: V
+  table_number: 48
+
+- id: IW4V3
+  name_de: Initiierung des Heizungstausches in den Gebäuden der kommunalen Wohnungsbaugesellschaften
+  name_en: Initiating Heating Replacement in Buildings of Municipal Housing Companies
+  strategy_id: W4
+  instrument_id: V
+  table_number: 48
+
+- id: IW4I1
+  name_de: Vor-Ort-Beratung von Haushalten zum Thema Heizungstausch
+  name_en: On-Site Consultation for Households on Heating Replacement
+  strategy_id: W4
+  instrument_id: I
+  table_number: 48
+
+- id: IW4I2
+  name_de: Anlaufstelle zum Thema Heizungstausch für Eigentümer*innen
+  name_en: Contact Point on Heating Replacement for Property Owners
+  strategy_id: W4
+  instrument_id: I
+  table_number: 48
+
+- id: IW4I3
+  name_de: Informationsveranstaltung für Eigentümer*innen zum Thema Heizungstausch in Wohngebäuden
+  name_en: Information Event for Property Owners on Heating Replacement in Residential Buildings
+  strategy_id: W4
+  instrument_id: I
+  table_number: 48
+
+- id: IW4I4
+  name_de: Informationsbereitstellung zum Thema Heizungstausch in Wohngebäuden
+  name_en: Information Provision on Heating Replacement in Residential Buildings
+  strategy_id: W4
+  instrument_id: I
+  table_number: 48
+
+# Table 49: Sanierung Wohngebäude (Indirect)
+- id: IW5F1
+  name_de: Soziale Sanierungsförderung für Haushalte
+  name_en: Social Renovation Funding for Households
+  strategy_id: W5
+  instrument_id: F
+  table_number: 49
+
+- id: IW5F2
+  name_de: Sanierungs-Förderprogramm für Gebäude mit Denkmalschutz
+  name_en: Renovation Funding Program for Heritage-Protected Buildings
+  strategy_id: W5
+  instrument_id: F
+  table_number: 49
+
+- id: IW5V1
+  name_de: One-Stop-Shop für die energetische Gebäudesanierung
+  name_en: One-Stop Shop for Energy Building Renovation
+  strategy_id: W5
+  instrument_id: V
+  table_number: 49
+
+- id: IW5V2
+  name_de: Initiierung der Sanierung der Gebäude von kommunalen Wohnungsbaugesellschaften
+  name_en: Initiating Renovation of Buildings of Municipal Housing Companies
+  strategy_id: W5
+  instrument_id: V
+  table_number: 49
+
+- id: IW5V3
+  name_de: Initiierung und Begleitung von Pilotprojekten beim Thema Gebäudesanierung
+  name_en: Initiating and Supporting Pilot Projects on Building Renovation
+  strategy_id: W5
+  instrument_id: V
+  table_number: 49
+
+- id: IW5I1
+  name_de: Vor-Ort-Beratung für Wohngebäudesanierung
+  name_en: On-Site Consultation for Residential Building Renovation
+  strategy_id: W5
+  instrument_id: I
+  table_number: 49
+
+- id: IW5I2
+  name_de: Schulungen für Handwerksunternehmen zur energetischen Sanierung von Wohngebäuden
+  name_en: Training for Craft Enterprises on Energy Renovation of Residential Buildings
+  strategy_id: W5
+  instrument_id: I
+  table_number: 49
+
+- id: IW5I3
+  name_de: Vernetzung von Akteuren*Akteurinnen zum Thema Sanierung von Wohngebäuden
+  name_en: Networking of Actors on Renovation of Residential Buildings
+  strategy_id: W5
+  instrument_id: I
+  table_number: 49
+
+- id: IW5I4
+  name_de: Planungs- und Umsetzungsbegleitung bei Sanierungen von Gebäuden
+  name_en: Planning and Implementation Support for Building Renovations
+  strategy_id: W5
+  instrument_id: I
+  table_number: 49
+
+- id: IW5I5
+  name_de: Anlaufstelle zum Thema Sanierung von Gebäuden für Eigentümer*innen
+  name_en: Contact Point on Building Renovation for Property Owners
+  strategy_id: W5
+  instrument_id: I
+  table_number: 49
+
+- id: IW5I6
+  name_de: Bereitstellung eines Wärmekatasters
+  name_en: Provision of Heat Cadastre
+  strategy_id: W5
+  instrument_id: I
+  table_number: 49
+
+- id: IW5I7
+  name_de: Informationsveranstaltung für Eigentümer*innen zum Thema Sanierung von Wohngebäuden
+  name_en: Information Event for Property Owners on Residential Building Renovation
+  strategy_id: W5
+  instrument_id: I
+  table_number: 49
+
+- id: IW5I8
+  name_de: Energetischer Mietspiegel
+  name_en: Energy-Based Rent Index
+  strategy_id: W5
+  instrument_id: I
+  table_number: 49
+
+- id: IW5I9
+  name_de: Wettbewerb zur Sanierung von Wohngebäuden
+  name_en: Competition for Residential Building Renovation
+  strategy_id: W5
+  instrument_id: I
+  table_number: 49
+
+- id: IW5I10
+  name_de: Informationsbereitstellung zum Thema Sanierung von Wohngebäuden
+  name_en: Information Provision on Residential Building Renovation
+  strategy_id: W5
+  instrument_id: I
+  table_number: 49
+
+# Table 50: Dezentraler Heizungstausch im Gewerbe (Indirect)
+- id: IW6F1
+  name_de: Förderung der Vernetzung und Beratung von Unternehmen
+  name_en: Funding for Networking and Consultation of Companies
+  strategy_id: W6
+  instrument_id: F
+  table_number: 50
+
+- id: IW6F2
+  name_de: Förderung einer Vor-Ort-Beratung zum Heizungstausch für Unternehmen
+  name_en: Funding for On-Site Consultation on Heating Replacement for Companies
+  strategy_id: W6
+  instrument_id: F
+  table_number: 50
+
+- id: IW6F3
+  name_de: Förderprogramm zu erneuerbarer Wärme für Unternehmen
+  name_en: Funding Program for Renewable Heat for Companies
+  strategy_id: W6
+  instrument_id: F
+  table_number: 50
+
+- id: IW6F4
+  name_de: Förderprogramm für innovative Wärmeprojekte
+  name_en: Funding Program for Innovative Heat Projects
+  strategy_id: W6
+  instrument_id: F
+  table_number: 50
+
+- id: IW6V1
+  name_de: Contracting-Angebot für den Heizungstausch bei Unternehmen (über die Stadtwerke)
+  name_en: Contracting Offer for Heating Replacement in Companies (via Municipal Utilities)
+  strategy_id: W6
+  instrument_id: V
+  table_number: 50
+
+- id: IW6I1
+  name_de: Vor-Ort-Beratung zum Heizungstausch in Unternehmen
+  name_en: On-Site Consultation on Heating Replacement in Companies
+  strategy_id: W6
+  instrument_id: I
+  table_number: 50
+
+- id: IW6I2
+  name_de: Vernetzung von Unternehmen zum Thema Heizungstausch
+  name_en: Networking of Companies on Heating Replacement
+  strategy_id: W6
+  instrument_id: I
+  table_number: 50
+
+- id: IW6I3
+  name_de: Anlaufstelle zum Thema Heizungstausch für Unternehmen
+  name_en: Contact Point on Heating Replacement for Companies
+  strategy_id: W6
+  instrument_id: I
+  table_number: 50
+
+- id: IW6I4
+  name_de: Informationsbereitstellung zum Thema Heizungstausch in Unternehmen
+  name_en: Information Provision on Heating Replacement in Companies
+  strategy_id: W6
+  instrument_id: I
+  table_number: 50
+
+# Table 51: Effiziente Wärmenutzung im Gewerbe (Indirect)
+- id: IW7F1
+  name_de: Förderung der Vernetzung von Unternehmen im Bereich Wärmeeffizienz
+  name_en: Funding for Networking of Companies in Heat Efficiency
+  strategy_id: W7
+  instrument_id: F
+  table_number: 51
+
+- id: IW7F2
+  name_de: Förderung von Wärmeeffizienz für Unternehmen
+  name_en: Funding for Heat Efficiency for Companies
+  strategy_id: W7
+  instrument_id: F
+  table_number: 51
+
+- id: IW7F3
+  name_de: Förderung einer Vor-Ort-Beratung zu Wärmeeffizienz in Unternehmen
+  name_en: Funding for On-Site Consultation on Heat Efficiency in Companies
+  strategy_id: W7
+  instrument_id: F
+  table_number: 51
+
+- id: IW7I1
+  name_de: Vor-Ort-Beratung für Wärmeeffizienz in Unternehmen
+  name_en: On-Site Consultation for Heat Efficiency in Companies
+  strategy_id: W7
+  instrument_id: I
+  table_number: 51
+
+- id: IW7I2
+  name_de: Vernetzung von Unternehmen zum Thema Wärmenutzung im Gewerbe
+  name_en: Networking of Companies on Heat Use in Commercial Sector
+  strategy_id: W7
+  instrument_id: I
+  table_number: 51
+
+- id: IW7I3
+  name_de: Anlaufstelle zum Thema Wärmeeffizienz für Unternehmen
+  name_en: Contact Point on Heat Efficiency for Companies
+  strategy_id: W7
+  instrument_id: I
+  table_number: 51
+
+- id: IW7I4
+  name_de: Wettbewerb zu Wärmeeffizienz im Gewerbe
+  name_en: Competition on Heat Efficiency in Commercial Sector
+  strategy_id: W7
+  instrument_id: I
+  table_number: 51
+
+- id: IW7I5
+  name_de: Informationsbereitstellung zum Thema Wärmeeffizienz für Unternehmen
+  name_en: Information Provision on Heat Efficiency for Companies
+  strategy_id: W7
+  instrument_id: I
+  table_number: 51
+
+# Table 52: Effiziente Wärmenutzung im Industriesektor (Indirect)
+- id: IW8F1
+  name_de: Förderung der Abwärme-Einspeisung in das Wärmenetz
+  name_en: Funding for Waste Heat Feed-in to District Heating Network
+  strategy_id: W8
+  instrument_id: F
+  table_number: 52
+
+- id: IW8F2
+  name_de: Förderung einer Energieeffizienzberatung für Industriebetriebe mit Strombezug
+  name_en: Funding for Energy Efficiency Consultation for Industrial Enterprises with Electricity Use
+  strategy_id: W8
+  instrument_id: F
+  table_number: 52
+
+- id: IW8V1
+  name_de: Einbindung industrieller Abwärme in das Wärmenetz (über die Stadtwerke)
+  name_en: Integration of Industrial Waste Heat into District Heating Network (via Municipal Utilities)
+  strategy_id: W8
+  instrument_id: V
+  table_number: 52
+
+- id: IW8V2
+  name_de: Klimafreundliche Wärmeversorgung für Industriebetriebe (über die Stadtwerke)
+  name_en: Climate-Friendly Heat Supply for Industrial Enterprises (via Municipal Utilities)
+  strategy_id: W8
+  instrument_id: V
+  table_number: 52
+
+- id: IW8V3
+  name_de: Contracting-Angebot für die Wärmeversorgung von Industriebetrieben (über die Stadtwerke)
+  name_en: Contracting Offer for Heat Supply of Industrial Enterprises (via Municipal Utilities)
+  strategy_id: W8
+  instrument_id: V
+  table_number: 52
+
+- id: IW8I1
+  name_de: Vernetzung von Unternehmen zum Thema Wärmenutzung im Industriesektor
+  name_en: Networking of Companies on Heat Use in Industrial Sector
+  strategy_id: W8
+  instrument_id: I
+  table_number: 52
+
+- id: IW8I2
+  name_de: Runder Tisch zum Thema industrielle Wärme
+  name_en: Round Table on Industrial Heat
+  strategy_id: W8
+  instrument_id: I
+  table_number: 52
+
+- id: IW8I3
+  name_de: Vor-Ort-Beratung zu Wärmeversorgung in Industrieunternehmen
+  name_en: On-Site Consultation on Heat Supply in Industrial Enterprises
+  strategy_id: W8
+  instrument_id: I
+  table_number: 52
+
+- id: IW8I4
+  name_de: Klimapakt zwischen Unternehmen und Kommune
+  name_en: Climate Pact between Companies and Municipality
+  strategy_id: W8
+  instrument_id: I
+  table_number: 52
+
+- id: IW8I5
+  name_de: Informationsbereitstellung zum Thema Wärmeeffizienz in Industriebetrieben
+  name_en: Information Provision on Heat Efficiency in Industrial Enterprises
+  strategy_id: W8
+  instrument_id: I
+  table_number: 52
+
+# Table 53: Neubau Wohngebäude (Indirect)
+- id: IW10R1
+  name_de: Beschluss für die Prüfung der Anwendung des Vorkaufsrechts
+  name_en: Resolution for Examination of Preemption Rights Application
+  strategy_id: W10
+  instrument_id: R
+  table_number: 53
+
+- id: IW10R2
+  name_de: Beschluss für die Verpflichtung zu Energiekonzepten in Neubaugebieten
+  name_en: Resolution for Obligation to Energy Concepts in New Development Areas
+  strategy_id: W10
+  instrument_id: R
+  table_number: 53
+
+- id: IW10R3
+  name_de: Beschluss für den Einsatz städtebaulicher und privatrechtlicher Verträge
+  name_en: Resolution for Use of Urban Planning and Private Law Contracts
+  strategy_id: W10
+  instrument_id: R
+  table_number: 53
+
+- id: IW10R4
+  name_de: Beschluss für ein flächenschonendes Wachstum
+  name_en: Resolution for Land-Saving Growth
+  strategy_id: W10
+  instrument_id: R
+  table_number: 53
+
+- id: IW10F1
+  name_de: Innovations-/Nachhaltigkeitsförderung im Neubau
+  name_en: Innovation/Sustainability Funding in New Construction
+  strategy_id: W10
+  instrument_id: F
+  table_number: 53
+
+- id: IW10V1
+  name_de: Anbindung von Neubaugebieten an Wärmenetze (über die Stadtwerke)
+  name_en: Connection of New Development Areas to District Heating Networks (via Municipal Utilities)
+  strategy_id: W10
+  instrument_id: V
+  table_number: 53
+
+- id: IW10V2
+  name_de: Flächenbegrenzung/Suffizienz im Neubau kommunaler Wohnungsbaugesellschaften
+  name_en: Area Limitation/Sufficiency in New Construction of Municipal Housing Companies
+  strategy_id: W10
+  instrument_id: V
+  table_number: 53
+
+- id: IW10I1
+  name_de: Energiekonzepte für Neubaugebiete (Wohngebäude)
+  name_en: Energy Concepts for New Development Areas (Residential Buildings)
+  strategy_id: W10
+  instrument_id: I
+  table_number: 53
+
+- id: IW10I2
+  name_de: Planungs- und Umsetzungsbegleitung im Neubau
+  name_en: Planning and Implementation Support in New Construction
+  strategy_id: W10
+  instrument_id: I
+  table_number: 53
+
+- id: IW10I3
+  name_de: Vernetzung von Akteuren*Akteurinnen zum Thema Neubau von Wohngebäuden
+  name_en: Networking of Actors on New Construction of Residential Buildings
+  strategy_id: W10
+  instrument_id: I
+  table_number: 53
+
+- id: IW10I4
+  name_de: Bereitstellung eines Baulücken- und Leerstandskatasters
+  name_en: Provision of Building Gap and Vacancy Cadastre
+  strategy_id: W10
+  instrument_id: I
+  table_number: 53
+
+# Table 54: Neubau Gewerbe/Industrie (Indirect)
+- id: IW11R1
+  name_de: Beschluss zur Nutzung städtebaulicher und privatrechtlicher Verträge im Neubau von Gewerbegebieten
+  name_en: Resolution for Use of Urban Planning and Private Law Contracts in New Commercial Areas
+  strategy_id: W11
+  instrument_id: R
+  table_number: 54
+
+- id: IW11R2
+  name_de: Beschluss für flächenschonende Gewerbegebiete
+  name_en: Resolution for Land-Saving Commercial Areas
+  strategy_id: W11
+  instrument_id: R
+  table_number: 54
+
+- id: IW11R3
+  name_de: Beschluss für den Vorrang zur Ansiedlung von "Nachhaltigkeits-Unternehmen"
+  name_en: Resolution for Priority Settlement of "Sustainability Companies"
+  strategy_id: W11
+  instrument_id: R
+  table_number: 54
+
+- id: IW11V1
+  name_de: Klimafreundliche Prozesswärmebereitstellung im Gewerbeneubau (über die Stadtwerke)
+  name_en: Climate-Friendly Process Heat Provision in New Commercial Construction (via Municipal Utilities)
+  strategy_id: W11
+  instrument_id: V
+  table_number: 54
+
+- id: IW11I1
+  name_de: Energiekonzepte für neue Gewerbegebiete
+  name_en: Energy Concepts for New Commercial Areas
+  strategy_id: W11
+  instrument_id: I
+  table_number: 54
+
+# Table 55: Antriebswende – Motorisierter Individualverkehr (Indirect)
+- id: IM1F1
+  name_de: Förderung von privater Netz- und Ladeinfrastruktur sowie E-Fahrzeugen
+  name_en: Funding for Private Grid and Charging Infrastructure and E-Vehicles
+  strategy_id: M1
+  instrument_id: F
+  table_number: 55
+
+- id: IM1V1
+  name_de: Aufbau von Tank-, Netz- und Ladeinfrastruktur (Motorisierter Individualverkehr)
+  name_en: Development of Fueling, Grid and Charging Infrastructure (Motorized Individual Transport)
+  strategy_id: M1
+  instrument_id: V
+  table_number: 55
+
+- id: IM1I1
+  name_de: Individuelles Beratungsangebot zur Nutzung von E-Mobilität
+  name_en: Individual Consultation Offer on Use of E-Mobility
+  strategy_id: M1
+  instrument_id: I
+  table_number: 55
+
+- id: IM1I2
+  name_de: Informationskampagne zur Nutzung der E-Mobilität
+  name_en: Information Campaign on Use of E-Mobility
+  strategy_id: M1
+  instrument_id: I
+  table_number: 55
+
+# Table 56: Antriebswende – Güterverkehr (Indirect)
+- id: IM2R1
+  name_de: Zufahrtsbeschränkungen für Verbrennerfahrzeuge
+  name_en: Access Restrictions for Combustion Engine Vehicles
+  strategy_id: M2
+  instrument_id: R
+  table_number: 56
+
+- id: IM2F1
+  name_de: Förderung von Netz- und Ladeinfrastruktur bei mittelständigen Unternehmen
+  name_en: Funding for Grid and Charging Infrastructure at Medium-Sized Companies
+  strategy_id: M2
+  instrument_id: F
+  table_number: 56
+
+- id: IM2V1
+  name_de: Aufbau von Tank-, Netz- und Ladeinfrastruktur (Güterverkehr)
+  name_en: Development of Fueling, Grid and Charging Infrastructure (Freight Transport)
+  strategy_id: M2
+  instrument_id: V
+  table_number: 56
+
+- id: IM2I1
+  name_de: Beratungsangebot für E-Mobilität
+  name_en: Consultation Offer for E-Mobility
+  strategy_id: M2
+  instrument_id: I
+  table_number: 56
+
+# Table 57: Antriebswende – Bus (Indirect)
+- id: IM3R1
+  name_de: Festlegung eines Ambitionierten Mindestanteils für Elektrobusse in Ausschreibungen
+  name_en: Setting an Ambitious Minimum Share for Electric Buses in Tenders
+  strategy_id: M3
+  instrument_id: R
+  table_number: 57
+
+- id: IM3F1
+  name_de: Förderung der Mehrkosten beim Kauf und/oder Betrieb von Elektrobussen
+  name_en: Funding for Additional Costs in Purchase and/or Operation of Electric Buses
+  strategy_id: M3
+  instrument_id: F
+  table_number: 57
+
+- id: IM3V1
+  name_de: Aufbau von Tank, Netz- und Ladeinfrastruktur (Bus)
+  name_en: Development of Fueling, Grid and Charging Infrastructure (Bus)
+  strategy_id: M3
+  instrument_id: V
+  table_number: 57
+
+# Table 58: Mobilitätswende – Nahmobilität (Indirect)
+- id: IM4R1
+  name_de: Verkehrsvermeidende und umweltverbundorientierte Stadt- und Quartiersentwicklung
+  name_en: Traffic-Avoiding and Sustainable Transport-Oriented Urban and District Development
+  strategy_id: M4
+  instrument_id: R
+  table_number: 58
+
+- id: IM4R2
+  name_de: Stellplatzsatzung ändern - Mehr Radabstellanlagen und weniger Pkw-Stellplätze im Neubau
+  name_en: Amend Parking Regulations - More Bicycle Parking and Fewer Car Parking Spaces in New Construction
+  strategy_id: M4
+  instrument_id: R
+  table_number: 58
+
+- id: IM4R3
+  name_de: Angepasste Geschwindigkeiten (Tempo 40/30/20/Fahrradstraße) auf Haupt- und Nebenstraßen
+  name_en: Adapted Speeds (40/30/20 km/h/Bicycle Street) on Main and Side Streets
+  strategy_id: M4
+  instrument_id: R
+  table_number: 58
+
+- id: IM4F1
+  name_de: Parkraumbepreisung für Anwohner*innen/Dauerparkende erhöhen
+  name_en: Increase Parking Fees for Residents/Long-term Parkers
+  strategy_id: M4
+  instrument_id: F
+  table_number: 58
+
+- id: IM4F2
+  name_de: Parkraumbepreisung für Besucher*innen erhöhen
+  name_en: Increase Parking Fees for Visitors
+  strategy_id: M4
+  instrument_id: F
+  table_number: 58
+
+- id: IM4F3
+  name_de: Nutzerkosten Umweltverbund reduzieren
+  name_en: Reduce User Costs for Sustainable Transport
+  strategy_id: M4
+  instrument_id: F
+  table_number: 58
+
+- id: IM4F4
+  name_de: Förderung der Anschaffung von E-Lastenrädern für Privatpersonen
+  name_en: Funding for Acquisition of E-Cargo Bikes for Private Persons
+  strategy_id: M4
+  instrument_id: F
+  table_number: 58
+
+- id: IM4V1
+  name_de: Flächenumverteilung vom fließenden Verkehr hin zum Umweltverbund
+  name_en: Redistribution of Space from Moving Traffic to Sustainable Transport
+  strategy_id: M4
+  instrument_id: V
+  table_number: 58
+
+- id: IM4V2
+  name_de: Flächenmanagement des ruhenden Verkehrs
+  name_en: Space Management of Stationary Traffic
+  strategy_id: M4
+  instrument_id: V
+  table_number: 58
+
+- id: IM4V3
+  name_de: Ausbau und Verbesserung der Nutzbarkeit der Rad-Infrastruktur
+  name_en: Expansion and Improvement of Usability of Cycling Infrastructure
+  strategy_id: M4
+  instrument_id: V
+  table_number: 58
+
+- id: IM4V4
+  name_de: Verbesserung der Qualität und Quantität des ÖPNV-Angebots
+  name_en: Improvement of Quality and Quantity of Public Transport Services
+  strategy_id: M4
+  instrument_id: V
+  table_number: 58
+
+- id: IM4I1
+  name_de: Individuelles Beratungsangebot zur Nutzung von umweltfreundlicher Mobilität
+  name_en: Individual Consultation Offer on Use of Sustainable Mobility
+  strategy_id: M4
+  instrument_id: I
+  table_number: 58
+
+- id: IM4I2
+  name_de: Informationskampagne zur Nutzung der umweltfreundlichen Mobilität
+  name_en: Information Campaign on Use of Sustainable Mobility
+  strategy_id: M4
+  instrument_id: I
+  table_number: 58
+
+# Table 59: Mobilitätswende – Regionale Mobilität (Indirect)
+- id: IM5R1
+  name_de: Verkehrsvermeidende und umweltverbundorientierte Stadt- und Quartiersentwicklung (regional)
+  name_en: Traffic-Avoiding and Sustainable Transport-Oriented Urban Development (regional)
+  strategy_id: M5
+  instrument_id: R
+  table_number: 59
+
+- id: IM5F1
+  name_de: Parkraumbepreisung erhöhen (regional)
+  name_en: Increase Parking Fees (regional)
+  strategy_id: M5
+  instrument_id: F
+  table_number: 59
+
+- id: IM5F2
+  name_de: Nutzerkosten Umweltverbund reduzieren (regional)
+  name_en: Reduce User Costs for Sustainable Transport (regional)
+  strategy_id: M5
+  instrument_id: F
+  table_number: 59
+
+- id: IM5V1
+  name_de: Ausbau und Verbesserung regionaler Radinfrastruktur
+  name_en: Expansion and Improvement of Regional Cycling Infrastructure
+  strategy_id: M5
+  instrument_id: V
+  table_number: 59
+
+- id: IM5V2
+  name_de: Verbesserung der Qualität und Quantität des regionalen ÖPNV-Angebots
+  name_en: Improvement of Quality and Quantity of Regional Public Transport Services
+  strategy_id: M5
+  instrument_id: V
+  table_number: 59
+
+- id: IM5I1
+  name_de: Individuelles Beratungsangebot zur Nutzung von umweltfreundlicher Mobilität (regional)
+  name_en: Individual Consultation Offer on Use of Sustainable Mobility (regional)
+  strategy_id: M5
+  instrument_id: I
+  table_number: 59
+
+- id: IM5I2
+  name_de: Informationskampagne zur Nutzung der umweltfreundlichen Mobilität (regional)
+  name_en: Information Campaign on Use of Sustainable Mobility (regional)
+  strategy_id: M5
+  instrument_id: I
+  table_number: 59
+
+# Table 60: Mobilitätswende – Güterverkehr (Indirect)
+- id: IM6R1
+  name_de: Gütertransportsparende Raumplanung
+  name_en: Freight-Transport-Saving Spatial Planning
+  strategy_id: M6
+  instrument_id: R
+  table_number: 60
+
+- id: IM6R2
+  name_de: Zufahrtsbeschränkungen für Güterverkehr
+  name_en: Access Restrictions for Freight Traffic
+  strategy_id: M6
+  instrument_id: R
+  table_number: 60
+
+- id: IM6F1
+  name_de: Förderung der Anschaffung von Lastenrädern für Unternehmen
+  name_en: Funding for Acquisition of Cargo Bikes for Companies
+  strategy_id: M6
+  instrument_id: F
+  table_number: 60
+
+- id: IM6V1
+  name_de: Ausbau von Mikrodepots für dezentrale Feinverteilung
+  name_en: Expansion of Micro-Depots for Decentralized Last-Mile Distribution
+  strategy_id: M6
+  instrument_id: V
+  table_number: 60
+
+- id: IM6I1
+  name_de: Beratung für Unternehmen zur Optimierung von Lieferketten
+  name_en: Consultation for Companies on Optimization of Supply Chains
+  strategy_id: M6
+  instrument_id: I
+  table_number: 60
+
+# Table 61: Ernährung & Lebensmittel (Indirect)
+- id: IEL1F1
+  name_de: Förderung innovativer und nachhaltiger Anbauformen
+  name_en: Funding for Innovative and Sustainable Farming Methods
+  strategy_id: EL1
+  instrument_id: F
+  table_number: 61
+
+- id: IEL1F2
+  name_de: Subventionierung klimaschonenden Essens in kommunalen Mensen
+  name_en: Subsidizing Climate-Friendly Food in Municipal Canteens
+  strategy_id: EL1
+  instrument_id: F
+  table_number: 61
+
+- id: IEL1V1
+  name_de: Flächenbereitstellung für nachhaltige Lebensmittelerzeugung
+  name_en: Provision of Land for Sustainable Food Production
+  strategy_id: EL1
+  instrument_id: V
+  table_number: 61
+
+- id: IEL1V2
+  name_de: Aufbau einer Vertriebsplattform für regionale Lebensmittel
+  name_en: Development of Distribution Platform for Regional Food
+  strategy_id: EL1
+  instrument_id: V
+  table_number: 61
+
+- id: IEL1V3
+  name_de: Prüfung von Rekommunalisierung landwirtschaftlicher Flächen
+  name_en: Examination of Re-Municipalization of Agricultural Land
+  strategy_id: EL1
+  instrument_id: V
+  table_number: 61
+
+- id: IEL1I1
+  name_de: Informationskaskade "Nachhaltige Ernährung" für Bürger*innen
+  name_en: Information Cascade "Sustainable Nutrition" for Citizens
+  strategy_id: EL1
+  instrument_id: I
+  table_number: 61
+
+- id: IEL1I2
+  name_de: Informations- und Vernetzungsangebote für Lebensmittelerzeuger*innen
+  name_en: Information and Networking Offers for Food Producers
+  strategy_id: EL1
+  instrument_id: I
+  table_number: 61
+
+- id: IEL1I3
+  name_de: Vor-Ort-Beratung für Erzeuger*innen zu nachhaltigem Anbau
+  name_en: On-Site Consultation for Producers on Sustainable Farming
+  strategy_id: EL1
+  instrument_id: I
+  table_number: 61
+
+- id: IEL1I4
+  name_de: Runder Tisch für Anbieter*innen nachhaltiger Lebensmittel
+  name_en: Round Table for Providers of Sustainable Food
+  strategy_id: EL1
+  instrument_id: I
+  table_number: 61
+
+# Table 62: Wiedervernässung organischer Böden (Indirect)
+- id: IEL2R1
+  name_de: Beschluss für Renaturierung und Wiedervernässung kommunaler Flächen
+  name_en: Resolution for Restoration and Rewetting of Municipal Land
+  strategy_id: EL2
+  instrument_id: R
+  table_number: 62
+
+- id: IEL2F1
+  name_de: Lokale Prämien für Wiedervernässung
+  name_en: Local Premiums for Rewetting
+  strategy_id: EL2
+  instrument_id: F
+  table_number: 62
+
+- id: IEL2I1
+  name_de: Informationskaskade "Wiedervernässung organischer Böden" für Landbesitzer*innen
+  name_en: Information Cascade "Rewetting of Organic Soils" for Landowners
+  strategy_id: EL2
+  instrument_id: I
+  table_number: 62
+
+- id: IEL2I2
+  name_de: Vor-Ort-Beratung für Landbesitzer*innen zu Wiedervernässung
+  name_en: On-Site Consultation for Landowners on Rewetting
+  strategy_id: EL2
+  instrument_id: I
+  table_number: 62
+
+- id: IEL2I3
+  name_de: Vernetzungstreffen für Landbesitzer*innen zum Thema Wiedervernässung
+  name_en: Networking Meetings for Landowners on Rewetting
+  strategy_id: EL2
+  instrument_id: I
+  table_number: 62
+
+- id: IEL2I4
+  name_de: Informations- und Mitmachangebote für Bürger*innen zu Renaturierung
+  name_en: Information and Participation Offers for Citizens on Restoration
+  strategy_id: EL2
+  instrument_id: I
+  table_number: 62
+
+# Table 63: Aufforstung & nachhaltige Bewirtschaftung von Wäldern (Indirect)
+- id: IEL3R1
+  name_de: Beschluss für naturnahe Waldbewirtschaftung kommunaler Wälder
+  name_en: Resolution for Near-Natural Forest Management of Municipal Forests
+  strategy_id: EL3
+  instrument_id: R
+  table_number: 63
+
+- id: IEL3R2
+  name_de: Beschluss für Entsiegelung und Aufforstung
+  name_en: Resolution for Unsealing and Afforestation
+  strategy_id: EL3
+  instrument_id: R
+  table_number: 63
+
+- id: IEL3F1
+  name_de: Förderung innovativer Waldbewirtschaftungsformen
+  name_en: Funding for Innovative Forest Management Methods
+  strategy_id: EL3
+  instrument_id: F
+  table_number: 63
+
+- id: IEL3F2
+  name_de: Kostenlose Baumsetzlinge für Bürger*innen
+  name_en: Free Tree Seedlings for Citizens
+  strategy_id: EL3
+  instrument_id: F
+  table_number: 63
+
+- id: IEL3I1
+  name_de: Informations- und Beratungsangebote für Waldbesitzer*innen
+  name_en: Information and Consultation Offers for Forest Owners
+  strategy_id: EL3
+  instrument_id: I
+  table_number: 63
+
+- id: IEL3I2
+  name_de: Vernetzungstreffen für Waldbesitzer*innen
+  name_en: Networking Meetings for Forest Owners
+  strategy_id: EL3
+  instrument_id: I
+  table_number: 63
+
+- id: IEL3I3
+  name_de: Informations- und Mitmachangebote für Bürger*innen zu Aufforstung
+  name_en: Information and Participation Offers for Citizens on Afforestation
+  strategy_id: EL3
+  instrument_id: I
+  table_number: 63
+
+# Table 64: Abfallreduktion & Anlageneffizienz (Indirect)
+- id: IAW1R1
+  name_de: Beschluss für Effizienz- und Klimaschutzziele für Entsorgungsanlagen
+  name_en: Resolution for Efficiency and Climate Protection Goals for Waste Facilities
+  strategy_id: AW1
+  instrument_id: R
+  table_number: 64
+
+- id: IAW1F1
+  name_de: Erhöhung der Müllgebühren ab bestimmtem Verbrauch
+  name_en: Increase of Waste Fees Above Certain Consumption
+  strategy_id: AW1
+  instrument_id: F
+  table_number: 64
+
+- id: IAW1F2
+  name_de: Förderung lokaler Mehrwegsysteme
+  name_en: Funding for Local Reusable Systems
+  strategy_id: AW1
+  instrument_id: F
+  table_number: 64
+
+- id: IAW1V1
+  name_de: Bereitstellung von Biotonnen und Mülltrennung
+  name_en: Provision of Organic Waste Bins and Waste Separation
+  strategy_id: AW1
+  instrument_id: V
+  table_number: 64
+
+- id: IAW1V2
+  name_de: Etablierung lokaler Mehrwegsysteme
+  name_en: Establishment of Local Reusable Systems
+  strategy_id: AW1
+  instrument_id: V
+  table_number: 64
+
+- id: IAW1V3
+  name_de: Unterstützung lokaler Abfallvermeidungs-Initiativen
+  name_en: Support for Local Waste Avoidance Initiatives
+  strategy_id: AW1
+  instrument_id: V
+  table_number: 64
+
+- id: IAW1V4
+  name_de: Effiziente Biogasnutzung in kommunalen Anlagen
+  name_en: Efficient Biogas Use in Municipal Facilities
+  strategy_id: AW1
+  instrument_id: V
+  table_number: 64
+
+- id: IAW1I1
+  name_de: Informationskaskade "Ressourcenarmer Lebensstil"
+  name_en: Information Cascade "Resource-Saving Lifestyle"
+  strategy_id: AW1
+  instrument_id: I
+  table_number: 64
+
+- id: IAW1I2
+  name_de: Interkommunale Austauschformate für Anlagenbetreiber
+  name_en: Intermunicipal Exchange Formats for Facility Operators
+  strategy_id: AW1
+  instrument_id: I
+  table_number: 64
+
+# Table 65: Wasser-/Abwasserreduktion & Anlageneffizienz (Indirect)
+- id: IAW2R1
+  name_de: Beschluss für Effizienz- und Klimaschutzziele für Wasser-/Abwasseranlagen
+  name_en: Resolution for Efficiency and Climate Protection Goals for Water/Wastewater Facilities
+  strategy_id: AW2
+  instrument_id: R
+  table_number: 65
+
+- id: IAW2F1
+  name_de: Förderung wassersparender Maßnahmen
+  name_en: Funding for Water-Saving Measures
+  strategy_id: AW2
+  instrument_id: F
+  table_number: 65
+
+- id: IAW2F2
+  name_de: Erhöhung der Wassergebühren ab bestimmtem Verbrauch
+  name_en: Increase of Water Fees Above Certain Consumption
+  strategy_id: AW2
+  instrument_id: F
+  table_number: 65
+
+- id: IAW2V1
+  name_de: Technische Optimierung von Kläranlagen
+  name_en: Technical Optimization of Wastewater Treatment Plants
+  strategy_id: AW2
+  instrument_id: V
+  table_number: 65
+
+- id: IAW2V2
+  name_de: Energetische Verwertung von Faulschlamm
+  name_en: Energy Recovery from Sewage Sludge
+  strategy_id: AW2
+  instrument_id: V
+  table_number: 65
+
+- id: IAW2I1
+  name_de: Informationskaskade "Wassersparen in Haushalten"
+  name_en: Information Cascade "Water Saving in Households"
+  strategy_id: AW2
+  instrument_id: I
+  table_number: 65
+
+- id: IAW2I2
+  name_de: Interkommunale Austauschformate für Anlagenbetreiber
+  name_en: Intermunicipal Exchange Formats for Facility Operators
+  strategy_id: AW2
+  instrument_id: I
+  table_number: 65
+
+# Table 66: Klimafreundlicheres Konsumverhalten der Bevölkerung (Indirect)
+- id: IK1F1
+  name_de: Förderung regionaler Produktanbieter*innen
+  name_en: Funding for Regional Product Providers
+  strategy_id: K1
+  instrument_id: F
+  table_number: 66
+
+- id: IK1F2
+  name_de: Unterstützung lokaler Initiativen zu nachhaltigem Konsum
+  name_en: Support for Local Initiatives on Sustainable Consumption
+  strategy_id: K1
+  instrument_id: F
+  table_number: 66
+
+- id: IK1F3
+  name_de: Unterstützung von Veranstaltungen zu nachhaltigem Konsum
+  name_en: Support for Events on Sustainable Consumption
+  strategy_id: K1
+  instrument_id: F
+  table_number: 66
+
+- id: IK1V1
+  name_de: Schaffung von Recycling-Kaufhäusern und Tauschregalen
+  name_en: Creation of Recycling Department Stores and Exchange Shelves
+  strategy_id: K1
+  instrument_id: V
+  table_number: 66
+
+- id: IK1V2
+  name_de: Einrichtung öffentlicher Reparaturwerkstätten
+  name_en: Establishment of Public Repair Workshops
+  strategy_id: K1
+  instrument_id: V
+  table_number: 66
+
+- id: IK1V3
+  name_de: Entwicklung von Geräteverleihstellen
+  name_en: Development of Equipment Lending Stations
+  strategy_id: K1
+  instrument_id: V
+  table_number: 66
+
+- id: IK1I1
+  name_de: Informationskaskade "Nachhaltiger Konsum"
+  name_en: Information Cascade "Sustainable Consumption"
+  strategy_id: K1
+  instrument_id: I
+  table_number: 66
+
+- id: IK1I2
+  name_de: Interkommunale Austauschformate zu nachhaltigem Konsum
+  name_en: Intermunicipal Exchange Formats on Sustainable Consumption
+  strategy_id: K1
+  instrument_id: I
+  table_number: 66
+
+# Table 67: THG-neutrale Verwaltung (Scope 1 und 2) (Indirect)
+- id: IV1R1
+  name_de: Sanierungsfahrplan für kommunale Gebäude
+  name_en: Renovation Roadmap for Municipal Buildings
+  strategy_id: V1
+  instrument_id: R
+  table_number: 67
+
+- id: IV1R2
+  name_de: Verabschiedung von Energieleitlinien
+  name_en: Adoption of Energy Guidelines
+  strategy_id: V1
+  instrument_id: R
+  table_number: 67
+
+- id: IV1R3
+  name_de: Vorgaben für klimaschonende Dienstfahrten
+  name_en: Requirements for Climate-Friendly Official Trips
+  strategy_id: V1
+  instrument_id: R
+  table_number: 67
+
+- id: IV1F1
+  name_de: Bonusprogramme für energiesparendes Verhalten der Mitarbeiter*innen
+  name_en: Bonus Programs for Energy-Saving Behavior of Employees
+  strategy_id: V1
+  instrument_id: F
+  table_number: 67
+
+- id: IV1F2
+  name_de: Intracting für Gebäudesanierung
+  name_en: Intracting for Building Renovation
+  strategy_id: V1
+  instrument_id: F
+  table_number: 67
+
+- id: IV1V1
+  name_de: Gebäudesanierung und Ausbau erneuerbarer Energien
+  name_en: Building Renovation and Expansion of Renewable Energy
+  strategy_id: V1
+  instrument_id: V
+  table_number: 67
+
+- id: IV1V2
+  name_de: Optimierung der Gebäudenutzung
+  name_en: Optimization of Building Use
+  strategy_id: V1
+  instrument_id: V
+  table_number: 67
+
+- id: IV1V3
+  name_de: Umstellung auf klimaschonenden Fuhrpark
+  name_en: Conversion to Climate-Friendly Vehicle Fleet
+  strategy_id: V1
+  instrument_id: V
+  table_number: 67
+
+- id: IV1V4
+  name_de: Aufbau von Ladeinfrastruktur
+  name_en: Development of Charging Infrastructure
+  strategy_id: V1
+  instrument_id: V
+  table_number: 67
+
+- id: IV1I1
+  name_de: Informationsveranstaltungen für Mitarbeiter*innen zu Energieeinsparung
+  name_en: Information Events for Employees on Energy Savings
+  strategy_id: V1
+  instrument_id: I
+  table_number: 67
+
+- id: IV1I2
+  name_de: Hinweise im Verwaltungsalltag zu energiesparendem Verhalten
+  name_en: Reminders in Administrative Daily Work on Energy-Saving Behavior
+  strategy_id: V1
+  instrument_id: I
+  table_number: 67
+
+- id: IV1I3
+  name_de: Schulungen für technisches Personal zu Gebäudetechnik
+  name_en: Training for Technical Staff on Building Technology
+  strategy_id: V1
+  instrument_id: I
+  table_number: 67
+
+# Table 68: THG-neutrale Verwaltung (Scope 3) (Indirect)
+- id: IV2R1
+  name_de: Aufnahme von Klimaschutzaspekten in Vergaberichtlinien
+  name_en: Inclusion of Climate Protection Aspects in Procurement Guidelines
+  strategy_id: V2
+  instrument_id: R
+  table_number: 68
+
+- id: IV2R2
+  name_de: Vorgaben für nachhaltige Ernährung in kommunalen Mensen und Veranstaltungen
+  name_en: Requirements for Sustainable Food in Municipal Canteens and Events
+  strategy_id: V2
+  instrument_id: R
+  table_number: 68
+
+- id: IV2R3
+  name_de: Vorgaben für Verpackungsvermeidung bei Veranstaltungen
+  name_en: Requirements for Packaging Avoidance at Events
+  strategy_id: V2
+  instrument_id: R
+  table_number: 68
+
+- id: IV2R4
+  name_de: Klimaschutzkriterien bei Verpachtung kommunaler Flächen
+  name_en: Climate Protection Criteria for Leasing of Municipal Land
+  strategy_id: V2
+  instrument_id: R
+  table_number: 68
+
+- id: IV2F1
+  name_de: Jobticket für Mitarbeiter*innen
+  name_en: Job Ticket for Employees
+  strategy_id: V2
+  instrument_id: F
+  table_number: 68
+
+- id: IV2F2
+  name_de: Fahrrad-Leasing und Reparaturangebote für Mitarbeiter*innen
+  name_en: Bicycle Leasing and Repair Offers for Employees
+  strategy_id: V2
+  instrument_id: F
+  table_number: 68
+
+- id: IV2F3
+  name_de: Subventionierung klimaschonenden Essens in Verwaltungsmensen
+  name_en: Subsidizing Climate-Friendly Food in Administrative Canteens
+  strategy_id: V2
+  instrument_id: F
+  table_number: 68
+
+- id: IV2V1
+  name_de: Klimaschonende Beschaffung
+  name_en: Climate-Friendly Procurement
+  strategy_id: V2
+  instrument_id: V
+  table_number: 68
+
+- id: IV2V2
+  name_de: Nachhaltige Landnutzung kommunaler Flächen
+  name_en: Sustainable Land Use of Municipal Areas
+  strategy_id: V2
+  instrument_id: V
+  table_number: 68
+
+- id: IV2V3
+  name_de: Installation von Infrastruktur für nachhaltige Mobilität (Fahrradabstellanlagen)
+  name_en: Installation of Infrastructure for Sustainable Mobility (Bicycle Parking)
+  strategy_id: V2
+  instrument_id: V
+  table_number: 68
+
+- id: IV2I1
+  name_de: Informationsveranstaltungen für Mitarbeiter*innen zu nachhaltigem Pendeln
+  name_en: Information Events for Employees on Sustainable Commuting
+  strategy_id: V2
+  instrument_id: I
+  table_number: 68
+
+- id: IV2I2
+  name_de: Schulungen zur nachhaltigen Beschaffung
+  name_en: Training on Sustainable Procurement
+  strategy_id: V2
+  instrument_id: I
+  table_number: 68
+
+
+# ----- DIRECT MEASURES (Section 3.1) -----
+
+direct_measures:
+
+# Table 32: Handlungsfeld Strom (Direct)
+- id: DS1
+  name_de: Stromerzeugung – Photovoltaik
+  name_en: Electricity Generation – Photovoltaics
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+
+- id: DS2
+  name_de: Stromerzeugung – Windkraft
+  name_en: Electricity Generation – Wind Power
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+
+- id: DS3
+  name_de: Stromerzeugung – Wasserkraft
+  name_en: Electricity Generation – Hydropower
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+
+- id: DS4
+  name_de: Stromerzeugung – Geothermie
+  name_en: Electricity Generation – Geothermal
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+
+- id: DS5
+  name_de: Stromerzeugung Heizkraftwerke (inkl. KWK)
+  name_en: Electricity Generation Combined Heat and Power Plants (incl. CHP)
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+
+- id: DS6
+  name_de: Strombezug – Ökostrom
+  name_en: Electricity Supply – Green Electricity
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+
+- id: DS7
+  name_de: Stromverbrauch – Umstellung Straßenbeleuchtung
+  name_en: Electricity Consumption – Street Lighting Conversion
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+
+- id: DS8
+  name_de: Stromverbrauch – Umstellung Beleuchtung (Büro)
+  name_en: Electricity Consumption – Lighting Conversion (Office)
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+
+- id: DS9
+  name_de: Stromverbrauch – Umstellung Beleuchtung (Sporthallen)
+  name_en: Electricity Consumption – Lighting Conversion (Sports Halls)
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+
+- id: DS10
+  name_de: Stromverbrauch – Umstellung Beleuchtung (Sportplätze)
+  name_en: Electricity Consumption – Lighting Conversion (Sports Fields)
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+
+- id: DS11
+  name_de: Stromverbrauch – Verhaltensänderungen Gewerbe/Verwaltung
+  name_en: Electricity Consumption – Behavioral Changes Commercial/Administration
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+
+- id: DS12
+  name_de: Stromverbrauch – Effizienz und Verhaltensmaßnahmen private Haushalte
+  name_en: Electricity Consumption – Efficiency and Behavioral Measures Private Households
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+
+- id: DS13
+  name_de: Stromverbrauch – Gering- und nicht-investive Maßnahmen Gewerbe/Verwaltung (Einzelmaßnahmen)
+  name_en: Electricity Consumption – Low and Non-Investment Measures Commercial/Administration (Individual Measures)
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+
+- id: DS14
+  name_de: Stromverbrauch – Gering- und nicht-investive Maßnahmen Gewerbe/Verwaltung (alle Bereiche)
+  name_en: Electricity Consumption – Low and Non-Investment Measures Commercial/Administration (All Areas)
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+
+- id: DS15
+  name_de: Stromverbrauch – Gering- und nicht-investive Maßnahmen Haushalte
+  name_en: Electricity Consumption – Low and Non-Investment Measures Households
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+
+- id: DS16
+  name_de: Stromverbrauch – Raumlufttechnischen Anlagen
+  name_en: Electricity Consumption – Air Conditioning Systems
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+
+- id: DS17
+  name_de: Stromverbrauch – Energieeffizienz Rechenzentren
+  name_en: Electricity Consumption – Energy Efficiency Data Centers
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+
+- id: DS18
+  name_de: Stromverbrauch – Effiziente Geräte für Information, Kommunikation, Technik Gewerbe
+  name_en: Electricity Consumption – Efficient Devices for Information, Communication, Technology Commercial
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+
+- id: DS19
+  name_de: Stromverbrauch – Effiziente Geräte für Information, Kommunikation, Technik Haushalte
+  name_en: Electricity Consumption – Efficient Devices for Information, Communication, Technology Households
+  strategy_id: S0
+  instrument_id: D
+  table_number: 32
+
+# Table 33: Handlungsfeld Wärme (Direct)
+- id: DW1
+  name_de: Klimafreundliche Wärmeerzeugung (dezentral) Gewerbe/Verwaltung
+  name_en: Climate-Friendly Heat Generation (Decentralized) Commercial/Administration
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+
+- id: DW2
+  name_de: Klimafreundliche Wärmeerzeugung (dezentral) Haushalte
+  name_en: Climate-Friendly Heat Generation (Decentralized) Households
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+
+- id: DW3
+  name_de: Klimafreundliche Wärmeerzeugung (dezentral-zentral) Gewerbe/Verwaltung
+  name_en: Climate-Friendly Heat Generation (Decentralized-Centralized) Commercial/Administration
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+
+- id: DW4
+  name_de: Klimafreundliche Wärmeerzeugung (dezentral-zentral) Haushalte
+  name_en: Climate-Friendly Heat Generation (Decentralized-Centralized) Households
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+
+- id: DW5
+  name_de: Wärmeverbrauch – Verhaltensänderungen Gewerbe/Verwaltung
+  name_en: Heat Consumption – Behavioral Changes Commercial/Administration
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+
+- id: DW6
+  name_de: Wärmeverbrauch – Verhaltensänderungen private Haushalte
+  name_en: Heat Consumption – Behavioral Changes Private Households
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+
+- id: DW7
+  name_de: Wärmeverbrauch – Gering- und nicht-investive Maßnahmen Gewerbe/Verwaltung
+  name_en: Heat Consumption – Low and Non-Investment Measures Commercial/Administration
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+
+- id: DW8
+  name_de: Wärmeverbrauch – Gering- und nicht-investive Maßnahmen private Haushalte
+  name_en: Heat Consumption – Low and Non-Investment Measures Private Households
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+
+- id: DW9
+  name_de: Gebäude – Sanierung und Heizungstausch eines Verwaltungsgebäudes
+  name_en: Building – Renovation and Heating Replacement of Administrative Building
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+
+- id: DW10
+  name_de: Gebäude – Sanierung und Heizungstausch eines Schulgebäudes
+  name_en: Building – Renovation and Heating Replacement of School Building
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+
+- id: DW11
+  name_de: Gebäude – Sanierung und Heizungstausch einer Kita
+  name_en: Building – Renovation and Heating Replacement of Kindergarten
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+
+- id: DW12
+  name_de: Gebäude – Sanierung und Heizungstausch einer Turnhalle
+  name_en: Building – Renovation and Heating Replacement of Gymnasium
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+
+- id: DW13
+  name_de: Gebäude – Sanierung und Heizungstausch eines Einfamilienhauses
+  name_en: Building – Renovation and Heating Replacement of Single-Family House
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+
+- id: DW14
+  name_de: Gebäude – Sanierung und Heizungstausch eines Reihenhauses
+  name_en: Building – Renovation and Heating Replacement of Townhouse
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+
+- id: DW15
+  name_de: Gebäude – Sanierung und Heizungstausch eines Mehrfamilienhauses
+  name_en: Building – Renovation and Heating Replacement of Multi-Family House
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+
+- id: DW16
+  name_de: Gebäude – Sanierung und Heizungstausch eines Groß-Mehrfamilienhauses
+  name_en: Building – Renovation and Heating Replacement of Large Multi-Family House
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+
+- id: DW17
+  name_de: Gebäude – Neubau eines Verwaltungsgebäudes
+  name_en: Building – New Construction of Administrative Building
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+
+- id: DW18
+  name_de: Gebäude – Neubau eines Schulgebäudes
+  name_en: Building – New Construction of School Building
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+
+- id: DW19
+  name_de: Gebäude – Neubau einer Kita
+  name_en: Building – New Construction of Kindergarten
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+
+- id: DW20
+  name_de: Gebäude – Neubau einer Turnhalle
+  name_en: Building – New Construction of Gymnasium
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+
+- id: DW21
+  name_de: Gebäude – Neubau eines Einfamilienhauses
+  name_en: Building – New Construction of Single-Family House
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+
+- id: DW22
+  name_de: Gebäude – Neubau eines Reihenhauses
+  name_en: Building – New Construction of Townhouse
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+
+- id: DW23
+  name_de: Gebäude – Neubau eines Mehrfamilienhauses
+  name_en: Building – New Construction of Multi-Family House
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+
+- id: DW24
+  name_de: Gebäude – Neubau eines Groß-Mehrfamilienhauses
+  name_en: Building – New Construction of Large Multi-Family House
+  strategy_id: W0
+  instrument_id: D
+  table_number: 33
+
+# Table 34: Handlungsfeld Mobilität (Direct)
+- id: DM1
+  name_de: Pkw – Antriebswechsel
+  name_en: Car – Drive Transition
+  strategy_id: M0
+  instrument_id: D
+  table_number: 34
+
+- id: DM2
+  name_de: Bus – Antriebswechsel
+  name_en: Bus – Drive Transition
+  strategy_id: M0
+  instrument_id: D
+  table_number: 34
+
+- id: DM3
+  name_de: Pendelwege – Vermeidung/Verlagerung
+  name_en: Commuting – Avoidance/Modal Shift
+  strategy_id: M0
+  instrument_id: D
+  table_number: 34
+
+- id: DM4
+  name_de: Dienstwege und -reisen – Vermeidung/Verlagerung
+  name_en: Official Trips and Travel – Avoidance/Modal Shift
+  strategy_id: M0
+  instrument_id: D
+  table_number: 34
+
+# Table 35: Handlungsfeld Ernährung & Landnutzung (Direct)
+- id: DEL1
+  name_de: Ernährung – Umstellung (Mensa)
+  name_en: Food – Conversion (Canteen)
+  strategy_id: EL0
+  instrument_id: D
+  table_number: 35
+
+- id: DEL2
+  name_de: Grünflächen – Baumpflanzung
+  name_en: Green Spaces – Tree Planting
+  strategy_id: EL0
+  instrument_id: D
+  table_number: 35
+
+- id: DEL3
+  name_de: Landnutzung – Wiedervernässung organischer Böden
+  name_en: Land Use – Rewetting of Organic Soils
+  strategy_id: EL0
+  instrument_id: D
+  table_number: 35
+
+- id: DEL4
+  name_de: Landnutzung – Aufforstung Freiflächen
+  name_en: Land Use – Afforestation of Open Spaces
+  strategy_id: EL0
+  instrument_id: D
+  table_number: 35
+
+- id: DEL5
+  name_de: Landnutzung – Nachhaltige Waldbewirtschaftung
+  name_en: Land Use – Sustainable Forest Management
+  strategy_id: EL0
+  instrument_id: D
+  table_number: 35
+
+# Table 36: Handlungsfeld Abfall & (Ab-)Wasser (Direct)
+- id: DAW1
+  name_de: Restmüll – Vermeidung
+  name_en: Residual Waste – Avoidance
+  strategy_id: AW0
+  instrument_id: D
+  table_number: 36
+
+- id: DAW2
+  name_de: Trinkwasserbezug
+  name_en: Drinking Water Supply
+  strategy_id: AW0
+  instrument_id: D
+  table_number: 36
+
+- id: DAW3
+  name_de: Wasserverbrauch – Vermeidung
+  name_en: Water Consumption – Avoidance
+  strategy_id: AW0
+  instrument_id: D
+  table_number: 36
+
+# Table 37: Handlungsfeld Konsum (Direct)
+- id: DK1
+  name_de: Papiernutzung – Recyclingpapier
+  name_en: Paper Use – Recycled Paper
+  strategy_id: K0
+  instrument_id: D
+  table_number: 37
+
+
+# ----- FOUNDATION MEASURES (Section 3.3) -----
+
+foundation_measures:
+
+# Table 69: Übergreifende Klimaschutzaspekte (Foundation)
+- id: GUE1
+  name_de: Spezifische kommunale Klimaschutzziele
+  name_en: Specific Municipal Climate Protection Goals
+  strategy_id: UE1
+  instrument_id: G
+  table_number: 69
+
+- id: GUE2
+  name_de: Klimaschutzkonzept als Grundlage der kommunalen Klimaschutzarbeit
+  name_en: Climate Protection Concept as Basis for Municipal Climate Protection Work
+  strategy_id: UE1
+  instrument_id: G
+  table_number: 69
+
+- id: GUE3
+  name_de: Klimaschutz-Monitoring
+  name_en: Climate Protection Monitoring
+  strategy_id: UE1
+  instrument_id: G
+  table_number: 69
+
+- id: GUE4
+  name_de: Klimaschutzmanagement als zentrale Umsetzungsstelle
+  name_en: Climate Protection Management as Central Implementation Unit
+  strategy_id: UE1
+  instrument_id: G
+  table_number: 69
+
+- id: GUE5
+  name_de: Einwirkung auf Landes- und Bundespolitik für mehr kommunale Kompetenzen im Klimaschutz
+  name_en: Influence on State and Federal Policy for More Municipal Competencies in Climate Protection
+  strategy_id: UE1
+  instrument_id: G
+  table_number: 69
+
+# Table 70: Strom (Foundation)
+- id: GS1
+  name_de: Festlegung von Zielen für die lokale erneuerbare Stromerzeugung
+  name_en: Setting Goals for Local Renewable Electricity Generation
+  strategy_id: S1
+  instrument_id: G
+  table_number: 70
+
+- id: GS2
+  name_de: Energienutzungsplan
+  name_en: Energy Use Plan
+  strategy_id: S1
+  instrument_id: G
+  table_number: 70
+
+- id: GS3
+  name_de: Stromnetzentwicklungsplan
+  name_en: Electricity Grid Development Plan
+  strategy_id: S1
+  instrument_id: G
+  table_number: 70
+
+- id: GS4
+  name_de: Monitoring lokaler Stromnutzung und -erzeugung
+  name_en: Monitoring of Local Electricity Use and Generation
+  strategy_id: S1
+  instrument_id: G
+  table_number: 70
+
+# Table 71: Wärme (Foundation)
+- id: GW1
+  name_de: Zielwerte für energetische Sanierung und Ausbau der THG-neutralen Wärmeversorgung
+  name_en: Target Values for Energy Renovation and Expansion of GHG-Neutral Heat Supply
+  strategy_id: W1
+  instrument_id: G
+  table_number: 71
+
+- id: GW2
+  name_de: Kommunale Wärmeplanung
+  name_en: Municipal Heat Planning
+  strategy_id: W1
+  instrument_id: G
+  table_number: 71
+
+- id: GW3
+  name_de: Energetische Quartierskonzepte
+  name_en: Energy District Concepts
+  strategy_id: W1
+  instrument_id: G
+  table_number: 71
+
+- id: GW4
+  name_de: Monitoring der Wärmetransformation
+  name_en: Monitoring of Heat Transformation
+  strategy_id: W1
+  instrument_id: G
+  table_number: 71
+
+- id: GW5
+  name_de: Management "Wärmetransformation" für Kommune und Quartiere
+  name_en: Management "Heat Transformation" for Municipality and Districts
+  strategy_id: W1
+  instrument_id: G
+  table_number: 71
+
+# Table 72: Mobilität (Foundation)
+- id: GM1
+  name_de: Klimaschutzziele für die lokale und regionale Mobilität
+  name_en: Climate Protection Goals for Local and Regional Mobility
+  strategy_id: M1
+  instrument_id: G
+  table_number: 72
+
+- id: GM2
+  name_de: Nachhaltiger städtischer Mobilitätsplan (SUMP – sustainable urban mobility plan)
+  name_en: Sustainable Urban Mobility Plan (SUMP)
+  strategy_id: M1
+  instrument_id: G
+  table_number: 72
+
+- id: GM3
+  name_de: Klimafreundliche Mobilität in Quartieren
+  name_en: Climate-Friendly Mobility in Districts
+  strategy_id: M1
+  instrument_id: G
+  table_number: 72
+
+- id: GM4
+  name_de: Monitoring nachhaltige Mobilität
+  name_en: Sustainable Mobility Monitoring
+  strategy_id: M1
+  instrument_id: G
+  table_number: 72
+
+- id: GM5
+  name_de: Nachhaltiges Mobilitätsmanagement
+  name_en: Sustainable Mobility Management
+  strategy_id: M1
+  instrument_id: G
+  table_number: 72
+
+# Table 73: Ernährung & Landnutzung (Foundation)
+- id: GEL1
+  name_de: Zielvorgaben für nachhaltige Ernährung
+  name_en: Target Specifications for Sustainable Nutrition
+  strategy_id: EL1
+  instrument_id: G
+  table_number: 73
+
+- id: GEL2
+  name_de: Monitoring der Zielvorgaben für Ernährung
+  name_en: Monitoring of Target Specifications for Nutrition
+  strategy_id: EL1
+  instrument_id: G
+  table_number: 73
+
+- id: GEL3
+  name_de: Zielvorgaben für nachhaltige Landnutzung
+  name_en: Target Specifications for Sustainable Land Use
+  strategy_id: EL2
+  instrument_id: G
+  table_number: 73
+
+- id: GEL4
+  name_de: Monitoring der Zielvorgaben für nachhaltige Landnutzung
+  name_en: Monitoring of Target Specifications for Sustainable Land Use
+  strategy_id: EL2
+  instrument_id: G
+  table_number: 73
+
+# Table 74: Abfall & (Ab-)Wasser (Foundation)
+- id: GAW1
+  name_de: Zielvorgaben Klimaschutz für Abfallbewirtschaftung, Wasser und Abwasser
+  name_en: Climate Protection Target Specifications for Waste Management, Water and Wastewater
+  strategy_id: AW1
+  instrument_id: G
+  table_number: 74
+
+- id: GAW2
+  name_de: Konzepte für klimafreundliche Abfallbewirtschaftung und klimafreundliche Wasser-/Abwasserbehandlung
+  name_en: Concepts for Climate-Friendly Waste Management and Water/Wastewater Treatment
+  strategy_id: AW1
+  instrument_id: G
+  table_number: 74
+
+- id: GAW3
+  name_de: Monitoring der Zielvorgaben für klimafreundliche Abfallbewirtschaftung und klimafreundliche Wasser-/Abwasserbehandlung
+  name_en: Monitoring of Target Specifications for Climate-Friendly Waste Management and Water/Wastewater Treatment
+  strategy_id: AW1
+  instrument_id: G
+  table_number: 74
+
+# Table 75: Konsum (Foundation)
+- id: GK1
+  name_de: Kommunale Ziele beim nachhaltigen Konsum
+  name_en: Municipal Goals for Sustainable Consumption
+  strategy_id: K1
+  instrument_id: G
+  table_number: 75
+
+- id: GK2
+  name_de: Monitoring der Zielvorgaben für nachhaltigen Konsum
+  name_en: Monitoring of Target Specifications for Sustainable Consumption
+  strategy_id: K1
+  instrument_id: G
+  table_number: 75
+
+# Table 76: Verwaltung (Foundation)
+- id: GV1
+  name_de: Ziele für eine THG-neutrale Verwaltung
+  name_en: Goals for GHG-Neutral Administration
+  strategy_id: V1
+  instrument_id: G
+  table_number: 76
+
+- id: GV2
+  name_de: Klimaschutzkonzept Verwaltung
+  name_en: Climate Protection Concept Administration
+  strategy_id: V1
+  instrument_id: G
+  table_number: 76
+
+- id: GV3
+  name_de: Energiecontrolling- und Monitoring in der kommunalen Verwaltung
+  name_en: Energy Controlling and Monitoring in Municipal Administration
+  strategy_id: V1
+  instrument_id: G
+  table_number: 76
+
+- id: GV4
+  name_de: Kommunales Energie- und Klimaschutzmanagement für die Verwaltung
+  name_en: Municipal Energy and Climate Protection Management for Administration
+  strategy_id: V1
+  instrument_id: G
+  table_number: 76

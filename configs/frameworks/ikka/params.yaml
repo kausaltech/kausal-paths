@@ -1,0 +1,1140 @@
+# Data from https://drive.google.com/drive/u/0/folders/19UUut58R5ZZu4cAfETWz1f-npCFjVhUw
+# Katalog für Maßnahmen und Instrumente im kommunalen Klimaschutz. Ifeu, Heidelberg, März 2025 (Version 2)
+
+# ============================================
+# PARAMETER DEFINITIONS (REFERENCES ONLY)
+# ============================================
+parameters:
+
+# ----- Photovoltaics -----
+- id: irradiation
+  name_de: "Solare Einstrahlung"
+  name_en: "Solar irradiation"
+  unit: kWh/kWp/year
+  category: renewable_energy
+  source: technical_annex_table_3
+
+- id: performance_ratio
+  name_de: "Performance Ratio"
+  name_en: "Performance ratio"
+  unit: dimensionless
+  category: renewable_energy
+  source: technical_annex_table_3
+
+- id: ef_displacement
+  name_de: "Emissionsfaktor Verdrängungsmix"
+  name_en: "Displacement mix emission factor"
+  unit: kg CO2e/kWh
+  category: emission_factors
+  note: "Marginal grid emissions, not average"
+  source: technical_annex_table_5
+
+- id: upstream_pv
+  name_de: "Vorkettenemissionen PV-Module"
+  name_en: "Upstream emissions PV modules"
+  unit: kg CO2e/kWp
+  category: upstream_emissions
+  source: technical_annex_table_7
+
+- id: lifetime_pv
+  name_de: "Nutzungsdauer PV-Anlage"
+  name_en: "Lifetime PV system"
+  unit: years
+  category: technical_lifetime
+  source: technical_annex_table_9
+
+- id: grid_decarbonization_factor
+  name_de: "Stromnetz-Dekarbonisierungsfaktor"
+  name_en: "Grid decarbonization factor"
+  unit: dimensionless
+  category: projection_factors
+  note: "Accounts for cleaner grid over measure lifetime"
+  source: technical_annex_table_11
+
+# ----- Wind Power -----
+- id: full_load_hours_wind
+  name_de: "Volllaststunden Windkraft"
+  name_en: "Full load hours wind power"
+  unit: hours/year
+  category: renewable_energy
+  source: technical_annex_table_3
+
+- id: upstream_wind
+  name_de: "Vorkettenemissionen Windkraftanlage"
+  name_en: "Upstream emissions wind turbine"
+  unit: kg CO2e/kW
+  category: upstream_emissions
+  source: technical_annex_table_7
+
+- id: lifetime_wind
+  name_de: "Nutzungsdauer Windkraftanlage"
+  name_en: "Lifetime wind turbine"
+  unit: years
+  category: technical_lifetime
+  source: technical_annex_table_9
+
+# ----- Hydropower -----
+- id: full_load_hours_hydro
+  name_de: "Volllaststunden Wasserkraft"
+  name_en: "Full load hours hydropower"
+  unit: hours/year
+  category: renewable_energy
+  source: technical_annex_table_3
+
+- id: upstream_hydro
+  name_de: "Vorkettenemissionen Wasserkraft"
+  name_en: "Upstream emissions hydropower"
+  unit: kg CO2e/kW
+  category: upstream_emissions
+  source: technical_annex_table_7
+
+- id: lifetime_hydro
+  name_de: "Nutzungsdauer Wasserkraftwerk"
+  name_en: "Lifetime hydropower plant"
+  unit: years
+  category: technical_lifetime
+  source: technical_annex_table_9
+
+# ----- Geothermal -----
+- id: full_load_hours_geothermal
+  name_de: "Volllaststunden Geothermie"
+  name_en: "Full load hours geothermal"
+  unit: hours/year
+  category: renewable_energy
+  source: technical_annex_table_3
+
+- id: upstream_geothermal
+  name_de: "Vorkettenemissionen Geothermie"
+  name_en: "Upstream emissions geothermal"
+  unit: kg CO2e/kW
+  category: upstream_emissions
+  source: technical_annex_table_7
+
+- id: lifetime_geothermal
+  name_de: "Nutzungsdauer Geothermieanlage"
+  name_en: "Lifetime geothermal plant"
+  unit: years
+  category: technical_lifetime
+  source: technical_annex_table_9
+
+# ----- Combined Heat and Power -----
+- id: efficiency_heat
+  name_de: "Wirkungsgrad Wärmeerzeugung"
+  name_en: "Heat generation efficiency"
+  unit: dimensionless
+  category: conversion_efficiency
+  source: technical_annex_table_4
+
+- id: efficiency_electricity
+  name_de: "Wirkungsgrad Stromerzeugung"
+  name_en: "Electricity generation efficiency"
+  unit: dimensionless
+  category: conversion_efficiency
+  source: technical_annex_table_4
+
+- id: exergy_electricity
+  name_de: "Exergie Strom"
+  name_en: "Exergy electricity"
+  unit: dimensionless
+  category: allocation_factors
+  note: "For exergetic allocation in CHP"
+  source: bisko_methodology
+
+- id: exergy_heat
+  name_de: "Exergie Wärme"
+  name_en: "Exergy heat"
+  unit: dimensionless
+  category: allocation_factors
+  note: "Temperature-dependent, typically 0.1-0.3"
+  source: bisko_methodology
+
+# ----- Green Electricity -----
+- id: green_tariff_additionality_factor
+  name_de: "Zusätzlichkeitsfaktor Ökostromtarif"
+  name_en: "Green tariff additionality factor"
+  unit: dimensionless
+  category: additionality
+  note: "Fraction of consumption that funds new RE capacity"
+  source: technical_annex_table_6
+
+# ----- Lighting -----
+- id: operating_hours_street_lighting
+  name_de: "Betriebsstunden Straßenbeleuchtung"
+  name_en: "Operating hours street lighting"
+  unit: hours/year
+  category: technical_operation
+  source: technical_annex_table_8
+
+- id: operating_hours_office
+  name_de: "Betriebsstunden Bürobeleuchtung"
+  name_en: "Operating hours office lighting"
+  unit: hours/year
+  category: technical_operation
+  source: technical_annex_table_8
+
+- id: operating_hours_sports_hall
+  name_de: "Betriebsstunden Sporthalle"
+  name_en: "Operating hours sports hall"
+  unit: hours/year
+  category: technical_operation
+  source: technical_annex_table_8
+
+- id: operating_hours_sports_field
+  name_de: "Betriebsstunden Sportplatz"
+  name_en: "Operating hours sports field"
+  unit: hours/year
+  category: technical_operation
+  source: technical_annex_table_8
+
+- id: control_system_savings
+  name_de: "Zusätzliche Einsparung durch Steuerung"
+  name_en: "Additional savings from control system"
+  unit: dimensionless
+  category: efficiency_factors
+  source: technical_annex_table_8
+
+- id: upstream_led
+  name_de: "Vorkettenemissionen LED-Leuchte"
+  name_en: "Upstream emissions LED lamp"
+  unit: kg CO2e/unit
+  category: upstream_emissions
+  source: technical_annex_table_7
+
+- id: upstream_old_lamp
+  name_de: "Vorkettenemissionen alte Leuchte"
+  name_en: "Upstream emissions old lamp"
+  unit: kg CO2e/unit
+  category: upstream_emissions
+  source: technical_annex_table_7
+
+- id: lifetime_led
+  name_de: "Nutzungsdauer LED"
+  name_en: "Lifetime LED"
+  unit: years
+  category: technical_lifetime
+  source: technical_annex_table_9
+
+# ----- Grid Electricity -----
+- id: ef_grid
+  name_de: "Emissionsfaktor Bundesstrommix"
+  name_en: "Grid emission factor"
+  unit: kg CO2e/kWh
+  category: emission_factors
+  source: bisko_current_year
+  update_frequency: annual
+
+# ----- Behavioral Savings -----
+- id: behavioral_savings_rate_admin
+  name_de: "Verhaltensbedingte Einsparrate Verwaltung"
+  name_en: "Behavioral savings rate administration"
+  unit: dimensionless
+  category: behavioral_factors
+  source: technical_annex_table_12
+
+- id: behavioral_savings_rate_households
+  name_de: "Verhaltensbedingte Einsparrate Haushalte"
+  name_en: "Behavioral savings rate households"
+  unit: dimensionless
+  category: behavioral_factors
+  source: technical_annex_table_12
+
+- id: behavioral_heat_savings_admin
+  name_de: "Verhaltensbedingte Wärmeeinsparung Verwaltung"
+  name_en: "Behavioral heat savings administration"
+  unit: dimensionless
+  category: behavioral_factors
+  source: technical_annex_table_12
+
+- id: behavioral_heat_savings_households
+  name_de: "Verhaltensbedingte Wärmeeinsparung Haushalte"
+  name_en: "Behavioral heat savings households"
+  unit: dimensionless
+  category: behavioral_factors
+  source: technical_annex_table_12
+
+# ----- Low-Investment Efficiency -----
+- id: low_investment_savings_rate_admin
+  name_de: "Einsparrate gering-investive Maßnahmen Verwaltung"
+  name_en: "Low-investment savings rate administration"
+  unit: dimensionless
+  category: efficiency_factors
+  source: technical_annex_table_13
+
+- id: low_investment_savings_rate_admin_comprehensive
+  name_de: "Einsparrate gering-investive Maßnahmen Verwaltung umfassend"
+  name_en: "Low-investment savings rate administration comprehensive"
+  unit: dimensionless
+  category: efficiency_factors
+  source: technical_annex_table_13
+
+- id: low_investment_savings_rate_households
+  name_de: "Einsparrate gering-investive Maßnahmen Haushalte"
+  name_en: "Low-investment savings rate households"
+  unit: dimensionless
+  category: efficiency_factors
+  source: technical_annex_table_13
+
+- id: low_investment_heat_savings_admin
+  name_de: "Wärmeeinsparung gering-investiv Verwaltung"
+  name_en: "Low-investment heat savings administration"
+  unit: dimensionless
+  category: efficiency_factors
+  source: technical_annex_table_13
+
+- id: low_investment_heat_savings_households
+  name_de: "Wärmeeinsparung gering-investiv Haushalte"
+  name_en: "Low-investment heat savings households"
+  unit: dimensionless
+  category: efficiency_factors
+  source: technical_annex_table_13
+
+- id: upstream_devices_per_kwh
+  name_de: "Vorkettenemissionen Effizienzgeräte"
+  name_en: "Upstream emissions efficiency devices"
+  unit: kg CO2e/kWh saved
+  category: upstream_emissions
+  source: technical_annex_table_7
+
+# ----- Specific Equipment -----
+- id: hvac_efficiency_improvement
+  name_de: "Effizienzverbesserung RLT-Anlagen"
+  name_en: "HVAC efficiency improvement"
+  unit: dimensionless
+  category: efficiency_factors
+  source: technical_annex_table_13
+
+- id: upstream_hvac_per_kwh
+  name_de: "Vorkettenemissionen RLT-Anlagen"
+  name_en: "Upstream emissions HVAC"
+  unit: kg CO2e/kWh saved
+  category: upstream_emissions
+  source: technical_annex_table_7
+
+- id: datacenter_efficiency_improvement
+  name_de: "Effizienzverbesserung Rechenzentrum"
+  name_en: "Data center efficiency improvement"
+  unit: dimensionless
+  category: efficiency_factors
+  source: technical_annex_table_13
+
+- id: upstream_datacenter_equipment
+  name_de: "Vorkettenemissionen Rechenzentrum"
+  name_en: "Upstream emissions data center equipment"
+  unit: kg CO2e/kWh saved
+  category: upstream_emissions
+  source: technical_annex_table_7
+
+- id: ict_efficiency_improvement_commercial
+  name_de: "Effizienzverbesserung IT-Geräte Gewerbe"
+  name_en: "ICT efficiency improvement commercial"
+  unit: dimensionless
+  category: efficiency_factors
+  source: technical_annex_table_13
+
+- id: ict_efficiency_improvement_households
+  name_de: "Effizienzverbesserung IT-Geräte Haushalte"
+  name_en: "ICT efficiency improvement households"
+  unit: dimensionless
+  category: efficiency_factors
+  source: technical_annex_table_13
+
+- id: upstream_ict_devices
+  name_de: "Vorkettenemissionen IT-Geräte"
+  name_en: "Upstream emissions ICT devices"
+  unit: kg CO2e/kWh saved
+  category: upstream_emissions
+  source: technical_annex_table_7
+
+# ----- Heating Systems -----
+- id: efficiency_before
+  name_de: "Wirkungsgrad Heizsystem vorher"
+  name_en: "Heating system efficiency before"
+  unit: dimensionless
+  category: conversion_efficiency
+  depends_on: fuel_type_before
+  source: technical_annex_table_4
+
+- id: efficiency_after
+  name_de: "Wirkungsgrad Heizsystem nachher"
+  name_en: "Heating system efficiency after"
+  unit: dimensionless
+  category: conversion_efficiency
+  depends_on: heating_system_after
+  source: technical_annex_table_4
+
+- id: ef_fuel_before
+  name_de: "Emissionsfaktor Energieträger vorher"
+  name_en: "Emission factor fuel before"
+  unit: kg CO2e/kWh
+  category: emission_factors
+  depends_on: fuel_type_before
+  source: bisko_current_year
+
+- id: ef_fuel_after
+  name_de: "Emissionsfaktor Energieträger nachher"
+  name_en: "Emission factor fuel after"
+  unit: kg CO2e/kWh
+  category: emission_factors
+  depends_on: heating_system_after
+  source: bisko_current_year
+
+- id: upstream_heating_system_new
+  name_de: "Vorkettenemissionen neues Heizsystem"
+  name_en: "Upstream emissions new heating system"
+  unit: kg CO2e
+  category: upstream_emissions
+  depends_on: heating_system_after
+  source: technical_annex_table_7
+
+- id: upstream_heating_system_old
+  name_de: "Vorkettenemissionen altes Heizsystem"
+  name_en: "Upstream emissions old heating system"
+  unit: kg CO2e
+  category: upstream_emissions
+  depends_on: fuel_type_before
+  source: technical_annex_table_7
+
+- id: lifetime_heating_system
+  name_de: "Nutzungsdauer Heizsystem"
+  name_en: "Lifetime heating system"
+  unit: years
+  category: technical_lifetime
+  source: technical_annex_table_9
+
+- id: direct_combustion_share
+  name_de: "Anteil direkte Verbrennung"
+  name_en: "Direct combustion share"
+  unit: dimensionless
+  category: allocation_factors
+  note: "Remainder is upstream fuel production"
+  source: bisko_methodology
+
+# ----- District Heating -----
+- id: ef_district_heating_local
+  name_de: "Emissionsfaktor Fernwärme (lokal)"
+  name_en: "District heating emission factor (local)"
+  unit: kg CO2e/kWh
+  category: emission_factors
+  note: "Municipality-specific, from local heat network mix"
+  source: local_data_required
+
+- id: upstream_district_heating_connection
+  name_de: "Vorkettenemissionen Fernwärmeanschluss"
+  name_en: "Upstream emissions district heating connection"
+  unit: kg CO2e
+  category: upstream_emissions
+  source: technical_annex_table_7
+
+- id: lifetime_district_heating_connection
+  name_de: "Nutzungsdauer Fernwärmeanschluss"
+  name_en: "Lifetime district heating connection"
+  unit: years
+  category: technical_lifetime
+  source: technical_annex_table_9
+
+# ----- Building Renovation -----
+- id: upstream_renovation_per_m2
+  name_de: "Vorkettenemissionen Sanierung"
+  name_en: "Upstream emissions renovation"
+  unit: kg CO2e/m²
+  category: upstream_emissions
+  depends_on: renovation_depth
+  source: technical_annex_table_7
+
+- id: lifetime_renovation
+  name_de: "Nutzungsdauer Sanierung"
+  name_en: "Lifetime renovation"
+  unit: years
+  category: technical_lifetime
+  source: technical_annex_table_9
+
+- id: upstream_heat_controls
+  name_de: "Vorkettenemissionen Heizungsregelung"
+  name_en: "Upstream emissions heating controls"
+  unit: kg CO2e
+  category: upstream_emissions
+  source: technical_annex_table_7
+
+# ----- New Construction -----
+- id: heat_intensity_geg_minimum
+  name_de: "Wärmebedarf GEG-Mindeststandard"
+  name_en: "Heat demand GEG minimum standard"
+  unit: kWh/m²/year
+  category: building_standards
+  source: geg_current
+  update_frequency: when_geg_updated
+
+- id: construction_ef_geg_minimum
+  name_de: "Bau-Emissionsfaktor GEG-Standard"
+  name_en: "Construction emission factor GEG standard"
+  unit: kg CO2e/m²
+  category: upstream_emissions
+  source: technical_annex_table_7
+
+- id: lifetime_building
+  name_de: "Nutzungsdauer Gebäude"
+  name_en: "Lifetime building"
+  unit: years
+  category: technical_lifetime
+  source: technical_annex_table_9
+
+# ----- Vehicles -----
+- id: fuel_consumption_ice_per_100km
+  name_de: "Kraftstoffverbrauch Verbrenner"
+  name_en: "Fuel consumption ICE"
+  unit: liters/100km
+  category: transport
+  depends_on: vehicle_category
+  source: technical_annex_table_14
+
+- id: electricity_consumption_ev_per_100km
+  name_de: "Stromverbrauch Elektrofahrzeug"
+  name_en: "Electricity consumption EV"
+  unit: kWh/100km
+  category: transport
+  depends_on: vehicle_category
+  source: technical_annex_table_14
+
+- id: ef_fuel_ice
+  name_de: "Emissionsfaktor Kraftstoff"
+  name_en: "Emission factor fuel"
+  unit: kg CO2e/liter
+  category: emission_factors
+  depends_on: fuel_type
+  source: bisko_current_year
+
+- id: upstream_ev
+  name_de: "Vorkettenemissionen Elektrofahrzeug"
+  name_en: "Upstream emissions electric vehicle"
+  unit: kg CO2e/vehicle
+  category: upstream_emissions
+  depends_on: vehicle_category
+  source: technical_annex_table_7
+
+- id: upstream_ice
+  name_de: "Vorkettenemissionen Verbrennerfahrzeug"
+  name_en: "Upstream emissions combustion vehicle"
+  unit: kg CO2e/vehicle
+  category: upstream_emissions
+  depends_on: vehicle_category
+  source: technical_annex_table_7
+
+- id: lifetime_vehicle
+  name_de: "Nutzungsdauer Pkw"
+  name_en: "Lifetime vehicle"
+  unit: years
+  category: technical_lifetime
+  source: technical_annex_table_9
+
+- id: share_within_municipality
+  name_de: "Anteil Fahrleistung innerhalb Kommune"
+  name_en: "Share of mileage within municipality"
+  unit: dimensionless
+  category: territorial_allocation
+  note: "For BISKO vs non-BISKO split"
+  source: local_transport_data
+
+# ----- Buses -----
+- id: fuel_consumption_diesel_bus_per_100km
+  name_de: "Kraftstoffverbrauch Dieselbus"
+  name_en: "Fuel consumption diesel bus"
+  unit: liters/100km
+  category: transport
+  depends_on: bus_type
+  source: technical_annex_table_14
+
+- id: electricity_consumption_electric_bus_per_100km
+  name_de: "Stromverbrauch Elektrobus"
+  name_en: "Electricity consumption electric bus"
+  unit: kWh/100km
+  category: transport
+  depends_on: bus_type
+  source: technical_annex_table_14
+
+- id: hydrogen_consumption_per_100km
+  name_de: "Wasserstoffverbrauch"
+  name_en: "Hydrogen consumption"
+  unit: kg H2/100km
+  category: transport
+  depends_on: bus_type
+  source: technical_annex_table_14
+
+- id: ef_diesel
+  name_de: "Emissionsfaktor Diesel"
+  name_en: "Emission factor diesel"
+  unit: kg CO2e/liter
+  category: emission_factors
+  source: bisko_current_year
+
+- id: ef_hydrogen
+  name_de: "Emissionsfaktor Wasserstoff"
+  name_en: "Emission factor hydrogen"
+  unit: kg CO2e/kg
+  category: emission_factors
+  note: "Depends on production method (green/gray/blue)"
+  source: technical_annex_table_5
+
+- id: upstream_electric_bus
+  name_de: "Vorkettenemissionen Elektrobus"
+  name_en: "Upstream emissions electric bus"
+  unit: kg CO2e/vehicle
+  category: upstream_emissions
+  source: technical_annex_table_7
+
+- id: upstream_diesel_bus
+  name_de: "Vorkettenemissionen Dieselbus"
+  name_en: "Upstream emissions diesel bus"
+  unit: kg CO2e/vehicle
+  category: upstream_emissions
+  source: technical_annex_table_7
+
+- id: lifetime_bus
+  name_de: "Nutzungsdauer Bus"
+  name_en: "Lifetime bus"
+  unit: years
+  category: technical_lifetime
+  source: technical_annex_table_9
+
+# ----- Modal Shift -----
+- id: avg_commute_distance_km
+  name_de: "Durchschnittliche Pendeldistanz"
+  name_en: "Average commute distance"
+  unit: km
+  category: transport
+  source: local_transport_data
+
+- id: work_days_per_year
+  name_de: "Arbeitstage pro Jahr"
+  name_en: "Work days per year"
+  unit: days/year
+  category: temporal
+  source: standard_assumption
+
+- id: emission_intensity_car
+  name_de: "Emissionsintensität Pkw"
+  name_en: "Emission intensity car"
+  unit: g CO2e/person-km
+  category: emission_factors
+  source: technical_annex_table_15
+
+- id: emission_intensity_pt
+  name_de: "Emissionsintensität ÖPNV"
+  name_en: "Emission intensity public transport"
+  unit: g CO2e/person-km
+  category: emission_factors
+  source: technical_annex_table_15
+
+- id: emission_intensity_bike_walk
+  name_de: "Emissionsintensität Rad/Fuß"
+  name_en: "Emission intensity bike/walk"
+  unit: g CO2e/person-km
+  category: emission_factors
+  source: technical_annex_table_15
+
+- id: emission_intensity_car_business
+  name_de: "Emissionsintensität Pkw Dienstreise"
+  name_en: "Emission intensity car business"
+  unit: g CO2e/person-km
+  category: emission_factors
+  source: technical_annex_table_15
+
+- id: emission_intensity_train
+  name_de: "Emissionsintensität Bahn"
+  name_en: "Emission intensity train"
+  unit: g CO2e/person-km
+  category: emission_factors
+  source: technical_annex_table_15
+
+- id: emission_intensity_plane
+  name_de: "Emissionsintensität Flugzeug"
+  name_en: "Emission intensity plane"
+  unit: g CO2e/person-km
+  category: emission_factors
+  note: "Includes radiative forcing index"
+  source: technical_annex_table_15
+
+- id: share_local_trips
+  name_de: "Anteil lokaler Fahrten"
+  name_en: "Share of local trips"
+  unit: dimensionless
+  category: territorial_allocation
+  note: "BQZ method - Binnen + 50% Quell-Ziel"
+  source: local_transport_data
+
+- id: upstream_infrastructure_qualitative
+  name_de: "Infrastruktur-Vorkettenemissionen (qualitativ)"
+  name_en: "Infrastructure upstream emissions (qualitative)"
+  unit: text
+  category: upstream_emissions
+  note: "Qualitative assessment only - insufficient data"
+  source: technical_annex_section_6
+
+# ----- Food and Nutrition -----
+- id: ef_meal_type_before
+  name_de: "Emissionsfaktor Mahlzeit vorher"
+  name_en: "Emission factor meal before"
+  unit: kg CO2e/meal
+  category: emission_factors
+  depends_on: menu_type_before
+  source: technical_annex_table_16
+
+- id: ef_meal_type_after
+  name_de: "Emissionsfaktor Mahlzeit nachher"
+  name_en: "Emission factor meal after"
+  unit: kg CO2e/meal
+  category: emission_factors
+  depends_on: menu_type_after
+  source: technical_annex_table_16
+
+- id: local_food_share_before
+  name_de: "Anteil lokaler Lebensmittel vorher"
+  name_en: "Local food share before"
+  unit: dimensionless
+  category: regional_factors
+  source: local_procurement_data
+
+- id: local_food_share_after
+  name_de: "Anteil lokaler Lebensmittel nachher"
+  name_en: "Local food share after"
+  unit: dimensionless
+  category: regional_factors
+  source: user_input_or_assumption
+
+# ----- Trees -----
+- id: sequestration_rate_age_0_10
+  name_de: "Sequestrierungsrate Bäume 0-10 Jahre"
+  name_en: "Sequestration rate trees 0-10 years"
+  unit: kg CO2/tree/year
+  category: carbon_sequestration
+  source: technical_annex_table_17
+
+- id: sequestration_rate_age_10_20
+  name_de: "Sequestrierungsrate Bäume 10-20 Jahre"
+  name_en: "Sequestration rate trees 10-20 years"
+  unit: kg CO2/tree/year
+  category: carbon_sequestration
+  source: technical_annex_table_17
+
+- id: sequestration_rate_age_20_40
+  name_de: "Sequestrierungsrate Bäume 20-40 Jahre"
+  name_en: "Sequestration rate trees 20-40 years"
+  unit: kg CO2/tree/year
+  category: carbon_sequestration
+  source: technical_annex_table_17
+
+- id: sequestration_rate_age_40_60
+  name_de: "Sequestrierungsrate Bäume 40-60 Jahre"
+  name_en: "Sequestration rate trees 40-60 years"
+  unit: kg CO2/tree/year
+  category: carbon_sequestration
+  source: technical_annex_table_17
+
+- id: sequestration_rate_age_60_plus
+  name_de: "Sequestrierungsrate Bäume 60+ Jahre"
+  name_en: "Sequestration rate trees 60+ years"
+  unit: kg CO2/tree/year
+  category: carbon_sequestration
+  source: technical_annex_table_17
+
+- id: lifetime_urban_tree
+  name_de: "Nutzungsdauer Stadtbaum"
+  name_en: "Lifetime urban tree"
+  unit: years
+  category: technical_lifetime
+  source: technical_annex_table_9
+
+- id: upstream_planting
+  name_de: "Vorkettenemissionen Baumpflanzung"
+  name_en: "Upstream emissions tree planting"
+  unit: kg CO2e/tree
+  category: upstream_emissions
+  source: technical_annex_table_7
+
+- id: mortality_rate
+  name_de: "Mortalitätsrate Stadtbäume"
+  name_en: "Mortality rate urban trees"
+  unit: dimensionless
+  category: risk_factors
+  source: technical_annex_table_17
+
+# ----- Organic Soils -----
+- id: emission_factor_drained_soil
+  name_de: "Emissionsfaktor entwässerte Böden"
+  name_en: "Emission factor drained soils"
+  unit: t CO2e/ha/year
+  category: emission_factors
+  depends_on: previous_use
+  source: technical_annex_table_18
+
+- id: emission_factor_rewetted_soil
+  name_de: "Emissionsfaktor wiedervernässte Böden"
+  name_en: "Emission factor rewetted soils"
+  unit: t CO2e/ha/year
+  category: emission_factors
+  depends_on: future_use
+  source: technical_annex_table_18
+
+- id: rewetting_establishment_period_years
+  name_de: "Etablierungszeitraum Wiedervernässung"
+  name_en: "Rewetting establishment period"
+  unit: years
+  category: temporal
+  source: technical_annex_table_18
+
+# ----- Forest -----
+- id: sequestration_rate_forest_age_0_10
+  name_de: "Sequestrierungsrate Wald 0-10 Jahre"
+  name_en: "Sequestration rate forest 0-10 years"
+  unit: t CO2/ha/year
+  category: carbon_sequestration
+  source: technical_annex_table_17
+
+- id: sequestration_rate_forest_age_10_20
+  name_de: "Sequestrierungsrate Wald 10-20 Jahre"
+  name_en: "Sequestration rate forest 10-20 years"
+  unit: t CO2/ha/year
+  category: carbon_sequestration
+  source: technical_annex_table_17
+
+- id: sequestration_rate_forest_age_20_40
+  name_de: "Sequestrierungsrate Wald 20-40 Jahre"
+  name_en: "Sequestration rate forest 20-40 years"
+  unit: t CO2/ha/year
+  category: carbon_sequestration
+  source: technical_annex_table_17
+
+- id: sequestration_rate_forest_age_40_plus
+  name_de: "Sequestrierungsrate Wald 40+ Jahre"
+  name_en: "Sequestration rate forest 40+ years"
+  unit: t CO2/ha/year
+  category: carbon_sequestration
+  source: technical_annex_table_17
+
+- id: lifetime_forest_evaluation
+  name_de: "Bewertungszeitraum Aufforstung"
+  name_en: "Forest evaluation period"
+  unit: years
+  category: temporal
+  note: "Typical evaluation horizon, not actual forest lifetime"
+  source: technical_annex_table_9
+
+- id: upstream_afforestation
+  name_de: "Vorkettenemissionen Aufforstung"
+  name_en: "Upstream emissions afforestation"
+  unit: kg CO2e/ha
+  category: upstream_emissions
+  source: technical_annex_table_7
+
+- id: sequestration_sustainable_management
+  name_de: "Sequestrierung nachhaltige Waldbewirtschaftung"
+  name_en: "Sequestration sustainable forest management"
+  unit: t CO2/ha/year
+  category: carbon_sequestration
+  source: technical_annex_table_17
+
+- id: sequestration_conventional_management
+  name_de: "Sequestrierung konventionelle Waldbewirtschaftung"
+  name_en: "Sequestration conventional forest management"
+  unit: t CO2/ha/year
+  category: carbon_sequestration
+  source: technical_annex_table_17
+
+- id: management_transition_period_years
+  name_de: "Übergangszeitraum Bewirtschaftungsänderung"
+  name_en: "Management transition period"
+  unit: years
+  category: temporal
+  source: technical_annex_table_17
+
+# ----- Waste -----
+- id: ef_waste_treatment
+  name_de: "Emissionsfaktor Abfallbehandlung"
+  name_en: "Emission factor waste treatment"
+  unit: kg CO2e/tonne
+  category: emission_factors
+  depends_on: waste_treatment_mix
+  source: technical_annex_table_19
+
+- id: ef_avoided_production
+  name_de: "Vermiedene Produktionsemissionen"
+  name_en: "Avoided production emissions"
+  unit: kg CO2e/tonne waste
+  category: emission_factors
+  note: "Emissions avoided by not producing wasted products"
+  source: technical_annex_table_19
+
+- id: waste_treatment_mix_incineration
+  name_de: "Anteil Müllverbrennung"
+  name_en: "Incineration share"
+  unit: dimensionless
+  category: technical_mix
+  source: local_waste_management_data
+
+- id: waste_treatment_mix_landfill
+  name_de: "Anteil Deponie"
+  name_en: "Landfill share"
+  unit: dimensionless
+  category: technical_mix
+  source: local_waste_management_data
+
+# ----- Water and Wastewater -----
+- id: energy_water_supply_per_m3
+  name_de: "Energiebedarf Wasserversorgung"
+  name_en: "Energy demand water supply"
+  unit: kWh/m³
+  category: process_energy
+  source: technical_annex_table_20
+
+- id: energy_wastewater_treatment_per_m3
+  name_de: "Energiebedarf Abwasserbehandlung"
+  name_en: "Energy demand wastewater treatment"
+  unit: kWh/m³
+  category: process_energy
+  source: technical_annex_table_20
+
+- id: ef_bottled_water_by_source
+  name_de: "Emissionsfaktor Flaschenwasser"
+  name_en: "Emission factor bottled water"
+  unit: kg CO2e/liter
+  category: emission_factors
+  depends_on: water_source
+  source: technical_annex_table_16
+
+- id: ef_tap_water
+  name_de: "Emissionsfaktor Leitungswasser"
+  name_en: "Emission factor tap water"
+  unit: kg CO2e/liter
+  category: emission_factors
+  source: technical_annex_table_20
+
+- id: local_treatment_share
+  name_de: "Anteil lokale Behandlung"
+  name_en: "Local treatment share"
+  unit: dimensionless
+  category: territorial_allocation
+  source: local_data
+
+# ----- Paper -----
+- id: ef_virgin_paper
+  name_de: "Emissionsfaktor Frischfaserpapier"
+  name_en: "Emission factor virgin paper"
+  unit: kg CO2e/tonne
+  category: emission_factors
+  source: technical_annex_table_16
+
+- id: ef_recycled_paper
+  name_de: "Emissionsfaktor Recyclingpapier"
+  name_en: "Emission factor recycled paper"
+  unit: kg CO2e/tonne
+  category: emission_factors
+  source: technical_annex_table_16
+
+
+# ============================================
+# EMISSION FACTOR DEPENDENCIES
+# ============================================
+# These define how parameters vary based on choices
+
+emission_factor_dependencies:
+
+# Fuel types
+- parameter: ef_fuel_before
+  depends_on: fuel_type_before
+  mappings:
+    natural_gas: 0.247  # Total incl. upstream (kg CO2e/kWh)
+    heating_oil: 0.318
+    coal: 0.438
+    biomass: 0.027
+    electricity_direct: 0.420  # Grid mix
+    district_heating: local_factor_required
+
+- parameter: efficiency_before
+  depends_on: fuel_type_before
+  mappings:
+    natural_gas: 0.85  # Condensing boiler
+    heating_oil: 0.82  # Standard oil boiler
+    coal: 0.75
+    biomass: 0.80
+    electricity_direct: 1.0
+    district_heating: 1.0
+
+# Heating systems
+- parameter: efficiency_after
+  depends_on: heating_system_after
+  mappings:
+    air_source_heat_pump: 3.5  # Seasonal COP
+    ground_source_heat_pump: 4.0
+    biomass_boiler: 0.85
+    pellet_boiler: 0.90
+    district_heating: 1.0
+    solar_thermal_plus_backup: 0.95
+
+- parameter: ef_fuel_after
+  depends_on: heating_system_after
+  mappings:
+    air_source_heat_pump: 0.420  # Grid electricity
+    ground_source_heat_pump: 0.420
+    biomass_boiler: 0.027
+    pellet_boiler: 0.027
+    district_heating: local_factor_required
+    solar_thermal_plus_backup: 0.247  # Backup gas
+
+- parameter: upstream_heating_system_new
+  depends_on: heating_system_after
+  mappings:
+    air_source_heat_pump: 1500  # kg CO2e
+    ground_source_heat_pump: 2000
+    biomass_boiler: 800
+    pellet_boiler: 900
+    district_heating: 0  # Counted in connection
+    solar_thermal_plus_backup: 1200
+
+- parameter: upstream_heating_system_old
+  depends_on: fuel_type_before
+  mappings:
+    natural_gas: 600  # kg CO2e for old gas boiler
+    heating_oil: 650
+    coal: 700
+    biomass: 800
+    electricity_direct: 200
+
+# Vehicle categories
+- parameter: fuel_consumption_ice_per_100km
+  depends_on: vehicle_category
+  mappings:
+    compact: 5.5  # liters/100km
+    midsize: 6.5
+    suv: 8.5
+    van: 7.5
+
+- parameter: electricity_consumption_ev_per_100km
+  depends_on: vehicle_category
+  mappings:
+    compact: 15  # kWh/100km
+    midsize: 18
+    suv: 22
+    van: 24
+
+- parameter: upstream_ev
+  depends_on: vehicle_category
+  mappings:
+    compact: 11000  # kg CO2e
+    midsize: 13000
+    suv: 16000
+    van: 14000
+
+- parameter: upstream_ice
+  depends_on: vehicle_category
+  mappings:
+    compact: 7000  # kg CO2e
+    midsize: 9000
+    suv: 11000
+    van: 9500
+
+# Bus types
+- parameter: fuel_consumption_diesel_bus_per_100km
+  depends_on: bus_type
+  mappings:
+    city_bus_12m: 35  # liters/100km
+    city_bus_18m: 45
+    regional_bus: 30
+
+- parameter: electricity_consumption_electric_bus_per_100km
+  depends_on: bus_type
+  mappings:
+    city_bus_12m: 120  # kWh/100km
+    city_bus_18m: 150
+    regional_bus: 100
+
+- parameter: hydrogen_consumption_per_100km
+  depends_on: bus_type
+  mappings:
+    city_bus_12m: 8  # kg H2/100km
+    city_bus_18m: 10
+    regional_bus: 7
+
+# Menu types
+- parameter: ef_meal_type_before
+  depends_on: menu_type_before
+  mappings:
+    mixed_diet_meat_heavy: 3.1  # kg CO2e/meal
+    mixed_diet_average: 2.5
+    vegetarian: 1.5
+    vegan: 1.0
+
+- parameter: ef_meal_type_after
+  depends_on: menu_type_after
+  mappings:
+    mixed_diet_average: 2.5  # kg CO2e/meal
+    vegetarian: 1.5
+    vegan: 1.0
+    climate_optimized: 0.8  # Vegan + regional + seasonal + zero waste
+
+# Organic soils
+- parameter: emission_factor_drained_soil
+  depends_on: previous_use
+  mappings:
+    intensive_agriculture: 30  # t CO2e/ha/year
+    extensive_agriculture: 20
+    drained_forest: 15
+    grassland: 12
+
+- parameter: emission_factor_rewetted_soil
+  depends_on: future_use
+  mappings:
+    rewetted_no_use: 2  # t CO2e/ha/year
+    paludiculture: 5
+    wet_grassland: 8
+
+# Water source
+- parameter: ef_bottled_water_by_source
+  depends_on: water_source
+  mappings:
+    local: 0.15  # kg CO2e/liter
+    regional_less_100km: 0.20
+    national: 0.35
+    imported: 0.50
+
+# Paper types
+- parameter: ef_virgin_paper
+  value: 1200  # kg CO2e/tonne
+  
+- parameter: ef_recycled_paper
+  value: 700  # kg CO2e/tonne
+
+
+# ============================================
+# NOTES AND METADATA
+# ============================================
+metadata:
+
+  version: "2.0"
+  based_on: "IKKA Katalog März 2025 + Empfehlungen April 2024"
+  last_updated: "2025-01-XX"
+  
+  notes:
+  - "All formulas use parameter references with $ prefix"
+  - "Parameter values defined separately in parameter database"
+  - "BISKO classification follows IKKA methodology Chapter 5.1.2"
+  - "Upstream emissions follow life cycle boundaries per Chapter 5.1.3"
+  - "Direct measures have adoption factor = 1.0"
+  - "Emission factors include CO2 equivalents (CH4, N2O as CO2e)"
+  - "Grid electricity uses Bundesstrommix for consumption"
+  - "Renewable generation uses Verdrängungsmix for avoided emissions"
+  - "District heating uses local municipality-specific emission factor"
+  - "Temporal patterns: one_time = single implementation, ongoing = repeated"
+  - "Stock variables accumulate over time, flow variables are annual"
+
+  calculation_principles:
+  - "Physical accounting principle (Chapter 5.1.1)"
+  - "BISKO/non-BISKO split (Chapter 5.1.2)"
+  - "Include production upstream + operation, exclude end-of-life (Chapter 5.1.3)"
+  - "Report both annual and lifetime reductions (Chapter 5.1.5)"
+  - "Use BISKO emission factors where available (Chapter 5.1.7)"
+  - "Sequential calculation for combined measures: Sufficiency → Efficiency → Consistency (Chapter 5.2.2)"
+
+  references:
+  - technical_annex: "Separate document with parameter values"
+  - bisko_methodology: "BISKO standard from ifeu"
+  - geg_current: "Gebäudeenergiegesetz (current version)"
+  - local_data_required: "Municipality must provide"
