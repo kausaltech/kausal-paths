@@ -1,0 +1,1882 @@
+# Data from https://drive.google.com/drive/u/0/folders/19UUut58R5ZZu4cAfETWz1f-npCFjVhUw
+# Katalog für Maßnahmen und Instrumente im kommunalen Klimaschutz. Ifeu, Heidelberg, März 2025 (Version 2)
+
+# ============================================
+# IKKA DIRECT MEASURES - COMPLETE DEFINITION
+# Based on: Section 3.1 (Tables 32-37)
+# Version: 2.1 - Time Series Compatible
+# ============================================
+
+# ----- REUSABLE BAU MODEL DEFINITIONS -----
+
+modules:
+
+- id: pv_generation_model
+  name_de: "Photovoltaik-Stromerzeugung"
+  name_en: "Photovoltaic Electricity Generation"
+  description_de: "Stromerzeugung aus Photovoltaik und Verdrängung fossiler Stromerzeugung"
+  description_en: "Photovoltaic electricity generation and displacement of fossil power generation"
+  
+  state_variables:
+  - id: pv_capacity_installed
+    name_de: "Installierte PV-Leistung"
+    name_en: "Installed PV capacity"
+    unit: kWp
+    initial_value: 0
+    accumulation: stock
+    inflows:
+    - new_installations
+    outflows:
+    - capacity_retirement
+  
+  flow_variables:
+  - id: new_installations
+    name_de: "Neue Installationen"
+    name_en: "New installations"
+    unit: kWp/year
+    source: intervention
+    note_de: "Wird durch Maßnahme gesetzt"
+    note_en: "Set by measure intervention"
+  
+  - id: capacity_retirement
+    name_de: "Anlagenrückbau"
+    name_en: "Capacity retirement"
+    unit: kWp/year
+    formula: "new_installations[t - $lifetime_pv]"
+    note_de: "Anlagen werden nach Nutzungsdauer zurückgebaut"
+    note_en: "Capacity retires after lifetime"
+  
+  - id: annual_electricity_generated
+    name_de: "Jährliche Stromerzeugung"
+    name_en: "Annual electricity generation"
+    unit: kWh/year
+    formula: "pv_capacity_installed * $irradiation * $performance_ratio"
+  
+  - id: grid_displacement_emissions_avoided
+    name_de: "Vermiedene Emissionen durch Netzstromverdrängung"
+    name_en: "Avoided emissions through grid displacement"
+    unit: tCO2e/year
+    formula: "annual_electricity_generated * $ef_displacement / 1000"
+  
+  outputs:
+  - id: upstream_pv_production
+    name_de: "Vorkettenemissionen PV-Produktion"
+    name_en: "Upstream emissions PV production"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "new_installations * $upstream_pv / 1000"
+    accumulation: flow
+    classification:
+      bisko: false
+      upstream: true
+      territorial: non_local
+      temporal: at_installation
+  
+  - id: operational_avoidance
+    name_de: "Betriebliche Emissionsvermeidung"
+    name_en: "Operational emission avoidance"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "grid_displacement_emissions_avoided"
+    accumulation: flow
+    classification:
+      bisko: false
+      upstream: false
+      territorial: non_local
+      note_de: "Verdrängt Bundesnetzstrommix"
+      note_en: "Displaces federal grid mix"
+  
+  - id: electricity_generated
+    name_de: "Erzeugte Strommenge"
+    name_en: "Generated electricity"
+    quantity: energy
+    unit: kWh/year
+    formula: "annual_electricity_generated"
+    accumulation: flow
+    classification:
+      bisko: false
+      note_de: "Energiemenge, keine Emission"
+      note_en: "Energy quantity, not emission"
+
+- id: wind_generation_model
+  name_de: "Windkraft-Stromerzeugung"
+  name_en: "Wind Power Electricity Generation"
+  description_de: "Stromerzeugung aus Windkraft und Verdrängung fossiler Stromerzeugung"
+  description_en: "Wind power electricity generation and displacement of fossil power generation"
+  
+  state_variables:
+  - id: wind_capacity_installed
+    name_de: "Installierte Windkraftleistung"
+    name_en: "Installed wind power capacity"
+    unit: kW
+    initial_value: 0
+    accumulation: stock
+    inflows:
+    - new_installations
+    outflows:
+    - capacity_retirement
+  
+  flow_variables:
+  - id: new_installations
+    name_de: "Neue Installationen"
+    name_en: "New installations"
+    unit: kW/year
+    source: intervention
+  
+  - id: capacity_retirement
+    name_de: "Anlagenrückbau"
+    name_en: "Capacity retirement"
+    unit: kW/year
+    formula: "new_installations[t - $lifetime_wind]"
+  
+  - id: annual_electricity_generated
+    name_de: "Jährliche Stromerzeugung"
+    name_en: "Annual electricity generation"
+    unit: kWh/year
+    formula: "wind_capacity_installed * $full_load_hours_wind"
+  
+  - id: grid_displacement_emissions_avoided
+    name_de: "Vermiedene Emissionen durch Netzstromverdrängung"
+    name_en: "Avoided emissions through grid displacement"
+    unit: tCO2e/year
+    formula: "annual_electricity_generated * $ef_displacement / 1000"
+  
+  outputs:
+  - id: upstream_wind_production
+    name_de: "Vorkettenemissionen Windkraftproduktion"
+    name_en: "Upstream emissions wind power production"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "new_installations * $upstream_wind / 1000"
+    accumulation: flow
+    classification:
+      bisko: false
+      upstream: true
+      temporal: at_installation
+  
+  - id: operational_avoidance
+    name_de: "Betriebliche Emissionsvermeidung"
+    name_en: "Operational emission avoidance"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "grid_displacement_emissions_avoided"
+    accumulation: flow
+    classification:
+      bisko: false
+      upstream: false
+      territorial: non_local
+
+- id: renewable_generation_generic_model
+  name_de: "Generisches Modell für erneuerbare Stromerzeugung"
+  name_en: "Generic Renewable Electricity Generation Model"
+  description_de: "Allgemeines Modell für Wasserkraft, Geothermie, etc."
+  description_en: "Generic model for hydropower, geothermal, etc."
+  
+  state_variables:
+  - id: capacity_installed
+    name_de: "Installierte Leistung"
+    name_en: "Installed capacity"
+    unit: kW
+    initial_value: 0
+    accumulation: stock
+    inflows:
+    - new_installations
+    outflows:
+    - capacity_retirement
+  
+  flow_variables:
+  - id: new_installations
+    name_de: "Neue Installationen"
+    name_en: "New installations"
+    unit: kW/year
+    source: intervention
+  
+  - id: capacity_retirement
+    name_de: "Anlagenrückbau"
+    name_en: "Capacity retirement"
+    unit: kW/year
+    formula: "new_installations[t - $lifetime_plant]"
+  
+  - id: annual_electricity_generated
+    name_de: "Jährliche Stromerzeugung"
+    name_en: "Annual electricity generation"
+    unit: kWh/year
+    formula: "capacity_installed * $full_load_hours"
+  
+  - id: grid_displacement_emissions_avoided
+    name_de: "Vermiedene Emissionen durch Netzstromverdrängung"
+    name_en: "Avoided emissions through grid displacement"
+    unit: tCO2e/year
+    formula: "annual_electricity_generated * $ef_displacement / 1000"
+  
+  outputs:
+  - id: upstream_plant_production
+    name_de: "Vorkettenemissionen Anlagenproduktion"
+    name_en: "Upstream emissions plant production"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "new_installations * $upstream_plant / 1000"
+    accumulation: flow
+    classification:
+      bisko: false
+      upstream: true
+      temporal: at_installation
+  
+  - id: operational_avoidance
+    name_de: "Betriebliche Emissionsvermeidung"
+    name_en: "Operational emission avoidance"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "grid_displacement_emissions_avoided"
+    accumulation: flow
+    classification:
+      bisko: false
+      upstream: false
+
+- id: chp_generation_model
+  name_de: "Kraft-Wärme-Kopplung"
+  name_en: "Combined Heat and Power"
+  description_de: "KWK-Anlage mit exergetischer Allokation"
+  description_en: "CHP plant with exergetic allocation"
+  
+  flow_variables:
+  - id: fuel_input
+    name_de: "Brennstoffeinsatz"
+    name_en: "Fuel input"
+    unit: kWh/year
+    formula: "heat_output / $efficiency_heat + electricity_output / $efficiency_electricity"
+  
+  - id: electricity_output
+    name_de: "Stromoutput"
+    name_en: "Electricity output"
+    unit: kWh/year
+    source: user_input
+  
+  - id: heat_output
+    name_de: "Wärmeoutput"
+    name_en: "Heat output"
+    unit: kWh/year
+    source: user_input
+  
+  - id: total_emissions_before_allocation
+    name_de: "Gesamtemissionen vor Allokation"
+    name_en: "Total emissions before allocation"
+    unit: tCO2e/year
+    formula: "fuel_input * $ef_fuel / 1000"
+  
+  - id: electricity_emissions_allocated
+    name_de: "Dem Strom zugeordnete Emissionen"
+    name_en: "Emissions allocated to electricity"
+    unit: tCO2e/year
+    formula: "total_emissions_before_allocation * (electricity_output * $exergy_electricity) / (electricity_output * $exergy_electricity + heat_output * $exergy_heat)"
+  
+  - id: heat_emissions_allocated
+    name_de: "Der Wärme zugeordnete Emissionen"
+    name_en: "Emissions allocated to heat"
+    unit: tCO2e/year
+    formula: "total_emissions_before_allocation * (heat_output * $exergy_heat) / (electricity_output * $exergy_electricity + heat_output * $exergy_heat)"
+  
+  outputs:
+  - id: operational_chp_emissions_electricity
+    name_de: "Betriebliche KWK-Emissionen (Strom-Anteil)"
+    name_en: "Operational CHP emissions (electricity portion)"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "electricity_emissions_allocated"
+    accumulation: flow
+    classification:
+      bisko: true
+      upstream: false
+      note_de: "Exergetische Allokation gemäß BISKO"
+      note_en: "Exergetic allocation per BISKO"
+  
+  - id: operational_chp_emissions_heat
+    name_de: "Betriebliche KWK-Emissionen (Wärme-Anteil)"
+    name_en: "Operational CHP emissions (heat portion)"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "heat_emissions_allocated"
+    accumulation: flow
+    classification:
+      bisko: true
+      upstream: false
+
+- id: green_electricity_procurement_model
+  name_de: "Ökostrom-Bezug"
+  name_en: "Green Electricity Procurement"
+  description_de: "Ökostromtarif mit Zusätzlichkeitsgarantie"
+  description_en: "Green electricity tariff with additionality guarantee"
+  
+  flow_variables:
+  - id: electricity_consumed
+    name_de: "Stromverbrauch"
+    name_en: "Electricity consumed"
+    unit: kWh/year
+    source: user_input
+  
+  - id: emissions_avoided_through_additionality
+    name_de: "Vermiedene Emissionen durch Zusätzlichkeit"
+    name_en: "Emissions avoided through additionality"
+    unit: tCO2e/year
+    formula: "electricity_consumed * $green_tariff_additionality_factor * $ef_displacement / 1000"
+    note_de: "Nur wenn Tarif nachweislich zusätzliche Kapazität schafft"
+    note_en: "Only if tariff creates proven additional capacity"
+  
+  outputs:
+  - id: operational_avoidance
+    name_de: "Betriebliche Emissionsvermeidung"
+    name_en: "Operational emission avoidance"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "emissions_avoided_through_additionality"
+    accumulation: flow
+    classification:
+      bisko: false
+      territorial: non_local
+      note_de: "Zusätzliche erneuerbare Kapazität, nicht in BISKO"
+      note_en: "Additional renewable capacity, not in BISKO"
+
+- id: lighting_efficiency_model
+  name_de: "Beleuchtungseffizienz"
+  name_en: "Lighting Efficiency"
+  description_de: "Ersatz ineffizienter Beleuchtung durch LED"
+  description_en: "Replacement of inefficient lighting with LED"
+  
+  flow_variables:
+  - id: number_of_lights_replaced
+    name_de: "Anzahl ersetzte Leuchten"
+    name_en: "Number of lights replaced"
+    unit: count/year
+    source: user_input
+  
+  - id: electricity_saved_per_light
+    name_de: "Stromeinsparung pro Leuchte"
+    name_en: "Electricity saved per light"
+    unit: kWh/year
+    formula: "(power_before - power_after) * $operating_hours / 1000"
+  
+  - id: total_electricity_saved
+    name_de: "Gesamte Stromeinsparung"
+    name_en: "Total electricity saved"
+    unit: kWh/year
+    formula: "number_of_lights_replaced * electricity_saved_per_light * (1 + $control_system_savings)"
+  
+  - id: emissions_reduced
+    name_de: "Reduzierte Emissionen"
+    name_en: "Reduced emissions"
+    unit: tCO2e/year
+    formula: "total_electricity_saved * $ef_grid / 1000"
+  
+  outputs:
+  - id: upstream_led_net
+    name_de: "Netto-Vorkettenemissionen LED"
+    name_en: "Net upstream emissions LED"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "(number_of_lights_replaced * $upstream_led - number_of_lights_replaced * $upstream_old_lamp) / 1000"
+    accumulation: flow
+    classification:
+      bisko: false
+      upstream: true
+      temporal: at_installation
+  
+  - id: operational_savings
+    name_de: "Betriebliche Einsparungen"
+    name_en: "Operational savings"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "emissions_reduced"
+    accumulation: flow
+    classification:
+      bisko: true
+      upstream: false
+
+- id: electricity_behavioral_savings_model
+  name_de: "Verhaltensbedingte Stromeinsparung"
+  name_en: "Behavioral Electricity Savings"
+  description_de: "Stromeinsparungen durch Verhaltensänderungen ohne Investitionen"
+  description_en: "Electricity savings through behavioral changes without investment"
+  
+  flow_variables:
+  - id: baseline_electricity_consumption
+    name_de: "Ausgangsstromverbrauch"
+    name_en: "Baseline electricity consumption"
+    unit: kWh/year
+    source: user_input
+  
+  - id: electricity_saved
+    name_de: "Eingesparter Strom"
+    name_en: "Electricity saved"
+    unit: kWh/year
+    formula: "baseline_electricity_consumption * $behavioral_savings_rate"
+  
+  - id: emissions_reduced
+    name_de: "Reduzierte Emissionen"
+    name_en: "Reduced emissions"
+    unit: tCO2e/year
+    formula: "electricity_saved * $ef_grid / 1000"
+  
+  outputs:
+  - id: operational_savings
+    name_de: "Betriebliche Einsparungen"
+    name_en: "Operational savings"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "emissions_reduced"
+    accumulation: flow
+    classification:
+      bisko: true
+      upstream: false
+      note_de: "Keine Vorkette - reine Verhaltensänderung"
+      note_en: "No upstream - pure behavioral change"
+
+- id: electricity_efficiency_investment_model
+  name_de: "Gering-investive Stromeffizienzmaßnahmen"
+  name_en: "Low-Investment Electricity Efficiency Measures"
+  description_de: "Effizienzmaßnahmen mit geringen Investitionen (keine Großgeräte)"
+  description_en: "Efficiency measures with low investment (not major equipment)"
+  
+  flow_variables:
+  - id: baseline_electricity_consumption
+    name_de: "Ausgangsstromverbrauch"
+    name_en: "Baseline electricity consumption"
+    unit: kWh/year
+    source: user_input
+  
+  - id: electricity_saved
+    name_de: "Eingesparter Strom"
+    name_en: "Electricity saved"
+    unit: kWh/year
+    formula: "baseline_electricity_consumption * $efficiency_savings_rate"
+  
+  - id: emissions_reduced
+    name_de: "Reduzierte Emissionen"
+    name_en: "Reduced emissions"
+    unit: tCO2e/year
+    formula: "electricity_saved * $ef_grid / 1000"
+  
+  outputs:
+  - id: upstream_devices
+    name_de: "Vorkettenemissionen Geräte"
+    name_en: "Upstream emissions devices"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "electricity_saved * $upstream_devices / 1000"
+    accumulation: flow
+    classification:
+      bisko: false
+      upstream: true
+      temporal: at_installation
+      note_de: "Zeitschaltuhren, Steckerleisten, Sensoren, etc."
+      note_en: "Timers, power strips, sensors, etc."
+  
+  - id: operational_savings
+    name_de: "Betriebliche Einsparungen"
+    name_en: "Operational savings"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "emissions_reduced"
+    accumulation: flow
+    classification:
+      bisko: true
+      upstream: false
+
+- id: decentralized_heating_replacement_model
+  name_de: "Dezentraler Heizungstausch"
+  name_en: "Decentralized Heating Replacement"
+  description_de: "Ersatz fossiler Heizung durch klimafreundliches System"
+  description_en: "Replacement of fossil heating with climate-friendly system"
+  
+  flow_variables:
+  - id: heat_demand
+    name_de: "Wärmebedarf"
+    name_en: "Heat demand"
+    unit: kWh/year
+    source: user_input
+  
+  - id: final_energy_before
+    name_de: "Endenergie vorher"
+    name_en: "Final energy before"
+    unit: kWh/year
+    formula: "heat_demand / $efficiency_before"
+  
+  - id: final_energy_after
+    name_de: "Endenergie nachher"
+    name_en: "Final energy after"
+    unit: kWh/year
+    formula: "heat_demand / $efficiency_after"
+  
+  - id: emissions_before
+    name_de: "Emissionen vorher"
+    name_en: "Emissions before"
+    unit: tCO2e/year
+    formula: "final_energy_before * $ef_fuel_before / 1000"
+  
+  - id: emissions_after
+    name_de: "Emissionen nachher"
+    name_en: "Emissions after"
+    unit: tCO2e/year
+    formula: "final_energy_after * $ef_fuel_after / 1000"
+  
+  - id: emissions_reduced
+    name_de: "Reduzierte Emissionen"
+    name_en: "Reduced emissions"
+    unit: tCO2e/year
+    formula: "emissions_before - emissions_after"
+  
+  - id: emissions_before_direct_combustion
+    name_de: "Emissionen vorher (direkte Verbrennung)"
+    name_en: "Emissions before (direct combustion)"
+    unit: tCO2e/year
+    formula: "emissions_before * $direct_combustion_share"
+    note_de: "Anteil aus direkter Verbrennung vor Ort"
+    note_en: "Portion from direct on-site combustion"
+  
+  - id: emissions_before_fuel_upstream
+    name_de: "Emissionen vorher (Brennstoff-Vorkette)"
+    name_en: "Emissions before (fuel upstream)"
+    unit: tCO2e/year
+    formula: "emissions_before * (1 - $direct_combustion_share)"
+    note_de: "Anteil aus Brennstoff-Vorkette (Teil von BISKO)"
+    note_en: "Portion from fuel upstream (part of BISKO)"
+  
+  outputs:
+  - id: upstream_heating_system
+    name_de: "Vorkettenemissionen Heizsystem"
+    name_en: "Upstream emissions heating system"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "($upstream_heating_system_new - $upstream_heating_system_old) / 1000"
+    accumulation: flow
+    classification:
+      bisko: false
+      upstream: true
+      temporal: at_installation
+  
+  - id: operational_reduction
+    name_de: "Betriebliche Emissionsreduktion"
+    name_en: "Operational emission reduction"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "emissions_reduced"
+    accumulation: flow
+    classification:
+      bisko: true
+      upstream: false
+  
+  - id: operational_reduction_direct_combustion
+    name_de: "Betriebliche Reduktion (direkte Verbrennung)"
+    name_en: "Operational reduction (direct combustion)"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "emissions_before_direct_combustion - emissions_after * $direct_combustion_share"
+    accumulation: flow
+    classification:
+      bisko: true
+      upstream: false
+      component: direct_combustion
+  
+  - id: operational_reduction_fuel_upstream
+    name_de: "Betriebliche Reduktion (Brennstoff-Vorkette)"
+    name_en: "Operational reduction (fuel upstream)"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "emissions_before_fuel_upstream - emissions_after * (1 - $direct_combustion_share)"
+    accumulation: flow
+    classification:
+      bisko: true
+      upstream: false
+      component: fuel_upstream
+      note_de: "BISKO-Vorkette, separat ausgewiesen"
+      note_en: "BISKO upstream, reported separately"
+
+- id: district_heating_connection_model
+  name_de: "Fernwärmeanschluss"
+  name_en: "District Heating Connection"
+  description_de: "Anschluss an Fernwärmenetz"
+  description_en: "Connection to district heating network"
+  
+  flow_variables:
+  - id: heat_demand
+    name_de: "Wärmebedarf"
+    name_en: "Heat demand"
+    unit: kWh/year
+    source: user_input
+  
+  - id: final_energy_before
+    name_de: "Endenergie vorher"
+    name_en: "Final energy before"
+    unit: kWh/year
+    formula: "heat_demand / $efficiency_before"
+  
+  - id: final_energy_after
+    name_de: "Endenergie nachher"
+    name_en: "Final energy after"
+    unit: kWh/year
+    formula: "heat_demand"
+    note_de: "Fernwärme als Wärme geliefert, Effizienz = 1.0"
+    note_en: "District heating delivered as heat, efficiency = 1.0"
+  
+  - id: emissions_before
+    name_de: "Emissionen vorher"
+    name_en: "Emissions before"
+    unit: tCO2e/year
+    formula: "final_energy_before * $ef_fuel_before / 1000"
+  
+  - id: emissions_after
+    name_de: "Emissionen nachher"
+    name_en: "Emissions after"
+    unit: tCO2e/year
+    formula: "final_energy_after * $ef_district_heating_local / 1000"
+    note_de: "Nutzt LOKALEN Emissionsfaktor des kommunalen Fernwärmenetzes"
+    note_en: "Uses LOCAL emission factor of municipal district heating network"
+  
+  - id: emissions_reduced
+    name_de: "Reduzierte Emissionen"
+    name_en: "Reduced emissions"
+    unit: tCO2e/year
+    formula: "emissions_before - emissions_after"
+  
+  outputs:
+  - id: upstream_connection
+    name_de: "Vorkettenemissionen Anschluss"
+    name_en: "Upstream emissions connection"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "$upstream_district_heating_connection / 1000"
+    accumulation: flow
+    classification:
+      bisko: false
+      upstream: true
+      temporal: at_connection
+  
+  - id: operational_reduction
+    name_de: "Betriebliche Emissionsreduktion"
+    name_en: "Operational emission reduction"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "emissions_reduced"
+    accumulation: flow
+    classification:
+      bisko: true
+      upstream: false
+      note_de: "Vollständig sichtbar - lokaler FW-Faktor wird in BISKO verwendet"
+      note_en: "Fully visible - local DH factor used in BISKO"
+
+- id: building_renovation_model
+  name_de: "Gebäudesanierung"
+  name_en: "Building Renovation"
+  description_de: "Sanierung der Gebäudehülle mit Reduktion des Wärmebedarfs"
+  description_en: "Building envelope renovation with heat demand reduction"
+  
+  state_variables:
+  - id: building_area_renovated
+    name_de: "Sanierte Gebäudefläche"
+    name_en: "Renovated building area"
+    unit: m²
+    initial_value: 0
+    accumulation: stock
+    inflows:
+    - renovation_area_annual
+  
+  flow_variables:
+  - id: renovation_area_annual
+    name_de: "Jährlich sanierte Fläche"
+    name_en: "Annual renovation area"
+    unit: m²/year
+    source: user_input
+  
+  - id: heat_demand_before
+    name_de: "Wärmebedarf vorher"
+    name_en: "Heat demand before"
+    unit: kWh/year
+    formula: "building_area * $heat_intensity_before"
+  
+  - id: heat_demand_after
+    name_de: "Wärmebedarf nachher"
+    name_en: "Heat demand after"
+    unit: kWh/year
+    formula: "building_area * $heat_intensity_after"
+  
+  - id: heat_saved
+    name_de: "Eingesparte Wärme"
+    name_en: "Heat saved"
+    unit: kWh/year
+    formula: "heat_demand_before - heat_demand_after"
+  
+  - id: final_energy_saved
+    name_de: "Eingesparte Endenergie"
+    name_en: "Final energy saved"
+    unit: kWh/year
+    formula: "heat_saved / $heating_efficiency"
+  
+  - id: emissions_reduced
+    name_de: "Reduzierte Emissionen"
+    name_en: "Reduced emissions"
+    unit: tCO2e/year
+    formula: "final_energy_saved * $ef_fuel / 1000"
+  
+  outputs:
+  - id: upstream_renovation_materials
+    name_de: "Vorkettenemissionen Sanierungsmaterialien"
+    name_en: "Upstream emissions renovation materials"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "renovation_area_annual * $upstream_renovation_per_m2 / 1000"
+    accumulation: flow
+    classification:
+      bisko: false
+      upstream: true
+      temporal: at_renovation
+  
+  - id: operational_savings
+    name_de: "Betriebliche Einsparungen"
+    name_en: "Operational savings"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "emissions_reduced"
+    accumulation: flow
+    classification:
+      bisko: true
+      upstream: false
+
+- id: building_renovation_plus_heating_model
+  name_de: "Gebäudesanierung mit Heizungstausch"
+  name_en: "Building Renovation with Heating Replacement"
+  description_de: "Kombinierte Gebäudesanierung und Heizungssystemersatz"
+  description_en: "Combined building renovation and heating system replacement"
+  
+  flow_variables:
+  - id: building_area
+    name_de: "Gebäudefläche"
+    name_en: "Building area"
+    unit: m²
+    source: user_input
+  
+  - id: heat_demand_before
+    name_de: "Wärmebedarf vorher"
+    name_en: "Heat demand before"
+    unit: kWh/year
+    formula: "building_area * $heat_intensity_before"
+  
+  - id: heat_demand_after
+    name_de: "Wärmebedarf nachher"
+    name_en: "Heat demand after"
+    unit: kWh/year
+    formula: "building_area * $heat_intensity_after"
+  
+  - id: final_energy_before
+    name_de: "Endenergie vorher"
+    name_en: "Final energy before"
+    unit: kWh/year
+    formula: "heat_demand_before / $efficiency_before"
+  
+  - id: final_energy_after
+    name_de: "Endenergie nachher"
+    name_en: "Final energy after"
+    unit: kWh/year
+    formula: "heat_demand_after / $efficiency_after"
+  
+  - id: emissions_before
+    name_de: "Emissionen vorher"
+    name_en: "Emissions before"
+    unit: tCO2e/year
+    formula: "final_energy_before * $ef_fuel_before / 1000"
+  
+  - id: emissions_after
+    name_de: "Emissionen nachher"
+    name_en: "Emissions after"
+    unit: tCO2e/year
+    formula: "final_energy_after * $ef_fuel_after / 1000"
+  
+  - id: emissions_reduced
+    name_de: "Reduzierte Emissionen"
+    name_en: "Reduced emissions"
+    unit: tCO2e/year
+    formula: "emissions_before - emissions_after"
+  
+  - id: sufficiency_contribution
+    name_de: "Suffizienz-Beitrag"
+    name_en: "Sufficiency contribution"
+    unit: tCO2e/year
+    formula: "((heat_demand_before - heat_demand_after) / $efficiency_after * $ef_fuel_after) / 1000"
+    note_de: "Bedarfsreduktion durch bessere Gebäudehülle"
+    note_en: "Demand reduction from better building envelope"
+  
+  - id: efficiency_contribution
+    name_de: "Effizienz-Beitrag"
+    name_en: "Efficiency contribution"
+    unit: tCO2e/year
+    formula: "(heat_demand_after / $efficiency_before * $ef_fuel_before - heat_demand_after / $efficiency_after * $ef_fuel_after) / 1000"
+    note_de: "Heizsystemverbesserung auf reduziertem Bedarf"
+    note_en: "Heating system improvement on reduced demand"
+  
+  outputs:
+  - id: upstream_renovation_and_heating
+    name_de: "Vorkettenemissionen Sanierung und Heizung"
+    name_en: "Upstream emissions renovation and heating"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "(building_area * $upstream_renovation_per_m2 + $upstream_heating_system) / 1000"
+    accumulation: flow
+    classification:
+      bisko: false
+      upstream: true
+      temporal: at_implementation
+  
+  - id: operational_reduction
+    name_de: "Betriebliche Emissionsreduktion"
+    name_en: "Operational emission reduction"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "emissions_reduced"
+    accumulation: flow
+    classification:
+      bisko: true
+      upstream: false
+  
+  - id: operational_reduction_sufficiency
+    name_de: "Betriebliche Reduktion (Suffizienz-Anteil)"
+    name_en: "Operational reduction (sufficiency portion)"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "sufficiency_contribution"
+    accumulation: flow
+    classification:
+      bisko: true
+      upstream: false
+      component: sufficiency
+      note_de: "Für Handlungsansatz-Aufteilung"
+      note_en: "For strategy approach breakdown"
+  
+  - id: operational_reduction_efficiency
+    name_de: "Betriebliche Reduktion (Effizienz-Anteil)"
+    name_en: "Operational reduction (efficiency portion)"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "efficiency_contribution"
+    accumulation: flow
+    classification:
+      bisko: true
+      upstream: false
+      component: efficiency
+
+- id: new_building_construction_model
+  name_de: "Neubau"
+  name_en: "New Building Construction"
+  description_de: "Neubau mit Effizienzstandard (Vergleich zu gesetzlichem Mindeststandard)"
+  description_en: "New building construction with efficiency standard (compared to legal minimum)"
+  
+  flow_variables:
+  - id: new_units
+    name_de: "Neue Wohneinheiten"
+    name_en: "New dwelling units"
+    unit: units/year
+    source: user_input
+  
+  - id: new_floor_area
+    name_de: "Neue Wohnfläche"
+    name_en: "New floor area"
+    unit: m²/year
+    formula: "new_units * $avg_unit_area"
+  
+  - id: annual_heat_demand_reference
+    name_de: "Jährlicher Wärmebedarf Referenz"
+    name_en: "Annual heat demand reference"
+    unit: kWh/year
+    formula: "new_floor_area * $heat_intensity_geg_minimum"
+  
+  - id: annual_heat_demand_climate
+    name_de: "Jährlicher Wärmebedarf Klimaschutz"
+    name_en: "Annual heat demand climate"
+    unit: kWh/year
+    formula: "new_floor_area * heat_intensity_climate"
+  
+  - id: final_energy_reference
+    name_de: "Endenergie Referenz"
+    name_en: "Final energy reference"
+    unit: kWh/year
+    formula: "annual_heat_demand_reference / $heating_efficiency"
+  
+  - id: final_energy_climate
+    name_de: "Endenergie Klimaschutz"
+    name_en: "Final energy climate"
+    unit: kWh/year
+    formula: "annual_heat_demand_climate / $heating_efficiency"
+  
+  - id: heating_emissions_reference
+    name_de: "Heizungsemissionen Referenz"
+    name_en: "Heating emissions reference"
+    unit: tCO2e/year
+    formula: "final_energy_reference * $ef_fuel / 1000"
+  
+  - id: heating_emissions_climate
+    name_de: "Heizungsemissionen Klimaschutz"
+    name_en: "Heating emissions climate"
+    unit: tCO2e/year
+    formula: "final_energy_climate * $ef_fuel / 1000"
+  
+  - id: construction_emissions_reference
+    name_de: "Bauemissionen Referenz"
+    name_en: "Construction emissions reference"
+    unit: tCO2e/year
+    formula: "new_floor_area * $construction_ef_geg_minimum / 1000"
+  
+  - id: construction_emissions_climate
+    name_de: "Bauemissionen Klimaschutz"
+    name_en: "Construction emissions climate"
+    unit: tCO2e/year
+    formula: "new_floor_area * construction_ef_climate / 1000"
+  
+  outputs:
+  - id: upstream_construction_reference
+    name_de: "Vorkettenemissionen Bau Referenz"
+    name_en: "Upstream emissions construction reference"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "construction_emissions_reference"
+    accumulation: flow
+    classification:
+      bisko: false
+      upstream: true
+      temporal: at_construction
+      scenario: reference
+  
+  - id: upstream_construction_climate
+    name_de: "Vorkettenemissionen Bau Klimaschutz"
+    name_en: "Upstream emissions construction climate"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "construction_emissions_climate"
+    accumulation: flow
+    classification:
+      bisko: false
+      upstream: true
+      temporal: at_construction
+      scenario: climate
+  
+  - id: upstream_construction_delta
+    name_de: "Vorkettenemissionen Bau (Differenz)"
+    name_en: "Upstream emissions construction (delta)"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "construction_emissions_climate - construction_emissions_reference"
+    accumulation: flow
+    classification:
+      bisko: false
+      upstream: true
+      temporal: at_construction
+      note_de: "Kann positiv sein (Mehraufwand bei höherem Standard)"
+      note_en: "May be positive (additional effort for higher standard)"
+  
+  - id: operational_heating_reduction
+    name_de: "Betriebliche Heizungsemissionsreduktion"
+    name_en: "Operational heating emission reduction"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "heating_emissions_reference - heating_emissions_climate"
+    accumulation: flow
+    classification:
+      bisko: true
+      upstream: false
+      note_de: "Heizungsemissionen sichtbar in BISKO, Bauemissionen nicht"
+      note_en: "Heating emissions visible in BISKO, construction emissions not"
+
+- id: vehicle_fleet_electrification_model
+  name_de: "Flottenelektrifizierung"
+  name_en: "Fleet Electrification"
+  description_de: "Ersatz von Verbrennungsfahrzeugen durch Elektrofahrzeuge"
+  description_en: "Replacement of combustion vehicles with electric vehicles"
+  
+  state_variables:
+  - id: ev_count
+    name_de: "Anzahl Elektrofahrzeuge"
+    name_en: "Electric vehicle count"
+    unit: vehicles
+    initial_value: 0
+    accumulation: stock
+    inflows:
+    - new_ev_purchases
+    outflows:
+    - ev_retirements
+  
+  - id: ice_count
+    name_de: "Anzahl Verbrennungsfahrzeuge"
+    name_en: "Combustion vehicle count"
+    unit: vehicles
+    initial_value: user_input
+    accumulation: stock
+    inflows:
+    - new_ice_purchases
+    outflows:
+    - ice_retirements
+  
+  flow_variables:
+  - id: new_ev_purchases
+    name_de: "Neue E-Fahrzeug-Käufe"
+    name_en: "New EV purchases"
+    unit: vehicles/year
+    source: intervention
+  
+  - id: new_ice_purchases
+    name_de: "Neue Verbrenner-Käufe"
+    name_en: "New ICE purchases"
+    unit: vehicles/year
+    source: intervention
+  
+  - id: ev_retirements
+    name_de: "E-Fahrzeug-Stilllegungen"
+    name_en: "EV retirements"
+    unit: vehicles/year
+    formula: "new_ev_purchases[t - $lifetime_vehicle]"
+  
+  - id: ice_retirements
+    name_de: "Verbrenner-Stilllegungen"
+    name_en: "ICE retirements"
+    unit: vehicles/year
+    formula: "new_ice_purchases[t - $lifetime_vehicle]"
+  
+  - id: ice_fuel_consumption
+    name_de: "Kraftstoffverbrauch Verbrenner"
+    name_en: "ICE fuel consumption"
+    unit: liters/year
+    formula: "ice_count * $annual_mileage * $fuel_consumption_ice_per_100km / 100"
+  
+  - id: ev_electricity_consumption
+    name_de: "Stromverbrauch E-Fahrzeuge"
+    name_en: "EV electricity consumption"
+    unit: kWh/year
+    formula: "ev_count * $annual_mileage * $electricity_consumption_ev_per_100km / 100"
+  
+  - id: ice_emissions
+    name_de: "Emissionen Verbrenner"
+    name_en: "ICE emissions"
+    unit: tCO2e/year
+    formula: "ice_fuel_consumption * $ef_fuel_ice / 1000"
+  
+  - id: ev_emissions
+    name_de: "Emissionen E-Fahrzeuge"
+    name_en: "EV emissions"
+    unit: tCO2e/year
+    formula: "ev_electricity_consumption * $ef_grid / 1000"
+  
+  - id: total_fleet_emissions
+    name_de: "Gesamte Flottenemissionen"
+    name_en: "Total fleet emissions"
+    unit: tCO2e/year
+    formula: "ice_emissions + ev_emissions"
+  
+  - id: emissions_within_territory
+    name_de: "Emissionen innerhalb Territorium"
+    name_en: "Emissions within territory"
+    unit: tCO2e/year
+    formula: "total_fleet_emissions * $share_within_municipality"
+  
+  - id: emissions_outside_territory
+    name_de: "Emissionen außerhalb Territorium"
+    name_en: "Emissions outside territory"
+    unit: tCO2e/year
+    formula: "total_fleet_emissions * (1 - $share_within_municipality)"
+  
+  outputs:
+  - id: upstream_ev_production
+    name_de: "Vorkettenemissionen E-Fahrzeuge"
+    name_en: "Upstream emissions EV production"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "new_ev_purchases * $upstream_ev / 1000"
+    accumulation: flow
+    classification:
+      bisko: false
+      upstream: true
+      temporal: at_purchase
+  
+  - id: upstream_ice_avoided
+    name_de: "Vermiedene Vorkettenemissionen Verbrenner"
+    name_en: "Avoided upstream emissions ICE"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "new_ice_purchases * $upstream_ice / 1000"
+    accumulation: flow
+    classification:
+      bisko: false
+      upstream: true
+      temporal: at_purchase
+      note_de: "Negativ - vermiedene Produktion"
+      note_en: "Negative - avoided production"
+  
+  - id: upstream_vehicles_net
+    name_de: "Netto-Vorkettenemissionen Fahrzeuge"
+    name_en: "Net upstream emissions vehicles"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "(new_ev_purchases * $upstream_ev - new_ice_purchases * $upstream_ice) / 1000"
+    accumulation: flow
+    classification:
+      bisko: false
+      upstream: true
+      temporal: at_purchase
+  
+  - id: operational_bisko
+    name_de: "Betriebliche Emissionen (BISKO-Anteil)"
+    name_en: "Operational emissions (BISKO portion)"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "emissions_within_territory"
+    accumulation: flow
+    classification:
+      bisko: true
+      upstream: false
+      territorial: local
+  
+  - id: operational_non_bisko
+    name_de: "Betriebliche Emissionen (Nicht-BISKO-Anteil)"
+    name_en: "Operational emissions (non-BISKO portion)"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "emissions_outside_territory"
+    accumulation: flow
+    classification:
+      bisko: false
+      upstream: false
+      territorial: external
+
+- id: modal_shift_model
+  name_de: "Verkehrsverlagerung"
+  name_en: "Modal Shift"
+  description_de: "Verlagerung vom Auto auf nachhaltige Verkehrsträger"
+  description_en: "Shift from car to sustainable transport modes"
+  
+  flow_variables:
+  - id: persons
+    name_de: "Personenanzahl"
+    name_en: "Number of persons"
+    unit: persons
+    source: user_input
+  
+  - id: total_person_km_before
+    name_de: "Gesamte Personenkilometer vorher"
+    name_en: "Total person-km before"
+    unit: person-km/year
+    formula: "persons * $avg_trip_distance * $trips_per_person_year"
+  
+  - id: total_person_km_after
+    name_de: "Gesamte Personenkilometer nachher"
+    name_en: "Total person-km after"
+    unit: person-km/year
+    formula: "persons * $avg_trip_distance * $trips_per_person_year * (1 - trips_avoided_rate)"
+  
+  - id: person_km_car_before
+    name_de: "Personenkilometer Auto vorher"
+    name_en: "Person-km car before"
+    unit: person-km/year
+    formula: "total_person_km_before * modal_split_before_car"
+  
+  - id: person_km_car_after
+    name_de: "Personenkilometer Auto nachher"
+    name_en: "Person-km car after"
+    unit: person-km/year
+    formula: "total_person_km_after * modal_split_after_car"
+  
+  - id: person_km_pt_before
+    name_de: "Personenkilometer ÖPNV vorher"
+    name_en: "Person-km public transport before"
+    unit: person-km/year
+    formula: "total_person_km_before * modal_split_before_pt"
+  
+  - id: person_km_pt_after
+    name_de: "Personenkilometer ÖPNV nachher"
+    name_en: "Person-km public transport after"
+    unit: person-km/year
+    formula: "total_person_km_after * modal_split_after_pt"
+  
+  - id: person_km_active_before
+    name_de: "Personenkilometer Rad/Fuß vorher"
+    name_en: "Person-km active mobility before"
+    unit: person-km/year
+    formula: "total_person_km_before * modal_split_before_active"
+  
+  - id: person_km_active_after
+    name_de: "Personenkilometer Rad/Fuß nachher"
+    name_en: "Person-km active mobility after"
+    unit: person-km/year
+    formula: "total_person_km_after * modal_split_after_active"
+  
+  - id: emissions_before
+    name_de: "Emissionen vorher"
+    name_en: "Emissions before"
+    unit: tCO2e/year
+    formula: "(person_km_car_before * $emission_intensity_car + person_km_pt_before * $emission_intensity_pt + person_km_active_before * $emission_intensity_bike_walk) / 1000000"
+  
+  - id: emissions_after
+    name_de: "Emissionen nachher"
+    name_en: "Emissions after"
+    unit: tCO2e/year
+    formula: "(person_km_car_after * $emission_intensity_car + person_km_pt_after * $emission_intensity_pt + person_km_active_after * $emission_intensity_bike_walk) / 1000000"
+  
+  - id: total_transport_emissions_reduction
+    name_de: "Gesamte Verkehrsemissionsreduktion"
+    name_en: "Total transport emission reduction"
+    unit: tCO2e/year
+    formula: "emissions_before - emissions_after"
+  
+  - id: emissions_within_territory
+    name_de: "Emissionen innerhalb Territorium"
+    name_en: "Emissions within territory"
+    unit: tCO2e/year
+    formula: "total_transport_emissions_reduction * $share_local_trips"
+  
+  - id: emissions_outside_territory
+    name_de: "Emissionen außerhalb Territorium"
+    name_en: "Emissions outside territory"
+    unit: tCO2e/year
+    formula: "total_transport_emissions_reduction * (1 - $share_local_trips)"
+  
+  - id: avoidance_contribution
+    name_de: "Vermeidungs-Beitrag"
+    name_en: "Avoidance contribution"
+    unit: tCO2e/year
+    formula: "(total_person_km_before - total_person_km_after) * (modal_split_before_car * $emission_intensity_car) / 1000000"
+    note_de: "Emissionsreduktion durch vermiedene Wege"
+    note_en: "Emission reduction from avoided trips"
+  
+  - id: modal_shift_contribution
+    name_de: "Verlagerungs-Beitrag"
+    name_en: "Modal shift contribution"
+    unit: tCO2e/year
+    formula: "total_transport_emissions_reduction - avoidance_contribution"
+    note_de: "Emissionsreduktion durch Verkehrsträgerwechsel"
+    note_en: "Emission reduction from mode change"
+  
+  outputs:
+  - id: operational_bisko
+    name_de: "Betriebliche Emissionsreduktion (BISKO)"
+    name_en: "Operational emission reduction (BISKO)"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "emissions_within_territory"
+    accumulation: flow
+    classification:
+      bisko: true
+      upstream: false
+      territorial: local
+      note_de: "BQZ-Methode: Binnen + 50% Quell-Ziel"
+      note_en: "BQZ method: Internal + 50% origin-destination"
+  
+  - id: operational_non_bisko
+    name_de: "Betriebliche Emissionsreduktion (Nicht-BISKO)"
+    name_en: "Operational emission reduction (non-BISKO)"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "emissions_outside_territory"
+    accumulation: flow
+    classification:
+      bisko: false
+      upstream: false
+      territorial: external
+  
+  - id: operational_avoidance
+    name_de: "Betriebliche Reduktion (Vermeidungs-Anteil)"
+    name_en: "Operational reduction (avoidance portion)"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "avoidance_contribution"
+    accumulation: flow
+    classification:
+      bisko: varies
+      component: avoidance
+      note_de: "Für Handlungsansatz-Aufteilung"
+      note_en: "For strategy approach breakdown"
+  
+  - id: operational_shift
+    name_de: "Betriebliche Reduktion (Verlagerungs-Anteil)"
+    name_en: "Operational reduction (shift portion)"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "modal_shift_contribution"
+    accumulation: flow
+    classification:
+      bisko: varies
+      component: modal_shift
+
+- id: canteen_menu_conversion_model
+  name_de: "Mensaumstellung"
+  name_en: "Canteen Menu Conversion"
+  description_de: "Umstellung auf klimafreundliche Ernährung in Kantinen"
+  description_en: "Conversion to climate-friendly food in canteens"
+  
+  flow_variables:
+  - id: persons
+
+    name_de: "Anzahl Personen"
+    name_en: "Number of persons"
+    unit: persons
+    source: user_input
+  
+  - id: annual_meals_served
+    name_de: "Jährlich servierte Mahlzeiten"
+    name_en: "Annual meals served"
+    unit: meals/year
+    formula: "persons * $meals_per_person_year"
+  
+  - id: emissions_per_meal_before
+    name_de: "Emissionen pro Mahlzeit vorher"
+    name_en: "Emissions per meal before"
+    unit: kg CO2e/meal
+    formula: "$ef_meal_type_before"
+  
+  - id: emissions_per_meal_after
+    name_de: "Emissionen pro Mahlzeit nachher"
+    name_en: "Emissions per meal after"
+    unit: kg CO2e/meal
+    formula: "$ef_meal_type_after"
+  
+  - id: total_emissions_before
+    name_de: "Gesamtemissionen vorher"
+    name_en: "Total emissions before"
+    unit: tCO2e/year
+    formula: "annual_meals_served * emissions_per_meal_before / 1000"
+  
+  - id: total_emissions_after
+    name_de: "Gesamtemissionen nachher"
+    name_en: "Total emissions after"
+    unit: tCO2e/year
+    formula: "annual_meals_served * emissions_per_meal_after / 1000"
+  
+  - id: emissions_reduced
+    name_de: "Reduzierte Emissionen"
+    name_en: "Reduced emissions"
+    unit: tCO2e/year
+    formula: "total_emissions_before - total_emissions_after"
+  
+  - id: emissions_from_local_agriculture
+    name_de: "Emissionen aus lokaler Landwirtschaft"
+    name_en: "Emissions from local agriculture"
+    unit: tCO2e/year
+    formula: "total_emissions_before * $local_food_share_before"
+  
+  - id: emissions_from_imported_food
+    name_de: "Emissionen aus importierten Lebensmitteln"
+    name_en: "Emissions from imported food"
+    unit: tCO2e/year
+    formula: "total_emissions_before * (1 - $local_food_share_before)"
+  
+  outputs:
+  - id: operational_bisko
+    name_de: "Betriebliche Emissionsreduktion (BISKO)"
+    name_en: "Operational emission reduction (BISKO)"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "emissions_reduced * $local_food_share_after"
+    accumulation: flow
+    classification:
+      bisko: true
+      upstream: false
+      territorial: local
+      note_de: "Nur lokaler Landwirtschaftsanteil"
+      note_en: "Only local agriculture portion"
+  
+  - id: operational_non_bisko
+    name_de: "Betriebliche Emissionsreduktion (Nicht-BISKO)"
+    name_en: "Operational emission reduction (non-BISKO)"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "emissions_reduced * (1 - $local_food_share_after)"
+    accumulation: flow
+    classification:
+      bisko: false
+      upstream: false
+      territorial: external
+      note_de: "Lebensmittel anderswo produziert - erscheint in anderen BISKO-Bilanzen"
+      note_en: "Food produced elsewhere - appears in other BISKO inventories"
+
+- id: tree_planting_sequestration_model
+  name_de: "Baumpflanzung"
+  name_en: "Tree Planting"
+  description_de: "Kohlenstoffbindung durch Baumpflanzung"
+  description_en: "Carbon sequestration through tree planting"
+  
+  state_variables:
+  - id: trees_age_0_10
+    name_de: "Bäume Altersklasse 0-10"
+    name_en: "Trees age class 0-10"
+    unit: count
+    accumulation: aging_stock
+    inflow: new_trees_planted
+    outflow_to: trees_age_10_20
+    mortality_rate: $mortality_rate
+  
+  - id: trees_age_10_20
+    name_de: "Bäume Altersklasse 10-20"
+    name_en: "Trees age class 10-20"
+    unit: count
+    accumulation: aging_stock
+    inflow_from: trees_age_0_10
+    outflow_to: trees_age_20_40
+    mortality_rate: $mortality_rate
+  
+  - id: trees_age_20_40
+    name_de: "Bäume Altersklasse 20-40"
+    name_en: "Trees age class 20-40"
+    unit: count
+    accumulation: aging_stock
+    inflow_from: trees_age_10_20
+    outflow_to: trees_age_40_60
+    mortality_rate: $mortality_rate
+  
+  - id: trees_age_40_60
+    name_de: "Bäume Altersklasse 40-60"
+    name_en: "Trees age class 40-60"
+    unit: count
+    accumulation: aging_stock
+    inflow_from: trees_age_20_40
+    outflow_to: trees_age_60_plus
+    mortality_rate: $mortality_rate
+  
+  - id: trees_age_60_plus
+    name_de: "Bäume Altersklasse 60+"
+    name_en: "Trees age class 60+"
+    unit: count
+    accumulation: aging_stock
+    inflow_from: trees_age_40_60
+    mortality_rate: $mortality_rate
+  
+  flow_variables:
+  - id: new_trees_planted
+    name_de: "Neu gepflanzte Bäume"
+    name_en: "New trees planted"
+    unit: trees/year
+    source: intervention
+  
+  - id: sequestration_age_0_10
+    name_de: "Sequestrierung 0-10 Jahre"
+    name_en: "Sequestration 0-10 years"
+    unit: tCO2e/year
+    formula: "trees_age_0_10 * $sequestration_rate_age_0_10 / 1000"
+  
+  - id: sequestration_age_10_20
+    name_de: "Sequestrierung 10-20 Jahre"
+    name_en: "Sequestration 10-20 years"
+    unit: tCO2e/year
+    formula: "trees_age_10_20 * $sequestration_rate_age_10_20 / 1000"
+  
+  - id: sequestration_age_20_40
+    name_de: "Sequestrierung 20-40 Jahre"
+    name_en: "Sequestration 20-40 years"
+    unit: tCO2e/year
+    formula: "trees_age_20_40 * $sequestration_rate_age_20_40 / 1000"
+  
+  - id: sequestration_age_40_60
+    name_de: "Sequestrierung 40-60 Jahre"
+    name_en: "Sequestration 40-60 years"
+    unit: tCO2e/year
+    formula: "trees_age_40_60 * $sequestration_rate_age_40_60 / 1000"
+  
+  - id: sequestration_age_60_plus
+    name_de: "Sequestrierung 60+ Jahre"
+    name_en: "Sequestration 60+ years"
+    unit: tCO2e/year
+    formula: "trees_age_60_plus * $sequestration_rate_age_60_plus / 1000"
+  
+  - id: annual_sequestration_total
+    name_de: "Jährliche Gesamtsequestrierung"
+    name_en: "Annual total sequestration"
+    unit: tCO2e/year
+    formula: "sequestration_age_0_10 + sequestration_age_10_20 + sequestration_age_20_40 + sequestration_age_40_60 + sequestration_age_60_plus"
+    note_de: "Sequestrierung steigt mit Baumalter"
+    note_en: "Sequestration increases as trees mature"
+  
+  outputs:
+  - id: upstream_planting
+    name_de: "Vorkettenemissionen Pflanzung"
+    name_en: "Upstream emissions planting"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "new_trees_planted * $upstream_planting / 1000"
+    accumulation: flow
+    classification:
+      bisko: false
+      upstream: true
+      temporal: at_planting
+  
+  - id: carbon_sequestration
+    name_de: "Kohlenstoffbindung"
+    name_en: "Carbon sequestration"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "annual_sequestration_total"
+    accumulation: flow
+    classification:
+      bisko: false
+      note_de: "Naturbasierte Entfernung, noch nicht in Standard-BISKO"
+      note_en: "Nature-based removal, not yet in standard BISKO"
+      permanence_risk: medium
+
+- id: organic_soil_rewetting_model
+  name_de: "Wiedervernässung organischer Böden"
+  name_en: "Organic Soil Rewetting"
+  description_de: "Wiedervernässung entwässerter organischer Böden zur Emissionsreduktion"
+  description_en: "Rewetting of drained organic soils to reduce emissions"
+  
+  flow_variables:
+  - id: area_rewetted
+    name_de: "Wiedervernässte Fläche"
+    name_en: "Area rewetted"
+    unit: ha
+    source: user_input
+  
+  - id: emissions_before_drained
+    name_de: "Emissionen vorher (entwässert)"
+    name_en: "Emissions before (drained)"
+    unit: tCO2e/year
+    formula: "area_rewetted * $emission_factor_drained_soil"
+  
+  - id: emissions_after_rewetted
+    name_de: "Emissionen nachher (wiedervernässt)"
+    name_en: "Emissions after (rewetted)"
+    unit: tCO2e/year
+    formula: "area_rewetted * $emission_factor_rewetted_soil"
+  
+  - id: emissions_reduced
+    name_de: "Reduzierte Emissionen"
+    name_en: "Reduced emissions"
+    unit: tCO2e/year
+    formula: "emissions_before_drained - emissions_after_rewetted"
+  
+  outputs:
+  - id: operational_reduction
+    name_de: "Betriebliche Emissionsreduktion"
+    name_en: "Operational emission reduction"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "emissions_reduced"
+    accumulation: flow
+    classification:
+      bisko: false
+      note_de: "Landnutzungsemissionen - zukünftige BISKO-Erweiterung"
+      note_en: "Land use emissions - future BISKO extension"
+
+- id: afforestation_model
+  name_de: "Aufforstung"
+  name_en: "Afforestation"
+  description_de: "Aufforstung von Freiflächen zur Kohlenstoffbindung"
+  description_en: "Afforestation of open spaces for carbon sequestration"
+  
+  state_variables:
+  - id: forest_area_age_0_10
+    name_de: "Waldfläche Altersklasse 0-10"
+    name_en: "Forest area age class 0-10"
+    unit: ha
+    accumulation: aging_stock
+    inflow: new_afforestation
+    outflow_to: forest_area_age_10_20
+  
+  - id: forest_area_age_10_20
+    name_de: "Waldfläche Altersklasse 10-20"
+    name_en: "Forest area age class 10-20"
+    unit: ha
+    accumulation: aging_stock
+    inflow_from: forest_area_age_0_10
+    outflow_to: forest_area_age_20_40
+  
+  - id: forest_area_age_20_40
+    name_de: "Waldfläche Altersklasse 20-40"
+    name_en: "Forest area age class 20-40"
+    unit: ha
+    accumulation: aging_stock
+    inflow_from: forest_area_age_10_20
+    outflow_to: forest_area_age_40_plus
+  
+  - id: forest_area_age_40_plus
+    name_de: "Waldfläche Altersklasse 40+"
+    name_en: "Forest area age class 40+"
+    unit: ha
+    accumulation: aging_stock
+    inflow_from: forest_area_age_20_40
+  
+  flow_variables:
+  - id: new_afforestation
+    name_de: "Neue Aufforstung"
+    name_en: "New afforestation"
+    unit: ha/year
+    source: intervention
+  
+  - id: sequestration_age_0_10
+    name_de: "Sequestrierung 0-10 Jahre"
+    name_en: "Sequestration 0-10 years"
+    unit: tCO2e/year
+    formula: "forest_area_age_0_10 * $sequestration_rate_forest_age_0_10"
+  
+  - id: sequestration_age_10_20
+    name_de: "Sequestrierung 10-20 Jahre"
+    name_en: "Sequestration 10-20 years"
+    unit: tCO2e/year
+    formula: "forest_area_age_10_20 * $sequestration_rate_forest_age_10_20"
+  
+  - id: sequestration_age_20_40
+    name_de: "Sequestrierung 20-40 Jahre"
+    name_en: "Sequestration 20-40 years"
+    unit: tCO2e/year
+    formula: "forest_area_age_20_40 * $sequestration_rate_forest_age_20_40"
+  
+  - id: sequestration_age_40_plus
+    name_de: "Sequestrierung 40+ Jahre"
+    name_en: "Sequestration 40+ years"
+    unit: tCO2e/year
+    formula: "forest_area_age_40_plus * $sequestration_rate_forest_age_40_plus"
+  
+  - id: annual_sequestration_total
+    name_de: "Jährliche Gesamtsequestrierung"
+    name_en: "Annual total sequestration"
+    unit: tCO2e/year
+    formula: "sequestration_age_0_10 + sequestration_age_10_20 + sequestration_age_20_40 + sequestration_age_40_plus"
+  
+  outputs:
+  - id: upstream_afforestation
+    name_de: "Vorkettenemissionen Aufforstung"
+    name_en: "Upstream emissions afforestation"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "new_afforestation * $upstream_afforestation"
+    accumulation: flow
+    classification:
+      bisko: false
+      upstream: true
+      temporal: at_afforestation
+  
+  - id: carbon_sequestration
+    name_de: "Kohlenstoffbindung"
+    name_en: "Carbon sequestration"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "annual_sequestration_total"
+    accumulation: flow
+    classification:
+      bisko: false
+      note_de: "Naturbasierte Entfernung, noch nicht in BISKO"
+      note_en: "Nature-based removal, not yet in BISKO"
+
+- id: waste_avoidance_model
+  name_de: "Abfallvermeidung"
+  name_en: "Waste Avoidance"
+  description_de: "Reduktion der Restmüllerzeugung"
+  description_en: "Reduction of residual waste generation"
+  
+  flow_variables:
+  - id: population
+    name_de: "Bevölkerung"
+    name_en: "Population"
+    unit: persons
+    source: user_input
+  
+  - id: residual_waste_generated
+    name_de: "Erzeugter Restmüll"
+    name_en: "Residual waste generated"
+    unit: tonnes/year
+    formula: "population * $waste_per_capita / 1000"
+  
+  - id: waste_treatment_emissions
+    name_de: "Emissionen Abfallbehandlung"
+    name_en: "Waste treatment emissions"
+    unit: tCO2e/year
+    formula: "residual_waste_generated * $ef_waste_treatment"
+  
+  - id: avoided_production_emissions
+    name_de: "Vermiedene Produktionsemissionen"
+    name_en: "Avoided production emissions"
+    unit: tCO2e/year
+    formula: "residual_waste_generated * $ef_avoided_production"
+    note_de: "Emissionen vermieden durch Nicht-Produktion der Güter, die zu Abfall wurden"
+    note_en: "Emissions avoided by not producing goods that became waste"
+  
+  outputs:
+  - id: operational_bisko
+    name_de: "Betriebliche Emissionsreduktion (BISKO)"
+    name_en: "Operational emission reduction (BISKO)"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "waste_treatment_emissions"
+    accumulation: flow
+    classification:
+      bisko: true
+      territorial: local
+      note_de: "Lokale Abfallbehandlung"
+      note_en: "Local waste treatment"
+  
+  - id: operational_non_bisko
+    name_de: "Betriebliche Emissionsreduktion (Nicht-BISKO)"
+    name_en: "Operational emission reduction (non-BISKO)"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "avoided_production_emissions"
+    accumulation: flow
+    classification:
+      bisko: false
+      territorial: external
+      note_de: "Produktion meist anderswo"
+      note_en: "Production mostly elsewhere"
+
+- id: water_consumption_reduction_model
+  name_de: "Wasserverbrauchsreduktion"
+  name_en: "Water Consumption Reduction"
+  description_de: "Reduktion von Wasser- und Abwasserverbrauch"
+  description_en: "Reduction of water and wastewater consumption"
+  
+  flow_variables:
+  - id: population
+    name_de: "Bevölkerung"
+    name_en: "Population"
+    unit: persons
+    source: user_input
+  
+  - id: water_consumption
+    name_de: "Wasserverbrauch"
+    name_en: "Water consumption"
+    unit: m³/year
+    formula: "population * $water_per_capita"
+  
+  - id: water_supply_energy
+    name_de: "Energie Wasserversorgung"
+    name_en: "Water supply energy"
+    unit: kWh/year
+    formula: "water_consumption * $energy_water_supply_per_m3"
+  
+  - id: wastewater_treatment_energy
+    name_de: "Energie Abwasserbehandlung"
+    name_en: "Wastewater treatment energy"
+    unit: kWh/year
+    formula: "water_consumption * $energy_wastewater_treatment_per_m3"
+  
+  - id: total_energy
+    name_de: "Gesamtenergie"
+    name_en: "Total energy"
+    unit: kWh/year
+    formula: "water_supply_energy + wastewater_treatment_energy"
+  
+  - id: emissions
+    name_de: "Emissionen"
+    name_en: "Emissions"
+    unit: tCO2e/year
+    formula: "total_energy * $ef_grid / 1000"
+  
+  outputs:
+  - id: operational_bisko
+    name_de: "Betriebliche Emissionsreduktion (BISKO)"
+    name_en: "Operational emission reduction (BISKO)"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "emissions"
+    accumulation: flow
+    classification:
+      bisko: true
+      note_de: "Energie für lokale Wasser-/Abwasserbehandlung"
+      note_en: "Energy for local water/wastewater treatment"
+
+- id: bottled_water_switch_model
+  name_de: "Umstellung auf Leitungswasser"
+  name_en: "Switch to Tap Water"
+  description_de: "Umstellung von Flaschenwasser auf Leitungswasser"
+  description_en: "Switch from bottled water to tap water"
+  
+  flow_variables:
+  - id: persons
+    name_de: "Personenanzahl"
+    name_en: "Number of persons"
+    unit: persons
+    source: user_input
+  
+  - id: bottled_water_consumption
+    name_de: "Flaschenwasserverbrauch"
+    name_en: "Bottled water consumption"
+    unit: liters/year
+    formula: "persons * $bottled_water_per_capita"
+  
+  - id: emissions_bottled
+    name_de: "Emissionen Flaschenwasser"
+    name_en: "Emissions bottled water"
+    unit: tCO2e/year
+    formula: "bottled_water_consumption * $ef_bottled_water / 1000"
+  
+  - id: emissions_tap
+    name_de: "Emissionen Leitungswasser"
+    name_en: "Emissions tap water"
+    unit: tCO2e/year
+    formula: "bottled_water_consumption * $ef_tap_water / 1000"
+  
+  - id: emissions_reduced
+    name_de: "Reduzierte Emissionen"
+    name_en: "Reduced emissions"
+    unit: tCO2e/year
+    formula: "emissions_bottled - emissions_tap"
+  
+  outputs:
+  - id: operational_bisko
+    name_de: "Betriebliche Emissionsreduktion (BISKO)"
+    name_en: "Operational emission reduction (BISKO)"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "emissions_reduced * $local_treatment_share"
+    accumulation: flow
+    classification:
+      bisko: true
+      territorial: local
+      note_de: "Lokale Wasseraufbereitung"
+      note_en: "Local water treatment"
+  
+  - id: operational_non_bisko
+    name_de: "Betriebliche Emissionsreduktion (Nicht-BISKO)"
+    name_en: "Operational emission reduction (non-BISKO)"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "emissions_reduced * (1 - $local_treatment_share)"
+    accumulation: flow
+    classification:
+      bisko: false
+      territorial: external
+      note_de: "Flaschenwasserproduktion und Transport meist nicht-BISKO"
+      note_en: "Bottled water production and transport mostly non-BISKO"
+
+- id: paper_consumption_model
+  name_de: "Papierverbrauch"
+  name_en: "Paper Consumption"
+  description_de: "Umstellung auf Recyclingpapier oder Reduktion"
+  description_en: "Switch to recycled paper or reduction"
+  
+  flow_variables:
+  - id: paper_consumed
+    name_de: "Verbrauchtes Papier"
+    name_en: "Paper consumed"
+    unit: tonnes/year
+    source: user_input
+  
+  - id: emissions_before
+    name_de: "Emissionen vorher"
+    name_en: "Emissions before"
+    unit: tCO2e/year
+    formula: "paper_consumed * $ef_paper_before"
+  
+  - id: emissions_after
+    name_de: "Emissionen nachher"
+    name_en: "Emissions after"
+    unit: tCO2e/year
+    formula: "paper_consumed * $ef_paper_after"
+  
+  - id: emissions_reduced
+    name_de: "Reduzierte Emissionen"
+    name_en: "Reduced emissions"
+    unit: tCO2e/year
+    formula: "emissions_before - emissions_after"
+  
+  outputs:
+  - id: operational_non_bisko
+    name_de: "Betriebliche Emissionsreduktion (Nicht-BISKO)"
+    name_en: "Operational emission reduction (non-BISKO)"
+    quantity: emission
+    unit: tCO2e/year
+    formula: "emissions_reduced"
+    accumulation: flow
+    classification:
+      bisko: false
+      territorial: external
+      note_de: "Papierproduktion außerhalb Kommune"
+      note_en: "Paper production outside municipality"

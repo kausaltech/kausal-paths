@@ -1,5 +1,9 @@
 # Parameters from the IKKA Technical Annex
 # https://drive.google.com/file/d/1vJ0ItK5FRQXOzDnStlef8DfSphI4rbvs/view?usp=drive_link
+# The actual data is in
+# https://docs.google.com/spreadsheets/d/1THocz3ON3nmQkW8hwsdcB5V2LJKtK5sMr1b1zAKEb-k/edit?gid=0#gid=0
+# For an old version, see https://github.com/kausaltech/kausal-paths/blob/ce29d38577ce698ae7209eab6b2981efc016e9d3/configs/frameworks/ikka/params.yaml
+# or https://github.com/kausaltech/netzeroplanner-framework-config/tree/main/ikka
 
 # ============================================
 # IKKA PARAMETER DEFINITIONS (Metadata Only)
@@ -417,7 +421,7 @@ parameters:
   
   uncertainty_category: medium
   
-  distance_classes: [<=500km, <=1000km, <=2000km, <=5000km, <=10000km, >10000km]
+  distance_classes: [<=500km, <=1000km, <=2000km, <=5000km, <=10000km, '>10000km']
   split_by: [national, international]
 
 - id: emission_intensity_flight_lto
