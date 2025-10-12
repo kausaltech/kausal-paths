@@ -1,0 +1,3646 @@
+# Parameters from the IKKA Technical Annex
+# https://drive.google.com/file/d/1vJ0ItK5FRQXOzDnStlef8DfSphI4rbvs/view?usp=drive_link
+
+# ============================================
+# IKKA PARAMETER DEFINITIONS (Metadata Only)
+# Based on: Technical Annex März 2025
+# No actual values - see ikka_parameters_values.yaml
+# ============================================
+
+metadata:
+  version: "2.1"
+  description_de: "Parameterdefinitionen für IKKA-Berechnungen (nur Metadaten)"
+  description_en: "Parameter definitions for IKKA calculations (metadata only)"
+  companion_file: "ikka_parameters_values.yaml"
+  based_on: "Technical Annex März 2025"
+  last_updated: "2025-01-XX"
+
+parameters:
+
+# ============================================
+# EMISSION FACTORS: ELECTRICITY
+# ============================================
+
+- id: ef_grid
+  name_de: "Emissionsfaktor Bundesstrommix"
+  name_en: "Federal grid emission factor"
+  unit: g CO2eq/kWh
+  category: emission_factors
+  subcategory: electricity
+  
+  description_de: "Durchschnittlicher Emissionsfaktor des deutschen Strommix (inkl. Vorkette)"
+  description_en: "Average emission factor of German electricity mix (incl. upstream)"
+  
+  value_type: time_series
+  temporal_variation: high
+  geographic_scope: germany
+  
+  bisko_compliant: true
+  used_for: consumption
+  
+  update_frequency: annual
+  data_source: bisko_methodology
+  technical_annex_reference: "Table 3.1, 3.2"
+  
+  uncertainty_category: low
+  typical_uncertainty: "±5%"
+
+- id: ef_displacement_pv
+  name_de: "Bruttovermeidungsfaktor Photovoltaik"
+  name_en: "Gross avoidance factor photovoltaics"
+  unit: g CO2eq/kWh
+  category: emission_factors
+  subcategory: electricity_displacement
+  
+  description_de: "Vermiedene Emissionen durch PV-Stromerzeugung (verdrängte fossile Kraftwerke)"
+  description_en: "Avoided emissions through PV generation (displaced fossil plants)"
+  
+  value_type: time_series
+  temporal_variation: high
+  
+  bisko_compliant: false
+  used_for: generation
+  
+  update_frequency: annual
+  data_source: uba_lauf_et_al_2025
+  technical_annex_reference: "Table 3.4, 3.5"
+  
+  uncertainty_category: medium
+  typical_uncertainty: "±15%"
+  
+  note_de: "Höher als Durchschnittsmix - marginale Verdrängung"
+  note_en: "Higher than average mix - marginal displacement"
+
+- id: ef_displacement_wind
+  name_de: "Bruttovermeidungsfaktor Windkraft"
+  name_en: "Gross avoidance factor wind power"
+  unit: g CO2eq/kWh
+  category: emission_factors
+  subcategory: electricity_displacement
+  
+  value_type: time_series
+  temporal_variation: high
+  
+  bisko_compliant: false
+  used_for: generation
+  
+  data_source: uba_lauf_et_al_2025
+  technical_annex_reference: "Table 3.6, 3.7"
+  
+  uncertainty_category: medium
+
+- id: ef_displacement_hydro
+  name_de: "Bruttovermeidungsfaktor Wasserkraft"
+  name_en: "Gross avoidance factor hydropower"
+  unit: g CO2eq/kWh
+  category: emission_factors
+  subcategory: electricity_displacement
+  
+  value_type: time_series
+  temporal_variation: high
+  
+  bisko_compliant: false
+  
+  data_source: uba_lauf_et_al_2025
+  technical_annex_reference: "Table 3.8, 3.9"
+  
+  uncertainty_category: medium
+
+- id: ef_displacement_geothermal
+  name_de: "Bruttovermeidungsfaktor Geothermie"
+  name_en: "Gross avoidance factor geothermal"
+  unit: g CO2eq/kWh
+  category: emission_factors
+  subcategory: electricity_displacement
+  
+  value_type: time_series
+  temporal_variation: high
+  
+  bisko_compliant: false
+  
+  data_source: uba_lauf_et_al_2025
+  technical_annex_reference: "Table 3.10, 3.11"
+  
+  uncertainty_category: medium
+
+- id: ef_green_tariff_climate_invest
+  name_de: "Emissionsfaktor Ökostrombezug Klimainvest"
+  name_en: "Emission factor green tariff climate investment"
+  unit: t CO2eq/(EUR*year)
+  category: emission_factors
+  subcategory: electricity
+  
+  description_de: "THG-Einsparung pro Euro zusätzliche Investition in EE-Ausbau"
+  description_en: "GHG savings per EUR additional investment in RE expansion"
+  
+  value_type: constant
+  
+  bisko_compliant: false
+  used_for: additionality
+  
+  data_source: eigene_berechnungen
+  technical_annex_reference: "Table 3.12, 3.13"
+  
+  uncertainty_category: high
+  typical_uncertainty: "±60%"
+
+- id: ef_electricity_chp
+  name_de: "Emissionsfaktor Strom aus KWK"
+  name_en: "Emission factor electricity from CHP"
+  unit: g CO2eq/kWh
+  category: emission_factors
+  subcategory: electricity_chp
+  
+  description_de: "Exergetisch allokiert analog BISKO"
+  description_en: "Exergetically allocated per BISKO"
+  
+  value_type: fuel_and_technology_dependent
+  depends_on:
+  - fuel_type
+  - chp_technology
+  
+  bisko_compliant: true
+  
+  data_source: eigene_berechnungen
+  technical_annex_reference: "Table 3.3"
+  
+  uncertainty_category: medium
+
+# ============================================
+# EMISSION FACTORS: HEATING FUELS
+# ============================================
+
+- id: ef_natural_gas
+  name_de: "Emissionsfaktor Erdgas"
+  name_en: "Emission factor natural gas"
+  unit: g CO2eq/kWh
+  category: emission_factors
+  subcategory: heating_fuels
+  
+  description_de: "Gesamt-Emissionsfaktor inkl. Vorkette"
+  description_en: "Total emission factor incl. upstream"
+  
+  value_type: constant
+  temporal_variation: low
+  
+  bisko_compliant: true
+  has_components: true
+  components:
+  - direct_combustion
+  - upstream
+  
+  update_frequency: every_2_years
+  data_source: bisko_methodology
+  technical_annex_reference: "Table 3.14"
+  
+  uncertainty_category: low
+  typical_uncertainty: "±5%"
+
+- id: ef_heating_oil
+  name_de: "Emissionsfaktor Heizöl"
+  name_en: "Emission factor heating oil"
+  unit: g CO2eq/kWh
+  category: emission_factors
+  subcategory: heating_fuels
+  
+  value_type: constant
+  temporal_variation: low
+  
+  bisko_compliant: true
+  has_components: true
+  
+  data_source: bisko_methodology
+  technical_annex_reference: "Table 3.14"
+  
+  uncertainty_category: low
+
+- id: ef_hard_coal
+  name_de: "Emissionsfaktor Steinkohle"
+  name_en: "Emission factor hard coal"
+  unit: g CO2eq/kWh
+  category: emission_factors
+  subcategory: heating_fuels
+  
+  value_type: constant
+  bisko_compliant: true
+  technical_annex_reference: "Table 3.14"
+  uncertainty_category: low
+
+- id: ef_lignite
+  name_de: "Emissionsfaktor Braunkohle"
+  name_en: "Emission factor lignite"
+  unit: g CO2eq/kWh
+  category: emission_factors
+  subcategory: heating_fuels
+  
+  value_type: constant
+  bisko_compliant: true
+  technical_annex_reference: "Table 3.14"
+  uncertainty_category: low
+
+- id: ef_wood
+  name_de: "Emissionsfaktor Holz"
+  name_en: "Emission factor wood"
+  unit: g CO2eq/kWh
+  category: emission_factors
+  subcategory: heating_fuels
+  
+  value_type: constant
+  
+  bisko_compliant: true
+  
+  data_source: bisko_methodology
+  technical_annex_reference: "Table 3.14"
+  
+  uncertainty_category: medium
+  
+  note_de: "Nur Vorkette, CO2-neutral bei Verbrennung (nachhaltige Biomasse)"
+  note_en: "Only upstream, CO2-neutral at combustion (sustainable biomass)"
+
+- id: ef_solar_thermal
+  name_de: "Emissionsfaktor Solarthermie"
+  name_en: "Emission factor solar thermal"
+  unit: g CO2eq/kWh
+  category: emission_factors
+  subcategory: heating_fuels
+  
+  value_type: constant
+  bisko_compliant: true
+  technical_annex_reference: "Table 3.14"
+  uncertainty_category: medium
+
+- id: ef_heat_chp
+  name_de: "Emissionsfaktor Wärme aus KWK"
+  name_en: "Emission factor heat from CHP"
+  unit: g CO2eq/kWh
+  category: emission_factors
+  subcategory: heat_chp
+  
+  description_de: "Exergetisch allokiert analog BISKO"
+  description_en: "Exergetically allocated per BISKO"
+  
+  value_type: fuel_and_technology_dependent
+  temporal_variation: high
+  depends_on:
+  - fuel_type
+  - chp_technology
+  
+  bisko_compliant: true
+  
+  data_source: eigene_berechnungen
+  technical_annex_reference: "Table 3.15, 3.16"
+  
+  uncertainty_category: medium
+
+- id: ef_district_heating_average
+  name_de: "Emissionsfaktor Fernwärme Mittelwert"
+  name_en: "Emission factor district heating average"
+  unit: g CO2eq/kWh
+  category: emission_factors
+  subcategory: heat_chp
+  
+  description_de: "Bundesdurchschnitt (nur als Orientierung, lokal ermitteln!)"
+  description_en: "Federal average (only for orientation, determine locally!)"
+  
+  value_type: time_series
+  
+  bisko_compliant: true
+  
+  technical_annex_reference: "Table 3.15, 3.16"
+  
+  note_de: "NICHT für Berechnungen nutzen - nur Orientierung! Lokalen Wert verwenden."
+  note_en: "Do NOT use for calculations - orientation only! Use local value."
+
+# ============================================
+# EMISSION FACTORS: TRANSPORT FUELS
+# ============================================
+
+- id: ef_fuel_mix_fossil
+  name_de: "Emissionsfaktor Kraftstoffmix fossil inkl. Bio"
+  name_en: "Emission factor fuel mix fossil incl. bio"
+  unit: t CO2eq/MWh
+  category: emission_factors
+  subcategory: transport_fuels
+  
+  description_de: "Durchschnittsmix Benzin/Diesel mit aktueller Biokraftstoff-Beimischung"
+  description_en: "Average mix gasoline/diesel with current biofuel blending"
+  
+  value_type: time_series
+  temporal_variation: low
+  
+  bisko_compliant: true
+  
+  data_source: tremod_6_53
+  technical_annex_reference: "Table 3.17, 3.18"
+  
+  uncertainty_category: low
+
+- id: ef_propulsion_mix
+  name_de: "Emissionsfaktor Antriebsmix alle inkl. Bio"
+  name_en: "Emission factor propulsion mix all incl. bio"
+  unit: t CO2eq/MWh
+  category: emission_factors
+  subcategory: transport_fuels
+  
+  description_de: "Mix aller Antriebe inkl. Strom und Biokraftstoffe"
+  description_en: "Mix of all propulsion types incl. electricity and biofuels"
+  
+  value_type: time_series
+  temporal_variation: high
+  
+  data_source: tremod_6_53
+  technical_annex_reference: "Table 3.17, 3.18"
+  
+  uncertainty_category: low
+  
+  note_de: "Sinkt durch zunehmende Elektrifizierung"
+  note_en: "Decreases through increasing electrification"
+
+- id: conversion_factor_fuel_to_energy
+  name_de: "Umrechnungsfaktor Kraftstoff zu Energie"
+  name_en: "Conversion factor fuel to energy"
+  unit: MJ/liter
+  category: conversion_factors
+  subcategory: transport
+  
+  value_type: fuel_type_dependent
+  depends_on: fuel_type
+  
+  data_source: ageb_2022
+  technical_annex_reference: "Table 3.20"
+  
+  uncertainty_category: low
+  
+  variants:
+  - diesel
+  - gasoline
+  - mix_gasoline_diesel
+
+# ============================================
+# EMISSION INTENSITIES: TRANSPORT MODES
+# ============================================
+
+- id: occupancy_rate
+  name_de: "Besetzungsgrad"
+  name_en: "Occupancy rate"
+  unit: persons/vehicle
+  category: transport_patterns
+  subcategory: occupancy
+  
+  value_type: trip_purpose_dependent
+  depends_on: trip_purpose
+  
+  data_source: mid_2017
+  technical_annex_reference: "Table 3.19"
+  
+  uncertainty_category: low
+  
+  variants:
+  - commuting  # Pendelwege
+  - business_trips  # Dienstwege
+
+- id: emission_intensity_flight_ccd
+  name_de: "Emissionsintensität Flug (Flugphase CCD)"
+  name_en: "Emission intensity flight (cruise-climb-descent)"
+  unit: g CO2eq/person-km
+  category: emission_factors
+  subcategory: aviation
+  
+  description_de: "Emissionen während Reiseflughöhe"
+  description_en: "Emissions during cruise phase"
+  
+  value_type: distance_class_dependent
+  depends_on: flight_distance_category
+  
+  data_source: tremod_av_ifeu_2025
+  technical_annex_reference: "Table 3.21"
+  
+  uncertainty_category: medium
+  
+  distance_classes: [<=500km, <=1000km, <=2000km, <=5000km, <=10000km, >10000km]
+  split_by: [national, international]
+
+- id: emission_intensity_flight_lto
+  name_de: "Emissionsintensität Flug (Start/Landung LTO)"
+  name_en: "Emission intensity flight (landing-takeoff)"
+  unit: g CO2eq/start/person
+  category: emission_factors
+  subcategory: aviation
+  
+  description_de: "Emissionen während Start- und Landephase"
+  description_en: "Emissions during takeoff and landing phase"
+  
+  value_type: distance_class_dependent
+  
+  data_source: tremod_av_ifeu_2025
+  technical_annex_reference: "Table 3.21"
+  
+  uncertainty_category: medium
+  
+  note_de: "Für BISKO-Allokation wenn Flughafen im Territorium"
+  note_en: "For BISKO allocation if airport in territory"
+
+# ============================================
+# UPSTREAM EMISSIONS: RENEWABLE ENERGY
+# ============================================
+
+- id: upstream_pv_per_annual_yield
+  name_de: "Vorkettenemissionen PV pro jährlichem Ertrag"
+  name_en: "Upstream emissions PV per annual yield"
+  unit: t CO2eq/(MWh*year)
+  category: upstream_emissions
+  subcategory: photovoltaics
+  
+  description_de: "Auf Nutzungszeitraum hochgerechnet basierend auf jährlichem Ertrag"
+  description_en: "Scaled to usage period based on annual yield"
+  
+  value_type: constant
+  
+  data_source: lauf_et_al_2025
+  technical_annex_reference: "Table 4.1"
+  
+  uncertainty_category: medium
+  typical_uncertainty: "±20%"
+
+- id: upstream_wind_per_annual_yield
+  name_de: "Vorkettenemissionen Windkraft pro jährlichem Ertrag"
+  name_en: "Upstream emissions wind power per annual yield"
+  unit: t CO2eq/(MWh*year)
+  category: upstream_emissions
+  subcategory: wind_power
+  
+  value_type: constant
+  
+  data_source: lauf_et_al_2025
+  technical_annex_reference: "Table 4.2"
+  
+  uncertainty_category: medium
+
+- id: upstream_hydro_per_annual_yield
+  name_de: "Vorkettenemissionen Wasserkraft pro jährlichem Ertrag"
+  name_en: "Upstream emissions hydropower per annual yield"
+  unit: t CO2eq/(MWh*year)
+  category: upstream_emissions
+  subcategory: hydropower
+  
+  value_type: constant
+  
+  data_source: lauf_et_al_2025
+  technical_annex_reference: "Table 4.3"
+  
+  uncertainty_category: high
+
+- id: upstream_geothermal_per_annual_yield
+  name_de: "Vorkettenemissionen Geothermie pro jährlichem Ertrag"
+  name_en: "Upstream emissions geothermal per annual yield"
+  unit: t CO2eq/(MWh*year)
+  category: upstream_emissions
+  subcategory: geothermal
+  
+  value_type: constant
+  
+  data_source: lauf_et_al_2025
+  technical_annex_reference: "Table 4.4"
+  
+  uncertainty_category: high
+
+- id: upstream_chp_per_capacity
+  name_de: "Vorkettenemissionen KWK-Anlage pro Leistung"
+  name_en: "Upstream emissions CHP plant per capacity"
+  unit: t CO2eq/MW
+  category: upstream_emissions
+  subcategory: chp
+  
+  description_de: "Bezogen auf elektrische Leistung"
+  description_en: "Related to electrical capacity"
+  
+  value_type: constant
+  
+  data_source: oekobaudat_2021
+  technical_annex_reference: "Table 4.5"
+  
+  uncertainty_category: medium
+
+# ============================================
+# UPSTREAM EMISSIONS: LIGHTING
+# ============================================
+
+- id: upstream_halogen_metalhalide_lamp
+  name_de: "Vorkettenemissionen Halogen-Metalldampflampe"
+  name_en: "Upstream emissions halogen metal halide lamp"
+  unit: t CO2eq/unit
+  category: upstream_emissions
+  subcategory: lighting
+  
+  value_type: constant
+  
+  data_source: abdul_hadi_et_al_2013
+  technical_annex_reference: "Table 4.6"
+  
+  uncertainty_category: medium
+
+- id: upstream_sodium_vapor_lamp
+  name_de: "Vorkettenemissionen Natriumdampflampe"
+  name_en: "Upstream emissions sodium vapor lamp"
+  unit: t CO2eq/unit
+  category: upstream_emissions
+  subcategory: lighting
+  
+  value_type: constant
+  
+  data_source: abdul_hadi_et_al_2013
+  technical_annex_reference: "Table 4.6"
+  
+  uncertainty_category: medium
+
+- id: upstream_led_street
+  name_de: "Vorkettenemissionen LED Straßenbeleuchtung"
+  name_en: "Upstream emissions LED street lighting"
+  unit: t CO2eq/unit
+  category: upstream_emissions
+  subcategory: lighting
+  
+  value_type: constant
+  
+  data_source: abdul_hadi_et_al_2013
+  technical_annex_reference: "Table 4.6"
+  
+  uncertainty_category: medium
+
+- id: upstream_led_office
+  name_de: "Vorkettenemissionen LED Bürobeleuchtung"
+  name_en: "Upstream emissions LED office lighting"
+  unit: t CO2eq/unit
+  category: upstream_emissions
+  subcategory: lighting
+  
+  value_type: constant
+  
+  data_source: ledvance
+  technical_annex_reference: "Table 4.7"
+  
+  uncertainty_category: medium
+
+- id: upstream_led_sports_hall
+  name_de: "Vorkettenemissionen LED Sporthallenbeleuchtung"
+  name_en: "Upstream emissions LED sports hall lighting"
+  unit: t CO2eq/unit
+  category: upstream_emissions
+  subcategory: lighting
+  
+  value_type: constant
+  
+  data_source: oekobaudat_2021
+  technical_annex_reference: "Table 4.8"
+  
+  uncertainty_category: medium
+
+- id: upstream_led_sports_field
+  name_de: "Vorkettenemissionen LED Sportplatzbeleuchtung"
+  name_en: "Upstream emissions LED sports field lighting"
+  unit: t CO2eq/unit
+  category: upstream_emissions
+  subcategory: lighting
+  
+  value_type: constant
+  
+  data_source: abdul_hadi_et_al_2013
+  technical_annex_reference: "Table 4.9"
+  
+  uncertainty_category: medium
+
+# ============================================
+# UPSTREAM EMISSIONS: ICT EQUIPMENT
+# ============================================
+
+- id: upstream_printer
+  name_de: "Vorkettenemissionen Drucker"
+  name_en: "Upstream emissions printer"
+  unit: t CO2eq/device
+  category: upstream_emissions
+  subcategory: ict_equipment
+  
+  value_type: constant
+  
+  data_source: uba_co2_rechner_groeger_2020
+  technical_annex_reference: "Table 4.10"
+  
+  uncertainty_category: medium
+
+- id: upstream_pc
+  name_de: "Vorkettenemissionen Desktop-PC"
+  name_en: "Upstream emissions desktop PC"
+  unit: t CO2eq/device
+  category: upstream_emissions
+  subcategory: ict_equipment
+  
+  value_type: constant
+  
+  data_source: uba_co2_rechner_groeger_2020
+  technical_annex_reference: "Table 4.10"
+  
+  uncertainty_category: medium
+
+- id: upstream_monitor
+  name_de: "Vorkettenemissionen Monitor"
+  name_en: "Upstream emissions monitor"
+  unit: t CO2eq/device
+  category: upstream_emissions
+  subcategory: ict_equipment
+  
+  value_type: constant
+  
+  data_source: uba_co2_rechner_groeger_2020
+  technical_annex_reference: "Table 4.10"
+  
+  uncertainty_category: medium
+
+- id: upstream_copier
+  name_de: "Vorkettenemissionen Kopierer"
+  name_en: "Upstream emissions copier"
+  unit: t CO2eq/device
+  category: upstream_emissions
+  subcategory: ict_equipment
+  
+  value_type: constant
+  
+  data_source: uba_co2_rechner_groeger_2020
+  technical_annex_reference: "Table 4.10"
+  
+  uncertainty_category: medium
+
+- id: upstream_laptop
+  name_de: "Vorkettenemissionen Laptop"
+  name_en: "Upstream emissions laptop"
+  unit: t CO2eq/device
+  category: upstream_emissions
+  subcategory: ict_equipment
+  
+  value_type: constant
+  
+  data_source: uba_co2_rechner_groeger_2020
+  technical_annex_reference: "Table 4.10, 4.27"
+  
+  uncertainty_category: medium
+
+- id: upstream_smartphone
+  name_de: "Vorkettenemissionen Smartphone"
+  name_en: "Upstream emissions smartphone"
+  unit: t CO2eq/device
+  category: upstream_emissions
+  subcategory: ict_equipment
+  
+  value_type: constant
+  
+  data_source: uba_co2_rechner_groeger_2020
+  technical_annex_reference: "Table 4.27"
+  
+  uncertainty_category: medium
+
+- id: upstream_router
+  name_de: "Vorkettenemissionen Router"
+  name_en: "Upstream emissions router"
+  unit: t CO2eq/device
+  category: upstream_emissions
+  subcategory: ict_equipment
+  
+  value_type: constant
+  
+  data_source: uba_co2_rechner_groeger_2020
+  technical_annex_reference: "Table 4.27"
+  
+  uncertainty_category: medium
+
+# ============================================
+# UPSTREAM EMISSIONS: HEATING SYSTEMS
+# ============================================
+
+- id: upstream_gas_oil_boiler
+  name_de: "Vorkettenemissionen Gas/Öl-Heizung"
+  name_en: "Upstream emissions gas/oil boiler"
+  unit: kg CO2eq/kW
+  category: upstream_emissions
+  subcategory: heating_systems
+  
+  description_de: "Nennleistungsspezifisch"
+  description_en: "Per rated capacity"
+  
+  value_type: constant
+  
+  data_source: oekobaudat_2021
+  technical_annex_reference: "Table 4.11"
+  
+  uncertainty_category: medium
+
+- id: upstream_air_water_heat_pump
+  name_de: "Vorkettenemissionen Luft-Wasser-Wärmepumpe"
+  name_en: "Upstream emissions air-water heat pump"
+  unit: kg CO2eq/kW
+  category: upstream_emissions
+  subcategory: heating_systems
+  
+  value_type: constant
+  
+  data_source: oekobaudat_2021
+  technical_annex_reference: "Table 4.11"
+  
+  uncertainty_category: medium
+
+- id: upstream_district_heating_station
+  name_de: "Vorkettenemissionen Übergabestation Fernwärme"
+  name_en: "Upstream emissions district heating transfer station"
+  unit: kg CO2eq/kW
+  category: upstream_emissions
+  subcategory: heating_systems
+  
+  value_type: constant
+  
+  data_source: oekobaudat_2021
+  technical_annex_reference: "Table 4.11"
+  
+  uncertainty_category: medium
+
+- id: upstream_ground_water_heat_pump
+  name_de: "Vorkettenemissionen Sole-Wasser-Wärmepumpe inkl. Rohre"
+  name_en: "Upstream emissions ground-water heat pump incl. pipes"
+  unit: kg CO2eq/kW
+  category: upstream_emissions
+  subcategory: heating_systems
+  
+  description_de: "Inkl. Erdbohrung/Erdkollektoren"
+  description_en: "Incl. ground drilling/collectors"
+  
+  value_type: constant
+  
+  data_source: oekobaudat_2021
+  technical_annex_reference: "Table 4.11"
+  
+  uncertainty_category: medium
+  
+  note_de: "Deutlich höher als Luft-WP wegen Bohrung"
+  note_en: "Significantly higher than air-HP due to drilling"
+
+- id: upstream_pellet_boiler
+  name_de: "Vorkettenemissionen Pellet-Heizung"
+  name_en: "Upstream emissions pellet boiler"
+  unit: kg CO2eq/kW
+  category: upstream_emissions
+  subcategory: heating_systems
+  
+  value_type: constant
+  
+  data_source: oekobaudat_2021
+  technical_annex_reference: "Table 4.11"
+  
+  uncertainty_category: medium
+
+- id: upstream_chp_small
+  name_de: "Vorkettenemissionen BHKW"
+  name_en: "Upstream emissions small CHP"
+  unit: kg CO2eq/kW
+  category: upstream_emissions
+  subcategory: heating_systems
+  
+  value_type: constant
+  
+  data_source: oekobaudat_2021
+  technical_annex_reference: "Table 4.11"
+  
+  uncertainty_category: medium
+
+- id: upstream_electric_heating
+  name_de: "Vorkettenemissionen Stromdirektheizung"
+  name_en: "Upstream emissions electric direct heating"
+  unit: kg CO2eq/kW
+  category: upstream_emissions
+  subcategory: heating_systems
+  
+  value_type: estimated
+  
+  data_source: oekobaudat_2021
+  technical_annex_reference: "Table 4.11"
+  
+  uncertainty_category: high
+  
+  note_de: "Geschätzter Wert, keine Daten in Ökobaudat"
+  note_en: "Estimated value, no data in Ökobaudat"
+
+# ============================================
+# UPSTREAM EMISSIONS: BUILDINGS NON-RESIDENTIAL
+# ============================================
+
+- id: upstream_renovation_non_residential
+  name_de: "Vorkettenemissionen Sanierung Nichtwohngebäude"
+  name_en: "Upstream emissions renovation non-residential"
+  unit: kg CO2eq/m²
+  category: upstream_emissions
+  subcategory: buildings_non_residential
+  
+  value_type: multi_dimensional
+  depends_on:
+  - building_type_non_residential
+  - construction_method
+  - energy_standard
+  
+  data_source: oekobaudat_2021
+  technical_annex_reference: "Table 4.12"
+  
+  uncertainty_category: medium
+  typical_uncertainty: "±30%"
+  
+  building_types: [admin, school_kita, gymnasium]
+  construction_methods: [conventional, eco_optimized]
+  energy_standards: [standard, ambitious]
+  
+  note_de: "Nur fossiler Anteil, biogener Anteil nicht verwendet"
+  note_en: "Only fossil portion, biogenic portion not used"
+
+- id: partial_renovation_equivalent_non_residential
+  name_de: "Teilsanierungsäquivalent Nichtwohngebäude"
+  name_en: "Partial renovation equivalent non-residential"
+  unit: dimensionless
+  category: building_characteristics
+  subcategory: buildings_non_residential
+  
+  description_de: "Anteil der grauen Emissionen bei Teilsanierung einzelner Bauteile"
+  description_en: "Share of embodied emissions for partial renovation of individual components"
+  
+  value_type: component_dependent
+  depends_on: building_component
+  
+  data_source: eigene_berechnungen_oekobaudat
+  technical_annex_reference: "Table 4.13"
+  
+  uncertainty_category: medium
+  
+  components: [full_renovation, roof_top_floor, basement_ceiling, facade, windows]
+
+- id: upstream_new_construction_non_residential
+  name_de: "Vorkettenemissionen Neubau Nichtwohngebäude"
+  name_en: "Upstream emissions new construction non-residential"
+  unit: kg CO2eq/m²
+  category: upstream_emissions
+  subcategory: buildings_non_residential
+  
+  value_type: multi_dimensional
+  depends_on:
+  - building_type_non_residential
+  - construction_method
+  - energy_standard
+  
+  data_source: roeck_et_al_2022
+  technical_annex_reference: "Table 4.14"
+  
+  uncertainty_category: medium
+  
+  building_types: [admin, school_kita, gymnasium]
+
+# ============================================
+# UPSTREAM EMISSIONS: BUILDINGS RESIDENTIAL
+# ============================================
+
+- id: upstream_renovation_residential
+  name_de: "Vorkettenemissionen Sanierung Wohngebäude"
+  name_en: "Upstream emissions renovation residential"
+  unit: kg CO2eq/m²
+  category: upstream_emissions
+  subcategory: buildings_residential
+  
+  value_type: multi_dimensional
+  depends_on:
+  - building_type_residential
+  - construction_method
+  - energy_standard
+  
+  data_source: oekobaudat_2021
+  technical_annex_reference: "Table 4.15"
+  
+  uncertainty_category: medium
+  typical_uncertainty: "±30%"
+  
+  building_types: [efh, rh, mfh, gmh]
+  construction_methods: [conventional, eco_optimized]
+  energy_standards: [standard, ambitious]
+
+- id: partial_renovation_equivalent_residential
+  name_de: "Teilsanierungsäquivalent Wohngebäude"
+  name_en: "Partial renovation equivalent residential"
+  unit: dimensionless
+  category: building_characteristics
+  subcategory: buildings_residential
+  
+  value_type: component_dependent
+  depends_on: building_component
+  
+  data_source: diefenbach_et_al_2010
+  technical_annex_reference: "Table 4.16"
+  
+  uncertainty_category: medium
+  
+  components: [full_renovation, roof_top_floor, basement_ceiling, facade, windows]
+
+- id: upstream_new_construction_residential
+  name_de: "Vorkettenemissionen Neubau Wohngebäude"
+  name_en: "Upstream emissions new construction residential"
+  unit: kg CO2eq/m²
+  category: upstream_emissions
+  subcategory: buildings_residential
+  
+  value_type: multi_dimensional
+  depends_on:
+  - building_type_residential
+  - construction_method
+  - energy_standard
+  
+  data_source: oekobaudat_2021
+  technical_annex_reference: "Table 4.17"
+  
+  uncertainty_category: medium
+  
+  building_types: [efh_rh, mfh_gmh]
+
+# ============================================
+# UPSTREAM EMISSIONS: VEHICLES
+# ============================================
+
+- id: upstream_battery_production
+  name_de: "Herstellungsemissionen Fahrzeugbatterie"
+  name_en: "Manufacturing emissions vehicle battery"
+  unit: kg CO2eq/kWh battery capacity
+  category: upstream_emissions
+  subcategory: vehicles
+  
+  description_de: "Spezifische Emissionen abhängig von Zellchemie und Herstellungsjahr"
+  description_en: "Specific emissions dependent on cell chemistry and manufacturing year"
+  
+  value_type: time_series
+  temporal_variation: high
+  depends_on: battery_chemistry
+  
+  data_source: biemann_et_al_2024
+  technical_annex_reference: "Table 4.18, 4.19"
+  
+  uncertainty_category: medium
+  typical_uncertainty: "±25%"
+  
+  note_de: "Starker Rückgang durch Technologiefortschritt (2022: 84, 2030: 53)"
+  note_en: "Strong decrease through technology progress (2022: 84, 2030: 53)"
+
+# ============================================
+# UPSTREAM EMISSIONS: FOOD
+# ============================================
+
+- id: ef_meal_meat
+  name_de: "Emissionsfaktor Fleischgericht"
+  name_en: "Emission factor meat dish"
+  unit: kg CO2eq/meal
+  category: emission_factors
+  subcategory: food
+  
+  value_type: constant
+  
+  data_source: uba_co2_rechner_scharp_et_al_2019
+  technical_annex_reference: "Table 4.20"
+  
+  uncertainty_category: medium
+  typical_uncertainty: "±25%"
+
+- id: ef_meal_vegetarian_vegan
+  name_de: "Emissionsfaktor vegetarisch-veganes Gericht"
+  name_en: "Emission factor vegetarian-vegan dish"
+  unit: kg CO2eq/meal
+  category: emission_factors
+  subcategory: food
+  
+  value_type: constant
+  
+  data_source: uba_co2_rechner_scharp_et_al_2019
+  technical_annex_reference: "Table 4.20"
+  
+  uncertainty_category: medium
+
+- id: reduction_regional_seasonal
+  name_de: "Reduktionswert regional/saisonal"
+  name_en: "Reduction value regional/seasonal"
+  unit: kg CO2eq/meal
+  category: emission_factors
+  subcategory: food
+  
+  description_de: "Zusätzliche Einsparung durch regional/saisonale Beschaffung"
+  description_en: "Additional savings through regional/seasonal sourcing"
+  
+  value_type: constant
+  
+  data_source: uba_co2_rechner_scharp_et_al_2019
+  technical_annex_reference: "Table 4.21"
+  
+  uncertainty_category: high
+
+- id: food_waste_reduction_factor
+  name_de: "Reduktionsfaktor Lebensmittelverschwendung"
+  name_en: "Reduction factor food waste"
+  unit: dimensionless
+  category: behavioral_factors
+  subcategory: food
+  
+  description_de: "Reduktion der Gesamtemissionen durch Vermeidung von Lebensmittelverschwendung"
+  description_en: "Reduction of total emissions through food waste avoidance"
+  
+  value_type: constant
+  
+  data_source: scharp_et_al_2019
+  technical_annex_reference: "Table 4.22"
+  
+  uncertainty_category: medium
+
+- id: meat_share_typical_canteen
+  name_de: "Typischer Fleischanteil in Mensen"
+  name_en: "Typical meat share in canteens"
+  unit: dimensionless
+  category: food_patterns
+  
+  value_type: constant
+  
+  data_source: eigene_berechnungen
+  technical_annex_reference: "Table 6.29"
+  
+  uncertainty_category: medium
+
+# ============================================
+# CARBON SEQUESTRATION: TREES
+# ============================================
+
+- id: sequestration_rate_deciduous_trees_1_20
+  name_de: "Sequestrierungsrate Laubbäume 1-20 Jahre"
+  name_en: "Sequestration rate deciduous trees 1-20 years"
+  unit: kg CO2/tree/year
+  category: carbon_sequestration
+  subcategory: trees
+  
+  value_type: constant
+  
+  data_source: roman_scatena_2011_rock_et_al_2016
+  technical_annex_reference: "Table 3.22"
+  
+  uncertainty_category: medium
+  typical_uncertainty: "±40%"
+
+- id: sequestration_rate_deciduous_trees_21_40
+  name_de: "Sequestrierungsrate Laubbäume 21-40 Jahre"
+  name_en: "Sequestration rate deciduous trees 21-40 years"
+  unit: kg CO2/tree/year
+  category: carbon_sequestration
+  subcategory: trees
+  
+  value_type: constant
+  
+  data_source: roman_scatena_2011_rock_et_al_2016
+  technical_annex_reference: "Table 3.22"
+  
+  uncertainty_category: medium
+
+- id: sequestration_rate_deciduous_trees_41_60
+  name_de: "Sequestrierungsrate Laubbäume 41-60 Jahre"
+  name_en: "Sequestration rate deciduous trees 41-60 years"
+  unit: kg CO2/tree/year
+  category: carbon_sequestration
+  subcategory: trees
+  
+  value_type: constant
+  data_source: roman_scatena_2011_rock_et_al_2016
+  technical_annex_reference: "Table 3.22"
+  uncertainty_category: medium
+
+- id: sequestration_rate_deciduous_trees_61_80
+  name_de: "Sequestrierungsrate Laubbäume 61-80 Jahre"
+  name_en: "Sequestration rate deciduous trees 61-80 years"
+  unit: kg CO2/tree/year
+  category: carbon_sequestration
+  subcategory: trees
+  
+  value_type: constant
+  data_source: roman_scatena_2011_rock_et_al_2016
+  technical_annex_reference: "Table 3.22"
+  uncertainty_category: medium
+
+- id: sequestration_rate_deciduous_trees_81_100
+  name_de: "Sequestrierungsrate Laubbäume 81-100 Jahre"
+  name_en: "Sequestration rate deciduous trees 81-100 years"
+  unit: kg CO2/tree/year
+  category: carbon_sequestration
+  subcategory: trees
+  
+  value_type: constant
+  data_source: roman_scatena_2011_rock_et_al_2016
+  technical_annex_reference: "Table 3.22"
+  uncertainty_category: medium
+
+- id: sequestration_rate_deciduous_trees_101_120
+  name_de: "Sequestrierungsrate Laubbäume 101-120 Jahre"
+  name_en: "Sequestration rate deciduous trees 101-120 years"
+  unit: kg CO2/tree/year
+  category: carbon_sequestration
+  subcategory: trees
+  
+  value_type: constant
+  data_source: roman_scatena_2011_rock_et_al_2016
+  technical_annex_reference: "Table 3.22"
+  uncertainty_category: medium
+
+- id: sequestration_rate_coniferous_trees_1_20
+  name_de: "Sequestrierungsrate Nadelbäume 1-20 Jahre"
+  name_en: "Sequestration rate coniferous trees 1-20 years"
+  unit: kg CO2/tree/year
+  category: carbon_sequestration
+  subcategory: trees
+  
+  value_type: constant
+  data_source: roman_scatena_2011_rock_et_al_2016
+  technical_annex_reference: "Table 3.22"
+  uncertainty_category: medium
+
+- id: sequestration_rate_coniferous_trees_21_40
+  name_de: "Sequestrierungsrate Nadelbäume 21-40 Jahre"
+  name_en: "Sequestration rate coniferous trees 21-40 years"
+  unit: kg CO2/tree/year
+  category: carbon_sequestration
+  subcategory: trees
+  
+  value_type: constant
+  data_source: roman_scatena_2011_rock_et_al_2016
+  technical_annex_reference: "Table 3.22"
+  uncertainty_category: medium
+
+- id: sequestration_rate_coniferous_trees_41_60
+  name_de: "Sequestrierungsrate Nadelbäume 41-60 Jahre"
+  name_en: "Sequestration rate coniferous trees 41-60 years"
+  unit: kg CO2/tree/year
+  category: carbon_sequestration
+  subcategory: trees
+  
+  value_type: constant
+  data_source: roman_scatena_2011_rock_et_al_2016
+  technical_annex_reference: "Table 3.22"
+  uncertainty_category: medium
+
+- id: sequestration_rate_coniferous_trees_61_80
+  name_de: "Sequestrierungsrate Nadelbäume 61-80 Jahre"
+  name_en: "Sequestration rate coniferous trees 61-80 years"
+  unit: kg CO2/tree/year
+  category: carbon_sequestration
+  subcategory: trees
+  
+  value_type: constant
+  data_source: roman_scatena_2011_rock_et_al_2016
+  technical_annex_reference: "Table 3.22"
+  uncertainty_category: medium
+
+- id: sequestration_rate_coniferous_trees_81_100
+  name_de: "Sequestrierungsrate Nadelbäume 81-100 Jahre"
+  name_en: "Sequestration rate coniferous trees 81-100 years"
+  unit: kg CO2/tree/year
+  category: carbon_sequestration
+  subcategory: trees
+  
+  value_type: constant
+  data_source: roman_scatena_2011_rock_et_al_2016
+  technical_annex_reference: "Table 3.22"
+  uncertainty_category: medium
+
+- id: sequestration_rate_coniferous_trees_101_120
+  name_de: "Sequestrierungsrate Nadelbäume 101-120 Jahre"
+  name_en: "Sequestration rate coniferous trees 101-120 years"
+  unit: kg CO2/tree/year
+  category: carbon_sequestration
+  subcategory: trees
+  
+  value_type: constant
+  data_source: roman_scatena_2011_rock_et_al_2016
+  technical_annex_reference: "Table 3.22"
+  uncertainty_category: medium
+
+# ============================================
+# CARBON SEQUESTRATION: FORESTS
+# ============================================
+
+- id: sequestration_rate_forest_1_20
+  name_de: "Sequestrierungsrate Wald 1-20 Jahre"
+  name_en: "Sequestration rate forest 1-20 years"
+  unit: t CO2/ha/year
+  category: carbon_sequestration
+  subcategory: forests
+  
+  value_type: constant
+  
+  data_source: guenther_et_al_2023_riedel_et_al
+  technical_annex_reference: "Table 3.24"
+  
+  uncertainty_category: medium
+  typical_uncertainty: "±35%"
+
+- id: sequestration_rate_forest_21_40
+  name_de: "Sequestrierungsrate Wald 21-40 Jahre"
+  name_en: "Sequestration rate forest 21-40 years"
+  unit: t CO2/ha/year
+  category: carbon_sequestration
+  subcategory: forests
+  
+  value_type: constant
+  data_source: guenther_et_al_2023_riedel_et_al
+  technical_annex_reference: "Table 3.24"
+  uncertainty_category: medium
+
+- id: sequestration_rate_forest_41_60
+  name_de: "Sequestrierungsrate Wald 41-60 Jahre"
+  name_en: "Sequestration rate forest 41-60 years"
+  unit: t CO2/ha/year
+  category: carbon_sequestration
+  subcategory: forests
+  
+  value_type: constant
+  data_source: guenther_et_al_2023_riedel_et_al
+  technical_annex_reference: "Table 3.24"
+  uncertainty_category: medium
+
+- id: sequestration_rate_forest_61_80
+  name_de: "Sequestrierungsrate Wald 61-80 Jahre"
+  name_en: "Sequestration rate forest 61-80 years"
+  unit: t CO2/ha/year
+  category: carbon_sequestration
+  subcategory: forests
+  
+  value_type: constant
+  data_source: guenther_et_al_2023_riedel_et_al
+  technical_annex_reference: "Table 3.24"
+  uncertainty_category: medium
+
+- id: sequestration_rate_forest_81_100
+  name_de: "Sequestrierungsrate Wald 81-100 Jahre"
+  name_en: "Sequestration rate forest 81-100 years"
+  unit: t CO2/ha/year
+  category: carbon_sequestration
+  subcategory: forests
+  
+  value_type: constant
+  data_source: guenther_et_al_2023_riedel_et_al
+  technical_annex_reference: "Table 3.24"
+  uncertainty_category: medium
+
+- id: sequestration_rate_forest_101_120
+  name_de: "Sequestrierungsrate Wald 101-120 Jahre"
+  name_en: "Sequestration rate forest 101-120 years"
+  unit: t CO2/ha/year
+  category: carbon_sequestration
+  subcategory: forests
+  
+  value_type: constant
+  data_source: guenther_et_al_2023_riedel_et_al
+  technical_annex_reference: "Table 3.24"
+  uncertainty_category: medium
+
+- id: sequestration_rate_forest_conventional_management
+  name_de: "Sequestrierungsrate konventionelle Waldbewirtschaftung"
+  name_en: "Sequestration rate conventional forest management"
+  unit: t CO2/ha/year
+  category: carbon_sequestration
+  subcategory: forests
+  
+  value_type: constant
+  
+  data_source: guenther_et_al_2023_reise_riedel_2024
+  technical_annex_reference: "Table 3.25"
+  
+  uncertainty_category: high
+  typical_uncertainty: "±40%"
+
+- id: sequestration_rate_forest_near_natural_management
+  name_de: "Sequestrierungsrate naturnahe Waldbewirtschaftung"
+  name_en: "Sequestration rate near-natural forest management"
+  unit: t CO2/ha/year
+  category: carbon_sequestration
+  subcategory: forests
+  
+  value_type: constant
+  
+  data_source: guenther_et_al_2023_reise_riedel_2024
+  technical_annex_reference: "Table 3.25"
+  
+  uncertainty_category: high
+
+# ============================================
+# EMISSION FACTORS: ORGANIC SOILS
+# ============================================
+
+- id: ef_drained_cropland
+  name_de: "Emissionsfaktor entwässerte Ackerfläche"
+  name_en: "Emission factor drained cropland"
+  unit: t CO2eq/ha/year
+  category: emission_factors
+  subcategory: organic_soils
+  
+  value_type: constant
+  
+  data_source: abel_et_al_2019_dehst_2023
+  technical_annex_reference: "Table 3.23"
+  
+  uncertainty_category: high
+  typical_uncertainty: "±40%"
+
+- id: ef_drained_grassland
+  name_de: "Emissionsfaktor entwässerte Grünfläche"
+  name_en: "Emission factor drained grassland"
+  unit: t CO2eq/ha/year
+  category: emission_factors
+  subcategory: organic_soils
+  
+  value_type: constant
+  data_source: abel_et_al_2019_dehst_2023
+  technical_annex_reference: "Table 3.23"
+  uncertainty_category: high
+
+- id: ef_drained_forest
+  name_de: "Emissionsfaktor entwässerte Waldfläche"
+  name_en: "Emission factor drained forest"
+  unit: t CO2eq/ha/year
+  category: emission_factors
+  subcategory: organic_soils
+  
+  value_type: constant
+  data_source: abel_et_al_2019_dehst_2023
+  technical_annex_reference: "Table 3.23"
+  uncertainty_category: high
+
+- id: ef_drained_wasteland
+  name_de: "Emissionsfaktor entwässerte Brachfläche"
+  name_en: "Emission factor drained wasteland"
+  unit: t CO2eq/ha/year
+  category: emission_factors
+  subcategory: organic_soils
+  
+  value_type: constant
+  data_source: abel_et_al_2019_dehst_2023
+  technical_annex_reference: "Table 3.23"
+  uncertainty_category: high
+
+- id: ef_drained_peat_extraction
+  name_de: "Emissionsfaktor entwässerte Torfabbaufläche"
+  name_en: "Emission factor drained peat extraction"
+  unit: t CO2eq/ha/year
+  category: emission_factors
+  subcategory: organic_soils
+  
+  value_type: constant
+  data_source: abel_et_al_2019_dehst_2023
+  technical_annex_reference: "Table 3.23"
+  uncertainty_category: high
+
+- id: ef_rewetted_cropland
+  name_de: "Emissionsfaktor wiedervernässte Ackerfläche"
+  name_en: "Emission factor rewetted cropland"
+  unit: t CO2eq/ha/year
+  category: emission_factors
+  subcategory: organic_soils
+  
+  value_type: constant
+  data_source: abel_et_al_2019_dehst_2023
+  technical_annex_reference: "Table 3.23"
+  uncertainty_category: high
+
+- id: ef_rewetted_grassland
+  name_de: "Emissionsfaktor wiedervernässte Grünfläche"
+  name_en: "Emission factor rewetted grassland"
+  unit: t CO2eq/ha/year
+  category: emission_factors
+  subcategory: organic_soils
+  
+  value_type: constant
+  data_source: abel_et_al_2019_dehst_2023
+  technical_annex_reference: "Table 3.23"
+  uncertainty_category: high
+
+- id: ef_rewetted_forest
+  name_de: "Emissionsfaktor wiedervernässte Waldfläche"
+  name_en: "Emission factor rewetted forest"
+  unit: t CO2eq/ha/year
+  category: emission_factors
+  subcategory: organic_soils
+  
+  value_type: constant
+  data_source: abel_et_al_2019_dehst_2023
+  technical_annex_reference: "Table 3.23"
+  uncertainty_category: high
+
+- id: ef_rewetted_wasteland
+  name_de: "Emissionsfaktor wiedervernässte Brachfläche"
+  name_en: "Emission factor rewetted wasteland"
+  unit: t CO2eq/ha/year
+  category: emission_factors
+  subcategory: organic_soils
+  
+  value_type: constant
+  data_source: abel_et_al_2019_dehst_2023
+  technical_annex_reference: "Table 3.23"
+  uncertainty_category: high
+
+- id: ef_rewetted_peat_extraction
+  name_de: "Emissionsfaktor wiedervernässte Torfabbaufläche"
+  name_en: "Emission factor rewetted peat extraction"
+  unit: t CO2eq/ha/year
+  category: emission_factors
+  subcategory: organic_soils
+  
+  value_type: constant
+  data_source: abel_et_al_2019_dehst_2023
+  technical_annex_reference: "Table 3.23"
+  uncertainty_category: high
+
+# ============================================
+# EMISSION FACTORS: WASTE
+# ============================================
+
+- id: ef_residual_waste
+  name_de: "Emissionsfaktor Restmüll"
+  name_en: "Emission factor residual waste"
+  unit: t CO2eq/t waste
+  category: emission_factors
+  subcategory: waste
+  
+  value_type: constant
+  
+  data_source: power_eisenmann_2021
+  technical_annex_reference: "Table 4.23"
+  
+  uncertainty_category: medium
+  typical_uncertainty: "±30%"
+  
+  note_de: "Inkl. Methan aus organischem Material"
+  note_en: "Incl. methane from organic material"
+
+# ============================================
+# EMISSION FACTORS: WATER
+# ============================================
+
+- id: ef_bottled_water_uncooled
+  name_de: "Emissionsfaktor Flaschenwasser ungekühlt"
+  name_en: "Emission factor bottled water uncooled"
+  unit: kg CO2eq/liter
+  category: emission_factors
+  subcategory: water
+  
+  value_type: constant
+  
+  data_source: kroll_et_al_2020
+  technical_annex_reference: "Table 4.24"
+  
+  uncertainty_category: medium
+
+- id: ef_bottled_water_cooled
+  name_de: "Emissionsfaktor Flaschenwasser gekühlt"
+  name_en: "Emission factor bottled water cooled"
+  unit: kg CO2eq/liter
+  category: emission_factors
+  subcategory: water
+  
+  value_type: constant
+  data_source: kroll_et_al_2020
+  technical_annex_reference: "Table 4.24"
+  uncertainty_category: medium
+
+- id: ef_tap_water
+  name_de: "Emissionsfaktor Leitungswasser"
+  name_en: "Emission factor tap water"
+  unit: kg CO2eq/liter
+  category: emission_factors
+  subcategory: water
+  
+  value_type: constant
+  
+  data_source: kroll_et_al_2020
+  technical_annex_reference: "Table 4.24"
+  
+  uncertainty_category: low
+
+- id: ef_tap_water_carbonated
+  name_de: "Emissionsfaktor Leitungswasser mit CO2-Versatz"
+  name_en: "Emission factor tap water carbonated"
+  unit: kg CO2eq/liter
+  category: emission_factors
+  subcategory: water
+  
+  description_de: "Mit Gerät zuhause aufgesprudelt"
+  description_en: "Carbonated at home with device"
+  
+  value_type: constant
+  data_source: kroll_et_al_2020
+  technical_annex_reference: "Table 4.24"
+  uncertainty_category: medium
+
+- id: ef_fresh_water_treatment
+  name_de: "Emissionsfaktor Frischwasseraufbereitung"
+  name_en: "Emission factor fresh water treatment"
+  unit: t CO2eq/liter
+  category: emission_factors
+  subcategory: water
+  
+  value_type: constant
+  
+  data_source: decc_defra_2012
+  technical_annex_reference: "Table 4.25"
+  
+  uncertainty_category: medium
+
+- id: ef_wastewater_treatment
+  name_de: "Emissionsfaktor Abwasserbehandlung"
+  name_en: "Emission factor wastewater treatment"
+  unit: t CO2eq/liter
+  category: emission_factors
+  subcategory: water
+  
+  value_type: constant
+  data_source: decc_defra_2012
+  technical_annex_reference: "Table 4.25"
+  uncertainty_category: medium
+
+# ============================================
+# EMISSION FACTORS: PAPER
+# ============================================
+
+- id: ef_virgin_paper_sheet
+  name_de: "Emissionsfaktor Frischfaserpapier (Blatt)"
+  name_en: "Emission factor virgin paper (sheet)"
+  unit: t CO2eq/sheet
+  category: emission_factors
+  subcategory: paper
+  
+  value_type: constant
+  data_source: wellenreuther_et_al_2022
+  technical_annex_reference: "Table 4.26"
+  uncertainty_category: medium
+
+- id: ef_virgin_paper_pack
+  name_de: "Emissionsfaktor Frischfaserpapier (Packen 500 Blatt)"
+  name_en: "Emission factor virgin paper (pack 500 sheets)"
+  unit: t CO2eq/pack
+  category: emission_factors
+  subcategory: paper
+  
+  value_type: constant
+  data_source: wellenreuther_et_al_2022
+  technical_annex_reference: "Table 4.26"
+  uncertainty_category: medium
+
+- id: ef_recycled_paper_sheet
+  name_de: "Emissionsfaktor Recyclingpapier (Blatt)"
+  name_en: "Emission factor recycled paper (sheet)"
+  unit: t CO2eq/sheet
+  category: emission_factors
+  subcategory: paper
+  
+  value_type: constant
+  data_source: wellenreuther_et_al_2022
+  technical_annex_reference: "Table 4.26"
+  uncertainty_category: medium
+
+- id: ef_recycled_paper_pack
+  name_de: "Emissionsfaktor Recyclingpapier (Packen 500 Blatt)"
+  name_en: "Emission factor recycled paper (pack 500 sheets)"
+  unit: t CO2eq/pack
+  category: emission_factors
+  subcategory: paper
+  
+  value_type: constant
+  data_source: wellenreuther_et_al_2022
+  technical_annex_reference: "Table 4.26"
+  uncertainty_category: medium
+
+# ============================================
+# UPSTREAM EMISSIONS: DEVICES (Consumption)
+# ============================================
+
+- id: upstream_device_manufacturing
+  name_de: "Herstellungsemissionen Gerät"
+  name_en: "Manufacturing emissions device"
+  unit: t CO2eq/device
+  category: upstream_emissions
+  subcategory: devices
+  
+  value_type: device_type_dependent
+  depends_on: device_type
+  
+  data_source: uba_co2_rechner_groeger_2020
+  technical_annex_reference: "Table 4.27"
+  
+  uncertainty_category: medium
+  
+  device_types: [desktop_pc, monitor, laptop, smartphone, printer_small, coffee_machine, router]
+
+- id: upstream_device_repair
+  name_de: "Reparaturemissionen Gerät"
+  name_en: "Repair emissions device"
+  unit: t CO2eq/device
+  category: upstream_emissions
+  subcategory: devices
+  
+  description_de: "Emissionen bei Reparatur statt Neuanschaffung"
+  description_en: "Emissions from repair instead of new purchase"
+  
+  value_type: device_type_dependent
+  depends_on: device_type
+  
+  data_source: groeger_2020
+  technical_annex_reference: "Table 4.27"
+  
+  uncertainty_category: high
+  typical_uncertainty: "±50%"
+  
+  note_de: "In Anlehnung an Gröger 2020"
+  note_en: "Based on Gröger 2020"
+
+# ============================================
+# OPERATING HOURS: LIGHTING
+# ============================================
+
+- id: operating_hours_street_lighting
+  name_de: "Betriebsstunden Straßenbeleuchtung"
+  name_en: "Operating hours street lighting"
+  unit: hours/year
+  category: technical_operation
+  subcategory: lighting
+  
+  value_type: constant
+  
+  data_source: groeger_et_al_2013
+  technical_annex_reference: "Table 6.1"
+  
+  uncertainty_category: low
+  typical_uncertainty: "±10%"
+
+- id: operating_hours_office_all_year
+  name_de: "Betriebsstunden Bürobeleuchtung ganztägig ganzjährig"
+  name_en: "Operating hours office lighting all-day year-round"
+  unit: hours/year
+  category: technical_operation
+  subcategory: lighting
+  
+  value_type: usage_pattern_dependent
+  
+  data_source: eigene_annahmen
+  technical_annex_reference: "Table 6.2"
+  
+  uncertainty_category: medium
+
+- id: operating_hours_office_half_day
+  name_de: "Betriebsstunden Bürobeleuchtung halbtags"
+  name_en: "Operating hours office lighting half-day"
+  unit: hours/year
+  category: technical_operation
+  subcategory: lighting
+  
+  value_type: usage_pattern_dependent
+  data_source: eigene_annahmen
+  technical_annex_reference: "Table 6.2"
+  uncertainty_category: medium
+
+- id: operating_hours_office_winter_only
+  name_de: "Betriebsstunden Bürobeleuchtung nur Winter"
+  name_en: "Operating hours office lighting winter only"
+  unit: hours/year
+  category: technical_operation
+  subcategory: lighting
+  
+  value_type: usage_pattern_dependent
+  data_source: eigene_annahmen
+  technical_annex_reference: "Table 6.2"
+  uncertainty_category: medium
+
+- id: operating_hours_sports_hall
+  name_de: "Betriebsstunden Sporthallenbeleuchtung"
+  name_en: "Operating hours sports hall lighting"
+  unit: hours/year
+  category: technical_operation
+  subcategory: lighting
+  
+  value_type: constant
+  data_source: eigene_berechnung
+  technical_annex_reference: "Table 6.3"
+  uncertainty_category: medium
+
+- id: operating_hours_sports_field
+  name_de: "Betriebsstunden Sportplatzbeleuchtung"
+  name_en: "Operating hours sports field lighting"
+  unit: hours/year
+  category: technical_operation
+  subcategory: lighting
+  
+  value_type: constant
+  data_source: eigene_berechnung
+  technical_annex_reference: "Table 6.4"
+  uncertainty_category: medium
+
+# ============================================
+# LIGHTING: POWER CONSUMPTION
+# ============================================
+
+- id: power_old_lamp_mercury_vapor
+  name_de: "Leistung Quecksilberdampf-Hochdrucklampe"
+  name_en: "Power mercury vapor lamp"
+  unit: kWh/h
+  category: technical_consumption
+  subcategory: lighting
+  
+  value_type: constant
+  data_source: dena_2016
+  technical_annex_reference: "Table 6.1"
+  uncertainty_category: low
+
+- id: power_old_lamp_sodium_vapor
+  name_de: "Leistung Natriumdampf-Hochdrucklampe"
+  name_en: "Power sodium vapor lamp"
+  unit: kWh/h
+  category: technical_consumption
+  subcategory: lighting
+  
+  value_type: constant
+  data_source: dena_2016
+  technical_annex_reference: "Table 6.1"
+  uncertainty_category: low
+
+- id: power_old_lamp_halogen_metalhalide
+  name_de: "Leistung Halogen-Metalldampflampe"
+  name_en: "Power halogen metal halide lamp"
+  unit: kWh/h
+  category: technical_consumption
+  subcategory: lighting
+  
+  value_type: constant
+  data_source: dena_2016
+  technical_annex_reference: "Table 6.1"
+  uncertainty_category: low
+
+- id: power_new_lamp_led_street
+  name_de: "Leistung LED Straßenbeleuchtung"
+  name_en: "Power LED street lighting"
+  unit: kWh/h
+  category: technical_consumption
+  subcategory: lighting
+  
+  value_type: constant
+  data_source: dena_2016
+  technical_annex_reference: "Table 6.1"
+  uncertainty_category: low
+
+- id: control_system_savings_street_lighting
+  name_de: "Einsparung durch Regelschaltung Straßenbeleuchtung"
+  name_en: "Savings from control system street lighting"
+  unit: dimensionless
+  category: efficiency_factors
+  subcategory: lighting
+  
+  description_de: "Anteil vom ursprünglichen Verbrauch"
+  description_en: "Share of original consumption"
+  
+  value_type: constant
+  data_source: dena_2016
+  technical_annex_reference: "Table 6.1"
+  uncertainty_category: medium
+
+- id: power_old_lamp_office_incandescent
+  name_de: "Leistung Glühbirne Büro"
+  name_en: "Power incandescent office"
+  unit: kWh/h
+  category: technical_consumption
+  subcategory: lighting
+  
+  value_type: constant
+  data_source: co2online
+  technical_annex_reference: "Table 6.2 (impliziert)"
+  uncertainty_category: low
+
+- id: power_old_lamp_office_halogen
+  name_de: "Leistung Halogenlampe Büro"
+  name_en: "Power halogen office"
+  unit: kWh/h
+  category: technical_consumption
+  subcategory: lighting
+  
+  value_type: constant
+  data_source: co2online
+  technical_annex_reference: "Table 6.2 (impliziert)"
+  uncertainty_category: low
+
+- id: power_old_lamp_office_cfl
+  name_de: "Leistung Energiesparlampe Büro"
+  name_en: "Power CFL office"
+  unit: kWh/h
+  category: technical_consumption
+  subcategory: lighting
+  
+  value_type: constant
+  data_source: co2online
+  technical_annex_reference: "Table 6.2 (impliziert)"
+  uncertainty_category: low
+
+- id: power_new_lamp_led_office
+  name_de: "Leistung LED Büro"
+  name_en: "Power LED office"
+  unit: kWh/h
+  category: technical_consumption
+  subcategory: lighting
+  
+  value_type: constant
+  data_source: co2online
+  technical_annex_reference: "Table 6.2 (impliziert)"
+  uncertainty_category: low
+
+- id: power_old_lamp_sports_hall
+  name_de: "Leistung alte Leuchte Sporthalle"
+  name_en: "Power old lamp sports hall"
+  unit: kWh/h
+  category: technical_consumption
+  subcategory: lighting
+  
+  value_type: constant
+  data_source: eigene_annahmen
+  technical_annex_reference: "Table 6.3"
+  uncertainty_category: medium
+
+- id: power_new_lamp_led_sports_hall
+  name_de: "Leistung LED Sporthalle"
+  name_en: "Power LED sports hall"
+  unit: kWh/h
+  category: technical_consumption
+  subcategory: lighting
+  
+  value_type: constant
+  data_source: eigene_annahmen
+  technical_annex_reference: "Table 6.3"
+  uncertainty_category: medium
+
+- id: power_old_lamp_sports_field
+  name_de: "Leistung alte Leuchte Sportplatz"
+  name_en: "Power old lamp sports field"
+  unit: kWh/h
+  category: technical_consumption
+  subcategory: lighting
+  
+  value_type: constant
+  data_source: energieagentur_nrw_2018
+  technical_annex_reference: "Table 6.4"
+  uncertainty_category: medium
+
+- id: power_new_lamp_led_sports_field
+  name_de: "Leistung LED Sportplatz"
+  name_en: "Power LED sports field"
+  unit: kWh/h
+  category: technical_consumption
+  subcategory: lighting
+  
+  value_type: constant
+  data_source: energieagentur_nrw_2018
+  technical_annex_reference: "Table 6.4"
+  uncertainty_category: medium
+
+- id: lighting_count_sports_hall_single
+  name_de: "Anzahl Leuchten Einfach-Sporthalle"
+  name_en: "Number of lights single sports hall"
+  unit: count
+  category: technical_typical_values
+  subcategory: lighting
+  
+  value_type: constant
+  data_source: sportstaetten_rechner
+  technical_annex_reference: "Table 6.3"
+  uncertainty_category: medium
+
+- id: lighting_count_sports_hall_double
+  name_de: "Anzahl Leuchten Zweifach-Sporthalle"
+  name_en: "Number of lights double sports hall"
+  unit: count
+  category: technical_typical_values
+  subcategory: lighting
+  
+  value_type: constant
+  data_source: sportstaetten_rechner
+  technical_annex_reference: "Table 6.3"
+  uncertainty_category: medium
+
+- id: lighting_count_sports_hall_triple
+  name_de: "Anzahl Leuchten Dreifach-Sporthalle"
+  name_en: "Number of lights triple sports hall"
+  unit: count
+  category: technical_typical_values
+  subcategory: lighting
+  
+  value_type: constant
+  data_source: sportstaetten_rechner
+  technical_annex_reference: "Table 6.3"
+  uncertainty_category: medium
+
+# ============================================
+# BEHAVIORAL SAVINGS RATES
+# ============================================
+
+- id: behavioral_savings_electricity_admin_moderate
+  name_de: "Verhaltensbedingte Stromeinsparung Verwaltung moderat"
+  name_en: "Behavioral electricity savings administration moderate"
+  unit: dimensionless
+  category: behavioral_factors
+  subcategory: electricity
+  
+  value_type: constant
+  
+  data_source: gugel_2018
+  technical_annex_reference: "Table 6.5"
+  
+  uncertainty_category: high
+  typical_uncertainty: "±40%"
+
+- id: behavioral_savings_electricity_admin_ambitious
+  name_de: "Verhaltensbedingte Stromeinsparung Verwaltung ambitioniert"
+  name_en: "Behavioral electricity savings administration ambitious"
+  unit: dimensionless
+  category: behavioral_factors
+  subcategory: electricity
+  
+  value_type: constant
+  data_source: gugel_2018
+  technical_annex_reference: "Table 6.5"
+  uncertainty_category: high
+
+- id: behavioral_savings_electricity_households
+  name_de: "Verhaltensbedingte Stromeinsparung Haushalte"
+  name_en: "Behavioral electricity savings households"
+  unit: dimensionless
+  category: behavioral_factors
+  subcategory: electricity
+  
+  value_type: ambition_dependent
+  depends_on: ambition_level
+  
+  data_source: gugel_2018
+  technical_annex_reference: "Table 6.6"
+  
+  uncertainty_category: high
+  
+  note_de: "Je nach Effizienz/Suffizienz-Kombination verschiedene Werte"
+  note_en: "Different values depending on efficiency/sufficiency combination"
+
+- id: behavioral_savings_heat_admin_moderate
+  name_de: "Verhaltensbedingte Wärmeeinsparung Verwaltung moderat"
+  name_en: "Behavioral heat savings administration moderate"
+  unit: dimensionless
+  category: behavioral_factors
+  subcategory: heat
+  
+  value_type: constant
+  data_source: gugel_2018
+  technical_annex_reference: "Table 6.22"
+  uncertainty_category: high
+
+- id: behavioral_savings_heat_admin_ambitious
+  name_de: "Verhaltensbedingte Wärmeeinsparung Verwaltung ambitioniert"
+  name_en: "Behavioral heat savings administration ambitious"
+  unit: dimensionless
+  category: behavioral_factors
+  subcategory: heat
+  
+  value_type: constant
+  data_source: gugel_2018
+  technical_annex_reference: "Table 6.22"
+  uncertainty_category: high
+
+# ============================================
+# LOW-INVESTMENT SAVINGS RATES: ELECTRICITY
+# ============================================
+
+- id: low_investment_savings_electricity_lighting_max
+  name_de: "Gering-investive Einsparung Beleuchtung maximal"
+  name_en: "Low-investment savings lighting maximum"
+  unit: dimensionless
+  category: efficiency_factors
+  subcategory: electricity
+  
+  value_type: constant
+  data_source: eigene_berechnungen
+  technical_annex_reference: "Table 6.7"
+  uncertainty_category: high
+
+- id: low_investment_savings_electricity_ict_max
+  name_de: "Gering-investive Einsparung IKT maximal"
+  name_en: "Low-investment savings ICT maximum"
+  unit: dimensionless
+  category: efficiency_factors
+  subcategory: electricity
+  
+  value_type: constant
+  data_source: eigene_berechnungen
+  technical_annex_reference: "Table 6.7"
+  uncertainty_category: high
+
+- id: low_investment_savings_electricity_hvac_max
+  name_de: "Gering-investive Einsparung Klimatisierung maximal"
+  name_en: "Low-investment savings HVAC maximum"
+  unit: dimensionless
+  category: efficiency_factors
+  subcategory: electricity
+  
+  value_type: constant
+  data_source: eigene_berechnungen
+  technical_annex_reference: "Table 6.7"
+  uncertainty_category: high
+
+- id: low_investment_savings_electricity_comprehensive_max
+  name_de: "Gering-investive Einsparung Strom übergreifend maximal"
+  name_en: "Low-investment savings electricity comprehensive maximum"
+  unit: dimensionless
+  category: efficiency_factors
+  subcategory: electricity
+  
+  value_type: constant
+  data_source: eigene_berechnungen
+  technical_annex_reference: "Table 6.8"
+  uncertainty_category: high
+
+- id: low_investment_savings_electricity_comprehensive_medium
+  name_de: "Gering-investive Einsparung Strom übergreifend mittel"
+  name_en: "Low-investment savings electricity comprehensive medium"
+  unit: dimensionless
+  category: efficiency_factors
+  subcategory: electricity
+  
+  value_type: constant
+  data_source: eigene_berechnungen
+  technical_annex_reference: "Table 6.8"
+  uncertainty_category: high
+
+- id: low_investment_savings_electricity_comprehensive_low
+  name_de: "Gering-investive Einsparung Strom übergreifend gering"
+  name_en: "Low-investment savings electricity comprehensive low"
+  unit: dimensionless
+  category: efficiency_factors
+  subcategory: electricity
+  
+  value_type: constant
+  data_source: eigene_berechnungen
+  technical_annex_reference: "Table 6.8"
+  uncertainty_category: high
+
+# ============================================
+# LOW-INVESTMENT SAVINGS RATES: HEAT
+# ============================================
+
+- id: low_investment_savings_heat_boiler_max
+  name_de: "Gering-investive Einsparung Wärme Kessel maximal"
+  name_en: "Low-investment savings heat boiler maximum"
+  unit: dimensionless
+  category: efficiency_factors
+  subcategory: heat
+  
+  value_type: constant
+  data_source: eigene_berechnungen
+  technical_annex_reference: "Table 6.21"
+  uncertainty_category: high
+
+- id: low_investment_savings_heat_distribution_max
+  name_de: "Gering-investive Einsparung Wärme Verteilung maximal"
+  name_en: "Low-investment savings heat distribution maximum"
+  unit: dimensionless
+  category: efficiency_factors
+  subcategory: heat
+  
+  value_type: constant
+  data_source: eigene_berechnungen
+  technical_annex_reference: "Table 6.21"
+  uncertainty_category: high
+
+- id: low_investment_savings_heat_dhw_max
+  name_de: "Gering-investive Einsparung Warmwasser maximal"
+  name_en: "Low-investment savings DHW maximum"
+  unit: dimensionless
+  category: efficiency_factors
+  subcategory: heat
+  
+  value_type: constant
+  data_source: eigene_berechnungen
+  technical_annex_reference: "Table 6.21"
+  uncertainty_category: high
+
+# ============================================
+# ELECTRICITY CONSUMPTION: DEVICES
+# ============================================
+
+- id: electricity_consumption_device
+  name_de: "Stromverbrauch Gerät"
+  name_en: "Electricity consumption device"
+  unit: kWh/year
+  category: technical_consumption
+  subcategory: ict_devices
+  
+  value_type: device_and_scenario_dependent
+  depends_on:
+  - device_type
+  - scenario  # reference or climate
+  
+  data_source: uba_co2_rechner_groeger_2020
+  technical_annex_reference: "Table 6.9, 6.10"
+  
+  uncertainty_category: medium
+  
+  device_types_commercial: [printer, pc, monitor, copier, laptop]
+  device_types_household: [printer, pc, monitor, telecom_device, laptop]
+
+# ============================================
+# BUILDING CHARACTERISTICS: NON-RESIDENTIAL
+# ============================================
+
+- id: system_performance_factor_non_residential
+  name_de: "Anlagenaufwandszahl Nichtwohngebäude"
+  name_en: "System performance factor non-residential"
+  unit: dimensionless
+  category: conversion_efficiency
+  subcategory: heating_systems
+  
+  description_de: "Verhältnis Endenergie zu Nutzenergie"
+  description_en: "Ratio final energy to useful energy"
+  
+  value_type: multi_dimensional
+  depends_on:
+  - heating_system_type
+  - age_category
+  
+  data_source: hoerner_et_al_2014
+  technical_annex_reference: "Table 6.11"
+  
+  uncertainty_category: low
+  
+  note_de: "Werte > 1 für Verbrennung, < 1 für Wärmepumpen"
+  note_en: "Values > 1 for combustion, < 1 for heat pumps"
+
+- id: net_floor_area_non_residential
+  name_de: "Nettogrundfläche Nichtwohngebäude"
+  name_en: "Net floor area non-residential"
+  unit: m²
+  category: building_characteristics
+  subcategory: buildings_non_residential
+  
+  value_type: building_type_dependent
+  depends_on: building_type_non_residential
+  
+  data_source: hoerner_et_al_2022_plesser_et_al_2015
+  technical_annex_reference: "Table 6.12"
+  
+  uncertainty_category: medium
+  
+  building_types: [admin, school, kita, gymnasium]
+
+- id: full_usage_hours_heating_non_residential
+  name_de: "Vollbenutzungsstunden Heizung Nichtwohngebäude"
+  name_en: "Full usage hours heating non-residential"
+  unit: hours/year
+  category: technical_operation
+  subcategory: heating
+  
+  value_type: building_type_dependent
+  depends_on: building_type_non_residential
+  
+  data_source: rosenkranz_2020
+  technical_annex_reference: "Table 6.13"
+  
+  uncertainty_category: medium
+
+- id: heat_intensity_non_residential
+  name_de: "Erzeugernutzwärmeabgabe Nichtwohngebäude"
+  name_en: "Generator net heat output non-residential"
+  unit: kWh/m²/year
+  category: building_characteristics
+  subcategory: buildings_non_residential
+  
+  description_de: "Heizung + Warmwasser"
+  description_en: "Heating + DHW"
+  
+  value_type: multi_dimensional
+  depends_on:
+  - building_type_non_residential
+  - energy_level
+  
+  data_source: ritter_et_al_2019
+  technical_annex_reference: "Table 6.14"
+  
+  uncertainty_category: medium
+  
+  energy_levels: [very_high, high, medium, low, very_low]
+
+# ============================================
+# BUILDING CHARACTERISTICS: RESIDENTIAL
+# ============================================
+
+- id: system_performance_factor_residential
+  name_de: "Anlagenaufwandszahl Wohngebäude"
+  name_en: "System performance factor residential"
+  unit: dimensionless
+  category: conversion_efficiency
+  subcategory: heating_systems
+  
+  value_type: multi_dimensional
+  depends_on:
+  - heating_system_type
+  - building_type_residential
+  - age_category
+  
+  data_source: iwu_2012
+  technical_annex_reference: "Table 6.16"
+  
+  uncertainty_category: low
+
+- id: living_area_residential
+  name_de: "Wohnfläche Wohngebäude"
+  name_en: "Living area residential"
+  unit: m²
+  category: building_characteristics
+  subcategory: buildings_residential
+  
+  value_type: building_type_and_age_dependent
+  depends_on:
+  - building_type_residential
+  - age_class
+  
+  data_source: iwu_2012
+  technical_annex_reference: "Table 6.17"
+  
+  uncertainty_category: medium
+  
+  building_types: [efh, rh, mfh, gmh]
+  age_classes: [before_1948, 1948_to_1978, 1978_to_today]
+
+- id: full_usage_hours_heating_residential
+  name_de: "Vollbenutzungsstunden Heizung Wohngebäude"
+  name_en: "Full usage hours heating residential"
+  unit: hours/year
+  category: technical_operation
+  subcategory: heating
+  
+  value_type: building_type_dependent
+  depends_on: building_type_residential
+  
+  data_source: rosenkranz_2020
+  technical_annex_reference: "Table 6.18"
+  
+  uncertainty_category: medium
+
+- id: heat_intensity_residential
+  name_de: "Erzeugernutzwärmeabgabe Wohngebäude"
+  name_en: "Generator net heat output residential"
+  unit: kWh/m²/year
+  category: building_characteristics
+  subcategory: buildings_residential
+  
+  description_de: "Heizung + Warmwasser"
+  description_en: "Heating + DHW"
+  
+  value_type: multi_dimensional
+  depends_on:
+  - building_type_residential
+  - age_class
+  - renovation_status
+  
+  data_source: iwu_2012
+  technical_annex_reference: "Table 6.19"
+  
+  uncertainty_category: medium
+  
+  renovation_status: [before_renovation, conventional, ambitious]
+
+# ============================================
+# TRANSPORT: VEHICLES
+# ============================================
+
+- id: vehicle_fuel_consumption_compact
+  name_de: "Kraftstoffverbrauch Kompaktklasse"
+  name_en: "Fuel consumption compact class"
+  unit: liters/100km
+  category: transport_consumption
+  subcategory: vehicles
+  
+  value_type: time_series
+  temporal_variation: medium
+  
+  data_source: biemann_et_al_2024
+  technical_annex_reference: "Table 6.24"
+  
+  uncertainty_category: low
+
+- id: vehicle_electricity_consumption_compact
+  name_de: "Stromverbrauch BEV Kompaktklasse"
+  name_en: "Electricity consumption BEV compact class"
+  unit: kWh/100km
+  category: transport_consumption
+  subcategory: vehicles
+  
+  value_type: constant
+  
+  data_source: biemann_et_al_2024
+  technical_annex_reference: "Table 6.24"
+  
+  uncertainty_category: low
+
+- id: battery_capacity_compact
+  name_de: "Batteriegröße brutto Kompaktklasse"
+  name_en: "Battery capacity gross compact class"
+  unit: kWh
+  category: technical_characteristics
+  subcategory: vehicles
+  
+  value_type: time_series
+  temporal_variation: low
+  
+  description_de: "Steigt leicht über Zeit durch höhere Reichweitenanforderungen"
+  description_en: "Increases slightly over time due to higher range requirements"
+  
+  data_source: biemann_et_al_2024
+  technical_annex_reference: "Table 6.24"
+  
+  uncertainty_category: low
+
+- id: annual_mileage_municipal_vehicle
+  name_de: "Jährliche Fahrleistung kommunales Fahrzeug"
+  name_en: "Annual mileage municipal vehicle"
+  unit: km/year
+  category: transport_patterns
+  subcategory: vehicles
+  
+  value_type: constant
+  
+  data_source: expertenschaetzung_joehrens_et_al_2019
+  technical_annex_reference: "Table 6.23"
+  
+  uncertainty_category: medium
+
+- id: lifetime_mileage_vehicle
+  name_de: "Lebensfahrleistung Pkw"
+  name_en: "Lifetime mileage vehicle"
+  unit: km
+  category: technical_characteristics
+  subcategory: vehicles
+  
+  value_type: constant
+  
+  data_source: tremod_6_53
+  technical_annex_reference: "Table 6.23"
+  
+  uncertainty_category: low
+
+- id: vehicle_holding_period
+  name_de: "Haltedauer Pkw"
+  name_en: "Holding period vehicle"
+  unit: years
+  category: technical_lifetime
+  subcategory: vehicles
+  
+  value_type: constant
+  
+  data_source: innenministerium_bw_2000
+  technical_annex_reference: "Table 6.23"
+  
+  uncertainty_category: low
+
+- id: share_mileage_within_territory_vehicle
+  name_de: "Anteil Fahrleistung im Territorium Pkw"
+  name_en: "Share of mileage within territory vehicle"
+  unit: dimensionless
+  category: territorial_allocation
+  subcategory: vehicles
+  
+  value_type: constant
+  
+  data_source: expertenschaetzung
+  technical_annex_reference: "Table 6.23"
+  
+  uncertainty_category: medium
+
+# ============================================
+# TRANSPORT: BUSES
+# ============================================
+
+- id: bus_fuel_consumption_diesel
+  name_de: "Kraftstoffverbrauch Dieselbus"
+  name_en: "Fuel consumption diesel bus"
+  unit: liters/100km
+  category: transport_consumption
+  subcategory: buses
+  
+  value_type: time_series
+  temporal_variation: low
+  depends_on: bus_type
+  
+  data_source: sphera_et_al_2021
+  technical_annex_reference: "Table 6.26"
+  
+  uncertainty_category: medium
+
+- id: bus_electricity_consumption
+  name_de: "Stromverbrauch Elektrobus"
+  name_en: "Electricity consumption electric bus"
+  unit: kWh/100km
+  category: transport_consumption
+  subcategory: buses
+  
+  value_type: constant
+  depends_on: bus_type
+  
+  data_source: pwc_et_al_2024
+  technical_annex_reference: "Table 6.26"
+  
+  uncertainty_category: medium
+
+- id: bus_battery_capacity
+  name_de: "Batteriegröße brutto Bus"
+  name_en: "Battery capacity gross bus"
+  unit: kWh
+  category: technical_characteristics
+  subcategory: buses
+  
+  value_type: constant
+  depends_on: bus_type
+  
+  data_source: pwc_et_al_2024
+  technical_annex_reference: "Table 6.26"
+  
+  uncertainty_category: medium
+
+- id: bus_annual_mileage
+  name_de: "Jährliche Fahrleistung Bus"
+  name_en: "Annual mileage bus"
+  unit: km/year
+  category: transport_patterns
+  subcategory: buses
+  
+  value_type: constant
+  
+  data_source: pwc_et_al_2024
+  technical_annex_reference: "Table 6.25"
+  
+  uncertainty_category: low
+
+- id: bus_ratio_electric_to_diesel
+  name_de: "Mehrbedarfsverhältnis Elektro- zu Dieselbussen"
+  name_en: "Additional demand ratio electric to diesel buses"
+  unit: dimensionless
+  category: technical_characteristics
+  subcategory: buses
+  
+  description_de: "Anzahl E-Busse nötig um gleiche Verkehrsleistung wie Dieselbusse zu erbringen"
+  description_en: "Number of e-buses needed to provide same service as diesel buses"
+  
+  value_type: constant
+  
+  data_source: pwc_et_al_2024
+  technical_annex_reference: "Table 6.25"
+  
+  uncertainty_category: medium
+
+- id: bus_battery_replacement
+  name_de: "Batteriewechsel nach halber Lebensdauer"
+  name_en: "Battery replacement after half lifetime"
+  unit: boolean
+  category: technical_characteristics
+  subcategory: buses
+  
+  value_type: assumption
+  data_source: annahme
+  technical_annex_reference: "Table 6.25"
+  uncertainty_category: high
+
+- id: bus_holding_period
+  name_de: "Haltedauer Bus"
+  name_en: "Holding period bus"
+  unit: years
+  category: technical_lifetime
+  subcategory: buses
+  
+  value_type: constant
+  
+  data_source: pwc_et_al_2024
+  technical_annex_reference: "Table 6.25"
+  
+  uncertainty_category: low
+
+- id: share_mileage_within_territory_bus
+  name_de: "Anteil Fahrleistung im Territorium Bus"
+  name_en: "Share of mileage within territory bus"
+  unit: dimensionless
+  category: territorial_allocation
+  subcategory: buses
+  
+  value_type: constant
+  
+  data_source: expertenschaetzung
+  technical_annex_reference: "Table 6.25"
+  
+  uncertainty_category: medium
+
+# ============================================
+# TRANSPORT: COMMUTING AND MODAL SHIFT
+# ============================================
+
+- id: avg_commute_distance
+  name_de: "Mittlerer Pendelweg je Mitarbeiter*in"
+  name_en: "Average commute distance per employee"
+  unit: km
+  category: transport_patterns
+  subcategory: commuting
+  
+  value_type: municipality_specific
+  geographic_scope: local
+  
+  data_source: mid_2017
+  technical_annex_reference: "Table 6.27"
+  
+  uncertainty_category: medium
+  typical_uncertainty: "±30%"
+  
+  note_de: "Einfache Strecke - stark regional variierend"
+  note_en: "One-way distance - highly regional variation"
+
+- id: rebound_effect_commuting
+  name_de: "Rebound-Effekt Pendelwege"
+  name_en: "Rebound effect commuting"
+  unit: dimensionless
+  category: behavioral_factors
+  subcategory: commuting
+  
+  description_de: "Einsparminderung durch Rebound (z.B. längere Freizeitwege)"
+  description_en: "Savings reduction through rebound (e.g., longer leisure trips)"
+  
+  value_type: constant
+  
+  data_source: lambrecht_et_al_2021
+  technical_annex_reference: "Table 6.27"
+  
+  uncertainty_category: high
+  typical_uncertainty: "±50%"
+
+- id: home_office_share_current
+  name_de: "Anteil Mitarbeitende mit Homeoffice heute"
+  name_en: "Share of employees with home office today"
+  unit: dimensionless
+  category: transport_patterns
+  subcategory: commuting
+  
+  value_type: constant
+  temporal_variation: high
+  
+  data_source: lambrecht_et_al_2021
+  technical_annex_reference: "Table 6.27"
+  
+  uncertainty_category: medium
+  
+  note_de: "Stark gestiegen durch Corona, könnte sich ändern"
+  note_en: "Strongly increased through Corona, may change"
+
+- id: home_office_days_per_week_current
+  name_de: "Mittlere Anzahl Homeoffice-Tage heute"
+  name_en: "Average number of home office days today"
+  unit: days per 5 work days
+  category: transport_patterns
+  subcategory: commuting
+  
+  value_type: constant
+  temporal_variation: high
+  
+  data_source: lambrecht_et_al_2021
+  technical_annex_reference: "Table 6.27"
+  
+  uncertainty_category: medium
+
+- id: modal_split_commuting_active_current
+  name_de: "Anteil Pendelverkehrsleistung Rad/Fuß heute"
+  name_en: "Share commuting transport performance bike/walk today"
+  unit: dimensionless
+  category: transport_patterns
+  subcategory: commuting
+  
+  value_type: municipality_specific
+  
+  data_source: lambrecht_et_al_2021
+  technical_annex_reference: "Table 6.27"
+  
+  uncertainty_category: medium
+
+- id: modal_split_commuting_pt_current
+  name_de: "Anteil Pendelverkehrsleistung ÖV heute"
+  name_en: "Share commuting transport performance PT today"
+  unit: dimensionless
+  category: transport_patterns
+  subcategory: commuting
+  
+  value_type: municipality_specific
+  
+  data_source: lambrecht_et_al_2021
+  technical_annex_reference: "Table 6.27"
+  
+  uncertainty_category: medium
+
+- id: home_office_share_ambitious
+  name_de: "Ambitionierter Anteil Mitarbeitende mit Homeoffice"
+  name_en: "Ambitious share of employees with home office"
+  unit: dimensionless
+  category: transport_patterns
+  subcategory: commuting
+  
+  value_type: constant
+  
+  data_source: lambrecht_et_al_2021
+  technical_annex_reference: "Table 6.27"
+  
+  uncertainty_category: high
+
+- id: home_office_days_per_week_ambitious
+  name_de: "Ambitionierte mittlere Anzahl Homeoffice-Tage"
+  name_en: "Ambitious average number of home office days"
+  unit: days per 5 work days
+  category: transport_patterns
+  subcategory: commuting
+  
+  value_type: constant
+  data_source: lambrecht_et_al_2021
+  technical_annex_reference: "Table 6.27"
+  uncertainty_category: high
+
+- id: share_mileage_within_territory_commuting
+  name_de: "Anteil Jahresfahrleistung im Territorium Pendelwege"
+  name_en: "Share of annual mileage within territory commuting"
+  unit: dimensionless
+  category: territorial_allocation
+  subcategory: commuting
+  
+  value_type: constant
+  
+  data_source: expertenschaetzung
+  technical_annex_reference: "Table 6.27"
+  
+  uncertainty_category: medium
+
+# ============================================
+# TRANSPORT: BUSINESS TRIPS
+# ============================================
+
+- id: annual_mileage_business_vehicle
+  name_de: "Jahresfahrleistung Dienst-Pkw"
+  name_en: "Annual mileage business vehicle"
+  unit: km/year
+  category: transport_patterns
+  subcategory: business_trips
+  
+  value_type: constant
+  
+  data_source: expertenschaetzung_joehrens_et_al_2019
+  technical_annex_reference: "Table 6.28"
+  
+  uncertainty_category: medium
+
+- id: avg_flight_distance_national
+  name_de: "Flugdistanz national"
+  name_en: "Flight distance national"
+  unit: km
+  category: transport_patterns
+  subcategory: aviation
+  
+  value_type: constant
+  
+  data_source: tremod_av_ifeu_2025
+  technical_annex_reference: "Table 6.28"
+  
+  uncertainty_category: low
+
+- id: avg_flight_distance_international
+  name_de: "Flugdistanz international"
+  name_en: "Flight distance international"
+  unit: km
+  category: transport_patterns
+  subcategory: aviation
+  
+  value_type: constant
+  
+  data_source: tremod_av_ifeu_2025
+  technical_annex_reference: "Table 6.28"
+  
+  uncertainty_category: low
+
+# ============================================
+# TECHNICAL LIFETIMES
+# ============================================
+
+- id: lifetime_behavioral_measure
+  name_de: "Wirkdauer Verhaltensänderung"
+  name_en: "Effectiveness duration behavioral change"
+  unit: years
+  category: technical_lifetime
+  
+  value_type: constant
+  
+  default_value: 1
+  
+  data_source: ikka_methodology
+  technical_annex_reference: "Table 2.2"
+  
+  uncertainty_category: very_high
+  
+  note_de: "Nur 1 Jahr - Wirkdauer sehr unterschiedlich und wenig erforscht"
+  note_en: "Only 1 year - effectiveness duration varies greatly and poorly researched"
+
+- id: lifetime_ict_devices
+  name_de: "Nutzungsdauer IKT-Geräte"
+  name_en: "Lifetime ICT devices"
+  unit: years
+  category: technical_lifetime
+  
+  value_type: constant
+  
+  default_value: 3
+  
+  data_source: ikka_methodology
+  technical_annex_reference: "Table 2.2"
+  
+  uncertainty_category: low
+
+- id: lifetime_vehicle_municipal
+  name_de: "Nutzungsdauer Pkw kommunale Verwaltung"
+  name_en: "Lifetime vehicle municipal administration"
+  unit: years
+  category: technical_lifetime
+  subcategory: vehicles
+  
+  value_type: constant
+  
+  default_value: 10
+  
+  data_source: ikka_methodology
+  technical_annex_reference: "Table 2.2"
+  
+  uncertainty_category: low
+
+- id: lifetime_bus
+  name_de: "Nutzungsdauer Bus"
+  name_en: "Lifetime bus"
+  unit: years
+  category: technical_lifetime
+  subcategory: buses
+  
+  value_type: constant
+  
+  default_value: 12
+  
+  data_source: ikka_methodology
+  technical_annex_reference: "Table 2.2"
+  
+  uncertainty_category: low
+
+- id: lifetime_heating_system
+  name_de: "Nutzungsdauer Wärmeerzeuger"
+  name_en: "Lifetime heat generator"
+  unit: years
+  category: technical_lifetime
+  subcategory: heating
+  
+  value_type: constant
+  
+  default_value: 15
+  
+  data_source: ikka_methodology
+  technical_annex_reference: "Table 2.2"
+  
+  uncertainty_category: low
+
+- id: lifetime_building_renovation
+  name_de: "Nutzungsdauer Gebäudesanierung"
+  name_en: "Lifetime building renovation"
+  unit: years
+  category: technical_lifetime
+  subcategory: buildings
+  
+  value_type: constant
+  
+  default_value: 20
+  
+  data_source: ikka_methodology
+  technical_annex_reference: "Table 2.2"
+  
+  uncertainty_category: low
+
+- id: lifetime_lighting
+  name_de: "Nutzungsdauer Beleuchtung"
+  name_en: "Lifetime lighting"
+  unit: years
+  category: technical_lifetime
+  subcategory: lighting
+  
+  value_type: constant
+  
+  default_value: 20
+  value_range: {min: 20, max: 25}
+  
+  data_source: ikka_methodology
+  technical_annex_reference: "Table 2.2"
+  
+  uncertainty_category: low
+
+- id: lifetime_pv
+  name_de: "Nutzungsdauer PV-Anlage"
+  name_en: "Lifetime PV system"
+  unit: years
+  category: technical_lifetime
+  subcategory: photovoltaics
+  
+  value_type: constant
+  
+  default_value: 30
+  
+  data_source: ikka_methodology
+  technical_annex_reference: "Table 2.2"
+  
+  uncertainty_category: low
+  
+  note_de: "30 Jahre für Berechnungszwecke, technische Lebensdauer oft länger"
+  note_en: "30 years for calculation purposes, technical lifetime often longer"
+
+- id: lifetime_new_building
+  name_de: "Bewertungszeitraum Neubau"
+  name_en: "Evaluation period new building"
+  unit: years
+  category: technical_lifetime
+  subcategory: buildings
+  
+  value_type: constant
+  
+  default_value: 50
+  
+  data_source: ikka_methodology
+  technical_annex_reference: "Table 2.2"
+  
+  uncertainty_category: low
+  
+  note_de: "Bewertungshorizont, tatsächliche Lebensdauer länger"
+  note_en: "Evaluation horizon, actual lifetime longer"
+
+# ============================================
+# CONVERSION FACTORS
+# ============================================
+
+- id: conversion_diesel_to_energy
+  name_de: "Umrechnung Diesel zu Energie"
+  name_en: "Conversion diesel to energy"
+  unit: MJ/liter
+  category: conversion_factors
+  subcategory: transport
+  
+  value_type: physical_constant
+  
+  data_source: ageb_2022
+  technical_annex_reference: "Table 3.20"
+  
+  uncertainty_category: none
+
+- id: conversion_gasoline_to_energy
+  name_de: "Umrechnung Benzin zu Energie"
+  name_en: "Conversion gasoline to energy"
+  unit: MJ/liter
+  category: conversion_factors
+  subcategory: transport
+  
+  value_type: physical_constant
+  
+  data_source: ageb_2022
+  technical_annex_reference: "Table 3.20"
+  
+  uncertainty_category: none
+
+- id: conversion_gasoline_diesel_mix_to_energy
+  name_de: "Umrechnung Mix Benzin/Diesel zu Energie"
+  name_en: "Conversion mix gasoline/diesel to energy"
+  unit: MJ/liter
+  category: conversion_factors
+  subcategory: transport
+  
+  value_type: physical_constant
+  
+  data_source: ageb_2022
+  technical_annex_reference: "Table 3.20"
+  
+  uncertainty_category: none
+
+# ============================================
+# OCCUPANCY RATES
+# ============================================
+
+- id: occupancy_rate_commuting
+  name_de: "Besetzungsgrad Pendelwege"
+  name_en: "Occupancy rate commuting"
+  unit: persons/vehicle
+  category: transport_patterns
+  subcategory: occupancy
+  
+  value_type: constant
+  
+  data_source: mid_2017
+  technical_annex_reference: "Table 3.19"
+  
+  uncertainty_category: low
+
+- id: occupancy_rate_business_trips
+  name_de: "Besetzungsgrad Dienstwege"
+  name_en: "Occupancy rate business trips"
+  unit: persons/vehicle
+  category: transport_patterns
+  subcategory: occupancy
+  
+  value_type: constant
+  
+  data_source: mid_2017
+  technical_annex_reference: "Table 3.19"
+  
+  uncertainty_category: low
+
+# ============================================
+# EXERGY FACTORS (CHP ALLOCATION)
+# ============================================
+
+- id: exergy_factor_electricity
+  name_de: "Exergiefaktor Strom"
+  name_en: "Exergy factor electricity"
+  unit: dimensionless
+  category: allocation_factors
+  subcategory: chp
+  
+  description_de: "Für exergetische Allokation in KWK nach BISKO"
+  description_en: "For exergetic allocation in CHP per BISKO"
+  
+  value_type: constant
+  
+  default_value: 1.0
+  
+  data_source: bisko_methodology
+  technical_annex_reference: "Section 5.1 (Handlungsfeld Strom)"
+  
+  uncertainty_category: none
+
+- id: exergy_factor_heat
+  name_de: "Exergiefaktor Nahwärme"
+  name_en: "Exergy factor district heat"
+  unit: dimensionless
+  category: allocation_factors
+  subcategory: chp
+  
+  description_de: "Für exergetische Allokation in KWK nach BISKO"
+  description_en: "For exergetic allocation in CHP per BISKO"
+  
+  value_type: constant
+  
+  default_value: 0.193
+  
+  data_source: bisko_methodology
+  technical_annex_reference: "Section 5.1 (Handlungsfeld Strom, Fußnote 3)"
+  
+  uncertainty_category: low
+  
+  note_de: "Temperaturabhängig, 0.193 für typische Nahwärme"
+  note_en: "Temperature-dependent, 0.193 for typical district heat"
+
+# ============================================
+# TYPICAL VALUES (ORIENTATION)
+# ============================================
+
+- id: typical_work_days_per_year
+  name_de: "Typische Arbeitstage pro Jahr"
+  name_en: "Typical work days per year"
+  unit: days/year
+  category: temporal_patterns
+  
+  value_type: constant
+  
+  default_value: 250
+  
+  description_de: "Für Pendelwege-Berechnung"
+  description_en: "For commuting calculation"
+  
+  data_source: standard_assumption
+  technical_annex_reference: "Section 5.3 (Pendelwege)"
+  
+  uncertainty_category: low
+
+- id: meals_per_person_year_canteen
+  name_de: "Mahlzeiten pro Person/Jahr Kantine"
+  name_en: "Meals per person/year canteen"
+  unit: meals/year
+  category: food_patterns
+  
+  value_type: constant
+  
+  default_value: 200
+  
+  description_de: "Annahme: ca. 200 Arbeitstage"
+  description_en: "Assumption: approx. 200 work days"
+  
+  data_source: standard_assumption
+  technical_annex_reference: "Impliziert in Section 5.4"
+  
+  uncertainty_category: medium
+
+# ============================================
+# ADDITIONAL PARAMETERS (Referenced in models but not explicitly tabled)
+# ============================================
+
+- id: share_ev_in_propulsion_mix
+  name_de: "EEV-Anteil am Antriebsmix"
+  name_en: "EEV share in propulsion mix"
+  unit: dimensionless
+  category: transport_patterns
+  subcategory: fleet_composition
+  
+  description_de: "Anteil elektrischer Antriebe am Gesamt-Antriebsmix"
+  description_en: "Share of electric propulsion in total propulsion mix"
+  
+  value_type: time_series
+  temporal_variation: very_high
+  
+  data_source: tremod_6_53
+  technical_annex_reference: "Table 3.17, 3.18"
+  
+  uncertainty_category: medium
+
+- id: mortality_rate_urban_trees
+  name_de: "Mortalitätsrate Stadtbäume"
+  name_en: "Mortality rate urban trees"
+  unit: dimensionless
+  category: risk_factors
+  subcategory: trees
+  
+  value_type: estimated
+  
+  description_de: "Jährliche Ausfallrate (Krankheit, Sturm, Trockenheit, etc.)"
+  description_en: "Annual failure rate (disease, storms, drought, etc.)"
+  
+  data_source: not_in_technical_annex
+  technical_annex_reference: "Not explicitly given"
+  
+  uncertainty_category: very_high
+  typical_uncertainty: "±60%"
+  
+  note_de: "NICHT im Technical Annex - externe Quelle nötig"
+  note_en: "NOT in Technical Annex - external source needed"
+
+
+# ============================================
+# METADATA AND DATA SOURCES
+# ============================================
+
+data_sources:
+  # description_de: "Referenzen zu Datenquellen"
+  # description_en: "References to data sources"
+
+- id: bisko_methodology
+  name: "BISKO Bilanzierungs-Systematik Kommunal"
+  citation: "Dünnebeil et al. 2024a, 2024b"
+  publisher: "ifeu/Deutsches Institut für Urbanistik"
+  url: "https://repository.difu.de/handle/difu/263"
+  
+- id: uba_lauf_et_al_2025
+  name: "Emissionsbilanz erneuerbarer Energieträger"
+  citation: "Lauf, Memmler, Schneider 2025"
+  publisher: "Umweltbundesamt"
+  url: "https://openumwelt.de/handle/123456789/10598"
+
+- id: tremod_6_53
+  name: "TREMOD Transport Emission Model"
+  citation: "Allekotte et al. 2024"
+  publisher: "ifeu"
+  version: "6.53"
+
+- id: mid_2017
+  name: "Mobilität in Deutschland"
+  citation: "Nobis und Kuhnimhof 2018"
+
+- id: gugel_2018
+  name: "Bandbreiten suffizienter Energieeinsparung"
+  citation: "Gugel 2018"
+  
+- id: oekobaudat_2021
+  name: "ÖKOBAUDAT"
+  citation: "OEKOBAU.DAT 2021"
+  publisher: "Bundesministerium für Wohnen, Stadtentwicklung und Bauwesen"
+
+- id: hoerner_et_al_2014
+  name: "TEK-Tool Berechnungsgrundlagen"
+  citation: "Hörner et al. 2014"
+  publisher: "Institut Wohnen und Umwelt"
+
+- id: iwu_2012
+  name: "TABULA Gebäudetypologien"
+  citation: "Institut Wohnen und Umwelt 2012"
+  publisher: "IWU"
+
+- id: biemann_et_al_2024
+  name: "Analyse der Umweltbilanz von Kraftfahrzeugen"
+  citation: "Biemann et al. 2024"
+  publisher: "ifeu"
+
+- id: pwc_et_al_2024
+  name: "Begleituntersuchung Elektrobusse im ÖPNV"
+  citation: "PwC et al. 2024"
+
+- id: roman_scatena_2011_rock_et_al_2016
+  name: "Urban tree survival and CO2 sequestration"
+  citation: "Roman und Scatena 2011; Rock et al. 2016"
+
+- id: guenther_et_al_2023_riedel_et_al
+  name: "Nationaler Inventarbericht, Bundeswaldinventur"
+  citation: "Günther et al. 2023; Riedel et al. 2017, 2024"
+
+- id: abel_et_al_2019_dehst_2023
+  name: "Klimaschutz auf Moorböden"
+  citation: "Abel et al. 2019; DEHSt 2023"
+
+- id: uba_co2_rechner_groeger_2020
+  name: "UBA CO2-Rechner, Digitaler Fußabdruck"
+  citation: "CO2-Rechner UBA 2022; Gröger 2020"
+
+- id: uba_co2_rechner_scharp_et_al_2019
+  name: "UBA CO2-Rechner, KEEKS-Leitfaden"
+  citation: "CO2-Rechner UBA 2022; Scharp et al. 2019"
+
+- id: kroll_et_al_2020
+  name: "CO2-Fußabdruck Mineral-/Trinkwasser"
+  citation: "Kroll, Blume, Buck 2020"
+
+- id: decc_defra_2012
+  name: "UK GHG Conversion Factors"
+  citation: "DECC und Defra 2012"
+
+- id: wellenreuther_et_al_2022
+  name: "Ökobilanz Grafik- und Hygienepapier"
+  citation: "Wellenreuther et al. 2022"
+
+- id: power_eisenmann_2021
+  name: "CO2-Schulrechner Greenpeace"
+  citation: "Power und Eisenmann 2021"
+
+- id: lambrecht_et_al_2021
+  name: "Homeoffice und Videokonferenzen THG-Potenziale"
+  citation: "Lambrecht, Kräck, Dünnebeil 2021"
+
+- id: eigene_berechnungen
+  name: "Eigene Berechnungen ifeu"
+  citation: "ifeu (verschiedene Tabellen)"
+
+- id: eigene_annahmen
+  name: "Eigene Annahmen ifeu"
+  citation: "ifeu (verschiedene Tabellen)"
+
+- id: expertenschaetzung
+  name: "Expertenschätzung"
+  citation: "ifeu Expertenschätzung"
+
+
+# ============================================
+# PARAMETER CATEGORIES
+# ============================================
+
+parameter_categories:
+  # description_de: "Kategorisierung aller Parameter"
+  # description_en: "Categorization of all parameters"
+
+- category: emission_factors
+  description_de: "THG-Emissionsfaktoren"
+  description_en: "GHG emission factors"
+  subcategories:
+  - electricity
+  - electricity_displacement
+  - electricity_chp
+  - heating_fuels
+  - heat_chp
+  - transport_fuels
+  - transport_modes
+  - aviation
+  - organic_soils
+  - waste
+  - water
+  - paper
+  - food
+
+- category: upstream_emissions
+  description_de: "Graue Emissionen (Vorkette)"
+  description_en: "Embodied emissions (upstream)"
+  subcategories:
+  - photovoltaics
+  - wind_power
+  - hydropower
+  - geothermal
+  - chp
+  - lighting
+  - ict_equipment
+  - heating_systems
+  - buildings_non_residential
+  - buildings_residential
+  - vehicles
+  - devices
+
+- category: carbon_sequestration
+  description_de: "Kohlenstoffbindung"
+  description_en: "Carbon sequestration"
+  subcategories:
+  - trees
+  - forests
+
+- category: technical_consumption
+  description_de: "Technischer Verbrauch"
+  description_en: "Technical consumption"
+  subcategories:
+  - lighting
+  - ict_devices
+
+- category: technical_operation
+  description_de: "Technischer Betrieb"
+  description_en: "Technical operation"
+  subcategories:
+  - lighting
+  - heating
+
+- category: technical_characteristics
+  description_de: "Technische Eigenschaften"
+  description_en: "Technical characteristics"
+  subcategories:
+  - vehicles
+  - buses
+
+- category: technical_lifetime
+  description_de: "Nutzungsdauern"
+  description_en: "Lifetimes"
+  
+- category: conversion_efficiency
+  description_de: "Umwandlungseffizienzen"
+  description_en: "Conversion efficiencies"
+  subcategories:
+  - heating_systems
+
+- category: building_characteristics
+  description_de: "Gebäudeeigenschaften"
+  description_en: "Building characteristics"
+  subcategories:
+  - buildings_non_residential
+  - buildings_residential
+
+- category: behavioral_factors
+  description_de: "Verhaltensfaktoren"
+  description_en: "Behavioral factors"
+  subcategories:
+  - electricity
+  - heat
+  - commuting
+  - food
+
+- category: efficiency_factors
+  description_de: "Effizienzfaktoren"
+  description_en: "Efficiency factors"
+  subcategories:
+  - electricity
+  - heat
+  - lighting
+
+- category: transport_patterns
+  description_de: "Verkehrsmuster"
+  description_en: "Transport patterns"
+  subcategories:
+  - commuting
+  - business_trips
+  - vehicles
+  - buses
+  - occupancy
+  - fleet_composition
+  - aviation
+
+- category: territorial_allocation
+  description_de: "Territoriale Zuordnung"
+  description_en: "Territorial allocation"
+  subcategories:
+  - vehicles
+  - buses
+  - commuting
+
+- category: allocation_factors
+  description_de: "Allokationsfaktoren"
+  description_en: "Allocation factors"
+  subcategories:
+  - chp
+
+- category: conversion_factors
+  description_de: "Umrechnungsfaktoren"
+  description_en: "Conversion factors"
+  subcategories:
+  - transport
+
+- category: temporal_patterns
+  description_de: "Zeitliche Muster"
+  description_en: "Temporal patterns"
+
+- category: food_patterns
+  description_de: "Ernährungsmuster"
+  description_en: "Food patterns"
+
+- category: risk_factors
+  description_de: "Risikofaktoren"
+  description_en: "Risk factors"
+  subcategories:
+  - trees
+
+- category: building_standards
+  description_de: "Gebäudestandards"
+  description_en: "Building standards"
+
+- category: technical_typical_values
+  description_de: "Technische Orientierungswerte"
+  description_en: "Technical orientation values"
+  subcategories:
+  - lighting
+
+
+# ============================================
+# VALUE TYPE DEFINITIONS
+# ============================================
+
+value_types:
+  # description_de: "Erklärung der verschiedenen Wertetypen"
+  # description_en: "Explanation of different value types"
+
+- type: constant
+  description_de: "Fester Wert, zeitlich stabil"
+  description_en: "Fixed value, temporally stable"
+  resolution: "Use default value"
+
+- type: time_series
+  description_de: "Zeitlich variabel, jährliche Werte oder Prognosen"
+  description_en: "Temporally variable, annual values or projections"
+  resolution: "Interpolate between years or use projection"
+
+- type: geographic_varying
+  description_de: "Geografisch unterschiedlich (Bundesland/Kommune)"
+  description_en: "Geographically varying (state/municipality)"
+  resolution: "Check overrides: municipality → state → default"
+
+- type: municipality_specific
+  description_de: "Muss von Kommune bereitgestellt werden"
+  description_en: "Must be provided by municipality"
+  resolution: "Require user input or local data"
+
+- type: municipality_specific_required
+  description_de: "Zwingend lokal zu ermitteln, kein Standardwert"
+  description_en: "Mandatory to determine locally, no default value"
+  resolution: "Error if not provided"
+
+- type: technology_dependent
+  description_de: "Abhängig von gewählter Technologie"
+  description_en: "Dependent on chosen technology"
+  resolution: "Lookup table by technology choice"
+
+- type: multi_dimensional
+  description_de: "Abhängig von mehreren Dimensionen"
+  description_en: "Dependent on multiple dimensions"
+  resolution: "Multi-key lookup table"
+
+- type: device_type_dependent
+  description_de: "Abhängig von Gerätetyp"
+  description_en: "Dependent on device type"
+  resolution: "Lookup by device type"
+
+- type: fuel_type_dependent
+  description_de: "Abhängig von Brennstofftyp"
+  description_en: "Dependent on fuel type"
+  resolution: "Lookup by fuel type"
+
+- type: physical_constant
+  description_de: "Physikalische Konstante"
+  description_en: "Physical constant"
+  resolution: "Use exact value"
+
+- type: assumption
+  description_de: "Annahme"
+  description_en: "Assumption"
+  resolution: "Use provided assumption or allow override"
+
+- type: estimated
+  description_de: "Geschätzter Wert (keine Daten verfügbar)"
+  description_en: "Estimated value (no data available)"
+  resolution: "Use with caution, high uncertainty"
+
+- type: regulatory
+  description_de: "Gesetzlich vorgeschrieben (z.B. GEG)"
+  description_en: "Legally mandated (e.g., GEG)"
+  resolution: "Use current legal requirement, update when law changes"
+
+- type: site_specific
+  description_de: "Standort-spezifisch (z.B. Wasserkraft)"
+  description_en: "Site-specific (e.g., hydropower)"
+  resolution: "Require site assessment, use default with warning"
+
+- type: usage_pattern_dependent
+  description_de: "Abhängig von Nutzungsmuster"
+  description_en: "Dependent on usage pattern"
+  resolution: "Lookup by usage pattern"
+
+- type: production_method_dependent
+  description_de: "Abhängig von Produktionsmethode"
+  description_en: "Dependent on production method"
+  resolution: "Lookup by production method"
+
+
+# ============================================
+# UNCERTAINTY CATEGORIES
+# ============================================
+
+uncertainty_categories:
+  # description_de: "Kategorisierung von Datenunsicherheit"
+  # description_en: "Categorization of data uncertainty"
+
+- category: none
+  description_de: "Keine Unsicherheit (physikalische Konstanten)"
+  description_en: "No uncertainty (physical constants)"
+  typical_range: "0%"
+
+- category: very_low
+  description_de: "Sehr geringe Unsicherheit"
+  description_en: "Very low uncertainty"
+  typical_range: "±5%"
+  examples: [ef_grid, conversion_factors]
+
+- category: low
+  description_de: "Geringe Unsicherheit (gemessene Daten, etablierte Methodik)"
+  description_en: "Low uncertainty (measured data, established methodology)"
+  typical_range: "±5-15%"
+  examples: [ef_natural_gas, ef_heating_oil, vehicle_consumption]
+
+- category: medium
+  description_de: "Mittlere Unsicherheit (Ingenieurschätzungen, Standardparameter)"
+  description_en: "Medium uncertainty (engineering estimates, standard parameters)"
+  typical_range: "±15-30%"
+  examples: [upstream_pv, sequestration_rates, building_characteristics]
+
+- category: high
+  description_de: "Hohe Unsicherheit (Annahmen, begrenzte Daten)"
+  description_en: "High uncertainty (assumptions, limited data)"
+  typical_range: "±30-50%"
+  examples: [behavioral_savings, upstream_afforestation, organic_soils]
+
+- category: very_high
+  description_de: "Sehr hohe Unsicherheit (wenig erforscht, Schätzungen)"
+  description_en: "Very high uncertainty (poorly researched, estimates)"
+  typical_range: "±50-100%"
+  examples: [mortality_rate_trees, rebound_effects, future_behavioral_changes]
+
+
+# ============================================
+# UPDATE PROTOCOLS
+# ============================================
+
+update_protocols:
+  # description_de: "Protokolle für Parameteraktualisierungen"
+  # description_en: "Protocols for parameter updates"
+
+- frequency: annual
+  parameters:
+  - ef_grid
+  - ef_displacement_*
+  - ef_propulsion_mix
+  - emission_intensity_mode
+  responsible: "BISKO/UBA annual update"
+  timing: "Q1 each year"
+
+- frequency: every_2_years
+  parameters:
+  - ef_natural_gas
+  - ef_heating_oil
+  - ef_coal
+  - ef_biomass
+  responsible: "BISKO methodology updates"
+  timing: "When new BISKO version released"
+
+- frequency: every_3_years
+  parameters:
+  - upstream_pv_per_annual_yield
+  - upstream_battery_production
+  - vehicle_consumption_values
+  responsible: "Technology reviews (LCA updates)"
+  timing: "As needed based on technology changes"
+
+- frequency: when_geg_updated
+  parameters:
+  - heat_intensity_geg_minimum
+  - construction_ef_geg_minimum
+  responsible: "Legal tracking"
+  trigger: "GEG amendment"
+
+- frequency: as_needed
+  parameters:
+  - All municipality_specific parameters
+  responsible: "Municipality"
+  timing: "When local conditions change"
+
+
+# ============================================
+# VALIDATION REQUIREMENTS
+# ============================================
+
+validation_requirements:
+  # description_de: "Anforderungen zur Validierung von Parameterwerten"
+  # description_en: "Requirements for validating parameter values"
+
+- requirement: source_documentation
+  description_de: "Jeder Wert muss Quelle haben"
+  description_en: "Every value must have source"
+  mandatory: true
+
+- requirement: uncertainty_assessment
+  description_de: "Unsicherheitsbereich angeben"
+  description_en: "Provide uncertainty range"
+  mandatory: true
+
+- requirement: temporal_validity
+  description_de: "Gültigkeitszeitraum angeben"
+  description_en: "Specify validity period"
+  mandatory: true
+
+- requirement: geographic_scope
+  description_de: "Geografischer Geltungsbereich angeben"
+  description_en: "Specify geographic scope"
+  mandatory: true
+
+- requirement: last_update_date
+  description_de: "Datum letzte Aktualisierung"
+  description_en: "Date of last update"
+  mandatory: true
+
+
+# ============================================
+# TOTAL PARAMETER COUNT
+# ============================================
+
+statistics:
+  total_parameters_defined: 150
+  
+  by_category:
+    emission_factors: 50
+    upstream_emissions: 45
+    technical_lifetime: 10
+    conversion_efficiency: 12
+    behavioral_factors: 10
+    carbon_sequestration: 18
+    transport_patterns: 15
+    building_characteristics: 20
+    technical_consumption: 15
+    other: 15
+  
+  by_value_type:
+    constant: 90
+    time_series: 20
+    technology_dependent: 15
+    multi_dimensional: 15
+    municipality_specific: 10
+  
+  by_uncertainty:
+    none_very_low: 10
+    low: 45
+    medium: 55
+    high: 30
+    very_high: 10
+  
+  by_data_source:
+    bisko_methodology: 25
+    technical_annex_uba: 30
+    technical_annex_ikka: 50
+    external_databases: 35
+    assumptions_estimates: 10
+
+
+# ============================================
+# VERSION HISTORY
+# ============================================
+
+version_history:
+- version: "2.1"
+  date: "2025-01-XX"
+  changes_de:
+  - "Vollständige Extraktion aus Technical Annex März 2025"
+  - "Alle Tabellen 2.2, 3.x, 4.x, 6.x referenziert"
+  - "Datenquellen vollständig dokumentiert"
+  - "Werte in separate Datei ausgelagert"
+  - "Metadaten-Struktur vervollständigt"
+  changes_en:
+  - "Complete extraction from Technical Annex March 2025"
+  - "All tables 2.2, 3.x, 4.x, 6.x referenced"
+  - "Data sources fully documented"
+  - "Values moved to separate file"
+  - "Metadata structure completed"
+
+- version: "2.0"
+  date: "2025-01-XX"
+  changes_de:
+  - "Initiale Version"
+  changes_en:
+  - "Initial version"
