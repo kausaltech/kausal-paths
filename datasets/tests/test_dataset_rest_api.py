@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uuid import UUID
+
 from rest_framework.test import APIClient
 
 import pytest
@@ -181,18 +183,21 @@ def test_dataset_schema_create(api_client, dataset_test_data, user_key, access_a
     user = dataset_test_data[user_key]
     api_client.force_authenticate(user=user)
 
-    count = DatasetSchema.objects.count()
+    uuids_before = set(DatasetSchema.objects.values_list('uuid', flat=True))
     create_data = {'name_en': 'New Schema'}
     response = api_client.post('/v1/dataset_schemas/', create_data, format='json')
+    uuids_after = set(DatasetSchema.objects.values_list('uuid', flat=True))
 
     if access_allowed:
         assert response.status_code == 201
         data = response.json()
         assert data['name'] == 'New Schema'
-        assert DatasetSchema.objects.count() == count + 1
+        new_uuids = uuids_after - uuids_before
+        assert len(new_uuids) == 1
+        assert new_uuids.pop() == UUID(data['uuid'])
     else:
         assert response.status_code == 403
-        assert DatasetSchema.objects.count() == count
+        assert uuids_after == uuids_before
 
 
 @pytest.mark.django_db
@@ -341,22 +346,25 @@ def test_dataset_create(api_client, dataset_test_data, user_key, access_allowed)
         schema = dataset_test_data['schema2']
         instance = dataset_test_data['instance2']
 
-    count = Dataset.objects.count()
+    uuids_before = set(Dataset.objects.values_list('uuid', flat=True))
     create_data = {
         'schema': str(schema.uuid),
         'scope_content_type': 'nodes.instanceconfig',
         'scope_id': instance.id,
     }
     response = api_client.post('/v1/datasets/', create_data, format='json')
+    uuids_after = set(Dataset.objects.values_list('uuid', flat=True))
 
     if access_allowed:
         assert response.status_code == 201
         data = response.json()
         assert data['schema'] == str(schema.uuid)
-        assert Dataset.objects.count() == count + 1
+        new_uuids = uuids_after - uuids_before
+        assert len(new_uuids) == 1
+        assert new_uuids.pop() == UUID(data['uuid'])
     else:
         assert response.status_code == 403
-        assert Dataset.objects.count() == count
+        assert uuids_after == uuids_before
 
 
 @pytest.mark.django_db
@@ -442,7 +450,7 @@ def test_datapoint_create(api_client, dataset_test_data, user_key, dataset_key, 
     dimension_category = dataset_test_data['dimension_category1']
     api_client.force_authenticate(user=user)
 
-    count = DataPoint.objects.filter(dataset__uuid=dataset.uuid).count()
+    uuids_before = set(DataPoint.objects.values_list('uuid', flat=True))
 
     create_data = {
         'date': '2024-01-01',
@@ -451,14 +459,17 @@ def test_datapoint_create(api_client, dataset_test_data, user_key, dataset_key, 
         'dimension_categories': [str(dimension_category.uuid)],
     }
     response = api_client.post(f'/v1/datasets/{dataset.uuid}/data_points/', create_data, format='json')
+    uuids_after = set(DataPoint.objects.values_list('uuid', flat=True))
 
     assert response.status_code == expected_status
     if response.status_code == 201:
         data = response.json()
         assert data['value'] == 150.0
-        assert DataPoint.objects.filter(dataset__uuid=dataset.uuid).count() == count + 1
+        new_uuids = uuids_after - uuids_before
+        assert len(new_uuids) == 1
+        assert new_uuids.pop() == UUID(data['uuid'])
     else:
-        assert DataPoint.objects.filter(dataset__uuid=dataset.uuid).count() == count
+        assert uuids_after == uuids_before
 
 
 @pytest.mark.django_db
@@ -662,7 +673,7 @@ def test_datapoint_comment_create(api_client, dataset_test_data, user_key, data_
     dataset = datapoint.dataset
     api_client.force_authenticate(user=user)
 
-    count = DataPointComment.objects.count()
+    uuids_before = set(DataPointComment.objects.values_list('uuid', flat=True))
     create_data = {
         'text': 'New test comment',
         'type': 'plain',
@@ -672,13 +683,17 @@ def test_datapoint_comment_create(api_client, dataset_test_data, user_key, data_
         create_data,
         format='json'
     )
+    uuids_after = set(DataPointComment.objects.values_list('uuid', flat=True))
+
     assert response.status_code == expected_status
     if response.status_code == 201:
         data = response.json()
         assert data['text'] == 'New test comment'
-        assert DataPointComment.objects.count() == count + 1
+        new_uuids = uuids_after - uuids_before
+        assert len(new_uuids) == 1
+        assert new_uuids.pop() == UUID(data['uuid'])
     else:
-        assert DataPointComment.objects.count() == count
+        assert uuids_after == uuids_before
 
 
 @pytest.mark.django_db
@@ -928,19 +943,22 @@ def test_dataset_source_reference_create_via_dataset(api_client, dataset_test_da
     data_source = dataset_test_data['data_source1'] if dataset_key == 'dataset1' else dataset_test_data['data_source2']
     api_client.force_authenticate(user=user)
 
-    count = DatasetSourceReference.objects.count()
+    uuids_before = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
     create_data = {
         'data_source': str(data_source.uuid),
     }
     response = api_client.post(f'/v1/datasets/{dataset.uuid}/sources/', create_data, format='json')
+    uuids_after = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
 
     assert response.status_code == expected_status
     if response.status_code == 201:
         data = response.json()
         assert data['data_source'] == str(data_source.uuid)
-        assert DatasetSourceReference.objects.count() == count + 1
+        new_uuids = uuids_after - uuids_before
+        assert len(new_uuids) == 1
+        assert new_uuids.pop() == UUID(data['uuid'])
     else:
-        assert DatasetSourceReference.objects.count() == count
+        assert uuids_after == uuids_before
 
 
 @pytest.mark.django_db
@@ -1154,7 +1172,7 @@ def test_dataset_source_reference_create_via_datapoint(api_client, dataset_test_
     data_source = dataset_test_data['data_source1'] if data_point_key == 'data_point1' else dataset_test_data['data_source2']
     api_client.force_authenticate(user=user)
 
-    count = DatasetSourceReference.objects.count()
+    uuids_before = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
     create_data = {
         'data_source': str(data_source.uuid),
     }
@@ -1163,13 +1181,17 @@ def test_dataset_source_reference_create_via_datapoint(api_client, dataset_test_
         create_data,
         format='json'
     )
+    uuids_after = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
+
     assert response.status_code == expected_status
     if response.status_code == 201:
         data = response.json()
         assert data['data_source'] == str(data_source.uuid)
-        assert DatasetSourceReference.objects.count() == count + 1
+        new_uuids = uuids_after - uuids_before
+        assert len(new_uuids) == 1
+        assert new_uuids.pop() == UUID(data['uuid'])
     else:
-        assert DatasetSourceReference.objects.count() == count
+        assert uuids_after == uuids_before
 
 
 @pytest.mark.django_db
