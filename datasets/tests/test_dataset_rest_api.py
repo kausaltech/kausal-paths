@@ -5,6 +5,13 @@ from rest_framework.test import APIClient
 import pytest
 
 from datasets.tests.fixtures import *
+from kausal_common.datasets.models import (
+    DataPoint,
+    DataPointComment,
+    Dataset,
+    DatasetSchema,
+    DatasetSourceReference,
+)
 
 pytestmark = pytest.mark.django_db()
 
@@ -96,7 +103,6 @@ def test_dataset_schema_update(api_client, dataset_test_data, user_key, schema_k
         assert response.status_code == 200
         data = response.json()
         assert data['name'] == 'Updated Schema Name'
-        # TODO test schema is there
     elif access_allowed and should_be_found is False:
         assert response.status_code == 404
     else:
@@ -137,21 +143,29 @@ def test_dataset_schema_delete(
     user = dataset_test_data[user_key]
     schema = dataset_test_data[schema_key]
 
+    assert DatasetSchema.objects.filter(uuid=schema.uuid).exists()
+    uuids_before = set(DatasetSchema.objects.values_list('uuid', flat=True))
+
     api_client.force_authenticate(user=user)
     response = api_client.delete(f'/v1/dataset_schemas/{schema.uuid}/')
 
+    uuids_after = set(DatasetSchema.objects.values_list('uuid', flat=True))
+
     if not access_allowed:
         assert response.status_code == 403
+        assert uuids_after == uuids_before
         return
 
     if should_be_found and has_linked_objects:
         assert response.status_code == 400
+        assert uuids_after == uuids_before
     elif should_be_found and not has_linked_objects:
         assert response.status_code == 204
+        assert not DatasetSchema.objects.filter(uuid=schema.uuid).exists()
+        assert uuids_after == uuids_before - {schema.uuid}
     else:
         assert response.status_code == 404
-
-     # TODO test deleted
+        assert uuids_after == uuids_before
 
 
 @pytest.mark.django_db
@@ -167,6 +181,7 @@ def test_dataset_schema_create(api_client, dataset_test_data, user_key, access_a
     user = dataset_test_data[user_key]
     api_client.force_authenticate(user=user)
 
+    count = DatasetSchema.objects.count()
     create_data = {'name_en': 'New Schema'}
     response = api_client.post('/v1/dataset_schemas/', create_data, format='json')
 
@@ -174,9 +189,10 @@ def test_dataset_schema_create(api_client, dataset_test_data, user_key, access_a
         assert response.status_code == 201
         data = response.json()
         assert data['name'] == 'New Schema'
-        # TODO TEST SCHEMA IS THERE
+        assert DatasetSchema.objects.count() == count + 1
     else:
         assert response.status_code == 403
+        assert DatasetSchema.objects.count() == count
 
 
 @pytest.mark.django_db
@@ -290,14 +306,19 @@ def test_dataset_delete(api_client, dataset_test_data, user_key, dataset_key, ac
     dataset = dataset_test_data[dataset_key]
     api_client.force_authenticate(user=user)
 
+    uuids_before = set(Dataset.objects.values_list('uuid', flat=True))
     response = api_client.delete(f'/v1/datasets/{dataset.uuid}/')
+    uuids_after = set(Dataset.objects.values_list('uuid', flat=True))
 
     if access_allowed and should_be_found:
         assert response.status_code == 204
+        assert uuids_after == uuids_before - {dataset.uuid}
     elif access_allowed and not should_be_found:
         assert response.status_code == 404
+        assert uuids_after == uuids_before
     else:
         assert response.status_code == 403
+        assert uuids_after == uuids_before
 
 
 @pytest.mark.django_db
@@ -320,6 +341,7 @@ def test_dataset_create(api_client, dataset_test_data, user_key, access_allowed)
         schema = dataset_test_data['schema2']
         instance = dataset_test_data['instance2']
 
+    count = Dataset.objects.count()
     create_data = {
         'schema': str(schema.uuid),
         'scope_content_type': 'nodes.instanceconfig',
@@ -331,8 +353,10 @@ def test_dataset_create(api_client, dataset_test_data, user_key, access_allowed)
         assert response.status_code == 201
         data = response.json()
         assert data['schema'] == str(schema.uuid)
+        assert Dataset.objects.count() == count + 1
     else:
         assert response.status_code == 403
+        assert Dataset.objects.count() == count
 
 
 @pytest.mark.django_db
@@ -418,6 +442,8 @@ def test_datapoint_create(api_client, dataset_test_data, user_key, dataset_key, 
     dimension_category = dataset_test_data['dimension_category1']
     api_client.force_authenticate(user=user)
 
+    count = DataPoint.objects.filter(dataset__uuid=dataset.uuid).count()
+
     create_data = {
         'date': '2024-01-01',
         'value': 150.0,
@@ -429,7 +455,10 @@ def test_datapoint_create(api_client, dataset_test_data, user_key, dataset_key, 
     assert response.status_code == expected_status
     if response.status_code == 201:
         data = response.json()
-        assert data['value'] == 150.0  # TODO test object is there
+        assert data['value'] == 150.0
+        assert DataPoint.objects.filter(dataset__uuid=dataset.uuid).count() == count + 1
+    else:
+        assert DataPoint.objects.filter(dataset__uuid=dataset.uuid).count() == count
 
 
 @pytest.mark.django_db
@@ -516,14 +545,19 @@ def test_datapoint_delete(api_client, dataset_test_data, user_key, datapoint_key
     dataset = datapoint.dataset
     api_client.force_authenticate(user=user)
 
+    uuids_before = set(DataPoint.objects.values_list('uuid', flat=True))
     response = api_client.delete(f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/')
+    uuids_after = set(DataPoint.objects.values_list('uuid', flat=True))
 
     if access_allowed and should_be_found:
         assert response.status_code == 204
+        assert uuids_after == uuids_before - {datapoint.uuid}
     elif access_allowed and not should_be_found:
         assert response.status_code == 404
+        assert uuids_after == uuids_before
     else:
         assert response.status_code == 403
+        assert uuids_after == uuids_before
 
 
 @pytest.mark.django_db
@@ -628,6 +662,7 @@ def test_datapoint_comment_create(api_client, dataset_test_data, user_key, data_
     dataset = datapoint.dataset
     api_client.force_authenticate(user=user)
 
+    count = DataPointComment.objects.count()
     create_data = {
         'text': 'New test comment',
         'type': 'plain',
@@ -641,6 +676,9 @@ def test_datapoint_comment_create(api_client, dataset_test_data, user_key, data_
     if response.status_code == 201:
         data = response.json()
         assert data['text'] == 'New test comment'
+        assert DataPointComment.objects.count() == count + 1
+    else:
+        assert DataPointComment.objects.count() == count
 
 
 @pytest.mark.django_db
@@ -674,8 +712,15 @@ def test_datapoint_comment_delete(api_client, dataset_test_data, user_key, comme
     dataset = datapoint.dataset
     api_client.force_authenticate(user=user)
 
+    uuids_before = set(DataPointComment.objects.values_list('uuid', flat=True))
     response = api_client.delete(f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/comments/{comment.uuid}/')
+    uuids_after = set(DataPointComment.objects.values_list('uuid', flat=True))
+
     assert response.status_code == expected_status
+    if response.status_code == 204:
+        assert uuids_after == uuids_before - {comment.uuid}
+    else:
+        assert uuids_after == uuids_before
 
 
 @pytest.mark.django_db
@@ -883,6 +928,7 @@ def test_dataset_source_reference_create_via_dataset(api_client, dataset_test_da
     data_source = dataset_test_data['data_source1'] if dataset_key == 'dataset1' else dataset_test_data['data_source2']
     api_client.force_authenticate(user=user)
 
+    count = DatasetSourceReference.objects.count()
     create_data = {
         'data_source': str(data_source.uuid),
     }
@@ -892,6 +938,9 @@ def test_dataset_source_reference_create_via_dataset(api_client, dataset_test_da
     if response.status_code == 201:
         data = response.json()
         assert data['data_source'] == str(data_source.uuid)
+        assert DatasetSourceReference.objects.count() == count + 1
+    else:
+        assert DatasetSourceReference.objects.count() == count
 
 
 @pytest.mark.django_db
@@ -924,8 +973,15 @@ def test_dataset_source_reference_delete_via_dataset(api_client, dataset_test_da
     dataset = source_ref.dataset
     api_client.force_authenticate(user=user)
 
+    uuids_before = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
     response = api_client.delete(f'/v1/datasets/{dataset.uuid}/sources/{source_ref.uuid}/')
+    uuids_after = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
+
     assert response.status_code == expected_status
+    if response.status_code == 204:
+        assert uuids_after == uuids_before - {source_ref.uuid}
+    else:
+        assert uuids_after == uuids_before
 
 
 @pytest.mark.django_db
@@ -1098,6 +1154,7 @@ def test_dataset_source_reference_create_via_datapoint(api_client, dataset_test_
     data_source = dataset_test_data['data_source1'] if data_point_key == 'data_point1' else dataset_test_data['data_source2']
     api_client.force_authenticate(user=user)
 
+    count = DatasetSourceReference.objects.count()
     create_data = {
         'data_source': str(data_source.uuid),
     }
@@ -1110,6 +1167,9 @@ def test_dataset_source_reference_create_via_datapoint(api_client, dataset_test_
     if response.status_code == 201:
         data = response.json()
         assert data['data_source'] == str(data_source.uuid)
+        assert DatasetSourceReference.objects.count() == count + 1
+    else:
+        assert DatasetSourceReference.objects.count() == count
 
 
 @pytest.mark.django_db
@@ -1128,10 +1188,17 @@ def test_dataset_source_reference_delete_via_datapoint(api_client, dataset_test_
     dataset = datapoint.dataset
     api_client.force_authenticate(user=user)
 
+    uuids_before = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
     response = api_client.delete(
         f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/{source_ref.uuid}/'
     )
+    uuids_after = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
+
     assert response.status_code == expected_status
+    if response.status_code == 204:
+        assert uuids_after == uuids_before - {source_ref.uuid}
+    else:
+        assert uuids_after == uuids_before
 
 
 @pytest.mark.django_db
@@ -1159,7 +1226,7 @@ def test_dataset_metric_list(api_client, dataset_test_data, user_key, schema_key
     if access_allowed and schema_should_be_found:
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
+        assert isinstance(data['results'], list)
     elif access_allowed and not schema_should_be_found:
         assert response.status_code == 404
     else:
