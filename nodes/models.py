@@ -38,6 +38,7 @@ from wagtail_color_panel.fields import ColorField
 
 from kausal_common.datasets.models import (
     Dataset as DatasetModel,
+    DatasetSchema,
     Dimension as DatasetDimensionModel,
     DimensionCategory,
     DimensionScope,
@@ -185,12 +186,24 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any
         is_reviewer = self.reviewer_role.role_q(user)
         is_fw_admin = self.fw_admin_role.role_q(user, prefix='framework_config__framework')
         is_fw_viewer = self.fw_viewer_role.role_q(user, prefix='framework_config__framework')
+
+        q = is_super_admin | is_admin | is_fw_admin
         if action == 'view':
             q = is_viewer | is_reviewer | is_super_admin | is_admin | is_fw_admin | is_fw_viewer
             if include_implicit_public:
                 q |= Q(framework_config__isnull=True)
-            return q
-        return is_super_admin | is_admin | is_fw_admin
+
+        ic_content_type = ContentType.objects.get_for_model(InstanceConfig)
+        accessible_instance_config_ids_via_datasets = set(
+            scope.scope_id
+            for dss in DatasetSchema.objects.accessible_by_user(user).prefetch_related('scopes')
+            for scope in dss.scopes.all()
+            if scope.scope_content_type == ic_content_type
+        )
+        if accessible_instance_config_ids_via_datasets:
+            q |= Q(pk__in=accessible_instance_config_ids_via_datasets)
+
+        return q
 
     def construct_perm_q_anon(self, action: BaseObjectAction) -> Q | None:
         if action == 'view':
