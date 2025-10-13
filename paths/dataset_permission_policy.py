@@ -189,7 +189,7 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
             )
             q |= viewer_q | reviewer_q
 
-        if not user.person:
+        if not hasattr(user, 'person'):
             return q
 
         privileged_roles = ObjectRole.get_roles_for_action(action)
@@ -216,7 +216,7 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
 
     @override
     def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: DatasetSchema) -> bool:
-        if user.person:
+        if hasattr(user, 'person'):
             # Check dataset schema's person / group permissions first
             privileged_roles = ObjectRole.get_roles_for_action(action)
             if obj.person_permissions.filter(person=user.person, role__in=privileged_roles).exists():
