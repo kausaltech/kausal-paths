@@ -29,6 +29,7 @@ from paths.context import realm_context
 
 from admin_site.utils import SuperAdminOnlyMenuItem
 from admin_site.viewsets import PathsViewSet
+from nodes.models import InstanceConfig
 from orgs.views import OrganizationCreateView
 from users.models import User
 
