@@ -7,6 +7,7 @@ from rest_framework.test import APIClient
 import pytest
 
 from datasets.tests.fixtures import *
+from datasets.tests.utils import AssertIdenticalUUIDs, AssertNewUUID, AssertRemovedUUID
 from kausal_common.datasets.models import (
     DataPoint,
     DataPointComment,
@@ -98,22 +99,19 @@ def test_dataset_schema_update(api_client, dataset_test_data, user_key, schema_k
     schema = dataset_test_data[schema_key]
     api_client.force_authenticate(user=user)
 
-    uuids_before = set(DatasetSchema.objects.values_list('uuid', flat=True))
     update_data = {'name_en': 'Updated Schema Name'}
-    response = api_client.patch(f'/v1/dataset_schemas/{schema.uuid}/', update_data, format='json')
-    uuids_after = set(DatasetSchema.objects.values_list('uuid', flat=True))
+
+    with AssertIdenticalUUIDs(DatasetSchema.objects):
+        response = api_client.patch(f'/v1/dataset_schemas/{schema.uuid}/', update_data, format='json')
 
     if access_allowed and should_be_found:
         assert response.status_code == 200
         data = response.json()
         assert data['name'] == 'Updated Schema Name'
-        assert uuids_after == uuids_before
     elif access_allowed and should_be_found is False:
         assert response.status_code == 404
-        assert uuids_after == uuids_before
     else:
         assert response.status_code == 403
-        assert uuids_after == uuids_before
 
 
 @pytest.mark.django_db
@@ -151,28 +149,27 @@ def test_dataset_schema_delete(
     schema = dataset_test_data[schema_key]
 
     assert DatasetSchema.objects.filter(uuid=schema.uuid).exists()
-    uuids_before = set(DatasetSchema.objects.values_list('uuid', flat=True))
-
     api_client.force_authenticate(user=user)
-    response = api_client.delete(f'/v1/dataset_schemas/{schema.uuid}/')
-
-    uuids_after = set(DatasetSchema.objects.values_list('uuid', flat=True))
 
     if not access_allowed:
+        with AssertIdenticalUUIDs(DatasetSchema.objects):
+            response = api_client.delete(f'/v1/dataset_schemas/{schema.uuid}/')
         assert response.status_code == 403
-        assert uuids_after == uuids_before
         return
 
     if should_be_found and has_linked_objects:
+        with AssertIdenticalUUIDs(DatasetSchema.objects):
+            response = api_client.delete(f'/v1/dataset_schemas/{schema.uuid}/')
         assert response.status_code == 400
-        assert uuids_after == uuids_before
     elif should_be_found and not has_linked_objects:
+        with AssertRemovedUUID(DatasetSchema.objects, schema.uuid):
+            response = api_client.delete(f'/v1/dataset_schemas/{schema.uuid}/')
         assert response.status_code == 204
         assert not DatasetSchema.objects.filter(uuid=schema.uuid).exists()
-        assert uuids_after == uuids_before - {schema.uuid}
     else:
+        with AssertIdenticalUUIDs(DatasetSchema.objects):
+            response = api_client.delete(f'/v1/dataset_schemas/{schema.uuid}/')
         assert response.status_code == 404
-        assert uuids_after == uuids_before
 
 
 @pytest.mark.django_db
@@ -188,21 +185,19 @@ def test_dataset_schema_create(api_client, dataset_test_data, user_key, access_a
     user = dataset_test_data[user_key]
     api_client.force_authenticate(user=user)
 
-    uuids_before = set(DatasetSchema.objects.values_list('uuid', flat=True))
     create_data = {'name_en': 'New Schema'}
-    response = api_client.post('/v1/dataset_schemas/', create_data, format='json')
-    uuids_after = set(DatasetSchema.objects.values_list('uuid', flat=True))
 
     if access_allowed:
+        with AssertNewUUID(DatasetSchema.objects) as uuid_tracker:
+            response = api_client.post('/v1/dataset_schemas/', create_data, format='json')
         assert response.status_code == 201
         data = response.json()
         assert data['name'] == 'New Schema'
-        new_uuids = uuids_after - uuids_before
-        assert len(new_uuids) == 1
-        assert new_uuids.pop() == UUID(data['uuid'])
+        uuid_tracker.assert_created(data)
     else:
+        with AssertIdenticalUUIDs(DatasetSchema.objects):
+            response = api_client.post('/v1/dataset_schemas/', create_data, format='json')
         assert response.status_code == 403
-        assert uuids_after == uuids_before
 
 
 @pytest.mark.django_db
@@ -285,20 +280,17 @@ def test_dataset_update(api_client, dataset_test_data, user_key, dataset_key, sh
     dataset = dataset_test_data[dataset_key]
     api_client.force_authenticate(user=user)
 
-    uuids_before = set(Dataset.objects.values_list('uuid', flat=True))
     update_data = {}
-    response = api_client.patch(f'/v1/datasets/{dataset.uuid}/', update_data, format='json')
-    uuids_after = set(Dataset.objects.values_list('uuid', flat=True))
+
+    with AssertIdenticalUUIDs(Dataset.objects):
+        response = api_client.patch(f'/v1/datasets/{dataset.uuid}/', update_data, format='json')
 
     if access_allowed and should_be_found:
         assert response.status_code == 200
-        assert uuids_after == uuids_before
     elif access_allowed and not should_be_found:
         assert response.status_code == 404
-        assert uuids_after == uuids_before
     else:
         assert response.status_code == 403
-        assert uuids_after == uuids_before
 
 
 @pytest.mark.django_db
@@ -321,19 +313,17 @@ def test_dataset_delete(api_client, dataset_test_data, user_key, dataset_key, ac
     dataset = dataset_test_data[dataset_key]
     api_client.force_authenticate(user=user)
 
-    uuids_before = set(Dataset.objects.values_list('uuid', flat=True))
-    response = api_client.delete(f'/v1/datasets/{dataset.uuid}/')
-    uuids_after = set(Dataset.objects.values_list('uuid', flat=True))
-
     if access_allowed and should_be_found:
+        with AssertRemovedUUID(Dataset.objects, dataset.uuid):
+            response = api_client.delete(f'/v1/datasets/{dataset.uuid}/')
         assert response.status_code == 204
-        assert uuids_after == uuids_before - {dataset.uuid}
-    elif access_allowed and not should_be_found:
-        assert response.status_code == 404
-        assert uuids_after == uuids_before
     else:
-        assert response.status_code == 403
-        assert uuids_after == uuids_before
+        with AssertIdenticalUUIDs(Dataset.objects):
+            response = api_client.delete(f'/v1/datasets/{dataset.uuid}/')
+        if access_allowed and not should_be_found:
+            assert response.status_code == 404
+        else:
+            assert response.status_code == 403
 
 
 @pytest.mark.django_db
@@ -356,25 +346,23 @@ def test_dataset_create(api_client, dataset_test_data, user_key, access_allowed)
         schema = dataset_test_data['schema2']
         instance = dataset_test_data['instance2']
 
-    uuids_before = set(Dataset.objects.values_list('uuid', flat=True))
     create_data = {
         'schema': str(schema.uuid),
         'scope_content_type': 'nodes.instanceconfig',
         'scope_id': instance.id,
     }
-    response = api_client.post('/v1/datasets/', create_data, format='json')
-    uuids_after = set(Dataset.objects.values_list('uuid', flat=True))
 
     if access_allowed:
+        with AssertNewUUID(Dataset.objects) as uuid_tracker:
+            response = api_client.post('/v1/datasets/', create_data, format='json')
         assert response.status_code == 201
         data = response.json()
         assert data['schema'] == str(schema.uuid)
-        new_uuids = uuids_after - uuids_before
-        assert len(new_uuids) == 1
-        assert new_uuids.pop() == UUID(data['uuid'])
+        uuid_tracker.assert_created(data)
     else:
+        with AssertIdenticalUUIDs(Dataset.objects):
+            response = api_client.post('/v1/datasets/', create_data, format='json')
         assert response.status_code == 403
-        assert uuids_after == uuids_before
 
 
 @pytest.mark.django_db
@@ -460,26 +448,24 @@ def test_datapoint_create(api_client, dataset_test_data, user_key, dataset_key, 
     dimension_category = dataset_test_data['dimension_category1']
     api_client.force_authenticate(user=user)
 
-    uuids_before = set(DataPoint.objects.values_list('uuid', flat=True))
-
     create_data = {
         'date': '2024-01-01',
         'value': 150.0,
         'metric': str(metric.uuid),
         'dimension_categories': [str(dimension_category.uuid)],
     }
-    response = api_client.post(f'/v1/datasets/{dataset.uuid}/data_points/', create_data, format='json')
-    uuids_after = set(DataPoint.objects.values_list('uuid', flat=True))
 
-    assert response.status_code == expected_status
-    if response.status_code == 201:
+    if expected_status == 201:
+        with AssertNewUUID(DataPoint.objects) as uuid_tracker:
+            response = api_client.post(f'/v1/datasets/{dataset.uuid}/data_points/', create_data, format='json')
+        assert response.status_code == 201
         data = response.json()
         assert data['value'] == 150.0
-        new_uuids = uuids_after - uuids_before
-        assert len(new_uuids) == 1
-        assert new_uuids.pop() == UUID(data['uuid'])
+        uuid_tracker.assert_created(data)
     else:
-        assert uuids_after == uuids_before
+        with AssertIdenticalUUIDs(DataPoint.objects):
+            response = api_client.post(f'/v1/datasets/{dataset.uuid}/data_points/', create_data, format='json')
+        assert response.status_code == expected_status
 
 
 @pytest.mark.django_db
@@ -515,36 +501,32 @@ def test_datapoint_update(api_client, dataset_test_data, user_key, datapoint_key
     api_client.force_authenticate(user=user)
 
     # Test PATCH (partial update)
-    uuids_before = set(DataPoint.objects.values_list('uuid', flat=True))
     patch_data = {'value': 999.99}
-    response = api_client.patch(
-        f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/',
-        patch_data,
-        format='json'
-    )
-    uuids_after = set(DataPoint.objects.values_list('uuid', flat=True))
+    with AssertIdenticalUUIDs(DataPoint.objects):
+        response = api_client.patch(
+            f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/',
+            patch_data,
+            format='json'
+        )
     assert response.status_code == expected_status
-    assert uuids_after == uuids_before
     if response.status_code == 200:
         data = response.json()
         assert data['value'] == 999.99
 
     # Test PUT (full update)
-    uuids_before = set(DataPoint.objects.values_list('uuid', flat=True))
     put_data = {
         'date': '2025-01-01',
         'value': 888.88,
         'metric': str(metric.uuid),
         'dimension_categories': [str(dc.uuid) for dc in dimension_categories],
     }
-    response = api_client.put(
-        f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/',
-        put_data,
-        format='json'
-    )
-    uuids_after = set(DataPoint.objects.values_list('uuid', flat=True))
+    with AssertIdenticalUUIDs(DataPoint.objects):
+        response = api_client.put(
+            f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/',
+            put_data,
+            format='json'
+        )
     assert response.status_code == expected_status
-    assert uuids_after == uuids_before
     if response.status_code == 200:
         data = response.json()
         assert data['value'] == 888.88
@@ -572,19 +554,17 @@ def test_datapoint_delete(api_client, dataset_test_data, user_key, datapoint_key
     dataset = datapoint.dataset
     api_client.force_authenticate(user=user)
 
-    uuids_before = set(DataPoint.objects.values_list('uuid', flat=True))
-    response = api_client.delete(f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/')
-    uuids_after = set(DataPoint.objects.values_list('uuid', flat=True))
-
     if access_allowed and should_be_found:
+        with AssertRemovedUUID(DataPoint.objects, datapoint.uuid):
+            response = api_client.delete(f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/')
         assert response.status_code == 204
-        assert uuids_after == uuids_before - {datapoint.uuid}
-    elif access_allowed and not should_be_found:
-        assert response.status_code == 404
-        assert uuids_after == uuids_before
     else:
-        assert response.status_code == 403
-        assert uuids_after == uuids_before
+        with AssertIdenticalUUIDs(DataPoint.objects):
+            response = api_client.delete(f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/')
+        if access_allowed and not should_be_found:
+            assert response.status_code == 404
+        else:
+            assert response.status_code == 403
 
 
 @pytest.mark.django_db
@@ -689,27 +669,30 @@ def test_datapoint_comment_create(api_client, dataset_test_data, user_key, data_
     dataset = datapoint.dataset
     api_client.force_authenticate(user=user)
 
-    uuids_before = set(DataPointComment.objects.values_list('uuid', flat=True))
     create_data = {
         'text': 'New test comment',
         'type': 'plain',
     }
-    response = api_client.post(
-        f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/comments/',
-        create_data,
-        format='json'
-    )
-    uuids_after = set(DataPointComment.objects.values_list('uuid', flat=True))
 
-    assert response.status_code == expected_status
-    if response.status_code == 201:
+    if expected_status == 201:
+        with AssertNewUUID(DataPointComment.objects) as uuid_tracker:
+            response = api_client.post(
+                f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/comments/',
+                create_data,
+                format='json'
+            )
+        assert response.status_code == 201
         data = response.json()
         assert data['text'] == 'New test comment'
-        new_uuids = uuids_after - uuids_before
-        assert len(new_uuids) == 1
-        assert new_uuids.pop() == UUID(data['uuid'])
+        uuid_tracker.assert_created(data)
     else:
-        assert uuids_after == uuids_before
+        with AssertIdenticalUUIDs(DataPointComment.objects):
+            response = api_client.post(
+                f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/comments/',
+                create_data,
+                format='json'
+            )
+        assert response.status_code == expected_status
 
 
 @pytest.mark.django_db
@@ -743,15 +726,14 @@ def test_datapoint_comment_delete(api_client, dataset_test_data, user_key, comme
     dataset = datapoint.dataset
     api_client.force_authenticate(user=user)
 
-    uuids_before = set(DataPointComment.objects.values_list('uuid', flat=True))
-    response = api_client.delete(f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/comments/{comment.uuid}/')
-    uuids_after = set(DataPointComment.objects.values_list('uuid', flat=True))
-
-    assert response.status_code == expected_status
-    if response.status_code == 204:
-        assert uuids_after == uuids_before - {comment.uuid}
+    if expected_status == 204:
+        with AssertRemovedUUID(DataPointComment.objects, comment.uuid):
+            response = api_client.delete(f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/comments/{comment.uuid}/')
+        assert response.status_code == 204
     else:
-        assert uuids_after == uuids_before
+        with AssertIdenticalUUIDs(DataPointComment.objects):
+            response = api_client.delete(f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/comments/{comment.uuid}/')
+        assert response.status_code == expected_status
 
 
 @pytest.mark.django_db
@@ -903,33 +885,29 @@ def test_dataset_source_reference_update_via_dataset(api_client, dataset_test_da
     api_client.force_authenticate(user=user)
 
     # Test PATCH (partial update)
-    uuids_before = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
     patch_data = {'data_source': str(alternative_data_source.uuid)}
-    response = api_client.patch(
-        f'/v1/datasets/{dataset.uuid}/sources/{source_ref.uuid}/',
-        patch_data,
-        format='json'
-    )
-    uuids_after = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
+    with AssertIdenticalUUIDs(DatasetSourceReference.objects):
+        response = api_client.patch(
+            f'/v1/datasets/{dataset.uuid}/sources/{source_ref.uuid}/',
+            patch_data,
+            format='json'
+        )
     assert response.status_code == expected_status
-    assert uuids_after == uuids_before
     if response.status_code == 200:
         data = response.json()
         assert data.get('data_source') == str(alternative_data_source.uuid)
 
     # Test PUT (full update)
-    uuids_before = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
     put_data = {
         'data_source': str(original_data_source.uuid),
     }
-    response = api_client.put(
-        f'/v1/datasets/{dataset.uuid}/sources/{source_ref.uuid}/',
-        put_data,
-        format='json'
-    )
-    uuids_after = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
+    with AssertIdenticalUUIDs(DatasetSourceReference.objects):
+        response = api_client.put(
+            f'/v1/datasets/{dataset.uuid}/sources/{source_ref.uuid}/',
+            put_data,
+            format='json'
+        )
     assert response.status_code == expected_status
-    assert uuids_after == uuids_before
     if response.status_code == 200:
         data = response.json()
         assert data.get('data_source') == str(original_data_source.uuid)
@@ -965,22 +943,21 @@ def test_dataset_source_reference_create_via_dataset(api_client, dataset_test_da
     data_source = dataset_test_data['data_source1'] if dataset_key == 'dataset1' else dataset_test_data['data_source2']
     api_client.force_authenticate(user=user)
 
-    uuids_before = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
     create_data = {
         'data_source': str(data_source.uuid),
     }
-    response = api_client.post(f'/v1/datasets/{dataset.uuid}/sources/', create_data, format='json')
-    uuids_after = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
 
-    assert response.status_code == expected_status
-    if response.status_code == 201:
+    if expected_status == 201:
+        with AssertNewUUID(DatasetSourceReference.objects) as uuid_tracker:
+            response = api_client.post(f'/v1/datasets/{dataset.uuid}/sources/', create_data, format='json')
+        assert response.status_code == 201
         data = response.json()
         assert data['data_source'] == str(data_source.uuid)
-        new_uuids = uuids_after - uuids_before
-        assert len(new_uuids) == 1
-        assert new_uuids.pop() == UUID(data['uuid'])
+        uuid_tracker.assert_created(data)
     else:
-        assert uuids_after == uuids_before
+        with AssertIdenticalUUIDs(DatasetSourceReference.objects):
+            response = api_client.post(f'/v1/datasets/{dataset.uuid}/sources/', create_data, format='json')
+        assert response.status_code == expected_status
 
 
 @pytest.mark.django_db
@@ -1013,15 +990,14 @@ def test_dataset_source_reference_delete_via_dataset(api_client, dataset_test_da
     dataset = source_ref.dataset
     api_client.force_authenticate(user=user)
 
-    uuids_before = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
-    response = api_client.delete(f'/v1/datasets/{dataset.uuid}/sources/{source_ref.uuid}/')
-    uuids_after = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
-
-    assert response.status_code == expected_status
-    if response.status_code == 204:
-        assert uuids_after == uuids_before - {source_ref.uuid}
+    if expected_status == 204:
+        with AssertRemovedUUID(DatasetSourceReference.objects, source_ref.uuid):
+            response = api_client.delete(f'/v1/datasets/{dataset.uuid}/sources/{source_ref.uuid}/')
+        assert response.status_code == 204
     else:
-        assert uuids_after == uuids_before
+        with AssertIdenticalUUIDs(DatasetSourceReference.objects):
+            response = api_client.delete(f'/v1/datasets/{dataset.uuid}/sources/{source_ref.uuid}/')
+        assert response.status_code == expected_status
 
 
 @pytest.mark.django_db
@@ -1137,33 +1113,29 @@ def test_dataset_source_reference_update_via_datapoint(api_client, dataset_test_
     api_client.force_authenticate(user=user)
 
     # Test PATCH (partial update)
-    uuids_before = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
     patch_data = {'data_source': str(alternative_data_source.uuid)}
-    response = api_client.patch(
-        f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/{source_ref.uuid}/',
-        patch_data,
-        format='json'
-    )
-    uuids_after = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
+    with AssertIdenticalUUIDs(DatasetSourceReference.objects):
+        response = api_client.patch(
+            f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/{source_ref.uuid}/',
+            patch_data,
+            format='json'
+        )
     assert response.status_code == expected_status
-    assert uuids_after == uuids_before
     if response.status_code == 200:
         data = response.json()
         assert data.get('data_source') == str(alternative_data_source.uuid)
 
     # Test PUT (full update)
-    uuids_before = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
     put_data = {
         'data_source': str(original_data_source.uuid),
     }
-    response = api_client.put(
-        f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/{source_ref.uuid}/',
-        put_data,
-        format='json'
-    )
-    uuids_after = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
+    with AssertIdenticalUUIDs(DatasetSourceReference.objects):
+        response = api_client.put(
+            f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/{source_ref.uuid}/',
+            put_data,
+            format='json'
+        )
     assert response.status_code == expected_status
-    assert uuids_after == uuids_before
     if response.status_code == 200:
         data = response.json()
         assert data.get('data_source') == str(original_data_source.uuid)
@@ -1200,26 +1172,29 @@ def test_dataset_source_reference_create_via_datapoint(api_client, dataset_test_
     data_source = dataset_test_data['data_source1'] if data_point_key == 'data_point1' else dataset_test_data['data_source2']
     api_client.force_authenticate(user=user)
 
-    uuids_before = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
     create_data = {
         'data_source': str(data_source.uuid),
     }
-    response = api_client.post(
-        f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/',
-        create_data,
-        format='json'
-    )
-    uuids_after = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
 
-    assert response.status_code == expected_status
-    if response.status_code == 201:
+    if expected_status == 201:
+        with AssertNewUUID(DatasetSourceReference.objects) as uuid_tracker:
+            response = api_client.post(
+                f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/',
+                create_data,
+                format='json'
+            )
+        assert response.status_code == 201
         data = response.json()
         assert data['data_source'] == str(data_source.uuid)
-        new_uuids = uuids_after - uuids_before
-        assert len(new_uuids) == 1
-        assert new_uuids.pop() == UUID(data['uuid'])
+        uuid_tracker.assert_created(data)
     else:
-        assert uuids_after == uuids_before
+        with AssertIdenticalUUIDs(DatasetSourceReference.objects):
+            response = api_client.post(
+                f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/',
+                create_data,
+                format='json'
+            )
+        assert response.status_code == expected_status
 
 
 @pytest.mark.django_db
@@ -1238,17 +1213,18 @@ def test_dataset_source_reference_delete_via_datapoint(api_client, dataset_test_
     dataset = datapoint.dataset
     api_client.force_authenticate(user=user)
 
-    uuids_before = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
-    response = api_client.delete(
-        f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/{source_ref.uuid}/'
-    )
-    uuids_after = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
-
-    assert response.status_code == expected_status
-    if response.status_code == 204:
-        assert uuids_after == uuids_before - {source_ref.uuid}
+    if expected_status == 204:
+        with AssertRemovedUUID(DatasetSourceReference.objects, source_ref.uuid):
+            response = api_client.delete(
+                f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/{source_ref.uuid}/'
+            )
+        assert response.status_code == 204
     else:
-        assert uuids_after == uuids_before
+        with AssertIdenticalUUIDs(DatasetSourceReference.objects):
+            response = api_client.delete(
+                f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/{source_ref.uuid}/'
+            )
+        assert response.status_code == expected_status
 
 
 @pytest.mark.django_db
