@@ -68,8 +68,6 @@ class User(AbstractUser):
 
     autocomplete_search_field = 'email'
 
-    person: Person
-
     def natural_key(self) -> tuple[str]:
         # If we don't override this, it will use `get_username()`, which may not always return the email field. The
         # manager's `get_by_natural_key()`, on the other hand, will expect that the natural key is the email field since
