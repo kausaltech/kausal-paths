@@ -1,43 +1,34 @@
 from __future__ import annotations
 
-from wagtail import hooks
-from wagtail.search.backends import get_search_backend
+from django.utils.translation import gettext_lazy as _
+from wagtail.admin.views.generic.chooser import ChooseResultsView, ChooseView
+from wagtail.admin.viewsets.chooser import ChooserViewSet
 
-from kausal_common.people.chooser import (
-    PersonChooserMixin as BasePersonChooserMixin,
-    PersonChooserViewSet as BasePersonChooserViewSet,
-    PersonModelChooserCreateTabMixin as BasePersonModelChooserCreateTabMixin,
-)
+from kausal_common.people.chooser import BasePersonChooseViewMixin
 
-from paths.context import realm_context
+from admin_site.viewsets import AdminInstanceMixin
+from people.models import Person
 
 
-class PersonChooserMixin(BasePersonChooserMixin):
-
-    def get_object_list(self, search_term=None, **kwargs):
-        admin_instance = realm_context.get().realm
-        object_list = self.get_unfiltered_object_list().available_for_instance(admin_instance)
-
+class PersonChooseViewMixin(AdminInstanceMixin, BasePersonChooseViewMixin):
+    def get_object_list(self):
+        object_list = Person.objects.qs.available_for_instance(self.admin_instance)
         # Workaround to prevent Wagtail from looking for `path` (from Organization) in the search fields for Person
-        object_list = self.model.objects.filter(id__in=object_list)  # type: ignore[attr-defined]
-
-        if search_term:
-            search_backend = get_search_backend()
-            object_list = search_backend.autocomplete(search_term, object_list)
-
+        object_list = Person.objects.filter(id__in=object_list)
         return object_list
 
-class PersonModelChooserCreateTabMixin(BasePersonModelChooserCreateTabMixin):
-    def get_initial(self):
-        admin_instance = realm_context.get().realm
-        return {'instance': admin_instance}
+
+class PersonChooseView(PersonChooseViewMixin, ChooseView):
+    pass
 
 
-class PersonChooserViewSet(BasePersonChooserViewSet):
-    chooser_mixin_class = PersonChooserMixin
-    create_tab_mixin_class = PersonModelChooserCreateTabMixin
+class PersonChooseResultsView(PersonChooseViewMixin, ChooseResultsView):
+    pass
 
 
-@hooks.register('register_admin_viewset')
-def register_watch_person_chooser_viewset():
-    return PersonChooserViewSet('person_chooser', url_prefix='person-chooser')
+class PersonChooserViewSet(ChooserViewSet):
+    model = Person
+    choose_view_class = PersonChooseView
+    choose_results_view_class = PersonChooseResultsView
+    choose_one_text = _('Choose a person')
+    choose_another_text = _('Choose another person')
