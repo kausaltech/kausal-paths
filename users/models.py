@@ -143,7 +143,8 @@ class User(AbstractUser):
         """
         Verify that the user has exactly the instance role group corresponding to this role_id.
 
-        Only modifies group memberships of groups connected to active_instance.
+        Only modifies group memberships of groups connected to instance, leaving
+        other groups intact.
         """
         for role_obj in role_registry.get_all_roles():
             group = role_obj.get_existing_instance_group(instance)
