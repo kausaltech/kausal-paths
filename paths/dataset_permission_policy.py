@@ -23,7 +23,7 @@ from kausal_common.models.permission_policy import (
     ParentInheritedPolicy,
 )
 from kausal_common.models.permissions import PermissionedQuerySet
-from kausal_common.models.roles import role_registry
+from kausal_common.models.roles import role_registry, ObjectRole
 
 from paths.context import realm_context
 
@@ -85,7 +85,7 @@ class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, _CCTX, _QS]
         """Get IDs of all InstanceConfigs this obj is scoped for."""
 
     @override
-    def user_has_perm(self, user: User, action: BaseObjectAction, obj: _M) -> bool:
+    def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: _M) -> bool:
         if user.is_superuser:
             return True
         try:
@@ -181,6 +181,26 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
     @override
     def user_can_create(self, user: User, context: None) -> bool:
         return super().user_can_create(user, context)
+
+    @override
+    def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: DatasetSchema) -> bool:
+        # Check dataset schema's user / group permissions first
+        if action == 'change':
+            privileged_roles = [ObjectRole.EDITOR, ObjectRole.ADMIN]
+        elif action == 'delete':
+            privileged_roles = [ObjectRole.ADMIN]
+        elif action == 'view':
+            privileged_roles = [ObjectRole.VIEWER, ObjectRole.EDITOR, ObjectRole.ADMIN]
+        else:
+            privileged_roles = []
+
+        if obj.user_permissions.filter(user=user, role__in=privileged_roles).exists():
+            return True
+
+        if obj.group_permissions.filter(group__users=user, role__in=privileged_roles).exists():
+            return True
+
+        return super().user_has_perm(user, action, obj)
 
     def user_has_permission(self, user: User | AnonymousUser, action: str) -> bool:
         if not self.user_is_authenticated(user):
