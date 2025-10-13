@@ -98,17 +98,22 @@ def test_dataset_schema_update(api_client, dataset_test_data, user_key, schema_k
     schema = dataset_test_data[schema_key]
     api_client.force_authenticate(user=user)
 
+    uuids_before = set(DatasetSchema.objects.values_list('uuid', flat=True))
     update_data = {'name_en': 'Updated Schema Name'}
     response = api_client.patch(f'/v1/dataset_schemas/{schema.uuid}/', update_data, format='json')
+    uuids_after = set(DatasetSchema.objects.values_list('uuid', flat=True))
 
     if access_allowed and should_be_found:
         assert response.status_code == 200
         data = response.json()
         assert data['name'] == 'Updated Schema Name'
+        assert uuids_after == uuids_before
     elif access_allowed and should_be_found is False:
         assert response.status_code == 404
+        assert uuids_after == uuids_before
     else:
         assert response.status_code == 403
+        assert uuids_after == uuids_before
 
 
 @pytest.mark.django_db
@@ -280,15 +285,20 @@ def test_dataset_update(api_client, dataset_test_data, user_key, dataset_key, sh
     dataset = dataset_test_data[dataset_key]
     api_client.force_authenticate(user=user)
 
+    uuids_before = set(Dataset.objects.values_list('uuid', flat=True))
     update_data = {}
     response = api_client.patch(f'/v1/datasets/{dataset.uuid}/', update_data, format='json')
+    uuids_after = set(Dataset.objects.values_list('uuid', flat=True))
 
     if access_allowed and should_be_found:
         assert response.status_code == 200
+        assert uuids_after == uuids_before
     elif access_allowed and not should_be_found:
         assert response.status_code == 404
+        assert uuids_after == uuids_before
     else:
         assert response.status_code == 403
+        assert uuids_after == uuids_before
 
 
 @pytest.mark.django_db
@@ -505,18 +515,22 @@ def test_datapoint_update(api_client, dataset_test_data, user_key, datapoint_key
     api_client.force_authenticate(user=user)
 
     # Test PATCH (partial update)
+    uuids_before = set(DataPoint.objects.values_list('uuid', flat=True))
     patch_data = {'value': 999.99}
     response = api_client.patch(
         f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/',
         patch_data,
         format='json'
     )
+    uuids_after = set(DataPoint.objects.values_list('uuid', flat=True))
     assert response.status_code == expected_status
+    assert uuids_after == uuids_before
     if response.status_code == 200:
         data = response.json()
         assert data['value'] == 999.99
 
     # Test PUT (full update)
+    uuids_before = set(DataPoint.objects.values_list('uuid', flat=True))
     put_data = {
         'date': '2025-01-01',
         'value': 888.88,
@@ -528,7 +542,9 @@ def test_datapoint_update(api_client, dataset_test_data, user_key, datapoint_key
         put_data,
         format='json'
     )
+    uuids_after = set(DataPoint.objects.values_list('uuid', flat=True))
     assert response.status_code == expected_status
+    assert uuids_after == uuids_before
     if response.status_code == 200:
         data = response.json()
         assert data['value'] == 888.88
@@ -887,18 +903,22 @@ def test_dataset_source_reference_update_via_dataset(api_client, dataset_test_da
     api_client.force_authenticate(user=user)
 
     # Test PATCH (partial update)
+    uuids_before = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
     patch_data = {'data_source': str(alternative_data_source.uuid)}
     response = api_client.patch(
         f'/v1/datasets/{dataset.uuid}/sources/{source_ref.uuid}/',
         patch_data,
         format='json'
     )
+    uuids_after = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
     assert response.status_code == expected_status
+    assert uuids_after == uuids_before
     if response.status_code == 200:
         data = response.json()
         assert data.get('data_source') == str(alternative_data_source.uuid)
 
     # Test PUT (full update)
+    uuids_before = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
     put_data = {
         'data_source': str(original_data_source.uuid),
     }
@@ -907,7 +927,9 @@ def test_dataset_source_reference_update_via_dataset(api_client, dataset_test_da
         put_data,
         format='json'
     )
+    uuids_after = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
     assert response.status_code == expected_status
+    assert uuids_after == uuids_before
     if response.status_code == 200:
         data = response.json()
         assert data.get('data_source') == str(original_data_source.uuid)
@@ -1115,18 +1137,22 @@ def test_dataset_source_reference_update_via_datapoint(api_client, dataset_test_
     api_client.force_authenticate(user=user)
 
     # Test PATCH (partial update)
+    uuids_before = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
     patch_data = {'data_source': str(alternative_data_source.uuid)}
     response = api_client.patch(
         f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/{source_ref.uuid}/',
         patch_data,
         format='json'
     )
+    uuids_after = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
     assert response.status_code == expected_status
+    assert uuids_after == uuids_before
     if response.status_code == 200:
         data = response.json()
         assert data.get('data_source') == str(alternative_data_source.uuid)
 
     # Test PUT (full update)
+    uuids_before = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
     put_data = {
         'data_source': str(original_data_source.uuid),
     }
@@ -1135,7 +1161,9 @@ def test_dataset_source_reference_update_via_datapoint(api_client, dataset_test_
         put_data,
         format='json'
     )
+    uuids_after = set(DatasetSourceReference.objects.values_list('uuid', flat=True))
     assert response.status_code == expected_status
+    assert uuids_after == uuids_before
     if response.status_code == 200:
         data = response.json()
         assert data.get('data_source') == str(original_data_source.uuid)
