@@ -888,7 +888,7 @@ actions:
   unit: '%'
   type: simple.CumulativeAdditiveAction
   output_nodes: [district_heat_ccs_share]
-  forecast_values: [[2024, 0], [2035, 80]]
+  forecast_values: [[2035, 80]]
 
 - id: district_heat_production_mix_change
   name_en: District heat production mix change
@@ -1471,70 +1471,6 @@ actions:
   unit: '%'
   output_nodes: [biogas_processing_ccs_share]
   forecast_values: [[2029, 100]]
-
-# - id: cleaner_electricity_production
-#   group: other
-#   decision_level: nation
-#   name_en: Cleaner electricity production
-#   name_de: Dekarbonisierung Stromversorgung
-#   type: shift.ShiftAction
-#   quantity: mix
-#   description_en: Electricity production shift to cleaner methods.
-#   description_de: Dieses Massnahmenpaket beinhaltet alle Massnahmen, welche dazu führen,
-#     dass der Strombedarf in der Stadt Zürich vollständig durch erneuerbare Energieträger
-#     gedeckt wird.
-#   output_nodes:
-#   - id: electricity_production_mix
-#     to_dimensions:
-#     - id: electricity_source
-#   unit: '%'
-#   params:
-#   - id: shift
-#     unit: '%'
-#     is_customizable: false
-#     value:
-#     - source:
-#         categories:
-#           electricity_source: import
-#       dests:
-#       - categories:
-#           electricity_source: solar
-#       - categories:
-#           electricity_source: wind
-#       - categories:
-#           electricity_source: biogas
-#       - categories:
-#           electricity_source: waste
-#       amounts:
-#       - year: 2023
-#         source_amount: -2
-#         dest_amounts: [50, 50, 10, 5]
-#       - year: 2030
-#         source_amount: -1.65
-#         dest_amounts: [50, 50, 10, 5]
-#       - year: 2040
-#         source_amount: 0
-#         dest_amounts: [50, 50, 10, 5]
-#     - source:
-#         categories:
-#           electricity_source: hydro
-#       dests:
-#       - categories:
-#           electricity_source: solar
-#       - categories:
-#           electricity_source: wind
-#       - categories:
-#           electricity_source: biogas
-#       amounts:
-#       - year: 2023
-#         source_amount: -2
-#         dest_amounts: [70, 30, 50]
-#       - year: 2030
-#         source_amount: -1.7
-#         dest_amounts: [70, 30, 50]
-#       - year: 2035
-#         source_amount: 0
-#         dest_amounts: [70, 30, 50]
 
 - id: import_biogas_emission_accounting_agreement
   group: other
