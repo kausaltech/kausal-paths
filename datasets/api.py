@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, override
 
 from rest_framework import serializers
-from rest_framework.exceptions import MethodNotAllowed, NotFound
 from rest_framework.routers import DefaultRouter, SimpleRouter
 
 from rest_framework_nested.routers import NestedSimpleRouter
@@ -30,10 +29,8 @@ from kausal_common.datasets.models import (
     DatasetSchema,
     DatasetSourceReference,
 )
-from kausal_common.users import user_or_none
 
 if TYPE_CHECKING:
-    from rest_framework.request import Request
     from rest_framework.views import APIView
 
 

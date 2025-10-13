@@ -6,7 +6,8 @@ import pytest
 from paths.context import RealmContext, realm_context
 
 from admin_site.dataset_admin import DatasetSchemaViewSet
-from datasets.tests.fixtures import get_in_admin_context, dataset_test_data
+
+from .fixtures import *
 
 
 @pytest.mark.django_db

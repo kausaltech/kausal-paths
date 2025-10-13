@@ -163,7 +163,7 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
     def construct_perm_q(self, user: User, action: BaseObjectAction) -> Q | None:
         from nodes.models import InstanceConfig
         ic_content_type = ContentType.objects.get_for_model(InstanceConfig)
-        def make_q(role: InstanceRoleIdentifier):
+        def make_q(role: InstanceRoleIdentifier) -> Q:
             return Q(
                 scopes__scope_content_type=ic_content_type,
                 scopes__scope_id__in=self.get_role(role).get_instances_for_user(user)

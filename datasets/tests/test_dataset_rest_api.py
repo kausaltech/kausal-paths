@@ -1,13 +1,9 @@
 from __future__ import annotations
 
-from uuid import UUID
-
 from rest_framework.test import APIClient
 
 import pytest
 
-from datasets.tests.fixtures import *
-from datasets.tests.utils import AssertIdenticalUUIDs, AssertNewUUID, AssertRemovedUUID
 from kausal_common.datasets.models import (
     DataPoint,
     DataPointComment,
@@ -15,6 +11,9 @@ from kausal_common.datasets.models import (
     DatasetSchema,
     DatasetSourceReference,
 )
+
+from datasets.tests.fixtures import *
+from datasets.tests.utils import AssertIdenticalUUIDs, AssertNewUUID, AssertRemovedUUID
 
 pytestmark = pytest.mark.django_db()
 
