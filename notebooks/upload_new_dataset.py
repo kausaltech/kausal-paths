@@ -71,7 +71,7 @@ def determine_metric_column(df: pl.DataFrame) -> str:
         return 'Metric'  # backward compatibility
     if 'Quantity' in df.columns:
         return 'Quantity'
-    raise ValueError("No metric column found. DataFrame must contain 'Metric', 'Sector', 'Quantity' column.")
+    raise ValueError("No metric column found. DataFrame must contain 'Metric' or 'Quantity' column.")
 
 
 def create_metric_col(df: pl.DataFrame, metric_col: str) -> pl.DataFrame:
@@ -86,8 +86,11 @@ def create_metric_col(df: pl.DataFrame, metric_col: str) -> pl.DataFrame:
     elif metric_col != 'Metric':
         df.rename({metric_col: 'Metric'})
     unique_metrics = df.select(['Metric', 'Quantity', 'Unit']).unique()
-    if len(unique_metrics) != len(df.select('Metric').unique()):
-        raise ValueError(f"Column {metric_col} contains duplicate values. Please check the data.")
+    len_ms = len(unique_metrics)
+    len_m_names = len(df.select('Metric').unique())
+    if len_ms != len_m_names:
+        print(unique_metrics.filter(pl.col(metric_col).is_duplicated()).sort(pl.col(metric_col)))
+        raise ValueError(f"Column {metric_col} has {len_m_names} names but there are {len_ms} unique metrics.")
 
     # Convert metric_col to snake_case
     df = df.with_columns([
