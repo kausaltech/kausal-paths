@@ -1,33 +1,44 @@
 from __future__ import annotations
 
-from django.utils.translation import gettext_lazy as _
-from wagtail.snippets.views.chooser import ChooseResultsView, ChooseView, SnippetChooserViewSet
+import typing
 
-from kausal_common.people.chooser import BasePersonChooseViewMixin
+from wagtail.admin.views.generic.chooser import ChooseResultsView
+from wagtail.snippets.views.chooser import ChooseView
 
-from admin_site.viewsets import AdminInstanceMixin
-from people.models import Person
+from kausal_common.people.chooser import PersonChooserViewSet as BasePersonChooserViewSet
 
+from paths.context import realm_context
 
-class PersonChooseViewMixin(AdminInstanceMixin, BasePersonChooseViewMixin):
-    def get_object_list(self):
-        object_list = Person.objects.qs.available_for_instance(self.admin_instance)
-        # Workaround to prevent Wagtail from looking for `path` (from Organization) in the search fields for Person
-        object_list = Person.objects.filter(id__in=object_list)
-        return object_list
+if typing.TYPE_CHECKING:
+    from django.db.models import QuerySet
+
+    from .models import Person
 
 
-class PersonChooseView(PersonChooseViewMixin, ChooseView):
-    pass
+def filter_person_queryset_by_admin_instance(view, queryset) -> QuerySet[Person]:
+    admin_instance = realm_context.get().realm
+    object_list = queryset.available_for_instance(admin_instance)
+    # Workaround to prevent Wagtail from looking for `path` (from Organization) in the search fields for Person
+    return queryset.filter(id__in=object_list)  # type: ignore[attr-defined]
 
 
-class PersonChooseResultsView(PersonChooseViewMixin, ChooseResultsView):
-    pass
+class PersonChooseView(ChooseView):
+    def get_creation_form_kwargs(self) -> dict[str, typing.Any]:
+        kwargs = super().get_creation_form_kwargs()
+        kwargs['admin_instance'] = realm_context.get().realm
+        return kwargs
+
+    def get_object_list(self) -> QuerySet[Person]:
+        return filter_person_queryset_by_admin_instance(self, super().get_object_list())
 
 
-class PersonChooserViewSet(SnippetChooserViewSet):
-    model = Person
+class PersonChooseResultsView(ChooseResultsView):
+    def get_object_list(self, search_term=None, **kwargs) -> QuerySet[Person]:
+        return filter_person_queryset_by_admin_instance(self, super().get_object_list())
+
+
+class PersonChooserViewSet(BasePersonChooserViewSet):
     choose_view_class = PersonChooseView
     choose_results_view_class = PersonChooseResultsView
-    choose_one_text = _('Choose a person')
-    choose_another_text = _('Choose another person')
+    # TODO: uncomment this once the PersonForm has been merged from the other branch
+    # creation_form_class = PersonForm
