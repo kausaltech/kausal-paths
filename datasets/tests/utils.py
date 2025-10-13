@@ -27,7 +27,7 @@ class AssertIdenticalUUIDs(UUIDSetTracker):
         super().__exit__(exc_type, exc_val, exc_tb)
         assert self.uuids_after == self.uuids_before, (
             f'Expected identical UUID sets, but {len(self.uuids_after - self.uuids_before)} added '
-            'and {len(self.uuids_before - self.uuids_after)} removed'
+            f'and {len(self.uuids_before - self.uuids_after)} removed'
         )
         return False
 
