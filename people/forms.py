@@ -12,7 +12,7 @@ from dal import autocomplete
 
 from kausal_common.models.roles import InstanceSpecificRole, role_registry
 
-from paths.const import INSTANCE_SUPER_ADMIN_ROLE, NONE_ROLE
+from paths.const import INSTANCE_SUPER_ADMIN_ROLE, NONE_ROLE, PathsRoleIdentifier
 from paths.context import realm_context
 
 from admin_site.forms import PathsAdminModelForm
@@ -82,7 +82,7 @@ class PersonForm(PathsAdminModelForm[Person]):
             self.sync_user_groups_with_role(instance, role, self.active_instance)
         return instance
 
-    def sync_user_groups_with_role(self, person: Person, role_id: str, active_instance: InstanceConfig) -> None:
+    def sync_user_groups_with_role(self, person: Person, role_id: PathsRoleIdentifier, active_instance: InstanceConfig) -> None:
         """Process the role assignment by managing group memberships."""
         if not active_instance or not person.user:
             return

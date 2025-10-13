@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from kausal_common.models.roles import ALL_MODEL_PERMS, AdminRole, InstanceFieldGroupRole, InstanceSpecificRole, register_role
 
-from paths.const import FRAMEWORK_ADMIN_ROLE, FRAMEWORK_VIEWER_ROLE
+from paths.const import FRAMEWORK_ADMIN_ROLE, FRAMEWORK_VIEWER_ROLE, PathsRoleIdentifier
 
 from nodes.roles import InstanceAdminRole, InstanceViewerRole
 
@@ -94,6 +94,6 @@ register_role(framework_viewer_role)
 
 class FrameworkRoleDef(BaseModel):
     framework_id: str
-    role_id: str | None
+    role_id: PathsRoleIdentifier | None
     org_slug: str | None
     org_id: str | None
