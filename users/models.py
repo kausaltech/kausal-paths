@@ -12,13 +12,9 @@ from pydantic import BaseModel, Field
 
 from django_pydantic_field import SchemaField
 
-from kausal_common.datasets.models import DatasetSchema
 from kausal_common.models.roles import role_registry
-from kausal_common.models.types import ModelManager
-from kausal_common.users.models import create_permission_membership_models
 
 from paths.const import NONE_ROLE, PathsRoleIdentifier
-from paths.types import PathsModel, PathsQuerySet
 
 from .base import AbstractUser, UserManager
 
