@@ -51,12 +51,6 @@ _CCTX = TypeVar('_CCTX', bound='Model | None')  # create context
 _QS = TypeVar('_QS', bound=QuerySet, default=QuerySet[_M])
 
 
-def get_instance_config_content_type() -> ContentType:
-    """Get the ContentType for InstanceConfig, cached for performance."""
-    from nodes.models import InstanceConfig
-    return ContentType.objects.get_for_model(InstanceConfig)
-
-
 class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, _CCTX, _QS], metaclass=ABCMeta):
     """Permission policy for models that have one or many InstanceConfig objects as scope."""
 
@@ -75,7 +69,7 @@ class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, _CCTX, _QS]
         return role
 
     def get_instanceconfig_scope_q_for_role(self, user: User, role_id: InstanceRoleIdentifier) -> Q:
-        ic_content_type = get_instance_config_content_type()
+        ic_content_type = ContentType.objects.get_for_model(InstanceConfig)
         return Q(
             scope_content_type=ic_content_type,
             scope_id__in=self.get_role(role_id).get_instances_for_user(user)
@@ -160,7 +154,7 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
     @override
     def get_instance_configs_for_obj(self, obj: DatasetSchema) -> list[int]:
         """Get IDs of all InstanceConfigs this schema is scoped for."""
-        ic_content_type = get_instance_config_content_type()
+        ic_content_type = ContentType.objects.get_for_model(InstanceConfig)
         return list(obj.scopes.filter(
             scope_content_type=ic_content_type
         ).values_list('scope_id', flat=True))
@@ -291,7 +285,7 @@ class DataSourcePermissionPolicy(InstanceConfigScopedPermissionPolicy[DataSource
 
     @override
     def get_instance_configs_for_obj(self, obj: DataSource) -> list[int]:
-        ic_content_type = get_instance_config_content_type()
+        ic_content_type = ContentType.objects.get_for_model(InstanceConfig)
         if obj.scope_content_type != ic_content_type:
             return []
         return [obj.scope_id]
