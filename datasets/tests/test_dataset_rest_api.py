@@ -33,7 +33,7 @@ def test_dataset_schema_list(api_client, dataset_test_data, user_key, has_access
     assert response.status_code == 200
 
     data = response.json()
-    data_schemas = set(schema['name'] for schema in data)
+    data_schemas = set(schema['name'] for schema in data['results'])
     assert data_schemas == expected_schemas
 
 
@@ -203,7 +203,7 @@ def test_dataset_list(api_client, dataset_test_data, user_key):
     assert response.status_code == 200
     data = response.json()
     dataset_uuids = set(str(dataset_test_data[key].uuid) for key in expected_datasets)
-    result_uuids = set(d['uuid'] for d in data)
+    result_uuids = set(d['uuid'] for d in data['results'])
     assert dataset_uuids == result_uuids
 
 
