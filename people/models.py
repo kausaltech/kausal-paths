@@ -33,8 +33,7 @@ if TYPE_CHECKING:
     from kausal_common.models.permission_policy import ModelPermissionPolicy
 
     from nodes.models import InstanceConfig
-
-    from .permissions import PersonGroupPermissionPolicy
+    from people.permissions import PersonGroupPermissionPolicy
 
 
 class PersonQuerySet(MultilingualQuerySet['Person']):
