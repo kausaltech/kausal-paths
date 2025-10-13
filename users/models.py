@@ -8,8 +8,6 @@ from django.db import models
 from django.db.models import Model
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from modelcluster.fields import ParentalKey
-from modelcluster.models import ClusterableModel
 from pydantic import BaseModel, Field
 
 from django_pydantic_field import SchemaField
@@ -25,16 +23,16 @@ from paths.types import PathsModel, PathsQuerySet
 from .base import AbstractUser, UserManager
 
 if TYPE_CHECKING:
+
     from django.contrib.auth.models import Group
 
     from kausal_common.models.roles import InstanceSpecificRole, UserPermissionCache
-    from kausal_common.models.types import FK, M2M, QS
+    from kausal_common.models.types import FK, QS, RevOne
 
     from frameworks.roles import FrameworkRoleDef
     from nodes.models import InstanceConfig, InstanceConfigQuerySet
     from orgs.models import Organization
     from people.models import Person
-    from users.permissions import UserGroupPermissionPolicy
 
 
 class UserFrameworkRole(BaseModel):
@@ -67,6 +65,7 @@ class User(AbstractUser):
     extra: UserExtra = SchemaField(schema=UserExtra, default=UserExtra.get_default)
 
     objects: ClassVar[UserManager[User]]
+    person: RevOne[Person, User] | None
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
@@ -196,61 +195,3 @@ class User(AbstractUser):
 
     def can_modify_person(self, person: Person) -> bool:
         return self.is_superuser
-
-
-class UserGroupQuerySet(PathsQuerySet['UserGroup']):
-    pass
-
-
-_UserGroupManager = models.Manager.from_queryset(UserGroupQuerySet)
-class UserGroupManager(ModelManager['UserGroup', UserGroupQuerySet], _UserGroupManager):
-    """Model manager for UserGroup."""
-del _UserGroupManager
-
-
-class UserGroup(PathsModel, ClusterableModel):
-    """
-    Group of users for various purposes such as assigning permissions on certain models or model instances.
-
-    In contrast to Django groups, names don't have to be globally unique.
-    """
-
-    instance: FK[InstanceConfig] = models.ForeignKey(
-        'nodes.InstanceConfig', on_delete=models.CASCADE, related_name='user_groups'
-    )
-    name = models.CharField(max_length=200)
-    users: M2M[User, UserGroupMember] = models.ManyToManyField(
-        User,
-        through='UserGroupMember',
-        related_name='user_groups',
-    )
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=['instance', 'name'], name='unique_user_group_name_per_instance'),
-        ]
-
-    @classmethod
-    def permission_policy(cls) -> UserGroupPermissionPolicy:
-        from .permissions import UserGroupPermissionPolicy
-        return UserGroupPermissionPolicy()
-
-    def __str__(self) -> str:
-        return self.name
-
-
-class UserGroupMember(models.Model):
-    group = ParentalKey(UserGroup, on_delete=models.CASCADE, related_name='users_edges')
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='groups_edges')
-
-    class Meta:
-        verbose_name = _('Group member')
-        verbose_name_plural = _('Group members')
-
-    def __str__(self) -> str:
-        return f'{self.user} ∈ {self.group}'
-
-
-# Create permission membership models here, in the `users` app, since they will be part of this app. If you call
-# `create_permission_membership_models` in a different app, `shell_plus` will get confused.
-DatasetSchemaGroupPermission, DatasetSchemaUserPermission = create_permission_membership_models(DatasetSchema)
