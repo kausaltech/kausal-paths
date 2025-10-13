@@ -53,7 +53,15 @@ class TestDatasetAdminAuthorization:
         ('regular_user', 'schema1', False),
         ('regular_user', 'schema2', False),
     ])
-    def test_dataset_schema_edit_view(self, client, dataset_test_data, user_key, schema_key, access_allowed, get_in_admin_context):
+    def test_dataset_schema_edit_view(
+        self,
+        client,
+        dataset_test_data,
+        user_key,
+        schema_key,
+        access_allowed,
+        get_in_admin_context
+    ):
         """Test access to dataset schema edit view."""
         data = dataset_test_data
         user = data[user_key]
