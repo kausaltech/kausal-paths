@@ -131,6 +131,8 @@ dimensions:
     label: Biogas
   - id: clear_diesel
     label: Clear Diesel
+  - id: coloured_diesel
+    label: Coloured Diesel
   - id: electricity
     label: Electricity
   - id: natural_gas
@@ -163,6 +165,8 @@ dimensions:
     label: Gasoline Light-duty Trucks
   - id: diesel_medium_and_heavyduty_vehicles
     label: Diesel Medium- & Heavy-duty Vehicles
+  - id: other_diesel_nonroad_vehicles
+    label: Other Diesel Non-road Vehicles
 
 - id: property
   label: Property
@@ -1627,8 +1631,8 @@ nodes:
     - id: energy_carrier
   - id: mobile_fuel_combustion
     from_dimensions:
-    - id: department
-      categories: [emergency_medical_services_ems]
+    - id: vehicle_fleet
+      categories: [ems_fleet, ems_fleet_visa]
 
 - id: pw_fleet_emissions
   name: Public Works Fleet Emissions
@@ -1643,8 +1647,19 @@ nodes:
     - id: energy_carrier
   - id: mobile_fuel_combustion
     from_dimensions:
-    - id: department
-      categories: [public_works]
+    - id: vehicle_fleet
+      categories: [pw_fleet]
+
+- id: fleet_emissions
+  name: Fleet Emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [energy_carrier, vehicle_fleet, department, scope]
+  output_dimensions: [energy_carrier, vehicle_fleet, department, scope]
+  input_nodes:
+  - id: ems_fleet_emissions
+  - id: pw_fleet_emissions
 
 - id: mobile_combustion_emissions
   name: Mobile Combustion Emissions (Scope 1)
@@ -1655,8 +1670,7 @@ nodes:
   input_dimensions: [energy_carrier, vehicle_fleet, department, scope]
   output_dimensions: [energy_carrier, vehicle_fleet, department, scope]
   input_nodes:
-  - id: ems_fleet_emissions
-  - id: pw_fleet_emissions
+  - id: fleet_emissions
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -2395,7 +2409,7 @@ nodes:
       value: fugitive_ch4_from_anaerobic_digester
 
 - id: water_and_wastewater_treatment_emissions_scope_1
-  name: Water & Wastewater Treatment Emissions (Scope 1)
+  name: Wastewater Treatment Emissions (Scope 1)
   color: '#4E79A7'
   type: simple.AdditiveNode
   quantity: emissions
@@ -2428,7 +2442,7 @@ nodes:
 #       flatten: true
 
 - id: water_and_wastewater_treatment_emissions
-  name: Water & Wastewater Treatment Emissions
+  name: Wastewater Treatment Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
