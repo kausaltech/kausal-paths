@@ -37,7 +37,7 @@ class PersonSnippetViewSet(PathsViewSet):
     add_to_admin_menu = True
     menu_item_class = SuperAdminOnlyMenuItem
     form_class: PersonForm
-    chooser_viewset_class = PersonChooserViewSet  # FIXME: needs snippet chooser view set
+    chooser_viewset_class = PersonChooserViewSet
 
     panels = [
         FieldPanel('first_name'),
