@@ -342,6 +342,12 @@ dimensions:
     label: Royal Windsor PRV
   - id: appleby_line_rear_x_bl
     label: Appleby Line Rear X BL
+  - id: 1_west_branch_dr_water_valve
+    label: 1 West Branch Dr Water Valve
+  - id: 271_mountainview_rd_s_water_valve
+    label: 271 Mountainview Rd S Water Valve
+  - id: neyagawa_blvd_wtr
+    label: Neyagawa Blvd WTR
 
   # ----- Process Water
   - id: 51_guelph_st
@@ -602,6 +608,8 @@ dimensions:
     label: WWPS Dundas Crossing
   - id: wwps_l30_c3_3rd_line_30_amp
     label: WWPS L30 C3 3rd Line 30 Amp
+  - id: wwps_16_chartwell_rd
+    label: WWPS 16 Chartwell Rd
 
   # ----- SWPS
   - id: swps_225_james_snow_parkway
@@ -686,6 +694,26 @@ dimensions:
     label: District Burlington (30 Division)
   - id: communication_towers
     label: Communication Towers
+  - id: communication_tower_1080_steeles_ave_e
+    label: Communication Tower 1080 Steeles Ave E
+  - id: communication_tower_11565_guelph_line
+    label: Communication Tower 11565 Guelph Line
+  - id: communication_tower_1924_king_rd
+    label: Communication Tower 1924 King Rd
+  - id: communication_tower_2533_rebecca_st
+    label: Communication Tower 2533 Rebecca St
+  - id: communication_tower_2535_rebecca_st_radio_tower
+    label: Communication Tower 2535 Rebecca St Radio Tower
+  - id: communication_tower_29_todd_rd_georgetown
+    label: Communication Tower 29 Todd Rd Georgetown
+  - id: communication_tower_7365_appleby_line
+    label: Communication Tower 7365 Appleby Line
+  - id: communication_tower_hrps_acton_tower
+    label: Communication Tower HRPS Acton Tower
+  - id: communication_tower_hrps_oakville_condo_tower
+    label: Communication Tower HRPS Oakville Condo Tower
+  - id: communication_tower_hrps_speyside_tower
+    label: Communication Tower HRPS Speyside Tower
 
   # ----- HCHC
   - id: 234_woodside_dr
@@ -2278,8 +2306,8 @@ nodes:
       flatten: true
 
 - id: woodside_drive_electricity_emissions
-  name: Woodside Drive Electricity Emissions
-  short_name: Woodside Drive Emissions
+  name: Rotary Gardens Electricity Emissions
+  short_name: Rotary Gardens Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
