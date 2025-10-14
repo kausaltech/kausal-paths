@@ -17,6 +17,7 @@ from kausal_common.datasets.models import (
     Dataset,
     DatasetSchema,
     DatasetSchemaScope,
+    Dimension,
     DimensionScope,
 )
 
@@ -81,7 +82,7 @@ class DatasetSchemaFormWithDimensionFormSet(BaseInlineFormSet):
                 new_dimension = form.cleaned_data.get('dimension')
 
                 if old_dimension_pk and new_dimension and old_dimension_pk != new_dimension.pk:
-                    from kausal_common.datasets.models import Dimension
+
                     old_dimension = Dimension.objects.get(pk=old_dimension_pk)
 
                     data_point_count = DataPointDimensionCategory.objects.filter(
@@ -102,7 +103,6 @@ class DatasetSchemaFormWithDimensionFormSet(BaseInlineFormSet):
             if form.instance and form.instance.pk:
                 dimension_pk = form.initial.get('dimension')
                 if dimension_pk:
-                    from kausal_common.datasets.models import Dimension
                     dimension = Dimension.objects.get(pk=dimension_pk)
                     schema = form.instance.schema
 
@@ -129,6 +129,20 @@ class DatasetSchemaMetricFormSet(BaseInlineFormSet):
         super().clean()
 
         errors = []
+
+        # Check that at least one metric is present
+        valid_forms = [
+            form for form in self.forms
+            if form not in self.deleted_forms and not form.cleaned_data.get('DELETE', False)
+        ]
+        non_empty_forms = [
+            form for form in valid_forms
+            if form.cleaned_data and not form.cleaned_data.get('DELETE', False)
+        ]
+        if len(non_empty_forms) == 0:
+            raise ValidationError(
+                _('At least one metric must be defined for the dataset schema.')
+            )
 
         for form in self.deleted_forms:
             if form.instance and form.instance.pk:
