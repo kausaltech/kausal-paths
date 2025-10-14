@@ -30,13 +30,14 @@ nodes:
   name_de: Verbrannte Abfallmenge
   name_en: Mass of solid waste incinerated
   type: simple.AdditiveNode
+  quantity: mass
+  unit: t/a
+  input_dimensions: [waste_incineration_plants]
+  output_dimensions: [waste_incineration_plants]
   input_datasets:
   - id: zuerich/waste_incineration
     column: amount_of_waste
-    forecast_from: 2024
-  unit: t/a
-  quantity: mass
-  output_dimensions: [waste_incineration_plants]
+    forecast_from: 2025
 
 - id: solid_waste_incineration_ccs_share
   name_de: Share of CO2 emissions from solid waste incineration subject to CCS
@@ -45,7 +46,7 @@ nodes:
   input_datasets:
   - id: zuerich/waste_incineration
     column: share_of_ccs
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: waste_incineration_plants
       value: hagenholz
@@ -62,7 +63,7 @@ nodes:
   output_dimensions: [greenhouse_gases]
   input_datasets:
   - id: zuerich/solid_waste_fossil_emissions_share
-    forecast_from: 2024
+    forecast_from: 2025
 
 - id: solid_waste_incineration_emission_factors
   name_de: Solid waste incineration emission factors
@@ -110,7 +111,7 @@ nodes:
   output_dimensions: [emission_sectors, emission_scope]
   input_datasets:
   - id: zuerich/solid_waste_indirect_emissions
-    forecast_from: 2024
+    forecast_from: 2025
   output_nodes:
   - id: solid_waste_treatment_emissions_waste
     from_dimensions:
@@ -182,11 +183,41 @@ nodes:
 
 # ----- Sewage Sludge Processing -----
 
+- id: sewage_sludge_processing_amount
+  name_de: Dry Mass of Sewage Sludge Incinerated
+  name_en: Dry Mass of Sewage Sludge Incinerated
+  type: simple.AdditiveNode
+  quantity: mass
+  unit: t/a
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: zuerich/sewage_sludge_processing
+    column: mass
+    dropna: true
+    forecast_from: 2025
+    filters:
+    - column: greenhouse_gases
+
+- id: sewage_sludge_processing_emission_factors
+  name_de: Sewage Sludge Processing Emission Factors
+  name_en: Sewage Sludge Processing Emission Factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t/t
+  input_dimensions: [greenhouse_gases]
+  output_dimensions: [greenhouse_gases]
+  input_datasets:
+  - id: zuerich/sewage_sludge_processing
+    column: emission_factor
+    dropna: true
+    forecast_from: 2025
+
 - id: sewage_sludge_processing_ccs_share
   name_de: Anteil abgeschiedenes CO2 bei der Klärschlammverwertungsanlage
   name_en: Share of CO2 captured with CCS in sewage sludge processing
   type: simple.AdditiveNode
-  historical_values: [[2015, 0], [2023, 0]]
+  historical_values: [[2015, 0], [2024, 0]]
   input_dataset_processors: [LinearInterpolation]
   unit: '%'
   quantity: fraction
@@ -194,14 +225,16 @@ nodes:
 - id: sewage_sludge_processing_emissions_pre_ccs
   name_de: Treibhausgasemissionen Klärschlammverwertungsanlage ohne CCS
   name_en: Sewage sludge processing emissions pre-CCS
-  type: simple.AdditiveNode
-  unit: t/a
+  type: simple.MultiplicativeNode
   quantity: emissions
+  unit: t/a
   input_dimensions: [greenhouse_gases]
   output_dimensions: [greenhouse_gases]
-  input_datasets:
-  - id: zuerich/sewage_sludge_processing
-    forecast_from: 2024
+  input_nodes:
+  - id: sewage_sludge_processing_amount
+    tags: [non_additive]
+    to_dimensions: []
+  - id: sewage_sludge_processing_emission_factors
 
 - id: sewage_sludge_processing_emissions
   name_de: Treibhausgasemissionen Klärschlammverwertungsanlage
@@ -278,7 +311,7 @@ nodes:
   output_dimensions: [greenhouse_gases]
   input_datasets:
   - id: zuerich/wastewater_treatment_emission_factors
-    forecast_from: 2024
+    forecast_from: 2025
 
 - id: wastewater_treatment_indirect_emissions
   name_de: Wastewater treatment indirect emissions
@@ -290,7 +323,7 @@ nodes:
   output_dimensions: [emission_sectors, emission_scope]
   input_datasets:
   - id: zuerich/wastewater_treatment_indirect_emissions
-    forecast_from: 2024
+    forecast_from: 2025
 
 - id: wastewater_treatment_emissions
   name_en: Wastewater treatment emissions
@@ -335,7 +368,7 @@ nodes:
   input_dimensions: [greenhouse_gases]
   input_datasets:
   - id: zuerich/biogas_processing_emissions
-    forecast_from: 2024
+    forecast_from: 2025
 
 - id: biogas_processing_ccs_share
   name_de: Anteil abgeschiedenes CO2 bei der Biogasaufbereitungsanlage
@@ -344,7 +377,7 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   unit: '%'
   quantity: fraction
-  historical_values: [[2010, 0], [2023, 0]]
+  historical_values: [[2010, 0], [2024, 0]]
 
 - id: biogas_processing_indirect_emissions
   name_de: Biogas processing indirect emissions
@@ -357,7 +390,7 @@ nodes:
   output_dimensions: [emission_scope]
   input_datasets:
   - id: zuerich/biogas_processing_indirect_emissions
-    forecast_from: 2024
+    forecast_from: 2025
   output_nodes:
   - id: biogas_processing_emissions_waste
 
