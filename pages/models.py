@@ -51,7 +51,7 @@ class PathsAdminPageForm(WagtailAdminPageForm):
         if self.instance is not None and self.instance.id is not None:
             pp = self.instance
         else:
-            pp = cast(PathsPage, self.parent_page)
+            pp = cast('PathsPage', self.parent_page)
         for page in pp.get_ancestors(inclusive=True).filter(depth__gte=2):
             site = page.sites_rooted_here.first()
             if site is not None:
@@ -59,10 +59,10 @@ class PathsAdminPageForm(WagtailAdminPageForm):
         else:
             raise Exception("No sites found for page: %s" % self.instance)
 
-        return cast(InstanceConfig, site.instance)  # pyright: ignore
+        return cast('InstanceConfig', site.instance)  # pyright: ignore
 
 
-class PathsPageManager[PageT: PathsPage](PageModelManager[PageT, PageQuerySet[PageT]]):  # pyright: ignore
+class PathsPageManager[PageT: PathsPage](PageModelManager[PageT, PageQuerySet[PageT]]):
     model: type[PageT]
 
     def get_queryset(self) -> PageQuerySet[PageT]:
@@ -77,7 +77,7 @@ class PathsPageManager[PageT: PathsPage](PageModelManager[PageT, PageQuerySet[Pa
             page = next_level.get(slug=slug)
             next_level = page.get_children()
         assert page
-        page = cast(PageT, page.specific)
+        page = cast('PageT', page.specific)
         assert isinstance(page, self.model)
         return page
 
@@ -89,6 +89,11 @@ class PathsPage(Page):
         verbose_name=_('show in footer'),
         help_text=_('Should the page be shown in the footer?'),
     )
+    show_in_additional_links = models.BooleanField(
+        default=False,
+        verbose_name=_('show in additional links'),
+        help_text=_('Should the page be shown in the additional links?'),
+    )
 
     content_panels: Sequence[Panel] = [
         FieldPanel('title', classname="full title"),
@@ -97,6 +102,7 @@ class PathsPage(Page):
         FieldPanel('seo_title'),
         FieldPanel('show_in_menus'),
         FieldPanel('show_in_footer'),
+        FieldPanel('show_in_additional_links'),
         FieldPanel('search_description'),
     ]
     settings_panels = [
@@ -110,12 +116,13 @@ class PathsPage(Page):
     graphql_fields = [
         GraphQLBoolean('show_in_menus', required=True),
         GraphQLBoolean('show_in_footer', required=True),
+        GraphQLBoolean('show_in_additional_links', required=True),
         GraphQLString('title', required=True),
     ]
 
     base_form_class = PathsAdminPageForm
 
-    objects: ClassVar[PathsPageManager[Self]] = PathsPageManager()  # pyright: ignore
+    objects: ClassVar[PathsPageManager[Self]] = PathsPageManager()
     id: AutoField[Combinable | int | str | None, int]
 
     class Meta:
@@ -190,8 +197,8 @@ class OutcomePage(PathsPage):
     lead_title = models.CharField(blank=True, max_length=100, verbose_name=_('Lead title'))
     lead_paragraph = RichTextField(blank=True, verbose_name=_('Lead paragraph'))
 
-    objects: ClassVar[OutcomePageManager] = OutcomePageManager()  # pyright: ignore
-    _default_manager: ClassVar[OutcomePageManager]  # pyright: ignore
+    objects: ClassVar[OutcomePageManager] = OutcomePageManager()
+    _default_manager: ClassVar[OutcomePageManager]
 
     content_panels = [
         *PathsPage.content_panels,
@@ -206,7 +213,7 @@ class OutcomePage(PathsPage):
         GraphQLString('lead_paragraph'),
     ]
 
-    class Meta:  # pyright: ignore
+    class Meta:
         verbose_name = _('Outcome page')
         verbose_name_plural = _('Outcome pages')
 
@@ -254,7 +261,7 @@ class ActionListPage(PathsPage):
 
     parent_page_type = [InstanceRootPage]
 
-    class Meta:  # pyright: ignore
+    class Meta:
         verbose_name = _('Action list page')
         verbose_name_plural = _('Action list pages')
 
@@ -282,12 +289,12 @@ class DashboardPage(PathsPage):
 
     parent_page_type = [InstanceRootPage]
 
-    class Meta:  # pyright: ignore
+    class Meta:
         verbose_name = _('Dashboard page')
         verbose_name_plural = _('Dashboard pages')
 
 
-class InstanceSiteContentManager(models.Manager):
+class InstanceSiteContentManager(models.Manager['InstanceSiteContent']):
     def get_by_natural_key(self, instance_identifier):
         instance = InstanceConfig.objects.get_by_natural_key(instance_identifier)
         return self.get(instance=instance)

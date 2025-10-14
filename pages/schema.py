@@ -48,19 +48,37 @@ class OutcomePageType(PathsPageType):
 
 
 class Query:
-    pages = graphene.List(graphene.NonNull(PageInterface), in_menu=graphene.Boolean(required=False), required=True)
+    pages = graphene.List(
+        graphene.NonNull(PageInterface),
+        in_menu=graphene.Boolean(required=False),
+        in_footer=graphene.Boolean(required=False),
+        in_additional_links=graphene.Boolean(required=False),
+        required=True,
+    )
     page = graphene.Field(PageInterface, path=graphene.String(required=True))
 
     @ensure_instance
     @staticmethod
-    def resolve_pages(query, info: GQLInstanceInfo, in_menu: bool = False, **kwargs) -> PageQuerySet:
+    def resolve_pages(
+        query, info: GQLInstanceInfo, in_menu: bool = False, in_footer: bool = False, in_additional_links: bool = False, **kwargs
+    ) -> list[PathsPage]:
         instance_config = InstanceConfig.objects.get(identifier=info.context.instance.id)
         root_page = instance_config.get_translated_root_page()
         qs = root_page.get_descendants(inclusive=True).live().public().specific()
-        if in_menu:
-            qs = qs.filter(show_in_menus=True)
 
-        return qs
+        out = []
+        for page in qs:
+            if not isinstance(page, PathsPage):
+                continue
+            if in_menu and not page.show_in_menus:
+                continue
+            if in_footer and not page.show_in_footer:
+                continue
+            if in_additional_links and not page.show_in_additional_links:
+                continue
+            out.append(page)
+
+        return out
 
     @ensure_instance
     @staticmethod
@@ -72,9 +90,10 @@ class Query:
         instance_config = InstanceConfig.objects.get(identifier=info.context.instance.id)
         root_page = instance_config.get_translated_root_page()
         path = root_page.url_path.rstrip('/') + path
-        qs = qs.filter(url_path=path)
-        return qs.first()
-
+        for page in qs:
+            if page.url_path == path:
+                return page
+        return None
 
 def monkeypatch_grapple():
     from grapple.registry import registry
