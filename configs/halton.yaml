@@ -1689,6 +1689,22 @@ nodes:
   - id: ems_fleet_emissions
   - id: pw_fleet_emissions
 
+- id: nonfleet_emissions
+  name: Non-fleet Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [energy_carrier, vehicle_fleet, department, scope]
+  output_dimensions: [energy_carrier, vehicle_fleet, department, scope]
+  input_nodes:
+  - id: other_fuel_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+  - id: mobile_fuel_combustion
+    from_dimensions:
+    - id: vehicle_fleet
+      categories: [nonfleet_equipment]
+
 - id: mobile_combustion_emissions
   name: Mobile Combustion Emissions (Scope 1)
   color: '#E15759'
@@ -1699,6 +1715,7 @@ nodes:
   output_dimensions: [energy_carrier, vehicle_fleet, department, scope]
   input_nodes:
   - id: fleet_emissions
+  - id: nonfleet_emissions
   output_nodes:
   - id: net_emissions
     from_dimensions:
