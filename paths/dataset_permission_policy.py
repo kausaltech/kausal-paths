@@ -222,7 +222,7 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
             if obj.person_permissions.filter(person=user.person, role__in=privileged_roles).exists():
                 return True
 
-            if obj.group_permissions.filter(group__users=user, role__in=privileged_roles).exists():
+            if obj.group_permissions.filter(group__persons=user.person, role__in=privileged_roles).exists():
                 return True
 
         return super().user_has_perm(user, action, obj)
