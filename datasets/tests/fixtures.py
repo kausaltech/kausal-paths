@@ -29,6 +29,7 @@ from nodes.models import InstanceConfig
 from nodes.roles import instance_admin_role, instance_reviewer_role, instance_super_admin_role, instance_viewer_role
 from nodes.tests.factories import InstanceConfigFactory
 from people.models import DatasetSchemaGroupPermission, DatasetSchemaPersonPermission, PersonGroup
+from people.tests.factories import PersonFactory
 from users.models import User
 
 
@@ -236,7 +237,8 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         ('schema1_editor', ObjectRole.EDITOR),
         ('schema1_admin', ObjectRole.ADMIN),
     ):
-        user = User.objects.create(email=f'{username}@example.com')
+        person = PersonFactory(email=f'{username}@example.com')
+        user = person.user
         instance_viewer_role.assign_user(instance1, user)
 
         DatasetSchemaPersonPermission.objects.create(
@@ -258,8 +260,9 @@ def dataset_test_data(django_db_setup, django_db_blocker):
             name=group_name,
         )
         username = f'{group_name}_user'
-        user = User.objects.create(email=f'{username}@example.com')
-        group.users.add(user)
+        person = PersonFactory(email=f'{username}@example.com')
+        user = person.user
+        group.persons.add(person)
         instance_viewer_role.assign_user(instance1, user)
         DatasetSchemaGroupPermission.objects.create(
             object=schema1,
@@ -298,6 +301,8 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         'source_ref_on_datapoint': source_ref_on_datapoint,
         'source_ref_on_datapoint2': source_ref_on_datapoint2,
         'source_ref2': source_ref2,
+        **schema1_permission_users,
+        **schema1_permission_group_users,
     }
     yield result
     with django_db_blocker.unblock():
