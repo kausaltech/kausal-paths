@@ -181,11 +181,11 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
         if action == 'view':
             viewer_q = Q(
                 scopes__scope_content_type=ic_content_type,
-                scopes__scope_id__in=self.instance_viewer_role.get_instances_for_user(user)
+                scopes__scope_id__in=self.get_role('instance-viewer').get_instances_for_user(user)
             )
             reviewer_q = Q(
                 scopes__scope_content_type=ic_content_type,
-                scopes__scope_id__in=self.instance_reviewer_role.get_instances_for_user(user)
+                scopes__scope_id__in=self.get_role('instance-reviewer').get_instances_for_user(user)
             )
             q |= viewer_q | reviewer_q
 
