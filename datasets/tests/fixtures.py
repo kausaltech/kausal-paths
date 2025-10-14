@@ -22,12 +22,15 @@ from kausal_common.datasets.models import (
     DimensionScope,
 )
 
+from kausal_common.people.models import ObjectRole
 from paths.context import RealmContext, realm_context
 
 from nodes.models import InstanceConfig
 from nodes.roles import instance_admin_role, instance_reviewer_role, instance_super_admin_role, instance_viewer_role
 from nodes.tests.factories import InstanceConfigFactory
+from people.models import DatasetSchemaGroupPermission, DatasetSchemaPersonPermission, PersonGroup
 from users.models import User
+
 
 
 @pytest.fixture(scope='module')
@@ -225,6 +228,46 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         dataset=dataset2,
         data_source=data_source2,
     )
+
+    # Create users and corresponding roles on schema1
+    schema1_permission_users = {}
+    for username, role in (
+        ('schema1_viewer', ObjectRole.VIEWER),
+        ('schema1_editor', ObjectRole.EDITOR),
+        ('schema1_admin', ObjectRole.ADMIN),
+    ):
+        user = User.objects.create(email=f'{username}@example.com')
+        instance_viewer_role.assign_user(instance1, user)
+
+        DatasetSchemaPersonPermission.objects.create(
+            object=schema1,
+            person=user.person,
+            role=role,
+        )
+        schema1_permission_users[username] = user
+
+    # Create user groups and corresponding roles and users on schema1
+    schema1_permission_group_users = {}
+    for group_name, role in (
+        ('schema1_viewer_group', ObjectRole.VIEWER),
+        ('schema1_editor_group', ObjectRole.EDITOR),
+        ('schema1_admin_group', ObjectRole.ADMIN),
+    ):
+        group = PersonGroup.objects.create(
+            instance=instance1,
+            name=group_name,
+        )
+        username = f'{group_name}_user'
+        user = User.objects.create(email=f'{username}@example.com')
+        group.users.add(user)
+        instance_viewer_role.assign_user(instance1, user)
+        DatasetSchemaGroupPermission.objects.create(
+            object=schema1,
+            group=group,
+            role=role,
+        )
+        schema1_permission_group_users[username] = user
+
 
     result = {
         'instance1': instance1,
