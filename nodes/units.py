@@ -301,6 +301,8 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     l_methanol = 15.6 MJ
     kg_wood = 18.0 MJ
     kg_peat = 12.8 MJ
+    ppot = [power_potential]
+    Wp = W / ppot
     """
 
     for line in DEFINITIONS.strip().splitlines():

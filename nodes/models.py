@@ -699,6 +699,9 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
                 break
         assert home_page_conf is not None
         assert home_page_conf.outcome_node is not None
+        onode = outcome_nodes.get(home_page_conf.outcome_node)
+        if onode is None:
+            raise ValueError(f"Your node '{home_page_conf.outcome_node}' is not an outcome node.")
 
         root_node: Page = cast('Page', Page.get_first_root_node())
         with override(self.primary_language):
@@ -712,7 +715,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
                     title=self.get_name(),
                     slug=self.identifier,
                     url_path='',
-                    outcome_node=outcome_nodes[home_page_conf.outcome_node],
+                    outcome_node=onode,
                 ))
 
             action_list_pages: models.QuerySet[ActionListPage] = home_page.get_children().type(ActionListPage)  # type: ignore

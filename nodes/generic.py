@@ -13,7 +13,7 @@ from common import polars as ppl
 from nodes.actions import ActionNode
 from nodes.calc import extend_last_historical_value_pl
 from nodes.node import NodeMetric
-from nodes.units import Unit, unit_registry
+from nodes.units import Quantity, Unit, unit_registry
 from params.param import BoolParameter, NumberParameter, StringParameter
 
 from .constants import (
@@ -1748,4 +1748,69 @@ class DatasetReduceNode(GenericNode):
             if m.column_id not in df.metric_cols:
                 raise NodeError(self, "Metric column '%s' not found in output" % m.column_id)
             df = df.ensure_unit(m.column_id, m.unit)
+        return df
+
+
+class GenerationCapacityNode(GenericNode):
+    output_metrics = {
+        'generation': NodeMetric(
+            'MWh/a', 'energy', 'generation',
+            'Energy generated with old and new capacity','generation'
+        ),
+        'emissions_avoided': NodeMetric(
+            'kt_co2e/a', 'emissions', 'emissions_avoided',
+            'Emissions avoided by replacing other sources', 'emissions_avoided'
+        ),
+        'upstream_emissions': NodeMetric(
+            'kt_co2e/a', 'emissions', 'upstream_emissions',
+            'Production emissions caused upstream', 'upstream_emissions'
+        ),
+    }
+    allowed_parameters = [
+        *GenericNode.allowed_parameters,
+        NumberParameter('lifetime', label=_('Lifetime of the installation in full years')),
+        NumberParameter('efficiency', label=_('Intrinsic production efficiency')),
+        NumberParameter('performance_ratio', label=_('Performance without losses')),
+        NumberParameter('ef_upstream_production', label=_('Scope 3 emissions from upstream of installation')),
+        NumberParameter('adoption', label=_('Fraction adopted from full potential')),
+        NumberParameter('attribution', label=_('Fraction attributable to this action from adopted')),
+    ]
+    def compute(self) -> ppl.PathsDataFrame:
+        adoption = self.get_typed_parameter_value('adoption', float)
+        attribution = self.get_typed_parameter_value('attribution', float)
+        new = (
+            self.get_input_node(tag='new_installations')
+            .get_output_pl(target_node=self)
+            .with_columns(
+            pl.col(VALUE_COLUMN) * pl.lit(adoption) * pl.lit(attribution)
+        ))
+
+        stock = self._cumulative(new, target_node=self)
+        _lifetime = self.get_parameter_value_int('lifetime') # TODO add retirement
+
+        up = self.get_input_dataset_pl('ef_upstream_production', required=True)
+        new = new.paths.multiply_with_dims(up).rename({VALUE_COLUMN: 'upstream_emissions'})
+
+        efficiency = self.get_parameter_value('efficiency', required=True, units=True)
+        assert isinstance(efficiency, Quantity)
+        performance = self.get_parameter_value_float('performance_ratio', units=False)
+
+        stock = ( # Calculate energy generation
+            stock.multiply_quantity(VALUE_COLUMN, efficiency)
+            .with_columns(
+                pl.col(VALUE_COLUMN) * pl.lit(performance)
+        ))
+
+        ef = self.get_input_dataset_pl(tag='ef_displacement')
+
+        stock = ( # TODO Check that emissions avoided does not double count
+            stock.paths.join_over_index(ef)
+            .multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], 'emissions_avoided')
+            .rename({VALUE_COLUMN: 'generation'})
+            .drop(VALUE_COLUMN + '_right')
+        )
+        df = new.paths.join_over_index(stock)
+        for col in df.metric_cols:
+            df = df.ensure_unit(col, self.output_metrics[col].unit)
+
         return df

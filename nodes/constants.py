@@ -81,7 +81,7 @@ KNOWN_QUANTITIES = ACTIVITY_QUANTITIES | ACTIVITY_FACTOR_QUANTITIES | UNIT_PRICE
     MIX_QUANTITY, GROUPED_MIX_QUANTITY, POPULATION_QUANTITY,
     'ratio', 'exposure', 'exposure_response', 'disease_burden', 'case_burden', 'mass_concentration', 'concentration',
     'body_weight', 'incidence', 'fraction', 'probability', 'ingestion', 'area', 'effect', 'health_effect', 'rate',
-    'speed', 'argument',
+    'speed', 'argument', 'duration',
 }
 
 

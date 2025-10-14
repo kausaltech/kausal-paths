@@ -313,12 +313,14 @@ class PathsDataFrame(pl.DataFrame):
             df = df.ensure_unit(out_col, out_unit)
         return df
 
-    def multiply_quantity(self, col: str, quantity: Quantity, out_unit: Unit | None = None) -> PathsDataFrame:
-        res_unit = self._units[col] * quantity.units
-        df = self.with_columns((pl.col(col) * pl.lit(quantity.m)).alias(col))
-        df._units[col] = res_unit
+    def multiply_quantity(self, col: str, quantity: Quantity, out_unit: Unit | None = None,
+            out_col: str | None = None) -> PathsDataFrame:
+        out_col = out_col or col
+        res_unit = self.get_unit(col) * quantity.units
+        df = self.with_columns((pl.col(col) * pl.lit(quantity.m)).alias(out_col))
+        df = df.set_unit(out_col, res_unit, force=True)
         if out_unit:
-            df = df.ensure_unit(col, out_unit)
+            df = df.ensure_unit(out_col, out_unit)
         return df
 
     def divide_cols(self, cols: list[str], out_col: str, out_unit: Unit | None = None) -> PathsDataFrame:
