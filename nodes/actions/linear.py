@@ -237,6 +237,8 @@ class DatasetReduceAction(ActionNode):
     ]
 
     def compute_effect(self) -> ppl.PathsDataFrame:  # noqa: C901, PLR0915
+
+        # ----- Create historical DataFrame, containing values for only the last historical year.
         n = self.get_input_node(tag='historical', required=False)
         if n is None:
             df = self.get_input_dataset_pl(tag='historical')
@@ -250,7 +252,9 @@ class DatasetReduceAction(ActionNode):
 
         max_hist_year = df[YEAR_COLUMN].max()
         df = df.filter(pl.col(YEAR_COLUMN) == max_hist_year)
+        df = df.paths.cast_index_to_str()
 
+        # ----- Create goal DataFrame.
         goal_input_df = self.get_input_dataset_pl(tag='goal', required=False)
         if goal_input_df is None:
             goal_input_node = self.get_input_node(tag='goal', required=True)
@@ -258,30 +262,26 @@ class DatasetReduceAction(ActionNode):
         assert goal_input_df is not None
         gdf = goal_input_df
 
-        gdf = gdf.paths.cast_index_to_str()
-        df = df.paths.cast_index_to_str()
+        assert len(gdf.metric_cols) == 1
+        gdf = (
+            gdf.rename({gdf.metric_cols[0]: VALUE_COLUMN})
+            .with_columns(pl.lit(value=True).alias(FORECAST_COLUMN))
+        )
 
         if not set(gdf.dim_ids).issubset(set(self.input_dimensions.keys())):
             raise NodeError(self, "Dimension mismatch to input nodes")
 
-        # Filter historical data with only the categories that are
-        # specified in the goal dataset.
+        gdf = gdf.paths.cast_index_to_str()
 
+        # ----- Filter historical DataFrame to only the categories specified in the goal dataset.
         exprs = [pl.col(dim_id).is_in(gdf[dim_id].unique()) for dim_id in gdf.dim_ids]
         if exprs:
             df = df.filter(pl.all_horizontal(exprs))
 
-        end_year = self.get_end_year()
-        assert len(gdf.metric_cols) == 1
-        gdf = (
-            gdf.rename({gdf.metric_cols[0]: VALUE_COLUMN})
-            .with_columns(pl.lit(True).alias(FORECAST_COLUMN))  # noqa: FBT003
-        )
-
+        # ----- If goals are relative (i.e. a multiplier), transform into absolute values by
+        #       multiplying with the last historical values.
         is_mult = self.get_parameter_value('relative_goal', required=False)
         if is_mult:
-            # If the goal series is relative (i.e. a multiplier), transform
-            # it into absolute values by multiplying with the last historical values.
             gdf = gdf.rename({VALUE_COLUMN: 'Multiplier'})
             hdf = df.drop(YEAR_COLUMN)
             metric_cols = [m.column_id for m in self.output_metrics.values()]
@@ -294,21 +294,29 @@ class DatasetReduceAction(ActionNode):
                 gdf = gdf.with_columns(pl.col(col).fill_nan(None))
             gdf = gdf.select_metrics(metric_cols)
 
+        # ----- Concatenate historical and goal DataFrames, ensuring null columns are dropped.
         df = df.paths.to_wide()
         gdf = gdf.paths.to_wide()
 
-        meta = df.get_meta()
+        meta = gdf.get_meta()
         gdf = gdf.filter(pl.col(YEAR_COLUMN) > max_hist_year)
         df = ppl.to_ppdf(pl.concat([df, gdf], how='diagonal'), meta=meta)
+
+        df = df.drop([m for m in df.metric_cols if df[m].is_null().all()])
+        df = df.with_columns([
+            pl.when(~pl.col(FORECAST_COLUMN))
+              .then(pl.col(m).fill_null(0.0))
+              .otherwise(pl.col(m))
+            for m in df.metric_cols
+        ])
         df = df.paths.make_forecast_rows(end_year=self.get_end_year())
         df = df.with_columns([pl.col(m).interpolate() for m in df.metric_cols])
 
-        # Change the time series to be a difference to the last historical
-        # year.
+        # ----- Recalculate the timeseries to be the difference relative to the last historical year.
         exprs = [pl.col(m) - pl.first(m) for m in df.metric_cols]
         df = df.select([YEAR_COLUMN, FORECAST_COLUMN, *exprs])
         df = df.filter(pl.col(FORECAST_COLUMN))
-        df = df.filter(pl.col(YEAR_COLUMN).lt(end_year + 1))
+        df = df.filter(pl.col(YEAR_COLUMN).le(self.get_end_year()))
         df = df.paths.to_narrow()
         for m in self.output_metrics.values():
             if m.column_id not in df.metric_cols:
