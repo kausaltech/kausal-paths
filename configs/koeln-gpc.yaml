@@ -10,8 +10,8 @@ dataset_repo:
 name: Demonstration BASIC+ Treibhausgasinventar
 owner: Köln Stadt
 theme_identifier: de-koeln
-target_year: 2035
-model_end_year: 2050
+target_year: 2023
+model_end_year: 2023
 reference_year: 2008
 minimum_historical_year: 2008
 maximum_historical_year: 2021
