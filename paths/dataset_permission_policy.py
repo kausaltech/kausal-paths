@@ -230,6 +230,15 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
         if not self.user_is_authenticated(user):
             return False
 
+        if hasattr(user, 'person'):
+            # Check dataset schema's person / group permissions first
+            privileged_roles = ObjectRole.get_roles_for_action(action)
+            if DatasetSchemaPersonPermission.objects.filter(person=user.person, role__in=privileged_roles).exists():
+                return True
+
+            if DatasetSchemaGroupPermission.objects.filter(group__persons=user.person, role__in=privileged_roles).exists():
+                return True
+
         allowed_roles: list[InstanceSpecificRole[InstanceConfig]] = [
             self.get_role('instance-admin'),
             self.get_role('instance-super-admin')
