@@ -3,7 +3,7 @@ default_language: en
 site_url: https://cork-nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 50f4e4d29f08b5ca76c41605856c28fe3dd99ffa
+  commit: eb3fee4f3c194c92d991173da8753aa2a8a29ab1
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory for Cork
 owner: City of Cork
@@ -202,14 +202,14 @@ impact_overviews:
 #   indicator_unit: dimensionless
 #   label: Return on investment for the city with co-benefits
 
-# - graph_type: cost_efficiency
-#   cost_node: discounted_total_cost
-#   effect_node: aggregated_net_emissions
-#   indicator_unit: EUR/t
-#   cost_unit: MEUR
-#   effect_unit: kt
-#   plot_limit_for_indicator: 2000
-#   label: Cost efficiency
+- graph_type: cost_efficiency
+  cost_node: discounted_total_cost
+  effect_node: aggregated_net_emissions
+  indicator_unit: EUR/t
+  cost_unit: MEUR
+  effect_unit: kt
+  plot_limit_for_indicator: 2000
+  label: Cost efficiency
 
 dimensions:
 
@@ -228,25 +228,6 @@ dimensions:
   - id: '80_99'
     label: 80-99
     aliases: ['8099']
-
-# - id: pollutant
-#   label: Pollutant
-#   categories:
-#   - id: co2
-#     label: CO2
-#     aliases: [co2e]
-#   - id: nox
-#     label: NOx
-#   - id: pm25_combustion
-#     label: PM2.5 combustion
-#     aliases: [pm25]
-#   - id: pm25_wear_tear
-#     label: PM2.5 wear & tear
-#   - id: pm10_combustion
-#     label: PM10 combustion
-#     aliases: [pm10]
-#   - id: pm10_wear_tear
-#     label: PM10 wear & tear
 
 - id: sector
   label: Sector
@@ -649,41 +630,19 @@ nodes:
     filters:
     - column: source
 
-- id: emissions_saved_in_residential_retrofit
-  name: Emissions saved in residential retrofit
+- id: reduction_efficiency_in_residential_retrofit
+  name: Reduction efficiency in residential retrofit
   type: generic.GenericNode
-  quantity: emissions
-  unit: t_co2e
+  description: This is a causally problematic node, as it assumes that emission reductions are due to money spent, rather than actions implemented with the money.
+  quantity: emission_factor
+  unit: t_co2e/EUR
   input_datasets:
   - id: cork/cost_data
     tags: [baseline]
-    column: emissions_saved_residential_retrofit
+    column: reduction_efficiency
     forecast_from: 2025
     filters:
     - column: source
-
-- id: costs_in_residential_retrofit
-  name: Costs in residential retrofit
-  type: generic.GenericNode
-  quantity: emissions
-  unit: EUR
-  input_datasets:
-  - id: cork/cost_data
-    tags: [baseline]
-    column: residential_capex_opex_estimates
-    forecast_from: 2025
-    filters:
-    - column: source
-
-- id: cost_efficiency_in_residential_retrofit
-  name: Cost efficiency in residential retrofit
-  type: generic.GenericNode
-  quantity: unit_price
-  unit: EUR/t_co2e
-  input_nodes:
-  - id: costs_in_residential_retrofit
-  - id: emissions_saved_in_residential_retrofit
-    tags: [geometric_inverse]
 
 - id: inflation
   name: Inflation
@@ -699,7 +658,7 @@ nodes:
     - column: source
 
 - id: renovation_costs
-  name: Renovation_costs
+  name: Renovation costs
   type: generic.GenericNode
   quantity: currency
   unit: EUR
@@ -708,8 +667,20 @@ nodes:
   input_nodes:
   - id: public_building_floor_area
   - id: renovation_prices
-  # - id: inflation
-  #   tags: [arithmetic_inverse, complement]
+  - id: inflation
+    tags: [arithmetic_inverse, complement_cumulative_product]
+
+- id: co2_reduction_by_residential_retrofit
+  name: CO2 reduction by residential retrofit
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e
+  input_nodes:
+  - id: renovation_costs
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+  - id: reduction_efficiency_in_residential_retrofit
 
 # Emissions saved Residential Retrofit
 # Residential CAPEX & OPEX Estimates
@@ -2051,42 +2022,6 @@ actions:
   params:
     sector: Reduced CO2e emissions committed by Industry, Agriculture, etc. in 
       Other sector
-
-# --------------- Scope 3 ---------------
-
-# - id: improve_building_material_composition
-#   name: 6.1 Improve building material composition
-#   type: linear.DatasetReduceAction
-#   quantity: mass
-#   unit: t/m**2
-#   input_dimensions: [material]
-#   output_dimensions: [material]
-#   group: scope_3
-#   input_nodes:
-#   - id: building_material_composition_historical
-#     tags: [historical]
-#   - id: building_material_composition_goal
-#     tags: [goal]
-#   output_nodes:
-#   - id: building_materials_used_by_material
-#     to_dimensions:
-#     - id: material
-
-# --------------- AFOLU -----------------
-
-# - id: tree_planting
-#   name: 7.1 Tree planting
-#   type: gpc.DatasetAction2
-#   quantity: number
-#   unit: pcs
-#   group: reforestation
-#   input_dimensions: [area_distance]
-#   output_dimensions: [area_distance]
-#   input_datasets: [nzc/defaults]
-#   params:
-#     sector: Number of planted trees until 2030
-#   output_nodes:
-#   - id: number_of_new_trees
 
 pages:
 - id: home
