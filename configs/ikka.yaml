@@ -7,7 +7,7 @@ supported_languages: [de]
 site_url: https://ikka.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 2fb9d34298c02a535a1b1774a54fd65d97cb7831
+  commit: 580902f96830a266c02740185c6da7d78271ad49
 name: IkKA framework
 owner: Kausal Ltd
 theme_identifier: default
@@ -72,6 +72,7 @@ nodes:
 - id: pv_production
   name: PV production
   type: generic.GenerationCapacityNode
+  is_outcome: true
   input_datasets:
   - id: ikka/solar_electricity
     tags: [ef_displacement]
@@ -93,23 +94,65 @@ nodes:
     unit: kWh/kWp/a
   - id: performance_ratio
     value: 0.85
-  - id: adoption
-    value: 1.0
-  - id: attribution
-    value: 1.0
+
+- id: building_owners_pv_installation_baseline
+  name: Building owners' PV installation baseline
+  type: simple.AdditiveNode
+  descriptiont: The city has 10000 suitable rooftops for PV. The building owners
+    started to install PV panels in 2020, and the rate is currently 2 %/a * 
+    100000 roofs * 8 kwp/roof = 1600 kWp.
+  quantity: energy
+  unit: kWp/a
+  input_dataset_processors: [LinearInterpolation]
+  historical_values: [[2010, 0.0], [2020, 0.0], [2024, 1600.0]]
+  output_nodes:
+  - id: pv_production
+    tags: [additive]
 
 actions:
 
-- id: add_pv
-  name: Add PV
-  type: simple.AdditiveAction
+- id: pv_info_campaign
+  name: PV info campaign
+  description: The city organises an information campaign for building owners 
+    about the benefits of photovoltaic panel installations. Estimated 50 % of the 10000 building
+    owners are reached, and adoption is 4 %, up by 2 percentage points from the 
+    baseline 2 %, totalling in 200 installations/a * 8 kWp. The attribution of 
+    this campaign is unclear (data suggests 50 %), so a slider enables 
+    adjustment.
+  type: simple.GenericAction
   quantity: area
   unit: kWp/a
-  input_dataset_processors: [LinearInterpolation]
-  forecast_values: [[2025, 0.0], [2030, 1000.0]]
+  input_datasets:
+  - id: ikka/solar_electricity
+    tags: [baseline]
+    column: pv_info_campaign_potential
+    filters:
+    - column: confidence
+  params:
+  - id: multiplier
+    value: 0.5
+    min_value: 0
+    max_value: 1
+    unit: dimensionless
   output_nodes:
   - id: pv_production
-    tags: [new_installations]
+    tags: [additive]
+
+- id: pv_subsidies
+  name: PV subsidies
+  description: The city organises offers a 1000 € subsidy for photovoltaic panel installations, and there is budget for 100 installations per year. Adoption is 85 % as almost all who are eligible actually use the money and install PV. However, attribution is only 60 %, as many would install even suthout the subsidy. So, the attributable effect of this action is 100000 EUR/a / 1000 EUR * 0.85 * 0.6 * 8 kWp = 408 kWp/a.
+  type: simple.GenericAction
+  quantity: area
+  unit: kWp/a
+  input_datasets:
+  - id: ikka/solar_electricity
+    tags: [baseline]
+    column: pv_subsidies
+    filters:
+    - column: confidence
+  output_nodes:
+  - id: pv_production
+    tags: [additive]
 
 pages:
 - id: home
