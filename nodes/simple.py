@@ -179,17 +179,6 @@ class SimpleNode(Node):
             df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
 
-    def get_measure_datapoint_years(self) -> list[int]:
-        years = set[int]([])
-
-        nodes = [self, *self.get_upstream_nodes()]
-        for node in nodes:
-            if str(type(node)) == 'DatasetNode':
-                assert hasattr(node, '_get_dataset_measure_datapoint_years')
-                years.update(node._get_dataset_measure_datapoint_years())
-
-        return sorted(years)
-
 
 class AdditiveNode(SimpleNode):
     explanation = _("""This is an Additive Node. It performs a simple addition of inputs.
