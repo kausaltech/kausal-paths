@@ -515,17 +515,28 @@ nodes:
   input_nodes:
   - id: transport_demand_per_inhabitant_historical
 
-- id: transport_modal_split
-  name_de: Verkehrsträgeranteil
-  name_en: Transport modal split
+- id: transport_modal_split_historical
+  name_de: Verkehrsträgeranteil (historisch)
+  name_en: Transport modal split (historical)
+  type: simple.MixNode
   quantity: mix
   unit: '%'
-  type: simple.MixNode
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_nodes:
   - id: passenger_kilometers_historical
     tags: [activity]
+
+- id: transport_modal_split
+  name_de: Verkehrsträgeranteil
+  name_en: Transport modal split
+  type: simple.AdditiveNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: transport_modal_split_historical
 
 - id: passenger_kilometers
   name_de: Personenkilometer

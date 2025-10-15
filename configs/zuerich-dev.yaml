@@ -1052,8 +1052,8 @@ actions:
 # Massnahmenpaket 3: Vermeidung von Verkehrsaufkommen
 #
 - id: reduce_transportation_demand
-  name_en: Reduce transportation demand
   name_de: Vermeidung von Verkehrsaufkommen
+  name_en: Reduce transportation demand
   description_de: Durch eine Veränderung der räumlichen Nutzungsstrukturen sollen
     ohne Einbussen hinsichtlich Erreichbarkeit und Lebensqualität die Weglängen und
     somit die Verkehrsleistung reduziert werden. Die Weglängen umfassen alle Wege,
@@ -1064,8 +1064,8 @@ actions:
     langfristig Wirkung zeigen.
   group: mobility
   type: linear.DatasetReduceAction
-  unit: pkm/cap/a
   quantity: per_capita
+  unit: pkm/cap/a
   input_nodes:
   - id: transport_demand_per_inhabitant_historical
     tags: [historical]
@@ -1079,8 +1079,8 @@ actions:
 # Massnahmenpaket 4: Verlagerung des MIV in Richtung des Umweltverbundes
 #
 - id: shift_to_sustainable_transport_modes
-  name_en: Shift to sustainable transport modes
   name_de: Verlagerung des MIV in Richtung des Umweltverbundes
+  name_en: Shift to sustainable transport modes
   description_de: Dieses Massnahmenpaket umfasst die Massnahmen, um den Verkehr vom
     motorisierten Individualverkehr hin zu öffentlichem Verkehr, Velo- oder Fussverkehr
     (= Umweltverbund) zu verlagern. Es geht dabei insbesondere um Massnahmen auf der
@@ -1091,78 +1091,19 @@ actions:
     werden über eine längere Zeitdauer umgesetzt und sind entsprechend erst mittel-
     bis langfristig wirksam.
   group: mobility
-  type: parent.ParentActionNode
-  unit: kt/a
-  quantity: emissions
-  output_dimensions: [emission_scope]
-
-- id: cars_to_transit
-  name_en: Shift from cars to public transportation
-  name_de: Verlagerung vom MIV auf den ÖV
-  parent: shift_to_sustainable_transport_modes
-  group: mobility
-  type: shift.ShiftAction
+  type: linear.DatasetReduceAction
   quantity: mix
+  unit: '%'
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: transport_modal_split_historical
+    tags: [historical]
+  input_datasets:
+  - id: zuerich/transport_modal_split_goals
+    tags: [goal]
   output_nodes:
   - id: transport_modal_split
-  unit: '%'
-  params:
-  - id: shift
-    unit: '%'
-    is_customizable: false
-    value:
-    - source:
-        categories:
-          transport_mode: cars
-      dests:
-      - categories:
-          transport_mode: tram
-      - categories:
-          transport_mode: buses
-      - categories:
-          transport_mode: rail_passenger
-      amounts:
-      - year: 2025
-        source_amount: -0.27
-        dest_amounts: [27.3, 13.9, 58.8]
-      - year: 2039
-        source_amount: -0.27
-        dest_amounts: [27.3, 13.9, 58.8]
-      - year: 2040
-        source_amount: 0
-        dest_amounts: [27.3, 13.9, 58.8]
-
-- id: cars_to_bicycling
-  name_en: Shift from cars to cycling
-  name_de: Verlagerung vom MIV auf den Velo- und Fussverkehr
-  group: mobility
-  parent: shift_to_sustainable_transport_modes
-  type: shift.ShiftAction
-  quantity: mix
-  output_nodes:
-  - id: transport_modal_split
-  unit: '%'
-  params:
-  - id: shift
-    unit: '%'
-    is_customizable: false
-    value:
-    - source:
-        categories:
-          transport_mode: cars
-      dests:
-      - categories:
-          transport_mode: bicycle
-      amounts:
-      - year: 2025
-        source_amount: -0.73
-        dest_amounts: [100]
-      - year: 2039
-        source_amount: -0.73
-        dest_amounts: [100]
-      - year: 2040
-        source_amount: 0
-        dest_amounts: [100]
 
 #
 # Massnahmenpaket 5: Verträgliche Abwicklung des Verkehrs
