@@ -39,6 +39,7 @@ from wagtail_color_panel.fields import ColorField
 from kausal_common.datasets.models import (
     Dataset as DatasetModel,
     DatasetSchema,
+    DatasetSchemaScope,
     Dimension as DatasetDimensionModel,
     DimensionCategory,
     DimensionScope,
@@ -193,16 +194,14 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any
             if include_implicit_public:
                 q |= Q(framework_config__isnull=True)
 
-        ic_content_type = ContentType.objects.get_for_model(InstanceConfig)
-        accessible_instance_config_ids_via_datasets = set(
-            scope.scope_id
-            for dss in DatasetSchema.objects.qs.accessible_by_user(user).prefetch_related('scopes')
-            for scope in dss.scopes.all()
-            if scope.scope_content_type == ic_content_type
-        )
-        if accessible_instance_config_ids_via_datasets:
-            q |= Q(pk__in=accessible_instance_config_ids_via_datasets)
-
+        schema_q = DatasetSchema.accessible_by_user_q(user)
+        schemas = DatasetSchema.objects.filter(schema_q).values_list('pk', flat=True)
+        ic_content_type_id = ContentType.objects.get_for_model(InstanceConfig).pk
+        if schema_q:
+            instance_configs_accessible_through_datasets = DatasetSchemaScope.objects.qs.filter(
+                scope_content_type_id=ic_content_type_id
+            ).filter(schema_id__in=schemas).values_list('scope_id', flat=True)
+            q |= Q(pk__in=instance_configs_accessible_through_datasets)
         return q
 
     def construct_perm_q_anon(self, action: BaseObjectAction) -> Q | None:
