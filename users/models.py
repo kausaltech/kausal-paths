@@ -84,10 +84,10 @@ class User(AbstractUser):
         # correctly, in some places, Django expects this to actually match with field specified in `USERNAME_FIELD`.
         return (self.email,)
 
-    def get_adminable_instances(self) -> QuerySet[InstanceConfig]:
+    def get_adminable_instances(self) -> InstanceConfigQuerySet:
         from nodes.models import InstanceConfig
         if self.is_superuser:
-            return InstanceConfig.objects.all()
+            return InstanceConfig.objects.qs
         return self.get_cached_adminable_instances()
 
     def set_cached_adminable_instances(self, instance_configs: InstanceConfigQuerySet, save: bool = True) -> str:
@@ -97,9 +97,9 @@ class User(AbstractUser):
             self.save(update_fields=('cached_adminable_instances',))
         return cached_value
 
-    def get_cached_adminable_instances(self) -> QuerySet[InstanceConfig]:
+    def get_cached_adminable_instances(self) -> InstanceConfigQuerySet:
         from nodes.models import InstanceConfig
-        return InstanceConfig.objects.filter(pk__in=self.get_cached_adminable_instance_pks())
+        return InstanceConfig.objects.qs.filter(pk__in=self.get_cached_adminable_instance_pks())
 
     def user_is_admin_for_instance(self, instance_config: InstanceConfig) -> bool:
         if self.is_superuser:

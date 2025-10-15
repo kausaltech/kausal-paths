@@ -196,7 +196,7 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any
         ic_content_type = ContentType.objects.get_for_model(InstanceConfig)
         accessible_instance_config_ids_via_datasets = set(
             scope.scope_id
-            for dss in DatasetSchema.objects.accessible_by_user(user).prefetch_related('scopes')
+            for dss in DatasetSchema.objects.qs.accessible_by_user(user).prefetch_related('scopes')
             for scope in dss.scopes.all()
             if scope.scope_content_type == ic_content_type
         )
