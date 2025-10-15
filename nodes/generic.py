@@ -526,7 +526,9 @@ class GenericNode(SimpleNode):
 
         if VALUE_COLUMN not in df.columns:
             raise NodeError(self, f"{VALUE_COLUMN} not found, only {df.metric_cols}.")
-        df = df.ensure_unit(VALUE_COLUMN, self.unit)
+        for col in df.metric_cols:
+            unit = next(metric.unit for metric in self.output_metrics.values() if metric.column_id == col)
+            df = df.ensure_unit(col, unit)
 
         return df
 
@@ -1753,9 +1755,9 @@ class DatasetReduceNode(GenericNode):
 
 class GenerationCapacityNode(GenericNode):
     output_metrics = {
-        'generation': NodeMetric(
-            'MWh/a', 'energy', 'generation',
-            'Energy generated with old and new capacity','generation'
+        'default': NodeMetric(
+            'MWh/a', 'energy', 'default',
+            'Energy generated with old and new capacity', VALUE_COLUMN
         ),
         'emissions_avoided': NodeMetric(
             'kt_co2e/a', 'emissions', 'emissions_avoided',
@@ -1772,24 +1774,18 @@ class GenerationCapacityNode(GenericNode):
         NumberParameter('efficiency', label=_('Intrinsic production efficiency')),
         NumberParameter('performance_ratio', label=_('Performance without losses')),
         NumberParameter('ef_upstream_production', label=_('Scope 3 emissions from upstream of installation')),
-        NumberParameter('adoption', label=_('Fraction adopted from full potential')),
-        NumberParameter('attribution', label=_('Fraction attributable to this action from adopted')),
     ]
-    def compute(self) -> ppl.PathsDataFrame:
-        adoption = self.get_typed_parameter_value('adoption', float)
-        attribution = self.get_typed_parameter_value('attribution', float)
-        new = (
-            self.get_input_node(tag='new_installations')
-            .get_output_pl(target_node=self)
-            .with_columns(
-            pl.col(VALUE_COLUMN) * pl.lit(adoption) * pl.lit(attribution)
-        ))
+    DEFAULT_OPERATIONS = 'add,generation_capacity'
 
-        stock = self._cumulative(new, target_node=self)
-        _lifetime = self.get_parameter_value_int('lifetime') # TODO add retirement
+    def _operation_generation_capacity(self, df: ppl.PathsDataFrame | None, baskets: dict[str, list[Node]], **_kwargs) -> tuple:
+        if df is None:
+            raise NodeError(self, "Node must receive new installations as input node(s).")
+
+        stock = self._cumulative(df, target_node=self)
+        _lifetime = self.get_parameter_value_int('lifetime') # FIXME Add retirement
 
         up = self.get_input_dataset_pl('ef_upstream_production', required=True)
-        new = new.paths.multiply_with_dims(up).rename({VALUE_COLUMN: 'upstream_emissions'})
+        df= df.paths.multiply_with_dims(up).rename({VALUE_COLUMN: 'upstream_emissions'})
 
         efficiency = self.get_parameter_value('efficiency', required=True, units=True)
         assert isinstance(efficiency, Quantity)
@@ -1803,14 +1799,15 @@ class GenerationCapacityNode(GenericNode):
 
         ef = self.get_input_dataset_pl(tag='ef_displacement')
 
-        stock = ( # TODO Check that emissions avoided does not double count
+        stock = ( # FIXME Emissions avoided do double count with downstream emissions
             stock.paths.join_over_index(ef)
             .multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], 'emissions_avoided')
-            .rename({VALUE_COLUMN: 'generation'})
             .drop(VALUE_COLUMN + '_right')
         )
-        df = new.paths.join_over_index(stock)
-        for col in df.metric_cols:
-            df = df.ensure_unit(col, self.output_metrics[col].unit)
+        df = df.paths.join_over_index(stock)
 
-        return df
+        return df, baskets
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.OPERATIONS['generation_capacity'] = self._operation_generation_capacity

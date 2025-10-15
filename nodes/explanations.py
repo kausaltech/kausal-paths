@@ -238,6 +238,10 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         """This is a Fixed Multiplier Node. It multiplies a single input node with a parameter.""")),
     'FloorAreaNode': NodeInfo(_('Floor area node takes in actions and calculates the floor area impacted.')),
     'FormulaNode': NodeInfo(_('This is a Formula Node. It uses a specified formula to calculate the output.')),
+    'GenerationCapacityNode': NodeInfo(_("""
+        Calculates generation of energy when new capacity is installed. Includes scope 3 emissions from installation,
+        and emissions avoided from the capacity that gets replaced.
+        """)),
     'GenericNode': NodeInfo(_("")),
     'GenericAction': NodeInfo(_("Action with GenericNode properties.")),
     'GpcTrajectoryAction': NodeInfo(_(
