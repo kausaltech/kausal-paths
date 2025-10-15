@@ -13,6 +13,7 @@ from kausal_common.datasets.models import (
     DatasetMetric,
     DatasetQuerySet,
     DatasetSchema,
+    DatasetSchemaQuerySet,
     DatasetSourceReference,
     DataSource,
 )
@@ -50,7 +51,7 @@ if TYPE_CHECKING:
 
 _M = TypeVar('_M', bound='PermissionedModel')
 _CCTX = TypeVar('_CCTX', bound='Model | None')  # create context
-_QS = TypeVar('_QS', bound=QuerySet, default=QuerySet[_M])
+_QS = TypeVar('_QS', bound=QuerySet[Any], default=QuerySet[_M])
 
 
 class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, _CCTX, _QS], metaclass=ABCMeta):
@@ -143,7 +144,7 @@ class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, _CCTX, _QS]
 
 
 @final
-class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[DatasetSchema, None]):
+class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[DatasetSchema, None, DatasetSchemaQuerySet]):
     """Permission policy for DatasetSchema, based on its scope (InstanceConfig)."""
 
     def __init__(self):
@@ -189,7 +190,7 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
             )
             q |= viewer_q | reviewer_q
 
-        if not hasattr(user, 'person'):
+        if not hasattr(user, 'person') or user.person is None:
             return q
 
         privileged_roles = ObjectRole.get_roles_for_action(action)
