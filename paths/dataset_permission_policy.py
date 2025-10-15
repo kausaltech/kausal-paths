@@ -206,9 +206,7 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
             person=user.person,
             role__in=privileged_roles
         ).values_list('object_id', flat=True)
-        object_ids = set(group_object_ids) | set(individual_object_ids)
-        if object_ids:
-            return q | Q(pk__in=object_ids)
+        q |= Q(pk__in=group_object_ids) | Q(pk__in=individual_object_ids)
         return q
 
     @override
