@@ -50,6 +50,9 @@ class AdminMiddleware:
         if iscoroutinefunction(get_response):
             markcoroutinefunction(self)
 
+    def get_adminable_instances(self, user):
+        return list(user.get_adminable_instances().filter(site__isnull=False))
+
     async def get_admin_instance(self, request: PathsAdminRequest) -> None | InstanceConfig:
         if not re.match(r'^/admin/', request.path):
             return None
@@ -65,9 +68,7 @@ class AdminMiddleware:
         if admin_instance_id:
             instance_config = await InstanceConfig.objects.filter(id=admin_instance_id).afirst()
 
-        adminable_instances = [
-            ic async for ic in user.get_adminable_instances().filter(site__isnull=False)
-        ]
+        adminable_instances = await sync_to_async(self.get_adminable_instances)(user)
         if instance_config is not None and instance_config not in adminable_instances:
             instance_config = None
 
