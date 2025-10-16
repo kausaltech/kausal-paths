@@ -222,6 +222,50 @@ nodes:
       categories: [natural_gas]
   input_dataset_processors: [LinearInterpolation]
 
+# ----- District Heat
+
+- id: district_heat_production_energy_factor
+  name_de: Primärenergiefaktoren Fernwärme je Energieträger
+  name_en: District heating primary energy factor by carrier
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: kWh/kWh
+  input_dimensions: [energy_carrier, renewable_energy]
+  output_dimensions: [energy_carrier, renewable_energy]
+  input_datasets:
+  - id: zuerich/district_heating_primary_energy_factors
+
+# ---------- EWZ
+
+- id: district_heat_production_gas_grid_share
+  name_de: Share of district heat gas consumption from the gas grid
+  name_en: Share of district heat gas consumption from the gas grid
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  historical_values: [[2010, 0]]
+
+- id: district_heat_production_mix
+  name_de: Fernwärmemix
+  name_en: District heat production mix
+  type: ch.zuerich.DistrictHeatProductionMix
+  quantity: mix
+  unit: '%'
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: zuerich/district_heat_production_mix
+  params:
+    use_gas_network: true
+  input_nodes:
+  - id: gas_network_mix
+    tags: [gas_mix]
+  - id: district_heat_production_gas_grid_share
+    tags: [grid_share]
+    to_dimensions: []
+
+# --------------- Primary Energy
+
 - id: district_heat_primary_energy_factor
   name_de: Primärenergiefaktoren Fernwärme
   name_en: District heating primary energy factor
@@ -247,43 +291,7 @@ nodes:
       categories: [district_heat]
     - id: renewable_energy
 
-- id: district_heat_production_energy_factor
-  name_de: Primärenergiefaktoren Fernwärme je Energieträger
-  name_en: District heating primary energy factor by carrier
-  type: simple.AdditiveNode
-  quantity: energy_factor
-  unit: kWh/kWh
-  input_dimensions: [energy_carrier, renewable_energy]
-  output_dimensions: [energy_carrier, renewable_energy]
-  input_datasets:
-  - id: zuerich/district_heating_primary_energy_factors
-
-- id: district_heat_production_gas_grid_share
-  type: simple.AdditiveNode
-  name_en: Share of district heat gas consumption from the gas grid
-  name_de: Share of district heat gas consumption from the gas grid
-  quantity: fraction
-  unit: '%'
-  historical_values: [[2010, 0]]
-
-- id: district_heat_production_mix
-  type: ch.zuerich.DistrictHeatProductionMix
-  name_en: District heat production mix
-  name_de: Fernwärmemix
-  quantity: mix
-  unit: '%'
-  input_dimensions: [energy_carrier]
-  output_dimensions: [energy_carrier]
-  input_datasets:
-  - zuerich/district_heat_production_mix
-  params:
-    use_gas_network: true
-  input_nodes:
-  - id: gas_network_mix
-    tags: [gas_mix]
-  - id: district_heat_production_gas_grid_share
-    tags: [grid_share]
-    to_dimensions: []
+# --------------- Emissions
 
 - id: district_heat_ccs_share
   name_de: Anteil abgeschiedenes CO2 bei der Fernwärmeerzeugung
@@ -296,9 +304,13 @@ nodes:
 - id: district_heat_emission_factor
   name_de: Treibhausgasfaktoren Fernwärme
   name_en: District heat emission factor
-  unit: g/kWh
-  quantity: emission_factor
   type: ch.zuerich.EnergyProductionEmissionFactor
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [emission_scope]
+  input_datasets:
+  - id: zuerich/district_heat_emission_factor
   input_nodes:
   - id: electricity_emission_factor
     tags: [emission_factor]
@@ -309,17 +321,90 @@ nodes:
   - id: district_heat_production_mix
     tags: [mix]
   - id: district_heat_ccs_share
-    to_dimensions: []
     tags: [ccs]
+    to_dimensions: []
   - id: building_energy_consumption_non_grid_emission_factor
+    tags: [emission_factor]
     from_dimensions:
     - id: energy_carrier
       categories: [biogas_import]
     to_dimensions:
     - id: energy_carrier
     - id: emission_scope
-    tags: [emission_factor]
-  input_datasets:
-  - zuerich/district_heat_emission_factor
+
+# ---------- Concessionary
+
+- id: district_heat_concessionary_production_mix
+  name_de: Fernwärmemix konzessionierte Wärmeverbunde
+  name_en: District Heat Concessionary Production Mix
+  type: simple.AdditiveNode
+  quantity: mix
+  unit: '%'
   input_dimensions: [energy_carrier]
-  output_dimensions: [emission_scope]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: zuerich/district_heat_concessionary_production_mix
+
+# --------------- Primary Energy
+
+- id: district_heat_concessionary_primary_energy_factor
+  name_de: Primärenergiefaktoren Fernwärme konzessionierte Wärmeverbunde
+  name_en: District Heat Concessionary Primary Energy Factor
+  type: simple.MultiplicativeNode
+  unit: kWh/kWh
+  quantity: energy_factor
+  input_dimensions: [energy_carrier, renewable_energy]
+  output_dimensions: [energy_carrier, renewable_energy]
+  input_nodes:
+  - id: district_heat_concessionary_production_mix
+    tags: [non_additive]
+    to_dimensions:
+    - id: energy_carrier
+  - id: district_heat_production_energy_factor
+    tags: [non_additive]
+  output_nodes:
+  - id: building_primary_energy_factor
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [district_heat_concessionary]
+    - id: renewable_energy
+
+# --------------- Emissions
+
+- id: district_heat_emission_factors_by_carrier
+  name_de: District Heat Emission Factors by Carrier
+  name_en: District Heat Emission Factors by Carrier
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [energy_carrier, emission_scope]
+  output_dimensions: [energy_carrier, emission_scope]
+  input_datasets:
+  - id: zuerich/district_heat_emission_factor
+
+- id: district_heat_concessionary_emission_factor
+  name_de: Treibhausgasfaktoren Fernwärme konzessionierte Wärmeverbunde
+  name_en: District Heat Concessionary Emission Factor
+  type: simple.MultiplicativeNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [energy_carrier, emission_scope]
+  output_dimensions: [energy_carrier, emission_scope]
+  input_nodes:
+  - id: district_heat_concessionary_production_mix
+    to_dimensions:
+    - id: energy_carrier
+  - id: district_heat_emission_factors_by_carrier
+    tags: [non_additive]
+  output_nodes:
+  - id: building_energy_consumption_emission_factor
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+      categories: [district_heat_concessionary]
+    - id: emission_scope
