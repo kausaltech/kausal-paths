@@ -13,9 +13,9 @@ target_year: 2024
 model_end_year: 2024
 reference_year: 2023
 minimum_historical_year: 2023
-maximum_historical_year: 2023
+maximum_historical_year: 2024
 emission_unit: t_co2e/a
-emission_forecast_from: 2024
+emission_forecast_from: 2025
 emission_dimensions: [department, scope]
 features:
   baseline_visible_in_graphs: false
@@ -692,6 +692,8 @@ dimensions:
     label: District Oakville (20 Division)
   - id: district_burlington_30_division
     label: District Burlington (30 Division)
+  - id: halton_regional_police
+    label: Halton Regional Police
   - id: communication_towers
     label: Communication Towers
   - id: communication_tower_1080_steeles_ave_e
@@ -1088,7 +1090,7 @@ nodes:
   - id: halton/energy_emission_factors
     column: emission_factor_other_fuels
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
 
 - id: natural_gas_emission_factor
   name: Natural Gas Emission Factor
@@ -1101,7 +1103,7 @@ nodes:
   - id: halton/energy_emission_factors
     column: emission_factor_natural_gas
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
 
 - id: electricity_emission_factor
   name: Electricity Emission Factor
@@ -1114,7 +1116,7 @@ nodes:
   - id: halton/energy_emission_factors
     column: emission_factor_electricity
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
 
 - id: waste_emission_factor
   name: Waste Emission Factor
@@ -1127,7 +1129,7 @@ nodes:
   - id: halton/corporate_waste
     column: emission_factor
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: scope
     - column: department
@@ -1169,7 +1171,7 @@ nodes:
   input_datasets:
   - id: halton/stationary_combustion
     column: fuel_consumption
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - dimension: department
       categories: [corporate_services]
@@ -1292,7 +1294,7 @@ nodes:
   - id: halton/other_stationary_combustion
     column: fuel_consumption
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - dimension: department
       categories: [corporate_services]
@@ -1324,7 +1326,7 @@ nodes:
   input_datasets:
   - id: halton/stationary_combustion
     column: fuel_consumption
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - dimension: department
       categories: [public_works]
@@ -1466,7 +1468,7 @@ nodes:
   - id: halton/other_stationary_combustion
     column: emissions
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - dimension: department
       categories: [public_works]
@@ -1484,7 +1486,7 @@ nodes:
   input_datasets:
   - id: halton/stationary_combustion
     column: fuel_consumption
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - dimension: department
       categories: [emergency_medical_services_ems]
@@ -1517,7 +1519,7 @@ nodes:
   input_datasets:
   - id: halton/stationary_combustion
     column: fuel_consumption
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - dimension: department
       categories: [halton_community_housing_corporation_hchc]
@@ -1640,7 +1642,7 @@ nodes:
   input_datasets:
   - id: halton/mobile_combustion
     column: fuel_consumption
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - dimension: department
       categories: [emergency_medical_services_ems, public_works]
@@ -1759,7 +1761,7 @@ nodes:
   input_datasets:
   - id: halton/purchased_electricity
     column: energy
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - dimension: department
       categories: [corporate_services]
@@ -1882,7 +1884,7 @@ nodes:
   input_datasets:
   - id: halton/purchased_electricity
     column: energy
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - dimension: department
       categories: [public_works]
@@ -2176,7 +2178,7 @@ nodes:
   input_datasets:
   - id: halton/purchased_electricity
     column: energy
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - dimension: department
       categories: [emergency_medical_services_ems]
@@ -2208,7 +2210,7 @@ nodes:
   input_datasets:
   - id: halton/purchased_electricity
     column: energy
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - dimension: department
       categories: [halton_community_housing_corporation_hchc]
@@ -2388,7 +2390,7 @@ nodes:
   input_datasets:
   - id: halton/wastewater_treatment
     column: emissions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: emission_source
       value: process_n2o_from_treatment
@@ -2403,7 +2405,7 @@ nodes:
   input_datasets:
   - id: halton/wastewater_treatment
     column: emissions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: emission_source
       value: process_ch4_from_treatment
@@ -2418,7 +2420,7 @@ nodes:
   input_datasets:
   - id: halton/wastewater_treatment
     column: emissions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: emission_source
       value: fugitive_n2o_from_effluent_discharge
@@ -2433,7 +2435,7 @@ nodes:
   input_datasets:
   - id: halton/wastewater_treatment
     column: emissions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: emission_source
       value: fugitive_ch4_from_effluent_discharge
@@ -2448,7 +2450,7 @@ nodes:
   input_datasets:
   - id: halton/wastewater_treatment
     column: emissions
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - column: emission_source
       value: fugitive_ch4_from_anaerobic_digester
@@ -2479,7 +2481,7 @@ nodes:
 #   input_datasets:
 #   - id: halton/wastewater_treatment
 #     column: emissions
-#     forecast_from: 2024
+#     forecast_from: 2025
 #     filters:
 #     - dimension: emission_source
 #       categories: [chemical_production]
@@ -2547,7 +2549,7 @@ nodes:
   - id: halton/corporate_waste
     column: mass
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - dimension: department
       categories: [corporate_services]
@@ -2647,7 +2649,7 @@ nodes:
   - id: halton/corporate_waste
     column: mass
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - dimension: department
       categories: [public_works]
@@ -2667,6 +2669,23 @@ nodes:
     from_dimensions:
     - id: asset_class
       categories: [biosolids_management_centre]
+      flatten: true
+
+- id: other_pw_waste_emissions
+  name: Other PW Waste Emissions
+  short_name: Other Emissions
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [asset, department, scope]
+  output_dimensions: [asset, department, scope]
+  input_nodes:
+  - id: waste_emission_factor
+    to_dimensions: []
+  - id: pw_corporate_waste
+    from_dimensions:
+    - id: asset_class
+      categories: [other]
       flatten: true
 
 - id: pumping_station_waste_emissions
@@ -2730,6 +2749,7 @@ nodes:
   output_dimensions: [asset, department, scope]
   input_nodes:
   - id: biosolids_management_centre_waste_emissions
+  - id: other_pw_waste_emissions
   - id: pumping_station_waste_emissions
   - id: wwtp_waste_emissions
   - id: wtp_waste_emissions
@@ -2747,7 +2767,7 @@ nodes:
   - id: halton/corporate_waste
     column: mass
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - dimension: department
       categories: [emergency_medical_services_ems]
@@ -2779,7 +2799,7 @@ nodes:
   input_datasets:
   - id: halton/biosolids_transportation
     column: emissions
-    forecast_from: 2024
+    forecast_from: 2025
 
 # ----- Leased Assets
 
@@ -2794,7 +2814,7 @@ nodes:
   - id: halton/leased_assets
     column: energy
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
 
 - id: leased_asset_electricity_emissions
   name: Leased Asset Electricity Emissions
@@ -2820,7 +2840,7 @@ nodes:
   input_datasets:
   - id: halton/leased_assets
     column: fuel_consumption
-    forecast_from: 2024
+    forecast_from: 2025
 
 - id: leased_asset_stationary_combustion_emissions
   name: Leased Asset Stationary Combustion Emissions
@@ -2868,7 +2888,7 @@ nodes:
   - id: halton/corporate_waste
     column: mass
     dropna: true
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - dimension: department
       categories: [halton_regional_police_service_hrps]
@@ -2897,7 +2917,7 @@ nodes:
   input_datasets:
   - id: halton/purchased_electricity
     column: energy
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - dimension: department
       categories: [halton_regional_police_service_hrps]
@@ -2928,7 +2948,7 @@ nodes:
   input_datasets:
   - id: halton/stationary_combustion
     column: fuel_consumption
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - dimension: department
       categories: [halton_regional_police_service_hrps]
@@ -2959,7 +2979,7 @@ nodes:
   input_datasets:
   - id: halton/mobile_combustion
     column: fuel_consumption
-    forecast_from: 2024
+    forecast_from: 2025
     filters:
     - dimension: department
       categories: [halton_regional_police_service_hrps]
@@ -3026,7 +3046,7 @@ nodes:
   input_datasets:
   - id: halton/landfill_waste
     column: emissions
-    forecast_from: 2024
+    forecast_from: 2025
 
 pages:
 - id: home
