@@ -335,7 +335,8 @@ class DatasetDifferenceAction(ActionNode):  # FIXME Merge with DatasetReduceActi
     Receive goal input from a dataset or node and cause an effect.
 
     The output will be a time series with the difference to the
-    predicted baseline value of the input node.
+    predicted baseline value of the input node. So, there is a difference
+    to the DatasetReduceAction only if the predicted baseline trend changes in time.
 
     The goal input can also be relative (for e.g. percentage
     reductions), in which case the input will be treated as

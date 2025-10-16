@@ -38,14 +38,17 @@ dimensions:
     label_fi: Asuminen
     label_en: Housing
     label_sv: Boende
+    aliases: [Asuinrakennukset]
   - id: services
     label_fi: Palvelut
     label_en: Services
     label_sv: Tjänster
+    aliases: [Palvelut ja julkinen sektori]
   - id: industry
     label_fi: Teollisuus
     label_en: Industry
     label_sv: Industri
+    aliases: ['Teollisuusrakennukset, varastot ja muut']
   - id: single_family_houses
     label_fi: Pientalot
     label_en: Single-family houses
@@ -220,6 +223,20 @@ nodes:
   name_en: Floor area of existing building stock
   name_sv: Våningsyta för befintligt byggnadsbestånd
 
+# - id: building_floor_area_existing2
+#   name_fi: Nykyisen rakennuskannan kerrosala
+#   name_en: Floor area of existing building stock
+#   name_sv: Våningsyta för befintligt byggnadsbestånd
+#   type: generic.GenericNode
+#   quantity: floor_area
+#   unit: m**2
+#   input_datasets:
+#   - id: helsinki/aluesarjat/02um_rakennukset_lammitys
+#     tags: [baseline]
+#     filters:
+#     - rename_col: Vuosi
+#       value: Year
+
 - id: building_floor_area_new
   type: finland.aluesarjat.FutureBuildingStock
   name_fi: Uuden rakennuskannan kerrosala
@@ -285,6 +302,23 @@ nodes:
   params:
     sector: Lämmitys|*|_building_heat_source_|_building_use_
 
+# - id: building_heat_statistics
+#   name_fi: Rakennuskannan lämmönkulutustilasto
+#   name_en: Building stock heat consumption statistics
+#   name_sv: Statistik över värmeförbrukning i byggnadsbeståndet
+#   type: generic.GenericNode
+#   quantity: energy
+#   unit: GWh/a
+#   input_dimensions: [building_heat_source, building_use]
+#   output_dimensions: [building_heat_source, building_use]
+#   input_nodes:
+#   - id: building_heat_statistics_pre
+#     from_dimensions:
+#     - id: building_heat_source
+#       categories: [geothermal]
+#       exclude: true
+#   - id: corrected_geothermal_statistics
+
 - id: building_heat_statistics
   name_fi: Rakennuskannan lämmönkulutustilasto
   name_en: Building stock heat consumption statistics
@@ -294,13 +328,23 @@ nodes:
   unit: GWh/a
   input_dimensions: [building_heat_source, building_use]
   output_dimensions: [building_heat_source, building_use]
-  input_nodes:
-  - id: building_heat_statistics_pre
-    from_dimensions:
-    - id: building_heat_source
-      categories: [geothermal]
-      exclude: true
-  - id: corrected_geothermal_statistics
+  input_datasets:
+  - id: hsy/pks_khk_paastot
+    tags: [baseline]
+    column: Energiankulutus
+    filters:
+    - rename_col: Vuosi
+      value: Year
+    - rename_col: Sektori3
+      value: building_heat_source
+    - rename_col: Sektori4
+      value: building_use
+    - column: Kaupunki
+      ref: municipality_name
+    - column: Sektori2
+    - column: Sektori1
+      value: Lämmitys
+      flatten: true
 
 - id: building_heat_per_floor_area_new
   name_fi: Ominaislämmönkulutus uudessa rakennuskannassa
@@ -332,11 +376,11 @@ nodes:
     - id: building_use
     - id: building_heat_source
 
-- id: building_heat_per_floor_area  # FIXME Suggested replacement below but calculates wrong.
+- id: building_heat_per_floor_area_district
   name_fi: Rakennusten lämmitys per ala
   name_en: Building heating per floor area
   name_sv: Byggnadsuppvärmning per våningsyta
-  type: finland.aluesarjat.BuildingHeatPerArea
+  type: generic.GenericNode
   quantity: consumption_factor
   unit: kWh/a/m**2
   input_dimensions: [building_use, building_heat_source]
@@ -344,20 +388,9 @@ nodes:
   input_nodes: 
   - id: building_heat_statistics
   - id: building_floor_area_existing
-
-# - id: building_heat_per_floor_area
-#   name_fi: Rakennusten lämmitys per ala
-#   name_en: Building heating per floor area
-#   name_sv: Byggnadsuppvärmning per våningsyta
-#   type: generic.GenericNode
-#   quantity: consumption_factor
-#   unit: kWh/a/m**2
-#   input_dimensions: [building_use, building_heat_source]
-#   output_dimensions: [building_use, building_heat_source]
-#   input_nodes: 
-#   - id: building_heat_statistics
-#   - id: building_floor_area_existing
-#     tags: [geometric_inverse]
+    tags: [bring_to_maximum_historical_year, geometric_inverse, inventory_only]
+  params:
+    operations: multiply,drop_infs,drop_nans,extend_values
 
 - id: building_heat_consumption_existing
   name_fi: Nykyisen rakennuskannan lämmönkulutus

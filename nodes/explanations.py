@@ -702,7 +702,7 @@ class ValidationRule(ABC):
 class NodeClassRule(ValidationRule):
 
     def explain(self, node_config: dict, context: Context) -> list[str]:
-        html: list[str] = []
+        html: list[str] = [f"{node_config['id']}<br>"]
 
         typ = node_config.get('type')
         if isinstance(typ, str):
