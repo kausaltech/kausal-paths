@@ -104,31 +104,6 @@ nodes:
 
 # ------- Block nodes ---------------
 
-- id: building_emission_inventory
-  name_fi: Rakennusten päästöinventaario
-  name_en: Building emission inventory
-  type: generic.DimensionalSectorEmissions
-  unit: kt/a
-  input_dimensions: [building_heat_source, economic_sector]
-  output_dimensions: [building_heat_source, economic_sector]
-  input_nodes: [all_hsy_emissions]
-  output_nodes:
-  - id: greenhouse_gas_inventory
-    from_dimensions:
-    - id: building_heat_source
-      flatten: true
-  params:
-    sector: Lämmitys|*|_building_heat_source_|_economic_sector_
-
-- id: greenhouse_gas_inventory
-  name_fi: Kasvihuonekaasujen päästöinventaario
-  name_en: Greenhouse gas inventory
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [economic_sector]
-  output_dimensions: [economic_sector]
-
 - id: building_heating_emissions
   name_fi: Rakennusten lämmityksen päästöt
   name_en: Building heating emissions

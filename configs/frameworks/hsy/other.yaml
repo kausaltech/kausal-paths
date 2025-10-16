@@ -104,57 +104,6 @@ nodes:
 
 # ------- Block nodes -------
 
-- id: industry_emission_inventory
-  name_fi: Teollisuuden päästöinventaario
-  name_en: Industry emission inventory
-  name_sv: Industrins utsläppsinventering
-  type: generic.DimensionalSectorEmissions
-  unit: kt/a
-  input_dimensions: [emission_sector, economic_sector]
-  output_dimensions: [emission_sector, economic_sector]
-  input_nodes: [all_hsy_emissions]
-  output_nodes:
-  - id: greenhouse_gas_inventory
-    from_dimensions:
-    - id: emission_sector
-      flatten: true
-  params:
-    sector: Teollisuus ja työkoneet|*|_emission_sector_|_economic_sector_
-
-- id: waste_emission_inventory
-  name_fi: Jätteiden käsittelyn päästöinventaario
-  name_en: Waste treatment emission inventory
-  name_sv: Utsläppsinventering för avfallsbehandling
-  type: generic.DimensionalSectorEmissions
-  unit: kt/a
-  input_dimensions: [waste_treatment, economic_sector]
-  output_dimensions: [waste_treatment, economic_sector]
-  input_nodes: [all_hsy_emissions]
-  output_nodes:
-  - id: greenhouse_gas_inventory
-    from_dimensions:
-    - id: waste_treatment
-      flatten: true
-  params:
-    sector: Jätteiden käsittely|*|_waste_treatment_|_economic_sector_
-
-- id: agriculture_emission_inventory
-  name_fi: Maatalouden päästöinventaario
-  name_en: Agriculture emission inventory
-  name_sv: Jordbrukets utsläppsinventering  
-  type: generic.DimensionalSectorEmissions
-  unit: kt/a
-  input_dimensions: [emission_sector, economic_sector]
-  output_dimensions: [emission_sector, economic_sector]
-  input_nodes: [all_hsy_emissions]
-  output_nodes:
-  - id: greenhouse_gas_inventory
-    from_dimensions:
-    - id: emission_sector
-      flatten: true
-  params:
-    sector: Maatalous|*|_emission_sector_|_economic_sector_
-
 - id: industry_machinery_emissions
   name_fi: Teollisuuden ja työkoneiden päästöt
   name_en: Emissions from industry and machinery

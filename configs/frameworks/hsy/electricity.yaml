@@ -20,23 +20,6 @@ nodes:
 
 # ------- Block nodes -------
 
-- id: electricity_emission_inventory
-  name_en: Electricity emission inventory
-  name_fi: Sähkön päästöinventaario
-  name_sv: Elutsläppsinventering
-  type: generic.DimensionalSectorEmissions
-  unit: kt/a
-  input_dimensions: [economic_sector, energy_carrier]
-  output_dimensions: [economic_sector, energy_carrier]
-  input_nodes: [all_hsy_emissions]
-  output_nodes:
-  - id: greenhouse_gas_inventory
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-  params:
-    sector: Sähkö|*|_energy_carrier_|_economic_sector_
-
 - id: non_heating_electricity_emissions
   name_fi: Kulutussähkön päästöt
   name_en: Consumption electricity emissions

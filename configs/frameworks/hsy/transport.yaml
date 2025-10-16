@@ -102,23 +102,6 @@ nodes:
 
 # ------- Block nodes -------
 
-- id: transport_emission_inventory
-  name_en: Transport emission inventory
-  name_fi: Liikenteen päästöinventaario
-  name_sv: Utsläppsinventering för transport
-  type: generic.DimensionalSectorEmissions
-  unit: kt/a
-  input_dimensions: [vehicle_type, economic_sector]
-  output_dimensions: [vehicle_type, economic_sector]
-  input_nodes: [all_hsy_emissions]
-  output_nodes:
-  - id: greenhouse_gas_inventory
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
-  params:
-    sector: Liikenne|*|_vehicle_type_|_economic_sector_
-
 - id: transport_emissions
   name_fi: Liikenteen päästöt
   name_en: Transport emissions
