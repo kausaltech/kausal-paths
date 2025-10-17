@@ -1109,100 +1109,97 @@ actions:
 # Massnahmenpaket 5: Verträgliche Abwicklung des Verkehrs
 #
 - id: improved_vehicle_fleet
-  name_en: Electrify vehicle fleet
   name_de: Verträgliche Abwicklung des Verkehrs
+  name_en: Electrify vehicle fleet
   description_de: Dieses Massnahmenpaket beschreibt Massnahmen, welche dazu führen,
     dass der verbleibende Verkehr verträglich gestaltet wird (d.h. energieeffizient,
     erneuerbar, leise und sauber). Die Elektromobilität und die Verstetigung (= Verlangsamung)
     des Verkehrs spielen dafür eine Schlüsselfunktion.
   group: mobility
   type: parent.ParentActionNode
-  unit: kt/a
   quantity: emissions
+  unit: kt/a
   output_dimensions: [emission_scope]
 
 - id: electrify_personal_transport
-  name_en: Electrify personal transport
   name_de: Elektrifizierung des MIV
+  name_en: Electrify personal transport
   group: mobility
   parent: improved_vehicle_fleet
   type: linear.DatasetReduceAction
   quantity: mix
+  unit: '%'
   input_dimensions: [vehicle_type]
   output_dimensions: [vehicle_type]
-  input_nodes:
-  - id: vehicle_engine_type_split_historical
-    tags: [historical]
-  output_nodes:
-  - id: vehicle_engine_type_split
   input_datasets:
   - id: zuerich/vehicle_electrification_goals
     tags: [goal]
     filters:
     - dimension: vehicle_type
       groups: [cars, motorbikes]
-  unit: '%'
-
-- id: electrify_goods_transport
-  name_en: Electrify goods transport
-  name_de: Elektrifizierung des Güterverkehr
-  parent: improved_vehicle_fleet
-  group: mobility
-  type: linear.DatasetReduceAction
-  quantity: mix
-  description_en: Vehicle fleet electrification.
-  description_de: Vehicle fleet electrification.
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
   input_nodes:
   - id: vehicle_engine_type_split_historical
     tags: [historical]
   output_nodes:
   - id: vehicle_engine_type_split
+
+- id: electrify_goods_transport
+  name_de: Elektrifizierung des Güterverkehr
+  name_en: Electrify goods transport
+  group: mobility
+  parent: improved_vehicle_fleet
+  type: linear.DatasetReduceAction
+  quantity: mix
+  unit: '%'
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
   input_datasets:
   - id: zuerich/vehicle_electrification_goals
     tags: [goal]
     filters:
     - dimension: vehicle_type
       groups: [vans, lorries]
-  unit: '%'
-
-- id: electrify_public_transportation
-  name_en: Electrify public transportation
-  name_de: Elektrifizierung des ÖV
-  parent: improved_vehicle_fleet
-  group: mobility
-  type: linear.DatasetReduceAction
-  quantity: mix
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
   input_nodes:
   - id: vehicle_engine_type_split_historical
     tags: [historical]
   output_nodes:
   - id: vehicle_engine_type_split
+
+- id: electrify_public_transportation
+  name_de: Elektrifizierung des ÖV
+  name_en: Electrify public transportation
+  group: mobility
+  parent: improved_vehicle_fleet
+  type: linear.DatasetReduceAction
+  quantity: mix
+  unit: '%'
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
   input_datasets:
   - id: zuerich/vehicle_electrification_goals
     tags: [goal]
     filters:
     - dimension: vehicle_type
       groups: [buses, coaches]
-  unit: '%'
+  input_nodes:
+  - id: vehicle_engine_type_split_historical
+    tags: [historical]
+  output_nodes:
+  - id: vehicle_engine_type_split
 
 - id: increase_vehicle_efficiency
   name_de: Effizientere Fahrzeuge
   name_en: Increase vehicle efficiency
-  parent: improved_vehicle_fleet
   group: mobility
+  parent: improved_vehicle_fleet
   type: linear.DatasetReduceAction
-  quantity: fuel_consumption
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
   allow_nulls: true
-  description_de: 'Wirkungsziel: Der Stromverbrauch von Personenwagen sinkt um xx%.
-    Der Treibstoffverbrauch von Personenwagen sinkt um xx%.'
-  input_nodes:
-  - id: transport_consumption_factor_historical
-    metrics: [Electricity, Fuel]
-    tags: [historical]
+  params:
+  - id: relative_goal
+    value: true
+    is_customizable: false
   output_metrics:
   - id: Electricity
     unit: kWh/vkm
@@ -1210,6 +1207,16 @@ actions:
   - id: Fuel
     unit: kg/vkm
     quantity: consumption_factor
+  input_datasets:
+  - id: zuerich/vehicle_fuel_efficiency_improvement
+    tags: [goal]
+    filters:
+    - dimension: vehicle_type
+      groups: [cars]
+  input_nodes:
+  - id: transport_consumption_factor_historical
+    metrics: [Electricity, Fuel]
+    tags: [historical]
   output_nodes:
   - id: transport_fuel_factor
     metrics: [Fuel]
@@ -1219,18 +1226,6 @@ actions:
     - id: energy_carrier
       categories: [electricity]
       flatten: true
-  input_dimensions: [energy_carrier, vehicle_type]
-  output_dimensions: [energy_carrier, vehicle_type]
-  input_datasets:
-  - id: zuerich/vehicle_fuel_efficiency_improvement
-    tags: [goal]
-    filters:
-    - dimension: vehicle_type
-      groups: [cars]
-  params:
-  - id: relative_goal
-    value: true
-    is_customizable: false
 
 - id: electric_non_road_machinery
   name_en: Electrification of building machines and special vehicles
