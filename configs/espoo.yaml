@@ -24,7 +24,7 @@ features:
   show_accumulated_effects: true
   use_datasets_from_db: true
   show_significant_digits: 3
-  show_explanations: false
+  show_explanations: true
 
 include:
 - file: frameworks/hsy/buildings.yaml
@@ -708,25 +708,6 @@ nodes:
     tags: [coalesce]
   params:
     operations: multiply,drop_infs,drop_nans,coalesce,extend_values,add
-
-- id: industry_machinery_emissions2
-  name_fi: Teollisuuden ja työkoneiden päästöt
-  name_en: Emissions from industry and machinery
-  name_sv: Utsläpp från industri och arbetsmaskiner
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [emission_sector, economic_sector]
-  output_dimensions: [emission_sector, economic_sector]
-  input_nodes:
-  - id: hsy_emissions_historical
-    from_dimensions:
-    - id: emission_sector
-      categories: [machinery, industry_fuels]
-  params:
-    operations: add,multiply
-  output_nodes:
-  - id: net_emissions2
 
 - id: transport_emissions2
   name_fi: Liikenteen päästöt
@@ -1704,12 +1685,14 @@ nodes:
   - id: waste_treatment_emission_shares
     tags: [use_as_shares]
   output_nodes:
-  - id: net_emissions
+  - id: net_emissions2
     from_dimensions:
-    - id: economic_sector
-      flatten: true
     - id: waste_treatment
       flatten: true
+    to_dimensions:
+    - id: emission_sector
+      categories: [waste_treatment]
+    - id: economic_sector
   params:
     operations: add,use_as_shares
 
@@ -2511,7 +2494,7 @@ actions:
 # OTHER SECTORS
 #
 
-- id: reduce_waste_treatment_emissions2
+- id: reduce_waste_treatment_emissions
   name_fi: Jätteiden käsittelyn päästöt pienenevät
   name_en: Waste treatment emissions are reduced
   name_sv: Utsläppen från avfallsbehandlingen minskar
@@ -2523,7 +2506,7 @@ actions:
   output_dimensions: [waste_treatment]
   input_nodes:
   - id: waste_treatment_emissions_data_goal
-    tags: [forecast_only, goal]
+    tags: [goal]
   - id: waste_treatment_emissions_data_historical
     tags: [historical_only, historical]
   output_nodes:
@@ -2596,34 +2579,6 @@ actions:
     arbetsmaskiner minska med 50 procent till 2035. Förändringarna har beräknats
     utifrån de genomsnittliga utsläppen under de senaste fem åren, eftersom de 
     årliga variationerna inom sektorn har varit stora.</p>
-  type: gpc.DatasetAction
-  quantity: ratio
-  unit: '%'
-  no_effect_value: 100
-  group: other
-  input_dimensions: [emission_sector, economic_sector]
-  output_dimensions: [emission_sector, economic_sector]
-  input_datasets:
-  - id: gpc/espoo # FIXME Use genericnode Instead
-    tags: [goal]
-    forecast_from: 2025
-    filters:
-    - column: Scenario
-      ref: scenario_name
-    - column: Slice
-      value: industry
-  output_nodes:
-  - id: industry_machinery_emissions
-    to_dimensions:
-    - id: economic_sector
-    - id: emission_sector
-  params:
-    sector: Teollisuus ja työkoneet
-
-- id: reduce_machinery_emissions2
-  name_fi: Teollisuuden ja työkoneiden päästöt pienenevät
-  name_en: Industry and machinery emissions are reduced
-  name_sv: Utsläppen från industri och arbetsmaskinerna minskar
   type: simple.GenericAction
   quantity: fraction
   unit: '%'
@@ -2636,7 +2591,7 @@ actions:
     forecast_from: 2025
     column: vahennysprosentti
   output_nodes:
-  - id: industry_machinery_emissions2
+  - id: industry_machinery_emissions
     tags: [complement]
     to_dimensions:
     - id: emission_sector

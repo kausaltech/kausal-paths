@@ -430,6 +430,19 @@ class PathsExt:
         df = df.with_columns(expr).drop('_Right')
         return df
 
+    # TODO Streamline add_with_dims, multiply_with_dims, add_df, and coalesce_df
+    def coalesce_df(self, odf: ppl.PathsDataFrame, how: Literal['left', 'outer'] = 'outer') -> ppl.PathsDataFrame:
+        df = self._df
+        if len(self._df.metric_cols) != 1 or len(odf.metric_cols) != 1:
+            raise Exception("Currently coalescing only one metric column is supported")
+        out_col = df.metric_cols[0]
+        input_col = odf.metric_cols[0]
+        odf = odf.ensure_unit(input_col, df.get_unit(out_col)).rename({input_col: '_Right'})
+        df = df.paths.join_over_index(odf, how=how)
+        expr = pl.coalesce([pl.col(out_col), pl.col('_Right').fill_null(0)]).alias(out_col)
+        df = df.with_columns(expr).drop('_Right')
+        return df
+
     def concat_vertical(self, other: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         df = self._df
         df_cols = set(df.columns)

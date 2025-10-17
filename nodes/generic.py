@@ -1257,6 +1257,22 @@ class CoalesceNode(GenericNode):
         super().__init__(*args, **kwargs)
         # Register threshold operation
         self.OPERATIONS['coalesce'] = self._operation_coalesce
+        self.OPERATIONS['coalesce2'] = self._operation_coalesce2
+
+    def _operation_coalesce2(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+        """Coalesce the two dataframes."""
+        if df is None:
+            raise NodeError(self, "Cannot apply coalesce because no PathsDataFrame is available.")
+
+        nodes: list[Node] = baskets.get('coalesce', [])
+        baskets['coalesce'] = []
+        if len(nodes) != 1:
+            raise NodeError(self, "There must be exactly one input node with tag 'coalesce'.")
+
+        df_co = nodes[0].get_output_pl(target_node=self)
+        df = df_co.paths.coalesce_df(df, how='outer')
+
+        return df, baskets
 
 
 class CohortNode(GenericNode):
