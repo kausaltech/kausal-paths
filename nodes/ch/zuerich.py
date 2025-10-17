@@ -931,7 +931,6 @@ class TransportEmissionFactor(Node):
         df = df.rename({'EF': m.column_id})
 
         df = convert_to_co2e(df, 'greenhouse_gases')
-        df.write_csv('/Users/mechenich/Desktop/transport_emission_factor - post-edit.csv')
         return df
 
 
