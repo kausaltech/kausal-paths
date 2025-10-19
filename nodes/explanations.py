@@ -15,15 +15,16 @@ TAG_TO_BASKET = {
     'additive': 'add', # FIXME Values should be translatable because they are used in explanations
     'add_from_incoming_dims': 'add_from_incoming_dims',
     'add_to_existing_dims': 'add_to_existing_dims',
+    'base': 'other',
     # These operations only handle existing df and do not take new inputs:
     # apply_multipliet, do_correction, drop_nand, drop_infs, extend_values, extrapolate
     # [get_datasets: generalize to use the port theory]
     # inventory_only, other, select_variant
-    'coalesce': 'coalesce',
     'non_additive': 'multiply',
     'other_node': 'other',
+    'primary': 'coalesce',
     'rate': 'other',
-    'base': 'other',
+    'secondary': 'coalesce',
     'skip_dim_test': 'skip_dim_test',
     'split_by_existing_shares': 'split_by_existing_shares',
     'split_evenly_to_cats': 'split_evenly_to_cats',
@@ -74,8 +75,10 @@ TAG_DESCRIPTIONS = {
     'make_nonnegative': _('Negative result values are replaced with 0.'),
     'make_nonpositive': _('Positive result values are replaced with 0.'),
     'non_additive': _('Input node values are not added but operated despite matching units.'),
+    'primary': _('Use data as primary values even if a secondary value exists.'),
     'ratio_to_last_historical_value': _('Take the ratio of the values compared with the last historical value.'),
     'removing': _('This is the rate of stock removal.'),
+    'secondary': _('Use data only if a primary value does not exist.'),
     'truncate_before_start': _('Truncate values before the reference year. There may be some from data'),
     'truncate_beyond_end': _('Truncate values beyond the model end year. There may be some from data'),
 }
@@ -140,7 +143,7 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         # improvement in energy consumption factor
         """)),
     'CoalesceNode': NodeInfo(_(
-        """Coalesces the empty values with the values from the node with the tag 'coalesce'.""")),
+        "Uses 'primary' tagged data when available, otherwise 'secondary' tagged data. One of the tags must be given.'.")),
     'CohortNode': NodeInfo(_(
         """
         Cohort node takes in initial age structure (inventory) and follows the cohort in time as it ages.

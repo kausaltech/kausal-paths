@@ -439,7 +439,7 @@ class PathsExt:
         input_col = odf.metric_cols[0]
         odf = odf.ensure_unit(input_col, df.get_unit(out_col)).rename({input_col: '_Right'})
         df = df.paths.join_over_index(odf, how=how)
-        expr = pl.coalesce([pl.col(out_col), pl.col('_Right').fill_null(0)]).alias(out_col)
+        expr = pl.coalesce([pl.col(out_col), pl.col('_Right')]).alias(out_col)
         df = df.with_columns(expr).drop('_Right')
         return df
 

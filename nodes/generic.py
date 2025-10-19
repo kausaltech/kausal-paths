@@ -12,7 +12,7 @@ import polars as pl
 from common import polars as ppl
 from nodes.actions import ActionNode
 from nodes.calc import extend_last_historical_value_pl
-from nodes.node import NodeMetric
+from nodes.node import Node, NodeMetric
 from nodes.units import Quantity, Unit, unit_registry
 from params.param import BoolParameter, NumberParameter, StringParameter
 
@@ -35,7 +35,6 @@ if TYPE_CHECKING:
 
     from params import Parameter
 
-    from .node import Node
 
 
 class GenericNode(SimpleNode):
@@ -232,7 +231,6 @@ class GenericNode(SimpleNode):
         'use_as_shares',
         'split_by_existing_shares',
         'split_evenly_to_cats',
-        'select_priority',
         'add_to_existing_dims',
         'add_from_incoming_dims',
     ]
@@ -464,15 +462,6 @@ class GenericNode(SimpleNode):
         df = extend_last_historical_value_pl(df, self.get_end_year())
         return df, baskets
 
-    def _operation_select_priority(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
-        dfin, baskets = self._preprocess_for_one(df, baskets, 'select_priority', stackable=False)
-        assert isinstance(df, ppl.PathsDataFrame)
-
-        df = df.paths.join_over_index(dfin, how='left')
-        df = (df.with_columns(pl.coalesce([VALUE_COLUMN + '_right', VALUE_COLUMN]).alias(VALUE_COLUMN))
-              .drop(VALUE_COLUMN + '_right'))
-        return df, baskets
-
     # -----------------------------------------------------------------------------------
 
     def compute(self) -> ppl.PathsDataFrame:
@@ -505,10 +494,7 @@ class GenericNode(SimpleNode):
             if op_name not in self.OPERATIONS:
                 raise NodeError(self, f"Unknown operation: {op_name}")
 
-            operation_func = self.OPERATIONS[op_name] # TODO Remove OPERATIONS object altogether
-            # operation_func = getattr(self, '_operation_' + op_name)
-            # if not operation_func:
-            #     raise NodeError(self, f"Operation {op_name} not recognized.")
+            operation_func = self.OPERATIONS[op_name]
             df, baskets = operation_func(df, baskets, **kwargs)
         if not isinstance(df, ppl.PathsDataFrame):
             raise NodeError(self, "The output is not a PathsDataFrame.")
@@ -1234,32 +1220,12 @@ class CoalesceNode(GenericNode):
     )
     DEFAULT_OPERATIONS = 'multiply,coalesce,add'
 
-    def _operation_coalesce(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
-        """Coalesce the two dataframes."""
-        if df is None:
-            raise NodeError(self, "Cannot apply coalesce because no PathsDataFrame is available.")
-
-        nodes = baskets.get('coalesce', [])
-        baskets['coalesce'] = []
-        if len(nodes) != 1:
-            raise NodeError(self, "There must be exactly one input node with tag 'coalesce'.")
-
-        df_co = nodes[0].get_output_pl(target_node=self)
-        df = df.paths.join_over_index(df_co, how='outer', index_from='union')
-        df = df.with_columns(
-            pl.coalesce([pl.col(VALUE_COLUMN), pl.col(VALUE_COLUMN + '_right')])
-            .alias(VALUE_COLUMN)
-        ).drop(VALUE_COLUMN + '_right')
-
-        return df, baskets
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Register threshold operation
         self.OPERATIONS['coalesce'] = self._operation_coalesce
-        self.OPERATIONS['coalesce2'] = self._operation_coalesce2
 
-    def _operation_coalesce2(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
+    def _operation_coalesce(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
         """Coalesce the two dataframes."""
         if df is None:
             raise NodeError(self, "Cannot apply coalesce because no PathsDataFrame is available.")
@@ -1267,10 +1233,15 @@ class CoalesceNode(GenericNode):
         nodes: list[Node] = baskets.get('coalesce', [])
         baskets['coalesce'] = []
         if len(nodes) != 1:
-            raise NodeError(self, "There must be exactly one input node with tag 'coalesce'.")
+            raise NodeError(self, "There must be exactly one input node with either tag 'primary' or 'secondary'.")
 
-        df_co = nodes[0].get_output_pl(target_node=self)
-        df = df_co.paths.coalesce_df(df, how='outer')
+        node = nodes[0]
+        assert isinstance(node, Node)
+        df_co = node.get_output_pl(target_node=self)
+        if 'primary' in node.tags:
+            df = df_co.paths.coalesce_df(df, how='outer')
+        else:
+            df = df.paths.coalesce_df(df_co, how='outer')
 
         return df, baskets
 
