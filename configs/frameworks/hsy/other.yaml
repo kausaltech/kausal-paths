@@ -91,6 +91,7 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
+  color: '#ff7f00'  # existing orange
   input_dimensions: [emission_sector, economic_sector]
   output_dimensions: [emission_sector, economic_sector]
   input_datasets:
@@ -120,6 +121,7 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
+  color: '#a4b52b'  # yellow-green
   input_dimensions: [emission_sector, economic_sector]
   output_dimensions: [emission_sector, economic_sector]
   input_datasets:

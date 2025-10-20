@@ -48,7 +48,7 @@ action_groups:
   name: Liikenne
   name_en: Transportation
   name_sv: Trafik
-  color: '#377eb8'
+  color: '#014B30'
 - id: transportation_additional
   name: Liikenteen lisätoimet
   name_en: Additional transportation measures
@@ -58,12 +58,12 @@ action_groups:
   name: Rakennukset
   name_en: Buildings
   name_sv: Byggnader
-  color: '#4daf4a'
+  color: '#ff4f57'
 - id: electricity
   name: Sähkö
   name_en: Electricity
   name_sv: Elektricitet
-  color: '#984ea3'
+  color: '#0047b6'
 - id: industry
   name: Teollisuus ja työkoneet
   name_en: Industry and machinery
@@ -405,164 +405,267 @@ dimensions:
   label_en: Emission sector
   label_sv: Utsläppssektor
   categories:
+  # HEATING (warm reds/oranges)
   - id: district_heating
     label_fi: Kaukolämpö
     label_en: District heating
     label_sv: Fjärrvärme
+    color: '#ff4f57'  # existing red
   - id: oil_heating
     label_fi: Öljylämmitys
     label_en: Oil heating
     label_sv: Oljeuppvärmning
+    color: '#d94a3d'  # darker red
   - id: electric_heating
     label_fi: Sähkölämmitys
     label_en: Electric heating
     label_sv: Eluppvärmning
+    color: '#9c4f96'  # purple-red (electricity connection)
   - id: geothermal_heating
     label_fi: Maalämpö
     label_en: Geothermal heating
+    color: '#6b9b37'  # earth green
+    
+  # ELECTRICITY (blues)
   - id: non_heating_electricity
     label_fi: Kulutussähkö
     label_en: Consumption electricity
     label_sv: Konsumtionsel
+    color: '#0047b6'  # existing blue
+    
+  # TRANSPORTATION - Main & Road (greens)
   - id: transportation
     label_fi: Liikenne
     label_en: Transportation
     label_sv: Trafik
-  - id: industry_and_machinery
-    label_fi: Teollisuus ja työkoneet
-    label_en: Industry and machinery
-    label_sv: Industri och arbetsmaskiner
-  - id: waste_treatment
-    label_fi: Jätteiden käsittely
-    label_en: Waste treatment
-    label_sv: Avfallsbehandling
-  - id: agriculture
-    label_fi: Maatalous
-    label_en: Agriculture
-    label_sv: Jordbruk
-  - id: fields
-    label_fi: Pellot
-    label_en: Fields
-    label_sv: Åkrar
-  - id: cattle_farming
-    label_fi: Kotieläimet
-    label_en: Livestock
-    label_sv: Boskap
-  - id: machinery
-    label_fi: Työkoneet
-    label_en: Machinery
-    label_sv: Arbetsmaskiner
-  - id: industry
-    label_fi: Teollisuus
-    label_en: Industry
-    label_sv: Industri
-    aliases: [Prosessit]
-  - id: industry_fuels
-    label_fi: Teollisuuden polttoaineet
-    label_en: Industrial fuels
-    label_sv: Industriella bränslen
-    aliases: [Polttoaineet]
-  - id: landfills
-    label_fi: Kaatopaikka
-    label_en: Landfills
-    label_sv: Deponier
-  - id: biowaste_composting
-    label_fi: Biojätteen kompostointi
-    label_en: Biowaste composting
-    label_sv: Kompostering av bioavfall
-  - id: waste_water_treatment
-    label_fi: Jäteveden käsittely
-    label_en: Wastewater treatment
-    label_sv: Avloppsvattenbehandling
-  - id: sludge_composting
-    label_fi: Jätevesilietteen kompostointi
-    label_en: Sewage sludge composting
-    label_sv: Kompostering av avloppsslam
+    color: '#02844a'  # medium green
+  - id: road_transport
+    label_fi: Tieliikenne
+    label_en: Road transport
+    color: '#014B30'  # existing dark green
   - id: cars
     aliases: [passenger_cars]
     label_fi: Henkilöautot
     label_en: Cars
     label_sv: Personbilar
+    color: '#01603e'  # dark green
   - id: electric_vehicles
     label_fi: Sähköautot
     label_en: Electric vehicles
     label_sv: Elbilar
+    color: '#0088aa'  # blue-green (electricity)
   - id: hybrid_vehicles
     label_fi: Hybridit
     label_en: Hybrid vehicles
     label_sv: Hybridbilar
-  - id: buses
-    label_fi: Bussit
-    label_en: Buses
-    label_sv: Bussar
-    aliases: [Linja-autot]
-  - id: buses_hsl
-    label_fi: Bussit, HSL
-    label_en: Buses, HSL
-    label_sv: Bussar, HRT
-  - id: buses_other
-    label_fi: Bussit, muu
-    label_en: Buses, other
-    label_sv: Bussar, övriga
-  - id: local_trains
-    label_fi: Lähijunat
-    aliases: [Paikallisjunat]
-    label_en: Commuter trains
-    label_sv: Pendeltåg
-  - id: motorcycles
-    label_fi: Moottoripyörät
-    label_en: Motorcycles
-    label_sv: Motorcyklar
-  - id: trams
-    label_fi: Raitiovaunut
-    aliases: [Ratikat]
-    label_en: Trams
-    label_sv: Spårvagnar
-  - id: metros
-    label_fi: Metrot
-    aliases: [Metro, metro]
-    label_en: Metro
-    label_sv: Tunnelbana
+    color: '#00996b'  # teal-green
+  - id: vans
+    label_fi: Pakettiautot
+    label_en: Vans
+    label_sv: Paketbilar
+    color: '#027549'  # medium-dark green
   - id: trucks
     label_fi: Kuorma-autot
     label_en: Trucks
     label_sv: Lastbilar
     aliases: [Lorries]
-  - id: vans
-    label_fi: Pakettiautot
-    label_en: Vans
-    label_sv: Paketbilar
-  - id: undefined
-    label_fi: Ei määritelty
-    label_en: Undefined
-    label_sv: Odefinierad
+    color: '#013d28'  # very dark green
+  - id: buses
+    label_fi: Bussit
+    label_en: Buses
+    label_sv: Bussar
+    aliases: [Linja-autot]
+    color: '#039b5c'  # lighter green
+  - id: buses_hsl
+    label_fi: Bussit, HSL
+    label_en: Buses, HSL
+    label_sv: Bussar, HRT
+    color: '#04a563'  # light green
+  - id: buses_other
+    label_fi: Bussit, muu
+    label_en: Buses, other
+    label_sv: Bussar, övriga
+    color: '#058f56'  # medium green
+  - id: motorcycles
+    label_fi: Moottoripyörät
+    label_en: Motorcycles
+    label_sv: Motorcyklar
+    color: '#025d3b'  # dark green
+    
+  # TRANSPORTATION - Rail (teals)
+  - id: rail_transport
+    label_fi: Raideliikenne
+    label_en: Rail transport
+    color: '#008577'  # teal
+  - id: local_trains
+    label_fi: Lähijunat
+    aliases: [Paikallisjunat]
+    label_en: Commuter trains
+    label_sv: Pendeltåg
+    color: '#009580'  # light teal
+  - id: trams
+    label_fi: Raitiovaunut
+    aliases: [Ratikat]
+    label_en: Trams
+    label_sv: Spårvagnar
+    color: '#00a894'  # lighter teal
+  - id: metros
+    label_fi: Metrot
+    aliases: [Metro, metro]
+    label_en: Metro
+    label_sv: Tunnelbana
+    color: '#00756a'  # darker teal
+    
+  # TRANSPORTATION - Water (blue-greens)
+  - id: ship_transport
+    label_fi: Laivaliikenne
+    label_en: Ship transport
+    color: '#006f8f'  # blue-green
   - id: leasure_boats
     label_fi: Huviveneet
     label_en: Leisure boats
     label_sv: Fritidsbåtar
+    color: '#0088b3'  # lighter blue-green
   - id: professional_boats
     label_fi: Ammattiveneet
     label_en: Professional boats
     label_sv: Yrkesfartyg
+    color: '#005f7f'  # darker blue-green
   - id: passenger_ships
     label_fi: Matkustajalaivat
     label_en: Passenger ships
     label_sv: Passagerarfartyg
+    color: '#007a9e'  # medium blue-green
   - id: cargo_ships
     label_fi: Rahtilaivat
     label_en: Cargo ships
     label_sv: Lastfartyg
-  - id: rail_transport
-    label_fi: Raideliikenne
-    label_en: Rail transport
-  - id: road_transport
-    label_fi: Tieliikenne
-    label_en: Road transport
-  - id: ship_transport
-    label_fi: Laivaliikenne
-    label_en: Ship transport
-
+    color: '#00567a'  # dark blue-green
+    
+  # INDUSTRY (oranges/browns)
+  - id: industry_and_machinery
+    label_fi: Teollisuus ja työkoneet
+    label_en: Industry and machinery
+    label_sv: Industri och arbetsmaskiner
+    color: '#ff7f00'  # existing orange
+  - id: industry
+    label_fi: Teollisuus
+    label_en: Industry
+    label_sv: Industri
+    aliases: [Prosessit]
+    color: '#e67300'  # darker orange
+  - id: industry_fuels
+    label_fi: Teollisuuden polttoaineet
+    label_en: Industrial fuels
+    label_sv: Industriella bränslen
+    aliases: [Polttoaineet]
+    color: '#cc6600'  # brown-orange
+  - id: machinery
+    label_fi: Työkoneet
+    label_en: Machinery
+    label_sv: Arbetsmaskiner
+    color: '#ff9933'  # lighter orange
+    
+  # WASTE (browns/grays)
+  - id: waste_treatment
+    label_fi: Jätteiden käsittely
+    label_en: Waste treatment
+    label_sv: Avfallsbehandling
+    color: '#8b6f47'  # brown
+  - id: landfills
+    label_fi: Kaatopaikka
+    label_en: Landfills
+    label_sv: Deponier
+    color: '#705d3f'  # dark brown
+  - id: biowaste_composting
+    label_fi: Biojätteen kompostointi
+    label_en: Biowaste composting
+    label_sv: Kompostering av bioavfall
+    color: '#9d8456'  # lighter brown with green tint
+  - id: waste_water_treatment
+    label_fi: Jäteveden käsittely
+    label_en: Wastewater treatment
+    label_sv: Avloppsvattenbehandling
+    color: '#6b7c7a'  # blue-gray
+  - id: sludge_composting
+    label_fi: Jätevesilietteen kompostointi
+    label_en: Sewage sludge composting
+    label_sv: Kompostering av avloppsslam
+    color: '#5a6360'  # dark gray
+    
+  # AGRICULTURE (yellow-greens/browns)
+  - id: agriculture
+    label_fi: Maatalous
+    label_en: Agriculture
+    label_sv: Jordbruk
+    color: '#a4b52b'  # yellow-green
+  - id: fields
+    label_fi: Pellot
+    label_en: Fields
+    label_sv: Åkrar
+    color: '#b8c944'  # lighter yellow-green
+  - id: cattle_farming
+    label_fi: Kotieläimet
+    label_en: Livestock
+    label_sv: Boskap
+    color: '#8c9a2c'  # darker yellow-green/olive
+    
+  # OTHER
+  - id: undefined
+    label_fi: Ei määritelty
+    label_en: Undefined
+    label_sv: Odefinierad
+    color: '#999999'  # neutral gray
+    
 nodes:
+
+# City nodes
+
+- id: net_emissions
+  name_fi: Kokonaispäästöt (scope 1+2)
+  name_en: Net emissions (scope 1+2)
+  name_sv: Totala utsläpp (scope 1+2)
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sector, economic_sector]
+  output_dimensions: [emission_sector, economic_sector]
+  is_outcome: true
+  target_year_goal: 212
+
+- id: population
+  name_fi: Väestö
+  name_en: Population
+  name_sv: Befolkning
+  description_fi: Sitowisen laskelmassa väkiluvun on kaikkien skenaarioiden 
+    osalta oletettu laskennassa kehittyvän Espoon kaupungin pitkän 
+    väestöennusteen perusvaihtoehdon mukaisesti ja olevan 362690 vuonna 2035. 
+    Tässä työkalussa käytetään Tilastokeskuksen väestöennustetta, joka on 345000
+    vuodelle 2035. Toteutunut väestönkehitys (1990, 2000-2022) on saatu 
+    Tilastokeskuksen tilastoista. <a 
+    href="https://stat.hel.fi/pxweb/fi/Aluesarjat/Aluesarjat__vrm__ennak__umkun/Hginseutu_VA_VN02_Vaestonmuutos_ennakko.px/">Lähde</a>
+  description_en: In the Sitowise calculation, the population is assumed to 
+    develop according to the basic alternative of the City of Espoo's long-term 
+    population forecast in all scenarios, reaching 362,690 by 2035. This tool 
+    uses Statistics Finland's population forecast, which is 345,000 for 2035. 
+    The realized population development (1990, 2000-2022) has been obtained from
+    Statistics Finland. <a 
+    href="https://stat.hel.fi/pxweb/fi/Aluesarjat/Aluesarjat__vrm__ennak__umkun/Hginseutu_VA_VN02_Vaestonmuutos_ennakko.px/">Source</a>
+  description_sv: I Sitowises beräkning antas befolkningen utvecklas enligt 
+    basalternativet i Esbo stads långsiktiga befolkningsprognos i alla scenarier
+    och uppgå till 362 690 år 2035. I detta verktyg används Statistikcentralens 
+    befolkningsprognos, som är 345 000 för år 2035. Den faktiska 
+    befolkningsutvecklingen (1990, 2000–2022) har hämtats från 
+    Statistikcentralens statistik. <a 
+    href="https://stat.hel.fi/pxweb/fi/Aluesarjat/Aluesarjat__vrm__ennak__umkun/Hginseutu_VA_VN02_Vaestonmuutos_ennakko.px/">Källa</a>
+  type: generic.GenericNode
+  quantity: population
+  unit: cap
+  input_datasets:
+  - id: espoo/vaestoennuste
+    tags: [baseline]
+    forecast_from: 2025
+    column: population
 
 # GENERIC HSY NODES
 
@@ -724,55 +827,6 @@ nodes:
     tags: [primary]
   params:
     operations: multiply,drop_infs,drop_nans,coalesce,extend_values,add
-
-
-# City nodes
-
-- id: net_emissions
-  name_fi: Kokonaispäästöt (scope 1+2)
-  name_en: Net emissions (scope 1+2)
-  name_sv: Totala utsläpp (scope 1+2)
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [emission_sector, economic_sector]
-  output_dimensions: [emission_sector, economic_sector]
-  is_outcome: true
-  target_year_goal: 212
-
-- id: population
-  name_fi: Väestö
-  name_en: Population
-  name_sv: Befolkning
-  description_fi: Sitowisen laskelmassa väkiluvun on kaikkien skenaarioiden 
-    osalta oletettu laskennassa kehittyvän Espoon kaupungin pitkän 
-    väestöennusteen perusvaihtoehdon mukaisesti ja olevan 362690 vuonna 2035. 
-    Tässä työkalussa käytetään Tilastokeskuksen väestöennustetta, joka on 345000
-    vuodelle 2035. Toteutunut väestönkehitys (1990, 2000-2022) on saatu 
-    Tilastokeskuksen tilastoista. <a 
-    href="https://stat.hel.fi/pxweb/fi/Aluesarjat/Aluesarjat__vrm__ennak__umkun/Hginseutu_VA_VN02_Vaestonmuutos_ennakko.px/">Lähde</a>
-  description_en: In the Sitowise calculation, the population is assumed to 
-    develop according to the basic alternative of the City of Espoo's long-term 
-    population forecast in all scenarios, reaching 362,690 by 2035. This tool 
-    uses Statistics Finland's population forecast, which is 345,000 for 2035. 
-    The realized population development (1990, 2000-2022) has been obtained from
-    Statistics Finland. <a 
-    href="https://stat.hel.fi/pxweb/fi/Aluesarjat/Aluesarjat__vrm__ennak__umkun/Hginseutu_VA_VN02_Vaestonmuutos_ennakko.px/">Source</a>
-  description_sv: I Sitowises beräkning antas befolkningen utvecklas enligt 
-    basalternativet i Esbo stads långsiktiga befolkningsprognos i alla scenarier
-    och uppgå till 362 690 år 2035. I detta verktyg används Statistikcentralens 
-    befolkningsprognos, som är 345 000 för år 2035. Den faktiska 
-    befolkningsutvecklingen (1990, 2000–2022) har hämtats från 
-    Statistikcentralens statistik. <a 
-    href="https://stat.hel.fi/pxweb/fi/Aluesarjat/Aluesarjat__vrm__ennak__umkun/Hginseutu_VA_VN02_Vaestonmuutos_ennakko.px/">Källa</a>
-  type: generic.GenericNode
-  quantity: population
-  unit: cap
-  input_datasets:
-  - id: espoo/vaestoennuste
-    tags: [baseline]
-    forecast_from: 2025
-    column: population
 
 # ----------- Nodes with city-specific adjustments ---------------
 
@@ -1604,6 +1658,7 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
+  color: '#8b6f47'  # brown
   input_dimensions: [waste_treatment, economic_sector]
   output_dimensions: [waste_treatment, economic_sector]
   input_datasets:
@@ -2470,16 +2525,6 @@ scenarios:
   params:
   - id: scenario_name
     value: hne2030
-  - id: improve_personal_traffic_efficiency.enabled
-    value: true
-  - id: increase_remote_work.enabled
-    value: true
-  - id: replace_fossil_fuels_in_district_heating.enabled
-    value: true
-  - id: change_non_heating_electricity.enabled
-    value: true
-  - id: cleaner_electricity_production.enabled
-    value: true
 
 - id: default_old
   name_fi: HNE2030 ennen 2024 lisätoimenpiteitä
