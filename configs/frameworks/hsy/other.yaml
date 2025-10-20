@@ -84,26 +84,6 @@ dimensions:
 
 nodes:
 
-# ------- Common nodes -------
-
-- id: all_hsy_emissions
-  type: finland.hsy.HsyNode
-  name_fi: HSY:n päästöinventaario
-  name_en: HSY emission inventory
-  name_sv: HRM:s utsläppsinventering
-  input_datasets: ['hsy/pks_khk_paastot']
-
-- id: net_emissions
-  name_fi: Kokonaispäästöt (scope 1+2)
-  name_en: Net emissions (scope 1+2)
-  name_sv: Totala utsläpp (scope 1+2)
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  is_outcome: true
-
-# ------- Block nodes -------
-
 - id: industry_machinery_emissions
   name_fi: Teollisuuden ja työkoneiden päästöt
   name_en: Emissions from industry and machinery

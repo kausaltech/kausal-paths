@@ -164,11 +164,6 @@ nodes:
   input_dimensions: [vehicle_type]
   output_dimensions: [vehicle_type]
   input_nodes:
-  # - id: car_fuel_by_energy_carrier
-  #   tags: [forecast_only]
-  #   from_dimensions:
-  #   - id: energy_carrier
-  #     flatten: true
   - id: road_transport_energy_consumption_historical
     tags: [inventory_only]
     from_dimensions:
@@ -281,11 +276,6 @@ nodes:
     tags: [baseline]
     forecast_from: 2025
     column: henkiloautojen_maara
-    # filters:
-    # - column: Slice
-    #   value: transport
-  # params:
-  #   sector: Henkilöautojen määrä
 
 - id: car_fuel_by_energy_carrier
   name_fi: Henkilöautojen polttoaineenkulutus energialähteittäin
