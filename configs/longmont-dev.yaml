@@ -1961,6 +1961,8 @@ nodes:
   - id: transit_percentage_attributable_to_longmont
   - id: transit_mpg
     tags: [geometric_inverse]
+  params:
+    operations: multiply,drop_infs,drop_nans,add
 
 - id: transit_co2_emissions
   name: Transit CO2 emissions
