@@ -115,6 +115,13 @@ class GenericNode(SimpleNode):
                 else:
                     baskets['multiply'].append(node)
 
+        # print(self.id, 'NODE baskets', baskets) # FIXME Is there a bug/difference between the baskets?
+        # nes = self.context.node_explanation_system
+        # if nes is not None:
+        #     b = nes.baskets[self.id]
+        # else:
+        #     b = {}
+        # print(self.id, 'NES baskets', b)
         return baskets
 
     # Operation wrapper functions
@@ -1238,10 +1245,12 @@ class CoalesceNode(GenericNode):
         node = nodes[0]
         assert isinstance(node, Node)
         df_co = node.get_output_pl(target_node=self)
-        if 'primary' in node.tags:
-            df = df_co.paths.coalesce_df(df, how='outer')
+        tags = next(edge.tags for edge in node.edges if edge.output_node.id == self.id)
+        tags.extend(list(node.tags))
+        if 'primary' in tags:
+            df = df_co.paths.coalesce_df(df, how='outer', debug=self.debug, id=self.id)
         else:
-            df = df.paths.coalesce_df(df_co, how='outer')
+            df = df.paths.coalesce_df(df_co, how='outer', debug=self.debug, id=self.id)
 
         return df, baskets
 

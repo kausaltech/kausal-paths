@@ -143,7 +143,7 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         # improvement in energy consumption factor
         """)),
     'CoalesceNode': NodeInfo(_(
-        "Uses 'primary' tagged data when available, otherwise 'secondary' tagged data. One of the tags must be given.'.")),
+        "Uses 'primary' tagged data when available, otherwise 'secondary' tagged data. One of the tags must be given.")),
     'CohortNode': NodeInfo(_(
         """
         Cohort node takes in initial age structure (inventory) and follows the cohort in time as it ages.

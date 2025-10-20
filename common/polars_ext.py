@@ -210,12 +210,12 @@ class PathsExt:
             return ppl.to_ppdf(df, meta=meta)
         years = pl.DataFrame(data=range(last_hist_year + 1, end_year + 1), schema=[YEAR_COLUMN])
         if len(years):
-            df2 = df.join(years, on=YEAR_COLUMN, how='outer', coalesce=True).sort(YEAR_COLUMN)
-            df2 = df2.with_columns([
+            df = df.join(years, on=YEAR_COLUMN, how='outer', coalesce=True).sort(YEAR_COLUMN)
+            df = df.with_columns([
                 pl.when(pl.col(YEAR_COLUMN) > last_hist_year).then(pl.lit(value=True))\
                     .otherwise(pl.col(FORECAST_COLUMN)).alias(FORECAST_COLUMN),
             ])
-        return ppl.to_ppdf(df2, meta=meta)
+        return ppl.to_ppdf(df, meta=meta)
 
     def nafill_pad(self) -> ppl.PathsDataFrame:
         """
@@ -431,7 +431,13 @@ class PathsExt:
         return df
 
     # TODO Streamline add_with_dims, multiply_with_dims, add_df, and coalesce_df
-    def coalesce_df(self, odf: ppl.PathsDataFrame, how: Literal['left', 'outer'] = 'outer') -> ppl.PathsDataFrame:
+    def coalesce_df(
+        self,
+        odf: ppl.PathsDataFrame,
+        how: Literal['left', 'outer'] = 'outer',
+        debug: bool = False,
+        id: str = ''
+    ) -> ppl.PathsDataFrame:
         df = self._df
         if len(self._df.metric_cols) != 1 or len(odf.metric_cols) != 1:
             raise Exception("Currently coalescing only one metric column is supported")
@@ -439,6 +445,9 @@ class PathsExt:
         input_col = odf.metric_cols[0]
         odf = odf.ensure_unit(input_col, df.get_unit(out_col)).rename({input_col: '_Right'})
         df = df.paths.join_over_index(odf, how=how)
+        if debug:
+            print(f"In node {id}, column '{out_col}' is prioritised over '_Right' if available.")
+            print(df)
         expr = pl.coalesce([pl.col(out_col), pl.col('_Right')]).alias(out_col)
         df = df.with_columns(expr).drop('_Right')
         return df
