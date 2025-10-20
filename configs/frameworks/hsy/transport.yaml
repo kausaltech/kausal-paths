@@ -187,26 +187,70 @@ nodes:
   params:
     operations: add,multiply
 
-- id: road_traffic_emissions
-  name_fi: Tieliikenteen päästöt
-  name_en: Road traffic emissions
+- id: road_traffic_emissions_uncorrected
+  name_fi: Tieliikenteen päästöt, korjaamaton
+  name_en: Road traffic emissions, uncorrected
   name_sv: Vägtrafikens utsläpp
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
   input_nodes:
   - id: road_transport_energy_consumption
   - id: road_traffic_emission_factors
-    from_dimensions:
-    - id: economic_sector
-      flatten: true
   output_nodes:
-  - id: transport_emissions
+  - id: road_traffic_emissions
     from_dimensions:
     - id: vehicle_type
       flatten: true
+    to_dimensions:
+    - id: economic_sector
+    - id: emission_sector
+      categories: [road_transport]
+
+- id: road_transport_emissions_historical
+  name: Historialliset tieliikenteen päästöt
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sector, economic_sector]
+  output_dimensions: [emission_sector, economic_sector]
+  input_datasets:
+  - id: hsy/pks_khk_paastot
+    tags: [baseline]
+    column: Päästöt
+    filters:
+    - rename_col: Sektori2
+      value: emission_sector
+    - rename_col: Sektori4
+      value: economic_sector
+    - rename_col: Vuosi
+      value: Year
+    - column: Kaupunki
+      ref: municipality_name
+    - column: Sektori1
+    - column: emission_sector
+      value: Tieliikenne
+      drop_col: false
+    - column: Sektori3
+      flatten: true
+
+- id: road_traffic_emissions
+  name_fi: Tieliikenteen päästöt, korjaamaton
+  name_en: Road traffic emissions, uncorrected
+  name_sv: Vägtrafikens utsläpp
+  type: generic.CoalesceNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sector, economic_sector]
+  output_dimensions: [emission_sector, economic_sector]
+  input_nodes:
+  - id: road_transport_emissions_historical
+    tags: [primary]
+  params:
+    operations: add,coalesce
+  output_nodes: [transport_emissions]
 
 - id: total_car_amount
   name_fi: Henkilöautojen kokonaismäärä
@@ -323,10 +367,12 @@ nodes:
   output_nodes:
   - id: transport_emissions
     from_dimensions:
-    - id: economic_sector
-      flatten: true
     - id: vehicle_type
       flatten: true
+    to_dimensions:
+    - id: economic_sector
+    - id: emission_sector
+      categories: [rail_transport]
 
 - id: water_transport_emissions
   name_fi: Laivaliikenteen päästöt
@@ -341,7 +387,9 @@ nodes:
   output_nodes:
   - id: transport_emissions
     from_dimensions:
-    - id: economic_sector
-      flatten: true
     - id: vehicle_type
       flatten: true
+    to_dimensions:
+    - id: economic_sector
+    - id: emission_sector
+      categories: [ship_transport]

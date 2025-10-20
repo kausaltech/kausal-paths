@@ -4,7 +4,7 @@ supported_languages: [sv, en]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 2c210472e3d647d4b0b1f52fbc43ce12d9fe5e63
+  commit: ae4cf88ab9f9fb4bf35ad7fbfcf7bbe32d5c0ccd
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -24,7 +24,7 @@ features:
   show_accumulated_effects: true
   use_datasets_from_db: true
   show_significant_digits: 3
-  show_explanations: true
+  show_explanations: false
 
 include:
 - file: frameworks/hsy/buildings.yaml
@@ -564,25 +564,25 @@ dimensions:
 
 nodes:
 
-# - id: difference
-#   name: difference
-#   type: generic.GenericNode
-#   quantity: energy
-#   unit: GWh/a
-#   input_dimensions: [emission_sector]
-#   output_dimensions: [emission_sector]
-#   input_nodes:
-#   - id: building_heating_emissions
-#     to_dimensions:
-#     - id: emission_sector
-#       categories: []
-#   - id: non_heating_electricity_emissions
-#   - id: industry_machinery_emissions
-#   - id: transport_emissions
-#   - id: waste_treatment_emissions
-#   - id: agriculture_emissions
-#   - id: hsy_emissions_historical
-#     tags: [arithmetic_inverse]
+- id: difference
+  name: difference
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sector, economic_sector]
+  output_dimensions: [emission_sector, economic_sector]
+  input_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: emission_sector
+      categories: [waste_treatment]
+      exclude: true
+  - id: hsy_emissions_historical
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: emission_sector
+      categories: [landfills, waste_water_treatment, sludge_composting, biowaste_composting]
+      exclude: true
 
 # GENERIC HSY NODES
 
@@ -648,6 +648,115 @@ nodes:
   params:
     operations: multiply,drop_nans,drop_infs
 
+- id: heating_emission_factor
+  name: Lämmityksen päästökertoimet
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [emission_sector]
+  output_dimensions: [emission_sector]
+  input_nodes:
+  - id: electric_heating_emission_factor
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  - id: building_use_index
+    from_dimensions:
+    - id: emission_sector
+      categories: [electric_heating, geothermal_heating]
+    - id: economic_sector
+      categories: [residential]
+      flatten: true
+    - id: building_use
+      flatten: true
+    - id: building_heat_source
+      flatten: true
+  - id: oil_heating_emission_factor
+    to_dimensions:
+    - id: emission_sector
+      categories: [oil_heating]
+  - id: district_heating_emission_factor
+    to_dimensions:
+    - id: emission_sector
+      categories: [district_heating]
+
+- id: building_use_index
+  name: Rakennuksen käyttötarkoitusindeksi
+  type: generic.GenericNode
+  quantity: ratio
+  unit: dimensionless
+  input_dimensions: [emission_sector, economic_sector, building_use, 
+      building_heat_source]
+  output_dimensions: [emission_sector, economic_sector, building_use, 
+      building_heat_source]
+  input_datasets:
+  - id: espoo/rakennuksen_kayttotarkoitusindeksi
+    tags: [baseline]
+    column: value
+
+- id: building_heating_emissions_uncorrected
+  name: Lämmityksen päästöt, korjaamaton
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sector, economic_sector, building_use, 
+      building_heat_source]
+  output_dimensions: [emission_sector, economic_sector, building_use, 
+      building_heat_source]
+  input_nodes:
+  - id: heating_emission_factor
+  - id: building_heat_consumption
+  - id: building_use_index
+  output_nodes:
+  - id: building_heating_emissions
+    from_dimensions:
+    - id: building_use
+      flatten: true
+    - id: building_heat_source
+      flatten: true
+
+- id: building_heating_emissions_historical
+  name: Lämmityksen päästöt, historialliset
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sector, economic_sector]
+  output_dimensions: [emission_sector, economic_sector]
+  input_datasets:
+  - id: hsy/pks_khk_paastot
+    tags: [baseline]
+    column: Päästöt
+    filters:
+    - rename_col: Sektori2
+      value: emission_sector
+    - rename_col: Sektori4
+      value: economic_sector
+    - rename_col: Vuosi
+      value: Year
+    - column: Kaupunki
+      ref: municipality_name
+    - column: Sektori1
+      value: Lämmitys
+    - column: Sektori3
+      flatten: true
+
+- id: building_heating_emissions
+  name: Lämmityksen päästöt
+  type: generic.CoalesceNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sector, economic_sector]
+  output_dimensions: [emission_sector, economic_sector]
+  color: '#ff4f57'
+  input_nodes:
+  - id: building_heating_emissions_historical
+    tags: [inventory_only, primary]
+  params:
+    operations: add,coalesce
+  output_nodes:
+  - id: net_emissions
+
 - id: hsy_emissions
   name: HSY-päästöt
   type: generic.GenericNode
@@ -676,7 +785,7 @@ nodes:
     - rename_col: rakennuksen_kayttotarkoitus
       value: building_use
 
-- id: separate_heating_energy
+- id: separate_heating_energy # TODO Use HSY default dataset instead?
   name: Erillislämmityksen energia
   type: generic.GenericNode
   quantity: energy
@@ -703,53 +812,36 @@ nodes:
   input_nodes:
   - id: separate_heating_energy
   - id: separate_heating_floor_area
-    tags: [geometric_inverse]
+    tags: [geometric_inverse] # FIXME Convert geometric_inverse into _operation_division
   - id: building_heat_per_floor_area_district
-    tags: [coalesce]
+    tags: [primary]
   params:
     operations: multiply,drop_infs,drop_nans,coalesce,extend_values,add
 
-- id: transport_emissions2
-  name_fi: Liikenteen päästöt
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [emission_sector, economic_sector]
-  output_dimensions: [emission_sector, economic_sector]
-  input_nodes:
-  - id: hsy_emissions_historical
-    from_dimensions:
-    - id: emission_sector
-      categories: [machinery, industry_fuels]
-  params:
-    operations: add,multiply
-  output_nodes:
-  - id: net_emissions2
-
 
 # City nodes
-
-- id: net_emissions2
-  name_fi: Kokonaispäästöt (scope 1+2)
-  name_en: Net emissions (scope 1+2)
-  name_sv: Totala utsläpp (scope 1+2)
-  type: simple.AdditiveNode # TODO Use GenericNode when it behaves well on outcome page
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [emission_sector, economic_sector]
-  output_dimensions: [emission_sector, economic_sector]
-  is_outcome: true
-  target_year_goal: 212
 
 - id: net_emissions
   name_fi: Kokonaispäästöt (scope 1+2)
   name_en: Net emissions (scope 1+2)
   name_sv: Totala utsläpp (scope 1+2)
-  type: simple.AdditiveNode # TODO Use GenericNode when it behaves well on outcome page
+  type: generic.GenericNode
   quantity: emissions
   unit: kt/a
+  input_dimensions: [emission_sector, economic_sector]
+  output_dimensions: [emission_sector, economic_sector]
   is_outcome: true
   target_year_goal: 212
+
+# - id: net_emissions
+#   name_fi: Kokonaispäästöt (scope 1+2)
+#   name_en: Net emissions (scope 1+2)
+#   name_sv: Totala utsläpp (scope 1+2)
+#   type: simple.AdditiveNode # TODO Use GenericNode when it behaves well on outcome page
+#   quantity: emissions
+#   unit: kt/a
+#   is_outcome: true
+#   target_year_goal: 212
 
 - id: population
   name_fi: Väestö
@@ -898,7 +990,7 @@ nodes:
   - id: espoo/rakennuskannan_toimet
     tags: [baseline]
     column: kerrosalan_kasvu
-    forecast_from: 2024
+    forecast_from: 2025
 
 - id: building_type_index
   name_fi: Rakennustyyppi-indeksi
@@ -1446,11 +1538,14 @@ nodes:
   - id: passenger_car_kilometers
   - id: passenger_car_emission_factors
   output_nodes:
-  - id: road_traffic_emissions
+  - id: road_traffic_emissions_uncorrected
     from_dimensions:
     - id: energy_carrier
       flatten: true
-
+    to_dimensions:
+    - id: economic_sector
+      categories: [residential]
+    - id: vehicle_type
 
 # -------------- Nodes needed for implementing actions ----------------
 
@@ -1550,6 +1645,18 @@ nodes:
     sector: Lämmitys|Sähkölämmitys|_energy_carrier_|*
 
 # Transport
+
+- id: transport_emissions
+  name_fi: Liikenteen päästöt
+  name_en: Transport emissions
+  name_sv: Transportutsläpp
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  color: '#014B30'
+  input_dimensions: [emission_sector, economic_sector]
+  output_dimensions: [emission_sector, economic_sector]
+  output_nodes: [net_emissions]
 
 - id: truck_factor
   name_fi: Kuorma-autojen kerroin (vähennyspotentiaali)
@@ -1685,7 +1792,7 @@ nodes:
   - id: waste_treatment_emission_shares
     tags: [use_as_shares]
   output_nodes:
-  - id: net_emissions2
+  - id: net_emissions
     from_dimensions:
     - id: waste_treatment
       flatten: true
@@ -1703,7 +1810,7 @@ nodes:
   name_en: Waste treatment emissions
   name_sv: Utsläpp från avfallsbehandling
   description_fi: HSY:n päästötilastoa käytetään eri kategorioiden osuuksien 
-    laskemiseen. Varsinen päästöjen suuruus saadaan Espoon kaupungin 
+    laskemiseen. Varsinainen päästöjen suuruus saadaan Espoon kaupungin 
     tietoaineistosta ja ennusteesta.
   type: generic.DimensionalSectorEmissions
   unit: kt/a

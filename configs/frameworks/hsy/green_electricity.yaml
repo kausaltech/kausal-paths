@@ -88,7 +88,7 @@ nodes:
     - id: energy_carrier
       flatten: true
   - id: indifference_ratio
-    tags: [coalesce]
+    tags: [secondary]
   params:
     operations: multiply,coalesce
 

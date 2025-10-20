@@ -47,9 +47,9 @@ nodes:
     - column: Sektori3
       flatten: true
 
-- id: non_heating_electricity_emissions
-  name_fi: Kulutussähkön päästöt
-  name_en: Consumption electricity emissions
+- id: non_heating_electricity_emissions_uncorrected
+  name_fi: Kulutussähkön päästöt, korjaamaton
+  name_en: Consumption electricity emissions, uncorrected
   name_sv: Utsläpp från konsumtionsel
   type: generic.GenericNode
   quantity: emissions
@@ -65,18 +65,8 @@ nodes:
     to_dimensions:
     - id: energy_carrier
   - id: non_heating_electricity_energy
-  output_nodes:
-  - id: non_heating_electricity_emissions_scaled
-    tags: [coalesce]
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: economic_sector
-    - id: emission_sector
-      categories: [non_heating_electricity]
 
-- id: non_heating_electricity_emissions_scaled
+- id: non_heating_electricity_emissions
   name_fi: Kulutussähkön päästöt
   name_en: Consumption electricity emissions
   name_sv: Utsläpp från konsumtionsel
@@ -88,25 +78,19 @@ nodes:
   output_dimensions: [emission_sector, economic_sector]
   input_nodes:
   - id: non_heating_electricity_emissions_historical
-    tags: [historical_only]
+    tags: [historical_only, primary]
+  - id: non_heating_electricity_emissions_uncorrected
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: economic_sector
+    - id: emission_sector
+      categories: [non_heating_electricity]
   params:
-    operations: add,coalesce2
+    operations: add,coalesce
   output_nodes:
-  - id: net_emissions2
-
-- id: deff
-  name_fi: Kulutussähkön päästöt
-  name_en: Consumption electricity emissions
-  name_sv: Utsläpp från konsumtionsel
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [emission_sector, economic_sector]
-  output_dimensions: [emission_sector, economic_sector]
-  input_nodes:
-  - id: non_heating_electricity_emissions_scaled
-  - id: non_heating_electricity_emissions_historical
-    tags: [arithmetic_inverse]
+  - id: net_emissions
 
 - id: total_electricity_consumption
   name_fi: Sähkön kokonaiskulutus Suomessa

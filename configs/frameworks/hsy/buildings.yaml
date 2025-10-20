@@ -104,61 +104,61 @@ nodes:
 
 # ------- Block nodes ---------------
 
-- id: building_heating_emissions
-  name_fi: Rakennusten lämmityksen päästöt
-  name_en: Building heating emissions
-  name_sv: Utsläpp från byggnadsuppvärmning
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  output_nodes: [net_emissions]
-  color: '#ff4f57'
+# - id: building_heating_emissions
+#   name_fi: Rakennusten lämmityksen päästöt
+#   name_en: Building heating emissions
+#   name_sv: Utsläpp från byggnadsuppvärmning
+#   type: simple.AdditiveNode
+#   quantity: emissions
+#   unit: kt/a
+#   output_nodes: [net_emissions]
+#   color: '#ff4f57'
 
-- id: district_heating_emissions
-  name_fi: Kaukolämmön päästöt
-  name_en: District heating emissions
-  name_sv: Fjärrvärmeutsläpp
-  output_nodes: [building_heating_emissions]
-  input_nodes: [district_heating_emission_factor]
-  type: simple.EmissionFactorActivity
-  unit: kt/a
+# - id: district_heating_emissions
+#   name_fi: Kaukolämmön päästöt
+#   name_en: District heating emissions
+#   name_sv: Fjärrvärmeutsläpp
+#   output_nodes: [building_heating_emissions]
+#   input_nodes: [district_heating_emission_factor]
+#   type: simple.EmissionFactorActivity
+#   unit: kt/a
 
-- id: oil_heating_emissions
-  name_fi: Öljylämmityksen päästöt
-  name_en: Oil heating emissions
-  name_sv: Utsläpp från oljeuppvärmning
-  output_nodes: [building_heating_emissions]
-  input_nodes: [oil_heating_emission_factor]
-  type: simple.EmissionFactorActivity
-  unit: kt/a
+# - id: oil_heating_emissions
+#   name_fi: Öljylämmityksen päästöt
+#   name_en: Oil heating emissions
+#   name_sv: Utsläpp från oljeuppvärmning
+#   output_nodes: [building_heating_emissions]
+#   input_nodes: [oil_heating_emission_factor]
+#   type: simple.EmissionFactorActivity
+#   unit: kt/a
 
-- id: direct_electric_heating_emissions
-  name_fi: Sähkölämmityksen päästöt 
-  name_en: Electric heating emissions
-  name_sv: Utsläpp från eluppvärmning
-  type: simple.EmissionFactorActivity
-  unit: kt/a
-  input_nodes:
-  - id: electric_heating_emission_factor
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-  output_nodes:
-  - id: building_heating_emissions
+# - id: direct_electric_heating_emissions
+#   name_fi: Sähkölämmityksen päästöt 
+#   name_en: Electric heating emissions
+#   name_sv: Utsläpp från eluppvärmning
+#   type: simple.EmissionFactorActivity
+#   unit: kt/a
+#   input_nodes:
+#   - id: electric_heating_emission_factor
+#     from_dimensions:
+#     - id: energy_carrier
+#       flatten: true
+#   output_nodes:
+#   - id: building_heating_emissions
 
-- id: geothermal_heating_emissions
-  name_fi: Maalämmön päästöt
-  name_en: Geothermal heating emissions  
-  name_sv: Utsläpp från geotermisk uppvärmning
-  type: simple.EmissionFactorActivity
-  unit: kt/a
-  input_nodes:
-  - id: electric_heating_emission_factor
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-  output_nodes:
-  - id: building_heating_emissions
+# - id: geothermal_heating_emissions
+#   name_fi: Maalämmön päästöt
+#   name_en: Geothermal heating emissions  
+#   name_sv: Utsläpp från geotermisk uppvärmning
+#   type: simple.EmissionFactorActivity
+#   unit: kt/a
+#   input_nodes:
+#   - id: electric_heating_emission_factor
+#     from_dimensions:
+#     - id: energy_carrier
+#       flatten: true
+#   output_nodes:
+#   - id: building_heating_emissions
 
 - id: district_heating_emission_factor
   name_fi: Kaukolämmön päästökerroin
@@ -380,7 +380,7 @@ nodes:
   - id: building_heat_per_floor_area
   - id: building_floor_area_existing
   - id: building_heat_statistics
-    tags: [coalesce]
+    tags: [secondary]
 
 - id: building_heat_consumption
   name_fi: Koko rakennuskannan lämmönkulutus
@@ -394,32 +394,32 @@ nodes:
   input_nodes: 
   - building_heat_consumption_existing
   - building_heat_consumption_new
-  output_nodes:
-  - id: district_heating_emissions
-    from_dimensions:
-    - id: building_heat_source
-      categories: [district_heat]
-      flatten: true
-    - id: building_use
-      flatten: true
-  - id: oil_heating_emissions
-    from_dimensions:
-    - id: building_heat_source
-      categories: [oil]
-      flatten: true
-    - id: building_use
-      flatten: true
-  - id: geothermal_heating_emissions
-    from_dimensions:
-    - id: building_heat_source
-      categories: [geothermal]
-      flatten: true
-    - id: building_use
-      flatten: true
-  - id: direct_electric_heating_emissions
-    from_dimensions:
-    - id: building_heat_source
-      categories: [direct_electric]
-      flatten: true
-    - id: building_use
-      flatten: true
+  # output_nodes:
+  # - id: district_heating_emissions
+  #   from_dimensions:
+  #   - id: building_heat_source
+  #     categories: [district_heat]
+  #     flatten: true
+  #   - id: building_use
+  #     flatten: true
+  # - id: oil_heating_emissions
+  #   from_dimensions:
+  #   - id: building_heat_source
+  #     categories: [oil]
+  #     flatten: true
+  #   - id: building_use
+  #     flatten: true
+  # - id: geothermal_heating_emissions
+  #   from_dimensions:
+  #   - id: building_heat_source
+  #     categories: [geothermal]
+  #     flatten: true
+  #   - id: building_use
+  #     flatten: true
+  # - id: direct_electric_heating_emissions
+  #   from_dimensions:
+  #   - id: building_heat_source
+  #     categories: [direct_electric]
+  #     flatten: true
+  #   - id: building_use
+  #     flatten: true
