@@ -28,6 +28,12 @@ INSTANCE_REVIEWER_ROLE: InstanceRoleIdentifier = 'instance-reviewer'
 
 NONE_ROLE = 'none'
 
+# To be able to act as a subsector admin in the Wagtail admin,
+# certain model permissions need to exist for the user.
+# Those permissions are gathered here in this group, which
+# is automatically added to all subsector admins.
+SUBSECTOR_ADMIN_GROUP_NAME = 'Paths Subsector Admins'
+
 MODEL_CALC_OP = 'model.calculate'
 MODEL_CACHE_OP = 'model.cache'
 NODE_CALC_OP = 'node.calculate'
