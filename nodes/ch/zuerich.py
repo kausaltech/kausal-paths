@@ -966,6 +966,7 @@ class TransportEmissionsForFuel(AdditiveNode):
                 tr_node.get_output_pl(target_node=self)
                 .rename({VALUE_COLUMN: 'TR'})
                 .ensure_unit('TR', df.get_unit(m.column_id))
+                .filter(~pl.col(FORECAST_COLUMN))
             )
 
             # Join the DF, add TR to the metric column, and drop TR. DF contains dimension combos with differing last years
