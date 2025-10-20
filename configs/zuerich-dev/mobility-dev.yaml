@@ -691,7 +691,7 @@ nodes:
   type: formula.FormulaNode
   quantity: emissions
   unit: kg/kg
-  output_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type, greenhouse_gases]
   params:
     formula: tank_respiration / (vehicle_kilometers_historical * transport_fuel_factor)
     extend_last_historical_value: true
@@ -732,7 +732,6 @@ nodes:
     to_dimensions:
     - id: vehicle_type
     - id: greenhouse_gases
-      categories: [co2_eq]
     - id: emission_scope
       categories: [scope1]
 
