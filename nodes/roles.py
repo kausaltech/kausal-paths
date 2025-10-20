@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import ABCMeta
 from typing import TYPE_CHECKING
 
 from django.utils.translation import gettext_lazy as _
@@ -26,7 +27,7 @@ if TYPE_CHECKING:
     from nodes.models import InstanceConfig
 
 
-class InstanceGroupMembershipRole(InstanceFieldGroupRole['InstanceConfig']):
+class InstanceGroupMembershipRole(InstanceFieldGroupRole['InstanceConfig'], metaclass=ABCMeta):
     def __init__(self):
         from .models import InstanceConfig
         super().__init__(InstanceConfig)
