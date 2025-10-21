@@ -293,7 +293,7 @@ dimensions:
     label: Bahn (Gueterverkehr)
     label_en: Rail (goods transport)
   - id: rail_passenger
-    label: Bahn (Personverkehr)
+    label: Bahn (Personenverkehr)
     label_en: Rail (passenger transport)
 
   - id: liner_ship_diesel
