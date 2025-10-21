@@ -829,20 +829,10 @@ nodes:
     children:
     - kind: node
       label: Total heating demand
-      node_id: building_heat_energy_use
+      node_id: building_heat_energy_use_observed
+      dimensions: []
       desired_outcome: decreasing
       scenarios: [default, progress_tracking]
-      dimensions:
-      - id: energy_carrier
-        flatten: true
-      - id: heating_type
-        flatten: true
-      - id: scope
-        flatten: true
-      - id: fuel_type
-        flatten: true
-      - id: building_energy_class
-        flatten: true
   - kind: group
     label: District heating
     children:

@@ -143,7 +143,7 @@ class VisualizationNodeOutput(VisualizationEntry):
 
     def get_measure_datapoint_years(self, node: Node) -> list[int]:
         if isinstance(node, DatasetNode):
-            return node.get_measure_datapoint_years()
+            return node.get_measure_datapoint_years(self.dimensions)
         return []
 
     def get_output(self, node: Node) -> PathsDataFrame:
