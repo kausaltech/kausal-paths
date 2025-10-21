@@ -232,8 +232,8 @@ nodes:
       flatten: true
 
 - id: road_traffic_emissions
-  name_fi: Tieliikenteen päästöt, korjaamaton
-  name_en: Road traffic emissions, uncorrected
+  name_fi: Tieliikenteen päästöt
+  name_en: Road traffic emissions
   name_sv: Vägtrafikens utsläpp
   type: generic.CoalesceNode
   quantity: emissions
@@ -242,7 +242,7 @@ nodes:
   output_dimensions: [emission_sector, economic_sector]
   input_nodes:
   - id: road_transport_emissions_historical
-    tags: [primary]
+    tags: [inventory_only, primary]
   params:
     operations: add,coalesce
   output_nodes: [transport_emissions]

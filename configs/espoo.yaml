@@ -4,7 +4,7 @@ supported_languages: [sv, en]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ae4cf88ab9f9fb4bf35ad7fbfcf7bbe32d5c0ccd
+  commit: bfaf7b7955816d05c62bf37d4e89958685f8f521
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -425,14 +425,12 @@ dimensions:
     label_fi: Maalämpö
     label_en: Geothermal heating
     color: '#6b9b37'  # earth green
-    
   # ELECTRICITY (blues)
   - id: non_heating_electricity
     label_fi: Kulutussähkö
     label_en: Consumption electricity
     label_sv: Konsumtionsel
     color: '#0047b6'  # existing blue
-    
   # TRANSPORTATION - Main & Road (greens)
   - id: transportation
     label_fi: Liikenne
@@ -491,7 +489,6 @@ dimensions:
     label_en: Motorcycles
     label_sv: Motorcyklar
     color: '#025d3b'  # dark green
-    
   # TRANSPORTATION - Rail (teals)
   - id: rail_transport
     label_fi: Raideliikenne
@@ -515,7 +512,6 @@ dimensions:
     label_en: Metro
     label_sv: Tunnelbana
     color: '#00756a'  # darker teal
-    
   # TRANSPORTATION - Water (blue-greens)
   - id: ship_transport
     label_fi: Laivaliikenne
@@ -541,7 +537,6 @@ dimensions:
     label_en: Cargo ships
     label_sv: Lastfartyg
     color: '#00567a'  # dark blue-green
-    
   # INDUSTRY (oranges/browns)
   - id: industry_and_machinery
     label_fi: Teollisuus ja työkoneet
@@ -565,7 +560,6 @@ dimensions:
     label_en: Machinery
     label_sv: Arbetsmaskiner
     color: '#ff9933'  # lighter orange
-    
   # WASTE (browns/grays)
   - id: waste_treatment
     label_fi: Jätteiden käsittely
@@ -592,7 +586,6 @@ dimensions:
     label_en: Sewage sludge composting
     label_sv: Kompostering av avloppsslam
     color: '#5a6360'  # dark gray
-    
   # AGRICULTURE (yellow-greens/browns)
   - id: agriculture
     label_fi: Maatalous
@@ -609,14 +602,13 @@ dimensions:
     label_en: Livestock
     label_sv: Boskap
     color: '#8c9a2c'  # darker yellow-green/olive
-    
   # OTHER
   - id: undefined
     label_fi: Ei määritelty
     label_en: Undefined
     label_sv: Odefinierad
     color: '#999999'  # neutral gray
-    
+
 nodes:
 
 # City nodes
@@ -1443,6 +1435,18 @@ nodes:
     tags: [baseline]
 
 - id: passenger_car_kilometers
+  name_fi: Henkilöautojen ajokilometrit
+  type: generic.GenericNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  input_datasets:
+  - id: espoo/ajoneuvosuorite_henkiloautotyypeittain
+    tags: [baseline]
+    column: ajoneuvosuorite
+
+- id: passenger_car_kilometers2
   name_fi: Henkilöautojen ajokilometrit
   type: generic.GenericNode
   quantity: mileage
@@ -2439,7 +2443,7 @@ actions:
     column: vahennysprosentti
   output_nodes:
   - id: industry_machinery_emissions
-    tags: [complement]
+    tags: [extend_to_history, complement]
     to_dimensions:
     - id: emission_sector
 
@@ -2458,17 +2462,17 @@ actions:
   unit: '%'
   group: transportation
   output_nodes:
-  - id: road_transport_energy_forecast
-    tags: [complement]
+  - id: passenger_car_kilometers
+    tags: [extend_to_history, complement]
     to_dimensions: []
-  # - id: rail_transport_energy # FIXME You need to add zeros to history first.
-  #   tags: [complement] # FIXME But then you need to fix double counting in road_transport_energy_forecast.
-  #   to_dimensions: [] # FIXME So, use coalesce for a better structure.
+  - id: rail_transport_energy
+    tags: [extend_to_history, complement]
+    to_dimensions: []
   input_datasets:
   - id: espoo/liikenteen_toimenpiteet
     tags: [baseline]
     column: liikennejarjestelman_tehostaminen
-    forecast_from: 2025
+    forecast_from: 2026
 
 - id: increase_remote_work
   name_fi: Etätyön lisääminen
@@ -2481,14 +2485,14 @@ actions:
   unit: '%'
   group: transportation
   output_nodes:
-  - id: road_transport_energy_forecast
-    tags: [complement]
+  - id: passenger_car_kilometers
+    tags: [extend_to_history, complement]
     to_dimensions: []
   input_datasets:
   - id: espoo/liikenteen_toimenpiteet
     tags: [baseline]
     column: etatyon_lisaaminen
-    forecast_from: 2025
+    forecast_from: 2026
 
 scenarios:
 

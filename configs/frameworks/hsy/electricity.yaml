@@ -58,7 +58,7 @@ nodes:
   output_dimensions: [emission_sector, economic_sector]
   input_nodes:
   - id: non_heating_electricity_emissions_historical
-    tags: [historical_only, primary]
+    tags: [inventory_only, primary]
   - id: non_heating_electricity_emissions_uncorrected
     from_dimensions:
     - id: energy_carrier
