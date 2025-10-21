@@ -936,28 +936,41 @@ class TransportEmissionFactor(Node):
 
 class TransportEmissionsForFuel(AdditiveNode):
     def compute(self) -> ppl.PathsDataFrame:
+        # Read DF from the transport_fuel_factor node; contains interpolated and extended values to 2040.
         ff_node = self.get_input_node(tag='fuel_factor')
         ffdf = ff_node.get_output_pl(target_node=self)
         ffdf = ffdf.rename({VALUE_COLUMN: 'fuel'})
 
+        # Read DF from the transport_emission_factors dataset; contains interpolated values, which are then extended to 2024.
         efdf = self.get_input_dataset_pl(tag='emission_factor')
+        efdf = extend_last_historical_value_pl(efdf, efdf[YEAR_COLUMN].max()) # type: ignore
         eunit = efdf.get_unit('emission_factor')
         if 'vehicle' not in eunit.dimensionality:
             efdf = efdf.set_unit('emission_factor', 'kg/vkm', force=True)
+
+        # Join the two DFs. By dropping nulls, DF is truncated to 2024. EFDF doesn't have energy carrier dimension.
         df = efdf.paths.join_over_index(ffdf, index_from='union').drop_nulls()
 
+        # Divide EF (kg[ghg]/km) by FF (kg[fuel]/km), to obtain kg[ghg]/kg[fuel]. Filter to rows in which this result > 0. Sum
+        # over energy carriers.
         df = df.filter(pl.col('fuel').gt(0))
         df = df.divide_cols(['emission_factor', 'fuel'], 'EFFuel')
         m = self.get_default_output_metric()
         df = df.filter(pl.col('EFFuel').gt(0)).select_metrics(['EFFuel']).rename(dict(EFFuel=m.column_id))
         df = df.paths.sum_over_dims(['energy_carrier'])
+
+        # Read DF from transport_tank_respiration_for_fuel node; contains extended values to 2040.
         tr_node = self.get_input_node(tag='tank_respiration', required=False)
         if tr_node is not None:
             trdf = (
                 tr_node.get_output_pl(target_node=self)
                 .rename({VALUE_COLUMN: 'TR'})
                 .ensure_unit('TR', df.get_unit(m.column_id))
+                .filter(~pl.col(FORECAST_COLUMN))
             )
+
+            # Join the DF, add TR to the metric column, and drop TR. DF contains dimension combos with differing last years
+            # (historical or forecast).
             df = df.paths.join_over_index(trdf, how='outer')
             df = df.with_columns(pl.col(m.column_id).fill_null(0) + pl.col('TR').fill_null(0)).drop('TR')
 

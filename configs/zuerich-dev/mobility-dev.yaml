@@ -669,9 +669,9 @@ nodes:
   type: ch.zuerich.TransportFuelFactor
   unit: kg/vkm
   allow_nulls: true
-  input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: zuerich/fuel_consumption_factor
+  input_dataset_processors: [LinearInterpolation]
 
 - id: transport_fuel_factor
   name_de: Verkehr Kraftstofffaktor
@@ -679,22 +679,25 @@ nodes:
   type: simple.AdditiveNode
   quantity: consumption_factor
   unit: kg/vkm
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
   input_nodes:
   - id: transport_consumption_factor_historical
     metrics: [Fuel]
-  input_dimensions: [energy_carrier, vehicle_type]
-  output_dimensions: [energy_carrier, vehicle_type]
 
 - id: transport_tank_respiration_for_fuel
-  name_en: Transport tank respiration for fuel
   name_de: Transport tank respiration for fuel
-  output_dimensions: [vehicle_type]
+  name_en: Transport tank respiration for fuel
   type: formula.FormulaNode
-  unit: kg/kg
   quantity: emissions
+  unit: kg/kg
+  output_dimensions: [vehicle_type, greenhouse_gases]
   params:
     formula: tank_respiration / (vehicle_kilometers_historical * transport_fuel_factor)
     extend_last_historical_value: true
+  input_datasets:
+  - id: zuerich/vehicle_tank_respiration_emissions
+    tags: [tank_respiration]
   input_nodes:
   - id: vehicle_kilometers_historical
     to_dimensions:
@@ -705,9 +708,6 @@ nodes:
       flatten: true
     to_dimensions:
     - id: vehicle_type
-  input_datasets:
-  - id: zuerich/vehicle_tank_respiration_emissions
-    tags: [tank_respiration]
 
 - id: transport_emissions_for_fuel
   name_de: Verkehr Emissionen für den Kraftstoffverbrauch
@@ -715,8 +715,12 @@ nodes:
   type: ch.zuerich.TransportEmissionsForFuel
   quantity: emission_factor
   unit: kg/kg
-  output_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
   input_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
+  output_dimensions: [emission_scope, greenhouse_gases, vehicle_type]
+  input_datasets:
+  - id: zuerich/transport_emission_factors
+    tags: [emission_factor]
+  input_dataset_processors: [LinearInterpolation]
   input_nodes:
   - id: transport_fuel_factor
     tags: [fuel_factor]
@@ -724,19 +728,12 @@ nodes:
     - id: vehicle_type
     - id: energy_carrier
   - id: transport_tank_respiration_for_fuel
+    tags: [tank_respiration]
     to_dimensions:
     - id: vehicle_type
     - id: greenhouse_gases
-      categories: [co2_eq]
     - id: emission_scope
       categories: [scope1]
-    tags: [tank_respiration]
-  input_dataset_processors: [LinearInterpolation]
-  input_datasets:
-  - id: zuerich/transport_emission_factors
-    tags: [emission_factor]
-  #- id: zuerich/vehicle_tank_respiration_emissions
-  #  tags: [tank_respiration]
 
 - id: transport_emission_factor
   name_de: Verkehr Emissionsfaktor
@@ -744,7 +741,7 @@ nodes:
   type: ch.zuerich.TransportEmissionFactor
   quantity: emission_factor
   unit: g/vkm
-  input_dataset_processors: [LinearInterpolation]
+  output_dimensions: [emission_scope, vehicle_type, energy_carrier]
   input_nodes:
   - id: electricity_emission_factor
     tags: [general_electricity_ef]
@@ -765,7 +762,6 @@ nodes:
     - id: greenhouse_gases
     - id: vehicle_type
     - id: energy_carrier
-  output_dimensions: [emission_scope, vehicle_type, energy_carrier]
 
 - id: transport_fuel_emission_factor
   name_de: Verkehr Emissionsfaktor des Kraftstoffs
@@ -773,6 +769,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: emission_factor
   unit: g/vkm
+  input_dimensions: [emission_scope, greenhouse_gases, vehicle_type, energy_carrier]
+  output_dimensions: [emission_scope, greenhouse_gases, vehicle_type, energy_carrier]
   input_nodes:
   - id: transport_fuel_factor
     tags: [fuel_factor, non_additive]
@@ -785,8 +783,6 @@ nodes:
     - id: emission_scope
     - id: greenhouse_gases
     - id: vehicle_type
-  output_dimensions: [emission_scope, greenhouse_gases, vehicle_type, energy_carrier]
-  input_dimensions: [emission_scope, greenhouse_gases, vehicle_type, energy_carrier]
 
 - id: public_transport_electricity_emission_factor
   name_de: Treibhausgasfaktoren Strom Öffentlicher Verkehr
@@ -794,13 +790,13 @@ nodes:
   type: ch.zuerich.EnergyProductionEmissionFactor
   quantity: emission_factor
   unit: g/kWh
+  input_dimensions: [electricity_source]
+  output_dimensions: [emission_scope]
+  input_datasets:
+  - id: zuerich/electricity_consumption_emission_factor
   input_nodes:
   - id: public_transport_electricity_production_mix
     tags: mix
-  input_datasets:
-  - id: zuerich/electricity_consumption_emission_factor
-  input_dimensions: [electricity_source]
-  output_dimensions: [emission_scope]
 
 # ----- Transportation Emissions Inside the City -----
 
