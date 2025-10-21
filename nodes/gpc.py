@@ -1,18 +1,20 @@
 from __future__ import annotations
 
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from django.utils.translation import gettext_lazy as _
 
 import polars as pl
 
 from common import polars as ppl
-from nodes.actions.action import ActionNode
 from nodes.calc import extend_last_historical_value_pl
 from nodes.constants import FORECAST_COLUMN, UNCERTAINTY_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
 from nodes.simple import AdditiveNode
 from params import BoolParameter, NumberParameter, StringParameter
+
+if TYPE_CHECKING:
+    from nodes.visualizations import VisualizationNodeDimension
 
 
 class DatasetNode(AdditiveNode):
@@ -218,7 +220,7 @@ class DatasetNode(AdditiveNode):
         return df
 
     # -----------------------------------------------------------------------------------
-    def drop_unnecessary_levels(self, df: ppl.PathsDataFrame, droplist: list) -> ppl.PathsDataFrame:
+    def drop_unnecessary_levels(self, df: ppl.PathsDataFrame, droplist: list[str]) -> ppl.PathsDataFrame:
         # Drop filter levels and empty dimension levels.
         drops = [d for d in droplist if d in df.columns]
 
@@ -339,14 +341,26 @@ class DatasetNode(AdditiveNode):
 
     # -----------------------------------------------------------------------------------
 
-    def get_measure_datapoint_years(self) -> list[int]:
+    def get_measure_datapoint_years(self, dims: list[VisualizationNodeDimension]) -> list[int]:
         """Get the years with measure data points from the input datasets and upstream nodes."""
 
         # FIXME: This should probably be in the future "datapoint metadata" column instead.
+        datacol = 'FromMeasureDataPoint'
 
         df = self.get_filtered_dataset_df()
-        if 'FromMeasureDataPoint' in df.columns:
-            return df.filter(pl.col('FromMeasureDataPoint'))[YEAR_COLUMN].unique().sort().to_list()
+        if datacol in df.columns:
+            df = df.filter(pl.col(datacol)).drop(datacol)
+            df = self.drop_unnecessary_levels(df, droplist=['Description'])
+            df = self.rename_dimensions(df)
+            df = self.convert_names_to_ids(df)
+
+            for dim in dims:
+                if dim.categories is not None:
+                    df = df.filter(pl.col(dim.id).is_in(dim.categories))
+                if dim.flatten:
+                    df = df.paths.sum_over_dims(dim.id)
+            out = df[YEAR_COLUMN].unique().sort().to_list()
+            return out
         return []
 
     # -----------------------------------------------------------------------------------
