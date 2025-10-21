@@ -88,7 +88,7 @@ nodes:
     - id: energy_carrier
       flatten: true
   - id: indifference_ratio
-    tags: [coalesce]
+    tags: [secondary]
   params:
     operations: multiply,coalesce
 
@@ -108,25 +108,3 @@ nodes:
     to_dimensions:
     - id: do_correction
       categories: [do]
-
-
-# - id: solar_electricity_emissions # TODO It would be better to calculate actual emissions rather than reductions
-#   name_fi: Aurinkosähkön päästöt
-#   name_en: Solar electricity emissions
-#   name_sv: Solelens utsläpp  
-#   type: generic.GenericNode
-#   quantity: emissions
-#   unit: kt/a
-#   input_dimensions: [energy_carrier]
-#   output_dimensions: [energy_carrier]
-#   input_nodes:
-#   - id: increase_solar_electricity_production
-#   - id: electricity_production_emission_factor
-#     tags: [arithmetic_inverse]
-#     from_dimensions:
-#     - id: energy_carrier
-#       categories: [electricity]
-#       flatten: true
-#     to_dimensions: []
-#   output_nodes:
-#   - id: non_heating_electricity_emissions2

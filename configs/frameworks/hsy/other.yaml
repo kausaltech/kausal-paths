@@ -84,110 +84,65 @@ dimensions:
 
 nodes:
 
-# ------- Common nodes -------
-
-- id: all_hsy_emissions
-  type: finland.hsy.HsyNode
-  name_fi: HSY:n päästöinventaario
-  name_en: HSY emission inventory
-  name_sv: HRM:s utsläppsinventering
-  input_datasets: ['hsy/pks_khk_paastot']
-
-- id: net_emissions
-  name_fi: Kokonaispäästöt (scope 1+2)
-  name_en: Net emissions (scope 1+2)
-  name_sv: Totala utsläpp (scope 1+2)
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  is_outcome: true
-
-# ------- Block nodes -------
-
-- id: industry_emission_inventory
-  name_fi: Teollisuuden päästöinventaario
-  name_en: Industry emission inventory
-  name_sv: Industrins utsläppsinventering
-  type: generic.DimensionalSectorEmissions
-  unit: kt/a
-  input_dimensions: [emission_sector, economic_sector]
-  output_dimensions: [emission_sector, economic_sector]
-  input_nodes: [all_hsy_emissions]
-  output_nodes:
-  - id: greenhouse_gas_inventory
-    from_dimensions:
-    - id: emission_sector
-      flatten: true
-  params:
-    sector: Teollisuus ja työkoneet|*|_emission_sector_|_economic_sector_
-
-- id: waste_emission_inventory
-  name_fi: Jätteiden käsittelyn päästöinventaario
-  name_en: Waste treatment emission inventory
-  name_sv: Utsläppsinventering för avfallsbehandling
-  type: generic.DimensionalSectorEmissions
-  unit: kt/a
-  input_dimensions: [waste_treatment, economic_sector]
-  output_dimensions: [waste_treatment, economic_sector]
-  input_nodes: [all_hsy_emissions]
-  output_nodes:
-  - id: greenhouse_gas_inventory
-    from_dimensions:
-    - id: waste_treatment
-      flatten: true
-  params:
-    sector: Jätteiden käsittely|*|_waste_treatment_|_economic_sector_
-
-- id: agriculture_emission_inventory
-  name_fi: Maatalouden päästöinventaario
-  name_en: Agriculture emission inventory
-  name_sv: Jordbrukets utsläppsinventering  
-  type: generic.DimensionalSectorEmissions
-  unit: kt/a
-  input_dimensions: [emission_sector, economic_sector]
-  output_dimensions: [emission_sector, economic_sector]
-  input_nodes: [all_hsy_emissions]
-  output_nodes:
-  - id: greenhouse_gas_inventory
-    from_dimensions:
-    - id: emission_sector
-      flatten: true
-  params:
-    sector: Maatalous|*|_emission_sector_|_economic_sector_
-
 - id: industry_machinery_emissions
   name_fi: Teollisuuden ja työkoneiden päästöt
   name_en: Emissions from industry and machinery
   name_sv: Utsläpp från industri och arbetsmaskiner
-  type: generic.DimensionalSectorEmissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  color: '#ff7f00'  # existing orange
   input_dimensions: [emission_sector, economic_sector]
   output_dimensions: [emission_sector, economic_sector]
-  input_nodes: [all_hsy_emissions]
-  params:
-    sector: Teollisuus ja työkoneet|*|_emission_sector_|_economic_sector_
+  input_datasets:
+  - id: hsy/pks_khk_paastot
+    tags: [baseline]
+    column: Päästöt
+    filters:
+    - rename_col: Sektori2
+      value: emission_sector
+    - rename_col: Sektori4
+      value: economic_sector
+    - rename_col: Vuosi
+      value: Year
+    - column: Kaupunki
+      ref: municipality_name
+    - column: Sektori1
+      value: Teollisuus ja työkoneet
+    - column: Sektori3
+      flatten: true
   output_nodes:
   - id: net_emissions
-    from_dimensions:
-    - id: economic_sector
-      flatten: true
-    - id: emission_sector
-      flatten: true
 
 - id: agriculture_emissions
   name_fi: Maatalouden päästöt
   name_en: Emissions from agriculture
   name_sv: Utsläpp från jordbruket
-  type: generic.DimensionalSectorEmissions
-  input_dimensions: [economic_sector]
-  output_dimensions: [economic_sector]
-  input_nodes: [all_hsy_emissions]
-  params:
-    sector: Maatalous|*|_economic_sector_|*
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  color: '#a4b52b'  # yellow-green
+  input_dimensions: [emission_sector, economic_sector]
+  output_dimensions: [emission_sector, economic_sector]
+  input_datasets:
+  - id: hsy/pks_khk_paastot
+    tags: [baseline]
+    column: Päästöt
+    filters:
+    - rename_col: Sektori2
+      value: emission_sector
+    - rename_col: Sektori4
+      value: economic_sector
+    - rename_col: Vuosi
+      value: Year
+    - column: Kaupunki
+      ref: municipality_name
+    - column: Sektori1
+      value: Maatalous
+    - column: Sektori3
+      flatten: true
   output_nodes:
   - id: net_emissions
-    from_dimensions:
-    - id: economic_sector
-      flatten: true
 
 - id: waste_treatment_emissions
   name_fi: Jätteiden käsittelyn päästöt

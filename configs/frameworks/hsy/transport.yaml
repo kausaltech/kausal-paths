@@ -102,23 +102,6 @@ nodes:
 
 # ------- Block nodes -------
 
-- id: transport_emission_inventory
-  name_en: Transport emission inventory
-  name_fi: Liikenteen päästöinventaario
-  name_sv: Utsläppsinventering för transport
-  type: generic.DimensionalSectorEmissions
-  unit: kt/a
-  input_dimensions: [vehicle_type, economic_sector]
-  output_dimensions: [vehicle_type, economic_sector]
-  input_nodes: [all_hsy_emissions]
-  output_nodes:
-  - id: greenhouse_gas_inventory
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
-  params:
-    sector: Liikenne|*|_vehicle_type_|_economic_sector_
-
 - id: transport_emissions
   name_fi: Liikenteen päästöt
   name_en: Transport emissions
@@ -181,11 +164,6 @@ nodes:
   input_dimensions: [vehicle_type]
   output_dimensions: [vehicle_type]
   input_nodes:
-  # - id: car_fuel_by_energy_carrier
-  #   tags: [forecast_only]
-  #   from_dimensions:
-  #   - id: energy_carrier
-  #     flatten: true
   - id: road_transport_energy_consumption_historical
     tags: [inventory_only]
     from_dimensions:
@@ -204,106 +182,70 @@ nodes:
   params:
     operations: add,multiply
 
-- id: road_traffic_emissions
-  name_fi: Tieliikenteen päästöt
-  name_en: Road traffic emissions
+- id: road_traffic_emissions_uncorrected
+  name_fi: Tieliikenteen päästöt, korjaamaton
+  name_en: Road traffic emissions, uncorrected
   name_sv: Vägtrafikens utsläpp
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
   input_nodes:
   - id: road_transport_energy_consumption
   - id: road_traffic_emission_factors
-    from_dimensions:
-    - id: economic_sector
-      flatten: true
   output_nodes:
-  - id: transport_emissions
+  - id: road_traffic_emissions
     from_dimensions:
     - id: vehicle_type
       flatten: true
-
-- id: total_car_amount
-  name_fi: Henkilöautojen kokonaismäärä
-  name_en: Total number of passenger cars
-  name_sv: Totalt antal personbilar
-  type: generic.GenericNode
-  quantity: number
-  unit: vehicles
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
-  input_nodes:
-  - id: passenger_cars_by_type
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-
-- id: passenger_cars_by_type
-  name_fi: Henkilöautojen määrä
-  name_en: Number of passenger cars
-  name_sv: Antal personbilar
-  type: generic.GenericNode
-  quantity: number
-  unit: vehicles
-  input_dimensions: [energy_carrier, vehicle_type]
-  output_dimensions: [energy_carrier, vehicle_type]
-  input_datasets:
-  - id: espoo/transport
-    tags: [baseline]
-    forecast_from: 2025
-    column: henkiloautojen_maara
-    # filters:
-    # - column: Slice
-    #   value: transport
-  # params:
-  #   sector: Henkilöautojen määrä
-
-- id: car_fuel_by_energy_carrier
-  name_fi: Henkilöautojen polttoaineenkulutus energialähteittäin
-  name_en: Passenger car fuel consumption by energy source
-  name_sv: Personbilars bränsleförbrukning enligt energikälla
-  description_fi: Sisältää vain polttoaineet. Sähkön osuus energiasta ja päästöistä jätetään
-    huomiotta.
-  description_en: Includes only fuels. The share of electricity in energy and emissions is
-    ignored.
-  description_sv: Inkluderar endast bränsle. Elens andel i energi och utsläpp ignoreras.
-  type: generic.GenericNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [energy_carrier, vehicle_type]
-  output_dimensions: [energy_carrier, vehicle_type]
-  input_nodes:
-  - id: road_transport_energy_forecast
-    tags: [non_additive]
-    from_dimensions:
-    - id: vehicle_type
-      categories: [cars]
+    to_dimensions:
     - id: economic_sector
-      flatten: true
-    to_dimensions:
-    - id: vehicle_type
-  - id: total_car_amount
-    tags: [geometric_inverse]
-    to_dimensions:
-    - id: vehicle_type
-  - id: passenger_cars_by_type
-  - id: fraction_of_electricity_in_car_energy
-    tags: [complement]
+    - id: emission_sector
+      categories: [road_transport]
 
-- id: fraction_of_electricity_in_car_energy
-  name_fi: Sähkön osuus henkilöautojen energiankulutuksessa
-  name_en: Share of electricity in passenger car energy consumption
-  name_sv: Elens andel i personbilars energiförbrukning
-  type: gpc.DatasetNode
-  quantity: fraction
-  unit: dimensionless
-  input_dimensions: [energy_carrier, vehicle_type]
-  output_dimensions: [energy_carrier, vehicle_type]
-  input_datasets: [gpc/espoo]
+- id: road_transport_emissions_historical
+  name: Historialliset tieliikenteen päästöt
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sector, economic_sector]
+  output_dimensions: [emission_sector, economic_sector]
+  input_datasets:
+  - id: hsy/pks_khk_paastot
+    tags: [baseline]
+    column: Päästöt
+    filters:
+    - rename_col: Sektori2
+      value: emission_sector
+    - rename_col: Sektori4
+      value: economic_sector
+    - rename_col: Vuosi
+      value: Year
+    - column: Kaupunki
+      ref: municipality_name
+    - column: Sektori1
+    - column: emission_sector
+      value: Tieliikenne
+      drop_col: false
+    - column: Sektori3
+      flatten: true
+
+- id: road_traffic_emissions
+  name_fi: Tieliikenteen päästöt
+  name_en: Road traffic emissions
+  name_sv: Vägtrafikens utsläpp
+  type: generic.CoalesceNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [emission_sector, economic_sector]
+  output_dimensions: [emission_sector, economic_sector]
+  input_nodes:
+  - id: road_transport_emissions_historical
+    tags: [inventory_only, primary]
   params:
-    sector: Sähkön osuus energiasta
+    operations: add,coalesce
+  output_nodes: [transport_emissions]
 
 # Non-road transport
 
@@ -340,10 +282,12 @@ nodes:
   output_nodes:
   - id: transport_emissions
     from_dimensions:
-    - id: economic_sector
-      flatten: true
     - id: vehicle_type
       flatten: true
+    to_dimensions:
+    - id: economic_sector
+    - id: emission_sector
+      categories: [rail_transport]
 
 - id: water_transport_emissions
   name_fi: Laivaliikenteen päästöt
@@ -358,7 +302,9 @@ nodes:
   output_nodes:
   - id: transport_emissions
     from_dimensions:
-    - id: economic_sector
-      flatten: true
     - id: vehicle_type
       flatten: true
+    to_dimensions:
+    - id: economic_sector
+    - id: emission_sector
+      categories: [ship_transport]

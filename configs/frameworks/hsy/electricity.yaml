@@ -1,47 +1,38 @@
 nodes:
 
-# ------- Common nodes -------
-
-- id: all_hsy_emissions
-  type: finland.hsy.HsyNode
-  name_fi: HSY:n päästöinventaario
-  name_en: HSY emission inventory
-  name_sv: HRM:s utsläppsinventering
-  input_datasets: ['hsy/pks_khk_paastot']
-
-- id: net_emissions
-  name_fi: Kokonaispäästöt (scope 1+2)
-  name_en: Net emissions (scope 1+2)
-  name_sv: Totala utsläpp (scope 1+2)
-  type: simple.AdditiveNode
+- id: non_heating_electricity_emissions_historical
+  name: Sähkönkulutuksen päästöt, historialliset
+  type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  is_outcome: true
-
-# ------- Block nodes -------
-
-- id: electricity_emission_inventory
-  name_en: Electricity emission inventory
-  name_fi: Sähkön päästöinventaario
-  name_sv: Elutsläppsinventering
-  type: generic.DimensionalSectorEmissions
-  unit: kt/a
-  input_dimensions: [economic_sector, energy_carrier]
-  output_dimensions: [economic_sector, energy_carrier]
-  input_nodes: [all_hsy_emissions]
-  output_nodes:
-  - id: greenhouse_gas_inventory
-    from_dimensions:
-    - id: energy_carrier
+  input_dimensions: [emission_sector, economic_sector]
+  output_dimensions: [emission_sector, economic_sector]
+  input_datasets:
+  - id: hsy/pks_khk_paastot
+    tags: [baseline]
+    column: Päästöt
+    filters:
+    - rename_col: Sektori2
+      value: emission_sector
+    - rename_col: Sektori4
+      value: economic_sector
+    - rename_col: Vuosi
+      value: Year
+    - column: Kaupunki
+      ref: municipality_name
+    - column: Sektori1
+    - column: emission_sector
+      value: Kulutussähkö
+      drop_col: false
+    - column: Sektori3
       flatten: true
-  params:
-    sector: Sähkö|*|_energy_carrier_|_economic_sector_
 
-- id: non_heating_electricity_emissions
-  name_fi: Kulutussähkön päästöt
-  name_en: Consumption electricity emissions
+- id: non_heating_electricity_emissions_uncorrected
+  name_fi: Kulutussähkön päästöt, korjaamaton
+  name_en: Consumption electricity emissions, uncorrected
   name_sv: Utsläpp från konsumtionsel
-  type: simple.EmissionFactorActivity
+  type: generic.GenericNode
+  quantity: emissions
   unit: kt/a
   color: '#0047b6'
   input_dimensions: [economic_sector, energy_carrier]
@@ -54,13 +45,32 @@ nodes:
     to_dimensions:
     - id: energy_carrier
   - id: non_heating_electricity_energy
-  output_nodes:
-  - id: net_emissions
+
+- id: non_heating_electricity_emissions
+  name_fi: Kulutussähkön päästöt
+  name_en: Consumption electricity emissions
+  name_sv: Utsläpp från konsumtionsel
+  type: generic.CoalesceNode
+  quantity: emissions
+  unit: kt/a
+  color: '#0047b6'
+  input_dimensions: [emission_sector, economic_sector]
+  output_dimensions: [emission_sector, economic_sector]
+  input_nodes:
+  - id: non_heating_electricity_emissions_historical
+    tags: [inventory_only, primary]
+  - id: non_heating_electricity_emissions_uncorrected
     from_dimensions:
     - id: energy_carrier
       flatten: true
+    to_dimensions:
     - id: economic_sector
-      flatten: true
+    - id: emission_sector
+      categories: [non_heating_electricity]
+  params:
+    operations: add,coalesce
+  output_nodes:
+  - id: net_emissions
 
 - id: total_electricity_consumption
   name_fi: Sähkön kokonaiskulutus Suomessa
