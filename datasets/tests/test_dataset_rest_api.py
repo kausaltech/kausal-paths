@@ -1742,3 +1742,52 @@ def test_dataset_metric_delete(api_client, dataset_test_data, user_key):
     response = api_client.delete(f'/v1/dataset_schemas/{schema.uuid}/metrics/{metric.uuid}/')
 
     assert response.status_code == 405
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(('user_key', 'dataset_key', 'expected_status'), [
+    ('superuser', 'dataset1', 201),
+    ('admin_user', 'dataset1', 201),
+    ('super_admin_user', 'dataset1', 201),
+    ('reviewer_user', 'dataset1', 403),
+    ('viewer_user', 'dataset1', 403),
+    ('regular_user', 'dataset1', 403),
+])
+def test_data_point_bulk_create(api_client, dataset_test_data, user_key, dataset_key, expected_status):
+    user = dataset_test_data[user_key]
+    dataset = dataset_test_data[dataset_key]
+    metric = dataset_test_data['metric1']
+    dimension_category = dataset_test_data['dimension_category1']
+    api_client.force_authenticate(user=user)
+
+    create_data = [
+        {
+            'date': '2024-01-01',
+            'value': 150.0,
+            'metric': str(metric.uuid),
+            'dimension_categories': [str(dimension_category.uuid)],
+        },
+        {
+            'date': '2025-01-01',
+            'value': 10.0,
+            'metric': str(metric.uuid),
+            'dimension_categories': [str(dimension_category.uuid)],
+        }
+    ]
+
+    if expected_status == 201:
+        with AssertNewUUID(DataPoint.objects, bulk=True) as uuid_tracker:
+            response = api_client.post(f'/v1/datasets/{dataset.uuid}/data_points/', create_data, format='json')
+        assert response.status_code == 201
+        data = response.json()
+        # Only compare fields present in expected data, ignoring new fields (e.g., UUID of created object)
+        data_to_compare = [
+            {k: actual[k] for k in expected}
+            for actual, expected in zip(data, create_data, strict=True)
+        ]
+        assert data_to_compare == create_data
+        uuid_tracker.assert_created(data, 2)
+    else:
+        with AssertIdenticalUUIDs(DataPoint.objects):
+            response = api_client.post(f'/v1/datasets/{dataset.uuid}/data_points/', create_data, format='json')
+        assert response.status_code == expected_status
