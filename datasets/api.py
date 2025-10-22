@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, override
 
-from rest_framework import serializers
+from rest_framework import exceptions, serializers
 from rest_framework.routers import DefaultRouter, SimpleRouter
 
 from rest_framework_nested.routers import NestedSimpleRouter
@@ -139,6 +139,15 @@ class DatasetSchemaViewSet(BaseDatasetSchemaViewSet):
     @override
     def get_permissions(self):
         return [DatasetSchemaPermission()]
+
+    @override
+    def permission_denied(self, request, message=None, code=None):
+        if request.authenticators and not request.successful_authenticator:
+            raise exceptions.NotAuthenticated()
+        if code == 'not_found':
+            # Try to avoid revealing existence of object when not desired
+            raise exceptions.NotFound(detail=message, code=code)
+        raise exceptions.PermissionDenied(detail=message, code=code)
 
 
 class DatasetPermission(PermissionPolicyDRFPermission[Dataset, DatasetSchema]):
