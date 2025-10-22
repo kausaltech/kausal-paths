@@ -1230,19 +1230,8 @@ nodes:
     tags: [non_additive]
     to_dimensions:
     - id: electricity_source
-  - id: transport_electricity_production_energy_factor
+  - id: electricity_production_energy_factor
     tags: [non_additive]
-
-- id: transport_electricity_production_energy_factor
-  name_de: Transport electricity primary energy factor by carrier
-  name_en: Transport electricity primary energy factor by carrier
-  type: simple.AdditiveNode
-  quantity: energy_factor
-  unit: kWh/kWh
-  output_dimensions: [electricity_source, renewable_energy]
-  input_dimensions: [electricity_source, renewable_energy]
-  input_datasets:
-  - id: zuerich/transport_electricity_production_energy_factor
 
 - id: transport_fuel_energy_factor
   name_de: Transport fuel primary energy factor by carrier

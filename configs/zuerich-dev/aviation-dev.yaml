@@ -32,7 +32,7 @@ nodes:
   output_dimensions: [flight_type]
   input_datasets:
   - id: zuerich/aviation_mileage
-    forecast_from: 2024
+    forecast_from: 2025
   input_dataset_processors: [LinearInterpolation]
 
 - id: aviation_mileage
