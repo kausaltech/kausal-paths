@@ -102,7 +102,7 @@ nodes:
 
 # ------- Block nodes -------
 
-- id: road_traffic_emission_factors2
+- id: road_traffic_emission_factors
   name: Tieliikenteen päästökertoimet
   type: generic.GenericNode
   quantity: emission_factor
@@ -127,18 +127,6 @@ nodes:
     tags: [baseline]
     column: ajoneuvosuorite
     forecast_from: 2025
-
-- id: road_traffic_mileage2
-  name: Tieliikenteen ajoneuvosuorite
-  type: generic.GenericNode
-  quantity: emission_factor
-  unit: Mvkm/a
-  input_dimensions: [vehicle_type, economic_sector]
-  output_dimensions: [vehicle_type, economic_sector]
-  input_nodes:
-  - id: road_transport_emissions_historical2
-  - id: road_traffic_emission_factors2
-    tags: [geometric_inverse]
 
 - id: transport_emissions
   name_fi: Liikenteen päästöt
@@ -167,105 +155,8 @@ nodes:
   params:
     sector: Tieliikenteen suorite-ennuste
 
-- id: road_traffic_emission_factors
-  name_fi: Tieliikenteen päästökertoimet
-  name_en: Road traffic emission factors
-  name_sv: Emissionsfaktorer för vägtrafik
-  type: generic.DimensionalSectorEmissionFactor
-  quantity: emission_factor
-  unit: g/kWh
-  input_dimensions: [vehicle_type, economic_sector]
-  output_dimensions: [vehicle_type, economic_sector]
-  input_nodes: [all_hsy_emissions]
-  params:
-    sector: Liikenne|Tieliikenne|_vehicle_type_|_economic_sector_
-
-- id: road_transport_energy_consumption_historical
-  name_fi: Tieliikenteen historiallinen energiankulutus
-  name_en: Historical road transport energy consumption
-  name_sv: Historisk energiförbrukning för vägtrafik
-  type: generic.DimensionalSectorEnergy
-  unit: GWh/a
-  input_dimensions: [vehicle_type, economic_sector]
-  output_dimensions: [vehicle_type, economic_sector]
-  params:
-    sector: Liikenne|Tieliikenne|_vehicle_type_|_economic_sector_
-  input_nodes: [all_hsy_emissions]
-
-- id: road_transport_energy_consumption
-  name_fi: Tieliikenteen energiankulutus
-  name_en: Road transport energy consumption
-  name_sv: Vägtrafikens energiförbrukning 
-  type: generic.GenericNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
-  input_nodes:
-  - id: road_transport_energy_consumption_historical
-    tags: [inventory_only]
-    from_dimensions:
-    - id: economic_sector
-      flatten: true
-    to_dimensions:
-    - id: vehicle_type
-  - id: road_transport_energy_forecast
-    tags: [forecast_only]
-    from_dimensions:
-    - id: vehicle_type
-      categories: [cars]
-      exclude: true
-    - id: economic_sector
-      flatten: true
-  params:
-    operations: add,multiply
-
-- id: road_traffic_emissions_uncorrected
-  name_fi: Tieliikenteen päästöt, korjaamaton
-  name_en: Road traffic emissions, uncorrected
-  name_sv: Vägtrafikens utsläpp
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [vehicle_type, economic_sector]
-  output_dimensions: [vehicle_type, economic_sector]
-  input_nodes:
-  - id: road_transport_energy_consumption
-  - id: road_traffic_emission_factors
-  # output_nodes:
-  # - id: road_traffic_emissions
-  #   from_dimensions:
-  #   - id: vehicle_type
-  #     flatten: true
-  #   to_dimensions:
-  #   - id: economic_sector
-  #   - id: emission_sector
-  #     categories: [road_transport]
-
-- id: road_traffic_emissions_uncorrected2
-  name_fi: Tieliikenteen päästöt, korjaamaton
-  name_en: Road traffic emissions, uncorrected
-  name_sv: Vägtrafikens utsläpp
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [vehicle_type, economic_sector]
-  output_dimensions: [vehicle_type, economic_sector]
-  input_nodes:
-  - id: road_traffic_mileage
-  - id: road_traffic_emission_factors2
-  output_nodes:
-  - id: road_traffic_emissions
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
-    to_dimensions:
-    - id: economic_sector
-    - id: emission_sector
-      categories: [road_transport]
-
-- id: road_transport_emissions_historical
-  name: Historialliset tieliikenteen päästöt
+- id: hsy_emissions_historical
+  name: Historialliset HSY-päästöt
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
@@ -285,66 +176,30 @@ nodes:
     - column: Kaupunki
       ref: municipality_name
     - column: Sektori1
-    - column: emission_sector
-      value: Tieliikenne
-      drop_col: false
     - column: Sektori3
       flatten: true
-
-- id: road_transport_emissions_historical2
-  name: Historialliset tieliikenteen päästöt
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [vehicle_type, economic_sector]
-  output_dimensions: [vehicle_type, economic_sector]
-  input_datasets:
-  - id: hsy/pks_khk_paastot
-    tags: [baseline]
-    column: Päästöt
-    filters:
-    - rename_col: Sektori3
-      value: vehicle_type
-    - rename_col: Sektori4
-      value: economic_sector
-    - rename_col: Vuosi
-      value: Year
-    - rename_item: vehicle_type|Linja-autot
-      value: buses_hsl
-    - column: Kaupunki
-      ref: municipality_name
-    - column: Sektori1
-    - column: Sektori2
-      value: Tieliikenne
-      flatten: true
-
-- id: diff
-  name: diff
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [vehicle_type, economic_sector]
-  output_dimensions: [vehicle_type, economic_sector]
-  input_nodes:
-  - id: road_traffic_emissions_uncorrected2
-  - id: road_transport_emissions_historical2
-    tags: [arithmetic_inverse]
 
 - id: road_traffic_emissions
   name_fi: Tieliikenteen päästöt
   name_en: Road traffic emissions
   name_sv: Vägtrafikens utsläpp
-  type: generic.CoalesceNode
+  type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [emission_sector, economic_sector]
-  output_dimensions: [emission_sector, economic_sector]
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
   input_nodes:
-  - id: road_transport_emissions_historical
-    tags: [inventory_only, primary]
-  params:
-    operations: add,coalesce
-  output_nodes: [transport_emissions]
+  - id: road_traffic_mileage
+  - id: road_traffic_emission_factors
+  output_nodes:
+  - id: transport_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    to_dimensions:
+    - id: economic_sector
+    - id: emission_sector
+      categories: [road_transport]
 
 # Non-road transport
 

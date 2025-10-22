@@ -1383,116 +1383,6 @@ nodes:
     column: tieliikenteen_suorite_ennuste
     tags: [baseline]
 
-## New road transport model
-
-- id: passenger_car_amounts_in_finland
-  name_fi: Henkilöautojen määrä Suomessa
-  type: generic.GenericNode
-  quantity: number
-  unit: pcs
-  input_dimensions: [energy_carrier, vehicle_type]
-  output_dimensions: [energy_carrier, vehicle_type]
-  input_datasets:
-  - id: espoo/autojen_lukumaara
-    forecast_from: 2025
-    column: liikennekaytossa_olevien_autojen_lukumaara
-    tags: [baseline]
-
-- id: nominal_value
-  name_fi: Tekninen arvo laskentaa varten
-  type: simple.AdditiveNode
-  quantity: number
-  unit: dimensionless
-  historical_values: [[1990, 1], [2024, 1]]
-  input_dataset_processors: [LinearInterpolation]
-
-- id: passenger_car_shares
-  name_fi: Henkilöautojen osuudet
-  type: generic.GenericNode
-  quantity: number
-  unit: '%'
-  input_dimensions: [energy_carrier, vehicle_type]
-  output_dimensions: [energy_carrier, vehicle_type]
-  input_nodes:
-  - id: passenger_car_amounts_in_finland
-    tags: [use_as_shares]
-  - id: nominal_value
-    tags: [skip_dim_test]
-  params:
-    operations: skip_dim_test,use_as_shares,add
-
-- id: total_passenger_car_kilometers
-  name_fi: Henkilöautojen kokonaiskilometrit
-  type: generic.GenericNode
-  quantity: mileage
-  unit: Mvkm/a
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
-  input_datasets:
-  - id: espoo/ajoneuvosuorite
-    forecast_from: 2025
-    column: ajoneuvosuorite
-    tags: [baseline]
-
-- id: passenger_car_kilometers
-  name_fi: Henkilöautojen ajokilometrit
-  type: generic.GenericNode
-  quantity: mileage
-  unit: Mvkm/a
-  input_dimensions: [energy_carrier, vehicle_type]
-  output_dimensions: [energy_carrier, vehicle_type]
-  input_datasets:
-  - id: espoo/ajoneuvosuorite_henkiloautotyypeittain
-    tags: [baseline]
-    column: ajoneuvosuorite
-
-- id: passenger_car_kilometers2
-  name_fi: Henkilöautojen ajokilometrit
-  type: generic.GenericNode
-  quantity: mileage
-  unit: Mvkm/a
-  input_dimensions: [energy_carrier, vehicle_type]
-  output_dimensions: [energy_carrier, vehicle_type]
-  input_nodes:
-  - id: total_passenger_car_kilometers
-    tags: [non_additive]
-    to_dimensions:
-    - id: vehicle_type
-  - id: passenger_car_shares
-
-- id: passenger_car_emission_factors
-  name_fi: Henkilöautojen päästökertoimet
-  type: generic.GenericNode
-  quantity: emission_factor
-  unit: g/vkm
-  input_dimensions: [energy_carrier, vehicle_type]
-  output_dimensions: [energy_carrier, vehicle_type]
-  input_datasets:
-  - id: espoo/ajoneuvojen_paastokertoimet
-    forecast_from: 2025
-    column: ajoneuvojen_paastokertoimet
-    tags: [baseline]
-
-- id: passenger_car_emissions
-  name_fi: Henkilöautojen päästöt
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [energy_carrier, vehicle_type]
-  output_dimensions: [energy_carrier, vehicle_type]
-  input_nodes:
-  - id: passenger_car_kilometers
-  - id: passenger_car_emission_factors
-  output_nodes:
-  - id: road_traffic_emissions_uncorrected
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: economic_sector
-      categories: [residential]
-    - id: vehicle_type
-
 # -------------- Nodes needed for implementing actions ----------------
 
 # Buildings
@@ -1591,36 +1481,6 @@ nodes:
   input_dimensions: [emission_sector, economic_sector]
   output_dimensions: [emission_sector, economic_sector]
   output_nodes: [net_emissions]
-
-- id: road_traffic_emission_factors_historical
-  name_fi: Tieliikenteen historialliset päästökertoimet
-  name_en: Historical road traffic emission factors
-  name_sv: Historiska utsläppskoefficienter för vägtrafik
-  type: generic.DimensionalSectorEmissionFactor
-  quantity: emission_factor
-  unit: g/kWh
-  input_dimensions: [vehicle_type, economic_sector]
-  output_dimensions: [vehicle_type, economic_sector]
-  input_nodes: [all_hsy_emissions]
-  params:
-    sector: Liikenne|Tieliikenne|_vehicle_type_|_economic_sector_
-
-- id: road_traffic_emission_factors  # TODO Update the deviation of other buses from other scenarios
-  name_fi: Tieliikenteen päästökertoimet pl henkilöautot
-  name_en: Road traffic emission factors
-  name_sv: Vägtrafikens utsläppskoefficienter
-  type: generic.GenericNode
-  quantity: emission_factor
-  unit: g/kWh
-  input_dimensions: [vehicle_type, economic_sector]
-  output_dimensions: [vehicle_type, economic_sector]
-  input_nodes: # TODO Solve double counting with biofuel fraction. Is this still relevant?
-  - id: road_traffic_emission_factors_historical
-    tags: [non_additive]
-    from_dimensions:
-    - id: vehicle_type
-      categories: [cars]
-      exclude: true
 
 - id: waste_treatment_emissions_data_goal
   name_fi: Jätteenkäsittelyn päästödata, ennuste
@@ -1887,12 +1747,6 @@ actions:
     forecast_from: 2025
     column: aktiviteetti
   output_nodes:
-  - id: passenger_car_kilometers
-    tags: [arithmetic_inverse, complement]
-    to_dimensions: []
-  - id: road_transport_energy_consumption
-    tags: [arithmetic_inverse, complement]
-    to_dimensions: []
   - id: road_traffic_mileage
     tags: [arithmetic_inverse, complement]
     to_dimensions: []
@@ -1917,10 +1771,7 @@ actions:
     - column: scenario
       ref: scenario_name
   output_nodes:
-  - id: road_traffic_emission_factors2
-    tags: [non_additive, complement]
-    to_dimensions: []
-  - id: passenger_car_emission_factors # TODO Should not affect non-fuel cars types
+  - id: road_traffic_emission_factors
     tags: [non_additive, complement]
     to_dimensions: []
 
@@ -2468,9 +2319,6 @@ actions:
   - id: road_traffic_mileage
     tags: [extend_to_history, complement]
     to_dimensions: []
-  - id: passenger_car_kilometers
-    tags: [extend_to_history, complement]
-    to_dimensions: []
   - id: rail_transport_energy
     tags: [extend_to_history, complement]
     to_dimensions: []
@@ -2492,9 +2340,6 @@ actions:
   group: transportation
   output_nodes:
   - id: road_traffic_mileage
-    tags: [extend_to_history, complement]
-    to_dimensions: []
-  - id: passenger_car_kilometers
     tags: [extend_to_history, complement]
     to_dimensions: []
   input_datasets:
