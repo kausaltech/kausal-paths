@@ -14,6 +14,7 @@ from kausal_common.datasets.models import (
 
 from datasets.tests.fixtures import *
 from datasets.tests.utils import AssertIdenticalUUIDs, AssertNewUUID, AssertRemovedUUID
+from kausal_common.testing.utils import parse_table
 
 pytestmark = pytest.mark.django_db()
 
@@ -97,33 +98,37 @@ def test_dataset_schema_retrieve(api_client, dataset_test_data, user_key, schema
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'schema_key', 'access_allowed', 'should_be_found'), [
-    ('superuser', 'schema1', True, True),
-    ('superuser', 'schema2', True, True),
-    ('admin_user', 'schema1', True, True),
-    ('admin_user', 'schema2', True, False),
-    ('super_admin_user', 'schema1', True, True),
-    ('super_admin_user', 'schema2', True, False),
-    ('reviewer_user', 'schema1', False, False),
-    ('reviewer_user', 'schema2', False, False),
-    ('viewer_user', 'schema1', False, False),
-    ('viewer_user', 'schema2', False, False),
-    ('schema1_viewer', 'schema1', True, False),
-    ('schema1_viewer', 'schema2', True, False),
-    ('schema1_editor', 'schema1', True, True),
-    ('schema1_editor', 'schema2', True, False),
-    ('schema1_admin', 'schema1', True, True),
-    ('schema1_admin', 'schema2', True, False),
-    ('schema1_viewer_group_user', 'schema1', True, False),
-    ('schema1_viewer_group_user', 'schema2', True, False),
-    ('schema1_editor_group_user', 'schema1', True, True),
-    ('schema1_editor_group_user', 'schema2', True, False),
-    ('schema1_admin_group_user', 'schema1', True, True),
-    ('schema1_admin_group_user', 'schema2', True, False),
-    ('regular_user', 'schema1', False, False),
-    ('regular_user', 'schema2', False, False),
-])
-def test_dataset_schema_update(api_client, dataset_test_data, user_key, schema_key, access_allowed, should_be_found):
+@pytest.mark.parametrize(*parse_table("""
+user_key                   schema_key  expected_status
+
+superuser                  schema1     200
+superuser                  schema2     200
+admin_user                 schema1     200
+super_admin_user           schema1     200
+schema1_editor             schema1     200
+schema1_admin              schema1     200
+schema1_editor_group_user  schema1     200
+schema1_admin_group_user   schema1     200
+
+reviewer_user              schema1     403
+reviewer_user              schema2     403
+viewer_user                schema1     403
+viewer_user                schema2     403
+schema1_viewer             schema1     403
+schema1_viewer_group_user  schema1     403
+regular_user               schema1     403
+regular_user               schema2     403
+
+admin_user                 schema2     404
+super_admin_user           schema2     404
+schema1_viewer             schema2     404
+schema1_editor             schema2     404
+schema1_admin              schema2     404
+schema1_viewer_group_user  schema2     404
+schema1_editor_group_user  schema2     404
+schema1_admin_group_user   schema2     404
+"""))
+def test_dataset_schema_update(api_client, dataset_test_data, user_key, schema_key, expected_status):
     user = dataset_test_data[user_key]
     schema = dataset_test_data[schema_key]
     api_client.force_authenticate(user=user)
@@ -133,62 +138,68 @@ def test_dataset_schema_update(api_client, dataset_test_data, user_key, schema_k
     with AssertIdenticalUUIDs(DatasetSchema.objects):
         response = api_client.patch(f'/v1/dataset_schemas/{schema.uuid}/', update_data, format='json')
 
-    if access_allowed and should_be_found:
-        assert response.status_code == 200
+    assert response.status_code == expected_status
+
+    if response.status_code == 200:
         data = response.json()
         assert data['name'] == 'Updated Schema Name'
-    elif access_allowed and should_be_found is False:
-        assert response.status_code == 404
-    else:
-        assert response.status_code == 403
 
+
+# TODO add unused_schema2 (to instance2)
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'schema_key', 'access_allowed', 'should_be_found', 'has_linked_objects'), [
-    ('superuser', 'schema1', True, True, True),
-    ('superuser', 'schema2', True, True, True),
-    ('admin_user', 'schema1', True, True, True),
-    ('admin_user', 'schema2', True, False, True),
-    ('super_admin_user', 'schema1', True, True, True),
-    ('super_admin_user', 'schema2', True, False, True),
-    ('reviewer_user', 'schema1', False, False, True),
-    ('reviewer_user', 'schema2', False, False, True),
-    ('viewer_user', 'schema1', False, False, True),
-    ('viewer_user', 'schema2', False, False, True),
-    ('schema1_viewer', 'schema1', True, False, True),
-    ('schema1_viewer', 'schema2', True, False, True),
-    ('schema1_editor', 'schema1', True, False, True),
-    ('schema1_editor', 'schema2', True, False, True),
-    ('schema1_admin', 'schema1', True, True, True),
-    ('schema1_admin', 'schema2', True, False, True),
-    ('schema1_viewer_group_user', 'schema1', True, False, True),
-    ('schema1_viewer_group_user', 'schema2', True, False, True),
-    ('schema1_editor_group_user', 'schema1', True, False, True),
-    ('schema1_editor_group_user', 'schema2', True, False, True),
-    ('schema1_admin_group_user', 'schema1', True, True, True),
-    ('schema1_admin_group_user', 'schema2', True, False, True),
-    ('regular_user', 'schema1', False, False, True),
-    ('regular_user', 'schema2', False, False, True),
-    ('superuser', 'unused_schema', True, True, False),
-    ('admin_user', 'unused_schema', True, True, False),
-    ('super_admin_user', 'unused_schema', True, True, False),
-    ('schema1_viewer', 'unused_schema', True, False, False),
-    ('schema1_editor', 'unused_schema', True, False, False),
-    ('schema1_admin', 'unused_schema', True, False, False),
-    ('schema1_viewer_group_user', 'unused_schema', True, False, False),
-    ('schema1_editor_group_user', 'unused_schema', True, False, False),
-    ('schema1_admin_group_user', 'unused_schema', True, False, False),
-    ('reviewer_user', 'unused_schema', False, False, False),
-    ('viewer_user', 'unused_schema', False, False, False),
-    ('regular_user', 'unused_schema', False, False, False),
+@pytest.mark.parametrize(*parse_table("""
+user_key                   schema_key     delete_allowed  should_be_found  has_linked_objects
 
-])
+# Allow of the below have datasets linked to them so deletion won't work (HTTP 400)
+admin_user                 schema1        +               +                +
+admin_user                 schema2        +               -                +
+regular_user               schema1        -               -                +
+regular_user               schema2        -               -                +
+reviewer_user              schema1        -               -                +
+reviewer_user              schema2        -               -                +
+schema1_admin              schema1        +               +                +
+schema1_admin              schema2        +               -                +
+schema1_admin_group_user   schema1        +               +                +
+schema1_admin_group_user   schema2        +               -                +
+schema1_editor             schema1        -               -                +
+schema1_editor             schema2        +               -                +
+schema1_editor_group_user  schema1        -               -                +
+schema1_editor_group_user  schema2        +               -                +
+schema1_viewer             schema1        -               -                +
+schema1_viewer             schema2        +               -                +
+schema1_viewer_group_user  schema1        -               -                +
+schema1_viewer_group_user  schema2        +               -                +
+super_admin_user           schema1        +               +                +
+super_admin_user           schema2        +               -                +
+superuser                  schema1        +               +                +
+superuser                  schema2        +               +                +
+viewer_user                schema1        -               -                +
+viewer_user                schema2        -               -                +
+
+
+# These are the only ones that are succesful (204)
+superuser                  unused_schema  +               +                -
+super_admin_user           unused_schema  +               +                -
+admin_user                 unused_schema  +               +                -
+
+# 403 for these
+regular_user               unused_schema  -               -                -
+reviewer_user              unused_schema  -               -                -
+schema1_admin              unused_schema  -               -                -
+schema1_admin_group_user   unused_schema  -               -                -
+schema1_editor             unused_schema  -               -                -
+schema1_editor_group_user  unused_schema  -               -                -
+schema1_viewer             unused_schema  -               -                -
+schema1_viewer_group_user  unused_schema  -               -                -
+viewer_user                unused_schema  -               -                -
+"""))
 def test_dataset_schema_delete(
     api_client,
     dataset_test_data,
     user_key,
     schema_key,
-    access_allowed,
+    delete_allowed,
     should_be_found,
     has_linked_objects,
 ):
@@ -198,25 +209,28 @@ def test_dataset_schema_delete(
     assert DatasetSchema.objects.filter(uuid=schema.uuid).exists()
     api_client.force_authenticate(user=user)
 
-    if not access_allowed:
+    if not delete_allowed:
         with AssertIdenticalUUIDs(DatasetSchema.objects):
             response = api_client.delete(f'/v1/dataset_schemas/{schema.uuid}/')
         assert response.status_code == 403
         return
 
-    if should_be_found and has_linked_objects:
-        with AssertIdenticalUUIDs(DatasetSchema.objects):
-            response = api_client.delete(f'/v1/dataset_schemas/{schema.uuid}/')
-        assert response.status_code == 400
-    elif should_be_found and not has_linked_objects:
-        with AssertRemovedUUID(DatasetSchema.objects, schema.uuid):
-            response = api_client.delete(f'/v1/dataset_schemas/{schema.uuid}/')
-        assert response.status_code == 204
-        assert not DatasetSchema.objects.filter(uuid=schema.uuid).exists()
-    else:
+    if not should_be_found:
         with AssertIdenticalUUIDs(DatasetSchema.objects):
             response = api_client.delete(f'/v1/dataset_schemas/{schema.uuid}/')
         assert response.status_code == 404
+        return
+
+    if has_linked_objects:
+        with AssertIdenticalUUIDs(DatasetSchema.objects):
+            response = api_client.delete(f'/v1/dataset_schemas/{schema.uuid}/')
+        assert response.status_code == 400
+        return
+
+    with AssertRemovedUUID(DatasetSchema.objects, schema.uuid):
+        response = api_client.delete(f'/v1/dataset_schemas/{schema.uuid}/')
+    assert response.status_code == 204
+    assert not DatasetSchema.objects.filter(uuid=schema.uuid).exists()
 
 
 @pytest.mark.django_db
