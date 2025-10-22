@@ -102,6 +102,44 @@ nodes:
 
 # ------- Block nodes -------
 
+- id: road_traffic_emission_factors2
+  name: Tieliikenteen päästökertoimet
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  input_datasets:
+  - id: espoo/tieliikenteen_paastokertoimet
+    tags: [baseline]
+    column: paastokerroin
+    forecast_from: 2025
+
+- id: road_traffic_mileage
+  name: Tieliikenteen ajoneuvosuorite
+  type: generic.GenericNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: espoo/tieliikenteen_ajoneuvosuorite
+    tags: [baseline]
+    column: ajoneuvosuorite
+    forecast_from: 2025
+
+- id: road_traffic_mileage2
+  name: Tieliikenteen ajoneuvosuorite
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: Mvkm/a
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  input_nodes:
+  - id: road_transport_emissions_historical2
+  - id: road_traffic_emission_factors2
+    tags: [geometric_inverse]
+
 - id: transport_emissions
   name_fi: Liikenteen päästöt
   name_en: Transport emissions
@@ -194,6 +232,28 @@ nodes:
   input_nodes:
   - id: road_transport_energy_consumption
   - id: road_traffic_emission_factors
+  # output_nodes:
+  # - id: road_traffic_emissions
+  #   from_dimensions:
+  #   - id: vehicle_type
+  #     flatten: true
+  #   to_dimensions:
+  #   - id: economic_sector
+  #   - id: emission_sector
+  #     categories: [road_transport]
+
+- id: road_traffic_emissions_uncorrected2
+  name_fi: Tieliikenteen päästöt, korjaamaton
+  name_en: Road traffic emissions, uncorrected
+  name_sv: Vägtrafikens utsläpp
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  input_nodes:
+  - id: road_traffic_mileage
+  - id: road_traffic_emission_factors2
   output_nodes:
   - id: road_traffic_emissions
     from_dimensions:
@@ -230,6 +290,45 @@ nodes:
       drop_col: false
     - column: Sektori3
       flatten: true
+
+- id: road_transport_emissions_historical2
+  name: Historialliset tieliikenteen päästöt
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  input_datasets:
+  - id: hsy/pks_khk_paastot
+    tags: [baseline]
+    column: Päästöt
+    filters:
+    - rename_col: Sektori3
+      value: vehicle_type
+    - rename_col: Sektori4
+      value: economic_sector
+    - rename_col: Vuosi
+      value: Year
+    - rename_item: vehicle_type|Linja-autot
+      value: buses_hsl
+    - column: Kaupunki
+      ref: municipality_name
+    - column: Sektori1
+    - column: Sektori2
+      value: Tieliikenne
+      flatten: true
+
+- id: diff
+  name: diff
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  input_nodes:
+  - id: road_traffic_emissions_uncorrected2
+  - id: road_transport_emissions_historical2
+    tags: [arithmetic_inverse]
 
 - id: road_traffic_emissions
   name_fi: Tieliikenteen päästöt

@@ -4,7 +4,7 @@ supported_languages: [sv, en]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: bfaf7b7955816d05c62bf37d4e89958685f8f521
+  commit: 8387c4c0818eb4fb05515aeedb5988c31c9c9328
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -1893,6 +1893,9 @@ actions:
   - id: road_transport_energy_consumption
     tags: [arithmetic_inverse, complement]
     to_dimensions: []
+  - id: road_traffic_mileage
+    tags: [arithmetic_inverse, complement]
+    to_dimensions: []
 
 # Transport
 
@@ -1914,7 +1917,7 @@ actions:
     - column: scenario
       ref: scenario_name
   output_nodes:
-  - id: road_traffic_emission_factors
+  - id: road_traffic_emission_factors2
     tags: [non_additive, complement]
     to_dimensions: []
   - id: passenger_car_emission_factors # TODO Should not affect non-fuel cars types
@@ -2462,6 +2465,9 @@ actions:
   unit: '%'
   group: transportation
   output_nodes:
+  - id: road_traffic_mileage
+    tags: [extend_to_history, complement]
+    to_dimensions: []
   - id: passenger_car_kilometers
     tags: [extend_to_history, complement]
     to_dimensions: []
@@ -2485,6 +2491,9 @@ actions:
   unit: '%'
   group: transportation
   output_nodes:
+  - id: road_traffic_mileage
+    tags: [extend_to_history, complement]
+    to_dimensions: []
   - id: passenger_car_kilometers
     tags: [extend_to_history, complement]
     to_dimensions: []
