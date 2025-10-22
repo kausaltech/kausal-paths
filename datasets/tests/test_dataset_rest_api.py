@@ -54,32 +54,33 @@ def test_dataset_schema_list(api_client, dataset_test_data, user_key, has_access
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'schema_key', 'access_allowed', 'should_be_found'), [
-    ('superuser', 'schema1', True, True),
-    ('superuser', 'schema2', True, True),
-    ('admin_user', 'schema1', True, True),
-    ('admin_user', 'schema2', True, False),
-    ('super_admin_user', 'schema1', True, True),
-    ('super_admin_user', 'schema2', True, False),
-    ('reviewer_user', 'schema1', True, True),
-    ('reviewer_user', 'schema2', True, False),
-    ('viewer_user', 'schema1', True, True),
-    ('viewer_user', 'schema2', True, False),
-    ('schema1_viewer', 'schema1', True, True),
-    ('schema1_viewer', 'schema2', True, False),
-    ('schema1_editor', 'schema1', True, True),
-    ('schema1_editor', 'schema2', True, False),
-    ('schema1_admin', 'schema1', True, True),
-    ('schema1_admin', 'schema2', True, False),
-    ('schema1_viewer_group_user', 'schema1', True, True),
-    ('schema1_viewer_group_user', 'schema2', True, False),
-    ('schema1_editor_group_user', 'schema1', True, True),
-    ('schema1_editor_group_user', 'schema2', True, False),
-    ('schema1_admin_group_user', 'schema1', True, True),
-    ('schema1_admin_group_user', 'schema2', True, False),
-    ('regular_user', 'schema1', False, False),
-    ('regular_user', 'schema2', False, False),
-])
+@pytest.mark.parametrize(*parse_table("""
+user_key                   schema_key  access_allowed  should_be_found
+superuser                  schema1     +               +
+superuser                  schema2     +               +
+admin_user                 schema1     +               +
+admin_user                 schema2     +               -
+super_admin_user           schema1     +               +
+super_admin_user           schema2     +               -
+reviewer_user              schema1     +               +
+reviewer_user              schema2     +               -
+viewer_user                schema1     +               +
+viewer_user                schema2     +               -
+schema1_viewer             schema1     +               +
+schema1_viewer             schema2     +               -
+schema1_editor             schema1     +               +
+schema1_editor             schema2     +               -
+schema1_admin              schema1     +               +
+schema1_admin              schema2     +               -
+schema1_viewer_group_user  schema1     +               +
+schema1_viewer_group_user  schema2     +               -
+schema1_editor_group_user  schema1     +               +
+schema1_editor_group_user  schema2     +               -
+schema1_admin_group_user   schema1     +               +
+schema1_admin_group_user   schema2     +               -
+regular_user               schema1     -               -
+regular_user               schema2     -               -
+"""))
 def test_dataset_schema_retrieve(api_client, dataset_test_data, user_key, schema_key, access_allowed, should_be_found):
     user = dataset_test_data[user_key]
     schema = dataset_test_data[schema_key]
@@ -178,12 +179,12 @@ viewer_user                schema1        -               -                +
 viewer_user                schema2        -               -                +
 
 
-# These are the only ones that are succesful (204)
+# These are the only ones that should succeed (204)
 superuser                  unused_schema  +               +                -
 super_admin_user           unused_schema  +               +                -
 admin_user                 unused_schema  +               +                -
 
-# 403 for these
+# 403 for these since the roles of the users simply disallow the delete action
 regular_user               unused_schema  -               -                -
 reviewer_user              unused_schema  -               -                -
 schema1_admin              unused_schema  -               -                -
@@ -234,14 +235,15 @@ def test_dataset_schema_delete(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'access_allowed'), [
-    ('superuser', True),
-    ('admin_user', True),
-    ('super_admin_user', True),
-    ('reviewer_user', False),
-    ('viewer_user', False),
-    ('regular_user', False),
-])
+@pytest.mark.parametrize(*parse_table("""
+user_key          access_allowed
+superuser         +
+admin_user        +
+super_admin_user  +
+reviewer_user     -
+viewer_user       -
+regular_user      -
+"""))
 def test_dataset_schema_create(api_client, dataset_test_data, user_key, access_allowed):
     user = dataset_test_data[user_key]
     api_client.force_authenticate(user=user)
@@ -295,32 +297,33 @@ def test_dataset_list(api_client, dataset_test_data, user_key):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'dataset_key', 'access_allowed', 'should_be_found'), [
-    ('superuser', 'dataset1', True, True),
-    ('superuser', 'dataset2', True, True),
-    ('admin_user', 'dataset1', True, True),
-    ('admin_user', 'dataset2', True, False),
-    ('super_admin_user', 'dataset1', True, True),
-    ('super_admin_user', 'dataset2', True, False),
-    ('reviewer_user', 'dataset1', True, True),
-    ('reviewer_user', 'dataset2', True, False),
-    ('viewer_user', 'dataset1', True, True),
-    ('viewer_user', 'dataset2', True, False),
-    ('schema1_viewer', 'dataset1', True, True),
-    ('schema1_viewer', 'dataset2', True, False),
-    ('schema1_editor', 'dataset1', True, True),
-    ('schema1_editor', 'dataset2', True, False),
-    ('schema1_admin', 'dataset1', True, True),
-    ('schema1_admin', 'dataset2', True, False),
-    ('schema1_viewer_group_user', 'dataset1', True, True),
-    ('schema1_viewer_group_user', 'dataset2', True, False),
-    ('schema1_editor_group_user', 'dataset1', True, True),
-    ('schema1_editor_group_user', 'dataset2', True, False),
-    ('schema1_admin_group_user', 'dataset1', True, True),
-    ('schema1_admin_group_user', 'dataset2', True, False),
-    ('regular_user', 'dataset1', False, False),
-    ('regular_user', 'dataset2', False, False),
-])
+@pytest.mark.parametrize(*parse_table("""
+user_key                   dataset_key  access_allowed  should_be_found
+superuser                  dataset1     +               +
+superuser                  dataset2     +               +
+admin_user                 dataset1     +               +
+admin_user                 dataset2     +               -
+super_admin_user           dataset1     +               +
+super_admin_user           dataset2     +               -
+reviewer_user              dataset1     +               +
+reviewer_user              dataset2     +               -
+viewer_user                dataset1     +               +
+viewer_user                dataset2     +               -
+schema1_viewer             dataset1     +               +
+schema1_viewer             dataset2     +               -
+schema1_editor             dataset1     +               +
+schema1_editor             dataset2     +               -
+schema1_admin              dataset1     +               +
+schema1_admin              dataset2     +               -
+schema1_viewer_group_user  dataset1     +               +
+schema1_viewer_group_user  dataset2     +               -
+schema1_editor_group_user  dataset1     +               +
+schema1_editor_group_user  dataset2     +               -
+schema1_admin_group_user   dataset1     +               +
+schema1_admin_group_user   dataset2     +               -
+regular_user               dataset1     -               -
+regular_user               dataset2     -               -
+"""))
 def test_dataset_retrieve(api_client, dataset_test_data, user_key, dataset_key, access_allowed, should_be_found):
     user = dataset_test_data[user_key]
     dataset = dataset_test_data[dataset_key]
@@ -339,33 +342,38 @@ def test_dataset_retrieve(api_client, dataset_test_data, user_key, dataset_key, 
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'dataset_key', 'should_be_found', 'access_allowed'), [
-    ('superuser', 'dataset1', True, True),
-    ('superuser', 'dataset2', True, True),
-    ('admin_user', 'dataset1', True, True),
-    ('admin_user', 'dataset2', False, True),
-    ('super_admin_user', 'dataset1', True, True),
-    ('super_admin_user', 'dataset2', False, True),
-    ('reviewer_user', 'dataset1', False, False),
-    ('reviewer_user', 'dataset2', False, False),
-    ('viewer_user', 'dataset1', False, False),
-    ('viewer_user', 'dataset2', False, False),
-    ('schema1_viewer', 'dataset1', True, False),
-    ('schema1_viewer', 'dataset2', True, False),
-    ('schema1_editor', 'dataset1', True, True),
-    ('schema1_editor', 'dataset2', True, True),
-    ('schema1_admin', 'dataset1', True, True),
-    ('schema1_admin', 'dataset2', True, True),
-    ('schema1_viewer_group_user', 'dataset1', True, False),
-    ('schema1_viewer_group_user', 'dataset2', True, False),
-    ('schema1_editor_group_user', 'dataset1', True, True),
-    ('schema1_editor_group_user', 'dataset2', True, True),
-    ('schema1_admin_group_user', 'dataset1', True, True),
-    ('schema1_admin_group_user', 'dataset2', True, True),
-    ('regular_user', 'dataset1', False, False),
-    ('regular_user', 'dataset2', False, False),
-])
-def test_dataset_update(api_client, dataset_test_data, user_key, dataset_key, should_be_found, access_allowed):
+@pytest.mark.parametrize(*parse_table("""
+user_key                   dataset_key  expected_status
+
+superuser                  dataset1     200
+superuser                  dataset2     200
+
+admin_user                 dataset1     200
+super_admin_user           dataset1     200
+schema1_editor             dataset1     200
+schema1_admin              dataset1     200
+schema1_editor_group_user  dataset1     200
+schema1_admin_group_user   dataset1     200
+
+viewer_user                dataset1     403
+viewer_user                dataset2     403
+reviewer_user              dataset1     403
+reviewer_user              dataset2     403
+schema1_viewer             dataset1     403
+schema1_viewer_group_user  dataset1     403
+regular_user               dataset1     403
+regular_user               dataset2     403
+
+schema1_editor             dataset2     404
+schema1_admin              dataset2     404
+schema1_editor_group_user  dataset2     404
+schema1_admin_group_user   dataset2     404
+schema1_viewer             dataset2     404
+schema1_viewer_group_user  dataset2     404
+admin_user                 dataset2     404
+super_admin_user           dataset2     404
+"""))
+def test_dataset_update(api_client, dataset_test_data, user_key, dataset_key, expected_status):
     user = dataset_test_data[user_key]
     dataset = dataset_test_data[dataset_key]
     api_client.force_authenticate(user=user)
@@ -375,68 +383,66 @@ def test_dataset_update(api_client, dataset_test_data, user_key, dataset_key, sh
     with AssertIdenticalUUIDs(Dataset.objects):
         response = api_client.patch(f'/v1/datasets/{dataset.uuid}/', update_data, format='json')
 
-    if access_allowed and should_be_found:
-        assert response.status_code == 200
-    elif access_allowed and not should_be_found:
-        assert response.status_code == 404
-    else:
-        assert response.status_code == 403
+    assert response.status_code == expected_status
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'dataset_key', 'access_allowed', 'should_be_found'), [
-    ('superuser', 'dataset1', True, True),
-    ('superuser', 'dataset2', True, True),
-    ('admin_user', 'dataset1', True, True),
-    ('admin_user', 'dataset2', True, False),
-    ('super_admin_user', 'dataset1', True, True),
-    ('super_admin_user', 'dataset2', True, False),
-    ('reviewer_user', 'dataset1', False, False),
-    ('reviewer_user', 'dataset2', False, False),
-    ('viewer_user', 'dataset1', False, False),
-    ('viewer_user', 'dataset2', False, False),
-    ('schema1_viewer', 'dataset1', True, False),
-    ('schema1_viewer', 'dataset2', True, False),
-    ('schema1_editor', 'dataset1', True, False),
-    ('schema1_editor', 'dataset2', True, False),
-    ('schema1_admin', 'dataset1', True, True),
-    ('schema1_admin', 'dataset2', True, False),
-    ('schema1_viewer_group_user', 'dataset1', True, False),
-    ('schema1_viewer_group_user', 'dataset2', True, False),
-    ('schema1_editor_group_user', 'dataset1', True, False),
-    ('schema1_editor_group_user', 'dataset2', True, False),
-    ('schema1_admin_group_user', 'dataset1', True, True),
-    ('schema1_admin_group_user', 'dataset2', True, False),
-    ('regular_user', 'dataset1', False, False),
-    ('regular_user', 'dataset2', False, False),
-])
-def test_dataset_delete(api_client, dataset_test_data, user_key, dataset_key, access_allowed, should_be_found):
+@pytest.mark.parametrize(*parse_table("""
+user_key                   dataset_key  expected_status
+
+superuser                  dataset1     204
+superuser                  dataset2     204
+admin_user                 dataset1     204
+super_admin_user           dataset1     204
+schema1_admin              dataset1     204
+schema1_admin_group_user   dataset1     204
+
+reviewer_user              dataset1     403
+reviewer_user              dataset2     403
+viewer_user                dataset1     403
+viewer_user                dataset2     403
+regular_user               dataset1     403
+regular_user               dataset2     403
+schema1_viewer             dataset1     403
+schema1_editor             dataset1     403
+schema1_viewer_group_user  dataset1     403
+schema1_editor_group_user  dataset1     403
+
+admin_user                 dataset2     404
+super_admin_user           dataset2     404
+schema1_viewer             dataset2     404
+schema1_editor             dataset2     404
+schema1_admin              dataset2     404
+schema1_viewer_group_user  dataset2     404
+schema1_editor_group_user  dataset2     404
+schema1_admin_group_user   dataset2     404
+"""))
+def test_dataset_delete(api_client, dataset_test_data, user_key, dataset_key, expected_status):
     user = dataset_test_data[user_key]
     dataset = dataset_test_data[dataset_key]
     api_client.force_authenticate(user=user)
 
-    if access_allowed and should_be_found:
+    if expected_status == 204:
         with AssertRemovedUUID(Dataset.objects, dataset.uuid):
             response = api_client.delete(f'/v1/datasets/{dataset.uuid}/')
-        assert response.status_code == 204
-    else:
-        with AssertIdenticalUUIDs(Dataset.objects):
-            response = api_client.delete(f'/v1/datasets/{dataset.uuid}/')
-        if access_allowed and not should_be_found:
-            assert response.status_code == 404
-        else:
-            assert response.status_code == 403
+            assert response.status_code == expected_status
+            return
+
+    with AssertIdenticalUUIDs(Dataset.objects):
+        response = api_client.delete(f'/v1/datasets/{dataset.uuid}/')
+        assert response.status_code == expected_status
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'access_allowed'), [
-    ('superuser', True),
-    ('admin_user', True),
-    ('super_admin_user', True),
-    ('reviewer_user', False),
-    ('viewer_user', False),
-    ('regular_user', False),
-])
+@pytest.mark.parametrize(*parse_table("""
+user_key          access_allowed
+superuser         +
+admin_user        +
+super_admin_user  +
+reviewer_user     -
+viewer_user       -
+regular_user      -
+"""))
 def test_dataset_create(api_client, dataset_test_data, user_key, access_allowed):
     user = dataset_test_data[user_key]
     api_client.force_authenticate(user=user)
@@ -468,39 +474,41 @@ def test_dataset_create(api_client, dataset_test_data, user_key, access_allowed)
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'dataset_key', 'expected_status'), [
-    # Access to everything
-    ('superuser', 'dataset1', 200),
-    ('superuser', 'dataset2', 200),
+@pytest.mark.parametrize(*parse_table("""
+user_key                   dataset_key  expected_status
 
-    # Access to dataset
-    ('admin_user', 'dataset1', 200),
-    ('super_admin_user', 'dataset1', 200),
-    ('reviewer_user', 'dataset1', 200),
-    ('viewer_user', 'dataset1', 200),
-    ('schema1_viewer', 'dataset1', 200),
-    ('schema1_editor', 'dataset1', 200),
-    ('schema1_admin', 'dataset1', 200),
-    ('schema1_viewer_group_user', 'dataset1', 200),
-    ('schema1_editor_group_user', 'dataset1', 200),
-    ('schema1_admin_group_user', 'dataset1', 200),
+# Access to everything
+superuser                  dataset1     200
+superuser                  dataset2     200
 
-    # No access to dataset
-    ('admin_user', 'dataset2', 404),
-    ('super_admin_user', 'dataset2', 404),
-    ('reviewer_user', 'dataset2', 404),
-    ('viewer_user', 'dataset2', 404),
-    ('schema1_viewer', 'dataset2', 404),
-    ('schema1_editor', 'dataset2', 404),
-    ('schema1_admin', 'dataset2', 404),
-    ('schema1_viewer_group_user', 'dataset2', 404),
-    ('schema1_editor_group_user', 'dataset2', 404),
-    ('schema1_admin_group_user', 'dataset2', 404),
+# Access to dataset
+admin_user                 dataset1     200
+super_admin_user           dataset1     200
+reviewer_user              dataset1     200
+viewer_user                dataset1     200
+schema1_viewer             dataset1     200
+schema1_editor             dataset1     200
+schema1_admin              dataset1     200
+schema1_viewer_group_user  dataset1     200
+schema1_editor_group_user  dataset1     200
+schema1_admin_group_user   dataset1     200
 
-    # No access to endpoint
-    ('regular_user', 'dataset1', 403),
-    ('regular_user', 'dataset2', 403),
-])
+# No access to dataset
+admin_user                 dataset2     404
+super_admin_user           dataset2     404
+reviewer_user              dataset2     404
+viewer_user                dataset2     404
+schema1_viewer             dataset2     404
+schema1_editor             dataset2     404
+schema1_admin              dataset2     404
+schema1_viewer_group_user  dataset2     404
+schema1_editor_group_user  dataset2     404
+schema1_admin_group_user   dataset2     404
+
+# No access to endpoint
+regular_user               dataset1     403
+regular_user               dataset2     403
+"""))
 def test_datapoint_list(api_client, dataset_test_data, user_key, dataset_key, expected_status):
     user = dataset_test_data[user_key]
     dataset = dataset_test_data[dataset_key]
@@ -514,32 +522,33 @@ def test_datapoint_list(api_client, dataset_test_data, user_key, dataset_key, ex
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'datapoint_key', 'access_allowed', 'should_be_found'), [
-    ('superuser', 'data_point1', True, True),
-    ('superuser', 'data_point2', True, True),
-    ('admin_user', 'data_point1', True, True),
-    ('admin_user', 'data_point2', True, False),
-    ('super_admin_user', 'data_point1', True, True),
-    ('super_admin_user', 'data_point2', True, False),
-    ('reviewer_user', 'data_point1', True, True),
-    ('reviewer_user', 'data_point2', True, False),
-    ('viewer_user', 'data_point1', True, True),
-    ('viewer_user', 'data_point2', True, False),
-    ('schema1_viewer', 'data_point1', True, True),
-    ('schema1_viewer', 'data_point2', True, False),
-    ('schema1_editor', 'data_point1', True, True),
-    ('schema1_editor', 'data_point2', True, False),
-    ('schema1_admin', 'data_point1', True, True),
-    ('schema1_admin', 'data_point2', True, False),
-    ('schema1_viewer_group_user', 'data_point1', True, True),
-    ('schema1_viewer_group_user', 'data_point2', True, False),
-    ('schema1_editor_group_user', 'data_point1', True, True),
-    ('schema1_editor_group_user', 'data_point2', True, False),
-    ('schema1_admin_group_user', 'data_point1', True, True),
-    ('schema1_admin_group_user', 'data_point2', True, False),
-    ('regular_user', 'data_point1', False, False),
-    ('regular_user', 'data_point2', False, False),
-])
+@pytest.mark.parametrize(*parse_table("""
+user_key                   datapoint_key  access_allowed  should_be_found
+superuser                  data_point1    +               +
+superuser                  data_point2    +               +
+admin_user                 data_point1    +               +
+admin_user                 data_point2    +               -
+super_admin_user           data_point1    +               +
+super_admin_user           data_point2    +               -
+reviewer_user              data_point1    +               +
+reviewer_user              data_point2    +               -
+viewer_user                data_point1    +               +
+viewer_user                data_point2    +               -
+schema1_viewer             data_point1    +               +
+schema1_viewer             data_point2    +               -
+schema1_editor             data_point1    +               +
+schema1_editor             data_point2    +               -
+schema1_admin              data_point1    +               +
+schema1_admin              data_point2    +               -
+schema1_viewer_group_user  data_point1    +               +
+schema1_viewer_group_user  data_point2    +               -
+schema1_editor_group_user  data_point1    +               +
+schema1_editor_group_user  data_point2    +               -
+schema1_admin_group_user   data_point1    +               +
+schema1_admin_group_user   data_point2    +               -
+regular_user               data_point1    -               -
+regular_user               data_point2    -               -
+"""))
 def test_datapoint_retrieve(api_client, dataset_test_data, user_key, datapoint_key, access_allowed, should_be_found):
     user = dataset_test_data[user_key]
     datapoint = dataset_test_data[datapoint_key]
@@ -559,20 +568,21 @@ def test_datapoint_retrieve(api_client, dataset_test_data, user_key, datapoint_k
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'dataset_key', 'expected_status'), [
-    ('superuser', 'dataset1', 201),
-    ('admin_user', 'dataset1', 201),
-    ('super_admin_user', 'dataset1', 201),
-    ('schema1_editor', 'dataset1', 201),
-    ('schema1_admin', 'dataset1', 201),
-    ('schema1_editor_group_user', 'dataset1', 201),
-    ('schema1_admin_group_user', 'dataset1', 201),
-    ('reviewer_user', 'dataset1', 403),
-    ('viewer_user', 'dataset1', 403),
-    ('schema1_viewer', 'dataset1', 403),
-    ('schema1_viewer_group_user', 'dataset1', 403),
-    ('regular_user', 'dataset1', 403),
-])
+@pytest.mark.parametrize(*parse_table("""
+user_key                   dataset_key  expected_status
+superuser                  dataset1     201
+admin_user                 dataset1     201
+super_admin_user           dataset1     201
+schema1_editor             dataset1     201
+schema1_admin              dataset1     201
+schema1_editor_group_user  dataset1     201
+schema1_admin_group_user   dataset1     201
+reviewer_user              dataset1     403
+viewer_user                dataset1     403
+schema1_viewer             dataset1     403
+schema1_viewer_group_user  dataset1     403
+regular_user               dataset1     403
+"""))
 def test_datapoint_create(api_client, dataset_test_data, user_key, dataset_key, expected_status):
     user = dataset_test_data[user_key]
     dataset = dataset_test_data[dataset_key]
@@ -601,41 +611,43 @@ def test_datapoint_create(api_client, dataset_test_data, user_key, dataset_key, 
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'datapoint_key', 'expected_status'), [
-    # Access to data_point1 (instance1)
-    ('superuser', 'data_point1', 200),
-    ('admin_user', 'data_point1', 200),
-    ('super_admin_user', 'data_point1', 200),
-    ('schema1_editor', 'data_point1', 200),
-    ('schema1_admin', 'data_point1', 200),
-    ('schema1_editor_group_user', 'data_point1', 200),
-    ('schema1_admin_group_user', 'data_point1', 200),
+@pytest.mark.parametrize(*parse_table("""
+user_key                   datapoint_key  expected_status
 
-    # Access to data_point2 (instance2)
-    ('superuser', 'data_point2', 200),
+# Access to data_point2 ( instance2 )
+superuser                  data_point2    200
 
-    # No write access to data_point1
-    ('reviewer_user', 'data_point1', 403),
-    ('viewer_user', 'data_point1', 403),
-    ('schema1_viewer', 'data_point1', 403),
-    ('schema1_viewer_group_user', 'data_point1', 403),
+#  Access to data_point1 instance1
+superuser                  data_point1    200
+admin_user                 data_point1    200
+super_admin_user           data_point1    200
+schema1_editor             data_point1    200
+schema1_admin              data_point1    200
+schema1_editor_group_user  data_point1    200
+schema1_admin_group_user   data_point1    200
 
-    # No access to data_point2 (parent not visible)
-    ('admin_user', 'data_point2', 404),
-    ('super_admin_user', 'data_point2', 404),
-    ('schema1_editor', 'data_point2', 404),
-    ('schema1_admin', 'data_point2', 404),
-    ('schema1_editor_group_user', 'data_point2', 404),
-    ('schema1_admin_group_user', 'data_point2', 404),
+# No write access to data_point1
+reviewer_user              data_point1    403
+viewer_user                data_point1    403
+schema1_viewer             data_point1    403
+schema1_viewer_group_user  data_point1    403
 
-    # No access to endpoint
-    ('reviewer_user', 'data_point2', 403),
-    ('viewer_user', 'data_point2', 403),
-    ('schema1_viewer', 'data_point2', 403),
-    ('schema1_viewer_group_user', 'data_point2', 403),
-    ('regular_user', 'data_point1', 403),
-    ('regular_user', 'data_point2', 403),
-])
+# No access to data_point2 ( parent not visible )
+admin_user                 data_point2    404
+super_admin_user           data_point2    404
+schema1_editor             data_point2    404
+schema1_admin              data_point2    404
+schema1_editor_group_user  data_point2    404
+schema1_admin_group_user   data_point2    404
+schema1_viewer             data_point2    404
+schema1_viewer_group_user  data_point2    404
+
+# No access to endpoint
+reviewer_user              data_point2    403
+viewer_user                data_point2    403
+regular_user               data_point1    403
+regular_user               data_point2    403
+"""))
 def test_datapoint_update(api_client, dataset_test_data, user_key, datapoint_key, expected_status):
     user = dataset_test_data[user_key]
     datapoint = dataset_test_data[datapoint_key]
@@ -678,32 +690,35 @@ def test_datapoint_update(api_client, dataset_test_data, user_key, datapoint_key
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'datapoint_key', 'access_allowed', 'should_be_found'), [
-    ('superuser', 'data_point1', True, True),
-    ('superuser', 'data_point2', True, True),
-    ('admin_user', 'data_point1', True, True),
-    ('admin_user', 'data_point2', True, False),
-    ('super_admin_user', 'data_point1', True, True),
-    ('super_admin_user', 'data_point2', True, False),
-    ('schema1_admin', 'data_point1', True, True),
-    ('schema1_admin', 'data_point2', True, False),
-    ('schema1_admin_group_user', 'data_point1', True, True),
-    ('schema1_admin_group_user', 'data_point2', True, False),
-    ('reviewer_user', 'data_point1', False, False),
-    ('reviewer_user', 'data_point2', False, False),
-    ('viewer_user', 'data_point1', False, False),
-    ('viewer_user', 'data_point2', False, False),
-    ('schema1_viewer', 'data_point1', False, False),
-    ('schema1_viewer', 'data_point2', False, False),
-    ('schema1_editor', 'data_point1', False, False),
-    ('schema1_editor', 'data_point2', False, False),
-    ('schema1_viewer_group_user', 'data_point1', False, False),
-    ('schema1_viewer_group_user', 'data_point2', False, False),
-    ('schema1_editor_group_user', 'data_point1', False, False),
-    ('schema1_editor_group_user', 'data_point2', False, False),
-    ('regular_user', 'data_point1', False, False),
-    ('regular_user', 'data_point2', False, False),
-])
+@pytest.mark.parametrize(*parse_table("""
+user_key                   datapoint_key  access_allowed  should_be_found
+superuser                  data_point1    +               +
+superuser                  data_point2    +               +
+admin_user                 data_point1    +               +
+super_admin_user           data_point1    +               +
+schema1_admin              data_point1    +               +
+schema1_admin_group_user   data_point1    +               +
+
+admin_user                 data_point2    +               -
+super_admin_user           data_point2    +               -
+schema1_admin              data_point2    +               -
+schema1_admin_group_user   data_point2    +               -
+
+reviewer_user              data_point1    -               -
+reviewer_user              data_point2    -               -
+viewer_user                data_point1    -               -
+viewer_user                data_point2    -               -
+schema1_viewer             data_point1    -               -
+schema1_viewer             data_point2    +               -
+schema1_editor             data_point1    -               -
+schema1_editor             data_point2    +               -
+schema1_viewer_group_user  data_point1    -               -
+schema1_viewer_group_user  data_point2    +               -
+schema1_editor_group_user  data_point1    -               -
+schema1_editor_group_user  data_point2    +               -
+regular_user               data_point1    -               -
+regular_user               data_point2    -               -
+"""))
 def test_datapoint_delete(api_client, dataset_test_data, user_key, datapoint_key, access_allowed, should_be_found):
     user = dataset_test_data[user_key]
     datapoint = dataset_test_data[datapoint_key]
@@ -724,39 +739,41 @@ def test_datapoint_delete(api_client, dataset_test_data, user_key, datapoint_key
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'data_point_key', 'expected_status'), [
-    # Access to data_point1 (instance1)
-    ('superuser', 'data_point1', 200),
-    ('admin_user', 'data_point1', 200),
-    ('super_admin_user', 'data_point1', 200),
-    ('reviewer_user', 'data_point1', 200),
-    ('viewer_user', 'data_point1', 200),
-    ('schema1_viewer', 'data_point1', 200),
-    ('schema1_editor', 'data_point1', 200),
-    ('schema1_admin', 'data_point1', 200),
-    ('schema1_viewer_group_user', 'data_point1', 200),
-    ('schema1_editor_group_user', 'data_point1', 200),
-    ('schema1_admin_group_user', 'data_point1', 200),
+@pytest.mark.parametrize(*parse_table("""
+user_key                   data_point_key  expected_status
 
-    # Access to data_point2 (instance2)
-    ('superuser', 'data_point2', 200),
+# Access to data_point1 (instance1)
+superuser                  data_point1     200
+admin_user                 data_point1     200
+super_admin_user           data_point1     200
+reviewer_user              data_point1     200
+viewer_user                data_point1     200
+schema1_viewer             data_point1     200
+schema1_editor             data_point1     200
+schema1_admin              data_point1     200
+schema1_viewer_group_user  data_point1     200
+schema1_editor_group_user  data_point1     200
+schema1_admin_group_user   data_point1     200
 
-    # No access to data_point2 (parent not visible)
-    ('admin_user', 'data_point2', 404),
-    ('super_admin_user', 'data_point2', 404),
-    ('reviewer_user', 'data_point2', 404),
-    ('viewer_user', 'data_point2', 404),
-    ('schema1_viewer', 'data_point2', 404),
-    ('schema1_editor', 'data_point2', 404),
-    ('schema1_admin', 'data_point2', 404),
-    ('schema1_viewer_group_user', 'data_point2', 404),
-    ('schema1_editor_group_user', 'data_point2', 404),
-    ('schema1_admin_group_user', 'data_point2', 404),
+# Access to data_point2 (instance2)
+superuser                  data_point2     200
 
-    # No access to endpoint
-    ('regular_user', 'data_point1', 403),
-    ('regular_user', 'data_point2', 403),
-])
+# No access to data_point2 (parent not visible)
+admin_user                 data_point2     404
+super_admin_user           data_point2     404
+reviewer_user              data_point2     404
+viewer_user                data_point2     404
+schema1_viewer             data_point2     404
+schema1_editor             data_point2     404
+schema1_admin              data_point2     404
+schema1_viewer_group_user  data_point2     404
+schema1_editor_group_user  data_point2     404
+schema1_admin_group_user   data_point2     404
+
+# No access to endpoint
+regular_user               data_point1     403
+regular_user               data_point2     403
+"""))
 def test_datapoint_comment_list(api_client, dataset_test_data, user_key, data_point_key, expected_status):
     user = dataset_test_data[user_key]
     datapoint = dataset_test_data[data_point_key]
@@ -771,39 +788,41 @@ def test_datapoint_comment_list(api_client, dataset_test_data, user_key, data_po
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'comment_key', 'expected_status'), [
-    # Access to comment1 (on data_point1, instance1)
-    ('superuser', 'comment1', 200),
-    ('admin_user', 'comment1', 200),
-    ('super_admin_user', 'comment1', 200),
-    ('reviewer_user', 'comment1', 200),
-    ('viewer_user', 'comment1', 200),
-    ('schema1_viewer', 'comment1', 200),
-    ('schema1_editor', 'comment1', 200),
-    ('schema1_admin', 'comment1', 200),
-    ('schema1_viewer_group_user', 'comment1', 200),
-    ('schema1_editor_group_user', 'comment1', 200),
-    ('schema1_admin_group_user', 'comment1', 200),
+@pytest.mark.parametrize(*parse_table("""
+user_key                   comment_key  expected_status
 
-    # Access to comment2 (on data_point2, instance2)
-    ('superuser', 'comment2', 200),
+# Access to comment1 (on data_point1, instance1)
+superuser                  comment1     200
+admin_user                 comment1     200
+super_admin_user           comment1     200
+reviewer_user              comment1     200
+viewer_user                comment1     200
+schema1_viewer             comment1     200
+schema1_editor             comment1     200
+schema1_admin              comment1     200
+schema1_viewer_group_user  comment1     200
+schema1_editor_group_user  comment1     200
+schema1_admin_group_user   comment1     200
 
-    # No access to comment2 (parent not visible)
-    ('admin_user', 'comment2', 404),
-    ('super_admin_user', 'comment2', 404),
-    ('reviewer_user', 'comment2', 404),
-    ('viewer_user', 'comment2', 404),
-    ('schema1_viewer', 'comment2', 404),
-    ('schema1_editor', 'comment2', 404),
-    ('schema1_admin', 'comment2', 404),
-    ('schema1_viewer_group_user', 'comment2', 404),
-    ('schema1_editor_group_user', 'comment2', 404),
-    ('schema1_admin_group_user', 'comment2', 404),
+# Access to comment2 (on data_point2, instance2)
+superuser                  comment2     200
 
-    # No access to endpoint
-    ('regular_user', 'comment1', 403),
-    ('regular_user', 'comment2', 403),
-])
+# No access to comment2 (parent not visible)
+admin_user                 comment2     404
+super_admin_user           comment2     404
+reviewer_user              comment2     404
+viewer_user                comment2     404
+schema1_viewer             comment2     404
+schema1_editor             comment2     404
+schema1_admin              comment2     404
+schema1_viewer_group_user  comment2     404
+schema1_editor_group_user  comment2     404
+schema1_admin_group_user   comment2     404
+
+# No access to endpoint
+regular_user               comment1     403
+regular_user               comment2     403
+"""))
 def test_datapoint_comment_retrieve(api_client, dataset_test_data, user_key, comment_key, expected_status):
     user = dataset_test_data[user_key]
     comment = dataset_test_data[comment_key]
@@ -820,41 +839,43 @@ def test_datapoint_comment_retrieve(api_client, dataset_test_data, user_key, com
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'data_point_key', 'expected_status'), [
-    # Access to data_point1 (instance1)
-    ('superuser', 'data_point1', 201),
-    ('admin_user', 'data_point1', 201),
-    ('super_admin_user', 'data_point1', 201),
-    ('reviewer_user', 'data_point1', 201),
-    ('schema1_editor', 'data_point1', 201),
-    ('schema1_admin', 'data_point1', 201),
-    ('schema1_editor_group_user', 'data_point1', 201),
-    ('schema1_admin_group_user', 'data_point1', 201),
+@pytest.mark.parametrize(*parse_table("""
+user_key                   data_point_key  expected_status
 
-    # Access to data_point2 (instance2)
-    ('superuser', 'data_point2', 201),
+# Access to data_point1 instance1
+superuser                  data_point1     201
+admin_user                 data_point1     201
+super_admin_user           data_point1     201
+reviewer_user              data_point1     201
+schema1_editor             data_point1     201
+schema1_admin              data_point1     201
+schema1_editor_group_user  data_point1     201
+schema1_admin_group_user   data_point1     201
 
-    # No write access to data_point1
-    ('viewer_user', 'data_point1', 403),
-    ('schema1_viewer', 'data_point1', 403),
-    ('schema1_viewer_group_user', 'data_point1', 403),
+# Access to data_point2 instance2
+superuser                  data_point2     201
 
-    # No access to data_point2 (parent not visible)
-    ('admin_user', 'data_point2', 404),
-    ('super_admin_user', 'data_point2', 404),
-    ('reviewer_user', 'data_point2', 404),
-    ('schema1_editor', 'data_point2', 404),
-    ('schema1_admin', 'data_point2', 404),
-    ('schema1_editor_group_user', 'data_point2', 404),
-    ('schema1_admin_group_user', 'data_point2', 404),
+# No write access to data_point1
+viewer_user                data_point1     403
+schema1_viewer             data_point1     403
+schema1_viewer_group_user  data_point1     403
 
-    # No access to endpoint / method
-    ('viewer_user', 'data_point2', 403),
-    ('schema1_viewer', 'data_point2', 403),
-    ('schema1_viewer_group_user', 'data_point2', 403),
-    ('regular_user', 'data_point1', 403),
-    ('regular_user', 'data_point2', 403),
-])
+# No access to data_point2: parent not visible
+admin_user                 data_point2     404
+super_admin_user           data_point2     404
+reviewer_user              data_point2     404
+schema1_editor             data_point2     404
+schema1_admin              data_point2     404
+schema1_editor_group_user  data_point2     404
+schema1_admin_group_user   data_point2     404
+schema1_viewer             data_point2     404
+schema1_viewer_group_user  data_point2     404
+
+# No access to endpoint / method
+viewer_user                data_point2     403
+regular_user               data_point1     403
+regular_user               data_point2     403
+"""))
 def test_datapoint_comment_create(api_client, dataset_test_data, user_key, data_point_key, expected_status):
     user = dataset_test_data[user_key]
     datapoint = dataset_test_data[data_point_key]
@@ -888,41 +909,43 @@ def test_datapoint_comment_create(api_client, dataset_test_data, user_key, data_
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'comment_key', 'expected_status'), [
-    # Access to comment1 (on data_point1, instance1)
-    ('superuser', 'comment1', 204),
-    ('admin_user', 'comment1', 204),
-    ('super_admin_user', 'comment1', 204),
-    ('schema1_admin', 'comment1', 204),
-    ('schema1_admin_group_user', 'comment1', 204),
+@pytest.mark.parametrize(*parse_table("""
+user_key                   comment_key  expected_status
 
-    # Access to comment2 (on data_point2, instance2)
-    ('superuser', 'comment2', 204),
+# Access to comment1 on data_point1 instance1
+superuser                  comment1     204
+admin_user                 comment1     204
+super_admin_user           comment1     204
+schema1_admin              comment1     204
+schema1_admin_group_user   comment1     204
 
-    # No delete access to comment1
-    ('reviewer_user', 'comment1', 403),
-    ('viewer_user', 'comment1', 403),
-    ('schema1_viewer', 'comment1', 403),
-    ('schema1_editor', 'comment1', 403),
-    ('schema1_viewer_group_user', 'comment1', 403),
-    ('schema1_editor_group_user', 'comment1', 403),
+# Access to comment2 on data_point2 instance2
+superuser                  comment2     204
 
-    # No access to comment2 (parent not visible)
-    ('admin_user', 'comment2', 404),
-    ('super_admin_user', 'comment2', 404),
-    ('schema1_admin', 'comment2', 404),
-    ('schema1_admin_group_user', 'comment2', 404),
+# No delete access to comment1
+reviewer_user              comment1     403
+viewer_user                comment1     403
+schema1_viewer             comment1     403
+schema1_editor             comment1     403
+schema1_viewer_group_user  comment1     403
+schema1_editor_group_user  comment1     403
 
-    # No access to endpoint / method
-    ('reviewer_user', 'comment2', 403),
-    ('viewer_user', 'comment2', 403),
-    ('schema1_viewer', 'comment2', 403),
-    ('schema1_editor', 'comment2', 403),
-    ('schema1_viewer_group_user', 'comment2', 403),
-    ('schema1_editor_group_user', 'comment2', 403),
-    ('regular_user', 'comment1', 403),
-    ('regular_user', 'comment2', 403),
-])
+# No access to comment2 parent not visible
+admin_user                 comment2     404
+super_admin_user           comment2     404
+schema1_admin              comment2     404
+schema1_admin_group_user   comment2     404
+schema1_viewer             comment2     404
+schema1_editor             comment2     404
+schema1_viewer_group_user  comment2     404
+schema1_editor_group_user  comment2     404
+
+# No access to endpoint / method
+reviewer_user              comment2     403
+viewer_user                comment2     403
+regular_user               comment1     403
+regular_user               comment2     403
+"""))
 def test_datapoint_comment_delete(api_client, dataset_test_data, user_key, comment_key, expected_status):
     user = dataset_test_data[user_key]
     comment = dataset_test_data[comment_key]
@@ -941,32 +964,33 @@ def test_datapoint_comment_delete(api_client, dataset_test_data, user_key, comme
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'dataset_key', 'expected_status'), [
-    ('superuser', 'dataset1', 200),
-    ('superuser', 'dataset2', 200),
-    ('admin_user', 'dataset1', 200),
-    ('admin_user', 'dataset2', 404),
-    ('super_admin_user', 'dataset1', 200),
-    ('super_admin_user', 'dataset2', 404),
-    ('reviewer_user', 'dataset1', 200),
-    ('reviewer_user', 'dataset2', 404),
-    ('viewer_user', 'dataset1', 200),
-    ('viewer_user', 'dataset2', 404),
-    ('schema1_viewer', 'dataset1', 200),
-    ('schema1_viewer', 'dataset2', 404),
-    ('schema1_editor', 'dataset1', 200),
-    ('schema1_editor', 'dataset2', 404),
-    ('schema1_admin', 'dataset1', 200),
-    ('schema1_admin', 'dataset2', 404),
-    ('schema1_viewer_group_user', 'dataset1', 200),
-    ('schema1_viewer_group_user', 'dataset2', 404),
-    ('schema1_editor_group_user', 'dataset1', 200),
-    ('schema1_editor_group_user', 'dataset2', 404),
-    ('schema1_admin_group_user', 'dataset1', 200),
-    ('schema1_admin_group_user', 'dataset2', 404),
-    ('regular_user', 'dataset1', 403),
-    ('regular_user', 'dataset2', 403),
-])
+@pytest.mark.parametrize(*parse_table("""
+user_key                   dataset_key  expected_status
+superuser                  dataset1     200
+superuser                  dataset2     200
+admin_user                 dataset1     200
+admin_user                 dataset2     404
+super_admin_user           dataset1     200
+super_admin_user           dataset2     404
+reviewer_user              dataset1     200
+reviewer_user              dataset2     404
+viewer_user                dataset1     200
+viewer_user                dataset2     404
+schema1_viewer             dataset1     200
+schema1_viewer             dataset2     404
+schema1_editor             dataset1     200
+schema1_editor             dataset2     404
+schema1_admin              dataset1     200
+schema1_admin              dataset2     404
+schema1_viewer_group_user  dataset1     200
+schema1_viewer_group_user  dataset2     404
+schema1_editor_group_user  dataset1     200
+schema1_editor_group_user  dataset2     404
+schema1_admin_group_user   dataset1     200
+schema1_admin_group_user   dataset2     404
+regular_user               dataset1     403
+regular_user               dataset2     403
+"""))
 def test_dataset_comment_list(api_client, dataset_test_data, user_key, dataset_key, expected_status):
     user = dataset_test_data[user_key]
     dataset = dataset_test_data[dataset_key]
@@ -998,39 +1022,41 @@ def test_dataset_comment_create(api_client, dataset_test_data, user_key):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'dataset_key', 'expected_status'), [
-    # Access to dataset1 (instance1)
-    ('superuser', 'dataset1', 200),
-    ('admin_user', 'dataset1', 200),
-    ('super_admin_user', 'dataset1', 200),
-    ('reviewer_user', 'dataset1', 200),
-    ('viewer_user', 'dataset1', 200),
-    ('schema1_viewer', 'dataset1', 200),
-    ('schema1_editor', 'dataset1', 200),
-    ('schema1_admin', 'dataset1', 200),
-    ('schema1_viewer_group_user', 'dataset1', 200),
-    ('schema1_editor_group_user', 'dataset1', 200),
-    ('schema1_admin_group_user', 'dataset1', 200),
+@pytest.mark.parametrize(*parse_table("""
+user_key                   dataset_key  expected_status
 
-    # Access to dataset2 (instance2)
-    ('superuser', 'dataset2', 200),
+# Access to dataset1 (instance1)
+superuser                  dataset1     200
+admin_user                 dataset1     200
+super_admin_user           dataset1     200
+reviewer_user              dataset1     200
+viewer_user                dataset1     200
+schema1_viewer             dataset1     200
+schema1_editor             dataset1     200
+schema1_admin              dataset1     200
+schema1_viewer_group_user  dataset1     200
+schema1_editor_group_user  dataset1     200
+schema1_admin_group_user   dataset1     200
 
-    # No access to dataset2 (parent not visible)
-    ('admin_user', 'dataset2', 404),
-    ('super_admin_user', 'dataset2', 404),
-    ('reviewer_user', 'dataset2', 404),
-    ('viewer_user', 'dataset2', 404),
-    ('schema1_viewer', 'dataset2', 404),
-    ('schema1_editor', 'dataset2', 404),
-    ('schema1_admin', 'dataset2', 404),
-    ('schema1_viewer_group_user', 'dataset2', 404),
-    ('schema1_editor_group_user', 'dataset2', 404),
-    ('schema1_admin_group_user', 'dataset2', 404),
+# Access to dataset2 (instance2)
+superuser                  dataset2     200
 
-    # No access to endpoint
-    ('regular_user', 'dataset1', 403),
-    ('regular_user', 'dataset2', 403),
-])
+# No access to dataset2 (parent not visible)
+admin_user                 dataset2     404
+super_admin_user           dataset2     404
+reviewer_user              dataset2     404
+viewer_user                dataset2     404
+schema1_viewer             dataset2     404
+schema1_editor             dataset2     404
+schema1_admin              dataset2     404
+schema1_viewer_group_user  dataset2     404
+schema1_editor_group_user  dataset2     404
+schema1_admin_group_user   dataset2     404
+
+# No access to endpoint
+regular_user               dataset1     403
+regular_user               dataset2     403
+"""))
 def test_dataset_source_reference_list_via_dataset(api_client, dataset_test_data, user_key, dataset_key, expected_status):
     user = dataset_test_data[user_key]
     dataset = dataset_test_data[dataset_key]
@@ -1045,39 +1071,41 @@ def test_dataset_source_reference_list_via_dataset(api_client, dataset_test_data
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'source_ref_key', 'expected_status'), [
-    # Access to source_ref1 (on dataset1, instance1)
-    ('superuser', 'source_ref1', 200),
-    ('admin_user', 'source_ref1', 200),
-    ('super_admin_user', 'source_ref1', 200),
-    ('reviewer_user', 'source_ref1', 200),
-    ('viewer_user', 'source_ref1', 200),
-    ('schema1_viewer', 'source_ref1', 200),
-    ('schema1_editor', 'source_ref1', 200),
-    ('schema1_admin', 'source_ref1', 200),
-    ('schema1_viewer_group_user', 'source_ref1', 200),
-    ('schema1_editor_group_user', 'source_ref1', 200),
-    ('schema1_admin_group_user', 'source_ref1', 200),
+@pytest.mark.parametrize(*parse_table("""
+user_key                   source_ref_key  expected_status
 
-    # Access to source_ref2 (on dataset2, instance2)
-    ('superuser', 'source_ref2', 200),
+# Access to source_ref1 (on dataset1, instance1)
+superuser                  source_ref1     200
+admin_user                 source_ref1     200
+super_admin_user           source_ref1     200
+reviewer_user              source_ref1     200
+viewer_user                source_ref1     200
+schema1_viewer             source_ref1     200
+schema1_editor             source_ref1     200
+schema1_admin              source_ref1     200
+schema1_viewer_group_user  source_ref1     200
+schema1_editor_group_user  source_ref1     200
+schema1_admin_group_user   source_ref1     200
 
-    # No access to source_ref2 (parent not visible)
-    ('admin_user', 'source_ref2', 404),
-    ('super_admin_user', 'source_ref2', 404),
-    ('reviewer_user', 'source_ref2', 404),
-    ('viewer_user', 'source_ref2', 404),
-    ('schema1_viewer', 'source_ref2', 404),
-    ('schema1_editor', 'source_ref2', 404),
-    ('schema1_admin', 'source_ref2', 404),
-    ('schema1_viewer_group_user', 'source_ref2', 404),
-    ('schema1_editor_group_user', 'source_ref2', 404),
-    ('schema1_admin_group_user', 'source_ref2', 404),
+# Access to source_ref2 (on dataset2, instance2)
+superuser                  source_ref2     200
 
-    # No access to endpoint
-    ('regular_user', 'source_ref1', 403),
-    ('regular_user', 'source_ref2', 403),
-])
+# No access to source_ref2 (parent not visible)
+admin_user                 source_ref2     404
+super_admin_user           source_ref2     404
+reviewer_user              source_ref2     404
+viewer_user                source_ref2     404
+schema1_viewer             source_ref2     404
+schema1_editor             source_ref2     404
+schema1_admin              source_ref2     404
+schema1_viewer_group_user  source_ref2     404
+schema1_editor_group_user  source_ref2     404
+schema1_admin_group_user   source_ref2     404
+
+# No access to endpoint
+regular_user               source_ref1     403
+regular_user               source_ref2     403
+"""))
 def test_dataset_source_reference_retrieve_via_dataset(api_client, dataset_test_data, user_key, source_ref_key, expected_status):
     user = dataset_test_data[user_key]
     source_ref = dataset_test_data[source_ref_key]
@@ -1093,41 +1121,43 @@ def test_dataset_source_reference_retrieve_via_dataset(api_client, dataset_test_
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'source_ref_key', 'expected_status'), [
-    # Access to source_ref1 (on dataset1, instance1)
-    ('superuser', 'source_ref1', 200),
-    ('admin_user', 'source_ref1', 200),
-    ('super_admin_user', 'source_ref1', 200),
-    ('schema1_editor', 'source_ref1', 200),
-    ('schema1_admin', 'source_ref1', 200),
-    ('schema1_editor_group_user', 'source_ref1', 200),
-    ('schema1_admin_group_user', 'source_ref1', 200),
+@pytest.mark.parametrize(*parse_table("""
+user_key                   source_ref_key  expected_status
 
-    # Access to source_ref2 (on dataset2, instance2)
-    ('superuser', 'source_ref2', 200),
+# Access to source_ref1 (on dataset1, instance1)
+superuser                  source_ref1     200
+admin_user                 source_ref1     200
+super_admin_user           source_ref1     200
+schema1_editor             source_ref1     200
+schema1_admin              source_ref1     200
+schema1_editor_group_user  source_ref1     200
+schema1_admin_group_user   source_ref1     200
 
-    # No write access to source_ref1
-    ('reviewer_user', 'source_ref1', 403),
-    ('viewer_user', 'source_ref1', 403),
-    ('schema1_viewer', 'source_ref1', 403),
-    ('schema1_viewer_group_user', 'source_ref1', 403),
+# Access to source_ref2 (on dataset2, instance2)
+superuser                  source_ref2     200
 
-    # No access to source_ref2 (parent not visible)
-    ('admin_user', 'source_ref2', 404),
-    ('super_admin_user', 'source_ref2', 404),
-    ('schema1_editor', 'source_ref2', 404),
-    ('schema1_admin', 'source_ref2', 404),
-    ('schema1_editor_group_user', 'source_ref2', 404),
-    ('schema1_admin_group_user', 'source_ref2', 404),
+# No write access to source_ref1
+reviewer_user              source_ref1     403
+viewer_user                source_ref1     403
+schema1_viewer             source_ref1     403
+schema1_viewer_group_user  source_ref1     403
 
-    # No access to endpoint
-    ('reviewer_user', 'source_ref2', 403),
-    ('viewer_user', 'source_ref2', 403),
-    ('schema1_viewer', 'source_ref2', 403),
-    ('schema1_viewer_group_user', 'source_ref2', 403),
-    ('regular_user', 'source_ref1', 403),
-    ('regular_user', 'source_ref2', 403),
-])
+# No access to source_ref2 (parent not visible)
+admin_user                 source_ref2     404
+super_admin_user           source_ref2     404
+schema1_editor             source_ref2     404
+schema1_admin              source_ref2     404
+schema1_editor_group_user  source_ref2     404
+schema1_admin_group_user   source_ref2     404
+schema1_viewer             source_ref2     404
+schema1_viewer_group_user  source_ref2     404
+
+# No access to endpoint
+reviewer_user              source_ref2     403
+viewer_user                source_ref2     403
+regular_user               source_ref1     403
+regular_user               source_ref2     403
+"""))
 def test_dataset_source_reference_update_via_dataset(api_client, dataset_test_data, user_key, source_ref_key, expected_status):
     user = dataset_test_data[user_key]
     source_ref = dataset_test_data[source_ref_key]
@@ -1166,41 +1196,43 @@ def test_dataset_source_reference_update_via_dataset(api_client, dataset_test_da
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'dataset_key', 'expected_status'), [
-    # Access to dataset1 (instance1)
-    ('superuser', 'dataset1', 201),
-    ('admin_user', 'dataset1', 201),
-    ('super_admin_user', 'dataset1', 201),
-    ('schema1_editor', 'dataset1', 201),
-    ('schema1_admin', 'dataset1', 201),
-    ('schema1_editor_group_user', 'dataset1', 201),
-    ('schema1_admin_group_user', 'dataset1', 201),
+@pytest.mark.parametrize(*parse_table("""
+user_key                   dataset_key  expected_status
 
-    # Access to dataset2 (instance2)
-    ('superuser', 'dataset2', 201),
+# Access to dataset1 (instance1)
+superuser                  dataset1     201
+admin_user                 dataset1     201
+super_admin_user           dataset1     201
+schema1_editor             dataset1     201
+schema1_admin              dataset1     201
+schema1_editor_group_user  dataset1     201
+schema1_admin_group_user   dataset1     201
 
-    # No write access to dataset1
-    ('reviewer_user', 'dataset1', 403),
-    ('viewer_user', 'dataset1', 403),
-    ('schema1_viewer', 'dataset1', 403),
-    ('schema1_viewer_group_user', 'dataset1', 403),
+# Access to dataset2 (instance2)
+superuser                  dataset2     201
 
-    # No access to dataset2 (parent not visible)
-    ('admin_user', 'dataset2', 404),
-    ('super_admin_user', 'dataset2', 404),
-    ('schema1_editor', 'dataset2', 404),
-    ('schema1_admin', 'dataset2', 404),
-    ('schema1_editor_group_user', 'dataset2', 404),
-    ('schema1_admin_group_user', 'dataset2', 404),
+# No write access to dataset1
+reviewer_user              dataset1     403
+viewer_user                dataset1     403
+schema1_viewer             dataset1     403
+schema1_viewer_group_user  dataset1     403
 
-    # No access to endpoint
-    ('reviewer_user', 'dataset2', 403),
-    ('viewer_user', 'dataset2', 403),
-    ('schema1_viewer', 'dataset2', 403),
-    ('schema1_viewer_group_user', 'dataset2', 403),
-    ('regular_user', 'dataset1', 403),
-    ('regular_user', 'dataset2', 403),
-])
+# No access to dataset2 (parent not visible)
+admin_user                 dataset2     404
+super_admin_user           dataset2     404
+schema1_editor             dataset2     404
+schema1_admin              dataset2     404
+schema1_editor_group_user  dataset2     404
+schema1_admin_group_user   dataset2     404
+schema1_viewer             dataset2     404
+schema1_viewer_group_user  dataset2     404
+
+# No access to endpoint
+reviewer_user              dataset2     403
+viewer_user                dataset2     403
+regular_user               dataset1     403
+regular_user               dataset2     403
+"""))
 def test_dataset_source_reference_create_via_dataset(api_client, dataset_test_data, user_key, dataset_key, expected_status):
     user = dataset_test_data[user_key]
     dataset = dataset_test_data[dataset_key]
@@ -1225,41 +1257,43 @@ def test_dataset_source_reference_create_via_dataset(api_client, dataset_test_da
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'source_ref_key', 'expected_status'), [
-    # Access to source_ref1 (on dataset1, instance1)
-    ('superuser', 'source_ref1', 204),
-    ('admin_user', 'source_ref1', 204),
-    ('super_admin_user', 'source_ref1', 204),
-    ('schema1_admin', 'source_ref1', 204),
-    ('schema1_admin_group_user', 'source_ref1', 204),
+@pytest.mark.parametrize(*parse_table("""
+user_key                   source_ref_key  expected_status
 
-    # Access to source_ref2 (on dataset2, instance2)
-    ('superuser', 'source_ref2', 204),
+# Access to source_ref1 on dataset1  instance1
+superuser                  source_ref1     204
+admin_user                 source_ref1     204
+super_admin_user           source_ref1     204
+schema1_admin              source_ref1     204
+schema1_admin_group_user   source_ref1     204
 
-    # No delete access to source_ref1
-    ('reviewer_user', 'source_ref1', 403),
-    ('viewer_user', 'source_ref1', 403),
-    ('schema1_viewer', 'source_ref1', 403),
-    ('schema1_editor', 'source_ref1', 403),
-    ('schema1_viewer_group_user', 'source_ref1', 403),
-    ('schema1_editor_group_user', 'source_ref1', 403),
+# Access to source_ref2 on dataset2 instance2
+superuser                  source_ref2     204
 
-    # No access to source_ref2 (parent not visible)
-    ('admin_user', 'source_ref2', 404),
-    ('super_admin_user', 'source_ref2', 404),
-    ('schema1_admin', 'source_ref2', 404),
-    ('schema1_admin_group_user', 'source_ref2', 404),
+# No delete access to source_ref1
+reviewer_user              source_ref1     403
+viewer_user                source_ref1     403
+schema1_viewer             source_ref1     403
+schema1_editor             source_ref1     403
+schema1_viewer_group_user  source_ref1     403
+schema1_editor_group_user  source_ref1     403
 
-    # No access to endpoint
-    ('reviewer_user', 'source_ref2', 403),
-    ('viewer_user', 'source_ref2', 403),
-    ('schema1_viewer', 'source_ref2', 403),
-    ('schema1_editor', 'source_ref2', 403),
-    ('schema1_viewer_group_user', 'source_ref2', 403),
-    ('schema1_editor_group_user', 'source_ref2', 403),
-    ('regular_user', 'source_ref1', 403),
-    ('regular_user', 'source_ref2', 403),
-])
+# No access to source_ref2 parent not visible
+admin_user                 source_ref2     404
+super_admin_user           source_ref2     404
+schema1_admin              source_ref2     404
+schema1_admin_group_user   source_ref2     404
+schema1_viewer             source_ref2     404
+schema1_editor             source_ref2     404
+schema1_viewer_group_user  source_ref2     404
+schema1_editor_group_user  source_ref2     404
+
+# No access to endpoint / method
+reviewer_user              source_ref2     403
+viewer_user                source_ref2     403
+regular_user               source_ref1     403
+regular_user               source_ref2     403
+"""))
 def test_dataset_source_reference_delete_via_dataset(api_client, dataset_test_data, user_key, source_ref_key, expected_status):
     user = dataset_test_data[user_key]
     source_ref = dataset_test_data[source_ref_key]
@@ -1277,39 +1311,41 @@ def test_dataset_source_reference_delete_via_dataset(api_client, dataset_test_da
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'data_point_key', 'expected_status'), [
-    # Access to data_point1 (instance1)
-    ('superuser', 'data_point1', 200),
-    ('admin_user', 'data_point1', 200),
-    ('super_admin_user', 'data_point1', 200),
-    ('reviewer_user', 'data_point1', 200),
-    ('viewer_user', 'data_point1', 200),
-    ('schema1_viewer', 'data_point1', 200),
-    ('schema1_editor', 'data_point1', 200),
-    ('schema1_admin', 'data_point1', 200),
-    ('schema1_viewer_group_user', 'data_point1', 200),
-    ('schema1_editor_group_user', 'data_point1', 200),
-    ('schema1_admin_group_user', 'data_point1', 200),
+@pytest.mark.parametrize(*parse_table("""
+user_key                   data_point_key  expected_status
 
-    # Access to data_point2 (instance2)
-    ('superuser', 'data_point2', 200),
+# Access to data_point1 (instance1)
+superuser                  data_point1     200
+admin_user                 data_point1     200
+super_admin_user           data_point1     200
+reviewer_user              data_point1     200
+viewer_user                data_point1     200
+schema1_viewer             data_point1     200
+schema1_editor             data_point1     200
+schema1_admin              data_point1     200
+schema1_viewer_group_user  data_point1     200
+schema1_editor_group_user  data_point1     200
+schema1_admin_group_user   data_point1     200
 
-    # No access to data_point2 (parent not visible)
-    ('admin_user', 'data_point2', 404),
-    ('super_admin_user', 'data_point2', 404),
-    ('reviewer_user', 'data_point2', 404),
-    ('viewer_user', 'data_point2', 404),
-    ('schema1_viewer', 'data_point2', 404),
-    ('schema1_editor', 'data_point2', 404),
-    ('schema1_admin', 'data_point2', 404),
-    ('schema1_viewer_group_user', 'data_point2', 404),
-    ('schema1_editor_group_user', 'data_point2', 404),
-    ('schema1_admin_group_user', 'data_point2', 404),
+# Access to data_point2 (instance2)
+superuser                  data_point2     200
 
-    # No access to endpoint
-    ('regular_user', 'data_point1', 403),
-    ('regular_user', 'data_point2', 403),
-])
+# No access to data_point2 (parent not visible)
+admin_user                 data_point2     404
+super_admin_user           data_point2     404
+reviewer_user              data_point2     404
+viewer_user                data_point2     404
+schema1_viewer             data_point2     404
+schema1_editor             data_point2     404
+schema1_admin              data_point2     404
+schema1_viewer_group_user  data_point2     404
+schema1_editor_group_user  data_point2     404
+schema1_admin_group_user   data_point2     404
+
+# No access to endpoint
+regular_user               data_point1     403
+regular_user               data_point2     403
+"""))
 def test_dataset_source_reference_list_via_datapoint(api_client, dataset_test_data, user_key, data_point_key, expected_status):
     user = dataset_test_data[user_key]
     datapoint = dataset_test_data[data_point_key]
@@ -1325,39 +1361,41 @@ def test_dataset_source_reference_list_via_datapoint(api_client, dataset_test_da
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'source_ref_key', 'expected_status'), [
-    # Access to source_ref_on_datapoint (on data_point1, instance1)
-    ('superuser', 'source_ref_on_datapoint', 200),
-    ('admin_user', 'source_ref_on_datapoint', 200),
-    ('super_admin_user', 'source_ref_on_datapoint', 200),
-    ('reviewer_user', 'source_ref_on_datapoint', 200),
-    ('viewer_user', 'source_ref_on_datapoint', 200),
-    ('schema1_viewer', 'source_ref_on_datapoint', 200),
-    ('schema1_editor', 'source_ref_on_datapoint', 200),
-    ('schema1_admin', 'source_ref_on_datapoint', 200),
-    ('schema1_viewer_group_user', 'source_ref_on_datapoint', 200),
-    ('schema1_editor_group_user', 'source_ref_on_datapoint', 200),
-    ('schema1_admin_group_user', 'source_ref_on_datapoint', 200),
+@pytest.mark.parametrize(*parse_table("""
+user_key                   source_ref_key              expected_status
 
-    # Access to source_ref_on_datapoint2 (on data_point2, instance2)
-    ('superuser', 'source_ref_on_datapoint2', 200),
+# Access to source_ref_on_datapoint (on data_point1, instance1)
+superuser                  source_ref_on_datapoint     200
+admin_user                 source_ref_on_datapoint     200
+super_admin_user           source_ref_on_datapoint     200
+reviewer_user              source_ref_on_datapoint     200
+viewer_user                source_ref_on_datapoint     200
+schema1_viewer             source_ref_on_datapoint     200
+schema1_editor             source_ref_on_datapoint     200
+schema1_admin              source_ref_on_datapoint     200
+schema1_viewer_group_user  source_ref_on_datapoint     200
+schema1_editor_group_user  source_ref_on_datapoint     200
+schema1_admin_group_user   source_ref_on_datapoint     200
 
-    # No access to source_ref_on_datapoint2 (parent not visible)
-    ('admin_user', 'source_ref_on_datapoint2', 404),
-    ('super_admin_user', 'source_ref_on_datapoint2', 404),
-    ('reviewer_user', 'source_ref_on_datapoint2', 404),
-    ('viewer_user', 'source_ref_on_datapoint2', 404),
-    ('schema1_viewer', 'source_ref_on_datapoint2', 404),
-    ('schema1_editor', 'source_ref_on_datapoint2', 404),
-    ('schema1_admin', 'source_ref_on_datapoint2', 404),
-    ('schema1_viewer_group_user', 'source_ref_on_datapoint2', 404),
-    ('schema1_editor_group_user', 'source_ref_on_datapoint2', 404),
-    ('schema1_admin_group_user', 'source_ref_on_datapoint2', 404),
+# Access to source_ref_on_datapoint2 (on data_point2, instance2)
+superuser                  source_ref_on_datapoint2    200
 
-    # No access to endpoint
-    ('regular_user', 'source_ref_on_datapoint', 403),
-    ('regular_user', 'source_ref_on_datapoint2', 403),
-])
+# No access to source_ref_on_datapoint2 (parent not visible)
+admin_user                 source_ref_on_datapoint2    404
+super_admin_user           source_ref_on_datapoint2    404
+reviewer_user              source_ref_on_datapoint2    404
+viewer_user                source_ref_on_datapoint2    404
+schema1_viewer             source_ref_on_datapoint2    404
+schema1_editor             source_ref_on_datapoint2    404
+schema1_admin              source_ref_on_datapoint2    404
+schema1_viewer_group_user  source_ref_on_datapoint2    404
+schema1_editor_group_user  source_ref_on_datapoint2    404
+schema1_admin_group_user   source_ref_on_datapoint2    404
+
+# No access to endpoint
+regular_user               source_ref_on_datapoint     403
+regular_user               source_ref_on_datapoint2    403
+"""))
 def test_dataset_source_reference_retrieve_via_datapoint(
     api_client,
     dataset_test_data,
@@ -1380,41 +1418,43 @@ def test_dataset_source_reference_retrieve_via_datapoint(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'source_ref_key', 'expected_status'), [
-    # Access to source_ref_on_datapoint (on data_point1, instance1)
-    ('superuser', 'source_ref_on_datapoint', 200),
-    ('admin_user', 'source_ref_on_datapoint', 200),
-    ('super_admin_user', 'source_ref_on_datapoint', 200),
-    ('schema1_editor', 'source_ref_on_datapoint', 200),
-    ('schema1_admin', 'source_ref_on_datapoint', 200),
-    ('schema1_editor_group_user', 'source_ref_on_datapoint', 200),
-    ('schema1_admin_group_user', 'source_ref_on_datapoint', 200),
+@pytest.mark.parametrize(*parse_table("""
+user_key                   source_ref_key              expected_status
 
-    # Access to source_ref_on_datapoint2 (on data_point2, instance2)
-    ('superuser', 'source_ref_on_datapoint2', 200),
+# Access to source_ref_on_datapoint (on data_point1, instance1)
+superuser                  source_ref_on_datapoint     200
+admin_user                 source_ref_on_datapoint     200
+super_admin_user           source_ref_on_datapoint     200
+schema1_editor             source_ref_on_datapoint     200
+schema1_admin              source_ref_on_datapoint     200
+schema1_editor_group_user  source_ref_on_datapoint     200
+schema1_admin_group_user   source_ref_on_datapoint     200
 
-    # No write access to source_ref_on_datapoint
-    ('reviewer_user', 'source_ref_on_datapoint', 403),
-    ('viewer_user', 'source_ref_on_datapoint', 403),
-    ('schema1_viewer', 'source_ref_on_datapoint', 403),
-    ('schema1_viewer_group_user', 'source_ref_on_datapoint', 403),
+# Access to source_ref_on_datapoint2 (on data_point2, instance2)
+superuser                  source_ref_on_datapoint2    200
 
-    # No access to source_ref_on_datapoint2 (parent not visible)
-    ('admin_user', 'source_ref_on_datapoint2', 404),
-    ('super_admin_user', 'source_ref_on_datapoint2', 404),
-    ('schema1_editor', 'source_ref_on_datapoint2', 404),
-    ('schema1_admin', 'source_ref_on_datapoint2', 404),
-    ('schema1_editor_group_user', 'source_ref_on_datapoint2', 404),
-    ('schema1_admin_group_user', 'source_ref_on_datapoint2', 404),
+# No write access to source_ref_on_datapoint
+reviewer_user              source_ref_on_datapoint     403
+viewer_user                source_ref_on_datapoint     403
+schema1_viewer             source_ref_on_datapoint     403
+schema1_viewer_group_user  source_ref_on_datapoint     403
 
-    # No access to endpoint
-    ('reviewer_user', 'source_ref_on_datapoint2', 403),
-    ('viewer_user', 'source_ref_on_datapoint2', 403),
-    ('schema1_viewer', 'source_ref_on_datapoint2', 403),
-    ('schema1_viewer_group_user', 'source_ref_on_datapoint2', 403),
-    ('regular_user', 'source_ref_on_datapoint', 403),
-    ('regular_user', 'source_ref_on_datapoint2', 403),
-])
+# No access to source_ref_on_datapoint2 (parent not visible)
+admin_user                 source_ref_on_datapoint2    404
+super_admin_user           source_ref_on_datapoint2    404
+schema1_editor             source_ref_on_datapoint2    404
+schema1_admin              source_ref_on_datapoint2    404
+schema1_editor_group_user  source_ref_on_datapoint2    404
+schema1_admin_group_user   source_ref_on_datapoint2    404
+schema1_viewer             source_ref_on_datapoint2    404
+schema1_viewer_group_user  source_ref_on_datapoint2    404
+
+# No access to endpoint
+reviewer_user              source_ref_on_datapoint2    403
+viewer_user                source_ref_on_datapoint2    403
+regular_user               source_ref_on_datapoint     403
+regular_user               source_ref_on_datapoint2    403
+"""))
 def test_dataset_source_reference_update_via_datapoint(api_client, dataset_test_data, user_key, source_ref_key, expected_status):
     user = dataset_test_data[user_key]
     source_ref = dataset_test_data[source_ref_key]
@@ -1454,41 +1494,43 @@ def test_dataset_source_reference_update_via_datapoint(api_client, dataset_test_
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'data_point_key', 'expected_status'), [
-    # Access to data_point1 (instance1)
-    ('superuser', 'data_point1', 201),
-    ('admin_user', 'data_point1', 201),
-    ('super_admin_user', 'data_point1', 201),
-    ('schema1_editor', 'data_point1', 201),
-    ('schema1_admin', 'data_point1', 201),
-    ('schema1_editor_group_user', 'data_point1', 201),
-    ('schema1_admin_group_user', 'data_point1', 201),
+@pytest.mark.parametrize(*parse_table("""
+user_key                   data_point_key  expected_status
 
-    # Access to data_point2 (instance2)
-    ('superuser', 'data_point2', 201),
+# Access to data_point1 (instance1)
+superuser                  data_point1     201
+admin_user                 data_point1     201
+super_admin_user           data_point1     201
+schema1_editor             data_point1     201
+schema1_admin              data_point1     201
+schema1_editor_group_user  data_point1     201
+schema1_admin_group_user   data_point1     201
 
-    # No write access to data_point1
-    ('reviewer_user', 'data_point1', 403),
-    ('viewer_user', 'data_point1', 403),
-    ('schema1_viewer', 'data_point1', 403),
-    ('schema1_viewer_group_user', 'data_point1', 403),
+# Access to data_point2 (instance2)
+superuser                  data_point2     201
 
-    # No access to data_point2 (parent not visible)
-    ('admin_user', 'data_point2', 404),
-    ('super_admin_user', 'data_point2', 404),
-    ('schema1_editor', 'data_point2', 404),
-    ('schema1_admin', 'data_point2', 404),
-    ('schema1_editor_group_user', 'data_point2', 404),
-    ('schema1_admin_group_user', 'data_point2', 404),
+# No write access to data_point1
+reviewer_user              data_point1     403
+viewer_user                data_point1     403
+schema1_viewer             data_point1     403
+schema1_viewer_group_user  data_point1     403
 
-    # No access to endpoint
-    ('reviewer_user', 'data_point2', 403),
-    ('viewer_user', 'data_point2', 403),
-    ('schema1_viewer', 'data_point2', 403),
-    ('schema1_viewer_group_user', 'data_point2', 403),
-    ('regular_user', 'data_point1', 403),
-    ('regular_user', 'data_point2', 403),
-])
+# No access to data_point2 (parent not visible)
+admin_user                 data_point2     404
+super_admin_user           data_point2     404
+schema1_editor             data_point2     404
+schema1_admin              data_point2     404
+schema1_editor_group_user  data_point2     404
+schema1_admin_group_user   data_point2     404
+schema1_viewer             data_point2     404
+schema1_viewer_group_user  data_point2     404
+
+# No access to endpoint
+reviewer_user              data_point2     403
+viewer_user                data_point2     403
+regular_user               data_point1     403
+regular_user               data_point2     403
+"""))
 def test_dataset_source_reference_create_via_datapoint(api_client, dataset_test_data, user_key, data_point_key, expected_status):
     user = dataset_test_data[user_key]
     datapoint = dataset_test_data[data_point_key]
@@ -1522,20 +1564,21 @@ def test_dataset_source_reference_create_via_datapoint(api_client, dataset_test_
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'expected_status'), [
-    ('superuser', 204),
-    ('admin_user', 204),
-    ('super_admin_user', 204),
-    ('schema1_admin', 204),
-    ('schema1_admin_group_user', 204),
-    ('reviewer_user', 403),
-    ('viewer_user', 403),
-    ('schema1_viewer', 403),
-    ('schema1_editor', 403),
-    ('schema1_viewer_group_user', 403),
-    ('schema1_editor_group_user', 403),
-    ('regular_user', 403),
-])
+@pytest.mark.parametrize(*parse_table("""
+user_key                   expected_status
+superuser                  204
+admin_user                 204
+super_admin_user           204
+schema1_admin              204
+schema1_admin_group_user   204
+reviewer_user              403
+viewer_user                403
+schema1_viewer             403
+schema1_editor             403
+schema1_viewer_group_user  403
+schema1_editor_group_user  403
+regular_user               403
+"""))
 def test_dataset_source_reference_delete_via_datapoint(api_client, dataset_test_data, user_key, expected_status):
     user = dataset_test_data[user_key]
     source_ref = dataset_test_data['source_ref_on_datapoint']
@@ -1558,32 +1601,33 @@ def test_dataset_source_reference_delete_via_datapoint(api_client, dataset_test_
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'schema_key', 'access_allowed', 'schema_should_be_found'), [
-    ('superuser', 'schema1', True, True),
-    ('superuser', 'schema2', True, True),
-    ('admin_user', 'schema1', True, True),
-    ('admin_user', 'schema2', True, False),
-    ('super_admin_user', 'schema1', True, True),
-    ('super_admin_user', 'schema2', True, False),
-    ('reviewer_user', 'schema1', True, True),
-    ('reviewer_user', 'schema2', True, False),
-    ('viewer_user', 'schema1', True, True),
-    ('viewer_user', 'schema2', True, False),
-    ('schema1_viewer', 'schema1', True, True),
-    ('schema1_viewer', 'schema2', True, False),
-    ('schema1_editor', 'schema1', True, True),
-    ('schema1_editor', 'schema2', True, False),
-    ('schema1_admin', 'schema1', True, True),
-    ('schema1_admin', 'schema2', True, False),
-    ('schema1_viewer_group_user', 'schema1', True, True),
-    ('schema1_viewer_group_user', 'schema2', True, False),
-    ('schema1_editor_group_user', 'schema1', True, True),
-    ('schema1_editor_group_user', 'schema2', True, False),
-    ('schema1_admin_group_user', 'schema1', True, True),
-    ('schema1_admin_group_user', 'schema2', True, False),
-    ('regular_user', 'schema1', False, False),
-    ('regular_user', 'schema2', False, False),
-])
+@pytest.mark.parametrize(*parse_table("""
+user_key                   schema_key  access_allowed  schema_should_be_found
+superuser                  schema1     +               +
+superuser                  schema2     +               +
+admin_user                 schema1     +               +
+admin_user                 schema2     +               -
+super_admin_user           schema1     +               +
+super_admin_user           schema2     +               -
+reviewer_user              schema1     +               +
+reviewer_user              schema2     +               -
+viewer_user                schema1     +               +
+viewer_user                schema2     +               -
+schema1_viewer             schema1     +               +
+schema1_viewer             schema2     +               -
+schema1_editor             schema1     +               +
+schema1_editor             schema2     +               -
+schema1_admin              schema1     +               +
+schema1_admin              schema2     +               -
+schema1_viewer_group_user  schema1     +               +
+schema1_viewer_group_user  schema2     +               -
+schema1_editor_group_user  schema1     +               +
+schema1_editor_group_user  schema2     +               -
+schema1_admin_group_user   schema1     +               +
+schema1_admin_group_user   schema2     +               -
+regular_user               schema1     -               -
+regular_user               schema2     -               -
+"""))
 def test_dataset_metric_list(api_client, dataset_test_data, user_key, schema_key, access_allowed, schema_should_be_found):
     user = dataset_test_data[user_key]
     schema = dataset_test_data[schema_key]
@@ -1602,32 +1646,33 @@ def test_dataset_metric_list(api_client, dataset_test_data, user_key, schema_key
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'metric_key', 'access_allowed', 'should_be_found'), [
-    ('superuser', 'metric1', True, True),
-    ('superuser', 'metric2', True, True),
-    ('admin_user', 'metric1', True, True),
-    ('admin_user', 'metric2', True, False),
-    ('super_admin_user', 'metric1', True, True),
-    ('super_admin_user', 'metric2', True, False),
-    ('reviewer_user', 'metric1', True, True),
-    ('reviewer_user', 'metric2', True, False),
-    ('viewer_user', 'metric1', True, True),
-    ('viewer_user', 'metric2', True, False),
-    ('schema1_viewer', 'metric1', True, True),
-    ('schema1_viewer', 'metric2', True, False),
-    ('schema1_editor', 'metric1', True, True),
-    ('schema1_editor', 'metric2', True, False),
-    ('schema1_admin', 'metric1', True, True),
-    ('schema1_admin', 'metric2', True, False),
-    ('schema1_viewer_group_user', 'metric1', True, True),
-    ('schema1_viewer_group_user', 'metric2', True, False),
-    ('schema1_editor_group_user', 'metric1', True, True),
-    ('schema1_editor_group_user', 'metric2', True, False),
-    ('schema1_admin_group_user', 'metric1', True, True),
-    ('schema1_admin_group_user', 'metric2', True, False),
-    ('regular_user', 'metric1', False, False),
-    ('regular_user', 'metric2', False, False),
-])
+@pytest.mark.parametrize(*parse_table("""
+user_key                   metric_key  access_allowed  should_be_found
+superuser                  metric1     +               +
+superuser                  metric2     +               +
+admin_user                 metric1     +               +
+admin_user                 metric2     +               -
+super_admin_user           metric1     +               +
+super_admin_user           metric2     +               -
+reviewer_user              metric1     +               +
+reviewer_user              metric2     +               -
+viewer_user                metric1     +               +
+viewer_user                metric2     +               -
+schema1_viewer             metric1     +               +
+schema1_viewer             metric2     +               -
+schema1_editor             metric1     +               +
+schema1_editor             metric2     +               -
+schema1_admin              metric1     +               +
+schema1_admin              metric2     +               -
+schema1_viewer_group_user  metric1     +               +
+schema1_viewer_group_user  metric2     +               -
+schema1_editor_group_user  metric1     +               +
+schema1_editor_group_user  metric2     +               -
+schema1_admin_group_user   metric1     +               +
+schema1_admin_group_user   metric2     +               -
+regular_user               metric1     -               -
+regular_user               metric2     -               -
+"""))
 def test_dataset_metric_retrieve(api_client, dataset_test_data, user_key, metric_key, access_allowed, should_be_found):
     user = dataset_test_data[user_key]
     metric = dataset_test_data[metric_key]
