@@ -9,7 +9,7 @@ dataset_repo:
 name: Aarhus Greenhouse Gas Inventory
 owner: City of Aarhus
 theme_identifier: eu-climate-4-cast
-target_year: 2035
+target_year: 2030
 model_end_year: 2035
 reference_year: 1990
 minimum_historical_year: 2018
@@ -18,7 +18,7 @@ emission_unit: kt/a
 emission_forecast_from: 2024
 emission_dimensions: [ghg]
 features:
-  baseline_visible_in_graphs: false
+  baseline_visible_in_graphs: true
   use_datasets_from_db: false
 
 action_groups:
@@ -336,6 +336,7 @@ emission_sectors:
 - id: net_emissions
   name: Net Emissions
   is_outcome: true
+  target_year_goal: 0
 
 nodes:
 
@@ -2265,7 +2266,7 @@ pages:
 
 scenarios:
 - id: baseline
-  name: Business as Usual
+  name: Baseline
 
 - id: default
   default: true
