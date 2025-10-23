@@ -606,9 +606,10 @@ def from_action_impact(
     jdf = idx_df.join(df, how='left', on=idx_names)
     vals: list[float] = jdf[col].fill_null(0).to_list()
     goals: list[MetricDimensionGoal] = []
+    cost_node_id = root.cost_node.id if root.cost_node else ''
 
     dm = DimensionalMetric(  # Normalization or grouping is not possible at the moment.
-        id=action.id + '_' + col.lower(),
+        id=f"{root.effect_node.id}:{cost_node_id}:{action.id}_{col.lower()}",
         name=str(action.name),
         dimensions=dims,
         values=vals,
