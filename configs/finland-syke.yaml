@@ -27,22 +27,86 @@ params:
 - id: selected_framework
   value: Kaikki ALas-päästöt
 
+impact_overviews:
+
+- graph_type: cost_benefit
+  label: Kustannus-hyöty yhteiskunnan näkökulmasta
+  label_en: Cost-benefit from society's point of view
+  effect_node: societal_costs
+  indicator_unit: MEUR
+
+- graph_type: cost_benefit
+  label: Kustannus-hyöty metsäteollisuuden näkökulmasta
+  label_en: Cost-benefit from the forest industry's point of view
+  effect_node: forest_industry_costs
+  indicator_unit: MEUR
+
+- graph_type: cost_benefit
+  label: Kustannus-hyöty metsänomistajan näkökulmasta
+  label_en: Cost-benefit from the forest owners' point of view
+  effect_node: forest_owner_costs
+  indicator_unit: MEUR
+
+- graph_type: cost_benefit
+  label: Kustannus-hyöty muiden sidosryhmien näkökulmasta
+  label_en: Cost-benefit from the other stakeholders' point of view
+  effect_node: other_stakeholder_costs
+  indicator_unit: MEUR
+
+- graph_type: simple_effect
+  label: Vaikutus kokonaispäästöihin
+  label_en: Effect on net emissions
+  effect_node: net_emissions
+  indicator_unit: Mt
+
+- graph_type: cost_efficiency
+  label: Toimenpiteiden kustannustehokkuus
+  label_en: Cost efficiency
+  cost_node: total_costs
+  effect_node: net_emissions
+  cost_unit: MEUR
+  effect_unit: Mt
+  indicator_unit: EUR/t
+
+- graph_type: cost_efficiency
+  label: Toimenpiteiden kustannustehokkuus metsänomistajan näkökulmasta
+  label_en: Cost efficiency from the forest owners' point of view
+  cost_node: forest_owner_costs
+  effect_node: net_emissions
+  cost_unit: MEUR
+  effect_unit: Mt
+  indicator_unit: EUR/t
+
 action_groups:
 - id: emission_trade
   name: Energiapolitiikka ja päästökauppa (Taulukko 1)
   name_en: Energy policy and emission trade (Table 1)
+  color: '#FF6B35'  # Vibrant orange - energy/industry
+
 - id: load_sharing
   name: Taakanjakosektorin toimet (Taulukko 2)
   name_en: Load sharing sector actions (Table 2)
+  color: '#004E89'  # Deep blue - responsibility/cooperation
+
 - id: land_use
   name: Maankäyttösektorin toimet (Taulukko 3)
   name_en: Land use sector actions (Table 3)
+  color: '#2A9D8F'  # Teal green - nature/forestry
+
 - id: wem_actions
   name: KAISU3 ilman lisätoimia (WEM)
   name_en: Kaisu3 with existing measures
+  color: '#6C757D'  # Neutral gray - baseline
+
 - id: wam_actions
   name: KAISU3 lisätoimin (WAM)
   name_en: Kaisu3 with additional measures
+  color: '#7B2CBF'  # Purple - enhanced measures
+
+- id: new_innovations
+  name: Uudet innovaatiot
+  name_en: New innovations
+  color: '#00D9FF'  # Bright cyan - innovation/future
 
 dimensions:
 
@@ -253,6 +317,7 @@ emission_sectors:
   is_outcome: true
   goals:
   - label: Hiilineutraalisuustavoite 2035
+    label_en: Carbon neutrality goal 2035
     default: true
     is_main_goal: true
     linear_interpolation: true
@@ -1125,27 +1190,27 @@ nodes:
   output_dimensions: [stakeholder]
 
 - id: climate_law_goal_reached
-  name: Ilmastolain tavoite saavutettu
-  name_en: Climate law goal reached
+  name: Viimeinenkin, vuoden 2050, tavoite ylitetty
+  name_en: The final goal 2050 overshoot
   type: generic.ThresholdNode
   quantity: fraction
   unit: dimensionless
   is_outcome: true
   input_nodes:
   - id: net_emissions
-    tags: [arithmetic_inverse, additive]
+    tags: [additive]
   params:
   - id: threshold
     value: 0
     unit: Mt/a
   goals:
-  - label: Ilmastolain tavoite saavutettu
-    label_en: Climate law requirement achieved
+  - label: Viimeinenkin, vuoden 2050 tavoite ylitetty
+    label_en: The final goal 2050 overshoot
     default: true
     is_main_goal: true
     linear_interpolation: true
     values:
-    - year: 2035
+    - year: 2050
       value: 0
 
 actions:
@@ -1353,7 +1418,7 @@ actions:
   type: simple.GenericAction
   quantity: fraction
   unit: dimensionless
-  group: emission_trade
+  group: new_innovations
   input_datasets:
   - id: sunnydale/energy_and_climate_action_plan
     tags: [baseline]
@@ -1367,7 +1432,7 @@ actions:
   type: simple.GenericAction
   quantity: volume
   unit: Mm3_solid/a
-  group: emission_trade
+  group: new_innovations
   input_datasets:
   - id: sunnydale/energy_and_climate_action_plan
     tags: [baseline]
