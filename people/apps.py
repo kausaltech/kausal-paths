@@ -17,3 +17,5 @@ class PeopleConfig(AppConfig):
             pass
         else:
             registry.register_plugin(rustface.willow)
+
+        import people.signals  # noqa: F401

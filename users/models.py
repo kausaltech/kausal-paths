@@ -90,8 +90,11 @@ class User(AbstractUser):
             return InstanceConfig.objects.qs
         return self.get_cached_adminable_instances()
 
-    def set_cached_adminable_instances(self, instance_configs: InstanceConfigQuerySet, save: bool = True) -> str:
-        cached_value = ','.join(str(pk) for pk in instance_configs.distinct().values_list('pk', flat=True))
+    def set_cached_adminable_instances(self, instance_configs: InstanceConfigQuerySet, save: bool = True) -> str | None:
+        if not instance_configs.exists():
+            cached_value = None
+        else:
+            cached_value = ','.join(str(pk) for pk in instance_configs.distinct().values_list('pk', flat=True))
         self.cached_adminable_instances = cached_value
         if save:
             self.save(update_fields=('cached_adminable_instances',))
@@ -111,6 +114,8 @@ class User(AbstractUser):
             value = self.cached_adminable_instances
         else:
             value = self.refresh_adminable_instances(save=True)
+        if value is None:
+            return []
         return [int(x) for x in value.split(',')]
 
     def refresh_adminable_instances(self, save: bool = True) -> str:
@@ -124,6 +129,10 @@ class User(AbstractUser):
             save=save
         )
         return cached_value
+
+    def invalidate_adminable_instances_cache(self) -> None:
+        self.cached_adminable_instances = None
+        self.save(update_fields=['cached_adminable_instances'])
 
     def get_corresponding_person(self) -> Person | None:
         # Copied from KW. We don't have a cache here yet.
@@ -206,7 +215,7 @@ class User(AbstractUser):
             return False
         if not self.is_staff:
             return False
-        return True
+        return self.get_adminable_instances().exists()
 
     def deactivate(self, admin_user):
         self.is_active = False
