@@ -66,8 +66,6 @@ class DatasetNode(AdditiveNode):
         ),
     ]
 
-    measure_datapoint_years: list[int] = []
-
     quantitylookup = {
         'price': 'currency',
         'energy_consumption': 'energy',
@@ -160,12 +158,10 @@ class DatasetNode(AdditiveNode):
 
     def get_gpc_dataset(self, tag: str | None = None) -> ppl.PathsDataFrame:
         df = self.get_filtered_dataset_df(tag=tag)
-        dropcols = ['Sector', 'Quantity']
-        if 'UUID' in df.columns:
-            dropcols += ['UUID']
-        if 'FromMeasureDataPoint' in df.columns:
-            dropcols += ['FromMeasureDataPoint']
-        df = df.drop(dropcols)
+        dropcols = ['Sector', 'Quantity', 'UUID', 'FromMeasureDataPoint', 'ObservedDataPoint']
+        for col in dropcols:
+            if col in df.columns:
+                df = df.drop(col)
         return df
 
     # -----------------------------------------------------------------------------------
@@ -336,18 +332,6 @@ class DatasetNode(AdditiveNode):
                 filt |= pl.col(FORECAST_COLUMN)
             df = df.filter(filt)
         return df
-
-    # -----------------------------------------------------------------------------------
-
-    def get_measure_datapoint_years(self) -> list[int]:
-        """Get the years with measure data points from the input datasets and upstream nodes."""
-
-        # FIXME: This should probably be in the future "datapoint metadata" column instead.
-
-        df = self.get_filtered_dataset_df()
-        if 'FromMeasureDataPoint' in df.columns:
-            return df.filter(pl.col('FromMeasureDataPoint'))[YEAR_COLUMN].unique().sort().to_list()
-        return []
 
     # -----------------------------------------------------------------------------------
 

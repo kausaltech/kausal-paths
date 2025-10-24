@@ -1561,6 +1561,35 @@ class Node:
                 if math.isnan(v):
                     raise NodeError(self, 'Output metric has NaNs')
 
+    def get_measure_datapoint_years(self) -> list[int]:
+        """Get the years with measure data points from the input datasets and upstream nodes."""
+
+        # FIXME: This should probably be in the future "datapoint metadata" column instead.
+        from .actions.action import ActionNode
+        from .gpc import DatasetNode
+
+        if isinstance(self, DatasetNode):
+            df = self.get_filtered_dataset_df()
+            if 'ObservedDataPoint' in df.columns:
+                return df.filter(pl.col('ObservedDataPoint'))[YEAR_COLUMN].unique().sort().to_list()
+
+        years = set[int]([])
+        nodes = self.get_upstream_nodes()
+        for n in nodes:
+            if not isinstance(n, DatasetNode):
+                continue
+            if issubclass(type(n), ActionNode): # Ignore action data
+                continue
+            if any(issubclass(type(d), ActionNode) for d in n.get_downstream_nodes()):
+                continue # Ignore data that is used in actions
+            if n.id in ['energy_use_intensity_change_new']:
+                continue # Last resort to get rid of non-observed data
+            years.update(n.get_measure_datapoint_years())
+
+        return sorted(years)
+
+    # -----------------------------------------------------------------------------------
+
     def _scale_by_reference_year(self, df: ppl.PathsDataFrame, year: int | None = None) -> ppl.PathsDataFrame:
         if not year:
             return df
