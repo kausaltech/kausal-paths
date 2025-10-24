@@ -158,12 +158,10 @@ class DatasetNode(AdditiveNode):
 
     def get_gpc_dataset(self, tag: str | None = None) -> ppl.PathsDataFrame:
         df = self.get_filtered_dataset_df(tag=tag)
-        dropcols = ['Sector', 'Quantity']
-        if 'UUID' in df.columns:
-            dropcols += ['UUID']
-        if 'FromMeasureDataPoint' in df.columns:
-            dropcols += ['FromMeasureDataPoint']
-        df = df.drop(dropcols)
+        dropcols = ['Sector', 'Quantity', 'UUID', 'FromMeasureDataPoint', 'ObservedDataPoint']
+        for col in dropcols:
+            if col in df.columns:
+                df = df.drop(col)
         return df
 
     # -----------------------------------------------------------------------------------

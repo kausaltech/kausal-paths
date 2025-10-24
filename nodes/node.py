@@ -1565,17 +1565,26 @@ class Node:
         """Get the years with measure data points from the input datasets and upstream nodes."""
 
         # FIXME: This should probably be in the future "datapoint metadata" column instead.
+        from .actions.action import ActionNode
         from .gpc import DatasetNode
+
         if isinstance(self, DatasetNode):
             df = self.get_filtered_dataset_df()
-            if 'FromMeasureDataPoint' in df.columns:
-                return df.filter(pl.col('FromMeasureDataPoint'))[YEAR_COLUMN].unique().sort().to_list()
+            if 'ObservedDataPoint' in df.columns:
+                return df.filter(pl.col('ObservedDataPoint'))[YEAR_COLUMN].unique().sort().to_list()
 
         years = set[int]([])
         nodes = self.get_upstream_nodes()
         for n in nodes:
-            if isinstance(n, DatasetNode):
-                years.update(n.get_measure_datapoint_years())
+            if not isinstance(n, DatasetNode):
+                continue
+            if issubclass(type(n), ActionNode): # Ignore action data
+                continue
+            if any(issubclass(type(d), ActionNode) for d in n.get_downstream_nodes()):
+                continue # Ignore data that is used in actions
+            if n.id in ['energy_use_intensity_change_new']:
+                continue # Last resort to get rid of non-observed data
+            years.update(n.get_measure_datapoint_years())
 
         return sorted(years)
 

@@ -105,9 +105,11 @@ class FrameworkMeasureDVCDataset(DVCDataset):
             ).otherwise(pl.col(YEAR_COLUMN)).alias(YEAR_COLUMN),
             pl.coalesce(['MeasureValue', 'MeasureDefaultValue', 'Value']).alias('Value'),
             pl.coalesce(['MeasureUnit', 'Unit']).alias('Unit'),
-            (pl.col('MeasureValue').is_not_null() | pl.col('MeasureDefaultValue').is_not_null()).alias('FromMeasureDataPoint')
+            (pl.col('MeasureValue').is_not_null() | pl.col('MeasureDefaultValue').is_not_null()).alias('FromMeasureDataPoint'),
+            ((pl.col('MeasureValue').is_not_null()) & (pl.col('UUID').is_not_null())).alias('ObservedDataPoint'),
         ])
-        df = ppl.to_ppdf(jdf.select([*df_cols, 'FromMeasureDataPoint']), meta=meta)
+        out_cols = [*df_cols, 'FromMeasureDataPoint', 'ObservedDataPoint']
+        df = ppl.to_ppdf(jdf.select(out_cols), meta=meta)
         return df
 
     def post_process(self, context: Context | None, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
