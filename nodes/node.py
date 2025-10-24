@@ -1561,6 +1561,26 @@ class Node:
                 if math.isnan(v):
                     raise NodeError(self, 'Output metric has NaNs')
 
+    def get_measure_datapoint_years(self) -> list[int]:
+        """Get the years with measure data points from the input datasets and upstream nodes."""
+
+        # FIXME: This should probably be in the future "datapoint metadata" column instead.
+        from .gpc import DatasetNode
+        if isinstance(self, DatasetNode):
+            df = self.get_filtered_dataset_df()
+            if 'FromMeasureDataPoint' in df.columns:
+                return df.filter(pl.col('FromMeasureDataPoint'))[YEAR_COLUMN].unique().sort().to_list()
+
+        years = set[int]([])
+        nodes = self.get_upstream_nodes()
+        for n in nodes:
+            if isinstance(n, DatasetNode):
+                years.update(n.get_measure_datapoint_years())
+
+        return sorted(years)
+
+    # -----------------------------------------------------------------------------------
+
     def _scale_by_reference_year(self, df: ppl.PathsDataFrame, year: int | None = None) -> ppl.PathsDataFrame:
         if not year:
             return df
