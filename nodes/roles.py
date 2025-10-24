@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import ABCMeta
 from typing import TYPE_CHECKING
 
 from django.utils.translation import gettext_lazy as _
@@ -9,6 +10,7 @@ from kausal_common.models.roles import (
     AdminRole,
     InstanceFieldGroupRole,
     InstanceSpecificRole,
+    Role,
     register_role,
 )
 
@@ -17,6 +19,7 @@ from paths.const import (
     INSTANCE_REVIEWER_ROLE,
     INSTANCE_SUPER_ADMIN_ROLE,
     INSTANCE_VIEWER_ROLE,
+    SUBSECTOR_ADMIN_GROUP_NAME,
 )
 
 if TYPE_CHECKING:
@@ -26,7 +29,27 @@ if TYPE_CHECKING:
     from nodes.models import InstanceConfig
 
 
-class InstanceGroupMembershipRole(InstanceFieldGroupRole['InstanceConfig']):
+class SubsectorAdminRole(Role):
+    id = 'subsector-admin'
+    name = _('Subsector Admin')
+    description = _('A Paths administrator with specifically set per-model-instance permissions.')
+    group_name = SUBSECTOR_ADMIN_GROUP_NAME
+
+    model_perms = [
+        ('wagtailadmin', 'admin', ('access',)),
+        ('datasets', (
+            'datasetschema',
+            'dataset',
+            'datapoint',
+            'datasource',
+            'datasetsourcereference',
+            'datapointcomment',
+            'datasetmetric',
+        ), ALL_MODEL_PERMS),
+    ]
+
+
+class InstanceGroupMembershipRole(InstanceFieldGroupRole['InstanceConfig'], metaclass=ABCMeta):
     def __init__(self):
         from .models import InstanceConfig
         super().__init__(InstanceConfig)
