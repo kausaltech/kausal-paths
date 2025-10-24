@@ -27,7 +27,7 @@ test.describe('Test datasets', () => {
     await expect(page.getByRole('link', { name: 'Edit schema for \'Test\'' })).toHaveText('Edit Schema');
     await expect(page.getByRole('link', { name: 'Delete \'Test\'' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Delete \'Test\'' })).toHaveText('Delete');
-    });
+  });
   test('dataset schema edit view', async ({ page }) => {
     await page.goto(`/admin/`);
     await page.getByRole('link', { name: 'Datasets', exact: true }).click();
@@ -60,5 +60,22 @@ test.describe('Test datasets', () => {
     await expect(page.getByText('Cannot remove metric')).not.toBeVisible();
     await page.goto(editPageUrl);
     await expect(page.locator('#id_metrics-3-DELETE-button')).not.toBeVisible();
-    });
   });
+  test('dataset datapoint comment', async ({ page }) => {
+    await page.goto(`/admin/`);
+    await page.getByRole('link', { name: 'Datasets', exact: true }).click();
+    await page.getByRole('link', { name: 'Test', exact: true }).click();
+    await page.locator('.ag-center-cols-container [role="gridcell"]').first().click({button: 'right'});
+    await page.getByRole('menuitem', { name: 'Comment' }).click();
+    const uuid = crypto.randomUUID();
+    await page.getByRole('textbox').fill(`Test comment ${uuid}`);
+    await page.getByRole('checkbox', { name: 'Requires review' }).first().click();
+    await page.getByRole('checkbox', { name: 'Pin' }).first().click();
+    await page.getByRole('button', { name: 'Save comment' }).click();
+    await expect(page.getByText(`Test comment ${uuid}ResolvedPin`)).toBeVisible();
+    await page.getByText(`Test comment ${uuid}ResolvedPin`).getByRole('checkbox', { name: 'Pin' }).click();
+    await page.getByText(`Test comment ${uuid}ResolvedPin`).getByRole('checkbox', { name: 'Resolved' }).click();
+    await expect(page.getByText(`Test comment ${uuid}ResolvedPin`).getByRole('checkbox', { name: 'Pin' })).not.toBeChecked();
+    await expect(page.getByText(`Test comment ${uuid}ResolvedPin`).getByRole('checkbox', { name: 'Resolved' })).toBeChecked();
+  });
+});
