@@ -29,6 +29,12 @@ params:
 
 impact_overviews:
 
+- graph_type: simple_effect
+  label: Vaikutus kokonaispäästöihin
+  label_en: Impact on net emissions
+  effect_node: net_emissions
+  indicator_unit: Mt
+
 - graph_type: cost_benefit
   label: Kustannus-hyöty yhteiskunnan näkökulmasta
   label_en: Cost-benefit from society's point of view
@@ -52,12 +58,6 @@ impact_overviews:
   label_en: Cost-benefit from the other stakeholders' point of view
   effect_node: other_stakeholder_costs
   indicator_unit: MEUR
-
-- graph_type: simple_effect
-  label: Vaikutus kokonaispäästöihin
-  label_en: Effect on net emissions
-  effect_node: net_emissions
-  indicator_unit: Mt
 
 - graph_type: cost_efficiency
   label: Toimenpiteiden kustannustehokkuus
