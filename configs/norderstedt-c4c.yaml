@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://norderstedt-c4c.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 3880ac98ef605b02bcef538a337165af5e32e2ad
+  commit: f4e5e3fd7d95af46fa7f574bae1d6bf63702cd01
   dvc_remote: kausal-s3
 name: Treibhausgasbilanz Norderstedt
 name_en: Norderstedt Greenhouse Gas Inventory
@@ -164,14 +164,26 @@ dimensions:
     label: Umstellung der Ampeln auf LED (erste Hälfte)
     label_en: Change Traffic Lights to LED (First Half)
   - id: change_traffic_lights_to_led_moorkamp_street
-    label: Umstellung der Ampeln auf LED (Moorkamp Straße)
-    label_en: Change Traffic Lights to LED (Moorkamp Street)
+    label: Umstellung Straßenbeleuchtung auf LED (Moorkamp)
+    label_en: Change Street Lights to LED (Moorkamp Street)
   - id: change_traffic_lights_to_led_total
     label: Umstellung der Ampeln auf LED (total)
     label_en: Change Traffic Lights to LED (Total)
   - id: change_streetlights_to_led
     label: Umstellung der Straßenbeleuchtung auf LED (total)
     label_en: Change Street Lights to LED (Total)
+  - id: kita_geg_30
+    label: Annahme Neubau Kita GEG-30
+    label_en: Assumption New Build Kita GEG-30
+  - id: kita_passive_house
+    label: Annahme Neubau Kita Passivhaus-Komponenten
+    label_en: Assumption New Build Kita Passive House Components
+  - id: kita_nearly_zero_energy
+    label: Annahme Neubau Kita Niedrigstenergie-Gebäude
+    label_en: Assumption New Build Kita Nearly Zero-Energy
+  - id: change_streetlights_to_led_2029
+    label: Annahme Umstellung Straßenbeleuchtung auf LED 2029
+    label_en: Assumption Change Street Lights to LED 2029
 
   # ----- Land Use
   - id: reforestation
@@ -849,9 +861,9 @@ actions:
     to_dimensions:
     - id: cost_type
 
-- id: change_street_lights_to_led_moorkamp_street
-  name: Umstellung der Ampeln auf LED (Moorkamp Straße)
-  name_en: Change Traffic Lights to LED (Moorkamp Street)
+- id: change_traffic_lights_to_led_total
+  name: Umstellung der Ampeln auf LED (total)
+  name_en: Change Traffic Lights to LED (Total)
   type: simple.AdditiveAction
   group: stationary_energy
   input_dimensions: [action, sector, cost_type]
@@ -863,7 +875,7 @@ actions:
     forecast_from: 2024
     filters:
     - dimension: action
-      categories: [change_traffic_lights_to_led_moorkamp_street]
+      categories: [change_traffic_lights_to_led_total]
   output_metrics:
   - id: currency
     unit: EUR/a
@@ -910,9 +922,9 @@ actions:
     to_dimensions:
     - id: cost_type
 
-- id: change_traffic_lights_to_led_total
-  name: Umstellung der Ampeln auf LED (total)
-  name_en: Change Traffic Lights to LED (Total)
+- id: change_street_lights_to_led_moorkamp_street
+  name: Umstellung der Straßenbeleuchtung auf LED (Moorkamp Straße)
+  name_en: Change Street Lights to LED (Moorkamp Street)
   type: simple.AdditiveAction
   group: stationary_energy
   input_dimensions: [action, sector, cost_type]
@@ -924,7 +936,7 @@ actions:
     forecast_from: 2024
     filters:
     - dimension: action
-      categories: [change_traffic_lights_to_led_total]
+      categories: [change_traffic_lights_to_led_moorkamp_street]
   output_metrics:
   - id: currency
     unit: EUR/a
@@ -993,6 +1005,250 @@ actions:
   - id: emissions
     unit: kg_co2e/a
     quantity: emissions
+  output_nodes:
+  - id: i4_city_administration_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: sector
+  - id: i4_city_administration_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+  - id: total_costs
+    metrics: [currency]
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+
+- id: kita_geg_30
+  name: Annahme Neubau Kita GEG-30
+  name_en: Assumption New Build Kita GEG-30
+  type: simple.AdditiveAction
+  group: stationary_energy
+  input_dimensions: [action, sector, cost_type]
+  output_dimensions: [action, sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: norderstedt/actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [kita_geg_30]
+  output_metrics:
+  - id: emissions
+    unit: kg_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: i4_city_administration_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: sector
+  - id: i4_city_administration_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+  - id: total_costs
+    metrics: [currency]
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+
+- id: kita_passive_house
+  name: Annahme Neubau Kita Passivhaus-Komponenten
+  name_en: Assumption New Build Kita Passive House Components
+  type: simple.AdditiveAction
+  group: stationary_energy
+  input_dimensions: [action, sector, cost_type]
+  output_dimensions: [action, sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: norderstedt/actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [kita_passive_house]
+  output_metrics:
+  - id: emissions
+    unit: kg_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: i4_city_administration_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: sector
+  - id: i4_city_administration_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+  - id: total_costs
+    metrics: [currency]
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+
+- id: kita_nearly_zero_energy
+  name: Annahme Neubau Kita Niedrigstenergie-Gebäude
+  name_en: Assumption New Build Kita Nearly Zero-Energy
+  type: simple.AdditiveAction
+  group: stationary_energy
+  input_dimensions: [action, sector, cost_type]
+  output_dimensions: [action, sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: norderstedt/actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [kita_nearly_zero_energy]
+  output_metrics:
+  - id: emissions
+    unit: kg_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: i4_city_administration_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: sector
+  - id: i4_city_administration_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+  - id: total_costs
+    metrics: [currency]
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+
+- id: change_streetlights_to_led_2029
+  name: Annahme Umstellung der Straßenbeleuchtung auf LED (2029)
+  name_en: Assumption Change Street Lights to LED (2029)
+  type: simple.AdditiveAction
+  group: stationary_energy
+  input_dimensions: [action, sector, cost_type]
+  output_dimensions: [action, sector, cost_type]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: norderstedt/actions
+    forecast_from: 2024
+    filters:
+    - dimension: action
+      categories: [change_streetlights_to_led_2029]
+  output_metrics:
+  - id: emissions
+    unit: kg_co2e/a
+    quantity: emissions
+  - id: currency
+    unit: EUR/a
+    quantity: currency
   output_nodes:
   - id: i4_city_administration_emissions
     metrics: [emissions]
@@ -1404,7 +1660,8 @@ pages:
 
 scenarios:
 - id: baseline
-  name: Business as Usual
+  name: THG-Ausgangsniveau
+  name_en: GHG Baseline
 
 - id: default
   default: true
