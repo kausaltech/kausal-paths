@@ -191,7 +191,6 @@ def dataset_test_data(django_db_setup, django_db_blocker):
     comment1 = DataPointComment.objects.create(
         data_point=data_point1,
         text='Test comment',
-        type=DataPointComment.CommentType.PLAIN,
         created_by=admin_user,
         last_modified_by=admin_user,
     )
@@ -199,7 +198,6 @@ def dataset_test_data(django_db_setup, django_db_blocker):
     comment2 = DataPointComment.objects.create(
         data_point=data_point2,
         text='Test comment 2',
-        type=DataPointComment.CommentType.PLAIN,
         created_by=superuser,
         last_modified_by=superuser,
     )
