@@ -53,7 +53,7 @@ else:
 class CondensedInlinePanel[M: Model, RelatedM: Model](InlinePanel[M, RelatedM]):
     pass
 
-class OrganizationForm(NodeForm):
+class OrganizationForm(NodeForm[Organization]):
     user: User
 
     def __init__(self, *args, **kwargs):
@@ -84,7 +84,7 @@ class OrganizationViewSet(PathsViewSet):
     index_view_class = OrganizationIndexView
     add_view_class = OrganizationCreateView
     edit_view_class = OrganizationEditView
-    delete_view_class = OrganizationDeleteView
+    delete_view_class = OrganizationDeleteView  # type: ignore[assignment]
     search_fields = ['name']
     list_display = ['name', 'parent']
     add_to_admin_menu = True

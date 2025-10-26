@@ -164,7 +164,7 @@ class LEDRetrofitAction(ActionNode):
         df.loc[df.index > last_hist_year, 'NrTraditional'] = trad
         df.loc[df.index > last_hist_year, 'NrLED'] = led
         df.loc[df.index > last_hist_year, 'NrNewLED'] = nr_new_led
-        df['NrNewLED'] = df['NrNewLED'].astype('pint[pcs/a]')
+        df['NrNewLED'] = df['NrNewLED'].astype('pint[pcs/a]')  # type: ignore[call-overload]
 
         # Calculate energy consumption, energy cost and maintenance cost
         # for traditional luminaires

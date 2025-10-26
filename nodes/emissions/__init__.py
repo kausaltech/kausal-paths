@@ -20,7 +20,7 @@ class GlobalWarmingPotential(Node):
         end_year = self.get_end_year()
         years = range(start_year, end_year + 1)
         ghg_dim = next(iter(self.output_dimensions.values()))
-        idx = pd.MultiIndex.from_product([years, ghg_dim.get_cat_ids()]).to_list()
+        idx = pd.MultiIndex.from_product([years, list(ghg_dim.get_cat_ids())]).to_list()
         df = pl.DataFrame(idx, orient='row', schema=[YEAR_COLUMN, ghg_dim.id])
         df = df.with_columns([
             pl.col(ghg_dim.id).replace(AR5GWP100).cast(pl.Float32).alias(VALUE_COLUMN),

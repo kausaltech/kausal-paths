@@ -6,6 +6,9 @@ from uuid import UUID
 class UUIDSetTracker:
     """Base class for tracking UUID sets before and after operations."""
 
+    uuids_before: set[UUID] | None
+    uuids_after: set[UUID] | None
+
     def __init__(self, queryset):
         self.queryset = queryset
         self.uuids_before = None
@@ -25,6 +28,8 @@ class AssertIdenticalUUIDs(UUIDSetTracker):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         super().__exit__(exc_type, exc_val, exc_tb)
+        assert self.uuids_after is not None
+        assert self.uuids_before is not None
         assert self.uuids_after == self.uuids_before, (
             f'Expected identical UUID sets, but {len(self.uuids_after - self.uuids_before)} added '
             f'and {len(self.uuids_before - self.uuids_after)} removed'
@@ -37,6 +42,8 @@ class AssertNewUUID(UUIDSetTracker):
 
     def assert_created(self, response_data):
         """Call this after exiting the context to verify the created UUID."""
+        assert self.uuids_after is not None
+        assert self.uuids_before is not None
         new_uuids = self.uuids_after - self.uuids_before
         assert len(new_uuids) == 1, \
             f'Expected exactly 1 new UUID, but found {len(new_uuids)}'
@@ -54,6 +61,8 @@ class AssertRemovedUUID(UUIDSetTracker):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         super().__exit__(exc_type, exc_val, exc_tb)
+        assert self.uuids_after is not None
+        assert self.uuids_before is not None
         assert self.uuids_after == self.uuids_before - {self.removed_uuid}, \
             f'Expected UUID {self.removed_uuid} to be removed, but UUID set changed incorrectly'
         return False

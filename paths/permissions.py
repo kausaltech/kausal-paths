@@ -7,6 +7,7 @@ from django.db.models import QuerySet
 from rest_framework import permissions
 
 from kausal_common.models.permission_policy import ParentInheritedPolicy
+from kausal_common.users import user_or_bust
 
 from paths.context import realm_context
 
@@ -22,7 +23,7 @@ if TYPE_CHECKING:
     from users.models import User
 
 _M = TypeVar('_M', bound='PathsModel')
-_QS = TypeVar('_QS', bound=QuerySet, default=QuerySet[_M])
+_QS = TypeVar('_QS', bound=QuerySet[Any], default=QuerySet[_M])
 CreateContext = TypeVar('CreateContext', default=Any)
 
 
@@ -63,13 +64,17 @@ class OrganizationPermission(permissions.DjangoObjectPermissions):
         if not request.method:
             return False
         perms = self.get_required_permissions(request.method, Organization)
-        return all(self.check_permission(request.user, perm) for perm in perms)
+        user = user_or_bust(request.user)
+        return all(self.check_permission(user, perm) for perm in perms)
 
     def has_object_permission(self, request, view, obj):
+        if not request.method:
+            return False
+        user = user_or_bust(request.user)
         perms = self.get_required_object_permissions(request.method, Organization)
         if not perms and request.method in permissions.SAFE_METHODS:
             return True
-        return all(self.check_permission(request.user, perm, obj) for perm in perms)
+        return all(self.check_permission(user, perm, obj) for perm in perms)
 
 class PersonPermission(permissions.DjangoObjectPermissions):
     def check_permission(
@@ -102,11 +107,15 @@ class PersonPermission(permissions.DjangoObjectPermissions):
             return False
         perms = self.get_required_permissions(request.method, Person)
         instance_config = realm_context.get().realm
-        return all(self.check_permission(request.user, perm, instance_config=instance_config) for perm in perms)
+        user = user_or_bust(request.user)
+        return all(self.check_permission(user, perm, instance_config=instance_config) for perm in perms)
 
     def has_object_permission(self, request: Request, view, obj):
+        if not request.method:
+            return False
         perms = self.get_required_object_permissions(request.method, Person)
         instance_config = realm_context.get().realm
         if not perms and request.method in permissions.SAFE_METHODS:
             return True
-        return all(self.check_permission(request.user, perm, person=obj, instance_config=instance_config) for perm in perms)
+        user = user_or_bust(request.user)
+        return all(self.check_permission(user, perm, person=obj, instance_config=instance_config) for perm in perms)
