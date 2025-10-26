@@ -235,6 +235,17 @@ nodes:
   input_datasets:
   - id: zuerich/district_heating_primary_energy_factors
 
+- id: district_heat_emission_factors_by_carrier
+  name_de: District Heat Emission Factors by Carrier
+  name_en: District Heat Emission Factors by Carrier
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [energy_carrier, emission_scope]
+  output_dimensions: [energy_carrier, emission_scope]
+  input_datasets:
+  - id: zuerich/district_heat_emission_factor
+
 # ---------- EWZ
 
 - id: district_heat_production_gas_grid_share
@@ -345,6 +356,17 @@ nodes:
   input_datasets:
   - id: zuerich/district_heat_concessionary_production_mix
 
+- id: district_heat_concessionary_share_within_city
+  name_de: District Heat Concessionary Share Within City
+  name_en: District Heat Concessionary Share Within City
+  type: simple.AdditiveNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: [energy_carrier, emission_scope]
+  output_dimensions: [energy_carrier, emission_scope]
+  input_datasets:
+  - id: zuerich/district_heat_concessionary_scope_mix
+
 # --------------- Primary Energy
 
 - id: district_heat_concessionary_primary_energy_factor
@@ -374,31 +396,25 @@ nodes:
 
 # --------------- Emissions
 
-- id: district_heat_emission_factors_by_carrier
-  name_de: District Heat Emission Factors by Carrier
-  name_en: District Heat Emission Factors by Carrier
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: g/kWh
-  input_dimensions: [energy_carrier, emission_scope]
-  output_dimensions: [energy_carrier, emission_scope]
-  input_datasets:
-  - id: zuerich/district_heat_emission_factor
-
 - id: district_heat_concessionary_emission_factor
   name_de: Treibhausgasfaktoren Fernwärme konzessionierte Wärmeverbunde
   name_en: District Heat Concessionary Emission Factor
-  type: simple.MultiplicativeNode
+  type: formula.FormulaNode
   quantity: emission_factor
   unit: g/kWh
   input_dimensions: [energy_carrier, emission_scope]
   output_dimensions: [energy_carrier, emission_scope]
+  params:
+    formula: production_mix * scope_mix * emission_factors
   input_nodes:
   - id: district_heat_concessionary_production_mix
+    tags: [production_mix]
     to_dimensions:
     - id: energy_carrier
   - id: district_heat_emission_factors_by_carrier
-    tags: [non_additive]
+    tags: [emission_factors]
+  - id: district_heat_concessionary_share_within_city
+    tags: [scope_mix]
   output_nodes:
   - id: building_energy_consumption_emission_factor
     from_dimensions:
