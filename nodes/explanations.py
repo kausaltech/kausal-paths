@@ -343,7 +343,7 @@ class GraphRepresentation:
     nodes: dict[str, dict[str, Any]] = field(default_factory=dict)  # node_id -> node_config
     inputs: dict[str, list[str]] = field(default_factory=dict)  # node_id -> list of input_node_ids
     outputs: dict[str, list[str]] = field(default_factory=dict)  # node_id -> list of output_node_ids
-    edges: dict[tuple[str, str], dict[str, any]] = field(default_factory=dict)  # (from_node, to_node) -> edge_properties
+    edges: dict[tuple[str, str], dict[str, Any]] = field(default_factory=dict)  # (from_node, to_node) -> edge_properties
 
 
 @dataclass
@@ -365,7 +365,7 @@ class GraphBuilder:
 
         inputs: dict[str, list[str]] = {node_id: [] for node_id in node_ids}
         outputs: dict[str, list[str]] = {node_id: [] for node_id in node_ids}
-        edges: dict[tuple, dict] = {}
+        edges: dict[tuple[str, str], dict[str, Any]] = {}
 
         for node in all_node_configs:
             node_id: str = node['id']
@@ -399,7 +399,7 @@ class GraphBuilder:
         )
 
     @staticmethod
-    def _parse_edge_spec(input_spec) -> tuple[str, dict]:
+    def _parse_edge_spec(input_spec) -> tuple[str, dict[str, Any]]:
         """Extract node_id and edge properties from input specification."""
         if isinstance(input_spec, str):
             return input_spec, {}
@@ -655,12 +655,12 @@ class ValidationRule(ABC):
     """Base class for validation rules that also generate explanations."""
 
     @abstractmethod
-    def explain(self, node_config: dict, context: Context) -> list[str]:
+    def explain(self, node_config: dict[str, Any], context: Context) -> list[str]:
         """Generate explanation text from node config."""
         pass
 
     @abstractmethod
-    def validate(self, node_config: dict, context: Context) -> list[ValidationResult]:
+    def validate(self, node_config: dict[str, Any], context: Context) -> list[ValidationResult]:
         """Validate the node configuration."""
         pass
 
@@ -682,7 +682,7 @@ class ValidationRule(ABC):
         return ''
 
     def get_all_params(self, node_config: dict[str, Any], drop: list[str]) -> list[list[str] | None]:
-        out = []
+        out: list[list[str] | None] = []
         if 'params' not in node_config:
             return out
         params = node_config['params']
@@ -699,12 +699,13 @@ class ValidationRule(ABC):
                 u = param.get('unit', '')
                 if id in drop:
                     continue
+                assert isinstance(id, str)
                 out.append([id, f"{v} {u}"])
         return out
 
 class NodeClassRule(ValidationRule):
 
-    def explain(self, node_config: dict, context: Context) -> list[str]:
+    def explain(self, node_config: dict[str, Any], context: Context) -> list[str]:
         html: list[str] = [f"{node_config['id']}<br>"]
 
         typ = node_config.get('type')
@@ -723,12 +724,13 @@ class NodeClassRule(ValidationRule):
                 html.append(f"<li>{_('Has formula')} {formula}</li>")
         if other:
             for p in other:
-                html.append(f"<li>{_('Has parameter')} <i>{p[0]}</i> {_('with value')} {p[1]}.")  # noqa: PERF401
+                assert p is not None
+                html.append(f"<li>{_('Has parameter')} <i>{p[0]}</i> {_('with value')} {p[1]}.")
 
         html.append('</ul>')
         return html
 
-    def validate(self, node_config: dict, context: Context) -> list[ValidationResult]:
+    def validate(self, node_config: dict[str, Any], context: Context) -> list[ValidationResult]:
         results: list[ValidationResult] = []
 
         typ = node_config.get('type')
@@ -755,10 +757,10 @@ class NodeClassRule(ValidationRule):
 
 class DatasetRule(ValidationRule):
 
-    def explain(self, node_config: dict, context: Context) -> list[str]:
+    def explain(self, node_config: dict[str, Any], context: Context) -> list[str]:
         dataset_html: list[str] = []
 
-        input_datasets = node_config.get('input_datasets', [])
+        input_datasets: list[dict[str, Any]] = node_config.get('input_datasets', [])
 
         if not input_datasets:
             return dataset_html
@@ -775,7 +777,7 @@ class DatasetRule(ValidationRule):
 
         return dataset_html
 
-    def _explain_single_dataset(self, dataset_config: dict, context: Context) -> list[str]:
+    def _explain_single_dataset(self, dataset_config: dict[str, None], context: Context) -> list[str]:
         """Explain a single dataset configuration."""
         if isinstance(dataset_config, str):
             return [f"<li>{_('Dataset with identifier')} <i>{dataset_config}</i></li>"]
@@ -801,7 +803,7 @@ class DatasetRule(ValidationRule):
         html.append('</ul></li>')
         return html
 
-    def _explain_filters(self, filters: list[dict], context: Context) -> list[str]:
+    def _explain_filters(self, filters: list[dict[str, Any]], context: Context) -> list[str]:
         """Explain dataset filters."""
         html = []
         renames = [rename for rename in filters if 'rename_col' in rename]
@@ -881,7 +883,7 @@ class DatasetRule(ValidationRule):
         new_item = d.get('value', '')
         return f"_('Rename item') <i>{item}</i> {_('with name')} <i>{new_item}</i> {_('on column')} <i>{col}</i>."
 
-    def validate(self, node_config: dict, context: Context) -> list[ValidationResult]:
+    def validate(self, node_config: dict[str, Any], context: Context) -> list[ValidationResult]:
         results: list[ValidationResult] = []
 
         input_datasets = node_config.get('input_datasets', [])
@@ -893,7 +895,7 @@ class DatasetRule(ValidationRule):
 
         return results
 
-    def _validate_single_dataset(self, dataset_config: dict, index: int) -> list[ValidationResult]:
+    def _validate_single_dataset(self, dataset_config: dict[str, Any], index: int) -> list[ValidationResult]:
         """Validate a single dataset configuration."""
         results = []
 
@@ -1051,7 +1053,7 @@ class DatasetRule(ValidationRule):
 
 class EdgeRule(ValidationRule):
 
-    def explain(self, node_config: dict, context: Context) -> list[str]:
+    def explain(self, node_config: dict[str, Any], context: Context) -> list[str]:
         txt = _('The inputs are processed in the following way before using for calculations in this node:')
         html = [f"<p>{txt}<ul>"]  # Start the main list for nodes
         edge_html0 = html.copy()
@@ -1089,7 +1091,7 @@ class EdgeRule(ValidationRule):
         html.append("</ul>")  # Close main nodes list
         return html
 
-    def get_explanation_for_tag(self, node: dict | str) -> list[str]:
+    def get_explanation_for_tag(self, node: dict[str, Any] | str) -> list[str]:
         html: list[str] = []
         if isinstance(node, str):
             return html
@@ -1101,7 +1103,7 @@ class EdgeRule(ValidationRule):
             html.append(f"<li>{description}</li>")
         return html
 
-    def get_explanation_for_edge_from(self, node: dict | str, context: Context) -> list[str]:
+    def get_explanation_for_edge_from(self, node: dict[str, Any] | str, context: Context) -> list[str]:
         edge_html: list[str] = []
         if isinstance(node, str):
             return edge_html
@@ -1130,7 +1132,7 @@ class EdgeRule(ValidationRule):
                 )
         return edge_html
 
-    def get_explanation_for_edge_to(self, node: dict | str, context: Context) -> list[str]:
+    def get_explanation_for_edge_to(self, node: dict[str, Any] | str, context: Context) -> list[str]:
         edge_html: list[str] = []
         if isinstance(node, str):
             return edge_html
@@ -1149,7 +1151,7 @@ class EdgeRule(ValidationRule):
                     )
         return edge_html
 
-    def validate(self, node_config: dict, context: Context) -> list[ValidationResult]:
+    def validate(self, node_config: dict[str, Any], context: Context) -> list[ValidationResult]:
         return [ValidationResult(
             method='edge_rule',
             is_valid=True,
@@ -1160,7 +1162,7 @@ class EdgeRule(ValidationRule):
 
 class BasketRule(ValidationRule):
 
-    def explain(self, node_config: dict | str, context: Context) -> list[str]:
+    def explain(self, node_config: dict[str, Any] | str, context: Context) -> list[str]:
         assert isinstance(node_config, dict)
         node_id = node_config['id']
 
@@ -1199,7 +1201,7 @@ class BasketRule(ValidationRule):
 
         return html
 
-    def validate(self, node_config: dict, context: Context) -> list[ValidationResult]:
+    def validate(self, node_config: dict[str, Any], context: Context) -> list[ValidationResult]:
         return [ValidationResult(
             method='basket_rule',
             is_valid=True,

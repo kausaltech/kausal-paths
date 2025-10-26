@@ -1,7 +1,7 @@
 runner:
   ruff:
-    cmd: ruff check . --output-format sarif
-    format: sarif
+    cmd: ruff check . --output-format rdjson
+    format: rdjson
   mypy:
-    cmd: mypy .
+    cmd: mypy . | mypy-baseline filter --hide-stats
     format: mypy

@@ -76,10 +76,10 @@ class Context:
     dvc_datasets: dict[str, dvc_pandas.Dataset]
     """All the loaded dvc-pandas datasets keyed by the dataset identifier."""
 
-    global_parameters: dict[str, Parameter]
+    global_parameters: dict[str, Parameter[Any]]
     """Global parameters not specific to any individual node."""
 
-    node_explanation_system: NodeExplanationSystem
+    node_explanation_system: NodeExplanationSystem | None
     """Explanations and validations for nodes and node graph."""
 
     scenarios: dict[str, Scenario]
@@ -219,7 +219,7 @@ class Context:
             redis_url=os.getenv('REDIS_URL'),
             base_logger=self.log,
         )
-        self.node_explanation_system: NodeExplanationSystem | None = None
+        self.node_explanation_system = None
         if env_bool('DISABLE_PATHS_MODEL_CACHE', default=False):
             self.skip_cache = True
         super().__init__()
@@ -361,7 +361,7 @@ class Context:
             raise TypeError('Node %s is not an action node' % id)
         return node
 
-    def add_global_parameter(self, parameter: Parameter):
+    def add_global_parameter(self, parameter: Parameter[Any]):
         """
         Add a global parameter to the context.
 
@@ -397,15 +397,15 @@ class Context:
         return None
 
     @overload
-    def get_parameter(self, param_id: str, *, required: Literal[True] = True) -> Parameter: ...
+    def get_parameter(self, param_id: str, *, required: Literal[True] = True) -> Parameter[Any]: ...
 
     @overload
-    def get_parameter(self, param_id: str, *, required: Literal[False]) -> Parameter | None: ...
+    def get_parameter(self, param_id: str, *, required: Literal[False]) -> Parameter[Any] | None: ...
 
     @overload
-    def get_parameter(self, param_id: str, *, required: bool) -> Parameter | None: ...
+    def get_parameter(self, param_id: str, *, required: bool) -> Parameter[Any] | None: ...
 
-    def get_parameter(self, param_id: str, *, required: bool = True) -> Parameter | None:
+    def get_parameter(self, param_id: str, *, required: bool = True) -> Parameter[Any] | None:
         if self.check_mode:
             from nodes.exceptions import NodeError
             frame = inspect.currentframe()
@@ -549,7 +549,7 @@ class Context:
         self.log.info('Baseline values generated in %.1f ms' % pc.measure())
         self.baseline_values_generated = True
 
-    def get_all_parameters(self) -> Generator[Parameter]:
+    def get_all_parameters(self) -> Generator[Parameter[Any]]:
         """Return all the parameters (global and node-specific)."""
 
         for param in self.global_parameters.values():

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from rest_framework.test import APIClient
 
 import pytest
@@ -212,7 +214,7 @@ def test_dataset_list(api_client, dataset_test_data, user_key):
     elif user_key in ['admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user']:
         expected_datasets = {'dataset1'}
     else:
-        expected_datasets = {}
+        expected_datasets = set()
 
     response = api_client.get('/v1/datasets/')
 
@@ -279,7 +281,7 @@ def test_dataset_update(api_client, dataset_test_data, user_key, dataset_key, sh
     dataset = dataset_test_data[dataset_key]
     api_client.force_authenticate(user=user)
 
-    update_data = {}
+    update_data: dict[str, Any] = {}
 
     with AssertIdenticalUUIDs(Dataset.objects):
         response = api_client.patch(f'/v1/datasets/{dataset.uuid}/', update_data, format='json')
