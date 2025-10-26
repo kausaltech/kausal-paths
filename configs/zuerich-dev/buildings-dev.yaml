@@ -523,7 +523,7 @@ nodes:
     tags: [non_additive]
     from_dimensions:
     - id: energy_carrier
-      categories: [environmental_heat, wood, biogas]
+      categories: [environmental_heat, wood, biogas, waste]
   - id: building_heat_consumption_by_carrier
     tags: [non_additive]
     from_dimensions:
@@ -544,7 +544,7 @@ nodes:
   - id: building_heat_consumption_by_carrier
     from_dimensions:
     - id: energy_carrier
-      categories: [solar_collectors, environmental_heat, wood, biogas, biogas_import]
+      categories: [solar_collectors, environmental_heat, wood, biogas]
   - id: building_other_fuel_use
     from_dimensions:
     - id: energy_carrier

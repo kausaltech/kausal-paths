@@ -1389,7 +1389,7 @@ nodes:
     tags: [non_additive]
     from_dimensions:
     - id: electricity_source
-      categories: [hydro, solar, wind, wood]
+      categories: [hydro, solar, waste, wind, wood]
     to_dimensions:
     - id: electricity_source
   - id: public_transport_electricity_consumption

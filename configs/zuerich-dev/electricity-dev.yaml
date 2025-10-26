@@ -117,7 +117,7 @@ nodes:
   - id: electricity_production_mix
     from_dimensions:
     - id: electricity_source
-      categories: [hydro, solar, biogas, wind, wood]
+      categories: [hydro, solar, biogas, waste, wind, wood]
   - id: european_electricity_renewable
     from_dimensions:
     - id: electricity_source
