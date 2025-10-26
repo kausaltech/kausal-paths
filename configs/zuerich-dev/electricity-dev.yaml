@@ -45,8 +45,6 @@ nodes:
 - id: electricity_consumption
   name_de: Endenergieverbrauch Strom
   name_en: Electricity consumption
-  short_name_de: Strom
-  short_name_en: Electricity
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
@@ -77,19 +75,31 @@ nodes:
       flatten: true
     to_dimensions: []
 
+- id: electricity_production_emission_factors
+  name_de: Electricity Production Emission Factors
+  name_en: Electricity Production Emission Factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [electricity_source, emission_scope]
+  output_dimensions: [electricity_source, emission_scope]
+  input_datasets:
+  - id: zuerich/electricity_consumption_emission_factor
+
 - id: electricity_emission_factor
   name_de: Treibhausgasfaktoren Strom
   name_en: Emission factor of electricity production
-  type: ch.zuerich.EnergyProductionEmissionFactor
+  type: simple.MultiplicativeNode
   quantity: emission_factor
   unit: g/kWh
+  input_dimensions: [electricity_source, emission_scope]
+  output_dimensions: [electricity_source, emission_scope]
   input_nodes:
   - id: electricity_production_mix
-    tags: mix
-  input_datasets:
-  - zuerich/electricity_consumption_emission_factor
-  input_dimensions: [electricity_source]
-  output_dimensions: [emission_scope]
+    to_dimensions:
+    - id: electricity_source
+  - id: electricity_production_emission_factors
+    tags: [non_additive]
 
 - id: european_electricity_renewable
   name_en: Renewable European-import component of electricity production mix

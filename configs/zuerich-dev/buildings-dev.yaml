@@ -574,6 +574,9 @@ nodes:
   input_nodes:
   - id: building_energy_consumption_non_grid_emission_factor
   - id: electricity_emission_factor
+    from_dimensions:
+    - id: electricity_source
+      flatten: true
     to_dimensions:
     - id: energy_carrier
       categories: [electricity]

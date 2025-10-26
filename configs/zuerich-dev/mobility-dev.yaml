@@ -745,6 +745,9 @@ nodes:
   input_nodes:
   - id: electricity_emission_factor
     tags: [general_electricity_ef]
+    from_dimensions:
+    - id: electricity_source
+      flatten: true
     to_dimensions:
     - id: emission_scope
   - id: public_transport_electricity_emission_factor
