@@ -101,7 +101,7 @@ class AlasNode(Node):
             if hasattr(df[metric_id], 'pint'):
                 df[metric_id] = self.convert_to_unit(df[metric_id], metric.unit)
             else:
-                df[metric_id] = df[metric_id].astype('pint[' + str(metric.unit) + ']')
+                df[metric_id] = df[metric_id].astype('pint[' + str(metric.unit) + ']')  # type: ignore[call-overload]
 
         df[FORECAST_COLUMN] = False
 

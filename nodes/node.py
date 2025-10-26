@@ -1259,12 +1259,12 @@ class Node:
 
         node_ids = set[str]()
         if until_node is not None:
-            res = nx.all_simple_paths(G=self.context.node_graph, source=self.id, target=until_node.id, cutoff=max_depth)
-            for path in res:
+            simple_paths = nx.all_simple_paths(G=self.context.node_graph, source=self.id, target=until_node.id, cutoff=max_depth)
+            for path in simple_paths:
                 node_ids.update(path)
         else:
-            res = nx.bfs_successors(G=self.context.node_graph, source=self.id, depth_limit=max_depth)
-            for __, children in res:
+            successors = nx.bfs_successors(G=self.context.node_graph, source=self.id, depth_limit=max_depth)
+            for __, children in successors:
                 node_ids.update(children)
         nodes: list[Node] = []
         if self.id in node_ids:

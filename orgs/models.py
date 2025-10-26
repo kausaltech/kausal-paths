@@ -40,7 +40,7 @@ class OrganizationIdentifier(BaseOrganizationIdentifier):
         verbose_name = _('Organization identifier')
         verbose_name_plural = _('Organization identifiers')
 
-class OrganizationQuerySet(BaseOrganizationQuerySet):
+class OrganizationQuerySet(BaseOrganizationQuerySet['Organization']):  # type: ignore[override]
     def editable_by_user(self, user):
         # Superusers can edit all organizations
         if user.is_superuser:
@@ -59,7 +59,11 @@ class OrganizationQuerySet(BaseOrganizationQuerySet):
         )
 
 _OrganizationManager = models.Manager.from_queryset(OrganizationQuerySet)
-class OrganizationManager(MLModelManager['Organization', OrganizationQuerySet], _OrganizationManager): ...
+class OrganizationManager(  # type: ignore[misc]
+    MLModelManager['Organization', OrganizationQuerySet], _OrganizationManager
+): ...
+
+
 del _OrganizationManager
 
 class Organization(PermissionedModel, BaseOrganization, Node[OrganizationQuerySet]):

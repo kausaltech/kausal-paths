@@ -45,7 +45,7 @@ class FrameworkMeasureDVCDataset(DVCDataset):
 
         uuids = df['UUID'].unique().to_list()
         measures = (
-            Measure.objects.filter(framework_config=fwd.id).filter(measure_template__uuid__in=uuids).select_related('template')
+            Measure.objects.filter(framework_config=fwd.id).filter(measure_template__uuid__in=uuids)
         )
         dps = (
             MeasureDataPoint.objects.filter(measure__in=measures)

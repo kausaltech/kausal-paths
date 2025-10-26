@@ -132,22 +132,23 @@ mypy_path = "$MYPY_CONFIG_FILE_DIR/kausal_common/typings"
 exclude = [
   '^Attic/',
   '/migrations/',
-  '^notebooks/',  
+  '^notebooks/',
   '^local_settings\.py',
   '^\.*env*',
   '^kausal_common/typings/django-stubs',
 ]
 check_untyped_defs = true
-sqlite_cache = true
 cache_fine_grained = true
 explicit_package_bases = true
 strict_optional = true
+fixed_format_cache = true
 always_true = ['IS_PATHS']
 always_false = ['IS_WATCH']
 
 
 [[tool.mypy.overrides]]
 module = [
+  "anymail.*",
   "appdirs.*",
   "channels.*",
   "colored.*",
@@ -271,6 +272,7 @@ dev = [
   "plotext",
   "pre-commit",
   "uv",
+  "virtualenvwrapper>=6.1.1",
   "viztracer",
   {include-group = "lint"},
 ]
@@ -284,6 +286,8 @@ lint = [
   "pandas-stubs",
   "pyarrow-stubs",
   "ruff",
+  "scipy-stubs>=1.16.2.4",
+  "types-django-filter>=25.2.0.20251010",
   "types-factory-boy",
   "types-networkx",
   "types-oauthlib",

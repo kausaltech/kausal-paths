@@ -4,7 +4,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, cast, override
 from typing_extensions import TypeVar
 
-from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
+from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import FieldDoesNotExist
 from django.db.models import Model, QuerySet
 from django.forms import BaseModelForm
@@ -27,6 +27,7 @@ from kausal_common.admin_site.mixins import HideSnippetsFromBreadcrumbsMixin
 from kausal_common.admin_site.permissioned_views import PermissionedCreateView
 from kausal_common.models.permission_policy import ModelPermissionPolicy
 from kausal_common.models.permissions import PermissionedModel
+from kausal_common.users import user_or_none
 
 from admin_site.forms import PathsAdminModelForm
 from users.models import User
@@ -66,7 +67,7 @@ class AdminInstanceMixin:
 
 def user_has_permission(
     permission_policy: BasePermissionPolicy,
-    user: AbstractBaseUser | AnonymousUser,
+    user: UserOrAnon,
     permission: str,
     obj: Model
 ) -> bool:
@@ -74,15 +75,18 @@ def user_has_permission(
     if isinstance(user, AnonymousUser):
         return False
     return permission_policy.user_has_permission_for_instance(
-        cast('UserOrAnon', user), permission, obj
+        user, permission, obj
     )
 
 
 class PathsEditView(HideSnippetsFromBreadcrumbsMixin, EditView[_ModelT, _FormT], AdminInstanceMixin):
     def user_has_permission(self, permission):
+        user = user_or_none(self.request.user)
+        if user is None:
+            return False
         return user_has_permission(
             self.permission_policy,
-            self.request.user,
+            user,
             permission,
             self.object
         )
@@ -99,15 +103,18 @@ class PathsEditView(HideSnippetsFromBreadcrumbsMixin, EditView[_ModelT, _FormT],
 
 class PathsDeleteView(DeleteView[_ModelT, _FormT], AdminInstanceMixin):
     def user_has_permission(self, permission):
+        user = user_or_none(self.request.user)
+        if user is None:
+            return False
         return user_has_permission(
             self.permission_policy,
-            self.request.user,
+            user,
             permission,
             self.object
         )
 
 
-class PathsCreateView(PermissionedCreateView, AdminInstanceMixin):
+class PathsCreateView(PermissionedCreateView[_ModelT, _FormT], AdminInstanceMixin):
     def get_form_kwargs(self):
         return {
             **super().get_form_kwargs(),
@@ -124,7 +131,7 @@ class PathsIndexView(HideSnippetsFromBreadcrumbsMixin, IndexView[_ModelT, _QS]):
         return self.permission_policy.user_has_any_permission(self.request.user, ('delete', 'change'))
 
     @cached_property
-    def columns(self):
+    def columns(self):  # type: ignore[override]
         columns = super().columns
         if self.user_can_change_or_delete_model():
             return columns
@@ -161,7 +168,7 @@ class PathsInspectView(HideSnippetsFromBreadcrumbsMixin, InspectView):
     page_title = _("View")
 
 
-class PathsChooseViewMixin(Generic[_ModelT], AdminInstanceMixin):
+class PathsChooseViewMixin(AdminInstanceMixin, Generic[_ModelT]):
     model: type[_ModelT]
     request: HttpRequest
 
@@ -194,14 +201,14 @@ class PathsChooserViewSet(SnippetChooserViewSet, Generic[_ModelT]):
         super().__init__(*args, **kwargs)
 
 
-class PathsViewSet(Generic[_ModelT, _QS, _FormT], SnippetViewSet[_ModelT, _FormT]):
-    index_view_class: ClassVar = PathsIndexView[_ModelT, _QS]
-    add_view_class: ClassVar = PathsCreateView[_ModelT, _FormT]
-    edit_view_class: ClassVar = PathsEditView[_ModelT, _FormT]
+class PathsViewSet(SnippetViewSet[_ModelT, _FormT], Generic[_ModelT, _QS, _FormT]):
+    index_view_class: ClassVar = PathsIndexView
+    add_view_class: ClassVar = PathsCreateView
+    edit_view_class: ClassVar = PathsEditView
     delete_view_class: ClassVar = PathsDeleteView
     usage_view_class: ClassVar = PathsUsageView
     history_view_class: ClassVar = PathsHistoryView
-    copy_view_class: ClassVar = PathsCopyView
+    copy_view_class: ClassVar = PathsCopyView  # type: ignore[assignment]
     inspect_view_class: ClassVar = PathsInspectView
 
     add_to_admin_menu = True

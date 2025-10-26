@@ -1,0 +1,10 @@
+name: Lint
+on:
+  pull_request:
+  push:
+
+jobs:
+  reviewdog:
+    uses: kausaltech/github-actions/.github/workflows/reviewdog-backend.yaml@main
+    secrets:
+      EXTRA_PYPI_INDEX: ${{ secrets.EXTRA_PYPI_INDEX }}
