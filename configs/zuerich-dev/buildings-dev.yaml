@@ -497,9 +497,9 @@ nodes:
   name_en: Renewable component of building electricity consumption
   type: simple.MultiplicativeNode
   quantity: energy
+  unit: GWh/a
   input_dimensions: [electricity_source]
   output_dimensions: [electricity_source]
-  unit: GWh/a
   input_nodes:
   - id: electricity_mix_renewable
     tags: [non_additive]

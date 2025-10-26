@@ -690,19 +690,16 @@ nodes:
   output_dimensions: [energy_carrier, renewable_energy]
 
 - id: percent_renewable_end_energy_consumption
-  name_en: Renewable component of total end energy consumption
   name_de: Renewable component of total end energy consumption
-  short_name_en: Renewable
-  short_name_de: Renewable
+  name_en: Renewable component of total end energy consumption
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
   input_dimensions: []
   output_dimensions: []
-  type: formula.FormulaNode
-  unit: '%'
-  quantity: fraction
   params:
     formula: (stationary_end_renewable_energy_consumption + transport_end_renewable_energy_consumption)
       / end_energy_consumption
-#    extend_last_historical_value: true
   input_nodes:
   - id: stationary_end_renewable_energy_consumption
     from_dimensions:
@@ -766,9 +763,9 @@ nodes:
   short_name_en: Building Heat & Other
   type: simple.AdditiveNode
   quantity: energy
+  unit: GWh/a
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
-  unit: GWh/a
   input_nodes:
   - id: building_heat_consumption_by_carrier
   - id: building_other_fuel_use
@@ -783,9 +780,9 @@ nodes:
   name_en: Total end energy consumption
   type: simple.AdditiveNode
   quantity: energy
+  unit: GWh/a
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
-  unit: GWh/a
   input_nodes:
   - id: stationary_end_energy_consumption
   - id: building_general_electricity_consumption
@@ -1436,7 +1433,7 @@ actions:
       - year: 2029
         amount: 0
       - year: 2030
-        amount: -182.18
+        amount: -181.73
       - year: 2031
         amount: 0
 
