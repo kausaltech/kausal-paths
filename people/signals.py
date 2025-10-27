@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from django.db.models.signals import post_delete, post_save
+from django.db.models.signals import m2m_changed, post_delete, post_save
 from django.dispatch import receiver
 
 from people.models import (
@@ -11,6 +11,7 @@ from people.models import (
     PersonGroup,
     PersonGroupMember,
 )
+from users.models import User
 from users.signals import user_permissions_changed
 
 if TYPE_CHECKING:
@@ -18,18 +19,13 @@ if TYPE_CHECKING:
     from kausal_common.people.models import ObjectGroupPermissionBase, ObjectPersonPermissionBase
 
 
-@receiver(post_save, sender=PersonGroupMember)
-def handle_person_group_member_saved(sender, instance: PersonGroupMember, created: bool, **kwargs):
+@receiver(m2m_changed, sender=PersonGroupMember)
+def handle_person_group_member_saved(sender, instance: PersonGroup, action: str, **kwargs):
     """Handle person added to a PersonGroup."""
-    if instance.person.user_id:
-        user_permissions_changed.send(sender=sender, user=instance.person.user)
-
-
-@receiver(post_delete, sender=PersonGroupMember)
-def handle_person_group_member_deleted(sender, instance: PersonGroupMember, **kwargs):
-    """Handle person removed from a PersonGroup."""
-    if instance.person.user_id:
-        user_permissions_changed.send(sender=sender, user=instance.person.user)
+    if action not in ('post_add', 'post_remove', 'post_clear'):
+        return
+    for user in User.objects.filter(person__in=instance.persons.all()):
+        user_permissions_changed.send(sender=sender, user=user, add_permission_group=True)
 
 
 @receiver(post_save, sender=PersonGroup)
@@ -69,6 +65,3 @@ def handle_dataset_schema_person_permission_deleted(sender, instance: ObjectPers
     """Handle DatasetSchemaPersonPermission removed."""
     if instance.person.user_id:
         user_permissions_changed.send(sender=sender, user=instance.person.user)
-
-
-# TODO add as a kwargs parameter, whether to add the subsector admin group to the user
