@@ -97,6 +97,14 @@ emission_sectors:
 - id: net_emissions
   name: Net Emissions
   is_outcome: true
+  goals:
+  - values:
+    - year: 2030
+      value: 1186353.8
+    - year: 2050
+      value: 117316.8
+    default: true
+    is_main_goal: true
 
 nodes:
 - id: medium_and_heavy_duty_vehicle_emissions
