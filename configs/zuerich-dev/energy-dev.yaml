@@ -328,8 +328,8 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
 
 - id: district_heat_emission_factor
-  name_de: Treibhausgasfaktoren Fernwärme ohne CCS
-  name_en: District Heat Emission Factor Pre-CCS
+  name_de: Treibhausgasfaktoren Fernwärme
+  name_en: District Heat Emission Factor
   type: formula.FormulaNode
   quantity: emission_factor
   unit: g/kWh
