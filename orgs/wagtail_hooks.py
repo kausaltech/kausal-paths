@@ -4,6 +4,7 @@ from __future__ import annotations
 from importlib.util import find_spec
 from typing import TYPE_CHECKING, Any
 
+from django import forms
 from django.contrib.admin.utils import quote
 from django.core.exceptions import ValidationError
 from django.urls import URLPattern, path, reverse
@@ -56,11 +57,33 @@ class CondensedInlinePanel[M: Model, RelatedM: Model](InlinePanel[M, RelatedM]):
 class OrganizationForm(NodeForm):
     user: User
 
+    set_as_instance_organization = forms.BooleanField(
+        required=False,
+        label=_("Set as instance organization"),
+        help_text=_("Make this the default organization for this instance"),
+    )
+
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('for_user')
         assert isinstance(user, User)
         self.user = user
         super().__init__(*args, **kwargs)
+
+        if self.instance and self.instance.pk:
+            self.fields['set_as_instance_organization'].initial = (
+                self.instance.set_as_instance_organization
+            )
+
+        has_parent = False
+        if self.instance and self.instance.pk and self.instance.depth != 1:
+            has_parent = True
+        elif self.data and self.data.get('parent'):
+            has_parent = True
+        elif self.initial and self.initial.get('parent'):
+            has_parent = True
+
+        if not self.user.is_superuser or has_parent:
+            del self.fields['set_as_instance_organization']
 
     def clean_parent(self):
         parent = super().clean_parent()
@@ -74,7 +97,17 @@ class OrganizationForm(NodeForm):
             return parent
         raise ValidationError(_("Removing parent from organization is not allowed."), code='invalid_parent')
 
+    def save(self, commit=True):
+        instance = super().save(commit=commit)
 
+        if self.user.is_superuser and self.cleaned_data.get('set_as_instance_organization'):
+                # Update the realm instance's organization_id
+                realm_instance = realm_context.get().realm
+                if realm_instance and hasattr(realm_instance, 'organization_id'):
+                    realm_instance.organization_id = instance.pk
+                    realm_instance.save()
+
+        return instance
 
 class OrganizationViewSet(PathsViewSet):
     model = Organization
@@ -111,6 +144,10 @@ class OrganizationViewSet(PathsViewSet):
         GoogleMapsPanel('location', permission='superuser'),
     ]
 
+    superuser_panels = [
+        FieldPanel('set_as_instance_organization')
+    ]
+
     @property
     def add_child_view(self):
         """Generate a class-based view to provide 'add child' functionality."""
@@ -138,6 +175,9 @@ class OrganizationViewSet(PathsViewSet):
         tabs = [
             ObjectList(self.basic_panels, heading=_('Basic information')),
         ]
+        # this is removed for non-superusers in OrganizationForm
+        tabs.append(ObjectList(self.superuser_panels, heading=_('Advanced settings')))
+
         return TabbedInterface(tabs, base_form_class=OrganizationForm).bind_to_model(self.model)
 
     def get_index_view_kwargs(self, **kwargs: Any) -> dict[str, Any]:

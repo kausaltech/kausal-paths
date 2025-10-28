@@ -17,7 +17,12 @@ class OrganizationAutocomplete(Select2QuerySetView):
         ic = realm_context.get().realm
         if not user:
             return Organization.objects.none()
+
         qs = Organization.objects.qs.available_for_instance(ic)
+
+        if user.is_superuser:
+            root_orgs = Organization.objects.filter(depth=1)
+            qs = (qs | root_orgs).distinct()
 
         if self.q:
             qs = qs.filter(
