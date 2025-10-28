@@ -1,3 +1,4 @@
+# This instance is used internally by Kausal, do not remove yet
 id: c4cdemo
 default_language: en
 supported_languages: [fi, sv, da, lv, pl, de, cs]
@@ -6,8 +7,8 @@ dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: b1dfff9c6472b1c4fcc96bb5f7df7cd6b9bba71a
   dvc_remote: kausal-s3
-name: Demonstration BASIC+ Greenhouse Gas Inventory
-owner_en: City of Demonstration
+name: Default Instance
+owner_en: Default Organization
 theme_identifier: eu-climate-4-cast
 target_year: 2030
 model_end_year: 2030
