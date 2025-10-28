@@ -875,17 +875,25 @@ actions:
   output_dimensions: [emission_scope]
 
 - id: district_heat_ccs_installation
-  name_en: CCS installation district heat
   name_de: CCS Thermische Netze
+  name_en: CCS installation district heat
   description_de: Die Dekarbonisierung der thermischen Netze steigt von 70% im Jahr
     2022 auf 100% im Jahr 2040.
   group: buildings
   parent: district_heat_decarbonisation
-  quantity: ratio
+  type: linear.DatasetReduceAction
+  quantity: fraction
   unit: '%'
-  type: simple.CumulativeAdditiveAction
-  output_nodes: [district_heat_ccs_share]
-  forecast_values: [[2035, 80]]
+  input_dimensions: [energy_carrier, emission_scope]
+  output_dimensions: [energy_carrier, emission_scope]
+  input_datasets:
+  - id: zuerich/district_heat_ccs_share
+    tags: [historical]
+  - id: zuerich/district_heat_ccs_share_goals
+    tags: [goal]
+  output_nodes:
+  - id: district_heat_ccs_share
+
 
 - id: district_heat_production_mix_change
   name_en: District heat production mix change

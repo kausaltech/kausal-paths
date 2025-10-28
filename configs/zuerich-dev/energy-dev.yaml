@@ -319,23 +319,26 @@ nodes:
   name_de: Anteil abgeschiedenes CO2 bei der Fernwärmeerzeugung
   name_en: Share of CO2 captured with CCS in district heat production
   type: simple.AdditiveNode
-  input_dataset_processors: [LinearInterpolation]
+  quantity: fraction
   unit: '%'
-  quantity: ratio
+  input_dimensions: [energy_carrier, emission_scope]
+  output_dimensions: [energy_carrier, emission_scope]
+  input_datasets:
+  - id: zuerich/district_heat_ccs_share
+  input_dataset_processors: [LinearInterpolation]
 
 - id: district_heat_emission_factor
-  name_de: Treibhausgasfaktoren Fernwärme
-  name_en: District heat emission factor
-  type: ch.zuerich.EnergyProductionEmissionFactor
+  name_de: Treibhausgasfaktoren Fernwärme ohne CCS
+  name_en: District Heat Emission Factor Pre-CCS
+  type: formula.FormulaNode
   quantity: emission_factor
   unit: g/kWh
-  input_dimensions: [energy_carrier]
-  output_dimensions: [emission_scope]
-  input_datasets:
-  - id: zuerich/district_heat_emission_factor
+  input_dimensions: [energy_carrier, emission_scope]
+  output_dimensions: [energy_carrier, emission_scope]
+  params:
+    formula: production_mix * (electricity_emission_factor + import_emission_factor + (other_emission_factors * scope_mix)) * ccs_share
   input_nodes:
   - id: electricity_emission_factor
-    tags: [emission_factor]
     from_dimensions:
     - id: electricity_source
       flatten: true
@@ -343,19 +346,21 @@ nodes:
     - id: energy_carrier
       categories: [electricity]
     - id: emission_scope
-  - id: district_heat_production_mix
-    tags: [mix]
-  - id: district_heat_ccs_share
-    tags: [ccs]
-    to_dimensions: []
   - id: building_energy_consumption_non_grid_emission_factor
-    tags: [emission_factor]
+    tags: [import_emission_factor]
     from_dimensions:
     - id: energy_carrier
       categories: [biogas_import]
+  - id: district_heat_emission_factors_by_carrier
+    tags: [other_emission_factors]
+  - id: district_heat_production_mix
+    tags: [production_mix]
     to_dimensions:
     - id: energy_carrier
-    - id: emission_scope
+  - id: district_heat_share_within_city
+    tags: [scope_mix]
+  - id: district_heat_ccs_share
+    tags: [ccs_share, complement]
 
 # ---------- Concessionary
 

@@ -582,6 +582,9 @@ nodes:
       categories: [electricity]
     - id: emission_scope
   - id: district_heat_emission_factor
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
     to_dimensions:
     - id: energy_carrier
       categories: [district_heat]
