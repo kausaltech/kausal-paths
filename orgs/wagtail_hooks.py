@@ -67,7 +67,7 @@ class OrganizationForm(NodeForm):
         if parent is not None:
             return parent
 
-        if self.instance._state.adding:
+        if self.instance._state.adding and not self.user.is_superuser:
             raise ValidationError(_("Creating organizations without a parent not allowed."), code='invalid_parent')
 
         if self.instance.parent is None:
