@@ -106,3 +106,10 @@ class Organization(PermissionedModel, BaseOrganization, Node[OrganizationQuerySe
         if obj:
             return parent_choices.exclude(pk=obj.pk)
         return parent_choices
+
+    @property
+    def set_as_instance_organization(self) -> bool:
+        instance = realm_context.get().realm
+        if not instance or not hasattr(instance, 'organization_id'):
+            return False
+        return instance.organization_id == self.pk
