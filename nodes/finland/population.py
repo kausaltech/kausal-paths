@@ -10,7 +10,7 @@ HISTORICAL_DATASET = 'statfi/StatFin/vrm/vaerak/statfin_vaerak_pxt_11re'
 FORECAST_DATASET = 'statfi/StatFin/vrm/vaenn/statfin_vaenn_pxt_139f'
 
 
-class Population(Node):
+class Population(Node): # FIXME Convert functionality to GenericNode
     TOTAL_POPULATION_COLUMN = 'Väestö 31.12.'
 
     global_parameters = ['municipality_name']

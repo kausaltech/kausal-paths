@@ -187,11 +187,11 @@ class DataCollection:
         return self
 
     def report_log(self) -> None:
-        self.logs.append(f"Saving log file to {self.output_path}log.txt")
+        date = str(datetime.now().strftime("%Y-%m-%d"))  # noqa: DTZ005
+        self.logs.append(f"Saving log file to {self.output_path}log_{date}.txt")
         out = ["During processing, the following things happened:"]
         out.extend(self.logs)
         outtext = '\n'.join(out)
-        date = str(datetime.now().strftime("%Y-%m-%d"))  # noqa: DTZ005
         with open(f'{self.output_path}log_{date}.txt', 'w') as f:  # noqa: PTH123
             f.write(outtext)
         print(outtext)

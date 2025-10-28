@@ -309,7 +309,7 @@ emission_sectors:
 
 nodes:
 - id: population
-  type: finland.Population
+  type: finland.Population # FIXME Convert functionality to GenericNode
   name: Väestö
   name_en: Population
 
