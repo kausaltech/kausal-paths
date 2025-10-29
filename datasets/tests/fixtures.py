@@ -8,21 +8,21 @@ from django.contrib.contenttypes.models import ContentType
 import pytest
 
 from kausal_common.datasets.models import (
-    DataPoint,
-    DataPointComment,
-    Dataset,
-    DatasetMetric,
-    DatasetSchema,
-    DatasetSchemaDimension,
-    DatasetSchemaScope,
-    DatasetSourceReference,
-    DataSource,
-    Dimension,
-    DimensionCategory,
-    DimensionScope,
+  DataPoint,
+  DataPointComment,
+  Dataset,
+  DatasetMetric,
+  DatasetSchema,
+  DatasetSchemaDimension,
+  DatasetSchemaScope,
+  DatasetSourceReference,
+  DataSource,
+  Dimension,
+  DimensionCategory,
+  DimensionScope,
 )
-
 from kausal_common.people.models import ObjectRole
+
 from paths.context import RealmContext, realm_context
 
 from nodes.models import InstanceConfig
@@ -31,7 +31,6 @@ from nodes.tests.factories import InstanceConfigFactory
 from people.models import DatasetSchemaGroupPermission, DatasetSchemaPersonPermission, PersonGroup
 from people.tests.factories import PersonFactory
 from users.models import User
-
 
 
 @pytest.fixture(scope='module')
