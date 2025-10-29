@@ -118,12 +118,13 @@ class User(AbstractUser):
             return []
         return [int(x) for x in value.split(',')]
 
-    def refresh_adminable_instances(self, save: bool = True) -> str:
+    def refresh_adminable_instances(self, save: bool = True) -> str | None:
         from nodes.models import InstanceConfig
         if self.is_superuser:
             # No sense in storing all of the instances; the get_adminable_instances and user_is_admin_for_instance
             # methods handle superusers as a special case
             self.cached_adminable_instances = ''
+            return ''
         cached_value = self.set_cached_adminable_instances(
             InstanceConfig.permission_policy().adminable_instances(self),
             save=save
