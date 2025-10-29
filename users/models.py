@@ -110,7 +110,7 @@ class User(AbstractUser):
         return instance_config.pk in self.get_cached_adminable_instance_pks()
 
     def get_cached_adminable_instance_pks(self) -> Iterable[int]:
-        if hasattr(self, 'cached_adminable_instances') and self.cached_adminable_instances is not None:
+        if getattr(self, 'cached_adminable_instances', None)  is not None:
             value = self.cached_adminable_instances
         else:
             value = self.refresh_adminable_instances(save=True)
