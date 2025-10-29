@@ -195,14 +195,20 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any
                 q |= Q(framework_config__isnull=True)
 
         schema_q = DatasetSchema.accessible_by_user_q(user)
+        if schema_q is None or bool(schema_q) is False:
+            # schema_q can be false for superusers, but we do not want
+            # to handle that case here since superusers are already
+            # taken into account elsewhere.
+            #
+            # schema_q is None if there are no dataset schemas the user can access
+            return q
+
         schemas = DatasetSchema.objects.filter(schema_q).values_list('pk', flat=True)
         ic_content_type_id = ContentType.objects.get_for_model(InstanceConfig).pk
-        if schema_q:
-            instance_configs_accessible_through_datasets = DatasetSchemaScope.objects.qs.filter(
-                scope_content_type_id=ic_content_type_id
-            ).filter(schema_id__in=schemas).values_list('scope_id', flat=True)
-            q |= Q(pk__in=instance_configs_accessible_through_datasets)
-        return q
+        instance_configs_accessible_through_datasets = DatasetSchemaScope.objects.qs.filter(
+            scope_content_type_id=ic_content_type_id
+        ).filter(schema_id__in=schemas).values_list('scope_id', flat=True)
+        return q | Q(pk__in=instance_configs_accessible_through_datasets)
 
     def construct_perm_q_anon(self, action: BaseObjectAction) -> Q | None:
         if action == 'view':
