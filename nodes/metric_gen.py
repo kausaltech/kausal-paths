@@ -366,7 +366,6 @@ def _generate_output_data(
 
 
 def _from_node_metric(node: Node, m: NodeMetric, scenarios: Sequence[Scenario]) -> DimensionalMetric:
-    from nodes.gpc import DatasetNode
 
     def make_id(*args: str) -> str:
         return _make_id(node, *args)
@@ -400,10 +399,6 @@ def _from_node_metric(node: Node, m: NodeMetric, scenarios: Sequence[Scenario]) 
     else:
         nnode = None
 
-    if isinstance(node, DatasetNode):
-        measure_datapoint_years = node.get_measure_datapoint_years()
-    else:
-        measure_datapoint_years = []
 
     dm = DimensionalMetric(
         id=node.id,
@@ -416,7 +411,7 @@ def _from_node_metric(node: Node, m: NodeMetric, scenarios: Sequence[Scenario]) 
         stackable=stackable,
         goals=goals,
         unit=df.get_unit(m.column_id),
-        measure_datapoint_years=measure_datapoint_years,
+        measure_datapoint_years=node.get_measure_datapoint_years(dims=[]),
     )
     return dm
 
@@ -533,7 +528,7 @@ def metric_from_visualization(node: Node, visualization: VisualizationNodeOutput
         goals=[],
         normalized_by=None,
         unit=unit,
-        measure_datapoint_years=visualization.get_measure_datapoint_years(node),
+        measure_datapoint_years=node.get_measure_datapoint_years(dims=visualization.dimensions),
     )
     return dm
 
