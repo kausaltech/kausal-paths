@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Self, overload
 
 from django.core.validators import validate_comma_separated_integer_list
 from django.db import models
-from django.db.models import Model, QuerySet
+from django.db.models import Model
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from pydantic import BaseModel, Field
