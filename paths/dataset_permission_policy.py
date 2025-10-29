@@ -190,7 +190,7 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
             )
             q |= viewer_q | reviewer_q
 
-        if not hasattr(user, 'person') or user.person is None:
+        if getattr(user, 'person', None) is None:
             return q
 
         privileged_roles = ObjectRole.get_roles_for_action(action)
