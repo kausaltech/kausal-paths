@@ -117,9 +117,12 @@ dimensions:
     label: Maintenance
   - id: operations
     label: Operations
+  - id: corporate_tax_impact
+    label: Yhteisöverovaikutus
+    label_en: Corporate tax impact
   - id: tax_impact
-    label: Verovaikutus
-    label_en: Tax impact
+    label: Kunnallisverovaikutus
+    label_en: Municipal tax impact
   - id: value_added
     label: Arvonlisä
     label_en: Value added
@@ -184,8 +187,8 @@ dimensions:
     label: Yksityinen
     label_en: Private
   - id: region
-    label: Seutu
-    label_en: Region
+    label: Kaupunkialue
+    label_en: City region
   - id: subsidiary
     label: Tytäryhtiö
     label_en: Subsidiary
