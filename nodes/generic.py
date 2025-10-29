@@ -1796,9 +1796,10 @@ class GenerationCapacityNode(GenericNode):
         ef = self.get_input_dataset_pl(tag='ef_displacement')
 
         stock = ( # FIXME Emissions avoided do double count with downstream emissions
-            stock.paths.join_over_index(ef)
+            stock.paths.join_over_index(ef) # TODO Should this be inner join?
             .multiply_cols([VALUE_COLUMN, VALUE_COLUMN + '_right'], 'emissions_avoided')
             .drop(VALUE_COLUMN + '_right')
+            .with_columns(pl.col('emissions_avoided').fill_null(0.0))
         )
         df = df.paths.join_over_index(stock)
 

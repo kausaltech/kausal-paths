@@ -23,11 +23,17 @@ features:
 nodes:
 
 - id: net_emissions
+  name_en: Net emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  is_outcome: true
+
+- id: electricity_emissions
   name_en: Historical electricity consumption emissions
   type: generic.GenericNode
   quantity: emissions
-  unit: Mt/a
-  is_outcome: true
+  unit: Mt_co2e/a
   input_datasets:
   - id: syke/alas_emissions
     tags: [baseline]
@@ -51,6 +57,14 @@ nodes:
       value: Value
     - column: taso_1
       flatten: true
+  params:
+  - id: operations
+    value: add,apply_multiplier
+  - id: multiplier
+    value: 1
+    unit: t_co2e/t
+  output_nodes:
+  - id: net_emissions
 
 - id: emission_factor
   name: Emission factor
@@ -94,6 +108,10 @@ nodes:
     unit: kWh/kWp/a
   - id: performance_ratio
     value: 0.85
+  output_nodes:
+  - id: net_emissions
+    metrics: [emissions_avoided]
+    tags: [arithmetic_inverse, additive]
 
 - id: building_owners_pv_installation_baseline
   name: Building owners' PV installation baseline
@@ -122,6 +140,7 @@ actions:
   type: simple.GenericAction
   quantity: area
   unit: kWp/a
+  group: indirect
   input_datasets:
   - id: ikka/solar_electricity
     tags: [baseline]
@@ -140,10 +159,28 @@ actions:
 
 - id: pv_subsidies
   name: PV subsidies
-  description: The city organises offers a 1000 € subsidy for photovoltaic panel installations, and there is budget for 100 installations per year. Adoption is 85 % as almost all who are eligible actually use the money and install PV. However, attribution is only 60 %, as many would install even suthout the subsidy. So, the attributable effect of this action is 100000 EUR/a / 1000 EUR * 0.85 * 0.6 * 8 kWp = 408 kWp/a.
+  description: The city organises offers a 1000 € subsidy for photovoltaic panel installations, and there is budget for 100 installations per year. Adoption is 85 % as almost all who are eligible actually use the money and install PV. However, attribution is only 60 %, as many would install even without the subsidy. So, the attributable effect of this action is 100000 EUR/a / 1000 EUR * 0.85 * 0.6 * 8 kWp = 408 kWp/a.
   type: simple.GenericAction
   quantity: area
   unit: kWp/a
+  group: indirect
+  input_datasets:
+  - id: ikka/solar_electricity
+    tags: [baseline]
+    column: pv_subsidies
+    filters:
+    - column: confidence
+  output_nodes:
+  - id: pv_production
+    tags: [additive]
+
+- id: city_pv_installations
+  name: City PV installations
+  description: The city builds solar panels on the roofs of the municipal buildings.
+  type: simple.GenericAction
+  quantity: area
+  unit: kWp/a
+  group: direct
   input_datasets:
   - id: ikka/solar_electricity
     tags: [baseline]
@@ -173,10 +210,17 @@ scenarios:
   name: Default
   all_actions_enabled: true
 
+action_groups:
+
+- id: direct
+  name: Direct emissions
+  color: '#ff3456'
+- id: indirect
+  name: Indirect emissions
+  color: '#6543ff'
 
 # IKKA STRATEGIES
 
-action_groups:
 # Übergreifende Klimaschutzaspekte
 - id: cross_cutting_climate_protection
   name: Cross-cutting Climate Protection Aspects
