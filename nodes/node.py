@@ -49,8 +49,9 @@ if typing.TYPE_CHECKING:
     from sentry_sdk.tracing import Span
 
     from common.cache import CacheResult
+    from nodes.gpc import DatasetNode
     from nodes.instance_loader import ConfigLocation
-    from nodes.visualizations import NodeVisualizations
+    from nodes.visualizations import NodeVisualizations, VisualizationNodeDimension
     from params import Parameter
 
     from .context import Context
@@ -1561,17 +1562,35 @@ class Node:
                 if math.isnan(v):
                     raise NodeError(self, 'Output metric has NaNs')
 
-    def get_measure_datapoint_years(self) -> list[int]:
+    def _get_measure_datapoint_years(self, n: DatasetNode, dims: list[VisualizationNodeDimension]) -> list[int]:
+            datacol = 'ObservedDataPoint'
+
+            df = n.get_filtered_dataset_df()
+            if datacol in df.columns:
+                df = df.filter(pl.col(datacol)).drop(datacol)
+                df = n.drop_unnecessary_levels(df, droplist=['Description', 'FromMeasureDataPoint'])
+                df = n.rename_dimensions(df)
+                df = n.convert_names_to_ids(df)
+
+                for dim in dims:
+                    if dim.categories is not None:
+                        df = df.filter(pl.col(dim.id).is_in(dim.categories))
+                    if dim.flatten:
+                        df = df.paths.sum_over_dims(dim.id)
+                out = df[YEAR_COLUMN].unique().sort().to_list()
+                return out
+            return []
+
+
+    def get_measure_datapoint_years(self, dims: list[VisualizationNodeDimension]) -> list[int]:
         """Get the years with measure data points from the input datasets and upstream nodes."""
 
         # FIXME: This should probably be in the future "datapoint metadata" column instead.
-        from .actions.action import ActionNode
-        from .gpc import DatasetNode
+        from nodes.actions.action import ActionNode
+        from nodes.gpc import DatasetNode
 
         if isinstance(self, DatasetNode):
-            df = self.get_filtered_dataset_df()
-            if 'ObservedDataPoint' in df.columns:
-                return df.filter(pl.col('ObservedDataPoint'))[YEAR_COLUMN].unique().sort().to_list()
+            return self._get_measure_datapoint_years(self, dims)
 
         years = set[int]([])
         nodes = self.get_upstream_nodes()
@@ -1584,7 +1603,7 @@ class Node:
                 continue # Ignore data that is used in actions
             if n.id in ['energy_use_intensity_change_new']:
                 continue # Last resort to get rid of non-observed data
-            years.update(n.get_measure_datapoint_years())
+            years.update(n._get_measure_datapoint_years(n, dims))
 
         return sorted(years)
 

@@ -411,7 +411,7 @@ def _from_node_metric(node: Node, m: NodeMetric, scenarios: Sequence[Scenario]) 
         stackable=stackable,
         goals=goals,
         unit=df.get_unit(m.column_id),
-        measure_datapoint_years=node.get_measure_datapoint_years(),
+        measure_datapoint_years=node.get_measure_datapoint_years(dims=[]),
     )
     return dm
 
@@ -528,7 +528,7 @@ def metric_from_visualization(node: Node, visualization: VisualizationNodeOutput
         goals=[],
         normalized_by=None,
         unit=unit,
-        measure_datapoint_years=node.get_measure_datapoint_years(),
+        measure_datapoint_years=node.get_measure_datapoint_years(dims=visualization.dimensions),
     )
     return dm
 
