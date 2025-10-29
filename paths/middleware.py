@@ -69,6 +69,9 @@ class AdminMiddleware:
             instance_config = await InstanceConfig.objects.filter(id=admin_instance_id).afirst()
 
         adminable_instances = await sync_to_async(self.get_adminable_instances)(user)
+        if len(adminable_instances) == 0:
+            return None
+
         if instance_config is not None and instance_config not in adminable_instances:
             instance_config = None
 
