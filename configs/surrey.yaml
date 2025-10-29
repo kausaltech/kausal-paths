@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://surrey.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 7226a1e64fb77fec9b35a173820729b65cf90d3e
+  commit: 4f65354a5566e4161fdb5dd2fdea9625bb3d7e62
   dvc_remote: kausal-s3
 name: Emissions Inventory and Forecast Tool
 owner: City of Surrey
@@ -13,13 +13,13 @@ target_year: 2050
 model_end_year: 2050
 reference_year: 2010
 minimum_historical_year: 2010
-maximum_historical_year: 2021
+maximum_historical_year: 2023
 emission_unit: t_co2e/a
-emission_forecast_from: 2022
+emission_forecast_from: 2024
 emission_dimensions: [ghg]
 features:
   baseline_visible_in_graphs: true
-  use_datasets_from_db: false
+  use_datasets_from_db: true
 
 action_groups:
 - id: on_road_transportation
@@ -116,7 +116,7 @@ nodes:
   output_dimensions: [ghg]
   input_datasets:
   - id: surrey/emissions_forecast_baseline
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: medium_and_heavy_duty_vehicles
@@ -133,7 +133,7 @@ nodes:
   output_dimensions: [ghg]
   input_datasets:
   - id: surrey/emissions_forecast_baseline
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: light_duty_vehicles
@@ -150,7 +150,7 @@ nodes:
   output_dimensions: [ghg]
   input_datasets:
   - id: surrey/emissions_forecast_baseline
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: transit
@@ -167,7 +167,7 @@ nodes:
   output_dimensions: [ghg]
   input_datasets:
   - id: surrey/emissions_forecast_baseline
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: residential
@@ -184,7 +184,7 @@ nodes:
   output_dimensions: [ghg]
   input_datasets:
   - id: surrey/emissions_forecast_baseline
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: institutional_commercial_and_industrial
@@ -201,7 +201,7 @@ nodes:
   output_dimensions: [ghg]
   input_datasets:
   - id: surrey/emissions_forecast_baseline
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: solid_waste
@@ -218,7 +218,7 @@ nodes:
   output_dimensions: [ghg]
   input_datasets:
   - id: surrey/emissions_forecast_baseline
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: non_road_equipment
@@ -235,7 +235,7 @@ nodes:
   output_dimensions: [ghg]
   input_datasets:
   - id: surrey/emissions_forecast_baseline
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: industry
@@ -252,7 +252,7 @@ nodes:
   output_dimensions: [ghg]
   input_datasets:
   - id: surrey/emissions_forecast_baseline
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: airport
@@ -269,7 +269,7 @@ nodes:
   output_dimensions: [ghg]
   input_datasets:
   - id: surrey/emissions_forecast_baseline
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: sector
       value: rail_transportation
@@ -323,7 +323,7 @@ actions:
   input_datasets:
   - id: surrey/emissions_forecast_actions
     column: emissions
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: action
       value: bc_hydro_renewable_electricity
@@ -382,7 +382,7 @@ actions:
   input_datasets:
   - id: surrey/emissions_forecast_actions
     column: emissions
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: action
       value: building_retrofits
@@ -441,7 +441,7 @@ actions:
   input_datasets:
   - id: surrey/emissions_forecast_actions
     column: emissions
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: action
       value: clean_ldvs
@@ -500,7 +500,7 @@ actions:
   input_datasets:
   - id: surrey/emissions_forecast_actions
     column: emissions
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: action
       value: clean_mhdvs
@@ -559,7 +559,7 @@ actions:
   input_datasets:
   - id: surrey/emissions_forecast_actions
     column: emissions
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: action
       value: clean_transportation_fuels
@@ -618,7 +618,7 @@ actions:
   input_datasets:
   - id: surrey/emissions_forecast_actions
     column: emissions
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: action
       value: land_use_and_15minute_neighborhoods_b
@@ -677,7 +677,7 @@ actions:
   input_datasets:
   - id: surrey/emissions_forecast_actions
     column: emissions
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: action
       value: land_use_and_15minute_neighborhoods_t
@@ -736,7 +736,7 @@ actions:
   input_datasets:
   - id: surrey/emissions_forecast_actions
     column: emissions
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: action
       value: mhdv_technology
@@ -795,7 +795,7 @@ actions:
   input_datasets:
   - id: surrey/emissions_forecast_actions
     column: emissions
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: action
       value: new_construction
@@ -854,7 +854,7 @@ actions:
   input_datasets:
   - id: surrey/emissions_forecast_actions
     column: emissions
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: action
       value: renewable_natural_gas
@@ -913,7 +913,7 @@ actions:
   input_datasets:
   - id: surrey/emissions_forecast_actions
     column: emissions
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: action
       value: roadway_management
@@ -972,7 +972,7 @@ actions:
   input_datasets:
   - id: surrey/emissions_forecast_actions
     column: emissions
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: action
       value: waste_reduction_and_diversion
@@ -1031,7 +1031,7 @@ actions:
   input_datasets:
   - id: surrey/emissions_forecast_actions
     column: emissions
-    forecast_from: 2022
+    forecast_from: 2024
     filters:
     - column: action
       value: zeroemission_vehicles_zevs
