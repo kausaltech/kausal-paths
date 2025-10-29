@@ -152,7 +152,7 @@ def test_dataset_schema_update(api_client, dataset_test_data, user_key, schema_k
 @pytest.mark.parametrize(*parse_table("""
 user_key                   schema_key     delete_allowed  should_be_found  has_linked_objects
 
-# Allow of the below have datasets linked to them so deletion won't work (HTTP 400)
+# The schemas below have datasets linked to them so deletion won't work (HTTP 400)
 admin_user                 schema1        +               +                +
 admin_user                 schema2        +               -                +
 regular_user               schema1        -               -                +
