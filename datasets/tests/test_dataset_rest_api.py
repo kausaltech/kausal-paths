@@ -11,10 +11,10 @@ from kausal_common.datasets.models import (
     DatasetSchema,
     DatasetSourceReference,
 )
+from kausal_common.testing.utils import parse_table
 
 from datasets.tests.fixtures import *
 from datasets.tests.utils import AssertIdenticalUUIDs, AssertNewUUID, AssertRemovedUUID
-from kausal_common.testing.utils import parse_table
 
 pytestmark = pytest.mark.django_db()
 
