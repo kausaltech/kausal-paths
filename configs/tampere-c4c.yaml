@@ -485,6 +485,18 @@ dimensions:
     label: Geothermal and AWHPs in municipal building stock
   - id: aahps_in_municipal_building_stock
     label: AAHPs in municipal building stock
+  - id: additional_investments_in_naistenlahti_3
+    label: Naistenlahti 3 -voimalaitoksen lisäinvestoinnit
+    label_en: Additional investments in Naistenlahti 3
+  - id: waste_heat_recovery_in_district_heating
+    label: Hukkalämpöjen talteenotto kaukolämmityksen tukena
+    label_en: Waste heat recovery in district heating
+  - id: electric_boiler_and_district_heat_battery
+    label: Sähkökattila ja kaukolämpöakku
+    label_en: Electric boiler and district heat battery
+  - id: smart_grid_and_virtual_power_plant_development
+    label: Älykäs energiaverkko ja virtuaalilaitoksen kehitys
+    label_en: Smart grid and virtual power plant development
 
 emission_sectors:
 - id: net_emissions
