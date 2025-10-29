@@ -19,9 +19,9 @@ def invalidate_user_cache(sender, user: User, **kwargs):
     from nodes.roles import SubsectorAdminRole
     from people.models import DatasetSchemaGroupPermission, DatasetSchemaPersonPermission
     if (
-        kwargs.get('add_permission_group') or
-        DatasetSchemaPersonPermission.objects.filter(person=user.get_corresponding_person()).exists() or
-        DatasetSchemaGroupPermission.objects.filter(group__persons=user.get_corresponding_person()).exists()
+        kwargs.get('add_permission_group')
+        or DatasetSchemaPersonPermission.objects.filter(person=user.get_corresponding_person()).exists()
+        or DatasetSchemaGroupPermission.objects.filter(group__persons=user.get_corresponding_person()).exists()
     ):
         role = SubsectorAdminRole()
         role.refresh()
