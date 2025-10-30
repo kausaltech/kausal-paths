@@ -20,6 +20,7 @@ class ScenarioKind(Enum):
     BASELINE = 'baseline'
     CUSTOM = 'custom'
     PROGRESS_TRACKING = 'progress_tracking'
+    COPY_TO_CUSTOM = 'copy_to_custom'
 
 
 @dataclass
@@ -140,3 +141,19 @@ class CustomScenario(Scenario):
             else:
                 self.context.log.warning('parameter %s was set to default value (%s)', param.global_id, val)
                 self.storage.reset_param(param.global_id)
+
+    def copy_from_scenario(self, source_scenario: Scenario):
+        """Copy all parameter values from source scenario to this custom scenario's storage."""
+
+        if source_scenario.kind == ScenarioKind.CUSTOM:
+            print('Nothing to copy-----------------------------')
+            return
+
+        print('Reset storage for ++++++++++++++', self.id)
+        self.storage.reset()
+
+        for param, val in source_scenario.get_param_values():
+            print(param.global_id, val)
+            self.storage.set_param(param.global_id, val)
+
+        self.activate()

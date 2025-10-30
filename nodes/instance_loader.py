@@ -904,6 +904,8 @@ class InstanceLoader:
                 kind = ScenarioKind.PROGRESS_TRACKING
             elif scenario_id == 'baseline':
                 kind = ScenarioKind.BASELINE
+            elif scenario_id == 'copy_to_custom':
+                kind = ScenarioKind.COPY_TO_CUSTOM
             scenario = Scenario(
                 context=self.context, id=scenario_id, name=name, actual_historical_years=actual_historical_years, kind=kind, **sc
             )

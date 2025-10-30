@@ -494,9 +494,18 @@ class Context:
         Activate a scenario.
 
         Sets the parameter values included in the scenario and marks the scenario as active.
+        'Copy to custom' copies the current scenario to the custom scenario and activates it.
         """
-        scenario.activate()
-        self.active_scenario = scenario
+        from nodes.scenario import ScenarioKind
+
+        print('Activate scenario', scenario.id)
+        if scenario.kind == ScenarioKind.COPY_TO_CUSTOM:
+            print('Copy from scenario', self.active_scenario.id)
+            self.custom_scenario.copy_from_scenario(self.active_scenario)
+            self.active_scenario = self.custom_scenario
+        else:
+            scenario.activate()
+            self.active_scenario = scenario
 
     def get_default_scenario(self) -> Scenario:
         """
