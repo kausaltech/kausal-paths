@@ -2062,3 +2062,7 @@ scenarios:
     value: false
   - id: measure_data_baseline_year_only
     value: false
+
+- id: copy_to_custom
+  name: Copy current to custom scenario
+  is_selectable: true
