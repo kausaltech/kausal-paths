@@ -5,6 +5,7 @@ site_url: https://koeln-gpc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: c96cb099ed2443ee185979240aefb32a22eb6708
+  # commit: c96cb099ed2443ee185979240aefb32a22eb6708 # NOTE! Do not use newer commit or the model will break.
   dvc_remote: kausal-s3
   # Data from https://docs.google.com/spreadsheets/d/1qUIUgAE1Sqbt6qIClxEypuWRi0GpQQUc/edit?gid=1907288926#gid=1907288926
 name: Demonstration BASIC+ Treibhausgasinventar

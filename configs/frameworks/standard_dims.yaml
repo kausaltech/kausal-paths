@@ -45,11 +45,11 @@ dimensions:
   - id: municipal_facilities
     label_en: Municipal Facilities
     label_de: Kommunale Einrichtungen
-    aliases: [kommunale_einrichtungen]
+    aliases: [kommunale_einrichtungen, stadtische_gebaude]
   - id: commerce_trade_services
     label_en: Commerce, Trade & Services
     label_de: Gewerbe, Handel, Dienstleistungen
-    aliases: [gewerbe_handel_dienstleistungen]
+    aliases: [gewerbe_handel_dienstleistungen, gewerbe_sonstiges]
   - id: industry
     label_en: Industry
     label_de: Industrie
@@ -561,6 +561,22 @@ dimensions:
     label_en: Other conventional
     label_de: Sonstige Konventionelle
     aliases: [sonstige_konventionelle]
+  - id: not_defined
+    label_en: Not defined
+    label_de: Nicht definiert
+    aliases: [nicht_definiert]
+  - id: fuels
+    label_en: Fuels
+    label_de: Kraftstoffe
+    aliases: [kraftstoffe]
+  - id: other
+    label_en: Other
+    label_de: Sonstiges
+    aliases: [sonstiges]
+  - id: district_and_local_heating
+    label_en: District_and local heating
+    label_de: Fern- und Nahwärme
+    aliases: [fern_und_nahwarme]
 
 - id: fuel_type
   label_en: Fuel type

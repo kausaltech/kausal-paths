@@ -1,0 +1,1517 @@
+# Actions: https://docs.google.com/spreadsheets/d/1dZPvBcUAFN_lrTNaGTOEdDHkKHjpwEq_/edit?gid=1243875859#gid=1243875859
+# Data: https://docs.google.com/spreadsheets/d/1bcs3OpJeGtc5K-gQ8zl3rwP2UstoUe8c3b5mPZCXIk8/edit?gid=1907288926#gid=1907288926
+id: koeln-dev
+default_language: de
+supported_languages: [en]
+site_url: https://koeln-dev.paths.staging.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: 4a40a32754f24f4816766971235dfa496b764d06
+  dvc_remote: kausal-s3
+  # Data from https://docs.google.com/spreadsheets/d/1qUIUgAE1Sqbt6qIClxEypuWRi0GpQQUc/edit?gid=1907288926#gid=1907288926
+name: Demonstration BASIC+ Treibhausgasinventar Entwurf
+owner: Köln Stadt
+theme_identifier: de-koeln
+target_year: 2050
+model_end_year: 2050
+reference_year: 2008
+minimum_historical_year: 2008
+maximum_historical_year: 2021
+emission_unit: kt/a
+emission_forecast_from: 2022
+emission_dimensions: [scope]
+features:
+  baseline_visible_in_graphs: true
+  use_datasets_from_db: true
+normalizations:
+- normalizer_node: population
+  quantities:
+  - id: emissions
+    unit: t/cap/a
+
+include:
+- file: frameworks/standard_dims.yaml
+  allow_override: false
+
+params:
+- id: municipality_name
+  value: koeln
+
+action_groups:
+
+- id: electricity
+  name: Strom
+  name_en: Electricity
+  color: '#FDB813'
+- id: heat
+  name: Wärme
+  name_en: Heat
+  color: '#E67E22'
+- id: mobility
+  name: Mobilität
+  name_en: Mobility
+  color: '#3498DB'
+- id: consumption
+  name: Konsum
+  name_en: Consumption
+  color: '#9B59B6'
+- id: waste_and_wastewater
+  name: Abfall & (Ab-)Wasser
+  name_en: Waste & Wastewater
+  color: '#27AE60'
+- id: food_and_land_use
+  name: Ernährung & Landnutzung
+  name_en: Food & Land Use
+  color: '#2ECC71'
+- id: cross_cutting_climate_protection
+  name: Übergreifende Klimaschutzaspekte
+  name_en: Cross-cutting Climate Protection Aspects
+  color: '#1ABC9C'
+- id: administration
+  name: Verwaltung
+  name_en: Administration
+  color: '#34495E'
+
+dimensions:
+
+- id: action
+  label_en: Action
+  label_de: Maßnahme
+  categories:
+  
+  # Indirect Actions (Strategies)
+  - id: renewable_generation_small_decentralized_systems
+    label_en: Renewable Electricity Generation through Small Decentralized Systems
+    label_de: Erneuerbare Stromerzeugung durch kleine dezentrale Anlagen
+  - id: renewable_generation_open_space
+    label_en: Renewable Electricity Generation in Open Spaces
+    label_de: Erneuerbare Stromerzeugung in der Fläche
+  - id: renewable_generation_power_plants
+    label_en: Renewable Electricity Generation through Power Plants
+    label_de: Erneuerbare Stromerzeugung durch Kraftwerke
+  - id: electricity_savings_commercial_sector
+    label_en: Electricity Savings in Commercial Sector
+    label_de: Stromeinsparung im Gewerbesektor
+  - id: heat_source_development_for_heat_networks
+    label_en: Heat Source Development for District Heating Networks
+    label_de: Wärmequellenerschließung für Wärmenetze
+  - id: expansion_and_densification_of_heat_networks
+    label_en: Expansion and Densification of District Heating Networks
+    label_de: Erweiterung und Verdichtung der Wärmenetze
+  - id: decentralized_heating_replacement_households
+    label_en: Decentralized Heating System Replacement in Households
+    label_de: Dezentraler Heizungstausch in Haushalten
+  - id: new_construction_residential_buildings
+    label_en: New Construction Residential Buildings
+    label_de: Neubau Wohngebäude
+  - id: new_construction_commercial_industrial
+    label_en: New Construction Commercial/Industrial
+    label_de: Neubau Gewerbe/Industrie
+  - id: decentralized_heating_replacement_commercial
+    label_en: Decentralized Heating System Replacement in Commercial Sector
+    label_de: Dezentraler Heizungstausch im Gewerbe
+  - id: renovation_residential_buildings
+    label_en: Renovation of Residential Buildings
+    label_de: Sanierung Wohngebäude
+  - id: drive_transition_motorized_individual_transport
+    label_en: Drive Transition – Motorized Individual Transport
+    label_de: Antriebswende – Motorisierter Individualverkehr
+  - id: drive_transition_freight_transport
+    label_en: Drive Transition – Freight Transport
+    label_de: Antriebswende – Güterverkehr
+  - id: drive_transition_bus
+    label_en: Drive Transition – Bus
+    label_de: Antriebswende – Bus
+  - id: mobility_transition_freight_transport
+    label_en: Mobility Transition – Freight Transport
+    label_de: Mobilitätswende – Güterverkehr
+  - id: mobility_transition_local_mobility
+    label_en: Mobility Transition – Local Mobility
+    label_de: Mobilitätswende – Nahmobilität
+  - id: mobility_transition_regional_mobility
+    label_en: Mobility Transition – Regional Mobility
+    label_de: Mobilitätswende – Regionale Mobilität
+  - id: food_and_nutrition
+    label_en: Food & Nutrition
+    label_de: Ernährung & Lebensmittel
+  - id: climate_friendly_consumption_behavior
+    label_en: Climate-Friendly Consumption Behavior of the Population
+    label_de: Klimafreundlicheres Konsumverhalten der Bevölkerung
+  - id: ghg_neutral_administration_scope_1_and_2
+    label_en: GHG-Neutral Administration (Direct Influence via Scope 1 and Scope 2)
+    label_de: THG-neutrale Verwaltung (direkte Einflussbereiche über Scope 1 und Scope 2)
+  - id: ghg_neutral_administration_scope_3
+    label_en: GHG-Neutral Administration (Indirect Influence via Scope 3)
+    label_de: THG-neutrale Verwaltung (indirekter Einflussbereich über Scope 3)
+  - id: waste_reduction_and_facility_efficiency
+    label_en: Waste Reduction & Facility Efficiency
+    label_de: Abfallreduktion & Anlageneffizienz
+  - id: cross_cutting_climate_protection_aspects
+    label_en: Cross-cutting Climate Protection Aspects
+    label_de: Übergreifende Klimaschutz-aspekte
+  
+  # Direct Actions
+  - id: pv_on_municipal_holdings_buildings
+    label_en: Photovoltaics on Municipal Holdings Buildings
+    label_de: Photovoltaik auf Beteiligungsgebäuden
+  - id: pv_on_city_buildings
+    label_en: Photovoltaics on City Buildings
+    label_de: Photovoltaik auf städtischen Gebäuden
+  - id: digitalization_and_energy_efficiency_in_city_data_centers
+    label_en: Digitalization and Energy Efficiency in City Data Centers
+    label_de: Digitalisierung und Energieeffizienz in städtischen Rechenzentren
+  - id: efficiency_improvement_in_administration
+    label_en: Efficiency Improvement in Administration
+    label_de: Effizienzsteigerung in der Verwaltung
+  - id: efficiency_improvement_at_holdings
+    label_en: Efficiency Improvement at Municipal Holdings
+    label_de: Effizienzsteigerung bei Beteiligungen
+  - id: green_electricity_procurement_at_holdings
+    label_en: Green Electricity Procurement at Municipal Holdings
+    label_de: Ökostrombezug bei Beteiligungen
+  - id: led_conversion_at_holdings_outdoor_lighting
+    label_en: LED Conversion at Municipal Holdings (Outdoor Lighting)
+    label_de: LED-Umstellung bei Beteiligungen (Außenbeleuchtung)
+  - id: led_conversion_at_holdings_indoor_lighting
+    label_en: LED Conversion at Municipal Holdings (Indoor Lighting)
+    label_de: LED-Umstellung bei Beteiligungen (Innenbeleuchtung)
+  - id: climate_friendly_heat_generation_decentralized_at_holdings
+    label_en: Climate-Friendly Heat Generation (Decentralized) at Municipal Holdings
+    label_de: Klimafreundliche Wärmeerzeugung (dezentral) in Beteiligungen
+  - id: climate_friendly_heat_supply_at_city_holdings
+    label_en: Climate-Friendly Heat Supply at City Holdings
+    label_de: Klimafreundliche Wärmeversorgung in städtischen Beteiligungen
+  - id: optimization_of_heat_regulation_at_city_holdings
+    label_en: Optimization of Heat Regulation at City Holdings
+    label_de: Optimierung der Wärmeregulierung der städtischen Beteiligungen
+  - id: renovation_and_energy_optimization_of_city_buildings
+    label_en: Renovation and Energy Optimization of City Buildings
+    label_de: Sanierung und energetische Optimierung städtischer Gebäude
+  - id: electrification_of_holdings_vehicle_fleet
+    label_en: Electrification of Municipal Holdings Vehicle Fleet
+    label_de: Elektrifizierung des Fuhrparks der Beteiligungen
+  - id: electrification_of_city_vehicle_fleet
+    label_en: Electrification of City Vehicle Fleet
+    label_de: Elektrifizierung des städtischen Fuhrparks
+  - id: electrification_of_bus_fleet_at_holdings
+    label_en: Electrification of Bus Fleet at Municipal Holdings
+    label_de: Elektrifizierung der Busflotte bei Beteiligungen
+  - id: conversion_of_administration_vehicle_fleet
+    label_en: Conversion of Administration Vehicle Fleet
+    label_de: Umstellung des Fuhrparks der Verwaltung
+  - id: decarbonization_of_inland_waterway_shipping_by_hgk
+    label_en: Decarbonization of Inland Waterway Shipping by HGK
+    label_de: Dekarbonisierung der Binnenschifffahrt durch HGK
+  - id: ghg_reduction_through_circular_use_of_wood_and_building_materials
+    label_en: GHG Reduction through Circular Use of Wood and Building Materials
+    label_de: THG-Minderung durch Kreislaufnutzung von Holz- und Baumaterialien
+  - id: optimization_of_residual_waste_utilization_by_avg
+    label_en: Optimization of Residual Waste Utilization by AVG
+    label_de: Optimierung der Restmüllverwertung durch AVG
+  - id: waste_incineration_co2_reduction_through_ccs_at_avg
+    label_en: 'Waste Incineration: CO2 Reduction through Carbon Capture at AVG'
+    label_de: 'Müllverbrennung: CO2-Emissionsminderung durch CO2-Abscheidung bei der AVG'
+  - id: sump_development_by_city_administration
+    label_en: SUMP Development by City Administration
+    label_de: SUMP Entwicklung durch die Stadtverwaltung
+  - id: digital_climate_protection_monitoring_by_administration
+    label_en: Digital Climate Protection Monitoring by Administration
+    label_de: Digitales Klimaschutz-Monitoring durch die Verwaltung
+  - id: climate_protection_coordination_office
+    label_en: Climate Protection Coordination Office
+    label_de: Koordinationsstelle Klimaschutz
+  - id: municipal_heat_planning_preparation_by_administration
+    label_en: Municipal Heat Planning Preparation by Administration
+    label_de: Erstellung der kommunalen Wärmeplanung durch die Verwaltung
+
+nodes:
+
+- id: net_emissions
+  name_de: Netto Emissionen
+  name_en: Net emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  is_outcome: true
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  goals:
+  - label_de: Emissionen
+    label_en: Emissions
+    default: true
+    linear_interpolation: true
+    is_main_goal: true
+    values:
+    - year: 2020
+      value: 8805
+    - year: 2021
+      value: 8805
+    - year: 2029
+      value: 3509
+    - year: 2030
+      value: 2221
+    - year: 2035
+      value: 271
+    - year: 2050
+      value: 163
+
+- id: population
+  name_en: Inhabitants
+  name_de: Einwohner*in
+  type: generic.GenericNode
+  quantity: population
+  unit: cap
+  is_outcome: true
+  input_datasets:
+  - id: koeln/einwohnerin
+    tags: [baseline]
+    column: einwohnerin
+
+- id: historical_emissions
+  name: Historische Emissionen
+  name_en: Historical emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  color: '#00A969'
+  is_outcome: true
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/historische_emissionen
+    tags: [baseline]
+    column: emissions
+  output_nodes:
+  - id: net_emissions
+
+# - id: electricity_emissions
+#   name: Strom
+#   name_en: Electricity
+#   type: generic.GenericNode
+#   quantity: emissions
+#   unit: kt/a
+#   input_dimensions: [sector, energy_carrier]
+#   output_dimensions: [sector, energy_carrier]
+#   input_datasets:
+#   - id: koeln/emissionen
+#     tags: [baseline]
+#     column: emissions
+#     filters:
+#     - column: Handlungsfeld
+#       value: Strom
+#   output_nodes:
+#   - id: net_emissions
+
+# - id: heat_emissions
+#   name: Wärme
+#   name_en: Heat
+#   type: generic.GenericNode
+#   quantity: emissions
+#   unit: kt/a
+#   input_dimensions: [sector, energy_carrier]
+#   output_dimensions: [sector, energy_carrier]
+#   input_datasets:
+#   - id: koeln/emissionen
+#     tags: [baseline]
+#     column: emissions
+#     filters:
+#     - column: Handlungsfeld
+#       value: Wärme
+#   output_nodes:
+#   - id: net_emissions
+
+# - id: mobility_emissions
+#   name: Mobilität
+#   name_en: Mobility
+#   type: generic.GenericNode
+#   quantity: emissions
+#   unit: kt/a
+#   input_dimensions: [sector, energy_carrier]
+#   output_dimensions: [sector, energy_carrier]
+#   input_datasets:
+#   - id: koeln/emissionen
+#     tags: [baseline]
+#     column: emissions
+#     filters:
+#     - column: Handlungsfeld
+#       value: Mobilität
+#   output_nodes:
+#   - id: net_emissions
+
+# - id: consumption_emissions
+#   name: Konsum
+#   name_en: Consumption
+#   type: generic.GenericNode
+#   quantity: emissions
+#   unit: kt/a
+#   input_dimensions: [sector, energy_carrier]
+#   output_dimensions: [sector, energy_carrier]
+#   input_datasets:
+#   - id: koeln/emissionen
+#     tags: [baseline]
+#     column: emissions
+#     filters:
+#     - column: Handlungsfeld
+#       value: Konsum
+#   output_nodes:
+#   - id: net_emissions
+
+# - id: waste_and_wastewater_emissions
+#   name: Abfall & (Ab-)Wasser
+#   name_en: Waste & Wastewater
+#   type: generic.GenericNode
+#   quantity: emissions
+#   unit: kt/a
+#   input_dimensions: [sector, energy_carrier]
+#   output_dimensions: [sector, energy_carrier]
+#   input_datasets:
+#   - id: koeln/emissionen
+#     tags: [baseline]
+#     column: emissions
+#     filters:
+#     - column: Handlungsfeld
+#       value: Abfall & (Ab-)Wasser
+#   output_nodes:
+#   - id: net_emissions
+
+# - id: cross_cutting_climate_protection_emissions
+#   name: Übergreifende Klimaschutzaspekte
+#   name_en: Cross-cutting Climate Protection Aspects
+#   type: generic.GenericNode
+#   quantity: emissions
+#   unit: kt/a
+#   input_dimensions: [sector, energy_carrier]
+#   output_dimensions: [sector, energy_carrier]
+#   input_datasets:
+#   - id: koeln/emissionen
+#     tags: [baseline]
+#     column: emissions
+#     filters:
+#     - column: Handlungsfeld
+#       value: Übergreifende Klimaschutzaspekte
+#   output_nodes:
+#   - id: net_emissions
+
+# - id: administration_emissions
+#   name: Verwaltung
+#   name_en: Administration
+#   type: generic.GenericNode
+#   quantity: emissions
+#   unit: kt/a
+#   input_dimensions: [sector, energy_carrier]
+#   output_dimensions: [sector, energy_carrier]
+#   input_datasets:
+#   - id: koeln/emissionen
+#     tags: [baseline]
+#     column: emissions
+#     filters:
+#     - column: Handlungsfeld
+#       value: Verwaltung
+#   output_nodes:
+#   - id: net_emissions
+
+# - id: food_and_land_use_emissions
+#   name: Ernährung & Landnutzung
+#   name_en: Food & Land Use
+#   type: generic.GenericNode
+#   quantity: emissions
+#   unit: kt/a
+#   input_dimensions: [sector, energy_carrier]
+#   output_dimensions: [sector, energy_carrier]
+#   input_datasets:
+#   - id: koeln/emissionen
+#     tags: [baseline]
+#     column: emissions
+#     filters:
+#     - column: Handlungsfeld
+#       value: Ernährung & Landnutzung
+#   output_nodes:
+#   - id: net_emissions
+
+actions:
+
+- id: renewable_generation_small_decentralized_systems
+  name: Erneuerbare Stromerzeugung durch kleine dezentrale Anlagen
+  name_en: Renewable Electricity Generation through Small Decentralized Systems
+  description_en: The strategy consists of these measures:<ul><li>PV Funding 
+    Programs of City Administration</li><li>Cologne Solar Cadastre for PV and 
+    Solar Systems</li><li>Mobile One-Stop-Shop for Cologne</li><li>KlimaVeedel 
+    by RheinEnergie AG</li><li>Photovoltaics at Municipal Holdings</li><li>PV 
+    Expansion on Municipal Buildings</li><li>Photovoltaics in Heritage 
+    Conservation</li></ul>
+  description_de: Die Strategie besteht aus diesen 
+    Maßnahmen:<ul><li>Photovoltaik-Förderprogramme der 
+    Stadtverwaltung</li><li>Solarkataster Köln für Photovoltaik- und 
+    Solaranlagen</li><li>Mobiler One-Stop-Shop für Köln</li><li>KlimaVeedel der 
+    RheinEnergie AG</li><li>Photovoltaik bei 
+    Beteiligungen</li><li>Photovoltaik-Ausbau auf kommunalen 
+    Gebäuden</li><li>Photovoltaik im Denkmalschutz</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: electricity
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: renewable_generation_small_decentralized_systems
+  output_nodes:
+  - id: net_emissions
+
+- id: renewable_generation_open_space
+  name: Erneuerbare Stromerzeugung in der Fläche
+  name_en: Renewable Electricity Generation in Open Spaces
+  description_en: The strategy consists of these measures:<ul><li>Solar Cadastre
+    by City Administration</li><li>Planning and Analysis of Wind Energy 
+    Potentials by Administration</li><li>Open-Space Photovoltaics (PV) – 
+    Potentials and Implementation</li><li>Wind Power – Identification of 
+    Potential Sites</li><li>Plans for Wind Energy Expansion in North 
+    Cologne</li><li>Development and Realization of Open-Space PV 
+    Projects</li></ul>
+  description_de: Die Strategie besteht aus diesen 
+    Maßnahmen:<ul><li>Solarkataster durch die Stadtverwaltung</li><li>Planung 
+    und Analyse von Windenergiepotenzialen durch die 
+    Verwaltung</li><li>Freiflächen-Photovoltaik (PV) – Potenziale und 
+    Umsetzung</li><li>Windkraft – Identifikation von 
+    Potenzialflächen</li><li>Planungen zum Ausbau der Windenergie im Kölner 
+    Norden</li><li>Entwicklung und Realisierung von 
+    PV-Freiflächenprojekten</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: electricity
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: renewable_generation_open_space
+  output_nodes:
+  - id: net_emissions
+
+- id: renewable_generation_power_plants
+  name: Erneuerbare Stromerzeugung durch Kraftwerke
+  name_en: Renewable Electricity Generation through Power Plants
+  description_en: The strategy consists of these measures:<ul><li>HGK Group 
+    Climate Protection Measures - Complete Green Electricity Procurement for 
+    Cologne Sites</li></ul>
+  description_de: Die Strategie besteht aus diesen 
+    Maßnahmen:<ul><li>Klimaschutzmaßnahmen der HGK-Gruppe - Vollständiger 
+    Ökostrombezug für Standorte in Köln</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: electricity
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: renewable_generation_power_plants
+  output_nodes:
+  - id: net_emissions
+
+- id: electricity_savings_commercial_sector
+  name: Stromeinsparung im Gewerbesektor
+  name_en: Electricity Savings in Commercial Sector
+  description_en: 'The strategy consists of these measures:<ul><li>KölnBusiness Economic
+    Development GmbH Consulting: Promoting Sustainability Projects incl. Financing
+    Options in Companies</li></ul>'
+  description_de: 'Die Strategie besteht aus diesen Maßnahmen:<ul><li>Beratungen der
+    KölnBusiness Wirtschaftsförderungs-GmbH: Nachhaltigkeitsvorhaben inkl. Finanzierungsmöglichkeiten
+    im Unternehmen fördern</li></ul>'
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: electricity
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: electricity_savings_commercial_sector
+  output_nodes:
+  - id: net_emissions
+
+- id: heat_source_development_for_heat_networks
+  name: Wärmequellenerschließung für Wärmenetze
+  name_en: Heat Source Development for District Heating Networks
+  description_en: The strategy consists of these measures:<ul><li>Transformation
+    Plans of RheinEnergie AG for Cologne District Heating Networks</li></ul>
+  description_de: Die Strategie besteht aus diesen 
+    Maßnahmen:<ul><li>Transformationspläne der RheinEnergie AG für die Kölner 
+    Fernwärmenetze</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: heat_source_development_for_heat_networks
+  output_nodes:
+  - id: net_emissions
+
+- id: expansion_and_densification_of_heat_networks
+  name: Erweiterung und Verdichtung der Wärmenetze
+  name_en: Expansion and Densification of District Heating Networks
+  description_en: The strategy consists of these 
+    measures:<ul><li>Climate-Neutral Heat Supply at KVB</li></ul>
+  description_de: Die Strategie besteht aus diesen 
+    Maßnahmen:<ul><li>Klimaneutrale Wärmeversorgung bei der KVB</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: expansion_and_densification_of_heat_networks
+  output_nodes:
+  - id: net_emissions
+
+- id: decentralized_heating_replacement_households
+  name: Dezentraler Heizungstausch in Haushalten
+  name_en: Decentralized Heating System Replacement in Households
+  description_en: The strategy consists of these measures:<ul><li>KlimaVeedel by
+    RheinEnergie AG</li><li>Decarbonization Strategy of GAG Immobilien 
+    AG</li></ul>
+  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>KlimaVeedel
+    der RheinEnergie AG</li><li>Dekarbonisierungsstrategie der GAG Immobilien 
+    AG</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: decentralized_heating_replacement_households
+  output_nodes:
+  - id: net_emissions
+
+- id: new_construction_residential_buildings
+  name: Neubau Wohngebäude
+  name_en: New Construction Residential Buildings
+  description_en: The strategy consists of these measures:<ul><li>Building 
+    Standards in New Construction (public, private and 
+    commercial)</li><li>Decarbonization Strategy of GAG Immobilien AG</li></ul>
+  description_de: Die Strategie besteht aus diesen 
+    Maßnahmen:<ul><li>Baustandards im Neubau (öffentlich, privat und 
+    gewerblich)</li><li>Dekarbonisierungsstrategie der GAG Immobilien 
+    AG</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: new_construction_residential_buildings
+  output_nodes:
+  - id: net_emissions
+
+- id: new_construction_commercial_industrial
+  name: Neubau Gewerbe/Industrie
+  name_en: New Construction Commercial/Industrial
+  description_en: The strategy consists of these measures:<ul><li>Allocation of 
+    Municipal Land in Large-Scale Commercial Areas</li></ul>
+  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>Vergabe 
+    städtischer Grundstücke in großflächigen Gewerbegebieten</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: new_construction_commercial_industrial
+  output_nodes:
+  - id: net_emissions
+
+- id: decentralized_heating_replacement_commercial
+  name: Dezentraler Heizungstausch im Gewerbe
+  name_en: Decentralized Heating System Replacement in Commercial Sector
+  description_en: The strategy consists of these measures:<ul><li>Promotion of 
+    Sustainable Start-ups by KölnBusiness Economic Development 
+    GmbH</li><li>Networking and Consulting Services by KölnBusiness</li></ul>
+  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>Förderung 
+    von nachhaltigen Gründungen durch die KölnBusiness 
+    Wirtschaftsförderungs-GmbH</li><li>Vernetzungs- und Beratungsangebote durch 
+    KölnBusiness</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: decentralized_heating_replacement_commercial
+  output_nodes:
+  - id: net_emissions
+
+- id: renovation_residential_buildings
+  name: Sanierung Wohngebäude
+  name_en: Renovation of Residential Buildings
+  description_en: The strategy consists of these measures:<ul><li>Energy 
+    Retrofitting of Heritage-Protected Building Stock</li><li>KfW 432 
+    Energy-Efficient Neighborhood Development</li><li>Concept Allocations as 
+    Steering Instrument for Sustainable Planning and Development Concepts using 
+    Petershof Example</li><li>KlimaVeedel by RheinEnergie AG</li><li>Renovation 
+    Roadmap for Municipal Facilities</li><li>Decarbonization Strategy of GAG 
+    Immobilien AG</li></ul>
+  description_de: Die Strategie besteht aus diesen 
+    Maßnahmen:<ul><li>Energetische Ertüchtigung des denkmalgeschützten 
+    Gebäudebestands</li><li>KfW 432 Energetische 
+    Quartiersentwicklung</li><li>Konzeptvergaben als Steuerungsinstrument für 
+    nachhaltige Planungs- und Entwicklungskonzepte am Beispiel 
+    Petershof</li><li>KlimaVeedel der RheinEnergie AG</li><li>Sanierungsfahrplan
+    für kommunale Einrichtungen</li><li>Dekarbonisierungsstrategie der GAG 
+    Immobilien AG</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: renovation_residential_buildings
+  output_nodes:
+  - id: net_emissions
+
+- id: drive_transition_motorized_individual_transport
+  name: Antriebswende – Motorisierter Individualverkehr
+  name_en: Drive Transition – Motorized Individual Transport
+  description_en: The strategy consists of these measures:<ul><li>Charging 
+    Station Infrastructure in Public Road Space</li></ul>
+  description_de: Die Strategie besteht aus diesen 
+    Maßnahmen:<ul><li>Ladesäuleninfrastruktur im öffentlichen 
+    Straßenraum</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: mobility
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: drive_transition_motorized_individual_transport
+  output_nodes:
+  - id: net_emissions
+
+- id: drive_transition_freight_transport
+  name: Antriebswende – Güterverkehr
+  name_en: Drive Transition – Freight Transport
+  description_en: The strategy consists of these measures:<ul><li>Charging 
+    Infrastructure in Public Space</li></ul>
+  description_de: Die Strategie besteht aus diesen 
+    Maßnahmen:<ul><li>Ladeinfrastruktur im öffentlichen Raum</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: mobility
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: drive_transition_freight_transport
+  output_nodes:
+  - id: net_emissions
+
+- id: drive_transition_bus
+  name: Antriebswende – Bus
+  name_en: Drive Transition – Bus
+  description_en: The strategy consists of these measures:<ul><li>Expansion of 
+    E-Bus Fleet at KVB</li></ul>
+  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>Ausbau der 
+    E-Busflotte bei der KVB</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: mobility
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: drive_transition_bus
+  output_nodes:
+  - id: net_emissions
+
+- id: mobility_transition_freight_transport
+  name: Mobilitätswende – Güterverkehr
+  name_en: Mobility Transition – Freight Transport
+  description_en: The strategy consists of these measures:<ul><li>(No specific 
+    measures listed)</li></ul>
+  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>(Keine 
+    spezifischen Maßnahmen aufgeführt)</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: mobility
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: mobility_transition_freight_transport
+  output_nodes:
+  - id: net_emissions
+
+- id: mobility_transition_local_mobility
+  name: Mobilitätswende – Nahmobilität
+  name_en: Mobility Transition – Local Mobility
+  description_en: The strategy consists of these measures:<ul><li>Adjustments in
+    Motorized Individual Transport (MIT)</li><li>Bicycle Traffic 
+    Promotion</li><li>Light Rail Expansion</li></ul>
+  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>Anpassungen
+    im Motorisierten Individualverkehr 
+    (MIV)</li><li>Radverkehrsförderung</li><li>Stadtbahnausbau</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: mobility
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: mobility_transition_local_mobility
+  output_nodes:
+  - id: net_emissions
+
+- id: mobility_transition_regional_mobility
+  name: Mobilitätswende – Regionale Mobilität
+  name_en: Mobility Transition – Regional Mobility
+  description_en: The strategy consists of these measures:<ul><li>Light Rail 
+    Expansion</li><li>Bicycle Traffic Promotion</li><li>Networked 
+    Mobility</li></ul>
+  description_de: Die Strategie besteht aus diesen 
+    Maßnahmen:<ul><li>Stadtbahnausbau</li><li>Radverkehrsförderung</li><li>Vernetzte
+    Mobilität</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: mobility
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: mobility_transition_regional_mobility
+  output_nodes:
+  - id: net_emissions
+
+- id: food_and_nutrition
+  name: Ernährung & Lebensmittel
+  name_en: Food & Nutrition
+  description_en: The strategy consists of these measures:<ul><li>School and 
+    Extra-curricular Sustainability Education</li></ul>
+  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>Schulische 
+    und außerschulische Nachhaltigkeitsbildung</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: food_and_land_use
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: food_and_nutrition
+  output_nodes:
+  - id: net_emissions
+
+- id: climate_friendly_consumption_behavior
+  name: Klimafreundlicheres Konsumverhalten der Bevölkerung
+  name_en: Climate-Friendly Consumption Behavior of the Population
+  description_en: 'The strategy consists of these measures:<ul><li>Zero-Waste Concept:
+    Waste Avoidance through Second-Life Promotion</li></ul>'
+  description_de: 'Die Strategie besteht aus diesen Maßnahmen:<ul><li>Zero-Waste-Konzept:
+    Abfallvermeidung durch Second-Life-Förderung</li></ul>'
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: consumption
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: climate_friendly_consumption_behavior
+  output_nodes:
+  - id: net_emissions
+
+- id: ghg_neutral_administration_scope_1_and_2
+  name: THG-neutrale Verwaltung (direkte Einflussbereiche über Scope 1 und Scope
+    2)
+  name_en: GHG-Neutral Administration (Direct Influence via Scope 1 and Scope 2)
+  description_en: The strategy consists of these measures:<ul><li>Renovation 
+    Roadmap for Municipal Facilities</li><li>Transformation of Municipal Vehicle
+    Fleets</li><li>Energy Guidelines for Municipal Buildings</li><li>PV 
+    Expansion Strategy on All Municipal Buildings</li><li>Expansion of Charging 
+    Infrastructure for Municipal Service Vehicles</li></ul>
+  description_de: Die Strategie besteht aus diesen 
+    Maßnahmen:<ul><li>Sanierungsfahrplan für kommunale 
+    Einrichtungen</li><li>Transformation städtischer 
+    Fuhrparks</li><li>Energieleitlinien für städtische 
+    Gebäude</li><li>Photovoltaik-Ausbaustrategie auf allen kommunalen 
+    Gebäuden</li><li>Ausbau Ladeinfrastruktur für städtische 
+    Dienstfahrzeuge</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: administration
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: ghg_neutral_administration_scope_1_and_2
+  output_nodes:
+  - id: net_emissions
+
+- id: ghg_neutral_administration_scope_3
+  name: THG-neutrale Verwaltung (indirekter Einflussbereich über Scope 3)
+  name_en: GHG-Neutral Administration (Indirect Influence via Scope 3)
+  description_en: The strategy consists of these measures:<ul><li>Internal 
+    Change Agent Network for Climate Protection</li><li>Integration of Climate 
+    Protection and Sustainability in Procurement and 
+    Contracting</li><li>Zero-Waste Concept Measures</li></ul>
+  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>Internes 
+    Change-Agent-Netzwerk für Klimaschutz</li><li>Verankerung von Klimaschutz 
+    und Nachhaltigkeit bei Beschaffung und Vergabe</li><li>Maßnahmen des 
+    Zero-Waste-Konzepts</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: administration
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: ghg_neutral_administration_scope_3
+  output_nodes:
+  - id: net_emissions
+
+- id: waste_reduction_and_facility_efficiency
+  name: Abfallreduktion & Anlageneffizienz
+  name_en: Waste Reduction & Facility Efficiency
+  description_en: 'The strategy consists of these measures:<ul><li>Resource Recovery
+    from Waste Utilization</li><li>Zero-Waste Concept Measures</li><li>Zero-Waste
+    Concept: Waste Avoidance through Information Provision</li><li>GHG Reduction through
+    Biomass Utilization and Methane Avoidance</li></ul>'
+  description_de: 'Die Strategie besteht aus diesen Maßnahmen:<ul><li>Ressourcenrückgewinnung
+    aus Abfallverwertung</li><li>Maßnahmen des Zero-Waste-Konzepts</li><li>Zero-Waste-Konzept:
+    Abfallvermeidung durch Informationsbereitstellung</li><li>THG-Minderung durch
+    Biomassenutzung und Methanvermeidung</li></ul>'
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: waste_and_wastewater
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: waste_reduction_and_facility_efficiency
+  output_nodes:
+  - id: net_emissions
+
+- id: cross_cutting_climate_protection_aspects
+  name: Übergreifende Klimaschutz-aspekte
+  name_en: Cross-cutting Climate Protection Aspects
+  description_en: The strategy consists of these measures:<ul><li>School and 
+    Extra-curricular Sustainability Education</li><li>KlimaVeedel by 
+    RheinEnergie AG</li><li>Professional Climate Protection Further 
+    Education</li><li>Cologne Climate Protection Campaign and Climate Protection
+    Award</li><li>Networking with Central Knowledge Carriers</li><li>Climate 
+    Impact Assessment of Municipal Decisions</li></ul>
+  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>Schulische 
+    und außerschulische Nachhaltigkeitsbildung</li><li>KlimaVeedel der 
+    RheinEnergie AG</li><li>Berufliche Klimaschutz Weiterbildung</li><li>Kölner 
+    Klimaschutzkampagne und Klimaschutzpreis</li><li>Vernetzung mit zentralen 
+    Wissensträgern</li><li>Klimawirkungsprüfung von kommunalen 
+    Beschlüssen</li></ul>
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: cross_cutting_climate_protection
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: cross_cutting_climate_protection_aspects
+  output_nodes:
+  - id: net_emissions
+
+# ---------- DIRECT ACTIONS
+
+- id: pv_on_municipal_holdings_buildings
+  name: Photovoltaik auf Beteiligungsgebäuden
+  name_en: Photovoltaics on Municipal Holdings Buildings
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: electricity
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/direkte_manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: pv_on_municipal_holdings_buildings
+  output_nodes:
+  - id: net_emissions
+
+- id: pv_on_city_buildings
+  name: Photovoltaik auf städtischen Gebäuden
+  name_en: Photovoltaics on City Buildings
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: electricity
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/direkte_manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: pv_on_city_buildings
+  output_nodes:
+  - id: net_emissions
+
+- id: digitalization_and_energy_efficiency_in_city_data_centers
+  name: Digitalisierung und Energieeffizienz in städtischen Rechenzentren
+  name_en: Digitalization and Energy Efficiency in City Data Centers
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: electricity
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/direkte_manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: digitalization_and_energy_efficiency_in_city_data_centers
+  output_nodes:
+  - id: net_emissions
+
+- id: efficiency_improvement_in_administration
+  name: Effizienzsteigerung in der Verwaltung
+  name_en: Efficiency Improvement in Administration
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: electricity
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/direkte_manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: efficiency_improvement_in_administration
+  output_nodes:
+  - id: net_emissions
+
+- id: efficiency_improvement_at_holdings
+  name: Effizienzsteigerung bei Beteiligungen
+  name_en: Efficiency Improvement at Municipal Holdings
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: electricity
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/direkte_manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: efficiency_improvement_at_holdings
+  output_nodes:
+  - id: net_emissions
+
+- id: green_electricity_procurement_at_holdings
+  name: Ökostrombezug bei Beteiligungen
+  name_en: Green Electricity Procurement at Municipal Holdings
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: electricity
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/direkte_manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: green_electricity_procurement_at_holdings
+  output_nodes:
+  - id: net_emissions
+
+- id: led_conversion_at_holdings_outdoor_lighting
+  name: LED-Umstellung bei Beteiligungen (Außenbeleuchtung)
+  name_en: LED Conversion at Municipal Holdings (Outdoor Lighting)
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: electricity
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/direkte_manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: led_conversion_at_holdings_outdoor_lighting
+  output_nodes:
+  - id: net_emissions
+
+- id: led_conversion_at_holdings_indoor_lighting
+  name: LED-Umstellung bei Beteiligungen (Innenbeleuchtung)
+  name_en: LED Conversion at Municipal Holdings (Indoor Lighting)
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: electricity
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/direkte_manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: led_conversion_at_holdings_indoor_lighting
+  output_nodes:
+  - id: net_emissions
+
+- id: climate_friendly_heat_generation_decentralized_at_holdings
+  name: Klimafreundliche Wärmeerzeugung (dezentral) in Beteiligungen
+  name_en: Climate-Friendly Heat Generation (Decentralized) at Municipal Holdings
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/direkte_manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: climate_friendly_heat_generation_decentralized_at_holdings
+  output_nodes:
+  - id: net_emissions
+
+- id: climate_friendly_heat_supply_at_city_holdings
+  name: Klimafreundliche Wärmeversorgung in städtischen Beteiligungen
+  name_en: Climate-Friendly Heat Supply at City Holdings
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/direkte_manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: climate_friendly_heat_supply_at_city_holdings
+  output_nodes:
+  - id: net_emissions
+
+- id: optimization_of_heat_regulation_at_city_holdings
+  name: Optimierung der Wärmeregulierung der städtischen Beteiligungen
+  name_en: Optimization of Heat Regulation at City Holdings
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/direkte_manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: optimization_of_heat_regulation_at_city_holdings
+  output_nodes:
+  - id: net_emissions
+
+- id: renovation_and_energy_optimization_of_city_buildings
+  name: Sanierung und energetische Optimierung städtischer Gebäude
+  name_en: Renovation and Energy Optimization of City Buildings
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/direkte_manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: renovation_and_energy_optimization_of_city_buildings
+  output_nodes:
+  - id: net_emissions
+
+- id: electrification_of_holdings_vehicle_fleet
+  name: Elektrifizierung des Fuhrparks der Beteiligungen
+  name_en: Electrification of Municipal Holdings Vehicle Fleet
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: mobility
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/direkte_manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: electrification_of_holdings_vehicle_fleet
+  output_nodes:
+  - id: net_emissions
+
+- id: electrification_of_city_vehicle_fleet
+  name: Elektrifizierung des städtischen Fuhrparks
+  name_en: Electrification of City Vehicle Fleet
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: mobility
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/direkte_manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: electrification_of_city_vehicle_fleet
+  output_nodes:
+  - id: net_emissions
+
+- id: electrification_of_bus_fleet_at_holdings
+  name: Elektrifizierung der Busflotte bei Beteiligungen
+  name_en: Electrification of Bus Fleet at Municipal Holdings
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: mobility
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/direkte_manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: electrification_of_bus_fleet_at_holdings
+  output_nodes:
+  - id: net_emissions
+
+- id: conversion_of_administration_vehicle_fleet
+  name: Umstellung des Fuhrparks der Verwaltung
+  name_en: Conversion of Administration Vehicle Fleet
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: mobility
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/direkte_manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: conversion_of_administration_vehicle_fleet
+  output_nodes:
+  - id: net_emissions
+
+- id: decarbonization_of_inland_waterway_shipping_by_hgk
+  name: Dekarbonisierung der Binnenschifffahrt durch HGK
+  name_en: Decarbonization of Inland Waterway Shipping by HGK
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: mobility
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/direkte_manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: decarbonization_of_inland_waterway_shipping_by_hgk
+  output_nodes:
+  - id: net_emissions
+
+- id: ghg_reduction_through_circular_use_of_wood_and_building_materials
+  name: THG-Minderung durch Kreislaufnutzung von Holz- und Baumaterialien
+  name_en: GHG Reduction through Circular Use of Wood and Building Materials
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: consumption
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/direkte_manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: ghg_reduction_through_circular_use_of_wood_and_building_materials
+  output_nodes:
+  - id: net_emissions
+
+- id: optimization_of_residual_waste_utilization_by_avg
+  name: Optimierung der Restmüllverwertung durch AVG
+  name_en: Optimization of Residual Waste Utilization by AVG
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: waste_and_wastewater
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/direkte_manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: optimization_of_residual_waste_utilization_by_avg
+  output_nodes:
+  - id: net_emissions
+
+- id: waste_incineration_co2_reduction_through_ccs_at_avg
+  name: 'Müllverbrennung: CO2-Emissionsminderung durch CO2-Abscheidung bei der AVG'
+  name_en: 'Waste Incineration: CO2 Reduction through Carbon Capture at AVG'
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: waste_and_wastewater
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/direkte_manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: waste_incineration_co2_reduction_through_ccs_at_avg
+  output_nodes:
+  - id: net_emissions
+
+- id: sump_development_by_city_administration
+  name: SUMP Entwicklung durch die Stadtverwaltung
+  name_en: SUMP Development by City Administration
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: mobility
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/direkte_manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: sump_development_by_city_administration
+  output_nodes:
+  - id: net_emissions
+
+- id: digital_climate_protection_monitoring_by_administration
+  name: Digitales Klimaschutz-Monitoring durch die Verwaltung
+  name_en: Digital Climate Protection Monitoring by Administration
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: cross_cutting_climate_protection
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/direkte_manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: digital_climate_protection_monitoring_by_administration
+  output_nodes:
+  - id: net_emissions
+
+- id: climate_protection_coordination_office
+  name: Koordinationsstelle Klimaschutz
+  name_en: Climate Protection Coordination Office
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: cross_cutting_climate_protection
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/direkte_manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: climate_protection_coordination_office
+  output_nodes:
+  - id: net_emissions
+
+- id: municipal_heat_planning_preparation_by_administration
+  name: Erstellung der kommunalen Wärmeplanung durch die Verwaltung
+  name_en: Municipal Heat Planning Preparation by Administration
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/direkte_manahmen_ikka
+    tags: [baseline]
+    column: emissions
+    filters:
+    - column: action
+      value: municipal_heat_planning_preparation_by_administration
+  output_nodes:
+  - id: net_emissions
+
+pages:
+- id: home
+  name_de: Köln BASIC+ Treibhausgasinventar
+  name_en: Cologne BASIC+ Greenhouse Gas Inventory
+  path: /
+  type: emission
+  outcome_node: population
+  lead_title_de: Übersicht Bilanzen Köln
+  lead_title_en: Overview of Cologne's Greenhouse Gas Balances
+  lead_paragraph_de: GPC BASIC+ Treibhausgasinventar (2008-2020) und Prognose 
+    (2021-2030) für die Stadt Köln.
+  lead_paragraph_en: GPC BASIC+ greenhouse gas inventory (2008-2020) and 
+    forecast (2021-2030) for the City of Cologne.
+
+scenarios:
+- id: baseline
+  name_de: Business as Usual
+  name_en: Business as Usual
+
+- id: default
+  default: true
+  name_de: Klimaschutzplan
+  name_en: Climate Action Plan
+  all_actions_enabled: true
