@@ -45,7 +45,7 @@ class SubsectorAdminRole(Role):
             'datasetsourcereference',
             'datapointcomment',
             'datasetmetric',
-        ), ALL_MODEL_PERMS),
+        ), ('view',)),
     ]
 
 
