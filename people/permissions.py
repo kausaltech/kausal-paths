@@ -24,8 +24,7 @@ class PersonGroupPermissionPolicy(InstanceConfigScopedPermissionPolicy[PersonGro
     @override
     def get_instance_configs_for_obj(self, obj: PersonGroup) -> list[int]:
         """Get IDs of all InstanceConfigs the given PersonGroup is scoped for."""
-        # TODO
-        return []
+        return [obj.instance.pk]
 
     @override
     def is_create_context_valid(self, context: Any) -> TypeGuard[InstanceConfig]:
@@ -33,9 +32,5 @@ class PersonGroupPermissionPolicy(InstanceConfigScopedPermissionPolicy[PersonGro
 
     @override
     def construct_perm_q(self, user: User, action: BaseObjectAction) -> Q | None:
-        # TODO check if this works
-        # q = Q(instance_id__in=self.instance_admin_role.get_instances_for_user(user))
-        # if action == 'view':
-        #     q |= Q(instance_id__in=self.instance_viewer_role.get_instances_for_user(user))
-        # return q
-        return Q(pk__in=[])
+        q = Q(instance_id__in=self.get_role('instance-super-admin').get_instances_for_user(user))
+        return q

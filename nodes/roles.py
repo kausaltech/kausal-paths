@@ -90,6 +90,7 @@ class InstanceSuperAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceCon
         ), ALL_MODEL_PERMS),
         ('people', (
             'person',
+            'persongroup',
         ), ALL_MODEL_PERMS),
         ('orgs', (
             'organization',
