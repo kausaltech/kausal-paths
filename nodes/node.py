@@ -1601,7 +1601,7 @@ class Node:
                 continue
             if any(issubclass(type(d), ActionNode) for d in n.get_downstream_nodes()):
                 continue # Ignore data that is used in actions
-            if n.id in ['energy_use_intensity_change_new']:
+            if n.id in ['energy_use_intensity_change_new', 'relative_transport_mode_switches']:
                 continue # Last resort to get rid of non-observed data
             years.update(n._get_measure_datapoint_years(n, dims))
 
