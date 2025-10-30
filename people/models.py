@@ -193,6 +193,8 @@ class PersonGroup(PathsModel, ClusterableModel):
         related_name='person_groups',
     )
 
+    objects = PersonGroupManager()
+
     class Meta:
         constraints = [
             models.UniqueConstraint(
