@@ -407,6 +407,42 @@ dimensions:
   - id: wastewater_digester_gas_and_fugitive
     label: Wastewater Digester Gas & Fugitive
 
+- id: pcp_sector
+  label: PCP Sector
+  categories:
+  - id: i11
+    label: Buildings Fuel
+  - id: i12
+    label: Buildings Grid Energy
+  - id: i13
+    label: Buildings T & D Loss
+  - id: i21
+    label: Water & Wastewater Fuel
+  - id: i22
+    label: Water & Wastewater Grid Energy
+  - id: i23
+    label: Water & Wastewater T & D Loss
+  - id: i32
+    label: Streetlighting Grid Energy
+  - id: i33
+    label: Streetlighting T & D Loss
+  - id: i42
+    label: Other Grid Energy
+  - id: i43
+    label: Other T & D Loss
+  - id: ii11
+    label: On-Road Transport Fuel
+  - id: ii41
+    label: Aviation Fuel
+  - id: iii11
+    label: Solid Waste
+  - id: iii21
+    label: Organic Waste
+  - id: iii41
+    label: Wastewater
+  - id: v1
+    label: Livestock
+
 emission_sectors:
 - id: net_emissions
   name: Greenhouse Gas Emissions
