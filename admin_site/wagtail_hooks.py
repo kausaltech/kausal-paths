@@ -15,6 +15,8 @@ from kausal_common.users import user_or_bust
 
 from paths.context import realm_context
 
+from admin_site.bulk_actions import PermissionAwareDeleteBulkAction
+
 if TYPE_CHECKING:
     from django.http.request import HttpRequest
 
@@ -107,3 +109,13 @@ def patch_translations_report_menu_item(request: PathsAdminRequest, menu_items: 
     if getattr(request.user, 'is_superuser', False):
         return
     menu_items[:] = [menu_item for menu_item in menu_items if not isinstance(menu_item, TranslationsReportMenuItem)]
+
+hooks.register(
+    'register_bulk_action',
+    fn=PermissionAwareDeleteBulkAction,
+    # The order needs to be high so that our bulk delete action overrides the built-in
+    # bulk delete action which does not properly check permissions. Less would do
+    # but why not keep it safe.
+    order=10000
+)
+
