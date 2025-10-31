@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Sequence  # noqa: TC003
+from collections.abc import Iterable, Sequence  # noqa: TC003
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, Self, overload
 
+from django.core.validators import validate_comma_separated_integer_list
 from django.db import models
 from django.db.models import Model
 from django.utils import timezone
@@ -19,10 +20,11 @@ from paths.const import NONE_ROLE, PathsRoleIdentifier
 from .base import AbstractUser, UserManager
 
 if TYPE_CHECKING:
+
     from django.contrib.auth.models import Group
 
     from kausal_common.models.roles import InstanceSpecificRole, UserPermissionCache
-    from kausal_common.models.types import FK, QS
+    from kausal_common.models.types import FK, QS, RevOne
 
     from frameworks.roles import FrameworkRoleDef
     from nodes.models import InstanceConfig, InstanceConfigQuerySet
@@ -59,14 +61,21 @@ class User(AbstractUser):
     email = models.EmailField(_('email address'), unique=True)
     extra: UserExtra = SchemaField(schema=UserExtra, default=UserExtra.get_default)
 
+    # Used for quickly retrieving the instances the user can administer
+    cached_adminable_instances = models.CharField(
+        _('adminable instances'),
+        validators=[validate_comma_separated_integer_list],
+        null=True,
+        blank=True,
+    )
+
     objects: ClassVar[UserManager[User]]
+    person: RevOne[Person, User] | None
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
 
     autocomplete_search_field = 'email'
-
-    person: Person
 
     def natural_key(self) -> tuple[str]:
         # If we don't override this, it will use `get_username()`, which may not always return the email field. The
@@ -77,11 +86,54 @@ class User(AbstractUser):
 
     def get_adminable_instances(self) -> InstanceConfigQuerySet:
         from nodes.models import InstanceConfig
-        return InstanceConfig.permission_policy().adminable_instances(self)
+        if self.is_superuser:
+            return InstanceConfig.objects.qs
+        return self.get_cached_adminable_instances()
+
+    def set_cached_adminable_instances(self, instance_configs: InstanceConfigQuerySet, save: bool = True) -> str | None:
+        if not instance_configs.exists():
+            cached_value = None
+        else:
+            cached_value = ','.join(str(pk) for pk in instance_configs.distinct().values_list('pk', flat=True))
+        self.cached_adminable_instances = cached_value
+        if save:
+            self.save(update_fields=('cached_adminable_instances',))
+        return cached_value
+
+    def get_cached_adminable_instances(self) -> InstanceConfigQuerySet:
+        from nodes.models import InstanceConfig
+        return InstanceConfig.objects.qs.filter(pk__in=self.get_cached_adminable_instance_pks())
 
     def user_is_admin_for_instance(self, instance_config: InstanceConfig) -> bool:
+        if self.is_superuser:
+            return True
+        return instance_config.pk in self.get_cached_adminable_instance_pks()
+
+    def get_cached_adminable_instance_pks(self) -> Iterable[int]:
+        if getattr(self, 'cached_adminable_instances', None)  is not None:
+            value = self.cached_adminable_instances
+        else:
+            value = self.refresh_adminable_instances(save=True)
+        if value is None:
+            return []
+        return [int(x) for x in value.split(',')]
+
+    def refresh_adminable_instances(self, save: bool = True) -> str | None:
         from nodes.models import InstanceConfig
-        return InstanceConfig.permission_policy().user_has_permission_for_instance(self, 'change', instance_config)
+        if self.is_superuser:
+            # No sense in storing all of the instances; the get_adminable_instances and user_is_admin_for_instance
+            # methods handle superusers as a special case
+            self.cached_adminable_instances = ''
+            return ''
+        cached_value = self.set_cached_adminable_instances(
+            InstanceConfig.permission_policy().adminable_instances(self),
+            save=save
+        )
+        return cached_value
+
+    def invalidate_adminable_instances_cache(self) -> None:
+        self.cached_adminable_instances = None
+        self.save(update_fields=['cached_adminable_instances'])
 
     def get_corresponding_person(self) -> Person | None:
         # Copied from KW. We don't have a cache here yet.
@@ -143,7 +195,8 @@ class User(AbstractUser):
         """
         Verify that the user has exactly the instance role group corresponding to this role_id.
 
-        Only modifies group memberships of groups connected to active_instance.
+        Only modifies group memberships of groups connected to instance, leaving
+        other groups intact.
         """
         for role_obj in role_registry.get_all_roles():
             group = role_obj.get_existing_instance_group(instance)
@@ -163,7 +216,7 @@ class User(AbstractUser):
             return False
         if not self.is_staff:
             return False
-        return True
+        return self.get_adminable_instances().exists()
 
     def deactivate(self, admin_user):
         self.is_active = False

@@ -13,3 +13,5 @@ class UsersConfig(AppConfig):
         from .models import UserExtra
 
         UserExtra.model_rebuild()
+
+        import users.signals  # noqa: F401
