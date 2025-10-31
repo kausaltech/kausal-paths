@@ -41,11 +41,17 @@ class SubsectorAdminRole(Role):
             'datasetschema',
             'dataset',
             'datapoint',
-            'datasource',
             'datasetsourcereference',
             'datapointcomment',
             'datasetmetric',
         ), ALL_MODEL_PERMS),
+        ('datasets', (
+            'datasource',
+        ), (
+            'view',
+            'add'
+        ),
+        ),
     ]
 
 
