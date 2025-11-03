@@ -248,18 +248,21 @@ class ParameterAction(ActionNode):
 
         if self.is_enabled():
             fromvalue = self.get_parameter_value('from_value', required=True)
-            percentchange = self.get_parameter_value('percent_change', required=True)
+            percentchange = self.get_parameter_value('percent_change', required=False)
         else:
             fromvalue = self.get_parameter_value('default_value', required=True)
-            percentchange = self.get_parameter_value('default_change', required=True)
+            percentchange = self.get_parameter_value('default_change', required=False)
 
-        percentchange = 1.0 + (percentchange / 100.0)  # type: ignore
+        if percentchange:
+            percentchange = 1.0 + (percentchange / 100.0)  # type: ignore
+        else:
+            percentchange = 1.0
 
         df = pl.DataFrame(
             {'Year': range(fromyear, toyear)}
         ).with_columns(
             (pl.lit(fromvalue) * pl.lit(percentchange) ** (pl.col('Year') - fromyear)).alias('Value'),
-            pl.lit(True).alias('Forecast')  # noqa: FBT003
+            pl.lit(value=True).alias('Forecast')
         )
 
         meta = ppl.DataFrameMeta(units={'Value': self.unit}, primary_keys=['Year'])  # type: ignore

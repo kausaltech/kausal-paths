@@ -4696,6 +4696,28 @@ actions:
   output_nodes:
   - id: reduce_electricity_emission_factors
 
+- id: parameter_discount_rate
+  name: Diskonttokorko
+  name_en: Discount rate
+  type: simple.ParameterAction
+  group: parameters
+  unit: '%'
+  quantity: fraction
+  input_dimensions: []
+  output_dimensions: []
+  params:
+  - id: from_value
+    value: 3.5
+    min_value: 0.0
+    max_value: 7.0
+    step: 0.5
+    unit: '%'
+    description: Diskonttokorko
+    description_en: Discount rate
+  - id: default_value
+    value: 3.5
+    unit: '%'
+
 - id: parameter_district_heating_price
   name: Kaukolämmön hinta
   name_en: District heating price
