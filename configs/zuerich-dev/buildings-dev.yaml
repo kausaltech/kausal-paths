@@ -532,6 +532,28 @@ nodes:
       flatten: true
     to_dimensions: []
 
+- id: building_renewable_district_heat_concessionary_consumption
+  name_de: Renewable component of district heat concessionary energy consumption
+  name_en: Renewable component of district heat concessionary energy consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  unit: GWh/a
+  input_nodes:
+  - id: district_heat_concessionary_production_mix
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [environmental_heat]
+  - id: building_heat_consumption_by_carrier
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [district_heat_concessionary]
+      flatten: true
+    to_dimensions: []
+
 - id: building_renewable_nonelectric_energy_consumption
   name_de: Building total renewable non-electric energy consumption
   name_en: Building total renewable non-electric energy consumption
@@ -552,6 +574,7 @@ nodes:
     - id: building_other_emission_sources
       flatten: true
   - id: building_renewable_district_heat_consumption
+  - id: building_renewable_district_heat_concessionary_consumption
 
 - id: building_energy_consumption_non_grid_emission_factor
   name_de: Treibhausgasfaktoren Endenergie Wirtschaft und Haushalte (non-grid)
