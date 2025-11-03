@@ -378,6 +378,7 @@ def add_unit_translations():  # noqa: C901
     unit_definitions: list[UnitDefinition] = [
         {'unit': 'capita', 'long': _('capita'), 'short': pgettext_lazy('capita short', 'cap')},
         {'unit': 'kt', 'long': kt_str, 'short': kt_str},
+        {'unit': 'centiEUR', 'long': _('euro cents'), 'short': 'snt'},
         {'unit': 'EUR', 'long': _('euros'), 'short': '€'},
         {'unit': 'kiloEUR', 'long': _('thousand euros'), 'short': 'k€'},
         {'unit': 'megaEUR', 'long': _('million euros'), 'short': 'M€'},
