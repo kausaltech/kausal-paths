@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, override
 
+from django.contrib.contenttypes.models import ContentType
+from django.db.models import ObjectDoesNotExist
 from rest_framework import exceptions, serializers
 from rest_framework.routers import DefaultRouter, SimpleRouter
 
@@ -28,7 +30,10 @@ from kausal_common.datasets.models import (
     DatasetMetric,
     DatasetSchema,
     DatasetSourceReference,
+    DataSource,
 )
+
+from nodes.models import InstanceConfig
 
 if TYPE_CHECKING:
     from rest_framework.views import APIView
@@ -186,8 +191,37 @@ class DatasetCommentsViewSet(BaseDatasetCommentsViewSet):
         return[DatasetCommentPermission()]
 
 
+class DataSourcePermission(PermissionPolicyDRFPermission[DataSource, InstanceConfig]):
+    class Meta:
+        model = DataSource
+
+    def get_create_context_from_api_view(self, view: APIView) -> InstanceConfig:
+        content_type_app = view.request.data.get('content_type_app', None)
+        content_type_model = view.request.data.get('content_type_model', None)
+        object_id = view.request.data.get('object_id', None)
+
+        try:
+            content_type = ContentType.objects.get(
+                app_label=content_type_app,
+                model=content_type_model
+            )
+        except ContentType.DoesNotExist as e :
+            raise serializers.ValidationError('Scope object not found') from e
+        model = content_type.model_class()
+        assert isinstance(model, type(InstanceConfig))
+        if model is None:
+            raise serializers.ValidationError('Scope object not found')
+        try:
+            instance_config = model.objects.get(pk=object_id)
+        except ObjectDoesNotExist as e:
+            raise serializers.ValidationError('Scope object not found') from e
+        return instance_config
+
+
 class DataSourceViewSet(BaseDataSourceViewSet):
-    pass
+    @override
+    def get_permissions(self):
+        return [DataSourcePermission()]
 
 
 class DimensionCategoryViewSet(BaseDimensionCategoryViewSet):
