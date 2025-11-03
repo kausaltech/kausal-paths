@@ -1444,6 +1444,17 @@ actions:
         amount: -181.73
       - year: 2031
         amount: 0
+    - target:
+        categories:
+          energy_carrier: biogas_import
+          emission_scope: scope3
+      amounts:
+      - year: 2029
+        amount: 0
+      - year: 2030
+        amount: 76.53
+      - year: 2031
+        amount: 0
 
 - id: buses_use_synthetic_diesel
   name_en: Buses use synthetic diesel
