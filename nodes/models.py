@@ -38,6 +38,8 @@ from wagtail_color_panel.fields import ColorField
 
 from kausal_common.datasets.models import (
     Dataset as DatasetModel,
+    DatasetSchema,
+    DatasetSchemaScope,
     Dimension as DatasetDimensionModel,
     DimensionCategory,
     DimensionScope,
@@ -185,12 +187,28 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any
         is_reviewer = self.reviewer_role.role_q(user)
         is_fw_admin = self.fw_admin_role.role_q(user, prefix='framework_config__framework')
         is_fw_viewer = self.fw_viewer_role.role_q(user, prefix='framework_config__framework')
+
+        q = is_super_admin | is_admin | is_fw_admin
         if action == 'view':
             q = is_viewer | is_reviewer | is_super_admin | is_admin | is_fw_admin | is_fw_viewer
             if include_implicit_public:
                 q |= Q(framework_config__isnull=True)
+
+        schema_q = DatasetSchema.accessible_by_user_q(user)
+        if schema_q is None or bool(schema_q) is False:
+            # schema_q can be false for superusers, but we do not want
+            # to handle that case here since superusers are already
+            # taken into account elsewhere.
+            #
+            # schema_q is None if there are no dataset schemas the user can access
             return q
-        return is_super_admin | is_admin | is_fw_admin
+
+        schemas = DatasetSchema.objects.filter(schema_q).values_list('pk', flat=True)
+        ic_content_type_id = ContentType.objects.get_for_model(InstanceConfig).pk
+        instance_configs_accessible_through_datasets = DatasetSchemaScope.objects.qs.filter(
+            scope_content_type_id=ic_content_type_id
+        ).filter(schema_id__in=schemas).values_list('scope_id', flat=True)
+        return q | Q(pk__in=instance_configs_accessible_through_datasets)
 
     def construct_perm_q_anon(self, action: BaseObjectAction) -> Q | None:
         if action == 'view':

@@ -8,25 +8,28 @@ from django.contrib.contenttypes.models import ContentType
 import pytest
 
 from kausal_common.datasets.models import (
-    DataPoint,
-    DataPointComment,
-    Dataset,
-    DatasetMetric,
-    DatasetSchema,
-    DatasetSchemaDimension,
-    DatasetSchemaScope,
-    DatasetSourceReference,
-    DataSource,
-    Dimension,
-    DimensionCategory,
-    DimensionScope,
+  DataPoint,
+  DataPointComment,
+  Dataset,
+  DatasetMetric,
+  DatasetSchema,
+  DatasetSchemaDimension,
+  DatasetSchemaScope,
+  DatasetSourceReference,
+  DataSource,
+  Dimension,
+  DimensionCategory,
+  DimensionScope,
 )
+from kausal_common.people.models import ObjectRole
 
 from paths.context import RealmContext, realm_context
 
 from nodes.models import InstanceConfig
 from nodes.roles import instance_admin_role, instance_reviewer_role, instance_super_admin_role, instance_viewer_role
 from nodes.tests.factories import InstanceConfigFactory
+from people.models import DatasetSchemaGroupPermission, DatasetSchemaPersonPermission, PersonGroup
+from people.tests.factories import PersonFactory
 from users.models import User
 
 
@@ -226,6 +229,48 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         data_source=data_source2,
     )
 
+    # Create users and corresponding roles on schema1
+    schema1_permission_users = {}
+    for username, role in (
+        ('schema1_viewer', ObjectRole.VIEWER),
+        ('schema1_editor', ObjectRole.EDITOR),
+        ('schema1_admin', ObjectRole.ADMIN),
+    ):
+        person = PersonFactory(email=f'{username}@example.com')
+        user = person.user
+        instance_viewer_role.assign_user(instance1, user)
+
+        DatasetSchemaPersonPermission.objects.create(
+            object=schema1,
+            person=user.person,
+            role=role,
+        )
+        schema1_permission_users[username] = user
+
+    # Create user groups and corresponding roles and users on schema1
+    schema1_permission_group_users = {}
+    for group_name, role in (
+        ('schema1_viewer_group', ObjectRole.VIEWER),
+        ('schema1_editor_group', ObjectRole.EDITOR),
+        ('schema1_admin_group', ObjectRole.ADMIN),
+    ):
+        group = PersonGroup.objects.create(
+            instance=instance1,
+            name=group_name,
+        )
+        username = f'{group_name}_user'
+        person = PersonFactory(email=f'{username}@example.com')
+        user = person.user
+        group.persons.add(person)
+        instance_viewer_role.assign_user(instance1, user)
+        DatasetSchemaGroupPermission.objects.create(
+            object=schema1,
+            group=group,
+            role=role,
+        )
+        schema1_permission_group_users[username] = user
+
+
     result = {
         'instance1': instance1,
         'instance2': instance2,
@@ -255,6 +300,8 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         'source_ref_on_datapoint': source_ref_on_datapoint,
         'source_ref_on_datapoint2': source_ref_on_datapoint2,
         'source_ref2': source_ref2,
+        **schema1_permission_users,
+        **schema1_permission_group_users,
     }
     yield result
     with django_db_blocker.unblock():

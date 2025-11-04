@@ -131,8 +131,8 @@ class PersonForm(PathsAdminModelForm[Person]):
         if is_superuser:
             disable_role_options = True
             disable_reason = _(
-                'The person is a superuser in the system. '
-                'No individual permissions within an instance are required '
+                'The person is a superuser in the system. ' +
+                'No individual permissions within an instance are required ' +
                 'since the person can access all data within all instances.'
             )
         else:

@@ -13,6 +13,7 @@ from kausal_common.datasets.models import (
     DatasetMetric,
     DatasetQuerySet,
     DatasetSchema,
+    DatasetSchemaQuerySet,
     DatasetSourceReference,
     DataSource,
 )
@@ -24,6 +25,7 @@ from kausal_common.models.permission_policy import (
 )
 from kausal_common.models.permissions import PermissionedQuerySet
 from kausal_common.models.roles import role_registry
+from kausal_common.people.models import ObjectRole
 
 from paths.context import realm_context
 
@@ -31,6 +33,7 @@ from nodes.models import InstanceConfig
 from nodes.roles import (
     InstanceGroupMembershipRole,
 )
+from people.models import DatasetSchemaGroupPermission, DatasetSchemaPersonPermission, PersonGroupMember
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -48,7 +51,7 @@ if TYPE_CHECKING:
 
 _M = TypeVar('_M', bound='PermissionedModel')
 _CCTX = TypeVar('_CCTX', bound='Model | None')  # create context
-_QS = TypeVar('_QS', bound=QuerySet, default=QuerySet[_M])
+_QS = TypeVar('_QS', bound=QuerySet[Any], default=QuerySet[_M])
 
 
 class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, _CCTX, _QS], metaclass=ABCMeta):
@@ -85,7 +88,7 @@ class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, _CCTX, _QS]
         """Get IDs of all InstanceConfigs this obj is scoped for."""
 
     @override
-    def user_has_perm(self, user: User, action: BaseObjectAction, obj: _M) -> bool:
+    def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: _M) -> bool:
         if user.is_superuser:
             return True
         try:
@@ -141,7 +144,7 @@ class InstanceConfigScopedPermissionPolicy(ModelPermissionPolicy[_M, _CCTX, _QS]
 
 
 @final
-class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[DatasetSchema, None]):
+class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[DatasetSchema, None, DatasetSchemaQuerySet]):
     """Permission policy for DatasetSchema, based on its scope (InstanceConfig)."""
 
     def __init__(self):
@@ -174,17 +177,67 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
         reviewer_q = make_q('instance-reviewer')
         viewer_q = make_q('instance-viewer')
 
+        q = super_admin_q | admin_q
+
         if action == 'view':
-            return super_admin_q | admin_q | viewer_q | reviewer_q
-        return super_admin_q | admin_q
+            viewer_q = Q(
+                scopes__scope_content_type=ic_content_type,
+                scopes__scope_id__in=self.get_role('instance-viewer').get_instances_for_user(user)
+            )
+            reviewer_q = Q(
+                scopes__scope_content_type=ic_content_type,
+                scopes__scope_id__in=self.get_role('instance-reviewer').get_instances_for_user(user)
+            )
+            q |= viewer_q | reviewer_q
+
+        if getattr(user, 'person', None) is None:
+            return q
+
+        privileged_roles = ObjectRole.get_roles_for_action(action)
+        if not privileged_roles:
+            return q
+
+        group_ids = PersonGroupMember.objects.filter(person=user.person).values_list('group_id', flat=True)
+        group_object_ids = DatasetSchemaGroupPermission.objects.filter(
+            group_id__in=group_ids,
+            role__in=privileged_roles
+        ).values_list('object_id', flat=True)
+        individual_object_ids = DatasetSchemaPersonPermission.objects.filter(
+            person=user.person,
+            role__in=privileged_roles
+        ).values_list('object_id', flat=True)
+        q |= Q(pk__in=group_object_ids) | Q(pk__in=individual_object_ids)
+        return q
 
     @override
     def user_can_create(self, user: User, context: None) -> bool:
         return super().user_can_create(user, context)
 
+    @override
+    def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: DatasetSchema) -> bool:
+        if hasattr(user, 'person'):
+            # Check dataset schema's person / group permissions first
+            privileged_roles = ObjectRole.get_roles_for_action(action)
+            if obj.person_permissions.filter(person=user.person, role__in=privileged_roles).exists():
+                return True
+
+            if obj.group_permissions.filter(group__persons=user.person, role__in=privileged_roles).exists():
+                return True
+
+        return super().user_has_perm(user, action, obj)
+
     def user_has_permission(self, user: User | AnonymousUser, action: str) -> bool:
         if not self.user_is_authenticated(user):
             return False
+
+        if hasattr(user, 'person'):
+            # Check dataset schema's person / group permissions first
+            privileged_roles = ObjectRole.get_roles_for_action(action)
+            if DatasetSchemaPersonPermission.objects.filter(person=user.person, role__in=privileged_roles).exists():
+                return True
+
+            if DatasetSchemaGroupPermission.objects.filter(group__persons=user.person, role__in=privileged_roles).exists():
+                return True
 
         allowed_roles: list[InstanceSpecificRole[InstanceConfig]] = [
             self.get_role('instance-admin'),

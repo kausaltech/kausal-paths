@@ -4,30 +4,36 @@ import contextlib
 import uuid
 from typing import TYPE_CHECKING, ClassVar, override
 
+from django.db import models
 from django.db.models import Q
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
+from modelcluster.fields import ParentalKey
+from modelcluster.models import ClusterableModel
 from modeltrans.manager import MultilingualQuerySet
 from wagtail.search import index
 
-# from easy_thumbnails.files import get_thumbnailer
 from loguru import logger
+
+from kausal_common.datasets.models import DatasetSchema
 
 # from wagtail.images.rect import Rect
 from kausal_common.models.permissions import PermissionedModel
-from kausal_common.models.types import MLModelManager
-from kausal_common.people.models import BasePerson
+from kausal_common.models.types import FK, M2M, MLModelManager, ModelManager
+from kausal_common.people.models import BasePerson, create_permission_membership_models
+
+from paths.types import PathsModel, PathsQuerySet
 
 from orgs.models import Organization
 from users.models import User
 
 if TYPE_CHECKING:
-    from django.db import models
     from django.http import HttpRequest
 
     from kausal_common.models.permission_policy import ModelPermissionPolicy
 
     from nodes.models import InstanceConfig
+    from people.permissions import PersonGroupPermissionPolicy
 
 
 class PersonQuerySet(MultilingualQuerySet['Person']):
@@ -57,6 +63,7 @@ class Person(PermissionedModel, BasePerson):
         index.SearchField('last_name'),
         index.SearchField('email'),
         index.SearchField('title'),
+        index.FilterField('path'),
     ]
     class Meta:
         verbose_name = _('Person')
@@ -157,3 +164,66 @@ class Person(PermissionedModel, BasePerson):
     def permission_policy(cls) -> ModelPermissionPolicy:
         from .permission_policy import PersonPermissionPolicy
         return PersonPermissionPolicy()
+
+
+class PersonGroupQuerySet(PathsQuerySet['PersonGroup']):
+    pass
+
+
+_PersonGroupManager = models.Manager.from_queryset(PersonGroupQuerySet)
+class PersonGroupManager(ModelManager['PersonGroup', PersonGroupQuerySet], _PersonGroupManager):
+    """Model manager for PersonGroup."""
+del _PersonGroupManager
+
+
+class PersonGroup(PathsModel, ClusterableModel):
+    """
+    Group of persons for various purposes such as assigning permissions on certain models or model instances.
+
+    In contrast to Django groups, names don't have to be globally unique.
+    """
+
+    instance: FK[InstanceConfig] = models.ForeignKey(
+        'nodes.InstanceConfig', on_delete=models.CASCADE, related_name='person_groups'
+    )
+    name = models.CharField(max_length=200)
+    persons: M2M[Person, PersonGroupMember] = models.ManyToManyField(
+        Person,
+        through='PersonGroupMember',
+        related_name='person_groups',
+    )
+
+    objects = PersonGroupManager()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['instance', 'name'],
+                name='unique_person_group_name_per_instance',
+            ),
+        ]
+
+    @classmethod
+    def permission_policy(cls) -> PersonGroupPermissionPolicy:
+        from .permissions import PersonGroupPermissionPolicy
+        return PersonGroupPermissionPolicy()
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class PersonGroupMember(models.Model):
+    group = ParentalKey(PersonGroup, on_delete=models.CASCADE, related_name='persons_edges')
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='groups_edges')
+
+    class Meta:
+        verbose_name = _('Group member')
+        verbose_name_plural = _('Group members')
+
+    def __str__(self) -> str:
+        return f'{self.person} ∈ {self.group}'
+
+
+# Create permission membership models here, in the `people` app, since they will be part of this app. If you call
+# `create_permission_membership_models` in a different app, `shell_plus` will get confused.
+DatasetSchemaGroupPermission, DatasetSchemaPersonPermission = create_permission_membership_models(DatasetSchema)
