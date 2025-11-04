@@ -92,10 +92,7 @@ def create_metric_col(df: pl.DataFrame, metric_col: str) -> pl.DataFrame:
         print(unique_metrics.filter(pl.col(metric_col).is_duplicated()).sort(pl.col(metric_col)))
         raise ValueError(f"Column {metric_col} has {len_m_names} names but there are {len_ms} unique metrics.")
 
-    # Convert metric_col to snake_case
-    df = df.with_columns([
-        pl.col('Metric').map_elements(to_snake_case, return_dtype=pl.Utf8).alias('metric_col')
-    ])
+    df = df.with_columns(pl.col('Metric').alias('metric_col'))
 
     return df
 
@@ -221,7 +218,7 @@ def extract_metrics(df: pl.DataFrame, language: str) -> list[MetricData]:
 
         if metric_name and quantity:
             metrics.append(MetricData(
-                id = to_snake_case(metric_id),
+                id = 'default' if metric_id == VALUE_COLUMN else to_snake_case(metric_id),
                 quantity = to_snake_case(quantity),
                 label = {language: metric_name}
             ))
@@ -373,6 +370,7 @@ def prepare_for_dvc(df: pl.DataFrame, units: dict[str, str]) -> pl.DataFrame:
 
 def convert_names_to_cats(df: pl.DataFrame, units: dict[str, str], context: Context) -> pl.DataFrame:
     cols = [col for col in df.columns if col not in [*units.keys(), YEAR_COLUMN]]
+    print(f"Converting names to categories for columns: {cols}")
     for col in cols:
         col_low = col.lower()
         if col_low in context.dimensions:
