@@ -1751,30 +1751,6 @@ actions:
     tags: [arithmetic_inverse, complement]
     to_dimensions: []
 
-# Transport
-
-- id: biofuel_fraction_demand
-  name_fi: Jakeluvelvoite
-  name_en: Distribution obligation
-  name_sv: Distributionsskyldighet
-  type: simple.GenericAction
-  quantity: fraction
-  unit: '%'
-  decision_level: nation
-  group: transportation
-  input_datasets:
-  - id: espoo/transport
-    forecast_from: 2025
-    tags: [baseline]
-    column: jakeluvelvoite
-    filters:
-    - column: scenario
-      ref: scenario_name
-  output_nodes:
-  - id: road_traffic_emission_factors
-    tags: [non_additive, complement]
-    to_dimensions: []
-
 # OLD ACTIONS
 # ELECTRICITY
 #
@@ -2301,53 +2277,6 @@ actions:
     to_dimensions:
     - id: emission_sector
 
-#
-# Road traffic
-#
-
-- id: improve_personal_traffic_efficiency
-  name_fi: Liikennejärjestelmän tehostaminen
-  name_en: Improving the efficiency of the transport system
-  name_sv: Effektivisering av trafiksystemet
-  description_fi: Liikennejärjestelmän tehostamisen arvioidaan vähentävän 
-    tieliikenteen päästöjä 2.8 %.
-  type: simple.GenericAction
-  quantity: fraction
-  unit: '%'
-  group: transportation
-  output_nodes:
-  - id: road_traffic_mileage
-    tags: [extend_to_history, complement]
-    to_dimensions: []
-  - id: rail_transport_energy
-    tags: [extend_to_history, complement]
-    to_dimensions: []
-  input_datasets:
-  - id: espoo/liikenteen_toimenpiteet
-    tags: [baseline]
-    column: liikennejarjestelman_tehostaminen
-    forecast_from: 2026
-
-- id: increase_remote_work
-  name_fi: Etätyön lisääminen
-  name_en: Increasing remote work
-  name_sv: Ökat distansarbete
-  description_fi: Etätyön lisäämisen arvioidaan vähentävän tieliikenteen 
-    päästöjä 0.9 %.
-  type: simple.GenericAction
-  quantity: fraction
-  unit: '%'
-  group: transportation
-  output_nodes:
-  - id: road_traffic_mileage
-    tags: [extend_to_history, complement]
-    to_dimensions: []
-  input_datasets:
-  - id: espoo/liikenteen_toimenpiteet
-    tags: [baseline]
-    column: etatyon_lisaaminen
-    forecast_from: 2026
-
 scenarios:
 
 - id: baseline
@@ -2359,12 +2288,6 @@ scenarios:
   - id: scenario_name
     value: suomi2035
   - id: cleaner_electricity_production.enabled
-    value: true
-  - id: improve_personal_traffic_efficiency.enabled
-    value: true
-  - id: increase_remote_work.enabled
-    value: false
-  - id: biofuel_fraction_demand.enabled
     value: true
   - id: replace_fossil_fuels_in_district_heating.enabled
     value: true
@@ -2391,10 +2314,6 @@ scenarios:
   params:
   - id: scenario_name
     value: hne2030
-  - id: improve_personal_traffic_efficiency.enabled
-    value: true
-  - id: increase_remote_work.enabled
-    value: true
   - id: replace_fossil_fuels_in_district_heating.enabled
     value: true
   - id: change_non_heating_electricity.enabled
@@ -2403,8 +2322,6 @@ scenarios:
     value: true
   - id: increase_solar_electricity_production.enabled
     value: false
-  - id: biofuel_fraction_demand.enabled
-    value: true
 
 #######################
 # DATA SOURCES
