@@ -1,0 +1,180 @@
+nodes:
+
+- id: passenger_transport_historical
+  name_en: Passenger transport data
+  name_fi: Henkilöliikennesuoritteen data
+  type: gpc.DatasetNode
+  quantity: mileage
+  unit: Mpkm/a
+  input_datasets:
+  - id: nzc/defaults
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  params:
+    sector: Transport need
+
+# A separate node is needed so that the observations get implemened correctly.
+- id: passenger_transport_data_scaled
+  name_en: Passenger transport data skaled
+  name_fi: Henkilöliikennesuoritteen data skaalattuna
+  type: simple.MultiplicativeNode
+  quantity: mileage
+  unit: Mpkm/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: population
+    tags: [ratio_to_last_historical_value, non_additive]
+    to_dimensions: []
+  - id: passenger_transport_historical
+    tags: [non_additive]
+
+- id: passenger_transport_reduced
+  name_en: Passenger transport reduced
+  name_fi: Vähennetyt henkilökilometrit
+  type: simple.MultiplicativeNode
+  quantity: mileage
+  unit: Mpkm/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: passenger_transport_data_scaled
+    tags: [non_additive]
+  - id: motorised_transport_change
+    tags: [arithmetic_inverse]
+
+- id: passenger_transport_after_reducing
+  name_en: Passenger transport after reducing
+  name_fi: Henkilökilometrit vähentämisen jälkeen
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: Mpkm/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: passenger_transport_data_scaled
+  - id: passenger_transport_reduced
+
+- id: relative_transport_mode_switches
+  name_en: Relative transport mode switches
+  name_fi: Suhteelliset liikennemuotosiirtymät
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Share of car + motorcycle km reduced shifted towards other modes
+
+- id: passenger_transport_switched
+  name_en: Passenger transport switched
+  name_fi: Siirretyt henkilökilometrit
+  type: simple.MultiplicativeNode
+  quantity: mileage
+  unit: Mpkm/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: passenger_transport_after_reducing
+    tags: [non_additive]
+    from_dimensions:
+    - id: transport_mode
+      categories: [cars]
+      flatten: true
+    to_dimensions: []
+  - id: relative_transport_mode_switches
+    to_dimensions:
+    - id: transport_mode
+
+- id: passenger_transport_modeled
+  name_en: Passenger transport modeled
+  name_fi: Henkilökilometrit mallinnettu
+  type: gpc.DatasetNode
+  quantity: mileage
+  unit: Mpkm/a
+  input_datasets:
+  - id: nzc/defaults
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: passenger_transport_reduced
+  - id: passenger_transport_switched
+  params:
+    sector: Transport need
+
+- id: passenger_transport
+  name_en: Passenger transport, observed
+  name_fi: Henkilökilometrit, havaitut
+  type: gpc.DatasetNode
+  quantity: mileage
+  unit: Mpkm/a
+  input_datasets:
+  - id: nzc/defaults
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: passenger_transport_modeled
+    tags: [forecast_only]
+  params:
+    sector: Transport need
+    inventory_only: true
+
+- id: motorised_transport_index
+  name_en: Motorised transport index
+  name_fi: Moottoroidun liikenteen indeksi
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: motorised transport index
+
+- id: motorised_transport_change
+  name_en: Motorised transport change
+  name_fi: Moottoroidun liikenteen muutos
+  description_en: Positive values are reductions in motorised transport.
+  description_fi: Positiiviset arvot ovat vähennyksiä moottoroidussa liikenteessä.
+  type: simple.MultiplicativeNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: motorised_transport_index
+    tags: [non_additive]
+    to_dimensions:
+    - id: transport_mode
+
+actions:
+
+- id: a11_reduce_all_motorised_transport
+  name: 1.1 Reduce all motorised transport
+  type: gpc.DatasetAction2  # TODO Allow historical values in LinearCumulativeAdditiveAction.
+  quantity: fraction
+  unit: '%'
+  group: transport
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Transportation need reduction by 2030 from urban planning, digital meetings
+      and other transport-reducing initiatives
+  output_nodes:
+  - id: motorised_transport_change
+    to_dimensions: []
+    tags: [non_additive, extend_values]
+
+- id: a12_modal_switch_from_cars_to_other_modes
+  name: 1.2 Modal switch from cars to other modes
+  type: gpc.DatasetAction2
+  quantity: fraction
+  unit: '%'
+  group: transport
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Reduced Pkm cars + motorcycles by 2030
+  output_nodes:
+  - id: passenger_transport_switched
+    to_dimensions: []
+

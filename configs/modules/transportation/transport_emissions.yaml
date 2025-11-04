@@ -1,0 +1,266 @@
+dimensions:
+
+- id: transport_pollutant
+  label: Transport pollutant
+  categories:
+  - id: co2
+    label: CO2
+  - id: nox
+    label: NOx
+  - id: pm25
+    label: PM2.5
+  - id: pm10
+    label: PM10
+
+nodes:
+
+# ---------------- Placeholder nodes ---------------
+
+- id: vehicle_transport
+  name_en: Vehicle transport placeholder
+  name_fi: Ajoneuvosuorite, esimerkki
+  type: generic.GenericNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets:
+  - id: sunnydale/defaults/vehicle_transport
+    tags: [baseline]
+    forecast_from: 2025
+
+# ---------------- Transport emissions ---------------
+
+- id: transport_emissions
+  name_en: Transport emissions
+  name_fi: Liikenteen päästöt
+  type: simple.EmissionFactorActivity
+  quantity: emissions
+  unit: kt/a
+  color: '#E15759'
+  input_dimensions: [transport_mode, ghg, scope, energy_carrier]
+  output_dimensions: [transport_mode, ghg, scope, energy_carrier]
+  input_nodes:
+  - id: vehicle_transport
+    to_dimensions:
+    - id: ghg
+      categories: [co2e]
+    - id: scope
+      categories: [scope1]
+    - id: transport_mode
+    - id: energy_carrier
+  - id: transport_emission_factor
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+    - id: ghg
+      categories: [co2e]
+    - id: scope
+      categories: [scope1]
+    - id: energy_carrier
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity]
+      exclude: true
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [transport]
+    - id: ghg
+    - id: scope
+
+- id: baseline_year_fleet_emission_factor_pre # TODO include trucks in name. Update description.
+  name_en: Baseline year car and bus fleet emission factor before splitting
+  name_fi: Perusvuoden henkilöautojen ja bussien päästökerroin ennen jakamista
+  description_en: 'Emission factor is a weighted average of existing and
+    new car and bus fleet, where 0.5 * X % is renewed annually (X = share of fleet that is less than 2 years old). Cars are calculated by<br>=L174*(1-M$172)+M164*M$172<br>while buses are calculated by
+    =IF(($L242*(1-SUM($L$241:N$241))+N233*SUM($L$241:N$241))>M242,M242,($L242*(1-SUM($L$241:N$241))+N233*SUM($L$241:N$241)))<br>
+    There are a few key differences: 1) the existing fleet in the formula is that of year 2018, while with cars it is the previous year; 2) the percentage change is the total from 2018, while with cars it is from the previous year; 3) bus emission factor cannot increase, which would happen if the baseline emission factor (given by the user) would be larger than the new bus emission factor. There differences 1 & 2 are coherent, but it also results in a situation where the cohorts between 2019 and the previous year (inclusive) suddenly disappear and are replaced by current year fleet. However, this is not a problem because new bus fleet does not improve and the emission factors are the same for evary year. Difference 3 is handled (TO BE DISCUSSED!) by replacing the new emission factor with the baseline year value if it is smaller, so that at the actual calculation there is no need to consideer this any more.</p>'
+  description_fi: 'Päästökerroin on painotettu keskiarvo nykyisestä ja uudesta henkilöauto- ja bussikannasta, josta 0,5 * X % uusiutuu vuosittain (X = alle 2 vuotta vanhan kaluston osuus). Henkilöautot lasketaan kaavalla<br>=L174*(1-M$172)+M164*M$172<br>kun taas bussit lasketaan kaavalla
+    =IF(($L242*(1-SUM($L$241:N$241))+N233*SUM($L$241:N$241))>M242,M242,($L242*(1-SUM($L$241:N$241))+N233*SUM($L$241:N$241)))<br>
+    Näissä on muutamia keskeisiä eroja: 1) kaavassa oleva nykyinen kalusto on vuoden 2018, kun taas henkilöautoilla se on edellisen vuoden; 2) prosentuaalinen muutos on kokonaismuutos vuodesta 2018, kun taas henkilöautoilla se on edellisestä vuodesta; 3) bussien päästökerroin ei voi kasvaa, mikä tapahtuisi, jos käyttäjän antama perusvuoden päästökerroin olisi suurempi kuin uuden bussin päästökerroin. Erot 1 & 2 ovat yhdenmukaisia, mutta se johtaa myös tilanteeseen, jossa vuosien 2019 ja edellisen vuoden (mukaan lukien) kohortit yhtäkkiä katoavat ja ne korvataan nykyisen vuoden kalustolla. Tämä ei kuitenkaan ole ongelma, koska uusi bussikalusto ei parane ja päästökertoimet ovat samat joka vuosi. Ero 3 käsitellään (KESKUSTELTAVA!) korvaamalla uusi päästökerroin perusvuoden arvolla, jos se on pienempi, joten varsinaisessa laskennassa tätä ei tarvitse enää huomioida.</p>'
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_dimensions: [transport_pollutant, transport_mode]
+  output_dimensions: [transport_pollutant, transport_mode]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Transport Emission factors
+
+- id: new_fleet_emission_factor_pre
+  name_en: New fleet emission factor before splitting
+  name_fi: Uuden kaluston päästökerroin ennen jakamista
+  description_en: '<p>Emission factors for new cars following the EURO 6 standard. (EU: Cars and Light Trucks.
+    https://www.dieselnet.com/standards/eu/ld.php)<br>
+    This node is needed in vehicle fleet upgrade. The idea is that there are several cohorts i of vehicles, each faving its own emission factor. The first cohort comes from node baseline_year_fleet_emission_factor and it contains all cars that were in the fleet in the baseline. Each year after that, a new cohort of cars enter the fleet, each having the emission factor that was for that year in node new_fleet_emission_factor. Each cohort has a proportion of P<sub>i</sub> among the fleet. The average emission factor is therefore<br>
+    E<sub>t</sub> = sum<sub>i</sub>(E<sub>i,t</sub> * P<sub>i,t</sub>) <br>where i is class and t is timepoint. This is complicated by gradual removal of vehicle classes from the fleet such that<br>
+    N<sub>i,t</sub> = N<sub>i,t0</sub> * product(s<sub>i,0</sub>, ..., s<sub>i,t</sub>), <br>where s<sub>i,t</sub> are the survival rates, N<sub>i,t</sub> is the number of cars in a cohort at timepoint t, t0 is the timepoint of entry for that cohort, and proportion P<sub>i,t</sub> = N<sub>i,t</sub>/sum<sub>i</sub>(N<sub>i,t</sub>).
+    It must be noted that for each timepoint, there are the existing cohorts and a new cohort that enters in that year.</p>
+    <p>In this use case, it is important to separate these cohorts because the emission factor is decreasing in time.
+    The computation logic is that after a vehicle has entered the fleet, it has the same survival probability as all other
+    cars in the fleet. (Not realistic but that is how NZC excel works)</p>
+    Finally, we assume that E is constant for each vehicle as long as it is in the fleet.
+    This is handled by looking at each E<sub>i,t</sub> cohort until the last time point.'
+  description_fi: '<p>Uusien autojen päästökertoimet noudattavat EURO 6 -standardia. (EU: Henkilöautot ja kevyet kuorma-autot.
+    https://www.dieselnet.com/standards/eu/ld.php)<br>
+    Tämä solmu tarvitaan ajoneuvokannan päivityksessä. Ajatuksena on, että on useita ajoneuvoluokkia i, joilla kullakin on oma päästökertoimensa. Ensimmäinen luokka tulee solmusta baseline_year_fleet_emission_factor, ja se sisältää kaikki perusvuoden kannassa olleet autot. Joka vuosi sen jälkeen kantaan tulee uusi autoluokka, jolla kullakin on solmun new_fleet_emission_factor kyseisen vuoden päästökerroin. Kullakin luokalla on osuus P<sub>i</sub> kannasta. Keskimääräinen päästökerroin on siten<br>
+    E<sub>t</sub> = sum<sub>i</sub>(E<sub>i,t</sub> * P<sub>i,t</sub>) <br>missä i on luokka ja t on ajankohta. Tätä mutkistaa ajoneuvojen asteittainen poistuminen kannasta siten, että<br>
+    N<sub>i,t</sub> = N<sub>i,t0</sub> * product(s<sub>i,0</sub>, ..., s<sub>i,t</sub>), <br>missä s<sub>i,t</sub> ovat selviytymisasteet, N<sub>i,t</sub> on luokan autojen määrä ajankohtana t, t0 on luokan tuloajankohta ja osuus P<sub>i,t</sub> = N<sub>i,t</sub>/sum<sub>i</sub>(N<sub>i,t</sub>).
+    On huomattava, että jokaisena ajankohtana on olemassa olevat luokat ja uusi luokka, joka tulee kyseisenä vuonna.</p>
+    <p>Tässä käyttötapauksessa ontärkeää erottaa nämä luokat toisistaan, koska päästökerroin pienenee ajan myötä.
+    Laskennan logiikka on, että kun ajoneuvo on tullut kantaan, sillä on sama selviytymistodennäköisyys kuin kaikilla muilla
+    autoilla kannassa. (Ei realistista, mutta näin NZC-excel toimii)</p>
+    Lopuksi oletamme, että E on vakio kullekin ajoneuvolle niin kauan kuin se on kannassa.
+    Tämä käsitellään tarkastelemalla kutakin E<sub>i,t</sub>-luokkaa viimeiseen ajankohtaan asti.'
+  type: gpc.DatasetNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_dimensions: [transport_pollutant, transport_mode]
+  output_dimensions: [transport_pollutant, transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: new fleet emission factor
+    crop_to_model_range: true
+
+- id: transport_pollutant_split
+  name_en: Transport pollutant split
+  name_fi: Liikenteen päästöjen jakautuminen
+  description_en: Particulate pollutants (PM2.5 and PM10) are entered as totals by the user. However, calculations are based on a split between combustion pollutants (from tailpipe) and wear & tear (dust from breaks and tyres). This node has the fractions of these subcategories. Note! The NZC excel treats combustion and non-combustion fractions differently. Non-combustion value is taken from the user multiplied by its split fraction and assumed to stay constant across time. Combustion value for new cars comes from an EU report and is assumed to improve over time. The difference is substantial, as the default for current PM10 is 30 mg/vkm, while the new fleet assumes 8 mg/vkm. Here, we use the lower value, which is consistent with the calculation logic.
+  description_fi: Käyttäjä syöttää hiukkaspäästöt (PM2.5 ja PM10) kokonaismäärinä. Laskelmat perustuvat kuitenkin jakoon palamispäästöjen (pakoputkesta) ja kulumisen (jarruista ja renkaista irtoava pöly) välillä. Tämä solmu sisältää näiden alakategorioiden osuudet. Huomaa! NZC-excel käsittelee palamisperäisiä ja ei-palamisperäisiä osuuksia eri tavoin. Ei-palamisperäinen arvo otetaan käyttäjältä kerrottuna sen jakauman osuudella ja sen oletetaan pysyvän vakiona ajan myötä. Palamisperäinen arvo uusille autoille tulee EU:n raportista, ja sen oletetaan paranevan ajan myötä. Ero on merkittävä, sillä nykyisen PM10:n oletusarvo on 30 mg/vkm, kun taas uuden kaluston oletetaan olevan 8 mg/vkm. Tässä käytämme alempaa arvoa, mikä on yhdenmukaista laskennan logiikan kanssa.
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [pollutant, transport_pollutant, energy_carrier]
+  output_dimensions: [pollutant, transport_pollutant, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: transport pollutant split
+
+- id: baseline_year_fleet_emission_factor
+  name_en: Baseline year fleet emission factor
+  name_fi: Perusvuoden kaluston päästökerroin
+  type: simple.MultiplicativeNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_dimensions: [pollutant, transport_pollutant, transport_mode, energy_carrier]
+  output_dimensions: [pollutant, transport_pollutant, transport_mode, energy_carrier]
+  input_nodes:
+  - id: baseline_year_fleet_emission_factor_pre
+    tags: [non_additive]
+    to_dimensions:
+    - id: transport_pollutant
+    - id: transport_mode
+  - id: transport_pollutant_split
+    to_dimensions:
+    - id: pollutant
+    - id: transport_pollutant
+    - id: energy_carrier
+
+- id: new_fleet_emission_factor
+  name_en: New fleet emission factor
+  name_fi: Uuden kaluston päästökerroin
+  type: simple.MultiplicativeNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_dimensions: [pollutant, transport_pollutant, transport_mode, energy_carrier]
+  output_dimensions: [pollutant, transport_pollutant, transport_mode, energy_carrier]
+  input_nodes:
+  - id: new_fleet_emission_factor_pre
+    tags: [truncate_before_start, non_additive]
+    to_dimensions:
+    - id: transport_pollutant
+    - id: transport_mode
+  - id: transport_pollutant_split
+    to_dimensions:
+    - id: pollutant
+    - id: transport_pollutant
+    - id: energy_carrier
+
+- id: old_fleet_removal
+  name_en: Old fleet removal
+  name_fi: Vanhan kaluston poistuminen
+  type: gpc.DatasetNode
+  description_en: The fraction of current car and bus fleet that is removed each year from the fleet.
+  description_fi: Osuus nykyisestä henkilöauto- ja bussikannasta, joka poistuu vuosittain kannasta.
+  quantity: fraction
+  unit: '%/a'
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+  - id: sector
+    value: Share of fleet that is less than 2 years old
+  - id: multiplier
+    value: 0.5
+    unit: 1/a
+
+- id: fleet_emission_factor
+  name_en: Fleet emission factor
+  name_fi: Kaluston päästökerroin
+  description_en: Emission factor for the current car and bus fleet. (Assuming there are no diesel trains)
+  description_fi: Nykyisen henkilöauto- ja bussikannan päästökerroin. (Olettaen, että dieseljunia ei ole)
+  type: costs.DilutionNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_dimensions: [pollutant, transport_mode, energy_carrier]
+  output_dimensions: [pollutant, transport_mode, energy_carrier]
+  input_nodes:
+  - id: baseline_year_fleet_emission_factor
+    tags: [inventory_only, existing]
+    from_dimensions:
+    - id: transport_mode
+      categories: [cars, buses]
+    - id: transport_pollutant
+      flatten: true
+  - id: new_fleet_emission_factor
+    tags: [incoming]
+    from_dimensions:
+    - id: transport_pollutant
+      flatten: true
+  - id: old_fleet_removal
+    tags: [removing, inserting, test_tag]
+    to_dimensions:
+    - id: transport_mode
+
+- id: transport_emission_factor  # TODO Add wear&tear from electric vehicles
+  name_en: Transport emission factor
+  name_fi: Liikenteen päästökerroin
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g/vkm
+  input_dimensions: [pollutant, transport_mode, energy_carrier]
+  output_dimensions: [pollutant, transport_mode, energy_carrier]
+  input_nodes:
+  - id: fleet_emission_factor
+
+- id: transport_air_pollution_emissions
+  name_en: Transport air pollution emissions
+  name_fi: Liikenteen ilmansaastepäästöt
+  type: simple.MultiplicativeNode # EmissionFactorActivity
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [pollutant, transport_mode, energy_carrier]
+  output_dimensions: [pollutant, transport_mode, energy_carrier]
+  input_nodes:
+  - id: transport_emission_factor
+    from_dimensions:
+    - id: pollutant
+      categories: [pm25_combustion, pm10_combustion, pm25_wear_tear, pm10_wear_tear, nox]
+    to_dimensions:
+    - id: pollutant
+    - id: transport_mode
+    - id: energy_carrier
+  - id: vehicle_transport
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+

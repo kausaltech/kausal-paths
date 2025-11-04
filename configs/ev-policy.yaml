@@ -1,0 +1,322 @@
+id: ev-policy
+default_language: fi
+supported_languages: [en]
+site_url: https://ev-policy.paths.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: 8e7af84af0f140b4921df8737252514da6d20278
+name: Kaupungin sähköautopolitiikka
+name_en: Electric vehicle policy in cities
+owner: Kausal Oy
+owner_en: Kausal Ltd
+theme_identifier: default
+emission_unit: Mt/a
+target_year: 2035
+reference_year: 2018
+minimum_historical_year: 2018
+maximum_historical_year: 2024
+model_end_year: 2055
+features:
+  show_explanations: true
+
+params:
+- id: municipality_name
+  value: Tampere
+- id: extend_historical_values
+  value: true
+
+include:
+
+- file: modules/transportation/passenger_transport.yaml
+  node_group: Passenger transport
+  allow_override: true
+- file: modules/transportation/vehicle_transport.yaml
+  node_group: Vehicle transport
+  allow_override: true
+- file: modules/transportation/transport_emissions.yaml
+  node_group: Transport emissions
+  allow_override: true
+- file: modules/transportation/transport_cost.yaml
+  node_group: Transport cost
+  allow_override: true
+# - file: nzc/transport_health_cost.yaml
+#   node_group: Transport health
+#   allow_override: true
+
+result_excels:
+- base_excel_url: 
+    https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
+  name: Placeholder values
+  node_ids:
+  - passenger_transport
+
+action_groups:
+- id: transport
+  name: 1. Transport
+  color: '#93c572'
+
+# impact_overviews:
+
+# - graph_type: cost_benefit
+#   effect_node: total_cost
+#   indicator_unit: MEUR
+#   stakeholder_dimension: stakeholder
+#   outcome_dimension: cost_type
+#   label: Cost-benefit
+
+# - graph_type: return_on_investment
+#   cost_node: discounted_investment_city
+#   effect_node: discounted_benefits_city
+#   indicator_unit: dimensionless
+#   label: Return on investment for the city with co-benefits
+
+# - graph_type: cost_efficiency
+#   cost_node: total_cost
+#   effect_node: net_emissions
+#   indicator_unit: EUR/t
+#   cost_unit: MEUR
+#   effect_unit: kt
+#   plot_limit_for_indicator: 2000
+#   label: Cost efficiency
+
+dimensions:
+
+- id: cost_type
+  label: Cost Type
+  categories:
+  - id: energy_costs
+    label: Energy Costs
+  - id: investment_costs
+    label: Investment Costs
+  - id: capex
+    label: CAPEX (capital expenditure)
+  - id: capex_levelised
+    label: CAPEX (levelised)
+  - id: opex
+    label: OPEX (operational expenditure)
+    aliases: [operation_cost, Operation Cost]
+  - id: maintenance_costs
+    label: Maintenance Costs
+    aliases: [maintenance]
+  - id: sales
+    label: Sales income
+  - id: air_pollution
+    label: Air pollution
+    aliases: [air_quality]
+  - id: noise
+    label: Noise
+  - id: accidents
+    label: Accidents
+  - id: health
+    label: Health
+  - id: co2_cost
+    label: CO2 Cost
+  - id: aesthetics
+    label: Aesthetics and amenity
+  - id: shading
+    label: Shading
+  - id: water_regulation
+    label: Water regulation
+    aliases: [water_regulations]
+  - id: forest_management
+    label: Forest management
+  - id: bus_costs
+    label: Bus costs
+  - id: homecharging_infrastructure
+    label: Home-charging infrastructure
+  - id: public_and_workplace_infrastructure
+    label: Public & workplace infrastructure
+  - id: charging_infrastructure_costs
+    label: Charging infrastructure costs
+  - id: vehicle_costs
+    label: Vehicle costs
+  - id: infrastructure_costs
+    label: Infrastructure costs
+  - id: network
+    label: Network
+  - id: fuel
+    label: Fuel costs
+  - id: tires
+    label: Tire costs
+  - id: depreciation
+    label: Depreciation costs
+  - id: labour_costs
+    label: Labour costs
+  - id: industry_ippu
+    label: Industry (IPPU)
+  - id: agriculture_afolu
+    label: Agriculture (AFOLU)
+  - id: other_sources
+    label: Other sources
+  - id: grid_stability
+    label: Storage, grid stability etc.
+
+- id: energy_carrier
+  label: Energy carrier
+  categories:
+  - id: petrol_diesel
+    label: Petrol and diesel
+  - id: electricity
+    label: Electricity
+  - id: fossil
+    label: Fossil (oil, coal, gas)
+  - id: heat_pump
+    label: Electric heat pumps / geothermal
+  - id: bioenergy
+    label: Bio (biogas, biomass) and solar heaters
+  - id: waste
+    label: Waste (fossil & non-fossil waste)
+
+- id: ghg
+  label: Greenhouse gas
+  categories:
+  - id: co2e
+    label: CO2e
+    aliases: [co2]
+
+- id: pollutant
+  label: Pollutant
+  categories:
+  - id: co2
+    label: CO2
+    aliases: [co2e]
+  - id: nox
+    label: NOx
+  - id: pm25_combustion
+    label: PM2.5 combustion
+    aliases: [pm25]
+  - id: pm25_wear_tear
+    label: PM2.5 wear & tear
+  - id: pm10_combustion
+    label: PM10 combustion
+    aliases: [pm10]
+  - id: pm10_wear_tear
+    label: PM10 wear & tear
+
+- id: scope
+  label: Scope
+  help_text: '1: Local emissions. 2: Grid emissions (electricity, district heating).
+    3: Indirect emissions.'
+  categories:
+  - id: scope1
+    label: Scope 1
+    aliases: [scope_1]
+  - id: scope2
+    label: Scope 2
+    aliases: [scope_2]
+  - id: scope3
+    label: Scope 3
+    aliases: [scope_3]
+
+- id: sector
+  label: Sector
+  help_text: Sectors as categorised in the Mission City Climate City Contracts 
+    (CCC).
+  categories:
+  - id: transport
+    label: Transport
+  - id: buildings
+    label: Buildings & Heating
+  - id: electricity
+    label: Electricity  # TODO If you start using different electricity sectors, you may want to rename this Other electricity
+  - id: waste
+    label: Waste
+  - id: other
+    label: Other (incl. IPPU & AFOLU)
+
+- id: stakeholder
+  label: Stakeholder
+  categories:
+  - id: citizens
+    label: Citizens
+  - id: property_owners
+    label: Property owners
+  - id: city
+    label: City
+    aliases: [cities, Cities]
+  - id: healthcare_providers
+    label: Healthcare providers
+  - id: transport_operators
+    label: Transport operators
+  - id: utilities
+    label: Utilities
+
+- id: transport_mode
+  label: Transport mode
+  categories:
+  - id: cars
+    label: Cars
+  - id: buses
+    label: Buses
+  - id: trains
+    label: Trains
+    aliases: [Metro/tram, metro/tram, metro_tram]
+  - id: public_transport
+    label: Public transport
+  - id: walking
+    label: Walking
+  - id: cycling
+    label: Cycling
+  - id: light_trucks
+    label: Light duty trucks <3.5 tonne
+  - id: heavy_trucks
+    label: Heavy duty trucks >3.5 tonne
+  - id: trucks
+    label: Trucks
+  - id: other_motorized
+    label: Other motorized transport
+
+nodes:
+
+- id: net_emissions
+  name: Net emissions
+  name_fi: Kokonaispäästöt
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  is_outcome: true
+  input_dimensions: [scope, ghg, sector]
+  output_dimensions: [scope, ghg, sector]
+  input_datasets:
+  - id: sunnydale/defaults/net_emissions_placeholder
+
+- id: population
+  name: Population
+  name_fi: Väestön koko
+  name_en: Population
+  type: gpc.DatasetNode
+  quantity: population
+  unit: cap
+  input_datasets: [nzc/defaults]
+  input_nodes:
+  - id: population_growth
+    tags: [arithmetic_inverse, complement_cumulative_product, non_additive]
+  params:
+    sector: Population
+
+- id: population_growth
+  name: Population growth
+  type: gpc.DatasetNode
+  quantity: rate
+  unit: '%/a'
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Expected annual population growth (up until 2030)
+
+pages:
+- id: home
+  name: Demonstration BASIC+ Greenhouse Gas Inventory
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Climate Budgeting Tool
+  lead_paragraph: Transportation model for cities.
+
+scenarios:
+- id: baseline
+  name: Baseline scenario
+
+- id: default
+  default: true
+  name: Decarbonisation scenario
+  all_actions_enabled: true

@@ -1,0 +1,361 @@
+nodes:
+
+# ---------------- Placeholder nodes ---------------
+
+- id: passenger_transport
+  name_en: Passenger transport, placeholder
+  name_fi: Henkilökilometrit, esimerkki
+  type: generic.GenericNode
+  quantity: mileage
+  unit: Mpkm/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets:
+  - id: sunnydale/defaults/passenger_transport
+    tags: [baseline]
+    forecast_from: 2025
+
+# ---------------- Vehicle transport ---------------
+
+- id: relative_transport_efficiency
+  name_en: Relative transport efficiency
+  name_fi: Suhteellinen liikenteen tehokkuus
+  type: gpc.DatasetNode
+  quantity: ratio
+  unit: '%'
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  output_nodes:
+  - id: transport_efficiency
+    tags: [non_additive]
+  params:
+    sector: relative transport efficiency
+
+- id: vehicle_transport
+  name_en: Vehicle transport
+  name_fi: Ajoneuvosuorite
+  type: generic.GenericNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_nodes:
+  - id: passenger_transport
+    to_dimensions:
+    - id: transport_mode
+  - id: transport_efficiency
+    to_dimensions:
+    - id: transport_mode
+    tags: [geometric_inverse]
+  - id: transport_energy_carrier_shares
+  params:
+    operations: multiply,drop_infs,drop_nans
+
+- id: fully_electric_vehicle_share_historical
+  name_en: Fully electric vehicle share historical
+  name_fi: Täyssähköajoneuvojen osuus historiallisesti
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+    filters:
+    - column: Transport mode
+      value: cars
+      drop_col: false
+  params:
+    sector: Share of fleet fully electric (not including hybrids)
+
+- id: fully_electric_vehicle_share
+  name_en: Fully electric car and truck share
+  name_fi: Täyssähköautojen ja -kuorma-autojen osuus
+  description_en: Share of car and truck fleet fully electric (not including hybrids)
+  description_fi: Täyssähköautojen ja -kuoma-autojen osuus henkilöautokannasta (ei sisällä hybridejä)
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+    filters:
+    - column: Transport mode
+      value: cars
+      drop_col: false
+  params:
+    sector: Share of fleet fully electric (not including hybrids)
+
+- id: fully_electric_bus_share
+  name_en: Fully electric bus share
+  name_fi: Täyssähköbussien osuus
+  description_en: Share of bus fleet fully electric (not including hybrids)
+  description_fi: Täyssähköbussien osuus bussikannasta (ei sisällä hybridejä)
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Share of bus fleet as fully electric buses (not including hybrids)
+
+- id: number_of_buses_historical
+  name_en: Number of buses historical
+  name_fi: Bussien määrä historiallisesti
+  type: gpc.DatasetNode
+  quantity: number
+  unit: v
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Number of buses in city bus fleet
+
+- id: vehicle_transport_per_bus
+  name_en: Vehicle transport per bus
+  name_fi: Ajoneuvosuorite bussia kohti
+  type: simple.MultiplicativeNode
+  quantity: mileage
+  unit: vkm/v/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: vehicle_transport
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: transport_mode
+      categories: [buses]
+  - id: number_of_buses_historical
+    tags: [inventory_only, geometric_inverse]
+
+- id: number_of_buses
+  name_en: Number of buses
+  name_fi: Bussien määrä
+  type: simple.MultiplicativeNode
+  quantity: number
+  unit: vehicles
+  input_dimensions: [energy_carrier, transport_mode]
+  output_dimensions: [energy_carrier, transport_mode]
+  input_nodes:
+  - id: vehicle_transport
+    from_dimensions:
+    - id: transport_mode
+      categories: [buses]
+  - id: vehicle_transport_per_bus
+    tags: [geometric_inverse, extend_values, extend_forecast_values]
+    to_dimensions:
+    - id: transport_mode
+
+- id: fully_electric_train_share
+  name_en: Fully electric train share
+  name_fi: Täyssähköjunien osuus
+  description_en: Share of train fleet fully electric
+  description_fi: Täyssähköjunien osuus junakannasta
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  historical_values: [[2018, 100.0], [2025, 100.0]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: transport_energy_carrier_shares
+  name_en: Transport energy carrier shares
+  name_fi: Liikenteen energiankantajaosuudet
+  description_en: Share of fleet fully electric (not including hybrids)
+  description_fi: Täyssähköisen kaluston osuus (ei sisällä hybridejä)
+  type: simple.FillNewCategoryNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_nodes:
+  - id: fully_electric_vehicle_share
+    to_dimensions:
+    - id: energy_carrier
+    - id: transport_mode
+  - id: fully_electric_bus_share
+    to_dimensions:
+    - id: energy_carrier
+    - id: transport_mode
+  - id: fully_electric_train_share
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: transport_mode
+      categories: [trains]
+  params:
+    new_category: 'energy_carrier:petrol_diesel'
+
+- id: total_electricity_consumption_uncorr
+  name_en: Total electricity consumption, uncorrected
+  name_fi: Sähkön kokonaiskulutus, korjaamaton
+  description_en: Consumption is not corrected for the actual consumption 
+    statistics.
+  description_fi: Kulutusta ei ole korjattu todellisten kulutustilastojen 
+    mukaan.
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+
+- id: transport_electricity_consumption
+  name_en: Transport electricity consumption
+  name_fi: Liikenteen sähkönkulutus
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_nodes:
+  - id: vehicle_transport
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: electricity_efficiency_for_electric_vehicles
+    to_dimensions:
+    - id: transport_mode
+    - id: energy_carrier
+  output_nodes:
+  - id: total_electricity_consumption_uncorr
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [electricity]  # TODO You may want to change the categorisation some day
+    - id: energy_carrier
+
+- id: transport_efficiency
+  name_en: Transport efficiency
+  name_fi: Liikenteen tehokkuus
+  type: gpc.DatasetNode
+  quantity: occupancy_factor
+  unit: passenger/vehicle
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Number of passengers per vehicle
+
+- id: total_number_of_cars
+  name_en: Total number of cars
+  name_fi: Autojen kokonaismäärä
+  type: gpc.DatasetNode
+  quantity: number
+  unit: vehicle
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Total number of cars + motorcycles in city
+
+- id: vehicle_transport_per_car
+  name_en: Vehicle transport per car
+  name_fi: Ajoneuvosuorite autoa kohti
+  type: simple.MultiplicativeNode
+  quantity: mileage
+  unit: vkm/v/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: total_number_of_cars
+    tags: [geometric_inverse]
+  - id: vehicle_transport
+    tags: [inventory_only]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+
+- id: electricity_efficiency_for_electric_vehicles
+  name_en: Electricity efficiency for electric vehicles
+  name_fi: Sähköajoneuvojen sähkönkulutuksen tehokkuus
+  type: gpc.DatasetNode
+  quantity: energy_factor
+  unit: kWh/vkm
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_datasets: [nzc/defaults]
+  params:
+    sector: Electricity consumption average vehicle
+
+- id: number_of_new_evs
+  name_en: Number of new EVs
+  name_fi: Uusien sähköautojen määrä
+  type: simple.MultiplicativeNode
+  quantity: number
+  unit: v/a
+  input_dimensions: [transport_mode, energy_carrier]
+  output_dimensions: [transport_mode, energy_carrier]
+  input_nodes:
+  - id: vehicle_transport
+    tags: [difference]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: vehicle_transport_per_car
+    tags: [geometric_inverse, extend_values]
+    to_dimensions:
+    - id: transport_mode
+
+actions:
+
+- id: a13_car_pooling
+  name: 1.3 Car pooling
+  description: How many % increase there is in the average number of people in a car.
+  type: gpc.DatasetAction2
+  quantity: fraction
+  unit: '%'
+  group: transport
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [nzc/defaults]
+  output_nodes:
+  - id: relative_transport_efficiency
+    to_dimensions:
+    - id: transport_mode
+  params:
+    sector: 1.3 Car pooling
+
+- id: a141_electrification_of_passenger_cars
+  name: 1.4.1 Electrification of passenger cars
+  type: gpc.SCurveAction
+  quantity: fraction
+  unit: '%'
+  group: transport
+  input_dimensions: [energy_carrier, transport_mode]
+  output_dimensions: [energy_carrier, transport_mode]
+  input_datasets:
+  - id: nzc/defaults
+  params:
+    sector: Electrification of transport fleet
+  input_nodes:
+  - id: fully_electric_vehicle_share_historical
+    from_dimensions:
+    - id: transport_mode
+      categories: [cars]
+  output_nodes:
+  - id: fully_electric_vehicle_share
+
+- id: a142_electrification_of_buses
+  name: 1.4.2 Electrification of buses
+  description: Fraction of buses that is replaced with electric buses each year.
+  type: gpc.DatasetAction2
+  quantity: fraction
+  unit: '%/a'
+  group: transport
+  input_dimensions: [energy_carrier, transport_mode]
+  output_dimensions: [energy_carrier, transport_mode]
+  input_datasets:
+  - id: nzc/defaults
+    forecast_from: 2020
+  params:
+    sector: Expected procurement schedule for buses
+  output_nodes:
+  - id: fully_electric_bus_share
+    tags: [cumulative]
