@@ -43,6 +43,14 @@ include:
   node_group: Transport
   allow_override: true
 
+impact_overviews:
+
+- graph_type: simple_effect
+  effect_node: net_emissions
+  indicator_unit: kt
+  label_fi: Kokonaispäästöt seurantajaksolla
+  label_en: Net emissions during the timeline
+
 action_groups:
 - id: transportation
   name: Liikenne
