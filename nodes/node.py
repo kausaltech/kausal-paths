@@ -1053,14 +1053,15 @@ class Node:
                 break
         else:
             raise NodeError(self, 'No connection to target node %s' % target_node.id)
+        operations = df.paths.OPERATIONS
 
         for tag in edge.tags:
-            try:
-                edge_function = getattr(self, f'_{tag}') # FIXME Bad practice to make functions out of text.
-                df = edge_function(df, target_node)
-            except AttributeError:
-                continue # Not every tag has a function attached.
-
+            if tag == 'ignore_content':
+                df = self._ignore_content(df, target_node)
+            else:
+                op = operations.get(tag)
+                if op:
+                    df = op(df, self)
         return df
 
     def get_output_pl(  # noqa: C901, PLR0912
@@ -1706,6 +1707,7 @@ class Node:
     def _geometric_inverse(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
         return df.divide_quantity(VALUE_COLUMN, unit_registry('1 * dimensionless'))
 
+    # FIXME Current version requires output metric of the target node. Use baskets instead.
     def _ignore_content(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
         no_effect_value = getattr(self, 'no_effect_value', 0.0)
         df = df.with_columns(pl.lit(no_effect_value).alias(VALUE_COLUMN))

@@ -1,18 +1,21 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Callable, Literal, cast
 
+import numpy as np
 import polars as pl
 from polars import type_aliases as pl_types
 
 import common.polars as ppl
-from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
+from nodes.constants import FORECAST_COLUMN, UNCERTAINTY_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.exceptions import NodeError
+from nodes.units import unit_registry
 
 if TYPE_CHECKING:
     import pandas as pd
 
     from nodes.dimensions import Dimension
-    from nodes.node import NodeMetric
+    from nodes.node import Node, NodeMetric
     from nodes.units import Unit
 
 
@@ -31,10 +34,39 @@ class PathsExt:
             df = ppl.to_ppdf(df)
         self._df = df
 
+        self.OPERATIONS: dict[str, Callable[..., ppl.PathsDataFrame]] = {
+            'absolute': self._absolute,
+            'arithmetic_inverse': self._arithmetic_inverse,
+            'bring_to_maximum_historical_year': self._bring_to_maximum_historical_year,
+            'complement': self._complement,
+            'complement_cumulative_product': self._complement_cumulative_product,
+            'cumulative': self._cumulative,
+            'cumulative_product': self._cumulative_product,
+            'difference': self._difference,
+            'drop_infs': self._drop_infs,
+            'drop_nans': self._drop_nans,
+            'empty_to_zero': self._empty_to_zero,
+            'expectation': self._expectation,
+            'extend_forecast_values': self._extend_forecast_values,
+            'extend_to_history': self._extend_to_history,
+            'extend_values': self._extend_values,
+            'extrapolate': self._extrapolate,
+            'forecast_only': self._forecast_only,
+            'geometric_inverse': self._geometric_inverse,
+            'indifferent_history_ratio': self._indifferent_history_ratio,
+            'inventory_only': self._inventory_only,
+            'make_nonnegative': self._make_nonnegative,
+            'make_nonpositive': self._make_nonpositive,
+            'ratio_to_last_historical_value': self._ratio_to_last_historical_value,
+            'scale_by_reference_year': self._scale_by_reference_year,
+            'truncate_before_start': self._truncate_before_start,
+            'truncate_beyond_end': self._truncate_beyond_end,
+        }
+
     def to_pandas(self, meta: ppl.DataFrameMeta | None = None) -> pd.DataFrame:
         return self._df.to_pandas(meta=meta)
 
-    def to_wide(self, meta: ppl.DataFrameMeta | None = None, only_category_names: bool = False) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912
+    def to_wide(self, meta: ppl.DataFrameMeta | None = None, only_category_names: bool = False) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912, PLR0915
         """Project the DataFrame wide (dimension categories become columns) and group by year."""
 
         df = self._df
@@ -113,7 +145,8 @@ class PathsExt:
             else:
                 if FORECAST_COLUMN in index_cols:
                     tdf = tdf.drop(FORECAST_COLUMN)
-                mdf = mdf.join(tdf, on=YEAR_COLUMN) # type: ignore
+                joined = mdf.join(tdf, on=YEAR_COLUMN)
+                mdf = ppl.to_ppdf(joined, meta=mdf.get_meta())
         assert mdf is not None
         mdf = mdf.sort(YEAR_COLUMN)
         meta2 = ppl.DataFrameMeta(
@@ -148,7 +181,7 @@ class PathsExt:
                 renames[col] = new_col
 
         if not len(widened_cols):  # noqa: PLC1802
-            return df  # type: ignore
+            return df
 
         if renames:
             df = df.copy().rename(renames)
@@ -165,14 +198,14 @@ class PathsExt:
             else:
                 units[metric] = unit
             for dim_parts in dims.split('/'):
-                dim_id, cat_id = dim_parts.split(':')
+                dim_id, _cat_id = dim_parts.split(':')
                 if dim_id not in primary_keys:
                     primary_keys.append(dim_id)
 
         meta.units = units
         meta.primary_keys = primary_keys
 
-        tdf = df.melt(id_vars=id_cols).with_columns([
+        tdf = df.unpivot(index=id_cols).with_columns([
             pl.col('variable').str.split('@').alias('_tmp'),
         ]).with_columns([
             pl.col('_tmp').list.first().alias('Metric'),
@@ -509,3 +542,168 @@ class PathsExt:
             return None
         assert isinstance(max_year, int)
         return max_year
+
+# ----------------- Standard PathsDataFrame operations with only node parameter
+
+    def _absolute(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
+        return df.with_columns(pl.col(VALUE_COLUMN).abs().alias(VALUE_COLUMN))
+
+    def _arithmetic_inverse(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
+        return df.multiply_quantity(VALUE_COLUMN, unit_registry('-1 * dimensionless'))
+
+    def _bring_to_maximum_historical_year(self, df: ppl.PathsDataFrame, node: Node) -> ppl.PathsDataFrame:
+        max_year = node.context.instance.maximum_historical_year
+        if max_year is None:
+            return df
+        is_forecast = False
+        df = df.with_columns(
+            pl.when(pl.col(YEAR_COLUMN) <= max_year)
+            .then(pl.lit(is_forecast))
+            .otherwise(pl.col(FORECAST_COLUMN))
+            .alias(FORECAST_COLUMN)
+        )
+        return df
+
+    def _complement(self, df: ppl.PathsDataFrame, node: Node) -> ppl.PathsDataFrame:
+        if not df.get_unit(VALUE_COLUMN).is_compatible_with('dimensionless'):
+            raise NodeError(
+                node, f"The unit of node {node.id} must be compatible with dimensionless for taking complement."
+            )
+        if node.quantity not in ['fraction', 'probability']:
+            raise NodeError(
+                node, f"The quantity of node {node.id} must be fraction or probability for taking complement"
+            )
+        df = df.ensure_unit(VALUE_COLUMN, unit='dimensionless')  # TODO CHECK
+        return df.with_columns((pl.lit(1.0) - pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
+
+    def _complement_cumulative_product(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
+        return df.cumprod(VALUE_COLUMN, complement=True)
+
+    def _cumulative(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
+        return df.cumulate(VALUE_COLUMN)
+
+    def _cumulative_product(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
+        return df.cumprod(VALUE_COLUMN)
+
+    def _difference(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
+        return df.diff(VALUE_COLUMN)
+
+    def _drop_nans(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
+        """Drop NaN cells in long format."""
+        assert isinstance(df, ppl.PathsDataFrame)
+        return df.filter(pl.col(VALUE_COLUMN).is_not_nan())
+
+    def _drop_infs(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
+        """Drop Inf cells in long format."""
+        assert isinstance(df, ppl.PathsDataFrame)
+        return df.filter(pl.col(VALUE_COLUMN).is_finite())
+
+    def _empty_to_zero(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
+        return df.with_columns(
+            pl.when(pl.col(VALUE_COLUMN).is_nan())
+            .then(pl.lit(0.0))
+            .otherwise(pl.col(VALUE_COLUMN))
+            .alias(VALUE_COLUMN),
+        )
+
+    def _expectation(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
+        if UNCERTAINTY_COLUMN in df.columns:
+            meta = df.get_meta()
+            cols = [col for col in df.primary_keys if col != UNCERTAINTY_COLUMN]
+            dfp = df.group_by(cols, maintain_order=True).agg([
+                pl.col(VALUE_COLUMN).mean().alias(VALUE_COLUMN),
+                pl.col(FORECAST_COLUMN).any().alias(FORECAST_COLUMN)
+            ])
+            dfp = dfp.with_columns(pl.lit('expectation').alias(UNCERTAINTY_COLUMN))
+            df = ppl.to_ppdf(dfp, meta)
+        return df
+
+    def _extend_forecast_values(self, df: ppl.PathsDataFrame, node: Node) -> ppl.PathsDataFrame:
+        from nodes.calc import extend_last_forecast_value_pl
+        return extend_last_forecast_value_pl(df, node.get_end_year())
+
+    def _extend_to_history(self, df: ppl.PathsDataFrame, node: Node) -> ppl.PathsDataFrame:
+        from nodes.calc import extend_to_history_pl
+        start_year = node.context.instance.minimum_historical_year
+        return extend_to_history_pl(df, start_year)
+
+    def _extend_values(self, df: ppl.PathsDataFrame, node: Node) -> ppl.PathsDataFrame:
+        from nodes.calc import extend_last_historical_value_pl
+        return extend_last_historical_value_pl(df, node.get_end_year())
+
+    def _extrapolate(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
+        """Replace NaNs and Nulls by extrapolating from existing values in wide format."""
+        df = df.paths.to_wide()
+        df = df.with_columns([
+            pl.col(col)
+            .map_elements(lambda x: None if (x is not None and np.isnan(x)) else x, return_dtype=pl.Float64)
+            .interpolate(method='linear')
+            .forward_fill()
+            .backward_fill()
+            .alias(col)
+            for col in df.columns if col in df.metric_cols
+        ])
+        df = df.select([
+            col for col in df.columns
+            if df.select(pl.col(col).is_not_null().any()).item()
+        ])
+        df = df.paths.to_narrow()
+
+        return df
+
+    def _forecast_only(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
+        return df.filter(pl.col(FORECAST_COLUMN))
+
+    def _geometric_inverse(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
+        return df.divide_quantity(VALUE_COLUMN, unit_registry('1 * dimensionless'))
+
+    def _indifferent_history_ratio(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
+        return df.with_columns(
+            pl.when(pl.col(FORECAST_COLUMN))
+            .then(pl.col(VALUE_COLUMN))
+            .otherwise(pl.lit(1.0)).alias(VALUE_COLUMN)
+        )
+
+    def _inventory_only(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
+        df = df.with_columns(  # TODO A non-elegant way to ensure there is at least one historical row.
+            pl.when(pl.col(FORECAST_COLUMN) & (pl.count() == 1))
+            .then(pl.lit(value=False))
+            .otherwise(pl.col(FORECAST_COLUMN))
+            .alias(FORECAST_COLUMN),
+        )
+        return df.filter(pl.col(FORECAST_COLUMN) == pl.lit(value=False))
+
+    def _make_nonnegative(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
+        return df.with_columns(pl.max_horizontal(VALUE_COLUMN, 0.0))
+
+    def _make_nonpositive(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
+        return df.with_columns(pl.min_horizontal(VALUE_COLUMN, 0.0))
+
+    def _ratio_to_last_historical_value(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
+        year = cast('int', df.filter(~df[FORECAST_COLUMN])[YEAR_COLUMN].max())
+        return self._scale_by_reference_year(df, year)
+
+    def _scale_by_reference_year(self, df: ppl.PathsDataFrame, year: int | None = None) -> ppl.PathsDataFrame:
+        if not year:
+            return df
+        if len(df.dim_ids) == 0:
+            reference = df.filter(pl.col(YEAR_COLUMN).eq(year))[VALUE_COLUMN][0]
+            df = df.with_columns((pl.col(VALUE_COLUMN) / pl.lit(reference)).alias(VALUE_COLUMN))
+        else:
+            meta = df.get_meta()
+            reference = df.filter(pl.col(YEAR_COLUMN).eq(year))
+            zdf = df.join(reference, on=df.dim_ids)
+            zdf = zdf.with_columns((pl.col(VALUE_COLUMN) / pl.col(VALUE_COLUMN + '_right')).alias(VALUE_COLUMN))
+            zdf = zdf.drop([VALUE_COLUMN + '_right', FORECAST_COLUMN + '_right', YEAR_COLUMN + '_right'])
+            df = ppl.to_ppdf(zdf, meta=meta)
+
+        df = df.clear_unit(VALUE_COLUMN)
+        df = df.set_unit(VALUE_COLUMN, 'dimensionless')
+        return df
+
+    def _truncate_before_start(self, df: ppl.PathsDataFrame, node: Node) -> ppl.PathsDataFrame:
+        baseline_year = node.context.instance.reference_year
+        return df.filter(pl.col(YEAR_COLUMN).ge(baseline_year))
+
+    def _truncate_beyond_end(self, df: ppl.PathsDataFrame, node: Node) -> ppl.PathsDataFrame:
+        return df.filter(pl.col(YEAR_COLUMN).le(node.get_end_year()))
