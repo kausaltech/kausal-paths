@@ -1792,7 +1792,7 @@ nodes:
   - id: land_areas
     from_dimensions:
     - id: sector
-      categories: [v131, v132]
+      categories: [v131, v132, v133]
     to_dimensions:
     - id: sector
 
