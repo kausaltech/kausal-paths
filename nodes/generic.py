@@ -175,24 +175,7 @@ class GenericNode(SimpleNode):
         """Replace NaNs and Nulls by extrapolating from existing values."""
         if df is None:
             raise NodeError(self, "Cannot extrapolate because no PathsDataFrame is available.")
-
-        df = df.paths.to_wide()
-        df = df.with_columns([
-            pl.col(col)
-            .map_elements(lambda x: None if (x is not None and np.isnan(x)) else x, return_dtype=pl.Float64)
-            .interpolate(method='linear')
-            .forward_fill()
-            .backward_fill()
-            .alias(col)
-            for col in df.columns if col in df.metric_cols
-        ])
-        df = df.select([
-            col for col in df.columns
-            if df.select(pl.col(col).is_not_null().any()).item()
-        ])
-        df = df.paths.to_narrow()
-
-        return df, baskets
+        return df.paths._extrapolate(df, self), baskets
 
     def _operation_skip_dim_test(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
         """Skip dimension test on loading because subsequent opearations will take care of that."""
@@ -212,12 +195,12 @@ class GenericNode(SimpleNode):
     def _operation_drop_nans(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
         """Drop NaN cells in long format."""
         assert isinstance(df, ppl.PathsDataFrame)
-        return df.filter(pl.col(VALUE_COLUMN).is_not_nan()), baskets
+        return df.paths._drop_nans(df, self), baskets
 
     def _operation_drop_infs(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
         """Drop Inf cells in long format."""
         assert isinstance(df, ppl.PathsDataFrame)
-        return df.filter(pl.col(VALUE_COLUMN).is_finite()), baskets
+        return df.paths._drop_infs(df, self), baskets
 
     def _operation_get_datasets(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
         dfs = self.get_input_datasets_pl()
@@ -230,7 +213,7 @@ class GenericNode(SimpleNode):
             out = out.select(d.columns)
             out = out.paths.concat_vertical(d)
         assert isinstance(out, ppl.PathsDataFrame)
-        out = self.add_missing_years(out)
+        out = out.paths._add_missing_years(out, self)
         return out, baskets
 
     OperationType = Literal[
@@ -378,31 +361,8 @@ class GenericNode(SimpleNode):
         return df
 
     # -----------------------------------------------------------------------------------
-    # Copied from gpc.DatasetNode
     def add_missing_years(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        # Add forecast column if needed.
-        if FORECAST_COLUMN not in df.columns:
-            df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
-
-        # Add missing years and interpolate missing values.
-        df = df.paths.to_wide()
-        yearrange = range(df[YEAR_COLUMN].min(), (df[YEAR_COLUMN].max() + 1))  # type: ignore
-        nullcount = df.null_count().sum_horizontal()[0]
-
-        if (len(df[YEAR_COLUMN].unique()) < len(yearrange)) | (nullcount > 0):
-            yeardf = ppl.PathsDataFrame({YEAR_COLUMN: yearrange})
-            yeardf._units = {}
-            yeardf._primary_keys = [YEAR_COLUMN]
-
-            df = df.paths.join_over_index(yeardf, how='outer')
-            for col in list(set(df.columns) - {YEAR_COLUMN, FORECAST_COLUMN}):
-                df = df.with_columns(pl.col(col).interpolate())
-                df = df.with_columns(pl.col(col).fill_null(strategy='backward'))
-
-            df = df.with_columns(pl.col(FORECAST_COLUMN).fill_null(strategy='backward'))
-
-        df = df.paths.to_narrow()
-        return df
+        return df.paths._add_missing_years(df, self)
 
     # -----------------------------------------------------------------------------------
     def _operation_select_variant(self, df: ppl.PathsDataFrame, baskets: dict, **kwargs) -> tuple:
@@ -460,14 +420,12 @@ class GenericNode(SimpleNode):
     def _operation_inventory_only(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
         if df is None:
             raise NodeError(self, "There must be a dataframe for operation 'inventory only'.")
-        df = df.filter(~pl.col(FORECAST_COLUMN))
-        return df, baskets
+        return df.paths._inventory_only(df, self), baskets
 
     def _operation_extend_values(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
         if df is None:
             raise NodeError(self, "There must be a dataframe for operation 'extend values'.")
-        df = extend_last_historical_value_pl(df, self.get_end_year())
-        return df, baskets
+        return df.paths._extend_values(df, self), baskets
 
     # -----------------------------------------------------------------------------------
 
@@ -481,8 +439,8 @@ class GenericNode(SimpleNode):
         df = self.get_input_dataset_pl(tag='baseline', required=False)
         if df is not None:
             df = self.drop_unnecessary_levels(df, droplist=[])
-            df = self.add_missing_years(df)
-            df = extend_last_historical_value_pl(df, end_year=self.get_end_year())
+            df = df.paths._add_missing_years(df, self)
+            df = df.paths._extend_values(df, self)
         baskets = self._get_input_baskets(self.input_nodes)
 
         # Track original node counts for validation

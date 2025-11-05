@@ -36,6 +36,7 @@ class PathsExt:
 
         self.OPERATIONS: dict[str, Callable[..., ppl.PathsDataFrame]] = {
             'absolute': self._absolute,
+            'add_missing_years': self._add_missing_years,
             'arithmetic_inverse': self._arithmetic_inverse,
             'bring_to_maximum_historical_year': self._bring_to_maximum_historical_year,
             'complement': self._complement,
@@ -548,6 +549,32 @@ class PathsExt:
     def _absolute(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
         return df.with_columns(pl.col(VALUE_COLUMN).abs().alias(VALUE_COLUMN))
 
+    # Copied from gpc.DatasetNode
+    def _add_missing_years(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
+        # Add forecast column if needed.
+        if FORECAST_COLUMN not in df.columns:
+            df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
+
+        # Add missing years and interpolate missing values.
+        df = df.paths.to_wide()
+        yearrange = range(df[YEAR_COLUMN].min(), (df[YEAR_COLUMN].max() + 1))  # type: ignore
+        nullcount = df.null_count().sum_horizontal()[0]
+
+        if (len(df[YEAR_COLUMN].unique()) < len(yearrange)) | (nullcount > 0):
+            yeardf = ppl.PathsDataFrame({YEAR_COLUMN: yearrange})
+            yeardf._units = {}
+            yeardf._primary_keys = [YEAR_COLUMN]
+
+            df = df.paths.join_over_index(yeardf, how='outer')
+            for col in list(set(df.columns) - {YEAR_COLUMN, FORECAST_COLUMN}):
+                df = df.with_columns(pl.col(col).interpolate())
+                df = df.with_columns(pl.col(col).fill_null(strategy='backward'))
+
+            df = df.with_columns(pl.col(FORECAST_COLUMN).fill_null(strategy='backward'))
+
+        df = df.paths.to_narrow()
+        return df
+
     def _arithmetic_inverse(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
         return df.multiply_quantity(VALUE_COLUMN, unit_registry('-1 * dimensionless'))
 
@@ -588,15 +615,15 @@ class PathsExt:
     def _difference(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
         return df.diff(VALUE_COLUMN)
 
-    def _drop_nans(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
-        """Drop NaN cells in long format."""
-        assert isinstance(df, ppl.PathsDataFrame)
-        return df.filter(pl.col(VALUE_COLUMN).is_not_nan())
-
     def _drop_infs(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
         """Drop Inf cells in long format."""
         assert isinstance(df, ppl.PathsDataFrame)
         return df.filter(pl.col(VALUE_COLUMN).is_finite())
+
+    def _drop_nans(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
+        """Drop NaN cells in long format."""
+        assert isinstance(df, ppl.PathsDataFrame)
+        return df.filter(pl.col(VALUE_COLUMN).is_not_nan())
 
     def _empty_to_zero(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
         return df.with_columns(
@@ -671,7 +698,7 @@ class PathsExt:
             .otherwise(pl.col(FORECAST_COLUMN))
             .alias(FORECAST_COLUMN),
         )
-        return df.filter(pl.col(FORECAST_COLUMN) == pl.lit(value=False))
+        return df.filter(~pl.col(FORECAST_COLUMN))
 
     def _make_nonnegative(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
         return df.with_columns(pl.max_horizontal(VALUE_COLUMN, 0.0))
