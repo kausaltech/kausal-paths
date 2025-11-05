@@ -189,18 +189,38 @@ action_groups:
 
 impact_overviews:
 
+- graph_type: simple_effect
+  effect_node: net_emissions
+  indicator_unit: Mt
+  label: Action impacts on total emissions during the time span
+
 - graph_type: cost_benefit
   effect_node: discounted_cost
   indicator_unit: MEUR
   stakeholder_dimension: stakeholder
   outcome_dimension: cost_type
-  label: Cost-benefit
+  label: Total cost-benefit
 
-# - graph_type: return_on_investment
-#   cost_node: discounted_investment_city
-#   effect_node: discounted_benefits_city
-#   indicator_unit: dimensionless
-#   label: Return on investment for the city with co-benefits
+- graph_type: cost_benefit
+  effect_node: discounted_cost_for_citizens
+  indicator_unit: MEUR
+  stakeholder_dimension: stakeholder
+  outcome_dimension: cost_type
+  label: Cost-benefit for citizens
+
+- graph_type: cost_benefit
+  effect_node: discounted_cost_for_property_owners
+  indicator_unit: MEUR
+  stakeholder_dimension: stakeholder
+  outcome_dimension: cost_type
+  label: Cost-benefit for property owners
+
+- graph_type: cost_benefit
+  effect_node: discounted_cost_for_city
+  indicator_unit: MEUR
+  stakeholder_dimension: stakeholder
+  outcome_dimension: cost_type
+  label: Cost-benefit for city
 
 - graph_type: cost_efficiency
   cost_node: discounted_total_cost
@@ -209,7 +229,25 @@ impact_overviews:
   cost_unit: MEUR
   effect_unit: kt
   plot_limit_for_indicator: 2000
-  label: Cost efficiency
+  label: Overall cost efficiency
+
+- graph_type: cost_efficiency
+  cost_node: discounted_cost_for_citizens
+  effect_node: aggregated_net_emissions
+  indicator_unit: EUR/t
+  cost_unit: MEUR
+  effect_unit: kt
+  plot_limit_for_indicator: 2000
+  label: Cost efficiency for citizen
+
+- graph_type: cost_efficiency
+  cost_node: discounted_cost_for_property_owners
+  effect_node: aggregated_net_emissions
+  indicator_unit: EUR/t
+  cost_unit: MEUR
+  effect_unit: kt
+  plot_limit_for_indicator: 2000
+  label: Cost efficiency for property owners
 
 dimensions:
 
@@ -597,6 +635,45 @@ nodes:
       flatten: true
     - id: sector
       flatten: true
+
+- id: discounted_cost_for_property_owners
+  name: Discounted cost for property owners
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, cost_type, aggregated_cost_type]
+  output_dimensions: [stakeholder, cost_type, aggregated_cost_type]
+  input_nodes:
+  - id: discounted_cost
+    from_dimensions:
+    - id: stakeholder
+      categories: [property_owners]
+
+- id: discounted_cost_for_citizens
+  name: Discounted cost for citizens
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, cost_type, aggregated_cost_type]
+  output_dimensions: [stakeholder, cost_type, aggregated_cost_type]
+  input_nodes:
+  - id: discounted_cost
+    from_dimensions:
+    - id: stakeholder
+      categories: [citizens]
+
+- id: discounted_cost_for_city
+  name: Discounted cost for city
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [stakeholder, cost_type, aggregated_cost_type]
+  output_dimensions: [stakeholder, cost_type, aggregated_cost_type]
+  input_nodes:
+  - id: discounted_cost
+    from_dimensions:
+    - id: stakeholder
+      categories: [city]
 
 # ------------- Building nodes
 
