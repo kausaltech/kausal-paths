@@ -282,6 +282,8 @@ dimensions:
     label: Poultry
   - id: v24
     label: Other Livestock
+  - id: v25
+    label: Manure Delivered to Biogas Facilities
 
 - id: action
   label: Action
