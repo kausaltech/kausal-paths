@@ -1,0 +1,371 @@
+# -------------- Health effects ---------------
+
+# Planetary health
+# https://thl.fi/thl/tietoa-meista/vaikuttamistavoitteet/planetaarinen-terveys-ja-hyvinvointi
+# https://www.biwe.fi/
+# https://www.allergia.fi/jarjesto/tutkimus-1/
+
+dimensions:
+
+- id: iteration
+  label_en: Modeling basis
+  label_fi: Malliperusta
+  represents_possible_worlds: true # TODO A new attribute that is not implemented yet.
+  categories:
+  - id: median
+    label: Median
+  - id: expectation
+    label: Expectation
+  - id: '0'
+    label: '0'
+  - id: '1'
+    label: '1'
+  - id: '2'
+    label: '2'
+  - id: thl
+    label: THL model
+  - id: heat
+    label: HEAT model
+  - id: nzp
+    label: NetZeroPlanner model
+
+- id: pollutant
+  label_fi: Saaste
+  label_en: Pollutant
+  categories:
+  - id: co2
+    label_fi: CO2
+    label_en: CO2
+    aliases: [co2e]
+  - id: pm25
+    label_fi: PM2.5
+    label_en: PM2.5
+    aliases: [pm2_5]
+  - id: pm25_combustion
+    label_en: PM2.5 combustion
+    label_fi: Polttoperäinen PM2.5
+  - id: nox
+    label_fi: NOx
+    label_en: NOx
+  - id: pm10
+    label_fi: PM10
+    label_en: PM10
+  - id: pm10_combustion
+    label_en: PM10 combustion
+    label_fi: Polttoperäinen PM10
+  - id: walking
+    label_fi: Kävely
+    label_en: Walking
+  - id: cycling
+    label_fi: Pyöräily
+    label_en: Cycling
+  - id: pm1025
+    label_fi: PM10-PM2.5
+    label_en: PM10-PM2.5
+  - id: so2
+    label_fi: SO2
+    label_en: SO2
+  - id: nh3
+    label_fi: NH3
+    label_en: NH3
+  - id: pm25_wear_tear
+    label_en: PM2.5 wear & tear
+    label_fi: Kulumis- ja pölyperäinen PM2.5
+  - id: pm10_wear_tear
+    label_en: PM10 wear & tear
+    label_fi: Kulumis- ja pölyperäinen PM10
+
+- id: response
+  label_fi: Terveysvaikutus
+  label_en: Response
+  aliases: [outcome]
+  categories:
+  - id: mortality
+    label_fi: Kaikki ilmansaastekuolleisuus
+    label_en: Mortality
+    color: '#a6cee3'
+  - id: work_days_lost
+    label_fi: Menetetyt työpäivät
+    label_en: Work days lost
+    color: '#1f78b4'
+  - id: chronic_bronchitis
+    label_fi: Keuhkoahtaumatauti
+    label_en: Chronic bronchitis
+  - id: cancer
+    label_fi: Syöpä
+    label_en: Cancer
+  - id: tolerable_weekly_intake
+    label_fi: Siedettävä viikkosaanti
+    label_en: Tolerable weekly intake
+  - id: chd_mortality
+    label_fi: Sepelvaltimotautikuolleisuus
+    label_en: Coronary heart disease mortality
+  - id: breast_cancer
+    label_fi: Rintasyöpä
+    label_en: Breast cancer
+  - id: deficiency  # TODO Add causative agent to response
+    label_fi: Puutos
+    label_en: Deficiency
+  - id: infection  # TODO Add causative agent to response
+    label_fi: Infektio
+    label_en: Infection
+  - id: physical_activity
+    label_fi: Fyysinen aktiivisuus
+    label_en: Physical activity
+    color: '#b2df8a'
+  - id: air_pollution
+    label_fi: Ilmansaastealtistus liikenteessä
+    label_en: Air pollution exposure in traffic
+    color: '#33a02c'
+  - id: crash_risk
+    label_fi: Liikenneonnettomuus
+    label_en: Traffic accident
+    color: '#fb9a99'
+  - id: noise
+    label_en: Noise
+    label_fi: Melu
+  - id: carbon_emissions
+    label_fi: Hiilidioksidipäästöt
+    label_en: Carbon diozide emissions
+  - id: nzp_response
+    label_fi: NZP-vaste
+    label_en: NZP response
+    color: '#e31a1c'
+
+nodes:
+
+# ---------- Placeholder nodes -----------
+
+- id: air_pollution_exposure
+  name: Air pollution exposure, placeholder
+  name_fi: Ilmansaastealtistus, esimerkki
+  type: generic.GenericNode
+  quantity: exposure
+  unit: µg/m³
+  input_dimensions: [pollutant]
+  output_dimensions: [pollutant]
+  input_datasets:
+  - id: sunnydale/defaults/air_pollution_exposure
+    tags: [baseline]
+    forecast_from: 2025
+
+- id: incidence
+  name_fi: Ilmaantuvuus
+  name_en: Incidence
+  description_fi: Ympäristöaltisteiden kannalta olennaisten tautien ja vaikutusten ilmaantuvuus
+  description_en: Incidence of environmentally relevant diseases and effects
+  type: gpc.DatasetNode
+  quantity: incidence
+  unit: case/personyear
+  input_dimensions: [response]
+  output_dimensions: [response]
+  input_datasets:
+  - id: hia/incidence/default_incidence
+    filters:
+    - column: Place
+      value: default
+    - column: Population
+      value: default
+  params:
+    sector: Environmental health
+
+- id: air_pollution_attributable_fraction
+  name_fi: Ilmansaasteiden syyosuus
+  name_en: Attributable fraction of air pollution
+  description_fi: Se osuus tautitaakasta, joka selittyy ilmansaastealtistuksella.
+  description_en: The fraction of disease burden that can be attributed to air pollution exposure.
+  type: health.AttributableFractionRR
+  quantity: exposure_response
+  unit: dimensionless  # TODO Allow for different units in dataset and node.
+  input_dimensions: [response, pollutant]
+  output_dimensions: [response, pollutant]
+  input_datasets:
+  - id: hia/exposure_response/air_pollution_erf
+    filters:
+    - column: Route
+      value: inhalation
+  input_nodes:
+  - id: air_pollution_exposure
+    to_dimensions:
+    - id: pollutant
+  params:
+    sector: Air pollution
+
+- id: total_number_of_cases
+  name_fi: Kokonaistapausmäärä
+  name_en: Total number of cases
+  description_fi: Kokonaistapausmäärä kohdeväestössä saadaan kertomalla taustailmaantuvuut väestömäärällä.
+  description_en: Total number of cases in the target population
+  type: simple.MultiplicativeNode
+  quantity: health_effect
+  unit: case/a
+  is_outcome: true
+  input_dimensions: [response]
+  output_dimensions: [response]
+  input_nodes:
+  - id: incidence
+    to_dimensions:
+    - id: response
+  - id: population
+    to_dimensions: []
+
+- id: attributable_cases
+  name_fi: Ilmansaasteisiin kohdentuvat tapaukset
+  name_en: Cases attributable to air pollution
+  description_fi: Se osa kokonaistapausmäärästä, joka kohdentyy pienhiukkasiin ja typenoksideihin. Arvio perustuu Terveyden ja hyvinvoinnin laitoksen tautitaakkamalliin.
+  description_en: Cases attributable to PM2.5 and NOx.
+  type: simple.MultiplicativeNode
+  quantity: health_effect
+  unit: case/a
+  is_outcome: true
+  input_dimensions: [response, pollutant]
+  output_dimensions: [response, pollutant]
+  input_nodes:
+  - id: air_pollution_attributable_fraction
+  - id: total_number_of_cases
+    tags: [non_additive]
+    to_dimensions:
+    - id: response
+  output_nodes:
+  - id: total_exposure_related_cases
+    from_dimensions:
+    - id: pollutant
+      flatten: true
+    to_dimensions:
+    - id: response
+    - id: iteration
+      categories: [thl]
+
+- id: total_exposure_related_cases
+  name_fi: Altisteisiin kohdentuva tapausmäärä yhteensä
+  name_en: Number of cases attributable to exposure
+  description_fi: Yhteismäärään lasketaan kaikkien mallissa olevien altisteiden aiheuttamat tapaukset. Positiivisen luvut ovat tautitapauksia, negatiiviset luvut ehkäistyjä tapauksia.
+  type: simple.AdditiveNode
+  quantity: health_effect
+  unit: case/a
+  input_dimensions: [response, iteration]
+  output_dimensions: [response, iteration]
+
+- id: premature_deaths
+  name_fi: Ennenaikaiset kuolemat
+  name_en: Premature deaths
+  description_fi: Pienhiukkasten, typenoksidien ja liikenneonnettomuuksien aiheuttamat sekä aktiivisen liikkumisen ehkäisemät ennenaikaiset kuolemat.
+  description_en: Premature deaths caused by PM2.5 and NOx.
+  type: simple.AdditiveNode
+  quantity: health_effect
+  unit: case/a
+  is_outcome: true
+  input_dimensions: [response, iteration]
+  output_dimensions: [response, iteration]
+  input_nodes:
+  - id: total_exposure_related_cases
+    from_dimensions:
+    - id: response
+      categories: [mortality, physical_activity, air_pollution, crash_risk]
+
+- id: case_burden
+  name_fi: Tautitaakka per tapaus
+  name_en: Disease burden by case
+  description_fi: Yhden tapauksen aiheuttama tautitaakka eri vasteille.
+  description_en: Disease burden caused by a single case.
+  type: gpc.DatasetNode
+  quantity: case_burden
+  unit: DALY/case
+  input_dimensions: [response]
+  output_dimensions: [response]
+  input_datasets:
+  - id: hia/heat/lappeenranta_active_mobility
+    forecast_from: 2025
+  params:
+    sector: Case burden
+
+- id: disease_burden_attributed_to_exposure
+  name_fi: Altisteisiin kohdentuva tautitaakka
+  name_en: Disease burden caused by air pollution
+  description_fi: Altisteisiin kohdentuva tautitaakka kohdeväestössä. Fyysisen aktiivisuuden, ilmansaasteiden ja liikenneonnettomuuksien tapaukset tarkoittavat näihin altisteisiin kohdentuvia ennenaikaisia kuolemia. Kuolleisuus ja menetetyt työpäivät puolestaan tarkoittavat ilmansaasteiden aiheuttamia tapauksia, vaikkei sitä tässä kohdassa erikseen sanota.
+  description_en: Disease burden attributable to exposure in the target population.
+  type: simple.MultiplicativeNode
+  quantity: health_effect
+  unit: DALY/a
+  input_dimensions: [response, iteration]
+  output_dimensions: [response, iteration]
+  is_outcome: true
+  input_nodes:
+  - id: case_burden
+    tags: [non_additive]
+    to_dimensions:
+    - id: response
+  - id: total_exposure_related_cases
+
+# --------------- Health costs ----------------
+
+- id: health_outcome_unit_price
+  name_fi: Terveysvaikutusten yksikkökustannukset
+  name_en: Health outcome unit price
+  description_fi: 'Käytössä on kaksi lopputulemaa: kuolema (ilmansaastealtistukselle, onnettomuuksille ja fyysiselle aktiivisuudelle), jota mitataan tilastollisella kuolemalla (value of satistical life) sekä menetetyn työpäivän hinta.'
+  description_en: 'There are basically two different endpoints: increased risk of death (for air pollution exposures, accidents, and physical activity) and work day lost. Value of statistical life is used as the measure for death endpoints.'
+  type: gpc.DatasetNode
+  quantity: unit_price
+  unit: kEUR/case
+  input_dimensions: [response]
+  output_dimensions: [response]
+  input_datasets: [gpc/dut_transport_nzc]
+  params:
+    sector: Health outcome unit price
+
+- id: responses_vs_cost_types
+  name_fi: Vasteet vs kustannuslajit
+  name_en: Responses vs cost types
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [response, cost_type]
+  output_dimensions: [response, cost_type]
+  input_datasets: [gpc/dut_transport_nzc]
+  params:
+    sector: Responses vs cost types
+
+- id: health_costs_attributed_to_exposure
+  name_fi: Altistumiseen kohdentuvat terveyskustannukset
+  name_en: Health costs attributable to exposure
+  description_fi: Samat terveysvaikutukset kuin diskontatussa terveyskustannuskuvassa, mutta tässä vaikutuksia ei diskontata. Lisäksi on mahdollista tarkastella tuloksia sen perusteella, minkä mallin mukaisesti niitä on laskettu (katso Malliperusta). Jos kaksi mallia laskee samaa asiaa, tuloksissa voi olla kaksoislaskentaa tässä solmussa; diskontatuista terveyskustannuksista kaksoislaskenta on poistettu.
+  description_en: The same health impacts as in the discounted health cost figure, but here the impacts are not discounted. In addition, it is possible to examine the results based on which model they have been calculated from (see Modeling basis). If two models calculate the same thing, there may be double counting in the results in this node; double counting has been removed from the discounted health costs.
+  type: simple.MultiplicativeNode
+  quantity: consumption
+  unit: MEUR/a
+  is_outcome: true
+  input_dimensions: [response, cost_type, iteration]
+  output_dimensions: [response, cost_type, iteration]
+  input_nodes:
+  - id: total_exposure_related_cases
+    to_dimensions:
+    - id: response
+    - id: iteration
+  - id: responses_vs_cost_types
+    to_dimensions:
+    - id: response
+    - id: cost_type
+  - id: health_outcome_unit_price
+    to_dimensions:
+    - id: response
+  output_nodes:
+  - id: discounted_health_costs
+    tags: [expectation]
+    from_dimensions:
+    - id: response
+      flatten: true
+
+- id: discounted_health_costs
+  name_fi: Diskontatut terveyskustannukset
+  name_en: Discounted health costs
+  description_fi: Terveysvaikutuksia on arvioitu usealla eri tavalla. Fyysinen aktiivisuus pohjautuu toisaalta henkilöliikennetutkimukseen (pienempi arvio) ja toisaalta NetZeroPlanner-mallin arvioon (suurempi vaikutus). <br>Diskonttaamalla on arvostettu lähiaikoina syntyviä terveysvaikutuksia enemmän kuin kaukana tulevaisuudessa tapahtuvia.
+  type: costs.ExponentialNode
+  quantity: consumption
+  unit: MEUR/a
+  input_dimensions: [cost_type, iteration]
+  output_dimensions: [cost_type, iteration]
+  params:
+  - id: annual_change
+    ref: discount_rate
+  - id: is_decreasing_rate
+    value: true

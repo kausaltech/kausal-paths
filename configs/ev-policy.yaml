@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://ev-policy.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 8e7af84af0f140b4921df8737252514da6d20278
+  commit: 39de45351665aec17e08651fda65547fb23262f0
 name: Kaupungin sähköautopolitiikka
 name_en: Electric vehicle policy in cities
 owner: Kausal Oy
@@ -22,6 +22,14 @@ features:
 params:
 - id: municipality_name
   value: Tampere
+- id: discount_rate
+  label: Discount rate
+  value: 3.5
+  min_value: 0
+  max_value: 5
+  unit: '%'
+  is_visible: true
+  is_customizable: false
 - id: extend_historical_values
   value: true
 
@@ -39,16 +47,22 @@ include:
 - file: modules/transportation/transport_cost.yaml
   node_group: Transport cost
   allow_override: true
-# - file: nzc/transport_health_cost.yaml
-#   node_group: Transport health
-#   allow_override: true
+- file: modules/transportation/active_mobility.yaml
+  node_group: Active mobility
+  allow_override: true
+- file: modules/health/air_pollution_exposure.yaml
+  node_group: Air pollution health
+  allow_override: true
+- file: modules/health/attribution_and_cost.yaml
+  node_group: Health attribution and cost
+  allow_override: true
 
-result_excels:
-- base_excel_url: 
-    https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
-  name: Placeholder values
-  node_ids:
-  - passenger_transport
+# result_excels:
+# - base_excel_url: 
+#     https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
+#   name: Placeholder values
+#   node_ids:
+#   - district_heating_emissions_intermediate
 
 action_groups:
 - id: transport
@@ -150,6 +164,15 @@ dimensions:
     label: Other sources
   - id: grid_stability
     label: Storage, grid stability etc.
+  - id: air_pollution_everywhere
+    label: Air pollution everywhere
+  - id: work_days_lost
+    label_fi: Menetetyt työpäivät
+    label_en: Work days lost
+    color: '#1f78b4'
+  - id: physical_activity
+    label: Fyysinen aktiivisuus
+    color: '#b2df8a'
 
 - id: energy_carrier
   label: Energy carrier
@@ -173,25 +196,6 @@ dimensions:
   - id: co2e
     label: CO2e
     aliases: [co2]
-
-- id: pollutant
-  label: Pollutant
-  categories:
-  - id: co2
-    label: CO2
-    aliases: [co2e]
-  - id: nox
-    label: NOx
-  - id: pm25_combustion
-    label: PM2.5 combustion
-    aliases: [pm25]
-  - id: pm25_wear_tear
-    label: PM2.5 wear & tear
-  - id: pm10_combustion
-    label: PM10 combustion
-    aliases: [pm10]
-  - id: pm10_wear_tear
-    label: PM10 wear & tear
 
 - id: scope
   label: Scope
@@ -265,6 +269,12 @@ dimensions:
     label: Trucks
   - id: other_motorized
     label: Other motorized transport
+  - id: bikeshare
+    label_en: Bikeshare
+    label_fi: Kaupunkipyörät
+  - id: ebike
+    label_en: E-bike
+    label_fi: Sähköpyörä
 
 nodes:
 

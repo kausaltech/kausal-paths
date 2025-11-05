@@ -1,0 +1,374 @@
+dimensions:
+
+- id: age
+  label: age
+  categories:
+  - id: '20_49'
+    label: 20-49
+    aliases: ['2049']
+  - id: '50_64'
+    label: 50-64
+    aliases: ['5064']
+  - id: '65_79'
+    label: 65-79
+    aliases: ['6579']
+  - id: '80_99'
+    label: 80-99
+    aliases: ['8099']
+
+- id: iteration
+  label_en: Modeling basis
+  label_fi: Malliperusta
+  represents_possible_worlds: true # TODO A new attribute that is not implemented yet.
+  categories:
+  - id: median
+    label: Median
+  - id: expectation
+    label: Expectation
+  - id: '0'
+    label: '0'
+  - id: '1'
+    label: '1'
+  - id: '2'
+    label: '2'
+  - id: thl
+    label: THL model
+  - id: heat
+    label: HEAT model
+  - id: nzp
+    label: NetZeroPlanner model
+
+- id: response
+  label_fi: Terveysvaikutus
+  label_en: Response
+  aliases: [outcome]
+  categories:
+  - id: mortality
+    label_fi: Kaikki ilmansaastekuolleisuus
+    label_en: Mortality
+    color: '#a6cee3'
+  - id: work_days_lost
+    label_fi: Menetetyt työpäivät
+    label_en: Work days lost
+    color: '#1f78b4'
+  - id: chronic_bronchitis
+    label_fi: Keuhkoahtaumatauti
+    label_en: Chronic bronchitis
+  - id: cancer
+    label_fi: Syöpä
+    label_en: Cancer
+  - id: tolerable_weekly_intake
+    label_fi: Siedettävä viikkosaanti
+    label_en: Tolerable weekly intake
+  - id: chd_mortality
+    label_fi: Sepelvaltimotautikuolleisuus
+    label_en: Coronary heart disease mortality
+  - id: breast_cancer
+    label_fi: Rintasyöpä
+    label_en: Breast cancer
+  - id: deficiency  # TODO Add causative agent to response
+    label_fi: Puutos
+    label_en: Deficiency
+  - id: infection  # TODO Add causative agent to response
+    label_fi: Infektio
+    label_en: Infection
+  - id: physical_activity
+    label_fi: Fyysinen aktiivisuus
+    label_en: Physical activity
+    color: '#b2df8a'
+  - id: air_pollution
+    label_fi: Ilmansaastealtistus liikenteessä
+    label_en: Air pollution exposure in traffic
+    color: '#33a02c'
+  - id: crash_risk
+    label_fi: Liikenneonnettomuus
+    label_en: Traffic accident
+    color: '#fb9a99'
+  - id: noise
+    label_en: Noise
+    label_fi: Melu
+  - id: carbon_emissions
+    label_fi: Hiilidioksidipäästöt
+    label_en: Carbon diozide emissions
+  - id: nzp_response
+    label_fi: NZP-vaste
+    label_en: NZP response
+    color: '#e31a1c'
+
+nodes:
+
+# ---------------- Placeholder nodes ---------------
+
+- id: passenger_transport
+  name_en: Passenger transport, placeholder
+  name_fi: Henkilökilometrit, esimerkki
+  type: generic.GenericNode
+  quantity: mileage
+  unit: Mpkm/a
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets:
+  - id: sunnydale/defaults/passenger_transport
+    tags: [baseline]
+    forecast_from: 2025
+
+# -------------- WHO/HEAT Active mobility ---------
+
+- id: active_mobility_speed
+  name_fi: Aktiivisen liikkumisen keskinopeus
+  name_en: Average speed of active mobility
+  description_fi: Aktiivisen liikkumisen keskinopeus saadaan artikkelista Kelly ym. 2014. Myös Heli Lehtomäki ym. 2021. Liikenteen terveysvaikutukset Suomessa ja suurimmissa kaupungeissa. Suomen ympäristökeskuksen raportteja 16 / 2021
+  type: gpc.DatasetNode
+  quantity: speed
+  unit: km/h
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_datasets: [hia/heat/lappeenranta_active_mobility]  # TODO Use a generic dataset instead
+  params:
+    sector: Average speed
+
+- id: active_mobility_distance
+  name_fi: Aktiivisen liikkumisen matka
+  name_en: Distance of active mobility
+  description_fi: Keskimääräinen matka, jonka väestö liikkuu aktiivilla kulkumuodoilla (kävely ja pyöräily).
+  description_en: Average distance the population moves by active modes (walking and cycling).
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: km/person/d
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+
+- id: active_mobility_duration
+  name_fi: Aktiivisen liikkumisen kesto
+  name_en: Duration of active mobility
+  description_fi: Keskimääräinen kesto, jonka väestö liikkuu aktiivilla kulkumuodoilla (kävely ja pyöräily).
+  description_en: Average duration when the population moves by active modes (walking and cycling).
+  type: simple.MultiplicativeNode
+  quantity: exposure
+  unit: min/person/d
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: active_mobility_distance
+    to_dimensions:
+    - id: transport_mode
+  - id: active_mobility_speed
+    tags: [geometric_inverse]
+    to_dimensions:
+    - id: transport_mode
+
+- id: health_unit_factor_of_active_mobility
+  name_fi: Aktiivisen liikkumisen terveyskerroin
+  name_en: Active mobility health factor
+  description_fi: WHO:n HEAT-mallia käytettiin tuottamaan Suomelle räätälöity arvio
+    terveysvaikutusten suuruudesta aktiivisen liikkumisen suhteen. Kerroin ilmoitetaan
+    aktiiviseen liikkumiseen käytettynä aikana Suomen kokoisessa aikuisväestössä.
+    Kävelyn ja pyöräilyn osalta tarkastellaan 20 - 79 -vuotiaita.
+  type: gpc.DatasetNode
+  quantity: exposure_response
+  unit: incidence_unit/personal_activity # cases/100000 person-years / (min/d/cap)
+  input_dimensions: [response, transport_mode]
+  output_dimensions: [response, transport_mode]
+  input_datasets: [gpc/dut_transport_nzc]
+  params:
+    sector: HEAT health factor
+
+- id: health_factor_of_active_mobility
+  name_fi: Aktiivisen liikkumisen terveyskerroin väestössä
+  name_en: Active mobility health factor in target population
+  type: simple.MultiplicativeNode
+  quantity: exposure_response
+  unit: cases/a/personal_activity
+  input_dimensions: [response, transport_mode]
+  output_dimensions: [response, transport_mode]
+  input_nodes:
+  - id: health_unit_factor_of_active_mobility
+  - id: population
+    tags: [non_additive]
+    to_dimensions: []
+
+- id: health_effect_of_active_mobility
+  name_fi: Aktiivisen liikkumisen terveysvaikutukset
+  name_en: Active mobility health effects
+  description_fi: Terveysvaikutukset lasketaan altisteisiin kohdentuvina tapauksina.
+  description_en: Health effects are measured as number of cases that are attributable to active mobility.
+  type: simple.MultiplicativeNode
+  quantity: health_effect
+  unit: cases/a
+  input_dimensions: [response, transport_mode]
+  output_dimensions: [response, transport_mode]
+  input_nodes:
+  - id: health_factor_of_active_mobility
+    tags: [non_additive, arithmetic_inverse]
+    to_dimensions:
+    - id: response
+    - id: transport_mode
+  - id: active_mobility_duration
+    to_dimensions:
+    - id: transport_mode
+  output_nodes:
+  - id: total_exposure_related_cases
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    to_dimensions:
+    - id: iteration
+      categories: [heat]
+    - id: response
+
+- id: active_mobility_conversion  # TODO Should passenger and inhabitant be in the same dimension?
+  name: Aktiivisen liikkumisen muunnos
+  description: Tämä tekninen solmu on vain yksiköiden johdonmukaisuuden varmistamiseksi.
+  type: simple.AdditiveNode
+  quantity: exposure
+  unit: passenger
+  historical_values: [[2010, 1.0], [2023, 1.0]]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: amount_of_active_mobility_by_nzc
+  name: Aktiivisen liikkumisen määrä NZP:n mukaan
+  description_fi: Aktiivisen liikkumisen tiedot, jotka perustuvat NetZeroPlanner-mallilla
+    tuotettuun dataan. Katso myös solmu Aktiivisen liikkumisen määrä HLT:n mukaan.
+  type: simple.MultiplicativeNode
+  quantity: exposure
+  unit: km/cap/d
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes:
+  - id: passenger_transport
+    from_dimensions:
+    - id: transport_mode
+      categories: [walking]
+  - id: population
+    tags: [geometric_inverse]
+    to_dimensions: []
+  - id: active_mobility_conversion
+    tags: [geometric_inverse]
+    to_dimensions: []
+  output_nodes:
+  - id: active_mobility_combined
+
+# ----------------------- Active mobility ------------------
+
+- id: population_group_sizes
+  name: Population group sizes
+  type: gpc.DatasetNode
+  quantity: population
+  unit: inh
+  input_dimensions: [age]
+  output_dimensions: [age]
+  input_datasets:
+  - id: hia/heat/lappeenranta_active_mobility
+  params:
+    sector: Population groups
+
+- id: population_group_shares
+  name: Väestöryhmien suhteet
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [age]
+  output_dimensions: [age]
+  input_nodes:
+  - id: population_group_sizes
+  params:
+    share_dimension: age
+    use_input_node_unit_when_adding: true
+
+- id: active_mover_fraction
+  name_fi: Aktiivisten liikkujien osuus ikäryhmästä
+  name_en: Active mover fraction in each age group
+  type: gpc.DatasetNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [age, transport_mode]
+  output_dimensions: [age, transport_mode]
+  input_datasets:
+  - id: hia/heat/lappeenranta_active_mobility
+  params:
+    sector: Fraction of movers
+
+- id: active_mover_distance
+  name_fi: Aktiivisen liikkumisen määrä HLT:n mukaan
+  name_en: Active mover distance
+  description_fi: Aktiivisen liikkumisen määränä käytetään aktiivisten liikkujien
+    keskimääräistä suomalaista arvoa, joka on saatu Henkilöliikennetutkimuksesta 2016.
+    Laskenta on Lehtomäen työryhmän (2021) mukainen.<h3>Viitteet</h3>Heli Lehtomäki
+    ym. 2021. Liikenteen terveysvaikutukset Suomessa ja suurimmissa kaupungeissa.
+    Suomen ympäristökeskuksen raportteja 16 / 2021.
+  type: gpc.DatasetNode
+  quantity: mileage
+  unit: km/person/d
+  input_dimensions: [age, transport_mode]
+  output_dimensions: [age, transport_mode]
+  input_datasets:
+  - id: hia/heat/lappeenranta_active_mobility
+  params:
+    sector: Moving distance
+
+- id: active_mobility_by_hlt
+  name_fi: Aktiivisen liikkumisen määrä ikäryhmissä
+  name_en: Average active mobility in age groups
+  description_fi: Tämä solmu kuvaa kyseisen väestöryhmän osuutta koko väestön liikkumisesta.
+    Summaamalla osaväestöt yhteen saadaan koko väestön keskimääräinen liikkuminen.
+  type: simple.MultiplicativeNode
+  quantity: mileage
+  unit: km/person/d
+  input_dimensions: [transport_mode, age]
+  output_dimensions: [transport_mode, age]
+  input_nodes:
+  - id: active_mover_fraction
+  - id: active_mover_distance
+    tags: [non_additive]
+  - id: population_group_shares
+    to_dimensions:
+    - id: age
+  output_nodes:
+  - id: active_mobility_combined
+    from_dimensions:
+    - id: age
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+
+- id: active_mobility_combined
+  name_fi: Aktiivisen liikkumisen yhdistelmä
+  name_en: Combined active mobility
+  description_fi: 'Tässä on yhdistetty kaksi tietolähdettä: toisaalta NetZeroCities-raportointi
+    ja toisaalta Henkilöliikennetutkimus 2016. Tästä eteenpäin käytetään näiden lähteiden
+    keskiarvoa.'
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: km/person/d
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+
+- id: active_mobility_average
+  name_fi: Aktiivisen liikkumisen keskiarvo
+  name_en: Average active mobility
+  description_fi: 'Tässä on yhdistetty kaksi tietolähdettä: toisaalta NetZeroCities-raportointi
+    ja toisaalta Henkilöliikennetutkimus 2016. Tämä on näiden lähteiden keskiarvoa.
+    Tämä solmu toimii myös välisolmuna terveysvaikutusmalliin.'
+  type: simple.FixedMultiplierNode
+  quantity: mileage
+  unit: km/person/d
+  input_dimensions: [transport_mode]
+  output_dimensions: [transport_mode]
+  input_nodes: [active_mobility_combined]
+  output_nodes:
+  - id: active_mobility_distance
+  params:
+  - id: multiplier
+    value: 0.5
+    unit: dimensionless
+
+- id: total_exposure_related_cases
+  name_fi: Altisteisiin kohdentuva tapausmäärä yhteensä
+  name_en: Number of cases attributable to exposure
+  description_fi: Yhteismäärään lasketaan kaikkien mallissa olevien altisteiden aiheuttamat tapaukset. Positiivisen luvut ovat tautitapauksia, negatiiviset luvut ehkäistyjä tapauksia.
+  type: simple.AdditiveNode
+  quantity: health_effect
+  unit: case/a
+  input_dimensions: [response, iteration]
+  output_dimensions: [response, iteration]
+
