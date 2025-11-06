@@ -3,7 +3,7 @@ default_language: en
 site_url: https://cork-nzc.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: eb3fee4f3c194c92d991173da8753aa2a8a29ab1
+  commit: ec67de0372912e3178e560d28fcb1255f1029431
   dvc_remote: kausal-s3
 name: Cork City Benefits Planner
 owner: City of Cork
@@ -13,7 +13,7 @@ model_end_year: 2060
 reference_year: 2018
 minimum_historical_year: 2018
 maximum_historical_year: 2020
-emission_unit: kt/a
+emission_unit: t/a
 emission_forecast_from: 2021
 emission_dimensions: [scope, ghg, sector]
 features:
@@ -168,6 +168,9 @@ params:
   is_customizable: false
 
 action_groups:
+- id: project
+  name: Project-level actions
+  color: '#b375c2'
 - id: transport
   name: 1. Transport
   color: '#93c572'
@@ -191,7 +194,7 @@ impact_overviews:
 
 - graph_type: simple_effect
   effect_node: net_emissions
-  indicator_unit: Mt
+  indicator_unit: t
   label: Action impacts on total emissions during the time span
 
 - graph_type: cost_benefit
@@ -250,6 +253,18 @@ impact_overviews:
   label: Cost efficiency for property owners
 
 dimensions:
+
+- id: project
+  label: Project
+  categories:
+  - id: retrokit_tackle
+    label: Retrokit Tackle
+  - id: railyard_apartments
+    label: Railyard Apartments
+  - id: creamfield_projects
+    label: Creamfield Projects
+  - id: ballyhooly_road
+    label: Ballyhooly Road
 
 - id: age
   label: age
@@ -675,6 +690,18 @@ nodes:
     - id: stakeholder
       categories: [city]
 
+- id: project_renovations
+  name: project renovations
+  type: generic.GenericNode
+  quantity: floor_area
+  unit: m**2
+  input_dimensions: [building_energy_class]
+  output_dimensions: [building_energy_class]
+  input_nodes:
+  - id: renovation_intensity_shares
+  output_nodes:
+  - id: building_stock
+
 # ------------- Building nodes
 
 - id: public_building_floor_area
@@ -710,7 +737,9 @@ nodes:
 - id: reduction_efficiency_in_residential_retrofit
   name: Reduction efficiency in residential retrofit
   type: generic.GenericNode
-  description: This is a causally problematic node, as it assumes that emission reductions are due to money spent, rather than actions implemented with the money.
+  description: This is a causally problematic node, as it assumes that emission 
+    reductions are due to money spent, rather than actions implemented with the 
+    money.
   quantity: emission_factor
   unit: t_co2e/EUR
   input_datasets:
@@ -1637,6 +1666,109 @@ nodes:
 
 actions:
 
+# --------------- Project-level actions ----------
+
+- id: be_1_retrofit_social_housing
+  name: BE.1 Retrofit social housing
+  description: The details of this action are described <a 
+    href="https://cork-planner.watch-test.kausal.tech/actions/BE.1">here</a>. 
+    2700 apartment will be retrofitted, assuming 100 m<sup>2</sup> per 
+    apartment.
+  type: simple.GenericAction
+  quantity: floor_area
+  unit: m**2
+  group: project
+  input_dimensions: [project]
+  output_dimensions: [project]
+  input_datasets:
+  - id: sunnydale/cork/cork_actions
+    tags: [baseline]
+    column: House retrofit
+    forecast_from: 2025
+  output_nodes:
+  - id: project_renovations
+    tags: [non_additive]
+    from_dimensions:
+    - id: project
+      flatten: true
+    to_dimensions: []
+
+- id: be_2_complete_the_railyard_apartments_and_creamfields_projects
+  name: BE.2 Complete the Railyard Apartments and Creamfields Projects
+  description: The details of this action are described <a 
+    href="https://cork-planner.watch-test.kausal.tech/actions/BE.2">here</a>. 
+    823 new homes will be built, assuming 100 m<sup>2</sup> per apartment.
+  type: simple.GenericAction
+  quantity: floor_area
+  unit: m**2
+  group: project
+  input_dimensions: [project]
+  output_dimensions: [project]
+  input_datasets:
+  - id: sunnydale/cork/cork_actions
+    tags: [baseline]
+    column: New social housing
+    forecast_from: 2025
+  output_nodes:
+  - id: building_stock
+    from_dimensions:
+    - id: project
+      flatten: true
+    to_dimensions:
+    - id: building_energy_class
+      categories: [new_top_performance]
+
+- id: tm_i_developing_ballyvolane_strategic_transport_corridor
+  name: TM.1 Developing Ballyvolane Strategic Transport Corridor
+  description: The details of this action are described <a 
+    href="https://cork-planner.watch-test.kausal.tech/actions/TM.1">here</a>. 
+    This project involves improving and upgrading Ballyhooly Road from North 
+    Ring Road junction to Fox & Hounds junction and onwards to Mervue Lawn and 
+    also along Ballyvolane Road from North Ring Road to Banduff Road.
+  type: simple.AdditiveAction
+  output_metrics:
+  - id: mileage
+    quantity: mileage
+    unit: vkm/a
+  - id: currency
+    quantity: currency
+    unit: MEUR/a
+  group: project
+  input_dimensions: [project]
+  output_dimensions: [project]
+  input_datasets:
+  - id: sunnydale/cork/cork_actions
+    tags: [baseline]
+    forecast_from: 2025
+    filters:
+    - column: House retrofit
+    - column: New social housing
+    - dimension: project
+      categories: [ballyhooly_road]
+  output_nodes:
+  - id: vehicle_kilometres
+    metrics: [mileage]
+    from_dimensions:
+    - id: project
+      flatten: true
+    to_dimensions:
+    - id: transport_mode
+      categories: [cars]
+    - id: energy_carrier
+      categories: [petrol_diesel]
+  - id: transport_cost
+    metrics: [currency]
+    from_dimensions:
+    - id: project
+      flatten: true
+    to_dimensions:
+    - id: stakeholder
+      categories: [city]
+    - id: transport_mode
+      categories: [cars]
+    - id: cost_type
+      categories: [public_and_workplace_infrastructure]
+
 # --------------- TRANSPORT -------------
 
 - id: a11_reduce_all_motorised_transport
@@ -2130,8 +2262,19 @@ scenarios:
   - id: measure_data_baseline_year_only
     value: false
 
-- id: default
+- id: projects_only
   default: true
+  name: Projects only
+  all_actions_enabled: false
+  params:
+  - id: be_1_retrofit_social_housing.enabled
+    value: true
+  - id: tm_i_developing_ballyvolane_strategic_transport_corridor.enabled
+    value: true
+  - id: be_2_complete_the_railyard_apartments_and_creamfields_projects.enabled
+    value: true
+
+- id: default
   name: Decarbonisation scenario
   all_actions_enabled: true
   params:

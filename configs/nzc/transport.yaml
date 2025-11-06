@@ -323,7 +323,7 @@ nodes:
     tags: [geometric_inverse]
   - id: transport_energy_carrier_shares
   params:
-    operations: multiply,drop_infs,drop_nans
+    operations: multiply,drop_infs,drop_nans,add
 
 - id: fully_electric_vehicle_share_historical
   name_en: Fully electric vehicle share historical
