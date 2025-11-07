@@ -2257,16 +2257,13 @@ scenarios:
     value: false
   - id: waste_recycling_trend.enabled
     value: true
-  - id: measure_data_override
-    value: false
-  - id: measure_data_baseline_year_only
-    value: false
 
-- id: projects_only
+- id: default
   default: true
   name: Projects only
-  all_actions_enabled: false
   params:
+  - id: waste_recycling_trend.enabled
+    value: true
   - id: be_1_retrofit_social_housing.enabled
     value: true
   - id: tm_i_developing_ballyvolane_strategic_transport_corridor.enabled
@@ -2274,11 +2271,6 @@ scenarios:
   - id: be_2_complete_the_railyard_apartments_and_creamfields_projects.enabled
     value: true
 
-- id: default
+- id: decarbonisation
   name: Decarbonisation scenario
   all_actions_enabled: true
-  params:
-  - id: measure_data_override
-    value: false
-  - id: measure_data_baseline_year_only
-    value: false
