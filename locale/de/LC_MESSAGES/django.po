@@ -1,3 +1,4 @@
+# The current version of this file results from conflict resolution after the Weblate repo got out of sync, probably due to a force-push to master. Omitting some metadata that doesn't make sense anymore...
 # Translated content of the Kausal Paths scenario tool.
 # Copyright (C) 2024 Kausal Ltd
 # This file is distributed under the same license as the PACKAGE package.
@@ -8,9 +9,6 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-# The current version of this file results from conflict resolution after the Weblate repo got out of sync, probably due to a force-push to master. Omitting some metadata that doesn't make sense anymore...
-#"POT-Creation-Date: omitted\n"
-#"PO-Revision-Date: omitted\n"
 "Last-Translator: Bernhard Bliem <bernhard.bliem@kausal.tech>\n"
 "Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>"
 "\n"
@@ -19,7 +17,6 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-# "X-Generator: Weblate 5.12.2 and manual conflict resolution\n"
 
 #: admin_site/api.py
 msgid "Invalid email address"
