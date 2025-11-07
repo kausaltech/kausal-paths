@@ -10,13 +10,16 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2025-11-07 16:04+0100\n"
+"PO-Revision-Date: 2025-11-07 16:21+0000\n"
 "Last-Translator: Bernhard Bliem <bernhard.bliem@kausal.tech>\n"
-"Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>\n"
+"Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>"
+"\n"
 "Language: de\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Weblate 5.12.2\n"
 
 #: admin_site/api.py
 msgid "Invalid email address"
@@ -34,17 +37,19 @@ msgstr "Dieser Benutzer hat keinen Zugriff auf den Admin-Bereich."
 #, python-format
 msgid "Cannot change from \"%(old)s\" because it is used by %(count)d data point(s)."
 msgstr ""
+"Kann nicht von \"%(old)s\" geändert werden, da es von %(count)d "
+"Datenpunkt(en) verwendet wird."
 
 #: admin_site/dataset_admin.py
 #, python-format
 msgid "Cannot remove dimension \"%(dimension)s\" because it is used by %(count)d data point(s). Please remove the data first."
 msgstr ""
+"Die Dimension \"%(dimension)s\" kann nicht entfernt werden, da sie von "
+"%(count)d Datenpunkten verwendet wird. Bitte entfernen Sie zuerst die Daten."
 
 #: admin_site/dataset_admin.py
-#, fuzzy
-#| msgid "Descriptive name of the dataset schema"
 msgid "At least one metric must be defined for the dataset schema."
-msgstr "Beschreibender Name des Datensatzschemas"
+msgstr "Für das Datensatzschema muss mindestens eine Messgröße definiert sein."
 
 #: admin_site/dataset_admin.py
 #, python-format
