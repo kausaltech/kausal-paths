@@ -238,7 +238,6 @@ def dataset_test_data(django_db_setup, django_db_blocker):
     ):
         person = PersonFactory(email=f'{username}@example.com')
         user = person.user
-        instance_viewer_role.assign_user(instance1, user)
 
         DatasetSchemaPersonPermission.objects.create(
             object=schema1,
@@ -262,7 +261,6 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         person = PersonFactory(email=f'{username}@example.com')
         user = person.user
         group.persons.add(person)
-        instance_viewer_role.assign_user(instance1, user)
         DatasetSchemaGroupPermission.objects.create(
             object=schema1,
             group=group,
