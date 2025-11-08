@@ -4,7 +4,7 @@ nodes:
   name: Sähkönkulutuksen päästöt, historialliset
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [emission_sector, economic_sector]
   output_dimensions: [emission_sector, economic_sector]
   input_datasets:

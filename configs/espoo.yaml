@@ -4,7 +4,7 @@ supported_languages: [sv, en]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 8387c4c0818eb4fb05515aeedb5988c31c9c9328
+  commit: 1f48fd8c3089ee0d35bb49d636aa2d1157496373
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -42,6 +42,15 @@ include:
 - file: frameworks/hsy/transport.yaml
   node_group: Transport
   allow_override: true
+
+result_excels:
+- base_excel_url: 
+    https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
+  name: Traffic data
+  node_ids:
+  - road_traffic_mileage
+  - road_traffic_emission_factors
+  - transport_emissions
 
 impact_overviews:
 
@@ -414,6 +423,11 @@ dimensions:
   label_sv: Utsläppssektor
   categories:
   # HEATING (warm reds/oranges)
+  - id: heating
+    label_fi: Lämmitys
+    label_en: Heating
+    label_sv: Värme
+    color: '#ff4f57'  # existing red
   - id: district_heating
     label_fi: Kaukolämpö
     label_en: District heating
@@ -438,6 +452,7 @@ dimensions:
     label_fi: Kulutussähkö
     label_en: Consumption electricity
     label_sv: Konsumtionsel
+    aliases: [Sähkö]
     color: '#0047b6'  # existing blue
   # TRANSPORTATION - Main & Road (greens)
   - id: transportation
@@ -741,7 +756,7 @@ nodes:
   name: Lämmityksen päästöt, historialliset
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [emission_sector, economic_sector]
   output_dimensions: [emission_sector, economic_sector]
   input_datasets:
@@ -1478,17 +1493,74 @@ nodes:
 
 # Transport
 
+- id: transport_emissions_historical
+  name: Historiallinen liikennepäästö
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector, economic_sector]
+  output_dimensions: [emission_sector, economic_sector]
+  input_datasets:
+  - id: hsy/pks_khk_paastot
+    tags: [baseline]
+    column: Päästöt
+    filters:
+    - rename_col: Sektori2
+      value: emission_sector
+    - rename_col: Sektori4
+      value: economic_sector
+    - rename_col: Vuosi
+      value: Year
+    - column: Kaupunki
+      ref: municipality_name
+    - column: Sektori1
+      value: Liikenne
+    - column: Sektori3
+      flatten: true
+
 - id: transport_emissions
   name_fi: Liikenteen päästöt
   name_en: Transport emissions
   name_sv: Transportutsläpp
-  type: generic.GenericNode
+  type: generic.CoalesceNode
   quantity: emissions
   unit: kt/a
   color: '#014B30'
   input_dimensions: [emission_sector, economic_sector]
   output_dimensions: [emission_sector, economic_sector]
+  input_nodes:
+  - id: transport_emissions_historical
+    tags: [inventory_only, primary]
   output_nodes: [net_emissions]
+  params:
+    operations: add,coalesce
+
+## WASTE
+
+- id: waste_emissions_historical
+  name: Historiallinen jätteen käsittelyn päästö
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector, economic_sector]
+  output_dimensions: [emission_sector, economic_sector]
+  input_datasets:
+  - id: hsy/pks_khk_paastot
+    tags: [baseline]
+    column: Päästöt
+    filters:
+    - rename_col: Sektori2
+      value: emission_sector
+    - rename_col: Sektori4
+      value: economic_sector
+    - rename_col: Vuosi
+      value: Year
+    - column: Kaupunki
+      ref: municipality_name
+    - column: Sektori1
+      value: Liikenne
+    - column: Sektori3
+      flatten: true
 
 - id: waste_treatment_emissions_data_goal
   name_fi: Jätteenkäsittelyn päästödata, ennuste
@@ -1522,9 +1594,9 @@ nodes:
     tags: [baseline]
     column: jatteenkasittelyn_paastot
 
-- id: waste_treatment_emissions
-  name_fi: Jätteenkäsittelyn päästöt
-  name_en: Waste treatment_emissions
+- id: waste_treatment_emissions_uncorrected
+  name_fi: Jätteenkäsittelyn päästöt, korjaamaton
+  name_en: Waste treatment_emissions, uncorrected
   name_sv: Utsläppdata om avfallsbehandlingen
   description_fi: Data on saatu Juha Viholaiselta maaliskuussa 2024.
   type: generic.GenericNode
@@ -1542,6 +1614,25 @@ nodes:
   - id: waste_treatment_emission_shares
     tags: [use_as_shares]
   output_nodes:
+  - id: waste_treatment_emissions
+  params:
+    operations: add,use_as_shares
+
+- id: waste_treatment_emissions
+  name_fi: Jätteenkäsittelyn päästöt
+  name_en: Waste treatment_emissions
+  name_sv: Utsläppdata om avfallsbehandlingen
+  description_fi: Data on saatu Juha Viholaiselta maaliskuussa 2024. Historiallisen datan osalta kuitenkin käytetään HSY:n tilastoa.
+  type: generic.CoalesceNode
+  quantity: emissions
+  unit: kt/a
+  color: '#8b6f47'  # brown
+  input_dimensions: [waste_treatment, economic_sector]
+  output_dimensions: [waste_treatment, economic_sector]
+  input_nodes:
+  - id: waste_treatment_emission_shares
+    tags: [inventory_only, primary]
+  output_nodes:
   - id: net_emissions
     from_dimensions:
     - id: waste_treatment
@@ -1551,7 +1642,7 @@ nodes:
       categories: [waste_treatment]
     - id: economic_sector
   params:
-    operations: add,use_as_shares
+    operations: add,coalesce
 
 # MODIFIED HSY NODES
 
@@ -1563,7 +1654,7 @@ nodes:
     laskemiseen. Varsinainen päästöjen suuruus saadaan Espoon kaupungin 
     tietoaineistosta ja ennusteesta.
   type: generic.DimensionalSectorEmissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [waste_treatment, economic_sector]
   output_dimensions: [waste_treatment, economic_sector]
   input_nodes: [all_hsy_emissions]
@@ -2199,7 +2290,7 @@ actions:
   - id: waste_treatment_emissions_data_historical
     tags: [historical_only, historical]
   output_nodes:
-  - id: waste_treatment_emissions
+  - id: waste_treatment_emissions_uncorrected
     to_dimensions:
     - id: waste_treatment
 
