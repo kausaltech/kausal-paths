@@ -2255,15 +2255,11 @@ scenarios:
   params:
   - id: show_scenario_impacts
     value: false
-  - id: waste_recycling_trend.enabled
-    value: true
 
 - id: default
   default: true
   name: Projects only
   params:
-  - id: waste_recycling_trend.enabled
-    value: true
   - id: be_1_retrofit_social_housing.enabled
     value: true
   - id: tm_i_developing_ballyvolane_strategic_transport_corridor.enabled
