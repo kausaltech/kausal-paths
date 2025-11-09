@@ -1175,12 +1175,6 @@ msgstr ""
 #: nodes/emissions/__init__.py
 msgid "Calculate CO2 equivalents based on 100-year global warming potential."
 msgstr ""
-"\n"
-"        GenericNode: Ein hochgradig konfigurierbarer Knoten, der Eingaben durch eine Folge von Operationen verarbeitet.\n"
-"\n"
-"        Die Operationen werden mit dem Parameter \"operations\" definiert und in der Reihenfolge ausgeführt.\n"
-"        Jede Operation wirkt auf den entsprechenden Korb von Knoten.\n"
-"        "
 
 #: nodes/explanations.py
 msgid "addition"
@@ -2151,7 +2145,7 @@ msgstr "Datensätze"
 
 #: nodes/roles.py
 msgid "Subsector Admin"
-msgstr "    - Kanten in Diagrammen anzeigen, aber vorgelagerte Inhalte ignorieren.\n"
+msgstr ""
 
 #: nodes/roles.py
 msgid "A Paths administrator with specifically set per-model-instance permissions."
