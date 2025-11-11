@@ -294,23 +294,27 @@ nodes:
   output_nodes:
   - id: net_emissions
 
-# - id: electricity_emissions
-#   name: Strom
-#   name_en: Electricity
-#   type: generic.GenericNode
-#   quantity: emissions
-#   unit: kt/a
-#   color: '#FDB813'
-#   input_dimensions: [sector, energy_carrier]
-#   output_dimensions: [sector, energy_carrier]
-#   input_nodes:
-#   - id: historical_emissions
-#     tags: [inventory_only]
-#     from_dimensions:
-#     - id: sector
-#       categories: [electricity]
-#   output_nodes:
-#   - id: net_emissions_historical
+- id: electricity_emissions
+  name: Strom
+  name_en: Electricity
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  color: '#FDB813'
+  is_outcome: true
+  # input_dimensions: [energy_carrier, sector]
+  # output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: historical_emissions
+    tags: [inventory_only]
+    from_dimensions:
+    - id: sector
+      categories: [private_households] # FIXME
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+  # output_nodes:
+  # - id: net_emissions_historical
 
 - id: heat_emissions
   name: Private Haushalte
