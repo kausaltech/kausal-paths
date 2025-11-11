@@ -10,7 +10,7 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2025-11-07 16:04+0100\n"
-"PO-Revision-Date: 2025-11-07 16:21+0000\n"
+"PO-Revision-Date: 2025-11-11 09:21+0000\n"
 "Last-Translator: Bernhard Bliem <bernhard.bliem@kausal.tech>\n"
 "Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>"
 "\n"
@@ -55,6 +55,8 @@ msgstr "Für das Datensatzschema muss mindestens eine Messgröße definiert sein
 #, python-format
 msgid "Cannot remove metric \"%(metric)s\" because it is used by %(count)d data point(s). Please remove the data first."
 msgstr ""
+"Die Metrik \"%(metric)s\" kann nicht entfernt werden, da sie von %(count)d "
+"Datenpunkt(en) verwendet wird. Bitte entfernen Sie zuerst die Daten."
 
 #: admin_site/dataset_admin.py
 #, fuzzy
@@ -77,24 +79,24 @@ msgstr "Bei Kausal Paths Admin anmelden"
 
 #: admin_site/templates/wagtailadmin/login.html
 msgid "Your Kausal Paths admin portal has moved."
-msgstr ""
+msgstr "Ihr Kausal Paths Verwaltungsportal ist umgezogen."
 
 #: admin_site/templates/wagtailadmin/login.html
 #, python-brace-format
 msgid "Redirecting to {url} in {count}&nbsp;seconds..."
-msgstr ""
+msgstr "Umleitung auf {url} in {count}&nbsp;Sekunden..."
 
 #: admin_site/templates/wagtailadmin/login.html
 msgid "Go Now"
-msgstr ""
+msgstr "Sofort weiter"
 
 #: admin_site/templates/wagtailadmin/login.html
 msgid "You were successfully redirected"
-msgstr ""
+msgstr "Sie wurden erfolgreich weitergeleitet"
 
 #: admin_site/templates/wagtailadmin/login.html
 msgid "Please bookmark this page for future use."
-msgstr ""
+msgstr "Bitte merken Sie sich diese Seite für die künftige Verwendung."
 
 #: admin_site/templates/wagtailadmin/login.html
 msgid "Our apologies, the server is temporarily experiencing difficulties."
@@ -102,7 +104,7 @@ msgstr "Entschuldigung, der Server hat vorübergehend Schwierigkeiten."
 
 #: admin_site/viewsets.py
 msgid "Inspect"
-msgstr ""
+msgstr "Überprüfen"
 
 #: admin_site/viewsets.py
 #, fuzzy
@@ -113,7 +115,7 @@ msgstr "Betrachter"
 #: admin_site/viewsets.py
 #, python-format
 msgid "View '%(title)s'"
-msgstr ""
+msgstr "'%(title)s' ansehen"
 
 #: admin_site/wagtail_hooks.py
 msgid "Choose instance"
@@ -143,6 +145,8 @@ msgstr "Rahmen-Admins"
 #: frameworks/roles.py nodes/roles.py
 msgid "Administrative access to the instance without permissions to manage people and organizations"
 msgstr ""
+"Administrativer Zugriff auf die Instanz ohne Berechtigung zur Verwaltung von "
+"Personen und Organisationen"
 
 #: frameworks/roles.py
 msgid "Framework viewers"
@@ -150,7 +154,7 @@ msgstr "Rahmen-Betrachter"
 
 #: frameworks/roles.py nodes/roles.py
 msgid "Read-only access to instance data"
-msgstr ""
+msgstr "Schreibgeschützter Zugriff auf Instanzdaten"
 
 #: frameworks/schema.py
 msgid "Public URL for instance dashboard"
@@ -218,7 +222,7 @@ msgstr "Wähle einen anderen Knoten"
 
 #: frameworks/wagtail_admin.py
 msgid "Measure templates"
-msgstr ""
+msgstr "Vorlagen für Messgrößen"
 
 #: kausal_common/admin_site/tables.py
 #: kausal_common/models/modification_tracking.py
@@ -227,12 +231,14 @@ msgstr "Zuletzt geändert am"
 
 #: kausal_common/api/exceptions.py
 msgid "Cannot delete instance because other objects reference it."
-msgstr ""
+msgstr "Instanz kann nicht gelöscht werden, da andere Objekte darauf verweisen."
 
 #: kausal_common/api/exceptions.py
 #, python-format
 msgid "Cannot delete \"%s\" because it is connected to other objects such as instances, persons or actions."
 msgstr ""
+"%s\" kann nicht gelöscht werden, da es mit anderen Objekten wie Instanzen, "
+"Personen oder Maßnahmen verbunden ist."
 
 #: kausal_common/blocks/base.py
 #, fuzzy
@@ -248,7 +254,7 @@ msgstr "Maßnahmenauswirkung basierend auf dem Basisszenario anstelle des Standa
 
 #: kausal_common/blocks/base.py kausal_common/blocks/fields.py
 msgid "Help text"
-msgstr ""
+msgstr "Hilfetext"
 
 #: kausal_common/blocks/base.py
 #, fuzzy
@@ -258,7 +264,7 @@ msgstr "Einleitende Inhalte, die auf der Benutzeroberfläche angezeigt werden"
 
 #: kausal_common/blocks/base.py kausal_common/blocks/fields.py
 msgid "Heading to show instead of the default"
-msgstr ""
+msgstr "Überschrift, die anstelle der Standardüberschrift angezeigt wird"
 
 #: kausal_common/blocks/base.py kausal_common/blocks/fields.py
 #, fuzzy
@@ -275,16 +281,16 @@ msgstr "Einleitende Inhalte, die auf der Benutzeroberfläche angezeigt werden"
 #: kausal_common/blocks/base.py kausal_common/blocks/fields.py
 #, python-format
 msgid "Content block: %(label)s"
-msgstr ""
+msgstr "Inhaltsblock: %(label)s"
 
 #: kausal_common/blocks/base.py
 msgid "Label for 'show all'"
-msgstr ""
+msgstr "Beschriftung für 'Alles anzeigen'"
 
 #: kausal_common/blocks/base.py
 #, python-format
 msgid "Filter: %(filter_label)s"
-msgstr ""
+msgstr "Filter: %(filter_label)s"
 
 #: kausal_common/datasets/chooser.py
 #, fuzzy
@@ -398,23 +404,26 @@ msgstr "Wird verwendet, wenn die Metriken für mehrere Kategorien verfolgt werde
 
 #: kausal_common/datasets/models.py
 msgid "Person permissions"
-msgstr ""
+msgstr "Berechtigungen für Personen"
 
 #: kausal_common/datasets/models.py
 msgid "Grants permissions on datasets of this schema to certain persons"
 msgstr ""
+"Erteilt bestimmten Personen Berechtigungen für Datensätze dieses Schemas"
 
 #: kausal_common/datasets/models.py
 msgid "Group permissions"
-msgstr ""
+msgstr "Gruppenberechtigungen"
 
 #: kausal_common/datasets/models.py
 msgid "Grants permissions on datasets of this schema to certain person groups"
 msgstr ""
+"Erteilt bestimmten Personengruppen Berechtigungen für Datensätze dieses "
+"Schemas"
 
 #: kausal_common/datasets/models.py people/forms.py
 msgid "Permissions"
-msgstr ""
+msgstr "Berechtigungen"
 
 #: kausal_common/datasets/models.py
 msgid "dataset schema"
@@ -492,7 +501,7 @@ msgstr "    - Aus der Dimension %s, %s Kategorien %s.\n"
 
 #: kausal_common/datasets/models.py
 msgid "data point dimension categories"
-msgstr ""
+msgstr "Datenpunkt-Dimensionskategorien"
 
 #: kausal_common/datasets/models.py
 msgid "Resolved"
@@ -552,7 +561,7 @@ msgstr "Datenquellen"
 
 #: kausal_common/datasets/models.py
 msgid "Unknown schema"
-msgstr ""
+msgstr "Unbekanntes Schema"
 
 #: kausal_common/datasets/models.py
 #, fuzzy, python-format
@@ -583,12 +592,12 @@ msgstr "Datensatz"
 #: kausal_common/datasets/wagtail_hooks.py
 #, python-format
 msgid "(Private %(object)s)"
-msgstr ""
+msgstr "(Privates '%(object)s'-Objekt)"
 
 #: kausal_common/datasets/wagtail_hooks.py
 #, python-format
 msgid "Edit this %(object)s"
-msgstr ""
+msgstr "Bearbeite dieses '%(object)s'-Objekt"
 
 #: kausal_common/models/modification_tracking.py
 msgid "Created at"
