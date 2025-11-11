@@ -255,6 +255,16 @@ nodes:
     - year: 2050
       value: 163
 
+- id: net_emissions_historical
+  name_de: Netto Emissionen
+  name_en: Net emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  is_outcome: true
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+
 - id: population
   name_en: Inhabitants
   name_de: Einwohner*in
@@ -290,143 +300,108 @@ nodes:
 #   type: generic.GenericNode
 #   quantity: emissions
 #   unit: kt/a
+#   color: '#FDB813'
 #   input_dimensions: [sector, energy_carrier]
 #   output_dimensions: [sector, energy_carrier]
-#   input_datasets:
-#   - id: koeln/emissionen
-#     tags: [baseline]
-#     column: emissions
-#     filters:
-#     - column: Handlungsfeld
-#       value: Strom
+#   input_nodes:
+#   - id: historical_emissions
+#     tags: [inventory_only]
+#     from_dimensions:
+#     - id: sector
+#       categories: [electricity]
 #   output_nodes:
-#   - id: net_emissions
+#   - id: net_emissions_historical
 
-# - id: heat_emissions
-#   name: Wärme
-#   name_en: Heat
-#   type: generic.GenericNode
-#   quantity: emissions
-#   unit: kt/a
-#   input_dimensions: [sector, energy_carrier]
-#   output_dimensions: [sector, energy_carrier]
-#   input_datasets:
-#   - id: koeln/emissionen
-#     tags: [baseline]
-#     column: emissions
-#     filters:
-#     - column: Handlungsfeld
-#       value: Wärme
-#   output_nodes:
-#   - id: net_emissions
+- id: heat_emissions
+  name: Private Haushalte
+  name_en: Private households
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  color: '#E67E22'
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: historical_emissions
+    tags: [inventory_only]
+    from_dimensions:
+    - id: sector
+      categories: [private_households]
+  output_nodes:
+  - id: net_emissions_historical
 
-# - id: mobility_emissions
-#   name: Mobilität
-#   name_en: Mobility
-#   type: generic.GenericNode
-#   quantity: emissions
-#   unit: kt/a
-#   input_dimensions: [sector, energy_carrier]
-#   output_dimensions: [sector, energy_carrier]
-#   input_datasets:
-#   - id: koeln/emissionen
-#     tags: [baseline]
-#     column: emissions
-#     filters:
-#     - column: Handlungsfeld
-#       value: Mobilität
-#   output_nodes:
-#   - id: net_emissions
+- id: transport_emissions
+  name: Verkehr
+  name_en: Mobility
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  color: '#3498DB'
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: historical_emissions
+    tags: [inventory_only]
+    from_dimensions:
+    - id: sector
+      categories: [transport]
+  output_nodes:
+  - id: net_emissions_historical
 
-# - id: consumption_emissions
-#   name: Konsum
-#   name_en: Consumption
-#   type: generic.GenericNode
-#   quantity: emissions
-#   unit: kt/a
-#   input_dimensions: [sector, energy_carrier]
-#   output_dimensions: [sector, energy_carrier]
-#   input_datasets:
-#   - id: koeln/emissionen
-#     tags: [baseline]
-#     column: emissions
-#     filters:
-#     - column: Handlungsfeld
-#       value: Konsum
-#   output_nodes:
-#   - id: net_emissions
+- id: industrial_emissions
+  name: Industrie
+  name_en: Industrial emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  color: '#003882'
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: historical_emissions
+    tags: [inventory_only]
+    from_dimensions:
+    - id: sector
+      categories: [industry]
+  output_nodes:
+  - id: net_emissions_historical
 
-# - id: waste_and_wastewater_emissions
-#   name: Abfall & (Ab-)Wasser
-#   name_en: Waste & Wastewater
-#   type: generic.GenericNode
-#   quantity: emissions
-#   unit: kt/a
-#   input_dimensions: [sector, energy_carrier]
-#   output_dimensions: [sector, energy_carrier]
-#   input_datasets:
-#   - id: koeln/emissionen
-#     tags: [baseline]
-#     column: emissions
-#     filters:
-#     - column: Handlungsfeld
-#       value: Abfall & (Ab-)Wasser
-#   output_nodes:
-#   - id: net_emissions
+- id: service_emissions
+  name: GHD
+  name_en: Commerce, Trade & Services
+  name_de: Gewerbe, Handel, Dienstleistungen
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  color: '#548ebe'
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: historical_emissions
+    tags: [inventory_only]
+    from_dimensions:
+    - id: sector
+      categories: [commerce_trade_services]
+  output_nodes:
+  - id: net_emissions_historical
 
-# - id: cross_cutting_climate_protection_emissions
-#   name: Übergreifende Klimaschutzaspekte
-#   name_en: Cross-cutting Climate Protection Aspects
-#   type: generic.GenericNode
-#   quantity: emissions
-#   unit: kt/a
-#   input_dimensions: [sector, energy_carrier]
-#   output_dimensions: [sector, energy_carrier]
-#   input_datasets:
-#   - id: koeln/emissionen
-#     tags: [baseline]
-#     column: emissions
-#     filters:
-#     - column: Handlungsfeld
-#       value: Übergreifende Klimaschutzaspekte
-#   output_nodes:
-#   - id: net_emissions
-
-# - id: administration_emissions
-#   name: Verwaltung
-#   name_en: Administration
-#   type: generic.GenericNode
-#   quantity: emissions
-#   unit: kt/a
-#   input_dimensions: [sector, energy_carrier]
-#   output_dimensions: [sector, energy_carrier]
-#   input_datasets:
-#   - id: koeln/emissionen
-#     tags: [baseline]
-#     column: emissions
-#     filters:
-#     - column: Handlungsfeld
-#       value: Verwaltung
-#   output_nodes:
-#   - id: net_emissions
-
-# - id: food_and_land_use_emissions
-#   name: Ernährung & Landnutzung
-#   name_en: Food & Land Use
-#   type: generic.GenericNode
-#   quantity: emissions
-#   unit: kt/a
-#   input_dimensions: [sector, energy_carrier]
-#   output_dimensions: [sector, energy_carrier]
-#   input_datasets:
-#   - id: koeln/emissionen
-#     tags: [baseline]
-#     column: emissions
-#     filters:
-#     - column: Handlungsfeld
-#       value: Ernährung & Landnutzung
-#   output_nodes:
-#   - id: net_emissions
+- id: municipality_buildings
+  name: Kommunale Einrichtungen
+  name_en: Municipality buildings
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  color: '#8eeffd'
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: historical_emissions
+    tags: [inventory_only]
+    from_dimensions:
+    - id: sector
+      categories: [municipal_facilities]
+  output_nodes:
+  - id: net_emissions_historical
 
 actions:
 
@@ -1497,7 +1472,7 @@ pages:
   name_en: Cologne BASIC+ Greenhouse Gas Inventory
   path: /
   type: emission
-  outcome_node: population
+  outcome_node: net_emissions
   lead_title_de: Übersicht Bilanzen Köln
   lead_title_en: Overview of Cologne's Greenhouse Gas Balances
   lead_paragraph_de: GPC BASIC+ Treibhausgasinventar (2008-2020) und Prognose 
