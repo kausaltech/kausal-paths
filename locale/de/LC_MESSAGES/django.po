@@ -10,7 +10,7 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2025-11-12 17:25+0200\n"
-"PO-Revision-Date: 2025-11-12 15:31+0000\n"
+"PO-Revision-Date: 2025-11-12 19:21+0000\n"
 "Last-Translator: Bernhard Bliem <bernhard.bliem@kausal.tech>\n"
 "Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>"
 "\n"
@@ -484,7 +484,7 @@ msgstr "Ungelöst"
 
 #: kausal_common/datasets/models.py
 msgid "Sticky comment"
-msgstr "Wichtiger Kommentar"
+msgstr "Angehefteter Kommentar"
 
 #: kausal_common/datasets/models.py
 msgid "Review comment"
