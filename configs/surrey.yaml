@@ -108,7 +108,7 @@ emission_sectors:
 
 nodes:
 - id: medium_and_heavy_duty_vehicle_emissions
-  name: Medium and heavy-duty vehicle emissions
+  name: Medium and heavy-duty vehicles
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
@@ -125,7 +125,7 @@ nodes:
   - id: on_road_transportation_emissions
 
 - id: light_duty_vehicle_emissions
-  name: Light-duty vehicle emissions
+  name: Light-duty vehicles
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
@@ -142,7 +142,7 @@ nodes:
   - id: on_road_transportation_emissions
 
 - id: transit_emissions
-  name: Transit emissions
+  name: Transit
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
@@ -159,7 +159,7 @@ nodes:
   - id: on_road_transportation_emissions
 
 - id: residential_emissions
-  name: Residential emissions
+  name: Residential
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
@@ -176,7 +176,7 @@ nodes:
   - id: building_emissions
 
 - id: institutional_commercial_and_industrial_emissions
-  name: Institutional, commercial and industrial emissions
+  name: Institutional, commercial and industrial
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
@@ -193,7 +193,7 @@ nodes:
   - id: building_emissions
 
 - id: solid_waste_emissions
-  name: Solid waste emissions
+  name: Solid waste
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
@@ -210,7 +210,7 @@ nodes:
   - id: other_emissions
 
 - id: non_road_equipment_emissions
-  name: Non-road equipment emissions
+  name: Non-road equipment
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
@@ -227,7 +227,7 @@ nodes:
   - id: other_emissions
 
 - id: industry_emissions
-  name: Industry emissions
+  name: Industry
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
@@ -244,7 +244,7 @@ nodes:
   - id: other_emissions
 
 - id: airport_emissions
-  name: Airport emissions
+  name: Airport
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
@@ -261,7 +261,7 @@ nodes:
   - id: other_emissions
 
 - id: rail_transportation_emissions
-  name: Rail transportation emissions
+  name: Rail transportation
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
@@ -278,7 +278,7 @@ nodes:
   - id: other_emissions
 
 - id: building_emissions
-  name: Building emissions
+  name: Buildings
   color: '#6EC0C7'
   type: simple.AdditiveNode
   quantity: emissions
@@ -289,7 +289,7 @@ nodes:
   - id: net_emissions
 
 - id: on_road_transportation_emissions
-  name: On-road transportation emissions
+  name: On-road transportation
   color: '#B93F40'
   type: simple.AdditiveNode
   quantity: emissions
@@ -300,8 +300,8 @@ nodes:
   - id: net_emissions
 
 - id: other_emissions
-  name: Other emissions
-  color: '#C4D652'
+  name: Other
+  color: '#B0B7BB'
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
@@ -1102,5 +1102,5 @@ scenarios:
 
 - id: default
   default: true
-  name: Pathway to 2050
+  name: Net Zero Pathway
   all_actions_enabled: true
