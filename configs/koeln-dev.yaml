@@ -282,7 +282,7 @@ nodes:
   name_en: Historical emissions
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   color: '#00A969'
   is_outcome: true
   input_dimensions: [sector, energy_carrier]
