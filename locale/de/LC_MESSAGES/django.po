@@ -10,7 +10,7 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2025-11-07 16:04+0100\n"
-"PO-Revision-Date: 2025-11-11 14:21+0000\n"
+"PO-Revision-Date: 2025-11-12 13:21+0000\n"
 "Last-Translator: Bernhard Bliem <bernhard.bliem@kausal.tech>\n"
 "Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>"
 "\n"
@@ -105,8 +105,6 @@ msgid "Inspect"
 msgstr "Überprüfen"
 
 #: admin_site/viewsets.py
-#, fuzzy
-#| msgid "Viewer"
 msgid "View"
 msgstr "Ansehen"
 
@@ -598,7 +596,7 @@ msgstr ""
 #: kausal_common/organizations/models.py
 msgctxt "node"
 msgid "Parent"
-msgstr ""
+msgstr "Übergeordnetes Objekt"
 
 #: kausal_common/organizations/models.py
 msgid "The time at which the resource was created"
@@ -665,7 +663,7 @@ msgstr "Organisationen"
 #: kausal_common/organizations/views.py
 #, python-format
 msgid "New child %(model)s for %(parent)s"
-msgstr ""
+msgstr "Neues untergeordnetes \"%(model)s\" Objekt für %(parent)s"
 
 #: kausal_common/organizations/views.py
 msgid "This will delete the following objects:"
