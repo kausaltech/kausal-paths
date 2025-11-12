@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-11-12 14:59+0100\n"
+"POT-Creation-Date: 2025-11-12 17:25+0200\n"
 "PO-Revision-Date: 2025-04-01 12:20+0000\n"
 "Last-Translator: Matias Wargelin <matias.wargelin@kausal.tech>\n"
 "Language-Team: Finnish <https://weblate.kausal.tech/projects/paths/django/fi/>\n"
@@ -419,6 +419,18 @@ msgstr "tietoaineistot"
 #: kausal_common/datasets/models.py paths/utils.py
 msgid "unit"
 msgstr "yksikkö"
+
+#: kausal_common/datasets/models.py
+#, fuzzy
+#| msgid "dataset"
+msgid "dataset metric"
+msgstr "tietoaineisto"
+
+#: kausal_common/datasets/models.py
+#, fuzzy
+#| msgid "datasets"
+msgid "dataset metrics"
+msgstr "tietoaineistot"
 
 #: kausal_common/datasets/models.py
 #, fuzzy

@@ -9,11 +9,10 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-11-12 14:59+0100\n"
+"POT-Creation-Date: 2025-11-12 17:25+0200\n"
 "PO-Revision-Date: 2025-11-12 15:14+0000\n"
 "Last-Translator: Bernhard Bliem <bernhard.bliem@kausal.tech>\n"
-"Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>"
-"\n"
+"Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>\n"
 "Language: de\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -50,9 +49,7 @@ msgstr "Für das Datensatzschema muss mindestens eine Messgröße definiert sein
 #: admin_site/dataset_admin.py
 #, python-format
 msgid "Cannot remove metric \"%(metric)s\" because it is used by %(count)d data point(s). Please remove the data first."
-msgstr ""
-"Die Messgröße \"%(metric)s\" kann nicht entfernt werden, da sie von %(count)"
-"d Datenpunkt(en) verwendet wird. Bitte entfernen Sie zuerst die Daten."
+msgstr "Die Messgröße \"%(metric)s\" kann nicht entfernt werden, da sie von %(count)d Datenpunkt(en) verwendet wird. Bitte entfernen Sie zuerst die Daten."
 
 #: admin_site/dataset_admin.py
 msgid "Dataset schemas"
@@ -370,8 +367,7 @@ msgstr "Dimensionen"
 
 #: kausal_common/datasets/models.py
 msgid "Used when metrics are tracked for multiple categories"
-msgstr ""
-"Wird verwendet, wenn die Messgrößen für mehrere Kategorien verfolgt werden"
+msgstr "Wird verwendet, wenn die Messgrößen für mehrere Kategorien verfolgt werden"
 
 #: kausal_common/datasets/models.py
 msgid "Person permissions"
@@ -404,6 +400,18 @@ msgstr "Datensatzschemas"
 #: kausal_common/datasets/models.py paths/utils.py
 msgid "unit"
 msgstr "Einheit"
+
+#: kausal_common/datasets/models.py
+#, fuzzy
+#| msgid "dataset"
+msgid "dataset metric"
+msgstr "Datensatz"
+
+#: kausal_common/datasets/models.py
+#, fuzzy
+#| msgid "datasets"
+msgid "dataset metrics"
+msgstr "Datensätze"
 
 #: kausal_common/datasets/models.py
 msgid "dataset schema dimension"
@@ -1810,14 +1818,11 @@ msgstr "Verwerfe Spalte <i>%(name)s</i> ."
 #: nodes/explanations.py
 #, python-format
 msgid "Assign dataset to category <i>%(cat_label)s</i> on dimension <i>%(dim_label)s</i>."
-msgstr ""
-"Ordne Datensatz der Kategorie <i>%(cat_label)s</i> in Dimension "
-"<i>%(dim_label)s</i> zu."
+msgstr "Ordne Datensatz der Kategorie <i>%(cat_label)s</i> in Dimension <i>%(dim_label)s</i> zu."
 
 #: nodes/explanations.py
 msgid "Filter dimension <i>%s(dim_label)s</i> by categories <i>%(cat_labels)s</i>."
-msgstr ""
-"Filter Dimension <i>%s(dim_label)s</i> nach Kategorien <i>%(cat_labels)s</i>."
+msgstr "Filter Dimension <i>%s(dim_label)s</i> nach Kategorien <i>%(cat_labels)s</i>."
 
 #: nodes/explanations.py
 #, python-format
@@ -1827,15 +1832,11 @@ msgstr "Summiere die Dimension <i>%(label)s</i>."
 #: nodes/explanations.py
 #, python-format
 msgid "Rename item <i>%(old_string)s</i> to <i>%(new_string)s</i> in column <i>%(column)s</i>."
-msgstr ""
-"Benenne Eintrag <i>%(old_string)s</i> in <i>%(new_string)s</i> um in Spalte "
-"<i>%(column)s</i>."
+msgstr "Benenne Eintrag <i>%(old_string)s</i> in <i>%(new_string)s</i> um in Spalte <i>%(column)s</i>."
 
 #: nodes/explanations.py
 msgid "The inputs are processed in the following way before using for calculations in this node:"
-msgstr ""
-"Die Eingaben werden auf folgende Weise verarbeitet, bevor sie für "
-"Berechnungen in diesem Knoten verwendet werden:"
+msgstr "Die Eingaben werden auf folgende Weise verarbeitet, bevor sie für Berechnungen in diesem Knoten verwendet werden:"
 
 #: nodes/explanations.py
 #, python-format
@@ -1855,16 +1856,12 @@ msgstr "Hat Tag <i>%s</i> ."
 #: nodes/explanations.py
 #, python-format
 msgid "From dimension <i>%(dimension)s</i>, exclude categories: <i>%(categories)s</i>"
-msgstr ""
-"Aus Dimension <i>%(dimension)s</i> , schließe Kategorien aus: "
-"<i>%(categories)s</i>"
+msgstr "Aus Dimension <i>%(dimension)s</i> , schließe Kategorien aus: <i>%(categories)s</i>"
 
 #: nodes/explanations.py
 #, python-format
 msgid "In dimension <i>%(dimension)s</i>, include categories: <i>%(categories)s</i>"
-msgstr ""
-"In Dimension <i>%(dimension)s</i> , schließe Kategorien ein: "
-"<i>%(categories)s</i>"
+msgstr "In Dimension <i>%(dimension)s</i> , schließe Kategorien ein: <i>%(categories)s</i>"
 
 #: nodes/explanations.py
 #, python-format
@@ -1874,9 +1871,7 @@ msgstr "<li>Summe über Dimension <i>%(dim)s</i></li>"
 #: nodes/explanations.py
 #, python-format
 msgid "Categorize the values to <i>%(categories)s</i> in a new dimension <i>%(dimension)s</i>."
-msgstr ""
-"Kategorisiere Werte zu <i>%(categories)s</i> in einer neuen Dimension "
-"<i>%(dimension)s</i>."
+msgstr "Kategorisiere Werte zu <i>%(categories)s</i> in einer neuen Dimension <i>%(dimension)s</i>."
 
 #: nodes/explanations.py
 msgid "The inputs are used for operations in this order:"
