@@ -856,7 +856,7 @@ class DatasetRule(ValidationRule):
         if  d.get('flatten', False):
             out += f"<li>{_('Sum up column <i>%(name)s</i>.') % {'name': col}}</li>"
         elif drop:
-            out += f"<li>{_(' Drop column <i>%(name)s</i>.') % {'name': col}}</li>"
+            out += f"<li>{_('Drop column <i>%(name)s</i>.') % {'name': col}}</li>"
         return out
 
     def _explain_dim_filter(self, d: dict[str, Any], context: Context) -> str:
