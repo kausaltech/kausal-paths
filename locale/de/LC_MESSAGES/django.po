@@ -10,7 +10,7 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2025-11-12 14:59+0100\n"
-"PO-Revision-Date: 2025-11-12 15:01+0000\n"
+"PO-Revision-Date: 2025-11-12 15:14+0000\n"
 "Last-Translator: Bernhard Bliem <bernhard.bliem@kausal.tech>\n"
 "Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>"
 "\n"
@@ -50,7 +50,9 @@ msgstr "Für das Datensatzschema muss mindestens eine Messgröße definiert sein
 #: admin_site/dataset_admin.py
 #, python-format
 msgid "Cannot remove metric \"%(metric)s\" because it is used by %(count)d data point(s). Please remove the data first."
-msgstr "Die Metrik \"%(metric)s\" kann nicht entfernt werden, da sie von %(count)d Datenpunkt(en) verwendet wird. Bitte entfernen Sie zuerst die Daten."
+msgstr ""
+"Die Messgröße \"%(metric)s\" kann nicht entfernt werden, da sie von %(count)"
+"d Datenpunkt(en) verwendet wird. Bitte entfernen Sie zuerst die Daten."
 
 #: admin_site/dataset_admin.py
 msgid "Dataset schemas"
@@ -356,7 +358,7 @@ msgstr "Ausgangsdatum"
 
 #: kausal_common/datasets/models.py
 msgid "Metrics"
-msgstr "Metriken"
+msgstr "Messgrößen"
 
 #: kausal_common/datasets/models.py
 msgid "Defines the interpretation and units for the values of the dataset"
@@ -368,7 +370,8 @@ msgstr "Dimensionen"
 
 #: kausal_common/datasets/models.py
 msgid "Used when metrics are tracked for multiple categories"
-msgstr "Wird verwendet, wenn die Metriken für mehrere Kategorien verfolgt werden"
+msgstr ""
+"Wird verwendet, wenn die Messgrößen für mehrere Kategorien verfolgt werden"
 
 #: kausal_common/datasets/models.py
 msgid "Person permissions"
