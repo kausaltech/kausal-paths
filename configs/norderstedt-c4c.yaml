@@ -170,8 +170,8 @@ dimensions:
     label: Umstellung der Ampeln auf LED (total)
     label_en: Change Traffic Lights to LED (Total)
   - id: change_streetlights_to_led
-    label: Umstellung der Straßenbeleuchtung auf LED (total)
-    label_en: Change Street Lights to LED (Total)
+    label: Umstellung der Straßenbeleuchtung auf LED (2035)
+    label_en: Change Street Lights to LED (2035)
   - id: kita_geg_30
     label: Annahme Neubau Kita GEG-30
     label_en: Assumption New Build Kita GEG-30
@@ -984,8 +984,8 @@ actions:
     - id: cost_type
 
 - id: change_streetlights_to_led
-  name: Umstellung der Straßenbeleuchtung auf LED (total)
-  name_en: Change Street Lights to LED (Total)
+  name: Umstellung der Straßenbeleuchtung auf LED (2035)
+  name_en: Change Street Lights to LED (2035)
   type: simple.AdditiveAction
   group: stationary_energy
   input_dimensions: [action, sector, cost_type]
@@ -1665,5 +1665,6 @@ scenarios:
 
 - id: default
   default: true
-  name: Climate Action Plan
+  name: Umsetzung von Maßnahmen
+  name_en: Climate Action Plan
   all_actions_enabled: true
