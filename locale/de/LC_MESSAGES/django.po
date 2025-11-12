@@ -10,9 +10,10 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2025-11-12 14:59+0100\n"
-"PO-Revision-Date: 2025-11-12 13:21+0000\n"
+"PO-Revision-Date: 2025-11-12 15:01+0000\n"
 "Last-Translator: Bernhard Bliem <bernhard.bliem@kausal.tech>\n"
-"Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>\n"
+"Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>"
+"\n"
 "Language: de\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -1135,7 +1136,7 @@ msgstr "Addition zu bestehenden Dimensionen"
 
 #: nodes/explanations.py
 msgid "coalescing"
-msgstr ""
+msgstr "Zusammenführen"
 
 #: nodes/explanations.py
 msgid "multiplication"
@@ -1151,7 +1152,7 @@ msgstr "Dimensionstest überspringen"
 
 #: nodes/explanations.py
 msgid "split by existing shares"
-msgstr ""
+msgstr "Aufteilen durch bestehende Anteile"
 
 #: nodes/explanations.py
 msgid "split evenly to categories"
@@ -1163,7 +1164,7 @@ msgstr "Schwellenwert anwenden"
 
 #: nodes/explanations.py
 msgid "use as shares"
-msgstr ""
+msgstr "Als Anteile verwenden"
 
 #: nodes/explanations.py
 msgid "use as totals"
@@ -1733,43 +1734,38 @@ msgid "Node class does not have description."
 msgstr "Die Knotenklasse hat keine Beschreibung."
 
 #: nodes/explanations.py
-#, fuzzy, python-format
-#| msgid "The order of operations is"
+#, python-format
 msgid "The order of operations is %s."
-msgstr "Die Reihenfolge der Operationen ist"
+msgstr "Die Reihenfolge der Operationen ist %s."
 
 #: nodes/explanations.py
-#, fuzzy, python-format
-#| msgid "Has formula"
+#, python-format
 msgid "Has formula %s."
-msgstr "Hat Formel"
+msgstr "Hat Formel %s."
 
 #: nodes/explanations.py
 #, python-format
 msgid "Has parameter <i>%(parameter)s</i> with value %(value)s."
-msgstr ""
+msgstr "Hat Parameter <i>%(parameter)s</i> mit Wert %(value)s."
 
 #: nodes/explanations.py
 msgid "Datasets"
 msgstr "Datensätze"
 
 #: nodes/explanations.py
-#, fuzzy, python-format
-#| msgid "Dataset with identifier"
+#, python-format
 msgid "Dataset with identifier <i>%s</i>"
-msgstr "Datensatz mit Kennung"
+msgstr "Datensatz mit Kennung <i>%s</i>"
 
 #: nodes/explanations.py
-#, fuzzy, python-format
-#| msgid "Uses column: "
+#, python-format
 msgid "Uses column: %(name)s"
-msgstr "Verwendet die Spalte: "
+msgstr "Verwendet Spalte: %(name)s"
 
 #: nodes/explanations.py
-#, fuzzy, python-format
-#| msgid "Has forecast values from: "
+#, python-format
 msgid "Has forecast values from: %(year)s"
-msgstr "Hat Prognosewerte von: "
+msgstr "Hat Prognosewerte von: %(year)s"
 
 #: nodes/explanations.py
 msgid "Rows with missing values are dropped."
@@ -1784,109 +1780,118 @@ msgid "Has the following filters:"
 msgstr "Verfügt über die folgenden Filter:"
 
 #: nodes/explanations.py
-#, fuzzy, python-format
-#| msgid "global parameter"
+#, python-format
 msgid "global parameter %(label)s"
-msgstr "globaler Parameter"
+msgstr "globaler Parameter %(label)s"
 
 #: nodes/explanations.py
 #, python-format
 msgid "Filter column <i>%(name)s</i> by excluding <i>%(values)s</i>."
-msgstr ""
+msgstr "Filtere Spalte <i>%(name)s</i> durch Ausschluss von <i>%(values)s</i> ."
 
 #: nodes/explanations.py
 #, python-format
 msgid "Filter column <i>%(name)s</i> by including <i>%(values)s</i>."
-msgstr ""
+msgstr "Filtere Spalte <i>%(name)s</i> durch Einschluss von <i>%(values)s</i> ."
 
 #: nodes/explanations.py
 #, python-format
 msgid "Sum up column <i>%(name)s</i>."
-msgstr ""
+msgstr "Summiere Spalte <i>%(name)s</i> ."
 
 #: nodes/explanations.py
-#, fuzzy, python-format
-#| msgid "Uses column: "
+#, python-format
 msgid "Drop column <i>%(name)s</i>."
-msgstr "Verwendet die Spalte: "
+msgstr "Verwerfe Spalte <i>%(name)s</i> ."
 
 #: nodes/explanations.py
 #, python-format
 msgid "Assign dataset to category <i>%(cat_label)s</i> on dimension <i>%(dim_label)s</i>."
 msgstr ""
+"Ordne Datensatz der Kategorie <i>%(cat_label)s</i> in Dimension "
+"<i>%(dim_label)s</i> zu."
 
 #: nodes/explanations.py
 msgid "Filter dimension <i>%s(dim_label)s</i> by categories <i>%(cat_labels)s</i>."
 msgstr ""
+"Filter Dimension <i>%s(dim_label)s</i> nach Kategorien <i>%(cat_labels)s</i>."
 
 #: nodes/explanations.py
-#, fuzzy, python-format
-#| msgid "Data dimensions"
+#, python-format
 msgid "Sum up the dimension <i>%(label)s</i>."
-msgstr "Dimensionen der Daten"
+msgstr "Summiere die Dimension <i>%(label)s</i>."
 
 #: nodes/explanations.py
 #, python-format
 msgid "Rename item <i>%(old_string)s</i> to <i>%(new_string)s</i> in column <i>%(column)s</i>."
 msgstr ""
+"Benenne Eintrag <i>%(old_string)s</i> in <i>%(new_string)s</i> um in Spalte "
+"<i>%(column)s</i>."
 
 #: nodes/explanations.py
 msgid "The inputs are processed in the following way before using for calculations in this node:"
 msgstr ""
+"Die Eingaben werden auf folgende Weise verarbeitet, bevor sie für "
+"Berechnungen in diesem Knoten verwendet werden:"
 
 #: nodes/explanations.py
 #, python-format
 msgid "Node <i>%s</i>"
-msgstr ""
+msgstr "Knoten <i>%s</i>"
 
 #: nodes/explanations.py
-#, fuzzy, python-format
-#| msgid "identifier"
+#, python-format
 msgid "Node with identifier <i>%s</i>"
-msgstr "Kennung"
+msgstr "Knoten mit Kennung <i>%s</i>"
 
 #: nodes/explanations.py
 #, python-format
 msgid "Has tag <i>%s</i>."
-msgstr ""
+msgstr "Hat Tag <i>%s</i> ."
 
 #: nodes/explanations.py
 #, python-format
 msgid "From dimension <i>%(dimension)s</i>, exclude categories: <i>%(categories)s</i>"
 msgstr ""
+"Aus Dimension <i>%(dimension)s</i> , schließe Kategorien aus: "
+"<i>%(categories)s</i>"
 
 #: nodes/explanations.py
 #, python-format
 msgid "In dimension <i>%(dimension)s</i>, include categories: <i>%(categories)s</i>"
 msgstr ""
+"In Dimension <i>%(dimension)s</i> , schließe Kategorien ein: "
+"<i>%(categories)s</i>"
 
 #: nodes/explanations.py
 #, python-format
 msgid "<li>Sum over dimension <i>%(dim)s</i></li>"
-msgstr ""
+msgstr "<li>Summe über Dimension <i>%(dim)s</i></li>"
 
 #: nodes/explanations.py
 #, python-format
 msgid "Categorize the values to <i>%(categories)s</i> in a new dimension <i>%(dimension)s</i>."
 msgstr ""
+"Kategorisiere Werte zu <i>%(categories)s</i> in einer neuen Dimension "
+"<i>%(dimension)s</i>."
 
 #: nodes/explanations.py
 msgid "The inputs are used for operations in this order:"
-msgstr ""
+msgstr "Die Eingaben werden in dieser Reihenfolge für Operationen verwendet:"
 
 #: nodes/explanations.py
 #, python-format
 msgid "Operation %(op)s with nodes:"
-msgstr ""
+msgstr "Operation %(op)s mit Knoten:"
 
 #: nodes/explanations.py
 msgid "These groups are left over without an operation:"
-msgstr ""
+msgstr "Diese Gruppen sind ohne eine Operation übrig geblieben:"
 
 #: nodes/explanations.py
 #, python-format
 msgid "Group %(basket)s with nodes:"
-msgstr ""
+msgstr "Gruppe %(basket)s mit Knoten:"
 
 #: nodes/generic.py
 msgid "Multiply input nodes whose unit does not match the output. Add the rest."
