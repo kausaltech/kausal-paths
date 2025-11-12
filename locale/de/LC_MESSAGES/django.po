@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-11-12 14:51+0100\n"
+"POT-Creation-Date: 2025-11-12 14:59+0100\n"
 "PO-Revision-Date: 2025-11-12 13:21+0000\n"
 "Last-Translator: Bernhard Bliem <bernhard.bliem@kausal.tech>\n"
 "Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>\n"
@@ -1805,9 +1805,10 @@ msgid "Sum up column <i>%(name)s</i>."
 msgstr ""
 
 #: nodes/explanations.py
-#, python-format
-msgid " Drop column <i>%(name)s</i>."
-msgstr ""
+#, fuzzy, python-format
+#| msgid "Uses column: "
+msgid "Drop column <i>%(name)s</i>."
+msgstr "Verwendet die Spalte: "
 
 #: nodes/explanations.py
 #, python-format
