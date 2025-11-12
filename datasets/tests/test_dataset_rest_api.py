@@ -32,12 +32,12 @@ def api_client():
     pytest.param('admin_user', True, {'Schema 1', 'Unused schema'}, id='admin_user'),
     pytest.param('reviewer_user', True, {'Schema 1', 'Unused schema'}, id='reviewer_user'),
     pytest.param('viewer_user', True, {'Schema 1', 'Unused schema'}, id='viewer_user'),
-    pytest.param('schema1_viewer', True, {'Schema 1', 'Unused schema'}, id='schema1_viewer'),
-    pytest.param('schema1_editor', True, {'Schema 1', 'Unused schema'}, id='schema1_editor'),
-    pytest.param('schema1_admin', True, {'Schema 1', 'Unused schema'}, id='schema1_admin'),
-    pytest.param('schema1_viewer_group_user', True, {'Schema 1', 'Unused schema'}, id='schema1_viewer_group_user'),
-    pytest.param('schema1_editor_group_user', True, {'Schema 1', 'Unused schema'}, id='schema1_editor_group_user'),
-    pytest.param('schema1_admin_group_user', True, {'Schema 1', 'Unused schema'}, id='schema1_admin_group_user'),
+    pytest.param('schema1_viewer', True, {'Schema 1'}, id='schema1_viewer'),
+    pytest.param('schema1_editor', True, {'Schema 1'}, id='schema1_editor'),
+    pytest.param('schema1_admin', True, {'Schema 1'}, id='schema1_admin'),
+    pytest.param('schema1_viewer_group_user', True, {'Schema 1'}, id='schema1_viewer_group_user'),
+    pytest.param('schema1_editor_group_user', True, {'Schema 1'}, id='schema1_editor_group_user'),
+    pytest.param('schema1_admin_group_user', True, {'Schema 1'}, id='schema1_admin_group_user'),
     pytest.param('regular_user', False, set(), id='regular_user'),
 ])
 def test_dataset_schema_list(api_client, dataset_test_data, user_key, has_access, expected_schemas):
@@ -189,13 +189,15 @@ admin_user                 unused_schema  +               +                -
 # 403 for these since the roles of the users simply disallow the delete action
 regular_user               unused_schema  -               -                -
 reviewer_user              unused_schema  -               -                -
-schema1_admin              unused_schema  -               -                -
-schema1_admin_group_user   unused_schema  -               -                -
-schema1_editor             unused_schema  -               -                -
-schema1_editor_group_user  unused_schema  -               -                -
-schema1_viewer             unused_schema  -               -                -
-schema1_viewer_group_user  unused_schema  -               -                -
 viewer_user                unused_schema  -               -                -
+
+# 404: subsector admins should only know about schemas they are directly linked to
+schema1_admin              unused_schema  +               -                -
+schema1_admin_group_user   unused_schema  +               -                -
+schema1_editor             unused_schema  +               -                -
+schema1_editor_group_user  unused_schema  +               -                -
+schema1_viewer             unused_schema  +               -                -
+schema1_viewer_group_user  unused_schema  +               -                -
 """))
 def test_dataset_schema_delete(
     api_client,

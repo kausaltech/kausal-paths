@@ -77,12 +77,19 @@ admin_user                 data_source1              200
 super_admin_user           data_source1              200
 reviewer_user              data_source1              200
 viewer_user                data_source1              200
-schema1_viewer             data_source1              200
-schema1_editor             data_source1              200
-schema1_admin              data_source1              200
-schema1_viewer_group_user  data_source1              200
-schema1_editor_group_user  data_source1              200
-schema1_admin_group_user   data_source1              200
+
+# Note: subsector admin persons with rights through
+# DatasetSchemaPersonPermission objects or
+# DatasetSchemaGroupPermission objects do not have
+# direct access to individual data sources. If the
+# need arises, access should be granted in the
+# relevant permission policy
+schema1_viewer             data_source1              404
+schema1_editor             data_source1              404
+schema1_admin              data_source1              404
+schema1_viewer_group_user  data_source1              404
+schema1_editor_group_user  data_source1              404
+schema1_admin_group_user   data_source1              404
 
 admin_user                 data_source2              404
 super_admin_user           data_source2              404
