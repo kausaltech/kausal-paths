@@ -9,9 +9,10 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2025-11-12 17:25+0200\n"
-"PO-Revision-Date: 2025-11-12 15:14+0000\n"
+"PO-Revision-Date: 2025-11-12 15:31+0000\n"
 "Last-Translator: Bernhard Bliem <bernhard.bliem@kausal.tech>\n"
-"Language-Team: German (Switzerland) <https://weblate.kausal.tech/projects/paths/django/de_CH/>\n"
+"Language-Team: German (Switzerland) <https://weblate.kausal.tech/projects/"
+"paths/django/de_CH/>\n"
 "Language: de_CH\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -43,12 +44,14 @@ msgstr ""
 
 #: admin_site/dataset_admin.py
 msgid "At least one metric must be defined for the dataset schema."
-msgstr ""
+msgstr "Für das Datensatzschema muss mindestens eine Messgrösse definiert sein."
 
 #: admin_site/dataset_admin.py
 #, python-format
 msgid "Cannot remove metric \"%(metric)s\" because it is used by %(count)d data point(s). Please remove the data first."
 msgstr ""
+"Die Messgrösse \"%(metric)s\" kann nicht entfernt werden, da sie von %(count)"
+"d Datenpunkt(en) verwendet wird. Bitte entfernen Sie zuerst die Daten."
 
 #: admin_site/dataset_admin.py
 msgid "Dataset schemas"
@@ -354,7 +357,7 @@ msgstr ""
 
 #: kausal_common/datasets/models.py
 msgid "Metrics"
-msgstr ""
+msgstr "Messgrössen"
 
 #: kausal_common/datasets/models.py
 msgid "Defines the interpretation and units for the values of the dataset"
@@ -402,11 +405,11 @@ msgstr ""
 
 #: kausal_common/datasets/models.py
 msgid "dataset metric"
-msgstr ""
+msgstr "Datensatzmessgrösse"
 
 #: kausal_common/datasets/models.py
 msgid "dataset metrics"
-msgstr ""
+msgstr "Datensatzmessgrössen"
 
 #: kausal_common/datasets/models.py
 msgid "dataset schema dimension"
@@ -450,7 +453,7 @@ msgstr ""
 
 #: kausal_common/datasets/models.py
 msgid "metric"
-msgstr ""
+msgstr "Messgrösse"
 
 #: kausal_common/datasets/models.py
 msgid "value"
@@ -867,7 +870,7 @@ msgstr ""
 
 #: nodes/actions/energy_saving.py nodes/explanations.py
 msgid "Simple action with several energy metrics."
-msgstr ""
+msgstr "Einfache Massnahme mit mehreren Energiemessgrössen."
 
 #: nodes/actions/gpc.py nodes/explanations.py
 msgid ""
