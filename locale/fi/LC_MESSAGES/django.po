@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-11-06 13:55+0100\n"
+"POT-Creation-Date: 2025-11-12 14:51+0100\n"
 "PO-Revision-Date: 2025-04-01 12:20+0000\n"
 "Last-Translator: Matias Wargelin <matias.wargelin@kausal.tech>\n"
 "Language-Team: Finnish <https://weblate.kausal.tech/projects/paths/django/fi/>\n"
@@ -750,10 +750,6 @@ msgid "postal address"
 msgstr "sähköpostiosoite"
 
 #: kausal_common/people/models.py
-msgid "What is this person's organization"
-msgstr ""
-
-#: kausal_common/people/models.py
 msgid "user"
 msgstr ""
 
@@ -1024,7 +1020,7 @@ msgid ""
 "    "
 msgstr ""
 
-#: nodes/blocks.py nodes/explanations.py nodes/models.py
+#: nodes/blocks.py nodes/models.py
 msgid "Node"
 msgstr "Solmu"
 
@@ -1554,19 +1550,18 @@ msgid "Node class does not have description."
 msgstr "Tällä käyttäjällä ei ole pääsyä ylläpitoon."
 
 #: nodes/explanations.py
-msgid "The order of operations is"
+#, python-format
+msgid "The order of operations is %s."
 msgstr ""
 
 #: nodes/explanations.py
-msgid "Has formula"
+#, python-format
+msgid "Has formula %s."
 msgstr ""
 
 #: nodes/explanations.py
-msgid "Has parameter"
-msgstr ""
-
-#: nodes/explanations.py
-msgid "with value"
+#, python-format
+msgid "Has parameter <i>%(parameter)s</i> with value %(value)s."
 msgstr ""
 
 #: nodes/explanations.py
@@ -1576,17 +1571,19 @@ msgid "Datasets"
 msgstr "tietoaineistot"
 
 #: nodes/explanations.py
-#, fuzzy
+#, fuzzy, python-format
 #| msgid "identifier"
-msgid "Dataset with identifier"
+msgid "Dataset with identifier <i>%s</i>"
 msgstr "tunniste"
 
 #: nodes/explanations.py
-msgid "Uses column: "
+#, python-format
+msgid "Uses column: %(name)s"
 msgstr ""
 
 #: nodes/explanations.py
-msgid "Has forecast values from: "
+#, python-format
+msgid "Has forecast values from: %(year)s"
 msgstr ""
 
 #: nodes/explanations.py
@@ -1602,60 +1599,47 @@ msgid "Has the following filters:"
 msgstr ""
 
 #: nodes/explanations.py
-msgid "global parameter"
+#, python-format
+msgid "global parameter %(label)s"
 msgstr ""
 
 #: nodes/explanations.py
-msgid "by excluding"
+#, python-format
+msgid "Filter column <i>%(name)s</i> by excluding <i>%(values)s</i>."
 msgstr ""
 
 #: nodes/explanations.py
-msgid "by including"
+#, python-format
+msgid "Filter column <i>%(name)s</i> by including <i>%(values)s</i>."
 msgstr ""
 
 #: nodes/explanations.py
-msgid "Filter column"
+#, python-format
+msgid "Sum up column <i>%(name)s</i>."
 msgstr ""
 
 #: nodes/explanations.py
-msgid "Sum up column"
+#, python-format
+msgid " Drop column <i>%(name)s</i>."
 msgstr ""
 
 #: nodes/explanations.py
-msgid " Drop column"
+#, python-format
+msgid "Assign dataset to category <i>%(cat_label)s</i> on dimension <i>%(dim_label)s</i>."
 msgstr ""
 
 #: nodes/explanations.py
-msgid "Assign dataset to category"
+msgid "Filter dimension <i>%s(dim_label)s</i> by categories <i>%(cat_labels)s</i>."
 msgstr ""
 
 #: nodes/explanations.py
-#, fuzzy
-msgid "on dimension"
+#, fuzzy, python-format
+msgid "Sum up the dimension <i>%(label)s</i>."
 msgstr "Ulottuvuudet"
 
 #: nodes/explanations.py
-#, fuzzy
-msgid "Filter dimension"
-msgstr "Ulottuvuudet"
-
-#: nodes/explanations.py
-msgid "by category"
-msgstr ""
-
-#: nodes/explanations.py
-#, fuzzy
-msgid "Sum up the dimension"
-msgstr "Ulottuvuudet"
-
-#: nodes/explanations.py
-#, fuzzy
-#| msgid "name"
-msgid "with name"
-msgstr "nimi"
-
-#: nodes/explanations.py
-msgid "on column"
+#, python-format
+msgid "Rename item <i>%(old_string)s</i> to <i>%(new_string)s</i> in column <i>%(column)s</i>."
 msgstr ""
 
 #: nodes/explanations.py
@@ -1663,26 +1647,29 @@ msgid "The inputs are processed in the following way before using for calculatio
 msgstr ""
 
 #: nodes/explanations.py
-#, fuzzy
+#, python-format
+msgid "Node <i>%s</i>"
+msgstr ""
+
+#: nodes/explanations.py
+#, fuzzy, python-format
 #| msgid "identifier"
-msgid "Node with identifier"
+msgid "Node with identifier <i>%s</i>"
 msgstr "tunniste"
 
 #: nodes/explanations.py
-msgid "Has tag"
-msgstr ""
-
-#: nodes/explanations.py
-msgid "exclude"
-msgstr ""
-
-#: nodes/explanations.py
-msgid "include"
+#, python-format
+msgid "Has tag <i>%s</i>."
 msgstr ""
 
 #: nodes/explanations.py
 #, python-format
-msgid "<li>From dimension <i>%(dim)s</i>, %(action)s categories: <i>%(cats)s</i></li>"
+msgid "From dimension <i>%(dimension)s</i>, exclude categories: <i>%(categories)s</i>"
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
+msgid "In dimension <i>%(dimension)s</i>, include categories: <i>%(categories)s</i>"
 msgstr ""
 
 #: nodes/explanations.py
@@ -1691,7 +1678,8 @@ msgid "<li>Sum over dimension <i>%(dim)s</i></li>"
 msgstr ""
 
 #: nodes/explanations.py
-msgid "Categorize the values to"
+#, python-format
+msgid "Categorize the values to <i>%(categories)s</i> in a new dimension <i>%(dimension)s</i>."
 msgstr ""
 
 #: nodes/explanations.py
@@ -2736,6 +2724,19 @@ msgstr ""
 #: users/models.py
 msgid "adminable instances"
 msgstr ""
+
+#, fuzzy
+#~ msgid "on dimension"
+#~ msgstr "Ulottuvuudet"
+
+#, fuzzy
+#~ msgid "Filter dimension"
+#~ msgstr "Ulottuvuudet"
+
+#, fuzzy
+#~| msgid "name"
+#~ msgid "with name"
+#~ msgstr "nimi"
 
 #, fuzzy
 #~ msgid "Comment"
