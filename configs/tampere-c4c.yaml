@@ -3096,6 +3096,7 @@ nodes:
 # ----- ACTIONS ---------------------------------------------------------------
 
 actions:
+# ----- Liikenne
 - id: electrify_public_transportation
   name: Bussiliikenteen käyttövoimamuutos
   name_en: Change in the propulsion of bus fleet
@@ -3674,6 +3675,251 @@ actions:
     - id: scope
       flatten: true
 
+# ----- Rakennuksen Lämmitys
+- id: aahps_in_municipal_building_stock
+  name: AAHPs in municipal building stock
+  name_en: AAHPs in municipal building stock
+  type: simple.AdditiveAction
+  group: building_heating
+  input_dimensions: [action, cost_type, owner, heating, energy_carrier, scope]
+  output_dimensions: [action, cost_type, owner, heating, energy_carrier, scope]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: tampere/stationary_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [aahps_in_municipal_building_stock]
+    - column: ghg
+  output_metrics:
+  - id: energy
+    unit: GWh/a
+    quantity: energy
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: direct_electric_heating_electricity_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    to_dimensions:
+    - id: heating
+    - id: energy_carrier
+    - id: scope
+  - id: energy_consumption_impacts
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: energy_carrier
+  - id: building_heating_price
+    metrics: [currency]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+  - id: total_costs
+    metrics: [currency]
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: owner
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: owner
+
+- id: geothermal_and_awhps_in_municipal_building_stock
+  name: Geothermal and AWHPs in municipal building stock
+  name_en: Geothermal and AWHPs in municipal building stock
+  type: simple.AdditiveAction
+  group: building_heating
+  input_dimensions: [action, cost_type, owner, heating, energy_carrier, scope]
+  output_dimensions: [action, cost_type, owner, heating, energy_carrier, scope]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: tampere/stationary_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [geothermal_and_awhps_in_municipal_building_stock]
+    - column: ghg
+  output_metrics:
+  - id: energy
+    unit: GWh/a
+    quantity: energy
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: direct_electric_heating_electricity_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      categories: [direct_electric_heat]
+    to_dimensions:
+    - id: heating
+    - id: energy_carrier
+    - id: scope
+  - id: geothermal_heating_electricity_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      categories: [geothermal]
+    to_dimensions:
+    - id: heating
+    - id: energy_carrier
+    - id: scope
+  - id: oil_heating_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      categories: [fuel_oil]
+    to_dimensions:
+    - id: heating
+    - id: energy_carrier
+    - id: scope
+  - id: energy_consumption_impacts
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: energy_carrier
+  - id: building_heating_price
+    metrics: [currency]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+  - id: total_costs
+    metrics: [currency]
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: owner
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: owner
+
+- id: waste_heat_recovery_in_district_heating
+  name: Hukkalämpöjen talteenotto kaukolämmityksen tukena
+  name_en: Waste heat recovery in district heating
+  type: simple.AdditiveAction
+  group: building_heating
+  quantity: emission_factor
+  unit: t_co2e/GWh
+  input_dimensions: [heating, energy_carrier, ghg, scope]
+  output_dimensions: [heating, energy_carrier, ghg, scope]
+  input_datasets:
+  - id: tampere/stationary_actions
+    column: emission_factor
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: action
+      value: waste_heat_recovery_in_district_heating
+    - column: cost_type
+    - column: owner
+  output_nodes:
+  - id: heating_emission_factors
+
 - id: energy_efficiency_renovations_in_buildings
   name: Korjausrakentaminen kaupungin kiinteistössä
   name_en: Energy efficiency renovations in city's building stock
@@ -4167,6 +4413,7 @@ actions:
     - id: scope
       flatten: true
 
+# ----- Sähkön Kulutus
 - id: build_renewable_electricity_production
   name: Hajautettu uusiutuva energia (aurinkosähkö)
   name_en: Building renewable electricity production (PV)
@@ -4553,6 +4800,7 @@ actions:
     - id: scope
       flatten: true
 
+# ----- Teollisuus ja Työkoneet
 - id: replacing_fossil_fuels_with_res_in_city_machinery
   name: Fossiilisista polttoaineista luopuminen kaupungin työkoneissa
   name_en: Replacing fossil fuels with renewables in the city's own machinery
@@ -4667,6 +4915,7 @@ actions:
     - id: scope
       flatten: true
 
+# ----- Parametrit
 - id: shift_to_low_carbon_in_national_electricity_production
   name: Kansallinen sähköntuotanto puhdistuu
   name_en: Shift to low-carbon in national electricity production
