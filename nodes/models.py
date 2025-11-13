@@ -194,6 +194,8 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Any
             if include_implicit_public:
                 q |= Q(framework_config__isnull=True)
 
+        # PersonGroupPermissions and PersonPermissions can assign permissions directly to datasetschemas and their associated
+        # datasets. We want to count the instanceconfigs those schemas are scoped for as accessible for those users.
         schema_q = DatasetSchema.accessible_by_user_q(user)
         if schema_q is None or bool(schema_q) is False:
             # schema_q can be false for superusers, but we do not want

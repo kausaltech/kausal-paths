@@ -29,7 +29,7 @@ from kausal_common.people.models import ObjectRole
 
 from paths.context import realm_context
 
-from nodes.models import InstanceConfig
+from nodes.models import InstanceConfig, InstanceConfigPermissionPolicy
 from nodes.roles import (
     InstanceGroupMembershipRole,
 )
@@ -350,9 +350,41 @@ class DataSourcePermissionPolicy(InstanceConfigScopedPermissionPolicy[DataSource
         viewer_q = self.get_instanceconfig_scope_q_for_role(user, 'instance-viewer')
         reviewer_q = self.get_instanceconfig_scope_q_for_role(user, 'instance-reviewer')
 
+        q = super_admin_q | admin_q
         if action == 'view':
-            return super_admin_q | admin_q | viewer_q | reviewer_q
-        return super_admin_q | admin_q
+            q |= viewer_q | reviewer_q
+
+            # Also allow users who have schema-level permissions via InstanceConfig permissions
+            subsector_q = InstanceConfigPermissionPolicy().construct_perm_q(user, 'view', include_implicit_public=False)
+            if subsector_q is None:
+                return q
+
+            instance_ids = InstanceConfig.objects.filter(subsector_q).values_list('pk', flat=True)
+            if not instance_ids:
+                return q
+            ic_content_type = ContentType.objects.get_for_model(InstanceConfig)
+            schema_perm_q = Q(
+                scope_content_type=ic_content_type,
+                scope_id__in=instance_ids
+            )
+            q |= schema_perm_q
+
+        return q
+
+    @override
+    def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: DataSource) -> bool:
+        if super().user_has_perm(user, action, obj):
+            return True
+
+        if action == 'view':
+            ic_policy = InstanceConfigPermissionPolicy()
+            subsector_q = ic_policy.construct_perm_q(user, 'view', include_implicit_public=False)
+            if subsector_q is not None:
+                ic_content_type = ContentType.objects.get_for_model(InstanceConfig)
+                if obj.scope_content_type == ic_content_type:
+                    return InstanceConfig.objects.filter(pk=obj.scope_id).filter(subsector_q).exists()
+
+        return False
 
     def is_create_context_valid(self, context: Any) -> TypeGuard[None]:
         return context is None

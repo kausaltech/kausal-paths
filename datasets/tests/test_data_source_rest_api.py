@@ -77,6 +77,7 @@ admin_user                 data_source1              200
 super_admin_user           data_source1              200
 reviewer_user              data_source1              200
 viewer_user                data_source1              200
+
 schema1_viewer             data_source1              200
 schema1_editor             data_source1              200
 schema1_admin              data_source1              200
