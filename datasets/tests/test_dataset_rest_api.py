@@ -1745,14 +1745,15 @@ def test_dataset_metric_delete(api_client, dataset_test_data, user_key):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'dataset_key', 'expected_status'), [
-    ('superuser', 'dataset1', 201),
-    ('admin_user', 'dataset1', 201),
-    ('super_admin_user', 'dataset1', 201),
-    ('reviewer_user', 'dataset1', 403),
-    ('viewer_user', 'dataset1', 403),
-    ('regular_user', 'dataset1', 403),
-])
+@pytest.mark.parametrize(*parse_table("""
+user_key         dataset_key expected_status
+superuser        dataset1    201
+admin_user       dataset1    201
+super_admin_user dataset1    201
+reviewer_user    dataset1    403
+viewer_user      dataset1    403
+regular_user     dataset1    403
+"""))
 def test_data_point_bulk_create(api_client, dataset_test_data, user_key, dataset_key, expected_status):
     user = dataset_test_data[user_key]
     dataset = dataset_test_data[dataset_key]
