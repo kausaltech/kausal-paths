@@ -107,19 +107,6 @@ class UUIDIdentifierField(models.UUIDField):
         super().__init__(*args, **kwargs)
 
 
-class UserModifiableModel(models.Model):  # noqa: DJ008
-    created_at = models.DateTimeField(verbose_name=_('created at'), editable=False, auto_now_add=True)
-    created_by = models.ForeignKey('users.User', null=True, on_delete=models.SET_NULL, editable=False, related_name='+')
-    updated_at = models.DateTimeField(verbose_name=_('updated at'), editable=False, auto_now=True)
-    updated_by = models.ForeignKey('users.User', null=True, on_delete=models.SET_NULL, editable=False, related_name='+')
-
-    if TYPE_CHECKING:
-        Meta: Any
-    else:
-        class Meta:
-            abstract = True
-
-
 def get_supported_languages():
     yield from settings.LANGUAGES
 
