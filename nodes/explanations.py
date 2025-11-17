@@ -1086,7 +1086,7 @@ class EdgeRule(ValidationRule):
             for lang in langs:
                 key = f'name{lang}'
                 if node.get(key):
-                    return _('Node <i>%s</i>') % node['key']
+                    return _('Node <i>%s</i>') % node[key]
             return _('Node with identifier <i>%s</i>') % node_id
 
         for input_node in node_config.get('input_nodes', {}):
