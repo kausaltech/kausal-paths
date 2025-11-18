@@ -4080,6 +4080,267 @@ actions:
     - id: scope
       flatten: true
 
+- id: additional_investments_in_naistenlahti_3
+  name: Naistenlahti 3 -voimalaitoksen lisäinvestoinnit
+  name_en: Additional investments in Naistenlahti 3
+  type: simple.AdditiveAction
+  group: building_heating
+  input_dimensions: [action, cost_type, owner, heating, energy_carrier, ghg, scope]
+  output_dimensions: [action, cost_type, owner, heating, energy_carrier, ghg, scope]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: tampere/stationary_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [additional_investments_in_naistenlahti_3]
+  output_metrics:
+  - id: emission_factor
+    unit: t_co2e/GWh
+    quantity: energy
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: heating_emission_factors
+    metrics: [emission_factor]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    to_dimensions:
+    - id: heating
+    - id: energy_carrier
+    - id: ghg
+    - id: scope
+  - id: building_heating_price
+    metrics: [currency]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+  - id: total_costs
+    metrics: [currency]
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: owner
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: owner
+
+- id: electric_boiler_and_district_heat_battery
+  name: Sähkökattila ja kaukolämpöakku
+  name_en: Electric boiler and district heat battery
+  type: simple.AdditiveAction
+  group: building_heating
+  input_dimensions: [action, cost_type, owner, heating, energy_carrier, ghg, scope]
+  output_dimensions: [action, cost_type, owner, heating, energy_carrier, ghg, scope]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: tampere/stationary_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [electric_boiler_and_district_heat_battery]
+  output_metrics:
+  - id: emission_factor
+    unit: t_co2e/GWh
+    quantity: energy
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: heating_emission_factors
+    metrics: [emission_factor]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    to_dimensions:
+    - id: heating
+    - id: energy_carrier
+    - id: ghg
+    - id: scope
+  - id: building_heating_price
+    metrics: [currency]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+  - id: total_costs
+    metrics: [currency]
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: owner
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: owner
+
+- id: smart_grid_and_virtual_power_plant_development
+  name: Älykäs energiaverkko ja virtuaalilaitoksen kehitys
+  name_en: Smart grid and virtual power plant development
+  type: simple.AdditiveAction
+  group: building_heating
+  input_dimensions: [action, cost_type, owner, heating, energy_carrier, ghg, scope]
+  output_dimensions: [action, cost_type, owner, heating, energy_carrier, ghg, scope]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: tampere/stationary_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [smart_grid_and_virtual_power_plant_development]
+  output_metrics:
+  - id: emission_factor
+    unit: t_co2e/GWh
+    quantity: energy
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  output_nodes:
+  - id: heating_emission_factors
+    metrics: [emission_factor]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    to_dimensions:
+    - id: heating
+    - id: energy_carrier
+    - id: ghg
+    - id: scope
+  - id: building_heating_price
+    metrics: [currency]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: owner
+  - id: total_costs
+    metrics: [currency]
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: owner
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: owner
+
 - id: replacing_oil_heating_with_geothermal
   name: Öljylämmityksestä siirtyminen maalämpöihin yksityisomisteisissa rakennuskannassa
   name_en: Replacing oil heating with geothermal heating in private buildings
