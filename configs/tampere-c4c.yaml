@@ -129,6 +129,9 @@ dimensions:
   - id: gross_output
     label: Tuotosvaikutus
     label_en: Gross output
+  - id: carbon_shadow
+    label: Hiilen varjohinta
+    label_en: Shadow cost of carbon
 
 - id: energy_carrier
   label: Energian kantaja
@@ -2246,11 +2249,41 @@ nodes:
     [2028, 216], [2029, 233], [2030, 250]]
   output_nodes:
   - id: energy_emissions_cost_reductions
+    to_dimensions:
+    - id: cost_type
+      categories: [carbon_shadow]
+    - id: owner
+      categories: [society]
   - id: energy_emissions_cost_increases
+    to_dimensions:
+    - id: cost_type
+      categories: [carbon_shadow]
+    - id: owner
+      categories: [society]
   - id: transport_emissions_cost_reductions
+    to_dimensions:
+    - id: cost_type
+      categories: [carbon_shadow]
+    - id: owner
+      categories: [society]
   - id: transport_emissions_cost_increases
+    to_dimensions:
+    - id: cost_type
+      categories: [carbon_shadow]
+    - id: owner
+      categories: [society]
   - id: emissions_cost_reductions
+    to_dimensions:
+    - id: cost_type
+      categories: [carbon_shadow]
+    - id: owner
+      categories: [society]
   - id: emissions_cost_increases
+    to_dimensions:
+    - id: cost_type
+      categories: [carbon_shadow]
+    - id: owner
+      categories: [society]
 
 - id: net_price
   name: Kokonaiskustannus
@@ -2526,8 +2559,8 @@ nodes:
       flatten: true
     - id: scope
       flatten: true
+    to_dimensions:
     - id: action
-      flatten: true
 
 - id: energy_emissions_cost_reductions
   name: Energian päästöjen kustannussäästöt
@@ -2535,10 +2568,10 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: EUR/a
-  input_dimensions: []
-  output_dimensions: []
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
   output_nodes:
-  - id: aggregate_total_benefits
+  - id: total_benefits
 
 - id: energy_emissions_increases
   name: Energy emissions increases
@@ -2557,8 +2590,8 @@ nodes:
       flatten: true
     - id: scope
       flatten: true
+    to_dimensions:
     - id: action
-      flatten: true
 
 - id: energy_emissions_cost_increases
   name: Energy emissions cost increases
@@ -2566,10 +2599,10 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: EUR/a
-  input_dimensions: []
-  output_dimensions: []
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
   output_nodes:
-  - id: aggregate_total_costs
+  - id: total_costs
 
 # ----- Mileage
 
@@ -2642,8 +2675,8 @@ nodes:
       flatten: true
     - id: scope
       flatten: true
+    to_dimensions:
     - id: action
-      flatten: true
 
 - id: transport_emissions_increases
   name: Transport emissions increases
@@ -2662,8 +2695,8 @@ nodes:
       flatten: true
     - id: scope
       flatten: true
+    to_dimensions:
     - id: action
-      flatten: true
 
 - id: transport_emissions_cost_reductions
   name: Transport emissions cost reductions
@@ -2671,10 +2704,10 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: EUR/a
-  input_dimensions: []
-  output_dimensions: []
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
   output_nodes:
-  - id: aggregate_total_benefits
+  - id: total_benefits
 
 - id: transport_emissions_cost_increases
   name: Transport emissions cost increases
@@ -2682,10 +2715,10 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: EUR/a
-  input_dimensions: []
-  output_dimensions: []
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
   output_nodes:
-  - id: aggregate_total_costs
+  - id: total_costs
 
 # ----- Emissions
 
@@ -2713,9 +2746,8 @@ nodes:
   output_dimensions: [action]
   output_nodes:
   - id: emissions_cost_reductions
-    from_dimensions:
+    to_dimensions:
     - id: action
-      flatten: true
 
 - id: emissions_increases
   name: Emissions increases
@@ -2727,9 +2759,8 @@ nodes:
   output_dimensions: [action]
   output_nodes:
   - id: emissions_cost_increases
-    from_dimensions:
+    to_dimensions:
     - id: action
-      flatten: true
 
 - id: emissions_cost_reductions
   name: Emissions cost reductions
@@ -2737,10 +2768,10 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: EUR/a
-  input_dimensions: []
-  output_dimensions: []
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
   output_nodes:
-  - id: aggregate_total_benefits
+  - id: total_benefits
 
 - id: emissions_cost_increases
   name: Emissions cost increases
@@ -2748,10 +2779,10 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: EUR/a
-  input_dimensions: []
-  output_dimensions: []
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
   output_nodes:
-  - id: aggregate_total_costs
+  - id: total_costs
 
 # ----- TEMPORARY -------------------------------------------------------------
 
