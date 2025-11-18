@@ -406,6 +406,7 @@ def add_unit_translations():  # noqa: C901
         {'unit': 't_ha', 'long': _('1000 hectares'), 'short': '1000 ha'},
         {'unit': 'vkm', 'long': _('vehicle-km'), 'short': _('vkm')},
         {'unit': 'megavkm', 'long': _('Million vehicle-km'), 'short': _('M vkm')},
+        {'unit': 'disability_adjusted_lifeyear', 'long': _('Disability-adjusted lifeyear'), 'short': _('DALY')},
     ]
     #set_one('cap', pgettext_lazy('capita short', 'cap'))
 
