@@ -35,6 +35,7 @@ dimensions:
     label_en: Transport
     label_de: Verkehr
     aliases: [verkehr]
+    color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
   - id: buildings
     label_en: Buildings & Heating
     label_de: Gebäude & Heizung
@@ -42,18 +43,22 @@ dimensions:
     label_en: Private Households
     label_de: Private Haushalte
     aliases: [private_haushalte]
+    color: '#009ebe'
   - id: municipal_facilities
     label_en: Municipal Facilities
     label_de: Kommunale Einrichtungen
     aliases: [kommunale_einrichtungen, stadtische_gebaude]
+    color: '#6bc248'
   - id: commerce_trade_services
     label_en: Commerce, Trade & Services
     label_de: Gewerbe, Handel, Dienstleistungen
     aliases: [gewerbe_handel_dienstleistungen, gewerbe_sonstiges]
+    color: '#fe8035'
   - id: industry
     label_en: Industry
     label_de: Industrie
     aliases: [industrie]
+    color: '#737373'
   - id: electricity
     label_en: Electricity
     label_de: Strom
