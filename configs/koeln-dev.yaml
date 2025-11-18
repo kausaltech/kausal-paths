@@ -418,13 +418,13 @@ actions:
     by RheinEnergie AG</li><li>Photovoltaics at Municipal Holdings</li><li>PV 
     Expansion on Municipal Buildings</li><li>Photovoltaics in Heritage 
     Conservation</li></ul>
-  description_de: Die Strategie besteht aus diesen 
+  description_de: 'Die Strategie besteht aus diesen 
     Maßnahmen:<ul><li>Photovoltaik-Förderprogramme der 
     Stadtverwaltung</li><li>Solarkataster Köln für Photovoltaik- und 
     Solaranlagen</li><li>Mobiler One-Stop-Shop für Köln</li><li>KlimaVeedel der 
     RheinEnergie AG</li><li>Photovoltaik bei 
     Beteiligungen</li><li>Photovoltaik-Ausbau auf kommunalen 
-    Gebäuden</li><li>Photovoltaik im Denkmalschutz</li></ul>
+    Gebäuden</li><li>Photovoltaik im Denkmalschutz</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/02-strom/21-erneuerbare-stromerzeugung-durch-kleine-dezentrale-anlagen">in Kausal Watch</a></p>'
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -451,14 +451,14 @@ actions:
     Potential Sites</li><li>Plans for Wind Energy Expansion in North 
     Cologne</li><li>Development and Realization of Open-Space PV 
     Projects</li></ul>
-  description_de: Die Strategie besteht aus diesen 
+  description_de: 'Die Strategie besteht aus diesen 
     Maßnahmen:<ul><li>Solarkataster durch die Stadtverwaltung</li><li>Planung 
     und Analyse von Windenergiepotenzialen durch die 
     Verwaltung</li><li>Freiflächen-Photovoltaik (PV) – Potenziale und 
     Umsetzung</li><li>Windkraft – Identifikation von 
     Potenzialflächen</li><li>Planungen zum Ausbau der Windenergie im Kölner 
     Norden</li><li>Entwicklung und Realisierung von 
-    PV-Freiflächenprojekten</li></ul>
+    PV-Freiflächenprojekten</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/strom/22-erneuerbare-stromerzeugung-in-der-fläche">in Kausal Watch</a></p>'
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -481,9 +481,9 @@ actions:
   description_en: The strategy consists of these measures:<ul><li>HGK Group 
     Climate Protection Measures - Complete Green Electricity Procurement for 
     Cologne Sites</li></ul>
-  description_de: Die Strategie besteht aus diesen 
+  description_de: 'Die Strategie besteht aus diesen 
     Maßnahmen:<ul><li>Klimaschutzmaßnahmen der HGK-Gruppe - Vollständiger 
-    Ökostrombezug für Standorte in Köln</li></ul>
+    Ökostrombezug für Standorte in Köln</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/strom/23-erneuerbare-stromerzeugung-durch-kraftwerke">in Kausal Watch</a></p>'
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -508,7 +508,7 @@ actions:
     Options in Companies</li></ul>'
   description_de: 'Die Strategie besteht aus diesen Maßnahmen:<ul><li>Beratungen der
     KölnBusiness Wirtschaftsförderungs-GmbH: Nachhaltigkeitsvorhaben inkl. Finanzierungsmöglichkeiten
-    im Unternehmen fördern</li></ul>'
+    im Unternehmen fördern</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/02-strom/stromeinsparung-im-gewerbesektor">in Kausal Watch</a></p>'
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -530,9 +530,9 @@ actions:
   name_en: Heat Source Development for District Heating Networks
   description_en: The strategy consists of these measures:<ul><li>Transformation
     Plans of RheinEnergie AG for Cologne District Heating Networks</li></ul>
-  description_de: Die Strategie besteht aus diesen 
+  description_de: 'Die Strategie besteht aus diesen 
     Maßnahmen:<ul><li>Transformationspläne der RheinEnergie AG für die Kölner 
-    Fernwärmenetze</li></ul>
+    Fernwärmenetze</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/wärme/31-wärmequellenerschließung-für-wärmenetze">in Kausal Watch</a></p>'
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -578,9 +578,9 @@ actions:
   description_en: The strategy consists of these measures:<ul><li>KlimaVeedel by
     RheinEnergie AG</li><li>Decarbonization Strategy of GAG Immobilien 
     AG</li></ul>
-  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>KlimaVeedel
+  description_de: 'Die Strategie besteht aus diesen Maßnahmen:<ul><li>KlimaVeedel
     der RheinEnergie AG</li><li>Dekarbonisierungsstrategie der GAG Immobilien 
-    AG</li></ul>
+    AG</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/wärme/34-dezentraler-heizungstausch-in-haushalten">in Kausal Watch</a></p>'
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -711,9 +711,9 @@ actions:
   name_en: Drive Transition – Motorized Individual Transport
   description_en: The strategy consists of these measures:<ul><li>Charging 
     Station Infrastructure in Public Road Space</li></ul>
-  description_de: Die Strategie besteht aus diesen 
+  description_de: 'Die Strategie besteht aus diesen 
     Maßnahmen:<ul><li>Ladesäuleninfrastruktur im öffentlichen 
-    Straßenraum</li></ul>
+    Straßenraum</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/mobilität/antriebswende-motorisierter-individualverkehr">in Kausal Watch</a></p>'
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -735,8 +735,8 @@ actions:
   name_en: Drive Transition – Freight Transport
   description_en: The strategy consists of these measures:<ul><li>Charging 
     Infrastructure in Public Space</li></ul>
-  description_de: Die Strategie besteht aus diesen 
-    Maßnahmen:<ul><li>Ladeinfrastruktur im öffentlichen Raum</li></ul>
+  description_de: 'Die Strategie besteht aus diesen 
+    Maßnahmen:<ul><li>Ladeinfrastruktur im öffentlichen Raum</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/mobilität/antriebswende-güterverkehr">in Kausal Watch</a></p>'
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -758,8 +758,8 @@ actions:
   name_en: Drive Transition – Bus
   description_en: The strategy consists of these measures:<ul><li>Expansion of 
     E-Bus Fleet at KVB</li></ul>
-  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>Ausbau der 
-    E-Busflotte bei der KVB</li></ul>
+  description_de: 'Die Strategie besteht aus diesen Maßnahmen:<ul><li>Ausbau der 
+    E-Busflotte bei der KVB</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/mobilität/antriebswende-bus">in Kausal Watch</a></p>'
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -805,9 +805,9 @@ actions:
   description_en: The strategy consists of these measures:<ul><li>Adjustments in
     Motorized Individual Transport (MIT)</li><li>Bicycle Traffic 
     Promotion</li><li>Light Rail Expansion</li></ul>
-  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>Anpassungen
+  description_de: 'Die Strategie besteht aus diesen Maßnahmen:<ul><li>Anpassungen
     im Motorisierten Individualverkehr 
-    (MIV)</li><li>Radverkehrsförderung</li><li>Stadtbahnausbau</li></ul>
+    (MIV)</li><li>Radverkehrsförderung</li><li>Stadtbahnausbau</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/mobilität/mobilitätswende-nahmobilität">in Kausal Watch</a></p>'
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -830,9 +830,9 @@ actions:
   description_en: The strategy consists of these measures:<ul><li>Light Rail 
     Expansion</li><li>Bicycle Traffic Promotion</li><li>Networked 
     Mobility</li></ul>
-  description_de: Die Strategie besteht aus diesen 
+  description_de: 'Die Strategie besteht aus diesen 
     Maßnahmen:<ul><li>Stadtbahnausbau</li><li>Radverkehrsförderung</li><li>Vernetzte
-    Mobilität</li></ul>
+    Mobilität</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/mobilität/mobilitätswende-regionale-mobilität">in Kausal Watch</a></p>'
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -854,8 +854,8 @@ actions:
   name_en: Food & Nutrition
   description_en: The strategy consists of these measures:<ul><li>School and 
     Extra-curricular Sustainability Education</li></ul>
-  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>Schulische 
-    und außerschulische Nachhaltigkeitsbildung</li></ul>
+  description_de: 'Die Strategie besteht aus diesen Maßnahmen:<ul><li>Schulische 
+    und außerschulische Nachhaltigkeitsbildung</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/ernährung-landwirtschaft/51-ernährung-lebensmittel">in Kausal Watch</a></p>'
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -878,7 +878,7 @@ actions:
   description_en: 'The strategy consists of these measures:<ul><li>Zero-Waste Concept:
     Waste Avoidance through Second-Life Promotion</li></ul>'
   description_de: 'Die Strategie besteht aus diesen Maßnahmen:<ul><li>Zero-Waste-Konzept:
-    Abfallvermeidung durch Second-Life-Förderung</li></ul>'
+    Abfallvermeidung durch Second-Life-Förderung</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/konsum/71-klimafreundlicheres-konsumverhalten-der-bevölkerung">in Kausal Watch</a></p>'
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -904,13 +904,13 @@ actions:
     Fleets</li><li>Energy Guidelines for Municipal Buildings</li><li>PV 
     Expansion Strategy on All Municipal Buildings</li><li>Expansion of Charging 
     Infrastructure for Municipal Service Vehicles</li></ul>
-  description_de: Die Strategie besteht aus diesen 
+  description_de: 'Die Strategie besteht aus diesen 
     Maßnahmen:<ul><li>Sanierungsfahrplan für kommunale 
     Einrichtungen</li><li>Transformation städtischer 
     Fuhrparks</li><li>Energieleitlinien für städtische 
     Gebäude</li><li>Photovoltaik-Ausbaustrategie auf allen kommunalen 
     Gebäuden</li><li>Ausbau Ladeinfrastruktur für städtische 
-    Dienstfahrzeuge</li></ul>
+    Dienstfahrzeuge</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/verwaltung-hf-ikka/81-thg-neutrale-verwaltung-direkte-einflussbereiche-über-scope-1-und-scope-2">in Kausal Watch</a></p>'
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -934,10 +934,10 @@ actions:
     Change Agent Network for Climate Protection</li><li>Integration of Climate 
     Protection and Sustainability in Procurement and 
     Contracting</li><li>Zero-Waste Concept Measures</li></ul>
-  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>Internes 
+  description_de: 'Die Strategie besteht aus diesen Maßnahmen:<ul><li>Internes 
     Change-Agent-Netzwerk für Klimaschutz</li><li>Verankerung von Klimaschutz 
-    und Nachhaltigkeit bei Beschaffung und Vergabe</li><li>Maßnahmen des 
-    Zero-Waste-Konzepts</li></ul>
+    und Nachhaltigkeit bei Beschaffung und Nachhaltigkeit bei Beschaffung und Vergabe</li><li>Maßnahmen des 
+    Zero-Waste-Konzepts</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/verwaltung-hf-ikka/82-thg-neutrale-verwaltung-indirekter-einflussbereich-über-scope-3">in Kausal Watch</a></p>'
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -964,7 +964,7 @@ actions:
   description_de: 'Die Strategie besteht aus diesen Maßnahmen:<ul><li>Ressourcenrückgewinnung
     aus Abfallverwertung</li><li>Maßnahmen des Zero-Waste-Konzepts</li><li>Zero-Waste-Konzept:
     Abfallvermeidung durch Informationsbereitstellung</li><li>THG-Minderung durch
-    Biomassenutzung und Methanvermeidung</li></ul>'
+    Biomassenutzung und Methanvermeidung</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/abfall-ab-wasser/61-abfallreduktion-anlageneffizienz">in Kausal Watch</a></p>'
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
