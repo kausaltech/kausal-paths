@@ -1689,6 +1689,8 @@ scenarios:
     value: true
   - id: a13_car_pooling.enabled
     value: true
+  - id: a21_optimised_logistics.enabled
+    value: true
   - id: a211_improve_utilisation_of_trucks.enabled
     value: true
   - id: a212_route_optimisation.enabled
