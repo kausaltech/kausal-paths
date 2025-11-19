@@ -25,6 +25,7 @@ nodes:
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
+  color: '#ff69b4'
   input_dimensions: [transport_mode, energy_carrier]
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
@@ -44,6 +45,7 @@ nodes:
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
+  color: '#ff69b4'
   input_dimensions: [transport_mode, energy_carrier]
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
@@ -113,6 +115,7 @@ nodes:
   type: gpc.DatasetNode
   quantity: freight_mileage
   unit: Mtkm/a
+  color: '#ff69b4'
   input_dimensions: [transport_mode]
   output_dimensions: [transport_mode]
   input_datasets: [nzc/defaults]

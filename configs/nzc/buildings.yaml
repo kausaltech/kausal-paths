@@ -503,6 +503,7 @@ nodes:
   quantity: fraction
   unit: '%'
   group: buildings
+  color: '#ff69b4'
   input_dimensions: [heating_type]
   output_dimensions: [heating_type]
   input_datasets:
@@ -559,6 +560,7 @@ nodes:
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
+  color: '#ff69b4'
   input_dimensions: [energy_carrier, heating_type, fuel_type]
   output_dimensions: [energy_carrier, heating_type, fuel_type]
   input_datasets:
@@ -578,6 +580,7 @@ nodes:
   unit: '%'
   input_dimensions: [energy_carrier, heating_type, fuel_type]
   output_dimensions: [energy_carrier, heating_type, fuel_type]
+  color: '#ff69b4'
   input_datasets:
   - id: nzc/defaults
     filters:
@@ -746,6 +749,7 @@ nodes:
   type: gpc.DatasetNode
   quantity: energy
   unit: GWh/a
+  color: '#ff69B4'
   input_datasets: [nzc/defaults]
   params:
     sector: Total heating demand (space heating + domestic hot water + heat for cooking)
