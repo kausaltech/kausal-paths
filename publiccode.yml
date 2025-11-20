@@ -1,0 +1,160 @@
+publiccodeYmlVersion: "0.4"
+name: "Kausal Paths"
+url: "https://github.com/kausaltech/kausal-paths"
+landingURL: "https://kausal.tech"
+softwareVersion: "1.0.1"
+releaseDate: "2025-11-14"
+logo: logo.svg
+platforms:
+  - web
+
+usedBy:
+  - Kausal
+  # add other organizations here?
+
+categories:
+  - "data-analytics"
+  - "data-visualization"
+  - "workflow-management"
+  - "predictive-analysis"
+
+developmentStatus: stable
+
+softwareType: "standalone/backend"
+
+localization:
+  localizationReady: true
+  availableLanguages:
+    - de
+    - de-CH
+    - en
+    - fi
+    - sv
+
+intendedAudience:
+  countries:
+    - "de"
+    - "fi"
+    - "ch"
+    - "gr"
+    - "ie"
+    - "pl"
+    - "us"
+    - "ca"
+  scope:
+    - "local-authorities"
+    - "environment"
+    - "government"
+    - "research"
+
+description:
+  de:
+    genericName: "Klimaschutz-Planungstool"
+    shortDescription: >
+      Eine webbasierte Plattform zur Vorhersage städtischer Emissionen und
+      zur Bewertung von Klimaschutzmaßnahmen für Kommunen.
+    longDescription: >
+      Kausal Paths ist ein spezialisiertes Werkzeug zur Modellierung und Prognose
+      zukünftiger Treibhausgasemissionen von Städten und Gemeinden. Die Software
+      ermöglicht es lokalen Behörden, fundierte Entscheidungen im Bereich Klimaschutz
+      zu treffen, indem sie historische Emissionsdaten analysiert und die Auswirkungen
+      verschiedener Klimaschutzmaßnahmen simuliert.
+
+      Mit Kausal Paths können Nutzer unterschiedliche Szenarien erstellen und vergleichen,
+      um zu verstehen, wie sich verschiedene Maßnahmen auf die Emissionsentwicklung
+      auswirken. Dies unterstützt Kommunen bei der Erstellung und Umsetzung ihrer
+      Klimaschutzpläne und hilft dabei, die wirksamsten Strategien zur Erreichung
+      der Klimaziele zu identifizieren.
+
+      Die Plattform basiert auf einer robusten Django-Webanwendung und stellt alle
+      Daten über eine moderne GraphQL-API zur Verfügung. Dies ermöglicht eine flexible
+      Integration in bestehende Systeme und die Entwicklung maßgeschneiderter
+      Visualisierungen. Die Software unterstützt mehrere Sprachen und kann an die
+      spezifischen Bedürfnisse verschiedener Kommunen angepasst werden.
+
+      Kausal Paths wird erfolgreich von mehr als 40 europäischen und nordamerikanischen
+      Städten eingesetzt, darunter Helsinki, Tampere, Zürich, Athen, Cork und Kraków.
+      Die Software unterstützt verschiedene Klimaschutz-Frameworks und Standards wie
+      NetZeroCities, HINKU, SYKE, BISKO und DIN SPEC, was eine hohe Flexibilität
+      und Anpassungsfähigkeit an unterschiedliche regionale Anforderungen ermöglicht.
+
+    features:
+      - Modellierung und Prognose städtischer Treibhausgasemissionen
+      - Szenario-basierte Vergleiche verschiedener Klimaschutzmaßnahmen
+      - GraphQL-API für flexible Datenintegration
+      - Mehrsprachige Unterstützung
+      - Anpassbar an verschiedene kommunale Frameworks und Standards
+      - Integration historischer Emissionsdaten
+      - Visualisierung von Emissionsentwicklungen
+      - Unterstützung für BISKO, NetZeroCities, HINKU und weitere Frameworks
+      - Datenanalyse mit Pandas und Polars
+      - Benutzer- und Rollenverwaltung mit Wagtail CMS
+      - REST- und GraphQL-APIs für Drittanbieter-Integrationen
+
+    screenshots:
+      - .opencode/screenshots/sshot1.jpg
+      - .opencode/screenshots/sshot2.jpg
+      - .opencode/screenshots/sshot3.jpg
+
+  en:
+    genericName: "Climate Action Planning Tool"
+    shortDescription: >
+      A web-based platform for predicting municipal emissions and
+      evaluating climate action measures for local authorities.
+    longDescription: >
+      Kausal Paths is a specialized tool for modeling and forecasting future
+      greenhouse gas emissions of cities and municipalities. The software enables
+      local authorities to make informed climate action decisions by analyzing
+      historical emission data and simulating the impact of various climate
+      protection measures.
+
+      With Kausal Paths, users can create and compare different scenarios to
+      understand how various actions affect emission trajectories. This supports
+      municipalities in developing and implementing their climate action plans
+      and helps identify the most effective strategies for achieving climate goals.
+
+      The platform is built on a robust Django web application and provides all
+      data through a modern GraphQL API. This enables flexible integration with
+      existing systems and the development of customized visualizations. The
+      software supports multiple languages and can be adapted to the specific
+      needs of different municipalities.
+
+      Kausal Paths is successfully deployed by more than 40 European and North
+      American cities, including Helsinki, Tampere, Zurich, Athens, Cork, and
+      Krakow. The software supports various climate action frameworks and standards
+      such as NetZeroCities, HINKU, SYKE, BISKO, and DIN SPEC, providing high
+      flexibility and adaptability to different regional requirements.
+
+    features:
+      - Modeling and forecasting of municipal greenhouse gas emissions
+      - Scenario-based comparisons of different climate actions
+      - GraphQL API for flexible data integration
+      - Multi-language support
+      - Adaptable to various municipal frameworks and standards
+      - Integration of historical emission data
+      - Visualization of emission trajectories
+      - Support for BISKO, NetZeroCities, HINKU and other frameworks
+      - Data analysis using Pandas and Polars
+      - User and role management with Wagtail CMS
+      - REST and GraphQL APIs for third-party integrations
+
+    screenshots:
+      - .opencode/screenshots/sshot1-en.jpg
+      - .opencode/screenshots/sshot2.jpg
+      - .opencode/screenshots/sshot3-en.jpg
+
+legal:
+  license: AGPL-3.0-or-later
+  mainCopyrightOwner: "Kausal Ltd"
+  repoOwner: "Kausal Ltd"
+
+maintenance:
+  type: "internal"
+  contacts:
+    - name: "Kausal Ltd"
+      email: "info@kausal.tech"
+  # contractors:
+  #   - name: "Kausal Tech"
+  #     email: "info@kausal.tech"
+  #     website: "https://kausal.tech"
+  #     until: "2026-12-31"
