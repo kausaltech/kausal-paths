@@ -583,6 +583,79 @@ nodes:
   input_dimensions: []
   output_dimensions: []
 
+# ---------- Cumulative
+- id: i1_private_household_costs_cumulative
+  name: Private Haushalte (kumulativ)
+  name_en: Private Households (Cumulative)
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR
+  input_dimensions: [cost_type, action]
+  output_dimensions: [cost_type, action]
+  params:
+    drop_nans: true
+  input_nodes:
+  - id: i1_private_household_costs
+    tags: [cumulative]
+  output_nodes:
+  - id: i_stationary_energy_costs_cumulative
+
+- id: i4_city_administration_costs_cumulative
+  name: Stadtverwaltung stationäre Energie (kumulativ)
+  name_en: City Administration Stationary Energy (Cumulative)
+  color: '#4E79A7'
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR
+  input_dimensions: [cost_type, action]
+  output_dimensions: [cost_type, action]
+  params:
+    drop_nans: true
+  input_nodes:
+  - id: i4_city_administration_costs
+    tags: [cumulative]
+  output_nodes:
+  - id: i_stationary_energy_costs_cumulative
+
+- id: i_stationary_energy_costs_cumulative
+  name: Stationäre Energie (kumulativ)
+  name_en: Stationary Energy (Cumulative)
+  color: '#4E79A7'
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR
+  input_dimensions: [cost_type, action]
+  output_dimensions: [cost_type, action]
+  output_nodes:
+  - id: net_costs_cumulative
+
+- id: v_land_use_costs_cumulative
+  name: Landnutzung (kumulativ)
+  name_en: Land Use (Cumulative)
+  color: '#B07AA1'
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR
+  input_dimensions: [cost_type, action]
+  output_dimensions: [cost_type, action]
+  params:
+    drop_nans: true
+  input_nodes:
+  - id: v_land_use_costs
+    tags: [cumulative]
+  output_nodes:
+  - id: net_costs_cumulative
+
+- id: net_costs_cumulative
+  name: Nettokosten (kumulativ)
+  name_en: Net Costs (Cumulative)
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR
+  input_dimensions: [cost_type, action]
+  output_dimensions: [cost_type, action]
+
+# ---------- Cost-Benefit Analysis
 - id: total_costs
   name: Gesamtkosten
   name_en: Total Costs
