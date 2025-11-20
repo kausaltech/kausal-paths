@@ -2784,6 +2784,255 @@ nodes:
   output_nodes:
   - id: total_costs
 
+
+# ----- Outcome
+
+- id: electrify_public_transportation_cost_benefit
+  name: Bussiliikenteen käyttövoimamuutos
+  name_en: Change in the propulsion of bus fleet
+  color: '#668EC9'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [change_in_the_propulsion_of_bus_fleet]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [change_in_the_propulsion_of_bus_fleet]
+  output_nodes:
+  - id: transportation_cost_benefit
+
+- id: change_in_vehicle_propulsion_of_private_cars_cost_benefit
+  name: Henkilöautoliikenteen käyttövoimamuutos
+  name_en: Change in vehicle propulsion of private cars
+  color: '#668EC9'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [change_in_vehicle_propulsion]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [change_in_vehicle_propulsion]
+  output_nodes:
+  - id: transportation_cost_benefit
+
+- id: promoting_walking_and_cycling_cost_benefit
+  name: Pyöräilyn edistäminen
+  name_en: Promoting cycling
+  color: '#668EC9'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [promoting_walking_and_cycling]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [promoting_walking_and_cycling]
+  output_nodes:
+  - id: transportation_cost_benefit
+
+- id: tramline_3_construction_cost_benefit
+  name: Ratikan 3. rakennusvaihe (2028-2030)
+  name_en: Tramline 3 construction (2028-2030)
+  color: '#668EC9'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [tramline_3_construction]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [tramline_3_construction]
+  output_nodes:
+  - id: transportation_cost_benefit
+
+- id: transportation_cost_benefit
+  name: Liikenne kustannukset ja hyödyt
+  name_en: Transportation costs and benefits
+  short_name: Liikenne
+  short_name_en: Transportation
+  color: '#668EC9'
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  output_nodes:
+  - id: cost_benefit
+
+
+- id: aahps_in_municipal_building_stock_cost_benefit
+  name: Ilmalämpöpumppuinvestoinnit koko kaupungin rakennuskannassa
+  name_en: Air-to-air heat pump investments across the municipal building stock
+  color: '#AD3963'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [aahps_in_municipal_building_stock]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [aahps_in_municipal_building_stock]
+  output_nodes:
+  - id: building_heating_cost_benefit
+
+- id: geothermal_and_awhps_in_municipal_building_stock_cost_benefit
+  name: Öljylämmityksestä luopuminen koko kaupungin rakennuskannassa
+  name_en: Replacing oil heating across the municipal building stock
+  color: '#AD3963'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [geothermal_and_awhps_in_municipal_building_stock]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [geothermal_and_awhps_in_municipal_building_stock]
+  output_nodes:
+  - id: building_heating_cost_benefit
+
+- id: energy_efficiency_renovations_in_buildings_cost_benefit
+  name: Korjausrakentaminen kaupungin kiinteistössä
+  name_en: Energy efficiency renovations in city's building stock
+  color: '#AD3963'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [energy_efficiency_renovations_in_city_buildings]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [energy_efficiency_renovations_in_city_buildings]
+  output_nodes:
+  - id: building_heating_cost_benefit
+
+- id: additional_investments_in_naistenlahti_3_cost_benefit
+  name: Naistenlahti 3 -voimalaitoksen lisäinvestoinnit
+  name_en: Additional investments in Naistenlahti 3
+  color: '#AD3963'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [additional_investments_in_naistenlahti_3]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [additional_investments_in_naistenlahti_3]
+  output_nodes:
+  - id: building_heating_cost_benefit
+
+- id: electric_boiler_and_district_heat_battery_cost_benefit
+  name: Sähkökattila ja kaukolämpöakku
+  name_en: Electric boiler and district heat battery
+  color: '#AD3963'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [electric_boiler_and_district_heat_battery]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [electric_boiler_and_district_heat_battery]
+  output_nodes:
+  - id: building_heating_cost_benefit
+
+- id: building_heating_cost_benefit
+  name: Rakennuksen lämmitys kustannukset ja hyödyt
+  name_en: Building heating costs and benefits
+  short_name: Rakennuksen lämmitys
+  short_name_en: Building heating
+  color: '#AD3963'
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  output_nodes:
+  - id: cost_benefit
+
+
+- id: cost_benefit
+  name: Kustannukset ja hyödyt
+  name_en: Costs and benefits
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+
 # ----- TEMPORARY -------------------------------------------------------------
 
 - id: reduce_electricity_emission_factors
