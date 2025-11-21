@@ -1,0 +1,336 @@
+id: minneapolis
+default_language: en
+supported_languages: []
+site_url: https://minneapolis.paths.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: b90ecb473d33fb504a201af04ef40add48bb56c1
+  dvc_remote: kausal-s3
+name: Minneapolis Greenhouse Gas Emissions
+owner: City of Minneapolis
+theme_identifier: us-minneapolis
+target_year: 2035
+model_end_year: 2050
+reference_year: 2006
+minimum_historical_year: 2006
+maximum_historical_year: 2024
+emission_unit: t_co2e/a
+emission_forecast_from: 2025
+emission_dimensions: [sector, ghg, energy_carrier]
+features:
+  baseline_visible_in_graphs: true
+
+dimensions:
+- id: energy_carrier
+  label: Energy Carrier
+  categories:
+  - id: diesel
+    label: Diesel
+  - id: electricity
+    label: Electricity
+  - id: gasoline
+    label: Gasoline
+  - id: natural_gas
+    label: Natural Gas
+
+- id: ghg
+  label: Greenhouse Gas
+  categories:
+  - id: ch4
+    label: CH4
+  - id: co2
+    label: CO2
+  - id: co2e
+    label: CO2e
+  - id: n2o
+    label: N2O
+
+- id: sector
+  label: Sector
+  categories:
+  - id: commercial
+    label: Commercial
+  - id: commercial_industrial
+    label: Commercial & Industrial
+  - id: fugitive
+    label: Fugitive
+  - id: industrial
+    label: Industrial
+  - id: residential
+    label: Residential
+  - id: onroad_transportation
+    label: On-Road Transportation
+
+- id: vehicle_type
+  label: Vehicle Type
+  categories:
+  - id: heavy_duty_vehicles
+    label: Heavy-Duty Vehicles
+  - id: light_trucks
+    label: Light Trucks
+  - id: passenger_cars
+    label: Passenger Cars
+
+emission_sectors:
+- id: net_emissions
+  name: Net Emissions
+  is_outcome: true
+
+nodes:
+# ----- Electricity
+- id: electricity_consumption
+  name: Electricity Consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: minneapolis/electricity
+    column: energy
+    dropna: true
+    filters:
+    - column: ghg
+
+- id: electricity_emission_factors
+  name: Electricity Emission Factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t_co2e/MWh
+  input_dimensions: [ghg, energy_carrier]
+  output_dimensions: [ghg, energy_carrier]
+  input_datasets:
+  - id: minneapolis/electricity
+    column: emission_factor
+    dropna: true
+    filters:
+    - column: sector
+
+- id: electricity_emissions
+  name: Electricity Emissions
+  color: '#008AC2'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [sector, ghg, energy_carrier]
+  output_dimensions: [sector, ghg, energy_carrier]
+  input_nodes:
+  - id: electricity_consumption
+    tags: [non_additive]
+    to_dimensions:
+    - id: sector
+    - id: energy_carrier
+  - id: electricity_emission_factors
+    tags: [non_additive]
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+  output_nodes:
+  - id: net_emissions
+
+# ----- Natural Gas
+- id: fossil_gas_consumption
+  name: Fossil Gas Consumption
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: therm/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: minneapolis/natural_gas
+    column: energy
+    dropna: true
+    filters:
+    - column: ghg
+
+- id: fossil_gas_emission_factors
+  name: Fossil Gas Emission Factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t_co2e/therm
+  input_dimensions: [ghg, energy_carrier]
+  output_dimensions: [ghg, energy_carrier]
+  input_datasets:
+  - id: minneapolis/natural_gas
+    column: emission_factor
+    dropna: true
+    filters:
+    - column: sector
+
+- id: fossil_gas_emissions
+  name: Fossil Gas Emissions
+  color: '#606263'
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [sector, ghg, energy_carrier]
+  output_dimensions: [sector, ghg, energy_carrier]
+  input_nodes:
+  - id: fossil_gas_consumption
+    tags: [non_additive]
+    to_dimensions:
+    - id: sector
+    - id: energy_carrier
+  - id: fossil_gas_emission_factors
+    tags: [non_additive]
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+  output_nodes:
+  - id: net_emissions
+
+#----- On-Road Transportation
+- id: onroad_vehicle_mix
+  name: On-Road Vehicle Mix
+  type: simple.AdditiveNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: minneapolis/onroad_transportation
+    column: mix
+    dropna: true
+    filters:
+    - column: ghg
+
+- id: onroad_vehicle_fuel_factors
+  name: On-Road Vehicle Fuel Factors
+  type: simple.AdditiveNode
+  quantity: fuel_factor
+  unit: miles/gallon
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: minneapolis/onroad_transportation
+    column: fuel_factor
+    dropna: true
+    filters:
+    - column: energy_carrier
+    - column: ghg
+
+- id: onroad_fuel_biogenic_shares
+  name: On-Road Fuel Biogenic Shares
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: minneapolis/onroad_transportation
+    column: fraction_biogenic
+    dropna: true
+    filters:
+    - column: vehicle_type
+    - column: ghg
+
+- id: onroad_total_mileage
+  name: On-Road Total Mileage
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: miles/a
+  input_dimensions: []
+  output_dimensions: []
+  input_datasets:
+  - id: minneapolis/onroad_transportation
+    column: mileage
+    dropna: true
+    filters:
+    - column: vehicle_type
+    - column: energy_carrier
+    - column: ghg
+
+- id: onroad_vehicle_mileage
+  name: On-Road Vehicle Mileage
+  type: simple.MultiplicativeNode
+  quantity: mileage
+  unit: miles/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: onroad_total_mileage
+    tags: [non_additive]
+    to_dimensions: []
+  - id: onroad_vehicle_mix
+    tags: [non_additive]
+
+- id: onroad_vehicle_fuel_consumption
+  name: On-Road Vehicle Fuel Consumption
+  type: formula.FormulaNode
+  quantity: fuel_consumption
+  unit: gallons/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  params:
+    formula: (onroad_vehicle_mileage / onroad_vehicle_fuel_factors) * onroad_fuel_biogenic_shares
+  input_nodes:
+  - id: onroad_vehicle_mileage
+  - id: onroad_vehicle_fuel_factors
+    to_dimensions:
+    - id: vehicle_type
+  - id: onroad_fuel_biogenic_shares
+    tags: [complement]
+    to_dimensions:
+    - id: energy_carrier
+
+- id: onroad_fuel_emission_factors
+  name: On-Road Fuel Emission Factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: kg_co2e/gallon
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  input_datasets:
+  - id: minneapolis/onroad_transportation
+    column: emission_factor_co2
+    dropna: true
+    filters:
+    - column: vehicle_type
+
+- id: onroad_transportation_emissions
+  name: On-Road Transportation Emissions
+  color: '#A5B73C'
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [vehicle_type, energy_carrier, ghg]
+  output_dimensions: [vehicle_type, energy_carrier, ghg]
+  params:
+    formula: onroad_vehicle_fuel_consumption * onroad_fuel_emission_factors
+  input_nodes:
+  - id: onroad_vehicle_fuel_consumption
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+  - id: onroad_fuel_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [onroad_transportation]
+    - id: ghg
+    - id: energy_carrier
+
+pages:
+- id: home
+  name: Minneapolis Greenhouse Gas Emissions
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Citywide Greenhouse Gas Emissions
+  lead_paragraph: Greenhouse gas inventory (2006-2024) and forecast (2025-2050) for the City of Minneapolis.
+
+scenarios:
+- id: baseline
+  name: Baseline
+
+- id: default
+  default: true
+  name: Climate Equity Plan
+  all_actions_enabled: true
