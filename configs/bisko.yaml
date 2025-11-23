@@ -1,0 +1,514 @@
+id: bisko
+default_language: de
+supported_languages: [en]
+site_url: https://bisko.paths.staging.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: 9e7ae95da3571d7ef622cbc72e369000ac7b6e18
+  dvc_remote: kausal-s3
+name: Klima-Monitor-BISKO
+owner: Kausal Ltd
+theme_identifier: default
+target_year: 2024
+model_end_year: 2024
+reference_year: 1990
+minimum_historical_year: 2010
+maximum_historical_year: 2023
+emission_unit: kt_co2e/a
+emission_forecast_from: 2024
+emission_dimensions: [energy_carrier, sector]
+features:
+  baseline_visible_in_graphs: true
+  use_datasets_from_db: true
+  show_explanations: true
+
+# include:
+# - file: frameworks/standard_dims.yaml
+#   allow_override: true
+
+params:
+- id: weather_correction
+  label_de: Wetterkorrektur durchführen?
+  value: true
+  is_customizable: true
+  is_visible: true
+
+dimensions:
+
+- id: energy_carrier
+  label_en: Energy carrier
+  label_de: Energieträger
+  categories:
+  - id: total
+    label_en: Total
+    label_de: Gesamt
+  - id: petrol
+    label_en: Petrol
+    label_de: Benzin
+    aliases: [benzin_fossil, benzin]
+  - id: bio_petrol
+    label_en: Bio petrol
+    label_de: Biobenzin
+    aliases: [benzin_biogen, biobenzin]
+  - id: diesel
+    label_en: Diesel
+    label_de: Diesel
+    aliases: [diesel_fossil]
+  - id: biodiesel
+    label_en: Biodiesel
+    label_de: Diesel biogen
+    aliases: [diesel_biogen]
+  - id: kerosene
+    label_en: Kerosene
+    label_de: Kerosin
+    aliases: [kerosin]
+  - id: heating_oil
+    label_en: Heating oil
+    label_de: Heizöl
+    aliases: [heizol]
+  - id: natural_gas
+    label_en: Natural gas
+    label_de: Erdgas
+    aliases: [gas, erdgas]
+  - id: lpg
+    label_en: LPG (Liquefied petroleum gas)
+    label_de: LPG
+  - id: propane
+    label_en: Propane/butane
+    label_de: Flüssiggas
+    aliases: [flüssiggas, flssiggas]
+  - id: cng_fossil
+    label_en: CNG fossil
+    label_de: CNG fossil
+  - id: cng_bio
+    label_en: CNG bio
+    label_de: CNG bio
+  - id: biogas
+    label_en: Biogas
+    label_de: Biogas
+    aliases: [biogas]
+  - id: hard_coal
+    label_en: Hard coal
+    label_de: Steinkohle
+    aliases: [kohle, steinkohle, Kohle]
+  - id: brown_coal
+    label_en: Brown coal / Lignite
+    label_de: Braunkohle
+    aliases: [braunkohle]
+  - id: biomass
+    label_en: Biomass
+    label_de: Biomasse
+    aliases: [biomasse]
+  - id: electricity
+    label_en: Electricity
+    label_de: Strom
+    aliases: [strom]
+  - id: driving_electricity
+    label_en: Driving electricity
+    label_de: Fahrstrom
+    aliases: [fahrstrom, strom_fahrstrom]
+  - id: heating_electricity
+    label_en: Heating electricity
+    label_de: Heizstrom
+    aliases: [heizstrom]
+  - id: district_heating
+    label_en: District heating
+    label_de: Fernwärme
+    aliases: [fernwarme]
+  - id: local_heating
+    label_en: Local heating
+    label_de: Nahwärme
+    aliases: [nahwarme]
+  - id: solar_thermal
+    label_en: Solar thermal
+    label_de: Solarthermie
+    aliases: [solarthermie]
+  - id: environmental_heat
+    label_en: Environmental heat / Heat pump
+    label_de: Umweltwärme
+    aliases: [umweltwarme]
+  - id: hydrogen
+    label_en: Hydrogen
+    label_de: Wasserstoff
+    aliases: [wasserstoff]
+  - id: other_renewables
+    label_en: Other renewables
+    label_de: Sonstige Erneuerbare
+    aliases: [sonstige_erneuerbare]
+  - id: other_conventional
+    label_en: Other conventional
+    label_de: Sonstige Konventionelle
+    aliases: [sonstige_konventionelle]
+  - id: not_defined
+    label_en: Not defined
+    label_de: Nicht definiert
+    aliases: [nicht_definiert]
+  - id: fuels
+    label_en: Fuels
+    label_de: Kraftstoffe
+    aliases: [kraftstoffe]
+  - id: other
+    label_en: Other
+    label_de: Sonstiges
+    aliases: [sonstiges]
+  - id: district_and_local_heating
+    label_en: District_and local heating
+    label_de: Fern- und Nahwärme
+    aliases: [fern_und_nahwarme]
+  - id: natural_gas_turbine
+    label_en: Natural gas for steam turbines
+    label_de: Erdgas GuD
+  - id: biomass_chp
+    label_en: Biomass for CHP
+    label_de: Biomasse KWK
+  - id: biogas_chp
+    label_en: Biogas for CHP
+    label_de: Biogas KWK
+  - id: biomass_boiler
+    label_en: Biomass for heat-only boiler
+    label_de: Biomasse Heizwerk
+  - id: natural_gas_small_chp
+    label_en: Natural gas with small-scale CHP
+    label_de: Erdgas BHKW
+  - id: conventional_waste_heat_gt_90
+    label_en: Conventional waste heat > 90 C
+    label_de: Konventioneller Abwärme >90 C
+  - id: conventional_waste_heat_lt_90
+    label_en: Conventional waste heat < 90 C
+    label_de: Konventioneller Abwärme <90 C
+  - id: renewable_waste_heat_gt_90
+    label_en: Renewable waste heat > 90 C
+    label_de: Erneuerbarer Abwärme >90 C
+  - id: renewable_waste_heat_lt_90
+    label_en: Renewable waste heat < 90 C
+    label_de: Erneuerbarer Abwärme <90 C
+  - id: other_conventional_energy_carriers
+    label_en: Other conventional energy carriers
+    label_de: Sonstige konventionelle Energieträger
+  - id: other_renewable_energy_carriers
+    label_en: Other renewable energy carriers
+    label_de: Sonstige Erneuerbare Energieträger
+  - id: sewage_landfill_mine_gas
+    label_en: Sewage, landfill, or mine gas
+    label_de: Klär- Deponie- Grubengas
+  - id: solid_biomass
+    label_en: Solid biomass
+    label_de: feste Biomasse
+  - id: geothermatl
+    label_en: Geothermal
+    label_de: Geothermie
+  - id: liquid_biomass
+    label_en: Liquid biomass
+    label_de: flüssige Biomasse
+  - id: photovoltaic
+    label_en: Photovoltaic
+    label_de: Fotovoltaik
+  - id: hydropower
+    label_en: hydropower
+    label_de: Wasser
+  - id: wind
+    label_en: Wind
+    label_de: Wind
+  - id: waste
+    label_en: Waste
+    label_de: Abfall
+
+- id: upstream_included
+  label_en: Upstream included
+  categories:
+  - id: yes
+    label_en: Yes
+
+- id: per_what_energy
+  label_en: Per what energy
+  categories:
+  - id: fuel_input
+    label_en: Fuel input
+  - id: electricity_output
+    label_en: Electricity output
+  - id: heat_output
+    label_en: Heat output
+
+- id: sector
+  label_en: Sector
+  label_de: Sektoren
+  help_text: Sectors as categorised in the Mission City Climate City Contracts 
+    (CCC) and BISKO.
+  categories:
+  - id: transport
+    label_en: Transport
+    label_de: Verkehr
+    aliases: [verkehr]
+    color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
+  - id: buildings
+    label_en: Buildings & Heating
+    label_de: Gebäude & Heizung
+  - id: private_households
+    label_en: Private Households
+    label_de: Private Haushalte
+    aliases: [private_haushalte]
+    color: '#009ebe'
+  - id: municipal_facilities
+    label_en: Municipal Facilities
+    label_de: Kommunale Einrichtungen
+    aliases: [kommunale_einrichtungen, stadtische_gebaude]
+    color: '#6bc248'
+  - id: commerce_trade_services
+    label_en: Commerce, Trade & Services
+    label_de: Gewerbe, Handel, Dienstleistungen
+    aliases: [gewerbe_handel_dienstleistungen, gewerbe_sonstiges]
+    color: '#fe8035'
+  - id: industry
+    label_en: Industry
+    label_de: Industrie
+    aliases: [industrie]
+    color: '#737373'
+  - id: electricity
+    label_en: Electricity
+    label_de: Strom
+    aliases: [strom]
+  - id: energy_industry
+    label_en: Energy industry
+    label_de: Energiewirtschaft
+    aliases: [energiewirtschaft]
+  - id: waste
+    label_en: Waste
+    label_de: Abfall
+  - id: other
+    label_en: Other (incl. IPPU & AFOLU)
+    label_de: Sonstige (inkl. IPPU & AFOLU)
+  - id: total
+    label_en: Total
+    label_de: Gesamt
+  - id: heating
+    label_en: Heating
+    label_de: Wärme
+    aliases: [warme]
+
+emission_sectors:
+
+- id: net_emissions
+  name: Netto-Emissionen
+  name_en: Net emissions
+  is_outcome: true
+
+- id: private_household_emissions
+  name: Private Haushalte Emissionen
+  name_en: Private household emissions
+  part_of: net_emissions
+  color: '#009ebe'
+  input_nodes:
+  - id: total_emissions
+    from_dimensions:
+    - id: sector
+      categories: [private_households]
+
+- id: municipal_facilities_emissions
+  name: Kommunale Einrichtungen Emissionen
+  name_en: Municipal facilities emissions
+  part_of: net_emissions
+  color: '#6bc248'
+  input_nodes:
+  - id: total_emissions
+    from_dimensions:
+    - id: sector
+      categories: [municipal_facilities]
+
+- id: industry_emissions
+  name: Industri Emissionen
+  name_en: Industry emissions
+  part_of: net_emissions
+  color: '#737373'
+  input_nodes:
+  - id: total_emissions
+    from_dimensions:
+    - id: sector
+      categories: [industry]
+
+- id: commerce_trade_services_emissions
+  name: Gewerbe, Handel, Dienstleistungen Emissionen
+  name_en: Commerce, trade, services emissions
+  part_of: net_emissions
+  color: '#fe8035'
+  input_nodes:
+  - id: total_emissions
+    from_dimensions:
+    - id: sector
+      categories: [commerce_trade_services]
+
+- id: transport_emissions
+  name: Verkehr-Emissionen
+  name_en: Transport emissions
+  part_of: net_emissions
+  color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
+  input_nodes:
+  - id: total_emissions
+    from_dimensions:
+    - id: sector
+      categories: [transport]
+
+nodes:
+
+- id: weather_correction
+  name: Witterungsbereinigung
+  name_en: Weather Correction
+  type: generic.GenericNode
+  quantity: ratio
+  unit: dimensionless
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_datasets:
+  - id: potsdam/witterungsbereinigung
+    tags: [baseline]
+    column: witterungsbereinigung
+  params:
+  - id: operations
+    value: do_correction
+  - id: do_correction
+    ref: weather_correction
+  # output_nodes:
+  # - id: final_energy_use
+
+- id: final_energy_use
+  name: Endenergie
+  name_en: Final energy use
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: duesseldorf/final_energy
+    tags: [baseline]
+    column: Value
+
+- id: historical_emissions
+  name: Historische Emissionen
+  name_en: Historical emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: duesseldorf/bisko_emissions
+    tags: [baseline]
+    column: Value
+
+- id: emission_factors
+  name: Emissionsfaktoren
+  name_en: Emission factors
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: historical_emissions
+  - id: final_energy_use
+    tags: [geometric_inverse]
+  params:
+    operations: multiply,drop_nans,drop_infs
+
+- id: end_energy_emission_factors
+  name: Endenergie Emissionsfaktoren
+  name_en: End energy emission factors
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: bisko/endenergie_emissionsfaktoren
+    tags: [baseline]
+    filters:
+    - column: per_what_energy
+    - column: upstream_included
+
+- id: electricity_production_emission_factors
+  name: Emissionsfaktoren für Erzeugung
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier, per_what_energy]
+  output_dimensions: [energy_carrier, per_what_energy]
+  input_datasets:
+  - id: bisko/emissionsfaktoren_fr_erzeugung
+    tags: [baseline]
+    filters:
+    - column: upstream_included
+
+- id: emission_factors_without_fuel_data
+  name: Emissionsfaktoren ohne Brennstoffinputinformationen
+  name_en: Emission factors without fuel data
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier, per_what_energy]
+  output_dimensions: [energy_carrier, per_what_energy]
+  input_datasets:
+  - id: bisko/emissionsfaktoren_ohne_brennstoffinputinformationen
+    tags: [baseline]
+    filters:
+    - column: upstream_included
+
+- id: emission_factors_for_district_heating_by_generic_fuel
+  name: Emissionsfaktoren für Fernwärme - überwiegend
+  name_en: Emission factors for district heating by generic fuel
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier, per_what_energy]
+  output_dimensions: [energy_carrier, per_what_energy]
+  input_datasets:
+  - id: bisko/fernwarme_berwiegend
+    tags: [baseline]
+    filters:
+    - column: upstream_included
+
+# - id: sector_index
+#   name: Sektor Index
+#   name_en: Sector index
+#   type: generic.GenericNode
+#   quantity: ratio
+#   unit: dimensionless
+#   input_dimensions: [sector, energy_carrier]
+#   output_dimensions: [sector, energy_carrier]
+#   input_datasets:
+#   - id: potsdam/sector_index
+#     tags: [baseline]
+#     column: sector_index
+
+- id: total_emissions
+  name: Gesamtemissionen
+  name_en: Total emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  # - id: final_energy_use
+  # - id: emission_factors
+  - id: historical_emissions
+
+pages:
+- id: home
+  name: Klima-Monitor-BISKO Treibhausgasinventar
+  name_en: Climate Protection Monitor BISKO Greenhouse Gas Inventory
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Klima-Monitor Treibhausgasinventar BISKO
+  lead_paragraph: Die Treibhausgasemissionen BISKO.
+
+scenarios:
+
+- id: baseline
+  name: Business as Usual
+  # name_en: Business as Usual
+
+- id: default
+  default: true
+  all_actions_enabled: true
+  name: Masterplan 100% Klimaschutz

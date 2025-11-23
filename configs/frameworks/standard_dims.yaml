@@ -63,6 +63,10 @@ dimensions:
     label_en: Electricity
     label_de: Strom
     aliases: [strom]
+  - id: energy_industry
+    label_en: Energy industry
+    label_de: Energiewirtschaft
+    aliases: [energiewirtschaft]
   - id: waste
     label_en: Waste
     label_de: Abfall
