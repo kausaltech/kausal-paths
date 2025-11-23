@@ -4,7 +4,7 @@ supported_languages: [sv, en]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 219a17df82cd3b56b378c73b4a23f7d064beef33
+  commit: aea7fe7f4acdb8c89bd6630acd8ebff88122590e
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -174,6 +174,9 @@ dimensions:
     label_fi: 'Tieliikenteen hinnoittelu: ruuhkamaksut tai tiemaksut'
     label_en: 'Road traffic pricing: congestion charges or road fees'
     label_sv: 'Prissättning av vägtrafik: trängselavgifter eller vägavgifter'
+  - id: no_action
+    label_fi: Ei toimenpidettä
+    label_en: No action
 
 - id: building_class
   label_fi: Rakennustyyppi
@@ -1774,9 +1777,10 @@ nodes:
 - id: implementation_costs
   name_fi: Toteutuskustannukset
   name_en: Implementation costs
-  type: generic.GenericNode
+  type: simple.AdditiveNode
   quantity: currency
   unit: kEUR/a
+  is_outcome: true
 
 pages:
 
@@ -2456,46 +2460,37 @@ actions:
   name_en: Prioritization of sustainable modes of transport in city center 
     traffic plans
   name_sv: Prioritering av hållbara transportsätt i stadscentrums trafikplaner
-  type: linear.DatasetReduceAction
-  quantity: mileage
-  unit: Mvkm/a
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
+  type: simple.AdditiveAction
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  output_metrics:
+  - id: currency
+    quantity: currency
+    unit: kEUR/a
+  - id: mileage
+    quantity: mileage
+    unit: Mvkm/a
   input_datasets:
   - id: espoo/liikenteen_uudet_toimenpiteet
-    tags: [goal]
-    column: Suorite
-    filters:
-    - column: action
-      value: city_center_sustainable_transport_priority
-    - column: economic_sector
-  - id: espoo/tieliikenteen_ajoneuvosuorite
-    tags: [baseline, historical]
-    column: ajoneuvosuorite
     forecast_from: 2025
-  output_nodes:
-  - id: road_traffic_mileage
-
-- id: test
-  name: testi
-  type: linear.DatasetReduceAction
-  quantity: mileage
-  unit: kEUR/a
-  input_datasets:
-  - id: espoo/liikenteen_uusien_toimenpiteiden_toteutuskustannukset
-    tags: [goal]
-    forecast_from: 2026
     filters:
+    - rename_col: Suorite
+      value: mileage
+    - rename_col: Toteutuskustannus
+      value: currency
+    - column: Päästökerroin
     - column: action
       value: city_center_sustainable_transport_priority
-  - id: espoo/liikenteen_uusien_toimenpiteiden_toteutuskustannukset
-    tags: [historical]
-    forecast_from: 2026
-    filters:
-    - column: action
-      value: city_center_sustainable_transport_priority
+  params:
+    allow_null_categories: true
   output_nodes:
   - id: implementation_costs
+    metrics: [currency]
+  - id: road_traffic_mileage
+    metrics: [mileage]
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
 
 - id: urban_space_study_active_mobility
   name_fi: Selvitys kaupunkitilasta, joka kannustaa pyöräilyyn, kävelyyn ja 
@@ -2504,191 +2499,281 @@ actions:
     transport use
   name_sv: Utredning av stadsutrymme som uppmuntrar cykling, gång och 
     kollektivtrafik
-  type: linear.DatasetReduceAction
-  quantity: mileage
-  unit: Mvkm/a
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
+  type: simple.AdditiveAction
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  output_metrics:
+  - id: currency
+    quantity: currency
+    unit: kEUR/a
+  - id: mileage
+    quantity: mileage
+    unit: Mvkm/a
   input_datasets:
   - id: espoo/liikenteen_uudet_toimenpiteet
-    tags: [goal]
-    column: Suorite
+    forecast_from: 2025
     filters:
+    - rename_col: Suorite
+      value: mileage
+    - rename_col: Toteutuskustannus
+      value: currency
+    - column: Päästökerroin
     - column: action
       value: urban_space_study_active_mobility
-    - column: economic_sector
-  - id: espoo/tieliikenteen_ajoneuvosuorite
-    tags: [baseline, historical]
-    column: ajoneuvosuorite
-    forecast_from: 2025
+  params:
+    allow_null_categories: true
   output_nodes:
+  - id: implementation_costs
+    metrics: [currency]
   - id: road_traffic_mileage
+    metrics: [mileage]
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
 
 - id: additional_investment_cycling_program
   name_fi: Lisäpanostus Espoon pyöräilyn edistämisohjelmaan
   name_en: Additional investment in Espoo's cycling promotion program
   name_sv: Tilläggsinsats i Esbos program för cykelfrämjande
-  type: linear.DatasetReduceAction
-  quantity: mileage
-  unit: Mvkm/a
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
+  type: simple.AdditiveAction
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  output_metrics:
+  - id: currency
+    quantity: currency
+    unit: kEUR/a
+  - id: mileage
+    quantity: mileage
+    unit: Mvkm/a
   input_datasets:
   - id: espoo/liikenteen_uudet_toimenpiteet
-    tags: [goal]
-    column: Suorite
+    forecast_from: 2025
     filters:
+    - rename_col: Suorite
+      value: mileage
+    - rename_col: Toteutuskustannus
+      value: currency
+    - column: Päästökerroin
     - column: action
       value: additional_investment_cycling_program
-    - column: economic_sector
-  - id: espoo/tieliikenteen_ajoneuvosuorite
-    tags: [baseline, historical]
-    column: ajoneuvosuorite
-    forecast_from: 2025
+  params:
+    allow_null_categories: true
   output_nodes:
+  - id: implementation_costs
+    metrics: [currency]
   - id: road_traffic_mileage
+    metrics: [mileage]
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
 
 - id: promote_emission_free_freight_transport
   name_fi: Päästöttömän kuorma-autoliikenteen ja pakettiautoliikenteen 
     edistäminen
   name_en: Promotion of emission-free truck and van traffic
   name_sv: Främjande av utsläppsfri lastbils- och paketbilstrafik
-  type: linear.DatasetReduceAction
-  quantity: emission_factor
-  unit: g/vkm
+  type: simple.AdditiveAction
   input_dimensions: [vehicle_type, economic_sector]
   output_dimensions: [vehicle_type, economic_sector]
+  output_metrics:
+  - id: currency
+    quantity: currency
+    unit: kEUR/a
+  - id: emission_factor
+    quantity: emission_factor
+    unit: g/vkm
   input_datasets:
   - id: espoo/liikenteen_uudet_toimenpiteet
-    tags: [goal]
-    column: Päästökerroin
+    forecast_from: 2025
     filters:
+    - rename_col: Päästökerroin
+      value: emission_factor
+    - rename_col: Toteutuskustannus
+      value: currency
+    - column: Suorite
     - column: action
       value: promote_emission_free_freight_transport
-  - id: espoo/tieliikenteen_paastokertoimet
-    tags: [historical]
-    column: paastokerroin
-    forecast_from: 2025
+  params:
+    allow_null_categories: true
   output_nodes:
+  - id: implementation_costs
+    metrics: [currency]
   - id: road_traffic_emission_factors
+    metrics: [emission_factor]
 
 - id: low_emission_transport_procurement
   name_fi: Kuljetusten vähäpäästöisyyden edistäminen hankinnoissa
   name_en: Promotion of low-emission transport in procurement
   name_sv: Främjande av lågutsläppstransporter i upphandlingar
-  type: linear.DatasetReduceAction
-  quantity: emission_factor
-  unit: g/vkm
+  type: simple.AdditiveAction
   input_dimensions: [vehicle_type, economic_sector]
   output_dimensions: [vehicle_type, economic_sector]
+  output_metrics:
+  - id: currency
+    quantity: currency
+    unit: kEUR/a
+  - id: emission_factor
+    quantity: emission_factor
+    unit: g/vkm
   input_datasets:
   - id: espoo/liikenteen_uudet_toimenpiteet
-    tags: [goal]
-    column: Päästökerroin
+    forecast_from: 2025
     filters:
+    - rename_col: Päästökerroin
+      value: emission_factor
+    - rename_col: Toteutuskustannus
+      value: currency
+    - column: Suorite
     - column: action
       value: low_emission_transport_procurement
-  - id: espoo/tieliikenteen_paastokertoimet
-    tags: [historical]
-    column: paastokerroin
-    forecast_from: 2025
+  params:
+    allow_null_categories: true
   output_nodes:
+  - id: implementation_costs
+    metrics: [currency]
   - id: road_traffic_emission_factors
+    metrics: [emission_factor]
 
 - id: truck_charging_infrastructure
   name_fi: Kuorma-autojen latausmahdollisuuksien edistäminen
   name_en: Promotion of truck charging opportunities
   name_sv: Främjande av laddningsmöjligheter för lastbilar
-  type: linear.DatasetReduceAction
-  quantity: emission_factor
-  unit: g/vkm
+  type: simple.AdditiveAction
   input_dimensions: [vehicle_type, economic_sector]
   output_dimensions: [vehicle_type, economic_sector]
+  output_metrics:
+  - id: currency
+    quantity: currency
+    unit: kEUR/a
+  - id: emission_factor
+    quantity: emission_factor
+    unit: g/vkm
   input_datasets:
   - id: espoo/liikenteen_uudet_toimenpiteet
-    tags: [goal]
-    column: Päästökerroin
+    forecast_from: 2025
     filters:
+    - rename_col: Päästökerroin
+      value: emission_factor
+    - rename_col: Toteutuskustannus
+      value: currency
+    - column: Suorite
     - column: action
       value: truck_charging_infrastructure
-  - id: espoo/tieliikenteen_paastokertoimet
-    tags: [historical]
-    column: paastokerroin
-    forecast_from: 2025
+  params:
+    allow_null_categories: true
   output_nodes:
+  - id: implementation_costs
+    metrics: [currency]
   - id: road_traffic_emission_factors
+    metrics: [emission_factor]
 
 - id: low_emission_zone_study
   name_fi: Selvitys vähäpäästövyöhykkeestä (ajosuorite)
   name_en: Study on low emission zone (mileage)
   name_sv: Utredning av lågutsläppszon (körsträcka)
-  type: linear.DatasetReduceAction
-  quantity: mileage
-  unit: Mvkm/a
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
+  type: simple.AdditiveAction
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  output_metrics:
+  - id: currency
+    quantity: currency
+    unit: kEUR/a
+  - id: mileage
+    quantity: mileage
+    unit: Mvkm/a
   input_datasets:
   - id: espoo/liikenteen_uudet_toimenpiteet
-    tags: [goal]
-    column: Suorite
+    forecast_from: 2025
     filters:
+    - rename_col: Suorite
+      value: mileage
+    - rename_col: Toteutuskustannus
+      value: currency
+    - column: Päästökerroin
     - column: action
       value: low_emission_zone_study
-    - column: economic_sector
-  - id: espoo/tieliikenteen_ajoneuvosuorite
-    tags: [baseline, historical]
-    column: ajoneuvosuorite
-    forecast_from: 2025
+  params:
+    allow_null_categories: true
   output_nodes:
+  - id: implementation_costs
+    metrics: [currency]
   - id: road_traffic_mileage
+    metrics: [mileage]
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
 
 - id: paid_street_parking
   name_fi: Maksullinen kadunvarsipysäköinti
   name_en: Paid on-street parking
   name_sv: Avgiftsbelagd parkering vid gatan
-  type: linear.DatasetReduceAction
-  quantity: mileage
-  unit: Mvkm/a
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
+  type: simple.AdditiveAction
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  output_metrics:
+  - id: currency
+    quantity: currency
+    unit: kEUR/a
+  - id: mileage
+    quantity: mileage
+    unit: Mvkm/a
   input_datasets:
   - id: espoo/liikenteen_uudet_toimenpiteet
-    tags: [goal]
-    column: Suorite
+    forecast_from: 2025
     filters:
+    - rename_col: Suorite
+      value: mileage
+    - rename_col: Toteutuskustannus
+      value: currency
+    - column: Päästökerroin
     - column: action
       value: paid_street_parking
-    - column: economic_sector
-  - id: espoo/tieliikenteen_ajoneuvosuorite
-    tags: [baseline, historical]
-    column: ajoneuvosuorite
-    forecast_from: 2025
+  params:
+    allow_null_categories: true
   output_nodes:
+  - id: implementation_costs
+    metrics: [currency]
   - id: road_traffic_mileage
+    metrics: [mileage]
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
 
 - id: market_based_parking
   name_fi: Markkinalähtöinen pysäköinti
   name_en: Market-based parking
   name_sv: Marknadsbaserad parkering
-  type: linear.DatasetReduceAction
-  quantity: mileage
-  unit: Mvkm/a
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
+  type: simple.AdditiveAction
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  output_metrics:
+  - id: currency
+    quantity: currency
+    unit: kEUR/a
+  - id: mileage
+    quantity: mileage
+    unit: Mvkm/a
   input_datasets:
   - id: espoo/liikenteen_uudet_toimenpiteet
-    tags: [goal]
-    column: Suorite
+    forecast_from: 2025
     filters:
+    - rename_col: Suorite
+      value: mileage
+    - rename_col: Toteutuskustannus
+      value: currency
+    - column: Päästökerroin
     - column: action
       value: market_based_parking
-    - column: economic_sector
-  - id: espoo/tieliikenteen_ajoneuvosuorite
-    tags: [baseline, historical]
-    column: ajoneuvosuorite
-    forecast_from: 2025
+  params:
+    allow_null_categories: true
   output_nodes:
+  - id: implementation_costs
+    metrics: [currency]
   - id: road_traffic_mileage
+    metrics: [mileage]
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
 
 - id: mandatory_ev_charging_zoning
   name_fi: Henkilöautojen latauspiste pakolliseksi kaavamääräyksiin valituille 
@@ -2696,72 +2781,126 @@ actions:
   name_en: Mandatory EV charging points in zoning regulations for selected areas
   name_sv: Obligatorisk laddpunkt för personbilar i planbestämmelser för utvalda
     områden
-  type: linear.DatasetReduceAction
-  quantity: emission_factor
-  unit: g/vkm
+  type: simple.AdditiveAction
   input_dimensions: [vehicle_type, economic_sector]
   output_dimensions: [vehicle_type, economic_sector]
+  output_metrics:
+  - id: currency
+    quantity: currency
+    unit: kEUR/a
+  - id: emission_factor
+    quantity: emission_factor
+    unit: g/vkm
   input_datasets:
   - id: espoo/liikenteen_uudet_toimenpiteet
-    tags: [goal]
-    column: Päästökerroin
+    forecast_from: 2025
     filters:
+    - rename_col: Päästökerroin
+      value: emission_factor
+    - rename_col: Toteutuskustannus
+      value: currency
+    - column: Suorite
     - column: action
       value: mandatory_ev_charging_zoning
-  - id: espoo/tieliikenteen_paastokertoimet
-    tags: [historical]
-    column: paastokerroin
-    forecast_from: 2025
+  params:
+    allow_null_categories: true
   output_nodes:
+  - id: implementation_costs
+    metrics: [currency]
   - id: road_traffic_emission_factors
+    metrics: [emission_factor]
 
 - id: speed_limit_reduction_highways
   name_fi: Nopeusrajoitusten alentaminen Espoon alueen maanteillä (MAL)
   name_en: Speed limit reduction on highways in Espoo area (MAL)
   name_sv: Sänkning av hastighetsbegränsningar på landsvägar i Esbo-området 
     (MAL)
-  type: linear.DatasetReduceAction
-  quantity: emission_factor
-  unit: g/vkm
+  type: simple.AdditiveAction
   input_dimensions: [vehicle_type, economic_sector]
   output_dimensions: [vehicle_type, economic_sector]
+  output_metrics:
+  - id: currency
+    quantity: currency
+    unit: kEUR/a
+  - id: emission_factor
+    quantity: emission_factor
+    unit: g/vkm
   input_datasets:
   - id: espoo/liikenteen_uudet_toimenpiteet
-    tags: [goal]
-    column: Päästökerroin
+    forecast_from: 2025
     filters:
+    - rename_col: Päästökerroin
+      value: emission_factor
+    - rename_col: Toteutuskustannus
+      value: currency
+    - column: Suorite
     - column: action
       value: speed_limit_reduction_highways
-  - id: espoo/tieliikenteen_paastokertoimet
-    tags: [historical]
-    column: paastokerroin
-    forecast_from: 2025
+  params:
+    allow_null_categories: true
   output_nodes:
+  - id: implementation_costs
+    metrics: [currency]
   - id: road_traffic_emission_factors
+    metrics: [emission_factor]
 
 - id: road_traffic_pricing
   name_fi: 'Tieliikenteen hinnoittelu: ruuhkamaksut tai tiemaksut'
   name_en: 'Road traffic pricing: congestion charges or road fees'
   name_sv: 'Prissättning av vägtrafik: trängselavgifter eller vägavgifter'
-  type: linear.DatasetReduceAction
-  quantity: mileage
-  unit: Mvkm/a
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
+  type: simple.AdditiveAction
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  output_metrics:
+  - id: currency
+    quantity: currency
+    unit: kEUR/a
+  - id: mileage
+    quantity: mileage
+    unit: Mvkm/a
   input_datasets:
   - id: espoo/liikenteen_uudet_toimenpiteet
-    tags: [goal]
-    column: Suorite
+    forecast_from: 2025
     filters:
+    - rename_col: Suorite
+      value: mileage
+    - rename_col: Toteutuskustannus
+      value: currency
+    - column: Päästökerroin
     - column: action
       value: road_traffic_pricing
-    - column: economic_sector
-  - id: espoo/tieliikenteen_ajoneuvosuorite
-    tags: [baseline, historical]
-    column: ajoneuvosuorite
-    forecast_from: 2025
+  params:
+    allow_null_categories: true
   output_nodes:
+  - id: implementation_costs
+    metrics: [currency]
   - id: road_traffic_mileage
+    metrics: [mileage]
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
+
+# - id: road_traffic_cost
+#   name_fi: 'Tieliikenteen hinnoittelu: ruuhkamaksut tai tiemaksut'
+#   name_en: 'Road traffic pricing: congestion charges or road fees'
+#   name_sv: 'Prissättning av vägtrafik: trängselavgifter eller vägavgifter'
+#   type: linear.DatasetReduceAction
+#   quantity: mileage
+#   unit: MEUR/a
+#   input_datasets:
+#   - id: espoo/liikenteen_uusien_toimenpiteiden_toteutuskustannukset
+#     tags: [goal]
+#     column: Suorite
+#     filters:
+#     - column: action
+#       value: road_traffic_pricing
+#     - column: economic_sector
+#   - id: espoo/tieliikenteen_ajoneuvosuorite
+#     tags: [baseline, historical]
+#     column: ajoneuvosuorite
+#     forecast_from: 2025
+#   output_nodes:
+#   - id: road_traffic_mileage
 
 scenarios:
 
@@ -2781,7 +2920,6 @@ scenarios:
     value: true
   - id: change_non_heating_electricity.enabled
     value: true
-
 
 - id: default
   default: true
