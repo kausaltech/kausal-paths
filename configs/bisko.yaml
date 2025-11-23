@@ -216,18 +216,22 @@ dimensions:
 - id: upstream_included
   label_en: Upstream included
   categories:
-  - id: yes
-    label_en: Yes
+  - id: 'yes'
+    label_en: 'Yes'
+    label_de: Ja
 
 - id: per_what_energy
   label_en: Per what energy
   categories:
   - id: fuel_input
     label_en: Fuel input
+    label_de: Brennstoffzufuhr
   - id: electricity_output
     label_en: Electricity output
+    label_de: Stromabgabe
   - id: heat_output
     label_en: Heat output
+    label_de: Wärmeabgabe
 
 - id: sector
   label_en: Sector
