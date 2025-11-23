@@ -285,7 +285,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     Mpkm = 1e6 * pkm
     CO2e = [co2e]
     kt_co2e = kilotonne * CO2e
-    t_co2e = tonne * CO2e
+    t_co2e = tonne * CO2e = t_CO2e
     kg_co2e = kg * CO2e
     g_co2e = g * CO2e
     utility = [utility] = Ut

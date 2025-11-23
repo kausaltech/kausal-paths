@@ -374,7 +374,8 @@ class DatasetDifferenceAction(ActionNode):  # FIXME Merge with DatasetReduceActi
         # specified in the goal dataset.
 
         exprs = [pl.col(dim_id).is_in(gdf[dim_id].unique()) for dim_id in gdf.dim_ids]
-        df = df.filter(pl.all_horizontal(exprs))
+        if exprs:
+            df = df.filter(pl.all_horizontal(exprs))
 
         assert len(gdf.metric_cols) == 1
         gdf = (

@@ -374,11 +374,11 @@ def convert_names_to_cats(df: pl.DataFrame, units: dict[str, str], context: Cont
     for col in cols:
         col_low = col.lower()
         if col_low in context.dimensions:
-            df = df.with_columns(
-                pl.col(col).map_elements(to_snake_case, return_dtype=pl.Utf8).alias(col)
-            )
+            # df = df.with_columns(
+            #     pl.col(col).map_elements(to_snake_case, return_dtype=pl.Utf8).alias(col)
+            # )
             df = df.rename({col: col_low})
-            df = df.with_columns(context.dimensions[col_low].series_to_ids_pl(df[col_low]))
+            df = df.with_columns(context.dimensions[col_low].series_to_ids_pl(df[col_low], allow_null=True))
         else:
             print(f'Warning: could not find {col} from the dimensions of {context.instance.id}')
     return df
