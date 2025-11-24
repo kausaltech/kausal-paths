@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://bisko.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 9e7ae95da3571d7ef622cbc72e369000ac7b6e18
+  commit: c21ec8fbb49907b572cddefbe16fa99e44b888c9
   dvc_remote: kausal-s3
 name: Klima-Monitor-BISKO
 owner: Kausal Ltd
@@ -30,6 +30,10 @@ params:
 - id: weather_correction
   label_de: Wetterkorrektur durchführen?
   value: true
+  is_customizable: true
+  is_visible: true
+- id: municipality_name
+  value: Flensburg
   is_customizable: true
   is_visible: true
 
@@ -235,6 +239,38 @@ dimensions:
     label_en: Heat output
     label_de: Wärmeabgabe
 
+- id: road_type
+  label_en: Road Type
+  label_de: Straßentyp
+  categories:
+  - id: highway
+    label_en: Highway
+    label_de: Autobahn
+    aliases: [AB]
+  - id: rural_roads
+    label_en: Rural Roads
+    label_de: Außerorts
+    aliases: [AO]
+  - id: urban_roads
+    label_en: Urban Roads
+    label_de: Innerorts
+    aliases: [IO]
+  - id: city_streets
+    label_en: City Streets
+    label_de: Stadtstraße
+  - id: country_roads
+    label_en: Country Roads
+    label_de: Landstraße
+  - id: federal_roads
+    label_en: Federal Roads
+    label_de: Bundesstraße
+  - id: total
+    label_en: Total
+    label_de: Total
+  - id: rail
+    label_en: Rail
+    label_de: Eisenbahn
+
 - id: sector
   label_en: Sector
   label_de: Sektoren
@@ -290,6 +326,68 @@ dimensions:
     label_en: Heating
     label_de: Wärme
     aliases: [warme]
+
+- id: vehicle_type
+  label_en: Vehicle Type
+  label_de: Fahrzeugtyp
+  categories:
+  - id: passenger_cars
+    label_en: Passenger Cars
+    label_de: Personenkraftwagen (PKW)
+    aliases: [Pkw]
+  - id: trucks
+    label_en: Trucks
+    label_de: Lastkraftwagen (LKW)
+    aliases: [Lkw]
+  - id: vans
+    label_en: Light Commercial Vehicles
+    label_de: Leichte Nutzfahrzeuge
+    aliases: [LNF]
+  - id: heavy_commercial
+    label_en: Heavy Commercial Vehicles
+    label_de: Schwere Nutzfahrzeuge
+  - id: buses
+    label_en: Buses
+    label_de: Busse
+    aliases: [Bus, Linienbus]
+  - id: motorcycles
+    label_en: Motorcycles
+    label_de: Motorisierte Zweiräder
+    aliases: [MZR]
+  - id: bicycles
+    label_en: Bicycles
+    label_de: Fahrräder
+  - id: trains
+    label_en: Trains
+    label_de: Züge
+  - id: rail_vehicles
+    label_en: Rail Vehicles
+    label_de: Schienenfahrzeuge
+    aliases: [SSU, 'Straßen, Stadt- und U-Bahnen']
+  - id: local_trains
+    label_en: Local trains
+    label_de: Schienenpersonennahverkehr
+    aliases: [SPNV]
+  - id: long_distance_trains
+    label_en: Long-distance trains
+    label_de: Schienenpersonenfernverkehr
+    aliases: [SPFV]
+  - id: cargo_trains
+    label_en: Cargo trains
+    label_de: Schienengüterverkehr
+    aliases: [SGV]
+  - id: inland_waterway_shipping
+    label_en: Inland waterway shipping
+    label_de: Binnenschiff
+  - id: air_transport
+    label_en: Air transport (LTO)
+    label_de: Luft (LTO)
+    aliases: [LTO]
+
+Propulsion/Fuel Types (Antriebsart): Elektro = Electric (for electrified rail) 
+  Diesel = Diesel (for non-electrified rail and ships) Kerosin = Kerosene/Jet 
+  fuel (for aircraft)
+
 
 emission_sectors:
 
@@ -388,6 +486,19 @@ nodes:
     tags: [baseline]
     column: Value
 
+- id: final_energy_use_data_quality
+  name: Endenergie Datenqualität
+  name_en: Final energy use data quality
+  type: generic.GenericNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: duesseldorf/final_energy
+    tags: [baseline]
+    column: Quality of data
+
 - id: historical_emissions
   name: Historische Emissionen
   name_en: Historical emissions
@@ -471,6 +582,42 @@ nodes:
     tags: [baseline]
     filters:
     - column: upstream_included
+
+- id: road_transport_activity
+  name_en: Road transport activity
+  name_de: Verkehr Aktivität
+  type: generic.GenericNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_dimensions: [vehicle_type, road_type]
+  output_dimensions: [vehicle_type, road_type]
+  input_datasets:
+  - id: bisko/gemeindefeine_fahrleistungen_straenverkehr
+    tags: [baseline]
+    column: mileage
+    filters:
+    - column: district
+    - column: ags
+    - column: municipality
+      ref: municipality_name
+
+- id: other_transport_activity
+  name_en: Other transport activity
+  name_de:  Aktivität
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: bisko/gemeindefeine_endenergieverbrauche_schiene_wasser_luft_nach_antriebsart
+    tags: [baseline]
+    column: energy
+    filters:
+    - column: district
+    - column: ags
+    - column: municipality
+      ref: municipality_name
 
 # - id: sector_index
 #   name: Sektor Index
