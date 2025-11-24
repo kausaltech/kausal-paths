@@ -4,7 +4,7 @@ supported_languages: []
 site_url: https://minneapolis.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 3ac3e7697ef95e3121d33cd91d001e7dc8fa109e
+  commit: 7424223f2e9a24f589a34bfb4855c5d86aa35cd9
   dvc_remote: kausal-s3
 name: Minneapolis Greenhouse Gas Emissions
 owner: City of Minneapolis
@@ -167,6 +167,39 @@ nodes:
     filters:
     - column: sector
 
+- id: fossil_gas_leakage_rates
+  name: Fossil Gas Leakage Rates
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t_co2e/MMBtu
+  input_dimensions: [ghg, energy_carrier]
+  output_dimensions: [ghg, energy_carrier]
+  input_datasets:
+  - id: minneapolis/natural_gas
+    column: factor
+    dropna: true
+    filters:
+    - column: sector
+
+- id: fossil_gas_leakage
+  name: Fossil Gas Leakage
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, ghg, energy_carrier]
+  output_dimensions: [sector, ghg, energy_carrier]
+  input_nodes:
+  - id: fossil_gas_consumption
+    tags: [non_additive]
+    to_dimensions:
+    - id: sector
+    - id: energy_carrier
+  - id: fossil_gas_leakage_rates
+    tags: [non_additive]
+    to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+
 - id: fossil_gas_emissions
   name: Fossil Gas Emissions
   color: '#606263'
@@ -184,6 +217,16 @@ nodes:
   - id: fossil_gas_emission_factors
     tags: [non_additive]
     to_dimensions:
+    - id: ghg
+    - id: energy_carrier
+  - id: fossil_gas_leakage
+    tags: [additive]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [fugitive]
     - id: ghg
     - id: energy_carrier
   output_nodes:
