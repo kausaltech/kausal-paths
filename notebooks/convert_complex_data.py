@@ -1,21 +1,38 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+import argparse
+import sys
+from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import polars as pl
+import yaml
 
 
 @dataclass
 class ColumnSpec:
     """Describes what a column contains."""
 
-    quantity: str
-    unit: str
-    year: int
-    dimension1: str = ''  # Some dimensions, define in schema
-    dimension2: str = ''
-    dimension3: str = ''
+    # For data columns:
+    quantity: str = ''
+    unit: str = ''
+    year: int | None = None
+
+    # For dimension columns (if this column contains dimension values):
+    dimension_name: str = ''  # If set, this column contains values for this dimension
+
+    # Additional dimension values (for wide format):
+    dimensions: dict[str, str] = field(default_factory=dict)  # dimension_name -> value
+
+    def is_dimension_column(self) -> bool:
+        """Check if this column contains dimension values (long format)."""
+        return bool(self.dimension_name)
+
+    def is_data_column(self) -> bool:
+        """Check if this column contains data values (wide format)."""
+        return bool(self.quantity)
+
 
 @dataclass
 class DatasetSchema:
@@ -23,17 +40,28 @@ class DatasetSchema:
 
     row_identifier_name: str
     identifier_mappings: dict[str, dict[str, Any]]  # identifier -> additional attributes
-    dimension_names: list[str] # Names for 0-3 categories that are actually used
+    dimension_names: list[str]  # All dimension names used in this dataset
     column_specs: dict[int, ColumnSpec]  # column_number -> what it contains
     skip_rows: int = 1  # Skip explanation/header rows
     identifier_column: int = 0  # Column with row identifiers (0-based)
-    has_header: bool = False # Skip header row by default, use technical col names.
+    has_header: bool = False  # Skip header row by default, use technical col names.
+    value_column_name: str = 'Value'  # Name for the value column in output
 
     def __post_init__(self):
         if self.identifier_mappings is None:
             self.identifier_mappings = {}
         if self.column_specs is None:
             self.column_specs = {}
+
+
+@dataclass
+class DatasetConfig:
+    """Complete dataset configuration including file paths and schema."""
+
+    input_file_path: str
+    output_file_path: str
+    schema: DatasetSchema
+
 
 class DatasetTransformer:
     """Transforms peculiar CSV datasets into normalized format."""
@@ -65,23 +93,45 @@ class DatasetTransformer:
             # Get additional attributes for this identifier
             identifier_attrs = self.schema.identifier_mappings.get(str(identifier), {})
 
-            # Process each data column
+            # First, collect dimension values from dimension columns (long format)
+            row_dimensions = {}
             for col_num, col_spec in self.schema.column_specs.items():
+                if col_spec.is_dimension_column():
+                    try:
+                        dim_value = df.item(row_idx, col_num)
+                        if dim_value is not None and str(dim_value).strip() != '':
+                            row_dimensions[col_spec.dimension_name] = str(dim_value)
+                    except (IndexError, ValueError, TypeError):
+                        continue
+
+            # Process each data column (wide format)
+            for col_num, col_spec in self.schema.column_specs.items():
+                if not col_spec.is_data_column():
+                    continue  # Skip dimension columns
+
                 try:
                     value = df.item(row_idx, col_num)
                     if value is not None and str(value).strip() != '':
 
-                        # Build result row
+                        # Build result row with identifier
                         row_data = {
                             self.schema.row_identifier_name: str(identifier),
                             'Quantity': col_spec.quantity,
                             'Unit': col_spec.unit,
-                            'Year': col_spec.year,
-                            'Dimension1': col_spec.dimension1,
-                            'Dimension2': col_spec.dimension2,
-                            'Dimension3': col_spec.dimension3,
-                            'Value': float(value)
                         }
+
+                        # Add year if specified
+                        if col_spec.year is not None:
+                            row_data['Year'] = col_spec.year
+
+                        # Add dimensions from long format (from dimension columns)
+                        row_data.update(row_dimensions)
+
+                        # Add dimensions from wide format (from column spec)
+                        row_data.update(col_spec.dimensions)
+
+                        # Add value
+                        row_data[self.schema.value_column_name] = float(value)
 
                         # Add any additional attributes from identifier mapping
                         row_data.update(identifier_attrs)
@@ -93,124 +143,201 @@ class DatasetTransformer:
 
         result_df = pl.DataFrame(result_rows)
 
-        dim_placeholders = ['Dimension1', 'Dimension2', 'Dimension3']
-        new_dims = self.schema.dimension_names
-        drop_dims = dim_placeholders[len(new_dims):]
-        old_dims = dim_placeholders[:len(new_dims)]
-        result_df = result_df.drop(drop_dims)
-        result_df = result_df.rename(dict(zip(old_dims, new_dims, strict=False)))
-
         return result_df
 
     def get_summary(self) -> dict[str, Any]:
         """Get summary of schema configuration."""
-        return {
+        data_columns = [spec for spec in self.schema.column_specs.values() if spec.is_data_column()]
+        dimension_columns = [spec for spec in self.schema.column_specs.values() if spec.is_dimension_column()]
+
+        summary = {
             'total_columns': len(self.schema.column_specs),
-            'quantities': list(set(spec.quantity for spec in self.schema.column_specs.values())),
-            'dimension1': list(set(spec.dimension1 for spec in self.schema.column_specs.values())),
-            'dimension2': list(set(spec.dimension2 for spec in self.schema.column_specs.values())),
-            'dimension3': list(set(spec.dimension3 for spec in self.schema.column_specs.values())),
-            'years': sorted(set(spec.year for spec in self.schema.column_specs.values())),
+            'data_columns': len(data_columns),
+            'dimension_columns': len(dimension_columns),
+            'dimensions': self.schema.dimension_names,
             'identifiers': len(self.schema.identifier_mappings)
         }
 
-# Adjust this function to your case-specific needs.
-# In addition to input and output file paths, there should not be a need to adjust anything else.
-# Move these case-specific parts to ../netzeroplanner-framework-config/potsdam_scenario_dataset.schema
-def create_dataset_schema() -> DatasetSchema:
-    """Create schema for energy dataset - but using generic structure."""
+        if data_columns:
+            summary['quantities'] = list(set(spec.quantity for spec in data_columns if spec.quantity))
+            summary['units'] = list(set(spec.unit for spec in data_columns if spec.unit))
+            years = [spec.year for spec in data_columns if spec.year is not None]
+            if years:
+                summary['years'] = sorted(set(years))
 
-    # Map the row identifiers to whatever other columns you may need
-    identifier_mappings = {
-        # Strom (Electricity)
-        'Strom': {'Sector': 'Strom'},
-        # Wärme (Heat/Heating)
-        'Heizstrom': {'Sector': 'Wärme'},
-        'Fernwärme': {'Sector': 'Wärme'},
-        'Nahwärme': {'Sector': 'Wärme'},
-        'Gas': {'Sector': 'Wärme'},
-        'Biogas': {'Sector': 'Wärme'},
-        'Heizöl': {'Sector': 'Wärme'},
-        'Kohle': {'Sector': 'Wärme'},
-        'Biomasse': {'Sector': 'Wärme'},
-        'Solarthermie': {'Sector': 'Wärme'},
-        'Umweltwärme': {'Sector': 'Wärme'},
-        # Verkehr (Transport)
-        'Fahrstrom': {'Sector': 'Verkehr'},
-        'Benzin fossil': {'Sector': 'Verkehr'},
-        'Benzin biogen': {'Sector': 'Verkehr'},
-        'Diesel fossil': {'Sector': 'Verkehr'},
-        'Diesel biogen': {'Sector': 'Verkehr'},
-        'CNG fossil': {'Sector': 'Verkehr'},
-        'LPG': {'Sector': 'Verkehr'},
-        'Wasserstoff': {'Sector': 'Verkehr'},
-    }
+        return summary
 
-    # Define categories in columns by column number (0-based)
-    column_specs = {
-        1: ColumnSpec('Energy', 'MWh/a', 1995, 'Aktual'),
-        2: ColumnSpec('Energy', 'MWh/a', 1999, 'Aktual'),
-        3: ColumnSpec('Energy', 'MWh/a', 2003, 'Aktual'),
-        4: ColumnSpec('Energy', 'MWh/a', 2008, 'Aktual'),
-        5: ColumnSpec('Energy', 'MWh/a', 2012, 'Aktual'),
-        6: ColumnSpec('Energy', 'MWh/a', 2014, 'Aktual'),
-        7: ColumnSpec('Energy', 'MWh/a', 2017, 'Aktual'),
-        8: ColumnSpec('Energy', 'MWh/a', 2020, 'Aktual'),
-        9: ColumnSpec('Energy', 'MWh/a', 2021, 'Aktual'),
-        10: ColumnSpec('Energy', 'MWh/a', 2022, 'Aktual'),
-        11: ColumnSpec('Energy', 'MWh/a', 2023, 'Aktual'),
-        # 12: ColumnSpec('Energy', 'MWh/a', 2020, 'Trend-Szenario'), # To avoid duplicate data
-        13: ColumnSpec('Energy', 'MWh/a', 2030, 'Trend-Szenario'),
-        14: ColumnSpec('Energy', 'MWh/a', 2040, 'Trend-Szenario'),
-        15: ColumnSpec('Energy', 'MWh/a', 2050, 'Trend-Szenario'),
-        # 16: ColumnSpec('Energy', 'MWh/a', 2020, 'Masterplan-Szenario'),
-        17: ColumnSpec('Energy', 'MWh/a', 2030, 'Masterplan-Szenario'),
-        18: ColumnSpec('Energy', 'MWh/a', 2040, 'Masterplan-Szenario'),
-        19: ColumnSpec('Energy', 'MWh/a', 2050, 'Masterplan-Szenario'),
-        20: ColumnSpec('Emissions', 't/a', 1995, 'Aktual'),
-        21: ColumnSpec('Emissions', 't/a', 1999, 'Aktual'),
-        22: ColumnSpec('Emissions', 't/a', 2003, 'Aktual'),
-        23: ColumnSpec('Emissions', 't/a', 2008, 'Aktual'),
-        24: ColumnSpec('Emissions', 't/a', 2012, 'Aktual'),
-        25: ColumnSpec('Emissions', 't/a', 2014, 'Aktual'),
-        26: ColumnSpec('Emissions', 't/a', 2017, 'Aktual'),
-        27: ColumnSpec('Emissions', 't/a', 2020, 'Aktual'),
-        28: ColumnSpec('Emissions', 't/a', 2021, 'Aktual'),
-        # 29: ColumnSpec('Emissions', 't/a', 2020, 'Trend-Szenario'),
-        30: ColumnSpec('Emissions', 't/a', 2030, 'Trend-Szenario'),
-        31: ColumnSpec('Emissions', 't/a', 2040, 'Trend-Szenario'),
-        32: ColumnSpec('Emissions', 't/a', 2050, 'Trend-Szenario'),
-        # 33: ColumnSpec('Emissions', 't/a', 2020, 'Masterplan-Szenario'),
-        34: ColumnSpec('Emissions', 't/a', 2030, 'Masterplan-Szenario'),
-        35: ColumnSpec('Emissions', 't/a', 2040, 'Masterplan-Szenario'),
-        36: ColumnSpec('Emissions', 't/a', 2050, 'Masterplan-Szenario'),
-    }
 
-    return DatasetSchema(
-        skip_rows=1,
-        has_header=False,
-        identifier_column=0,  # (0-based)
-        identifier_mappings=identifier_mappings,
+def load_config(yaml_file_path: str | Path) -> DatasetConfig:
+    """
+    Load complete dataset configuration from YAML file.
+
+    Args:
+        yaml_file_path: Path to the YAML configuration file
+
+    Returns:
+        DatasetConfig object with schema and file paths
+    """
+    yaml_file_path = Path(yaml_file_path)
+
+    if not yaml_file_path.exists():
+        raise FileNotFoundError(f"Configuration file not found: {yaml_file_path}")
+
+    with open(yaml_file_path, 'r', encoding='utf-8') as f:
+        config = yaml.safe_load(f)
+
+    # Parse column specs
+    column_specs = {}
+    for col_num_str, spec_dict in config.get('column_specs', {}).items():
+        col_num = int(col_num_str)
+
+        # Create ColumnSpec based on whether it's a dimension or data column
+        if 'dimension_name' in spec_dict and spec_dict['dimension_name']:
+            # This is a dimension column (long format)
+            column_specs[col_num] = ColumnSpec(
+                dimension_name=spec_dict['dimension_name']
+            )
+        else:
+            # This is a data column (wide format)
+            column_specs[col_num] = ColumnSpec(
+                quantity=spec_dict.get('quantity', ''),
+                unit=spec_dict.get('unit', ''),
+                year=spec_dict.get('year'),
+                dimensions=spec_dict.get('dimensions', {})
+            )
+
+    # Create DatasetSchema
+    schema = DatasetSchema(
+        row_identifier_name=config['row_identifier_name'],
+        skip_rows=config.get('skip_rows', 1),
+        has_header=config.get('has_header', False),
+        identifier_column=config.get('identifier_column', 0),
+        identifier_mappings=config.get('identifier_mappings', {}),
         column_specs=column_specs,
-        row_identifier_name='Energy carrier',
-        dimension_names=['Scenario']
+        dimension_names=config.get('dimension_names', []),
+        value_column_name=config.get('value_column_name', 'Value')
     )
 
-# Usage example
-def main():
-    # Create schema for your dataset
-    schema = create_dataset_schema()
+    # Create and return complete config
+    return DatasetConfig(
+        input_file_path=config['input_file_path'],
+        output_file_path=config['output_file_path'],
+        schema=schema
+    )
+
+
+def process_dataset(config_path: str | Path, verbose: bool = True) -> pl.DataFrame:
+    """
+    Process a dataset using configuration from YAML file.
+
+    Args:
+        config_path: Path to YAML configuration file
+        verbose: Whether to print progress information
+
+    Returns:
+        Transformed DataFrame
+    """
+    # Load configuration
+    if verbose:
+        print(f"Loading configuration from: {config_path}")
+
+    config = load_config(config_path)
+
+    # Validate input file exists
+    input_path = Path(config.input_file_path)
+    if not input_path.exists():
+        raise FileNotFoundError(f"Input file not found: {input_path}")
 
     # Transform the data
-    transformer = DatasetTransformer(schema)
-    file_path = '/Users/jouni/Downloads/Zielwerte Masterplan V3.4.xlsx - potsdam.csv'
-    result_df = transformer.load_and_transform(file_path)
+    if verbose:
+        print(f"Processing input file: {config.input_file_path}")
 
-    print("Summary:", transformer.get_summary())
-    print(result_df)
+    transformer = DatasetTransformer(config.schema)
+    result_df = transformer.load_and_transform(config.input_file_path)
+
+    if verbose:
+        print("\nTransformation Summary:")
+        summary = transformer.get_summary()
+        for key, value in summary.items():
+            print(f"  {key}: {value}")
+        print(f"\nTotal rows in output: {len(result_df)}")
 
     # Save result
-    result_df.write_csv('normalized_data.csv')
+    output_path = Path(config.output_file_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if verbose:
+        print(f"Writing output to: {config.output_file_path}")
+
+    result_df.write_csv(config.output_file_path)
+
+    if verbose:
+        print("✓ Processing complete!")
+
+    return result_df
+
+
+def main():
+    """Main entry point for command-line usage."""
+    parser = argparse.ArgumentParser(
+        description='Transform peculiar CSV datasets into normalized format using YAML configuration.',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s potsdam_scenario_dataset.yaml
+  %(prog)s config/dataset_schema.yaml --quiet
+  %(prog)s my_config.yaml --show-data
+        """
+    )
+
+    parser.add_argument(
+        'config',
+        type=str,
+        help='Path to YAML configuration file'
+    )
+
+    parser.add_argument(
+        '-q', '--quiet',
+        action='store_true',
+        help='Suppress progress output'
+    )
+
+    parser.add_argument(
+        '-s', '--show-data',
+        action='store_true',
+        help='Display the transformed data'
+    )
+
+    parser.add_argument(
+        '--head',
+        type=int,
+        metavar='N',
+        help='Show first N rows of output (implies --show-data)'
+    )
+
+    args = parser.parse_args()
+
+    try:
+        result_df = process_dataset(args.config, verbose=not args.quiet)
+
+        # Display data if requested
+        if args.show_data or args.head:
+            print("\n" + "="*80)
+            print("Transformed Data:")
+            print("="*80)
+            if args.head:
+                print(result_df.head(args.head))
+            else:
+                print(result_df)
+
+        return 0
+
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        return 1
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
