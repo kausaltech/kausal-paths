@@ -230,6 +230,7 @@ nodes:
   input_datasets:
   - id: riga/baseline
     column: emissions
+    dropna: true
     filters:
     - column: sector
       value: i1
@@ -251,6 +252,7 @@ nodes:
   input_datasets:
   - id: riga/baseline
     column: emissions
+    dropna: true
     filters:
     - column: sector
       value: i2
@@ -272,6 +274,7 @@ nodes:
   input_datasets:
   - id: riga/baseline
     column: emissions
+    dropna: true
     filters:
     - dimension: sector
       categories: [i3, i4]
@@ -307,6 +310,7 @@ nodes:
   input_datasets:
   - id: riga/baseline
     column: emissions
+    dropna: true
     filters:
     - dimension: sector
       categories: [ii1, ii2, ii3]
@@ -330,6 +334,7 @@ nodes:
   input_datasets:
   - id: riga/baseline
     column: emissions
+    dropna: true
     filters:
     - column: sector
       value: iii
@@ -352,6 +357,7 @@ nodes:
   input_datasets:
   - id: riga/baseline
     column: emissions
+    dropna: true
     filters:
     - dimension: sector
       categories: [iv1, iv2]
@@ -375,6 +381,7 @@ nodes:
   input_datasets:
   - id: riga/baseline
     column: emissions
+    dropna: true
     filters:
     - dimension: sector
       categories: [v]
@@ -398,6 +405,7 @@ nodes:
   input_datasets:
   - id: riga/baseline
     column: emissions
+    dropna: true
     filters:
     - dimension: sector
       categories: [vi]
@@ -421,6 +429,7 @@ nodes:
   input_datasets:
   - id: riga/baseline
     column: emissions
+    dropna: true
     filters:
     - dimension: sector
       categories: [vii]
