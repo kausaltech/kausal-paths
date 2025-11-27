@@ -1902,6 +1902,39 @@ nodes:
   output_nodes:
   - id: net_costs
 
+- id: waste_costs
+  name: Waste Costs
+  color: '#59A14F'
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: DKK/a
+  input_dimensions: [cost_type, sector]
+  output_dimensions: [cost_type, sector]
+  output_nodes:
+  - id: net_costs
+
+- id: ippu_costs
+  name: Industrial Process & Product Use Costs
+  color: '#F28E2B'
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: DKK/a
+  input_dimensions: [cost_type, sector]
+  output_dimensions: [cost_type, sector]
+  output_nodes:
+  - id: net_costs
+
+- id: afolu_costs
+  name: Agriculture, Forestry & Other Land Use Costs
+  color: '#B07AA1'
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: DKK/a
+  input_dimensions: [cost_type, sector]
+  output_dimensions: [cost_type, sector]
+  output_nodes:
+  - id: net_costs
+
 - id: net_costs
   name: Net Costs
   type: simple.AdditiveNode
@@ -2321,46 +2354,76 @@ actions:
   name: Biocover on Landfills
   group: waste
   type: simple.AdditiveAction
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [sector, ghg]
-  output_dimensions: [sector, ghg]
+  input_dimensions: [sector, ghg, cost_type]
+  output_dimensions: [sector, ghg, cost_type]
+  params:
+    allow_null_categories: true
   input_datasets:
   - id: aarhus/waste_actions
-    column: emissions
     forecast_from: 2024
     filters:
     - column: action
       value: biocover_on_landfills
+  output_metrics:
+  - id: emissions
+    unit: t/a
+    quantity: emissions
+  - id: currency
+    unit: DKK/a
+    quantity: currency
   output_nodes:
   - id: waste_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+  - id: waste_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
 
 # ----- IPPU
 - id: green_materials_in_industry_and_construction
   name: Green Materials in Industry and Construction
   group: ippu
   type: simple.AdditiveAction
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [sector, ghg]
-  output_dimensions: [sector, ghg]
+  input_dimensions: [sector, ghg, cost_type]
+  output_dimensions: [sector, ghg, cost_type]
+  params:
+    allow_null_categories: true
   input_datasets:
   - id: aarhus/ippu_actions
-    column: emissions
     forecast_from: 2024
     filters:
     - column: action
       value: green_materials_in_industry_and_construction
+  output_metrics:
+  - id: emissions
+    unit: t/a
+    quantity: emissions
+  - id: currency
+    unit: DKK/a
+    quantity: currency
   output_nodes:
   - id: ippu_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+  - id: ippu_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
 
 # ----- AFOLU
 - id: biogenic_energy_park
   name: Biogenic Energy Park
   group: afolu
   type: simple.AdditiveAction
-  input_dimensions: [sector, emission_source, ghg]
-  output_dimensions: [sector, emission_source, ghg]
+  input_dimensions: [sector, emission_source, cost_type, ghg]
+  output_dimensions: [sector, emission_source, cost_type, ghg]
   params:
     allow_null_categories: true
   input_datasets:
@@ -2376,12 +2439,17 @@ actions:
   - id: area
     unit: ha
     quantity: area
+  - id: currency
+    unit: DKK/a
+    quantity: currency
   output_nodes:
   - id: livestock_emissions
     metrics: [emissions]
     from_dimensions:
     - id: sector
       categories: [v21, v22, v23, v24]
+    - id: cost_type
+      flatten: true
   - id: cultivation_emissions
     metrics: [emissions]
     from_dimensions:
@@ -2389,8 +2457,19 @@ actions:
       categories: [v111]
     - id: emission_source
       flatten: true
+    - id: cost_type
+      flatten: true
   - id: land_areas
     metrics: [area]
+    from_dimensions:
+    - id: emission_source
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: ghg
+      flatten: true
+  - id: afolu_costs
+    metrics: [currency]
     from_dimensions:
     - id: emission_source
       flatten: true
@@ -2401,60 +2480,99 @@ actions:
   name: Climate Supervision and Action Plans
   group: afolu
   type: simple.AdditiveAction
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [sector, ghg]
-  output_dimensions: [sector, ghg]
+  input_dimensions: [sector, cost_type, ghg]
+  output_dimensions: [sector, cost_type, ghg]
+  params:
+    allow_null_categories: true
   input_datasets:
   - id: aarhus/afolu_actions
-    column: emissions
     forecast_from: 2024
     filters:
     - column: action
       value: climate_supervision_and_action_plans
     - column: emission_source
+  output_metrics:
+  - id: emissions
+    unit: t/a
+    quantity: emissions
+  - id: currency
+    unit: DKK/a
+    quantity: currency
   output_nodes:
   - id: cultivation_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+  - id: afolu_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: ghg
+      flatten: true
 
 - id: conversion_to_forestry_and_nature
   name: Conversion to Forestry and Nature
   group: afolu
   type: simple.AdditiveAction
-  quantity: area
-  unit: ha
-  input_dimensions: [sector]
-  output_dimensions: [sector]
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
   input_datasets:
   - id: aarhus/afolu_actions
-    column: area
     forecast_from: 2024
     filters:
     - column: action
       value: conversion_to_forestry_and_nature
     - column: emission_source
     - column: ghg
+  output_metrics:
+  - id: area
+    unit: ha
+    quantity: area
+  - id: currency
+    unit: DKK/a
+    quantity: currency
   output_nodes:
   - id: land_areas
+    metrics: [area]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+  - id: afolu_costs
+    metrics: [currency]
 
 - id: extraction_of_organic_soils
   name: Extraction of Organic Soils
   group: afolu
   type: simple.AdditiveAction
-  quantity: area
-  unit: ha
-  input_dimensions: [sector]
-  output_dimensions: [sector]
+  input_dimensions: [sector, cost_type]
+  output_dimensions: [sector, cost_type]
+  params:
+    allow_null_categories: true
   input_datasets:
   - id: aarhus/afolu_actions
-    column: area
     forecast_from: 2024
     filters:
     - column: action
       value: extraction_of_organic_soils
     - column: emission_source
     - column: ghg
+  output_metrics:
+  - id: area
+    unit: ha
+    quantity: area
+  - id: currency
+    unit: DKK/a
+    quantity: currency
   output_nodes:
   - id: land_areas
+    metrics: [area]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+  - id: afolu_costs
+    metrics: [currency]
 
 pages:
 - id: home
