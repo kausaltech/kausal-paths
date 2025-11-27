@@ -21,6 +21,16 @@ features:
   baseline_visible_in_graphs: true
   use_datasets_from_db: true
 
+impact_overviews:
+- graph_type: cost_efficiency
+  cost_node: net_costs
+  effect_node: net_emissions
+  indicator_unit: DKK/t
+  cost_unit: DKK
+  effect_unit: t
+  plot_limit_for_indicator: 1000000
+  label: Cost Efficiency
+
 action_groups:
 - id: energy
   name: Energy
@@ -170,6 +180,14 @@ dimensions:
     label: Wood Pellets
   - id: import_electricity
     label: Import Electricity
+
+- id: cost_type
+  label: Cost Type
+  categories:
+  - id: infrastructure
+    label: Infrastructure
+  - id: operations
+    label: Operations
 
 - id: sector
   label: Emission Sector
@@ -1860,89 +1878,150 @@ nodes:
     to_dimensions:
     - id: sector
 
+# ----- Costs
+
+- id: energy_costs
+  name: Energy Costs
+  color: '#4E79A7'
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: DKK/a
+  input_dimensions: [cost_type, sector]
+  output_dimensions: [cost_type, sector]
+  output_nodes:
+  - id: net_costs
+
+- id: net_costs
+  name: Net Costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: DKK/a
+  input_dimensions: [cost_type, sector]
+  output_dimensions: [cost_type, sector]
+
 actions:
 # ----- Energy
 - id: energy_efficiency_improvements
   name: Energy Efficiency Improvements
   group: energy
   type: simple.AdditiveAction
-  quantity: energy
-  unit: TJ/a
-  input_dimensions: [energy_carrier, energy_usage, sector]
-  output_dimensions: [energy_carrier, energy_usage, sector]
+  input_dimensions: [energy_carrier, energy_usage, cost_type, sector]
+  output_dimensions: [energy_carrier, energy_usage, cost_type, sector]
   params:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/energy_actions
-    column: energy
     forecast_from: 2024
     filters:
     - column: action
       value: energy_efficiency_improvements
     - column: ghg
+  output_metrics:
+  - id: energy
+    unit: TJ/a
+    quantity: energy
+  - id: currency
+    unit: DKK/a
+    quantity: currency
   output_nodes:
   - id: chp_district_heat_energy_consumption
+    metrics: [energy]
     from_dimensions:
     - id: energy_usage
+      flatten: true
+    - id: cost_type
       flatten: true
     - id: sector
       categories: [i11]
   - id: electricity_demand
+    metrics: [energy]
     from_dimensions:
+    - id: cost_type
+      flatten: true
     - id: sector
       categories: [i22]
+      flatten: true
+  - id: energy_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: energy_usage
       flatten: true
 
 - id: energy_efficient_municipal_buildings
   name: Energy Efficient Municipal Buildings
   group: energy
   type: simple.AdditiveAction
-  quantity: energy
-  unit: TJ/a
-  input_dimensions: [energy_carrier, energy_usage, sector]
-  output_dimensions: [energy_carrier, energy_usage, sector]
+  input_dimensions: [energy_carrier, energy_usage, cost_type, sector]
+  output_dimensions: [energy_carrier, energy_usage, cost_type, sector]
   params:
     allow_null_categories: true
   input_datasets:
   - id: aarhus/energy_actions
-    column: energy
     forecast_from: 2024
     filters:
     - column: action
       value: energy_efficient_municipal_buildings
     - column: ghg
+  output_metrics:
+  - id: energy
+    unit: TJ/a
+    quantity: energy
+  - id: currency
+    unit: DKK/a
+    quantity: currency
   output_nodes:
   - id: chp_district_heat_energy_consumption
+    metrics: [energy]
     from_dimensions:
     - id: energy_usage
+      flatten: true
+    - id: cost_type
       flatten: true
     - id: sector
       categories: [i11]
   - id: renewable_electricity_generation
+    metrics: [energy]
     from_dimensions:
     - id: energy_usage
+      flatten: true
+    - id: cost_type
       flatten: true
     - id: sector
       categories: [i21]
       flatten: true
   - id: electricity_demand
+    metrics: [energy]
     from_dimensions:
+    - id: cost_type
+      flatten: true
     - id: sector
       categories: [i22]
       flatten: true
   - id: other_energy_consumption
+    metrics: [energy]
     from_dimensions:
     - id: energy_usage
       flatten: true
+    - id: cost_type
+      flatten: true
     - id: sector
       categories: [i41]
+  - id: energy_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: energy_usage
+      flatten: true
 
 - id: expansion_of_renewable_energy
   name: Expansion of Renewable Energy
   group: energy
   type: simple.AdditiveAction
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
+  input_dimensions: [energy_carrier, cost_type, sector]
+  output_dimensions: [energy_carrier, cost_type, sector]
   params:
     allow_null_categories: true
   input_datasets:
@@ -1960,14 +2039,26 @@ actions:
   - id: area
     unit: ha
     quantity: area
+  - id: currency
+    unit: DKK/a
+    quantity: currency
   output_nodes:
   - id: renewable_electricity_generation
     metrics: [energy]
     from_dimensions:
+    - id: cost_type
+      flatten: true
     - id: sector
       flatten: true
   - id: land_areas
     metrics: [area]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: energy_costs
+    metrics: [currency]
     from_dimensions:
     - id: energy_carrier
       flatten: true
@@ -1976,48 +2067,83 @@ actions:
   name: Green District Heating of the Future
   group: energy
   type: simple.AdditiveAction
-  quantity: energy
-  unit: TJ/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
+  input_dimensions: [energy_carrier, cost_type, sector]
+  output_dimensions: [energy_carrier, cost_type, sector]
+  params:
+    allow_null_categories: true
   input_datasets:
   - id: aarhus/energy_actions
-    column: energy
     forecast_from: 2024
     filters:
     - column: action
       value: green_district_heating_of_the_future
     - column: energy_usage
     - column: ghg
+  output_metrics:
+  - id: energy
+    unit: TJ/a
+    quantity: energy
+  - id: currency
+    unit: DKK/a
+    quantity: currency
   output_nodes:
   - id: chp_district_heat_energy_consumption
+    metrics: [energy]
     from_dimensions:
+    - id: cost_type
+      flatten: true
     - id: sector
       categories: [i11]
   - id: chp_electricity_generation_energy_consumption
+    metrics: [energy]
     from_dimensions:
+    - id: cost_type
+      flatten: true
     - id: sector
       categories: [i12]
+  - id: energy_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
 
 - id: sustainable_municipal_facilities
   name: Sustainable Municipal Facilities
   group: energy
   type: simple.AdditiveAction
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [energy_carrier, ghg]
-  output_dimensions: [energy_carrier, ghg]
+  input_dimensions: [energy_carrier, cost_type, sector, ghg]
+  output_dimensions: [energy_carrier, cost_type, sector, ghg]
+  params:
+    allow_null_categories: true
   input_datasets:
   - id: aarhus/energy_actions
-    column: emissions
     forecast_from: 2024
     filters:
-    - column: sector
     - column: action
       value: sustainable_municipal_facilities
     - column: energy_usage
+  output_metrics:
+  - id: emissions
+    unit: t/a
+    quantity: emissions
+  - id: currency
+    unit: DKK/a
+    quantity: currency
   output_nodes:
   - id: energy_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: sector
+      flatten: true
+  - id: energy_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
 
 - id: zero_emission_municipal_machinery_and_driving
   name: Zero-emission Municipal Machinery and Driving
@@ -2036,6 +2162,7 @@ actions:
     - column: action
       value: zero_emission_municipal_machinery_and_driving
     - column: energy_usage
+    - column: cost_type
   output_nodes:
   - id: energy_emissions
 
