@@ -1891,6 +1891,17 @@ nodes:
   output_nodes:
   - id: net_costs
 
+- id: transportation_costs
+  name: Transportation Costs
+  color: '#E15759'
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: DKK/a
+  input_dimensions: [cost_type, sector]
+  output_dimensions: [cost_type, sector]
+  output_nodes:
+  - id: net_costs
+
 - id: net_costs
   name: Net Costs
   type: simple.AdditiveNode
@@ -2183,6 +2194,7 @@ actions:
     - column: sector
     - column: action
       value: green_mobility_plan
+    - column: cost_type
   output_nodes:
   - id: onroad_transport_vehicle_mileage
 
@@ -2190,59 +2202,119 @@ actions:
   name: Optimized and Emission Free Municipal Fleet
   group: transportation
   type: simple.AdditiveAction
-  quantity: mileage
-  unit: km/a
-  input_dimensions: [vehicle_type, energy_carrier]
-  output_dimensions: [vehicle_type, energy_carrier]
+  input_dimensions: [vehicle_type, energy_carrier, cost_type, sector]
+  output_dimensions: [vehicle_type, energy_carrier, cost_type, sector]
+  params:
+    allow_null_categories: true
   input_datasets:
   - id: aarhus/transportation_actions
-    column: mileage
     forecast_from: 2024
     filters:
-    - column: sector
     - column: action
       value: optimized_and_emission_free_municipal_fleet
+  output_metrics:
+  - id: mileage
+    unit: km/a
+    quantity: mileage
+  - id: currency
+    unit: DKK/a
+    quantity: currency
   output_nodes:
   - id: onroad_transport_vehicle_mileage
+    metrics: [mileage]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: sector
+      flatten: true
+  - id: transportation_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
 
 - id: sustainable_air_and_maritime_transport
   name: Sustainable Air and Maritime Transport
   group: transportation
   type: simple.AdditiveAction
-  quantity: energy
-  unit: TJ/a
-  input_dimensions: [vehicle_type, energy_carrier]
-  output_dimensions: [vehicle_type, energy_carrier]
+  input_dimensions: [vehicle_type, energy_carrier, cost_type, sector]
+  output_dimensions: [vehicle_type, energy_carrier, cost_type, sector]
+  params:
+    allow_null_categories: true
   input_datasets:
   - id: aarhus/transportation_actions
-    column: energy
     forecast_from: 2024
     filters:
-    - column: sector
     - column: action
       value: sustainable_air_and_maritime_transport
+  output_metrics:
+  - id: energy
+    unit: TJ/a
+    quantity: energy
+  - id: currency
+    unit: DKK/a
+    quantity: currency
   output_nodes:
   - id: waterborne_transport_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: sector
+      flatten: true
   - id: aviation_energy_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: sector
+      flatten: true
+  - id: transportation_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
 
 - id: sustainable_soil_management
   name: Sustainable Soil Management
   group: transportation
   type: simple.AdditiveAction
-  quantity: mileage
-  unit: km/a
-  input_dimensions: [vehicle_type, energy_carrier]
-  output_dimensions: [vehicle_type, energy_carrier]
+  input_dimensions: [vehicle_type, energy_carrier, cost_type, sector]
+  output_dimensions: [vehicle_type, energy_carrier, cost_type, sector]
+  params:
+    allow_null_categories: true
   input_datasets:
   - id: aarhus/transportation_actions
-    column: mileage
     forecast_from: 2024
     filters:
-    - column: sector
     - column: action
       value: sustainable_soil_management
+  output_metrics:
+  - id: mileage
+    unit: km/a
+    quantity: mileage
+  - id: currency
+    unit: DKK/a
+    quantity: currency
   output_nodes:
   - id: onroad_transport_vehicle_mileage
+    metrics: [mileage]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: sector
+      flatten: true
+  - id: transportation_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
 
 # ----- Waste
 - id: biocover_on_landfills
