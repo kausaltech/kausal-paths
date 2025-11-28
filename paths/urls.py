@@ -40,6 +40,7 @@ from admin_site import urls as admin_urls
 from datasets.api import nested_routers as datasets_api_nested_routers, router as datasets_api_root_router
 from frameworks.urls import urlpatterns as framework_urls
 from nodes.api import all_routers as nodes_routers
+from nodes.node_autocomplete import NodeAutocompleteView
 from users.views import change_admin_instance
 
 from .api_router import router as api_router
@@ -86,6 +87,7 @@ urlpatterns = [
     path('v1/schema/', SpectacularAPIView.as_view(urlconf=api_urls), name='schema'),
     path('v1/schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('v1/schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+    path('autocomplete/node/', NodeAutocompleteView.as_view(), name='node-autocomplete'),
     path('auth/', include(social_urls, namespace='social')),
     path('healthz/', csrf_exempt(health_view), name='healthcheck'),
     path('', include(framework_urls)),
