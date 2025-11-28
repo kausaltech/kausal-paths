@@ -1945,6 +1945,57 @@ nodes:
 
 actions:
 # ----- Energy
+- id: carbon_capture_and_storage
+  name: Carbon Capture and Storage
+  group: energy
+  type: simple.AdditiveAction
+  input_dimensions: [energy_carrier, energy_usage, cost_type, sector, ghg]
+  output_dimensions: [energy_carrier, energy_usage, cost_type, sector, ghg]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: aarhus/energy_actions
+    forecast_from: 2024
+    filters:
+    - column: action
+      value: carbon_capture_and_storage
+  output_metrics:
+  - id: emissions
+    unit: t/a
+    quantity: emissions
+  - id: energy
+    unit: TJ/a
+    quantity: energy
+  - id: currency
+    unit: DKK/a
+    quantity: currency
+  output_nodes:
+  - id: chp_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: energy_usage
+      flatten: true
+    - id: cost_type
+      flatten: true
+  - id: electricity_demand
+    metrics: [energy]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    - id: sector
+      flatten: true
+    - id: ghg
+      flatten: true
+  - id: energy_costs
+    metrics: [currency]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: energy_usage
+      flatten: true
+    - id: ghg
+      flatten: true
+
 - id: energy_efficiency_improvements
   name: Energy Efficiency Improvements
   group: energy
