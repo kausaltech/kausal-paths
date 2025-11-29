@@ -158,44 +158,44 @@ class FormulaNode(Node):  # FIXME The formula is not commutative, i.e. a * b != 
         func_name = node.func
         assert isinstance(func_name, ast.Name)
         func = func_name.id
+
+        # Evaluate first argument
+        assert len(node.args) >= 1, f"Function {func} requires at least one argument"
+        df = self.eval_tree(node.args[0], varss) # Get the first result
+
+        # Try PathsExt operations first
+        if isinstance(df, PDF) and func in df.paths.OPERATIONS:
+            operation = df.paths.OPERATIONS[func]
+            return operation(df, self)
+
+        # Handle non-PathsExt functions
+        return self._handle_custom_function(func, node, varss, df)
+
+    def _handle_custom_function(
+        self, func: str, node: ast.Call, _varss: EvalVars, df: EvalOutput
+    ) -> EvalOutput:
+        """Handle custom functions not in PathsExt.OPERATIONS."""
+
         if func == 'convert_gwp':
-            assert len(node.args) == 1
-            df = self.eval_tree(node.args[0], varss)
             assert isinstance(df, PDF)
-            df = convert_to_co2e(df, 'greenhouse_gases')
-        elif func == 'sum_dim':
+            return convert_to_co2e(df, 'greenhouse_gases')
+
+        if func == 'sum_dim':
             assert len(node.args) == 2
-            df = self.eval_tree(node.args[0], varss)
             assert isinstance(df, PDF)
             dim_arg = node.args[1]
-            assert isinstance(dim_arg, ast.Constant)
-            assert isinstance(dim_arg.value, str)
-            df = df.paths.sum_over_dims(dim_arg.value)
-        elif func == 'zero_fill':
-            assert len(node.args) == 1
-            df = self.eval_tree(node.args[0], varss)
+            assert isinstance(dim_arg, ast.Name)
+            assert isinstance(dim_arg.id, str)
+            return df.paths.sum_over_dims(dim_arg.id)
+
+        if func == 'zero_fill':
             assert isinstance(df, PDF)
             df = df.paths.to_wide()
             meta = df.get_meta()
             zdf = df.fill_null(0)
-            df = ppl.to_ppdf(zdf, meta=meta).paths.to_narrow()
-        elif func == 'complement': # TODO Example function. Generalize.
-            assert len(node.args) == 1
-            arg = node.args[0]
-            assert isinstance(arg, ast.Name), "complement() requires a direct node reference"
-            assert arg.id in varss.nodes, f"complement() argument must be a node, got {arg.id}"
-            source_node = varss.nodes[arg.id]
+            return ppl.to_ppdf(zdf, meta=meta).paths.to_narrow()
 
-            # Evaluate to get the dataframe
-            # This calls eval_name() which does: source_node.get_output_pl(target_node=self)
-            df = self.eval_tree(arg, varss)
-            assert isinstance(df, PDF)
-
-            # Call complement with both the df and the source node
-            df = df.paths._complement(df, source_node)
-        else:
-            raise NotImplementedError("Unknown function: %s" % func)
-        return df
+        raise NotImplementedError(f"Unknown function: {func}")
 
     def eval_tree(self, tree: ast.AST, varss: EvalVars) -> EvalOutput:
         EVALUATORS: dict[type, Callable[[Any, EvalVars], EvalOutput]] = {
