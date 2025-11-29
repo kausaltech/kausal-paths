@@ -35,6 +35,7 @@ nodes:
   type: gpc.DatasetNode
   quantity: energy
   unit: GWh/a
+  color: '#ff69b4'
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets: [nzc/defaults]
@@ -721,6 +722,7 @@ nodes:
   type: gpc.DatasetNode
   quantity: fraction
   unit: '%'
+  color: '#ff69b4'
   input_dimensions: [fuel_type, energy_carrier]
   output_dimensions: [fuel_type, energy_carrier]
   input_datasets:

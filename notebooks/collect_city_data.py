@@ -4,7 +4,6 @@
 # ruff: noqa: F401
 from __future__ import annotations
 
-# import argparse
 import os
 import sys
 from dataclasses import dataclass, field
@@ -154,6 +153,15 @@ class DataCollection:
         return self
 
     def sum_over_instances(self) -> DataCollection:
+
+        def _sum_over_instances(df: PathsDataFrame, topic: str) -> PathsDataFrame:
+            return (
+                df.paths.sum_over_dims(['Instance', YEAR_COLUMN])
+                .with_columns(pl.lit(topic).alias('Instance'))
+                .with_columns(pl.lit(0).alias(YEAR_COLUMN))
+                .add_to_index(['Instance', YEAR_COLUMN])
+            )
+
         # node_ids = list({node.id for instance in dc.instances for node in instance.nodes})
         summary = InstanceData(id='sum_over_instances', target_year=0)
         for instance in self.instances:
@@ -175,10 +183,9 @@ class DataCollection:
                         f"Node {node.id} has primary keys {df.primary_keys} in instance {instance.id}",
                         f" but expected {sum_df.primary_keys}. Ignore the node in sum."]))
         for node in summary.nodes:
-            total = node.df.paths.sum_over_dims(['Instance', YEAR_COLUMN])
-            total = total.with_columns([
-                pl.lit('TOTAL').alias('Instance'),
-                pl.lit(0).alias(YEAR_COLUMN)]).add_to_index(['Instance', YEAR_COLUMN])
+            number = _sum_over_instances(node.df.with_columns(pl.lit(1.0).alias(VALUE_COLUMN)), 'NUMBER')
+            total = _sum_over_instances(node.df, 'TOTAL')
+            total = total.paths.concat_vertical(number)
             assert set(node.df.columns) == set(total.columns)
             total = total.select(node.df.columns)
             summary.update_node_df(node.id, node.df.paths.concat_vertical(total))

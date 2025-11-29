@@ -32,12 +32,12 @@ def api_client():
     pytest.param('admin_user', True, {'Schema 1', 'Unused schema'}, id='admin_user'),
     pytest.param('reviewer_user', True, {'Schema 1', 'Unused schema'}, id='reviewer_user'),
     pytest.param('viewer_user', True, {'Schema 1', 'Unused schema'}, id='viewer_user'),
-    pytest.param('schema1_viewer', True, {'Schema 1', 'Unused schema'}, id='schema1_viewer'),
-    pytest.param('schema1_editor', True, {'Schema 1', 'Unused schema'}, id='schema1_editor'),
-    pytest.param('schema1_admin', True, {'Schema 1', 'Unused schema'}, id='schema1_admin'),
-    pytest.param('schema1_viewer_group_user', True, {'Schema 1', 'Unused schema'}, id='schema1_viewer_group_user'),
-    pytest.param('schema1_editor_group_user', True, {'Schema 1', 'Unused schema'}, id='schema1_editor_group_user'),
-    pytest.param('schema1_admin_group_user', True, {'Schema 1', 'Unused schema'}, id='schema1_admin_group_user'),
+    pytest.param('schema1_viewer', True, {'Schema 1'}, id='schema1_viewer'),
+    pytest.param('schema1_editor', True, {'Schema 1'}, id='schema1_editor'),
+    pytest.param('schema1_admin', True, {'Schema 1'}, id='schema1_admin'),
+    pytest.param('schema1_viewer_group_user', True, {'Schema 1'}, id='schema1_viewer_group_user'),
+    pytest.param('schema1_editor_group_user', True, {'Schema 1'}, id='schema1_editor_group_user'),
+    pytest.param('schema1_admin_group_user', True, {'Schema 1'}, id='schema1_admin_group_user'),
     pytest.param('regular_user', False, set(), id='regular_user'),
 ])
 def test_dataset_schema_list(api_client, dataset_test_data, user_key, has_access, expected_schemas):
@@ -189,13 +189,15 @@ admin_user                 unused_schema  +               +                -
 # 403 for these since the roles of the users simply disallow the delete action
 regular_user               unused_schema  -               -                -
 reviewer_user              unused_schema  -               -                -
-schema1_admin              unused_schema  -               -                -
-schema1_admin_group_user   unused_schema  -               -                -
-schema1_editor             unused_schema  -               -                -
-schema1_editor_group_user  unused_schema  -               -                -
-schema1_viewer             unused_schema  -               -                -
-schema1_viewer_group_user  unused_schema  -               -                -
 viewer_user                unused_schema  -               -                -
+
+# 404: subsector admins should only know about schemas they are directly linked to
+schema1_admin              unused_schema  +               -                -
+schema1_admin_group_user   unused_schema  +               -                -
+schema1_editor             unused_schema  +               -                -
+schema1_editor_group_user  unused_schema  +               -                -
+schema1_viewer             unused_schema  +               -                -
+schema1_viewer_group_user  unused_schema  +               -                -
 """))
 def test_dataset_schema_delete(
     api_client,
@@ -1740,3 +1742,128 @@ def test_dataset_metric_delete(api_client, dataset_test_data, user_key):
     response = api_client.delete(f'/v1/dataset_schemas/{schema.uuid}/metrics/{metric.uuid}/')
 
     assert response.status_code == 405
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(*parse_table("""
+user_key         dataset_key expected_status
+superuser        dataset1    201
+admin_user       dataset1    201
+super_admin_user dataset1    201
+reviewer_user    dataset1    403
+viewer_user      dataset1    403
+regular_user     dataset1    403
+"""))
+def test_data_point_bulk_create(api_client, dataset_test_data, user_key, dataset_key, expected_status):
+    user = dataset_test_data[user_key]
+    dataset = dataset_test_data[dataset_key]
+    metric = dataset_test_data['metric1']
+    dimension_category = dataset_test_data['dimension_category1']
+    api_client.force_authenticate(user=user)
+
+    create_data = [
+        {
+            'date': '2024-01-01',
+            'value': 150.0,
+            'metric': str(metric.uuid),
+            'dimension_categories': [str(dimension_category.uuid)],
+        },
+        {
+            'date': '2025-01-01',
+            'value': 10.0,
+            'metric': str(metric.uuid),
+            'dimension_categories': [str(dimension_category.uuid)],
+        }
+    ]
+
+    if expected_status == 201:
+        with AssertNewUUID(DataPoint.objects, bulk=True) as uuid_tracker:
+            response = api_client.post(f'/v1/datasets/{dataset.uuid}/data_points/', create_data, format='json')
+        assert response.status_code == 201
+        data = response.json()
+        # Only compare fields present in expected data, ignoring new fields (e.g., UUID of created object)
+        data_to_compare = [
+            {k: actual[k] for k in expected}
+            for actual, expected in zip(data, create_data, strict=True)
+        ]
+        assert data_to_compare == create_data
+        uuid_tracker.assert_created(data, 2)
+    else:
+        with AssertIdenticalUUIDs(DataPoint.objects):
+            response = api_client.post(f'/v1/datasets/{dataset.uuid}/data_points/', create_data, format='json')
+        assert response.status_code == expected_status
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(('user_key', 'data_point_keys', 'expected_status'), [
+    # Actual bulk editing (see individual cases below for explanations about the status).
+    ('superuser', ['data_point2', 'data_point3'], 200),
+    ('admin_user', ['data_point2', 'data_point3'], 404),
+    ('super_admin_user', ['data_point2', 'data_point3'], 404),
+    ('reviewer_user', ['data_point2', 'data_point3'], 403),
+    ('viewer_user', ['data_point2', 'data_point3'], 403),
+    ('regular_user', ['data_point2', 'data_point3'], 403),
+
+    # The following are the same as in test_datapoint_update
+    # Access to data_point1 (instance1)
+    ('superuser', ['data_point1'], 200),
+    ('admin_user', ['data_point1'], 200),
+    ('super_admin_user', ['data_point1'], 200),
+
+    # Access to data_point2 (instance2)
+    ('superuser', ['data_point2'], 200),
+
+    # No write access to data_point1
+    ('reviewer_user', ['data_point1'], 403),
+    ('viewer_user', ['data_point1'], 403),
+
+    # No access to data_point2 (parent not visible)
+    ('admin_user', ['data_point2'], 404),
+    ('super_admin_user', ['data_point2'], 404),
+
+    # No access to endpoint
+    ('reviewer_user', ['data_point2'], 403),
+    ('viewer_user', ['data_point2'], 403),
+    ('regular_user', ['data_point1'], 403),
+    ('regular_user', ['data_point2'], 403),
+])
+def test_data_point_bulk_update(api_client, dataset_test_data, user_key, data_point_keys, expected_status):
+    user = dataset_test_data[user_key]
+    data_points = [dataset_test_data[key] for key in data_point_keys]
+    # For this test, we only work with data points from the same dataset
+    assert {dp.dataset for dp in data_points} == {data_points[0].dataset}
+    dataset = data_points[0].dataset
+    # TODO: What about the metric and dimension categories? Think about whether this makes any sense.
+    metric = data_points[0].metric
+    dimension_categories = list(data_points[0].dimension_categories.all())
+    api_client.force_authenticate(user=user)
+
+    # Test PATCH (partial update)
+    patch_data = [{
+        'uuid': str(dp.uuid),
+        'value': 999.99,
+    } for dp in data_points]
+    with AssertIdenticalUUIDs(DataPoint.objects):
+        response = api_client.patch(f'/v1/datasets/{dataset.uuid}/data_points/', patch_data, format='json')
+    assert response.status_code == expected_status
+    if response.status_code == 200:
+        data = response.json()
+        assert len(data) == len(data_points)
+        assert all(d['value'] == 999.99 for d in data)
+
+    # Test PUT (full update)
+    put_data = [{
+        'uuid': str(dp.uuid),
+        'date': '2025-01-01',
+        'value': 888.88,
+        'metric': str(metric.uuid),
+        'dimension_categories': [str(dc.uuid) for dc in dimension_categories],
+    } for dp in data_points]
+    with AssertIdenticalUUIDs(DataPoint.objects):
+        response = api_client.put(f'/v1/datasets/{dataset.uuid}/data_points/', put_data, format='json')
+    assert response.status_code == expected_status
+    if response.status_code == 200:
+        data = response.json()
+        assert len(data) == len(data_points)
+        assert all(d['value'] == 888.88 for d in data)
+        assert all(d['date'] == '2025-01-01' for d in data)

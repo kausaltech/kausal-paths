@@ -2698,7 +2698,7 @@ requires-dist = [
     { name = "graphql-core" },
     { name = "graphql-relay" },
     { name = "ipython" },
-    { name = "kausal-paths-extensions", marker = "extra == 'kausal'", specifier = ">=0.6.44", index = "https://pypi.kausal.tech/" },
+    { name = "kausal-paths-extensions", marker = "extra == 'kausal'", specifier = ">=0.6.48", index = "https://pypi.kausal.tech/" },
     { name = "llvmlite" },
     { name = "logfmter" },
     { name = "loguru" },
@@ -2831,15 +2831,15 @@ prod = [
 
 [[package]]
 name = "kausal-paths-extensions"
-version = "0.6.46"
+version = "0.6.48"
 source = { registry = "https://pypi.kausal.tech/" }
 dependencies = [
     { name = "django", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
     { name = "pygithub", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'linux')" },
 ]
-sdist = { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.6.46.tar.gz", hash = "sha256:bafafc3ae20728bb83651d65ac85fbe9892798e83e0264a7e85cf76b7be36b7f" }
+sdist = { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.6.48.tar.gz", hash = "sha256:0e4ff9f893043693a6b686ef2907f57a0ffc77d026394df5fc6f8ed6804c4d82" }
 wheels = [
-    { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.6.46-py3-none-any.whl", hash = "sha256:f79fde47257b1815ec9eeb9fb7e253dd88d2e36bad37ff268093de036e03b4d1" },
+    { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.6.48-py3-none-any.whl", hash = "sha256:638025a491fcbdc4c6fbe2ce9311045186f57a8e8a08d65079c4393004bf2ea7" },
 ]
 
 [[package]]
@@ -5053,6 +5053,9 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/5a/36/bf3d7f0e36acd3ba9ec0babd79ace25506b6872780cbd710fb7cd31f0fa2/statsmodels-0.14.5-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:9118f76344f77cffbb3a9cbcff8682b325be5eed54a4b3253e09da77a74263d3", size = 9674243, upload-time = "2025-07-07T12:08:22.571Z" },
     { url = "https://files.pythonhosted.org/packages/1e/48/973da1ee8bc0743519759e74c3615b39acdc3faf00e0a0710f8c856d8c9d/statsmodels-0.14.5-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:5a085d47c8ef5387279a991633883d0e700de2b0acc812d7032d165888627bef", size = 10453538, upload-time = "2025-07-07T14:24:06.959Z" },
     { url = "https://files.pythonhosted.org/packages/c7/d6/18903fb707afd31cf1edaec5201964dbdacb2bfae9a22558274647a7c88f/statsmodels-0.14.5-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:9f866b2ebb2904b47c342d00def83c526ef2eb1df6a9a3c94ba5fe63d0005aec", size = 10681584, upload-time = "2025-07-07T14:24:21.038Z" },
+    { url = "https://files.pythonhosted.org/packages/88/4a/e36fe8b19270ab3e80df357da924c6c029cab0fb9a0fbd28aaf49341707d/statsmodels-0.14.5-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:babb067c852e966c2c933b79dbb5d0240919d861941a2ef6c0e13321c255528d", size = 10110933, upload-time = "2025-10-30T13:47:11.774Z" },
+    { url = "https://files.pythonhosted.org/packages/b8/d0/f95da95524bdd99613923ca61a3036d1308cee1290e5e8acb89f51736a8c/statsmodels-0.14.5-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:9c8a9c384a60c80731b278e7fd18764364c8817f4995b13a175d636f967823d1", size = 10460450, upload-time = "2025-10-30T16:32:44.985Z" },
+    { url = "https://files.pythonhosted.org/packages/28/bb/59e7be0271be264b7b541baf3973f97747740950bfd5115de731f63da8ab/statsmodels-0.14.5-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:557df3a870a57248df744fdfcc444ecbc5bdbf1c042b8a8b5d8e3e797830dc2a", size = 10694060, upload-time = "2025-10-30T16:33:07.656Z" },
 ]
 
 [[package]]

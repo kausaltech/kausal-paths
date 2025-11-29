@@ -264,6 +264,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     SEK = 0.1 EUR
     PLN = 0.2 EUR
     zł = 0.2 EUR
+    DKK = nan EUR
     pcs = [number] = pieces = number
     capita = [population] = cap = inh = inhabitant = person
     MMBtu = 1e6 Btu
@@ -285,7 +286,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     Mpkm = 1e6 * pkm
     CO2e = [co2e]
     kt_co2e = kilotonne * CO2e
-    t_co2e = tonne * CO2e
+    t_co2e = tonne * CO2e = t_CO2e
     kg_co2e = kg * CO2e
     g_co2e = g * CO2e
     utility = [utility] = Ut
@@ -378,7 +379,7 @@ def add_unit_translations():  # noqa: C901
     unit_definitions: list[UnitDefinition] = [
         {'unit': 'capita', 'long': _('capita'), 'short': pgettext_lazy('capita short', 'cap')},
         {'unit': 'kt', 'long': kt_str, 'short': kt_str},
-        {'unit': 'centiEUR', 'long': _('euro cents'), 'short': 'snt'},
+        {'unit': 'centiEUR', 'long': _('euro cents'), 'short': 'ct'},
         {'unit': 'EUR', 'long': _('euros'), 'short': '€'},
         {'unit': 'kiloEUR', 'long': _('thousand euros'), 'short': 'k€'},
         {'unit': 'megaEUR', 'long': _('million euros'), 'short': 'M€'},
@@ -406,6 +407,7 @@ def add_unit_translations():  # noqa: C901
         {'unit': 't_ha', 'long': _('1000 hectares'), 'short': '1000 ha'},
         {'unit': 'vkm', 'long': _('vehicle-km'), 'short': _('vkm')},
         {'unit': 'megavkm', 'long': _('Million vehicle-km'), 'short': _('M vkm')},
+        {'unit': 'disability_adjusted_lifeyear', 'long': _('Disability-adjusted lifeyear'), 'short': _('DALY')},
     ]
     #set_one('cap', pgettext_lazy('capita short', 'cap'))
 

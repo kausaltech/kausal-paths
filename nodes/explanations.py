@@ -719,13 +719,14 @@ class NodeClassRule(ValidationRule):
         formula = self.get_param(node_config, 'formula')
         other = self.get_all_params(node_config, drop = ['operations', 'formula'])
         if operations:
-                html.append(f"<li>{_('The order of operations is')} {operations}.</li>")
+            html.append(f"<li>{_('The order of operations is %s.') % operations}</li>")
         if formula:
-                html.append(f"<li>{_('Has formula')} {formula}</li>")
+            html.append(f"<li>{_('Has formula %s.') % formula}</li>")
         if other:
             for p in other:
                 assert p is not None
-                html.append(f"<li>{_('Has parameter')} <i>{p[0]}</i> {_('with value')} {p[1]}.")
+                text = _('Has parameter <i>%(parameter)s</i> with value %(value)s.') % {'parameter': p[0], 'value': p[1]}
+                html.append(f"<li>{text}</li>")
 
         html.append('</ul>')
         return html
@@ -780,16 +781,16 @@ class DatasetRule(ValidationRule):
     def _explain_single_dataset(self, dataset_config: dict[str, None], context: Context) -> list[str]:
         """Explain a single dataset configuration."""
         if isinstance(dataset_config, str):
-            return [f"<li>{_('Dataset with identifier')} <i>{dataset_config}</i></li>"]
-        html = [f"<li>{_('Dataset with identifier')} <i>{dataset_config['id']}</i><ul>"]
+            return [f"<li>{_('Dataset with identifier <i>%s</i>') % dataset_config}</li>"]
+        html = [f"<li>{_('Dataset with identifier <i>%s</i>') % dataset_config['id']}<ul>"]
 
         col = dataset_config.get('column')
         if col is not None:
-            html.append(f'<li>{_("Uses column: ")}{col}</li>')
+            html.append(f'<li>{_("Uses column: %(name)s") % {'name': col}}</li>')
 
         year = dataset_config.get('forecast_from')
         if year is not None:
-            html.append(f'<li>{_("Has forecast values from: ")}{year}</li>')
+            html.append(f'<li>{_("Has forecast values from: %(year)s") % {'year': year}}</li>')
 
         dropna = dataset_config.get('dropna')
         if dropna:
@@ -837,18 +838,25 @@ class DatasetRule(ValidationRule):
             vals.append(v)
         if ref:
             param = context.global_parameters[ref]
-            vals.append(f"{_('global parameter')} {param.label}")
+            vals.append(_('global parameter %(label)s') % {'label': param.label})
         drop: bool = d.get('drop_col', True)
         exclude: bool = d.get('exclude', False)
-        do = _('by excluding') if exclude else _('by including')
         if ''.join(vals):
-            out = f"<li>{_('Filter column')} <i>{col}</i> {do} <i>{', '.join(vals)}</i>.</li>"
+            if exclude:
+                text = _('Filter column <i>%(name)s</i> by excluding <i>%(values)s</i>.') % {
+                    'name': col, 'values': ', '.join(vals)
+                }
+            else:
+                text = _('Filter column <i>%(name)s</i> by including <i>%(values)s</i>.') % {
+                    'name': col, 'values': ', '.join(vals)
+                }
+            out = f"<li>{text}</li>"
         else:
             out = ''
         if  d.get('flatten', False):
-            out = f"{out}<li>{_('Sum up column')} <i>{col}</i>.</li>"
+            out += f"<li>{_('Sum up column <i>%(name)s</i>.') % {'name': col}}</li>"
         elif drop:
-            out = f"{out}<li>{_(' Drop column')} <i>{col}</i>.</li>"
+            out += f"<li>{_('Drop column <i>%(name)s</i>.') % {'name': col}}</li>"
         return out
 
     def _explain_dim_filter(self, d: dict[str, Any], context: Context) -> str:
@@ -858,7 +866,10 @@ class DatasetRule(ValidationRule):
             cat_id = d['assign_category']
             dim = context.dimensions[dim_id]
             cat_label = next(str(cat.label) for cat in dim.categories if cat.id == cat_id)
-            return f"<li>{_('Assign dataset to category')} <i>{cat_label}</i> {_('on dimension')} <i>{dim.label}</i>.</li>"
+            text = _('Assign dataset to category <i>%(cat_label)s</i> on dimension <i>%(dim_label)s</i>.') % {
+                'cat_label': cat_label, 'dim_label': dim.label
+            }
+            return f"<li>{text}</li>"
 
         if 'groups' in d:
             grp_ids = d['groups']
@@ -869,11 +880,14 @@ class DatasetRule(ValidationRule):
         else:
             items = []
         if items:
-            out = f"<li>{_('Filter dimension')} <i>{dim.label}</i> {_('by category')} <i>{', '.join(items)}</i>. </li>"
+            text = _('Filter dimension <i>%s(dim_label)s</i> by categories <i>%(cat_labels)s</i>.') % {
+                'dim_label': dim.label, 'cat_labels': ', '.join(items)
+            }
+            out = f"<li>{text}</li>"
         else:
             out = ''
-        if  d.get('flatten', False):
-            out = f"{out}<li>{_('Sum up the dimension')} <i>{dim.label}</i>.</li>"
+        if d.get('flatten', False):
+            out += f"<li>{_('Sum up the dimension <i>%(label)s</i>.') % {'label': dim.label}}</li>"
         return out
 
     def _explain_rename_item_filter(self, d: dict[str, Any]) -> str:
@@ -881,7 +895,11 @@ class DatasetRule(ValidationRule):
         col = old[0]
         item = old[1]
         new_item = d.get('value', '')
-        return f"_('Rename item') <i>{item}</i> {_('with name')} <i>{new_item}</i> {_('on column')} <i>{col}</i>."
+        return _('Rename item <i>%(old_string)s</i> to <i>%(new_string)s</i> in column <i>%(column)s</i>.') % {
+            'old_string': item,
+            'new_string': new_item,
+            'column': col,
+        }
 
     def validate(self, node_config: dict[str, Any], context: Context) -> list[ValidationResult]:
         results: list[ValidationResult] = []
@@ -1068,8 +1086,8 @@ class EdgeRule(ValidationRule):
             for lang in langs:
                 key = f'name{lang}'
                 if node.get(key):
-                    return f"{_('Node')} <i>{node[key]}</i>"
-            return f"{_('Node with identifier')} <i>{node_id}</i>"
+                    return _('Node <i>%s</i>') % node[key]
+            return _('Node with identifier <i>%s</i>') % node_id
 
         for input_node in node_config.get('input_nodes', {}):
 
@@ -1099,7 +1117,7 @@ class EdgeRule(ValidationRule):
         for tag in node.get('tags', []):
             if tag in TAG_TO_BASKET.keys(): # These show up in basket explanations
                 continue
-            description = TAG_DESCRIPTIONS.get(tag, f"{_('Has tag')} <i>{tag}.</i>")
+            description = TAG_DESCRIPTIONS.get(tag, _('Has tag <i>%s</i>.') % tag)
             html.append(f"<li>{description}</li>")
         return html
 
@@ -1115,16 +1133,17 @@ class EdgeRule(ValidationRule):
             cats = dim.get('categories', [])
 
             if cats:
-                do = _('exclude') if dim.get('exclude', False) else _('include')
                 category_dict = {cat.id: cat for cat in context.dimensions[dim['id']].categories}
                 cats_str = ', '.join([str(category_dict[c].label) for c in cats])
-                edge_html.append(
-                    _("<li>From dimension <i>%(dim)s</i>, %(action)s categories: <i>%(cats)s</i></li>") % {
-                        'dim': dimlabel,
-                        'action': do,
-                        'cats': cats_str
+                if dim.get('exclude', False):
+                    text = _("From dimension <i>%(dimension)s</i>, exclude categories: <i>%(categories)s</i>") % {
+                        'dimension': dimlabel, 'categories': cats_str
                     }
-                )
+                else:
+                    text = _("In dimension <i>%(dimension)s</i>, include categories: <i>%(categories)s</i>") % {
+                        'dimension': dimlabel, 'categories': cats_str
+                    }
+                edge_html.append(f'<li>{text}</li>')
 
             if dim.get('flatten', False):
                 edge_html.append(
@@ -1146,9 +1165,10 @@ class EdgeRule(ValidationRule):
             if cats:
                 category_dict = {cat.id: cat for cat in context.dimensions[dim['id']].categories}
                 cats_str = ', '.join([str(category_dict[c].label) for c in cats])
-                edge_html.append(
-                    f"<li>{_('Categorize the values to')} <i>{cats_str}</i> in a new dimension <i>{dimlabel}</i>.</li>"
-                    )
+                text = _('Categorize the values to <i>%(categories)s</i> in a new dimension <i>%(dimension)s</i>.') % {
+                    'categories': cats_str, 'dimension': dimlabel
+                }
+                edge_html.append(f"<li>{text}</li>")
         return edge_html
 
     def validate(self, node_config: dict[str, Any], context: Context) -> list[ValidationResult]:

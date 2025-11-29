@@ -1683,3 +1683,15 @@ scenarios:
     value: true
   - id: measure_data_baseline_year_only
     value: false
+  - id: waste_recycling_trend.enabled
+    value: true
+  - id: a51_increase_waste_recycling.enabled
+    value: true
+  - id: a13_car_pooling.enabled
+    value: true
+  - id: a21_optimised_logistics.enabled
+    value: true
+  - id: a211_improve_utilisation_of_trucks.enabled
+    value: true
+  - id: a212_route_optimisation.enabled
+    value: true

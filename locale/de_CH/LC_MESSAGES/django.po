@@ -3,13 +3,14 @@
 # This file is distributed under the same license as the PACKAGE package.
 # Claude <EMAIL@ADDRESS>, YEAR.
 #
+#: nodes/explanations.py
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-01 08:49+0300\n"
-"PO-Revision-Date: 2025-04-02 10:20+0000\n"
-"Last-Translator: Matias Wargelin <matias.wargelin@kausal.tech>\n"
+"POT-Creation-Date: 2025-11-12 17:25+0200\n"
+"PO-Revision-Date: 2025-11-12 15:31+0000\n"
+"Last-Translator: Bernhard Bliem <bernhard.bliem@kausal.tech>\n"
 "Language-Team: German (Switzerland) <https://weblate.kausal.tech/projects/"
 "paths/django/de_CH/>\n"
 "Language: de_CH\n"
@@ -17,7 +18,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 5.4.2\n"
+"X-Generator: Weblate 5.12.2\n"
 
 #: admin_site/api.py
 msgid "Invalid email address"
@@ -32,10 +33,31 @@ msgid "This user does not have access to admin."
 msgstr ""
 
 #: admin_site/dataset_admin.py
+#, python-format
+msgid "Cannot change from \"%(old)s\" because it is used by %(count)d data point(s)."
+msgstr ""
+
+#: admin_site/dataset_admin.py
+#, python-format
+msgid "Cannot remove dimension \"%(dimension)s\" because it is used by %(count)d data point(s). Please remove the data first."
+msgstr ""
+
+#: admin_site/dataset_admin.py
+msgid "At least one metric must be defined for the dataset schema."
+msgstr "Für das Datensatzschema muss mindestens eine Messgrösse definiert sein."
+
+#: admin_site/dataset_admin.py
+#, python-format
+msgid "Cannot remove metric \"%(metric)s\" because it is used by %(count)d data point(s). Please remove the data first."
+msgstr ""
+"Die Messgrösse \"%(metric)s\" kann nicht entfernt werden, da sie von %(count)"
+"d Datenpunkt(en) verwendet wird. Bitte entfernen Sie zuerst die Daten."
+
+#: admin_site/dataset_admin.py
 msgid "Dataset schemas"
 msgstr ""
 
-#: admin_site/perms.py nodes/roles.py
+#: admin_site/perms.py
 msgid "General admin"
 msgstr ""
 
@@ -49,7 +71,41 @@ msgid "Sign in to Kausal Paths admin"
 msgstr ""
 
 #: admin_site/templates/wagtailadmin/login.html
+msgid "Your Kausal Paths admin portal has moved."
+msgstr ""
+
+#: admin_site/templates/wagtailadmin/login.html
+#, python-brace-format
+msgid "Redirecting to {url} in {count}&nbsp;seconds..."
+msgstr ""
+
+#: admin_site/templates/wagtailadmin/login.html
+msgid "Go Now"
+msgstr ""
+
+#: admin_site/templates/wagtailadmin/login.html
+msgid "You were successfully redirected"
+msgstr ""
+
+#: admin_site/templates/wagtailadmin/login.html
+msgid "Please bookmark this page for future use."
+msgstr ""
+
+#: admin_site/templates/wagtailadmin/login.html
 msgid "Our apologies, the server is temporarily experiencing difficulties."
+msgstr ""
+
+#: admin_site/viewsets.py
+msgid "Inspect"
+msgstr ""
+
+#: admin_site/viewsets.py
+msgid "View"
+msgstr ""
+
+#: admin_site/viewsets.py
+#, python-format
+msgid "View '%(title)s'"
 msgstr ""
 
 #: admin_site/wagtail_hooks.py
@@ -57,6 +113,7 @@ msgid "Choose instance"
 msgstr ""
 
 #: frameworks/models.py kausal_common/datasets/models.py
+#: kausal_common/templates/kausal_common/people/chooser_results.html
 msgid "Name"
 msgstr ""
 
@@ -76,8 +133,16 @@ msgstr ""
 msgid "Framework admins"
 msgstr ""
 
+#: frameworks/roles.py nodes/roles.py
+msgid "Administrative access to the instance without permissions to manage people and organizations"
+msgstr ""
+
 #: frameworks/roles.py
 msgid "Framework viewers"
+msgstr ""
+
+#: frameworks/roles.py nodes/roles.py
+msgid "Read-only access to instance data"
 msgstr ""
 
 #: frameworks/schema.py
@@ -132,7 +197,84 @@ msgstr ""
 msgid "ID (or UUID) of the measure template within a framework"
 msgstr ""
 
-#: kausal_common/datasets/models.py nodes/models.py
+#: frameworks/wagtail_admin.py
+msgid "Choose a section"
+msgstr ""
+
+#: frameworks/wagtail_admin.py
+msgid "Choose another section"
+msgstr ""
+
+#: frameworks/wagtail_admin.py
+msgid "Measure templates"
+msgstr ""
+
+#: kausal_common/admin_site/tables.py
+#: kausal_common/models/modification_tracking.py
+msgid "Last modified at"
+msgstr ""
+
+#: kausal_common/api/exceptions.py
+msgid "Cannot delete instance because other objects reference it."
+msgstr ""
+
+#: kausal_common/api/exceptions.py
+#, python-format
+msgid "Cannot delete \"%s\" because it is connected to other objects such as instances, persons or actions."
+msgstr ""
+
+#: kausal_common/blocks/base.py
+msgid "Label"
+msgstr ""
+
+#: kausal_common/blocks/base.py
+msgid "Label for the column to be used instead of the default"
+msgstr ""
+
+#: kausal_common/blocks/base.py kausal_common/blocks/fields.py
+msgid "Help text"
+msgstr ""
+
+#: kausal_common/blocks/base.py
+msgid "Help text for the column to be shown in the UI"
+msgstr ""
+
+#: kausal_common/blocks/base.py kausal_common/blocks/fields.py
+msgid "Heading to show instead of the default"
+msgstr ""
+
+#: kausal_common/blocks/base.py kausal_common/blocks/fields.py
+msgid "Field label"
+msgstr ""
+
+#: kausal_common/blocks/base.py kausal_common/blocks/fields.py
+msgid "Help text for the field to be shown in the UI"
+msgstr ""
+
+#: kausal_common/blocks/base.py kausal_common/blocks/fields.py
+#, python-format
+msgid "Content block: %(label)s"
+msgstr ""
+
+#: kausal_common/blocks/base.py
+msgid "Label for 'show all'"
+msgstr ""
+
+#: kausal_common/blocks/base.py
+#, python-format
+msgid "Filter: %(filter_label)s"
+msgstr ""
+
+#: kausal_common/datasets/chooser.py
+msgid "Choose a dataset"
+msgstr ""
+
+#: kausal_common/datasets/chooser.py
+msgid "Choose another dataset"
+msgstr ""
+
+#: kausal_common/datasets/models.py kausal_common/organizations/models.py
+#: nodes/models.py
 msgid "name"
 msgstr ""
 
@@ -215,7 +357,7 @@ msgstr ""
 
 #: kausal_common/datasets/models.py
 msgid "Metrics"
-msgstr ""
+msgstr "Messgrössen"
 
 #: kausal_common/datasets/models.py
 msgid "Defines the interpretation and units for the values of the dataset"
@@ -227,8 +369,27 @@ msgstr ""
 
 #: kausal_common/datasets/models.py
 msgid "Used when metrics are tracked for multiple categories"
+msgstr "Wird verwendet, wenn die Messgrössen für mehrere Kategorien verfolgt werden"
+
+#: kausal_common/datasets/models.py
+msgid "Person permissions"
 msgstr ""
-"Wird verwendet, wenn die Metriken für mehrere Kategorien verfolgt werden"
+
+#: kausal_common/datasets/models.py
+msgid "Grants permissions on datasets of this schema to certain persons"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+msgid "Group permissions"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+msgid "Grants permissions on datasets of this schema to certain person groups"
+msgstr ""
+
+#: kausal_common/datasets/models.py people/forms.py
+msgid "Permissions"
+msgstr ""
 
 #: kausal_common/datasets/models.py
 msgid "dataset schema"
@@ -241,6 +402,14 @@ msgstr ""
 #: kausal_common/datasets/models.py paths/utils.py
 msgid "unit"
 msgstr ""
+
+#: kausal_common/datasets/models.py
+msgid "dataset metric"
+msgstr "Datensatzmessgrösse"
+
+#: kausal_common/datasets/models.py
+msgid "dataset metrics"
+msgstr "Datensatzmessgrössen"
 
 #: kausal_common/datasets/models.py
 msgid "dataset schema dimension"
@@ -284,7 +453,7 @@ msgstr ""
 
 #: kausal_common/datasets/models.py
 msgid "metric"
-msgstr ""
+msgstr "Messgrösse"
 
 #: kausal_common/datasets/models.py
 msgid "value"
@@ -299,15 +468,11 @@ msgid "data points"
 msgstr ""
 
 #: kausal_common/datasets/models.py
-msgid "Review comment"
+msgid "data point dimension category"
 msgstr ""
 
 #: kausal_common/datasets/models.py
-msgid "Sticky comment"
-msgstr ""
-
-#: kausal_common/datasets/models.py
-msgid "Comment"
+msgid "data point dimension categories"
 msgstr ""
 
 #: kausal_common/datasets/models.py
@@ -316,6 +481,14 @@ msgstr ""
 
 #: kausal_common/datasets/models.py
 msgid "Unresolved"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+msgid "Sticky comment"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+msgid "Review comment"
 msgstr ""
 
 #: kausal_common/datasets/models.py
@@ -342,11 +515,11 @@ msgstr ""
 msgid "The organization responsible for the data source"
 msgstr ""
 
-#: kausal_common/datasets/models.py
+#: kausal_common/datasets/models.py kausal_common/organizations/models.py
 msgid "description"
 msgstr ""
 
-#: kausal_common/datasets/models.py
+#: kausal_common/datasets/models.py kausal_common/organizations/models.py
 msgid "URL"
 msgstr ""
 
@@ -359,11 +532,38 @@ msgid "Data sources"
 msgstr ""
 
 #: kausal_common/datasets/models.py
+msgid "Unknown schema"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+#, python-format
+msgid "Data source reference in: %(schema)s"
+msgstr ""
+
+#: kausal_common/datasets/models.py
+msgid "Data source reference"
+msgstr ""
+
+#: kausal_common/datasets/models.py
 msgid "data source reference"
 msgstr ""
 
 #: kausal_common/datasets/models.py
 msgid "data source references"
+msgstr ""
+
+#: kausal_common/datasets/wagtail_hooks.py
+msgid "Edit dataset"
+msgstr ""
+
+#: kausal_common/datasets/wagtail_hooks.py
+#, python-format
+msgid "(Private %(object)s)"
+msgstr ""
+
+#: kausal_common/datasets/wagtail_hooks.py
+#, python-format
+msgid "Edit this %(object)s"
 msgstr ""
 
 #: kausal_common/models/modification_tracking.py
@@ -374,10 +574,6 @@ msgstr ""
 msgid "Last modified by"
 msgstr ""
 
-#: kausal_common/models/modification_tracking.py
-msgid "Last modified at"
-msgstr ""
-
 #: kausal_common/models/ordered.py
 msgid "order"
 msgstr ""
@@ -386,8 +582,169 @@ msgstr ""
 msgid "UUID"
 msgstr ""
 
+#: kausal_common/organizations/forms.py
+msgid "A node cannot be moved under itself in the hierarchy."
+msgstr ""
+
+#: kausal_common/organizations/models.py
+msgctxt "node"
+msgid "Parent"
+msgstr ""
+
+#: kausal_common/organizations/models.py
+msgid "The time at which the resource was created"
+msgstr ""
+
+#: kausal_common/organizations/models.py
+msgid "The time at which the resource was updated"
+msgstr ""
+
+#: kausal_common/organizations/models.py
+msgid "Classification"
+msgstr ""
+
+#: kausal_common/organizations/models.py
+msgid "An organization category, e.g. committee"
+msgstr ""
+
+#: kausal_common/organizations/models.py
+msgid "A primary name, e.g. a legally recognized name"
+msgstr ""
+
+#: kausal_common/organizations/models.py
+msgid "Short name"
+msgstr ""
+
+#: kausal_common/organizations/models.py
+msgid "A simplified short version of name for the general public"
+msgstr ""
+
+#: kausal_common/organizations/models.py
+msgid "A distinct name for this organization (generated automatically)"
+msgstr ""
+
+#: kausal_common/organizations/models.py kausal_common/people/models.py
 #: kausal_common/users/models.py users/models.py
 msgid "email address"
+msgstr ""
+
+#: kausal_common/organizations/models.py
+msgid "A date of founding"
+msgstr ""
+
+#: kausal_common/organizations/models.py
+msgid "A date of dissolution"
+msgstr ""
+
+#: kausal_common/organizations/models.py
+msgid "primary language"
+msgstr ""
+
+#: kausal_common/organizations/models.py
+#, fuzzy
+#| msgid "Actions"
+msgid "Location"
+msgstr "Massnahmen"
+
+#: kausal_common/organizations/models.py kausal_common/people/models.py
+#: nodes/models.py
+msgid "organization"
+msgstr ""
+
+#: kausal_common/organizations/models.py
+msgid "organizations"
+msgstr ""
+
+#: kausal_common/organizations/views.py
+#, python-format
+msgid "New child %(model)s for %(parent)s"
+msgstr ""
+
+#: kausal_common/organizations/views.py
+msgid "This will delete the following objects:"
+msgstr ""
+
+#: kausal_common/people/api.py kausal_common/people/models.py
+msgid "Person with this email already exists"
+msgstr ""
+
+#: kausal_common/people/api.py
+msgid "Not all objects have an email address"
+msgstr ""
+
+#: kausal_common/people/api.py
+#, python-format
+msgid "Duplicate email addresses: %s"
+msgstr ""
+
+#: kausal_common/people/chooser.py
+msgid "Create new"
+msgstr ""
+
+#: kausal_common/people/chooser.py
+msgid "Choose person"
+msgstr ""
+
+#: kausal_common/people/chooser.py
+msgid "Choose a person"
+msgstr ""
+
+#: kausal_common/people/chooser.py
+msgid "Choose another person"
+msgstr ""
+
+#: kausal_common/people/chooser.py
+msgid "Edit this person"
+msgstr ""
+
+#: kausal_common/people/models.py
+msgid "first name"
+msgstr ""
+
+#: kausal_common/people/models.py
+msgid "last name"
+msgstr ""
+
+#: kausal_common/people/models.py
+msgctxt "person's role"
+msgid "title"
+msgstr ""
+
+#: kausal_common/people/models.py
+msgid "postal address"
+msgstr ""
+
+#: kausal_common/people/models.py
+msgid "user"
+msgstr ""
+
+#: kausal_common/people/models.py
+msgid "Set if the person has an user account"
+msgstr ""
+
+#: kausal_common/people/models.py
+msgid "image"
+msgstr ""
+
+#: kausal_common/people/models.py
+msgid "image cropping"
+msgstr ""
+
+#: kausal_common/people/models.py
+msgid "created by"
+msgstr ""
+
+#: kausal_common/people/models.py
+msgid "person"
+msgstr ""
+
+#: kausal_common/people/models.py
+msgid "people"
+msgstr ""
+
+#: kausal_common/templates/kausal_common/people/chooser_results.html
+#: orgs/models.py people/forms.py
+msgid "Organization"
 msgstr ""
 
 #: nodes/actions/action.py
@@ -439,6 +796,18 @@ msgid "Investment cost of one LED retrofit"
 msgstr ""
 
 #: nodes/actions/energy_saving.py
+msgid ""
+"\n"
+"    Action that has an energy saving effect on building stock (per floor area).\n"
+"\n"
+"    The output values are given per TOTAL building floor area,\n"
+"    not per RENOVATEABLE building floor area. This is useful because\n"
+"    the costs and savings from total renovations sum up to a meaningful\n"
+"    impact on nodes that are given per floor area.\n"
+"    "
+msgstr ""
+
+#: nodes/actions/energy_saving.py
 msgid "Investment lifetime (a)"
 msgstr ""
 
@@ -459,8 +828,11 @@ msgid "Electricity saving (kWh/m2/a)"
 msgstr ""
 
 #: nodes/actions/energy_saving.py
-#, python-format
 msgid "Renovation potential (% of floor area)"
+msgstr ""
+
+#: nodes/actions/energy_saving.py nodes/explanations.py
+msgid "BuildingEnergySavingAction with U.S. units and natural gas instead of heat."
 msgstr ""
 
 #: nodes/actions/energy_saving.py
@@ -479,7 +851,28 @@ msgstr ""
 msgid "Electricity saving (kWh/square foot/a)"
 msgstr ""
 
-#: nodes/actions/gpc.py
+#: nodes/actions/energy_saving.py
+msgid ""
+"\n"
+"    Action that has an energy saving effect on building stock (per floor area).\n"
+"\n"
+"    The output values are given per TOTAL building floor area,\n"
+"    not per RENOVATEABLE building floor area. This is useful because\n"
+"    the costs and savings from total renovations sum up to a meaningful\n"
+"    impact on nodes that are given per floor area.\n"
+"\n"
+"    Outputs:\n"
+"    # fraction of existing buildings triggering code updates\n"
+"    # compliance of new buildings to the more active regulations\n"
+"    # improvement in energy consumption factor\n"
+"    "
+msgstr ""
+
+#: nodes/actions/energy_saving.py nodes/explanations.py
+msgid "Simple action with several energy metrics."
+msgstr "Einfache Massnahme mit mehreren Energiemessgrössen."
+
+#: nodes/actions/gpc.py nodes/explanations.py
 msgid ""
 "\n"
 "        This is S Curve Action. It calculates non-linear effect with two parameters,\n"
@@ -492,7 +885,7 @@ msgid ""
 "        "
 msgstr ""
 
-#: nodes/actions/gpc.py nodes/actions/linear.py
+#: nodes/actions/gpc.py
 msgid ""
 "\n"
 "    Receive goal input from a dataset or node and cause an effect.\n"
@@ -506,7 +899,21 @@ msgid ""
 "    "
 msgstr ""
 
-#: nodes/actions/linear.py
+#: nodes/actions/gpc.py nodes/explanations.py
+msgid ""
+"\n"
+"        ActionRelationshipNode enforces a logical relationship with another action node.\n"
+"\n"
+"        This node monitors an upstream action node (A) and automatically sets its own\n"
+"        enabled state (B) according to the relationship specified in the edge tags.\n"
+"        "
+msgstr ""
+
+#: nodes/actions/linear.py nodes/explanations.py
+msgid "Define action with parameters <i>reduce</i> and <i>multiplier</i>."
+msgstr ""
+
+#: nodes/actions/linear.py nodes/generic.py
 msgid ""
 "\n"
 "    Receive goal input from a dataset or node and cause a linear effect.\n"
@@ -520,11 +927,26 @@ msgid ""
 "    "
 msgstr ""
 
-#: nodes/actions/simple.py
+#: nodes/actions/linear.py
+msgid ""
+"\n"
+"    Receive goal input from a dataset or node and cause an effect.\n"
+"\n"
+"    The output will be a time series with the difference to the\n"
+"    predicted baseline value of the input node. So, there is a difference\n"
+"    to the DatasetReduceAction only if the predicted baseline trend changes in time.\n"
+"\n"
+"    The goal input can also be relative (for e.g. percentage\n"
+"    reductions), in which case the input will be treated as\n"
+"    a multiplier.\n"
+"    "
+msgstr ""
+
+#: nodes/actions/simple.py nodes/explanations.py
 msgid "Simple action that produces an additive change to a value."
 msgstr ""
 
-#: nodes/actions/simple.py
+#: nodes/actions/simple.py nodes/explanations.py
 msgid "Additive action where the effect is cumulative and remains in the future."
 msgstr ""
 
@@ -565,7 +987,7 @@ msgstr ""
 msgid "Outcome node"
 msgstr ""
 
-#: nodes/buildings.py
+#: nodes/buildings.py nodes/explanations.py
 msgid "Floor area node takes in actions and calculates the floor area impacted."
 msgstr ""
 
@@ -610,32 +1032,427 @@ msgid ""
 "        "
 msgstr ""
 
-#: nodes/formula.py
+#: nodes/emissions/__init__.py
+msgid "Calculate CO2 equivalents based on 100-year global warming potential."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "addition"
+msgstr ""
+
+#: nodes/explanations.py
+msgid "addition from incoming dimensions"
+msgstr ""
+
+#: nodes/explanations.py
+msgid "addition to existing dimensions"
+msgstr ""
+
+#: nodes/explanations.py
+msgid "coalescing"
+msgstr ""
+
+#: nodes/explanations.py
+msgid "multiplication"
+msgstr ""
+
+#: nodes/explanations.py
+msgid "other operations"
+msgstr ""
+
+#: nodes/explanations.py
+msgid "skip dimension test"
+msgstr ""
+
+#: nodes/explanations.py
+msgid "split by existing shares"
+msgstr ""
+
+#: nodes/explanations.py
+msgid "split evenly to categories"
+msgstr ""
+
+#: nodes/explanations.py
+msgid "apply threshold"
+msgstr ""
+
+#: nodes/explanations.py
+msgid "use as shares"
+msgstr ""
+
+#: nodes/explanations.py
+msgid "use as totals"
+msgstr ""
+
+#: nodes/explanations.py
+msgid "unknown operation"
+msgstr ""
+
+#: nodes/explanations.py
+msgid "skip"
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Add input node values (even if the units don't match with the node units)."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Take the arithmetic inverse of the values (-x)."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Makes all years up to maximum historical year non-forecasts."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Take the complement of the dimensionless values (1-x)."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Take the cumulative product of the dimensionless complement values over time."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Take the cumulative sum over time."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Take the cumulative product of the dimensionless values over time."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Take the difference over time (i.e. annual changes)"
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Convert NaNs to zeros."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Take the expected value over the uncertainty dimension."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Extend the last forecast values to the remaining missing years."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Extend the first values to the years after the minimum historical year."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Extend the last historical values to the remaining missing years."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Take the geometric inverse of the values (1/x)."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "The node is used as the goal for the action."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "The node is used as the historical starting point."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "This is used as the baseline."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "This is used for the incoming stock."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Show edge on graphs but ignore upstream content."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "This is the rate of new stock coming in."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Truncate the forecast values."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Negative result values are replaced with 0."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Positive result values are replaced with 0."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Input node values are not added but operated despite matching units."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Use data as primary values even if a secondary value exists."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Take the ratio of the values compared with the last historical value."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "This is the rate of stock removal."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Use data only if a primary value does not exist."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Truncate values before the reference year. There may be some from data"
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Truncate values beyond the model end year. There may be some from data"
+msgstr ""
+
+#: nodes/explanations.py
+msgid "AlasEmissions is a specified node to handle emissions from the ALas model by Syke."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "AlasNode is a specified node to handle data from the ALas model by Syke."
+msgstr ""
+
+#: nodes/explanations.py nodes/health.py
+msgid ""
+"\n"
+"        Calculate attributable fraction when the ERF function is relative risk.\n"
+"\n"
+"        AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result\n"
+"        is smaller than 0, we should use r instead. It can be converted from the result:\n"
+"        r/(r+1)=s <=> r=s/(1-s)\n"
+"        "
+msgstr ""
+
+#: nodes/explanations.py
+msgid ""
+"\n"
+"        Association nodes connect to their upstream nodes in a loose way:\n"
+"        Their values follow the relative changes of the input nodes but\n"
+"        their quantities and units are not dependent on those of the input nodes.\n"
+"        The node MUST have exactly one dataset, which is the prior estimate.\n"
+"        Fractions 1..3 can be used to tell how much the input node should adjust\n"
+"        the output node. The default relation is \"increase\", if \"decrease\" is used,\n"
+"        that must be explicitly said in the tags.\n"
+"        "
+msgstr ""
+
+#: nodes/explanations.py
+msgid ""
+"\n"
+"        Action that has an energy saving effect on building stock (per floor area).\n"
+"\n"
+"        The output values are given per TOTAL building floor area,\n"
+"        not per RENOVATEABLE building floor area. This is useful because\n"
+"        the costs and savings from total renovations sum up to a meaningful\n"
+"        impact on nodes that are given per floor area.\n"
+"        "
+msgstr ""
+
+#: nodes/explanations.py
+msgid ""
+"\n"
+"        Action that has an energy saving effect on building stock (per floor area).\n"
+"\n"
+"        The output values are given per TOTAL building floor area,\n"
+"        not per RENOVATEABLE building floor area. This is useful because\n"
+"        the costs and savings from total renovations sum up to a meaningful\n"
+"        impact on nodes that are given per floor area.\n"
+"\n"
+"        Outputs:\n"
+"        # fraction of existing buildings triggering code updates\n"
+"        # compliance of new buildings to the more active regulations\n"
+"        # improvement in energy consumption factor\n"
+"        "
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Uses 'primary' tagged data when available, otherwise 'secondary' tagged data. One of the tags must be given."
+msgstr ""
+
+#: nodes/explanations.py
+msgid ""
+"\n"
+"        Cohort node takes in initial age structure (inventory) and follows the cohort in time as it ages.\n"
+"\n"
+"        Harvest describes how much is removed from the cohort.\n"
+"        "
+msgstr ""
+
+#: nodes/explanations.py
+msgid ""
+"\n"
+"        Receive goal input from a dataset or node and cause an effect.\n"
+"\n"
+"        The output will be a time series with the difference to the\n"
+"        predicted baseline value of the input node.\n"
+"\n"
+"        The goal input can also be relative (for e.g. percentage\n"
+"        reductions), in which case the input will be treated as\n"
+"        a multiplier.\n"
+"        "
+msgstr ""
+
+#: nodes/explanations.py
+msgid ""
+"\n"
+"        This is a DatasetNode. It takes in a specifically formatted dataset and\n"
+"        converts the relevant part into a node output.\n"
+"        "
+msgstr ""
+
+#: nodes/explanations.py
+msgid ""
+"\n"
+"        Receive goal input from a dataset or node and cause a linear effect.\n"
+"\n"
+"        The output will be a time series with the difference to the\n"
+"        last historical value of the input node.\n"
+"\n"
+"        The goal input can also be relative (for e.g. percentage\n"
+"        reductions), in which case the input will be treated as\n"
+"        a multiplier.\n"
+"        "
+msgstr ""
+
+#: nodes/explanations.py
+msgid ""
+"\n"
+"        This is Dilution Node. It has exactly four input nodes which are marked by tags: 1) existing is the current,\n"
+"        non-diluted variable. 2) Incoming is the variable which diluted the existing one with its different values. 3)\n"
+"        Removing is the fraction that is removed from the existing stock each year. 4) Incoming is the ratio compared\n"
+"        with the existing stock that is inserted into the system. (Often the removed and incoming values are the same,\n"
+"        and then the stock size remains constant.)\n"
+"        "
+msgstr ""
+
+#: nodes/explanations.py nodes/generic.py
+msgid "Filters emissions and energy according to the <i>sector</i> parameter and calculates emission factor."
+msgstr ""
+
+#: nodes/explanations.py nodes/generic.py
+msgid "Filters emissions according to the <i>sector</i> parameter."
+msgstr ""
+
+#: nodes/explanations.py nodes/generic.py
+msgid "Filters energy use according to the <i>sector</i> parameter."
+msgstr ""
+
+#: nodes/explanations.py nodes/generic.py
+msgid "Reads in a dataset and filters and interprets its content according to the <i>sector</i> parameter."
+msgstr ""
+
+#: nodes/explanations.py
+msgid ""
+"\n"
+"        This is Exponential Node.\n"
+"        Takes in either input nodes as AdditiveNode, or builds a dataframe from current_value.\n"
+"        Builds an exponential multiplier based on annual_change and multiplies the VALUE_COLUMN.\n"
+"        Optionally, touches also historical values.\n"
+"        Parameter is_decreasing_rate is used to give discount rates instead.\n"
+"        "
+msgstr ""
+
+#: nodes/explanations.py nodes/simple.py
+msgid ""
+"This is a Fill New Category Node. It behaves like Additive Node, but in the end of computation\n"
+"        it creates a new category such that the values along that dimension sum up to 1. The input nodes\n"
+"        must have a dimensionless unit. The new category in an existing dimension is given as parameter\n"
+"        'new_category' in format 'dimension:category\n"
+"        "
+msgstr ""
+
+#: nodes/explanations.py nodes/simple.py
+msgid "This is a Fixed Multiplier Node. It multiplies a single input node with a parameter."
+msgstr ""
+
+#: nodes/explanations.py nodes/formula.py
 msgid "This is a Formula Node. It uses a specified formula to calculate the output."
 msgstr ""
 
-#: nodes/generic.py
+#: nodes/explanations.py
 msgid ""
 "\n"
-"        GenericNode: A highly configurable node that processes inputs through a sequence of operations.\n"
-"\n"
-"        Operations are defined in the 'operations' parameter and executed in order.\n"
-"        Each operation works on its corresponding basket of nodes.\n"
+"        Calculates generation of energy when new capacity is installed. Includes scope 3 emissions from installation,\n"
+"        and emissions avoided from the capacity that gets replaced.\n"
 "        "
 msgstr ""
 
-#: nodes/generic.py
+#: nodes/explanations.py
+msgid "Action with GenericNode properties."
+msgstr ""
+
+#: nodes/explanations.py
+msgid ""
+"\n"
+"        GpcTrajectoryAction is a trajectory action that uses the DatasetNode to fetch the dataset.\n"
+"        "
+msgstr ""
+
+#: nodes/explanations.py
+msgid ""
+"\n"
+"        Calculates internal growth of e.g. a forest, accounting for forest cuts. Takes in additive and\n"
+"        non-additive nodes and a dataset.\n"
+"        Parameter annual_change is used where the rate node(s) have null values.\n"
+"        "
+msgstr ""
+
+#: nodes/explanations.py
+msgid ""
+"\n"
+"        This is IterativeNode. It calculates one year at a time based on previous year's value and inputs and outputs.\n"
+"        In addition, it must have a feedback loop (otherwise it makes no sense to use this node class), which is given\n"
+"        as a growth rate per year from the previous year's value.\n"
+"        "
+msgstr ""
+
+#: nodes/explanations.py nodes/generic.py
+msgid ""
+"\n"
+"        This is generic IterativeNode for calculating values year by year.\n"
+"        It calculates one year at a time based on previous year's value and inputs and outputs\n"
+"        starting from the first forecast year. In addition, it must have a feedback loop (otherwise it makes\n"
+"        no sense to use this node class), which is given as a growth rate per year from the previous year's value.\n"
+"        "
+msgstr ""
+
+#: nodes/explanations.py nodes/generic.py
 msgid "LeverNode replaces the upstream computation completely, if the lever is enabled."
 msgstr ""
 
-#: nodes/generic.py
+#: nodes/explanations.py
 msgid ""
 "\n"
-"        WeightedSumNode: Combines additive inputs using weights from a multidimensional weights DataFrame.\n"
+"        Cumulative additive action where a yearly target is set and the effect is linear.\n"
+"        This can be modified with these parameters:\n"
+"        target_year_level is the value to be reached at the target year.\n"
+"        action_delay is the year when the implementation of the action starts.\n"
+"        multiplier scales the size of the impact (useful between scenarios).\n"
 "        "
 msgstr ""
 
-#: nodes/generic.py
+#: nodes/explanations.py nodes/generic.py
+msgid ""
+"\n"
+"        LogicalNode processes logical inputs (values 0 or 1).\n"
+"\n"
+"        It applies Boolean AND to multiplicative nodes (nodes are ANDed together)\n"
+"        and Boolean OR to additive nodes (nodes are ORed together).\n"
+"\n"
+"        AND operations are performed first, then OR operations. For more complex\n"
+"        logical structures, use several subsequent nodes.\n"
+"        "
+msgstr ""
+
+#: nodes/explanations.py nodes/generic.py
 msgid ""
 "\n"
 "        LogitNode gives a probability of event given a baseline and several determinants.\n"
@@ -650,29 +1467,221 @@ msgid ""
 "        "
 msgstr ""
 
+#: nodes/explanations.py
+msgid "Population is a specific node about Finnish population."
+msgstr ""
+
+#: nodes/explanations.py nodes/generic.py
+msgid ""
+"\n"
+"        ThresholdNode computes a preliminary result using standard GenericNode operations.\n"
+"\n"
+"        After computation, it returns True (1) if the result is greater than or equal to\n"
+"        the threshold parameter, otherwise False (0).\n"
+"        "
+msgstr ""
+
+#: nodes/explanations.py
+msgid ""
+"\n"
+"        TrajectoryAction uses select_category() to select a category from a dimension\n"
+"        and then possibly do some relative or absolute conversions.\n"
+"        "
+msgstr ""
+
+#: nodes/explanations.py nodes/generic.py
+msgid ""
+"\n"
+"        WeightedSumNode: Combines additive inputs using weights from a multidimensional weights DataFrame.\n"
+"        "
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Node class does not have description."
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
+msgid "The order of operations is %s."
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
+msgid "Has formula %s."
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
+msgid "Has parameter <i>%(parameter)s</i> with value %(value)s."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Datasets"
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
+msgid "Dataset with identifier <i>%s</i>"
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
+msgid "Uses column: %(name)s"
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
+msgid "Has forecast values from: %(year)s"
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Rows with missing values are dropped."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Renames the following columns:"
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Has the following filters:"
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
+msgid "global parameter %(label)s"
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
+msgid "Filter column <i>%(name)s</i> by excluding <i>%(values)s</i>."
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
+msgid "Filter column <i>%(name)s</i> by including <i>%(values)s</i>."
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
+msgid "Sum up column <i>%(name)s</i>."
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
+msgid "Drop column <i>%(name)s</i>."
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
+msgid "Assign dataset to category <i>%(cat_label)s</i> on dimension <i>%(dim_label)s</i>."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "Filter dimension <i>%s(dim_label)s</i> by categories <i>%(cat_labels)s</i>."
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
+msgid "Sum up the dimension <i>%(label)s</i>."
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
+msgid "Rename item <i>%(old_string)s</i> to <i>%(new_string)s</i> in column <i>%(column)s</i>."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "The inputs are processed in the following way before using for calculations in this node:"
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
+msgid "Node <i>%s</i>"
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
+msgid "Node with identifier <i>%s</i>"
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
+msgid "Has tag <i>%s</i>."
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
+msgid "From dimension <i>%(dimension)s</i>, exclude categories: <i>%(categories)s</i>"
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
+msgid "In dimension <i>%(dimension)s</i>, include categories: <i>%(categories)s</i>"
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
+msgid "<li>Sum over dimension <i>%(dim)s</i></li>"
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
+msgid "Categorize the values to <i>%(categories)s</i> in a new dimension <i>%(dimension)s</i>."
+msgstr ""
+
+#: nodes/explanations.py
+msgid "The inputs are used for operations in this order:"
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
+msgid "Operation %(op)s with nodes:"
+msgstr ""
+
+#: nodes/explanations.py
+msgid "These groups are left over without an operation:"
+msgstr ""
+
+#: nodes/explanations.py
+#, python-format
+msgid "Group %(basket)s with nodes:"
+msgstr ""
+
+#: nodes/generic.py
+msgid "Multiply input nodes whose unit does not match the output. Add the rest."
+msgstr ""
+
+#: nodes/generic.py
+msgid "Coalesces the empty values with the values from the node with the tag 'coalesce'."
+msgstr ""
+
 #: nodes/generic.py
 msgid ""
 "\n"
-"        This is generic IterativeNode for calculating values year by year.\n"
-"        It calculates one year at a time based on previous year's value and inputs and outputs\n"
-"        starting from the first forecast year. In addition, it must have a feedback loop (otherwise it makes\n"
-"        no sense to use this node class), which is given as a growth rate per year from the previous year's value.\n"
-"        "
+"    Cohort node take in initial age structure (inventory) and follows the cohort in time as it ages.\n"
+"\n"
+"    Harvest describes how much is removed from the cohort.\n"
+"    "
+msgstr ""
+
+#: nodes/generic.py
+msgid "Lifetime of the installation in full years"
+msgstr ""
+
+#: nodes/generic.py
+msgid "Intrinsic production efficiency"
+msgstr ""
+
+#: nodes/generic.py
+msgid "Performance without losses"
+msgstr ""
+
+#: nodes/generic.py
+msgid "Scope 3 emissions from upstream of installation"
 msgstr ""
 
 #: nodes/gpc.py
 msgid "This is a DatasetNode. It takes in a specifically formatted dataset and converts the relevant part into a node output."
-msgstr ""
-
-#: nodes/health.py
-msgid ""
-"\n"
-"        Calculate attributable fraction when the ERF function is relative risk.\n"
-"\n"
-"        AF=r/(r+1) if r >= 0; AF=r if r<0. Therefore, if the result\n"
-"        is smaller than 0, we should use r instead. It can be converted from the result:\n"
-"        r/(r+1)=s <=> r=s/(1-s)\n"
-"        "
 msgstr ""
 
 #: nodes/instance_loader.py
@@ -697,6 +1706,10 @@ msgstr ""
 
 #: nodes/models.py
 msgid "Site URL"
+msgstr ""
+
+#: nodes/models.py
+msgid "The main organization for the instance"
 msgstr ""
 
 #: nodes/models.py
@@ -743,136 +1756,44 @@ msgstr ""
 msgid "Nodes"
 msgstr ""
 
-#: nodes/node.py
-msgid "NOTE! Add text about the node class."
+#: nodes/models.py
+msgid "Node dataset"
 msgstr ""
 
-#: nodes/node.py
-msgid "The node has the following input nodes:"
+#: nodes/models.py
+msgid "Node datasets"
 msgstr ""
 
-#: nodes/node.py
-msgid "The node does not have input nodes."
+#: nodes/roles.py
+msgid "Subsector Admin"
 msgstr ""
 
-#: nodes/node.py
-msgid "    - Input node values are not added but operated despite matching units.\n"
+#: nodes/roles.py
+msgid "A Paths administrator with specifically set per-model-instance permissions."
 msgstr ""
 
-#: nodes/node.py
-msgid "    - Truncate values beyond the model end year. There may be some from data"
+#: nodes/roles.py
+msgid "Super Admin"
 msgstr ""
 
-#: nodes/node.py
-msgid "    - Truncate values before the reference year. There may be some from data"
+#: nodes/roles.py
+msgid "Full administrative access to the instance, also for managing people and organizations"
 msgstr ""
 
-#: nodes/node.py
-msgid "    - Extend the last historical values to the remaining missing years.\n"
-msgstr ""
-
-#: nodes/node.py
-msgid "    - Truncate the forecast values.\n"
-msgstr ""
-
-#: nodes/node.py
-msgid "    - Take the arithmetic inverse of the values (-x).\n"
-msgstr ""
-
-#: nodes/node.py
-msgid "    - Take the geometric inverse of the values (1/x).\n"
-msgstr ""
-
-#: nodes/node.py
-msgid "    - Take the complement of the dimensionless values (1-x).\n"
-msgstr ""
-
-#: nodes/node.py
-msgid "    - Take the difference across time (i.e. annual changes)\n"
-msgstr ""
-
-#: nodes/node.py
-msgid "    - Take the cumulative sum across time.\n"
-msgstr ""
-
-#: nodes/node.py
-msgid "    - Take the cumulative product of the dimensionless values across time.\n"
-msgstr ""
-
-#: nodes/node.py
-msgid "    - Take the cumulative product of the dimensionless complement values across time.\n"
-msgstr ""
-
-#: nodes/node.py
-msgid "    - Take the ratio of the values compared with the last historical value.\n"
-msgstr ""
-
-#: nodes/node.py
-msgid "    - This is used as the baseline.\n"
-msgstr ""
-
-#: nodes/node.py
-msgid "    - This is used for the incoming stock.\n"
-msgstr ""
-
-#: nodes/node.py
-msgid "    - This is the rate of stock removal.\n"
-msgstr ""
-
-#: nodes/node.py
-msgid "    - This is the rate of new stock coming in.\n"
-msgstr ""
-
-#: nodes/node.py
-msgid "    - The node is used as the historical starting point.\n"
-msgstr ""
-
-#: nodes/node.py
-msgid "    - The node is used as the goal for the action.\n"
-msgstr ""
-
-#: nodes/node.py
-msgid "    - Negative result values are replaced with 0.\n"
-msgstr ""
-
-#: nodes/node.py
-msgid "    - Positive result values are replaced with 0.\n"
-msgstr ""
-
-#: nodes/node.py
-msgid "    - Convert NaNs to zeros.\n"
-msgstr ""
-
-#: nodes/node.py
-msgid "    - Take the expected value over the uncertainty dimension.\n"
-msgstr ""
-
-#: nodes/node.py
-msgid "    - Show edge on graphs but ignore upstream content.\n"
-msgstr ""
-
-#: nodes/node.py
-#, python-format
-msgid "    - The tag \"%s\" is given.\n"
-msgstr ""
-
-#: nodes/node.py
-#, python-format
-msgid "    - From dimension %s, %s categories %s.\n"
-msgstr ""
-
-#: nodes/node.py
-#, python-format
-msgid "    - Sum over dimension %s .\n"
-msgstr ""
-
-#: nodes/node.py
-#, python-format
-msgid "    - Add values to the category %s in a new dimension %s.\n"
+#: nodes/roles.py
+msgid "Admin"
 msgstr ""
 
 #: nodes/roles.py
 msgid "Viewer"
+msgstr ""
+
+#: nodes/roles.py
+msgid "Reviewer"
+msgstr ""
+
+#: nodes/roles.py
+msgid "Ability to write review comments and read-only access to instance data"
 msgstr ""
 
 #: nodes/simple.py
@@ -914,10 +1835,6 @@ msgid "This is Activity Node. It adds activity amounts together."
 msgstr ""
 
 #: nodes/simple.py
-msgid "This is a Fixed Multiplier Node. It multiplies a single input node with a parameter."
-msgstr ""
-
-#: nodes/simple.py
 msgid ""
 "First add other input nodes, then multiply the output.\n"
 "\n"
@@ -949,15 +1866,6 @@ msgid ""
 "    If there is no \"non-additive\" node, it will behave like AdditiveNode except\n"
 "    it never creates a temporary dimension Sectors.\n"
 "    "
-msgstr ""
-
-#: nodes/simple.py
-msgid ""
-"This is a Fill New Category Node. It behaves like Additive Node, but in the end of computation\n"
-"        it creates a new category such that the values along that dimension sum up to 1. The input nodes\n"
-"        must have a dimensionless unit. The new category in an existing dimension is given as parameter\n"
-"        'new_category' in format 'dimension:category\n"
-"        "
 msgstr ""
 
 #: nodes/simple.py
@@ -1004,6 +1912,10 @@ msgid "cap"
 msgstr ""
 
 #: nodes/units.py
+msgid "euro cents"
+msgstr ""
+
+#: nodes/units.py
 msgid "euros"
 msgstr ""
 
@@ -1029,6 +1941,10 @@ msgstr ""
 
 #: nodes/units.py
 msgid "million kronor"
+msgstr ""
+
+#: nodes/units.py
+msgid "terawatt hours"
 msgstr ""
 
 #: nodes/units.py
@@ -1108,11 +2024,47 @@ msgid "M m³ (solid)"
 msgstr ""
 
 #: nodes/units.py
+msgid "grams CO₂e"
+msgstr ""
+
+#: nodes/units.py
 msgid "tonnes CO₂e"
 msgstr ""
 
 #: nodes/units.py
+msgid "ktCO₂e"
+msgstr ""
+
+#: nodes/units.py
 msgid "tonnes"
+msgstr ""
+
+#: nodes/units.py
+msgid "megatonnes"
+msgstr ""
+
+#: nodes/units.py
+msgid "Mt"
+msgstr ""
+
+#: nodes/units.py
+msgid "1000 hectares"
+msgstr ""
+
+#: nodes/units.py
+msgid "vehicle-km"
+msgstr ""
+
+#: nodes/units.py
+msgid "vkm"
+msgstr ""
+
+#: nodes/units.py
+msgid "Million vehicle-km"
+msgstr ""
+
+#: nodes/units.py
+msgid "M vkm"
 msgstr ""
 
 #: nodes/values.py
@@ -1150,12 +2102,165 @@ msgid ""
 "        "
 msgstr ""
 
+#: orgs/apps.py orgs/models.py orgs/wagtail_hooks.py
+msgid "Organizations"
+msgstr ""
+
+#: orgs/models.py
+msgid "Organization class"
+msgstr ""
+
+#: orgs/models.py
+msgid "Organization classes"
+msgstr ""
+
+#: orgs/models.py
+msgid "Namespace"
+msgstr ""
+
+#: orgs/models.py
+msgid "Namespaces"
+msgstr ""
+
+#: orgs/models.py
+msgid "Organization identifier"
+msgstr ""
+
+#: orgs/models.py
+msgid "Organization identifiers"
+msgstr ""
+
+#: orgs/wagtail_hooks.py
+msgid "Set as instance organization"
+msgstr ""
+
+#: orgs/wagtail_hooks.py
+msgid "Make this the default organization for this instance"
+msgstr ""
+
+#: orgs/wagtail_hooks.py
+msgid "Creating organizations without a parent not allowed."
+msgstr ""
+
+#: orgs/wagtail_hooks.py
+msgid "Removing parent from organization is not allowed."
+msgstr ""
+
+#: orgs/wagtail_hooks.py
+msgctxt "organization"
+msgid "Part of"
+msgstr ""
+
+#: orgs/wagtail_hooks.py
+msgctxt "organization"
+msgid "Pick the main organization that this organization is part of"
+msgstr ""
+
+#: orgs/wagtail_hooks.py
+msgid "Basic information"
+msgstr ""
+
+#: orgs/wagtail_hooks.py
+msgid "Advanced settings"
+msgstr ""
+
+#: orgs/wagtail_hooks.py
+msgid "Edit"
+msgstr ""
+
+#: orgs/wagtail_hooks.py
+#, python-format
+msgid "Edit '%(title)s'"
+msgstr ""
+
+#: orgs/wagtail_hooks.py
+msgid "Copy"
+msgstr ""
+
+#: orgs/wagtail_hooks.py
+#, python-format
+msgid "Copy '%(title)s'"
+msgstr ""
+
+#: orgs/wagtail_hooks.py
+msgid "Delete"
+msgstr ""
+
+#: orgs/wagtail_hooks.py
+#, python-format
+msgid "Delete '%(title)s'"
+msgstr ""
+
+#: orgs/wagtail_hooks.py
+msgid "Add suborganization"
+msgstr ""
+
+#: pages/blocks.py
+msgid "Break down the given dimension into its categories. If empty, break down into input nodes."
+msgstr ""
+
+#: pages/blocks.py pages/models.py
+msgid "Title"
+msgstr ""
+
+#: pages/blocks.py
+msgid "Content"
+msgstr ""
+
+#: pages/blocks.py
+msgid "Link URL"
+msgstr ""
+
+#: pages/blocks.py
+msgid "Category breakdown"
+msgstr ""
+
+#: pages/blocks.py
+msgid "Break down the value into its components"
+msgstr ""
+
+#: pages/blocks.py
+#, fuzzy
+#| msgid "Action list page"
+msgid "Action impact"
+msgstr "Massnahmenlistenseite"
+
+#: pages/blocks.py
+msgid "Visualize the impact of actions in a scenario"
+msgstr ""
+
+#: pages/blocks.py
+msgid "This object does not correspond to a node."
+msgstr ""
+
+#: pages/blocks.py
+msgid "This node has no goals."
+msgstr ""
+
+#: pages/blocks.py
+msgid "This node's instance has no reference year."
+msgstr ""
+
+#: pages/blocks.py
+msgid "This goal index is invalid."
+msgstr ""
+
 #: pages/models.py
 msgid "show in footer"
 msgstr "in Fusszeile anzeigen"
 
 #: pages/models.py
 msgid "Should the page be shown in the footer?"
+msgstr "Soll die Seite in der Fusszeile angezeigt werden?"
+
+#: pages/models.py
+msgid "show in additional links"
+msgstr ""
+
+#: pages/models.py
+#, fuzzy
+#| msgid "Should the page be shown in the footer?"
+msgid "Should the page be shown in the additional links?"
 msgstr "Soll die Seite in der Fusszeile angezeigt werden?"
 
 #: pages/models.py
@@ -1207,7 +2312,15 @@ msgid "Action list pages"
 msgstr "Massnahmenlistenseiten"
 
 #: pages/models.py
-msgid "Title"
+msgid "Background color"
+msgstr ""
+
+#: pages/models.py
+msgid "Dashboard page"
+msgstr ""
+
+#: pages/models.py
+msgid "Dashboard pages"
 msgstr ""
 
 #: pages/models.py
@@ -1406,6 +2519,10 @@ msgstr ""
 msgid "Population size"
 msgstr ""
 
+#: params/global_params.py
+msgid "Number of the selected item"
+msgstr ""
+
 #: paths/authentication.py
 msgid "Invalid token."
 msgstr ""
@@ -1470,10 +2587,63 @@ msgstr ""
 msgid "updated at"
 msgstr ""
 
+#: people/apps.py people/models.py people/wagtail_hooks.py
+msgid "People"
+msgstr ""
+
+#: people/forms.py
+msgid "Select the role for this person in the current instance"
+msgstr ""
+
+#: people/forms.py
+msgid "Select the organization this person belongs to."
+msgstr ""
+
+#: people/forms.py
+msgid "Removing the last Super Admin of an instance is not permitted"
+msgstr ""
+
+#: people/forms.py
+msgid "None"
+msgstr ""
+
+#: people/forms.py
+#, python-brace-format
+msgid "Select a role for this person within {instance_name}"
+msgstr ""
+
+#: people/forms.py
+msgid "The person is a superuser in the system. No individual permissions within an instance are required since the person can access all data within all instances."
+msgstr ""
+
+#: people/models.py people/person_group_admin.py
+msgid "Person"
+msgstr ""
+
+#: people/models.py
+msgid "Group member"
+msgstr ""
+
+#: people/models.py people/person_group_admin.py
+msgid "Group members"
+msgstr ""
+
+#: people/person_group_admin.py
+msgid "Person groups"
+msgstr ""
+
+#: people/widgets.py
+msgid "The person has no access"
+msgstr ""
+
 #: users/forms.py
 msgid "staff status"
 msgstr ""
 
 #: users/forms.py
 msgid "Designates whether the user can log into this admin site."
+msgstr ""
+
+#: users/models.py
+msgid "adminable instances"
 msgstr ""

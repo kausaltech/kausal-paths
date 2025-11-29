@@ -40,16 +40,23 @@ class AssertIdenticalUUIDs(UUIDSetTracker):
 class AssertNewUUID(UUIDSetTracker):
     """Assert that exactly one new UUID was added and it matches the expected UUID."""
 
-    def assert_created(self, response_data):
-        """Call this after exiting the context to verify the created UUID."""
+    def __init__(self, queryset, bulk: bool = False):
+        super().__init__(queryset)
+        self.bulk = bulk
+
+    def assert_created(self, response_data, expected_num_created: int = 1):
+        """Call this after exiting the context to verify the created UUIDs."""
         assert self.uuids_after is not None
         assert self.uuids_before is not None
         new_uuids = self.uuids_after - self.uuids_before
-        assert len(new_uuids) == 1, \
-            f'Expected exactly 1 new UUID, but found {len(new_uuids)}'
-        created_uuid = UUID(response_data['uuid'])
-        assert new_uuids.pop() == created_uuid, \
-            f'Expected new UUID to match response UUID {created_uuid}'
+        assert len(new_uuids) == expected_num_created, \
+            f'Expected exactly {expected_num_created} new UUIDs, but found {len(new_uuids)}'
+        if self.bulk:
+            created_uuids = {UUID(d['uuid']) for d in response_data}
+        else:
+            created_uuids = {UUID(response_data['uuid'])}
+        assert new_uuids == created_uuids, \
+            f'Expected new UUIDs to match response UUIDs {created_uuids}'
 
 
 class AssertRemovedUUID(UUIDSetTracker):

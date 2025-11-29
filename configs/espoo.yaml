@@ -4,7 +4,7 @@ supported_languages: [sv, en]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 8387c4c0818eb4fb05515aeedb5988c31c9c9328
+  commit: aea7fe7f4acdb8c89bd6630acd8ebff88122590e
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -42,6 +42,15 @@ include:
 - file: frameworks/hsy/transport.yaml
   node_group: Transport
   allow_override: true
+
+result_excels:
+- base_excel_url: 
+    https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
+  name: Traffic data
+  node_ids:
+  - road_traffic_mileage
+  - road_traffic_emission_factors
+  - transport_emissions
 
 impact_overviews:
 
@@ -101,6 +110,73 @@ params:
   is_customizable: true
 
 dimensions:
+
+- id: action
+  label_fi: Toimenpide
+  label_en: Action
+  categories:
+  - id: city_center_sustainable_transport_priority
+    label_fi: Kaupunkikeskusten liikennesuunnitelmissa priorisointi kestäviin 
+      kulkumuotoihin
+    label_en: Prioritization of sustainable modes of transport in city center 
+      traffic plans
+    label_sv: Prioritering av hållbara transportsätt i stadscentrums 
+      trafikplaner
+  - id: urban_space_study_active_mobility
+    label_fi: Selvitys kaupunkitilasta, joka kannustaa pyöräilyyn, kävelyyn ja 
+      joukkoliikenteen käyttöön
+    label_en: Study on urban space that encourages cycling, walking and public 
+      transport use
+    label_sv: Utredning av stadsutrymme som uppmuntrar cykling, gång och 
+      kollektivtrafik
+  - id: additional_investment_cycling_program
+    label_fi: Lisäpanostus Espoon pyöräilyn edistämisohjelmaan
+    label_en: Additional investment in Espoo's cycling promotion program
+    label_sv: Tilläggsinsats i Esbos program för cykelfrämjande
+  - id: promote_emission_free_freight_transport
+    label_fi: Päästöttömän kuorma-autoliikenteen ja pakettiautoliikenteen 
+      edistäminen
+    label_en: Promotion of emission-free truck and van traffic
+    label_sv: Främjande av utsläppsfri lastbils- och paketbilstrafik
+  - id: low_emission_transport_procurement
+    label_fi: Kuljetusten vähäpäästöisyyden edistäminen hankinnoissa
+    label_en: Promotion of low-emission transport in procurement
+    label_sv: Främjande av lågutsläppstransporter i upphandlingar
+  - id: truck_charging_infrastructure
+    label_fi: Kuorma-autojen latausmahdollisuuksien edistäminen
+    label_en: Promotion of truck charging opportunities
+    label_sv: Främjande av laddningsmöjligheter för lastbilar
+  - id: low_emission_zone_study
+    label_fi: Selvitys vähäpäästövyöhykkeestä
+    label_en: Study on low emission zone
+    label_sv: Utredning av lågutsläppszon
+  - id: paid_street_parking
+    label_fi: Maksullinen kadunvarsipysäköinti
+    label_en: Paid on-street parking
+    label_sv: Avgiftsbelagd parkering vid gatan
+  - id: market_based_parking
+    label_fi: Markkinalähtöinen pysäköinti
+    label_en: Market-based parking
+    label_sv: Marknadsbaserad parkering
+  - id: mandatory_ev_charging_zoning
+    label_fi: Henkilöautojen latauspiste pakolliseksi kaavamääräyksiin 
+      valituille alueille
+    label_en: Mandatory EV charging points in zoning regulations for selected 
+      areas
+    label_sv: Obligatorisk laddpunkt för personbilar i planbestämmelser för 
+      utvalda områden
+  - id: speed_limit_reduction_highways
+    label_fi: Nopeusrajoitusten alentaminen Espoon alueen maanteillä (MAL)
+    label_en: Speed limit reduction on highways in Espoo area (MAL)
+    label_sv: Sänkning av hastighetsbegränsningar på landsvägar i Esbo-området 
+      (MAL)
+  - id: road_traffic_pricing
+    label_fi: 'Tieliikenteen hinnoittelu: ruuhkamaksut tai tiemaksut'
+    label_en: 'Road traffic pricing: congestion charges or road fees'
+    label_sv: 'Prissättning av vägtrafik: trängselavgifter eller vägavgifter'
+  - id: no_action
+    label_fi: Ei toimenpidettä
+    label_en: No action
 
 - id: building_class
   label_fi: Rakennustyyppi
@@ -251,169 +327,17 @@ dimensions:
     label_en: Cattle farming
     label_sv: Boskapsskötsel
 
-- id: energy_carrier
-  label_fi: Energialaji
-  label_en: Energy carrier
-  label_sv: Energibärare
-  categories:
-  - id: district_heat
-    label_fi: Kaukolämpö
-    label_en: District heat
-    label_sv: Fjärrvärme
-    aliases: [Kauko- tai aluelämpö]
-  - id: electricity
-    label_fi: Sähkö
-    label_en: Electricity
-    label_sv: Elektricitet
-    aliases: [Kulutussähkö, Sähkölämmitys]
-  - id: green_electricity
-    label_fi: Vihreä sähkö
-    label_en: Green electricity
-    label_sv: Grön el
-  - id: fuel_oil
-    label_fi: Polttoöljy
-    label_en: Fuel oil
-    label_sv: Brännolja
-    aliases: ['Öljy, kaasu']
-  - id: natural_gas
-    label_fi: Maakaasu
-    label_en: Natural gas
-    label_sv: Naturgas
-  - id: gasoline_diesel
-    label_fi: Bensiini tai diesel
-    label_en: Gasoline or diesel
-    label_sv: Bensin eller diesel
-  - id: hybrid
-    label_fi: Hybridi
-    label_en: Hybrid
-    label_sv: Hybrid
-  - id: other
-    label_fi: Muu
-    label_en: Other
-    label_sv: Annan
-  - id: gasoline
-    label_fi: Bensiini
-    label_en: Gasoline
-    label_sv: Bensin
-  - id: ffv_e85
-    label_fi: FFV (E85 korkeaseosetanoli)
-    label_en: FFV (E85 high ethanol)
-    label_sv: FFV (E85 högetanol)
-  - id: diesel
-    label_fi: Diesel
-    label_en: Diesel
-    label_sv: Diesel
-  - id: biogas
-    label_fi: Biokaasu
-    label_en: Biogas
-    label_sv: Biogas
-  - id: phev_gasoline
-    label_fi: Bensiini + pistoke (PHEV(BE))
-    label_en: Gasoline + plug-in (PHEV)
-    label_sv: Bensin + plugin (PHEV)
-  - id: phev_diesel
-    label_fi: Diesel + pistoke (PHEV(DI))
-    label_en: Diesel + plug-in (PHEV)
-    label_sv: Diesel + plugin (PHEV)
-  - id: hydrogen
-    label_fi: Vety
-    label_en: Hydrogen
-    label_sv: Väte
-  - id: coal
-    label_fi: Kivihiili
-    label_en: Coal
-    label_sv: Kol
-  - id: wood_peat
-    label_fi: Puu, turve
-    label_en: Wood, peat
-  - id: geothermal
-    label_fi: Maalämpö
-    label_en: Geothermal
-  - id: other_unknown
-    label_fi: Muu tai tuntematon
-    label_en: Other or unknown
-
-- id: owner
-  label_fi: Omistaja
-  label_en: Owner
-  label_sv: Ägare
-  categories:
-  - id: municipal
-    label_en: Municipal
-    label_fi: Kunnallinen
-    label_sv: Kommunal
-  - id: private
-    label_en: Private
-    label_fi: Yksityinen
-    label_sv: Privat
-  - id: fortum
-    label_en: Fortum
-    label_fi: Fortum
-    label_sv: Fortum
-  - id: espoon_kaupunki
-    label_fi: Espoon kaupunki
-    label_en: City of Espoo
-    label_sv: Esbo stad
-  - id: espoon_asunnot
-    label_fi: Espoon asunnot
-    label_en: Espoo Housing
-    label_sv: Esbo bostäder
-  - id: microsoftin_datakeskus
-    label_fi: Microsoftin datakeskus
-    label_en: Microsoft data center
-    label_sv: Microsofts datacenter
-  - id: caruna_grid
-    label_fi: Carunan jakeluverkko
-    label_en: Caruna distribution network
-
-- id: scenario
-  label_fi: Skenaario
-  label_en: Scenario
-  label_sv: Scenario
-  categories:
-  - id: suomi2035
-    label_fi: Suomi 2035
-    label_en: Finland 2035
-    label_sv: Finland 2035
-    aliases: [baseline]
-  - id: hne2030
-    label_fi: Hiilineutraali Espoo 2030
-    label_en: Carbon-neutral Espoo 2030
-    label_sv: Kolneutralt Esbo 2030
-    aliases: [default]
-  - id: pessimistic
-    label_fi: Pessimistinen
-    label_en: Pessimistic
-    label_sv: Pessimistisk
-
-- id: waste_treatment
-  label_fi: Jätteenkäsittely
-  label_en: Waste treatment
-  label_sv: Avfallsbehandling
-  categories:
-  - id: landfills
-    label_fi: Kaatopaikka
-    label_en: Landfills
-    label_sv: Deponier
-  - id: biowaste_composting
-    label_fi: Biojätteen kompostointi
-    label_en: Biowaste composting
-    label_sv: Kompostering av bioavfall
-  - id: waste_water_treatment
-    label_fi: Jäteveden käsittely
-    label_en: Wastewater treatment
-    label_sv: Avloppsvattenbehandling
-  - id: sludge_composting
-    label_fi: Jätevesilietteen kompostointi
-    label_en: Sewage sludge composting
-    label_sv: Kompostering av avloppsslam
-
 - id: emission_sector
   label_fi: Päästösektori
   label_en: Emission sector
   label_sv: Utsläppssektor
   categories:
   # HEATING (warm reds/oranges)
+  - id: heating
+    label_fi: Lämmitys
+    label_en: Heating
+    label_sv: Värme
+    color: '#ff4f57'  # existing red
   - id: district_heating
     label_fi: Kaukolämpö
     label_en: District heating
@@ -438,6 +362,7 @@ dimensions:
     label_fi: Kulutussähkö
     label_en: Consumption electricity
     label_sv: Konsumtionsel
+    aliases: [Sähkö]
     color: '#0047b6'  # existing blue
   # TRANSPORTATION - Main & Road (greens)
   - id: transportation
@@ -617,6 +542,163 @@ dimensions:
     label_sv: Odefinierad
     color: '#999999'  # neutral gray
 
+- id: energy_carrier
+  label_fi: Energialaji
+  label_en: Energy carrier
+  label_sv: Energibärare
+  categories:
+  - id: district_heat
+    label_fi: Kaukolämpö
+    label_en: District heat
+    label_sv: Fjärrvärme
+    aliases: [Kauko- tai aluelämpö]
+  - id: electricity
+    label_fi: Sähkö
+    label_en: Electricity
+    label_sv: Elektricitet
+    aliases: [Kulutussähkö, Sähkölämmitys]
+  - id: green_electricity
+    label_fi: Vihreä sähkö
+    label_en: Green electricity
+    label_sv: Grön el
+  - id: fuel_oil
+    label_fi: Polttoöljy
+    label_en: Fuel oil
+    label_sv: Brännolja
+    aliases: ['Öljy, kaasu']
+  - id: natural_gas
+    label_fi: Maakaasu
+    label_en: Natural gas
+    label_sv: Naturgas
+  - id: gasoline_diesel
+    label_fi: Bensiini tai diesel
+    label_en: Gasoline or diesel
+    label_sv: Bensin eller diesel
+  - id: hybrid
+    label_fi: Hybridi
+    label_en: Hybrid
+    label_sv: Hybrid
+  - id: other
+    label_fi: Muu
+    label_en: Other
+    label_sv: Annan
+  - id: gasoline
+    label_fi: Bensiini
+    label_en: Gasoline
+    label_sv: Bensin
+  - id: ffv_e85
+    label_fi: FFV (E85 korkeaseosetanoli)
+    label_en: FFV (E85 high ethanol)
+    label_sv: FFV (E85 högetanol)
+  - id: diesel
+    label_fi: Diesel
+    label_en: Diesel
+    label_sv: Diesel
+  - id: biogas
+    label_fi: Biokaasu
+    label_en: Biogas
+    label_sv: Biogas
+  - id: phev_gasoline
+    label_fi: Bensiini + pistoke (PHEV(BE))
+    label_en: Gasoline + plug-in (PHEV)
+    label_sv: Bensin + plugin (PHEV)
+  - id: phev_diesel
+    label_fi: Diesel + pistoke (PHEV(DI))
+    label_en: Diesel + plug-in (PHEV)
+    label_sv: Diesel + plugin (PHEV)
+  - id: hydrogen
+    label_fi: Vety
+    label_en: Hydrogen
+    label_sv: Väte
+  - id: coal
+    label_fi: Kivihiili
+    label_en: Coal
+    label_sv: Kol
+  - id: wood_peat
+    label_fi: Puu, turve
+    label_en: Wood, peat
+  - id: geothermal
+    label_fi: Maalämpö
+    label_en: Geothermal
+  - id: other_unknown
+    label_fi: Muu tai tuntematon
+    label_en: Other or unknown
+
+- id: owner
+  label_fi: Omistaja
+  label_en: Owner
+  label_sv: Ägare
+  categories:
+  - id: municipal
+    label_en: Municipal
+    label_fi: Kunnallinen
+    label_sv: Kommunal
+  - id: private
+    label_en: Private
+    label_fi: Yksityinen
+    label_sv: Privat
+  - id: fortum
+    label_en: Fortum
+    label_fi: Fortum
+    label_sv: Fortum
+  - id: espoon_kaupunki
+    label_fi: Espoon kaupunki
+    label_en: City of Espoo
+    label_sv: Esbo stad
+  - id: espoon_asunnot
+    label_fi: Espoon asunnot
+    label_en: Espoo Housing
+    label_sv: Esbo bostäder
+  - id: microsoftin_datakeskus
+    label_fi: Microsoftin datakeskus
+    label_en: Microsoft data center
+    label_sv: Microsofts datacenter
+  - id: caruna_grid
+    label_fi: Carunan jakeluverkko
+    label_en: Caruna distribution network
+
+- id: scenario
+  label_fi: Skenaario
+  label_en: Scenario
+  label_sv: Scenario
+  categories:
+  - id: suomi2035
+    label_fi: Suomi 2035
+    label_en: Finland 2035
+    label_sv: Finland 2035
+    aliases: [baseline]
+  - id: hne2030
+    label_fi: Hiilineutraali Espoo 2030
+    label_en: Carbon-neutral Espoo 2030
+    label_sv: Kolneutralt Esbo 2030
+    aliases: [default]
+  - id: pessimistic
+    label_fi: Pessimistinen
+    label_en: Pessimistic
+    label_sv: Pessimistisk
+
+- id: waste_treatment
+  label_fi: Jätteenkäsittely
+  label_en: Waste treatment
+  label_sv: Avfallsbehandling
+  categories:
+  - id: landfills
+    label_fi: Kaatopaikka
+    label_en: Landfills
+    label_sv: Deponier
+  - id: biowaste_composting
+    label_fi: Biojätteen kompostointi
+    label_en: Biowaste composting
+    label_sv: Kompostering av bioavfall
+  - id: waste_water_treatment
+    label_fi: Jäteveden käsittely
+    label_en: Wastewater treatment
+    label_sv: Avloppsvattenbehandling
+  - id: sludge_composting
+    label_fi: Jätevesilietteen kompostointi
+    label_en: Sewage sludge composting
+    label_sv: Kompostering av avloppsslam
+
 nodes:
 
 # City nodes
@@ -741,7 +823,7 @@ nodes:
   name: Lämmityksen päästöt, historialliset
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [emission_sector, economic_sector]
   output_dimensions: [emission_sector, economic_sector]
   input_datasets:
@@ -1478,17 +1560,74 @@ nodes:
 
 # Transport
 
+- id: transport_emissions_historical
+  name: Historiallinen liikennepäästö
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector, economic_sector]
+  output_dimensions: [emission_sector, economic_sector]
+  input_datasets:
+  - id: hsy/pks_khk_paastot
+    tags: [baseline]
+    column: Päästöt
+    filters:
+    - rename_col: Sektori2
+      value: emission_sector
+    - rename_col: Sektori4
+      value: economic_sector
+    - rename_col: Vuosi
+      value: Year
+    - column: Kaupunki
+      ref: municipality_name
+    - column: Sektori1
+      value: Liikenne
+    - column: Sektori3
+      flatten: true
+
 - id: transport_emissions
   name_fi: Liikenteen päästöt
   name_en: Transport emissions
   name_sv: Transportutsläpp
-  type: generic.GenericNode
+  type: generic.CoalesceNode
   quantity: emissions
   unit: kt/a
   color: '#014B30'
   input_dimensions: [emission_sector, economic_sector]
   output_dimensions: [emission_sector, economic_sector]
+  input_nodes:
+  - id: transport_emissions_historical
+    tags: [inventory_only, primary]
   output_nodes: [net_emissions]
+  params:
+    operations: add,coalesce
+
+## WASTE
+
+- id: waste_emissions_historical
+  name: Historiallinen jätteen käsittelyn päästö
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_sector, economic_sector]
+  output_dimensions: [emission_sector, economic_sector]
+  input_datasets:
+  - id: hsy/pks_khk_paastot
+    tags: [baseline]
+    column: Päästöt
+    filters:
+    - rename_col: Sektori2
+      value: emission_sector
+    - rename_col: Sektori4
+      value: economic_sector
+    - rename_col: Vuosi
+      value: Year
+    - column: Kaupunki
+      ref: municipality_name
+    - column: Sektori1
+      value: Liikenne
+    - column: Sektori3
+      flatten: true
 
 - id: waste_treatment_emissions_data_goal
   name_fi: Jätteenkäsittelyn päästödata, ennuste
@@ -1522,9 +1661,9 @@ nodes:
     tags: [baseline]
     column: jatteenkasittelyn_paastot
 
-- id: waste_treatment_emissions
-  name_fi: Jätteenkäsittelyn päästöt
-  name_en: Waste treatment_emissions
+- id: waste_treatment_emissions_uncorrected
+  name_fi: Jätteenkäsittelyn päästöt, korjaamaton
+  name_en: Waste treatment_emissions, uncorrected
   name_sv: Utsläppdata om avfallsbehandlingen
   description_fi: Data on saatu Juha Viholaiselta maaliskuussa 2024.
   type: generic.GenericNode
@@ -1542,6 +1681,26 @@ nodes:
   - id: waste_treatment_emission_shares
     tags: [use_as_shares]
   output_nodes:
+  - id: waste_treatment_emissions
+  params:
+    operations: add,use_as_shares
+
+- id: waste_treatment_emissions
+  name_fi: Jätteenkäsittelyn päästöt
+  name_en: Waste treatment_emissions
+  name_sv: Utsläppdata om avfallsbehandlingen
+  description_fi: Data on saatu Juha Viholaiselta maaliskuussa 2024. 
+    Historiallisen datan osalta kuitenkin käytetään HSY:n tilastoa.
+  type: generic.CoalesceNode
+  quantity: emissions
+  unit: kt/a
+  color: '#8b6f47'  # brown
+  input_dimensions: [waste_treatment, economic_sector]
+  output_dimensions: [waste_treatment, economic_sector]
+  input_nodes:
+  - id: waste_treatment_emission_shares
+    tags: [inventory_only, primary]
+  output_nodes:
   - id: net_emissions
     from_dimensions:
     - id: waste_treatment
@@ -1551,7 +1710,7 @@ nodes:
       categories: [waste_treatment]
     - id: economic_sector
   params:
-    operations: add,use_as_shares
+    operations: add,coalesce
 
 # MODIFIED HSY NODES
 
@@ -1563,7 +1722,7 @@ nodes:
     laskemiseen. Varsinainen päästöjen suuruus saadaan Espoon kaupungin 
     tietoaineistosta ja ennusteesta.
   type: generic.DimensionalSectorEmissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [waste_treatment, economic_sector]
   output_dimensions: [waste_treatment, economic_sector]
   input_nodes: [all_hsy_emissions]
@@ -1614,6 +1773,14 @@ nodes:
     - id: energy_carrier
     - id: economic_sector
       categories: [industry]
+
+- id: implementation_costs
+  name_fi: Toteutuskustannukset
+  name_en: Implementation costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: kEUR/a
+  is_outcome: true
 
 pages:
 
@@ -2199,7 +2366,7 @@ actions:
   - id: waste_treatment_emissions_data_historical
     tags: [historical_only, historical]
   output_nodes:
-  - id: waste_treatment_emissions
+  - id: waste_treatment_emissions_uncorrected
     to_dimensions:
     - id: waste_treatment
 
@@ -2285,6 +2452,456 @@ actions:
     to_dimensions:
     - id: emission_sector
 
+# ------------ New transport actions -------------
+
+- id: city_center_sustainable_transport_priority
+  name_fi: Kaupunkikeskusten liikennesuunnitelmissa priorisointi kestäviin 
+    kulkumuotoihin
+  name_en: Prioritization of sustainable modes of transport in city center 
+    traffic plans
+  name_sv: Prioritering av hållbara transportsätt i stadscentrums trafikplaner
+  type: simple.AdditiveAction
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  output_metrics:
+  - id: currency
+    quantity: currency
+    unit: kEUR/a
+  - id: mileage
+    quantity: mileage
+    unit: Mvkm/a
+  input_datasets:
+  - id: espoo/liikenteen_uudet_toimenpiteet
+    forecast_from: 2025
+    filters:
+    - rename_col: Suorite
+      value: mileage
+    - rename_col: Toteutuskustannus
+      value: currency
+    - column: Päästökerroin
+    - column: action
+      value: city_center_sustainable_transport_priority
+  params:
+    allow_null_categories: true
+  output_nodes:
+  - id: implementation_costs
+    metrics: [currency]
+  - id: road_traffic_mileage
+    metrics: [mileage]
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
+
+- id: urban_space_study_active_mobility
+  name_fi: Selvitys kaupunkitilasta, joka kannustaa pyöräilyyn, kävelyyn ja 
+    joukkoliikenteen käyttöön
+  name_en: Study on urban space that encourages cycling, walking and public 
+    transport use
+  name_sv: Utredning av stadsutrymme som uppmuntrar cykling, gång och 
+    kollektivtrafik
+  type: simple.AdditiveAction
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  output_metrics:
+  - id: currency
+    quantity: currency
+    unit: kEUR/a
+  - id: mileage
+    quantity: mileage
+    unit: Mvkm/a
+  input_datasets:
+  - id: espoo/liikenteen_uudet_toimenpiteet
+    forecast_from: 2025
+    filters:
+    - rename_col: Suorite
+      value: mileage
+    - rename_col: Toteutuskustannus
+      value: currency
+    - column: Päästökerroin
+    - column: action
+      value: urban_space_study_active_mobility
+  params:
+    allow_null_categories: true
+  output_nodes:
+  - id: implementation_costs
+    metrics: [currency]
+  - id: road_traffic_mileage
+    metrics: [mileage]
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
+
+- id: additional_investment_cycling_program
+  name_fi: Lisäpanostus Espoon pyöräilyn edistämisohjelmaan
+  name_en: Additional investment in Espoo's cycling promotion program
+  name_sv: Tilläggsinsats i Esbos program för cykelfrämjande
+  type: simple.AdditiveAction
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  output_metrics:
+  - id: currency
+    quantity: currency
+    unit: kEUR/a
+  - id: mileage
+    quantity: mileage
+    unit: Mvkm/a
+  input_datasets:
+  - id: espoo/liikenteen_uudet_toimenpiteet
+    forecast_from: 2025
+    filters:
+    - rename_col: Suorite
+      value: mileage
+    - rename_col: Toteutuskustannus
+      value: currency
+    - column: Päästökerroin
+    - column: action
+      value: additional_investment_cycling_program
+  params:
+    allow_null_categories: true
+  output_nodes:
+  - id: implementation_costs
+    metrics: [currency]
+  - id: road_traffic_mileage
+    metrics: [mileage]
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
+
+- id: promote_emission_free_freight_transport
+  name_fi: Päästöttömän kuorma-autoliikenteen ja pakettiautoliikenteen 
+    edistäminen
+  name_en: Promotion of emission-free truck and van traffic
+  name_sv: Främjande av utsläppsfri lastbils- och paketbilstrafik
+  type: simple.AdditiveAction
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  output_metrics:
+  - id: currency
+    quantity: currency
+    unit: kEUR/a
+  - id: emission_factor
+    quantity: emission_factor
+    unit: g/vkm
+  input_datasets:
+  - id: espoo/liikenteen_uudet_toimenpiteet
+    forecast_from: 2025
+    filters:
+    - rename_col: Päästökerroin
+      value: emission_factor
+    - rename_col: Toteutuskustannus
+      value: currency
+    - column: Suorite
+    - column: action
+      value: promote_emission_free_freight_transport
+  params:
+    allow_null_categories: true
+  output_nodes:
+  - id: implementation_costs
+    metrics: [currency]
+  - id: road_traffic_emission_factors
+    metrics: [emission_factor]
+
+- id: low_emission_transport_procurement
+  name_fi: Kuljetusten vähäpäästöisyyden edistäminen hankinnoissa
+  name_en: Promotion of low-emission transport in procurement
+  name_sv: Främjande av lågutsläppstransporter i upphandlingar
+  type: simple.AdditiveAction
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  output_metrics:
+  - id: currency
+    quantity: currency
+    unit: kEUR/a
+  - id: emission_factor
+    quantity: emission_factor
+    unit: g/vkm
+  input_datasets:
+  - id: espoo/liikenteen_uudet_toimenpiteet
+    forecast_from: 2025
+    filters:
+    - rename_col: Päästökerroin
+      value: emission_factor
+    - rename_col: Toteutuskustannus
+      value: currency
+    - column: Suorite
+    - column: action
+      value: low_emission_transport_procurement
+  params:
+    allow_null_categories: true
+  output_nodes:
+  - id: implementation_costs
+    metrics: [currency]
+  - id: road_traffic_emission_factors
+    metrics: [emission_factor]
+
+- id: truck_charging_infrastructure
+  name_fi: Kuorma-autojen latausmahdollisuuksien edistäminen
+  name_en: Promotion of truck charging opportunities
+  name_sv: Främjande av laddningsmöjligheter för lastbilar
+  type: simple.AdditiveAction
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  output_metrics:
+  - id: currency
+    quantity: currency
+    unit: kEUR/a
+  - id: emission_factor
+    quantity: emission_factor
+    unit: g/vkm
+  input_datasets:
+  - id: espoo/liikenteen_uudet_toimenpiteet
+    forecast_from: 2025
+    filters:
+    - rename_col: Päästökerroin
+      value: emission_factor
+    - rename_col: Toteutuskustannus
+      value: currency
+    - column: Suorite
+    - column: action
+      value: truck_charging_infrastructure
+  params:
+    allow_null_categories: true
+  output_nodes:
+  - id: implementation_costs
+    metrics: [currency]
+  - id: road_traffic_emission_factors
+    metrics: [emission_factor]
+
+- id: low_emission_zone_study
+  name_fi: Selvitys vähäpäästövyöhykkeestä (ajosuorite)
+  name_en: Study on low emission zone (mileage)
+  name_sv: Utredning av lågutsläppszon (körsträcka)
+  type: simple.AdditiveAction
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  output_metrics:
+  - id: currency
+    quantity: currency
+    unit: kEUR/a
+  - id: mileage
+    quantity: mileage
+    unit: Mvkm/a
+  input_datasets:
+  - id: espoo/liikenteen_uudet_toimenpiteet
+    forecast_from: 2025
+    filters:
+    - rename_col: Suorite
+      value: mileage
+    - rename_col: Toteutuskustannus
+      value: currency
+    - column: Päästökerroin
+    - column: action
+      value: low_emission_zone_study
+  params:
+    allow_null_categories: true
+  output_nodes:
+  - id: implementation_costs
+    metrics: [currency]
+  - id: road_traffic_mileage
+    metrics: [mileage]
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
+
+- id: paid_street_parking
+  name_fi: Maksullinen kadunvarsipysäköinti
+  name_en: Paid on-street parking
+  name_sv: Avgiftsbelagd parkering vid gatan
+  type: simple.AdditiveAction
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  output_metrics:
+  - id: currency
+    quantity: currency
+    unit: kEUR/a
+  - id: mileage
+    quantity: mileage
+    unit: Mvkm/a
+  input_datasets:
+  - id: espoo/liikenteen_uudet_toimenpiteet
+    forecast_from: 2025
+    filters:
+    - rename_col: Suorite
+      value: mileage
+    - rename_col: Toteutuskustannus
+      value: currency
+    - column: Päästökerroin
+    - column: action
+      value: paid_street_parking
+  params:
+    allow_null_categories: true
+  output_nodes:
+  - id: implementation_costs
+    metrics: [currency]
+  - id: road_traffic_mileage
+    metrics: [mileage]
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
+
+- id: market_based_parking
+  name_fi: Markkinalähtöinen pysäköinti
+  name_en: Market-based parking
+  name_sv: Marknadsbaserad parkering
+  type: simple.AdditiveAction
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  output_metrics:
+  - id: currency
+    quantity: currency
+    unit: kEUR/a
+  - id: mileage
+    quantity: mileage
+    unit: Mvkm/a
+  input_datasets:
+  - id: espoo/liikenteen_uudet_toimenpiteet
+    forecast_from: 2025
+    filters:
+    - rename_col: Suorite
+      value: mileage
+    - rename_col: Toteutuskustannus
+      value: currency
+    - column: Päästökerroin
+    - column: action
+      value: market_based_parking
+  params:
+    allow_null_categories: true
+  output_nodes:
+  - id: implementation_costs
+    metrics: [currency]
+  - id: road_traffic_mileage
+    metrics: [mileage]
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
+
+- id: mandatory_ev_charging_zoning
+  name_fi: Henkilöautojen latauspiste pakolliseksi kaavamääräyksiin valituille 
+    alueille
+  name_en: Mandatory EV charging points in zoning regulations for selected areas
+  name_sv: Obligatorisk laddpunkt för personbilar i planbestämmelser för utvalda
+    områden
+  type: simple.AdditiveAction
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  output_metrics:
+  - id: currency
+    quantity: currency
+    unit: kEUR/a
+  - id: emission_factor
+    quantity: emission_factor
+    unit: g/vkm
+  input_datasets:
+  - id: espoo/liikenteen_uudet_toimenpiteet
+    forecast_from: 2025
+    filters:
+    - rename_col: Päästökerroin
+      value: emission_factor
+    - rename_col: Toteutuskustannus
+      value: currency
+    - column: Suorite
+    - column: action
+      value: mandatory_ev_charging_zoning
+  params:
+    allow_null_categories: true
+  output_nodes:
+  - id: implementation_costs
+    metrics: [currency]
+  - id: road_traffic_emission_factors
+    metrics: [emission_factor]
+
+- id: speed_limit_reduction_highways
+  name_fi: Nopeusrajoitusten alentaminen Espoon alueen maanteillä (MAL)
+  name_en: Speed limit reduction on highways in Espoo area (MAL)
+  name_sv: Sänkning av hastighetsbegränsningar på landsvägar i Esbo-området 
+    (MAL)
+  type: simple.AdditiveAction
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  output_metrics:
+  - id: currency
+    quantity: currency
+    unit: kEUR/a
+  - id: emission_factor
+    quantity: emission_factor
+    unit: g/vkm
+  input_datasets:
+  - id: espoo/liikenteen_uudet_toimenpiteet
+    forecast_from: 2025
+    filters:
+    - rename_col: Päästökerroin
+      value: emission_factor
+    - rename_col: Toteutuskustannus
+      value: currency
+    - column: Suorite
+    - column: action
+      value: speed_limit_reduction_highways
+  params:
+    allow_null_categories: true
+  output_nodes:
+  - id: implementation_costs
+    metrics: [currency]
+  - id: road_traffic_emission_factors
+    metrics: [emission_factor]
+
+- id: road_traffic_pricing
+  name_fi: 'Tieliikenteen hinnoittelu: ruuhkamaksut tai tiemaksut'
+  name_en: 'Road traffic pricing: congestion charges or road fees'
+  name_sv: 'Prissättning av vägtrafik: trängselavgifter eller vägavgifter'
+  type: simple.AdditiveAction
+  input_dimensions: [vehicle_type, economic_sector]
+  output_dimensions: [vehicle_type, economic_sector]
+  output_metrics:
+  - id: currency
+    quantity: currency
+    unit: kEUR/a
+  - id: mileage
+    quantity: mileage
+    unit: Mvkm/a
+  input_datasets:
+  - id: espoo/liikenteen_uudet_toimenpiteet
+    forecast_from: 2025
+    filters:
+    - rename_col: Suorite
+      value: mileage
+    - rename_col: Toteutuskustannus
+      value: currency
+    - column: Päästökerroin
+    - column: action
+      value: road_traffic_pricing
+  params:
+    allow_null_categories: true
+  output_nodes:
+  - id: implementation_costs
+    metrics: [currency]
+  - id: road_traffic_mileage
+    metrics: [mileage]
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
+
+# - id: road_traffic_cost
+#   name_fi: 'Tieliikenteen hinnoittelu: ruuhkamaksut tai tiemaksut'
+#   name_en: 'Road traffic pricing: congestion charges or road fees'
+#   name_sv: 'Prissättning av vägtrafik: trängselavgifter eller vägavgifter'
+#   type: linear.DatasetReduceAction
+#   quantity: mileage
+#   unit: MEUR/a
+#   input_datasets:
+#   - id: espoo/liikenteen_uusien_toimenpiteiden_toteutuskustannukset
+#     tags: [goal]
+#     column: Suorite
+#     filters:
+#     - column: action
+#       value: road_traffic_pricing
+#     - column: economic_sector
+#   - id: espoo/tieliikenteen_ajoneuvosuorite
+#     tags: [baseline, historical]
+#     column: ajoneuvosuorite
+#     forecast_from: 2025
+#   output_nodes:
+#   - id: road_traffic_mileage
+
 scenarios:
 
 - id: baseline
@@ -2304,7 +2921,6 @@ scenarios:
   - id: change_non_heating_electricity.enabled
     value: true
 
-
 - id: default
   default: true
   name_fi: Hiilineutraali Espoo 2030
@@ -2314,6 +2930,30 @@ scenarios:
   params:
   - id: scenario_name
     value: hne2030
+  - id: city_center_sustainable_transport_priority.enabled
+    value: false
+  - id: urban_space_study_active_mobility.enabled
+    value: false
+  - id: additional_investment_cycling_program.enabled
+    value: false
+  - id: promote_emission_free_freight_transport.enabled
+    value: false
+  - id: low_emission_transport_procurement.enabled
+    value: false
+  - id: truck_charging_infrastructure.enabled
+    value: false
+  - id: low_emission_zone_study.enabled
+    value: false
+  - id: paid_street_parking.enabled
+    value: false
+  - id: market_based_parking.enabled
+    value: false
+  - id: mandatory_ev_charging_zoning.enabled
+    value: false
+  - id: speed_limit_reduction_highways.enabled
+    value: false
+  - id: road_traffic_pricing.enabled
+    value: false
 
 - id: default_old
   name_fi: HNE2030 ennen 2024 lisätoimenpiteitä

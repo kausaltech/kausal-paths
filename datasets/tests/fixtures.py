@@ -171,6 +171,14 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         created_by=superuser,
         last_modified_by=superuser,
     )
+    data_point3 = DataPoint.objects.create(
+        dataset=dataset2,
+        date=date(2024, 1, 1),
+        metric=metric2,
+        value=123.45,
+        created_by=superuser,
+        last_modified_by=superuser,
+    )
 
     data_source1 = DataSource.objects.create(
         scope_content_type=content_type,
@@ -238,7 +246,6 @@ def dataset_test_data(django_db_setup, django_db_blocker):
     ):
         person = PersonFactory(email=f'{username}@example.com')
         user = person.user
-        instance_viewer_role.assign_user(instance1, user)
 
         DatasetSchemaPersonPermission.objects.create(
             object=schema1,
@@ -262,7 +269,6 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         person = PersonFactory(email=f'{username}@example.com')
         user = person.user
         group.persons.add(person)
-        instance_viewer_role.assign_user(instance1, user)
         DatasetSchemaGroupPermission.objects.create(
             object=schema1,
             group=group,
@@ -291,6 +297,7 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         'dimension_category1': dimension_category1,
         'data_point1': data_point1,
         'data_point2': data_point2,
+        'data_point3': data_point3,
         'data_source1': data_source1,
         'data_source1_alternative': data_source1_alternative,
         'data_source2': data_source2,
