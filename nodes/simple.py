@@ -156,7 +156,7 @@ class SimpleNode(Node):
         if not year:
             year = self.get_typed_parameter_value('reference_year', int, required=False)
         if year:
-            df = self._scale_by_reference_year(df, year)
+            df = df.paths._scale_by_reference_year(df, year)
             df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
 
@@ -921,5 +921,5 @@ class RelativeYearScaledNode(AdditiveNode):
         if not year:
             year = self.context.instance.reference_year
             assert year is not None
-        df = self._scale_by_reference_year(df, year)
+        df = df.paths._scale_by_reference_year(df, year)
         return df

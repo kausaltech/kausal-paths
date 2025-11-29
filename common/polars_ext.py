@@ -684,6 +684,13 @@ class PathsExt:
     def _geometric_inverse(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
         return df.divide_quantity(VALUE_COLUMN, unit_registry('1 * dimensionless'))
 
+    # FIXME Current version requires output metric of the target node. Use baskets instead.
+    def _ignore_content(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
+        no_effect_value = getattr(self, 'no_effect_value', 0.0)
+        df = df.with_columns(pl.lit(no_effect_value).alias(VALUE_COLUMN))
+        m = target_node.get_default_output_metric()
+        return df.set_unit(VALUE_COLUMN, m.unit, force=True)
+
     def _indifferent_history_ratio(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
         return df.with_columns(
             pl.when(pl.col(FORECAST_COLUMN))

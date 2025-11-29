@@ -5,9 +5,7 @@ import typing
 
 # import warnings
 from contextlib import AbstractContextManager, nullcontext
-from typing import Any, ClassVar, Literal, Self, cast, overload
-
-from django.utils.translation import gettext_lazy as _
+from typing import Any, ClassVar, Literal, Self, overload
 
 import numpy as np
 import pandas as pd
@@ -23,7 +21,6 @@ from common import polars as ppl
 from common.i18n import I18nString, I18nStringInstance, TranslatedString, get_modeltrans_attrs_from_str
 from common.types import Identifier, MixedCaseIdentifier, validate_identifier
 from common.utils import hash_unit
-from nodes.calc import extend_last_forecast_value_pl, extend_last_historical_value_pl, extend_to_history_pl
 from nodes.constants import (
     DEFAULT_METRIC,
     FORECAST_COLUMN,
@@ -40,7 +37,7 @@ from params.param import ParameterWithUnit
 from .datasets import Dataset, JSONDataset
 from .edges import Edge
 from .exceptions import NodeComputationError, NodeError, NodeMissingDefaultUnitError
-from .units import Quantity, Unit, unit_registry
+from .units import Quantity, Unit
 
 if typing.TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -1057,7 +1054,7 @@ class Node:
 
         for tag in edge.tags:
             if tag == 'ignore_content':
-                df = self._ignore_content(df, target_node)
+                df = df.paths._ignore_content(df, target_node)
             else:
                 op = operations.get(tag)
                 if op:
@@ -1607,145 +1604,6 @@ class Node:
             years.update(n._get_measure_datapoint_years(n, dims))
 
         return sorted(years)
-
-    # -----------------------------------------------------------------------------------
-
-    def _scale_by_reference_year(self, df: ppl.PathsDataFrame, year: int | None = None) -> ppl.PathsDataFrame:
-        if not year:
-            return df
-        if len(df.dim_ids) == 0:
-            reference = df.filter(pl.col(YEAR_COLUMN).eq(year))[VALUE_COLUMN][0]
-            df = df.with_columns((pl.col(VALUE_COLUMN) / pl.lit(reference)).alias(VALUE_COLUMN))
-        else:
-            meta = df.get_meta()
-            reference = df.filter(pl.col(YEAR_COLUMN).eq(year))
-            zdf = df.join(reference, on=df.dim_ids)
-            zdf = zdf.with_columns((pl.col(VALUE_COLUMN) / pl.col(VALUE_COLUMN + '_right')).alias(VALUE_COLUMN))
-            zdf = zdf.drop([VALUE_COLUMN + '_right', FORECAST_COLUMN + '_right', YEAR_COLUMN + '_right'])
-            df = ppl.to_ppdf(zdf, meta=meta)
-
-        df = df.clear_unit(VALUE_COLUMN)
-        df = df.set_unit(VALUE_COLUMN, 'dimensionless')
-        return df
-
-    def _absolute(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
-        return df.with_columns(pl.col(VALUE_COLUMN).abs().alias(VALUE_COLUMN))
-
-    def _arithmetic_inverse(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
-        return df.multiply_quantity(VALUE_COLUMN, unit_registry('-1 * dimensionless'))
-
-    def _bring_to_maximum_historical_year(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
-        max_year = self.context.instance.maximum_historical_year
-        if max_year is None:
-            return df
-        is_forecast = False
-        df = df.with_columns(
-            pl.when(pl.col(YEAR_COLUMN) <= max_year)
-            .then(pl.lit(is_forecast))
-            .otherwise(pl.col(FORECAST_COLUMN))
-            .alias(FORECAST_COLUMN)
-        )
-        return df
-
-    def _complement(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
-        if not df.get_unit(VALUE_COLUMN).is_compatible_with('dimensionless'):
-            raise NodeError(
-                self, 'The unit of node %s must be compatible with dimensionless for taking complement' % self.id,
-            )
-        if self.quantity not in ['fraction', 'probability']:
-            raise NodeError(
-                self, 'The quantity of node %s must be fraction or probability for taking complement' % self.id,
-            )
-        df = df.ensure_unit(VALUE_COLUMN, unit='dimensionless')  # TODO CHECK
-        return df.with_columns((pl.lit(1.0) - pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
-
-    def _complement_cumulative_product(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
-        return df.cumprod(VALUE_COLUMN, complement=True)
-
-    def _cumulative(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
-        return df.cumulate(VALUE_COLUMN)
-
-    def _cumulative_product(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
-        return df.cumprod(VALUE_COLUMN)
-
-    def _difference(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
-        return df.diff(VALUE_COLUMN)
-
-    def _empty_to_zero(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
-        return df.with_columns(
-            pl.when(pl.col(VALUE_COLUMN).is_nan())
-            .then(pl.lit(0.0))
-            .otherwise(pl.col(VALUE_COLUMN))
-            .alias(VALUE_COLUMN),
-        )
-
-    def _expectation(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
-        if UNCERTAINTY_COLUMN in df.columns:
-            meta = df.get_meta()
-            cols = [col for col in df.primary_keys if col != UNCERTAINTY_COLUMN]
-            dfp = df.group_by(cols, maintain_order=True).agg([
-                pl.col(VALUE_COLUMN).mean().alias(VALUE_COLUMN),
-                pl.col(FORECAST_COLUMN).any().alias(FORECAST_COLUMN)
-            ])
-            dfp = dfp.with_columns(pl.lit('expectation').alias(UNCERTAINTY_COLUMN))
-            df = ppl.to_ppdf(dfp, meta)
-        return df
-
-    def _extend_values(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
-        return extend_last_historical_value_pl(df, self.get_end_year())
-
-    def _extend_forecast_values(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
-        return extend_last_forecast_value_pl(df, self.get_end_year())
-
-    def _extend_to_history(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
-        start_year = self.context.instance.minimum_historical_year
-        return extend_to_history_pl(df, start_year)
-
-    def _forecast_only(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
-        return df.filter(pl.col(FORECAST_COLUMN))
-
-    def _geometric_inverse(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
-        return df.divide_quantity(VALUE_COLUMN, unit_registry('1 * dimensionless'))
-
-    # FIXME Current version requires output metric of the target node. Use baskets instead.
-    def _ignore_content(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
-        no_effect_value = getattr(self, 'no_effect_value', 0.0)
-        df = df.with_columns(pl.lit(no_effect_value).alias(VALUE_COLUMN))
-        m = target_node.get_default_output_metric()
-        return df.set_unit(VALUE_COLUMN, m.unit, force=True)
-
-    def _indifferent_history_ratio(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
-        return df.with_columns(
-            pl.when(pl.col(FORECAST_COLUMN))
-            .then(pl.col(VALUE_COLUMN))
-            .otherwise(pl.lit(1.0)).alias(VALUE_COLUMN)
-        )
-
-    def _inventory_only(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
-        df = df.with_columns(  # TODO A non-elegant way to ensure there is at least one historical row.
-            pl.when(pl.col(FORECAST_COLUMN) & (pl.count() == 1))
-            .then(pl.lit(value=False))
-            .otherwise(pl.col(FORECAST_COLUMN))
-            .alias(FORECAST_COLUMN),
-        )
-        return df.filter(pl.col(FORECAST_COLUMN) == pl.lit(value=False))
-
-    def _make_nonnegative(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
-        return df.with_columns(pl.max_horizontal(VALUE_COLUMN, 0.0))
-
-    def _make_nonpositive(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
-        return df.with_columns(pl.min_horizontal(VALUE_COLUMN, 0.0))
-
-    def _ratio_to_last_historical_value(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
-        year = cast('int', df.filter(~df[FORECAST_COLUMN])[YEAR_COLUMN].max())
-        return self._scale_by_reference_year(df, year)
-
-    def _truncate_before_start(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
-        baseline_year = self.context.instance.reference_year
-        return df.filter(pl.col(YEAR_COLUMN).ge(baseline_year))
-
-    def _truncate_beyond_end(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
-        return df.filter(pl.col(YEAR_COLUMN).le(self.get_end_year()))
 
     def get_explanation(self) -> str:
         nes = self.context.node_explanation_system
