@@ -5,7 +5,7 @@ import re
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Unpack, cast
+from typing import TYPE_CHECKING, Any, TypeAlias, Unpack, cast
 
 from pydantic_core import core_schema
 
@@ -22,6 +22,7 @@ from pint.delegates.formatter._compound_unit_helpers import (
 from pint.delegates.formatter._format_helpers import formatter
 from pint.delegates.formatter.html import HTMLFormatter
 from pint.delegates.formatter.plain import PrettyFormatter
+from pint.facets.plain import PlainQuantity, PlainUnit
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -29,8 +30,6 @@ if TYPE_CHECKING:
     from django_stubs_ext import StrPromise
     from pydantic import GetCoreSchemaHandler
     from pydantic_core import CoreSchema
-
-    from pint.facets.plain import PlainUnit
 
 
 #Unit = PlainUnit
@@ -77,12 +76,14 @@ class Unit(pint.registry.Unit):
         return str(value)
 
 
-type PathsUnit = Unit
-
-
 class Quantity(pint.registry.Quantity):
     pass
 
+
+QuantityType: TypeAlias = Quantity | PlainQuantity[Any]  # noqa: UP040
+UnitType: TypeAlias = Unit | PlainUnit  # noqa: UP040
+
+type PathsUnit = Unit
 
 @dataclass(frozen=True)
 class SpecifierUnitDefinition(facets.plain.UnitDefinition):
