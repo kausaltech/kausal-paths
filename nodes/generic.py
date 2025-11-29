@@ -69,12 +69,7 @@ class GenericNode(SimpleNode):
             'add_to_existing_dims': self._operation_add_to_existing_dims,
             'apply_multiplier': self._operation_apply_multiplier,
             'do_correction': self._operation_do_correction,
-            'drop_nans': self._operation_drop_nans,
-            'drop_infs': self._operation_drop_infs,
-            'extend_values': self._operation_extend_values,
-            'extrapolate': self._operation_extrapolate,
             'get_datasets': self._operation_get_datasets,
-            'inventory_only': self._operation_inventory_only,
             'multiply': self._operation_multiply,
             'other': self._operation_other,
             'select_variant': self._operation_select_variant,
@@ -171,12 +166,6 @@ class GenericNode(SimpleNode):
             df = df.multiply_quantity(VALUE_COLUMN, mult)
         return df, baskets
 
-    def _operation_extrapolate(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
-        """Replace NaNs and Nulls by extrapolating from existing values."""
-        if df is None:
-            raise NodeError(self, "Cannot extrapolate because no PathsDataFrame is available.")
-        return df.paths._extrapolate(df, self), baskets
-
     def _operation_skip_dim_test(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
         """Skip dimension test on loading because subsequent opearations will take care of that."""
         if df is not None:
@@ -192,15 +181,6 @@ class GenericNode(SimpleNode):
         baskets[operation] = []
         return n.get_output_pl(target_node=self, skip_dim_test=True), baskets
 
-    def _operation_drop_nans(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
-        """Drop NaN cells in long format."""
-        assert isinstance(df, ppl.PathsDataFrame)
-        return df.paths._drop_nans(df, self), baskets
-
-    def _operation_drop_infs(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
-        """Drop Inf cells in long format."""
-        assert isinstance(df, ppl.PathsDataFrame)
-        return df.paths._drop_infs(df, self), baskets
 
     def _operation_get_datasets(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
         dfs = self.get_input_datasets_pl()
@@ -417,16 +397,6 @@ class GenericNode(SimpleNode):
 
         return df, baskets
 
-    def _operation_inventory_only(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
-        if df is None:
-            raise NodeError(self, "There must be a dataframe for operation 'inventory only'.")
-        return df.paths._inventory_only(df, self), baskets
-
-    def _operation_extend_values(self, df: ppl.PathsDataFrame | None, baskets: dict, **kwargs) -> tuple:
-        if df is None:
-            raise NodeError(self, "There must be a dataframe for operation 'extend values'.")
-        return df.paths._extend_values(df, self), baskets
-
     # -----------------------------------------------------------------------------------
 
     def compute(self) -> ppl.PathsDataFrame:
@@ -456,11 +426,16 @@ class GenericNode(SimpleNode):
 
         # Apply operations in sequence
         for op_name in operations:
-            if op_name not in self.OPERATIONS:
-                raise NodeError(self, f"Unknown operation: {op_name}")
+            if df is not None and op_name in df.paths.OPERATIONS:
+                op = df.paths.OPERATIONS[op_name]
+                df = op(df, self)
 
-            operation_func = self.OPERATIONS[op_name]
-            df, baskets = operation_func(df, baskets, **kwargs)
+            else:
+                if op_name not in self.OPERATIONS:
+                    raise NodeError(self, f"Unknown operation: {op_name}")
+
+                operation_func = self.OPERATIONS[op_name]
+                df, baskets = operation_func(df, baskets, **kwargs)
         if not isinstance(df, ppl.PathsDataFrame):
             raise NodeError(self, "The output is not a PathsDataFrame.")
 

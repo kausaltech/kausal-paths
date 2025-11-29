@@ -54,6 +54,7 @@ class PathsExt:
             'extrapolate': self._extrapolate,
             'forecast_only': self._forecast_only,
             'geometric_inverse': self._geometric_inverse,
+            'ignore_content': self._ignore_content,
             'indifferent_history_ratio': self._indifferent_history_ratio,
             'inventory_only': self._inventory_only,
             'make_nonnegative': self._make_nonnegative,

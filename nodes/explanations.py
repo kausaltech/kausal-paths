@@ -89,6 +89,7 @@ class NodeInfo:
     description: str
     deprecated: bool = False
 
+
 # FIXME Make descriptions concise.
 NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
     'AdditiveAction': NodeInfo(_("""Simple action that produces an additive change to a value.""")),

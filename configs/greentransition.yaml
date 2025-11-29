@@ -66,17 +66,16 @@ impact_overviews:
   indicator_unit: kEUR/Ut
   cost_unit: MEUR
   effect_unit: Ut
+  invert_effect: true
   plot_limit_for_indicator: 500
   label: Kokonaishyödyn marginaalikustannus
   label_en: Marginal cost in total utility
 
 - graph_type: cost_benefit
-  cost_node: action_costs
-  effect_node: euro_utilities
+  effect_node: total_costs
   invert_cost: false
   invert_effect: false
   indicator_unit: MEUR
-  # effect_unit: MEUR
   label: Kustannus-hyötyarvio kokonaisvaikutuksista
   label_en: Cost-benefit analysis of total impacts
 
@@ -1469,6 +1468,16 @@ nodes:
   - id: multiplier
     value: 50
     unit: kEUR/Ut
+
+- id: total_costs
+  name: Total costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_nodes:
+  - id: euro_utilities
+    tags: [arithmetic_inverse]
+  - id: action_costs
 
 pages:
 - id: home
