@@ -1126,7 +1126,7 @@ nodes:
     per year.
   description_es-US: <b>Unidad:</b> GWh/año = gigavatios hora al año = millones de
     kilovatios hora al año.
-  type: simple.MultiplyLastNode
+  type: simple.MultiplyLastNode # FIXME --> GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [emission_sectors]
@@ -1139,7 +1139,7 @@ nodes:
   name_es-US: Consumo de gas natural en edificios
   description: <b>Unit:</b> Mthm/yr. = million therms per year.
   description_es-US: <b>Unidad:</b> Mthm/año = millones de termias al año.
-  type: simple.MultiplyLastNode
+  type: simple.MultiplyLastNode # FIXME --> GenericNode
   quantity: energy
   unit: Mtherm/a
   input_dimensions: [emission_sectors]

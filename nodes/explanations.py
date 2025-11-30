@@ -486,7 +486,7 @@ class NodeExplanationSystem:
         self.validations = all_results
         return all_results
 
-    def generate_explanations(self) -> dict[str, list[str]]:
+    def generate_explanations(self) -> dict[str, list[str]]: # FIXME output_nodes.from_dimension does not show up in explanations
         """Generate explanations for all nodes."""
 
         all_results = {}
