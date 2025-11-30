@@ -1154,13 +1154,15 @@ nodes:
     per year.
   description_es-US: <b>Unidad:</b> GWh/año = gigavatios hora al año = millones de
     kilovatios hora al año.
-  type: simple.MultiplyLastNode2
+  type: generic.GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
   input_nodes:
   - building_electricity_use
+  params:
+    operations: add,multiply
 
 - id: electricity_emission_factor
   name: Emission factor of electricity production

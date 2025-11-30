@@ -187,6 +187,11 @@ class WeatherNormalization(BoolParameter):
     id = 'weather_correction'
 
 
+class BiogenicInclusion(BoolParameter):
+    name = _('Are biogenic emissions included in total emissions?')
+    id = 'biogenic_inclusion'
+
+
 class StatisticalNormalization(BoolParameter):
     name = _('Normalization for matching statistical data')
     id = 'statistical_correction'

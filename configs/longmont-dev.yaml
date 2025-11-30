@@ -15,7 +15,7 @@ supported_languages: [es-US]
 site_url: https://longmont-dev.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 65ce03515acaaee801ffcb5645c3de39a01d6f26
+  commit: 353b19c830df9500cd2771b5ec6a00450f9b234a
   dvc_remote: kausal-s3
 name: 2025 Draft Longmont Greenhouse Gas Inventory
 name_es-US: 2025 Inventario de gases de efecto invernadero de Longmont
@@ -70,8 +70,8 @@ result_excels:
   - participation_smart_grid
   - smart_grid_improvement
   - smart_grid_benefits
-  - transmission_loss_change
-  - transmission_loss_work_benefits
+  # - transmission_loss_change
+  # - transmission_loss_work_benefits
   - building_square_footage
   - building_electricity_use_historical
   - building_natural_gas_use_historical
@@ -151,13 +151,25 @@ dimensions:
     label: Relative improvement
     label_es-US: Mejora relativa
 
-- id: airport
+- id: airport # FIXME Merge into asset
   label: Airport
   categories:
   - id: vance_brand_airport
     label: Vance Brand Airport
   - id: denver_international_airport
     label: Denver International Airport
+
+- id: asset
+  label: Asset
+  categories:
+  - id: vance_brand_airport
+    label: Vance Brand Airport
+  - id: denver_international_airport
+    label: Denver International Airport
+  - id: power_purchase_program
+    label: Commercial and Residential Power Purchase Program
+  - id: rooftop_solar
+    label: Residential and Commercial Rooftop Solar
 
 - id: building_energy_class
   label: Building energy class
@@ -244,10 +256,11 @@ dimensions:
   - id: residential_energy
     label: Residential energy
     label_es-US: Energía residencial
+    aliases: [Residential]
   - id: commercial_industrial_energy
     label: Commercial and industrial energy
     label_es-US: Energía comercial e industrial
-    aliases: [commercial_energy]
+    aliases: [commercial_energy, Commercial and Industrial]
   - id: streetlights
     label: Streetlights
     label_es-US: Alumbrado público
@@ -441,7 +454,7 @@ dimensions:
     label: CO2, biogen
     label_es-US: CO2, biógeno
 
-- id: greenhouse_gases # FIXME Merge this to standard dim
+- id: greenhouse_gases # FIXME Merge this into ghg
   label: Greenhouse gases
   label_es-US: Gases de efecto invernadero
   categories:
@@ -474,7 +487,7 @@ dimensions:
     label: CO2, biogen
     label_es-US: CO2, biógeno
 
-- id: emission_scope
+- id: emission_scope # FIXME Merge this into scope
   label: Emission scopes
   label_es-US: Alcances de emisión
   categories:
@@ -505,7 +518,7 @@ dimensions:
     label: Informational only
     order: -1
 
-- id: scope # FIXME Merge the two dimensions
+- id: scope
   label: Emission scopes
   label_es-US: Alcances de emisión
   categories:
@@ -531,6 +544,9 @@ dimensions:
     label: Negative emissions
     label_es-US: Emisiones negativas
     color: '#F7A5AF'
+    order: -3
+  - id: biogenic_emissions
+    label: Biogenic emissions
     order: -2
   - id: informational
     label: Informational only
@@ -553,9 +569,29 @@ dimensions:
   - id: via_ride_service_shuttles
     label: Via Ride Service Shuttles
 
-- id: site
+- id: site # FIXME Merge into item
   label: Production or consumption site
   label_es-US: Sitio de producción o consumo
+  categories:
+  - id: longmont_power
+    label: Longmont Power
+    label_es-US: Longmont Power
+  - id: platte_river_power_authority
+    label_en: Platte River Power Authority
+    label_es-US: Platte River Power Authority
+  - id: xcel_energy
+    label: Xcel Energy
+    label_es-US: Xcel Energy
+  - id: various
+    label: Various
+    label_es-US: Varios
+  - id: home
+    label: Home
+    label_es-US: Inicio
+
+- id: item
+  label: Item
+  label_es-US: Ítem
   categories:
   - id: longmont_power
     label: Longmont Power
@@ -758,6 +794,12 @@ params:
   value: false
   is_visible: true
   is_customizable: true
+- id: biogenic_inclusion
+  label: Included Biogenic emissions
+  label_es-US: Emisiones biogenic incluidas
+  value: false
+  is_visible: true
+  is_customizable: true
 
 emission_sectors:
 - id: net_emissions
@@ -817,12 +859,6 @@ emission_sectors:
   name: Fugitive emissions
   name_es-US: Emisiones fugitivas
   color: '#8DAFBC'
-  part_of: stationary_energy_emissions
-  input_dataset_processors: [LinearInterpolation]
-
-- id: building_emissions
-  name: Building emissions
-  name_es-US: Emisiones de edificios
   part_of: stationary_energy_emissions
   input_dataset_processors: [LinearInterpolation]
 
@@ -927,6 +963,46 @@ nodes:
 
 # Avoided emissions
 
+- id: green_electricity_production
+  name: Green electricity production
+  type: generic.GenericNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [asset, energy_carrier]
+  output_dimensions: [asset, energy_carrier]
+  input_datasets:
+  - id: longmont/avoided_emissions
+    tags: [baseline]
+    column: Green production
+
+- id: green_electricity_emission_reduction
+  name: Green electricity emission reduction
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [asset, site, ghg]
+  output_dimensions: [asset, site, ghg]
+  input_nodes:
+  - id: green_electricity_production
+    tags: [arithmetic_inverse]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  - id: electricity_emission_factor
+    from_dimensions:
+    - id: site
+      categories: [platte_river_power_authority]
+  - id: global_warming_potential_100a2
+  output_nodes:
+  - id: avoided_emissions
+    from_dimensions:
+    - id: asset
+      flatten: true
+    - id: site
+      flatten: true
+    - id: ghg
+      flatten: true
+
 - id: avoided_emissions
   name: Avoided emissions
   type: simple.AdditiveNode
@@ -1004,6 +1080,83 @@ nodes:
 #
 # STATIONARY
 #
+- id: building_emissions
+  name: Building emissions
+  name_es-US: Emisiones de edificios
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  output_nodes: [stationary_energy_emissions]
+  params:
+    formula: electricity_consumption_emissions + 
+      natural_gas_consumption_emissions + (wood_consumption_emissions * 
+      is_biogenic_included)
+
+- id: is_biogenic_included
+  name: Are biogenic emissions included?
+  type: generic.GenericNode
+  quantity: fraction
+  unit: dimensionless
+  input_datasets:
+  - id: longmont/technical_data
+    forecast_from: 2024
+    tags: [baseline]
+    column: ratio
+  params:
+  - id: operations
+    value: do_correction,complement
+  - id: do_correction
+    ref: biogenic_inclusion
+  output_nodes: [building_emissions]
+
+# - id: utility_electricity_use
+#   name: Utility electricity use
+#   type: generic.GenericNode
+#   quantity: energy
+#   unit: kWh/a
+#   input_dimensions: [energy_carrier, emission_sectors, item]
+#   output_dimensions: [energy_carrier, emission_sectors, item]
+#   input_datasets:
+#   - id: longmont/utility_energy
+#     tags: [baseline]
+#     column: Electricity use
+
+# - id: electricity_emission_factor3 # FIXME Merge electricity_emission_factor into this
+#   name: Emission factor of electricity production3
+#   name_es-US: Factor de emisión de la producción de electricidad
+#   type: generic.GenericNode
+#   quantity: emission_factor
+#   unit: t/MWh
+#   input_dimensions: [item, ghg]
+#   output_dimensions: [item, ghg]
+#   input_datasets:
+#   - id: longmont/electricity_emission_factor
+#     tags: [baseline]
+#     column: emission_factor
+#     filters:
+#     - rename_col: site
+#       value: item
+
+# - id: utility_electricity_emissions
+#   name: Utility electricity emissions
+#   type: generic.GenericNode
+#   quantity: emissions
+#   unit: t/a
+#   input_dimensions: [item, energy_carrier, emission_sectors, ghg]
+#   output_dimensions: [item, energy_carrier, emission_sectors, ghg]
+#   input_nodes:
+#   - id: utility_electricity_use
+#   - id: electricity_emission_factor3
+#   output_nodes:
+#   - id: electricity_consumption_emissions
+#     from_dimensions:
+#     - id: item
+#       flatten: true
+#     - id: energy_carrier
+#       flatten: true
+
 - id: building_square_footage
   name: Building square footage
   name_es-US: Metros cuadrados del edificio
@@ -1031,7 +1184,6 @@ nodes:
     filters:
     - column: energy_carrier
       value: electricity
-
 
 - id: building_electricity_use_per_resident
   name: Building electricity use per resident
@@ -1330,13 +1482,15 @@ nodes:
     kilowatt-hours per year.
   description_es-US: <b>Unidad:</b> GWh/año = gigavatios hora al año = millones 
     de kilovatios hora al año.
-  type: simple.MultiplyLastNode2
+  type: generic.GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
+  params:
+    operations: add,multiply
   input_nodes:
-  - building_electricity_use
+  - id: building_electricity_use
 
 - id: electricity_emission_factor
   name: Emission factor of electricity production
@@ -1344,8 +1498,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: t/MWh
-  input_dimensions: [ghg, site]
-  output_dimensions: [ghg, site]
+  input_dimensions: [site, ghg]
+  output_dimensions: [site, ghg]
   input_datasets:
   - id: longmont/electricity_emission_factor
   input_dataset_processors: [LinearInterpolation]
@@ -1413,6 +1567,8 @@ nodes:
   - id: electricity_use
     to_dimensions:
     - id: emission_sectors
+    - id: site
+      categories: [platte_river_power_authority]
   - id: electricity_emission_factor
     to_dimensions:
     - id: ghg
@@ -1640,6 +1796,7 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy
   unit: MMBtu/a
+  input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - longmont/stationary_wood_consumption
   input_dimensions: [emission_sectors]
@@ -1651,6 +1808,7 @@ nodes:
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/MMBtu
+  input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - longmont/emission_factor_wood
   output_dimensions: [energy_carrier, greenhouse_gases]
@@ -2897,32 +3055,32 @@ nodes:
   - id: electricity_use
     to_dimensions: []
 
-- id: transmission_loss_change
-  name: Transmission loss changes
-  name_es-US: Cambios en la pérdida de transmisión
-  type: simple.AdditiveNode
-  quantity: fraction
-  unit: '%'
-  historical_values: [[2016, 0.0], [2017, 0], [2018, 0], [2019, 0], [2020, 0], [
-        2021, 0], [2022, 0]]
+# - id: transmission_loss_change
+#   name: Transmission loss changes
+#   name_es-US: Cambios en la pérdida de transmisión
+#   type: simple.AdditiveNode
+#   quantity: fraction
+#   unit: '%'
+#   historical_values: [[2016, 0.0], [2017, 0], [2018, 0], [2019, 0], [2020, 0], [
+#         2021, 0], [2022, 0]]
 
-- id: transmission_loss_work_benefits
-  name: Improvements due to transmission loss work
-  name_es-US: Mejoras debido al trabajo de pérdida de transmisión
-  description: Relative change of electricity use compared with the business as 
-    usual (baseline = 1).
-  description_es-US: Cambio relativo del consumo de electricidad en comparación 
-    con el consumo normal (referencia = 1).
-  type: simple.ImprovementNode
-  quantity: fraction
-  unit: dimensionless
-  historical_values: [[2016, 1.0], [2017, 1], [2018, 1], [2019, 1], [2020, 1], [
-        2021, 1], [2022, 1]]
-  input_nodes:
-  - id: transmission_loss_change
-    tags: [non_additive]
-  output_nodes:
-  - id: electricity_use
+# - id: transmission_loss_work_benefits
+#   name: Improvements due to transmission loss work
+#   name_es-US: Mejoras debido al trabajo de pérdida de transmisión
+#   description: Relative change of electricity use compared with the business as 
+#     usual (baseline = 1).
+#   description_es-US: Cambio relativo del consumo de electricidad en comparación 
+#     con el consumo normal (referencia = 1).
+#   type: simple.ImprovementNode
+#   quantity: fraction
+#   unit: dimensionless
+#   historical_values: [[2016, 1.0], [2017, 1], [2018, 1], [2019, 1], [2020, 1], [
+#         2021, 1], [2022, 1]]
+#   input_nodes:
+#   - id: transmission_loss_change
+#     tags: [non_additive]
+#   output_nodes:
+#   - id: electricity_use
 
 actions:
 
@@ -3265,7 +3423,7 @@ actions:
     distribuida.</p> <p>Seguimiento de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/carr/actions/RE.5">Informe
     de recomendaciones de acción climática RE.5</a></li></ul></p>'
   type: simple.GenericAction
-  quantity: ratio
+  quantity: fraction
   unit: '%'
   group: electric_grid
   input_datasets:
@@ -3274,7 +3432,8 @@ actions:
     column: reduce_transmission_distribution_losses
     forecast_from: 2023
   output_nodes:
-  - id: transmission_loss_change
+  - id: electricity_use
+    tags: [extend_to_history, complement]
 
 - id: vehicle_incentives
   name: Increase electric vehicles through vehicle incentives and improved 
