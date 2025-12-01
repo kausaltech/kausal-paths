@@ -641,48 +641,6 @@ class MixNode(AdditiveNode):
         return self.add_mix_normalized(df, nodes)
 
 
-class MultiplyLastNode(MultiplicativeNode):  # FIXME Remove, when you clean Longmont.
-    explanation = _("""First add other input nodes, then multiply the output.
-
-    Multiplication and addition is determined based on the input node units.
-    """)
-
-    operation_label = 'multiplication'
-
-    def compute(self) -> ppl.PathsDataFrame:
-        additive_nodes: list[Node] = []
-        operation_nodes: list[Node] = []
-        assert self.unit is not None
-        non_additive_nodes = self.get_input_nodes(tag='non_additive')
-        for node in self.input_nodes:
-            if node in non_additive_nodes:
-                operation_nodes.append(node)
-            elif self.is_compatible_unit(node.unit, self.unit):
-                additive_nodes.append(node)
-            else:
-                operation_nodes.append(node)
-
-        df = self.get_input_dataset_pl(required=False)
-        if df is not None:
-            df = extend_last_historical_value_pl(df, self.get_end_year())
-        df = self.add_nodes_pl(df, additive_nodes)
-
-        outputs = [n.get_output_pl() for n in operation_nodes]
-        assert len(operation_nodes) == 1  # FIXME Multiplication should be generalised to several operation nodes.
-
-        col = VALUE_COLUMN + '_right'
-        df = df.paths.join_over_index(outputs.pop(0))
-        df = df.ensure_unit(col, 'dimensionless')
-        df = df.with_columns([
-            pl.col(col).fill_null(pl.lit(0)),
-            (1 - pl.col(col)).alias('ratio'),
-            ])
-        df = df.multiply_cols([VALUE_COLUMN, 'ratio'], VALUE_COLUMN).drop([col, 'ratio'])
-        df = df.ensure_unit(VALUE_COLUMN, self.unit)
-
-        return df
-
-
 class ImprovementNode(MultiplicativeNode): # FIXME Remove, when you clean Longmont.
     explanation = _("""First does what MultiplicativeNode does, then calculates 1 - result.
     Can only be used for dimensionless content (i.e., fractions and percentages)
