@@ -110,13 +110,20 @@ dimensions:
   label_en: Cost type
   categories:
   - id: investment
-    label: Investment
+    label: Investointikustannukset
+    label_en: Investment
   - id: energy
-    label: Energy
+    label: Energiakustannukset
+    label_en: Energy
   - id: maintenance
-    label: Maintenance
+    label: Huoltokustannukset
+    label_en: Maintenance
   - id: operations
-    label: Operations
+    label: Käyttötalouskustannukset
+    label_en: Operations
+  - id: operations_savings
+    label: Käyttötaloussäästöt
+    label_en: Operations savings
   - id: corporate_tax_impact
     label: Yhteisöverovaikutus
     label_en: Corporate tax impact
