@@ -1078,83 +1078,6 @@ nodes:
     - id: scope
       flatten: true
 
-# - id: water_to_air_heat_pump_electricity_consumption
-#   name: Vesi-ilmalämpöpumpun sähkönkulutus
-#   name_en: Water-to-air heat pump electricity consumption
-#   type: simple.AdditiveNode
-#   quantity: energy
-#   unit: GWh/a
-#   input_dimensions: [heating, energy_carrier, scope]
-#   output_dimensions: [heating, energy_carrier, scope]
-#   input_datasets:
-#   - id: tampere/stationary
-#     column: energy
-#     dropna: true
-#     forecast_from: 2024
-#     filters:
-#     - column: sector
-#       value: i12
-#     - column: ghg
-#     - column: owner
-#     - dimension: heating
-#       categories: [water_to_air_heat_pump]
-#     - column: cost_type
-#   output_nodes:
-#   - id: water_to_air_heat_pump_emissions
-#     to_dimensions:
-#     - id: heating
-#     - id: energy_carrier
-#     - id: scope
-
-# - id: water_to_air_heat_pump_electricity_consumption_price
-#   name: Vesi-ilmalämpöpumpun sähkönkulutuksen kustannukset
-#   name_en: Water-to-air heat pump electricity consumption cost
-#   type: simple.MultiplicativeNode
-#   quantity: currency
-#   unit: EUR/a
-#   input_dimensions: [heating, energy_carrier, scope, owner, cost_type]
-#   output_dimensions: [heating, energy_carrier, scope, owner, cost_type]
-#   input_nodes:
-#   - id: water_to_air_heat_pump_electricity_consumption
-#     to_dimensions:
-#     - id: heating
-#     - id: energy_carrier
-#     - id: scope
-#   - id: energy_unit_prices
-#     to_dimensions:
-#     - id: energy_carrier
-#     - id: owner
-#     - id: cost_type
-#   output_nodes:
-#   - id: building_heating_price
-#     from_dimensions:
-#     - id: heating
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: scope
-#       flatten: true
-
-# - id: water_to_air_heat_pump_emissions
-#   name: Vesi-ilmalämpöpumpun päästöt
-#   name_en: Water-to-air heat pump emissions
-#   type: simple.MultiplicativeNode
-#   quantity: emissions
-#   unit: kt_co2e/a
-#   input_dimensions: [heating, energy_carrier, ghg, scope]
-#   output_dimensions: [heating, energy_carrier, ghg, scope]
-#   output_nodes:
-#   - id: electric_heating_emissions
-#     from_dimensions:
-#     - id: heating
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: ghg
-#       flatten: true
-#     - id: scope
-#       flatten: true
-
 - id: direct_electric_heating_electricity_consumption
   name: Suorasähkölämmityksen sähkönkulutus
   name_en: Direct electric heating electricity consumption
@@ -2367,6 +2290,26 @@ nodes:
 
 # ----- Direct
 
+- id: annuitized_costs
+  name: Annuitized Costs
+  name_en: Annuitized Costs
+  type: simple.AnnuityNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  output_nodes:
+  - id: building_heating_price
+    from_dimensions:
+    - id: action
+      categories: [additional_investments_in_naistenlahti_3, electric_boiler_and_district_heat_battery]
+      flatten: true
+  - id: electricity_consumption_price
+    from_dimensions:
+    - id: action
+      categories: [building_renewable_electricity_production_pv]
+      flatten: true
+
 - id: total_costs
   name: Kokonaiskustannukset
   name_en: Total costs
@@ -3198,72 +3141,6 @@ nodes:
   output_dimensions: []
 
 - id: energy_efficiency_renovations_in_buildings_currency
-  name: Vaikutus (Kustannus)
-  name_en: Impact (Costs)
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: EUR/a
-  order: 5
-  is_outcome: true
-  input_dimensions: []
-  output_dimensions: []
-
-- id: replacing_oil_heating_with_geothermal_fuel_oil
-  name: Vaikutus (Energiaa, Polttoöljy)
-  name_en: Impact (Fuel Oil)
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  order: 3
-  is_outcome: true
-  input_dimensions: []
-  output_dimensions: []
-
-- id: replacing_oil_heating_with_geothermal_electricity
-  name: Vaikutus (Energiaa, Sähkö)
-  name_en: Impact (Electricity)
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  order: 4
-  is_outcome: true
-  input_dimensions: []
-  output_dimensions: []
-
-- id: replacing_oil_heating_with_geothermal_currency
-  name: Vaikutus (Kustannus)
-  name_en: Impact (Costs)
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: EUR/a
-  order: 5
-  is_outcome: true
-  input_dimensions: []
-  output_dimensions: []
-
-- id: replace_oil_heating_fuel_oil
-  name: Vaikutus (Energiaa, Polttoöljy)
-  name_en: Impact (Fuel Oil)
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  order: 3
-  is_outcome: true
-  input_dimensions: []
-  output_dimensions: []
-
-- id: replace_oil_heating_electricity
-  name: Vaikutus (Energiaa, Sähkö)
-  name_en: Impact (Electricity)
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: GWh/a
-  order: 4
-  is_outcome: true
-  input_dimensions: []
-  output_dimensions: []
-
-- id: replace_oil_heating_currency
   name: Vaikutus (Kustannus)
   name_en: Impact (Costs)
   type: simple.AdditiveNode
@@ -4379,10 +4256,13 @@ actions:
   output_metrics:
   - id: emission_factor
     unit: t_co2e/GWh
-    quantity: energy
+    quantity: emission_factor
   - id: currency
     unit: EUR/a
     quantity: currency
+  - id: term
+    unit: a
+    quantity: number
   output_nodes:
   - id: heating_emission_factors
     metrics: [emission_factor]
@@ -4403,6 +4283,9 @@ actions:
     from_dimensions:
     - id: action
       flatten: true
+    - id: cost_type
+      categories: [investment]
+      exclude: true
     - id: heating
       flatten: true
     - id: energy_carrier
@@ -4434,6 +4317,23 @@ actions:
     metrics: [currency]
     tags: [make_nonpositive]
     from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: owner
+  - id: annuitized_costs
+    metrics: [currency, term]
+    from_dimensions:
+    - id: cost_type
+      categories: [investment]
     - id: heating
       flatten: true
     - id: energy_carrier
@@ -4466,10 +4366,13 @@ actions:
   output_metrics:
   - id: emission_factor
     unit: t_co2e/GWh
-    quantity: energy
+    quantity: emission_factor
   - id: currency
     unit: EUR/a
     quantity: currency
+  - id: term
+    unit: a
+    quantity: number
   output_nodes:
   - id: heating_emission_factors
     metrics: [emission_factor]
@@ -4490,6 +4393,9 @@ actions:
     from_dimensions:
     - id: action
       flatten: true
+    - id: cost_type
+      categories: [investment]
+      exclude: true
     - id: heating
       flatten: true
     - id: energy_carrier
@@ -4521,6 +4427,23 @@ actions:
     metrics: [currency]
     tags: [make_nonpositive]
     from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: owner
+  - id: annuitized_costs
+    metrics: [currency, term]
+    from_dimensions:
+    - id: cost_type
+      categories: [investment]
     - id: heating
       flatten: true
     - id: energy_carrier
@@ -4621,339 +4544,6 @@ actions:
     - id: cost_type
     - id: owner
 
-# - id: replacing_oil_heating_with_geothermal
-#   name: Öljylämmityksestä siirtyminen maalämpöihin yksityisomisteisissa rakennuskannassa
-#   name_en: Replacing oil heating with geothermal heating in private buildings
-#   type: simple.AdditiveAction
-#   group: building_heating
-#   input_dimensions: [action, cost_type, owner, heating, energy_carrier, scope]
-#   output_dimensions: [action, cost_type, owner, heating, energy_carrier, scope]
-#   params:
-#     allow_null_categories: true
-#   input_datasets:
-#   - id: tampere/stationary_actions
-#     forecast_from: 2024
-#     filters:
-#     - column: sector
-#     - dimension: action
-#       categories: [replacing_oil_heating_with_geothermal]
-#     - column: ghg
-#   output_metrics:
-#   - id: energy
-#     unit: GWh/a
-#     quantity: energy
-#   - id: currency
-#     unit: EUR/a
-#     quantity: currency
-#   output_nodes:
-#   - id: oil_heating_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: action
-#       flatten: true
-#     - id: cost_type
-#       flatten: true
-#     - id: owner
-#       flatten: true
-#     - id: heating
-#       categories: [fuel_oil]
-#     to_dimensions:
-#     - id: heating
-#     - id: energy_carrier
-#     - id: scope
-#   - id: energy_consumption_impacts
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: cost_type
-#       flatten: true
-#     - id: owner
-#       flatten: true
-#     - id: heating
-#       flatten: true
-#     - id: scope
-#       flatten: true
-#     to_dimensions:
-#     - id: action
-#     - id: energy_carrier
-#   - id: geothermal_heating_electricity_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: action
-#       flatten: true
-#     - id: cost_type
-#       flatten: true
-#     - id: owner
-#       flatten: true
-#     - id: heating
-#       categories: [geothermal]
-#     to_dimensions:
-#     - id: heating
-#     - id: energy_carrier
-#     - id: scope
-#   - id: building_heating_price
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: action
-#       flatten: true
-#     - id: heating
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: scope
-#       flatten: true
-#     to_dimensions:
-#     - id: cost_type
-#     - id: owner
-#   - id: total_costs
-#     metrics: [currency]
-#     tags: [make_nonnegative]
-#     from_dimensions:
-#     - id: heating
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: scope
-#       flatten: true
-#     to_dimensions:
-#     - id: action
-#     - id: cost_type
-#     - id: owner
-#   - id: total_benefits
-#     metrics: [currency]
-#     tags: [make_nonpositive]
-#     from_dimensions:
-#     - id: heating
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: scope
-#       flatten: true
-#     to_dimensions:
-#     - id: action
-#     - id: cost_type
-#     - id: owner
-#   - id: replacing_oil_heating_with_geothermal_fuel_oil
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: action
-#       flatten: true
-#     - id: cost_type
-#       flatten: true
-#     - id: owner
-#       flatten: true
-#     - id: heating
-#       flatten: true
-#     - id: energy_carrier
-#       categories: [fuel_oil]
-#       flatten: true
-#     - id: scope
-#       flatten: true
-#   - id: replacing_oil_heating_with_geothermal_electricity
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: action
-#       flatten: true
-#     - id: cost_type
-#       flatten: true
-#     - id: owner
-#       flatten: true
-#     - id: heating
-#       flatten: true
-#     - id: energy_carrier
-#       categories: [electricity]
-#       flatten: true
-#     - id: scope
-#       flatten: true
-#   - id: replacing_oil_heating_with_geothermal_currency
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: action
-#       flatten: true
-#     - id: cost_type
-#       flatten: true
-#     - id: owner
-#       flatten: true
-#     - id: heating
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: scope
-#       flatten: true
-
-# - id: replace_oil_heating
-#   name: Öljylämmityksestä siirtyminen vesi-ilmalämpöpumppuihin ja maalämpöihin kaupungin rakennuskannassa
-#   name_en: Replacing oil heating with water-to-air heat pumps and geothermal heating in city's building stock
-#   type: simple.AdditiveAction
-#   group: building_heating
-#   input_dimensions: [action, cost_type, owner, heating, energy_carrier, scope]
-#   output_dimensions: [action, cost_type, owner, heating, energy_carrier, scope]
-#   params:
-#     allow_null_categories: true
-#   input_datasets:
-#   - id: tampere/stationary_actions
-#     forecast_from: 2024
-#     filters:
-#     - column: sector
-#     - dimension: action
-#       categories: [replacing_oil_heating_with_heat_pumps]
-#     - column: ghg
-#   output_metrics:
-#   - id: energy
-#     unit: GWh/a
-#     quantity: energy
-#   - id: currency
-#     unit: EUR/a
-#     quantity: currency
-#   output_nodes:
-#   - id: oil_heating_energy_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: action
-#       flatten: true
-#     - id: cost_type
-#       flatten: true
-#     - id: owner
-#       flatten: true
-#     - id: heating
-#       categories: [fuel_oil]
-#     to_dimensions:
-#     - id: heating
-#     - id: energy_carrier
-#     - id: scope
-#   - id: energy_consumption_impacts
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: cost_type
-#       flatten: true
-#     - id: owner
-#       flatten: true
-#     - id: heating
-#       flatten: true
-#     - id: scope
-#       flatten: true
-#     to_dimensions:
-#     - id: action
-#     - id: energy_carrier
-#   - id: geothermal_heating_electricity_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: action
-#       flatten: true
-#     - id: cost_type
-#       flatten: true
-#     - id: owner
-#       flatten: true
-#     - id: heating
-#       categories: [geothermal]
-#     to_dimensions:
-#     - id: heating
-#     - id: energy_carrier
-#     - id: scope
-#   - id: water_to_air_heat_pump_electricity_consumption
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: action
-#       flatten: true
-#     - id: cost_type
-#       flatten: true
-#     - id: owner
-#       flatten: true
-#     - id: heating
-#       categories: [water_to_air_heat_pump]
-#     to_dimensions:
-#     - id: heating
-#     - id: energy_carrier
-#     - id: scope
-#   - id: building_heating_price
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: action
-#       flatten: true
-#     - id: heating
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: scope
-#       flatten: true
-#     to_dimensions:
-#     - id: cost_type
-#     - id: owner
-#   - id: total_costs
-#     metrics: [currency]
-#     tags: [make_nonnegative]
-#     from_dimensions:
-#     - id: heating
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: scope
-#       flatten: true
-#     to_dimensions:
-#     - id: action
-#     - id: cost_type
-#     - id: owner
-#   - id: total_benefits
-#     metrics: [currency]
-#     tags: [make_nonpositive]
-#     from_dimensions:
-#     - id: heating
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: scope
-#       flatten: true
-#     to_dimensions:
-#     - id: action
-#     - id: cost_type
-#     - id: owner
-#   - id: replace_oil_heating_fuel_oil
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: action
-#       flatten: true
-#     - id: cost_type
-#       flatten: true
-#     - id: owner
-#       flatten: true
-#     - id: heating
-#       flatten: true
-#     - id: energy_carrier
-#       categories: [fuel_oil]
-#       flatten: true
-#     - id: scope
-#       flatten: true
-#   - id: replace_oil_heating_electricity
-#     metrics: [energy]
-#     from_dimensions:
-#     - id: action
-#       flatten: true
-#     - id: cost_type
-#       flatten: true
-#     - id: owner
-#       flatten: true
-#     - id: heating
-#       flatten: true
-#     - id: energy_carrier
-#       categories: [electricity]
-#       flatten: true
-#     - id: scope
-#       flatten: true
-#   - id: replace_oil_heating_currency
-#     metrics: [currency]
-#     from_dimensions:
-#     - id: action
-#       flatten: true
-#     - id: cost_type
-#       flatten: true
-#     - id: owner
-#       flatten: true
-#     - id: heating
-#       flatten: true
-#     - id: energy_carrier
-#       flatten: true
-#     - id: scope
-#       flatten: true
-
 # ----- Sähkön Kulutus
 - id: build_renewable_electricity_production
   name: Hajautettu uusiutuva energia (aurinkosähkö)
@@ -4980,6 +4570,9 @@ actions:
   - id: currency
     unit: EUR/a
     quantity: currency
+  - id: term
+    unit: a
+    quantity: number
   output_nodes:
   - id: other_electricity_consumption
     metrics: [energy]
@@ -5010,6 +4603,9 @@ actions:
     from_dimensions:
     - id: action
       flatten: true
+    - id: cost_type
+      categories: [investment]
+      exclude: true
     - id: energy_carrier
       flatten: true
     - id: scope
@@ -5033,6 +4629,19 @@ actions:
     metrics: [currency]
     tags: [make_nonpositive]
     from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: owner
+  - id: annuitized_costs
+    metrics: [currency, term]
+    from_dimensions:
+    - id: cost_type
+      categories: [investment]
     - id: energy_carrier
       flatten: true
     - id: scope
