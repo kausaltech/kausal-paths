@@ -15,7 +15,7 @@ supported_languages: [es-US]
 site_url: https://longmont-dev.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 353b19c830df9500cd2771b5ec6a00450f9b234a
+  commit: e7ca562987ec58eb34011a36748dcf92cb7b23e5
   dvc_remote: kausal-s3
 name: 2025 Draft Longmont Greenhouse Gas Inventory
 name_es-US: 2025 Inventario de gases de efecto invernadero de Longmont
@@ -60,7 +60,7 @@ result_excels:
   - leakage_from_oil_and_gas_wells_emissions
   - emission_factor_fuels
   - population
-  - global_warming_potential_100a
+  # - global_warming_potential_100a
   - free_rides_per_person
   - modal_share_of_active_transportation
   - public_transportation_change
@@ -461,6 +461,7 @@ dimensions:
   - id: co2_eq
     label: CO2 equivalent
     label_es-US: Equivalente de CO2
+    aliases: [co2e]
   - id: co2
     label: CO2, fossil
     label_es-US: CO2, fósil
@@ -483,6 +484,8 @@ dimensions:
   - id: nf3
     label: NF3
     label_es-US: NF3
+  - id: r_134a
+    label: R-134A
   - id: co2_biogen
     label: CO2, biogen
     label_es-US: CO2, biógeno
@@ -951,15 +954,15 @@ nodes:
     column: population
   input_dataset_processors: [LinearInterpolation]
 
-- id: global_warming_potential_100a
-  name: Global warming potential 100 a
-  name_es-US: Potencial de calentamiento global 100 a
-  type: emissions.GlobalWarmingPotential
-  quantity: emission_factor
-  unit: dimensionless
-  output_dimensions: [greenhouse_gases]
-  input_dataset_processors: [LinearInterpolation]
-  historical_values: [[1990, 1], [2021, 1]]
+# - id: global_warming_potential_100a
+#   name: Global warming potential 100 a
+#   name_es-US: Potencial de calentamiento global 100 a
+#   type: emissions.GlobalWarmingPotential
+#   quantity: emission_factor
+#   unit: dimensionless
+#   output_dimensions: [greenhouse_gases]
+#   input_dataset_processors: [LinearInterpolation]
+#   historical_values: [[1990, 1], [2021, 1]]
 
 # Avoided emissions
 
@@ -1345,22 +1348,9 @@ nodes:
   input_nodes:
   - id: affected_square_footage
   - id: natural_gas_eui_improvement
-
-- id: natural_gas_temp1  # FIXME Replace this node with FormulaNode
-  name: Natural gas (temporary)
-  name_es-US: Gas natural (temporal)
-  type: simple.FixedMultiplierNode
-  quantity: energy
-  unit: Mthm/a
-  params:
-  - id: multiplier
-    value: -1
-  input_nodes:
-  - natural_gas_saved
-  input_dimensions: [building_energy_class, action, emission_sectors]
-  output_dimensions: [building_energy_class, action, emission_sectors]
   output_nodes:
   - id: building_natural_gas_use
+    tags: [arithmetic_inverse]
     from_dimensions:
     - id: building_energy_class
       flatten: true
@@ -1409,22 +1399,9 @@ nodes:
   input_nodes:
   - id: affected_square_footage
   - id: electricity_eui_improvement
-
-- id: electricity_temp1  # FIXME Replace this node with FormulaNode
-  name: Electricity (temporary)
-  name_es-US: Electricidad (temporal)
-  type: simple.FixedMultiplierNode
-  quantity: energy
-  unit: GWh/a
-  params:
-  - id: multiplier
-    value: -1
-  input_nodes:
-  - electricity_saved
-  input_dimensions: [building_energy_class, action, emission_sectors]
-  output_dimensions: [building_energy_class, action, emission_sectors]
   output_nodes:
   - id: building_electricity_use
+    tags: [arithmetic_inverse]
     from_dimensions:
     - id: building_energy_class
       flatten: true
@@ -1454,26 +1431,30 @@ nodes:
     kilowatt-hours per year.
   description_es-US: <b>Unidad:</b> GWh/año = gigavatios hora al año = millones 
     de kilovatios hora al año.
-  type: simple.MultiplyLastNode # FIXME --> GenericNode
+  type: generic.GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
   input_nodes:
   - id: building_electricity_use_bau
+  params:
+    operations: add,multiply
 
 - id: building_natural_gas_use
   name: Building natural gas use
   name_es-US: Consumo de gas natural en edificios
   description: <b>Unit:</b> Mthm/yr. = million therms per year.
   description_es-US: <b>Unidad:</b> Mthm/año = millones de termias al año.
-  type: simple.MultiplyLastNode # FIXME --> GenericNode
+  type: generic.GenericNode
   quantity: energy
   unit: Mtherm/a
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
   input_nodes:
   - id: building_natural_gas_use_bau
+  params:
+    operations: add,multiply
 
 - id: electricity_use
   name: Electricity use
@@ -1993,7 +1974,7 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier, ghg]
   output_dimensions: [vehicle_type, energy_carrier, ghg]
   input_nodes:
-  - id: vehicle_mileage_by_type
+  - id: vehicle_miles_traveled
     to_dimensions:
     - id: vehicle_type
     - id: energy_carrier
@@ -2019,31 +2000,36 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [vehicle_type, energy_carrier, ghg]
-  output_dimensions: [vehicle_type, energy_carrier, ghg]
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
   input_nodes:
-  - id: vehicle_mileage_by_type
-    to_dimensions:
-    - id: vehicle_type
-    - id: energy_carrier
-  - id: vehicle_energy_efficiency
-    tags: [geometric_inverse]
-    to_dimensions:
-    - id: vehicle_type
-    - id: energy_carrier
-  - id: transportation_emission_factors
-    to_dimensions:
-    - id: ghg
-    - id: energy_carrier
-  - id: global_warming_potential_100a2
-    to_dimensions:
-    - id: ghg
-  - id: transportation_ch4_emissions
+  # - id: vehicle_mileage_by_type
+  #   to_dimensions:
+  #   - id: vehicle_type
+  #   - id: energy_carrier
+  # - id: vehicle_energy_efficiency
+  #   tags: [geometric_inverse]
+  #   to_dimensions:
+  #   - id: vehicle_type
+  #   - id: energy_carrier
+  - id: vehicle_fuel_emissions2
+    # from_dimensions:
+    # - id: greenhouse_gases
+    #   flatten: true
+    # - id: energy_carrier
+    #   flatten: true
+    # to_dimensions:
+    # - id: emission_scope
+    #   categories: [scope1]
+  # - id: transportation_emission_factors
+  #   to_dimensions:
+  #   - id: ghg
+  #   - id: energy_carrier
+  # - id: global_warming_potential_100a2
+  #   to_dimensions:
+  #   - id: ghg
   output_nodes:
   - id: transportation_emissions2
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
     to_dimensions:
     - id: energy_carrier
     - id: ghg
@@ -2068,89 +2054,89 @@ nodes:
 
 # Transit
 
-- id: total_transit_vmt
-  name: Total transit VMT
-  type: generic.GenericNode
-  quantity: mileage
-  unit: VMT/a
-  input_dimensions: [service, vehicle_type, energy_carrier]
-  output_dimensions: [service, vehicle_type, energy_carrier]
-  input_datasets:
-  - id: longmont/transit_data
-    tags: [baseline]
-    forecast_from: 2025
-    column: transit_vmt
+# - id: total_transit_vmt
+#   name: Total transit VMT
+#   type: generic.GenericNode
+#   quantity: mileage
+#   unit: VMT/a
+#   input_dimensions: [service, vehicle_type, energy_carrier]
+#   output_dimensions: [service, vehicle_type, energy_carrier]
+#   input_datasets:
+#   - id: longmont/transit_data
+#     tags: [baseline]
+#     forecast_from: 2025
+#     column: transit_vmt
 
-- id: transit_percentage_attributable_to_longmont
-  name: Transit percentage attributable to Longmont
-  type: generic.GenericNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [service, vehicle_type, energy_carrier]
-  output_dimensions: [service, vehicle_type, energy_carrier]
-  input_datasets:
-  - id: longmont/transit_data
-    tags: [baseline]
-    forecast_from: 2025
-    column: percent_attributable
+# - id: transit_percentage_attributable_to_longmont
+#   name: Transit percentage attributable to Longmont
+#   type: generic.GenericNode
+#   quantity: fraction
+#   unit: '%'
+#   input_dimensions: [service, vehicle_type, energy_carrier]
+#   output_dimensions: [service, vehicle_type, energy_carrier]
+#   input_datasets:
+#   - id: longmont/transit_data
+#     tags: [baseline]
+#     forecast_from: 2025
+#     column: percent_attributable
 
-- id: transit_mpg
-  name: Transit MPG
-  type: generic.GenericNode
-  quantity: mileage
-  unit: VMT/gal
-  input_dimensions: [service, vehicle_type, energy_carrier]
-  output_dimensions: [service, vehicle_type, energy_carrier]
-  input_datasets:
-  - id: longmont/transit_data
-    tags: [baseline]
-    forecast_from: 2025
-    column: transit_mpg
+# - id: transit_mpg
+#   name: Transit MPG
+#   type: generic.GenericNode
+#   quantity: mileage
+#   unit: VMT/gal
+#   input_dimensions: [service, vehicle_type, energy_carrier]
+#   output_dimensions: [service, vehicle_type, energy_carrier]
+#   input_datasets:
+#   - id: longmont/transit_data
+#     tags: [baseline]
+#     forecast_from: 2025
+#     column: transit_mpg
 
-- id: transit_fuel_use
-  name: Transit fuel use
-  type: generic.GenericNode
-  quantity: energy
-  unit: gal/a
-  input_dimensions: [service, vehicle_type, energy_carrier]
-  output_dimensions: [service, vehicle_type, energy_carrier]
-  input_nodes:
-  - id: total_transit_vmt
-  - id: transit_percentage_attributable_to_longmont
-  - id: transit_mpg
-    tags: [geometric_inverse]
-  params:
-    operations: multiply,drop_infs,drop_nans,add
+# - id: transit_fuel_use
+#   name: Transit fuel use
+#   type: generic.GenericNode
+#   quantity: energy
+#   unit: gal/a
+#   input_dimensions: [service, vehicle_type, energy_carrier]
+#   output_dimensions: [service, vehicle_type, energy_carrier]
+#   input_nodes:
+#   - id: total_transit_vmt
+#   - id: transit_percentage_attributable_to_longmont
+#   - id: transit_mpg
+#     tags: [geometric_inverse]
+#   params:
+#     operations: multiply,drop_infs,drop_nans,add
 
-- id: transit_co2_emissions
-  name: Transit CO2 emissions
-  type: generic.GenericNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: [service, vehicle_type, energy_carrier, ghg]
-  output_dimensions: [service, vehicle_type, energy_carrier, ghg]
-  input_nodes:
-  - id: transit_fuel_use
-    to_dimensions:
-    - id: service
-    - id: vehicle_type
-    - id: energy_carrier
-  - id: transportation_emission_factors
-    to_dimensions:
-    - id: energy_carrier
-    - id: ghg
-  - id: global_warming_potential_100a2
-    to_dimensions:
-    - id: ghg
-  output_nodes:
-  - id: road_transportation_emissions2
-    from_dimensions:
-    - id: service
-      flatten: true
-    to_dimensions:
-    - id: vehicle_type
-    - id: energy_carrier
-    - id: ghg
+# - id: transit_co2_emissions
+#   name: Transit CO2 emissions
+#   type: generic.GenericNode
+#   quantity: emissions
+#   unit: t_co2e/a
+#   input_dimensions: [service, vehicle_type, energy_carrier, ghg]
+#   output_dimensions: [service, vehicle_type, energy_carrier, ghg]
+#   input_nodes:
+#   - id: transit_fuel_use
+#     to_dimensions:
+#     - id: service
+#     - id: vehicle_type
+#     - id: energy_carrier
+#   - id: transportation_emission_factors
+#     to_dimensions:
+#     - id: energy_carrier
+#     - id: ghg
+#   - id: global_warming_potential_100a2
+#     to_dimensions:
+#     - id: ghg
+#   # output_nodes:
+#   # - id: road_transportation_emissions2
+#   #   from_dimensions:
+#   #   - id: service
+#   #     flatten: true
+#   #   to_dimensions:
+#   #   - id: vehicle_type
+#   #   - id: energy_carrier
+#   #   - id: ghg
 
 # Railways
 
@@ -2170,7 +2156,7 @@ nodes:
 - id: proportion_of_rail_lines_in_longmont
   name: Proportion of Rail Lines in Longmont
   type: generic.GenericNode
-  quantity: emissions
+  quantity: fraction
   unit: '%'
   input_datasets:
   - id: longmont/total_railway_ghg_emissions_boulder_county
@@ -2714,6 +2700,29 @@ nodes:
   - vehicle_miles_per_vehicle
   - registered_non_electric_vehicles
 
+- id: vehicle_miles_traveled
+  name: Combustion engine vehicle miles traveled
+  name_es-US: Millas recorridas por vehículos con motor de combustión
+  description: <p><b>Unit:</b> Mmi/yr. = million miles per year (possibly cap. =
+    per capita)</p>
+  description_es-US: <p><b>Unidad:</b> Mmi/año = millones de millas al año 
+    (posiblemente cap. = per cápita)</p>
+  type: generic.GenericNode
+  quantity: mileage
+  unit: VMT/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: longmont/vehicle_miles_traveled
+    tags: [baseline]
+  # output_nodes:
+  # - id: vehicle_miles_traveled
+  #   from_dimensions:
+  #   - id: vehicle_type
+  #     flatten: true
+  #   - id: energy_carrier
+  #     flatten: true
+
 - id: non_electric_vehicle_fuel_use
   name: Non-electric vehicle fuel use
   name_es-US: Consumo de combustible en vehículos no eléctricos
@@ -2723,6 +2732,67 @@ nodes:
   input_nodes:
   - total_vehicle_miles_traveled
   - miles_per_gallon
+
+- id: non_electric_vehicle_fuel_use2
+  name: Non-electric vehicle fuel use2
+  name_es-US: Consumo de combustible en vehículos no eléctricos
+  type: generic.GenericNode
+  quantity: energy
+  unit: gallons/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: longmont/transport_fuel_consumption
+    tags: [baseline]
+    column: Fuel
+
+- id: greenhouse_gas_index
+  name: Greenhouse gas index
+  name_es-US: Índice de gases de efecto invernadero
+  type: generic.GenericNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [ghg, greenhouse_gases]
+  output_dimensions: [ghg, greenhouse_gases]
+  input_datasets:
+  - id: longmont/greenhouse_gas_index
+    tags: [baseline]
+
+- id: vehicle_fuel_emissions2
+  name: Vehicle fuel emissions2
+  name_es-US: Emisiones de combustible de vehículos
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
+  input_nodes:
+  - id: non_electric_vehicle_fuel_use2
+    tags: [fuels]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  - id: transportation_emission_factors
+    tags: [ef]
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+  - id: greenhouse_gas_index
+    tags: [ghg_index]
+    to_dimensions:
+    - id: ghg
+    - id: greenhouse_gases
+  - id: global_warming_potential_100a2
+    tags: [gwp]
+    to_dimensions:
+    - id: ghg
+  - id: transportation_ch4_emissions
+    tags: [non_co2]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+  params:
+    formula: sum_dim( fuels * ef * ghg_index, greenhouse_gases ) * gwp + non_co2
 
 - id: vehicle_fuel_emissions
   name: Vehicle fuel emissions
@@ -3011,7 +3081,7 @@ nodes:
     to_dimensions:
     - id: greenhouse_gases
       categories: [ch4]
-  - id: global_warming_potential_100a
+  # - id: global_warming_potential_100a
   output_nodes:
   - id: waste_disposal_emissions
     from_dimensions:
@@ -3219,9 +3289,9 @@ actions:
     column: fraction
   output_nodes:
   - id: building_electricity_use
-    tags: [non_additive]
+    tags: [non_additive, complement]
   - id: building_natural_gas_use
-    tags: [non_additive]
+    tags: [non_additive, complement]
 
 - id: replace_natural_gas_residential
   name: Beneficial Building Electrification Residential

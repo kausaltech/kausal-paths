@@ -1126,26 +1126,30 @@ nodes:
     per year.
   description_es-US: <b>Unidad:</b> GWh/año = gigavatios hora al año = millones de
     kilovatios hora al año.
-  type: simple.MultiplyLastNode # FIXME --> GenericNode
+  type: generic.GenericNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
   input_nodes:
   - id: building_electricity_use_bau
+  params:
+    operations: add,multiply
 
 - id: building_natural_gas_use
   name: Building natural gas use
   name_es-US: Consumo de gas natural en edificios
   description: <b>Unit:</b> Mthm/yr. = million therms per year.
   description_es-US: <b>Unidad:</b> Mthm/año = millones de termias al año.
-  type: simple.MultiplyLastNode # FIXME --> GenericNode
+  type: generic.GenericNode
   quantity: energy
   unit: Mtherm/a
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
   input_nodes:
   - id: building_natural_gas_use_bau
+  params:
+    operations: add,multiply
 
 - id: electricity_use
   name: Electricity use
@@ -1574,7 +1578,7 @@ nodes:
   name_es-US: Emisiones del transporte
   type: simple.AdditiveNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   color: '#F4BD7B'
   input_dimensions: [emission_scope]
   output_dimensions: [emission_scope]
@@ -2163,9 +2167,9 @@ actions:
     column: fraction
   output_nodes:
   - id: building_electricity_use
-    tags: [non_additive]
+    tags: [non_additive, complement]
   - id: building_natural_gas_use
-    tags: [non_additive]
+    tags: [non_additive, complement]
 
 - id: replace_natural_gas_residential
   name: Beneficial Building Electrification Residential
