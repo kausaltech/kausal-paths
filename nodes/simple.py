@@ -858,3 +858,46 @@ class RelativeYearScaledNode(AdditiveNode):
             assert year is not None
         df = df.paths._scale_by_reference_year(df, year)
         return df
+
+
+class AnnuityNode(AdditiveNode):
+
+    def compute(self) -> ppl.PathsDataFrame:
+        targetyear = self.get_target_year()
+        inputnodes = self.get_input_nodes()
+
+        inputdf = inputnodes[0].get_output_pl(target_node=self)
+        outputdf = ppl.PathsDataFrame()
+        meta = inputdf.get_meta()
+        for node in inputnodes[1:]:
+            inputdf.extend(node.get_output_pl(target_node=self))
+
+        dimensions = list(self.input_dimensions.keys())
+        partitions = inputdf.partition_by(dimensions)
+        for partdf in partitions:
+            annuitydf = (partdf
+                .with_columns((pl.col('currency') / pl.col('term')).alias('annual_payment'))
+                .with_columns(pl.int_ranges(pl.col(YEAR_COLUMN), pl.col(YEAR_COLUMN) + pl.col('term')).alias('payment_years'))
+                .explode('payment_years')
+                .group_by('payment_years')
+                .agg(pl.col('annual_payment').sum())
+                .rename({'payment_years': YEAR_COLUMN})
+                .sort(YEAR_COLUMN)
+            )
+
+            joindf = (partdf
+                .join(annuitydf, on=YEAR_COLUMN, how='outer', coalesce=True)
+                .with_columns(pl.col('annual_payment').alias('currency'))
+                .drop(['term', 'annual_payment'])
+                .filter(pl.col(YEAR_COLUMN).le(targetyear))
+                .fill_null(strategy='forward')
+            )
+
+            pathsdf = ppl.to_ppdf(joindf, meta=meta)
+            pathsdf = pathsdf.rename({'currency': VALUE_COLUMN})
+            if outputdf.is_empty():
+                outputdf = pathsdf
+            else:
+                outputdf.extend(pathsdf)
+
+        return outputdf
