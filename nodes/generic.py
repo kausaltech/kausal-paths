@@ -406,11 +406,7 @@ class GenericNode(SimpleNode):
         operations = [op.strip() for op in operations_str.split(',')]
 
         # Get input dataset and categorize nodes
-        df = self.get_input_dataset_pl(tag='baseline', required=False)
-        if df is not None:
-            df = self.drop_unnecessary_levels(df, droplist=[])
-            df = df.paths._add_missing_years(df, self)
-            df = df.paths._extend_values(df, self)
+        df = self.get_cleaned_dataset(tag='baseline', required=False)
         baskets = self._get_input_baskets(self.input_nodes)
 
         # Track original node counts for validation

@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Callable, Literal, cast
 
 import numpy as np
 import polars as pl
+from loguru import logger
 from polars import type_aliases as pl_types
 
 import common.polars as ppl
@@ -46,6 +47,7 @@ class PathsExt:
             'difference': self._difference,
             'drop_infs': self._drop_infs,
             'drop_nans': self._drop_nans,
+            'drop_unnecessary_levels': self._drop_unnecessary_levels,
             'empty_to_zero': self._empty_to_zero,
             'expectation': self._expectation,
             'extend_forecast_values': self._extend_forecast_values,
@@ -598,10 +600,10 @@ class PathsExt:
                 node, f"The unit of node {node.id} must be compatible with dimensionless for taking complement."
             )
         if node.quantity not in ['fraction', 'probability']:
-            raise NodeError(
-                node, f"The quantity of node {node.id} must be fraction or probability for taking complement"
+            logger.warning(
+                f"The quantity for taking complement should be fraction or probability. Are you operating with node {node.id}?"
             )
-        df = df.ensure_unit(VALUE_COLUMN, unit='dimensionless')  # TODO CHECK
+        df = df.ensure_unit(VALUE_COLUMN, unit='dimensionless')
         return df.with_columns((pl.lit(1.0) - pl.col(VALUE_COLUMN)).alias(VALUE_COLUMN))
 
     def _complement_cumulative_product(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
@@ -625,6 +627,21 @@ class PathsExt:
         """Drop NaN cells in long format."""
         assert isinstance(df, ppl.PathsDataFrame)
         return df.filter(pl.col(VALUE_COLUMN).is_not_nan())
+
+    def _drop_unnecessary_levels(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
+        """Drop empty dimensions."""
+        metric_cols = list(df.get_meta().units.keys())
+
+        # Only drop rows where all metric columns are null
+        if metric_cols:
+            null_condition = pl.lit(True)  # noqa: FBT003
+            for col in metric_cols:
+                null_condition = null_condition & pl.col(col).is_null()
+            df = df.filter(~null_condition)
+
+        null_cols = [col for col in df.columns if df[col].null_count() == len(df)]
+        df = df.drop(null_cols)
+        return df
 
     def _empty_to_zero(self, df: ppl.PathsDataFrame, _node: Node) -> ppl.PathsDataFrame:
         return df.with_columns(

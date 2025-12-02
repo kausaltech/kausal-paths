@@ -231,8 +231,16 @@ class FormulaNode(Node):  # FIXME The formula is not commutative, i.e. a * b != 
 
         datasets = {}
         for ds in self.input_dataset_instances:
-            for tag in ds.tags:
-                datasets[tag] = self.get_input_dataset_pl(tag=tag)
+            tags = [tag for tag in ds.tags if tag != 'cleaned']
+            has_cleaned = 'cleaned' in ds.tags
+
+            for tag in tags:
+                if has_cleaned:
+                    df = self.get_cleaned_dataset(tag=tag)
+                else:
+                    df = self.get_input_dataset_pl(tag=tag)
+                if df is not None:
+                    datasets[tag] = df
 
         formula = self.get_parameter_value_str('formula')
         df = self.evaluate_formula(formula, EvalVars(nodes, datasets))

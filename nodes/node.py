@@ -742,6 +742,15 @@ class Node:
             return None
         return df.to_pandas()
 
+    def get_cleaned_dataset(self, tag: str | None = None, required: bool = True) -> ppl.PathsDataFrame | None:
+        df = self.get_input_dataset_pl(tag=tag, required=required)
+        if df is None:
+            return None
+        df = df.paths._drop_unnecessary_levels(df, self)
+        df = df.paths._add_missing_years(df, self)
+        df = df.paths._extend_values(df, self)
+        return df
+
     def get_input_nodes(self, tag: str | None = None, quantity: str | None = None) -> list[Node]:
         matching_nodes = []
         for edge in self.edges:
