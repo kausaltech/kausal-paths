@@ -148,20 +148,26 @@ class Dimension(I18nBaseModel):
 
     def series_to_ids_pl(self, s: pl.Series, allow_null=False) -> pl.Series:
         name = s.name
+
         if not allow_null and s.null_count():
             raise Exception(f"Series {self.id} contains NaNs: {s}")
-        s = s.cast(str).str.strip_chars()
+
+        s_clean = s.cast(pl.Utf8).str.strip_chars() # This preserves nulls naturally
+
         cat_map = self.labels_to_ids()
-        labels = list(cat_map.keys())
-        ids = list(cat_map.values())
-        map_df = pl.DataFrame(dict(label=labels, id=ids))
-        df = pl.DataFrame(dict(cat=s))
-        df = df.join(map_df, left_on='cat', right_on='label', how='left')
-        if df['id'].null_count() > s.null_count():
-            missing_cats = df.filter(pl.col('id').is_null())['cat'].unique()
-            # FIXME: `missing_cats` should not contain those items that were already in `s`.
-            raise Exception(f"Some dimension {self.id} categories failed to convert: `{'`, `'.join(missing_cats)}`")
-        ret = df['id'].cast(pl.Categorical)
+
+        # Use replace with mapping (handles nulls correctly)
+        ret = s_clean.replace(cat_map, default=None)
+
+        # Check if any non-null values failed to map
+        if ret.null_count() > s.null_count():
+            # Find which ones failed
+            failed = s_clean.filter(ret.is_null() & s_clean.is_not_null()).unique()
+            raise Exception(
+                f"Some dimension {self.id} categories failed to convert: `{'`, `'.join(failed)}`"
+            )
+
+        ret = ret.cast(pl.Categorical)
         if name:
             ret = ret.alias(name)
         return ret
