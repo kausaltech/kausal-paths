@@ -15,7 +15,7 @@ supported_languages: [es-US]
 site_url: https://longmont-dev.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: e7ca562987ec58eb34011a36748dcf92cb7b23e5
+  commit: d3269904cb1d7a33bd983fe2ef91bddaf3440377
   dvc_remote: kausal-s3
 name: 2025 Draft Longmont Greenhouse Gas Inventory
 name_es-US: 2025 Inventario de gases de efecto invernadero de Longmont
@@ -429,7 +429,7 @@ dimensions:
   - id: co2
     label: CO2, fossil
     label_es-US: CO2, fósil
-    aliases: [co2_fossil]
+    aliases: [co2_fossil, CO2]
   - id: ch4
     label: CH4
     label_es-US: CH4
@@ -465,7 +465,7 @@ dimensions:
   - id: co2
     label: CO2, fossil
     label_es-US: CO2, fósil
-    aliases: [co2_fossil]
+    aliases: [co2_fossil, CO2]
   - id: ch4
     label: CH4
     label_es-US: CH4
@@ -1634,6 +1634,48 @@ nodes:
   - id: multiplier
     value: 0.18409014  # =(D47*100000/1028*0.02832*0.8*0.934/1000*0.003*'Emission Factors and Constants'!$C$21)+(D47*100000/1028*0.02832*0.8*0.01/1000*0.003) = D47 * 0.00018409014
     unit: kg/therm
+
+- id: leakage_from_natural_gas_emissions2
+  name: Emissions from natural gas leakage
+  name_es-US: Emisiones por fugas de gas natural
+  category: leakage_from_natural_gas
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [emission_sectors, ghg]
+  output_dimensions: [emission_sectors, ghg]
+  input_nodes:
+  - id: building_natural_gas_use
+    tags: [use]
+  - id: global_warming_potential_100a2
+    tags: [gwp]
+    to_dimensions:
+    - id: ghg
+  input_datasets:
+  - id: longmont/fugitive_parameters
+    tags: [energy_factor, cleaned]
+    column: Natural gas energy factor
+  - id: longmont/fugitive_parameters
+    tags: [density, cleaned]
+    column: Natural gas density
+  - id: longmont/fugitive_parameters
+    tags: [leakage, cleaned]
+    column: Natural gas leakage
+  - id: longmont/fugitive_parameters
+    tags: [fraction, cleaned]
+    column: Fraction in natural gas
+  params:
+    formula: use / complement(leakage) / energy_factor * density * leakage * fraction * gwp
+  output_nodes:
+  - id: net_emissions2
+    from_dimensions:
+    - id: emission_sectors
+      flatten: true
+    - id: ghg
+      flatten: true
+    to_dimensions:
+    - id: scope
+      categories: [scope1]
 
 - id: natural_gas_consumption_emissions
   name: Natural gas consumption emissions
