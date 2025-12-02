@@ -20,7 +20,7 @@ reference_year: 1990
 minimum_historical_year: 1990
 maximum_historical_year: 2024
 features:
-  baseline_visible_in_graphs: true
+  baseline_visible_in_graphs: false
   show_accumulated_effects: true
   use_datasets_from_db: true
   show_significant_digits: 3
