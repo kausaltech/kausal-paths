@@ -1443,3 +1443,31 @@ nodes:
     - id: vehicle_type
     - id: energy_carrier
       categories: [electricity]
+
+# ----- Indicators -----
+
+- id: daily_transport_demand_per_inhabitant
+  name_de: Tägliche Mobilitätsnachfrage pro Einwohner
+  name_en: Daily mobility demand per inhabitant
+  type: simple.AdditiveNode
+  quantity: per_capita
+  unit: pkm/cap/day
+  input_dimensions: []
+  output_dimensions: []
+  input_nodes:
+  - id: transport_demand_per_inhabitant
+
+- id: electric_passenger_car_mileage_share
+  name_de: Fahrleistungsanteil von teil- und vollelektrifizierten Personenwagen
+  name_en: Mileage share of partially and fully electric passenger cars
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: []
+  output_dimensions: []
+  input_nodes:
+  - id: vehicle_engine_type_split
+    from_dimensions:
+    - id: vehicle_type
+      categories: [car_plugin_hybrid, car_fuel_cell, car_fuel_cell_plugin_hybrid, car_diesel_plugin_hybrid, car_batteryelectric]
+      flatten: true
