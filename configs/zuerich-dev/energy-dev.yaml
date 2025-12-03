@@ -276,8 +276,8 @@ nodes:
     to_dimensions: []
 
 - id: district_heat_share_within_city
-  name_de: District Heat Share Within City
-  name_en: District Heat Share Within City
+  name_de: Anteil Fernwärmeproduktion auf Stadtgebiet
+  name_en: Share of District Heat Production within the City
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'

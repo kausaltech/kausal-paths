@@ -79,19 +79,16 @@ dimensions:
     label: Direkte Emissionen
     label_en: Direct emissions
     color: '#0f05a0'
-    #id_match: ^scope1$
     order: 1
   - id: indirect
     label: Indirekte Emissionen
     label_en: Indirect emissions
     color: '#6496ff'
-    #id_match: ^scope[23]$
     order: 2
   - id: negative
     label: Negative Emissionen
     label_en: Negative emissions
     color: '#8ECF69'
-    #id_match: ^negative_emissions$
     order: -1
   categories:
   - id: scope1
@@ -116,8 +113,8 @@ dimensions:
     label_de: Negative Emissionen
     label_en: Negative emissions
     color: '#8ECF69'
-    order: -1
     group: negative
+    order: -1
 
 - id: renewable_energy
   label_de: Erneuerbar
