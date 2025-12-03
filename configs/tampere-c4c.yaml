@@ -2229,6 +2229,7 @@ nodes:
   is_outcome: true
   output_nodes:
   - id: net_cost
+    tags: [currency]
     from_dimensions:
     - id: cost_type
       flatten: true
@@ -2238,11 +2239,13 @@ nodes:
 - id: net_cost
   name: Nettokustannus
   name_en: Net cost
-  type: simple.AdditiveNode
+  type: simple.DiscountNode
   quantity: currency
   unit: EUR/a
   input_dimensions: []
   output_dimensions: []
+  params:
+    start_year: 2026
 
 - id: building_heating_price
   name: Rakennusten lämmityksen kustannukset
@@ -5129,6 +5132,8 @@ actions:
   - id: annuitized_costs
     tags: [discount_rate]
     to_dimensions: []
+  - id: net_cost
+    tags: [discount_rate]
 
 - id: parameter_district_heating_price
   name: Kaukolämmön hinta
