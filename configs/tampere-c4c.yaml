@@ -5123,6 +5123,10 @@ actions:
   - id: default_value
     value: 3.5
     unit: '%'
+  output_nodes:
+  - id: annuitized_costs
+    tags: [discount_rate]
+    to_dimensions: []
 
 - id: parameter_district_heating_price
   name: Kaukolämmön hinta

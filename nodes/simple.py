@@ -822,10 +822,19 @@ class AnnuityNode(AdditiveNode):
 
     def compute(self) -> ppl.PathsDataFrame:
         targetyear = self.get_target_year()
-        inputnodes = self.get_input_nodes()
-
-        inputdf = inputnodes[0].get_output_pl(target_node=self)
         outputdf = ppl.PathsDataFrame()
+
+        discountnode = self.get_input_node(tag='discount_rate')
+        discountdf = discountnode.get_output_pl(target_node=self)
+        discountdf = (discountdf
+            .drop(FORECAST_COLUMN)
+            .rename({VALUE_COLUMN: 'discount_rate'})
+            .with_columns(pl.col('discount_rate') / pl.lit(100.0))
+        )
+
+        inputnodes = self.get_input_nodes()
+        inputnodes.remove(discountnode)
+        inputdf = inputnodes[0].get_output_pl(target_node=self)
         meta = inputdf.get_meta()
         for node in inputnodes[1:]:
             inputdf.extend(node.get_output_pl(target_node=self))
@@ -834,7 +843,11 @@ class AnnuityNode(AdditiveNode):
         partitions = inputdf.partition_by(dimensions)
         for partdf in partitions:
             annuitydf = (partdf
-                .with_columns((pl.col('currency') / pl.col('term')).alias('annual_payment'))
+                .join(discountdf, on=YEAR_COLUMN, how='left')
+                .with_columns(((pl.lit(1.0) + pl.col('discount_rate')) ** pl.col('term')).alias('compound_factor'))
+                .with_columns(((pl.col('discount_rate') * pl.col('compound_factor')) /
+                               (pl.col('compound_factor') - pl.lit(1.0))).alias('capital_recovery_factor'))
+                .with_columns((pl.col('currency') * pl.col('capital_recovery_factor')).alias('annual_payment'))
                 .with_columns(pl.int_ranges(pl.col(YEAR_COLUMN), pl.col(YEAR_COLUMN) + pl.col('term')).alias('payment_years'))
                 .explode('payment_years')
                 .group_by('payment_years')
