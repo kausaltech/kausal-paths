@@ -481,8 +481,8 @@ dimensions:
     label: Autoliikenteen käyttövoimamuutos
     label_en: Change in vehicle propulsion
   - id: tramline_3_construction
-    label: Ratikan 3 vaihe (2028-2030)
-    label_en: Tramline 3 construction (2028-2030)
+    label: Ratikan 3 vaihe
+    label_en: Tramline 3 construction
   - id: improving_the_service_level_of_public_transport
     label: Joukkoliikenteen palvelutason nosto
     label_en: Improving the service level of public transport
@@ -495,9 +495,11 @@ dimensions:
   - id: solar_power_in_municipal_building_stock
     label: Solar power in municipal building stock
   - id: geothermal_and_awhps_in_municipal_building_stock
-    label: Geothermal and AWHPs in municipal building stock
+    label: Öljylämmityksestä luopuminen
+    label_en: Replace oil heating in buildings
   - id: aahps_in_municipal_building_stock
-    label: AAHPs in municipal building stock
+    label: Ilmalämpöpumput lämmityksen tukena
+    label_en: Air-to-air heat pump investments
   - id: additional_investments_in_naistenlahti_3
     label: Naistenlahti 3 -voimalaitoksen lisäinvestoinnit
     label_en: Additional investments in Naistenlahti 3
