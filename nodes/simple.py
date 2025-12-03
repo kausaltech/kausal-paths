@@ -872,3 +872,32 @@ class AnnuityNode(AdditiveNode):
                 outputdf.extend(pathsdf)
 
         return outputdf
+
+
+class DiscountNode(AdditiveNode):
+    allowed_parameters = [
+        *AdditiveNode.allowed_parameters,
+        NumberParameter(local_id='start_year', label='The first year in which the discount rate is applied.')
+    ]
+
+    def compute(self) -> ppl.PathsDataFrame:
+        minyear = self.get_parameter_value_int('start_year', required=True) - 1
+
+        ratenode = self.get_input_node(tag='discount_rate')
+        ratedf = ratenode.get_output_pl(target_node=self)
+        ratedf = (ratedf
+            .drop(FORECAST_COLUMN)
+            .rename({VALUE_COLUMN: 'discount_rate'})
+            .with_columns((pl.col('discount_rate') + pl.lit(100.0)) / pl.lit(100.0))
+        )
+
+        currencynode = self.get_input_node(tag='currency')
+        df = currencynode.get_output_pl(target_node=self)
+        df = (df
+            .paths.join_over_index(ratedf)
+            .with_columns((pl.col(YEAR_COLUMN) - pl.lit(minyear)).clip(lower_bound=0).alias('year_count'))
+            .with_columns(pl.col(VALUE_COLUMN) / (pl.col('discount_rate') ** pl.col('year_count')))
+            .drop(['discount_rate', 'year_count'])
+        )
+
+        return df
