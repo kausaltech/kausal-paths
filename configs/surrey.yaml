@@ -429,9 +429,9 @@ actions:
       categories: [rail_transportation]
       flatten: true
 
-- id: clean_ldvs
-  name: Clean LDVs
-  description: Improve fuel efficiency in light-duty vehicles (LDVs).
+- id: improve_vehicle_fuel_efficiency
+  name: Improve vehicle fuel efficiency
+  description: Improve fuel efficiency in light-duty vehicles (LDVs) and medium and heavy-duty vehicles (MHDVs).
   group: on_road_transportation
   type: simple.AdditiveAction
   quantity: emissions
@@ -443,67 +443,9 @@ actions:
     column: emissions
     forecast_from: 2024
     filters:
-    - column: action
-      value: clean_ldvs
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - id: medium_and_heavy_duty_vehicle_emissions
-    from_dimensions:
-    - id: sector
-      categories: [medium_and_heavy_duty_vehicles]
+    - dimension: action
+      categories: [clean_ldvs, clean_mhdvs]
       flatten: true
-  - id: light_duty_vehicle_emissions
-    from_dimensions:
-    - id: sector
-      categories: [light_duty_vehicles]
-      flatten: true
-  - id: transit_emissions
-    from_dimensions:
-    - id: sector
-      categories: [transit]
-      flatten: true
-  - id: residential_emissions
-    from_dimensions:
-    - id: sector
-      categories: [residential]
-      flatten: true
-  - id: institutional_commercial_and_industrial_emissions
-    from_dimensions:
-    - id: sector
-      categories: [institutional_commercial_and_industrial]
-      flatten: true
-  - id: solid_waste_emissions
-    from_dimensions:
-    - id: sector
-      categories: [solid_waste]
-      flatten: true
-  - id: non_road_equipment_emissions
-    from_dimensions:
-    - id: sector
-      categories: [non_road_equipment]
-      flatten: true
-  - id: rail_transportation_emissions
-    from_dimensions:
-    - id: sector
-      categories: [rail_transportation]
-      flatten: true
-
-- id: clean_mhdvs
-  name: Clean MHDVs
-  description: Improve fuel efficiency in medium and heavy-duty vehicles (MHDVs).
-  group: on_road_transportation
-  type: simple.AdditiveAction
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: [sector, ghg]
-  output_dimensions: [sector, ghg]
-  input_datasets:
-  - id: surrey/emissions_forecast_actions
-    column: emissions
-    forecast_from: 2024
-    filters:
-    - column: action
-      value: clean_mhdvs
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: medium_and_heavy_duty_vehicle_emissions
