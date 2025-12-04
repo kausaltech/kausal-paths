@@ -628,6 +628,7 @@ nodes:
   type: simple.AdditiveNode
   quantity: fraction
   unit: a
+  input_dataset_processors: [LinearInterpolation]
   historical_values: [[2018, 1], [2025, 1]]
 
 - id: electricity_cost
