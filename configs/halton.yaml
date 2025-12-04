@@ -9,8 +9,8 @@ dataset_repo:
 name: Halton Region Greenhouse Gas Inventory
 owner: Halton Region
 theme_identifier: ca-halton
-target_year: 2024
-model_end_year: 2024
+target_year: 2045
+model_end_year: 2045
 reference_year: 2023
 minimum_historical_year: 2023
 maximum_historical_year: 2024
@@ -18,8 +18,13 @@ emission_unit: t_co2e/a
 emission_forecast_from: 2025
 emission_dimensions: [department, scope]
 features:
-  baseline_visible_in_graphs: false
+  baseline_visible_in_graphs: true
   use_datasets_from_db: true
+
+action_groups:
+- id: purchased_electricity
+  name: Purchased Electricity
+  color: '#F28E2B'
 
 dimensions:
 - id: emission_source
@@ -1751,8 +1756,8 @@ nodes:
 
 # ---------- Corporate Services
 
-- id: cs_purchased_electricity
-  name: Corporate Services Purchased Electricity
+- id: cs_purchased_electricity_inventory
+  name: Corporate Services Purchased Electricity (Inventory)
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
@@ -1766,6 +1771,40 @@ nodes:
     - dimension: department
       categories: [corporate_services]
     - column: property
+
+- id: cs_purchased_electricity_mix
+  name: Corporate Services Purchased Electricity (Mix)
+  type: simple.MixNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: [asset_class, asset, energy_carrier, department, scope]
+  output_dimensions: [asset_class, asset, energy_carrier, department, scope]
+  input_nodes:
+  - id: cs_purchased_electricity_inventory
+    tags: [activity]
+
+- id: cs_purchased_electricity_reduction
+  name: Corporate Services Purchased Electricity (Reduction)
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [asset_class, asset, energy_carrier, department, scope]
+  output_dimensions: [asset_class, asset, energy_carrier, department, scope]
+  input_nodes:
+  - id: cs_purchased_electricity_mix
+  - id: cs_renewable_energy_production
+    tags: [arithmetic_inverse, non_additive]
+
+- id: cs_purchased_electricity
+  name: Corporate Services Purchased Electricity
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [asset_class, asset, energy_carrier, department, scope]
+  output_dimensions: [asset_class, asset, energy_carrier, department, scope]
+  input_nodes:
+  - id: cs_purchased_electricity_inventory
+  - id: cs_purchased_electricity_reduction
 
 - id: childcare_centre_electricity_emissions
   name: Childcare Centre Electricity Emissions
@@ -1874,8 +1913,8 @@ nodes:
 
 # ---------- Public Works
 
-- id: pw_purchased_electricity
-  name: Public Works Purchased Electricity
+- id: pw_purchased_electricity_inventory
+  name: Public Works Purchased Electricity (Inventory)
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
@@ -1889,6 +1928,40 @@ nodes:
     - dimension: department
       categories: [public_works]
     - column: property
+
+- id: pw_purchased_electricity_mix
+  name: Public Works Purchased Electricity (Mix)
+  type: simple.MixNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: [asset_class, asset, energy_carrier, department, scope]
+  output_dimensions: [asset_class, asset, energy_carrier, department, scope]
+  input_nodes:
+  - id: pw_purchased_electricity_inventory
+    tags: [activity]
+
+- id: pw_purchased_electricity_reduction
+  name: Public Works Purchased Electricity (Reduction)
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [asset_class, asset, energy_carrier, department, scope]
+  output_dimensions: [asset_class, asset, energy_carrier, department, scope]
+  input_nodes:
+  - id: pw_purchased_electricity_mix
+  - id: pw_renewable_energy_production
+    tags: [arithmetic_inverse, non_additive]
+
+- id: pw_purchased_electricity
+  name: Public Works Purchased Electricity
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [asset_class, asset, energy_carrier, department, scope]
+  output_dimensions: [asset_class, asset, energy_carrier, department, scope]
+  input_nodes:
+  - id: pw_purchased_electricity_inventory
+  - id: pw_purchased_electricity_reduction
 
 - id: biosolids_management_centre_electricity_emissions
   name: Biosolids Management Centre Electricity Emissions
@@ -2168,8 +2241,8 @@ nodes:
 
 # ---------- EMS
 
-- id: ems_purchased_electricity
-  name: EMS Purchased Electricity
+- id: ems_purchased_electricity_inventory
+  name: EMS Purchased Electricity (Inventory)
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
@@ -2183,6 +2256,40 @@ nodes:
     - dimension: department
       categories: [emergency_medical_services_ems]
     - column: property
+
+- id: ems_purchased_electricity_mix
+  name: EMS Purchased Electricity (Mix)
+  type: simple.MixNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
+  input_nodes:
+  - id: ems_purchased_electricity_inventory
+    tags: [activity]
+
+- id: ems_purchased_electricity_reduction
+  name: EMS Purchased Electricity (Reduction)
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
+  input_nodes:
+  - id: ems_purchased_electricity_mix
+  - id: ems_renewable_energy_production
+    tags: [arithmetic_inverse, non_additive]
+
+- id: ems_purchased_electricity
+  name: EMS Purchased Electricity
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [asset, energy_carrier, department, scope]
+  output_dimensions: [asset, energy_carrier, department, scope]
+  input_nodes:
+  - id: ems_purchased_electricity_inventory
+  - id: ems_purchased_electricity_reduction
 
 - id: ems_electricity_emissions
   name: EMS Electricity Emissions
@@ -2200,8 +2307,8 @@ nodes:
 
 # ---------- HCHC
 
-- id: hchc_purchased_electricity
-  name: HCHC Purchased Electricity
+- id: hchc_purchased_electricity_inventory
+  name: HCHC Purchased Electricity (Inventory)
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
@@ -2215,6 +2322,40 @@ nodes:
     - dimension: department
       categories: [halton_community_housing_corporation_hchc]
     - column: asset_class
+
+- id: hchc_purchased_electricity_mix
+  name: HCHC Purchased Electricity (Mix)
+  type: simple.MixNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: [property, asset, energy_carrier, department, scope]
+  output_dimensions: [property, asset, energy_carrier, department, scope]
+  input_nodes:
+  - id: hchc_purchased_electricity_inventory
+    tags: [activity]
+
+- id: hchc_purchased_electricity_reduction
+  name: HCHC Purchased Electricity (Reduction)
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [property, asset, energy_carrier, department, scope]
+  output_dimensions: [property, asset, energy_carrier, department, scope]
+  input_nodes:
+  - id: hchc_purchased_electricity_mix
+  - id: hchc_renewable_energy_production
+    tags: [arithmetic_inverse, non_additive]
+
+- id: hchc_purchased_electricity
+  name: HCHC Purchased Electricity
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [property, asset, energy_carrier, department, scope]
+  output_dimensions: [property, asset, energy_carrier, department, scope]
+  input_nodes:
+  - id: hchc_purchased_electricity_inventory
+  - id: hchc_purchased_electricity_reduction
 
 - id: brant_court_electricity_emissions
   name: Brant Court Electricity Emissions
@@ -3047,6 +3188,87 @@ nodes:
   - id: halton/landfill_waste
     column: emissions
     forecast_from: 2025
+
+actions:
+- id: cs_renewable_energy_production
+  name: Corporate Services Renewable Energy Production
+  type: simple.ParameterAction
+  group: purchased_electricity
+  unit: GWh/a
+  quantity: energy
+  input_dimensions: []
+  output_dimensions: []
+  params:
+  - id: from_value
+    value: 7.5
+    min_value: 0
+    max_value: 15
+    step: 0.1
+    unit: GWh/a
+    description: Renewable Energy Production
+  - id: default_value
+    value: 0
+    unit: GWh/a
+
+- id: pw_renewable_energy_production
+  name: Public Works Renewable Energy Production
+  type: simple.ParameterAction
+  group: purchased_electricity
+  unit: GWh/a
+  quantity: energy
+  input_dimensions: []
+  output_dimensions: []
+  params:
+  - id: from_value
+    value: 62.5
+    min_value: 0
+    max_value: 125
+    step: 0.1
+    unit: GWh/a
+    description: Renewable Energy Production
+  - id: default_value
+    value: 0
+    unit: GWh/a
+
+- id: ems_renewable_energy_production
+  name: EMS Renewable Energy Production
+  type: simple.ParameterAction
+  group: purchased_electricity
+  unit: GWh/a
+  quantity: energy
+  input_dimensions: []
+  output_dimensions: []
+  params:
+  - id: from_value
+    value: 0.25
+    min_value: 0
+    max_value: 0.5
+    step: 0.05
+    unit: GWh/a
+    description: Renewable Energy Production
+  - id: default_value
+    value: 0
+    unit: GWh/a
+
+- id: hchc_renewable_energy_production
+  name: HCHC Renewable Energy Production
+  type: simple.ParameterAction
+  group: purchased_electricity
+  unit: GWh/a
+  quantity: energy
+  input_dimensions: []
+  output_dimensions: []
+  params:
+  - id: from_value
+    value: 7.5
+    min_value: 0
+    max_value: 15
+    step: 0.1
+    unit: GWh/a
+    description: Renewable Energy Production
+  - id: default_value
+    value: 0
+    unit: GWh/a
 
 pages:
 - id: home
