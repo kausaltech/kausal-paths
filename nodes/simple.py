@@ -844,10 +844,15 @@ class AnnuityNode(AdditiveNode):
         for partdf in partitions:
             annuitydf = (partdf
                 .join(discountdf, on=YEAR_COLUMN, how='left')
+
                 .with_columns(((pl.lit(1.0) + pl.col('discount_rate')) ** pl.col('term')).alias('compound_factor'))
                 .with_columns(((pl.col('discount_rate') * pl.col('compound_factor')) /
                                (pl.col('compound_factor') - pl.lit(1.0))).alias('capital_recovery_factor'))
-                .with_columns((pl.col('currency') * pl.col('capital_recovery_factor')).alias('annual_payment'))
+
+                .with_columns((pl.when(pl.col('capital_recovery_factor').is_not_nan())
+                    .then(pl.col('currency') * pl.col('capital_recovery_factor'))
+                    .otherwise(pl.col('currency') / pl.col('term'))).alias('annual_payment'))
+
                 .with_columns(pl.int_ranges(pl.col(YEAR_COLUMN), pl.col(YEAR_COLUMN) + pl.col('term')).alias('payment_years'))
                 .explode('payment_years')
                 .group_by('payment_years')
