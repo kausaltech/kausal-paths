@@ -6,7 +6,7 @@ dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 4f65354a5566e4161fdb5dd2fdea9625bb3d7e62
   dvc_remote: kausal-s3
-name: Emissions Inventory and Forecast Tool
+name: Surrey's Pathway to 2050 Tool
 owner: City of Surrey
 theme_identifier: ca-surrey
 target_year: 2050
