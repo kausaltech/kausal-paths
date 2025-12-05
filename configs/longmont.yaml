@@ -1838,7 +1838,7 @@ nodes:
   quantity: ratio
   unit: dimensionless
   historical_values: [[2016, 1.0], [2021, 1.9]]
-  input_dataset_processsors: [LinearInterpolation]
+  input_dataset_processors: [LinearInterpolation]
 
 - id: public_transportation_trips_per_person
   name: Public transportation trips per person

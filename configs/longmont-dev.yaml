@@ -28,10 +28,7 @@ reference_year: 2016
 minimum_historical_year: 2016
 maximum_historical_year: 2021
 emission_unit: t/a
-emission_forecast_from: 2023
 emission_dimensions: [emission_scope]
-emission_dataset: longmont/greenhouse_gas_emissions_by_subsector
-emission_sector_dimension: emission_sectors
 normalizations:
 - normalizer_node: population
   quantities:
@@ -847,15 +844,6 @@ emission_sectors:
   color: '#6686B9'
   input_dataset_processors: [LinearInterpolation]
 
-- id: afolu_emissions
-  name: Agriculture, forestry, and other land use emissions
-  name_es-US: Emisiones de la agricultura, la silvicultura y otros usos del 
-    suelo
-  category: afolu
-  part_of: net_emissions
-  color: '#5D9C6F'
-  input_dataset_processors: [LinearInterpolation]
-
 # Subsector emissions
 
 - id: fugitive_emissions
@@ -871,52 +859,10 @@ emission_sectors:
   part_of: waste_emissions
   input_dataset_processors: [LinearInterpolation]
 
-- id: waste_water_treatment_emissions
-  name: Waste water treatment emissions
-  name_es-US: Emisiones del tratamiento de aguas residuales
-  category: waste_water_treatment
-  part_of: waste_emissions
-  input_dataset_processors: [LinearInterpolation]
-
-- id: refridgerant_emissions
-  name: Refridgerant emissions
-  name_es-US: Emisiones de refrigerante
-  category: refridgerant
-  part_of: ippu_emissions
-  input_dataset_processors: [LinearInterpolation]
-
 - id: on_road_transportation_emissions
   name: On-road transportation
   name_es-US: Transporte por carretera
   part_of: transportation_emissions
-  input_dataset_processors: [LinearInterpolation]
-
-- id: aviation_emissions
-  name: Aviation emissions
-  name_es-US: Emisiones de la aviación
-  category: aviation
-  # part_of: transportation_emissions
-  input_dataset_processors: [LinearInterpolation]
-
-- id: railways_emissions
-  name: Railways emissions
-  name_es-US: Emisiones ferroviarias
-  category: railways
-  part_of: transportation_emissions
-  input_dataset_processors: [LinearInterpolation]
-
-- id: off_road_transportation
-  name: Off-road transportation
-  name_es-US: Transporte todoterreno
-  category: off_road
-  part_of: transportation_emissions
-  input_dataset_processors: [LinearInterpolation]
-
-- id: leakage_from_oil_and_gas_wells_emissions
-  name: Emissions from leakages from oil and gas wells
-  name_es-US: Emisiones procedentes de fugas de pozos de petróleo y gas
-  category: leakage_from_oil_and_gas_wells
-  part_of: fugitive_emissions
   input_dataset_processors: [LinearInterpolation]
 
 nodes:
@@ -952,6 +898,129 @@ nodes:
   input_datasets:
   - id: longmont/population
     column: population
+  input_dataset_processors: [LinearInterpolation]
+
+# Emissions from the inventory dataset
+
+- id: afolu_emissions
+  name: Agriculture, forestry, and other land use emissions
+  name_es-US: Emisiones de la agricultura, la silvicultura y otros usos del 
+    suelo
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  input_datasets:
+  - id: longmont/greenhouse_gas_emissions_by_subsector
+    column: emissions
+    filters:
+    - column: emission_sectors
+      value: afolu
+  output_nodes: [net_emissions]
+  color: '#5D9C6F'
+  input_dataset_processors: [LinearInterpolation]
+
+- id: waste_water_treatment_emissions
+  name: Waste water treatment emissions
+  name_es-US: Emisiones del tratamiento de aguas residuales
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  input_datasets:
+  - id: longmont/greenhouse_gas_emissions_by_subsector
+    column: emissions
+    filters:
+    - column: emission_sectors
+      value: waste_water_treatment
+  output_nodes: [waste_emissions]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: refridgerant_emissions
+  name: Refridgerant emissions
+  name_es-US: Emisiones de refrigerante
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  input_datasets:
+  - id: longmont/greenhouse_gas_emissions_by_subsector
+    column: emissions
+    filters:
+    - column: emission_sectors
+      value: refridgerant
+  output_nodes: [ippu_emissions]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: aviation_emissions
+  name: Aviation emissions
+  name_es-US: Emisiones de la aviación
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  input_datasets:
+  - id: longmont/greenhouse_gas_emissions_by_subsector
+    column: emissions
+    filters:
+    - column: emission_sectors
+      value: aviation
+  # output_nodes: [transportation_emissions]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: railways_emissions
+  name: Railways emissions
+  name_es-US: Emisiones ferroviarias
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  input_datasets:
+  - id: longmont/greenhouse_gas_emissions_by_subsector
+    column: emissions
+    filters:
+    - column: emission_sectors
+      value: railways
+  output_nodes: [transportation_emissions]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: off_road_transportation
+  name: Off-road transportation
+  name_es-US: Transporte todoterreno
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  input_datasets:
+  - id: longmont/greenhouse_gas_emissions_by_subsector
+    column: emissions
+    filters:
+    - column: emission_sectors
+      value: off_road
+  output_nodes: [transportation_emissions]
+  input_dataset_processors: [LinearInterpolation]
+
+- id: leakage_from_oil_and_gas_wells_emissions
+  name: Emissions from leakages from oil and gas wells
+  name_es-US: Emisiones procedentes de fugas de pozos de petróleo y gas
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [emission_scope]
+  output_dimensions: [emission_scope]
+  input_datasets:
+  - id: longmont/greenhouse_gas_emissions_by_subsector
+    column: emissions
+    filters:
+    - column: emission_sectors
+      value: leakage_from_oil_and_gas_wells
+  output_nodes: [fugitive_emissions]
   input_dataset_processors: [LinearInterpolation]
 
 # - id: global_warming_potential_100a
@@ -3000,7 +3069,7 @@ nodes:
   quantity: ratio
   unit: dimensionless
   historical_values: [[2016, 1.0], [2021, 1.9]]
-  input_dataset_processsors: [LinearInterpolation]
+  input_dataset_processors: [LinearInterpolation]
 
 - id: public_transportation_trips_per_person
   name: Public transportation trips per person
