@@ -774,13 +774,12 @@ nodes:
   input_dimensions: [energietrager, scope]
   output_dimensions: [energietrager, scope]
   input_datasets:
-  - id: gpc/demo_stadt
+  - id: gpc/demo/energie
     forecast_from: 2025
     tags: [baseline]
-    column: energy
     filters:
-    - column: sector
-      value: i12
+    - column: gpc_sektor
+      value: I.1.2 Netzenergie in Wohngebäuden
   output_nodes:
   - id: i12_residential_grid_energy_consumption_emissions
     to_dimensions:
@@ -809,13 +808,12 @@ nodes:
   input_dimensions: [ghg, energietrager, scope]
   output_dimensions: [ghg, energietrager, scope]
   input_datasets:
-  - id: gpc/demo_stadt
+  - id: gpc/demo/emissionsfaktor
     forecast_from: 2025
     tags: [baseline]
-    column: emission_factor
     filters:
-    - column: sector
-      value: i12
+    - column: gpc_sektor
+      value: I.1.2 Netzenergie in Wohngebäuden
   output_nodes:
   - id: i12_residential_grid_energy_consumption_emissions
     to_dimensions:
@@ -832,13 +830,12 @@ nodes:
   input_dimensions: [energietrager, scope]
   output_dimensions: [energietrager, scope]
   input_datasets:
-  - id: gpc/demo_stadt
+  - id: gpc/demo/energie
     forecast_from: 2025
     tags: [baseline]
-    column: energy
     filters:
-    - column: sector
-      value: i42
+    - column: gpc_sektor
+      value: I.4.2 Netzenergie im Energiesektor
   output_nodes:
   - id: i42_energy_grid_energy_consumption_emissions
     to_dimensions:
@@ -869,13 +866,12 @@ nodes:
   input_dimensions: [ghg, energietrager, scope]
   output_dimensions: [ghg, energietrager, scope]
   input_datasets:
-  - id: gpc/demo_stadt
+  - id: gpc/demo/emissionsfaktor
     forecast_from: 2025
     tags: [baseline]
-    column: emission_factor
     filters:
-    - column: sector
-      value: i42
+    - column: gpc_sektor
+      value: I.4.2 Netzenergie im Energiesektor
   output_nodes:
   - id: i42_energy_grid_energy_consumption_emissions
     to_dimensions:
@@ -894,13 +890,12 @@ nodes:
   input_dimensions: [ghg, energietrager, scope]
   output_dimensions: [ghg, energietrager, scope]
   input_datasets:
-  - id: gpc/demo_stadt
+  - id: gpc/demo/emissionsfaktor
     forecast_from: 2025
     tags: [baseline]
-    column: emission_factor
     filters:
-    - column: sector
-      value: i42
+    - column: gpc_sektor
+      value: I.4.2 Netzenergie im Energiesektor
   # output_nodes:
   # - id: i42_energy_grid_energy_consumption_emissions
   #   to_dimensions:
@@ -917,13 +912,12 @@ nodes:
   input_dimensions: [energietrager, scope]
   output_dimensions: [energietrager, scope]
   input_datasets:
-  - id: gpc/demo_stadt
+  - id: gpc/demo/energie
     forecast_from: 2025
     tags: [baseline]
-    column: energy
     filters:
-    - column: sector
-      value: ii11
+    - column: gpc_sektor
+      value: II.1.1 Brennstoffe im Straßenverkehr
   output_nodes:
   - id: ii11_onroad_transport_fuel_consumption_emissions
     to_dimensions:
@@ -953,13 +947,12 @@ nodes:
   input_dimensions: [ghg, energietrager, scope]
   output_dimensions: [ghg, energietrager, scope]
   input_datasets:
-  - id: gpc/demo_stadt
+  - id: gpc/demo/emissionsfaktor
     forecast_from: 2025
     tags: [baseline]
-    column: emission_factor
     filters:
-    - column: sector
-      value: ii11
+    - column: gpc_sektor
+      value: II.1.1 Brennstoffe im Straßenverkehr
   output_nodes:
   - id: ii11_onroad_transport_fuel_consumption_emissions
     to_dimensions:
@@ -976,13 +969,12 @@ nodes:
   input_dimensions: [energietrager, scope]
   output_dimensions: [energietrager, scope]
   input_datasets:
-  - id: gpc/demo_stadt
+  - id: gpc/demo/energie
     forecast_from: 2025
     tags: [baseline]
-    column: energy
     filters:
-    - column: sector
-      value: ii12
+    - column: gpc_sektor
+      value: II.1.2 Netzenergie im Straßenverkehr
   output_nodes:
   - id: ii12_onroad_transport_grid_energy_consumption_emissions
     to_dimensions:
@@ -1012,13 +1004,12 @@ nodes:
   input_dimensions: [ghg, energietrager, scope]
   output_dimensions: [ghg, energietrager, scope]
   input_datasets:
-  - id: gpc/demo_stadt
+  - id: gpc/demo/emissionsfaktor
     forecast_from: 2025
     tags: [baseline]
-    column: emission_factor
     filters:
-    - column: sector
-      value: ii12
+    - column: gpc_sektor
+      value: II.1.2 Netzenergie im Straßenverkehr
   output_nodes:
   - id: ii12_onroad_transport_grid_energy_consumption_emissions
     to_dimensions:
