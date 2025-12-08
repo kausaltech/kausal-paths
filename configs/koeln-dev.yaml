@@ -9,7 +9,7 @@ dataset_repo:
   commit: 4a40a32754f24f4816766971235dfa496b764d06
   dvc_remote: kausal-s3
   # Data from https://docs.google.com/spreadsheets/d/1qUIUgAE1Sqbt6qIClxEypuWRi0GpQQUc/edit?gid=1907288926#gid=1907288926
-name: Demonstration BASIC+ Treibhausgasinventar Entwurf
+name: Treibhausgasinventar
 owner: Köln Stadt
 theme_identifier: de-koeln
 target_year: 2050
@@ -440,6 +440,9 @@ actions:
       value: renewable_generation_small_decentralized_systems
   output_nodes:
   - id: net_emissions
+  params:
+  - id: enabled
+    is_customizable: false
 
 - id: renewable_generation_open_space
   name: Erneuerbare Stromerzeugung in der Fläche
@@ -1494,3 +1497,8 @@ scenarios:
   name_de: Klimaschutzplan
   name_en: Climate Action Plan
   all_actions_enabled: true
+  params:
+  - id: renewable_generation_small_decentralized_systems.enabled
+    value: true
+    is_customizable: false
+    is_visible: false

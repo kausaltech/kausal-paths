@@ -523,6 +523,7 @@ class InstanceLoader:
             label = self.make_trans_string(pc, 'label', pop=True) or param_obj.label
             ref = pc.pop('ref', None)
             description = self.make_trans_string(pc, 'description', pop=True) or param_obj.description
+            is_customizable = pc.pop('is_customizable', None)
 
             scenario_values = pc.pop('values', {})
 
@@ -557,6 +558,8 @@ class InstanceLoader:
                 fields['description'] = description
             if label is not None:
                 fields['label'] = label
+            if is_customizable is not None:
+                fields['is_customizable'] = is_customizable
             fields['context'] = self.context
 
             unit = fields.get('unit', None)
