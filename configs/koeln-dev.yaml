@@ -440,9 +440,6 @@ actions:
       value: renewable_generation_small_decentralized_systems
   output_nodes:
   - id: net_emissions
-  params:
-  - id: enabled
-    is_customizable: false
 
 - id: renewable_generation_open_space
   name: Erneuerbare Stromerzeugung in der Fläche
@@ -874,6 +871,9 @@ actions:
       value: food_and_nutrition
   output_nodes:
   - id: net_emissions
+  params:
+  - id: enabled
+    is_customizable: false
 
 - id: climate_friendly_consumption_behavior
   name: Klimafreundlicheres Konsumverhalten der Bevölkerung
@@ -897,6 +897,9 @@ actions:
       value: climate_friendly_consumption_behavior
   output_nodes:
   - id: net_emissions
+  params:
+  - id: enabled
+    is_customizable: false
 
 - id: ghg_neutral_administration_scope_1_and_2
   name: THG-neutrale Verwaltung (direkte Einflussbereiche über Scope 1 und Scope
@@ -929,6 +932,9 @@ actions:
       value: ghg_neutral_administration_scope_1_and_2
   output_nodes:
   - id: net_emissions
+  params:
+  - id: enabled
+    is_customizable: false
 
 - id: ghg_neutral_administration_scope_3
   name: THG-neutrale Verwaltung (indirekter Einflussbereich über Scope 3)
@@ -956,6 +962,9 @@ actions:
       value: ghg_neutral_administration_scope_3
   output_nodes:
   - id: net_emissions
+  params:
+  - id: enabled
+    is_customizable: false
 
 - id: waste_reduction_and_facility_efficiency
   name: Abfallreduktion & Anlageneffizienz
@@ -983,6 +992,9 @@ actions:
       value: waste_reduction_and_facility_efficiency
   output_nodes:
   - id: net_emissions
+  params:
+  - id: enabled
+    is_customizable: false
 
 - id: cross_cutting_climate_protection_aspects
   name: Übergreifende Klimaschutz-aspekte
@@ -1014,6 +1026,9 @@ actions:
       value: cross_cutting_climate_protection_aspects
   output_nodes:
   - id: net_emissions
+  params:
+  - id: enabled
+    is_customizable: false
 
 # ---------- DIRECT ACTIONS
 
@@ -1358,6 +1373,9 @@ actions:
       value: ghg_reduction_through_circular_use_of_wood_and_building_materials
   output_nodes:
   - id: net_emissions
+  params:
+  - id: enabled
+    is_customizable: false
 
 - id: optimization_of_residual_waste_utilization_by_avg
   name: Optimierung der Restmüllverwertung durch AVG
@@ -1377,6 +1395,9 @@ actions:
       value: optimization_of_residual_waste_utilization_by_avg
   output_nodes:
   - id: net_emissions
+  params:
+  - id: enabled
+    is_customizable: false
 
 - id: waste_incineration_co2_reduction_through_ccs_at_avg
   name: 'Müllverbrennung: CO2-Emissionsminderung durch CO2-Abscheidung bei der AVG'
@@ -1396,6 +1417,9 @@ actions:
       value: waste_incineration_co2_reduction_through_ccs_at_avg
   output_nodes:
   - id: net_emissions
+  params:
+  - id: enabled
+    is_customizable: false
 
 - id: sump_development_by_city_administration
   name: SUMP Entwicklung durch die Stadtverwaltung
@@ -1434,6 +1458,9 @@ actions:
       value: digital_climate_protection_monitoring_by_administration
   output_nodes:
   - id: net_emissions
+  params:
+  - id: enabled
+    is_customizable: false
 
 - id: climate_protection_coordination_office
   name: Koordinationsstelle Klimaschutz
@@ -1453,6 +1480,9 @@ actions:
       value: climate_protection_coordination_office
   output_nodes:
   - id: net_emissions
+  params:
+  - id: enabled
+    is_customizable: false
 
 - id: municipal_heat_planning_preparation_by_administration
   name: Erstellung der kommunalen Wärmeplanung durch die Verwaltung
