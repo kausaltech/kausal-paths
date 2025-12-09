@@ -253,7 +253,7 @@ class NumberParameter(ParameterWithUnit, Parameter[float]):
             unit = None
         super().set(value) # type: ignore
         if unit is not None:
-            self.unit = cast(Unit, unit)
+            self.unit = cast('Unit', unit)
 
 
 @dataclass

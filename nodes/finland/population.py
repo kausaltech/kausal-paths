@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import polars as pl
 
-from nodes.node import Node
+from common import polars as ppl
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
-from common import polars as ppl
-
+from nodes.node import Node
 
 HISTORICAL_DATASET = 'statfi/StatFin/vrm/vaerak/statfin_vaerak_pxt_11re'
 FORECAST_DATASET = 'statfi/StatFin/vrm/vaenn/statfin_vaenn_pxt_139f'

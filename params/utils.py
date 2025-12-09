@@ -11,8 +11,8 @@ if TYPE_CHECKING:
 def sep_unit(val: Quantity, output_unit: Unit | None = None) -> tuple[float, Unit]:
     """Return as tuple the magnitude and units of a Pint Quantity."""
     if output_unit is not None:
-        val = cast(Quantity, val.to(output_unit))
-    return float(val.m), cast(Unit, val.units)
+        val = cast("Quantity", val.to(output_unit))
+    return float(val.m), cast("Unit", val.units)
 
 
 def sep_unit_pt(val: Quantity) -> tuple[float, PintType]:

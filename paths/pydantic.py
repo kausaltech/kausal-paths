@@ -1,4 +1,3 @@
-# ruff: noqa: ANN401
 from __future__ import annotations
 
 from collections.abc import Hashable
@@ -6,7 +5,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Annotated, Any, TypeVar
 
 from pydantic import AfterValidator, Field
-
 from pydantic_core import PydanticCustomError
 
 if TYPE_CHECKING:

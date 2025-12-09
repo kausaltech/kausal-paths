@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
-from wagtail.blocks import StructBlock, ChooserBlock
+from wagtail.blocks import ChooserBlock, StructBlock
 
 
 class NodeChooserBlock(ChooserBlock):

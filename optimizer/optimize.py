@@ -1,36 +1,34 @@
 from __future__ import annotations
-from contextlib import contextmanager
-from io import StringIO
-import math
-from typing import TYPE_CHECKING
-import polars as pl
 
+import math
+from dataclasses import dataclass
+from functools import partial
+from io import StringIO
+from typing import TYPE_CHECKING, Callable
+
+from pydantic import BaseModel
+
+import networkx as nx
+import numpy as np
+import polars as pl
 from rich import print
 from rich.syntax import Syntax
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
-from ruamel.yaml.scalarfloat import ScalarFloat
-
-from dataclasses import dataclass
-import numpy as np
-from functools import cached_property, partial, wraps
-from typing import Callable, Tuple
-import networkx as nx
-from pydantic import BaseModel
 from scipy import optimize
 
+from common import polars as ppl
+from nodes.actions.shift import ShiftAction, ShiftParameterValue
 from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
 from nodes.instance import Instance
 from nodes.simple import MixNode
-from nodes.actions.shift import ShiftAction, ShiftParameterValue
-from common import polars as ppl
 
 if TYPE_CHECKING:
     from nodes import Node
-    from nodes.context import Context
-    from nodes.actions.shift import ShiftAmount
-    from params import Parameter
     from nodes.actions import ActionNode
+    from nodes.actions.shift import ShiftAmount
+    from nodes.context import Context
+    from params import Parameter
 
 
 yaml = YAML()
@@ -40,7 +38,7 @@ yaml = YAML()
 class OptimizeParameterEntry:
     id: str
     x0: float
-    bounds: Tuple[float, float]
+    bounds: tuple[float, float]
     xstep: float
     set_value: Callable
     finalize: Callable | None
@@ -89,7 +87,7 @@ class OptimizeParameter:
 
         # remove all the values after our start year
         for eidx, entry in enumerate(value.root):
-            entry.amounts = list(sorted([a for a in entry.amounts if a.year <= start_year], key=lambda x: x.year))
+            entry.amounts = sorted([a for a in entry.amounts if a.year <= start_year], key=lambda x: x.year)
             start = entry.amounts[-1]
             if start.year != start_year:
                 start = entry.amounts[-1].model_copy()
@@ -207,25 +205,25 @@ class OptimizeParameterSet:
         self.frozen = True
 
     @property
-    def x0(self) -> Tuple[float, ...]:
+    def x0(self) -> tuple[float, ...]:
         return tuple(e.x0 for param in self.params for e in param.entries)
 
     @property
-    def bounds(self) -> Tuple[Tuple[float, ...], Tuple[float, ...]]:
+    def bounds(self) -> tuple[tuple[float, ...], tuple[float, ...]]:
         lower = tuple(e.bounds[0] for param in self.params for e in param.entries)
         upper = tuple(e.bounds[1] for param in self.params for e in param.entries)
         return (lower, upper)
 
     @property
-    def value_setters(self) -> Tuple[Callable, ...]:
+    def value_setters(self) -> tuple[Callable, ...]:
         return tuple(e.set_value for param in self.params for e in param.entries)
 
     @property
-    def xstep(self) -> Tuple[float, ...]:
+    def xstep(self) -> tuple[float, ...]:
         return tuple(e.xstep for param in self.params for e in param.entries)
 
     @property
-    def finalizers(self) -> Tuple[Callable, ...]:
+    def finalizers(self) -> tuple[Callable, ...]:
         return tuple(e.finalize for param in self.params for e in param.entries if e.finalize is not None)
 
     def set_values(self, vals: np.ndarray):
@@ -235,8 +233,8 @@ class OptimizeParameterSet:
             finalize()
 
     def print(self):
-        from rich.table import Table
         from rich.console import Console
+        from rich.table import Table
 
         table = Table()
         for col in ("Action", "Param", "x0", "bounds", "step"):
@@ -249,7 +247,7 @@ class OptimizeParameterSet:
 
     def save_to_yaml(self, instance: Instance):
         assert instance.yaml_file_path
-        cfg = yaml.load(open(instance.yaml_file_path, "r", encoding="utf8"))
+        cfg = yaml.load(open(instance.yaml_file_path, encoding="utf8"))
         main = cfg
         if "instance" in cfg:
             main = cfg["instance"]
@@ -360,7 +358,7 @@ class Optimizer:
             all_paths = list(nx.all_simple_paths(
                 ctx.node_graph, source=act.id, target=self.outcome_node.id
             ))
-            assert len(all_paths)
+            assert all_paths
             for path in all_paths:
                 path_nodes.update(path)
 

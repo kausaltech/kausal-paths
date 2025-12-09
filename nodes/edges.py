@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from typing import Tuple, TYPE_CHECKING, Any
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any
 
 from nodes.exceptions import NodeError
 
-from .dimensions import Dimension, DimensionCategory
 from .context import Context
+from .dimensions import Dimension, DimensionCategory
 
 if TYPE_CHECKING:
     from .node import Node
@@ -19,7 +19,7 @@ class EdgeDimension:
     flatten: bool
 
     @classmethod
-    def from_config(cls, dc: dict, context: Context, node: Node, node_dims: dict[str, Dimension]) -> Tuple[str, EdgeDimension]:
+    def from_config(cls, dc: dict, context: Context, node: Node, node_dims: dict[str, Dimension]) -> tuple[str, EdgeDimension]:
         if 'id' not in dc:
             # If 'id' is not supplied, assume it's the first and only dimension
             if len(node_dims) == 1:
@@ -32,10 +32,10 @@ class EdgeDimension:
                 raise NodeError(node, "dimension %s not found" % dim_id)
             dim = context.dimensions[dim_id]
 
-        flatten = dc.get('flatten', None)
-        exclude = dc.get('exclude', None)
-        cat_ids = dc.get('categories', None)
-        groups = dc.get('groups', None)
+        flatten = dc.get('flatten')
+        exclude = dc.get('exclude')
+        cat_ids = dc.get('categories')
+        groups = dc.get('groups')
         if groups is not None:
             if cat_ids is None:
                 cat_ids = []

@@ -1,4 +1,3 @@
-# ruff: noqa: A002, ANN401
 from __future__ import annotations
 
 import hashlib

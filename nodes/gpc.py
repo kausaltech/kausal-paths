@@ -7,7 +7,6 @@ from django.utils.translation import gettext_lazy as _
 import polars as pl
 
 from common import polars as ppl
-from nodes.actions.action import ActionNode
 from nodes.calc import extend_last_historical_value_pl
 from nodes.constants import FORECAST_COLUMN, UNCERTAINTY_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError

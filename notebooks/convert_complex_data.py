@@ -177,13 +177,14 @@ def load_config(yaml_file_path: str | Path) -> DatasetConfig:
 
     Returns:
         DatasetConfig object with schema and file paths
+
     """
     yaml_file_path = Path(yaml_file_path)
 
     if not yaml_file_path.exists():
         raise FileNotFoundError(f"Configuration file not found: {yaml_file_path}")
 
-    with open(yaml_file_path, 'r', encoding='utf-8') as f:
+    with open(yaml_file_path, encoding='utf-8') as f:
         config = yaml.safe_load(f)
 
     # Parse column specs
@@ -192,7 +193,7 @@ def load_config(yaml_file_path: str | Path) -> DatasetConfig:
         col_num = int(col_num_str)
 
         # Create ColumnSpec based on whether it's a dimension or data column
-        if 'dimension_name' in spec_dict and spec_dict['dimension_name']:
+        if spec_dict.get('dimension_name'):
             # This is a dimension column (long format)
             column_specs[col_num] = ColumnSpec(
                 dimension_name=spec_dict['dimension_name']
@@ -236,6 +237,7 @@ def process_dataset(config_path: str | Path, verbose: bool = True) -> pl.DataFra
 
     Returns:
         Transformed DataFrame
+
     """
     # Load configuration
     if verbose:

@@ -1,10 +1,12 @@
-import pytest
 from django.utils.translation import get_language
+
+import pytest
+
 from nodes.actions.simple import AdditiveAction
 from nodes.context import Context
+from nodes.metric import Metric
 from nodes.scenario import Scenario
 from nodes.tests.factories import ActionNodeFactory, NodeConfigFactory, NodeFactory
-from nodes.metric import Metric
 from nodes.units import unit_registry
 
 pytestmark = pytest.mark.django_db
@@ -12,7 +14,7 @@ pytestmark = pytest.mark.django_db
 
 def test_instance_type(graphql_client_query_data, instance, instance_config):
     data = graphql_client_query_data(
-        '''
+        """
         query {
           instance {
             __typename
@@ -27,7 +29,7 @@ def test_instance_type(graphql_client_query_data, instance, instance_config):
             leadParagraph
           }
         }
-        '''
+        """
     )
     expected = {
         'instance': {
@@ -56,7 +58,7 @@ def test_forecast_metric_type(
     metric = Metric.from_node(additive_action)
     assert metric is not None
     data = graphql_client_query_data(
-        '''
+        """
         query($id: ID!) {
           node(id: $id) {
             metric {
@@ -89,7 +91,7 @@ def test_forecast_metric_type(
             }
           }
         }
-        ''',
+        """,
         variables={'id': additive_action.id}
     )
     expected_historical_values = [{
@@ -266,7 +268,7 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
 def test_scenario_type(graphql_client_query_data, context, scenario):
     is_active = scenario == context.active_scenario
     data = graphql_client_query_data(
-        '''
+        """
         query($id: ID!) {
           scenario(id: $id) {
             __typename
@@ -276,7 +278,7 @@ def test_scenario_type(graphql_client_query_data, context, scenario):
             isDefault
           }
         }
-        ''',
+        """,
         variables={'id': scenario.id}
     )
     expected = {

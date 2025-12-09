@@ -67,10 +67,10 @@ class FloorAreaNode(MultiplicativeNode):  # FIXME Rebuild this with modern tools
 
         # Add or update dimension building_energy_class
         if 'building_energy_class' in df.dim_ids:
-            df_bau = df_bau.with_columns((
+            df_bau = df_bau.with_columns(
                 pl.when(pl.col('building_energy_class')
                         .eq('existing')).then(pl.col('floor_old'))
-                        .otherwise(pl.col('floor_new')).alias('floor_old')))
+                        .otherwise(pl.col('floor_new')).alias('floor_old'))
             df_bau = df_bau.drop('floor_new')
             df_bau = df_bau.rename({'floor_old': 'floor_area'})
         else:
@@ -87,9 +87,9 @@ class FloorAreaNode(MultiplicativeNode):  # FIXME Rebuild this with modern tools
             df = df.ensure_unit('compliant', 'dimensionless')
 
             df = df.paths.join_over_index(df_bau)
-            df = df.with_columns((
+            df = df.with_columns(
                 pl.when(pl.col('building_energy_class').eq(pl.lit('new')))
-                .then(pl.lit(1.0)).otherwise(pl.col('triggered')).alias('triggered')))
+                .then(pl.lit(1.0)).otherwise(pl.col('triggered')).alias('triggered'))
 
             df = df.multiply_cols(['floor_area', 'triggered', 'compliant'], 'floor_area')
 
@@ -114,10 +114,11 @@ class FloorAreaNode(MultiplicativeNode):  # FIXME Rebuild this with modern tools
 
 
 class CfNode(FloorAreaNode):
-    '''
+    """
     Consumption factor (CF) describes the energy saving caused by the action.
     There must be at least one action of type energy_saving.CfFloorAreaAction.
-    '''
+    """
+
     output_dimension_ids = ['action', 'building_energy_class', 'emission_sectors']
     input_dimension_ids = ['building_energy_class', 'emission_sectors']
 
@@ -169,13 +170,13 @@ class CfNode(FloorAreaNode):
 
 
 class EnergyNode(MultiplicativeNode):
-    '''
+    """
     Takes the floor area and consumption factor categorized by building energy class and action.
 
     This energy saving is accumulated over time to reflect the situation that
     the energy use of a building stays constant after renovation.
     However, accumulation can be prevented by using the parameter not_cumulated.
-    '''
+    """
 
     allowed_parameters = MultiplicativeNode.allowed_parameters + [
         StringParameter(

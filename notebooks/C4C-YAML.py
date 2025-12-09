@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import os
+
 import polars as pl
 
 os.chdir('/Users/jouni/devel/climate4cast')
@@ -455,8 +458,7 @@ for dim in dims:
         yamlfile.write('- id: %s\n  label: %s\n  categories:\n' % (makeid(dim), dim))
 
         cats.sort()
-        for cat in cats:
-            yamlfile.write("  - id: %s\n    label: '%s'\n" % (makeid(cat), cat))
+        yamlfile.writelines("  - id: %s\n    label: '%s'\n" % (makeid(cat), cat) for cat in cats)
         yamlfile.write('\n')
 
 # -------------------------------------------------------------------------------------------------

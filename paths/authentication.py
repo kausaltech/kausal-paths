@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import importlib.util
 
 from django.http import HttpRequest
-from rest_framework.authentication import TokenAuthentication
-from rest_framework import exceptions
 from django.utils.translation import gettext_lazy as _
-
+from rest_framework import exceptions
+from rest_framework.authentication import TokenAuthentication
 
 from nodes.models import InstanceConfig
 

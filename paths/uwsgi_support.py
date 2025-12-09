@@ -1,4 +1,6 @@
-from uwsgidecorators import postfork # type: ignore
+from __future__ import annotations
+
+from uwsgidecorators import postfork  # type: ignore
 
 
 @postfork

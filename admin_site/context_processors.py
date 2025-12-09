@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import json
+
 from django.conf import settings
 
 

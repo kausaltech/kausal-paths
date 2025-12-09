@@ -23,7 +23,6 @@ from paths.pydantic import (
 
 from common.i18n import I18nBaseModel, I18nStringInstance
 from nodes.constants import VALUE_COLUMN
-from nodes.gpc import DatasetNode
 
 if TYPE_CHECKING:
     from common.polars import PathsDataFrame

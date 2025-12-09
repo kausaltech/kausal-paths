@@ -1,10 +1,10 @@
 import pytest
+
 from nodes.context import Context
 from nodes.instance import Instance
 from nodes.scenario import Scenario
-
-from params.tests.factories import BoolParameterFactory, NumberParameterFactory, StringParameterFactory
 from nodes.tests.factories import NodeFactory
+from params.tests.factories import BoolParameterFactory, NumberParameterFactory, StringParameterFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -18,7 +18,7 @@ def test_parameter_interface(graphql_client_query_data, context: Context, is_glo
         node = NodeFactory.create(context=context)
         node.add_parameter(param)
     data = graphql_client_query_data(
-        '''
+        """
         query($param: ID!) {
           parameter(id: $param) {
             __typename
@@ -33,7 +33,7 @@ def test_parameter_interface(graphql_client_query_data, context: Context, is_glo
             isCustomizable
           }
         }
-        ''',
+        """,
         variables={'param': param.global_id}
     )
     if is_global:
@@ -57,12 +57,12 @@ def test_parameter_interface(graphql_client_query_data, context: Context, is_glo
 
 
 @pytest.mark.parametrize('default_value', [True, False])
-def test_bool_parameter_type(graphql_client_query_data, instance: Instance, default_value, default_scenario: Scenario):  # noqa: F821
+def test_bool_parameter_type(graphql_client_query_data, instance: Instance, default_value, default_scenario: Scenario):
     param = BoolParameterFactory.create(context=instance.context)
     instance.context.add_global_parameter(param)
     default_scenario.add_parameter(param, default_value)
     data = graphql_client_query_data(
-        '''
+        """
         query($param: ID!) {
           parameter(id: $param) {
             __typename
@@ -73,7 +73,7 @@ def test_bool_parameter_type(graphql_client_query_data, instance: Instance, defa
             }
           }
         }
-        ''',
+        """,
         variables={'param': param.global_id}
     )
     expected = {
@@ -93,7 +93,7 @@ def test_number_parameter_type(graphql_client_query_data, context, default_scena
     context.add_global_parameter(param)
     default_scenario.add_parameter(param, default_value)
     data = graphql_client_query_data(
-        '''
+        """
         query($param: ID!) {
           parameter(id: $param) {
             __typename
@@ -110,7 +110,7 @@ def test_number_parameter_type(graphql_client_query_data, context, default_scena
             }
           }
         }
-        ''',
+        """,
         variables={'param': param.global_id}
     )
     expected = {
@@ -136,7 +136,7 @@ def test_string_parameter_type(graphql_client_query_data, context, default_scena
     context.add_global_parameter(param)
     default_scenario.add_parameter(param, default_value)
     data = graphql_client_query_data(
-        '''
+        """
         query($param: ID!) {
           parameter(id: $param) {
             __typename
@@ -147,7 +147,7 @@ def test_string_parameter_type(graphql_client_query_data, context, default_scena
             }
           }
         }
-        ''',
+        """,
         variables={'param': param.global_id}
     )
     expected = {
@@ -166,7 +166,7 @@ def test_set_parameter_bool(graphql_client_query_data, bool_parameter, context, 
     param_id = bool_parameter.global_id
     value = True
     data = graphql_client_query_data(
-        '''
+        """
         mutation($param: ID!, $value: Boolean!) {
           setParameter(id: $param, boolValue: $value) {
             ok
@@ -178,7 +178,7 @@ def test_set_parameter_bool(graphql_client_query_data, bool_parameter, context, 
             }
           }
         }
-        ''',
+        """,
         variables={'param': param_id, 'value': value}
     )
     expected = {
@@ -198,7 +198,7 @@ def test_set_parameter_number(graphql_client_query_data, number_parameter, conte
     param_id = number_parameter.global_id
     value = 1234.5
     data = graphql_client_query_data(
-        '''
+        """
         mutation($param: ID!, $value: Float!) {
           setParameter(id: $param, numberValue: $value) {
             ok
@@ -210,7 +210,7 @@ def test_set_parameter_number(graphql_client_query_data, number_parameter, conte
             }
           }
         }
-        ''',
+        """,
         variables={'param': param_id, 'value': value}
     )
     expected = {
@@ -230,7 +230,7 @@ def test_set_parameter_string(graphql_client_query_data, string_parameter, conte
     param_id = string_parameter.global_id
     value = 'bar'
     data = graphql_client_query_data(
-        '''
+        """
         mutation($param: ID!, $value: String!) {
           setParameter(id: $param, stringValue: $value) {
             ok
@@ -242,7 +242,7 @@ def test_set_parameter_string(graphql_client_query_data, string_parameter, conte
             }
           }
         }
-        ''',
+        """,
         variables={'param': param_id, 'value': value}
     )
     expected = {
@@ -264,13 +264,13 @@ def test_set_parameter_activates_custom_scenario(
     assert context.active_scenario != custom_scenario
     param_id = bool_parameter.global_id
     graphql_client_query_data(
-        '''
+        """
         mutation($param: ID!, $value: Boolean!) {
           setParameter(id: $param, boolValue: $value) {
             ok
           }
         }
-        ''',
+        """,
         variables={'param': param_id, 'value': True}
     )
     assert context.active_scenario == custom_scenario
@@ -284,13 +284,13 @@ def test_reset_parameter(graphql_client_query_data, string_parameter, context, d
     param_id = string_parameter.global_id
     assert string_parameter.get() is None
     graphql_client_query_data(
-        '''
+        """
         mutation($param: ID!) {
           resetParameter(id: $param) {
             ok
           }
         }
-        ''',
+        """,
         variables={'param': param_id}
     )
     context.activate_scenario(custom_scenario)
@@ -304,13 +304,13 @@ def test_reset_parameter_all(graphql_client_query_data, string_parameter, contex
     default_scenario.add_parameter(string_parameter, default_scenario_setting)
     assert string_parameter.get() is None
     graphql_client_query_data(
-        '''
+        """
         mutation {
           resetParameter {
             ok
           }
         }
-        '''
+        """
     )
     context.activate_scenario(custom_scenario)
     assert string_parameter.get() == default_scenario_setting
@@ -319,7 +319,7 @@ def test_reset_parameter_all(graphql_client_query_data, string_parameter, contex
 def test_activate_scenario(graphql_client_query_data, context, custom_scenario):
     assert context.active_scenario is not custom_scenario
     data = graphql_client_query_data(
-        '''
+        """
         mutation($scenario: ID!) {
           activateScenario(id: $scenario) {
             ok
@@ -328,7 +328,7 @@ def test_activate_scenario(graphql_client_query_data, context, custom_scenario):
             }
           }
         }
-        ''',
+        """,
         variables={'scenario': custom_scenario.id}
     )
     expected = {

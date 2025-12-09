@@ -16,15 +16,13 @@ from nodes.constants import (
     EMISSION_QUANTITY,
     ENERGY_QUANTITY,
     FORECAST_COLUMN,
-    PER_CAPITA_QUANTITY,
     VALUE_COLUMN,
     YEAR_COLUMN,
 )
 from nodes.dimensions import Dimension
 from nodes.exceptions import NodeError
 from nodes.node import Node, NodeMetric
-from nodes.simple import AdditiveNode, MultiplicativeNode
-from params import NumberParameter, Parameter, StringParameter
+from params import Parameter, StringParameter
 
 if typing.TYPE_CHECKING:
     from collections.abc import Callable

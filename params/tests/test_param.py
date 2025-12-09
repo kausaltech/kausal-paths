@@ -1,6 +1,6 @@
 import pytest
-from nodes.scenario import Scenario
 
+from nodes.scenario import Scenario
 from params.param import ValidationError
 
 pytestmark = pytest.mark.django_db

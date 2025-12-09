@@ -16,7 +16,6 @@ from .models import OutcomePage, Page, PathsPage
 from .perms import PagePermissionPolicy
 
 if TYPE_CHECKING:
-    from wagtail.query import PageQuerySet
 
     from paths.graphql_helpers import GQLInstanceInfo
 

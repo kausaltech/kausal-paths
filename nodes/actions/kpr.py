@@ -1,10 +1,14 @@
-from params.param import NumberParameter
+from __future__ import annotations
+
 import pandas as pd
-from nodes.context import Context
-from . import ActionNode as BaseActionNode
-from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
-from params import StringParameter
+
 from common.i18n import TranslatedString
+from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
+from nodes.context import Context
+from params import StringParameter
+from params.param import NumberParameter
+
+from . import ActionNode as BaseActionNode
 
 
 class ActionNode(BaseActionNode):

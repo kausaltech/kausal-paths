@@ -10,7 +10,7 @@ from django.db import models
 from social_django.models import UserSocialAuth
 
 if TYPE_CHECKING:
-    from django.db.models.fields.related_descriptors import RelatedManager  # noqa  # pyright: ignore
+    from django.db.models.fields.related_descriptors import RelatedManager  # pyright: ignore
     from django.db.models.manager import RelatedManager  # type: ignore  # noqa
 
 
@@ -84,9 +84,8 @@ class AbstractUser(DjangoAbstractUser):
 
     def get_display_name(self):
         if self.first_name and self.last_name:
-            return '{0} {1}'.format(self.first_name, self.last_name).strip()
-        else:
-            return self.email
+            return f'{self.first_name} {self.last_name}'.strip()
+        return self.email
 
     def get_short_name(self):
         if self.first_name:
@@ -101,8 +100,7 @@ class AbstractUser(DjangoAbstractUser):
     def __str__(self):
         if self.first_name and self.last_name:
             return '%s %s (%s)' % (self.last_name, self.first_name, self.email)
-        else:
-            return self.email
+        return self.email
 
     class Meta:
         abstract = True

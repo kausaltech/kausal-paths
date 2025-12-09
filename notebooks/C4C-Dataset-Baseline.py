@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import itertools
-import pandas as pd
-import polars as pl
 import sys
 
+import pandas as pd
+import polars as pl
 from dotenv import load_dotenv
+
 load_dotenv()
 
 incsvpath = sys.argv[1]
@@ -50,6 +53,7 @@ unitreplace = [['tCO2e', 't'],
 
 # ---------------------------------------------------------------------------------------
 from pint import UnitRegistry
+
 ureg = UnitRegistry()
 ureg.define('EUR = [currency]')
 
@@ -57,8 +61,7 @@ def pconvert(value):
     if value['Value']:
         pquantity = value['Value'] * ureg(value['Unit'])
         return pquantity.to(value['ToUnit'])._magnitude
-    else:
-        return float('nan')
+    return float('nan')
 
 # ---------------------------------------------------------------------------------------
 df = pl.read_csv(incsvpath, separator = incsvsep, infer_schema_length = 1000)
@@ -280,7 +283,6 @@ if outcsvpath.upper() not in ['N', 'NONE']:
     dfmain.write_csv(outcsvpath)
 
 if outdvcpath.upper() not in ['N', 'NONE']:
-    from dvc_pandas import Dataset, Repository
 
     indexcols = list(dims)
     indexcols.extend(['Quantity', 'Year'])

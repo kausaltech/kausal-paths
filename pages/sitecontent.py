@@ -63,6 +63,7 @@ class InstanceSiteContentModelMenuItem(MenuItem):
 # TODO: Could be moved to kausal-common, this is used as-is in kausal-watch as well
 class SuccessUrlEditPageMixin:
     """After editing a model instance, redirect to the edit page again instead of the index page."""
+
     get_edit_url: Callable
 
     def get_success_url(self) -> str:

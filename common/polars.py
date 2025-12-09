@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 import typing
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import reduce
 from typing import Any, cast
 from typing_extensions import deprecated

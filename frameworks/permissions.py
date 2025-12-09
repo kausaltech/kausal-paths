@@ -7,13 +7,18 @@ from kausal_common.models.permission_policy import (
     ModelPermissionPolicy,
     ModelReadOnlyPolicy,
 )
+
 from paths.const import INSTANCE_ADMIN_ROLE
+
 from users.models import User
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from django.db.models import Q
+
+    from kausal_common.models.permissions import PermissionedModel
+    from kausal_common.users import UserOrAnon
 
     from frameworks.models import (  # noqa: F401
         Framework,
@@ -25,8 +30,6 @@ if TYPE_CHECKING:
         Section,
         SectionQuerySet,
     )
-    from kausal_common.models.permissions import PermissionedModel
-    from kausal_common.users import UserOrAnon
     from users.models import User
 
 

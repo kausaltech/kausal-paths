@@ -1,9 +1,13 @@
-from nodes.context import Context
+from __future__ import annotations
+
 import pandas as pd
-from .simple import SectorEmissions as BaseSectorEmissions
-from .constants import FORECAST_COLUMN, VALUE_COLUMN
-from params import StringParameter
+
 from common.i18n import TranslatedString
+from nodes.context import Context
+from params import StringParameter
+
+from .constants import FORECAST_COLUMN, VALUE_COLUMN
+from .simple import SectorEmissions as BaseSectorEmissions
 
 
 class SectorEmissions(BaseSectorEmissions):

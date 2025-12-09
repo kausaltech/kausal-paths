@@ -1113,7 +1113,7 @@ class InstanceLoader:
         ds_objs = DBDatasetModel.mgr.qs.for_instance_config(ic).only('uuid', 'identifier', 'last_modified_at') # type: ignore
         self.db_datasets = {ds.identifier: ds for ds in ds_objs}
 
-    def _init_instance(self) -> None:  # noqa: C901, PLR0915
+    def _init_instance(self) -> None:  # noqa: PLR0915
         import dvc_pandas
 
         from nodes.actions.action import ActionGroup

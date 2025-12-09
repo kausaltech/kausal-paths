@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import orjson
 import pint
 
@@ -8,6 +10,6 @@ def hash_unit(unit: pint.Unit) -> bytes:
     if h is not None:
         return h
     h = orjson.dumps(dict(unit._units))
-    setattr(unit, '_paths_hash', h)
+    unit._paths_hash = h
     return h
 

@@ -1,11 +1,25 @@
-from typing import cast
-import polars as pl
-from common import polars as ppl
+from __future__ import annotations
 
+from typing import cast
+
+import polars as pl
+
+from common import polars as ppl
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
-from nodes.node import NodeMetric, NodeError, Node
-from nodes.simple import AdditiveNode, MultiplicativeNode, SimpleNode, MixNode
-from nodes.constants import CONSUMPTION_FACTOR_QUANTITY, DEFAULT_METRIC, EMISSION_FACTOR_QUANTITY, EMISSION_QUANTITY, ENERGY_QUANTITY, FORECAST_COLUMN, POPULATION_QUANTITY, VALUE_COLUMN, YEAR_COLUMN, MILEAGE_QUANTITY
+from nodes.constants import (
+    CONSUMPTION_FACTOR_QUANTITY,
+    DEFAULT_METRIC,
+    EMISSION_FACTOR_QUANTITY,
+    EMISSION_QUANTITY,
+    ENERGY_QUANTITY,
+    FORECAST_COLUMN,
+    MILEAGE_QUANTITY,
+    POPULATION_QUANTITY,
+    VALUE_COLUMN,
+    YEAR_COLUMN,
+)
+from nodes.node import Node, NodeError, NodeMetric
+from nodes.simple import AdditiveNode, MixNode, MultiplicativeNode, SimpleNode
 from nodes.units import Unit
 from params.param import BoolParameter
 
@@ -625,7 +639,7 @@ class ToPerCapita(Node):
         meta = act_df.get_meta()
         df = ppl.to_ppdf(act_df.join(pop_df, on=YEAR_COLUMN, how='left'), meta=meta)
 
-        pc_unit = cast(Unit, act_df.get_unit('Value') / pop_df.get_unit('Pop'))
+        pc_unit = cast('Unit', act_df.get_unit('Value') / pop_df.get_unit('Pop'))
         df = df.with_columns([
             (pl.col(VALUE_COLUMN) / pl.col('Pop')).alias('PerCapita'),
             (pl.col(FORECAST_COLUMN) | pl.col(FORECAST_COLUMN + '_right')).alias(FORECAST_COLUMN)
@@ -881,7 +895,7 @@ class TransportFuelFactor(AdditiveNode):
         for col, m in (('electricity', e_m), ('fuel', f_m)):
             u = df.get_unit(col)
             if 'vehicle' not in u.dimensionality:
-                df = df.set_unit(col, cast(Unit, u / v_unit), force=True)
+                df = df.set_unit(col, cast('Unit', u / v_unit), force=True)
             df = df.ensure_unit(col, m.unit).rename({col: m.column_id})
             df = df.with_columns(pl.col(m.column_id).fill_nan(None))
             exprs.append(pl.col(m.column_id).is_null() | pl.col(m.column_id).eq(0.0))

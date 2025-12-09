@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING
 
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
@@ -34,7 +34,7 @@ def _model_perms(app_label: str, models: str | Sequence[str], perms: Sequence[st
     return (app_label, ['%s_%s' % (p, m) for p in perms for m in models])
 
 
-def _join_perms(model_perms: list[Tuple[str, Sequence[str]]]):
+def _join_perms(model_perms: list[tuple[str, Sequence[str]]]):
     out: dict[str, set[str]] = {}
     for app_label, perms in model_perms:
         out[app_label] = out.get(app_label, set()).union(set(perms))

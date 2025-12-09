@@ -1,6 +1,6 @@
 import pytest
-from nodes.context import Context
 
+from nodes.context import Context
 from nodes.tests.factories import NodeFactory
 
 pytestmark = pytest.mark.django_db

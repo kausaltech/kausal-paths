@@ -181,7 +181,7 @@ print("Ranking of Alternatives:", ranking + 1)  # Adding 1 to match human indexi
 # Define an example objective function F(D)
 def objective_function(D):  # noqa: N803
     """Complex model where F(D) naturally includes interactions."""
-    D = np.array(D)  # noqa: N806
+    D = np.array(D)
     return -(100 * D[0] + 150 * D[1] + 120 * D[2]  # Base contributions
              + 50 * D[0] * D[1]  # Synergy between D0 & D1
              - 40 * D[1] * D[2]  # Antagonism between D1 & D2

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import functools
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from django.utils.translation import gettext_lazy as _
 

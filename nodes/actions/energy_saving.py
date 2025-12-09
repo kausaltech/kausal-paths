@@ -221,7 +221,7 @@ class BuildingEnergyRet(typing.NamedTuple):
     el_saving: np.ndarray
 
 
-def named_tuple_to_nb(cls: typing.Type[typing.NamedTuple]):
+def named_tuple_to_nb(cls: type[typing.NamedTuple]):
     nb_types = [nb.typeof(x()) for x in typing.get_type_hints(cls).values()]
     nb_param = nbt.NamedTuple(nb_types, cls)
     return nb_param

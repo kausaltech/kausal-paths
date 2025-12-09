@@ -30,7 +30,7 @@ class ContextFactory(Factory[Context]):
     target_year = 2030
 
     @classmethod
-    def create(cls, **kwargs: Any) -> Context:  # noqa: ANN401
+    def create(cls, **kwargs: Any) -> Context:
         return super().create(**kwargs)
 
     @post_generation
@@ -61,7 +61,7 @@ class InstanceFactory(Factory[Instance]):
     # content_refreshed_at: Optional[datetime] = field(init=False)
 
     @classmethod
-    def create(cls, **kwargs: Any) -> Instance:  # noqa: ANN401
+    def create(cls, **kwargs: Any) -> Instance:
         ret = super().create(**kwargs)
         return ret
 
@@ -83,7 +83,7 @@ class InstanceConfigFactory(DjangoModelFactory[InstanceConfig]):
 
     @classmethod
     def create(cls, **kwargs: Any) -> InstanceConfig:
-        instance = kwargs.get('instance', None)
+        instance = kwargs.get('instance')
         obj: InstanceConfig = super().create(**kwargs)
         if instance:
             from nodes.models import _pytest_instances

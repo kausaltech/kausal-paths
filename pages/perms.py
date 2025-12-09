@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from wagtail.models import PagePermissionTester
 from wagtail.permission_policies.pages import PagePermissionPolicy
 
