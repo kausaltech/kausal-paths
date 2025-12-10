@@ -499,9 +499,9 @@ pages:
 
 scenarios:
 - id: baseline
-  name: Baseline
+  name: Constant emission
 
 - id: default
   default: true
-  name: Climate Equity Plan
+  name: Climate Equity Plan Goals
   all_actions_enabled: true
