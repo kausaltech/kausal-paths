@@ -2266,13 +2266,10 @@ nodes:
   color: '#668EC9'
   quantity: currency
   unit: EUR/a
-  input_dimensions: [cost_type, owner, vehicle_type]
-  output_dimensions: [cost_type, owner, vehicle_type]
+  input_dimensions: [cost_type, owner]
+  output_dimensions: [cost_type, owner]
   output_nodes:
   - id: net_price
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
 
 - id: industry_and_machinery_price
   name: Teollisuuden ja työkoneiden kustannukset
@@ -2320,6 +2317,11 @@ nodes:
     from_dimensions:
     - id: action
       categories: [building_renewable_electricity_production_pv]
+      flatten: true
+  - id: transportation_price
+    from_dimensions:
+    - id: action
+      categories: [change_in_vehicle_propulsion, promoting_walking_and_cycling, tramline_3_construction]
       flatten: true
 
 - id: total_costs
@@ -3323,6 +3325,8 @@ actions:
     from_dimensions:
     - id: action
       flatten: true
+    - id: vehicle_type
+      flatten: true
     - id: ghg
       flatten: true
     - id: scope
@@ -3330,7 +3334,6 @@ actions:
     to_dimensions:
     - id: cost_type
     - id: owner
-    - id: vehicle_type
   - id: total_costs
     metrics: [currency]
     tags: [make_nonnegative]
@@ -3413,6 +3416,9 @@ actions:
   - id: currency
     unit: EUR/a
     quantity: currency
+  - id: term
+    unit: a
+    quantity: number
   output_nodes:
   - id: car_emissions_total
     metrics: [emissions]
@@ -3447,6 +3453,11 @@ actions:
     from_dimensions:
     - id: action
       flatten: true
+    - id: cost_type
+      categories: [investment]
+      exclude: true
+    - id: vehicle_type
+      flatten: true
     - id: ghg
       flatten: true
     - id: scope
@@ -3454,7 +3465,6 @@ actions:
     to_dimensions:
     - id: cost_type
     - id: owner
-    - id: vehicle_type
   - id: total_costs
     metrics: [currency]
     tags: [make_nonnegative]
@@ -3473,6 +3483,21 @@ actions:
     metrics: [currency]
     tags: [make_nonpositive]
     from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: owner
+  - id: annuitized_costs
+    metrics: [currency, term]
+    from_dimensions:
+    - id: cost_type
+      categories: [investment]
     - id: vehicle_type
       flatten: true
     - id: ghg
@@ -3574,6 +3599,9 @@ actions:
   - id: currency
     unit: EUR/a
     quantity: currency
+  - id: term
+    unit: a
+    quantity: number
   output_nodes:
   - id: car_kilometers
     metrics: [mileage]
@@ -3604,6 +3632,9 @@ actions:
     from_dimensions:
     - id: action
       flatten: true
+    - id: cost_type
+      categories: [investment]
+      exclude: true
     - id: vehicle_type
       flatten: true
     - id: scope
@@ -3611,8 +3642,6 @@ actions:
     to_dimensions:
     - id: cost_type
     - id: owner
-    - id: vehicle_type
-      categories: [passenger_cars]
   - id: total_costs
     metrics: [currency]
     tags: [make_nonnegative]
@@ -3629,6 +3658,19 @@ actions:
     metrics: [currency]
     tags: [make_nonpositive]
     from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: owner
+  - id: annuitized_costs
+    metrics: [currency, term]
+    from_dimensions:
+    - id: cost_type
+      categories: [investment]
     - id: vehicle_type
       flatten: true
     - id: scope
@@ -3724,6 +3766,9 @@ actions:
   - id: currency
     unit: EUR/a
     quantity: currency
+  - id: term
+    unit: a
+    quantity: number
   output_nodes:
   - id: car_kilometers
     metrics: [mileage]
@@ -3772,12 +3817,16 @@ actions:
     from_dimensions:
     - id: action
       flatten: true
+    - id: cost_type
+      categories: [investment]
+      exclude: true
+    - id: vehicle_type
+      flatten: true
     - id: scope
       flatten: true
     to_dimensions:
     - id: cost_type
     - id: owner
-    - id: vehicle_type
   - id: total_costs
     metrics: [currency]
     tags: [make_nonnegative]
@@ -3794,6 +3843,19 @@ actions:
     metrics: [currency]
     tags: [make_nonpositive]
     from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: owner
+  - id: annuitized_costs
+    metrics: [currency, term]
+    from_dimensions:
+    - id: cost_type
+      categories: [investment]
     - id: vehicle_type
       flatten: true
     - id: scope

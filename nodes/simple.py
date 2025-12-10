@@ -837,7 +837,8 @@ class AnnuityNode(AdditiveNode):
         inputdf = inputnodes[0].get_output_pl(target_node=self)
         meta = inputdf.get_meta()
         for node in inputnodes[1:]:
-            inputdf.extend(node.get_output_pl(target_node=self))
+            nodedf = node.get_output_pl(target_node=self)
+            inputdf.extend(nodedf.select(inputdf.columns))
 
         dimensions = list(self.input_dimensions.keys())
         partitions = inputdf.partition_by(dimensions)
