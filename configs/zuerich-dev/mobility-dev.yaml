@@ -903,7 +903,6 @@ nodes:
   output_dimensions: [vehicle_type]
   input_datasets:
   - id: zuerich/vehicle_mileage_outside_city
-    forecast_from: 2024
   input_dataset_processors: [LinearInterpolation]
 
 - id: passenger_mileage_outside_city
@@ -931,7 +930,6 @@ nodes:
   output_dimensions: [vehicle_type]
   input_datasets:
   - id: zuerich/transport_emission_factors_outside_city
-    forecast_from: 2024
   input_dataset_processors: [LinearInterpolation]
 
 - id: miv_emissions_outside_city
@@ -1080,7 +1078,6 @@ nodes:
   output_dimensions: [vehicle_type]
   input_datasets:
   - id: zuerich/new_vehicle_counts
-    forecast_from: 2024
   input_dataset_processors: [LinearInterpolation]
 
 - id: new_vehicle_emission_factors
@@ -1094,7 +1091,6 @@ nodes:
   allow_nulls: true
   input_datasets:
   - id: zuerich/new_vehicle_emission_factors
-    forecast_from: 2024
   input_dataset_processors: [LinearInterpolation]
 
 - id: new_vehicle_emissions
