@@ -43,51 +43,51 @@ features:
   use_datasets_from_db: true
   show_explanations: true
 
-result_excels:
-- base_excel_url: 
-    https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
-  name: Climate City Contract Tables
-  node_ids:
-  - afolu_emissions
-  - waste_water_treatment_emissions
-  - refridgerant_emissions
-  - aviation_emissions
-  - railways_emissions
-  - off_road_transportation
-  - leakage_from_oil_and_gas_wells_emissions
-  - emission_factor_fuels
-  - population
-  # - global_warming_potential_100a
-  - free_rides_per_person
-  - modal_share_of_active_transportation
-  - public_transportation_change
-  - public_transportation_trips_per_person
-  - diversion_rate
-  - waste_emission_factor
-  - participation_smart_grid
-  - smart_grid_improvement
-  - smart_grid_benefits
-  # - transmission_loss_change
-  # - transmission_loss_work_benefits
-  - building_square_footage
-  - building_electricity_use_historical
-  - building_natural_gas_use_historical
-  - building_natural_gas_eui
-  - building_electricity_eui
-  - electricity_emission_factor
-  - emission_factor_natural_gas
-  # - stationary_fuel_consumption
-  # - emission_factor_fuel
-  - stationary_wood_consumption
-  - emission_factor_wood
-  - electricity_loss_fraction
-  - miles_per_gallon
-  - vehicle_miles_per_vehicle
-  - registered_electric_vehicles
-  - electric_vehicle_efficiency
-  - vehicle_charging_shares
-  - amount_of_waste_per_person
-  format: wide
+# result_excels:
+# - base_excel_url: 
+#     https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
+#   name: Climate City Contract Tables
+#   node_ids:
+#   - afolu_emissions
+#   - waste_water_treatment_emissions
+#   - refridgerant_emissions
+#   - aviation_emissions
+#   # - railways_emissions
+#   # - off_road_transportation
+#   - leakage_from_oil_and_gas_wells_emissions
+#   - emission_factor_fuels
+#   - population
+#   # - global_warming_potential_100a
+#   - free_rides_per_person
+#   - modal_share_of_active_transportation
+#   # - public_transportation_change
+#   - public_transportation_trips_per_person
+#   - diversion_rate
+#   - waste_emission_factor
+#   - participation_smart_grid
+#   - smart_grid_improvement
+#   - smart_grid_benefits
+#   # - transmission_loss_change
+#   # - transmission_loss_work_benefits
+#   - building_square_footage
+#   - building_electricity_use_historical
+#   - building_natural_gas_use_historical
+#   - building_natural_gas_eui
+#   - building_electricity_eui
+#   - electricity_emission_factor
+#   - emission_factor_natural_gas
+#   # - stationary_fuel_consumption
+#   # - emission_factor_fuel
+#   - stationary_wood_consumption
+#   - emission_factor_wood
+#   - electricity_loss_fraction
+#   - miles_per_gallon
+#   # - vehicle_miles_per_vehicle
+#   - registered_electric_vehicles
+#   - electric_vehicle_efficiency
+#   - vehicle_charging_shares
+#   - amount_of_waste_per_person
+#   format: wide
 
 action_groups:
 - id: buildings
@@ -859,12 +859,6 @@ emission_sectors:
   part_of: waste_emissions
   input_dataset_processors: [LinearInterpolation]
 
-- id: on_road_transportation_emissions
-  name: On-road transportation
-  name_es-US: Transporte por carretera
-  part_of: transportation_emissions
-  input_dataset_processors: [LinearInterpolation]
-
 nodes:
 
 - id: population
@@ -953,57 +947,6 @@ nodes:
     - column: emission_sectors
       value: refridgerant
   output_nodes: [ippu_emissions]
-  input_dataset_processors: [LinearInterpolation]
-
-- id: aviation_emissions
-  name: Aviation emissions
-  name_es-US: Emisiones de la aviación
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [emission_scope]
-  output_dimensions: [emission_scope]
-  input_datasets:
-  - id: longmont/greenhouse_gas_emissions_by_subsector
-    column: emissions
-    filters:
-    - column: emission_sectors
-      value: aviation
-  # output_nodes: [transportation_emissions]
-  input_dataset_processors: [LinearInterpolation]
-
-- id: railways_emissions
-  name: Railways emissions
-  name_es-US: Emisiones ferroviarias
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [emission_scope]
-  output_dimensions: [emission_scope]
-  input_datasets:
-  - id: longmont/greenhouse_gas_emissions_by_subsector
-    column: emissions
-    filters:
-    - column: emission_sectors
-      value: railways
-  output_nodes: [transportation_emissions]
-  input_dataset_processors: [LinearInterpolation]
-
-- id: off_road_transportation
-  name: Off-road transportation
-  name_es-US: Transporte todoterreno
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [emission_scope]
-  output_dimensions: [emission_scope]
-  input_datasets:
-  - id: longmont/greenhouse_gas_emissions_by_subsector
-    column: emissions
-    filters:
-    - column: emission_sectors
-      value: off_road
-  output_nodes: [transportation_emissions]
   input_dataset_processors: [LinearInterpolation]
 
 - id: leakage_from_oil_and_gas_wells_emissions
@@ -2004,55 +1947,6 @@ nodes:
 #
 # Road transportation
 
-- id: number_of_cars
-  name: Number of cars
-  type: generic.GenericNode
-  quantity: number
-  unit: v
-  input_dimensions: [vehicle_type, energy_carrier]
-  output_dimensions: [vehicle_type, energy_carrier]
-  input_datasets:
-  - id: longmont/longmont_registered_vehicle_data
-    tags: [baseline]
-    column: number_of_registered_vehicles
-
-- id: gpd_distance_miles
-  name: GDP distance miles
-  type: generic.GenericNode
-  quantity: number
-  unit: VMT/a
-  input_datasets:
-  - id: longmont/gpd_distance_miles
-    tags: [baseline]
-    column: mileage
-
-- id: vehicle_mileage_by_type
-  name: Vehicle mileage by type
-  type: generic.GenericNode
-  quantity: mileage
-  unit: VMT/a
-  input_dimensions: [vehicle_type, energy_carrier]
-  output_dimensions: [vehicle_type, energy_carrier]
-  input_nodes:
-  - id: number_of_cars
-    tags: [use_as_shares]
-  - id: gpd_distance_miles
-    to_dimensions: []
-  params:
-    operations: add,use_as_shares
-
-- id: electricity_emission_factor2
-  name: Electricity emission factor
-  type: generic.GenericNode
-  quantity: emission_factor
-  unit: g/kWh
-  input_dimensions: [ghg, energy_carrier]
-  output_dimensions: [ghg, energy_carrier]
-  input_datasets:
-  - id: longmont/electricity_emission_factor_for_transportation
-    tags: [baseline]
-    column: emission_factor
-
 - id: transportation_ch4_emission_factors
   name: Transportation CH4 and N2O emission factors
   type: generic.GenericNode
@@ -2093,18 +1987,6 @@ nodes:
   - id: global_warming_potential_100a2
     to_dimensions:
     - id: ghg
-
-- id: vehicle_energy_efficiency
-  name: Vehicle energy efficiency
-  type: generic.GenericNode
-  quantity: energy_factor
-  unit: VMT/gal
-  input_dimensions: [vehicle_type, energy_carrier]
-  output_dimensions: [vehicle_type, energy_carrier]
-  input_datasets:
-  - id: longmont/vehicle_energy_efficiency
-    tags: [baseline]
-    column: mpg
 
 - id: road_transportation_emissions2
   name: Road transportation emissions2
@@ -2152,6 +2034,7 @@ nodes:
   unit: t_co2e/a
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
+  color: '#F4BD7B'
   output_nodes:
   - id: net_emissions2
     from_dimensions:
@@ -2162,92 +2045,6 @@ nodes:
     to_dimensions:
     - id: scope
       categories: [scope1] # FIXME
-
-# Transit
-
-# - id: total_transit_vmt
-#   name: Total transit VMT
-#   type: generic.GenericNode
-#   quantity: mileage
-#   unit: VMT/a
-#   input_dimensions: [service, vehicle_type, energy_carrier]
-#   output_dimensions: [service, vehicle_type, energy_carrier]
-#   input_datasets:
-#   - id: longmont/transit_data
-#     tags: [baseline]
-#     forecast_from: 2025
-#     column: transit_vmt
-
-# - id: transit_percentage_attributable_to_longmont
-#   name: Transit percentage attributable to Longmont
-#   type: generic.GenericNode
-#   quantity: fraction
-#   unit: '%'
-#   input_dimensions: [service, vehicle_type, energy_carrier]
-#   output_dimensions: [service, vehicle_type, energy_carrier]
-#   input_datasets:
-#   - id: longmont/transit_data
-#     tags: [baseline]
-#     forecast_from: 2025
-#     column: percent_attributable
-
-# - id: transit_mpg
-#   name: Transit MPG
-#   type: generic.GenericNode
-#   quantity: mileage
-#   unit: VMT/gal
-#   input_dimensions: [service, vehicle_type, energy_carrier]
-#   output_dimensions: [service, vehicle_type, energy_carrier]
-#   input_datasets:
-#   - id: longmont/transit_data
-#     tags: [baseline]
-#     forecast_from: 2025
-#     column: transit_mpg
-
-# - id: transit_fuel_use
-#   name: Transit fuel use
-#   type: generic.GenericNode
-#   quantity: energy
-#   unit: gal/a
-#   input_dimensions: [service, vehicle_type, energy_carrier]
-#   output_dimensions: [service, vehicle_type, energy_carrier]
-#   input_nodes:
-#   - id: total_transit_vmt
-#   - id: transit_percentage_attributable_to_longmont
-#   - id: transit_mpg
-#     tags: [geometric_inverse]
-#   params:
-#     operations: multiply,drop_infs,drop_nans,add
-
-# - id: transit_co2_emissions
-#   name: Transit CO2 emissions
-#   type: generic.GenericNode
-#   quantity: emissions
-#   unit: t_co2e/a
-#   input_dimensions: [service, vehicle_type, energy_carrier, ghg]
-#   output_dimensions: [service, vehicle_type, energy_carrier, ghg]
-#   input_nodes:
-#   - id: transit_fuel_use
-#     to_dimensions:
-#     - id: service
-#     - id: vehicle_type
-#     - id: energy_carrier
-#   - id: transportation_emission_factors
-#     to_dimensions:
-#     - id: energy_carrier
-#     - id: ghg
-#   - id: global_warming_potential_100a2
-#     to_dimensions:
-#     - id: ghg
-#   # output_nodes:
-#   # - id: road_transportation_emissions2
-#   #   from_dimensions:
-#   #   - id: service
-#   #     flatten: true
-#   #   to_dimensions:
-#   #   - id: vehicle_type
-#   #   - id: energy_carrier
-#   #   - id: ghg
 
 # Railways
 
@@ -2711,106 +2508,6 @@ nodes:
     - id: scope
       categories: [scope1]
 
-#OLD TRANSPORTATION NODES
-
-- id: transportation_emissions
-  name: Transportation emissions
-  name_es-US: Emisiones del transporte
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  color: '#F4BD7B'
-  input_dimensions: [emission_scope]
-  output_dimensions: [emission_scope]
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes:
-  - id: net_emissions
-
-- id: emission_factor_fuels
-  name: Fuel emission factors for CO2
-  name_es-US: Factores de emisión de combustible de CO2
-  type: simple.AdditiveNode
-  quantity: emission_factor
-  unit: kg/gal
-  input_dataset_processors: [LinearInterpolation]
-  input_datasets:
-  - longmont/emission_factor_fuels
-  input_dimensions: [energy_carrier, greenhouse_gases]
-  output_dimensions: [energy_carrier, greenhouse_gases]
-
-- id: registered_vehicles
-  name: Registered vehicles
-  name_es-US: Vehículos matriculados
-  type: simple.FixedMultiplierNode
-  quantity: number
-  unit: vehicle
-  input_nodes:
-  - population
-  params:
-  - id: multiplier
-    value: 0.8140
-    unit: vehicle/person
-    is_customizable: false
-
-- id: miles_per_gallon
-  name: Miles per gallon
-  name_es-US: Millas por galón
-  type: simple.AdditiveNode
-  quantity: fuel_consumption
-  unit: miles/gallon
-  input_datasets:
-  - longmont/miles_per_gallon
-
-- id: vehicle_miles_per_vehicle
-  name: Vehicle miles per vehicle
-  name_es-US: Millas vehiculares por vehículo
-  description: '<p>The model has two different estimates for VMT: <ul><li>Row 50:
-    Average annual VMT per Vehicle (from BAU, year 2018) 4,671.6 mi/vehicle/a</li>
-    <li>Row 76: Average annual VMT (from assumption, year 2018) 7,982 mi/vehicle/a</li></ul></p>
-    <p><b>Unit:</b> mi/(yr. v) = miles per year per vehicle</p>'
-  description_es-US: '<p>El modelo tiene dos estimaciones diferentes para VMT: <ul><li>Fila
-    50: VMT promedio anual por vehículo (de BAU, año 2018) 4671,6 mi/vehículo/a</li>
-    <li>Fila 76: VMT promedio anual (a partir del supuesto, año 2018) 7982 mi/vehículo/a</li></ul></p>
-    <p><b>Unidad:</b> mi/(año v) = millas al año por vehículo</p>'
-  type: simple.AdditiveNode
-  quantity: mileage
-  unit: miles/vehicle/a
-  input_datasets:
-  - longmont/annual_vehicle_miles_per_vehicle
-
-- id: registered_electric_vehicles
-  name: Registered electric vehicles
-  name_es-US: Vehículos eléctricos matriculados
-  type: simple.AdditiveNode
-  quantity: number
-  unit: vehicle
-  input_datasets:
-  - longmont/registered_electric_vehicles
-
-- id: registered_non_electric_vehicles
-  name: Registered non-electric vehicles
-  name_es-US: Vehículos no eléctricos matriculados
-  type: simple.SubtractiveNode
-  quantity: number
-  unit: vehicle
-  input_nodes:
-  - registered_vehicles
-  - registered_electric_vehicles
-
-- id: total_vehicle_miles_traveled
-  name: Total combustion engine vehicle miles traveled
-  name_es-US: Millas totales recorridas por vehículos con motor de combustión
-  description: <p><b>Unit:</b> Mmi/yr. = million miles per year (possibly cap. =
-    per capita)</p>
-  description_es-US: <p><b>Unidad:</b> Mmi/año = millones de millas al año 
-    (posiblemente cap. = per cápita)</p>
-  type: simple.MultiplicativeNode
-  quantity: mileage
-  unit: Mmiles/a
-  input_nodes:
-  - vehicle_miles_per_vehicle
-  - registered_non_electric_vehicles
-
 - id: vehicle_miles_traveled
   name: Combustion engine vehicle miles traveled
   name_es-US: Millas recorridas por vehículos con motor de combustión
@@ -2833,16 +2530,6 @@ nodes:
   #     flatten: true
   #   - id: energy_carrier
   #     flatten: true
-
-- id: non_electric_vehicle_fuel_use
-  name: Non-electric vehicle fuel use
-  name_es-US: Consumo de combustible en vehículos no eléctricos
-  type: simple.DivisiveNode
-  quantity: energy
-  unit: gallons/a
-  input_nodes:
-  - total_vehicle_miles_traveled
-  - miles_per_gallon
 
 - id: non_electric_vehicle_fuel_use2
   name: Non-electric vehicle fuel use2
@@ -2904,206 +2591,6 @@ nodes:
       flatten: true
   params:
     formula: sum_dim( fuels * ef * ghg_index, greenhouse_gases ) * gwp + non_co2
-
-- id: vehicle_fuel_emissions
-  name: Vehicle fuel emissions
-  name_es-US: Emisiones de combustible de vehículos
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [energy_carrier, greenhouse_gases]
-  output_dimensions: [energy_carrier, greenhouse_gases]
-  input_nodes:
-  - id: non_electric_vehicle_fuel_use
-    to_dimensions:
-    - id: energy_carrier
-      categories: [petrol]
-  - id: emission_factor_fuels
-    to_dimensions:
-    - id: energy_carrier
-    - id: greenhouse_gases
-  output_nodes:
-  - id: on_road_transportation_emissions
-    from_dimensions:
-    - id: greenhouse_gases
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: emission_scope
-      categories: [scope1]
-
-- id: vehicle_electricity_emissions
-  name: Vehicle electricity emissions
-  name_es-US: Emisiones de electricidad de vehículos
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [ghg]
-  output_dimensions: [ghg]
-  input_nodes:
-  - id: vehicle_electricity_use
-    from_dimensions:
-    - id: emission_sectors
-      flatten: true
-    to_dimensions: []
-  - id: electricity_emission_factor
-    from_dimensions:
-    - id: site
-      flatten: true
-    to_dimensions:
-    - id: ghg
-  output_nodes:
-  - id: on_road_transportation_emissions
-    from_dimensions:
-    - id: ghg
-      flatten: true
-    to_dimensions:
-    - id: emission_scope
-      categories: [scope2]
-
-- id: electric_vehicle_efficiency
-  name: Electric vehicle efficiency
-  name_es-US: Eficiencia del vehículo eléctrico
-  type: simple.AdditiveNode
-  quantity: fuel_consumption
-  unit: kWh/mile
-  input_datasets:
-  - longmont/electric_vehicle_efficiency
-
-- id: vehicle_electricity_use
-  name: Vehicle electricity use
-  name_es-US: Consumo de electricidad del vehículo
-  description: <b>Unit:</b> kWh/yr. = kilowatt-hours per year.
-  description_es-US: <b>Unidad:</b> kWh/año = kilovatios hora al año.
-  type: simple.MultiplicativeNode
-  quantity: energy
-  unit: kWh/a
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
-  input_nodes:
-  - id: registered_electric_vehicles
-    to_dimensions: []
-  - id: vehicle_miles_per_vehicle
-    to_dimensions: []
-  - id: electric_vehicle_efficiency
-    to_dimensions: []
-  - vehicle_charging_shares
-
-- id: vehicle_charging_shares
-  name: Vehicle charging shares
-  name_es-US: Acciones de carga de vehículos
-  type: simple.AdditiveNode
-  quantity: fraction
-  unit: '%'
-  input_datasets:
-  - longmont/vehicle_charging_shares
-  output_dimensions: [emission_sectors]
-
-- id: free_rides_per_person
-  name: Rides per person from Ride Free program
-  name_es-US: Viajes por persona del programa Ride Free
-  type: simple.AdditiveNode
-  quantity: number
-  unit: trip/inhabitant/a
-  historical_values: [[2016, 1.101064], [2017, 1.101064], [2018, 1.101064], [
-        2019, 1.101064], [2020, 1.101064], [2021, 1.101064], [2022, 1.101064], [
-        2023, 0]]
-
-- id: ridership_program
-  name: Ridership from Ride Free program
-  name_es-US: Cantidad de pasajeros del programa Ride Free
-  type: simple.MultiplicativeNode
-  quantity: number
-  unit: trip/a
-  input_nodes:
-  - free_rides_per_person
-  - population
-
-- id: vmt_change_due_to_public_transportation
-  name: Change in vehicle miles traveled due to public transportation
-  name_es-US: Cambio en las millas recorridas por vehículos debido al transporte
-    público
-  type: simple.FixedMultiplierNode
-  quantity: mileage
-  unit: miles/a
-  input_nodes:
-  - public_transportation_trips
-  params:
-  - id: multiplier
-    value: -8.8
-    unit: miles/trip
-  output_nodes:
-  - total_vehicle_miles_traveled
-
-- id: modal_share_of_active_transportation
-  name: Modal share of active transportation
-  name_es-US: Reparto modal del transporte activo
-  type: simple.AdditiveNode
-  quantity: fraction
-  unit: '%'
-  historical_values: [[2016, 10.0], [2017, 10], [2018, 10], [2019, 10], [2020, 
-        10], [2021, 10]]
-
-- id: vmt_change_from_active_transportation
-  name: Change in vehicle miles traveled due to active transportation
-  name_es-US: Cambio en las millas recorridas por vehículos debido al transporte
-    activo
-  type: simple.ImprovementNode
-  quantity: mileage
-  unit: dimensionless
-  input_nodes:
-  - modal_share_of_active_transportation
-  output_nodes:
-  - id: total_vehicle_miles_traveled
-    tags: [non_additive]
-
-- id: public_transportation_change
-  name: Public transportation change by last-mile actions
-  name_es-US: Cambio de transporte público por acciones de última milla
-  description: This is an intermediate node converting the action into a 
-    relative amount of trips (business-as-usual = 1).
-  description_es-US: Este es un nodo intermedio que convierte la acción en una 
-    cantidad relativa de viajes (situación normal = 1).
-  type: simple.ImprovementNode2
-  quantity: ratio
-  unit: dimensionless
-  historical_values: [[2016, 1.0], [2021, 1.9]]
-  input_dataset_processors: [LinearInterpolation]
-
-- id: public_transportation_trips_per_person
-  name: Public transportation trips per person
-  name_es-US: Viajes en transporte público por persona
-  description: Without further actions, the number of public transportation 
-    trips per person is assumed to be constant and at the level of 2017.
-  description_es-US: Sin más acciones; se supone que la cantidad de viajes en 
-    transporte público por persona es constante y se encuentra en el nivel de 
-    2017.
-  type: simple.FixedMultiplierNode
-  quantity: number
-  unit: trips/inhabitant/a
-  historical_values: [[2016, 5.890474806], [2017, 5.890474806], [2018, 
-        5.906333777], [2019, 5.922192747], [2020, 5.938051718], [2021, 
-        5.953910689]]
-  input_nodes:
-  - public_transportation_change
-  params:
-  - id: multiplier
-    value: 5.890474806
-    unit: trip/inhabitant/a
-  - id: replace_output_using_input_dataset
-    value: true
-
-- id: public_transportation_trips
-  name: Public transportation trips
-  name_es-US: Viajes en transporte público
-  type: simple.MultiplicativeNode
-  quantity: number
-  unit: trip/a
-  input_nodes:
-  - population
-  - public_transportation_trips_per_person
-  - ridership_program
 
 ### WASTE
 
@@ -3616,127 +3103,6 @@ actions:
   - id: electricity_use
     tags: [extend_to_history, complement]
 
-- id: vehicle_incentives
-  name: Increase electric vehicles through vehicle incentives and improved 
-    infrastructure
-  name_es-US: Aumentar el uso de vehículos eléctricos a través de incentivos e 
-    infraestructura mejorada
-  description: '<p>Transition 30% of all vehicles registered within the City to zero-emissions
-    by 2030, and near-100% of all vehicles by 2050 as stated in the <a href="https://www.longmontcolorado.gov/home/showpublisheddocument/34513/637685042384830000">2021
-    GoEV Resolution.</a></p> <p>Track Implementation: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/T-4">Sustainability
-    Plan Strategy T-4</a></li> <li><a href="https://indicators.longmontcolorado.gov/indicators/1771">Electric
-    Vehicle Indicator</a></li></ul></p><p><b>Unit:</b> v = number of vehicles</p>'
-  description_es-US: '<p>Hacer la transición del 30 % de todos los vehículos matriculados
-    en la ciudad a cero emisiones para el año 2030 y de casi el 100 % de todos los
-    vehículos para el año 2050, como se establece en la <a href="https://www.longmontcolorado.gov/home/showpublisheddocument/34513/637685042384830000">Resolución
-    del GoEV de 2021.</a></p> <p>Seguimiento de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/T-4">Estrategia
-    del Plan de Sustentabilidad T-4</a></li> <li><a href="https://indicators.longmontcolorado.gov/indicators/1771">Indicador
-    de vehículo eléctrico</a></li></ul></p><p><b>Unidad:</b> v = cantidad de vehículos</p>'
-  type: simple.AdditiveAction
-  quantity: number
-  unit: vehicle
-  group: transportation
-  input_datasets:
-  - id: longmont/energy_vehicle_and_waste_actions
-    forecast_from: 2022
-    column: vehicle_incentives
-  output_nodes:
-  - registered_electric_vehicles
-
-- id: increase_access_of_public_transit
-  name: Address barriers to increase access and use of public transit
-  name_es-US: Abordar los obstáculos para aumentar el acceso y el uso del 
-    transporte público
-  description: '<p>Address barriers to increase access and use of public transit,
-    especially for underserved communities.</p> <p>Track Implementation: <ul><li><a
-    href="https://indicators.longmontcolorado.gov/transportation">Equitable Carbon-Free
-    Transportation Roadmap</a></li> <li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/T-1">Sustainability
-    Plan Strategy T-1</a>, <a href="https://indicators.longmontcolorado.gov/sustainability/actions/T-5">Strategy
-    T-5</a> and <a href="https://indicators.longmontcolorado.gov/sustainability/actions/T-7">Strategy
-    T-7</a></li> <li><a href="https://indicators.longmontcolorado.gov/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system">Envision
-    Longmont Guiding Principle A Complete, Balanced, and Connected Transportation
-    System</a></li></ul></p>'
-  description_es-US: '<p>Abordar los obstáculos para aumentar el acceso y el uso del
-    transporte público, especialmente para las comunidades desatendidas.</p> <p>Seguimiento
-    de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/transportation">Hoja
-    de ruta de transporte equitativo y libre de carbono</a></li> <li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/T-1">Estrategia
-    del Plan de Sustentabilidad T-1</a>, <a href="https://indicators.longmontcolorado.gov/sustainability/actions/T-5">estrategia
-    T-5</a> y <a href="https://indicators.longmontcolorado.gov/sustainability/actions/T-7">estrategia
-    T-7</a></li> <li><a href="https://indicators.longmontcolorado.gov/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system">Principio
-    rector de Envision Longmont: un sistema de transporte completo, equilibrado y
-    conectado</a></li></ul></p>'
-  type: simple.GenericAction
-  quantity: number
-  unit: trip/inhabitant/a
-  group: transportation
-  input_datasets:
-  - id: longmont/energy_vehicle_and_waste_actions
-    tags: [baseline]
-    column: increase_access_of_public_transit
-    forecast_from: 2023
-  output_nodes:
-  - free_rides_per_person
-
-- id: multimodal_transportation_system
-  name: Develop multimodal transportation system / bicycle and pedestrian 
-    improvements
-  name_es-US: Desarrollar un sistema de transporte multimodal y mejoras para 
-    ciclistas y peatones
-  description: "<p>Pursue all elements of Longmont's multimodal transportation plan.
-    This action specifically models from actively reduce greenhouse gas emissions
-    through bicycle and pedestrian improvements.</p> <p>Track Implementation: <ul><li><a
-    href=\"https://indicators.longmontcolorado.gov/transportation\">Equitable Carbon-Free
-    Transportation Roadmap</a></li> <li><a href=\"https://indicators.longmontcolorado.gov/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system\"\
-    >Envision Longmont Guiding Principle A Complete, Balanced, and Connected Transportation
-    System</a></li></ul></p>"
-  description_es-US: '<p>Seguir todos los elementos del plan de transporte multimodal
-    de Longmont. Esta acción modela específicamente la reducción activa de las emisiones
-    de gases de efecto invernadero a través de mejoras para ciclistas y peatones.</p>
-    <p>Seguimiento de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/transportation">Hoja
-    de ruta de transporte equitativo y libre de carbono</a></li> <li><a href="https://indicators.longmontcolorado.gov/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system">Principio
-    rector de Envision Longmont: un sistema de transporte completo, equilibrado y
-    conectado</a></li></ul></p>'
-  type: simple.GenericAction
-  quantity: fraction
-  unit: '%'
-  group: transportation
-  input_datasets:
-  - id: longmont/energy_vehicle_and_waste_actions
-    tags: [baseline]
-    column: multimodal_transportation_system
-    forecast_from: 2023
-  output_nodes:
-  - modal_share_of_active_transportation
-
-- id: last_mile_connections
-  name: Improve last mile connections
-  name_es-US: Mejorar las conexiones de última milla
-  description: "<p>Pursue all elements of Longmont's multimodal transportation plan.
-    This action specifically models from actively reduce greenhouse gas emissions
-    through improving first/last mile connections.</p> <p>Track Implementation: <ul><li><a
-    href=\"https://indicators.longmontcolorado.gov/transportation\">Equitable Carbon-Free
-    Transportation Roadmap</a></li> <ul><li><a href=\"https://indicators.longmontcolorado.gov/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system\"\
-    >Envision Longmont Guiding Principle A Complete, Balanced, and Connected Transportation
-    System</a></li></ul></p>"
-  description_es-US: '<p>Seguir todos los elementos del plan de transporte multimodal
-    de Longmont. Esta acción modela específicamente la reducción activa de las emisiones
-    de gases de efecto invernadero al mejorar las conexiones de primera y última milla.</p>
-    <p>Seguimiento de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/transportation">Hoja
-    de ruta de transporte equitativo y libre de carbono</a></li> <ul><li><a href="https://indicators.longmontcolorado.gov/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system">Principio
-    rector de Envision Longmont: un sistema de transporte completo, equilibrado y
-    conectado</a></li></ul></p>'
-  type: simple.GenericAction
-  quantity: fraction
-  unit: '%'
-  group: transportation
-  input_datasets:
-  - id: longmont/energy_vehicle_and_waste_actions
-    tags: [baseline]
-    forecast_from: 2022
-    column: last_mile_connections
-  output_nodes:
-  - public_transportation_change
-
 - id: leak_detection
   name: Adopt and enforce leak detection and repair
   name_es-US: Adoptar y hacer cumplir la detección y reparación de fugas
@@ -3789,65 +3155,6 @@ actions:
   output_nodes:
   - diversion_rate
 
-- id: mpg_trend
-  name: Miles per gallon increasing trend
-  name_es-US: Tendencia al aumento de las millas recorridas por galón
-  description: The model assumes that internal combustion vehicles that use 
-    gasoline and diesel will become more efficient, increase miles traveled per 
-    gallon, over time.
-  description_es-US: El modelo supone que, con el tiempo, los vehículos de 
-    combustión interna que usan gasolina y diésel serán más eficientes y 
-    aumentarán las millas recorridas por galón.
-  type: simple.AdditiveAction
-  quantity: fuel_consumption
-  unit: miles/gallon
-  group: trend
-  input_datasets:
-  - id: longmont/energy_vehicle_and_waste_actions
-    forecast_from: 2022
-    column: mpg_trend
-  output_nodes:
-  - miles_per_gallon
-
-- id: vmt_per_vehicle_trend
-  name: Vehicle miles per vehicle trend
-  name_es-US: Tendencia de millas recorridas por vehículo
-  description: <p>The model assumes that overtime there will be a decrease in 
-    the annual miles traveled per vehicle.</p> <p><b>Unit:</b> mi/(yr. v) = 
-    miles per year per vehicle</p>
-  description_es-US: <p>El modelo supone que con el tiempo se producirá una 
-    disminución de las millas anuales recorridas por vehículo.</p> 
-    <p><b>Unidad:</b> mi/(a.v) = millas anuales por vehículo</p>
-  type: simple.AdditiveAction
-  quantity: mileage
-  unit: miles/vehicle/a
-  group: trend
-  input_datasets:
-  - id: longmont/energy_vehicle_and_waste_actions
-    forecast_from: 2022
-    column: vmt_per_vehicle_trend
-  output_nodes:
-  - vehicle_miles_per_vehicle
-
-- id: electric_vehicle_efficiency_trend
-  name: Electric vehicle efficiency trend
-  name_es-US: Tendencia de la eficiencia de los vehículos eléctricos
-  description: The model assumes that electric vehicles will become more 
-    efficient, increase in miles traveled per kilowatt hour of energy, overtime.
-  description_es-US: El modelo supone que, con el tiempo, los vehículos 
-    eléctricos serán más eficientes y aumentarán los kilómetros recorridos por 
-    kilovatio hora de energía.
-  type: simple.AdditiveAction
-  quantity: fuel_consumption
-  unit: kWh/mile
-  group: trend
-  input_datasets:
-  - id: longmont/energy_vehicle_and_waste_actions
-    forecast_from: 2022
-    column: electric_vehicle_efficiency_trend
-  output_nodes:
-  - electric_vehicle_efficiency
-
 - id: energy_use_intensity_trend
   name: Energy use intensity trend
   name_es-US: Tendencia de la intensidad del uso de la energía
@@ -3882,12 +3189,6 @@ scenarios:
   name_es-US: Normalidad
   params:
   - id: energy_use_intensity_trend.enabled
-    value: true
-  - id: mpg_trend.enabled
-    value: true
-  - id: vmt_per_vehicle_trend.enabled
-    value: true
-  - id: electric_vehicle_efficiency_trend.enabled
     value: true
 
 - id: default
