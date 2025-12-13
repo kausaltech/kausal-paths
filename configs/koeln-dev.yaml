@@ -1521,14 +1521,10 @@ scenarios:
 - id: baseline
   name_de: Business as Usual
   name_en: Business as Usual
+  all_actions_enabled: false
 
 - id: default
   default: true
   name_de: Klimaschutzplan
   name_en: Climate Action Plan
-  all_actions_enabled: true
-  params:
-  - id: renewable_generation_small_decentralized_systems.enabled
-    value: true
-    is_customizable: false
-    is_visible: false
+  all_actions_enabled: false
