@@ -3293,6 +3293,61 @@ nodes:
   input_dimensions: []
   output_dimensions: []
 
+- id: aahps_in_municipal_building_stock_energy
+  name: Vaikutus (Energiaa)
+  name_en: Impact (Energy)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  order: 3
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: aahps_in_municipal_building_stock_currency
+  name: Vaikutus (Kustannus)
+  name_en: Impact (Costs)
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  order: 4
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: geothermal_and_awhps_in_municipal_building_stock_electricity
+  name: Vaikutus (Energiaa, Sähkö)
+  name_en: Impact (Electricity)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  order: 3
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: geothermal_and_awhps_in_municipal_building_stock_fuel_oil
+  name: Vaikutus (Energiaa, Polttoöljy)
+  name_en: Impact (Fuel Oil)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  order: 4
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: geothermal_and_awhps_in_municipal_building_stock_currency
+  name: Vaikutus (Kustannus)
+  name_en: Impact (Costs)
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  order: 5
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
 - id: energy_efficiency_renovations_in_buildings_district_heating
   name: Vaikutus (Energiaa, Kaukolämpö)
   name_en: Impact (District Heating)
@@ -3322,6 +3377,72 @@ nodes:
   quantity: currency
   unit: EUR/a
   order: 5
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: additional_investments_in_naistenlahti_3_emission_factor
+  name: Vaikutus (Päästökerroin)
+  name_en: Impact (Emission Factor)
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t_co2e/GWh
+  order: 3
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: additional_investments_in_naistenlahti_3_currency
+  name: Vaikutus (Kustannus)
+  name_en: Impact (Costs)
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  order: 4
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: electric_boiler_and_district_heat_battery_emission_factor
+  name: Vaikutus (Päästökerroin)
+  name_en: Impact (Emission Factor)
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t_co2e/GWh
+  order: 3
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: electric_boiler_and_district_heat_battery_currency
+  name: Vaikutus (Kustannus)
+  name_en: Impact (Costs)
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  order: 4
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: smart_grid_and_virtual_power_plant_development_emission_factor
+  name: Vaikutus (Päästökerroin)
+  name_en: Impact (Emission Factor)
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t_co2e/GWh
+  order: 3
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: smart_grid_and_virtual_power_plant_development_currency
+  name: Vaikutus (Kustannus)
+  name_en: Impact (Costs)
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  order: 4
   is_outcome: true
   input_dimensions: []
   output_dimensions: []
@@ -4183,6 +4304,36 @@ actions:
     - id: action
     - id: cost_type
     - id: owner
+  - id: aahps_in_municipal_building_stock_energy
+    metrics: [energy]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: aahps_in_municipal_building_stock_currency
+    metrics: [currency]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
 
 - id: geothermal_and_awhps_in_municipal_building_stock
   name: Geothermal and AWHPs in municipal building stock
@@ -4330,6 +4481,53 @@ actions:
     - id: cost_type
     - id: owner
     - id: heating
+  - id: geothermal_and_awhps_in_municipal_building_stock_electricity
+    metrics: [energy]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: geothermal_and_awhps_in_municipal_building_stock_fuel_oil
+    metrics: [energy]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      categories: [fuel_oil]
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: geothermal_and_awhps_in_municipal_building_stock_currency
+    metrics: [currency]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
 
 - id: waste_heat_recovery_in_district_heating
   name: Hukkalämpöjen talteenotto kaukolämmityksen tukena
@@ -4626,6 +4824,40 @@ actions:
     - id: action
     - id: cost_type
     - id: owner
+  - id: additional_investments_in_naistenlahti_3_emission_factor
+    metrics: [emission_factor]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: additional_investments_in_naistenlahti_3_currency
+    metrics: [currency]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
 
 - id: electric_boiler_and_district_heat_battery
   name: Sähkökattila ja kaukolämpöakku
@@ -4736,6 +4968,40 @@ actions:
     - id: action
     - id: cost_type
     - id: owner
+  - id: electric_boiler_and_district_heat_battery_emission_factor
+    metrics: [emission_factor]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: electric_boiler_and_district_heat_battery_currency
+    metrics: [currency]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
 
 - id: smart_grid_and_virtual_power_plant_development
   name: Älykäs energiaverkko ja virtuaalilaitoksen kehitys
@@ -4823,6 +5089,40 @@ actions:
     - id: action
     - id: cost_type
     - id: owner
+  - id: smart_grid_and_virtual_power_plant_development_emission_factor
+    metrics: [emission_factor]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: smart_grid_and_virtual_power_plant_development_currency
+    metrics: [currency]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
 
 # ----- Sähkön Kulutus
 - id: build_renewable_electricity_production
