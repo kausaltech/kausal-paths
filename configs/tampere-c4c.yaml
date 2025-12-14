@@ -2966,12 +2966,157 @@ nodes:
   output_nodes:
   - id: building_heating_cost_benefit
 
+- id: smart_grid_and_virtual_power_plant_development_cost_benefit
+  name: Älykäs energiaverkko ja virtuaalilaitoksen kehitys
+  name_en: Smart grid and virtual power plant development
+  color: '#AD3963'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [smart_grid_and_virtual_power_plant_development]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [smart_grid_and_virtual_power_plant_development]
+  output_nodes:
+  - id: building_heating_cost_benefit
+
 - id: building_heating_cost_benefit
   name: Rakennuksen lämmitys kustannukset ja hyödyt
   name_en: Building heating costs and benefits
   short_name: Rakennuksen lämmitys
   short_name_en: Building heating
   color: '#AD3963'
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  output_nodes:
+  - id: cost_benefit
+
+
+- id: build_renewable_electricity_production_cost_benefit
+  name: Hajautettu uusiutuva energia (aurinkosähkö)
+  name_en: Building renewable electricity production (PV)
+  color: '#F4D240'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [building_renewable_electricity_production_pv]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [building_renewable_electricity_production_pv]
+  output_nodes:
+  - id: electricity_consumption_cost_benefit
+
+- id: change_streetlights_to_led_cost_benefit
+  name: Katuvalaistuksen vaihtaminen LED-valaisimiksi
+  name_en: Replacing street lighting with LEDs
+  color: '#F4D240'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [replacing_street_lighting_with_leds]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [replacing_street_lighting_with_leds]
+  output_nodes:
+  - id: electricity_consumption_cost_benefit
+
+- id: energy_efficiency_of_new_construction_cost_benefit
+  name: Uusien rakennusten energiatehokkuustoimet kaupungin kiinteistöissä
+  name_en: Energy efficiency measures for new construction projects in city's own building stock
+  color: '#F4D240'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [energy_efficiency_measures_for_new_construction]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [energy_efficiency_measures_for_new_construction]
+  output_nodes:
+  - id: electricity_consumption_cost_benefit
+
+- id: electricity_consumption_cost_benefit
+  name: Sähkön kulutus kustannukset ja hyödyt
+  name_en: Electricity consumption costs and benefits
+  short_name: Sähkön kulutus
+  short_name_en: Electricity consumption
+  color: '#F4D240'
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  output_nodes:
+  - id: cost_benefit
+
+
+- id: replacing_fossil_fuels_with_res_in_city_machinery_cost_benefit
+  name: Fossiilisista polttoaineista luopuminen kaupungin työkoneissa
+  name_en: Replacing fossil fuels with renewables in the city's own machinery
+  color: '#E8B455'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [replacing_fossil_fuels_with_res_in_city_machinery]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [replacing_fossil_fuels_with_res_in_city_machinery]
+  output_nodes:
+  - id: industry_and_machinery_cost_benefit
+
+- id: industry_and_machinery_cost_benefit
+  name: Teollisuus ja työkoneet kustannukset ja hyödyt
+  name_en: Industry and machinery costs and benefits
+  short_name: Teollisuus ja työkoneet
+  short_name_en: Industry and machinery
+  color: '#E8B455'
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
