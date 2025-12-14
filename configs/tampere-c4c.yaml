@@ -2305,23 +2305,39 @@ nodes:
   type: simple.AnnuityNode
   quantity: currency
   unit: EUR/a
-  input_dimensions: [cost_type, owner, action]
-  output_dimensions: [cost_type, owner, action]
+  input_dimensions: [action, owner, cost_type]
+  output_dimensions: [action, owner, cost_type]
   output_nodes:
   - id: building_heating_price
     from_dimensions:
     - id: action
-      categories: [additional_investments_in_naistenlahti_3, electric_boiler_and_district_heat_battery]
+      categories: [aahps_in_municipal_building_stock, additional_investments_in_naistenlahti_3, electric_boiler_and_district_heat_battery, energy_efficiency_measures_for_new_construction, energy_efficiency_renovations_in_city_buildings]
       flatten: true
   - id: electricity_consumption_price
     from_dimensions:
     - id: action
-      categories: [building_renewable_electricity_production_pv]
+      categories: [building_renewable_electricity_production_pv, replacing_street_lighting_with_leds]
       flatten: true
   - id: transportation_price
     from_dimensions:
     - id: action
       categories: [change_in_vehicle_propulsion, promoting_walking_and_cycling, tramline_3_construction]
+      flatten: true
+
+- id: annuitized_costs_by_heating_system
+  name: Annuitized Costs by Heating System
+  name_en: Annuitized Costs by Heating System
+  type: simple.AnnuityNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [action, heating, owner, cost_type]
+  output_dimensions: [action, heating, owner, cost_type]
+  output_nodes:
+  - id: building_heating_price
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: heating
       flatten: true
 
 - id: total_costs
@@ -4076,6 +4092,9 @@ actions:
   - id: currency
     unit: EUR/a
     quantity: currency
+  - id: term
+    unit: a
+    quantity: number
   output_nodes:
   - id: direct_electric_heating_electricity_consumption
     metrics: [energy]
@@ -4109,6 +4128,9 @@ actions:
     from_dimensions:
     - id: action
       flatten: true
+    - id: cost_type
+      categories: [investment]
+      exclude: true
     - id: heating
       flatten: true
     - id: energy_carrier
@@ -4146,6 +4168,21 @@ actions:
     - id: action
     - id: cost_type
     - id: owner
+  - id: annuitized_costs
+    metrics: [currency, term]
+    from_dimensions:
+    - id: cost_type
+      categories: [investment]
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: owner
 
 - id: geothermal_and_awhps_in_municipal_building_stock
   name: Geothermal and AWHPs in municipal building stock
@@ -4171,6 +4208,9 @@ actions:
   - id: currency
     unit: EUR/a
     quantity: currency
+  - id: term
+    unit: a
+    quantity: number
   output_nodes:
   - id: direct_electric_heating_electricity_consumption
     metrics: [energy]
@@ -4236,6 +4276,9 @@ actions:
     from_dimensions:
     - id: action
       flatten: true
+    - id: cost_type
+      categories: [investment]
+      exclude: true
     - id: heating
       flatten: true
     - id: energy_carrier
@@ -4273,6 +4316,20 @@ actions:
     - id: action
     - id: cost_type
     - id: owner
+  - id: annuitized_costs_by_heating_system
+    metrics: [currency, term]
+    from_dimensions:
+    - id: cost_type
+      categories: [investment]
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: owner
+    - id: heating
 
 - id: waste_heat_recovery_in_district_heating
   name: Hukkalämpöjen talteenotto kaukolämmityksen tukena
@@ -4320,6 +4377,9 @@ actions:
   - id: currency
     unit: EUR/a
     quantity: currency
+  - id: term
+    unit: a
+    quantity: number
   output_nodes:
   - id: district_heating_energy_consumption
     metrics: [energy]
@@ -4366,20 +4426,6 @@ actions:
     to_dimensions:
     - id: action
     - id: energy_carrier
-  - id: building_heating_price
-    metrics: [currency]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: heating
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: cost_type
-    - id: owner
   - id: total_costs
     metrics: [currency]
     tags: [make_nonnegative]
@@ -4398,6 +4444,21 @@ actions:
     metrics: [currency]
     tags: [make_nonpositive]
     from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: owner
+  - id: annuitized_costs
+    metrics: [currency, term]
+    from_dimensions:
+    - id: cost_type
+      categories: [investment]
     - id: heating
       flatten: true
     - id: energy_carrier
@@ -4921,6 +4982,9 @@ actions:
   - id: currency
     unit: EUR/a
     quantity: currency
+  - id: term
+    unit: a
+    quantity: number
   output_nodes:
   - id: other_electricity_consumption
     metrics: [energy]
@@ -4951,6 +5015,9 @@ actions:
     from_dimensions:
     - id: action
       flatten: true
+    - id: cost_type
+      categories: [investment]
+      exclude: true
     - id: energy_carrier
       flatten: true
     - id: scope
@@ -4974,6 +5041,19 @@ actions:
     metrics: [currency]
     tags: [make_nonpositive]
     from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: owner
+  - id: annuitized_costs
+    metrics: [currency, term]
+    from_dimensions:
+    - id: cost_type
+      categories: [investment]
     - id: energy_carrier
       flatten: true
     - id: scope
@@ -5033,6 +5113,9 @@ actions:
   - id: currency
     unit: EUR/a
     quantity: currency
+  - id: term
+    unit: a
+    quantity: number
   output_nodes:
   - id: district_heating_energy_consumption
     metrics: [energy]
@@ -5079,20 +5162,6 @@ actions:
     to_dimensions:
     - id: action
     - id: energy_carrier
-  - id: building_heating_price
-    metrics: [currency]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: heating
-      flatten: true
-    - id: energy_carrier
-      flatten: true
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: cost_type
-    - id: owner
   - id: total_costs
     metrics: [currency]
     tags: [make_nonnegative]
@@ -5111,6 +5180,21 @@ actions:
     metrics: [currency]
     tags: [make_nonpositive]
     from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: owner
+  - id: annuitized_costs
+    metrics: [currency, term]
+    from_dimensions:
+    - id: cost_type
+      categories: [investment]
     - id: heating
       flatten: true
     - id: energy_carrier
@@ -5337,6 +5421,9 @@ actions:
     unit: '%'
   output_nodes:
   - id: annuitized_costs
+    tags: [discount_rate]
+    to_dimensions: []
+  - id: annuitized_costs_by_heating_system
     tags: [discount_rate]
     to_dimensions: []
   - id: net_cost
