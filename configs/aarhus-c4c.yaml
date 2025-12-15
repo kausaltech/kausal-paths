@@ -183,6 +183,8 @@ dimensions:
     label: Wood Pellets
   - id: import_electricity
     label: Import Electricity
+  - id: biogenic_fuels
+    label: Biogenic Fuels
 
 - id: cost_type
   label: Cost Type
