@@ -4,7 +4,7 @@ supported_languages: [sv, en]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: aea7fe7f4acdb8c89bd6630acd8ebff88122590e
+  commit: ca42936e416e093ba618c54443c4e8806b228a87
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -41,6 +41,12 @@ include:
   allow_override: true
 - file: frameworks/hsy/transport.yaml
   node_group: Transport
+  allow_override: true
+- file: modules/health/air_pollution_exposure.yaml
+  node_group: Health
+  allow_override: true
+- file: modules/health/attribution_and_cost.yaml
+  node_group: Health
   allow_override: true
 
 result_excels:
@@ -108,6 +114,11 @@ params:
   value: false
   is_visible: true
   is_customizable: true
+- id: discount_rate
+  label: Diskonttokorko
+  label_en: Discount rate
+  value: 3.5
+  unit: '%'
 
 dimensions:
 
@@ -283,6 +294,59 @@ dimensions:
     label_fi: Muu tai tuntematon
   - id: total
     label_fi: Yhteensä
+
+- id: cost_type
+  label_en: Cost Type
+  label_fi: Kustannuslaji
+  categories:
+  - id: energy_costs
+    label_en: Energy Costs
+    label_fi: Energiakustannus
+  - id: investment_costs
+    label_en: Investment Costs
+    label_fi: Investointikustannus
+  - id: capex
+    label_en: CAPEX (capital expenditure)
+    label_fi: CAPEX (pääomakustannus)
+  - id: capex_levelised
+    label_en: CAPEX (levelised)
+    label_fi: Tasoitettu investointikustannus
+  - id: opex
+    label_en: OPEX (operational expenditure)
+    label_fi: OPEX (operatiivinen kustannus)
+    aliases: [operation_cost, Operation Cost]
+  - id: maintenance_costs
+    label_en: Maintenance Costs
+    label_fi: Ylläpitokustannus
+    aliases: [maintenance]
+  - id: sales
+    label_en: Sales income
+    label_fi: Myyntitulo
+  - id: co2_cost
+    label_en: CO2 Cost
+    label_fi: CO2-kustannus
+  - id: air_pollution
+    label_en: Air pollution
+    label_fi: Ilmansaaste
+    aliases: [air_quality]
+  - id: noise
+    label_en: Noise
+    label_fi: Melu
+  - id: accidents
+    label_en: Accidents
+    label_fi: Onnettomuus
+  - id: health
+    label_en: Health
+    label_fi: Terveys
+  - id: air_pollution_everywhere # Move to response?
+    label_en: Air pollution everywhere
+    label_fi: Kaikki ilmansaastekuolleisuus
+  - id: physical_activity
+    label_en: Physical activity
+    label_fi: Fyysinen aktiivisuus
+  - id: work_days_lost
+    label_en: Work days lost
+    label_fi: Menetetyt työpäivät
 
 - id: do_correction
   label_fi: Vihreän sähkön korjaus
@@ -748,6 +812,100 @@ nodes:
     tags: [baseline]
     forecast_from: 2025
     column: population
+
+- id: total_cost
+  name_en: Total cost
+  name_fi: Kokonaiskustannukset
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
+  is_outcome: true
+  input_nodes:
+  - id: health_costs_attributed_to_exposure
+    from_dimensions:
+    - id: response
+      flatten: true
+    - id: iteration
+      flatten: true
+
+- id: greenhouse_gas_emission_cost
+  name_en: Greenhouse gas emission cost
+  name_fi: Kasvihuonekaasupäästökustannus
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
+  input_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: emission_sector
+      flatten: true
+    - id: economic_sector
+      flatten: true
+  - id: co2_unit_price
+    tags: [extend_values]
+  output_nodes:
+  - id: total_cost
+
+- id: co2_unit_price
+  name: CO2 unit price
+  type: generic.GenericNode
+  quantity: unit_price
+  unit: EUR/t
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
+  input_datasets:
+  - id: nzc/defaults
+    tags: [baseline, extend_values]
+    filters:
+    - column: Sector
+      value: Value of CO2 reduction
+    - column: Ghg
+
+# LINK TO HEALTH MODULE
+
+- id: transport_air_pollution_emissions_total
+  name_fi: Liikenteen kokonaisilmansaastepäästöt
+  name_en: Transport air pollution emissions total
+  description_fi: Liikenteen ilmansaastepäästöt laskettuna CO2-päästöstä ja muut
+    päästöt suhteutettuna siihen päästökertoimien suhteessa.
+  description_en: Air pollution emissions from transport based on CO2 emissions 
+    and other pollutants relative to that based on relative emission factors.
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t/a
+  input_dimensions: [pollutant]
+  output_dimensions: [pollutant]
+  input_nodes:
+  - id: transport_emission_ratio
+    from_dimensions:
+    - id: pollutant
+      categories: [pm25, pm10, nox]
+  - id: road_traffic_emissions
+    tags: [non_additive]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: economic_sector
+      flatten: true
+
+- id: power_plant_emissions
+  name_en: District heating plant emissions
+  name_fi: Kaukolämpövoimalaitosten päästöt
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_nodes:
+  - id: building_heating_emissions
+    from_dimensions:
+    - id: economic_sector
+      flatten: true
+    - id: emission_sector
+      categories: [district_heating]
+      flatten: true
 
 # GENERIC HSY NODES
 
@@ -1780,7 +1938,11 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: kEUR/a
-  is_outcome: true
+  output_nodes:
+  - id: total_cost
+    to_dimensions:
+    - id: cost_type
+      categories: [opex]
 
 pages:
 
