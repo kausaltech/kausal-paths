@@ -148,7 +148,7 @@ dimensions:
     label: Relative improvement
     label_es-US: Mejora relativa
 
-- id: airport # FIXME Merge into asset
+- id: airport # TODO Merge into site
   label: Airport
   categories:
   - id: vance_brand_airport
@@ -159,10 +159,6 @@ dimensions:
 - id: asset
   label: Asset
   categories:
-  - id: vance_brand_airport
-    label: Vance Brand Airport
-  - id: denver_international_airport
-    label: Denver International Airport
   - id: power_purchase_program
     label: Commercial and Residential Power Purchase Program
   - id: rooftop_solar
@@ -569,29 +565,9 @@ dimensions:
   - id: via_ride_service_shuttles
     label: Via Ride Service Shuttles
 
-- id: site # FIXME Merge into item
+- id: site
   label: Production or consumption site
   label_es-US: Sitio de producción o consumo
-  categories:
-  - id: longmont_power
-    label: Longmont Power
-    label_es-US: Longmont Power
-  - id: platte_river_power_authority
-    label_en: Platte River Power Authority
-    label_es-US: Platte River Power Authority
-  - id: xcel_energy
-    label: Xcel Energy
-    label_es-US: Xcel Energy
-  - id: various
-    label: Various
-    label_es-US: Varios
-  - id: home
-    label: Home
-    label_es-US: Inicio
-
-- id: item
-  label: Item
-  label_es-US: Ítem
   categories:
   - id: longmont_power
     label: Longmont Power
@@ -1879,8 +1855,8 @@ nodes:
     tags: [baseline]
     column: fuel_emission_factors
 
-- id: aviation_emissions2
-  name: Aviation emissions 2
+- id: aviation_emissions
+  name: Aviation emissions
   type: generic.GenericNode
   quantity: emissions
   unit: t_co2e/a
