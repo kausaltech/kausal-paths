@@ -165,7 +165,8 @@ dimensions:
   - id: grid_stability
     label: Storage, grid stability etc.
   - id: air_pollution_everywhere
-    label: Air pollution everywhere
+    label_en: Air pollution everywhere
+    label_fi: Kaikki ilmansaastekuolleisuus
   - id: work_days_lost
     label_fi: Menetetyt työpäivät
     label_en: Work days lost

@@ -58,6 +58,7 @@ dimensions:
   - id: pm1025
     label_fi: PM10-PM2.5
     label_en: PM10-PM2.5
+    aliases: [PM10-2.5]
   - id: so2
     label_fi: SO2
     label_en: SO2
@@ -272,18 +273,18 @@ nodes:
   name_en: Intake fraction of air pollution
   description_fi: 'Se osuus ilmansaastepäästöstä, joka lopulta päätyy jonkun hengittämäksi. Tiedot on saatu artikkelista Sebastien Humbert, Julian D. Marshall, Shanna Shaked, Joseph V. Spadaro, Yurika Nishioka, Philipp Preiss, Thomas E. McKone, Arpad Horvath, and Olivier Jolliet. Intake Fraction for Particulate Matter: Recommendations for Life Cycle Impact Assessment (2011). Environmental Science and Technology, 45, 4808-4816.'
   description_en: The fraction of air pollution emissions that is eventually inhaled by someone.
-  type: gpc.DatasetNode
+  type: generic.GenericNode
   quantity: fraction
   unit: ppm
   input_dimensions: [pollutant, emission_height]
   output_dimensions: [pollutant, emission_height]
   input_datasets:
   - id: hia/intake_fraction/air_pollution_if
+    tags: [baseline]
+    column: Intake fraction
     filters:
-    - column: Population density
+    - column: population_density
       value: average
-  params:
-    sector: Air pollution
 
 - id: breathing_rate
   name_fi: Hengitystilavuus

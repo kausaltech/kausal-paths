@@ -419,13 +419,15 @@ dimensions:
     label_en: Storage, grid stability etc.
     label_fi: Varastointi, verkon vakaus jne.
   - id: air_pollution_everywhere
-    label: Air pollution everywhere
+    label_en: Air pollution everywhere
+    label_fi: Kaikki ilmansaastekuolleisuus
   - id: work_days_lost
     label_fi: Menetetyt työpäivät
     label_en: Work days lost
     color: '#1f78b4'
   - id: physical_activity
-    label: Fyysinen aktiivisuus
+    label_en: Physical activity
+    label_fi: Fyysinen aktiivisuus
     color: '#b2df8a'
 
 - id: aggregated_cost_type

@@ -13,9 +13,11 @@ dimensions:
   represents_possible_worlds: true # TODO A new attribute that is not implemented yet.
   categories:
   - id: median
-    label: Median
+    label_en: Median
+    label_fi: Mediaani
   - id: expectation
-    label: Expectation
+    label_en: Expectation
+    label_fi: Odotusarvo
   - id: '0'
     label: '0'
   - id: '1'
@@ -23,11 +25,14 @@ dimensions:
   - id: '2'
     label: '2'
   - id: thl
-    label: THL model
+    label_en: THL model
+    label_fi: THL:n malli
   - id: heat
-    label: HEAT model
+    label_en: HEAT model
+    label_fi: HEAT-malli
   - id: nzp
-    label: NetZeroPlanner model
+    label_en: NetZeroPlanner model
+    label_fi: NetZeroPlanner-malli
 
 - id: pollutant
   label_fi: Saaste
@@ -126,7 +131,7 @@ dimensions:
     label_fi: Melu
   - id: carbon_emissions
     label_fi: Hiilidioksidipäästöt
-    label_en: Carbon diozide emissions
+    label_en: Carbon dioxide emissions
   - id: nzp_response
     label_fi: NZP-vaste
     label_en: NZP response
@@ -199,7 +204,6 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: health_effect
   unit: case/a
-  is_outcome: true
   input_dimensions: [response]
   output_dimensions: [response]
   input_nodes:
@@ -217,7 +221,6 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: health_effect
   unit: case/a
-  is_outcome: true
   input_dimensions: [response, pollutant]
   output_dimensions: [response, pollutant]
   input_nodes:
@@ -254,7 +257,6 @@ nodes:
   type: simple.AdditiveNode
   quantity: health_effect
   unit: case/a
-  is_outcome: true
   input_dimensions: [response, iteration]
   output_dimensions: [response, iteration]
   input_nodes:
@@ -282,8 +284,8 @@ nodes:
 - id: disease_burden_attributed_to_exposure
   name_fi: Altisteisiin kohdentuva tautitaakka
   name_en: Disease burden caused by air pollution
-  description_fi: Altisteisiin kohdentuva tautitaakka kohdeväestössä. Fyysisen aktiivisuuden, ilmansaasteiden ja liikenneonnettomuuksien tapaukset tarkoittavat näihin altisteisiin kohdentuvia ennenaikaisia kuolemia. Kuolleisuus ja menetetyt työpäivät puolestaan tarkoittavat ilmansaasteiden aiheuttamia tapauksia, vaikkei sitä tässä kohdassa erikseen sanota.
-  description_en: Disease burden attributable to exposure in the target population.
+  description_fi: Tarkasteltaviin altistuksiin kohdentuva tautitaakka väestössä. Ilmansaasteet leviävät satojen kilometrien päähän saastelähteestä. Tässä laskelmassa tarkastellaan kaikkea altistumista, koska jokaisen päästölähteen pitää huolehtia omista päästöistään, vaikka haitat syntyisivät muualla.</p>Mittatikkuna käytetään haittapainotettuja elinvuosia (<a href="https://fi.wikipedia.org/wiki/DALY-arvo">DALY</a>, disability-adjusted life years).
+  description_en: Disease burden attributable to the studied exposures. Air pollution spreads hundreds of kilometers from the source. This estimate is about all exposure because each emission source needs to consider their own emissions irrespective of where the harm occurs.</p>The measurement unit is disability-adjusted life year (<a href="https://en.wikipedia.org/wiki/Disability-adjusted_life_year">DALY</a>).
   type: simple.MultiplicativeNode
   quantity: health_effect
   unit: DALY/a
@@ -330,10 +332,9 @@ nodes:
   name_en: Health costs attributable to exposure
   description_fi: Samat terveysvaikutukset kuin diskontatussa terveyskustannuskuvassa, mutta tässä vaikutuksia ei diskontata. Lisäksi on mahdollista tarkastella tuloksia sen perusteella, minkä mallin mukaisesti niitä on laskettu (katso Malliperusta). Jos kaksi mallia laskee samaa asiaa, tuloksissa voi olla kaksoislaskentaa tässä solmussa; diskontatuista terveyskustannuksista kaksoislaskenta on poistettu.
   description_en: The same health impacts as in the discounted health cost figure, but here the impacts are not discounted. In addition, it is possible to examine the results based on which model they have been calculated from (see Modeling basis). If two models calculate the same thing, there may be double counting in the results in this node; double counting has been removed from the discounted health costs.
-  type: simple.MultiplicativeNode
-  quantity: consumption
+  type: generic.GenericNode
+  quantity: currency
   unit: MEUR/a
-  is_outcome: true
   input_dimensions: [response, cost_type, iteration]
   output_dimensions: [response, cost_type, iteration]
   input_nodes:
@@ -342,10 +343,12 @@ nodes:
     - id: response
     - id: iteration
   - id: responses_vs_cost_types
+    tags: [extend_to_history]
     to_dimensions:
     - id: response
     - id: cost_type
   - id: health_outcome_unit_price
+    tags: [extend_to_history]
     to_dimensions:
     - id: response
   output_nodes:

@@ -22,9 +22,11 @@ dimensions:
   represents_possible_worlds: true # TODO A new attribute that is not implemented yet.
   categories:
   - id: median
-    label: Median
+    label_en: Median
+    label_fi: Mediaani
   - id: expectation
-    label: Expectation
+    label_en: Expectation
+    label_fi: Odotusarvo
   - id: '0'
     label: '0'
   - id: '1'
@@ -32,11 +34,14 @@ dimensions:
   - id: '2'
     label: '2'
   - id: thl
-    label: THL model
+    label_en: THL model
+    label_fi: THL:n malli
   - id: heat
-    label: HEAT model
+    label_en: HEAT model
+    label_fi: HEAT-malli
   - id: nzp
-    label: NetZeroPlanner model
+    label_en: NetZeroPlanner model
+    label_fi: NetZeroPlanner-malli
 
 - id: response
   label_fi: Terveysvaikutus
