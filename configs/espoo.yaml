@@ -66,6 +66,18 @@ impact_overviews:
   label_fi: Kokonaispäästöt seurantajaksolla
   label_en: Net emissions during the timeline
 
+# - graph_type: simple_effect
+#   effect_node: total_cost
+#   indicator_unit: MEUR
+#   label_fi: Kokonaiskustannukset seurantajaksolla
+#   label_en: Total costs during the timeline
+
+# - graph_type: simple_effect
+#   effect_node: disease_burden_attributed_to_exposure
+#   indicator_unit: DALY
+#   label_fi: Tautitaakka seurantajaksolla
+#   label_en: Disease burden during the timeline
+
 action_groups:
 - id: transportation
   name: Liikenne
@@ -2345,7 +2357,7 @@ actions:
   output_nodes:
   - oil_heating_emission_factor
   type: simple.LinearCumulativeAdditiveAction
-  forecast_values: [[2024, 0.0], [2028, -31.9]]
+  forecast_values: [[2025, 0.0], [2028, -31.9]]
   unit: g/kWh
   group: buildings
 
@@ -2499,6 +2511,7 @@ actions:
   - id: espoo/building
     tags: [baseline]
     column: kaupungin_oman_rakennuskannan_energiankulutuksen_vahennys
+    forecast_from: 2025
   output_nodes:
   - id: building_heat_consumption_existing
     from_dimensions:

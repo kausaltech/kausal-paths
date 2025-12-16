@@ -259,7 +259,9 @@ nodes:
   output_dimensions: [building_heat_source, building_use]
   input_nodes: 
   - id: building_heat_per_floor_area
+    tags: [bring_to_maximum_historical_year]
   - id: building_floor_area_existing
+    tags: [bring_to_maximum_historical_year]
   - id: building_heat_statistics
     tags: [secondary]
 
