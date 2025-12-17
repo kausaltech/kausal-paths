@@ -143,6 +143,38 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         # compliance of new buildings to the more active regulations
         # improvement in energy consumption factor
         """)),
+    'ChpNode': NodeInfo(_(
+        """
+        Calculates the attribution of emissions of combined heat and power (CHP) producion according to the
+        <a href="https://ghgprotocol.org/sites/default/files/CHP_guidance_v1.0.pdf">GPC protocol</a>.
+        There are several methods but for each method, the average emission factor of the fuel mix used
+        is split into two parts by using fractions a_heat and a_electricity that sum up to 1. They are calculated as
+        <br/>a_i = z_i * f_i / sum_j(z_j * f_j),
+        <br/>where a_i is the fraction for each product (i = electricity, heat)
+        z_i is a method-specific multiplier (see below)
+        f_i is the fraction of product i from the total energy produced.
+
+        <ol><li><b>Energy method</b>
+        Logic: Energy products are treated equally based on the energy content.
+        All z_i = 1
+
+        </li><li><b>Work potential method</b> (aka Carnot method, or exergetic method)
+        Logic: Energy products are treated equally based on the potential of doing work (i.e., exergy content).
+        This moves emissions toward electricity.
+        z_heat = 1 - T_return / T_supply, and
+        z_electricity = 1.
+        T_supply and T_return are the input and output process temperatures, respectively.
+
+        </li><li><b>Bisko method</b>
+        Bisko method is a variant of the work potential method.
+        The only difference is that Bisko assumes T_return = 283 K.
+
+        </li><li><b>Efficiency method</b>
+        Logic: What emissions would have occured if each energy product had been produced separately?
+        z_i = 1 / n_i,
+        where n_i is the reference efficiency for producing the energy type separately.
+        Typical values are z_heat = 0.9, z_electricity = 0.4.</li></ol>
+        """)),
     'CoalesceNode': NodeInfo(_(
         "Uses 'primary' tagged data when available, otherwise 'secondary' tagged data. One of the tags must be given.")),
     'CohortNode': NodeInfo(_(
