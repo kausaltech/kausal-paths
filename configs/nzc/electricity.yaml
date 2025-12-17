@@ -628,7 +628,7 @@ nodes:
   type: simple.AdditiveNode
   quantity: fraction
   unit: a
-  input_dataset_processors: [LinearInterpolation] # Wait for proper deployment time
+  # input_dataset_processors: [LinearInterpolation] # Wait for proper deployment time
   historical_values: [[2018, 1], [2025, 1]]
 
 - id: electricity_cost
