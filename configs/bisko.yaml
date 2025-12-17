@@ -648,6 +648,26 @@ nodes:
   # - id: emission_factors
   - id: historical_emissions
 
+- id: combined_heat_and_power_ef
+  name_en: Combined heat and power emission factor
+  type: generic.ChpNode
+  quantity: emissions
+  unit: g_co2e/kWh
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: end_energy_emission_factors
+    from_dimensions:
+    - id: energy_carrier
+      categories: [renewable_waste_heat_gt_90]
+      flatten: true
+  params:
+    method: bisko
+    electricity_fraction: 0.3
+    t_supply: 373
+    t_return: 283
+    electricity_reference_efficiency: 0.4
+    heat_reference_efficiency: 0.9
+
 pages:
 - id: home
   name: Klima-Monitor-BISKO Treibhausgasinventar

@@ -1737,3 +1737,105 @@ class GenerationCapacityNode(GenericNode):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.OPERATIONS['generation_capacity'] = self._operation_generation_capacity
+
+
+class ChpNode(GenericNode):
+    allowed_parameters = [
+        *GenericNode.allowed_parameters,
+        StringParameter('method', label=_('Emission splitting method')),
+        NumberParameter('electricity_fraction', label=_('Fraction of electricity in the output energy')),
+        NumberParameter('t_supply', label=_('Temperature (in K) of district heating supply slow')),
+        NumberParameter('t_return', label=_('Temperature (in K) of district heating return flow')),
+        NumberParameter('electricity_reference_efficiency', label=_('Efficiency of producing electricity separately')),
+        NumberParameter('heat_reference_efficiency', label=_('Efficiency of producing heat separately')),
+    ]
+    DEFAULT_OPERATIONS = 'add,chp_ef_split'
+
+    def _operation_chp_ef_split(self, df: ppl.PathsDataFrame | None, baskets: dict[str, list[Node]], **_kwargs) -> tuple:
+        if df is None:
+            raise NodeError(self, "Node must receive average CHP fuel emission factors.")
+
+        if 'energy_carrier' in df.dim_ids:
+            raise NodeError(self, "Input emission factors contain dimension energy_carrier but it must be averaged over it.")
+
+        methods = {
+            'energy_content': self._energy_method,
+            'work_potential': self._exergetic_method,
+            'bisko': self._bisko_method,
+            'efficiency': self._efficiency_method,
+        }
+        method = self.get_parameter_value_str('method', required=True)
+        metfun = methods.get(method)
+        if metfun is None:
+            raise NodeError(self, f"Parameter method got value {method} but must be one of: {methods.keys()}.")
+
+        df = metfun(df) # Add z factors
+
+        f_el = self.get_parameter_value_float('electricity_fraction', required=True)
+        df = df.with_columns([
+            pl.lit(f_el).alias('f_el'),
+            pl.lit(1.0 - f_el).alias('f_heat')
+        ])
+        df = df.with_columns([
+            (pl.col('z_el') * pl.col('f_el')
+                / (
+                    pl.col('z_el') * pl.col('f_el')
+                    + pl.col('z_heat') * pl.col('f_heat')
+                )
+            ).alias('a_el')])
+        df = df.with_columns([
+            (pl.lit(1.0) - pl.col('a_el')).alias('a_heat')
+        ])
+
+        drops = ['f_el', 'f_heat', 'z_el', 'z_heat', 'a_el', 'a_heat']
+        df_el = df.with_columns([
+            pl.col(VALUE_COLUMN) * pl.col('a_el'),
+            pl.lit('electricity').alias('energy_carrier')
+        ]).drop(drops).add_to_index('energy_carrier')
+        df_heat = df.with_columns([
+            pl.col(VALUE_COLUMN) * pl.col('a_heat'),
+            pl.lit('district_heating').alias('energy_carrier')
+        ]).drop(drops).add_to_index('energy_carrier')
+        df = df_el.paths.concat_vertical(df_heat)
+
+        return df, baskets
+
+    def _energy_method(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        df = df.with_columns([
+            pl.lit(1.0).alias('z_el'),
+            pl.lit(1.0).alias('z_heat'),
+        ])
+        return df
+
+    def _exergetic_method(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        t_supply = self.get_parameter_value_float('t_supply', required=True)
+        t_return = self.get_parameter_value_float('t_return', required=True)
+        z_heat = 1 - t_return / t_supply
+        df = df.with_columns([
+            pl.lit(1.0).alias('z_el'),
+            pl.lit(z_heat).alias('z_heat'),
+        ])
+        return df
+
+    def _bisko_method(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        t_supply = self.get_parameter_value_float('t_supply', required=True)
+        t_return = 283
+        z_heat = 1 - t_return / t_supply
+        df = df.with_columns([
+            pl.lit(1.0).alias('z_el'),
+            pl.lit(z_heat).alias('z_heat'),
+        ])
+        return df
+
+    def _efficiency_method(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        n_el = self.get_parameter_value_float('electricity_reference_efficiency', required=True)
+        n_heat = self.get_parameter_value_float('heat_reference_efficiency', required=True)
+        df = df.with_columns([
+            pl.lit(1.0 / n_el).alias('z_el'),
+            pl.lit(1.0 / n_heat).alias('z_heat'),
+        ])
+        return df
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.OPERATIONS['chp_ef_split'] = self._operation_chp_ef_split
