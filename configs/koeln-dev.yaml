@@ -261,16 +261,6 @@ nodes:
     - year: 2050
       value: 163
 
-- id: net_emissions_historical
-  name_de: Netto Emissionen
-  name_en: Net emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: kt/a
-  is_outcome: true
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-
 - id: population
   name_en: Inhabitants
   name_de: Einwohner*in
@@ -308,19 +298,16 @@ nodes:
   unit: kt/a
   color: '#FDB813'
   is_outcome: true
-  # input_dimensions: [energy_carrier, sector]
-  # output_dimensions: [energy_carrier, sector]
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
   input_nodes:
   - id: historical_emissions
     tags: [inventory_only]
     from_dimensions:
-    - id: sector
-      categories: [private_households] # FIXME
-      flatten: true
     - id: energy_carrier
-      flatten: true
-  # output_nodes:
-  # - id: net_emissions_historical
+      categories: [electricity]
+  output_nodes:
+  - id: net_emissions
 
 - id: heat_emissions
   name: Private Haushalte
@@ -338,7 +325,7 @@ nodes:
     - id: sector
       categories: [private_households]
   output_nodes:
-  - id: net_emissions_historical
+  - id: net_emissions
 
 - id: transport_emissions
   name: Verkehr
@@ -356,7 +343,7 @@ nodes:
     - id: sector
       categories: [transport]
   output_nodes:
-  - id: net_emissions_historical
+  - id: net_emissions
 
 - id: industrial_emissions
   name: Industrie
@@ -374,7 +361,7 @@ nodes:
     - id: sector
       categories: [industry]
   output_nodes:
-  - id: net_emissions_historical
+  - id: net_emissions
 
 - id: service_emissions
   name: GHD
@@ -393,9 +380,9 @@ nodes:
     - id: sector
       categories: [commerce_trade_services]
   output_nodes:
-  - id: net_emissions_historical
+  - id: net_emissions
 
-- id: municipality_buildings
+- id: municipality_building_emissions
   name: Kommunale Einrichtungen
   name_en: Municipality buildings
   type: generic.GenericNode
@@ -411,7 +398,79 @@ nodes:
     - id: sector
       categories: [municipal_facilities]
   output_nodes:
-  - id: net_emissions_historical
+  - id: net_emissions
+
+- id: total_emissions
+  name: Gesamtemissionen
+  name_en: Total emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  # color: '#8eeffd'
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: net_emissions
+
+- id: consumption_emissions
+  name: Konsum
+  name_en: Consumption
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  color: '#9B59B6'
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  output_nodes:
+  - id: total_emissions
+
+- id: waste_and_wastewater_emissions
+  name: Abfall & (Ab-)Wasser
+  name_en: Waste & Wastewater
+  color: '#27AE60'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  output_nodes:
+  - id: total_emissions
+
+- id: food_and_land_use_emissions
+  name: Ernährung & Landnutzung
+  name_en: Food & Land Use
+  color: '#2ECC71'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  output_nodes:
+  - id: total_emissions
+
+- id: cross_cutting_climate_protection_emissions
+  name: Übergreifende Klimaschutzaspekte
+  name_en: Cross-cutting Climate Protection Aspects
+  color: '#1ABC9C'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  output_nodes:
+  - id: total_emissions
+
+- id: administration_emissions
+  name: Verwaltung
+  name_en: Administration
+  color: '#34495E'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  output_nodes:
+  - id: total_emissions
 
 actions:
 
@@ -445,7 +504,7 @@ actions:
     - column: action
       value: renewable_generation_small_decentralized_systems
   output_nodes:
-  - id: net_emissions
+  - id: electricity_emissions
 
 - id: renewable_generation_open_space
   name: Erneuerbare Stromerzeugung in der Fläche
@@ -479,7 +538,7 @@ actions:
     - column: action
       value: renewable_generation_open_space
   output_nodes:
-  - id: net_emissions
+  - id: electricity_emissions
 
 - id: renewable_generation_power_plants
   name: Erneuerbare Stromerzeugung durch Kraftwerke
@@ -504,7 +563,7 @@ actions:
     - column: action
       value: renewable_generation_power_plants
   output_nodes:
-  - id: net_emissions
+  - id: electricity_emissions
 
 - id: electricity_savings_commercial_sector
   name: Stromeinsparung im Gewerbesektor
@@ -529,7 +588,7 @@ actions:
     - column: action
       value: electricity_savings_commercial_sector
   output_nodes:
-  - id: net_emissions
+  - id: electricity_emissions
 
 - id: heat_source_development_for_heat_networks
   name: Wärmequellenerschließung für Wärmenetze
@@ -553,7 +612,7 @@ actions:
     - column: action
       value: heat_source_development_for_heat_networks
   output_nodes:
-  - id: net_emissions
+  - id: heat_emissions
 
 - id: expansion_and_densification_of_heat_networks
   name: Erweiterung und Verdichtung der Wärmenetze
@@ -576,7 +635,7 @@ actions:
     - column: action
       value: expansion_and_densification_of_heat_networks
   output_nodes:
-  - id: net_emissions
+  - id: heat_emissions
 
 - id: decentralized_heating_replacement_households
   name: Dezentraler Heizungstausch in Haushalten
@@ -601,7 +660,7 @@ actions:
     - column: action
       value: decentralized_heating_replacement_households
   output_nodes:
-  - id: net_emissions
+  - id: heat_emissions
 
 - id: new_construction_residential_buildings
   name: Neubau Wohngebäude
@@ -627,7 +686,7 @@ actions:
     - column: action
       value: new_construction_residential_buildings
   output_nodes:
-  - id: net_emissions
+  - id: heat_emissions
 
 - id: new_construction_commercial_industrial
   name: Neubau Gewerbe/Industrie
@@ -650,7 +709,7 @@ actions:
     - column: action
       value: new_construction_commercial_industrial
   output_nodes:
-  - id: net_emissions
+  - id: heat_emissions
 
 - id: decentralized_heating_replacement_commercial
   name: Dezentraler Heizungstausch im Gewerbe
@@ -676,7 +735,7 @@ actions:
     - column: action
       value: decentralized_heating_replacement_commercial
   output_nodes:
-  - id: net_emissions
+  - id: heat_emissions
 
 - id: renovation_residential_buildings
   name: Sanierung Wohngebäude
@@ -710,7 +769,7 @@ actions:
     - column: action
       value: renovation_residential_buildings
   output_nodes:
-  - id: net_emissions
+  - id: heat_emissions
 
 - id: drive_transition_motorized_individual_transport
   name: Antriebswende – Motorisierter Individualverkehr
@@ -734,7 +793,7 @@ actions:
     - column: action
       value: drive_transition_motorized_individual_transport
   output_nodes:
-  - id: net_emissions
+  - id: transport_emissions
 
 - id: drive_transition_freight_transport
   name: Antriebswende – Güterverkehr
@@ -757,7 +816,7 @@ actions:
     - column: action
       value: drive_transition_freight_transport
   output_nodes:
-  - id: net_emissions
+  - id: transport_emissions
 
 - id: drive_transition_bus
   name: Antriebswende – Bus
@@ -780,7 +839,7 @@ actions:
     - column: action
       value: drive_transition_bus
   output_nodes:
-  - id: net_emissions
+  - id: transport_emissions
 
 - id: mobility_transition_freight_transport
   name: Mobilitätswende – Güterverkehr
@@ -803,7 +862,7 @@ actions:
     - column: action
       value: mobility_transition_freight_transport
   output_nodes:
-  - id: net_emissions
+  - id: transport_emissions
 
 - id: mobility_transition_local_mobility
   name: Mobilitätswende – Nahmobilität
@@ -828,7 +887,7 @@ actions:
     - column: action
       value: mobility_transition_local_mobility
   output_nodes:
-  - id: net_emissions
+  - id: transport_emissions
 
 - id: mobility_transition_regional_mobility
   name: Mobilitätswende – Regionale Mobilität
@@ -853,7 +912,7 @@ actions:
     - column: action
       value: mobility_transition_regional_mobility
   output_nodes:
-  - id: net_emissions
+  - id: transport_emissions
 
 - id: food_and_nutrition
   name: Ernährung & Lebensmittel
@@ -876,7 +935,7 @@ actions:
     - column: action
       value: food_and_nutrition
   output_nodes:
-  - id: net_emissions
+  - id: food_and_land_use_emissions
   params:
   - id: enabled
     is_customizable: false
@@ -902,7 +961,7 @@ actions:
     - column: action
       value: climate_friendly_consumption_behavior
   output_nodes:
-  - id: net_emissions
+  - id: consumption_emissions
   params:
   - id: enabled
     is_customizable: false
@@ -937,7 +996,7 @@ actions:
     - column: action
       value: ghg_neutral_administration_scope_1_and_2
   output_nodes:
-  - id: net_emissions
+  - id: administration_emissions
   params:
   - id: enabled
     is_customizable: false
@@ -967,7 +1026,7 @@ actions:
     - column: action
       value: ghg_neutral_administration_scope_3
   output_nodes:
-  - id: net_emissions
+  - id: administration_emissions
   params:
   - id: enabled
     is_customizable: false
@@ -997,7 +1056,7 @@ actions:
     - column: action
       value: waste_reduction_and_facility_efficiency
   output_nodes:
-  - id: net_emissions
+  - id: waste_and_wastewater_emissions
   params:
   - id: enabled
     is_customizable: false
@@ -1031,7 +1090,7 @@ actions:
     - column: action
       value: cross_cutting_climate_protection_aspects
   output_nodes:
-  - id: net_emissions
+  - id: cross_cutting_climate_protection_emissions
   params:
   - id: enabled
     is_customizable: false
@@ -1055,7 +1114,7 @@ actions:
     - column: action
       value: pv_on_municipal_holdings_buildings
   output_nodes:
-  - id: net_emissions
+  - id: electricity_emissions
 
 - id: pv_on_city_buildings
   name: Photovoltaik auf städtischen Gebäuden
@@ -1074,7 +1133,7 @@ actions:
     - column: action
       value: pv_on_city_buildings
   output_nodes:
-  - id: net_emissions
+  - id: electricity_emissions
 
 - id: digitalization_and_energy_efficiency_in_city_data_centers
   name: Digitalisierung und Energieeffizienz in städtischen Rechenzentren
@@ -1093,7 +1152,7 @@ actions:
     - column: action
       value: digitalization_and_energy_efficiency_in_city_data_centers
   output_nodes:
-  - id: net_emissions
+  - id: electricity_emissions
 
 - id: efficiency_improvement_in_administration
   name: Effizienzsteigerung in der Verwaltung
@@ -1112,7 +1171,7 @@ actions:
     - column: action
       value: efficiency_improvement_in_administration
   output_nodes:
-  - id: net_emissions
+  - id: electricity_emissions
 
 - id: efficiency_improvement_at_holdings
   name: Effizienzsteigerung bei Beteiligungen
@@ -1131,7 +1190,7 @@ actions:
     - column: action
       value: efficiency_improvement_at_holdings
   output_nodes:
-  - id: net_emissions
+  - id: electricity_emissions
 
 - id: green_electricity_procurement_at_holdings
   name: Ökostrombezug bei Beteiligungen
@@ -1150,7 +1209,7 @@ actions:
     - column: action
       value: green_electricity_procurement_at_holdings
   output_nodes:
-  - id: net_emissions
+  - id: electricity_emissions
 
 - id: led_conversion_at_holdings_outdoor_lighting
   name: LED-Umstellung bei Beteiligungen (Außenbeleuchtung)
@@ -1169,7 +1228,7 @@ actions:
     - column: action
       value: led_conversion_at_holdings_outdoor_lighting
   output_nodes:
-  - id: net_emissions
+  - id: electricity_emissions
 
 - id: led_conversion_at_holdings_indoor_lighting
   name: LED-Umstellung bei Beteiligungen (Innenbeleuchtung)
@@ -1188,7 +1247,7 @@ actions:
     - column: action
       value: led_conversion_at_holdings_indoor_lighting
   output_nodes:
-  - id: net_emissions
+  - id: electricity_emissions
 
 - id: climate_friendly_heat_generation_decentralized_at_holdings
   name: Klimafreundliche Wärmeerzeugung (dezentral) in Beteiligungen
@@ -1207,7 +1266,7 @@ actions:
     - column: action
       value: climate_friendly_heat_generation_decentralized_at_holdings
   output_nodes:
-  - id: net_emissions
+  - id: heat_emissions
 
 - id: climate_friendly_heat_supply_at_city_holdings
   name: Klimafreundliche Wärmeversorgung in städtischen Beteiligungen
@@ -1226,7 +1285,7 @@ actions:
     - column: action
       value: climate_friendly_heat_supply_at_city_holdings
   output_nodes:
-  - id: net_emissions
+  - id: heat_emissions
 
 - id: optimization_of_heat_regulation_at_city_holdings
   name: Optimierung der Wärmeregulierung der städtischen Beteiligungen
@@ -1245,7 +1304,7 @@ actions:
     - column: action
       value: optimization_of_heat_regulation_at_city_holdings
   output_nodes:
-  - id: net_emissions
+  - id: heat_emissions
 
 - id: renovation_and_energy_optimization_of_city_buildings
   name: Sanierung und energetische Optimierung städtischer Gebäude
@@ -1264,7 +1323,7 @@ actions:
     - column: action
       value: renovation_and_energy_optimization_of_city_buildings
   output_nodes:
-  - id: net_emissions
+  - id: heat_emissions
 
 - id: electrification_of_holdings_vehicle_fleet
   name: Elektrifizierung des Fuhrparks der Beteiligungen
@@ -1283,7 +1342,7 @@ actions:
     - column: action
       value: electrification_of_holdings_vehicle_fleet
   output_nodes:
-  - id: net_emissions
+  - id: transport_emissions
 
 - id: electrification_of_city_vehicle_fleet
   name: Elektrifizierung des städtischen Fuhrparks
@@ -1302,7 +1361,7 @@ actions:
     - column: action
       value: electrification_of_city_vehicle_fleet
   output_nodes:
-  - id: net_emissions
+  - id: transport_emissions
 
 - id: electrification_of_bus_fleet_at_holdings
   name: Elektrifizierung der Busflotte bei Beteiligungen
@@ -1321,7 +1380,7 @@ actions:
     - column: action
       value: electrification_of_bus_fleet_at_holdings
   output_nodes:
-  - id: net_emissions
+  - id: transport_emissions
 
 - id: conversion_of_administration_vehicle_fleet
   name: Umstellung des Fuhrparks der Verwaltung
@@ -1340,7 +1399,7 @@ actions:
     - column: action
       value: conversion_of_administration_vehicle_fleet
   output_nodes:
-  - id: net_emissions
+  - id: transport_emissions
 
 - id: decarbonization_of_inland_waterway_shipping_by_hgk
   name: Dekarbonisierung der Binnenschifffahrt durch HGK
@@ -1359,7 +1418,7 @@ actions:
     - column: action
       value: decarbonization_of_inland_waterway_shipping_by_hgk
   output_nodes:
-  - id: net_emissions
+  - id: transport_emissions
 
 - id: ghg_reduction_through_circular_use_of_wood_and_building_materials
   name: THG-Minderung durch Kreislaufnutzung von Holz- und Baumaterialien
@@ -1378,7 +1437,7 @@ actions:
     - column: action
       value: ghg_reduction_through_circular_use_of_wood_and_building_materials
   output_nodes:
-  - id: net_emissions
+  - id: consumption_emissions
   params:
   - id: enabled
     is_customizable: false
@@ -1400,7 +1459,7 @@ actions:
     - column: action
       value: optimization_of_residual_waste_utilization_by_avg
   output_nodes:
-  - id: net_emissions
+  - id: waste_and_wastewater_emissions
   params:
   - id: enabled
     is_customizable: false
@@ -1422,7 +1481,7 @@ actions:
     - column: action
       value: waste_incineration_co2_reduction_through_ccs_at_avg
   output_nodes:
-  - id: net_emissions
+  - id: waste_and_wastewater_emissions
   params:
   - id: enabled
     is_customizable: false
@@ -1463,7 +1522,7 @@ actions:
     - column: action
       value: digital_climate_protection_monitoring_by_administration
   output_nodes:
-  - id: net_emissions
+  - id: cross_cutting_climate_protection_emissions
   params:
   - id: enabled
     is_customizable: false
@@ -1485,7 +1544,7 @@ actions:
     - column: action
       value: climate_protection_coordination_office
   output_nodes:
-  - id: net_emissions
+  - id: cross_cutting_climate_protection_emissions
   params:
   - id: enabled
     is_customizable: false
@@ -1507,7 +1566,7 @@ actions:
     - column: action
       value: municipal_heat_planning_preparation_by_administration
   output_nodes:
-  - id: net_emissions
+  - id: heat_emissions
 
 pages:
 - id: home
@@ -1534,3 +1593,9 @@ scenarios:
   name_de: Klimaschutzplan
   name_en: Climate Action Plan
   all_actions_enabled: false
+
+- id: active
+  default: false
+  name_de: Aktiv
+  name_en: Active
+  all_actions_enabled: true
