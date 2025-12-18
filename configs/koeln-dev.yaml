@@ -290,6 +290,21 @@ nodes:
   output_nodes:
   - id: net_emissions
 
+- id: net_emissions_historical
+  name: Historische Emissionen
+  name_en: Historical emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t/a
+  color: '#00A969'
+  is_outcome: true
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/historische_emissionen
+    tags: [baseline]
+    column: emissions
+
 - id: electricity_emissions
   name: Strom
   name_en: Electricity
