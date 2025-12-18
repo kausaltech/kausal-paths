@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-11-12 17:25+0200\n"
+"POT-Creation-Date: 2025-12-18 11:28+0200\n"
 "PO-Revision-Date: 2025-04-01 12:20+0000\n"
 "Last-Translator: Matias Wargelin <matias.wargelin@kausal.tech>\n"
 "Language-Team: Spanish (American) <https://weblate.kausal.tech/projects/paths/django/es_US/>\n"
@@ -234,58 +234,6 @@ msgstr ""
 msgid "Cannot delete \"%s\" because it is connected to other objects such as instances, persons or actions."
 msgstr ""
 
-#: kausal_common/blocks/base.py
-#, fuzzy
-#| msgid "label"
-msgid "Label"
-msgstr "etiqueta"
-
-#: kausal_common/blocks/base.py
-#, fuzzy
-#| msgid "Compute action impact based on the baseline scenario instead of the default one"
-msgid "Label for the column to be used instead of the default"
-msgstr "Calcular el impacto de la acción basándose en el escenario de referencia en lugar del escenario por defecto."
-
-#: kausal_common/blocks/base.py kausal_common/blocks/fields.py
-msgid "Help text"
-msgstr ""
-
-#: kausal_common/blocks/base.py
-#, fuzzy
-#| msgid "Introductory content to show in the UI"
-msgid "Help text for the column to be shown in the UI"
-msgstr "Contenido introductorio para mostrar en la interfaz de usuario"
-
-#: kausal_common/blocks/base.py kausal_common/blocks/fields.py
-msgid "Heading to show instead of the default"
-msgstr ""
-
-#: kausal_common/blocks/base.py kausal_common/blocks/fields.py
-#, fuzzy
-#| msgid "label"
-msgid "Field label"
-msgstr "etiqueta"
-
-#: kausal_common/blocks/base.py kausal_common/blocks/fields.py
-#, fuzzy
-#| msgid "Introductory content to show in the UI"
-msgid "Help text for the field to be shown in the UI"
-msgstr "Contenido introductorio para mostrar en la interfaz de usuario"
-
-#: kausal_common/blocks/base.py kausal_common/blocks/fields.py
-#, python-format
-msgid "Content block: %(label)s"
-msgstr ""
-
-#: kausal_common/blocks/base.py
-msgid "Label for 'show all'"
-msgstr ""
-
-#: kausal_common/blocks/base.py
-#, python-format
-msgid "Filter: %(filter_label)s"
-msgstr ""
-
 #: kausal_common/datasets/chooser.py
 #, fuzzy
 #| msgid "Choose a node"
@@ -444,18 +392,6 @@ msgstr "unidad"
 
 #: kausal_common/datasets/models.py
 #, fuzzy
-#| msgid "dataset"
-msgid "dataset metric"
-msgstr "conjunto de datos"
-
-#: kausal_common/datasets/models.py
-#, fuzzy
-#| msgid "datasets"
-msgid "dataset metrics"
-msgstr "conjuntos de datos"
-
-#: kausal_common/datasets/models.py
-#, fuzzy
 #| msgid "Data dimensions"
 msgid "dataset schema dimension"
 msgstr "Dimensiones de los datos"
@@ -585,44 +521,12 @@ msgid "Data sources"
 msgstr "Fuentes de datos"
 
 #: kausal_common/datasets/models.py
-msgid "Unknown schema"
-msgstr ""
-
-#: kausal_common/datasets/models.py
-#, fuzzy, python-format
-#| msgid "data source references"
-msgid "Data source reference in: %(schema)s"
-msgstr "referencias de fuentes de datos"
-
-#: kausal_common/datasets/models.py
-#, fuzzy
-#| msgid "data source reference"
-msgid "Data source reference"
-msgstr "referencia de la fuente de datos"
-
-#: kausal_common/datasets/models.py
 msgid "data source reference"
 msgstr "referencia de la fuente de datos"
 
 #: kausal_common/datasets/models.py
 msgid "data source references"
 msgstr "referencias de fuentes de datos"
-
-#: kausal_common/datasets/wagtail_hooks.py
-#, fuzzy
-#| msgid "dataset"
-msgid "Edit dataset"
-msgstr "conjunto de datos"
-
-#: kausal_common/datasets/wagtail_hooks.py
-#, python-format
-msgid "(Private %(object)s)"
-msgstr ""
-
-#: kausal_common/datasets/wagtail_hooks.py
-#, python-format
-msgid "Edit this %(object)s"
-msgstr ""
 
 #: kausal_common/models/modification_tracking.py
 msgid "Created at"
@@ -792,6 +696,10 @@ msgid "postal address"
 msgstr "dirección de correo electrónico"
 
 #: kausal_common/people/models.py
+msgid "What is this person's organization"
+msgstr ""
+
+#: kausal_common/people/models.py
 msgid "user"
 msgstr ""
 
@@ -827,8 +735,10 @@ msgid "Organization"
 msgstr ""
 
 #: nodes/actions/action.py
-msgid "Is implemented"
-msgstr "Es implementada"
+#, fuzzy
+#| msgid "Is the action included in the scenario"
+msgid "Included in scenario"
+msgstr "¿Está la acción incluida en el escenario"
 
 #: nodes/actions/action.py
 msgid "Is the action included in the scenario"
@@ -907,6 +817,7 @@ msgid "Electricity saving (kWh/m2/a)"
 msgstr "Ahorro de electricidad (kWh/m2/a)"
 
 #: nodes/actions/energy_saving.py
+#, python-format
 msgid "Renovation potential (% of floor area)"
 msgstr "Potencial de renovación (% of superficie)"
 
@@ -1478,6 +1389,41 @@ msgid ""
 msgstr ""
 
 #: nodes/explanations.py
+msgid ""
+"\n"
+"        Calculates the attribution of emissions of combined heat and power (CHP) producion according to the\n"
+"        <a href=\"https://ghgprotocol.org/sites/default/files/CHP_guidance_v1.0.pdf\">GPC protocol</a>.\n"
+"        There are several methods but for each method, the average emission factor of the fuel mix used\n"
+"        is split into two parts by using fractions a_heat and a_electricity that sum up to 1. They are calculated as\n"
+"        <br/>a_i = z_i * f_i / sum_j(z_j * f_j),\n"
+"        <br/>where a_i is the fraction for each product (i = electricity, heat)\n"
+"        z_i is a method-specific multiplier (see below)\n"
+"        f_i is the fraction of product i from the total energy produced.\n"
+"\n"
+"        <ol><li><b>Energy method</b>\n"
+"        Logic: Energy products are treated equally based on the energy content.\n"
+"        All z_i = 1\n"
+"\n"
+"        </li><li><b>Work potential method</b> (aka Carnot method, or exergetic method)\n"
+"        Logic: Energy products are treated equally based on the potential of doing work (i.e., exergy content).\n"
+"        This moves emissions toward electricity.\n"
+"        z_heat = 1 - T_return / T_supply, and\n"
+"        z_electricity = 1.\n"
+"        T_supply and T_return are the input and output process temperatures, respectively.\n"
+"\n"
+"        </li><li><b>Bisko method</b>\n"
+"        Bisko method is a variant of the work potential method.\n"
+"        The only difference is that Bisko assumes T_return = 283 K.\n"
+"\n"
+"        </li><li><b>Efficiency method</b>\n"
+"        Logic: What emissions would have occured if each energy product had been produced separately?\n"
+"        z_i = 1 / n_i,\n"
+"        where n_i is the reference efficiency for producing the energy type separately.\n"
+"        Typical values are z_heat = 0.9, z_electricity = 0.4.</li></ol>\n"
+"        "
+msgstr ""
+
+#: nodes/explanations.py
 msgid "Uses 'primary' tagged data when available, otherwise 'secondary' tagged data. One of the tags must be given."
 msgstr ""
 
@@ -1802,56 +1748,8 @@ msgstr "El nodo no tiene nodos de entrada."
 
 #: nodes/explanations.py
 #, python-format
-msgid "The order of operations is %s."
-msgstr ""
-
-#: nodes/explanations.py
-#, python-format
-msgid "Has formula %s."
-msgstr ""
-
-#: nodes/explanations.py
-#, python-format
 msgid "Has parameter <i>%(parameter)s</i> with value %(value)s."
 msgstr ""
-
-#: nodes/explanations.py
-#, fuzzy
-#| msgid "datasets"
-msgid "Datasets"
-msgstr "conjuntos de datos"
-
-#: nodes/explanations.py
-#, fuzzy, python-format
-#| msgid "identifier"
-msgid "Dataset with identifier <i>%s</i>"
-msgstr "identificador"
-
-#: nodes/explanations.py
-#, python-format
-msgid "Uses column: %(name)s"
-msgstr ""
-
-#: nodes/explanations.py
-#, python-format
-msgid "Has forecast values from: %(year)s"
-msgstr ""
-
-#: nodes/explanations.py
-msgid "Rows with missing values are dropped."
-msgstr ""
-
-#: nodes/explanations.py
-#, fuzzy
-#| msgid "The node has the following input nodes:"
-msgid "Renames the following columns:"
-msgstr "El nodo tiene los siguientes nodos de entrada:"
-
-#: nodes/explanations.py
-#, fuzzy
-#| msgid "The node has the following input nodes:"
-msgid "Has the following filters:"
-msgstr "El nodo tiene los siguientes nodos de entrada:"
 
 #: nodes/explanations.py
 #, python-format
@@ -1870,28 +1768,12 @@ msgstr ""
 
 #: nodes/explanations.py
 #, python-format
-msgid "Sum up column <i>%(name)s</i>."
-msgstr ""
-
-#: nodes/explanations.py
-#, python-format
-msgid "Drop column <i>%(name)s</i>."
-msgstr ""
-
-#: nodes/explanations.py
-#, python-format
 msgid "Assign dataset to category <i>%(cat_label)s</i> on dimension <i>%(dim_label)s</i>."
 msgstr ""
 
 #: nodes/explanations.py
 msgid "Filter dimension <i>%s(dim_label)s</i> by categories <i>%(cat_labels)s</i>."
 msgstr ""
-
-#: nodes/explanations.py
-#, fuzzy, python-format
-#| msgid "Data dimensions"
-msgid "Sum up the dimension <i>%(label)s</i>."
-msgstr "Dimensiones de los datos"
 
 #: nodes/explanations.py
 #, python-format
@@ -1943,17 +1825,7 @@ msgid "The inputs are used for operations in this order:"
 msgstr ""
 
 #: nodes/explanations.py
-#, python-format
-msgid "Operation %(op)s with nodes:"
-msgstr ""
-
-#: nodes/explanations.py
 msgid "These groups are left over without an operation:"
-msgstr ""
-
-#: nodes/explanations.py
-#, python-format
-msgid "Group %(basket)s with nodes:"
 msgstr ""
 
 #: nodes/generic.py
@@ -1987,6 +1859,30 @@ msgstr ""
 
 #: nodes/generic.py
 msgid "Scope 3 emissions from upstream of installation"
+msgstr ""
+
+#: nodes/generic.py
+msgid "Emission splitting method"
+msgstr ""
+
+#: nodes/generic.py
+msgid "Fraction of electricity in the output energy"
+msgstr ""
+
+#: nodes/generic.py
+msgid "Temperature (in K) of district heating supply slow"
+msgstr ""
+
+#: nodes/generic.py
+msgid "Temperature (in K) of district heating return flow"
+msgstr ""
+
+#: nodes/generic.py
+msgid "Efficiency of producing electricity separately"
+msgstr ""
+
+#: nodes/generic.py
+msgid "Efficiency of producing heat separately"
 msgstr ""
 
 #: nodes/gpc.py
@@ -2162,18 +2058,6 @@ msgstr "Se trata de un nodo de actividad de factor de emisión. Multiplica una a
 #: nodes/simple.py
 msgid "This is Activity Node. It adds activity amounts together."
 msgstr "Este es el Nodo de Actividad. Suma las cantidades de actividad."
-
-#: nodes/simple.py
-msgid ""
-"First add other input nodes, then multiply the output.\n"
-"\n"
-"    Multiplication and addition is determined based on the input node units.\n"
-"    "
-msgstr ""
-"Primero añade otros nodos de entrada y luego multiplica la salida.\n"
-"\n"
-"    La multiplicación y la suma se determinan en función de las unidades de los nodos de entrada.\n"
-"    "
 
 #: nodes/simple.py
 msgid ""
@@ -2416,6 +2300,14 @@ msgstr ""
 
 #: nodes/units.py
 msgid "M vkm"
+msgstr ""
+
+#: nodes/units.py
+msgid "Disability-adjusted lifeyear"
+msgstr ""
+
+#: nodes/units.py
+msgid "DALY"
 msgstr ""
 
 #: nodes/values.py
@@ -2857,6 +2749,10 @@ msgid "Annual weather normalization for energy consumption"
 msgstr "Normalización meteorológica anual para el consumo de energía"
 
 #: params/global_params.py
+msgid "Are biogenic emissions included in total emissions?"
+msgstr ""
+
+#: params/global_params.py
 msgid "Normalization for matching statistical data"
 msgstr "Normalización para cotejar datos estadísticos"
 
@@ -2946,14 +2842,6 @@ msgstr ""
 msgid "uuid"
 msgstr "uuid"
 
-#: paths/utils.py
-msgid "created at"
-msgstr "creado en"
-
-#: paths/utils.py
-msgid "updated at"
-msgstr "actualizado en"
-
 #: people/apps.py people/models.py people/wagtail_hooks.py
 msgid "People"
 msgstr ""
@@ -3014,6 +2902,101 @@ msgstr ""
 #: users/models.py
 msgid "adminable instances"
 msgstr ""
+
+#, fuzzy
+#~| msgid "label"
+#~ msgid "Label"
+#~ msgstr "etiqueta"
+
+#, fuzzy
+#~| msgid "Compute action impact based on the baseline scenario instead of the default one"
+#~ msgid "Label for the column to be used instead of the default"
+#~ msgstr "Calcular el impacto de la acción basándose en el escenario de referencia en lugar del escenario por defecto."
+
+#, fuzzy
+#~| msgid "Introductory content to show in the UI"
+#~ msgid "Help text for the column to be shown in the UI"
+#~ msgstr "Contenido introductorio para mostrar en la interfaz de usuario"
+
+#, fuzzy
+#~| msgid "label"
+#~ msgid "Field label"
+#~ msgstr "etiqueta"
+
+#, fuzzy
+#~| msgid "Introductory content to show in the UI"
+#~ msgid "Help text for the field to be shown in the UI"
+#~ msgstr "Contenido introductorio para mostrar en la interfaz de usuario"
+
+#, fuzzy
+#~| msgid "dataset"
+#~ msgid "dataset metric"
+#~ msgstr "conjunto de datos"
+
+#, fuzzy
+#~| msgid "datasets"
+#~ msgid "dataset metrics"
+#~ msgstr "conjuntos de datos"
+
+#, fuzzy, python-format
+#~| msgid "data source references"
+#~ msgid "Data source reference in: %(schema)s"
+#~ msgstr "referencias de fuentes de datos"
+
+#, fuzzy
+#~| msgid "data source reference"
+#~ msgid "Data source reference"
+#~ msgstr "referencia de la fuente de datos"
+
+#, fuzzy
+#~| msgid "dataset"
+#~ msgid "Edit dataset"
+#~ msgstr "conjunto de datos"
+
+#~ msgid "Is implemented"
+#~ msgstr "Es implementada"
+
+#, fuzzy
+#~| msgid "datasets"
+#~ msgid "Datasets"
+#~ msgstr "conjuntos de datos"
+
+#, fuzzy, python-format
+#~| msgid "identifier"
+#~ msgid "Dataset with identifier <i>%s</i>"
+#~ msgstr "identificador"
+
+#, fuzzy
+#~| msgid "The node has the following input nodes:"
+#~ msgid "Renames the following columns:"
+#~ msgstr "El nodo tiene los siguientes nodos de entrada:"
+
+#, fuzzy
+#~| msgid "The node has the following input nodes:"
+#~ msgid "Has the following filters:"
+#~ msgstr "El nodo tiene los siguientes nodos de entrada:"
+
+#, fuzzy, python-format
+#~| msgid "Data dimensions"
+#~ msgid "Sum up the dimension <i>%(label)s</i>."
+#~ msgstr "Dimensiones de los datos"
+
+#~ msgid ""
+#~ "First add other input nodes, then multiply the output.\n"
+#~ "\n"
+#~ "    Multiplication and addition is determined based on the input node units.\n"
+#~ "    "
+#~ msgstr ""
+#~ "Primero añade otros nodos de entrada y luego multiplica la salida.\n"
+#~ "\n"
+#~ "    La multiplicación y la suma se determinan en función de las unidades de los nodos de entrada.\n"
+#~ "    "
+
+#~ msgid "created at"
+#~ msgstr "creado en"
+
+#~ msgid "updated at"
+#~ msgstr "actualizado en"
 
 #, fuzzy
 #~| msgid "Data dimensions"

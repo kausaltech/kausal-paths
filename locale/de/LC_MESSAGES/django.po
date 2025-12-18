@@ -9,11 +9,10 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-11-12 17:25+0200\n"
+"POT-Creation-Date: 2025-12-18 11:28+0200\n"
 "PO-Revision-Date: 2025-11-12 19:21+0000\n"
 "Last-Translator: Bernhard Bliem <bernhard.bliem@kausal.tech>\n"
-"Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>"
-"\n"
+"Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>\n"
 "Language: de\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -222,48 +221,6 @@ msgstr "Instanz kann nicht gelöscht werden, da andere Objekte darauf verweisen.
 msgid "Cannot delete \"%s\" because it is connected to other objects such as instances, persons or actions."
 msgstr "%s\" kann nicht gelöscht werden, da es mit anderen Objekten wie Instanzen, Personen oder Maßnahmen verbunden ist."
 
-#: kausal_common/blocks/base.py
-msgid "Label"
-msgstr "Beschriftung"
-
-#: kausal_common/blocks/base.py
-msgid "Label for the column to be used instead of the default"
-msgstr "Spaltenbeschriftung, die anstelle des Standardwerts verwendet werden soll"
-
-#: kausal_common/blocks/base.py kausal_common/blocks/fields.py
-msgid "Help text"
-msgstr "Hilfetext"
-
-#: kausal_common/blocks/base.py
-msgid "Help text for the column to be shown in the UI"
-msgstr "Hilfetext für die Spalte, der in der Benutzeroberfläche angezeigt werden soll"
-
-#: kausal_common/blocks/base.py kausal_common/blocks/fields.py
-msgid "Heading to show instead of the default"
-msgstr "Überschrift, die anstelle der Standardüberschrift angezeigt wird"
-
-#: kausal_common/blocks/base.py kausal_common/blocks/fields.py
-msgid "Field label"
-msgstr "Feldbeschriftung"
-
-#: kausal_common/blocks/base.py kausal_common/blocks/fields.py
-msgid "Help text for the field to be shown in the UI"
-msgstr "In Benutzeroberfläche anzuzeigender Hilfetext für das Feld"
-
-#: kausal_common/blocks/base.py kausal_common/blocks/fields.py
-#, python-format
-msgid "Content block: %(label)s"
-msgstr "Inhaltsblock: %(label)s"
-
-#: kausal_common/blocks/base.py
-msgid "Label for 'show all'"
-msgstr "Beschriftung für 'Alles anzeigen'"
-
-#: kausal_common/blocks/base.py
-#, python-format
-msgid "Filter: %(filter_label)s"
-msgstr "Filter: %(filter_label)s"
-
 #: kausal_common/datasets/chooser.py
 msgid "Choose a dataset"
 msgstr "Wähle einen Datensatz"
@@ -403,14 +360,6 @@ msgid "unit"
 msgstr "Einheit"
 
 #: kausal_common/datasets/models.py
-msgid "dataset metric"
-msgstr "Datensatzmessgröße"
-
-#: kausal_common/datasets/models.py
-msgid "dataset metrics"
-msgstr "Datensatzmessgrößen"
-
-#: kausal_common/datasets/models.py
 msgid "dataset schema dimension"
 msgstr "Datensatzschema-Dimension"
 
@@ -531,39 +480,12 @@ msgid "Data sources"
 msgstr "Datenquellen"
 
 #: kausal_common/datasets/models.py
-msgid "Unknown schema"
-msgstr "Unbekanntes Schema"
-
-#: kausal_common/datasets/models.py
-#, python-format
-msgid "Data source reference in: %(schema)s"
-msgstr "Datenquellenreferenz in: %(schema)s"
-
-#: kausal_common/datasets/models.py
-msgid "Data source reference"
-msgstr "Datenquellenreferenz"
-
-#: kausal_common/datasets/models.py
 msgid "data source reference"
 msgstr "Datenquellenreferenz"
 
 #: kausal_common/datasets/models.py
 msgid "data source references"
 msgstr "Datenquellenreferenzen"
-
-#: kausal_common/datasets/wagtail_hooks.py
-msgid "Edit dataset"
-msgstr "Datensatz bearbeiten"
-
-#: kausal_common/datasets/wagtail_hooks.py
-#, python-format
-msgid "(Private %(object)s)"
-msgstr "(Privates '%(object)s'-Objekt)"
-
-#: kausal_common/datasets/wagtail_hooks.py
-#, python-format
-msgid "Edit this %(object)s"
-msgstr "Bearbeite dieses '%(object)s'-Objekt"
 
 #: kausal_common/models/modification_tracking.py
 msgid "Created at"
@@ -712,6 +634,12 @@ msgid "postal address"
 msgstr "Anschrift"
 
 #: kausal_common/people/models.py
+#, fuzzy
+#| msgid "Set as instance organization"
+msgid "What is this person's organization"
+msgstr "Als Instanzorganisation festlegen"
+
+#: kausal_common/people/models.py
 msgid "user"
 msgstr "Benutzer"
 
@@ -745,8 +673,10 @@ msgid "Organization"
 msgstr "Organisation"
 
 #: nodes/actions/action.py
-msgid "Is implemented"
-msgstr "Wird umgesetzt"
+#, fuzzy
+#| msgid "Is the action included in the scenario"
+msgid "Included in scenario"
+msgstr "Ist die Maßnahme im Szenario enthalten"
 
 #: nodes/actions/action.py
 msgid "Is the action included in the scenario"
@@ -833,6 +763,7 @@ msgid "Electricity saving (kWh/m2/a)"
 msgstr "Stromeinsparung (kWh/m2/a)"
 
 #: nodes/actions/energy_saving.py
+#, python-format
 msgid "Renovation potential (% of floor area)"
 msgstr "Renovierungspotential (% der Grundfläche)"
 
@@ -1404,6 +1335,41 @@ msgstr ""
 "        "
 
 #: nodes/explanations.py
+msgid ""
+"\n"
+"        Calculates the attribution of emissions of combined heat and power (CHP) producion according to the\n"
+"        <a href=\"https://ghgprotocol.org/sites/default/files/CHP_guidance_v1.0.pdf\">GPC protocol</a>.\n"
+"        There are several methods but for each method, the average emission factor of the fuel mix used\n"
+"        is split into two parts by using fractions a_heat and a_electricity that sum up to 1. They are calculated as\n"
+"        <br/>a_i = z_i * f_i / sum_j(z_j * f_j),\n"
+"        <br/>where a_i is the fraction for each product (i = electricity, heat)\n"
+"        z_i is a method-specific multiplier (see below)\n"
+"        f_i is the fraction of product i from the total energy produced.\n"
+"\n"
+"        <ol><li><b>Energy method</b>\n"
+"        Logic: Energy products are treated equally based on the energy content.\n"
+"        All z_i = 1\n"
+"\n"
+"        </li><li><b>Work potential method</b> (aka Carnot method, or exergetic method)\n"
+"        Logic: Energy products are treated equally based on the potential of doing work (i.e., exergy content).\n"
+"        This moves emissions toward electricity.\n"
+"        z_heat = 1 - T_return / T_supply, and\n"
+"        z_electricity = 1.\n"
+"        T_supply and T_return are the input and output process temperatures, respectively.\n"
+"\n"
+"        </li><li><b>Bisko method</b>\n"
+"        Bisko method is a variant of the work potential method.\n"
+"        The only difference is that Bisko assumes T_return = 283 K.\n"
+"\n"
+"        </li><li><b>Efficiency method</b>\n"
+"        Logic: What emissions would have occured if each energy product had been produced separately?\n"
+"        z_i = 1 / n_i,\n"
+"        where n_i is the reference efficiency for producing the energy type separately.\n"
+"        Typical values are z_heat = 0.9, z_electricity = 0.4.</li></ol>\n"
+"        "
+msgstr ""
+
+#: nodes/explanations.py
 msgid "Uses 'primary' tagged data when available, otherwise 'secondary' tagged data. One of the tags must be given."
 msgstr "Verwendet \"primär\" getaggte Daten, wenn verfügbar, ansonsten \"sekundär\" getaggte Daten. Eine der Markierungen muss angegeben werden."
 
@@ -1743,49 +1709,8 @@ msgstr "Die Knotenklasse hat keine Beschreibung."
 
 #: nodes/explanations.py
 #, python-format
-msgid "The order of operations is %s."
-msgstr "Die Reihenfolge der Operationen ist %s."
-
-#: nodes/explanations.py
-#, python-format
-msgid "Has formula %s."
-msgstr "Hat Formel %s."
-
-#: nodes/explanations.py
-#, python-format
 msgid "Has parameter <i>%(parameter)s</i> with value %(value)s."
 msgstr "Hat Parameter <i>%(parameter)s</i> mit Wert %(value)s."
-
-#: nodes/explanations.py
-msgid "Datasets"
-msgstr "Datensätze"
-
-#: nodes/explanations.py
-#, python-format
-msgid "Dataset with identifier <i>%s</i>"
-msgstr "Datensatz mit Kennung <i>%s</i>"
-
-#: nodes/explanations.py
-#, python-format
-msgid "Uses column: %(name)s"
-msgstr "Verwendet Spalte: %(name)s"
-
-#: nodes/explanations.py
-#, python-format
-msgid "Has forecast values from: %(year)s"
-msgstr "Hat Prognosewerte von: %(year)s"
-
-#: nodes/explanations.py
-msgid "Rows with missing values are dropped."
-msgstr "Zeilen mit fehlenden Werten werden gestrichen."
-
-#: nodes/explanations.py
-msgid "Renames the following columns:"
-msgstr "Benennt die folgenden Spalten um:"
-
-#: nodes/explanations.py
-msgid "Has the following filters:"
-msgstr "Verfügt über die folgenden Filter:"
 
 #: nodes/explanations.py
 #, python-format
@@ -1804,27 +1729,12 @@ msgstr "Filtere Spalte <i>%(name)s</i> durch Einschluss von <i>%(values)s</i> ."
 
 #: nodes/explanations.py
 #, python-format
-msgid "Sum up column <i>%(name)s</i>."
-msgstr "Summiere Spalte <i>%(name)s</i> ."
-
-#: nodes/explanations.py
-#, python-format
-msgid "Drop column <i>%(name)s</i>."
-msgstr "Verwerfe Spalte <i>%(name)s</i> ."
-
-#: nodes/explanations.py
-#, python-format
 msgid "Assign dataset to category <i>%(cat_label)s</i> on dimension <i>%(dim_label)s</i>."
 msgstr "Ordne Datensatz der Kategorie <i>%(cat_label)s</i> in Dimension <i>%(dim_label)s</i> zu."
 
 #: nodes/explanations.py
 msgid "Filter dimension <i>%s(dim_label)s</i> by categories <i>%(cat_labels)s</i>."
 msgstr "Filter Dimension <i>%s(dim_label)s</i> nach Kategorien <i>%(cat_labels)s</i>."
-
-#: nodes/explanations.py
-#, python-format
-msgid "Sum up the dimension <i>%(label)s</i>."
-msgstr "Summiere die Dimension <i>%(label)s</i>."
 
 #: nodes/explanations.py
 #, python-format
@@ -1875,18 +1785,8 @@ msgid "The inputs are used for operations in this order:"
 msgstr "Die Eingaben werden in dieser Reihenfolge für Operationen verwendet:"
 
 #: nodes/explanations.py
-#, python-format
-msgid "Operation %(op)s with nodes:"
-msgstr "Operation %(op)s mit Knoten:"
-
-#: nodes/explanations.py
 msgid "These groups are left over without an operation:"
 msgstr "Diese Gruppen sind ohne eine Operation übrig geblieben:"
-
-#: nodes/explanations.py
-#, python-format
-msgid "Group %(basket)s with nodes:"
-msgstr "Gruppe %(basket)s mit Knoten:"
 
 #: nodes/generic.py
 msgid "Multiply input nodes whose unit does not match the output. Add the rest."
@@ -1925,6 +1825,30 @@ msgstr "Leistung ohne Verluste"
 #: nodes/generic.py
 msgid "Scope 3 emissions from upstream of installation"
 msgstr "Scope 3-Emissionen aus dem vorgelagerten Bereich der Anlage"
+
+#: nodes/generic.py
+msgid "Emission splitting method"
+msgstr ""
+
+#: nodes/generic.py
+msgid "Fraction of electricity in the output energy"
+msgstr ""
+
+#: nodes/generic.py
+msgid "Temperature (in K) of district heating supply slow"
+msgstr ""
+
+#: nodes/generic.py
+msgid "Temperature (in K) of district heating return flow"
+msgstr ""
+
+#: nodes/generic.py
+msgid "Efficiency of producing electricity separately"
+msgstr ""
+
+#: nodes/generic.py
+msgid "Efficiency of producing heat separately"
+msgstr ""
 
 #: nodes/gpc.py
 msgid "This is a DatasetNode. It takes in a specifically formatted dataset and converts the relevant part into a node output."
@@ -2089,18 +2013,6 @@ msgstr "Dies ist ein Emmision Factor Activity Node. Er multipliziert eine Aktivi
 #: nodes/simple.py
 msgid "This is Activity Node. It adds activity amounts together."
 msgstr "Dies ist ein Activity Node. Er addiert Aktivitätsbeträge zusammen."
-
-#: nodes/simple.py
-msgid ""
-"First add other input nodes, then multiply the output.\n"
-"\n"
-"    Multiplication and addition is determined based on the input node units.\n"
-"    "
-msgstr ""
-"Füge zunächst weitere Eingabeknoten hinzu und multipliziere dann die Ausgabe.\n"
-"\n"
-"    Multiplikation und Addition werden auf der Grundlage der Einheiten der Eingangsknoten bestimmt.\n"
-"    "
 
 #: nodes/simple.py
 msgid ""
@@ -2355,6 +2267,14 @@ msgstr "Millionen Fahrzeug-km"
 #: nodes/units.py
 msgid "M vkm"
 msgstr "M vkm"
+
+#: nodes/units.py
+msgid "Disability-adjusted lifeyear"
+msgstr ""
+
+#: nodes/units.py
+msgid "DALY"
+msgstr ""
 
 #: nodes/values.py
 msgid ""
@@ -2800,6 +2720,10 @@ msgid "Annual weather normalization for energy consumption"
 msgstr "Jährliche Wetternormalisierung für den Energieverbrauch"
 
 #: params/global_params.py
+msgid "Are biogenic emissions included in total emissions?"
+msgstr ""
+
+#: params/global_params.py
 msgid "Normalization for matching statistical data"
 msgstr "Normalisierung für den Abgleich statistischer Daten"
 
@@ -2887,14 +2811,6 @@ msgstr "Griechisch"
 msgid "uuid"
 msgstr "UUID"
 
-#: paths/utils.py
-msgid "created at"
-msgstr "erstellt am"
-
-#: paths/utils.py
-msgid "updated at"
-msgstr "aktualisiert am"
-
 #: people/apps.py people/models.py people/wagtail_hooks.py
 msgid "People"
 msgstr "Personen"
@@ -2955,6 +2871,137 @@ msgstr "Gibt an, ob sich der Benutzer bei dieser Admin-Seite anmelden kann."
 #: users/models.py
 msgid "adminable instances"
 msgstr "administrierbare Instanzen"
+
+#~ msgid "Label"
+#~ msgstr "Beschriftung"
+
+#~ msgid "Label for the column to be used instead of the default"
+#~ msgstr "Spaltenbeschriftung, die anstelle des Standardwerts verwendet werden soll"
+
+#~ msgid "Help text"
+#~ msgstr "Hilfetext"
+
+#~ msgid "Help text for the column to be shown in the UI"
+#~ msgstr "Hilfetext für die Spalte, der in der Benutzeroberfläche angezeigt werden soll"
+
+#~ msgid "Heading to show instead of the default"
+#~ msgstr "Überschrift, die anstelle der Standardüberschrift angezeigt wird"
+
+#~ msgid "Field label"
+#~ msgstr "Feldbeschriftung"
+
+#~ msgid "Help text for the field to be shown in the UI"
+#~ msgstr "In Benutzeroberfläche anzuzeigender Hilfetext für das Feld"
+
+#, python-format
+#~ msgid "Content block: %(label)s"
+#~ msgstr "Inhaltsblock: %(label)s"
+
+#~ msgid "Label for 'show all'"
+#~ msgstr "Beschriftung für 'Alles anzeigen'"
+
+#, python-format
+#~ msgid "Filter: %(filter_label)s"
+#~ msgstr "Filter: %(filter_label)s"
+
+#~ msgid "dataset metric"
+#~ msgstr "Datensatzmessgröße"
+
+#~ msgid "dataset metrics"
+#~ msgstr "Datensatzmessgrößen"
+
+#~ msgid "Unknown schema"
+#~ msgstr "Unbekanntes Schema"
+
+#, python-format
+#~ msgid "Data source reference in: %(schema)s"
+#~ msgstr "Datenquellenreferenz in: %(schema)s"
+
+#~ msgid "Data source reference"
+#~ msgstr "Datenquellenreferenz"
+
+#~ msgid "Edit dataset"
+#~ msgstr "Datensatz bearbeiten"
+
+#, python-format
+#~ msgid "(Private %(object)s)"
+#~ msgstr "(Privates '%(object)s'-Objekt)"
+
+#, python-format
+#~ msgid "Edit this %(object)s"
+#~ msgstr "Bearbeite dieses '%(object)s'-Objekt"
+
+#~ msgid "Is implemented"
+#~ msgstr "Wird umgesetzt"
+
+#, python-format
+#~ msgid "The order of operations is %s."
+#~ msgstr "Die Reihenfolge der Operationen ist %s."
+
+#, python-format
+#~ msgid "Has formula %s."
+#~ msgstr "Hat Formel %s."
+
+#~ msgid "Datasets"
+#~ msgstr "Datensätze"
+
+#, python-format
+#~ msgid "Dataset with identifier <i>%s</i>"
+#~ msgstr "Datensatz mit Kennung <i>%s</i>"
+
+#, python-format
+#~ msgid "Uses column: %(name)s"
+#~ msgstr "Verwendet Spalte: %(name)s"
+
+#, python-format
+#~ msgid "Has forecast values from: %(year)s"
+#~ msgstr "Hat Prognosewerte von: %(year)s"
+
+#~ msgid "Rows with missing values are dropped."
+#~ msgstr "Zeilen mit fehlenden Werten werden gestrichen."
+
+#~ msgid "Renames the following columns:"
+#~ msgstr "Benennt die folgenden Spalten um:"
+
+#~ msgid "Has the following filters:"
+#~ msgstr "Verfügt über die folgenden Filter:"
+
+#, python-format
+#~ msgid "Sum up column <i>%(name)s</i>."
+#~ msgstr "Summiere Spalte <i>%(name)s</i> ."
+
+#, python-format
+#~ msgid "Drop column <i>%(name)s</i>."
+#~ msgstr "Verwerfe Spalte <i>%(name)s</i> ."
+
+#, python-format
+#~ msgid "Sum up the dimension <i>%(label)s</i>."
+#~ msgstr "Summiere die Dimension <i>%(label)s</i>."
+
+#, python-format
+#~ msgid "Operation %(op)s with nodes:"
+#~ msgstr "Operation %(op)s mit Knoten:"
+
+#, python-format
+#~ msgid "Group %(basket)s with nodes:"
+#~ msgstr "Gruppe %(basket)s mit Knoten:"
+
+#~ msgid ""
+#~ "First add other input nodes, then multiply the output.\n"
+#~ "\n"
+#~ "    Multiplication and addition is determined based on the input node units.\n"
+#~ "    "
+#~ msgstr ""
+#~ "Füge zunächst weitere Eingabeknoten hinzu und multipliziere dann die Ausgabe.\n"
+#~ "\n"
+#~ "    Multiplikation und Addition werden auf der Grundlage der Einheiten der Eingangsknoten bestimmt.\n"
+#~ "    "
+
+#~ msgid "created at"
+#~ msgstr "erstellt am"
+
+#~ msgid "updated at"
+#~ msgstr "aktualisiert am"
 
 #~ msgid "Has parameter"
 #~ msgstr "Hat Parameter"
