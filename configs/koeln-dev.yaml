@@ -36,6 +36,12 @@ include:
 params:
 - id: municipality_name
   value: koeln
+- id: statistical_correction
+  label_en: Use national rather than local electricity emission factors (BISKO)
+  label_de: Verwenden Sie nationale statt lokaler Stromemissionsfaktoren (BISKO).
+  value: true
+  is_visible: true
+  is_customizable: true
 
 action_groups:
 
