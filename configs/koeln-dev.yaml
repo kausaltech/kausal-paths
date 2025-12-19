@@ -267,7 +267,6 @@ nodes:
   type: generic.GenericNode
   quantity: population
   unit: cap
-  is_outcome: true
   input_datasets:
   - id: koeln/einwohnerin
     tags: [baseline]
@@ -280,7 +279,6 @@ nodes:
   quantity: emissions
   unit: t/a
   color: '#00A969'
-  is_outcome: true
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
@@ -297,7 +295,6 @@ nodes:
   quantity: emissions
   unit: t/a
   color: '#00A969'
-  is_outcome: true
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
@@ -312,7 +309,6 @@ nodes:
   quantity: emissions
   unit: kt/a
   color: '#FDB813'
-  is_outcome: true
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_nodes:
@@ -421,6 +417,7 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
+  is_outcome: true
   # color: '#8eeffd'
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
