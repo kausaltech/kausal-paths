@@ -1784,6 +1784,93 @@ nodes:
     - id: scope
       categories: [scope1] # FIXME
 
+# Transit
+
+- id: total_transit_vmt
+  name: Total transit VMT
+  type: generic.GenericNode
+  quantity: mileage
+  unit: VMT/a
+  input_dimensions: [service, vehicle_type, energy_carrier]
+  output_dimensions: [service, vehicle_type, energy_carrier]
+  input_datasets:
+  - id: longmont/transit_data
+    tags: [baseline]
+    forecast_from: 2025
+    column: transit_vmt
+
+- id: transit_percentage_attributable_to_longmont
+  name: Transit percentage attributable to Longmont
+  type: generic.GenericNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [service, vehicle_type, energy_carrier]
+  output_dimensions: [service, vehicle_type, energy_carrier]
+  input_datasets:
+  - id: longmont/transit_data
+    tags: [baseline]
+    forecast_from: 2025
+    column: percent_attributable
+
+- id: transit_mpg
+  name: Transit MPG
+  type: generic.GenericNode
+  quantity: mileage
+  unit: VMT/gal
+  input_dimensions: [service, vehicle_type, energy_carrier]
+  output_dimensions: [service, vehicle_type, energy_carrier]
+  input_datasets:
+  - id: longmont/transit_data
+    tags: [baseline]
+    forecast_from: 2025
+    column: transit_mpg
+
+- id: transit_fuel_use
+  name: Transit fuel use
+  type: generic.GenericNode
+  quantity: energy
+  unit: gal/a
+  input_dimensions: [service, vehicle_type, energy_carrier]
+  output_dimensions: [service, vehicle_type, energy_carrier]
+  input_nodes:
+  - id: total_transit_vmt
+  - id: transit_percentage_attributable_to_longmont
+  - id: transit_mpg
+    tags: [geometric_inverse]
+  params:
+    operations: multiply,drop_infs,drop_nans,add
+
+- id: transit_co2_emissions
+  name: Transit CO2 emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [service, vehicle_type, energy_carrier, ghg]
+  output_dimensions: [service, vehicle_type, energy_carrier, ghg]
+  input_nodes:
+  - id: transit_fuel_use
+    to_dimensions:
+    - id: service
+    - id: vehicle_type
+    - id: energy_carrier
+  - id: transportation_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+  - id: global_warming_potential_100a
+    to_dimensions:
+    - id: ghg
+  output_nodes:
+  - id: road_transportation_emissions
+    from_dimensions:
+    - id: service
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+
 # Railways
 
 - id: total_railway_ghg_emissions_boulder_county
@@ -2777,6 +2864,129 @@ actions:
       value: none
     forecast_from: 2023
   output_dimensions: [emission_sectors]
+
+- id: vehicle_incentives
+  name: Increase electric vehicles through vehicle incentives and improved 
+    infrastructure
+  name_es-US: Aumentar el uso de vehículos eléctricos a través de incentivos e 
+    infraestructura mejorada
+  description: '<p>Transition 30% of all vehicles registered within the City to zero-emissions
+    by 2030, and near-100% of all vehicles by 2050 as stated in the <a href="https://www.longmontcolorado.gov/home/showpublisheddocument/34513/637685042384830000">2021
+    GoEV Resolution.</a></p> <p>Track Implementation: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/T-4">Sustainability
+    Plan Strategy T-4</a></li> <li><a href="https://indicators.longmontcolorado.gov/indicators/1771">Electric
+    Vehicle Indicator</a></li></ul></p><p><b>Unit:</b> v = number of vehicles</p>'
+  description_es-US: '<p>Hacer la transición del 30 % de todos los vehículos matriculados
+    en la ciudad a cero emisiones para el año 2030 y de casi el 100 % de todos los
+    vehículos para el año 2050, como se establece en la <a href="https://www.longmontcolorado.gov/home/showpublisheddocument/34513/637685042384830000">Resolución
+    del GoEV de 2021.</a></p> <p>Seguimiento de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/T-4">Estrategia
+    del Plan de Sustentabilidad T-4</a></li> <li><a href="https://indicators.longmontcolorado.gov/indicators/1771">Indicador
+    de vehículo eléctrico</a></li></ul></p><p><b>Unidad:</b> v = cantidad de vehículos</p>'
+  type: simple.AdditiveAction
+  quantity: number
+  unit: vehicle
+  group: transportation
+  input_datasets:
+  - id: longmont/energy_vehicle_and_waste_actions
+    forecast_from: 2022
+    column: vehicle_incentives
+  # output_nodes:
+  # - registered_electric_vehicles
+
+- id: increase_access_of_public_transit
+  name: Address barriers to increase access and use of public transit
+  name_es-US: Abordar los obstáculos para aumentar el acceso y el uso del 
+    transporte público
+  description: '<p>Address barriers to increase access and use of public transit,
+    especially for underserved communities.</p> <p>Track Implementation: <ul><li><a
+    href="https://indicators.longmontcolorado.gov/transportation">Equitable Carbon-Free
+    Transportation Roadmap</a></li> <li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/T-1">Sustainability
+    Plan Strategy T-1</a>, <a href="https://indicators.longmontcolorado.gov/sustainability/actions/T-5">Strategy
+    T-5</a> and <a href="https://indicators.longmontcolorado.gov/sustainability/actions/T-7">Strategy
+    T-7</a></li> <li><a href="https://indicators.longmontcolorado.gov/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system">Envision
+    Longmont Guiding Principle A Complete, Balanced, and Connected Transportation
+    System</a></li></ul></p>'
+  description_es-US: '<p>Abordar los obstáculos para aumentar el acceso y el uso del
+    transporte público, especialmente para las comunidades desatendidas.</p> <p>Seguimiento
+    de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/transportation">Hoja
+    de ruta de transporte equitativo y libre de carbono</a></li> <li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/T-1">Estrategia
+    del Plan de Sustentabilidad T-1</a>, <a href="https://indicators.longmontcolorado.gov/sustainability/actions/T-5">estrategia
+    T-5</a> y <a href="https://indicators.longmontcolorado.gov/sustainability/actions/T-7">estrategia
+    T-7</a></li> <li><a href="https://indicators.longmontcolorado.gov/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system">Principio
+    rector de Envision Longmont: un sistema de transporte completo, equilibrado y
+    conectado</a></li></ul></p>'
+  type: simple.GenericAction
+  quantity: number
+  unit: trip/inhabitant/a
+  group: transportation
+  input_datasets:
+  - id: longmont/energy_vehicle_and_waste_actions
+    tags: [baseline]
+    column: increase_access_of_public_transit
+    forecast_from: 2023
+  # output_nodes:
+  # - free_rides_per_person
+
+- id: multimodal_transportation_system
+  name: Develop multimodal transportation system / bicycle and pedestrian 
+    improvements
+  name_es-US: Desarrollar un sistema de transporte multimodal y mejoras para 
+    ciclistas y peatones
+  description: "<p>Pursue all elements of Longmont's multimodal transportation plan.
+    This action specifically models from actively reduce greenhouse gas emissions
+    through bicycle and pedestrian improvements.</p> <p>Track Implementation: <ul><li><a
+    href=\"https://indicators.longmontcolorado.gov/transportation\">Equitable Carbon-Free
+    Transportation Roadmap</a></li> <li><a href=\"https://indicators.longmontcolorado.gov/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system\"\
+    >Envision Longmont Guiding Principle A Complete, Balanced, and Connected Transportation
+    System</a></li></ul></p>"
+  description_es-US: '<p>Seguir todos los elementos del plan de transporte multimodal
+    de Longmont. Esta acción modela específicamente la reducción activa de las emisiones
+    de gases de efecto invernadero a través de mejoras para ciclistas y peatones.</p>
+    <p>Seguimiento de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/transportation">Hoja
+    de ruta de transporte equitativo y libre de carbono</a></li> <li><a href="https://indicators.longmontcolorado.gov/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system">Principio
+    rector de Envision Longmont: un sistema de transporte completo, equilibrado y
+    conectado</a></li></ul></p>'
+  type: simple.GenericAction
+  quantity: fraction
+  unit: '%'
+  group: transportation
+  input_datasets:
+  - id: longmont/energy_vehicle_and_waste_actions
+    tags: [baseline]
+    column: multimodal_transportation_system
+    forecast_from: 2023
+  output_nodes:
+  - id: vehicle_miles_traveled
+    tags: [complement]
+
+- id: last_mile_connections
+  name: Improve last mile connections
+  name_es-US: Mejorar las conexiones de última milla
+  description: "<p>Pursue all elements of Longmont's multimodal transportation plan.
+    This action specifically models from actively reduce greenhouse gas emissions
+    through improving first/last mile connections.</p> <p>Track Implementation: <ul><li><a
+    href=\"https://indicators.longmontcolorado.gov/transportation\">Equitable Carbon-Free
+    Transportation Roadmap</a></li> <ul><li><a href=\"https://indicators.longmontcolorado.gov/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system\"\
+    >Envision Longmont Guiding Principle A Complete, Balanced, and Connected Transportation
+    System</a></li></ul></p>"
+  description_es-US: '<p>Seguir todos los elementos del plan de transporte multimodal
+    de Longmont. Esta acción modela específicamente la reducción activa de las emisiones
+    de gases de efecto invernadero al mejorar las conexiones de primera y última milla.</p>
+    <p>Seguimiento de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/transportation">Hoja
+    de ruta de transporte equitativo y libre de carbono</a></li> <ul><li><a href="https://indicators.longmontcolorado.gov/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system">Principio
+    rector de Envision Longmont: un sistema de transporte completo, equilibrado y
+    conectado</a></li></ul></p>'
+  type: simple.GenericAction
+  quantity: fraction
+  unit: '%'
+  group: transportation
+  input_datasets:
+  - id: longmont/energy_vehicle_and_waste_actions
+    tags: [baseline]
+    forecast_from: 2022
+    column: last_mile_connections
+  output_nodes:
+  - id: total_transit_vmt
+    tags: [complement]
 
 pages:
 - id: home
