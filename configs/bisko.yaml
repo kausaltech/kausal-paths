@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://bisko.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 4d8c46a0f8645af4b3a1cbe2b6d6526a8fe335b1
+  commit: d64c5c8cb8418543cbed9135fe97d524014e4cd0
   dvc_remote: kausal-s3
 name: Klima-Monitor-BISKO
 owner: Kausal Ltd
@@ -38,6 +38,29 @@ params:
   value: Flensburg
   is_customizable: true
   is_visible: true
+- id: statistical_correction
+  label_en: Use national rather than local electricity emission factors (BISKO)
+  label_de: Verwenden Sie nationale statt lokaler Stromemissionsfaktoren (BISKO).
+  value: true
+  is_visible: true
+  is_customizable: true
+
+result_excels:
+- base_excel_url: 
+    https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
+  name: City-specific values from BISKO datasets and elsewhere
+  node_ids:
+  - weather_correction
+  - sector_index
+  - final_energy_use
+  - final_energy_use_data_quality
+  - historical_emissions
+  - end_energy_emission_factors
+  - electricity_production_emission_factors
+  - emission_factors_without_fuel_data
+  - emission_factors_for_district_heating_by_generic_fuel
+  - road_transport_activity
+  - other_transport_activity
 
 dimensions:
 
@@ -223,8 +246,8 @@ dimensions:
   label_en: Upstream included
   label_de: Upstream umfasste
   categories:
-  - id: 'yes'
-    label_en: 'Yes'
+  - id: yes
+    label_en: Yes
     label_de: Ja
 
 - id: per_what_energy
@@ -386,9 +409,10 @@ dimensions:
     label_de: Luft (LTO)
     aliases: [LTO]
 
-Propulsion/Fuel Types (Antriebsart): Elektro = Electric (for electrified rail) 
-  Diesel = Diesel (for non-electrified rail and ships) Kerosin = Kerosene/Jet 
-  fuel (for aircraft)
+# Propulsion/Fuel Types (Antriebsart):
+#   Elektro = Electric (for electrified rail) 
+#   Diesel = Diesel (for non-electrified rail and ships)
+#   Kerosin = Kerosene/Jet fuel (for aircraft)
 
 
 emission_sectors:
@@ -464,14 +488,33 @@ nodes:
   input_dimensions: [sector]
   output_dimensions: [sector]
   input_datasets:
-  - id: potsdam/witterungsbereinigung
+  - id: bisko/weather_correction
     tags: [baseline]
-    column: witterungsbereinigung
   params:
   - id: operations
     value: do_correction
   - id: do_correction
     ref: weather_correction
+  # output_nodes:
+  # - id: final_energy_use
+
+- id: use_national_electricity_emission_factors # FIXME Never gets zero.
+  name: Verwenden Sie nationale statt lokaler Stromemissionsfaktoren (BISKO).
+  name_en: Use national rather than local electricity emission factors (BISKO).
+  type: generic.GenericNode
+  quantity: fraction
+  unit: dimensionless
+  input_datasets:
+  - id: bisko/weather_correction
+    tags: [baseline]
+    filters:
+    - column: sector
+      value: electricity
+  params:
+  - id: operations
+    value: do_correction
+  - id: do_correction
+    ref: statistical_correction
   # output_nodes:
   # - id: final_energy_use
 
@@ -484,7 +527,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: duesseldorf/final_energy
+  - id: bisko/final_energy_use
     tags: [baseline]
     column: Value
 
@@ -497,9 +540,8 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: duesseldorf/final_energy
+  - id: bisko/final_energy_use_data_quality
     tags: [baseline]
-    column: Quality of data
 
 - id: historical_emissions
   name: Historische Emissionen
@@ -510,7 +552,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: duesseldorf/bisko_emissions
+  - id: bisko/historical_emissions
     tags: [baseline]
     column: Value
 
@@ -529,8 +571,8 @@ nodes:
   params:
     operations: multiply,drop_nans,drop_infs
 
-- id: end_energy_emission_factors
-  name: Endenergie Emissionsfaktoren
+- id: end_energy_emission_factors_national
+  name: Endenergie Emissionsfaktoren national
   name_en: End energy emission factors
   type: generic.GenericNode
   quantity: emission_factor
@@ -544,8 +586,39 @@ nodes:
     - column: per_what_energy
     - column: upstream_included
 
+- id: end_energy_emission_factors_local
+  name: Endenergie Emissionsfaktoren lokal
+  name_en: End energy emission factors local
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: bisko/end_energy_emission_factors
+    tags: [baseline]
+
+- id: end_energy_emission_factors
+  name: Endenergie Emissionsfaktoren
+  name_en: End energy emission factors
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: end_energy_emission_factors_national
+    tags: [national]
+  - id: end_energy_emission_factors_local
+    tags: [local]
+  - id: use_national_electricity_emission_factors
+    tags: [bisko]
+  params:
+    formula:  bisko * national + complement(bisko) * local
+
 - id: electricity_production_emission_factors
   name: Emissionsfaktoren für Erzeugung
+  name_en: Emission factors for electricity production
   type: generic.GenericNode
   quantity: emission_factor
   unit: g_co2e/kWh
@@ -556,6 +629,18 @@ nodes:
     tags: [baseline]
     filters:
     - column: upstream_included
+
+- id: electricity_production_emission_factors_local
+  name: Emissionsfaktoren für Erzeugung lokal
+  name_en: Emission factors for electricity production local
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier, per_what_energy]
+  output_dimensions: [energy_carrier, per_what_energy]
+  input_datasets:
+  - id: bisko/electricity_production_emission_factors
+    tags: [baseline]
 
 - id: emission_factors_without_fuel_data
   name: Emissionsfaktoren ohne Brennstoffinputinformationen
@@ -571,6 +656,18 @@ nodes:
     filters:
     - column: upstream_included
 
+- id: emission_factors_without_fuel_data_local
+  name: Emissionsfaktoren ohne Brennstoffinputinformationen lokal
+  name_en: Emission factors without fuel data local
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier, per_what_energy]
+  output_dimensions: [energy_carrier, per_what_energy]
+  input_datasets:
+  - id: bisko/emission_factors_without_fuel_data
+    tags: [baseline]
+
 - id: emission_factors_for_district_heating_by_generic_fuel
   name: Emissionsfaktoren für Fernwärme - überwiegend
   name_en: Emission factors for district heating by generic fuel
@@ -584,6 +681,18 @@ nodes:
     tags: [baseline]
     filters:
     - column: upstream_included
+
+- id: emission_factors_for_district_heating_by_generic_fuel_local
+  name: Emissionsfaktoren für Fernwärme - überwiegend lokal
+  name_en: Emission factors for district heating by generic fuel
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier, per_what_energy]
+  output_dimensions: [energy_carrier, per_what_energy]
+  input_datasets:
+  - id: bisko/emission_factors_for_district_heating_by_generic_fuel
+    tags: [baseline]
 
 - id: road_transport_activity
   name_en: Road transport activity
@@ -622,18 +731,17 @@ nodes:
     - column: municipality
       ref: municipality_name
 
-# - id: sector_index
-#   name: Sektor Index
-#   name_en: Sector index
-#   type: generic.GenericNode
-#   quantity: ratio
-#   unit: dimensionless
-#   input_dimensions: [sector, energy_carrier]
-#   output_dimensions: [sector, energy_carrier]
-#   input_datasets:
-#   - id: potsdam/sector_index
-#     tags: [baseline]
-#     column: sector_index
+- id: sector_index
+  name: Sektor Index
+  name_en: Sector index
+  type: generic.GenericNode
+  quantity: ratio
+  unit: dimensionless
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: bisko/sector_index
+    tags: [baseline]
 
 - id: total_emissions
   name: Gesamtemissionen

@@ -411,9 +411,9 @@ nodes:
   output_nodes:
   - id: net_emissions
 
-- id: total_emissions
-  name: Gesamtemissionen
-  name_en: Total emissions
+- id: emission_reductions
+  name: Emissionenreduktionen
+  name_en: Emission reductions
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
@@ -434,7 +434,7 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   output_nodes:
-  - id: total_emissions
+  - id: emission_reductions
 
 - id: waste_and_wastewater_emissions
   name: Abfall & (Ab-)Wasser
@@ -446,7 +446,7 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   output_nodes:
-  - id: total_emissions
+  - id: emission_reductions
 
 - id: food_and_land_use_emissions
   name: Ernährung & Landnutzung
@@ -458,7 +458,7 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   output_nodes:
-  - id: total_emissions
+  - id: emission_reductions
 
 - id: cross_cutting_climate_protection_emissions
   name: Übergreifende Klimaschutzaspekte
@@ -470,7 +470,7 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   output_nodes:
-  - id: total_emissions
+  - id: emission_reductions
 
 - id: administration_emissions
   name: Verwaltung
@@ -482,7 +482,7 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   output_nodes:
-  - id: total_emissions
+  - id: emission_reductions
 
 actions:
 
@@ -951,6 +951,7 @@ actions:
   params:
   - id: enabled
     is_customizable: false
+    is_visible: false
 
 - id: climate_friendly_consumption_behavior
   name: Klimafreundlicheres Konsumverhalten der Bevölkerung
@@ -977,6 +978,7 @@ actions:
   params:
   - id: enabled
     is_customizable: false
+    is_visible: false
 
 - id: ghg_neutral_administration_scope_1_and_2
   name: THG-neutrale Verwaltung (direkte Einflussbereiche über Scope 1 und Scope
@@ -1012,6 +1014,7 @@ actions:
   params:
   - id: enabled
     is_customizable: false
+    is_visible: false
 
 - id: ghg_neutral_administration_scope_3
   name: THG-neutrale Verwaltung (indirekter Einflussbereich über Scope 3)
@@ -1042,6 +1045,7 @@ actions:
   params:
   - id: enabled
     is_customizable: false
+    is_visible: false
 
 - id: waste_reduction_and_facility_efficiency
   name: Abfallreduktion & Anlageneffizienz
@@ -1072,6 +1076,7 @@ actions:
   params:
   - id: enabled
     is_customizable: false
+    is_visible: false
 
 - id: cross_cutting_climate_protection_aspects
   name: Übergreifende Klimaschutz-aspekte
@@ -1106,6 +1111,7 @@ actions:
   params:
   - id: enabled
     is_customizable: false
+    is_visible: false
 
 # ---------- DIRECT ACTIONS
 
@@ -1453,6 +1459,7 @@ actions:
   params:
   - id: enabled
     is_customizable: false
+    is_visible: false
 
 - id: optimization_of_residual_waste_utilization_by_avg
   name: Optimierung der Restmüllverwertung durch AVG
@@ -1475,6 +1482,7 @@ actions:
   params:
   - id: enabled
     is_customizable: false
+    is_visible: false
 
 - id: waste_incineration_co2_reduction_through_ccs_at_avg
   name: 'Müllverbrennung: CO2-Emissionsminderung durch CO2-Abscheidung bei der AVG'
@@ -1497,6 +1505,7 @@ actions:
   params:
   - id: enabled
     is_customizable: false
+    is_visible: false
 
 - id: sump_development_by_city_administration
   name: SUMP Entwicklung durch die Stadtverwaltung
@@ -1538,6 +1547,7 @@ actions:
   params:
   - id: enabled
     is_customizable: false
+    is_visible: false
 
 - id: climate_protection_coordination_office
   name: Koordinationsstelle Klimaschutz
@@ -1560,6 +1570,7 @@ actions:
   params:
   - id: enabled
     is_customizable: false
+    is_visible: false
 
 - id: municipal_heat_planning_preparation_by_administration
   name: Erstellung der kommunalen Wärmeplanung durch die Verwaltung
