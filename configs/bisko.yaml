@@ -246,8 +246,8 @@ dimensions:
   label_en: Upstream included
   label_de: Upstream umfasste
   categories:
-  - id: yes
-    label_en: Yes
+  - id: 'yes'
+    label_en: 'Yes'
     label_de: Ja
 
 - id: per_what_energy
