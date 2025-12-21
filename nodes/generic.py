@@ -53,6 +53,7 @@ class GenericNode(SimpleNode):
         StringParameter(local_id='categories', label='Dimension and categories to select'),
         NumberParameter(local_id='selected_number', label='Number of the selected category'),
         BoolParameter(local_id='do_correction', label='Correct values with a correction factor?'),
+        NumberParameter(local_id='no_correction_value', label='Value to use for no correction'),
     ]
     # Class-level default operations
     DEFAULT_OPERATIONS = 'multiply,add,other,apply_multiplier' # FIXME Remove other,apply_multiplier from the default
@@ -391,9 +392,12 @@ class GenericNode(SimpleNode):
         if df is None:
             raise NodeError(self, "Dataframe missing for 'do correction'.")
         do_correction = self.get_parameter_value('do_correction', required=True)
+        no_correction_value = self.get_typed_parameter_value('no_correction_value', float, required=False)
+        if no_correction_value is None:
+            no_correction_value = 1.0
 
         if not do_correction:
-            df = df.with_columns(pl.col(VALUE_COLUMN) * pl.lit(0) + pl.lit(1.0))
+            df = df.with_columns(pl.col(VALUE_COLUMN) * pl.lit(0) + pl.lit(no_correction_value))
 
         return df, baskets
 
