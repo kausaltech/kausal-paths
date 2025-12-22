@@ -15,8 +15,6 @@ reference_year: 1990
 minimum_historical_year: 2010
 maximum_historical_year: 2023
 emission_unit: kt_co2e/a
-emission_forecast_from: 2024
-emission_dimensions: [energy_carrier, sector]
 features:
   baseline_visible_in_graphs: true
   use_datasets_from_db: true
@@ -52,7 +50,6 @@ result_excels:
   name: City-specific values from BISKO datasets and elsewhere
   node_ids:
   - weather_correction
-  - sector_index
   - final_energy_use
   - final_energy_use_data_quality
   - historical_emissions
@@ -425,69 +422,92 @@ dimensions:
 #   Kerosin = Kerosene/Jet fuel (for aircraft)
 
 
-emission_sectors:
+nodes:
 
 - id: net_emissions
   name: Netto-Emissionen
   name_en: Net emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
   is_outcome: true
 
 - id: private_household_emissions
   name: Private Haushalte Emissionen
   name_en: Private household emissions
-  part_of: net_emissions
   color: '#009ebe'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
   input_nodes:
-  - id: total_emissions
-    from_dimensions:
-    - id: sector
-      categories: [private_households]
+  - id: final_private_household_energy_use
+  - id: emission_factors
+  output_nodes:
+  - id: net_emissions
 
 - id: municipal_facilities_emissions
   name: Kommunale Einrichtungen Emissionen
   name_en: Municipal facilities emissions
-  part_of: net_emissions
   color: '#6bc248'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
   input_nodes:
-  - id: total_emissions
-    from_dimensions:
-    - id: sector
-      categories: [municipal_facilities]
+  - id: final_municipal_facilities_energy_use
+  - id: emission_factors
+  output_nodes:
+  - id: net_emissions
 
 - id: industry_emissions
   name: Industri Emissionen
   name_en: Industry emissions
-  part_of: net_emissions
   color: '#737373'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
   input_nodes:
-  - id: total_emissions
-    from_dimensions:
-    - id: sector
-      categories: [industry]
+  - id: final_industry_energy_use
+  - id: emission_factors
+  output_nodes:
+  - id: net_emissions
 
 - id: commerce_trade_services_emissions
   name: Gewerbe, Handel, Dienstleistungen Emissionen
   name_en: Commerce, trade, services emissions
-  part_of: net_emissions
   color: '#fe8035'
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
   input_nodes:
-  - id: total_emissions
-    from_dimensions:
-    - id: sector
-      categories: [commerce_trade_services]
+  - id: final_commerce_trade_services_energy_use
+  - id: emission_factors
+  output_nodes:
+  - id: net_emissions
 
 - id: transport_emissions
   name: Verkehr-Emissionen
   name_en: Transport emissions
-  part_of: net_emissions
   color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
   input_nodes:
-  - id: total_emissions
-    from_dimensions:
-    - id: sector
-      categories: [transport]
-
-nodes:
+  - id: final_transport_energy_use
+  - id: emission_factors
+  output_nodes:
+  - id: net_emissions
 
 - id: weather_correction
   name: Witterungsbereinigung
@@ -539,7 +559,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: bisko/final_energy_use
+  - id: duesseldorf/final_energy # bisko/final_energy_use # TODO Use temporarily to set up the model
     tags: [baseline]
     column: Value
 
@@ -555,6 +575,76 @@ nodes:
   - id: bisko/final_energy_use_data_quality
     tags: [baseline]
 
+- id: final_transport_energy_use
+  name: Endenergie Verkehr
+  name_en: Final transport energy use
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_energy_use
+    from_dimensions:
+    - id: sector
+      categories: [transport]
+
+- id: final_private_household_energy_use
+  name: Endenergie Private Haushalte
+  name_en: Final private household energy use
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_energy_use
+    from_dimensions:
+    - id: sector
+      categories: [private_households]
+
+- id: final_municipal_facilities_energy_use
+  name: Endenergie Kommunale Einrichtungen
+  name_en: Final municipal facilities energy use
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_energy_use
+    from_dimensions:
+    - id: sector
+      categories: [municipal_facilities]
+
+- id: final_industry_energy_use
+  name: Endenergie Industrie
+  name_en: Final industry energy use
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_energy_use
+    from_dimensions:
+    - id: sector
+      categories: [industry]
+
+- id: final_commerce_trade_services_energy_use
+  name: Endenergie Gewerbe, Handel, Dienstleistungen
+  name_en: Final commerce, trade, services energy use
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_energy_use
+    from_dimensions:
+    - id: sector
+      categories: [commerce_trade_services]
+
 - id: historical_emissions
   name: Historische Emissionen
   name_en: Historical emissions
@@ -564,7 +654,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
-  - id: bisko/historical_emissions
+  - id: duesseldorf/bisko_emissions # bisko/historical_emissions # TODO Use temporarily to set up the model
     tags: [baseline]
     column: Value
 
@@ -828,30 +918,18 @@ nodes:
   params:
     operations: add,coalesce
 
-- id: sector_index
-  name: Sektor Index
-  name_en: Sector index
-  type: generic.GenericNode
-  quantity: ratio
-  unit: dimensionless
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: bisko/sector_index
-    tags: [baseline]
-
-- id: total_emissions
-  name: Gesamtemissionen
-  name_en: Total emissions
-  type: generic.GenericNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_nodes:
-  # - id: final_energy_use
-  # - id: emission_factors
-  - id: historical_emissions
+# - id: total_emissions
+#   name: Gesamtemissionen
+#   name_en: Total emissions
+#   type: generic.GenericNode
+#   quantity: emissions
+#   unit: t_co2e/a
+#   input_dimensions: [energy_carrier, sector]
+#   output_dimensions: [energy_carrier, sector]
+#   input_nodes:
+#   # - id: final_energy_use
+#   # - id: emission_factors
+#   - id: historical_emissions
 
 - id: combined_heat_and_power_ef
   name_en: Combined heat and power emission factor
