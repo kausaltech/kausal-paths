@@ -24,6 +24,7 @@ emission_dimensions: [scope]
 features:
   baseline_visible_in_graphs: true
   use_datasets_from_db: true
+  show_explanations: true
 normalizations:
 - normalizer_node: population
   quantities:
@@ -36,13 +37,22 @@ include:
 
 params:
 - id: municipality_name
-  value: koeln
+  label_en: Municipality name
+  label_de: Gemeindename
+  is_customizable: true
+  is_visible: true
+  value: Köln
 - id: statistical_correction
   label_en: Use national rather than local electricity emission factors (BISKO)
   label_de: Verwenden Sie nationale statt lokaler Stromemissionsfaktoren (BISKO).
   value: true
   is_visible: true
   is_customizable: true
+- id: weather_correction
+  label_de: Wetterkorrektur durchführen?
+  value: true
+  is_customizable: true
+  is_visible: true
 
 action_groups:
 
@@ -323,6 +333,10 @@ nodes:
     - column: weather_correction
     - column: inventory_method
     - column: file_type
+    - column: energy_carrier
+      values: [total]
+      exclude: true
+      drop_col: false
   output_nodes: [final_energy_use]
 
 - id: final_municipal_facilities_energy_use
@@ -341,6 +355,10 @@ nodes:
     - column: weather_correction
     - column: inventory_method
     - column: file_type
+    - column: energy_carrier
+      values: [total]
+      exclude: true
+      drop_col: false
   output_nodes: [final_energy_use]
 
 - id: final_private_household_energy_use
@@ -359,6 +377,10 @@ nodes:
     - column: weather_correction
     - column: inventory_method
     - column: file_type
+    - column: energy_carrier
+      values: [total]
+      exclude: true
+      drop_col: false
   output_nodes: [final_energy_use]
 
 - id: final_industry_energy_use
@@ -377,6 +399,10 @@ nodes:
     - column: weather_correction
     - column: inventory_method
     - column: file_type
+    - column: energy_carrier
+      values: [total]
+      exclude: true
+      drop_col: false
   output_nodes: [final_energy_use]
 
 - id: final_commerce_trade_services_energy_use
@@ -395,6 +421,10 @@ nodes:
     - column: weather_correction
     - column: inventory_method
     - column: file_type
+    - column: energy_carrier
+      values: [total]
+      exclude: true
+      drop_col: false
   output_nodes: [final_energy_use]
 
 - id: final_energy_use
