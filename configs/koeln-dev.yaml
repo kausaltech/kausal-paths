@@ -1,5 +1,6 @@
 # Actions: https://docs.google.com/spreadsheets/d/1dZPvBcUAFN_lrTNaGTOEdDHkKHjpwEq_/edit?gid=1243875859#gid=1243875859
 # Data: https://docs.google.com/spreadsheets/d/1bcs3OpJeGtc5K-gQ8zl3rwP2UstoUe8c3b5mPZCXIk8/edit?gid=1907288926#gid=1907288926
+# TODO: Collect data about data quality from KSP.
 id: koeln-dev
 default_language: de
 supported_languages: [en]
@@ -277,7 +278,7 @@ nodes:
   name_en: Historical emissions
   type: generic.GenericNode
   quantity: emissions
-  unit: t/a
+  unit: kt/a
   color: '#00A969'
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -285,22 +286,142 @@ nodes:
   - id: koeln/historische_emissionen
     tags: [baseline]
     column: emissions
-  output_nodes:
-  - id: net_emissions
+  # params:
+  # - id: operations
+  #   value: add,apply_multiplier
+  # - id: multiplier
+  #   value: 1
+  #   unit: t_co2e/t
 
-- id: net_emissions_historical
-  name: Historische Emissionen
-  name_en: Historical emissions
+- id: final_transport_energy_use
+  name: Endenergie Verkehr
+  name_en: Final transport energy use
   type: generic.GenericNode
-  quantity: emissions
-  unit: t/a
-  color: '#00A969'
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: koeln/energy/transport
+    tags: [baseline]
+    column: energy
+    filters:
+    - column: weather_correction
+    - column: inventory_method
+    - column: file_type
+  output_nodes: [final_energy_use]
+
+- id: final_municipal_facilities_energy_use
+  name: Endenergie Kommunale Einrichtungen
+  name_en: Final municipal facilities energy use
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: koeln/energy/municipal_facilities
+    tags: [baseline]
+    column: energy
+    filters:
+    - column: weather_correction
+    - column: inventory_method
+    - column: file_type
+  output_nodes: [final_energy_use]
+
+- id: final_private_household_energy_use
+  name: Endenergie Private Haushalte
+  name_en: Final private household energy use
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: koeln/energy/private_households
+    tags: [baseline]
+    column: energy
+    filters:
+    - column: weather_correction
+    - column: inventory_method
+    - column: file_type
+  output_nodes: [final_energy_use]
+
+- id: final_industry_energy_use
+  name: Endenergie Industrie
+  name_en: Final industry energy use
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: koeln/energy/industry
+    tags: [baseline]
+    column: energy
+    filters:
+    - column: weather_correction
+    - column: inventory_method
+    - column: file_type
+  output_nodes: [final_energy_use]
+
+- id: final_commerce_trade_services_energy_use
+  name: Endenergie Gewerbe, Handel, Dienstleistungen
+  name_en: Final commerce, trade, services energy use
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_datasets:
+  - id: koeln/energy/commerce_trade_services
+    tags: [baseline]
+    column: energy
+    filters:
+    - column: weather_correction
+    - column: inventory_method
+    - column: file_type
+  output_nodes: [final_energy_use]
+
+- id: final_energy_use
+  name: Energieverbrauch
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+
+# - id: final_energy_use2 # TODO Try collecting all datasets into one node. Graph is better this way.
+#   name: Energieverbrauch2
+#   type: generic.GenericNode
+#   quantity: energy
+#   unit: MWh/a
+#   input_dimensions: [energy_carrier, sector]
+#   output_dimensions: [energy_carrier, sector]
+#   params:
+#     operations: get_datasets
+#   input_datasets:
+#   - id: koeln/energy/transport
+#     column: energy
+#     filters:
+#     - column: weather_correction
+#     - column: inventory_method
+#     - column: file_type
+
+- id: emission_factors
+  name: Emissionsfaktoren
+  name_en: Emission factors
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g/kWh
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: koeln/historische_emissionen
-    tags: [baseline]
-    column: emissions
+  input_nodes:
+  - id: historical_emissions
+  - id: final_energy_use
+    tags: [geometric_inverse]
+  params:
+    operations: multiply,drop_nans,drop_infs
 
 - id: electricity_emissions
   name: Strom
@@ -330,11 +451,8 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: historical_emissions
-    tags: [inventory_only]
-    from_dimensions:
-    - id: sector
-      categories: [private_households]
+  - id: final_private_household_energy_use
+  - id: emission_factors
   output_nodes:
   - id: net_emissions
 
@@ -348,11 +466,8 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: historical_emissions
-    tags: [inventory_only]
-    from_dimensions:
-    - id: sector
-      categories: [transport]
+  - id: final_transport_energy_use
+  - id: emission_factors
   output_nodes:
   - id: net_emissions
 
@@ -366,11 +481,8 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: historical_emissions
-    tags: [inventory_only]
-    from_dimensions:
-    - id: sector
-      categories: [industry]
+  - id: final_industry_energy_use
+  - id: emission_factors
   output_nodes:
   - id: net_emissions
 
@@ -385,11 +497,8 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: historical_emissions
-    tags: [inventory_only]
-    from_dimensions:
-    - id: sector
-      categories: [commerce_trade_services]
+  - id: final_commerce_trade_services_energy_use
+  - id: emission_factors
   output_nodes:
   - id: net_emissions
 
@@ -403,11 +512,8 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: historical_emissions
-    tags: [inventory_only]
-    from_dimensions:
-    - id: sector
-      categories: [municipal_facilities]
+  - id: final_municipal_facilities_energy_use
+  - id: emission_factors
   output_nodes:
   - id: net_emissions
 
