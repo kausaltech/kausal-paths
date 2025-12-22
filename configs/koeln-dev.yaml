@@ -293,6 +293,20 @@ nodes:
   #   value: 1
   #   unit: t_co2e/t
 
+- id: net_emissions_historical # TODO Remove when no longer needed.
+  name: Historische Emissionen2
+  name_en: Historical emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  color: '#00A969'
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: koeln/historische_emissionen
+    tags: [baseline]
+    column: emissions
+
 - id: final_transport_energy_use
   name: Endenergie Verkehr
   name_en: Final transport energy use
