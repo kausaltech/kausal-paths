@@ -1,85 +1,426 @@
 dimensions:
 
-- id: pollutant
-  label_en: Pollutant
-  label_de: Schadstoff
+- id: aggregated_cost_type
+  label_en: Aggregated cost type
+  label_de: Aggregierte Kostenart
   categories:
-  - id: co2
-    label_en: CO2
-    label_de: CO2
-    aliases: [co2e]
-  - id: nox
-    label_en: NOx
-    label_de: NOx
-  - id: pm25_combustion
-    label_en: PM2.5 combustion
-    label_de: PM2,5 Verbrennung
-    aliases: [pm25]
-  - id: pm25_wear_tear
-    label_en: PM2.5 wear & tear
-    label_de: PM2,5 Abrieb
-  - id: pm10_combustion
-    label_en: PM10 combustion
-    label_de: PM10 Verbrennung
-    aliases: [pm10]
-  - id: pm10_wear_tear
-    label_en: PM10 wear & tear
-    label_de: PM10 Abrieb
+  - id: capex
+    label_en: CAPEX
+    label_de: CAPEX
+  - id: opex
+    label_en: OPEX
+    label_de: OPEX
+  - id: co_benefits
+    label_en: Co-benefits
+    label_de: Zusatznutzen
+  - id: co2_cost
+    label_en: CO2 cost
+    label_de: CO2-Kosten
 
-- id: sector
-  label_en: Sector
-  label_de: Sektoren
-  help_text: Sectors as categorised in the Mission City Climate City Contracts (CCC) and BISKO.
+- id: area_distance
+  label_en: Area distance
+  label_de: Gebietsabstand
   categories:
-  - id: transport
-    label_en: Transport
-    label_de: Verkehr
-    aliases: [verkehr]
-    color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
-  - id: buildings
-    label_en: Buildings & Heating
-    label_de: Gebäude & Heizung
-  - id: private_households
-    label_en: Private Households
-    label_de: Private Haushalte
-    aliases: [private_haushalte]
-    color: '#009ebe'
-  - id: municipal_facilities
-    label_en: Municipal Facilities
-    label_de: Kommunale Einrichtungen
-    aliases: [kommunale_einrichtungen, stadtische_gebaude]
-    color: '#6bc248'
-  - id: commerce_trade_services
-    label_en: Commerce, Trade & Services
-    label_de: Gewerbe, Handel, Dienstleistungen
-    aliases: [gewerbe_handel_dienstleistungen, gewerbe_sonstiges]
-    color: '#fe8035'
-  - id: industry
-    label_en: Industry
-    label_de: Industrie
-    aliases: [industrie]
-    color: '#737373'
+  - id: metropolitan
+    label_en: Metropolitan
+    label_de: Metropolitangebiet
+  - id: inside
+    label_en: Inside city
+    label_de: Innerhalb der Stadt
+  - id: outside
+    label_en: Outside city
+    label_de: Außerhalb der Stadt
+  - id: average
+    label_en: Average
+    label_de: Durchschnitt
+
+- id: building_age
+  label_en: Building Age
+  label_de: Baujahr
+  categories:
+  - id: before_1950
+    label_en: Before 1950
+    label_de: Vor 1950
+  - id: age_1950_1969
+    label_en: 1950-1969
+    label_de: 1950-1969
+  - id: age_1970_1989
+    label_en: 1970-1989
+    label_de: 1970-1989
+  - id: after_1990
+    label_en: After 1990
+    label_de: Nach 1990
+  - id: age_1990_2000
+    label_en: 1990-2000
+    label_de: 1990-2000
+  - id: after_2000
+    label_en: After 2000
+    label_de: Nach 2000
+  - id: age_2000_2010
+    label_en: 2000-2010
+    label_de: 2000-2010
+  - id: after_2010
+    label_en: After 2010
+    label_de: Nach 2010
+
+- id: building_type
+  label_en: Building Type
+  label_de: Gebäudetyp
+  categories:
+  - id: single_two_family
+    label_en: Single & Two Family Houses
+    label_de: Ein- und Zweifamilienhäuser
+  - id: single_family
+    label_en: Single Family House
+    label_de: Einfamilienhaus
+  - id: two_family
+    label_en: Two Family House
+    label_de: Zweifamilienhaus
+  - id: small_multifamily
+    label_en: Small Multifamily (3-6 units)
+    label_de: Kleine Mehrfamilienhäuser (3-6 Wohnungen)
+  - id: medium_multifamily
+    label_en: Medium Multifamily (7-12 units)
+    label_de: Mittlere Mehrfamilienhäuser (7-12 Wohnungen)
+  - id: large_multifamily
+    label_en: Large Multifamily (13+ units)
+    label_de: Große Mehrfamilienhäuser (13+ Wohnungen)
+  - id: multifamily
+    label_en: Multifamily House
+    label_de: Mehrfamilienhaus
+  - id: high_rise
+    label_en: High Rise
+    label_de: Hochhaus
+  - id: row_house
+    label_en: Row House
+    label_de: Reihenhaus
+  - id: apartment_block
+    label_en: Apartment Block
+    label_de: Wohnblock
+
+- id: city_area
+  label_en: City area
+  label_de: Stadtgebiet
+  categories:
+  - id: grey
+    label_en: Grey area
+    label_de: Grauer Bereich
+  - id: green
+    label_en: Green area
+    label_de: Grüner Bereich
+  - id: grey_inside
+    label_en: Grey area inside city
+    label_de: Grauer Bereich innerhalb der Stadt
+  - id: green_inside
+    label_en: Green area inside city
+    label_de: Grüner Bereich innerhalb der Stadt
+  - id: green_outside
+    label_en: Green area outside city
+    label_de: Grüner Bereich außerhalb der Stadt
+  - id: grey_outside
+    label_en: Grey area outside city
+    label_de: Grauer Bereich außerhalb der Stadt
+
+- id: cost_type
+  label_en: Cost Type
+  label_de: Kostenart
+  categories:
+  - id: capex
+    label_en: CAPEX (capital expenditure)
+    label_de: CAPEX (Investitionskosten)
+    aliases: [Investment Costs]
+  - id: capex_levelised
+    label_en: CAPEX (levelised)
+    label_de: CAPEX (annualisiert)
+  - id: opex
+    label_en: OPEX (operational expenditure)
+    label_de: OPEX (Betriebskosten)
+    aliases: [operation_cost, Operation Cost]
+  - id: energy_costs
+    label_en: Energy Costs
+    label_de: Energiekosten
+  - id: maintenance_costs
+    label_en: Maintenance Costs
+    label_de: Wartungskosten
+    aliases: [maintenance]
+  - id: sales
+    label_en: Sales income
+    label_de: Verkaufserlöse
+  - id: air_pollution
+    label_en: Air pollution
+    label_de: Luftverschmutzung
+    aliases: [air_quality]
+  - id: noise
+    label_en: Noise
+    label_de: Lärm
+  - id: accidents
+    label_en: Accidents
+    label_de: Unfälle
+  - id: health
+    label_en: Health
+    label_de: Gesundheit
+  - id: co2_cost
+    label_en: CO2 Cost
+    label_de: CO2-Kosten
+  - id: aesthetics
+    label_en: Aesthetics and amenity
+    label_de: Ästhetik und Annehmlichkeit
+  - id: shading
+    label_en: Shading
+    label_de: Beschattung
+  - id: water_regulation
+    label_en: Water regulation
+    label_de: Wasserregulierung
+    aliases: [water_regulations]
+  - id: forest_management
+    label_en: Forest management
+    label_de: Forstwirtschaft
+  - id: bus_costs
+    label_en: Bus costs
+    label_de: Buskosten
+  - id: vehicle_costs
+    label_en: Vehicle costs
+    label_de: Fahrzeugkosten
+  - id: infrastructure_costs
+    label_en: Infrastructure costs
+    label_de: Infrastrukturkosten
+  - id: network
+    label_en: Network
+    label_de: Netzwerk
+  - id: fuel
+    label_en: Fuel costs
+    label_de: Kraftstoffkosten
+  - id: tires
+    label_en: Tire costs
+    label_de: Reifenkosten
+  - id: depreciation
+    label_en: Depreciation costs
+    label_de: Abschreibungskosten
+  - id: labour_costs
+    label_en: Labour costs
+    label_de: Personalkosten
+  - id: industry_ippu
+    label_en: Industry (IPPU)
+    label_de: Industrie (IPPU)
+  - id: agriculture_afolu
+    label_en: Agriculture (AFOLU)
+    label_de: Landwirtschaft (AFOLU)
+  - id: other_sources
+    label_en: Other sources
+    label_de: Sonstige Quellen
+  - id: grid_stability
+    label_en: Storage, grid stability etc.
+    label_de: Speicherung, Netzstabilität etc.
+
+- id: efficiency_programme
+  label_en: Energy efficiency programme
+  label_de: Energieeffizienzprogramm
+  categories:
+  - id: no_improvements
+    label_en: No improvements
+    label_de: Keine Verbesserungen
+    aliases: [no_improvement]
+  - id: minor_improvements
+    label_en: Minor improvements
+    label_de: Geringfügige Verbesserungen
+  - id: aggressive_improvements
+    label_en: Aggressive improvements
+    label_de: Umfangreiche Verbesserungen
+  - id: moderate_improvements
+    label_en: Moderate improvements
+    label_de: Moderate Verbesserungen
+  - id: nzeb
+    label_en: Net zero emission buildings
+    label_de: Nullemissionsgebäude
+
+- id: energy_carrier
+  label_en: Energy carrier
+  label_de: Energieträger
+  categories:
+  - id: total
+    label_en: Total
+    label_de: Gesamt
+  - id: petrol
+    label_en: Petrol
+    label_de: Benzin
+    aliases: [benzin_fossil, benzin]
+  - id: bio_petrol
+    label_en: Bio petrol
+    label_de: Biobenzin
+    aliases: [benzin_biogen, biobenzin]
+  - id: diesel
+    label_en: Diesel
+    label_de: Diesel
+    aliases: [diesel_fossil]
+  - id: biodiesel
+    label_en: Biodiesel
+    label_de: Diesel biogen
+    aliases: [diesel_biogen]
+  - id: kerosene
+    label_en: Kerosene
+    label_de: Kerosin
+    aliases: [kerosin]
+  - id: heating_oil
+    label_en: Heating oil
+    label_de: Heizöl
+    aliases: [heizol]
+  - id: natural_gas
+    label_en: Natural gas
+    label_de: Erdgas
+    aliases: [gas, erdgas]
+  - id: lpg
+    label_en: LPG (Liquefied petroleum gas)
+    label_de: Flüssiggas
+    aliases: [LPG, flssiggas]
+  - id: cng_fossil
+    label_en: CNG fossil
+    label_de: CNG fossil
+  - id: cng_bio
+    label_en: CNG bio
+    label_de: CNG bio
+  - id: biogas
+    label_en: Biogas
+    label_de: Biogas
+    aliases: [biogas]
+  - id: hard_coal
+    label_en: Hard coal
+    label_de: Steinkohle
+    aliases: [kohle, steinkohle]
+  - id: brown_coal
+    label_en: Brown coal / Lignite
+    label_de: Braunkohle
+    aliases: [braunkohle]
+  - id: biomass
+    label_en: Biomass
+    label_de: Biomasse
+    aliases: [biomasse]
   - id: electricity
     label_en: Electricity
     label_de: Strom
     aliases: [strom]
-  - id: energy_industry
-    label_en: Energy industry
-    label_de: Energiewirtschaft
-    aliases: [energiewirtschaft]
-  - id: waste
-    label_en: Waste
-    label_de: Abfall
+  - id: driving_electricity
+    label_en: Driving electricity
+    label_de: Fahrstrom
+    aliases: [fahrstrom, strom_fahrstrom]
+  - id: heating_electricity
+    label_en: Heating electricity
+    label_de: Heizstrom
+    aliases: [heizstrom]
+  - id: district_heating
+    label_en: District heating
+    label_de: Fernwärme
+    aliases: [fernwarme]
+  - id: local_heating
+    label_en: Local heating
+    label_de: Nahwärme
+    aliases: [nahwarme]
+  - id: solar_thermal
+    label_en: Solar thermal
+    label_de: Solarthermie
+    aliases: [solarthermie]
+  - id: environmental_heat
+    label_en: Environmental heat / Heat pump
+    label_de: Umweltwärme
+    aliases: [umweltwarme]
+  - id: hydrogen
+    label_en: Hydrogen
+    label_de: Wasserstoff
+    aliases: [wasserstoff]
+  - id: other_renewables
+    label_en: Other renewables
+    label_de: Sonstige Erneuerbare
+    aliases: [sonstige_erneuerbare]
+  - id: other_conventional
+    label_en: Other conventional
+    label_de: Sonstige Konventionelle
+    aliases: [sonstige_konventionelle]
+  - id: not_defined
+    label_en: Not defined
+    label_de: Nicht definiert
+    aliases: [nicht_definiert]
+  - id: fuels
+    label_en: Fuels
+    label_de: Kraftstoffe
+    aliases: [kraftstoffe]
   - id: other
-    label_en: Other (incl. IPPU & AFOLU)
-    label_de: Sonstige (inkl. IPPU & AFOLU)
-  - id: total
-    label_en: Total
-    label_de: Gesamt
-  - id: heating
-    label_en: Heating
-    label_de: Wärme
-    aliases: [warme]
+    label_en: Other
+    label_de: Sonstiges
+    aliases: [sonstiges]
+  - id: district_and_local_heating
+    label_en: District_and local heating
+    label_de: Fern- und Nahwärme
+    aliases: [fern_und_nahwarme]
+
+- id: energy_process
+  label_en: Energy Process
+  label_de: Energieprozess
+  categories:
+  - id: electricity_generation
+    label_en: Electricity Generation
+    label_de: Stromerzeugung
+  - id: power_plants
+    label_en: Power Plants
+    label_de: Kraftwerke
+  - id: heat_generation
+    label_en: Heat Generation
+    label_de: Wärmeerzeugung
+  - id: chp
+    label_en: Combined Heat and Power
+    label_de: Kraft-Wärme-Kopplung
+
+- id: file_type
+  label_de: Dateityp
+  label_en: File type
+  categories:
+  - id: energy_carrier
+    label: Energiträger
+    label_en: Energy carrier
+    aliases: [energietrager]
+
+- id: fuel_type
+  label_en: Fuel type
+  label_de: Kraftstoffart
+  categories:
+  - id: fossil
+    label_en: Fossil
+    label_de: Fossil
+  - id: non_fossil
+    label_en: Non-fossil
+    label_de: Nicht-fossil
+    aliases: [nonfossil, non-fossil]
+  - id: mixed
+    label_en: Mixed fossil and non-fossil
+    label_de: Gemischt fossil und nicht-fossil
+  - id: other
+    label_en: Other (e.g. nuclear)
+    label_de: Sonstige (z.B. Atomkraft)
+  - id: local_pv
+    label_en: Local photovoltaics
+    label_de: Lokale Photovoltaik
+  - id: centralised_pv
+    label_en: Centralised photovoltaics and wind
+    label_de: Zentrale Photovoltaik und Wind
+  - id: pv
+    label_en: Photovoltaics
+    label_de: Photovoltaik
+  - id: flexibility
+    label_en: Flexibility
+    label_de: Flexibilität
+  - id: direct_electricity
+    label_en: Direct electricity
+    label_de: Direktstrom
+  - id: heat_pump
+    label_en: Heat pump
+    label_de: Wärmepumpe
+
+- id: ghg
+  label_en: Greenhouse gas
+  label_de: Treibhausgas
+  categories:
+  - id: co2e
+    label_en: CO2e
+    label_de: CO2-Äquivalent
+    aliases: [co2]
 
 - id: gpc_sector
   label_en: GPC Sector
@@ -297,541 +638,6 @@ dimensions:
     label_en: V.3 Aggregate Sources
     label_de: V.3 Aggregierte Quellen
 
-- id: scope
-  label_en: Scope
-  label_de: Bilanzierungsbereich
-  help_text: '1: Local emissions. 2: Grid emissions (electricity, district heating).
-    3: Indirect emissions.'
-  categories:
-  - id: scope1
-    label_en: Scope 1
-    label_de: Scope 1
-    aliases: [scope_1]
-  - id: scope2
-    label_en: Scope 2
-    label_de: Scope 2
-    aliases: [scope_2]
-  - id: scope3
-    label_en: Scope 3
-    label_de: Scope 3
-    aliases: [scope_3]
-
-- id: cost_type
-  label_en: Cost Type
-  label_de: Kostenart
-  categories:
-  - id: capex
-    label_en: CAPEX (capital expenditure)
-    label_de: CAPEX (Investitionskosten)
-    aliases: [Investment Costs]
-  - id: capex_levelised
-    label_en: CAPEX (levelised)
-    label_de: CAPEX (annualisiert)
-  - id: opex
-    label_en: OPEX (operational expenditure)
-    label_de: OPEX (Betriebskosten)
-    aliases: [operation_cost, Operation Cost]
-  - id: energy_costs
-    label_en: Energy Costs
-    label_de: Energiekosten
-  - id: maintenance_costs
-    label_en: Maintenance Costs
-    label_de: Wartungskosten
-    aliases: [maintenance]
-  - id: sales
-    label_en: Sales income
-    label_de: Verkaufserlöse
-  - id: air_pollution
-    label_en: Air pollution
-    label_de: Luftverschmutzung
-    aliases: [air_quality]
-  - id: noise
-    label_en: Noise
-    label_de: Lärm
-  - id: accidents
-    label_en: Accidents
-    label_de: Unfälle
-  - id: health
-    label_en: Health
-    label_de: Gesundheit
-  - id: co2_cost
-    label_en: CO2 Cost
-    label_de: CO2-Kosten
-  - id: aesthetics
-    label_en: Aesthetics and amenity
-    label_de: Ästhetik und Annehmlichkeit
-  - id: shading
-    label_en: Shading
-    label_de: Beschattung
-  - id: water_regulation
-    label_en: Water regulation
-    label_de: Wasserregulierung
-    aliases: [water_regulations]
-  - id: forest_management
-    label_en: Forest management
-    label_de: Forstwirtschaft
-  - id: bus_costs
-    label_en: Bus costs
-    label_de: Buskosten
-  - id: vehicle_costs
-    label_en: Vehicle costs
-    label_de: Fahrzeugkosten
-  - id: infrastructure_costs
-    label_en: Infrastructure costs
-    label_de: Infrastrukturkosten
-  - id: network
-    label_en: Network
-    label_de: Netzwerk
-  - id: fuel
-    label_en: Fuel costs
-    label_de: Kraftstoffkosten
-  - id: tires
-    label_en: Tire costs
-    label_de: Reifenkosten
-  - id: depreciation
-    label_en: Depreciation costs
-    label_de: Abschreibungskosten
-  - id: labour_costs
-    label_en: Labour costs
-    label_de: Personalkosten
-  - id: industry_ippu
-    label_en: Industry (IPPU)
-    label_de: Industrie (IPPU)
-  - id: agriculture_afolu
-    label_en: Agriculture (AFOLU)
-    label_de: Landwirtschaft (AFOLU)
-  - id: other_sources
-    label_en: Other sources
-    label_de: Sonstige Quellen
-  - id: grid_stability
-    label_en: Storage, grid stability etc.
-    label_de: Speicherung, Netzstabilität etc.
-
-- id: aggregated_cost_type
-  label_en: Aggregated cost type
-  label_de: Aggregierte Kostenart
-  categories:
-  - id: capex
-    label_en: CAPEX
-    label_de: CAPEX
-  - id: opex
-    label_en: OPEX
-    label_de: OPEX
-  - id: co_benefits
-    label_en: Co-benefits
-    label_de: Zusatznutzen
-  - id: co2_cost
-    label_en: CO2 cost
-    label_de: CO2-Kosten
-
-- id: ghg
-  label_en: Greenhouse gas
-  label_de: Treibhausgas
-  categories:
-  - id: co2e
-    label_en: CO2e
-    label_de: CO2-Äquivalent
-    aliases: [co2]
-
-- id: transport_mode
-  label_en: Transport mode
-  label_de: Verkehrsmittel
-  categories:
-  - id: cars
-    label_en: Cars
-    label_de: PKW
-  - id: buses
-    label_en: Buses
-    label_de: Busse
-  - id: trains
-    label_en: Trains
-    label_de: Züge
-    aliases: [Metro/tram, metro/tram, metro_tram]
-  - id: public_transport
-    label_en: Public transport
-    label_de: Öffentlicher Verkehr
-  - id: walking
-    label_en: Walking
-    label_de: Zu Fuß
-  - id: cycling
-    label_en: Cycling
-    label_de: Radfahren
-  - id: light_trucks
-    label_en: Light duty trucks <3.5 tonne
-    label_de: Leichte Nutzfahrzeuge <3,5 Tonnen
-  - id: heavy_trucks
-    label_en: Heavy duty trucks >3.5 tonne
-    label_de: Schwere Nutzfahrzeuge >3,5 Tonnen
-  - id: trucks
-    label_en: Trucks
-    label_de: LKW
-  - id: other_motorized
-    label_en: Other motorized transport
-    label_de: Sonstige motorisierte Verkehrsmittel
-
-- id: energy_carrier
-  label_en: Energy carrier
-  label_de: Energieträger
-  categories:
-  - id: total
-    label_en: Total
-    label_de: Gesamt
-  - id: petrol
-    label_en: Petrol
-    label_de: Benzin
-    aliases: [benzin_fossil, benzin]
-  - id: bio_petrol
-    label_en: Bio petrol
-    label_de: Biobenzin
-    aliases: [benzin_biogen, biobenzin]
-  - id: diesel
-    label_en: Diesel
-    label_de: Diesel
-    aliases: [diesel_fossil]
-  - id: biodiesel
-    label_en: Biodiesel
-    label_de: Diesel biogen
-    aliases: [diesel_biogen]
-  - id: kerosene
-    label_en: Kerosene
-    label_de: Kerosin
-    aliases: [kerosin]
-  - id: heating_oil
-    label_en: Heating oil
-    label_de: Heizöl
-    aliases: [heizol]
-  - id: natural_gas
-    label_en: Natural gas
-    label_de: Erdgas
-    aliases: [gas, erdgas]
-  - id: lpg
-    label_en: LPG (Liquefied petroleum gas)
-    label_de: Flüssiggas
-    aliases: [LPG, flssiggas]
-  - id: cng_fossil
-    label_en: CNG fossil
-    label_de: CNG fossil
-  - id: cng_bio
-    label_en: CNG bio
-    label_de: CNG bio
-  - id: biogas
-    label_en: Biogas
-    label_de: Biogas
-    aliases: [biogas]
-  - id: hard_coal
-    label_en: Hard coal
-    label_de: Steinkohle
-    aliases: [kohle, steinkohle]
-  - id: brown_coal
-    label_en: Brown coal / Lignite
-    label_de: Braunkohle
-    aliases: [braunkohle]
-  - id: biomass
-    label_en: Biomass
-    label_de: Biomasse
-    aliases: [biomasse]
-  - id: electricity
-    label_en: Electricity
-    label_de: Strom
-    aliases: [strom]
-  - id: driving_electricity
-    label_en: Driving electricity
-    label_de: Fahrstrom
-    aliases: [fahrstrom, strom_fahrstrom]
-  - id: heating_electricity
-    label_en: Heating electricity
-    label_de: Heizstrom
-    aliases: [heizstrom]
-  - id: district_heating
-    label_en: District heating
-    label_de: Fernwärme
-    aliases: [fernwarme]
-  - id: local_heating
-    label_en: Local heating
-    label_de: Nahwärme
-    aliases: [nahwarme]
-  - id: solar_thermal
-    label_en: Solar thermal
-    label_de: Solarthermie
-    aliases: [solarthermie]
-  - id: environmental_heat
-    label_en: Environmental heat / Heat pump
-    label_de: Umweltwärme
-    aliases: [umweltwarme]
-  - id: hydrogen
-    label_en: Hydrogen
-    label_de: Wasserstoff
-    aliases: [wasserstoff]
-  - id: other_renewables
-    label_en: Other renewables
-    label_de: Sonstige Erneuerbare
-    aliases: [sonstige_erneuerbare]
-  - id: other_conventional
-    label_en: Other conventional
-    label_de: Sonstige Konventionelle
-    aliases: [sonstige_konventionelle]
-  - id: not_defined
-    label_en: Not defined
-    label_de: Nicht definiert
-    aliases: [nicht_definiert]
-  - id: fuels
-    label_en: Fuels
-    label_de: Kraftstoffe
-    aliases: [kraftstoffe]
-  - id: other
-    label_en: Other
-    label_de: Sonstiges
-    aliases: [sonstiges]
-  - id: district_and_local_heating
-    label_en: District_and local heating
-    label_de: Fern- und Nahwärme
-    aliases: [fern_und_nahwarme]
-
-- id: fuel_type
-  label_en: Fuel type
-  label_de: Kraftstoffart
-  categories:
-  - id: fossil
-    label_en: Fossil
-    label_de: Fossil
-  - id: non_fossil
-    label_en: Non-fossil
-    label_de: Nicht-fossil
-    aliases: [nonfossil, non-fossil]
-  - id: mixed
-    label_en: Mixed fossil and non-fossil
-    label_de: Gemischt fossil und nicht-fossil
-  - id: other
-    label_en: Other (e.g. nuclear)
-    label_de: Sonstige (z.B. Atomkraft)
-  - id: local_pv
-    label_en: Local photovoltaics
-    label_de: Lokale Photovoltaik
-  - id: centralised_pv
-    label_en: Centralised photovoltaics and wind
-    label_de: Zentrale Photovoltaik und Wind
-  - id: pv
-    label_en: Photovoltaics
-    label_de: Photovoltaik
-  - id: flexibility
-    label_en: Flexibility
-    label_de: Flexibilität
-  - id: direct_electricity
-    label_en: Direct electricity
-    label_de: Direktstrom
-  - id: heat_pump
-    label_en: Heat pump
-    label_de: Wärmepumpe
-
-- id: efficiency_programme
-  label_en: Energy efficiency programme
-  label_de: Energieeffizienzprogramm
-  categories:
-  - id: no_improvements
-    label_en: No improvements
-    label_de: Keine Verbesserungen
-    aliases: [no_improvement]
-  - id: minor_improvements
-    label_en: Minor improvements
-    label_de: Geringfügige Verbesserungen
-  - id: aggressive_improvements
-    label_en: Aggressive improvements
-    label_de: Umfangreiche Verbesserungen
-  - id: moderate_improvements
-    label_en: Moderate improvements
-    label_de: Moderate Verbesserungen
-  - id: nzeb
-    label_en: Net zero emission buildings
-    label_de: Nullemissionsgebäude
-
-- id: city_area
-  label_en: City area
-  label_de: Stadtgebiet
-  categories:
-  - id: grey
-    label_en: Grey area
-    label_de: Grauer Bereich
-  - id: green
-    label_en: Green area
-    label_de: Grüner Bereich
-  - id: grey_inside
-    label_en: Grey area inside city
-    label_de: Grauer Bereich innerhalb der Stadt
-  - id: green_inside
-    label_en: Green area inside city
-    label_de: Grüner Bereich innerhalb der Stadt
-  - id: green_outside
-    label_en: Green area outside city
-    label_de: Grüner Bereich außerhalb der Stadt
-  - id: grey_outside
-    label_en: Grey area outside city
-    label_de: Grauer Bereich außerhalb der Stadt
-
-- id: area_distance
-  label_en: Area distance
-  label_de: Gebietsabstand
-  categories:
-  - id: metropolitan
-    label_en: Metropolitan
-    label_de: Metropolitangebiet
-  - id: inside
-    label_en: Inside city
-    label_de: Innerhalb der Stadt
-  - id: outside
-    label_en: Outside city
-    label_de: Außerhalb der Stadt
-  - id: average
-    label_en: Average
-    label_de: Durchschnitt
-
-- id: stakeholder
-  label_en: Stakeholder
-  label_de: Interessensgruppe
-  categories:
-  - id: citizens
-    label_en: Citizens
-    label_de: Bürger
-  - id: property_owners
-    label_en: Property owners
-    label_de: Immobilieneigentümer
-  - id: city
-    label_en: City
-    label_de: Stadt
-    aliases: [cities, Cities]
-  - id: healthcare_providers
-    label_en: Healthcare providers
-    label_de: Gesundheitsdienstleister
-  - id: transport_operators
-    label_en: Transport operators
-    label_de: Verkehrsbetreiber
-  - id: utilities
-    label_en: Utilities
-    label_de: Versorgungsunternehmen
-
-- id: weather_correction
-  label_en: Weather correction
-  label_de: Witterungskorrektur
-  categories:
-  - id: corrected
-    label_en: Corrected
-    label_de: Witterungskorrigiert
-    aliases: [witterungskorrigiert]
-  - id: not_corrected
-    label_en: 'Not corrected'
-    label_de: Nicht witterungskorrigiert
-    aliases: [nicht witterungskorrigiert]
-
-- id: inventory_method
-  label_en: Inventory method
-  label_de: Bilanzierungsmethode
-  categories:
-  - id: end_energy
-    label_en: End energy
-    label_de: Endenergie (EEV)
-    aliases: [EEV, Endenergie]
-  - id: bisko
-    label_en: BISKO with national mix
-    label_de: BISKO mit Bundesmix
-    aliases: [BISKO]
-  - id: energy_costs
-    label_en: Energy costs
-    label_de: Energiekosten
-
-- id: energy_process
-  label_en: Energy Process
-  label_de: Energieprozess
-  categories:
-  - id: electricity_generation
-    label_en: Electricity Generation
-    label_de: Stromerzeugung
-  - id: power_plants
-    label_en: Power Plants
-    label_de: Kraftwerke
-  - id: heat_generation
-    label_en: Heat Generation
-    label_de: Wärmeerzeugung
-  - id: chp
-    label_en: Combined Heat and Power
-    label_de: Kraft-Wärme-Kopplung
-
-- id: household_size
-  label_en: Household Size
-  label_de: Haushaltsgröße
-  categories:
-  - id: single_person
-    label_en: Single Person Household
-    label_de: 1-Personen-Haushalt
-  - id: two_person
-    label_en: Two Person Household
-    label_de: 2-Personen-Haushalt
-  - id: three_person
-    label_en: Three Person Household
-    label_de: 3-Personen-Haushalt
-  - id: four_person
-    label_en: Four Person Household
-    label_de: 4-Personen-Haushalt
-  - id: five_person
-    label_en: Five Person Household
-    label_de: 5-Personen-Haushalt
-  - id: five_plus_person
-    label_en: Five Plus Person Household
-    label_de: Haushalte mit mehr als 5 Personen
-
-- id: trip_type
-  label_en: Trip Type
-  label_de: Verkehrsart
-  categories:
-  - id: inland_shipping
-    label_en: Inland Shipping
-    label_de: Binnenschifffahrt
-  - id: aviation
-    label_en: Aviation
-    label_de: Flugverkehr
-  - id: rail_freight
-    label_en: Rail Freight
-    label_de: Schienengüterverkehr
-  - id: long_distance_rail
-    label_en: Long Distance Rail
-    label_de: Schienenpersonenfernverkehr
-  - id: local_rail
-    label_en: Local Rail
-    label_de: Schienenpersonennahverkehr
-  - id: road_transport
-    label_en: Road Transport
-    label_de: Straßenverkehr
-  - id: maritime_shipping
-    label_en: Maritime Shipping
-    label_de: Seeverkehr
-  - id: freight_transport
-    label_en: Freight Transport
-    label_de: Güterverkehr
-  - id: passenger_transport
-    label_en: Passenger Transport
-    label_de: Personenverkehr
-
-- id: road_type
-  label_en: Road Type
-  label_de: Straßentyp
-  categories:
-  - id: highway
-    label_en: Highway
-    label_de: Autobahn
-  - id: rural_roads
-    label_en: Rural Roads
-    label_de: Außerorts
-  - id: urban_roads
-    label_en: Urban Roads
-    label_de: Innerorts
-  - id: city_streets
-    label_en: City Streets
-    label_de: Stadtstraße
-  - id: country_roads
-    label_en: Country Roads
-    label_de: Landstraße
-  - id: federal_roads
-    label_en: Federal Roads
-    label_de: Bundesstraße
-
 - id: heating_type
   label_en: Heating Type
   label_de: Heizungsart
@@ -870,69 +676,259 @@ dimensions:
     label_en: Solar Heating
     label_de: Solarheizung
 
-- id: building_age
-  label_en: Building Age
-  label_de: Baujahr
+- id: household_size
+  label_en: Household Size
+  label_de: Haushaltsgröße
   categories:
-  - id: before_1950
-    label_en: Before 1950
-    label_de: Vor 1950
-  - id: age_1950_1969
-    label_en: 1950-1969
-    label_de: 1950-1969
-  - id: age_1970_1989
-    label_en: 1970-1989
-    label_de: 1970-1989
-  - id: after_1990
-    label_en: After 1990
-    label_de: Nach 1990
-  - id: age_1990_2000
-    label_en: 1990-2000
-    label_de: 1990-2000
-  - id: after_2000
-    label_en: After 2000
-    label_de: Nach 2000
-  - id: age_2000_2010
-    label_en: 2000-2010
-    label_de: 2000-2010
-  - id: after_2010
-    label_en: After 2010
-    label_de: Nach 2010
+  - id: single_person
+    label_en: Single Person Household
+    label_de: 1-Personen-Haushalt
+  - id: two_person
+    label_en: Two Person Household
+    label_de: 2-Personen-Haushalt
+  - id: three_person
+    label_en: Three Person Household
+    label_de: 3-Personen-Haushalt
+  - id: four_person
+    label_en: Four Person Household
+    label_de: 4-Personen-Haushalt
+  - id: five_person
+    label_en: Five Person Household
+    label_de: 5-Personen-Haushalt
+  - id: five_plus_person
+    label_en: Five Plus Person Household
+    label_de: Haushalte mit mehr als 5 Personen
 
-- id: building_type
-  label_en: Building Type
-  label_de: Gebäudetyp
+- id: inventory_method
+  label_en: Inventory method
+  label_de: Bilanzierungsmethode
   categories:
-  - id: single_two_family
-    label_en: Single & Two Family Houses
-    label_de: Ein- und Zweifamilienhäuser
-  - id: single_family
-    label_en: Single Family House
-    label_de: Einfamilienhaus
-  - id: two_family
-    label_en: Two Family House
-    label_de: Zweifamilienhaus
-  - id: small_multifamily
-    label_en: Small Multifamily (3-6 units)
-    label_de: Kleine Mehrfamilienhäuser (3-6 Wohnungen)
-  - id: medium_multifamily
-    label_en: Medium Multifamily (7-12 units)
-    label_de: Mittlere Mehrfamilienhäuser (7-12 Wohnungen)
-  - id: large_multifamily
-    label_en: Large Multifamily (13+ units)
-    label_de: Große Mehrfamilienhäuser (13+ Wohnungen)
-  - id: multifamily
-    label_en: Multifamily House
-    label_de: Mehrfamilienhaus
-  - id: high_rise
-    label_en: High Rise
-    label_de: Hochhaus
-  - id: row_house
-    label_en: Row House
-    label_de: Reihenhaus
-  - id: apartment_block
-    label_en: Apartment Block
-    label_de: Wohnblock
+  - id: end_energy
+    label_en: End energy
+    label_de: Endenergie (EEV)
+    aliases: [EEV, Endenergie]
+  - id: bisko
+    label_en: BISKO with national mix
+    label_de: BISKO mit Bundesmix
+    aliases: [BISKO]
+  - id: energy_costs
+    label_en: Energy costs
+    label_de: Energiekosten
+
+- id: pollutant
+  label_en: Pollutant
+  label_de: Schadstoff
+  categories:
+  - id: co2
+    label_en: CO2
+    label_de: CO2
+    aliases: [co2e]
+  - id: nox
+    label_en: NOx
+    label_de: NOx
+  - id: pm25_combustion
+    label_en: PM2.5 combustion
+    label_de: PM2,5 Verbrennung
+    aliases: [pm25]
+  - id: pm25_wear_tear
+    label_en: PM2.5 wear & tear
+    label_de: PM2,5 Abrieb
+  - id: pm10_combustion
+    label_en: PM10 combustion
+    label_de: PM10 Verbrennung
+    aliases: [pm10]
+  - id: pm10_wear_tear
+    label_en: PM10 wear & tear
+    label_de: PM10 Abrieb
+
+- id: road_type
+  label_en: Road Type
+  label_de: Straßentyp
+  categories:
+  - id: highway
+    label_en: Highway
+    label_de: Autobahn
+  - id: rural_roads
+    label_en: Rural Roads
+    label_de: Außerorts
+  - id: urban_roads
+    label_en: Urban Roads
+    label_de: Innerorts
+  - id: city_streets
+    label_en: City Streets
+    label_de: Stadtstraße
+  - id: country_roads
+    label_en: Country Roads
+    label_de: Landstraße
+  - id: federal_roads
+    label_en: Federal Roads
+    label_de: Bundesstraße
+
+- id: scope
+  label_en: Scope
+  label_de: Bilanzierungsbereich
+  help_text: '1: Local emissions. 2: Grid emissions (electricity, district heating).
+    3: Indirect emissions.'
+  categories:
+  - id: scope1
+    label_en: Scope 1
+    label_de: Scope 1
+    aliases: [scope_1]
+  - id: scope2
+    label_en: Scope 2
+    label_de: Scope 2
+    aliases: [scope_2]
+  - id: scope3
+    label_en: Scope 3
+    label_de: Scope 3
+    aliases: [scope_3]
+
+- id: sector
+  label_en: Sector
+  label_de: Sektoren
+  help_text: Sectors as categorised in the Mission City Climate City Contracts (CCC) and BISKO.
+  categories:
+  - id: transport
+    label_en: Transport
+    label_de: Verkehr
+    aliases: [verkehr]
+    color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
+  - id: buildings
+    label_en: Buildings & Heating
+    label_de: Gebäude & Heizung
+  - id: private_households
+    label_en: Private Households
+    label_de: Private Haushalte
+    aliases: [private_haushalte]
+    color: '#009ebe'
+  - id: municipal_facilities
+    label_en: Municipal Facilities
+    label_de: Kommunale Einrichtungen
+    aliases: [kommunale_einrichtungen, stadtische_gebaude]
+    color: '#6bc248'
+  - id: commerce_trade_services
+    label_en: Commerce, Trade & Services
+    label_de: Gewerbe, Handel, Dienstleistungen
+    aliases: [gewerbe_handel_dienstleistungen, gewerbe_sonstiges]
+    color: '#fe8035'
+  - id: industry
+    label_en: Industry
+    label_de: Industrie
+    aliases: [industrie]
+    color: '#737373'
+  - id: electricity
+    label_en: Electricity
+    label_de: Strom
+    aliases: [strom]
+  - id: energy_industry
+    label_en: Energy industry
+    label_de: Energiewirtschaft
+    aliases: [energiewirtschaft]
+  - id: waste
+    label_en: Waste
+    label_de: Abfall
+  - id: other
+    label_en: Other (incl. IPPU & AFOLU)
+    label_de: Sonstige (inkl. IPPU & AFOLU)
+  - id: total
+    label_en: Total
+    label_de: Gesamt
+  - id: heating
+    label_en: Heating
+    label_de: Wärme
+    aliases: [warme]
+
+- id: stakeholder
+  label_en: Stakeholder
+  label_de: Interessensgruppe
+  categories:
+  - id: citizens
+    label_en: Citizens
+    label_de: Bürger
+  - id: property_owners
+    label_en: Property owners
+    label_de: Immobilieneigentümer
+  - id: city
+    label_en: City
+    label_de: Stadt
+    aliases: [cities, Cities]
+  - id: healthcare_providers
+    label_en: Healthcare providers
+    label_de: Gesundheitsdienstleister
+  - id: transport_operators
+    label_en: Transport operators
+    label_de: Verkehrsbetreiber
+  - id: utilities
+    label_en: Utilities
+    label_de: Versorgungsunternehmen
+
+- id: transport_mode
+  label_en: Transport mode
+  label_de: Verkehrsmittel
+  categories:
+  - id: cars
+    label_en: Cars
+    label_de: PKW
+  - id: buses
+    label_en: Buses
+    label_de: Busse
+  - id: trains
+    label_en: Trains
+    label_de: Züge
+    aliases: [Metro/tram, metro/tram, metro_tram]
+  - id: public_transport
+    label_en: Public transport
+    label_de: Öffentlicher Verkehr
+  - id: walking
+    label_en: Walking
+    label_de: Zu Fuß
+  - id: cycling
+    label_en: Cycling
+    label_de: Radfahren
+  - id: light_trucks
+    label_en: Light duty trucks <3.5 tonne
+    label_de: Leichte Nutzfahrzeuge <3,5 Tonnen
+  - id: heavy_trucks
+    label_en: Heavy duty trucks >3.5 tonne
+    label_de: Schwere Nutzfahrzeuge >3,5 Tonnen
+  - id: trucks
+    label_en: Trucks
+    label_de: LKW
+  - id: other_motorized
+    label_en: Other motorized transport
+    label_de: Sonstige motorisierte Verkehrsmittel
+
+- id: trip_type
+  label_en: Trip Type
+  label_de: Verkehrsart
+  categories:
+  - id: inland_shipping
+    label_en: Inland Shipping
+    label_de: Binnenschifffahrt
+  - id: aviation
+    label_en: Aviation
+    label_de: Flugverkehr
+  - id: rail_freight
+    label_en: Rail Freight
+    label_de: Schienengüterverkehr
+  - id: long_distance_rail
+    label_en: Long Distance Rail
+    label_de: Schienenpersonenfernverkehr
+  - id: local_rail
+    label_en: Local Rail
+    label_de: Schienenpersonennahverkehr
+  - id: road_transport
+    label_en: Road Transport
+    label_de: Straßenverkehr
+  - id: maritime_shipping
+    label_en: Maritime Shipping
+    label_de: Seeverkehr
+  - id: freight_transport
+    label_en: Freight Transport
+    label_de: Güterverkehr
+  - id: passenger_transport
+    label_en: Passenger Transport
+    label_de: Personenverkehr
 
 - id: vehicle_type
   label_en: Vehicle Type
@@ -965,3 +961,16 @@ dimensions:
   - id: rail_vehicles
     label_en: Rail Vehicles
     label_de: Schienenfahrzeuge
+
+- id: weather_correction
+  label_en: Weather correction
+  label_de: Witterungskorrektur
+  categories:
+  - id: corrected
+    label_en: Corrected
+    label_de: Witterungskorrigiert
+    aliases: [witterungskorrigiert]
+  - id: not_corrected
+    label_en: 'Not corrected'
+    label_de: Nicht witterungskorrigiert
+    aliases: [nicht witterungskorrigiert]
