@@ -271,7 +271,7 @@ dimensions:
   - id: lpg
     label_en: LPG (Liquefied petroleum gas)
     label_de: Flüssiggas
-    aliases: [LPG, flssiggas]
+    aliases: [LPG, flssiggas, propane]
   - id: cng_fossil
     label_en: CNG fossil
     label_de: CNG fossil
@@ -350,6 +350,63 @@ dimensions:
     label_en: District_and local heating
     label_de: Fern- und Nahwärme
     aliases: [fern_und_nahwarme]
+  - id: natural_gas_turbine
+    label_en: Natural gas for steam turbines
+    label_de: Erdgas GuD
+  - id: biomass_chp
+    label_en: Biomass for CHP
+    label_de: Biomasse KWK
+  - id: biogas_chp
+    label_en: Biogas for CHP
+    label_de: Biogas KWK
+  - id: biomass_boiler
+    label_en: Biomass for heat-only boiler
+    label_de: Biomasse Heizwerk
+  - id: natural_gas_small_chp
+    label_en: Natural gas with small-scale CHP
+    label_de: Erdgas BHKW
+  - id: conventional_waste_heat_gt_90
+    label_en: Conventional waste heat > 90 C
+    label_de: Konventioneller Abwärme >90 C
+  - id: conventional_waste_heat_lt_90
+    label_en: Conventional waste heat < 90 C
+    label_de: Konventioneller Abwärme <90 C
+  - id: renewable_waste_heat_gt_90
+    label_en: Renewable waste heat > 90 C
+    label_de: Erneuerbarer Abwärme >90 C
+  - id: renewable_waste_heat_lt_90
+    label_en: Renewable waste heat < 90 C
+    label_de: Erneuerbarer Abwärme <90 C
+  - id: other_conventional_energy_carriers
+    label_en: Other conventional energy carriers
+    label_de: Sonstige konventionelle Energieträger
+  - id: other_renewable_energy_carriers
+    label_en: Other renewable energy carriers
+    label_de: Sonstige Erneuerbare Energieträger
+  - id: sewage_landfill_mine_gas
+    label_en: Sewage, landfill, or mine gas
+    label_de: Klär- Deponie- Grubengas
+  - id: solid_biomass
+    label_en: Solid biomass
+    label_de: feste Biomasse
+  - id: geothermatl
+    label_en: Geothermal
+    label_de: Geothermie
+  - id: liquid_biomass
+    label_en: Liquid biomass
+    label_de: flüssige Biomasse
+  - id: photovoltaic
+    label_en: Photovoltaic
+    label_de: Fotovoltaik
+  - id: hydropower
+    label_en: hydropower
+    label_de: Wasser
+  - id: wind
+    label_en: Wind
+    label_de: Wind
+  - id: waste
+    label_en: Waste
+    label_de: Abfall
 
 - id: energy_process
   label_en: Energy Process
