@@ -7,7 +7,7 @@ supported_languages: [en]
 site_url: https://koeln-dev.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 4a40a32754f24f4816766971235dfa496b764d06
+  commit: 2781aebf9aee0e4fc44515189d1615451131d95b
   dvc_remote: kausal-s3
   # Data from https://docs.google.com/spreadsheets/d/1qUIUgAE1Sqbt6qIClxEypuWRi0GpQQUc/edit?gid=1907288926#gid=1907288926
 name: Treibhausgasinventar
@@ -35,6 +35,15 @@ include:
 - file: frameworks/standard_dims.yaml
   allow_override: false
 
+# result_excels:
+# - base_excel_url: 
+#     https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
+#   name: Comparison of different emission factors
+#   node_ids:
+#   - end_energy_emission_factors_local
+#   - end_energy_emission_factors_national
+#   - emission_factors
+
 params:
 - id: municipality_name
   label_en: Municipality name
@@ -44,7 +53,8 @@ params:
   value: Köln
 - id: statistical_correction
   label_en: Use national rather than local electricity emission factors (BISKO)
-  label_de: Verwenden Sie nationale statt lokaler Stromemissionsfaktoren (BISKO).
+  label_de: Verwenden Sie nationale statt lokaler Stromemissionsfaktoren 
+    (BISKO)
   value: true
   is_visible: true
   is_customizable: true
@@ -95,10 +105,10 @@ dimensions:
   label_en: Action
   label_de: Maßnahme
   categories:
-  
   # Indirect Actions (Strategies)
   - id: renewable_generation_small_decentralized_systems
-    label_en: Renewable Electricity Generation through Small Decentralized Systems
+    label_en: Renewable Electricity Generation through Small Decentralized 
+      Systems
     label_de: Erneuerbare Stromerzeugung durch kleine dezentrale Anlagen
   - id: renewable_generation_open_space
     label_en: Renewable Electricity Generation in Open Spaces
@@ -155,8 +165,10 @@ dimensions:
     label_en: Climate-Friendly Consumption Behavior of the Population
     label_de: Klimafreundlicheres Konsumverhalten der Bevölkerung
   - id: ghg_neutral_administration_scope_1_and_2
-    label_en: GHG-Neutral Administration (Direct Influence via Scope 1 and Scope 2)
-    label_de: THG-neutrale Verwaltung (direkte Einflussbereiche über Scope 1 und Scope 2)
+    label_en: GHG-Neutral Administration (Direct Influence via Scope 1 and Scope
+      2)
+    label_de: THG-neutrale Verwaltung (direkte Einflussbereiche über Scope 1 und
+      Scope 2)
   - id: ghg_neutral_administration_scope_3
     label_en: GHG-Neutral Administration (Indirect Influence via Scope 3)
     label_de: THG-neutrale Verwaltung (indirekter Einflussbereich über Scope 3)
@@ -166,7 +178,7 @@ dimensions:
   - id: cross_cutting_climate_protection_aspects
     label_en: Cross-cutting Climate Protection Aspects
     label_de: Übergreifende Klimaschutz-aspekte
-  
+
   # Direct Actions
   - id: pv_on_municipal_holdings_buildings
     label_en: Photovoltaics on Municipal Holdings Buildings
@@ -193,7 +205,8 @@ dimensions:
     label_en: LED Conversion at Municipal Holdings (Indoor Lighting)
     label_de: LED-Umstellung bei Beteiligungen (Innenbeleuchtung)
   - id: climate_friendly_heat_generation_decentralized_at_holdings
-    label_en: Climate-Friendly Heat Generation (Decentralized) at Municipal Holdings
+    label_en: Climate-Friendly Heat Generation (Decentralized) at Municipal 
+      Holdings
     label_de: Klimafreundliche Wärmeerzeugung (dezentral) in Beteiligungen
   - id: climate_friendly_heat_supply_at_city_holdings
     label_en: Climate-Friendly Heat Supply at City Holdings
@@ -227,7 +240,8 @@ dimensions:
     label_de: Optimierung der Restmüllverwertung durch AVG
   - id: waste_incineration_co2_reduction_through_ccs_at_avg
     label_en: 'Waste Incineration: CO2 Reduction through Carbon Capture at AVG'
-    label_de: 'Müllverbrennung: CO2-Emissionsminderung durch CO2-Abscheidung bei der AVG'
+    label_de: 'Müllverbrennung: CO2-Emissionsminderung durch CO2-Abscheidung bei der
+      AVG'
   - id: sump_development_by_city_administration
     label_en: SUMP Development by City Administration
     label_de: SUMP Entwicklung durch die Stadtverwaltung
@@ -452,9 +466,9 @@ nodes:
 #     - column: inventory_method
 #     - column: file_type
 
-- id: emission_factors
-  name: Emissionsfaktoren
-  name_en: Emission factors
+- id: emission_factors_derived
+  name: Emissionsfaktoren abgeleitet aus historischen Emissionen
+  name_en: Emission factors derived from historical emissions
   type: generic.GenericNode
   quantity: emission_factor
   unit: g/kWh
@@ -466,6 +480,99 @@ nodes:
     tags: [geometric_inverse]
   params:
     operations: multiply,drop_nans,drop_infs
+
+- id: end_energy_emission_factors_national # From IFEU dataset
+  name: Endenergie Emissionsfaktoren national
+  name_en: End energy emission factors
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: bisko/endenergie_emissionsfaktoren
+    tags: [baseline]
+    filters:
+    - column: per_what_energy
+    - column: upstream_included
+  params:
+  - id: operations
+    value: apply_multiplier,truncate_before_start
+  - id: multiplier
+    value: 1
+    unit: g/g_co2e
+
+- id: end_energy_emission_factors_local
+  name: Endenergie Emissionsfaktoren lokal
+  name_en: End energy emission factors local
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: koeln/end_energy_emission_factors
+    tags: [baseline]
+  params:
+  - id: operations
+    value: apply_multiplier,truncate_before_start
+  - id: multiplier
+    value: 1
+    unit: g/g_co2e
+
+- id: use_national_electricity_emission_factors
+  name: Verwenden Sie nationale statt lokaler Stromemissionsfaktoren (BISKO)
+  name_en: Use national rather than local electricity emission factors (BISKO)
+  type: generic.GenericNode
+  quantity: fraction
+  unit: dimensionless
+  input_datasets:
+  - id: koeln/sector_index
+    tags: [baseline]
+    filters:
+    - column: sector
+      value: other
+  params:
+  - id: operations
+    value: do_correction,extend_to_history
+  - id: do_correction
+    ref: statistical_correction
+  - id: no_correction_value
+    value: 0.0
+
+- id: sector_index
+  name: Sektorenindex
+  name_en: Sector index
+  type: generic.GenericNode
+  quantity: ratio
+  unit: dimensionless
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_datasets:
+  - id: koeln/sector_index
+    tags: [baseline]
+  params:
+    operations: extend_to_history
+
+- id: end_energy_emission_factors
+  name: Endenergie Emissionsfaktoren
+  name_en: End energy emission factors
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: end_energy_emission_factors_national
+    tags: [national]
+  - id: end_energy_emission_factors_local
+    tags: [local]
+    to_dimensions:
+    - id: energy_carrier
+  - id: use_national_electricity_emission_factors
+    tags: [bisko]
+  params:
+    formula: bisko * national + complement(bisko) * local
 
 - id: electricity_emissions
   name: Strom
@@ -496,7 +603,9 @@ nodes:
   output_dimensions: [energy_carrier, sector]
   input_nodes:
   - id: final_private_household_energy_use
-  - id: emission_factors
+  - id: end_energy_emission_factors
+    to_dimensions:
+    - id: energy_carrier
   output_nodes:
   - id: net_emissions
 
@@ -511,7 +620,9 @@ nodes:
   output_dimensions: [energy_carrier, sector]
   input_nodes:
   - id: final_transport_energy_use
-  - id: emission_factors
+  - id: end_energy_emission_factors
+    to_dimensions:
+    - id: energy_carrier
   output_nodes:
   - id: net_emissions
 
@@ -526,7 +637,9 @@ nodes:
   output_dimensions: [energy_carrier, sector]
   input_nodes:
   - id: final_industry_energy_use
-  - id: emission_factors
+  - id: end_energy_emission_factors
+    to_dimensions:
+    - id: energy_carrier
   output_nodes:
   - id: net_emissions
 
@@ -542,7 +655,9 @@ nodes:
   output_dimensions: [energy_carrier, sector]
   input_nodes:
   - id: final_commerce_trade_services_energy_use
-  - id: emission_factors
+  - id: end_energy_emission_factors
+    to_dimensions:
+    - id: energy_carrier
   output_nodes:
   - id: net_emissions
 
@@ -557,7 +672,9 @@ nodes:
   output_dimensions: [energy_carrier, sector]
   input_nodes:
   - id: final_municipal_facilities_energy_use
-  - id: emission_factors
+  - id: end_energy_emission_factors
+    to_dimensions:
+    - id: energy_carrier
   output_nodes:
   - id: net_emissions
 
@@ -645,13 +762,16 @@ actions:
     by RheinEnergie AG</li><li>Photovoltaics at Municipal Holdings</li><li>PV 
     Expansion on Municipal Buildings</li><li>Photovoltaics in Heritage 
     Conservation</li></ul>
-  description_de: 'Die Strategie besteht aus diesen 
+  description_de: Die Strategie besteht aus diesen 
     Maßnahmen:<ul><li>Photovoltaik-Förderprogramme der 
     Stadtverwaltung</li><li>Solarkataster Köln für Photovoltaik- und 
     Solaranlagen</li><li>Mobiler One-Stop-Shop für Köln</li><li>KlimaVeedel der 
     RheinEnergie AG</li><li>Photovoltaik bei 
     Beteiligungen</li><li>Photovoltaik-Ausbau auf kommunalen 
-    Gebäuden</li><li>Photovoltaik im Denkmalschutz</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/02-strom/21-erneuerbare-stromerzeugung-durch-kleine-dezentrale-anlagen">in Kausal Watch</a></p>'
+    Gebäuden</li><li>Photovoltaik im Denkmalschutz</li></ul><p>Weitere 
+    Informationen <a 
+    href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/02-strom/21-erneuerbare-stromerzeugung-durch-kleine-dezentrale-anlagen">in
+    Kausal Watch</a></p>
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -678,14 +798,16 @@ actions:
     Potential Sites</li><li>Plans for Wind Energy Expansion in North 
     Cologne</li><li>Development and Realization of Open-Space PV 
     Projects</li></ul>
-  description_de: 'Die Strategie besteht aus diesen 
+  description_de: Die Strategie besteht aus diesen 
     Maßnahmen:<ul><li>Solarkataster durch die Stadtverwaltung</li><li>Planung 
     und Analyse von Windenergiepotenzialen durch die 
     Verwaltung</li><li>Freiflächen-Photovoltaik (PV) – Potenziale und 
     Umsetzung</li><li>Windkraft – Identifikation von 
     Potenzialflächen</li><li>Planungen zum Ausbau der Windenergie im Kölner 
     Norden</li><li>Entwicklung und Realisierung von 
-    PV-Freiflächenprojekten</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/strom/22-erneuerbare-stromerzeugung-in-der-fläche">in Kausal Watch</a></p>'
+    PV-Freiflächenprojekten</li></ul><p>Weitere Informationen <a 
+    href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/strom/22-erneuerbare-stromerzeugung-in-der-fläche">in
+    Kausal Watch</a></p>
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -708,9 +830,11 @@ actions:
   description_en: The strategy consists of these measures:<ul><li>HGK Group 
     Climate Protection Measures - Complete Green Electricity Procurement for 
     Cologne Sites</li></ul>
-  description_de: 'Die Strategie besteht aus diesen 
+  description_de: Die Strategie besteht aus diesen 
     Maßnahmen:<ul><li>Klimaschutzmaßnahmen der HGK-Gruppe - Vollständiger 
-    Ökostrombezug für Standorte in Köln</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/strom/23-erneuerbare-stromerzeugung-durch-kraftwerke">in Kausal Watch</a></p>'
+    Ökostrombezug für Standorte in Köln</li></ul><p>Weitere Informationen <a 
+    href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/strom/23-erneuerbare-stromerzeugung-durch-kraftwerke">in
+    Kausal Watch</a></p>
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -735,7 +859,8 @@ actions:
     Options in Companies</li></ul>'
   description_de: 'Die Strategie besteht aus diesen Maßnahmen:<ul><li>Beratungen der
     KölnBusiness Wirtschaftsförderungs-GmbH: Nachhaltigkeitsvorhaben inkl. Finanzierungsmöglichkeiten
-    im Unternehmen fördern</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/02-strom/stromeinsparung-im-gewerbesektor">in Kausal Watch</a></p>'
+    im Unternehmen fördern</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/02-strom/stromeinsparung-im-gewerbesektor">in
+    Kausal Watch</a></p>'
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -757,9 +882,11 @@ actions:
   name_en: Heat Source Development for District Heating Networks
   description_en: The strategy consists of these measures:<ul><li>Transformation
     Plans of RheinEnergie AG for Cologne District Heating Networks</li></ul>
-  description_de: 'Die Strategie besteht aus diesen 
+  description_de: Die Strategie besteht aus diesen 
     Maßnahmen:<ul><li>Transformationspläne der RheinEnergie AG für die Kölner 
-    Fernwärmenetze</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/wärme/31-wärmequellenerschließung-für-wärmenetze">in Kausal Watch</a></p>'
+    Fernwärmenetze</li></ul><p>Weitere Informationen <a 
+    href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/wärme/31-wärmequellenerschließung-für-wärmenetze">in
+    Kausal Watch</a></p>
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -805,9 +932,11 @@ actions:
   description_en: The strategy consists of these measures:<ul><li>KlimaVeedel by
     RheinEnergie AG</li><li>Decarbonization Strategy of GAG Immobilien 
     AG</li></ul>
-  description_de: 'Die Strategie besteht aus diesen Maßnahmen:<ul><li>KlimaVeedel
+  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>KlimaVeedel
     der RheinEnergie AG</li><li>Dekarbonisierungsstrategie der GAG Immobilien 
-    AG</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/wärme/34-dezentraler-heizungstausch-in-haushalten">in Kausal Watch</a></p>'
+    AG</li></ul><p>Weitere Informationen <a 
+    href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/wärme/34-dezentraler-heizungstausch-in-haushalten">in
+    Kausal Watch</a></p>
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -938,9 +1067,11 @@ actions:
   name_en: Drive Transition – Motorized Individual Transport
   description_en: The strategy consists of these measures:<ul><li>Charging 
     Station Infrastructure in Public Road Space</li></ul>
-  description_de: 'Die Strategie besteht aus diesen 
+  description_de: Die Strategie besteht aus diesen 
     Maßnahmen:<ul><li>Ladesäuleninfrastruktur im öffentlichen 
-    Straßenraum</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/mobilität/antriebswende-motorisierter-individualverkehr">in Kausal Watch</a></p>'
+    Straßenraum</li></ul><p>Weitere Informationen <a 
+    href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/mobilität/antriebswende-motorisierter-individualverkehr">in
+    Kausal Watch</a></p>
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -962,8 +1093,11 @@ actions:
   name_en: Drive Transition – Freight Transport
   description_en: The strategy consists of these measures:<ul><li>Charging 
     Infrastructure in Public Space</li></ul>
-  description_de: 'Die Strategie besteht aus diesen 
-    Maßnahmen:<ul><li>Ladeinfrastruktur im öffentlichen Raum</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/mobilität/antriebswende-güterverkehr">in Kausal Watch</a></p>'
+  description_de: Die Strategie besteht aus diesen 
+    Maßnahmen:<ul><li>Ladeinfrastruktur im öffentlichen Raum</li></ul><p>Weitere
+    Informationen <a 
+    href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/mobilität/antriebswende-güterverkehr">in
+    Kausal Watch</a></p>
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -985,8 +1119,10 @@ actions:
   name_en: Drive Transition – Bus
   description_en: The strategy consists of these measures:<ul><li>Expansion of 
     E-Bus Fleet at KVB</li></ul>
-  description_de: 'Die Strategie besteht aus diesen Maßnahmen:<ul><li>Ausbau der 
-    E-Busflotte bei der KVB</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/mobilität/antriebswende-bus">in Kausal Watch</a></p>'
+  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>Ausbau der 
+    E-Busflotte bei der KVB</li></ul><p>Weitere Informationen <a 
+    href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/mobilität/antriebswende-bus">in
+    Kausal Watch</a></p>
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -1032,9 +1168,12 @@ actions:
   description_en: The strategy consists of these measures:<ul><li>Adjustments in
     Motorized Individual Transport (MIT)</li><li>Bicycle Traffic 
     Promotion</li><li>Light Rail Expansion</li></ul>
-  description_de: 'Die Strategie besteht aus diesen Maßnahmen:<ul><li>Anpassungen
+  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>Anpassungen
     im Motorisierten Individualverkehr 
-    (MIV)</li><li>Radverkehrsförderung</li><li>Stadtbahnausbau</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/mobilität/mobilitätswende-nahmobilität">in Kausal Watch</a></p>'
+    (MIV)</li><li>Radverkehrsförderung</li><li>Stadtbahnausbau</li></ul><p>Weitere
+    Informationen <a 
+    href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/mobilität/mobilitätswende-nahmobilität">in
+    Kausal Watch</a></p>
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -1057,9 +1196,11 @@ actions:
   description_en: The strategy consists of these measures:<ul><li>Light Rail 
     Expansion</li><li>Bicycle Traffic Promotion</li><li>Networked 
     Mobility</li></ul>
-  description_de: 'Die Strategie besteht aus diesen 
+  description_de: Die Strategie besteht aus diesen 
     Maßnahmen:<ul><li>Stadtbahnausbau</li><li>Radverkehrsförderung</li><li>Vernetzte
-    Mobilität</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/mobilität/mobilitätswende-regionale-mobilität">in Kausal Watch</a></p>'
+    Mobilität</li></ul><p>Weitere Informationen <a 
+    href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/mobilität/mobilitätswende-regionale-mobilität">in
+    Kausal Watch</a></p>
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -1081,8 +1222,11 @@ actions:
   name_en: Food & Nutrition
   description_en: The strategy consists of these measures:<ul><li>School and 
     Extra-curricular Sustainability Education</li></ul>
-  description_de: 'Die Strategie besteht aus diesen Maßnahmen:<ul><li>Schulische 
-    und außerschulische Nachhaltigkeitsbildung</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/ernährung-landwirtschaft/51-ernährung-lebensmittel">in Kausal Watch</a></p>'
+  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>Schulische 
+    und außerschulische Nachhaltigkeitsbildung</li></ul><p>Weitere Informationen
+    <a 
+    href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/ernährung-landwirtschaft/51-ernährung-lebensmittel">in
+    Kausal Watch</a></p>
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -1109,7 +1253,9 @@ actions:
   description_en: 'The strategy consists of these measures:<ul><li>Zero-Waste Concept:
     Waste Avoidance through Second-Life Promotion</li></ul>'
   description_de: 'Die Strategie besteht aus diesen Maßnahmen:<ul><li>Zero-Waste-Konzept:
-    Abfallvermeidung durch Second-Life-Förderung</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/konsum/71-klimafreundlicheres-konsumverhalten-der-bevölkerung">in Kausal Watch</a></p>'
+    Abfallvermeidung durch Second-Life-Förderung</li></ul><p>Weitere Informationen
+    <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/konsum/71-klimafreundlicheres-konsumverhalten-der-bevölkerung">in
+    Kausal Watch</a></p>'
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -1139,13 +1285,15 @@ actions:
     Fleets</li><li>Energy Guidelines for Municipal Buildings</li><li>PV 
     Expansion Strategy on All Municipal Buildings</li><li>Expansion of Charging 
     Infrastructure for Municipal Service Vehicles</li></ul>
-  description_de: 'Die Strategie besteht aus diesen 
+  description_de: Die Strategie besteht aus diesen 
     Maßnahmen:<ul><li>Sanierungsfahrplan für kommunale 
     Einrichtungen</li><li>Transformation städtischer 
     Fuhrparks</li><li>Energieleitlinien für städtische 
     Gebäude</li><li>Photovoltaik-Ausbaustrategie auf allen kommunalen 
     Gebäuden</li><li>Ausbau Ladeinfrastruktur für städtische 
-    Dienstfahrzeuge</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/verwaltung-hf-ikka/81-thg-neutrale-verwaltung-direkte-einflussbereiche-über-scope-1-und-scope-2">in Kausal Watch</a></p>'
+    Dienstfahrzeuge</li></ul><p>Weitere Informationen <a 
+    href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/verwaltung-hf-ikka/81-thg-neutrale-verwaltung-direkte-einflussbereiche-über-scope-1-und-scope-2">in
+    Kausal Watch</a></p>
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -1173,10 +1321,13 @@ actions:
     Change Agent Network for Climate Protection</li><li>Integration of Climate 
     Protection and Sustainability in Procurement and 
     Contracting</li><li>Zero-Waste Concept Measures</li></ul>
-  description_de: 'Die Strategie besteht aus diesen Maßnahmen:<ul><li>Internes 
+  description_de: Die Strategie besteht aus diesen Maßnahmen:<ul><li>Internes 
     Change-Agent-Netzwerk für Klimaschutz</li><li>Verankerung von Klimaschutz 
-    und Nachhaltigkeit bei Beschaffung und Nachhaltigkeit bei Beschaffung und Vergabe</li><li>Maßnahmen des 
-    Zero-Waste-Konzepts</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/verwaltung-hf-ikka/82-thg-neutrale-verwaltung-indirekter-einflussbereich-über-scope-3">in Kausal Watch</a></p>'
+    und Nachhaltigkeit bei Beschaffung und Nachhaltigkeit bei Beschaffung und 
+    Vergabe</li><li>Maßnahmen des Zero-Waste-Konzepts</li></ul><p>Weitere 
+    Informationen <a 
+    href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/verwaltung-hf-ikka/82-thg-neutrale-verwaltung-indirekter-einflussbereich-über-scope-3">in
+    Kausal Watch</a></p>
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -1207,7 +1358,8 @@ actions:
   description_de: 'Die Strategie besteht aus diesen Maßnahmen:<ul><li>Ressourcenrückgewinnung
     aus Abfallverwertung</li><li>Maßnahmen des Zero-Waste-Konzepts</li><li>Zero-Waste-Konzept:
     Abfallvermeidung durch Informationsbereitstellung</li><li>THG-Minderung durch
-    Biomassenutzung und Methanvermeidung</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/abfall-ab-wasser/61-abfallreduktion-anlageneffizienz">in Kausal Watch</a></p>'
+    Biomassenutzung und Methanvermeidung</li></ul><p>Weitere Informationen <a href="https://koeln-klima-copy1.watch-test.kausal.tech/handlungsfelder-ikka/abfall-ab-wasser/61-abfallreduktion-anlageneffizienz">in
+    Kausal Watch</a></p>'
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
@@ -1419,7 +1571,8 @@ actions:
 
 - id: climate_friendly_heat_generation_decentralized_at_holdings
   name: Klimafreundliche Wärmeerzeugung (dezentral) in Beteiligungen
-  name_en: Climate-Friendly Heat Generation (Decentralized) at Municipal Holdings
+  name_en: Climate-Friendly Heat Generation (Decentralized) at Municipal 
+    Holdings
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
