@@ -9,15 +9,16 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2025-12-18 11:28+0200\n"
-"PO-Revision-Date: 2025-04-01 12:20+0000\n"
-"Last-Translator: Matias Wargelin <matias.wargelin@kausal.tech>\n"
-"Language-Team: Latvian <https://weblate.kausal.tech/projects/paths/django/lv/>\n"
+"PO-Revision-Date: 2025-12-23 18:21+0000\n"
+"Last-Translator: Jan-Erik Sundman <jan-erik.sundman@kausal.tech>\n"
+"Language-Team: Latvian <https://weblate.kausal.tech/projects/paths/django/"
+"lv/>\n"
 "Language: lv\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n != 0 ? 1 : 2;\n"
-"X-Generator: Weblate 5.4.2\n"
+"X-Generator: Weblate 5.15.1\n"
 
 #: admin_site/api.py
 msgid "Invalid email address"
@@ -725,10 +726,8 @@ msgid "Organization"
 msgstr ""
 
 #: nodes/actions/action.py
-#, fuzzy
-#| msgid "Is the action included in the scenario"
 msgid "Included in scenario"
-msgstr "Vai darbība ir iekļauta scenārijā"
+msgstr "Iekļauts scenārijā"
 
 #: nodes/actions/action.py
 msgid "Is the action included in the scenario"
