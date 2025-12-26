@@ -194,7 +194,11 @@ class Command(BaseCommand):
                 for dimension in meta.dim_ids:
                     dim_cat_identifier = row[dimension]
                     if dim_cat_identifier:
-                        cat = get_dimension_category(instance_config, dimension, dim_cat_identifier)
+                        try:
+                            cat = get_dimension_category(instance_config, dimension, dim_cat_identifier)
+                        except DimensionCategory.DoesNotExist:
+                            print(f"Dimension category '{dim_cat_identifier}' not found. Did you run --update-instance?")
+                            raise
                         data_point.dimension_categories.add(cat)
         print(f"Created {num_created} data points")
 

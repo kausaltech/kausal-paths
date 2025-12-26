@@ -481,6 +481,27 @@ nodes:
   params:
     operations: multiply,drop_nans,drop_infs
 
+- id: sector_emission_factors_derived # Transport values added to the dataset for local emission facotrs.
+  name: Sektoren-Emissionsfaktoren abgeleitet aus historischen Emissionen
+  name_en: Sector emission factors derived from historical emissions
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g/kWh
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_nodes:
+  - id: historical_emissions
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  - id: final_energy_use
+    tags: [geometric_inverse]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  params:
+    operations: multiply,drop_nans,drop_infs
+
 - id: end_energy_emission_factors_national # From IFEU dataset
   name: Endenergie Emissionsfaktoren national
   name_en: End energy emission factors
