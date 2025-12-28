@@ -67,6 +67,7 @@ parser.add_argument('--print-graph', action='store_true', help='print the graph'
 parser.add_argument('--update-instance', action='store_true', help='update an existing InstanceConfig instance')
 parser.add_argument('--update-nodes', action='store_true', help='update existing NodeConfig instances')
 parser.add_argument('--overwrite', action='store_true', help='Overwrite contents in the database')
+parser.add_argument('--skip-descriptions', action='store_true', help='skip description updates in the database')
 parser.add_argument('--delete-stale-nodes', action='store_true', help='delete NodeConfig instances that no longer exist')
 parser.add_argument('--print-impact-overviews', action='store_true',
                     help='calculate and print impact overviews (previously action efficiencies)')
@@ -309,7 +310,12 @@ def update_instance():
         if args.update_instance:
             instance_obj.update_from_instance(instance, overwrite=True)
             instance_obj.save()
-        instance_obj.sync_nodes(update_existing=args.update_nodes, delete_stale=args.delete_stale_nodes, overwrite=args.overwrite)
+        instance_obj.sync_nodes(
+            update_existing=args.update_nodes,
+            delete_stale=args.delete_stale_nodes,
+            overwrite=args.overwrite,
+            skip_descriptions=args.skip_descriptions
+        )
         instance_obj.sync_dimensions(update_existing=True, delete_stale=args.delete_stale_nodes)
         instance_obj.refresh_from_db()
         instance_obj.create_default_content()

@@ -573,7 +573,12 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
             pass
         return root
 
-    def sync_nodes(self, update_existing=False, delete_stale=False, overwrite=False):
+    def sync_nodes(
+        self,
+        update_existing=False,
+        delete_stale=False,
+        overwrite=False,
+        skip_descriptions=False):
         from nodes.datasets import DBDataset
 
         instance = self.get_instance()
@@ -592,7 +597,7 @@ class InstanceConfig(CacheablePathsModel[None], UUIDIdentifiedModel, models.Mode
             else:
                 found_nodes.add(node.id)
                 if update_existing:
-                    node_config.update_from_node(node, overwrite=overwrite)
+                    node_config.update_from_node(node, overwrite=overwrite, skip_descriptions=skip_descriptions)
                     node_config.save()
 
         for node in list(node_configs.values()):
@@ -973,7 +978,7 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
 
         # FIXME: Override params
 
-    def update_from_node(self, node: Node, overwrite=False):
+    def update_from_node(self, node: Node, overwrite=False, skip_descriptions=False):
         """Set attributes of this instance from revelant fields of the given node but does not save."""
 
         overwritten = False
@@ -982,6 +987,8 @@ class NodeConfig(PathsModel, RevisionMixin, ClusterableModel, index.Indexed, UUI
         i18n = conf.pop('i18n', None)
         for k, v in node.as_node_config_attributes().items():
             if overwrite or getattr(self, k, None) is None:
+                if skip_descriptions and k in ['short_description', 'description']:
+                    continue
                 setattr(self, k, v)
                 overwritten = True
 
