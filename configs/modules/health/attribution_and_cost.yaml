@@ -157,8 +157,10 @@ nodes:
 - id: incidence
   name_fi: Ilmaantuvuus
   name_en: Incidence
-  description_fi: Ympäristöaltisteiden kannalta olennaisten tautien ja vaikutusten ilmaantuvuus
-  description_en: Incidence of environmentally relevant diseases and effects
+  description_fi: Ympäristöaltisteiden kannalta olennaisten tautien ja vaikutusten ilmaantuvuus.
+    Käytetään Terveyden ja hyvinvoinnin laitoksen tautitaakkamallia. Useita alkuperäislähteitä.
+  description_en: 'Incidence of environmentally relevant diseases and effects. Uses
+    the THL disease burden model. Multiple original sources.'
   type: gpc.DatasetNode
   quantity: incidence
   unit: case/personyear
@@ -177,9 +179,11 @@ nodes:
 - id: air_pollution_attributable_fraction
   name_fi: Ilmansaasteiden syyosuus
   name_en: Attributable fraction of air pollution
-  description_fi: Se osuus tautitaakasta, joka selittyy ilmansaastealtistuksella.
-  description_en: The fraction of disease burden that can be attributed to air pollution exposure.
-  type: health.AttributableFractionRR
+  description_fi: 'Se osuus havaitusta tautitaakasta, joka selittyy ilmansaastealtistuksella.
+    Syyosuus lasketaan näin: AF = RR / (RR + 1) missä RR on suhteellinen riski.'
+  description_en: 'The fraction of observed disease burden that can be attributed to air pollution exposure.
+    Attributable fraction is typically calculated as AF = RR / (RR + 1) where RR is the relative risk.'
+  type: health.AttributableFractionRR # FIXME Convert to FormulaNode.
   quantity: exposure_response
   unit: dimensionless  # TODO Allow for different units in dataset and node.
   input_dimensions: [response, pollutant]
@@ -199,8 +203,9 @@ nodes:
 - id: total_number_of_cases
   name_fi: Kokonaistapausmäärä
   name_en: Total number of cases
-  description_fi: Kokonaistapausmäärä kohdeväestössä saadaan kertomalla taustailmaantuvuut väestömäärällä.
-  description_en: Total number of cases in the target population
+  description_fi: Kokonaistapausmäärä kohdeväestössä saadaan kertomalla taustailmaantuvuus väestömäärällä.
+  description_en: 'Total number of cases in the target population is calculated by multiplying
+    the background incidence by the population size.'
   type: simple.MultiplicativeNode
   quantity: health_effect
   unit: case/a
@@ -216,8 +221,12 @@ nodes:
 - id: attributable_cases
   name_fi: Ilmansaasteisiin kohdentuvat tapaukset
   name_en: Cases attributable to air pollution
-  description_fi: Se osa kokonaistapausmäärästä, joka kohdentyy pienhiukkasiin ja typenoksideihin. Arvio perustuu Terveyden ja hyvinvoinnin laitoksen tautitaakkamalliin.
-  description_en: Cases attributable to PM2.5 and NOx.
+  description_fi: 'Se osa kokonaistapausmäärästä, joka kohdentuu pienhiukkasiin ja typenoksideihin.
+    Arvio perustuu Terveyden ja hyvinvoinnin laitoksen kehittämään <a
+    href="https://en.opasnet.org/w/Health_impact_assessment">tautitaakkamalliin</a>.'
+  description_en: 'The fraction of total number of cases that is attributable to PM2.5 and NOx.
+    The estimate is based on a <a href="https://en.opasnet.org/w/Health_impact_assessment">
+    disease burden model</a> developed by the National Institute for Health and Welfare (THL).'
   type: simple.MultiplicativeNode
   quantity: health_effect
   unit: case/a
@@ -252,8 +261,14 @@ nodes:
 - id: premature_deaths
   name_fi: Ennenaikaiset kuolemat
   name_en: Premature deaths
-  description_fi: Pienhiukkasten, typenoksidien ja liikenneonnettomuuksien aiheuttamat sekä aktiivisen liikkumisen ehkäisemät ennenaikaiset kuolemat.
-  description_en: Premature deaths caused by PM2.5 and NOx.
+  description_fi: Tarkasteltujen altisteiden aiheuttamat ennenaikaiset kuolemat. Usein malleissa tarkastellaan
+    altisteina pienhiukkasia, typenoksideja ja liikenneonnettomuuksia sekä aktiivista liikkumista kuolemien
+    ehkäisijänä. Altistelista kuitenkin vaihtelee mallista toiseen, tämän mallin altisteet listataan
+    <a href="air_pollution_exposure">täällä</a>.
+  description_en: 'Premature deaths caused by the studied exposures. Often the model studies
+    PM2.5, NOx, traffic accidents, and physical activity as exposures. The list of exposures
+    varies from model to model, the exposures for this model are listed
+    <a href="air_pollution_exposure">here</a>.'
   type: simple.AdditiveNode
   quantity: health_effect
   unit: case/a
@@ -266,7 +281,7 @@ nodes:
       categories: [mortality, physical_activity, air_pollution, crash_risk]
 
 - id: case_burden
-  name_fi: Tautitaakka per tapaus
+  name_fi: Tautitaakka per tapaus # TODO Add references.
   name_en: Disease burden by case
   description_fi: Yhden tapauksen aiheuttama tautitaakka eri vasteille.
   description_en: Disease burden caused by a single case.
@@ -284,8 +299,23 @@ nodes:
 - id: disease_burden_attributed_to_exposure
   name_fi: Altisteisiin kohdentuva tautitaakka
   name_en: Disease burden caused by air pollution
-  description_fi: Tarkasteltaviin altistuksiin kohdentuva tautitaakka väestössä. Ilmansaasteet leviävät satojen kilometrien päähän saastelähteestä. Tässä laskelmassa tarkastellaan kaikkea altistumista, koska jokaisen päästölähteen pitää huolehtia omista päästöistään, vaikka haitat syntyisivät muualla.</p>Mittatikkuna käytetään haittapainotettuja elinvuosia (<a href="https://fi.wikipedia.org/wiki/DALY-arvo">DALY</a>, disability-adjusted life years).
-  description_en: Disease burden attributable to the studied exposures. Air pollution spreads hundreds of kilometers from the source. This estimate is about all exposure because each emission source needs to consider their own emissions irrespective of where the harm occurs.</p>The measurement unit is disability-adjusted life year (<a href="https://en.wikipedia.org/wiki/Disability-adjusted_life_year">DALY</a>).
+  description_fi: Tarkasteltaviin altistuksiin kohdentuva tautitaakka väestössä. Ilmansaasteet
+    leviävät satojen kilometrien päähän saastelähteestä. Tässä laskelmassa tarkastellaan kaikkea
+    altistumista mutta ne kohdennetaan paikalliseen väestöön. Tämä on tärkeää, koska jokaisen
+    päästölähteen pitää huolehtia omista päästöistään, vaikka haitat syntyisivät muualla.</p>
+    Mittatikkuna käytetään haittapainotettuja elinvuosia (<a 
+    href="https://fi.wikipedia.org/wiki/DALY-arvo">DALY</a>, disability-adjusted life years).
+    DALY kuvaa menetettyjä terveitä elinvuosia väestötasolla ottaen huomioon haitan vakavuuden ja keston.
+    Esimerkiksi ennenaikaisen kuoleman haittapainokerroin on 1 (suurin mahdollinen), kun taas
+    alaselkäkivun kerroin on 0.03.
+  description_en: 'Disease burden attributable to the studied exposures. Air pollution spreads
+    hundreds of kilometers from the source. This estimate is about all exposure because each
+    emission source needs to consider their own emissions irrespective of where the harm occurs.</p>
+    The measurement unit is disability-adjusted life year (<a href="https://en.wikipedia.org/wiki/
+    Disability-adjusted_life_year">DALY</a>). DALY describes the number of lost healthy life years
+    at the population level taking into account the severity and duration of the disability.
+    For example, the disability weight for premature death is 1 (the highest possible), while
+    the disability weight for lower back pain is 0.03.'
   type: simple.MultiplicativeNode
   quantity: health_effect
   unit: DALY/a
@@ -304,8 +334,16 @@ nodes:
 - id: health_outcome_unit_price
   name_fi: Terveysvaikutusten yksikkökustannukset
   name_en: Health outcome unit price
-  description_fi: 'Käytössä on kaksi lopputulemaa: kuolema (ilmansaastealtistukselle, onnettomuuksille ja fyysiselle aktiivisuudelle), jota mitataan tilastollisella kuolemalla (value of satistical life) sekä menetetyn työpäivän hinta.'
-  description_en: 'There are basically two different endpoints: increased risk of death (for air pollution exposures, accidents, and physical activity) and work day lost. Value of statistical life is used as the measure for death endpoints.'
+  description_fi: 'Käytössä on kaksi lopputulemaa: kuolema (ilmansaastealtistukselle, onnettomuuksille
+    ja fyysiselle aktiivisuudelle) sekä menetetty työpäivä. Menetetyn työpäivän hinnaksi lasketaan
+    työn tekemisestä tuleva lisäarvo, joka jää sairauden takia saamatta. Tilastollisen kuoleman
+    kustannus (value of statistical life) arvioidaan tarkastelemalla hintaa, jonka ihmiset ovat
+    valmiita maksamaan pienen kuolemanriskin välttämiseksi.'
+  description_en: 'There are basically two different endpoints: death (for air pollution exposures,
+    accidents, and physical activity) and work day lost. The value of a work day is calculated as
+    the additional value of work that is lost due to absence. The cost of a statistical death
+    (value of statistical life) is estimated by looking at the price that people are willing to
+    pay to avoid a small risk of death.'
   type: gpc.DatasetNode
   quantity: unit_price
   unit: kEUR/case
@@ -330,8 +368,16 @@ nodes:
 - id: health_costs_attributed_to_exposure
   name_fi: Altistumiseen kohdentuvat terveyskustannukset
   name_en: Health costs attributable to exposure
-  description_fi: Samat terveysvaikutukset kuin diskontatussa terveyskustannuskuvassa, mutta tässä vaikutuksia ei diskontata. Lisäksi on mahdollista tarkastella tuloksia sen perusteella, minkä mallin mukaisesti niitä on laskettu (katso Malliperusta). Jos kaksi mallia laskee samaa asiaa, tuloksissa voi olla kaksoislaskentaa tässä solmussa; diskontatuista terveyskustannuksista kaksoislaskenta on poistettu.
-  description_en: The same health impacts as in the discounted health cost figure, but here the impacts are not discounted. In addition, it is possible to examine the results based on which model they have been calculated from (see Modeling basis). If two models calculate the same thing, there may be double counting in the results in this node; double counting has been removed from the discounted health costs.
+  description_fi: Kaikki tarkasteltavat terveysvaikutukset kustannuslajin mukaan. Lisäksi on
+    mahdollista tarkastella tuloksia sen perusteella, minkä mallin mukaisesti niitä on laskettu.
+    Jos kaksi mallia laskee samaa asiaa, tuloksissa voi olla kaksoislaskentaa tässä solmussa ja
+    oikea tulos valitsemalla haluttu malli. Diskontatuista terveyskustannuksista kaksoislaskenta
+    on poistettu.
+  description_en: 'All the studied health impacts are attributed to the cost type. In addition,
+    it is possible to examine the results based on which model they have been calculated from.
+    If two models calculate the same thing, there may be double counting in the results in this
+    node and the correct result is selected by choosing the desired model. Double counting has
+    been removed from the discounted health costs.'
   type: generic.GenericNode
   quantity: currency
   unit: MEUR/a
@@ -361,7 +407,10 @@ nodes:
 - id: discounted_health_costs
   name_fi: Diskontatut terveyskustannukset
   name_en: Discounted health costs
-  description_fi: Terveysvaikutuksia on arvioitu usealla eri tavalla. Fyysinen aktiivisuus pohjautuu toisaalta henkilöliikennetutkimukseen (pienempi arvio) ja toisaalta NetZeroPlanner-mallin arvioon (suurempi vaikutus). <br>Diskonttaamalla on arvostettu lähiaikoina syntyviä terveysvaikutuksia enemmän kuin kaukana tulevaisuudessa tapahtuvia.
+  description_fi: Diskonttaamalla on arvostettu lähiaikoina syntyviä terveysvaikutuksia
+    enemmän kuin kaukana tulevaisuudessa tapahtuvia.
+  description_en: 'The discounted health costs are discounted by the discount rate,
+    favoring more recent health impacts over future ones.'
   type: costs.ExponentialNode
   quantity: consumption
   unit: MEUR/a

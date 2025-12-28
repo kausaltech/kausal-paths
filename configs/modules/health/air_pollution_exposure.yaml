@@ -136,6 +136,10 @@ nodes:
 - id: transport_emissions
   name_en: Transport emissions, placeholder
   name_fi: Liikenteen päästöt, esimerkki
+  description_fi: Tämä solmu tulee korvata varsinaisella solmulla, jossa lasketaan liikenteen päästöt.
+    Käytetty data on vain esimerkki eikä kuvasta todellisia päästöjä.
+  description_en: This node should be replaced with the actual node that calculates transport emissions.
+    The used data is only an example and does not represent actual emissions.
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
@@ -150,6 +154,10 @@ nodes:
 - id: power_plant_emissions
   name_en: Power plant emissions, placeholder
   name_fi: Voimalaitoksen päästöt, esimerkki
+  description_fi: Tämä solmu tulee korvata varsinaisella solmulla, jossa lasketaan voimalaitosten päästöt.
+    Käytetty data on vain esimerkki eikä kuvasta todellisia päästöjä.
+  description_en: This node should be replaced with the actual node that calculates power plant emissions.
+    The used data is only an example and does not represent actual emissions.
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
@@ -166,7 +174,14 @@ nodes:
 - id: transport_emission_factor_total
   name_fi: Liikennepäästöjen kokonaispäästökerroin
   name_en: Air pollution emission factor total
-  description_fi: Lähtötiedot on saatu NetZeroCities-hankkeen laskenta-excelin oletusarvoista.
+  description_fi: 'Lähtötiedot on saatu NetZeroCities-hankkeen laskenta-excelin oletusarvoista
+    Eurostatin tietojen perusteella, AINEISTO: Greenhouse gas emissions by source sector
+    (source: EEA) [env_air_gge] & AINEISTO: Motor vehicle movements on national territory,
+    by vehicles registration [road_tf_vehmov] (Lähde: Eurostat).'
+  description_en: 'The data is from the NetZeroCities project Excel file. Calculated based on
+    Eurostat data, DATASET: Greenhouse gas emissions by source sector
+    (source: EEA) [env_air_gge] & DATASET: Motor vehicle movements on national territory,
+    by vehicles registration [road_tf_vehmov] (source: Eurostat).'
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/vkm
@@ -219,7 +234,14 @@ nodes:
 - id: power_plant_emission_factor
   name_fi: Voimalaitoksen ilmansaasteiden päästökerroin
   name_en: Power plant air pollution emission factor
-  description_fi: Lähtötiedot on saatu NetZeroCities-hankkeen laskenta-excelin oletusarvoista.
+  description_fi: 'Lähtötiedot on saatu NetZeroCities-hankkeen laskenta-excelin oletusarvoista.
+    Painotettu keskiarvo Valencia lähi- ja kaukolämmityksen polttoaineiden seoksesta.
+    Oletus perustuu Italiasta. Ilmanpäästöt Madridin kaupungissa, 2017. SNAP 02:
+    asunnot sekä kaupalliset ja julkiset rakennukset.'
+  description_en: 'The data is from the NetZeroCities project Excel file. Calculated based on
+    weighted average on Valencia 2019 local and district Heating fuel mix. Assumption based
+    on data for Italy Atmospheric emissions Inventory of Madrid City, 2017. SNAP 02:
+    residential, commercial and institutional buildings.'
   type: gpc.DatasetNode
   quantity: emission_factor
   unit: g/kWh
@@ -271,8 +293,18 @@ nodes:
 - id: intake_fraction
   name_fi: Ilmansaasteiden saantiosuus
   name_en: Intake fraction of air pollution
-  description_fi: 'Se osuus ilmansaastepäästöstä, joka lopulta päätyy jonkun hengittämäksi. Tiedot on saatu artikkelista Sebastien Humbert, Julian D. Marshall, Shanna Shaked, Joseph V. Spadaro, Yurika Nishioka, Philipp Preiss, Thomas E. McKone, Arpad Horvath, and Olivier Jolliet. Intake Fraction for Particulate Matter: Recommendations for Life Cycle Impact Assessment (2011). Environmental Science and Technology, 45, 4808-4816.'
-  description_en: The fraction of air pollution emissions that is eventually inhaled by someone.
+  description_fi: 'Se osuus ilmansaastepäästöstä, joka lopulta päätyy jonkun hengittämäksi.
+    Saantiosuus lasketaan näin: hengitetty saatemäärä (g/s) / päästönopeus (g/s). Tiedot on
+    saatu artikkelista Sebastien Humbert, Julian D. Marshall, Shanna Shaked, Joseph V. Spadaro,
+    Yurika Nishioka, Philipp Preiss, Thomas E. McKone, Arpad Horvath, and Olivier Jolliet.
+    Intake Fraction for Particulate Matter: Recommendations for Life Cycle Impact Assessment (2011).
+    Environmental Science and Technology, 45, 4808-4816.'
+  description_en: 'The fraction of air pollution emissions that is eventually inhaled by someone.
+    The intake fraction is calculated as: inhaled mass (g/s) / emission rate (g/s). The data is
+    from the article by Sebastien Humbert, Julian D. Marshall, Shanna Shaked, Joseph V. Spadaro,
+    Yurika Nishioka, Philipp Preiss, Thomas E. McKone, Arpad Horvath, and Olivier Jolliet.
+    Intake Fraction for Particulate Matter: Recommendations for Life Cycle Impact Assessment (2011).
+    Environmental Science and Technology, 45, 4808-4816.'
   type: generic.GenericNode
   quantity: fraction
   unit: ppm
@@ -289,8 +321,10 @@ nodes:
 - id: breathing_rate
   name_fi: Hengitystilavuus
   name_en: Breathing rate
-  description_fi: Hengitystilavuus vuorokaudessa. Käytetään nimellistä lukemaa, jonka täytyy olla sama kuin saantiosuutta laskettaessa.
-  description_en: Breathing volume per day. A nominal value is used, as it has to be the same as was used for calculating the intake fraction.
+  description_fi: Hengitystilavuus vuorokaudessa. Käytetään nimellistä lukemaa, jonka täytyy olla
+   sama kuin saantiosuutta laskettaessa. Humbert et al. (2011) käyttää 20 m**3/henkilö/d.
+  description_en: 'Breathing volume per day. A nominal value is used, as it has to be the same as
+    was used for calculating the intake fraction. Humbert et al. (2011) uses 20 m**3/person/day.'
   type: simple.AdditiveNode
   quantity: mass
   unit: m**3/person/d
@@ -300,8 +334,12 @@ nodes:
 - id: transport_air_pollution_exposure
   name_fi: Altistuminen liikenteen ilmansaasteille
   name_en: Transport air pollution exposure
-  description_fi: Altistuminen ilmansaasteille pitkäaikaisena keskimääräisenä pitoisuutena hengitysvyöhykkeellä. Altistus kohdennetaan mallin tarkastelemaan väestöön, vaikka osa altistumisesta tapahtuu tarkastelualueen ulkopuolella.
-  decription_en: Exposure to air pollution as a long-term average concentration in the breathing zone. The exposure is attributed to the modeled population although a part of the exposure occurs outside the modeled area.
+  description_fi: Altistuminen ilmansaasteille pitkäaikaisena keskimääräisenä pitoisuutena
+    hengitysvyöhykkeellä. Altistus kohdennetaan mallin tarkastelemaan väestöön, vaikka osa
+    altistumisesta ja siten myös terveysvaikutuksista tapahtuu tarkastelualueen ulkopuolella.
+  decription_en: Exposure to air pollution as a long-term average concentration in the
+    breathing zone. The exposure is attributed to the modeled population although a part of
+    the exposure and thus health effects occur outside the modeled area.
   type: simple.MultiplicativeNode
   quantity: exposure
   unit: ug/m**3
@@ -325,10 +363,14 @@ nodes:
   output_nodes: [air_pollution_exposure]
 
 - id: power_plant_air_pollution_exposure
-  name_fi: Altistuminen suurten fossiilista polttoainetta polttavien voimaloiden ilmansaasteille
+  name_fi: Altistuminen suurten polttoainetta polttavien voimaloiden ilmansaasteille
   name_en: Power plant air pollution exposure
-  description_fi: Altistuminen ilmansaasteille pitkäaikaisena keskimääräisenä pitoisuutena hengitysvyöhykkeellä. Altistus kohdennetaan mallin tarkastelemaan väestöön, vaikka osa altistumisesta tapahtuu tarkastelualueen ulkopuolella. (vain kaukolämpö tällä hetkellä)
-  description_en: Exposure to air pollution as a long-term average concentration in the breathing zone. The exposure is attributed to the modeled population although a part of the exposure occurs outside the modeled area.
+  description_fi: Altistuminen ilmansaasteille pitkäaikaisena keskimääräisenä pitoisuutena
+    hengitysvyöhykkeellä. Altistus kohdennetaan mallin tarkastelemaan väestöön, vaikka osa
+    altistumisesta tapahtuu tarkastelualueen ulkopuolella.
+  description_en: Exposure to air pollution as a long-term average concentration in
+    the breathing zone. The exposure is attributed to the modeled population although a part
+    of the exposure occurs outside the modeled area.
   type: simple.MultiplicativeNode
   quantity: exposure
   unit: ug/m**3
