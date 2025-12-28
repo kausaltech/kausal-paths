@@ -114,6 +114,9 @@ class DataCollection:
                 meta = df.get_meta()
                 target_year = instance.target_year
                 obs_year = df.filter(~pl.col(FORECAST_COLUMN))[YEAR_COLUMN].max()
+                if obs_year is None:
+                    obs_year = df[YEAR_COLUMN].min()
+                    self.logs.append(f"No historical data found for node {instance.id}/{node.id}. Using first year {obs_year!r}.")
                 df = (
                     df.filter(pl.col(YEAR_COLUMN).is_in([obs_year, target_year]))
                     .sort(by=[YEAR_COLUMN])
