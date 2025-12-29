@@ -1671,47 +1671,6 @@ nodes:
   params:
     sector: Un-levelized capital cost of heating
 
-- id: heat_production_capital_cost
-  name_en: Heat production capital cost
-  name_fi: Lämmöntuotannon pääomakustannus
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [stakeholder, energy_carrier, heating_type, cost_type]
-  output_dimensions: [stakeholder, energy_carrier, heating_type, cost_type]
-  input_nodes:
-  - id: heat_production_capital_unit_price
-    to_dimensions:
-    - id: heating_type
-    - id: cost_type
-    - id: energy_carrier
-  - id: building_heat_energy_use
-    from_dimensions:
-    - id: building_energy_class
-      flatten: true
-    - id: scope
-      flatten: true
-    - id: fuel_type
-      flatten: true
-    to_dimensions:
-    - id: energy_carrier
-    - id: heating_type
-  - id: heating_cost_stakeholder_shares
-    to_dimensions:
-    - id: stakeholder
-    - id: heating_type
-    - id: cost_type
-  output_nodes:
-  - id: building_cost
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    - id: heating_type
-      flatten: true
-    to_dimensions:
-    - id: stakeholder
-    - id: cost_type
-
 - id: heat_production_network_unit_price
   name_en: Heat production network unit price
   name_fi: Lämmöntuotantoverkon yksikköhinta
