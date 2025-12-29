@@ -742,13 +742,15 @@ class Node:
             return None
         return df.to_pandas()
 
+    # TODO Is this redundant to GenericDataset.load?
     def get_cleaned_dataset(self, tag: str | None = None, required: bool = True) -> ppl.PathsDataFrame | None:
         df = self.get_input_dataset_pl(tag=tag, required=required)
         if df is None:
             return None
-        df = df.paths._drop_unnecessary_levels(df, self)
-        df = df.paths._add_missing_years(df, self)
-        df = df.paths._extend_values(df, self)
+        context = self.context
+        df = df.paths._drop_unnecessary_levels(df, context)
+        df = df.paths._add_missing_years(df, context)
+        df = df.paths._extend_values(df, context)
         return df
 
     def get_input_nodes(self, tag: str | None = None, quantity: str | None = None) -> list[Node]:
@@ -1067,7 +1069,7 @@ class Node:
             else:
                 op = operations.get(tag)
                 if op:
-                    df = op(df, self)
+                    df = op(df, self.context)
         return df
 
     def get_output_pl(  # noqa: C901, PLR0912

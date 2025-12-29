@@ -166,7 +166,7 @@ class FormulaNode(Node):  # FIXME The formula is not commutative, i.e. a * b != 
         # Try PathsExt operations first
         if isinstance(df, PDF) and func in df.paths.OPERATIONS:
             operation = df.paths.OPERATIONS[func]
-            return operation(df, self)
+            return operation(df, self.context)
 
         # Handle non-PathsExt functions
         return self._handle_custom_function(func, node, varss, df)

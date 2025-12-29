@@ -428,7 +428,7 @@ class GenericNode(SimpleNode):
         for op_name in operations:
             if df is not None and op_name in df.paths.OPERATIONS:
                 op = df.paths.OPERATIONS[op_name]
-                df = op(df, self)
+                df = op(df, self.context)
 
             else:
                 if op_name not in self.OPERATIONS:

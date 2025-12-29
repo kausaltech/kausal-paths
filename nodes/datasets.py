@@ -14,6 +14,7 @@ from django.utils.translation import gettext_lazy as _
 import numpy as np
 import orjson
 import polars as pl
+from loguru import logger
 from numpy.random import default_rng  # TODO Could call Generator to give hints about rng attributes but requires code change
 
 from common import polars as ppl
@@ -361,6 +362,19 @@ class DatasetWithFilters(Dataset):
         df = df.with_columns(pl.col(col).str.replace_all(re.escape(item), new_item))
         return df
 
+    # Similar to Node._process_edge_output
+    def _operate_tags(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
+        operations = df.paths.OPERATIONS
+
+        for tag in self.tags:
+            if tag == 'ignore_content':
+                logger.warning(f"Dataset {self.id} has tag 'ignore_content', which is not supported.")
+            else:
+                op = operations.get(tag)
+                if op:
+                    df = op(df, context)
+        return df
+
     def _filter_and_process_df(self, context: Context, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:  # noqa: C901
         if self.filters is not None:
             for d in self.filters:
@@ -426,6 +440,7 @@ class DatasetWithFilters(Dataset):
 
         df = df.select(cols)
         df = self._filter_df(context, df)
+        df = self._operate_tags(df, context)
         ppl.validate_ppdf(df)
 
         df = self._process_output(df)
