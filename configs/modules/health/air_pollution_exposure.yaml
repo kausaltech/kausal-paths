@@ -209,6 +209,7 @@ nodes:
   output_dimensions: [pollutant]
   input_nodes:
   - id: transport_emission_factor_total
+    tags: [bring_to_maximum_historical_year]
   params:
     use_input_node_unit_when_adding: true
     reference_category: 'pollutant:co2'
@@ -242,16 +243,17 @@ nodes:
     weighted average on Valencia 2019 local and district Heating fuel mix. Assumption based
     on data for Italy Atmospheric emissions Inventory of Madrid City, 2017. SNAP 02:
     residential, commercial and institutional buildings.'
-  type: gpc.DatasetNode
+  type: generic.GenericNode
   quantity: emission_factor
   unit: g/kWh
   input_dimensions: [pollutant, heating_type]
   output_dimensions: [pollutant, heating_type]
   input_datasets:
   - id: nzc/defaults
-    forecast_from: 2025
-  params:
-    sector: Emission factors from heat production
+    tags: [baseline]
+    filters:
+    - column: Sector
+      value: Emission factors from heat production
 
 - id: power_plant_emission_ratio
   name_fi: Voimalaitoksen päästöjen keskinäinen suhde
@@ -265,6 +267,7 @@ nodes:
   output_dimensions: [pollutant, heating_type]
   input_nodes:
   - id: power_plant_emission_factor
+    tags: [bring_to_maximum_historical_year]
   params:
     use_input_node_unit_when_adding: true
     reference_category: 'pollutant:co2'
@@ -348,6 +351,7 @@ nodes:
   input_nodes:
   - id: transport_air_pollution_emissions_total
   - id: intake_fraction
+    tags: [bring_to_maximum_historical_year]
     from_dimensions:
     - id: emission_height
       categories: [ground]
@@ -379,6 +383,7 @@ nodes:
   input_nodes:
   - id: power_plant_air_pollution_emissions
   - id: intake_fraction
+    tags: [bring_to_maximum_historical_year]
     from_dimensions:
     - id: emission_height
       categories: [high]

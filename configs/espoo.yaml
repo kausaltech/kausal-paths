@@ -4,7 +4,7 @@ supported_languages: [sv, en]
 site_url: https://espoo.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ca42936e416e093ba618c54443c4e8806b228a87
+  commit: a9aadd988475e40d3e69fcfc15cfa18abedfed10
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030
 name_en: Carbon-neutral Espoo 2030
@@ -863,19 +863,16 @@ nodes:
   - id: total_cost
 
 - id: co2_unit_price
-  name: CO2 unit price
+  name_en: CO2 unit price
+  name_fi: Hiilidioksidin yksikköhinta
   type: generic.GenericNode
   quantity: unit_price
   unit: EUR/t
   input_dimensions: [cost_type]
   output_dimensions: [cost_type]
   input_datasets:
-  - id: nzc/defaults
+  - id: espoo/hiilidioksidin_hinta
     tags: [baseline, extend_values]
-    filters:
-    - column: Sector
-      value: Value of CO2 reduction
-    - column: Ghg
 
 # LINK TO HEALTH MODULE
 

@@ -92,10 +92,12 @@ dimensions:
   - id: work_days_lost
     label_fi: Menetetyt työpäivät
     label_en: Work days lost
+    aliases: [work days lost]
     color: '#1f78b4'
   - id: chronic_bronchitis
     label_fi: Keuhkoahtaumatauti
     label_en: Chronic bronchitis
+    aliases: [chronic bronchitis]
   - id: cancer
     label_fi: Syöpä
     label_en: Cancer
@@ -234,8 +236,9 @@ nodes:
   output_dimensions: [response, pollutant]
   input_nodes:
   - id: air_pollution_attributable_fraction
+    tags: [bring_to_maximum_historical_year]
   - id: total_number_of_cases
-    tags: [non_additive]
+    tags: [bring_to_maximum_historical_year, non_additive]
     to_dimensions:
     - id: response
   output_nodes:
@@ -324,7 +327,7 @@ nodes:
   is_outcome: true
   input_nodes:
   - id: case_burden
-    tags: [non_additive]
+    tags: [extend_to_history, bring_to_maximum_historical_year, non_additive]
     to_dimensions:
     - id: response
   - id: total_exposure_related_cases
@@ -370,8 +373,8 @@ nodes:
   name_en: Health costs attributable to exposure
   description_fi: Kaikki tarkasteltavat terveysvaikutukset kustannuslajin mukaan. Lisäksi on
     mahdollista tarkastella tuloksia sen perusteella, minkä mallin mukaisesti niitä on laskettu.
-    Jos kaksi mallia laskee samaa asiaa, tuloksissa voi olla kaksoislaskentaa tässä solmussa ja
-    oikea tulos valitsemalla haluttu malli. Diskontatuista terveyskustannuksista kaksoislaskenta
+    Jos kaksi mallia laskee samaa asiaa, tuloksissa voi olla kaksoislaskentaa tässä solmussa, ja
+    oikea tulos saadaan valitsemalla haluttu malli. Diskontatuista terveyskustannuksista kaksoislaskenta
     on poistettu.
   description_en: 'All the studied health impacts are attributed to the cost type. In addition,
     it is possible to examine the results based on which model they have been calculated from.
