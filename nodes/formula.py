@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import ast
-from typing import Any, Callable, NamedTuple, TypeAlias, TypeVar
+from typing import Any, Callable, NamedTuple, TypeVar
 
 from django.utils.translation import gettext_lazy as _
 
@@ -15,9 +15,9 @@ from params.param import BoolParameter, StringParameter
 
 from .node import Node
 
-PDF: TypeAlias = ppl.PathsDataFrame
-EvalConst: TypeAlias = float
-EvalOutput: TypeAlias = PDF | QuantityType  # noqa: UP040
+PDF = ppl.PathsDataFrame
+type EvalConst = float
+type EvalOutput = PDF | QuantityType
 
 
 class EvalVars(NamedTuple):
@@ -27,13 +27,13 @@ class EvalVars(NamedTuple):
 
 ASTType = TypeVar('ASTType', bound=ast.expr)
 
-BinomBothDF: TypeAlias = Callable[[PDF, PDF], PDF]
-BinomLeftDF: TypeAlias = Callable[[PDF, Quantity], PDF]
-BinomBothQuantity: TypeAlias = Callable[[Quantity, Quantity], Quantity]
-BinomRightDF: TypeAlias = Callable[[Quantity, PDF], PDF]
+type BinomBothDF = Callable[[PDF, PDF], PDF]
+type BinomLeftDF = Callable[[PDF, Quantity], PDF]
+type BinomBothQuantity = Callable[[Quantity, Quantity], Quantity]
+type BinomRightDF = Callable[[Quantity, PDF], PDF]
 
 
-class FormulaNode(Node):  # FIXME The formula is not commutative, i.e. a * b != b * a with some dimensions
+class FormulaNode(Node):
     explanation = _('This is a Formula Node. It uses a specified formula to calculate the output.')
     allowed_parameters = [
         StringParameter(local_id='formula'),
@@ -55,7 +55,8 @@ class FormulaNode(Node):  # FIXME The formula is not commutative, i.e. a * b != 
         else:
             df = varss.datasets[name.id]
             if FORECAST_COLUMN not in df.columns:
-                df = df.with_columns(pl.lit(False).alias(FORECAST_COLUMN))
+                is_forecast = False
+                df = df.with_columns(pl.lit(is_forecast).alias(FORECAST_COLUMN))
             assert len(df.metric_cols) == 1
             df = df.rename({df.metric_cols[0]: VALUE_COLUMN})
         return df
@@ -75,67 +76,64 @@ class FormulaNode(Node):  # FIXME The formula is not commutative, i.e. a * b != 
             assert isinstance(left, Quantity)
             return right_df(left, right)
 
+        assert isinstance(left, Quantity)
+        assert isinstance(right, Quantity)
         return both_quantity(right, left)
 
     def apply_binom_commutative(
             self, left: EvalOutput, right: EvalOutput, both_df: BinomBothDF, one_df: BinomLeftDF,
             both_quantity: BinomBothQuantity
     ) -> EvalOutput:
-        def right_df(val: Quantity, df: PDF):
+        def right_df(val: Quantity, df: PDF) -> PDF:
             return one_df(df, val)
         return self.apply_binom(left, right, both_df, one_df, right_df, both_quantity)
 
-    def apply_add(self, left: EvalOutput, right: EvalOutput) -> EvalOutput: # FIXME Refactor to use add_over_dims() etc.
-        def both_df(df1: PDF, df2: PDF):
-            assert set(df1.dim_ids) == set(df2.dim_ids)
-            r = df2.copy().rename({VALUE_COLUMN: '_Right'}).ensure_unit('_Right', df1.get_unit(VALUE_COLUMN))
-            df = df1.paths.join_over_index(r, how='outer')
-            df = df.with_columns(pl.col(VALUE_COLUMN).fill_null(0) + pl.col('_Right').fill_null(0)).drop('_Right')
-            return df
+    def apply_add(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
+        """Add two values using add_with_dims for DataFrames, which handles dimensions properly."""
+        def both_df(df1: PDF, df2: PDF) -> PDF:
+            # add_with_dims requires matching dimensions and handles unit conversion
+            return df1.paths.add_with_dims(df2, how='outer')
         def one_df(df: PDF, val: QuantityType) -> PDF:
             val = val.to(df.get_unit(VALUE_COLUMN))
             df = df.with_columns(pl.col(VALUE_COLUMN) + val)
             return df
-        def both_quantity(val1: Quantity, val2: Quantity):
-            out = left + right
-            assert isinstance(out, Quantity)
-            return out
-        return self.apply_binom_commutative(left, right, both_df, one_df, both_quantity)
-
-    def apply_mul(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
-        def both_df(df1: PDF, df2: PDF):
-            r = df2.copy().rename({VALUE_COLUMN: '_Right'})
-            df = df1.paths.join_over_index(r, index_from='union')
-            df = df.multiply_cols([VALUE_COLUMN, '_Right'], VALUE_COLUMN).drop('_Right')
-            return df
-        def one_df(df: PDF, val: Quantity):
-            df_unit = df.get_unit(VALUE_COLUMN)
-            df = df.with_columns(pl.col(VALUE_COLUMN) * val)
-            df = df.set_unit(VALUE_COLUMN, df_unit * val.units)
-            return df
-        def both_quantity(val1: Quantity, val2: Quantity):
+        def both_quantity(val1: Quantity, val2: Quantity) -> Quantity:
             out = val1 + val2
             assert isinstance(out, Quantity)
             return out
         return self.apply_binom_commutative(left, right, both_df, one_df, both_quantity)
 
+    def apply_mul(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
+        def both_df(df1: PDF, df2: PDF) -> PDF:
+            return df1.paths.multiply_with_dims(df2, how='inner')
+        def one_df(df: PDF, val: Quantity) -> PDF:
+            df_unit = df.get_unit(VALUE_COLUMN)
+            df = df.with_columns(pl.col(VALUE_COLUMN) * pl.lit(val.m))
+            df = df.set_unit(VALUE_COLUMN, df_unit * val.units)
+            return df
+        def both_quantity(val1: Quantity, val2: Quantity) -> Quantity:
+            out = val1 * val2
+            assert isinstance(out, Quantity)
+            return out
+        return self.apply_binom_commutative(left, right, both_df, one_df, both_quantity)
+
     def apply_div(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
-        def both_df(df1: PDF, df2: PDF):
+        def both_df(df1: PDF, df2: PDF) -> PDF:
             r = df2.copy().rename({VALUE_COLUMN: '_Right'})
             df = df1.paths.join_over_index(r)
             df = df.divide_cols([VALUE_COLUMN, '_Right'], VALUE_COLUMN).drop('_Right')
             return df
         def left_df(df: PDF, val: QuantityType) -> PDF:
             df_unit = df.get_unit(VALUE_COLUMN)
-            df = df.with_columns(pl.col(VALUE_COLUMN) / val.m)
-            df = df.set_unit(VALUE_COLUMN, df_unit / val.units, force=True)
+            df = df.with_columns(pl.col(VALUE_COLUMN) / pl.lit(val.m))
+            df = df.set_unit(VALUE_COLUMN, df_unit / val.units, force=True)  # pyright: ignore[reportArgumentType]
             return df
         def right_df(val: QuantityType, df: PDF) -> PDF:
             df_unit = df.get_unit(VALUE_COLUMN)
             df = df.with_columns(val / pl.col(VALUE_COLUMN))
-            df = df.set_unit(VALUE_COLUMN, val.units / df_unit)
+            df = df.set_unit(VALUE_COLUMN, val.units / df_unit)  # pyright: ignore[reportArgumentType]
             return df
-        def both_quantity(val1: Quantity, val2: Quantity):
+        def both_quantity(val1: Quantity, val2: Quantity) -> Quantity:
             out = val1 / val2
             assert isinstance(out, Quantity)
             return out
