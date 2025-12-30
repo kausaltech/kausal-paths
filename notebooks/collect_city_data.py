@@ -196,6 +196,14 @@ class DataCollection:
 
         return self
 
+
+    def round_summaries(self) -> DataCollection:
+        self.logs.append("Rounding summaries to 8 decimal places.")
+        for summary in self.summaries:
+            for node in summary.nodes:
+                node.df = node.df.with_columns(pl.col(VALUE_COLUMN).round(8))
+        return self
+
     def report_log(self) -> None:
         date = str(datetime.now().strftime("%Y-%m-%d"))  # noqa: DTZ005
         self.logs.append(f"Saving log file to {self.output_path}log_{date}.txt")
@@ -270,6 +278,7 @@ class DataCollection:
             'save_summaries': self.save_summaries,
             'sum_over_dims': self.sum_over_dims,
             'sum_over_instances': self.sum_over_instances,
+            'round_summaries': self.round_summaries,
             'none': self.no_processing,
         }
         dc = self
