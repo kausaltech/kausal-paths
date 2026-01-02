@@ -9,11 +9,10 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-18 11:28+0200\n"
+"POT-Creation-Date: 2026-01-02 15:33+0100\n"
 "PO-Revision-Date: 2025-12-22 13:21+0000\n"
 "Last-Translator: Jan-Erik Sundman <jan-erik.sundman@kausal.tech>\n"
-"Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>"
-"\n"
+"Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>\n"
 "Language: de\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -111,8 +110,7 @@ msgstr "'%(title)s' ansehen"
 msgid "Choose instance"
 msgstr "Wähle Instanz"
 
-#: frameworks/models.py kausal_common/datasets/models.py
-#: kausal_common/templates/kausal_common/people/chooser_results.html
+#: frameworks/models.py
 msgid "Name"
 msgstr "Name"
 
@@ -208,471 +206,6 @@ msgstr "Wählen Sie einen anderen Abschnitt"
 msgid "Measure templates"
 msgstr "Vorlagen für Messgrößen"
 
-#: kausal_common/admin_site/tables.py
-#: kausal_common/models/modification_tracking.py
-msgid "Last modified at"
-msgstr "Zuletzt geändert am"
-
-#: kausal_common/api/exceptions.py
-msgid "Cannot delete instance because other objects reference it."
-msgstr "Instanz kann nicht gelöscht werden, da andere Objekte darauf verweisen."
-
-#: kausal_common/api/exceptions.py
-#, python-format
-msgid "Cannot delete \"%s\" because it is connected to other objects such as instances, persons or actions."
-msgstr "%s\" kann nicht gelöscht werden, da es mit anderen Objekten wie Instanzen, Personen oder Maßnahmen verbunden ist."
-
-#: kausal_common/datasets/chooser.py
-msgid "Choose a dataset"
-msgstr "Wähle einen Datensatz"
-
-#: kausal_common/datasets/chooser.py
-msgid "Choose another dataset"
-msgstr "Wähle einen anderen Datensatz"
-
-#: kausal_common/datasets/models.py kausal_common/organizations/models.py
-#: nodes/models.py
-msgid "name"
-msgstr "Name"
-
-#: kausal_common/datasets/models.py
-msgid "dimension"
-msgstr "Dimension"
-
-#: kausal_common/datasets/models.py
-msgid "dimensions"
-msgstr "Dimensionen"
-
-#: kausal_common/datasets/models.py
-msgid "Optional identifier that, if set, must be unique within the dimension"
-msgstr "Optionaler Bezeichner, der, falls gesetzt, innerhalb der Dimension eindeutig sein muss"
-
-#: kausal_common/datasets/models.py
-msgid "label"
-msgstr "Beschriftung"
-
-#: kausal_common/datasets/models.py
-msgid "dimension category"
-msgstr "Dimensionskategorie"
-
-#: kausal_common/datasets/models.py
-msgid "dimension categories"
-msgstr "Dimensionskategorien"
-
-#: kausal_common/datasets/models.py kausal_common/models/fields.py
-#: paths/utils.py
-msgid "identifier"
-msgstr "Kennung"
-
-#: kausal_common/datasets/models.py
-msgid "Optional identifier that, if set, must be unique in the scope"
-msgstr "Optionaler Bezeichner, der, falls gesetzt, im Geltungsbereich eindeutig sein muss"
-
-#: kausal_common/datasets/models.py
-msgid "dimension scope"
-msgstr "Dimension-Geltungsbereich"
-
-#: kausal_common/datasets/models.py
-msgid "dimension scopes"
-msgstr "Dimension-Geltungsbereiche"
-
-#: kausal_common/datasets/models.py
-msgid "Yearly"
-msgstr "Jährlich"
-
-#: kausal_common/datasets/models.py
-msgid "Time resolution of the time stamps of data points in this dataset"
-msgstr "Zeitliche Auflösung der Zeitstempel der Datenpunkte in diesem Datensatz"
-
-#: kausal_common/datasets/models.py
-msgid "start date"
-msgstr "Beginndatum"
-
-#: kausal_common/datasets/models.py
-msgid "For a newly created dataset, start entering values from this year"
-msgstr "Für einen neu erstellten Datensatz beginnen Sie mit der Eingabe von Werten aus diesem Jahr"
-
-#: kausal_common/datasets/models.py
-msgid "Descriptive name of the dataset schema"
-msgstr "Beschreibender Name des Datensatzschemas"
-
-#: kausal_common/datasets/models.py nodes/models.py
-msgid "Description"
-msgstr "Beschreibung"
-
-#: kausal_common/datasets/models.py
-msgid "Description of the content and use of the dataset"
-msgstr "Beschreibung des Inhalts und der Verwendung des Datensatzes"
-
-#: kausal_common/datasets/models.py
-msgid "Time resolution"
-msgstr "Zeitauflösung"
-
-#: kausal_common/datasets/models.py
-msgid "Initial date"
-msgstr "Ausgangsdatum"
-
-#: kausal_common/datasets/models.py
-msgid "Metrics"
-msgstr "Messgrößen"
-
-#: kausal_common/datasets/models.py
-msgid "Defines the interpretation and units for the values of the dataset"
-msgstr "Legt die Interpretation und die Einheiten für die Werte des Datensatzes fest"
-
-#: kausal_common/datasets/models.py
-msgid "Dimensions"
-msgstr "Dimensionen"
-
-#: kausal_common/datasets/models.py
-msgid "Used when metrics are tracked for multiple categories"
-msgstr "Wird verwendet, wenn die Messgrößen für mehrere Kategorien verfolgt werden"
-
-#: kausal_common/datasets/models.py
-msgid "Person permissions"
-msgstr "Berechtigungen für Personen"
-
-#: kausal_common/datasets/models.py
-msgid "Grants permissions on datasets of this schema to certain persons"
-msgstr "Erteilt bestimmten Personen Berechtigungen für Datensätze dieses Schemas"
-
-#: kausal_common/datasets/models.py
-msgid "Group permissions"
-msgstr "Gruppenberechtigungen"
-
-#: kausal_common/datasets/models.py
-msgid "Grants permissions on datasets of this schema to certain person groups"
-msgstr "Erteilt bestimmten Personengruppen Berechtigungen für Datensätze dieses Schemas"
-
-#: kausal_common/datasets/models.py people/forms.py
-msgid "Permissions"
-msgstr "Berechtigungen"
-
-#: kausal_common/datasets/models.py
-msgid "dataset schema"
-msgstr "Datensatzschema"
-
-#: kausal_common/datasets/models.py
-msgid "dataset schemas"
-msgstr "Datensatzschemas"
-
-#: kausal_common/datasets/models.py paths/utils.py
-msgid "unit"
-msgstr "Einheit"
-
-#: kausal_common/datasets/models.py
-msgid "dataset schema dimension"
-msgstr "Datensatzschema-Dimension"
-
-#: kausal_common/datasets/models.py
-msgid "dataset schema dimensions"
-msgstr "Datensatzschema-Dimensionen"
-
-#: kausal_common/datasets/models.py
-msgid "schema"
-msgstr "Schema"
-
-#: kausal_common/datasets/models.py
-msgid "Optional identifier that, if set, must be unique in the dataset's scope"
-msgstr "Optionaler Bezeichner, der, falls gesetzt, im Geltungsbereich des Datensatzes eindeutig sein muss"
-
-#: kausal_common/datasets/models.py
-msgid "dataset"
-msgstr "Datensatz"
-
-#: kausal_common/datasets/models.py
-msgid "datasets"
-msgstr "Datensätze"
-
-#: kausal_common/datasets/models.py
-msgid "dataset schema scope"
-msgstr "Datensatzschema-Geltungsbereich"
-
-#: kausal_common/datasets/models.py
-msgid "dataset schema scopes"
-msgstr "Datensatzschema-Geltungsbereiche"
-
-#: kausal_common/datasets/models.py
-msgid "date"
-msgstr "Datum"
-
-#: kausal_common/datasets/models.py
-msgid "Date of this data point in context of the dataset's time resolution"
-msgstr "Datum dieses Datenpunkts im Zusammenhang mit der zeitlichen Auflösung des Datensatzes"
-
-#: kausal_common/datasets/models.py
-msgid "metric"
-msgstr "Messgröße"
-
-#: kausal_common/datasets/models.py
-msgid "value"
-msgstr "Wert"
-
-#: kausal_common/datasets/models.py
-msgid "data point"
-msgstr "Datenpunkt"
-
-#: kausal_common/datasets/models.py
-msgid "data points"
-msgstr "Datenpunkte"
-
-#: kausal_common/datasets/models.py
-msgid "data point dimension category"
-msgstr "Datenpunkt-Dimensionskategorie"
-
-#: kausal_common/datasets/models.py
-msgid "data point dimension categories"
-msgstr "Datenpunkt-Dimensionskategorien"
-
-#: kausal_common/datasets/models.py
-msgid "Resolved"
-msgstr "Gelöst"
-
-#: kausal_common/datasets/models.py
-msgid "Unresolved"
-msgstr "Ungelöst"
-
-#: kausal_common/datasets/models.py
-msgid "Sticky comment"
-msgstr "Angehefteter Kommentar"
-
-#: kausal_common/datasets/models.py
-msgid "Review comment"
-msgstr "Überprüfungskommentar"
-
-#: kausal_common/datasets/models.py
-msgid "resolved at"
-msgstr "gelöst am"
-
-#: kausal_common/datasets/models.py
-msgid "comment"
-msgstr "Kommentar"
-
-#: kausal_common/datasets/models.py
-msgid "comments"
-msgstr "Kommentare"
-
-#: kausal_common/datasets/models.py
-msgid "edition"
-msgstr "Fassung"
-
-#: kausal_common/datasets/models.py
-msgid "authority"
-msgstr "Herausgeber"
-
-#: kausal_common/datasets/models.py
-msgid "The organization responsible for the data source"
-msgstr "Die Organisation, die für die Datenquelle verantwortlich ist"
-
-#: kausal_common/datasets/models.py kausal_common/organizations/models.py
-msgid "description"
-msgstr "Beschreibung"
-
-#: kausal_common/datasets/models.py kausal_common/organizations/models.py
-msgid "URL"
-msgstr "URL"
-
-#: kausal_common/datasets/models.py
-msgid "Data source"
-msgstr "Datenquelle"
-
-#: kausal_common/datasets/models.py kausal_common/datasets/wagtail_hooks.py
-msgid "Data sources"
-msgstr "Datenquellen"
-
-#: kausal_common/datasets/models.py
-msgid "data source reference"
-msgstr "Datenquellenreferenz"
-
-#: kausal_common/datasets/models.py
-msgid "data source references"
-msgstr "Datenquellenreferenzen"
-
-#: kausal_common/models/modification_tracking.py
-msgid "Created at"
-msgstr "Erstellt am"
-
-#: kausal_common/models/modification_tracking.py
-msgid "Last modified by"
-msgstr "Zuletzt geändert von"
-
-#: kausal_common/models/ordered.py
-msgid "order"
-msgstr "Sortierung"
-
-#: kausal_common/models/uuid.py
-msgid "UUID"
-msgstr "UUID"
-
-#: kausal_common/organizations/forms.py
-msgid "A node cannot be moved under itself in the hierarchy."
-msgstr "Ein Knoten kann in der Hierarchie nicht unter sich selbst verschoben werden."
-
-#: kausal_common/organizations/models.py
-msgctxt "node"
-msgid "Parent"
-msgstr "Übergeordnetes Objekt"
-
-#: kausal_common/organizations/models.py
-msgid "The time at which the resource was created"
-msgstr "Zeitpunkt, zu dem die Ressource erstellt wurde"
-
-#: kausal_common/organizations/models.py
-msgid "The time at which the resource was updated"
-msgstr "Zeitpunkt, zu dem die Ressource aktualisiert wurde"
-
-#: kausal_common/organizations/models.py
-msgid "Classification"
-msgstr "Klassifizierung"
-
-#: kausal_common/organizations/models.py
-msgid "An organization category, e.g. committee"
-msgstr "Eine Organisationskategorie, z. B. Ausschuss"
-
-#: kausal_common/organizations/models.py
-msgid "A primary name, e.g. a legally recognized name"
-msgstr "Ein primärer Name, z. B. ein gesetzlich anerkannter Name"
-
-#: kausal_common/organizations/models.py
-msgid "Short name"
-msgstr "Kurzname"
-
-#: kausal_common/organizations/models.py
-msgid "A simplified short version of name for the general public"
-msgstr "Eine vereinfachte Kurzversion des Namens für die breite Öffentlichkeit"
-
-#: kausal_common/organizations/models.py
-msgid "A distinct name for this organization (generated automatically)"
-msgstr "Ein eindeutiger Name für diese Organisation (automatisch erstellt)"
-
-#: kausal_common/organizations/models.py kausal_common/people/models.py
-#: kausal_common/users/models.py users/models.py
-msgid "email address"
-msgstr "E-Mail Adresse"
-
-#: kausal_common/organizations/models.py
-msgid "A date of founding"
-msgstr "Ein Gründungsdatum"
-
-#: kausal_common/organizations/models.py
-msgid "A date of dissolution"
-msgstr "Ein Auflösungsdatum"
-
-#: kausal_common/organizations/models.py
-msgid "primary language"
-msgstr "Hauptsprache"
-
-#: kausal_common/organizations/models.py
-msgid "Location"
-msgstr "Standort"
-
-#: kausal_common/organizations/models.py kausal_common/people/models.py
-#: nodes/models.py
-msgid "organization"
-msgstr "Organisation"
-
-#: kausal_common/organizations/models.py
-msgid "organizations"
-msgstr "Organisationen"
-
-#: kausal_common/organizations/views.py
-#, python-format
-msgid "New child %(model)s for %(parent)s"
-msgstr "Neues untergeordnetes \"%(model)s\" Objekt für %(parent)s"
-
-#: kausal_common/organizations/views.py
-msgid "This will delete the following objects:"
-msgstr "Dadurch werden die folgenden Objekte gelöscht:"
-
-#: kausal_common/people/api.py kausal_common/people/models.py
-msgid "Person with this email already exists"
-msgstr "Person mit dieser E-Mail-Adresse existiert bereits"
-
-#: kausal_common/people/api.py
-msgid "Not all objects have an email address"
-msgstr "Nicht alle Objekte haben eine E-Mail Adresse"
-
-#: kausal_common/people/api.py
-#, python-format
-msgid "Duplicate email addresses: %s"
-msgstr "Doppelte E-Mail-Adressen: %s"
-
-#: kausal_common/people/chooser.py
-msgid "Create new"
-msgstr "Neu erstellen"
-
-#: kausal_common/people/chooser.py
-msgid "Choose person"
-msgstr "Wähle Person"
-
-#: kausal_common/people/chooser.py
-msgid "Choose a person"
-msgstr "Wähle eine Person"
-
-#: kausal_common/people/chooser.py
-msgid "Choose another person"
-msgstr "Wähle eine andere Person"
-
-#: kausal_common/people/chooser.py
-msgid "Edit this person"
-msgstr "Bearbeite diese Person"
-
-#: kausal_common/people/models.py
-msgid "first name"
-msgstr "Vorname"
-
-#: kausal_common/people/models.py
-msgid "last name"
-msgstr "Nachname"
-
-#: kausal_common/people/models.py
-msgctxt "person's role"
-msgid "title"
-msgstr "Titel"
-
-#: kausal_common/people/models.py
-msgid "postal address"
-msgstr "Anschrift"
-
-#: kausal_common/people/models.py
-#, fuzzy
-#| msgid "Set as instance organization"
-msgid "What is this person's organization"
-msgstr "Als Instanzorganisation festlegen"
-
-#: kausal_common/people/models.py
-msgid "user"
-msgstr "Benutzer"
-
-#: kausal_common/people/models.py
-msgid "Set if the person has an user account"
-msgstr "Setzen, wenn die Person ein Benutzerkonto hat"
-
-#: kausal_common/people/models.py
-msgid "image"
-msgstr "Bild"
-
-#: kausal_common/people/models.py
-msgid "image cropping"
-msgstr "Bildzuschnitt"
-
-#: kausal_common/people/models.py
-msgid "created by"
-msgstr "erstellt von"
-
-#: kausal_common/people/models.py
-msgid "person"
-msgstr "Person"
-
-#: kausal_common/people/models.py
-msgid "people"
-msgstr "Personen"
-
-#: kausal_common/templates/kausal_common/people/chooser_results.html
-#: orgs/models.py people/forms.py
-msgid "Organization"
-msgstr "Organisation"
-
 #: nodes/actions/action.py
 msgid "Included in scenario"
 msgstr "Wird in Szenario berücksichtigt"
@@ -762,7 +295,6 @@ msgid "Electricity saving (kWh/m2/a)"
 msgstr "Stromeinsparung (kWh/m2/a)"
 
 #: nodes/actions/energy_saving.py
-#, python-format
 msgid "Renovation potential (% of floor area)"
 msgstr "Renovierungspotential (% der Grundfläche)"
 
@@ -1708,8 +1240,49 @@ msgstr "Die Knotenklasse hat keine Beschreibung."
 
 #: nodes/explanations.py
 #, python-format
+msgid "The order of operations is %s."
+msgstr "Die Reihenfolge der Operationen ist %s."
+
+#: nodes/explanations.py
+#, python-format
+msgid "Has formula %s."
+msgstr "Hat Formel %s."
+
+#: nodes/explanations.py
+#, python-format
 msgid "Has parameter <i>%(parameter)s</i> with value %(value)s."
 msgstr "Hat Parameter <i>%(parameter)s</i> mit Wert %(value)s."
+
+#: nodes/explanations.py
+msgid "Datasets"
+msgstr "Datensätze"
+
+#: nodes/explanations.py
+#, python-format
+msgid "Dataset with identifier <i>%s</i>"
+msgstr "Datensatz mit Kennung <i>%s</i>"
+
+#: nodes/explanations.py
+#, python-format
+msgid "Uses column: %(name)s"
+msgstr "Verwendet Spalte: %(name)s"
+
+#: nodes/explanations.py
+#, python-format
+msgid "Has forecast values from: %(year)s"
+msgstr "Hat Prognosewerte von: %(year)s"
+
+#: nodes/explanations.py
+msgid "Rows with missing values are dropped."
+msgstr "Zeilen mit fehlenden Werten werden gestrichen."
+
+#: nodes/explanations.py
+msgid "Renames the following columns:"
+msgstr "Benennt die folgenden Spalten um:"
+
+#: nodes/explanations.py
+msgid "Has the following filters:"
+msgstr "Verfügt über die folgenden Filter:"
 
 #: nodes/explanations.py
 #, python-format
@@ -1728,12 +1301,27 @@ msgstr "Filtere Spalte <i>%(name)s</i> durch Einschluss von <i>%(values)s</i> ."
 
 #: nodes/explanations.py
 #, python-format
+msgid "Sum up column <i>%(name)s</i>."
+msgstr "Summiere Spalte <i>%(name)s</i> ."
+
+#: nodes/explanations.py
+#, python-format
+msgid "Drop column <i>%(name)s</i>."
+msgstr "Verwerfe Spalte <i>%(name)s</i> ."
+
+#: nodes/explanations.py
+#, python-format
 msgid "Assign dataset to category <i>%(cat_label)s</i> on dimension <i>%(dim_label)s</i>."
 msgstr "Ordne Datensatz der Kategorie <i>%(cat_label)s</i> in Dimension <i>%(dim_label)s</i> zu."
 
 #: nodes/explanations.py
 msgid "Filter dimension <i>%s(dim_label)s</i> by categories <i>%(cat_labels)s</i>."
 msgstr "Filter Dimension <i>%s(dim_label)s</i> nach Kategorien <i>%(cat_labels)s</i>."
+
+#: nodes/explanations.py
+#, python-format
+msgid "Sum up the dimension <i>%(label)s</i>."
+msgstr "Summiere die Dimension <i>%(label)s</i>."
 
 #: nodes/explanations.py
 #, python-format
@@ -1784,8 +1372,18 @@ msgid "The inputs are used for operations in this order:"
 msgstr "Die Eingaben werden in dieser Reihenfolge für Operationen verwendet:"
 
 #: nodes/explanations.py
+#, python-format
+msgid "Operation %(op)s with nodes:"
+msgstr "Operation %(op)s mit Knoten:"
+
+#: nodes/explanations.py
 msgid "These groups are left over without an operation:"
 msgstr "Diese Gruppen sind ohne eine Operation übrig geblieben:"
+
+#: nodes/explanations.py
+#, python-format
+msgid "Group %(basket)s with nodes:"
+msgstr "Gruppe %(basket)s mit Knoten:"
 
 #: nodes/generic.py
 msgid "Multiply input nodes whose unit does not match the output. Add the rest."
@@ -1865,6 +1463,10 @@ msgstr "Sektoren"
 msgid "Scenarios"
 msgstr "Szenarien"
 
+#: nodes/models.py
+msgid "name"
+msgstr "Name"
+
 #: nodes/models.py pages/models.py
 msgid "Lead title"
 msgstr "Leittitel"
@@ -1876,6 +1478,10 @@ msgstr "Leitabsatz"
 #: nodes/models.py
 msgid "Site URL"
 msgstr "Seiten-URL"
+
+#: nodes/models.py
+msgid "organization"
+msgstr "Organisation"
 
 #: nodes/models.py
 msgid "The main organization for the instance"
@@ -1920,6 +1526,10 @@ msgstr "Ziel"
 #: nodes/models.py
 msgid "Short description"
 msgstr "Kurze Beschreibung"
+
+#: nodes/models.py
+msgid "Description"
+msgstr "Beschreibung"
 
 #: nodes/models.py
 msgid "Nodes"
@@ -2360,6 +1970,10 @@ msgstr "Organisationskennung"
 #: orgs/models.py
 msgid "Organization identifiers"
 msgstr "Organisationskennungen"
+
+#: orgs/models.py people/forms.py
+msgid "Organization"
+msgstr "Organisation"
 
 #: orgs/wagtail_hooks.py
 msgid "Set as instance organization"
@@ -2807,12 +2421,24 @@ msgid "Greek"
 msgstr "Griechisch"
 
 #: paths/utils.py
+msgid "identifier"
+msgstr "Kennung"
+
+#: paths/utils.py
+msgid "unit"
+msgstr "Einheit"
+
+#: paths/utils.py
 msgid "uuid"
 msgstr "UUID"
 
 #: people/apps.py people/models.py people/wagtail_hooks.py
 msgid "People"
 msgstr "Personen"
+
+#: people/forms.py
+msgid "Permissions"
+msgstr "Berechtigungen"
 
 #: people/forms.py
 msgid "Select the role for this person in the current instance"
@@ -2868,241 +2494,9 @@ msgid "Designates whether the user can log into this admin site."
 msgstr "Gibt an, ob sich der Benutzer bei dieser Admin-Seite anmelden kann."
 
 #: users/models.py
+msgid "email address"
+msgstr "E-Mail Adresse"
+
+#: users/models.py
 msgid "adminable instances"
 msgstr "administrierbare Instanzen"
-
-#~ msgid "Label"
-#~ msgstr "Beschriftung"
-
-#~ msgid "Label for the column to be used instead of the default"
-#~ msgstr "Spaltenbeschriftung, die anstelle des Standardwerts verwendet werden soll"
-
-#~ msgid "Help text"
-#~ msgstr "Hilfetext"
-
-#~ msgid "Help text for the column to be shown in the UI"
-#~ msgstr "Hilfetext für die Spalte, der in der Benutzeroberfläche angezeigt werden soll"
-
-#~ msgid "Heading to show instead of the default"
-#~ msgstr "Überschrift, die anstelle der Standardüberschrift angezeigt wird"
-
-#~ msgid "Field label"
-#~ msgstr "Feldbeschriftung"
-
-#~ msgid "Help text for the field to be shown in the UI"
-#~ msgstr "In Benutzeroberfläche anzuzeigender Hilfetext für das Feld"
-
-#, python-format
-#~ msgid "Content block: %(label)s"
-#~ msgstr "Inhaltsblock: %(label)s"
-
-#~ msgid "Label for 'show all'"
-#~ msgstr "Beschriftung für 'Alles anzeigen'"
-
-#, python-format
-#~ msgid "Filter: %(filter_label)s"
-#~ msgstr "Filter: %(filter_label)s"
-
-#~ msgid "dataset metric"
-#~ msgstr "Datensatzmessgröße"
-
-#~ msgid "dataset metrics"
-#~ msgstr "Datensatzmessgrößen"
-
-#~ msgid "Unknown schema"
-#~ msgstr "Unbekanntes Schema"
-
-#, python-format
-#~ msgid "Data source reference in: %(schema)s"
-#~ msgstr "Datenquellenreferenz in: %(schema)s"
-
-#~ msgid "Data source reference"
-#~ msgstr "Datenquellenreferenz"
-
-#~ msgid "Edit dataset"
-#~ msgstr "Datensatz bearbeiten"
-
-#, python-format
-#~ msgid "(Private %(object)s)"
-#~ msgstr "(Privates '%(object)s'-Objekt)"
-
-#, python-format
-#~ msgid "Edit this %(object)s"
-#~ msgstr "Bearbeite dieses '%(object)s'-Objekt"
-
-#~ msgid "Is implemented"
-#~ msgstr "Wird umgesetzt"
-
-#, python-format
-#~ msgid "The order of operations is %s."
-#~ msgstr "Die Reihenfolge der Operationen ist %s."
-
-#, python-format
-#~ msgid "Has formula %s."
-#~ msgstr "Hat Formel %s."
-
-#~ msgid "Datasets"
-#~ msgstr "Datensätze"
-
-#, python-format
-#~ msgid "Dataset with identifier <i>%s</i>"
-#~ msgstr "Datensatz mit Kennung <i>%s</i>"
-
-#, python-format
-#~ msgid "Uses column: %(name)s"
-#~ msgstr "Verwendet Spalte: %(name)s"
-
-#, python-format
-#~ msgid "Has forecast values from: %(year)s"
-#~ msgstr "Hat Prognosewerte von: %(year)s"
-
-#~ msgid "Rows with missing values are dropped."
-#~ msgstr "Zeilen mit fehlenden Werten werden gestrichen."
-
-#~ msgid "Renames the following columns:"
-#~ msgstr "Benennt die folgenden Spalten um:"
-
-#~ msgid "Has the following filters:"
-#~ msgstr "Verfügt über die folgenden Filter:"
-
-#, python-format
-#~ msgid "Sum up column <i>%(name)s</i>."
-#~ msgstr "Summiere Spalte <i>%(name)s</i> ."
-
-#, python-format
-#~ msgid "Drop column <i>%(name)s</i>."
-#~ msgstr "Verwerfe Spalte <i>%(name)s</i> ."
-
-#, python-format
-#~ msgid "Sum up the dimension <i>%(label)s</i>."
-#~ msgstr "Summiere die Dimension <i>%(label)s</i>."
-
-#, python-format
-#~ msgid "Operation %(op)s with nodes:"
-#~ msgstr "Operation %(op)s mit Knoten:"
-
-#, python-format
-#~ msgid "Group %(basket)s with nodes:"
-#~ msgstr "Gruppe %(basket)s mit Knoten:"
-
-#~ msgid ""
-#~ "First add other input nodes, then multiply the output.\n"
-#~ "\n"
-#~ "    Multiplication and addition is determined based on the input node units.\n"
-#~ "    "
-#~ msgstr ""
-#~ "Füge zunächst weitere Eingabeknoten hinzu und multipliziere dann die Ausgabe.\n"
-#~ "\n"
-#~ "    Multiplikation und Addition werden auf der Grundlage der Einheiten der Eingangsknoten bestimmt.\n"
-#~ "    "
-
-#~ msgid "created at"
-#~ msgstr "erstellt am"
-
-#~ msgid "updated at"
-#~ msgstr "aktualisiert am"
-
-#~ msgid "Has parameter"
-#~ msgstr "Hat Parameter"
-
-#~ msgid "with value"
-#~ msgstr "mit Wert"
-
-#, fuzzy
-#~| msgid "Data dimensions"
-#~ msgid "on dimension"
-#~ msgstr "Dimensionen der Daten"
-
-#, fuzzy
-#~| msgid "Data dimensions"
-#~ msgid "Filter dimension"
-#~ msgstr "Dimensionen der Daten"
-
-#, fuzzy
-#~| msgid "name"
-#~ msgid "with name"
-#~ msgstr "Name"
-
-#~ msgid "Comment"
-#~ msgstr "Kommentar"
-
-#~ msgid "NOTE! Add text about the node class."
-#~ msgstr "HINWEIS: Füge einen Text über die Knotenklasse hinzu."
-
-#, python-format
-#~ msgid "    - The tag \"%s\" is given.\n"
-#~ msgstr "    - Der Tag \"%s\" ist angegeben.\n"
-
-#, python-format
-#~ msgid "    - From dimension %s, %s categories %s.\n"
-#~ msgstr "    - Aus der Dimension %s, %s Kategorien %s.\n"
-
-#, python-format
-#~ msgid "    - Sum over dimension %s .\n"
-#~ msgstr "    - Summe über die Dimension %s.\n"
-
-#, python-format
-#~ msgid "    - Add values to the category %s in a new dimension %s.\n"
-#~ msgstr "    - Füge Werte zur Kategorie %s in einer neuen Dimension %s hinzu.\n"
-
-#~ msgid "instance"
-#~ msgstr "Instanz"
-
-#~ msgid "TrajectoryNode uses select_category() to select a category from a dimension."
-#~ msgstr "TrajectoryNode verwendet select_category(), um eine Kategorie aus einer Dimension auszuwählen."
-
-#~ msgid "The created framework config instance."
-#~ msgstr "Die erstellte Rahmenkonfigurationsinstanz."
-
-#~ msgid "Year of the data point. If not given, defaults to the baseline year for the framework instance"
-#~ msgstr "Jahr des Datenpunkts. Wenn nicht angegeben, wird standardmäßig das Basisjahr für die Rahmeninstanz verwendet."
-
-#~ msgid "Welcome to Paths admin"
-#~ msgstr "Willkommen bei Paths Admin"
-
-#~ msgid "Visit the Wagtail website"
-#~ msgstr "Besuchen Sie die Wagtail-Website"
-
-#~ msgid "View the release notes"
-#~ msgstr "Versionshinweise anzeigen"
-
-#~ msgid "Welcome to your new Wagtail site!"
-#~ msgstr "Willkommen auf Ihrer neuen Wagtail-Website!"
-
-#~ msgid "Please feel free to <a href=\"https://github.com/wagtail/wagtail/wiki/Slack\">join our community on Slack</a>, or get started with one of the links below."
-#~ msgstr "Fühlen Sie sich frei, <a href=\"https://github.com/wagtail/wagtail/wiki/Slack\">unserer Community auf Slack beizutreten</a> oder mit einem der folgenden Links zu beginnen."
-
-#~ msgid "Wagtail Documentation"
-#~ msgstr "Wagtail-Dokumentation"
-
-#~ msgid "Topics, references, & how-tos"
-#~ msgstr "Themen, Referenzen und Anleitungen"
-
-#~ msgid "Tutorial"
-#~ msgstr "Tutorial"
-
-#~ msgid "Build your first Wagtail site"
-#~ msgstr "Erstellen Sie Ihre erste Wagtail-Website"
-
-#~ msgid "Admin Interface"
-#~ msgstr "Admin-Oberfläche"
-
-#~ msgid "Create your superuser first!"
-#~ msgstr "Erstellen Sie zuerst Ihren Superuser!"
-
-#~ msgid "Multiplier"
-#~ msgstr "Multiplikator"
-
-#~ msgctxt "year short"
-#~ msgid "yr."
-#~ msgstr "a"
-
-#~ msgid "Cost node"
-#~ msgstr "Kostenknoten"
-
-#, fuzzy
-#~ msgid "Discount node name"
-#~ msgstr "Diskontrate"
-
-#~ msgid "Change in carbon emission price"
-#~ msgstr "Änderung des Kohlenstoffemissionspreises"
