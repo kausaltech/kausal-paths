@@ -10,15 +10,16 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-01-02 15:33+0100\n"
-"PO-Revision-Date: 2025-12-22 13:21+0000\n"
-"Last-Translator: Jan-Erik Sundman <jan-erik.sundman@kausal.tech>\n"
-"Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>\n"
+"PO-Revision-Date: 2026-01-02 14:43+0000\n"
+"Last-Translator: Bernhard Bliem <bernhard.bliem@kausal.tech>\n"
+"Language-Team: German <https://weblate.kausal.tech/projects/paths/django/de/>"
+"\n"
 "Language: de\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 5.12.2\n"
+"X-Generator: Weblate 5.15.1\n"
 
 #: admin_site/api.py
 msgid "Invalid email address"
@@ -899,6 +900,57 @@ msgid ""
 "        Typical values are z_heat = 0.9, z_electricity = 0.4.</li></ol>\n"
 "        "
 msgstr ""
+"\n"
+"        Berechnet die Zuordnung der Emissionen aus Kraft-Wärme-Kopplung "
+"(KWK) gemäß dem\n"
+"        <a href=\"https://ghgprotocol.org/sites/default/files/"
+"CHP_guidance_v1.0.pdf\">\n"
+"        GPC-Protokoll</a>\n"
+"        .\n"
+"        Es gibt mehrere Methoden, aber bei jeder Methode wird der "
+"durchschnittliche Emissionsfaktor des verwendeten Brennstoffmixes\n"
+"        mithilfe der Bruchteile a_heat und a_electricity, die zusammen 1 "
+"ergeben, in zwei Teile aufgeteilt. Sie werden berechnet als\n"
+"        <br/>\n"
+"        a_i = z_i * f_i / sum_j(z_j * f_j),\n"
+"        <br/>\n"
+"        wobei a_i der Bruchteil für jedes Produkt ist (i = Strom, Wärme)\n"
+"        z_i ein methodenspezifischer Multiplikator ist (siehe unten)\n"
+"        f_i der Bruchteil des Produkts i an der insgesamt erzeugten Energie "
+"ist.\n"
+"\n"
+"        <ol><li><b>\n"
+"        Energiemethode</b>\n"
+"        Logik: Energieprodukte werden auf der Grundlage ihres Energiegehalts "
+"gleich behandelt.\n"
+"        Alle z_i = 1\n"
+"\n"
+"        </li><li><b>\n"
+"        Arbeitspotenzialmethode</b>\n"
+"        (auch bekannt als Carnot-Methode oder Exergie-Methode)\n"
+"        Logik: Energieprodukte werden auf der Grundlage ihres "
+"Arbeitspotenzials (d. h. ihres Exergiegehalts) gleich behandelt.\n"
+"        Dadurch verlagern sich die Emissionen in Richtung Strom.\n"
+"        z_Wärme = 1 - T_Rücklauf / T_Zufuhr und\n"
+"        z_Strom = 1.\n"
+"        T_Zufuhr und T_Rücklauf sind die Eingangs- bzw. Ausgangstemperaturen "
+"des Prozesses.\n"
+"\n"
+"        </li><li><b>\n"
+"        Bisko-Methode</b>\n"
+"        Die Bisko-Methode ist eine Variante der Arbeitspotenzialmethode.\n"
+"        Der einzige Unterschied besteht darin, dass Bisko T_return = 283 K "
+"annimmt.\n"
+"\n"
+"        </li><li><b>\n"
+"        Effizienzmethode</b>\n"
+"        Logik: Welche Emissionen wären entstanden, wenn jedes Energieprodukt "
+"separat hergestellt worden wäre?\n"
+"z_i = 1 / n_i,\n"
+"wobei n_i die Referenzeffizienz für die separate Herstellung der Energieart "
+"ist.\n"
+"Typische Werte sind z_heat = 0,9, z_electricity = 0,4.</li></ol>\n"
+"        "
 
 #: nodes/explanations.py
 msgid "Uses 'primary' tagged data when available, otherwise 'secondary' tagged data. One of the tags must be given."
@@ -1425,27 +1477,27 @@ msgstr "Scope 3-Emissionen aus dem vorgelagerten Bereich der Anlage"
 
 #: nodes/generic.py
 msgid "Emission splitting method"
-msgstr ""
+msgstr "Emissionsaufteilungsmethode"
 
 #: nodes/generic.py
 msgid "Fraction of electricity in the output energy"
-msgstr ""
+msgstr "Anteil des Stroms an der Ausgangsleistung"
 
 #: nodes/generic.py
 msgid "Temperature (in K) of district heating supply slow"
-msgstr ""
+msgstr "Temperatur (in K) der Fernwärmeversorgung langsam"
 
 #: nodes/generic.py
 msgid "Temperature (in K) of district heating return flow"
-msgstr ""
+msgstr "Temperatur (in K) des Rücklaufs der Fernwärme"
 
 #: nodes/generic.py
 msgid "Efficiency of producing electricity separately"
-msgstr ""
+msgstr "Effizienz der getrennten Stromerzeugung"
 
 #: nodes/generic.py
 msgid "Efficiency of producing heat separately"
-msgstr ""
+msgstr "Effizienz der getrennten Wärmeerzeugung"
 
 #: nodes/gpc.py
 msgid "This is a DatasetNode. It takes in a specifically formatted dataset and converts the relevant part into a node output."
@@ -1879,11 +1931,11 @@ msgstr "M vkm"
 
 #: nodes/units.py
 msgid "Disability-adjusted lifeyear"
-msgstr ""
+msgstr "Behinderungsbereinigtes Lebensjahr"
 
 #: nodes/units.py
 msgid "DALY"
-msgstr ""
+msgstr "DALY"
 
 #: nodes/values.py
 msgid ""
@@ -2334,7 +2386,7 @@ msgstr "Jährliche Wetternormalisierung für den Energieverbrauch"
 
 #: params/global_params.py
 msgid "Are biogenic emissions included in total emissions?"
-msgstr ""
+msgstr "Sind biogene Emissionen in den Gesamtemissionen enthalten?"
 
 #: params/global_params.py
 msgid "Normalization for matching statistical data"
