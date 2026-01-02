@@ -424,6 +424,7 @@ WAGTAIL_I18N_ENABLED = True
 USE_TZ = True
 LOCALE_PATHS = [
     str(BASE_DIR / Path('locale')),
+    str(BASE_DIR / Path('kausal_common/locale')),
 ]
 
 WAGTAILSEARCH_BACKENDS = {
