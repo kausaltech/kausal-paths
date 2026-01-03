@@ -4,7 +4,7 @@ supported_languages: [en]
 site_url: https://bisko.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: d0b10cea132a35beef60e4b0d1ed7b8d19d53257
+  commit: 27fb832aed994de5b77a0d89571bdbe6dfe74499
   dvc_remote: kausal-s3
 name: Klima-Monitor-BISKO
 owner: Kausal Ltd
@@ -72,23 +72,23 @@ dimensions:
   - id: petrol
     label_en: Petrol
     label_de: Benzin
-    aliases: [benzin_fossil, benzin]
+    aliases: [benzin_fossil, benzin, Benzin fossil]
   - id: bio_petrol
     label_en: Bio petrol
     label_de: Biobenzin
-    aliases: [benzin_biogen, biobenzin]
+    aliases: [benzin_biogen, biobenzin, Benzin Bio]
   - id: diesel
     label_en: Diesel
     label_de: Diesel
-    aliases: [diesel_fossil]
+    aliases: [diesel_fossil, Diesel fossil]
   - id: biodiesel
     label_en: Biodiesel
     label_de: Diesel biogen
-    aliases: [diesel_biogen]
+    aliases: [diesel_biogen, Diesel Bio]
   - id: kerosene
     label_en: Kerosene
     label_de: Kerosin
-    aliases: [kerosin]
+    aliases: [kerosin, Kerosin fossil]
   - id: heating_oil
     label_en: Heating oil
     label_de: Heizöl
@@ -107,6 +107,7 @@ dimensions:
   - id: cng_fossil
     label_en: CNG fossil
     label_de: CNG fossil
+    aliases: [CNG]
   - id: cng_bio
     label_en: CNG bio
     label_de: CNG bio
@@ -240,14 +241,6 @@ dimensions:
     label_en: Waste
     label_de: Abfall
 
-- id: upstream_included
-  label_en: Upstream included
-  label_de: Upstream umfasste
-  categories:
-  - id: 'yes'
-    label_en: 'Yes'
-    label_de: Ja
-
 - id: per_what_energy
   label_en: Per what energy
   label_de: Pro welcher Energie
@@ -290,6 +283,7 @@ dimensions:
   - id: total
     label_en: Total
     label_de: Total
+    aliases: [alle]
   - id: rail
     label_en: Rail
     label_de: Eisenbahn
@@ -350,12 +344,20 @@ dimensions:
     label_de: Wärme
     aliases: [warme]
 
+- id: upstream_included
+  label_en: Upstream included
+  label_de: Upstream umfasste
+  categories:
+  - id: yes
+    label_en: Yes
+    label_de: Ja
+
 - id: vehicle_type
-  label_en: Vehicle Type
+  label_en: Vehicle type
   label_de: Fahrzeugtyp
   categories:
   - id: passenger_cars
-    label_en: Passenger Cars
+    label_en: Passenger cars
     label_de: Personenkraftwagen (PKW)
     aliases: [Pkw]
   - id: trucks
@@ -363,22 +365,26 @@ dimensions:
     label_de: Lastkraftwagen (LKW)
     aliases: [Lkw]
   - id: vans
-    label_en: Light Commercial Vehicles
+    label_en: Light commercial vehicles
     label_de: Leichte Nutzfahrzeuge
     aliases: [LNF]
   - id: heavy_commercial
-    label_en: Heavy Commercial Vehicles
+    label_en: Heavy commercial vehicles
     label_de: Schwere Nutzfahrzeuge
   - id: buses
     label_en: Buses
     label_de: Busse
     aliases: [Bus, Linienbus]
+  - id: coach_buses
+    label_en: Coach buses
+    label_de: Reisebusse
+    aliases: [Reisebus]
   - id: local_buses
-    label_en: Local Buses
+    label_en: Local buses
     label_de: Lokale Busse
     aliases: [Lbus]
   - id: long_distance_buses
-    label_en: Long-distance Buses
+    label_en: Long-distance buses
     label_de: Regionale busse
     aliases: [Rbus]
   - id: motorcycles
@@ -392,9 +398,13 @@ dimensions:
     label_en: Trains
     label_de: Züge
   - id: rail_vehicles
-    label_en: Rail Vehicles
+    label_en: Rail vehicles
     label_de: Schienenfahrzeuge
     aliases: [SSU, 'Straßen, Stadt- und U-Bahnen']
+  - id: tram
+    label_en: Tram
+    label_de: Straßenbahn
+    aliases: [Tram]
   - id: local_trains
     label_en: Local trains
     label_de: Schienenpersonennahverkehr
@@ -494,20 +504,38 @@ nodes:
   output_nodes:
   - id: net_emissions
 
-- id: transport_emissions
+- id: transport_emissions # FIXME Combine branches at energy, not emission level.
   name: Verkehr-Emissionen
   name_en: Transport emissions
   color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: kt_co2e/a
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_nodes:
   - id: final_transport_energy_use
+    tags: [energy]
   - id: emission_factors
+    tags: [ef]
+  - id: road_transport_emissions
+    tags: [emissions_road]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: road_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
+      categories: [transport]
+  - id: mileage_multiplier
+    tags: [mileage]
+    to_dimensions: []
   output_nodes:
   - id: net_emissions
+  params:
+    formula: energy * ef * complement(mileage) + emissions_road * mileage
 
 - id: weather_correction
   name: Witterungsbereinigung
@@ -658,14 +686,14 @@ nodes:
     tags: [baseline]
     column: Value
 
-- id: emission_factors
+- id: emission_factors # FIXME Check for koeln-dev implementation.
   name: Emissionsfaktoren
   name_en: Emission factors
   type: generic.GenericNode
   quantity: emission_factor
   unit: g_co2e/kWh
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
   input_nodes:
   - id: historical_emissions
   - id: final_energy_use
@@ -913,7 +941,8 @@ nodes:
     tags: [primary]
     from_dimensions:
     - id: vehicle_type
-      categories: [rail_vehicles, local_trains, long_distance_trains, cargo_trains, inland_waterway_shipping, air_transport]
+      categories: [rail_vehicles, local_trains, long_distance_trains, 
+          cargo_trains, inland_waterway_shipping, air_transport]
   - id: other_transport_activity
   params:
     operations: add,coalesce
@@ -950,6 +979,133 @@ nodes:
     t_return: 283
     electricity_reference_efficiency: 0.4
     heat_reference_efficiency: 0.9
+
+- id: transport_energy_factors
+  name_en: Transport energy factors
+  name_de: Verkehrsenergiefaktoren
+  description_de: Spezifische Endenergieverbrauchsfaktoren im Straßenverkehr 
+    sowie bei Straßen-/Stadt- und U-Bahnen
+  description_en: Specific end energy consumption factors in road transport as 
+    well as in suburban and urban rail transport
+  type: generic.GenericNode
+  quantity: energy_factor
+  unit: kWh/vkm
+  input_dimensions: [vehicle_type, energy_carrier, road_type]
+  output_dimensions: [vehicle_type, energy_carrier, road_type]
+  input_datasets:
+  - id: bisko/energy_factor
+    tags: [baseline]
+    column: Value
+
+- id: transport_energy_shares
+  name_en: Transport energy shares
+  name_de: Verkehrsenergieanteile
+  type: generic.GenericNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [vehicle_type, energy_carrier, road_type]
+  output_dimensions: [vehicle_type, energy_carrier, road_type]
+  input_datasets:
+  - id: bisko/energy_shares
+    tags: [baseline]
+    column: Value
+
+- id: passengers_per_vehicle
+  name_en: Passengers per vehicle
+  name_de: Passagiere pro Fahrzeug
+  type: generic.GenericNode
+  quantity: number
+  unit: p/v
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_datasets:
+  - id: bisko/load_per_vehicle
+    tags: [baseline]
+    column: Passengers
+
+- id: passenger_activity
+  name_en: Passenger activity
+  name_de: Passagiere
+  type: generic.GenericNode
+  quantity: activity
+  unit: Mpkm/a
+  input_dimensions: [vehicle_type, road_type]
+  output_dimensions: [vehicle_type, road_type]
+  input_nodes:
+  - id: passengers_per_vehicle
+    to_dimensions:
+    - id: vehicle_type
+  - id: road_transport_activity
+    to_dimensions:
+    - id: vehicle_type
+    - id: road_type
+
+- id: road_transport_energy
+  name_en: Road transport energy
+  name_de: Straßenverkehrsenergie
+  type: generic.GenericNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [vehicle_type, road_type, energy_carrier]
+  output_dimensions: [vehicle_type, road_type, energy_carrier]
+  input_nodes:
+  - id: transport_energy_factors
+    to_dimensions:
+    - id: vehicle_type
+    - id: road_type
+    - id: energy_carrier
+  - id: transport_energy_shares
+    to_dimensions:
+    - id: vehicle_type
+    - id: road_type
+    - id: energy_carrier
+  - id: road_transport_activity
+    to_dimensions:
+    - id: vehicle_type
+    - id: road_type
+
+- id: transport_emission_factors
+  name_en: Transport emission factors
+  name_de: Verkehrsemissionsfaktoren
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g_co2e/kWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: bisko/emission_factor
+    tags: [baseline]
+    column: Well-to-wheel
+
+- id: road_transport_emissions
+  name_en: Road transport emissions
+  name_de: Straßenverkehrsemissionen
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [vehicle_type, road_type, energy_carrier]
+  output_dimensions: [vehicle_type, road_type, energy_carrier]
+  input_nodes:
+  - id: road_transport_energy
+    to_dimensions:
+    - id: vehicle_type
+    - id: road_type
+    - id: energy_carrier
+  - id: transport_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+
+actions:
+
+- id: mileage_multiplier # FIXME Consider using global parameter.
+  name_en: Use mileage rather than energy for transport
+  name_de: Nutzen Sie für den Transport die zurückgelegte Strecke anstatt den 
+    Energieverbrauch.
+  type: simple.AdditiveAction
+  quantity: ratio
+  unit: dimensionless
+  historical_values: [[1990, 1.0], [2050, 1.0]]
+  input_dataset_processors: [LinearInterpolation]
 
 pages:
 - id: home
