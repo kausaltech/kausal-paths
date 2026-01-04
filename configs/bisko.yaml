@@ -27,6 +27,7 @@ features:
 params:
 - id: weather_correction
   label_de: Wetterkorrektur durchführen?
+  label_en: Perform weather correction?
   value: true
   is_customizable: true
   is_visible: true
@@ -40,6 +41,12 @@ params:
   label_en: Use national rather than local electricity emission factors (BISKO)
   label_de: Verwenden Sie nationale statt lokaler Stromemissionsfaktoren 
     (BISKO).
+  value: true
+  is_visible: true
+  is_customizable: true
+- id: use_mileage
+  label_en: Use BISKO mileage statistics rather than own energy data for transport
+  label_de: Nutzen Sie die BISKO-Transportstatistiken anstatt der eigenen Energieverbrauchsdaten für den Transport.
   value: true
   is_visible: true
   is_customizable: true
@@ -58,7 +65,7 @@ result_excels:
   - emission_factors_without_fuel_data
   - emission_factors_for_district_heating_by_generic_fuel
   - road_transport_activity
-  - other_transport_activity
+  - other_transport_energy
 
 dimensions:
 
@@ -504,39 +511,6 @@ nodes:
   output_nodes:
   - id: net_emissions
 
-- id: transport_emissions # FIXME Combine branches at energy, not emission level.
-  name: Verkehr-Emissionen
-  name_en: Transport emissions
-  color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
-  type: formula.FormulaNode
-  quantity: emissions
-  unit: kt_co2e/a
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_nodes:
-  - id: final_transport_energy_use
-    tags: [energy]
-  - id: emission_factors
-    tags: [ef]
-  - id: road_transport_emissions
-    tags: [emissions_road]
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
-    - id: road_type
-      flatten: true
-    to_dimensions:
-    - id: energy_carrier
-    - id: sector
-      categories: [transport]
-  - id: mileage_multiplier
-    tags: [mileage]
-    to_dimensions: []
-  output_nodes:
-  - id: net_emissions
-  params:
-    formula: energy * ef * complement(mileage) + emissions_road * mileage
-
 - id: weather_correction
   name: Witterungsbereinigung
   name_en: Weather Correction
@@ -909,9 +883,9 @@ nodes:
     - column: municipality
       ref: municipality_name
 
-- id: other_transport_activity
-  name_en: Other transport activity
-  name_de: Aktivität
+- id: other_transport_energy
+  name_en: Other transport energy
+  name_de: Andere Transportenergie
   type: generic.GenericNode
   quantity: energy
   unit: MWh/a
@@ -928,24 +902,55 @@ nodes:
     - column: municipality
       ref: municipality_name
 
-- id: other_transport_energy
-  name: Andere Verkehr Energie
-  name_en: Other transport energy
-  type: generic.CoalesceNode
+- id: use_transport_statistics_bisko
+  name: Verwenden Sie die Transportstatistiken von BISKO
+  name_en: Use transport statistics from BISKO
+  type: generic.GenericNode
+  quantity: fraction
+  unit: dimensionless
+  input_datasets:
+  - id: koeln/sector_index # TODO Use Bisko-specific dataset.
+    tags: [baseline]
+    filters:
+    - column: sector
+      value: other
+  params:
+  - id: operations
+    value: do_correction,extend_to_history
+  - id: do_correction
+    ref: use_mileage
+  - id: no_correction_value
+    value: 0.0
+
+- id: transport_energy
+  name: Transportenergie
+  name_en: Transport energy
+  type: formula.FormulaNode
   quantity: energy
   unit: MWh/a
-  input_dimensions: [vehicle_type, energy_carrier]
-  output_dimensions: [vehicle_type, energy_carrier]
+  input_dimensions: [vehicle_type, energy_carrier, road_type]
+  output_dimensions: [vehicle_type, energy_carrier, road_type]
   input_nodes:
   - id: transport_energy_own_data
-    tags: [primary]
-    from_dimensions:
+    tags: [own]
+    to_dimensions:
     - id: vehicle_type
-      categories: [rail_vehicles, local_trains, long_distance_trains, 
-          cargo_trains, inland_waterway_shipping, air_transport]
-  - id: other_transport_activity
+    - id: energy_carrier
+    - id: road_type
+      categories: [total]
+  - id: other_transport_energy
+    tags: [other_bisko]
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+    - id: road_type
+      categories: [total]
+  - id: road_transport_energy_bisko
+    tags: [road_bisko]
+  - id: use_transport_statistics_bisko
+    tags: [use_mileage]
   params:
-    operations: add,coalesce
+    formula: complement(use_mileage) * own + use_mileage * (other_bisko + road_bisko)
 
 # - id: total_emissions
 #   name: Gesamtemissionen
@@ -1040,7 +1045,7 @@ nodes:
     - id: vehicle_type
     - id: road_type
 
-- id: road_transport_energy
+- id: road_transport_energy_bisko
   name_en: Road transport energy
   name_de: Straßenverkehrsenergie
   type: generic.GenericNode
@@ -1064,7 +1069,7 @@ nodes:
     - id: vehicle_type
     - id: road_type
 
-- id: transport_emission_factors
+- id: transport_emission_factors # FIXME Must have EF for Fuels and Electricity.
   name_en: Transport emission factors
   name_de: Verkehrsemissionsfaktoren
   type: generic.GenericNode
@@ -1077,16 +1082,17 @@ nodes:
     tags: [baseline]
     column: Well-to-wheel
 
-- id: road_transport_emissions
-  name_en: Road transport emissions
-  name_de: Straßenverkehrsemissionen
+- id: transport_emissions
+  name_en: Transport emissions
+  name_de: Transportemissionen
   type: generic.GenericNode
   quantity: emissions
-  unit: t_co2e/a
+  unit: kt_co2e/a
+  color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
   input_dimensions: [vehicle_type, road_type, energy_carrier]
   output_dimensions: [vehicle_type, road_type, energy_carrier]
   input_nodes:
-  - id: road_transport_energy
+  - id: transport_energy
     to_dimensions:
     - id: vehicle_type
     - id: road_type
@@ -1094,18 +1100,17 @@ nodes:
   - id: transport_emission_factors
     to_dimensions:
     - id: energy_carrier
-
-actions:
-
-- id: mileage_multiplier # FIXME Consider using global parameter.
-  name_en: Use mileage rather than energy for transport
-  name_de: Nutzen Sie für den Transport die zurückgelegte Strecke anstatt den 
-    Energieverbrauch.
-  type: simple.AdditiveAction
-  quantity: ratio
-  unit: dimensionless
-  historical_values: [[1990, 1.0], [2050, 1.0]]
-  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: road_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
+      categories: [transport]
 
 pages:
 - id: home

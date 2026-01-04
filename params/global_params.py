@@ -192,6 +192,11 @@ class BiogenicInclusion(BoolParameter):
     id = 'biogenic_inclusion'
 
 
+class UseMileage(BoolParameter):
+    name = _('Use mileage rather than energy for transport')
+    id = 'use_mileage'
+
+
 class StatisticalNormalization(BoolParameter):
     name = _('Normalization for matching statistical data')
     id = 'statistical_correction'
