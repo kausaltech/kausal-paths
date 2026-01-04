@@ -7,7 +7,7 @@ supported_languages: [en]
 site_url: https://koeln-dev.paths.staging.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 2781aebf9aee0e4fc44515189d1615451131d95b
+  commit: 84f4af388249f1c83e95f6afb816e74bb883981e
   dvc_remote: kausal-s3
   # Data from https://docs.google.com/spreadsheets/d/1qUIUgAE1Sqbt6qIClxEypuWRi0GpQQUc/edit?gid=1907288926#gid=1907288926
 name: Treibhausgasinventar
@@ -53,14 +53,14 @@ params:
   value: Köln
 - id: statistical_correction
   label_en: Use national rather than local electricity emission factors (BISKO)
-  label_de: Verwenden Sie nationale statt lokaler Stromemissionsfaktoren 
-    (BISKO)
+  label_de: Verwenden Sie nationale statt lokaler Stromemissionsfaktoren (BISKO)
   value: true
   is_visible: true
   is_customizable: true
 - id: weather_correction
   label_de: Wetterkorrektur durchführen?
-  value: true
+  label_en: Perform weather correction?
+  value: false
   is_customizable: true
   is_visible: true
 
@@ -286,6 +286,23 @@ nodes:
     - year: 2050
       value: 163
 
+- id: weather_correction
+  name: Witterungsbereinigung
+  name_en: Weather Correction
+  type: generic.GenericNode
+  quantity: ratio
+  unit: dimensionless
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_datasets:
+  - id: koeln/weather_correction
+    tags: [baseline]
+  params:
+  - id: operations
+    value: do_correction
+  - id: do_correction
+    ref: weather_correction
+
 - id: population
   name_en: Inhabitants
   name_de: Einwohner*in
@@ -373,6 +390,8 @@ nodes:
       values: [total]
       exclude: true
       drop_col: false
+  input_nodes:
+  - id: weather_correction
   output_nodes: [final_energy_use]
 
 - id: final_private_household_energy_use
@@ -395,6 +414,8 @@ nodes:
       values: [total]
       exclude: true
       drop_col: false
+  input_nodes:
+  - id: weather_correction
   output_nodes: [final_energy_use]
 
 - id: final_industry_energy_use
