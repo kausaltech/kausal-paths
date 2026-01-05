@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import ast
-from typing import Any, Callable, NamedTuple, TypeVar
+from typing import Any, Callable, Literal, NamedTuple, TypeVar
 
 from django.utils.translation import gettext_lazy as _
 
@@ -11,7 +11,7 @@ from common import polars as ppl
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
 from nodes.units import Quantity, QuantityType
-from params.param import BoolParameter, StringParameter
+from params.param import BoolParameter, NumberParameter, StringParameter
 
 from .node import Node
 
@@ -23,6 +23,7 @@ type EvalOutput = PDF | QuantityType
 class EvalVars(NamedTuple):
     nodes: dict[str, Node]
     datasets: dict[str, PDF]
+    parameters: dict[str, Quantity]
 
 
 ASTType = TypeVar('ASTType', bound=ast.expr)
@@ -37,7 +38,8 @@ class FormulaNode(Node):
     explanation = _('This is a Formula Node. It uses a specified formula to calculate the output.')
     allowed_parameters = [
         StringParameter(local_id='formula'),
-        BoolParameter(local_id='extend_last_historical_value')
+        BoolParameter(local_id='extend_last_historical_value'),
+        NumberParameter(local_id='constant', label='Constant value to add to the formula', is_customizable=True)
     ]
 
     # Use varss instead of vars for variables to avoid shadowing.
@@ -48,18 +50,18 @@ class FormulaNode(Node):
         q = Quantity(node.value)
         return q  # pyright: ignore[reportReturnType]
 
-    def eval_name(self, name: ast.Name, varss: EvalVars) -> PDF:
+    def eval_name(self, name: ast.Name, varss: EvalVars) -> EvalOutput:
         if name.id in varss.nodes:
             node = varss.nodes[name.id]
-            df = node.get_output_pl(target_node=self)
-        else:
+            return node.get_output_pl(target_node=self)
+        if name.id in varss.datasets:
             df = varss.datasets[name.id]
             if FORECAST_COLUMN not in df.columns:
                 is_forecast = False
                 df = df.with_columns(pl.lit(is_forecast).alias(FORECAST_COLUMN))
             assert len(df.metric_cols) == 1
-            df = df.rename({df.metric_cols[0]: VALUE_COLUMN})
-        return df
+            return df.rename({df.metric_cols[0]: VALUE_COLUMN})
+        return varss.parameters[name.id]
 
     def apply_binom(
         self, left: EvalOutput, right: EvalOutput, both_df: BinomBothDF, left_df: BinomLeftDF,
@@ -107,10 +109,7 @@ class FormulaNode(Node):
         def both_df(df1: PDF, df2: PDF) -> PDF:
             return df1.paths.multiply_with_dims(df2, how='inner')
         def one_df(df: PDF, val: Quantity) -> PDF:
-            df_unit = df.get_unit(VALUE_COLUMN)
-            df = df.with_columns(pl.col(VALUE_COLUMN) * pl.lit(val.m))
-            df = df.set_unit(VALUE_COLUMN, df_unit * val.units)
-            return df
+            return df.multiply_quantity(VALUE_COLUMN, val)
         def both_quantity(val1: Quantity, val2: Quantity) -> Quantity:
             out = val1 * val2
             assert isinstance(out, Quantity)
@@ -139,41 +138,66 @@ class FormulaNode(Node):
             return out
         return self.apply_binom(left, right, both_df, left_df, right_df, both_quantity)
 
+    def _compare_pdf_quantity(self, df: PDF, val: Quantity, op: str) -> PDF:
+        """Compare a PDF with a Quantity using the specified operation."""
+        converted_val = val.to(df.get_unit(VALUE_COLUMN))
+        val_m: float = converted_val.m
+        op_map = {
+            'eq': pl.col(VALUE_COLUMN).eq(pl.lit(val_m)),
+            'ne': pl.col(VALUE_COLUMN).ne(pl.lit(val_m)),
+            'gt': pl.col(VALUE_COLUMN).gt(pl.lit(val_m)),
+            'ge': pl.col(VALUE_COLUMN).ge(pl.lit(val_m)),
+            'lt': pl.col(VALUE_COLUMN).lt(pl.lit(val_m)),
+            'le': pl.col(VALUE_COLUMN).le(pl.lit(val_m)),
+        }
+        df = df.with_columns(op_map[op].cast(pl.Float64).alias(VALUE_COLUMN))
+        return df.set_unit(VALUE_COLUMN, 'dimensionless', force=True)
+
+    def _apply_compare(
+        self, left: EvalOutput, right: EvalOutput, op: Literal['eq', 'ne', 'gt', 'ge', 'lt', 'le']
+    ) -> EvalOutput:
+        """Apply comparison operation, handling PDF vs PDF, PDF vs Quantity, and Quantity vs PDF."""
+        # Map for reversing operations when Quantity is on the left
+        reverse_op_map: dict[Literal['eq', 'ne', 'gt', 'ge', 'lt', 'le'], Literal['eq', 'ne', 'gt', 'ge', 'lt', 'le']] = {
+            'eq': 'eq',
+            'ne': 'ne',
+            'gt': 'lt',
+            'ge': 'le',
+            'lt': 'gt',
+            'le': 'ge',
+        }
+
+        if isinstance(left, PDF) and isinstance(right, PDF):
+            return left.paths.compare_df(right, op=op)
+        if isinstance(left, PDF) and isinstance(right, Quantity):
+            return self._compare_pdf_quantity(left, right, op)
+        if isinstance(left, Quantity) and isinstance(right, PDF):
+            return self._compare_pdf_quantity(right, left, reverse_op_map[op])
+        raise NotImplementedError("Comparisons require at least one PathsDataFrame")
+
     def apply_eq(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
         """Equal comparison (==)."""
-        if not isinstance(left, PDF) or not isinstance(right, PDF):
-            raise NotImplementedError("Comparisons only supported between PathsDataFrames")
-        return left.paths.compare_df(right, op='eq')
+        return self._apply_compare(left, right, 'eq')
 
     def apply_ne(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
         """Not equal comparison (!=)."""
-        if not isinstance(left, PDF) or not isinstance(right, PDF):
-            raise NotImplementedError("Comparisons only supported between PathsDataFrames")
-        return left.paths.compare_df(right, op='ne')
+        return self._apply_compare(left, right, 'ne')
 
     def apply_lt(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
         """Less than comparison (<)."""
-        if not isinstance(left, PDF) or not isinstance(right, PDF):
-            raise NotImplementedError("Comparisons only supported between PathsDataFrames")
-        return left.paths.compare_df(right, op='lt')
+        return self._apply_compare(left, right, 'lt')
 
     def apply_le(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
         """Less than or equal comparison (<=)."""
-        if not isinstance(left, PDF) or not isinstance(right, PDF):
-            raise NotImplementedError("Comparisons only supported between PathsDataFrames")
-        return left.paths.compare_df(right, op='le')
+        return self._apply_compare(left, right, 'le')
 
     def apply_gt(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
         """Greater than comparison (>)."""
-        if not isinstance(left, PDF) or not isinstance(right, PDF):
-            raise NotImplementedError("Comparisons only supported between PathsDataFrames")
-        return left.paths.compare_df(right, op='gt')
+        return self._apply_compare(left, right, 'gt')
 
     def apply_ge(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
         """Greater than or equal comparison (>=)."""
-        if not isinstance(left, PDF) or not isinstance(right, PDF):
-            raise NotImplementedError("Comparisons only supported between PathsDataFrames")
-        return left.paths.compare_df(right, op='ge')
+        return self._apply_compare(left, right, 'ge')
 
     def eval_binop(self, node: ast.BinOp, varss: EvalVars) -> EvalOutput:
         OPERATIONS: dict[type, Callable[[EvalOutput, EvalOutput], EvalOutput]] = {
@@ -216,7 +240,7 @@ class FormulaNode(Node):
 
         # Evaluate first argument
         assert len(node.args) >= 1, f"Function {func} requires at least one argument"
-        df = self.eval_tree(node.args[0], varss) # Get the first result
+        df = self.eval_tree(node.args[0], varss)  # Get the first result
 
         # Try PathsExt operations first
         if isinstance(df, PDF) and func in df.paths.OPERATIONS:
@@ -275,7 +299,7 @@ class FormulaNode(Node):
         assert isinstance(ret, PDF)
         return ret
 
-    def compute(self) -> PDF:
+    def _collect_eval_vars(self) -> EvalVars:  # noqa: C901
         nodes = {}
         for edge in self.edges:
             if edge.output_node != self:
@@ -298,8 +322,22 @@ class FormulaNode(Node):
                 if df is not None:
                     datasets[tag] = df
 
+        # Collect parameters that have units (for use in formulas)
+        from params.param import ParameterWithUnit
+        parameters: dict[str, Quantity] = {}
+        for param_id, param in self.parameters.items():
+            if isinstance(param, ParameterWithUnit) and param.unit is not None:
+                val = self.get_parameter_value(param_id, required=False, units=True)
+                if val is not None:
+                    assert isinstance(val, Quantity)
+                    parameters[param_id] = val
+
+        return EvalVars(nodes, datasets, parameters)
+
+    def compute(self) -> PDF:
+        varss = self._collect_eval_vars()
         formula = self.get_parameter_value_str('formula')
-        df = self.evaluate_formula(formula, EvalVars(nodes, datasets))
+        df = self.evaluate_formula(formula, varss)
         df = df.ensure_unit(VALUE_COLUMN, self.get_default_output_metric().unit)
         extend = self.get_parameter_value('extend_last_historical_value', required=False)
         if extend:
