@@ -35,6 +35,7 @@ class PathsExt:
         self._df = df
 
         self.OPERATIONS: dict[str, Callable[..., ppl.PathsDataFrame]] = {
+            'abs': self._absolute,
             'absolute': self._absolute,
             'add_missing_years': self._add_missing_years,
             'arithmetic_inverse': self._arithmetic_inverse,
@@ -48,6 +49,7 @@ class PathsExt:
             'drop_nans': self._drop_nans,
             'drop_unnecessary_levels': self._drop_unnecessary_levels,
             'empty_to_zero': self._empty_to_zero,
+            'exp': self._exponential,
             'expectation': self._expectation,
             'extend_forecast_values': self._extend_forecast_values,
             'extend_to_history': self._extend_to_history,
@@ -58,8 +60,10 @@ class PathsExt:
             'ignore_content': self._ignore_content,
             'indifferent_history_ratio': self._indifferent_history_ratio,
             'inventory_only': self._inventory_only,
+            'log': self._logarithmic,
             'make_nonnegative': self._make_nonnegative,
             'make_nonpositive': self._make_nonpositive,
+            'minus': self._arithmetic_inverse,
             'ratio_to_last_historical_value': self._ratio_to_last_historical_value,
             'scale_by_reference_year': self._scale_by_reference_year,
             'truncate_before_start': self._truncate_before_start,
@@ -488,6 +492,53 @@ class PathsExt:
         df = df.with_columns(expr).drop('_Right')
         return df
 
+    def compare_df( # Based on add_with_dims
+            self,
+            odf: ppl.PathsDataFrame,
+            how: Literal['left', 'inner', 'outer'] = 'outer',
+            op: Literal['eq', 'ne', 'gt', 'ge', 'lt', 'le'] = 'eq'
+        ) -> ppl.PathsDataFrame:
+        """Add two PathsDataFrames with dimension awareness."""
+        df = self._df
+        if len(df.metric_cols) != 1 or len(odf.metric_cols) != 1:
+            raise Exception("Currently adding only one metric column is supported.")
+        val_col = df.metric_cols[0]
+
+        if set(df.dim_ids) != set(odf.dim_ids):
+            raise ValueError(f"Dimensions must match for comparison: {df.dim_ids} vs {odf.dim_ids}.")
+
+        # Ensure same unit for comparison
+        output_unit = df.get_unit(val_col)
+        odf = odf.ensure_unit(val_col, output_unit)
+
+        # For comparison: how='outer', index_from='left' because we want all rows but not new dimensions
+        jdf = df.paths.join_over_index(
+            odf,
+            how=how,
+            index_from='left'
+        )
+        right_col = pl.col(f"{val_col}_right")
+        opfunc = {
+            'eq': pl.col(val_col).eq(right_col),
+            'ne': pl.col(val_col).ne(right_col),
+            'gt': pl.col(val_col).gt(right_col),
+            'ge': pl.col(val_col).ge(right_col),
+            'lt': pl.col(val_col).lt(right_col),
+            'le': pl.col(val_col).le(right_col),
+        }
+        if op not in opfunc:
+            raise ValueError(f"Invalid operation: {op}")
+        expr = opfunc[op]
+        jdf = jdf.with_columns(expr.cast(pl.Float64).alias(val_col))
+
+        cols = [YEAR_COLUMN, FORECAST_COLUMN, val_col] + df.dim_ids
+        jdf = jdf.select([col for col in cols if col in jdf.columns])
+
+        # Comparison results are boolean, so set unit to dimensionless
+        jdf = jdf.set_unit(val_col, 'dimensionless', force=True)
+
+        return jdf
+
     def concat_vertical(self, other: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         df = self._df
         df_cols = set(df.columns)
@@ -546,7 +597,7 @@ class PathsExt:
         assert isinstance(max_year, int)
         return max_year
 
-# ----------------- Standard PathsDataFrame operations with only node parameter
+# ----------------- Standard PathsDataFrame unary operations with only node parameter
 
     def _absolute(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         return df.with_columns(pl.col(VALUE_COLUMN).abs().alias(VALUE_COLUMN))
@@ -651,6 +702,10 @@ class PathsExt:
             .alias(VALUE_COLUMN),
         )
 
+    def _exponential(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
+        df = df.ensure_unit(VALUE_COLUMN, 'dimensionless')
+        return df.with_columns(pl.col(VALUE_COLUMN).exp().alias(VALUE_COLUMN))
+
     def _expectation(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         if UNCERTAINTY_COLUMN in df.columns:
             meta = df.get_meta()
@@ -726,6 +781,10 @@ class PathsExt:
             .alias(FORECAST_COLUMN),
         )
         return df.filter(~pl.col(FORECAST_COLUMN))
+
+    def _logarithmic(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
+        df = df.ensure_unit(VALUE_COLUMN, 'dimensionless')
+        return df.with_columns(pl.col(VALUE_COLUMN).log().alias(VALUE_COLUMN))
 
     def _make_nonnegative(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         return df.with_columns(pl.max_horizontal(VALUE_COLUMN, 0.0))

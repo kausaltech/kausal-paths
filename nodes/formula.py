@@ -139,6 +139,42 @@ class FormulaNode(Node):
             return out
         return self.apply_binom(left, right, both_df, left_df, right_df, both_quantity)
 
+    def apply_eq(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
+        """Equal comparison (==)."""
+        if not isinstance(left, PDF) or not isinstance(right, PDF):
+            raise NotImplementedError("Comparisons only supported between PathsDataFrames")
+        return left.paths.compare_df(right, op='eq')
+
+    def apply_ne(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
+        """Not equal comparison (!=)."""
+        if not isinstance(left, PDF) or not isinstance(right, PDF):
+            raise NotImplementedError("Comparisons only supported between PathsDataFrames")
+        return left.paths.compare_df(right, op='ne')
+
+    def apply_lt(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
+        """Less than comparison (<)."""
+        if not isinstance(left, PDF) or not isinstance(right, PDF):
+            raise NotImplementedError("Comparisons only supported between PathsDataFrames")
+        return left.paths.compare_df(right, op='lt')
+
+    def apply_le(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
+        """Less than or equal comparison (<=)."""
+        if not isinstance(left, PDF) or not isinstance(right, PDF):
+            raise NotImplementedError("Comparisons only supported between PathsDataFrames")
+        return left.paths.compare_df(right, op='le')
+
+    def apply_gt(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
+        """Greater than comparison (>)."""
+        if not isinstance(left, PDF) or not isinstance(right, PDF):
+            raise NotImplementedError("Comparisons only supported between PathsDataFrames")
+        return left.paths.compare_df(right, op='gt')
+
+    def apply_ge(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
+        """Greater than or equal comparison (>=)."""
+        if not isinstance(left, PDF) or not isinstance(right, PDF):
+            raise NotImplementedError("Comparisons only supported between PathsDataFrames")
+        return left.paths.compare_df(right, op='ge')
+
     def eval_binop(self, node: ast.BinOp, varss: EvalVars) -> EvalOutput:
         OPERATIONS: dict[type, Callable[[EvalOutput, EvalOutput], EvalOutput]] = {
             ast.Add: self.apply_add,
@@ -150,6 +186,27 @@ class FormulaNode(Node):
         left_value = self.eval_tree(node.left, varss)
         right_value = self.eval_tree(node.right, varss)
         apply = OPERATIONS[type(node.op)]
+        return apply(left_value, right_value)
+
+    def eval_compare(self, node: ast.Compare, varss: EvalVars) -> EvalOutput:
+        OPERATIONS: dict[type, Callable[[EvalOutput, EvalOutput], EvalOutput]] = {
+            ast.Eq: self.apply_eq,
+            ast.NotEq: self.apply_ne,
+            ast.Lt: self.apply_lt,
+            ast.LtE: self.apply_le,
+            ast.Gt: self.apply_gt,
+            ast.GtE: self.apply_ge,
+        }
+
+        # For now, handle single comparisons (not chained like a < b < c)
+        if len(node.ops) != 1:
+            raise NotImplementedError("Chained comparisons are not yet supported")
+        if len(node.comparators) != 1:
+            raise NotImplementedError("Multiple comparators are not yet supported")
+
+        left_value = self.eval_tree(node.left, varss)
+        right_value = self.eval_tree(node.comparators[0], varss)
+        apply = OPERATIONS[type(node.ops[0])]
         return apply(left_value, right_value)
 
     def eval_call(self, node: ast.Call, varss: EvalVars) -> EvalOutput:
@@ -201,6 +258,7 @@ class FormulaNode(Node):
             ast.Constant: self.eval_constant,
             ast.Name: self.eval_name,
             ast.BinOp: self.eval_binop,
+            ast.Compare: self.eval_compare,
             ast.Call: self.eval_call,
             #ast.UnaryOp: self.eval_unaryop,
         }
