@@ -74,6 +74,9 @@ class InstanceFeatures:
     show_explanations: bool = False
     """Whether to show node explanation in the slot for description (under the graph)."""
 
+    show_category_warnings: bool = False
+    """Whether to show category warnings in the node explanation."""
+
 
 @dataclass
 class Instance:

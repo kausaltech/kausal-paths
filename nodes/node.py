@@ -4,7 +4,7 @@ import math
 import typing
 
 # import warnings
-from contextlib import AbstractContextManager, nullcontext, suppress
+from contextlib import AbstractContextManager, nullcontext
 from typing import Any, ClassVar, Literal, Self, overload
 
 import numpy as np
@@ -1128,8 +1128,6 @@ class Node:
             cache_res = self.hasher.get_cached_output()
 
         if cache_res is None or not cache_res.is_hit:
-            # Don't clear runtime explanations - preserve them across computations
-            # They will be extended with new explanations from this computation
             try:
                 df = self.compute()
             except Exception as e:
@@ -1170,38 +1168,7 @@ class Node:
         if target_node is not None:
             df = self._get_output_for_target(df, target_node, skip_dim_test=skip_dim_test)
 
-        # Collect explanations from the DataFrame and store in NodeExplanationSystem.runtime_explanations
-        # This makes them available immediately in get_explanation() via GraphQL
-        if df._explanation:
-            print(f"_get_output_pl: {self.id} df._explanation={df._explanation} context_id={id(self.context)}")
-            nes = self.context.node_explanation_system
-            print(f"_get_output_pl: {self.id} nes={nes.runtime_explanations} nes_id={id(nes) if nes else None}")
-            if nes is not None:
-                # Get existing runtime explanations for this node
-                existing = nes.runtime_explanations.get(self.id, [])
-
-                # Add new explanations, deduplicating to avoid accumulating the same explanation
-                for explanation in df._explanation:
-                    if explanation not in existing:
-                        existing.append(explanation)
-
-                # Update NodeExplanationSystem runtime explanations
-                if existing:
-                    nes.runtime_explanations[self.id] = existing
-            assert nes is not None
-            print('new nes runtime', nes.runtime_explanations)
-            print(self.context.node_explanation_system.runtime_explanations)
-
         return (df, cache_res)
-
-    @property
-    def runtime_explanations(self) -> list[str]:
-        """Get runtime explanations collected from DataFrame operations during computation."""
-        nes = self.context.node_explanation_system
-        if nes is None:
-            return []
-        # Get runtime explanations directly from NodeExplanationSystem
-        return list(nes.runtime_explanations.get(self.id, []))
 
     def print_output(self, only_years: list[int] | None = None, filters: list[str] | None = None):
         from .debug import print_node_output
@@ -1654,46 +1621,23 @@ class Node:
         Get combined explanations: static (from config) and runtime (from computation).
 
         Static explanations are generated from node configurations during instance loading.
-        Runtime explanations are collected during node computation and stored separately.
+        Runtime explanations are collected during node computation.
         Both are merged when this method is called.
         """
-        nes = self.context.node_explanation_system
-        if nes is None:
-            return ''
-
-        # If runtime explanations aren't available yet, try to get them from cache
-        # This handles the case where get_explanation() is called before _get_output_pl()
-        if self.id not in nes.runtime_explanations:
-            # Check if we have a cached output with explanations
-            use_cache = not (self.disable_cache or self.context.skip_cache)
-            if use_cache:
-                with suppress(Exception):
-                    cache_res = self.hasher.get_cached_output()
-                    if cache_res is not None and cache_res.is_hit and cache_res.obj is not None:
-                        # Extract explanations from cached DataFrame
-                        df = cache_res.obj
-                        if hasattr(df, '_explanation') and df._explanation:
-                            existing = nes.runtime_explanations.get(self.id, [])
-                            for explanation in df._explanation:
-                                if explanation not in existing:
-                                    existing.append(explanation)
-                            if existing:
-                                nes.runtime_explanations[self.id] = existing
-
         parts = []
-
-        # Get static explanations (from node config)
-        static_explanations = nes.explanations.get(self.id, [])
-        if static_explanations:
-            parts.extend(static_explanations)
+        nes = self.context.node_explanation_system
+        if nes is not None:
+            # Get static explanations (from node config)
+            static_explanations = nes.explanations.get(self.id, [])
+            if static_explanations:
+                parts.extend(static_explanations)
 
         # Get runtime explanations (from DataFrame operations during computation)
-        runtime_explanations = nes.runtime_explanations.get(self.id, [])
-        if runtime_explanations:
-            parts.append('<p><strong>Runtime warnings:</strong></p><ul>')
-            # Format runtime explanations as HTML list items
-            # Explanations are already JSON strings from get_category_mismatch
-            parts.extend(f'<li>Runtime warning: {exp}</li>' for exp in runtime_explanations)
+        runtime_explanations = self.get_output_pl()._explanation
+        warnings = self.context.instance.features.show_category_warnings
+        if runtime_explanations and warnings:
+            parts.append('<p><strong>Category warnings:</strong></p><ul>')
+            parts.extend(f'<li>Dimension: {exp}</li>' for exp in runtime_explanations)
             parts.append('</ul>')
 
         return ''.join(parts)

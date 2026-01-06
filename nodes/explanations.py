@@ -460,9 +460,6 @@ class NodeExplanationSystem:
     explanations: dict[str, list[str]] = field(default_factory=dict)
     """Static explanations generated from node configurations."""
 
-    runtime_explanations: dict[str, list[str]] = field(default_factory=dict)
-    """Runtime explanations collected during node computation (e.g., warnings from DataFrame operations)."""
-
     validations: dict[str, list[ValidationResult]] = field(default_factory=dict)
 
     baskets: dict[str, dict[str, list[str]]] = field(default_factory=dict)
