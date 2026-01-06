@@ -952,6 +952,64 @@ nodes:
   params:
     formula: complement(use_mileage) * own + use_mileage * (other_bisko + road_bisko)
 
+- id: test
+  name: Test
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
+  input_nodes:
+  - id: transport_energy_own_data
+    tags: [own]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  - id: other_transport_energy
+    tags: [other_bisko]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+  - id: road_transport_energy_bisko
+    tags: [road_bisko]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: road_type
+      flatten: true
+  params:
+    formula: own < (other_bisko + road_bisko)
+
+- id: test2
+  name: Test2
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_nodes:
+  - id: weather_correction
+    tags: [weather, log]
+  params:
+    formula: exp(weather)
+
+- id: test3
+  name: Test2
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [sector]
+  output_dimensions: [sector]
+  input_nodes:
+  - id: weather_correction
+    tags: [weather]
+  params:
+  - id: formula
+    value: weather != constant
+  - id: constant
+    value: 1.0
+    unit: dimensionless
+
 # - id: total_emissions
 #   name: Gesamtemissionen
 #   name_en: Total emissions
