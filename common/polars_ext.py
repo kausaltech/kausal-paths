@@ -65,6 +65,7 @@ class PathsExt:
             'make_nonpositive': self._make_nonpositive,
             'minus': self._arithmetic_inverse,
             'ratio_to_last_historical_value': self._ratio_to_last_historical_value,
+            'round_to_five': self._round_to_five_significant_digits,
             'scale_by_reference_year': self._scale_by_reference_year,
             'truncate_before_start': self._truncate_before_start,
             'truncate_beyond_end': self._truncate_beyond_end,
@@ -303,6 +304,82 @@ class PathsExt:
         ]).sort(remaining_keys)
         return ppl.to_ppdf(zdf, meta=meta)
 
+    def get_category_mismatch(
+        self,
+        other: ppl.PathsDataFrame,
+        output: ppl.PathsDataFrame,
+    ) -> str: # dict[str, dict[str, list[str]]]:
+        """
+        Get categories that were dropped or added during a join operation.
+
+        Args:
+            other: The right DataFrame that was joined with self
+            output: The resulting DataFrame from the join
+
+        Returns:
+            A dictionary mapping dimension IDs to a dict with keys:
+            - 'units': [unit_left, unit_right] for the (first) metric column
+            - 'dropped_left': categories in self but not in output
+            - 'dropped_right': categories in other but not in output
+            - 'added_from_right': categories in output and other but not in self
+            - 'added_from_left': categories in output and self but not in other
+
+        """
+        sdf = self._df
+        mismatch: dict[str, dict[str, list[str]]] = {}
+
+        # Get all dimension columns from all three DataFrames
+        all_dim_ids = set(sdf.dim_ids) | set(other.dim_ids) | set(output.dim_ids)
+
+        for dim_id in all_dim_ids:
+            # Get categories from input DataFrames
+            self_cats: set[str] = set()
+            other_cats: set[str] = set()
+
+            if dim_id in sdf.columns:
+                # Note: unique().to_list() is necessary - cannot do set(sdf[dim_id]) directly
+                # FIXME There are Nones in data, but can we allow that?
+                self_cats = set(sdf[dim_id].unique().drop_nulls().to_list())
+            if dim_id in other.columns:
+                other_cats = set(other[dim_id].unique().drop_nulls().to_list())
+
+            # Get categories from output DataFrame
+            output_cats: set[str] = set()
+            if dim_id in output.columns:
+                output_cats = set(output[dim_id].unique().drop_nulls().to_list())
+
+            # Categories dropped from or added to left or right specifically
+            dropped_left = sorted(self_cats - output_cats)
+            dropped_right = sorted(other_cats - output_cats)
+            added_from_right = sorted((output_cats & other_cats) - self_cats)
+            added_from_left = sorted((output_cats & self_cats) - other_cats)
+
+            # Only include dimension if there are any mismatches
+            if dropped_left or dropped_right or added_from_right or added_from_left:
+                unit_left = unit_right = '-'
+                metrics_left = sdf.metric_cols
+                if metrics_left:
+                    unit_left = str(sdf.get_unit(metrics_left[0]))
+                metrics_right = other.metric_cols
+                if metrics_right:
+                    unit_right = str(other.get_unit(metrics_right[0]))
+                mismatch[dim_id] = {
+                    'units': [unit_left, unit_right],
+                    'dropped_left': dropped_left,
+                    'dropped_right': dropped_right,
+                    'added_from_right': added_from_right,
+                    'added_from_left': added_from_left,
+                }
+
+        if mismatch:
+            import json
+            # TODO Serialize dict to string for now, since _explanation expects str
+            # ensure_ascii=False preserves Unicode characters like · (middle dot)
+            mismatch_str = json.dumps(mismatch, ensure_ascii=False)
+        else:
+            mismatch_str = ''
+        return mismatch_str
+
     def join_over_index(  # noqa: C901, PLR0912
         self,
         other: ppl.PathsDataFrame,
@@ -352,6 +429,10 @@ class PathsExt:
             raise ValueError("Invalid value for 'index_from'")
 
         out = ppl.to_ppdf(df, meta=meta)
+
+        cat_mismatch = self.get_category_mismatch(other, out)
+        if cat_mismatch:
+            out._explanation.append(cat_mismatch)
         if out.paths.index_has_duplicates():
             print(out)
             raise ValueError("Resulting DF has duplicated rows")
@@ -418,7 +499,9 @@ class PathsExt:
 
         cols = [YEAR_COLUMN, FORECAST_COLUMN, val_col] + df.dim_ids
         jdf = jdf.select([col for col in cols if col in jdf.columns])
-
+        mismatch = df.paths.get_category_mismatch(odf, jdf)
+        if mismatch:
+            jdf._explanation.append(mismatch)
         return jdf
 
     def multiply_with_dims(
@@ -456,7 +539,12 @@ class PathsExt:
         jdf = jdf.select([col for col in cols if col in jdf.columns])
 
         new_meta = ppl.DataFrameMeta(primary_keys=all_dims, units=new_units)
-        return ppl.to_ppdf(jdf, meta=new_meta)
+        out = ppl.to_ppdf(jdf, meta=new_meta)
+
+        cat_mismatch = df.paths.get_category_mismatch(odf, out)
+        if cat_mismatch:
+            out._explanation.append(cat_mismatch)
+        return out
 
     def add_df(self, odf: ppl.PathsDataFrame, how: Literal['left', 'outer'] = 'left') -> ppl.PathsDataFrame:
         df = self._df
@@ -795,6 +883,22 @@ class PathsExt:
     def _ratio_to_last_historical_value(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         year = cast('int', df.filter(~df[FORECAST_COLUMN])[YEAR_COLUMN].max())
         return self._scale_by_reference_year(df, year)
+
+    def _round_to_five_significant_digits(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
+        """Round values to 5 significant digits rather than 5 decimal places. Zero and NaN have special handling."""
+        n_significant = 5
+        val_col = pl.col(VALUE_COLUMN)
+        order = val_col.abs().log10().floor()
+        power = n_significant - 1 - order
+        multiplier = pl.lit(10.0) ** power
+
+        rounded = (
+            pl.when((val_col == 0.0) | val_col.is_nan())
+            .then(val_col)
+            .otherwise((val_col * multiplier).round() / multiplier)
+        )
+
+        return df.with_columns(rounded.alias(VALUE_COLUMN))
 
     # FIXME: This is a duplicate of the method in SimpleNode and is not a standard operation.
     def _scale_by_reference_year(self, df: ppl.PathsDataFrame, year: int | None = None) -> ppl.PathsDataFrame:

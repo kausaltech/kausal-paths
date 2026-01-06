@@ -31,6 +31,7 @@ if typing.TYPE_CHECKING:
 class DataFrameMeta:
     units: dict[str, Unit]
     primary_keys: list[str]
+    # explanation: list[str]
 
     @classmethod
     def get_dim_ids(cls, pks: list[str]) -> list[str]:
@@ -51,6 +52,7 @@ class DataFrameMeta:
         return DataFrameMeta(
             units=self.units.copy(),
             primary_keys=self.primary_keys.copy(),
+            # explanation=self.explanation.copy(),
         )
 
     def serialize(self) -> dict[str, Any]:
@@ -113,6 +115,10 @@ class PathsDataFrame(pl.DataFrame):
     @property
     def metric_cols(self) -> list[str]:
         return list(self._units.keys())
+
+    # @property
+    # def explanation(self) -> list[str]:
+    #     return list(self._explanation)
 
     def replace_meta(self, meta: DataFrameMeta):
         return self._from_pydf(self._df, meta=meta)
@@ -276,6 +282,7 @@ class PathsDataFrame(pl.DataFrame):
         meta = DataFrameMeta(
             units=self._units.copy(),
             primary_keys=self._primary_keys.copy(),
+            # explanation=self._explanation.copy(),
         )
         return meta
 
@@ -611,6 +618,7 @@ def to_ppdf(df: pl.DataFrame | PathsDataFrame, meta: DataFrameMeta | None = None
         meta = DataFrameMeta(
             units={},
             primary_keys=[],
+            # explanation=[],
         )
 
     pdf = PathsDataFrame._from_pydf(df._df, meta=meta)

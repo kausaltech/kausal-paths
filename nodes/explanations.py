@@ -78,6 +78,7 @@ TAG_DESCRIPTIONS = {
     'primary': _('Use data as primary values even if a secondary value exists.'),
     'ratio_to_last_historical_value': _('Take the ratio of the values compared with the last historical value.'),
     'removing': _('This is the rate of stock removal.'),
+    'round_to_five': _('Round values to 5 significant digits rather than 5 decimal places.'),
     'secondary': _('Use data only if a primary value does not exist.'),
     'truncate_before_start': _('Truncate values before the reference year. There may be some from data'),
     'truncate_beyond_end': _('Truncate values beyond the model end year. There may be some from data'),
