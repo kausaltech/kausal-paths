@@ -7,6 +7,8 @@ import typing
 from contextlib import AbstractContextManager, nullcontext
 from typing import Any, ClassVar, Literal, Self, overload
 
+from django.utils.translation import gettext_lazy as _
+
 import numpy as np
 import pandas as pd
 import pint_pandas
@@ -1633,11 +1635,14 @@ class Node:
                 parts.extend(static_explanations)
 
         # Get runtime explanations (from DataFrame operations during computation)
-        runtime_explanations = self.get_output_pl()._explanation
         warnings = self.context.instance.features.show_category_warnings
-        if runtime_explanations and warnings:
-            parts.append('<p><strong>Category warnings:</strong></p><ul>')
-            parts.extend(f'<li>Dimension: {exp}</li>' for exp in runtime_explanations)
-            parts.append('</ul>')
+        if warnings:
+            runtime_explanations = self.get_output_pl()._explanation
+            if runtime_explanations:
+                cat = _('Category warnings')
+                parts.append(f'<p><strong>{cat}:</strong></p><ul>')
+                dim = _('Dimension')
+                parts.extend(f'<li>{dim}: {exp}</li>' for exp in runtime_explanations)
+                parts.append('</ul>')
 
         return ''.join(parts)
