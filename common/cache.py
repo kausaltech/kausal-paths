@@ -82,7 +82,7 @@ class PickledPathsDataFrame:
         meta = ppl.DataFrameMeta(units, self.primary_keys)
         pdf = ppl.to_ppdf(df, meta=meta)
         # Restore explanations that were preserved through caching
-        pdf._explanation = self.explanation.copy()
+        pdf._explanation = self.explanation.copy() if hasattr(self, 'explanation') else []
         return pdf
 
     @classmethod
