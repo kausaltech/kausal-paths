@@ -135,7 +135,7 @@ class PathsDataFrame(pl.DataFrame):
        ), **constraints: Any) -> PathsDataFrame:
         meta = self.get_meta()
         df = super().filter(*predicates, **constraints)
-        return to_ppdf(df, meta=meta)
+        return PathsDataFrame._from_pydf(df._df, meta=meta, source_df=self)
 
     def rename(self, mapping: Mapping[str, str] | Callable[[str], str], *, strict: bool = True) -> PathsDataFrame:
         meta = self.get_meta()
@@ -150,7 +150,7 @@ class PathsDataFrame(pl.DataFrame):
         meta.units = units
         meta.primary_keys = primary_keys
         df = super().rename(mapping)
-        return to_ppdf(df, meta=meta)
+        return PathsDataFrame._from_pydf(df._df, meta=meta, source_df=self)
 
     def drop(
         self,
@@ -165,7 +165,7 @@ class PathsDataFrame(pl.DataFrame):
         for col in list(meta.primary_keys):
             if col not in df.columns:
                 meta.primary_keys.remove(col)
-        return to_ppdf(df, meta=meta)
+        return PathsDataFrame._from_pydf(df._df, meta=meta, source_df=self)
 
     def _pyexprs_to_meta(self, exprs: list[PyExpr], units: dict[str, Unit]) -> DataFrameMeta:
         meta = self.get_meta()
