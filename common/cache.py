@@ -66,11 +66,13 @@ class PickledPathsDataFrame:
     df: pl.DataFrame
     units: dict[str, str]
     primary_keys: list[str]
+    explanation: list[str]
 
-    def __init__(self, df, units, primary_keys):
+    def __init__(self, df, units, primary_keys, explanation):
         self.df = df
         self.units = units
         self.primary_keys = primary_keys
+        self.explanation = explanation
 
     def to_df(self, ureg: UnitRegistry) -> ppl.PathsDataFrame:
         df = self.df
@@ -78,14 +80,19 @@ class PickledPathsDataFrame:
         for col, unit in self.units.items():
             units[col] = ureg.parse_units(unit)
         meta = ppl.DataFrameMeta(units, self.primary_keys)
-        return ppl.to_ppdf(df, meta=meta)
+        pdf = ppl.to_ppdf(df, meta=meta)
+        # Restore explanations that were preserved through caching
+        pdf._explanation = self.explanation.copy() if hasattr(self, 'explanation') else []
+        return pdf
 
     @classmethod
     def from_df(cls, df: ppl.PathsDataFrame) -> PickledPathsDataFrame:
         meta = df.get_meta()
         pldf = pl.DataFrame._from_pydf(df._df)
         units = {col: str(unit) for col, unit in meta.units.items()}
-        return cls(pldf, units, meta.primary_keys)
+        # Preserve explanations when serializing for cache
+        explanation = df._explanation.copy() if hasattr(df, '_explanation') else []
+        return cls(pldf, units, meta.primary_keys, explanation)
 
 
 type LRUFuncT[**P, R, SC: LocalLRUCache] = Callable[Concatenate[SC, P], R]

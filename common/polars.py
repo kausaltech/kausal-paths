@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 import typing
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import reduce
 from typing import Any, cast
 from typing_extensions import deprecated
@@ -31,7 +31,6 @@ if typing.TYPE_CHECKING:
 class DataFrameMeta:
     units: dict[str, Unit]
     primary_keys: list[str]
-    # explanation: list[str]
 
     @classmethod
     def get_dim_ids(cls, pks: list[str]) -> list[str]:
@@ -52,7 +51,6 @@ class DataFrameMeta:
         return DataFrameMeta(
             units=self.units.copy(),
             primary_keys=self.primary_keys.copy(),
-            # explanation=self.explanation.copy(),
         )
 
     def serialize(self) -> dict[str, Any]:
@@ -84,12 +82,18 @@ class PathsDataFrame(pl.DataFrame):
         self._explanation = []
 
     @classmethod
-    def _from_pydf(cls, py_df: PyDataFrame, meta: DataFrameMeta | None = None) -> PathsDataFrame:
+    def _from_pydf(
+        cls,
+        py_df: PyDataFrame,
+        meta: DataFrameMeta | None = None,
+        source_df: PathsDataFrame | None = None,
+    ) -> PathsDataFrame:
         df = cls.__new__(cls)
         df._df = py_df
         df._units = {}
         df._primary_keys = []
-        df._explanation = []
+        # Preserve explanations from source if provided
+        df._explanation = source_df._explanation.copy() if source_df is not None else []
 
         if meta is None:
             return df
@@ -116,12 +120,8 @@ class PathsDataFrame(pl.DataFrame):
     def metric_cols(self) -> list[str]:
         return list(self._units.keys())
 
-    # @property
-    # def explanation(self) -> list[str]:
-    #     return list(self._explanation)
-
     def replace_meta(self, meta: DataFrameMeta):
-        return self._from_pydf(self._df, meta=meta)
+        return self._from_pydf(self._df, meta=meta, source_df=self)
 
     def serialize_meta(self) -> dict[str, Any]:
         meta = self.get_meta().serialize()
@@ -135,7 +135,7 @@ class PathsDataFrame(pl.DataFrame):
        ), **constraints: Any) -> PathsDataFrame:
         meta = self.get_meta()
         df = super().filter(*predicates, **constraints)
-        return to_ppdf(df, meta=meta)
+        return PathsDataFrame._from_pydf(df._df, meta=meta, source_df=self)
 
     def rename(self, mapping: Mapping[str, str] | Callable[[str], str], *, strict: bool = True) -> PathsDataFrame:
         meta = self.get_meta()
@@ -150,7 +150,7 @@ class PathsDataFrame(pl.DataFrame):
         meta.units = units
         meta.primary_keys = primary_keys
         df = super().rename(mapping)
-        return to_ppdf(df, meta=meta)
+        return PathsDataFrame._from_pydf(df._df, meta=meta, source_df=self)
 
     def drop(
         self,
@@ -165,7 +165,7 @@ class PathsDataFrame(pl.DataFrame):
         for col in list(meta.primary_keys):
             if col not in df.columns:
                 meta.primary_keys.remove(col)
-        return to_ppdf(df, meta=meta)
+        return PathsDataFrame._from_pydf(df._df, meta=meta, source_df=self)
 
     def _pyexprs_to_meta(self, exprs: list[PyExpr], units: dict[str, Unit]) -> DataFrameMeta:
         meta = self.get_meta()
@@ -190,7 +190,7 @@ class PathsDataFrame(pl.DataFrame):
         )
         df = super().select(*exprs, **named_exprs)
         meta = self._pyexprs_to_meta(pyexprs, units or {})
-        return PathsDataFrame._from_pydf(df._df, meta=meta)
+        return PathsDataFrame._from_pydf(df._df, meta=meta, source_df=self)
 
     def select_metrics(self, metric_cols: list[str] | str, rename: list[str] | str | None = None) -> PathsDataFrame:
         if isinstance(metric_cols, str):
@@ -220,7 +220,7 @@ class PathsDataFrame(pl.DataFrame):
         )
         df = super().with_columns(*exprs, **named_exprs)
         meta = self._pyexprs_to_meta(pyexprs, units or {})
-        return PathsDataFrame._from_pydf(df._df, meta=meta)
+        return PathsDataFrame._from_pydf(df._df, meta=meta, source_df=self)
 
     @deprecated("Use with_columns() instead")
     def with_column(self, column: pl.Series | pl.Expr, unit: Unit | None = None, is_primary_key: bool = False) -> PathsDataFrame:  # pyright: ignore
@@ -228,7 +228,7 @@ class PathsDataFrame(pl.DataFrame):
 
     def drop_nulls(self, subset: ColumnNameOrSelector | Collection[ColumnNameOrSelector] | None = None) -> PathsDataFrame:
         df = super().drop_nulls(subset)
-        return PathsDataFrame._from_pydf(df._df, meta=self.get_meta())
+        return PathsDataFrame._from_pydf(df._df, meta=self.get_meta(), source_df=self)
 
     def sort(
         self,
@@ -247,7 +247,7 @@ class PathsDataFrame(pl.DataFrame):
             multithreaded=multithreaded,
             maintain_order=maintain_order,
         )
-        return PathsDataFrame._from_pydf(df._df, meta=self.get_meta())
+        return PathsDataFrame._from_pydf(df._df, meta=self.get_meta(), source_df=self)
 
     def join(
         self,
@@ -282,7 +282,6 @@ class PathsDataFrame(pl.DataFrame):
         meta = DataFrameMeta(
             units=self._units.copy(),
             primary_keys=self._primary_keys.copy(),
-            # explanation=self._explanation.copy(),
         )
         return meta
 
@@ -302,14 +301,14 @@ class PathsDataFrame(pl.DataFrame):
         if isinstance(unit, str):
             unit = unit_registry.parse_units(unit)
         meta.units[col] = unit  # type: ignore
-        return PathsDataFrame._from_pydf(self._df, meta=meta)
+        return PathsDataFrame._from_pydf(self._df, meta=meta, source_df=self)
 
     def clear_unit(self, col: str) -> PathsDataFrame:
         if col not in self._units:
             raise Exception("Column %s does not have a unit" % col)
         meta = self.get_meta()
         del meta.units[col]
-        return PathsDataFrame._from_pydf(self._df, meta=meta)
+        return PathsDataFrame._from_pydf(self._df, meta=meta, source_df=self)
 
     def multiply_cols(self, cols: list[str], out_col: str, out_unit: Unit | None = None) -> PathsDataFrame:
         res_unit = cast('Unit', reduce(lambda x, y: x * y, [self._units[col] for col in cols]))  # pyright: ignore
@@ -482,7 +481,7 @@ class PathsDataFrame(pl.DataFrame):
         return df
 
     def copy(self) -> PathsDataFrame:
-        return PathsDataFrame._from_pydf(self._df, meta=self.get_meta())
+        return PathsDataFrame._from_pydf(self._df, meta=self.get_meta(), source_df=self)
 
     def get_last_historical_values(self, year=None):
         meta = self.get_meta()
@@ -614,14 +613,16 @@ def to_ppdf(df: pl.DataFrame | PathsDataFrame, meta: DataFrameMeta | None = None
         validate_ppdf(df)
         return df
 
+    # Preserve explanations if df is already a PathsDataFrame
+    source_df = df if isinstance(df, PathsDataFrame) else None
+
     if meta is None:
         meta = DataFrameMeta(
             units={},
             primary_keys=[],
-            # explanation=[],
         )
 
-    pdf = PathsDataFrame._from_pydf(df._df, meta=meta)
+    pdf = PathsDataFrame._from_pydf(df._df, meta=meta, source_df=source_df)
     validate_ppdf(pdf)
     return pdf
 

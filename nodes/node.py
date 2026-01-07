@@ -7,6 +7,8 @@ import typing
 from contextlib import AbstractContextManager, nullcontext
 from typing import Any, ClassVar, Literal, Self, overload
 
+from django.utils.translation import gettext_lazy as _
+
 import numpy as np
 import pandas as pd
 import pint_pandas
@@ -1617,8 +1619,30 @@ class Node:
         return sorted(years)
 
     def get_explanation(self) -> str:
+        """
+        Get combined explanations: static (from config) and runtime (from computation).
+
+        Static explanations are generated from node configurations during instance loading.
+        Runtime explanations are collected during node computation.
+        Both are merged when this method is called.
+        """
+        parts = []
         nes = self.context.node_explanation_system
-        if nes is None:
-            return ''
-        explanation = nes.explanations.get(self.id, [])
-        return ''.join(explanation)
+        if nes is not None:
+            # Get static explanations (from node config)
+            static_explanations = nes.explanations.get(self.id, [])
+            if static_explanations:
+                parts.extend(static_explanations)
+
+        # Get runtime explanations (from DataFrame operations during computation)
+        warnings = self.context.instance.features.show_category_warnings
+        if warnings:
+            runtime_explanations = self.get_output_pl()._explanation
+            if runtime_explanations:
+                cat = _('Category warnings')
+                parts.append(f'<p><strong>{cat}:</strong></p><ul>')
+                dim = _('Dimension')
+                parts.extend(f'<li>{dim}: {exp}</li>' for exp in runtime_explanations)
+                parts.append('</ul>')
+
+        return ''.join(parts)

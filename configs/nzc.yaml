@@ -160,14 +160,14 @@ action_groups:
 - id: reforestation
   name: 7. Reforestation
 
-impact_overviews:
+# impact_overviews:
 
-- graph_type: cost_benefit
-  effect_node: discounted_cost
-  indicator_unit: MEUR
-  stakeholder_dimension: stakeholder
-  outcome_dimension: cost_type
-  label: Cost-benefit
+# - graph_type: cost_benefit
+#   effect_node: discounted_cost
+#   indicator_unit: MEUR
+#   stakeholder_dimension: stakeholder
+#   outcome_dimension: cost_type
+#   label: Cost-benefit
 
 # - graph_type: return_on_investment
 #   cost_node: discounted_investment_city
