@@ -1644,6 +1644,9 @@ nodes:
     - id: energy_carrier
     - id: heating_type
   - id: heating_cost_stakeholder_shares
+    from_dimensions:
+    - id: heating_type
+      categories: [district_heating]
     to_dimensions:
     - id: stakeholder
     - id: heating_type
