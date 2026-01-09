@@ -1,0 +1,11 @@
+{% extends 'wagtailadmin/bulk_actions/confirmation/list_items_with_no_access.html' %}
+{% load i18n wagtailadmin_tags bulk_action_tags %}
+
+{% block per_item %}
+    {{ item }}
+    {% with reason=protection_reasons|get_item:item.pk %}
+        {% if reason %}
+            <br><small class="w-text-text-label">{{ reason }}</small>
+        {% endif %}
+    {% endwith %}
+{% endblock per_item %}
