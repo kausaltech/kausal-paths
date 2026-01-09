@@ -1087,4 +1087,9 @@ class NodeDataset(models.Model):
         verbose_name_plural = _('Node datasets')
 
     def __str__(self) -> str:
-        return f'{self.node.identifier} -> {self.dataset}'
+        node_name = self.node.name or self.node.identifier
+        return _('Node: %(node_name)s') % {'node_name': node_name}
+
+    def get_admin_display_title(self) -> str:
+        """Return a descriptive title for Wagtail admin views."""
+        return str(self)
