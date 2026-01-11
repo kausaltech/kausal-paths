@@ -1213,7 +1213,7 @@ actions:
       value: Argument placeholder
   params:
   - id: operations
-    value: apply_multiplier
+    value: get_single_dataset,apply_multiplier
   - id: multiplier
     label: Päästötavoite
     value: -20

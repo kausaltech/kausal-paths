@@ -1,0 +1,95 @@
+id: equalia
+default_language: en
+supported_languages: [de, fi]
+site_url: https://equalia.paths.kausal.tech
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: 4a22289011155a5767ccdfe660d671a4232b1941
+  dvc_remote: kausal-s3
+name: Equalia Climate Action Plan
+owner: Kausal Ltd
+theme_identifier: default
+target_year: 2035
+model_end_year: 2050
+reference_year: 2010
+minimum_historical_year: 2010
+maximum_historical_year: 2025
+emission_unit: kt_co2e/a
+features:
+  baseline_visible_in_graphs: true
+  use_datasets_from_db: true
+  show_explanations: true
+  show_category_warnings: true
+
+include:
+- file: modules/transportation/congestion_charge.yaml
+  allow_override: true
+- file: frameworks/standard_dims.yaml
+  allow_override: true
+
+params:
+- id: municipality_name
+  label_en: Municipality name
+  label_de: Gemeindename
+  label_fi: Kaupunki
+  value: Equalia
+  is_customizable: true
+  is_visible: true
+
+dimensions:
+
+- id: hypotheses
+  label_en: Hypotheses
+  label_de: Hypothesen
+  label_fi: Hypoteesit
+  categories:
+  - id: high_displacement
+    label_en: High displacement
+    label_de: Hochdisplacement
+    label_fi: Korkea siirtymä
+  - id: net_reduction
+    label_en: Net reduction
+    label_de: Nettoreduktion
+    label_fi: Nettotuotto
+  - id: empirical_estimate
+    label_en: Empirical estimate
+    label_de: Empirische Schätzung
+    label_fi: Empirinen estimaatti
+
+- id: time_of_day
+  label_en: Time of day
+  label_de: Zeit des Tages
+  label_fi: Aika päivänä
+  categories:
+  - id: peak_hours
+    label_en: Peak hours
+    label_de: Spitzenstunden
+    label_fi: Pikkupisteet
+  - id: non_peak_hours
+    label_en: Non-peak hours
+    label_de: Nicht-Spitzenstunden
+    label_fi: Epäpikkupisteet
+
+pages:
+- id: home
+  name: Equalia Climate Action Plan
+  name_de: Equalia Klimaschutzplan
+  name_fi: Equalian ilmasto-ohjelma
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Equalia emission scenarios
+
+scenarios:
+
+- id: baseline
+  name_en: Baseline
+  name_fi: Nykykehitys
+  name_de: Basisszenario
+
+- id: default
+  default: true
+  name_en: Congestion charge
+  name_fi: Ruuhkamaksut
+  name_de: Verkehrszölle
+  all_actions_enabled: true

@@ -1,0 +1,446 @@
+actions:
+- id: congestion_charge
+  name: "Congestion Charge Price"
+  description: "Price charged per vehicle trip in the congestion zone"
+  type: simple.GenericAction
+  quantity: price
+  unit: EUR/vehicle
+  output_dimensions: [time_of_day]
+  input_datasets:
+  - id: transportation/congestion_charge_scenarios
+  params:
+  - id: multiplier # FIXME
+    value: 1
+    unit: trip/vehicle
+
+nodes:
+
+- id: net_emissions
+  name: Net emissions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  is_outcome: true
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: co2_emissions
+
+# ===== BASELINE DATA =====
+
+- id: baseline_zone_traffic
+  name: "Baseline Traffic in Zone"
+  description: "Vehicle trips in congestion charge zone without policy"
+  type: generic.GenericNode
+  quantity: traffic_volume
+  unit: vehicles/hour
+  input_dimensions: [time_of_day, vehicle_type]
+  output_dimensions: [time_of_day, vehicle_type]
+  input_datasets:
+  - id: transportation/baseline_zone_traffic_counts
+
+- id: baseline_peripheral_traffic
+  name: "Baseline Peripheral Traffic"
+  description: "Vehicle trips on roads surrounding the congestion zone"
+  type: generic.GenericNode
+  quantity: traffic_volume
+  unit: vehicles/hour
+  input_dimensions: [time_of_day, vehicle_type]
+  output_dimensions: [time_of_day, vehicle_type]
+  input_datasets:
+  - id: transportation/baseline_peripheral_traffic_counts
+
+- id: vehicle_fleet_share
+  name: "Vehicle Fleet Energy Carrier Share"
+  description: "Distribution of energy carriers (fuel types) by vehicle type"
+  type: generic.GenericNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: transportation/fleet_composition
+
+- id: emission_factor
+  name: "Vehicle Emission Factor"
+  description: "CO2 emissions per kilometer driven by vehicle type and energy carrier"
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: g_co2e/vkm
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: transportation/emission_factors
+  params:
+  - id: multiplier # FIXME
+    value: 1
+    unit: km/vkm
+
+- id: avg_trip_distance_zone
+  name: "Average Trip Distance in Zone"
+  description: "Average distance traveled per vehicle trip within the congestion zone"
+  type: generic.GenericNode
+  quantity: distance
+  unit: km
+  input_datasets:
+  - id: transportation/avg_trip_distance_zone
+  params:
+  - id: operations
+    value: get_single_dataset,apply_multiplier
+  - id: multiplier
+    value: 1
+    unit: trip
+
+- id: avg_trip_distance_periphery
+  name: "Average Trip Distance on Periphery"
+  description: "Average distance traveled per vehicle trip on peripheral roads"
+  type: generic.GenericNode
+  quantity: distance
+  unit: km
+  input_datasets:
+  - id: transportation/avg_trip_distance_periphery
+  params:
+  - id: operations
+    value: get_single_dataset,apply_multiplier
+  - id: multiplier
+    value: 1
+    unit: trip
+
+# ===== PARAMETERS WITH HYPOTHESES =====
+
+- id: price_elasticity
+  name: "Traffic Price Elasticity"
+  description: "Elasticity of traffic volume with respect to trip price. Negative value indicates traffic decreases as price increases."
+  type: generic.GenericNode
+  quantity: elasticity
+  unit: vehicle/EUR
+  input_dimensions: [hypotheses]
+  output_dimensions: [hypotheses]
+  input_datasets:
+  - id: transportation/price_elasticity_estimates
+  params:
+  - id: operations
+    value: get_single_dataset,apply_multiplier
+  - id: multiplier # FIXME
+    value: 1
+    unit: vehicle/EUR
+
+- id: spillover_factor
+  name: "Traffic Spillover Factor"
+  description: |
+    <p>Fraction of displaced zone traffic that appears on peripheral roads.</p>
+    <ul>
+    <li><strong>high_displacement:</strong> 90% of traffic moves to periphery</li>
+    <li><strong>net_reduction:</strong> 30% moves to periphery, 70% eliminated</li>
+    <li><strong>empirical_estimate:</strong> 50% based on existing evidence</li>
+    </ul>
+  type: generic.GenericNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [hypotheses]
+  output_dimensions: [hypotheses]
+  input_datasets:
+  - id: transportation/spillover_estimates
+
+# ===== BEHAVIORAL CALCULATIONS =====
+
+- id: reduction_rate
+  name: "Traffic Reduction Rate"
+  description: "Fraction of baseline traffic that no longer drives in the zone due to congestion charge"
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [time_of_day, hypotheses]
+  output_dimensions: [time_of_day, hypotheses]
+  input_nodes:
+  - id: congestion_charge
+    to_dimensions:
+    - id: time_of_day
+    tags: [price]
+  - id: price_elasticity
+    to_dimensions:
+    - id: hypotheses
+    tags: [elasticity]
+  params:
+    formula: abs(elasticity * price)
+
+- id: vehicles_in_zone
+  name: "Vehicles in Congestion Zone"
+  description: "Vehicle trips per hour in the zone after congestion charge implementation"
+  type: formula.FormulaNode
+  quantity: traffic_volume
+  unit: vehicles/hour
+  input_dimensions: [time_of_day, vehicle_type, hypotheses]
+  output_dimensions: [time_of_day, vehicle_type, hypotheses]
+  input_nodes:
+  - id: baseline_zone_traffic
+    tags: [baseline]
+    to_dimensions:
+    - id: time_of_day
+    - id: vehicle_type
+  - id: reduction_rate
+    to_dimensions:
+    - id: time_of_day
+    - id: hypotheses
+    tags: [reduction]
+  params:
+    formula: baseline * complement(reduction)
+
+- id: displaced_vehicles
+  name: "Displaced Vehicles from Zone"
+  description: "Vehicle trips that no longer occur in the zone (may be eliminated or relocated)"
+  type: formula.FormulaNode
+  quantity: traffic_volume
+  unit: vehicles/hour
+  input_dimensions: [time_of_day, vehicle_type, hypotheses]
+  output_dimensions: [time_of_day, vehicle_type, hypotheses]
+  input_nodes:
+  - id: baseline_zone_traffic
+    tags: [baseline]
+    to_dimensions:
+    - id: time_of_day
+    - id: vehicle_type
+  - id: reduction_rate
+    to_dimensions:
+    - id: time_of_day
+    - id: hypotheses
+    tags: [reduction]
+  params:
+    formula: baseline * reduction
+
+- id: vehicles_outside_zone
+  name: "Vehicles on Peripheral Roads"
+  description: "Vehicle trips per hour on roads surrounding the congestion zone"
+  type: formula.FormulaNode
+  quantity: traffic_volume
+  unit: vehicles/hour
+  input_dimensions: [time_of_day, vehicle_type]
+  output_dimensions: [time_of_day, vehicle_type]
+  input_nodes:
+  - id: baseline_peripheral_traffic
+    to_dimensions:
+    - id: time_of_day
+    - id: vehicle_type
+    tags: [baseline_periphery]
+  - id: displaced_vehicles
+    to_dimensions:
+    - id: time_of_day
+    - id: vehicle_type
+    - id: hypotheses
+    tags: [displaced]
+  - id: spillover_factor
+    to_dimensions:
+    - id: hypotheses
+    tags: [spillover]
+  params:
+    formula: baseline_periphery + sum_dim(displaced * spillover, hypotheses)
+
+# ===== VEHICLE KILOMETERS =====
+
+- id: vehicle_km_zone
+  name: "Vehicle Kilometers in Zone"
+  description: "Total distance driven in the congestion zone"
+  type: formula.FormulaNode
+  quantity: mileage
+  unit: vehicle_km/hour
+  input_dimensions: [time_of_day, vehicle_type]
+  output_dimensions: [time_of_day, vehicle_type]
+  input_nodes:
+  - id: vehicles_in_zone
+    from_dimensions:
+    - id: hypotheses
+      flatten: true
+    to_dimensions:
+    - id: time_of_day
+    - id: vehicle_type
+    tags: [vehicles]
+  - id: avg_trip_distance_zone
+    tags: [distance]
+  params:
+    formula: vehicles * distance
+
+- id: vehicle_km_periphery
+  name: "Vehicle Kilometers on Periphery"
+  description: "Total distance driven on peripheral roads"
+  type: formula.FormulaNode
+  quantity: mileage
+  unit: vehicle_km/hour
+  input_dimensions: [time_of_day, vehicle_type]
+  output_dimensions: [time_of_day, vehicle_type]
+  input_nodes:
+  - id: vehicles_outside_zone
+    to_dimensions:
+    - id: time_of_day
+    - id: vehicle_type
+    tags: [vehicles]
+  - id: avg_trip_distance_periphery
+    tags: [distance]
+  params:
+    formula: vehicles * distance
+
+- id: total_vehicle_km
+  name: "Total Vehicle Kilometers"
+  description: "Total distance driven across zone and periphery"
+  type: formula.FormulaNode
+  quantity: mileage
+  unit: vehicle_km/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: vehicle_km_zone
+    to_dimensions:
+    - id: vehicle_type
+    from_dimensions:
+    - id: time_of_day
+      flatten: true
+    tags: [zone_km]
+  - id: vehicle_km_periphery
+    to_dimensions:
+    - id: vehicle_type
+    from_dimensions:
+    - id: time_of_day
+      flatten: true
+    tags: [periphery_km]
+  - id: vehicle_fleet_share
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+    tags: [fleet_share]
+  params:
+    formula: (zone_km + periphery_km) * fleet_share
+
+# ===== EMISSIONS =====
+
+- id: co2_emissions
+  name: "CO2 Emissions from Road Transport"
+  description: "Total annual CO2 emissions from vehicles in and around congestion zone"
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: total_vehicle_km
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+    tags: [vkm]
+  - id: emission_factor
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+    tags: [ef]
+  params:
+    formula: vkm * ef
+
+# ===== ECONOMIC IMPACTS =====
+
+- id: charge_revenue
+  name: "Congestion Charge Revenue"
+  description: "Revenue collected from congestion charging"
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [time_of_day, hypotheses]
+  output_dimensions: [time_of_day, hypotheses]
+  input_nodes:
+  - id: vehicles_in_zone
+    to_dimensions:
+    - id: time_of_day
+    - id: hypotheses
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    tags: [vehicles]
+  - id: congestion_charge
+    to_dimensions:
+    - id: time_of_day
+    tags: [price]
+  params:
+    formula: vehicles * price
+
+- id: total_charge_revenue
+  name: "Total Annual Charge Revenue"
+  description: "Total annual revenue from congestion charging across all time periods"
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [hypotheses]
+  output_dimensions: [hypotheses]
+  input_nodes:
+  - id: charge_revenue
+    to_dimensions:
+    - id: hypotheses
+    from_dimensions:
+    - id: time_of_day
+      flatten: true
+    tags: [revenue]
+  params:
+    formula: revenue
+
+- id: driver_costs
+  name: "Driver Costs from Charge"
+  description: "Direct costs imposed on drivers by the congestion charge"
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [time_of_day, hypotheses]
+  output_dimensions: [time_of_day, hypotheses]
+  input_nodes:
+  - id: charge_revenue
+    to_dimensions:
+    - id: time_of_day
+    - id: hypotheses
+    tags: [costs]
+  params:
+    formula: costs
+
+- id: total_driver_costs
+  name: "Total Annual Driver Costs"
+  description: "Total annual costs to drivers from congestion charging"
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [hypotheses]
+  output_dimensions: [hypotheses]
+  input_nodes:
+  - id: driver_costs
+    to_dimensions:
+    - id: hypotheses
+    from_dimensions:
+    - id: time_of_day
+      flatten: true
+    tags: [costs]
+  params:
+    formula: costs
+
+# ===== ARGUMENT NODES =====
+
+- id: obj_cc13_traffic_displacement
+  name: "OBJ-CC13: Traffic Displacement"
+  description: |
+    <h3>Objection: Traffic Displacement vs Net Reduction</h3>
+    <p><strong>Claim:</strong> Traffic doesn't actually reduce; it just moves to peripheral roads, creating congestion elsewhere.</p>
+    <p><strong>Stakeholders:</strong> Suburban residents, peripheral businesses, skeptics of congestion pricing</p>
+    <p><strong>Type:</strong> Empirical objection about behavioral response</p>
+    <p><strong>Related Computational Nodes:</strong></p>
+    <ul>
+    <li><code>spillover_factor</code> - Key parameter determining displacement vs elimination</li>
+    <li><code>vehicles_outside_zone</code> - Shows traffic on peripheral roads</li>
+    <li><code>total_vehicle_km</code> - Net effect on total driving</li>
+    <li><code>co2_emissions</code> - Whether emissions actually decrease</li>
+    </ul>
+    <p><strong>Hypotheses:</strong></p>
+    <ul>
+    <li><strong>high_displacement:</strong> 90% of reduced zone traffic relocates (minimal net benefit)</li>
+    <li><strong>net_reduction:</strong> 70% of trips eliminated, only 30% relocates (substantial net benefit)</li>
+    <li><strong>empirical_estimate:</strong> 50% displacement based on London/Stockholm data</li>
+    </ul>
+  type: generic.GenericNode
+  quantity: argument
+  unit: dimensionless
+  input_datasets:
+  - id: transportation/zeros
+  output_nodes:
+  - id: spillover_factor
+    tags: [ignore_content]
