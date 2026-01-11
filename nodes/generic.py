@@ -60,7 +60,7 @@ class GenericNode(SimpleNode):
         NumberParameter(local_id='no_correction_value', label='Value to use for no correction'),
     ]
     # Class-level default operations
-    DEFAULT_OPERATIONS = 'multiply,add,other,apply_multiplier' # FIXME Remove other,apply_multiplier from the default
+    DEFAULT_OPERATIONS = 'get_single_dataset,multiply,add,other,apply_multiplier' # FIXME
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -70,11 +70,13 @@ class GenericNode(SimpleNode):
         # Operation registry
         self.OPERATIONS: dict[str, Callable[..., tuple[Any, Any]]]  = {
             'add': self._operation_add,
+            'add_datasets': self._operation_add_datasets,
             'add_from_incoming_dims': self._operation_add_from_incoming_dims,
             'add_to_existing_dims': self._operation_add_to_existing_dims,
             'apply_multiplier': self._operation_apply_multiplier,
+            'concat_datasets': self._operation_concat_datasets,
             'do_correction': self._operation_do_correction,
-            'get_datasets': self._operation_get_datasets,
+            'get_single_dataset': self._operation_get_single_dataset,
             'multiply': self._operation_multiply,
             'other': self._operation_other,
             'select_variant': self._operation_select_variant,
@@ -84,6 +86,30 @@ class GenericNode(SimpleNode):
             'use_as_totals': self._operation_use_as_totals,
             'use_as_shares': self._operation_use_as_shares,
         }
+
+    # With ports, this operation is just part of _operation_add.
+    def _operation_add_datasets(self, df: ppl.PathsDataFrame | None, baskets: BasketsDict) -> OperationReturn:
+        dfs = self.get_input_datasets_pl()
+        if not dfs:
+            return df, baskets
+        out = df if df is not None else dfs.pop()
+        out = out.paths._add_missing_years(out, self.context)
+
+        for d in dfs:
+            out = out.select(d.columns)
+            di = d.paths._add_missing_years(d, self.context)
+            out = out.paths.add_with_dims(di)
+        assert isinstance(out, ppl.PathsDataFrame)
+        return out, baskets
+
+    def _operation_get_single_dataset(self, df: ppl.PathsDataFrame | None, baskets: BasketsDict) -> OperationReturn:
+        dfc = self.get_cleaned_dataset(required=False)
+        if dfc is None:
+            return df, baskets
+        if df is None:
+            return dfc, baskets
+
+        return df.paths.add_with_dims(dfc), baskets
 
     def _get_input_baskets(self, nodes: list[Node]) -> BasketsDict:
         """Return a dictionary of node 'baskets' categorized by type."""
@@ -172,13 +198,12 @@ class GenericNode(SimpleNode):
         return n.get_output_pl(target_node=self, skip_dim_test=True), baskets
 
 
-    def _operation_get_datasets(self, df: ppl.PathsDataFrame | None, baskets: BasketsDict) -> OperationReturn:
+    def _operation_concat_datasets(self, df: ppl.PathsDataFrame | None, baskets: BasketsDict) -> OperationReturn:
         dfs = self.get_input_datasets_pl()
         if not dfs:
             return df, baskets
-        if df is not None:
-            dfs.append(df)
-        out = dfs.pop()
+        out = df if df is not None else dfs.pop()
+
         for d in dfs:
             out = out.select(d.columns)
             out = out.paths.concat_vertical(d)
@@ -404,8 +429,9 @@ class GenericNode(SimpleNode):
         operations_str = self.get_parameter_value_str('operations', required=False) or self.default_operations
         operations = [op.strip() for op in operations_str.split(',')]
 
-        # Get input dataset and categorize nodes
-        df = self.get_cleaned_dataset(tag='baseline', required=False)
+        # Get input dataset and categorize nodes.
+        # df = self.get_cleaned_dataset(tag='baseline', required=False)
+        df = None
         baskets = self._get_input_baskets(self.input_nodes)
 
         # Track original node counts for validation

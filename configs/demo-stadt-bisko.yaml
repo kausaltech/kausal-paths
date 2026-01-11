@@ -692,7 +692,7 @@ nodes:
     - column: scope
   params:
   - id: operations
-    value: do_correction
+    value: get_single_dataset,do_correction
   - id: do_correction
     ref: weather_correction
   output_nodes:

@@ -18,7 +18,7 @@ TAG_TO_BASKET = {
     'base': 'other',
     # These operations only handle existing df and do not take new inputs:
     # apply_multipliet, do_correction, drop_nand, drop_infs, extend_values, extrapolate
-    # [get_datasets: generalize to use the port theory]
+    # [concat_datasets: generalize to use the port theory]
     # inventory_only, other, select_variant
     'non_additive': 'multiply',
     'other_node': 'other',
@@ -51,11 +51,13 @@ BASKET_DISPLAY_NAMES = {
 }
 
 TAG_DESCRIPTIONS = {
+    'add_datasets': _('Get and prepare each dataset, then add them together.'),
     'additive': _("Add input node values (even if the units don't match with the node units)."),
     'arithmetic_inverse': _('Take the arithmetic inverse of the values (-x).'),
     'bring_to_maximum_historical_year': _('Makes all years up to maximum historical year non-forecasts.'),
     'complement': _('Take the complement of the dimensionless values (1-x).'),
     'complement_cumulative_product': _('Take the cumulative product of the dimensionless complement values over time.'),
+    'concat_datasets': _('Get and concatenate datasets vertically, only then prepare the output.'),
     'cumulative': _('Take the cumulative sum over time.'),
     'cumulative_product': _('Take the cumulative product of the dimensionless values over time.'),
     'difference': _('Take the difference over time (i.e. annual changes)'),
@@ -65,6 +67,7 @@ TAG_DESCRIPTIONS = {
     'extend_to_history': _('Extend the first values to the years after the minimum historical year.'),
     'extend_values': _('Extend the last historical values to the remaining missing years.'),
     'geometric_inverse': _('Take the geometric inverse of the values (1/x).'),
+    'get_single_dataset': _('Get a single dataset if it exists.'),
     'goal': _('The node is used as the goal for the action.'),
     'historical': _('The node is used as the historical starting point.'),
     'existing': _('This is used as the baseline.'),

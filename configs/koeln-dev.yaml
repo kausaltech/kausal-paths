@@ -299,7 +299,7 @@ nodes:
     tags: [baseline]
   params:
   - id: operations
-    value: do_correction
+    value: get_single_dataset,do_correction
   - id: do_correction
     ref: weather_correction
 
@@ -454,7 +454,7 @@ nodes:
 #   input_dimensions: [energy_carrier, sector]
 #   output_dimensions: [energy_carrier, sector]
 #   params:
-#     operations: get_datasets
+#     operations: concat_datasets
 #   input_datasets:
 #   - id: koeln/energy/transport
 #     column: energy
@@ -552,7 +552,7 @@ nodes:
       value: other
   params:
   - id: operations
-    value: do_correction,extend_to_history
+    value: get_single_dataset,do_correction,extend_to_history
   - id: do_correction
     ref: statistical_correction
   - id: no_correction_value

@@ -258,7 +258,7 @@ nodes:
     column: witterungsbereinigung
   params:
   - id: operations
-    value: do_correction
+    value: get_single_dataset,do_correction
   - id: do_correction
     ref: weather_correction
   output_nodes:
@@ -273,7 +273,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   params:
-    operations: get_datasets
+    operations: concat_datasets
   input_datasets:
   - id: potsdam/scenario/energie
     forecast_from: 2024
@@ -294,7 +294,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   params:
-    operations: get_datasets,multiply
+    operations: concat_datasets,multiply
   input_datasets:
   - id: potsdam/scenario/energie
     forecast_from: 2024
@@ -315,7 +315,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   params:
-    operations: get_datasets
+    operations: concat_datasets
   input_datasets:
   - id: potsdam/scenario/emissionen
     forecast_from: 2024
@@ -364,7 +364,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   params:
-    operations: get_datasets
+    operations: concat_datasets
   input_datasets:
   - id: potsdam/scenario/emissionen
     forecast_from: 2024

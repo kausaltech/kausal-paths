@@ -1850,7 +1850,7 @@ nodes:
   output_nodes:
   - id: waste_treatment_emissions
   params:
-    operations: add,use_as_shares
+    operations: get_single_dataset,add,use_as_shares
 
 - id: waste_treatment_emissions
   name_fi: Jätteenkäsittelyn päästöt
