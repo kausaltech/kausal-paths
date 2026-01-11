@@ -59,7 +59,7 @@ FRACTION_QUANTITY = 'fraction'
 ACTIVITY_QUANTITIES = {
     EMISSION_QUANTITY, ENERGY_QUANTITY, MILEAGE_QUANTITY, VEHICLE_MILEAGE_QUANTITY,
     PASSENGER_MILEAGE_QUANTITY, FREIGHT_MILEAGE_QUANTITY, UTILITY_QUANTITY, 'fuel_consumption', 'consumption',
-    'mass', 'volume', 'area', 'employment', 'activity',
+    'mass', 'volume', 'area', 'employment', 'activity', 'traffic_volume',
 }
 
 ACTIVITY_FACTOR_QUANTITIES = {
@@ -69,6 +69,7 @@ ACTIVITY_FACTOR_QUANTITIES = {
 
 UNIT_PRICE_QUANTITIES = {
     UNIT_PRICE_QUANTITY, 'energy_unit_price', 'floor_area_unit_price', 'fuel_unit_price', 'mileage_unit_price',
+    'price',
 }
 
 STACKABLE_QUANTITIES = ACTIVITY_QUANTITIES | {
@@ -81,7 +82,7 @@ KNOWN_QUANTITIES = ACTIVITY_QUANTITIES | ACTIVITY_FACTOR_QUANTITIES | UNIT_PRICE
     MIX_QUANTITY, GROUPED_MIX_QUANTITY, POPULATION_QUANTITY,
     'ratio', 'exposure', 'exposure_response', 'disease_burden', 'case_burden', 'mass_concentration', 'concentration',
     'body_weight', 'incidence', 'fraction', 'probability', 'ingestion', 'area', 'effect', 'health_effect', 'rate',
-    'speed', 'argument', 'duration',
+    'speed', 'argument', 'duration', 'distance', 'elasticity',
 }
 
 

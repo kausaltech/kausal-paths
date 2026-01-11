@@ -206,7 +206,7 @@ class PathsHTMLFormatter(HTMLFormatter):
 
 
 class PathsPrettyFormatter(PrettyFormatter):
-    def format_unit(  # type: ignore
+    def format_unit(
         self,
         unit: PlainUnit | Iterable[tuple[str, Any]],
         uspec: str = "",
@@ -273,7 +273,7 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     diesel_gallon_equivalent = 0.1385 MMBtu = DGE
     vehicle = [vehicle] = v = car
     passenger = [passenger] = p = pass = trip
-    vkm = vehicle * kilometer
+    vkm = vehicle * kilometer = vehicle_km
     pkm = passenger * kilometer
     tkm = tonne * kilometer
     VMT = vehicle * mile
