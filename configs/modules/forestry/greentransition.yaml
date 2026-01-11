@@ -257,7 +257,6 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: sunnydale/forestry2
-    tags: [baseline]
     forecast_from: 2024
     column: technical_row_to_make_sure_uuid_is_not_dropped_fraction
   input_nodes:

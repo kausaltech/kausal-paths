@@ -1196,7 +1196,6 @@ actions:
   output_dimensions: [waste_treatment, waste_type]
   input_nodes:
   - id: waste_recycling_shares_frozen
-    tags: [baseline]
   - id: waste_recycling_future_baseline_shares
     tags: [goal]
     to_dimensions:
@@ -1216,7 +1215,6 @@ actions:
   output_dimensions: [waste_treatment, waste_type]
   input_nodes:
   - id: waste_recycling_shares_baseline
-    tags: [baseline]
   - id: waste_recycling_shares_goal
     tags: [goal, forecast_only]
     to_dimensions:

@@ -12,7 +12,6 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: sunnydale/defaults/passenger_transport
-    tags: [baseline]
     forecast_from: 2025
 
 - id: vehicle_transport
@@ -25,7 +24,6 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: sunnydale/defaults/vehicle_transport
-    tags: [baseline]
     forecast_from: 2025
 
 - id: number_of_buses
@@ -38,7 +36,6 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: sunnydale/defaults/number_of_vehicles
-    tags: [baseline]
     column: Buses
     forecast_from: 2025
 
@@ -52,7 +49,6 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: sunnydale/defaults/number_of_vehicles
-    tags: [baseline]
     column: EVs
     forecast_from: 2025
 
@@ -66,7 +62,6 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier, pollutant]
   input_datasets:
   - id: sunnydale/defaults/transport_emission_factor
-    tags: [baseline]
     forecast_from: 2025
 
 # ---------------- Transport costs ---------------

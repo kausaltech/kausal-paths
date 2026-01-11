@@ -12,7 +12,6 @@ nodes:
   output_dimensions: [transport_mode]
   input_datasets:
   - id: sunnydale/defaults/passenger_transport
-    tags: [baseline]
     forecast_from: 2025
 
 # ---------------- Vehicle transport ---------------

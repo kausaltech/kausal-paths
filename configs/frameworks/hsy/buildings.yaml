@@ -186,7 +186,6 @@ nodes:
   output_dimensions: [building_heat_source, building_use]
   input_datasets:
   - id: hsy/pks_khk_paastot
-    tags: [baseline]
     column: Energiankulutus
     filters:
     - rename_col: Vuosi

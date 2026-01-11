@@ -711,7 +711,6 @@ nodes:
   unit: m**2
   input_datasets:
   - id: cork/public_building_data
-    tags: [baseline]
     column: floor_area
     forecast_from: 2025
     filters:
@@ -728,7 +727,6 @@ nodes:
   output_dimensions: [cost_type]
   input_datasets:
   - id: cork/renovation_prices
-    tags: [baseline]
     column: renovation_unit_price
     forecast_from: 2025
     filters:
@@ -744,7 +742,6 @@ nodes:
   unit: t_co2e/EUR
   input_datasets:
   - id: cork/cost_data
-    tags: [baseline]
     column: reduction_efficiency
     forecast_from: 2025
     filters:
@@ -757,7 +754,6 @@ nodes:
   unit: '%/a'
   input_datasets:
   - id: cork/cost_data
-    tags: [baseline]
     column: inflation
     forecast_from: 2025
     filters:
@@ -1682,7 +1678,6 @@ actions:
   output_dimensions: [project]
   input_datasets:
   - id: sunnydale/cork/cork_actions
-    tags: [baseline]
     column: House retrofit
     forecast_from: 2025
   output_nodes:
@@ -1706,7 +1701,6 @@ actions:
   output_dimensions: [project]
   input_datasets:
   - id: sunnydale/cork/cork_actions
-    tags: [baseline]
     column: New social housing
     forecast_from: 2025
   output_nodes:
@@ -1738,7 +1732,6 @@ actions:
   output_dimensions: [project]
   input_datasets:
   - id: sunnydale/cork/cork_actions
-    tags: [baseline]
     forecast_from: 2025
     filters:
     - column: House retrofit
@@ -2185,7 +2178,6 @@ actions:
   output_dimensions: [waste_treatment, waste_type]
   input_nodes:
   - id: waste_recycling_shares_frozen
-    tags: [baseline]
   - id: waste_recycling_future_baseline_shares
     tags: [goal]
     to_dimensions:
@@ -2204,7 +2196,6 @@ actions:
   output_dimensions: [waste_treatment, waste_type]
   input_nodes:
   - id: waste_recycling_shares_baseline
-    tags: [baseline]
   - id: waste_recycling_shares_goal
     tags: [goal, forecast_only]
     to_dimensions:

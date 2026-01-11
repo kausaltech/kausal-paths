@@ -821,7 +821,6 @@ nodes:
   unit: cap
   input_datasets:
   - id: espoo/vaestoennuste
-    tags: [baseline]
     forecast_from: 2025
     column: population
 
@@ -872,7 +871,6 @@ nodes:
   output_dimensions: [cost_type]
   input_datasets:
   - id: espoo/hiilidioksidin_hinta
-    tags: [baseline, extend_values]
 
 # LINK TO HEALTH MODULE
 
@@ -962,7 +960,6 @@ nodes:
       building_heat_source]
   input_datasets:
   - id: espoo/rakennuksen_kayttotarkoitusindeksi
-    tags: [baseline]
     column: value
 
 - id: building_heating_emissions_uncorrected
@@ -995,7 +992,6 @@ nodes:
   output_dimensions: [emission_sector, economic_sector]
   input_datasets:
   - id: hsy/pks_khk_paastot
-    tags: [baseline]
     column: Päästöt
     filters:
     - rename_col: Sektori2
@@ -1036,7 +1032,6 @@ nodes:
   output_dimensions: [building_heat_source, building_use]
   input_datasets:
   - id: espoo/rakennusala_hsyn_erillislammitystilastossa
-    tags: [baseline]
     column: rakennusala
     filters:
     - rename_col: lammitystapa
@@ -1053,7 +1048,6 @@ nodes:
   output_dimensions: [building_heat_source, building_use]
   input_datasets:
   - id: espoo/lammitysenergia_hsyn_erillislammitystilastossa
-    tags: [baseline]
     column: energia
     filters:
     - rename_col: lammitystapa
@@ -1188,7 +1182,6 @@ nodes:
   output_dimensions: [building_class]
   input_datasets:
   - id: espoo/rakennuskannan_toimet
-    tags: [baseline]
     column: kerrosalan_kasvu
     forecast_from: 2025
 
@@ -1201,7 +1194,6 @@ nodes:
   output_dimensions: [building_class, building_use]
   input_datasets:
   - id: espoo/rakennustyypit_ja_kaytto
-    tags: [baseline]
     column: rakennustyypit_ja_kaytto
 
 - id: living_space
@@ -1213,7 +1205,6 @@ nodes:
   output_dimensions: [building_use]
   input_datasets:
   - id: espoo/rakennuskannan_toimet
-    tags: [baseline]
     column: asumisvaljyys
 
 - id: gross_per_net_floor_area
@@ -1223,7 +1214,6 @@ nodes:
   unit: m**2/m**2
   input_datasets:
   - id: espoo/rakennuskannan_toimet
-    tags: [baseline]
     column: kerrosala_per_huoneistoala
 
 - id: gross_area_per_capita
@@ -1297,7 +1287,6 @@ nodes:
   output_dimensions: [building_heat_source, energy_carrier]
   input_datasets:
   - id: espoo/energialaji_ja_lammitystapa
-    tags: [baseline]
     column: energialaji_ja_lammitystapa
 
 - id: total_building_area
@@ -1483,7 +1472,6 @@ nodes:
   output_dimensions: [economic_sector, energy_carrier]
   input_datasets:
   - id: espoo/electricity
-    tags: [baseline]
     column: ei_lammityssahkon_kulutus_henkea_kohti
     forecast_from: 2025
 
@@ -1553,7 +1541,6 @@ nodes:
   output_dimensions: [economic_sector, energy_carrier]
   input_datasets:
   - id: espoo/electricity
-    tags: [baseline]
     column: vihrean_sahkon_jakauma
   output_nodes:
   - id: green_electricity_consumption_post
@@ -1638,7 +1625,6 @@ nodes:
   - id: espoo/transport
     forecast_from: 2025
     column: tieliikenteen_suorite_ennuste
-    tags: [baseline]
 
 # -------------- Nodes needed for implementing actions ----------------
 
@@ -1663,7 +1649,6 @@ nodes:
   unit: g/kWh
   input_datasets:
   - id: espoo/building
-    tags: [baseline]
     column: kaukolammon_paastokerrointavoite
     forecast_from: 2025
     filters:
@@ -1696,7 +1681,6 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: espoo/electricity
-    tags: [baseline]
     column: muutos_kulutussahkon_kaytossa_asuminen
 
 - id: electricity_production_emission_factor_historic
@@ -1722,7 +1706,6 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: espoo/electricity
-    tags: [baseline]
     column: kansallinen_sahkontuotanto_puhdistuu
 
 # Transport
@@ -1736,7 +1719,6 @@ nodes:
   output_dimensions: [emission_sector, economic_sector]
   input_datasets:
   - id: hsy/pks_khk_paastot
-    tags: [baseline]
     column: Päästöt
     filters:
     - rename_col: Sektori2
@@ -1780,7 +1762,6 @@ nodes:
   output_dimensions: [emission_sector, economic_sector]
   input_datasets:
   - id: hsy/pks_khk_paastot
-    tags: [baseline]
     column: Päästöt
     filters:
     - rename_col: Sektori2
@@ -1809,7 +1790,6 @@ nodes:
   input_datasets:
   - id: espoo/jatteenkasittelyn_paastot_ja_ennuste
     forecast_from: 2025
-    tags: [baseline]
     column: jatteenkasittelyn_paastot
 
 - id: waste_treatment_emissions_data_historical
@@ -1825,7 +1805,6 @@ nodes:
   input_datasets:
   - id: espoo/jatteenkasittelyn_paastot_ja_ennuste
     forecast_from: 2025
-    tags: [baseline]
     column: jatteenkasittelyn_paastot
 
 - id: waste_treatment_emissions_uncorrected
@@ -1842,7 +1821,6 @@ nodes:
   input_datasets:
   - id: espoo/jatteenkasittelyn_paastot_ja_ennuste
     forecast_from: 2025
-    tags: [baseline]
     column: jatteenkasittelyn_paastot
   input_nodes:
   - id: waste_treatment_emission_shares
@@ -1929,7 +1907,6 @@ nodes:
   input_datasets:
   - id: espoo/electricity
     column: suurten_toimijoiden_sahkonkulutus
-    tags: [baseline]
     filters:
     - dimension: owner
       flatten: true
@@ -2046,7 +2023,6 @@ actions:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: espoo/electricity
-    tags: [baseline]
     forecast_from: 2025
     column: arvio_aurinkosahkon_tuotantomaarasta_gwh
   output_nodes:
@@ -2089,7 +2065,6 @@ actions:
   group: transportation
   input_datasets:
   - id: espoo/priorisoidut_toimet
-    tags: [baseline]
     forecast_from: 2025
     column: aktiviteetti
   output_nodes:
@@ -2506,7 +2481,6 @@ actions:
   output_dimensions: [building_use, building_heat_source, owner]
   input_datasets:
   - id: espoo/building
-    tags: [baseline]
     column: kaupungin_oman_rakennuskannan_energiankulutuksen_vahennys
     forecast_from: 2025
   output_nodes:
@@ -2556,7 +2530,6 @@ actions:
     to_dimensions: []
   input_datasets:
   - id: espoo/maatalouden_toimet
-    tags: [baseline]
     column: maatalouden_paastovahennys
 
 - id: reduce_machinery_emissions
@@ -2615,7 +2588,6 @@ actions:
   output_dimensions: [emission_sector]
   input_datasets:
   - id: espoo/teollisuuden_ja_tyokoneiden_paastojen_vahentaminen
-    tags: [baseline]
     forecast_from: 2025
     column: vahennysprosentti
   output_nodes:

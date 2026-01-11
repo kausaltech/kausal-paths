@@ -262,7 +262,6 @@ nodes:
   unit: EUR/m3_solid/a
   input_datasets:
   - id: sunnydale/forestry_fi
-    tags: [baseline]
     filters:
     - column: Sector
       value: Carbon sink unit price

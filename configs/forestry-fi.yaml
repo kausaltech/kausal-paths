@@ -638,7 +638,6 @@ nodes:
   output_dimensions: [region, stakeholder]
   input_datasets:
   - id: sunnydale/forest_land_ownership
-    tags: [baseline]
     column: forest_land_ownership
 
 - id: amount_of_wood_in_forest
@@ -651,7 +650,6 @@ nodes:
   output_dimensions: [region, species]
   input_datasets:
   - id: sunnydale/amount_of_wood_in_forest
-    tags: [baseline]
     column: amount_of_wood_in_forest
 
 - id: annual_growth_of_forest
@@ -664,7 +662,6 @@ nodes:
   output_dimensions: [region, species, stakeholder]
   input_datasets:
   - id: sunnydale/annual_growth_of_forest
-    tags: [baseline]
     column: annual_growth_of_forest
 
 - id: standing_wood_unit_prices
@@ -676,7 +673,6 @@ nodes:
   output_dimensions: [treatment, species, cost_type, region]
   input_datasets:
   - id: sunnydale/standing_wood_unit_price
-    tags: [baseline]
     column: standing_wood_unit_price
 
 - id: forest_treatment_by_age
@@ -688,7 +684,6 @@ nodes:
   output_dimensions: [treatment, age]
   input_datasets:
   - id: sunnydale/harvesting_characteristics
-    tags: [baseline]
     column: treatment_type_by_age
 
 - id: age_of_forests
@@ -700,7 +695,6 @@ nodes:
   output_dimensions: [age, region]
   input_datasets:
   - id: sunnydale/age_of_forests
-    tags: [baseline]
     column: age_of_forests
 
 - id: urban_planning
@@ -716,7 +710,6 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: sunnydale/forestry_fi
-    tags: [baseline] # TODO Remove after you have merged datasets into operations.
     filters:
     - column: Sector
       value: Argument placeholder
@@ -731,7 +724,6 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: sunnydale/forestry_fi
-    tags: [baseline] # TODO Remove after you have merged datasets into operations.
     filters:
     - column: Sector
       value: Argument placeholder
@@ -748,7 +740,6 @@ nodes:
   output_dimensions: [age]
   input_datasets:
   - id: sunnydale/harvesting_characteristics
-    tags: [baseline]
     column: harvesting_probability
 
 - id: dynamic_forest
@@ -885,7 +876,6 @@ nodes:
   output_dimensions: [cost_type]
   input_datasets:
   - id: sunnydale/co2_emission_potential_in_wood
-    tags: [baseline]
     column: co2_emission_potential_in_wood
 
 - id: co2_cost_of_forestry
@@ -977,7 +967,6 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: sunnydale/forestry_fi
-    tags: [baseline] # TODO Remove after you have merged datasets into operations.
     filters:
     - column: Sector
       value: Argument placeholder
@@ -993,7 +982,6 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: sunnydale/forestry_fi
-    tags: [baseline]
     filters:
     - column: Sector
       value: Argument placeholder
@@ -1022,7 +1010,6 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: sunnydale/forestry_fi
-    tags: [baseline]
     filters:
     - column: Sector
       value: Argument placeholder
@@ -1038,7 +1025,6 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: sunnydale/forestry_fi
-    tags: [baseline]
     filters:
     - column: Sector
       value: Argument placeholder
@@ -1054,7 +1040,6 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: sunnydale/forestry_fi
-    tags: [baseline]
     filters:
     - column: Sector
       value: Argument placeholder
@@ -1070,7 +1055,6 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: sunnydale/forestry_fi
-    tags: [baseline]
     filters:
     - column: Sector
       value: Argument placeholder
@@ -1086,7 +1070,6 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: sunnydale/forestry_fi
-    tags: [baseline]
     filters:
     - column: Sector
       value: Argument placeholder
@@ -1174,7 +1157,6 @@ actions:
   output_dimensions: [stakeholder]
   input_datasets:
   - id: sunnydale/co2_emission_potential_in_wood
-    tags: [baseline]
     column: who_pays_for_wood_co2
   params:
   - id: categories

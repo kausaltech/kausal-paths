@@ -36,7 +36,6 @@ nodes:
   unit: Mt_co2e/a
   input_datasets:
   - id: syke/alas_emissions
-    tags: [baseline]
     filters:
     - column: kuntanumero
     - column: maakunta
@@ -73,7 +72,6 @@ nodes:
   unit: g/kWh
   input_datasets:
   - id: nzc/defaults
-    tags: [baseline]
     filters:
     - column: Sector
       value: Emission factors from electricity generation
@@ -143,7 +141,6 @@ actions:
   group: indirect
   input_datasets:
   - id: ikka/solar_electricity
-    tags: [baseline]
     column: pv_info_campaign_potential
     filters:
     - column: confidence
@@ -166,7 +163,6 @@ actions:
   group: indirect
   input_datasets:
   - id: ikka/solar_electricity
-    tags: [baseline]
     column: pv_subsidies
     filters:
     - column: confidence
@@ -183,7 +179,6 @@ actions:
   group: direct
   input_datasets:
   - id: ikka/solar_electricity
-    tags: [baseline]
     column: pv_subsidies
     filters:
     - column: confidence

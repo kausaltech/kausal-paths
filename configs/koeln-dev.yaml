@@ -296,7 +296,6 @@ nodes:
   output_dimensions: [sector]
   input_datasets:
   - id: koeln/weather_correction
-    tags: [baseline]
   params:
   - id: operations
     value: get_single_dataset,do_correction
@@ -311,7 +310,6 @@ nodes:
   unit: cap
   input_datasets:
   - id: koeln/einwohnerin
-    tags: [baseline]
     column: einwohnerin
 
 - id: historical_emissions
@@ -325,7 +323,6 @@ nodes:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/historische_emissionen
-    tags: [baseline]
     column: emissions
   # params:
   # - id: operations
@@ -345,7 +342,6 @@ nodes:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/historische_emissionen
-    tags: [baseline]
     column: emissions
 
 - id: final_transport_energy_use
@@ -358,7 +354,6 @@ nodes:
   output_dimensions: [energy_carrier, sector]
   input_datasets:
   - id: koeln/energy/endenergie
-    tags: [baseline]
     column: energy
     filters:
     - column: sector
@@ -376,7 +371,6 @@ nodes:
   output_dimensions: [energy_carrier, sector]
   input_datasets:
   - id: koeln/energy/endenergie
-    tags: [baseline]
     column: energy
     filters:
     - column: sector
@@ -394,7 +388,6 @@ nodes:
   output_dimensions: [energy_carrier, sector]
   input_datasets:
   - id: koeln/energy/endenergie
-    tags: [baseline]
     column: energy
     filters:
     - column: sector
@@ -412,7 +405,6 @@ nodes:
   output_dimensions: [energy_carrier, sector]
   input_datasets:
   - id: koeln/energy/endenergie
-    tags: [baseline]
     column: energy
     filters:
     - column: sector
@@ -430,7 +422,6 @@ nodes:
   output_dimensions: [energy_carrier, sector]
   input_datasets:
   - id: koeln/energy/endenergie
-    tags: [baseline]
     column: energy
     filters:
     - column: sector
@@ -509,7 +500,6 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: bisko/endenergie_emissionsfaktoren
-    tags: [baseline]
     filters:
     - column: per_what_energy
     - column: upstream_included
@@ -530,7 +520,6 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: koeln/end_energy_emission_factors
-    tags: [baseline]
   params:
   - id: operations
     value: apply_multiplier,truncate_before_start
@@ -546,7 +535,6 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: koeln/sector_index
-    tags: [baseline]
     filters:
     - column: sector
       value: other
@@ -568,7 +556,6 @@ nodes:
   output_dimensions: [sector]
   input_datasets:
   - id: koeln/sector_index
-    tags: [baseline]
   params:
     operations: extend_to_history
 
@@ -831,7 +818,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -867,7 +853,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -894,7 +879,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -920,7 +904,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -946,7 +929,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -969,7 +951,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -996,7 +977,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1022,7 +1002,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1045,7 +1024,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1071,7 +1049,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1105,7 +1082,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1131,7 +1107,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1157,7 +1132,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1182,7 +1156,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1205,7 +1178,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1233,7 +1205,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1260,7 +1231,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1286,7 +1256,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1315,7 +1284,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1353,7 +1321,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1387,7 +1354,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1419,7 +1385,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1454,7 +1419,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1479,7 +1443,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/direkte_manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1498,7 +1461,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/direkte_manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1517,7 +1479,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/direkte_manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1536,7 +1497,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/direkte_manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1555,7 +1515,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/direkte_manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1574,7 +1533,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/direkte_manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1593,7 +1551,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/direkte_manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1612,7 +1569,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/direkte_manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1632,7 +1588,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/direkte_manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1651,7 +1606,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/direkte_manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1670,7 +1624,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/direkte_manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1689,7 +1642,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/direkte_manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1708,7 +1660,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/direkte_manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1727,7 +1678,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/direkte_manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1746,7 +1696,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/direkte_manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1765,7 +1714,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/direkte_manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1784,7 +1732,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/direkte_manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1803,7 +1750,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/direkte_manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1826,7 +1772,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/direkte_manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1849,7 +1794,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/direkte_manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1872,7 +1816,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/direkte_manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1891,7 +1834,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/direkte_manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1914,7 +1856,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/direkte_manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action
@@ -1937,7 +1878,6 @@ actions:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: koeln/direkte_manahmen_ikka
-    tags: [baseline]
     column: emissions
     filters:
     - column: action

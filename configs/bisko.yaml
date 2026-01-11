@@ -522,7 +522,6 @@ nodes:
   output_dimensions: [sector]
   input_datasets:
   - id: bisko/weather_correction
-    tags: [baseline]
   params:
   - id: operations
     value: get_single_dataset,do_correction
@@ -539,7 +538,6 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: bisko/weather_correction
-    tags: [baseline]
     filters:
     - column: sector
       value: electricity
@@ -563,7 +561,6 @@ nodes:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: duesseldorf/final_energy # bisko/final_energy_use # TODO Use temporarily to set up the model
-    tags: [baseline]
     column: Value
 
 - id: final_energy_use_data_quality
@@ -576,7 +573,6 @@ nodes:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: bisko/final_energy_use_data_quality
-    tags: [baseline]
 
 - id: final_transport_energy_use
   name: Endenergie Verkehr
@@ -658,7 +654,6 @@ nodes:
   output_dimensions: [sector, energy_carrier]
   input_datasets:
   - id: duesseldorf/bisko_emissions # bisko/historical_emissions # TODO Use temporarily to set up the model
-    tags: [baseline]
     column: Value
 
 - id: emission_factors # FIXME Check for koeln-dev implementation.
@@ -686,7 +681,6 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: bisko/endenergie_emissionsfaktoren
-    tags: [baseline]
     filters:
     - column: per_what_energy
     - column: upstream_included
@@ -701,7 +695,6 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: bisko/end_energy_emission_factors
-    tags: [baseline]
 
 - id: end_energy_emission_factors
   name: Endenergie Emissionsfaktoren
@@ -731,7 +724,6 @@ nodes:
   output_dimensions: [energy_carrier, per_what_energy]
   input_datasets:
   - id: bisko/emissionsfaktoren_fr_erzeugung
-    tags: [baseline]
     filters:
     - column: upstream_included
 
@@ -745,7 +737,6 @@ nodes:
   output_dimensions: [energy_carrier, per_what_energy]
   input_datasets:
   - id: bisko/electricity_production_emission_factors
-    tags: [baseline]
 
 - id: electricity_production_emission_factors
   name: Emissionsfaktoren für Erzeugung
@@ -775,7 +766,6 @@ nodes:
   output_dimensions: [energy_carrier, per_what_energy]
   input_datasets:
   - id: bisko/emissionsfaktoren_ohne_brennstoffinputinformationen
-    tags: [baseline]
     filters:
     - column: upstream_included
 
@@ -789,7 +779,6 @@ nodes:
   output_dimensions: [energy_carrier, per_what_energy]
   input_datasets:
   - id: bisko/emission_factors_without_fuel_data
-    tags: [baseline]
 
 - id: emission_factors_without_fuel_data
   name: Emissionsfaktoren ohne Brennstoffinputinformationen
@@ -819,7 +808,6 @@ nodes:
   output_dimensions: [energy_carrier, per_what_energy]
   input_datasets:
   - id: bisko/fernwarme_berwiegend
-    tags: [baseline]
     filters:
     - column: upstream_included
 
@@ -833,7 +821,6 @@ nodes:
   output_dimensions: [energy_carrier, per_what_energy]
   input_datasets:
   - id: bisko/emission_factors_for_district_heating_by_generic_fuel
-    tags: [baseline]
 
 - id: emission_factors_for_district_heating_by_generic_fuel
   name: Emissionsfaktoren für Fernwärme - überwiegend
@@ -863,7 +850,6 @@ nodes:
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
   - id: bisko/transport_energy
-    tags: [baseline]
     column: Value
 
 - id: road_transport_activity
@@ -876,7 +862,6 @@ nodes:
   output_dimensions: [vehicle_type, road_type]
   input_datasets:
   - id: bisko/gemeindefeine_fahrleistungen_straenverkehr
-    tags: [baseline]
     column: mileage
     filters:
     - column: district
@@ -895,7 +880,6 @@ nodes:
   input_datasets:
   - id: 
       bisko/gemeindefeine_endenergieverbrauche_schiene_wasser_luft_nach_antriebsart
-    tags: [baseline]
     column: energy
     filters:
     - column: district
@@ -911,7 +895,6 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: koeln/sector_index # TODO Use Bisko-specific dataset.
-    tags: [baseline]
     filters:
     - column: sector
       value: other
@@ -1000,7 +983,6 @@ nodes:
   output_dimensions: [vehicle_type, energy_carrier, road_type]
   input_datasets:
   - id: bisko/energy_factor
-    tags: [baseline]
     column: Value
 
 - id: transport_energy_shares
@@ -1013,7 +995,6 @@ nodes:
   output_dimensions: [vehicle_type, energy_carrier, road_type]
   input_datasets:
   - id: bisko/energy_shares
-    tags: [baseline]
     column: Value
 
 - id: passengers_per_vehicle
@@ -1026,7 +1007,6 @@ nodes:
   output_dimensions: [vehicle_type]
   input_datasets:
   - id: bisko/load_per_vehicle
-    tags: [baseline]
     column: Passengers
 
 - id: passenger_activity
@@ -1080,7 +1060,6 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: bisko/emission_factor
-    tags: [baseline]
     column: Well-to-wheel
 
 - id: transport_emissions
