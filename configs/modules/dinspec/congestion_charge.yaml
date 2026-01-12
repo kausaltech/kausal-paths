@@ -29,7 +29,6 @@ nodes:
   unit: kt/a
   input_datasets:
   - id: sunnydale/congestion_charge
-    tags: [baseline]
     column: car_traffic_emissions_emissions
 
 - id: purchase_power_of_the_poor
@@ -39,7 +38,6 @@ nodes:
   unit: EUR/month
   input_datasets:
   - id: sunnydale/congestion_charge
-    tags: [baseline]
     column: purchase_power_of_the_poor_currency
 
 - id: total_congestion_charge_utility
@@ -136,7 +134,6 @@ actions:
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: sunnydale/congestion_charge_action
-    tags: [baseline]
     forecast_from: 2025
   output_metrics:
   - id: unit_price

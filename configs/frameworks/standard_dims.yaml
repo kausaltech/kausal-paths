@@ -243,7 +243,7 @@ dimensions:
   - id: petrol
     label_en: Petrol
     label_de: Benzin
-    aliases: [benzin_fossil, benzin]
+    aliases: [benzin_fossil, benzin, gasoline]
   - id: bio_petrol
     label_en: Bio petrol
     label_de: Biobenzin
@@ -297,7 +297,7 @@ dimensions:
   - id: electricity
     label_en: Electricity
     label_de: Strom
-    aliases: [strom]
+    aliases: [strom, electric]
   - id: driving_electricity
     label_en: Driving electricity
     label_de: Fahrstrom
@@ -994,9 +994,11 @@ dimensions:
   - id: passenger_cars
     label_en: Passenger Cars
     label_de: Personenkraftwagen (PKW)
+    aliases: [car]
   - id: trucks
     label_en: Trucks
     label_de: Lastkraftwagen (LKW)
+    aliases: [truck]
   - id: light_commercial
     label_en: Light Commercial Vehicles
     label_de: Leichte Nutzfahrzeuge
@@ -1006,15 +1008,19 @@ dimensions:
   - id: buses
     label_en: Buses
     label_de: Busse
+    aliases: [bus]
   - id: motorcycles
     label_en: Motorcycles
     label_de: Motorisierte Zweiräder
+    aliases: [motorcycle]
   - id: bicycles
     label_en: Bicycles
     label_de: Fahrräder
+    aliases: [bike]
   - id: trains
     label_en: Trains
     label_de: Züge
+    aliases: [train]
   - id: rail_vehicles
     label_en: Rail Vehicles
     label_de: Schienenfahrzeuge

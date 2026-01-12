@@ -224,7 +224,6 @@ nodes:
   output_dimensions: [building_heating, economic_sector]
   input_datasets:
   - id: hsy/pks_khk_paastot
-    tags: [baseline]
     forecast_from: 2025
     column: Päästöt
     filters:
@@ -256,7 +255,6 @@ nodes:
   output_dimensions: [economic_sector]
   input_datasets:
   - id: hsy/pks_khk_paastot
-    tags: [baseline]
     forecast_from: 2025
     column: Päästöt
     filters:
@@ -285,7 +283,6 @@ nodes:
   output_dimensions: [vehicle_type, economic_sector]
   input_datasets:
   - id: hsy/pks_khk_paastot
-    tags: [baseline]
     forecast_from: 2025
     column: Päästöt
     filters:
@@ -317,7 +314,6 @@ nodes:
   output_dimensions: [economic_sector]
   input_datasets:
   - id: hsy/pks_khk_paastot
-    tags: [baseline]
     forecast_from: 2025
     column: Päästöt
     filters:
@@ -346,7 +342,6 @@ nodes:
   output_dimensions: [waste_treatment, economic_sector]
   input_datasets:
   - id: hsy/pks_khk_paastot
-    tags: [baseline]
     forecast_from: 2025
     column: Päästöt
     filters:
@@ -378,7 +373,6 @@ nodes:
   output_dimensions: [economic_sector]
   input_datasets:
   - id: hsy/pks_khk_paastot
-    tags: [baseline]
     forecast_from: 2025
     column: Päästöt
     filters:

@@ -72,7 +72,6 @@ nodes:
   output_dimensions: [transport_mode, energy_carrier]
   input_datasets:
   - id: sunnydale/defaults/vehicle_transport
-    tags: [baseline]
     forecast_from: 2025
 
 # ---------------- Transport emissions ---------------

@@ -546,7 +546,6 @@ nodes:
   output_dimensions: [energietrager, sector]
   input_datasets:
   - id: gpc/energiepreis
-    tags: [baseline]
     column: energiepreis
 
 - id: fuel_cost
@@ -686,13 +685,12 @@ nodes:
   input_datasets:
   - id: gpc/demo_stadt
     forecast_from: 2025
-    tags: [baseline]
     column: weather_correction
     filters:
     - column: scope
   params:
   - id: operations
-    value: do_correction
+    value: get_single_dataset,do_correction
   - id: do_correction
     ref: weather_correction
   output_nodes:
@@ -711,7 +709,6 @@ nodes:
   input_datasets:
   - id: gpc/demo_stadt
     forecast_from: 2025
-    tags: [baseline]
     column: energy
     filters:
     - column: sector
@@ -747,7 +744,6 @@ nodes:
   input_datasets:
   - id: gpc/demo_stadt
     forecast_from: 2025
-    tags: [baseline]
     column: emission_factor
     filters:
     - column: sector
@@ -769,7 +765,6 @@ nodes:
   input_datasets:
   - id: gpc/demo_stadt
     forecast_from: 2025
-    tags: [baseline]
     column: energy
     filters:
     - column: sector
@@ -804,7 +799,6 @@ nodes:
   input_datasets:
   - id: gpc/demo_stadt
     forecast_from: 2025
-    tags: [baseline]
     column: emission_factor
     filters:
     - column: sector
@@ -827,7 +821,6 @@ nodes:
   input_datasets:
   - id: gpc/demo_stadt
     forecast_from: 2025
-    tags: [baseline]
     column: energy
     filters:
     - column: sector
@@ -864,7 +857,6 @@ nodes:
   input_datasets:
   - id: gpc/demo_stadt
     forecast_from: 2025
-    tags: [baseline]
     column: emission_factor
     filters:
     - column: sector
@@ -889,7 +881,6 @@ nodes:
   input_datasets:
   - id: gpc/demo_stadt
     forecast_from: 2025
-    tags: [baseline]
     column: emission_factor
     filters:
     - column: sector
@@ -912,7 +903,6 @@ nodes:
   input_datasets:
   - id: gpc/demo_stadt
     forecast_from: 2025
-    tags: [baseline]
     column: energy
     filters:
     - column: sector
@@ -948,7 +938,6 @@ nodes:
   input_datasets:
   - id: gpc/demo_stadt
     forecast_from: 2025
-    tags: [baseline]
     column: emission_factor
     filters:
     - column: sector
@@ -971,7 +960,6 @@ nodes:
   input_datasets:
   - id: gpc/demo_stadt
     forecast_from: 2025
-    tags: [baseline]
     column: energy
     filters:
     - column: sector
@@ -1007,7 +995,6 @@ nodes:
   input_datasets:
   - id: gpc/demo_stadt
     forecast_from: 2025
-    tags: [baseline]
     column: emission_factor
     filters:
     - column: sector
@@ -1266,7 +1253,6 @@ nodes:
   unit: cap
   input_datasets:
   - id: gpc/demo/generische_daten
-    tags: [baseline]
     column: population
     # filters:
     # - column: dataset
@@ -1395,7 +1381,6 @@ actions:
   output_dimensions: [energietrager, scope]
   input_datasets:
   - id: gpc/demo_stadt_massnahmen
-    tags: [baseline]
     forecast_from: 2025
     column: energy
     filters:
@@ -1421,7 +1406,6 @@ actions:
   output_dimensions: [energietrager, scope, ghg]
   input_datasets:
   - id: gpc/demo_stadt_massnahmen
-    tags: [baseline]
     forecast_from: 2025
     column: emission_factor
     filters:
@@ -1443,7 +1427,6 @@ actions:
   output_dimensions: [energietrager, scope]
   input_datasets:
   - id: gpc/demo_stadt_massnahmen
-    tags: [baseline]
     forecast_from: 2025
     column: energy
     filters:
@@ -1469,7 +1452,6 @@ actions:
   output_dimensions: [energietrager, ghg, scope]
   input_datasets:
   - id: gpc/demo_stadt_massnahmen
-    tags: [baseline]
     forecast_from: 2025
     column: emission_factor
     filters:
@@ -1496,7 +1478,6 @@ actions:
   output_dimensions: [energietrager, scope]
   input_datasets:
   - id: gpc/demo_stadt_massnahmen
-    tags: [baseline]
     forecast_from: 2025
     column: energy
     filters:
@@ -1525,7 +1506,6 @@ actions:
   output_dimensions: [energietrager, ghg, scope]
   input_datasets:
   - id: gpc/demo_stadt_massnahmen
-    tags: [baseline]
     forecast_from: 2025
     column: emission_factor
     filters:
@@ -1625,7 +1605,6 @@ actions:
   output_dimensions: [energietrager, scope]
   input_datasets:
   - id: gpc/demo_stadt_massnahmen
-    tags: [baseline]
     forecast_from: 2025
     column: energy
     filters:
@@ -1647,7 +1626,6 @@ actions:
   output_dimensions: [energietrager, ghg, scope]
   input_datasets:
   - id: gpc/demo_stadt_massnahmen
-    tags: [baseline]
     forecast_from: 2025
     column: emission_factor
     filters:
@@ -1667,7 +1645,6 @@ actions:
   output_dimensions: [energietrager, scope]
   input_datasets:
   - id: gpc/demo_stadt_massnahmen
-    tags: [baseline]
     forecast_from: 2025
     column: energy
     filters:
@@ -1687,7 +1664,6 @@ actions:
   output_dimensions: [energietrager, ghg, scope]
   input_datasets:
   - id: gpc/demo_stadt_massnahmen
-    tags: [baseline]
     forecast_from: 2025
     column: emission_factor
     filters:

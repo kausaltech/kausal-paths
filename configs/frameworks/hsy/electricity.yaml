@@ -9,7 +9,6 @@ nodes:
   output_dimensions: [emission_sector, economic_sector]
   input_datasets:
   - id: hsy/pks_khk_paastot
-    tags: [baseline]
     column: Päästöt
     filters:
     - rename_col: Sektori2
@@ -98,7 +97,6 @@ nodes:
   output_dimensions: [energy_carrier, do_correction]
   input_datasets:
   - id: espoo/vihrean_sahkon_indeksi
-    tags: [baseline]
     column: vihrea_sahko_paastotonta
 
 - id: residual_emission_factor
@@ -174,7 +172,6 @@ nodes:
   output_dimensions: [energy_carrier]
   input_datasets:
   - id: espoo/electricity/lammityssahkon_lisakerroin
-    tags: [baseline]
     column: lammityssahkon_lisakerroin
 
 - id: electric_heating_emission_factor

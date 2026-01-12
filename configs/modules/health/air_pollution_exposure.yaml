@@ -145,7 +145,6 @@ nodes:
   unit: kt/a
   input_datasets:
   - id: sunnydale/defaults/transport_and_power_plant_emissions
-    tags: [baseline]
     forecast_from: 2025
     filters:
     - column: sector
@@ -163,7 +162,6 @@ nodes:
   unit: kt/a
   input_datasets:
   - id: sunnydale/defaults/transport_and_power_plant_emissions
-    tags: [baseline]
     forecast_from: 2025
     filters:
     - column: sector
@@ -250,7 +248,6 @@ nodes:
   output_dimensions: [pollutant, heating_type]
   input_datasets:
   - id: nzc/defaults
-    tags: [baseline]
     filters:
     - column: Sector
       value: Emission factors from heat production
@@ -315,7 +312,6 @@ nodes:
   output_dimensions: [pollutant, emission_height]
   input_datasets:
   - id: hia/intake_fraction/air_pollution_if
-    tags: [baseline]
     column: Intake fraction
     filters:
     - column: population_density

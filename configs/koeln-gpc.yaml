@@ -207,7 +207,6 @@ nodes:
   output_dimensions: [energy_carrier, sector]
   input_datasets:
   - id: koeln/energy/transport
-    tags: [baseline]
     column: energy
     filters:
     - column: weather_correction
@@ -224,7 +223,6 @@ nodes:
   output_dimensions: [energy_carrier, sector]
   input_datasets:
   - id: koeln/energy/municipal_facilities
-    tags: [baseline]
     column: energy
     filters:
     - column: weather_correction
@@ -241,7 +239,6 @@ nodes:
   output_dimensions: [energy_carrier, sector]
   input_datasets:
   - id: koeln/energy/private_households
-    tags: [baseline]
     column: energy
     filters:
     - column: weather_correction
@@ -258,7 +255,6 @@ nodes:
   output_dimensions: [energy_carrier, sector]
   input_datasets:
   - id: koeln/energy/industry
-    tags: [baseline]
     column: energy
     filters:
     - column: weather_correction
@@ -275,7 +271,6 @@ nodes:
   output_dimensions: [energy_carrier, sector]
   input_datasets:
   - id: koeln/energy/commerce_trade_services
-    tags: [baseline]
     column: energy
     filters:
     - column: weather_correction
@@ -319,7 +314,6 @@ nodes:
   unit: cap
   input_datasets:
   - id: koeln/einwohnerin
-    tags: [baseline]
     column: einwohnerin
 
 - id: private_houses_emissions
@@ -332,7 +326,6 @@ nodes:
   output_dimensions: [energietrager, eigentum, scope]
   input_datasets:
   - id: koeln/historische_emissionen
-    tags: [baseline]
     column: private_haushalte
   output_nodes:
   - id: net_emissions
@@ -352,7 +345,6 @@ nodes:
   output_dimensions: [energietrager, eigentum, scope]
   input_datasets:
   - id: koeln/historische_emissionen
-    tags: [baseline]
     column: gewerbe_sonstiges
   output_nodes:
   - id: net_emissions
@@ -372,7 +364,6 @@ nodes:
   output_dimensions: [energietrager, scope]
   input_datasets:
   - id: koeln/historische_emissionen
-    tags: [baseline]
     column: industrie
   output_nodes:
   - id: net_emissions
@@ -390,7 +381,6 @@ nodes:
   output_dimensions: [energietrager, eigentum, scope]
   input_datasets:
   - id: koeln/historische_emissionen
-    tags: [baseline]
     column: stadtische_gebaude
   output_nodes:
   - id: net_emissions
@@ -413,7 +403,6 @@ nodes:
   output_dimensions: [energietrager, scope]
   input_datasets:
   - id: koeln/historische_emissionen
-    tags: [baseline]
     column: verkehr
   output_nodes:
   - id: net_emissions
@@ -432,7 +421,6 @@ nodes:
   output_dimensions: [energietrager]
   input_datasets:
   - id: koeln/endenergie_und_emissionfaktor
-    tags: [baseline]
     column: endenergie_anwendung
     filters:
     - column: scenario
@@ -447,7 +435,6 @@ nodes:
   output_dimensions: [energietrager]
   input_datasets:
   - id: koeln/andere_daten
-    tags: [baseline]
     column: treibhausgase_lokaler_strommix
     filters:
     - column: scenario
@@ -462,7 +449,6 @@ nodes:
   output_dimensions: [energietrager]
   input_datasets:
   - id: koeln/endenergie_und_emissionfaktor
-    tags: [baseline]
     column: emissionfaktor
     filters:
     - column: scenario
@@ -488,7 +474,6 @@ nodes:
   output_dimensions: [energietrager]
   input_datasets:
   - id: koeln/endenergie_und_emissionfaktor_verbrauchssektoren
-    tags: [baseline]
     column: endenergie_verbrauchssektoren
     filters:
     - column: scenario
@@ -503,7 +488,6 @@ nodes:
   output_dimensions: [energietrager]
   input_datasets:
   - id: koeln/andere_daten
-    tags: [baseline]
     column: emissionen_verbrauchsektoren
     filters:
     - column: scenario
@@ -518,7 +502,6 @@ nodes:
   output_dimensions: [energietrager]
   input_datasets:
   - id: koeln/endenergie_und_emissionfaktor_verbrauchssektoren
-    tags: [baseline]
     column: emissionfaktor_verbrauchssektoren
     filters:
     - column: scenario
@@ -545,7 +528,6 @@ nodes:
   output_dimensions: [energietrager]
   input_datasets:
   - id: koeln/warmeentwicklung
-    tags: [baseline]
     column: warmeentwicklung
     filters:
     - column: scenario
@@ -577,7 +559,6 @@ nodes:
   output_dimensions: [energietrager]
   input_datasets:
   - id: koeln/erneuerbare_energie
-    tags: [baseline]
     column: erneuerbare_energiepotenziale
     filters:
     - column: scenario
@@ -592,7 +573,6 @@ nodes:
   output_dimensions: [energietrager]
   input_datasets:
   - id: koeln/erneuerbare_energie
-    tags: [baseline]
     column: erneuerbare_energieerzeugung
     filters:
     - column: scenario
@@ -607,7 +587,6 @@ nodes:
   output_dimensions: [energietrager]
   input_datasets:
   - id: koeln/erneuerbare_energie
-    tags: [baseline]
     column: erneuerbare_energiefaktor
     filters:
     - column: scenario
@@ -636,7 +615,6 @@ actions:
   output_dimensions: [energietrager]
   input_datasets:
   - id: koeln/massnahmen
-    tags: [baseline]
     column: massnahmen_endenergie
   output_nodes:
   - id: endenergie_anwendung
@@ -650,7 +628,6 @@ actions:
   output_dimensions: [energietrager]
   input_datasets:
   - id: koeln/massnahmen
-    tags: [baseline]
     column: massnahmen_emissionfaktor
   output_nodes:
   - id: emissionfaktor
@@ -664,7 +641,6 @@ actions:
   output_dimensions: [energietrager]
   input_datasets:
   - id: koeln/massnahmen_verbrauchssektoren
-    tags: [baseline]
     column: massnahmen_endenergie_verbrauchssektoren
   output_nodes:
   - id: endenergie_verbrauchssektoren
@@ -678,7 +654,6 @@ actions:
   output_dimensions: [energietrager]
   input_datasets:
   - id: koeln/massnahmen_verbrauchssektoren
-    tags: [baseline]
     column: massnahmen_emissionfaktor_verbrauchssektoren
   output_nodes:
   - id: emissionfaktor_verbrauchssektoren
@@ -692,7 +667,6 @@ actions:
   output_dimensions: [energietrager]
   input_datasets:
   - id: koeln/massnahmen_warmeentwicklung
-    tags: [baseline]
     column: massnahmen_warmeentwicklung
   output_nodes:
   - id: warmeentwicklung
@@ -706,7 +680,6 @@ actions:
   output_dimensions: [energietrager]
   input_datasets:
   - id: koeln/massnahmen
-    tags: [baseline]
     column: massnahmen_erneuerbare_energiepotenziale
   output_nodes:
   - id: erneuerbare_energiepotenziale

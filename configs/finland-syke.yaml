@@ -388,7 +388,6 @@ nodes:
   unit: Mt/a
   input_datasets:
   - id: syke/alas_emissions
-    tags: [baseline]
     filters:
     - column: kuntanumero
     - column: maakunta
@@ -419,7 +418,6 @@ nodes:
   unit: Mt/a
   input_datasets:
   - id: syke/alas_emissions
-    tags: [baseline]
     filters:
     - column: kuntanumero
     - column: maakunta
@@ -450,7 +448,6 @@ nodes:
   unit: Mt/a
   input_datasets:
   - id: syke/alas_emissions
-    tags: [baseline]
     filters:
     - column: kuntanumero
     - column: maakunta
@@ -481,7 +478,6 @@ nodes:
   unit: Mt/a
   input_datasets:
   - id: syke/alas_emissions
-    tags: [baseline]
     filters:
     - column: kuntanumero
     - column: maakunta
@@ -512,7 +508,6 @@ nodes:
   unit: Mt/a
   input_datasets:
   - id: syke/alas_emissions
-    tags: [baseline]
     filters:
     - column: kuntanumero
     - column: maakunta
@@ -543,7 +538,6 @@ nodes:
   unit: Mt/a
   input_datasets:
   - id: syke/alas_emissions
-    tags: [baseline]
     filters:
     - column: kuntanumero
     - column: maakunta
@@ -574,7 +568,6 @@ nodes:
   unit: Mt/a
   input_datasets:
   - id: syke/alas_emissions
-    tags: [baseline]
     filters:
     - column: kuntanumero
     - column: maakunta
@@ -770,7 +763,6 @@ nodes:
   unit: Mt/a
   input_datasets:
   - id: vtt/kaisu3/kaisu3_scenario_emissions
-    tags: [baseline]
     column: metsamaa_ja_puutuotteet
     forecast_from: 2025
     filters:
@@ -815,7 +807,6 @@ nodes:
   group: wem_actions
   input_datasets:
   - id: vtt/kaisu3/kaisu3_scenario_emissions
-    tags: [baseline]
     column: muu_lulucf
     forecast_from: 2025
     filters:
@@ -835,7 +826,6 @@ nodes:
   group: wem_actions
   input_datasets:
   - id: vtt/kaisu3/kaisu3_scenario_emissions
-    tags: [baseline]
     column: ccs_ja_beccs
     forecast_from: 2025
     filters:
@@ -854,7 +844,6 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: sunnydale/forestry_fi
-    tags: [baseline]
     filters:
     - column: Sector
       value: Argument placeholder
@@ -884,7 +873,6 @@ nodes:
   unit: Mm3_solid/a
   input_datasets:
   - id: sunnydale/annual_growth_of_forest
-    tags: [baseline]
     column: annual_growth_of_forest
     filters:
     - column: stakeholder
@@ -933,13 +921,12 @@ nodes:
   unit: kg/m3_solid
   input_datasets:
   - id: sunnydale/forestry_fi
-    tags: [baseline]
     filters:
     - column: Sector
       value: Argument placeholder
   params:
   - id: operations
-    value: add,apply_multiplier
+    value: get_single_dataset,add,apply_multiplier
   - id: multiplier
     value: 446.0
     unit: kg/m3_solid
@@ -973,7 +960,6 @@ nodes:
   output_dimensions: [economic_sector]
   input_datasets:
   - id: sunnydale/wood_use
-    tags: [baseline]
     column: volume
     filters:
     - rename_col: kayttotarkoitus
@@ -1009,7 +995,6 @@ nodes:
   output_dimensions: [economic_sector]
   input_datasets:
   - id: sunnydale/forestry_economics
-    tags: [baseline]
     column: gross_value_added
 
 - id: forestry_unit_price
@@ -1046,7 +1031,6 @@ nodes:
   input_datasets:
   - id: sunnydale/forest_income_fraction_by_stakeholder
     forecast_from: 2025
-    tags: [baseline]
     column: fraction
 
 - id: forestry_income
@@ -1224,13 +1208,12 @@ actions:
   group: wam_actions
   input_datasets:
   - id: sunnydale/forestry_fi
-    tags: [baseline]
     filters:
     - column: Sector
       value: Argument placeholder
   params:
   - id: operations
-    value: apply_multiplier
+    value: get_single_dataset,apply_multiplier
   - id: multiplier
     label: Päästötavoite
     value: -20
@@ -1421,7 +1404,6 @@ actions:
   group: new_innovations
   input_datasets:
   - id: sunnydale/energy_and_climate_action_plan
-    tags: [baseline]
     column: metsapaastokauppa
     forecast_from: 2025
   output_nodes: [forestry_costs]
@@ -1435,12 +1417,11 @@ actions:
   group: new_innovations
   input_datasets:
   - id: sunnydale/energy_and_climate_action_plan
-    tags: [baseline]
     column: metsapaastokauppa
     forecast_from: 2025
   params:
   - id: operations
-    value: apply_multiplier
+    value: get_single_dataset,apply_multiplier
   - id: multiplier
     value: 5.0
     min_value: 0.0
@@ -1470,7 +1451,6 @@ actions:
   group: emission_trade
   input_datasets:
   - id: sunnydale/energy_and_climate_action_plan
-    tags: [baseline]
     column: negatiivisten_paastojen_edistaminen
     forecast_from: 2025
   output_nodes: [road_transport_emissions]
@@ -1486,7 +1466,6 @@ actions:
   group: load_sharing
   input_datasets:
   - id: sunnydale/energy_and_climate_action_plan
-    tags: [baseline]
     column: liikennetoimet
     forecast_from: 2025
   output_nodes: [road_transport_emissions]
@@ -1500,7 +1479,6 @@ actions:
   group: load_sharing
   input_datasets:
   - id: sunnydale/energy_and_climate_action_plan
-    tags: [baseline]
     column: maatalouden_toimet
     forecast_from: 2025
   output_nodes: [agriculture_emissions]
@@ -1514,7 +1492,6 @@ actions:
   group: load_sharing
   input_datasets:
   - id: sunnydale/energy_and_climate_action_plan
-    tags: [baseline]
     column: erillislammitystoimet
     forecast_from: 2025
   output_nodes: [building_heating_emissions]
@@ -1528,7 +1505,6 @@ actions:
   group: load_sharing
   input_datasets:
   - id: sunnydale/energy_and_climate_action_plan
-    tags: [baseline]
     column: tyokonetoimet
     forecast_from: 2025
   output_nodes: [machinery_emissions]
@@ -1542,7 +1518,6 @@ actions:
   group: load_sharing
   input_datasets:
   - id: sunnydale/energy_and_climate_action_plan
-    tags: [baseline]
     column: jatteenpolton_toimet
     forecast_from: 2025
   output_nodes: [waste_treatment_emissions]
@@ -1558,7 +1533,6 @@ actions:
   group: land_use
   input_datasets:
   - id: sunnydale/energy_and_climate_action_plan
-    tags: [baseline]
     column: turvepeltojen_kosteikkotoimet
     forecast_from: 2025
   output_nodes: [agriculture_emissions]
@@ -1572,7 +1546,6 @@ actions:
   group: land_use
   input_datasets:
   - id: sunnydale/energy_and_climate_action_plan
-    tags: [baseline]
     column: metsanuudistustoimet
     forecast_from: 2025
   output_nodes:
@@ -1615,7 +1588,6 @@ actions:
   group: land_use
   input_datasets:
   - id: sunnydale/energy_and_climate_action_plan
-    tags: [baseline]
     column: metsatuhojen_ennaltaehkaisy
     forecast_from: 2025
   output_nodes:
@@ -1631,7 +1603,6 @@ actions:
   group: land_use
   input_datasets:
   - id: sunnydale/energy_and_climate_action_plan
-    tags: [baseline]
     column: metsalannoituksen_edistaminen
     forecast_from: 2025
   output_nodes:
@@ -1647,7 +1618,6 @@ actions:
   group: land_use
   input_datasets:
   - id: sunnydale/energy_and_climate_action_plan
-    tags: [baseline]
     column: metsaalan_lisaamistoimet
     forecast_from: 2025
   output_nodes:

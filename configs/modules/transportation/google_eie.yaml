@@ -249,7 +249,6 @@ nodes:
   output_dimensions: [energy_carrier, vehicle_type]
   input_datasets:
   - id: espoo/transport
-    tags: [baseline]
     forecast_from: 2025
     column: henkiloautojen_maara
     # filters:

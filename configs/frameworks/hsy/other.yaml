@@ -96,7 +96,6 @@ nodes:
   output_dimensions: [emission_sector, economic_sector]
   input_datasets:
   - id: hsy/pks_khk_paastot
-    tags: [baseline]
     column: Päästöt
     filters:
     - rename_col: Sektori2
@@ -126,7 +125,6 @@ nodes:
   output_dimensions: [emission_sector, economic_sector]
   input_datasets:
   - id: hsy/pks_khk_paastot
-    tags: [baseline]
     column: Päästöt
     filters:
     - rename_col: Sektori2

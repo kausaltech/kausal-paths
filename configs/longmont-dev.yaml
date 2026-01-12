@@ -849,7 +849,6 @@ nodes:
   output_dimensions: [emission_scope]
   input_datasets:
   - id: longmont/greenhouse_gas_emissions_by_subsector
-    tags: [baseline]
     column: emissions
     filters:
     - column: emission_sectors
@@ -865,7 +864,7 @@ nodes:
   color: '#5D9C6F'
   params:
   - id: operations
-    value: apply_multiplier
+    value: get_single_dataset,apply_multiplier
   - id: multiplier
     value: 1
     unit: t_co2e/t
@@ -878,7 +877,6 @@ nodes:
   unit: t_co2e/a
   input_datasets:
   - id: longmont/greenhouse_gas_emissions_by_subsector
-    tags: [baseline]
     column: emissions
     filters:
     - column: emission_scope
@@ -893,7 +891,7 @@ nodes:
       categories: [co2e]
   params:
   - id: operations
-    value: apply_multiplier
+    value: get_single_dataset,apply_multiplier
   - id: multiplier
     value: 1
     unit: t_co2e/t
@@ -926,7 +924,6 @@ nodes:
   output_dimensions: [asset, energy_carrier]
   input_datasets:
   - id: longmont/avoided_emissions
-    tags: [baseline]
     column: Green production
 
 - id: green_electricity_emission_reduction
@@ -1023,11 +1020,10 @@ nodes:
   input_datasets:
   - id: longmont/technical_data
     forecast_from: 2024
-    tags: [baseline]
     column: ratio
   params:
   - id: operations
-    value: do_correction
+    value: get_single_dataset,do_correction
   - id: do_correction
     ref: weather_correction
 
@@ -1079,11 +1075,10 @@ nodes:
   input_datasets:
   - id: longmont/technical_data
     forecast_from: 2024
-    tags: [baseline]
     column: ratio
   params:
   - id: operations
-    value: do_correction,complement
+    value: get_single_dataset,do_correction,complement
   - id: do_correction
     ref: biogenic_inclusion
   output_nodes: [building_emissions]
@@ -1110,7 +1105,6 @@ nodes:
   output_dimensions: [emission_sectors, site]
   input_datasets:
   - id: longmont/stationary_energy_consumption
-    tags: [baseline]
     column: electricity
     filters:
     - column: energy_carrier
@@ -1718,7 +1712,6 @@ nodes:
   output_dimensions: [vehicle_type, energy_carrier, ghg]
   input_datasets:
   - id: longmont/transportation_emission_factors
-    tags: [baseline]
     column: emission_factor
 
 - id: transportation_emission_factors
@@ -1730,7 +1723,6 @@ nodes:
   output_dimensions: [ghg, energy_carrier]
   input_datasets:
   - id: longmont/transportation_emission_factors
-    tags: [baseline]
     column: fuel_emission_factor
 
 - id: transportation_ch4_emissions
@@ -1795,7 +1787,6 @@ nodes:
   output_dimensions: [service, vehicle_type, energy_carrier]
   input_datasets:
   - id: longmont/transit_data
-    tags: [baseline]
     forecast_from: 2025
     column: transit_vmt
 
@@ -1808,7 +1799,6 @@ nodes:
   output_dimensions: [service, vehicle_type, energy_carrier]
   input_datasets:
   - id: longmont/transit_data
-    tags: [baseline]
     forecast_from: 2025
     column: percent_attributable
 
@@ -1821,7 +1811,6 @@ nodes:
   output_dimensions: [service, vehicle_type, energy_carrier]
   input_datasets:
   - id: longmont/transit_data
-    tags: [baseline]
     forecast_from: 2025
     column: transit_mpg
 
@@ -1882,7 +1871,6 @@ nodes:
   output_dimensions: [ghg]
   input_datasets:
   - id: longmont/total_railway_ghg_emissions_boulder_county
-    tags: [baseline]
     forecast_from: 2025
     column: railway_emissions
 
@@ -1893,7 +1881,6 @@ nodes:
   unit: '%'
   input_datasets:
   - id: longmont/total_railway_ghg_emissions_boulder_county
-    tags: [baseline]
     forecast_from: 2025
     column: proportion_of_rail_lines_in_longmont
 
@@ -1927,7 +1914,6 @@ nodes:
   output_dimensions: [energy_carrier, airport, scope]
   input_datasets:
   - id: longmont/aviation_data
-    tags: [baseline]
     column: total_fuel_used
 
 - id: aviation_fuel_emission_factors
@@ -1939,7 +1925,6 @@ nodes:
   output_dimensions: [energy_carrier, ghg, source]
   input_datasets:
   - id: longmont/aviation_data
-    tags: [baseline]
     column: fuel_emission_factors
 
 - id: aviation_emissions
@@ -1987,7 +1972,6 @@ nodes:
   output_dimensions: [waste, ghg]
   input_datasets:
   - id: longmont/waste_emission_factors
-    tags: [baseline]
     column: waste_emission_factor
 
 - id: gas_collection_rate
@@ -1997,7 +1981,6 @@ nodes:
   unit: '%'
   input_datasets:
   - id: longmont/waste_data
-    tags: [baseline]
     column: gas_collection_rate
 
 - id: waste_landfilled
@@ -2009,7 +1992,6 @@ nodes:
   output_dimensions: [scope, waste]
   input_datasets:
   - id: longmont/waste_data
-    tags: [baseline]
     column: waste_landfilled
 
 - id: msw_characterization
@@ -2021,7 +2003,6 @@ nodes:
   output_dimensions: [waste]
   input_datasets:
   - id: longmont/waste_characterization
-    tags: [baseline]
     column: msw_characterization
 
 - id: landfilled_waste_emissions
@@ -2067,7 +2048,6 @@ nodes:
   output_dimensions: [ghg]
   input_datasets:
   - id: longmont/waste_emission_factors
-    tags: [baseline]
     column: composting_emission_factor
 
 - id: waste_composted
@@ -2079,7 +2059,6 @@ nodes:
   output_dimensions: [scope]
   input_datasets:
   - id: longmont/waste_data
-    tags: [baseline]
     column: waste_composted
 
 - id: composted_waste_emissions
@@ -2112,7 +2091,6 @@ nodes:
   output_dimensions: [scope, ghg]
   input_datasets:
   - id: longmont/waste_emission_factors
-    tags: [baseline]
     column: informational_composting_emission_factor
 
 - id: informational_composting_emission_reduction
@@ -2150,7 +2128,6 @@ nodes:
   output_dimensions: [scope]
   input_datasets:
   - id: longmont/waste_data
-    tags: [baseline]
     column: waste_recycled
 
 - id: recycling_characterization
@@ -2162,7 +2139,6 @@ nodes:
   output_dimensions: [waste]
   input_datasets:
   - id: longmont/waste_characterization
-    tags: [baseline]
     column: recycling_characterization
 
 - id: recycling_instead_of_virgin
@@ -2174,7 +2150,6 @@ nodes:
   output_dimensions: [waste, ghg]
   input_datasets:
   - id: longmont/waste_emission_factors
-    tags: [baseline]
     column: recycling_instead_of_virgin
 
 - id: landfill_gas_collection
@@ -2186,7 +2161,6 @@ nodes:
   output_dimensions: [waste, ghg]
   input_datasets:
   - id: longmont/waste_emission_factors
-    tags: [baseline]
     column: landfill_gas_collection
 
 - id: recycling_emission_factor
@@ -2237,7 +2211,6 @@ nodes:
   output_dimensions: [ghg]
   input_datasets:
   - id: longmont/global_warming_potentials
-    tags: [baseline]
     column: global_warming_potential
 
 - id: global_warming_potential_100a_old
@@ -2282,7 +2255,6 @@ nodes:
   unit: sq_ft
   input_datasets:
   - id: longmont/ippu
-    tags: [baseline]
     column: commercial_square_footage_air_conditioned
 
 - id: square_feet_per_ton_of_cooling
@@ -2292,7 +2264,6 @@ nodes:
   unit: sq_ft/refrigeration_ton
   input_datasets:
   - id: longmont/ippu
-    tags: [baseline]
     column: square_feet_per_ton_of_cooling
 
 - id: amount_of_refrigerant
@@ -2304,7 +2275,6 @@ nodes:
   output_dimensions: [ghg]
   input_datasets:
   - id: longmont/ippu
-    tags: [baseline]
     column: amount_of_refrigerant
 
 - id: refrigerant_loss
@@ -2314,7 +2284,6 @@ nodes:
   unit: '%/a'
   input_datasets:
   - id: longmont/ippu
-    tags: [baseline]
     column: estimated_refrigerant_loss
 
 - id: refrigerant_emissions
@@ -2369,7 +2338,6 @@ nodes:
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
   - id: longmont/vehicle_miles_traveled
-    tags: [baseline]
 
 - id: non_electric_vehicle_fuel_use2
   name: Non-electric vehicle fuel use2
@@ -2381,7 +2349,6 @@ nodes:
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
   - id: longmont/transport_fuel_consumption
-    tags: [baseline]
     column: Fuel
 
 - id: greenhouse_gas_index
@@ -2394,7 +2361,6 @@ nodes:
   output_dimensions: [ghg, greenhouse_gases]
   input_datasets:
   - id: longmont/greenhouse_gas_index
-    tags: [baseline]
 
 - id: vehicle_fuel_emissions
   name: Vehicle fuel emissions
@@ -2731,7 +2697,6 @@ actions:
   group: electric_grid
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
-    tags: [baseline]
     column: longmont_power_renewables_additional
     forecast_from: 2023
   output_nodes:
@@ -2808,7 +2773,6 @@ actions:
   group: electric_grid
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
-    tags: [baseline]
     column: reduce_transmission_distribution_losses
     forecast_from: 2023
   output_nodes:
@@ -2835,7 +2799,6 @@ actions:
   group: oil_and_gas
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
-    tags: [baseline]
     forecast_from: 2022
     column: leak_detection
   output_nodes:
@@ -2920,7 +2883,6 @@ actions:
   group: transportation
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
-    tags: [baseline]
     column: increase_access_of_public_transit
     forecast_from: 2023
   # output_nodes:
@@ -2951,7 +2913,6 @@ actions:
   group: transportation
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
-    tags: [baseline]
     column: multimodal_transportation_system
     forecast_from: 2023
   output_nodes:
@@ -2981,7 +2942,6 @@ actions:
   group: transportation
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
-    tags: [baseline]
     forecast_from: 2022
     column: last_mile_connections
   output_nodes:
