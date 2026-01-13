@@ -4,7 +4,7 @@ supported_languages: [de, fi]
 site_url: https://equalia.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 4a22289011155a5767ccdfe660d671a4232b1941
+  commit: c4dfc622d26ac91e47ad61d32836b9539919aa7e
   dvc_remote: kausal-s3
 name: Equalia Climate Action Plan
 owner: Kausal Ltd
