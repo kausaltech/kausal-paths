@@ -78,6 +78,7 @@ dependencies = [
   "s3cmd",
   "sentry-sdk[django,opentelemetry]",
   "social-auth-app-django",
+  "starlette>=0.51.0",
   "strawberry-graphql",
   "strawberry-graphql-django",
   "tzdata",
@@ -111,12 +112,12 @@ norecursedirs = ["node_modules", "data", ".git", "venv", "Attic"]
 filterwarnings = ["ignore::DeprecationWarning:graphene"]
 
 [[tool.uv.index]]
-url = "https://pypi.org/simple"
+name = "kausal"
+url = "https://pypi.kausal.tech/"
+authenticate = "always"
 
 [[tool.uv.index]]
-name = "kausal"
-url = "https://pypi.kausal.tech"
-authenticate = "always"
+url = "https://pypi.org/simple"
 
 [tool.ruff]
 extend = './kausal_common/configs/ruff.toml'
