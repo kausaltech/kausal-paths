@@ -7,7 +7,7 @@ from __future__ import annotations
 import os
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -56,6 +56,7 @@ class InstanceData:
 
     id: str
     target_year: int
+    created_at: date
     nodes: list[NodeData] = field(default_factory=list)
 
     def add_node(self, node_id: str, df: ppl.PathsDataFrame) -> NodeData:
@@ -92,9 +93,9 @@ class DataCollection:
     summaries: list[InstanceData]
     target_units: dict[str, str]
 
-    def add_instance(self, instance_id: str, target_year: int) -> InstanceData:
+    def add_instance(self, instance_id: str, target_year: int, created_at: date) -> InstanceData:
         """Add a new instance."""
-        instance = InstanceData(id=instance_id, target_year=target_year)
+        instance = InstanceData(id=instance_id, target_year=target_year, created_at=created_at)
         self.instances.append(instance)
         return instance
 
@@ -160,18 +161,24 @@ class DataCollection:
         def _sum_over_instances(df: PathsDataFrame, topic: str) -> PathsDataFrame:
             return (
                 df.paths.sum_over_dims(['Instance', YEAR_COLUMN])
-                .with_columns(pl.lit(topic).alias('Instance'))
-                .with_columns(pl.lit(0).alias(YEAR_COLUMN))
+                .with_columns([
+                    pl.lit(topic).alias('Instance'),
+                    pl.lit(0).alias(YEAR_COLUMN),
+                    pl.lit(0).alias('CreatedAt')
+                ])
                 .add_to_index(['Instance', YEAR_COLUMN])
             )
 
         # node_ids = list({node.id for instance in dc.instances for node in instance.nodes})
-        summary = InstanceData(id='sum_over_instances', target_year=0)
+        summary = InstanceData(id='sum_over_instances', target_year=0, created_at=datetime.now().date())  # noqa: DTZ005
         for instance in self.instances:
             for node in instance.nodes:
                 df: PathsDataFrame = node.df
                 df = (df
-                    .with_columns(pl.lit(instance.id).alias('Instance'))
+                    .with_columns([
+                        pl.lit(instance.id).alias('Instance'),
+                        pl.lit(instance.created_at).alias('CreatedAt')
+                    ])
                     .add_to_index('Instance')
                 )
                 sum_df: PathsDataFrame | None = summary.get_node_df(node.id)
@@ -257,7 +264,8 @@ class DataCollection:
 
             nodes = get_nodes(instance_id)
             target_year = context.target_year
-            instance = self.add_instance(instance_id=instance_id, target_year=target_year)
+            created_at = context.instance.config.created_at.date()
+            instance = self.add_instance(instance_id=instance_id, target_year=target_year, created_at=created_at)
             for node_id in node_ids:
                 node = nodes.get(node_id)
                 if node is None:
