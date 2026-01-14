@@ -293,6 +293,19 @@ class FormulaNode(Node):
 
         raise KeyError(tree)
 
+    def _collect_used_node_names(self, tree: ast.AST, varss: EvalVars) -> set[str]:
+        """Collect node names that are actually used in the formula AST."""
+        used_names: set[str] = set()
+
+        def visit(node: ast.AST) -> None:
+            if isinstance(node, ast.Name) and node.id in varss.nodes:
+                used_names.add(node.id)
+            for child in ast.iter_child_nodes(node):
+                visit(child)
+
+        visit(tree)
+        return used_names
+
     def evaluate_formula(self, formula: str, varss: EvalVars) -> PDF:
         tree = ast.parse(formula, "<string>", mode="eval")
         ret = self.eval_tree(tree, varss)
@@ -337,9 +350,26 @@ class FormulaNode(Node):
     def compute(self) -> PDF:
         varss = self._collect_eval_vars()
         formula = self.get_parameter_value_str('formula')
-        df = self.evaluate_formula(formula, varss)
+        tree = ast.parse(formula, "<string>", mode="eval")
+        used_node_names = self._collect_used_node_names(tree, varss)
+
+        df = self.eval_tree(tree, varss)
+        assert isinstance(df, PDF)
         df = df.ensure_unit(VALUE_COLUMN, self.get_default_output_metric().unit)
         extend = self.get_parameter_value('extend_last_historical_value', required=False)
         if extend:
             df = extend_last_historical_value_pl(df, self.get_end_year())
+
+        # Find unused nodes: computational nodes in varss.nodes that weren't referenced in the formula
+        all_nodes = set(varss.nodes.values())
+        used_nodes = {varss.nodes[name] for name in used_node_names if name in varss.nodes}
+        unused_nodes = list(all_nodes - used_nodes)
+        for edge in self.edges:
+            node = edge.input_node
+            if 'ignore_content' in edge.tags or 'ignore_content' in node.tags or node.quantity == 'argument':
+                unused_nodes.remove(node)
+
+        if unused_nodes:
+            df = self.add_nodes_pl(df, unused_nodes)
+
         return df

@@ -583,7 +583,7 @@ class PathsExt:
     def compare_df( # Based on add_with_dims
             self,
             odf: ppl.PathsDataFrame,
-            how: Literal['left', 'inner', 'outer'] = 'outer',
+            how: Literal['left', 'inner', 'outer'] = 'outer', # TODO Should this rather be inner?
             op: Literal['eq', 'ne', 'gt', 'ge', 'lt', 'le'] = 'eq'
         ) -> ppl.PathsDataFrame:
         """Add two PathsDataFrames with dimension awareness."""
