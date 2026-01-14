@@ -4,7 +4,7 @@ supported_languages: [de, fi]
 site_url: https://equalia.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: d25b35688557060aff217a6235d5a7449e2b08d5
+  commit: bdfccc9f14a47a81f74bec653bb5325478243275
   dvc_remote: kausal-s3
 name: Equalia Climate Action Plan
 owner: Kausal Ltd
@@ -55,6 +55,18 @@ dimensions:
     label_en: Empirical estimate
     label_de: Empirische Schätzung
     label_fi: Empirinen estimaatti
+  - id: pessimistic
+    label_en: Pessimistic
+    label_de: Pessimistisch
+    label_fi: Pessimistinen
+  - id: optimistic
+    label_en: Optimistic
+    label_de: Optimistisch
+    label_fi: Optimistinen
+  - id: moderate
+    label_en: Moderate
+    label_de: Mittel
+    label_fi: Keskiverto
 
 - id: time_of_day
   label_en: Time of day
@@ -120,7 +132,8 @@ nodes:
 
 - id: emissions_acceptable
   name: Emissions meet acceptable threshold
-  description: Evaluation of whether per-capita emissions are below morally acceptable level
+  description: Evaluation of whether per-capita emissions are below morally 
+    acceptable level
   type: formula.FormulaNode
   quantity: fraction
   unit: dimensionless
@@ -137,7 +150,8 @@ nodes:
 
 - id: global_reduction_needed
   name: Global reduction needed
-  description: Fraction of global emissions that must be eliminated to meet climate targets
+  description: Fraction of global emissions that must be eliminated to meet 
+    climate targets
   type: generic.GenericNode
   quantity: fraction
   unit: dimensionless
@@ -147,7 +161,7 @@ nodes:
   - id: multiplier
     value: 0.55
     unit: dimensionless
-    label: '45% reduction by 2030 is typical pathway target'
+    label: 45% reduction by 2030 is typical pathway target
 
 - id: emission_reduction_achieved
   name: Emission reduction achieved
@@ -175,6 +189,161 @@ nodes:
     tags: [obligation]
   params:
     formula: achieved <= obligation
+
+# ===== FREE RIDER PROBLEM OPERATIONALIZATION =====
+
+- id: commons_sensitivity
+  name: Commons degradation threshold
+  description: |
+    Percentage of jurisdictions that can continue high emissions before 
+    climate system degrades catastrophically. Lower values = more fragile system.
+    Typical estimates: 40-60% (if >40-60% of jurisdictions don't act, climate fails).
+  type: generic.ConstantNode
+  quantity: fraction
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 0.50
+    unit: dimensionless
+    label: How fragile is the climate system?
+
+- id: free_rider_threshold_alpha
+  name: Free rider distribution parameter alpha
+  description: |
+    Alpha parameter for beta distribution of conditional cooperation thresholds (y_i).
+    Together with beta, defines distribution of "at what % cooperation will I cooperate?"
+    Higher alpha → distribution skewed toward cooperators (high y_i)
+  type: generic.ConstantNode
+  quantity: number
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 2.0
+    unit: dimensionless
+    label: Shape of cooperation threshold distribution
+
+- id: free_rider_threshold_beta
+  name: Free rider distribution parameter beta
+  description: |
+    Beta parameter for beta distribution of conditional cooperation thresholds.
+    Higher beta → distribution skewed toward free riders (low y_i)
+  type: generic.ConstantNode
+  quantity: number
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 2.0
+    unit: dimensionless
+    label: Shape of cooperation threshold distribution
+
+- id: our_city_threshold
+  name: Our city cooperation threshold
+  description: |
+    Our city's y_i: At what percentage of other cities cooperating will we act?
+    0% = unconditional cooperator (act even if alone)
+    50% = follow majority
+    100% = pure free rider (only act if everyone else does first)
+  type: generic.ConstantNode
+  quantity: fraction
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 0.30
+    unit: dimensionless
+    label: What should our city's threshold be? Current policy (implementing congestion charge) implies low threshold.
+
+- id: expected_cooperation_rate
+  name: Expected global cooperation rate
+  description: |
+    Expected percentage of cities/jurisdictions worldwide that will take 
+    comparable climate action. Based on current trends, commitments, political climate.
+  type: generic.GenericNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [hypotheses]
+  output_dimensions: [hypotheses]
+  input_datasets:
+  - id: transportation/cooperation_rate_estimates
+
+- id: hypothesis_index
+  name: Hypothesis index
+  description: Index of the hypotheses.
+  type: generic.GenericNode
+  quantity: ratio
+  unit: dimensionless
+  input_dimensions: [hypotheses]
+  output_dimensions: [hypotheses]
+  input_datasets:
+  - id: transportation/hypothesis_index
+
+- id: commons_survives
+  name: Commons survival evaluation
+  description: |
+    Does the climate system survive? True if exploitation stays below degradation threshold.
+    Exploitation rate = (1 - expected_cooperation_rate).
+    Returns 1 if enough cooperate, 0 if commons degrades
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [hypotheses]
+  output_dimensions: [hypotheses]
+  is_outcome: true
+  input_nodes:
+  - id: expected_cooperation_rate
+    to_dimensions:
+    - id: hypotheses
+    tags: [coop_rate]
+  - id: commons_sensitivity
+    tags: [threshold]
+  - id: hypothesis_index
+    tags: [index]
+  params:
+    formula: coop_rate >= (complement(threshold) * index)
+
+- id: should_we_cooperate
+  name: Should our city cooperate (given free rider logic)
+  description: |
+    Evaluation based on our city's conditional cooperation threshold:
+    We should cooperate if expected_cooperation_rate >= our_city_threshold
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [hypotheses]
+  output_dimensions: [hypotheses]
+  is_outcome: true
+  input_nodes:
+  - id: expected_cooperation_rate
+    to_dimensions:
+    - id: hypotheses
+    tags: [others_cooperating]
+  - id: our_city_threshold
+    tags: [our_threshold]
+  - id: hypothesis_index
+    tags: [index]
+  params:
+    formula: others_cooperating >= (our_threshold * index)
+
+- id: cooperation_gap
+  name: Cooperation gap
+  description: |
+    Gap between what's needed (to save commons) and what's expected.
+    Positive = surplus cooperation (commons safe)
+    Negative = cooperation deficit (commons at risk)
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [hypotheses]
+  output_dimensions: [hypotheses]
+  is_outcome: true
+  input_nodes:
+  - id: expected_cooperation_rate
+    to_dimensions:
+    - id: hypotheses
+    tags: [expected]
+  - id: commons_sensitivity
+    tags: [needed]
+  params:
+    formula: expected
 
 ## Moral arguments
 
