@@ -1,16 +1,16 @@
-id: bisko
+id: duesseldorf-bisko
 default_language: de
 supported_languages: [en]
-site_url: https://bisko.paths.staging.kausal.tech
+site_url: https://duesseldorf-bisko.paths.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 27fb832aed994de5b77a0d89571bdbe6dfe74499
   dvc_remote: kausal-s3
-name: Klima-Monitor-BISKO
-owner: Kausal Ltd
+name: Düsseldorf Klima-Monitor
+owner: Stadt Düsseldorf
 theme_identifier: default
-target_year: 2024
-model_end_year: 2024
+target_year: 2035
+model_end_year: 2035
 reference_year: 1990
 minimum_historical_year: 2010
 maximum_historical_year: 2023
@@ -55,7 +55,7 @@ params:
 result_excels:
 - base_excel_url: 
     https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
-  name: City-specific values from BISKO datasets and elsewhere
+  name: City-specific values from Düsseldorf datasets and elsewhere
   node_ids:
   - weather_correction
   - final_energy_use
@@ -849,7 +849,7 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
-  - id: bisko/transport_energy
+  - id: duesseldorf/transport_energy
     column: Value
 
 - id: road_transport_activity
@@ -888,7 +888,7 @@ nodes:
       ref: municipality_name
 
 - id: use_transport_statistics_bisko
-  name: Verwenden Sie die Transportstatistiken von BISKO
+  name_de: Verwenden Sie die Transportstatistiken von BISKO
   name_en: Use transport statistics from BISKO
   type: generic.GenericNode
   quantity: fraction
@@ -907,7 +907,7 @@ nodes:
     value: 0.0
 
 - id: transport_energy
-  name: Transportenergie
+  name_de: Transportenergie
   name_en: Transport energy
   type: formula.FormulaNode
   quantity: energy
@@ -1095,13 +1095,13 @@ nodes:
 
 pages:
 - id: home
-  name: Klima-Monitor-BISKO Treibhausgasinventar
-  name_en: Climate Protection Monitor BISKO Greenhouse Gas Inventory
+  name: Düsseldorf Klima-Monitor Treibhausgasinventar
+  name_en: Düsseldorf Climate Protection Monitor Greenhouse Gas Inventory
   path: /
   type: emission
   outcome_node: net_emissions
-  lead_title: Klima-Monitor Treibhausgasinventar BISKO
-  lead_paragraph: Die Treibhausgasemissionen BISKO.
+  lead_title: Düsseldorf Klima-Monitor Treibhausgasinventar
+  lead_paragraph: Die Treibhausgasemissionen Düsseldorf.
 
 scenarios:
 
