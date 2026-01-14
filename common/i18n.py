@@ -185,7 +185,7 @@ def get_modeltrans_attrs_from_str(
                     i18n[key] = s.i18n[lang_kausal]
                     break
             else:
-                raise Exception("Field '%s' does not have a value in language %s" % (field_name, default_lang))
+                raise Exception("Field '%s' does not have a value in language %s (%s)" % (field_name, default_lang, s.i18n))
 
         field_val = s.i18n[default_lang]
     else:
