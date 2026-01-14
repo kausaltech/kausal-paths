@@ -342,8 +342,10 @@ nodes:
     tags: [expected]
   - id: commons_sensitivity
     tags: [needed]
+  - id: hypothesis_index
+    tags: [index]
   params:
-    formula: expected
+    formula: expected >= (needed * index)
 
 ## Moral arguments
 
