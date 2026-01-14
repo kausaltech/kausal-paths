@@ -139,6 +139,9 @@ dimensions:
   - id: carbon_shadow
     label: Hiilen varjohinta
     label_en: Shadow cost of carbon
+  - id: health_impacts
+    label: Terveysvaikutukset
+    label_en: Health impacts
 
 - id: energy_carrier
   label: Energian kantaja
@@ -2245,7 +2248,7 @@ nodes:
   input_dimensions: []
   output_dimensions: []
   params:
-    start_year: 2026
+    start_year: 2025
 
 - id: building_heating_price
   name: Rakennusten lämmityksen kustannukset
