@@ -1863,3 +1863,32 @@ class ChpNode(GenericNode):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.OPERATIONS['chp_ef_split'] = self._operation_chp_ef_split
+
+class ConstantNode(GenericNode):
+    allowed_parameters = [
+        *GenericNode.allowed_parameters,
+        NumberParameter('constant', label=_('Constant value')),
+    ]
+    DEFAULT_OPERATIONS = 'constant,add'
+
+    def _operation_constant(self, df: ppl.PathsDataFrame | None, baskets: BasketsDict) -> OperationReturn:
+        constant = self.get_parameter_value_float('constant', required=True, units=True)
+        if df is not None:
+            raise NodeError(self, "Operation 'constant' must be the first of the operations.")
+        start_year = self.context.instance.minimum_historical_year
+        end_year = self.context.instance.model_end_year
+        last_historical_year = self.context.instance.maximum_historical_year
+        years = range(start_year, end_year + 1)
+        df = ppl.PathsDataFrame({YEAR_COLUMN: years})
+        df._units = {}
+        df._primary_keys = [YEAR_COLUMN]
+        df = df.with_columns([
+            pl.lit(constant.m).alias(VALUE_COLUMN),
+            (pl.col(YEAR_COLUMN) > pl.lit(last_historical_year)).alias(FORECAST_COLUMN),
+        ]).set_unit(VALUE_COLUMN, str(constant.units))
+
+        return df, baskets
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.OPERATIONS['constant'] = self._operation_constant
