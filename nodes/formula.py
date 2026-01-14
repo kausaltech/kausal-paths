@@ -10,6 +10,7 @@ import polars as pl
 from common import polars as ppl
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
+from nodes.exceptions import NodeError
 from nodes.units import Quantity, QuantityType
 from params.param import BoolParameter, NumberParameter, StringParameter
 
@@ -370,6 +371,9 @@ class FormulaNode(Node):
                 unused_nodes.remove(node)
 
         if unused_nodes:
-            df = self.add_nodes_pl(df, unused_nodes)
-
+            try:
+                df = self.add_nodes_pl(df, unused_nodes)
+            except NodeError as e:
+                err = _('Input nodes that are not used in the formula are used for addition in the end. Error:')
+                raise NodeError(self, f"{err} {e}") from e
         return df
