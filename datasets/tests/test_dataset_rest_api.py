@@ -1795,39 +1795,42 @@ def test_data_point_bulk_create(api_client, dataset_test_data, user_key, dataset
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('user_key', 'data_point_keys', 'expected_status'), [
-    # Actual bulk editing (see individual cases below for explanations about the status).
-    ('superuser', ['data_point2', 'data_point3'], 200),
-    ('admin_user', ['data_point2', 'data_point3'], 404),
-    ('super_admin_user', ['data_point2', 'data_point3'], 404),
-    ('reviewer_user', ['data_point2', 'data_point3'], 403),
-    ('viewer_user', ['data_point2', 'data_point3'], 403),
-    ('regular_user', ['data_point2', 'data_point3'], 403),
+@pytest.mark.parametrize(*parse_table("""
+user_key         data_point_keys         expected_status
 
-    # The following are the same as in test_datapoint_update
-    # Access to data_point1 (instance1)
-    ('superuser', ['data_point1'], 200),
-    ('admin_user', ['data_point1'], 200),
-    ('super_admin_user', ['data_point1'], 200),
+# Actual bulk editing (see individual cases below for explanations about the status).
+superuser        data_point2,data_point3 200
+admin_user       data_point2,data_point3 404
+super_admin_user data_point2,data_point3 404
+reviewer_user    data_point2,data_point3 403
+viewer_user      data_point2,data_point3 403
+regular_user     data_point2,data_point3 403
 
-    # Access to data_point2 (instance2)
-    ('superuser', ['data_point2'], 200),
+# The following are the same as in test_datapoint_update
+# Access to data_point1 (instance1)
+superuser        data_point1             200
+admin_user       data_point1             200
+super_admin_user data_point1             200
 
-    # No write access to data_point1
-    ('reviewer_user', ['data_point1'], 403),
-    ('viewer_user', ['data_point1'], 403),
+# Access to data_point2 (instance2)
+superuser        data_point2             200
 
-    # No access to data_point2 (parent not visible)
-    ('admin_user', ['data_point2'], 404),
-    ('super_admin_user', ['data_point2'], 404),
+# No write access to data_point1
+reviewer_user    data_point1             403
+viewer_user      data_point1             403
 
-    # No access to endpoint
-    ('reviewer_user', ['data_point2'], 403),
-    ('viewer_user', ['data_point2'], 403),
-    ('regular_user', ['data_point1'], 403),
-    ('regular_user', ['data_point2'], 403),
-])
+# No access to data_point2 (parent not visible)
+admin_user       data_point2             404
+super_admin_user data_point2             404
+
+# No access to endpoint
+reviewer_user    data_point2             403
+viewer_user      data_point2             403
+regular_user     data_point1             403
+regular_user     data_point2             403
+"""))
 def test_data_point_bulk_update(api_client, dataset_test_data, user_key, data_point_keys, expected_status):
+    data_point_keys = data_point_keys.split(',')
     user = dataset_test_data[user_key]
     data_points = [dataset_test_data[key] for key in data_point_keys]
     # For this test, we only work with data points from the same dataset
