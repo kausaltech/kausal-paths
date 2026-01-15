@@ -1806,6 +1806,22 @@ reviewer_user    data_point2,data_point3 403
 viewer_user      data_point2,data_point3 403
 regular_user     data_point2,data_point3 403
 
+# Test object-level permissions
+# Data points of dataset2 (schema2, instance2)
+schema1_admin    data_point3             404  # instance2 datasets not visible
+schema1_viewer   data_point3             404  # instance2 datasets not visible
+schema2_admin    data_point3             200
+schema2_viewer   data_point3             403  # dataset visible, but no write access
+schema3_admin    data_point3             404  # schema2 datasets not visible
+schema3_viewer   data_point3             404  # schema2 datasets not visible
+# Data points of dataset3 (schema3, instance2)
+schema1_admin    data_point4             404  # instance2 datasets not visible
+schema1_viewer   data_point4             404  # instance2 datasets not visible
+schema2_admin    data_point4             404  # schema3 datasets not visible
+schema2_viewer   data_point4             404  # schema3 datasets not visible
+schema3_admin    data_point4             200
+schema3_viewer   data_point4             403  # dataset visible, but no write access
+
 # The following are the same as in test_datapoint_update
 # Access to data_point1 (instance1)
 superuser        data_point1             200
