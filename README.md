@@ -126,10 +126,15 @@ python manage.py compilemessages
 
 
 Set Credentials and update database:
+
 First, make sure your team added your access rights in Vault keycloak and send you the command to login again. 
+
 Clone the scripts repository (ask a team mate where to find it).
+
 Go to paths root directory and run the script `../scripts/common/switch-region.sh` while in paths root directory, which should automatically update all needed credentials in `.secrets/db-backup`
+
 Follow the instructions the command gives you, there's a variable you need to put in .env and then the commands to restore the db 
+
 Then run
 
 ```shell
