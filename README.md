@@ -10,9 +10,9 @@ Make sure you have installed the following:
 - python
 - uv (python package manager)
 - direnv (auto-loads environment variables)
-        Beginner Hints: before direnv works you need to hook it into your shell: depending on which shell you're using (find out with echo $SHELL)
-        add eval "$(direnv hook bash)" to your ~/.bashrc OR eval "$(direnv hook zsh)" to your ~/.zshrc (create those files if they don't exist yet).
-        After that, restart the terminal or run source ~/.bashrc OR source ~/.zshrc.
+        - **Beginner Hints**: before direnv works you need to hook it into your shell: depending on which shell you're using (find out with `echo $SHELL`)
+        add `eval "$(direnv hook bash)"` to your `~/.bashrc` OR `eval "$(direnv hook zsh)"` to your `~/.zshrc` (create those files if they don't exist yet).
+        After that, restart the terminal or run `source ~/.bashrc` OR `source ~/.zshrc`.
 
 
 ### Development
