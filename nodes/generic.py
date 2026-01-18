@@ -261,9 +261,9 @@ class GenericNode(SimpleNode):
         """
         add_non_stackables = ['add_to_existing_dims', 'add_from_incoming_dims']
         if operation in add_non_stackables:
-            stackable = False
-        else:
-            stackable = True
+            return self._operation_add_non_stackable_dims(df, baskets, operation)
+        stackable = True
+
         dfin, baskets = self._preprocess_for_one(df, baskets, operation, stackable=stackable)
         use_as = ['use_as_totals', 'use_as_shares']
 
@@ -286,14 +286,6 @@ class GenericNode(SimpleNode):
         if not dims and not newdims:
             raise NodeError(self, "No dimensions to split. Remove the split operation if you don't use it.")
 
-        if operation in add_non_stackables:
-            df_unity = splitter.with_columns(pl.lit(1.0).alias(VALUE_COLUMN))
-            df_unity = df_unity.set_unit(VALUE_COLUMN, 'dimensionless', force=True)
-            df_added = splittee.paths.multiply_with_dims(df_unity)
-            df_added = df_added.paths.add_with_dims(splitter)
-
-            return df_added, baskets
-
         df_summed = splitter.paths.sum_over_dims(dims)
 
         if operation == 'split_evenly_to_cats':
@@ -315,6 +307,45 @@ class GenericNode(SimpleNode):
             df_scaled = splittee.paths.add_with_dims(df_scaled)
 
         return df_scaled, baskets
+
+    def _operation_add_non_stackable_dims(
+            self,
+            df: ppl.PathsDataFrame | None,
+            baskets: BasketsDict,
+            operation: OperationType) -> OperationReturn:
+        if df is None:
+            raise NodeError(self, "Cannot operate because no PathsDataFrame is available.")
+        nodes = baskets.get(operation) or []
+        if len(nodes) == 0:
+            raise NodeError(self, f"At least one input node must have tag '{operation}'.")
+        for node in nodes:
+            dfin = node.get_output_pl(target_node=self, skip_dim_test=True)
+            if operation == 'add_from_incoming_dims':
+                splitter = dfin
+                splittee = df
+            else:
+                splitter = df
+                splittee = dfin
+
+            # Validation
+            assert isinstance(splitter, ppl.PathsDataFrame)
+            assert isinstance(splittee, ppl.PathsDataFrame)
+
+            newdims = [dim for dim in splittee.dim_ids if dim not in splitter.dim_ids]
+            if newdims:
+                raise NodeError(self, f"Splittee node cannot bring in new dimensions but has {newdims}.")
+
+            dims = [dim for dim in splitter.dim_ids if dim not in splittee.dim_ids]
+            if not dims and not newdims:
+                raise NodeError(self, "No dimensions to split. Remove the split operation if you don't use it.")
+
+            df_unity = splitter.with_columns(pl.lit(1.0).alias(VALUE_COLUMN))
+            df_unity = df_unity.set_unit(VALUE_COLUMN, 'dimensionless', force=True)
+            df_added = splittee.paths.multiply_with_dims(df_unity)
+            df = df_added.paths.add_with_dims(splitter)
+
+        baskets[operation] = []
+        return df, baskets
 
     # Splitting functions
     def _operation_use_as_totals(
