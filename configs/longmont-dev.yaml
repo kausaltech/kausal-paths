@@ -71,11 +71,11 @@ result_excels:
   - smart_grid_benefits
   # - transmission_loss_change
   # - transmission_loss_work_benefits
-  - building_square_footage
+  # - building_square_footage
   - building_electricity_use_historical
   - building_natural_gas_use_historical
-  - building_natural_gas_eui
-  - building_electricity_eui
+  # - building_natural_gas_eui
+  # - building_electricity_eui
   - emission_factor_natural_gas
   # - stationary_fuel_consumption
   # - emission_factor_fuel
@@ -1219,17 +1219,6 @@ nodes:
     ref: biogenic_inclusion
   output_nodes: [building_emissions]
 
-- id: building_square_footage
-  name: Building square footage
-  name_es-US: Metros cuadrados del edificio
-  type: simple.AdditiveNode
-  quantity: floor_area
-  unit: ft^2
-  input_datasets:
-  - id: longmont/building_square_footage
-    forecast_from: 2023
-  input_dataset_processors: [LinearInterpolation]
-  output_dimensions: [emission_sectors]
 
 - id: building_square_footage_old
   name: Building square footage (old)
@@ -1299,6 +1288,8 @@ nodes:
   - id: longmont/building_class_mix
   params:
     operations: get_single_dataset,add_to_existing_dims
+
+# TODO MAYBE REMOVE ALL THESE NODES --v
 
 - id: building_electricity_use_historical
   name: Building electricity use (historical)
@@ -1395,161 +1386,7 @@ nodes:
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
 
-- id: affected_square_footage
-  name: Building square footage affected by actions
-  name_es-US: Metros cuadrados del edificio afectados por acciones
-  description: Building square footeage affected by actions on each year. 
-    Fraction of compliant buildings is already taken into account here. Note 
-    that these values are not additive, as several actions may affect the same 
-    buildings. Those buildings that are not affected are not shown here.
-  description_es-US: Metros cuadrados del edificio afectados por acciones en 
-    cada año. Aquí ya se tiene en cuenta la fracción de edificios que cumplen la
-    normativa. Tenga en cuenta que estos valores no se pueden sumar, ya que 
-    varias acciones pueden afectar a los mismos edificios. Los edificios que no 
-    se ven afectados no se muestran aquí.
-  type: buildings.FloorAreaNode
-  quantity: floor_area
-  unit: ft^2
-  input_nodes:
-  - id: building_square_footage
-    to_dimensions:
-    - id: emission_sectors
-  - id: updated_building_code
-    metrics: [triggered, compliant]
-    from_dimensions:
-    - id: energy_carrier
-      categories: [electricity]  # Any category, all are identical
-      flatten: true
-  - id: develop_beyond_building_code
-    metrics: [triggered, compliant]
-    from_dimensions:
-    - id: energy_carrier
-      categories: [electricity]
-      flatten: true
-  - id: benchmark_energy_use
-    metrics: [triggered, compliant]
-    from_dimensions:
-    - id: energy_carrier
-      categories: [electricity]
-      flatten: true
-
-- id: natural_gas_eui_improvement
-  name: Energy use intensity EUI improvement for natural gas
-  name_es-US: Mejora de la intensidad del consumo de energía (EUI, por sus 
-    siglas en inglés) para el gas natural
-  type: buildings.CfNode
-  quantity: consumption_factor
-  unit: therm/ft**2/a
-  input_nodes:
-  - id: building_natural_gas_eui
-    to_dimensions:
-    - id: emission_sectors
-  - id: updated_building_code
-    metrics: [improvement]
-    from_dimensions:
-    - id: energy_carrier
-      categories: [natural_gas]
-      flatten: true
-  - id: develop_beyond_building_code
-    metrics: [improvement]
-    from_dimensions:
-    - id: energy_carrier
-      categories: [natural_gas]
-      flatten: true
-  - id: benchmark_energy_use
-    metrics: [improvement]
-    from_dimensions:
-    - id: energy_carrier
-      categories: [natural_gas]
-      flatten: true
-
-- id: natural_gas_saved
-  name: Natural gas saved
-  name_es-US: Gas natural ahorrado
-  type: buildings.EnergyNode
-  quantity: energy
-  unit: Mthm/a
-  params:
-  - id: not_cumulated
-    value: develop_beyond_building_code
-  input_nodes:
-  - id: affected_square_footage
-  - id: natural_gas_eui_improvement
-  output_nodes:
-  - id: building_natural_gas_use
-    tags: [arithmetic_inverse]
-    from_dimensions:
-    - id: building_energy_class
-      flatten: true
-    - id: action
-      flatten: true
-
-- id: electricity_eui_improvement
-  name: Energy use intensity EUI improvement for electricity
-  name_es-US: Mejora de la intensidad del consumo de energía (EUI, por sus 
-    siglas en inglés) para la electricidad
-  type: buildings.CfNode
-  quantity: consumption_factor
-  unit: kWh/ft**2/a
-  input_nodes:
-  - id: building_electricity_eui
-    to_dimensions:
-    - id: emission_sectors
-  - id: updated_building_code
-    metrics: [improvement]
-    from_dimensions:
-    - id: energy_carrier
-      categories: [electricity]
-      flatten: true
-  - id: develop_beyond_building_code
-    metrics: [improvement]
-    from_dimensions:
-    - id: energy_carrier
-      categories: [electricity]
-      flatten: true
-  - id: benchmark_energy_use
-    metrics: [improvement]
-    from_dimensions:
-    - id: energy_carrier
-      categories: [electricity]
-      flatten: true
-
-- id: electricity_saved
-  name: Electricity saved
-  name_es-US: Electricidad ahorrada
-  type: buildings.EnergyNode
-  quantity: energy
-  unit: GWh/a
-  params:
-  - id: not_cumulated
-    value: develop_deyond_building_code
-  input_nodes:
-  - id: affected_square_footage
-  - id: electricity_eui_improvement
-  output_nodes:
-  - id: building_electricity_use
-    tags: [arithmetic_inverse]
-    from_dimensions:
-    - id: building_energy_class
-      flatten: true
-    - id: action
-      flatten: true
-
-- id: building_natural_gas_eui
-  name: Energy use intensity EUI baseline for natural gas
-  name_es-US: Referencia de intensidad del consumo de energía (EUI, por sus 
-    siglas en inglés) para el gas natural
-  type: simple.AdditiveNode
-  quantity: consumption_factor
-  unit: therm/ft**2/a
-  input_datasets:
-  - id: longmont/building_energy_use_intensity_eui
-    column: natural_gas
-  input_nodes:
-  - id: energy_use_intensity_trend
-    metrics: [natural_gas]
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
+## TODO MAYBE REMOVE ALL THESE NODES ABOVE --^
 
 - id: building_natural_gas_eui_by_action
   name: Energy use intensity EUI baseline for natural gas by energy class
@@ -1558,12 +1395,43 @@ nodes:
   unit: therm/ft**2/a
   input_dimensions: [emission_sectors, action]
   output_dimensions: [emission_sectors, action]
+  input_datasets:
+  - id: longmont/building_energy_use_intensity_eui
+    column: natural_gas
+    tags: [eui] # FIXME Make polars_ext operations possible for dataset DF
   input_nodes:
-  - id: building_natural_gas_eui
+  - id: energy_use_intensity_trend
+    metrics: [natural_gas]
+    tags: [trend, extend_both_ways]
   - id: energy_use_intensity_improvement
-    tags: [improvement]
+    tags: [improvement, extend_both_ways]
   params:
-    formula: building_natural_gas_eui * complement(improvement)
+    formula: (extend_both_ways(eui) + trend) * complement(improvement)
+
+- id: building_natural_gas_use
+  name: Building natural gas use
+  name_es-US: Consumo de gas natural en edificios
+  description: <b>Unit:</b> Mthm/yr. = million therms per year.
+  description_es-US: <b>Unidad:</b> Mthm/año = millones de termias al año.
+  type: formula.FormulaNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [emission_sectors, building_energy_class, action]
+  output_dimensions: [emission_sectors, building_energy_class]
+  input_nodes:
+  - id: building_square_footage_by_building_class
+    tags: [square_footage]
+    to_dimensions:
+    - id: building_energy_class
+    - id: emission_sectors
+    - id: action
+  - id: building_electricity_eui_by_action
+    tags: [eui]
+    to_dimensions:
+    - id: emission_sectors
+    - id: action
+  params:
+    formula: sum_dim(square_footage * eui, action) * efficiency_works_program
 
 - id: building_electricity_eui_by_action
   name: Energy use intensity EUI for electricity by action
@@ -1585,7 +1453,7 @@ nodes:
   params:
     formula: (extend_both_ways(eui) + trend) * complement(improvement)
 
-- id: building_electricity_use2
+- id: building_electricity_use
   name: Building electricity use
   name_es-US: Consumo de electricidad en edificios
   description: <b>Unit:</b> GWh/yr. = gigawatt-hours per year = million 
@@ -1610,39 +1478,7 @@ nodes:
     - id: emission_sectors
     - id: action
   params:
-    formula: sum_dim(square_footage * eui, action)
-
-- id: building_electricity_use
-  name: Building electricity use
-  name_es-US: Consumo de electricidad en edificios
-  description: <b>Unit:</b> GWh/yr. = gigawatt-hours per year = million 
-    kilowatt-hours per year.
-  description_es-US: <b>Unidad:</b> GWh/año = gigavatios hora al año = millones 
-    de kilovatios hora al año.
-  type: generic.GenericNode
-  quantity: energy
-  unit: GWh/a
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
-  input_nodes:
-  - id: building_electricity_use_bau
-  params:
-    operations: add,multiply
-
-- id: building_natural_gas_use
-  name: Building natural gas use
-  name_es-US: Consumo de gas natural en edificios
-  description: <b>Unit:</b> Mthm/yr. = million therms per year.
-  description_es-US: <b>Unidad:</b> Mthm/año = millones de termias al año.
-  type: generic.GenericNode
-  quantity: energy
-  unit: Mtherm/a
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
-  input_nodes:
-  - id: building_natural_gas_use_bau
-  params:
-    operations: add,multiply
+    formula: sum_dim(square_footage * eui, action) * efficiency_works_program
 
 - id: electricity_use
   name: Electricity use
@@ -1660,6 +1496,9 @@ nodes:
     operations: add,multiply
   input_nodes:
   - id: building_electricity_use
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
 
 - id: electricity_emission_factor
   name: Emission factor of electricity production
@@ -1672,22 +1511,6 @@ nodes:
   input_datasets:
   - id: longmont/electricity_emission_factor
   input_dataset_processors: [LinearInterpolation]
-
-- id: building_electricity_eui
-  name: Energy use intensity EUI baseline for electricity
-  name_es-US: Referencia de intensidad del consumo de energía (EUI, por sus 
-    siglas en inglés) para la electricidad
-  type: simple.AdditiveNode
-  quantity: consumption_factor
-  unit: kWh/ft**2/a
-  input_datasets:
-  - id: longmont/building_energy_use_intensity_eui
-    column: electricity
-  input_nodes:
-  - id: energy_use_intensity_trend
-    metrics: [electricity]
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
 
 - id: electricity_consumption_emissions
   name: Electricity consumption emissions
@@ -1723,24 +1546,6 @@ nodes:
     - id: scope
       categories: [scope2]
 
-- id: electricity_replacing_natural_gas
-  name: Electricity that replaces natural gas
-  name_es-US: Electricidad que reemplaza al gas natural
-  type: formula.FormulaNode
-  quantity: energy
-  unit: kWh/a
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
-  params:
-  - id: constant
-    value: -0.33 # TODO What is the value?
-    unit: dimensionless
-  - id: formula
-    value: constant * replace_natural_gas2
-  # output_nodes:
-  # - id: building_electricity_use
-  #   to_dimensions:
-  #   - id: emission_sectors
 
 - id: electricity_replacing_natural_gas_residential
   name: Electricity that replaces natural gas in residential buildings
@@ -1757,6 +1562,8 @@ nodes:
     to_dimensions:
     - id: emission_sectors
       categories: [residential_energy]
+    - id: building_energy_class
+      categories: [existing]
 
 - id: electricity_replacing_natural_gas_commercial
   name: Electricity that replaces natural gas in commercial buildings
@@ -1775,6 +1582,8 @@ nodes:
     to_dimensions:
     - id: emission_sectors
       categories: [commercial_industrial_energy]
+    - id: building_energy_class
+      categories: [existing]
 
 # Natural gas
 
@@ -1802,6 +1611,11 @@ nodes:
   input_nodes:
   - id: building_natural_gas_use
     tags: [use]
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
+    to_dimensions:
+    - id: emission_sectors
   - id: global_warming_potential_100a
     tags: [gwp]
     to_dimensions:
@@ -1842,6 +1656,9 @@ nodes:
   output_dimensions: [emission_sectors, greenhouse_gases, energy_carrier]
   input_nodes:
   - id: building_natural_gas_use
+    from_dimensions:
+    - id: building_energy_class
+      flatten: true
     to_dimensions:
     - id: emission_sectors
     - id: energy_carrier
@@ -2744,44 +2561,6 @@ actions:
     de energía (EUI, por sus siglas en inglés) causada por esta acción.</p> <p>Seguimiento
     de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/BI-5">Estrategia
     del Plan de Sustentabilidad BI-5</a></li></ul></p>'
-  type: energy_saving.CfFloorAreaAction
-  quantity: consumption_factor
-  group: buildings
-  input_datasets:
-  - id: longmont/energy_use_intensity_with_building_actions
-    tags: [floor]
-    forecast_from: 2023
-    filters:
-    - column: action
-      value: updated_building_code
-#  - id: longmont/energy_use_intensity_improvements  # Alternative, absolute data
-  - id: longmont/energy_use_intensity_relative
-    tags: [improvement]
-    forecast_from: 2023
-    filters:
-    - column: action
-      value: updated_building_code
-  output_dimensions: [emission_sectors, building_energy_class, energy_carrier]
-#  params:  # For absolute data
-#  - id: natural_gas_unit
-#    value: thm/ft**2/a
-#  - id: electricity_unit
-#    value: kWh/ft**2/a
-
-- id: updated_building_code2
-  name: Use updated building code and enforce
-  name_es-US: Utilizar y hacer cumplir el código de construcción actualizado
-  description: '<p>Adopting and enforcing the latest International Energy Conservation
-    Code (IECC) every year a new IECC is released will increase efficiency.</p> <p>The
-    graph shows the relative improvement of the energy use intensity (EUI) caused
-    by this action.</p> <p>Track Implementation: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/BI-5">Sustainability
-    Plan Strategy BI-5</a></li></ul></p>'
-  description_es-US: '<p>La eficiencia aumentará si el Código Internacional de Conservación
-    de Energía (IECC, por sus siglas en inglés) se publica, adopta y hace cumplir
-    cada año.</p> <p>El gráfico muestra la mejora relativa de la intensidad del consumo
-    de energía (EUI, por sus siglas en inglés) causada por esta acción.</p> <p>Seguimiento
-    de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/BI-5">Estrategia
-    del Plan de Sustentabilidad BI-5</a></li></ul></p>'
   type: shift.ShiftAction
   quantity: fraction
   unit: '%'
@@ -2805,43 +2584,8 @@ actions:
       amounts:
       - {year: 2023, source_amount: -1.0, dest_amounts: [100]}
 
-
 - id: develop_beyond_building_code
   name: Develop beyond building code
-  name_es-US: Desarrollar más allá del código de construcción
-  description: '<p>Develop building codes that go beyond the IECC and towards net-zero
-    energy use, including the Climate Action Recommendations Report strategies to
-    add solar ready and electric vehicle ready as part of the 2021 residential code
-    update.</p> <p>The graph shows the relative improvement of the energy use intensity
-    (EUI) caused by this action.</p> <p>Track Implementation: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/BI-6">Sustainability
-    Plan Strategy BI-6</a></li></ul></p>'
-  description_es-US: '<p>Desarrollar códigos de construcción que vayan más allá del
-    IECC y hacia el consumo de energía cero, incluidas las estrategias del Informe
-    de recomendaciones de acción climática para agregar construcciones preparadas
-    para energía solar y vehículos eléctricos como parte de la actualización del código
-    residencial de 2021.</p> <p>El gráfico muestra la mejora relativa de la intensidad
-    del consumo de energía (EUI, por sus siglas en inglés) causada por esta acción.</p>
-    <p>Seguimiento de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/BI-6">Estrategia
-    del Plan de Sustentabilidad BI-6</a></li></ul></p>'
-  type: energy_saving.CfFloorAreaAction
-  quantity: consumption_factor
-  group: buildings
-  input_datasets:
-  - id: longmont/energy_use_intensity_with_building_actions
-    tags: [floor]
-    filters:
-    - column: action
-      value: develop_beyond_building_code
-  - id: longmont/energy_use_intensity_relative
-    tags: [improvement]
-    forecast_from: 2023
-    filters:
-    - column: action
-      value: develop_beyond_building_code
-  output_dimensions: [emission_sectors, building_energy_class, energy_carrier]
-
-- id: develop_beyond_building_code2
-  name: Develop beyond building code2
   name_es-US: Desarrollar más allá del código de construcción
   description: '<p>Develop building codes that go beyond the IECC and towards net-zero
     energy use, including the Climate Action Recommendations Report strategies to
@@ -2882,39 +2626,6 @@ actions:
       - {year: 2024, source_amount: -0.0, dest_amounts: [100]}
 
 - id: benchmark_energy_use
-  name: Report and benchmark energy use in commercial buildings
-  name_es-US: Informar y comparar el consumo de energía en edificios comerciales
-  description: '<p>Requires commercial and industrial buildings owners whose buildings
-    exceed 20,000 square feet to rate their building s energy use, report energy metrics,
-    and encourages buildings owners to implement energy efficiency measures.</p> <p>The
-    graph shows the relative improvement of the energy use intensity (EUI) caused
-    by this action.</p> <p>Track Implementation: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/E-5">Sustainability
-    Plan Strategy E-5</a></li></ul>'
-  description_es-US: '<p>Exige a los propietarios de edificios comerciales e industriales
-    cuyos edificios superen los 1800 metros cuadrados que califiquen el consumo de
-    energía de sus edificios, informen las métricas de energía y los anima a aplicar
-    medidas de eficiencia energética.</p> <p>El gráfico muestra la mejora relativa
-    de la intensidad del consumo de energía (EUI, por sus siglas en inglés) causada
-    por esta acción.</p> <p>Seguimiento de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/E-5">Estrategia
-    del Plan de Sustentabilidad E-5</a></li></ul>'
-  type: energy_saving.CfFloorAreaAction
-  quantity: consumption_factor
-  group: buildings
-  input_datasets:
-  - id: longmont/energy_use_intensity_with_building_actions
-    tags: [floor]
-    filters:
-    - column: action
-      value: benchmark_energy_use
-  - id: longmont/energy_use_intensity_relative
-    tags: [improvement]
-    forecast_from: 2023
-    filters:
-    - column: action
-      value: benchmark_energy_use
-  output_dimensions: [emission_sectors, building_energy_class, energy_carrier]
-
-- id: benchmark_energy_use2
   name: Report and benchmark energy use in commercial buildings
   name_es-US: Informar y comparar el consumo de energía en edificios comerciales
   description: '<p>Requires commercial and industrial buildings owners whose buildings
@@ -2985,34 +2696,9 @@ actions:
     column: fraction
   output_nodes:
   - id: building_electricity_use
-    tags: [non_additive, complement]
+    tags: [complement]
   - id: building_natural_gas_use
-    tags: [non_additive, complement]
-
-- id: replace_natural_gas2
-  name: Beneficial Building Electrification
-  name_es-US: Electrificación beneficiosa de edificios
-  description: '<p>Converting building systems that use fossil fuels (gas, oil, or
-    propane) to high efficiency electric equipment powered by increasingly clean and
-    renewable electricity.</p> <p>Track Implementation: <ul><li><a href="https://indicators.longmontcolorado.gov/bbe">Beneficial
-    Building Electrification Plan</a></li></ul>'
-  description_es-US: '<p>Convertir los sistemas de edificios que utilizan combustibles
-    fósiles (gas, petróleo o propano) en equipos eléctricos de gran eficiencia alimentados
-    por electricidad cada vez más limpia y renovable.</p> <p>Seguimiento de la aplicación:
-    <ul><li><a href="https://indicators.longmontcolorado.gov/bbe">Plan de electrificación
-    beneficiosa de edificios</a></li></ul>'
-  type: simple.AdditiveAction
-  quantity: energy
-  unit: ktherm/a
-  group: buildings
-  input_dimensions: [emission_sectors]
-  output_dimensions: [emission_sectors]
-  input_datasets:
-  - id: longmont/replace_natural_gas
-    forecast_from: 2025
-  output_nodes:
-  # - id: building_natural_gas_use
-  - id: electricity_replacing_natural_gas
+    tags: [complement]
 
 - id: replace_natural_gas_residential
   name: Beneficial Building Electrification Residential
@@ -3039,6 +2725,8 @@ actions:
     to_dimensions:
     - id: emission_sectors
       categories: [residential_energy]
+    - id: building_energy_class
+      categories: [existing]
   - id: electricity_replacing_natural_gas_residential
 
 - id: replace_natural_gas_commercial
@@ -3066,6 +2754,8 @@ actions:
     to_dimensions:
     - id: emission_sectors
       categories: [commercial_industrial_energy]
+    - id: building_energy_class
+      categories: [existing]
   - id: electricity_replacing_natural_gas_commercial
 
 - id: longmont_power_renewables
