@@ -201,11 +201,11 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
         group_object_ids = DatasetSchemaGroupPermission.objects.filter(
             group_id__in=group_ids,
             role__in=privileged_roles
-        ).values_list('object_id', flat=True)
+        ).values_list('object_id', flat=True)  # type: ignore[misc]
         individual_object_ids = DatasetSchemaPersonPermission.objects.filter(
             person=user.person,
             role__in=privileged_roles
-        ).values_list('object_id', flat=True)
+        ).values_list('object_id', flat=True)  # type: ignore[misc]
         q |= Q(pk__in=group_object_ids) | Q(pk__in=individual_object_ids)
         return q
 
