@@ -27,7 +27,7 @@ def api_client():
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(('user_key', 'has_access', 'expected_schemas'), [
-    pytest.param('superuser', True, {'Schema 1', 'Schema 2', 'Unused schema'}, id='superuser'),
+    pytest.param('superuser', True, {'Schema 1', 'Schema 2', 'Schema 3', 'Unused schema'}, id='superuser'),
     pytest.param('super_admin_user', True, {'Schema 1', 'Unused schema'}, id='super_admin_user'),
     pytest.param('admin_user', True, {'Schema 1', 'Unused schema'}, id='admin_user'),
     pytest.param('reviewer_user', True, {'Schema 1', 'Unused schema'}, id='reviewer_user'),
@@ -279,7 +279,7 @@ def test_dataset_list(api_client, dataset_test_data, user_key):
     api_client.force_authenticate(user=user)
 
     if user_key == 'superuser':
-        expected_datasets = {'dataset1', 'dataset2'}
+        expected_datasets = {'dataset1', 'dataset2', 'dataset3'}
     elif user_key in ['admin_user', 'super_admin_user', 'reviewer_user', 'viewer_user',
                       'schema1_viewer', 'schema1_editor', 'schema1_admin',
                       'schema1_viewer_group_user', 'schema1_editor_group_user', 'schema1_admin_group_user']:

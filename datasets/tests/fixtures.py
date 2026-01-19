@@ -151,6 +151,12 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         unit='liters',
         order=0,
     )
+    metric3 = DatasetMetric.objects.create(
+        schema=schema3,
+        label='Metric 3',
+        unit='m',
+        order=0,
+    )
 
     dimension1 = Dimension.objects.create(
         name='Test Dimension',
@@ -198,7 +204,7 @@ def dataset_test_data(django_db_setup, django_db_blocker):
     data_point4 = DataPoint.objects.create(
         dataset=dataset3,
         date=date(2024, 1, 1),
-        metric=metric2,
+        metric=metric3,
         value=123.45,
         created_by=superuser,
         last_modified_by=superuser,
@@ -317,6 +323,7 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         'unused_schema': unused_schema,
         'metric1': metric1,
         'metric2': metric2,
+        'metric3': metric3,
         'dimension1': dimension1,
         'dimension_category1': dimension_category1,
         'data_point1': data_point1,
