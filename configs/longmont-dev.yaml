@@ -40,7 +40,7 @@ normalizations:
     unit: miles/cap/a
 features:
   baseline_visible_in_graphs: true
-  use_datasets_from_db: false
+  use_datasets_from_db: true
   show_explanations: true
 
 result_excels:
@@ -1155,7 +1155,7 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: longmont/technical_data
-    forecast_from: 2024
+    forecast_from: 2025
     column: ratio
   params:
   - id: operations
@@ -1210,7 +1210,7 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: longmont/technical_data
-    forecast_from: 2024
+    forecast_from: 2025
     column: ratio
   params:
   - id: operations
@@ -1228,7 +1228,7 @@ nodes:
   unit: ft^2
   input_datasets:
   - id: longmont/building_square_footage
-    forecast_from: 2023
+    forecast_from: 2025
     column: floor_area
   output_dimensions: [emission_sectors]
   params:
@@ -1244,7 +1244,7 @@ nodes:
   input_datasets:
   - id: longmont/building_square_footage
     tags: [all]
-    forecast_from: 2023
+    forecast_from: 2025
     column: floor_area
   input_nodes:
   - id: building_square_footage_old
@@ -1341,7 +1341,7 @@ nodes:
 - id: building_natural_gas_use_historical
   name: Building natural gas use (historical)
   name_es-US: Consumo de gas natural en edificios (histórico)
-  type: buildings.HistoricalNode
+  type: buildings.HistoricalNode # FIXME
   quantity: energy
   unit: Mtherm/a
   input_dimensions: [emission_sectors, site]
@@ -1357,7 +1357,7 @@ nodes:
 - id: building_natural_gas_use_per_resident
   name: Building natural gas use per resident
   name_es-US: Consumo de gas natural en edificios por residente
-  type: simple.DivisiveNode
+  type: simple.DivisiveNode # FIXME
   quantity: per_capita
   unit: Mtherm/a/cap
   input_nodes:
@@ -1398,7 +1398,8 @@ nodes:
   input_datasets:
   - id: longmont/building_energy_use_intensity_eui
     column: natural_gas
-    tags: [eui] # FIXME Make polars_ext operations possible for dataset DF
+    forecast_from: 2025
+    tags: [eui, extend_both_ways] # FIXME Make polars_ext operations possible for dataset DF
   input_nodes:
   - id: energy_use_intensity_trend
     metrics: [natural_gas]
@@ -1406,7 +1407,7 @@ nodes:
   - id: energy_use_intensity_improvement
     tags: [improvement, extend_both_ways]
   params:
-    formula: (extend_both_ways(eui) + trend) * complement(improvement)
+    formula: (eui + trend) * complement(improvement)
 
 - id: building_natural_gas_use
   name: Building natural gas use
@@ -1415,7 +1416,7 @@ nodes:
   description_es-US: <b>Unidad:</b> Mthm/año = millones de termias al año.
   type: formula.FormulaNode
   quantity: energy
-  unit: GWh/a
+  unit: Mthm/a
   input_dimensions: [emission_sectors, building_energy_class, action]
   output_dimensions: [emission_sectors, building_energy_class]
   input_nodes:
@@ -1425,7 +1426,7 @@ nodes:
     - id: building_energy_class
     - id: emission_sectors
     - id: action
-  - id: building_electricity_eui_by_action
+  - id: building_natural_gas_eui_by_action
     tags: [eui]
     to_dimensions:
     - id: emission_sectors
@@ -1551,7 +1552,7 @@ nodes:
   name: Electricity that replaces natural gas in residential buildings
   name_es-US: Electricidad que reemplaza al gas natural en edificios 
     residenciales
-  type: simple.FixedMultiplierNode
+  type: simple.FixedMultiplierNode # FIXME
   quantity: energy
   unit: kWh/a
   params:
@@ -1771,7 +1772,7 @@ nodes:
 - id: electricity_losses
   name: Electricity losses
   name_es-US: Pérdidas de electricidad
-  type: simple.MultiplicativeNode
+  type: formula.FormulaNode
   quantity: energy
   unit: GWh/a
   input_dimensions: [emission_sectors]
@@ -1781,6 +1782,8 @@ nodes:
     tags: [non_additive]
     to_dimensions:
     - id: emission_sectors
+  params:
+    formula: electricity_use * electricity_loss_fraction
 
 - id: electricity_loss_emissions
   name: Emissions due to electricity losses
@@ -2501,7 +2504,7 @@ nodes:
   params:
     formula: sum_dim( fuels * ef * gwp, greenhouse_gases ) + non_co2 # FIXME
 
-- id: participation_smart_grid
+- id: participation_smart_grid # FIXME
   name: Participation in smart grid projects
   name_es-US: Participación en proyectos de redes inteligentes
   type: simple.AdditiveNode
@@ -2510,7 +2513,7 @@ nodes:
   historical_values: [[2016, 0], [2017, 0], [2018, 2], [2019, 5], [2020, 7], [
         2021, 9]]
 
-- id: smart_grid_improvement
+- id: smart_grid_improvement # FIXME
   name: Relative improvement due to smart grid implementation
   name_es-US: Mejora relativa debido a la aplicación de redes inteligentes
   type: simple.AdditiveNode
@@ -2519,7 +2522,7 @@ nodes:
   historical_values: [[2016, 0], [2017, 0], [2018, 0], [2019, 0], [2020, 0], [
         2021, 0]]
 
-- id: smart_grid_benefits
+- id: smart_grid_benefits #FIXME
   name: Smart grid action benefits
   name_es-US: Beneficios de la acción de redes inteligentes
   type: simple.ImprovementNode
@@ -2543,7 +2546,7 @@ nodes:
   output_dimensions: [emission_sectors, action]
   input_datasets:
   - id: longmont/energy_use_intensity_improvement
-    forecast_from: 2023
+    forecast_from: 2025
 
 actions:
 
@@ -2692,7 +2695,7 @@ actions:
   group: buildings
   input_datasets:
   - id: longmont/efficiency_works_program
-    forecast_from: 2023
+    forecast_from: 2025
     column: fraction
   output_nodes:
   - id: building_electricity_use
@@ -2718,7 +2721,7 @@ actions:
   group: buildings
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
-    forecast_from: 2022
+    forecast_from: 2025
     column: replace_natural_gas_residential
   output_nodes:
   - id: building_natural_gas_use
@@ -2747,7 +2750,7 @@ actions:
   group: buildings
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
-    forecast_from: 2022
+    forecast_from: 2025
     column: replace_natural_gas_commercial
   output_nodes:
   - id: building_natural_gas_use
@@ -2790,13 +2793,13 @@ actions:
   group: electric_grid
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
-    forecast_from: 2022
+    forecast_from: 2025
     column: longmont_power_renewables
   output_nodes:
   - id: electricity_emission_factor
     to_dimensions:
     - id: ghg
-      categories: [co2]
+      categories: [co2e]
     - id: site
       categories: [platte_river_power_authority]
 
@@ -2833,12 +2836,12 @@ actions:
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
     column: longmont_power_renewables_additional
-    forecast_from: 2023
+    forecast_from: 2025
   output_nodes:
   - id: electricity_emission_factor
     to_dimensions:
     - id: ghg
-      categories: [co2]
+      categories: [co2e]
     - id: site
       categories: [platte_river_power_authority]
 
@@ -2867,7 +2870,7 @@ actions:
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
     # columns: [participation_smart_grid, smart_grid_improvement] # FIXME Allow this to be configurable.
-    forecast_from: 2023
+    forecast_from: 2025
     filters:
     - column: efficiency_works_program
     - column: replace_natural_gas_residential
@@ -2909,7 +2912,7 @@ actions:
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
     column: reduce_transmission_distribution_losses
-    forecast_from: 2023
+    forecast_from: 2025
   output_nodes:
   - id: electricity_use
     tags: [extend_to_history, complement]
@@ -2934,7 +2937,7 @@ actions:
   group: oil_and_gas
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
-    forecast_from: 2022
+    forecast_from: 2025
     column: leak_detection
   output_nodes:
   - id: leakage_from_oil_and_gas_wells_emissions
@@ -2960,7 +2963,7 @@ actions:
     filters:
     - column: action
       value: none
-    forecast_from: 2023
+    forecast_from: 2025
   output_dimensions: [emission_sectors]
 
 - id: vehicle_incentives
@@ -2985,7 +2988,7 @@ actions:
   group: transportation
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
-    forecast_from: 2022
+    forecast_from: 2025
     column: vehicle_incentives
   # output_nodes:
   # - registered_electric_vehicles
@@ -3019,7 +3022,7 @@ actions:
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
     column: increase_access_of_public_transit
-    forecast_from: 2023
+    forecast_from: 2025
   # output_nodes:
   # - free_rides_per_person
 
@@ -3049,7 +3052,7 @@ actions:
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
     column: multimodal_transportation_system
-    forecast_from: 2023
+    forecast_from: 2025
   output_nodes:
   - id: vehicle_miles_traveled
     tags: [complement]
@@ -3077,7 +3080,7 @@ actions:
   group: transportation
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
-    forecast_from: 2022
+    forecast_from: 2025
     column: last_mile_connections
   output_nodes:
   - id: total_transit_vmt
@@ -3103,3 +3106,6 @@ scenarios:
   name: Climate Action Initiatives
   name_es-US: Iniciativas de acción climática
   all_actions_enabled: true
+  params:
+  - id: energy_use_intensity_trend.enabled
+    value: false
