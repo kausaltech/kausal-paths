@@ -809,7 +809,8 @@ class PathsExt:
 
     def _extend_both_ways(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
         out = self._extend_to_history(df, context)
-        return self._extend_forecast_values(out, context)
+        out = self._extend_forecast_values(out, context)
+        return self._bring_to_maximum_historical_year(out, context)
 
     def _extend_forecast_values(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
         from nodes.calc import extend_last_forecast_value_pl
