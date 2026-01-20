@@ -37,7 +37,7 @@ BASKET_DISPLAY_NAMES = {
     'add': _('addition'),
     'add_from_incoming_dims': _('addition from incoming dimensions'),
     'add_to_existing_dims': _('addition to existing dimensions'),
-    'coalesce': _('coalescing'),
+    'coalesce': _('coalesce'),
     'multiply': _('multiplication'),
     'other': _('other operations'),
     'skip_dim_test': _('skip dimension test'),
@@ -48,6 +48,14 @@ BASKET_DISPLAY_NAMES = {
     'use_as_totals': _('use as totals'),
     'unknown': _('unknown operation'),
     'skip': _('skip'),
+}
+
+BASKET_OPERATION_LABEL = {
+    'add': ' + ',
+    'add_from_incoming_dims': ' + ',
+    'add_to_existing_dims': ' + ',
+    'coalesce': ', ',
+    'multiply': ' * ',
 }
 
 TAG_DESCRIPTIONS = {
@@ -744,22 +752,15 @@ class ValidationRule(ABC):
 class NodeClassRule(ValidationRule):
 
     def explain(self, node_config: dict[str, Any], context: Context) -> list[str]:
-        html: list[str] = [f"{node_config['id']}<br>"]
-
-        typ = node_config.get('type')
-        if isinstance(typ, str):
-            typ = typ.split('.')[-1]
-            desc = NODE_CLASS_DESCRIPTIONS.get(typ)
-            if desc is None:
-                desc = NODE_CLASS_DESCRIPTIONS['Unknown']
-            html.append(f"{desc.description}<ul>")
+        typ: str = node_config.get('type') or ''
+        typ = typ.split('.')[-1]
+        html: list[str] = [f"{node_config['id']} ({typ})<br>"]
+        desc = NODE_CLASS_DESCRIPTIONS.get(typ) or NODE_CLASS_DESCRIPTIONS['Unknown']
+        html.append(f"{desc.description}<ul>")
         operations = self.get_param(node_config, 'operations')
-        formula = self.get_param(node_config, 'formula')
         other = self.get_all_params(node_config, drop = ['operations', 'formula'])
         if operations:
             html.append(f"<li>{_('The order of operations is %s.') % operations}</li>")
-        if formula:
-            html.append(f"<li>{_('Has formula %s.') % formula}</li>")
         if other:
             for p in other:
                 assert p is not None
@@ -799,6 +800,9 @@ class DatasetRule(ValidationRule):
     def explain(self, node_config: dict[str, Any], context: Context) -> list[str]:
         dataset_html: list[str] = []
 
+        # Terms (including datasets) are handled by BasketRule to keep inputs in one place.
+        return dataset_html
+
         input_datasets: list[dict[str, Any]] = node_config.get('input_datasets', [])
 
         if not input_datasets:
@@ -816,15 +820,17 @@ class DatasetRule(ValidationRule):
 
         return dataset_html
 
-    def _explain_single_dataset(self, dataset_config: dict[str, None], context: Context) -> list[str]:
+    def _explain_single_dataset(self, dataset_config: dict[str, Any], context: Context) -> list[str]:
         """Explain a single dataset configuration."""
         if isinstance(dataset_config, str):
-            return [f"<li>{_('Dataset with identifier <i>%s</i>') % dataset_config}</li>"]
-        html = [f"<li>{_('Dataset with identifier <i>%s</i>') % dataset_config['id']}<ul>"]
+            return [f"<li><i>{dataset_config}</i></li>"]
+        tags: list[Any] = dataset_config.get('tags', [])
+        tag_str = ', '.join(tags) + ': ' if tags else ''
+        html = [f"<li>{tag_str}{dataset_config['id']}<ul>"]
 
         col = dataset_config.get('column')
         if col is not None:
-            html.append(f'<li>{_("Uses column: %(name)s") % {'name': col}}</li>')
+            html.append(f'<li>{_("Metric: %(name)s") % {'name': col}}</li>')
 
         year = dataset_config.get('forecast_from')
         if year is not None:
@@ -1110,49 +1116,21 @@ class DatasetRule(ValidationRule):
 class EdgeRule(ValidationRule):
 
     def explain(self, node_config: dict[str, Any], context: Context) -> list[str]:
-        txt = _('The inputs are processed in the following way before using for calculations in this node:')
-        html = [f"<p>{txt}<ul>"]  # Start the main list for nodes
-        edge_html0 = html.copy()
+        # Terms are handled by BasketRule to keep inputs in one place.
+        return []
 
-        def _get_node_name_text(node_id: str, context: Context) -> str:
-            langs = ['']
-            langs.append(f'_{context.instance.default_language}')
-            langs.extend([f'_{lang}' for lang in context.instance.supported_languages])
-            nes = context.node_explanation_system
-            assert nes is not None
-            node = nes.graph.nodes[node_id]
-            for lang in langs:
-                key = f'name{lang}'
-                if node.get(key):
-                    return _('Node <i>%s</i>') % node[key]
-            return _('Node with identifier <i>%s</i>') % node_id
-
-        for input_node in node_config.get('input_nodes', {}):
-
-            tag_html = self.get_explanation_for_tag(input_node)
-            tag_html.extend(self.get_explanation_for_edge_from(input_node, context))
-            tag_html.extend(self.get_explanation_for_edge_to(input_node, context))
-
-            if tag_html:
-                input_id = input_node if not isinstance(input_node, dict) else input_node['id']
-                txt = _get_node_name_text(input_id, context)
-                html.append(f"<li>{txt}:")
-                # Create a list item for the node with nested list
-                html.append("<ul>")  # Start nested list for this node
-                html.extend(tag_html)
-                html.append("</ul></li>")  # Close node list item
-
-        if html == edge_html0:
-            return []
-        html.append("</ul>")  # Close main nodes list
-        return html
-
-    def get_explanation_for_tag(self, node: dict[str, Any] | str) -> list[str]:
+    def get_explanation_for_tag(
+        self,
+        node: dict[str, Any] | str,
+        skip_tags: set[str] | None = None,
+    ) -> list[str]:
         html: list[str] = []
         if isinstance(node, str):
             return html
 
         for tag in node.get('tags', []):
+            if skip_tags and tag in skip_tags:
+                continue
             if tag in TAG_TO_BASKET.keys(): # These show up in basket explanations
                 continue
             description = TAG_DESCRIPTIONS.get(tag, _('Has tag <i>%s</i>.') % tag)
@@ -1228,23 +1206,29 @@ class BasketRule(ValidationRule):
         assert nes is not None
         baskets = nes.baskets[node_id]
         html: list[str] = []
-        if not baskets:
-            return html
-
-        html.append(_("The inputs are used for operations in this order:") + "<ol>")
         operation_list = self.get_param(nes.graph.nodes[node_id], 'operations')
         if not operation_list:
             operation_list = context.nodes[node_id].DEFAULT_OPERATIONS
         operations = [o.strip() for o in operation_list.split(',')]
-
-        for operation in operations:
-            input_nodes = baskets.get(operation, [])
-            if input_nodes:
-                op_display = BASKET_DISPLAY_NAMES.get(operation, operation)
-                html.append(f"<li>{_('Operation %(op)s with nodes:') % {'op': op_display}}<ul>")
-                nodes_str = '</li><li>'.join(str(context.nodes[n].name) for n in input_nodes)
-                html.append(f"<li>{nodes_str}</li></ul></li>")
-        html.append('</ol>')
+        terms = self._collect_terms(node_config, context, node_id)
+        formula = self._build_formula_from_config(node_config, operations, baskets, terms)
+        if not formula and not terms:
+            return html
+        if formula:
+            html.append(f"<p>{_('Formula:')} <b>{formula}</b>,</p>")
+        if terms:
+            html.append(_("Terms:") + "<ul>")
+            for term in terms:
+                label = term['label']
+                name = term['name']
+                details = term['details']
+                if details:
+                    html.append(f"<li><b>{label}</b>: {name}<ul>")
+                    html.extend(details)
+                    html.append("</ul></li>")
+                else:
+                    html.append(f"<li><b>{label}</b>: {name}</li>")
+            html.append("</ul>")
 
         remaining_baskets = [basket for basket in baskets.keys() if basket not in operations]
         if remaining_baskets:
@@ -1268,3 +1252,201 @@ class BasketRule(ValidationRule):
         )]
         # Each input node must belong to some basket
         # If an input node belongs to the unknown basket, give a warning
+
+    def _collect_terms(  # noqa: C901, PLR0912
+        self,
+        node_config: dict[str, Any],
+        context: Context,
+        node_id: str,
+    ) -> list[dict[str, Any]]:
+        terms: list[dict[str, Any]] = []
+        input_specs = node_config.get('input_nodes', [])
+        if not input_specs:
+            nes = context.node_explanation_system
+            assert nes is not None
+            for input_id in nes.graph.inputs.get(node_id, []):
+                edge_props = nes.graph.edges.get((input_id, node_id), {})
+                spec = {'id': input_id, **edge_props}
+                input_specs.append(spec)
+        input_datasets = node_config.get('input_datasets', [])
+        params = node_config.get('params', [])
+
+        for input_spec in input_specs:
+            input_id = input_spec if isinstance(input_spec, str) else input_spec.get('id')
+            if not input_id:
+                continue
+            label_tag = None
+            if isinstance(input_spec, dict):
+                label_tag = next(
+                    (tag for tag in input_spec.get('tags', []) if tag not in TAG_TO_BASKET),
+                    None,
+                )
+            term = {
+                'kind': 'node',
+                'key': input_id,
+                'label': label_tag,
+                'name': context.nodes[input_id].name,
+                'details': self._node_term_details(input_spec, context, label_tag),
+            }
+            terms.append(term)
+
+        for dataset_config in input_datasets:
+            if not isinstance(dataset_config, dict):
+                continue
+            ds_id = dataset_config.get('id')
+            if not ds_id:
+                continue
+            tags = [tag for tag in dataset_config.get('tags', []) if tag != 'cleaned']
+            label_tag = tags[0] if tags else None
+            term = {
+                'kind': 'dataset',
+                'key': ds_id,
+                'label': label_tag,
+                'name': ds_id,
+                'details': self._dataset_term_details(dataset_config, context),
+            }
+            terms.append(term)
+
+        if isinstance(params, dict):
+            params = [dict(id=param_id, value=value) for param_id, value in params.items()]
+        for param in params:
+            if not isinstance(param, dict):
+                continue
+            param_id = param.get('id')
+            if param_id in ['formula', 'operations']:
+                continue
+            value = param.get('value')
+            unit = param.get('unit', '')
+            if param_id and value is not None:
+                suffix = f" {unit}" if unit else ""
+                term = {
+                    'kind': 'constant',
+                    'key': param_id,
+                    'label': param_id,
+                    'name': _('Constant'),
+                    'details': [f"<li>{value}{suffix}</li>"],
+                }
+                terms.append(term)
+
+        counter = 1
+        for term in terms:
+            if not term['label']:
+                term['label'] = f"t{counter}"
+                counter += 1
+
+        return terms
+
+    def _build_formula_from_config(
+        self,
+        node_config: dict[str, Any],
+        operations: list[str],
+        baskets: dict[str, list[str]],
+        terms: list[dict[str, Any]],
+    ) -> str:
+        formula_param = self.get_param(node_config, 'formula')
+        if formula_param:
+            return formula_param
+        typ = node_config.get('type') or ''
+        if isinstance(typ, str):
+            typ = typ.split('.')[-1]
+        label_by_id = {term['key']: term['label'] for term in terms}
+        if typ == 'AdditiveNode':
+            add_terms = [term['label'] for term in terms if term['kind'] != 'constant']
+            if not add_terms:
+                return ''
+            return f"({BASKET_OPERATION_LABEL['add'].join(add_terms)})"
+        if not operations:
+            return ''
+        return self._build_formula_from_operations(operations, baskets, label_by_id, terms)
+
+    def _build_formula_from_operations(  # noqa: C901
+        self,
+        operations: list[str],
+        baskets: dict[str, list[str]],
+        label_by_id: dict[str, str],
+        terms: list[dict[str, Any]],
+    ) -> str:
+        expr = ''
+        fallback_term = next(
+            (term['label'] for term in terms if term['kind'] != 'constant'),
+            '',
+        )
+        multiplier = label_by_id.get('multiplier')
+        for operation in operations:
+            input_nodes = baskets.get(operation, [])
+            if input_nodes:
+                seen: set[str] = set()
+                deduped = []
+                for n in input_nodes:
+                    if n in seen:
+                        continue
+                    seen.add(n)
+                    deduped.append(n)
+                input_nodes = deduped
+            if input_nodes:
+                op_terms = [label_by_id[n] for n in input_nodes if n in label_by_id]
+                if not op_terms:
+                    continue
+                if expr and expr not in op_terms:
+                    op_terms = [expr, *op_terms]
+                expr = self._render_operation(operation, op_terms)
+                continue
+
+            if operation == 'get_single_dataset' and not expr and fallback_term:
+                expr = fallback_term
+            elif operation == 'apply_multiplier' and expr and multiplier:
+                expr = self._render_operation('multiply', [expr, multiplier])
+
+        if not expr and fallback_term:
+            expr = fallback_term
+        return expr
+
+    def _render_operation(self, operation: str, terms: list[str]) -> str:
+        op_label = BASKET_OPERATION_LABEL.get(operation, ' + ')
+        no_name = ['add', 'multiply']
+        op_name = '' if operation in no_name else BASKET_DISPLAY_NAMES.get(operation, operation)
+        joined = op_label.join(terms)
+        if op_name:
+            return f"{op_name}({joined})"
+        return f"({joined})"
+
+    def _node_term_details(
+        self,
+        input_spec: dict[str, Any] | str,
+        context: Context,
+        label_tag: str | None,
+    ) -> list[str]:
+        if isinstance(input_spec, str):
+            return []
+        details: list[str] = []
+        metrics = input_spec.get('metrics', [])
+        if metrics:
+            metrics_str = ', '.join(metrics)
+            details.append(f"<li>{_('Metrics: %(metrics)s') % {'metrics': metrics_str}}</li>")
+        details.extend(
+            EdgeRule().get_explanation_for_tag(
+                input_spec,
+                skip_tags={label_tag} if label_tag else None,
+            )
+        )
+        details.extend(EdgeRule().get_explanation_for_edge_from(input_spec, context))
+        details.extend(EdgeRule().get_explanation_for_edge_to(input_spec, context))
+        return details
+
+    def _dataset_term_details(self, dataset_config: dict[str, Any], context: Context) -> list[str]:
+        html: list[str] = []
+        col = dataset_config.get('column')
+        if col is not None:
+            text = _("Metric: %(name)s") % {'name': col}
+            html.append(f"<li>{text}</li>")
+        year = dataset_config.get('forecast_from')
+        if year is not None:
+            text = _("Has forecast values from: %(year)s") % {'year': year}
+            html.append(f"<li>{text}</li>")
+        dropna = dataset_config.get('dropna')
+        if dropna:
+            html.append(f'<li>{_("Rows with missing values are dropped.")}</li>')
+        filters = dataset_config.get('filters')
+        if filters:
+            html.extend(DatasetRule()._explain_filters(filters, context))
+        return html
