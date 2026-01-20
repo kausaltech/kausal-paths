@@ -85,11 +85,17 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         password='password',
     )
 
+    # schema1 will be part of instance 1 and be instantiated by dataset1
     schema1 = DatasetSchema.objects.create(
         name='Schema 1',
     )
+    # schema2 will be part of instance 2 and be instantiated by dataset2
     schema2 = DatasetSchema.objects.create(
         name='Schema 2',
+    )
+    # schema3 will be part of instance 2 and be instantiated by dataset3
+    schema3 = DatasetSchema.objects.create(
+        name='Schema 3',
     )
     unused_schema = DatasetSchema.objects.create(
         name='Unused schema'
@@ -111,6 +117,11 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         scope_content_type=content_type,
         scope_id=instance2.pk,
     )
+    DatasetSchemaScope.objects.create(
+        schema=schema3,
+        scope_content_type=content_type,
+        scope_id=instance2.pk,
+    )
 
     dataset1 = Dataset.objects.create(
         schema=schema1,
@@ -119,6 +130,11 @@ def dataset_test_data(django_db_setup, django_db_blocker):
     )
     dataset2 = Dataset.objects.create(
         schema=schema2,
+        scope_content_type=content_type,
+        scope_id=instance2.pk,
+    )
+    dataset3 = Dataset.objects.create(
+        schema=schema3,
         scope_content_type=content_type,
         scope_id=instance2.pk,
     )
@@ -133,6 +149,12 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         schema=schema2,
         label='Metric 2',
         unit='liters',
+        order=0,
+    )
+    metric3 = DatasetMetric.objects.create(
+        schema=schema3,
+        label='Metric 3',
+        unit='m',
         order=0,
     )
 
@@ -175,6 +197,14 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         dataset=dataset2,
         date=date(2024, 1, 1),
         metric=metric2,
+        value=123.45,
+        created_by=superuser,
+        last_modified_by=superuser,
+    )
+    data_point4 = DataPoint.objects.create(
+        dataset=dataset3,
+        date=date(2024, 1, 1),
+        metric=metric3,
         value=123.45,
         created_by=superuser,
         last_modified_by=superuser,
@@ -237,45 +267,43 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         data_source=data_source2,
     )
 
-    # Create users and corresponding roles on schema1
-    schema1_permission_users = {}
-    for username, role in (
-        ('schema1_viewer', ObjectRole.VIEWER),
-        ('schema1_editor', ObjectRole.EDITOR),
-        ('schema1_admin', ObjectRole.ADMIN),
-    ):
-        person = PersonFactory(email=f'{username}@example.com')
-        user = person.user
+    # Create users and corresponding roles on schema1, schema2 and schema3
+    schema_permission_users = {}
+    for i, schema in enumerate((schema1, schema2, schema3), 1):
+        for username, role in (
+            (f'schema{i}_viewer', ObjectRole.VIEWER),
+            (f'schema{i}_editor', ObjectRole.EDITOR),
+            (f'schema{i}_admin', ObjectRole.ADMIN),
+        ):
+            person = PersonFactory.create(email=f'{username}@example.com')
+            DatasetSchemaPersonPermission.objects.create(
+                object=schema,
+                person=person,
+                role=role,
+            )
+            schema_permission_users[username] = person.user
 
-        DatasetSchemaPersonPermission.objects.create(
-            object=schema1,
-            person=user.person,
-            role=role,
-        )
-        schema1_permission_users[username] = user
-
-    # Create user groups and corresponding roles and users on schema1
-    schema1_permission_group_users = {}
-    for group_name, role in (
-        ('schema1_viewer_group', ObjectRole.VIEWER),
-        ('schema1_editor_group', ObjectRole.EDITOR),
-        ('schema1_admin_group', ObjectRole.ADMIN),
-    ):
-        group = PersonGroup.objects.create(
-            instance=instance1,
-            name=group_name,
-        )
-        username = f'{group_name}_user'
-        person = PersonFactory(email=f'{username}@example.com')
-        user = person.user
-        group.persons.add(person)
-        DatasetSchemaGroupPermission.objects.create(
-            object=schema1,
-            group=group,
-            role=role,
-        )
-        schema1_permission_group_users[username] = user
-
+    # Create user groups and corresponding roles and users on schema1, schema2 and schema3
+    schema_permission_group_users = {}
+    for i, schema in enumerate((schema1, schema2, schema3), 1):
+        for group_name, role in (
+            (f'schema{i}_viewer_group', ObjectRole.VIEWER),
+            (f'schema{i}_editor_group', ObjectRole.EDITOR),
+            (f'schema{i}_admin_group', ObjectRole.ADMIN),
+        ):
+            group = PersonGroup.objects.create(
+                instance=schema.scopes.get().scope,
+                name=group_name,
+            )
+            username = f'{group_name}_user'
+            person = PersonFactory.create(email=f'{username}@example.com')
+            group.persons.add(person)
+            DatasetSchemaGroupPermission.objects.create(
+                object=schema,
+                group=group,
+                role=role,
+            )
+            schema_permission_group_users[username] = person.user
 
     result = {
         'instance1': instance1,
@@ -288,16 +316,20 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         'regular_user': regular_user,
         'schema1': schema1,
         'schema2': schema2,
+        'schema3': schema3,
         'dataset1': dataset1,
         'dataset2': dataset2,
+        'dataset3': dataset3,
         'unused_schema': unused_schema,
         'metric1': metric1,
         'metric2': metric2,
+        'metric3': metric3,
         'dimension1': dimension1,
         'dimension_category1': dimension_category1,
         'data_point1': data_point1,
         'data_point2': data_point2,
         'data_point3': data_point3,
+        'data_point4': data_point4,
         'data_source1': data_source1,
         'data_source1_alternative': data_source1_alternative,
         'data_source2': data_source2,
@@ -307,8 +339,8 @@ def dataset_test_data(django_db_setup, django_db_blocker):
         'source_ref_on_datapoint': source_ref_on_datapoint,
         'source_ref_on_datapoint2': source_ref_on_datapoint2,
         'source_ref2': source_ref2,
-        **schema1_permission_users,
-        **schema1_permission_group_users,
+        **schema_permission_users,
+        **schema_permission_group_users,
     }
     yield result
     with django_db_blocker.unblock():
