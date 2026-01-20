@@ -15,7 +15,7 @@ supported_languages: [es-US]
 site_url: https://longmont-dev.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 03fe2b1450f4f7472051f87fee6f48aff0ce3d57
+  commit: 58e302cb1f7e18b9eb9f690cd0b8233ef830d815
   dvc_remote: kausal-s3
 name: 2025 Draft Longmont Greenhouse Gas Inventory
 name_es-US: 2025 Inventario de gases de efecto invernadero de Longmont
@@ -874,32 +874,6 @@ dimensions:
 params:
 - id: municipality_name
   value: longmont
-- id: all_in_investment
-  label: All investments happen on the first year (not continuously)
-  label_es-US: Todas las inversiones se hacen durante el primer año (no de 
-    manera continua)
-  is_customizable: false
-  value: false
-- id: discount_rate
-  label: Discount rate (%/year)
-  label_es-US: Tasa de descuento (% al año)
-  description: Speed of value decrease for monetary variables
-  description_es-US: Velocidad de disminución del valor de las variables 
-    monetarias
-  is_customizable: false
-  value: 3.5
-  min_value: 0
-  max_value: 18
-  step: 0.5
-  unit: '%'
-- id: renovation_rate_baseline
-  label: Renovation rate baseline (%/year)
-  label_es-US: Referencia de tasa de renovación (% al año)
-  is_customizable: false
-  value: 0.5
-  min_value: 0
-  max_value: 2
-  unit: '%/a'
 - id: weather_correction
   label: Included Avoided emissions
   label_es-US: Emisiones evitadas incluidas
@@ -907,9 +881,9 @@ params:
   is_visible: true
   is_customizable: true
 - id: biogenic_inclusion
-  label: Included Biogenic emissions
-  label_es-US: Emisiones biogenic incluidas
-  value: false
+  label: Excluded Biogenic emissions
+  label_es-US: Emisiones biogenic excluidas
+  value: true
   is_visible: true
   is_customizable: true
 
@@ -1192,33 +1166,28 @@ nodes:
 - id: building_emissions
   name: Building emissions
   name_es-US: Emisiones de edificios
-  type: formula.FormulaNode
+  type: generic.GenericNode
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [scope]
   output_dimensions: [scope]
   output_nodes: [stationary_energy_emissions]
-  params:
-    formula: electricity_consumption_emissions + 
-      natural_gas_consumption_emissions + (wood_consumption_emissions * 
-      is_biogenic_included)
 
 - id: is_biogenic_included
   name: Are biogenic emissions included?
   type: generic.GenericNode
   quantity: fraction
   unit: dimensionless
+  input_dimensions: [ghg]
+  output_dimensions: [ghg]
   input_datasets:
-  - id: longmont/technical_data
+  - id: longmont/non_biogenic_ghg_emission_index
     forecast_from: 2025
-    column: ratio
   params:
   - id: operations
-    value: get_single_dataset,do_correction,complement
+    value: get_single_dataset,do_correction
   - id: do_correction
     ref: biogenic_inclusion
-  output_nodes: [building_emissions]
-
 
 - id: building_square_footage_old
   name: Building square footage (old)
@@ -1704,13 +1673,22 @@ nodes:
 - id: emission_factor_wood
   name: Emission factor of wood
   name_es-US: Factor de emisión de la madera
-  type: simple.AdditiveNode
+  type: formula.FormulaNode
   quantity: emission_factor
   unit: kg/MMBtu
-  input_dataset_processors: [LinearInterpolation]
+  input_dimensions: [energy_carrier, greenhouse_gases, ghg]
+  output_dimensions: [ghg, energy_carrier]
   input_datasets:
-  - longmont/emission_factor_wood
-  output_dimensions: [energy_carrier, greenhouse_gases]
+  - id: longmont/emission_factor_wood
+    tags: [ef]
+  input_nodes:
+  - id: greenhouse_gas_index
+    tags: [index]
+    to_dimensions:
+    - id: greenhouse_gases
+    - id: ghg
+  params:
+    formula: sum_dim(extend_both_ways(ef) * index, greenhouse_gases)
 
 - id: wood_consumption_emissions
   name: Wood consumption emissions
@@ -1718,7 +1696,7 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: t_co2e/a
-  output_dimensions: [greenhouse_gases, emission_sectors, energy_carrier]
+  output_dimensions: [ghg, emission_sectors, energy_carrier]
   input_nodes:
   - id: stationary_wood_consumption
     to_dimensions:
@@ -1726,26 +1704,23 @@ nodes:
     - id: energy_carrier
   - id: emission_factor_wood
     to_dimensions:
-    - id: greenhouse_gases
-    - id: energy_carrier
-  - id: global_warming_potential_100a_old
-    from_dimensions:
     - id: ghg
-      flatten: true
+    - id: energy_carrier
+  - id: global_warming_potential_100a
     to_dimensions:
-    - id: greenhouse_gases
+    - id: ghg
   output_nodes:
   - id: building_emissions
     from_dimensions:
     - id: energy_carrier
       flatten: true
-    - id: greenhouse_gases
+    - id: ghg
       flatten: true
     - id: emission_sectors
       flatten: true
     to_dimensions:
     - id: scope
-      categories: [biogenic_emissions]
+      categories: [biogenic_emissions] # FIXME
 
 # Losses
 
@@ -2504,39 +2479,45 @@ nodes:
   params:
     formula: sum_dim( fuels * ef * gwp, greenhouse_gases ) + non_co2 # FIXME
 
-- id: participation_smart_grid # FIXME
+- id: participation_smart_grid
   name: Participation in smart grid projects
   name_es-US: Participación en proyectos de redes inteligentes
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: fraction
   unit: '%'
-  historical_values: [[2016, 0], [2017, 0], [2018, 2], [2019, 5], [2020, 7], [
-        2021, 9]]
+  input_datasets:
+  - id: longmont/energy_vehicle_and_waste_actions
+    column: participation_smart_grid
+    forecast_from: 2025
 
-- id: smart_grid_improvement # FIXME
+- id: smart_grid_improvement
   name: Relative improvement due to smart grid implementation
   name_es-US: Mejora relativa debido a la aplicación de redes inteligentes
-  type: simple.AdditiveNode
+  type: generic.GenericNode
   quantity: fraction
   unit: '%'
-  historical_values: [[2016, 0], [2017, 0], [2018, 0], [2019, 0], [2020, 0], [
-        2021, 0]]
+  input_datasets:
+  - id: longmont/energy_vehicle_and_waste_actions
+    column: smart_grid_improvement
+    forecast_from: 2025
 
-- id: smart_grid_benefits #FIXME
+- id: smart_grid_benefits
   name: Smart grid action benefits
   name_es-US: Beneficios de la acción de redes inteligentes
-  type: simple.ImprovementNode
+  type: formula.FormulaNode
   quantity: fraction
   unit: dimensionless
-  historical_values: [[2016, 1.0], [2017, 1], [2018, 1], [2019, 1], [2020, 1]]
   input_nodes:
   - id: participation_smart_grid
-    tags: [non_additive]
+    tags: [participation]
   - id: smart_grid_improvement
-    tags: [non_additive]
+    tags: [improvement]
+  params:
+    formula: complement(participation * improvement)
   output_nodes:
   - id: electricity_use
     to_dimensions: []
+    tags: [extend_to_history]
 
 - id: energy_use_intensity_improvement
   name: Energy use intensity improvement
@@ -2694,9 +2675,9 @@ actions:
   unit: '%'
   group: buildings
   input_datasets:
-  - id: longmont/efficiency_works_program
+  - id: longmont/energy_vehicle_and_waste_actions
     forecast_from: 2025
-    column: fraction
+    column: efficiency_works_program
   output_nodes:
   - id: building_electricity_use
     tags: [complement]
