@@ -291,7 +291,7 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         and emissions avoided from the capacity that gets replaced.
         """)),
     'GenericNode': NodeInfo(_("")),
-    'GenericAction': NodeInfo(_("Action with GenericNode properties.")),
+    'GenericAction': NodeInfo(_("")),
     'GpcTrajectoryAction': NodeInfo(_(
         """
         GpcTrajectoryAction is a trajectory action that uses the DatasetNode to fetch the dataset.

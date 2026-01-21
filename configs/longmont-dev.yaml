@@ -1253,13 +1253,13 @@ nodes:
   - id: longmont/building_energy_use_intensity_eui
     column: natural_gas
     forecast_from: 2025
-    tags: [eui, extend_both_ways] # FIXME Make polars_ext operations possible for dataset DF
+    tags: [eui, extend_both_ways]
   input_nodes:
   - id: energy_use_intensity_trend
     metrics: [natural_gas]
     tags: [trend, extend_both_ways]
   - id: energy_use_intensity_improvement
-    tags: [improvement, extend_both_ways]
+    tags: [improvement]
   params:
     formula: (eui + trend) * complement(improvement)
 
@@ -1298,15 +1298,16 @@ nodes:
   input_datasets:
   - id: longmont/building_energy_use_intensity_eui
     column: electricity
-    tags: [eui] # FIXME Make polars_ext operations possible for dataset DF
+    tags: [eui, cleaned, extend_both_ways]
+    forecast_from: 2025
   input_nodes:
   - id: energy_use_intensity_improvement
-    tags: [improvement, extend_both_ways]
+    tags: [improvement]
   - id: energy_use_intensity_trend
     metrics: [electricity]
-    tags: [trend, extend_both_ways]
+    tags: [trend]
   params:
-    formula: (extend_both_ways(eui) + trend) * complement(improvement)
+    formula: (eui + trend) * complement(improvement)
 
 - id: building_electricity_use
   name: Building electricity use
@@ -1453,7 +1454,8 @@ nodes:
   output_dimensions: [ghg, energy_carrier]
   input_datasets:
   - id: longmont/emission_factor_natural_gas
-    tags: [ef]
+    tags: [ef, cleaned, extend_both_ways]
+    forecast_from: 2025
   input_dataset_processors: [LinearInterpolation]
   input_nodes:
   - id: greenhouse_gas_index
@@ -1462,7 +1464,7 @@ nodes:
     - id: greenhouse_gases
     - id: ghg
   params:
-    formula: sum_dim(extend_both_ways(ef) * index, greenhouse_gases)
+    formula: sum_dim(ef * index, greenhouse_gases)
 
 - id: leakage_from_natural_gas_emissions
   name: Emissions from natural gas leakage
@@ -1573,7 +1575,8 @@ nodes:
   output_dimensions: [ghg, energy_carrier]
   input_datasets:
   - id: longmont/emission_factor_wood
-    tags: [ef]
+    tags: [ef, cleaned, extend_both_ways]
+    forecast_from: 2025
   input_nodes:
   - id: greenhouse_gas_index
     tags: [index]
@@ -1581,7 +1584,7 @@ nodes:
     - id: greenhouse_gases
     - id: ghg
   params:
-    formula: sum_dim(extend_both_ways(ef) * index, greenhouse_gases)
+    formula: sum_dim(ef * index, greenhouse_gases)
 
 - id: wood_consumption_emissions
   name: Wood consumption emissions
@@ -1684,25 +1687,31 @@ nodes:
 
 - id: transportation_ch4_emission_factors
   name: Transportation CH4 and N2O emission factors
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: emission_factor
   unit: g/VMT
   input_dimensions: [vehicle_type, energy_carrier, ghg]
   output_dimensions: [vehicle_type, energy_carrier, ghg]
   input_datasets:
   - id: longmont/transportation_emission_factors
+    tags: [ef, cleaned]
     column: emission_factor
+  params:
+    formula: extend_both_ways(ef)
 
 - id: transportation_emission_factors
   name: Transportation emission factors
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: emission_factor
   unit: t/gal
-  input_dimensions: [ghg, energy_carrier]
-  output_dimensions: [ghg, energy_carrier]
+  input_dimensions: [energy_carrier, ghg]
+  output_dimensions: [energy_carrier, ghg]
   input_datasets:
   - id: longmont/transportation_emission_factors
+    tags: [ef, cleaned]
     column: fuel_emission_factor
+  params:
+    formula: extend_both_ways(ef)
 
 - id: transportation_ch4_emissions
   name: Transportation CH4 and N2O emissions
@@ -2358,10 +2367,6 @@ nodes:
   type: generic.GenericNode
   quantity: fraction
   unit: '%'
-  input_datasets:
-  - id: longmont/energy_vehicle_and_waste_actions
-    column: participation_smart_grid
-    forecast_from: 2025
 
 - id: smart_grid_improvement
   name: Relative improvement due to smart grid implementation
@@ -2373,6 +2378,8 @@ nodes:
   - id: longmont/energy_vehicle_and_waste_actions
     column: smart_grid_improvement
     forecast_from: 2025
+  params:
+    operations: get_single_dataset,extend_to_history
 
 - id: smart_grid_benefits
   name: Smart grid action benefits
@@ -2401,6 +2408,8 @@ nodes:
   input_datasets:
   - id: longmont/energy_use_intensity_improvement
     forecast_from: 2025
+  params:
+    operations: get_single_dataset,extend_to_history
 
 actions:
 
@@ -2543,7 +2552,7 @@ actions:
     del Plan de Sustentabilidad E-7 </a></li> <li>Con ingresos calificados: <a href="https://indicators.longmontcolorado.gov/sustainability/actions/E-2">estrategia
     del Plan de Sustentabilidad E-2</a></li> y <a href="https://indicators.longmontcolorado.gov/sustainability/actions/BI-2">estrategia
     BI-2</a></li></ul>'
-  type: simple.AdditiveAction
+  type: simple.GenericAction
   quantity: fraction
   unit: '%'
   group: buildings
@@ -2551,6 +2560,8 @@ actions:
   - id: longmont/energy_vehicle_and_waste_actions
     forecast_from: 2025
     column: efficiency_works_program
+  params:
+    operations: get_single_dataset,extend_to_history
   output_nodes:
   - id: building_electricity_use
     tags: [complement]
@@ -2569,7 +2580,7 @@ actions:
     alimentados por electricidad cada vez más limpia y renovable.</p> <p>Seguimiento
     de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/bbe">Plan
     de electrificación beneficiosa de edificios</a></li></ul>'
-  type: simple.AdditiveAction
+  type: simple.GenericAction
   quantity: energy
   unit: ktherm/a
   group: buildings
@@ -2585,6 +2596,8 @@ actions:
     - id: building_energy_class
       categories: [existing]
   - id: electricity_replacing_natural_gas_residential
+  params:
+    operations: get_single_dataset,extend_to_history
 
 - id: replace_natural_gas_commercial
   name: Beneficial Building Electrification Commercial
@@ -2598,7 +2611,7 @@ actions:
     alimentados por electricidad cada vez más limpia y renovable.</p> <p>Seguimiento
     de la aplicación: <ul><li><a href="https://indicators.longmontcolorado.gov/bbe">Plan
     de electrificación beneficiosa de edificios</a></li></ul>'
-  type: simple.AdditiveAction
+  type: simple.GenericAction
   quantity: energy
   unit: ktherm/a
   group: buildings
@@ -2614,6 +2627,8 @@ actions:
     - id: building_energy_class
       categories: [existing]
   - id: electricity_replacing_natural_gas_commercial
+  params:
+    operations: get_single_dataset,extend_to_history
 
 - id: longmont_power_renewables
   name: 90% renewable electric energy supply by 2030
@@ -2702,7 +2717,7 @@ actions:
 - id: smart_grid_projects
   name: Accelerate and implement smart grid projects
   name_es-US: Acelerar y ejecutar proyectos de redes inteligentes
-  description: '<p>Implement a variety of smart grid projects that encourage reductions
+  description: '<p>This action shows participation rate. Implement a variety of smart grid projects that encourage reductions
     in electricity consumption through real-time feedback, dynamic pricing, etc.</p>
     <p>Track Implementation: <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/E-7">Sustainability
     Plan Strategy E-7</a></li></ul>'
@@ -2711,41 +2726,18 @@ actions:
     en tiempo real, precios dinámicos, etc.</p> <p>Seguimiento de la aplicación: <ul><li><a
     href="https://indicators.longmontcolorado.gov/sustainability/actions/E-7">Estrategia
     del Plan de Sustentabilidad E-7</a></li></ul>'
-  type: simple.AdditiveAction
+  type: simple.GenericAction
   group: electric_grid
-  output_metrics:
-  - id: participation_smart_grid
-    quantity: ratio
-    unit: '%'
-  - id: smart_grid_improvement
-    quantity: ratio
-    unit: '%'
-  input_dataset_processors: [LinearInterpolation]
+  quantity: ratio
+  unit: '%'
   input_datasets:
   - id: longmont/energy_vehicle_and_waste_actions
-    # columns: [participation_smart_grid, smart_grid_improvement] # FIXME Allow this to be configurable.
+    column: participation_smart_grid
     forecast_from: 2025
-    filters:
-    - column: efficiency_works_program
-    - column: replace_natural_gas_residential
-    - column: replace_natural_gas_commercial
-    - column: longmont_power_renewables
-    - column: longmont_power_renewables_additional
-    - column: reduce_transmission_distribution_losses
-    - column: vehicle_incentives
-    - column: last_mile_connections
-    - column: increase_waste_diversion
-    - column: mpg_trend
-    - column: vmt_per_vehicle_trend
-    - column: electric_vehicle_efficiency_trend
-    - column: increase_access_of_public_transit
-    - column: multimodal_transportation_system
-    - column: leak_detection
+  params:
+    operations: get_single_dataset,extend_to_history
   output_nodes:
   - id: participation_smart_grid
-    metrics: [participation_smart_grid]
-  - id: smart_grid_improvement
-    metrics: [smart_grid_improvement]
 
 - id: reduce_transmission_distribution_losses
   name: Encourage practices that reduce transmission and distribution losses
@@ -2814,6 +2806,7 @@ actions:
   group: trend
   input_datasets:
   - id: longmont/energy_use_intensity_improvements
+    tags: [cleaned, extend_both_ways]
     filters:
     - column: action
       value: none
