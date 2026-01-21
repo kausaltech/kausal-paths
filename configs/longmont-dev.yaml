@@ -48,181 +48,66 @@ result_excels:
     https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
   name: Climate City Contract Tables
   node_ids:
-  - electricity_emission_factor # remove Longmont Power from longmont/electricity_emission_factor
-  - longmont_power_renewables # righ gases in longmont/energy_vehicle_and_waste_actions
+  # Nodes using datasets
   - afolu_emissions
-  - waste_water_treatment_emissions
-  # - refridgerant_emissions
-  # - aviation_emissions
-  # - railways_emissions
-  # - off_road_transportation
-  - leakage_from_oil_and_gas_wells_emissions
-  # - emission_factor_fuels
-  - population
-  # - global_warming_potential_100
-  # - free_rides_per_person
-  # - modal_share_of_active_transportation
-  # - public_transportation_change
-  # - public_transportation_trips_per_person
-  # - diversion_rate
-  # - waste_emission_factor
-  - participation_smart_grid
-  - smart_grid_improvement
-  - smart_grid_benefits
-  # - transmission_loss_change
-  # - transmission_loss_work_benefits
-  # - building_square_footage
-  - building_electricity_use_historical
-  - building_natural_gas_use_historical
-  # - building_natural_gas_eui
-  # - building_electricity_eui
-  - emission_factor_natural_gas
-  # - stationary_fuel_consumption
-  # - emission_factor_fuel
-  - stationary_wood_consumption
-  - emission_factor_wood
-  - electricity_loss_fraction
-  # - miles_per_gallon
-  # - vehicle_miles_per_vehicle
-  # - registered_electric_vehicles
-  # - electric_vehicle_efficiency
-  # - vehicle_charging_shares
-  # - amount_of_waste_per_person
-  # - longmont/population
-  # - net_emissions
-  # - longmont/greenhouse_gas_emissions_by_subsector
-  # - emission_scope
-  # - scope
-  # - operations
-  # - multiplier
-  # - waste_emissions
-  # - ghg
-  - green_electricity_production
-  # - longmont/avoided_emissions
-  # - green_electricity_emission_reduction
-  # - energy_carrier
-  # - site
-  - global_warming_potential_100a
-  # - avoided_emissions
-  # - asset
-  # - informational_composting_emission_reduction
-  # - recycling_emission_reduction
-  # - waste
-  # - avoided_emissions_if_included
-  - exclude_reductions
-  # - longmont/technical_data
-  # - do_correction
-  # - stationary_energy_emissions
-  # - fugitive_emissions
-  # - building_emissions
-  - is_biogenic_included
-  # - longmont/building_square_footage
-  # - longmont/stationary_energy_consumption
-  # - building_electricity_use_per_resident
-  # - building_electricity_use_bau
-  # - building_natural_gas_use_per_resident
-  # - building_natural_gas_use_bau
-  # - affected_square_footage
-  # - emission_sectors
-  - updated_building_code
-  - develop_beyond_building_code
-  - benchmark_energy_use
-  # - natural_gas_eui_improvement
-  # - natural_gas_saved
-  # - not_cumulated
-  # - building_natural_gas_use
-  # - building_energy_class
-  # - action
-  # - electricity_eui_improvement
-  # - electricity_saved
-  # - building_electricity_use
-  # - longmont/building_energy_use_intensity_eui
-  - energy_use_intensity_trend
-  # - electricity_use
-  # - longmont/electricity_emission_factor
-  # - electricity_consumption_emissions
-  # - electricity_replacing_natural_gas_residential
-  # - electricity_replacing_natural_gas_commercial
-  - leakage_from_natural_gas_emissions
-  # - longmont/fugitive_parameters
-  # - natural_gas_consumption_emissions
-  # - greenhouse_gases
-  # - global_warming_potential_100a_old
-  # - wood_consumption_emissions
-  # - longmont/transmission_and_distribution_loss
-  # - electricity_losses
-  # - electricity_loss_emissions
-  - transportation_ch4_emission_factors
-  # - longmont/transportation_emission_factors
-  - transportation_emission_factors
-  # - transportation_ch4_emissions
-  - vehicle_miles_traveled
-  # - vehicle_type
-  # - road_transportation_emissions
-  # - vehicle_fuel_emissions
-  # - transportation_emissions
-  - total_transit_vmt
-  # - longmont/transit_data
-  - transit_percentage_attributable_to_longmont
-  - transit_mpg
-  # - transit_fuel_use
-  # - transit_co2_emissions
-  # - service
-  - total_railway_ghg_emissions_boulder_county
-  # - longmont/total_railway_ghg_emissions_boulder_county
-  - proportion_of_rail_lines_in_longmont
-  # - railway_emissions
-  - aviation_fuel_usage
-  # - longmont/aviation_data
+  - amount_of_refrigerant
   - aviation_fuel_emission_factors
-  # - airport
-  # - source
-  - waste_emission_factors
-  # - longmont/waste_emission_factors
-  - gas_collection_rate
-  # - longmont/waste_data
-  - waste_landfilled
-  - msw_characterization
-  # - longmont/waste_characterization
-  # - landfilled_waste_emissions
+  - aviation_fuel_usage
+  - building_class_mix
+  - building_electricity_eui_by_action
+  - building_electricity_use_historical
+  - building_natural_gas_eui_by_action
+  - building_natural_gas_use_historical
+  - building_square_footage_new
+  - building_square_footage_old
+  - commercial_air_conditioned_square_footage
   - composted_waste_emission_factor
-  - waste_composted
-  # - composted_waste_emissions
+  - electricity_emission_factor
+  - electricity_loss_fraction
+  - emission_factor_natural_gas
+  - emission_factor_wood
+  - energy_use_intensity_improvement
+  - exclude_reductions
+  - gas_collection_rate
+  - global_warming_potential_100a
+  - green_electricity_production
+  - greenhouse_gas_index
   - informational_composting_emission_factor
-  - waste_recycled
+  - is_biogenic_included
+  - landfill_gas_collection
+  - leakage_from_natural_gas_emissions
+  - leakage_from_oil_and_gas_wells_emissions
+  - msw_characterization
+  - non_electric_vehicle_fuel_use
+  - participation_smart_grid
+  - population
+  - proportion_of_rail_lines_in_longmont
   - recycling_characterization
   - recycling_instead_of_virgin
-  - landfill_gas_collection
-  # - recycling_emission_factor
-  # - longmont/global_warming_potentials
-  - greenhouse_gas_index
-  - commercial_air_conditioned_square_footage
-  # - longmont/ippu
-  - square_feet_per_ton_of_cooling
-  - amount_of_refrigerant
   - refrigerant_loss
-  # - refrigerant_emissions
-  # - ippu_emissions
-  # - longmont/vehicle_miles_traveled
-  - non_electric_vehicle_fuel_use
-  # - longmont/transport_fuel_consumption
-  # - longmont/greenhouse_gas_index
-  # - longmont/energy_use_intensity_with_building_actions
-  # - longmont/energy_use_intensity_relative
-  - efficiency_works_program
-  # - longmont/efficiency_works_program
-  - replace_natural_gas_residential
-  # - longmont/energy_vehicle_and_waste_actions
-  - replace_natural_gas_commercial
-  - longmont_power_renewables_additional
-  - smart_grid_projects
-  - reduce_transmission_distribution_losses
-  - leak_detection
-  # - longmont/energy_use_intensity_improvements
-  - vehicle_incentives
-  - increase_access_of_public_transit
-  - multimodal_transportation_system
-  - last_mile_connections
+  - smart_grid_improvement
+  - square_feet_per_ton_of_cooling
+  - stationary_wood_consumption
+  - total_railway_ghg_emissions_boulder_county
+  - total_transit_vmt
+  - transit_mpg
+  - transit_percentage_attributable_to_longmont
+  - transportation_ch4_emission_factors
+  - transportation_emission_factors
+  - vehicle_miles_traveled
+  - waste_composted
+  - waste_emission_factors
+  - waste_landfilled
+  - waste_recycled
+  - waste_water_treatment_emissions
+  # Output emission nodes
+  - afolu_emissions
+  - avoided_emissions
+  - ippu_emissions
+  - net_emissions
+  - stationary_energy_emissions
+  - transportation_emissions
+  - waste_emissions
   format: wide
 
 action_groups:
@@ -583,7 +468,7 @@ dimensions:
     label: CO2, biogen
     label_es-US: CO2, biógeno
 
-- id: greenhouse_gases # FIXME Merge this into ghg
+- id: greenhouse_gases # FIXME Merge this into ghg when datasets are updated.
   label: Greenhouse gases
   label_es-US: Gases de efecto invernadero
   categories:
@@ -1521,12 +1406,13 @@ nodes:
   name: Electricity that replaces natural gas in residential buildings
   name_es-US: Electricidad que reemplaza al gas natural en edificios 
     residenciales
-  type: simple.FixedMultiplierNode # FIXME
+  type: generic.GenericNode
   quantity: energy
   unit: kWh/a
   params:
   - id: multiplier
     value: -0.33
+    unit: dimensionless
   output_nodes:
   - id: building_electricity_use
     to_dimensions:
@@ -1560,13 +1446,23 @@ nodes:
 - id: emission_factor_natural_gas
   name: Emission factor of natural gas
   name_es-US: Factor de emisión del gas natural
-  type: simple.AdditiveNode
+  type: formula.FormulaNode
   quantity: emission_factor
   unit: t/Mthm
+  input_dimensions: [energy_carrier, greenhouse_gases, ghg]
+  output_dimensions: [ghg, energy_carrier]
   input_datasets:
-  - longmont/emission_factor_natural_gas
+  - id: longmont/emission_factor_natural_gas
+    tags: [ef]
   input_dataset_processors: [LinearInterpolation]
-  output_dimensions: [greenhouse_gases, energy_carrier]
+  input_nodes:
+  - id: greenhouse_gas_index
+    tags: [index]
+    to_dimensions:
+    - id: greenhouse_gases
+    - id: ghg
+  params:
+    formula: sum_dim(extend_both_ways(ef) * index, greenhouse_gases)
 
 - id: leakage_from_natural_gas_emissions
   name: Emissions from natural gas leakage
@@ -1623,7 +1519,7 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: t_co2e/a
-  output_dimensions: [emission_sectors, greenhouse_gases, energy_carrier]
+  output_dimensions: [emission_sectors, ghg, energy_carrier]
   input_nodes:
   - id: building_natural_gas_use
     from_dimensions:
@@ -1635,20 +1531,17 @@ nodes:
       categories: [natural_gas]
   - id: emission_factor_natural_gas
     to_dimensions:
-    - id: greenhouse_gases
-    - id: energy_carrier
-  - id: global_warming_potential_100a_old
-    from_dimensions:
     - id: ghg
-      flatten: true
+    - id: energy_carrier
+  - id: global_warming_potential_100a
     to_dimensions:
-    - id: greenhouse_gases
+    - id: ghg
   output_nodes:
   - id: building_emissions
     from_dimensions:
     - id: energy_carrier
       flatten: true
-    - id: greenhouse_gases
+    - id: ghg
       flatten: true
     - id: emission_sectors
       flatten: true
@@ -2202,8 +2095,6 @@ nodes:
   - id: global_warming_potential_100a
     to_dimensions:
     - id: ghg
-  output_nodes:
-  - id: waste_emissions
 
 - id: waste_recycled
   name: Waste recycled
@@ -2282,11 +2173,6 @@ nodes:
   - id: global_warming_potential_100a
     to_dimensions:
     - id: ghg
-  output_nodes:
-  - id: waste_emissions
-    from_dimensions:
-    - id: waste
-      flatten: true
 
 - id: global_warming_potential_100a
   name: Global warming potential2
@@ -2298,24 +2184,6 @@ nodes:
   input_datasets:
   - id: longmont/global_warming_potentials
     column: global_warming_potential
-
-- id: global_warming_potential_100a_old
-  name: Global warming potential by old index
-  type: generic.GenericNode
-  quantity: ratio
-  unit: t_co2e/t
-  input_dimensions: [ghg, greenhouse_gases]
-  output_dimensions: [ghg, greenhouse_gases]
-  input_nodes:
-  - id: global_warming_potential_100a
-    tags: [gwp, non_additive]
-    to_dimensions:
-    - id: ghg
-  - id: greenhouse_gas_index
-    tags: [ghg_old_index]
-    to_dimensions:
-    - id: ghg
-    - id: greenhouse_gases
 
 - id: waste_emissions
   name: Waste emissions
@@ -2374,21 +2242,27 @@ nodes:
 
 - id: refrigerant_emissions
   name: Refrigerant emissions
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [ghg]
   output_dimensions: [ghg]
   input_nodes:
   - id: commercial_air_conditioned_square_footage
+    tags: [square_footage]
     to_dimensions: []
   - id: square_feet_per_ton_of_cooling
-    tags: [geometric_inverse]
+    tags: [capacity]
     to_dimensions: []
   - id: amount_of_refrigerant
+    tags: [amount]
   - id: refrigerant_loss
+    tags: [loss]
     to_dimensions: []
   - id: global_warming_potential_100a
+    tags: [gwp]
+  params:
+    formula: square_footage / capacity * amount * loss * gwp
   output_nodes:
   - id: ippu_emissions
 
@@ -2466,18 +2340,17 @@ nodes:
     to_dimensions:
     - id: energy_carrier
     - id: ghg
-  - id: global_warming_potential_100a_old
+  - id: global_warming_potential_100a
     tags: [gwp]
     to_dimensions:
     - id: ghg
-    - id: greenhouse_gases
   - id: transportation_ch4_emissions
     tags: [non_co2]
     from_dimensions:
     - id: vehicle_type
       flatten: true
   params:
-    formula: sum_dim( fuels * ef * gwp, greenhouse_gases ) + non_co2 # FIXME
+    formula: fuels * ef * gwp + non_co2
 
 - id: participation_smart_grid
   name: Participation in smart grid projects
