@@ -51,6 +51,7 @@ class PathsExt:
             'empty_to_zero': self._empty_to_zero,
             'exp': self._exponential,
             'expectation': self._expectation,
+            'extend_both_ways': self._extend_both_ways,
             'extend_forecast_values': self._extend_forecast_values,
             'extend_to_history': self._extend_to_history,
             'extend_values': self._extend_values,
@@ -805,6 +806,11 @@ class PathsExt:
             dfp = dfp.with_columns(pl.lit('expectation').alias(UNCERTAINTY_COLUMN))
             df = ppl.to_ppdf(dfp, meta)
         return df
+
+    def _extend_both_ways(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
+        out = self._extend_to_history(df, context)
+        out = self._extend_forecast_values(out, context)
+        return self._bring_to_maximum_historical_year(out, context)
 
     def _extend_forecast_values(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
         from nodes.calc import extend_last_forecast_value_pl

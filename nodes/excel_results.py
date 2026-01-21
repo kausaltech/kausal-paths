@@ -229,7 +229,7 @@ class InstanceResultExcel(I18nBaseModel):
             )
 
         dfout = dfout.with_columns([
-            pl.col(col).cast(pl.String, strict=False).fill_null(".")
+            pl.col(col).cast(pl.String, strict=False).fill_null("")
             for col in dfout.columns
             if col in dim_ids
         ])
