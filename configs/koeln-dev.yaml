@@ -13,7 +13,7 @@ dataset_repo:
 name: Treibhausgasinventar
 owner: Köln Stadt
 theme_identifier: de-koeln
-target_year: 2050
+target_year: 2035
 model_end_year: 2050
 reference_year: 2019
 minimum_historical_year: 2019
@@ -317,7 +317,7 @@ nodes:
   name_en: Historical emissions
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   color: '#00A969'
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -594,8 +594,8 @@ nodes:
     from_dimensions:
     - id: energy_carrier
       categories: [electricity]
-  output_nodes:
-  - id: net_emissions
+  # output_nodes:
+  # - id: net_emissions
 
 - id: heat_emissions
   name: Private Haushalte
@@ -607,10 +607,14 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: final_private_household_energy_use
-  - id: end_energy_emission_factors
-    to_dimensions:
-    - id: energy_carrier
+  # - id: final_private_household_energy_use
+  # - id: end_energy_emission_factors
+  #   to_dimensions:
+  #   - id: energy_carrier
+  - id: historical_emissions
+    from_dimensions:
+    - id: sector
+      categories: [private_households]
   output_nodes:
   - id: net_emissions
 
@@ -624,10 +628,14 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: final_transport_energy_use
-  - id: end_energy_emission_factors
-    to_dimensions:
-    - id: energy_carrier
+  # - id: final_transport_energy_use
+  # - id: end_energy_emission_factors
+  #   to_dimensions:
+  #   - id: energy_carrier
+  - id: historical_emissions
+    from_dimensions:
+    - id: sector
+      categories: [transport]
   output_nodes:
   - id: net_emissions
 
@@ -641,10 +649,14 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: final_industry_energy_use
-  - id: end_energy_emission_factors
-    to_dimensions:
-    - id: energy_carrier
+  # - id: final_industry_energy_use
+  # - id: end_energy_emission_factors
+  #   to_dimensions:
+  #   - id: energy_carrier
+  - id: historical_emissions
+    from_dimensions:
+    - id: sector
+      categories: [industry]
   output_nodes:
   - id: net_emissions
 
@@ -655,14 +667,18 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  color: '#548ebe'
+  color: '#fe8035'
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: final_commerce_trade_services_energy_use
-  - id: end_energy_emission_factors
-    to_dimensions:
-    - id: energy_carrier
+  # - id: final_commerce_trade_services_energy_use
+  # - id: end_energy_emission_factors
+  #   to_dimensions:
+  #   - id: energy_carrier
+  - id: historical_emissions
+    from_dimensions:
+    - id: sector
+      categories: [commerce_trade_services]
   output_nodes:
   - id: net_emissions
 
@@ -676,10 +692,14 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  - id: final_municipal_facilities_energy_use
-  - id: end_energy_emission_factors
-    to_dimensions:
-    - id: energy_carrier
+  # - id: final_municipal_facilities_energy_use
+  # - id: end_energy_emission_factors
+  #   to_dimensions:
+  #   - id: energy_carrier
+  - id: historical_emissions
+    from_dimensions:
+    - id: sector
+      categories: [municipal_facilities]
   output_nodes:
   - id: net_emissions
 
@@ -761,7 +781,7 @@ nodes:
   name_en: Traffic actions
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   output_nodes:
@@ -772,7 +792,7 @@ nodes:
   name_en: Private household actions
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   output_nodes:
@@ -783,7 +803,7 @@ nodes:
   name_en: Electricity actions
   type: generic.GenericNode
   quantity: emissions
-  unit: kt/a
+  unit: t/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   output_nodes:
@@ -1909,7 +1929,7 @@ scenarios:
   default: true
   name_de: Klimaschutzplan
   name_en: Climate Action Plan
-  all_actions_enabled: false
+  all_actions_enabled: true
 
 - id: active
   default: false
