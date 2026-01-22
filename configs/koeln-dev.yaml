@@ -594,8 +594,8 @@ nodes:
     from_dimensions:
     - id: energy_carrier
       categories: [electricity]
-  # output_nodes:
-  # - id: net_emissions
+  output_nodes:
+  - id: emission_reductions
 
 - id: heat_emissions
   name: Private Haushalte
@@ -603,7 +603,7 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  color: '#E67E22'
+  color: '#009ebe'
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
@@ -624,7 +624,7 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  color: '#3498DB'
+  color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
@@ -645,7 +645,7 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  color: '#003882'
+  color: '#737373'
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
@@ -688,7 +688,7 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  color: '#8eeffd'
+  color: '#6bc248'
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
