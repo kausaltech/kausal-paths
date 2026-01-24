@@ -1095,12 +1095,12 @@ nodes:
 
 pages:
 - id: home
-  name: Düsseldorf Klima-Monitor Treibhausgasinventar
-  name_en: Düsseldorf Climate Protection Monitor Greenhouse Gas Inventory
+  name: Düsseldorf Treibhausgasinventar
+  name_en: Düsseldorf Greenhouse Gas Inventory
   path: /
   type: emission
   outcome_node: net_emissions
-  lead_title: Düsseldorf Klima-Monitor Treibhausgasinventar
+  lead_title: Düsseldorf Treibhausgasinventar
   lead_paragraph: Die Treibhausgasemissionen Düsseldorf.
 
 scenarios:
