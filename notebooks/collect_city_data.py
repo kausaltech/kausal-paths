@@ -211,13 +211,57 @@ class DataCollection:
                 node.df = node.df.with_columns(pl.col(VALUE_COLUMN).round(8))
         return self
 
-    def report_log(self) -> None:
+
+    def calculate_difference(self) -> DataCollection:
+        self.logs.append("Calculating difference between the newest and target values.")
+        for summary in self.summaries:
+            new_nodes: list[NodeData] = []
+            for node in summary.nodes:
+                df = node.df
+                if 'param' not in df.columns:
+                    continue
+                diff_df = (
+                    df.filter(pl.col('param').is_in(['newest', 'target']))
+                    .group_by(['Instance', 'CreatedAt'])
+                    .agg([
+                        pl.col(VALUE_COLUMN)
+                        .filter(pl.col('param') == 'newest')
+                        .max()
+                        .alias('newest_value'),
+                        pl.col(VALUE_COLUMN)
+                        .filter(pl.col('param') == 'target')
+                        .max()
+                        .alias('target_value'),
+                        pl.col(YEAR_COLUMN)
+                        .filter(pl.col('param') == 'newest')
+                        .max()
+                        .alias('newest_year'),
+                        pl.col(YEAR_COLUMN)
+                        .filter(pl.col('param') == 'target')
+                        .max()
+                        .alias('target_year'),
+                    ])
+                    .with_columns([
+                        (pl.col('target_value') - pl.col('newest_value')).alias(VALUE_COLUMN),
+                        (pl.col('target_year') - pl.col('newest_year')).alias(YEAR_COLUMN),
+                        pl.lit(value=True).alias(FORECAST_COLUMN),
+                        pl.lit('difference').alias('param'),
+                    ])
+                    .select(df.columns)
+                    .sort('CreatedAt')
+                )
+                diff_df = ppl.to_ppdf(diff_df, df.get_meta())
+                new_nodes.append(NodeData(id=f"{node.id}_difference", df=diff_df))
+            summary.nodes.extend(new_nodes)
+        return self
+
+    def report_log(self, file_name: str) -> None:
         date = str(datetime.now().strftime("%Y-%m-%d"))  # noqa: DTZ005
         self.logs.append(f"Saving log file to {self.output_path}log_{date}.txt")
         out = ["During processing, the following things happened:"]
         out.extend(self.logs)
         outtext = '\n'.join(out)
-        with open(f'{self.output_path}log_{date}.txt', 'w') as f:  # noqa: PTH123
+        with open(f'{self.output_path}log_{file_name}_{date}.txt', 'w') as f:  # noqa: PTH123
             f.write(outtext)
         print(outtext)
 
@@ -228,7 +272,10 @@ class DataCollection:
         for summary in self.summaries:
             self.logs.append(f"- {summary.id}:")
             for node in summary.nodes:
-                unit = self.target_units[node.id].replace('/', '-')
+                unit_id = node.id
+                if unit_id not in self.target_units and unit_id.endswith('_difference'):
+                    unit_id = unit_id.removesuffix('_difference')
+                unit = self.target_units[unit_id].replace('/', '-')
                 output_file = f"{output_path}{summary.id}_{node.id}_{unit}_{date}.csv"
                 node.df.write_csv(output_file)
                 self.logs.append(f"  - Saved nodes {node.id} in {output_file}.")
@@ -241,6 +288,7 @@ class DataCollection:
         config = self.read_config(config_file)
         processors = config.get('processors', [])
         output_path = config.get('output_path', '')
+        original_instance_map: dict[str, str] = config.get('original_instance', {})
         output_date: str = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))  # noqa: DTZ005
 
         self.output_path = output_path
@@ -264,7 +312,20 @@ class DataCollection:
 
             nodes = get_nodes(instance_id)
             target_year = context.target_year
-            created_at = context.instance.config.created_at.date()
+            created_at_instance_id = original_instance_map.get(instance_id) or instance_id
+            if created_at_instance_id == instance_id:
+                created_at = context.instance.config.created_at.date()
+            else:
+                try:
+                    original_context = get_context(created_at_instance_id)
+                except FileNotFoundError:
+                    self.logs.append(
+                        f"Original instance {created_at_instance_id} not found for {instance_id}. "
+                        + "Using the current instance created_at."
+                    )
+                    created_at = context.instance.config.created_at.date()
+                else:
+                    created_at = original_context.instance.config.created_at.date()
             instance = self.add_instance(instance_id=instance_id, target_year=target_year, created_at=created_at)
             for node_id in node_ids:
                 node = nodes.get(node_id)
@@ -282,6 +343,7 @@ class DataCollection:
 
         PROCESS_DATA = {
             'convert_to_target_units': self.convert_to_target_units,
+            'calculate_difference': self.calculate_difference,
             'find_target_values': self.find_target_values,
             'save_summaries': self.save_summaries,
             'sum_over_dims': self.sum_over_dims,
@@ -305,8 +367,9 @@ def main():
 
     dc = DataCollection(config_file=config_file)
     dc = dc.process_data()
+    file_name = config_file.split('/')[-1].split('.')[0]
 
-    dc.report_log()
+    dc.report_log(file_name)
 
 if __name__ == "__main__":
     main()
