@@ -1163,7 +1163,7 @@ nodes:
 - id: building_electricity_use_per_resident
   name: Building electricity use per resident
   name_es-US: Consumo de electricidad en edificios por residente
-  type: simple.DivisiveNode # FIXME
+  type: formula.FormulaNode
   quantity: per_capita
   unit: GWh/a/cap
   input_nodes:
@@ -1176,8 +1176,7 @@ nodes:
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
   params:
-    only_historical: true
-    extend_rows: true
+    formula: extend_values(inventory_only(building_electricity_use_historical / population))
 
 - id: building_electricity_use_bau
   name: Building electricity use (baseline)
@@ -1211,7 +1210,7 @@ nodes:
 - id: building_natural_gas_use_per_resident
   name: Building natural gas use per resident
   name_es-US: Consumo de gas natural en edificios por residente
-  type: simple.DivisiveNode # FIXME
+  type: formula.FormulaNode
   quantity: per_capita
   unit: Mtherm/a/cap
   input_nodes:
@@ -1224,8 +1223,7 @@ nodes:
   input_dimensions: [emission_sectors]
   output_dimensions: [emission_sectors]
   params:
-    only_historical: true
-    extend_rows: true
+    formula: extend_values(inventory_only(building_natural_gas_use_historical / population))
 
 - id: building_natural_gas_use_bau
   name: Building natural gas use (baseline)

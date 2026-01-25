@@ -281,8 +281,6 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
     'DimensionalSectorEnergy': NodeInfo(_("Filters energy use according to the <i>sector</i> parameter.")),
     'DimensionalSectorNode': NodeInfo(_(
         "Reads in a dataset and filters and interprets its content according to the <i>sector</i> parameter.")),
-    'DivisiveNode': NodeInfo(_(
-        "Divides two nodes together with potentially adding other input nodes."), deprecated=True),
     'EnergyAction': NodeInfo(_("""Simple action with several energy metrics.""")),
     'ExponentialNode': NodeInfo(_(
         """
