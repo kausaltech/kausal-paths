@@ -128,16 +128,6 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         is smaller than 0, we should use r instead. It can be converted from the result:
         r/(r+1)=s <=> r=s/(1-s)
         """)),
-    'AssociationNode': NodeInfo(_(
-        """
-        Association nodes connect to their upstream nodes in a loose way:
-        Their values follow the relative changes of the input nodes but
-        their quantities and units are not dependent on those of the input nodes.
-        The node MUST have exactly one dataset, which is the prior estimate.
-        Fractions 1..3 can be used to tell how much the input node should adjust
-        the output node. The default relation is "increase", if "decrease" is used,
-        that must be explicitly said in the tags.
-        """)),
     'BuildingEnergySavingAction': NodeInfo(_(
         """
         Action that has an energy saving effect on building stock (per floor area).

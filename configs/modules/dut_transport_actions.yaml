@@ -123,38 +123,44 @@ nodes:
 
 - id: sink_node # FIXME Delete this when you can actually choose the outcome node in the action network.
   name: Sink node
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   quantity: emissions
   unit: MEUR/a
   historical_values: [[2010, 0]]
   input_nodes:
   - id: active_mobility_distance
+    tags: [ignore_content]
     from_dimensions:
     - id: transport_mode
       flatten: true
   - id: premature_deaths
+    tags: [ignore_content]
     from_dimensions:
     - id: response
       flatten: true
     - id: iteration
       flatten: true
   - id: disease_burden_attributed_to_exposure
+    tags: [ignore_content]
     from_dimensions:
     - id: response
       flatten: true
     - id: iteration
       flatten: true
   - id: discounted_health_costs
+    tags: [ignore_content]
     from_dimensions:
     - id: cost_type
       flatten: true
     - id: iteration
       flatten: true
   - id: electricity_correction
+    tags: [ignore_content]
     from_dimensions:
     - id: energy_carrier
       flatten: true
   - id: total_jobs_created
+    tags: [ignore_content]
   output_nodes:
   - id: transport_cost
     to_dimensions:
@@ -164,6 +170,7 @@ nodes:
       categories: [capex]
     - id: transport_mode
       categories: [cars]
+    tags: [ignore_content]
 
 actions:
 
