@@ -12,16 +12,16 @@
 # - Add categories needed in inventory (0.5 wd)
 # - Build models for e.g. wastewater emissions etc (3 wd)
 
-id: longmont-dev
+id: longmont-old
 default_language: en
 supported_languages: [es-US]
-site_url: https://longmont-dev.paths-test.kausal.tech
+site_url: https://longmont-old.paths-test.kausal.tech
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: d3269904cb1d7a33bd983fe2ef91bddaf3440377
   dvc_remote: kausal-s3
-name: 2025 Draft Longmont Greenhouse Gas Inventory
-name_es-US: 2025 Inventario de gases de efecto invernadero de Longmont
+name: 2025 Longmont Old Greenhouse Gas Inventory
+name_es-US: 2025 Inventario de gases de efecto invernadero de Longmont antiguo
 owner: City of Longmont
 owner_es-US: Ciudad de Longmont
 theme_identifier: us-longmont
@@ -852,7 +852,6 @@ nodes:
   output_dimensions: [emission_scope]
   input_datasets:
   - id: longmont/greenhouse_gas_emissions_by_subsector
-    tags: [baseline]
     column: emissions
     filters:
     - column: emission_sectors
@@ -868,7 +867,7 @@ nodes:
   color: '#5D9C6F'
   params:
   - id: operations
-    value: apply_multiplier
+    value: get_single_dataset,apply_multiplier
   - id: multiplier
     value: 1
     unit: t_co2e/t
@@ -896,7 +895,7 @@ nodes:
       categories: [co2e]
   params:
   - id: operations
-    value: apply_multiplier
+    value: get_single_dataset,apply_multiplier
   - id: multiplier
     value: 1
     unit: t_co2e/t
@@ -1030,7 +1029,7 @@ nodes:
     column: ratio
   params:
   - id: operations
-    value: do_correction
+    value: get_single_dataset,do_correction
   - id: do_correction
     ref: weather_correction
 
@@ -1086,7 +1085,7 @@ nodes:
     column: ratio
   params:
   - id: operations
-    value: do_correction,complement
+    value: get_single_dataset,do_correction,complement
   - id: do_correction
     ref: biogenic_inclusion
   output_nodes: [building_emissions]
