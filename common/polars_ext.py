@@ -547,6 +547,47 @@ class PathsExt:
             out._explanation.append(cat_mismatch)
         return out
 
+    def divide_with_dims(
+            self,
+            odf: ppl.PathsDataFrame,
+            how: Literal['left', 'inner', 'outer'] = 'inner'
+        ) -> ppl.PathsDataFrame:
+        """Divide two PathsDataFrames, handling dimensions and units properly."""
+        df = self._df
+        if len(df.metric_cols) != 1 or len(odf.metric_cols) != 1:
+            raise Exception("Currently dividing only one metric column is supported.")
+        val_col = df.metric_cols[0]
+
+        left_unit = df.get_unit(val_col)
+        right_unit = odf.get_unit(val_col)
+        output_unit = cast("Unit", left_unit / right_unit)
+        meta = df.get_meta()
+        all_dims = list(set(df.dim_ids) | set(odf.dim_ids)) + [YEAR_COLUMN]
+
+        jdf = df.paths.join_over_index(
+            odf,
+            how=how,
+            index_from='union'
+        )
+
+        jdf = jdf.with_columns([
+            (pl.col(val_col) / pl.col(f"{val_col}_right")).alias(val_col)
+        ])
+
+        new_units = meta.units.copy()
+        new_units[val_col] = output_unit
+
+        cols = [FORECAST_COLUMN, val_col] + all_dims
+        jdf = jdf.select([col for col in cols if col in jdf.columns])
+
+        new_meta = ppl.DataFrameMeta(primary_keys=all_dims, units=new_units)
+        out = ppl.to_ppdf(jdf, meta=new_meta)
+
+        cat_mismatch = df.paths.get_category_mismatch(odf, out)
+        if cat_mismatch:
+            out._explanation.append(cat_mismatch)
+        return out
+
     def add_df(self, odf: ppl.PathsDataFrame, how: Literal['left', 'outer'] = 'left') -> ppl.PathsDataFrame:
         df = self._df
         if len(self._df.metric_cols) != 1 or len(odf.metric_cols) != 1:

@@ -124,25 +124,49 @@ class FormulaNode(Node):
 
     def apply_div(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
         def both_df(df1: PDF, df2: PDF) -> PDF:
-            r = df2.copy().rename({VALUE_COLUMN: '_Right'})
-            df = df1.paths.join_over_index(r)
-            df = df.divide_cols([VALUE_COLUMN, '_Right'], VALUE_COLUMN).drop('_Right')
-            return df
+            return df1.paths.divide_with_dims(df2, how='inner')
         def left_df(df: PDF, val: QuantityType) -> PDF:
-            df_unit = df.get_unit(VALUE_COLUMN)
-            df = df.with_columns(pl.col(VALUE_COLUMN) / pl.lit(val.m))
-            df = df.set_unit(VALUE_COLUMN, df_unit / val.units, force=True)  # pyright: ignore[reportArgumentType]
-            return df
+            assert isinstance(val, Quantity)
+            return df.divide_by_quantity(VALUE_COLUMN, val)
         def right_df(val: QuantityType, df: PDF) -> PDF:
-            df_unit = df.get_unit(VALUE_COLUMN)
-            df = df.with_columns(val / pl.col(VALUE_COLUMN))
-            df = df.set_unit(VALUE_COLUMN, val.units / df_unit)  # pyright: ignore[reportArgumentType]
-            return df
+            assert isinstance(val, Quantity)
+            return df.divide_quantity(VALUE_COLUMN, val)
         def both_quantity(val1: Quantity, val2: Quantity) -> Quantity:
             out = val1 / val2
             assert isinstance(out, Quantity)
             return out
         return self.apply_binom(left, right, both_df, left_df, right_df, both_quantity)
+
+    def apply_sub(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
+        neg_one = cast("Quantity", Quantity(-1))
+        if isinstance(right, PDF):
+            right = right.multiply_quantity(VALUE_COLUMN, neg_one)
+        elif isinstance(right, Quantity):
+            right = right * neg_one
+        return self.apply_add(left, right)
+
+    def apply_pow(self, left: EvalOutput, right: EvalOutput) -> EvalOutput:
+        if isinstance(right, PDF):
+            raise NotImplementedError("Power with dataframe exponent is not supported.")
+        assert isinstance(right, Quantity)
+        try:
+            right = right.to('dimensionless')
+        except Exception as exc:
+            raise NodeError(self, "Power exponent must be dimensionless.") from exc
+        exponent = right.m
+        if isinstance(left, PDF):
+            val_col = VALUE_COLUMN
+            df = left.with_columns((pl.col(val_col) ** pl.lit(exponent)).alias(val_col))
+            df = df.set_unit(
+                val_col,
+                cast("Unit", left.get_unit(val_col) ** exponent),
+                force=True,
+            )
+            return df
+        assert isinstance(left, Quantity)
+        out = left ** exponent
+        assert isinstance(out, Quantity)
+        return out
 
     def _compare_pdf_quantity(self, df: PDF, val: Quantity, op: str) -> PDF:
         """Compare a PDF with a Quantity using the specified operation."""
@@ -208,9 +232,10 @@ class FormulaNode(Node):
     def eval_binop(self, node: ast.BinOp, varss: EvalVars) -> EvalOutput:
         OPERATIONS: dict[type, Callable[[EvalOutput, EvalOutput], EvalOutput]] = {
             ast.Add: self.apply_add,
-            #ast.Sub: operator.sub,
+            ast.Sub: self.apply_sub,
             ast.Mult: self.apply_mul,
             ast.Div: self.apply_div,
+            ast.Pow: self.apply_pow,
         }
 
         left_value = self.eval_tree(node.left, varss)
@@ -502,7 +527,7 @@ def analyze_formula_units(  # noqa: C901, PLR0915
             return left
         return left
 
-    def _eval(node: ast.AST) -> Unit | None:  # noqa: C901, PLR0911, PLR0912
+    def _eval(node: ast.AST) -> Unit | None:  # noqa: C901, PLR0911, PLR0912, PLR0915
         if isinstance(node, ast.Expression):
             return _eval(node.body)
         if isinstance(node, ast.Constant):
@@ -533,6 +558,18 @@ def analyze_formula_units(  # noqa: C901, PLR0915
                     analysis.warnings.append("Unknown unit for '/'.")
                     return left or right
                 return cast("Unit", left / right)
+            if isinstance(node.op, ast.Pow):
+                if not isinstance(node.right, ast.Constant):
+                    analysis.warnings.append("Power exponent is not a constant.")
+                    return left
+                if left is None:
+                    analysis.warnings.append("Unknown unit for '**'.")
+                    return None
+                exponent = node.right.value
+                if not isinstance(exponent, (int, float)):
+                    analysis.warnings.append("Power exponent is not numeric.")
+                    return left
+                return cast("Unit", left ** exponent)
             analysis.warnings.append(f"Unsupported binary operator: {type(node.op).__name__}")
             return left or right
         if isinstance(node, ast.Compare):
@@ -637,6 +674,10 @@ def analyze_formula_dimensions(  # noqa: C901, PLR0915
                 return _require_same('+', left, right)
             if isinstance(node.op, (ast.Mult, ast.Div)):
                 return _merge_union(left, right)
+            if isinstance(node.op, ast.Pow):
+                if not isinstance(node.right, ast.Constant):
+                    analysis.warnings.append("Power exponent is not a constant.")
+                return left
             analysis.warnings.append(f"Unsupported binary operator: {type(node.op).__name__}")
             return _merge_union(left, right)
         if isinstance(node, ast.Compare):
