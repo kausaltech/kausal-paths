@@ -499,9 +499,7 @@ class NodeExplanationSystem:
             EdgeRule(),
             BasketRule(),
             FormulaDimensionRule(),
-            # CategoryRetentionRule(),
-            # OperationBasketRule(),
-            # UnitCompatibilityRule(),
+            FormulaUnitRule(),
         ]
         self.generate_graph(all_node_configs)
 
@@ -1665,9 +1663,27 @@ class BasketRule(ValidationRule):
         return html
 
 
-class FormulaDimensionRule(ValidationRule):
+class FormulaValidationMixin(ValidationRule, ABC):
     def explain(self, _node_config: dict[str, Any], _context: Context) -> list[str]:
         return []
+
+    def _ensure_baskets(self, context: Context) -> GraphRepresentation:
+        nes = context.node_explanation_system
+        assert nes is not None
+        if not nes.baskets:
+            nes.generate_input_baskets()
+        return nes.graph
+
+    def _get_operations(
+        self,
+        node_id: str,
+        context: Context,
+        graph: GraphRepresentation,
+    ) -> list[str]:
+        operation_list = self.get_param(graph.nodes[node_id], 'operations')
+        if not operation_list:
+            operation_list = context.nodes[node_id].DEFAULT_OPERATIONS
+        return [o.strip() for o in operation_list.split(',') if o.strip()]
 
     def _build_formula_spec(  # noqa: PLR0912, C901
         self,
@@ -1750,23 +1766,41 @@ class FormulaDimensionRule(ValidationRule):
             terms=terms,
         )
 
-    def validate(self, node_config: dict[str, Any], context: Context) -> list[ValidationResult]:  # noqa: C901, PLR0912, PLR0915
+    @staticmethod
+    def _normalize_dims(dims: list[Any] | None) -> set[str]:
+        out: set[str] = set()
+        for dim in dims or []:
+            if isinstance(dim, dict) and isinstance(dim_id := dim.get('id'), str) and dim_id:
+                out.add(dim_id)
+            elif isinstance(dim, str):
+                out.add(dim)
+        return out
+
+
+class FormulaDimensionRule(FormulaValidationMixin):
+    def validate(self, node_config: dict[str, Any], context: Context) -> list[ValidationResult]:
         results: list[ValidationResult] = []
         node_id = node_config['id']
         nes = context.node_explanation_system
         if nes is None:
             return results
-        if not nes.baskets:
-            nes.generate_input_baskets()
-
-        operation_list = self.get_param(nes.graph.nodes[node_id], 'operations')
-        if not operation_list:
-            operation_list = context.nodes[node_id].DEFAULT_OPERATIONS
-        operations = [o.strip() for o in operation_list.split(',') if o.strip()]
+        graph = self._ensure_baskets(context)
+        operations = self._get_operations(node_id, context, graph)
         spec = self._build_formula_spec(node_config, context, operations)
         if not spec.expression:
             return results
 
+        results.extend(self._validate_dataset_dims(node_config, spec))
+        results.extend(self._validate_formula_dims(spec))
+        results.extend(self._validate_output_dims(node_config, spec))
+        return results
+
+    def _validate_dataset_dims(
+        self,
+        node_config: dict[str, Any],
+        spec: FormulaSpec,
+    ) -> list[ValidationResult]:
+        results: list[ValidationResult] = []
         used_names = BasketRule()._extract_formula_identifiers(spec.expression)
         node_output_dimensions = node_config.get('output_dimensions')
         for term in spec.terms:
@@ -1793,14 +1827,15 @@ class FormulaDimensionRule(ValidationRule):
                         "dimension validation may be incomplete."
                     ),
                 ))
+        return results
 
-        name_dimensions, _conflicts = build_name_dimension_map(spec.terms)
-
+    def _validate_formula_dims(self, spec: FormulaSpec) -> list[ValidationResult]:
         analysis = analyze_formula_dimensions(
             spec.expression,
-            name_dimensions,
+            build_name_dimension_map(spec.terms)[0],
             passthrough_functions=set(TAG_DESCRIPTIONS.keys()),
         )
+        results: list[ValidationResult] = []
         results.extend([
             ValidationResult(
                 method='formula_dimension_rule',
@@ -1819,17 +1854,20 @@ class FormulaDimensionRule(ValidationRule):
             )
             for message in analysis.warnings
         ])
+        return results
 
-        def _normalize_dims(dims: list[Any] | None) -> set[str]:
-            out: set[str] = set()
-            for dim in dims or []:
-                if isinstance(dim, dict) and isinstance(dim_id := dim.get('id'), str) and dim_id:
-                    out.add(dim_id)
-                elif isinstance(dim, str):
-                    out.add(dim)
-            return out
-
-        expected_dims = _normalize_dims(node_config.get('output_dimensions'))
+    def _validate_output_dims(
+        self,
+        node_config: dict[str, Any],
+        spec: FormulaSpec,
+    ) -> list[ValidationResult]:
+        results: list[ValidationResult] = []
+        expected_dims = self._normalize_dims(node_config.get('output_dimensions'))
+        analysis = analyze_formula_dimensions(
+            spec.expression,
+            build_name_dimension_map(spec.terms)[0],
+            passthrough_functions=set(TAG_DESCRIPTIONS.keys()),
+        )
         if analysis.dims is not None and expected_dims and analysis.dims != expected_dims:
             results.append(ValidationResult(
                 method='formula_dimension_rule',
@@ -1841,94 +1879,124 @@ class FormulaDimensionRule(ValidationRule):
                     f"Expression: {spec.expression}"
                 ),
             ))
+        return results
 
+
+class FormulaUnitRule(FormulaValidationMixin):
+    def validate(self, node_config: dict[str, Any], context: Context) -> list[ValidationResult]:
+        results: list[ValidationResult] = []
         node_unit = node_config.get('unit')
-        if node_unit:
-            name_units = build_name_unit_map(spec.terms)
-            multiplier_unit = None
-            params = node_config.get('params', [])
-            if isinstance(params, dict):
-                multiplier_unit = params.get('multiplier_unit')
-            else:
-                for param in params:
-                    if isinstance(param, dict) and param.get('id') == 'multiplier':
-                        multiplier_unit = param.get('unit')
-                        break
-            if multiplier_unit and 'apply_multiplier' in operations:
-                explicit_ds_units: set[str] = set()
-                for ds in node_config.get('input_datasets', []) or []:
-                    if isinstance(ds, dict) and ds.get('id') and ds.get('unit') is not None:
-                        explicit_ds_units.add(ds['id'])
-                inferred_unit = cast("Unit", unit_registry.parse_units(node_unit) / unit_registry.parse_units(multiplier_unit))
-                used_multiplier_inference = False
-                for term in spec.terms:
-                    if term.get('kind') != 'dataset':
-                        continue
-                    if term.get('key') in explicit_ds_units:
-                        continue
-                    term_names = set(term.get('var_names', []) or [])
-                    for field_name in ('label', 'key'):
-                        val = term.get(field_name)
-                        if isinstance(val, str) and val:
-                            term_names.add(val)
-                    for name in term_names:
-                        name_units[name] = inferred_unit
-                        name_units[make_identifier(name)] = inferred_unit
-                    used_multiplier_inference = True
-                if used_multiplier_inference:
-                    results.append(ValidationResult(
-                        method='formula_unit_rule',
-                        is_valid=True,
-                        level='warning',
-                        message=(
-                            "Dataset unit inferred from node.unit and multiplier; "
-                            "consider setting dataset.unit explicitly."
-                        ),
-                    ))
-            unit_analysis = analyze_formula_units(
-                spec.expression,
-                name_units,
-                passthrough_functions=set(TAG_DESCRIPTIONS.keys()),
+        if not node_unit:
+            return results
+        node_id = node_config['id']
+        nes = context.node_explanation_system
+        if nes is None:
+            return results
+        graph = self._ensure_baskets(context)
+        operations = self._get_operations(node_id, context, graph)
+        spec = self._build_formula_spec(node_config, context, operations)
+        if not spec.expression:
+            return results
+
+        name_units = build_name_unit_map(spec.terms)
+        results.extend(self._apply_multiplier_unit_inference(node_config, operations, spec, name_units))
+
+        unit_analysis = analyze_formula_units(
+            spec.expression,
+            name_units,
+            passthrough_functions=set(TAG_DESCRIPTIONS.keys()),
+        )
+        results.extend([
+            ValidationResult(
+                method='formula_unit_rule',
+                is_valid=False,
+                level='error',
+                message=message,
             )
-            results.extend([
-                ValidationResult(
+            for message in unit_analysis.errors
+        ])
+        results.extend([
+            ValidationResult(
+                method='formula_unit_rule',
+                is_valid=True,
+                level='warning',
+                message=message,
+            )
+            for message in unit_analysis.warnings
+        ])
+
+        expected_unit = unit_registry.parse_units(node_unit)
+        if unit_analysis.unit is not None:
+            if unit_analysis.unit.dimensionality != expected_unit.dimensionality:
+                results.append(ValidationResult(
                     method='formula_unit_rule',
                     is_valid=False,
                     level='error',
-                    message=message,
-                )
-                for message in unit_analysis.errors
-            ])
-            results.extend([
-                ValidationResult(
+                    message=(
+                        "Formula output unit does not match node.unit: "
+                        f"{unit_analysis.unit} vs {expected_unit}"
+                    ),
+                ))
+            elif unit_analysis.unit != expected_unit:
+                results.append(ValidationResult(
                     method='formula_unit_rule',
                     is_valid=True,
-                    level='warning',
-                    message=message,
-                )
-                for message in unit_analysis.warnings
-            ])
-            expected_unit = unit_registry.parse_units(node_unit)
-            if unit_analysis.unit is not None:
-                if unit_analysis.unit.dimensionality != expected_unit.dimensionality:
-                    results.append(ValidationResult(
-                        method='formula_unit_rule',
-                        is_valid=False,
-                        level='error',
-                        message=(
-                            "Formula output unit does not match node.unit: "
-                            f"{unit_analysis.unit} vs {expected_unit}"
-                        ),
-                    ))
-                elif unit_analysis.unit != expected_unit:
-                    results.append(ValidationResult(
-                        method='formula_unit_rule',
-                        is_valid=True,
-                        level='info',
-                        message=(
-                            "Formula output unit differs from node.unit but is compatible: "
-                            f"{unit_analysis.unit} vs {expected_unit}"
-                        ),
-                    ))
+                    level='info',
+                    message=(
+                        "Formula output unit differs from node.unit but is compatible: "
+                        f"{unit_analysis.unit} vs {expected_unit}"
+                    ),
+                ))
+        return results
 
+    def _apply_multiplier_unit_inference(  # noqa: C901, PLR0912
+        self,
+        node_config: dict[str, Any],
+        operations: list[str],
+        spec: FormulaSpec,
+        name_units: dict[str, Unit | None],
+    ) -> list[ValidationResult]:
+        results: list[ValidationResult] = []
+        params = node_config.get('params', [])
+        multiplier_unit = None
+        if isinstance(params, dict):
+            multiplier_unit = params.get('multiplier_unit')
+        else:
+            for param in params:
+                if isinstance(param, dict) and param.get('id') == 'multiplier':
+                    multiplier_unit = param.get('unit')
+                    break
+        if not multiplier_unit or 'apply_multiplier' not in operations:
+            return results
+
+        explicit_ds_units: set[str] = set()
+        for ds in node_config.get('input_datasets', []) or []:
+            if isinstance(ds, dict) and ds.get('id') and ds.get('unit') is not None:
+                explicit_ds_units.add(ds['id'])
+        inferred_unit = cast("Unit", unit_registry.parse_units(node_config['unit']) / unit_registry.parse_units(multiplier_unit))
+        used_multiplier_inference = False
+        for term in spec.terms:
+            if term.get('kind') != 'dataset':
+                continue
+            if term.get('key') in explicit_ds_units:
+                continue
+            term_names = set(term.get('var_names', []) or [])
+            for field_name in ('label', 'key'):
+                val = term.get(field_name)
+                if isinstance(val, str) and val:
+                    term_names.add(val)
+            for name in term_names:
+                name_units[name] = inferred_unit
+                name_units[make_identifier(name)] = inferred_unit
+            used_multiplier_inference = True
+        if used_multiplier_inference:
+            results.append(ValidationResult(
+                method='formula_unit_rule',
+                is_valid=True,
+                level='warning',
+                message=(
+                    "Dataset unit inferred from node.unit and multiplier; "
+                    "consider setting dataset.unit explicitly."
+                ),
+            ))
         return results
