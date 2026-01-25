@@ -1494,15 +1494,19 @@ nodes:
   - id: longmont/fugitive_parameters
     tags: [energy_factor, cleaned]
     column: Natural gas energy factor
+    unit: Btu/ft**3
   - id: longmont/fugitive_parameters
     tags: [density, cleaned]
     column: Natural gas density
+    unit: kg/m**3
   - id: longmont/fugitive_parameters
     tags: [leakage, cleaned]
     column: Natural gas leakage
+    unit: '%'
   - id: longmont/fugitive_parameters
     tags: [fraction, cleaned]
     column: Fraction in natural gas
+    unit: '%'
   params:
     formula: use / complement(leakage) / energy_factor * density * leakage * 
       fraction * gwp
