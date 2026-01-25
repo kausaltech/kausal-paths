@@ -1254,6 +1254,7 @@ nodes:
     column: natural_gas
     forecast_from: 2025
     tags: [eui, extend_both_ways]
+    output_dimensions: [emission_sectors]
   input_nodes:
   - id: energy_use_intensity_trend
     metrics: [natural_gas]
@@ -1300,6 +1301,7 @@ nodes:
     column: electricity
     tags: [eui, cleaned, extend_both_ways]
     forecast_from: 2025
+    output_dimensions: [emission_sectors]
   input_nodes:
   - id: energy_use_intensity_improvement
     tags: [improvement]
@@ -1561,7 +1563,7 @@ nodes:
   unit: MMBtu/a
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
-  - longmont/stationary_wood_consumption
+  - id: longmont/stationary_wood_consumption
   input_dimensions: [emission_sectors]
   output_dimensions: [energy_carrier, emission_sectors]
 

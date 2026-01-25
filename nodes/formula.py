@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable, Literal, NamedTuple, TypeVar
 
@@ -397,6 +398,43 @@ class FormulaSpec:
     terms: list[dict[str, Any]]
 
 
+_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def make_identifier(name: str) -> str:
+    if _IDENTIFIER_RE.match(name):
+        return name
+    normalized = re.sub(r"[^A-Za-z0-9_]", "_", name)
+    if not normalized:
+        return "_term"
+    if normalized[0].isdigit():
+        return f"_{normalized}"
+    return normalized
+
+
+def collect_term_names(terms: Iterable[dict[str, Any]]) -> set[str]:
+    names: set[str] = set()
+    for term in terms:
+        for field_name in ('label', 'key'):
+            val = term.get(field_name)
+            if isinstance(val, str) and val:
+                names.add(val)
+        for var_name in term.get('var_names', []) or []:
+            if isinstance(var_name, str) and var_name:
+                names.add(var_name)
+    return names
+
+
+def normalize_formula_identifiers(formula: str, term_names: Iterable[str]) -> str:
+    updated = formula
+    for name in sorted(set(term_names), key=len, reverse=True):
+        safe = make_identifier(name)
+        if safe == name:
+            continue
+        updated = updated.replace(name, safe)
+    return updated
+
+
 def analyze_formula_dimensions(  # noqa: C901, PLR0915
     formula: str,
     name_dimensions: dict[str, set[str]],
@@ -517,8 +555,9 @@ def build_name_dimension_map(
             if isinstance(var_name, str) and var_name
         ])
         for name in dict.fromkeys(names):
-            if name in name_dimensions and name_dimensions[name] != dims:
-                conflicts.append(name)
-                continue
-            name_dimensions[name] = dims
+            for candidate in {name, make_identifier(name)}:
+                if candidate in name_dimensions and name_dimensions[candidate] != dims:
+                    conflicts.append(candidate)
+                    continue
+                name_dimensions[candidate] = dims
     return name_dimensions, conflicts

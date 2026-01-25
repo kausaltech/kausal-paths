@@ -6,7 +6,14 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from common.i18n import gettext as _
 
-from .formula import FormulaSpec, analyze_formula_dimensions, build_name_dimension_map
+from .formula import (
+    FormulaSpec,
+    analyze_formula_dimensions,
+    build_name_dimension_map,
+    collect_term_names,
+    make_identifier,
+    normalize_formula_identifiers,
+)
 from .units import unit_registry
 
 if TYPE_CHECKING:
@@ -272,6 +279,8 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
     'DimensionalSectorEnergy': NodeInfo(_("Filters energy use according to the <i>sector</i> parameter.")),
     'DimensionalSectorNode': NodeInfo(_(
         "Reads in a dataset and filters and interprets its content according to the <i>sector</i> parameter.")),
+    'DivisiveNode': NodeInfo(_(
+        "Divides two nodes together with potentially adding other input nodes."), deprecated=True),
     'EnergyAction': NodeInfo(_("""Simple action with several energy metrics.""")),
     'ExponentialNode': NodeInfo(_(
         """
@@ -366,6 +375,7 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         Newton-Raphson method is used to numerically estimate slope and medeian year.
         """)),
     'SectorEmissions': NodeInfo(_("")),
+    'ShiftAction': NodeInfo(_("ShiftAction moves activity from one category to others.")),
     'ThresholdNode': NodeInfo(_(
         """
         ThresholdNode computes a preliminary result using standard GenericNode operations.
@@ -572,14 +582,16 @@ class NodeExplanationSystem:
             for input_id in self.graph.inputs.get(node_id, []):
                 basket = 'unknown'
                 input_node = self.graph.nodes[input_id]
+                edge_props = self.graph.edges.get((input_id, node_id), {})
+                edge_tags = edge_props.get('tags', []) if isinstance(edge_props, dict) else []
                 assigned = False
                 if 'tags' in input_node:
-                    if any(tag in input_node['tags'] for tag in skip_tags): #  or tag in node.tags
+                    if any(tag in input_node['tags'] or tag in edge_tags for tag in skip_tags): #  or tag in node.tags
                         basket = 'skip'
                         assigned = True
                     else:
                         for tag, basket in TAG_TO_BASKET.items():  # noqa: B007
-                            if tag in input_node['tags']: # TODO or tag in node.tags:
+                            if tag in input_node['tags'] or tag in edge_tags: # TODO or tag in node.tags:
                                 assigned = True
                                 break
 
@@ -1249,23 +1261,28 @@ class BasketRule(ValidationRule):
                     )
             output_dimensions = input_node.get('output_dimensions')
             adjusted_dims: list[Any] | None = None
-            if output_dimensions is not None:
+            from_dims = input_spec.get('from_dimensions', [])
+            to_dims = input_spec.get('to_dimensions', [])
+            if output_dimensions is not None or from_dims or to_dims:
                 adjusted_dims = []
                 dim_ids = []
-                for dim in output_dimensions:
+                for dim in output_dimensions or []:
                     if isinstance(dim, dict):
                         dim_id = dim.get('id')
                     else:
                         dim_id = dim
                     if isinstance(dim_id, str):
                         dim_ids.append(dim_id)
-                from_dims = input_spec.get('from_dimensions', [])
                 for dim in from_dims or []:
+                    dim_id = dim.get('id') if isinstance(dim, dict) else dim
+                    if not isinstance(dim_id, str):
+                        continue
                     if isinstance(dim, dict) and dim.get('flatten'):
-                        dim_id = dim.get('id')
-                        if isinstance(dim_id, str) and dim_id in dim_ids:
+                        if dim_id in dim_ids:
                             dim_ids.remove(dim_id)
-                to_dims = input_spec.get('to_dimensions', [])
+                        continue
+                    if dim_id not in dim_ids:
+                        dim_ids.append(dim_id)
                 for dim in to_dims or []:
                     dim_id = dim.get('id') if isinstance(dim, dict) else dim
                     if isinstance(dim_id, str) and dim_id not in dim_ids:
@@ -1292,6 +1309,9 @@ class BasketRule(ValidationRule):
             ds_id = dataset_config.get('id')
             if not ds_id:
                 continue
+            ds_output_dimensions = dataset_config.get('output_dimensions')
+            if ds_output_dimensions is None:
+                ds_output_dimensions = node_config.get('output_dimensions')
             tags = [tag for tag in dataset_config.get('tags', []) if tag != 'cleaned']
             label_tag = tags[0] if tags else None
             term = {
@@ -1301,7 +1321,7 @@ class BasketRule(ValidationRule):
                 'name': ds_id,
                 'var_names': self._dataset_var_names(dataset_config, ds_id),
                 'unit': dataset_config.get('unit'),
-                'output_dimensions': dataset_config.get('output_dimensions'),
+                'output_dimensions': ds_output_dimensions,
                 'functions': [],
                 'details': self._dataset_term_details(dataset_config, context),
             }
@@ -1448,7 +1468,7 @@ class BasketRule(ValidationRule):
         formula_param = self.get_param(node_config, 'formula')
         label_by_id: dict[str, str] = {}
         for term in terms:
-            label = term['key']
+            label = make_identifier(term['key'])
             for func in term.get('functions', []):
                 label = f"{func}({label})"
             label_by_id[term['key']] = label
@@ -1493,9 +1513,14 @@ class BasketRule(ValidationRule):
     ) -> str:
         expr = ''
         fallback_term = next(
-            (term['label'] for term in terms if term['kind'] != 'constant'),
+            (term['label'] for term in terms if term['kind'] == 'dataset'),
             '',
         )
+        if not fallback_term:
+            fallback_term = next(
+                (term['label'] for term in terms if term['kind'] != 'constant'),
+                '',
+            )
         multiplier = label_by_id.get('multiplier')
         for operation in operations:
             input_nodes = baskets.get(operation, [])
@@ -1542,9 +1567,14 @@ class BasketRule(ValidationRule):
 
         expr = ''
         fallback_term = next(
-            (term['label'] for term in terms if term['kind'] != 'constant'),
+            (term['label'] for term in terms if term['kind'] == 'dataset'),
             '',
         )
+        if not fallback_term:
+            fallback_term = next(
+                (term['label'] for term in terms if term['kind'] != 'constant'),
+                '',
+            )
         multiplier = label_by_id.get('multiplier')
         for operation in operations:
             input_nodes = baskets.get(operation, [])
@@ -1665,6 +1695,10 @@ class FormulaDimensionRule(ValidationRule):
 
         if formula_param:
             formula_param = basket_rule._apply_term_functions(formula_param, terms)
+            formula_param = normalize_formula_identifiers(
+                formula_param,
+                collect_term_names(terms),
+            )
             used_names = basket_rule._extract_formula_identifiers(formula_param)
             unused_labels = []
             for term in terms:
@@ -1699,6 +1733,12 @@ class FormulaDimensionRule(ValidationRule):
                     has_dataset_terms=any(term['kind'] == 'dataset' for term in terms),
                 )
 
+        if expression:
+            expression = normalize_formula_identifiers(
+                expression,
+                collect_term_names(terms),
+            )
+
         return FormulaSpec(
             expression=expression,
             display_expression=display_expression,
@@ -1711,6 +1751,8 @@ class FormulaDimensionRule(ValidationRule):
         nes = context.node_explanation_system
         if nes is None:
             return results
+        if not nes.baskets:
+            nes.generate_input_baskets()
 
         operation_list = self.get_param(nes.graph.nodes[node_id], 'operations')
         if not operation_list:
@@ -1721,10 +1763,13 @@ class FormulaDimensionRule(ValidationRule):
             return results
 
         used_names = BasketRule()._extract_formula_identifiers(spec.expression)
+        node_output_dimensions = node_config.get('output_dimensions')
         for term in spec.terms:
             if term.get('kind') != 'dataset':
                 continue
             if term.get('output_dimensions') is not None:
+                continue
+            if node_output_dimensions is not None:
                 continue
             term_names = set(term.get('var_names', []) or [])
             for field_name in ('label', 'key'):
@@ -1737,23 +1782,14 @@ class FormulaDimensionRule(ValidationRule):
                 results.append(ValidationResult(
                     method='formula_dimension_rule',
                     is_valid=False,
-                    level='warning',
+                    level='info',
                     message=(
                         f"Dataset term{label_str} is missing output_dimensions; "
                         "dimension validation may be incomplete."
                     ),
                 ))
 
-        name_dimensions, conflicts = build_name_dimension_map(spec.terms)
-        results.extend([
-            ValidationResult(
-                method='formula_dimension_rule',
-                is_valid=False,
-                level='warning',
-                message=f"Formula term '{conflict}' maps to multiple dimensions."
-            )
-            for conflict in conflicts
-        ])
+        name_dimensions, _conflicts = build_name_dimension_map(spec.terms)
 
         analysis = analyze_formula_dimensions(
             spec.expression,
@@ -1796,7 +1832,8 @@ class FormulaDimensionRule(ValidationRule):
                 level='error',
                 message=(
                     "Formula output dimensions do not match node.output_dimensions: "
-                    f"{sorted(analysis.dims)} vs {sorted(expected_dims)}"
+                    f"{sorted(analysis.dims)} vs {sorted(expected_dims)}. "
+                    f"Expression: {spec.expression}"
                 ),
             ))
 
