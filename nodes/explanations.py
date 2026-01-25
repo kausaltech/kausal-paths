@@ -38,7 +38,6 @@ TAG_TO_BASKET = {
     'skip_dim_test': 'skip_dim_test',
     'split_by_existing_shares': 'split_by_existing_shares',
     'split_evenly_to_cats': 'split_evenly_to_cats',
-    'threshold': 'apply_threshold',
     'use_as_shares': 'use_as_shares',
     'use_as_totals': 'use_as_totals',
 }
@@ -53,7 +52,6 @@ BASKET_DISPLAY_NAMES = {
     'skip_dim_test': _('skip dimension test'),
     'split_by_existing_shares': _('split by existing shares'),
     'split_evenly_to_cats': _('split evenly to categories'),
-    'apply_threshold': _('apply threshold'),
     'use_as_shares': _('use as shares'),
     'use_as_totals': _('use as totals'),
     'unknown': _('unknown operation'),
@@ -376,13 +374,6 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         """)),
     'SectorEmissions': NodeInfo(_("")),
     'ShiftAction': NodeInfo(_("ShiftAction moves activity from one category to others.")),
-    'ThresholdNode': NodeInfo(_(
-        """
-        ThresholdNode computes a preliminary result using standard GenericNode operations.
-
-        After computation, it returns True (1) if the result is greater than or equal to
-        the threshold parameter, otherwise False (0).
-        """), deprecated=True),
     'TrajectoryAction': NodeInfo(_(
         """
         TrajectoryAction uses select_category() to select a category from a dimension

@@ -811,13 +811,15 @@ nodes:
   description: Law requires municipalities to build necessary infrastructure. 
     There must be at least a certain amount of charging stations. The graph 
     shows the year when the goal is reached.
-  type: values.ThresholdNode
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
   params:
-  - id: threshold
+  - id: constant
     value: 430
     unit: pcs
-  - id: use_input_node_unit_when_adding
-    value: true
+  - id: formula
+    value: charging_stations >= constant
   input_nodes:
   - id: charging_stations
 

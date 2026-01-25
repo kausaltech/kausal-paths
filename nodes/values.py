@@ -34,7 +34,8 @@ class UtilityNode(AdditiveNode): # FIXME Use generic.WeightedSumNode instead
     Therefore, in this case, the threshold parameter should get value 0.
     """
 
-    allowed_parameters = AdditiveNode.allowed_parameters + [
+    allowed_parameters = [
+        *AdditiveNode.allowed_parameters,
         NumberParameter(
             local_id='impact_threshold',
             is_customizable=True,
@@ -253,39 +254,5 @@ class LogicalNode(SimpleNode): # TODO Make a generic node operation instead
         df = self._process_nodes(df, nodes=and_nodes, boolean_and=True)
         df = self._process_nodes(df, nodes=or_nodes, boolean_and=False)
         assert df is not None
-
-        return df
-
-
-class ThresholdNode(AdditiveNode): # TODO Create a generic node operation instead.
-    explanation = _(
-        """
-        ThresholdNode computes the preliminary result like a regular AdditiveNode.
-        Then it gives True (1) if the result if the preliminary result is grater
-        than or equal to the threshold, otherwise False (0).
-        """
-    )
-    allowed_parameters = [
-        *AdditiveNode.allowed_parameters,
-        NumberParameter(
-            local_id='threshold',
-            label='Gives 1 (True) if the preliminary output is >= threshold',
-            is_customizable=True
-        ),
-    ]
-    quantity = 'fraction'
-    unit = Unit('dimensionless')
-
-    def compute(self) -> ppl.PathsDataFrame:
-        df = AdditiveNode.compute(self)
-        threshold = self.get_parameter_value('threshold', units=True, required=True)
-        u = str(threshold.units)
-        df = df.ensure_unit(VALUE_COLUMN, u)
-        df = df.with_columns([
-            pl.when(pl.col(VALUE_COLUMN) >= pl.lit(threshold.m))
-            .then(1.0)
-            .otherwise(0.0).alias(VALUE_COLUMN)
-        ])
-        df = df.clear_unit(VALUE_COLUMN).set_unit(VALUE_COLUMN, 'dimensionless')
 
         return df
