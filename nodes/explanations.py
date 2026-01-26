@@ -6,8 +6,10 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 from common.i18n import gettext as _
 
+from .constants import TIME_INTERVAL
 from .formula import (
     FormulaSpec,
+    UnitOverride,
     analyze_formula_dimensions,
     analyze_formula_units,
     build_name_dimension_map,
@@ -101,6 +103,44 @@ TAG_DESCRIPTIONS = {
     'secondary': _('Use data only if a primary value does not exist.'),
     'truncate_before_start': _('Truncate values before the reference year. There may be some from data'),
     'truncate_beyond_end': _('Truncate values beyond the model end year. There may be some from data'),
+}
+
+def _unit_dimensionless(_unit: Unit | None) -> Unit:
+    return unit_registry.parse_units('dimensionless')
+
+
+def _unit_mul_time(unit: Unit | None) -> Unit | None:
+    if unit is None:
+        return None
+    return cast("Unit", unit * unit_registry(TIME_INTERVAL))
+
+
+def _unit_div_time(unit: Unit | None) -> Unit | None:
+    if unit is None:
+        return None
+    return cast("Unit", unit / unit_registry(TIME_INTERVAL))
+
+
+def _unit_geometric_inverse(unit: Unit | None) -> Unit | None:
+    if unit is None:
+        return None
+    return cast("Unit", unit_registry.parse_units('dimensionless') / unit)
+
+
+def _unit_passthrough(unit: Unit | None) -> Unit | None:
+    return unit
+
+
+FORMULA_FUNCTION_UNIT_OVERRIDES = {
+    # Produces a unitless ratio even when input has units.
+    'ratio_to_last_historical_value': _unit_dimensionless,
+    # Cumulative sum/diff adjust by timestep.
+    'cumulative': _unit_mul_time,
+    'difference': _unit_div_time,
+    # Invert unit (1 / unit).
+    'geometric_inverse': _unit_geometric_inverse,
+    # Keep unit unchanged.
+    'ignore_content': _unit_passthrough,
 }
 
 
@@ -1884,6 +1924,7 @@ class FormulaUnitRule(FormulaValidationMixin):
             spec.expression,
             name_units,
             passthrough_functions=set(TAG_DESCRIPTIONS.keys()),
+            unit_overrides=cast("dict[str, UnitOverride]", FORMULA_FUNCTION_UNIT_OVERRIDES),
         )
         results.extend([
             ValidationResult(

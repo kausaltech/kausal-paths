@@ -499,10 +499,14 @@ def build_name_unit_map(
     return name_units
 
 
+UnitOverride = Unit | str | Callable[[Unit | None], Unit | None]
+
+
 def analyze_formula_units(  # noqa: C901, PLR0915
     formula: str,
     name_units: dict[str, Unit | None],
     passthrough_functions: set[str] | None = None,
+    unit_overrides: dict[str, UnitOverride] | None = None,
 ) -> UnitAnalysis:
     try:
         tree = ast.parse(formula, "<string>", mode="eval")
@@ -514,6 +518,7 @@ def analyze_formula_units(  # noqa: C901, PLR0915
 
     analysis = UnitAnalysis(unit=None)
     passthrough = passthrough_functions or set()
+    overrides = unit_overrides or {}
     dimensionless = unit_registry.parse_units('dimensionless')
 
     def _merge_compatible(op: str, left: Unit | None, right: Unit | None) -> Unit | None:
@@ -589,6 +594,13 @@ def analyze_formula_units(  # noqa: C901, PLR0915
                 analysis.warnings.append(f"Function '{func_name}' has no arguments.")
                 return None
             first = _eval(node.args[0])
+            if func_name in overrides:
+                override_unit = overrides[func_name]
+                if callable(override_unit):
+                    return override_unit(first)
+                if isinstance(override_unit, str):
+                    return unit_registry.parse_units(override_unit)
+                return override_unit
             if func_name == 'sum_dim':
                 return first
             if func_name == 'coalesce':
