@@ -27,7 +27,6 @@ actions:
   output_dimensions: [time_of_day]
   input_datasets:
   - id: transportation/congestion_charge_scenarios
-    output_dimensions: [time_of_day]
   params:
   - id: multiplier # FIXME
     value: 1
@@ -58,7 +57,6 @@ nodes:
   output_dimensions: [time_of_day, vehicle_type]
   input_datasets:
   - id: transportation/baseline_zone_traffic_counts
-    output_dimensions: [time_of_day, vehicle_type]
 
 - id: baseline_peripheral_traffic
   name: "Baseline Peripheral Traffic"
@@ -70,7 +68,6 @@ nodes:
   output_dimensions: [time_of_day, vehicle_type]
   input_datasets:
   - id: transportation/baseline_peripheral_traffic_counts
-    output_dimensions: [time_of_day, vehicle_type]
 
 - id: vehicle_fleet_share
   name: "Vehicle Fleet Energy Carrier Share"
@@ -82,7 +79,6 @@ nodes:
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
   - id: transportation/fleet_composition
-    output_dimensions: [vehicle_type, energy_carrier]
 
 - id: emission_factor
   name: "Vehicle Emission Factor"
@@ -94,7 +90,6 @@ nodes:
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
   - id: transportation/emission_factors
-    output_dimensions: [vehicle_type, energy_carrier]
   params:
   - id: multiplier # FIXME
     value: 1
@@ -108,7 +103,6 @@ nodes:
   unit: km
   input_datasets:
   - id: transportation/avg_trip_distance_zone
-    output_dimensions: []
   params:
   - id: operations
     value: get_single_dataset,apply_multiplier
@@ -124,7 +118,6 @@ nodes:
   unit: km
   input_datasets:
   - id: transportation/avg_trip_distance_periphery
-    output_dimensions: []
   params:
   - id: operations
     value: get_single_dataset,apply_multiplier
@@ -144,7 +137,6 @@ nodes:
   output_dimensions: [hypotheses]
   input_datasets:
   - id: transportation/price_elasticity_estimates
-    output_dimensions: [hypotheses]
   params:
   - id: operations
     value: get_single_dataset,apply_multiplier
@@ -168,7 +160,6 @@ nodes:
   output_dimensions: [hypotheses]
   input_datasets:
   - id: transportation/spillover_estimates
-    output_dimensions: [hypotheses]
 
 # ===== BEHAVIORAL CALCULATIONS =====
 
@@ -454,7 +445,6 @@ nodes:
   output_dimensions: [stakeholder, time_of_day]
   input_datasets:
   - id: transportation/income_trip_distribution
-    output_dimensions: [stakeholder, time_of_day]
 
 - id: driver_costs_by_income
   name: Driver costs by income group
@@ -508,7 +498,6 @@ nodes:
   output_dimensions: [stakeholder]
   input_datasets:
   - id: transportation/income_group_population
-    output_dimensions: [stakeholder]
 
 - id: per_capita_cost_by_income
   name: Per capita cost by income group
@@ -541,7 +530,6 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: transportation/revenue_allocation_policy
-    output_dimensions: []
 
 - id: revenue_to_transit
   name: Revenue allocated to transit
@@ -606,7 +594,6 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: transportation/zeros
-    output_dimensions: []
   output_nodes:
   - id: spillover_factor
     tags: [ignore_content]
@@ -636,7 +623,6 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: transportation/zeros
-    output_dimensions: []
   output_nodes:
   - id: co2_emissions
     tags: [ignore_content]
@@ -663,7 +649,6 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: transportation/zeros
-    output_dimensions: []
   output_nodes:
   - id: co2_emissions
     tags: [ignore_content]
@@ -698,7 +683,6 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: transportation/zeros
-    output_dimensions: []
   output_nodes:
   - id: total_vehicle_km
     tags: [ignore_content]
@@ -736,7 +720,6 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: transportation/zeros
-    output_dimensions: []
   output_nodes:
   - id: total_vehicle_km
     tags: [ignore_content]
@@ -767,7 +750,6 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: transportation/zeros
-    output_dimensions: []
   output_nodes:
   - id: total_charge_revenue
     tags: [ignore_content]
@@ -799,7 +781,6 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: transportation/zeros
-    output_dimensions: []
   output_nodes:
   - id: total_charge_revenue
     tags: [ignore_content]
@@ -837,7 +818,6 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: transportation/zeros
-    output_dimensions: []
   output_nodes:
   - id: total_charge_revenue
     tags: [ignore_content]
@@ -878,7 +858,6 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: transportation/zeros
-    output_dimensions: []
   output_nodes:
   - id: driver_costs_by_income
     tags: [ignore_content]
@@ -923,7 +902,6 @@ nodes:
   unit: dimensionless
   input_datasets:
   - id: transportation/zeros
-    output_dimensions: []
   output_nodes:
   - id: revenue_to_transit
     tags: [ignore_content]
