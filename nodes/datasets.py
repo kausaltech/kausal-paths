@@ -37,6 +37,7 @@ if TYPE_CHECKING:
 class Dataset(ABC):
     id: str
     tags: list[str]
+    output_dimensions: list[dict[str, Any] | str] | None = field(default=None, kw_only=True)
     interpolate: bool = field(init=False)
     df: ppl.PathsDataFrame | None = field(init=False)
     hash: bytes | None = field(init=False)

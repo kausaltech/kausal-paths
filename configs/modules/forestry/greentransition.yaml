@@ -31,29 +31,31 @@ nodes:
 
 - id: protected_forest_area
   name: Suojellun metsäluonnon pinta-ala Etelä-Suomessa
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   quantity: area
   unit: ha
   historical_values: [[2010, 200], [2023, 100]]
 
 - id: rich_forest_biodiversity_area
   name: Rikkaan metsäluonnon pinta-ala Etelä-Suomessa
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   quantity: area
   unit: ha
   historical_values: [[2010, 200], [2023, 100]]
-  input_nodes: [protected_forest_area]
+  input_nodes:
+  - id: protected_forest_area
+    tags: [ignore_content]
 
 - id: forest_biodiversity_channels
   name: Rikkaan metsäluonnon yhdyskäytävät Etelä-Suomessa
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   quantity: area
   unit: ha
   historical_values: [[2010, 200], [2023, 100]]
 
 - id: forest_grazing
   name: Metsälaidunnus
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   quantity: area
   unit: ha
   historical_values: [[2010, 0.20], [2023, 0.50]]
@@ -69,14 +71,17 @@ nodes:
     & Suomen ympäristökeskus (2019). Suomen lajien uhanalaisuus – Punainen kirja 2019:
     tiedostolataus (versio 2). Ladattu osoitteesta https://punainenkirja.laji.fi/publications
     2024-06-16.'
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   quantity: number
   unit: pcs
   historical_values: [[2010, 50], [2023, 150]]
   input_nodes:
   - id: rich_forest_biodiversity_area
+    tags: [ignore_content]
   - id: forest_biodiversity_channels
+    tags: [ignore_content]
   - id: forest_grazing
+    tags: [ignore_content]
   output_nodes:
   - id: diversity_of_habitat
     tags: [ignore_content]

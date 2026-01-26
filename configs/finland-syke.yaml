@@ -856,14 +856,17 @@ nodes:
 - id: forest_emission_targets_reached
   name: Saavutetaanko metsien päästötavoitteet?
   name_en: Are forest emission goals reached?
-  type: generic.ThresholdNode
+  type: formula.FormulaNode
   quantity: utility
   unit: dimensionless
   input_nodes:
   - id: forests_and_wood_products
     tags: [forecast_only, arithmetic_inverse, additive]
   - id: set_forest_emission_goal
-    tags: [arithmetic_inverse, threshold]
+    tags: [arithmetic_inverse]
+  params:
+  - id: formula
+    value: forests_and_wood_products >= set_forest_emission_goal
 
 - id: forest_growth
   name: Metsien kasvu
@@ -1176,17 +1179,18 @@ nodes:
 - id: climate_law_goal_reached
   name: Viimeinenkin, vuoden 2050, tavoite ylitetty
   name_en: The final goal 2050 overshoot
-  type: generic.ThresholdNode
+  type: formula.FormulaNode
   quantity: fraction
   unit: dimensionless
   is_outcome: true
   input_nodes:
   - id: net_emissions
-    tags: [additive]
   params:
-  - id: threshold
+  - id: constant
     value: 0
     unit: Mt/a
+  - id: formula
+    value: net_emissions >= constant
   goals:
   - label: Viimeinenkin, vuoden 2050 tavoite ylitetty
     label_en: The final goal 2050 overshoot

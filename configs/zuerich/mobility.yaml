@@ -294,9 +294,9 @@ nodes:
   name_en: Mobility demand per inhabitant
   quantity: per_capita
   unit: pkm/cap/a
-  type: simple.DivisiveNode
+  type: formula.FormulaNode
   params:
-    extend_rows: true
+    formula: extend_values(passenger_kilometers_historical / population)
   input_nodes:
   - id: passenger_kilometers_historical
     from_dimensions:

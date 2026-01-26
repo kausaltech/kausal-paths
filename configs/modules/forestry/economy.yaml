@@ -356,7 +356,9 @@ nodes:
 
 - id: keep_forest_industry_alive
   name: Forest industry must be kept alive
-  type: values.ThresholdNode
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
   input_nodes:
   - id: total_forest_sales
     # from_dimensions:
@@ -367,11 +369,11 @@ nodes:
     # - id: case
     #   flatten: true
   params:
-  - id: threshold
+  - id: constant
     value: 900
     unit: MEUR/a
-  - id: use_input_node_unit_when_adding
-    value: true
+  - id: formula
+    value: total_forest_sales >= constant
 
 - id: success_by_climate_aware_industrialist
   name: Success as defined by climate-aware industrialist

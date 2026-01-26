@@ -69,6 +69,11 @@ parser.add_argument('--update-nodes', action='store_true', help='update existing
 parser.add_argument('--overwrite', action='store_true', help='Overwrite contents in the database')
 parser.add_argument('--skip-descriptions', action='store_true', help='skip description updates in the database')
 parser.add_argument('--delete-stale-nodes', action='store_true', help='delete NodeConfig instances that no longer exist')
+parser.add_argument('--validate', action='store_true', help='print validation results and exit')
+parser.add_argument('--validation-level', choices=['error', 'warning', 'info'], default='warning',
+                    help='minimum severity to show in validation output')
+parser.add_argument('--validation-valid-also', action='store_true',
+                    help='include validations that pass without errors')
 parser.add_argument('--print-impact-overviews', action='store_true',
                     help='calculate and print impact overviews (previously action efficiencies)')
 parser.add_argument('--show-perf', action='store_true', help='show performance info')
@@ -184,6 +189,25 @@ print_db_datasets()
 if args.pull_datasets:
     with start_span(name='pull-datasets', op='init') as span:
         context.pull_datasets()
+
+if args.validate:
+    nes = context.node_explanation_system
+    if nes is None:
+        print('No validation system available.')
+        exit(1)
+    messages = nes.show_messages(level=args.validation_level, valid_also=args.validation_valid_also)
+    if not messages:
+        print(f"No validation messages at level '{args.validation_level}' or worse.")
+    else:
+        table = Table(title='Validation results')
+        table.add_column('Node')
+        table.add_column('Level')
+        table.add_column('Message')
+        for node_id, node_messages in messages.items():
+            for msg in node_messages:
+                table.add_row(node_id, msg.level, msg.message)
+        console.print(table)
+    exit(1 if nes.has_errors() else 0)
 
 if args.check:
     context.check_mode = True

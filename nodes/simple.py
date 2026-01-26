@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import functools
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from django.utils.translation import gettext_lazy as _
 
@@ -455,19 +454,6 @@ class MultiplicativeNode(SimpleNode):
     def compute(self) -> ppl.PathsDataFrame:
         return self._compute()
 
-
-
-class DivisiveNode(MultiplicativeNode):
-    explanation = _("""This is a Divisive Node. It divides two nodes together with potentially adding other input nodes.
-
-    Division and addition is determined based on the input node units.
-    """)  # FIXME Is this needed as we have edge process geometric_inverse
-
-    operation_label = 'division'
-
-    def operate_pairwise(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        df = df.divide_cols(['_Left', '_Right'], '_Left').drop('_Right')
-        return df
 
 
 class EmissionFactorActivity(MultiplicativeNode):  # FIXME Does not work with Tampere/other_electricity_consumption_emisisons

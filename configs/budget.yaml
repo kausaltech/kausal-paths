@@ -916,7 +916,7 @@ nodes:
 - id: collect_building
   name: Collect building nodes
   description: This node does not contain meaningful content, but it can be used to filter nodes from the full graph.
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   quantity: number
   unit: pcs
   historical_values: [[2010, 0]]
@@ -929,39 +929,45 @@ nodes:
 - id: collect_other_stationary
   name: Collect other_stationary nodes
   description: This node does not contain meaningful content, but it can be used to filter nodes from the full graph.
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   quantity: number
   unit: pcs
   historical_values: [[2010, 0]]
   input_nodes:
   - id: other_stationary_emissions
+    tags: [ignore_content]
   - id: other_stationary_costs
+    tags: [ignore_content]
     from_dimensions:
     - id: account
       flatten: true
 - id: collect_transport
   name: Collect transport nodes
   description: This node does not contain meaningful content, but it can be used to filter nodes from the full graph.
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   quantity: number
   unit: pcs
   historical_values: [[2010, 0]]
   input_nodes:
   - id: transport_emissions
+    tags: [ignore_content]
   - id: transport_costs
+    tags: [ignore_content]
     from_dimensions:
     - id: account
       flatten: true
 - id: collect_waste
   name: Collect waste nodes
   description: This node does not contain meaningful content, but it can be used to filter nodes from the full graph.
-  type: values.AssociationNode
+  type: simple.AdditiveNode
   quantity: number
   unit: pcs
   historical_values: [[2010, 0]]
   input_nodes:
   - id: waste_emissions
+    tags: [ignore_content]
   - id: waste_costs
+    tags: [ignore_content]
     from_dimensions:
     - id: account
       flatten: true
